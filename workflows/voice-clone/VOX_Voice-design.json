@@ -1,0 +1,109 @@
+{
+  "2": {
+    "inputs": {
+      "model_variant": "Voice Design - 1.7B VoiceDesign",
+      "device": "auto",
+      "voice_preset": "Vivian",
+      "language": "Auto",
+      "instruct": "A mature British female voice with a sharp, posh Received Pronunciation accent. The tone is sophisticated, commanding, and slightly husky with a teasing, playful undertone. She speaks with deliberate, calm confidence and crisp articulation. The voice should sound elegant yet dangerous, like a theatrical high-society witch.",
+      "top_k": 50,
+      "top_p": 1,
+      "temperature": 0.9,
+      "repetition_penalty": 1.05,
+      "max_new_tokens": 2048,
+      "dtype": "auto",
+      "attn_implementation": "auto",
+      "x_vector_only_mode": false,
+      "use_torch_compile": false,
+      "use_cuda_graphs": false,
+      "compile_mode": "default",
+      "asr_use_forced_aligner": false,
+      "asr_translate_target_language": "French",
+      "asr_translate_instruction_override": "Translate the speech from {source_language} into {target_language} text. Return only the translated text.",
+      "runtime_mode": "⚠️ Shared Runtime"
+    },
+    "class_type": "Qwen3TTSEngineNode",
+    "_meta": {
+      "title": "⚙️ Qwen3-TTS Engine"
+    }
+  },
+  "4": {
+    "inputs": {
+      "audio": [
+        "6",
+        1
+      ]
+    },
+    "class_type": "PreviewAudio",
+    "_meta": {
+      "title": "AperçuAudio"
+    }
+  },
+  "6": {
+    "inputs": {
+      "reference_text": "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !",
+      "seed": 103014963327431,
+      "voice_instruction": "Male voice, mid-50s, deep bass-baritone register with a gravelly, weathered texture, native French speaker. Extremely slow and deliberate pace, heavy deliberate pauses between phrases, each sentence ending on a falling, resonant note that lingers before cutting off. Absolute grave authority and total sincerity, entirely without warmth, entirely without amusement — the voice of someone who has never once smiled while speaking.",
+      "TTS_engine": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "UnifiedVoiceDesignerNode",
+    "_meta": {
+      "title": "🎨 Voice Designer"
+    }
+  },
+  "17": {
+    "inputs": {
+      "text": "Sur cette crête, le vent ne s'arrête jamais. Les bannières y pourrissent avant qu'aucun héros ne les rejoigne. On raconte que même les golems y dorment mal, la nuit, quand la brume descend sur la pierre.",
+      "narrator_voice": "none",
+      "seed": 4063644438,
+      "enable_chunking": false,
+      "max_chars_per_chunk": 400,
+      "chunk_combination_method": "auto",
+      "silence_between_chunks_ms": 100,
+      "enable_audio_cache": true,
+      "batch_size": 0,
+      "TTS_engine": [
+        "22",
+        0
+      ],
+      "opt_narrator": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "UnifiedTTSTextNode",
+    "_meta": {
+      "title": "🎤 TTS Text"
+    }
+  },
+  "19": {
+    "inputs": {
+      "audio": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "PreviewAudio",
+    "_meta": {
+      "title": "AperçuAudio"
+    }
+  },
+  "22": {
+    "inputs": {
+      "model_path": "local:Fun-CosyVoice3-0.5B-RL",
+      "device": "auto",
+      "speed": 1,
+      "use_fp16": true,
+      "instruct_text": "",
+      "load_trt": false,
+      "load_vllm": false
+    },
+    "class_type": "CosyVoiceEngineNode",
+    "_meta": {
+      "title": "⚙️ CosyVoice3 Engine"
+    }
+  }
+}

@@ -1,0 +1,273 @@
+{
+  "29": {
+    "inputs": {
+      "filename_prefix": "Krea2_turbo",
+      "images": [
+        "30:53",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Enregistrer Image"
+    }
+  },
+  "49": {
+    "inputs": {
+      "aspect_ratio": "16:9 (Widescreen)",
+      "megapixels": 1,
+      "multiple": 8
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "Sélecteur de résolution"
+    }
+  },
+  "59": {
+    "inputs": {
+      "value": "  A single large firework burst exploding outward from one central point, long arcing spark trails radiating in every direction, the sparks covering a full rainbow spectrum simultaneously — emerald green, sapphire blue, violet, bright gold, scarlet and rose all present at once — each trail fading and burning out in mid-air rather than falling to the ground."
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Sujet"
+    }
+  },
+  "60": {
+    "inputs": {
+      "value": "Cinematic Anime. premium animation aesthetics characterized by refined linework, sophisticated lighting design, cinematic composition, nuanced atmospheric depth, polished rendering, and emotionally driven visual storytelling, blending the clarity of high-end anime production with filmic realism through controlled detail, expressive staging, and exceptional artistic cohesion, reminiscent of Makoto Shinkai and Yoshiyuki Sadamoto, inspired by Your Name and Evangelion: 3.0+1.0 Thrice Upon a Time."
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Style Krea 2"
+    }
+  },
+  "30:6": {
+    "inputs": {
+      "text": [
+        "30:19",
+        0
+      ],
+      "clip": [
+        "30:11",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "30:5": {
+    "inputs": {
+      "width": [
+        "49",
+        0
+      ],
+      "height": [
+        "49",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Image Latente Vide"
+    }
+  },
+  "30:3": {
+    "inputs": {
+      "seed": 955573876128110,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "30:22",
+        0
+      ],
+      "positive": [
+        "30:6",
+        0
+      ],
+      "negative": [
+        "30:13",
+        0
+      ],
+      "latent_image": [
+        "30:5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "30:8": {
+    "inputs": {
+      "samples": [
+        "30:3",
+        0
+      ],
+      "vae": [
+        "30:12",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "30:10": {
+    "inputs": {
+      "unet_name": "krea2_turbo_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Charger Modèle Diffusion"
+    }
+  },
+  "30:11": {
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Charger CLIP"
+    }
+  },
+  "30:12": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Charger VAE"
+    }
+  },
+  "30:13": {
+    "inputs": {
+      "conditioning": [
+        "30:6",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "30:22": {
+    "inputs": {
+      "switch": [
+        "30:23",
+        0
+      ],
+      "on_false": [
+        "30:10",
+        0
+      ],
+      "on_true": [
+        "30:15",
+        0
+      ]
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": {
+      "title": "Switch (Model)"
+    }
+  },
+  "30:23": {
+    "inputs": {
+      "value": false
+    },
+    "class_type": "PrimitiveBoolean",
+    "_meta": {
+      "title": "Boolean (Enable LoRA?)"
+    }
+  },
+  "30:53": {
+    "inputs": {
+      "anything": [
+        "30:8",
+        0
+      ]
+    },
+    "class_type": "easy cleanGpuUsed",
+    "_meta": {
+      "title": "Clean VRAM Used"
+    }
+  },
+  "30:15": {
+    "inputs": {
+      "lora_name": "CharacterDesign-KREA2_v1.safetensors",
+      "strength_model": 1,
+      "model": [
+        "30:10",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
+  "30:19": {
+    "inputs": {
+      "value": [
+        "30:58",
+        0
+      ]
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Text String (User Prompt)"
+    }
+  },
+  "30:58": {
+    "inputs": {
+      "string_a": [
+        "30:57",
+        0
+      ],
+      "string_b": [
+        "30:56",
+        0
+      ],
+      "delimiter": ""
+    },
+    "class_type": "StringConcatenate",
+    "_meta": {
+      "title": "Concaténer"
+    }
+  },
+  "30:57": {
+    "inputs": {
+      "value": [
+        "59",
+        0
+      ]
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Subject"
+    }
+  },
+  "30:56": {
+    "inputs": {
+      "value": [
+        "60",
+        0
+      ]
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Style"
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "1": {
+    "inputs": {
+      "model_path": "local:Fun-CosyVoice3-0.5B-RL",
+      "device": "auto",
+      "speed": 1,
+      "use_fp16": true,
+      "instruct_text": "",
+      "load_trt": false,
+      "load_vllm": false
+    },
+    "class_type": "CosyVoiceEngineNode",
+    "_meta": {
+      "title": "⚙️ CosyVoice3 Engine"
+    }
+  },
+  "2": {
+    "inputs": {
+      "text": "L'éveil du sommeil... Avec Alexandre Nicolas Jean Makhoul. Bientôt sur vos écrans !",
+      "narrator_voice": "none",
+      "seed": 984929324,
+      "enable_chunking": false,
+      "max_chars_per_chunk": 400,
+      "chunk_combination_method": "auto",
+      "silence_between_chunks_ms": 100,
+      "enable_audio_cache": true,
+      "batch_size": 0,
+      "TTS_engine": [
+        "1",
+        0
+      ],
+      "opt_narrator": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "UnifiedTTSTextNode",
+    "_meta": {
+      "title": "🎤 TTS Text"
+    }
+  },
+  "3": {
+    "inputs": {
+      "audio": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "PreviewAudio",
+    "_meta": {
+      "title": "AperçuAudio"
+    }
+  },
+  "4": {
+    "inputs": {
+      "voice_name": "Voix_Off.wav",
+      "reference_text": "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !",
+      "trim_start": 0,
+      "trim_end": 8.25,
+      "customized": false
+    },
+    "class_type": "CharacterVoicesNode",
+    "_meta": {
+      "title": "🎭 Character Voices"
+    }
+  }
+}

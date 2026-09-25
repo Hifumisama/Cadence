@@ -1,0 +1,58 @@
+{
+  "1": {
+    "inputs": {
+      "model": "MELBAND/MelBandRoformer_fp16.safetensors",
+      "use_cache": true,
+      "aggressiveness": 10,
+      "format": "flac",
+      "audio": [
+        "2",
+        1
+      ]
+    },
+    "class_type": "VocalRemovalNode",
+    "_meta": {
+      "title": "🤐 Noise or Vocal Removal"
+    }
+  },
+  "2": {
+    "inputs": {
+      "video": "shot026.mp4",
+      "start_time": 0,
+      "end_time": 7.291667,
+      "duration": 7.29,
+      "start_frame": 0,
+      "end_frame": 175,
+      "duration_frames": 175,
+      "resize_method": "maintain aspect ratio",
+      "custom_width": 0,
+      "custom_height": 0,
+      "frame_rate": 24,
+      "display_mode": "seconds",
+      "crop_x": 0,
+      "crop_y": 0,
+      "crop_w": 1,
+      "crop_h": 1,
+      "choose file to upload": null,
+      "VideoUI": ""
+    },
+    "class_type": "LoadVideoUI",
+    "_meta": {
+      "title": "Load Video UI"
+    }
+  },
+  "3": {
+    "inputs": {
+      "filename_prefix": "audio/ExtractedFromShot",
+      "format": "flac",
+      "audio": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "SaveAudioAdvanced",
+    "_meta": {
+      "title": "Enregistrer l’Audio (Avancé)"
+    }
+  }
+}

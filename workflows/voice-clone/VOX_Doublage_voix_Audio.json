@@ -1,0 +1,74 @@
+{
+  "1": {
+    "inputs": {
+      "refinement_passes": 1,
+      "max_chunk_duration": 15,
+      "chunk_method": "smart",
+      "TTS_engine": [
+        "2",
+        0
+      ],
+      "source_audio": [
+        "12",
+        0
+      ],
+      "narrator_target": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "UnifiedVoiceChangerNode",
+    "_meta": {
+      "title": "🔄 Voice Changer"
+    }
+  },
+  "2": {
+    "inputs": {
+      "model_path": "local:Fun-CosyVoice3-0.5B-RL",
+      "device": "auto",
+      "speed": 1,
+      "use_fp16": true,
+      "instruct_text": "",
+      "load_trt": false,
+      "load_vllm": false
+    },
+    "class_type": "CosyVoiceEngineNode",
+    "_meta": {
+      "title": "⚙️ CosyVoice3 Engine"
+    }
+  },
+  "4": {
+    "inputs": {
+      "voice_name": "Voix_Off.wav",
+      "reference_text": "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !",
+      "trim_start": 0,
+      "trim_end": 8.25,
+      "customized": false
+    },
+    "class_type": "CharacterVoicesNode",
+    "_meta": {
+      "title": "🎭 Character Voices"
+    }
+  },
+  "5": {
+    "inputs": {
+      "audio": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "PreviewAudio",
+    "_meta": {
+      "title": "AperçuAudio"
+    }
+  },
+  "12": {
+    "inputs": {
+      "audio": "AUD_Shot01.flac"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "ChargerAudio"
+    }
+  }
+}
