@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cadence}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cadence}
+      POSTGRES_DB: ${POSTGRES_DB:-cadence}
+    volumes:
+      - cadence_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cadence}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MEDIA_ROOT: /data
+    volumes:
+      - ${NFS_MEDIA_PATH}:/data
+    ports:
+      - "3000:3000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MEDIA_ROOT: /data
+      COMFYUI_MODE: ${COMFYUI_MODE:-stub}
+      COMFYUI_URL: ${COMFYUI_URL}
+      COMFYUI_WORKFLOW_PATH: /app/workflows/video-generation/VID_REF2VA.json
+      WORKER_INTERVAL_MS: ${WORKER_INTERVAL_MS:-10000}
+    volumes:
+      - ${NFS_MEDIA_PATH}:/data
+
+volumes:
+  # Volume Docker dédié à Cadence, isolé des autres stacks du homelab —
+  # portabilité du projet (décidée avec l'utilisateur le 2026-09-25).
+  cadence_postgres_data:

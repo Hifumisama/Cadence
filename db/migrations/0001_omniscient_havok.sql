@@ -1,0 +1,1 @@
+ALTER TABLE "jobs" ADD COLUMN "activer_upscale" boolean DEFAULT true NOT NULL;

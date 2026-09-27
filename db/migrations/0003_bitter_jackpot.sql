@@ -1,0 +1,1 @@
+ALTER TYPE "public"."plan_statut" ADD VALUE 'previsualise' BEFORE 'termine';

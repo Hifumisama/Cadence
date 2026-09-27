@@ -1,0 +1,1 @@
+DROP TABLE "mots_a_risque" CASCADE;
