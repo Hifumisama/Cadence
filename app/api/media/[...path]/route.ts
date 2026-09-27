@@ -9,6 +9,8 @@ import { MEDIA_ROOT } from "@/lib/media";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",

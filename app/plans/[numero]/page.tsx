@@ -14,6 +14,7 @@ import { DialogueTable } from "@/components/plan/DialogueTable";
 import { ChecksPanel } from "@/components/plan/ChecksPanel";
 import { RelaunchButton } from "@/components/plan/RelaunchButton";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
+import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,7 @@ export default async function PlanPage({
         <div className="fiche-actions">
           <StatusBadge statut={plan.statut} />
           {!estBrouillon ? <RelaunchButton planNumero={plan.numero} /> : null}
+          <SupprimerPlanButton planId={plan.id} planNumero={plan.numero} />
         </div>
       </div>
 

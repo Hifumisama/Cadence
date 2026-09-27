@@ -1,29 +1,59 @@
 "use server";
 
 import { db } from "@/db";
-import { assets } from "@/db/schema";
+import { assets, planDialogues, planRefs } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, extname, join } from "node:path";
+import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
 
-/** Suivi de statut seulement (retour utilisateur 2026-09-27) : pas d'aide à
- * la génération de prompt d'image dans l'app pour l'instant — juste la
- * création d'une ligne, l'édition de son statut/critique/description. */
-export async function creerAsset(valeurs: {
-  code: string;
-  type: string;
-  description: string;
-  critique: boolean;
-  deriveDeId: number | null;
-}) {
-  await db.insert(assets).values({
-    code: valeurs.code,
-    type: valeurs.type,
-    description: valeurs.description || null,
-    critique: valeurs.critique,
-    deriveDeId: valeurs.deriveDeId,
-  });
+async function enregistrerFichierAsset(code: string, fichier: File): Promise<string> {
+  if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
+    throw new Error(
+      `Fichier trop volumineux (${(fichier.size / 1024 / 1024).toFixed(1)} Mo, max ${TAILLE_MAX_UPLOAD_ASSET / 1024 / 1024} Mo).`,
+    );
+  }
+  const ext = extname(fichier.name) || "";
+  const nomFichier = `${code}${ext}`;
+  const cheminComplet = join(MEDIA_ROOT, cheminAssetMedia(nomFichier));
+  await mkdir(dirname(cheminComplet), { recursive: true });
+  const octets = Buffer.from(await fichier.arrayBuffer());
+  await writeFile(cheminComplet, octets);
+  return nomFichier;
+}
+
+/** Création d'un sujet (master) ou d'un dérivé, fichier média optionnel dès
+ * la création (retour utilisateur 2026-09-28 : "évidemment on peut fournir
+ * un fichier, c'est logique"). */
+export async function creerAsset(formData: FormData) {
+  const code = String(formData.get("code") ?? "").trim();
+  if (!code) return;
+  const type = String(formData.get("type") ?? "autre");
+  const description = String(formData.get("description") ?? "");
+  const critique = formData.get("critique") === "on";
+  const deriveDeIdBrut = formData.get("deriveDeId");
+  const deriveDeId = deriveDeIdBrut ? Number(deriveDeIdBrut) : null;
+  const fichier = formData.get("fichier");
+
+  const [cree] = await db
+    .insert(assets)
+    .values({
+      code,
+      type,
+      description: description || null,
+      critique,
+      deriveDeId,
+    })
+    .returning();
+
+  if (cree && fichier instanceof File && fichier.size > 0) {
+    const nomFichier = await enregistrerFichierAsset(code, fichier);
+    await db.update(assets).set({ fichier: nomFichier }).where(eq(assets.id, cree.id));
+  }
+
   revalidatePath("/assets");
-  if (valeurs.deriveDeId) revalidatePath("/assets/[code]", "page");
+  if (deriveDeId) revalidatePath("/assets/[code]", "page");
 }
 
 export async function updateAssetStatut(
@@ -37,16 +67,80 @@ export async function updateAssetStatut(
 
 export async function updateAsset(
   assetId: number,
-  valeurs: { description: string; critique: boolean; fichier: string },
+  valeurs: { description: string; promptGeneration: string; critique: boolean },
 ) {
   await db
     .update(assets)
     .set({
       description: valeurs.description || null,
+      promptGeneration: valeurs.promptGeneration || null,
       critique: valeurs.critique,
-      fichier: valeurs.fichier || null,
     })
     .where(eq(assets.id, assetId));
+  revalidatePath("/assets");
+  revalidatePath("/assets/[code]", "page");
+}
+
+/** Upload direct du fichier média (image/audio/vidéo) d'un asset déjà créé.
+ * Le fichier est nommé d'après le code de l'asset (convention symétrique à
+ * plans/<numero>/... pour les vidéos de plan, voir lib/media.ts) : une
+ * nouvelle version écrase simplement l'ancienne, cohérent avec "pas de
+ * versionnage d'assets" (F01). */
+export async function uploaderFichierAsset(
+  assetId: number,
+  code: string,
+  formData: FormData,
+) {
+  const fichier = formData.get("fichier");
+  if (!(fichier instanceof File) || fichier.size === 0) return;
+
+  const nomFichier = await enregistrerFichierAsset(code, fichier);
+
+  await db.update(assets).set({ fichier: nomFichier }).where(eq(assets.id, assetId));
+  revalidatePath("/assets");
+  revalidatePath("/assets/[code]", "page");
+}
+
+/** Suppression protégée (retour utilisateur 2026-09-28) : un asset relié à
+ * quelque chose — des dérivés, une citation dans une fiche de plan (ref ou
+ * voix de dialogue) — ne se supprime pas tant que ces liens n'ont pas été
+ * explicitement défaits. Contrairement aux mouvements (qui se détachent
+ * silencieusement), ici le lien est trop significatif pour être cassé sans
+ * geste explicite. */
+export async function supprimerAsset(
+  assetId: number,
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const [enfant] = await db.select().from(assets).where(eq(assets.deriveDeId, assetId)).limit(1);
+  if (enfant) {
+    return { ok: false, erreur: `A encore des dérivés (dont ${enfant.code}) — supprime-les d'abord.` };
+  }
+  const [ref] = await db.select().from(planRefs).where(eq(planRefs.assetId, assetId)).limit(1);
+  if (ref) {
+    return { ok: false, erreur: "Encore cité comme référence dans une fiche de plan — délie-le d'abord." };
+  }
+  const [dial] = await db.select().from(planDialogues).where(eq(planDialogues.assetVoixId, assetId)).limit(1);
+  if (dial) {
+    return { ok: false, erreur: "Encore utilisé comme voix dans un dialogue — délie-le d'abord." };
+  }
+
+  await db.delete(assets).where(eq(assets.id, assetId));
+  revalidatePath("/assets");
+  return { ok: true };
+}
+
+/** Délie une référence (image/audio/vidéo) précise sans toucher au reste du
+ * plan — débloque la suppression de l'asset si c'était sa dernière citation. */
+export async function delierRef(refId: number) {
+  await db.delete(planRefs).where(eq(planRefs.id, refId));
+  revalidatePath("/assets");
+  revalidatePath("/assets/[code]", "page");
+}
+
+/** Délie une voix de dialogue : on efface le lien vers l'asset voix, jamais
+ * la réplique elle-même (le texte/la durée mesurée restent une donnée de la
+ * fiche de plan, indépendante du registre d'assets). */
+export async function delierVoixDialogue(dialogueId: number) {
+  await db.update(planDialogues).set({ assetVoixId: null }).where(eq(planDialogues.id, dialogueId));
   revalidatePath("/assets");
   revalidatePath("/assets/[code]", "page");
 }

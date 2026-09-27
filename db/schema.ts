@@ -137,14 +137,18 @@ export const planDialogues = pgTable("plan_dialogues", {
   dureeSecondes: integer("duree_secondes"),
 });
 
-// Reprise de docs/REGISTRE_ASSETS.md — lecture seule en V1, l'édition
-// arrive en V2 avec les vues en arbre (Personnages/Décors).
+// Registre d'assets en arborescence par sujet (deriveDeId) — voir
+// lib/queries.ts:getAssetsTree. Édition manuelle complète depuis /assets.
 export const assets = pgTable("assets", {
   id: serial("id").primaryKey(),
   code: varchar("code", { length: 100 }).notNull().unique(), // CHAR_maya, DEC_auberge_salle...
-  type: varchar("type", { length: 30 }).notNull(), // personnage | decor | voix | prop | fx | figurant | keyframe
+  type: varchar("type", { length: 30 }).notNull(), // personnage | decor | voix | prop | fx | keyframe | autre
   statut: assetStatutEnum("statut").notNull().default("a_produire"),
   description: text("description"),
+  // Prompt de génération (Krea 2 / Qwen Image Edit / Qwen3-TTS selon le
+  // type) — distinct de la description canonique : l'un décrit le sujet
+  // pour la continuité narrative, l'autre est ce qu'on colle dans ComfyUI.
+  promptGeneration: text("prompt_generation"),
   fichier: varchar("fichier", { length: 255 }),
   critique: boolean("critique").notNull().default(false),
   deriveDeId: integer("derive_de_id"),

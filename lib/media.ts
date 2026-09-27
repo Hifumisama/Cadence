@@ -3,8 +3,14 @@ import { resolve } from "node:path";
 
 export const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 
+// Limite volontairement basse pour l'instant — les assets sont des images/
+// courts extraits audio, pas des rendus vidéo complets (qui passent par le
+// worker ComfyUI, pas par cet upload direct).
+export const TAILLE_MAX_UPLOAD_ASSET = 10 * 1024 * 1024;
+
 const EXT_IMAGE = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 const EXT_AUDIO = [".wav", ".mp3", ".ogg", ".m4a"];
+const EXT_VIDEO = [".mp4", ".webm", ".mov"];
 
 function extension(chemin: string): string {
   const idx = chemin.lastIndexOf(".");
@@ -17,6 +23,10 @@ export function estImage(chemin: string): boolean {
 
 export function estAudio(chemin: string): boolean {
   return EXT_AUDIO.includes(extension(chemin));
+}
+
+export function estVideo(chemin: string): boolean {
+  return EXT_VIDEO.includes(extension(chemin));
 }
 
 /** Convention de rangement des fichiers d'assets sur le stockage média,

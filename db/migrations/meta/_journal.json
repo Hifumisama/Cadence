@@ -43,6 +43,13 @@
       "when": 1790543759445,
       "tag": "0005_scenario_pivot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790547624091,
+      "tag": "0006_daffy_preak",
+      "breakpoints": true
     }
   ]
 }

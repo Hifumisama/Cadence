@@ -2,6 +2,7 @@
 
 import { db } from "@/db";
 import { mouvements, plans } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { setParam } from "@/lib/params";
 import type { Parametres } from "@/lib/params";
@@ -65,5 +66,15 @@ export async function creerMouvement(valeurs: {
     fonction: valeurs.fonction || null,
     dureeApproxSecondes: valeurs.dureeApproxSecondes,
   });
+  revalidatePath("/scenario");
+}
+
+/** Suppression sans blocage (retour utilisateur 2026-09-28) : un mouvement
+ * n'est qu'un regroupement narratif, pas une dépendance structurelle — le
+ * supprimer détache simplement ses plans ("sans mouvement") plutôt que de
+ * bloquer l'action ou de supprimer les plans eux-mêmes. */
+export async function supprimerMouvement(mouvementId: number) {
+  await db.update(plans).set({ mouvementId: null }).where(eq(plans.mouvementId, mouvementId));
+  await db.delete(mouvements).where(eq(mouvements.id, mouvementId));
   revalidatePath("/scenario");
 }

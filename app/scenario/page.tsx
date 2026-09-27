@@ -5,6 +5,7 @@ import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
 import { ScenarioGlobalsEditor } from "@/components/scenario/ScenarioGlobalsEditor";
 import { NouveauPlanForm } from "@/components/scenario/NouveauPlanForm";
 import { NouveauMouvementForm } from "@/components/scenario/NouveauMouvementForm";
+import { SupprimerMouvementButton } from "@/components/scenario/SupprimerMouvementButton";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function ScenarioPage() {
 
   const groupes = [
     ...mouvements.map((m) => ({
+      id: m.id as number | null,
       titre: m.titre,
       range: `${String(m.planNumeroDebut).padStart(3, "0")} → ${String(m.planNumeroFin).padStart(3, "0")}`,
       fonction: m.fonction,
@@ -29,7 +31,7 @@ export default async function ScenarioPage() {
       plans: m.plans,
     })),
     ...(sansMouvement.length > 0
-      ? [{ titre: "Sans mouvement", range: "", fonction: null, duree: null, plans: sansMouvement }]
+      ? [{ id: null, titre: "Sans mouvement", range: "", fonction: null, duree: null, plans: sansMouvement }]
       : []),
   ];
 
@@ -103,6 +105,7 @@ export default async function ScenarioPage() {
                 {g.duree ? ` · ~${g.duree} s` : ""}
               </span>
             ) : null}
+            {g.id != null ? <SupprimerMouvementButton mouvementId={g.id} titre={g.titre} /> : null}
           </div>
           {g.fonction ? <p className="mvt-fn">{g.fonction}</p> : null}
           <div className="frise">

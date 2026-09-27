@@ -1,4 +1,4 @@
-import { cheminAssetMedia, estAudio, fichierMediaExiste } from "@/lib/media";
+import { cheminAssetMedia, estAudio, estVideo, fichierMediaExiste } from "@/lib/media";
 
 export function AssetPreview({
   type,
@@ -7,7 +7,7 @@ export function AssetPreview({
 }: {
   type: string;
   fichier: string | null;
-  taille?: "sm" | "lg";
+  taille?: "sm" | "md" | "lg";
 }) {
   const classe = `asset-preview asset-preview-${taille}`;
 
@@ -30,6 +30,14 @@ export function AssetPreview({
     return (
       <div className={`${classe} is-audio`}>
         <audio controls src={src} style={{ width: "100%" }} />
+      </div>
+    );
+  }
+
+  if (estVideo(fichier)) {
+    return (
+      <div className={classe}>
+        <video controls src={src} />
       </div>
     );
   }

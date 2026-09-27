@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { jobs, planPromptSections, planRefs, plans } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { MAX_REFS } from "@/lib/plan-checks";
 import type { RefLabel } from "@/lib/plan-checks";
 
@@ -155,6 +156,17 @@ export async function updatePlanScenario(
 
   revalidatePath(`/plans/${planNumero}`);
   revalidatePath("/scenario");
+}
+
+/** Suppression libre (retour utilisateur 2026-09-28) : un plan est
+ * "indépendant" — ses sections de prompt, refs et dialogues cascadent
+ * (db/schema.ts, onDelete: "cascade"), et le numéro n'est jamais réutilisé
+ * (F03), donc rien à protéger côté données. */
+export async function supprimerPlan(planId: number) {
+  await db.delete(plans).where(eq(plans.id, planId));
+  revalidatePath("/scenario");
+  revalidatePath("/shots");
+  redirect("/shots");
 }
 
 /** Bascule un plan brouillon en fiche de plan développable : crée les 6

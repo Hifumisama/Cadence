@@ -122,26 +122,45 @@ export async function getScenarioData() {
 }
 
 export type AssetNode = Awaited<ReturnType<typeof getAssetsTree>>[number];
+export type AssetCitation = { planNumero: number; refId: number | null; dialogueId: number | null };
 
 /** Registre d'assets en arborescence par sujet (masters + dérivés), pas par
  * type — demande explicite de l'utilisateur (2026-09-27) : le type reste un
- * simple tag informatif, le regroupement se fait sur deriveDeId. */
+ * simple tag informatif, le regroupement se fait sur deriveDeId.
+ *
+ * `citations` détaille CHAQUE ligne (ref ou dialogue) qui cite l'asset, pas
+ * juste les numéros de plan — nécessaire pour pouvoir délier une citation
+ * précise sans supprimer les autres (retour utilisateur 2026-09-28 : la
+ * suppression d'un asset cité doit être bloquée tant qu'il n'a pas été
+ * délié explicitement de chaque plan qui le cite). */
 export async function getAssetsTree() {
   const tousLesAssets = await db.select().from(assets).orderBy(assets.code);
   const toutesLesRefs = await db
-    .select({ assetId: planRefs.assetId, planId: planRefs.planId })
+    .select({ id: planRefs.id, assetId: planRefs.assetId, planId: planRefs.planId })
     .from(planRefs);
+  const tousLesDialogues = await db
+    .select({ id: planDialogues.id, assetVoixId: planDialogues.assetVoixId, planId: planDialogues.planId })
+    .from(planDialogues);
   const tousLesPlans = await db.select({ id: plans.id, numero: plans.numero }).from(plans);
 
   const numeroParPlanId = new Map(tousLesPlans.map((p) => [p.id, p.numero]));
-  const plansParAssetId = new Map<number, number[]>();
+  const citationsParAssetId = new Map<number, AssetCitation[]>();
+
   for (const ref of toutesLesRefs) {
     if (ref.assetId == null) continue;
     const numero = numeroParPlanId.get(ref.planId);
     if (numero == null) continue;
-    const liste = plansParAssetId.get(ref.assetId) ?? [];
-    if (!liste.includes(numero)) liste.push(numero);
-    plansParAssetId.set(ref.assetId, liste);
+    const liste = citationsParAssetId.get(ref.assetId) ?? [];
+    liste.push({ planNumero: numero, refId: ref.id, dialogueId: null });
+    citationsParAssetId.set(ref.assetId, liste);
+  }
+  for (const d of tousLesDialogues) {
+    if (d.assetVoixId == null) continue;
+    const numero = numeroParPlanId.get(d.planId);
+    if (numero == null) continue;
+    const liste = citationsParAssetId.get(d.assetVoixId) ?? [];
+    liste.push({ planNumero: numero, refId: null, dialogueId: d.id });
+    citationsParAssetId.set(d.assetVoixId, liste);
   }
 
   const enfantsParParentId = new Map<number, typeof tousLesAssets>();
@@ -153,14 +172,17 @@ export async function getAssetsTree() {
   }
 
   type AssetAvecDerives = (typeof tousLesAssets)[number] & {
+    citations: AssetCitation[];
     plansCitants: number[];
     derives: AssetAvecDerives[];
   };
 
   function construireNoeud(asset: (typeof tousLesAssets)[number]): AssetAvecDerives {
+    const citations = (citationsParAssetId.get(asset.id) ?? []).sort((a, b) => a.planNumero - b.planNumero);
     return {
       ...asset,
-      plansCitants: (plansParAssetId.get(asset.id) ?? []).sort((a, b) => a - b),
+      citations,
+      plansCitants: [...new Set(citations.map((c) => c.planNumero))].sort((a, b) => a - b),
       derives: (enfantsParParentId.get(asset.id) ?? [])
         .sort((a, b) => a.code.localeCompare(b.code))
         .map(construireNoeud),
