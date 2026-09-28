@@ -3,13 +3,9 @@
 import { useState, useTransition } from "react";
 import { updateScenarioGlobal } from "@/app/scenario/actions";
 
-const FIELDS: { cle: "clauseStyle" | "scenarioArc" | "scenarioStyle" | "scenarioContinuite" | "scenarioRimes" | "scenarioPieges"; label: string; wide?: boolean }[] = [
-  { cle: "clauseStyle", label: "Clause de style (image/vidéo)", wide: true },
-  { cle: "scenarioArc", label: "Arc · 2 phrases", wide: true },
-  { cle: "scenarioStyle", label: "Style visuel" },
-  { cle: "scenarioRimes", label: "Rimes / échos" },
-  { cle: "scenarioContinuite", label: "Règles de continuité" },
-  { cle: "scenarioPieges", label: "Pièges à éviter" },
+const FIELDS: { cle: "clauseStyle" | "notes"; label: string; wide?: boolean; rows?: number }[] = [
+  { cle: "clauseStyle", label: "Clause de style (image/vidéo)", wide: true, rows: 2 },
+  { cle: "notes", label: "Notes", wide: true, rows: 4 },
 ];
 
 export function ScenarioGlobalsEditor({ projectId, valeurs }: { projectId: number; valeurs: Record<string, string> }) {
@@ -44,7 +40,7 @@ export function ScenarioGlobalsEditor({ projectId, valeurs }: { projectId: numbe
             <textarea
               id={f.cle}
               className="field"
-              rows={2}
+              rows={f.rows ?? 2}
               value={champs[f.cle] ?? ""}
               onChange={(e) => setChamps((c) => ({ ...c, [f.cle]: e.target.value }))}
             />

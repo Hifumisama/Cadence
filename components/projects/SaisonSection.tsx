@@ -7,7 +7,9 @@ import { agregerPhases, phaseDe, statutAgrege } from "@/lib/phase";
 import { Poster } from "@/components/ui/Poster";
 import { PhaseBadge } from "@/components/projects/PhaseBadge";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
-import { creerEpisode, modifierTitreSaison } from "@/app/projects/actions";
+import { SaisonEditModal } from "@/components/projects/SaisonEditModal";
+import { SupprimerSaisonButton } from "@/components/projects/SupprimerSaisonButton";
+import { creerEpisode } from "@/app/projects/actions";
 
 type Saison = ProjectHierarchy["saisons"][number];
 
@@ -20,8 +22,6 @@ function pad(n: number): string {
 
 export function SaisonSection({ projectId, saison }: { projectId: number; saison: Saison }) {
   const [ouvert, setOuvert] = useState(true);
-  const [edition, setEdition] = useState(false);
-  const [titre, setTitre] = useState(saison.titre);
   const [pending, startTransition] = useTransition();
 
   const phaseSaison = agregerPhases(saison.episodes.map((e) => phaseDe(e.buckets)));
@@ -29,11 +29,6 @@ export function SaisonSection({ projectId, saison }: { projectId: number; saison
   const plage = avecPlans.length
     ? `plans ${pad(Math.min(...avecPlans.map((e) => e.numeroMin ?? Infinity)))} → ${pad(Math.max(...avecPlans.map((e) => e.numeroMax ?? 0)))}`
     : "aucun plan";
-
-  const enregistrerTitre = () => {
-    setEdition(false);
-    if (titre.trim() && titre !== saison.titre) startTransition(() => modifierTitreSaison(saison.id, titre.trim()));
-  };
 
   return (
     <section className="saison" data-open={ouvert}>
@@ -52,21 +47,10 @@ export function SaisonSection({ projectId, saison }: { projectId: number; saison
 
       {ouvert ? (
         <div className="saison-bd">
-          {edition ? (
-            <div className="form-actions" style={{ marginBottom: "var(--sp-3)" }} onClick={(e) => e.stopPropagation()}>
-              <input className="field" value={titre} onChange={(e) => setTitre(e.target.value)} style={{ maxWidth: 260 }} />
-              <button className="btn btn-gold" type="button" onClick={enregistrerTitre} disabled={pending}>
-                Enregistrer
-              </button>
-              <button className="btn btn-ghost" type="button" onClick={() => { setTitre(saison.titre); setEdition(false); }}>
-                Annuler
-              </button>
-            </div>
-          ) : (
-            <button className="btn btn-ghost" type="button" onClick={() => setEdition(true)} style={{ marginBottom: "var(--sp-3)" }}>
-              Renommer la saison
-            </button>
-          )}
+          <div className="form-actions" style={{ marginBottom: "var(--sp-3)" }} onClick={(e) => e.stopPropagation()}>
+            <SaisonEditModal saisonId={saison.id} titre={saison.titre} posterSrc={saison.posterSrc} />
+            <SupprimerSaisonButton saisonId={saison.id} titre={saison.titre} />
+          </div>
 
           <div className="frise">
             {saison.episodes.map((episode) => {

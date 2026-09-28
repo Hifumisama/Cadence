@@ -78,6 +78,20 @@
       "when": 1790700300000,
       "tag": "0010_posters",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790700400000,
+      "tag": "0011_episode_resume",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790700500000,
+      "tag": "0012_scenario_globaux_notes",
+      "breakpoints": true
     }
   ]
 }

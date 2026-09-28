@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEpisodeWithSeason, getProject } from "@/lib/queries";
+import { posterSrc } from "@/lib/media";
 import { Topbar } from "@/components/ui/Topbar";
+import { EpisodeInfoPanel } from "@/components/projects/EpisodeInfoPanel";
 
 function two(n: number): string {
   return String(n).padStart(2, "0");
@@ -50,7 +52,22 @@ export default async function EpisodeLayout({
   return (
     <>
       <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: base }} />
-      <main className="page">{children}</main>
+      <main className="page">
+        <EpisodeInfoPanel
+          projectId={pid}
+          episodeId={episode.id}
+          numero={episode.numero}
+          resume={episode.resume}
+          oneshot={
+            projet.type === "oneshot"
+              ? { nom: projet.nom, posterSrc: posterSrc("projects", pid, projet.posterFichier) }
+              : null
+          }
+          titre={episode.titre}
+          posterSrc={posterSrc("episodes", episode.id, episode.posterFichier)}
+        />
+        {children}
+      </main>
     </>
   );
 }

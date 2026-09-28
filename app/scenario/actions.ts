@@ -5,14 +5,7 @@ import { mouvements, plans, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-const CHAMPS_PROJET = [
-  "clauseStyle",
-  "scenarioArc",
-  "scenarioStyle",
-  "scenarioContinuite",
-  "scenarioRimes",
-  "scenarioPieges",
-] as const;
+const CHAMPS_PROJET = ["clauseStyle", "notes"] as const;
 
 /** Réglages qui ne bougent pas à l'échelle du projet (retour utilisateur
  * 2026-09-28) — colonnes de `projects`, plus de clé/valeur globale. */

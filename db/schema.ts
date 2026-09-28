@@ -51,14 +51,21 @@ export const assetStatutEnum = pgEnum("asset_statut", [
   "valide",
 ]);
 
-// Racine d'un projet vidéo — OneShot ou Série (2026-09-28). clauseStyle et
-// les 5 champs scenario_* portent les réglages qui ne bougent pas à
-// l'échelle du projet (retour utilisateur : "des prompts qui vont pas
-// bouger à l'échelle de la saison voire du projet") — ex-DEFAULTS globaux de
-// lib/params.ts, migrés ici. Un seul niveau d'héritage volontairement : pas
-// de surcharge par saison/épisode tant que le besoin ne s'est pas fait
-// sentir (cohérent avec la doctrine FRICTIONS.md : pas d'investissement
-// avant qu'une friction concrète ne coûte du temps).
+// Racine d'un projet vidéo — OneShot ou Série (2026-09-28). clauseStyle
+// porte le réglage qui ne bouge pas à l'échelle du projet (retour
+// utilisateur : "des prompts qui vont pas bouger à l'échelle de la saison
+// voire du projet") — ex-DEFAULT global de lib/params.ts, migré ici. Un seul
+// niveau d'héritage volontairement : pas de surcharge par saison/épisode
+// tant que le besoin ne s'est pas fait sentir (cohérent avec la doctrine
+// FRICTIONS.md : pas d'investissement avant qu'une friction concrète ne
+// coûte du temps).
+//
+// Les champs scenario_arc/style/continuite/rimes/pieges (2026-09-28→2026-
+// 09-28) ont été retirés le même jour que leur ajout : retour utilisateur,
+// ils faisaient doublon avec le résumé d'épisode (episodes.resume) et la
+// clause de style, ou relevaient de la vigilance de l'utilisateur plutôt
+// que d'un champ à remplir. Remplacés par `notes`, texte libre sans
+// structure imposée.
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   nom: varchar("nom", { length: 255 }).notNull(),
@@ -69,11 +76,7 @@ export const projects = pgTable("projects", {
   // valeur ici), pas de vraie image placeholder à générer.
   posterFichier: varchar("poster_fichier", { length: 255 }),
   clauseStyle: text("clause_style").notNull().default(""),
-  scenarioArc: text("scenario_arc").notNull().default(""),
-  scenarioStyle: text("scenario_style").notNull().default(""),
-  scenarioContinuite: text("scenario_continuite").notNull().default(""),
-  scenarioRimes: text("scenario_rimes").notNull().default(""),
-  scenarioPieges: text("scenario_pieges").notNull().default(""),
+  notes: text("notes").notNull().default(""),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -94,6 +97,7 @@ export const episodes = pgTable("episodes", {
     .references(() => seasons.id, { onDelete: "cascade" }),
   numero: integer("numero").notNull(),
   titre: varchar("titre", { length: 255 }).notNull(),
+  resume: text("resume").notNull().default(""),
   posterFichier: varchar("poster_fichier", { length: 255 }),
 });
 

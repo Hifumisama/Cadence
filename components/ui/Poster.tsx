@@ -17,7 +17,10 @@ export function Poster({
   /** Clé stable pour le dégradé de repli (ex. "projet:12") — indépendante
    * du titre affiché, pour ne pas changer d'aspect si le titre est édité. */
   cleRepli: string;
-  taille: "card" | "sm" | "mini";
+  /** "wide" : aperçu 16:9 plus grand utilisé dans les formulaires
+   * d'édition (projet/saison/épisode) — distinct de "card" (affiche
+   * verticale des cartes projet, accueil). */
+  taille: "card" | "wide" | "sm" | "mini";
 }) {
   if (src) {
     return (
@@ -28,7 +31,7 @@ export function Poster({
     );
   }
 
-  const texte = taille === "card" ? titre : posterInitiale(titre);
+  const texte = taille === "card" || taille === "wide" ? titre : posterInitiale(titre);
   return (
     <span
       className={`poster poster-${taille}`}

@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getEpisodeUnique, getProjectHierarchy } from "@/lib/queries";
 import { totalBuckets } from "@/lib/phase";
+import { posterSrc } from "@/lib/media";
 import { Topbar } from "@/components/ui/Topbar";
 import { SaisonSection } from "@/components/projects/SaisonSection";
 import { CreerSaisonButton } from "@/components/projects/CreerSaisonButton";
+import { ProjectEditModal } from "@/components/projects/ProjectEditModal";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +49,7 @@ export default async function VueSeriePage({ params }: { params: Promise<{ proje
             </p>
           </div>
           <div className="actions">
+            <ProjectEditModal projectId={id} nom={projet.nom} posterSrc={posterSrc("projects", id, projet.posterFichier)} />
             <CreerSaisonButton projectId={id} />
           </div>
         </div>

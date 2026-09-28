@@ -85,6 +85,12 @@ export async function uploaderPosterEpisode(episodeId: number, formData: FormDat
 export async function supprimerProjet(projectId: number) {
   await db.delete(projects).where(eq(projects.id, projectId));
   revalidatePath("/", "layout");
+  redirect("/");
+}
+
+export async function modifierNomProjet(projectId: number, nom: string) {
+  await db.update(projects).set({ nom }).where(eq(projects.id, projectId));
+  revalidatePath("/", "layout");
 }
 
 /** Bloquée tant que la saison a des épisodes (retour utilisateur
@@ -160,12 +166,18 @@ export async function modifierTitreSaison(saisonId: number, titre: string) {
 }
 
 /** Nouvelle saison — numéro = max existant + 1 dans le projet (comme
- * l'ordre des mouvements, lib/queries.ts). */
-export async function creerSaison(projectId: number) {
+ * l'ordre des mouvements, lib/queries.ts). Retourne l'id créé pour que
+ * l'appelant puisse enchaîner un upload de poster (qui a besoin de l'id). */
+export async function creerSaison(projectId: number, titre: string): Promise<{ id: number }> {
   const existantes = await db.select({ numero: seasons.numero }).from(seasons).where(eq(seasons.projectId, projectId));
   const numero = existantes.reduce((acc, s) => Math.max(acc, s.numero), 0) + 1;
-  await db.insert(seasons).values({ projectId, numero, titre: "Sans titre" });
+  const [saison] = await db
+    .insert(seasons)
+    .values({ projectId, numero, titre: titre.trim() || "Sans titre" })
+    .returning();
+  if (!saison) throw new Error("Échec de création de la saison.");
   revalidatePath("/", "layout");
+  return { id: saison.id };
 }
 
 /** Nouvel épisode dans une saison — numéro = max existant + 1 dans la
@@ -175,5 +187,16 @@ export async function creerEpisode(saisonId: number) {
   const existants = await db.select({ numero: episodes.numero }).from(episodes).where(eq(episodes.seasonId, saisonId));
   const numero = existants.reduce((acc, e) => Math.max(acc, e.numero), 0) + 1;
   await db.insert(episodes).values({ seasonId: saisonId, numero, titre: "Sans titre" });
+  revalidatePath("/", "layout");
+}
+
+/** `titre` est omis pour un OneShot (2026-09-28) : son "titre" affiché est
+ * celui du projet, pas de l'épisode technique caché — voir
+ * modifierNomProjet et EpisodeInfoPanel. */
+export async function modifierEpisode(episodeId: number, valeurs: { titre?: string; resume: string }) {
+  await db
+    .update(episodes)
+    .set({ ...(valeurs.titre !== undefined ? { titre: valeurs.titre } : {}), resume: valeurs.resume })
+    .where(eq(episodes.id, episodeId));
   revalidatePath("/", "layout");
 }

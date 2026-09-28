@@ -64,11 +64,7 @@ export default async function ScenarioPage({
         projectId={pid}
         valeurs={{
           clauseStyle: projet.clauseStyle,
-          scenarioArc: projet.scenarioArc,
-          scenarioStyle: projet.scenarioStyle,
-          scenarioContinuite: projet.scenarioContinuite,
-          scenarioRimes: projet.scenarioRimes,
-          scenarioPieges: projet.scenarioPieges,
+          notes: projet.notes,
         }}
       />
 
