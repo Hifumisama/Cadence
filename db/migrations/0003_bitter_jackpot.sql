@@ -1,1 +1,7 @@
-ALTER TYPE "public"."plan_statut" ADD VALUE 'previsualise' BEFORE 'termine';
+-- 'previsualise' fait partie de la définition de plan_statut depuis
+-- 0000 (fix migration 0007, voir CHANGELOG dev-setup 2026-09-28) : ajouter
+-- une valeur d'enum puis l'utiliser comme DEFAULT dans la même migration
+-- (0005) faisait échouer `db:migrate` sur une base neuve — Postgres
+-- interdit d'utiliser une valeur d'enum tant que la transaction qui l'a
+-- ajoutée n'est pas commit, et drizzle exécute toutes les migrations en
+-- attente dans une seule transaction.

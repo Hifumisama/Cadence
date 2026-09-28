@@ -1,1 +1,2 @@
-ALTER TYPE "public"."plan_statut" ADD VALUE 'brouillon' BEFORE 'en_attente';
+-- 'brouillon' fait partie de la définition de plan_statut depuis 0000 —
+-- voir le commentaire dans 0003_bitter_jackpot.sql.

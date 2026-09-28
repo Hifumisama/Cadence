@@ -30,18 +30,20 @@ const SECTIONS_ORDRE = [
 export default async function PlanPage({
   params,
 }: {
-  params: Promise<{ numero: string }>;
+  params: Promise<{ projectId: string; episodeId: string; numero: string }>;
 }) {
-  const { numero } = await params;
+  const { projectId, episodeId, numero } = await params;
+  const pid = Number(projectId);
+  const eid = Number(episodeId);
   const numeroInt = Number(numero);
-  const detail = await getPlanDetail(numeroInt);
+  const detail = await getPlanDetail(numeroInt, eid);
   if (!detail) notFound();
 
   const { plan, promptSections, refs, dialogues, jobHistory } = detail;
 
   const [parametresGlobaux, tousLesAssets] = await Promise.all([
     getAllParams(),
-    getAllAssets(),
+    getAllAssets(pid),
   ]);
 
   const sectionsPourControle = promptSections.map((s) => ({
@@ -81,6 +83,7 @@ export default async function PlanPage({
   };
 
   const estBrouillon = plan.statut === "brouillon";
+  const shotsHref = `/p/${pid}/e/${eid}/shots`;
 
   return (
     <div>
@@ -101,8 +104,8 @@ export default async function PlanPage({
         </div>
         <div className="fiche-actions">
           <StatusBadge statut={plan.statut} />
-          {!estBrouillon ? <RelaunchButton planNumero={plan.numero} /> : null}
-          <SupprimerPlanButton planId={plan.id} planNumero={plan.numero} />
+          {!estBrouillon ? <RelaunchButton episodeId={eid} planNumero={plan.numero} /> : null}
+          <SupprimerPlanButton planId={plan.id} planNumero={plan.numero} shotsHref={shotsHref} />
         </div>
       </div>
 

@@ -25,7 +25,7 @@ export function PlanParamsEditor({
 
   const onSave = () => {
     startTransition(async () => {
-      await updatePlanParametres(planId, planNumero, { fps, dureeGenerationSecondes: duree });
+      await updatePlanParametres(planId, { fps, dureeGenerationSecondes: duree });
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     });

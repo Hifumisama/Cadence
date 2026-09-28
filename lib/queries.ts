@@ -1,14 +1,123 @@
 import { db } from "../db";
 import {
   assets,
+  episodes,
   jobs,
   mouvements,
   planDialogues,
   planPromptSections,
   planRefs,
   plans,
+  projects,
+  seasons,
 } from "../db/schema";
-import { desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
+import { posterSrc } from "./media";
+
+/** Pas encore de sélecteur de projet dans l'UI (2026-09-28) — toutes les
+ * pages opèrent sur le premier projet créé. Le schéma est prêt pour
+ * plusieurs projets, l'interface pour en choisir un ne l'est pas encore :
+ * point à construire quand un deuxième projet existera réellement. */
+export async function getDefaultProjectId(): Promise<number> {
+  const [projet] = await db.select({ id: projects.id }).from(projects).orderBy(projects.id).limit(1);
+  if (!projet) throw new Error("Aucun projet en base — voir db/migrations pour le projet créé par la migration 0007.");
+  return projet.id;
+}
+
+/** Même logique que getDefaultProjectId : le premier épisode du premier
+ * projet, tant qu'il n'y a rien pour en choisir un autre. */
+export async function getDefaultEpisodeId(): Promise<number> {
+  const [episode] = await db.select({ id: episodes.id }).from(episodes).orderBy(episodes.id).limit(1);
+  if (!episode) throw new Error("Aucun épisode en base — voir db/migrations pour l'épisode créé par la migration 0007.");
+  return episode.id;
+}
+
+/** Ligne complète du projet par défaut — clause de style + réglages
+ * scénario (globaux du projet, voir ScenarioGlobalsEditor). */
+export async function getDefaultProject() {
+  const [projet] = await db.select().from(projects).orderBy(projects.id).limit(1);
+  if (!projet) throw new Error("Aucun projet en base — voir db/migrations pour le projet créé par la migration 0007.");
+  return projet;
+}
+
+export async function getProject(projectId: number) {
+  const [projet] = await db.select().from(projects).where(eq(projects.id, projectId));
+  return projet ?? null;
+}
+
+/** Premier épisode du projet (par numéro de saison puis d'épisode) — sert
+ * d'ancrage aux onglets Scénario/Shots depuis Assets (lib/queries.ts,
+ * Assets vit au niveau du projet, pas d'un épisode précis) quand il faut
+ * bien pointer les autres onglets quelque part. */
+export async function getFirstEpisodeId(projectId: number): Promise<number | null> {
+  const [row] = await db
+    .select({ id: episodes.id })
+    .from(episodes)
+    .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
+    .where(eq(seasons.projectId, projectId))
+    .orderBy(seasons.numero, episodes.numero)
+    .limit(1);
+  return row?.id ?? null;
+}
+
+/** Sa saison et son épisode uniques — sert de raccourci pour un OneShot
+ * (toujours 1 saison + 1 épisode) sans passer par la vue Série. */
+export async function getEpisodeUnique(projectId: number) {
+  const [saison] = await db.select().from(seasons).where(eq(seasons.projectId, projectId)).orderBy(seasons.numero).limit(1);
+  if (!saison) return null;
+  const [episode] = await db.select().from(episodes).where(eq(episodes.seasonId, saison.id)).orderBy(episodes.numero).limit(1);
+  if (!episode) return null;
+  return { saison, episode };
+}
+
+export type ProjectListItem = Awaited<ReturnType<typeof getAllProjects>>[number];
+
+/** Écran Accueil : tous les projets, avec assez d'agrégats pour la carte
+ * (compteurs, répartition des statuts de plans) sans avoir à recharger
+ * chaque projet séparément — trois requêtes groupées plutôt qu'une par
+ * projet, le volume reste petit (quelques dizaines de projets au pire). */
+export async function getAllProjects() {
+  const tousLesProjets = await db.select().from(projects).orderBy(projects.id);
+  if (tousLesProjets.length === 0) return [];
+  const idsProjets = tousLesProjets.map((p) => p.id);
+
+  const [toutesLesSaisons, tousLesEpisodesAvecSaison, tousLesPlans, tousLesAssets] = await Promise.all([
+    db.select().from(seasons).where(inArray(seasons.projectId, idsProjets)),
+    db
+      .select({ episode: episodes, projectId: seasons.projectId })
+      .from(episodes)
+      .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
+      .where(inArray(seasons.projectId, idsProjets)),
+    db.select({ projectId: plans.projectId, statut: plans.statut }).from(plans).where(inArray(plans.projectId, idsProjets)),
+    db.select({ projectId: assets.projectId }).from(assets).where(inArray(assets.projectId, idsProjets)),
+  ]);
+
+  const saisonsParProjet = new Map<number, typeof toutesLesSaisons>();
+  for (const s of toutesLesSaisons) saisonsParProjet.set(s.projectId, [...(saisonsParProjet.get(s.projectId) ?? []), s]);
+
+  const episodesParProjet = new Map<number, (typeof tousLesEpisodesAvecSaison)[number]["episode"][]>();
+  for (const { episode, projectId } of tousLesEpisodesAvecSaison) {
+    episodesParProjet.set(projectId, [...(episodesParProjet.get(projectId) ?? []), episode]);
+  }
+
+  const bucketsParProjet = new Map<number, StatutBuckets>();
+  const statutsParProjet = new Map<number, (typeof tousLesPlans)[number]["statut"][]>();
+  for (const p of tousLesPlans) statutsParProjet.set(p.projectId, [...(statutsParProjet.get(p.projectId) ?? []), p.statut]);
+  for (const [projectId, statuts] of statutsParProjet) bucketsParProjet.set(projectId, bucketiserStatuts(statuts));
+
+  const assetsParProjet = new Map<number, number>();
+  for (const a of tousLesAssets) assetsParProjet.set(a.projectId, (assetsParProjet.get(a.projectId) ?? 0) + 1);
+
+  return tousLesProjets.map((p) => ({
+    ...p,
+    posterSrc: posterSrc("projects", p.id, p.posterFichier),
+    saisons: saisonsParProjet.get(p.id) ?? [],
+    episodes: episodesParProjet.get(p.id) ?? [],
+    buckets: bucketsParProjet.get(p.id) ?? bucketsVides(),
+    nbAssets: assetsParProjet.get(p.id) ?? 0,
+  }));
+}
 
 export type ShotListItem = {
   numero: number;
@@ -17,12 +126,21 @@ export type ShotListItem = {
   dernierJob: { tentative: number; erreur: string | null } | null;
 };
 
-/** Frise Shots : tous les plans, ordonnés par numéro — les trous des plans
- * supprimés restent visibles, jamais renumérotés (F03). */
-export async function getShotsList(): Promise<ShotListItem[]> {
+/** Frise Shots : tous les plans d'un ÉPISODE, ordonnés par numéro — les
+ * trous des plans supprimés restent visibles, jamais renumérotés (F03).
+ * Scope épisode, pas projet (révisé 2026-09-28 en même temps que la
+ * numérotation) : `numero` n'est unique/continu qu'à l'échelle de
+ * l'épisode, une frise multi-épisodes mélangerait des numeros qui se
+ * chevauchent sans rien pour les distinguer visuellement. */
+export async function getShotsList(episodeId?: number): Promise<ShotListItem[]> {
+  const eid = episodeId ?? (await getDefaultEpisodeId());
   // Un plan brouillon n'a pas encore de fiche de plan (pas de prompt, pas de
   // durée de génération) : il vit dans Scénario, pas dans la queue Shots.
-  const rows = await db.select().from(plans).where(ne(plans.statut, "brouillon")).orderBy(plans.numero);
+  const rows = await db
+    .select()
+    .from(plans)
+    .where(and(eq(plans.episodeId, eid), ne(plans.statut, "brouillon")))
+    .orderBy(plans.numero);
   const allJobs = await db.select().from(jobs).orderBy(desc(jobs.createdAt));
 
   const dernierJobParPlan = new Map<number, (typeof allJobs)[number]>();
@@ -44,10 +162,13 @@ export async function getShotsList(): Promise<ShotListItem[]> {
 }
 
 /** Fiche de plan complète : plan + prompt sectionné + refs (avec l'asset
- * associé) + dialogues + historique des jobs. */
-export async function getPlanDetail(numero: number) {
+ * associé) + dialogues + historique des jobs. numero n'est unique que par
+ * ÉPISODE (révisé 2026-09-28, voir docs/FRICTIONS.md F03) — filtrer par
+ * episodeId, pas projectId, est ce qui évite réellement une collision. */
+export async function getPlanDetail(numero: number, episodeId?: number) {
+  const eid = episodeId ?? (await getDefaultEpisodeId());
   const plan = await db.query.plans.findFirst({
-    where: eq(plans.numero, numero),
+    where: and(eq(plans.numero, numero), eq(plans.episodeId, eid)),
   });
   if (!plan) return null;
 
@@ -86,17 +207,25 @@ export async function getPlanDetail(numero: number) {
 
 /** Tous les assets (27 sur l'épisode 1) — pour peupler le sélecteur d'ajout
  * de référence sur la Fiche de plan. */
-export async function getAllAssets() {
-  return db.select().from(assets).orderBy(assets.type, assets.code);
+export async function getAllAssets(projectId?: number) {
+  const pid = projectId ?? (await getDefaultProjectId());
+  return db.select().from(assets).where(eq(assets.projectId, pid)).orderBy(assets.type, assets.code);
 }
 
 /** Page Scénario : les mouvements narratifs, et tous les plans (brouillon
  * compris) groupés par mouvement — un plan sans mouvementId atterrit dans
- * le groupe "sans mouvement" plutôt que d'être perdu. */
-export async function getScenarioData() {
+ * le groupe "sans mouvement" plutôt que d'être perdu.
+ *
+ * Le scénario est fondamentalement une unité par ÉPISODE (révisé
+ * 2026-09-28, voir docs/FRICTIONS.md F03) : mouvements et plans sont tous
+ * les deux filtrés par episodeId directement, plus besoin de remonter par
+ * saison/projet — `prochainNumeroLibre` est donc aussi calculé à l'échelle
+ * de cet épisode, pas du projet entier. */
+export async function getScenarioData(episodeId?: number) {
+  const eid = episodeId ?? (await getDefaultEpisodeId());
   const [tousLesMouvements, tousLesPlans] = await Promise.all([
-    db.select().from(mouvements).orderBy(mouvements.ordre),
-    db.select().from(plans).orderBy(plans.numero),
+    db.select().from(mouvements).where(eq(mouvements.episodeId, eid)).orderBy(mouvements.ordre),
+    db.select().from(plans).where(eq(plans.episodeId, eid)).orderBy(plans.numero),
   ]);
 
   const parMouvement = new Map<number, typeof tousLesPlans>();
@@ -121,8 +250,79 @@ export async function getScenarioData() {
   };
 }
 
+/** Épisode + sa saison — sert au bandeau (fil d'Ariane, numéro de saison)
+ * et à vérifier qu'un épisode appartient bien au projet de l'URL avant
+ * d'afficher quoi que ce soit (voir app/p/[projectId]/e/[episodeId]/layout.tsx). */
+export async function getEpisodeWithSeason(episodeId: number) {
+  const [row] = await db
+    .select({ episode: episodes, season: seasons })
+    .from(episodes)
+    .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
+    .where(eq(episodes.id, episodeId));
+  return row ?? null;
+}
+
+export type ProjectHierarchy = NonNullable<Awaited<ReturnType<typeof getProjectHierarchy>>>;
+
+/** Écran Vue série : projet + saisons + épisodes, chacun avec sa
+ * répartition de statuts (pour le badge de statut ET la phase de
+ * pipeline — voir lib/phase.ts) et sa plage de numéros de plan (continue
+ * à l'échelle de l'épisode depuis F03, révision 2026-09-28). */
+export async function getProjectHierarchy(projectId: number) {
+  const projet = await getProject(projectId);
+  if (!projet) return null;
+
+  const [lesSaisons, lesEpisodesAvecSaison, lesPlans] = await Promise.all([
+    db.select().from(seasons).where(eq(seasons.projectId, projectId)).orderBy(seasons.numero),
+    db
+      .select({ episode: episodes, seasonId: episodes.seasonId })
+      .from(episodes)
+      .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
+      .where(eq(seasons.projectId, projectId))
+      .orderBy(episodes.numero),
+    db.select({ episodeId: plans.episodeId, statut: plans.statut, numero: plans.numero }).from(plans).where(eq(plans.projectId, projectId)),
+  ]);
+
+  const parEpisodeId = new Map<number, { statuts: (typeof lesPlans)[number]["statut"][]; numeros: number[] }>();
+  for (const p of lesPlans) {
+    const courant = parEpisodeId.get(p.episodeId) ?? { statuts: [], numeros: [] };
+    courant.statuts.push(p.statut);
+    courant.numeros.push(p.numero);
+    parEpisodeId.set(p.episodeId, courant);
+  }
+
+  const episodesParSaison = new Map<number, typeof lesEpisodesAvecSaison>();
+  for (const row of lesEpisodesAvecSaison) episodesParSaison.set(row.seasonId, [...(episodesParSaison.get(row.seasonId) ?? []), row]);
+
+  const saisonsAvecEpisodes = lesSaisons.map((saison) => {
+    const episodesDeCetteSaison = (episodesParSaison.get(saison.id) ?? []).map(({ episode }) => {
+      const donnees = parEpisodeId.get(episode.id) ?? { statuts: [], numeros: [] };
+      return {
+        ...episode,
+        posterSrc: posterSrc("episodes", episode.id, episode.posterFichier),
+        buckets: bucketiserStatuts(donnees.statuts),
+        nbPlans: donnees.numeros.length,
+        numeroMin: donnees.numeros.length ? Math.min(...donnees.numeros) : null,
+        numeroMax: donnees.numeros.length ? Math.max(...donnees.numeros) : null,
+      };
+    });
+    const bucketsSaison = episodesDeCetteSaison.reduce((acc, e) => additionnerBuckets(acc, e.buckets), bucketsVides());
+    return {
+      ...saison,
+      posterSrc: posterSrc("seasons", saison.id, saison.posterFichier),
+      episodes: episodesDeCetteSaison,
+      buckets: bucketsSaison,
+    };
+  });
+
+  const bucketsProjet = saisonsAvecEpisodes.reduce((acc, s) => additionnerBuckets(acc, s.buckets), bucketsVides());
+  const nbEpisodes = saisonsAvecEpisodes.reduce((acc, s) => acc + s.episodes.length, 0);
+
+  return { projet, saisons: saisonsAvecEpisodes, buckets: bucketsProjet, nbEpisodes };
+}
+
 export type AssetNode = Awaited<ReturnType<typeof getAssetsTree>>[number];
-export type AssetCitation = { planNumero: number; refId: number | null; dialogueId: number | null };
+export type AssetCitation = { planNumero: number; episodeId: number; refId: number | null; dialogueId: number | null };
 
 /** Registre d'assets en arborescence par sujet (masters + dérivés), pas par
  * type — demande explicite de l'utilisateur (2026-09-27) : le type reste un
@@ -133,33 +333,41 @@ export type AssetCitation = { planNumero: number; refId: number | null; dialogue
  * précise sans supprimer les autres (retour utilisateur 2026-09-28 : la
  * suppression d'un asset cité doit être bloquée tant qu'il n'a pas été
  * délié explicitement de chaque plan qui le cite). */
-export async function getAssetsTree() {
-  const tousLesAssets = await db.select().from(assets).orderBy(assets.code);
+export async function getAssetsTree(projectId?: number) {
+  const pid = projectId ?? (await getDefaultProjectId());
+  const tousLesAssets = await db.select().from(assets).where(eq(assets.projectId, pid)).orderBy(assets.code);
   const toutesLesRefs = await db
     .select({ id: planRefs.id, assetId: planRefs.assetId, planId: planRefs.planId })
     .from(planRefs);
   const tousLesDialogues = await db
     .select({ id: planDialogues.id, assetVoixId: planDialogues.assetVoixId, planId: planDialogues.planId })
     .from(planDialogues);
-  const tousLesPlans = await db.select({ id: plans.id, numero: plans.numero }).from(plans);
+  // Filtré au même projet : un ref/dialogue vers un plan d'un autre projet
+  // (ne devrait jamais arriver, mais rien ne l'empêche au niveau FK) sort
+  // naturellement du calcul de citations puisque son planId n'aura pas
+  // d'entrée dans numeroParPlanId.
+  const tousLesPlans = await db
+    .select({ id: plans.id, numero: plans.numero, episodeId: plans.episodeId })
+    .from(plans)
+    .where(eq(plans.projectId, pid));
 
-  const numeroParPlanId = new Map(tousLesPlans.map((p) => [p.id, p.numero]));
+  const planParId = new Map(tousLesPlans.map((p) => [p.id, p]));
   const citationsParAssetId = new Map<number, AssetCitation[]>();
 
   for (const ref of toutesLesRefs) {
     if (ref.assetId == null) continue;
-    const numero = numeroParPlanId.get(ref.planId);
-    if (numero == null) continue;
+    const plan = planParId.get(ref.planId);
+    if (!plan) continue;
     const liste = citationsParAssetId.get(ref.assetId) ?? [];
-    liste.push({ planNumero: numero, refId: ref.id, dialogueId: null });
+    liste.push({ planNumero: plan.numero, episodeId: plan.episodeId, refId: ref.id, dialogueId: null });
     citationsParAssetId.set(ref.assetId, liste);
   }
   for (const d of tousLesDialogues) {
     if (d.assetVoixId == null) continue;
-    const numero = numeroParPlanId.get(d.planId);
-    if (numero == null) continue;
+    const plan = planParId.get(d.planId);
+    if (!plan) continue;
     const liste = citationsParAssetId.get(d.assetVoixId) ?? [];
-    liste.push({ planNumero: numero, refId: null, dialogueId: d.id });
+    liste.push({ planNumero: plan.numero, episodeId: plan.episodeId, refId: null, dialogueId: d.id });
     citationsParAssetId.set(d.assetVoixId, liste);
   }
 

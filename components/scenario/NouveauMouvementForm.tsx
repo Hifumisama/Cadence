@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { creerMouvement } from "@/app/scenario/actions";
 
-export function NouveauMouvementForm() {
+export function NouveauMouvementForm({ episodeId }: { episodeId: number }) {
   const [ouvert, setOuvert] = useState(false);
   const [titre, setTitre] = useState("");
   const [debut, setDebut] = useState("");
@@ -15,7 +15,7 @@ export function NouveauMouvementForm() {
   const onCreer = () => {
     if (!titre.trim() || !debut || !fin) return;
     startTransition(async () => {
-      await creerMouvement({
+      await creerMouvement(episodeId, {
         titre,
         planNumeroDebut: Number(debut),
         planNumeroFin: Number(fin),

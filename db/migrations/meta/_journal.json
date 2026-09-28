@@ -50,6 +50,34 @@
       "when": 1790547624091,
       "tag": "0006_daffy_preak",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790700000000,
+      "tag": "0007_projets_saisons_episodes",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790700100000,
+      "tag": "0008_numero_par_episode",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790700200000,
+      "tag": "0009_cascade_suppression",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790700300000,
+      "tag": "0010_posters",
+      "breakpoints": true
     }
   ]
 }

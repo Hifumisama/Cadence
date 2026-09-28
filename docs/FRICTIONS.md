@@ -245,6 +245,26 @@ un problème de découpage, un problème de **précision lexicale**.
 - [x] Motif récurrent — identifié ci-dessus (2026-09-25).
 - [ ] Quelle marge de respiration minimale pour un plan dialogué ?
 
+### Révision : continuité à l'échelle de l'épisode, pas de la série (2026-09-28)
+En introduisant la hiérarchie Projet → Saison → Épisode (voir modèle de
+données 2026-09-28), la continuité "sur toute la série" a d'abord été
+reprise telle quelle (numéro unique par PROJET). Reconsidéré aussitôt :
+retour utilisateur — un plan 456 dans l'épisode 2 laisserait croire à tort
+qu'on est loin dans la série, alors que ce serait son tout premier plan.
+**La continuité redevient locale à l'épisode** : chaque épisode a sa propre
+séquence de numéros (par dizaines), qui ne recommence jamais en cours
+d'épisode mais qui redémarre à 010 pour chaque nouvel épisode. La règle
+"jamais renuméroté, jamais réutilisé après suppression" (F03 ci-dessus)
+s'applique désormais à cette échelle.
+
+Conséquence sur l'identification : `numero` seul ne suffit plus à
+désigner un plan sans ambiguïté dès qu'un projet a plusieurs épisodes (deux
+épisodes peuvent avoir chacun un plan 010). L'identifiant technique unique
+reste `plans.id` (clé primaire, jamais exposé) ; pour un affichage humain
+non ambigu hors du contexte d'un épisode déjà connu, on calcule une
+étiquette `E01_P010` (épisode + numéro) à la volée — jamais stockée, jamais
+un vrai identifiant, uniquement un raccourci de lecture.
+
 > Si un pattern se dégage, il remonte dans le skill `fiche-de-plan` — moins
 > cher qu'une interface.
 
@@ -327,8 +347,9 @@ décors) de **ce qui est une trajectoire** (personnages, scénario). Deux nature
 d'information, deux façons de les maintenir.
 
 ### L'axe du temps existe déjà : le numéro de plan
-La numérotation est continue sur toute la série, elle fait donc office
-d'horodatage universel. L'évolution d'un personnage s'écrit :
+La numérotation était continue sur toute la série au moment où ce mécanisme
+a été imaginé, elle faisait donc office d'horodatage universel. L'évolution
+d'un personnage s'écrivait :
 
 ```
 CHAR_maya
@@ -337,9 +358,16 @@ CHAR_maya
   état >= P230 : [ce qui a changé], cause : plan 225
 ```
 
-Pour savoir qui est Maya au plan 400, on lit l'état actif le plus récent.
-Et une contradiction devient **mécaniquement détectable** : deux états qui se
-contredisent sur la même plage de plans.
+Pour savoir qui est Maya au plan 400, on lisait l'état actif le plus récent.
+Et une contradiction devenait **mécaniquement détectable** : deux états qui
+se contredisent sur la même plage de plans.
+
+> **Prémisse obsolète (2026-09-28)** — la révision F03 du même jour fait
+> repartir le numéro de plan à 010 à chaque épisode (voir plus haut) : "P400"
+> n'est donc plus un horodatage unique sur la série, il en existe un par
+> épisode. Ce mécanisme reste gelé (statut "déclassée" ci-dessous, jamais
+> utilisé en pratique) — s'il est un jour ranimé, l'état devra se qualifier
+> par épisode (ex. "état >= E02:P010") plutôt que par numéro seul.
 
 ### Ce que ça coûte
 _(à remplir — se mesurera surtout à l'épisode 2 : sur un seul épisode, la

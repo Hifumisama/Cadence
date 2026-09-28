@@ -44,7 +44,7 @@ function AddRefRow({
   const onAdd = () => {
     if (!assetId) return;
     startTransition(async () => {
-      await ajouterRef(planId, planNumero, type, Number(assetId), role);
+      await ajouterRef(planId, type, Number(assetId), role);
       setAssetId("");
       setRole("");
     });
@@ -97,7 +97,7 @@ export function RefsPanel({
 
   const onSupprimer = (refId: number) => {
     startTransition(async () => {
-      await supprimerRef(refId, planNumero);
+      await supprimerRef(refId);
     });
   };
 

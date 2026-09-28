@@ -1694,6 +1694,449 @@ button {
 }
 
 /* ---------------------------------------------------------------
+   Posters (projet/saison/épisode) — repli en dégradé façon
+   .preview-frame quand aucun fichier n'est fourni, voir lib/poster.ts.
+   --------------------------------------------------------------- */
+
+.poster {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  background-color: #101015;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+.poster img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.poster::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 35%, rgba(10, 10, 13, 0.72));
+  pointer-events: none;
+}
+.poster .pt {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-brand), serif;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.7);
+}
+.poster-card {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: var(--sp-4);
+}
+.poster-card .pt {
+  font-size: 26px;
+}
+.poster-sm,
+.poster-mini {
+  align-items: center;
+  justify-content: center;
+}
+.poster-sm::after,
+.poster-mini::after {
+  background: linear-gradient(180deg, transparent 20%, rgba(10, 10, 13, 0.55));
+}
+.poster-sm {
+  width: 40px;
+  height: 56px;
+}
+.poster-sm .pt {
+  font-size: 21px;
+}
+.poster-mini {
+  width: 32px;
+  height: 44px;
+}
+.poster-mini .pt {
+  font-size: 17px;
+}
+
+/* ---------------------------------------------------------------
+   Fil d'Ariane (bandeau) — remplace le texte fixe "Les Yeux de
+   Rubis · S01", voir components/ui/Topbar.tsx.
+   --------------------------------------------------------------- */
+
+.trail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  border-left: 1px solid var(--line-strong);
+  padding-left: 10px;
+  min-width: 0;
+}
+.trail a {
+  padding: 2px 0;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color 0.16s;
+}
+.trail a:hover {
+  color: var(--or-glow);
+}
+.trail .sep {
+  color: var(--ink-4);
+  letter-spacing: 0;
+}
+.trail .here {
+  color: var(--ink);
+}
+.trail .ep-t {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------------
+   Accueil — cartes projet
+   --------------------------------------------------------------- */
+
+.proj-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: var(--sp-4);
+}
+.proj-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.16s, background 0.16s, transform 0.16s;
+}
+.proj-card:hover {
+  border-color: var(--or-soft);
+  background: var(--surface-2);
+  transform: translateY(-1px);
+}
+.proj-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+.proj-card .hd {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.proj-card .when {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+.proj-card .name {
+  font-family: var(--font-brand), serif;
+  font-size: 23px;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  margin: 0;
+}
+.proj-card .stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--sp-4);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.proj-card .stats b {
+  font-family: var(--font-mono), monospace;
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--ink);
+  margin-right: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.proj-card .ft {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--line-strong);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.proj-card .ft .go {
+  margin-left: auto;
+  color: var(--ink-2);
+}
+.proj-card:hover .ft .go {
+  color: var(--or-glow);
+}
+.proj-new {
+  align-items: center;
+  justify-content: center;
+  min-height: 190px;
+  border-style: dashed;
+  border-color: var(--or-soft);
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 13px;
+  padding: var(--sp-4);
+  gap: var(--sp-3);
+  cursor: pointer;
+  appearance: none;
+  width: 100%;
+}
+.proj-new .plus {
+  font-family: var(--font-brand), serif;
+  font-size: 32px;
+  color: var(--or);
+  line-height: 1;
+}
+
+/* Barre segmentée : répartition des plans par statut sur une carte projet */
+.mix {
+  display: flex;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--surface-3);
+}
+.mix span {
+  display: block;
+  height: 100%;
+}
+.mix .m-t {
+  background: var(--or-glow);
+}
+.mix .m-e {
+  background: var(--ecarlate-glow);
+}
+.mix .m-a {
+  background: var(--ink-4);
+}
+.mix .m-b {
+  background: repeating-linear-gradient(90deg, var(--or-soft) 0 3px, transparent 3px 6px);
+}
+
+/* ---------------------------------------------------------------
+   Modale de création — choix OneShot / Série
+   --------------------------------------------------------------- */
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s;
+}
+.choice:hover {
+  border-color: var(--ink-4);
+}
+.choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.choice .t {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.choice .t::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-4);
+  flex: 0 0 auto;
+}
+.choice .d {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+.choice .shape {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--ink-4);
+  margin-top: 4px;
+}
+.choice:has(input:checked) {
+  border-color: var(--or-soft);
+  background: rgba(201, 162, 75, 0.06);
+}
+.choice:has(input:checked) .t::before {
+  background: var(--or-glow);
+  border-color: var(--or-glow);
+  box-shadow: 0 0 0 3px rgba(201, 162, 75, 0.16);
+}
+.choice:has(input:focus-visible) {
+  outline: 1.5px solid var(--or-glow);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------
+   Vue série — saisons dépliables, badges de phase
+   --------------------------------------------------------------- */
+
+.saison {
+  margin-top: var(--sp-5);
+}
+.saison-hd {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  width: 100%;
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+}
+.saison-hd .chev {
+  width: 14px;
+  color: var(--ink-3);
+  font-size: 11px;
+  transition: transform 0.18s;
+  display: inline-block;
+}
+.saison[data-open="true"] .saison-hd .chev {
+  transform: rotate(90deg);
+}
+.saison-hd .sno {
+  font-family: var(--font-brand), serif;
+  font-size: 17px;
+  color: var(--or);
+  letter-spacing: 0.08em;
+}
+.saison-hd .stitle {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.saison-hd .srange {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.saison-hd:hover .stitle {
+  color: var(--or-glow);
+}
+.saison-bd {
+  margin-top: var(--sp-3);
+}
+.saison-bd .add-ep {
+  margin: var(--sp-3) 0 0;
+}
+
+/* Ligne d'épisode : poster mini + numéro + titre + badges */
+.shot.ep-row {
+  grid-template-columns: 32px 44px minmax(0, 1fr) auto;
+  gap: var(--sp-3);
+  padding: 9px var(--sp-4);
+}
+.ep-row .shot-right {
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Badge de phase — étape du pipeline, distinct du badge de statut */
+.phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 4px 9px 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+.phase .pips {
+  display: inline-flex;
+  gap: 2px;
+}
+.phase .pips i {
+  width: 8px;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--line-strong);
+}
+.phase .pips i.on {
+  background: var(--or);
+}
+.phase .pips i.part {
+  background: repeating-linear-gradient(90deg, var(--or-soft) 0 2px, transparent 2px 3px);
+}
+.ph-fini {
+  color: var(--or-glow);
+}
+.ph-fini .pips i.on {
+  background: var(--or-glow);
+}
+.ph-vide {
+  color: var(--ink-4);
+}
+.ph-mixte {
+  border-style: dashed;
+  border-color: var(--line-strong);
+  background: transparent;
+}
+.phase-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: calc(-1 * var(--sp-3)) 0 var(--sp-4);
+  font-size: 11.5px;
+  color: var(--ink-4);
+}
+
+/* ---------------------------------------------------------------
    Responsive
    --------------------------------------------------------------- */
 
@@ -1731,5 +2174,21 @@ button {
   }
   .pivot-no {
     font-size: 30px;
+  }
+  .shot.ep-row {
+    grid-template-columns: 32px 40px minmax(0, 1fr);
+    padding: 10px;
+  }
+  .ep-row .shot-right {
+    justify-content: flex-start;
+  }
+  .choices,
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .trail {
+    border-left: 0;
+    padding-left: 0;
+    flex-basis: 100%;
   }
 }

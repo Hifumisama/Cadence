@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { db } from "../db";
 import { assets, mouvements, planDialogues, planPromptSections, planRefs, plans } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { getDefaultEpisodeId, getDefaultProjectId } from "../lib/queries";
 
 /**
  * Import one-shot depuis les markdown existants vers Postgres — voir le plan
@@ -36,7 +37,7 @@ const STATUT_ASSET: Record<string, "a_produire" | "en_cours" | "valide"> = {
   "✅": "valide",
 };
 
-async function importerAssets() {
+async function importerAssets(projectId: number) {
   // CRLF dans le fichier original — sans normalisation, "^## (.+)$" ne
   // matche jamais (le \r final bloque l'ancre $), et sectionCourante reste
   // vide : bug latent depuis le tout premier import, invisible tant que
@@ -90,6 +91,7 @@ async function importerAssets() {
     }
 
     await db.insert(assets).values({
+      projectId,
       code,
       type,
       statut,
@@ -140,7 +142,7 @@ function parserTableSimple(bloc: string): Record<string, string>[] {
   });
 }
 
-async function importerPlans() {
+async function importerPlans(projectId: number, episodeId: number) {
   // Même bug latent CRLF que REGISTRE_ASSETS.md : sans normalisation, les
   // regex qui ancrent "\n" juste avant un motif (ex. "section:\n...")
   // échouent silencieusement — les sections de prompt restaient vides.
@@ -192,6 +194,8 @@ async function importerPlans() {
       [planInsere] = await db
         .insert(plans)
         .values({
+          projectId,
+          episodeId,
           numero,
           numerosSource: numerosSource.length > 1 ? numerosSource : null,
           titre,
@@ -298,7 +302,7 @@ function parserBlocScenario(bloc: string): Record<string, string> {
  * Vient compléter les plans déjà créés par importerPlans() — best-effort,
  * un plan fusionné (ex. 20 absorbé dans 10) n'a pas de ligne propre et son
  * bloc scénario est donc ignoré silencieusement. */
-async function importerScenario() {
+async function importerScenario(episodeId: number) {
   // Fichier original de l'utilisateur, en CRLF — normalisé pour que les
   // regex multi-lignes (fences ``` ) matchent correctement.
   const texte = (await readFile(new URL("S01_maya.md", ROOT), "utf-8")).replace(/\r\n/g, "\n");
@@ -320,6 +324,7 @@ async function importerScenario() {
       const [inserted] = await db
         .insert(mouvements)
         .values({
+          episodeId,
           ordre: ordre++,
           titre,
           planNumeroDebut: debut,
@@ -376,8 +381,16 @@ async function importerScenario() {
  * ici : le statut par défaut "brouillon" du schéma ne sert que pour les
  * plans créés à la main depuis /scenario après cet import. */
 
-await importerAssets();
-await importerPlans();
-await importerScenario();
+// Rattache l'import au projet/épisode par défaut (2026-09-28) — voir
+// db/migrations/0007_projets_saisons_episodes.sql pour le bootstrap "Les
+// Yeux de Rubis" créé au moment où projets/saisons/épisodes ont été
+// introduits. Un relancer sur une base sans aucun projet échouera
+// explicitement plutôt que d'insérer des lignes orphelines.
+const projectId = await getDefaultProjectId();
+const episodeId = await getDefaultEpisodeId();
+
+await importerAssets(projectId);
+await importerPlans(projectId, episodeId);
+await importerScenario(episodeId);
 console.log("[import] Terminé — vérifier le résultat plan par plan dans /shots.");
 process.exit(0);

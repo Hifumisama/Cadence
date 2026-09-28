@@ -5,7 +5,7 @@ import { creerAsset } from "@/app/assets/actions";
 
 const TYPES = ["personnage", "decor", "voix", "prop", "fx", "keyframe", "autre"];
 
-export function AjouterAssetForm() {
+export function AjouterAssetForm({ projectId }: { projectId: number }) {
   const [ouvert, setOuvert] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
@@ -17,7 +17,7 @@ export function AjouterAssetForm() {
     setErreur(null);
     startTransition(async () => {
       try {
-        await creerAsset(formData);
+        await creerAsset(projectId, formData);
         formRef.current?.reset();
         setOuvert(false);
       } catch (err) {

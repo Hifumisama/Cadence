@@ -6,10 +6,12 @@ import { creerAsset } from "@/app/assets/actions";
 const TYPES = ["personnage", "decor", "voix", "prop", "fx", "keyframe", "autre"];
 
 export function AjouterDeriveForm({
+  projectId,
   parentId,
   parentCode,
   parentType,
 }: {
+  projectId: number;
   parentId: number;
   parentCode: string;
   parentType: string;
@@ -26,7 +28,7 @@ export function AjouterDeriveForm({
     setErreur(null);
     startTransition(async () => {
       try {
-        await creerAsset(formData);
+        await creerAsset(projectId, formData);
         formRef.current?.reset();
         setOuvert(false);
       } catch (err) {

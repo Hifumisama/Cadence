@@ -26,7 +26,7 @@ async function enregistrerFichierAsset(code: string, fichier: File): Promise<str
 /** Création d'un sujet (master) ou d'un dérivé, fichier média optionnel dès
  * la création (retour utilisateur 2026-09-28 : "évidemment on peut fournir
  * un fichier, c'est logique"). */
-export async function creerAsset(formData: FormData) {
+export async function creerAsset(projectId: number, formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
   if (!code) return;
   const type = String(formData.get("type") ?? "autre");
@@ -39,6 +39,7 @@ export async function creerAsset(formData: FormData) {
   const [cree] = await db
     .insert(assets)
     .values({
+      projectId,
       code,
       type,
       description: description || null,
@@ -52,8 +53,7 @@ export async function creerAsset(formData: FormData) {
     await db.update(assets).set({ fichier: nomFichier }).where(eq(assets.id, cree.id));
   }
 
-  revalidatePath("/assets");
-  if (deriveDeId) revalidatePath("/assets/[code]", "page");
+  revalidatePath("/", "layout");
 }
 
 export async function updateAssetStatut(
@@ -61,8 +61,8 @@ export async function updateAssetStatut(
   statut: "a_produire" | "en_cours" | "valide",
 ) {
   await db.update(assets).set({ statut }).where(eq(assets.id, assetId));
-  revalidatePath("/assets");
-  revalidatePath("/assets/[code]", "page");
+  revalidatePath("/", "layout");
+  
 }
 
 export async function updateAsset(
@@ -77,8 +77,8 @@ export async function updateAsset(
       critique: valeurs.critique,
     })
     .where(eq(assets.id, assetId));
-  revalidatePath("/assets");
-  revalidatePath("/assets/[code]", "page");
+  revalidatePath("/", "layout");
+  
 }
 
 /** Upload direct du fichier média (image/audio/vidéo) d'un asset déjà créé.
@@ -97,8 +97,8 @@ export async function uploaderFichierAsset(
   const nomFichier = await enregistrerFichierAsset(code, fichier);
 
   await db.update(assets).set({ fichier: nomFichier }).where(eq(assets.id, assetId));
-  revalidatePath("/assets");
-  revalidatePath("/assets/[code]", "page");
+  revalidatePath("/", "layout");
+  
 }
 
 /** Suppression protégée (retour utilisateur 2026-09-28) : un asset relié à
@@ -124,7 +124,7 @@ export async function supprimerAsset(
   }
 
   await db.delete(assets).where(eq(assets.id, assetId));
-  revalidatePath("/assets");
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
@@ -132,8 +132,8 @@ export async function supprimerAsset(
  * plan — débloque la suppression de l'asset si c'était sa dernière citation. */
 export async function delierRef(refId: number) {
   await db.delete(planRefs).where(eq(planRefs.id, refId));
-  revalidatePath("/assets");
-  revalidatePath("/assets/[code]", "page");
+  revalidatePath("/", "layout");
+  
 }
 
 /** Délie une voix de dialogue : on efface le lien vers l'asset voix, jamais
@@ -141,6 +141,6 @@ export async function delierRef(refId: number) {
  * fiche de plan, indépendante du registre d'assets). */
 export async function delierVoixDialogue(dialogueId: number) {
   await db.update(planDialogues).set({ assetVoixId: null }).where(eq(planDialogues.id, dialogueId));
-  revalidatePath("/assets");
-  revalidatePath("/assets/[code]", "page");
+  revalidatePath("/", "layout");
+  
 }

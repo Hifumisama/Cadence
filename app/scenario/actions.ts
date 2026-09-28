@@ -1,37 +1,52 @@
 "use server";
 
 import { db } from "@/db";
-import { mouvements, plans } from "@/db/schema";
+import { mouvements, plans, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { setParam } from "@/lib/params";
-import type { Parametres } from "@/lib/params";
 
-export async function updateScenarioGlobal(cle: keyof Parametres, valeur: string) {
-  await setParam(cle, valeur);
-  revalidatePath("/scenario");
+const CHAMPS_PROJET = [
+  "clauseStyle",
+  "scenarioArc",
+  "scenarioStyle",
+  "scenarioContinuite",
+  "scenarioRimes",
+  "scenarioPieges",
+] as const;
+
+/** Réglages qui ne bougent pas à l'échelle du projet (retour utilisateur
+ * 2026-09-28) — colonnes de `projects`, plus de clé/valeur globale. */
+export async function updateScenarioGlobal(projectId: number, cle: (typeof CHAMPS_PROJET)[number], valeur: string) {
+  await db.update(projects).set({ [cle]: valeur }).where(eq(projects.id, projectId));
+  revalidatePath("/", "layout");
 }
 
 /** Un plan naît toujours en brouillon (défaut du schéma) — il faudra le
  * "développer" explicitement en fiche de plan avant qu'il entre dans Shots.
  * Le numéro n'est jamais imposé par une règle stricte de dizaines : c'est
  * une convention d'écriture, pas une contrainte, on peut insérer librement
- * entre deux numéros existants. */
-export async function creerPlanScenario(valeurs: {
-  numero: number;
-  titre: string;
-  mouvementId: number | null;
-  dureeMontageSecondes: number;
-  valeur: string;
-  sujet: string;
-  decor: string;
-  lumiere: string;
-  mouvementCamera: string;
-  son: string;
-  intention: string;
-  assetsRequis: string;
-}) {
+ * entre deux numéros existants (à l'échelle de l'épisode, F03). */
+export async function creerPlanScenario(
+  projectId: number,
+  episodeId: number,
+  valeurs: {
+    numero: number;
+    titre: string;
+    mouvementId: number | null;
+    dureeMontageSecondes: number;
+    valeur: string;
+    sujet: string;
+    decor: string;
+    lumiere: string;
+    mouvementCamera: string;
+    son: string;
+    intention: string;
+    assetsRequis: string;
+  },
+) {
   await db.insert(plans).values({
+    projectId,
+    episodeId,
     numero: valeurs.numero,
     titre: valeurs.titre,
     mouvementId: valeurs.mouvementId,
@@ -46,19 +61,23 @@ export async function creerPlanScenario(valeurs: {
     intention: valeurs.intention || null,
     assetsRequis: valeurs.assetsRequis || null,
   });
-  revalidatePath("/scenario");
+  revalidatePath("/", "layout");
 }
 
-export async function creerMouvement(valeurs: {
-  titre: string;
-  planNumeroDebut: number;
-  planNumeroFin: number;
-  fonction: string;
-  dureeApproxSecondes: number | null;
-}) {
-  const existants = await db.select().from(mouvements);
+export async function creerMouvement(
+  episodeId: number,
+  valeurs: {
+    titre: string;
+    planNumeroDebut: number;
+    planNumeroFin: number;
+    fonction: string;
+    dureeApproxSecondes: number | null;
+  },
+) {
+  const existants = await db.select().from(mouvements).where(eq(mouvements.episodeId, episodeId));
   const ordre = existants.reduce((acc, m) => Math.max(acc, m.ordre), -1) + 1;
   await db.insert(mouvements).values({
+    episodeId,
     ordre,
     titre: valeurs.titre,
     planNumeroDebut: valeurs.planNumeroDebut,
@@ -66,7 +85,7 @@ export async function creerMouvement(valeurs: {
     fonction: valeurs.fonction || null,
     dureeApproxSecondes: valeurs.dureeApproxSecondes,
   });
-  revalidatePath("/scenario");
+  revalidatePath("/", "layout");
 }
 
 /** Suppression sans blocage (retour utilisateur 2026-09-28) : un mouvement
@@ -76,5 +95,5 @@ export async function creerMouvement(valeurs: {
 export async function supprimerMouvement(mouvementId: number) {
   await db.update(plans).set({ mouvementId: null }).where(eq(plans.mouvementId, mouvementId));
   await db.delete(mouvements).where(eq(mouvements.id, mouvementId));
-  revalidatePath("/scenario");
+  revalidatePath("/", "layout");
 }

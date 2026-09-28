@@ -19,9 +19,13 @@ const VIDE = {
 };
 
 export function NouveauPlanForm({
+  projectId,
+  episodeId,
   prochainNumeroLibre,
   mouvementsOptions,
 }: {
+  projectId: number;
+  episodeId: number;
   prochainNumeroLibre: number;
   mouvementsOptions: MouvementOption[];
 }) {
@@ -37,7 +41,7 @@ export function NouveauPlanForm({
   const onCreer = () => {
     if (!champs.titre.trim() || !numero) return;
     startTransition(async () => {
-      await creerPlanScenario({
+      await creerPlanScenario(projectId, episodeId, {
         numero: Number(numero),
         titre: champs.titre,
         mouvementId: mouvementId ? Number(mouvementId) : null,

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Marcellus, Jost, IBM_Plex_Mono } from "next/font/google";
-import { TopbarNav } from "@/components/ui/TopbarNav";
 import "./globals.css";
 
 const marcellus = Marcellus({
@@ -32,18 +31,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${marcellus.variable} ${jost.variable} ${plexMono.variable}`}>
       <body>
-        <div className="shell">
-          <header className="topbar">
-            <div className="topbar-in">
-              <div className="brand">
-                <span className="wordmark">Cadence</span>
-                <span className="series">Les Yeux de Rubis · S01</span>
-              </div>
-              <TopbarNav />
-            </div>
-          </header>
-          <main className="page">{children}</main>
-        </div>
+        <div className="shell">{children}</div>
       </body>
     </html>
   );

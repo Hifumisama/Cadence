@@ -20,8 +20,14 @@ const TALLY_CLASS: Record<string, string> = {
   en_attente: "is-attente",
 };
 
-export default async function ShotsPage() {
-  const shots = await getShotsList();
+export default async function ShotsPage({
+  params,
+}: {
+  params: Promise<{ projectId: string; episodeId: string }>;
+}) {
+  const { projectId, episodeId } = await params;
+  const base = `/p/${projectId}/e/${episodeId}`;
+  const shots = await getShotsList(Number(episodeId));
 
   const comptes = new Map<string, number>();
   for (const s of shots) {
@@ -37,10 +43,7 @@ export default async function ShotsPage() {
             Frise de production
           </p>
           <h1>Shots</h1>
-          <p>
-            Tous les plans de la série dans l&rsquo;ordre, sans remise à zéro par
-            épisode.
-          </p>
+          <p>Tous les plans de cet épisode dans l&rsquo;ordre, sans remise à zéro.</p>
         </div>
       </div>
 
@@ -57,16 +60,11 @@ export default async function ShotsPage() {
         </div>
       ) : null}
 
-      <div className="zellige-sep">
-        <span className="eyebrow">Épisode 1 — L&rsquo;auberge</span>
-        <hr className="zellige-rule" />
-      </div>
-
       <div className="frise">
         {shots.map((shot) => (
           <Link
             key={shot.numero}
-            href={`/plans/${shot.numero}`}
+            href={`${base}/plans/${shot.numero}`}
             className={`shot ${statusNodeClass(shot.statut)}`}
           >
             <span className="node" />

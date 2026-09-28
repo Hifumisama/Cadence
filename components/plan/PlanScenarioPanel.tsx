@@ -39,7 +39,7 @@ export function PlanScenarioPanel({
 
   const onSave = () => {
     startTransition(async () => {
-      await updatePlanScenario(planId, planNumero, champs);
+      await updatePlanScenario(planId, champs);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
       if (!brouillon) setEditionOuverte(false);
@@ -48,8 +48,8 @@ export function PlanScenarioPanel({
 
   const onDevelopper = () => {
     startTransition(async () => {
-      await updatePlanScenario(planId, planNumero, champs);
-      await developperEnFichePlan(planId, planNumero);
+      await updatePlanScenario(planId, champs);
+      await developperEnFichePlan(planId);
     });
   };
 

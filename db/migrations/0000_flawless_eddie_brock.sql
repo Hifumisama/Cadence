@@ -1,6 +1,6 @@
 CREATE TYPE "public"."asset_statut" AS ENUM('a_produire', 'en_cours', 'valide');--> statement-breakpoint
 CREATE TYPE "public"."job_statut" AS ENUM('en_attente', 'en_cours', 'echoue', 'termine');--> statement-breakpoint
-CREATE TYPE "public"."plan_statut" AS ENUM('en_attente', 'en_cours', 'echoue', 'rejoue', 'termine');--> statement-breakpoint
+CREATE TYPE "public"."plan_statut" AS ENUM('brouillon', 'en_attente', 'en_cours', 'echoue', 'rejoue', 'previsualise', 'termine');--> statement-breakpoint
 CREATE TYPE "public"."ref_type" AS ENUM('picture', 'video', 'audio');--> statement-breakpoint
 CREATE TABLE "assets" (
 	"id" serial PRIMARY KEY NOT NULL,

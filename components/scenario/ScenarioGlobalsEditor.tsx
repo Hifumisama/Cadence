@@ -3,15 +3,16 @@
 import { useState, useTransition } from "react";
 import { updateScenarioGlobal } from "@/app/scenario/actions";
 
-const FIELDS: { cle: "scenario_arc" | "scenario_style" | "scenario_continuite" | "scenario_rimes" | "scenario_pieges"; label: string; wide?: boolean }[] = [
-  { cle: "scenario_arc", label: "Arc · 2 phrases", wide: true },
-  { cle: "scenario_style", label: "Style visuel" },
-  { cle: "scenario_rimes", label: "Rimes / échos" },
-  { cle: "scenario_continuite", label: "Règles de continuité" },
-  { cle: "scenario_pieges", label: "Pièges à éviter" },
+const FIELDS: { cle: "clauseStyle" | "scenarioArc" | "scenarioStyle" | "scenarioContinuite" | "scenarioRimes" | "scenarioPieges"; label: string; wide?: boolean }[] = [
+  { cle: "clauseStyle", label: "Clause de style (image/vidéo)", wide: true },
+  { cle: "scenarioArc", label: "Arc · 2 phrases", wide: true },
+  { cle: "scenarioStyle", label: "Style visuel" },
+  { cle: "scenarioRimes", label: "Rimes / échos" },
+  { cle: "scenarioContinuite", label: "Règles de continuité" },
+  { cle: "scenarioPieges", label: "Pièges à éviter" },
 ];
 
-export function ScenarioGlobalsEditor({ valeurs }: { valeurs: Record<string, string> }) {
+export function ScenarioGlobalsEditor({ projectId, valeurs }: { projectId: number; valeurs: Record<string, string> }) {
   const [champs, setChamps] = useState(valeurs);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -20,7 +21,7 @@ export function ScenarioGlobalsEditor({ valeurs }: { valeurs: Record<string, str
     startTransition(async () => {
       for (const f of FIELDS) {
         if (champs[f.cle] !== valeurs[f.cle]) {
-          await updateScenarioGlobal(f.cle, champs[f.cle] ?? "");
+          await updateScenarioGlobal(projectId, f.cle, champs[f.cle] ?? "");
         }
       }
       setSaved(true);

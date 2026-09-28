@@ -3,11 +3,11 @@
 import { useTransition } from "react";
 import { relancerPlan } from "@/app/plans/[numero]/actions";
 
-export function RelaunchButton({ planNumero }: { planNumero: number }) {
+export function RelaunchButton({ episodeId, planNumero }: { episodeId: number; planNumero: number }) {
   const [pending, startTransition] = useTransition();
 
   const lancer = (activerUpscale: boolean) =>
-    startTransition(() => relancerPlan(planNumero, activerUpscale));
+    startTransition(() => relancerPlan(episodeId, planNumero, activerUpscale));
 
   return (
     <div className="flex gap-2">

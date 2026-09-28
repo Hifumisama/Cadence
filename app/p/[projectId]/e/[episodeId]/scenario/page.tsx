@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getScenarioData } from "@/lib/queries";
-import { getAllParams } from "@/lib/params";
+import { getProject, getScenarioData } from "@/lib/queries";
+import { notFound } from "next/navigation";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
 import { ScenarioGlobalsEditor } from "@/components/scenario/ScenarioGlobalsEditor";
 import { NouveauPlanForm } from "@/components/scenario/NouveauPlanForm";
@@ -11,11 +11,21 @@ export const dynamic = "force-dynamic";
 
 const ROMAINS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
-export default async function ScenarioPage() {
-  const [{ mouvements, sansMouvement, prochainNumeroLibre }, parametresGlobaux] = await Promise.all([
-    getScenarioData(),
-    getAllParams(),
+export default async function ScenarioPage({
+  params,
+}: {
+  params: Promise<{ projectId: string; episodeId: string }>;
+}) {
+  const { projectId, episodeId } = await params;
+  const pid = Number(projectId);
+  const eid = Number(episodeId);
+  const base = `/p/${pid}/e/${eid}`;
+
+  const [projet, { mouvements, sansMouvement, prochainNumeroLibre }] = await Promise.all([
+    getProject(pid),
+    getScenarioData(eid),
   ]);
+  if (!projet) notFound();
 
   const tousLesPlans = [...mouvements.flatMap((m) => m.plans), ...sansMouvement];
   const nbBrouillons = tousLesPlans.filter((p) => p.statut === "brouillon").length;
@@ -51,12 +61,14 @@ export default async function ScenarioPage() {
       </div>
 
       <ScenarioGlobalsEditor
+        projectId={pid}
         valeurs={{
-          scenario_arc: parametresGlobaux.scenario_arc,
-          scenario_style: parametresGlobaux.scenario_style,
-          scenario_continuite: parametresGlobaux.scenario_continuite,
-          scenario_rimes: parametresGlobaux.scenario_rimes,
-          scenario_pieges: parametresGlobaux.scenario_pieges,
+          clauseStyle: projet.clauseStyle,
+          scenarioArc: projet.scenarioArc,
+          scenarioStyle: projet.scenarioStyle,
+          scenarioContinuite: projet.scenarioContinuite,
+          scenarioRimes: projet.scenarioRimes,
+          scenarioPieges: projet.scenarioPieges,
         }}
       />
 
@@ -82,6 +94,8 @@ export default async function ScenarioPage() {
 
       <div className="queue">
         <NouveauPlanForm
+          projectId={pid}
+          episodeId={eid}
           prochainNumeroLibre={prochainNumeroLibre}
           mouvementsOptions={mouvements.map((m) => ({
             id: m.id,
@@ -90,7 +104,7 @@ export default async function ScenarioPage() {
             planNumeroFin: m.planNumeroFin,
           }))}
         />
-        <NouveauMouvementForm />
+        <NouveauMouvementForm episodeId={eid} />
       </div>
 
       {groupes.map((g, idx) => (
@@ -112,7 +126,7 @@ export default async function ScenarioPage() {
             {g.plans.map((plan) => (
               <Link
                 key={plan.numero}
-                href={`/plans/${plan.numero}`}
+                href={`${base}/plans/${plan.numero}`}
                 className={`shot ${statusNodeClass(plan.statut)}`}
               >
                 <span className="node" />

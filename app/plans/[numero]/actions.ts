@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/db";
-import { jobs, planPromptSections, planRefs, plans } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { jobs, planDialogues, planPromptSections, planRefs, plans } from "@/db/schema";
+import { eq, and, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { MAX_REFS } from "@/lib/plan-checks";
@@ -39,8 +39,11 @@ export async function updatePromptSection(
  * boucle d'itération. Le worker applique ensuite le healthcheck et la
  * distinction indisponible/échec réel (F04). activerUpscale distingue la
  * prévisualisation rapide (itération de prompt) du rendu final. */
-export async function relancerPlan(planNumero: number, activerUpscale: boolean) {
-  const [plan] = await db.select().from(plans).where(eq(plans.numero, planNumero));
+export async function relancerPlan(episodeId: number, planNumero: number, activerUpscale: boolean) {
+  const [plan] = await db
+    .select()
+    .from(plans)
+    .where(and(eq(plans.numero, planNumero), eq(plans.episodeId, episodeId)));
   if (!plan) throw new Error(`Plan ${planNumero} introuvable`);
 
   await db.insert(jobs).values({
@@ -57,15 +60,13 @@ export async function relancerPlan(planNumero: number, activerUpscale: boolean) 
     .set({ statut: "en_attente", updatedAt: new Date() })
     .where(eq(plans.id, plan.id));
 
-  revalidatePath(`/plans/${planNumero}`);
-  revalidatePath("/shots");
+  revalidatePath("/", "layout");
 }
 
 /** FPS et durée de génération, éditables depuis la Fiche de plan — le mode
  * reste toujours full-reference (CDC), pas d'édition prévue pour lui. */
 export async function updatePlanParametres(
   planId: number,
-  planNumero: number,
   valeurs: { fps: number; dureeGenerationSecondes: number },
 ) {
   await db
@@ -77,7 +78,7 @@ export async function updatePlanParametres(
     })
     .where(eq(plans.id, planId));
 
-  revalidatePath(`/plans/${planNumero}`);
+  revalidatePath("/", "layout");
 }
 
 /** Ajoute une référence (image/audio/vidéo) au prochain slot disponible.
@@ -86,7 +87,6 @@ export async function updatePlanParametres(
  * décaler les labels <Picture N> déjà cités dans le prompt. */
 export async function ajouterRef(
   planId: number,
-  planNumero: number,
   type: RefLabel["type"],
   assetId: number,
   role: string,
@@ -108,12 +108,12 @@ export async function ajouterRef(
     role: role || null,
   });
 
-  revalidatePath(`/plans/${planNumero}`);
+  revalidatePath("/", "layout");
 }
 
-export async function supprimerRef(refId: number, planNumero: number) {
+export async function supprimerRef(refId: number) {
   await db.delete(planRefs).where(eq(planRefs.id, refId));
-  revalidatePath(`/plans/${planNumero}`);
+  revalidatePath("/", "layout");
 }
 
 type ValeursScenario = {
@@ -132,11 +132,7 @@ type ValeursScenario = {
 /** Édition des champs scénario — reste ouverte même après développement en
  * fiche de plan (retour utilisateur 2026-09-27) : rien n'empêche de revenir
  * corriger décor/intention après coup. */
-export async function updatePlanScenario(
-  planId: number,
-  planNumero: number,
-  valeurs: ValeursScenario,
-) {
+export async function updatePlanScenario(planId: number, valeurs: ValeursScenario) {
   await db
     .update(plans)
     .set({
@@ -154,25 +150,50 @@ export async function updatePlanScenario(
     })
     .where(eq(plans.id, planId));
 
-  revalidatePath(`/plans/${planNumero}`);
-  revalidatePath("/scenario");
+  revalidatePath("/", "layout");
 }
 
-/** Suppression libre (retour utilisateur 2026-09-28) : un plan est
- * "indépendant" — ses sections de prompt, refs et dialogues cascadent
- * (db/schema.ts, onDelete: "cascade"), et le numéro n'est jamais réutilisé
- * (F03), donc rien à protéger côté données. */
-export async function supprimerPlan(planId: number) {
+/** Suppression protégée (révisé 2026-09-28 — remplace la "suppression
+ * libre" du même jour, voir docs/FRICTIONS.md) : un plan encore cité comme
+ * référence (image/audio/vidéo) ou comme voix de dialogue ne se supprime
+ * pas tant que ces liens n'ont pas été explicitement défaits — même
+ * philosophie que supprimerAsset (app/assets/actions.ts). `force` saute la
+ * vérification : le plan disparaît quand même, ses refs/dialogues
+ * cascadent avec lui (db/schema.ts), mais jamais les assets qu'ils
+ * citaient — ceux-ci restent dans le registre du projet. */
+export async function supprimerPlan(
+  planId: number,
+  shotsHref: string,
+  force = false,
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  if (!force) {
+    const [ref] = await db
+      .select()
+      .from(planRefs)
+      .where(and(eq(planRefs.planId, planId), isNotNull(planRefs.assetId)))
+      .limit(1);
+    if (ref) {
+      return { ok: false, erreur: "Encore des références d'asset sur ce plan — délie-les d'abord, ou force la suppression." };
+    }
+    const [dial] = await db
+      .select()
+      .from(planDialogues)
+      .where(and(eq(planDialogues.planId, planId), isNotNull(planDialogues.assetVoixId)))
+      .limit(1);
+    if (dial) {
+      return { ok: false, erreur: "Encore une voix de dialogue liée à un asset sur ce plan — délie-la d'abord, ou force la suppression." };
+    }
+  }
+
   await db.delete(plans).where(eq(plans.id, planId));
-  revalidatePath("/scenario");
-  revalidatePath("/shots");
-  redirect("/shots");
+  revalidatePath("/", "layout");
+  redirect(shotsHref);
 }
 
 /** Bascule un plan brouillon en fiche de plan développable : crée les 6
  * sections de prompt vides et passe le statut à en_attente — c'est ce qui
  * fait entrer le plan dans la queue Shots (F04), jamais avant. */
-export async function developperEnFichePlan(planId: number, planNumero: number) {
+export async function developperEnFichePlan(planId: number) {
   const existantes = await db
     .select()
     .from(planPromptSections)
@@ -198,7 +219,5 @@ export async function developperEnFichePlan(planId: number, planNumero: number) 
     .set({ statut: "en_attente", updatedAt: new Date() })
     .where(eq(plans.id, planId));
 
-  revalidatePath(`/plans/${planNumero}`);
-  revalidatePath("/scenario");
-  revalidatePath("/shots");
+  revalidatePath("/", "layout");
 }

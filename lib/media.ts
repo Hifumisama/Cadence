@@ -48,3 +48,32 @@ export function fichierMediaExiste(fichier: string): boolean {
     return false;
   }
 }
+
+export type PosterCible = "projects" | "seasons" | "episodes";
+
+/** Convention de rangement des posters (projet/saison/épisode) — même
+ * logique que cheminAssetMedia, un dossier par type d'entité plutôt qu'un
+ * seul fourre-tout, puisque l'id seul ne suffirait pas à distinguer un
+ * poster de projet d'un poster de saison portant le même id. */
+export function cheminPosterMedia(cible: PosterCible, id: number, fichier: string): string {
+  return `${cible}/${id}/${fichier}`;
+}
+
+export function posterMediaExiste(cible: PosterCible, id: number, fichier: string): boolean {
+  try {
+    return existsSync(resolve(MEDIA_ROOT, cheminPosterMedia(cible, id, fichier)));
+  } catch {
+    return false;
+  }
+}
+
+/** URL à afficher pour un poster, ou null (repli en dégradé) — résolue ici,
+ * côté serveur (accès disque), jamais dans le composant Poster lui-même :
+ * un import de lib/media.ts (node:fs) depuis un composant rendu par un
+ * "use client" ferait planter le bundling (Turbopack refuse node:fs dans un
+ * chunk navigateur). Toujours appeler ça depuis une page/composant serveur,
+ * jamais depuis un composant client. */
+export function posterSrc(cible: PosterCible, id: number, fichier: string | null): string | null {
+  if (!fichier || !posterMediaExiste(cible, id, fichier)) return null;
+  return `/api/media/${cheminPosterMedia(cible, id, fichier)}`;
+}
