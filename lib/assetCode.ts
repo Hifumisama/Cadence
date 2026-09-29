@@ -3,7 +3,7 @@
  * L'utilisateur ne saisit que le suffixe (ex. "maya"), le préfixe et
  * l'assemblage sont automatiques (retour utilisateur 2026-09-28 : pas de
  * raison de redemander en texte libre ce que le type dit déjà). */
-export const TYPES_ASSET = ["personnage", "decor", "voix", "prop", "fx", "keyframe", "autre"] as const;
+export const TYPES_ASSET = ["personnage", "decor", "voix", "prop", "vfx", "sfx", "keyframe", "oth"] as const;
 
 export type TypeAsset = (typeof TYPES_ASSET)[number];
 
@@ -12,9 +12,10 @@ export const PREFIXE_PAR_TYPE: Record<TypeAsset, string> = {
   decor: "DEC_",
   voix: "VOICE_",
   prop: "PROP_",
-  fx: "FX_",
+  vfx: "VFX_",
+  sfx: "SFX_",
   keyframe: "KEY_",
-  autre: "",
+  oth: "OTH_",
 };
 
 /** snake_case sans accents ni ponctuation — "Halo Doré" -> "halo_dore". */

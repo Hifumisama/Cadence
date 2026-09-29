@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsTree, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { AjouterAssetForm } from "@/components/assets/AjouterAssetForm";
-import { AssetPreview } from "@/components/assets/AssetPreview";
+import { AssetCard, type FichierEtat, type MediaKind } from "@/components/assets/AssetCard";
+import { AssetFiltres } from "@/components/assets/AssetFiltres";
+import { TYPES_ASSET } from "@/lib/assetCode";
+import { cheminAssetMedia, estAudio, estVideo, fichierMediaExiste } from "@/lib/media";
 import { Topbar } from "@/components/ui/Topbar";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +28,23 @@ function compterCritiques(masters: Awaited<ReturnType<typeof getAssetsTree>>): n
   );
 }
 
-export default async function AssetsPage({ params }: { params: Promise<{ projectId: string }> }) {
+function infosMedia(type: string, fichier: string | null): { kind: MediaKind; etat: FichierEtat; src: string | null } {
+  if (!fichier) return { kind: "image", etat: "aucun", src: null };
+  const kind: MediaKind = type === "voix" || type === "sfx" || estAudio(fichier) ? "audio" : estVideo(fichier) ? "video" : "image";
+  if (!fichierMediaExiste(fichier)) return { kind, etat: "manquant", src: null };
+  return { kind, etat: "ok", src: `/api/media/${cheminAssetMedia(fichier)}` };
+}
+
+export default async function AssetsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ type?: string }>;
+}) {
   const { projectId } = await params;
+  const { type: typeBrut } = await searchParams;
+  const typeActif = (TYPES_ASSET as readonly string[]).includes(typeBrut ?? "") ? (typeBrut as string) : null;
   const pid = Number(projectId);
   const [projet, masters, premierEpisodeId] = await Promise.all([
     getProject(pid),
@@ -34,6 +52,10 @@ export default async function AssetsPage({ params }: { params: Promise<{ project
     getFirstEpisodeId(pid),
   ]);
   if (!projet) notFound();
+
+  const compteurs: Record<string, number> = {};
+  for (const m of masters) compteurs[m.type] = (compteurs[m.type] ?? 0) + 1;
+  const visibles = typeActif ? masters.filter((m) => m.type === typeActif) : masters;
 
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
 
@@ -95,32 +117,36 @@ export default async function AssetsPage({ params }: { params: Promise<{ project
           <div className="panel-hd">
             <h2>Sujets</h2>
           </div>
-          <div>
-            {masters.map((m) => (
-              <Link key={m.id} href={`/p/${pid}/assets/${m.code}`} className="subj-row">
-                <AssetPreview type={m.type} fichier={m.fichier} taille="sm" />
-                <span className="asset-code">
-                  {m.code}
-                  {m.critique ? <span className="crit-tag" style={{ marginLeft: 8 }}>Critique</span> : null}
-                </span>
-                <span className="type-tag">{m.type}</span>
-                <span className="subj-desc">{m.description ?? "—"}</span>
-                <span className="subj-kids">
-                  {m.derives.length > 0 ? `${m.derives.length} dérivé${m.derives.length > 1 ? "s" : ""}` : "aucun dérivé"}
-                </span>
-                <span className={`badge ${m.statut === "valide" ? "b-termine" : m.statut === "en_cours" ? "b-rejoue" : "b-attente"}`}>
-                  <i />
-                  {m.statut === "valide" ? "Validé" : m.statut === "en_cours" ? "En cours" : "À produire"}
-                </span>
-              </Link>
-            ))}
-            {masters.length === 0 ? (
-              <p className="tiny-note" style={{ padding: "var(--sp-4)" }}>
-                Aucun asset en base. Lancer <code>npm run db:import</code> ou en ajouter un
-                ci-dessus.
-              </p>
-            ) : null}
+          <AssetFiltres base={`/p/${pid}/assets`} actif={typeActif} compteurs={compteurs} total={masters.length} />
+          <div className="asset-grid">
+            {visibles.map((m) => {
+              const { kind, etat, src } = infosMedia(m.type, m.fichier);
+              return (
+                <AssetCard
+                  key={m.id}
+                  href={`/p/${pid}/assets/${m.code}`}
+                  code={m.code}
+                  type={m.type}
+                  description={m.description}
+                  critique={m.critique}
+                  nbDerives={m.derives.length}
+                  statut={m.statut}
+                  fichier={m.fichier}
+                  kind={kind}
+                  etat={etat}
+                  src={src}
+                />
+              );
+            })}
           </div>
+          {masters.length === 0 ? (
+            <p className="tiny-note" style={{ padding: "var(--sp-4)" }}>
+              Aucun asset en base. Lancer <code>npm run db:import</code> ou en ajouter un
+              ci-dessus.
+            </p>
+          ) : visibles.length === 0 ? (
+            <p className="tiny-note" style={{ padding: "var(--sp-4)" }}>Aucun sujet de ce type.</p>
+          ) : null}
         </section>
       </main>
     </>

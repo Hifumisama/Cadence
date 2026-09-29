@@ -4,6 +4,10 @@
 > Registre unique pour toute la série — ne pas dupliquer par épisode.
 > Modèles : **Krea 2** (text-to-image, masters) · **Qwen Image Edit** (image-to-image, dérivés) · **Qwen3-TTS** (voix)
 
+## Types et préfixes de code
+
+Le type d'un asset fixe le préfixe de son code : `CHAR_` (personnage), `DEC_` (décor), `VOICE_` (voix), `PROP_` (prop), `VFX_` (effets visuels), `SFX_` (effets sonores), `KEY_` (keyframe), `OTH_` (autre). Ancien `FX_` devenu `VFX_`, ancien type « autre » devenu `OTH_` (2026-09-29).
+
 ## Note sur le style
 
 Les prompts ci-dessous **ne contiennent que la description du sujet** — pas de clause de style. Le style Cinematic Anime est géré côté ComfyUI par concaténation automatique avec un prompt de style séparé, donc le répéter ici serait redondant. Si jamais ce nœud de concaténation change, la clause de référence reste celle de la bible :
@@ -154,7 +158,7 @@ La **direction de jeu** de chaque personnage (ce qu'il fait de sa voix, ce qu'il
 
 ## Effets visuels
 
-### `FX_flammes_danse`
+### `VFX_flammes_danse`
 - **Statut** : ✅ · **Critique** : oui
 - **Dérivé de** : `CHAR_maya` (référence de mouvement, pas d'édition Qwen directe)
 - **Fichier** : `VFX_flammes_.png` (fourni par l'utilisateur, retenu comme master)
@@ -338,7 +342,7 @@ Fiche personnage (gabarit 4 vues) pour tout figurant identifiable et récurrent.
 
 # Ordre de fabrication conseillé
 
-1. `CHAR_maya_yeux`, `PROP_dague_maya` et `FX_flammes_danse` — dérivés/effets critiques de Maya, prêts à produire dès maintenant (le feu apparaît dès le plan 60).
+1. `CHAR_maya_yeux`, `PROP_dague_maya` et `VFX_flammes_danse` — dérivés/effets critiques de Maya, prêts à produire dès maintenant (le feu apparaît dès le plan 60).
 2. `DEC_auberge_salle` (master) puis `DEC_halo_dore` (dérivé) — établissent la scène et sa mécanique de rideau.
 3. `PROP_rideau_velours` — dépend visuellement de `DEC_auberge_salle`, à produire juste après pour garder la cohérence du rouge écarlate.
 4. `DEC_couloir_bois` — dépend de `PROP_rideau_velours` pour le raccord du rideau visible sur le côté.

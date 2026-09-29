@@ -238,7 +238,7 @@ export const assets = pgTable("assets", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   code: varchar("code", { length: 100 }).notNull(), // CHAR_maya, DEC_auberge_salle...
-  type: varchar("type", { length: 30 }).notNull(), // personnage | decor | voix | prop | fx | keyframe | autre
+  type: varchar("type", { length: 30 }).notNull(), // personnage | decor | voix | prop | vfx | sfx | keyframe | oth
   statut: assetStatutEnum("statut").notNull().default("a_produire"),
   description: text("description"),
   // Prompt de génération (Krea 2 / Qwen Image Edit / Qwen3-TTS selon le

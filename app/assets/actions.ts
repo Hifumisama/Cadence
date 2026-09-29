@@ -29,7 +29,7 @@ async function enregistrerFichierAsset(code: string, fichier: File): Promise<str
 export async function creerAsset(projectId: number, formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
   if (!code) return;
-  const type = String(formData.get("type") ?? "autre");
+  const type = String(formData.get("type") ?? "oth");
   const description = String(formData.get("description") ?? "");
   const critique = formData.get("critique") === "on";
   const deriveDeIdBrut = formData.get("deriveDeId");

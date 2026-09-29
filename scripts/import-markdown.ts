@@ -25,7 +25,7 @@ const ROOT = new URL("../docs/", import.meta.url);
 const TYPE_PAR_SECTION: Record<string, string> = {
   "Personnages": "personnage",
   "Voix": "voix",
-  "Effets visuels": "fx",
+  "Effets visuels": "vfx",
   "Décors": "decor",
   "Figurants": "personnage",
   "Références contextuelles": "keyframe",
@@ -71,7 +71,7 @@ async function importerAssets(projectId: number) {
     const descriptionMatch = bloc.match(/\*\*Description canonique\*\*\s*:\s*(.+)/);
     const deriveDeMatch = bloc.match(/\*\*Dérivé de\*\*\s*:\s*`([A-Za-z0-9_]+)`/);
 
-    const type = TYPE_PAR_SECTION[sectionCourante] ?? "autre";
+    const type = TYPE_PAR_SECTION[sectionCourante] ?? "oth";
     const clefStatut = statutMatch?.[1];
     const statut = clefStatut ? STATUT_ASSET[clefStatut] ?? "a_produire" : "a_produire";
 

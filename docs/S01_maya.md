@@ -69,7 +69,7 @@ Lumière    : Le halo, faiblement allumé depuis la fin du plan précédent, exp
 Mouvement  : Statique, seule la flamme et la lumière évoluent
 Son        : Silence brisé par une première note de thème, souffle sourd de la flamme
 Intention  : L'apparition doit sembler magique — la flamme est le premier indice discret du don de Maya, jamais commenté à l'écran
-Assets req.: Maya (tenue rouge, corset doré) en pied, FX_flammes_danse
+Assets req.: Maya (tenue rouge, corset doré) en pied, VFX_flammes_danse
 ```
 
 ## PLAN 70 — *Le thème démarre*
@@ -108,7 +108,7 @@ Lumière    : Chaude, dorée, intensifiée par l'éclat propre du tourbillon de 
 Mouvement  : Trois plans distincts séparés par des cuts francs, sans continuité de caméra entre eux : (0:00–0:02) élan diagonal et décollage visible, plan large bas ; (0:02–0:05) coup de pied tournant jambe tendue en l'air, vitesse de rotation ~3x une rotation de danse normale (effet saut-tornade, jambe et flamme fondues en un anneau flou), deux rotations maximum, caméra qui suit la parabole du saut en arc (monte puis redescend, jamais un travelling latéral plat qui donnerait une impression de glissade) ; (0:05–0:07) réception où la rotation s'arrête net et la pose se forme dans le même instant, pas un temps après
 Son        : Cliquetis des bijoux de cheville qui s'accélère sur les deux rotations puis se fige net à la réception, crépitement du tourbillon qui monte puis retombe
 Intention  : Dynamique de coup de pied tournant, jambe tendue tout du long — jamais un vissage sur place, jamais plus de deux tours ; la pose finale doit assumer un charme volontaire, pas juste de l'athlétisme
-Assets req.: Bijoux de cheville (détail), FX_flammes_danse (anneau de flamme autour d'une jambe tendue en rotation)
+Assets req.: Bijoux de cheville (détail), VFX_flammes_danse (anneau de flamme autour d'une jambe tendue en rotation)
 ```
 
 ## PLAN 100 — *Le public exulte (1)*
@@ -147,7 +147,7 @@ Lumière    : Chaude, dorée, intensifiée par l'éclat propre du tourbillon pui
 Mouvement  : Quatre cuts francs, chacun avec un angle de caméra différent — jamais de continuité de caméra entre eux ; rotation continue du décollage à l'atterrissage, jamais interrompue avant le contact au sol
 Son        : Souffle qui monte au décollage, silence bref au sommet, souffle qui reprend à la chute, choc sourd et grésillement à l'impact
 Intention  : Le geste le plus spectaculaire du plan — hauteur, rotation et impact plutôt qu'un simple saut droit, pour ne pas recopier le plan 90 ; le sourire final s'adresse au public, jamais à la caméra
-Assets req.: FX_flammes_danse (tourbillon en spirale sur saut vertical, onde de choc à l'impact)
+Assets req.: VFX_flammes_danse (tourbillon en spirale sur saut vertical, onde de choc à l'impact)
 ```
 
 ## PLAN 130 — *Le public exulte (2)*
@@ -173,7 +173,7 @@ Lumière    : Une bougie proche accroche un reflet net sur l'acier, rehaussée p
 Mouvement  : Trois temps par cuts francs — pluie de pièces (plan large) → élan continu sans arrêt statique (plan moyen) → tour rapide serré, jamais d'inversion, ralenti sur le point culminant
 Son        : Tintements des pièces qui traversent le cadre, tissu qui claque, crépitement du ruban qui se resserre, puis le thème ralentit brièvement avec l'image, un tintement métallique bref
 Intention  : Motiver le geste par l'enthousiasme de la salle plutôt que de l'enchaîner à froid, sans jamais casser le mouvement par un arrêt ; le masque se fissure une fraction de seconde, dans le geste le plus spectaculaire du numéro — le don de Maya plutôt qu'une pure prouesse acrobatique
-Assets req.: Dague de combat courte, lanière de cuir à la ceinture, FX_flammes_danse (ruban en huit)
+Assets req.: Dague de combat courte, lanière de cuir à la ceinture, VFX_flammes_danse (ruban en huit)
 ```
 
 ## PLAN 150 — *Retour au sol*

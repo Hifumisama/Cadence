@@ -22,7 +22,7 @@
 - La dague de Maya reste dissimulée sous le tissu à tout instant, sauf exposition accidentelle explicitement décrite (plan 140+150).
 - L'hétérochromie de la Tenancière est visible dès son premier plan (200) et jamais commentée à l'oral.
 - La rime yeux-de-Maya / Yeux-de-Rubis s'appuie sur l'asset `CHAR_maya_yeux`, réutilisé au shot 3 (plan 60, gros plan final), au shot 25 (plan 350+360) et au shot 26 (plan 370). Retiré du shot 4, où il tombait immédiatement après celui du shot 3.
-- Le don de feu de Maya s'appuie sur l'asset `FX_flammes_danse`, posé au plan 60 (gerbe d'entrée) puis réactivé au plan 90 (fouets de flamme) — jamais commenté à l'oral, jamais réutilisé comme feu ambiant statique.
+- Le don de feu de Maya s'appuie sur l'asset `VFX_flammes_danse`, posé au plan 60 (gerbe d'entrée) puis réactivé au plan 90 (fouets de flamme) — jamais commenté à l'oral, jamais réutilisé comme feu ambiant statique.
 - Plans 210 et 230 restent en deux `[Shot]` internes (champ-contrechamp déjà prévu par le découpage source).
 
 **Numérotation des shots** — chaque entrée de cette fiche est un appel H3 et porte un numéro de shot séquentiel, utilisé comme identifiant de travail (fichiers de rendu, retours, notes). La numérotation des plans source est conservée dans les titres.
@@ -187,7 +187,7 @@ An unseen oud plays a slow, melancholic, hypnotic solo line, unwinding note by n
 |---|---|---|
 | `<Picture 1>` | `CHAR_maya` | Maya en pied |
 | `<Picture 2>` | `DEC_halo_dore` | Décor, halo doré central |
-| `<Picture 3>` | `FX_flammes_danse` | Référence de style pour la gerbe de flammes |
+| `<Picture 3>` | `VFX_flammes_danse` | Référence de style pour la gerbe de flammes |
 
 **Prompt**
 ```text
@@ -227,7 +227,7 @@ A single sustained instrumental note rises softly at the exact moment the light 
 |---|---|---|
 | `<Picture 1>` | `CHAR_maya` | Costume et identité de Maya |
 | `<Picture 2>` | `DEC_halo_dore` | Décor, halo doré |
-| `<Picture 3>` | `FX_flammes_danse` | Référence de style pour les jaillissements de flamme |
+| `<Picture 3>` | `VFX_flammes_danse` | Référence de style pour les jaillissements de flamme |
 
 **Prompt**
 ```text
@@ -275,7 +275,7 @@ The full thematic score enters: an oud carrying the melody over a darbouka and r
 |---|---|---|
 | `<Picture 1>` | `CHAR_maya` | Costume et bijoux |
 | `<Picture 2>` | `DEC_halo_dore` | Décor lumineux |
-| `<Picture 3>` | `FX_flammes_danse` | Référence de style pour l'anneau de flamme |
+| `<Picture 3>` | `VFX_flammes_danse` | Référence de style pour l'anneau de flamme |
 
 **Prompt**
 ```text
@@ -401,7 +401,7 @@ The oud-and-darbouka theme continues under Maya's shots, dropping low and distan
 |---|---|---|
 | `<Picture 1>` | `CHAR_maya` | Maya, frappés et pas rapides |
 | `<Picture 2>` | `DEC_halo_dore` | Décor lumineux, sol de la scène |
-| `<Picture 3>` | `FX_flammes_danse` | Référence de style pour les lignes de feu |
+| `<Picture 3>` | `VFX_flammes_danse` | Référence de style pour les lignes de feu |
 
 **Prompt**
 ```text
@@ -432,7 +432,7 @@ The theme drives hard on the heel strikes, percussion locking to each footfall, 
 
 **Alternative gardée en réserve pour un autre plan** — *le voile de feu* : elle saisit le pan de tissu bleu, le fait claquer en grand arc horizontal, la flamme court le long du tissu et forme un rideau de feu qui traverse le cadre ; elle disparaît derrière et réapparaît de l'autre côté à la retombée. Même durée, quatre temps, aucune spirale.
 
-**Asset optionnel** — `FX_zellige_feu`, motif de feu au sol seul vu du dessus, sans personnage dans le cadre (même règle que `FX_flammes_danse`). Utile pour le shot 3 si le motif ne tient pas au texte seul.
+**Asset optionnel** — `VFX_zellige_feu`, motif de feu au sol seul vu du dessus, sans personnage dans le cadre (même règle que `VFX_flammes_danse`). Utile pour le shot 3 si le motif ne tient pas au texte seul.
 ---
 
 ## SHOT 9 — PLAN 125 — *Le saut tourbillon*
@@ -446,7 +446,7 @@ The theme drives hard on the heel strikes, percussion locking to each footfall, 
 |---|---|---|
 | `<Picture 1>` | `CHAR_maya` | Maya en saut |
 | `<Picture 2>` | `DEC_halo_dore` | Décor lumineux |
-| `<Picture 3>` | `FX_flammes_danse` | Référence de style pour le tourbillon et l'onde de choc |
+| `<Picture 3>` | `VFX_flammes_danse` | Référence de style pour le tourbillon et l'onde de choc |
 
 **Prompt**
 ```text
@@ -529,7 +529,7 @@ The oud-and-darbouka theme continues from off-frame at its intensified tempo, un
 | `<Picture 1>` | `CHAR_maya` | Maya en danse, préparation, tour puis réception |
 | `<Picture 2>` | `PROP_dague_maya` | Détail de la dague exposée |
 | `<Picture 3>` | `DEC_halo_dore` | Décor lumineux |
-| `<Picture 4>` | `FX_flammes_danse` | Référence de style pour le ruban en huit et l'anneau de flamme |
+| `<Picture 4>` | `VFX_flammes_danse` | Référence de style pour le ruban en huit et l'anneau de flamme |
 | `<Picture 5>` | `KEY_reception_pose` | Pose de réception exacte (assise, jambe pliée/jambe tendue) — référence directe pour le shot 4 |
 
 **Prompt**
@@ -1232,7 +1232,7 @@ The theme resurfaces fully, oud and low percussion returning at a measured, purp
 # Notes de production
 
 **Ordre de fabrication conseillé** :
-1. `CHAR_maya` (master), `CHAR_maya_yeux` (dérivé) et `FX_flammes_danse` — portent la majorité des plans, priorité absolue (le feu apparaît dès le plan 60).
+1. `CHAR_maya` (master), `CHAR_maya_yeux` (dérivé) et `VFX_flammes_danse` — portent la majorité des plans, priorité absolue (le feu apparaît dès le plan 60).
 2. `CHAR_tenanciere` — porte l'acte II en entier.
 3. `DEC_couloir_bois` et `DEC_halo_dore` — décors les plus réutilisés après les personnages.
 4. `PROP_dague_maya`, `PROP_enseigne_cuivre` — dérivés/props critiques pour la cohérence visuelle.
