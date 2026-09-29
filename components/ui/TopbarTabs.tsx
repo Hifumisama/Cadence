@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/** Onglets Scénario/Assets/Shots. Scénario et Shots vivent sous l'épisode
+/** Onglets Scénario/Assets/Plans. Scénario et Plans vivent sous l'épisode
  * courant (`episodeBase`, ex. `/p/3/e/9`) ; Assets vit au niveau du PROJET
  * (`/p/3/assets`), jamais sous un épisode précis — le registre est partagé
  * par toute la série (retour utilisateur 2026-09-28 : "super important que
@@ -20,7 +20,7 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
   const onglets = [
     { seg: "scenario", label: "Scénario", href: `${episodeBase}/scenario` },
     { seg: "assets", label: "Assets", href: assetsHref },
-    { seg: "shots", label: "Shots", href: `${episodeBase}/shots` },
+    { seg: "plans", label: "Plans", href: `${episodeBase}/plans` },
   ];
 
   return (
@@ -30,11 +30,6 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
           {o.label}
         </Link>
       ))}
-      {segmentActif === "plans" && segmentsEpisode[1] ? (
-        <span className="tab" aria-selected="true">
-          Fiche de plan <span className="num">{segmentsEpisode[1]}</span>
-        </span>
-      ) : null}
     </nav>
   );
 }

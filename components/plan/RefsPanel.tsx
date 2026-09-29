@@ -3,16 +3,23 @@
 import { useState, useTransition } from "react";
 import { ajouterRef, supprimerRef } from "@/app/plans/actions";
 import { MAX_REFS, type RefLabel } from "@/lib/plan-checks";
+import type { MediaKind } from "@/components/assets/AssetCard";
+import { MediaZoom } from "@/components/assets/MediaZoom";
+import { AssetPickerModal, type NoeudPicker } from "@/components/plan/AssetPickerModal";
 
-type RefRow = {
+export type RefVue = {
   id: number;
   type: RefLabel["type"];
   slot: number;
-  role: string | null;
-  asset: { id: number; code: string; statut: string } | null;
+  asset: {
+    id: number;
+    code: string;
+    statut: string;
+    kind: MediaKind;
+    etat: "aucun" | "manquant" | "ok";
+    src: string | null;
+  } | null;
 };
-
-type AssetOption = { id: number; code: string; type: string };
 
 const LABEL_TYPE: Record<RefLabel["type"], string> = {
   picture: "Picture",
@@ -20,76 +27,63 @@ const LABEL_TYPE: Record<RefLabel["type"], string> = {
   audio: "Audio",
 };
 
-function AddRefRow({
+// Nature de média attendue pour chaque type de référence.
+const KIND_PAR_TYPE: Record<RefLabel["type"], MediaKind> = {
+  picture: "image",
+  video: "video",
+  audio: "audio",
+};
+
+const TITRE_GALERIE: Record<RefLabel["type"], string> = {
+  picture: "Choisir une image de référence",
+  video: "Choisir une vidéo de référence",
+  audio: "Choisir un audio de référence",
+};
+
+function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
+  if (asset.etat !== "ok" || !asset.src) {
+    return (
+      <div className="ref-thumb is-vide">
+        <span className="tiny-note">{asset.etat === "manquant" ? "introuvable" : "pas de fichier"}</span>
+      </div>
+    );
+  }
+  // Image et vidéo : agrandissables en plein écran (MediaZoom). Audio : lecteur.
+  if (asset.kind === "audio") {
+    return (
+      <div className="ref-thumb is-audio">
+        <span className="ref-note" aria-hidden="true">
+          ♪
+        </span>
+        <audio controls preload="none" src={asset.src} />
+      </div>
+    );
+  }
+  return <MediaZoom kind={asset.kind} src={asset.src} alt={asset.code} classe="ref-thumb" />;
+}
+
+function RefsType({
   planId,
   type,
-  assets,
-  disabled,
+  items,
+  masters,
 }: {
   planId: number;
   type: RefLabel["type"];
-  assets: AssetOption[];
-  disabled: boolean;
+  items: RefVue[];
+  masters: NoeudPicker[];
 }) {
-  const [assetId, setAssetId] = useState<number | "">("");
-  const [role, setRole] = useState("");
+  const [ouvert, setOuvert] = useState(false);
   const [pending, startTransition] = useTransition();
+  const plein = items.length >= MAX_REFS[type];
+  const dejaPris = new Set(items.flatMap((r) => (r.asset ? [r.asset.id] : [])));
 
-  if (disabled) {
-    return <p className="text-xs text-neutral-500">Maximum atteint ({MAX_REFS[type]}).</p>;
-  }
-
-  const onAdd = () => {
-    if (!assetId) return;
+  const onAjouter = (assetId: number) => {
     startTransition(async () => {
-      await ajouterRef(planId, type, Number(assetId), role);
-      setAssetId("");
-      setRole("");
+      await ajouterRef(planId, type, assetId);
+      setOuvert(false);
     });
   };
-
-  return (
-    <div className="flex flex-wrap gap-2 items-center">
-      <select
-        value={assetId}
-        onChange={(e) => setAssetId(e.target.value ? Number(e.target.value) : "")}
-        className="bg-anthracite border border-anthracite-line rounded px-2 py-1 text-sm flex-1 min-w-[140px]"
-      >
-        <option value="">Choisir un asset...</option>
-        {assets.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.code}
-          </option>
-        ))}
-      </select>
-      <input
-        value={role}
-        onChange={(e) => setRole(e.target.value)}
-        placeholder="rôle (optionnel)"
-        className="bg-anthracite border border-anthracite-line rounded px-2 py-1 text-sm flex-1 min-w-[100px]"
-      />
-      <button
-        onClick={onAdd}
-        disabled={!assetId || pending}
-        className="text-xs border border-or-soft rounded px-2 py-1 text-or hover:bg-or/10 disabled:opacity-50"
-      >
-        {pending ? "..." : "Ajouter"}
-      </button>
-    </div>
-  );
-}
-
-export function RefsPanel({
-  planId,
-  refs,
-  assets,
-}: {
-  planId: number;
-  refs: RefRow[];
-  assets: AssetOption[];
-}) {
-  const [, startTransition] = useTransition();
-  const parType = (t: RefLabel["type"]) => refs.filter((r) => r.type === t);
 
   const onSupprimer = (refId: number) => {
     startTransition(async () => {
@@ -98,52 +92,90 @@ export function RefsPanel({
   };
 
   return (
-    <div className="border border-anthracite-line rounded-lg p-4 bg-anthracite-soft">
-      <h2 className="text-sm uppercase tracking-wide text-or-soft mb-3">Références</h2>
-      {(["picture", "video", "audio"] as const).map((type) => {
-        const items = parType(type).sort((a, b) => a.slot - b.slot);
-        return (
-          <div key={type} className="mb-4">
-            <div className="text-xs text-neutral-500 mb-1">{LABEL_TYPE[type]}</div>
-            <ul className="space-y-1 mb-2">
-              {items.map((r) => (
-                <li
-                  key={r.id}
-                  className="text-sm flex items-center gap-2 text-neutral-300"
-                >
-                  <span className="text-neutral-500">
-                    &lt;{LABEL_TYPE[type]} {r.slot}&gt;
-                  </span>
-                  <span>{r.asset?.code ?? "—"}</span>
-                  {r.asset && r.asset.statut !== "valide" ? (
-                    <span className="text-xs text-or-glow">
-                      ({r.asset.statut === "en_cours" ? "🟡" : "⬜"})
-                    </span>
-                  ) : null}
-                  {r.role ? (
-                    <span className="text-xs text-neutral-500">— {r.role}</span>
-                  ) : null}
-                  <button
-                    onClick={() => onSupprimer(r.id)}
-                    className="ml-auto text-xs text-neutral-500 hover:text-ecarlate-glow"
-                  >
-                    supprimer
-                  </button>
-                </li>
-              ))}
-              {items.length === 0 ? (
-                <li className="text-xs text-neutral-500">Aucune référence.</li>
-              ) : null}
-            </ul>
-            <AddRefRow
-              planId={planId}
-              type={type}
-              assets={assets}
-              disabled={items.length >= MAX_REFS[type]}
-            />
-          </div>
-        );
-      })}
+    <div className="refs-type">
+      <div className="refs-type-hd">
+        <span className="eyebrow">
+          {LABEL_TYPE[type]} <span className="num">{items.length}/{MAX_REFS[type]}</span>
+        </span>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          disabled={plein}
+          onClick={() => setOuvert(true)}
+        >
+          {plein ? "Maximum atteint" : "+ Ajouter"}
+        </button>
+      </div>
+
+      {items.length > 0 ? (
+        <div className="refs-grille">
+          {items.map((r) => (
+            <figure key={r.id} className="ref-carte">
+              {r.asset ? <Miniature asset={r.asset} /> : <div className="ref-thumb is-vide" />}
+              <figcaption>
+                <span className="num ref-label">
+                  &lt;{LABEL_TYPE[type]} {r.slot}&gt;
+                </span>
+                <span className="asset-code">{r.asset?.code ?? "—"}</span>
+                {r.asset && r.asset.statut !== "valide" ? (
+                  <span className="tiny-note">{r.asset.statut === "en_cours" ? "en cours" : "à produire"}</span>
+                ) : null}
+              </figcaption>
+              <button
+                type="button"
+                className="ref-suppr"
+                onClick={() => onSupprimer(r.id)}
+                disabled={pending}
+                aria-label={`Retirer <${LABEL_TYPE[type]} ${r.slot}>`}
+              >
+                ✕
+              </button>
+            </figure>
+          ))}
+        </div>
+      ) : (
+        <p className="tiny-note">Aucune référence.</p>
+      )}
+
+      <AssetPickerModal
+        ouvert={ouvert}
+        titre={TITRE_GALERIE[type]}
+        kind={KIND_PAR_TYPE[type]}
+        masters={masters}
+        dejaPris={dejaPris}
+        enCours={pending}
+        onFermer={() => setOuvert(false)}
+        onValider={onAjouter}
+      />
     </div>
+  );
+}
+
+export function RefsPanel({
+  planId,
+  refs,
+  masters,
+}: {
+  planId: number;
+  refs: RefVue[];
+  masters: NoeudPicker[];
+}) {
+  return (
+    <section className="panel">
+      <div className="panel-hd">
+        <h2>Références</h2>
+      </div>
+      <div className="panel-bd refs-panel">
+        {(["picture", "video", "audio"] as const).map((type) => (
+          <RefsType
+            key={type}
+            planId={planId}
+            type={type}
+            items={refs.filter((r) => r.type === type).sort((a, b) => a.slot - b.slot)}
+            masters={masters}
+          />
+        ))}
+      </div>
+    </section>
   );
 }

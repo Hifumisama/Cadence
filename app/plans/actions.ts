@@ -61,7 +61,9 @@ export async function relancerPlan(planId: number, activerUpscale: boolean) {
 }
 
 /** FPS et durée de génération, éditables depuis la Fiche de plan — le mode
- * reste toujours full-reference (CDC), pas d'édition prévue pour lui. */
+ * reste toujours full-reference (CDC), pas d'édition prévue pour lui. La
+ * durée de montage est toujours égale à la durée de génération (retour
+ * utilisateur 2026-09-29) : on la resynchronise ici. */
 export async function updatePlanParametres(
   planId: number,
   valeurs: { fps: number; dureeGenerationSecondes: number },
@@ -71,6 +73,7 @@ export async function updatePlanParametres(
     .set({
       fps: valeurs.fps,
       dureeGenerationSecondes: valeurs.dureeGenerationSecondes,
+      dureeMontageSecondes: valeurs.dureeGenerationSecondes,
       updatedAt: new Date(),
     })
     .where(eq(plans.id, planId));
@@ -86,7 +89,6 @@ export async function ajouterRef(
   planId: number,
   type: RefLabel["type"],
   assetId: number,
-  role: string,
 ) {
   const existantes = await db
     .select()
@@ -94,6 +96,7 @@ export async function ajouterRef(
     .where(and(eq(planRefs.planId, planId), eq(planRefs.type, type)));
 
   if (existantes.length >= MAX_REFS[type]) return;
+  if (existantes.some((r) => r.assetId === assetId)) return;
 
   const prochainSlot = existantes.reduce((acc, r) => Math.max(acc, r.slot), 0) + 1;
 
@@ -102,7 +105,6 @@ export async function ajouterRef(
     type,
     slot: prochainSlot,
     assetId,
-    role: role || null,
   });
 
   revalidatePath("/", "layout");
@@ -146,7 +148,7 @@ export async function updatePlanScenario(planId: number, valeurs: ValeursScenari
  * citaient — ceux-ci restent dans le registre du projet. */
 export async function supprimerPlan(
   planId: number,
-  shotsHref: string,
+  plansHref: string,
   force = false,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
   if (!force) {
@@ -170,12 +172,12 @@ export async function supprimerPlan(
 
   await db.delete(plans).where(eq(plans.id, planId));
   revalidatePath("/", "layout");
-  redirect(shotsHref);
+  redirect(plansHref);
 }
 
 /** Bascule un plan brouillon en fiche de plan développable : crée les 6
  * sections de prompt vides et passe le statut à en_attente — c'est ce qui
- * fait entrer le plan dans la queue Shots (F04), jamais avant. */
+ * fait entrer le plan dans la queue Plans (F04), jamais avant. */
 export async function developperEnFichePlan(planId: number) {
   const existantes = await db
     .select()

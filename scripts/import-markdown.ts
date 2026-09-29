@@ -379,5 +379,5 @@ const episodeId = await getDefaultEpisodeId();
 await importerAssets(projectId);
 await importerPlans(projectId, episodeId);
 await importerScenario(episodeId);
-console.log("[import] Terminé — vérifier le résultat plan par plan dans /shots.");
+console.log("[import] Terminé — vérifier le résultat plan par plan dans /plans.");
 process.exit(0);

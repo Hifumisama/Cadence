@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { modifierEpisode, modifierNomProjet, uploaderPosterEpisode, uploaderPosterProjet } from "@/app/projects/actions";
 import { Poster } from "@/components/ui/Poster";
@@ -32,6 +33,8 @@ export function EpisodeInfoPanel({
   posterSrc: string | null;
   oneshot: { nom: string; posterSrc: string | null } | null;
 }) {
+  // La fiche de plan a besoin de toute la place : pas d'encart épisode dessus.
+  const surFichePlan = /\/plans\/[^/]+/.test(usePathname());
   const titreInitial = oneshot ? oneshot.nom : titre;
   const posterInitial = oneshot ? oneshot.posterSrc : posterSrc;
 
@@ -76,6 +79,8 @@ export function EpisodeInfoPanel({
       }
     });
   };
+
+  if (surFichePlan) return null;
 
   return (
     <div className="info-panel">

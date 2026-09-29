@@ -1,4 +1,4 @@
-/** Phase du pipeline (Scénario -> Fiche de plan -> Assets -> Shots),
+/** Phase du pipeline (Scénario -> Fiche de plan -> Assets -> Plans),
  * dérivée automatiquement des statuts de plans d'un épisode — jamais
  * saisie à la main (retour utilisateur 2026-09-28, voir docs/FRICTIONS.md).
  * Porté depuis la maquette Opus du même jour. */
@@ -10,7 +10,7 @@ export type PlanStatut = (typeof plans.$inferSelect)["statut"];
 /** Regroupement des 7 statuts de plan en 4 buckets d'affichage — "actif"
  * couvre tout ce qui a dépassé le brouillon sans être fini (en_cours,
  * rejoue, echoue, previsualise) : le détail de ces 4 états compte pour la
- * frise Shots, pas pour cette vue d'ensemble par épisode/saison/projet. */
+ * frise des plans, pas pour cette vue d'ensemble par épisode/saison/projet. */
 export type StatutBuckets = { termine: number; actif: number; attente: number; brouillon: number };
 
 export function bucketsVides(): StatutBuckets {

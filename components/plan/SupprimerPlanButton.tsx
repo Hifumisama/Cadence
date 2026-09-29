@@ -6,11 +6,11 @@ import { supprimerPlan } from "@/app/plans/actions";
 export function SupprimerPlanButton({
   planId,
   position,
-  shotsHref,
+  plansHref,
 }: {
   planId: number;
   position: number;
-  shotsHref: string;
+  plansHref: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export function SupprimerPlanButton({
     )) return;
     setErreur(null);
     startTransition(async () => {
-      const resultat = await supprimerPlan(planId, shotsHref, force);
+      const resultat = await supprimerPlan(planId, plansHref, force);
       if (resultat && !resultat.ok) setErreur(resultat.erreur);
       // Succès : supprimerPlan redirige côté serveur, pas de retour ici.
     });

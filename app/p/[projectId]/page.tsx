@@ -44,7 +44,7 @@ export default async function VueSeriePage({ params }: { params: Promise<{ proje
             </p>
             <h1>{projet.nom}</h1>
             <p>
-              Cliquer sur un épisode pour ouvrir son Scénario, ses Assets et ses Shots.
+              Cliquer sur un épisode pour ouvrir son Scénario, ses Assets et ses Plans.
               Chaque épisode numérote ses plans à partir de 010.
             </p>
           </div>

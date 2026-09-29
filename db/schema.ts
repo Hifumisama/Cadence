@@ -24,9 +24,9 @@ export const projectTypeEnum = pgEnum("project_type", ["oneshot", "serie"]);
 // l'absence de cet état intermédiaire dans le mockup.
 // "brouillon" : plan né du scénario, découpage narratif écrit mais fiche de
 // plan (prompt H3, refs, durée de génération) pas encore rédigée — n'entre
-// dans la queue Shots qu'une fois "développé" (action explicite qui bascule
+// dans la queue Plans qu'une fois "développé" (action explicite qui bascule
 // vers en_attente). Clarifié avec l'utilisateur le 2026-09-27 : l'app doit
-// suivre l'ordre réel du pipeline (Scénario → Fiche de plan → Assets → Shots).
+// suivre l'ordre réel du pipeline (Scénario → Fiche de plan → Assets → Plans).
 export const planStatutEnum = pgEnum("plan_statut", [
   "brouillon",
   "en_attente",

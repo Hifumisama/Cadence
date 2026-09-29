@@ -5,7 +5,7 @@ import { TopbarTabs } from "./TopbarTabs";
 /** Bandeau — le fil d'Ariane (`trail`) remplace le texte fixe "Les Yeux de
  * Rubis · S01" d'origine (2026-09-28) : chaque écran construit le sien
  * selon sa profondeur dans Projet → Saison → Épisode. `tabsBase`, quand
- * fourni, affiche les onglets Scénario/Assets/Shots sous ce préfixe
+ * fourni, affiche les onglets Scénario/Assets/Plans sous ce préfixe
  * d'URL — absent sur l'Accueil et la Vue série, qui ne sont "dans" aucun
  * épisode. */
 export function Topbar({

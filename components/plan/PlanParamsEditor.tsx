@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 import { updatePlanParametres } from "@/app/plans/actions";
 
+// Bornes imposées par H3 : pas de génération plus courte ni plus longue.
+const DUREE_MIN = 5;
+const DUREE_MAX = 15;
+
 export function PlanParamsEditor({
   planId,
   fpsInitial,
@@ -17,7 +21,7 @@ export function PlanParamsEditor({
   seed: string | null;
 }) {
   const [fps, setFps] = useState(fpsInitial);
-  const [duree, setDuree] = useState(dureeInitiale);
+  const [duree, setDuree] = useState(Math.min(DUREE_MAX, Math.max(DUREE_MIN, dureeInitiale)));
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
 
@@ -30,51 +34,61 @@ export function PlanParamsEditor({
   };
 
   return (
-    <div className="border border-anthracite-line rounded-lg p-4 bg-anthracite-soft text-sm">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm uppercase tracking-wide text-or-soft">Paramètres</h2>
-        <button
-          onClick={onSave}
-          disabled={pending}
-          className="text-xs border border-or-soft rounded px-2 py-0.5 text-or hover:bg-or/10 disabled:opacity-50"
-        >
+    <section className="panel">
+      <div className="panel-hd">
+        <h2>Paramètres globaux</h2>
+        <button className="btn btn-ghost btn-sm" type="button" onClick={onSave} disabled={pending}>
           {pending ? "..." : saved ? "Enregistré" : "Enregistrer"}
         </button>
       </div>
-      <div className="space-y-2 text-neutral-300">
-        <label className="flex items-center justify-between gap-3">
-          <span className="text-neutral-400">Durée génération (s)</span>
-          <input
-            type="number"
-            min={1}
-            value={duree}
-            onChange={(e) => setDuree(Number(e.target.value))}
-            className="w-20 bg-anthracite border border-anthracite-line rounded px-2 py-1 text-right font-data"
-          />
-        </label>
-        <label className="flex items-center justify-between gap-3">
-          <span className="text-neutral-400">FPS</span>
-          <input
-            type="number"
-            min={1}
-            value={fps}
-            onChange={(e) => setFps(Number(e.target.value))}
-            className="w-20 bg-anthracite border border-anthracite-line rounded px-2 py-1 text-right font-data"
-          />
-        </label>
-        {timecodeMusique ? (
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-neutral-400">Musique</span>
-            <span>{timecodeMusique}</span>
+      <div className="panel-bd">
+        <div className="params-row">
+          <div className="field-group params-duree">
+            <label htmlFor={`duree-${planId}`}>
+              Durée de génération <span className="num params-valeur">{duree} s</span>
+            </label>
+            <input
+              id={`duree-${planId}`}
+              type="range"
+              className="slider"
+              min={DUREE_MIN}
+              max={DUREE_MAX}
+              step={1}
+              value={duree}
+              onChange={(e) => setDuree(Number(e.target.value))}
+            />
+            <div className="slider-bornes num" aria-hidden="true">
+              <span>{DUREE_MIN} s</span>
+              <span>{DUREE_MAX} s</span>
+            </div>
           </div>
-        ) : null}
-        {seed ? (
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-neutral-400">Seed</span>
-            <span className="font-data">{seed}</span>
+          <div className="field-group params-fps">
+            <label htmlFor={`fps-${planId}`}>FPS</label>
+            <input
+              id={`fps-${planId}`}
+              type="number"
+              className="field field-mono"
+              min={1}
+              value={fps}
+              onChange={(e) => setFps(Number(e.target.value))}
+            />
           </div>
+        </div>
+        {timecodeMusique || seed ? (
+          <p className="params-meta">
+            {timecodeMusique ? (
+              <span>
+                Musique <span className="num">{timecodeMusique}</span>
+              </span>
+            ) : null}
+            {seed ? (
+              <span>
+                Seed <span className="num">{seed}</span>
+              </span>
+            ) : null}
+          </p>
         ) : null}
       </div>
-    </div>
+    </section>
   );
 }

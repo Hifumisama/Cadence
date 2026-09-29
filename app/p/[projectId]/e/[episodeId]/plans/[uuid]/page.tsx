@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getAllAssets, getPlanDetail, getScenesEpisode } from "@/lib/queries";
+import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "@/lib/queries";
+import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
 import {
   calculerStatutDuree,
@@ -8,13 +9,13 @@ import {
 } from "@/lib/plan-checks";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PromptSectionEditor } from "@/components/plan/PromptSectionEditor";
-import { RefsPanel } from "@/components/plan/RefsPanel";
+import { RefsPanel, type RefVue } from "@/components/plan/RefsPanel";
+import type { NoeudPicker } from "@/components/plan/AssetPickerModal";
 import { PlanParamsEditor } from "@/components/plan/PlanParamsEditor";
 import { DialogueTable } from "@/components/plan/DialogueTable";
 import { ChecksPanel } from "@/components/plan/ChecksPanel";
 import { RelaunchButton } from "@/components/plan/RelaunchButton";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
-import { PlanSceneSelect } from "@/components/scenario/ScenePlanControls";
 import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,21 @@ const SECTIONS_ORDRE = [
   "non_diegetic_music",
 ];
 
+function versNoeudPicker(n: AssetNode): NoeudPicker {
+  const { kind, etat, src } = infosMedia(n.type, n.fichier);
+  return {
+    id: n.id,
+    code: n.code,
+    type: n.type,
+    statut: n.statut,
+    description: n.description,
+    kind,
+    etat,
+    src,
+    derives: n.derives.map(versNoeudPicker),
+  };
+}
+
 export default async function PlanPage({
   params,
 }: {
@@ -44,9 +60,9 @@ export default async function PlanPage({
 
   const { plan, position, promptSections, refs, dialogues, jobHistory } = detail;
 
-  const [parametresGlobaux, tousLesAssets, scenesEpisode] = await Promise.all([
+  const [parametresGlobaux, mastersRegistre, scenesEpisode] = await Promise.all([
     getAllParams(),
-    getAllAssets(pid),
+    getAssetsTree(pid),
     getScenesEpisode(eid),
   ]);
 
@@ -79,8 +95,24 @@ export default async function PlanPage({
     dureeMontageSecondes: plan.dureeMontageSecondes,
   };
 
+  const mastersPicker = mastersRegistre.map(versNoeudPicker);
+  const refsVue: RefVue[] = refs.map((r) => ({
+    id: r.id,
+    type: r.type,
+    slot: r.slot,
+    asset: r.asset
+      ? {
+          id: r.asset.id,
+          code: r.asset.code,
+          statut: r.asset.statut,
+          ...infosMedia(r.asset.type, r.asset.fichier),
+        }
+      : null,
+  }));
+
+  const scene = scenesEpisode.find((sc) => sc.id === plan.sceneId);
   const estBrouillon = plan.statut === "brouillon";
-  const shotsHref = `/p/${pid}/e/${eid}/shots`;
+  const plansHref = `/p/${pid}/e/${eid}/plans`;
 
   return (
     <div>
@@ -91,6 +123,7 @@ export default async function PlanPage({
             {String(position).padStart(2, "0")}
           </div>
           <div>
+            {scene ? <p className="eyebrow fiche-scene">{scene.titre}</p> : null}
             <h1>{plan.titre}</h1>
             <p className="sub">
               {plan.numerosSource && plan.numerosSource.length > 1
@@ -102,13 +135,15 @@ export default async function PlanPage({
         <div className="fiche-actions">
           <StatusBadge statut={plan.statut} />
           {!estBrouillon ? <RelaunchButton planId={plan.id} /> : null}
-          <SupprimerPlanButton planId={plan.id} position={position} shotsHref={shotsHref} />
+          <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} />
         </div>
+        {!estBrouillon && plan.description ? (
+          <p className="fiche-desc">{plan.description}</p>
+        ) : null}
       </div>
 
       {estBrouillon ? (
         <div style={{ marginTop: "var(--sp-5)", maxWidth: 760 }}>
-          <PlanSceneSelect planId={plan.id} sceneId={plan.sceneId} scenes={scenesEpisode} />
           <PlanScenarioPanel
             planId={plan.id}
             brouillon
@@ -118,12 +153,6 @@ export default async function PlanPage({
       ) : (
       <div className="cols">
         <div className="col">
-          <PlanSceneSelect planId={plan.id} sceneId={plan.sceneId} scenes={scenesEpisode} />
-          <PlanScenarioPanel
-            planId={plan.id}
-            brouillon={false}
-            initial={scenarioInitial}
-          />
           <section className="preview">
             <div className="preview-frame">
               {dernierJobTermine?.cheminSortie ? (
@@ -156,14 +185,6 @@ export default async function PlanPage({
             ) : null}
           </section>
 
-          <PlanParamsEditor
-            planId={plan.id}
-            fpsInitial={plan.fps}
-            dureeInitiale={plan.dureeGenerationSecondes}
-            timecodeMusique={plan.timecodeMusique}
-            seed={plan.seed}
-          />
-
           <section className="panel">
             <div className="panel-hd">
               <h2>Prompt vidéo</h2>
@@ -192,6 +213,14 @@ export default async function PlanPage({
         </div>
 
         <aside className="col">
+          <PlanParamsEditor
+            planId={plan.id}
+            fpsInitial={plan.fps}
+            dureeInitiale={plan.dureeGenerationSecondes}
+            timecodeMusique={plan.timecodeMusique}
+            seed={plan.seed}
+          />
+
           <section className="panel">
             <div className="panel-hd">
               <h2>Contrôles automatiques</h2>
@@ -207,8 +236,8 @@ export default async function PlanPage({
 
           <RefsPanel
             planId={plan.id}
-            refs={refs}
-            assets={tousLesAssets}
+            refs={refsVue}
+            masters={mastersPicker}
           />
 
           {jobHistory.length > 0 ? (

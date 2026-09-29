@@ -682,6 +682,18 @@ button {
   font-size: 13px;
   color: var(--ink-3);
 }
+.fiche-hd .fiche-scene {
+  margin: 0 0 4px;
+}
+.fiche-desc {
+  flex-basis: 100%;
+  margin: 0;
+  max-width: 78ch;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
 .fiche-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2641,4 +2653,248 @@ button {
 }
 .scene.is-replie {
   margin-bottom: var(--sp-2);
+}
+
+/* ---------------------------------------------------------------
+   Fiche de plan — paramètres globaux et références
+   --------------------------------------------------------------- */
+
+.params-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: var(--sp-5);
+  align-items: start;
+}
+.params-valeur {
+  margin-left: 8px;
+  color: var(--or);
+}
+.slider {
+  width: 100%;
+  accent-color: var(--or);
+  margin: 6px 0 0;
+}
+.slider-bornes {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+.params-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin: var(--sp-4) 0 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.refs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.refs-type-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+}
+.refs-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-4);
+}
+.ref-carte {
+  position: relative;
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.ref-carte figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px 10px;
+  min-width: 0;
+}
+.ref-label {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.ref-carte .asset-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ref-thumb {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: #17171d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 30px;
+  color: var(--ink-3);
+}
+.ref-thumb.is-vide {
+  background: repeating-linear-gradient(135deg, #191920 0 6px, #16161c 6px 12px);
+}
+.ref-thumb img,
+.ref-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ref-suppr {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: rgba(16, 16, 21, 0.85);
+  color: var(--ink-3);
+  font-size: 11px;
+  cursor: pointer;
+  z-index: 2;
+}
+.ref-suppr:hover {
+  color: var(--ecarlate-glow);
+  border-color: var(--ecarlate);
+}
+
+.picker-dialog {
+  padding: 0;
+  width: min(960px, calc(100vw - 32px));
+  max-height: 88vh;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
+  margin: auto;
+}
+.picker-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.picker-dialog::backdrop {
+  background: rgba(8, 8, 10, 0.72);
+  backdrop-filter: blur(2px);
+}
+.picker-body {
+  padding: var(--sp-4);
+  overflow-y: auto;
+  min-height: 0;
+}
+.picker-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--sp-4);
+}
+.picker-carte {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color 0.16s;
+}
+.picker-carte:hover:not(:disabled) {
+  border-color: var(--or-soft);
+}
+.picker-carte:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.picker-carte.is-choisi {
+  border-color: var(--or);
+  box-shadow: 0 0 0 1px var(--or);
+}
+.picker-carte-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+.picker-carte-body .asset-code {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-noeud {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.picker-noeud > .picker-carte {
+  max-width: 260px;
+}
+.picker-enfants {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--sp-4);
+  margin-left: var(--sp-4);
+  padding-left: var(--sp-4);
+  border-left: 1px solid var(--line-strong);
+}
+.picker-passe {
+  padding: 2px 0;
+}
+.picker-retour {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--or);
+  cursor: pointer;
+}
+.picker-pied {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.ref-thumb video,
+.ref-thumb img {
+  cursor: zoom-in;
+}
+.ref-thumb.is-audio {
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+}
+.ref-note {
+  font-size: 44px;
+  line-height: 1;
+}
+.ref-thumb audio {
+  width: 100%;
+}
+.ref-thumb .zoom-btn {
+  top: 8px;
+  left: 8px;
+  right: auto;
 }

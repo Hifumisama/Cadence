@@ -54,7 +54,7 @@ export function NouveauProjetModal() {
                     <input type="radio" name="type" checked={type === "oneshot"} onChange={() => setType("oneshot")} />
                     <span className="t">OneShot</span>
                     <span className="d">Un seul film. Pas de saisons ni d&rsquo;épisodes : le projet s&rsquo;ouvre directement sur son Scénario.</span>
-                    <span className="shape">Projet → Scénario · Assets · Shots</span>
+                    <span className="shape">Projet → Scénario · Assets · Plans</span>
                   </label>
                   <label className="choice">
                     <input type="radio" name="type" checked={type === "serie"} onChange={() => setType("serie")} />

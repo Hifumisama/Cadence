@@ -47,7 +47,7 @@ export async function getProject(projectId: number) {
 }
 
 /** Premier épisode du projet (par numéro de saison puis d'épisode) — sert
- * d'ancrage aux onglets Scénario/Shots depuis Assets (lib/queries.ts,
+ * d'ancrage aux onglets Scénario/Plans depuis Assets (lib/queries.ts,
  * Assets vit au niveau du projet, pas d'un épisode précis) quand il faut
  * bien pointer les autres onglets quelque part. */
 export async function getFirstEpisodeId(projectId: number): Promise<number | null> {
@@ -119,7 +119,7 @@ export async function getAllProjects() {
   }));
 }
 
-export type ShotListItem = {
+export type PlanListItem = {
   uuid: string; // identifiant public (URL) — la position est ce qu'on affiche
   position: number; // rang réel dans l'épisode, brouillons compris (1-based)
   titre: string;
@@ -127,15 +127,15 @@ export type ShotListItem = {
   dernierJob: { tentative: number; erreur: string | null } | null;
 };
 
-/** Frise Shots : tous les plans d'un ÉPISODE, dans l'ordre `ordre` (montage,
+/** Frise des plans : tous les plans d'un ÉPISODE, dans l'ordre `ordre` (montage,
  * réordonnable) ; les plans s'identifient par `uuid`, sans numéro (F03).
  * Scope épisode, pas projet : la position affichée est un rang à l'échelle
  * de l'épisode, une frise multi-épisodes mélangerait des rangs qui se
  * chevauchent sans rien pour les distinguer visuellement. */
-export async function getShotsList(episodeId?: number): Promise<ShotListItem[]> {
+export async function getPlansList(episodeId?: number): Promise<PlanListItem[]> {
   const eid = episodeId ?? (await getDefaultEpisodeId());
   // Un plan brouillon n'a pas encore de fiche de plan (pas de prompt, pas de
-  // durée de génération) : il vit dans Scénario, pas dans la queue Shots.
+  // durée de génération) : il vit dans Scénario, pas dans la queue Plans.
   const toutes = await db
     .select({ id: plans.id })
     .from(plans)

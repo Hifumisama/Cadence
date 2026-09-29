@@ -15,7 +15,7 @@ export async function updateScenarioGlobal(projectId: number, cle: (typeof CHAMP
 }
 
 /** Un plan naît toujours en brouillon (défaut du schéma) — il faudra le
- * "développer" explicitement en fiche de plan avant qu'il entre dans Shots.
+ * "développer" explicitement en fiche de plan avant qu'il entre dans Plans.
  * Il reçoit un `uuid` (identifiant public) ; sa position dans l'épisode est
  * `ordre`, déplaçable ensuite. Aucun numéro de plan. */
 export async function creerPlanScenario(
