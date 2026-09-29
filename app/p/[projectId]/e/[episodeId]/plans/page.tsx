@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPlansList } from "@/lib/queries";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
+import { PassageNuitButton } from "@/components/plan/PassageNuitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,8 @@ export default async function PlansPage({
     comptes.set(cle, (comptes.get(cle) ?? 0) + 1);
   }
 
+  const nPrevisualise = plans.filter((p) => p.statut === "previsualise").length;
+
   return (
     <div>
       <div className="screen-hd">
@@ -44,6 +47,9 @@ export default async function PlansPage({
           </p>
           <h1>Plans</h1>
           <p>Tous les plans de cet épisode dans l&rsquo;ordre, sans remise à zéro.</p>
+        </div>
+        <div style={{ marginLeft: "auto" }}>
+          <PassageNuitButton episodeId={Number(episodeId)} nPrevisualise={nPrevisualise} />
         </div>
       </div>
 

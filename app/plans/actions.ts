@@ -2,11 +2,15 @@
 
 import { db } from "@/db";
 import { jobs, planDialogues, planPromptSections, planRefs, plans } from "@/db/schema";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { MAX_REFS } from "@/lib/plan-checks";
+import { mkdir, writeFile } from "node:fs/promises";
+import { extname, join } from "node:path";
+import { MAX_REFS, WORKFLOW_IMPORT_MANUEL, verifierCoherenceRefs, verifierInvariantVerbatim } from "@/lib/plan-checks";
 import type { RefLabel } from "@/lib/plan-checks";
+import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
+import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_VIDEO, cheminPlanMedia, estVideo } from "@/lib/media";
 
 export async function updatePromptSection(
   planId: number,
@@ -34,12 +38,13 @@ export async function updatePromptSection(
   }
 }
 
-/** Bouton relance (F03) : crée un NOUVEAU job en_attente plutôt que de
- * réécrire le précédent — l'historique des tentatives est la mémoire de la
- * boucle d'itération. Le worker applique ensuite le healthcheck et la
- * distinction indisponible/échec réel (F04). activerUpscale distingue la
- * prévisualisation rapide (itération de prompt) du rendu final. */
-export async function relancerPlan(planId: number, activerUpscale: boolean) {
+/** Cœur du bouton relance (F03) et du passage nuit (CDC page 4, "queue
+ * batch") : crée un NOUVEAU job en_attente plutôt que de réécrire le
+ * précédent — l'historique des tentatives est la mémoire de la boucle
+ * d'itération. Le worker applique ensuite le healthcheck et la distinction
+ * indisponible/échec réel (F04). Ne revalide pas le cache : le batch veut
+ * une seule revalidation après N plans, pas une par plan. */
+async function creerJobRelance(planId: number, activerUpscale: boolean) {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
 
@@ -56,8 +61,34 @@ export async function relancerPlan(planId: number, activerUpscale: boolean) {
     .update(plans)
     .set({ statut: "en_attente", updatedAt: new Date() })
     .where(eq(plans.id, plan.id));
+}
+
+/** activerUpscale distingue la prévisualisation rapide (itération de
+ * prompt) du rendu final. */
+export async function relancerPlan(planId: number, activerUpscale: boolean) {
+  await creerJobRelance(planId, activerUpscale);
+  revalidatePath("/", "layout");
+}
+
+/** Passage nuit (CDC page 4, "Contrôle de la queue batch : déclenchement du
+ * passage nuit (upscale en masse)") : relance en rendu final tous les plans
+ * de l'épisode encore en "previsualise" — un plan dont la dernière
+ * génération a réussi sans upscale, donc déjà jugé bon à l'œil (F03) mais
+ * jamais passé en rendu final. Ne touche à rien d'autre : un plan encore
+ * `en_attente`/`echoue` n'a pas eu son aller-retour de validation, ce
+ * n'est pas ce bouton qui doit le faire avancer. */
+export async function lancerPassageNuit(episodeId: number): Promise<{ n: number }> {
+  const aTraiter = await db
+    .select({ id: plans.id })
+    .from(plans)
+    .where(and(eq(plans.episodeId, episodeId), eq(plans.statut, "previsualise")));
+
+  for (const p of aTraiter) {
+    await creerJobRelance(p.id, true);
+  }
 
   revalidatePath("/", "layout");
+  return { n: aTraiter.length };
 }
 
 /** FPS et durée de génération, éditables depuis la Fiche de plan — le mode
@@ -203,6 +234,132 @@ export async function developperEnFichePlan(planId: number) {
     .update(plans)
     .set({ statut: "en_attente", updatedAt: new Date() })
     .where(eq(plans.id, planId));
+
+  revalidatePath("/", "layout");
+}
+
+type AnalysePromptColle =
+  | { ok: false; erreurs: string[] }
+  | {
+      ok: true;
+      sections: Record<(typeof ORDRE_SECTIONS)[number], string>;
+      avertissements: {
+        labelsOrphelins: string[];
+        refsNonCitees: string[];
+        repliquesNonTrouvees: string[];
+      };
+    };
+
+/** Lit un prompt H3 collé en bloc sans rien écrire : sert d'aperçu avant
+ * "Remplacer les 6 sections" (voir PromptImportColle). Les contrôles
+ * mécaniques (F02/F03) tournent sur le texte collé mais ne bloquent jamais
+ * l'import — on peut vouloir coller avant d'avoir fini le tableau de
+ * dialogues. */
+export async function analyserPromptColle(
+  planId: number,
+  brut: string,
+): Promise<AnalysePromptColle> {
+  const texte = extraireBlocPrompt(brut);
+  const { erreurs } = validerPromptColle(texte);
+  if (erreurs.length > 0) return { ok: false, erreurs };
+
+  const sections = decouperSections(texte);
+  const sectionsPourControle = ORDRE_SECTIONS.map((section) => ({
+    section,
+    contenu: sections[section],
+  }));
+
+  const [refs, dialogues] = await Promise.all([
+    db
+      .select({ type: planRefs.type, slot: planRefs.slot })
+      .from(planRefs)
+      .where(eq(planRefs.planId, planId)),
+    db
+      .select({ replique: planDialogues.replique, dureeSecondes: planDialogues.dureeSecondes })
+      .from(planDialogues)
+      .where(eq(planDialogues.planId, planId)),
+  ]);
+
+  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, refs);
+  const repliquesNonTrouvees = verifierInvariantVerbatim(sectionsPourControle, dialogues)
+    .filter((r) => !r.trouvee)
+    .map((r) => r.replique);
+
+  return {
+    ok: true,
+    sections,
+    avertissements: { labelsOrphelins, refsNonCitees, repliquesNonTrouvees },
+  };
+}
+
+/** Écrase les 6 sections du plan avec le contenu d'un prompt H3 collé en
+ * bloc — alternative à la saisie section par section (voir
+ * PromptSectionEditor), pour ne pas retaper à la main un prompt déjà rédigé
+ * ailleurs (skill fiche-de-plan). Refuse tout ou rien : jamais d'écriture
+ * partielle si une section manque ou est en double. */
+export async function importerPromptColle(
+  planId: number,
+  brut: string,
+): Promise<{ ok: true } | { ok: false; erreurs: string[] }> {
+  const texte = extraireBlocPrompt(brut);
+  const { erreurs } = validerPromptColle(texte);
+  if (erreurs.length > 0) return { ok: false, erreurs };
+
+  const sections = decouperSections(texte);
+  for (const section of ORDRE_SECTIONS) {
+    await updatePromptSection(planId, section, sections[section]);
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Rattache une vidéo déjà tournée (hors pipeline ComfyUI) à un plan, pour
+ * traçabilité — retour utilisateur 2026-09-30 : certains plans de l'épisode
+ * sont déjà réalisés et doivent apparaître comme tels plutôt que rester
+ * "à générer". Crée un job "termine" marqué WORKFLOW_IMPORT_MANUEL (pas de
+ * seed, pas de comfyuiPromptId — ce n'est pas une génération) et fait
+ * apparaître la vidéo dans l'aperçu et l'historique comme n'importe quel
+ * rendu réussi. Le plan passe "termine", jamais "previsualise" : une vidéo
+ * déjà tournée n'est par définition pas une prévisualisation. */
+export async function importerVideoExistante(planId: number, formData: FormData) {
+  const fichier = formData.get("fichier");
+  if (!(fichier instanceof File) || fichier.size === 0) {
+    throw new Error("Aucun fichier fourni.");
+  }
+  if (fichier.size > TAILLE_MAX_UPLOAD_VIDEO) {
+    throw new Error(
+      `Fichier trop volumineux (${(fichier.size / 1024 / 1024).toFixed(1)} Mo, max ${TAILLE_MAX_UPLOAD_VIDEO / 1024 / 1024} Mo).`,
+    );
+  }
+  const ext = extname(fichier.name) || ".mp4";
+  if (!estVideo(`x${ext}`)) {
+    throw new Error(`Format vidéo non reconnu (${ext}) — attendu .mp4, .webm ou .mov.`);
+  }
+
+  const [dernier] = await db
+    .select({ tentative: jobs.tentative })
+    .from(jobs)
+    .where(eq(jobs.planId, planId))
+    .orderBy(desc(jobs.tentative))
+    .limit(1);
+
+  const nomFichier = `import-${Date.now()}${ext}`;
+  const cheminComplet = join(MEDIA_ROOT, cheminPlanMedia(planId, nomFichier));
+  await mkdir(join(MEDIA_ROOT, "plans", String(planId)), { recursive: true });
+  await writeFile(cheminComplet, Buffer.from(await fichier.arrayBuffer()));
+
+  await db.insert(jobs).values({
+    planId,
+    statut: "termine",
+    tentative: (dernier?.tentative ?? 0) + 1,
+    activerUpscale: true,
+    workflowFichier: WORKFLOW_IMPORT_MANUEL,
+    cheminSortie: cheminPlanMedia(planId, nomFichier),
+    finishedAt: new Date(),
+  });
+
+  await db.update(plans).set({ statut: "termine", updatedAt: new Date() }).where(eq(plans.id, planId));
 
   revalidatePath("/", "layout");
 }

@@ -4,6 +4,7 @@ import { db } from "../db";
 import { assets, scenes, planDialogues, planPromptSections, planRefs, plans } from "../db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { getDefaultEpisodeId, getDefaultProjectId } from "../lib/queries";
+import { decouperSections, ORDRE_SECTIONS } from "../lib/prompt";
 
 /**
  * Import one-shot depuis les markdown existants vers Postgres — voir le plan
@@ -115,15 +116,6 @@ async function importerAssets(projectId: number) {
   console.log(`[import] ${n} assets importés depuis REGISTRE_ASSETS.md`);
 }
 
-const SECTIONS_PROMPT = [
-  "subject_definitions",
-  "summary",
-  "retention_analysis",
-  "detailed_description",
-  "overall_soundscape",
-  "non_diegetic_music",
-] as const;
-
 function parserNumerosSource(brut: string): number[] {
   return brut.split("+").map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n));
 }
@@ -214,19 +206,15 @@ async function importerPlans(projectId: number, episodeId: number) {
 
     if (!planInsere) continue;
 
-    // Prompt découpé par section — le format canonique H3 sépare chaque
-    // bloc par une ligne "nom_section:".
-    for (const [idx, section] of SECTIONS_PROMPT.entries()) {
-      const suivante = SECTIONS_PROMPT[idx + 1];
-      const regex = new RegExp(
-        `${section}:\\n([\\s\\S]*?)${suivante ? `\\n${suivante}:` : "$"}`,
-      );
-      const match = promptBrut.match(regex);
+    // Prompt découpé par section — logique partagée avec le collage depuis
+    // l'interface (lib/prompt.ts), pour ne pas diverger sur le format H3.
+    const sections = decouperSections(promptBrut);
+    for (const [idx, section] of ORDRE_SECTIONS.entries()) {
       await db.insert(planPromptSections).values({
         planId: planInsere.id,
         section,
         ordre: idx,
-        contenu: match?.[1]?.trim() ?? "",
+        contenu: sections[section],
       });
     }
 

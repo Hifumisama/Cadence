@@ -7,6 +7,14 @@ export type PromptSection = {
   contenu: string;
 };
 
+/** Marqueur de traçabilité dans jobs.workflowFichier (texte libre, pas
+ * d'enum) : distingue un plan déjà tourné/importé d'un plan généré par
+ * ComfyUI (qui porte le chemin réel du workflow, ex.
+ * "video-generation/VID_REF2VA.json"). Voir app/plans/actions.ts,
+ * importerVideoExistante. Vit ici plutôt que dans actions.ts, qui est un
+ * fichier "use server" — il ne peut exporter que des fonctions async. */
+export const WORKFLOW_IMPORT_MANUEL = "import-manuel";
+
 export type Dialogue = {
   replique: string;
   dureeSecondes: number | null;

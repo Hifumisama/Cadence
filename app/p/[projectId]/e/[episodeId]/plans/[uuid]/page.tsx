@@ -9,6 +9,9 @@ import {
 } from "@/lib/plan-checks";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PromptSectionEditor } from "@/components/plan/PromptSectionEditor";
+import { PromptImportColle } from "@/components/plan/PromptImportColle";
+import { ImporterVideoForm } from "@/components/plan/ImporterVideoForm";
+import { WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { RefsPanel, type RefVue } from "@/components/plan/RefsPanel";
 import type { NoeudPicker } from "@/components/plan/AssetPickerModal";
 import { PlanParamsEditor } from "@/components/plan/PlanParamsEditor";
@@ -168,7 +171,10 @@ export default async function PlanPage({
             {dernierJobTermine ? (
               <div className="preview-bar">
                 <span>
-                  Dernière génération ·{" "}
+                  {dernierJobTermine.workflowFichier === WORKFLOW_IMPORT_MANUEL
+                    ? "Plan déjà tourné · importé"
+                    : "Dernière génération"}{" "}
+                  ·{" "}
                   <span className="num">
                     {dernierJobTermine.finishedAt
                       ? new Date(dernierJobTermine.finishedAt).toLocaleString("fr-FR")
@@ -183,6 +189,9 @@ export default async function PlanPage({
                 <span className="file">{dernierJobTermine.cheminSortie}</span>
               </div>
             ) : null}
+            <div style={{ padding: "var(--sp-2) var(--sp-3)" }}>
+              <ImporterVideoForm planId={plan.id} />
+            </div>
           </section>
 
           <section className="panel">
@@ -191,15 +200,23 @@ export default async function PlanPage({
               <span className="eyebrow">6 sections · format MiniMax H3</span>
             </div>
             <div className="panel-bd">
+              <PromptImportColle planId={plan.id} />
               <div className="sections">
-                {SECTIONS_ORDRE.map((section) => (
-                  <PromptSectionEditor
-                    key={section}
-                    planId={plan.id}
-                    section={section}
-                    initialContenu={sectionsParNom.get(section)?.contenu ?? ""}
-                  />
-                ))}
+                {SECTIONS_ORDRE.map((section) => {
+                  const contenu = sectionsParNom.get(section)?.contenu ?? "";
+                  return (
+                    <PromptSectionEditor
+                      // Contenu dans la clé : un collage (PromptImportColle)
+                      // écrase les sections côté serveur, il faut donc
+                      // remonter l'éditeur pour resynchroniser son état local
+                      // — sinon le textarea reste affiché sur l'ancien texte.
+                      key={`${section}:${contenu}`}
+                      planId={plan.id}
+                      section={section}
+                      initialContenu={contenu}
+                    />
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -255,7 +272,11 @@ export default async function PlanPage({
                     <StatusBadge statut={job.statut} />
                     <span style={{ color: "var(--ink-3)" }}>tentative {job.tentative}</span>
                     <span className="eyebrow" style={{ marginLeft: "auto" }}>
-                      {job.activerUpscale ? "rendu final" : "prévisualisation"}
+                      {job.workflowFichier === WORKFLOW_IMPORT_MANUEL
+                        ? "import manuel"
+                        : job.activerUpscale
+                          ? "rendu final"
+                          : "prévisualisation"}
                     </span>
                   </div>
                 ))}

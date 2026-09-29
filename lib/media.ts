@@ -8,6 +8,11 @@ export const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 // worker ComfyUI, pas par cet upload direct).
 export const TAILLE_MAX_UPLOAD_ASSET = 10 * 1024 * 1024;
 
+// Import manuel d'un plan déjà tourné (traçabilité, pas de génération —
+// voir app/plans/actions.ts, importerVideoExistante) : une vidéo complète,
+// pas un extrait, la limite est donc bien plus large que pour un asset.
+export const TAILLE_MAX_UPLOAD_VIDEO = 300 * 1024 * 1024;
+
 const EXT_IMAGE = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 const EXT_AUDIO = [".wav", ".mp3", ".ogg", ".m4a"];
 const EXT_VIDEO = [".mp4", ".webm", ".mov"];
@@ -47,6 +52,12 @@ export function fichierMediaExiste(fichier: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Convention de rangement des rendus vidéo, générés ou importés
+ * manuellement — voir worker/index.ts et app/plans/actions.ts. */
+export function cheminPlanMedia(planId: number, fichier: string): string {
+  return `plans/${planId}/${fichier}`;
 }
 
 export type PosterCible = "projects" | "seasons" | "episodes";

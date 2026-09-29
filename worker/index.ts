@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { assets, jobs, planPromptSections, planRefs, plans, projects } from "../db/schema";
+import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
 import { assemblerPrompt } from "../lib/prompt";
 import { getAllParams } from "../lib/params";
 import { creerClientComfyUI } from "./comfyui";
@@ -33,18 +33,16 @@ async function construireSubmissionInput(
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
 
-  const [sections, refs, [projet]] = await Promise.all([
+  const [sections, refs] = await Promise.all([
     db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId)),
     db
       .select({ type: planRefs.type, slot: planRefs.slot, fichier: assets.fichier })
       .from(planRefs)
       .leftJoin(assets, eq(planRefs.assetId, assets.id))
       .where(eq(planRefs.planId, planId)),
-    db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, plan.projectId)),
   ]);
-  if (!projet) throw new Error(`Projet ${plan.projectId} introuvable (plan ${planId})`);
 
-  const promptAssemble = assemblerPrompt(sections, projet.clauseStyle);
+  const promptAssemble = assemblerPrompt(sections);
 
   const cheminAsset = (fichier: string | null) =>
     fichier ? join(MEDIA_ROOT, "assets", fichier) : "";

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { updateScenarioGlobal } from "@/app/scenario/actions";
 
 const FIELDS: { cle: "clauseStyle" | "notes"; label: string; wide?: boolean; rows?: number }[] = [
-  { cle: "clauseStyle", label: "Clause de style (image/vidéo)", wide: true, rows: 2 },
+  { cle: "clauseStyle", label: "Clause de style (images de référence)", wide: true, rows: 2 },
   { cle: "notes", label: "Notes", wide: true, rows: 4 },
 ];
 
