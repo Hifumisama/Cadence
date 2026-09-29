@@ -2,10 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsTree, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { AjouterAssetForm } from "@/components/assets/AjouterAssetForm";
-import { AssetCard, type FichierEtat, type MediaKind } from "@/components/assets/AssetCard";
+import { AssetCard } from "@/components/assets/AssetCard";
 import { AssetFiltres } from "@/components/assets/AssetFiltres";
 import { TYPES_ASSET } from "@/lib/assetCode";
-import { cheminAssetMedia, estAudio, estVideo, fichierMediaExiste } from "@/lib/media";
+import { infosMedia } from "@/lib/assetMedia";
 import { Topbar } from "@/components/ui/Topbar";
 
 export const dynamic = "force-dynamic";
@@ -26,13 +26,6 @@ function compterCritiques(masters: Awaited<ReturnType<typeof getAssetsTree>>): n
     (acc, m) => acc + (m.critique ? 1 : 0) + compterCritiques(m.derives),
     0,
   );
-}
-
-function infosMedia(type: string, fichier: string | null): { kind: MediaKind; etat: FichierEtat; src: string | null } {
-  if (!fichier) return { kind: "image", etat: "aucun", src: null };
-  const kind: MediaKind = type === "voix" || type === "sfx" || estAudio(fichier) ? "audio" : estVideo(fichier) ? "video" : "image";
-  if (!fichierMediaExiste(fichier)) return { kind, etat: "manquant", src: null };
-  return { kind, etat: "ok", src: `/api/media/${cheminAssetMedia(fichier)}` };
 }
 
 export default async function AssetsPage({

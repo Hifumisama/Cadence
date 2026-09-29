@@ -2,12 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsTree, getFirstEpisodeId, getProject, type AssetNode } from "@/lib/queries";
 import { StatutSelector } from "@/components/assets/StatutSelector";
-import { AjouterDeriveForm } from "@/components/assets/AjouterDeriveForm";
+import { AssetTree } from "@/components/assets/AssetTree";
 import { AssetPreview } from "@/components/assets/AssetPreview";
 import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
 import { AssetFicheEditor } from "@/components/assets/AssetFicheEditor";
 import { SupprimerAssetButton } from "@/components/assets/SupprimerAssetButton";
 import { Topbar } from "@/components/ui/Topbar";
+import { TYPES_ASSET } from "@/lib/assetCode";
 import { delierRef, delierVoixDialogue } from "@/app/assets/actions";
 
 export const dynamic = "force-dynamic";
@@ -42,69 +43,21 @@ function trouverParentCode(masters: AssetNode[], code: string, parent: string | 
   return null;
 }
 
-/** Arbre de compétences : le master est la racine, chaque dérivé est une
- * branche qui peut elle-même ramifier — profondeur illimitée (retour
- * utilisateur 2026-09-28). Chaque nœud mène à son propre détail au clic. */
-function TreeNode({
-  projectId,
-  noeud,
-  actifCode,
-  parentCode,
-}: {
-  projectId: number;
-  noeud: AssetNode;
-  actifCode: string;
-  parentCode: string | null;
-}) {
-  const bloque = noeud.derives.length > 0 || noeud.citations.length > 0;
-  const raison =
-    noeud.derives.length > 0
-      ? `A encore ${noeud.derives.length} dérivé(s)`
-      : noeud.citations.length > 0
-        ? "Encore cité dans une fiche de plan"
-        : null;
-
-  return (
-    <div className={`tree2-node${parentCode === null ? " tree2-root" : ""}`}>
-      <div className={`tree2-row${noeud.code === actifCode ? " is-active" : ""}`}>
-        <Link href={`/p/${projectId}/assets/${noeud.code}`} className="tree2-row-link">
-          <AssetPreview type={noeud.type} fichier={noeud.fichier} taille="sm" />
-          <span className="asset-code">{noeud.code}</span>
-          <span className="type-tag">{noeud.type}</span>
-          {noeud.critique ? <span className="crit-tag">Critique</span> : null}
-          <span className={`badge ${noeud.statut === "valide" ? "b-termine" : noeud.statut === "en_cours" ? "b-rejoue" : "b-attente"}`}>
-            <i />
-            {noeud.statut === "valide" ? "Validé" : noeud.statut === "en_cours" ? "En cours" : "À produire"}
-          </span>
-        </Link>
-        <span className="tree2-actions">
-          <AjouterDeriveForm projectId={projectId} parentId={noeud.id} parentCode={noeud.code} parentType={noeud.type} />
-          <SupprimerAssetButton
-            assetId={noeud.id}
-            code={noeud.code}
-            bloque={bloque}
-            raisonBlocage={raison}
-            redirectTo={parentCode ? `/p/${projectId}/assets/${parentCode}` : `/p/${projectId}/assets`}
-          />
-        </span>
-      </div>
-      {noeud.derives.length > 0 ? (
-        <div className="tree2-children">
-          {noeud.derives.map((d) => (
-            <TreeNode key={d.id} projectId={projectId} noeud={d} actifCode={actifCode} parentCode={noeud.code} />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
+const STATUTS_FILTRABLES = ["valide", "en_cours", "a_produire"];
 
 export default async function AssetDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string; code: string }>;
+  searchParams: Promise<{ statut?: string; type?: string }>;
 }) {
   const { projectId, code } = await params;
+  const { statut: statutBrut, type: typeBrut } = await searchParams;
+  const filtres = {
+    statut: STATUTS_FILTRABLES.includes(statutBrut ?? "") ? (statutBrut as string) : null,
+    type: (TYPES_ASSET as readonly string[]).includes(typeBrut ?? "") ? (typeBrut as string) : null,
+  };
   const pid = Number(projectId);
   const [projet, masters, premierEpisodeId] = await Promise.all([
     getProject(pid),
@@ -222,9 +175,13 @@ export default async function AssetDetailPage({
             <span className="eyebrow">sujet {master.code}</span>
           </div>
           <div className="panel-bd">
-            <div className="tree2">
-              <TreeNode projectId={pid} noeud={master} actifCode={noeud.code} parentCode={null} />
-            </div>
+            <AssetTree
+              projectId={pid}
+              master={master}
+              actifCode={noeud.code}
+              filtres={filtres}
+              base={`/p/${pid}/assets/${noeud.code}`}
+            />
           </div>
         </section>
       </main>

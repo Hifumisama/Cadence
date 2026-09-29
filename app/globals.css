@@ -1152,10 +1152,9 @@ button {
   aspect-ratio: 1;
 }
 .asset-preview-lg.is-audio {
-  aspect-ratio: auto;
-  height: 48px;
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 0 var(--sp-3);
 }
 .asset-preview-lg video {
@@ -1163,6 +1162,61 @@ button {
   height: 100%;
   object-fit: contain;
   background: #101015;
+}
+.asset-preview {
+  position: relative;
+}
+.asset-preview .zoom-trigger {
+  cursor: zoom-in;
+}
+.zoom-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  background: rgba(16, 16, 21, 0.75);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-1, #e8e6df);
+  cursor: pointer;
+}
+.zoom-btn:hover {
+  border-color: var(--or);
+}
+.zoom-dialog {
+  max-width: 96vw;
+  max-height: 96vh;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  background: #101015;
+  overflow: visible;
+}
+.zoom-dialog::backdrop {
+  background: rgba(8, 8, 11, 0.88);
+}
+.zoom-dialog img,
+.zoom-dialog video {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 96vw;
+  max-height: 96vh;
+  object-fit: contain;
+}
+.zoom-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
+  background: rgba(16, 16, 21, 0.8);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-1, #e8e6df);
+  cursor: pointer;
+}
+.zoom-close:hover {
+  border-color: var(--or);
 }
 .asset-preview.is-empty {
   background: repeating-linear-gradient(135deg, #191920 0 6px, #16161c 6px 12px);
@@ -1284,69 +1338,199 @@ button {
 }
 
 /* ---------------------------------------------------------------
-   Arborescence — "arbre de compétences" : le master est la racine,
-   chaque dérivé est une branche qui peut elle-même ramifier, profondeur
-   illimitée (retour utilisateur 2026-09-28).
+   Arborescence — arbre de compétences vertical : racine, tronc, grille de
+   dérivés qui retourne à la ligne, grappes pour les dérivés à enfants
+   (retour utilisateur 2026-09-29 : profondeur rarement > 2, beaucoup de
+   dérivés au niveau 1).
    --------------------------------------------------------------- */
 
-.tree2 {
+.tree {
   display: flex;
   flex-direction: column;
 }
-.tree2-node {
+.tree-root-row {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
 }
-.tree2-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: 10px var(--sp-3);
+.tree-root-row .asset-card {
+  width: 240px;
+}
+.tree-trunk {
+  width: 2px;
+  height: 32px;
+  margin-inline: auto;
+  background: var(--or);
+}
+.tree-lane {
   border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--surface-2);
-  transition: border-color 0.16s, background 0.16s;
+  border-top: 2px solid var(--or);
+  background: rgba(18, 18, 23, 0.45);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.tree-lane-hd {
+  display: flex;
   flex-wrap: wrap;
-}
-.tree2-row:hover {
-  border-color: var(--or-soft);
-  background: var(--surface-3);
-}
-.tree2-row-link {
-  display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  flex: 1 1 auto;
-  min-width: 0;
-  text-decoration: none;
+  gap: var(--sp-3) var(--sp-5);
 }
-.tree2-row.is-active {
-  border-color: var(--ecarlate-soft);
-  background: linear-gradient(90deg, rgba(200, 16, 46, 0.12), var(--surface-2) 60%);
+.tree-lane-hd h3 {
+  font-family: var(--font-brand), serif;
+  font-weight: 400;
+  font-size: 16px;
+  margin: 0;
 }
-.tree2-row .asset-code {
-  font-size: 13px;
+.tree-lane-hd h3 small {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-left: var(--sp-2);
 }
-.tree2-actions {
+.tree-filtres {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tree-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--sp-5) var(--sp-4);
+  align-items: start;
+}
+.tree-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  max-width: 240px;
+}
+.tree-node .asset-card {
+  width: 100%;
+}
+.tree-node.is-estompe {
+  opacity: 0.55;
+}
+.asset-card.is-actif {
+  border-color: var(--or);
+  box-shadow: 0 0 0 1px var(--or), 0 0 22px rgba(201, 162, 75, 0.18);
+}
+.tree-cluster {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px dashed var(--line-strong);
+  padding: var(--sp-3) var(--sp-3) var(--sp-4);
+  background: rgba(33, 33, 41, 0.35);
+}
+.tree-cluster.on-path {
+  border-color: var(--or-soft);
+}
+.tree-stem {
+  width: 2px;
+  height: 16px;
+  background: var(--line-strong);
+}
+.tree-cluster.on-path .tree-stem {
+  background: var(--or);
+}
+.tree-minis {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3) var(--sp-2);
+  width: 100%;
+}
+.tree-mini-wrap {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
+  flex: 1 1 180px;
+  max-width: 200px;
 }
-.tree2-children {
+.tree-mini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  padding: 6px 10px 6px 6px;
+  text-decoration: none;
+  transition: border-color 0.16s;
+}
+.tree-mini:hover {
+  border-color: var(--or-soft);
+}
+.tree-mini.is-active {
+  border-color: var(--or);
+  box-shadow: 0 0 0 1px var(--or);
+}
+.tree-mini-thumb {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  background: #17171d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  overflow: hidden;
+}
+.tree-mini-thumb.is-vide {
+  background: repeating-linear-gradient(135deg, #191920 0 4px, #16161c 4px 8px);
+}
+.tree-mini-thumb img,
+.tree-mini-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tree-mini-txt {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-  margin: var(--sp-2) 0 0 20px;
-  padding-left: var(--sp-4);
-  border-left: 1px dashed var(--or-soft);
+  align-items: flex-start;
+  gap: 3px;
 }
-.tree2-children .tree2-node + .tree2-node {
+.tree-mini-txt .asset-code {
+  font-size: 11px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-sub {
+  width: 100%;
+  border-left: 1px solid var(--line-strong);
+  padding-left: var(--sp-2);
+}
+.tree-sub summary {
+  cursor: pointer;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.tree-sub summary:hover {
+  color: var(--or);
+}
+.tree-sub .tree-minis {
+  flex-direction: column;
+  align-items: stretch;
   margin-top: var(--sp-2);
 }
-.tree2-root > .tree2-row {
-  border-color: var(--or-soft);
-  background: rgba(201, 162, 75, 0.06);
+.tree-sub .tree-mini-wrap {
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+@media (max-width: 520px) {
+  .tree-cluster {
+    grid-column: span 1;
+  }
 }
 
 /* Fiche asset (détail) — média à gauche, infos éditables à droite, sur

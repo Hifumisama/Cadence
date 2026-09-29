@@ -1,3 +1,4 @@
+import { MediaZoom } from "@/components/assets/MediaZoom";
 import { cheminAssetMedia, estAudio, estVideo, fichierMediaExiste } from "@/lib/media";
 
 export function AssetPreview({
@@ -26,7 +27,7 @@ export function AssetPreview({
 
   const src = `/api/media/${cheminAssetMedia(fichier)}`;
 
-  if (type === "voix" || estAudio(fichier)) {
+  if (type === "voix" || type === "sfx" || estAudio(fichier)) {
     return (
       <div className={`${classe} is-audio`}>
         <audio controls src={src} style={{ width: "100%" }} />
@@ -34,18 +35,5 @@ export function AssetPreview({
     );
   }
 
-  if (estVideo(fichier)) {
-    return (
-      <div className={classe}>
-        <video controls src={src} />
-      </div>
-    );
-  }
-
-  return (
-    <div className={classe}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={fichier} />
-    </div>
-  );
+  return <MediaZoom kind={estVideo(fichier) ? "video" : "image"} src={src} alt={fichier} classe={classe} />;
 }

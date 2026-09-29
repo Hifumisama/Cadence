@@ -29,6 +29,7 @@ export function AssetCard({
   kind,
   etat,
   src,
+  actif = false,
 }: {
   href: string;
   code: string;
@@ -41,6 +42,7 @@ export function AssetCard({
   kind: MediaKind;
   etat: FichierEtat;
   src: string | null;
+  actif?: boolean;
 }) {
   const zoneRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLVideoElement & HTMLAudioElement>(null);
@@ -106,7 +108,7 @@ export function AssetCard({
   const jouable = etat === "ok" && (kind === "video" || kind === "audio");
 
   return (
-    <Link href={href} className="asset-card">
+    <Link href={href} className={`asset-card${actif ? " is-actif" : ""}`}>
       <div ref={zoneRef} className={`asset-card-media${etat !== "ok" ? " is-vide" : ""}`}>
         {etat === "aucun" ? <span className="tiny-note">pas de fichier</span> : null}
         {etat === "manquant" ? (
