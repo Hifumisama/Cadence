@@ -110,15 +110,14 @@ Le cœur de la friction la plus fréquente (F03, 2 à 30 itérations/plan).
 
 - Récupère automatiquement les refs depuis le registre (persos, décors,
   voix) en fonction du plan.
-- Aperçu vidéo de la dernière génération.
-- Édition manuelle du prompt (pas d'agent pour cette étape précise — F03
-  a tranché que les corrections sont trop grosses pour une retouche
-  chirurgicale par IA ; **point à reconfirmer** maintenant que l'app prévoit
-  des agents partout — voir "Points ouverts").
+- Aperçu vidéo de la dernière génération, avec import manuel possible pour
+  un plan déjà tourné hors pipeline (traçabilité, 2026-09-30).
+- Édition manuelle du prompt : 6 sections, ou collage en bloc d'un prompt
+  H3 déjà rédigé (2026-09-30) — reste la seule voie en V1 (sans agent). Un
+  agent d'itération dédié par plan, qui écrirait dans ce même point d'entrée,
+  est la direction retenue pour l'après-V1 — voir "Points ouverts".
 - Slots dédiés : dialogue, bruitage, durée voix mesurée (F02).
 - Bouton relance → repart dans la queue Shots.
-- Garde-fou vocabulaire (F03, motif du 25/09) : liste de mots à risque
-  identifiés en prod (ex. "bladed"), signalée avant validation du prompt.
 
 ### 6. Casting vocal — catalogue
 
@@ -185,9 +184,17 @@ juste une question de ROI qu'on a déjà tranchée. Proposition :
 - **Stockage** : l'app lit/écrit directement les fichiers markdown
   existants, ou migration vers une base structurée ? Impacte fortement
   l'effort de développement.
-- **Agent sur la Fiche de plan** : F03 avait tranché "pas d'édition fine par
-  IA" avant que l'app ne prévoie des agents partout — on le confirme, ou on
-  ouvre un chat léger ici aussi (reformulation, pas retouche chirurgicale) ?
+- **Agent sur la Fiche de plan** — direction retenue (retour utilisateur
+  2026-09-30), à séquencer après V1 : un agent crée d'abord un squelette de
+  tous les prompts H3 nécessaires (skills de rédaction à durcir pour ça),
+  une première vidéo d'un seul plan est générée, puis un agent dédié itère
+  prompt par prompt pour corriger les défauts constatés au visionnage.
+  Contredit le cadrage "V1 sans agent" du phasage ci-dessous si absorbé
+  dedans — à traiter comme un chantier séparé, après la fermeture de V1
+  telle que scopée, pas comme une condition de sa clôture. Le point d'entrée
+  (collage de prompt en bloc, Fiche de plan) est déjà prêt à le recevoir.
+  Le garde-fou vocabulaire à risque (F03, motif du 25/09) est abandonné :
+  reste la vigilance de l'utilisateur au visionnage, pas un système dédié.
 - **Utilisateur unique ou multi-utilisateur** : un collaborateur pourrait
   rejoindre le projet un jour (mentionné pour F05) — ça change la question
   de l'authentification et du conflit d'écriture concurrent.

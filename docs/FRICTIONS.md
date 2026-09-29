@@ -238,7 +238,47 @@ un problème de découpage, un problème de **précision lexicale**.
   statiques), en s'appuyant sur la direction déjà donnée par le scénario.
 - **Vocabulaire** → tenir une liste de mots à risque identifiés en
   production dans le skill `fiche-de-plan`, à vérifier avant de valider un
-  prompt.
+  prompt. **Abandonné (2026-09-30)** : retour utilisateur, reste la
+  vigilance de l'utilisateur au visionnage (reformuler/corriger les mots
+  précis qui posent problème), pas un système dédié dans le skill.
+
+### Boucle courte fermée côté interface (2026-09-30)
+Ce que "récupère les refs automatiquement / prévisualise / édite / relance"
+(piste évoquée le 17/09) désignait existe maintenant dans la Fiche de plan :
+`RefsPanel` (refs auto), lecteur vidéo (aperçu dernier rendu, + import
+manuel d'un plan déjà tourné pour traçabilité), édition des 6 sections ou
+collage en bloc d'un prompt H3 déjà rédigé, `RelaunchButton` (relance sans
+repasser par ComfyUI). Reste ouvert côté Shots : le déclenchement du
+"passage nuit" (upscale en masse), mentionné dans la CDC mais jamais
+construit — le rejeu automatique (2 tentatives) l'est, lui, déjà (voir
+`worker/index.ts`, `gererEchecReel`).
+
+### Direction retenue pour l'agent d'itération (2026-09-30)
+Le point ouvert "Agent sur la Fiche de plan" (CAHIER_DES_CHARGES.md) est
+tranché côté conception, pas encore construit :
+1. Un agent crée d'abord un **squelette** — tous les prompts H3 de base dont
+   l'épisode aura besoin (suppose des skills de rédaction plus solides que
+   la conversation actuelle pour tenir sans supervision constante).
+2. Une **première vidéo d'un seul plan** est générée pour calibrer.
+3. Un **agent dédié itère ensuite prompt par prompt**, plan par plan,
+   corrigeant les défauts constatés au visionnage — jamais de retouche
+   chirurgicale à l'aveugle, toujours après un visionnage réel.
+4. **Cas particulier des dialogues** : avant même la prise de voix réelle,
+   estimer une durée à partir du nombre de mots prononcés (heuristique
+   mots/seconde), pour itérer sur le texte et l'ajuster à la durée du plan.
+   Ceci **ne remplace pas** l'invariant "la durée se mesure, pas s'estime"
+   (ci-dessus, sous-problème durée) : l'estimation ne sert qu'à converger
+   plus vite sur un texte plausible avant d'enregistrer la voix ; la mesure
+   `ffprobe` sur le `.wav` réel reste seule autorité pour trancher un
+   découpage.
+
+Ce chantier **contredit le cadrage "V1 sans agent"** du phasage
+(CAHIER_DES_CHARGES.md) s'il y est absorbé — décision explicite à prendre :
+le traiter comme un chantier séparé après la clôture de V1 telle que scopée
+à l'origine, pas comme une condition de cette clôture. Le point d'entrée
+existe déjà côté interface (collage de prompt en bloc dans la Fiche de
+plan) : l'agent futur écrira dans le même champ plutôt que d'exiger une
+nouvelle UI.
 
 ### Reste à observer
 - [ ] **Compter séparément** : itérations « prompt » vs redécoupages (= scénario). Le motif ci-dessus suggère que la part « découpage » est grosse — reste à chiffrer.
