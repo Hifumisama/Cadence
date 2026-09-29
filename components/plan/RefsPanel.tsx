@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ajouterRef, supprimerRef } from "@/app/plans/[numero]/actions";
+import { ajouterRef, supprimerRef } from "@/app/plans/actions";
 import { MAX_REFS, type RefLabel } from "@/lib/plan-checks";
 
 type RefRow = {
@@ -22,13 +22,11 @@ const LABEL_TYPE: Record<RefLabel["type"], string> = {
 
 function AddRefRow({
   planId,
-  planNumero,
   type,
   assets,
   disabled,
 }: {
   planId: number;
-  planNumero: number;
   type: RefLabel["type"];
   assets: AssetOption[];
   disabled: boolean;
@@ -83,12 +81,10 @@ function AddRefRow({
 
 export function RefsPanel({
   planId,
-  planNumero,
   refs,
   assets,
 }: {
   planId: number;
-  planNumero: number;
   refs: RefRow[];
   assets: AssetOption[];
 }) {
@@ -141,7 +137,6 @@ export function RefsPanel({
             </ul>
             <AddRefRow
               planId={planId}
-              planNumero={planNumero}
               type={type}
               assets={assets}
               disabled={items.length >= MAX_REFS[type]}

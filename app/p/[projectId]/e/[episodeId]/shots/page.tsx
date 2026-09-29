@@ -63,12 +63,12 @@ export default async function ShotsPage({
       <div className="frise">
         {shots.map((shot) => (
           <Link
-            key={shot.numero}
-            href={`${base}/plans/${shot.numero}`}
+            key={shot.uuid}
+            href={`${base}/plans/${shot.uuid}`}
             className={`shot ${statusNodeClass(shot.statut)}`}
           >
             <span className="node" />
-            <span className="shot-no">{String(shot.numero).padStart(3, "0")}</span>
+            <span className="shot-no">{String(shot.position).padStart(2, "0")}</span>
             <span className="shot-title">
               {shot.titre}
               {shot.dernierJob?.erreur ? (

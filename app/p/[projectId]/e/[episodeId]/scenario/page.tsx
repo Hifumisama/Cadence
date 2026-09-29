@@ -1,11 +1,12 @@
-import Link from "next/link";
 import { getProject, getScenarioData } from "@/lib/queries";
 import { notFound } from "next/navigation";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
 import { ScenarioGlobalsEditor } from "@/components/scenario/ScenarioGlobalsEditor";
 import { NouveauPlanForm } from "@/components/scenario/NouveauPlanForm";
-import { NouveauMouvementForm } from "@/components/scenario/NouveauMouvementForm";
-import { SupprimerMouvementButton } from "@/components/scenario/SupprimerMouvementButton";
+import { NouveauSceneForm } from "@/components/scenario/NouveauSceneForm";
+import { SupprimerSceneButton } from "@/components/scenario/SupprimerSceneButton";
+import { BasculeScene, ControleAccordeon, CorpsScene, PlanShotLink, PoigneeScene, ZoneScene } from "@/components/scenario/GlisserDeposer";
+import { ModifierSceneButton } from "@/components/scenario/ModifierSceneButton";
 
 export const dynamic = "force-dynamic";
 
@@ -21,27 +22,29 @@ export default async function ScenarioPage({
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, { mouvements, sansMouvement, prochainNumeroLibre }] = await Promise.all([
+  const [projet, { scenes, sansScene }] = await Promise.all([
     getProject(pid),
     getScenarioData(eid),
   ]);
   if (!projet) notFound();
 
-  const tousLesPlans = [...mouvements.flatMap((m) => m.plans), ...sansMouvement];
+  const tousLesPlans = [...scenes.flatMap((sc) => sc.plans), ...sansScene];
   const nbBrouillons = tousLesPlans.filter((p) => p.statut === "brouillon").length;
   const nbDeveloppes = tousLesPlans.length - nbBrouillons;
 
   const groupes = [
-    ...mouvements.map((m) => ({
-      id: m.id as number | null,
-      titre: m.titre,
-      range: `${String(m.planNumeroDebut).padStart(3, "0")} → ${String(m.planNumeroFin).padStart(3, "0")}`,
-      fonction: m.fonction,
-      duree: m.dureeApproxSecondes,
-      plans: m.plans,
+    ...scenes.map((sc) => ({
+      id: sc.id as number | null,
+      titre: sc.titre,
+      range: sc.plans.length > 0 ? `${sc.plans.length} plan${sc.plans.length > 1 ? "s" : ""}` : "",
+      fonction: sc.fonction,
+      duree: sc.dureeSecondes,
+      plans: sc.plans,
     })),
-    ...(sansMouvement.length > 0
-      ? [{ id: null, titre: "Sans mouvement", range: "", fonction: null, duree: null, plans: sansMouvement }]
+    // Toujours présent dès qu'il existe une scène : c'est la zone où déposer
+    // un plan pour le détacher.
+    ...(sansScene.length > 0 || scenes.length > 0
+      ? [{ id: null, titre: "Sans scène", range: "", fonction: null, duree: null, plans: sansScene }]
       : []),
   ];
 
@@ -83,8 +86,8 @@ export default async function ScenarioPage({
         </div>
         <span className="tally-spacer" />
         <div className="tally-item">
-          <span className="v" style={{ color: "var(--ink-2)" }}>{mouvements.length}</span>
-          <span className="k">Mouvements</span>
+          <span className="v" style={{ color: "var(--ink-2)" }}>{scenes.length}</span>
+          <span className="k">Scènes</span>
         </div>
       </div>
 
@@ -92,58 +95,66 @@ export default async function ScenarioPage({
         <NouveauPlanForm
           projectId={pid}
           episodeId={eid}
-          prochainNumeroLibre={prochainNumeroLibre}
-          mouvementsOptions={mouvements.map((m) => ({
-            id: m.id,
-            titre: m.titre,
-            planNumeroDebut: m.planNumeroDebut,
-            planNumeroFin: m.planNumeroFin,
-          }))}
+          scenesOptions={scenes.map((sc) => ({ id: sc.id, titre: sc.titre }))}
         />
-        <NouveauMouvementForm episodeId={eid} />
+        <NouveauSceneForm episodeId={eid} />
+        {scenes.length > 0 ? <ControleAccordeon /> : null}
       </div>
 
       {groupes.map((g, idx) => (
-        <div key={idx} className="mvt">
-          <div className="mvt-top">
-            {idx < mouvements.length ? <span className="mvt-roman">{ROMAINS[idx] ?? idx + 1}</span> : null}
-            <span className="mvt-title">{g.titre}</span>
+        <ZoneScene key={idx} sceneId={g.id} suivantSceneId={idx < scenes.length - 1 ? scenes[idx + 1]!.id : null}>
+          <div className="scene-top">
+            <BasculeScene titre={g.titre} />
+            {g.id != null ? <PoigneeScene sceneId={g.id} /> : null}
+            {idx < scenes.length ? <span className="scene-roman">{ROMAINS[idx] ?? idx + 1}</span> : null}
+            <span className="scene-title">{g.titre}</span>
             <hr className="zellige-rule" />
             {g.range ? (
-              <span className="mvt-range">
+              <span className="scene-range">
                 {g.range}
                 {g.duree ? ` · ~${g.duree} s` : ""}
               </span>
             ) : null}
-            {g.id != null ? <SupprimerMouvementButton mouvementId={g.id} titre={g.titre} /> : null}
+            {g.id != null ? (
+              <ModifierSceneButton sceneId={g.id} titre={g.titre} fonction={g.fonction ?? ""} />
+            ) : null}
+            {g.id != null ? <SupprimerSceneButton sceneId={g.id} titre={g.titre} /> : null}
           </div>
-          {g.fonction ? <p className="mvt-fn">{g.fonction}</p> : null}
+          <CorpsScene>
+          {g.fonction ? <p className="scene-fn">{g.fonction}</p> : null}
           <div className="frise">
-            {g.plans.map((plan) => (
-              <Link
-                key={plan.numero}
-                href={`${base}/plans/${plan.numero}`}
+            {g.plans.map((plan, i) => (
+              <PlanShotLink
+                key={plan.id}
+                planId={plan.id}
+                sceneId={g.id}
+                suivantId={g.plans[i + 1]?.id ?? null}
+                href={`${base}/plans/${plan.uuid}`}
                 className={`shot ${statusNodeClass(plan.statut)}`}
               >
                 <span className="node" />
-                <span className="shot-no">{String(plan.numero).padStart(3, "0")}</span>
+                <span className="shot-no">{String(plan.position).padStart(2, "0")}</span>
                 <span className="shot-title">
                   {plan.titre}
                   <span className="shot-meta">
-                    {plan.valeur ? <span>{plan.valeur}</span> : null}
-                    {plan.decor ? <span>{plan.decor}</span> : null}
+                    {plan.description ? (
+                      <span>
+                        {plan.description.length > 90 ? `${plan.description.slice(0, 90)}…` : plan.description}
+                      </span>
+                    ) : null}
                   </span>
                 </span>
                 <span className="shot-right">
                   <StatusBadge statut={plan.statut} />
                 </span>
-              </Link>
+              </PlanShotLink>
             ))}
             {g.plans.length === 0 ? (
-              <p className="tiny-note">Aucun plan dans ce mouvement pour l&rsquo;instant.</p>
+              <p className="tiny-note">Aucun plan — glisse-en un ici.</p>
             ) : null}
           </div>
-        </div>
+          </CorpsScene>
+        </ZoneScene>
       ))}
 
       {tousLesPlans.length === 0 ? (

@@ -3,7 +3,7 @@ import {
   assets,
   episodes,
   jobs,
-  mouvements,
+  scenes,
   planDialogues,
   planPromptSections,
   planRefs,
@@ -11,7 +11,7 @@ import {
   projects,
   seasons,
 } from "../db/schema";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, ne } from "drizzle-orm";
 import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
 import { posterSrc } from "./media";
 
@@ -120,27 +120,33 @@ export async function getAllProjects() {
 }
 
 export type ShotListItem = {
-  numero: number;
+  uuid: string; // identifiant public (URL) — la position est ce qu'on affiche
+  position: number; // rang réel dans l'épisode, brouillons compris (1-based)
   titre: string;
   statut: string;
   dernierJob: { tentative: number; erreur: string | null } | null;
 };
 
-/** Frise Shots : tous les plans d'un ÉPISODE, ordonnés par numéro — les
- * trous des plans supprimés restent visibles, jamais renumérotés (F03).
- * Scope épisode, pas projet (révisé 2026-09-28 en même temps que la
- * numérotation) : `numero` n'est unique/continu qu'à l'échelle de
- * l'épisode, une frise multi-épisodes mélangerait des numeros qui se
+/** Frise Shots : tous les plans d'un ÉPISODE, dans l'ordre `ordre` (montage,
+ * réordonnable) ; les plans s'identifient par `uuid`, sans numéro (F03).
+ * Scope épisode, pas projet : la position affichée est un rang à l'échelle
+ * de l'épisode, une frise multi-épisodes mélangerait des rangs qui se
  * chevauchent sans rien pour les distinguer visuellement. */
 export async function getShotsList(episodeId?: number): Promise<ShotListItem[]> {
   const eid = episodeId ?? (await getDefaultEpisodeId());
   // Un plan brouillon n'a pas encore de fiche de plan (pas de prompt, pas de
   // durée de génération) : il vit dans Scénario, pas dans la queue Shots.
+  const toutes = await db
+    .select({ id: plans.id })
+    .from(plans)
+    .where(eq(plans.episodeId, eid))
+    .orderBy(plans.ordre, plans.id);
+  const positionParId = new Map(toutes.map((p, i) => [p.id, i + 1]));
   const rows = await db
     .select()
     .from(plans)
     .where(and(eq(plans.episodeId, eid), ne(plans.statut, "brouillon")))
-    .orderBy(plans.numero);
+    .orderBy(plans.ordre, plans.id);
   const allJobs = await db.select().from(jobs).orderBy(desc(jobs.createdAt));
 
   const dernierJobParPlan = new Map<number, (typeof allJobs)[number]>();
@@ -149,7 +155,8 @@ export async function getShotsList(episodeId?: number): Promise<ShotListItem[]> 
   }
 
   return rows.map((p) => ({
-    numero: p.numero,
+    uuid: p.uuid,
+    position: positionParId.get(p.id) ?? 0,
     titre: p.titre,
     statut: p.statut,
     dernierJob: dernierJobParPlan.has(p.id)
@@ -162,17 +169,17 @@ export async function getShotsList(episodeId?: number): Promise<ShotListItem[]> 
 }
 
 /** Fiche de plan complète : plan + prompt sectionné + refs (avec l'asset
- * associé) + dialogues + historique des jobs. numero n'est unique que par
- * ÉPISODE (révisé 2026-09-28, voir docs/FRICTIONS.md F03) — filtrer par
- * episodeId, pas projectId, est ce qui évite réellement une collision. */
-export async function getPlanDetail(numero: number, episodeId?: number) {
+ * associé) + dialogues + historique des jobs. Retrouvée par `uuid` (identifiant
+ * public, voir docs/FRICTIONS.md F03) ; le filtre episodeId garde l'URL
+ * cohérente avec l'épisode affiché. */
+export async function getPlanDetail(uuid: string, episodeId?: number) {
   const eid = episodeId ?? (await getDefaultEpisodeId());
   const plan = await db.query.plans.findFirst({
-    where: and(eq(plans.numero, numero), eq(plans.episodeId, eid)),
+    where: and(eq(plans.uuid, uuid), eq(plans.episodeId, eid)),
   });
   if (!plan) return null;
 
-  const [promptSections, refs, dialogues, jobHistory] = await Promise.all([
+  const [promptSections, refs, dialogues, jobHistory, episodePlans] = await Promise.all([
     db
       .select()
       .from(planPromptSections)
@@ -200,9 +207,15 @@ export async function getPlanDetail(numero: number, episodeId?: number) {
       .from(jobs)
       .where(eq(jobs.planId, plan.id))
       .orderBy(desc(jobs.createdAt)),
+    db
+      .select({ id: plans.id })
+      .from(plans)
+      .where(eq(plans.episodeId, plan.episodeId))
+      .orderBy(plans.ordre, plans.id),
   ]);
+  const position = episodePlans.findIndex((p) => p.id === plan.id) + 1;
 
-  return { plan, promptSections, refs, dialogues, jobHistory };
+  return { plan, position, promptSections, refs, dialogues, jobHistory };
 }
 
 /** Tous les assets (27 sur l'épisode 1) — pour peupler le sélecteur d'ajout
@@ -212,42 +225,64 @@ export async function getAllAssets(projectId?: number) {
   return db.select().from(assets).where(eq(assets.projectId, pid)).orderBy(assets.type, assets.code);
 }
 
-/** Page Scénario : les mouvements narratifs, et tous les plans (brouillon
- * compris) groupés par mouvement — un plan sans mouvementId atterrit dans
- * le groupe "sans mouvement" plutôt que d'être perdu.
+/** Page Scénario : les scènes de l'épisode, et tous les plans (brouillon
+ * compris) groupés par scène — un plan sans sceneId atterrit dans le groupe
+ * "sans scène" plutôt que d'être perdu.
+ *
+ * Nombre de plans et durée d'une scène sont DÉDUITS des plans rattachés
+ * (jamais stockés, voir db/schema.ts) ; les scènes suivent `scenes.ordre`.
  *
  * Le scénario est fondamentalement une unité par ÉPISODE (révisé
- * 2026-09-28, voir docs/FRICTIONS.md F03) : mouvements et plans sont tous
- * les deux filtrés par episodeId directement, plus besoin de remonter par
- * saison/projet — `prochainNumeroLibre` est donc aussi calculé à l'échelle
- * de cet épisode, pas du projet entier. */
+ * 2026-09-28, voir docs/FRICTIONS.md F03) : scènes et plans sont tous les
+ * deux filtrés par episodeId directement, plus besoin de remonter par
+ * saison/projet. */
 export async function getScenarioData(episodeId?: number) {
   const eid = episodeId ?? (await getDefaultEpisodeId());
-  const [tousLesMouvements, tousLesPlans] = await Promise.all([
-    db.select().from(mouvements).where(eq(mouvements.episodeId, eid)).orderBy(mouvements.ordre),
-    db.select().from(plans).where(eq(plans.episodeId, eid)).orderBy(plans.numero),
+  const [toutesLesScenes, lignesPlans] = await Promise.all([
+    db.select().from(scenes).where(eq(scenes.episodeId, eid)).orderBy(scenes.ordre),
+    db.select().from(plans).where(eq(plans.episodeId, eid)).orderBy(plans.ordre, plans.id),
   ]);
+  // Position réelle dans l'épisode (1-based) — c'est elle qu'on affiche ;
+  // Les URL, elles, utilisent `uuid`.
+  const tousLesPlans = lignesPlans.map((p, i) => ({ ...p, position: i + 1 }));
 
-  const parMouvement = new Map<number, typeof tousLesPlans>();
-  const sansMouvement: typeof tousLesPlans = [];
+  const parScene = new Map<number, typeof tousLesPlans>();
+  const sansScene: typeof tousLesPlans = [];
   for (const plan of tousLesPlans) {
-    if (plan.mouvementId == null) {
-      sansMouvement.push(plan);
+    if (plan.sceneId == null) {
+      sansScene.push(plan);
       continue;
     }
-    const liste = parMouvement.get(plan.mouvementId) ?? [];
+    const liste = parScene.get(plan.sceneId) ?? [];
     liste.push(plan);
-    parMouvement.set(plan.mouvementId, liste);
+    parScene.set(plan.sceneId, liste);
   }
 
+  // Ordre des scènes = `scenes.ordre` (réordonnable par glisser-déposer) ; les
+  // plans de chaque scène sont déjà dans l'ordre de l'épisode.
+  const scenesAvecPlans = toutesLesScenes.map((sc) => {
+    const liste = parScene.get(sc.id) ?? [];
+    return {
+      ...sc,
+      plans: liste,
+      dureeSecondes: liste.length > 0 ? liste.reduce((acc, p) => acc + p.dureeMontageSecondes, 0) : null,
+    };
+  });
+
   return {
-    mouvements: tousLesMouvements.map((m) => ({
-      ...m,
-      plans: parMouvement.get(m.id) ?? [],
-    })),
-    sansMouvement,
-    prochainNumeroLibre: tousLesPlans.reduce((acc, p) => Math.max(acc, p.numero), 0) + 10,
+    scenes: scenesAvecPlans,
+    sansScene,
   };
+}
+
+/** Scènes d'un épisode (id + titre), dans l'ordre de création — alimente le
+ * sélecteur de scène de la page d'un plan. */
+export async function getScenesEpisode(episodeId: number) {
+  return db
+    .select({ id: scenes.id, titre: scenes.titre })
+    .from(scenes)
+    .where(eq(scenes.episodeId, episodeId))
+    .orderBy(scenes.ordre);
 }
 
 /** Épisode + sa saison — sert au bandeau (fil d'Ariane, numéro de saison)
@@ -280,14 +315,13 @@ export async function getProjectHierarchy(projectId: number) {
       .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
       .where(eq(seasons.projectId, projectId))
       .orderBy(episodes.numero),
-    db.select({ episodeId: plans.episodeId, statut: plans.statut, numero: plans.numero }).from(plans).where(eq(plans.projectId, projectId)),
+    db.select({ episodeId: plans.episodeId, statut: plans.statut }).from(plans).where(eq(plans.projectId, projectId)),
   ]);
 
-  const parEpisodeId = new Map<number, { statuts: (typeof lesPlans)[number]["statut"][]; numeros: number[] }>();
+  const parEpisodeId = new Map<number, { statuts: (typeof lesPlans)[number]["statut"][] }>();
   for (const p of lesPlans) {
-    const courant = parEpisodeId.get(p.episodeId) ?? { statuts: [], numeros: [] };
+    const courant = parEpisodeId.get(p.episodeId) ?? { statuts: [] };
     courant.statuts.push(p.statut);
-    courant.numeros.push(p.numero);
     parEpisodeId.set(p.episodeId, courant);
   }
 
@@ -296,14 +330,12 @@ export async function getProjectHierarchy(projectId: number) {
 
   const saisonsAvecEpisodes = lesSaisons.map((saison) => {
     const episodesDeCetteSaison = (episodesParSaison.get(saison.id) ?? []).map(({ episode }) => {
-      const donnees = parEpisodeId.get(episode.id) ?? { statuts: [], numeros: [] };
+      const donnees = parEpisodeId.get(episode.id) ?? { statuts: [] };
       return {
         ...episode,
         posterSrc: posterSrc("episodes", episode.id, episode.posterFichier),
         buckets: bucketiserStatuts(donnees.statuts),
-        nbPlans: donnees.numeros.length,
-        numeroMin: donnees.numeros.length ? Math.min(...donnees.numeros) : null,
-        numeroMax: donnees.numeros.length ? Math.max(...donnees.numeros) : null,
+        nbPlans: donnees.statuts.length,
       };
     });
     const bucketsSaison = episodesDeCetteSaison.reduce((acc, e) => additionnerBuckets(acc, e.buckets), bucketsVides());
@@ -322,7 +354,7 @@ export async function getProjectHierarchy(projectId: number) {
 }
 
 export type AssetNode = Awaited<ReturnType<typeof getAssetsTree>>[number];
-export type AssetCitation = { planNumero: number; episodeId: number; refId: number | null; dialogueId: number | null };
+export type AssetCitation = { planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number | null; dialogueId: number | null };
 
 /** Registre d'assets en arborescence par sujet (masters + dérivés), pas par
  * type — demande explicite de l'utilisateur (2026-09-27) : le type reste un
@@ -345,11 +377,22 @@ export async function getAssetsTree(projectId?: number) {
   // Filtré au même projet : un ref/dialogue vers un plan d'un autre projet
   // (ne devrait jamais arriver, mais rien ne l'empêche au niveau FK) sort
   // naturellement du calcul de citations puisque son planId n'aura pas
-  // d'entrée dans numeroParPlanId.
+  // d'entrée dans planParId.
   const tousLesPlans = await db
-    .select({ id: plans.id, numero: plans.numero, episodeId: plans.episodeId })
+    .select({ id: plans.id, uuid: plans.uuid, ordre: plans.ordre, episodeId: plans.episodeId, episodeNumero: episodes.numero })
     .from(plans)
-    .where(eq(plans.projectId, pid));
+    .innerJoin(episodes, eq(plans.episodeId, episodes.id))
+    .where(eq(plans.projectId, pid))
+    .orderBy(plans.ordre, plans.id);
+
+  // Position réelle de chaque plan dans son épisode (1-based).
+  const compteurParEpisode = new Map<number, number>();
+  const positionParPlanId = new Map<number, number>();
+  for (const p of tousLesPlans) {
+    const rang = (compteurParEpisode.get(p.episodeId) ?? 0) + 1;
+    compteurParEpisode.set(p.episodeId, rang);
+    positionParPlanId.set(p.id, rang);
+  }
 
   const planParId = new Map(tousLesPlans.map((p) => [p.id, p]));
   const citationsParAssetId = new Map<number, AssetCitation[]>();
@@ -359,7 +402,7 @@ export async function getAssetsTree(projectId?: number) {
     const plan = planParId.get(ref.planId);
     if (!plan) continue;
     const liste = citationsParAssetId.get(ref.assetId) ?? [];
-    liste.push({ planNumero: plan.numero, episodeId: plan.episodeId, refId: ref.id, dialogueId: null });
+    liste.push({ planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: ref.id, dialogueId: null });
     citationsParAssetId.set(ref.assetId, liste);
   }
   for (const d of tousLesDialogues) {
@@ -367,7 +410,7 @@ export async function getAssetsTree(projectId?: number) {
     const plan = planParId.get(d.planId);
     if (!plan) continue;
     const liste = citationsParAssetId.get(d.assetVoixId) ?? [];
-    liste.push({ planNumero: plan.numero, episodeId: plan.episodeId, refId: null, dialogueId: d.id });
+    liste.push({ planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: null, dialogueId: d.id });
     citationsParAssetId.set(d.assetVoixId, liste);
   }
 
@@ -386,11 +429,11 @@ export async function getAssetsTree(projectId?: number) {
   };
 
   function construireNoeud(asset: (typeof tousLesAssets)[number]): AssetAvecDerives {
-    const citations = (citationsParAssetId.get(asset.id) ?? []).sort((a, b) => a.planNumero - b.planNumero);
+    const citations = (citationsParAssetId.get(asset.id) ?? []).sort((a, b) => a.episodeNumero - b.episodeNumero || a.position - b.position);
     return {
       ...asset,
       citations,
-      plansCitants: [...new Set(citations.map((c) => c.planNumero))].sort((a, b) => a - b),
+      plansCitants: [...new Set(citations.map((c) => c.position))].sort((a, b) => a - b),
       derives: (enfantsParParentId.get(asset.id) ?? [])
         .sort((a, b) => a.code.localeCompare(b.code))
         .map(construireNoeud),

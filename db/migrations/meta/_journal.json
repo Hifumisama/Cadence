@@ -99,6 +99,55 @@
       "when": 1790700600000,
       "tag": "0013_types_vfx_sfx_oth",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790787000000,
+      "tag": "0014_scenario_narratif",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790873400000,
+      "tag": "0015_retrait_raccord_sortie",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790959800000,
+      "tag": "0016_mouvements_vers_scenes",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791046200000,
+      "tag": "0017_ordre_des_plans",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791132600000,
+      "tag": "0018_compteur_numero_plan",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791219000000,
+      "tag": "0019_plans_uuid",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791305400000,
+      "tag": "0020_ordre_plans_par_scene",
+      "breakpoints": true
     }
   ]
 }

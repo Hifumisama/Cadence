@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { readFile } from "node:fs/promises";
 import { db } from "../db";
-import { assets, mouvements, planDialogues, planPromptSections, planRefs, plans } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { assets, scenes, planDialogues, planPromptSections, planRefs, plans } from "../db/schema";
+import { and, eq, sql } from "drizzle-orm";
 import { getDefaultEpisodeId, getDefaultProjectId } from "../lib/queries";
 
 /**
@@ -179,7 +179,7 @@ async function importerPlans(projectId: number, episodeId: number) {
     const blocPrompt = bloc.match(/\*\*Prompt\*\*\n```text\n([\s\S]+?)\n```/);
     const promptBrut = blocPrompt?.[1] ?? "";
 
-    const [existant] = await db.select().from(plans).where(eq(plans.numero, numero)).limit(1);
+    const [existant] = await db.select().from(plans).where(and(eq(plans.episodeId, episodeId), sql`${plans.numerosSource}[1] = ${numero}`)).limit(1);
 
     let planInsere = existant;
     if (existant) {
@@ -196,8 +196,8 @@ async function importerPlans(projectId: number, episodeId: number) {
         .values({
           projectId,
           episodeId,
-          numero,
-          numerosSource: numerosSource.length > 1 ? numerosSource : null,
+          ordre: numero,
+          numerosSource,
           titre,
           dureeMontageSecondes: parseInt(dureeMontage ?? "0", 10) || 0,
           dureeGenerationSecondes: parseInt(dureeGeneration ?? "0", 10) || 0,
@@ -297,8 +297,8 @@ function parserBlocScenario(bloc: string): Record<string, string> {
   return resultat;
 }
 
-/** Découpage narratif (skill `scenario`) : structure en mouvements +
- * champs Sujet/Décor/Lumière/Mouvement/Son/Intention/Assets req. par plan.
+/** Découpage narratif (skill `scenario`) : structure en scènes (ex-mouvements) +
+ * description (Sujet + Intention) par plan.
  * Vient compléter les plans déjà créés par importerPlans() — best-effort,
  * un plan fusionné (ex. 20 absorbé dans 10) n'a pas de ligne propre et son
  * bloc scénario est donc ignoré silencieusement. */
@@ -307,39 +307,33 @@ async function importerScenario(episodeId: number) {
   // regex multi-lignes (fences ``` ) matchent correctement.
   const texte = (await readFile(new URL("S01_maya.md", ROOT), "utf-8")).replace(/\r\n/g, "\n");
 
-  const mouvementsExistants = await db.select().from(mouvements);
-  const rangesMouvements: { id: number; debut: number; fin: number }[] = [];
+  const scenesExistantes = await db.select().from(scenes);
+  const rangesScenes: { id: number; debut: number; fin: number }[] = [];
 
-  if (mouvementsExistants.length === 0) {
-    const ligneMouvement = /\|\s*\*\*([IVX]+)\.\s*([^*]+)\*\*\s*\|\s*(\d+)\s*→\s*(\d+)\s*\|\s*([^|]+)\|\s*([^|]+)\|/g;
+  if (scenesExistantes.length === 0) {
+    const ligneScene = /\|\s*\*\*([IVX]+)\.\s*([^*]+)\*\*\s*\|\s*(\d+)\s*→\s*(\d+)\s*\|\s*([^|]+)\|\s*([^|]+)\|/g;
     let ordre = 0;
-    for (const m of texte.matchAll(ligneMouvement)) {
+    for (const m of texte.matchAll(ligneScene)) {
       const titre = m[2]?.trim();
       const debut = Number(m[3]);
       const fin = Number(m[4]);
-      const dureeTxt = m[5]?.trim() ?? "";
       const fonction = m[6]?.trim();
       if (!titre || Number.isNaN(debut) || Number.isNaN(fin)) continue;
-      const dureeMatch = dureeTxt.match(/\d+/);
       const [inserted] = await db
-        .insert(mouvements)
+        .insert(scenes)
         .values({
           episodeId,
           ordre: ordre++,
           titre,
-          planNumeroDebut: debut,
-          planNumeroFin: fin,
           fonction: fonction || null,
-          dureeApproxSecondes: dureeMatch ? Number(dureeMatch[0]) : null,
         })
         .returning();
-      if (inserted) rangesMouvements.push({ id: inserted.id, debut, fin });
+      if (inserted) rangesScenes.push({ id: inserted.id, debut, fin });
     }
-    console.log(`[import] ${rangesMouvements.length} mouvements importés depuis S01_maya.md`);
+    console.log(`[import] ${rangesScenes.length} scènes importées depuis S01_maya.md`);
   } else {
-    for (const mvt of mouvementsExistants) {
-      rangesMouvements.push({ id: mvt.id, debut: mvt.planNumeroDebut, fin: mvt.planNumeroFin });
-    }
+    // Scènes déjà en base : leurs plans y sont déjà rattachés, rien à rejouer
+    // (la plage de numéros n'est plus stockée, elle se déduit des plans).
   }
 
   const blocsPlan = texte.matchAll(/^## PLAN (\d+)\s*—.*\n```\n([\s\S]+?)\n```/gm);
@@ -349,24 +343,17 @@ async function importerScenario(episodeId: number) {
     const bloc = m[2] ?? "";
     if (Number.isNaN(numero)) continue;
 
-    const [planExistant] = await db.select().from(plans).where(eq(plans.numero, numero)).limit(1);
+    const [planExistant] = await db.select().from(plans).where(and(eq(plans.episodeId, episodeId), sql`${plans.numerosSource}[1] = ${numero}`)).limit(1);
     if (!planExistant) continue;
 
     const champs = parserBlocScenario(bloc);
-    const mouvementTrouve = rangesMouvements.find((r) => numero >= r.debut && numero <= r.fin);
+    const sceneTrouvee = rangesScenes.find((r) => numero >= r.debut && numero <= r.fin);
 
     await db
       .update(plans)
       .set({
-        valeur: champs["Valeur"] ?? null,
-        sujet: champs["Sujet"] ?? null,
-        decor: champs["Décor"] ?? null,
-        lumiere: champs["Lumière"] ?? null,
-        mouvementCamera: champs["Mouvement"] ?? null,
-        son: champs["Son"] ?? null,
-        intention: champs["Intention"] ?? null,
-        assetsRequis: champs["Assets req."] ?? null,
-        mouvementId: mouvementTrouve?.id ?? planExistant.mouvementId,
+        description: [champs["Sujet"], champs["Intention"]].filter(Boolean).join("\n\n") || null,
+        sceneId: sceneTrouvee?.id ?? planExistant.sceneId,
       })
       .where(eq(plans.id, planExistant.id));
     n++;

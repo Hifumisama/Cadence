@@ -77,7 +77,7 @@ export async function uploaderPosterEpisode(episodeId: number, formData: FormDat
 
 /** Jamais bloquée (retour utilisateur 2026-09-28) : le projet est la racine
  * de la hiérarchie, sa suppression entraîne tout avec elle — saisons,
- * épisodes, mouvements, plans (et leurs sections/refs/dialogues/jobs), ET
+ * épisodes, scènes, plans (et leurs sections/refs/dialogues/jobs), ET
  * ses assets (db/schema.ts, cascade) — le seul cas où un asset disparaît.
  * Attention opérationnelle : tant qu'il n'existe qu'un projet, le supprimer
  * casse `getDefaultProjectId()` (lib/queries.ts) jusqu'à la création d'un
@@ -114,7 +114,7 @@ export async function supprimerSaison(
 }
 
 /** Bloquée tant que l'épisode a des plans (retour utilisateur 2026-09-28).
- * Les mouvements narratifs ne bloquent pas : ils se détachent/cascadent
+ * Les scènes ne bloquent pas : ils se détachent/cascadent
  * déjà silencieusement (décision antérieure, inchangée). `force` cascade
  * les plans (et leurs sections/refs/dialogues/jobs) — jamais les assets. */
 export async function supprimerEpisode(
@@ -166,7 +166,7 @@ export async function modifierTitreSaison(saisonId: number, titre: string) {
 }
 
 /** Nouvelle saison — numéro = max existant + 1 dans le projet (comme
- * l'ordre des mouvements, lib/queries.ts). Retourne l'id créé pour que
+ * l'ordre des scènes, lib/queries.ts). Retourne l'id créé pour que
  * l'appelant puisse enchaîner un upload de poster (qui a besoin de l'id). */
 export async function creerSaison(projectId: number, titre: string): Promise<{ id: number }> {
   const existantes = await db.select({ numero: seasons.numero }).from(seasons).where(eq(seasons.projectId, projectId));

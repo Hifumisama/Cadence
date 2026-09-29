@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updatePromptSection } from "@/app/plans/[numero]/actions";
+import { updatePromptSection } from "@/app/plans/actions";
 
 const LABELS: Record<string, string> = {
   subject_definitions: "subject_definitions",

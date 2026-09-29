@@ -145,8 +145,8 @@ export default async function AssetDetailPage({
                 {noeud.citations.length > 0 ? (
                   <div className="chips">
                     {noeud.citations.map((c) => (
-                      <span key={`${c.refId ?? "d"}-${c.dialogueId ?? "r"}-${c.planNumero}`} className="chip-citation">
-                        <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planNumero}`}>{String(c.planNumero).padStart(3, "0")}</Link>
+                      <span key={`${c.refId ?? "d"}-${c.dialogueId ?? "r"}-${c.planUuid}`} className="chip-citation">
+                        <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planUuid}`}>E{String(c.episodeNumero).padStart(2, "0")} · {String(c.position).padStart(2, "0")}</Link>
                         <form
                           action={async () => {
                             "use server";

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getAllAssets, getPlanDetail } from "@/lib/queries";
+import { getAllAssets, getPlanDetail, getScenesEpisode } from "@/lib/queries";
 import { getAllParams } from "@/lib/params";
 import {
   calculerStatutDuree,
@@ -14,9 +14,12 @@ import { DialogueTable } from "@/components/plan/DialogueTable";
 import { ChecksPanel } from "@/components/plan/ChecksPanel";
 import { RelaunchButton } from "@/components/plan/RelaunchButton";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
+import { PlanSceneSelect } from "@/components/scenario/ScenePlanControls";
 import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
 
 export const dynamic = "force-dynamic";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SECTIONS_ORDRE = [
   "subject_definitions",
@@ -30,20 +33,21 @@ const SECTIONS_ORDRE = [
 export default async function PlanPage({
   params,
 }: {
-  params: Promise<{ projectId: string; episodeId: string; numero: string }>;
+  params: Promise<{ projectId: string; episodeId: string; uuid: string }>;
 }) {
-  const { projectId, episodeId, numero } = await params;
+  const { projectId, episodeId, uuid } = await params;
   const pid = Number(projectId);
   const eid = Number(episodeId);
-  const numeroInt = Number(numero);
-  const detail = await getPlanDetail(numeroInt, eid);
+  if (!UUID_RE.test(uuid)) notFound();
+  const detail = await getPlanDetail(uuid, eid);
   if (!detail) notFound();
 
-  const { plan, promptSections, refs, dialogues, jobHistory } = detail;
+  const { plan, position, promptSections, refs, dialogues, jobHistory } = detail;
 
-  const [parametresGlobaux, tousLesAssets] = await Promise.all([
+  const [parametresGlobaux, tousLesAssets, scenesEpisode] = await Promise.all([
     getAllParams(),
     getAllAssets(pid),
+    getScenesEpisode(eid),
   ]);
 
   const sectionsPourControle = promptSections.map((s) => ({
@@ -71,14 +75,7 @@ export default async function PlanPage({
 
   const scenarioInitial = {
     titre: plan.titre,
-    valeur: plan.valeur ?? "",
-    sujet: plan.sujet ?? "",
-    decor: plan.decor ?? "",
-    lumiere: plan.lumiere ?? "",
-    mouvementCamera: plan.mouvementCamera ?? "",
-    son: plan.son ?? "",
-    intention: plan.intention ?? "",
-    assetsRequis: plan.assetsRequis ?? "",
+    description: plan.description ?? "",
     dureeMontageSecondes: plan.dureeMontageSecondes,
   };
 
@@ -91,7 +88,7 @@ export default async function PlanPage({
         <div className="fiche-pivot">
           <div className="pivot-no">
             <small>Plan</small>
-            {String(plan.numero).padStart(3, "0")}
+            {String(position).padStart(2, "0")}
           </div>
           <div>
             <h1>{plan.titre}</h1>
@@ -104,16 +101,16 @@ export default async function PlanPage({
         </div>
         <div className="fiche-actions">
           <StatusBadge statut={plan.statut} />
-          {!estBrouillon ? <RelaunchButton episodeId={eid} planNumero={plan.numero} /> : null}
-          <SupprimerPlanButton planId={plan.id} planNumero={plan.numero} shotsHref={shotsHref} />
+          {!estBrouillon ? <RelaunchButton planId={plan.id} /> : null}
+          <SupprimerPlanButton planId={plan.id} position={position} shotsHref={shotsHref} />
         </div>
       </div>
 
       {estBrouillon ? (
         <div style={{ marginTop: "var(--sp-5)", maxWidth: 760 }}>
+          <PlanSceneSelect planId={plan.id} sceneId={plan.sceneId} scenes={scenesEpisode} />
           <PlanScenarioPanel
             planId={plan.id}
-            planNumero={plan.numero}
             brouillon
             initial={scenarioInitial}
           />
@@ -121,9 +118,9 @@ export default async function PlanPage({
       ) : (
       <div className="cols">
         <div className="col">
+          <PlanSceneSelect planId={plan.id} sceneId={plan.sceneId} scenes={scenesEpisode} />
           <PlanScenarioPanel
             planId={plan.id}
-            planNumero={plan.numero}
             brouillon={false}
             initial={scenarioInitial}
           />
@@ -161,7 +158,6 @@ export default async function PlanPage({
 
           <PlanParamsEditor
             planId={plan.id}
-            planNumero={plan.numero}
             fpsInitial={plan.fps}
             dureeInitiale={plan.dureeGenerationSecondes}
             timecodeMusique={plan.timecodeMusique}
@@ -211,7 +207,6 @@ export default async function PlanPage({
 
           <RefsPanel
             planId={plan.id}
-            planNumero={plan.numero}
             refs={refs}
             assets={tousLesAssets}
           />

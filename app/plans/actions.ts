@@ -39,12 +39,9 @@ export async function updatePromptSection(
  * boucle d'itération. Le worker applique ensuite le healthcheck et la
  * distinction indisponible/échec réel (F04). activerUpscale distingue la
  * prévisualisation rapide (itération de prompt) du rendu final. */
-export async function relancerPlan(episodeId: number, planNumero: number, activerUpscale: boolean) {
-  const [plan] = await db
-    .select()
-    .from(plans)
-    .where(and(eq(plans.numero, planNumero), eq(plans.episodeId, episodeId)));
-  if (!plan) throw new Error(`Plan ${planNumero} introuvable`);
+export async function relancerPlan(planId: number, activerUpscale: boolean) {
+  const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
+  if (!plan) throw new Error(`Plan ${planId} introuvable`);
 
   await db.insert(jobs).values({
     planId: plan.id,
@@ -118,33 +115,19 @@ export async function supprimerRef(refId: number) {
 
 type ValeursScenario = {
   titre: string;
-  valeur: string;
-  sujet: string;
-  decor: string;
-  lumiere: string;
-  mouvementCamera: string;
-  son: string;
-  intention: string;
-  assetsRequis: string;
+  description: string;
   dureeMontageSecondes: number;
 };
 
 /** Édition des champs scénario — reste ouverte même après développement en
  * fiche de plan (retour utilisateur 2026-09-27) : rien n'empêche de revenir
- * corriger décor/intention après coup. */
+ * corriger la description après coup. */
 export async function updatePlanScenario(planId: number, valeurs: ValeursScenario) {
   await db
     .update(plans)
     .set({
       titre: valeurs.titre,
-      valeur: valeurs.valeur || null,
-      sujet: valeurs.sujet || null,
-      decor: valeurs.decor || null,
-      lumiere: valeurs.lumiere || null,
-      mouvementCamera: valeurs.mouvementCamera || null,
-      son: valeurs.son || null,
-      intention: valeurs.intention || null,
-      assetsRequis: valeurs.assetsRequis || null,
+      description: valeurs.description || null,
       dureeMontageSecondes: valeurs.dureeMontageSecondes,
       updatedAt: new Date(),
     })

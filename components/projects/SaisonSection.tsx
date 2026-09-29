@@ -16,19 +16,14 @@ type Saison = ProjectHierarchy["saisons"][number];
 function two(n: number): string {
   return String(n).padStart(2, "0");
 }
-function pad(n: number): string {
-  return String(n).padStart(3, "0");
-}
 
 export function SaisonSection({ projectId, saison }: { projectId: number; saison: Saison }) {
   const [ouvert, setOuvert] = useState(true);
   const [pending, startTransition] = useTransition();
 
   const phaseSaison = agregerPhases(saison.episodes.map((e) => phaseDe(e.buckets)));
-  const avecPlans = saison.episodes.filter((e) => e.nbPlans > 0);
-  const plage = avecPlans.length
-    ? `plans ${pad(Math.min(...avecPlans.map((e) => e.numeroMin ?? Infinity)))} → ${pad(Math.max(...avecPlans.map((e) => e.numeroMax ?? 0)))}`
-    : "aucun plan";
+  const nbPlansSaison = saison.episodes.reduce((acc, e) => acc + e.nbPlans, 0);
+  const plage = nbPlansSaison > 0 ? `${nbPlansSaison} plan${nbPlansSaison > 1 ? "s" : ""}` : "aucun plan";
 
   return (
     <section className="saison" data-open={ouvert}>
@@ -68,8 +63,7 @@ export function SaisonSection({ projectId, saison }: { projectId: number; saison
                     <span className="shot-no" style={{ marginRight: 8 }}>E{two(episode.numero)}</span>
                     {episode.titre}
                     <span className="shot-meta">
-                      <span className="num">{episode.nbPlans ? `${pad(episode.numeroMin!)} → ${pad(episode.numeroMax!)}` : "aucun plan"}</span>
-                      <span>{episode.nbPlans} plan{episode.nbPlans > 1 ? "s" : ""}</span>
+                      <span>{episode.nbPlans ? `${episode.nbPlans} plan${episode.nbPlans > 1 ? "s" : ""}` : "aucun plan"}</span>
                     </span>
                   </span>
                   <span className="shot-right">

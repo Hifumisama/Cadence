@@ -265,6 +265,79 @@ non ambigu hors du contexte d'un épisode déjà connu, on calcule une
 étiquette `E01_P010` (épisode + numéro) à la volée — jamais stockée, jamais
 un vrai identifiant, uniquement un raccourci de lecture.
 
+### Révision : le scénario reste narratif (2026-09-29)
+Les champs du scénario (valeur, sujet, décor, lumière, mouvement caméra, son,
+intention, assets requis) doublonnaient le prompt H3 sans jamais y être
+injectés, et ne pouvaient pas décrire un appel H3 à plusieurs `[Shot]`
+internes. **Supprimés.** Un plan de scénario ne porte plus que :
+- `description` — ce qui se passe et pourquoi (ancien sujet + intention).
+
+Cadrage, lumière, son : décidés par `[Shot N]` dans `detailed_description`,
+nulle part ailleurs. Pas de rappel du plan précédent dans l'interface.
+
+**Pas de champ qui parle d'un autre plan** (même jour) : des champs `raccord`
+(ce que le plan reprend du précédent) et `sortie` (état laissé à la fin) ont
+été ajoutés puis retirés — ils se désynchronisent dès qu'un plan est inséré
+ou supprimé. Toute information de continuité doit être dérivée à l'affichage,
+jamais stockée.
+
+**Assets : l'histoire d'abord.** Le scénario ne déclare aucun asset. On écrit
+le morceau d'histoire, puis on rattache un asset existant ou on en crée un
+depuis la fiche de plan (`plan_refs`). Le plan déclenche donc, si besoin, la
+création d'un asset — jamais l'inverse. Reste à faire : création d'asset à la
+volée depuis le panneau de références.
+
+
+### Révision : « mouvements » devient « scènes » (2026-09-29)
+Un épisode est composé de **scènes** (ex-« mouvements narratifs ») : le mot
+colle mieux à l'usage. Table `scenes`, `plans.scene_id`.
+
+**Plage de plans et durée ne sont pas des champs, elles se déduisent** : plan
+de début/fin = plus petit/plus grand numéro des plans rattachés, durée = somme
+des durées de montage. Même principe que pour la continuité (ci-dessus) :
+rien de stocké qui puisse diverger d'une insertion ou d'une suppression de
+plan. Une scène naît vide (titre + fonction) ; ses plans s'y rattachent au
+fur et à mesure, depuis l'en-tête de la scène (page Scénario) ou depuis la
+page du plan. Rattacher à une autre scène déplace le plan ; « sans scène »
+le détache. Les scènes s'affichent triées par leur premier plan.
+
+### Révision : le numéro n'est plus l'ordre — `ordre` (2026-09-29)
+Retour utilisateur : on doit pouvoir **réordonner les plans comme dans un
+logiciel de montage** (ex. des mouvements de danse remis dans un ordre plus
+fluide), et supprimer un plan doit rester simple. Jusqu'ici l'ordre était
+`numero`. **Désormais :**
+- `plans.numero` = **identifiant stable**, inchangé : jamais renuméroté, jamais
+  réutilisé (règle F03 intacte — assets, notes et fichiers de rendu peuvent
+  continuer à le citer). Il n'exprime plus la position.
+- `plans.ordre` = **position** dans l'épisode. Frise Scénario, scènes et
+  frise Shots suivent `ordre`. Réécrit densément (0..n) à chaque déplacement,
+  dans une transaction ; jamais une clé, jamais cité ailleurs.
+- Glisser-déposer sur la frise Scénario : un plan se déplace dans sa scène,
+  vers une autre scène, ou vers « sans scène » (dépôt sur la moitié haute /
+  basse d'un plan = avant / après ; dépôt hors plan = fin de la scène).
+- Un plan créé se place en fin d'épisode, ou en fin de sa scène s'il en a une.
+- Supprimer un plan ne laisse aucun trou visible (l'ordre est réécrit).
+
+### Révision : plus de numéro de plan, identification par UUID (2026-09-29)
+Une fois l'ordre porté par `ordre` et l'affichage par la position, le numéro
+n'avait plus aucun rôle (ni ordre, ni affichage, ni saisie). **Supprimé** :
+- `plans.numero`, `unique(episode, numero)` et `episodes.dernier_numero_plan`
+  n'existent plus. La règle « jamais renuméroté, jamais réutilisé » n'a plus
+  d'objet : un UUID ne se réattribue pas.
+- `plans.uuid` (unique, généré) est l'identifiant **public** : URL
+  `/plans/<uuid>`, citations d'assets. `plans.id` (serial) reste la clé
+  technique interne (FK, `plans/<id>/` côté rendus du worker) — pas converti
+  en UUID : aucun bénéfice visible, mais migration risquée des FK et des
+  dossiers de rendu existants.
+- Affichage : la **position** (« 04 » = 4e plan de l'épisode, brouillons
+  compris). Citations d'assets : « E01 · 04 ». Le libellé calculé `E01_P010`
+  disparaît avec le numéro.
+- `numeros_source` ne garde que la trace de l'import du markdown (numéros des
+  plans source, y compris pour un plan non fusionné) : c'est la seule clé de
+  rapprochement du script d'import, jamais utilisée par l'application.
+- Les anciennes règles ci-dessus (numérotation par dizaines, continuité à
+  l'échelle de l'épisode, `E01_P010`) sont conservées comme historique.
+
 > Si un pattern se dégage, il remonte dans le skill `fiche-de-plan` — moins
 > cher qu'une interface.
 

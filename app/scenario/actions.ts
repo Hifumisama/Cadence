@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/db";
-import { mouvements, plans, projects } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { scenes, plans, projects } from "@/db/schema";
+import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 const CHAMPS_PROJET = ["clauseStyle", "notes"] as const;
@@ -16,77 +16,191 @@ export async function updateScenarioGlobal(projectId: number, cle: (typeof CHAMP
 
 /** Un plan naît toujours en brouillon (défaut du schéma) — il faudra le
  * "développer" explicitement en fiche de plan avant qu'il entre dans Shots.
- * Le numéro n'est jamais imposé par une règle stricte de dizaines : c'est
- * une convention d'écriture, pas une contrainte, on peut insérer librement
- * entre deux numéros existants (à l'échelle de l'épisode, F03). */
+ * Il reçoit un `uuid` (identifiant public) ; sa position dans l'épisode est
+ * `ordre`, déplaçable ensuite. Aucun numéro de plan. */
 export async function creerPlanScenario(
   projectId: number,
   episodeId: number,
   valeurs: {
-    numero: number;
     titre: string;
-    mouvementId: number | null;
+    sceneId: number | null;
     dureeMontageSecondes: number;
-    valeur: string;
-    sujet: string;
-    decor: string;
-    lumiere: string;
-    mouvementCamera: string;
-    son: string;
-    intention: string;
-    assetsRequis: string;
+    description: string;
   },
 ) {
-  await db.insert(plans).values({
+  const [dernier] = await db
+    .select({ ordre: plans.ordre })
+    .from(plans)
+    .where(eq(plans.episodeId, episodeId))
+    .orderBy(desc(plans.ordre))
+    .limit(1);
+  const [cree] = await db.insert(plans).values({
     projectId,
     episodeId,
-    numero: valeurs.numero,
+    ordre: (dernier?.ordre ?? -1) + 1,
     titre: valeurs.titre,
-    mouvementId: valeurs.mouvementId,
+    sceneId: valeurs.sceneId,
     dureeMontageSecondes: valeurs.dureeMontageSecondes,
     dureeGenerationSecondes: valeurs.dureeMontageSecondes,
-    valeur: valeurs.valeur || null,
-    sujet: valeurs.sujet || null,
-    decor: valeurs.decor || null,
-    lumiere: valeurs.lumiere || null,
-    mouvementCamera: valeurs.mouvementCamera || null,
-    son: valeurs.son || null,
-    intention: valeurs.intention || null,
-    assetsRequis: valeurs.assetsRequis || null,
-  });
+    description: valeurs.description || null,
+  }).returning({ id: plans.id });
+  // Né dans une scène : se place à la fin de celle-ci plutôt qu'à la fin de l'épisode.
+  if (cree && valeurs.sceneId != null) await placerPlan(cree.id, valeurs.sceneId, null);
   revalidatePath("/", "layout");
 }
 
-export async function creerMouvement(
-  episodeId: number,
-  valeurs: {
-    titre: string;
-    planNumeroDebut: number;
-    planNumeroFin: number;
-    fonction: string;
-    dureeApproxSecondes: number | null;
-  },
-) {
-  const existants = await db.select().from(mouvements).where(eq(mouvements.episodeId, episodeId));
-  const ordre = existants.reduce((acc, m) => Math.max(acc, m.ordre), -1) + 1;
-  await db.insert(mouvements).values({
+/** Une scène naît vide : ses plans s'y rattachent au fur et à mesure
+ * (rattacherPlanAScene). Plage de numéros et durée se déduisent des plans. */
+export async function creerScene(episodeId: number, valeurs: { titre: string; fonction: string }) {
+  const existantes = await db.select().from(scenes).where(eq(scenes.episodeId, episodeId));
+  const ordre = existantes.reduce((acc, sc) => Math.max(acc, sc.ordre), -1) + 1;
+  await db.insert(scenes).values({
     episodeId,
     ordre,
     titre: valeurs.titre,
-    planNumeroDebut: valeurs.planNumeroDebut,
-    planNumeroFin: valeurs.planNumeroFin,
     fonction: valeurs.fonction || null,
-    dureeApproxSecondes: valeurs.dureeApproxSecondes,
   });
   revalidatePath("/", "layout");
 }
 
-/** Suppression sans blocage (retour utilisateur 2026-09-28) : un mouvement
- * n'est qu'un regroupement narratif, pas une dépendance structurelle — le
- * supprimer détache simplement ses plans ("sans mouvement") plutôt que de
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Recompose l'ordre de tout l'épisode à partir d'une séquence de plans : les
+ * plans sont regroupés par scène (scènes dans l'ordre de `scenes.ordre`, plans
+ * de chaque scène dans l'ordre de la séquence, « sans scène » à la fin), puis
+ * `ordre` est réécrit densément (0..n) là où il diffère. C'est ce qui garantit
+ * que la position affichée suit toujours ce qu'on voit à l'écran. */
+async function recomposerOrdre(tx: Tx, episodeId: number, sequence: { id: number; sceneId: number | null }[]) {
+  const lesScenes = await tx
+    .select({ id: scenes.id })
+    .from(scenes)
+    .where(eq(scenes.episodeId, episodeId))
+    .orderBy(scenes.ordre, scenes.id);
+  const rang = new Map(lesScenes.map((sc, i) => [sc.id, i]));
+  const rangDe = (sceneId: number | null) => (sceneId == null ? Infinity : (rang.get(sceneId) ?? Infinity));
+  // Array.prototype.sort est stable : l'ordre relatif dans chaque scène est conservé.
+  const finale = [...sequence].sort((x, y) => rangDe(x.sceneId) - rangDe(y.sceneId));
+
+  const actuel = new Map(
+    (
+      await tx
+        .select({ id: plans.id, sceneId: plans.sceneId, ordre: plans.ordre })
+        .from(plans)
+        .where(eq(plans.episodeId, episodeId))
+    ).map((p) => [p.id, p]),
+  );
+  for (const [i, p] of finale.entries()) {
+    const avant = actuel.get(p.id);
+    if (!avant) continue;
+    if (avant.sceneId !== p.sceneId) {
+      await tx.update(plans).set({ sceneId: p.sceneId, ordre: i, updatedAt: new Date() }).where(eq(plans.id, p.id));
+    } else if (avant.ordre !== i) {
+      await tx.update(plans).set({ ordre: i }).where(eq(plans.id, p.id));
+    }
+  }
+}
+
+/** Place un plan dans une scène (ou « sans scène » si `sceneId` est null),
+ * juste avant `avantPlanId` — ou, sans repère, à la fin des plans de la scène
+ * cible. L'ordre de tout l'épisode est recomposé dans une transaction :
+ * `ordre` est une position, jamais une clé. Plan et scène doivent être du même
+ * épisode. */
+async function placerPlan(planId: number, sceneId: number | null, avantPlanId: number | null) {
+  const [plan] = await db.select({ episodeId: plans.episodeId }).from(plans).where(eq(plans.id, planId));
+  if (!plan) return;
+  if (sceneId != null) {
+    const [scene] = await db
+      .select({ id: scenes.id })
+      .from(scenes)
+      .where(and(eq(scenes.id, sceneId), eq(scenes.episodeId, plan.episodeId)));
+    if (!scene) return;
+  }
+
+  await db.transaction(async (tx) => {
+    const tous = await tx
+      .select({ id: plans.id, sceneId: plans.sceneId })
+      .from(plans)
+      .where(eq(plans.episodeId, plan.episodeId))
+      .orderBy(plans.ordre, plans.id);
+
+    const sans = tous.filter((p) => p.id !== planId);
+    let index = avantPlanId != null ? sans.findIndex((p) => p.id === avantPlanId) : -1;
+    if (index === -1) {
+      // Pas de repère : à la fin de la scène cible (le regroupement final
+      // ramène de toute façon le plan dans son bloc).
+      index = sans.length;
+    }
+    sans.splice(index, 0, { id: planId, sceneId });
+    await recomposerOrdre(tx, plan.episodeId, sans);
+  });
+}
+
+/** Glisser-déposer d'un plan (Scénario) : change de scène et/ou de position. */
+export async function deplacerPlan(planId: number, sceneId: number | null, avantPlanId: number | null) {
+  await placerPlan(planId, sceneId, avantPlanId);
+  revalidatePath("/", "layout");
+}
+
+/** Rattache un plan existant à une scène, ou le détache (`sceneId` null) —
+ * sélecteur de la page d'un plan. Le plan se place à la fin de la scène. */
+export async function rattacherPlanAScene(planId: number, sceneId: number | null) {
+  await placerPlan(planId, sceneId, null);
+  revalidatePath("/", "layout");
+}
+
+/** Édition d'une scène : titre et fonction (description). */
+export async function modifierScene(sceneId: number, valeurs: { titre: string; fonction: string }) {
+  const titre = valeurs.titre.trim();
+  if (!titre) return;
+  await db.update(scenes).set({ titre, fonction: valeurs.fonction.trim() || null }).where(eq(scenes.id, sceneId));
+  revalidatePath("/", "layout");
+}
+
+/** Réordonne les scènes (glisser-déposer d'une scène) : la place juste avant
+ * `avantSceneId`, ou à la fin. Les plans suivent leur scène : l'ordre des plans
+ * de l'épisode est recomposé en blocs, dans le nouvel ordre des scènes. */
+export async function deplacerScene(sceneId: number, avantSceneId: number | null) {
+  const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
+  if (!scene) return;
+  await db.transaction(async (tx) => {
+    const toutes = await tx
+      .select({ id: scenes.id })
+      .from(scenes)
+      .where(eq(scenes.episodeId, scene.episodeId))
+      .orderBy(scenes.ordre, scenes.id);
+    const sans = toutes.filter((sc) => sc.id !== sceneId);
+    let index = avantSceneId != null ? sans.findIndex((sc) => sc.id === avantSceneId) : -1;
+    if (index === -1) index = sans.length;
+    sans.splice(index, 0, { id: sceneId });
+    for (const [i, sc] of sans.entries()) {
+      await tx.update(scenes).set({ ordre: i }).where(eq(scenes.id, sc.id));
+    }
+    const sequence = await tx
+      .select({ id: plans.id, sceneId: plans.sceneId })
+      .from(plans)
+      .where(eq(plans.episodeId, scene.episodeId))
+      .orderBy(plans.ordre, plans.id);
+    await recomposerOrdre(tx, scene.episodeId, sequence);
+  });
+  revalidatePath("/", "layout");
+}
+
+/** Suppression sans blocage (retour utilisateur 2026-09-28) : une scène
+ * n'est qu'un regroupement narratif, pas une dépendance structurelle — la
+ * supprimer détache simplement ses plans ("sans scène") plutôt que de
  * bloquer l'action ou de supprimer les plans eux-mêmes. */
-export async function supprimerMouvement(mouvementId: number) {
-  await db.update(plans).set({ mouvementId: null }).where(eq(plans.mouvementId, mouvementId));
-  await db.delete(mouvements).where(eq(mouvements.id, mouvementId));
+export async function supprimerScene(sceneId: number) {
+  const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
+  if (!scene) return;
+  await db.transaction(async (tx) => {
+    await tx.update(plans).set({ sceneId: null }).where(eq(plans.sceneId, sceneId));
+    await tx.delete(scenes).where(eq(scenes.id, sceneId));
+    const sequence = await tx
+      .select({ id: plans.id, sceneId: plans.sceneId })
+      .from(plans)
+      .where(eq(plans.episodeId, scene.episodeId))
+      .orderBy(plans.ordre, plans.id);
+    await recomposerOrdre(tx, scene.episodeId, sequence);
+  });
   revalidatePath("/", "layout");
 }

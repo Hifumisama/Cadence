@@ -30,7 +30,7 @@ export function estVideo(chemin: string): boolean {
 }
 
 /** Convention de rangement des fichiers d'assets sur le stockage média,
- * symétrique à `plans/<numero>/...` pour les rendus vidéo — voir
+ * symétrique à `plans/<id>/...` pour les rendus vidéo — voir
  * app/api/media/[...path]/route.ts. Le registre ne stocke que le nom de
  * fichier (ex. "Maya_CharacterSheet.png"), jamais le chemin complet. */
 export function cheminAssetMedia(fichier: string): string {

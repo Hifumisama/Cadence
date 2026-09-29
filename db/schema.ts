@@ -8,6 +8,7 @@ import {
   timestamp,
   pgEnum,
   unique,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -101,43 +102,44 @@ export const episodes = pgTable("episodes", {
   posterFichier: varchar("poster_fichier", { length: 255 }),
 });
 
-// Structure en mouvements narratifs du scénario (skill `scenario` — ex. "Le
-// Spectacle", "La Confrontation", "La Fuite"). Plage indicative, pas une FK
-// stricte vers les plans : un plan garde sa propre mouvementId, les deux
-// peuvent légèrement diverger sans casser quoi que ce soit — c'est du
-// récit, pas de la génération. episodeId, lui, est une vraie FK : un
-// mouvement appartient à un seul épisode (2026-09-28).
-export const mouvements = pgTable("mouvements", {
+// Scènes d'un épisode (2026-09-29 — ex-« mouvements » : un épisode est composé
+// de scènes). Un plan se rattache à une scène (plans.sceneId, nullable) au fur
+// et à mesure. Plage de numéros et durée d'une scène ne sont PAS stockées :
+// elles se déduisent des plans rattachés (min/max des numéros, somme des
+// durées de montage), donc jamais désynchronisées quand un plan est inséré,
+// supprimé ou déplacé. `ordre` ne sert qu'à départager les scènes vides ou
+// de même premier plan. episodeId est une vraie FK : une scène appartient à
+// un seul épisode.
+export const scenes = pgTable("scenes", {
   id: serial("id").primaryKey(),
   episodeId: integer("episode_id")
     .notNull()
     .references(() => episodes.id, { onDelete: "cascade" }),
   ordre: integer("ordre").notNull(),
   titre: varchar("titre", { length: 255 }).notNull(),
-  planNumeroDebut: integer("plan_numero_debut").notNull(),
-  planNumeroFin: integer("plan_numero_fin").notNull(),
   fonction: text("fonction"),
-  dureeApproxSecondes: integer("duree_approx_secondes"),
 });
 
-// Le plan est la table pivot du système (numéro jamais réutilisé ni
-// renuméroté — voir docs/FRICTIONS.md F03). numeros_source garde la trace
-// des fusions/scissions d'affichage, ce n'est jamais une clé.
+// Le plan est la table pivot du système. Identification (révisé 2026-09-29,
+// voir docs/FRICTIONS.md F03) : plus AUCUN numéro de plan. `uuid` est
+// l'identifiant public, stable, utilisé dans les URL ; `id` (serial) reste la
+// clé technique interne (FK, dossiers de rendu du worker), jamais exposée.
+// L'ORDRE des plans est `ordre` ; ce qu'on affiche est la position (rang dans
+// l'épisode). numeros_source ne garde que la trace de l'import du markdown
+// (numéros des plans source fusionnés) — jamais une clé pour l'application.
 //
-// Continuité du numéro : à l'échelle de l'ÉPISODE (révisé 2026-09-28 — un
-// numéro élevé dans un épisode récent laisserait sinon penser à tort qu'on
-// est loin dans la série, alors que ce serait son premier plan). Chaque
-// épisode a sa propre séquence, jamais partagée avec les autres — `numero`
-// seul n'identifie donc plus un plan sans ambiguïté dès qu'un projet a
-// plusieurs épisodes. L'identifiant réel reste `id` (jamais exposé) ;
-// l'étiquette humaine non ambiguë (ex. "E01_P010") se calcule à la volée
-// depuis episode.numero + numero, jamais stockée.
 // projectId est dénormalisé (dérivable via episodeId → seasons → projects)
 // uniquement pour éviter une jointure à 3 tables sur chaque requête "tous
 // les plans du projet X" — il ne porte plus de contrainte d'unicité.
 //
-// Champs "scénario" (sujet → assetsRequis) : remplis dès la naissance du
-// plan, au stade brouillon (skill `scenario`). Champs "fiche de plan"
+// Champ "scénario" (description) : rempli dès la naissance du plan, au stade
+// brouillon. Reste narratif (2026-09-29) : valeur/décor/lumière/caméra/son
+// sont des décisions de prompt, écrites par [Shot N] dans
+// detailed_description, jamais dupliquées ici. Aucun champ ne référence un
+// autre plan (raccord/sortie retirés le même jour : ils se désynchronisent
+// dès qu'on insère ou supprime un plan). Les assets ne sont PAS déclarés au
+// scénario : on écrit d'abord l'histoire, puis on rattache/crée les assets
+// (plan_refs) depuis la fiche de plan. Champs "fiche de plan"
 // (dureeGenerationSecondes, fps, mode, seed) : n'ont de sens réel qu'une
 // fois le plan développé (planPromptSections écrites) — voir "brouillon"
 // ci-dessus. Les deux jeux de champs cohabitent sur la même ligne plutôt que
@@ -153,19 +155,16 @@ export const plans = pgTable("plans", {
   episodeId: integer("episode_id")
     .notNull()
     .references(() => episodes.id, { onDelete: "cascade" }),
-  numero: integer("numero").notNull(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  // Position du plan dans l'épisode (2026-09-29) : c'est elle, et non un numéro,
+  // qui donne l'ordre de lecture/montage. Réordonnable par glisser-déposer ;
+  // réécrite densément (0..n) à chaque déplacement, jamais une clé.
+  ordre: integer("ordre").notNull().default(0),
   numerosSource: integer("numeros_source").array(),
   titre: varchar("titre", { length: 255 }).notNull(),
   acte: varchar("acte", { length: 100 }),
-  mouvementId: integer("mouvement_id").references(() => mouvements.id),
-  valeur: text("valeur"),
-  sujet: text("sujet"),
-  decor: text("decor"),
-  lumiere: text("lumiere"),
-  mouvementCamera: text("mouvement_camera"),
-  son: text("son"),
-  intention: text("intention"),
-  assetsRequis: text("assets_requis"),
+  sceneId: integer("scene_id").references(() => scenes.id),
+  description: text("description"),
   dureeMontageSecondes: integer("duree_montage_secondes").notNull(),
   dureeGenerationSecondes: integer("duree_generation_secondes").notNull(),
   fps: integer("fps").notNull().default(24),
@@ -176,9 +175,7 @@ export const plans = pgTable("plans", {
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-}, (table) => [
-  unique().on(table.episodeId, table.numero),
-]);
+});
 
 // Le prompt H3 découpé par section (format officiel MiniMax H3 — voir
 // .claude/skills/fiche-de-plan/references/h3-guide-fullref.md). Une retouche
@@ -291,14 +288,14 @@ export const plansRelations = relations(plans, ({ many, one }) => ({
   refs: many(planRefs),
   dialogues: many(planDialogues),
   jobs: many(jobs),
-  mouvement: one(mouvements, { fields: [plans.mouvementId], references: [mouvements.id] }),
+  scene: one(scenes, { fields: [plans.sceneId], references: [scenes.id] }),
   project: one(projects, { fields: [plans.projectId], references: [projects.id] }),
   episode: one(episodes, { fields: [plans.episodeId], references: [episodes.id] }),
 }));
 
-export const mouvementsRelations = relations(mouvements, ({ many, one }) => ({
+export const scenesRelations = relations(scenes, ({ many, one }) => ({
   plans: many(plans),
-  episode: one(episodes, { fields: [mouvements.episodeId], references: [episodes.id] }),
+  episode: one(episodes, { fields: [scenes.episodeId], references: [episodes.id] }),
 }));
 
 export const projectsRelations = relations(projects, ({ many }) => ({
@@ -314,7 +311,7 @@ export const seasonsRelations = relations(seasons, ({ many, one }) => ({
 
 export const episodesRelations = relations(episodes, ({ many, one }) => ({
   season: one(seasons, { fields: [episodes.seasonId], references: [seasons.id] }),
-  mouvements: many(mouvements),
+  scenes: many(scenes),
   plans: many(plans),
 }));
 

@@ -1,13 +1,13 @@
 "use client";
 
 import { useTransition } from "react";
-import { relancerPlan } from "@/app/plans/[numero]/actions";
+import { relancerPlan } from "@/app/plans/actions";
 
-export function RelaunchButton({ episodeId, planNumero }: { episodeId: number; planNumero: number }) {
+export function RelaunchButton({ planId }: { planId: number }) {
   const [pending, startTransition] = useTransition();
 
   const lancer = (activerUpscale: boolean) =>
-    startTransition(() => relancerPlan(episodeId, planNumero, activerUpscale));
+    startTransition(() => relancerPlan(planId, activerUpscale));
 
   return (
     <div className="flex gap-2">

@@ -30,17 +30,14 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
 
 ## Règles non négociables (résumé — le détail est dans FRICTIONS.md)
 
-- **Numéro de plan = pivot du système, à l'échelle de l'ÉPISODE** (révisé
-  2026-09-28 — voir FRICTIONS.md F03 : l'ancienne règle "continu sur toute
-  la série" est abandonnée, un numéro élevé sur un épisode récent aurait
-  laissé penser à tort qu'il s'agissait tard dans la série). Continu au
-  sein d'un épisode, jamais remis à zéro en cours d'épisode, jamais
-  renuméroté, jamais réutilisé après suppression. L'identifiant unique réel
-  toute l'app reste `plans.id` (clé primaire) — un numéro de plan ne
-  redevient donc jamais ambigu même entre deux épisodes qui partagent le
-  même numéro ; pour l'afficher sans ambiguïté hors contexte d'un épisode,
-  utiliser l'étiquette calculée `E01_P010` (épisode + numéro), jamais
-  stockée.
+- **Plus de numéro de plan** (F03, révisions 2026-09-28 puis 2026-09-29) : un
+  plan s'identifie par son `uuid` (identifiant public, utilisé dans les URL).
+  `plans.id` (serial) reste la clé technique interne (FK, dossiers de rendu
+  `plans/<id>/`), jamais exposée. **L'ordre** des plans est `plans.ordre`,
+  réordonnable par glisser-déposer, comme dans un logiciel de montage ; ce
+  qu'on affiche est la **position** (rang dans l'épisode, « 04 »), qui change
+  quand on réordonne. Ne jamais citer une position comme identifiant, ni
+  trier par autre chose que `ordre`. Un plan supprimé ne laisse aucun trou.
 - **Pas de versionnage d'assets.** Une retouche remplace le nœud (F01,
   tranché 2026-09-25). Pas de suffixe `_v2`.
 - **1er pass ComfyUI déterministe** : même seed + même prompt + mêmes refs

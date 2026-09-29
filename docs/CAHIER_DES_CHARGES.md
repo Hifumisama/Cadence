@@ -31,7 +31,13 @@ manipuler et moins sujette à l'oubli.
 
 ## Principe directeur : le numéro de plan comme pivot
 
-Le numéro de plan (numéroté par dizaines, continu sur toute la série, jamais
+> **Révisé le 2026-09-29 (F03)** : il n'y a plus de numéro de plan. Le plan
+> s'identifie par un UUID, s'ordonne par une position réordonnable
+> (glisser-déposer) et s'affiche par son rang dans l'épisode. Le reste de
+> cette section décrit le principe d'origine (un plan traverse les quatre
+> pages) ; « numéro de plan » se lit désormais « plan ».
+
+Le plan (à l'origine numéroté par dizaines, continu sur toute la série, jamais
 réutilisé — cf. F03) n'est pas qu'un identifiant technique. C'est la clé qui
 relie tout :
 

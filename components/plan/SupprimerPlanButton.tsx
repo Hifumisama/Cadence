@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { supprimerPlan } from "@/app/plans/[numero]/actions";
+import { supprimerPlan } from "@/app/plans/actions";
 
 export function SupprimerPlanButton({
   planId,
-  planNumero,
+  position,
   shotsHref,
 }: {
   planId: number;
-  planNumero: number;
+  position: number;
   shotsHref: string;
 }) {
   const [pending, startTransition] = useTransition();
@@ -18,8 +18,8 @@ export function SupprimerPlanButton({
   const onSupprimer = (force: boolean) => {
     if (!window.confirm(
       force
-        ? `Forcer la suppression du plan ${planNumero} ? Les références d'assets et voix de dialogue encore liées seront détachées (les assets eux-mêmes restent dans le registre). Cette action est irréversible.`
-        : `Supprimer définitivement le plan ${planNumero} ?`,
+        ? `Forcer la suppression du plan ${position} ? Les références d'assets et voix de dialogue encore liées seront détachées (les assets eux-mêmes restent dans le registre). Cette action est irréversible.`
+        : `Supprimer définitivement le plan ${position} ?`,
     )) return;
     setErreur(null);
     startTransition(async () => {

@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updatePlanParametres } from "@/app/plans/[numero]/actions";
+import { updatePlanParametres } from "@/app/plans/actions";
 
 export function PlanParamsEditor({
   planId,
-  planNumero,
   fpsInitial,
   dureeInitiale,
   timecodeMusique,
   seed,
 }: {
   planId: number;
-  planNumero: number;
   fpsInitial: number;
   dureeInitiale: number;
   timecodeMusique: string | null;

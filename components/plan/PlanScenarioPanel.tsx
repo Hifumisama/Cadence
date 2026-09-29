@@ -1,29 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updatePlanScenario, developperEnFichePlan } from "@/app/plans/[numero]/actions";
+import { updatePlanScenario, developperEnFichePlan } from "@/app/plans/actions";
+import {
+  ScenarioNarratifFields,
+  type ChampsNarratifs,
+} from "@/components/plan/ScenarioNarratifFields";
 
-type Valeurs = {
+type Valeurs = ChampsNarratifs & {
   titre: string;
-  valeur: string;
-  sujet: string;
-  decor: string;
-  lumiere: string;
-  mouvementCamera: string;
-  son: string;
-  intention: string;
-  assetsRequis: string;
   dureeMontageSecondes: number;
 };
 
 export function PlanScenarioPanel({
   planId,
-  planNumero,
   brouillon,
   initial,
 }: {
   planId: number;
-  planNumero: number;
   brouillon: boolean;
   initial: Valeurs;
 }) {
@@ -32,10 +26,9 @@ export function PlanScenarioPanel({
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
 
-  type ChampTexte = Exclude<keyof Valeurs, "dureeMontageSecondes">;
-  const majChamp = (cle: ChampTexte) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => setChamps((c) => ({ ...c, [cle]: e.target.value }));
+  const majNarratifTitre = (titre: string) => setChamps((c) => ({ ...c, titre }));
+  const majNarratif = (cle: keyof ChampsNarratifs, valeur: string) =>
+    setChamps((c) => ({ ...c, [cle]: valeur }));
 
   const onSave = () => {
     startTransition(async () => {
@@ -63,14 +56,8 @@ export function PlanScenarioPanel({
           </a>
         </div>
         <dl>
-          <dt>Sujet</dt>
-          <dd>{initial.sujet || "—"}</dd>
-          <dt>Décor</dt>
-          <dd>{initial.decor || "—"}</dd>
-          <dt>Lumière</dt>
-          <dd>{initial.lumiere || "—"}</dd>
-          <dt>Intention</dt>
-          <dd>{initial.intention || "—"}</dd>
+          <dt>Description</dt>
+          <dd style={{ whiteSpace: "pre-wrap" }}>{initial.description || "—"}</dd>
         </dl>
       </div>
     );
@@ -85,7 +72,7 @@ export function PlanScenarioPanel({
       <div className="panel-bd form-grid">
         <div className="field-group wide">
           <label>Titre</label>
-          <input className="field" value={champs.titre} onChange={majChamp("titre")} />
+          <input className="field" value={champs.titre} onChange={(e) => majNarratifTitre(e.target.value)} />
         </div>
         <div className="field-group">
           <label>Durée montage (s)</label>
@@ -97,38 +84,7 @@ export function PlanScenarioPanel({
             }
           />
         </div>
-        <div className="field-group">
-          <label>Valeur de plan</label>
-          <input className="field" value={champs.valeur} onChange={majChamp("valeur")} />
-        </div>
-        <div className="field-group wide">
-          <label>Sujet</label>
-          <textarea className="field" rows={2} value={champs.sujet} onChange={majChamp("sujet")} />
-        </div>
-        <div className="field-group">
-          <label>Décor</label>
-          <textarea className="field" rows={2} value={champs.decor} onChange={majChamp("decor")} />
-        </div>
-        <div className="field-group">
-          <label>Lumière</label>
-          <textarea className="field" rows={2} value={champs.lumiere} onChange={majChamp("lumiere")} />
-        </div>
-        <div className="field-group">
-          <label>Mouvement caméra</label>
-          <textarea className="field" rows={2} value={champs.mouvementCamera} onChange={majChamp("mouvementCamera")} />
-        </div>
-        <div className="field-group">
-          <label>Son</label>
-          <textarea className="field" rows={2} value={champs.son} onChange={majChamp("son")} />
-        </div>
-        <div className="field-group wide">
-          <label>Intention</label>
-          <textarea className="field" rows={2} value={champs.intention} onChange={majChamp("intention")} />
-        </div>
-        <div className="field-group wide">
-          <label>Assets requis</label>
-          <input className="field" value={champs.assetsRequis} onChange={majChamp("assetsRequis")} />
-        </div>
+        <ScenarioNarratifFields valeurs={champs} onChange={majNarratif} />
         <div className="form-actions wide">
           {brouillon ? (
             <button className="btn btn-gold" onClick={onDevelopper} disabled={pending}>

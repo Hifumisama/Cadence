@@ -83,7 +83,7 @@ export async function updateAsset(
 
 /** Upload direct du fichier média (image/audio/vidéo) d'un asset déjà créé.
  * Le fichier est nommé d'après le code de l'asset (convention symétrique à
- * plans/<numero>/... pour les vidéos de plan, voir lib/media.ts) : une
+ * plans/<id>/... pour les vidéos de plan, voir lib/media.ts) : une
  * nouvelle version écrase simplement l'ancienne, cohérent avec "pas de
  * versionnage d'assets" (F01). */
 export async function uploaderFichierAsset(
@@ -104,7 +104,7 @@ export async function uploaderFichierAsset(
 /** Suppression protégée (retour utilisateur 2026-09-28) : un asset relié à
  * quelque chose — des dérivés, une citation dans une fiche de plan (ref ou
  * voix de dialogue) — ne se supprime pas tant que ces liens n'ont pas été
- * explicitement défaits. Contrairement aux mouvements (qui se détachent
+ * explicitement défaits. Contrairement aux scènes (qui se détachent
  * silencieusement), ici le lien est trop significatif pour être cassé sans
  * geste explicite. */
 export async function supprimerAsset(
