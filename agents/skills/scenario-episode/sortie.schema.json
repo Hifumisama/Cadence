@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sortie de l'agent scenario-episode : le scénario d'un épisode",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["episode", "scenes", "inventions", "notes"],
+  "properties": {
+    "episode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titre", "resume"],
+      "properties": {
+        "titre": { "type": "string" },
+        "resume": { "type": "string", "description": "Ce que l'épisode raconte." }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Dans l'ordre de l'épisode. Deux à quatre pour un épisode entier.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["titre", "fonction", "plans"],
+        "properties": {
+          "titre": { "type": "string" },
+          "fonction": { "type": "string", "description": "Ce que la scène accomplit dans l'épisode." },
+          "plans": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Dans l'ordre de lecture. L'ordre est celui du tableau : pas de numéro de plan.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["titre", "description", "dureeSecondes", "repliques"],
+              "properties": {
+                "titre": { "type": "string", "maxLength": 200 },
+                "description": { "type": "string", "minLength": 1, "description": "Ce qui se passe et pourquoi le plan existe. Narratif, sans cadrage, lumière, son ni mouvement de caméra, sans renvoi à un autre plan." },
+                "dureeSecondes": { "type": "integer", "minimum": 4, "maximum": 15, "description": "Durée de génération, en secondes entières. Un plan dialogué : durée généreuse, marge de respiration de 2 s au moins, à ajuster après la prise de voix." },
+                "repliques": {
+                  "type": "array",
+                  "description": "Répliques dites dans ce plan, dans l'ordre de prise de parole.",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["locuteur", "texte"],
+                    "properties": {
+                      "locuteur": { "type": "string", "description": "Un personnage du registre (nom ou code), ou « voix off »." },
+                      "texte": { "type": "string", "minLength": 1, "description": "Le texte exact, dans la langue des dialogues, ponctuation comprise." }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "inventions": { "type": "array", "items": { "type": "string" }, "description": "Tout ce qui n'était pas dans le brief. À valider ou jeter." },
+    "notes": { "type": "string", "description": "Plans à risque, arbitrages de durée, coupes proposées pour un dialogue trop long. Vide s'il n'y a rien à signaler." }
+  }
+}

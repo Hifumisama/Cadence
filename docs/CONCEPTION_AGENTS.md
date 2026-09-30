@@ -84,13 +84,18 @@ langue des dialogues.
 Une suite d'étapes, chacune visible, corrigeable et relançable seule. Les assets
 viennent **avant** les plans, puisque les plans les citent en références.
 
-| # | Étape | Skill de départ | Produit |
+| # | Étape | Skill | Produit |
 |---|---|---|---|
-| 1 | Structure | `scenario` | saison, épisode(s) |
-| 2 | Scénario | `scenario` | texte narratif, scènes |
-| 3 | Registre | `assets-comfyui`, `voix-comfyui` | assets (personnage, décor, accessoire, voix) avec prompt de génération |
-| 4 | Plans | `fiche-de-plan` | fiches de plan : 6 sections H3, références, durées |
-| 5 | Répliques | `fiche-de-plan` | répliques autonomes liées aux plans |
+| 1 | Structure | `brief-projet` | saison, épisode(s), tirés du brief |
+| 2 | Scénario | `scenario-episode` | scènes, plans (description narrative, durée), répliques avec locuteur |
+| 3 | Registre | `prompt-asset`, `prompt-voix` | les masters connus par le brief (personnages, lieux) et leurs voix, avec prompt de génération |
+| 4 | Plans | `plan-h3` | prompts H3, références, liaison des répliques ; propose aussi les assets manquants (accessoires, dérivés, effets) |
+
+Le scénario ne déclare aucun asset : « l'histoire d'abord » (F03, 2026-09-29).
+Le registre de l'étape 3 ne contient donc que ce que le **brief** nomme déjà
+(personnages, lieux, voix pressenties). Ce que les plans réclament ensuite (un
+accessoire, un gros plan en édition, un effet) arrive dans la proposition de
+l'étape 4, comme changement explicite « créer l'asset », avec son prompt.
 
 Chaque étape produit sa propre proposition. Une étape ne démarre qu'à partir de
 l'état **appliqué** de la précédente (ou de sa proposition acceptée), jamais d'un
@@ -212,11 +217,12 @@ que d'écraser).
 
 | Agent | Skill | Outils (actions serveur) |
 |---|---|---|
-| Intake | — | lire/écrire le brief, résumer un texte |
-| Scénario | `scenario` | créer saison/épisode/scènes, lire le scénario |
-| Assets | `assets-comfyui`, `voix-comfyui` | lire le registre, proposer des assets |
-| Plans | `fiche-de-plan` | lire plans, scène et registre ; proposer des plans, leurs refs et répliques ; lancer les contrôles |
-| Itération | `fiche-de-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt |
+| Intake | `brief-projet` | lire/écrire le brief, résumer un texte |
+| Scénario | `scenario-episode` | lire le brief et le registre ; proposer saison/épisode/scènes/plans/répliques |
+| Assets | `prompt-asset` | lire le registre, un asset et son parent ; proposer un prompt et une méthode |
+| Voix | `prompt-voix` | lire un personnage et les voix au casting ; proposer une instruction et un texte de référence |
+| Plans | `plan-h3` | lire plans, scène et registre ; proposer des plans, leurs refs et répliques ; lancer les contrôles |
+| Itération | `iteration-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt |
 
 Tous les outils **de lecture** répondent directement. Tous les outils **d'écriture**
 créent des changements de proposition — aucun n'écrit sur les tables métier.

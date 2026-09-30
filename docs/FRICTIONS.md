@@ -352,7 +352,6 @@ verdict acté ci-dessus n'est modifié.
   Un effet (flammes, éclairs) rattaché à un master se génère de zéro ; une
   édition (les yeux de Maya) part de l'image du parent, qui doit être produite
   d'abord. L'ordre de fabrication « parent avant enfant » ne vaut que pour les
-  éditions. L'ordre de fabrication « parent avant enfant » ne vaut que pour les
   éditions.
 - **Les skills d'exécution de l'app** vivent dans `agents/skills/` (voir
   `docs/CONCEPTION_AGENTS.md`), séparés des skills de chat de `.claude/skills/`.
@@ -362,6 +361,17 @@ verdict acté ci-dessus n'est modifié.
   validés en production ne l'écrivent pas toujours. La forme à intervalle
   `[Shot 2, 00:02.500–00:05.500]` est acceptée. Le garde-fou de vocabulaire
   reste abandonné.
+
+- **Skills réécrits pour l'app** (voir `docs/CONCEPTION_AGENTS.md` §5 et §8) :
+  `brief-projet`, `scenario-episode`, `prompt-voix` s'ajoutent à `plan-h3`,
+  `iteration-plan` et `prompt-asset`. `scenario-episode` reprend les
+  corrections de découpage du 2026-09-25 (points de vue, plan statique sans
+  intention, dialogue couvert) et respecte le scénario narratif : pas de
+  cadrage, lumière ni son, pas de numéro ni de renvoi à un autre plan, pas
+  d'asset déclaré. Les répliques y naissent avec leur locuteur. `prompt-voix`
+  ne garde de l'ancien casting que la contrainte physique tenue (dans
+  l'instruction) ; règle absolue, température, seed, test de tenue et carnet de
+  candidats n'y figurent plus.
 
 ### Reste à observer
 - [ ] **Compter séparément** : itérations « prompt » vs redécoupages (= scénario). Le motif ci-dessus suggère que la part « découpage » est grosse — reste à chiffrer.
@@ -644,6 +654,22 @@ par les plans en `<Audio N>`. Mais elle se **crée et s'édite uniquement au
 casting vocal** : « Nouveau sujet » ne propose plus le type voix (ni l'action
 serveur), le dépôt de fichier est retiré de sa fiche au registre, qui renvoie
 vers le casting (« Modifier au casting »). Un seul endroit pour éditer une voix.
+
+### Pipeline vocal réel : deux moteurs (2026-09-30)
+Meilleur résultat obtenu à ce jour (`workflows/voice-clone/VOX_Voice-design.json`) :
+1. **Qwen3-TTS (Voice Design)** lit un **texte de référence anglais, le même pour
+   toutes les voix**, avec l'instruction du personnage : c'est la voix de
+   référence (étape 2 du casting).
+2. **CosyVoice3** clone cette référence et dit les **répliques en français**
+   (étape 4). `VOX_Generate_Sound_From_Characters.json` en est la seconde moitié
+   (fichier de référence + texte + `trim_start`/`trim_end`).
+
+Conséquences : le texte de référence est un réglage de projet (le casting
+propose un « Texte par défaut »), pas une création par voix ; la « direction de
+jeu » par réplique attendra le branchement (CosyVoice3 a un champ `instruct_text`
+vide aujourd'hui). Point pratique à régler : l'enchaînement manuel des deux
+workflows et le passage du fichier de référence de l'un à l'autre, à traiter
+quand les tâches vocales seront branchées au worker.
 
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
