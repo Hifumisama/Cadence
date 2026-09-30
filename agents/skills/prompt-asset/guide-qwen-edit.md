@@ -1,15 +1,17 @@
 # Qwen Image Edit 2511 — prompter une édition
 
-> Grammaire reprise du skill `assets-comfyui` (production réelle) et de la fiche officielle du modèle : [ComfyUI, Qwen-Image-Edit-2511](https://docs.comfy.org/tutorials/image/qwen/qwen-image-edit-2511). La doc officielle ne donne aucune consigne de prompt ; tout ce qui suit vient de notre pratique `[projet]`. Le workflow d'édition n'est pas encore dans le dépôt (`workflows/image-refs/`).
+> Grammaire reprise du skill `assets-comfyui` (production réelle) et de la fiche officielle du modèle : [ComfyUI, Qwen-Image-Edit-2511](https://docs.comfy.org/tutorials/image/qwen/qwen-image-edit-2511). La doc officielle ne donne aucune consigne de prompt ; tout ce qui suit vient de notre pratique `[projet]`. Le workflow d'édition est `workflows/image-refs/IMG_Simple_Edit.json` (jusqu'à trois images : la première est la cible de la modification).
 
 ## Le principe
 
-**Des instructions impératives, pas des descriptions.** On ne redécrit pas l'image : on énonce la transformation. La source est l'image du **parent** de l'asset.
+**Des instructions impératives, pas des descriptions.** On ne redécrit pas l'image : on énonce la transformation. L'image 1 est ce qu'on modifie (par défaut l'image du **parent** de l'asset). Les images 2 et 3, si elles existent, sont des références : on les cite par leur rang (« image 2 »).
 
 - **Une intention par instruction.** Empiler cinq modifications dans une phrase donne un résultat moyen sur les cinq.
 - **Nomme ce qui ne doit pas bouger** quand c'est structurant : « Preserve her exact facial identity, ruby-red eye color, tan skin tone ».
 - **Plusieurs passes plutôt que tout d'un coup**, en repartant à chaque fois de la sortie précédente. Une instruction par ligne.
 - Anglais, comme le reste.
+
+Avec plusieurs images, dis quel rôle joue chacune : « Change the leather of the sofa in image 1 to the fur material shown in image 2. » (exemple du modèle de workflow officiel). Une image de référence sert à donner une matière, un style ou un sujet ; elle ne déplace pas la caméra.
 
 Exemple validé :
 
@@ -31,4 +33,4 @@ Ce qui reste bon pour une édition : un flou, une bascule de lumière, une saiso
 
 ## Réglages du workflow officiel
 
-Le modèle de workflow officiel propose deux modes (LoRA Lightning 4 étapes à CFG 1, ou 40 étapes à CFG 3, sampler `euler` / `simple`) et accepte plusieurs images de référence. Le réglage retenu sera fixé quand le workflow sera branché : ne le mets pas dans un prompt.
+Le workflow du dépôt (`IMG_Simple_Edit.json`) active par défaut le LoRA Lightning : 4 étapes, CFG 1, sampler `euler` / `simple` (sans lui : 40 étapes, CFG 4). Il accepte jusqu'à **trois images**. Ces réglages ne se mettent jamais dans un prompt.

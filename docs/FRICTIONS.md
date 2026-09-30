@@ -667,9 +667,12 @@ Meilleur résultat obtenu à ce jour (`workflows/voice-clone/VOX_Voice-design.js
 Conséquences : le texte de référence est un réglage de projet (le casting
 propose un « Texte par défaut »), pas une création par voix ; la « direction de
 jeu » par réplique attendra le branchement (CosyVoice3 a un champ `instruct_text`
-vide aujourd'hui). Point pratique à régler : l'enchaînement manuel des deux
-workflows et le passage du fichier de référence de l'un à l'autre, à traiter
-quand les tâches vocales seront branchées au worker.
+vide aujourd'hui). **Le branchement audio est différé** : `CharacterVoicesNode`
+lit un fichier dans un dossier propre à ComfyUI et exige texte de référence et
+rognage saisis dans le graphe ; la gestion de l'audio y est trop couplée à
+ComfyUI pour être pilotée par l'application. On débloque d'abord les images
+(`IMG_01_TextToImage`, `IMG_Simple_Edit`) et la vidéo ; le contrat des workflows
+d'images est dans `workflows/README.md`.
 
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme

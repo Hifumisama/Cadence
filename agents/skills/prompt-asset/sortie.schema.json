@@ -7,6 +7,12 @@
   "properties": {
     "methode": { "type": "string", "enum": ["generation", "edition"], "description": "Méthode recommandée. `edition` exige un parent." },
     "raisonMethode": { "type": "string", "description": "Une phrase, en français, qui justifie la méthode." },
+    "sources": {
+      "type": "array",
+      "maxItems": 3,
+      "items": { "type": "string" },
+      "description": "Édition seulement : codes des assets dont l'image est fournie au workflow, dans l'ordre. Le premier est la cible de la modification (par défaut le parent), les suivants sont des références. Trois au plus. Vide pour une génération."
+    },
     "promptGeneration": { "type": "string", "minLength": 1, "description": "Prose Krea 2 (génération) ou instructions impératives Qwen, une par ligne (édition). Sans style, sans négation." },
     "remarques": {
       "type": "array",

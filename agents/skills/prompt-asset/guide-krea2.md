@@ -7,7 +7,8 @@
 - **Turbo** : distillé en **8 étapes**, sans guidance (CFG 0 ou 1). `[officiel]` Notre workflow (`IMG_01_TextToImage.json`) : 8 étapes, CFG 1, `euler` / `simple`, avec un `ConditioningZeroOut` sur le négatif. `[projet]`
 - **Pas de negative prompt.** Le négatif est remis à zéro : « pas de X » ne s'obtient pas. Décris ce qu'on veut voir. `[projet]`, cohérent avec le guide communautaire (« les négations ne fonctionnent pas de façon fiable »).
 - **Encodeur de texte Qwen3-VL 4B** : il lit des phrases, pas des étiquettes. `[officiel]`
-- **Résolution** : jusqu'à 2K. `[officiel]` Nos dimensions viennent du registre : identité et détails en **1024×1024**, plates et décors en **16:9** (multiples de 512×288, divisibles par 32 : 1536×864, 2048×1152). `[projet]`
+- **Résolution** : jusqu'à 2K. `[officiel]` Le format est choisi par le workflow (`ResolutionSelector` : rapport d'aspect et mégapixels) : 16:9 pour un décor ou une plate, carré pour l'identité et les détails. `[projet]` Le prompt ne fixe jamais de dimensions.
+- **LoRA « CharacterDesign »** : le workflow peut l'activer pour une fiche personnage (4 vues). `[projet]`
 - Le workflow expose un mode **prompt_enhance** (un LLM développe le prompt). On ne l'utilise pas : le prompt vient de l'agent, pour rester reproductible. `[projet]`
 
 ## Écrire le prompt

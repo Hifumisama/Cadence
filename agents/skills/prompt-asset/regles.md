@@ -24,6 +24,7 @@ Le lien de parenté dit à quelle famille l'asset appartient. **Il ne dit pas co
 
 1. **Pas de parent** : génération (Krea 2).
 2. **Un parent, et l'asset est un autre cadrage, un détail ou un état du même sujet dans le plan de l'image** (gros plan, lame recadrée, flou, changement de lumière, élément ajouté) : **édition**. Le parent doit être produit d'abord.
+   - **Fabriquer une image à partir d'autres** est aussi une édition : l'image 1 est ce qu'on modifie, les images 2 et 3 sont des références (un personnage à placer dans un décor, une matière à appliquer). Liste-les dans `sources`, dans l'ordre, et cite-les par leur rang dans le prompt (« image 1 », « image 2 »). Trois images au plus.
 3. **Un parent, mais l'asset est un élément distinct** (effet visuel, accessoire, pièce à part) : **génération**, rattachée à la famille. Pour la cohérence, lis la description et le prompt du parent, jamais son image.
 4. **Le but est une absence, ou un changement de point de vue** : **génération**, même s'il y a un parent (voir `guide-qwen-edit.md`).
 
@@ -58,6 +59,7 @@ Remonter tôt évite de découvrir le problème au bout de vingt images :
 ## Avant de rendre
 
 - Le prompt de génération ne contient ni style, ni négation.
+- `sources` liste les assets dont l'image est utilisée (trois au plus, la cible en premier) ; chacun est cité par son rang dans le prompt.
 - Un prompt d'édition ne décrit pas l'image : il énonce une transformation, une intention par ligne.
 - Les traits identifiants de la description canonique sont présents dans le prompt, sans contradiction.
 - La méthode recommandée est justifiée, et une édition a bien un parent.
