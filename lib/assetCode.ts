@@ -7,6 +7,11 @@ export const TYPES_ASSET = ["personnage", "decor", "voix", "prop", "vfx", "sfx",
 
 export type TypeAsset = (typeof TYPES_ASSET)[number];
 
+/** Types proposés à « Nouveau sujet » : une voix se crée au casting vocal
+ * (instruction, texte de référence…), jamais en coquille vide depuis le
+ * registre — elle y reste listée en lecture. */
+export const TYPES_CREABLES = TYPES_ASSET.filter((t) => t !== "voix");
+
 export const PREFIXE_PAR_TYPE: Record<TypeAsset, string> = {
   personnage: "CHAR_",
   decor: "DEC_",

@@ -7,7 +7,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { MAX_REFS, WORKFLOW_IMPORT_MANUEL, verifierCoherenceRefs, verifierInvariantVerbatim } from "@/lib/plan-checks";
+import { MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
+import { getDialoguesPlan } from "@/lib/queries-repliques";
 import type { RefLabel } from "@/lib/plan-checks";
 import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_VIDEO, cheminPlanMedia, estVideo } from "@/lib/media";
@@ -63,11 +64,29 @@ async function creerJobRelance(planId: number, activerUpscale: boolean) {
     .where(eq(plans.id, plan.id));
 }
 
+/** Invariant verbatim (F02, révision 2026-09-30) : un plan dont les dialogues
+ * ne sont pas alignés avec ses répliques ne part pas en génération — les
+ * lèvres bougeraient sur un autre texte que celui qu'on montera. null = rien
+ * ne bloque (ou plan sans dialogue). */
+async function blocageDialogues(planId: number): Promise<string | null> {
+  const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
+  if (!plan) return null;
+  const { controle } = await getDialoguesPlan(plan.projectId, planId, plan.episodeId);
+  return controle.ok ? null : resumerProblemesDialogues(controle.problemes);
+}
+
 /** activerUpscale distingue la prévisualisation rapide (itération de
- * prompt) du rendu final. */
-export async function relancerPlan(planId: number, activerUpscale: boolean) {
+ * prompt) du rendu final. Refusée tant que les dialogues du plan ne sont pas
+ * alignés avec ses répliques (blocageDialogues). */
+export async function relancerPlan(
+  planId: number,
+  activerUpscale: boolean,
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const blocage = await blocageDialogues(planId);
+  if (blocage) return { ok: false, erreur: `Dialogues à corriger avant de générer : ${blocage}.` };
   await creerJobRelance(planId, activerUpscale);
   revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 /** Passage nuit (CDC page 4, "Contrôle de la queue batch : déclenchement du
@@ -77,18 +96,26 @@ export async function relancerPlan(planId: number, activerUpscale: boolean) {
  * jamais passé en rendu final. Ne touche à rien d'autre : un plan encore
  * `en_attente`/`echoue` n'a pas eu son aller-retour de validation, ce
  * n'est pas ce bouton qui doit le faire avancer. */
-export async function lancerPassageNuit(episodeId: number): Promise<{ n: number }> {
+export async function lancerPassageNuit(episodeId: number): Promise<{ n: number; bloques: number }> {
   const aTraiter = await db
     .select({ id: plans.id })
     .from(plans)
     .where(and(eq(plans.episodeId, episodeId), eq(plans.statut, "previsualise")));
 
+  // Un plan aux dialogues désalignés est sauté, pas relancé (voir relancerPlan).
+  let n = 0;
+  let bloques = 0;
   for (const p of aTraiter) {
+    if (await blocageDialogues(p.id)) {
+      bloques++;
+      continue;
+    }
     await creerJobRelance(p.id, true);
+    n++;
   }
 
   revalidatePath("/", "layout");
-  return { n: aTraiter.length };
+  return { n, bloques };
 }
 
 /** FPS et durée de génération, éditables depuis la Fiche de plan — le mode
@@ -126,10 +153,17 @@ export async function ajouterRef(
     .from(planRefs)
     .where(and(eq(planRefs.planId, planId), eq(planRefs.type, type)));
 
-  if (existantes.length >= MAX_REFS[type]) return;
+  // Les répliques liées occupent des slots <Audio N> (la voix prime sur les
+  // bruitages, F02) : ils comptent dans le maximum et dans la numérotation.
+  const slotsRepliques =
+    type === "audio"
+      ? (await db.select({ slot: planDialogues.slot }).from(planDialogues).where(eq(planDialogues.planId, planId))).map((d) => d.slot)
+      : [];
+
+  if (existantes.length + slotsRepliques.length >= MAX_REFS[type]) return;
   if (existantes.some((r) => r.assetId === assetId)) return;
 
-  const prochainSlot = existantes.reduce((acc, r) => Math.max(acc, r.slot), 0) + 1;
+  const prochainSlot = [...existantes.map((r) => r.slot), ...slotsRepliques].reduce((acc, n) => Math.max(acc, n), 0) + 1;
 
   await db.insert(planRefs).values({
     planId,
@@ -171,12 +205,13 @@ export async function updatePlanScenario(planId: number, valeurs: ValeursScenari
 
 /** Suppression protégée (révisé 2026-09-28 — remplace la "suppression
  * libre" du même jour, voir docs/FRICTIONS.md) : un plan encore cité comme
- * référence (image/audio/vidéo) ou comme voix de dialogue ne se supprime
- * pas tant que ces liens n'ont pas été explicitement défaits — même
- * philosophie que supprimerAsset (app/assets/actions.ts). `force` saute la
- * vérification : le plan disparaît quand même, ses refs/dialogues
- * cascadent avec lui (db/schema.ts), mais jamais les assets qu'ils
- * citaient — ceux-ci restent dans le registre du projet. */
+ * référence (image/audio/vidéo) ne se supprime pas tant que ces liens n'ont
+ * pas été explicitement défaits — même philosophie que supprimerAsset
+ * (app/assets/actions.ts). `force` saute la vérification : le plan disparaît
+ * quand même, ses refs cascadent avec lui (db/schema.ts), mais jamais les
+ * assets qu'elles citaient. Ses répliques liées ne sont pas touchées : seule la
+ * liaison disparaît, la réplique existe par elle-même (F02, révision
+ * 2026-09-30). */
 export async function supprimerPlan(
   planId: number,
   plansHref: string,
@@ -190,14 +225,6 @@ export async function supprimerPlan(
       .limit(1);
     if (ref) {
       return { ok: false, erreur: "Encore des références d'asset sur ce plan — délie-les d'abord, ou force la suppression." };
-    }
-    const [dial] = await db
-      .select()
-      .from(planDialogues)
-      .where(and(eq(planDialogues.planId, planId), isNotNull(planDialogues.assetVoixId)))
-      .limit(1);
-    if (dial) {
-      return { ok: false, erreur: "Encore une voix de dialogue liée à un asset sur ce plan — délie-la d'abord, ou force la suppression." };
     }
   }
 
@@ -269,21 +296,22 @@ export async function analyserPromptColle(
     contenu: sections[section],
   }));
 
-  const [refs, dialogues] = await Promise.all([
+  const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
+  if (!plan) return { ok: false, erreurs: ["plan introuvable"] };
+  const [refs, { liaisons, audioRefs }] = await Promise.all([
     db
       .select({ type: planRefs.type, slot: planRefs.slot })
       .from(planRefs)
       .where(eq(planRefs.planId, planId)),
-    db
-      .select({ replique: planDialogues.replique, dureeSecondes: planDialogues.dureeSecondes })
-      .from(planDialogues)
-      .where(eq(planDialogues.planId, planId)),
+    getDialoguesPlan(plan.projectId, planId, plan.episodeId),
   ]);
 
-  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, refs);
-  const repliquesNonTrouvees = verifierInvariantVerbatim(sectionsPourControle, dialogues)
-    .filter((r) => !r.trouvee)
-    .map((r) => r.replique);
+  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, [...refs, ...audioRefs]);
+  const repliquesNonTrouvees = controlerDialogues(
+    sectionsPourControle,
+    liaisons.map((l) => ({ id: l.id, texte: l.texte, audioPresent: l.fichier != null, priseObsolete: l.priseObsolete })),
+  )
+    .problemes.flatMap((p) => (p.type === "absente" || p.type === "differente" ? [p.texte] : []));
 
   return {
     ok: true,

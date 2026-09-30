@@ -121,6 +121,7 @@ function Carte({
         etat={etat}
         src={src}
         actif={noeud.code === actifCode}
+        voix={noeud.type === "personnage" ? noeud.voix : undefined}
       />
       <AjouterDeriveForm projectId={projectId} parentId={noeud.id} parentCode={noeud.code} parentType={noeud.type} />
     </div>

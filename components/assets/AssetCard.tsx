@@ -30,6 +30,7 @@ export function AssetCard({
   etat,
   src,
   actif = false,
+  voix,
 }: {
   href: string;
   code: string;
@@ -43,6 +44,9 @@ export function AssetCard({
   etat: FichierEtat;
   src: string | null;
   actif?: boolean;
+  /** Personnage uniquement : sa voix au casting (calculée, lecture seule) —
+   * `undefined` pour tout autre type, `null` = personnage sans voix. */
+  voix?: { code: string } | null;
 }) {
   const zoneRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLVideoElement & HTMLAudioElement>(null);
@@ -175,6 +179,11 @@ export function AssetCard({
             {nbDerives > 0 ? `${nbDerives} dérivé${nbDerives > 1 ? "s" : ""}` : "aucun dér."}
           </span>
         </div>
+        {voix !== undefined ? (
+          <span className={`voix-chip${voix ? "" : " is-none"}`} title={voix ? "Voix au casting" : "Aucune voix au casting pour l'instant"}>
+            <span aria-hidden="true">♪</span> {voix ? voix.code : "sans voix"}
+          </span>
+        ) : null}
         <span className={`badge ${statut === "valide" ? "b-termine" : statut === "en_cours" ? "b-rejoue" : "b-attente"}`}>
           <i />
           {statut === "valide" ? "Validé" : statut === "en_cours" ? "En cours" : "À produire"}

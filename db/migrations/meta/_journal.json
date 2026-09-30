@@ -148,6 +148,27 @@
       "when": 1791305400000,
       "tag": "0020_ordre_plans_par_scene",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791391800000,
+      "tag": "0021_casting_vocal",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791478200000,
+      "tag": "0022_repliques",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791564600000,
+      "tag": "0023_casting_etapes",
+      "breakpoints": true
     }
   ]
 }

@@ -128,6 +128,7 @@ export default async function AssetsPage({
                   kind={kind}
                   etat={etat}
                   src={src}
+                  voix={m.type === "personnage" ? m.voix : undefined}
                 />
               );
             })}

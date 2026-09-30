@@ -133,6 +133,56 @@ dialogue passe d'abord. Les bruitages sont un complément, pas un prérequis.
   ciblé. Rien à verrouiller côté gabarit.
 - [ ] Ajouter au format de fiche : slot(s) dialogue, slot(s) bruitage, **durée de la voix** (voir F03).
 
+### Révision 2026-09-30 — la réplique devient une entité à part entière
+**Déclencheur :** besoin de récupérer les répliques telles quelles pour le
+montage (DaVinci Resolve, export OTIO envisagé plus tard) et de les utiliser à
+la fois comme référence de lipsync dans le plan et comme donnée autonome.
+Précise « dialogues déjà figés au moment de la fiche » (F02, 2026-09-17) sans le
+contredire : les répliques restent figées **avant la génération** du plan,
+mais elles naissent désormais **avant** la fiche de plan, du scénario ou du
+casting, indépendamment d'elle. La fiche de plan devient la **table
+d'assemblage** : on y choisit des répliques, on n'en saisit plus le texte.
+
+- **Table `repliques`** : identifiant public `uuid` (comme les plans), rattachée
+  à l'épisode (scène optionnelle), `ordre` dans l'épisode, `locuteurId`
+  (personnage, nullable) ou `locuteurTexte` pour un locuteur qui n'est pas un
+  asset (foule, « inconnu »), texte, fichier audio + durée **mesurée** (F03,
+  jamais estimée), statut. Une réplique survit à la suppression du plan qui la
+  cite.
+- **`plan_dialogues` devient une liaison n-n** (`planId`, `repliqueId`, `slot`,
+  `debutSecondes` indicatif) : plusieurs répliques par plan (champ-contrechamp),
+  une même réplique dans plusieurs plans. `slot` = son emplacement
+  `<Audio N>` (3 max par plan, la voix prime sur les bruitages, arbitrage
+  2026-09-17 inchangé).
+- **La voix se déduit du personnage** (`voix_fiches.personnageId`), pas de la
+  réplique : `plan_dialogues.assetVoixId` et les boutons « caster/délier » de la
+  page casting disparaissent. Un personnage a **au plus une voix** (index
+  unique partiel) ; `personnageId` reste nullable (voix off, narrateur).
+  **Exception nécessaire :** deux des quatre voix de S01
+  (`VOICE_conspirateur_*`) n'ont pas d'asset personnage ; une réplique dont le
+  locuteur n'est pas un personnage porte donc une **voix directe**
+  (`repliques.voixId`), jamais renseignée quand le locuteur est un personnage
+  qui a sa voix. Si ces voix reçoivent un jour un personnage, `voixId` devient
+  inutile. Le
+  registre affiche la voix sur le personnage en colonne **calculée**, en lecture
+  seule — jamais un second lien stocké. Compatible avec F01
+  (« Personnage (nom, voix de référence…) » / catalogue voix séparé).
+- **L'audio de la réplique est la référence `<Audio N>` du plan**, dérivée de
+  la liaison, jamais recopiée dans `plan_refs` (une seule source).
+- **Invariant verbatim contrôlé par l'application** (il ne l'était que dans le
+  skill `fiche-de-plan`) : chaque réplique liée doit apparaître **au mot près,
+  ponctuation comprise**, dans une balise `<d>[Langue] …</d>` du prompt ; chaque
+  `<d>` doit correspondre à une réplique liée ; une réplique sans audio de
+  référence est signalée. Vaut pour les voix de personnage comme pour la voix
+  off. Un écart **bloque** le lancement de génération du plan (Prévisualiser /
+  Rendu final). Modifier le texte d'une réplique déjà citée met les plans
+  concernés en alerte (« prompt à resynchroniser ») et marque la prise audio
+  « à refaire ».
+- **Pas de versionnage (F01) respecté** : une nouvelle prise remplace le fichier
+  de la réplique, sans suffixe `_vNN`.
+- Hors scope, prévu : export OTIO (les positions se déduisent déjà de `ordre` des
+  plans + durées) ; pour l'instant export JSON/CSV des audios seuls.
+
 ---
 
 ## F03 — Rédaction du prompt : 2 à 30 itérations par plan
@@ -529,6 +579,38 @@ prise audio se fabrique avant le plan, en dehors de ComfyUI.
 ### Reste à observer
 - [x] Voix nouvelles par épisode à partir de S02 : **trop tôt pour savoir** (2026-09-25).
 - [x] `REGISTRE_VOIX.md` : **n'existe pas encore** dans le projet (2026-09-25) — rien ne couvre le suivi pour l'instant.
+
+### Lien voix ↔ personnage (2026-09-30)
+Le lien vit **une seule fois**, sur `voix_fiches.personnageId` (voir F02,
+révision 2026-09-30). Le registre affiche la voix sur le personnage en colonne
+calculée et propose « Assigner une voix » — qui écrit ce même champ.
+Toujours « à la main » (verdict F06 inchangé) : rien ici ne génère.
+
+### Révision : le casting en quatre étapes (2026-09-30)
+Après revue de la page de casting, le carnet devient un parcours par onglets :
+1. **Voix** — soit une instruction Voice Design, soit un audio fourni (rogné à la
+   taille exacte de la réplique) ; dans les deux cas un **texte de référence au
+   mot près**.
+2. **Référence** — la voix de référence générée (génération non branchée : à la
+   main dans ComfyUI, puis dépôt), ou l'audio fourni tel quel.
+3. **Test vidéo** — décor et personnage optionnels, texte libre, audio déjà prêt
+   en glisser-déposer ; le prompt vidéo dédié (gabarit T1) se compose tout seul.
+4. **Répliques** — une ligne par réplique : Générer (non branché), Importer,
+   durée mesurée.
+
+Retirés, car inutiles : la **règle absolue** (elle vit dans l'instruction de voix),
+**température** et **seed**, les **limites assumées** (elles s'écrivent dans la
+description canonique du timbre), le **carnet de candidats** et le **test de
+tenue** (on génère des samples à volonté avec du texte libre). Les tables
+`voix_candidats` et `voix_tenue` sont supprimées (migration 0023). Aucun verdict
+F06 n'est modifié : rien ici ne génère.
+
+### Révision : la voix ne se crée plus au registre (2026-09-30)
+Une voix reste un asset `VOICE_*` (F01) : listée au registre, écoutable, citée
+par les plans en `<Audio N>`. Mais elle se **crée et s'édite uniquement au
+casting vocal** : « Nouveau sujet » ne propose plus le type voix (ni l'action
+serveur), le dépôt de fichier est retiré de sa fiche au registre, qui renvoie
+vers le casting (« Modifier au casting »). Un seul endroit pour éditer une voix.
 
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme

@@ -2898,3 +2898,814 @@ button {
   left: 8px;
   right: auto;
 }
+
+/* ---------------------------------------------------------------
+   Casting vocal (2026-09-30) — catalogue + fiche de voix.
+   Anthracite, or pour ce qui est acquis (figé, retenu, tient),
+   écarlate seulement pour signaler (décroche, garde-fou).
+   --------------------------------------------------------------- */
+.btn-mini {
+  padding: 4px 9px;
+  font-size: 11.5px;
+}
+.voix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+}
+.voix-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.16s, transform 0.16s;
+}
+.voix-card:hover {
+  border-color: var(--or-soft);
+  transform: translateY(-2px);
+}
+.voix-card.is-figee {
+  border-top: 2px solid var(--or);
+}
+.voix-card-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.voix-card-hd .asset-code {
+  font-size: 13.5px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voix-card-regle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  font-style: italic;
+  border-left: 1px solid var(--or-soft);
+  padding-left: var(--sp-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 3.9em;
+}
+.voix-card-regle.is-vide {
+  color: var(--ink-4);
+  border-left: 1px dashed var(--line-strong);
+}
+.voix-card-ref {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 30px;
+}
+.voix-card-play {
+  position: static;
+  flex: 0 0 auto;
+}
+.voix-card-ft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* Les quatre phases — or (fait), hachuré (entamé), gris (rien). */
+.phases-voix {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+.phases-voix li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  min-width: 0;
+}
+.phases-voix li i {
+  display: block;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--line-strong);
+}
+.phases-voix li .n {
+  display: none;
+}
+.phases-voix li .l {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.phases-voix .ph-part {
+  color: var(--ink-2);
+}
+.phases-voix .ph-part i {
+  background: repeating-linear-gradient(90deg, var(--or-soft) 0 3px, transparent 3px 5px);
+}
+.phases-voix .ph-on {
+  color: var(--or-glow);
+}
+.phases-voix .ph-on i {
+  background: var(--or);
+}
+.phases-voix.is-detail {
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+.phases-voix.is-detail li {
+  font-size: 11px;
+}
+.phases-voix.is-detail li .n {
+  display: inline;
+  color: var(--ink-4);
+}
+.phases-voix.is-detail li .a {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+/* Fiche de voix */
+.voix-titre {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.voix-titre .type-tag {
+  text-decoration: none;
+}
+.voix-titre .type-tag:hover {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
+}
+.voix-reftext {
+  margin: 0;
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  border-left: 1px solid var(--line-strong);
+  padding-left: var(--sp-3);
+  align-self: stretch;
+}
+.voix-fiche {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.voix-lbl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.voix-lbl-row > label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.deposer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* Répliques (liste du catalogue) */
+.repl {
+  display: grid;
+  grid-template-columns: auto 130px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-2);
+}
+.repl .dlg-line {
+  font-size: 13.5px;
+}
+.repl-orphelines {
+  margin-top: var(--sp-4);
+}
+.repl-orphelines summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--terre);
+  margin-bottom: var(--sp-2);
+}
+.repl-orphelines .repl {
+  grid-template-columns: auto 130px minmax(0, 1fr) auto;
+}
+@media (max-width: 760px) {
+  .repl,
+  .repl-orphelines .repl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* État statique isolé : génération voix non branchée */
+.gen-off {
+  margin-top: var(--sp-5);
+  border-style: dashed;
+}
+
+/* ---------------------------------------------------------------
+   Répliques autonomes (F02 révision 2026-09-30) — voix déduite du
+   personnage, panneau Dialogues de la fiche de plan, production au
+   casting. Or = acquis (aligné, prise validée), écarlate = alerte
+   uniquement (liseré/texte), jamais un fond plein.
+   --------------------------------------------------------------- */
+
+/* Voix d'un personnage : colonne calculée du registre, lecture seule */
+.voix-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--or-glow);
+  border: 1px solid var(--or-soft);
+  border-radius: 2px;
+  padding: 1px 6px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.voix-chip.is-none {
+  color: var(--ink-4);
+  border-style: dashed;
+  border-color: var(--line-strong);
+}
+a.voix-chip:hover {
+  border-color: var(--or);
+}
+.voix-lien {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.asset-card-body .voix-chip {
+  margin-top: 2px;
+}
+
+/* Sélecteur de locuteur + nouvelle réplique */
+.loc-select {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.rep-nouvelle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: 2px;
+}
+.rep-nouvelle-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Production d'une réplique (casting, phase 4) */
+.rep-liste {
+  gap: var(--sp-2);
+}
+.rep-prod {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2);
+  border-left: 2px solid var(--line-strong);
+}
+.rep-prod.v-validee {
+  border-left-color: var(--or);
+}
+.rep-prod-hd,
+.rep-actions,
+.rep-prise,
+.rep-usages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+.rep-prod .dlg-line {
+  font-size: 13.5px;
+}
+.rep-statut {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.rep-statut.s-validee {
+  color: var(--or-glow);
+}
+.rep-edition {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.rep-edition .field {
+  width: 100%;
+  resize: vertical;
+}
+.rep-usage.is-ok {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
+}
+.rep-usage.is-alerte {
+  color: var(--ecarlate-glow);
+  border-color: var(--ecarlate-soft);
+}
+.rep-audio {
+  height: 30px;
+  max-width: 260px;
+}
+.rep-duree {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.rep-duree .field {
+  width: 56px;
+  padding: 3px 6px;
+}
+
+/* Panneau Dialogues de la fiche de plan */
+.dlg-bandeau {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  border-left: 2px solid var(--or);
+  background: var(--surface-2);
+}
+.dlg-bandeau.is-alerte {
+  border-left-color: var(--ecarlate);
+  background: rgba(200, 16, 46, 0.07);
+}
+.dlg-problemes {
+  margin-bottom: var(--sp-3);
+}
+.dlg-problemes .check {
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.dlg-table td {
+  vertical-align: top;
+}
+.dlg-table .voix-chip {
+  margin-top: 3px;
+}
+.dlg-table .rep-audio {
+  display: block;
+  margin-top: var(--sp-1);
+}
+.dlg-debut {
+  width: 46px;
+  padding: 3px 6px;
+  text-align: right;
+}
+.dlg-ajout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.dlg-ajout-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 100%;
+}
+.dlg-ajout-ligne .field {
+  max-width: 100%;
+  min-width: 0;
+}
+.dlg-ajout .rep-nouvelle {
+  width: 100%;
+}
+.verbatim-etat {
+  display: inline-block;
+  min-width: 1.2em;
+  text-align: center;
+  font-weight: 600;
+  color: var(--or-glow);
+}
+.verbatim-etat.v-absente,
+.verbatim-etat.v-differente {
+  color: var(--ecarlate-glow);
+}
+
+/* Écart mot à mot du contrôle verbatim */
+.ecart-manque {
+  text-decoration: underline;
+  text-decoration-color: var(--or);
+  text-underline-offset: 3px;
+  color: var(--or-glow);
+}
+.ecart-trop {
+  text-decoration: line-through;
+  text-decoration-color: var(--ecarlate);
+  color: var(--ecarlate-glow);
+}
+
+
+/* ---------------------------------------------------------------
+   Casting vocal en quatre étapes (2026-09-30) — un onglet par étape,
+   une étape par écran. Or = fait, hachuré = entamé, gris = rien.
+   --------------------------------------------------------------- */
+.voix-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+.etapes-voix {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+@media (max-width: 760px) {
+  .etapes-voix {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.etape-onglet {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  text-decoration: none;
+  color: var(--ink-3);
+  min-width: 0;
+}
+.etape-onglet:hover {
+  border-color: var(--line-strong);
+  color: var(--ink-2);
+}
+.etape-onglet i {
+  display: block;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--line-strong);
+  margin-bottom: 4px;
+}
+.etape-onglet.ph-part i {
+  background: repeating-linear-gradient(90deg, var(--or-soft) 0 3px, transparent 3px 5px);
+}
+.etape-onglet.ph-on i {
+  background: var(--or);
+}
+.etape-onglet .n {
+  font-size: 10px;
+  color: var(--ink-4);
+}
+.etape-onglet .l {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.etape-onglet .a {
+  font-size: 11px;
+  color: var(--ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.etape-onglet.is-actif {
+  background: var(--surface-2);
+  border-color: var(--or);
+  color: var(--ink);
+}
+.etape-onglet.is-actif .n {
+  color: var(--or-glow);
+}
+.etape-panel {
+  margin-bottom: var(--sp-5);
+}
+
+/* Étape 1 — source de la voix */
+.source-choix {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+@media (max-width: 640px) {
+  .source-choix {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.source-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.source-opt:hover {
+  border-color: var(--line-strong);
+}
+.source-opt .t {
+  font-size: 13px;
+  font-weight: 500;
+}
+.source-opt .a {
+  font-size: 11.5px;
+  color: var(--ink-4);
+}
+.source-opt.is-actif {
+  border-color: var(--or);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.voix-notes {
+  list-style: none;
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.voix-notes li {
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--line-strong);
+}
+.voix-notes li.warn {
+  border-left-color: var(--ecarlate-glow);
+}
+.voix-notes b {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.voix-warn-mot b {
+  color: var(--or-glow);
+  font-weight: 500;
+}
+.voix-audio-ref {
+  width: 100%;
+  max-width: 460px;
+  height: 36px;
+}
+
+/* Dépôt : glisser-déposer */
+.zone-depot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: var(--sp-5) var(--sp-4);
+  border: 1px dashed var(--line-strong);
+  border-radius: 2px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  text-align: center;
+  cursor: pointer;
+}
+.zone-depot.is-compact {
+  padding: var(--sp-3) var(--sp-4);
+}
+.zone-depot:hover,
+.zone-depot.is-survol,
+.zone-depot:focus-visible {
+  border-color: var(--or);
+  color: var(--or-glow);
+  outline: none;
+}
+.zone-depot.is-survol {
+  background: var(--surface-2);
+}
+
+/* Rognage */
+.trim {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+.trim-hd {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.trim-double {
+  position: relative;
+  height: 28px;
+}
+.trim-piste,
+.trim-select {
+  position: absolute;
+  top: 12px;
+  height: 4px;
+  border-radius: 2px;
+}
+.trim-piste {
+  left: 0;
+  right: 0;
+  background: var(--line-strong);
+}
+.trim-select {
+  background: var(--or);
+}
+.trim-double input[type="range"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.trim-double input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.trim-double input[type="range"]::-moz-range-track {
+  background: transparent;
+}
+.trim-double input[type="range"]::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--or-glow);
+  border: 1px solid var(--or);
+  cursor: ew-resize;
+}
+.trim-double input[type="range"]::-moz-range-thumb {
+  pointer-events: auto;
+  width: 12px;
+  height: 20px;
+  border-radius: 2px;
+  background: var(--or-glow);
+  border: 1px solid var(--or);
+  cursor: ew-resize;
+}
+.trim-bornes {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Étape 2 — référence */
+.ref-recap {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+@media (max-width: 760px) {
+  .ref-recap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ref-recap-txt {
+  margin: var(--sp-1) 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  border-left: 1px solid var(--line-strong);
+  padding-left: var(--sp-3);
+  white-space: pre-wrap;
+}
+.gen-mock {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+/* Étape 3 — test vidéo */
+.test-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-5);
+}
+@media (max-width: 860px) {
+  .test-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.test-video {
+  width: 100%;
+  max-height: 320px;
+  background: #000;
+  border: 1px solid var(--line);
+}
+.test-prompt summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--or);
+}
+.test-prompt-txt {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* Étape 4 — répliques en ligne */
+.rep-lignes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.rep-ligne {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(200px, 280px) auto auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--line-strong);
+}
+.rep-ligne.v-validee {
+  border-left-color: var(--or);
+}
+.rep-ligne-txt {
+  min-width: 0;
+}
+.rep-ligne-txt .dlg-line {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+}
+.rep-ligne-mesure,
+.rep-ligne-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.rep-ligne-mesure {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+@media (max-width: 960px) {
+  .rep-ligne {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

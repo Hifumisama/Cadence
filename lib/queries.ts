@@ -4,7 +4,6 @@ import {
   episodes,
   jobs,
   scenes,
-  planDialogues,
   planPromptSections,
   planRefs,
   plans,
@@ -14,6 +13,7 @@ import {
 import { and, desc, eq, inArray, lt, ne } from "drizzle-orm";
 import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
 import { posterSrc } from "./media";
+import { getLiensVoix, getPlanIdsDesRepliques } from "./queries-repliques";
 
 /** Pas encore de sélecteur de projet dans l'UI (2026-09-28) — toutes les
  * pages opèrent sur le premier projet créé. Le schéma est prêt pour
@@ -169,7 +169,8 @@ export async function getPlansList(episodeId?: number): Promise<PlanListItem[]> 
 }
 
 /** Fiche de plan complète : plan + prompt sectionné + refs (avec l'asset
- * associé) + dialogues + historique des jobs. Retrouvée par `uuid` (identifiant
+ * associé) + historique des jobs. Les dialogues (répliques liées) vivent dans
+ * lib/queries-repliques.ts, getDialoguesPlan. Retrouvée par `uuid` (identifiant
  * public, voir docs/FRICTIONS.md F03) ; le filtre episodeId garde l'URL
  * cohérente avec l'épisode affiché. */
 export async function getPlanDetail(uuid: string, episodeId?: number) {
@@ -179,7 +180,7 @@ export async function getPlanDetail(uuid: string, episodeId?: number) {
   });
   if (!plan) return null;
 
-  const [promptSections, refs, dialogues, jobHistory, episodePlans] = await Promise.all([
+  const [promptSections, refs, jobHistory, episodePlans] = await Promise.all([
     db
       .select()
       .from(planPromptSections)
@@ -199,11 +200,6 @@ export async function getPlanDetail(uuid: string, episodeId?: number) {
       .where(eq(planRefs.planId, plan.id)),
     db
       .select()
-      .from(planDialogues)
-      .where(eq(planDialogues.planId, plan.id))
-      .orderBy(planDialogues.slot),
-    db
-      .select()
       .from(jobs)
       .where(eq(jobs.planId, plan.id))
       .orderBy(desc(jobs.createdAt)),
@@ -215,7 +211,7 @@ export async function getPlanDetail(uuid: string, episodeId?: number) {
   ]);
   const position = episodePlans.findIndex((p) => p.id === plan.id) + 1;
 
-  return { plan, position, promptSections, refs, dialogues, jobHistory };
+  return { plan, position, promptSections, refs, jobHistory };
 }
 
 /** Tous les assets (27 sur l'épisode 1) — pour peupler le sélecteur d'ajout
@@ -354,30 +350,35 @@ export async function getProjectHierarchy(projectId: number) {
 }
 
 export type AssetNode = Awaited<ReturnType<typeof getAssetsTree>>[number];
-export type AssetCitation = { planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number | null; dialogueId: number | null };
+/** `refId` : la ligne de plan_refs qui cite l'asset (déliable). `deduite` : la
+ * citation d'une VOIX vient des répliques liées au plan (locuteur -> voix), pas
+ * d'un lien stocké — il n'y a rien à délier, on retire la réplique du plan. */
+export type AssetCitation = { planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number | null; deduite: boolean };
 
 /** Registre d'assets en arborescence par sujet (masters + dérivés), pas par
  * type — demande explicite de l'utilisateur (2026-09-27) : le type reste un
  * simple tag informatif, le regroupement se fait sur deriveDeId.
  *
- * `citations` détaille CHAQUE ligne (ref ou dialogue) qui cite l'asset, pas
- * juste les numéros de plan — nécessaire pour pouvoir délier une citation
- * précise sans supprimer les autres (retour utilisateur 2026-09-28 : la
- * suppression d'un asset cité doit être bloquée tant qu'il n'a pas été
- * délié explicitement de chaque plan qui le cite). */
+ * `citations` détaille CHAQUE ligne de ref qui cite l'asset, pas juste les
+ * numéros de plan — nécessaire pour pouvoir délier une citation précise sans
+ * supprimer les autres (retour utilisateur 2026-09-28 : la suppression d'un
+ * asset cité doit être bloquée tant qu'il n'a pas été délié explicitement de
+ * chaque plan qui le cite). Une voix est aussi « citée » par les plans dont
+ * les répliques la portent (citation déduite, non déliable).
+ *
+ * Un personnage porte en plus `voix` (sa voix au casting, colonne CALCULÉE en
+ * lecture seule : le lien vit sur voix_fiches.personnageId, jamais dupliqué
+ * ici) et `nbRepliques` ; une voix porte `personnageCode`. */
 export async function getAssetsTree(projectId?: number) {
   const pid = projectId ?? (await getDefaultProjectId());
   const tousLesAssets = await db.select().from(assets).where(eq(assets.projectId, pid)).orderBy(assets.code);
   const toutesLesRefs = await db
     .select({ id: planRefs.id, assetId: planRefs.assetId, planId: planRefs.planId })
     .from(planRefs);
-  const tousLesDialogues = await db
-    .select({ id: planDialogues.id, assetVoixId: planDialogues.assetVoixId, planId: planDialogues.planId })
-    .from(planDialogues);
-  // Filtré au même projet : un ref/dialogue vers un plan d'un autre projet
-  // (ne devrait jamais arriver, mais rien ne l'empêche au niveau FK) sort
-  // naturellement du calcul de citations puisque son planId n'aura pas
-  // d'entrée dans planParId.
+  const liensVoix = await getLiensVoix(pid);
+  // Filtré au même projet : un ref vers un plan d'un autre projet (ne devrait
+  // jamais arriver, mais rien ne l'empêche au niveau FK) sort naturellement du
+  // calcul de citations puisque son planId n'aura pas d'entrée dans planParId.
   const tousLesPlans = await db
     .select({ id: plans.id, uuid: plans.uuid, ordre: plans.ordre, episodeId: plans.episodeId, episodeNumero: episodes.numero })
     .from(plans)
@@ -402,16 +403,20 @@ export async function getAssetsTree(projectId?: number) {
     const plan = planParId.get(ref.planId);
     if (!plan) continue;
     const liste = citationsParAssetId.get(ref.assetId) ?? [];
-    liste.push({ planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: ref.id, dialogueId: null });
+    liste.push({ planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: ref.id, deduite: false });
     citationsParAssetId.set(ref.assetId, liste);
   }
-  for (const d of tousLesDialogues) {
-    if (d.assetVoixId == null) continue;
-    const plan = planParId.get(d.planId);
-    if (!plan) continue;
-    const liste = citationsParAssetId.get(d.assetVoixId) ?? [];
-    liste.push({ planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: null, dialogueId: d.id });
-    citationsParAssetId.set(d.assetVoixId, liste);
+  // Voix : les plans où l'une de ses répliques est liée, un chip par plan.
+  const planIdsParReplique = await getPlanIdsDesRepliques([...liensVoix.repliquesParVoix.values()].flat());
+  for (const [voixId, idsRepliques] of liensVoix.repliquesParVoix) {
+    const planIds = new Set(idsRepliques.flatMap((id) => planIdsParReplique.get(id) ?? []));
+    const liste = citationsParAssetId.get(voixId) ?? [];
+    for (const planId of planIds) {
+      const plan = planParId.get(planId);
+      if (!plan) continue;
+      liste.push({ planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: null, deduite: true });
+    }
+    citationsParAssetId.set(voixId, liste);
   }
 
   const enfantsParParentId = new Map<number, typeof tousLesAssets>();
@@ -422,9 +427,17 @@ export async function getAssetsTree(projectId?: number) {
     enfantsParParentId.set(asset.deriveDeId, liste);
   }
 
+  const codeParId = new Map(tousLesAssets.map((a) => [a.id, a.code]));
+
   type AssetAvecDerives = (typeof tousLesAssets)[number] & {
     citations: AssetCitation[];
     plansCitants: number[];
+    /** Personnage : sa voix au casting (calculée). */
+    voix: { id: number; code: string } | null;
+    /** Voix : le personnage auquel elle est rattachée (calculé). */
+    personnageCode: string | null;
+    /** Personnage : nombre de répliques qu'il porte. */
+    nbRepliques: number;
     derives: AssetAvecDerives[];
   };
 
@@ -434,6 +447,12 @@ export async function getAssetsTree(projectId?: number) {
       ...asset,
       citations,
       plansCitants: [...new Set(citations.map((c) => c.position))].sort((a, b) => a - b),
+      voix: asset.type === "personnage" ? (liensVoix.voixParPersonnage.get(asset.id) ?? null) : null,
+      personnageCode:
+        asset.type === "voix" && liensVoix.personnageParVoix.has(asset.id)
+          ? (codeParId.get(liensVoix.personnageParVoix.get(asset.id)!) ?? null)
+          : null,
+      nbRepliques: liensVoix.nbRepliquesParPersonnage.get(asset.id) ?? 0,
       derives: (enfantsParParentId.get(asset.id) ?? [])
         .sort((a, b) => a.code.localeCompare(b.code))
         .map(construireNoeud),

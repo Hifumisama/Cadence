@@ -14,7 +14,9 @@ export const TAILLE_MAX_UPLOAD_ASSET = 10 * 1024 * 1024;
 export const TAILLE_MAX_UPLOAD_VIDEO = 300 * 1024 * 1024;
 
 const EXT_IMAGE = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
-const EXT_AUDIO = [".wav", ".mp3", ".ogg", ".m4a"];
+// .flac : format recommandé pour les références de clonage (voix-comfyui —
+// jamais de MP3, le modèle recopierait les artefacts de compression).
+const EXT_AUDIO = [".wav", ".flac", ".mp3", ".ogg", ".m4a"];
 const EXT_VIDEO = [".mp4", ".webm", ".mov"];
 
 function extension(chemin: string): string {
@@ -87,4 +89,50 @@ export function posterMediaExiste(cible: PosterCible, id: number, fichier: strin
 export function posterSrc(cible: PosterCible, id: number, fichier: string | null): string | null {
   if (!fichier || !posterMediaExiste(cible, id, fichier)) return null;
   return `/api/media/${cheminPosterMedia(cible, id, fichier)}`;
+}
+
+/** Fichiers du carnet de casting (candidats de timbre, prises du test de
+ * tenue, rendu T1) — rangés par asset voix, symétrique à `plans/<id>/`.
+ * La base ne stocke que le nom de fichier. */
+export function cheminVoixMedia(assetId: number, fichier: string): string {
+  return `voix/${assetId}/${fichier}`;
+}
+
+/** URL de service d'un fichier du carnet de casting, ou null s'il n'est pas
+ * (ou plus) sur le stockage. Côté serveur uniquement (accès disque). */
+export function voixMediaSrc(assetId: number, fichier: string | null): string | null {
+  if (!fichier) return null;
+  const relatif = cheminVoixMedia(assetId, fichier);
+  try {
+    if (!existsSync(resolve(MEDIA_ROOT, relatif))) return null;
+  } catch {
+    return null;
+  }
+  return `/api/media/${relatif}`;
+}
+
+/** Même chose pour la référence de clonage (fichier de l'asset lui-même). */
+export function assetMediaSrc(fichier: string | null): string | null {
+  if (!fichier || !fichierMediaExiste(fichier)) return null;
+  return `/api/media/${cheminAssetMedia(fichier)}`;
+}
+
+/** Prises audio des répliques (F02, révision 2026-09-30) — rangées par
+ * réplique, symétrique à `voix/<assetId>/`. La base ne stocke que le nom de
+ * fichier ; une nouvelle prise remplace l'ancienne (pas de versionnage, F01). */
+export function cheminRepliqueMedia(repliqueId: number, fichier: string): string {
+  return `repliques/${repliqueId}/${fichier}`;
+}
+
+/** URL de service d'une prise de réplique, ou null si elle n'est pas (ou plus)
+ * sur le stockage. Côté serveur uniquement (accès disque). */
+export function repliqueMediaSrc(repliqueId: number, fichier: string | null): string | null {
+  if (!fichier) return null;
+  const relatif = cheminRepliqueMedia(repliqueId, fichier);
+  try {
+    if (!existsSync(resolve(MEDIA_ROOT, relatif))) return null;
+  } catch {
+    return null;
+  }
+  return `/api/media/${relatif}`;
 }
