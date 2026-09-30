@@ -5,6 +5,9 @@ import { StatutSelector } from "@/components/assets/StatutSelector";
 import { AssetTree } from "@/components/assets/AssetTree";
 import { AssetPreview } from "@/components/assets/AssetPreview";
 import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
+import { GenerationPanel } from "@/components/assets/GenerationPanel";
+import { getGenerationsAsset } from "@/lib/queries-generations";
+import { formatParDefaut, loraParDefaut, raisonNonGenerable } from "@/lib/asset-generation";
 import { AssetFicheEditor } from "@/components/assets/AssetFicheEditor";
 import { SupprimerAssetButton } from "@/components/assets/SupprimerAssetButton";
 import { Topbar } from "@/components/ui/Topbar";
@@ -75,6 +78,7 @@ export default async function AssetDetailPage({
 
   const noeud = trouverNoeud([master], code) ?? master;
   const parentCode = trouverParentCode(masters, noeud.code);
+  const generations = noeud.type === "voix" ? [] : await getGenerationsAsset(noeud.id);
   // Voix du catalogue pas encore rattachées à un personnage — ce que « Assigner
   // une voix » propose (la voix actuelle du personnage s'y ajoute d'elle-même).
   const voixLibres = aplatir(masters)
@@ -168,6 +172,15 @@ export default async function AssetDetailPage({
                 methodeGeneration={noeud.methodeGeneration}
                 critique={noeud.critique}
               />
+              {noeud.type === "voix" ? null : (
+                <GenerationPanel
+                  assetId={noeud.id}
+                  raisonBloquee={raisonNonGenerable(noeud)}
+                  defauts={{ ...formatParDefaut(noeud.type), lora: loraParDefaut(noeud.type) && parentCode == null }}
+                  generations={generations}
+                  simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
+                />
+              )}
               {noeud.type === "personnage" ? (
                 <AssignerVoix
                   projectId={pid}

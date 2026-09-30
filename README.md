@@ -52,3 +52,11 @@ dockerisé isolé de la prod (`docker-compose.dev.yml`, volume
 docker compose -f docker-compose.dev.yml down -v   # supprime aussi le volume
 npm run dev:setup
 ```
+
+## Génération d'images d'un asset
+
+Sur la fiche d'un asset (hors voix), le panneau « Générer l'image » soumet le
+prompt de génération au worker, qui lance `workflows/image-refs/IMG_01_TextToImage.json`
+(Krea 2 Turbo) avec la clause de style du projet. Le résultat est un **candidat** :
+« Utiliser » en fait l'image de l'asset. En mode `stub`, les images sont factices.
+Variable optionnelle : `COMFYUI_WORKFLOW_IMAGE_PATH` (chemin du workflow d'images).

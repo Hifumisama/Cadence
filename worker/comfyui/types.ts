@@ -25,4 +25,9 @@ export interface ComfyUIClient {
   submit(input: SubmissionInput): Promise<string>; // renvoie le prompt_id ComfyUI
   poll(promptId: string): Promise<PollResult>;
   fetchOutput(cheminSortieDistant: string, cheminLocalCible: string): Promise<void>;
+
+  /** Tâches d'images (workflows image-refs/) : le graphe est déjà assemblé par
+   * l'appelant, le client ne fait que le soumettre puis lire une sortie. */
+  submitGraph(graphe: Record<string, unknown>): Promise<string>;
+  pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult>;
 }

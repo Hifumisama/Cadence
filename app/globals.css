@@ -3709,3 +3709,54 @@ a.voix-chip:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+
+/* Génération d'images d'un asset : candidats, adoptés à la main */
+.gen-form {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.gen-form .field {
+  width: auto;
+}
+.gen-liste {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-3);
+}
+.gen-carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.gen-carte.s-echoue {
+  border-color: var(--ecarlate-glow);
+}
+.gen-vignette {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  overflow: hidden;
+}
+.gen-vignette img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.gen-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}

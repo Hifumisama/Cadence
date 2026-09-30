@@ -8,6 +8,7 @@ import { assemblerPrompt } from "../lib/prompt";
 import { getAllParams } from "../lib/params";
 import { creerClientComfyUI } from "./comfyui";
 import type { SubmissionInput } from "./comfyui/types";
+import { traiterProchaineGenerationImage } from "./images";
 
 const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 const INTERVALLE_MS = Number(process.env.WORKER_INTERVAL_MS ?? 10_000);
@@ -164,6 +165,9 @@ async function boucle() {
     try {
       const job = await prochainJobEnAttente();
       if (job) await traiterJob(job);
+      // Tâche d'images (candidats d'asset) : un aller-retour par tour de boucle,
+      // après le job vidéo — la carte graphique ne fait qu'une chose à la fois.
+      await traiterProchaineGenerationImage(client, MEDIA_ROOT);
     } catch (err) {
       console.error("[worker] Erreur de boucle :", err);
     }

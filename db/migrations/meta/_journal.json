@@ -176,6 +176,13 @@
       "when": 1791651000000,
       "tag": "0024_assets_methode",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791737400000,
+      "tag": "0025_asset_generations",
+      "breakpoints": true
     }
   ]
 }

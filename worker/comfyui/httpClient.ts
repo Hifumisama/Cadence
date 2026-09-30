@@ -56,6 +56,37 @@ export class HttpComfyUIClient implements ComfyUIClient {
     return prompt_id;
   }
 
+  async submitGraph(graphe: Record<string, unknown>): Promise<string> {
+    const res = await fetch(`${this.baseUrl}/prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: graphe }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Soumission ComfyUI refusée (${res.status}) ${detail.slice(0, 300)}`);
+    }
+    const { prompt_id } = (await res.json()) as { prompt_id: string };
+    return prompt_id;
+  }
+
+  async pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult> {
+    const res = await fetch(`${this.baseUrl}/history/${promptId}`);
+    if (!res.ok) return { statut: "en_cours" };
+    const entree = (await res.json())[promptId];
+    if (!entree) return { statut: "en_cours" };
+    if (entree.status?.status_str === "error") {
+      return { statut: "erreur", message: entree.status?.messages?.map(String).join(" | ") ?? "Erreur ComfyUI" };
+    }
+    const images = entree.outputs?.[nodeIdSortie]?.images;
+    if (!images?.length) return { statut: "en_cours" };
+    const fichier = images[0];
+    return {
+      statut: "termine",
+      cheminSortieDistant: `${fichier.subfolder ?? ""}/${fichier.filename}`.replace(/^\//, ""),
+    };
+  }
+
   async poll(promptId: string): Promise<PollResult> {
     const res = await fetch(`${this.baseUrl}/history/${promptId}`);
     if (!res.ok) return { statut: "en_cours" };

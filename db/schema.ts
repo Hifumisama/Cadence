@@ -358,6 +358,36 @@ export const voixFiches = pgTable("voix_fiches", {
     .where(sql`${table.personnageId} is not null`),
 ]);
 
+// Générations d'images d'un asset (tâche ComfyUI dédiée, 2026-09-30) : chaque
+// ligne est une demande, avec un instantané de ce qui a été soumis (prompt,
+// clause de style, format, seed). Le résultat est un CANDIDAT : il n'entre dans
+// le registre (assets.fichier) que quand l'utilisateur l'adopte, jamais tout
+// seul (F01 : une image remplace le nœud, elle ne s'accumule pas dans l'asset).
+// `statut` : en_attente | en_cours | termine | echoue (varchar contrôlé côté
+// application, pas d'enum pg). `methode` : "generation" (text-to-image, Krea 2) ;
+// "edition" (Qwen Image Edit) viendra ensuite.
+export const assetGenerations = pgTable("asset_generations", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  assetId: integer("asset_id")
+    .notNull()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  methode: varchar("methode", { length: 12 }).notNull().default("generation"),
+  statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
+  prompt: text("prompt").notNull(),
+  clauseStyle: text("clause_style").notNull().default(""),
+  aspect: varchar("aspect", { length: 8 }).notNull().default("1:1"),
+  megapixels: real("megapixels").notNull().default(1),
+  loraPersonnage: boolean("lora_personnage").notNull().default(false),
+  seed: text("seed").notNull(),
+  comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
+  fichier: varchar("fichier", { length: 255 }),
+  erreur: text("erreur"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+});
+
 // La queue F04 vit ici, pas dans plans.statut seul : un plan accumule
 // plusieurs jobs (échecs + rejeux), plans.statut n'est que la projection
 // du dernier job.

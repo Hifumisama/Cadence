@@ -674,6 +674,24 @@ ComfyUI pour être pilotée par l'application. On débloque d'abord les images
 (`IMG_01_TextToImage`, `IMG_Simple_Edit`) et la vidéo ; le contrat des workflows
 d'images est dans `workflows/README.md`.
 
+### Génération d'images d'assets : première tâche ComfyUI dédiée (2026-09-30)
+Premier type du système de tâches dédié (le worker vidéo n'est pas généralisé) :
+table `asset_generations`, boucle `worker/images.ts`, bouton « Générer » sur la
+fiche d'asset. Décisions :
+- **Le résultat est un candidat, jamais l'image de l'asset.** « Utiliser » le
+  copie sous `assets/` (il remplace la précédente, F01) et remet l'asset « en
+  cours » : une image nouvelle est à revalider par l'utilisateur.
+- **Une demande garde un instantané** de ce qui a été soumis (prompt, clause de
+  style du projet, format, seed) : on sait toujours quoi a produit quoi.
+- **8 candidats gardés par asset** : des essais, pas un historique.
+- **Pas de rejeu automatique** (contrairement aux plans H3) : une image se refait
+  en quelques secondes, l'échec s'affiche avec son message. Une API injoignable ne
+  consomme rien (même règle que F04).
+- Seule la génération text-to-image (`IMG_01_TextToImage`) est branchée ;
+  l'édition (`IMG_Simple_Edit`, jusqu'à 3 images) suivra sur le même modèle.
+- En mode `stub`, les images sont des PNG factices : toute la chaîne se teste
+  sans ComfyUI.
+
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
 pressentie : un **catalogue de voix nommées**, chacune avec un échantillon de

@@ -136,3 +136,23 @@ export function repliqueMediaSrc(repliqueId: number, fichier: string | null): st
   }
   return `/api/media/${relatif}`;
 }
+
+/** Images générées pour un asset (candidats, avant adoption) — rangées par
+ * asset, symétrique à `voix/<assetId>/`. Un candidat adopté est COPIÉ sous
+ * `assets/` (assets.fichier) ; le candidat lui-même reste ici jusqu'à sa purge. */
+export function cheminGenerationMedia(assetId: number, fichier: string): string {
+  return `generations/${assetId}/${fichier}`;
+}
+
+/** URL de service d'un candidat, ou null s'il n'est pas (ou plus) sur le
+ * stockage. Côté serveur uniquement (accès disque). */
+export function generationMediaSrc(assetId: number, fichier: string | null): string | null {
+  if (!fichier) return null;
+  const relatif = cheminGenerationMedia(assetId, fichier);
+  try {
+    if (!existsSync(resolve(MEDIA_ROOT, relatif))) return null;
+  } catch {
+    return null;
+  }
+  return `/api/media/${relatif}`;
+}
