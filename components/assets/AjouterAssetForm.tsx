@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { creerAsset } from "@/app/assets/actions";
-import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode } from "@/lib/assetCode";
+import { PREFIXE_PAR_TYPE, TYPES_CREABLES, construireCode } from "@/lib/assetCode";
 
 export function AjouterAssetForm({ projectId }: { projectId: number }) {
   const [ouvert, setOuvert] = useState(false);
@@ -57,7 +57,7 @@ export function AjouterAssetForm({ projectId }: { projectId: number }) {
               <div className="field-group">
                 <label>Type</label>
                 <select className="field" name="type" value={type} onChange={(e) => setType(e.target.value)}>
-                  {TYPES_ASSET.map((t) => (
+                  {TYPES_CREABLES.map((t) => (
                     <option key={t} value={t}>
                       {t}
                     </option>

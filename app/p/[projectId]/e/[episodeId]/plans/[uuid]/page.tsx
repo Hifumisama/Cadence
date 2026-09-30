@@ -2,11 +2,8 @@ import { notFound } from "next/navigation";
 import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "@/lib/queries";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
-import {
-  calculerStatutDuree,
-  verifierCoherenceRefs,
-  verifierInvariantVerbatim,
-} from "@/lib/plan-checks";
+import { calculerStatutDuree, verifierCoherenceRefs } from "@/lib/plan-checks";
+import { getDialoguesPlan, getOptionsLocuteur } from "@/lib/queries-repliques";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PromptSectionEditor } from "@/components/plan/PromptSectionEditor";
 import { PromptImportColle } from "@/components/plan/PromptImportColle";
@@ -15,7 +12,7 @@ import { WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { RefsPanel, type RefVue } from "@/components/plan/RefsPanel";
 import type { NoeudPicker } from "@/components/plan/AssetPickerModal";
 import { PlanParamsEditor } from "@/components/plan/PlanParamsEditor";
-import { DialogueTable } from "@/components/plan/DialogueTable";
+import { DialoguesPanel } from "@/components/plan/DialoguesPanel";
 import { ChecksPanel } from "@/components/plan/ChecksPanel";
 import { RelaunchButton } from "@/components/plan/RelaunchButton";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
@@ -61,29 +58,30 @@ export default async function PlanPage({
   const detail = await getPlanDetail(uuid, eid);
   if (!detail) notFound();
 
-  const { plan, position, promptSections, refs, dialogues, jobHistory } = detail;
+  const { plan, position, promptSections, refs, jobHistory } = detail;
 
-  const [parametresGlobaux, mastersRegistre, scenesEpisode] = await Promise.all([
+  const [parametresGlobaux, mastersRegistre, scenesEpisode, dialoguesPlan, optionsLocuteur] = await Promise.all([
     getAllParams(),
     getAssetsTree(pid),
     getScenesEpisode(eid),
+    getDialoguesPlan(pid, plan.id, eid),
+    getOptionsLocuteur(pid),
   ]);
+  const { liaisons, disponibles, controle, audioRefs } = dialoguesPlan;
 
   const sectionsPourControle = promptSections.map((s) => ({
     section: s.section,
     contenu: s.contenu,
   }));
 
-  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(
-    sectionsPourControle,
-    refs.map((r) => ({ type: r.type, slot: r.slot })),
-  );
-  const verbatimResults = verifierInvariantVerbatim(
-    sectionsPourControle,
-    dialogues.map((d) => ({ replique: d.replique, dureeSecondes: d.dureeSecondes })),
-  );
+  // L'audio de chaque réplique liée EST la ref <Audio N> du plan : elle compte
+  // comme déclarée sans être dans plan_refs.
+  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, [
+    ...refs.map((r) => ({ type: r.type, slot: r.slot })),
+    ...audioRefs,
+  ]);
   const { statut: statutDuree, totalSecondes } = calculerStatutDuree(
-    dialogues.map((d) => ({ replique: d.replique, dureeSecondes: d.dureeSecondes })),
+    liaisons.map((l) => ({ dureeSecondes: l.dureeSecondes })),
     Number(parametresGlobaux.duree_plafond_secondes),
     Number(parametresGlobaux.marge_respiration_secondes),
   );
@@ -221,8 +219,14 @@ export default async function PlanPage({
             </div>
           </section>
 
-          <DialogueTable
-            dialogues={dialogues}
+          <DialoguesPanel
+            planId={plan.id}
+            projectId={pid}
+            episodeId={eid}
+            liaisons={liaisons}
+            disponibles={disponibles}
+            options={optionsLocuteur}
+            controle={controle}
             statutDuree={statutDuree}
             totalSecondes={totalSecondes}
             plafondSecondes={Number(parametresGlobaux.duree_plafond_secondes)}
@@ -242,13 +246,7 @@ export default async function PlanPage({
             <div className="panel-hd">
               <h2>Contrôles automatiques</h2>
             </div>
-            <ChecksPanel
-              labelsOrphelins={labelsOrphelins}
-              refsNonCitees={refsNonCitees}
-              repliquesNonTrouvees={verbatimResults
-                .filter((r) => !r.trouvee)
-                .map((r) => r.replique)}
-            />
+            <ChecksPanel labelsOrphelins={labelsOrphelins} refsNonCitees={refsNonCitees} />
           </section>
 
           <RefsPanel

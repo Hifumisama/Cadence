@@ -17,13 +17,14 @@ const CONTENT_TYPES: Record<string, string> = {
   ".webp": "image/webp",
   ".gif": "image/gif",
   ".wav": "audio/wav",
+  ".flac": "audio/flac",
   ".mp3": "audio/mpeg",
   ".ogg": "audio/ogg",
   ".m4a": "audio/mp4",
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
@@ -42,14 +43,38 @@ export async function GET(
     return NextResponse.json({ error: "Fichier introuvable" }, { status: 404 });
   }
 
-  const stream = createReadStream(cible);
   const ext = cible.slice(cible.lastIndexOf(".")).toLowerCase();
   const contentType = CONTENT_TYPES[ext] ?? "application/octet-stream";
+
+  // Requêtes partielles (Range) : sans elles, le navigateur ne peut pas
+  // positionner `currentTime` hors de ce qu'il a déjà chargé — le banc A/B
+  // du casting vocal bascule d'une prise à l'autre au même instant.
+  const plage = req.headers.get("range")?.match(/^bytes=(\d*)-(\d*)$/);
+  if (plage && taille > 0) {
+    const debut = plage[1] ? Number(plage[1]) : Math.max(0, taille - Number(plage[2]));
+    const fin = plage[1] && plage[2] ? Math.min(Number(plage[2]), taille - 1) : taille - 1;
+    if (Number.isNaN(debut) || debut > fin || debut >= taille) {
+      return new NextResponse(null, { status: 416, headers: { "Content-Range": `bytes */${taille}` } });
+    }
+    const partiel = createReadStream(cible, { start: debut, end: fin });
+    return new NextResponse(partiel as unknown as ReadableStream, {
+      status: 206,
+      headers: {
+        "Content-Type": contentType,
+        "Content-Length": String(fin - debut + 1),
+        "Content-Range": `bytes ${debut}-${fin}/${taille}`,
+        "Accept-Ranges": "bytes",
+      },
+    });
+  }
+
+  const stream = createReadStream(cible);
 
   return new NextResponse(stream as unknown as ReadableStream, {
     headers: {
       "Content-Type": contentType,
       "Content-Length": String(taille),
+      "Accept-Ranges": "bytes",
     },
   });
 }

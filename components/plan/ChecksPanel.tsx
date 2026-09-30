@@ -1,16 +1,14 @@
+/** Contrôles des références du plan. Le verbatim des dialogues (réplique <->
+ * balise <d>) a son propre bandeau, dans le panneau Dialogues : il bloque la
+ * génération, ce qui n'est pas le cas de ces signalements. */
 export function ChecksPanel({
   labelsOrphelins,
   refsNonCitees,
-  repliquesNonTrouvees,
 }: {
   labelsOrphelins: string[];
   refsNonCitees: string[];
-  repliquesNonTrouvees: string[];
 }) {
-  const rienASignaler =
-    labelsOrphelins.length === 0 &&
-    refsNonCitees.length === 0 &&
-    repliquesNonTrouvees.length === 0;
+  const rienASignaler = labelsOrphelins.length === 0 && refsNonCitees.length === 0;
 
   if (rienASignaler) {
     return (
@@ -19,7 +17,7 @@ export function ChecksPanel({
           <span className="glyph">✅</span>
           <span>
             <span className="t">Tout est cohérent</span>
-            <span className="d">Refs citées, verbatim aligné, aucune anomalie.</span>
+            <span className="d">Refs citées et déclarées, aucune anomalie.</span>
           </span>
         </div>
       </div>
@@ -48,17 +46,6 @@ export function ChecksPanel({
             <span className="d">
               <code>&lt;{label.replace(":", " ")}&gt;</code> n&rsquo;apparaît dans aucune
               section du prompt.
-            </span>
-          </span>
-        </div>
-      ))}
-      {repliquesNonTrouvees.map((r) => (
-        <div key={r} className="check warn">
-          <span className="glyph">⚠️</span>
-          <span>
-            <span className="t">Réplique absente ou modifiée</span>
-            <span className="d">
-              Introuvable au mot près dans une balise <code>&lt;d&gt;</code> : « {r} »
             </span>
           </span>
         </div>

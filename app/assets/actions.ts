@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/db";
-import { assets, planDialogues, planRefs } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { assets, planRefs, repliques } from "@/db/schema";
+import { eq, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
@@ -30,6 +30,7 @@ export async function creerAsset(projectId: number, formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
   if (!code) return;
   const type = String(formData.get("type") ?? "oth");
+  if (type === "voix") throw new Error("Une voix se crée depuis le casting vocal.");
   const description = String(formData.get("description") ?? "");
   const critique = formData.get("critique") === "on";
   const deriveDeIdBrut = formData.get("deriveDeId");
@@ -102,9 +103,9 @@ export async function uploaderFichierAsset(
 }
 
 /** Suppression protégée (retour utilisateur 2026-09-28) : un asset relié à
- * quelque chose — des dérivés, une citation dans une fiche de plan (ref ou
- * voix de dialogue) — ne se supprime pas tant que ces liens n'ont pas été
- * explicitement défaits. Contrairement aux scènes (qui se détachent
+ * quelque chose — des dérivés, une citation dans une fiche de plan (ref), un
+ * rôle de locuteur ou de voix directe dans des répliques — ne se supprime pas
+ * tant que ces liens n'ont pas été explicitement défaits. Contrairement aux scènes (qui se détachent
  * silencieusement), ici le lien est trop significatif pour être cassé sans
  * geste explicite. */
 export async function supprimerAsset(
@@ -118,9 +119,15 @@ export async function supprimerAsset(
   if (ref) {
     return { ok: false, erreur: "Encore cité comme référence dans une fiche de plan — délie-le d'abord." };
   }
-  const [dial] = await db.select().from(planDialogues).where(eq(planDialogues.assetVoixId, assetId)).limit(1);
-  if (dial) {
-    return { ok: false, erreur: "Encore utilisé comme voix dans un dialogue — délie-le d'abord." };
+  // Une voix rattachée à un personnage ne bloque pas : supprimée, ses répliques
+  // repassent « sans voix » (voix_fiches disparaît en cascade).
+  const [replique] = await db
+    .select({ id: repliques.id })
+    .from(repliques)
+    .where(or(eq(repliques.locuteurId, assetId), eq(repliques.voixId, assetId)))
+    .limit(1);
+  if (replique) {
+    return { ok: false, erreur: "Encore locuteur ou voix de répliques — change leur locuteur ou supprime-les d'abord." };
   }
 
   await db.delete(assets).where(eq(assets.id, assetId));
@@ -132,15 +139,6 @@ export async function supprimerAsset(
  * plan — débloque la suppression de l'asset si c'était sa dernière citation. */
 export async function delierRef(refId: number) {
   await db.delete(planRefs).where(eq(planRefs.id, refId));
-  revalidatePath("/", "layout");
-  
-}
-
-/** Délie une voix de dialogue : on efface le lien vers l'asset voix, jamais
- * la réplique elle-même (le texte/la durée mesurée restent une donnée de la
- * fiche de plan, indépendante du registre d'assets). */
-export async function delierVoixDialogue(dialogueId: number) {
-  await db.update(planDialogues).set({ assetVoixId: null }).where(eq(planDialogues.id, dialogueId));
   revalidatePath("/", "layout");
   
 }

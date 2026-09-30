@@ -8,9 +8,11 @@ import {
   timestamp,
   pgEnum,
   unique,
+  uniqueIndex,
   uuid,
+  real,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // Racine de toute hiérarchie : un OneShot est un projet à 1 saison + 1
 // épisode créés automatiquement (jamais montrés dans la nav) — un seul
@@ -205,19 +207,70 @@ export const planRefs = pgTable("plan_refs", {
   retention: varchar("retention", { length: 30 }), // audio uniquement : "reference"...
 });
 
-// La voix prime sur les bruitages en cas de concurrence de slots audio
-// (arbitrage F02, 2026-09-17). dureeSecondes est mesurée, jamais estimée.
+// Réplique = entité autonome (2026-09-30, docs/FRICTIONS.md F02 révision) :
+// elle naît du scénario ou du casting, AVANT toute fiche de plan, et survit à
+// la suppression d'un plan qui la cite. Identifiant public `uuid` (comme les
+// plans) ; `ordre` = position dans l'épisode (dense, réécrite à chaque
+// déplacement, jamais une clé).
+//
+// Locuteur : `locuteurId` (asset personnage) quand c'est un personnage ; sinon
+// `locuteurTexte` libre (foule, « inconnu »). La VOIX se déduit du personnage
+// (voix_fiches.personnageId) — `voixId` n'existe que pour un locuteur qui n'est
+// PAS un personnage (voix off, conspirateurs de S01 : des voix du catalogue sans
+// asset personnage) et ne se remplit jamais pour un personnage qui a sa voix.
+//
+// `fichier` = prise audio (nom de fichier, rangée sous repliques/<id>/, voir
+// lib/media.ts) ; `fichierTexte` = le texte au moment où la prise a été posée,
+// pour signaler « prise à refaire » quand le texte change ensuite.
+// `dureeSecondes` est MESURÉE sur la prise (F03), jamais estimée. `statut`
+// (a_produire | prise_posee | validee) : varchar contrôlé côté application
+// (lib/repliques.ts), pas d'enum pg.
+export const repliques = pgTable("repliques", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  projectId: integer("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  episodeId: integer("episode_id")
+    .notNull()
+    .references(() => episodes.id, { onDelete: "cascade" }),
+  sceneId: integer("scene_id").references(() => scenes.id, { onDelete: "set null" }),
+  ordre: integer("ordre").notNull().default(0),
+  // Sans cascade vers assets (comme plan_refs) : un personnage/une voix cité
+  // ne se supprime pas tant qu'il est lié (voir app/assets/actions.ts).
+  locuteurId: integer("locuteur_id").references(() => assets.id),
+  locuteurTexte: varchar("locuteur_texte", { length: 100 }).notNull().default(""),
+  voixId: integer("voix_id").references(() => assets.id),
+  texte: text("texte").notNull(),
+  fichier: varchar("fichier", { length: 255 }),
+  fichierTexte: text("fichier_texte"),
+  dureeSecondes: real("duree_secondes"),
+  statut: varchar("statut", { length: 20 }).notNull().default("a_produire"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Table d'assemblage plan ↔ réplique (n-n) : plusieurs répliques par plan
+// (champ-contrechamp), une même réplique dans plusieurs plans. `slot` = son
+// emplacement <Audio N> dans le plan (3 max, MiniMax H3) : l'audio de la
+// réplique EST la référence audio, dérivée d'ici, jamais recopiée dans
+// plan_refs. La voix prime sur les bruitages en cas de concurrence de slots
+// (arbitrage F02, 2026-09-17). `debutSecondes` : indicatif (le moment où la
+// réplique est dite se dit dans le prompt H3), jamais une contrainte.
 export const planDialogues = pgTable("plan_dialogues", {
   id: serial("id").primaryKey(),
   planId: integer("plan_id")
     .notNull()
     .references(() => plans.id, { onDelete: "cascade" }),
+  repliqueId: integer("replique_id")
+    .notNull()
+    .references(() => repliques.id, { onDelete: "cascade" }),
   slot: integer("slot").notNull(),
-  locuteur: varchar("locuteur", { length: 100 }).notNull(),
-  assetVoixId: integer("asset_voix_id").references(() => assets.id),
-  replique: text("replique").notNull(),
-  dureeSecondes: integer("duree_secondes"),
-});
+  debutSecondes: real("debut_secondes"),
+}, (table) => [
+  unique().on(table.planId, table.slot),
+  unique().on(table.planId, table.repliqueId),
+]);
 
 // Registre d'assets en arborescence par sujet (deriveDeId) — voir
 // lib/queries.ts:getAssetsTree. Édition manuelle complète depuis /assets.
@@ -247,6 +300,56 @@ export const assets = pgTable("assets", {
   deriveDeId: integer("derive_de_id"),
 }, (table) => [
   unique().on(table.projectId, table.code),
+]);
+
+// ---------------------------------------------------------------------
+// Casting vocal (F06, CDC §6 — 2026-09-30). Une voix RESTE un asset de type
+// "voix" (code VOICE_*, statut, critique, fichier = référence de clonage,
+// promptGeneration = instruction VoiceDesign retenue) : le catalogue n'est
+// qu'une vue spécialisée du registre, pas un second registre. Ces tables ne
+// portent que ce que le registre générique ne sait pas dire — le carnet
+// d'atelier du skill voix-comfyui (ex-REGISTRE_VOIX.md, jamais créé).
+//
+// Aucun enum pg : verdicts en varchar, contrôlés côté application (voir
+// lib/voix.ts) — évite le piège « ajouter + utiliser une valeur d'enum dans
+// le même lot de migrations ».
+// ---------------------------------------------------------------------
+
+// Fiche 1:1 d'un asset voix. Le personnage rattaché est un simple lien (pas
+// deriveDeId) : F01 range la voix dans son propre catalogue, séparé de
+// l'arbre des dérivés du personnage.
+//
+// Casting en quatre étapes (2026-09-30) : 1. la voix (`source` = "design" :
+// instruction VoiceDesign dans assets.promptGeneration ; "reference" : audio
+// fourni, rogné à la longueur de la réplique, dans assets.fichier) + `refText`
+// (texte de la référence, au mot près dans les deux cas) ; 2. la référence
+// générée (assets.fichier) ; 3. le test vidéo (décor, personnage, texte, audio
+// optionnel) ; 4. les répliques. Plus de règle absolue, de température, de
+// seed, de carnet de candidats ni de test de tenue.
+export const voixFiches = pgTable("voix_fiches", {
+  assetId: integer("asset_id")
+    .primaryKey()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  personnageId: integer("personnage_id").references(() => assets.id, { onDelete: "set null" }),
+  source: varchar("source", { length: 12 }).notNull().default("design"), // design | reference
+  langue: varchar("langue", { length: 40 }).notNull().default("French"),
+  // Texte lu dans la référence — au mot près, que la référence soit générée
+  // (design) ou fournie (audio).
+  refText: text("ref_text").notNull().default(""),
+  // Test vidéo (ex-plan utilitaire T1) : décor et personnage optionnels, texte
+  // libre, audio déjà prêt (sinon la voix de référence), rendu déposé à la main.
+  testDecorId: integer("test_decor_id").references(() => assets.id, { onDelete: "set null" }),
+  testPersonnageId: integer("test_personnage_id").references(() => assets.id, { onDelete: "set null" }),
+  testTexte: text("test_texte").notNull().default(""),
+  testAudio: varchar("test_audio", { length: 255 }),
+  testVideo: varchar("test_video", { length: 255 }),
+}, (table) => [
+  // Un personnage a au plus UNE voix (2026-09-30) ; personnageId reste
+  // nullable (voix off, narrateur). À relâcher si un personnage reçoit un jour
+  // plusieurs voix.
+  uniqueIndex("voix_fiches_personnage_unique")
+    .on(table.personnageId)
+    .where(sql`${table.personnageId} is not null`),
 ]);
 
 // La queue F04 vit ici, pas dans plans.statut seul : un plan accumule
@@ -333,7 +436,12 @@ export const planRefsRelations = relations(planRefs, ({ one }) => ({
 
 export const planDialoguesRelations = relations(planDialogues, ({ one }) => ({
   plan: one(plans, { fields: [planDialogues.planId], references: [plans.id] }),
-  assetVoix: one(assets, { fields: [planDialogues.assetVoixId], references: [assets.id] }),
+  replique: one(repliques, { fields: [planDialogues.repliqueId], references: [repliques.id] }),
+}));
+
+export const repliquesRelations = relations(repliques, ({ many, one }) => ({
+  episode: one(episodes, { fields: [repliques.episodeId], references: [episodes.id] }),
+  liaisons: many(planDialogues),
 }));
 
 export const jobsRelations = relations(jobs, ({ one }) => ({

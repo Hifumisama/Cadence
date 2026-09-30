@@ -9,7 +9,8 @@ import { AssetFicheEditor } from "@/components/assets/AssetFicheEditor";
 import { SupprimerAssetButton } from "@/components/assets/SupprimerAssetButton";
 import { Topbar } from "@/components/ui/Topbar";
 import { TYPES_ASSET } from "@/lib/assetCode";
-import { delierRef, delierVoixDialogue } from "@/app/assets/actions";
+import { AssignerVoix } from "@/components/assets/AssignerVoix";
+import { delierRef } from "@/app/assets/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,10 @@ function trouverNoeud(masters: AssetNode[], code: string): AssetNode | null {
     if (trouve) return trouve;
   }
   return null;
+}
+
+function aplatir(masters: AssetNode[]): AssetNode[] {
+  return masters.flatMap((m) => [m, ...aplatir(m.derives)]);
 }
 
 function trouverMasterDe(masters: AssetNode[], code: string): AssetNode | null {
@@ -70,6 +75,14 @@ export default async function AssetDetailPage({
 
   const noeud = trouverNoeud([master], code) ?? master;
   const parentCode = trouverParentCode(masters, noeud.code);
+  // Voix du catalogue pas encore rattachées à un personnage — ce que « Assigner
+  // une voix » propose (la voix actuelle du personnage s'y ajoute d'elle-même).
+  const voixLibres = aplatir(masters)
+    .filter((n) => n.type === "voix" && n.personnageCode == null)
+    .map((n) => ({ id: n.id, code: n.code }));
+  // Une voix « citée » par ses répliques ne bloque rien (citation déduite) ; un
+  // personnage qui porte des répliques, si.
+  const citationsReelles = noeud.citations.filter((c) => !c.deduite);
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
 
   return (
@@ -110,18 +123,25 @@ export default async function AssetDetailPage({
             <h1 className="master-code">{noeud.code}</h1>
             <div className="fiche-actions">
               <span className="type-tag">{noeud.type}</span>
+              {noeud.type === "voix" ? (
+                <Link href={`/p/${pid}/voix/${noeud.code}`} className="btn btn-gold btn-mini">
+                  Modifier au casting
+                </Link>
+              ) : null}
               {noeud.critique ? <span className="crit-tag">Critique</span> : null}
               <StatutSelector assetId={noeud.id} statut={noeud.statut} />
               <SupprimerAssetButton
                 assetId={noeud.id}
                 code={noeud.code}
-                bloque={noeud.derives.length > 0 || noeud.citations.length > 0}
+                bloque={noeud.derives.length > 0 || citationsReelles.length > 0 || noeud.nbRepliques > 0}
                 raisonBlocage={
                   noeud.derives.length > 0
                     ? `A encore ${noeud.derives.length} dérivé(s) — supprime-les d'abord.`
-                    : noeud.citations.length > 0
+                    : citationsReelles.length > 0
                       ? "Encore cité dans une fiche de plan — délie-le ci-dessous d'abord."
-                      : null
+                      : noeud.nbRepliques > 0
+                        ? `Locuteur de ${noeud.nbRepliques} réplique${noeud.nbRepliques > 1 ? "s" : ""} — change leur locuteur ou supprime-les d'abord.`
+                        : null
                 }
                 redirectTo={parentCode ? `/p/${pid}/assets/${parentCode}` : `/p/${pid}/assets`}
               />
@@ -130,7 +150,7 @@ export default async function AssetDetailPage({
           <div className="panel-bd asset-fiche-body">
             <div className="asset-fiche-media">
               <AssetPreview type={noeud.type} fichier={noeud.fichier} taille="lg" />
-              <UploadFichierForm assetId={noeud.id} code={noeud.code} />
+              {noeud.type === "voix" ? null : <UploadFichierForm assetId={noeud.id} code={noeud.code} />}
               {noeud.fichier ? <span className="tiny-note num">{noeud.fichier}</span> : null}
             </div>
             <div className="asset-fiche-info">
@@ -140,24 +160,44 @@ export default async function AssetDetailPage({
                 promptGeneration={noeud.promptGeneration ?? ""}
                 critique={noeud.critique}
               />
+              {noeud.type === "personnage" ? (
+                <AssignerVoix
+                  projectId={pid}
+                  personnageId={noeud.id}
+                  voixActuelle={noeud.voix}
+                  voixLibres={voixLibres}
+                  nbRepliques={noeud.nbRepliques}
+                />
+              ) : null}
+              {noeud.type === "voix" && noeud.personnageCode ? (
+                <div className="field-group">
+                  <label>Personnage</label>
+                  <div className="voix-lien">
+                    <Link href={`/p/${pid}/assets/${noeud.personnageCode}`} className="type-tag">
+                      {noeud.personnageCode}
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
               <div className="field-group">
                 <label>Plans d&rsquo;apparition</label>
                 {noeud.citations.length > 0 ? (
                   <div className="chips">
                     {noeud.citations.map((c) => (
-                      <span key={`${c.refId ?? "d"}-${c.dialogueId ?? "r"}-${c.planUuid}`} className="chip-citation">
+                      <span key={`${c.refId ?? "voix"}-${c.planUuid}`} className="chip-citation">
                         <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planUuid}`}>E{String(c.episodeNumero).padStart(2, "0")} · {String(c.position).padStart(2, "0")}</Link>
-                        <form
-                          action={async () => {
-                            "use server";
-                            if (c.refId) await delierRef(c.refId);
-                            if (c.dialogueId) await delierVoixDialogue(c.dialogueId);
-                          }}
-                        >
-                          <button type="submit" title="Délier de ce plan">
-                            ×
-                          </button>
-                        </form>
+                        {c.refId != null ? (
+                          <form
+                            action={async () => {
+                              "use server";
+                              await delierRef(c.refId!);
+                            }}
+                          >
+                            <button type="submit" title="Délier de ce plan">
+                              ×
+                            </button>
+                          </form>
+                        ) : null}
                       </span>
                     ))}
                   </div>
