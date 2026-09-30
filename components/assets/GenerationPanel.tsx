@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { adopterGeneration, lancerGeneration, supprimerGeneration } from "@/app/assets/generation-actions";
+import { MediaZoom } from "@/components/assets/MediaZoom";
 import {
   ASPECTS,
   LIBELLE_STATUT_GENERATION,
@@ -100,14 +101,13 @@ export function GenerationPanel({
         <ul className="gen-liste">
           {generations.map((g) => (
             <li key={g.id} className={`gen-carte s-${g.statut}`}>
-              <div className="gen-vignette">
-                {g.src ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={g.src} alt="Candidat généré" loading="lazy" />
-                ) : (
+              {g.src ? (
+                <MediaZoom kind="image" src={g.src} alt="Candidat généré" classe="gen-vignette" />
+              ) : (
+                <div className="gen-vignette">
                   <span className="tiny-note">{ACTIFS.includes(g.statut) ? "…" : g.statut === "termine" ? "introuvable" : "—"}</span>
-                )}
-              </div>
+                </div>
+              )}
               <div className="gen-meta">
                 <span className={`rep-statut s-${g.statut === "termine" ? "validee" : g.statut}`}>
                   {LIBELLE_STATUT_GENERATION[g.statut as StatutGeneration] ?? g.statut}

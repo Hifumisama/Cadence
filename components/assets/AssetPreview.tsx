@@ -1,5 +1,5 @@
 import { MediaZoom } from "@/components/assets/MediaZoom";
-import { cheminAssetMedia, estAudio, estVideo, fichierMediaExiste } from "@/lib/media";
+import { estAudio, estVideo, fichierMediaExiste, urlAssetMedia } from "@/lib/media";
 
 export function AssetPreview({
   type,
@@ -25,7 +25,7 @@ export function AssetPreview({
     );
   }
 
-  const src = `/api/media/${cheminAssetMedia(fichier)}`;
+  const src = urlAssetMedia(fichier);
 
   if (type === "voix" || type === "sfx" || estAudio(fichier)) {
     return (

@@ -3749,10 +3749,11 @@ a.voix-chip:hover {
   background: var(--surface);
   overflow: hidden;
 }
-.gen-vignette img {
+.gen-vignette > img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  cursor: zoom-in;
 }
 .gen-meta {
   display: flex;

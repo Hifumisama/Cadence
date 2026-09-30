@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 export const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
@@ -42,6 +42,20 @@ export function estVideo(chemin: string): boolean {
  * fichier (ex. "Maya_CharacterSheet.png"), jamais le chemin complet. */
 export function cheminAssetMedia(fichier: string): string {
   return `assets/${fichier}`;
+}
+
+/** URL de service d'un fichier d'asset, suffixée de sa date de modification :
+ * une image adoptée ou remplacée garde le même nom (F01), sans ce suffixe le
+ * navigateur (et React, qui ne touche pas à un `src` inchangé) garderait
+ * l'ancienne. Côté serveur uniquement (accès disque). */
+export function urlAssetMedia(fichier: string): string {
+  let version = "";
+  try {
+    version = `?v=${Math.floor(statSync(resolve(MEDIA_ROOT, cheminAssetMedia(fichier))).mtimeMs)}`;
+  } catch {
+    // fichier absent : l'appelant a déjà traité ce cas
+  }
+  return `/api/media/${cheminAssetMedia(fichier)}${version}`;
 }
 
 /** Un asset "fichier" est souvent juste un nom de fichier de référence noté
@@ -114,7 +128,7 @@ export function voixMediaSrc(assetId: number, fichier: string | null): string | 
 /** Même chose pour la référence de clonage (fichier de l'asset lui-même). */
 export function assetMediaSrc(fichier: string | null): string | null {
   if (!fichier || !fichierMediaExiste(fichier)) return null;
-  return `/api/media/${cheminAssetMedia(fichier)}`;
+  return urlAssetMedia(fichier);
 }
 
 /** Prises audio des répliques (F02, révision 2026-09-30) — rangées par

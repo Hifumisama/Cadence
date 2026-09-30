@@ -1,5 +1,5 @@
 import type { FichierEtat, MediaKind } from "@/components/assets/AssetCard";
-import { cheminAssetMedia, estAudio, estVideo, fichierMediaExiste } from "@/lib/media";
+import { estAudio, estVideo, fichierMediaExiste, urlAssetMedia } from "@/lib/media";
 
 /** Ce qu'il faut savoir d'un asset pour l'afficher en carte : nature du média,
  * présence du fichier sur le stockage, URL de service. Côté serveur
@@ -12,5 +12,5 @@ export function infosMedia(
   const kind: MediaKind =
     type === "voix" || type === "sfx" || estAudio(fichier) ? "audio" : estVideo(fichier) ? "video" : "image";
   if (!fichierMediaExiste(fichier)) return { kind, etat: "manquant", src: null };
-  return { kind, etat: "ok", src: `/api/media/${cheminAssetMedia(fichier)}` };
+  return { kind, etat: "ok", src: urlAssetMedia(fichier) };
 }
