@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
+import { estMethodeAsset, methodeApplicable } from "@/lib/assetCode";
 
 async function enregistrerFichierAsset(code: string, fichier: File): Promise<string> {
   if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
@@ -30,6 +31,8 @@ export async function creerAsset(projectId: number, formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
   if (!code) return;
   const type = String(formData.get("type") ?? "oth");
+  const methodeBrute = String(formData.get("methodeGeneration") ?? "");
+  const methodeGeneration = methodeBrute && estMethodeAsset(methodeBrute) && methodeApplicable(type) ? methodeBrute : null;
   if (type === "voix") throw new Error("Une voix se crée depuis le casting vocal.");
   const description = String(formData.get("description") ?? "");
   const critique = formData.get("critique") === "on";
@@ -46,6 +49,8 @@ export async function creerAsset(projectId: number, formData: FormData) {
       description: description || null,
       critique,
       deriveDeId,
+      // Une édition sans parent n'a pas de source : ignorée à la création.
+      methodeGeneration: methodeGeneration === "edition" && deriveDeId == null ? null : methodeGeneration,
     })
     .returning();
 
@@ -68,18 +73,34 @@ export async function updateAssetStatut(
 
 export async function updateAsset(
   assetId: number,
-  valeurs: { description: string; promptGeneration: string; critique: boolean },
-) {
+  valeurs: {
+    description: string;
+    promptGeneration: string;
+    methodeGeneration: string | null;
+    critique: boolean;
+  },
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
+  if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
+  const methode = valeurs.methodeGeneration || null;
+  if (methode != null) {
+    if (!estMethodeAsset(methode)) return { ok: false, erreur: "Méthode inconnue." };
+    if (!methodeApplicable(asset.type)) return { ok: false, erreur: "Une voix se fabrique au casting vocal, pas par image." };
+    if (methode === "edition" && asset.deriveDeId == null) {
+      return { ok: false, erreur: "Une édition part de l'image du parent : cet asset n'en a pas." };
+    }
+  }
   await db
     .update(assets)
     .set({
       description: valeurs.description || null,
       promptGeneration: valeurs.promptGeneration || null,
+      methodeGeneration: methode,
       critique: valeurs.critique,
     })
     .where(eq(assets.id, assetId));
   revalidatePath("/", "layout");
-  
+  return { ok: true };
 }
 
 /** Upload direct du fichier média (image/audio/vidéo) d'un asset déjà créé.

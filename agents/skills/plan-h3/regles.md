@@ -10,20 +10,22 @@ Le contexte est assemblé par l'application, jamais deviné :
 - **L'épisode et la scène** : résumé, texte narratif de la scène.
 - **Ce que tu dois écrire** : l'intention du plan (une ligne) et sa position dans la scène.
 - **Les plans voisins** (avant et après), pour le raccord : direction d'écran, mouvement de caméra, lumière, position des personnages.
-- **Le registre** : pour chaque asset candidat, son code, sa description (français) et son **prompt** (anglais, adapté aux modèles). Le prompt de l'asset est ta source de vérité visuelle.
+- **Le registre** : pour chaque asset candidat, son code, sa description canonique (français), sa méthode et son **prompt de génération** (anglais). Ce sont des repères pour rester fidèle à l'asset : le rôle de l'asset dans CE plan, c'est toi qui l'écris.
 - **Les répliques** de la scène : uuid, locuteur, texte exact, durée mesurée si la prise existe.
 - **Des exemples** de plans réels et validés, choisis selon la nature du plan.
 
 ## Ce que le code fait à ta place
 
 - Il attribue les labels `<Picture N>`, `<Subject N>` et `<Audio N>`, et garde le même ordre de sujets d'un plan à l'autre.
-- Il écrit les lignes `subject_definitions` à partir du prompt de chaque asset (plus ta `definition` optionnelle) et les lignes `retention_analysis` (par défaut `fully_preserved`).
+- Il assemble les lignes `subject_definitions` à partir de la `definition` que tu écris pour chaque sujet, et les lignes `retention_analysis` (par défaut `fully_preserved`).
 - Il dérive les `<Audio N>` des répliques liées au plan, et fait respecter les limites : 6 images, 3 audio, **la voix prime sur les bruitages**.
 - Il vérifie le verbatim, les durées et la structure des shots.
 
 Dans `summary` et `detailed_description`, tu désignes un sujet par son code entre doubles crochets : `[[CHAR_maya]]`. Le code le remplace par `<Subject N>`. N'écris jamais `<Subject N>` ni `<Picture N>` toi-même.
 
 ## Ce que tu écris
+
+Pour **chaque sujet**, une `definition` : la ligne complète qui suit `<Subject N> is`, en anglais, qui dit ce qu'est le sujet **et ce qu'il fait dans ce plan** (« the Tenancière {picture}, leaning in close, her stride reduced to a bare inclination »). Le rôle change d'un plan à l'autre : il ne vit pas dans l'asset. Le jeton `{picture}` marque où citer l'image ; le code le remplace par `<Picture N>`.
 
 Le contrat de sortie est dans `sortie.schema.json` : le titre, la durée, les sujets, `summary`, `detailed_description`, `overall_soundscape`, `non_diegetic_music`, les répliques et les notes. Le guide `guide-h3-compact.md` donne le format des six sections.
 

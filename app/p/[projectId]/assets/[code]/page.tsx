@@ -123,6 +123,11 @@ export default async function AssetDetailPage({
             <h1 className="master-code">{noeud.code}</h1>
             <div className="fiche-actions">
               <span className="type-tag">{noeud.type}</span>
+              {noeud.type !== "voix" && parentCode ? (
+                <span className="type-tag" title="Méthode de fabrication de l'image">
+                  {noeud.methodeGeneration === "edition" ? "édition" : noeud.methodeGeneration === "generation" ? "génération" : "méthode ?"}
+                </span>
+              ) : null}
               {noeud.type === "voix" ? (
                 <Link href={`/p/${pid}/voix/${noeud.code}`} className="btn btn-gold btn-mini">
                   Modifier au casting
@@ -156,8 +161,11 @@ export default async function AssetDetailPage({
             <div className="asset-fiche-info">
               <AssetFicheEditor
                 assetId={noeud.id}
+                type={noeud.type}
+                parentCode={parentCode}
                 description={noeud.description ?? ""}
                 promptGeneration={noeud.promptGeneration ?? ""}
+                methodeGeneration={noeud.methodeGeneration}
                 critique={noeud.critique}
               />
               {noeud.type === "personnage" ? (

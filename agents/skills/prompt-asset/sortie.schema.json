@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sortie de l'agent prompt-asset : les textes d'un asset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["methode", "raisonMethode", "promptGeneration", "remarques"],
+  "properties": {
+    "methode": { "type": "string", "enum": ["generation", "edition"], "description": "Méthode recommandée. `edition` exige un parent." },
+    "raisonMethode": { "type": "string", "description": "Une phrase, en français, qui justifie la méthode." },
+    "promptGeneration": { "type": "string", "minLength": 1, "description": "Prose Krea 2 (génération) ou instructions impératives Qwen, une par ligne (édition). Sans style, sans négation." },
+    "remarques": {
+      "type": "array",
+      "description": "Points à remonter : variantes demandées, absence ou changement de point de vue, dépendance à un parent non produit, description trop vague, doublons.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "message"],
+        "properties": {
+          "type": { "type": "string", "enum": ["variantes", "absence-ou-point-de-vue", "dependance-parent", "description-vague", "incoherence-famille", "autre"] },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -295,6 +295,12 @@ export const assets = pgTable("assets", {
   // type) — distinct de la description canonique : l'un décrit le sujet
   // pour la continuité narrative, l'autre est ce qu'on colle dans ComfyUI.
   promptGeneration: text("prompt_generation"),
+  // Comment l'image se fabrique : "generation" (text-to-image, Krea 2) ou
+  // "edition" (Qwen Image Edit, à partir de l'image du parent). Distinct du
+  // lien deriveDeId, qui dit seulement à quelle famille l'asset appartient :
+  // un effet (flammes, éclairs) rattaché à un master se génère de zéro. null =
+  // pas encore choisi (un master vaut "generation"). Sans objet pour une voix.
+  methodeGeneration: varchar("methode_generation", { length: 12 }),
   fichier: varchar("fichier", { length: 255 }),
   critique: boolean("critique").notNull().default(false),
   deriveDeId: integer("derive_de_id"),

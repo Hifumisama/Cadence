@@ -340,10 +340,20 @@ verdict acté ci-dessus n'est modifié.
 - **Estimation mots/seconde : non retenue pour l'instant** (révise le point 4 de
   la direction du 2026-09-30). L'agent choisit une durée généreuse ; si le débit
   est trop lent ou trop rapide, on allonge le plan une fois la voix mesurée.
-- **Description canonique (français) et prompt (anglais) sont deux champs
-  distincts** d'un asset : `description` explique le sujet à l'humain,
-  `promptGeneration` est la formulation adaptée aux modèles, dont dérivent le
-  prompt image et la ligne `<Subject N>` des plans.
+- **Deux textes par asset, pas de version anglaise figée** : `description`
+  (français, canon humain) et `promptGeneration` (ce qu'on colle dans ComfyUI,
+  avec la mise en page de Krea 2 ou de Qwen). Un « sujet anglais » stocké dans
+  l'asset a été écarté : le rôle d'un asset change d'un plan à l'autre et se
+  dit en texte brut dans le prompt vidéo (`<Subject 1> is the Tenancière from
+  <Picture 1>, leaning in close…`). Chaque plan écrit donc sa propre définition
+  de sujet.
+- **Un dérivé n'est pas forcément une édition** : `deriveDeId` dit la famille,
+  `methodeGeneration` (`generation` | `edition`) dit comment l'image se fabrique.
+  Un effet (flammes, éclairs) rattaché à un master se génère de zéro ; une
+  édition (les yeux de Maya) part de l'image du parent, qui doit être produite
+  d'abord. L'ordre de fabrication « parent avant enfant » ne vaut que pour les
+  éditions. L'ordre de fabrication « parent avant enfant » ne vaut que pour les
+  éditions.
 - **Les skills d'exécution de l'app** vivent dans `agents/skills/` (voir
   `docs/CONCEPTION_AGENTS.md`), séparés des skills de chat de `.claude/skills/`.
 - **Contrôle de structure des shots** ajouté à la fiche de plan (signalement,

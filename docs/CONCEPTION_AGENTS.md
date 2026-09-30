@@ -96,14 +96,21 @@ Chaque étape produit sa propre proposition. Une étape ne démarre qu'à partir
 l'état **appliqué** de la précédente (ou de sa proposition acceptée), jamais d'un
 brouillon non validé.
 
-Les skills de l'app vivent dans `agents/skills/<nom>/` (manifeste, règles,
-schéma de sortie, exemples) : ce sont les prompts d'exécution de l'app, pas les
-skills conversationnels de `.claude/skills/`, qui gardent leur usage en chat. Un
-chargeur assemble le prompt selon le profil du modèle (§9). Premiers skills
-réécrits : `plan-h3` (un plan) et `iteration-plan` (correction après visionnage).
-Ils dépendent des prompts d'assets : le champ « prompt » d'un asset
-(`assets.promptGeneration`) est la formulation anglaise adaptée aux modèles,
-distincte de la description canonique en français ; `<Subject N>` en dérive.
+Les skills de l'app vivent dans `agents/skills/<nom>/` (règles, guides, schéma
+de sortie, exemples) : ce sont les prompts d'exécution de l'app, pas les skills
+conversationnels de `.claude/skills/`, qui gardent leur usage en chat. Un
+chargeur assemblera le prompt selon le profil du modèle (§9) ; il n'existe pas
+encore, et on n'a volontairement pas de manifeste tant qu'il n'a pas de lecteur
+(à créer avec lui). Le lexique de corrections H3 reste dans
+`.claude/skills/fiche-de-plan/references/`, partagé par `plan-h3` et
+`iteration-plan`. Skills écrits : `plan-h3` (un plan), `iteration-plan`
+(correction après visionnage) et `prompt-asset` (prompt d'un asset).
+Ils s'appuient sur les textes d'assets : la description canonique (français,
+pour l'humain) et le prompt de génération (`assets.promptGeneration`, avec sa
+mise en page). Le **rôle** d'un asset n'est pas dans l'asset : il change d'un
+plan à l'autre et s'écrit dans le prompt vidéo de chaque plan (`definition` de
+chaque sujet). Un troisième skill, `prompt-asset`, écrit le prompt de génération
+et recommande la méthode de fabrication (`assets.methodeGeneration`).
 
 ## 6. Portée × mode
 

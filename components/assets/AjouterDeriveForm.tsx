@@ -94,6 +94,19 @@ export function AjouterDeriveForm({
                 </div>
                 <span className="tiny-note">Code : {code || "—"}</span>
               </div>
+              {type !== "voix" ? (
+                <div className="field-group wide">
+                  <label>Méthode de fabrication</label>
+                  <select className="field" name="methodeGeneration" defaultValue="edition">
+                    <option value="edition">Édition de l&rsquo;image de {parentCode} (Qwen Image Edit)</option>
+                    <option value="generation">Génération de zéro (Krea 2) — rattaché à {parentCode}</option>
+                    <option value="">À décider plus tard</option>
+                  </select>
+                  <span className="tiny-note">
+                    Édition : un autre cadrage ou détail du même sujet. Génération : un élément distinct (effet visuel, accessoire) à la même famille.
+                  </span>
+                </div>
+              ) : null}
               <div className="field-group wide">
                 <label>Description</label>
                 <textarea className="field" name="description" rows={2} />

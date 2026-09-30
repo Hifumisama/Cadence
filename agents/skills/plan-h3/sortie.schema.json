@@ -20,11 +20,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["asset", "role"],
+        "required": ["asset", "role", "definition"],
         "properties": {
           "asset": { "type": "string", "description": "Code d'un asset existant du registre (CHAR_maya, DEC_couloir_bois…). Jamais un code inventé : un asset manquant se déclare dans `notes`." },
           "role": { "type": "string", "description": "Rôle dans le plan, en français, pour la fiche (« Décor, couloir bleu nuit »)." },
-          "definition": { "type": "string", "description": "Optionnel. Reformulation anglaise du sujet propre à ce plan, qui complète la ligne <Subject N> tirée du prompt de l'asset. Ne contredit jamais le prompt de l'asset." },
+          "definition": { "type": "string", "pattern": "\\{picture\\}", "description": "La ligne qui suit « <Subject N> is », en anglais : ce qu'est le sujet et ce qu'il fait dans CE plan. Contient le jeton {picture}, remplacé par <Picture N>. Exemple : « the Tenancière {picture}, leaning in close, her stride reduced to a bare inclination »." },
           "retention": { "type": "string", "enum": ["fully_preserved", "partially_preserved", "attribute_transfer", "weak_reference"], "default": "fully_preserved" },
           "retentionNote": { "type": "string", "description": "Optionnel. Ce qui est conservé ou changé, en anglais." }
         }
