@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "@/lib/queries";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
-import { calculerStatutDuree, verifierCoherenceRefs } from "@/lib/plan-checks";
+import { calculerStatutDuree, controlerStructure, verifierCoherenceRefs } from "@/lib/plan-checks";
 import { getDialoguesPlan, getOptionsLocuteur } from "@/lib/queries-repliques";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PromptSectionEditor } from "@/components/plan/PromptSectionEditor";
@@ -80,6 +80,7 @@ export default async function PlanPage({
     ...refs.map((r) => ({ type: r.type, slot: r.slot })),
     ...audioRefs,
   ]);
+  const structure = controlerStructure(sectionsPourControle, plan.dureeGenerationSecondes);
   const { statut: statutDuree, totalSecondes } = calculerStatutDuree(
     liaisons.map((l) => ({ dureeSecondes: l.dureeSecondes })),
     Number(parametresGlobaux.duree_plafond_secondes),
@@ -246,7 +247,7 @@ export default async function PlanPage({
             <div className="panel-hd">
               <h2>Contrôles automatiques</h2>
             </div>
-            <ChecksPanel labelsOrphelins={labelsOrphelins} refsNonCitees={refsNonCitees} />
+            <ChecksPanel labelsOrphelins={labelsOrphelins} refsNonCitees={refsNonCitees} structure={structure} />
           </section>
 
           <RefsPanel

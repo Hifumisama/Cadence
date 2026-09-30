@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sortie de l'agent iteration-plan : une correction proposée",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dureeCoherente", "symptome", "cause", "confiance", "changements", "abandon"],
+  "properties": {
+    "dureeCoherente": { "type": "boolean", "description": "La durée réelle du fichier correspond-elle à la durée voulue ? Si false, aucun diagnostic d'écriture : `changements` reste vide." },
+    "symptome": { "type": "string", "description": "Ce qui ne va pas, avec les instants des vignettes (« à 4 s, l'épée apparaît »)." },
+    "cause": { "type": "string", "description": "Cause précise visée par cette correction, une seule. Renvoie à une entrée du lexique quand elle existe." },
+    "categorie": { "type": "string", "enum": ["decoupage-scenario", "cadence", "vocabulaire", "negation", "etat-arrivee", "camera", "lumiere", "duree", "reference", "modele", "autre"], "description": "`decoupage-scenario` = la cause n'est pas dans le prompt (à compter séparément)." },
+    "confiance": { "type": "string", "enum": ["haute", "moyenne", "faible"] },
+    "changements": {
+      "type": "array",
+      "description": "Le plus petit changement de texte qui traite la cause. Vide si la cause n'est pas dans le prompt.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["section", "avant", "apres"],
+        "properties": {
+          "section": { "type": "string", "enum": ["subject_definitions", "summary", "retention_analysis", "detailed_description", "overall_soundscape", "non_diegetic_music"] },
+          "avant": { "type": "string", "description": "Passage exact remplacé, recopié tel quel." },
+          "apres": { "type": "string", "description": "Passage de remplacement." }
+        }
+      }
+    },
+    "verification": { "type": "string", "description": "Optionnel. Ce qu'il faut regarder sur le prochain rendu pour savoir si la correction a marché." },
+    "entreeLexique": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optionnel. Candidate au lexique, à n'inscrire qu'après un rendu qui a résolu le symptôme.",
+      "required": ["symptome", "cause", "formulationQuiTient"],
+      "properties": {
+        "symptome": { "type": "string" },
+        "cause": { "type": "string" },
+        "formulationQuiTient": { "type": "string" }
+      }
+    },
+    "abandon": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Renseigné seulement si trois corrections visant des causes différentes ont échoué.",
+      "required": ["propose", "raison"],
+      "properties": {
+        "propose": { "type": "boolean" },
+        "raison": { "type": "string", "description": "Ce qui a été tenté, et le mouvement de remplacement proposé." }
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "nom": "iteration-plan",
+  "version": "0.1.0",
+  "role": "Corriger le prompt d'un plan après un visionnage réel (proposition, jamais appliquée sans validation)",
+  "note": "Les chemins sont relatifs à la racine du dépôt. Ce skill exige de la vision (planche de vignettes) : il vise un gros modèle. Les vignettes sont extraites côté serveur (une image par seconde).",
+  "fichiers": {
+    "regles": "agents/skills/iteration-plan/regles.md",
+    "lexique": ".claude/skills/fiche-de-plan/references/h3-lexique-corrections.md",
+    "sortie": "agents/skills/iteration-plan/sortie.schema.json"
+  },
+  "profils": {
+    "gros": { "vision": true, "lexique": true },
+    "petit": { "vision": false, "note": "Non adapté : le diagnostic demande de regarder le rendu. Un petit modèle ne peut appliquer que la partie mécanique d'un changement déjà décidé." }
+  }
+}

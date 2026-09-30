@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   controlerDialogues,
+  controlerStructure,
   ecartVerbatim,
   extraireBalisesD,
   prochainSlotAudioLibre,
@@ -120,4 +121,55 @@ test("durée voix : non mesurée bloque, mesurée compare au plafond avec marge"
   assert.equal(calculerStatutDuree([{ dureeSecondes: null }], 15, 2).statut, "a_mesurer");
   assert.equal(calculerStatutDuree([{ dureeSecondes: 6.5 }, { dureeSecondes: 6 }], 15, 2).statut, "tient");
   assert.equal(calculerStatutDuree([{ dureeSecondes: 13.5 }], 15, 2).statut, "decoupage_a_envisager");
+});
+
+// --- Structure des shots -------------------------------------------------
+
+const desc = (contenu: string) => [{ section: "detailed_description", contenu }];
+
+test("structure : plan bien formé, aucun signalement", () => {
+  const p = controlerStructure(
+    desc("Cinematic anime style. [Shot 1] A wide shot. [Shot 2] At 00:03.000, Hard cut to a close-up. [Shot 3] At 00:06.500, Hard cut to a low-angle."),
+    9,
+  );
+  assert.deepEqual(p, []);
+});
+
+test("structure : durée non entière ou hors 4-15", () => {
+  assert.equal(controlerStructure([], 3)[0]?.type, "duree_invalide");
+  assert.equal(controlerStructure([], 16)[0]?.type, "duree_invalide");
+  assert.equal(controlerStructure([], 7.5)[0]?.type, "duree_invalide");
+  assert.deepEqual(controlerStructure([], 12), []);
+});
+
+test("structure : shot 1 qui démarre tard, shot suivant sans timecode", () => {
+  const p = controlerStructure(desc("[Shot 1, 00:01.000–00:03.000] A wide shot. [Shot 2] A close-up."), 8).map((x) => x.type);
+  assert.ok(p.includes("shot1_timecode"));
+  assert.ok(p.includes("shot_timecode_manquant"));
+});
+
+test("structure : shot sous 1,5 s, timecode hors ordre et hors durée", () => {
+  const court = controlerStructure(desc("[Shot 1] A. [Shot 2] At 00:01.000, Hard cut to B."), 8).map((x) => x.type);
+  assert.ok(court.includes("shot_trop_court"));
+  const ordre = controlerStructure(desc("[Shot 1] A. [Shot 2] At 00:04.000, Hard cut to B. [Shot 3] At 00:03.000, Hard cut to C."), 9).map((x) => x.type);
+  assert.ok(ordre.includes("shot_hors_ordre"));
+  const hors = controlerStructure(desc("[Shot 1] A. [Shot 2] At 00:10.000, Hard cut to B."), 8).map((x) => x.type);
+  assert.ok(hors.includes("shot_hors_duree"));
+});
+
+test("structure : dernier shot trop court, aucun shot", () => {
+  const dernier = controlerStructure(desc("[Shot 1] A. [Shot 2] At 00:07.000, Hard cut to B."), 8).map((x) => x.type);
+  assert.ok(dernier.includes("shot_trop_court"));
+  assert.equal(controlerStructure(desc("Just text."), 8)[0]?.type, "aucun_shot");
+  assert.deepEqual(controlerStructure([], 8), []);
+});
+
+test("structure : la forme à intervalle des plans validés est acceptée", () => {
+  const ok = controlerStructure(
+    desc("[Shot 1, 00:00.000–00:02.000] A wide. [Shot 2, 00:02.000–00:05.000] A profile. [Shot 3, 00:05.000–00:07.000] A third."),
+    7,
+  );
+  assert.deepEqual(ok, []);
+  const court = controlerStructure(desc("[Shot 1, 00:00.000–00:01.000] A. [Shot 2, 00:01.000–00:07.000] B."), 7).map((x) => x.type);
+  assert.deepEqual(court, ["shot_trop_court"]);
 });

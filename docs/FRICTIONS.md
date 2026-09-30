@@ -330,6 +330,29 @@ existe déjà côté interface (collage de prompt en bloc dans la Fiche de
 plan) : l'agent futur écrira dans le même champ plutôt que d'exiger une
 nouvelle UI.
 
+### Conception détaillée (2026-09-30)
+Le cadrage complet — brief issu d'une conversation, pipeline en étapes,
+portée × mode, propositions appliquées seulement après validation, protections
+et point de retour, traces — est dans `docs/CONCEPTION_AGENTS.md`. Aucun
+verdict acté ci-dessus n'est modifié.
+
+### Décisions de conception des skills (2026-09-30)
+- **Estimation mots/seconde : non retenue pour l'instant** (révise le point 4 de
+  la direction du 2026-09-30). L'agent choisit une durée généreuse ; si le débit
+  est trop lent ou trop rapide, on allonge le plan une fois la voix mesurée.
+- **Description canonique (français) et prompt (anglais) sont deux champs
+  distincts** d'un asset : `description` explique le sujet à l'humain,
+  `promptGeneration` est la formulation adaptée aux modèles, dont dérivent le
+  prompt image et la ligne `<Subject N>` des plans.
+- **Les skills d'exécution de l'app** vivent dans `agents/skills/` (voir
+  `docs/CONCEPTION_AGENTS.md`), séparés des skills de chat de `.claude/skills/`.
+- **Contrôle de structure des shots** ajouté à la fiche de plan (signalement,
+  sans blocage) : durée entière de 4 à 15 s, timecodes croissants dans la durée,
+  aucun shot sous 1,5 s. Pas de contrôle du littéral « Hard cut » : les plans
+  validés en production ne l'écrivent pas toujours. La forme à intervalle
+  `[Shot 2, 00:02.500–00:05.500]` est acceptée. Le garde-fou de vocabulaire
+  reste abandonné.
+
 ### Reste à observer
 - [ ] **Compter séparément** : itérations « prompt » vs redécoupages (= scénario). Le motif ci-dessus suggère que la part « découpage » est grosse — reste à chiffrer.
 - [x] Motif récurrent — identifié ci-dessus (2026-09-25).

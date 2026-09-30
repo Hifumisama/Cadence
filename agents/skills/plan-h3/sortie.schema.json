@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sortie de l'agent plan-h3 : un plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["titre", "dureeSecondes", "sujets", "summary", "detailed_description", "overall_soundscape", "non_diegetic_music", "repliques", "notes"],
+  "properties": {
+    "titre": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "dureeSecondes": {
+      "type": "integer",
+      "minimum": 4,
+      "maximum": 15,
+      "description": "Durée de génération, en secondes entières. Plan dialogué : durée pressentie des répliques plus une marge de respiration d'au moins 2 s, arrondie au-dessus. On l'allonge plus tard si la voix réelle l'exige."
+    },
+    "sujets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "description": "Les images de référence du plan, dans l'ordre voulu. Le code attribue les labels <Picture N> / <Subject N> et garde l'ordre stable d'un plan à l'autre.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["asset", "role"],
+        "properties": {
+          "asset": { "type": "string", "description": "Code d'un asset existant du registre (CHAR_maya, DEC_couloir_bois…). Jamais un code inventé : un asset manquant se déclare dans `notes`." },
+          "role": { "type": "string", "description": "Rôle dans le plan, en français, pour la fiche (« Décor, couloir bleu nuit »)." },
+          "definition": { "type": "string", "description": "Optionnel. Reformulation anglaise du sujet propre à ce plan, qui complète la ligne <Subject N> tirée du prompt de l'asset. Ne contredit jamais le prompt de l'asset." },
+          "retention": { "type": "string", "enum": ["fully_preserved", "partially_preserved", "attribute_transfer", "weak_reference"], "default": "fully_preserved" },
+          "retentionNote": { "type": "string", "description": "Optionnel. Ce qui est conservé ou changé, en anglais." }
+        }
+      }
+    },
+    "summary": { "type": "string", "description": "Paragraphe anglais commençant par [reference generation] (ou [reference generation + audio reference]). Sujets désignés par [[CODE_ASSET]]." },
+    "detailed_description": { "type": "string", "description": "Corps du prompt. Sujets désignés par [[CODE_ASSET]], remplacés par <Subject N> par le code. Dialogues en <d>[Français] …</d>, verbatim." },
+    "overall_soundscape": { "type": "string" },
+    "non_diegetic_music": { "type": "string", "description": "« N/A » quand il n'y en a pas." },
+    "repliques": {
+      "type": "array",
+      "description": "Répliques (entités existantes) portées par ce plan, dans l'ordre de prise de parole. Le code en dérive les références <Audio N> et vérifie le verbatim.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repliqueId"],
+        "properties": {
+          "repliqueId": { "type": "string", "description": "uuid public de la réplique." },
+          "debutSecondes": { "type": "number", "minimum": 0, "description": "Indicatif : où la réplique commence dans le plan." }
+        }
+      }
+    },
+    "notes": { "type": "string", "description": "Arbitrages, assets manquants à créer, geste continu assumé, écarts. Vide s'il n'y a rien à signaler." }
+  }
+}

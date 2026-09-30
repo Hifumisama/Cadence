@@ -1,0 +1,287 @@
+# Cadence — Conception des agents de génération
+
+> Statut : **conception, rien n'est construit** (2026-09-30). Ce document fige le
+> vocabulaire et le modèle de données avant d'écrire la moindre ligne. Il
+> prolonge « Direction retenue pour l'agent d'itération » (`FRICTIONS.md`, F03)
+> et « Agents — architecture commune » (`CAHIER_DES_CHARGES.md`). En cas de
+> conflit, `FRICTIONS.md` reste la source de vérité des décisions actées.
+
+## 1. Objectif
+
+Partir d'une page vide — une conversation — et arriver à un **squelette de projet
+complet et propre**, que l'on remplit ensuite à la main et par les workflows de
+génération :
+
+- la saison (une seule au début) et le ou les épisodes ;
+- les scènes ;
+- les fiches de plan (prompts H3, références, durées) ;
+- les répliques ;
+- le registre d'assets, avec un prompt de génération par asset (image ou voix).
+
+Entrées acceptées : un **pitch** (texte libre) ou un **texte complet** (roman). Un
+texte long peut donner **plusieurs épisodes** s'il y a assez de matière.
+
+Les mêmes agents servent ensuite à **générer moins que le projet** (un épisode,
+une scène, un seul plan) sur un projet déjà créé.
+
+## 2. Vocabulaire
+
+| Terme | Définition |
+|---|---|
+| **Brief** | Document structuré et sauvegardé, issu de la conversation : pitch, ton, style, personnages, lieux, durée visée, contraintes. Il alimente toutes les générations. Vivant : on peut le modifier. |
+| **Portée** | Ce que la génération vise : `projet`, `saison`, `episode`, `scene`, `plan`. |
+| **Mode** | Ce que la génération a le droit de faire à l'existant : `ajouter`, `completer`, `remplacer`. |
+| **Proposition** | Lot de changements **mis de côté**, jamais appliqué tant que l'utilisateur ne l'a pas accepté. |
+| **Changement** | Une ligne de proposition : créer, modifier ou supprimer un élément, avec son diff. |
+| **Point de retour** | État antérieur des éléments touchés, conservé à l'application pour pouvoir annuler. |
+| **Trace** | Journal de tout ce qu'un agent a reçu, produit et de ce que l'utilisateur en a fait. |
+
+## 3. Principes non négociables
+
+1. **Rien n'est appliqué sans proposition.** Un agent n'écrit jamais dans les
+   tables métier : il écrit une proposition. Seule l'action « Appliquer », faite
+   par l'utilisateur, touche l'existant.
+2. **Le format est structuré et validé avant écriture.** Le modèle rend du JSON
+   contre un schéma ; on le valide avec les contrôles déterministes existants
+   (`lib/plan-checks.ts` : verbatim, 3 slots audio, plan ≤ 15 s), puis on
+   applique en **une transaction**. Une validation qui échoue n'écrit rien.
+3. **Le contrôle mécanique reste hors du modèle.** Verbatim, slots, durées :
+   on ne fait pas confiance au LLM pour les respecter, on les vérifie.
+4. **La durée se mesure, elle ne s'estime pas** (F03). Avant l'audio, l'agent
+   choisit une durée de plan généreuse (marge de respiration comprise), **sans
+   calcul mots par seconde** (décision du 2026-09-30) ; on l'allonge après la
+   prise de voix. La mesure sur la prise réelle reste seule autorité.
+5. **Pas de versionnage d'assets** (F01). Le point de retour est l'historique
+   d'une proposition, pas une « v2 » au registre.
+6. **Un asset manquant n'est jamais créé en silence.** La proposition le liste
+   comme changement explicite, avec son prompt de génération.
+7. **Un plan s'identifie par son `uuid`, s'ordonne par `ordre`** (F03) : un plan
+   inséré ne renumérote rien.
+
+## 4. La conversation et le brief
+
+La conversation sert à **poser des questions** pour préciser ce qui servira à la
+génération. Elle produit un brief, pas le projet.
+
+Champs du brief (à affiner) : pitch, genre et ton, style visuel (alimente la
+clause de style du projet), personnages et voix pressenties, lieux, arc de la
+saison, nombre d'épisodes visés, durée d'épisode, contraintes et interdits,
+langue des dialogues.
+
+- **Pitch** : la conversation creuse par questions jusqu'à un brief exploitable.
+- **Texte complet** : étape préalable de **résumé par chapitre** pour tenir dans
+  le contexte, puis proposition de découpage en épisodes (par chapitres ou par
+  arcs) que l'utilisateur valide avant de générer.
+- **Projet existant sans brief** (les *Yeux de Rubis*, fait à la main) : action
+  « reconstituer le brief depuis l'existant ». Elle produit une proposition, que
+  l'utilisateur relit ; sans elle, les portées plus petites n'ont pas de
+  contexte global.
+- **Brief modifié après génération** : l'interface signale les éléments générés
+  sur l'ancienne version, sans rien changer d'office.
+
+## 5. Le pipeline « générer le projet »
+
+Une suite d'étapes, chacune visible, corrigeable et relançable seule. Les assets
+viennent **avant** les plans, puisque les plans les citent en références.
+
+| # | Étape | Skill de départ | Produit |
+|---|---|---|---|
+| 1 | Structure | `scenario` | saison, épisode(s) |
+| 2 | Scénario | `scenario` | texte narratif, scènes |
+| 3 | Registre | `assets-comfyui`, `voix-comfyui` | assets (personnage, décor, accessoire, voix) avec prompt de génération |
+| 4 | Plans | `fiche-de-plan` | fiches de plan : 6 sections H3, références, durées |
+| 5 | Répliques | `fiche-de-plan` | répliques autonomes liées aux plans |
+
+Chaque étape produit sa propre proposition. Une étape ne démarre qu'à partir de
+l'état **appliqué** de la précédente (ou de sa proposition acceptée), jamais d'un
+brouillon non validé.
+
+Les skills de l'app vivent dans `agents/skills/<nom>/` (manifeste, règles,
+schéma de sortie, exemples) : ce sont les prompts d'exécution de l'app, pas les
+skills conversationnels de `.claude/skills/`, qui gardent leur usage en chat. Un
+chargeur assemble le prompt selon le profil du modèle (§9). Premiers skills
+réécrits : `plan-h3` (un plan) et `iteration-plan` (correction après visionnage).
+Ils dépendent des prompts d'assets : le champ « prompt » d'un asset
+(`assets.promptGeneration`) est la formulation anglaise adaptée aux modèles,
+distincte de la description canonique en français ; `<Subject N>` en dérive.
+
+## 6. Portée × mode
+
+### 6.1 Portées
+
+| Portée | Exemple | Contexte donné au modèle |
+|---|---|---|
+| `projet` | « générer le projet » | brief |
+| `saison` | régénérer la saison | brief, arc de la saison |
+| `episode` | préparer l'épisode 2 | brief, résumé des épisodes précédents (continuité narrative seulement), registre |
+| `scene` | remplir une scène | brief, résumé d'épisode, texte de la scène, registre, plans et répliques existants |
+| `plan` | un plan de coupe entre deux plans | voir §6.3 |
+
+La continuité **visuelle** se tient à l'échelle de l'épisode, pas de la série
+(F03, révision 2026-09-28) : le contexte d'un épisode n'embarque pas les plans
+des épisodes précédents.
+
+### 6.2 Modes
+
+1. **Ajouter** : ne modifie et ne supprime rien. Nouveau plan, nouvel épisode.
+2. **Compléter** : remplit seulement ce qui est vide ou en brouillon.
+3. **Remplacer** : écrase. La proposition affiche précisément ce qui sera perdu.
+
+**Protégés par défaut** (le mode `remplacer` exige une confirmation dédiée qui
+liste ce qui disparaît) :
+- un plan avec un rendu réussi ;
+- un asset au statut `valide` ;
+- une réplique dont la prise est `validee` ;
+- une voix dont la référence est déposée.
+
+Exemple de résumé avant confirmation : *« Remplacer la saison 1 : 12 plans
+rendus, 5 assets validés et 8 prises validées seront écrasés. »*
+
+### 6.3 Un plan neuf dans une scène existante
+
+L'utilisateur donne **une intention en une ligne** et **une position** :
+« un plan de coupe sur la main de Maya, après le plan 04 ».
+
+Contexte assemblé :
+- le brief (ton, clause de style) ;
+- le résumé de l'épisode et le **texte narratif de la scène** ;
+- les **plans voisins** (avant et après) : raccord de mouvement, direction
+  d'écran, exemple de `FRICTIONS.md` (entrée par la droite après un travelling
+  vers la gauche) ;
+- le registre d'assets, **d'abord ceux déjà cités dans la scène** ;
+- les répliques de la scène ;
+- les contraintes techniques (15 s, 3 slots audio, verbatim, marge de
+  respiration en plan dialogué).
+
+Sortie : une proposition qui contient
+- le plan (position par `ordre`, sans renuméroter) ;
+- ses références ;
+- les **assets manquants**, en changements explicites (« `PROP_lettre` n'existe
+  pas : le créer ? », avec son prompt d'image) ;
+- les répliques nouvelles, créées comme entités autonomes et liées au plan ;
+  le contrôle verbatim s'applique dès la proposition.
+
+## 7. Propositions : modèle de données
+
+Esquisse — pas une migration. Les noms suivent les conventions du dépôt
+(français, `uuid` public + `id` serial interne).
+
+**`briefs`**
+`id`, `uuid`, `projectId`, `contenu` (jsonb), `version` (entier croissant, le
+brief courant est la dernière), `source` (`conversation` | `reconstitue`),
+`createdAt`.
+
+**`conversations`** et **`conversation_messages`**
+La conversation d'intake ; rattachée à un projet et, quand il existe, à un brief.
+
+**`propositions`**
+`id`, `uuid`, `projectId`, `portee`, `cibleId` (saison, épisode, scène ou plan
+visé, selon la portée), `mode`, `etape`, `briefId`, `consigne` (l'intention de
+l'utilisateur), `statut` (`en_cours` | `prete` | `appliquee` | `rejetee` |
+`annulee`), `resume` (texte d'impact affiché avant application),
+`createdAt`, `appliqueeAt`.
+
+**`proposition_changements`**
+`id`, `propositionId`, `ordre`, `action` (`creer` | `modifier` | `supprimer`),
+`cibleType`, `cibleId` (null pour une création), `avant` (jsonb),
+`apres` (jsonb), `protege` (booléen : touche un élément protégé),
+`avertissements` (jsonb : sortie des contrôles), `decision`
+(`en_attente` | `accepte` | `refuse`).
+
+`avant` sert à la fois au diff et au **point de retour**.
+
+**`agent_traces`**
+`id`, `propositionId` (nullable), `agent`, `fournisseur`, `modele`,
+`prompt`, `sortie`, `jetons`, `durationMs`, `retourUtilisateur` (texte : « l'épée
+apparaît »), `createdAt`. C'est le journal de frictions automatisé et le jeu
+d'évaluation (§10).
+
+**Application** = une transaction : rejoue les changements `accepte`, écrit le
+point de retour dans `avant`, passe la proposition à `appliquee`. **Annulation**
+= rejoue `avant`, refusée si l'élément a changé depuis (elle le signale plutôt
+que d'écraser).
+
+## 8. Les agents et leurs outils
+
+| Agent | Skill | Outils (actions serveur) |
+|---|---|---|
+| Intake | — | lire/écrire le brief, résumer un texte |
+| Scénario | `scenario` | créer saison/épisode/scènes, lire le scénario |
+| Assets | `assets-comfyui`, `voix-comfyui` | lire le registre, proposer des assets |
+| Plans | `fiche-de-plan` | lire plans, scène et registre ; proposer des plans, leurs refs et répliques ; lancer les contrôles |
+| Itération | `fiche-de-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt |
+
+Tous les outils **de lecture** répondent directement. Tous les outils **d'écriture**
+créent des changements de proposition — aucun n'écrit sur les tables métier.
+
+Le point d'entrée existe déjà pour l'itération : le collage de prompt en bloc
+de la fiche de plan. L'agent d'itération y écrira via une proposition, sans
+nouvelle UI d'édition. Il corrige **après un visionnage réel**, jamais à
+l'aveugle (F03).
+
+## 9. Fournisseur de modèle
+
+Une interface unique `LLM` (entrée : messages, outils, schéma de sortie ; sortie :
+texte ou appel d'outil, jetons), derrière laquelle on branche l'API ou un modèle
+local.
+
+- **Gros modèle** : découpage, scénario, diagnostic d'un défaut au visionnage
+  (demande de la vision).
+- **Petit modèle local** (piste) : tâches mécaniques et structurées — reformater
+  au format H3, appliquer une correction, recaler un `<d>` sur une réplique
+  modifiée. Le GPU est partagé avec ComfyUI : les deux doivent être séquencés.
+- **Chemin retenu** : mesurer d'abord avec un gros modèle, accumuler les traces,
+  puis distiller ou affiner un petit modèle sur ces données.
+
+## 10. Évaluation
+
+Les traces (§7) servent à mesurer, pas seulement à déboguer :
+
+- compter séparément les itérations « prompt » et les redécoupages (case
+  ouverte de `FRICTIONS.md`) ;
+- **test d'entrée** : régénérer le squelette des *Yeux de Rubis* depuis le roman
+  et le comparer à la version faite à la main ;
+- taux de changements acceptés, refusés, modifiés après acceptation, par agent.
+
+## 11. Déblocage des workflows
+
+Débloqués progressivement, sur un système de tâches ComfyUI **dédié** (le worker
+actuel n'est pas généralisé : décision du 2026-09-28) :
+
+1. **Vidéo** : un seul workflow.
+2. **Audio** : plus complexe, voix par voix. Débloqué **en même temps** que la
+   vidéo, parce que le casting a un test vidéo.
+
+Chaque type de tâche est activable par un réglage et reste en `stub` tant qu'il
+n'est pas branché. Le bouton grisé « Générer » du casting devient actif au
+moment où sa tâche l'est.
+
+Conséquence assumée : les plans dialogués sont d'abord générés sans référence
+`<Audio N>` (pas de lip-sync fiable), puis rejoués une fois la voix posée. Le
+contrôle verbatim les signale déjà. Les durées sont recalées à ce moment.
+
+## 12. Décisions restantes
+
+- **Premier fournisseur** : API Claude ou autre ?
+- **Skills** : rejoués tels quels, ou version condensée pour l'in-app ? À trancher
+  par l'usage, avec les traces.
+- **Granularité d'application** : par changement seulement, ou aussi par groupe
+  (tous les plans d'une scène) ?
+- **Découpage d'un roman en épisodes** : par chapitres ou par arcs — la
+  proposition du modèle est validée par l'utilisateur avant toute génération.
+- **Durée de vie des points de retour** : conservés indéfiniment ou purgés après
+  N jours ?
+- **Contradiction assumée avec le phasage** : le cahier des charges cadre la V1
+  « sans agent ». Ce chantier est traité à part, après la clôture de V1, comme
+  la direction du 2026-09-30 le prévoit.
+
+## 13. Ordre de construction proposé
+
+1. Interface `LLM` + trace.
+2. Tables `propositions` / `proposition_changements` et l'écran de revue
+   (diff, accepter/refuser, appliquer, annuler) — utile même sans agent, testable
+   avec des propositions écrites à la main.
+3. Conversation d'intake et brief.
+4. « Générer le projet », étape par étape.
+5. Portées réduites (épisode, scène, plan) et reconstitution du brief.
+6. Agent d'itération sur un plan, après visionnage.
