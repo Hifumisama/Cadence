@@ -27,10 +27,10 @@ export type StatutProposition = (typeof STATUTS_PROPOSITION)[number];
 export const OPERATIONS = ["creer", "modifier", "supprimer"] as const;
 export type Operation = (typeof OPERATIONS)[number];
 
-/** Ce qu'un changement touche. Les applicateurs existent pour tous ces types ;
- * `replique` n'est PAS une cible (les répliques d'un scénario restent en
- * information dans le changement de plan : pas encore prises en charge). */
-export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan"] as const;
+/** Ce qu'un changement touche. Les applicateurs existent pour tous ces types. `replique`
+ * (2026-10-02, étape « scénarios ») : une réplique créée liée à son plan (locuteur du registre
+ * ou libre, jamais d'asset créé par ce chemin). */
+export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan", "replique"] as const;
 export type CibleType = (typeof CIBLES)[number];
 
 /** Qui a posé un champ du brief : `fourni` (l'utilisateur l'a dit ou corrigé),
@@ -197,6 +197,8 @@ export type RangDeplace = { planUuid: string; titre: string; rangAvant: number; 
 export type VueChangement = {
   id: number;
   ordre: number;
+  /** Lot : le titre de la scène sous laquelle ranger un plan ou une réplique (null sinon). */
+  sousGroupe: string | null;
   /** Groupe d'affichage : `ecrasement` (risque d'écrasement, section spéciale), `brief`, puis
    * un groupe par type/portée (« Saison », « Épisodes », « Plans de la scène X »…). */
   groupe: string;
@@ -221,6 +223,36 @@ export type VueChangement = {
   /** Refusé d'office (hors portée, non pris en charge) : jamais appliqué ; la raison. */
   refuseRaison: string | null;
   appliqueAt: string | null;
+};
+
+/** Une sous-tâche d'un lot (ex. « écrire l'épisode 2 ») : son état courant (la dernière tâche
+ * posée pour cette clé), pour la liste de la popup. */
+export type VueSousTache = {
+  cle: string;
+  libelle: string;
+  /** Épisode concerné (lot de scénarios) ; null pour un autre type de lot. */
+  episodeId: number | null;
+  runUuid: string;
+  statut: "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
+  progressionJetons: number | null;
+  erreur: string | null;
+  /** Rang dans la file des tâches GPU (1 = la prochaine) ; null si elle n'attend pas. */
+  positionFile: number | null;
+  /** Changements que cette sous-tâche a produits (0 tant qu'elle n'est pas finie). */
+  nbChangements: number;
+  /** Une relance a déjà eu lieu (tâche plus ancienne pour la même clé). */
+  relancee: boolean;
+};
+
+/** L'état agrégé d'un lot : « 3/12 » dans le header comme dans la popup. */
+export type VueLot = {
+  sousTaches: VueSousTache[];
+  total: number;
+  terminees: number;
+  echecs: number;
+  annulees: number;
+  /** En attente ou en cours. */
+  actives: number;
 };
 
 export type VueGroupe = {
@@ -264,10 +296,24 @@ export type VueProposition = {
   compteurs: CompteursProposition;
   /** Les écrasements cochés qu'`appliquerSelection` exigera de confirmer. */
   ecrasements: EcrasementAConfirmer[];
-  /** Tâche de génération (en_generation) ; null une fois prête. */
+  /** Tâche de génération (en_generation) ; null une fois prête. Pour un lot : null (voir `lot`). */
   tache: EtatTache | null;
+  /** Proposition en lot (plusieurs sous-tâches, ex. un épisode chacune) ; null sinon. */
+  lot: VueLot | null;
   createdAt: string;
   appliedAt: string | null;
+};
+
+/** Un épisode proposable à l'écriture de son scénario (sélecteur du lot). */
+export type EpisodePourScenario = {
+  id: number;
+  numero: number;
+  titre: string;
+  saisonNumero: number;
+  /** Aucun plan ni scène : le cas normal d'un squelette tout juste appliqué. */
+  vide: boolean;
+  nbPlans: number;
+  nbScenes: number;
 };
 
 /** Ligne d'historique (Monitoring — hors de la popup). */

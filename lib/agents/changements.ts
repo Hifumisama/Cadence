@@ -20,6 +20,8 @@ export type ChangementBrut = {
   ecrase?: string | null;
   /** Refusé d'office (non pris en charge, hors portée, parent refusé). */
   refuseRaison?: string | null;
+  /** Lot : titre de la scène sous laquelle la revue range ce plan ou cette réplique. */
+  sousGroupe?: string | null;
 };
 
 /** Une ligne de proposition_changements, jsonb en `unknown`. */
@@ -40,6 +42,7 @@ export type LigneChangement = {
   ecrase: string | null;
   coche: boolean;
   refuseRaison: string | null;
+  sousGroupe?: string | null;
 };
 
 export const TITRES_GROUPES: Record<string, string> = {
@@ -50,8 +53,9 @@ export const TITRES_GROUPES: Record<string, string> = {
   episodes: "Épisodes",
   scenes: "Scènes",
   plans: "Plans",
+  repliques: "Répliques",
   assets: "Assets",
 };
 
 /** Ordre d'affichage des groupes ; l'écrasement vient toujours en tête. */
-export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "saison", "episodes", "scenes", "plans", "assets"];
+export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "saison", "episodes", "scenes", "plans", "repliques", "assets"];

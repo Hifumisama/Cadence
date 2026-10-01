@@ -73,7 +73,7 @@ test("raisonNonCochable : refus d'office et contrôle bloquant", () => {
 
 function vue(id: number, o: Partial<VueChangement> = {}): VueChangement {
   return {
-    id, ordre: id, groupe: "plans", cle: null, cibleType: "plan", cibleRef: null, libelle: `c${id}`, operation: "creer",
+    id, ordre: id, sousGroupe: null, groupe: "plans", cle: null, cibleType: "plan", cibleRef: null, libelle: `c${id}`, operation: "creer",
     avant: null, apres: null, position: null, rangsDeplaces: [], avertissements: [], ecrase: null, coche: true, bloque: false,
     refuseRaison: null, appliqueAt: null, ...o,
   };
@@ -221,14 +221,17 @@ const scenario: SortieScenarioEpisode = {
   notes: "",
 };
 
-test("scenario-episode → épisode, scènes, plans : l'existant est modifié, le reste créé, les répliques signalées non reprises", () => {
+test("scenario-episode → épisode, scènes, plans, répliques : l'existant est modifié, le reste créé", () => {
   const ep = { id: 2, titre: "Le sel", resume: "ancien", scenes: [], plans: [{ uuid: "u-regard", titre: "Regard", sceneId: null }] };
   const s = depuisScenarioEpisode(scenario, ep);
-  assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["episode:modifier", "scene:creer", "plan:creer", "plan:modifier"]);
+  assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["episode:modifier", "scene:creer", "plan:creer", "replique:creer", "plan:modifier"]);
   const cree = s.find((x) => x.cibleType === "plan" && x.operation === "creer")!;
   assert.deepEqual(cree.position, { fin: true });
   assert.equal((cree.apres as { sceneCle: string }).sceneCle, "scene-1");
-  assert.ok(cree.avertissements!.some((w) => w.type === "non_pris_en_charge"), "les répliques ne sont pas écrites");
+  assert.equal(cree.avertissements!.some((w) => w.type === "non_pris_en_charge"), false, "les répliques sont reprises (changement « réplique »), plus signalées non prises en charge");
+  const rep = s.find((x) => x.cibleType === "replique")!;
+  assert.equal((rep.apres as { planCle: string }).planCle, cree.cle, "la réplique se rattache au plan créé par la même proposition");
+  assert.equal(rep.sousGroupe, "Le pont");
   assert.equal(s.find((x) => x.operation === "modifier" && x.cibleType === "plan")!.cibleRef, "u-regard");
   assert.ok(s[0]!.avertissements!.some((w) => w.type === "invention"), "les inventions se posent sur le premier changement");
   const dejaScene = depuisScenarioEpisode(scenario, { ...ep, scenes: [{ id: 11, titre: "le pont" }], plans: [] });

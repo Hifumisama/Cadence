@@ -148,6 +148,36 @@ export async function genererProposition(
   return rafraichir(await service.genererProposition(conversationUuid, options));
 }
 
+/** « Écrire les scénarios » (étape 1 du pipeline) depuis une conversation de portée PROJET ou
+ * SAISON, par exemple depuis l'étape « Appliqué » du squelette : une proposition EN LOT, une
+ * sous-tâche (une tâche `scenario-episode`) par épisode, exécutées l'une après l'autre dans la file.
+ * Par défaut : les épisodes VIDES ; `episodeIds` en choisit d'autres (un épisode qui a déjà du
+ * contenu voit ses modifications en section d'écrasement, décochées). La proposition reste
+ * `en_generation` tant qu'une sous-tâche est active (`VueProposition.lot` donne l'avancement), puis
+ * `prete` ; un échec isolé ne perd pas le reste. */
+export async function genererScenarios(
+  conversationUuid: string,
+  options?: { episodeIds?: number[]; consigne?: string },
+): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
+  return rafraichir(await service.genererScenarios(conversationUuid, options));
+}
+
+/** Relance UNE sous-tâche d'un lot (échouée, annulée ou à refaire), avec un retour libre facultatif.
+ * `cle` = `VueSousTache.cle`. Les autres sous-tâches ne bougent pas. */
+export async function relancerSousTache(
+  propositionUuid: string,
+  cle: string,
+  retour?: string,
+): Promise<Resultat<{ runUuid: string }>> {
+  return rafraichir(await service.relancerSousTache(propositionUuid, cle, retour));
+}
+
+/** Annule un lot : sous-tâches en attente annulées, celle qui tourne interrompue. Ce qui est déjà
+ * terminé reste relisible. */
+export async function annulerLot(propositionUuid: string): Promise<Resultat<{ resultat: "annule" | "demande" | "rien" }>> {
+  return rafraichir(await service.annulerLotProposition(propositionUuid));
+}
+
 /** Coche/décoche un changement. Refusé pour un changement `bloque` (à corriger d'abord) ou
  * `refuseRaison` (hors portée, non pris en charge). */
 export async function cocherChangement(changementId: number, coche: boolean): Promise<Resultat> {

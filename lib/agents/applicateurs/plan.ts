@@ -157,5 +157,7 @@ export const applicateurPlan: Applicateur = {
     const sequence = existants.map((p) => ({ id: p.id, sceneId: p.sceneId }));
     sequence.splice(insertion.index, 0, { id: cree!.id, sceneId });
     await recomposerOrdre(tx, episodeId, sequence);
+    // Les répliques de la même proposition se rattachent à ce plan par sa clé.
+    if (ch.cle) ctx.cles.set(ch.cle, cree!.id);
   },
 };

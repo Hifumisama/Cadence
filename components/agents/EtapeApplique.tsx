@@ -1,6 +1,7 @@
 "use client";
 
 import { nouvelleConversation } from "@/app/agents/actions";
+import { ChoixEpisodes } from "@/components/agents/ChoixEpisodes";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { resumeCompteurs } from "@/lib/agents-affichage";
 
@@ -13,6 +14,10 @@ export function EtapeApplique({ ctx, onFermer }: { ctx: ContexteEtape; onFermer:
   const appliques = dernierResultat?.appliques ?? prop?.groupes.flatMap((g) => g.changements).filter((c) => c.appliqueAt != null).length ?? 0;
   const ecartes = dernierResultat?.ecartes ?? prop?.compteurs.ecartes ?? 0;
   const refuses = dernierResultat?.refuses ?? prop?.compteurs.refuses ?? 0;
+
+  // Étape suivante du pipeline : après le squelette d'une création de projet, « Continuer » propose
+  // d'écrire les scénarios des épisodes (un lot). Pas proposé quand c'est déjà ce qu'on vient d'appliquer.
+  const peutContinuer = conv.profondeur === "complete" && conv.portee === "projet" && prop?.skill !== "scenarios";
 
   const nouvelle = () => {
     void ctx.lancer(() => nouvelleConversation(conv.projectId, conv.portee, ctx.demande.cible ?? (conv.cibleId != null ? { id: conv.cibleId } : null), conv.profondeur));
@@ -30,8 +35,13 @@ export function EtapeApplique({ ctx, onFermer }: { ctx: ContexteEtape; onFermer:
         {prop ? <p className="tiny-note">{resumeCompteurs(prop.compteurs)}</p> : null}
         <p className="tiny-note">Il n&rsquo;y a pas de point de retour pour l&rsquo;instant : pour revenir en arrière, modifie les éléments à la main.</p>
       </div>
+      {peutContinuer ? (
+        <div className="ag-continuer">
+          <ChoixEpisodes ctx={ctx} saisonId={null} titre="Continuer : écrire les scénarios des épisodes" />
+        </div>
+      ) : null}
       <div className="gd-row">
-        <button type="button" className="btn btn-gold" onClick={onFermer}>
+        <button type="button" className={peutContinuer ? "btn btn-ghost" : "btn btn-gold"} onClick={onFermer}>
           Fermer
         </button>
         <button type="button" className="btn btn-ghost" onClick={nouvelle} disabled={occupe} title="Une conversation neuve sur la même cible (elle écrase l'ancienne)">

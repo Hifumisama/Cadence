@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns } from "../db/schema";
 import { annulationDemandeeLlm, finirAnnulationLlm } from "../lib/annulation-db";
@@ -23,12 +23,14 @@ const INTERVALLE_PROGRESSION_MS = 1_000;
 export type AgentRun = typeof agentRuns.$inferSelect;
 
 /** Le plus ancien appel en attente (FIFO), ou null. Le worker le compare aux
- * images et aux vidéos (worker/ordonnanceur.ts) avant de choisir. */
+ * images et aux vidéos (worker/ordonnanceur.ts) avant de choisir. Un appel dont les options portent
+ * `suspendu: true` n'est jamais pris tout seul : les essais bout en bout (scripts/agents-e2e.ts)
+ * le traitent eux-mêmes avec un faux modèle, sans courir contre le worker de dev. */
 export async function prochaineTacheLlmEnAttente(): Promise<AgentRun | null> {
   const [run] = await db
     .select()
     .from(agentRuns)
-    .where(eq(agentRuns.statut, "en_attente"))
+    .where(and(eq(agentRuns.statut, "en_attente"), sql`coalesce(${agentRuns.options}->>'suspendu', 'false') <> 'true'`))
     .orderBy(agentRuns.createdAt, agentRuns.id)
     .limit(1);
   return run ?? null;

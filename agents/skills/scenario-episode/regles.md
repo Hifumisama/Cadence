@@ -5,8 +5,9 @@ Tu écris le **scénario d'un épisode** : ses scènes, ses plans et ses répliq
 ## Ce que tu reçois
 
 - Le **brief** : arc, style, personnages, lieux, règles de continuité, rimes, progressions, pièges, langue des dialogues.
-- **L'épisode** : son titre et son résumé (issus du brief).
-- Les **résumés des épisodes précédents**, pour la continuité narrative seulement (la continuité visuelle se tient à l'échelle de l'épisode, pas de la série).
+- **L'épisode** : son titre et son résumé (issus du brief), et `briefEpisode`, l'arc que le brief lui donne.
+- Les **résumés des épisodes précédents** (`resumesEpisodesPrecedents`) pour la continuité narrative, et les **titres et résumés des épisodes suivants** (`resumesEpisodesSuivants`) pour savoir ce que cet épisode doit préparer sans le raconter (la continuité visuelle se tient à l'échelle de l'épisode, pas de la série).
+- Les **notes du projet** (`briefExtrait.notes`) quand l'utilisateur en a laissé : elles s'appliquent comme le reste du brief.
 - Le **registre existant** (personnages, lieux, voix), pour employer des noms qui existent déjà.
 - La **portée** demandée (`portee.type`) et l'**instruction** de l'utilisateur (`consigne` : ajouter un plan, compléter ce qui est vide, refaire…) : l'épisode entier (`episode`), un seul plan à insérer (`plan-a-inserer`, avec les plans voisins) ou un seul plan à corriger (`plan-a-corriger`). Pour un plan seul, tu rends UNE scène contenant UN plan, et tu n'écris que ce qui t'est demandé. Un `retourUtilisateur` éventuel corrige une proposition précédente : tiens-en compte.
 

@@ -1,4 +1,4 @@
-import { and, count, eq, lt } from "drizzle-orm";
+import { and, asc, count, eq, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { agentRuns, assetGenerations } from "../../db/schema";
 import type { Tx } from "../ordre-plans";
@@ -19,6 +19,9 @@ export async function creerRun(
     conversationId: number | null;
     propositionId?: number | null;
     options?: { modele?: string; variante?: string } | null;
+    /** Lot : la sous-tâche (« ep:12 ») et ce que la revue en dit (« Épisode 1 · Le sel »). */
+    cleSousTache?: string | null;
+    libelleSousTache?: string | null;
   },
 ): Promise<{ id: number; uuid: string }> {
   const [run] = await d
@@ -31,6 +34,8 @@ export async function creerRun(
       but: p.but,
       conversationId: p.conversationId,
       propositionId: p.propositionId ?? null,
+      cleSousTache: p.cleSousTache ?? null,
+      libelleSousTache: p.libelleSousTache ?? null,
     })
     .returning({ id: agentRuns.id, uuid: agentRuns.uuid });
   return run!;
@@ -59,6 +64,19 @@ export async function etatTache(runId: number | null): Promise<EtatTache | null>
     erreur: r.erreur,
     positionFile,
   };
+}
+
+/** Le rang de CHAQUE tâche d'agent en attente dans la file du GPU (1 = la prochaine), dans l'ordre
+ * où le worker les prend : les images en attente passent avant, puis les appels LLM du plus ancien au
+ * plus récent. Une seule lecture pour tout un lot. */
+export async function positionsFile(): Promise<Map<number, number>> {
+  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(eq(assetGenerations.statut, "en_attente"));
+  const attente = await db
+    .select({ id: agentRuns.id })
+    .from(agentRuns)
+    .where(eq(agentRuns.statut, "en_attente"))
+    .orderBy(asc(agentRuns.createdAt), asc(agentRuns.id));
+  return new Map(attente.map((r, i) => [r.id, Number(images) + i + 1]));
 }
 
 /** `true` si une tâche de cette conversation est en attente ou en cours (un seul tour à la fois). */

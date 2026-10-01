@@ -179,6 +179,8 @@ export function TachesProvider({ children }: { children: ReactNode }) {
       appliquerVu(
         tachesRef.current.map((x) => {
           if (x.cle !== cle) return x;
+          // Un lot garde ce qui est déjà terminé : on ne le range pas « annulé » avant la réponse du serveur.
+          if (cle.startsWith("lot:")) return { ...x, annulationDemandee: true };
           if (x.statut === "en_attente") return { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null };
           if (x.statut === "en_cours") return { ...x, annulationDemandee: true };
           return x;

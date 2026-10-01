@@ -604,7 +604,16 @@ export const agentRuns = pgTable("agent_runs", {
   but: varchar("but", { length: 12 }),
   conversationId: integer("conversation_id"),
   propositionId: integer("proposition_id"),
-}, (table) => [index("agent_runs_statut_idx").on(table.statut, table.createdAt)]);
+  // LOT (2026-10-02, étape « scénarios d'épisodes ») : une proposition peut être composée de
+  // plusieurs tâches, une par sous-tâche (ex. un épisode). `cleSousTache` l'identifie dans le
+  // lot (« ep:12 ») ; `libelleSousTache` est ce que la revue et le header en disent. Vides
+  // pour une tâche seule (tour de conversation, brief, proposition simple).
+  cleSousTache: varchar("cle_sous_tache", { length: 80 }),
+  libelleSousTache: varchar("libelle_sous_tache", { length: 200 }),
+}, (table) => [
+  index("agent_runs_statut_idx").on(table.statut, table.createdAt),
+  index("agent_runs_proposition_idx").on(table.propositionId),
+]);
 
 // ---------------------------------------------------------------------
 // Système d'agents (2026-10-02) : conversation → brief → proposition → revue →
@@ -677,6 +686,9 @@ export const propositions = pgTable("propositions", {
   // « Contexte utilisé » : ce que l'agent a lu automatiquement ([{ type, libelle, ref? }]).
   contexte: jsonb("contexte").notNull().default(sql`'[]'::jsonb`),
   erreur: text("erreur"),
+  // Proposition « en lot » : sa génération est composée de plusieurs tâches `agent_runs`
+  // (une par sous-tâche), elle reste `en_generation` tant qu'il en reste d'actives.
+  lot: boolean("lot").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   appliedAt: timestamp("applied_at"),
 }, (table) => [index("propositions_projet_idx").on(table.projectId, table.createdAt)]);
@@ -707,4 +719,9 @@ export const propositionChangements = pgTable("proposition_changements", {
   coche: boolean("coche").notNull().default(false),
   refuseRaison: text("refuse_raison"),
   appliqueAt: timestamp("applique_at"),
+  // Lot : la sous-tâche (clé de agent_runs.cle_sous_tache) qui a produit ce changement, pour
+  // ne remplacer que SES lignes quand elle est relancée ; `sousGroupe` = le titre de la scène
+  // sous laquelle la revue range un plan ou une réplique.
+  sousTache: varchar("sous_tache", { length: 80 }),
+  sousGroupe: varchar("sous_groupe", { length: 200 }),
 }, (table) => [index("proposition_changements_prop_idx").on(table.propositionId, table.ordre)]);

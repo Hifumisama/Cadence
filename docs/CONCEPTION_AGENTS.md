@@ -413,7 +413,36 @@ L'interface sonde `tache` (en_attente / en_cours) toutes les 3 s. La cible d'une
 conversation se désigne `{ id }` (saison, épisode), `{ uuid }` (plan), `{ code }` (asset) ;
 `VueConversation.cible` la renvoie dans cette forme (l'id interne d'un plan est aussi accepté).
 
+### Étape 1 construite : écrire les scénarios (lots, 2026-10-02)
+Voir `FRICTIONS.md`, « Écrire les scénarios des épisodes : un LOT de sous-tâches ». En bref :
+une proposition peut être un **lot** (colonne `propositions.lot`), une tâche `agent_runs` par
+sous-tâche (`cle_sous_tache`) ; le statut du lot se décide à chaque fin de sous-tâche
+(`lib/agents/lots.ts`, `finaliserLot`) ; le header montre une entrée « 3/12 ».
+Nouvelles actions : `genererScenarios(conversationUuid, { episodeIds?, consigne? })`,
+`relancerSousTache(propositionUuid, cle, retour?)`, `annulerLot(propositionUuid)` ; lectures :
+`VueProposition.lot`, `listerEpisodesPourScenariosVue`, `estimerScenariosVue`. Nouvelle cible de
+changement : `replique`.
+
+**Brancher les étapes 2 et 3 sur la même infrastructure** :
+1. Une **étape = une proposition en lot** dont chaque sous-tâche est une tâche `agent_runs` d'un
+   skill (`prompt-asset` par asset, `prompt-voix` par voix, `plan-h3` par plan) : choisis une clé
+   (`asset:12`, `plan:<uuid>`), un libellé, et pose les tâches avec `creerRun(…, { cleSousTache,
+   libelleSousTache })` dans une action `genererXxx` calquée sur `genererScenarios`
+   (`lib/agents/service.ts`) — `nouvelleProposition(conv, { skill, lot: true, … })`.
+2. Écris la **conversion en code** « sortie du skill → changements » (comme `depuisScenarioEpisode`,
+   pure et testée) avec un préfixe de clés par sous-tâche et un `groupe` par unité (la revue en fait
+   un groupe repliable), puis ajoute la branche correspondante dans
+   `worker/agents/postTraitement.ts` (`postSousTacheLot` : épisode → remplacer par le skill/la clé).
+3. Si la cible n'a pas d'applicateur, ajoutes-en un (`lib/agents/applicateurs/`, registre
+   `index.ts`) : prévisualiser, vérifier, appliquer ; sans lui, le changement est refusé avec un
+   message clair. Pour `plan-h3` : l'applicateur de fiche de plan (sections, `plan_refs`,
+   assets manquants à créer) est le gros morceau.
+4. Côté interface rien d'obligatoire : `ListeSousTaches`, la revue par groupe et le header
+   fonctionnent pour tout lot ; ajoute un point d'entrée (« Continuer » à l'étape « Appliqué » de
+   l'étape précédente) et, si utile, un sélecteur comme `ChoixEpisodes`.
+
 ### Reste à faire
-Interface (popup, entrées contextuelles), page Monitoring, point de retour, applicateurs de
-répliques / de prompt H3 / de suppression, fournisseur Claude, enchaînement automatique des
-étapes, comparaison des modèles locaux sur les skills longs.
+Page Monitoring, point de retour, applicateurs de prompt H3 / de suppression / de modification
+de réplique, **étapes 2 (registre d'assets + prompts) et 3 (plan-h3)**, fournisseur Claude,
+enchaînement automatique des étapes, comparaison des modèles locaux sur les skills longs
+(plan-h3 d'abord : l'essai de qualité sur les 27 plans réels de l'épisode 1).

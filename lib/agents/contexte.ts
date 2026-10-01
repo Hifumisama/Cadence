@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, lt } from "drizzle-orm";
 import { assets, briefs, episodes, planRefs, plans, projects, scenes, seasons } from "../../db/schema";
 import { variantePromptAsset } from "../llm/variantes";
 import type { Db } from "./applicateurs/commun";
@@ -36,12 +36,15 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
     rimes: brief.rimes,
     progressions: brief.progressions,
     pieges: brief.pieges,
+    // Les notes libres du projet (ex-« globaux du scénario ») : ce que l'utilisateur veut qu'on garde en tête.
+    ...(brief.notes?.trim() ? { notes: brief.notes.trim() } : {}),
   };
   const contexte: ContexteUtilise[] = [
     { type: "brief", libelle: "Brief · style et clause de style", ref: "style" },
     { type: "brief", libelle: "Brief · arc et ton", ref: "arc" },
     { type: "brief", libelle: `Brief · ${brief.personnages.length} personnage${brief.personnages.length > 1 ? "s" : ""}, ${brief.lieux.length} lieu${brief.lieux.length > 1 ? "x" : ""}`, ref: "personnages" },
     { type: "brief", libelle: "Brief · continuité, rimes, progressions, pièges", ref: "continuite" },
+    ...(brief.notes?.trim() ? [{ type: "brief" as const, libelle: "Brief · notes du projet", ref: "notes" }] : []),
   ];
   return { extrait, contexte };
 }
@@ -128,12 +131,24 @@ async function contexteEpisode(db: Db, projectId: number, episodeId: number) {
     .from(episodes)
     .where(and(eq(episodes.seasonId, ep.seasonId), lt(episodes.numero, ep.numero)))
     .orderBy(asc(episodes.numero));
+  const suivants = await db
+    .select({ titre: episodes.titre, resume: episodes.resume })
+    .from(episodes)
+    .where(and(eq(episodes.seasonId, ep.seasonId), gt(episodes.numero, ep.numero)))
+    .orderBy(asc(episodes.numero));
   const lesScenes = await db.select({ id: scenes.id, titre: scenes.titre, fonction: scenes.fonction }).from(scenes).where(eq(scenes.episodeId, ep.id)).orderBy(asc(scenes.ordre));
   const lesPlans = await plansDe(db, ep.id);
   const brief = await lireBriefDuProjet(db, projectId);
   const { extrait, contexte } = extraitsBrief(brief?.contenu ?? null);
   const registre = await registreResume(db, projectId);
-  return { ep, precedents, lesScenes, lesPlans, extrait, contexteBrief: contexte, registre };
+  return { ep, precedents, suivants, brief: brief?.contenu ?? null, lesScenes, lesPlans, extrait, contexteBrief: contexte, registre };
+}
+
+/** L'entrée du brief qui correspond à cet épisode : même titre (insensible à la casse), sinon même rang. */
+export function briefDeEpisode(brief: BriefContenu | null, titre: string, numero: number): { titre: string; resume: string; portee?: string } | null {
+  if (!brief?.episodes?.length) return null;
+  const n = (s: string) => s.trim().toLowerCase();
+  return brief.episodes.find((e) => n(e.titre) === n(titre)) ?? brief.episodes[numero - 1] ?? null;
 }
 
 export async function entreeScenarioEpisode(
@@ -156,6 +171,7 @@ export async function entreeScenarioEpisode(
   const contexte: ContexteUtilise[] = [
     { type: "episode", libelle: `Épisode ${c.ep.numero} · ${c.ep.titre}`, ref: String(c.ep.id) },
     ...(c.precedents.length ? [{ type: "episode" as const, libelle: `Résumé de ${c.precedents.length} épisode${c.precedents.length > 1 ? "s" : ""} précédent${c.precedents.length > 1 ? "s" : ""} (continuité narrative)` }] : []),
+    ...(c.suivants.length ? [{ type: "episode" as const, libelle: `Titre et résumé de ${c.suivants.length} épisode${c.suivants.length > 1 ? "s" : ""} suivant${c.suivants.length > 1 ? "s" : ""} (ce que l'épisode doit préparer)` }] : []),
     ...(c.lesPlans.length ? [{ type: "plan" as const, libelle: `${c.lesPlans.length} plan${c.lesPlans.length > 1 ? "s" : ""} existant${c.lesPlans.length > 1 ? "s" : ""}` }] : []),
     ...(voisinAvant ? [{ type: "plan" as const, libelle: `Plan précédent · ${voisinAvant.titre}`, ref: voisinAvant.uuid }] : []),
     ...(voisinApres ? [{ type: "plan" as const, libelle: `Plan suivant · ${voisinApres.titre}`, ref: voisinApres.uuid }] : []),
@@ -169,7 +185,10 @@ export async function entreeScenarioEpisode(
     entree: {
       portee: insertion ? { type: "plan-a-inserer", instruction: "Ne propose QU'UN SEUL plan (une seule scène, un seul plan) : le plan à insérer." } : { type: "episode" },
       episode: { titre: c.ep.titre, resume: c.ep.resume },
+      // L'arc de CET épisode tel que le brief le pose (même titre, ou même rang à défaut).
+      briefEpisode: briefDeEpisode(c.brief, c.ep.titre, c.ep.numero),
       resumesEpisodesPrecedents: c.precedents,
+      resumesEpisodesSuivants: c.suivants,
       scenesExistantes: c.lesScenes,
       plansExistants: c.lesPlans.map((p) => ({ titre: p.titre, description: p.description, dureeSecondes: p.dureeGenerationSecondes })),
       ...(insertion ? { planPrecedent: voisinAvant, planSuivant: voisinApres } : {}),

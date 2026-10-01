@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns, assetGenerations, jobs, plans } from "../db/schema";
 import { ERREUR_ANNULEE, statutPlanApresAnnulation } from "./annulation";
+import { annulerLot } from "./agents/lots";
 import { analyserCle } from "./taches";
 
 // Accès base de l'annulation, partagé par l'action serveur (app/taches/actions.ts)
@@ -19,6 +20,12 @@ export async function demanderAnnulation(cle: string): Promise<ResultatAnnulatio
   const a = analyserCle(cle);
   if (!a) return "rien";
   const maintenant = new Date();
+
+  // Un lot d'agent : toutes ses sous-tâches en attente sont annulées, celle qui tourne est interrompue.
+  if (a.genre === "lot") {
+    const r = await annulerLot(a.ref);
+    return r === "annule" ? "annulee" : r === "demande" ? "demandee" : "rien";
+  }
 
   if (a.genre === "image") {
     const directe = await db

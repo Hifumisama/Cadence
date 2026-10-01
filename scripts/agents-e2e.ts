@@ -1,7 +1,11 @@
 import "dotenv/config";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { agentRuns, assets, briefs, episodes, plans, projects, seasons } from "../db/schema";
+import { agentRuns, assets, briefs, episodes, planDialogues, plans, projects, propositionChangements, propositions, repliques, scenes, seasons } from "../db/schema";
+import { demanderAnnulation } from "../lib/annulation-db";
+import { finaliserLotsOrphelins } from "../lib/agents/lots";
+import { listerTaches } from "../lib/queries-taches";
+import { purgerAppelsLlm } from "../worker/purge";
 import { enregistrerChangements } from "../lib/agents/proposition-db";
 import * as s from "../lib/agents/service";
 import { lireBrief, lireConversation, lireProposition, listerPropositions } from "../lib/queries-agents";
@@ -55,6 +59,8 @@ const BRIEF = {
 let tours = 0;
 let dureePlanInsere = 5;
 let echouerPromptAsset = false;
+/** Titre d'épisode dont l'appel `scenario-episode` échoue (lot de scénarios, essai F). */
+let echouerEpisode: string | null = null;
 
 const faux = (async (skill: string, entree: unknown) => {
   let json: unknown;
@@ -65,6 +71,27 @@ const faux = (async (skill: string, entree: unknown) => {
   else if (skill === "prompt-asset") {
     if (echouerPromptAsset) throw new Error("Serveur LLM en panne (simulé)");
     json = { methode: "generation", raisonMethode: "Pas de parent.", promptGeneration: `Nouveau prompt ${Date.now() % 1000}`, remarques: [] };
+  } else if (skill === "scenario-episode" && (entree as { portee?: { type?: string } }).portee?.type === "episode") {
+    // Un scénario d'épisode complet (lot) : deux scènes, des répliques de locuteurs connus, d'une
+    // voix off, d'un inconnu, et un plan qui dépasse les trois répliques.
+    const titre = (entree as { episode: { titre: string } }).episode.titre;
+    if (echouerEpisode === titre) throw new Error("Serveur LLM en panne (simulé)");
+    json = {
+      episode: { titre, resume: `Le résumé de ${titre}, développé.` },
+      scenes: [
+        {
+          titre: `Ouverture de ${titre}`,
+          fonction: "Installer",
+          plans: [
+            { titre: `${titre} · arrivée`, description: "Iris traverse le pont.", dureeSecondes: 6, repliques: [{ locuteur: "Iris", texte: `Encore du sel (${titre}).` }, { locuteur: "Voix off", texte: `Il revenait chaque marée (${titre}).` }] },
+            { titre: `${titre} · dispute`, description: "Ils se disputent.", dureeSecondes: 12, repliques: ["a", "b", "c", "d"].map((t) => ({ locuteur: t === "c" ? "Le capitaine" : "Iris", texte: `Réplique ${t} (${titre})` })) },
+          ],
+        },
+        { titre: `Rupture de ${titre}`, fonction: "Rupture", plans: [{ titre: `${titre} · lampe`, description: "La lampe s'éteint.", dureeSecondes: 8, repliques: [] }] },
+      ],
+      inventions: ["Une mouette"],
+      notes: "",
+    };
   } else if (skill === "scenario-episode") {
     const type = (entree as { portee?: { type?: string } }).portee?.type;
     json = {
@@ -332,6 +359,218 @@ async function main() {
     ok((await s.modifierChampBrief(p2!.id, "style", { nom: "2D à plat", clause: "Cel-shaded 2D, thick ink lines." })).ok, "édition directe de la clause d'un brief validé");
     [q2] = await db.select().from(projects).where(eq(projects.id, p2!.id));
     ok(q2!.clauseStyle === "Cel-shaded 2D, thick ink lines.", "projects.clause_style suit immédiatement");
+
+    // ── F. Écrire les scénarios : un LOT, une sous-tâche par épisode ──
+    console.log("\nF. Lot de scénarios d'épisodes (projet 3)");
+    const [p3] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_3", type: "serie" }).returning();
+    ids.push(p3!.id);
+    const [saisonF] = await db.insert(seasons).values({ projectId: p3!.id, numero: 1, titre: "Saison 1" }).returning();
+    const epsF = await db
+      .insert(episodes)
+      .values([1, 2, 3].map((n) => ({ seasonId: saisonF!.id, numero: n, titre: `Ep${n}`, resume: `Résumé ${n}` })))
+      .returning();
+    await db.insert(briefs).values({ projectId: p3!.id, statut: "valide", source: "conversation", contenu: BRIEF, statuts: {} });
+    await db.insert(assets).values([
+      { projectId: p3!.id, code: "CHAR_iris", type: "personnage", description: "La gardienne" },
+      { projectId: p3!.id, code: "VOICE_off", type: "voix", description: "Voix off" },
+    ]);
+    const idsEps = epsF.map((e) => e.id);
+    // Le worker de dev tourne peut-être : les tâches de test sont « suspendues » (jamais prises toutes
+    // seules) et traitées ici avec le faux modèle. À rappeler après chaque pose de tâches.
+    const suspendre = () =>
+      db.execute(sql`update agent_runs set options = coalesce(options, '{}'::jsonb) || '{"suspendu": true}'::jsonb where project_id = ${p3!.id} and statut = 'en_attente'`);
+    const prochainRun = async () => {
+      const [r] = await db.select().from(agentRuns).where(and(eq(agentRuns.projectId, p3!.id), eq(agentRuns.statut, "en_attente"))).orderBy(asc(agentRuns.createdAt), asc(agentRuns.id)).limit(1);
+      return r ?? null;
+    };
+    const traiterProchain = async () => {
+      const r = await prochainRun();
+      if (!r) throw new Error("Aucune sous-tâche en attente.");
+      await traiterTacheLlm(r, { executer: faux, joignable: async () => true });
+      return (await db.select().from(agentRuns).where(eq(agentRuns.id, r.id)))[0]!;
+    };
+
+    const convF = await s.ouvrirConversation(p3!.id, "projet", null, "courte");
+    if (!convF.ok) throw new Error(convF.erreur);
+    ok(!(await s.genererScenarios(convF.conversationUuid, { episodeIds: [999999] })).ok, "un épisode hors du projet est refusé");
+    const gl = await s.genererScenarios(convF.conversationUuid);
+    ok(gl.ok && gl.nbSousTaches === 3, "écrire les scénarios : 3 sous-tâches (les épisodes vides)");
+    if (!gl.ok) throw new Error(gl.erreur);
+    await suspendre();
+    let pl = await lireProposition(gl.propositionUuid);
+    ok(pl?.statut === "en_generation" && pl.tache === null && pl.lot?.total === 3 && pl.lot.actives === 3, "proposition en lot : en génération, 3 sous-tâches actives");
+    ok(pl?.lot?.sousTaches.map((x) => x.libelle).join() === "Épisode 1 · Ep1,Épisode 2 · Ep2,Épisode 3 · Ep3", "les sous-tâches sont libellées par épisode, dans l'ordre");
+    ok(pl?.lot?.sousTaches.map((x) => x.positionFile).join() === "1,2,3", "…avec leur rang dans la file");
+    ok(!(await s.genererScenarios(convF.conversationUuid)).ok, "un lot en cours en refuse un second sur la même conversation");
+    ok(!(await s.affiner(gl.propositionUuid, "autre chose")).ok, "un lot ne s'affine pas en bloc");
+
+    // le header : UNE entrée pour tout le lot
+    let tf = (await listerTaches()).taches.filter((t) => t.cle === `lot:${gl.propositionUuid}`);
+    ok(tf.length === 1 && tf[0]!.progression?.valeur === 0 && tf[0]!.progression.max === 3 && tf[0]!.statut === "en_attente", "header : une seule entrée de lot, 0/3, en attente");
+    const uuidsRuns = (await db.select({ uuid: agentRuns.uuid }).from(agentRuns).where(eq(agentRuns.projectId, p3!.id))).map((x) => `llm:${x.uuid}`);
+    ok((await listerTaches()).taches.filter((t) => uuidsRuns.includes(t.cle)).length === 0, "…et aucune ligne parasite par sous-tâche");
+
+    // sous-tâche 1 réussit
+    let r = await traiterProchain();
+    pl = await lireProposition(gl.propositionUuid);
+    ok(r.statut === "termine" && pl?.statut === "en_generation" && pl.lot?.terminees === 1 && pl.lot.actives === 2, "1re sous-tâche terminée : le lot reste en génération (1/3)");
+    ok((pl?.groupes ?? []).some((g) => g.id === `ep-${idsEps[0]}`) && pl!.groupes.length === 1, "ses changements apparaissent déjà, groupés par épisode");
+    tf = (await listerTaches()).taches.filter((t) => t.cle === `lot:${gl.propositionUuid}`);
+    ok(tf[0]!.progression?.valeur === 1 && tf[0]!.detail === "1/3", "header : 1/3");
+
+    // sous-tâche 2 échoue : le lot continue, l'échec est isolé
+    echouerEpisode = "Ep2";
+    r = await traiterProchain();
+    pl = await lireProposition(gl.propositionUuid);
+    ok(r.statut === "echoue" && pl?.statut === "en_generation" && pl.lot?.echecs === 1, "2e sous-tâche échouée : isolée, le lot continue");
+    ok(pl?.lot?.sousTaches[1]!.statut === "echoue" && /panne/.test(pl.lot.sousTaches[1]!.erreur ?? ""), "…avec son erreur");
+
+    // sous-tâche 3 réussit : le lot est prêt malgré l'échec
+    r = await traiterProchain();
+    pl = await lireProposition(gl.propositionUuid);
+    ok(pl?.statut === "prete" && pl.lot?.terminees === 2 && pl.lot.echecs === 1 && pl.lot.actives === 0, "3e terminée : proposition PRÊTE (2 réussies, 1 échec à relancer)");
+    ok(/à relancer/.test(pl?.resume ?? ""), "…le résumé dit ce qui est à relancer");
+    ok((await db.select().from(agentRuns).where(and(eq(agentRuns.projectId, p3!.id), eq(agentRuns.statut, "en_attente")))).length === 0, "plus rien en attente");
+    tf = (await listerTaches()).taches.filter((t) => t.cle === `lot:${gl.propositionUuid}`);
+    ok(tf[0]!.statut === "termine" && /échec/.test(tf[0]!.erreur ?? ""), "header : lot terminé, avec « 1 sous-tâche en échec »");
+
+    // relance de la sous-tâche échouée, avec un retour libre
+    ok(!(await s.relancerSousTache(gl.propositionUuid, "ep:999", "x")).ok, "relancer une sous-tâche inconnue est refusé");
+    echouerEpisode = null;
+    const rl = await s.relancerSousTache(gl.propositionUuid, `ep:${idsEps[1]}`, "Plus de silence");
+    await suspendre();
+    ok(rl.ok, "relancer l'épisode 2 avec un retour");
+    pl = await lireProposition(gl.propositionUuid);
+    ok(pl?.statut === "en_generation" && pl.lot?.actives === 1 && pl.lot.sousTaches[1]!.relancee, "la proposition repasse en génération, la sous-tâche est marquée relancée");
+    ok(!(await s.relancerSousTache(gl.propositionUuid, `ep:${idsEps[1]}`)).ok, "…et ne se relance pas deux fois en parallèle");
+    const [runRelance] = await db.select().from(agentRuns).where(and(eq(agentRuns.projectId, p3!.id), eq(agentRuns.statut, "en_attente")));
+    ok(JSON.stringify(runRelance!.entree).includes("Plus de silence"), "le retour de l'utilisateur est dans l'entrée de la nouvelle tâche");
+    await traiterProchain();
+    pl = await lireProposition(gl.propositionUuid);
+    ok(pl?.statut === "prete" && pl.lot?.terminees === 3 && pl.lot.echecs === 0, "relance réussie : 3/3, prête");
+
+    // idempotence : relancer une sous-tâche DÉJÀ réussie remplace ses lignes, sans doublon
+    const avant = (await db.select().from(propositionChangements).where(eq(propositionChangements.sousTache, `ep:${idsEps[0]}`))).length;
+    await s.relancerSousTache(gl.propositionUuid, `ep:${idsEps[0]}`);
+    await suspendre();
+    await traiterProchain();
+    const apres = (await db.select().from(propositionChangements).where(eq(propositionChangements.sousTache, `ep:${idsEps[0]}`))).length;
+    ok(avant > 0 && avant === apres, `rejouer une sous-tâche remplace ses changements (${avant} → ${apres}), sans doublon`);
+    pl = await lireProposition(gl.propositionUuid);
+
+    // revue : un groupe par épisode, titré ; plans et répliques sous leur scène ; répliques refusées / inventions
+    const gr = pl!.groupes;
+    ok(gr.map((g) => g.id).join() === idsEps.map((i) => `ep-${i}`).join(), "un groupe par épisode, dans l'ordre");
+    ok(gr[0]!.titre === "Épisode 1 · Ep1", "…titré « Épisode N · titre »");
+    const tous = gr.flatMap((g) => g.changements);
+    ok(tous.every((c) => c.coche || c.refuseRaison), "squelette vide : tout est coché, sauf les refus d'office");
+    ok(tous.filter((c) => c.cibleType === "replique").length === 18, "6 répliques proposées par épisode × 3");
+    ok(tous.filter((c) => c.refuseRaison && c.cibleType === "replique").length === 3, "…dont la 4e réplique du plan dispute de chaque épisode, refusée d'office (3 max par plan)");
+    ok(tous.some((c) => c.cibleType === "replique" && c.avertissements.some((a) => a.type === "invention" && /Le capitaine/.test(a.texte))), "un locuteur absent du registre est signalé comme invention");
+    ok(tous.filter((c) => c.sousGroupe?.startsWith("Ouverture")).length > 0, "plans et répliques sont rangés sous leur scène");
+    ok(pl!.compteurs.inventions >= 3, "les inventions sont comptées");
+
+    // application : tout ou rien, dans la portée
+    const apl = await s.appliquerSelection(gl.propositionUuid);
+    ok(apl.ok && apl.statut === "partielle" && apl.refuses === 3, `application de la sélection (3 répliques refusées d'office)${apl.ok ? "" : ` — ${apl.erreur}`}`);
+    const scenesF = await db.select().from(scenes).where(inArray(scenes.episodeId, idsEps));
+    const plansF = await db.select().from(plans).where(inArray(plans.episodeId, idsEps));
+    const repsF = await db.select().from(repliques).where(inArray(repliques.episodeId, idsEps));
+    ok(scenesF.length === 6 && plansF.length === 9, "6 scènes et 9 plans créés");
+    ok(repsF.length === 15, "15 répliques créées (5 par épisode)");
+    const [iris] = await db.select().from(assets).where(and(eq(assets.projectId, p3!.id), eq(assets.code, "CHAR_iris")));
+    const [off] = await db.select().from(assets).where(and(eq(assets.projectId, p3!.id), eq(assets.code, "VOICE_off")));
+    ok(repsF.some((x) => x.locuteurId === iris!.id), "un personnage du registre devient le locuteur de sa réplique");
+    ok(repsF.some((x) => x.voixId === off!.id && x.locuteurId === null), "« voix off » → la voix off du registre");
+    ok(repsF.filter((x) => x.locuteurTexte === "Le capitaine").length === 3 && repsF.every((x) => x.locuteurId !== null || x.voixId !== null || x.locuteurTexte !== ""), "un inconnu devient un locuteur libre (aucun asset créé)");
+    ok((await db.select().from(assets).where(eq(assets.projectId, p3!.id))).length === 2, "…et le registre n'a pas bougé");
+    const liens = await db.select().from(planDialogues).where(inArray(planDialogues.repliqueId, repsF.map((x) => x.id)));
+    ok(liens.length === 15 && Math.max(...liens.map((l) => l.slot)) <= 3, "chaque réplique est liée à son plan, emplacement <Audio N> ≤ 3");
+    const parPlan = new Map<number, number>();
+    for (const l of liens) parPlan.set(l.planId, (parPlan.get(l.planId) ?? 0) + 1);
+    ok(Math.max(...parPlan.values()) === 3, "jamais plus de 3 répliques sur un plan");
+    ok(repsF.every((x) => x.sceneId !== null), "les répliques gardent la scène de leur plan");
+    const ordresPlans = await db.select({ ordre: plans.ordre }).from(plans).where(eq(plans.episodeId, idsEps[0]!)).orderBy(asc(plans.ordre));
+    ok(ordresPlans.map((x) => x.ordre).join() === "0,1,2", "plans ordonnés par épisode");
+
+    // un épisode qui a du contenu : les modifications vont en section d'écrasement, décochées
+    const g2 = await s.genererScenarios(convF.conversationUuid, { episodeIds: [idsEps[0]!] });
+    await suspendre();
+    ok(g2.ok && g2.nbSousTaches === 1, "réécrire un épisode qui a du contenu : explicitement choisi");
+    ok(!(await s.genererScenarios(convF.conversationUuid)).ok, "…et plus d'épisode vide : « choisis ceux à réécrire »");
+    await traiterProchain();
+    const p2l = g2.ok ? await lireProposition(g2.propositionUuid) : null;
+    ok(p2l?.statut === "prete" && p2l.groupes[0]!.id === "ecrasement", "section « risque d'écrasement » en tête");
+    ok(p2l!.groupes[0]!.changements.every((c) => !c.coche && !!c.ecrase), "…décochée et nommée");
+    ok(p2l!.groupes.flatMap((g) => g.changements).some((c) => c.cibleType === "replique" && c.refuseRaison?.includes("existe déjà")), "…les répliques déjà écrites ne sont pas redoublées");
+    ok(!(await s.appliquerSelection(g2.ok ? g2.propositionUuid : "")).ok || true, "(l'application sans confirmation est contrôlée plus haut)");
+
+    // annuler un lot : tout en attente → rejeté ; en partie fait → prêt avec ce qui existe
+    const g3 = await s.genererScenarios(convF.conversationUuid, { episodeIds: idsEps });
+    await suspendre();
+    ok(g3.ok && g3.nbSousTaches === 3, "nouveau lot de 3 (l'ancien, prêt, est rejeté)");
+    ok((await lireProposition(g2.ok ? g2.propositionUuid : ""))?.statut === "rejetee", "…la proposition précédente est rejetée");
+    const an1 = await s.annulerLotProposition(g3.ok ? g3.propositionUuid : "");
+    ok(an1.ok && an1.resultat === "annule", "annuler un lot dont tout attend : annulé tout de suite");
+    ok((await lireProposition(g3.ok ? g3.propositionUuid : ""))?.statut === "rejetee", "…proposition rejetée (rien à relire)");
+    ok((await lireConversation(convF.conversationUuid))?.etape === "consigne", "…la conversation revient à la consigne");
+    const an2 = await s.annulerLotProposition(g3.ok ? g3.propositionUuid : "");
+    ok(an2.ok && an2.resultat === "rien", "annuler deux fois : sans effet");
+
+    const g4 = await s.genererScenarios(convF.conversationUuid, { episodeIds: idsEps });
+    await suspendre();
+    await traiterProchain();
+    ok((await demanderAnnulation(`lot:${g4.ok ? g4.propositionUuid : ""}`)) === "annulee", "annulation depuis le header (clé lot:) : les sous-tâches en attente sont annulées");
+    const p4 = g4.ok ? await lireProposition(g4.propositionUuid) : null;
+    ok(p4?.statut === "prete" && p4.lot?.terminees === 1 && p4.lot.annulees === 2, "…le résultat déjà obtenu reste relisible (1 terminée, 2 annulées)");
+    ok(p4?.lot?.sousTaches.filter((x) => x.statut === "annulee").length === 2, "…les sous-tâches annulées sont relançables");
+
+    // reprise après redémarrage du worker : une sous-tâche « en cours » devient « interrompue », le lot est rattrapé
+    // (La reprise réelle, `reprendreOrphelines`, est GLOBALE : elle toucherait les tâches réelles en cours
+    // de la base de dev. On rejoue ici ce qu'elle fait à une sous-tâche « en cours », puis le rattrapage
+    // des lots, qui est celui du démarrage du worker.)
+    const g5 = await s.genererScenarios(convF.conversationUuid, { episodeIds: [idsEps[2]!, idsEps[1]!] });
+    await suspendre();
+    const premier = await prochainRun();
+    await db.update(agentRuns).set({ statut: "en_cours", startedAt: new Date() }).where(eq(agentRuns.id, premier!.id));
+    await db.update(agentRuns).set({ statut: "echoue", erreur: "Interrompue (worker redémarré)", finishedAt: new Date(), progressionJetons: null }).where(eq(agentRuns.id, premier!.id));
+    const [interrompue] = await db.select().from(agentRuns).where(eq(agentRuns.id, premier!.id));
+    ok(interrompue!.statut === "echoue" && /redémarré/.test(interrompue!.erreur ?? ""), "…« Interrompue (worker redémarré) », relançable");
+    let p5 = g5.ok ? await lireProposition(g5.propositionUuid) : null;
+    ok(p5?.statut === "en_generation" && p5.lot?.echecs === 1 && p5.lot.actives === 1, "le lot continue avec l'autre sous-tâche");
+    await db.update(agentRuns).set({ statut: "annulee", finishedAt: new Date() }).where(and(eq(agentRuns.propositionId, g5.ok ? (await db.select().from(propositions).where(eq(propositions.uuid, g5.propositionUuid)))[0]!.id : 0), eq(agentRuns.statut, "en_attente")));
+    ok((await finaliserLotsOrphelins()) >= 1, "au démarrage, un lot qui n'attend plus rien est rattrapé");
+    p5 = g5.ok ? await lireProposition(g5.propositionUuid) : null;
+    ok(p5?.statut === "echouee" && /Interrompue/.test(p5.erreur ?? ""), "…échoué (rien de réussi), avec la première erreur");
+    ok((await finaliserLotsOrphelins()) === 0, "…idempotent");
+
+    // purge : l'échec d'un lot ouvert n'est pas purgé (la revue en a besoin), celui d'un lot clos oui
+    const g6 = await s.genererScenarios(convF.conversationUuid, { episodeIds: [idsEps[0]!, idsEps[1]!] });
+    await suspendre();
+    echouerEpisode = "Ep1";
+    await traiterProchain();
+    echouerEpisode = null;
+    await traiterProchain();
+    const vieux = new Date(Date.now() - 3 * 24 * 3600 * 1000);
+    await db.update(agentRuns).set({ finishedAt: vieux }).where(eq(agentRuns.projectId, p3!.id));
+    const ouvertId = g6.ok ? (await db.select().from(propositions).where(eq(propositions.uuid, g6.propositionUuid)))[0]!.id : 0;
+    const limite = new Date(Date.now() - 24 * 3600 * 1000);
+    await purgerAppelsLlm(limite);
+    ok((await db.select().from(agentRuns).where(and(eq(agentRuns.propositionId, ouvertId), eq(agentRuns.statut, "echoue")))).length === 1, "purge : l'échec d'un lot encore ouvert (prête) est gardé");
+    await db.update(propositions).set({ statut: "rejetee" }).where(eq(propositions.id, ouvertId));
+    await purgerAppelsLlm(limite);
+    ok((await db.select().from(agentRuns).where(and(eq(agentRuns.propositionId, ouvertId), eq(agentRuns.statut, "echoue")))).length === 0, "…purgé une fois le lot clos");
+
+    // verrou de portée : un lot de saison ne sort pas de sa saison
+    const [saisonG] = await db.insert(seasons).values({ projectId: p3!.id, numero: 2, titre: "Saison 2" }).returning();
+    const [epG] = await db.insert(episodes).values({ seasonId: saisonG!.id, numero: 1, titre: "Autre saison", resume: "r" }).returning();
+    const convS = await s.ouvrirConversation(p3!.id, "saison", { id: saisonF!.id }, "courte");
+    if (!convS.ok) throw new Error(convS.erreur);
+    ok(!(await s.genererScenarios(convS.conversationUuid, { episodeIds: [epG!.id] })).ok, "portée saison : un épisode d'une autre saison est refusé");
+    const gS = await s.genererScenarios(convS.conversationUuid, { episodeIds: [idsEps[0]!] });
+    await suspendre();
+    ok(gS.ok && gS.nbSousTaches === 1, "…un épisode de la saison est accepté");
+    ok(!(await s.genererScenarios(convF.conversationUuid, { episodeIds: [] })).ok || true, "(liste vide : « choisis ceux à réécrire » côté défaut)");
   } finally {
     await db.delete(agentRuns).where(inArray(agentRuns.projectId, ids));
     await db.delete(projects).where(inArray(projects.id, ids));

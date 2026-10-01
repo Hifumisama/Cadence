@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { genererProposition } from "@/app/agents/actions";
 import { apercuContexteVue, listerPlansEpisode } from "@/app/agents/lecture";
 import { CadrageGeneration } from "@/components/agents/CadrageGeneration";
+import { ChoixEpisodes } from "@/components/agents/ChoixEpisodes";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { estTacheActive, two } from "@/lib/agents-affichage";
@@ -29,7 +30,12 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
   const [consigne, setConsigne] = useState(conv.consigne);
   const [contexte, setContexte] = useState<ContexteUtilise[] | null>(null);
   const [plansEpisode, setPlansEpisode] = useState<{ uuid: string; titre: string; rang: number }[]>([]);
-  const peutInserer = (conv.portee === "episode" || conv.portee === "plan") && demande.episodeId != null;
+  // L'épisode concerné : celui du point d'entrée, ou la cible de la conversation rouverte depuis le header.
+  const episodeId = demande.episodeId ?? (conv.portee === "episode" ? conv.cibleId : null);
+  const peutInserer = (conv.portee === "episode" || conv.portee === "plan") && episodeId != null;
+  // Un épisode se demande de deux façons : écrire son scénario (rien d'autre à préciser) ou y AJOUTER
+  // un plan à une position. Par défaut : le scénario d'un épisode encore vide, l'ajout sinon.
+  const [mode, setMode] = useState<"scenario" | "plan" | null>(null)
   const [choix, setChoix] = useState<ChoixPosition>(
     conv.portee === "plan" && demande.planUuid ? `apres:${demande.planUuid}` : "fin",
   );
@@ -52,9 +58,9 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
   }, [conv.projectId, conv.portee, conv.cibleId]);
 
   useEffect(() => {
-    if (!peutInserer || demande.episodeId == null) return;
+    if (!peutInserer || episodeId == null) return;
     let annule = false;
-    listerPlansEpisode(demande.episodeId)
+    listerPlansEpisode(episodeId)
       .then((p) => {
         if (!annule) setPlansEpisode(p);
       })
@@ -62,29 +68,62 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
     return () => {
       annule = true;
     };
-  }, [peutInserer, demande.episodeId]);
+  }, [peutInserer, episodeId]);
 
+  const modeEffectif: "scenario" | "plan" = conv.portee === "episode" ? (mode ?? (plansEpisode.length === 0 ? "scenario" : "plan")) : "plan";
   const position = useMemo<Position | undefined>(() => {
-    if (!peutInserer) return undefined;
+    if (!peutInserer || modeEffectif !== "plan") return undefined;
     if (choix === "debut") return { debut: true };
     if (choix === "fin") return { fin: true };
     return { apresPlanUuid: choix.slice("apres:".length) };
-  }, [choix, peutInserer]);
+  }, [choix, peutInserer, modeEffectif]);
 
   const actif = estTacheActive(conv.tache) || estTacheActive(ctx.prop?.tache);
   const propositionEnCours = ctx.prop != null && ctx.prop.statut !== "rejetee";
 
+  const scenarioEpisode = conv.portee === "episode" && modeEffectif === "scenario";
   const generer = () => {
     const c = consigne.trim();
-    if (!c || occupe || actif) return;
-    void ctx.lancer(() => genererProposition(conv.uuid, { consigne: c, position }));
+    if ((!c && !scenarioEpisode) || occupe || actif) return;
+    void ctx.lancer(() => genererProposition(conv.uuid, { consigne: c || undefined, position }));
   };
+
+  // Depuis le projet ou une saison : écrire les scénarios de plusieurs épisodes d'un coup (un lot).
+  if (conv.portee === "projet" || conv.portee === "saison") {
+    return (
+      <>
+        <ChoixEpisodes ctx={ctx} saisonId={conv.portee === "saison" ? conv.cibleId : null} />
+        <div className="ag-etape-corps">
+          <EtatTacheAgent tache={conv.tache} />
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className="ag-etape-corps">
+      {conv.portee === "episode" ? (
+        <div className="gd-grp">
+          <span className="gd-lbl">Que veux-tu ?</span>
+          <div className="gd-seg" role="group" aria-label="Type de demande">
+            <button type="button" aria-pressed={modeEffectif === "scenario"} onClick={() => setMode("scenario")} disabled={actif}>
+              Écrire le scénario
+              <small>scènes, plans, répliques</small>
+            </button>
+            <button type="button" aria-pressed={modeEffectif === "plan"} onClick={() => setMode("plan")} disabled={actif}>
+              Ajouter un plan
+              <small>à une position</small>
+            </button>
+          </div>
+          {modeEffectif === "scenario" && plansEpisode.length > 0 ? (
+            <p className="tiny-note">Cet épisode a déjà {plansEpisode.length} plan{plansEpisode.length > 1 ? "s" : ""} : les modifications iront en section « risque d&rsquo;écrasement », les plans nouveaux s&rsquo;ajoutent à la fin ; rien n&rsquo;est supprimé.</p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="gd-grp">
         <label className="gd-lbl" htmlFor="ag-consigne">
-          Ta demande
+          {scenarioEpisode ? "Ta demande (facultatif)" : "Ta demande"}
         </label>
         <textarea
           id="ag-consigne"
@@ -98,10 +137,10 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
               generer();
             }
           }}
-          placeholder="Ex. Regard plus dur, cheveux courts. Ou : ajoute un plan où elle découvre la lampe éteinte."
+          placeholder={scenarioEpisode ? "Ex. Garde un rythme lent ; pas plus de deux répliques par plan." : "Ex. Regard plus dur, cheveux courts. Ou : ajoute un plan où elle découvre la lampe éteinte."}
           disabled={actif}
         />
-        <p className="tiny-note">Une phrase suffit : l&rsquo;agent lit le contexte tout seul. Ctrl + Entrée pour lancer.</p>
+        <p className="tiny-note">{scenarioEpisode ? "Sans consigne, l'agent écrit le scénario complet de l'épisode." : "Une phrase suffit : l'agent lit le contexte tout seul."} Ctrl + Entrée pour lancer.</p>
       </div>
 
       <details className="ag-contexte">
@@ -121,7 +160,7 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
         )}
       </details>
 
-      {peutInserer ? (
+      {peutInserer && modeEffectif === "plan" ? (
         <div className="gd-grp">
           <label className="gd-lbl" htmlFor="ag-position">
             Position d&rsquo;un nouveau plan
@@ -152,8 +191,8 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
 
       <div className="ag-lancer">
         <CadrageGeneration conversationUuid={conv.uuid} libelle={conv.cibleLibelle} rafraichissement={conv.tache?.statut} />
-        <button type="button" className="btn btn-gold" onClick={generer} disabled={!consigne.trim() || occupe || actif}>
-          {occupe ? "…" : "Générer la proposition"}
+        <button type="button" className="btn btn-gold" onClick={generer} disabled={(!consigne.trim() && !scenarioEpisode) || occupe || actif}>
+          {occupe ? "…" : scenarioEpisode ? "Écrire le scénario" : "Générer la proposition"}
         </button>
       </div>
     </div>

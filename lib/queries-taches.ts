@@ -1,6 +1,8 @@
 import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, jobs, plans, projects } from "../db/schema";
-import { eq, gte, isNull, or, inArray } from "drizzle-orm";
+import { agentConversations, agentRuns, assetGenerations, assets, jobs, plans, projects, propositions } from "../db/schema";
+import { and, eq, gte, isNotNull, isNull, or, inArray } from "drizzle-orm";
+import { versRunLot } from "./agents/lots";
+import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
 import { METHODE_AUDIO, formaterDuree } from "./asset-generation";
 import { generationMediaSrc } from "./media";
@@ -9,6 +11,7 @@ import {
   RETENTION_TERMINEES_JOURS,
   cleImage,
   cleLlm,
+  cleLot,
   cleVideo,
   ordonnerTaches,
   resumerTaches,
@@ -57,6 +60,21 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .leftJoin(projects, eq(projects.id, agentRuns.projectId))
     .leftJoin(agentConversations, eq(agentConversations.id, agentRuns.conversationId))
     .where(or(inArray(agentRuns.statut, ["en_attente", "en_cours"]), isNull(agentRuns.vuAt), gte(agentRuns.createdAt, depuis)));
+
+  // Un LOT (plusieurs tâches d'une même proposition) = UNE entrée dans le panneau : on relit TOUTES
+  // les tâches des lots touchés (celles déjà vues ou anciennes ne passent pas le filtre ci-dessus,
+  // mais les compter fait « 3/12 »).
+  const idsLots = [...new Set(lignesLlm.filter((l) => l.r.cleSousTache != null && l.r.propositionId != null).map((l) => l.r.propositionId!))];
+  const runsDesLots = idsLots.length
+    ? await db
+        .select({ r: agentRuns, projetNom: projects.nom, conversationUuid: agentConversations.uuid })
+        .from(agentRuns)
+        .leftJoin(projects, eq(projects.id, agentRuns.projectId))
+        .leftJoin(agentConversations, eq(agentConversations.id, agentRuns.conversationId))
+        .where(and(inArray(agentRuns.propositionId, idsLots), isNotNull(agentRuns.cleSousTache)))
+    : [];
+  const propositionsLots = idsLots.length ? await db.select({ id: propositions.id, uuid: propositions.uuid }).from(propositions).where(inArray(propositions.id, idsLots)) : [];
+  const uuidDeProposition = new Map(propositionsLots.map((p) => [p.id, p.uuid]));
 
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
@@ -122,7 +140,42 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     annulationDemandee: j.annulationDemandeeAt != null && j.statut === "en_cours",
   }));
 
-  const llm: Tache[] = lignesLlm.map(({ r, projetNom, conversationUuid }) => ({
+  const lots: Tache[] = idsLots.flatMap((id) => {
+    const lignes = runsDesLots.filter((l) => l.r.propositionId === id);
+    const etat = etatLotPourHeader(lignes.map((l) => versRunLot(l.r)));
+    const uuid = uuidDeProposition.get(id);
+    if (!etat || !uuid || lignes.length === 0) return [];
+    const { projetNom, conversationUuid } = lignes[0]!;
+    const projectId = lignes[0]!.r.projectId ?? 0;
+    return [
+      {
+        cle: cleLot(uuid),
+        genre: "llm" as const,
+        statut: etat.statut,
+        libelle: `${LIBELLE_SKILL.scenarios}${projetNom ? ` · ${projetNom}` : ""}`,
+        detail: etat.detail,
+        href: projectId ? `/p/${projectId}` : "/",
+        conversationUuid: conversationUuid ?? null,
+        projectId,
+        assetId: null,
+        progression: etat.progression,
+        apercuSrc: null,
+        vignetteSrc: null,
+        createdAt: etat.createdAt.toISOString(),
+        startedAt: iso(etat.startedAt),
+        finishedAt: iso(etat.finishedAt),
+        vuAt: iso(etat.vuAt),
+        erreur: etat.erreur,
+        positionFile: null,
+        derriereVideo: false,
+        derriere: null,
+        jetons: etat.jetons,
+        annulationDemandee: etat.annulationDemandee,
+      },
+    ];
+  });
+
+  const llm: Tache[] = lignesLlm.filter((l) => !(l.r.cleSousTache != null && l.r.propositionId != null)).map(({ r, projetNom, conversationUuid }) => ({
     cle: cleLlm(r.uuid),
     genre: "llm",
     statut: r.statut,
@@ -150,7 +203,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     annulationDemandee: r.annulationDemandeeAt != null && r.statut === "en_cours",
   }));
 
-  const gardees = ordonnerTaches([...images, ...videos, ...llm], maintenant);
+  const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots], maintenant);
 
   // Disque : seulement pour les tâches d'images gardées.
   const parCle = new Map(lignesImages.map((l) => [cleImage(l.g.uuid), l.g]));

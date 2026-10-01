@@ -2277,6 +2277,9 @@ button {
   margin-top: var(--sp-3);
 }
 .saison-bd .add-ep {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
   margin: var(--sp-3) 0 0;
 }
 
@@ -5064,4 +5067,117 @@ a.voix-chip:hover {
   .ag-diff th {
     width: 30%;
   }
+}
+
+/* Lots d'agent : écrire les scénarios de plusieurs épisodes (une sous-tâche par épisode) */
+.ag-eps-titre {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+.ag-eps-liste,
+.ag-lot {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.ag-ep-ligne,
+.ag-lot-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.ag-ep-ligne:last-child,
+.ag-lot-ligne:last-child {
+  border-bottom: 0;
+}
+.ag-ep-choisi {
+  background: var(--surface-2);
+}
+.ag-ep-nom {
+  font-size: 14px;
+}
+.ag-ep-rempli {
+  color: var(--or-glow);
+}
+.ag-eps-alerte {
+  margin: 0;
+  padding: 6px 10px;
+  color: var(--or-glow);
+  border-left: 3px solid var(--or);
+  background: var(--surface-2);
+}
+.ag-continuer {
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.ag-estimation {
+  flex: 1 1 auto;
+}
+.ag-lot-ligne {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.ag-lot-symbole {
+  flex: none;
+  width: 1.4em;
+  text-align: center;
+  color: var(--ink-3);
+}
+.ag-lot-ligne.s-termine .ag-lot-symbole {
+  color: var(--or-glow);
+}
+.ag-lot-ligne.s-echoue .ag-lot-symbole,
+.ag-lot-echec,
+.ag-lot-alerte {
+  color: var(--ecarlate-glow);
+}
+.ag-lot-ligne.s-annulee {
+  opacity: 0.7;
+}
+.ag-lot-ligne > .btn {
+  flex: none;
+  margin-left: auto;
+}
+.ag-lot-corps {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ag-lot-nom {
+  font-size: 14px;
+}
+.ag-lot-retour {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ag-bascule {
+  padding: 0 6px;
+  font-size: 16px;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.ag-bascule:hover {
+  color: var(--or);
+}
+.ag-scene-titre {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
 }

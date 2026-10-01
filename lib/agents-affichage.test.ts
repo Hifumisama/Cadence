@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { EstimationGeneration, SectionBrief, VueChangement, VueGroupe } from "./agents/types";
+import type { EstimationGeneration, SectionBrief, VueChangement, VueGroupe, VueLot, VueSousTache } from "./agents/types";
 import {
+  avancementLot,
+  estGroupeEpisode,
+  estLotActif,
+  libelleChoixEpisodes,
+  libelleEtatSousTache,
+  parSousGroupe,
+  sousTacheRelancable,
   decompterStatuts,
   depuisSaisie,
   etapeValide,
@@ -22,7 +29,7 @@ import {
 } from "./agents-affichage";
 
 const changement = (o: Partial<VueChangement> = {}): VueChangement => ({
-  id: 1, ordre: 0, groupe: "g", cle: null, cibleType: "episode", cibleRef: null, libelle: "x", operation: "creer",
+  id: 1, ordre: 0, sousGroupe: null, groupe: "g", cle: null, cibleType: "episode", cibleRef: null, libelle: "x", operation: "creer",
   avant: null, apres: null, position: null, rangsDeplaces: [], avertissements: [], ecrase: null,
   coche: true, bloque: false, refuseRaison: null, appliqueAt: null, ...o,
 });
@@ -141,4 +148,53 @@ test("diff : champ par champ pour deux objets, une ligne sinon", () => {
   assert.deepEqual(lignesDiff("avant", "après").lignes, [{ cle: null, avant: "avant", apres: "après", etat: "modifie" }]);
   assert.deepEqual(lignesDiff("pareil", "pareil"), { lignes: [], identiques: 1 });
   assert.deepEqual(lignesDiff(null, null), { lignes: [], identiques: 0 });
+});
+
+// --- lots et revue par épisode ---------------------------------------------------
+
+const sous = (o: Partial<VueSousTache> = {}): VueSousTache => ({
+  cle: "ep:1", libelle: "Épisode 1 · Le sel", episodeId: 1, runUuid: "u", statut: "termine", progressionJetons: null,
+  erreur: null, positionFile: null, nbChangements: 0, relancee: false, ...o,
+});
+
+test("lot : avancement « 3/12 », échecs et annulations comptés comme clos", () => {
+  const lot: VueLot = { sousTaches: [], total: 12, terminees: 3, echecs: 1, annulees: 2, actives: 6 };
+  assert.deepEqual(avancementLot(lot), { valeur: 6, max: 12, texte: "6/12 · 1 échec · 2 annulées" });
+  assert.equal(estLotActif(lot), true);
+  assert.equal(estLotActif({ ...lot, actives: 0 }), false);
+  assert.equal(estLotActif(null), false);
+});
+
+test("sous-tâche : ce qu'on en dit et quand on peut la relancer", () => {
+  assert.equal(libelleEtatSousTache(sous({ statut: "en_attente", positionFile: 3 })), "En file · n°3");
+  assert.equal(libelleEtatSousTache(sous({ statut: "en_cours", progressionJetons: 420 })), "En cours · 420 jetons");
+  assert.equal(libelleEtatSousTache(sous({ statut: "en_cours" })), "En cours · démarrage…");
+  assert.equal(libelleEtatSousTache(sous({ nbChangements: 1 })), "Terminé · 1 changement");
+  assert.equal(libelleEtatSousTache(sous({ statut: "echoue", erreur: "panne" })), "Échec : panne");
+  assert.equal(libelleEtatSousTache(sous({ statut: "annulee" })), "Annulée");
+  assert.deepEqual((["en_attente", "en_cours", "termine", "echoue", "annulee"] as const).map((statut) => sousTacheRelancable({ statut })), [false, false, true, true, true]);
+});
+
+test("revue d'un lot : un groupe par épisode, les changements rangés par scène dans l'ordre", () => {
+  assert.equal(estGroupeEpisode("ep-12"), true);
+  assert.equal(estGroupeEpisode("plans"), false);
+  assert.equal(estGroupeEpisode("ep-"), false);
+  const liste = [
+    changement({ id: 1, sousGroupe: null, cibleType: "episode" }),
+    changement({ id: 2, sousGroupe: "Le pont", cibleType: "scene" }),
+    changement({ id: 3, sousGroupe: "Le pont", cibleType: "plan" }),
+    changement({ id: 4, sousGroupe: "La lampe", cibleType: "plan" }),
+    changement({ id: 5, sousGroupe: "Le pont", cibleType: "replique" }),
+  ];
+  const blocs = parSousGroupe(liste);
+  assert.deepEqual(blocs.map((b) => b.titre), [null, "Le pont", "La lampe"]);
+  assert.deepEqual(blocs[1]!.changements.map((c) => c.id), [2, 3, 5]);
+  // L'épisode lui-même passe en tête même s'il n'est pas le premier changement.
+  assert.equal(parSousGroupe([liste[1]!, liste[0]!])[0]!.titre, null);
+});
+
+test("sélecteur d'épisodes : la ligne d'aide", () => {
+  assert.equal(libelleChoixEpisodes(0, 0, 0), "Aucun épisode.");
+  assert.equal(libelleChoixEpisodes(3, 2, 2), "2 épisodes sur 3 sélectionnés · 2 vides (cochés d'office)");
+  assert.equal(libelleChoixEpisodes(1, 1, 1), "1 épisode sur 1 sélectionné · 1 vide (cochés d'office)");
 });

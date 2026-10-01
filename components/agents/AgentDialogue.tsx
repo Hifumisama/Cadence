@@ -13,7 +13,7 @@ import { EtapeConsigne } from "@/components/agents/EtapeConsigne";
 import { EtapeConversation } from "@/components/agents/EtapeConversation";
 import { EtapeProposition } from "@/components/agents/RevueProposition";
 import { FilEtapes } from "@/components/agents/FilEtapes";
-import { estTacheActive, etapeValide, filEtapes } from "@/lib/agents-affichage";
+import { estLotActif, estTacheActive, etapeValide, filEtapes } from "@/lib/agents-affichage";
 import type { Etape, ResultatApplication, VueBrief, VueConversation, VueProposition } from "@/lib/agents/types";
 
 const INTERVALLE_SONDAGE_MS = 3000;
@@ -119,7 +119,7 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
   }, [etapeServeur, conv?.uuid]);
 
   // Sondage : seulement tant qu'une tâche de cette conversation est active.
-  const actif = estTacheActive(conv?.tache) || estTacheActive(prop?.tache);
+  const actif = estTacheActive(conv?.tache) || estTacheActive(prop?.tache) || estLotActif(prop?.lot);
   useEffect(() => {
     if (!actif) return;
     const t = setInterval(() => void rafraichir(), INTERVALLE_SONDAGE_MS);

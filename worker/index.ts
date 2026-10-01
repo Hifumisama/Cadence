@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
+import { finaliserLotsOrphelins } from "../lib/agents/lots";
 import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/annulation-db";
 import { domaineDe, type DomaineGpu } from "../lib/gpu";
 import { configLlm } from "../lib/llm/config";
@@ -264,6 +265,10 @@ async function boucle() {
     if (images || videos || llm || annulees) {
       console.log(`[worker] Reprise : ${images} image(s) et ${llm} appel(s) LLM interrompu(s), ${videos} vidéo(s) remise(s) en file, ${annulees} annulation(s) terminée(s)`);
     }
+    // Un lot dont la tâche en cours vient d'être interrompue n'attend plus rien d'elle : son statut
+    // (prête avec un échec à relancer, ou échouée) est rattrapé ici.
+    const lots = await finaliserLotsOrphelins();
+    if (lots) console.log(`[worker] Reprise : ${lots} lot(s) d'agent rattrapé(s)`);
   } catch (err) {
     console.error("[worker] Reprise des tâches interrompues impossible :", err);
   }

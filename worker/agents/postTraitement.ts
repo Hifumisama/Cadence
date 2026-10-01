@@ -9,9 +9,12 @@ import {
   depuisPlanAInserer,
   depuisPromptAsset,
   depuisScenarioEpisode,
+  type EpisodeCourant,
   type SortiePromptAsset,
   type SortieScenarioEpisode,
 } from "../../lib/agents/conversion";
+import { finaliserLot, runsDuLot } from "../../lib/agents/lots";
+import { PAS_ORDRE_SOUS_TACHE, episodeIdDeCle, groupeEpisode, rangSousTache } from "../../lib/agents/lots-pur";
 import { entreeScenarioEpisode } from "../../lib/agents/contexte";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
 import type { BriefContenu, Position, StatutChamp } from "../../lib/agents/types";
@@ -74,6 +77,8 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown) {
   if (prop.statut !== "en_generation") return; // rejetée pendant la génération : on n'écrit rien
   const options = (run.options ?? {}) as OptionsRunAgent;
   const scope = { type: prop.portee as "projet" | "saison" | "episode" | "plan" | "asset", cibleId: prop.cibleId };
+  // Lot : cette tâche n'est qu'une SOUS-TÂCHE (un épisode) d'une proposition plus grande.
+  if (prop.lot) return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
 
   let bruts: ChangementBrut[] = [];
   if (run.skill === "prompt-asset") {
@@ -98,20 +103,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown) {
       if (options.position) {
         bruts = depuisPlanAInserer(sortie, { episodeId: prop.cibleId, position: options.position, sceneId: options.sceneVoisineId ?? null });
       } else {
-        const ep = await entreeScenarioEpisode(tx, prop.projectId, prop.cibleId, "");
-        if (!ep) throw new Error("L'épisode visé n'existe plus.");
-        const entree = ep.entree as { episode: { titre: string; resume: string }; scenesExistantes: { id: number; titre: string }[] };
-        const lesPlans = await tx
-          .select({ uuid: plans.uuid, titre: plans.titre, sceneId: plans.sceneId })
-          .from(plans)
-          .where(eq(plans.episodeId, prop.cibleId));
-        bruts = depuisScenarioEpisode(sortie, {
-          id: prop.cibleId,
-          titre: entree.episode.titre,
-          resume: entree.episode.resume,
-          scenes: entree.scenesExistantes,
-          plans: lesPlans,
-        });
+        bruts = depuisScenarioEpisode(sortie, await episodeCourant(tx, prop.projectId, prop.cibleId));
       }
     } else {
       throw new Error(`Portée « ${prop.portee} » non prise en charge pour le skill scenario-episode.`);
@@ -126,9 +118,47 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown) {
   }
 }
 
+/** L'épisode tel qu'il est maintenant (titre, résumé, scènes, plans) : ce que la conversion compare à la sortie du skill. */
+async function episodeCourant(tx: Tx, projectId: number, episodeId: number): Promise<EpisodeCourant> {
+  const ep = await entreeScenarioEpisode(tx, projectId, episodeId, "");
+  if (!ep) throw new Error("L'épisode visé n'existe plus.");
+  const entree = ep.entree as { episode: { titre: string; resume: string }; scenesExistantes: { id: number; titre: string }[] };
+  const lesPlans = await tx.select({ uuid: plans.uuid, titre: plans.titre, sceneId: plans.sceneId }).from(plans).where(eq(plans.episodeId, episodeId));
+  return { id: episodeId, titre: entree.episode.titre, resume: entree.episode.resume, scenes: entree.scenesExistantes, plans: lesPlans };
+}
+
+/** Une sous-tâche d'un lot de scénarios (un épisode) : ses changements REMPLACENT ceux qu'elle avait
+ * déjà posés (relance) sans toucher aux autres sous-tâches, dans la même transaction que son résultat
+ * (idempotent : rejouer le même résultat ne double rien) ; puis le lot décide de son statut. */
+async function postSousTacheLot(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "saison" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortieScenarioEpisode,
+) {
+  const cle = run.cleSousTache;
+  const episodeId = episodeIdDeCle(cle);
+  if (!cle || episodeId == null || run.skill !== "scenario-episode") throw new Error(`Sous-tâche de lot inconnue (« ${cle ?? "?"} », skill « ${run.skill} »).`);
+  const bruts = depuisScenarioEpisode(sortie, await episodeCourant(tx, prop.projectId, episodeId), {
+    prefixeCle: `ep${episodeId}-`,
+    groupe: groupeEpisode(episodeId),
+    signalerEcrasement: true,
+  });
+  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
+  await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
 /** Échec ou annulation d'une tâche d'agent : la proposition liée n'attendra pas indéfiniment. */
 export async function surEchecRun(run: RunAgent, message: string): Promise<void> {
   if (run.but === "proposition" && run.propositionId != null) {
+    // Une sous-tâche de lot qui échoue ne fait pas échouer le lot : il décide d'après toutes ses tâches.
+    const [prop] = await db.select({ lot: propositions.lot }).from(propositions).where(eq(propositions.id, run.propositionId));
+    if (prop?.lot) {
+      await finaliserLot(db, run.propositionId);
+      return;
+    }
     await db
       .update(propositions)
       .set({ statut: "echouee", erreur: message.slice(0, 2000) })

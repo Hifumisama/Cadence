@@ -6,15 +6,18 @@ import { asc, eq } from "drizzle-orm";
 import type {
   CibleDemandee,
   ContexteUtilise,
+  EpisodePourScenario,
   EstimationGeneration,
   Portee,
   VueBrief,
   VueConversation,
   VueProposition,
 } from "@/lib/agents/types";
+import { episodesPourScenarios } from "@/lib/agents/service";
 import {
   apercuContexte,
   estimerGeneration,
+  estimerScenarios,
   lireBrief,
   lireConversation,
   lirePropositionCourante,
@@ -60,6 +63,16 @@ export async function apercuContexteVue(
 
 export async function estimerGenerationVue(conversationUuid: string): Promise<EstimationGeneration | null> {
   return estimerGeneration(conversationUuid);
+}
+
+/** Les épisodes proposables à l'écriture de leur scénario (le sélecteur du lot) : tout le projet,
+ * ou une saison. `vide` = rien d'écrit : ceux-là sont cochés d'office. */
+export async function listerEpisodesPourScenariosVue(projectId: number, saisonId: number | null): Promise<EpisodePourScenario[]> {
+  return episodesPourScenarios(projectId, saisonId);
+}
+
+export async function estimerScenariosVue(episodeIds: number[]): Promise<EstimationGeneration> {
+  return estimerScenarios(episodeIds);
 }
 
 /** Les plans d'un épisode dans l'ordre, avec leur RANG affiché (base 1) : le sélecteur

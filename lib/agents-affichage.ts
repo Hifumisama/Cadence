@@ -13,6 +13,8 @@ import type {
   TypeAvertissement,
   VueChangement,
   VueGroupe,
+  VueLot,
+  VueSousTache,
 } from "./agents/types";
 
 /** Aides d'AFFICHAGE du système d'agents (popup à étapes, revue, brief) : libellés,
@@ -246,6 +248,7 @@ export const LIBELLE_CIBLE = {
   scene: "Scène",
   asset: "Asset",
   plan: "Plan",
+  replique: "Réplique",
 } as const;
 
 export type GraviteAvertissement = "info" | "attention" | "bloquant";
@@ -374,4 +377,69 @@ export function lignesDiff(avant: unknown, apres: unknown): { lignes: LigneDiff[
   if (stable(avant) === stable(apres)) return { lignes, identiques: 1 };
   lignes.push({ cle: null, avant: valeurEnTexte(avant), apres: valeurEnTexte(apres), etat: "modifie" });
   return { lignes, identiques };
+}
+
+// ---------------------------------------------------------------------------
+// Lots (plusieurs sous-tâches, ex. un épisode chacune) et revue par épisode
+// ---------------------------------------------------------------------------
+
+export const estLotActif = (lot: VueLot | null | undefined): boolean => lot != null && lot.actives > 0;
+
+/** Un groupe de la revue d'un lot : un épisode (`ep-<id>`). */
+export const estGroupeEpisode = (id: string): boolean => /^ep-\d+$/.test(id);
+
+/** L'avancement d'un lot : sous-tâches closes (réussies, échouées ou annulées) / total. */
+export function avancementLot(lot: VueLot): { valeur: number; max: number; texte: string } {
+  const valeur = lot.terminees + lot.echecs + lot.annulees;
+  const morceaux = [`${valeur}/${lot.total}`];
+  if (lot.echecs > 0) morceaux.push(`${lot.echecs} échec${lot.echecs > 1 ? "s" : ""}`);
+  if (lot.annulees > 0) morceaux.push(`${lot.annulees} annulée${lot.annulees > 1 ? "s" : ""}`);
+  return { valeur, max: lot.total, texte: morceaux.join(" · ") };
+}
+
+export const SYMBOLE_SOUS_TACHE: Record<VueSousTache["statut"], string> = {
+  en_attente: "…",
+  en_cours: "▶",
+  termine: "✓",
+  echoue: "✕",
+  annulee: "–",
+};
+
+/** Ce qu'on dit d'une sous-tâche : file, travail en cours (jetons), résultat, échec, annulation. */
+export function libelleEtatSousTache(s: VueSousTache): string {
+  switch (s.statut) {
+    case "en_attente":
+      return `En file · n°${s.positionFile ?? "?"}`;
+    case "en_cours":
+      return s.progressionJetons != null && s.progressionJetons > 0 ? `En cours · ${s.progressionJetons} jeton${s.progressionJetons > 1 ? "s" : ""}` : "En cours · démarrage…";
+    case "termine":
+      return `Terminé · ${s.nbChangements} changement${s.nbChangements > 1 ? "s" : ""}`;
+    case "echoue":
+      return s.erreur ? `Échec : ${s.erreur.slice(0, 120)}` : "Échec";
+    default:
+      return "Annulée";
+  }
+}
+
+/** Une sous-tâche se relance quand elle est close (échouée, annulée) ou réussie à refaire. */
+export const sousTacheRelancable = (s: Pick<VueSousTache, "statut">): boolean => s.statut !== "en_attente" && s.statut !== "en_cours";
+
+/** Les changements d'un groupe rangés par scène (`sousGroupe`), dans l'ordre où ils apparaissent ;
+ * ceux qui n'ont pas de scène (l'épisode lui-même) forment un premier bloc sans titre. */
+export function parSousGroupe(changements: VueChangement[]): { titre: string | null; changements: VueChangement[] }[] {
+  const blocs: { titre: string | null; changements: VueChangement[] }[] = [];
+  for (const c of changements) {
+    const titre = c.sousGroupe ?? null;
+    const bloc = blocs.find((b) => b.titre === titre);
+    if (bloc) bloc.changements.push(c);
+    else blocs.push({ titre, changements: [c] });
+  }
+  return blocs.sort((a, b) => (a.titre === null ? -1 : b.titre === null ? 1 : 0));
+}
+
+/** « 3 épisodes · 2 vides : cochés d'office » — la ligne d'aide du sélecteur d'épisodes. */
+export function libelleChoixEpisodes(total: number, selectionnes: number, vides: number): string {
+  if (total === 0) return "Aucun épisode.";
+  const pl = (n: number, s: string) => `${n} ${s}${n > 1 ? "s" : ""}`;
+  return `${pl(selectionnes, "épisode")} sur ${total} sélectionné${selectionnes > 1 ? "s" : ""} · ${pl(vides, "vide")} (cochés d'office)`;
 }

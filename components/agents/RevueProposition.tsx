@@ -5,17 +5,20 @@ import { affiner, appliquerSelection, cocherChangement, cocherChangements, corri
 import { listerPlansEpisode } from "@/app/agents/lecture";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
+import { EtapeLotEnCours, ListeSousTaches } from "@/components/agents/EtapeLot";
 import {
   AVERTISSEMENT,
   GROUPE_ECRASEMENT,
   LIBELLE_CIBLE,
   LIBELLE_OPERATION,
+  estGroupeEpisode,
   estTacheActive,
   etatCochage,
   libellePosition,
   libelleRangs,
   lignesDiff,
   ordonnerGroupes,
+  parSousGroupe,
   peutCocher,
   resumeCompteurs,
   type EtatCochage,
@@ -51,7 +54,8 @@ export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
   }, [episodeId, prop?.uuid]);
   const rangDe = (uuid: string) => plans.get(uuid) ?? null;
 
-  const retourEtape = conv.profondeur === "courte" ? "consigne" : "brief";
+  // Un lot de scénarios part de l'étape « Appliqué » du squelette : c'est là qu'on revient.
+  const retourEtape = conv.profondeur === "courte" ? "consigne" : prop?.lot ? "applique" : "brief";
 
   if (!prop) {
     return (
@@ -65,6 +69,8 @@ export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
       </div>
     );
   }
+
+  if (prop.lot && prop.statut === "en_generation") return <EtapeLotEnCours prop={prop} ctx={ctx} />;
 
   if (prop.statut === "en_generation" || estTacheActive(prop.tache)) {
     return (
@@ -98,6 +104,10 @@ export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
   const appliquee = prop.statut === "appliquee" || prop.statut === "partielle";
   const groupes = ordonnerGroupes(prop.groupes);
   const nbEcrasements = prop.ecrasements.length;
+  // Un lot a un groupe par épisode : seul le premier s'ouvre d'office (la revue peut compter des
+  // centaines de changements), l'écrasement reste toujours ouvert.
+  const premierEpisode = groupes.find((g) => estGroupeEpisode(g.id))?.id ?? null;
+  const aRelancer = prop.lot ? prop.lot.echecs + prop.lot.annulees : 0;
 
   const appliquer = async (confirme: boolean) => {
     await ctx.lancer(
@@ -125,10 +135,20 @@ export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
     <div className="ag-etape-corps">
       <EnteteProposition prop={prop} />
 
+      {prop.lot ? (
+        <details className="ag-contexte ag-lot-bloc" open={aRelancer > 0 || undefined}>
+          <summary>
+            Épisodes <span className="num">({prop.lot.terminees}/{prop.lot.total})</span>
+            {aRelancer > 0 ? <span className="ag-lot-alerte"> · {aRelancer} à relancer</span> : null}
+          </summary>
+          <ListeSousTaches prop={prop} ctx={ctx} lectureSeule={appliquee} />
+        </details>
+      ) : null}
+
       {groupes.length === 0 ? <p className="ag-vide">Cette proposition ne contient aucun changement.</p> : null}
 
       {groupes.map((g) => (
-        <GroupeChangements key={g.id} groupe={g} prop={prop} ctx={ctx} lecture={appliquee} rangDe={rangDe} />
+        <GroupeChangements key={g.id} groupe={g} prop={prop} ctx={ctx} lecture={appliquee} rangDe={rangDe} ouvertParDefaut={!estGroupeEpisode(g.id) || g.id === premierEpisode} />
       ))}
 
       <div className="ag-barre-revue">
@@ -275,15 +295,21 @@ function GroupeChangements({
   ctx,
   lecture,
   rangDe,
+  ouvertParDefaut,
 }: {
   groupe: VueGroupe;
   prop: VueProposition;
   ctx: ContexteEtape;
   lecture: boolean;
   rangDe: (uuid: string) => number | null;
+  ouvertParDefaut: boolean;
 }) {
   const etat = etatCochage(groupe);
   const special = groupe.id === GROUPE_ECRASEMENT;
+  const episode = estGroupeEpisode(groupe.id);
+  // Seuls les changements d'un groupe OUVERT sont rendus : un lot en compte des centaines.
+  const [ouvert, setOuvert] = useState(ouvertParDefaut || special);
+  const blocs = useMemo(() => (episode ? parSousGroupe(groupe.changements) : [{ titre: null as string | null, changements: groupe.changements }]), [episode, groupe.changements]);
   return (
     <section className={`ag-groupe${special ? " ag-groupe-ecrasement" : ""}`} aria-label={groupe.titre}>
       <header className="ag-groupe-tete">
@@ -295,8 +321,15 @@ function GroupeChangements({
           />
           <span className="ag-groupe-titre">{special ? "⚠ " : ""}{groupe.titre}</span>
         </label>
-        <span className="num tiny-note">
-          {groupe.coches}/{groupe.total}
+        <span className="gd-row">
+          <span className="num tiny-note">
+            {groupe.coches}/{groupe.total}
+          </span>
+          {episode ? (
+            <button type="button" className="ag-bascule" onClick={() => setOuvert((v) => !v)} aria-expanded={ouvert} aria-label={`${ouvert ? "Replier" : "Déplier"} : ${groupe.titre}`}>
+              {ouvert ? "▾" : "▸"}
+            </button>
+          ) : null}
         </span>
       </header>
       {special ? (
@@ -304,11 +337,18 @@ function GroupeChangements({
           Ces éléments existent déjà et seraient remplacés. Rien n&rsquo;est écrasé sans que tu les aies cochés puis confirmés.
         </p>
       ) : null}
-      <ul className="ag-chgs">
-        {groupe.changements.map((c) => (
-          <Changement key={c.id} c={c} ctx={ctx} lecture={lecture} ouvert={special} rangDe={rangDe} />
-        ))}
-      </ul>
+      {ouvert
+        ? blocs.map((b) => (
+            <div key={b.titre ?? "_"} className="ag-bloc-scene">
+              {b.titre ? <h4 className="ag-scene-titre">Scène · {b.titre}</h4> : null}
+              <ul className="ag-chgs">
+                {b.changements.map((c) => (
+                  <Changement key={c.id} c={c} ctx={ctx} lecture={lecture} ouvert={special} rangDe={rangDe} />
+                ))}
+              </ul>
+            </div>
+          ))
+        : null}
     </section>
   );
 }
@@ -329,7 +369,10 @@ function Changement({
   const cochable = peutCocher(c) && !lecture;
   const position = libellePosition(c.position, rangDe);
   const rangs = libelleRangs(c.rangsDeplaces);
-  const diff = useMemo(() => lignesDiff(c.avant, c.apres), [c.avant, c.apres]);
+  // Le tableau avant/après ne se calcule ni ne se rend que déplié (centaines de changements).
+  const [diffOuvert, setDiffOuvert] = useState(ouvert);
+  const diff = useMemo(() => (diffOuvert ? lignesDiff(c.avant, c.apres) : { lignes: [], identiques: 0 }), [diffOuvert, c.avant, c.apres]);
+  const aUnDiff = c.apres != null || c.avant != null;
   const dureeCourante = typeof (c.apres as { dureeGenerationSecondes?: unknown } | null)?.dureeGenerationSecondes === "number"
     ? String((c.apres as { dureeGenerationSecondes: number }).dureeGenerationSecondes)
     : "";
@@ -393,8 +436,8 @@ function Changement({
         </div>
       ) : null}
 
-      {diff.lignes.length > 0 ? (
-        <details className="ag-diff-bloc" open={ouvert || undefined}>
+      {aUnDiff ? (
+        <details className="ag-diff-bloc" open={ouvert || undefined} onToggle={(e) => setDiffOuvert((e.currentTarget as HTMLDetailsElement).open)}>
           <summary>Avant / après</summary>
           <table className="ag-diff">
             <tbody>

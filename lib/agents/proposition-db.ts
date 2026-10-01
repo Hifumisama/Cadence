@@ -37,6 +37,11 @@ export function resumeAutomatique(lignes: { operation: Operation; cibleType: Cib
   return `${lignes.length} changement${lignes.length > 1 ? "s" : ""} proposé${lignes.length > 1 ? "s" : ""} : ${morceaux.join(", ")}.`;
 }
 
+/** `sousTache` : une sous-tâche d'un LOT n'écrit et ne remplace que SES lignes (les autres
+ * sous-tâches ne bougent pas), à partir de `baseOrdre` ; le statut de la proposition n'est alors pas
+ * touché (c'est `finaliserLot` qui le décide quand toutes les sous-tâches sont closes). */
+export type OptionsEnregistrement = { sousTache?: string; baseOrdre?: number };
+
 /** Enrichit les changements bruts (état courant, écrasements, contrôles), applique le verrou de
  * portée, calcule le cochage par défaut et ENREGISTRE les lignes ; la proposition passe `prete`.
  * Remplace d'éventuelles lignes existantes (affinage / régénération). */
@@ -46,6 +51,7 @@ export async function enregistrerChangements(
   projectId: number,
   scope: ScopeDemandee,
   bruts: ChangementBrut[],
+  options: OptionsEnregistrement = {},
 ): Promise<void> {
   const clesNouvelles = new Set(bruts.map((b) => b.cle).filter((c): c is string => !!c));
   const ctx: CtxPrevisu = { projectId, scope, clesNouvelles };
@@ -81,7 +87,9 @@ export async function enregistrerChangements(
     const avertissements = (c.avertissements ?? []) as Avertissement[];
     lignes.push({
       propositionId,
-      ordre,
+      ordre: (options.baseOrdre ?? 0) + ordre,
+      sousTache: options.sousTache ?? null,
+      sousGroupe: c.sousGroupe ?? null,
       groupe: c.groupe,
       cle: c.cle ?? null,
       cibleType: c.cibleType,
@@ -98,6 +106,13 @@ export async function enregistrerChangements(
     });
   }
 
+  if (options.sousTache) {
+    await tx
+      .delete(propositionChangements)
+      .where(and(eq(propositionChangements.propositionId, propositionId), eq(propositionChangements.sousTache, options.sousTache)));
+    if (lignes.length) await tx.insert(propositionChangements).values(lignes);
+    return;
+  }
   await tx.delete(propositionChangements).where(eq(propositionChangements.propositionId, propositionId));
   if (lignes.length) await tx.insert(propositionChangements).values(lignes);
   await tx
@@ -130,6 +145,7 @@ function ligne(r: typeof propositionChangements.$inferSelect): LigneChangement {
     ecrase: r.ecrase,
     coche: r.coche,
     refuseRaison: r.refuseRaison,
+    sousGroupe: r.sousGroupe,
   };
 }
 

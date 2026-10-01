@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db";
 import {
   agentConversations,
@@ -17,11 +17,13 @@ import { chargerSkill } from "../llm/skills";
 import { valider } from "../llm/validation";
 import { estCleSection, sousSchemaSection } from "./brief";
 import { abandonnerBrouillon, creerBriefPartiel, synchroniserClauseStyle } from "./brief-db";
-import type { BriefContenu, CibleDemandee, MessageConversation, Portee, Position, Profondeur, Resultat, StatutChamp } from "./types";
+import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversation, Portee, Position, Profondeur, Resultat, StatutChamp } from "./types";
 import { PORTEES } from "./types";
 import { controleDuree } from "./applicateurs/plan";
 import { cocheParDefaut, groupeAffiche, raisonNonCochable } from "./cochage";
-import { entreeCorrectionPlan, entreePromptAsset, entreeScenarioEpisode, type EntreeSkill } from "./contexte";
+import { entreeCorrectionPlan, entreePromptAsset, entreeScenarioEpisode, lireBriefDuProjet, type EntreeSkill } from "./contexte";
+import { annulerLot, annulerRunsDePropositions, runsDuLot, type ResultatAnnulationLot } from "./lots";
+import { cleSousTacheEpisode, dernieresSousTaches, episodeIdDeCle, estRunActif } from "./lots-pur";
 import { appliquerProposition, enregistrerChangements } from "./proposition-db";
 import { creerRun, tacheActive } from "./runs";
 import { squeletteDepuisBrief } from "./squelette";
@@ -282,8 +284,14 @@ export async function modifierChampBrief(projectId: number, section: string, val
 
 // --- proposition ------------------------------------------------------------
 
-async function nouvelleProposition(conv: ConversationRow, p: { skill: string; consigne: string; contexte: unknown[]; parentId?: number | null; retour?: string | null }): Promise<number> {
-  // Une seule proposition courante : la précédente, si elle attend encore, est rejetée.
+async function nouvelleProposition(conv: ConversationRow, p: { skill: string; consigne: string; contexte: unknown[]; parentId?: number | null; retour?: string | null; lot?: boolean }): Promise<number> {
+  // Une seule proposition courante : la précédente, si elle attend encore, est rejetée — et si
+  // elle est encore en génération, ses tâches (un lot en a plusieurs) sont arrêtées.
+  const enCours = await db
+    .select({ id: propositions.id })
+    .from(propositions)
+    .where(and(eq(propositions.conversationId, conv.id), eq(propositions.statut, "en_generation")));
+  await annulerRunsDePropositions(db, enCours.map((x) => x.id));
   await db
     .update(propositions)
     .set({ statut: "rejetee" })
@@ -300,6 +308,7 @@ async function nouvelleProposition(conv: ConversationRow, p: { skill: string; co
       contexte: p.contexte,
       parentId: p.parentId ?? null,
       retour: p.retour ?? null,
+      lot: p.lot ?? false,
     })
     .returning({ id: propositions.id });
   await db.update(agentConversations).set({ propositionId: prop!.id, consigne: p.consigne, etape: "proposition", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
@@ -328,6 +337,12 @@ export async function genererProposition(conversationUuid: string, options: { co
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   if (await tacheActive(conv.id)) return ERR("Une tâche de l'agent est déjà en cours sur cette conversation.");
+
+  // Écrire les scénarios depuis le projet ou une saison : un LOT (une sous-tâche par épisode).
+  if (conv.profondeur === "courte" && (conv.portee === "projet" || conv.portee === "saison")) {
+    const r = await genererScenarios(conversationUuid, { consigne: options.consigne });
+    return r.ok ? { ok: true, propositionUuid: r.propositionUuid, runUuid: null } : r;
+  }
 
   // Profondeur complète : le squelette se construit en code depuis le brief.
   if (conv.profondeur === "complete") {
@@ -358,7 +373,9 @@ export async function genererProposition(conversationUuid: string, options: { co
     return { ok: true, propositionUuid: prop!.uuid, runUuid: null };
   }
 
-  const consigne = (options.consigne ?? conv.consigne).trim();
+  // Un épisode sans consigne ni position : « écris son scénario » (le cas normal d'un épisode vide).
+  const consigne =
+    (options.consigne ?? conv.consigne).trim() || (conv.portee === "episode" && !options.position ? "Écris le scénario complet de cet épisode." : "");
   if (!consigne) return ERR("Écris une consigne : l'intention en une ligne.");
   const e = await entreePourConversation(conv, consigne, options.position);
   if ("erreur" in e) return ERR(e.erreur);
@@ -451,13 +468,14 @@ export async function rejeter(propositionUuid: string): Promise<Resultat> {
     await db.update(agentRuns).set({ statut: "annulee", finishedAt: new Date() }).where(and(eq(agentRuns.id, prop.runId), eq(agentRuns.statut, "en_attente")));
     await db.update(agentRuns).set({ annulationDemandeeAt: new Date() }).where(and(eq(agentRuns.id, prop.runId), eq(agentRuns.statut, "en_cours")));
   }
+  if (prop.lot) await annulerRunsDePropositions(db, [prop.id]);
   await db.update(propositions).set({ statut: "rejetee" }).where(eq(propositions.id, prop.id));
   if (prop.conversationId != null) {
     const [conv] = await db.select().from(agentConversations).where(eq(agentConversations.id, prop.conversationId));
     if (conv && conv.propositionId === prop.id) {
       await db
         .update(agentConversations)
-        .set({ propositionId: null, etape: conv.profondeur === "complete" ? "brief" : "consigne", updatedAt: new Date() })
+        .set({ propositionId: null, etape: conv.profondeur === "complete" ? (prop.lot ? "applique" : "brief") : "consigne", updatedAt: new Date() })
         .where(eq(agentConversations.id, conv.id));
     }
   }
@@ -470,6 +488,7 @@ export async function affiner(propositionUuid: string, retour: string): Promise<
   const texte = retour.trim();
   if (!texte) return ERR("Dis ce qu'il faut changer.");
   if (parent.skill === "squelette") return ERR("Le squelette se construit depuis le brief : corrige le brief, puis régénère la proposition.");
+  if (parent.lot) return ERR("Un lot ne s'affine pas en bloc : relance la sous-tâche qui ne convient pas, avec ton retour.");
   if (parent.conversationId == null) return ERR("La conversation de cette proposition n'existe plus.");
   const [conv] = await db.select().from(agentConversations).where(eq(agentConversations.id, parent.conversationId));
   if (!conv) return ERR("La conversation de cette proposition n'existe plus.");
@@ -489,6 +508,126 @@ export async function affiner(propositionUuid: string, retour: string): Promise<
   await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
   const [nouvelle] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
   return { ok: true, propositionUuid: nouvelle!.uuid, runUuid: run.uuid };
+}
+
+// --- scénarios d'épisodes : un LOT (une sous-tâche par épisode) -------------------
+
+const CONSIGNE_SCENARIO = "Écris le scénario complet de cet épisode.";
+
+/** Les épisodes d'un projet (ou d'une saison) proposables à l'écriture de leur scénario, dans
+ * l'ordre, avec ce qu'ils contiennent déjà : « vide » = ni plan ni scène (le squelette tout juste
+ * appliqué). */
+export async function episodesPourScenarios(projectId: number, saisonId: number | null): Promise<EpisodePourScenario[]> {
+  const lignes = await db
+    .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre, saisonNumero: seasons.numero })
+    .from(episodes)
+    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+    .where(and(eq(seasons.projectId, projectId), saisonId != null ? eq(seasons.id, saisonId) : undefined))
+    .orderBy(asc(seasons.numero), asc(episodes.numero));
+  if (lignes.length === 0) return [];
+  const ids = lignes.map((l) => l.id);
+  const parPlans = new Map((await db.select({ id: plans.episodeId, n: count() }).from(plans).where(inArray(plans.episodeId, ids)).groupBy(plans.episodeId)).map((r) => [r.id, Number(r.n)]));
+  const parScenes = new Map((await db.select({ id: scenes.episodeId, n: count() }).from(scenes).where(inArray(scenes.episodeId, ids)).groupBy(scenes.episodeId)).map((r) => [r.id, Number(r.n)]));
+  return lignes.map((l) => {
+    const nbPlans = parPlans.get(l.id) ?? 0;
+    const nbScenes = parScenes.get(l.id) ?? 0;
+    return { id: l.id, numero: l.numero, titre: l.titre, saisonNumero: l.saisonNumero, vide: nbPlans === 0 && nbScenes === 0, nbPlans, nbScenes };
+  });
+}
+
+/** « Écrire les scénarios » depuis le projet ou une saison : une proposition EN LOT, une sous-tâche
+ * (une tâche `scenario-episode`) par épisode choisi, exécutées l'une après l'autre dans la file. Par
+ * défaut, les épisodes VIDES ; `episodeIds` choisit (et permet de réécrire un épisode qui a du
+ * contenu : ses modifications vont alors en section d'écrasement, décochées). Un échec isolé ne
+ * perd pas le reste (relançable). */
+export async function genererScenarios(
+  conversationUuid: string,
+  options: { episodeIds?: number[]; consigne?: string } = {},
+): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
+  const conv = await conversationParUuid(conversationUuid);
+  if (!conv) return ERR("Conversation introuvable.");
+  if (conv.portee !== "projet" && conv.portee !== "saison") return ERR("Écrire les scénarios se demande depuis le projet ou une saison ; pour un seul épisode, ouvre-le.");
+  if (await tacheActive(conv.id)) return ERR("Une tâche de l'agent est déjà en cours sur cette conversation.");
+  const brief = await lireBriefDuProjet(db, conv.projectId);
+  if (!brief || brief.statut === "partiel") return ERR("Écris d'abord le brief du projet : l'agent s'appuie dessus pour chaque épisode.");
+
+  const dispo = await episodesPourScenarios(conv.projectId, conv.portee === "saison" ? conv.cibleId : null);
+  if (dispo.length === 0) return ERR("Ce projet n'a pas encore d'épisode : applique d'abord le squelette.");
+  const voulus = options.episodeIds ?? dispo.filter((e) => e.vide).map((e) => e.id);
+  if (voulus.length === 0) return ERR("Tous les épisodes ont déjà du contenu : choisis ceux à (ré)écrire.");
+  const choisis = dispo.filter((e) => voulus.includes(e.id));
+  if (choisis.length !== new Set(voulus).size) return ERR("Un des épisodes choisis n'est pas dans cette portée.");
+
+  const consigne = (options.consigne ?? "").trim() || CONSIGNE_SCENARIO;
+  const plusieursSaisons = new Set(choisis.map((e) => e.saisonNumero)).size > 1;
+  const sousTaches: { e: EpisodePourScenario; entree: NonNullable<Awaited<ReturnType<typeof entreeScenarioEpisode>>> }[] = [];
+  for (const e of choisis) {
+    const entree = await entreeScenarioEpisode(db, conv.projectId, e.id, consigne);
+    if (entree) sousTaches.push({ e, entree });
+  }
+  if (sousTaches.length === 0) return ERR("Aucun épisode lisible.");
+
+  const contexte = [
+    { type: "brief" as const, libelle: `Brief du projet (${brief.statut})`, ref: "*" },
+    { type: "episode" as const, libelle: `${sousTaches.length} épisode${sousTaches.length > 1 ? "s" : ""} à écrire, un par un` },
+    ...sousTaches[0]!.entree.contexte.filter((c) => c.type === "brief" || c.type === "registre"),
+  ];
+  const propId = await nouvelleProposition(conv, { skill: "scenarios", consigne, contexte, lot: true });
+  for (const { e, entree } of sousTaches) {
+    await creerRun(db, {
+      skill: "scenario-episode",
+      entree: entree.entree,
+      but: "proposition",
+      projectId: conv.projectId,
+      conversationId: conv.id,
+      propositionId: propId,
+      cleSousTache: cleSousTacheEpisode(e.id),
+      libelleSousTache: `${plusieursSaisons ? `Saison ${e.saisonNumero} · ` : ""}Épisode ${e.numero} · ${e.titre}`,
+    });
+  }
+  const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
+  return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length };
+}
+
+/** Relance UNE sous-tâche d'un lot (échouée, annulée, ou à refaire), avec un retour libre
+ * facultatif. Ses anciens changements restent jusqu'à ce que la nouvelle réponse les remplace ;
+ * les autres sous-tâches ne bougent pas. */
+export async function relancerSousTache(propositionUuid: string, cle: string, retour?: string): Promise<Resultat<{ runUuid: string }>> {
+  const prop = await propositionParUuid(propositionUuid);
+  if (!prop) return ERR("Proposition introuvable.");
+  if (!prop.lot) return ERR("Cette proposition n'est pas un lot.");
+  if (prop.statut !== "prete" && prop.statut !== "en_generation" && prop.statut !== "echouee") return ERR("Cette proposition est close : plus de relance possible.");
+  const sous = dernieresSousTaches(await runsDuLot(db, prop.id)).find((x) => x.run.cle === cle);
+  if (!sous) return ERR("Sous-tâche introuvable.");
+  if (estRunActif(sous.run)) return ERR("Cette sous-tâche est déjà en file ou en cours.");
+  const episodeId = episodeIdDeCle(cle);
+  if (episodeId == null) return ERR("Sous-tâche non relançable.");
+  const entree = await entreeScenarioEpisode(db, prop.projectId, episodeId, prop.consigne || CONSIGNE_SCENARIO, { retour: retour?.trim() || undefined });
+  if (!entree) return ERR("L'épisode n'existe plus.");
+
+  const run = await creerRun(db, {
+    skill: "scenario-episode",
+    entree: entree.entree,
+    but: "proposition",
+    projectId: prop.projectId,
+    conversationId: prop.conversationId,
+    propositionId: prop.id,
+    cleSousTache: cle,
+    libelleSousTache: sous.run.libelle,
+  });
+  await db.update(propositions).set({ statut: "en_generation", erreur: null }).where(eq(propositions.id, prop.id));
+  if (prop.conversationId != null) {
+    await db.update(agentConversations).set({ etape: "proposition", propositionId: prop.id, updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
+  }
+  return { ok: true, runUuid: run.uuid };
+}
+
+/** Annule un lot : les sous-tâches en attente sont annulées, celle qui tourne est interrompue ; les
+ * résultats déjà écrits restent relisibles. */
+export async function annulerLotProposition(propositionUuid: string): Promise<Resultat<{ resultat: ResultatAnnulationLot }>> {
+  const prop = await propositionParUuid(propositionUuid);
+  if (!prop || !prop.lot) return ERR("Lot introuvable.");
+  return { ok: true, resultat: await annulerLot(propositionUuid) };
 }
 
 export async function appliquerSelection(propositionUuid: string, options: { confirmeEcrasement?: boolean } = {}): Promise<ResultatApplication> {

@@ -1194,6 +1194,79 @@ brief ». **Remplace** les « globaux du scénario » des décisions précédent
   ensuite le brief valide ou partiel. Dev : 2 projets (Les Yeux de Rubis, Troll beau frère) reçoivent
   un brief partiel avec leur clause ; BitterSweet avait déjà la même clause dans son brief.
 
+### Écrire les scénarios des épisodes : un LOT de sous-tâches (2026-10-02)
+Étape 1 du pipeline (brief → squelette → **scénarios** → registre d'assets + prompts → plan-h3).
+Décisions : chaque étape reste une proposition RELUE (validation manuelle, pas de « tout
+enchaîner ») ; un bouton « Continuer » suit l'application d'une étape ; local (gemma) par défaut ;
+l'histoire d'abord (le scénario ne déclare AUCUN asset).
+- **Un lot = une proposition dont la génération est composée de plusieurs tâches** (`agent_runs`),
+  une par **sous-tâche** (un épisode). Colonnes (migration 0035) : `agent_runs.cle_sous_tache`
+  (« ep:12 ») + `libelle_sous_tache` ; `propositions.lot` ; `proposition_changements.sous_tache`
+  (qui l'a produit) + `sous_groupe` (la scène sous laquelle la revue range un plan ou une
+  réplique). Règles pures : `lib/agents/lots-pur.ts` ; base : `lib/agents/lots.ts`.
+- **Statut du lot** : `en_generation` tant qu'une sous-tâche est active ; `prete` dès que toutes
+  sont closes et qu'au moins une a réussi (**un échec isolé ne perd pas le reste** : il est montré
+  dans la revue, « Relancer ») ; `echouee` seulement si TOUT a échoué ; `rejetee` si tout est annulé.
+  Les résultats déjà écrits ne se perdent jamais.
+- **Exécution** : les sous-tâches sont posées d'un coup et passent l'une après l'autre dans la file
+  existante (ressource GPU unique, ordre image → llm → vidéo, FIFO). Le post-traitement
+  (`worker/agents/postTraitement.ts`) écrit les changements de CHAQUE sous-tâche dans la transaction
+  de son résultat, au fil de l'eau : il **remplace ses propres lignes** (relance) sans toucher aux
+  autres, donc rejouer un résultat ne double rien (idempotent). `finaliserLot` décide du statut à
+  chaque fin de sous-tâche (réussie, échouée, annulée) et au démarrage du worker
+  (`finaliserLotsOrphelins`, après la reprise : une sous-tâche « en cours » devient « Interrompue »,
+  relançable).
+- **Relance** (`relancerSousTache`, retour libre facultatif) : une nouvelle tâche pour la même clé ;
+  ses anciens changements restent jusqu'à ce que la réponse les remplace. **Pas d'« affiner » en
+  bloc** pour un lot : on relance l'épisode qui ne convient pas.
+- **Annulation du lot** : sous-tâches en attente annulées, celle qui tourne interrompue (connexion
+  coupée) ; le travail déjà fait reste relisible (`prete` s'il y a un résultat, `rejetee` sinon).
+  **Purge** : l'échec d'une sous-tâche d'un lot encore ouvert (en génération ou prête) n'est PAS
+  purgé au bout de 24 h (la revue en a besoin) ; il l'est une fois le lot clos.
+- **Header** : UNE entrée par lot (`lot:<uuid de la proposition>`), jamais une ligne par sous-tâche :
+  barre « 3/12 » + épisode en cours + jetons ; annulation du lot ; « vu » quand toutes les tâches le
+  sont ; le clic rouvre la popup sur la conversation.
+- **Scénario d'un épisode** (`depuisScenarioEpisode`, en code, sans second appel au modèle) : épisode,
+  scènes, plans ET **répliques**. Nouvelle cible `replique` (applicateur) : la réplique est créée et
+  **liée à son plan** (`plan_dialogues`, un emplacement <Audio N>, **3 au plus par plan** — la
+  quatrième est refusée d'office avec la raison). Le locuteur est rapproché du registre (personnage
+  par code ou nom, voix off du registre, sinon locuteur LIBRE signalé comme **invention**) ;
+  **aucun asset n'est créé** à cette étape. Une réplique identique déjà présente dans l'épisode
+  n'est pas redoublée. Clés symboliques préfixées par épisode (`ep12-scene-1`) : plusieurs épisodes
+  coexistent dans une même proposition.
+- **Épisode qui a déjà du contenu** : choisi explicitement, ses MODIFICATIONS (épisode, plans)
+  vont dans la section « risque d'écrasement », décochées ; les plans nouveaux s'ajoutent à la fin
+  et rien n'est supprimé (la revue le dit). Un squelette vide n'écrase rien. Verrou de portée :
+  un lot de saison ne sort pas de sa saison.
+- **Contexte de chaque épisode** : arc de l'épisode au brief (`briefEpisode`), résumés des épisodes
+  PRÉCÉDENTS et titres/résumés des SUIVANTS (continuité narrative), registre, extraits du brief dont
+  les **notes du projet** (point resté ouvert).
+- **Interface** : « Continuer : écrire les scénarios des épisodes » à l'étape « Appliqué » d'une
+  création de projet ; « Écrire les scénarios » au pied de chaque saison (portée saison, courte) ;
+  sélecteur d'épisodes (vides cochés d'office, estimation) ; liste des sous-tâches avec leur état et
+  « Relancer » ; revue **par épisode** (repliable : seul le premier s'ouvre, diffs rendus à la
+  demande) puis par scène ; sur la page d'un épisode, « Écrire le scénario » (consigne facultative)
+  ou « Ajouter un plan » (position).
+- **Essais** : `npm run agents:e2e` (159 vérifications : lot de 3 épisodes, un échec isolé relancé,
+  annulation, reprise, idempotence, application, répliques, écrasement, purge) ; les tâches de test
+  sont « suspendues » (`options.suspendu`) pour ne pas courir contre le worker de dev.
+- **Essai réel (2026-10-02, gemma4-26b-A4B par le worker de dev, ComfyUI au repos)** : projet de test
+  de 3 épisodes de 90 s (brief fictif, 2 assets au registre), squelette appliqué puis lot lancé.
+  **Durée totale 301 s pour 3 épisodes** (132 s, 84 s, 73 s ; ≈ 3 800 jetons en entrée, 3 900 à
+  5 800 en sortie, raisonnement compris) ; **JSON valide du premier coup, sans renvoi, pour les trois**.
+  Résultat : 34 changements (9 scènes, 22 plans, 3 répliques), tous appliqués d'un coup, 237 s de plans
+  au total. **Qualité** : fidèle au brief (arc, lieux, personnages, ton, rime des pas mouillés reprise
+  à l'épisode 3, notes du projet respectées : 3 répliques seulement, « les silences comptent »),
+  progression d'un épisode à l'autre cohérente (le sel gagne, Iris recule puis avance), inventions
+  déclarées dans `inventions` (contraste du ciré, dialogue du capitaine…), durées 7 à 15 s, aucune
+  description ne renvoie à un autre plan. Défauts : quelques descriptions glissent vers la lumière
+  (« lumière grise de l'aube ») que la règle du skill interdit ; peu de dialogue malgré un épisode
+  « dialogué » (cohérent avec les notes). **Bug trouvé par cet essai et corrigé** : le modèle écrit le
+  CODE du registre (« VOICE_off ») ; le rapprochement de locuteur ne reconnaissait pas une voix par son
+  code, la réplique devenait un locuteur libre signalé à tort comme invention (`rapprocherLocuteur`,
+  test ajouté). L'indicateur du header a montré l'entrée de lot en direct (« Scénarios des épisodes ·
+  projet », 0/3 puis 1/3…, jetons).
+
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
 pressentie : un **catalogue de voix nommées**, chacune avec un échantillon de

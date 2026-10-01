@@ -7,6 +7,7 @@ import { agregerPhases, phaseDe, statutAgrege } from "@/lib/phase";
 import { Poster } from "@/components/ui/Poster";
 import { PhaseBadge } from "@/components/projects/PhaseBadge";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
+import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { SaisonEditModal } from "@/components/projects/SaisonEditModal";
 import { SupprimerSaisonButton } from "@/components/projects/SupprimerSaisonButton";
 import { creerEpisode } from "@/app/projects/actions";
@@ -82,6 +83,13 @@ export function SaisonSection({ projectId, saison }: { projectId: number; saison
             <button className="btn btn-ghost" type="button" disabled={pending} onClick={() => startTransition(() => creerEpisode(saison.id))}>
               + Épisode
             </button>
+            {saison.episodes.length > 0 ? (
+              <BoutonAgent
+                demande={{ projectId, portee: "saison", cible: { id: saison.id }, profondeur: "courte", libelle: `Saison ${two(saison.numero)} · ${saison.titre}` }}
+                libelle="Écrire les scénarios"
+                titre="L'agent écrit le scénario des épisodes de cette saison, un par un (scènes, plans, répliques)"
+              />
+            ) : null}
           </div>
         </div>
       ) : null}

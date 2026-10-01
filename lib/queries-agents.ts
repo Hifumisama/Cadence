@@ -17,12 +17,14 @@
 
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, briefs, plans, propositionChangements, propositions } from "../db/schema";
+import { agentConversations, agentRuns, assetGenerations, assets, briefs, episodes, plans, propositionChangements, propositions } from "../db/schema";
 import { briefVide, construireSections } from "./agents/brief";
 import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./agents/cochage";
 import { apercuContexteDe } from "./agents/contexte";
 import { planifierInsertion } from "./agents/rangs";
-import { etatTache } from "./agents/runs";
+import { vueLot } from "./agents/lots";
+import { episodeIdDeGroupe } from "./agents/lots-pur";
+import { etatTache, positionsFile } from "./agents/runs";
 import { conversationParUuid, libelleCible, rafraichirStatut, resoudreCible, propositionParUuid } from "./agents/service";
 import type {
   Avertissement,
@@ -42,6 +44,7 @@ import type {
   VueBrief,
   VueChangement,
   VueConversation,
+  VueGroupe,
   VueProposition,
 } from "./agents/types";
 import { configLlm, modelePourSkill } from "./llm/config";
@@ -155,16 +158,35 @@ export async function lireBriefOuVide(projectId: number, titreProjet: string): P
 
 // --- proposition ------------------------------------------------------------
 
-async function rangsDeplacesDe(operation: string, cibleType: string, position: Position | null, apres: unknown): Promise<RangDeplace[]> {
+type PlansEpisode = { uuid: string; titre: string }[];
+
+async function rangsDeplacesDe(
+  operation: string,
+  cibleType: string,
+  position: Position | null,
+  apres: unknown,
+  plansDe: (episodeId: number) => Promise<PlansEpisode>,
+): Promise<RangDeplace[]> {
   if (cibleType !== "plan" || operation !== "creer" || !position) return [];
+  // Ajouter à la fin ne déplace aucun rang : pas de lecture (un lot en crée des dizaines, et la
+  // popup relit tout toutes les 3 s).
+  if ("fin" in position) return [];
   const episodeId = (apres as { episodeId?: unknown } | null)?.episodeId;
   if (typeof episodeId !== "number") return [];
-  const existants = await db
-    .select({ uuid: plans.uuid, titre: plans.titre })
-    .from(plans)
-    .where(eq(plans.episodeId, episodeId))
-    .orderBy(asc(plans.ordre), asc(plans.id));
-  return planifierInsertion(existants, position)?.deplaces ?? [];
+  return planifierInsertion(await plansDe(episodeId), position)?.deplaces ?? [];
+}
+
+/** Un lot range ses changements par épisode (groupe `ep-<id>`) : le titre du groupe est celui de
+ * l'épisode tel qu'il est AUJOURD'HUI. */
+async function titrerGroupesEpisodes(groupes: VueGroupe[]): Promise<VueGroupe[]> {
+  const ids = groupes.map((g) => episodeIdDeGroupe(g.id)).filter((x): x is number => x != null);
+  if (ids.length === 0) return groupes;
+  const lignes = await db.select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre }).from(episodes).where(inArray(episodes.id, ids));
+  const parId = new Map(lignes.map((e) => [e.id, `Épisode ${e.numero} · ${e.titre}`]));
+  return groupes.map((g) => {
+    const id = episodeIdDeGroupe(g.id);
+    return id != null ? { ...g, titre: parId.get(id) ?? `Épisode ${id}` } : g;
+  });
 }
 
 async function versVueProposition(brute: typeof propositions.$inferSelect): Promise<VueProposition> {
@@ -175,6 +197,16 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
     .where(eq(propositionChangements.propositionId, p.id))
     .orderBy(asc(propositionChangements.ordre));
 
+  const cachePlans = new Map<number, Promise<PlansEpisode>>();
+  const plansDe = (episodeId: number): Promise<PlansEpisode> => {
+    let p = cachePlans.get(episodeId);
+    if (!p) {
+      p = db.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(asc(plans.ordre), asc(plans.id));
+      cachePlans.set(episodeId, p);
+    }
+    return p;
+  };
+
   const changements: VueChangement[] = [];
   for (const l of lignes) {
     const avertissements = (l.avertissements ?? []) as Avertissement[];
@@ -182,6 +214,7 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
     changements.push({
       id: l.id,
       ordre: l.ordre,
+      sousGroupe: l.sousGroupe,
       groupe: l.groupe,
       cle: l.cle,
       cibleType: l.cibleType as CibleType,
@@ -191,7 +224,7 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
       avant: l.avant,
       apres: l.apres,
       position,
-      rangsDeplaces: await rangsDeplacesDe(l.operation, l.cibleType, position, l.apres),
+      rangsDeplaces: await rangsDeplacesDe(l.operation, l.cibleType, position, l.apres, plansDe),
       avertissements,
       ecrase: l.ecrase,
       coche: l.coche,
@@ -225,10 +258,11 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
     resume: p.resume,
     contexte: (p.contexte ?? []) as ContexteUtilise[],
     erreur: p.erreur,
-    groupes: grouper(changements),
+    groupes: await titrerGroupesEpisodes(grouper(changements)),
     compteurs: compter(changements),
     ecrasements: ecrasementsAConfirmer(changements),
-    tache: p.statut === "en_generation" ? await etatTache(p.runId) : null,
+    tache: p.statut === "en_generation" && !p.lot ? await etatTache(p.runId) : null,
+    lot: p.lot ? await vueLot(p.id, await positionsFile()) : null,
     createdAt: p.createdAt.toISOString(),
     appliedAt: p.appliedAt?.toISOString() ?? null,
   };
@@ -294,6 +328,26 @@ export async function estimerGeneration(conversationUuid: string): Promise<Estim
     dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30),
     tachesDevant,
     skill,
+  };
+}
+
+/** Estimation avant de lancer « écrire les scénarios » pour ces épisodes : un appel par épisode,
+ * l'un après l'autre. Ordres de grandeur (comme `estimerGeneration`), à affiner avec les traces. */
+export async function estimerScenarios(episodeIds: number[]): Promise<EstimationGeneration> {
+  const conf = configLlm();
+  const n = Math.max(1, episodeIds.length);
+  const entree = chargerSkill("scenario-episode").jetonsEstimes + 900;
+  const sortie = SORTIE_ESTIMEE["scenario-episode"] ?? 1800;
+  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
+  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
+  return {
+    fournisseur: conf.fournisseur,
+    modele: modelePourSkill("scenario-episode"),
+    coutEstimeUsd: null,
+    jetonsEntreeEstimes: entree * n,
+    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
+    tachesDevant: images + appels,
+    skill: "scenario-episode",
   };
 }
 

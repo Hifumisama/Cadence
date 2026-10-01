@@ -179,9 +179,15 @@ function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () 
           {x.statut === "en_cours" && !x.annulationDemandee ? (
             x.genre === "llm" ? (
               // Un appel LLM n'a pas de maximum connu : un compteur de jetons, pas de pourcentage.
+              // Un LOT (plusieurs appels, ex. un épisode chacun) a une vraie barre : « 3/12 ».
               <span className="tq-prog">
-                <progress aria-label="Génération en cours" />
-                <span className="num">{x.jetons != null && x.jetons > 0 ? `${x.jetons} jeton${x.jetons > 1 ? "s" : ""}` : "Démarrage…"}</span>
+                {x.progression ? <progress value={x.progression.valeur} max={x.progression.max} aria-label="Avancement du lot" /> : <progress aria-label="Génération en cours" />}
+                <span className="num">
+                  {x.progression?.etape ? `${x.progression.etape} · ` : ""}
+                  {x.progression ? `${x.progression.valeur}/${x.progression.max}` : ""}
+                  {x.progression && x.jetons != null && x.jetons > 0 ? " · " : ""}
+                  {x.jetons != null && x.jetons > 0 ? `${x.jetons} jeton${x.jetons > 1 ? "s" : ""}` : x.progression ? "" : "Démarrage…"}
+                </span>
               </span>
             ) : x.progression ? (
               <span className="tq-prog">

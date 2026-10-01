@@ -58,11 +58,12 @@ export function verifierPortee(scope: ScopeDemandee, c: CibleChangement): string
       if (scope.type === "episode" && !creation && c.episodeId === scope.cibleId) return null;
       return refus(creation ? "un épisode ne se crée pas depuis cette portée" : "cet épisode n'est pas celui visé");
     case "scene":
+    case "replique":
     case "plan": {
       if (scope.type === "saison" && c.saisonId === scope.cibleId) return null;
       if (scope.type === "episode" && c.episodeId === scope.cibleId) return null;
       if (scope.type === "plan" && c.type === "plan" && !creation && c.planId === scope.cibleId) return null;
-      return refus(c.type === "plan" ? "ce plan n'est pas dans la portée visée" : "cette scène n'est pas dans la portée visée");
+      return refus(c.type === "plan" ? "ce plan n'est pas dans la portée visée" : c.type === "replique" ? "cette réplique n'est pas dans la portée visée" : "cette scène n'est pas dans la portée visée");
     }
     case "asset":
       if (creation) return null;

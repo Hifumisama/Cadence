@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { agentRuns, assetGenerations, jobs } from "@/db/schema";
+import { agentRuns, assetGenerations, jobs, propositions } from "@/db/schema";
 import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { demanderAnnulation, type ResultatAnnulation } from "@/lib/annulation-db";
 import { analyserCle } from "@/lib/taches";
@@ -16,12 +16,14 @@ export async function marquerVu(cles: string[]): Promise<{ ok: true }> {
   const maintenant = new Date();
   const uuids: string[] = [];
   const uuidsLlm: string[] = [];
+  const uuidsLots: string[] = [];
   const ids: number[] = [];
   for (const cle of cles.slice(0, 100)) {
     const a = analyserCle(cle);
     if (!a) continue;
     if (a.genre === "image") uuids.push(a.ref);
     else if (a.genre === "llm") uuidsLlm.push(a.ref);
+    else if (a.genre === "lot") uuidsLots.push(a.ref);
     else if (Number.isInteger(Number(a.ref))) ids.push(Number(a.ref));
   }
   if (uuids.length > 0) {
@@ -32,6 +34,16 @@ export async function marquerVu(cles: string[]): Promise<{ ok: true }> {
   }
   if (uuidsLlm.length > 0) {
     await db.update(agentRuns).set({ vuAt: maintenant }).where(and(inArray(agentRuns.uuid, uuidsLlm), isNull(agentRuns.vuAt)));
+  }
+  if (uuidsLots.length > 0) {
+    // Un lot est « vu » quand toutes ses sous-tâches le sont.
+    const props = await db.select({ id: propositions.id }).from(propositions).where(inArray(propositions.uuid, uuidsLots));
+    if (props.length > 0) {
+      await db
+        .update(agentRuns)
+        .set({ vuAt: maintenant })
+        .where(and(inArray(agentRuns.propositionId, props.map((p) => p.id)), isNull(agentRuns.vuAt)));
+    }
   }
   if (ids.length > 0) {
     await db.update(jobs).set({ vuAt: maintenant }).where(and(inArray(jobs.id, ids), isNull(jobs.vuAt)));
@@ -58,7 +70,7 @@ export async function marquerToutVu(): Promise<{ ok: true }> {
   return { ok: true };
 }
 
-/** Annule une tâche (`image:<uuid>` / `video:<id>` / `llm:<uuid>`). En attente :
+/** Annule une tâche (`image:<uuid>` / `video:<id>` / `llm:<uuid>` / `lot:<uuid de la proposition>`). En attente :
  * annulée tout de suite. En cours : le drapeau est posé ; le worker interrompt
  * ComfyUI (après avoir vérifié dans /queue que c'est bien ce prompt) ou coupe la
  * connexion au serveur LLM, puis marque la tâche annulée.
