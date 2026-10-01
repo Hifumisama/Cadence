@@ -28,9 +28,9 @@ async function main() {
     return 0;
   }
 
-  const nom = process.argv.slice(2).find((a) => !a.startsWith("--") && a !== arg("--modele") && a !== arg("--entree"));
+  const nom = process.argv.slice(2).find((a) => !a.startsWith("--") && a !== arg("--modele") && a !== arg("--entree") && a !== arg("--variante"));
   if (!nom) {
-    console.error("Usage : npm run llm:essai -- <skill> [--modele X] [--sans-contrainte] [--entree fichier] [--sans-trace] | --skills");
+    console.error("Usage : npm run llm:essai -- <skill> [--modele X] [--variante V] [--sans-contrainte] [--entree fichier] [--sans-trace] | --skills");
     return 2;
   }
   const fichierEntree = arg("--entree");
@@ -46,7 +46,8 @@ async function main() {
 
   const modele = arg("--modele") ?? modelePourSkill(nom);
   const conf = configLlm();
-  const skill = chargerSkill(nom);
+  const variante = arg("--variante");
+  const skill = chargerSkill(nom, undefined, { variante });
   console.log(`Skill ${nom} : prompt système ≈ ${skill.jetonsEstimes} jetons estimés (${skill.caracteres} caractères)`);
   console.log(`Serveur ${conf.url} · modèle ${modele} · flux ${conf.flux ? "oui" : "non"} · sortie ${process.argv.includes("--sans-contrainte") ? "NON contrainte" : "contrainte par le schéma"}`);
 
@@ -54,6 +55,7 @@ async function main() {
   try {
     const r = await executerSkill(nom, entree, {
       modele,
+      variante,
       contrainte: !process.argv.includes("--sans-contrainte"),
       enregistrer: process.argv.includes("--sans-trace") ? null : undefined,
       surProgres: (n) => {

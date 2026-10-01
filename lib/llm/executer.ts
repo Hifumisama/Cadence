@@ -27,6 +27,8 @@ export type OptionsExecution = {
   enregistrer?: EnregistreurTrace | null;
   env?: Env;
   racine?: string;
+  /** Variante de skill : restreint les guides chargés (voir lib/llm/skills.ts). */
+  variante?: string;
 };
 
 export type ResultatSkill = {
@@ -86,7 +88,7 @@ export async function executerSkill(
   options: OptionsExecution = {},
 ): Promise<ResultatSkill> {
   const env = options.env ?? process.env;
-  const skill = chargerSkill(nomSkill, options.racine);
+  const skill = chargerSkill(nomSkill, options.racine, { variante: options.variante });
   const fournisseur = options.fournisseur ?? creerFournisseur(env);
   const modele = options.modele ?? modelePourSkill(nomSkill, env);
   const messages = versMessages(entree);

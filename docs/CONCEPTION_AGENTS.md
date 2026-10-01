@@ -260,6 +260,15 @@ l'aveugle (F03).
   puis les fichiers partagés déclarés dans le code (le lexique H3 pour `plan-h3` et
   `iteration-plan`), puis le contrat de sortie (`sortie.schema.json` en JSON compact).
   Chaque fichier a un titre `=== type : nom ===`. Pas de manifeste.
+  **Variantes (2026-10-01)** : un guide peut se réserver à certains cas par une
+  première ligne `<!-- variantes: image, generation -->` (retirée du prompt). Quand
+  l'appelant passe une `variante` (`executerSkill(skill, entree, { variante })`, ou
+  `options.variante` d'une tâche `agent_runs`, ou `--variante` aux scripts), seuls
+  les guides sans déclaration et ceux qui la nomment sont chargés ; sans variante,
+  tout est chargé. Pour `prompt-asset`, `variantePromptAsset(asset)`
+  (`lib/llm/variantes.ts`) donne `sfx`, `generation` (Krea 2), `edition` (Qwen) ou
+  `image` (les deux, quand la méthode reste à recommander) : le prompt passe de
+  ≈ 7 100 à ≈ 3 700-5 000 jetons estimés, ce qui compte pour un modèle local.
 - **VRAM partagée — construit (chantier 2)** : le serveur LLM local et ComfyUI
   tournent sur la même machine et ne tiennent pas ensemble en mémoire. Un appel LLM
   local est une **tâche de la file** (genre « llm », table `agent_runs`, traité par

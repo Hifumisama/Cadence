@@ -8,7 +8,7 @@ import { PITCH_FICTIF } from "./entrees-fictives";
 
 /** Pose un appel LLM dans la file du worker (table `agent_runs`), sans interface :
  *   npm run llm:tache -- brief-projet [--entree fichier.json|.txt] [--projet <id>]
- *                                      [--modele X] [--suivre]
+ *                                      [--modele X] [--variante V] [--suivre]
  * Le worker (`npm run dev:all`) doit tourner : il prend la tâche quand le GPU est
  * libre (image, puis LLM, puis vidéo), décharge ComfyUI si besoin, appelle le
  * modèle et écrit le résultat. `--suivre` affiche l'avancement jusqu'à la fin.
@@ -20,7 +20,7 @@ function arg(nom: string): string | undefined {
 }
 
 async function main(): Promise<number> {
-  const valeurs = new Set(["--entree", "--projet", "--modele"].map((n) => arg(n)).filter(Boolean));
+  const valeurs = new Set(["--entree", "--projet", "--modele", "--variante"].map((n) => arg(n)).filter(Boolean));
   const skill = process.argv.slice(2).find((a) => !a.startsWith("--") && !valeurs.has(a));
   if (!skill) {
     console.error("Usage : npm run llm:tache -- <skill> [--entree fichier] [--projet id] [--modele X] [--suivre]");
@@ -39,13 +39,14 @@ async function main(): Promise<number> {
   }
   const projet = arg("--projet");
   const modele = arg("--modele");
+  const variante = arg("--variante");
 
   const [run] = await db
     .insert(agentRuns)
     .values({
       skill,
       entree: fichier?.endsWith(".json") ? JSON.parse(entree) : entree,
-      options: modele ? { modele } : null,
+      options: modele || variante ? { ...(modele ? { modele } : {}), ...(variante ? { variante } : {}) } : null,
       projectId: projet ? Number(projet) : null,
     })
     .returning();

@@ -1,3 +1,4 @@
+<!-- variantes: image, edition -->
 # Qwen Image Edit 2511 — prompter une édition
 
 > Grammaire reprise du skill `assets-comfyui` (production réelle) et de la fiche officielle du modèle : [ComfyUI, Qwen-Image-Edit-2511](https://docs.comfy.org/tutorials/image/qwen/qwen-image-edit-2511). La doc officielle ne donne aucune consigne de prompt ; tout ce qui suit vient de notre pratique `[projet]`. Le workflow d'édition est `workflows/image-refs/IMG_Simple_Edit.json` (jusqu'à trois images : la première est la cible de la modification).

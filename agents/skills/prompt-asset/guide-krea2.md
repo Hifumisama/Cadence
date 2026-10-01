@@ -1,3 +1,4 @@
+<!-- variantes: image, generation -->
 # Krea 2 (Turbo) — prompter un master ou un asset généré de zéro
 
 > Sources. **Officiel** : [krea-ai/krea-2, `docs/prompting.md`](https://github.com/krea-ai/krea-2/blob/main/docs/prompting.md) et [`docs/expansion.txt`](https://github.com/krea-ai/krea-2/blob/main/docs/expansion.txt) (relevés le 2026-09-30) ; [ComfyUI, Krea-2 workflow](https://docs.comfy.org/tutorials/image/krea/krea-2). **Communautaire, non officiel** : le guide de blocs de prompt d'un auteur tiers (ordre cadrage → lumière → sujet → décor → style, pondération des mots, schéma de pose). Chaque règle ci-dessous est marquée `[officiel]`, `[communauté]` ou `[projet]` (observé sur nos rendus, ou hérité de notre registre). Une règle `[communauté]` est une piste à éprouver, jamais un fait.

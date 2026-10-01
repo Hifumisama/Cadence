@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { chargerSkill } from "./skills";
+import { chargerSkill, variantesDuGuide } from "./skills";
+import { variantePromptAsset } from "./variantes";
 import { valider } from "./validation";
 
 // Le skill prompt-asset sert les images ET les sons (asset `sfx`) : le guide
@@ -15,12 +16,43 @@ const sfx = {
   remarques: [],
 };
 
-test("prompt-asset : le guide SFX s'assemble avec les guides d'image, dans l'ordre alphabétique", () => {
+const guidesDe = (s: ReturnType<typeof chargerSkill>) => s.fichiers.filter((f) => f.includes("/guide-")).map((f) => f.split("/").pop());
+
+test("prompt-asset : sans variante, tous les guides s'assemblent, dans l'ordre alphabétique", () => {
   const s = chargerSkill("prompt-asset");
-  const guides = s.fichiers.filter((f) => f.includes("/guide-")).map((f) => f.split("/").pop());
-  assert.deepEqual(guides, ["guide-krea2.md", "guide-qwen-edit.md", "guide-stable-audio-sfx.md"]);
+  assert.deepEqual(guidesDe(s), ["guide-krea2.md", "guide-qwen-edit.md", "guide-stable-audio-sfx.md"]);
+  assert.deepEqual(s.guidesIgnores, []);
   assert.ok(s.systeme.includes("Stable Audio 3"));
   assert.ok(s.systeme.includes("dureeSecondes"), "la règle ET le schéma parlent de la durée");
+  assert.ok(!s.systeme.includes("<!-- variantes"), "la déclaration de variantes est retirée du prompt");
+});
+
+test("prompt-asset : chaque variante ne charge que ses guides", () => {
+  const sfx = chargerSkill("prompt-asset", undefined, { variante: "sfx" });
+  assert.deepEqual(guidesDe(sfx), ["guide-stable-audio-sfx.md"]);
+  const gen = chargerSkill("prompt-asset", undefined, { variante: "generation" });
+  assert.deepEqual(guidesDe(gen), ["guide-krea2.md"]);
+  const edi = chargerSkill("prompt-asset", undefined, { variante: "edition" });
+  assert.deepEqual(guidesDe(edi), ["guide-qwen-edit.md"]);
+  const img = chargerSkill("prompt-asset", undefined, { variante: "image" });
+  assert.deepEqual(guidesDe(img), ["guide-krea2.md", "guide-qwen-edit.md"]);
+  assert.ok(!img.systeme.includes("Stable Audio 3 — prompter"), "pas de guide audio pour une image");
+  assert.ok(img.jetonsEstimes < chargerSkill("prompt-asset").jetonsEstimes, "le prompt d'image est plus léger");
+  assert.ok(sfx.jetonsEstimes < chargerSkill("prompt-asset").jetonsEstimes);
+  assert.equal(img.guidesIgnores.length, 1);
+});
+
+test("variantePromptAsset : le type et la méthode choisissent la variante", () => {
+  assert.equal(variantePromptAsset({ type: "sfx", methodeGeneration: null }), "sfx");
+  assert.equal(variantePromptAsset({ type: "personnage", methodeGeneration: "generation" }), "generation");
+  assert.equal(variantePromptAsset({ type: "decor", methodeGeneration: "edition" }), "edition");
+  assert.equal(variantePromptAsset({ type: "prop", methodeGeneration: null }), "image");
+});
+
+test("variantesDuGuide : lit la première ligne, tolère les espaces, ignore l'absence", () => {
+  assert.deepEqual(variantesDuGuide("<!-- variantes: a, B ,c -->\n# Titre"), ["a", "b", "c"]);
+  assert.equal(variantesDuGuide("# Titre sans déclaration"), null);
+  assert.equal(variantesDuGuide("# Titre\n<!-- variantes: a -->"), null, "seule la première ligne compte");
 });
 
 test("prompt-asset : une sortie d'image sans durée reste valide", () => {

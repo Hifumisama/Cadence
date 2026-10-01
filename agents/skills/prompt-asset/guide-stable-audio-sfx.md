@@ -1,3 +1,4 @@
+<!-- variantes: sfx -->
 # Stable Audio 3 — prompter un son (asset `sfx`)
 
 > Sources (relevées le 2026-10-01) : **officiel** [Stability AI, `docs/guides/prompting.md`](https://github.com/Stability-AI/stable-audio-3/blob/main/docs/guides/prompting.md) et [ComfyUI, Stable Audio 3](https://docs.comfy.org/tutorials/audio/stable-audio/stable-audio-3) ; **workflow** : le gabarit de réécriture intégré à `workflows/audio/SFX_Generate_Sounds.json`. Règles marquées `[officiel]`, `[workflow]`, `[communauté]` ou `[projet]` (déduit du graphe ou décidé pour Cadence). Une règle `[communauté]` ou `[projet, à éprouver]` est une piste, jamais un fait.

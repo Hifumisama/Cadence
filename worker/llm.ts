@@ -71,13 +71,14 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
   };
 
   let traceId: number | null = null;
-  const options = (run.options ?? {}) as { modele?: string };
+  const options = (run.options ?? {}) as { modele?: string; variante?: string };
   const debut = Date.now();
 
   try {
     const res = await executer(run.skill, run.entree as string | object, {
       projectId: run.projectId,
       modele: options.modele,
+      variante: options.variante,
       signal: abandon.signal,
       surProgres: (jetons) => {
         if (peutEcrire()) enfiler(() => db.update(agentRuns).set({ progressionJetons: jetons }).where(eq(agentRuns.id, run.id)));
