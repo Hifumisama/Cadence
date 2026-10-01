@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useAgents } from "@/components/agents/AgentsProvider";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { estActive, type GenreTache, type Tache } from "@/lib/taches";
 import { urlMiniature } from "@/lib/miniatures";
@@ -134,13 +135,26 @@ function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () 
   // Une tâche en cours coûte du temps de GPU : on demande confirmation avant de la
   // couper. Une tâche en attente s'annule d'un clic (rien n'est perdu).
   const [confirmer, setConfirmer] = useState(false);
+  const { ouvrirAgent } = useAgents();
   // L'aperçu en direct est déjà léger (écrasé à chaque étape) ; la vignette d'un
   // résultat passe par la miniature.
   const image = x.apercuSrc ?? (x.vignetteSrc ? urlMiniature(x.vignetteSrc, 96) : null);
   const nonVu = x.vuAt == null && (x.statut === "termine" || x.statut === "echoue");
   return (
     <li className={`tq-entree s-${x.statut}${nonVu ? " non-vu" : ""}`}>
-      <Link href={x.href} className="tq-lien-entree" onClick={onOuvrir}>
+      <Link
+        href={x.href}
+        className="tq-lien-entree"
+        onClick={(e) => {
+          // Une tâche d'agent rouvre la popup sur sa conversation (à la bonne étape : la
+          // popup suit l'étape du serveur), sans changer de page.
+          if (x.genre === "llm" && x.conversationUuid) {
+            e.preventDefault();
+            ouvrirAgent({ conversationUuid: x.conversationUuid, projectId: x.projectId || undefined });
+          }
+          onOuvrir();
+        }}
+      >
         <span className="tq-vignette" aria-hidden="true">
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element

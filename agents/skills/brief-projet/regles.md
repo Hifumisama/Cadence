@@ -59,6 +59,10 @@ L'utilisateur peut modifier le brief plus tard. Tu ne réécris jamais tout : tu
 
 **Reconstituer un brief depuis un projet existant** (fait à la main) : tu reçois les épisodes, scènes, plans, assets et répliques, et tu en déduis le brief. Marque chaque champ *déduit* ou *incertain*, et n'invente rien : un champ que tu ne peux pas déduire reste vide et devient une question.
 
+## `statuts` : qui a posé quoi
+
+Pour chaque section que tu remplis, dis dans `statuts` qui l'a posée : **`fourni`** (l'utilisateur l'a dit, ou validé tel quel), **`deduit`** (tu l'as conclu de ce qu'il a dit) ou **`a_valider`** (tu l'as inventé, ou tu hésites). L'interface les distingue : ce qui est « à valider » est relu en premier. Ne marque `fourni` que ce qui vient réellement de l'utilisateur.
+
 ## Avant de rendre
 
 - L'arc tient en deux à quatre phrases.

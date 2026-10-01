@@ -594,4 +594,114 @@ export const agentRuns = pgTable("agent_runs", {
   finishedAt: timestamp("finished_at"),
   vuAt: timestamp("vu_at"),
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
+  // Ce que le résultat devient (système d'agents, docs/CONCEPTION_AGENTS.md §14) :
+  // `but` = tour (réponse de conversation) | brief | proposition ; les ids relient la
+  // tâche à sa conversation / sa proposition (entiers simples, sans clé étrangère :
+  // les tables d'agents pointent déjà vers agent_runs, pas de référence circulaire).
+  but: varchar("but", { length: 12 }),
+  conversationId: integer("conversation_id"),
+  propositionId: integer("proposition_id"),
 }, (table) => [index("agent_runs_statut_idx").on(table.statut, table.createdAt)]);
+
+// ---------------------------------------------------------------------
+// Système d'agents (2026-10-02) : conversation → brief → proposition → revue →
+// application. Voir docs/CONCEPTION_AGENTS.md §14. Aucun enum pg : valeurs en
+// varchar, contrôlées par l'application (lib/agents/types.ts).
+// ---------------------------------------------------------------------
+
+// Une conversation par (projet, portée, cible) : rouvrir reprend, en démarrer une
+// « nouvelle » sur la même cible écrase la précédente (unicité ci-dessous).
+// `portee` : projet | saison | episode | plan | asset ; `cibleId` = id interne de la
+// saison / de l'épisode / du plan / de l'asset visé (null pour le projet). `etape` :
+// consigne | conversation | brief | proposition | applique. `propositionId` = la
+// proposition courante (entier simple : les propositions pointent vers la conversation).
+export const agentConversations = pgTable("agent_conversations", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  portee: varchar("portee", { length: 10 }).notNull(),
+  cibleId: integer("cible_id"),
+  profondeur: varchar("profondeur", { length: 10 }).notNull().default("courte"),
+  etape: varchar("etape", { length: 12 }).notNull().default("consigne"),
+  // [{ role: "user" | "assistant", content, at }] — les tours de la conversation.
+  messages: jsonb("messages").notNull().default(sql`'[]'::jsonb`),
+  consigne: text("consigne").notNull().default(""),
+  // L'agent estime avoir de quoi écrire le brief (dernier tour).
+  briefPret: boolean("brief_pret").notNull().default(false),
+  propositionId: integer("proposition_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("agent_conversations_cible_idx").on(table.projectId, table.portee, sql`coalesce(${table.cibleId}, 0)`),
+]);
+
+// Le brief : document de RÉFÉRENCE du projet (un seul par projet), modifiable après
+// coup. `contenu` suit le schéma de agents/skills/brief-projet/sortie.schema.json ;
+// `statuts` dit, section par section (clé de premier niveau), qui l'a posée :
+// fourni (dit par l'utilisateur) | deduit (conclu par l'agent) | a_valider (inventé
+// ou incertain). `statut` : brouillon (sorti d'une conversation, pas encore
+// appliqué) | valide.
+export const briefs = pgTable("briefs", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().unique().references(() => projects.id, { onDelete: "cascade" }),
+  statut: varchar("statut", { length: 10 }).notNull().default("brouillon"),
+  source: varchar("source", { length: 12 }).notNull().default("conversation"),
+  contenu: jsonb("contenu").notNull(),
+  statuts: jsonb("statuts").notNull().default(sql`'{}'::jsonb`),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Un lot de changements mis de côté, jamais appliqué sans l'utilisateur. `statut` :
+// en_generation | prete | appliquee | partielle | rejetee | echouee. La conversation
+// peut disparaître (écrasée) sans emporter l'historique : `set null`. `parentId` =
+// la proposition affinée (retour libre de l'utilisateur dans `retour`).
+export const propositions = pgTable("propositions", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  conversationId: integer("conversation_id").references(() => agentConversations.id, { onDelete: "set null" }),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  skill: varchar("skill", { length: 40 }).notNull(),
+  portee: varchar("portee", { length: 10 }).notNull(),
+  cibleId: integer("cible_id"),
+  statut: varchar("statut", { length: 14 }).notNull().default("en_generation"),
+  runId: integer("run_id").references(() => agentRuns.id, { onDelete: "set null" }),
+  parentId: integer("parent_id"),
+  consigne: text("consigne").notNull().default(""),
+  retour: text("retour"),
+  resume: text("resume").notNull().default(""),
+  // « Contexte utilisé » : ce que l'agent a lu automatiquement ([{ type, libelle, ref? }]).
+  contexte: jsonb("contexte").notNull().default(sql`'[]'::jsonb`),
+  erreur: text("erreur"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  appliedAt: timestamp("applied_at"),
+}, (table) => [index("propositions_projet_idx").on(table.projectId, table.createdAt)]);
+
+// Un changement de proposition. `cibleType` : brief | projet | saison | episode |
+// scene | asset | plan. `cibleRef` : référence STABLE de l'existant (id interne, uuid
+// du plan, clé de section du brief) ; null pour une création, qui porte une `cle`
+// symbolique (« saison-1 », « episode-2 ») que ses enfants citent dans `apres`.
+// `avant`/`apres` : ce qui est lu / ce qui sera écrit (jsonb). `position` : où
+// insérer (plan : { apresPlanUuid } | { debut: true } | { fin: true }). `ecrase` : en
+// clair, ce qui sera perdu (null si rien). `coche` : retenu pour l'application ;
+// `refuseRaison` : refusé d'office (hors portée, non pris en charge…).
+export const propositionChangements = pgTable("proposition_changements", {
+  id: serial("id").primaryKey(),
+  propositionId: integer("proposition_id").notNull().references(() => propositions.id, { onDelete: "cascade" }),
+  ordre: integer("ordre").notNull(),
+  groupe: varchar("groupe", { length: 40 }).notNull(),
+  cle: varchar("cle", { length: 60 }),
+  cibleType: varchar("cible_type", { length: 12 }).notNull(),
+  cibleRef: varchar("cible_ref", { length: 100 }),
+  libelle: text("libelle").notNull(),
+  operation: varchar("operation", { length: 10 }).notNull(),
+  avant: jsonb("avant"),
+  apres: jsonb("apres"),
+  position: jsonb("position"),
+  avertissements: jsonb("avertissements").notNull().default(sql`'[]'::jsonb`),
+  ecrase: text("ecrase"),
+  coche: boolean("coche").notNull().default(false),
+  refuseRaison: text("refuse_raison"),
+  appliqueAt: timestamp("applique_at"),
+}, (table) => [index("proposition_changements_prop_idx").on(table.propositionId, table.ordre)]);

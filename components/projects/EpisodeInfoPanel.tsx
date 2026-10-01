@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { modifierEpisode, modifierNomProjet, uploaderPosterEpisode, uploaderPosterProjet } from "@/app/projects/actions";
+import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { Poster } from "@/components/ui/Poster";
 
 function two(n: number): string {
@@ -111,9 +112,22 @@ export function EpisodeInfoPanel({
             <h1>{oneshot ? titreInitial || "Sans titre" : `E${two(numero)} — ${titre || "Sans titre"}`}</h1>
           )}
           {!edition ? (
-            <button className="btn btn-ghost" type="button" onClick={() => setEdition(true)}>
-              Modifier
-            </button>
+            <div className="info-hd-actions">
+              <BoutonAgent
+                className="btn btn-ghost"
+                demande={{
+                  projectId,
+                  portee: "episode",
+                  cible: { id: episodeId },
+                  profondeur: "courte",
+                  libelle: oneshot ? titreInitial || "Le film" : `Épisode ${two(numero)}`,
+                  episodeId,
+                }}
+              />
+              <button className="btn btn-ghost" type="button" onClick={() => setEdition(true)}>
+                Modifier
+              </button>
+            </div>
           ) : null}
         </div>
 

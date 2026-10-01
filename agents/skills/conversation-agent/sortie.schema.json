@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sortie de l'agent conversation-agent : un tour de conversation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reponse", "briefPret"],
+  "properties": {
+    "reponse": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Ton message à l'utilisateur, en français : une proposition concrète, tes inventions signalées, deux ou trois questions au plus. Texte brut."
+    },
+    "briefPret": {
+      "type": "boolean",
+      "description": "Vrai seulement si l'utilisateur a validé l'essentiel (arc, structure, style) et que plus aucune question ne change le brief."
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 > Statut : **conception ; la brique LLM est construite** (2026-10-01 : interface,
 > fournisseur local, chargeur de skills, validation, traces — voir §9 et §13). Le reste
-> (propositions, conversation, génération du projet) ne l'est pas. Ce document fige le
+> (propositions, conversation, brief, application) l'est côté serveur depuis le 2026-10-02 — voir §14 ; l'interface reste à faire. Ce document fige le
 > vocabulaire et le modèle de données avant d'écrire la moindre ligne. Il
 > prolonge « Direction retenue pour l'agent d'itération » (`FRICTIONS.md`, F03)
 > et « Agents — architecture commune » (`CAHIER_DES_CHARGES.md`). En cas de
@@ -353,3 +353,67 @@ contrôle verbatim les signale déjà. Les durées sont recalées à ce moment.
 4. « Générer le projet », étape par étape.
 5. Portées réduites (épisode, scène, plan) et reconstitution du brief.
 6. Agent d'itération sur un plan, après visionnage.
+
+## 14. Système d'agents : conversation, brief, propositions (construit, 2026-10-02)
+
+> **État construit (backend)** ; l'interface (popup à étapes) s'appuie sur l'API
+> ci-dessous. Les tables du §7 ont pris leur forme définitive ici ; **le vocabulaire
+> « mode » (§2, §6.2) est abandonné** (décision du 2026-10-02) : voir `FRICTIONS.md`,
+> « Système d'agents ».
+
+### Parcours
+- **Profondeur complète** (création de projet) : Conversation → Brief → Proposition →
+  Appliqué. Chaque tour de conversation est une tâche de la file (`conversation-agent`) ;
+  la génération du brief est une tâche (`brief-projet`, un BROUILLON) ; la proposition est
+  le **squelette**, construit en code depuis le brief (pas d'appel au modèle).
+- **Profondeur courte** : Consigne → Proposition → Appliqué. Une tâche (`prompt-asset` pour un
+  asset, `scenario-episode` pour un épisode ou un plan) dont le JSON est converti en code en
+  changements.
+- **Revue** : les changements sont groupés (écrasement en tête, brief, projet, saison,
+  épisodes, scènes, plans, assets), cochables par changement ou par groupe, avec avant/après,
+  avertissements, rangs déplacés pour une insertion de plan. **Application** : une
+  transaction, tout ou rien, verrou de portée, confirmation d'un écrasement.
+
+### Tables (migration 0033)
+| Table | Rôle |
+|---|---|
+| `agent_conversations` | une par (projet, portée, cible) — UNIQUE (projet, portée, coalesce(cible, 0)) ; `profondeur`, `etape`, `messages` jsonb, `consigne`, `brief_pret`, `proposition_id` (courante) |
+| `briefs` | un par projet : `contenu` jsonb (schéma de `brief-projet`), `statuts` jsonb (section → fourni / deduit / a_valider), `statut` (brouillon / valide), `version` |
+| `propositions` | `uuid`, `conversation_id` (set null), `skill` (`squelette` ou un skill), `portee` + `cible_id`, `statut` (en_generation / prete / appliquee / partielle / rejetee / echouee), `run_id` → `agent_runs`, `parent_id` (affinage), `consigne`, `retour`, `resume`, `contexte` (« contexte utilisé »), `erreur` |
+| `proposition_changements` | `ordre`, `groupe`, `cle` (clé symbolique d'une création), `cible_type` (brief / projet / saison / episode / scene / asset / plan), `cible_ref`, `libelle`, `operation`, `avant`, `apres`, `position`, `avertissements`, `ecrase`, `coche`, `refuse_raison`, `applique_at` |
+| `agent_runs` (+3 colonnes) | `but` (tour / brief / proposition), `conversation_id`, `proposition_id` |
+
+### Code
+- `lib/agents/types.ts` : types partagés (importables par l'UI) ; `SECTIONS_BRIEF`.
+- Pur et testé (`lib/agents/agents.test.ts`) : `portee.ts` (verrou), `cochage.ts` (cochage par
+  défaut, compteurs, groupes), `rangs.ts` (insertion d'un plan), `brief.ts` (statuts, sections,
+  différences), `squelette.ts`, `conversion.ts` (sorties de skills → changements).
+- Base : `applicateurs/` (un par cible : prévisualiser, vérifier, appliquer ; registre
+  `applicateurs/index.ts` — une cible sans applicateur est refusée explicitement),
+  `proposition-db.ts` (enregistrer les changements, appliquer en transaction), `contexte.ts`
+  (entrées des skills et « contexte utilisé »), `runs.ts` (tâches), `service.ts` (toute la
+  logique ; les actions n'en sont que des enveloppes), `lib/ordre-plans.ts` (ordre des plans).
+- Worker : `worker/agents/postTraitement.ts`, appelé par `worker/llm.ts` dans la transaction
+  d'écriture du résultat.
+- Skills : `conversation-agent` (un tour, `{ reponse, briefPret }`), `brief-projet` (+ champ
+  optionnel `statuts`), `scenario-episode` (portées `episode`, `plan-a-inserer`,
+  `plan-a-corriger`).
+- Essai : `npm run agents:e2e` (faux exécuteur injecté dans le vrai worker, base de dev,
+  nettoyage complet).
+
+### API (voir `app/agents/actions.ts`, documentation en tête de fichier)
+Écritures (toutes `{ ok: true, … } | { ok: false, erreur }`) : `ouvrirConversation`,
+`nouvelleConversation`, `envoyerMessage`, `reinitialiser`, `genererBrief`, `rejeterBrief`,
+`modifierChampBrief`, `genererProposition`, `cocherChangement`, `cocherChangements`,
+`corrigerChangement`, `rejeter`, `affiner`, `appliquerSelection`.
+Lectures (`lib/queries-agents.ts`) : `trouverConversation`, `lireConversation`, `lireBrief`,
+`lireProposition`, `lirePropositionCourante`, `apercuContexte`, `estimerGeneration`,
+`listerPropositions`.
+L'interface sonde `tache` (en_attente / en_cours) toutes les 3 s. La cible d'une
+conversation se désigne `{ id }` (saison, épisode), `{ uuid }` (plan), `{ code }` (asset) ;
+`VueConversation.cible` la renvoie dans cette forme (l'id interne d'un plan est aussi accepté).
+
+### Reste à faire
+Interface (popup, entrées contextuelles), page Monitoring, point de retour, applicateurs de
+répliques / de prompt H3 / de suppression, fournisseur Claude, enchaînement automatique des
+étapes, comparaison des modèles locaux sur les skills longs.

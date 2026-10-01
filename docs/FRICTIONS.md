@@ -1077,6 +1077,83 @@ validée sur le vrai ComfyUI. Décisions :
 - **Reste** : préremplir `duree_secondes` depuis la réponse du skill ; ambiances de plus
   de 15 s et raccord en boucle (non essayés) ; pas de miniature/forme d'onde dans le
   registre des assets.
+### Système d'agents : conversation → brief → proposition → revue → application (2026-10-02)
+Backend construit (sans interface : la popup s'appuie sur `app/agents/actions.ts` et
+`lib/queries-agents.ts`) ; conception dans `docs/CONCEPTION_AGENTS.md` §14, maquette
+validée par l'utilisateur. Décisions :
+- **Deux profondeurs** : `courte` (Consigne → Proposition → Appliqué ; itérations
+  ciblées : prompt d'un asset, un plan, un épisode) et `complete` (Conversation → Brief →
+  Proposition → Appliqué ; création de projet, gros éléments interconnectés). L'étape
+  Brief n'existe qu'en profondeur complète.
+- **Plus de modes ajouter / compléter / remplacer.** C'est la revue qui dit ce qui
+  bouge, et un élément qui risque l'écrasement a sa section spéciale avec ce qui sera
+  perdu en clair. La consigne de l'utilisateur (« ajoute un plan après… », « refais… »)
+  remplace le mode dans l'entrée des skills.
+- **Cochage par défaut** : les créations sont cochées ; les modifications d'éléments
+  validés (asset `valide`, plan avec rendu, brief validé, clause de style non vide), les
+  suppressions et les changements bloqués ou refusés sont décochés. Écraser du validé
+  exige `confirmeEcrasement` côté serveur à l'application.
+- **Verrou de portée** (`lib/agents/portee.ts`) : un changement hors de la portée
+  demandée est refusé d'office à la construction (raison affichée) ET re-vérifié à
+  l'application. Le brief est autorisé à toute portée ; un asset peut toujours être
+  créé (un asset manquant se propose de partout) mais ne se modifie que dans la portée
+  projet ou si c'est la cible.
+- **Un changement porte des avertissements typés** : `ecrase_valide`, `invention`,
+  `hors_portee`, `bloque_controle` (durée de plan hors 4–15 s : non cochable tant qu'elle
+  n'est pas corrigée sur place, `corrigerChangement`), `contredit_brief`,
+  `non_pris_en_charge`, `info`.
+- **Le brief est un document de référence**, un par projet (`briefs`), modifiable après
+  coup ; ses changements sont des changements de proposition comme les autres
+  (`cibleType = brief`). Trois états par section : `fourni` (dit ou corrigé par
+  l'utilisateur), `deduit` (conclu par l'agent), `a_valider` (inventé ou incertain). Un
+  brouillon sort de la conversation ; il devient `valide` à l'application. Un brief
+  validé ne se régénère pas par-dessus : on le modifie section par section.
+- **Le squelette d'un projet se construit EN CODE depuis le brief**, sans appel au
+  modèle (clause de style, saison, épisodes, brief) ; il est idempotent (saison
+  existante réutilisée, épisode du même titre non recréé, **épisode vide réutilisé** :
+  un OneShot naît déjà avec sa saison et son épisode techniques).
+- **Les propositions des portées courtes se construisent en code depuis le JSON validé
+  du skill** (`lib/agents/conversion.ts`, pas de second appel au modèle) :
+  `prompt-asset` → modifier le prompt d'un asset (méthode et durée d'un son si elles
+  diffèrent) ; `scenario-episode` → scènes et plans d'un épisode (l'existant du même
+  titre est modifié, le reste créé), un plan à insérer, ou la correction d'un plan.
+  Les répliques d'un scénario ne sont **pas** écrites (pas d'applicateur) : elles
+  restent en avertissement `non_pris_en_charge` sur le plan.
+- **Insertion d'un plan** : pas de « + » dans la navigation. Le changement « créer un
+  plan » porte une POSITION (`apresPlanUuid`, début ou fin) ; l'application réutilise la
+  logique d'ordre du glisser-déposer (`lib/ordre-plans.ts`, extraite de
+  `app/scenario/actions.ts`) ; la revue indique les rangs qui bougent. Rien n'est
+  renuméroté (F03).
+- **Trois gestes de retour** : « rejeter » (la proposition est abandonnée, la
+  conversation reste), « affiner » (une nouvelle proposition dérivée de la précédente :
+  l'agent reçoit sa sortie et le retour libre ; pas pour un squelette, qui se régénère
+  depuis le brief), « réinitialiser » (conversation, brouillon de brief et proposition
+  en cours remis à zéro) ; `rejeterBrief` abandonne le brouillon et revient à la
+  conversation.
+- **Une conversation par (projet, portée, cible)** : rouvrir reprend, en démarrer
+  « une nouvelle » sur la même cible écrase la précédente (l'historique des
+  propositions survit : `propositions.conversation_id` passe à null). Deux cibles ont
+  chacune la leur.
+- **Les appels au modèle sont des tâches de la file** (`agent_runs`, colonnes `but`,
+  `conversation_id`, `proposition_id`) : un tour de conversation, la génération du brief
+  et celle d'une proposition. Le résultat devient ce qu'il doit être
+  (`worker/agents/postTraitement.ts`) **dans la même transaction** que son écriture : si
+  la conversion échoue, rien n'est écrit et la tâche est marquée échouée. Une
+  proposition en génération dont la tâche échoue ou est annulée passe `echouee` (aussi
+  rattrapé à la lecture : reprise du worker, annulation depuis le header).
+- **Application = une transaction, tout ou rien** : aucun changement n'est écrit si l'un
+  est refusé (parent non retenu, code d'asset déjà pris, plan de repère disparu…) ; le
+  message dit lequel. La proposition passe `appliquee` (tous ses changements appliqués)
+  ou `partielle` (certains écartés, bloqués ou refusés d'office). La suppression
+  n'est pas prise en charge (refus explicite) ; une voix ne se crée pas par ce chemin.
+- **Hors lot** : point de retour / annulation d'une proposition appliquée, enchaînement
+  automatique des étapes (validation manuelle à chaque revue), page Monitoring (seule
+  `listerPropositions` existe), applicateurs de répliques, de plan H3 (sections du
+  prompt) et de suppression.
+- Validé : `npm run agents:e2e` (71 vérifications sur la base de dev, faux modèle, tout
+  nettoyé) et un essai réel sur gemma via la file : deux tours de conversation (52 s et
+  66 s) puis le brief (76 s, JSON valide du premier coup), puis le squelette en code.
+
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
 pressentie : un **catalogue de voix nommées**, chacune avec un échantillon de

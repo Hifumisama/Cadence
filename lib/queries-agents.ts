@@ -1,0 +1,309 @@
+/**
+ * LECTURES DU SYSTÈME D'AGENTS — ce que l'interface (popup) sonde. Côté serveur seulement
+ * (accès base). Écritures : app/agents/actions.ts. Types : lib/agents/types.ts.
+ *
+ * Sondage : l'UI relit `lireConversation` / `lireProposition` tant que `tache` est en
+ * `en_attente` / `en_cours` (même rythme que le panneau du header : 3 s). Un résultat
+ * `null` = introuvable (écrasée, supprimée).
+ *
+ * Exemples :
+ *   const conv = await trouverConversation(projectId, "episode", { id: episodeId });
+ *   //   → conversation en cours à reprendre (indicateur « conversation reprise »), ou null
+ *   const prop = conv?.propositionUuid ? await lireProposition(conv.propositionUuid) : null;
+ *   //   → prop.groupes[i].changements[j] : libellé, avant/après, avertissements, coche, bloque…
+ *   const ctx = await apercuContexte(projectId, "plan", { uuid });   // la ligne « contexte utilisé »
+ *   const est = await estimerGeneration(conv.uuid);                  // « ~80 s, local : gratuit »
+ */
+
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { db } from "../db";
+import { agentConversations, agentRuns, assetGenerations, assets, briefs, plans, propositionChangements, propositions } from "../db/schema";
+import { construireSections } from "./agents/brief";
+import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./agents/cochage";
+import { apercuContexteDe } from "./agents/contexte";
+import { planifierInsertion } from "./agents/rangs";
+import { etatTache } from "./agents/runs";
+import { conversationParUuid, libelleCible, rafraichirStatut, resoudreCible, propositionParUuid } from "./agents/service";
+import type {
+  Avertissement,
+  BriefContenu,
+  CibleDemandee,
+  CibleType,
+  ContexteUtilise,
+  EstimationGeneration,
+  MessageConversation,
+  Operation,
+  Portee,
+  Position,
+  RangDeplace,
+  ResumeProposition,
+  StatutChamp,
+  StatutProposition,
+  VueBrief,
+  VueChangement,
+  VueConversation,
+  VueProposition,
+} from "./agents/types";
+import { configLlm, modelePourSkill } from "./llm/config";
+import { chargerSkill } from "./llm/skills";
+import { variantePromptAsset } from "./llm/variantes";
+
+// --- conversation -----------------------------------------------------------
+
+/** La cible dans la forme que `ouvrirConversation` attend (uuid d'un plan, code d'un asset). */
+async function cibleDemandee(portee: Portee, cibleId: number | null): Promise<CibleDemandee | null> {
+  if (portee === "projet" || cibleId == null) return null;
+  if (portee === "plan") {
+    const [p] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, cibleId));
+    return p ? { uuid: p.uuid } : { id: cibleId };
+  }
+  if (portee === "asset") {
+    const [a] = await db.select({ code: assets.code }).from(assets).where(eq(assets.id, cibleId));
+    return a ? { code: a.code } : { id: cibleId };
+  }
+  return { id: cibleId };
+}
+
+async function versVueConversation(c: typeof agentConversations.$inferSelect): Promise<VueConversation> {
+  const [run] = await db
+    .select({ id: agentRuns.id })
+    .from(agentRuns)
+    .where(and(eq(agentRuns.conversationId, c.id), inArray(agentRuns.but, ["tour", "brief"])))
+    .orderBy(desc(agentRuns.id))
+    .limit(1);
+  let propositionUuid: string | null = null;
+  if (c.propositionId != null) {
+    const [p] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, c.propositionId));
+    propositionUuid = p?.uuid ?? null;
+  }
+  return {
+    uuid: c.uuid,
+    projectId: c.projectId,
+    portee: c.portee as Portee,
+    cibleId: c.cibleId,
+    cible: await cibleDemandee(c.portee as Portee, c.cibleId),
+    cibleLibelle: await libelleCible(c.projectId, c.portee as Portee, c.cibleId),
+    profondeur: c.profondeur as VueConversation["profondeur"],
+    etape: c.etape as VueConversation["etape"],
+    messages: ((c.messages as MessageConversation[]) ?? []).map((m) => ({ role: m.role, content: m.content, at: m.at })),
+    consigne: c.consigne,
+    briefPret: c.briefPret,
+    propositionUuid,
+    tache: await etatTache(run?.id ?? null),
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+  };
+}
+
+/** La conversation du (projet, portée, cible), sans la créer ; null si aucune. */
+export async function trouverConversation(projectId: number, portee: Portee, cible: CibleDemandee | null): Promise<VueConversation | null> {
+  const r = await resoudreCible(projectId, portee, cible);
+  if ("erreur" in r) return null;
+  const [c] = await db
+    .select()
+    .from(agentConversations)
+    .where(
+      and(
+        eq(agentConversations.projectId, projectId),
+        eq(agentConversations.portee, portee),
+        r.cibleId == null ? sql`${agentConversations.cibleId} is null` : eq(agentConversations.cibleId, r.cibleId),
+      ),
+    );
+  return c ? versVueConversation(c) : null;
+}
+
+export async function lireConversation(conversationUuid: string): Promise<VueConversation | null> {
+  const c = await conversationParUuid(conversationUuid);
+  return c ? versVueConversation(c) : null;
+}
+
+// --- brief ------------------------------------------------------------------
+
+/** Le brief du projet (brouillon ou valide), ou null s'il n'y en a pas. */
+export async function lireBrief(projectId: number): Promise<VueBrief | null> {
+  const [b] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
+  if (!b) return null;
+  const contenu = b.contenu as BriefContenu;
+  const statuts = b.statuts as Record<string, StatutChamp>;
+  return {
+    projectId,
+    statut: b.statut as VueBrief["statut"],
+    source: b.source as VueBrief["source"],
+    version: b.version,
+    contenu,
+    sections: construireSections(contenu, statuts),
+    updatedAt: b.updatedAt.toISOString(),
+  };
+}
+
+// --- proposition ------------------------------------------------------------
+
+async function rangsDeplacesDe(operation: string, cibleType: string, position: Position | null, apres: unknown): Promise<RangDeplace[]> {
+  if (cibleType !== "plan" || operation !== "creer" || !position) return [];
+  const episodeId = (apres as { episodeId?: unknown } | null)?.episodeId;
+  if (typeof episodeId !== "number") return [];
+  const existants = await db
+    .select({ uuid: plans.uuid, titre: plans.titre })
+    .from(plans)
+    .where(eq(plans.episodeId, episodeId))
+    .orderBy(asc(plans.ordre), asc(plans.id));
+  return planifierInsertion(existants, position)?.deplaces ?? [];
+}
+
+async function versVueProposition(brute: typeof propositions.$inferSelect): Promise<VueProposition> {
+  const p = await rafraichirStatut(brute);
+  const lignes = await db
+    .select()
+    .from(propositionChangements)
+    .where(eq(propositionChangements.propositionId, p.id))
+    .orderBy(asc(propositionChangements.ordre));
+
+  const changements: VueChangement[] = [];
+  for (const l of lignes) {
+    const avertissements = (l.avertissements ?? []) as Avertissement[];
+    const position = (l.position ?? null) as Position | null;
+    changements.push({
+      id: l.id,
+      ordre: l.ordre,
+      groupe: l.groupe,
+      cle: l.cle,
+      cibleType: l.cibleType as CibleType,
+      cibleRef: l.cibleRef,
+      libelle: l.libelle,
+      operation: l.operation as Operation,
+      avant: l.avant,
+      apres: l.apres,
+      position,
+      rangsDeplaces: await rangsDeplacesDe(l.operation, l.cibleType, position, l.apres),
+      avertissements,
+      ecrase: l.ecrase,
+      coche: l.coche,
+      bloque: estBloque(avertissements),
+      refuseRaison: l.refuseRaison,
+      appliqueAt: l.appliqueAt?.toISOString() ?? null,
+    });
+  }
+
+  let conversationUuid: string | null = null;
+  if (p.conversationId != null) {
+    const [c] = await db.select({ uuid: agentConversations.uuid }).from(agentConversations).where(eq(agentConversations.id, p.conversationId));
+    conversationUuid = c?.uuid ?? null;
+  }
+  let parentUuid: string | null = null;
+  if (p.parentId != null) {
+    const [par] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, p.parentId));
+    parentUuid = par?.uuid ?? null;
+  }
+
+  return {
+    uuid: p.uuid,
+    conversationUuid,
+    statut: p.statut as StatutProposition,
+    skill: p.skill,
+    portee: p.portee as Portee,
+    cibleId: p.cibleId,
+    consigne: p.consigne,
+    retour: p.retour,
+    parentUuid,
+    resume: p.resume,
+    contexte: (p.contexte ?? []) as ContexteUtilise[],
+    erreur: p.erreur,
+    groupes: grouper(changements),
+    compteurs: compter(changements),
+    ecrasements: ecrasementsAConfirmer(changements),
+    tache: p.statut === "en_generation" ? await etatTache(p.runId) : null,
+    createdAt: p.createdAt.toISOString(),
+    appliedAt: p.appliedAt?.toISOString() ?? null,
+  };
+}
+
+/** Une proposition avec ses changements groupés, ses compteurs (sélectionnés / écartés /
+ * bloqués / refusés), ses écrasements à confirmer, son « contexte utilisé » et l'état de sa
+ * tâche de génération. */
+export async function lireProposition(propositionUuid: string): Promise<VueProposition | null> {
+  const p = await propositionParUuid(propositionUuid);
+  return p ? versVueProposition(p) : null;
+}
+
+/** La proposition courante d'une conversation (la dernière non rejetée), ou null. */
+export async function lirePropositionCourante(conversationUuid: string): Promise<VueProposition | null> {
+  const c = await conversationParUuid(conversationUuid);
+  if (!c?.propositionId) return null;
+  const [p] = await db.select().from(propositions).where(eq(propositions.id, c.propositionId));
+  return p ? versVueProposition(p) : null;
+}
+
+// --- contexte, estimation, historique ----------------------------------------
+
+/** Ce que l'agent lira automatiquement pour cette portée (avant même de lancer) : brief,
+ * épisode, plans voisins, registre… */
+export async function apercuContexte(projectId: number, portee: Portee, cible: CibleDemandee | null): Promise<ContexteUtilise[]> {
+  const r = await resoudreCible(projectId, portee, cible);
+  if ("erreur" in r) return [];
+  return apercuContexteDe(db, projectId, portee, r.cibleId);
+}
+
+const SORTIE_ESTIMEE: Record<string, number> = { "brief-projet": 2500, "scenario-episode": 1800, "prompt-asset": 500, "conversation-agent": 600 };
+
+/** Estimation avant lancement : fournisseur, modèle, coût (null en local), durée, tâches
+ * devant dans la file. Ordres de grandeur (≈ 30 jetons/s en sortie sur le serveur local,
+ * ≈ 800 jetons/s en lecture du prompt) : à affiner avec les traces. */
+export async function estimerGeneration(conversationUuid: string): Promise<EstimationGeneration | null> {
+  const c = await conversationParUuid(conversationUuid);
+  if (!c) return null;
+  let skill: string | null = null;
+  let variante: string | undefined;
+  if (c.profondeur === "complete") skill = c.etape === "conversation" ? (c.briefPret ? "brief-projet" : "conversation-agent") : null;
+  else if (c.portee === "asset") skill = "prompt-asset";
+  else if (c.portee === "episode" || c.portee === "plan") skill = "scenario-episode";
+  if (skill === "prompt-asset" && c.cibleId != null) {
+    const [a] = await db.select({ type: assets.type, methodeGeneration: assets.methodeGeneration }).from(assets).where(eq(assets.id, c.cibleId));
+    if (a) variante = variantePromptAsset(a);
+  }
+  const conf = configLlm();
+  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
+  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
+  const tachesDevant = images + appels;
+  if (!skill) {
+    return { fournisseur: conf.fournisseur, modele: conf.modeleParDefaut, coutEstimeUsd: null, jetonsEntreeEstimes: 0, dureeEstimeeSecondes: 1, tachesDevant: 0, skill: null };
+  }
+  const entree = chargerSkill(skill, undefined, { variante }).jetonsEstimes + 600 + Math.ceil(JSON.stringify(c.messages ?? []).length / 3.5);
+  const sortie = SORTIE_ESTIMEE[skill] ?? 1000;
+  return {
+    fournisseur: conf.fournisseur,
+    modele: modelePourSkill(skill),
+    coutEstimeUsd: null,
+    jetonsEntreeEstimes: entree,
+    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30),
+    tachesDevant,
+    skill,
+  };
+}
+
+/** Historique des propositions d'un projet (pour la page Monitoring ; la popup ne l'affiche pas). */
+export async function listerPropositions(projectId: number, limite = 50): Promise<ResumeProposition[]> {
+  const lignes = await db.select().from(propositions).where(eq(propositions.projectId, projectId)).orderBy(desc(propositions.createdAt)).limit(limite);
+  if (lignes.length === 0) return [];
+  const comptes = await db
+    .select({
+      id: propositionChangements.propositionId,
+      total: count(),
+      appliques: sql<number>`count(${propositionChangements.appliqueAt})`,
+    })
+    .from(propositionChangements)
+    .where(inArray(propositionChangements.propositionId, lignes.map((l) => l.id)))
+    .groupBy(propositionChangements.propositionId);
+  const parId = new Map(comptes.map((c) => [c.id, c]));
+  return lignes.map((l) => ({
+    uuid: l.uuid,
+    statut: l.statut as StatutProposition,
+    skill: l.skill,
+    portee: l.portee as Portee,
+    consigne: l.consigne,
+    resume: l.resume,
+    nbChangements: Number(parId.get(l.id)?.total ?? 0),
+    nbAppliques: Number(parId.get(l.id)?.appliques ?? 0),
+    createdAt: l.createdAt.toISOString(),
+    appliedAt: l.appliedAt?.toISOString() ?? null,
+  }));
+}

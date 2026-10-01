@@ -6,6 +6,7 @@ import { AssetTree } from "@/components/assets/AssetTree";
 import { AssetPreview } from "@/components/assets/AssetPreview";
 import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
 import { GenerationPanel } from "@/components/assets/GenerationPanel";
+import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
 import { formatParDefaut, loraParDefaut, raisonAudioNonGenerable, raisonNonGenerable } from "@/lib/asset-generation";
 import { AssetFicheEditor } from "@/components/assets/AssetFicheEditor";
@@ -184,6 +185,10 @@ export default async function AssetDetailPage({
                     generations={generations}
                     generationInitiale={generationBrute ?? null}
                     simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
+                  />
+                  <BoutonAgent
+                    demande={{ projectId: pid, portee: "asset", cible: { code: noeud.code }, profondeur: "courte", libelle: noeud.code }}
+                    titre="Demander à l'agent de réécrire la fiche ou le prompt de cet asset"
                   />
                 </div>
               )}

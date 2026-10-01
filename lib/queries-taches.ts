@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { agentRuns, assetGenerations, assets, jobs, plans, projects } from "../db/schema";
+import { agentConversations, agentRuns, assetGenerations, assets, jobs, plans, projects } from "../db/schema";
 import { eq, gte, isNull, or, inArray } from "drizzle-orm";
 import { ERREUR_ANNULEE } from "./annulation";
 import { METHODE_AUDIO, formaterDuree } from "./asset-generation";
@@ -52,9 +52,10 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .where(or(inArray(jobs.statut, ["en_attente", "en_cours"]), isNull(jobs.vuAt), gte(jobs.createdAt, depuis)));
 
   const lignesLlm = await db
-    .select({ r: agentRuns, projetNom: projects.nom })
+    .select({ r: agentRuns, projetNom: projects.nom, conversationUuid: agentConversations.uuid })
     .from(agentRuns)
     .leftJoin(projects, eq(projects.id, agentRuns.projectId))
+    .leftJoin(agentConversations, eq(agentConversations.id, agentRuns.conversationId))
     .where(or(inArray(agentRuns.statut, ["en_attente", "en_cours"]), isNull(agentRuns.vuAt), gte(agentRuns.createdAt, depuis)));
 
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -121,15 +122,17 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     annulationDemandee: j.annulationDemandeeAt != null && j.statut === "en_cours",
   }));
 
-  const llm: Tache[] = lignesLlm.map(({ r, projetNom }) => ({
+  const llm: Tache[] = lignesLlm.map(({ r, projetNom, conversationUuid }) => ({
     cle: cleLlm(r.uuid),
     genre: "llm",
     statut: r.statut,
     libelle: `${LIBELLE_SKILL[r.skill] ?? r.skill}${projetNom ? ` · ${projetNom}` : ""}`,
     detail: "Agent",
-    // TODO chantier 3 : le résultat d'un agent aura son écran de revue (propositions) ;
-    // en attendant, un clic ouvre la page du projet (ou l'accueil sans projet).
+    // Une tâche liée à une conversation rouvre la popup d'agent (le panneau du header
+    // intercepte le clic, voir IndicateurTaches) ; sans conversation (script llm:tache),
+    // elle mène à la page du projet (ou à l'accueil sans projet).
     href: r.projectId != null ? `/p/${r.projectId}` : "/",
+    conversationUuid: conversationUuid ?? null,
     projectId: r.projectId ?? 0,
     assetId: null,
     progression: null,

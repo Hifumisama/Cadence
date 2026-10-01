@@ -52,6 +52,9 @@ export type Tache = {
   jetons: number | null;
   /** Tâche en cours dont l'annulation est demandée : le worker interrompt ComfyUI. */
   annulationDemandee: boolean;
+  /** Appel LLM d'une conversation d'agent : un clic sur la tâche rouvre la popup d'agent
+   * sur cette conversation (au lieu de la page du projet). Absent pour les autres genres. */
+  conversationUuid?: string | null;
 };
 
 export type ResumeTaches = {

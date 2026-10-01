@@ -1,9 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { creerProjet } from "@/app/projects/actions";
+import { creerProjet, creerProjetSansRedirection } from "@/app/projects/actions";
+import { useAgents } from "@/components/agents/AgentsProvider";
 
 export function NouveauProjetModal() {
+  const router = useRouter();
+  const { ouvrirAgent } = useAgents();
   const [ouvert, setOuvert] = useState(false);
   const [type, setType] = useState<"oneshot" | "serie" | null>(null);
   const [nom, setNom] = useState("");
@@ -26,6 +30,25 @@ export function NouveauProjetModal() {
       try {
         await creerProjet({ nom: nom.trim(), type, avecPremierEpisode });
         // Succès : creerProjet redirige côté serveur, pas de retour ici.
+      } catch (err) {
+        setErreur(err instanceof Error ? err.message : "Échec de la création.");
+      }
+    });
+  };
+
+  // « Créer avec l'agent » : le projet est créé vide (sans premier épisode : le squelette
+  // de la proposition crée saison et épisodes), puis la popup d'agent s'ouvre en profondeur
+  // complète sur ce projet.
+  const avecAgent = () => {
+    if (!type || !nom.trim()) return;
+    setErreur(null);
+    startTransition(async () => {
+      try {
+        const { projectId } = await creerProjetSansRedirection({ nom: nom.trim(), type, avecPremierEpisode: false });
+        const titre = nom.trim();
+        fermer();
+        router.push(`/p/${projectId}`);
+        ouvrirAgent({ projectId, portee: "projet", cible: null, profondeur: "complete", libelle: titre });
       } catch (err) {
         setErreur(err instanceof Error ? err.message : "Échec de la création.");
       }
@@ -91,6 +114,9 @@ export function NouveauProjetModal() {
               <div className="form-actions wide">
                 <button className="btn btn-gold" type="submit" disabled={pending || !type || !nom.trim()}>
                   {pending ? "..." : type === "oneshot" ? "Créer et ouvrir le Scénario" : "Créer la série"}
+                </button>
+                <button className="btn btn-ghost" type="button" onClick={avecAgent} disabled={pending || !type || !nom.trim()} title="Crée le projet vide, puis ouvre la conversation avec l'agent">
+                  Créer avec l&rsquo;agent <span aria-hidden="true">✦</span>
                 </button>
                 <button className="btn btn-ghost" type="button" onClick={fermer}>
                   Annuler

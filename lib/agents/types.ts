@@ -1,0 +1,303 @@
+/** Système d'agents — types partagés par le serveur, le worker et l'interface
+ * (conversation → brief → proposition → revue → application). Aucun accès base, disque
+ * ni Next ici : ce fichier est importable partout, y compris par des composants client.
+ * Voir docs/CONCEPTION_AGENTS.md §14 et les décisions du 2026-10-02 (docs/FRICTIONS.md). */
+
+// ---------------------------------------------------------------------------
+// Vocabulaire
+// ---------------------------------------------------------------------------
+
+/** Ce que la demande vise. `projet` = tout ; `asset` = un seul asset (id interne). */
+export const PORTEES = ["projet", "saison", "episode", "plan", "asset"] as const;
+export type Portee = (typeof PORTEES)[number];
+
+/** `courte` : Consigne → Proposition → Appliqué (itérations ciblées).
+ * `complete` : Conversation → Brief → Proposition → Appliqué (création de projet,
+ * gros éléments interconnectés). L'étape Brief n'existe qu'en profondeur complète. */
+export const PROFONDEURS = ["courte", "complete"] as const;
+export type Profondeur = (typeof PROFONDEURS)[number];
+
+/** Étape courante d'une conversation (le fil d'étapes de la popup). */
+export const ETAPES = ["consigne", "conversation", "brief", "proposition", "applique"] as const;
+export type Etape = (typeof ETAPES)[number];
+
+export const STATUTS_PROPOSITION = ["en_generation", "prete", "appliquee", "partielle", "rejetee", "echouee"] as const;
+export type StatutProposition = (typeof STATUTS_PROPOSITION)[number];
+
+export const OPERATIONS = ["creer", "modifier", "supprimer"] as const;
+export type Operation = (typeof OPERATIONS)[number];
+
+/** Ce qu'un changement touche. Les applicateurs existent pour tous ces types ;
+ * `replique` n'est PAS une cible (les répliques d'un scénario restent en
+ * information dans le changement de plan : pas encore prises en charge). */
+export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan"] as const;
+export type CibleType = (typeof CIBLES)[number];
+
+/** Qui a posé un champ du brief : `fourni` (l'utilisateur l'a dit ou corrigé),
+ * `deduit` (l'agent l'a conclu), `a_valider` (inventé ou incertain). */
+export const STATUTS_CHAMP = ["fourni", "deduit", "a_valider"] as const;
+export type StatutChamp = (typeof STATUTS_CHAMP)[number];
+
+export const TYPES_AVERTISSEMENT = [
+  "ecrase_valide", // écrase un élément déjà validé / protégé
+  "invention", // l'agent a ajouté ce que le brief ne disait pas
+  "hors_portee", // hors de la portée demandée : refusé à l'application
+  "bloque_controle", // un contrôle mécanique échoue (ex. durée > 15 s) : à corriger
+  "contredit_brief", // contredit le brief
+  "non_pris_en_charge", // cible ou champ que l'application ne sait pas encore écrire
+  "info",
+] as const;
+export type TypeAvertissement = (typeof TYPES_AVERTISSEMENT)[number];
+export type Avertissement = { type: TypeAvertissement; texte: string };
+
+/** Où insérer un plan. Pas de numéro de plan (F03) : un uuid de plan existant, ou le
+ * début/la fin de l'épisode. La revue affiche les rangs qui bougent (`rangsDeplaces`). */
+export type Position = { apresPlanUuid: string } | { debut: true } | { fin: true };
+
+/** Comment l'UI désigne une cible existante ; le serveur la résout en id interne.
+ * Saison / épisode : `id` (les pages utilisent déjà ces ids) ; plan : `uuid` ; asset : `code`
+ * (ou `id`). Null/absent pour la portée `projet`. */
+export type CibleDemandee = { id?: number; uuid?: string; code?: string };
+
+// ---------------------------------------------------------------------------
+// Messages, tâches
+// ---------------------------------------------------------------------------
+
+export type MessageConversation = { role: "user" | "assistant"; content: string; at: string };
+
+/** La tâche de la file (agent_runs) liée à une étape : un tour de conversation, la
+ * génération du brief ou d'une proposition. Null quand rien n'est en cours. */
+export type EtatTache = {
+  runUuid: string;
+  /** `but` de la tâche : ce qu'elle produit. */
+  but: "tour" | "brief" | "proposition";
+  statut: "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
+  /** Jetons de sortie reçus (le maximum est inconnu : un compteur, pas une barre). */
+  progressionJetons: number | null;
+  erreur: string | null;
+  /** Rang dans la file des tâches GPU en attente (1 = la prochaine) ; null si en cours/finie. */
+  positionFile: number | null;
+};
+
+// ---------------------------------------------------------------------------
+// Brief
+// ---------------------------------------------------------------------------
+
+/** Le brief, tel que le skill `brief-projet` le rend (agents/skills/brief-projet/
+ * sortie.schema.json). Les clés de premier niveau sont les « sections » du brief. */
+export type BriefContenu = {
+  titre: string;
+  source: "pitch" | "texte" | "reconstitue";
+  arc: string;
+  genreTon?: string;
+  style: { nom: string; clause: string };
+  langueDialogues: string;
+  dureeEpisodeSecondes: number;
+  episodes: { titre: string; resume: string; portee?: string }[];
+  personnages: { nom: string; role: string; reconnaissable: string; voix?: string; statut?: string }[];
+  lieux: { nom: string; description: string; statut?: string }[];
+  continuite: string[];
+  rimes: { description: string; souligner: boolean }[];
+  progressions: { quoi: string; evolution: string }[];
+  pieges: { cliche: string; formulationPositive: string }[];
+  inventions: string[];
+  questionsOuvertes: string[];
+};
+
+/** Sections affichables d'un brief, dans l'ordre, avec leur libellé et leur groupe
+ * (la popup range les sections par groupe : Univers, Style, Épisodes…). */
+export const SECTIONS_BRIEF = [
+  { cle: "titre", libelle: "Titre", groupe: "Univers" },
+  { cle: "arc", libelle: "Arc", groupe: "Univers" },
+  { cle: "genreTon", libelle: "Genre et ton", groupe: "Univers" },
+  { cle: "langueDialogues", libelle: "Langue des dialogues", groupe: "Univers" },
+  { cle: "dureeEpisodeSecondes", libelle: "Durée d'un épisode (s)", groupe: "Univers" },
+  { cle: "style", libelle: "Style et clause de style", groupe: "Style" },
+  { cle: "episodes", libelle: "Épisodes", groupe: "Épisodes" },
+  { cle: "personnages", libelle: "Personnages", groupe: "Personnages" },
+  { cle: "lieux", libelle: "Lieux", groupe: "Lieux" },
+  { cle: "continuite", libelle: "Règles de continuité", groupe: "Contraintes" },
+  { cle: "rimes", libelle: "Rimes", groupe: "Contraintes" },
+  { cle: "progressions", libelle: "Progressions", groupe: "Contraintes" },
+  { cle: "pieges", libelle: "Pièges", groupe: "Contraintes" },
+  { cle: "inventions", libelle: "Inventions de l'agent", groupe: "À valider" },
+  { cle: "questionsOuvertes", libelle: "Questions ouvertes", groupe: "À valider" },
+] as const;
+export type CleSectionBrief = (typeof SECTIONS_BRIEF)[number]["cle"];
+
+export type SectionBrief = {
+  cle: CleSectionBrief;
+  libelle: string;
+  groupe: string;
+  statut: StatutChamp;
+  valeur: unknown;
+};
+
+export type VueBrief = {
+  projectId: number;
+  /** `brouillon` : sorti d'une conversation, pas encore appliqué ; `valide` : référence du projet. */
+  statut: "brouillon" | "valide";
+  source: "conversation" | "reconstitue";
+  version: number;
+  contenu: BriefContenu;
+  /** Les sections dans l'ordre d'affichage, avec le statut de chacune. */
+  sections: SectionBrief[];
+  updatedAt: string;
+};
+
+// ---------------------------------------------------------------------------
+// Conversation
+// ---------------------------------------------------------------------------
+
+export type VueConversation = {
+  uuid: string;
+  projectId: number;
+  portee: Portee;
+  cibleId: number | null;
+  /** La cible sous la forme que `ouvrirConversation` attend (saison/épisode : `{ id }`, plan :
+   * `{ uuid }`, asset : `{ code }`) : à réutiliser telle quelle pour rouvrir la conversation ;
+   * null pour la portée `projet`. */
+  cible: CibleDemandee | null;
+  /** Libellé lisible de la cible (« Épisode 1 · Le sel », « CHAR_maya », « Projet »). */
+  cibleLibelle: string;
+  profondeur: Profondeur;
+  etape: Etape;
+  messages: MessageConversation[];
+  consigne: string;
+  /** L'agent estime avoir de quoi écrire le brief : l'UI propose « Vers le briefing ». */
+  briefPret: boolean;
+  propositionUuid: string | null;
+  /** Tâche en cours ou la dernière non vue (tour, brief) ; null sinon. */
+  tache: EtatTache | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// ---------------------------------------------------------------------------
+// Proposition et revue
+// ---------------------------------------------------------------------------
+
+/** Ce que l'agent a lu automatiquement (la ligne « contexte utilisé » dépliable). */
+export type ContexteUtilise = {
+  type: "brief" | "projet" | "saison" | "episode" | "plan" | "asset" | "registre";
+  libelle: string;
+  ref?: string;
+};
+
+/** Un plan voisin dont le rang change à cause d'une insertion (revue : « les plans
+ * suivants bougent »). Rangs affichés, base 1. */
+export type RangDeplace = { planUuid: string; titre: string; rangAvant: number; rangApres: number };
+
+export type VueChangement = {
+  id: number;
+  ordre: number;
+  /** Groupe d'affichage : `ecrasement` (risque d'écrasement, section spéciale), `brief`, puis
+   * un groupe par type/portée (« Saison », « Épisodes », « Plans de la scène X »…). */
+  groupe: string;
+  cle: string | null;
+  cibleType: CibleType;
+  cibleRef: string | null;
+  libelle: string;
+  operation: Operation;
+  avant: unknown;
+  apres: unknown;
+  position: Position | null;
+  /** Création de plan : les plans existants dont le rang change. */
+  rangsDeplaces: RangDeplace[];
+  avertissements: Avertissement[];
+  /** En clair : ce qui sera perdu (null si rien). */
+  ecrase: string | null;
+  /** Retenu pour l'application. */
+  coche: boolean;
+  /** Un contrôle mécanique échoue (avertissement `bloque_controle`) : non cochable tant
+   * que ce n'est pas corrigé (`corrigerChangement`). */
+  bloque: boolean;
+  /** Refusé d'office (hors portée, non pris en charge) : jamais appliqué ; la raison. */
+  refuseRaison: string | null;
+  appliqueAt: string | null;
+};
+
+export type VueGroupe = {
+  id: string;
+  titre: string;
+  changements: VueChangement[];
+  /** Nombre de changements cochés / cochables du groupe. */
+  coches: number;
+  total: number;
+};
+
+export type CompteursProposition = {
+  total: number;
+  selectionnes: number;
+  ecartes: number;
+  bloques: number;
+  refuses: number;
+  /** Écrasements d'éléments validés parmi les changements sélectionnés. */
+  ecrasementsSelectionnes: number;
+  inventions: number;
+};
+
+/** Ce que `appliquerSelection` demande de confirmer quand la sélection écrase du validé. */
+export type EcrasementAConfirmer = { changementId: number; libelle: string; ecrase: string };
+
+export type VueProposition = {
+  uuid: string;
+  conversationUuid: string | null;
+  statut: StatutProposition;
+  skill: string;
+  portee: Portee;
+  cibleId: number | null;
+  consigne: string;
+  /** Retour libre de l'utilisateur ayant produit cette proposition (affinage). */
+  retour: string | null;
+  parentUuid: string | null;
+  resume: string;
+  contexte: ContexteUtilise[];
+  erreur: string | null;
+  groupes: VueGroupe[];
+  compteurs: CompteursProposition;
+  /** Les écrasements cochés qu'`appliquerSelection` exigera de confirmer. */
+  ecrasements: EcrasementAConfirmer[];
+  /** Tâche de génération (en_generation) ; null une fois prête. */
+  tache: EtatTache | null;
+  createdAt: string;
+  appliedAt: string | null;
+};
+
+/** Ligne d'historique (Monitoring — hors de la popup). */
+export type ResumeProposition = {
+  uuid: string;
+  statut: StatutProposition;
+  skill: string;
+  portee: Portee;
+  consigne: string;
+  resume: string;
+  nbChangements: number;
+  nbAppliques: number;
+  createdAt: string;
+  appliedAt: string | null;
+};
+
+/** Estimation affichée avant de lancer une génération (au niveau du bouton). */
+export type EstimationGeneration = {
+  fournisseur: string;
+  modele: string;
+  /** Local = gratuit ; `null` tant qu'aucun fournisseur payant n'existe. */
+  coutEstimeUsd: number | null;
+  jetonsEntreeEstimes: number;
+  dureeEstimeeSecondes: number;
+  /** Tâches GPU en attente devant celle-ci (0 = elle passe tout de suite). */
+  tachesDevant: number;
+  /** Nom du skill qui sera exécuté (null si la proposition se construit en code, sans LLM). */
+  skill: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// Résultats d'actions
+// ---------------------------------------------------------------------------
+
+export type Resultat<T extends object = object> = ({ ok: true } & T) | { ok: false; erreur: string };
+
+export type ResultatApplication =
+  | { ok: true; statut: "appliquee" | "partielle"; appliques: number; ecartes: number; refuses: number }
+  | { ok: false; erreur: string; confirmationRequise?: EcrasementAConfirmer[] };

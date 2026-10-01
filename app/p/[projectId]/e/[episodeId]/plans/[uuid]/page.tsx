@@ -5,6 +5,7 @@ import { getAllParams } from "@/lib/params";
 import { calculerStatutDuree, controlerStructure, verifierCoherenceRefs } from "@/lib/plan-checks";
 import { getDialoguesPlan, getOptionsLocuteur } from "@/lib/queries-repliques";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { PromptSectionEditor } from "@/components/plan/PromptSectionEditor";
 import { PromptImportColle } from "@/components/plan/PromptImportColle";
 import { ImporterVideoForm } from "@/components/plan/ImporterVideoForm";
@@ -136,6 +137,18 @@ export default async function PlanPage({
         </div>
         <div className="fiche-actions">
           <StatusBadge statut={plan.statut} />
+          <BoutonAgent
+            demande={{
+              projectId: pid,
+              portee: "plan",
+              cible: { uuid },
+              profondeur: "courte",
+              libelle: `Plan ${String(position).padStart(2, "0")} · ${plan.titre}`,
+              episodeId: eid,
+              planUuid: uuid,
+            }}
+            titre="Demander à l'agent : modifier ce plan, ou en ajouter un après lui"
+          />
           {!estBrouillon ? <RelaunchButton planId={plan.id} /> : null}
           <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} />
         </div>

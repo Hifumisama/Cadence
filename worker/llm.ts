@@ -8,6 +8,7 @@ import { insererTrace } from "../lib/llm/traces";
 import { surveillerAnnulation } from "./annulation";
 import { limiteur } from "./comfyui/limiteur";
 import { llmJoignable } from "./llamaSwap";
+import { postTraiterRun, surEchecRun } from "./agents/postTraitement";
 
 // Tâche LLM : un appel à un skill d'agent posé dans `agent_runs` (genre « llm »
 // du worker). Même contrat que les images : une demande n'est jamais rejouée toute
@@ -88,10 +89,16 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
       },
     });
     await file;
-    await db
-      .update(agentRuns)
-      .set({ statut: "termine", resultat: res.json as object, traceId, progressionJetons: null, finishedAt: new Date() })
-      .where(eq(agentRuns.id, run.id));
+    // Le résultat devient ce qu'il doit être (message de conversation, brouillon de brief,
+    // changements de proposition) DANS la même transaction que son écriture : si cette
+    // conversion échoue, rien n'est écrit et la tâche est marquée échouée.
+    await db.transaction(async (tx) => {
+      await postTraiterRun(tx, run, res.json);
+      await tx
+        .update(agentRuns)
+        .set({ statut: "termine", resultat: res.json as object, traceId, progressionJetons: null, finishedAt: new Date() })
+        .where(eq(agentRuns.id, run.id));
+    });
     console.log(
       `[worker] Appel LLM ${run.id} (${run.skill}) terminé : ${res.modele}, ${res.usage.entree}+${res.usage.sortie} jetons, ${Math.round((Date.now() - debut) / 1000)} s`,
     );
@@ -101,6 +108,7 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
     if (abandon.signal.aborted || (await annulationDemandeeLlm(run.id).catch(() => false))) {
       await db.update(agentRuns).set({ traceId }).where(eq(agentRuns.id, run.id));
       await finirAnnulationLlm(run.id);
+      await surEchecRun(run, "Annulée.").catch(() => undefined);
       console.log(`[worker] Appel LLM ${run.id} (${run.skill}) annulé`);
     } else {
       const message = err instanceof Error ? err.message : String(err);
@@ -109,6 +117,7 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
         .update(agentRuns)
         .set({ statut: "echoue", erreur: message.slice(0, 2000), traceId, progressionJetons: null, finishedAt: new Date() })
         .where(eq(agentRuns.id, run.id));
+      await surEchecRun(run, message).catch(() => undefined);
     }
   } finally {
     surveillance.arreter();

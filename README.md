@@ -89,6 +89,7 @@ une génération ComfyUI) :
 npm run llm:essai -- --skills                # skills et taille de leur prompt
 npm run llm:essai -- brief-projet            # entrée fictive intégrée
 npm run llm:essai -- plan-h3 --entree plan.json [--modele qwen3.6-35b-A3B] [--sans-trace]
+npm run agents:e2e                             # systeme d agents de bout en bout (faux modele, base de dev, nettoyage complet)
 ```
 
 Chaque exécution laisse une ligne dans `agent_traces` (statut, jetons, durée, sortie
