@@ -7,6 +7,8 @@ import { CANDIDATS_GARDES, estAspect } from "../lib/asset-generation";
 import { cheminGenerationMedia } from "../lib/media";
 import type { ComfyUIClient } from "./comfyui";
 import { NODE_IDS_TEXTE_VERS_IMAGE, injecterGenerationImage, type WorkflowJson } from "./comfyui/imageMapping";
+import type { Suivi } from "./comfyui/types";
+import { creerRelais } from "./progression";
 
 // Tâche d'images d'asset : text-to-image (Krea 2 Turbo, IMG_01_TextToImage).
 // L'édition (Qwen Image Edit) viendra sur le même modèle. Une génération n'est
@@ -39,6 +41,8 @@ export async function traiterProchaineGenerationImage(client: ComfyUIClient, med
 
   await db.update(assetGenerations).set({ statut: "en_cours", startedAt: new Date(), erreur: null }).where(eq(assetGenerations.id, gen.id));
 
+  let suivi: Suivi | null = null;
+  let relais: ReturnType<typeof creerRelais> | null = null;
   try {
     if (!estAspect(gen.aspect)) throw new Error(`Format inconnu : ${gen.aspect}`);
     const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW(), "utf-8")) as WorkflowJson;
@@ -52,10 +56,17 @@ export async function traiterProchaineGenerationImage(client: ComfyUIClient, med
       prefixeSortie: `cadence_${asset.code}`,
     });
 
+    // Le WebSocket s'ouvre AVANT la soumission (sinon un prompt court finit avant
+    // qu'on l'écoute). Il ne décide de rien : le résultat vient de /history, la
+    // boucle ci-dessous, et si le WebSocket tombe on y retombe sans progression.
+    relais = creerRelais({ genId: gen.id, genUuid: gen.uuid, assetId: gen.assetId, mediaRoot, graphe });
+    suivi = await client.ouvrirSuivi(relais.surEvenement);
+
     const promptId = await client.submitGraph(graphe);
     await db.update(assetGenerations).set({ comfyuiPromptId: promptId }).where(eq(assetGenerations.id, gen.id));
 
     const debut = Date.now();
+    await suivi.attendre(promptId, DUREE_MAX_POLL_MS);
     while (Date.now() - debut < DUREE_MAX_POLL_MS) {
       const r = await client.pollImage(promptId, NODE_IDS_TEXTE_VERS_IMAGE.sortie);
       if (r.statut === "en_cours") {
@@ -84,6 +95,9 @@ export async function traiterProchaineGenerationImage(client: ComfyUIClient, med
       .update(assetGenerations)
       .set({ statut: "echoue", erreur: message, finishedAt: new Date() })
       .where(eq(assetGenerations.id, gen.id));
+  } finally {
+    suivi?.fermer();
+    await relais?.nettoyer();
   }
 }
 

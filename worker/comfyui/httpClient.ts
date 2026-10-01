@@ -1,7 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { basename } from "node:path";
-import type { ComfyUIClient, PollResult, SubmissionInput } from "./types";
+import { randomUUID } from "node:crypto";
+import { basename, join } from "node:path";
+import { MEDIA_ROOT } from "../../lib/media";
+import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
 import { injecterValeurs, nomFichierSortie, NODE_IDS } from "./mapping";
+import { ouvrirSuiviWs, type EtatHistorique } from "./wsSuivi";
 
 /**
  * Client HTTP réel vers l'API ComfyUI qui tourne sur le PC de bureau (déjà
@@ -10,6 +13,10 @@ import { injecterValeurs, nomFichierSortie, NODE_IDS } from "./mapping";
  * "Save (API Format)" : le graphe actuel n'est pas soumettable en l'état.
  */
 export class HttpComfyUIClient implements ComfyUIClient {
+  /** Identité de ce worker auprès de ComfyUI : passée à /prompt ET au WebSocket,
+   * car ComfyUI ne renvoie la progression qu'au client qui a soumis. */
+  private readonly clientId = randomUUID();
+
   constructor(
     private readonly baseUrl: string,
     private readonly workflowPath: string,
@@ -47,7 +54,7 @@ export class HttpComfyUIClient implements ComfyUIClient {
     const res = await fetch(`${this.baseUrl}/prompt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: graphe }),
+      body: JSON.stringify({ prompt: graphe, client_id: this.clientId }),
     });
     if (!res.ok) {
       throw new Error(`Soumission ComfyUI refusée (${res.status})`);
@@ -60,7 +67,7 @@ export class HttpComfyUIClient implements ComfyUIClient {
     const res = await fetch(`${this.baseUrl}/prompt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: graphe }),
+      body: JSON.stringify({ prompt: graphe, client_id: this.clientId }),
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
@@ -68,6 +75,26 @@ export class HttpComfyUIClient implements ComfyUIClient {
     }
     const { prompt_id } = (await res.json()) as { prompt_id: string };
     return prompt_id;
+  }
+
+  async ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi> {
+    return ouvrirSuiviWs({
+      baseUrl: this.baseUrl,
+      clientId: this.clientId,
+      surEvenement,
+      etatHistorique: (id) => this.etatHistorique(id),
+      dossierDebug: process.env.COMFYUI_WS_DEBUG === "1" ? join(MEDIA_ROOT, "_debug") : undefined,
+    });
+  }
+
+  private async etatHistorique(promptId: string): Promise<EtatHistorique> {
+    const res = await fetch(`${this.baseUrl}/history/${promptId}`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return "en_cours";
+    const entree = (await res.json())[promptId];
+    if (!entree) return "en_cours";
+    if (entree.status?.status_str === "error") return "erreur";
+    if (entree.status?.completed === true) return "termine";
+    return "en_cours";
   }
 
   async pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult> {

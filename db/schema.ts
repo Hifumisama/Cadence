@@ -383,6 +383,14 @@ export const assetGenerations = pgTable("asset_generations", {
   comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
   fichier: varchar("fichier", { length: 255 }),
   erreur: text("erreur"),
+  // Progression relayée par le worker (WebSocket ComfyUI) : le navigateur ne
+  // parle pas à ComfyUI. Remis à null en fin de tâche ; l'aperçu est un fichier
+  // écrasé sous generations/<assetId>/, `apercuAt` sert de version à l'URL.
+  progressionValeur: integer("progression_valeur"),
+  progressionMax: integer("progression_max"),
+  etapeLibelle: varchar("etape_libelle", { length: 80 }),
+  apercuFichier: varchar("apercu_fichier", { length: 255 }),
+  apercuAt: timestamp("apercu_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),

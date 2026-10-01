@@ -183,6 +183,13 @@
       "when": 1791737400000,
       "tag": "0025_asset_generations",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791823800000,
+      "tag": "0026_generations_progression",
+      "breakpoints": true
     }
   ]
 }

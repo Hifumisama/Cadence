@@ -71,3 +71,14 @@ exige texte de référence et rognage saisis dans le graphe : la gestion de
 l'audio y est trop couplée à ComfyUI pour être pilotée par l'application (voir
 `docs/FRICTIONS.md`, F06). À reprendre quand le passage de la référence d'un
 moteur à l'autre ne dépendra plus de ce nœud.
+
+## Suivi en direct (WebSocket)
+
+Le worker écoute `ws(s)://<COMFYUI_URL>/ws?clientId=…` pendant un prompt
+(`worker/comfyui/wsSuivi.ts`, décodage dans `wsDecodage.ts`) : `execution_start`,
+`executing`, `progress` (valeur/max), aperçus binaires du sampler (le serveur
+doit être lancé avec `--preview-method auto`) et `execution_success` /
+`execution_error`. Rien dans les workflows n'est à adapter pour cela. Pour
+inspecter les messages réels (par exemple le transport propre du nœud
+`ModelPreviewOverrideKJ`), lancer le worker avec `COMFYUI_WS_DEBUG=1` : le
+journal brut est écrit sous `MEDIA_ROOT/_debug/`.

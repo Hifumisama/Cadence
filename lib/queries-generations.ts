@@ -20,6 +20,19 @@ export async function getGenerationsAsset(assetId: number) {
     loraPersonnage: g.loraPersonnage,
     erreur: g.erreur,
     src: g.statut === "termine" ? generationMediaSrc(assetId, g.fichier) : null,
+    // Progression relayée par le worker, tant que la demande est en cours. L'aperçu
+    // est un fichier écrasé à chaque étape : `apercuAt` en fait une URL neuve.
+    progression:
+      g.statut === "en_cours" && g.progressionValeur != null && g.progressionMax
+        ? { valeur: g.progressionValeur, max: g.progressionMax, etape: g.etapeLibelle }
+        : null,
+    apercuSrc:
+      g.statut === "en_cours" && g.apercuAt
+        ? (() => {
+            const url = generationMediaSrc(assetId, g.apercuFichier);
+            return url ? `${url}?v=${g.apercuAt.getTime()}` : null;
+          })()
+        : null,
     createdAt: g.createdAt.toISOString(),
   }));
 }

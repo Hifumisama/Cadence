@@ -14,6 +14,27 @@ export type PollResult =
   | { statut: "termine"; cheminSortieDistant: string }
   | { statut: "erreur"; message: string };
 
+/** Ce que ComfyUI raconte pendant qu'un prompt s'exécute (WebSocket). Tout est
+ * facultatif côté consommateur : un événement manqué ne change jamais le
+ * résultat, qui vient de /history. */
+export type EvenementSuivi =
+  | { type: "demarre" }
+  | { type: "noeud"; noeud: string }
+  | { type: "progression"; valeur: number; max: number; noeud: string }
+  | { type: "apercu"; octets: Buffer; format: "jpeg" | "png" | "webp" | "inconnu"; noeud?: string }
+  | { type: "termine" }
+  | { type: "erreur"; message: string };
+
+/** Comment le suivi s'est arrêté : `coupure` = le WebSocket est tombé (ou n'a pas
+ * pu s'ouvrir) avant la fin, l'appelant retombe sur /history. */
+export type IssueSuivi = "termine" | "erreur" | "coupure" | "delai";
+
+export interface Suivi {
+  /** Attend la fin du prompt `promptId`. Ne rejette jamais. */
+  attendre(promptId: string, delaiMs: number): Promise<IssueSuivi>;
+  fermer(): void;
+}
+
 /** Interface stable derrière laquelle vit toute la connaissance des node IDs
  * du graphe ComfyUI — voir workflows/README.md ("le workflow et le code de
  * soumission vivent dans le même commit") et le plan d'implémentation
@@ -30,4 +51,10 @@ export interface ComfyUIClient {
    * l'appelant, le client ne fait que le soumettre puis lire une sortie. */
   submitGraph(graphe: Record<string, unknown>): Promise<string>;
   pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult>;
+
+  /** Ouvre le WebSocket de suivi AVANT la soumission (ComfyUI n'envoie les
+   * événements qu'au clientId qui a soumis le prompt, et un prompt court peut
+   * finir avant qu'on se connecte). Ne rejette jamais : une connexion
+   * impossible donne un suivi qui répond `coupure`. */
+  ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi>;
 }

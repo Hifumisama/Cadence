@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import type { ComfyUIClient, PollResult, SubmissionInput } from "./types";
+import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
 import { pngFactice } from "./stubPng";
 
 /**
@@ -41,6 +41,29 @@ export class StubComfyUIClient implements ComfyUIClient {
     const debut = this.enCours.get(promptId) ?? 0;
     if (Date.now() - debut < 2000) return { statut: "en_cours" };
     return { statut: "termine", cheminSortieDistant: `stub/${promptId}.png` };
+  }
+
+  /** Rejoue ~2 s de progression (8 étapes, un aperçu à mi-parcours) : de quoi
+   * tester la barre et l'aperçu de l'interface sans ComfyUI. */
+  async ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi> {
+    let arrete = false;
+    return {
+      fermer: () => {
+        arrete = true;
+      },
+      attendre: async () => {
+        const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        surEvenement({ type: "demarre" });
+        surEvenement({ type: "noeud", noeud: "stub" });
+        for (let i = 1; i <= 8 && !arrete; i++) {
+          await pause(220);
+          surEvenement({ type: "progression", valeur: i, max: 8, noeud: "stub" });
+          if (i === 4) surEvenement({ type: "apercu", octets: pngFactice(128, 72), format: "png" });
+        }
+        surEvenement({ type: "termine" });
+        return "termine";
+      },
+    };
   }
 
   async fetchOutput(_distant?: string, cheminLocalCible?: string): Promise<void> {

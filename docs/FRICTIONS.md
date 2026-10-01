@@ -692,6 +692,31 @@ fiche d'asset. Décisions :
 - En mode `stub`, les images sont des PNG factices : toute la chaîne se teste
   sans ComfyUI.
 
+### Suivi en direct des générations : WebSocket ComfyUI, relayé par la base (2026-10-01)
+Le worker suit un prompt par le WebSocket de ComfyUI (`/ws?clientId=…`) en plus
+du HTTP, pas à sa place. Décisions :
+- **HTTP reste la source de vérité.** `/prompt`, `/upload`, `/view` et `/history`
+  ne changent pas ; `/history` confirme la fin (y compris une fin que le
+  WebSocket aurait manquée) et sert de repli si le WebSocket tombe : la tâche
+  continue alors sans barre de progression, comme avant.
+- **C'est le worker qui détient le WebSocket**, pas le navigateur : ComfyUI
+  n'envoie la progression et les aperçus qu'au `clientId` qui a soumis le
+  prompt (le worker, qui le passe aussi à `/prompt`), et son CORS n'autorise que
+  sa propre origine. Le WebSocket s'ouvre **avant** la soumission, un prompt
+  court pouvant finir avant qu'on l'écoute.
+- **La progression passe par la base** (`asset_generations.progression_*`,
+  `etape_libelle`, `apercu_*`) : web et worker sont deux processus, la base est
+  déjà leur canal commun, et la page la relit toutes les 3 s. Écriture limitée à
+  1/s ; l'aperçu est un fichier écrasé sous `generations/<assetId>/`, pas un
+  blob en base ; tout est remis à zéro en fin de tâche. Conséquence voulue :
+  recharger la page ou l'ouvrir ailleurs ne perd pas le suivi.
+- Décodage tolérant : un message inconnu n'interrompt jamais le suivi.
+  `COMFYUI_WS_DEBUG=1` journalise chaque message brut sous `MEDIA_ROOT/_debug/`
+  (pour voir ce qu'émet réellement le nœud `ModelPreviewOverrideKJ` de la vidéo).
+- Seules les images sont branchées dans l'interface ; le client de suivi est
+  générique (il marche pour un `prompt_id` vidéo), le branchement du worker
+  vidéo et de son écran reste à faire.
+
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
 pressentie : un **catalogue de voix nommées**, chacune avec un échantillon de

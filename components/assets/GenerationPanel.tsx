@@ -103,11 +103,22 @@ export function GenerationPanel({
             <li key={g.id} className={`gen-carte s-${g.statut}`}>
               {g.src ? (
                 <MediaZoom kind="image" src={g.src} alt="Candidat généré" classe="gen-vignette" />
+              ) : g.apercuSrc ? (
+                <MediaZoom kind="image" src={g.apercuSrc} alt="Aperçu en cours de génération" classe="gen-vignette" />
               ) : (
                 <div className="gen-vignette">
                   <span className="tiny-note">{ACTIFS.includes(g.statut) ? "…" : g.statut === "termine" ? "introuvable" : "—"}</span>
                 </div>
               )}
+              {g.progression ? (
+                <div className="gen-progression" title={g.progression.etape ?? undefined}>
+                  <progress value={g.progression.valeur} max={g.progression.max} />
+                  <span className="tiny-note num">
+                    {g.progression.etape ? `${g.progression.etape} · ` : ""}
+                    {g.progression.valeur}/{g.progression.max}
+                  </span>
+                </div>
+              ) : null}
               <div className="gen-meta">
                 <span className={`rep-statut s-${g.statut === "termine" ? "validee" : g.statut}`}>
                   {LIBELLE_STATUT_GENERATION[g.statut as StatutGeneration] ?? g.statut}

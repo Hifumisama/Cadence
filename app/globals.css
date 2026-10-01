@@ -3761,3 +3761,33 @@ a.voix-chip:hover {
   gap: 2px;
   min-width: 0;
 }
+
+/* Progression d'une génération en cours (relayée par le worker) */
+.gen-progression {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.gen-progression progress {
+  width: 100%;
+  height: 4px;
+  appearance: none;
+  border: 0;
+  background: var(--surface);
+  accent-color: var(--or);
+}
+.gen-progression progress::-webkit-progress-bar {
+  background: var(--surface);
+}
+.gen-progression progress::-webkit-progress-value {
+  background: var(--or);
+}
+.gen-progression progress::-moz-progress-bar {
+  background: var(--or);
+}
+.gen-progression .tiny-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
