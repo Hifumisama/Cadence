@@ -571,6 +571,40 @@ async function main() {
     await suspendre();
     ok(gS.ok && gS.nbSousTaches === 1, "…un épisode de la saison est accepté");
     ok(!(await s.genererScenarios(convF.conversationUuid, { episodeIds: [] })).ok || true, "(liste vide : « choisis ceux à réécrire » côté défaut)");
+
+    // --- étape 2 : le registre d'assets depuis le brief (un lot, un appel `prompt-asset` par master) ---
+    const cands = await s.candidatsDuProjet(p3!.id);
+    ok(cands.map((c) => c.code).join() === "CHAR_iris,DEC_le_phare", "registre : les masters du brief (personnage, lieu)");
+    ok(cands[0]!.existantId != null && cands[1]!.existantId == null && cands.every((c) => c.aTraiter), "…l'un existe déjà, l'autre est à créer ; tous deux sans prompt");
+    ok(!(await s.genererRegistre(convS.conversationUuid)).ok, "le registre se crée depuis le projet, pas depuis une saison");
+    await s.reinitialiser(convF.conversationUuid);
+    ok(!(await s.genererRegistre(convF.conversationUuid, { codes: ["CHAR_inconnu"] })).ok, "un asset que le brief ne décrit pas est refusé");
+    const gReg = await s.genererRegistre(convF.conversationUuid);
+    ok(gReg.ok && gReg.nbSousTaches === 2, "créer le registre : un lot de 2 sous-tâches");
+    if (!gReg.ok) throw new Error(gReg.erreur);
+    await suspendre();
+    let pReg = await lireProposition(gReg.propositionUuid);
+    ok(pReg?.statut === "en_generation" && pReg.lot?.sousTaches.map((x) => x.libelle).join() === "Personnage · Iris,Décor · Le phare", "…libellées par master, dans l'ordre du brief");
+    const tr = (await listerTaches()).taches.filter((t) => t.cle === `lot:${gReg.propositionUuid}`);
+    ok(tr.length === 1 && tr[0]!.libelle.startsWith("Registre d'assets"), "header : une entrée de lot « Registre d'assets »");
+    for (const st of pReg!.lot!.sousTaches) await traiter(st.runUuid);
+    pReg = await lireProposition(gReg.propositionUuid);
+    ok(pReg?.statut === "prete" && pReg.lot?.terminees === 2, "les 2 sous-tâches finies : proposition prête");
+    const chr = pReg!.groupes.flatMap((g) => g.changements);
+    const creation = chr.find((c) => c.operation === "creer");
+    const modif = chr.find((c) => c.operation === "modifier");
+    const apC = (creation?.apres ?? {}) as Record<string, unknown>;
+    ok(chr.length === 2 && creation?.cibleType === "asset" && apC.suffixe === "le_phare" && apC.description === "Tour blanche rongée par le sel" && apC.methodeGeneration === "generation", "un asset à créer (description du brief + prompt) et un prompt à écrire");
+    ok(modif?.cibleType === "asset" && String((modif.apres as Record<string, unknown>).promptGeneration ?? "").startsWith("Nouveau prompt"), "…le prompt d'Iris est proposé");
+    ok(chr.every((c) => c.coche), "…créations et prompts d'assets sans prompt cochés d'office");
+    const apR = await s.appliquerSelection(gReg.propositionUuid, { confirmeEcrasement: true });
+    ok(apR.ok, "appliquer le registre");
+    const lesAssets = await db.select().from(assets).where(eq(assets.projectId, p3!.id));
+    const phareReg = lesAssets.find((a) => a.code === "DEC_le_phare");
+    const irisReg = lesAssets.find((a) => a.code === "CHAR_iris");
+    ok(!!phareReg && phareReg.type === "decor" && (phareReg.promptGeneration ?? "").startsWith("Nouveau prompt") && phareReg.methodeGeneration === "generation", "DEC_le_phare est créé avec son prompt, en génération");
+    ok(!!irisReg && (irisReg.promptGeneration ?? "").startsWith("Nouveau prompt") && irisReg.description === "La gardienne", "CHAR_iris reçoit son prompt, sa description écrite à la main est gardée");
+    ok(!(await s.genererRegistre(convF.conversationUuid)).ok, "ensuite : plus rien à écrire par défaut");
   } finally {
     await db.delete(agentRuns).where(inArray(agentRuns.projectId, ids));
     await db.delete(projects).where(inArray(projects.id, ids));

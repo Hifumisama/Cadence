@@ -443,6 +443,6 @@ changement : `replique`.
 
 ### Reste à faire
 Page Monitoring, point de retour, applicateurs de prompt H3 / de suppression / de modification
-de réplique, **étapes 2 (registre d'assets + prompts) et 3 (plan-h3)**, fournisseur Claude,
+de réplique, **étape 3 (plan-h3)** (l'étape 2, registre d'assets, est construite le 2026-10-02 : `genererRegistre`, voir FRICTIONS), fournisseur Claude,
 enchaînement automatique des étapes, comparaison des modèles locaux sur les skills longs
 (plan-h3 d'abord : l'essai de qualité sur les 27 plans réels de l'épisode 1).

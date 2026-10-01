@@ -81,8 +81,9 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         .leftJoin(agentConversations, eq(agentConversations.id, agentRuns.conversationId))
         .where(and(inArray(agentRuns.propositionId, idsLots), isNotNull(agentRuns.cleSousTache)))
     : [];
-  const propositionsLots = idsLots.length ? await db.select({ id: propositions.id, uuid: propositions.uuid }).from(propositions).where(inArray(propositions.id, idsLots)) : [];
+  const propositionsLots = idsLots.length ? await db.select({ id: propositions.id, uuid: propositions.uuid, skill: propositions.skill }).from(propositions).where(inArray(propositions.id, idsLots)) : [];
   const uuidDeProposition = new Map(propositionsLots.map((p) => [p.id, p.uuid]));
+  const skillDeProposition = new Map(propositionsLots.map((p) => [p.id, p.skill]));
 
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
@@ -160,7 +161,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         cle: cleLot(uuid),
         genre: "llm" as const,
         statut: etat.statut,
-        libelle: `${LIBELLE_SKILL.scenarios}${projetNom ? ` · ${projetNom}` : ""}`,
+        libelle: `${LIBELLE_SKILL[skillDeProposition.get(id) ?? "scenarios"] ?? LIBELLE_SKILL.scenarios}${projetNom ? ` · ${projetNom}` : ""}`,
         detail: etat.detail,
         href: projectId ? `/p/${projectId}` : "/",
         conversationUuid: conversationUuid ?? null,

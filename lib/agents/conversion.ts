@@ -27,7 +27,7 @@ export type AssetCourant = {
 
 const TYPES_REMARQUE_SOUCIS = new Set(["voix-ou-musique", "description-vague", "incoherence-famille", "dependance-parent", "absence-ou-point-de-vue"]);
 
-function avertissementsRemarques(remarques: { type: string; message: string }[]): Avertissement[] {
+export function avertissementsRemarques(remarques: { type: string; message: string }[]): Avertissement[] {
   return remarques.map((r) => ({ type: "info" as const, texte: TYPES_REMARQUE_SOUCIS.has(r.type) ? `${r.type} : ${r.message}` : r.message }));
 }
 
@@ -50,6 +50,46 @@ export function depuisPromptAsset(sortie: SortiePromptAsset, asset: AssetCourant
       operation: "modifier",
       apres,
       avertissements,
+    },
+  ];
+}
+
+/** Un asset du registre (étape 2) : à CRÉER (n'existe pas) ou à compléter (son prompt manque ou est
+ * réécrit). `description` est la description canonique issue du brief : elle crée l'asset, ou complète
+ * un asset existant dont la description est vide ; elle ne remplace jamais une description écrite. */
+export type AssetDuRegistre = {
+  code: string;
+  type: string;
+  suffixe: string;
+  description: string;
+  existant: AssetCourant | null;
+  descriptionVide?: boolean;
+};
+
+export function depuisRegistreAsset(sortie: SortiePromptAsset, a: AssetDuRegistre): ChangementBrut[] {
+  if (a.existant) {
+    const bruts = depuisPromptAsset(sortie, a.existant).map((c) => ({ ...c, groupe: "assets" }));
+    if (a.descriptionVide && a.description.trim()) {
+      for (const c of bruts) c.apres = { ...(c.apres as Record<string, unknown>), description: a.description.trim() };
+    }
+    return bruts;
+  }
+  return [
+    {
+      groupe: "assets",
+      cibleType: "asset",
+      cibleRef: null,
+      libelle: `${a.code} · nouvel asset`,
+      operation: "creer",
+      apres: {
+        type: a.type,
+        suffixe: a.suffixe,
+        description: a.description.trim(),
+        promptGeneration: sortie.promptGeneration,
+        methodeGeneration: "generation",
+        critique: false,
+      },
+      avertissements: avertissementsRemarques(sortie.remarques ?? []),
     },
   ];
 }

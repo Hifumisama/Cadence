@@ -13,10 +13,12 @@ import type {
   VueConversation,
   VueProposition,
 } from "@/lib/agents/types";
-import { episodesPourScenarios } from "@/lib/agents/service";
+import type { CandidatRegistre } from "@/lib/agents/registre";
+import { candidatsDuProjet, episodesPourScenarios } from "@/lib/agents/service";
 import {
   apercuContexte,
   estimerGeneration,
+  estimerRegistre,
   estimerScenarios,
   lireBrief,
   lireConversation,
@@ -69,6 +71,16 @@ export async function estimerGenerationVue(conversationUuid: string): Promise<Es
  * ou une saison. `vide` = rien d'écrit : ceux-là sont cochés d'office. */
 export async function listerEpisodesPourScenariosVue(projectId: number, saisonId: number | null): Promise<EpisodePourScenario[]> {
   return episodesPourScenarios(projectId, saisonId);
+}
+
+/** Les masters que décrit le brief (personnages, lieux) avec ce qui existe déjà dans le registre :
+ * le sélecteur de « créer le registre ». `aTraiter` = coché d'office (manque ou sans prompt). */
+export async function listerCandidatsRegistreVue(projectId: number): Promise<CandidatRegistre[]> {
+  return candidatsDuProjet(projectId);
+}
+
+export async function estimerRegistreVue(nbAssets: number): Promise<EstimationGeneration> {
+  return estimerRegistre(nbAssets);
 }
 
 export async function estimerScenariosVue(episodeIds: number[]): Promise<EstimationGeneration> {

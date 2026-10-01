@@ -1,6 +1,7 @@
 "use client";
 
 import { nouvelleConversation } from "@/app/agents/actions";
+import { ChoixAssets } from "@/components/agents/ChoixAssets";
 import { ChoixEpisodes } from "@/components/agents/ChoixEpisodes";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { resumeCompteurs } from "@/lib/agents-affichage";
@@ -15,9 +16,15 @@ export function EtapeApplique({ ctx, onFermer }: { ctx: ContexteEtape; onFermer:
   const ecartes = dernierResultat?.ecartes ?? prop?.compteurs.ecartes ?? 0;
   const refuses = dernierResultat?.refuses ?? prop?.compteurs.refuses ?? 0;
 
-  // Étape suivante du pipeline : après le squelette d'une création de projet, « Continuer » propose
-  // d'écrire les scénarios des épisodes (un lot). Pas proposé quand c'est déjà ce qu'on vient d'appliquer.
-  const peutContinuer = conv.profondeur === "complete" && conv.portee === "projet" && prop?.skill !== "scenarios";
+  // Étapes suivantes du pipeline, une à la fois (validation manuelle à chaque revue) : après le
+  // squelette d'une création de projet, « Continuer » propose d'écrire les scénarios des épisodes
+  // (un lot) ; après les scénarios, de créer le registre d'assets (un autre lot) ; après le registre,
+  // les fiches de plan (à venir). Jamais ce qu'on vient d'appliquer.
+  const surProjet = conv.profondeur === "complete" && conv.portee === "projet";
+  const etapeFaite = prop?.skill;
+  const continuerScenarios = surProjet && etapeFaite !== "scenarios" && etapeFaite !== "registre";
+  const continuerRegistre = surProjet && etapeFaite === "scenarios";
+  const peutContinuer = continuerScenarios || continuerRegistre;
 
   const nouvelle = () => {
     void ctx.lancer(() => nouvelleConversation(conv.projectId, conv.portee, ctx.demande.cible ?? (conv.cibleId != null ? { id: conv.cibleId } : null), conv.profondeur));
@@ -37,7 +44,11 @@ export function EtapeApplique({ ctx, onFermer }: { ctx: ContexteEtape; onFermer:
       </div>
       {peutContinuer ? (
         <div className="ag-continuer">
-          <ChoixEpisodes ctx={ctx} saisonId={null} titre="Continuer : écrire les scénarios des épisodes" />
+          {continuerRegistre ? (
+            <ChoixAssets ctx={ctx} titre="Continuer : créer le registre d'assets" />
+          ) : (
+            <ChoixEpisodes ctx={ctx} saisonId={null} titre="Continuer : écrire les scénarios des épisodes" />
+          )}
         </div>
       ) : null}
       <div className="gd-row">

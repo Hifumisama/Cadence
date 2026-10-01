@@ -7,6 +7,8 @@ import { nouvelleConversation, ouvrirConversation, reinitialiser } from "@/app/a
 import { lireBriefVue, lireConversationVue, lirePropositionCouranteVue } from "@/app/agents/lecture";
 import type { DemandeAgent } from "@/components/agents/AgentsProvider";
 import type { ContexteEtape } from "@/components/agents/contexte";
+import { ChoixAssets } from "@/components/agents/ChoixAssets";
+import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { EtapeApplique } from "@/components/agents/EtapeApplique";
 import { EtapeBrief } from "@/components/agents/EtapeBrief";
 import { EtapeConsigne } from "@/components/agents/EtapeConsigne";
@@ -114,6 +116,10 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
   // La vue suit l'étape du serveur (une tâche finie la fait avancer) ; revenir en arrière
   // reste possible tant que l'étape du serveur ne bouge pas.
   const etapeServeur = conv ? etapeValide(conv.profondeur, conv.etape) : null;
+  // Entrée directe « créer le registre » (page des assets) : le sélecteur tient lieu de vue tant qu'aucune
+  // proposition n'est en cours ; dès que le lot est posé (étape « proposition » du serveur), c'est la
+  // revue habituelle qui prend le relais, comme pour toute proposition.
+  const vueRegistre = demande.vue === "registre" && !!conv && etapeServeur !== "proposition" && etapeServeur !== "applique";
   useEffect(() => {
     if (etapeServeur) setAffichee(etapeServeur);
   }, [etapeServeur, conv?.uuid]);
@@ -222,7 +228,7 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
         </div>
       </div>
 
-      {conv ? (
+      {conv && !vueRegistre ? (
         <div className="ag-sous-tete">
           <FilEtapes etapes={filEtapes(conv.profondeur, etapeServeur ?? "consigne", affichee)} onAller={setAffichee} />
           {reprend ? (
@@ -259,7 +265,15 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
             {erreur ?? "Impossible d'ouvrir l'agent."}
           </p>
         ) : null}
-        {ctx ? (
+        {ctx && vueRegistre ? (
+          <>
+            <ChoixAssets ctx={ctx} />
+            <div className="ag-etape-corps">
+              <EtatTacheAgent tache={ctx.conv.tache} />
+            </div>
+          </>
+        ) : null}
+        {ctx && !vueRegistre ? (
           <>
             {affichee === "consigne" ? <EtapeConsigne ctx={ctx} /> : null}
             {affichee === "conversation" ? <EtapeConversation ctx={ctx} /> : null}

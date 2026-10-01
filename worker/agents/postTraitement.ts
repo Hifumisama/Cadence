@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
 import { methodeApplicable } from "../../lib/assetCode";
@@ -8,6 +8,7 @@ import {
   depuisCorrectionPlan,
   depuisPlanAInserer,
   depuisPromptAsset,
+  depuisRegistreAsset,
   depuisScenarioEpisode,
   type EpisodeCourant,
   type SortiePromptAsset,
@@ -16,6 +17,7 @@ import {
 import { finaliserLot, runsDuLot } from "../../lib/agents/lots";
 import { PAS_ORDRE_SOUS_TACHE, episodeIdDeCle, groupeEpisode, rangSousTache } from "../../lib/agents/lots-pur";
 import { entreeScenarioEpisode } from "../../lib/agents/contexte";
+import { codeDeCleAsset } from "../../lib/agents/registre";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
 import type { BriefContenu, Position, StatutChamp } from "../../lib/agents/types";
 import type { Tx } from "../../lib/ordre-plans";
@@ -78,7 +80,10 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown) {
   const options = (run.options ?? {}) as OptionsRunAgent;
   const scope = { type: prop.portee as "projet" | "saison" | "episode" | "plan" | "asset", cibleId: prop.cibleId };
   // Lot : cette tâche n'est qu'une SOUS-TÂCHE (un épisode) d'une proposition plus grande.
-  if (prop.lot) return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
+  if (prop.lot) {
+    if (run.skill === "prompt-asset") return postSousTacheRegistre(tx, run, prop, scope, json as SortiePromptAsset);
+    return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
+  }
 
   let bruts: ChangementBrut[] = [];
   if (run.skill === "prompt-asset") {
@@ -144,6 +149,39 @@ async function postSousTacheLot(
     prefixeCle: `ep${episodeId}-`,
     groupe: groupeEpisode(episodeId),
     signalerEcrasement: true,
+  });
+  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
+  await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
+/** Une sous-tâche du lot « registre » (un master) : l'asset est créé s'il n'existe pas (description du
+ * brief + prompt), sinon son prompt est proposé. Même règle que pour un épisode : ses changements
+ * REMPLACENT ceux qu'elle avait posés (relance), idempotent, puis le lot décide de son statut. */
+async function postSousTacheRegistre(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "saison" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortiePromptAsset,
+) {
+  const cle = run.cleSousTache;
+  const code = codeDeCleAsset(cle);
+  if (!cle || !code) throw new Error(`Sous-tâche de registre inconnue (« ${cle ?? "?"} »).`);
+  const entree = run.entree as { asset?: { code?: string; type?: string; descriptionCanonique?: string } };
+  const type = entree.asset?.type;
+  if (!type) throw new Error("Sous-tâche de registre sans type d'asset.");
+  const [existant] = await tx.select().from(assets).where(and(eq(assets.projectId, prop.projectId), eq(assets.code, code)));
+  const suffixe = code.includes("_") ? code.slice(code.indexOf("_") + 1) : code;
+  const bruts = depuisRegistreAsset(sortie, {
+    code,
+    type,
+    suffixe,
+    description: entree.asset?.descriptionCanonique ?? "",
+    descriptionVide: existant ? !(existant.description ?? "").trim() : false,
+    existant: existant
+      ? { id: existant.id, code: existant.code, type: existant.type, methodeGeneration: existant.methodeGeneration, methodeApplicable: methodeApplicable(existant.type) }
+      : null,
   });
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });

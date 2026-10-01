@@ -351,6 +351,25 @@ export async function estimerScenarios(episodeIds: number[]): Promise<Estimation
   };
 }
 
+/** Estimation avant de lancer « créer le registre » : un appel `prompt-asset` par asset, l'un après l'autre. */
+export async function estimerRegistre(nbAssets: number): Promise<EstimationGeneration> {
+  const conf = configLlm();
+  const n = Math.max(1, nbAssets);
+  const entree = chargerSkill("prompt-asset", undefined, { variante: "generation" }).jetonsEstimes + 700;
+  const sortie = SORTIE_ESTIMEE["prompt-asset"] ?? 500;
+  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
+  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
+  return {
+    fournisseur: conf.fournisseur,
+    modele: modelePourSkill("prompt-asset"),
+    coutEstimeUsd: null,
+    jetonsEntreeEstimes: entree * n,
+    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
+    tachesDevant: images + appels,
+    skill: "prompt-asset",
+  };
+}
+
 /** Historique des propositions d'un projet (pour la page Monitoring ; la popup ne l'affiche pas). */
 export async function listerPropositions(projectId: number, limite = 50): Promise<ResumeProposition[]> {
   const lignes = await db.select().from(propositions).where(eq(propositions.projectId, projectId)).orderBy(desc(propositions.createdAt)).limit(limite);

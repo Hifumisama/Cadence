@@ -21,7 +21,8 @@ import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversat
 import { PORTEES } from "./types";
 import { controleDuree } from "./applicateurs/plan";
 import { cocheParDefaut, groupeAffiche, raisonNonCochable } from "./cochage";
-import { entreeCorrectionPlan, entreePromptAsset, entreeScenarioEpisode, lireBriefDuProjet, type EntreeSkill } from "./contexte";
+import { entreeCorrectionPlan, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, lireBriefDuProjet, type EntreeSkill } from "./contexte";
+import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registre";
 import { annulerLot, annulerRunsDePropositions, runsDuLot, type ResultatAnnulationLot } from "./lots";
 import { cleSousTacheEpisode, dernieresSousTaches, episodeIdDeCle, estRunActif } from "./lots-pur";
 import { appliquerProposition, enregistrerChangements } from "./proposition-db";
@@ -589,6 +590,74 @@ export async function genererScenarios(
   return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length };
 }
 
+const CONSIGNE_REGISTRE = "Écris le prompt de génération de ce master (image de référence) à partir de sa description canonique.";
+
+/** Les masters que le brief décrit (personnages, lieux), avec ce qui existe déjà dans le registre.
+ * Vide tant que le projet n'a pas de brief rédigé. */
+export async function candidatsDuProjet(projectId: number): Promise<CandidatRegistre[]> {
+  const brief = await lireBriefDuProjet(db, projectId);
+  if (!brief || brief.statut === "partiel") return [];
+  const existants = await db
+    .select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description, promptGeneration: assets.promptGeneration, statut: assets.statut })
+    .from(assets)
+    .where(eq(assets.projectId, projectId));
+  return candidatsRegistre(brief.contenu, existants);
+}
+
+/** Étape 2 : « créer le registre d'assets » — UN lot de sous-tâches `prompt-asset`, une par master du
+ * brief (personnage, lieu), l'une après l'autre. Chaque sous-tâche crée l'asset s'il n'existe pas
+ * (description du brief + prompt) ou écrit le prompt d'un asset existant. Depuis le projet ou une
+ * saison (les modifications d'assets existants ne passent que par la portée projet : le verrou
+ * refuse le reste, avec sa raison). Les voix, accessoires, effets et sons ne sont PAS créés ici. */
+export async function genererRegistre(
+  conversationUuid: string,
+  options: { codes?: string[]; consigne?: string } = {},
+): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
+  const conv = await conversationParUuid(conversationUuid);
+  if (!conv) return ERR("Conversation introuvable.");
+  if (conv.portee !== "projet") return ERR("Le registre se crée depuis le projet : ouvre l'agent sur le projet.");
+  if (await tacheActive(conv.id)) return ERR("Une tâche de l'agent est déjà en cours sur cette conversation.");
+  const brief = await lireBriefDuProjet(db, conv.projectId);
+  if (!brief || brief.statut === "partiel") return ERR("Écris d'abord le brief du projet : le registre en descend (personnages, lieux).");
+
+  const candidats = await candidatsDuProjet(conv.projectId);
+  if (candidats.length === 0) return ERR("Le brief ne décrit aucun personnage ni lieu : rien à créer.");
+  const voulus = options.codes ?? candidats.filter((c) => c.aTraiter).map((c) => c.code);
+  if (voulus.length === 0) return ERR("Tous les assets du brief ont déjà un prompt : choisis ceux à réécrire.");
+  const choisis = candidats.filter((c) => voulus.includes(c.code));
+  if (choisis.length !== new Set(voulus).size) return ERR("Un des assets choisis n'est plus décrit par le brief.");
+
+  const consigne = (options.consigne ?? "").trim() || CONSIGNE_REGISTRE;
+  const sousTaches: { c: CandidatRegistre; e: EntreeSkill }[] = [];
+  for (const c of choisis) {
+    const e = await entreePromptAssetCandidat(db, conv.projectId, c, consigne);
+    if (e) sousTaches.push({ c, e });
+  }
+  if (sousTaches.length === 0) return ERR("Aucun asset lisible.");
+
+  const contexte = [
+    { type: "brief" as const, libelle: `Brief du projet (${brief.statut})`, ref: "*" },
+    { type: "registre" as const, libelle: `${sousTaches.length} asset${sousTaches.length > 1 ? "s" : ""} à écrire, un par un` },
+    ...sousTaches[0]!.e.contexte.filter((x) => x.type === "brief"),
+  ];
+  const propId = await nouvelleProposition(conv, { skill: "registre", consigne, contexte, lot: true });
+  for (const { c, e } of sousTaches) {
+    await creerRun(db, {
+      skill: "prompt-asset",
+      entree: e.entree,
+      but: "proposition",
+      projectId: conv.projectId,
+      conversationId: conv.id,
+      propositionId: propId,
+      cleSousTache: cleSousTacheAsset(c.code),
+      libelleSousTache: c.libelle,
+      options: e.variante ? { variante: e.variante } : null,
+    });
+  }
+  const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
+  return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length };
+}
+
 /** Relance UNE sous-tâche d'un lot (échouée, annulée, ou à refaire), avec un retour libre
  * facultatif. Ses anciens changements restent jusqu'à ce que la nouvelle réponse les remplace ;
  * les autres sous-tâches ne bougent pas. */
@@ -600,14 +669,26 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
   const sous = dernieresSousTaches(await runsDuLot(db, prop.id)).find((x) => x.run.cle === cle);
   if (!sous) return ERR("Sous-tâche introuvable.");
   if (estRunActif(sous.run)) return ERR("Cette sous-tâche est déjà en file ou en cours.");
-  const episodeId = episodeIdDeCle(cle);
-  if (episodeId == null) return ERR("Sous-tâche non relançable.");
-  const entree = await entreeScenarioEpisode(db, prop.projectId, episodeId, prop.consigne || CONSIGNE_SCENARIO, { retour: retour?.trim() || undefined });
-  if (!entree) return ERR("L'épisode n'existe plus.");
+  let cible: { skill: string; entree: object; options: { variante?: string } | null };
+  const codeAsset = codeDeCleAsset(cle);
+  if (codeAsset) {
+    const cand = (await candidatsDuProjet(prop.projectId)).find((c) => c.code === codeAsset);
+    if (!cand) return ERR("Cet asset n'est plus décrit par le brief.");
+    const e = await entreePromptAssetCandidat(db, prop.projectId, cand, prop.consigne || CONSIGNE_REGISTRE, retour?.trim() || undefined);
+    if (!e) return ERR("L'asset n'existe plus.");
+    cible = { skill: "prompt-asset", entree: e.entree, options: e.variante ? { variante: e.variante } : null };
+  } else {
+    const episodeId = episodeIdDeCle(cle);
+    if (episodeId == null) return ERR("Sous-tâche non relançable.");
+    const entree = await entreeScenarioEpisode(db, prop.projectId, episodeId, prop.consigne || CONSIGNE_SCENARIO, { retour: retour?.trim() || undefined });
+    if (!entree) return ERR("L'épisode n'existe plus.");
+    cible = { skill: "scenario-episode", entree: entree.entree, options: null };
+  }
 
   const run = await creerRun(db, {
-    skill: "scenario-episode",
-    entree: entree.entree,
+    skill: cible.skill,
+    entree: cible.entree,
+    options: cible.options,
     but: "proposition",
     projectId: prop.projectId,
     conversationId: prop.conversationId,

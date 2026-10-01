@@ -106,6 +106,48 @@ export async function entreePromptAsset(db: Db, projectId: number, assetId: numb
   };
 }
 
+/** L'entrée de `prompt-asset` pour un asset du REGISTRE (étape 2) : un asset existant passe par
+ * `entreePromptAsset` (sa description, son parent, ses plans) ; un asset à créer reçoit la même forme,
+ * construite depuis la description du brief. Un master est toujours une génération (Krea 2) : on ne
+ * charge que son guide. */
+export async function entreePromptAssetCandidat(
+  db: Db,
+  projectId: number,
+  cand: { code: string; type: string; description: string; existantId: number | null },
+  consigne: string,
+  retour?: string,
+): Promise<EntreeSkill | null> {
+  if (cand.existantId != null) {
+    const base = await entreePromptAsset(db, projectId, cand.existantId, consigne, retour);
+    if (!base) return null;
+    const e = base.entree as { asset: { descriptionCanonique: string }; parent: unknown };
+    if (!e.asset.descriptionCanonique.trim()) e.asset.descriptionCanonique = cand.description;
+    return { ...base, variante: e.parent ? base.variante : "generation" };
+  }
+  const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
+  const brief = await lireBriefDuProjet(db, projectId);
+  const { extrait, contexte } = extraitsBrief(brief?.contenu ?? null);
+  return {
+    skill: "prompt-asset",
+    variante: "generation",
+    contexte: [
+      { type: "asset", libelle: `${cand.code} · description issue du brief`, ref: cand.code },
+      ...(projet?.clauseStyle ? [{ type: "projet" as const, libelle: "Clause de style du projet (information)" }] : []),
+      ...contexte,
+    ],
+    entree: {
+      asset: { code: cand.code, type: cand.type, descriptionCanonique: cand.description, critique: false, methodeGeneration: "generation", promptActuel: "" },
+      parent: null,
+      plansQuiLeCitent: [],
+      clauseStyleDuProjet: projet?.clauseStyle ?? "",
+      memeFamille: [],
+      briefExtrait: extrait,
+      consigne,
+      ...(retour ? { retourUtilisateur: retour } : {}),
+    },
+  };
+}
+
 // --- épisode, plan ----------------------------------------------------------
 
 type PlanLu = { uuid: string; titre: string; description: string; dureeGenerationSecondes: number; sceneId: number | null };

@@ -148,6 +148,16 @@ export async function genererProposition(
   return rafraichir(await service.genererProposition(conversationUuid, options));
 }
 
+/** Étape 2 : crée le registre d'assets depuis le brief (un lot, une sous-tâche par master : personnage,
+ * lieu). `codes` = les assets à traiter (par défaut : ceux qui manquent ou n'ont pas de prompt). Depuis
+ * la conversation du PROJET. */
+export async function genererRegistre(
+  conversationUuid: string,
+  options: { codes?: string[]; consigne?: string } = {},
+) {
+  return rafraichir(await service.genererRegistre(conversationUuid, options));
+}
+
 /** « Écrire les scénarios » (étape 1 du pipeline) depuis une conversation de portée PROJET ou
  * SAISON, par exemple depuis l'étape « Appliqué » du squelette : une proposition EN LOT, une
  * sous-tâche (une tâche `scenario-episode`) par épisode, exécutées l'une après l'autre dans la file.

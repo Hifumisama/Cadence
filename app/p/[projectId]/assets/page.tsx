@@ -6,6 +6,7 @@ import { AssetCard } from "@/components/assets/AssetCard";
 import { AssetFiltres } from "@/components/assets/AssetFiltres";
 import { TYPES_ASSET } from "@/lib/assetCode";
 import { infosMedia } from "@/lib/assetMedia";
+import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { Topbar } from "@/components/ui/Topbar";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,14 @@ export default async function AssetsPage({
               Un sujet = un master et ses dérivés. Cliquer sur un sujet pour voir son
               arbre complet et les plans où il apparaît.
             </p>
+          </div>
+          <div className="actions">
+            <BoutonAgent
+              className="btn btn-ghost"
+              libelle="Créer le registre depuis le brief"
+              demande={{ projectId: pid, portee: "projet", cible: null, profondeur: "complete", libelle: projet.nom, vue: "registre" }}
+              titre="L'agent écrit le prompt de chaque personnage et lieu du brief et crée les assets qui manquent"
+            />
           </div>
         </div>
 

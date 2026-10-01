@@ -17,6 +17,7 @@ export const LIBELLE_SKILL: Record<string, string> = {
   "plan-h3": "Plans H3",
   "iteration-plan": "Itération de plan",
   scenarios: "Scénarios des épisodes",
+  registre: "Registre d'assets",
 };
 
 export type Tache = {

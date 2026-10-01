@@ -1329,3 +1329,24 @@ Test réel du lot de scénarios sur « Nuit sur Tanger » (retours de l'utilisat
   relisible dans la popup de son asset, les traces restent intactes. Les tâches actives ne se
   retirent pas (on les annule). Remplace le bouton « Ignorer » des échecs.
 
+### Étape 2 du pipeline : le registre d'assets depuis le brief (2026-10-02)
+Un LOT, comme les scénarios (même infrastructure, voir « Étape 1 »). Décisions :
+- **Une sous-tâche `prompt-asset` par MASTER du brief** (personnages → `CHAR_<nom>`, lieux →
+  `DEC_<nom>`), clé `asset:<code>`, l'une après l'autre dans la file. Les masters viennent du brief
+  seul (« l'histoire d'abord » : le scénario ne déclare aucun asset) ; les **voix** se créent au
+  casting vocal, les **accessoires, effets et sons** se déduiront des plans (étape 3).
+- **Créer ou compléter** : un asset absent est CRÉÉ (description canonique du brief + prompt, méthode
+  `generation`, variante de guide `generation` : on ne charge que le guide Krea) ; un asset existant
+  sans prompt reçoit son prompt (et la description du brief s'il n'en a pas) ; un asset qui a déjà un
+  prompt n'est pas coché d'office (le réécrire = section « risque d'écrasement », décochée). La
+  description écrite à la main n'est jamais remplacée.
+- **Depuis le projet seulement** (le verrou de portée n'autorise la modification d'assets existants
+  qu'à la portée projet). Entrées : « Continuer : créer le registre d'assets » à l'étape « Appliqué »
+  après les scénarios, et « Créer le registre depuis le brief » sur la page des assets (vue directe
+  de la popup, pour un projet qui a déjà un brief).
+- Revue : un groupe « Assets », une ligne cochable par asset ; relance d'une sous-tâche possible ;
+  libellé de lot « Registre d'assets » dans le header.
+- Code : `lib/agents/registre.ts` (pur), `depuisRegistreAsset` (conversion), `entreePromptAssetCandidat`
+  (entrée du skill), `genererRegistre` (service), `postSousTacheRegistre` (worker), `ChoixAssets` (UI).
+  Testé : `lib/agents/registre.test.ts` et `npm run agents:e2e` (scénario du registre, faux modèle).
+
