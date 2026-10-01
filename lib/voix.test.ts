@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checksInstruction, checksReference, estEtapeVoix, etatPhases, promptTestVoix } from "./voix";
+import { TEXTE_REFERENCE_DEFAUT, checksInstruction, checksReference, estEtapeVoix, etatPhases, promptTestVoix } from "./voix";
 
 const base = { source: "design" as const, instruction: null, referenceFichier: null, refText: "", testVideo: null, nbRepliques: 0, nbRepliquesMesurees: 0 };
 
@@ -57,4 +57,9 @@ test("prompt de test : la réplique est citée telle quelle dans <d>", () => {
   const sans = promptTestVoix({ texte, personnage: null, decor: { code: "DEC_x", description: null }, avecAudio: false });
   assert.ok(!sans.includes("<Audio 1>"));
   assert.ok(sans.includes("<Picture 1>"));
+});
+
+test("texte de référence par défaut : non vide, en anglais", () => {
+  assert.ok(TEXTE_REFERENCE_DEFAUT.trim().length > 20);
+  assert.match(TEXTE_REFERENCE_DEFAUT, /welcome/i);
 });

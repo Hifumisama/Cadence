@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Marcellus, Jost, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import { TachesProvider } from "@/components/taches/TachesProvider";
 
 const marcellus = Marcellus({
   subsets: ["latin"],
@@ -31,7 +32,9 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${marcellus.variable} ${jost.variable} ${plexMono.variable}`}>
       <body>
-        <div className="shell">{children}</div>
+        <TachesProvider>
+          <div className="shell">{children}</div>
+        </TachesProvider>
       </body>
     </html>
   );

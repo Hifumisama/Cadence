@@ -51,7 +51,7 @@ export function injecterValeurs(
   const graphe = structuredClone(workflow);
 
   const nodePrompt = graphe[NODE_IDS.prompt];
-  if (nodePrompt) nodePrompt.inputs.prompt = input.promptAssemble;
+  if (nodePrompt) nodePrompt.inputs.value = input.promptAssemble;
 
   if (input.seed) {
     for (const nodeId of [

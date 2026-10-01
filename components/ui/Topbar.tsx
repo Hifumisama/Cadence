@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { IndicateurTaches } from "@/components/taches/IndicateurTaches";
 import { TopbarTabs } from "./TopbarTabs";
 
 /** Bandeau — le fil d'Ariane (`trail`) remplace le texte fixe "Les Yeux de
@@ -27,6 +28,7 @@ export function Topbar({
           </nav>
         </div>
         {tabs ? <TopbarTabs projectId={tabs.projectId} episodeBase={tabs.episodeBase} /> : null}
+        <IndicateurTaches />
       </div>
     </header>
   );

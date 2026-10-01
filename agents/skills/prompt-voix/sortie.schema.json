@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sortie de l'agent prompt-voix : l'instruction d'une voix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["instruction", "remarques"],
+  "properties": {
+    "instruction": { "type": "string", "minLength": 1, "description": "Prose anglaise, un paragraphe : identité, origine (langue native nommée), prosodie, état. Contrainte physique tenue incluse si le personnage en porte une. Sans négation, sans prise de son, sans mot d'accent." },
+    "refText": { "type": "string", "description": "Optionnel. Seulement si l'utilisateur veut s'écarter du texte de référence du projet (le même texte anglais pour toutes les voix, par défaut). Il doit correspondre au mot près à ce que dira la voix." },
+    "remarques": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "message"],
+        "properties": {
+          "type": { "type": "string", "enum": ["pas-de-contrainte", "voix-proche", "attribut-ambigu", "description-vague", "autre"] },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { deposerReference, enregistrerVoix, type ValeursVoix } from "@/app/voix/actions";
-import { checksInstruction, type SourceVoix } from "@/lib/voix";
+import { TEXTE_REFERENCE_DEFAUT, checksInstruction, type SourceVoix } from "@/lib/voix";
 import { CopierBouton } from "./CopierBouton";
 import { TrimAudio } from "./TrimAudio";
 
@@ -108,7 +108,14 @@ export function EtapeVoix({
       <div className="field-group">
         <div className="voix-lbl-row">
           <label>Texte de référence — au mot près</label>
-          <CopierBouton texte={v.refText} />
+          <span style={{ display: "inline-flex", gap: "var(--sp-2)" }}>
+            {v.source === "design" && v.refText.trim() !== TEXTE_REFERENCE_DEFAUT ? (
+              <button type="button" className="btn btn-ghost btn-mini" onClick={() => champ("refText", TEXTE_REFERENCE_DEFAUT)}>
+                Texte par défaut
+              </button>
+            ) : null}
+            <CopierBouton texte={v.refText} />
+          </span>
         </div>
         <textarea
           className="field"
@@ -117,13 +124,16 @@ export function EtapeVoix({
           onChange={(e) => champ("refText", e.target.value)}
           placeholder={
             v.source === "design"
-              ? "Ce que la voix dit dans la référence générée. 10-15 s, factuel, sans enjeu — avec la mélodie du personnage."
+              ? "Ce que la voix dit dans la référence générée. Le même texte anglais peut servir à toutes les voix."
               : "Ce que dit l'audio fourni, mot pour mot, ponctuation comprise."
           }
         />
         <p className="tiny-note voix-warn-mot">
           Il doit correspondre {v.source === "design" ? "à ce que la voix générée dira" : "à ce que dit l'audio"} <b>au mot près</b> —
           sans lui, la référence est diminuée.
+          {v.source === "design"
+            ? " Un texte anglais identique pour toutes les voix a donné le meilleur résultat : le timbre vient de l'instruction, les répliques françaises sont ensuite dites par clonage de cette référence."
+            : ""}
         </p>
       </div>
 

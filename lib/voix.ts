@@ -10,6 +10,13 @@ export function estSourceVoix(v: string): v is SourceVoix {
   return (SOURCES_VOIX as readonly string[]).includes(v);
 }
 
+/** Texte de référence par défaut : le même pour toutes les voix. Meilleur
+ * résultat observé (2026-09-30) : Qwen3 VoiceDesign lit ce texte **anglais** avec
+ * l'instruction du personnage, puis CosyVoice3 clone cette référence pour dire
+ * les répliques françaises. Voir workflows/voice-clone/VOX_Voice-design.json. */
+export const TEXTE_REFERENCE_DEFAUT =
+  "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !";
+
 export const ETAPES_VOIX = [
   { cle: "voix", label: "Voix", aide: "instruction ou audio · texte de référence" },
   { cle: "reference", label: "Référence", aide: "voix de référence générée" },

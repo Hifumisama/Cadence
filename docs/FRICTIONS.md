@@ -330,6 +330,49 @@ existe déjà côté interface (collage de prompt en bloc dans la Fiche de
 plan) : l'agent futur écrira dans le même champ plutôt que d'exiger une
 nouvelle UI.
 
+### Conception détaillée (2026-09-30)
+Le cadrage complet — brief issu d'une conversation, pipeline en étapes,
+portée × mode, propositions appliquées seulement après validation, protections
+et point de retour, traces — est dans `docs/CONCEPTION_AGENTS.md`. Aucun
+verdict acté ci-dessus n'est modifié.
+
+### Décisions de conception des skills (2026-09-30)
+- **Estimation mots/seconde : non retenue pour l'instant** (révise le point 4 de
+  la direction du 2026-09-30). L'agent choisit une durée généreuse ; si le débit
+  est trop lent ou trop rapide, on allonge le plan une fois la voix mesurée.
+- **Deux textes par asset, pas de version anglaise figée** : `description`
+  (français, canon humain) et `promptGeneration` (ce qu'on colle dans ComfyUI,
+  avec la mise en page de Krea 2 ou de Qwen). Un « sujet anglais » stocké dans
+  l'asset a été écarté : le rôle d'un asset change d'un plan à l'autre et se
+  dit en texte brut dans le prompt vidéo (`<Subject 1> is the Tenancière from
+  <Picture 1>, leaning in close…`). Chaque plan écrit donc sa propre définition
+  de sujet.
+- **Un dérivé n'est pas forcément une édition** : `deriveDeId` dit la famille,
+  `methodeGeneration` (`generation` | `edition`) dit comment l'image se fabrique.
+  Un effet (flammes, éclairs) rattaché à un master se génère de zéro ; une
+  édition (les yeux de Maya) part de l'image du parent, qui doit être produite
+  d'abord. L'ordre de fabrication « parent avant enfant » ne vaut que pour les
+  éditions.
+- **Les skills d'exécution de l'app** vivent dans `agents/skills/` (voir
+  `docs/CONCEPTION_AGENTS.md`), séparés des skills de chat de `.claude/skills/`.
+- **Contrôle de structure des shots** ajouté à la fiche de plan (signalement,
+  sans blocage) : durée entière de 4 à 15 s, timecodes croissants dans la durée,
+  aucun shot sous 1,5 s. Pas de contrôle du littéral « Hard cut » : les plans
+  validés en production ne l'écrivent pas toujours. La forme à intervalle
+  `[Shot 2, 00:02.500–00:05.500]` est acceptée. Le garde-fou de vocabulaire
+  reste abandonné.
+
+- **Skills réécrits pour l'app** (voir `docs/CONCEPTION_AGENTS.md` §5 et §8) :
+  `brief-projet`, `scenario-episode`, `prompt-voix` s'ajoutent à `plan-h3`,
+  `iteration-plan` et `prompt-asset`. `scenario-episode` reprend les
+  corrections de découpage du 2026-09-25 (points de vue, plan statique sans
+  intention, dialogue couvert) et respecte le scénario narratif : pas de
+  cadrage, lumière ni son, pas de numéro ni de renvoi à un autre plan, pas
+  d'asset déclaré. Les répliques y naissent avec leur locuteur. `prompt-voix`
+  ne garde de l'ancien casting que la contrainte physique tenue (dans
+  l'instruction) ; règle absolue, température, seed, test de tenue et carnet de
+  candidats n'y figurent plus.
+
 ### Reste à observer
 - [ ] **Compter séparément** : itérations « prompt » vs redécoupages (= scénario). Le motif ci-dessus suggère que la part « découpage » est grosse — reste à chiffrer.
 - [x] Motif récurrent — identifié ci-dessus (2026-09-25).
@@ -612,6 +655,428 @@ casting vocal** : « Nouveau sujet » ne propose plus le type voix (ni l'action
 serveur), le dépôt de fichier est retiré de sa fiche au registre, qui renvoie
 vers le casting (« Modifier au casting »). Un seul endroit pour éditer une voix.
 
+### Pipeline vocal réel : deux moteurs (2026-09-30)
+Meilleur résultat obtenu à ce jour (`workflows/voice-clone/VOX_Voice-design.json`) :
+1. **Qwen3-TTS (Voice Design)** lit un **texte de référence anglais, le même pour
+   toutes les voix**, avec l'instruction du personnage : c'est la voix de
+   référence (étape 2 du casting).
+2. **CosyVoice3** clone cette référence et dit les **répliques en français**
+   (étape 4). `VOX_Generate_Sound_From_Characters.json` en est la seconde moitié
+   (fichier de référence + texte + `trim_start`/`trim_end`).
+
+Conséquences : le texte de référence est un réglage de projet (le casting
+propose un « Texte par défaut »), pas une création par voix ; la « direction de
+jeu » par réplique attendra le branchement (CosyVoice3 a un champ `instruct_text`
+vide aujourd'hui). **Le branchement audio est différé** : `CharacterVoicesNode`
+lit un fichier dans un dossier propre à ComfyUI et exige texte de référence et
+rognage saisis dans le graphe ; la gestion de l'audio y est trop couplée à
+ComfyUI pour être pilotée par l'application. On débloque d'abord les images
+(`IMG_01_TextToImage`, `IMG_Simple_Edit`) et la vidéo ; le contrat des workflows
+d'images est dans `workflows/README.md`.
+
+### Génération d'images d'assets : première tâche ComfyUI dédiée (2026-09-30)
+Premier type du système de tâches dédié (le worker vidéo n'est pas généralisé) :
+table `asset_generations`, boucle `worker/images.ts`, bouton « Générer » sur la
+fiche d'asset. Décisions :
+- **Le résultat est un candidat, jamais l'image de l'asset.** « Utiliser » le
+  copie sous `assets/` (il remplace la précédente, F01) et remet l'asset « en
+  cours » : une image nouvelle est à revalider par l'utilisateur.
+- **Une demande garde un instantané** de ce qui a été soumis (prompt, clause de
+  style du projet, format, seed) : on sait toujours quoi a produit quoi.
+- **8 candidats gardés par asset** : des essais, pas un historique.
+- **Pas de rejeu automatique** (contrairement aux plans H3) : une image se refait
+  en quelques secondes, l'échec s'affiche avec son message. Une API injoignable ne
+  consomme rien (même règle que F04).
+- La génération text-to-image (`IMG_01_TextToImage`) puis, le 2026-10-01,
+  l'édition à partir d'images (`IMG_Simple_Edit`, 1 à 3 sources) sont branchées :
+  voir le bloc suivant.
+- En mode `stub`, les images sont des PNG factices : toute la chaîne se teste
+  sans ComfyUI.
+
+### Génération « à partir d'images » : deux modes, sources jetables (2026-10-01)
+La popup de génération (variante B de la maquette) n'a que **deux modes**, pas
+trois : « texte » (`IMG_01_TextToImage`, Krea 2 Turbo) et « images »
+(`IMG_Simple_Edit`, Qwen Image Edit 2511). Modifier une image et fusionner des
+références sont le même workflow : de 1 à 3 sources, **la première est la cible**
+modifiée, les autres sont des références. Décisions :
+- **Méthode d'une demande ≠ méthode de l'asset.** `assets.methodeGeneration` ne
+  fait que proposer le mode par défaut dans la popup ; elle n'interdit rien. Un
+  dérivé peut être généré en texte, un master modifié à partir d'une autre image.
+  Seule la voix est refusée au niveau de l'asset. Le prompt vide se vérifie sur la
+  demande (la popup préremplit celui de l'asset). Le prompt d'une demande lui
+  reste propre ; il ne devient celui de l'asset que quand on **adopte** le
+  candidat (« Utiliser ») : la fiche garde ce qui a produit l'image retenue, sans
+  case à cocher (2026-10-01).
+- **Les sources sont un instantané** (`asset_generation_sources`) : à la position
+  `n`, soit l'image courante d'un asset du projet (`origine = 'asset'`, nom de
+  fichier au lancement), soit un **import jetable** (`origine = 'import'`) déposé
+  dans la popup, rangé sous `generations/<assetId>/sources/` et **jamais rattaché
+  au registre** (F01 : pas de versionnage ; une image qui doit devenir un asset
+  se crée comme asset). Une source qui disparaît avant l'exécution fait échouer la
+  demande avec un message clair.
+- **Cycle de vie des imports** : ils partent avec la dernière génération qui les
+  utilise (« Régénérer » peut réutiliser les mêmes), et un import déposé puis
+  jamais utilisé est balayé après 24 h (`lib/generation-sources.ts`).
+- **Pas de format ni de mégapixels en mode « images »** : le graphe d'édition n'a
+  aucun nœud de taille, la sortie suit l'image 1 (mise à l'échelle par
+  `FluxKontextImageScale`). L'édition tourne **toujours avec le LoRA Lightning**
+  (4 étapes, CFG 1) : le mode « Qualité » (40 étapes, CFG 4, sans LoRA), testé,
+  ne change rien au rendu, il n'est plus proposé (la colonne `lightning` et le
+  nœud restent, au cas où).
+- Validé sur le vrai ComfyUI (2026-10-01) : édition à 2 sources en ~30 s (4 étapes,
+  aperçu reçu), texte en ~18 s (8 étapes).
+
+### File d'attente : lecture unifiée et indicateur du header (2026-10-01)
+Lancer une génération est du « fire and forget » : on ferme la popup, le worker
+continue, et l'icône du bandeau dit ce qui tourne, ce qui est prêt, ce qui a
+échoué. Décisions :
+- **Une table par type de tâche** (`asset_generations`, `jobs`) **+ une couche de
+  lecture commune** (`lib/taches.ts` pour les règles pures, `lib/queries-taches.ts`
+  pour la base). Pas de table `taches` générique : les deux types ont des charges
+  utiles et des règles différentes, la décision « ne pas généraliser le worker »
+  tient. La vidéo y figure en **lecture seule** (libellé = titre du plan, lien par
+  son uuid public, jamais par sa position, F03).
+- **« Vu » en base** (`vu_at` sur les deux tables, migration 0028), pas en
+  localStorage : un seul utilisateur mais plusieurs navigateurs possibles. Posé en
+  cliquant sur une entrée, sur « Ignorer », « Tout marquer comme vu » ou en
+  adoptant un candidat ; jamais en effet de bord d'un rendu. Les tâches finies avant
+  la migration sont considérées comme vues.
+- **Relais par sondage** de `GET /api/taches` (un seul `TachesProvider` dans le
+  layout racine, qui survit aux navigations) : 3 s tant qu'une tâche est active ou
+  que le panneau est ouvert, 20 s sinon, tout de suite au retour de l'onglet,
+  suspendu onglet caché. Pas de SSE : la progression est déjà écrite au plus une
+  fois par seconde, une latence de 3 s ne se voit pas.
+- **Ordre de la file** (affichage) : en cours, puis en attente dans l'ordre où le
+  worker les prend (images avant vidéo, FIFO à égalité, sans préemption), puis les
+  terminées. Une image qui attend pendant qu'une vidéo tourne est signalée
+  « derrière une vidéo ». Terminées/échecs gardés 7 jours ou tant qu'ils ne sont
+  pas vus, 20 au plus.
+- **Indicateur** : badge or = tâches actives ; point écarlate = échecs non vus ;
+  point or plein = terminées non vues ; titre d'onglet « (n) ». Aucun fond rouge.
+  Un clic mène à `/p/<projet>/assets/<code>?generation=<uuid>` : la fiche ouvre la
+  popup sur ce résultat, le marque vu et retire le paramètre de l'adresse.
+- **La fiche de l'asset ne se recharge que lorsqu'une génération de CET asset
+  change d'état** (`pageEstPerimee`) ; la progression et l'aperçu viennent du
+  store, pas d'un rechargement toutes les 3 s.
+- **Plusieurs générations par asset** : la limite « une seule à la fois » est
+  levée ; la file est plafonnée à 10 images en attente (`PLAFOND_FILE_IMAGES`) et
+  la popup annonce « Ajoutée à la file, position N ».
+- Pas encore : annulation, toasts, miniatures (le panneau charge les PNG pleine
+  taille, bornés à 44 px par CSS), progression vidéo.
+
+### Miniatures d'images à la demande (2026-10-01)
+Les PNG d'assets et de candidats pèsent 1 à 7 Mo (ComfyUI, 1024² à 1,3 MP) et
+étaient chargés en pleine taille derrière des vignettes de 40 à 300 px. Décisions :
+- **Une option de la route média, pas une nouvelle route** : `/api/media/<chemin>?w=192`
+  renvoie un WebP réduit (`sharp`, jamais agrandi), mis en cache sous
+  `MEDIA_ROOT/_miniatures/<largeur>/<hash du chemin>-<mtime>-<taille>.webp`. La clé
+  contient la date et la taille de la source : une image remplacée sous le même nom
+  (F01 : adoption, import) donne une miniature neuve, et les périmées du même
+  chemin sont supprimées à la génération. Pas de purge globale à prévoir.
+- **Liste blanche de largeurs** (96 / 192 / 384 / 768, écran 2×) : toute autre valeur
+  est ignorée et l'original est servi. Images raster seulement (GIF exclu, vidéo et
+  audio inchangés, Range compris). Échec de `sharp` → repli sur l'original.
+- **Cache HTTP** : `immutable` quand l'URL porte `?v=` (versions des fichiers
+  d'assets), sinon `no-cache` avec ETag (304).
+- **L'original reste pour le zoom** (`MediaZoom` : `apercu` pour le déclencheur,
+  `src` pour la fenêtre) et pour tout ce qui part à ComfyUI. L'image de la fenêtre
+  agrandie est en `loading="lazy"` : dans un `<dialog>` fermé, une image non
+  paresseuse est chargée d'office, ce qui annulait l'intérêt des miniatures.
+- **Windows** : `sharp` lit la source en mémoire et coupe son cache pour ne jamais
+  garder un fichier ouvert (sinon l'écrasement de `assets/<code>.png` à l'adoption
+  échouerait en EBUSY).
+- Hors périmètre : les posters (projet, saison, épisode) restent en pleine taille.
+- Code : `lib/miniatures.ts` (pur, utilisable côté client : `urlMiniature(src, largeur)`),
+  `lib/miniatures-serveur.ts`, `lib/miniatures.test.ts`.
+
+### Suivi en direct des générations : WebSocket ComfyUI, relayé par la base (2026-10-01)
+Le worker suit un prompt par le WebSocket de ComfyUI (`/ws?clientId=…`) en plus
+du HTTP, pas à sa place. Décisions :
+- **HTTP reste la source de vérité.** `/prompt`, `/upload`, `/view` et `/history`
+  ne changent pas ; `/history` confirme la fin (y compris une fin que le
+  WebSocket aurait manquée) et sert de repli si le WebSocket tombe : la tâche
+  continue alors sans barre de progression, comme avant.
+- **C'est le worker qui détient le WebSocket**, pas le navigateur : ComfyUI
+  n'envoie la progression et les aperçus qu'au `clientId` qui a soumis le
+  prompt (le worker, qui le passe aussi à `/prompt`), et son CORS n'autorise que
+  sa propre origine. Le WebSocket s'ouvre **avant** la soumission, un prompt
+  court pouvant finir avant qu'on l'écoute.
+- **La progression passe par la base** (`asset_generations.progression_*`,
+  `etape_libelle`, `apercu_*`) : web et worker sont deux processus, la base est
+  déjà leur canal commun, et la page la relit toutes les 3 s. Écriture limitée à
+  1/s ; l'aperçu est un fichier écrasé sous `generations/<assetId>/`, pas un
+  blob en base ; tout est remis à zéro en fin de tâche. Conséquence voulue :
+  recharger la page ou l'ouvrir ailleurs ne perd pas le suivi.
+- Décodage tolérant : un message inconnu n'interrompt jamais le suivi.
+  `COMFYUI_WS_DEBUG=1` journalise chaque message brut sous `MEDIA_ROOT/_debug/`
+  (pour voir ce qu'émet réellement le nœud `ModelPreviewOverrideKJ` de la vidéo).
+- Seules les images sont branchées dans l'interface ; le client de suivi est
+  générique (il marche pour un `prompt_id` vidéo), le branchement du worker
+  vidéo et de son écran reste à faire.
+
+### File d'attente du worker : reprise et priorité (2026-10-01)
+Premier lot de la file d'attente (rapport de recherche : modèle de données,
+indicateur du header et annulation viennent après). Décisions :
+- **Reprise au démarrage** (`worker/reprise.ts`, une seule fois, idempotente) :
+  ce qui est « en cours » appartenait à un worker mort — `npm run worker` est un
+  `tsx watch`, donc **chaque sauvegarde d'un fichier importé redémarre le worker**.
+  Une image `en_cours` passe à `echoue` (« Interrompue (worker redémarré) », pas
+  de rejeu automatique : même règle que tout échec d'image) ; une vidéo `en_cours`
+  repasse `en_attente` **sans consommer de tentative** (F04 : une interruption
+  n'est pas un échec de rendu). Le statut du plan n'est pas touché (le job le
+  repasse « en cours » en repartant, comme après une indisponibilité). La barre de
+  progression et le fichier d'aperçu de l'image interrompue sont nettoyés.
+- **Hypothèse : un seul worker sur la base.** Un second worker (ex. un conteneur
+  `cadence-worker-1` oublié, en mode `stub`) verrait ses tâches en cours reprises
+  à tort, et se disputerait la file avec le worker de dev.
+- **Doublon possible** : si ComfyUI exécute encore le prompt de la tâche reprise,
+  une vidéo remise en file sera soumise une seconde fois. V2 (non codée) : retrouver
+  la tâche par `comfyui_prompt_id` — `/history` s'il est fini (on récupère le
+  résultat), `/queue` s'il tourne encore (on se rattache au suivi) — avant de
+  décider.
+- **Priorité** (`worker/ordonnanceur.ts`, fonction pure) : à chaque tour, **images
+  avant vidéo**, FIFO à genre égal (puis `id`), **sans préemption** — une vidéo en
+  cours n'est jamais coupée, une image qui arrive pendant ce temps attend sa fin
+  (30 min au plus). Une image se refait en quelques secondes, une vidéo dure des
+  minutes ; cela colle à F04 (le jour les itérations, la nuit la file vidéo).
+  Aucune généralisation de `worker/comfyui/` : l'ordonnanceur ne connaît que le
+  genre, la date et l'id.
+- **Enchaînement sans temps mort** : quand une tâche vient d'être traitée, le
+  worker enchaîne après 1 s au lieu d'attendre l'intervalle (10 s) ; il ne patiente
+  l'intervalle complet que s'il n'y avait rien à faire ou si ComfyUI est
+  injoignable (la tâche reste en attente, rien n'est consommé).
+- Statut **`annulee`** ajouté aux générations d'images (varchar, sans migration) ;
+  l'annulation elle-même (drapeau + `/interrupt` après vérification du `prompt_id`)
+  reste à faire.
+- **Plus de sondage infini côté worker** : la reprise règle le redémarrage ; une
+  génération vivante est bornée par le délai de 10 min (30 min pour une vidéo). Reste
+  le cas d'un worker arrêté sans redémarrer : les demandes restent « en attente »
+  (ou « en cours » jusqu'à son retour) et l'écran continue de les sonder — c'est la
+  tâche de l'indicateur du header de le montrer clairement.
+
+### Annulation des tâches et purge des échecs (2026-10-01)
+Dernière brique de la file d'attente : on peut annuler une génération d'image ou un
+job vidéo, depuis le panneau du header et depuis la popup de génération.
+- **En attente → annulée tout de suite** (UPDATE gardé par le statut, atomique).
+  **En cours → drapeau** `annulation_demandee_at` (migration 0029, images et vidéos),
+  que le worker lit pendant l'exécution : la sonde (`worker/annulation.ts`) court en
+  même temps que l'attente du résultat, l'annulation n'attend pas le rythme normal.
+  Idempotent : redemander ne change rien ; une tâche déjà finie reste finie.
+- **Jamais d'interruption à l'aveugle.** `POST /interrupt` arrête ce qui tourne sur
+  TOUT le serveur, y compris un job lancé à la main sur ComfyUI. Le worker lit donc
+  `GET /queue` d'abord (`lib/annulation.ts`) : prompt en cours → `/interrupt` (avec
+  son `prompt_id`, **une seule fois**, puis on relit /queue jusqu'à constater qu'il a
+  quitté la file) ; prompt encore en file → `POST /queue {delete}` ; ni l'un ni
+  l'autre → rien ; /queue muet ou illisible → on réessaie, on ne coupe rien (si ça ne
+  s'éclaircit pas, la tâche est marquée annulée dans Cadence mais ComfyUI n'a pas été
+  touché : cas signalé dans les logs, `sans_effet`).
+- **Format de /queue (relevé sur le serveur de l'utilisateur, un prompt en cours) :**
+  `{ queue_running: [[numéro, prompt_id, graphe, extra_data, sorties]], queue_pending: [...] }` ;
+  le décodeur accepte aussi des objets `{prompt_id}` / `{id}` si le format évolue.
+- **Vidéo annulée = `echoue` + erreur « Annulée »** (v1 : `job_statut` est un enum
+  Postgres, pas de valeur de plus). Elle ne consomme pas de tentative et ne déclenche
+  pas le rejeu F04 ; le plan reprend l'état de sa dernière réussite (`termine` /
+  `previsualise`, sinon `brouillon`). La lecture (`lib/queries-taches.ts`) la présente
+  comme `annulee`. Image annulée = statut `annulee`, sans message d'erreur.
+- **Une annulation n'est pas un échec** : pas de point écarlate dans le header, entrée
+  sobre « Annulée » rangée avec les échecs (même durée de vie). Elle prime aussi sur
+  la reprise au démarrage (une annulation demandée est terminée comme annulée, pas
+  « worker redémarré » ni remise en file) et sur l'indisponibilité (une exception
+  après une demande d'annulation = annulation).
+- **Prise gardée par le statut** : le worker ne passe une tâche « en cours » que si
+  elle est encore « en attente » ; une annulation directe arrivée entre le choix et la
+  prise ne se fait donc pas écraser.
+- **Purge « à l'échelle de la journée »** (`worker/purge.ts`, au démarrage puis toutes
+  les heures) : demandes d'images échouées ou annulées depuis plus de 24 h supprimées
+  (ligne + imports devenus orphelins) ; jobs vidéo annulés de même. Le panneau ne
+  montre plus un échec ou une annulation au bout de 24 h (vus ou non). Ne touche
+  **jamais** : un candidat terminé (règle des 8 par asset), une tâche active, ni un
+  job vidéo **vraiment échoué**, qui reste la mémoire de la boucle d'itération (F03,
+  historique des tentatives d'un plan) : il disparaît du panneau, pas de la base.
+- **Clés venues du navigateur validées** (`analyserCle` : uuid ou id numérique) : un
+  identifiant mal formé est ignoré au lieu de faire lever une erreur SQL.
+- Validé en réel (2026-10-01, ComfyUI de l'utilisateur) : image annulée à 4/8 → la
+  demande est arrêtée en ~2 s, `/queue` vide, historique ComfyUI `execution_interrupted`,
+  aucun résultat récupéré. **Non vu en réel** : le retrait d'un prompt encore en file
+  chez ComfyUI (`queue_pending`, seulement testé avec un faux client), et l'annulation
+  d'une vidéo (même chemin de code, jamais lancée en vrai).
+
+### Brique LLM locale : interface, chargeur de skills, traces (2026-10-01)
+Premier chantier de la génération depuis une conversation (`docs/CONCEPTION_AGENTS.md`
+§9 et §13). Construit : `lib/llm/` (interface, fournisseur local, validation, chargeur,
+`executerSkill`), table `agent_traces` (migration 0030), `npm run llm:essai`. Décisions :
+- **Une interface, des fournisseurs.** `FournisseurLlm.generer(DemandeLlm)` ; le
+  premier fournisseur parle `/v1/chat/completions` (serveur compatible OpenAI). Le
+  fournisseur Claude (SDK `@anthropic-ai/sdk`, clé en `.env`) viendra derrière la même
+  interface ; **pas de fournisseur « abonnement »** (les conditions d'utilisation
+  excluent l'accès automatisé hors clé API). Une valeur de `LLM_FOURNISSEUR` inconnue
+  échoue franchement au lieu de retomber sur le local.
+- **Le schéma du skill sert deux fois** : il contraint la sortie côté serveur
+  (`response_format` json_schema) ET figure dans le prompt (JSON compact). Une
+  grammaire force les champs sans que le modèle les « voie », or leurs `description`
+  portent des consignes.
+- **Jamais de JSON réparé en silence.** Hors schéma : UN renvoi automatique (la sortie
+  et les erreurs de validation sont renvoyées au modèle), puis `ErreurLlm
+  ('sortie_invalide')` qui porte les erreurs. Le texte brut est toujours dans la trace.
+- **Erreurs typées** : injoignable / modèle absent / sortie invalide / interrompu /
+  délai / http. Annuler = couper la connexion (le serveur arrête de générer).
+- **Flux SSE par défaut** : une génération de plusieurs minutes ne laisse pas la
+  connexion muette (un reverse proxy la couperait) et donne la progression en jetons.
+- **Chargeur sans manifeste** : le dossier EST la déclaration (règles → guides →
+  exemples → fichiers partagés → contrat de sortie). Seule exception, déclarée dans le
+  code : le lexique H3 partagé par `plan-h3` et `iteration-plan`.
+- **`agent_traces`** : skill, fournisseur, modèle, statut (`ok` / `invalide` / `echoue`
+  / `interrompu`), messages d'entrée, empreinte et taille du prompt système (pas le
+  prompt lui-même : il vit dans git), sortie brute, JSON valide, erreurs de validation,
+  renvois, jetons, durée, projet nullable. Le lien vers une proposition viendra avec
+  les propositions (chantier 3).
+- **Le GPU est partagé avec ComfyUI** : les appels LLM sont des tâches de la file
+  (chantier 2, « Ressource GPU unique » ci-dessous) ; `llm:essai`, lui, appelle le
+  serveur directement et suppose que ComfyUI est au repos.
+Constaté sur le serveur de l'utilisateur (llama-swap, 2 modèles MoE) : contrainte
+json_schema **bien appliquée** (un prompt qui demande une phrase sans JSON renvoie
+quand même le JSON conforme, et la phrase sans contrainte) ; les modèles **réfléchissent
+d'abord** (`reasoning_content`, hors `texte`) et ces jetons comptent dans `max_tokens`
+et `usage` : garder une limite large (16 384 par défaut) ; contexte `--ctx-size 262144`,
+1 slot (`--parallel 1`). Premier essai réel : `brief-projet` sur `gemma4-26b-A4B`, JSON
+valide du premier coup, 80 s, 2 811 jetons en entrée, 2 543 en sortie (raisonnement
+compris).
+
+### Ressource GPU unique : les appels LLM entrent dans la file (2026-10-01)
+Chantier 2 de la génération depuis une conversation. ComfyUI (images, vidéo) et le
+LLM local (llama.cpp derrière llama-swap) tournent sur la **même machine** : le worker
+traite **une seule tâche à la fois, tous genres confondus**. Construit : table
+`agent_runs` (migration 0031), `worker/llm.ts`, `worker/gpu.ts`, `worker/llamaSwap.ts`,
+`lib/gpu.ts`, `npm run llm:tache`. Décisions :
+- **Trois genres, une table chacun** : `asset_generations` (image), `agent_runs`
+  (llm), `jobs` (vidéo). Pas de table générique, pas de généralisation de
+  `worker/comfyui/` ; la couche de lecture (`listerTaches()`) les fusionne. Une
+  tâche LLM a : skill, entrée, options (`{ modele }`), projet nullable, statut
+  (`en_attente / en_cours / termine / echoue / annulee`, varchar), jetons reçus,
+  résultat validé contre le schéma du skill, erreur, lien vers sa trace
+  (`agent_traces`), `vu_at`, `annulation_demandee_at`. Pas de `proposition_id` :
+  il viendra avec le chantier 3.
+- **Ordre : image, puis llm, puis vidéo** (les tâches courtes d'abord : une image se
+  refait en secondes, un appel LLM dure 1 à 3 min, une vidéo 1 min 30 en basse
+  résolution, 3 à 4 min en upscale), FIFO à genre égal, **sans préemption**. Pas de
+  famine : seules des tâches nouvelles peuvent en dépasser une, une vidéo passe dès
+  qu'il n'y a plus d'image ni d'appel LLM en attente (propriétés testées sur des
+  files aléatoires). À égalité de palier, le domaine GPU de la tâche précédente
+  passerait d'abord ; **avec l'ordre actuel chaque genre a son palier, ce critère ne
+  tranche donc rien aujourd'hui** (il est là pour le jour où deux genres partageront
+  un palier). Le panneau du header lit le même ordre (`PRIORITE_GENRE`).
+- **Un domaine injoignable ne bloque pas l'autre** : à chaque tour le worker sonde
+  ComfyUI (`/system_stats`) et le serveur LLM (`GET /health` de llama-swap, qui ne
+  charge aucun modèle) ; les tâches d'un domaine éteint restent en attente et on
+  prend ce qui peut tourner. Un serveur injoignable ne consomme rien (même règle que
+  F04).
+- **Libération de la VRAM au changement de domaine** (`worker/gpu.ts`) : avant un
+  appel LLM, `POST /free {"unload_models": true, "free_memory": true}` sur ComfyUI ;
+  avant une tâche ComfyUI, `GET /unload` sur llama-swap. « Au mieux » : un échec ou
+  un délai (40 s) est journalisé, n'empêche jamais la tâche et ne bloque jamais le
+  worker. Même domaine que la tâche précédente : aucun appel (les modèles sont déjà
+  là). L'état « dernier domaine » vit en mémoire du worker ; **au démarrage il est
+  inconnu, donc le premier changement de domaine décharge l'autre côté par
+  prudence** (un appel de plus, inoffensif quand c'est déjà vide).
+- **Annulation d'un appel LLM** : en attente → annulé tout de suite ; en cours →
+  drapeau, le worker coupe la connexion HTTP (`AbortSignal`) : llama.cpp arrête de
+  générer. Ni erreur ni relance ; la trace est `interrompu`.
+- **Reprise et purge** : un appel `en_cours` au démarrage devient `echoue`
+  « Interrompue (worker redémarré) » (jamais rejoué) ; les appels échoués ou annulés
+  de plus de 24 h sont purgés comme les autres. Un appel terminé n'est jamais purgé :
+  son résultat nourrira l'écran de revue.
+- **Header** : « Brief du projet · <projet> », mention « Agent », compteur de **jetons**
+  (le maximum est inconnu : pas de barre à pourcentage), « derrière une vidéo / une
+  image / un agent » quand une tâche d'un autre genre tient le GPU, Annuler, vu/non vu.
+  Le clic ouvre la page du projet : *TODO chantier 3*, l'écran de revue des
+  propositions la remplacera (`lib/queries-taches.ts`).
+Vérifié sur le serveur de l'utilisateur (ComfyUI 0.38, llama-swap, 2026-10-01) :
+- **Certain** : `GET /health` → `OK` ; `GET /running` → `{"running":[{"model", "state"
+  (starting / ready), "cmd", "ttl"…}]}` ; `GET /unload` → `OK` 200 en 0,7 s et
+  `/running` vide ensuite ; `POST /free` ComfyUI → 200 en ~50 ms, sans corps ;
+  `GET /upstream/<modèle>/slots` → `is_processing: false` après une annulation (la
+  génération s'arrête bien côté serveur). Chaîne de bout en bout, en réel : image
+  (15 s) → appel LLM `brief-projet` (64 s, 901 jetons à 53 s, gemma chargé à la demande
+  en ~10 s) → image (le worker a déchargé gemma avant : `/running` vide, image en 13 s)
+  → appel LLM annulé en 1,0 s ; annulation aussi depuis le panneau du header.
+- **Incertain** : l'effet de `POST /free` sur la VRAM n'a pas pu être mesuré : ComfyUI
+  ne garde aucun modèle résident entre deux générations sur ce serveur (`vram_free`
+  de `/system_stats` identique avant et après une génération Krea, 14 913 Mo sur
+  16 302). Constat à creuser : `vram_free` côté ComfyUI ne baisse que de ~350 Mo
+  quand gemma est chargé (`--n-cpu-moe 15`), donc la contention VRAM supposée n'est
+  pas visible depuis ComfyUI ; à confirmer avec `nvidia-smi` sur la machine du GPU. La
+  sérialisation reste utile (un seul GPU, un seul slot LLM) et la libération est une
+  précaution peu coûteuse. `ttl: 300` côté llama-swap : le modèle se décharge de
+  lui-même après 5 min d'inactivité ; `/unload` évite d'attendre ce délai quand
+  ComfyUI reprend la main.
+
+### Bruitages (SFX) : génération audio branchée (Stable Audio 3, 2026-10-01)
+`workflows/audio/SFX_Generate_Sounds.json` génère un son à partir d'un prompt court
+et d'une durée (Stable Audio 3 Medium, sortie MP3). Le contrat des nœuds est dans
+`workflows/README.md`. La génération audio est branchée **sur le modèle des images**,
+validée sur le vrai ComfyUI. Décisions :
+- **Même table, même file** : une génération audio est une ligne de
+  `asset_generations` avec `methode = 'audio'` (colonne `duree_secondes`, migration
+  0032). File, header, annulation, reprise, purge, progression WebSocket, candidats
+  (8 gardés) et « vu / non vu » en profitent sans duplication ; le worker
+  (`worker/images.ts`) traite les trois méthodes. `aspect` et `megapixels` gardent
+  leurs valeurs par défaut pour un son : l'affichage se règle sur la méthode, jamais
+  sur ces colonnes. Pas de table `asset_generation_audio` : elle aurait dupliqué toute
+  la machinerie pour une colonne.
+- **Réservée aux assets `sfx`, et réciproque** : un `sfx` ne peut plus lancer de
+  génération d'image (`raisonNonGenerable`), un autre type ne peut pas lancer d'audio
+  (`raisonAudioNonGenerable`) ; `methodeApplicable` exclut aussi `sfx` (pas de
+  méthode « génération / édition » pour un son, la fiche n'affiche plus le choix).
+  Action serveur dédiée `lancerGenerationAudio` (au lieu d'un troisième mode de
+  `DemandeGeneration`, qui aurait mélangé deux formulaires sans rien en commun).
+- **La durée est un paramètre séparé du texte** (`EmptyLatentAudio`), pas une
+  mention dans le prompt. Le workflow a un mode de réécriture (un petit LLM étend
+  l'idée selon une catégorie et ajoute « Length: X seconds ») : il reste **coupé**
+  (`Enable_Reprompt` forcé à `false` par `worker/comfyui/audioMapping.ts`, test à
+  l'appui), l'agent `prompt-asset` en tient le rôle (reproductible, même principe que
+  `prompt_enhance` de Krea 2). Il écrit un prompt de 1 à 2 phrases en anglais **et**
+  une `dureeSecondes` (entier, 15 au plus sauf raison dite : un plan dure 4 à 15 s).
+- **La durée vit à deux endroits** : `assets.duree_secondes` (durée du son retenu,
+  éditable sur la fiche d'un `sfx`, 1 à 60 s) **et** sur la demande de génération
+  (instantané, comme le prompt). La popup audio préremplit la durée de l'asset (4 s
+  à défaut) ; adopter un candidat reprend son **son**, son prompt **et sa
+  durée** sur l'asset. La valeur que `prompt-asset` renvoie dans `dureeSecondes`
+  **pourra préremplir** ce champ : rien ne l'y écrit pour l'instant (aucun appel LLM
+  ajouté dans ce lot).
+- **UI** : sur la fiche d'un `sfx`, « Générer… » (à côté de l'import) ouvre une popup
+  audio dédiée (`GenerationAudioDialog`) : prompt, durée (champ + 2 / 4 / 8 / 15 s),
+  seed non exposée ; à droite progression (« étape n/8 », pas d'aperçu : un son n'en
+  a pas), lecteur `<audio>` du candidat, Utiliser / Supprimer, annulation, file,
+  liste des candidats (durée + lecteur chacun). Le header affiche « Son · CODE » et
+  « Génération audio · 4 s », sans miniature.
+- **Guide de prompts** : `agents/skills/prompt-asset/guide-stable-audio-sfx.md`
+  (sources officielles Stability AI et ComfyUI, gabarit et exemples du workflow). Le
+  skill traite un asset de type `sfx` avec ce guide ; le schéma de sortie gagne
+  `dureeSecondes` (optionnel, `sfx` seulement) et le type de remarque
+  `voix-ou-musique`. Pas de voix (casting vocal) ni de musique dans un `sfx`.
+- **Sortie de ComfyUI, vérifiée** : `/history/<id>` → `outputs["19"].audio` =
+  `[{filename: "cadence_<CODE>_00001.mp3", subfolder: "audio", type: "output"}]`
+  (la clé est bien `audio`, pas `images`). La lecture (`worker/comfyui/sortie.ts`) reste
+  tolérante : `images`, `audio`, `gifs`, `videos`, puis toute liste d'objets avec un
+  `filename`. `fetchOutput` (`/view`) sert le MP3 tel quel.
+- **Mesuré (essai réel, 2026-10-01)** : son de 4 s en ~2,3 s d'exécution ComfyUI
+  (une dizaine de secondes de bout en bout avec la file), son de 60 s en ~7 s ; MP3
+  MPEG-1 160 kbit/s 44,1 kHz (~163 Ko pour 4 s, un tag ID3 en tête), durée relue par
+  le navigateur 3,99 s pour 4 s demandées. Annulation d'une génération **en cours** :
+  `annulee` ~2 s après le drapeau, `execution_interrupted` chez ComfyUI, file vide,
+  aucun fichier laissé. Annulation d'une génération en file : immédiate. Les MP3 de
+  test restent dans le dossier `output/audio/` du serveur ComfyUI (Cadence ne les
+  supprime pas, comme pour les images).
+- **Mode `stub`** : `StubComfyUIClient` détecte un graphe qui contient `SaveAudioMP3` et
+  produit un MP3 silencieux valide (`stubAudio.ts`, ~32 Ko) : toute la chaîne se teste
+  sans ComfyUI.
+- **À éprouver** (peu coûteux : ~2 s) : le tag `TrackType: SFX` en tête du texte
+  (recommandé par la doc officielle ; le code **ne l'ajoute pas** pour l'instant), et la
+  mention « Length » dans un prompt brut. Le chemin du workflow se surcharge par
+  `COMFYUI_WORKFLOW_AUDIO_PATH`.
+- **Reste** : préremplir `duree_secondes` depuis la réponse du skill ; ambiances de plus
+  de 15 s et raccord en boucle (non essayés) ; pas de miniature/forme d'onde dans le
+  registre des assets.
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
 pressentie : un **catalogue de voix nommées**, chacune avec un échantillon de

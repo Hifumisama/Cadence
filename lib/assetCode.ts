@@ -38,3 +38,25 @@ export function construireCode(type: string, suffixe: string): string {
   const prefixe = PREFIXE_PAR_TYPE[type as TypeAsset] ?? "";
   return `${prefixe}${slugifyCode(suffixe)}`;
 }
+
+/** Méthode de fabrication d'une image d'asset. `edition` exige un parent (son
+ * image est la source) ; `generation` n'en a pas besoin, même pour un dérivé
+ * (des flammes rattachées à un personnage se génèrent de zéro). */
+export const METHODES_ASSET = ["generation", "edition"] as const;
+export type MethodeAsset = (typeof METHODES_ASSET)[number];
+
+export const LIBELLE_METHODE: Record<MethodeAsset, string> = {
+  generation: "Génération (Krea 2)",
+  edition: "Édition (Qwen Image Edit)",
+};
+
+export function estMethodeAsset(v: string): v is MethodeAsset {
+  return (METHODES_ASSET as readonly string[]).includes(v);
+}
+
+/** Les voix se fabriquent au casting vocal et les sons par la génération audio :
+ * la méthode d'image (génération / édition) n'a de sens ni pour l'une ni pour
+ * l'autre. */
+export function methodeApplicable(type: string): boolean {
+  return type !== "voix" && type !== "sfx";
+}

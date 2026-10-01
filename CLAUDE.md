@@ -23,6 +23,10 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
   le signaler explicitement plutôt que de trancher en silence.
 - `docs/CAHIER_DES_CHARGES.md` — spec de l'interface (pages, modèle de
   données, phasage)
+- `docs/CONCEPTION_AGENTS.md` — conception (non construite) des agents de
+  génération : brief, propositions, portée × mode, fournisseur LLM
+- `agents/skills/` — prompts d'exécution des agents de l'app (`plan-h3`,
+  `iteration-plan`), distincts des skills de chat de `.claude/skills/`
 - `docs/REGISTRE_ASSETS.md` — état des assets de l'épisode 1
 - `docs/FICHE_DE_PLAN_S01_maya.md`, `docs/S01_maya.md` — contenu de
   l'épisode 1

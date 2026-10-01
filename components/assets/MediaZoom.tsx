@@ -9,11 +9,15 @@ import { useRef } from "react";
 export function MediaZoom({
   kind,
   src,
+  apercu,
   alt,
   classe,
 }: {
   kind: "image" | "video";
   src: string;
+  /** Miniature affichée à la place de l'original (image seulement) : l'original
+   * ne se charge qu'à l'ouverture de la fenêtre agrandie. */
+  apercu?: string;
   alt: string;
   classe: string;
 }) {
@@ -30,7 +34,7 @@ export function MediaZoom({
     <div className={classe}>
       {kind === "image" ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={alt} className="zoom-trigger" onClick={ouvrir} />
+        <img src={apercu ?? src} alt={alt} className="zoom-trigger" onClick={ouvrir} />
       ) : (
         <>
           <video controls src={src} />
@@ -52,8 +56,10 @@ export function MediaZoom({
           ✕
         </button>
         {kind === "image" ? (
+          // loading="lazy" : une image dans un <dialog> fermé (display: none) est
+          // sinon chargée d'office. Paresseuse, elle ne part qu'à l'ouverture.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={alt} />
+          <img src={src} alt={alt} loading="lazy" />
         ) : (
           <video controls src={src} preload="none" />
         )}

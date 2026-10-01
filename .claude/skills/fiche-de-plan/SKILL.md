@@ -1,5 +1,5 @@
 ---
-name: fiche-de-plan
+name: "fiche-de-plan"
 description: Transforme un scénario ou un découpage (scenario.md, story-board, liste de plans) en fiche de plan prête à tourner pour MiniMax H3 / Hailuo 3 — un prompt vidéo par plan au format officiel MiniMax, la liste des images de référence à produire (6 max par plan), la durée en secondes et le framerate, plus un registre d'assets groupé par sujet en fin de document. Utilise ce skill dès qu'on parle de fiche de plan, de découpage technique, de shot list, de prompt vidéo H3/Hailuo/MiniMax, de génération de prompts à partir d'un scénario, ou dès qu'un fichier de scénario est fourni avec une intention de production vidéo IA — même si l'utilisateur ne dit pas explicitement « fiche de plan ».
 ---
 
@@ -147,15 +147,26 @@ Le corps du prompt est en anglais, toujours. Seuls les dialogues, paroles chant�
 Points de vigilance, tirés des deux guides :
 
 - **`[Shot 1]` ne porte pas de timestamp.** Les suivants s'écrivent `[Shot 2] At 00:03.500, …`.
-- **Un plan porte normalement plusieurs `[Shot]`.** Le plan mono-shot est l'exception, pas la règle. Évalue le découpage interne selon la durée, avant d'écrire :
+- **Un plan porte normalement plusieurs `[Shot]`, et leur nombre suit l'intensité de l'action, pas la durée du plan.** Le plan mono-shot est l'exception. Évalue l'intensité avant d'écrire :
 
-| Durée du plan | Découpage interne habituel |
-|---|---|
-| 4–7 s | 1 shot, parfois 2 |
-| 8–11 s | **2 shots** |
-| 12–15 s | **3 shots** |
+| Nature de l'action | Cadence de coupe | Caméra |
+|---|---|---|
+| **Intense** : course, fuite, combat, chute, panique, danse à haute énergie | un `[Shot]` toutes les **1,5–2 s** | mobile, angles variés (sol, plongée, canté, plan large en hauteur, insert), point de vue qui change |
+| **Modérée** : marche décidée, échange, transition | un `[Shot]` toutes les **2–3 s** | mouvements simples, valeurs qui alternent |
+| **Calme ou tension retenue** : écoute, attente, réaction, rime finale | un `[Shot]` toutes les **2,5–4 s**, ou un seul shot tenu | verrouillée, symétrique, à hauteur d'yeux |
 
-  Ce ne sont pas des quotas : un plan contemplatif de 12 s peut rester en un seul shot, et il faut alors que la caméra ou le sujet évolue assez pour tenir la durée. Mais un plan de 15 s en un shot unique est presque toujours un plan qu'on n'a pas fini d'écrire. Chaque `[Shot]` supplémentaire porte son `Hard cut`, son timecode et **un angle de caméra distinct** — sans quoi H3 rend un seul mouvement lissé au lieu d'une coupe.
+  La durée du plan ne fixe que le plafond (15 s). Un plan de 12 s de course paniquée se découpe en 6 shots, un plan de 12 s d'écoute immobile peut n'en avoir que 4, ou 1.
+
+  **Plancher : jamais sous ~1,5 s par shot.** En dessous, H3 rallonge ou lisse les plans (observé au plan 110). Chaque `[Shot]` supplémentaire porte son `Hard cut`, son timecode et **un angle de caméra distinct**, sinon H3 rend un seul mouvement lissé.
+
+  **Exception assumée : le geste continu.** Quand la continuité du geste EST l'effet recherché (une gifle en un seul mouvement, une réception qui suit un saut), le plan reste en un seul mouvement, et la fiche le dit dans ses notes. Sans cette mention, quelqu'un finira par le « corriger » en cinq plans.
+
+  **La cadence raconte l'état du personnage, et elle marche par contraste.** Un personnage en danger se filme comme une proie (épaule, canté, angles bas, coupes courtes, il perçoit la foule comme une menace) ; le même personnage qui reprend le contrôle se filme comme un prédateur (caméra verrouillée, cadre symétrique, coupes longues, la foule s'écarte). Le calme n'a de poids qu'après une séquence rapide, donc écris les plans par paires : cadence rapide pendant la tension, cadence lente pour la retombée et pour la rime finale. Si la bascule proie → prédateur est l'arc du film, elle se lit d'abord dans cette grammaire, avant le jeu de l'acteur.
+
+  **Les signaux de peur ou d'urgence se répartissent sur les coupes, ils ne s'empilent pas** : regard par-dessus l'épaule, foulée inégale (dérapage, genou qui fléchit), main qui claque un mur, souffle visible, main qui tremble. Un signal lisible par shot suffit.
+
+  **Un décor peuplé et un décor désert sont deux assets, pas un.** Si une séquence passe d'une foule à un lieu caché, fabrique un dérivé du décor (`DEC_<nom>_marche`) plutôt qu'écraser le master : un master figé ne se modifie jamais, et une référence peuplée peuple aussi les plans qui devraient être vides.
+
 - **Le mouvement de caméra s'écrit comme une action anglaise naturelle** dans la phrase — type de mouvement, amplitude, vitesse — et non comme une étiquette collée en fin de phrase. Amplitude moyenne et vitesse normale s'omettent.
 - **Traduis le vocabulaire de découpage français** vers celui du guide : travelling avant → `push in`, panoramique → `pan`, contre-plongée → `low-angle`, plan d'ensemble → `wide shot`, gros plan → `close-up`, caméra fixe → `static shot`.
 - **Tout détail doit être visible ou audible.** L'intention de mise en scène ne se prompte pas : « la première décision qu'on lui voit prendre » n'a aucun sens pour le modèle, « la marche s'interrompt, la tête pivote lentement » en a un. Traduis chaque intention en événement observable.
@@ -163,7 +174,7 @@ Points de vigilance, tirés des deux guides :
 - **En full-reference**, le style s'annonce en une ou deux phrases **avant** `[Shot 1]` ; en mode base, il s'écrit après `[Shot 1]`. Cette différence est réelle et les deux guides la précisent.
 - **Longueur** : vise 350–500 mots de `detailed_description` pour un plan riche en full-reference, moins pour un plan simple. Un plan unique ne justifie pas une description courte s'il porte beaucoup d'information.
 
-**Avant d'écrire un plan à enjeu — action forte, effet visuel, montée en tension, plusieurs temps — lis `references/h3-lexique-corrections.md` s'il est présent.** Ce fichier recense les formulations qui se retournent contre nous et celles qui tiennent, chacune sourcée sur un rendu réel. ⚠️ *Il est absent du plugin à ce jour : les pièges ci-dessous sont donc la seule version disponible, et toute correction éprouvée en production a vocation à l'alimenter une fois le fichier créé.* Les quatre pièges qui reviennent le plus souvent :
+**Avant d'écrire un plan à enjeu — action forte, effet visuel, montée en tension, plusieurs temps — lis `references/h3-lexique-corrections.md`.** Ce fichier recense les formulations qui se retournent contre nous et celles qui tiennent, chacune sourcée sur un rendu réel. Les quatre pièges qui reviennent le plus souvent :
 
 - une description en plusieurs temps sans `Hard cut` ni angles distincts rend **un seul mouvement lissé** ;
 - une consigne négative fait produire exactement ce qu'elle interdit — toujours reformuler en état voulu ;
@@ -299,7 +310,8 @@ Premier réflexe avant tout diagnostic : vérifier la durée réelle du fichier.
 - Chaque label `<Picture N>` d'un prompt figure dans le tableau de références du même plan.
 - Chaque asset cité dans un plan existe dans le registre final, et réciproquement.
 - Deux plans consécutifs listent leurs sujets communs dans le même ordre.
-- Un plan de 8 s ou plus porte plusieurs `[Shot]`, ou le choix du shot unique est justifié en notes.
+- La cadence de coupe de chaque plan correspond à l'intensité de son action (voir Étape 5) : 1,5–2 s par shot pour l'intense, 2,5–4 s pour le calme, jamais sous ~1,5 s.
+- Un plan qui reste en un seul shot ou en un seul geste continu, malgré une action intense ou une durée de 8 s ou plus, le justifie en notes.
 - Un master figé n'a pas été modifié ; toute évolution de design a créé un nouveau master.
 - Un sujet récurrent porte le même ID partout — pas de `CHAR_colosse` au plan 10 et `CHAR_le_colosse` au plan 80.
 - Tous les plans sont en full-reference, sauf demande explicite documentée en notes.

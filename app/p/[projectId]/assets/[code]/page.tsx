@@ -5,6 +5,9 @@ import { StatutSelector } from "@/components/assets/StatutSelector";
 import { AssetTree } from "@/components/assets/AssetTree";
 import { AssetPreview } from "@/components/assets/AssetPreview";
 import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
+import { GenerationPanel } from "@/components/assets/GenerationPanel";
+import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
+import { formatParDefaut, loraParDefaut, raisonAudioNonGenerable, raisonNonGenerable } from "@/lib/asset-generation";
 import { AssetFicheEditor } from "@/components/assets/AssetFicheEditor";
 import { SupprimerAssetButton } from "@/components/assets/SupprimerAssetButton";
 import { Topbar } from "@/components/ui/Topbar";
@@ -55,10 +58,10 @@ export default async function AssetDetailPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string; code: string }>;
-  searchParams: Promise<{ statut?: string; type?: string }>;
+  searchParams: Promise<{ statut?: string; type?: string; generation?: string }>;
 }) {
   const { projectId, code } = await params;
-  const { statut: statutBrut, type: typeBrut } = await searchParams;
+  const { statut: statutBrut, type: typeBrut, generation: generationBrute } = await searchParams;
   const filtres = {
     statut: STATUTS_FILTRABLES.includes(statutBrut ?? "") ? (statutBrut as string) : null,
     type: (TYPES_ASSET as readonly string[]).includes(typeBrut ?? "") ? (typeBrut as string) : null,
@@ -75,6 +78,14 @@ export default async function AssetDetailPage({
 
   const noeud = trouverNoeud([master], code) ?? master;
   const parentCode = trouverParentCode(masters, noeud.code);
+  // Un son n'a pas besoin du registre d'images (sources du mode « images »).
+  const [generations, registreImages] =
+    noeud.type === "voix"
+      ? [[], []]
+      : await Promise.all([
+          getGenerationsAsset(noeud.id),
+          noeud.type === "sfx" ? Promise.resolve([] as Awaited<ReturnType<typeof getAssetsAvecImage>>) : getAssetsAvecImage(pid, noeud.id),
+        ]);
   // Voix du catalogue pas encore rattachées à un personnage — ce que « Assigner
   // une voix » propose (la voix actuelle du personnage s'y ajoute d'elle-même).
   const voixLibres = aplatir(masters)
@@ -123,6 +134,11 @@ export default async function AssetDetailPage({
             <h1 className="master-code">{noeud.code}</h1>
             <div className="fiche-actions">
               <span className="type-tag">{noeud.type}</span>
+              {noeud.type !== "voix" && parentCode ? (
+                <span className="type-tag" title="Méthode de fabrication de l'image">
+                  {noeud.methodeGeneration === "edition" ? "édition" : noeud.methodeGeneration === "generation" ? "génération" : "méthode ?"}
+                </span>
+              ) : null}
               {noeud.type === "voix" ? (
                 <Link href={`/p/${pid}/voix/${noeud.code}`} className="btn btn-gold btn-mini">
                   Modifier au casting
@@ -150,15 +166,39 @@ export default async function AssetDetailPage({
           <div className="panel-bd asset-fiche-body">
             <div className="asset-fiche-media">
               <AssetPreview type={noeud.type} fichier={noeud.fichier} taille="lg" />
-              {noeud.type === "voix" ? null : <UploadFichierForm assetId={noeud.id} code={noeud.code} />}
+              {noeud.type === "voix" ? null : (
+                <div className="asset-fiche-actions">
+                  <UploadFichierForm assetId={noeud.id} code={noeud.code} />
+                  <GenerationPanel
+                    assetId={noeud.id}
+                    code={noeud.code}
+                    type={noeud.type}
+                    methodeGeneration={noeud.methodeGeneration}
+                    parentCode={parentCode}
+                    promptInitial={noeud.promptGeneration ?? ""}
+                    raisonBloquee={noeud.type === "sfx" ? raisonAudioNonGenerable(noeud.type) : raisonNonGenerable(noeud)}
+                    defauts={{ aspect: formatParDefaut(noeud.type).aspect, megapixels: formatParDefaut(noeud.type).megapixels, lora: loraParDefaut(noeud.type) && parentCode == null }}
+                    registre={registreImages}
+                    imageActuelle={imageActuelle(noeud)}
+                    dureeSecondes={noeud.dureeSecondes ?? null}
+                    generations={generations}
+                    generationInitiale={generationBrute ?? null}
+                    simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
+                  />
+                </div>
+              )}
               {noeud.fichier ? <span className="tiny-note num">{noeud.fichier}</span> : null}
             </div>
             <div className="asset-fiche-info">
               <AssetFicheEditor
                 assetId={noeud.id}
+                type={noeud.type}
+                parentCode={parentCode}
                 description={noeud.description ?? ""}
                 promptGeneration={noeud.promptGeneration ?? ""}
+                methodeGeneration={noeud.methodeGeneration}
                 critique={noeud.critique}
+                dureeSecondes={noeud.dureeSecondes ?? null}
               />
               {noeud.type === "personnage" ? (
                 <AssignerVoix

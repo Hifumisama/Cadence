@@ -1,7 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { basename } from "node:path";
-import type { ComfyUIClient, PollResult, SubmissionInput } from "./types";
+import { randomUUID } from "node:crypto";
+import { basename, join } from "node:path";
+import { MEDIA_ROOT } from "../../lib/media";
+import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
+import { etatDansLaFile, type EtatDansLaFile } from "../../lib/annulation";
 import { injecterValeurs, nomFichierSortie, NODE_IDS } from "./mapping";
+import { cheminSortieDistant, premierFichierSortie } from "./sortie";
+import { ouvrirSuiviWs, type EtatHistorique } from "./wsSuivi";
 
 /**
  * Client HTTP réel vers l'API ComfyUI qui tourne sur le PC de bureau (déjà
@@ -10,6 +15,10 @@ import { injecterValeurs, nomFichierSortie, NODE_IDS } from "./mapping";
  * "Save (API Format)" : le graphe actuel n'est pas soumettable en l'état.
  */
 export class HttpComfyUIClient implements ComfyUIClient {
+  /** Identité de ce worker auprès de ComfyUI : passée à /prompt ET au WebSocket,
+   * car ComfyUI ne renvoie la progression qu'au client qui a soumis. */
+  private readonly clientId = randomUUID();
+
   constructor(
     private readonly baseUrl: string,
     private readonly workflowPath: string,
@@ -47,13 +56,61 @@ export class HttpComfyUIClient implements ComfyUIClient {
     const res = await fetch(`${this.baseUrl}/prompt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: graphe }),
+      body: JSON.stringify({ prompt: graphe, client_id: this.clientId }),
     });
     if (!res.ok) {
       throw new Error(`Soumission ComfyUI refusée (${res.status})`);
     }
     const { prompt_id } = (await res.json()) as { prompt_id: string };
     return prompt_id;
+  }
+
+  async submitGraph(graphe: Record<string, unknown>): Promise<string> {
+    const res = await fetch(`${this.baseUrl}/prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: graphe, client_id: this.clientId }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Soumission ComfyUI refusée (${res.status}) ${detail.slice(0, 300)}`);
+    }
+    const { prompt_id } = (await res.json()) as { prompt_id: string };
+    return prompt_id;
+  }
+
+  async ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi> {
+    return ouvrirSuiviWs({
+      baseUrl: this.baseUrl,
+      clientId: this.clientId,
+      surEvenement,
+      etatHistorique: (id) => this.etatHistorique(id),
+      dossierDebug: process.env.COMFYUI_WS_DEBUG === "1" ? join(MEDIA_ROOT, "_debug") : undefined,
+    });
+  }
+
+  private async etatHistorique(promptId: string): Promise<EtatHistorique> {
+    const res = await fetch(`${this.baseUrl}/history/${promptId}`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return "en_cours";
+    const entree = (await res.json())[promptId];
+    if (!entree) return "en_cours";
+    if (entree.status?.status_str === "error") return "erreur";
+    if (entree.status?.completed === true) return "termine";
+    return "en_cours";
+  }
+
+  async pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult> {
+    const res = await fetch(`${this.baseUrl}/history/${promptId}`);
+    if (!res.ok) return { statut: "en_cours" };
+    const entree = (await res.json())[promptId];
+    if (!entree) return { statut: "en_cours" };
+    if (entree.status?.status_str === "error") {
+      return { statut: "erreur", message: entree.status?.messages?.map(String).join(" | ") ?? "Erreur ComfyUI" };
+    }
+    // Image (`images`), son (`audio`, à confirmer) ou autre : voir sortie.ts.
+    const fichier = premierFichierSortie(entree.outputs?.[nodeIdSortie]);
+    if (!fichier) return { statut: "en_cours" };
+    return { statut: "termine", cheminSortieDistant: cheminSortieDistant(fichier) };
   }
 
   async poll(promptId: string): Promise<PollResult> {
@@ -83,6 +140,58 @@ export class HttpComfyUIClient implements ComfyUIClient {
       statut: "termine",
       cheminSortieDistant: `${fichier.subfolder ?? ""}/${fichier.filename}`.replace(/^\//, ""),
     };
+  }
+
+  async etatDansLaFile(promptId: string): Promise<EtatDansLaFile> {
+    try {
+      const res = await fetch(`${this.baseUrl}/queue`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return "inconnu";
+      return etatDansLaFile(await res.json(), promptId);
+    } catch {
+      return "inconnu";
+    }
+  }
+
+  async interrompre(promptId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/interrupt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt_id: promptId }),
+        signal: AbortSignal.timeout(5000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async retirerDeLaFile(promptId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/queue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delete: [promptId] }),
+        signal: AbortSignal.timeout(5000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async libererMemoire(): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/free`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unload_models: true, free_memory: true }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   async fetchOutput(cheminSortieDistant: string, cheminLocalCible: string): Promise<void> {

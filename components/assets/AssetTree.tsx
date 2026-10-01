@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { AssetNode } from "@/lib/queries";
 import { infosMedia } from "@/lib/assetMedia";
+import { urlMiniature } from "@/lib/miniatures";
 import { AssetCard } from "@/components/assets/AssetCard";
 import { AjouterDeriveForm } from "@/components/assets/AjouterDeriveForm";
 
@@ -64,7 +65,7 @@ function Mini({
         <span className={`tree-mini-thumb${etat !== "ok" ? " is-vide" : ""}`}>
           {etat === "ok" && kind === "image" && src ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt="" loading="lazy" />
+            <img src={urlMiniature(src, 96)} alt="" loading="lazy" decoding="async" />
           ) : null}
           {etat === "ok" && kind === "audio" ? <span aria-hidden="true">♪</span> : null}
           {etat === "ok" && kind === "video" && src ? <video src={`${src}#t=0.001`} preload="metadata" muted playsInline /> : null}

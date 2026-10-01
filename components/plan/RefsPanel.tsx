@@ -5,6 +5,7 @@ import { ajouterRef, supprimerRef } from "@/app/plans/actions";
 import { MAX_REFS, type RefLabel } from "@/lib/plan-checks";
 import type { MediaKind } from "@/components/assets/AssetCard";
 import { MediaZoom } from "@/components/assets/MediaZoom";
+import { urlMiniature } from "@/lib/miniatures";
 import { AssetPickerModal, type NoeudPicker } from "@/components/plan/AssetPickerModal";
 
 export type RefVue = {
@@ -59,7 +60,15 @@ function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
       </div>
     );
   }
-  return <MediaZoom kind={asset.kind} src={asset.src} alt={asset.code} classe="ref-thumb" />;
+  return (
+    <MediaZoom
+      kind={asset.kind}
+      src={asset.src}
+      apercu={asset.kind === "image" ? urlMiniature(asset.src, 384) : undefined}
+      alt={asset.code}
+      classe="ref-thumb"
+    />
+  );
 }
 
 function RefsType({

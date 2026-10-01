@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 export const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
@@ -42,6 +42,20 @@ export function estVideo(chemin: string): boolean {
  * fichier (ex. "Maya_CharacterSheet.png"), jamais le chemin complet. */
 export function cheminAssetMedia(fichier: string): string {
   return `assets/${fichier}`;
+}
+
+/** URL de service d'un fichier d'asset, suffixée de sa date de modification :
+ * une image adoptée ou remplacée garde le même nom (F01), sans ce suffixe le
+ * navigateur (et React, qui ne touche pas à un `src` inchangé) garderait
+ * l'ancienne. Côté serveur uniquement (accès disque). */
+export function urlAssetMedia(fichier: string): string {
+  let version = "";
+  try {
+    version = `?v=${Math.floor(statSync(resolve(MEDIA_ROOT, cheminAssetMedia(fichier))).mtimeMs)}`;
+  } catch {
+    // fichier absent : l'appelant a déjà traité ce cas
+  }
+  return `/api/media/${cheminAssetMedia(fichier)}${version}`;
 }
 
 /** Un asset "fichier" est souvent juste un nom de fichier de référence noté
@@ -114,7 +128,7 @@ export function voixMediaSrc(assetId: number, fichier: string | null): string | 
 /** Même chose pour la référence de clonage (fichier de l'asset lui-même). */
 export function assetMediaSrc(fichier: string | null): string | null {
   if (!fichier || !fichierMediaExiste(fichier)) return null;
-  return `/api/media/${cheminAssetMedia(fichier)}`;
+  return urlAssetMedia(fichier);
 }
 
 /** Prises audio des répliques (F02, révision 2026-09-30) — rangées par
@@ -135,4 +149,49 @@ export function repliqueMediaSrc(repliqueId: number, fichier: string | null): st
     return null;
   }
   return `/api/media/${relatif}`;
+}
+
+/** Images générées pour un asset (candidats, avant adoption) — rangées par
+ * asset, symétrique à `voix/<assetId>/`. Un candidat adopté est COPIÉ sous
+ * `assets/` (assets.fichier) ; le candidat lui-même reste ici jusqu'à sa purge. */
+export function cheminGenerationMedia(assetId: number, fichier: string): string {
+  return `generations/${assetId}/${fichier}`;
+}
+
+/** URL de service d'un candidat, ou null s'il n'est pas (ou plus) sur le
+ * stockage. Côté serveur uniquement (accès disque). */
+export function generationMediaSrc(assetId: number, fichier: string | null): string | null {
+  if (!fichier) return null;
+  const relatif = cheminGenerationMedia(assetId, fichier);
+  try {
+    if (!existsSync(resolve(MEDIA_ROOT, relatif))) return null;
+  } catch {
+    return null;
+  }
+  return `/api/media/${relatif}`;
+}
+
+/** Images sources jetables d'une génération « à partir d'images » (déposées à la
+ * volée dans la popup) — sous le dossier de l'asset, jamais dans le registre. */
+export function cheminSourceImportMedia(assetId: number, fichier: string): string {
+  return `generations/${assetId}/sources/${fichier}`;
+}
+
+/** Nom de fichier d'import sûr : un nom généré par l'application (jamais un
+ * chemin), qui ne peut pas sortir du dossier des sources. */
+export function estNomSourceImport(fichier: string): boolean {
+  return /^[A-Za-z0-9_-]+\.(png|jpe?g|webp)$/i.test(fichier);
+}
+
+/** URL de service d'une source importée (avec la date de modification, comme
+ * `urlAssetMedia`), ou null si elle n'est pas (ou plus) sur le stockage. */
+export function sourceImportMediaSrc(assetId: number, fichier: string | null): string | null {
+  if (!fichier || !estNomSourceImport(fichier)) return null;
+  const relatif = cheminSourceImportMedia(assetId, fichier);
+  try {
+    const mtime = Math.floor(statSync(resolve(MEDIA_ROOT, relatif)).mtimeMs);
+    return `/api/media/${relatif}?v=${mtime}`;
+  } catch {
+    return null;
+  }
 }

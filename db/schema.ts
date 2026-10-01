@@ -11,6 +11,8 @@ import {
   uniqueIndex,
   uuid,
   real,
+  jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -295,7 +297,16 @@ export const assets = pgTable("assets", {
   // type) — distinct de la description canonique : l'un décrit le sujet
   // pour la continuité narrative, l'autre est ce qu'on colle dans ComfyUI.
   promptGeneration: text("prompt_generation"),
+  // Comment l'image se fabrique : "generation" (text-to-image, Krea 2) ou
+  // "edition" (Qwen Image Edit, à partir de l'image du parent). Distinct du
+  // lien deriveDeId, qui dit seulement à quelle famille l'asset appartient :
+  // un effet (flammes, éclairs) rattaché à un master se génère de zéro. null =
+  // pas encore choisi (un master vaut "generation"). Sans objet pour une voix.
+  methodeGeneration: varchar("methode_generation", { length: 12 }),
   fichier: varchar("fichier", { length: 255 }),
+  // Durée du son retenu, en secondes (type sfx : paramètre de la génération audio,
+  // qui n'est pas dans le prompt). null pour les autres types.
+  dureeSecondes: real("duree_secondes"),
   critique: boolean("critique").notNull().default(false),
   deriveDeId: integer("derive_de_id"),
 }, (table) => [
@@ -352,6 +363,78 @@ export const voixFiches = pgTable("voix_fiches", {
     .where(sql`${table.personnageId} is not null`),
 ]);
 
+// Générations d'images d'un asset (tâche ComfyUI dédiée, 2026-09-30) : chaque
+// ligne est une demande, avec un instantané de ce qui a été soumis (prompt,
+// clause de style, format, seed). Le résultat est un CANDIDAT : il n'entre dans
+// le registre (assets.fichier) que quand l'utilisateur l'adopte, jamais tout
+// seul (F01 : une image remplace le nœud, elle ne s'accumule pas dans l'asset).
+// `statut` : en_attente | en_cours | termine | echoue (varchar contrôlé côté
+// application, pas d'enum pg). `methode` : "generation" (text-to-image, Krea 2) ;
+// "edition" (Qwen Image Edit) viendra ensuite.
+export const assetGenerations = pgTable("asset_generations", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  assetId: integer("asset_id")
+    .notNull()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  methode: varchar("methode", { length: 12 }).notNull().default("generation"),
+  statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
+  prompt: text("prompt").notNull(),
+  clauseStyle: text("clause_style").notNull().default(""),
+  aspect: varchar("aspect", { length: 8 }).notNull().default("1:1"),
+  megapixels: real("megapixels").notNull().default(1),
+  loraPersonnage: boolean("lora_personnage").notNull().default(false),
+  // Mode « à partir d'images » (méthode edition) : true = Lightning 4 étapes,
+  // false = « Qualité » (40 étapes CFG 4). null pour le mode texte.
+  lightning: boolean("lightning"),
+  // Génération audio (méthode « audio », Stable Audio 3) : durée demandée en
+  // secondes, paramètre séparé du prompt. null pour les images. aspect/megapixels
+  // gardent leurs valeurs par défaut pour l'audio : l'affichage se règle sur la
+  // méthode, jamais sur ces deux colonnes.
+  dureeSecondes: real("duree_secondes"),
+  seed: text("seed").notNull(),
+  comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
+  fichier: varchar("fichier", { length: 255 }),
+  erreur: text("erreur"),
+  // Progression relayée par le worker (WebSocket ComfyUI) : le navigateur ne
+  // parle pas à ComfyUI. Remis à null en fin de tâche ; l'aperçu est un fichier
+  // écrasé sous generations/<assetId>/, `apercuAt` sert de version à l'URL.
+  progressionValeur: integer("progression_valeur"),
+  progressionMax: integer("progression_max"),
+  etapeLibelle: varchar("etape_libelle", { length: 80 }),
+  apercuFichier: varchar("apercu_fichier", { length: 255 }),
+  apercuAt: timestamp("apercu_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  // « Vu » : l'utilisateur a pris connaissance du résultat ou de l'échec
+  // (indicateur du header). null = pas encore vu.
+  vuAt: timestamp("vu_at"),
+  // Annulation d'une tâche EN COURS : l'interface pose le drapeau, le worker agit
+  // (lib/annulation.ts). Une tâche en attente s'annule directement, sans drapeau.
+  annulationDemandeeAt: timestamp("annulation_demandee_at"),
+});
+
+// Images sources d'une génération « à partir d'images » (IMG_Simple_Edit : de 1
+// à 3, la position 1 est la cible modifiée). `fichier` est un INSTANTANÉ pris au
+// lancement : pour une source 'asset', le nom du fichier de l'asset (sous
+// assets/) ; pour une source 'import', le nom sous generations/<assetId>/sources/
+// (jetable, jamais rattaché au registre). Supprimées avec leur génération.
+export const assetGenerationSources = pgTable(
+  "asset_generation_sources",
+  {
+    id: serial("id").primaryKey(),
+    generationId: integer("generation_id")
+      .notNull()
+      .references(() => assetGenerations.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    origine: varchar("origine", { length: 8 }).notNull(),
+    assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
+    fichier: varchar("fichier", { length: 255 }).notNull(),
+  },
+  (t) => [unique("asset_generation_sources_position_unique").on(t.generationId, t.position)],
+);
+
 // La queue F04 vit ici, pas dans plans.statut seul : un plan accumule
 // plusieurs jobs (échecs + rejeux), plans.statut n'est que la projection
 // du dernier job.
@@ -374,6 +457,11 @@ export const jobs = pgTable("jobs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
+  // « Vu » : voir asset_generations.vuAt.
+  vuAt: timestamp("vu_at"),
+  // Annulation : voir asset_generations.annulationDemandeeAt. Une vidéo annulée finit
+  // `echoue` avec l'erreur « Annulée » (pas de statut d'enum de plus).
+  annulationDemandeeAt: timestamp("annulation_demandee_at"),
 });
 
 // Réglages globaux clé/valeur, techniques et indépendants du récit : plafond
@@ -447,3 +535,63 @@ export const repliquesRelations = relations(repliques, ({ many, one }) => ({
 export const jobsRelations = relations(jobs, ({ one }) => ({
   plan: one(plans, { fields: [jobs.planId], references: [plans.id] }),
 }));
+
+// Journal de chaque exécution d'un skill d'agent (brique LLM, lib/llm/) : ce que
+// le modèle a reçu, ce qu'il a rendu, ce que la validation en a dit. C'est le
+// journal de frictions automatisé et le jeu d'évaluation (docs/CONCEPTION_AGENTS.md
+// §7 et §10). Le lien vers une proposition viendra avec les propositions.
+export const agentTraces = pgTable("agent_traces", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  skill: varchar("skill", { length: 40 }).notNull(),
+  fournisseur: varchar("fournisseur", { length: 30 }).notNull(),
+  modele: varchar("modele", { length: 80 }).notNull(),
+  // ok | invalide (sortie hors schéma même après renvoi) | echoue (serveur,
+  // réseau, délai) | interrompu (annulé). Varchar contrôlé par l'application.
+  statut: varchar("statut", { length: 12 }).notNull(),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "set null" }),
+  // Messages d'entrée (hors prompt système, qui est celui du skill : on garde son
+  // empreinte pour savoir quelle version des fichiers l'a produit).
+  messages: jsonb("messages").notNull(),
+  systemeEmpreinte: varchar("systeme_empreinte", { length: 64 }).notNull(),
+  systemeCaracteres: integer("systeme_caracteres").notNull(),
+  sortieBrute: text("sortie_brute"),
+  json: jsonb("json"),
+  erreursValidation: jsonb("erreurs_validation"),
+  erreur: text("erreur"),
+  renvois: integer("renvois").notNull().default(0),
+  tokensEntree: integer("tokens_entree").notNull().default(0),
+  tokensSortie: integer("tokens_sortie").notNull().default(0),
+  dureeMs: integer("duree_ms").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [index("agent_traces_skill_created_idx").on(table.skill, table.createdAt)]);
+
+// File des appels LLM (genre « llm » du worker, voir worker/llm.ts) : un appel à
+// un skill d'agent posé en base, pris par le worker comme une génération d'image.
+// Le GPU est une ressource unique partagée avec ComfyUI : l'ordonnanceur
+// (worker/ordonnanceur.ts) range ces tâches entre les images et les vidéos.
+// `statut` : en_attente | en_cours | termine | echoue | annulee (varchar contrôlé
+// par l'application, pas d'enum pg). `entree` est ce que `executerSkill` reçoit
+// (texte, objet ou conversation) ; `resultat` le JSON validé contre le schéma du
+// skill. La trace complète (messages, sortie brute, jetons) est dans agent_traces.
+export const agentRuns = pgTable("agent_runs", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  skill: varchar("skill", { length: 40 }).notNull(),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "set null" }),
+  entree: jsonb("entree").notNull(),
+  // { modele?: string } — surcharge du modèle ; vide = celui de la configuration.
+  options: jsonb("options"),
+  statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
+  // Jetons de sortie reçus au fil de l'eau (le maximum est inconnu : pas de barre
+  // à pourcentage, un simple compteur). Remis à null en fin de tâche.
+  progressionJetons: integer("progression_jetons"),
+  resultat: jsonb("resultat"),
+  erreur: text("erreur"),
+  traceId: integer("trace_id").references(() => agentTraces.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  vuAt: timestamp("vu_at"),
+  annulationDemandeeAt: timestamp("annulation_demandee_at"),
+}, (table) => [index("agent_runs_statut_idx").on(table.statut, table.createdAt)]);
