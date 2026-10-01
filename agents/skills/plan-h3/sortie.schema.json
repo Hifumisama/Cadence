@@ -8,7 +8,7 @@
     "titre": { "type": "string", "minLength": 1, "maxLength": 200 },
     "dureeSecondes": {
       "type": "integer",
-      "minimum": 4,
+      "minimum": 5,
       "maximum": 15,
       "description": "Durée de génération, en secondes entières. Plan dialogué : durée pressentie des répliques plus une marge de respiration d'au moins 2 s, arrondie au-dessus. On l'allonge plus tard si la voix réelle l'exige."
     },

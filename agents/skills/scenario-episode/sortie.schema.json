@@ -36,7 +36,7 @@
               "properties": {
                 "titre": { "type": "string", "maxLength": 200 },
                 "description": { "type": "string", "minLength": 1, "description": "Ce qui se passe et pourquoi le plan existe. Narratif, sans cadrage, lumière, son ni mouvement de caméra, sans renvoi à un autre plan." },
-                "dureeSecondes": { "type": "integer", "minimum": 4, "maximum": 15, "description": "Durée de génération, en secondes entières. Un plan dialogué : durée généreuse, marge de respiration de 2 s au moins, à ajuster après la prise de voix." },
+                "dureeSecondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "Durée de génération, en secondes entières, de 5 à 15 (jamais moins de 5) ; vise 8 à 15 : regroupe les moments proches en un seul plan. Un plan dialogué : durée généreuse, marge de respiration de 2 s au moins, à ajuster après la prise de voix." },
                 "repliques": {
                   "type": "array",
                   "description": "Répliques dites dans ce plan, dans l'ordre de prise de parole.",

@@ -311,7 +311,7 @@ export function calculerStatutDuree(
 
 /** Plancher par shot : en dessous, H3 rallonge ou lisse le plan. */
 export const SHOT_MIN_SECONDES = 1.5;
-export const DUREE_GENERATION_MIN = 4;
+export const DUREE_GENERATION_MIN = 5;
 export const DUREE_GENERATION_MAX = 15;
 
 export type ProblemeStructure = {

@@ -23,20 +23,20 @@ import {
   resumeCompteurs,
   type EtatCochage,
 } from "@/lib/agents-affichage";
-import type { EcrasementAConfirmer, VueChangement, VueGroupe, VueProposition } from "@/lib/agents/types";
+import type { VueChangement, VueGroupe, VueProposition } from "@/lib/agents/types";
 
 const SYMBOLE_GRAVITE = { info: "ℹ", attention: "▲", bloquant: "■" } as const;
 
 /** Étape « Proposition » : la REVUE. Le risque d'écrasement est en tête, puis les mises à jour
  * du brief, puis le reste. Cochage par changement ET par groupe ; l'état affiché est celui du
  * serveur (créations cochées, modifications d'éléments validés et suppressions décochées par
- * défaut). Trois gestes : Rejeter, Affiner, Réinitialiser. Écraser du validé demande une
- * confirmation en deux temps qui liste ce qui sera perdu. */
+ * défaut). Trois gestes : Rejeter, Affiner, Réinitialiser. Écraser du validé : cocher
+ * l'élément (décoché par défaut, montré en tête) vaut décision, il n'y a pas de seconde
+ * confirmation ; le bouton d'application annonce le nombre d'écrasements. */
 export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
   const { prop, conv, occupe } = ctx;
   const [affinage, setAffinage] = useState(false);
   const [retour, setRetour] = useState("");
-  const [confirmation, setConfirmation] = useState<EcrasementAConfirmer[] | null>(null);
   const [plans, setPlans] = useState<Map<string, number>>(new Map());
 
   const episodeId = ctx.demande.episodeId;
@@ -109,24 +109,21 @@ export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
   const premierEpisode = groupes.find((g) => estGroupeEpisode(g.id))?.id ?? null;
   const aRelancer = prop.lot ? prop.lot.echecs + prop.lot.annulees : 0;
 
-  const appliquer = async (confirme: boolean) => {
+  // Pas de seconde confirmation : un écrasement est décoché par défaut, le cocher est déjà la
+  // décision (la revue l'a montré en tête avec ce qui sera remplacé). Le serveur exige quand
+  // même `confirmeEcrasement`, que cette action pose en toute connaissance de cause.
+  const appliquer = async () => {
     await ctx.lancer(
       async () => {
-        const r = await appliquerSelection(prop.uuid, confirme ? { confirmeEcrasement: true } : undefined);
-        if (!r.ok && r.confirmationRequise && r.confirmationRequise.length > 0) {
-          setConfirmation(r.confirmationRequise);
-          // Pas une erreur à afficher : on montre la confirmation à la place.
-          return { ok: true as const, attente: true as const };
-        }
+        const r = await appliquerSelection(prop.uuid, { confirmeEcrasement: true });
         if (r.ok) {
-          setConfirmation(null);
           ctx.setDernierResultat(r);
-          return { ok: true as const, attente: false as const };
+          return { ok: true as const };
         }
         return r;
       },
       (r) => {
-        if ("attente" in r && !r.attente) ctx.aller("applique");
+        if (r.ok) ctx.aller("applique");
       },
     );
   };
@@ -156,29 +153,6 @@ export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
           {resumeCompteurs(prop.compteurs)}
           {prop.compteurs.inventions > 0 ? ` · ${prop.compteurs.inventions} invention${prop.compteurs.inventions > 1 ? "s" : ""} déclarée${prop.compteurs.inventions > 1 ? "s" : ""}` : ""}
         </p>
-
-        {confirmation ? (
-          <div className="ag-confirmation" role="alertdialog" aria-label="Confirmer l'écrasement">
-            <strong>Confirmer l&rsquo;écrasement</strong>
-            <p className="tiny-note">Ces éléments déjà validés seront remplacés. Cette action ne s&rsquo;annule pas.</p>
-            <ul>
-              {confirmation.map((e) => (
-                <li key={e.changementId}>
-                  <span className="ag-conf-nom">{e.libelle}</span>
-                  <span className="tiny-note">Sera écrasé : {e.ecrase}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="gd-row">
-              <button type="button" className="btn btn-gold" onClick={() => void appliquer(true)} disabled={occupe}>
-                {occupe ? "…" : "Écraser et appliquer"}
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => setConfirmation(null)} disabled={occupe}>
-                Retour à la revue
-              </button>
-            </div>
-          </div>
-        ) : null}
 
         {affinage ? (
           <div className="ag-affiner">
@@ -242,11 +216,13 @@ export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
             <button
               type="button"
               className="btn btn-gold"
-              disabled={occupe || prop.compteurs.selectionnes === 0 || confirmation != null}
-              onClick={() => (nbEcrasements > 0 ? setConfirmation(prop.ecrasements) : void appliquer(false))}
+              disabled={occupe || prop.compteurs.selectionnes === 0}
+              onClick={() => void appliquer()}
               title={prop.compteurs.selectionnes === 0 ? "Rien n'est sélectionné" : undefined}
             >
-              {occupe ? "…" : `Appliquer la sélection (${prop.compteurs.selectionnes})`}
+              {occupe
+                ? "…"
+                : `Appliquer la sélection (${prop.compteurs.selectionnes}${nbEcrasements > 0 ? ` · dont ${nbEcrasements} écrasement${nbEcrasements > 1 ? "s" : ""}` : ""})`}
             </button>
           </div>
         )}

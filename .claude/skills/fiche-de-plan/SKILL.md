@@ -12,7 +12,7 @@ Ce skill convertit un scénario en document de production : pour chaque plan, un
 | Paramètre | Valeur | Conséquence |
 |---|---|---|
 | Framerate | 24 fps, fixe | À rappeler dans chaque fiche, jamais à négocier |
-| Durée | secondes entières, 4–15 s (viser ≥ 5 s, la doc produit annonce 5 s de plancher) | Un plan écrit à 3 s se génère à 5 s et se coupe au montage |
+| Durée | secondes entières, 5–15 s (5 s est le plancher : jamais en dessous) | Un plan écrit à 3 s se génère à 5 s et se coupe au montage |
 | Références image | 9 max côté API, **mais ce skill en autorise 6 max par plan** | Garde-fou revu à la hausse après production : 5 et 6 références ont tenu sans dilution d'identité sur des plans à quatre temps, à condition qu'une seule référence porte le visage du personnage. Au-delà de 6, l'identité se dilue |
 | Références vidéo | 3 max | Rarement utilisées en génération pure, à ignorer sauf demande |
 | Références audio | **3 max** | Utilisées pour les dialogues : la prise de voix produite en amont pilote le lip-sync (voir Étape 3). Slots rares — la voix prime toujours sur le bruitage |
@@ -306,7 +306,7 @@ Premier réflexe avant tout diagnostic : vérifier la durée réelle du fichier.
 - Aucune réplique n'est en attente de mesure (`⏳`) dans un plan déclaré prêt à générer.
 - Un découpage proposé cite la mesure qui l'a déclenché et respecte la numérotation par dizaines.
 - Aucun numéro de plan n'est réutilisé ni renuméroté ; les trous sont délibérés.
-- Toutes les durées de génération sont des entiers entre 4 et 15 ; les écarts avec la durée de montage sont signalés.
+- Toutes les durées de génération sont des entiers entre 5 et 15 ; les écarts avec la durée de montage sont signalés.
 - Chaque label `<Picture N>` d'un prompt figure dans le tableau de références du même plan.
 - Chaque asset cité dans un plan existe dans le registre final, et réciproquement.
 - Deux plans consécutifs listent leurs sujets communs dans le même ordre.

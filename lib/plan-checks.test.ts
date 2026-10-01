@@ -135,7 +135,7 @@ test("structure : plan bien formé, aucun signalement", () => {
   assert.deepEqual(p, []);
 });
 
-test("structure : durée non entière ou hors 4-15", () => {
+test("structure : durée non entière ou hors 5-15", () => {
   assert.equal(controlerStructure([], 3)[0]?.type, "duree_invalide");
   assert.equal(controlerStructure([], 16)[0]?.type, "duree_invalide");
   assert.equal(controlerStructure([], 7.5)[0]?.type, "duree_invalide");

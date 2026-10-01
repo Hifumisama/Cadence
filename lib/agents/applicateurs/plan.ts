@@ -106,10 +106,10 @@ export const applicateurPlan: Applicateur = {
   async verifier(tx, ctx, ch) {
     if (ch.operation === "supprimer") return REFUS_SUPPRESSION;
     const a = apres(ch);
-    if (a.dureeGenerationSecondes !== undefined && controleDuree(a.dureeGenerationSecondes)) return "Durée de plan invalide (4 à 15 s entières).";
+    if (a.dureeGenerationSecondes !== undefined && controleDuree(a.dureeGenerationSecondes)) return `Durée de plan invalide (${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières).`;
     if (ch.operation === "creer") {
       if (!texte(a.titre)?.trim()) return "Titre de plan manquant.";
-      if (controleDuree(a.dureeGenerationSecondes)) return "Durée de plan invalide (4 à 15 s entières).";
+      if (controleDuree(a.dureeGenerationSecondes)) return `Durée de plan invalide (${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières).`;
       const episodeId = parentDe(a, "episodeCle", "episodeId", ctx.cles).id;
       if (episodeId == null) return "Épisode du plan inconnu.";
       const sceneId = parentDe(a, "sceneCle", "sceneId", ctx.cles).id;

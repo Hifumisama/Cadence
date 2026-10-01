@@ -101,4 +101,4 @@ Avant un plan à enjeu (action forte, effet visuel, montée en tension, plusieur
 - Chaque `[Shot]` suivant le premier a `Hard cut`, un timecode croissant et un angle distinct, sans shot sous 1,5 s.
 - Pas de négation de comportement, pas de vocabulaire de précision sur un personnage en mouvement.
 - Corps en anglais, dialogues dans leur langue.
-- `dureeSecondes` est un entier de 4 à 15 ; un plan dialogué garde 2 s de marge.
+- `dureeSecondes` est un entier de **5** à 15 ; un plan dialogué garde 2 s de marge.

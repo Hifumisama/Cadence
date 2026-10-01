@@ -1286,3 +1286,25 @@ autonome le jour où le volume de voix justifiera de sortir du « à la main ».
 | 2026-09-25 | génération | Ajustement de prompt sur plusieurs plans en parallèle — pénible sans outil dédié (→ F04) | |
 | 2026-09-25 | assets | Dérivés audio (voix/bruitages démuxés) : pas de convention de nommage, pas clair ce qui mérite d'être gardé (→ F01) | |
 | 2026-09-25 | assets/voix | Doublage via custom node micro live peu concluant, samples enregistrés en amont marchent mieux (→ F06) | |
+
+### Retours d'usage sur l'agent : plans plus longs, notifications, une seule validation (2026-10-02)
+Test réel du lot de scénarios sur « Nuit sur Tanger » (retours de l'utilisateur) :
+- **Plancher de 5 s par plan, et regrouper plutôt que découper.** Le scénario produisait
+  des plans de 5 s ou moins (le skill disait « pousse le plan de coupe plus loin »). Le but
+  est d'avoir PEU de plans à tourner. `DUREE_GENERATION_MIN` passe de 4 à **5** (contrôles de
+  structure, applicateur de plan, schémas de `scenario-episode` et `plan-h3`, skill de chat
+  `fiche-de-plan`) ; `scenario-episode` vise 8 à 15 s, fusionne les moments d'un même lieu et
+  d'un même temps qui tiennent en 15 s, et traduit la variété de points de vue et la cadence
+  par des COUPES INTERNES au plan (écrites plus tard par `plan-h3`), pas par des plans de plus.
+  Séparer reste justifié par un changement de lieu/temps, un dialogue qui dépasse 15 s, un jeu
+  de références très différent (6 images au plus par plan). Les plans existants de 4 s sont
+  désormais signalés par les contrôles de structure (à rallonger à la main).
+- **Notifications de fin de tâche** (`NotificationsTaches`, monté dans le layout) : un toast à
+  la fin (ou à l'échec) d'une génération, d'un lot ou d'une proposition, avec « Voir ». Ce qui
+  était déjà fini à l'ouverture de la page n'est pas annoncé ; une annulation voulue ne
+  notifie pas ; on attend la fermeture d'une popup modale (elle cacherait le toast) ; au-delà de
+  3 fins simultanées, un seul toast les regroupe. Pas de notification navigateur pour l'instant.
+- **Une seule validation à l'application.** La confirmation d'écrasement en deux temps est
+  retirée de l'interface : un écrasement est décoché par défaut et montré en tête de la revue,
+  le cocher EST la décision. Le bouton annonce « dont N écrasement(s) ». Le serveur exige
+  toujours `confirmeEcrasement` ; l'interface le pose à l'application.
