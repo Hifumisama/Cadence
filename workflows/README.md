@@ -8,6 +8,7 @@ dépendance d'exécution.
 - `upscale/` — passe upscale isolée si distincte du workflow principal
 - `voice-clone/` — Qwen3-TTS (Voice Design) puis CosyVoice3 (répliques) (F06) ; **pas branché**, voir plus bas
 - `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
+- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; **pas branché**, voir plus bas
 
 ## Avant de committer un workflow
 
@@ -82,6 +83,43 @@ exige texte de référence et rognage saisis dans le graphe : la gestion de
 l'audio y est trop couplée à ComfyUI pour être pilotée par l'application (voir
 `docs/FRICTIONS.md`, F06). À reprendre quand le passage de la référence d'un
 moteur à l'autre ne dépendra plus de ce nœud.
+
+## Contrat du workflow audio (`audio/`)
+
+### `SFX_Generate_Sounds.json` — bruitages et ambiances (Stable Audio 3 Medium)
+
+**Aucun code ne le branche encore** : ni table de générations audio, ni tâche du
+worker, ni écran. Il est fourni (2026-10-01) avec son guide de prompts
+(`agents/skills/prompt-asset/guide-stable-audio-sfx.md`). Ce que le backend devra
+injecter (les valeurs du fichier sont des **valeurs de test**, remplacées à la
+soumission) :
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Prompt du son | `52:31` (PrimitiveStringMultiline) | `value` | une ou deux phrases en anglais, sans durée ; part tel quel dans le modèle tant que la réécriture est coupée |
+| Durée | `52:36` (PrimitiveFloat) | `value` | secondes, **paramètre séparé du texte** ; alimente `EmptyLatentAudio` (`52:11`, champ `seconds`) |
+| Seed | `52:3` (KSampler) | `seed` | |
+| Sortie | `19` (SaveAudioMP3) | `filename_prefix`, `quality` | **MP3** (qualité `V0`), préfixe `audio/stable_audio_3` ; la clé du résultat dans `/history` (vraisemblablement `audio`) est à vérifier au premier essai |
+
+Fixe, à ne pas toucher : checkpoint `stable_audio_3_medium` (`52:25`), encodeur
+`t5gemma_b_b_ul2` (`52:26`), 8 étapes, CFG 1, `lcm` / `simple` (`52:3`), négatif
+vide (`52:7`) : à CFG 1 il est sans effet.
+
+**Réécriture de prompt (ignorée).** `52:35` (« Enable_Reprompt », PrimitiveBoolean
+`value`) est à `false` : le commutateur `52:34` passe le texte de `52:31`
+directement à l'encodeur. À `true`, un petit LLM Qwen (`52:28` TextGenerate,
+`52:29` CLIP `qwen3.5_2b_bf16`) réécrit l'idée d'après un gabarit par catégorie
+(`52:49` JsonExtractString, `52:43` CustomCombo Music / Instrument / SFX /
+One-shot ; `52:38` à `52:40` assemblent le gabarit avec le texte et la durée).
+Cette branche reste coupée : c'est l'agent `prompt-asset` qui tient ce rôle, de
+façon reproductible (comme pour `prompt_enhance` de Krea 2). `52:41` / `52:42`
+(`ComfyMathExpression`, `PreviewAny`) ne servent qu'à cette branche et à
+l'aperçu de la durée.
+
+**Pas encore tranché :** ajouter ou non `TrackType: SFX, ` en tête du texte à la
+soumission (recommandé par la doc de Stability, absent du gabarit du workflow,
+non testé sur ce graphe), et le rôle d'une mention « Length: X seconds » dans un
+prompt brut. Voir le guide.
 
 ## Suivi en direct (WebSocket)
 

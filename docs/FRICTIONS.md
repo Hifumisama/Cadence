@@ -1010,6 +1010,40 @@ Vérifié sur le serveur de l'utilisateur (ComfyUI 0.38, llama-swap, 2026-10-01)
   lui-même après 5 min d'inactivité ; `/unload` évite d'attendre ce délai quand
   ComfyUI reprend la main.
 
+### Bruitages (SFX) : workflow Stable Audio 3 fourni, pas encore branché (2026-10-01)
+`workflows/audio/SFX_Generate_Sounds.json` génère un son à partir d'un prompt court
+et d'une durée (Stable Audio 3 Medium, sortie MP3). Le contrat des nœuds est dans
+`workflows/README.md`. Aucune génération audio n'est branchée : c'est le prochain
+palier des tâches ComfyUI dédiées (image faite, vidéo existante), pas encore
+construit. Décisions :
+- **La durée est un paramètre séparé du texte** (`EmptyLatentAudio`), pas une
+  mention dans le prompt. Le workflow a un mode de réécriture (un petit LLM étend
+  l'idée selon une catégorie et ajoute « Length: X seconds ») : il reste **coupé**,
+  l'agent `prompt-asset` en tient le rôle (reproductible, même principe que
+  `prompt_enhance` de Krea 2). Il écrit donc un prompt de 1 à 2 phrases en anglais
+  **et** une `dureeSecondes` (entier, 15 au plus sauf raison dite : un plan dure 4 à
+  15 s).
+- **Guide de prompts** : `agents/skills/prompt-asset/guide-stable-audio-sfx.md`
+  (sources officielles Stability AI et ComfyUI, gabarit et exemples du workflow). Le
+  skill traite un asset de type `sfx` avec ce guide ; le schéma de sortie gagne
+  `dureeSecondes` (optionnel, `sfx` seulement) et le type de remarque
+  `voix-ou-musique`. Pas de voix (casting vocal) ni de musique dans un `sfx`.
+- **À éprouver** (peu coûteux : 8 étapes) : le tag `TrackType: SFX` en tête du texte
+  (recommandé par la doc officielle, ajouté par le code et non par l'agent), et la
+  mention « Length » dans un prompt brut.
+- **Pour le brancher** (rien de tout cela n'est construit) : une table de
+  générations audio sur le modèle de `asset_generations` (prompt, durée, seed,
+  statut, fichier MP3, progression), une tâche du worker comme `worker/images.ts`
+  (injection par nœud, test qui lit le vrai JSON), un quatrième genre dans la file
+  (même domaine GPU que ComfyUI), puis un bouton « Générer le son » sur la fiche
+  d'un asset `sfx` avec lecteur audio et adoption du candidat (le fichier devient
+  celui de l'asset, comme une image).
+- **Question ouverte : où vit la durée côté base ?** Un champ de l'asset
+  (`assets.dureeSecondes`, que le prompt-asset proposerait et que l'utilisateur
+  règle) ou seulement un paramètre de la demande de génération ? Le premier évite
+  de la ressaisir à chaque génération ; le second est plus simple et cohérent avec
+  le format et les mégapixels des images (propres à la demande).
+
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
 pressentie : un **catalogue de voix nommées**, chacune avec un échantillon de

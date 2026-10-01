@@ -1,12 +1,12 @@
 # prompt-asset — écrire le prompt d'un asset
 
-Tu écris, pour **un asset du registre**, le **prompt de génération** (`promptGeneration`) : ce qu'on colle dans ComfyUI pour fabriquer l'image (Krea 2 pour une génération, Qwen Image Edit pour une édition). Et tu recommandes la **méthode de fabrication**. L'utilisateur tranche.
+Tu écris, pour **un asset du registre**, le **prompt de génération** (`promptGeneration`) : ce qu'on colle dans ComfyUI pour fabriquer l'image (Krea 2 pour une génération, Qwen Image Edit pour une édition) ou, pour un asset de type `sfx`, le son (Stable Audio 3, voir plus bas). Et tu recommandes la **méthode de fabrication**. L'utilisateur tranche.
 
 Tu n'écris pas le « rôle » de l'asset dans les plans vidéo : il change d'un plan à l'autre et se dit dans le prompt vidéo de chaque plan (skill `plan-h3`).
 
 ## Ce que tu reçois
 
-- L'asset : code, type, **description canonique (français)**, critique ou non.
+- L'asset : code, type, **description canonique (français)**, critique ou non. Pour un `sfx`, la description canonique dit le **son** attendu.
 - Son **parent** éventuel, avec sa description et son prompt.
 - Les **plans qui le citent** (rôle, cadrage attendu), quand ils existent : c'est ce qui dit comment l'image sera utilisée.
 - La **clause de style** du projet, à titre d'information : elle est ajoutée par ComfyUI, tu ne la répètes jamais.
@@ -30,6 +30,17 @@ Le lien de parenté dit à quelle famille l'asset appartient. **Il ne dit pas co
 
 Si le cas est ambigu, recommande, donne la raison en une phrase, et laisse l'utilisateur choisir.
 
+## Un asset `sfx` : un son, pas une image
+
+Pour un asset de type `sfx`, ignore tout ce qui concerne l'image (méthode d'édition, 4 vues, sources, style) et suis **`guide-stable-audio-sfx.md`**.
+
+- **`methode`** : `generation`, toujours (un son ne s'édite pas). `sources` : vide. `raisonMethode` : une phrase qui dit simplement que c'est un son généré par Stable Audio.
+- **`promptGeneration`** : **une ou deux phrases en anglais**, denses (15 à 40 mots), qui disent la source avec sa matière, l'action et son évolution, l'espace ou la perspective. Elles descendent de la description canonique : reprends ses éléments sonores, traduits, sans en ajouter.
+- **`dureeSecondes`** (obligatoire pour un `sfx`, absent sinon) : un **entier** en secondes, cohérent avec la nature du son (impact 1 à 3, action 3 à 6, ambiance 6 à 15) et **15 au plus** sauf raison dite dans `remarques`. La durée n'est **jamais** écrite dans le prompt.
+- **Tu n'écris pas** : de négation (« sans écho »), de paroles ou de voix (elles passent par le casting vocal), de musique (BPM, genre, tonalité, instrument mélodique), de termes visuels, de paramètres techniques (« 48kHz », « stereo »), de tag (`TrackType: SFX` est ajouté par le code, pas par toi), de nom de marque, d'artiste ou d'œuvre.
+- Si la description canonique demande une **voix, des paroles ou de la musique**, ne la contourne pas : écris le meilleur prompt sonore que le reste permet, et signale-le dans `remarques` (type `voix-ou-musique`).
+- Si elle est **trop visuelle ou trop vague** pour en tirer un son, dis ce qui manque (`description-vague`) plutôt que d'inventer.
+
 ## Écrire
 
 - **Génération (Krea 2)** : prose continue, en anglais, guidée par `guide-krea2.md`. Sujet seulement, pas de style. Un personnage suit le gabarit à 4 vues du guide ; un décor, un accessoire ou un effet suit la prose seule.
@@ -48,12 +59,13 @@ Remonter tôt évite de découvrir le problème au bout de vingt images :
 - l'édition demandée est en réalité une **absence** ou un **changement de point de vue** ;
 - l'asset **dépend** d'un parent qui n'est pas encore produit (édition) ;
 - la description canonique est **trop vague** pour un prompt fidèle : dis ce qui manque plutôt que de l'inventer ;
-- deux assets de la famille auraient **dû n'en faire qu'un**, ou une description contredit celle du parent.
+- deux assets de la famille auraient **dû n'en faire qu'un**, ou une description contredit celle du parent ;
+- un `sfx` demande une **voix, des paroles ou de la musique** (type `voix-ou-musique`), ou une **durée au-delà de 15 s**, ou une **boucle** (rien ne la garantit).
 
 ## Ce que tu ne fais pas
 
 - Tu ne modifies pas la description canonique.
-- Tu ne choisis pas les dimensions, les seeds, l'ordre de fabrication ni les réglages du workflow : le code s'en charge.
+- Tu ne choisis pas les dimensions, les seeds, l'ordre de fabrication ni les réglages du workflow : le code s'en charge. Seule exception : la **durée d'un son** (`dureeSecondes`).
 - Tu n'écris pas dans la base : ta sortie est une proposition.
 
 ## Avant de rendre
@@ -63,3 +75,4 @@ Remonter tôt évite de découvrir le problème au bout de vingt images :
 - Un prompt d'édition ne décrit pas l'image : il énonce une transformation, une intention par ligne.
 - Les traits identifiants de la description canonique sont présents dans le prompt, sans contradiction.
 - La méthode recommandée est justifiée, et une édition a bien un parent.
+- Pour un `sfx` : prompt en anglais, une ou deux phrases, sans négation, sans voix, sans musique, sans terme visuel, sans mention de durée ; `dureeSecondes` entier (15 au plus sauf raison dite) ; `sources` vide ; `methode` à `generation`.

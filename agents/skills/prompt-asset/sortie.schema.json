@@ -5,7 +5,7 @@
   "additionalProperties": false,
   "required": ["methode", "raisonMethode", "promptGeneration", "remarques"],
   "properties": {
-    "methode": { "type": "string", "enum": ["generation", "edition"], "description": "Méthode recommandée. `edition` exige un parent." },
+    "methode": { "type": "string", "enum": ["generation", "edition"], "description": "Méthode recommandée. `edition` exige un parent. Un `sfx` est toujours `generation`." },
     "raisonMethode": { "type": "string", "description": "Une phrase, en français, qui justifie la méthode." },
     "sources": {
       "type": "array",
@@ -13,16 +13,17 @@
       "items": { "type": "string" },
       "description": "Édition seulement : codes des assets dont l'image est fournie au workflow, dans l'ordre. Le premier est la cible de la modification (par défaut le parent), les suivants sont des références. Trois au plus. Vide pour une génération."
     },
-    "promptGeneration": { "type": "string", "minLength": 1, "description": "Prose Krea 2 (génération) ou instructions impératives Qwen, une par ligne (édition). Sans style, sans négation." },
+    "promptGeneration": { "type": "string", "minLength": 1, "description": "Prose Krea 2 (génération) ou instructions impératives Qwen, une par ligne (édition) ; pour un `sfx`, une ou deux phrases en anglais décrivant le son (Stable Audio 3). Sans style, sans négation, sans durée." },
+    "dureeSecondes": { "type": "integer", "minimum": 1, "maximum": 60, "description": "Asset `sfx` seulement (à omettre pour une image) : durée du son en secondes, entier. Impact 1 à 3, action 3 à 6, ambiance 6 à 15 ; 15 au plus sauf raison dite dans `remarques`. Jamais écrite dans le prompt." },
     "remarques": {
       "type": "array",
-      "description": "Points à remonter : variantes demandées, absence ou changement de point de vue, dépendance à un parent non produit, description trop vague, doublons.",
+      "description": "Points à remonter : variantes demandées, absence ou changement de point de vue, dépendance à un parent non produit, description trop vague, doublons, voix ou musique demandées pour un son.",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["type", "message"],
         "properties": {
-          "type": { "type": "string", "enum": ["variantes", "absence-ou-point-de-vue", "dependance-parent", "description-vague", "incoherence-famille", "autre"] },
+          "type": { "type": "string", "enum": ["variantes", "absence-ou-point-de-vue", "dependance-parent", "description-vague", "incoherence-famille", "voix-ou-musique", "autre"] },
           "message": { "type": "string" }
         }
       }
