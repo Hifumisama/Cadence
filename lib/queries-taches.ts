@@ -35,10 +35,13 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .from(assetGenerations)
     .innerJoin(assets, eq(assets.id, assetGenerations.assetId))
     .where(
-      or(
-        inArray(assetGenerations.statut, ["en_attente", "en_cours"]),
-        isNull(assetGenerations.vuAt),
-        gte(assetGenerations.createdAt, depuis),
+      and(
+        isNull(assetGenerations.masqueAt),
+        or(
+          inArray(assetGenerations.statut, ["en_attente", "en_cours"]),
+          isNull(assetGenerations.vuAt),
+          gte(assetGenerations.createdAt, depuis),
+        ),
       ),
     );
 
@@ -52,14 +55,19 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     })
     .from(jobs)
     .innerJoin(plans, eq(plans.id, jobs.planId))
-    .where(or(inArray(jobs.statut, ["en_attente", "en_cours"]), isNull(jobs.vuAt), gte(jobs.createdAt, depuis)));
+    .where(and(isNull(jobs.masqueAt), or(inArray(jobs.statut, ["en_attente", "en_cours"]), isNull(jobs.vuAt), gte(jobs.createdAt, depuis))));
 
   const lignesLlm = await db
     .select({ r: agentRuns, projetNom: projects.nom, conversationUuid: agentConversations.uuid })
     .from(agentRuns)
     .leftJoin(projects, eq(projects.id, agentRuns.projectId))
     .leftJoin(agentConversations, eq(agentConversations.id, agentRuns.conversationId))
-    .where(or(inArray(agentRuns.statut, ["en_attente", "en_cours"]), isNull(agentRuns.vuAt), gte(agentRuns.createdAt, depuis)));
+    .where(
+      and(
+        isNull(agentRuns.masqueAt),
+        or(inArray(agentRuns.statut, ["en_attente", "en_cours"]), isNull(agentRuns.vuAt), gte(agentRuns.createdAt, depuis)),
+      ),
+    );
 
   // Un LOT (plusieurs tâches d'une même proposition) = UNE entrée dans le panneau : on relit TOUTES
   // les tâches des lots touchés (celles déjà vues ou anciennes ne passent pas le filtre ci-dessus,

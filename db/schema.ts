@@ -413,6 +413,8 @@ export const assetGenerations = pgTable("asset_generations", {
   // « Vu » : l'utilisateur a pris connaissance du résultat ou de l'échec
   // (indicateur du header). null = pas encore vu.
   vuAt: timestamp("vu_at"),
+  // Retirée de la liste du panneau des générations (« vider la liste », ✕) : rien n'est supprimé.
+  masqueAt: timestamp("masque_at"),
   // Annulation d'une tâche EN COURS : l'interface pose le drapeau, le worker agit
   // (lib/annulation.ts). Une tâche en attente s'annule directement, sans drapeau.
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
@@ -462,6 +464,7 @@ export const jobs = pgTable("jobs", {
   finishedAt: timestamp("finished_at"),
   // « Vu » : voir asset_generations.vuAt.
   vuAt: timestamp("vu_at"),
+  masqueAt: timestamp("masque_at"),
   // Annulation : voir asset_generations.annulationDemandeeAt. Une vidéo annulée finit
   // `echoue` avec l'erreur « Annulée » (pas de statut d'enum de plus).
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
@@ -597,6 +600,7 @@ export const agentRuns = pgTable("agent_runs", {
   finishedAt: timestamp("finished_at"),
   vuAt: timestamp("vu_at"),
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
+  masqueAt: timestamp("masque_at"),
   // Ce que le résultat devient (système d'agents, docs/CONCEPTION_AGENTS.md §14) :
   // `but` = tour (réponse de conversation) | brief | proposition ; les ids relient la
   // tâche à sa conversation / sa proposition (entiers simples, sans clé étrangère :

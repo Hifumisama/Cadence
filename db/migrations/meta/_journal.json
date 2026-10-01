@@ -253,6 +253,13 @@
       "when": 1792515600000,
       "tag": "0035_lots_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792602000000,
+      "tag": "0036_taches_masquees",
+      "breakpoints": true
     }
   ]
 }

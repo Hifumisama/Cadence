@@ -1322,4 +1322,10 @@ Test réel du lot de scénarios sur « Nuit sur Tanger » (retours de l'utilisat
   rien n'est interrompu, tout se relance. Une vidéo retirée remet son plan dans son état précédent ;
   un lot sans sous-tâche en cours voit son statut décidé tout de suite. Onglet « Brief » placé en
   premier dans la navigation (avant « Scénario »).
+- **Retirer des tâches de la liste (2026-10-02)** : une croix ✕ par tâche terminée, échouée ou
+  annulée, et un « Vider la liste » par section (terminées / échecs et annulations) du panneau.
+  Rien n'est supprimé : la colonne `masque_at` (migration 0036, sur `asset_generations`, `jobs`
+  et `agent_runs`) masque la tâche (et la marque vue) ; le candidat d'une génération reste
+  relisible dans la popup de son asset, les traces restent intactes. Les tâches actives ne se
+  retirent pas (on les annule). Remplace le bouton « Ignorer » des échecs.
 

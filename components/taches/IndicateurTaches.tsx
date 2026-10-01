@@ -13,7 +13,7 @@ import { urlMiniature } from "@/lib/miniatures";
  * = terminées non vues. Le panneau liste les tâches (voir lib/taches.ts) ; un clic
  * mène à l'asset (popup ouverte sur le résultat) ou au plan. */
 export function IndicateurTaches() {
-  const { taches, resume, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler, viderFile } = useTaches();
+  const { taches, resume, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe } = useTaches();
   const [confirmerVidage, setConfirmerVidage] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
 
@@ -130,20 +130,30 @@ export function IndicateurTaches() {
 
           {echecs.length > 0 ? (
             <section aria-label="Échecs et annulations">
-              <h3 className="tq-sec">{echecs.some((x) => x.statut === "annulee") ? "Échecs et annulations" : "Échecs"}</h3>
+              <div className="tq-sec-ligne">
+                <h3 className="tq-sec">{echecs.some((x) => x.statut === "annulee") ? "Échecs et annulations" : "Échecs"}</h3>
+                <button type="button" className="tq-ignorer" onClick={() => viderListe("echecs")} title="Retirer ces tâches de la liste (rien n'est supprimé)">
+                  Vider la liste
+                </button>
+              </div>
               <ul className="tq-liste">
                 {echecs.map((x) => (
-                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onIgnorer={x.vuAt == null ? () => marquerVuLocal([x.cle]) : undefined} />
+                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onRetirer={() => retirer([x.cle])} />
                 ))}
               </ul>
             </section>
           ) : null}
           {finies.length > 0 ? (
             <section aria-label="Terminées">
-              <h3 className="tq-sec">Terminées</h3>
+              <div className="tq-sec-ligne">
+                <h3 className="tq-sec">Terminées</h3>
+                <button type="button" className="tq-ignorer" onClick={() => viderListe("terminees")} title="Retirer ces tâches de la liste (rien n'est supprimé)">
+                  Vider la liste
+                </button>
+              </div>
               <ul className="tq-liste">
                 {finies.map((x) => (
-                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} />
+                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onRetirer={() => retirer([x.cle])} />
                 ))}
               </ul>
             </section>
@@ -165,7 +175,7 @@ function heure(iso: string | null): string {
   return d.toDateString() === auj.toDateString() ? hm : `${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} ${hm}`;
 }
 
-function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () => void; onIgnorer?: () => void; onAnnuler?: () => void }) {
+function Entree({ x, onOuvrir, onRetirer, onAnnuler }: { x: Tache; onOuvrir: () => void; onRetirer?: () => void; onAnnuler?: () => void }) {
   // Une tâche en cours coûte du temps de GPU : on demande confirmation avant de la
   // couper. Une tâche en attente s'annule d'un clic (rien n'est perdu).
   const [confirmer, setConfirmer] = useState(false);
@@ -253,9 +263,9 @@ function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () 
           ) : null}
         </span>
       </Link>
-      {onIgnorer ? (
-        <button type="button" className="tq-ignorer" onClick={onIgnorer}>
-          Ignorer
+      {onRetirer ? (
+        <button type="button" className="tq-retirer" onClick={onRetirer} aria-label={`Retirer ${x.libelle} de la liste`} title="Retirer de la liste">
+          ✕
         </button>
       ) : null}
       {onAnnuler && !x.annulationDemandee ? (

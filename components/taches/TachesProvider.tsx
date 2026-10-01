@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { annulerTache, marquerToutVu, marquerVu, viderFile as viderFileServeur } from "@/app/taches/actions";
+import { annulerTache, marquerToutVu, marquerVu, retirerTaches, viderFile as viderFileServeur, viderListe as viderListeServeur } from "@/app/taches/actions";
 import { etatNotifications } from "@/lib/notifications-navigateur";
 import type { ResumeTaches, Tache } from "@/lib/taches";
 
@@ -32,6 +32,10 @@ type Contexte = {
   annuler: (cle: string) => void;
   /** Retire de la file tout ce qui attend (ce qui tourne continue). */
   viderFile: () => void;
+  /** Retire des tâches finies de la liste (✕) : masquées, rien n'est supprimé. */
+  retirer: (cles: string[]) => void;
+  /** Vide une catégorie de la liste : les terminées, ou les échecs et annulations. */
+  viderListe: (categorie: "terminees" | "echecs") => void;
 };
 
 const Ctx = createContext<Contexte>({
@@ -45,6 +49,8 @@ const Ctx = createContext<Contexte>({
   marquerToutVuLocal: () => undefined,
   annuler: () => undefined,
   viderFile: () => undefined,
+  retirer: () => undefined,
+  viderListe: () => undefined,
 });
 
 export function useTaches(): Contexte {
@@ -210,9 +216,27 @@ export function TachesProvider({ children }: { children: ReactNode }) {
     void viderFileServeur().then(charger);
   }, [appliquerVu, charger]);
 
+  const retirer = useCallback(
+    (cles: string[]) => {
+      const actif = (x: Tache) => x.statut === "en_attente" || x.statut === "en_cours";
+      appliquerVu(tachesRef.current.filter((x) => !(cles.includes(x.cle) && !actif(x))));
+      void retirerTaches(cles).then(charger);
+    },
+    [appliquerVu, charger],
+  );
+
+  const viderListe = useCallback(
+    (categorie: "terminees" | "echecs") => {
+      const dans = (x: Tache) => (categorie === "terminees" ? x.statut === "termine" : x.statut === "echoue" || x.statut === "annulee");
+      appliquerVu(tachesRef.current.filter((x) => !dans(x)));
+      void viderListeServeur(categorie).then(charger);
+    },
+    [appliquerVu, charger],
+  );
+
   const valeur = useMemo<Contexte>(
-    () => ({ taches, resume, pret, panneauOuvert, setPanneauOuvert, rafraichir: charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile }),
-    [taches, resume, pret, panneauOuvert, charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile],
+    () => ({ taches, resume, pret, panneauOuvert, setPanneauOuvert, rafraichir: charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe }),
+    [taches, resume, pret, panneauOuvert, charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe],
   );
 
   return <Ctx.Provider value={valeur}>{children}</Ctx.Provider>;

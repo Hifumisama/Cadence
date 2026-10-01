@@ -5304,3 +5304,19 @@ a.voix-chip:hover {
   justify-content: space-between;
   gap: var(--sp-2);
 }
+
+.tq-retirer {
+  flex: none;
+  align-self: flex-start;
+  padding: 2px 6px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  opacity: 0.5;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tq-retirer:hover,
+.tq-retirer:focus-visible {
+  opacity: 1;
+}
