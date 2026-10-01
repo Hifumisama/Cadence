@@ -13,6 +13,7 @@
     "agents:e2e": "tsx scripts/agents-e2e.ts",
     "llm:essai": "tsx scripts/llm-essai.ts",
     "llm:tache": "tsx scripts/llm-tache.ts",
+    "plan-h3:essai": "tsx scripts/plan-h3-essai.ts",
     "worker": "tsx watch worker/index.ts",
     "worker:start": "tsx worker/index.ts",
     "db:generate": "drizzle-kit generate",

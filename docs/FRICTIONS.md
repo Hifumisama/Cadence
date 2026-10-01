@@ -1350,3 +1350,21 @@ Un LOT, comme les scénarios (même infrastructure, voir « Étape 1 »). Décis
   (entrée du skill), `genererRegistre` (service), `postSousTacheRegistre` (worker), `ChoixAssets` (UI).
   Testé : `lib/agents/registre.test.ts` et `npm run agents:e2e` (scénario du registre, faux modèle).
 
+### Étape 3 en préparation : entrée de plan-h3 et essai de qualité (2026-10-02)
+- `entreePlanH3` (lib/agents/contexte.ts) assemble l'entrée de `plan-h3` pour un plan : intention,
+  position dans la scène, durée et fps visés, scène, épisode, plans voisins, registre (code,
+  description canonique, méthode, prompt, image ou non ; hors voix, sons et plans clés), répliques
+  du plan (uuid, locuteur, texte exact, durée mesurée), clause de style, extraits du brief. Sur un
+  plan réel du projet 1 : ≈ 3 500 jetons d'entrée pour ≈ 10 500 de prompt système.
+- `controlerSortiePlanH3` (lib/agents/plan-h3-controles.ts, pur, testé) vérifie le CONTRAT de la sortie
+  (durée 5-15, 6 sujets au plus, assets du registre, jeton `{picture}`, placeholders `[[CODE]]` cités
+  dans les sujets, numérotation et timecodes des shots, verbatim des répliques, pas de mots par
+  seconde) ; il ne juge pas la mise en scène.
+- `npm run plan-h3:essai -- --projet <id>` : passe des plans réels par la file du worker et écrit un
+  rapport comparant la sortie du modèle à la fiche écrite à la main (`data/_essais/`). Décide si gemma
+  suffit pour l'étape 3 ou s'il faut Claude. Aucun applicateur de fiche de plan n'est construit avant.
+- Décision d'ordre (utilisateur, 2026-10-02) : les arbres d'assets (dérivés, accessoires) se traitent
+  APRÈS plan-h3, depuis les plans : plan-h3 déclarera ses assets manquants de façon structurée
+  (nom, type, parent éventuel, description, raison), créés avec le plan dans la même proposition ; un
+  lot `prompt-asset` écrira ensuite leurs prompts, en édition à partir du parent quand c'est pertinent.
+

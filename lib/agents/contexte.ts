@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, inArray, lt } from "drizzle-orm";
-import { assets, briefs, episodes, planRefs, plans, projects, scenes, seasons } from "../../db/schema";
+import { assets, briefs, episodes, planDialogues, planRefs, plans, projects, repliques, scenes, seasons } from "../../db/schema";
 import { variantePromptAsset } from "../llm/variantes";
 import type { Db } from "./applicateurs/commun";
 import type { BriefContenu, ContexteUtilise, Position } from "./types";
@@ -266,6 +266,115 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
       planACorriger: { titre: p.titre, description: p.description ?? "", dureeSecondes: p.duree },
       plansVoisins: c.lesPlans.filter((x) => x.uuid !== p.uuid).map((x) => ({ titre: x.titre, description: x.description })),
       registre: c.registre,
+      briefExtrait: c.extrait,
+      consigne,
+      ...(retour ? { retourUtilisateur: retour } : {}),
+    },
+  };
+}
+
+/** L'entrée de `plan-h3` pour UN plan (étape 3 : la fiche de plan). Assemblée par l'application, jamais
+ * devinée (voir agents/skills/plan-h3/regles.md, « Ce que tu reçois ») :
+ * - `plan` : titre, intention (la description narrative, une ou deux phrases), position dans la scène,
+ *   durée visée et fps ;
+ * - `scene`, `episode` : de quoi situer le plan ;
+ * - `plansVoisins` : le précédent et le suivant (pour le raccord), titre et description ;
+ * - `registre` : pour chaque asset candidat (hors voix, sons et plans clés) son code, sa description
+ *   canonique (français), sa méthode, son prompt de génération (anglais) et s'il a une image ;
+ * - `repliques` : celles du plan (uuid, locuteur, texte exact, durée mesurée si la prise existe) ;
+ * - `clauseStyleDuProjet`, `briefExtrait` : le style visuel, la continuité, les rimes, les pièges. */
+export async function entreePlanH3(
+  db: Db,
+  projectId: number,
+  planUuid: string,
+  consigne: string,
+  retour?: string,
+): Promise<(EntreeSkill & { plan: { id: number; uuid: string; titre: string; episodeId: number } }) | null> {
+  const [p] = await db
+    .select()
+    .from(plans)
+    .where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
+  if (!p) return null;
+  const c = await contexteEpisode(db, projectId, p.episodeId);
+  if (!c) return null;
+  const [scene] = p.sceneId == null ? [] : await db.select({ titre: scenes.titre, fonction: scenes.fonction }).from(scenes).where(eq(scenes.id, p.sceneId));
+  const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
+
+  const dansLaScene = c.lesPlans.filter((x) => x.sceneId === p.sceneId);
+  const rang = Math.max(0, dansLaScene.findIndex((x) => x.uuid === p.uuid));
+  const i = c.lesPlans.findIndex((x) => x.uuid === p.uuid);
+  const voisin = (x: { titre: string; description: string; dureeGenerationSecondes: number | null } | undefined) =>
+    x ? { titre: x.titre, description: x.description, dureeSecondes: x.dureeGenerationSecondes } : null;
+
+  const registre = await db
+    .select({
+      code: assets.code,
+      type: assets.type,
+      description: assets.description,
+      methode: assets.methodeGeneration,
+      prompt: assets.promptGeneration,
+      fichier: assets.fichier,
+    })
+    .from(assets)
+    .where(eq(assets.projectId, projectId))
+    .orderBy(asc(assets.code));
+  const candidats = registre
+    .filter((a) => a.type !== "voix" && a.type !== "sfx" && a.type !== "keyframe")
+    .map((a) => ({
+      code: a.code,
+      type: a.type,
+      descriptionCanonique: a.description ?? "",
+      methode: a.methode ?? "generation",
+      promptGeneration: a.prompt ?? "",
+      aUneImage: !!a.fichier,
+    }));
+
+  const dialogues = await db
+    .select({
+      uuid: repliques.uuid,
+      locuteurTexte: repliques.locuteurTexte,
+      locuteurCode: assets.code,
+      texte: repliques.texte,
+      dureeSecondes: repliques.dureeSecondes,
+      slot: planDialogues.slot,
+    })
+    .from(planDialogues)
+    .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
+    .leftJoin(assets, eq(assets.id, repliques.locuteurId))
+    .where(eq(planDialogues.planId, p.id))
+    .orderBy(asc(planDialogues.slot));
+
+  const contexte: ContexteUtilise[] = [
+    { type: "plan", libelle: `Plan · ${p.titre}`, ref: p.uuid },
+    { type: "episode", libelle: `Épisode ${c.ep.numero} · ${c.ep.titre}`, ref: String(c.ep.id) },
+    { type: "registre", libelle: `Registre : ${candidats.length} asset${candidats.length > 1 ? "s" : ""} candidat${candidats.length > 1 ? "s" : ""}` },
+    ...(dialogues.length ? [{ type: "plan" as const, libelle: `${dialogues.length} réplique${dialogues.length > 1 ? "s" : ""} du plan` }] : []),
+    ...(projet?.clauseStyle ? [{ type: "projet" as const, libelle: "Clause de style du projet" }] : []),
+    ...c.contexteBrief,
+  ];
+  return {
+    skill: "plan-h3",
+    contexte,
+    plan: { id: p.id, uuid: p.uuid, titre: p.titre, episodeId: p.episodeId },
+    entree: {
+      plan: {
+        titre: p.titre,
+        intention: p.description ?? "",
+        positionDansLaScene: dansLaScene.length > 0 ? `${rang + 1}/${dansLaScene.length}` : "",
+        dureeViseeSecondes: p.dureeGenerationSecondes,
+        fps: p.fps,
+      },
+      scene: scene ? { titre: scene.titre, fonction: scene.fonction ?? "" } : null,
+      episode: { titre: c.ep.titre, resume: c.ep.resume },
+      plansVoisins: { precedent: voisin(c.lesPlans[i - 1]), suivant: voisin(c.lesPlans[i + 1]) },
+      registre: candidats,
+      repliques: dialogues.map((d) => ({
+        repliqueId: d.uuid,
+        locuteur: d.locuteurCode ?? d.locuteurTexte ?? "",
+        texte: d.texte,
+        ...(d.dureeSecondes != null ? { dureeMesureeSecondes: d.dureeSecondes } : {}),
+      })),
+      clauseStyleDuProjet: projet?.clauseStyle ?? "",
       briefExtrait: c.extrait,
       consigne,
       ...(retour ? { retourUtilisateur: retour } : {}),
