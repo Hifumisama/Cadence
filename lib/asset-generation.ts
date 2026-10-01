@@ -93,11 +93,55 @@ export type AssetGenerable = {
   methodeGeneration?: string | null;
 };
 
-/** Pourquoi on ne peut pas générer pour cet asset, ou null. Seule la voix est
- * refusée : sa fabrication passe par le casting vocal. */
+/** Pourquoi on ne peut pas générer d'IMAGE pour cet asset, ou null. La voix est
+ * refusée (casting vocal) ; un son (sfx) aussi : il se génère par la popup audio
+ * (raisonAudioNonGenerable). */
 export function raisonNonGenerable(a: AssetGenerable): string | null {
   if (a.type === "voix") return "Une voix se fabrique au casting vocal, pas par image.";
+  if (a.type === "sfx") return "Un son se génère avec la génération audio, pas par image.";
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Génération audio (SFX, Stable Audio 3 — workflows/audio/SFX_Generate_Sounds.json).
+// Même table que les images (`asset_generations`, méthode « audio ») : la file,
+// l'annulation, la reprise et le header en profitent sans duplication. La durée
+// est un paramètre du workflow, séparé du prompt.
+// ---------------------------------------------------------------------------
+
+export const METHODE_AUDIO = "audio";
+export const DUREE_AUDIO_MIN = 1;
+export const DUREE_AUDIO_MAX = 60;
+export const DUREE_AUDIO_DEFAUT = 4;
+
+/** Ce que la popup audio envoie à `lancerGenerationAudio`. La seed est tirée côté
+ * serveur. */
+export type DemandeAudio = {
+  prompt: string;
+  dureeSecondes: number;
+};
+
+/** Seuls les assets `sfx` se génèrent en audio (la voix passe par le casting). */
+export function raisonAudioNonGenerable(type: string): string | null {
+  if (type === "sfx") return null;
+  if (type === "voix") return "Une voix se fabrique au casting vocal, pas par la génération audio.";
+  return "La génération audio ne concerne que les sons (type sfx).";
+}
+
+export function dureeAudioValide(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v >= DUREE_AUDIO_MIN && v <= DUREE_AUDIO_MAX;
+}
+
+/** Validation de la structure d'une demande audio (sans base ni disque). */
+export function raisonDemandeAudioInvalide(d: DemandeAudio): string | null {
+  if (!d.prompt?.trim()) return "Écris le prompt du son.";
+  if (!dureeAudioValide(d.dureeSecondes)) return `Durée hors limites (${DUREE_AUDIO_MIN} à ${DUREE_AUDIO_MAX} secondes).`;
+  return null;
+}
+
+/** « 4 s », « 2,5 s » : durée d'un son pour l'affichage. */
+export function formaterDuree(secondes: number): string {
+  return `${String(Math.round(secondes * 10) / 10).replace(".", ",")} s`;
 }
 
 export const MEGAPIXELS_MIN = 0.3;

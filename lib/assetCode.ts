@@ -54,7 +54,9 @@ export function estMethodeAsset(v: string): v is MethodeAsset {
   return (METHODES_ASSET as readonly string[]).includes(v);
 }
 
-/** Les voix se fabriquent au casting vocal : la méthode d'image n'a pas de sens. */
+/** Les voix se fabriquent au casting vocal et les sons par la génération audio :
+ * la méthode d'image (génération / édition) n'a de sens ni pour l'une ni pour
+ * l'autre. */
 export function methodeApplicable(type: string): boolean {
-  return type !== "voix";
+  return type !== "voix" && type !== "sfx";
 }

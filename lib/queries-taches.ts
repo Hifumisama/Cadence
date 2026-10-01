@@ -2,6 +2,7 @@ import { db } from "../db";
 import { agentRuns, assetGenerations, assets, jobs, plans, projects } from "../db/schema";
 import { eq, gte, isNull, or, inArray } from "drizzle-orm";
 import { ERREUR_ANNULEE } from "./annulation";
+import { METHODE_AUDIO, formaterDuree } from "./asset-generation";
 import { generationMediaSrc } from "./media";
 import {
   LIBELLE_SKILL,
@@ -62,8 +63,16 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     cle: cleImage(g.uuid),
     genre: "image",
     statut: g.statut,
-    libelle: code,
-    detail: g.methode === "edition" ? "À partir d'images" : "À partir du texte",
+    // Un son se reconnaît dans le panneau : « Son · CODE », sans miniature d'aperçu.
+    libelle: g.methode === METHODE_AUDIO ? `Son · ${code}` : code,
+    detail:
+      g.methode === METHODE_AUDIO
+        ? g.dureeSecondes != null
+          ? `Génération audio · ${formaterDuree(g.dureeSecondes)}`
+          : "Génération audio"
+        : g.methode === "edition"
+          ? "À partir d'images"
+          : "À partir du texte",
     href: `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
     projectId,
     assetId: g.assetId,
@@ -145,6 +154,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const taches = gardees.map((x) => {
     const g = parCle.get(x.cle);
     if (!g) return x;
+    if (g.methode === METHODE_AUDIO) return x; // un son n'a ni vignette ni aperçu
     if (g.statut === "termine") return { ...x, vignetteSrc: generationMediaSrc(g.assetId, g.fichier) };
     if (g.statut === "en_cours" && g.apercuAt) {
       const url = generationMediaSrc(g.assetId, g.apercuFichier);

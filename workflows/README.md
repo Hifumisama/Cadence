@@ -8,7 +8,7 @@ dépendance d'exécution.
 - `upscale/` — passe upscale isolée si distincte du workflow principal
 - `voice-clone/` — Qwen3-TTS (Voice Design) puis CosyVoice3 (répliques) (F06) ; **pas branché**, voir plus bas
 - `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
-- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; **pas branché**, voir plus bas
+- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas
 
 ## Avant de committer un workflow
 
@@ -88,10 +88,12 @@ moteur à l'autre ne dépendra plus de ce nœud.
 
 ### `SFX_Generate_Sounds.json` — bruitages et ambiances (Stable Audio 3 Medium)
 
-**Aucun code ne le branche encore** : ni table de générations audio, ni tâche du
-worker, ni écran. Il est fourni (2026-10-01) avec son guide de prompts
-(`agents/skills/prompt-asset/guide-stable-audio-sfx.md`). Ce que le backend devra
-injecter (les valeurs du fichier sont des **valeurs de test**, remplacées à la
+Branché (2026-10-01) : `worker/comfyui/audioMapping.ts` (injection) et
+`worker/images.ts` (tâche, méthode `audio` de `asset_generations`) ; popup
+`GenerationAudioDialog` sur la fiche d'un asset `sfx`. `audioMapping.test.ts` lit ce
+fichier et casse si un des nœuds ci-dessous disparaît après un ré-export. Guide de
+prompts : `agents/skills/prompt-asset/guide-stable-audio-sfx.md`. Ce que le code
+injecte (les valeurs du fichier sont des **valeurs de test**, remplacées à la
 soumission) :
 
 | Donnée | Nœud | Champ | Note |
@@ -99,7 +101,8 @@ soumission) :
 | Prompt du son | `52:31` (PrimitiveStringMultiline) | `value` | une ou deux phrases en anglais, sans durée ; part tel quel dans le modèle tant que la réécriture est coupée |
 | Durée | `52:36` (PrimitiveFloat) | `value` | secondes, **paramètre séparé du texte** ; alimente `EmptyLatentAudio` (`52:11`, champ `seconds`) |
 | Seed | `52:3` (KSampler) | `seed` | |
-| Sortie | `19` (SaveAudioMP3) | `filename_prefix`, `quality` | **MP3** (qualité `V0`), préfixe `audio/stable_audio_3` ; la clé du résultat dans `/history` (vraisemblablement `audio`) est à vérifier au premier essai |
+| Réécriture | `52:35` (PrimitiveBoolean) | `value` | **forcé à `false`** à chaque soumission (voir plus bas) |
+| Sortie | `19` (SaveAudioMP3) | `filename_prefix`, `quality` | **MP3** (qualité `V0`), préfixe `audio/cadence_<CODE>` (le sous-dossier `audio/` est conservé) ; résultat vérifié sur un vrai run : `/history` → `outputs["19"].audio = [{filename, subfolder: "audio", type: "output"}]` |
 
 Fixe, à ne pas toucher : checkpoint `stable_audio_3_medium` (`52:25`), encodeur
 `t5gemma_b_b_ul2` (`52:26`), 8 étapes, CFG 1, `lcm` / `simple` (`52:3`), négatif

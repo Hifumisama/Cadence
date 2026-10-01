@@ -5,6 +5,7 @@ import { MEDIA_ROOT } from "../../lib/media";
 import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
 import { etatDansLaFile, type EtatDansLaFile } from "../../lib/annulation";
 import { injecterValeurs, nomFichierSortie, NODE_IDS } from "./mapping";
+import { cheminSortieDistant, premierFichierSortie } from "./sortie";
 import { ouvrirSuiviWs, type EtatHistorique } from "./wsSuivi";
 
 /**
@@ -106,13 +107,10 @@ export class HttpComfyUIClient implements ComfyUIClient {
     if (entree.status?.status_str === "error") {
       return { statut: "erreur", message: entree.status?.messages?.map(String).join(" | ") ?? "Erreur ComfyUI" };
     }
-    const images = entree.outputs?.[nodeIdSortie]?.images;
-    if (!images?.length) return { statut: "en_cours" };
-    const fichier = images[0];
-    return {
-      statut: "termine",
-      cheminSortieDistant: `${fichier.subfolder ?? ""}/${fichier.filename}`.replace(/^\//, ""),
-    };
+    // Image (`images`), son (`audio`, à confirmer) ou autre : voir sortie.ts.
+    const fichier = premierFichierSortie(entree.outputs?.[nodeIdSortie]);
+    if (!fichier) return { statut: "en_cours" };
+    return { statut: "termine", cheminSortieDistant: cheminSortieDistant(fichier) };
   }
 
   async poll(promptId: string): Promise<PollResult> {

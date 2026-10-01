@@ -8,6 +8,11 @@ import {
   loraParDefaut,
   nomSourceDistante,
   nouvelleSeed,
+  DUREE_AUDIO_DEFAUT,
+  dureeAudioValide,
+  formaterDuree,
+  raisonAudioNonGenerable,
+  raisonDemandeAudioInvalide,
   raisonDemandeInvalide,
   raisonNonGenerable,
   type DemandeGeneration,
@@ -66,6 +71,32 @@ test("demande : mode images, de 1 à 3 sources sans doublon", () => {
   assert.match(raisonDemandeInvalide({ ...images, sources: [a, a] }) ?? "", /deux fois/);
   assert.match(raisonDemandeInvalide({ ...images, sources: [c, { ...c }] }) ?? "", /deux fois/);
   assert.match(raisonDemandeInvalide({ ...images, sources: [{ origine: "web" } as never] }) ?? "", /inconnue/);
+});
+
+test("un son (sfx) ne se génère pas par image, une image pas par audio", () => {
+  assert.match(raisonNonGenerable({ type: "sfx" }) ?? "", /audio/);
+  assert.equal(raisonAudioNonGenerable("sfx"), null);
+  assert.match(raisonAudioNonGenerable("decor") ?? "", /sons/);
+  assert.match(raisonAudioNonGenerable("voix") ?? "", /casting vocal/);
+});
+
+test("demande audio : prompt non vide, durée entre 1 et 60 s", () => {
+  const ok = { prompt: "Heavy oak door creaking open slowly.", dureeSecondes: DUREE_AUDIO_DEFAUT };
+  assert.equal(raisonDemandeAudioInvalide(ok), null);
+  assert.equal(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 2.5 }), null);
+  assert.equal(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 1 }), null);
+  assert.equal(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 60 }), null);
+  assert.match(raisonDemandeAudioInvalide({ ...ok, prompt: "  " }) ?? "", /prompt/);
+  assert.match(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 0.5 }) ?? "", /Durée/);
+  assert.match(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 61 }) ?? "", /Durée/);
+  assert.match(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: Number.NaN }) ?? "", /Durée/);
+  assert.equal(dureeAudioValide("4"), false);
+});
+
+test("durée affichée : décimale à la française", () => {
+  assert.equal(formaterDuree(4), "4 s");
+  assert.equal(formaterDuree(2.5), "2,5 s");
+  assert.equal(formaterDuree(2.449), "2,4 s");
 });
 
 test("nom de source côté ComfyUI : unique par génération et par rang", () => {

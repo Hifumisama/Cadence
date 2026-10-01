@@ -304,6 +304,9 @@ export const assets = pgTable("assets", {
   // pas encore choisi (un master vaut "generation"). Sans objet pour une voix.
   methodeGeneration: varchar("methode_generation", { length: 12 }),
   fichier: varchar("fichier", { length: 255 }),
+  // Durée du son retenu, en secondes (type sfx : paramètre de la génération audio,
+  // qui n'est pas dans le prompt). null pour les autres types.
+  dureeSecondes: real("duree_secondes"),
   critique: boolean("critique").notNull().default(false),
   deriveDeId: integer("derive_de_id"),
 }, (table) => [
@@ -384,6 +387,11 @@ export const assetGenerations = pgTable("asset_generations", {
   // Mode « à partir d'images » (méthode edition) : true = Lightning 4 étapes,
   // false = « Qualité » (40 étapes CFG 4). null pour le mode texte.
   lightning: boolean("lightning"),
+  // Génération audio (méthode « audio », Stable Audio 3) : durée demandée en
+  // secondes, paramètre séparé du prompt. null pour les images. aspect/megapixels
+  // gardent leurs valeurs par défaut pour l'audio : l'affichage se règle sur la
+  // méthode, jamais sur ces deux colonnes.
+  dureeSecondes: real("duree_secondes"),
   seed: text("seed").notNull(),
   comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
   fichier: varchar("fichier", { length: 255 }),

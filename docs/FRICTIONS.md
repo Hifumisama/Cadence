@@ -1010,40 +1010,73 @@ Vérifié sur le serveur de l'utilisateur (ComfyUI 0.38, llama-swap, 2026-10-01)
   lui-même après 5 min d'inactivité ; `/unload` évite d'attendre ce délai quand
   ComfyUI reprend la main.
 
-### Bruitages (SFX) : workflow Stable Audio 3 fourni, pas encore branché (2026-10-01)
+### Bruitages (SFX) : génération audio branchée (Stable Audio 3, 2026-10-01)
 `workflows/audio/SFX_Generate_Sounds.json` génère un son à partir d'un prompt court
 et d'une durée (Stable Audio 3 Medium, sortie MP3). Le contrat des nœuds est dans
-`workflows/README.md`. Aucune génération audio n'est branchée : c'est le prochain
-palier des tâches ComfyUI dédiées (image faite, vidéo existante), pas encore
-construit. Décisions :
+`workflows/README.md`. La génération audio est branchée **sur le modèle des images**,
+validée sur le vrai ComfyUI. Décisions :
+- **Même table, même file** : une génération audio est une ligne de
+  `asset_generations` avec `methode = 'audio'` (colonne `duree_secondes`, migration
+  0032). File, header, annulation, reprise, purge, progression WebSocket, candidats
+  (8 gardés) et « vu / non vu » en profitent sans duplication ; le worker
+  (`worker/images.ts`) traite les trois méthodes. `aspect` et `megapixels` gardent
+  leurs valeurs par défaut pour un son : l'affichage se règle sur la méthode, jamais
+  sur ces colonnes. Pas de table `asset_generation_audio` : elle aurait dupliqué toute
+  la machinerie pour une colonne.
+- **Réservée aux assets `sfx`, et réciproque** : un `sfx` ne peut plus lancer de
+  génération d'image (`raisonNonGenerable`), un autre type ne peut pas lancer d'audio
+  (`raisonAudioNonGenerable`) ; `methodeApplicable` exclut aussi `sfx` (pas de
+  méthode « génération / édition » pour un son, la fiche n'affiche plus le choix).
+  Action serveur dédiée `lancerGenerationAudio` (au lieu d'un troisième mode de
+  `DemandeGeneration`, qui aurait mélangé deux formulaires sans rien en commun).
 - **La durée est un paramètre séparé du texte** (`EmptyLatentAudio`), pas une
   mention dans le prompt. Le workflow a un mode de réécriture (un petit LLM étend
-  l'idée selon une catégorie et ajoute « Length: X seconds ») : il reste **coupé**,
-  l'agent `prompt-asset` en tient le rôle (reproductible, même principe que
-  `prompt_enhance` de Krea 2). Il écrit donc un prompt de 1 à 2 phrases en anglais
-  **et** une `dureeSecondes` (entier, 15 au plus sauf raison dite : un plan dure 4 à
-  15 s).
+  l'idée selon une catégorie et ajoute « Length: X seconds ») : il reste **coupé**
+  (`Enable_Reprompt` forcé à `false` par `worker/comfyui/audioMapping.ts`, test à
+  l'appui), l'agent `prompt-asset` en tient le rôle (reproductible, même principe que
+  `prompt_enhance` de Krea 2). Il écrit un prompt de 1 à 2 phrases en anglais **et**
+  une `dureeSecondes` (entier, 15 au plus sauf raison dite : un plan dure 4 à 15 s).
+- **La durée vit à deux endroits** : `assets.duree_secondes` (durée du son retenu,
+  éditable sur la fiche d'un `sfx`, 1 à 60 s) **et** sur la demande de génération
+  (instantané, comme le prompt). La popup audio préremplit la durée de l'asset (4 s
+  à défaut) ; adopter un candidat reprend son **son**, son prompt **et sa
+  durée** sur l'asset. La valeur que `prompt-asset` renvoie dans `dureeSecondes`
+  **pourra préremplir** ce champ : rien ne l'y écrit pour l'instant (aucun appel LLM
+  ajouté dans ce lot).
+- **UI** : sur la fiche d'un `sfx`, « Générer… » (à côté de l'import) ouvre une popup
+  audio dédiée (`GenerationAudioDialog`) : prompt, durée (champ + 2 / 4 / 8 / 15 s),
+  seed non exposée ; à droite progression (« étape n/8 », pas d'aperçu : un son n'en
+  a pas), lecteur `<audio>` du candidat, Utiliser / Supprimer, annulation, file,
+  liste des candidats (durée + lecteur chacun). Le header affiche « Son · CODE » et
+  « Génération audio · 4 s », sans miniature.
 - **Guide de prompts** : `agents/skills/prompt-asset/guide-stable-audio-sfx.md`
   (sources officielles Stability AI et ComfyUI, gabarit et exemples du workflow). Le
   skill traite un asset de type `sfx` avec ce guide ; le schéma de sortie gagne
   `dureeSecondes` (optionnel, `sfx` seulement) et le type de remarque
   `voix-ou-musique`. Pas de voix (casting vocal) ni de musique dans un `sfx`.
-- **À éprouver** (peu coûteux : 8 étapes) : le tag `TrackType: SFX` en tête du texte
-  (recommandé par la doc officielle, ajouté par le code et non par l'agent), et la
-  mention « Length » dans un prompt brut.
-- **Pour le brancher** (rien de tout cela n'est construit) : une table de
-  générations audio sur le modèle de `asset_generations` (prompt, durée, seed,
-  statut, fichier MP3, progression), une tâche du worker comme `worker/images.ts`
-  (injection par nœud, test qui lit le vrai JSON), un quatrième genre dans la file
-  (même domaine GPU que ComfyUI), puis un bouton « Générer le son » sur la fiche
-  d'un asset `sfx` avec lecteur audio et adoption du candidat (le fichier devient
-  celui de l'asset, comme une image).
-- **Question ouverte : où vit la durée côté base ?** Un champ de l'asset
-  (`assets.dureeSecondes`, que le prompt-asset proposerait et que l'utilisateur
-  règle) ou seulement un paramètre de la demande de génération ? Le premier évite
-  de la ressaisir à chaque génération ; le second est plus simple et cohérent avec
-  le format et les mégapixels des images (propres à la demande).
-
+- **Sortie de ComfyUI, vérifiée** : `/history/<id>` → `outputs["19"].audio` =
+  `[{filename: "cadence_<CODE>_00001.mp3", subfolder: "audio", type: "output"}]`
+  (la clé est bien `audio`, pas `images`). La lecture (`worker/comfyui/sortie.ts`) reste
+  tolérante : `images`, `audio`, `gifs`, `videos`, puis toute liste d'objets avec un
+  `filename`. `fetchOutput` (`/view`) sert le MP3 tel quel.
+- **Mesuré (essai réel, 2026-10-01)** : son de 4 s en ~2,3 s d'exécution ComfyUI
+  (une dizaine de secondes de bout en bout avec la file), son de 60 s en ~7 s ; MP3
+  MPEG-1 160 kbit/s 44,1 kHz (~163 Ko pour 4 s, un tag ID3 en tête), durée relue par
+  le navigateur 3,99 s pour 4 s demandées. Annulation d'une génération **en cours** :
+  `annulee` ~2 s après le drapeau, `execution_interrupted` chez ComfyUI, file vide,
+  aucun fichier laissé. Annulation d'une génération en file : immédiate. Les MP3 de
+  test restent dans le dossier `output/audio/` du serveur ComfyUI (Cadence ne les
+  supprime pas, comme pour les images).
+- **Mode `stub`** : `StubComfyUIClient` détecte un graphe qui contient `SaveAudioMP3` et
+  produit un MP3 silencieux valide (`stubAudio.ts`, ~32 Ko) : toute la chaîne se teste
+  sans ComfyUI.
+- **À éprouver** (peu coûteux : ~2 s) : le tag `TrackType: SFX` en tête du texte
+  (recommandé par la doc officielle ; le code **ne l'ajoute pas** pour l'instant), et la
+  mention « Length » dans un prompt brut. Le chemin du workflow se surcharge par
+  `COMFYUI_WORKFLOW_AUDIO_PATH`.
+- **Reste** : préremplir `duree_secondes` depuis la réponse du skill ; ambiances de plus
+  de 15 s et raccord en boucle (non essayés) ; pas de miniature/forme d'onde dans le
+  registre des assets.
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
 pressentie : un **catalogue de voix nommées**, chacune avec un échantillon de

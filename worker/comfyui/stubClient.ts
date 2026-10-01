@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import type { EtatDansLaFile } from "../../lib/annulation";
 import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
+import { mp3Factice } from "./stubAudio";
 import { pngFactice } from "./stubPng";
 
 /**
@@ -32,8 +33,10 @@ export class StubComfyUIClient implements ComfyUIClient {
     return { statut: "termine", cheminSortieDistant: `stub/${promptId}.mp4` };
   }
 
-  async submitGraph(): Promise<string> {
-    const promptId = `stub-img-${Date.now()}`;
+  async submitGraph(graphe?: Record<string, unknown>): Promise<string> {
+    // Un graphe qui sauvegarde de l'audio (SaveAudioMP3) donne un son factice.
+    const audio = Object.values(graphe ?? {}).some((n) => (n as { class_type?: string }).class_type === "SaveAudioMP3");
+    const promptId = `stub-${audio ? "aud" : "img"}-${Date.now()}`;
     this.enCours.set(promptId, Date.now());
     return promptId;
   }
@@ -41,7 +44,7 @@ export class StubComfyUIClient implements ComfyUIClient {
   async pollImage(promptId: string): Promise<PollResult> {
     const debut = this.enCours.get(promptId) ?? 0;
     if (Date.now() - debut < 2000) return { statut: "en_cours" };
-    return { statut: "termine", cheminSortieDistant: `stub/${promptId}.png` };
+    return { statut: "termine", cheminSortieDistant: `stub/${promptId}.${promptId.startsWith("stub-aud-") ? "mp3" : "png"}` };
   }
 
   /** Rejoue ~2 s de progression (8 étapes, un aperçu à mi-parcours) : de quoi
@@ -95,6 +98,8 @@ export class StubComfyUIClient implements ComfyUIClient {
     // (candidats, adoption, aperçu) se teste sans ComfyUI.
     if (cheminLocalCible?.toLowerCase().endsWith(".png")) {
       await writeFile(cheminLocalCible, pngFactice());
+    } else if (cheminLocalCible?.toLowerCase().endsWith(".mp3")) {
+      await writeFile(cheminLocalCible, mp3Factice());
     }
   }
 }

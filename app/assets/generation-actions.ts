@@ -7,7 +7,16 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { access, copyFile, mkdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
-import { nouvelleSeed, raisonDemandeInvalide, raisonNonGenerable, type DemandeGeneration } from "@/lib/asset-generation";
+import {
+  METHODE_AUDIO,
+  nouvelleSeed,
+  raisonAudioNonGenerable,
+  raisonDemandeAudioInvalide,
+  raisonDemandeInvalide,
+  raisonNonGenerable,
+  type DemandeAudio,
+  type DemandeGeneration,
+} from "@/lib/asset-generation";
 import { supprimerGenerationEtFichiers } from "@/lib/generation-sources";
 import { nbImagesEnAttente, rangDansLaFile } from "@/lib/queries-taches";
 import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
@@ -117,6 +126,35 @@ export async function lancerGeneration(assetId: number, demande: DemandeGenerati
   return { ok: true, position: await rangDansLaFile(genId) };
 }
 
+/** Pose une demande de génération AUDIO (SFX, Stable Audio 3) dans la même file que
+ * les images (table `asset_generations`, méthode « audio »). Réservée aux assets
+ * de type `sfx` ; la durée est un paramètre séparé du prompt ; la seed est tirée
+ * côté serveur. */
+export async function lancerGenerationAudio(assetId: number, demande: DemandeAudio): Promise<ResultatLancement> {
+  const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
+  if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
+  const raisonAsset = raisonAudioNonGenerable(asset.type);
+  if (raisonAsset) return { ok: false, erreur: raisonAsset };
+  const raison = raisonDemandeAudioInvalide(demande);
+  if (raison) return { ok: false, erreur: raison };
+  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
+    return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} générations en attente) : laisse le worker en vider quelques-unes.` };
+  }
+
+  const [gen] = await db
+    .insert(assetGenerations)
+    .values({
+      assetId,
+      methode: METHODE_AUDIO,
+      prompt: demande.prompt.trim(),
+      dureeSecondes: demande.dureeSecondes,
+      seed: nouvelleSeed(),
+    })
+    .returning({ id: assetGenerations.id });
+  revalidatePath("/", "layout");
+  return { ok: true, position: await rangDansLaFile(gen!.id) };
+}
+
 /** Dépose une image source jetable pour le mode « images » : rangée sous le
  * dossier de l'asset (generations/<assetId>/sources/), nom généré, jamais
  * rattachée au registre. Le champ du formulaire s'appelle `fichier`. */
@@ -146,10 +184,11 @@ export async function deposerSourceImport(
   return { ok: true, fichier, src };
 }
 
-/** Adopte un candidat : son image devient celle de l'asset (elle remplace la
- * précédente, F01) et son prompt devient celui de l'asset : la fiche garde ce
- * qui a produit l'image retenue. L'asset repasse « en cours » : une image
- * nouvelle est à revalider. */
+/** Adopte un candidat : son image (ou son son) devient celle de l'asset (elle
+ * remplace la précédente, F01) et son prompt devient celui de l'asset : la fiche
+ * garde ce qui a produit le résultat retenu. Pour un son, la durée demandée
+ * devient aussi celle de l'asset. L'asset repasse « en cours » : un résultat
+ * nouveau est à revalider. */
 export async function adopterGeneration(generationId: number): Promise<Resultat> {
   const [gen] = await db.select().from(assetGenerations).where(eq(assetGenerations.id, generationId));
   if (!gen || gen.statut !== "termine" || !gen.fichier) return { ok: false, erreur: "Ce candidat n'est pas disponible." };
@@ -167,7 +206,15 @@ export async function adopterGeneration(generationId: number): Promise<Resultat>
   if (asset.fichier && asset.fichier !== nom) {
     await unlink(join(MEDIA_ROOT, cheminAssetMedia(asset.fichier))).catch(() => undefined);
   }
-  await db.update(assets).set({ fichier: nom, statut: "en_cours", promptGeneration: gen.prompt }).where(eq(assets.id, asset.id));
+  await db
+    .update(assets)
+    .set({
+      fichier: nom,
+      statut: "en_cours",
+      promptGeneration: gen.prompt,
+      ...(gen.methode === METHODE_AUDIO && gen.dureeSecondes != null ? { dureeSecondes: gen.dureeSecondes } : {}),
+    })
+    .where(eq(assets.id, asset.id));
   // Adopter, c'est avoir vu le résultat : l'indicateur du header ne le signale plus.
   if (!gen.vuAt) await db.update(assetGenerations).set({ vuAt: new Date() }).where(eq(assetGenerations.id, gen.id));
   revalidatePath("/", "layout");

@@ -60,7 +60,9 @@ prompt de génération au worker, qui lance `workflows/image-refs/IMG_01_TextToI
 (Krea 2 Turbo) avec la clause de style du projet. Le résultat est un **candidat** :
 « Utiliser » en fait l'image de l'asset. En mode `stub`, les images sont factices.
 Variables optionnelles : `COMFYUI_WORKFLOW_IMAGE_PATH` (workflow texte → image) et
-`COMFYUI_WORKFLOW_EDITION_PATH` (workflow d'édition à partir d'images).
+`COMFYUI_WORKFLOW_EDITION_PATH` (workflow d'édition à partir d'images) et
+`COMFYUI_WORKFLOW_AUDIO_PATH` (workflow des bruitages, Stable Audio 3 : sur la fiche d'un
+asset `sfx`, « Générer… » ouvre la popup audio — prompt court en anglais et durée).
 
 ## Miniatures
 

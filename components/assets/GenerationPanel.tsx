@@ -3,14 +3,16 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { adopterGeneration, supprimerGeneration } from "@/app/assets/generation-actions";
+import { GenerationAudioDialog } from "@/components/assets/GenerationAudioDialog";
 import { GenerationDialog, type GenerationVivante } from "@/components/assets/GenerationDialog";
 import { useTaches } from "@/components/taches/TachesProvider";
 import type { Aspect } from "@/lib/asset-generation";
 import type { GenerationVue, SourceDisponible } from "@/lib/queries-generations";
 import { cleImage, estActive, pageEstPerimee, tachesDeAsset } from "@/lib/taches";
 
-/** Génération d'images d'un asset : le bouton « Générer… » (à côté de l'import
- * du fichier) ouvre la popup (modes texte / images). Chaque demande produit un
+/** Génération d'un asset : le bouton « Générer… » (à côté de l'import du fichier)
+ * ouvre la popup d'images (modes texte / images) ou, pour un son (type sfx), la
+ * popup audio (prompt court + durée). Chaque demande produit un
  * CANDIDAT (jamais l'image de l'asset directement) : la popup les montre, on
  * l'adopte ou on le jette. Plusieurs demandes peuvent attendre : le suivi vit
  * dans l'indicateur du header (components/taches), qui nous dit quand la page est
@@ -26,6 +28,7 @@ export function GenerationPanel({
   defauts,
   registre,
   imageActuelle,
+  dureeSecondes,
   generations,
   generationInitiale,
   simule,
@@ -40,6 +43,8 @@ export function GenerationPanel({
   defauts: { aspect: Aspect; megapixels: number; lora: boolean };
   registre: SourceDisponible[];
   imageActuelle: SourceDisponible | null;
+  /** Durée du son retenu (asset sfx), null sinon ou si non renseignée. */
+  dureeSecondes: number | null;
   generations: GenerationVue[];
   /** uuid d'une génération à ouvrir d'office (lien `?generation=` de l'indicateur). */
   generationInitiale: string | null;
@@ -99,7 +104,13 @@ export function GenerationPanel({
       const r = await adopterGeneration(id);
       setRetour(
         r.ok
-          ? { ok: true, texte: "Image et prompt adoptés : l'asset repasse « en cours », à revalider." }
+          ? {
+              ok: true,
+              texte:
+                type === "sfx"
+                  ? "Son, prompt et durée adoptés : l'asset repasse « en cours », à revalider."
+                  : "Image et prompt adoptés : l'asset repasse « en cours », à revalider.",
+            }
           : { ok: false, texte: r.erreur },
       );
     });
@@ -117,32 +128,51 @@ export function GenerationPanel({
         type="button"
         onClick={() => setOuvert(true)}
         disabled={raisonBloquee != null}
-        title={raisonBloquee ?? "Générer une image pour cet asset"}
+        title={raisonBloquee ?? (type === "sfx" ? "Générer un son pour cet asset" : "Générer une image pour cet asset")}
       >
         Générer…
       </button>
 
-      <GenerationDialog
-        assetId={assetId}
-        code={code}
-        type={type}
-        methodeGeneration={methodeGeneration}
-        parentCode={parentCode}
-        promptInitial={promptInitial}
-        defauts={defauts}
-        registre={registre}
-        imageActuelle={imageActuelle}
-        generations={vivantes}
-        candidatInitialId={candidatInitialId}
-        ouvert={ouvert}
-        onFermer={() => setOuvert(false)}
-        onAdopter={adopter}
-        onSupprimer={supprimer}
-        onAnnuler={(g) => annuler(cleImage(g.uuid))}
-        occupe={pending}
-        retour={retour}
-        simule={simule}
-      />
+      {type === "sfx" ? (
+        <GenerationAudioDialog
+          assetId={assetId}
+          code={code}
+          promptInitial={promptInitial}
+          dureeInitiale={dureeSecondes}
+          generations={vivantes}
+          candidatInitialId={candidatInitialId}
+          ouvert={ouvert}
+          onFermer={() => setOuvert(false)}
+          onAdopter={adopter}
+          onSupprimer={supprimer}
+          onAnnuler={(g) => annuler(cleImage(g.uuid))}
+          occupe={pending}
+          retour={retour}
+          simule={simule}
+        />
+      ) : (
+        <GenerationDialog
+          assetId={assetId}
+          code={code}
+          type={type}
+          methodeGeneration={methodeGeneration}
+          parentCode={parentCode}
+          promptInitial={promptInitial}
+          defauts={defauts}
+          registre={registre}
+          imageActuelle={imageActuelle}
+          generations={vivantes}
+          candidatInitialId={candidatInitialId}
+          ouvert={ouvert}
+          onFermer={() => setOuvert(false)}
+          onAdopter={adopter}
+          onSupprimer={supprimer}
+          onAnnuler={(g) => annuler(cleImage(g.uuid))}
+          occupe={pending}
+          retour={retour}
+          simule={simule}
+        />
+      )}
     </>
   );
 }

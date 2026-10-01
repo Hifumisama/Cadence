@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateAsset } from "@/app/assets/actions";
 import { LIBELLE_METHODE, methodeApplicable } from "@/lib/assetCode";
+import { DUREE_AUDIO_MAX, DUREE_AUDIO_MIN } from "@/lib/asset-generation";
 
 /** Fiche d'un asset : deux textes qui ne disent pas la même chose. La
  * description canonique (français) explique le sujet à l'humain ; le prompt de
@@ -17,6 +18,7 @@ export function AssetFicheEditor({
   promptGeneration,
   methodeGeneration,
   critique,
+  dureeSecondes,
 }: {
   assetId: number;
   type: string;
@@ -25,11 +27,14 @@ export function AssetFicheEditor({
   promptGeneration: string;
   methodeGeneration: string | null;
   critique: boolean;
+  /** Durée du son en secondes (type sfx), null si non renseignée. */
+  dureeSecondes: number | null;
 }) {
   const [desc, setDesc] = useState(description);
   const [prompt, setPrompt] = useState(promptGeneration);
   const [methode, setMethode] = useState(methodeGeneration ?? "");
   const [crit, setCrit] = useState(critique);
+  const [duree, setDuree] = useState(dureeSecondes != null ? String(dureeSecondes) : "");
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -44,6 +49,7 @@ export function AssetFicheEditor({
         promptGeneration: prompt,
         methodeGeneration: avecMethode ? methode || null : null,
         critique: crit,
+        ...(type === "sfx" ? { dureeSecondes: duree.trim() === "" ? null : Number(duree.replace(",", ".")) } : {}),
       });
       if (r.ok) {
         setErreur(null);
@@ -88,12 +94,32 @@ export function AssetFicheEditor({
           placeholder={
             type === "voix"
               ? "Instruction Voice Design — se règle au casting vocal"
-              : edition
+              : type === "sfx"
+                ? "Description courte du son, en anglais (Stable Audio) — la durée se règle à part"
+                : edition
                 ? "Instructions impératives pour Qwen Image Edit, une intention par ligne"
                 : "Prose descriptive pour Krea 2 (sujet seulement : le style est ajouté par ComfyUI)"
           }
         />
       </div>
+      {type === "sfx" ? (
+        <div className="field-group">
+          <label htmlFor="fiche-duree">Durée du son (secondes)</label>
+          <input
+            id="fiche-duree"
+            className="field"
+            type="number"
+            inputMode="decimal"
+            min={DUREE_AUDIO_MIN}
+            max={DUREE_AUDIO_MAX}
+            step={0.5}
+            value={duree}
+            onChange={(e) => setDuree(e.target.value)}
+            placeholder="ex. 4"
+          />
+          <span className="tiny-note">Paramètre de la génération audio, séparé du prompt. Posée à l&rsquo;adoption d&rsquo;un son, modifiable ici.</span>
+        </div>
+      ) : null}
       <div className="form-actions">
         <label className="chk">
           <input type="checkbox" checked={crit} onChange={(e) => setCrit(e.target.checked)} />

@@ -8,6 +8,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
 import { estMethodeAsset, methodeApplicable } from "@/lib/assetCode";
+import { DUREE_AUDIO_MAX, DUREE_AUDIO_MIN, dureeAudioValide } from "@/lib/asset-generation";
 
 async function enregistrerFichierAsset(code: string, fichier: File): Promise<string> {
   if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
@@ -78,6 +79,8 @@ export async function updateAsset(
     promptGeneration: string;
     methodeGeneration: string | null;
     critique: boolean;
+    /** Durée du son en secondes (type sfx seulement ; null = non renseignée). */
+    dureeSecondes?: number | null;
   },
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
@@ -85,10 +88,20 @@ export async function updateAsset(
   const methode = valeurs.methodeGeneration || null;
   if (methode != null) {
     if (!estMethodeAsset(methode)) return { ok: false, erreur: "Méthode inconnue." };
-    if (!methodeApplicable(asset.type)) return { ok: false, erreur: "Une voix se fabrique au casting vocal, pas par image." };
+    if (!methodeApplicable(asset.type)) {
+      return {
+        ok: false,
+        erreur: asset.type === "sfx" ? "Un son se génère par la génération audio : pas de méthode d'image." : "Une voix se fabrique au casting vocal, pas par image.",
+      };
+    }
     if (methode === "edition" && asset.deriveDeId == null) {
       return { ok: false, erreur: "Une édition part de l'image du parent : cet asset n'en a pas." };
     }
+  }
+  // La durée n'existe que pour un son ; vide = non renseignée.
+  const duree = valeurs.dureeSecondes ?? null;
+  if (asset.type === "sfx" && duree != null && !dureeAudioValide(duree)) {
+    return { ok: false, erreur: `Durée hors limites (${DUREE_AUDIO_MIN} à ${DUREE_AUDIO_MAX} secondes).` };
   }
   await db
     .update(assets)
@@ -97,6 +110,7 @@ export async function updateAsset(
       promptGeneration: valeurs.promptGeneration || null,
       methodeGeneration: methode,
       critique: valeurs.critique,
+      ...(asset.type === "sfx" ? { dureeSecondes: duree } : {}),
     })
     .where(eq(assets.id, assetId));
   revalidatePath("/", "layout");

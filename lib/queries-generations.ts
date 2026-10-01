@@ -46,6 +46,8 @@ export async function getGenerationsAsset(assetId: number) {
     aspect: g.aspect,
     megapixels: g.megapixels,
     loraPersonnage: g.loraPersonnage,
+    /** Durée demandée (génération audio), null pour une image. */
+    dureeSecondes: g.dureeSecondes,
     erreur: g.erreur,
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
     src: g.statut === "termine" ? generationMediaSrc(assetId, g.fichier) : null,
