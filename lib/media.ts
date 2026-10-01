@@ -170,3 +170,28 @@ export function generationMediaSrc(assetId: number, fichier: string | null): str
   }
   return `/api/media/${relatif}`;
 }
+
+/** Images sources jetables d'une génération « à partir d'images » (déposées à la
+ * volée dans la popup) — sous le dossier de l'asset, jamais dans le registre. */
+export function cheminSourceImportMedia(assetId: number, fichier: string): string {
+  return `generations/${assetId}/sources/${fichier}`;
+}
+
+/** Nom de fichier d'import sûr : un nom généré par l'application (jamais un
+ * chemin), qui ne peut pas sortir du dossier des sources. */
+export function estNomSourceImport(fichier: string): boolean {
+  return /^[A-Za-z0-9_-]+\.(png|jpe?g|webp)$/i.test(fichier);
+}
+
+/** URL de service d'une source importée (avec la date de modification, comme
+ * `urlAssetMedia`), ou null si elle n'est pas (ou plus) sur le stockage. */
+export function sourceImportMediaSrc(assetId: number, fichier: string | null): string | null {
+  if (!fichier || !estNomSourceImport(fichier)) return null;
+  const relatif = cheminSourceImportMedia(assetId, fichier);
+  try {
+    const mtime = Math.floor(statSync(resolve(MEDIA_ROOT, relatif)).mtimeMs);
+    return `/api/media/${relatif}?v=${mtime}`;
+  } catch {
+    return null;
+  }
+}

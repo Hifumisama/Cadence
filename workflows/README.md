@@ -52,8 +52,19 @@ dans `lib/asset-generation.ts`).
 | Instructions d'édition | `170:151` (TextEncodeQwenImageEditPlus, positif) | `prompt` | les images se citent par leur rang : « image 1 », « image 2 » |
 | Négatif | `170:149` | `prompt` | laissé **vide** |
 | Seed | `170:169` (KSampler) | `seed` | |
-| LoRA Lightning 4 étapes | `170:168` (PrimitiveBoolean) | `value` | `true` = 4 étapes CFG 1 ; `false` = 40 étapes CFG 4 |
+| LoRA Lightning 4 étapes | `170:168` (PrimitiveBoolean) | `value` | `true` : 4 étapes CFG 1 (toujours utilisé par l'application) ; `false` : 40 étapes CFG 4, sans LoRA (sans effet visible au test) |
 | Sortie | `195` (SaveImageAdvanced) | `filename_prefix`, `format` | PNG 8 bits sRGB |
+
+**La taille de sortie suit l'image 1** : le graphe n'a aucun nœud de taille (le latent
+est le `VAEEncode` de l'image 1 mise à l'échelle par `FluxKontextImageScale`), donc
+ni format ni mégapixels à régler en édition.
+
+Branché côté worker : `injecterEditionImages` dans `worker/comfyui/imageMapping.ts`
+(sources envoyées par `/upload/image` sous `cadence_<uuid>_<rang>.<ext>`, nœuds
+`cadence_source_<rang>` et `cadence_source_<rang>_echelle` créés pour les images 2 et
+3) ; `imageMapping.test.ts` lit ce fichier et casse si un nœud ou un champ change
+après un ré-export. Validé en réel le 2026-10-01 (2 sources). Variable optionnelle :
+`COMFYUI_WORKFLOW_EDITION_PATH`.
 
 Le fichier exporté ne câble que `image1`, mais le nœud `TextEncodeQwenImageEditPlus`
 accepte jusqu'à trois images : la première est **ce qu'on modifie**, les autres

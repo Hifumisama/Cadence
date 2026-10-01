@@ -687,10 +687,44 @@ fiche d'asset. Décisions :
 - **Pas de rejeu automatique** (contrairement aux plans H3) : une image se refait
   en quelques secondes, l'échec s'affiche avec son message. Une API injoignable ne
   consomme rien (même règle que F04).
-- Seule la génération text-to-image (`IMG_01_TextToImage`) est branchée ;
-  l'édition (`IMG_Simple_Edit`, jusqu'à 3 images) suivra sur le même modèle.
+- La génération text-to-image (`IMG_01_TextToImage`) puis, le 2026-10-01,
+  l'édition à partir d'images (`IMG_Simple_Edit`, 1 à 3 sources) sont branchées :
+  voir le bloc suivant.
 - En mode `stub`, les images sont des PNG factices : toute la chaîne se teste
   sans ComfyUI.
+
+### Génération « à partir d'images » : deux modes, sources jetables (2026-10-01)
+La popup de génération (variante B de la maquette) n'a que **deux modes**, pas
+trois : « texte » (`IMG_01_TextToImage`, Krea 2 Turbo) et « images »
+(`IMG_Simple_Edit`, Qwen Image Edit 2511). Modifier une image et fusionner des
+références sont le même workflow : de 1 à 3 sources, **la première est la cible**
+modifiée, les autres sont des références. Décisions :
+- **Méthode d'une demande ≠ méthode de l'asset.** `assets.methodeGeneration` ne
+  fait que proposer le mode par défaut dans la popup ; elle n'interdit rien. Un
+  dérivé peut être généré en texte, un master modifié à partir d'une autre image.
+  Seule la voix est refusée au niveau de l'asset. Le prompt vide se vérifie sur la
+  demande (la popup préremplit celui de l'asset). Le prompt d'une demande lui
+  reste propre ; il ne devient celui de l'asset que quand on **adopte** le
+  candidat (« Utiliser ») : la fiche garde ce qui a produit l'image retenue, sans
+  case à cocher (2026-10-01).
+- **Les sources sont un instantané** (`asset_generation_sources`) : à la position
+  `n`, soit l'image courante d'un asset du projet (`origine = 'asset'`, nom de
+  fichier au lancement), soit un **import jetable** (`origine = 'import'`) déposé
+  dans la popup, rangé sous `generations/<assetId>/sources/` et **jamais rattaché
+  au registre** (F01 : pas de versionnage ; une image qui doit devenir un asset
+  se crée comme asset). Une source qui disparaît avant l'exécution fait échouer la
+  demande avec un message clair.
+- **Cycle de vie des imports** : ils partent avec la dernière génération qui les
+  utilise (« Régénérer » peut réutiliser les mêmes), et un import déposé puis
+  jamais utilisé est balayé après 24 h (`lib/generation-sources.ts`).
+- **Pas de format ni de mégapixels en mode « images »** : le graphe d'édition n'a
+  aucun nœud de taille, la sortie suit l'image 1 (mise à l'échelle par
+  `FluxKontextImageScale`). L'édition tourne **toujours avec le LoRA Lightning**
+  (4 étapes, CFG 1) : le mode « Qualité » (40 étapes, CFG 4, sans LoRA), testé,
+  ne change rien au rendu, il n'est plus proposé (la colonne `lightning` et le
+  nœud restent, au cas où).
+- Validé sur le vrai ComfyUI (2026-10-01) : édition à 2 sources en ~30 s (4 étapes,
+  aperçu reçu), texte en ~18 s (8 étapes).
 
 ### Suivi en direct des générations : WebSocket ComfyUI, relayé par la base (2026-10-01)
 Le worker suit un prompt par le WebSocket de ComfyUI (`/ws?clientId=…`) en plus

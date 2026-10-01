@@ -379,6 +379,9 @@ export const assetGenerations = pgTable("asset_generations", {
   aspect: varchar("aspect", { length: 8 }).notNull().default("1:1"),
   megapixels: real("megapixels").notNull().default(1),
   loraPersonnage: boolean("lora_personnage").notNull().default(false),
+  // Mode « à partir d'images » (méthode edition) : true = Lightning 4 étapes,
+  // false = « Qualité » (40 étapes CFG 4). null pour le mode texte.
+  lightning: boolean("lightning"),
   seed: text("seed").notNull(),
   comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
   fichier: varchar("fichier", { length: 255 }),
@@ -395,6 +398,26 @@ export const assetGenerations = pgTable("asset_generations", {
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
 });
+
+// Images sources d'une génération « à partir d'images » (IMG_Simple_Edit : de 1
+// à 3, la position 1 est la cible modifiée). `fichier` est un INSTANTANÉ pris au
+// lancement : pour une source 'asset', le nom du fichier de l'asset (sous
+// assets/) ; pour une source 'import', le nom sous generations/<assetId>/sources/
+// (jetable, jamais rattaché au registre). Supprimées avec leur génération.
+export const assetGenerationSources = pgTable(
+  "asset_generation_sources",
+  {
+    id: serial("id").primaryKey(),
+    generationId: integer("generation_id")
+      .notNull()
+      .references(() => assetGenerations.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    origine: varchar("origine", { length: 8 }).notNull(),
+    assetId: integer("asset_id").references(() => assets.id, { onDelete: "set null" }),
+    fichier: varchar("fichier", { length: 255 }).notNull(),
+  },
+  (t) => [unique("asset_generation_sources_position_unique").on(t.generationId, t.position)],
+);
 
 // La queue F04 vit ici, pas dans plans.statut seul : un plan accumule
 // plusieurs jobs (échecs + rejeux), plans.statut n'est que la projection

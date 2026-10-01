@@ -1571,6 +1571,12 @@ button {
 .upload-fichier {
   display: inline-block;
 }
+.asset-fiche-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
 
 /* Arborescence simplifiée — grille de cartes cliquables, chacune menant
  * au détail complet de cet élément précis (retour utilisateur 2026-09-28 :
@@ -3711,83 +3717,404 @@ a.voix-chip:hover {
 }
 
 
-/* Génération d'images d'un asset : candidats, adoptés à la main */
-.gen-form {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-}
-.gen-form .field {
-  width: auto;
-}
-.gen-liste {
-  list-style: none;
-  margin: var(--sp-3) 0 0;
+/* Popup de génération d'images (variante B : texte / à partir d'images) */
+.gd {
+  width: min(980px, 96vw);
+  max-height: 94vh;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--sp-3);
-}
-.gen-carte {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: var(--sp-2);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-}
-.gen-carte.s-echoue {
-  border-color: var(--ecarlate-glow);
-}
-.gen-vignette {
-  aspect-ratio: 1 / 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border: 1px solid var(--line-strong);
   background: var(--surface);
+  color: var(--ink);
   overflow: hidden;
 }
-.gen-vignette > img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  cursor: zoom-in;
-}
-.gen-meta {
+.gd[open] {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+}
+.gd::backdrop {
+  background: rgba(8, 8, 11, 0.82);
+}
+.gd-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.gd-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 400;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+.gd-code {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.gd-head-r {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.gd-x {
+  width: 30px;
+  height: 30px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.gd-x:hover {
+  border-color: var(--or);
+  color: var(--ink);
+}
+.gd-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+}
+.gd-col {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
   min-width: 0;
+}
+.gd-scene {
+  background: var(--ground);
+  border-left: 1px solid var(--line);
+}
+.gd-grp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.gd-lbl {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.gd-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.gd-row-between {
+  justify-content: space-between;
+}
+.gd-seg {
+  display: flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.gd-seg button {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 8px;
+  background: var(--surface-2);
+  border: 0;
+  border-right: 1px solid var(--line-strong);
+  color: var(--ink-2);
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+}
+.gd-seg button:last-child {
+  border-right: 0;
+}
+.gd-seg button[aria-pressed="true"] {
+  background: var(--surface-3);
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--or);
+}
+.gd-seg small {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.gd textarea.field {
+  width: 100%;
+  resize: vertical;
 }
 
-/* Progression d'une génération en cours (relayée par le worker) */
-.gen-progression {
+/* Sources : trois emplacements ordonnés, l'image 1 est la cible */
+.gd-slots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.gd-slot {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   min-width: 0;
+  padding: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
 }
-.gen-progression progress {
+.gd-slot.cible {
+  border-color: var(--or-soft);
+}
+.gd-slot-tag {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.gd-slot.cible .gd-slot-tag {
+  color: var(--or-glow);
+}
+.gd-thumb {
+  display: block;
   width: 100%;
-  height: 4px;
-  appearance: none;
-  border: 0;
-  background: var(--surface);
-  accent-color: var(--or);
-}
-.gen-progression progress::-webkit-progress-bar {
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border: 1px solid var(--line);
   background: var(--surface);
 }
-.gen-progression progress::-webkit-progress-value {
-  background: var(--or);
-}
-.gen-progression progress::-moz-progress-bar {
-  background: var(--or);
-}
-.gen-progression .tiny-note {
+.gd-slot-nom {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.gd-slot-actions {
+  display: flex;
+  gap: 4px;
+}
+.gd-slot-actions button {
+  flex: 1;
+  padding: 2px 0;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.gd-slot-actions button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.gd-add {
+  aspect-ratio: 1 / 1;
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.gd-add:hover {
+  border-color: var(--or);
+  color: var(--ink);
+}
+.gd-add-off {
+  border-style: dotted;
+  opacity: 0.35;
+  cursor: default;
+}
+.gd-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--or-soft);
+}
+.gd-picker-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.gd-tabs {
+  display: flex;
+  gap: 6px;
+}
+.gd-tabs button {
+  padding: 4px 8px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.gd-tabs button[aria-pressed="true"] {
+  color: var(--ink);
+  border-color: var(--or);
+}
+.gd-reg {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.gd-reg button {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 5px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  cursor: pointer;
+}
+.gd-reg button:hover:not(:disabled) {
+  border-color: var(--or);
+}
+.gd-reg button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.gd-reg-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.gd-drop {
+  display: block;
+  padding: 18px;
+  text-align: center;
+  color: var(--ink-2);
+  border: 1px dashed var(--line-strong);
+  cursor: pointer;
+}
+.gd-drop:hover,
+.gd-drop.survol {
+  border-color: var(--or);
+  background: var(--surface);
+}
+
+/* Scène : aperçu / résultat, progression, candidats */
+.gd-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 180px;
+  max-height: 420px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  overflow: hidden;
+}
+.gd-stage > img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+.gd-stage.zoomable > img {
+  cursor: zoom-in;
+}
+.gd-stage.vide {
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  padding: 24px;
+  text-align: center;
+  border-style: dashed;
+}
+.gd-bar {
+  width: 100%;
+  height: 6px;
+  appearance: none;
+  border: 0;
+  background: var(--surface-3);
+  accent-color: var(--or);
+}
+.gd-bar::-webkit-progress-bar {
+  background: var(--surface-3);
+}
+.gd-bar::-webkit-progress-value {
+  background: var(--or);
+}
+.gd-bar::-moz-progress-bar {
+  background: var(--or);
+}
+.gd-prog {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.gd-echec {
+  color: var(--ecarlate-glow);
+}
+.gd-cands {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+.gd-cand {
+  position: relative;
+  display: block;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  overflow: hidden;
+  cursor: pointer;
+}
+.gd-cand img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gd-cand.on {
+  border-color: var(--or);
+  box-shadow: 0 0 0 1px var(--or);
+}
+.gd-cand.vide {
+  border: 1px dashed var(--line);
+  background: transparent;
+  cursor: default;
+}
+.gd-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
+.gd-raison {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.gd-raison.bloque {
+  color: var(--ecarlate-glow);
+}
+.gd-erreur {
+  color: var(--ecarlate-glow);
+}
+.gd :focus-visible {
+  outline: 2px solid var(--or);
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .gd-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gd-scene {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
 }

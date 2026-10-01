@@ -1,17 +1,25 @@
-import { mkdir, readFile, unlink } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { access, mkdir, readFile } from "node:fs/promises";
+import { extname, join, resolve } from "node:path";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { assetGenerations, assets } from "../db/schema";
-import { CANDIDATS_GARDES, estAspect } from "../lib/asset-generation";
-import { cheminGenerationMedia } from "../lib/media";
+import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
+import { CANDIDATS_GARDES, estAspect, nomSourceDistante } from "../lib/asset-generation";
+import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";
+import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from "../lib/media";
 import type { ComfyUIClient } from "./comfyui";
-import { NODE_IDS_TEXTE_VERS_IMAGE, injecterGenerationImage, type WorkflowJson } from "./comfyui/imageMapping";
+import {
+  NODE_IDS_EDITION,
+  NODE_IDS_TEXTE_VERS_IMAGE,
+  injecterEditionImages,
+  injecterGenerationImage,
+  type WorkflowJson,
+} from "./comfyui/imageMapping";
 import type { Suivi } from "./comfyui/types";
 import { creerRelais } from "./progression";
 
-// Tâche d'images d'asset : text-to-image (Krea 2 Turbo, IMG_01_TextToImage).
-// L'édition (Qwen Image Edit) viendra sur le même modèle. Une génération n'est
+// Tâche d'images d'asset : text-to-image (Krea 2 Turbo, IMG_01_TextToImage,
+// méthode « generation ») ou à partir de 1 à 3 images (Qwen Image Edit 2511,
+// IMG_Simple_Edit, méthode « edition »). Une génération n'est
 // pas rejouée automatiquement : un échec s'affiche avec son message et
 // l'utilisateur relance (contrairement aux plans H3, une image se refait en
 // quelques secondes). Une API ComfyUI injoignable ne consomme rien : la demande
@@ -21,12 +29,43 @@ const INTERVALLE_POLL_MS = 2_000;
 const DUREE_MAX_POLL_MS = 10 * 60_000;
 const CHEMIN_WORKFLOW = () =>
   resolve(process.env.COMFYUI_WORKFLOW_IMAGE_PATH ?? "./workflows/image-refs/IMG_01_TextToImage.json");
+const CHEMIN_WORKFLOW_EDITION = () =>
+  resolve(process.env.COMFYUI_WORKFLOW_EDITION_PATH ?? "./workflows/image-refs/IMG_Simple_Edit.json");
+
+type Generation = typeof assetGenerations.$inferSelect;
+
+/** Envoie les sources de la génération au dossier d'entrée de ComfyUI et renvoie
+ * leurs noms distants, dans l'ordre. Une source disparue du stockage est une
+ * erreur franche (l'asset a pu être remplacé ou supprimé depuis le lancement). */
+async function envoyerSources(client: ComfyUIClient, gen: Generation, mediaRoot: string): Promise<string[]> {
+  const sources = await db
+    .select()
+    .from(assetGenerationSources)
+    .where(eq(assetGenerationSources.generationId, gen.id))
+    .orderBy(assetGenerationSources.position);
+  if (sources.length === 0) throw new Error("Aucune image source enregistrée pour cette édition");
+
+  const noms: string[] = [];
+  for (const src of sources) {
+    const relatif = src.origine === "asset" ? cheminAssetMedia(src.fichier) : cheminSourceImportMedia(gen.assetId, src.fichier);
+    const local = join(mediaRoot, relatif);
+    try {
+      await access(local);
+    } catch {
+      throw new Error(`Image source ${src.position} introuvable sur le stockage (${src.fichier})`);
+    }
+    const distant = nomSourceDistante(gen.uuid, src.position, extname(src.fichier).toLowerCase() || ".png");
+    await client.uploadRef(local, distant);
+    noms.push(distant);
+  }
+  return noms;
+}
 
 export async function traiterProchaineGenerationImage(client: ComfyUIClient, mediaRoot: string): Promise<void> {
   const [gen] = await db
     .select()
     .from(assetGenerations)
-    .where(and(eq(assetGenerations.statut, "en_attente"), eq(assetGenerations.methode, "generation")))
+    .where(eq(assetGenerations.statut, "en_attente"))
     .orderBy(assetGenerations.createdAt)
     .limit(1);
   if (!gen) return;
@@ -44,17 +83,31 @@ export async function traiterProchaineGenerationImage(client: ComfyUIClient, med
   let suivi: Suivi | null = null;
   let relais: ReturnType<typeof creerRelais> | null = null;
   try {
-    if (!estAspect(gen.aspect)) throw new Error(`Format inconnu : ${gen.aspect}`);
-    const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW(), "utf-8")) as WorkflowJson;
-    const graphe = injecterGenerationImage(brut, {
-      prompt: gen.prompt,
-      clauseStyle: gen.clauseStyle,
-      aspect: gen.aspect,
-      megapixels: gen.megapixels,
-      seed: gen.seed,
-      loraPersonnage: gen.loraPersonnage,
-      prefixeSortie: `cadence_${asset.code}`,
-    });
+    const edition = gen.methode === "edition";
+    let graphe: WorkflowJson;
+    if (edition) {
+      const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_EDITION(), "utf-8")) as WorkflowJson;
+      graphe = injecterEditionImages(brut, {
+        prompt: gen.prompt,
+        seed: gen.seed,
+        lightning: gen.lightning ?? true,
+        sourcesDistantes: await envoyerSources(client, gen, mediaRoot),
+        prefixeSortie: `cadence_${asset.code}`,
+      });
+    } else {
+      if (!estAspect(gen.aspect)) throw new Error(`Format inconnu : ${gen.aspect}`);
+      const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW(), "utf-8")) as WorkflowJson;
+      graphe = injecterGenerationImage(brut, {
+        prompt: gen.prompt,
+        clauseStyle: gen.clauseStyle,
+        aspect: gen.aspect,
+        megapixels: gen.megapixels,
+        seed: gen.seed,
+        loraPersonnage: gen.loraPersonnage,
+        prefixeSortie: `cadence_${asset.code}`,
+      });
+    }
+    const noeudSortie = edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
 
     // Le WebSocket s'ouvre AVANT la soumission (sinon un prompt court finit avant
     // qu'on l'écoute). Il ne décide de rien : le résultat vient de /history, la
@@ -68,7 +121,7 @@ export async function traiterProchaineGenerationImage(client: ComfyUIClient, med
     const debut = Date.now();
     await suivi.attendre(promptId, DUREE_MAX_POLL_MS);
     while (Date.now() - debut < DUREE_MAX_POLL_MS) {
-      const r = await client.pollImage(promptId, NODE_IDS_TEXTE_VERS_IMAGE.sortie);
+      const r = await client.pollImage(promptId, noeudSortie);
       if (r.statut === "en_cours") {
         await new Promise((res) => setTimeout(res, INTERVALLE_POLL_MS));
         continue;
@@ -110,7 +163,7 @@ async function purgerAnciens(assetId: number, mediaRoot: string): Promise<void> 
     .where(and(eq(assetGenerations.assetId, assetId), inArray(assetGenerations.statut, ["termine"])))
     .orderBy(desc(assetGenerations.createdAt));
   for (const vieux of termines.slice(CANDIDATS_GARDES)) {
-    if (vieux.fichier) await unlink(join(mediaRoot, cheminGenerationMedia(assetId, vieux.fichier))).catch(() => undefined);
-    await db.delete(assetGenerations).where(eq(assetGenerations.id, vieux.id));
+    await supprimerGenerationEtFichiers(vieux, mediaRoot);
   }
+  await balayerImportsOrphelins(assetId, mediaRoot);
 }
