@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { estActive, type Tache } from "@/lib/taches";
+import { urlMiniature } from "@/lib/miniatures";
 
 /** Icône du header : ce qui se génère, ce qui est prêt, ce qui a échoué. Badge
  * or = nombre de tâches actives ; point écarlate = échecs non vus ; point or plein
  * = terminées non vues. Le panneau liste les tâches (voir lib/taches.ts) ; un clic
  * mène à l'asset (popup ouverte sur le résultat) ou au plan. */
 export function IndicateurTaches() {
-  const { taches, resume, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal } = useTaches();
+  const { taches, resume, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler } = useTaches();
   const racine = useRef<HTMLDivElement>(null);
 
   // Échap ou clic hors du panneau le ferme.
@@ -31,8 +32,10 @@ export function IndicateurTaches() {
   }, [panneauOuvert, setPanneauOuvert]);
 
   const actives = taches.filter(estActive);
-  const echecs = taches.filter((x) => x.statut === "echoue");
-  const finies = taches.filter((x) => x.statut === "termine" || x.statut === "annulee");
+  // Les annulations se rangent avec les échecs (même durée de vie : une journée),
+  // mais sobrement : ce n'est pas une erreur.
+  const echecs = taches.filter((x) => x.statut === "echoue" || x.statut === "annulee");
+  const finies = taches.filter((x) => x.statut === "termine");
   const nonVus = resume.echecsNonVus + resume.terminesNonVus;
 
   const etat = [
@@ -84,15 +87,15 @@ export function IndicateurTaches() {
               <h3 className="tq-sec">En cours / en file</h3>
               <ul className="tq-liste">
                 {actives.map((x) => (
-                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} />
+                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onAnnuler={() => annuler(x.cle)} />
                 ))}
               </ul>
             </section>
           ) : null}
 
           {echecs.length > 0 ? (
-            <section aria-label="Échecs">
-              <h3 className="tq-sec">Échecs</h3>
+            <section aria-label="Échecs et annulations">
+              <h3 className="tq-sec">{echecs.some((x) => x.statut === "annulee") ? "Échecs et annulations" : "Échecs"}</h3>
               <ul className="tq-liste">
                 {echecs.map((x) => (
                   <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onIgnorer={x.vuAt == null ? () => marquerVuLocal([x.cle]) : undefined} />
@@ -125,8 +128,13 @@ function heure(iso: string | null): string {
   return d.toDateString() === auj.toDateString() ? hm : `${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} ${hm}`;
 }
 
-function Entree({ x, onOuvrir, onIgnorer }: { x: Tache; onOuvrir: () => void; onIgnorer?: () => void }) {
-  const image = x.apercuSrc ?? x.vignetteSrc;
+function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () => void; onIgnorer?: () => void; onAnnuler?: () => void }) {
+  // Une tâche en cours coûte du temps de GPU : on demande confirmation avant de la
+  // couper. Une tâche en attente s'annule d'un clic (rien n'est perdu).
+  const [confirmer, setConfirmer] = useState(false);
+  // L'aperçu en direct est déjà léger (écrasé à chaque étape) ; la vignette d'un
+  // résultat passe par la miniature.
+  const image = x.apercuSrc ?? (x.vignetteSrc ? urlMiniature(x.vignetteSrc, 96) : null);
   const nonVu = x.vuAt == null && (x.statut === "termine" || x.statut === "echoue");
   return (
     <li className={`tq-entree s-${x.statut}${nonVu ? " non-vu" : ""}`}>
@@ -147,7 +155,12 @@ function Entree({ x, onOuvrir, onIgnorer }: { x: Tache; onOuvrir: () => void; on
             {nonVu ? <span className="tq-nonvu" title="Pas encore vu" /> : null}
           </span>
           {x.detail ? <span className="tq-detail">{x.detail}</span> : null}
-          {x.statut === "en_cours" ? (
+          {x.statut === "en_cours" && x.annulationDemandee ? (
+            <span className="tq-etat tq-annulation" role="status">
+              Annulation demandée…
+            </span>
+          ) : null}
+          {x.statut === "en_cours" && !x.annulationDemandee ? (
             x.progression ? (
               <span className="tq-prog">
                 <progress value={x.progression.valeur} max={x.progression.max} aria-label="Progression" />
@@ -182,6 +195,27 @@ function Entree({ x, onOuvrir, onIgnorer }: { x: Tache; onOuvrir: () => void; on
         <button type="button" className="tq-ignorer" onClick={onIgnorer}>
           Ignorer
         </button>
+      ) : null}
+      {onAnnuler && !x.annulationDemandee ? (
+        confirmer ? (
+          <span className="tq-confirm" role="group" aria-label="Confirmer l'annulation">
+            <button type="button" className="tq-ignorer tq-annuler" onClick={() => { setConfirmer(false); onAnnuler(); }}>
+              Oui, annuler
+            </button>
+            <button type="button" className="tq-ignorer" onClick={() => setConfirmer(false)}>
+              Non
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="tq-ignorer tq-annuler"
+            onClick={() => (x.statut === "en_cours" ? setConfirmer(true) : onAnnuler())}
+            title={x.statut === "en_cours" ? "Interrompre cette génération" : "Retirer de la file"}
+          >
+            Annuler
+          </button>
+        )
       ) : null}
     </li>
   );

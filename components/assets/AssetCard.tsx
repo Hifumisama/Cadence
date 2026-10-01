@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { urlMiniature } from "@/lib/miniatures";
 
 export type MediaKind = "image" | "video" | "audio";
 export type FichierEtat = "aucun" | "manquant" | "ok";
@@ -123,7 +124,7 @@ export function AssetCard({
 
         {etat === "ok" && kind === "image" && src ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={fichier ?? code} loading="lazy" />
+          <img src={urlMiniature(src, 384)} alt={fichier ?? code} loading="lazy" decoding="async" />
         ) : null}
 
         {etat === "ok" && kind === "video" ? (

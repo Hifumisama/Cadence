@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createReadStream, statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join, normalize, resolve } from "node:path";
 import { MEDIA_ROOT } from "@/lib/media";
+import { lireLargeur } from "@/lib/miniatures";
+import { obtenirMiniature } from "@/lib/miniatures-serveur";
 
 // Sert les fichiers du stockage média (partage NFS monté en volume Docker,
 // voir MEDIA_ROOT). Les chemins stockés en base sont relatifs à cette
@@ -45,6 +48,30 @@ export async function GET(
 
   const ext = cible.slice(cible.lastIndexOf(".")).toLowerCase();
   const contentType = CONTENT_TYPES[ext] ?? "application/octet-stream";
+
+  // Miniature à la demande (`?w=192`, largeurs en liste blanche — voir
+  // lib/miniatures.ts) : WebP mis en cache sur disque. Une largeur inconnue est
+  // ignorée (on sert l'original) ; si sharp échoue, repli sur l'original aussi.
+  const largeur = lireLargeur(req.nextUrl.searchParams.get("w"));
+  if (largeur) {
+    const mini = await obtenirMiniature(MEDIA_ROOT, relatif, largeur);
+    if (mini) {
+      // L'URL des assets porte `?v=<mtime>` : tant que `v` est là, le contenu ne
+      // change pas pour cette URL. Sans `v`, on revalide (304 grâce à l'ETag).
+      const entetes: Record<string, string> = {
+        "Content-Type": "image/webp",
+        ETag: mini.etag,
+        "Cache-Control": req.nextUrl.searchParams.has("v") ? "public, max-age=31536000, immutable" : "no-cache",
+      };
+      if (req.headers.get("if-none-match") === mini.etag) return new NextResponse(null, { status: 304, headers: entetes });
+      try {
+        const octets = await readFile(mini.chemin);
+        return new NextResponse(new Uint8Array(octets), { headers: { ...entetes, "Content-Length": String(octets.length) } });
+      } catch {
+        // miniature disparue entre-temps : on sert l'original
+      }
+    }
+  }
 
   // Requêtes partielles (Range) : sans elles, le navigateur ne peut pas
   // positionner `currentTime` hors de ce qu'il a déjà chargé — le banc A/B

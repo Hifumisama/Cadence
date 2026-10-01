@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import { assetGenerations, jobs } from "@/db/schema";
 import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { demanderAnnulation, type ResultatAnnulation } from "@/lib/annulation-db";
 import { analyserCle } from "@/lib/taches";
 
 // « Vu » : l'utilisateur a pris connaissance d'une tâche terminée ou échouée
@@ -46,4 +47,12 @@ export async function marquerToutVu(): Promise<{ ok: true }> {
     .set({ vuAt: maintenant })
     .where(and(isNull(jobs.vuAt), notInArray(jobs.statut, ["en_attente", "en_cours"])));
   return { ok: true };
+}
+
+/** Annule une tâche (`image:<uuid>` / `video:<id>`). En attente : annulée tout de
+ * suite. En cours : le drapeau est posé, le worker interrompt ComfyUI (après avoir
+ * vérifié dans /queue que c'est bien ce prompt) puis marque la tâche annulée.
+ * Finie, échouée ou déjà annulée : sans effet. Idempotente. */
+export async function annulerTache(cle: string): Promise<{ ok: true; resultat: ResultatAnnulation }> {
+  return { ok: true, resultat: await demanderAnnulation(cle) };
 }

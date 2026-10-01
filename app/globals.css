@@ -4380,6 +4380,25 @@ a.voix-chip:hover {
   color: var(--ink);
   border-color: var(--or);
 }
+.tq-confirm {
+  flex: 0 0 auto;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-right: 6px;
+}
+.tq-confirm .tq-ignorer {
+  margin-right: 0;
+}
+.tq-annulation {
+  color: var(--or-glow);
+}
+/* Annulée : sobre, ni rouge ni or — ce n'est pas une erreur. */
+.tq-entree.s-annulee {
+  border-left-color: var(--line-strong);
+  opacity: 0.75;
+}
 @media (max-width: 620px) {
   .tq-panneau {
     position: fixed;

@@ -61,3 +61,10 @@ prompt de génération au worker, qui lance `workflows/image-refs/IMG_01_TextToI
 « Utiliser » en fait l'image de l'asset. En mode `stub`, les images sont factices.
 Variables optionnelles : `COMFYUI_WORKFLOW_IMAGE_PATH` (workflow texte → image) et
 `COMFYUI_WORKFLOW_EDITION_PATH` (workflow d'édition à partir d'images).
+
+## Miniatures
+
+Les vignettes demandent `/api/media/<chemin>?w=192` (largeurs 96, 192, 384, 768) : un
+WebP réduit par `sharp`, mis en cache sous `MEDIA_ROOT/_miniatures/` et renouvelé
+quand l'image source change. Sans `?w=`, la route sert l'original (zoom, ComfyUI).
+Le dossier `_miniatures/` est un cache : on peut le supprimer sans risque.

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MediaKind } from "@/components/assets/AssetCard";
+import { urlMiniature } from "@/lib/miniatures";
 
 /** Nœud d'asset allégé pour la galerie de références — construit côté
  * serveur (il faut vérifier les fichiers sur le disque) puis passé tel quel
@@ -38,7 +39,7 @@ function Vignette({ noeud }: { noeud: NoeudPicker }) {
       {etat === "manquant" ? <span className="tiny-note">introuvable</span> : null}
       {etat === "ok" && kind === "image" && src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={code} loading="lazy" />
+        <img src={urlMiniature(src, 384)} alt={code} loading="lazy" decoding="async" />
       ) : null}
       {etat === "ok" && kind === "video" && src ? (
         <video src={`${src}#t=0.001`} preload="metadata" muted playsInline />

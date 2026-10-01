@@ -47,7 +47,7 @@ export function GenerationPanel({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { taches, pret, marquerVuLocal } = useTaches();
+  const { taches, pret, marquerVuLocal, annuler } = useTaches();
   const cible = generationInitiale ? (generations.find((g) => g.uuid === generationInitiale) ?? null) : null;
   const [ouvert, setOuvert] = useState(cible != null);
   const [candidatInitialId] = useState<number | null>(cible?.id ?? null);
@@ -88,6 +88,7 @@ export function GenerationPanel({
           apercuSrc: live.apercuSrc ?? g.apercuSrc,
           position: live.positionFile,
           derriereVideo: live.derriereVideo,
+          annulationDemandee: live.annulationDemandee,
         };
       }),
     [generations, tachesAsset],
@@ -137,6 +138,7 @@ export function GenerationPanel({
         onFermer={() => setOuvert(false)}
         onAdopter={adopter}
         onSupprimer={supprimer}
+        onAnnuler={(g) => annuler(cleImage(g.uuid))}
         occupe={pending}
         retour={retour}
         simule={simule}

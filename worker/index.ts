@@ -1,15 +1,18 @@
 import "dotenv/config";
 import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
+import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/annulation-db";
 import { assemblerPrompt } from "../lib/prompt";
 import { getAllParams } from "../lib/params";
+import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import { creerClientComfyUI } from "./comfyui";
 import type { SubmissionInput } from "./comfyui/types";
 import { prochaineGenerationEnAttente, traiterGenerationImage } from "./images";
 import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
+import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
 import { reprendreOrphelines } from "./reprise";
 
 const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
@@ -80,8 +83,29 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     return false;
   }
 
-  await db.update(jobs).set({ statut: "en_cours", startedAt: new Date() }).where(eq(jobs.id, job.id));
+  // Prise gardée par le statut : un job annulé entre-temps (annulation directe d'une
+  // vidéo en attente) ne doit pas être ressuscité.
+  const prise = await db
+    .update(jobs)
+    .set({ statut: "en_cours", startedAt: new Date() })
+    .where(and(eq(jobs.id, job.id), eq(jobs.statut, "en_attente")))
+    .returning({ id: jobs.id });
+  if (prise.length === 0) return true;
   await db.update(plans).set({ statut: "en_cours" }).where(eq(plans.id, job.planId));
+
+  let promptId: string | null = null;
+  let surveillance: ReturnType<typeof surveillerAnnulation> | null = null;
+
+  /** Annulation demandée : on interrompt ComfyUI après avoir vérifié dans /queue que
+   * c'est bien notre prompt, on ne récupère rien. Le job finit `echoue` / « Annulée »
+   * SANS consommer de tentative ni déclencher le rejeu F04 ; le plan reprend l'état
+   * de sa dernière réussite. */
+  const annuler = async (): Promise<boolean> => {
+    const issue = promptId ? await annulerCoteComfyUI(client, promptId) : "rien";
+    console.log(`[worker] Job ${job.id} (plan ${job.planId}) annulé (${issue})`);
+    await finirAnnulationVideo(job.id);
+    return true;
+  };
 
   try {
     const input = await construireSubmissionInput(job.planId, job.activerUpscale);
@@ -92,15 +116,19 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
       }
     }
 
-    const promptId = await client.submit(input);
+    promptId = await client.submit(input);
     await db.update(jobs).set({ comfyuiPromptId: promptId }).where(eq(jobs.id, job.id));
 
+    // La sonde du drapeau réveille l'attente entre deux interrogations de /history :
+    // une annulation n'attend pas les 5 s du rythme normal.
+    surveillance = surveillerAnnulation(() => annulationDemandeeVideo(job.id));
     const debut = Date.now();
     while (Date.now() - debut < DUREE_MAX_POLL_MS) {
+      if (await annulationDemandeeVideo(job.id)) return await annuler();
       const resultat = await client.poll(promptId);
 
       if (resultat.statut === "en_cours") {
-        await new Promise((r) => setTimeout(r, INTERVALLE_POLL_MS));
+        await Promise.race([new Promise((r) => setTimeout(r, INTERVALLE_POLL_MS)), surveillance.promesse]);
         continue;
       }
 
@@ -136,12 +164,16 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     // Une exception ici (réseau coupé en cours de route, ComfyUI qui plante
     // avant d'avoir répondu) est traitée comme une indisponibilité, pas comme
     // un échec de rendu : le job repart en_attente sans consommer de tentative.
+    // Une annulation demandée prime : ce n'est pas une indisponibilité à rejouer.
+    if (await annulationDemandeeVideo(job.id).catch(() => false)) return await annuler();
     console.warn(`[worker] Job ${job.id} interrompu (probable indisponibilité) :`, err);
     await db
       .update(jobs)
       .set({ statut: "en_attente", startedAt: null })
       .where(eq(jobs.id, job.id));
     return false;
+  } finally {
+    surveillance?.arreter();
   }
 }
 
@@ -185,15 +217,29 @@ async function boucle() {
   // Une seule fois, avant la première prise : ce qui était « en cours » appartenait
   // à un worker mort (voir worker/reprise.ts).
   try {
-    const { images, videos } = await reprendreOrphelines(MEDIA_ROOT);
-    if (images || videos) {
-      console.log(`[worker] Reprise : ${images} image(s) interrompue(s), ${videos} vidéo(s) remise(s) en file`);
+    const { images, videos, annulees } = await reprendreOrphelines(MEDIA_ROOT);
+    if (images || videos || annulees) {
+      console.log(`[worker] Reprise : ${images} image(s) interrompue(s), ${videos} vidéo(s) remise(s) en file, ${annulees} annulation(s) terminée(s)`);
     }
   } catch (err) {
     console.error("[worker] Reprise des tâches interrompues impossible :", err);
   }
 
+  // Purge des échecs de plus de 24 h : une fois au démarrage, puis toutes les heures.
+  let dernierePurge = 0;
+  const purger = async () => {
+    dernierePurge = Date.now();
+    try {
+      const { images, videos } = await purgerEchecs(MEDIA_ROOT);
+      if (images || videos) console.log(`[worker] Purge : ${images} génération(s) et ${videos} job(s) annulé(s) de plus de 24 h supprimés`);
+    } catch (err) {
+      console.error("[worker] Purge des échecs impossible :", err);
+    }
+  };
+  await purger();
+
   while (true) {
+    if (Date.now() - dernierePurge >= INTERVALLE_PURGE_MS) await purger();
     let fait = false;
     try {
       fait = await traiterProchaineTache();

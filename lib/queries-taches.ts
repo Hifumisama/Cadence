@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { assetGenerations, assets, jobs, plans } from "../db/schema";
 import { eq, gte, isNull, or, inArray } from "drizzle-orm";
+import { ERREUR_ANNULEE } from "./annulation";
 import { generationMediaSrc } from "./media";
 import {
   RETENTION_TERMINEES_JOURS,
@@ -70,12 +71,15 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     erreur: g.erreur,
     positionFile: null,
     derriereVideo: false,
+    annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
   }));
 
   const videos: Tache[] = lignesVideos.map(({ j, planUuid, titre, projectId, episodeId }) => ({
     cle: cleVideo(j.id),
     genre: "video",
-    statut: j.statut,
+    // Une vidéo annulée est `echoue` + « Annulée » en base (pas de valeur d'enum de
+    // plus) ; le panneau la montre comme une annulation, pas comme un échec.
+    statut: j.statut === "echoue" && j.erreur === ERREUR_ANNULEE ? "annulee" : j.statut,
     libelle: titre,
     detail: j.tentative > 1 ? `Vidéo · tentative ${j.tentative}` : "Vidéo",
     // F03 : le plan se désigne par son uuid public, jamais par sa position.
@@ -89,9 +93,10 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     startedAt: iso(j.startedAt),
     finishedAt: iso(j.finishedAt),
     vuAt: iso(j.vuAt),
-    erreur: j.erreur,
+    erreur: j.statut === "echoue" && j.erreur === ERREUR_ANNULEE ? null : j.erreur,
     positionFile: null,
     derriereVideo: false,
+    annulationDemandee: j.annulationDemandeeAt != null && j.statut === "en_cours",
   }));
 
   const gardees = ordonnerTaches([...images, ...videos], maintenant);

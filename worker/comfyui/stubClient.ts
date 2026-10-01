@@ -1,4 +1,5 @@
 import { writeFile } from "node:fs/promises";
+import type { EtatDansLaFile } from "../../lib/annulation";
 import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
 import { pngFactice } from "./stubPng";
 
@@ -51,12 +52,13 @@ export class StubComfyUIClient implements ComfyUIClient {
       fermer: () => {
         arrete = true;
       },
-      attendre: async () => {
+      attendre: async (promptId: string) => {
         const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
         surEvenement({ type: "demarre" });
         surEvenement({ type: "noeud", noeud: "stub" });
         for (let i = 1; i <= 8 && !arrete; i++) {
-          await pause(220);
+          await pause(Number(process.env.STUB_PAS_MS ?? 220));
+          if (this.interrompus.has(promptId)) return "erreur";
           surEvenement({ type: "progression", valeur: i, max: 8, noeud: "stub" });
           if (i === 4) surEvenement({ type: "apercu", octets: pngFactice(128, 72), format: "png" });
         }
@@ -64,6 +66,24 @@ export class StubComfyUIClient implements ComfyUIClient {
         return "termine";
       },
     };
+  }
+
+  /** Les prompts simulés « tournent » tant qu'on ne les a pas interrompus. */
+  private interrompus = new Set<string>();
+
+  async etatDansLaFile(promptId: string): Promise<EtatDansLaFile> {
+    if (!this.enCours.has(promptId) || this.interrompus.has(promptId)) return "absent";
+    return "en_cours";
+  }
+
+  async interrompre(promptId: string): Promise<boolean> {
+    this.interrompus.add(promptId);
+    return true;
+  }
+
+  async retirerDeLaFile(promptId: string): Promise<boolean> {
+    this.interrompus.add(promptId);
+    return true;
   }
 
   async fetchOutput(_distant?: string, cheminLocalCible?: string): Promise<void> {

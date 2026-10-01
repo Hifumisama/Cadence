@@ -9,7 +9,8 @@ export type Tache = {
   /** Identifiant stable côté client : « image:<uuid> » ou « video:<id du job> ». */
   cle: string;
   genre: GenreTache;
-  /** en_attente | en_cours | termine | echoue | annulee */
+  /** en_attente | en_cours | termine | echoue | annulee (une vidéo annulée est
+   * `echoue` en base avec l'erreur « Annulée » : la lecture la présente `annulee`). */
   statut: string;
   libelle: string;
   detail: string | null;
@@ -31,6 +32,8 @@ export type Tache = {
   positionFile: number | null;
   /** Une image qui attend pendant qu'un job vidéo tourne : elle passera après lui. */
   derriereVideo: boolean;
+  /** Tâche en cours dont l'annulation est demandée : le worker interrompt ComfyUI. */
+  annulationDemandee: boolean;
 };
 
 export type ResumeTaches = {
@@ -45,23 +48,30 @@ export type ResumeTaches = {
  * jamais plus de PLAFOND_TERMINEES. */
 export const RETENTION_TERMINEES_JOURS = 7;
 export const PLAFOND_TERMINEES = 20;
+/** Échecs et annulations : visibles une journée seulement (décision de
+ * l'utilisateur), vus ou non. Le worker les purge de la base (worker/purge.ts). */
+export const RETENTION_ECHECS_HEURES = 24;
 
 /** Plafond d'images en attente dans la file (une demande de plus est refusée). */
 export const PLAFOND_FILE_IMAGES = 10;
 
 export const estActive = (t: Pick<Tache, "statut">) => t.statut === "en_attente" || t.statut === "en_cours";
 export const estEchec = (t: Pick<Tache, "statut">) => t.statut === "echoue";
+export const estAnnulee = (t: Pick<Tache, "statut">) => t.statut === "annulee";
 export const estTerminee = (t: Pick<Tache, "statut">) => t.statut === "termine";
 
 const t = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
 
-/** Garde la tâche dans le panneau ? Les actives toujours ; les finies tant
- * qu'elles ne sont pas vues, ou si elles sont récentes. */
+/** Garde la tâche dans le panneau ? Les actives toujours ; les terminées tant
+ * qu'elles ne sont pas vues, ou si elles sont récentes ; les échecs et annulations
+ * une journée, vus ou non. */
 export function estAffichable(tache: Pick<Tache, "statut" | "vuAt" | "finishedAt" | "createdAt">, maintenant: Date): boolean {
   if (estActive(tache)) return true;
-  if (tache.vuAt == null && (estEchec(tache) || estTerminee(tache))) return true;
   const fin = t(tache.finishedAt) || t(tache.createdAt);
-  return maintenant.getTime() - fin <= RETENTION_TERMINEES_JOURS * 24 * 3600 * 1000;
+  const age = maintenant.getTime() - fin;
+  if (estEchec(tache) || estAnnulee(tache)) return age <= RETENTION_ECHECS_HEURES * 3600 * 1000;
+  if (tache.vuAt == null && estTerminee(tache)) return true;
+  return age <= RETENTION_TERMINEES_JOURS * 24 * 3600 * 1000;
 }
 
 /** Ordonne et annote les tâches : en cours d'abord, puis la file dans l'ordre où
@@ -121,11 +131,17 @@ export function pageEstPerimee(tachesAsset: Tache[], page: { uuid: string; statu
 export const cleImage = (uuid: string) => `image:${uuid}`;
 export const cleVideo = (jobId: number) => `video:${jobId}`;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function analyserCle(cle: string): { genre: GenreTache; ref: string } | null {
   const i = cle.indexOf(":");
   if (i < 0) return null;
   const genre = cle.slice(0, i);
   const ref = cle.slice(i + 1);
   if ((genre !== "image" && genre !== "video") || !ref) return null;
+  // Une clé vient du navigateur : un uuid ou un id mal formé ne doit jamais
+  // atteindre la base (Postgres lèverait une erreur de syntaxe au lieu de l'ignorer).
+  if (genre === "image" && !UUID.test(ref)) return null;
+  if (genre === "video" && !/^\d+$/.test(ref)) return null;
   return { genre, ref };
 }

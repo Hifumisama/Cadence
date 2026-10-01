@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type DragEvent } from "react";
 import { deposerSourceImport, lancerGeneration } from "@/app/assets/generation-actions";
 import { MediaZoom } from "@/components/assets/MediaZoom";
+import { urlMiniature } from "@/lib/miniatures";
 import {
   ASPECTS,
   CANDIDATS_GARDES,
@@ -63,6 +64,7 @@ export function GenerationDialog({
   onFermer,
   onAdopter,
   onSupprimer,
+  onAnnuler,
   occupe,
   retour,
   simule,
@@ -84,6 +86,8 @@ export function GenerationDialog({
   onFermer: () => void;
   onAdopter: (id: number) => void;
   onSupprimer: (id: number) => void;
+  /** Annule une génération en file ou en cours (indicateur du header, même chemin). */
+  onAnnuler: (g: GenerationVivante) => void;
   occupe: boolean;
   retour: { ok: boolean; texte: string } | null;
   simule: boolean;
@@ -155,6 +159,11 @@ export function GenerationDialog({
   const courant = terminees.find((g) => g.id === vu) ?? terminees[0] ?? null;
   const derniere = generations[0] ?? null;
   const echec = !actif && derniere?.statut === "echoue" ? derniere : null;
+  const annulee = !actif && derniere?.statut === "annulee";
+  // Couper une génération en cours coûte du temps de GPU : on confirme. En file,
+  // l'annulation est immédiate et sans perte.
+  const [confirmerAnnulation, setConfirmerAnnulation] = useState(false);
+  useEffect(() => setConfirmerAnnulation(false), [actif?.id, actif?.statut]);
 
   const changerMode = (m: ModeGeneration) => {
     setMode(m);
@@ -303,7 +312,7 @@ export function GenerationDialog({
                     {s ? (
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img className="gd-thumb" src={s.src} alt={s.code} decoding="async" />
+                        <img className="gd-thumb" src={urlMiniature(s.src, 192)} alt={s.code} decoding="async" />
                         <span className="gd-slot-nom num" title={s.code}>
                           {s.code}
                         </span>
@@ -360,7 +369,7 @@ export function GenerationDialog({
                           return (
                             <button key={a.id} type="button" onClick={() => ajouterAsset(a)} disabled={deja}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img className="gd-thumb" src={a.src} alt="" loading="lazy" decoding="async" />
+                              <img className="gd-thumb" src={urlMiniature(a.src, 192)} alt="" loading="lazy" decoding="async" />
                               <span className="num gd-reg-code">{a.code}</span>
                               <span className="tiny-note">{deja ? "déjà ajoutée" : a.id === assetId ? "cet asset" : (LIBELLE_TYPE[a.type] ?? a.type)}</span>
                             </button>
@@ -491,6 +500,30 @@ export function GenerationDialog({
                     {lancee}
                   </p>
                 ) : null}
+                {actif.annulationDemandee ? (
+                  <p className="tiny-note" role="status" style={{ color: "var(--or-glow)" }}>
+                    Annulation demandée… ComfyUI est en train de s&rsquo;arrêter.
+                  </p>
+                ) : confirmerAnnulation ? (
+                  <div className="gd-row" role="group" aria-label="Confirmer l'annulation">
+                    <button type="button" className="btn btn-ghost btn-mini" onClick={() => { setConfirmerAnnulation(false); onAnnuler(actif); }}>
+                      Oui, annuler la génération
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-mini" onClick={() => setConfirmerAnnulation(false)}>
+                      Non
+                    </button>
+                  </div>
+                ) : (
+                  <div className="gd-row">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-mini"
+                      onClick={() => (actif.statut === "en_cours" ? setConfirmerAnnulation(true) : onAnnuler(actif))}
+                    >
+                      {actif.statut === "en_cours" ? "Annuler cette génération" : "Retirer de la file"}
+                    </button>
+                  </div>
+                )}
                 {autres > 0 ? (
                   <p className="tiny-note num">
                     + {autres} autre{autres > 1 ? "s" : ""} en file pour cet asset
@@ -500,7 +533,7 @@ export function GenerationDialog({
               </>
             ) : courant ? (
               <>
-                <MediaZoom kind="image" src={courant.src!} alt="Candidat généré" classe="gd-stage zoomable" />
+                <MediaZoom kind="image" src={courant.src!} apercu={urlMiniature(courant.src!, 768)} alt="Candidat généré" classe="gd-stage zoomable" />
                 <p className="tiny-note num">
                   {courant.methode === "edition" ? "À partir d'images" : `${courant.aspect} · ${String(courant.megapixels).replace(".", ",")} MP`}
                 </p>
@@ -524,6 +557,7 @@ export function GenerationDialog({
                 {retour.texte}
               </p>
             ) : null}
+            {annulee ? <p className="tiny-note">Dernière génération annulée.</p> : null}
             {echec ? (
               <p className="tiny-note gd-echec" role="alert">
                 Dernière génération échouée{echec.erreur ? ` : ${echec.erreur.slice(0, 160)}` : "."}
@@ -551,7 +585,7 @@ export function GenerationDialog({
                     aria-pressed={!actif && courant?.id === c.id}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={c.src!} alt="" loading="lazy" />
+                    <img src={urlMiniature(c.src!, 96)} alt="" loading="lazy" decoding="async" />
                   </button>
                 ) : (
                   <span key={`vide-${i}`} className="gd-cand vide" />

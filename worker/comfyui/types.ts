@@ -1,3 +1,5 @@
+import type { EtatDansLaFile } from "../../lib/annulation";
+
 export type SubmissionInput = {
   promptAssemble: string;
   seed?: string;
@@ -57,4 +59,15 @@ export interface ComfyUIClient {
    * finir avant qu'on se connecte). Ne rejette jamais : une connexion
    * impossible donne un suivi qui répond `coupure`. */
   ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi>;
+
+  /** Annulation (lib/annulation.ts). `etatDansLaFile` lit GET /queue : le worker
+   * ne coupe jamais un prompt dont il n'a pas vérifié qu'il est bien celui qui
+   * tourne. `inconnu` si ComfyUI ne répond pas ou si la réponse est illisible. */
+  etatDansLaFile(promptId: string): Promise<EtatDansLaFile>;
+  /** POST /interrupt : arrête l'exécution en cours (avec le `prompt_id`, les
+   * versions récentes de ComfyUI ne coupent que celui-là). Ne rejette jamais. */
+  interrompre(promptId: string): Promise<boolean>;
+  /** POST /queue {"delete": [promptId]} : retire un prompt encore en file. Ne
+   * rejette jamais. */
+  retirerDeLaFile(promptId: string): Promise<boolean>;
 }

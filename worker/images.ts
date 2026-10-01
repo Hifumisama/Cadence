@@ -4,8 +4,10 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
 import { CANDIDATS_GARDES, estAspect, nomSourceDistante } from "../lib/asset-generation";
+import { annulationDemandeeImage, finirAnnulationImage } from "../lib/annulation-db";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";
 import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from "../lib/media";
+import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import type { ComfyUIClient } from "./comfyui";
 import {
   NODE_IDS_EDITION,
@@ -93,10 +95,30 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
     return true;
   }
 
-  await db.update(assetGenerations).set({ statut: "en_cours", startedAt: new Date(), erreur: null }).where(eq(assetGenerations.id, gen.id));
+  // Prise gardée par le statut : une demande annulée entre-temps (annulation d'une
+  // tâche en attente, directe) ne doit pas être ressuscitée.
+  const prise = await db
+    .update(assetGenerations)
+    .set({ statut: "en_cours", startedAt: new Date(), erreur: null })
+    .where(and(eq(assetGenerations.id, gen.id), eq(assetGenerations.statut, "en_attente")))
+    .returning({ id: assetGenerations.id });
+  if (prise.length === 0) return true;
 
   let suivi: Suivi | null = null;
   let relais: ReturnType<typeof creerRelais> | null = null;
+  let promptId: string | null = null;
+  let surveillance: ReturnType<typeof surveillerAnnulation> | null = null;
+
+  /** Annulation demandée pendant l'exécution : on interrompt ComfyUI (après avoir
+   * vérifié dans /queue que c'est bien notre prompt), on ne récupère rien, la
+   * génération devient « annulée ». Jamais comptée comme un échec. */
+  const annuler = async (): Promise<boolean> => {
+    const issue = promptId ? await annulerCoteComfyUI(client, promptId) : "rien";
+    console.log(`[worker] Génération ${gen.id} (${asset.code}) annulée (${issue})`);
+    await finirAnnulationImage(gen.id);
+    return true;
+  };
+
   try {
     const edition = gen.methode === "edition";
     let graphe: WorkflowJson;
@@ -130,12 +152,18 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
     relais = creerRelais({ genId: gen.id, genUuid: gen.uuid, assetId: gen.assetId, mediaRoot, graphe });
     suivi = await client.ouvrirSuivi(relais.surEvenement);
 
-    const promptId = await client.submitGraph(graphe);
+    promptId = await client.submitGraph(graphe);
     await db.update(assetGenerations).set({ comfyuiPromptId: promptId }).where(eq(assetGenerations.id, gen.id));
 
+    // L'attente du résultat et la sonde du drapeau d'annulation courent ensemble :
+    // la plus rapide gagne.
+    surveillance = surveillerAnnulation(() => annulationDemandeeImage(gen.id));
+    const issue = await Promise.race([suivi.attendre(promptId, DUREE_MAX_POLL_MS), surveillance.promesse]);
+    if (issue === "annulee") return await annuler();
+
     const debut = Date.now();
-    await suivi.attendre(promptId, DUREE_MAX_POLL_MS);
     while (Date.now() - debut < DUREE_MAX_POLL_MS) {
+      if (await annulationDemandeeImage(gen.id)) return await annuler();
       const r = await client.pollImage(promptId, noeudSortie);
       if (r.statut === "en_cours") {
         await new Promise((res) => setTimeout(res, INTERVALLE_POLL_MS));
@@ -157,6 +185,9 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
     }
     throw new Error("Délai de génération dépassé (10 min)");
   } catch (err) {
+    // Annulation demandée puis erreur (ComfyUI interrompu, réseau) : c'est une
+    // annulation, pas un échec.
+    if (await annulationDemandeeImage(gen.id).catch(() => false)) return await annuler();
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[worker] Génération ${gen.id} échouée : ${message}`);
     await db
@@ -164,6 +195,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       .set({ statut: "echoue", erreur: message, finishedAt: new Date() })
       .where(eq(assetGenerations.id, gen.id));
   } finally {
+    surveillance?.arreter();
     suivi?.fermer();
     await relais?.nettoyer();
   }

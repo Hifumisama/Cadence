@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { basename, join } from "node:path";
 import { MEDIA_ROOT } from "../../lib/media";
 import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
+import { etatDansLaFile, type EtatDansLaFile } from "../../lib/annulation";
 import { injecterValeurs, nomFichierSortie, NODE_IDS } from "./mapping";
 import { ouvrirSuiviWs, type EtatHistorique } from "./wsSuivi";
 
@@ -141,6 +142,44 @@ export class HttpComfyUIClient implements ComfyUIClient {
       statut: "termine",
       cheminSortieDistant: `${fichier.subfolder ?? ""}/${fichier.filename}`.replace(/^\//, ""),
     };
+  }
+
+  async etatDansLaFile(promptId: string): Promise<EtatDansLaFile> {
+    try {
+      const res = await fetch(`${this.baseUrl}/queue`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return "inconnu";
+      return etatDansLaFile(await res.json(), promptId);
+    } catch {
+      return "inconnu";
+    }
+  }
+
+  async interrompre(promptId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/interrupt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt_id: promptId }),
+        signal: AbortSignal.timeout(5000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async retirerDeLaFile(promptId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/queue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delete: [promptId] }),
+        signal: AbortSignal.timeout(5000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   async fetchOutput(cheminSortieDistant: string, cheminLocalCible: string): Promise<void> {

@@ -1,5 +1,10 @@
 import { MediaZoom } from "@/components/assets/MediaZoom";
+import { urlMiniature, type LargeurMiniature } from "@/lib/miniatures";
 import { estAudio, estVideo, fichierMediaExiste, urlAssetMedia } from "@/lib/media";
+
+// Largeur de la miniature selon la taille d'affichage (écran 2×) ; l'original ne
+// sert qu'au zoom.
+const LARGEUR_APERCU: Record<"sm" | "md" | "lg", LargeurMiniature> = { sm: 96, md: 192, lg: 768 };
 
 export function AssetPreview({
   type,
@@ -35,5 +40,14 @@ export function AssetPreview({
     );
   }
 
-  return <MediaZoom kind={estVideo(fichier) ? "video" : "image"} src={src} alt={fichier} classe={classe} />;
+  const video = estVideo(fichier);
+  return (
+    <MediaZoom
+      kind={video ? "video" : "image"}
+      src={src}
+      apercu={video ? undefined : urlMiniature(src, LARGEUR_APERCU[taille])}
+      alt={fichier}
+      classe={classe}
+    />
+  );
 }

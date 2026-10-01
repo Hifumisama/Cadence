@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   PLAFOND_TERMINEES,
   analyserCle,
+  estAffichable,
   pageEstPerimee,
   ordonnerTaches,
   resumerTaches,
@@ -34,6 +35,7 @@ function tache(p: Partial<Tache> & Pick<Tache, "statut">): Tache {
     erreur: null,
     positionFile: null,
     derriereVideo: false,
+    annulationDemandee: false,
     ...p,
   };
 }
@@ -70,9 +72,9 @@ test("une image en attente pendant qu'une vidéo tourne est « derrière une vid
   assert.ok(sansVideo.every((x) => !x.derriereVideo));
 });
 
-test("une tâche terminée et vue depuis plus de 7 jours disparaît ; une non vue reste", () => {
+test("une tâche terminée et vue depuis plus de 7 jours disparaît ; une non vue reste (un échec, lui, part après 24 h)", () => {
   const ancienneVue = tache({ statut: "termine", finishedAt: il_y_a(60 * 24 * 8), vuAt: il_y_a(60 * 24 * 8) });
-  const ancienneNonVue = tache({ statut: "echoue", finishedAt: il_y_a(60 * 24 * 8) });
+  const ancienneNonVue = tache({ statut: "termine", finishedAt: il_y_a(60 * 24 * 8) });
   const r = ordonnerTaches([ancienneVue, ancienneNonVue], MAINTENANT);
   assert.deepEqual(
     r.map((x) => x.cle),
@@ -123,9 +125,37 @@ test("tâches d'un asset : images de cet asset seulement", () => {
 });
 
 test("clés : analyse", () => {
-  assert.deepEqual(analyserCle("image:abc"), { genre: "image", ref: "abc" });
+  const uuid = "3f2a9c1e-5b7d-4e8a-9c3f-1a2b3c4d5e6f";
+  assert.deepEqual(analyserCle(`image:${uuid}`), { genre: "image", ref: uuid });
   assert.deepEqual(analyserCle("video:12"), { genre: "video", ref: "12" });
+  // un uuid ou un id mal formé ne doit jamais atteindre la base
+  assert.equal(analyserCle("image:abc"), null);
+  assert.equal(analyserCle("image:pas-un-uuid"), null);
+  assert.equal(analyserCle("video:12; drop"), null);
+  assert.equal(analyserCle("video:-3"), null);
   assert.equal(analyserCle("audio:1"), null);
   assert.equal(analyserCle("image:"), null);
   assert.equal(analyserCle("nimporte"), null);
+});
+
+test("échecs et annulations : visibles une journée, vus ou non ; terminées non vues restent", () => {
+  const jours = (j: number) => il_y_a(j * 24 * 60);
+  const echecRecent = tache({ statut: "echoue", finishedAt: il_y_a(60) });
+  const echecVieux = tache({ statut: "echoue", finishedAt: il_y_a(25 * 60) });
+  const annuleeVieille = tache({ statut: "annulee", finishedAt: il_y_a(25 * 60), vuAt: il_y_a(24 * 60) });
+  const annuleeRecente = tache({ statut: "annulee", finishedAt: il_y_a(60) });
+  const termineeNonVue = tache({ statut: "termine", finishedAt: jours(3) });
+  const termineeVueVieille = tache({ statut: "termine", finishedAt: jours(8), vuAt: jours(7) });
+  assert.equal(estAffichable(echecRecent, MAINTENANT), true);
+  assert.equal(estAffichable(echecVieux, MAINTENANT), false);
+  assert.equal(estAffichable(annuleeVieille, MAINTENANT), false);
+  assert.equal(estAffichable(annuleeRecente, MAINTENANT), true);
+  assert.equal(estAffichable(termineeNonVue, MAINTENANT), true);
+  assert.equal(estAffichable(termineeVueVieille, MAINTENANT), false);
+});
+
+test("une annulation n'est pas un échec : pas de point écarlate", () => {
+  const r = resumerTaches([tache({ statut: "annulee", finishedAt: il_y_a(5) }), tache({ statut: "echoue", finishedAt: il_y_a(5) })]);
+  assert.equal(r.echecsNonVus, 1);
+  assert.equal(r.actives, 0);
 });

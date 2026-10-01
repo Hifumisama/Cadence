@@ -400,6 +400,9 @@ export const assetGenerations = pgTable("asset_generations", {
   // « Vu » : l'utilisateur a pris connaissance du résultat ou de l'échec
   // (indicateur du header). null = pas encore vu.
   vuAt: timestamp("vu_at"),
+  // Annulation d'une tâche EN COURS : l'interface pose le drapeau, le worker agit
+  // (lib/annulation.ts). Une tâche en attente s'annule directement, sans drapeau.
+  annulationDemandeeAt: timestamp("annulation_demandee_at"),
 });
 
 // Images sources d'une génération « à partir d'images » (IMG_Simple_Edit : de 1
@@ -446,6 +449,9 @@ export const jobs = pgTable("jobs", {
   finishedAt: timestamp("finished_at"),
   // « Vu » : voir asset_generations.vuAt.
   vuAt: timestamp("vu_at"),
+  // Annulation : voir asset_generations.annulationDemandeeAt. Une vidéo annulée finit
+  // `echoue` avec l'erreur « Annulée » (pas de statut d'enum de plus).
+  annulationDemandeeAt: timestamp("annulation_demandee_at"),
 });
 
 // Réglages globaux clé/valeur, techniques et indépendants du récit : plafond

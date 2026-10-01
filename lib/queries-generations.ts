@@ -47,6 +47,7 @@ export async function getGenerationsAsset(assetId: number) {
     megapixels: g.megapixels,
     loraPersonnage: g.loraPersonnage,
     erreur: g.erreur,
+    annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
     src: g.statut === "termine" ? generationMediaSrc(assetId, g.fichier) : null,
     // Progression relayée par le worker, tant que la demande est en cours. L'aperçu
     // est un fichier écrasé à chaque étape : `apercuAt` en fait une URL neuve.

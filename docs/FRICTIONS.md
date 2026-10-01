@@ -764,6 +764,31 @@ continue, et l'icône du bandeau dit ce qui tourne, ce qui est prêt, ce qui a
 - Pas encore : annulation, toasts, miniatures (le panneau charge les PNG pleine
   taille, bornés à 44 px par CSS), progression vidéo.
 
+### Miniatures d'images à la demande (2026-10-01)
+Les PNG d'assets et de candidats pèsent 1 à 7 Mo (ComfyUI, 1024² à 1,3 MP) et
+étaient chargés en pleine taille derrière des vignettes de 40 à 300 px. Décisions :
+- **Une option de la route média, pas une nouvelle route** : `/api/media/<chemin>?w=192`
+  renvoie un WebP réduit (`sharp`, jamais agrandi), mis en cache sous
+  `MEDIA_ROOT/_miniatures/<largeur>/<hash du chemin>-<mtime>-<taille>.webp`. La clé
+  contient la date et la taille de la source : une image remplacée sous le même nom
+  (F01 : adoption, import) donne une miniature neuve, et les périmées du même
+  chemin sont supprimées à la génération. Pas de purge globale à prévoir.
+- **Liste blanche de largeurs** (96 / 192 / 384 / 768, écran 2×) : toute autre valeur
+  est ignorée et l'original est servi. Images raster seulement (GIF exclu, vidéo et
+  audio inchangés, Range compris). Échec de `sharp` → repli sur l'original.
+- **Cache HTTP** : `immutable` quand l'URL porte `?v=` (versions des fichiers
+  d'assets), sinon `no-cache` avec ETag (304).
+- **L'original reste pour le zoom** (`MediaZoom` : `apercu` pour le déclencheur,
+  `src` pour la fenêtre) et pour tout ce qui part à ComfyUI. L'image de la fenêtre
+  agrandie est en `loading="lazy"` : dans un `<dialog>` fermé, une image non
+  paresseuse est chargée d'office, ce qui annulait l'intérêt des miniatures.
+- **Windows** : `sharp` lit la source en mémoire et coupe son cache pour ne jamais
+  garder un fichier ouvert (sinon l'écrasement de `assets/<code>.png` à l'adoption
+  échouerait en EBUSY).
+- Hors périmètre : les posters (projet, saison, épisode) restent en pleine taille.
+- Code : `lib/miniatures.ts` (pur, utilisable côté client : `urlMiniature(src, largeur)`),
+  `lib/miniatures-serveur.ts`, `lib/miniatures.test.ts`.
+
 ### Suivi en direct des générations : WebSocket ComfyUI, relayé par la base (2026-10-01)
 Le worker suit un prompt par le WebSocket de ComfyUI (`/ws?clientId=…`) en plus
 du HTTP, pas à sa place. Décisions :
@@ -828,6 +853,53 @@ indicateur du header et annulation viennent après). Décisions :
   le cas d'un worker arrêté sans redémarrer : les demandes restent « en attente »
   (ou « en cours » jusqu'à son retour) et l'écran continue de les sonder — c'est la
   tâche de l'indicateur du header de le montrer clairement.
+
+### Annulation des tâches et purge des échecs (2026-10-01)
+Dernière brique de la file d'attente : on peut annuler une génération d'image ou un
+job vidéo, depuis le panneau du header et depuis la popup de génération.
+- **En attente → annulée tout de suite** (UPDATE gardé par le statut, atomique).
+  **En cours → drapeau** `annulation_demandee_at` (migration 0029, images et vidéos),
+  que le worker lit pendant l'exécution : la sonde (`worker/annulation.ts`) court en
+  même temps que l'attente du résultat, l'annulation n'attend pas le rythme normal.
+  Idempotent : redemander ne change rien ; une tâche déjà finie reste finie.
+- **Jamais d'interruption à l'aveugle.** `POST /interrupt` arrête ce qui tourne sur
+  TOUT le serveur, y compris un job lancé à la main sur ComfyUI. Le worker lit donc
+  `GET /queue` d'abord (`lib/annulation.ts`) : prompt en cours → `/interrupt` (avec
+  son `prompt_id`, **une seule fois**, puis on relit /queue jusqu'à constater qu'il a
+  quitté la file) ; prompt encore en file → `POST /queue {delete}` ; ni l'un ni
+  l'autre → rien ; /queue muet ou illisible → on réessaie, on ne coupe rien (si ça ne
+  s'éclaircit pas, la tâche est marquée annulée dans Cadence mais ComfyUI n'a pas été
+  touché : cas signalé dans les logs, `sans_effet`).
+- **Format de /queue (relevé sur le serveur de l'utilisateur, un prompt en cours) :**
+  `{ queue_running: [[numéro, prompt_id, graphe, extra_data, sorties]], queue_pending: [...] }` ;
+  le décodeur accepte aussi des objets `{prompt_id}` / `{id}` si le format évolue.
+- **Vidéo annulée = `echoue` + erreur « Annulée »** (v1 : `job_statut` est un enum
+  Postgres, pas de valeur de plus). Elle ne consomme pas de tentative et ne déclenche
+  pas le rejeu F04 ; le plan reprend l'état de sa dernière réussite (`termine` /
+  `previsualise`, sinon `brouillon`). La lecture (`lib/queries-taches.ts`) la présente
+  comme `annulee`. Image annulée = statut `annulee`, sans message d'erreur.
+- **Une annulation n'est pas un échec** : pas de point écarlate dans le header, entrée
+  sobre « Annulée » rangée avec les échecs (même durée de vie). Elle prime aussi sur
+  la reprise au démarrage (une annulation demandée est terminée comme annulée, pas
+  « worker redémarré » ni remise en file) et sur l'indisponibilité (une exception
+  après une demande d'annulation = annulation).
+- **Prise gardée par le statut** : le worker ne passe une tâche « en cours » que si
+  elle est encore « en attente » ; une annulation directe arrivée entre le choix et la
+  prise ne se fait donc pas écraser.
+- **Purge « à l'échelle de la journée »** (`worker/purge.ts`, au démarrage puis toutes
+  les heures) : demandes d'images échouées ou annulées depuis plus de 24 h supprimées
+  (ligne + imports devenus orphelins) ; jobs vidéo annulés de même. Le panneau ne
+  montre plus un échec ou une annulation au bout de 24 h (vus ou non). Ne touche
+  **jamais** : un candidat terminé (règle des 8 par asset), une tâche active, ni un
+  job vidéo **vraiment échoué**, qui reste la mémoire de la boucle d'itération (F03,
+  historique des tentatives d'un plan) : il disparaît du panneau, pas de la base.
+- **Clés venues du navigateur validées** (`analyserCle` : uuid ou id numérique) : un
+  identifiant mal formé est ignoré au lieu de faire lever une erreur SQL.
+- Validé en réel (2026-10-01, ComfyUI de l'utilisateur) : image annulée à 4/8 → la
+  demande est arrêtée en ~2 s, `/queue` vide, historique ComfyUI `execution_interrupted`,
+  aucun résultat récupéré. **Non vu en réel** : le retrait d'un prompt encore en file
+  chez ComfyUI (`queue_pending`, seulement testé avec un faux client), et l'annulation
+  d'une vidéo (même chemin de code, jamais lancée en vrai).
 
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme

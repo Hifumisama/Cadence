@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { marquerToutVu, marquerVu } from "@/app/taches/actions";
+import { annulerTache, marquerToutVu, marquerVu } from "@/app/taches/actions";
 import type { ResumeTaches, Tache } from "@/lib/taches";
 
 /** Un seul sondage de `/api/taches` pour toute l'application, placé dans le
@@ -26,6 +26,9 @@ type Contexte = {
   /** Marque des tâches vues, tout de suite à l'écran puis en base. */
   marquerVuLocal: (cles: string[]) => void;
   marquerToutVuLocal: () => void;
+  /** Annule une tâche : en attente, elle devient annulée tout de suite ; en cours,
+   * « annulation demandée » s'affiche le temps que le worker interrompe ComfyUI. */
+  annuler: (cle: string) => void;
 };
 
 const Ctx = createContext<Contexte>({
@@ -37,6 +40,7 @@ const Ctx = createContext<Contexte>({
   rafraichir: async () => undefined,
   marquerVuLocal: () => undefined,
   marquerToutVuLocal: () => undefined,
+  annuler: () => undefined,
 });
 
 export function useTaches(): Contexte {
@@ -169,9 +173,25 @@ export function TachesProvider({ children }: { children: ReactNode }) {
     void marquerToutVu().then(charger);
   }, [appliquerVu, charger]);
 
+  const annuler = useCallback(
+    (cle: string) => {
+      const maintenant = new Date().toISOString();
+      appliquerVu(
+        tachesRef.current.map((x) => {
+          if (x.cle !== cle) return x;
+          if (x.statut === "en_attente") return { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null };
+          if (x.statut === "en_cours") return { ...x, annulationDemandee: true };
+          return x;
+        }),
+      );
+      void annulerTache(cle).then(charger);
+    },
+    [appliquerVu, charger],
+  );
+
   const valeur = useMemo<Contexte>(
-    () => ({ taches, resume, pret, panneauOuvert, setPanneauOuvert, rafraichir: charger, marquerVuLocal, marquerToutVuLocal }),
-    [taches, resume, pret, panneauOuvert, charger, marquerVuLocal, marquerToutVuLocal],
+    () => ({ taches, resume, pret, panneauOuvert, setPanneauOuvert, rafraichir: charger, marquerVuLocal, marquerToutVuLocal, annuler }),
+    [taches, resume, pret, panneauOuvert, charger, marquerVuLocal, marquerToutVuLocal, annuler],
   );
 
   return <Ctx.Provider value={valeur}>{children}</Ctx.Provider>;
