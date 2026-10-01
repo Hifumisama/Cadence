@@ -28,9 +28,10 @@ export type TraceAEnregistrer = {
 
 export type EnregistreurTrace = (trace: TraceAEnregistrer) => Promise<void>;
 
-/** Enregistreur par défaut : une ligne dans `agent_traces`. */
-export const enregistrerTrace: EnregistreurTrace = async (t) => {
-  await db.insert(agentTraces).values({
+/** Insère une trace dans `agent_traces` et renvoie son id (la tâche de la file,
+ * agent_runs, s'y rattache : worker/llm.ts). */
+export async function insererTrace(t: TraceAEnregistrer): Promise<number> {
+  const [ligne] = await db.insert(agentTraces).values({
     skill: t.skill,
     fournisseur: t.fournisseur,
     modele: t.modele,
@@ -47,5 +48,11 @@ export const enregistrerTrace: EnregistreurTrace = async (t) => {
     tokensEntree: t.tokensEntree,
     tokensSortie: t.tokensSortie,
     dureeMs: t.dureeMs,
-  });
+  }).returning({ id: agentTraces.id });
+  return ligne!.id;
+}
+
+/** Enregistreur par défaut : une ligne dans `agent_traces`. */
+export const enregistrerTrace: EnregistreurTrace = async (t) => {
+  await insererTrace(t);
 };

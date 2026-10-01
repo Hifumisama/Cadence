@@ -930,8 +930,9 @@ Premier chantier de la génération depuis une conversation (`docs/CONCEPTION_AG
   prompt lui-même : il vit dans git), sortie brute, JSON valide, erreurs de validation,
   renvois, jetons, durée, projet nullable. Le lien vers une proposition viendra avec
   les propositions (chantier 3).
-- **Le GPU est partagé avec ComfyUI** : les appels LLM seront des tâches de la file
-  (chantier 2) ; pour l'instant `llm:essai` suppose que ComfyUI est au repos.
+- **Le GPU est partagé avec ComfyUI** : les appels LLM sont des tâches de la file
+  (chantier 2, « Ressource GPU unique » ci-dessous) ; `llm:essai`, lui, appelle le
+  serveur directement et suppose que ComfyUI est au repos.
 Constaté sur le serveur de l'utilisateur (llama-swap, 2 modèles MoE) : contrainte
 json_schema **bien appliquée** (un prompt qui demande une phrase sans JSON renvoie
 quand même le JSON conforme, et la phrase sans contrainte) ; les modèles **réfléchissent
@@ -940,6 +941,74 @@ et `usage` : garder une limite large (16 384 par défaut) ; contexte `--ctx-size
 1 slot (`--parallel 1`). Premier essai réel : `brief-projet` sur `gemma4-26b-A4B`, JSON
 valide du premier coup, 80 s, 2 811 jetons en entrée, 2 543 en sortie (raisonnement
 compris).
+
+### Ressource GPU unique : les appels LLM entrent dans la file (2026-10-01)
+Chantier 2 de la génération depuis une conversation. ComfyUI (images, vidéo) et le
+LLM local (llama.cpp derrière llama-swap) tournent sur la **même machine** : le worker
+traite **une seule tâche à la fois, tous genres confondus**. Construit : table
+`agent_runs` (migration 0031), `worker/llm.ts`, `worker/gpu.ts`, `worker/llamaSwap.ts`,
+`lib/gpu.ts`, `npm run llm:tache`. Décisions :
+- **Trois genres, une table chacun** : `asset_generations` (image), `agent_runs`
+  (llm), `jobs` (vidéo). Pas de table générique, pas de généralisation de
+  `worker/comfyui/` ; la couche de lecture (`listerTaches()`) les fusionne. Une
+  tâche LLM a : skill, entrée, options (`{ modele }`), projet nullable, statut
+  (`en_attente / en_cours / termine / echoue / annulee`, varchar), jetons reçus,
+  résultat validé contre le schéma du skill, erreur, lien vers sa trace
+  (`agent_traces`), `vu_at`, `annulation_demandee_at`. Pas de `proposition_id` :
+  il viendra avec le chantier 3.
+- **Ordre : image, puis llm, puis vidéo** (les tâches courtes d'abord : une image se
+  refait en secondes, un appel LLM dure 1 à 3 min, une vidéo 1 min 30 en basse
+  résolution, 3 à 4 min en upscale), FIFO à genre égal, **sans préemption**. Pas de
+  famine : seules des tâches nouvelles peuvent en dépasser une, une vidéo passe dès
+  qu'il n'y a plus d'image ni d'appel LLM en attente (propriétés testées sur des
+  files aléatoires). À égalité de palier, le domaine GPU de la tâche précédente
+  passerait d'abord ; **avec l'ordre actuel chaque genre a son palier, ce critère ne
+  tranche donc rien aujourd'hui** (il est là pour le jour où deux genres partageront
+  un palier). Le panneau du header lit le même ordre (`PRIORITE_GENRE`).
+- **Un domaine injoignable ne bloque pas l'autre** : à chaque tour le worker sonde
+  ComfyUI (`/system_stats`) et le serveur LLM (`GET /health` de llama-swap, qui ne
+  charge aucun modèle) ; les tâches d'un domaine éteint restent en attente et on
+  prend ce qui peut tourner. Un serveur injoignable ne consomme rien (même règle que
+  F04).
+- **Libération de la VRAM au changement de domaine** (`worker/gpu.ts`) : avant un
+  appel LLM, `POST /free {"unload_models": true, "free_memory": true}` sur ComfyUI ;
+  avant une tâche ComfyUI, `GET /unload` sur llama-swap. « Au mieux » : un échec ou
+  un délai (40 s) est journalisé, n'empêche jamais la tâche et ne bloque jamais le
+  worker. Même domaine que la tâche précédente : aucun appel (les modèles sont déjà
+  là). L'état « dernier domaine » vit en mémoire du worker ; **au démarrage il est
+  inconnu, donc le premier changement de domaine décharge l'autre côté par
+  prudence** (un appel de plus, inoffensif quand c'est déjà vide).
+- **Annulation d'un appel LLM** : en attente → annulé tout de suite ; en cours →
+  drapeau, le worker coupe la connexion HTTP (`AbortSignal`) : llama.cpp arrête de
+  générer. Ni erreur ni relance ; la trace est `interrompu`.
+- **Reprise et purge** : un appel `en_cours` au démarrage devient `echoue`
+  « Interrompue (worker redémarré) » (jamais rejoué) ; les appels échoués ou annulés
+  de plus de 24 h sont purgés comme les autres. Un appel terminé n'est jamais purgé :
+  son résultat nourrira l'écran de revue.
+- **Header** : « Brief du projet · <projet> », mention « Agent », compteur de **jetons**
+  (le maximum est inconnu : pas de barre à pourcentage), « derrière une vidéo / une
+  image / un agent » quand une tâche d'un autre genre tient le GPU, Annuler, vu/non vu.
+  Le clic ouvre la page du projet : *TODO chantier 3*, l'écran de revue des
+  propositions la remplacera (`lib/queries-taches.ts`).
+Vérifié sur le serveur de l'utilisateur (ComfyUI 0.38, llama-swap, 2026-10-01) :
+- **Certain** : `GET /health` → `OK` ; `GET /running` → `{"running":[{"model", "state"
+  (starting / ready), "cmd", "ttl"…}]}` ; `GET /unload` → `OK` 200 en 0,7 s et
+  `/running` vide ensuite ; `POST /free` ComfyUI → 200 en ~50 ms, sans corps ;
+  `GET /upstream/<modèle>/slots` → `is_processing: false` après une annulation (la
+  génération s'arrête bien côté serveur). Chaîne de bout en bout, en réel : image
+  (15 s) → appel LLM `brief-projet` (64 s, 901 jetons à 53 s, gemma chargé à la demande
+  en ~10 s) → image (le worker a déchargé gemma avant : `/running` vide, image en 13 s)
+  → appel LLM annulé en 1,0 s ; annulation aussi depuis le panneau du header.
+- **Incertain** : l'effet de `POST /free` sur la VRAM n'a pas pu être mesuré : ComfyUI
+  ne garde aucun modèle résident entre deux générations sur ce serveur (`vram_free`
+  de `/system_stats` identique avant et après une génération Krea, 14 913 Mo sur
+  16 302). Constat à creuser : `vram_free` côté ComfyUI ne baisse que de ~350 Mo
+  quand gemma est chargé (`--n-cpu-moe 15`), donc la contention VRAM supposée n'est
+  pas visible depuis ComfyUI ; à confirmer avec `nvidia-smi` sur la machine du GPU. La
+  sérialisation reste utile (un seul GPU, un seul slot LLM) et la libération est une
+  précaution peu coûteuse. `ttl: 300` côté llama-swap : le modèle se décharge de
+  lui-même après 5 min d'inactivité ; `/unload` évite d'attendre ce délai quand
+  ComfyUI reprend la main.
 
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme

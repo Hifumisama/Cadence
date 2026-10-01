@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useTaches } from "@/components/taches/TachesProvider";
-import { estActive, type Tache } from "@/lib/taches";
+import { estActive, type GenreTache, type Tache } from "@/lib/taches";
 import { urlMiniature } from "@/lib/miniatures";
 
 /** Icône du header : ce qui se génère, ce qui est prêt, ce qui a échoué. Badge
@@ -120,6 +120,8 @@ export function IndicateurTaches() {
   );
 }
 
+const DERRIERE: Record<GenreTache, string> = { image: "une image", video: "une vidéo", llm: "un agent" };
+
 function heure(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -144,7 +146,7 @@ function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () 
             // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt="" loading="lazy" decoding="async" />
           ) : (
-            <span className="tq-genre">{x.genre === "video" ? "▶" : "▣"}</span>
+            <span className="tq-genre">{x.genre === "video" ? "▶" : x.genre === "llm" ? "✦" : "▣"}</span>
           )}
         </span>
         <span className="tq-corps">
@@ -161,7 +163,13 @@ function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () 
             </span>
           ) : null}
           {x.statut === "en_cours" && !x.annulationDemandee ? (
-            x.progression ? (
+            x.genre === "llm" ? (
+              // Un appel LLM n'a pas de maximum connu : un compteur de jetons, pas de pourcentage.
+              <span className="tq-prog">
+                <progress aria-label="Génération en cours" />
+                <span className="num">{x.jetons != null && x.jetons > 0 ? `${x.jetons} jeton${x.jetons > 1 ? "s" : ""}` : "Démarrage…"}</span>
+              </span>
+            ) : x.progression ? (
               <span className="tq-prog">
                 <progress value={x.progression.valeur} max={x.progression.max} aria-label="Progression" />
                 <span className="num">
@@ -179,10 +187,10 @@ function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () 
           {x.statut === "en_attente" ? (
             <span className="tq-etat">
               En file · n°{x.positionFile ?? "?"}
-              {x.derriereVideo ? " · derrière une vidéo" : ""}
+              {x.derriere ? ` · derrière ${DERRIERE[x.derriere]}` : ""}
             </span>
           ) : null}
-          {x.statut === "termine" ? <span className="tq-etat">Prête · {heure(x.finishedAt)}</span> : null}
+          {x.statut === "termine" ? <span className="tq-etat">{x.genre === "llm" ? "Terminé" : "Prête"} · {heure(x.finishedAt)}</span> : null}
           {x.statut === "annulee" ? <span className="tq-etat">Annulée · {heure(x.finishedAt)}</span> : null}
           {x.statut === "echoue" ? (
             <span className="tq-etat tq-erreur" title={x.erreur ?? undefined}>

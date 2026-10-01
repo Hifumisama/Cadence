@@ -15,10 +15,15 @@ import {
   type ModeGeneration,
 } from "@/lib/asset-generation";
 import type { GenerationVue, SourceDisponible } from "@/lib/queries-generations";
+import type { GenreTache } from "@/lib/taches";
 
 /** Une génération de la page, complétée par ce que l'indicateur sait en direct :
  * progression, aperçu, rang dans la file. */
-export type GenerationVivante = GenerationVue & { position: number | null; derriereVideo: boolean };
+const DERRIERE: Record<GenreTache, string> = { image: "une image", video: "une vidéo", llm: "un agent" };
+
+/** Une génération avec son rang dans la file et, si elle attend, le genre de la
+ * tâche qui tient le GPU (une vidéo, un appel d'agent…). */
+export type GenerationVivante = GenerationVue & { position: number | null; derriere: GenreTache | null };
 
 const ACTIFS = ["en_attente", "en_cours"];
 
@@ -472,7 +477,7 @@ export function GenerationDialog({
                   ) : (
                     <span className="tiny-note">
                       {actif.statut === "en_attente"
-                        ? `En file${actif.position ? ` · n°${actif.position}` : ""}${actif.derriereVideo ? " · derrière une vidéo" : ""}`
+                        ? `En file${actif.position ? ` · n°${actif.position}` : ""}${actif.derriere ? ` · derrière ${DERRIERE[actif.derriere]}` : ""}`
                         : "Démarrage…"}
                     </span>
                   )}

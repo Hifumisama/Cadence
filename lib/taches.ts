@@ -1,12 +1,25 @@
-/** Tâches ComfyUI vues par l'utilisateur (indicateur du header) — règles pures,
+import { PRIORITE_GENRE, domaineDe, type GenreTache } from "./gpu";
+
+/** Tâches du GPU vues par l'utilisateur (indicateur du header) — règles pures,
  * sans base ni disque, partagées par la requête serveur (lib/queries-taches.ts),
  * l'API (app/api/taches) et le panneau client. Une table par type de tâche
- * (asset_generations, jobs) ; ceci n'est que la couche de lecture commune. */
+ * (asset_generations, jobs, agent_runs) ; ceci n'est que la couche de lecture
+ * commune. */
 
-export type GenreTache = "image" | "video";
+export type { GenreTache };
+
+/** Nom lisible du travail d'un skill d'agent, pour le panneau. */
+export const LIBELLE_SKILL: Record<string, string> = {
+  "brief-projet": "Brief du projet",
+  "scenario-episode": "Scénario d'épisode",
+  "prompt-asset": "Prompt d'asset",
+  "prompt-voix": "Prompt de voix",
+  "plan-h3": "Plans H3",
+  "iteration-plan": "Itération de plan",
+};
 
 export type Tache = {
-  /** Identifiant stable côté client : « image:<uuid> » ou « video:<id du job> ». */
+  /** Identifiant stable côté client : « image:<uuid> », « video:<id du job> » ou « llm:<uuid> ». */
   cle: string;
   genre: GenreTache;
   /** en_attente | en_cours | termine | echoue | annulee (une vidéo annulée est
@@ -32,6 +45,11 @@ export type Tache = {
   positionFile: number | null;
   /** Une image qui attend pendant qu'un job vidéo tourne : elle passera après lui. */
   derriereVideo: boolean;
+  /** Genre de la tâche en cours derrière laquelle celle-ci attend (une autre
+   * tâche tient le GPU), null si elle n'attend derrière personne d'un autre genre. */
+  derriere: GenreTache | null;
+  /** Appel LLM en cours : jetons de sortie reçus (le maximum est inconnu, pas de barre). */
+  jetons: number | null;
   /** Tâche en cours dont l'annulation est demandée : le worker interrompt ComfyUI. */
   annulationDemandee: boolean;
 };
@@ -83,20 +101,27 @@ export function ordonnerTaches(entrees: Tache[], maintenant: Date): Tache[] {
   const enCours = gardees.filter((x) => x.statut === "en_cours").sort((a, b) => t(a.startedAt ?? a.createdAt) - t(b.startedAt ?? b.createdAt));
   const attente = gardees.filter((x) => x.statut === "en_attente");
   const parAnciennete = (a: Tache, b: Tache) => t(a.createdAt) - t(b.createdAt);
-  const file = [
-    ...attente.filter((x) => x.genre === "image").sort(parAnciennete),
-    ...attente.filter((x) => x.genre === "video").sort(parAnciennete),
-  ];
+  // L'ordre du worker (worker/ordonnanceur.ts) : image, puis llm, puis vidéo.
+  const file = [...attente].sort((a, b) => PRIORITE_GENRE[a.genre] - PRIORITE_GENRE[b.genre] || parAnciennete(a, b));
   const videoEnCours = enCours.some((x) => x.genre === "video");
+  // La tâche qui tient le GPU : une tâche d'un autre genre patiente derrière elle.
+  const genreEnCours = enCours[0]?.genre ?? null;
   const finies = gardees
     .filter((x) => !estActive(x))
     .sort((a, b) => (t(b.finishedAt) || t(b.createdAt)) - (t(a.finishedAt) || t(a.createdAt)))
     .slice(0, PLAFOND_TERMINEES);
 
   return [
-    ...enCours.map((x) => ({ ...x, positionFile: null, derriereVideo: false })),
-    ...file.map((x, i) => ({ ...x, positionFile: i + 1, derriereVideo: x.genre === "image" && videoEnCours })),
-    ...finies.map((x) => ({ ...x, positionFile: null, derriereVideo: false })),
+    ...enCours.map((x) => ({ ...x, positionFile: null, derriereVideo: false, derriere: null })),
+    ...file.map((x, i) => ({
+      ...x,
+      positionFile: i + 1,
+      derriereVideo: x.genre === "image" && videoEnCours,
+      // « derrière une vidéo / une image / un agent » : la tâche en cours est d'un
+      // autre genre (pour un même genre, le rang suffit : « n°2 »).
+      derriere: genreEnCours != null && genreEnCours !== x.genre ? genreEnCours : null,
+    })),
+    ...finies.map((x) => ({ ...x, positionFile: null, derriereVideo: false, derriere: null })),
   ];
 }
 
@@ -127,9 +152,13 @@ export function pageEstPerimee(tachesAsset: Tache[], page: { uuid: string; statu
   });
 }
 
-/** Clé d'une génération d'image / d'un job vidéo. */
+/** Clé d'une génération d'image / d'un job vidéo / d'un appel LLM. */
 export const cleImage = (uuid: string) => `image:${uuid}`;
 export const cleVideo = (jobId: number) => `video:${jobId}`;
+export const cleLlm = (uuid: string) => `llm:${uuid}`;
+
+/** Domaine GPU d'une tâche (voir lib/gpu.ts). */
+export const domaineDeTache = (t: Pick<Tache, "genre">) => domaineDe(t.genre);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -138,10 +167,10 @@ export function analyserCle(cle: string): { genre: GenreTache; ref: string } | n
   if (i < 0) return null;
   const genre = cle.slice(0, i);
   const ref = cle.slice(i + 1);
-  if ((genre !== "image" && genre !== "video") || !ref) return null;
+  if ((genre !== "image" && genre !== "video" && genre !== "llm") || !ref) return null;
   // Une clé vient du navigateur : un uuid ou un id mal formé ne doit jamais
   // atteindre la base (Postgres lèverait une erreur de syntaxe au lieu de l'ignorer).
-  if (genre === "image" && !UUID.test(ref)) return null;
+  if ((genre === "image" || genre === "llm") && !UUID.test(ref)) return null;
   if (genre === "video" && !/^\d+$/.test(ref)) return null;
   return { genre, ref };
 }

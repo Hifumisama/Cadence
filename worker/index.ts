@@ -5,12 +5,17 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
 import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/annulation-db";
+import { domaineDe, type DomaineGpu } from "../lib/gpu";
+import { configLlm } from "../lib/llm/config";
 import { assemblerPrompt } from "../lib/prompt";
 import { getAllParams } from "../lib/params";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import { creerClientComfyUI } from "./comfyui";
 import type { SubmissionInput } from "./comfyui/types";
+import { libererAvant } from "./gpu";
 import { prochaineGenerationEnAttente, traiterGenerationImage } from "./images";
+import { decharger, llmJoignable } from "./llamaSwap";
+import { prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
 import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
 import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
 import { reprendreOrphelines } from "./reprise";
@@ -198,18 +203,56 @@ async function gererEchecReel(job: typeof jobs.$inferSelect, message: string) {
   }
 }
 
-/** Une tâche par appel : la carte graphique ne fait qu'une chose à la fois. Le
- * choix (images avant vidéo, FIFO, sans préemption) vit dans ordonnanceur.ts.
- * Renvoie `true` si une tâche a été traitée. */
-async function traiterProchaineTache(): Promise<boolean> {
-  const [gen, job] = await Promise.all([prochaineGenerationEnAttente(), prochainJobEnAttente()]);
-  const candidates: TacheEnAttente[] = [];
-  if (gen) candidates.push({ genre: "image", id: gen.id, createdAt: gen.createdAt });
-  if (job) candidates.push({ genre: "video", id: job.id, createdAt: job.createdAt });
+/** Domaine GPU de la dernière tâche menée au bout (ComfyUI ou LLM) ; null tant que
+ * le worker n'en a fait aucune depuis son démarrage : le premier changement de
+ * domaine décharge alors l'autre côté par prudence (worker/gpu.ts). */
+let dernierDomaine: DomaineGpu | null = null;
 
-  const choix = choisirProchaineTache(candidates);
+const urlLlm = () => configLlm().url;
+
+/** Une tâche par appel : la carte graphique ne fait qu'une chose à la fois,
+ * ComfyUI et le LLM local confondus. Le choix (image, puis LLM, puis vidéo ; FIFO ;
+ * sans préemption ; même domaine à égalité) vit dans ordonnanceur.ts. Un domaine
+ * injoignable ne bloque pas l'autre : ses tâches restent en attente, on prend ce
+ * qui peut tourner. Renvoie `true` si une tâche a été traitée. */
+async function traiterProchaineTache(): Promise<boolean> {
+  const [gen, job, run] = await Promise.all([prochaineGenerationEnAttente(), prochainJobEnAttente(), prochaineTacheLlmEnAttente()]);
+
+  const comfyuiAttend = gen != null || job != null;
+  const [comfyuiOk, llmOk] = await Promise.all([
+    comfyuiAttend ? client.healthcheck() : Promise.resolve(false),
+    run ? llmJoignable(urlLlm()).catch(() => false) : Promise.resolve(false),
+  ]);
+
+  const candidates: TacheEnAttente[] = [];
+  if (gen && comfyuiOk) candidates.push({ genre: "image", id: gen.id, createdAt: gen.createdAt });
+  if (run && llmOk) candidates.push({ genre: "llm", id: run.id, createdAt: run.createdAt });
+  if (job && comfyuiOk) candidates.push({ genre: "video", id: job.id, createdAt: job.createdAt });
+  if (candidates.length === 0) {
+    // Rien de lançable : on garde le message d'indisponibilité de chaque domaine.
+    if (comfyuiAttend) console.log("[worker] ComfyUI injoignable — les tâches d'images et de vidéo restent en attente");
+    if (run) console.log("[worker] Serveur LLM injoignable — les appels d'agent restent en attente");
+    return false;
+  }
+
+  const choix = choisirProchaineTache(candidates, dernierDomaine);
   if (!choix) return false;
-  return choix.genre === "image" ? traiterGenerationImage(client, gen!, MEDIA_ROOT) : traiterJob(job!);
+  const domaine = domaineDe(choix.genre);
+
+  // Même GPU : on décharge l'autre côté avant de commencer (au mieux, jamais bloquant).
+  await libererAvant(dernierDomaine, domaine, {
+    comfyui: () => client.libererMemoire(),
+    llm: () => decharger(urlLlm()),
+  });
+
+  const fait =
+    choix.genre === "image"
+      ? await traiterGenerationImage(client, gen!, MEDIA_ROOT)
+      : choix.genre === "llm"
+        ? await traiterTacheLlm(run!)
+        : await traiterJob(job!);
+  if (fait) dernierDomaine = domaine;
+  return fait;
 }
 
 async function boucle() {
@@ -217,9 +260,9 @@ async function boucle() {
   // Une seule fois, avant la première prise : ce qui était « en cours » appartenait
   // à un worker mort (voir worker/reprise.ts).
   try {
-    const { images, videos, annulees } = await reprendreOrphelines(MEDIA_ROOT);
-    if (images || videos || annulees) {
-      console.log(`[worker] Reprise : ${images} image(s) interrompue(s), ${videos} vidéo(s) remise(s) en file, ${annulees} annulation(s) terminée(s)`);
+    const { images, videos, llm, annulees } = await reprendreOrphelines(MEDIA_ROOT);
+    if (images || videos || llm || annulees) {
+      console.log(`[worker] Reprise : ${images} image(s) et ${llm} appel(s) LLM interrompu(s), ${videos} vidéo(s) remise(s) en file, ${annulees} annulation(s) terminée(s)`);
     }
   } catch (err) {
     console.error("[worker] Reprise des tâches interrompues impossible :", err);
@@ -230,8 +273,8 @@ async function boucle() {
   const purger = async () => {
     dernierePurge = Date.now();
     try {
-      const { images, videos } = await purgerEchecs(MEDIA_ROOT);
-      if (images || videos) console.log(`[worker] Purge : ${images} génération(s) et ${videos} job(s) annulé(s) de plus de 24 h supprimés`);
+      const { images, videos, llm } = await purgerEchecs(MEDIA_ROOT);
+      if (images || videos || llm) console.log(`[worker] Purge : ${images} génération(s), ${videos} job(s) annulé(s) et ${llm} appel(s) LLM de plus de 24 h supprimés`);
     } catch (err) {
       console.error("[worker] Purge des échecs impossible :", err);
     }

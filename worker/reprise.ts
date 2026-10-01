@@ -2,8 +2,8 @@ import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "../db";
-import { assetGenerations, jobs } from "../db/schema";
-import { finirAnnulationImage, finirAnnulationVideo } from "../lib/annulation-db";
+import { agentRuns, assetGenerations, jobs } from "../db/schema";
+import { finirAnnulationImage, finirAnnulationLlm, finirAnnulationVideo } from "../lib/annulation-db";
 import { cheminGenerationMedia } from "../lib/media";
 
 // Reprise au démarrage du worker : ce qui était « en cours » appartenait à un
@@ -20,6 +20,9 @@ import { cheminGenerationMedia } from "../lib/media";
 // - Une tâche `en_cours` dont l'annulation avait été demandée est TERMINÉE comme
 //   annulée (image `annulee`, vidéo `echoue`/« Annulée ») : on ne la rejoue pas, et
 //   ce n'est pas un échec « worker redémarré ».
+// - Appel LLM `en_cours` → `echoue` (« Interrompue (worker redémarré) »), jamais
+//   rejoué : un appel de plusieurs minutes se relance à la main, et la connexion
+//   HTTP coupée a déjà arrêté la génération côté llama.cpp.
 //
 // L'opération est idempotente (ne touche que ce qui est « en cours ») et rapide :
 // deux UPDATE et quelques suppressions de fichiers d'aperçu.
@@ -41,7 +44,9 @@ export function fichiersOrphelins(g: { assetId: number; apercuFichier: string | 
   return g.apercuFichier ? [cheminGenerationMedia(g.assetId, g.apercuFichier)] : [];
 }
 
-export async function reprendreOrphelines(mediaRoot: string): Promise<{ images: number; videos: number; annulees: number }> {
+export async function reprendreOrphelines(
+  mediaRoot: string,
+): Promise<{ images: number; videos: number; llm: number; annulees: number }> {
   const images = await db.select().from(assetGenerations).where(eq(assetGenerations.statut, "en_cours"));
   let annuleesImages = 0;
   let annuleesVideos = 0;
@@ -84,5 +89,27 @@ export async function reprendreOrphelines(mediaRoot: string): Promise<{ images: 
     .where(eq(jobs.statut, "en_cours"))
     .returning({ id: jobs.id });
 
-  return { images: images.length - annuleesImages, videos: videos.length, annulees: annuleesImages + annuleesVideos };
+  // Appels LLM : un drapeau d'annulation déjà posé prime sur « interrompue ».
+  let annuleesLlm = 0;
+  let llm = 0;
+  for (const r of await db.select().from(agentRuns).where(eq(agentRuns.statut, "en_cours"))) {
+    if (r.annulationDemandeeAt) {
+      await finirAnnulationLlm(r.id);
+      annuleesLlm++;
+      continue;
+    }
+    const mis = await db
+      .update(agentRuns)
+      .set({ statut: "echoue", erreur: ERREUR_INTERROMPUE, finishedAt: new Date(), progressionJetons: null })
+      .where(and(eq(agentRuns.id, r.id), eq(agentRuns.statut, "en_cours")))
+      .returning({ id: agentRuns.id });
+    llm += mis.length;
+  }
+
+  return {
+    images: images.length - annuleesImages,
+    videos: videos.length,
+    llm,
+    annulees: annuleesImages + annuleesVideos + annuleesLlm,
+  };
 }

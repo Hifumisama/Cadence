@@ -86,6 +86,10 @@ export class StubComfyUIClient implements ComfyUIClient {
     return true;
   }
 
+  async libererMemoire(): Promise<boolean> {
+    return true;
+  }
+
   async fetchOutput(_distant?: string, cheminLocalCible?: string): Promise<void> {
     // Vidéo : rien à copier. Image : un PNG factice, pour que toute la chaîne
     // (candidats, adoption, aperçu) se teste sans ComfyUI.

@@ -35,6 +35,8 @@ function tache(p: Partial<Tache> & Pick<Tache, "statut">): Tache {
     erreur: null,
     positionFile: null,
     derriereVideo: false,
+    derriere: null,
+    jetons: null,
     annulationDemandee: false,
     ...p,
   };
@@ -158,4 +160,57 @@ test("une annulation n'est pas un échec : pas de point écarlate", () => {
   const r = resumerTaches([tache({ statut: "annulee", finishedAt: il_y_a(5) }), tache({ statut: "echoue", finishedAt: il_y_a(5) })]);
   assert.equal(r.echecsNonVus, 1);
   assert.equal(r.actives, 0);
+});
+
+// --- genre « llm » : le GPU est partagé avec ComfyUI (lib/gpu.ts)
+
+test("ordre de la file : image, puis llm, puis vidéo ; chacun en FIFO", () => {
+  const video = tache({ statut: "en_attente", genre: "video", cle: "video:1", createdAt: il_y_a(90) });
+  const llm2 = tache({ statut: "en_attente", genre: "llm", cle: "llm:b", createdAt: il_y_a(20) });
+  const llm1 = tache({ statut: "en_attente", genre: "llm", cle: "llm:a", createdAt: il_y_a(40) });
+  const image = tache({ statut: "en_attente", cle: "image:i", createdAt: il_y_a(5) });
+  const r = ordonnerTaches([video, llm2, llm1, image], MAINTENANT);
+  assert.deepEqual(r.map((x) => x.cle), ["image:i", "llm:a", "llm:b", "video:1"]);
+  assert.deepEqual(r.map((x) => x.positionFile), [1, 2, 3, 4]);
+});
+
+test("« derrière … » : une tâche d'un autre genre patiente derrière celle qui tient le GPU", () => {
+  const enCours = tache({ statut: "en_cours", genre: "llm", cle: "llm:run", startedAt: il_y_a(1) });
+  const image = tache({ statut: "en_attente", cle: "image:i" });
+  const autreLlm = tache({ statut: "en_attente", genre: "llm", cle: "llm:autre" });
+  const r = ordonnerTaches([enCours, image, autreLlm], MAINTENANT);
+  const parCle = Object.fromEntries(r.map((x) => [x.cle, x]));
+  assert.equal(parCle["image:i"]!.derriere, "llm", "une image attend derrière un appel d'agent");
+  assert.equal(parCle["llm:autre"]!.derriere, null, "même genre : le rang suffit");
+  assert.equal(parCle["llm:run"]!.derriere, null);
+
+  const videoEnCours = tache({ statut: "en_cours", genre: "video", cle: "video:1", startedAt: il_y_a(1) });
+  const llm = tache({ statut: "en_attente", genre: "llm", cle: "llm:x" });
+  const r2 = ordonnerTaches([videoEnCours, llm], MAINTENANT);
+  assert.equal(r2.find((x) => x.cle === "llm:x")!.derriere, "video");
+  assert.equal(r2.find((x) => x.cle === "llm:x")!.derriereVideo, false, "derriereVideo reste réservé aux images");
+});
+
+test("clés : llm:<uuid> est reconnue, un uuid mal formé est refusé avant la base", () => {
+  const uuid = "123e4567-e89b-12d3-a456-426614174000";
+  assert.deepEqual(analyserCle(`llm:${uuid}`), { genre: "llm", ref: uuid });
+  assert.equal(analyserCle("llm:pas-un-uuid"), null);
+  assert.equal(analyserCle("llm:123"), null);
+  assert.equal(analyserCle("agent:" + uuid), null);
+});
+
+test("résumé : un appel LLM actif compte comme tâche active, un échec LLM non vu comme échec non vu", () => {
+  const taches = [
+    tache({ statut: "en_cours", genre: "llm", cle: "llm:a", jetons: 120 }),
+    tache({ statut: "echoue", genre: "llm", cle: "llm:b", finishedAt: il_y_a(5) }),
+    tache({ statut: "termine", genre: "llm", cle: "llm:c", finishedAt: il_y_a(5) }),
+  ];
+  assert.deepEqual(resumerTaches(taches), { actives: 1, enCours: 1, enFile: 0, echecsNonVus: 1, terminesNonVus: 1 });
+});
+
+test("un appel LLM annulé ou échoué n'est gardé qu'une journée, comme les autres", () => {
+  const vieux = tache({ statut: "annulee", genre: "llm", finishedAt: il_y_a(25 * 60) });
+  const recent = tache({ statut: "echoue", genre: "llm", finishedAt: il_y_a(60) });
+  assert.equal(estAffichable(vieux, MAINTENANT), false);
+  assert.equal(estAffichable(recent, MAINTENANT), true);
 });

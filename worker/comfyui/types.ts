@@ -70,4 +70,11 @@ export interface ComfyUIClient {
   /** POST /queue {"delete": [promptId]} : retire un prompt encore en file. Ne
    * rejette jamais. */
   retirerDeLaFile(promptId: string): Promise<boolean>;
+
+  /** POST /free {"unload_models": true, "free_memory": true} : ComfyUI décharge ses
+   * modèles de la VRAM. Le worker l'appelle avant un appel LLM (même GPU, voir
+   * lib/gpu.ts). « Au mieux » : ne rejette jamais, `false` si le serveur n'a pas
+   * accepté. Sans effet quand ComfyUI exécute un prompt (la demande est traitée
+   * entre deux prompts) : le worker ne la fait que lorsqu'il est au repos. */
+  libererMemoire(): Promise<boolean>;
 }

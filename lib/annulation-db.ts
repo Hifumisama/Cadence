@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "../db";
-import { assetGenerations, jobs, plans } from "../db/schema";
+import { agentRuns, assetGenerations, jobs, plans } from "../db/schema";
 import { ERREUR_ANNULEE, statutPlanApresAnnulation } from "./annulation";
 import { analyserCle } from "./taches";
 
@@ -37,6 +37,23 @@ export async function demanderAnnulation(cle: string): Promise<ResultatAnnulatio
     return g?.statut === "en_cours" && g.drapeau ? "deja" : "rien";
   }
 
+  if (a.genre === "llm") {
+    const directe = await db
+      .update(agentRuns)
+      .set({ statut: "annulee", finishedAt: maintenant, erreur: null })
+      .where(and(eq(agentRuns.uuid, a.ref), eq(agentRuns.statut, "en_attente")))
+      .returning({ id: agentRuns.id });
+    if (directe.length > 0) return "annulee";
+    const pose = await db
+      .update(agentRuns)
+      .set({ annulationDemandeeAt: maintenant })
+      .where(and(eq(agentRuns.uuid, a.ref), eq(agentRuns.statut, "en_cours"), isNull(agentRuns.annulationDemandeeAt)))
+      .returning({ id: agentRuns.id });
+    if (pose.length > 0) return "demandee";
+    const [r] = await db.select({ statut: agentRuns.statut, drapeau: agentRuns.annulationDemandeeAt }).from(agentRuns).where(eq(agentRuns.uuid, a.ref));
+    return r?.statut === "en_cours" && r.drapeau ? "deja" : "rien";
+  }
+
   const id = Number(a.ref);
   if (!Number.isInteger(id)) return "rien";
   const directe = await db
@@ -61,6 +78,19 @@ export async function demanderAnnulation(cle: string): Promise<ResultatAnnulatio
 export async function annulationDemandeeImage(generationId: number): Promise<boolean> {
   const [g] = await db.select({ d: assetGenerations.annulationDemandeeAt }).from(assetGenerations).where(eq(assetGenerations.id, generationId));
   return g?.d != null;
+}
+
+export async function annulationDemandeeLlm(runId: number): Promise<boolean> {
+  const [r] = await db.select({ d: agentRuns.annulationDemandeeAt }).from(agentRuns).where(eq(agentRuns.id, runId));
+  return r?.d != null;
+}
+
+/** Marque un appel LLM annulé (le worker a coupé la connexion) : ni erreur ni relance. */
+export async function finirAnnulationLlm(runId: number): Promise<void> {
+  await db
+    .update(agentRuns)
+    .set({ statut: "annulee", erreur: null, finishedAt: new Date(), progressionJetons: null })
+    .where(and(eq(agentRuns.id, runId), inArray(agentRuns.statut, ["en_attente", "en_cours"])));
 }
 
 export async function annulationDemandeeVideo(jobId: number): Promise<boolean> {

@@ -80,14 +80,14 @@ export function GenerationPanel({
     () =>
       generations.map((g) => {
         const live = tachesAsset.find((x) => x.cle === cleImage(g.uuid));
-        if (!live || !estActive(live)) return { ...g, position: null, derriereVideo: false };
+        if (!live || !estActive(live)) return { ...g, position: null, derriere: null };
         return {
           ...g,
           statut: live.statut,
           progression: live.progression ?? g.progression,
           apercuSrc: live.apercuSrc ?? g.apercuSrc,
           position: live.positionFile,
-          derriereVideo: live.derriereVideo,
+          derriere: live.derriere,
           annulationDemandee: live.annulationDemandee,
         };
       }),

@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test lib/*.test.ts lib/llm/*.test.ts worker/*.test.ts worker/comfyui/*.test.ts",
     "llm:essai": "tsx scripts/llm-essai.ts",
+    "llm:tache": "tsx scripts/llm-tache.ts",
     "worker": "tsx watch worker/index.ts",
     "worker:start": "tsx worker/index.ts",
     "db:generate": "drizzle-kit generate",

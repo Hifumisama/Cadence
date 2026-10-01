@@ -1,6 +1,6 @@
 import { and, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../db";
-import { assetGenerations, jobs } from "../db/schema";
+import { agentRuns, assetGenerations, jobs } from "../db/schema";
 import { ERREUR_ANNULEE, SEUIL_PURGE_ECHECS_MS, estPurgeable } from "../lib/annulation";
 import { supprimerGenerationEtFichiers } from "../lib/generation-sources";
 
@@ -9,6 +9,8 @@ import { supprimerGenerationEtFichiers } from "../lib/generation-sources";
 // orphelins), et un job vidéo annulé de même. Ne touche JAMAIS :
 // - un candidat terminé : il suit la règle des 8 par asset (worker/images.ts) ;
 // - une tâche active ;
+// - un appel LLM terminé : son résultat est exploité par l'écran de revue (chantier 3) ;
+//   seuls les appels LLM échoués ou annulés de plus de 24 h disparaissent ;
 // - un job vidéo ÉCHOUÉ pour de vrai : c'est la mémoire de la boucle d'itération
 //   (F03, historique des tentatives d'un plan), il se garde. Il disparaît juste du
 //   panneau du header au bout d'une journée (lib/taches.ts, estAffichable).
@@ -21,7 +23,7 @@ export async function purgerEchecs(
   mediaRoot: string,
   maintenant: Date = new Date(),
   seuilMs: number = SEUIL_PURGE_ECHECS_MS,
-): Promise<{ images: number; videos: number }> {
+): Promise<{ images: number; videos: number; llm: number }> {
   const limite = new Date(maintenant.getTime() - seuilMs);
 
   // Pré-filtre SQL large (créées avant la limite), puis la règle pure tranche sur
@@ -43,5 +45,10 @@ export async function purgerEchecs(
     .where(and(eq(jobs.statut, "echoue"), eq(jobs.erreur, ERREUR_ANNULEE), lt(jobs.finishedAt, limite)))
     .returning({ id: jobs.id });
 
-  return { images, videos: videosAnnulees.length };
+  const llmPerimes = await db
+    .delete(agentRuns)
+    .where(and(inArray(agentRuns.statut, ["echoue", "annulee"]), lt(agentRuns.finishedAt, limite)))
+    .returning({ id: agentRuns.id });
+
+  return { images, videos: videosAnnulees.length, llm: llmPerimes.length };
 }

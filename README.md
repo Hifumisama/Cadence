@@ -91,3 +91,17 @@ npm run llm:essai -- plan-h3 --entree plan.json [--modele qwen3.6-35b-A3B] [--sa
 
 Chaque exécution laisse une ligne dans `agent_traces` (statut, jetons, durée, sortie
 brute, erreurs de validation). Convention du chargeur : `docs/CONCEPTION_AGENTS.md` §9.
+
+**Dans la file du worker.** Le serveur LLM et ComfyUI partagent le même GPU : un appel
+LLM est une tâche de la file, au même titre qu'une image ou une vidéo (ordre : image,
+puis LLM, puis vidéo ; une seule tâche à la fois ; le worker décharge l'autre côté quand
+il change de domaine). Pour en poser un sans interface (le worker doit tourner,
+`npm run dev:all`) :
+
+```
+npm run llm:tache -- brief-projet --projet 5 --suivre     # entrée fictive, suit jusqu'à la fin
+npm run llm:tache -- plan-h3 --entree plan.json --modele qwen3.6-35b-A3B
+```
+
+La tâche apparaît dans le panneau du header (jetons reçus, annulation) ; son résultat
+validé est dans `agent_runs.resultat`, la trace complète dans `agent_traces`.

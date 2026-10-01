@@ -260,10 +260,21 @@ l'aveugle (F03).
   puis les fichiers partagés déclarés dans le code (le lexique H3 pour `plan-h3` et
   `iteration-plan`), puis le contrat de sortie (`sortie.schema.json` en JSON compact).
   Chaque fichier a un titre `=== type : nom ===`. Pas de manifeste.
-- **VRAM partagée** : le serveur LLM local et ComfyUI tournent sur la même machine et
-  ne tiennent pas ensemble en mémoire. Un appel LLM local sera une tâche de la file
-  (genre « llm », avec libération de la VRAM de l'autre côté aux changements de
-  domaine) : **chantier 2**. D'ici là, `npm run llm:essai` suppose ComfyUI au repos.
+- **VRAM partagée — construit (chantier 2)** : le serveur LLM local et ComfyUI
+  tournent sur la même machine et ne tiennent pas ensemble en mémoire. Un appel LLM
+  local est une **tâche de la file** (genre « llm », table `agent_runs`, traité par
+  `worker/llm.ts`) : le GPU est une ressource unique, ordre image → llm → vidéo, sans
+  préemption, et le worker décharge l'autre côté aux changements de domaine
+  (`POST /free` sur ComfyUI, `GET /unload` sur llama-swap, au mieux). Poser un appel :
+  `npm run llm:tache -- brief-projet [--projet <id>] [--suivre]` (le worker doit
+  tourner) ; la tâche apparaît dans le panneau du header, avec annulation. Le résultat
+  validé est dans `agent_runs.resultat`, la trace complète dans `agent_traces`.
+  `npm run llm:essai` reste l'appel direct, hors file (ComfyUI au repos). Voir
+  `docs/FRICTIONS.md` § « Ressource GPU unique ».
+  **Conséquence pour la conversation (chantier 3)** : un échange en direct avec le
+  modèle local attend, comme les autres tâches, la fin de la tâche GPU en cours (au
+  plus quelques minutes : vidéo 1 min 30 à 4 min). Un fournisseur Claude, lui, n'occupe
+  pas le GPU et n'entrera pas dans la file.
 
 **Conception d'origine :**
 
@@ -323,8 +334,9 @@ contrôle verbatim les signale déjà. Les durées sont recalées à ce moment.
 
 ## 13. Ordre de construction proposé
 
-1. Interface `LLM` + trace — **fait (2026-10-01)**, fournisseur local ; reste le
-   fournisseur Claude et l'intégration à la file du worker.
+1. Interface `LLM` + trace — **fait (2026-10-01)**, fournisseur local ; intégration
+   à la file du worker (genre « llm », libération de VRAM, annulation, header) —
+   **fait (2026-10-01)** ; reste le fournisseur Claude.
 2. Tables `propositions` / `proposition_changements` et l'écran de revue
    (diff, accepter/refuser, appliquer, annuler) — utile même sans agent, testable
    avec des propositions écrites à la main.

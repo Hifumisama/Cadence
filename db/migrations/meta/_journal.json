@@ -218,6 +218,13 @@
       "when": 1792083600000,
       "tag": "0030_agent_traces",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792170000000,
+      "tag": "0031_agent_runs",
+      "breakpoints": true
     }
   ]
 }

@@ -557,3 +557,33 @@ export const agentTraces = pgTable("agent_traces", {
   dureeMs: integer("duree_ms").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [index("agent_traces_skill_created_idx").on(table.skill, table.createdAt)]);
+
+// File des appels LLM (genre « llm » du worker, voir worker/llm.ts) : un appel à
+// un skill d'agent posé en base, pris par le worker comme une génération d'image.
+// Le GPU est une ressource unique partagée avec ComfyUI : l'ordonnanceur
+// (worker/ordonnanceur.ts) range ces tâches entre les images et les vidéos.
+// `statut` : en_attente | en_cours | termine | echoue | annulee (varchar contrôlé
+// par l'application, pas d'enum pg). `entree` est ce que `executerSkill` reçoit
+// (texte, objet ou conversation) ; `resultat` le JSON validé contre le schéma du
+// skill. La trace complète (messages, sortie brute, jetons) est dans agent_traces.
+export const agentRuns = pgTable("agent_runs", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  skill: varchar("skill", { length: 40 }).notNull(),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "set null" }),
+  entree: jsonb("entree").notNull(),
+  // { modele?: string } — surcharge du modèle ; vide = celui de la configuration.
+  options: jsonb("options"),
+  statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
+  // Jetons de sortie reçus au fil de l'eau (le maximum est inconnu : pas de barre
+  // à pourcentage, un simple compteur). Remis à null en fin de tâche.
+  progressionJetons: integer("progression_jetons"),
+  resultat: jsonb("resultat"),
+  erreur: text("erreur"),
+  traceId: integer("trace_id").references(() => agentTraces.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  vuAt: timestamp("vu_at"),
+  annulationDemandeeAt: timestamp("annulation_demandee_at"),
+}, (table) => [index("agent_runs_statut_idx").on(table.statut, table.createdAt)]);

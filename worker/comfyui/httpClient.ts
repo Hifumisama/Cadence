@@ -182,6 +182,20 @@ export class HttpComfyUIClient implements ComfyUIClient {
     }
   }
 
+  async libererMemoire(): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/free`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unload_models: true, free_memory: true }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
   async fetchOutput(cheminSortieDistant: string, cheminLocalCible: string): Promise<void> {
     const [subfolder, filename] = [
       cheminSortieDistant.includes("/") ? cheminSortieDistant.split("/").slice(0, -1).join("/") : "",

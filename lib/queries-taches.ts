@@ -1,11 +1,13 @@
 import { db } from "../db";
-import { assetGenerations, assets, jobs, plans } from "../db/schema";
+import { agentRuns, assetGenerations, assets, jobs, plans, projects } from "../db/schema";
 import { eq, gte, isNull, or, inArray } from "drizzle-orm";
 import { ERREUR_ANNULEE } from "./annulation";
 import { generationMediaSrc } from "./media";
 import {
+  LIBELLE_SKILL,
   RETENTION_TERMINEES_JOURS,
   cleImage,
+  cleLlm,
   cleVideo,
   ordonnerTaches,
   resumerTaches,
@@ -14,7 +16,8 @@ import {
 } from "./taches";
 
 /** Toutes les tâches à montrer dans l'indicateur du header : générations
- * d'images et jobs vidéo (lecture seule), ordonnés comme le worker les prendra.
+ * d'images, jobs vidéo (lecture seule) et appels LLM, ordonnés comme le worker les
+ * prendra (image, puis llm, puis vidéo).
  * Côté serveur uniquement (accès disque pour les aperçus et vignettes). */
 export async function listerTaches(maintenant: Date = new Date()): Promise<{ taches: Tache[]; resume: ResumeTaches }> {
   const depuis = new Date(maintenant.getTime() - RETENTION_TERMINEES_JOURS * 24 * 3600 * 1000);
@@ -47,6 +50,12 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .innerJoin(plans, eq(plans.id, jobs.planId))
     .where(or(inArray(jobs.statut, ["en_attente", "en_cours"]), isNull(jobs.vuAt), gte(jobs.createdAt, depuis)));
 
+  const lignesLlm = await db
+    .select({ r: agentRuns, projetNom: projects.nom })
+    .from(agentRuns)
+    .leftJoin(projects, eq(projects.id, agentRuns.projectId))
+    .where(or(inArray(agentRuns.statut, ["en_attente", "en_cours"]), isNull(agentRuns.vuAt), gte(agentRuns.createdAt, depuis)));
+
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
   const images: Tache[] = lignesImages.map(({ g, code, projectId }) => ({
@@ -71,6 +80,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     erreur: g.erreur,
     positionFile: null,
     derriereVideo: false,
+    derriere: null,
+    jetons: null,
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
   }));
 
@@ -96,10 +107,38 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     erreur: j.statut === "echoue" && j.erreur === ERREUR_ANNULEE ? null : j.erreur,
     positionFile: null,
     derriereVideo: false,
+    derriere: null,
+    jetons: null,
     annulationDemandee: j.annulationDemandeeAt != null && j.statut === "en_cours",
   }));
 
-  const gardees = ordonnerTaches([...images, ...videos], maintenant);
+  const llm: Tache[] = lignesLlm.map(({ r, projetNom }) => ({
+    cle: cleLlm(r.uuid),
+    genre: "llm",
+    statut: r.statut,
+    libelle: `${LIBELLE_SKILL[r.skill] ?? r.skill}${projetNom ? ` · ${projetNom}` : ""}`,
+    detail: "Agent",
+    // TODO chantier 3 : le résultat d'un agent aura son écran de revue (propositions) ;
+    // en attendant, un clic ouvre la page du projet (ou l'accueil sans projet).
+    href: r.projectId != null ? `/p/${r.projectId}` : "/",
+    projectId: r.projectId ?? 0,
+    assetId: null,
+    progression: null,
+    apercuSrc: null,
+    vignetteSrc: null,
+    createdAt: r.createdAt.toISOString(),
+    startedAt: iso(r.startedAt),
+    finishedAt: iso(r.finishedAt),
+    vuAt: iso(r.vuAt),
+    erreur: r.erreur,
+    positionFile: null,
+    derriereVideo: false,
+    derriere: null,
+    jetons: r.statut === "en_cours" ? r.progressionJetons : null,
+    annulationDemandee: r.annulationDemandeeAt != null && r.statut === "en_cours",
+  }));
+
+  const gardees = ordonnerTaches([...images, ...videos, ...llm], maintenant);
 
   // Disque : seulement pour les tâches d'images gardées.
   const parCle = new Map(lignesImages.map((l) => [cleImage(l.g.uuid), l.g]));
