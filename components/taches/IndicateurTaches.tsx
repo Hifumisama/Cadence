@@ -13,7 +13,8 @@ import { urlMiniature } from "@/lib/miniatures";
  * = terminées non vues. Le panneau liste les tâches (voir lib/taches.ts) ; un clic
  * mène à l'asset (popup ouverte sur le résultat) ou au plan. */
 export function IndicateurTaches() {
-  const { taches, resume, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler } = useTaches();
+  const { taches, resume, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler, viderFile } = useTaches();
+  const [confirmerVidage, setConfirmerVidage] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
 
   // Échap ou clic hors du panneau le ferme.
@@ -88,7 +89,37 @@ export function IndicateurTaches() {
 
           {actives.length > 0 ? (
             <section aria-label="En cours et en file">
-              <h3 className="tq-sec">En cours / en file</h3>
+              <div className="tq-sec-ligne">
+                <h3 className="tq-sec">En cours / en file</h3>
+                {resume.enFile > 0 ? (
+                  confirmerVidage ? (
+                    <span className="tq-confirm" role="group" aria-label="Confirmer le vidage de la file">
+                      <button
+                        type="button"
+                        className="tq-ignorer tq-annuler"
+                        onClick={() => {
+                          setConfirmerVidage(false);
+                          viderFile();
+                        }}
+                      >
+                        Oui, retirer {resume.enFile}
+                      </button>
+                      <button type="button" className="tq-ignorer" onClick={() => setConfirmerVidage(false)}>
+                        Non
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="tq-ignorer tq-annuler"
+                      onClick={() => setConfirmerVidage(true)}
+                      title="Retirer tout ce qui attend ; ce qui tourne continue"
+                    >
+                      Vider la file ({resume.enFile})
+                    </button>
+                  )
+                ) : null}
+              </div>
               <ul className="tq-liste">
                 {actives.map((x) => (
                   <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onAnnuler={() => annuler(x.cle)} />

@@ -25,11 +25,11 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
   const segmentActif = surAssets ? "assets" : surCasting ? "voix" : surBrief ? "brief" : (segmentsEpisode[0] ?? "");
 
   const onglets = [
+    { seg: "brief", label: "Brief", href: briefHref },
     { seg: "scenario", label: "Scénario", href: `${episodeBase}/scenario` },
     { seg: "assets", label: "Assets", href: assetsHref },
     { seg: "plans", label: "Plans", href: `${episodeBase}/plans` },
     { seg: "voix", label: "Casting", href: castingHref },
-    { seg: "brief", label: "Brief", href: briefHref },
   ];
 
   return (

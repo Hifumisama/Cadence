@@ -1316,3 +1316,10 @@ Test réel du lot de scénarios sur « Nuit sur Tanger » (retours de l'utilisat
   retirée de l'interface : un écrasement est décoché par défaut et montré en tête de la revue,
   le cocher EST la décision. Le bouton annonce « dont N écrasement(s) ». Le serveur exige
   toujours `confirmeEcrasement` ; l'interface le pose à l'application.
+- **« Vider la file » (2026-10-02)** : un bouton dans la section « En cours / en file » du
+  panneau des générations (confirmation inline « Oui, retirer N »). Il annule tout ce qui ATTEND
+  (images, sons, vidéos, appels d'agent, sous-tâches de lots) et laisse tourner ce qui a commencé :
+  rien n'est interrompu, tout se relance. Une vidéo retirée remet son plan dans son état précédent ;
+  un lot sans sous-tâche en cours voit son statut décidé tout de suite. Onglet « Brief » placé en
+  premier dans la navigation (avant « Scénario »).
+

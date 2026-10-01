@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { annulerTache, marquerToutVu, marquerVu } from "@/app/taches/actions";
+import { annulerTache, marquerToutVu, marquerVu, viderFile as viderFileServeur } from "@/app/taches/actions";
 import { etatNotifications } from "@/lib/notifications-navigateur";
 import type { ResumeTaches, Tache } from "@/lib/taches";
 
@@ -30,6 +30,8 @@ type Contexte = {
   /** Annule une tâche : en attente, elle devient annulée tout de suite ; en cours,
    * « annulation demandée » s'affiche le temps que le worker interrompe ComfyUI. */
   annuler: (cle: string) => void;
+  /** Retire de la file tout ce qui attend (ce qui tourne continue). */
+  viderFile: () => void;
 };
 
 const Ctx = createContext<Contexte>({
@@ -42,6 +44,7 @@ const Ctx = createContext<Contexte>({
   marquerVuLocal: () => undefined,
   marquerToutVuLocal: () => undefined,
   annuler: () => undefined,
+  viderFile: () => undefined,
 });
 
 export function useTaches(): Contexte {
@@ -195,9 +198,21 @@ export function TachesProvider({ children }: { children: ReactNode }) {
     [appliquerVu, charger],
   );
 
+  const viderFile = useCallback(() => {
+    const maintenant = new Date().toISOString();
+    // Les lots gardent leur état jusqu'à la réponse du serveur (une sous-tâche peut tourner) ;
+    // le reste est retiré tout de suite à l'écran.
+    appliquerVu(
+      tachesRef.current.map((x) =>
+        x.statut === "en_attente" && !x.cle.startsWith("lot:") ? { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null } : x,
+      ),
+    );
+    void viderFileServeur().then(charger);
+  }, [appliquerVu, charger]);
+
   const valeur = useMemo<Contexte>(
-    () => ({ taches, resume, pret, panneauOuvert, setPanneauOuvert, rafraichir: charger, marquerVuLocal, marquerToutVuLocal, annuler }),
-    [taches, resume, pret, panneauOuvert, charger, marquerVuLocal, marquerToutVuLocal, annuler],
+    () => ({ taches, resume, pret, panneauOuvert, setPanneauOuvert, rafraichir: charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile }),
+    [taches, resume, pret, panneauOuvert, charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile],
   );
 
   return <Ctx.Provider value={valeur}>{children}</Ctx.Provider>;

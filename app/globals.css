@@ -5297,3 +5297,10 @@ a.voix-chip:hover {
 .tq-notif small {
   display: block;
 }
+
+.tq-sec-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}

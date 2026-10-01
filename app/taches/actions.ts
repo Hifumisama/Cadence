@@ -3,7 +3,7 @@
 import { db } from "@/db";
 import { agentRuns, assetGenerations, jobs, propositions } from "@/db/schema";
 import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
-import { demanderAnnulation, type ResultatAnnulation } from "@/lib/annulation-db";
+import { demanderAnnulation, viderFile as viderFileDb, type ResultatAnnulation } from "@/lib/annulation-db";
 import { analyserCle } from "@/lib/taches";
 
 // « Vu » : l'utilisateur a pris connaissance d'une tâche terminée ou échouée
@@ -77,4 +77,11 @@ export async function marquerToutVu(): Promise<{ ok: true }> {
  * Finie, échouée ou déjà annulée : sans effet. Idempotente. */
 export async function annulerTache(cle: string): Promise<{ ok: true; resultat: ResultatAnnulation }> {
   return { ok: true, resultat: await demanderAnnulation(cle) };
+}
+
+/** « Vider la file » : annule tout ce qui ATTEND (images, sons, vidéos, appels d'agent,
+ * sous-tâches de lots). Ce qui tourne continue ; rien d'interrompu, tout se relance. Renvoie le
+ * nombre de tâches retirées. */
+export async function viderFile(): Promise<{ ok: true; annulees: number }> {
+  return { ok: true, annulees: await viderFileDb() };
 }

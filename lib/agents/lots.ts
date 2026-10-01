@@ -130,6 +130,31 @@ export async function annulerRunsDePropositions(d: DbOuTx, propositionIds: numbe
     .where(and(inArray(agentRuns.propositionId, propositionIds), eq(agentRuns.statut, "en_cours")));
 }
 
+/** « Vider la file » : les sous-tâches EN ATTENTE de tous les lots sont annulées ; celles qui
+ * tournent continuent (contrairement à `annulerLot`). Un lot sans sous-tâche en cours voit son
+ * statut décidé tout de suite (`prete` s'il a un résultat, `rejetee` sinon). Renvoie le nombre
+ * de sous-tâches annulées. */
+export async function annulerEnAttenteDesLots(): Promise<number> {
+  const lots = await db.select({ id: propositions.id }).from(propositions).where(eq(propositions.lot, true));
+  if (lots.length === 0) return 0;
+  const ids = lots.map((l) => l.id);
+  const annulees = await db
+    .update(agentRuns)
+    .set({ statut: "annulee", finishedAt: new Date(), erreur: null })
+    .where(and(inArray(agentRuns.propositionId, ids), eq(agentRuns.statut, "en_attente")))
+    .returning({ propositionId: agentRuns.propositionId });
+  const touches = [...new Set(annulees.map((a) => a.propositionId).filter((x): x is number => x != null))];
+  for (const pid of touches) {
+    const encore = await db
+      .select({ id: agentRuns.id })
+      .from(agentRuns)
+      .where(and(eq(agentRuns.propositionId, pid), eq(agentRuns.statut, "en_cours")))
+      .limit(1);
+    if (encore.length === 0) await finaliserLot(db, pid);
+  }
+  return annulees.length;
+}
+
 export type ResultatAnnulationLot = "annule" | "demande" | "rien";
 
 /** Annule un lot : les sous-tâches en attente sont annulées tout de suite, celle qui tourne est
