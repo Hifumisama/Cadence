@@ -211,6 +211,13 @@
       "when": 1791997200000,
       "tag": "0029_annulation",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792083600000,
+      "tag": "0030_agent_traces",
+      "breakpoints": true
     }
   ]
 }

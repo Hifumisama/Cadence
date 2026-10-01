@@ -11,6 +11,8 @@ import {
   uniqueIndex,
   uuid,
   real,
+  jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -525,3 +527,33 @@ export const repliquesRelations = relations(repliques, ({ many, one }) => ({
 export const jobsRelations = relations(jobs, ({ one }) => ({
   plan: one(plans, { fields: [jobs.planId], references: [plans.id] }),
 }));
+
+// Journal de chaque exécution d'un skill d'agent (brique LLM, lib/llm/) : ce que
+// le modèle a reçu, ce qu'il a rendu, ce que la validation en a dit. C'est le
+// journal de frictions automatisé et le jeu d'évaluation (docs/CONCEPTION_AGENTS.md
+// §7 et §10). Le lien vers une proposition viendra avec les propositions.
+export const agentTraces = pgTable("agent_traces", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  skill: varchar("skill", { length: 40 }).notNull(),
+  fournisseur: varchar("fournisseur", { length: 30 }).notNull(),
+  modele: varchar("modele", { length: 80 }).notNull(),
+  // ok | invalide (sortie hors schéma même après renvoi) | echoue (serveur,
+  // réseau, délai) | interrompu (annulé). Varchar contrôlé par l'application.
+  statut: varchar("statut", { length: 12 }).notNull(),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "set null" }),
+  // Messages d'entrée (hors prompt système, qui est celui du skill : on garde son
+  // empreinte pour savoir quelle version des fichiers l'a produit).
+  messages: jsonb("messages").notNull(),
+  systemeEmpreinte: varchar("systeme_empreinte", { length: 64 }).notNull(),
+  systemeCaracteres: integer("systeme_caracteres").notNull(),
+  sortieBrute: text("sortie_brute"),
+  json: jsonb("json"),
+  erreursValidation: jsonb("erreurs_validation"),
+  erreur: text("erreur"),
+  renvois: integer("renvois").notNull().default(0),
+  tokensEntree: integer("tokens_entree").notNull().default(0),
+  tokensSortie: integer("tokens_sortie").notNull().default(0),
+  dureeMs: integer("duree_ms").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [index("agent_traces_skill_created_idx").on(table.skill, table.createdAt)]);

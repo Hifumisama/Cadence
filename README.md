@@ -68,3 +68,26 @@ Les vignettes demandent `/api/media/<chemin>?w=192` (largeurs 96, 192, 384, 768)
 WebP réduit par `sharp`, mis en cache sous `MEDIA_ROOT/_miniatures/` et renouvelé
 quand l'image source change. Sans `?w=`, la route sert l'original (zoom, ComfyUI).
 Le dossier `_miniatures/` est un cache : on peut le supprimer sans risque.
+
+## Brique LLM (agents de génération)
+
+`lib/llm/` exécute les skills d'agents de `agents/skills/<nom>/` sur un modèle de
+langage, derrière une interface remplaçable. Aujourd'hui : un serveur compatible
+OpenAI (llama.cpp derrière llama-swap, Ollama, LM Studio…). Aucune clé API.
+
+Variables (voir `.env.example`) : `LLM_FOURNISSEUR=local`, `LLM_LOCAL_URL` (URL du
+serveur), `LLM_LOCAL_MODELE` (défaut `gemma4-26b-A4B`), `LLM_MODELE_<SKILL>` pour un
+modèle propre à un skill (ex. `LLM_MODELE_PLAN_H3`), `LLM_TIMEOUT_MS` (défaut 10 min),
+`LLM_FLUX=0` pour désactiver le flux SSE.
+
+Essai d'un skill (un vrai appel : il occupe le GPU du serveur LLM, donc pas pendant
+une génération ComfyUI) :
+
+```
+npm run llm:essai -- --skills                # skills et taille de leur prompt
+npm run llm:essai -- brief-projet            # entrée fictive intégrée
+npm run llm:essai -- plan-h3 --entree plan.json [--modele qwen3.6-35b-A3B] [--sans-trace]
+```
+
+Chaque exécution laisse une ligne dans `agent_traces` (statut, jetons, durée, sortie
+brute, erreurs de validation). Convention du chargeur : `docs/CONCEPTION_AGENTS.md` §9.

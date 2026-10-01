@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test lib/*.test.ts worker/*.test.ts worker/comfyui/*.test.ts",
+    "test": "tsx --test lib/*.test.ts lib/llm/*.test.ts worker/*.test.ts worker/comfyui/*.test.ts",
+    "llm:essai": "tsx scripts/llm-essai.ts",
     "worker": "tsx watch worker/index.ts",
     "worker:start": "tsx worker/index.ts",
     "db:generate": "drizzle-kit generate",
@@ -21,6 +22,7 @@
     "dev:all": "concurrently -n web,worker -c blue,green \"npm:dev\" \"npm:worker\""
   },
   "dependencies": {
+    "ajv": "^8.20.0",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.3",
     "next": "^16.3.6",

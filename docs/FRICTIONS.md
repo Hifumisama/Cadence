@@ -901,6 +901,46 @@ job vidéo, depuis le panneau du header et depuis la popup de génération.
   chez ComfyUI (`queue_pending`, seulement testé avec un faux client), et l'annulation
   d'une vidéo (même chemin de code, jamais lancée en vrai).
 
+### Brique LLM locale : interface, chargeur de skills, traces (2026-10-01)
+Premier chantier de la génération depuis une conversation (`docs/CONCEPTION_AGENTS.md`
+§9 et §13). Construit : `lib/llm/` (interface, fournisseur local, validation, chargeur,
+`executerSkill`), table `agent_traces` (migration 0030), `npm run llm:essai`. Décisions :
+- **Une interface, des fournisseurs.** `FournisseurLlm.generer(DemandeLlm)` ; le
+  premier fournisseur parle `/v1/chat/completions` (serveur compatible OpenAI). Le
+  fournisseur Claude (SDK `@anthropic-ai/sdk`, clé en `.env`) viendra derrière la même
+  interface ; **pas de fournisseur « abonnement »** (les conditions d'utilisation
+  excluent l'accès automatisé hors clé API). Une valeur de `LLM_FOURNISSEUR` inconnue
+  échoue franchement au lieu de retomber sur le local.
+- **Le schéma du skill sert deux fois** : il contraint la sortie côté serveur
+  (`response_format` json_schema) ET figure dans le prompt (JSON compact). Une
+  grammaire force les champs sans que le modèle les « voie », or leurs `description`
+  portent des consignes.
+- **Jamais de JSON réparé en silence.** Hors schéma : UN renvoi automatique (la sortie
+  et les erreurs de validation sont renvoyées au modèle), puis `ErreurLlm
+  ('sortie_invalide')` qui porte les erreurs. Le texte brut est toujours dans la trace.
+- **Erreurs typées** : injoignable / modèle absent / sortie invalide / interrompu /
+  délai / http. Annuler = couper la connexion (le serveur arrête de générer).
+- **Flux SSE par défaut** : une génération de plusieurs minutes ne laisse pas la
+  connexion muette (un reverse proxy la couperait) et donne la progression en jetons.
+- **Chargeur sans manifeste** : le dossier EST la déclaration (règles → guides →
+  exemples → fichiers partagés → contrat de sortie). Seule exception, déclarée dans le
+  code : le lexique H3 partagé par `plan-h3` et `iteration-plan`.
+- **`agent_traces`** : skill, fournisseur, modèle, statut (`ok` / `invalide` / `echoue`
+  / `interrompu`), messages d'entrée, empreinte et taille du prompt système (pas le
+  prompt lui-même : il vit dans git), sortie brute, JSON valide, erreurs de validation,
+  renvois, jetons, durée, projet nullable. Le lien vers une proposition viendra avec
+  les propositions (chantier 3).
+- **Le GPU est partagé avec ComfyUI** : les appels LLM seront des tâches de la file
+  (chantier 2) ; pour l'instant `llm:essai` suppose que ComfyUI est au repos.
+Constaté sur le serveur de l'utilisateur (llama-swap, 2 modèles MoE) : contrainte
+json_schema **bien appliquée** (un prompt qui demande une phrase sans JSON renvoie
+quand même le JSON conforme, et la phrase sans contrainte) ; les modèles **réfléchissent
+d'abord** (`reasoning_content`, hors `texte`) et ces jetons comptent dans `max_tokens`
+et `usage` : garder une limite large (16 384 par défaut) ; contexte `--ctx-size 262144`,
+1 slot (`--parallel 1`). Premier essai réel : `brief-projet` sur `gemma4-26b-A4B`, JSON
+valide du premier coup, 80 s, 2 811 jetons en entrée, 2 543 en sortie (raisonnement
+compris).
+
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
 pressentie : un **catalogue de voix nommées**, chacune avec un échantillon de

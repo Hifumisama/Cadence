@@ -1,6 +1,8 @@
 # Cadence — Conception des agents de génération
 
-> Statut : **conception, rien n'est construit** (2026-09-30). Ce document fige le
+> Statut : **conception ; la brique LLM est construite** (2026-10-01 : interface,
+> fournisseur local, chargeur de skills, validation, traces — voir §9 et §13). Le reste
+> (propositions, conversation, génération du projet) ne l'est pas. Ce document fige le
 > vocabulaire et le modèle de données avant d'écrire la moindre ligne. Il
 > prolonge « Direction retenue pour l'agent d'itération » (`FRICTIONS.md`, F03)
 > et « Agents — architecture commune » (`CAHIER_DES_CHARGES.md`). En cas de
@@ -103,10 +105,9 @@ brouillon non validé.
 
 Les skills de l'app vivent dans `agents/skills/<nom>/` (règles, guides, schéma
 de sortie, exemples) : ce sont les prompts d'exécution de l'app, pas les skills
-conversationnels de `.claude/skills/`, qui gardent leur usage en chat. Un
-chargeur assemblera le prompt selon le profil du modèle (§9) ; il n'existe pas
-encore, et on n'a volontairement pas de manifeste tant qu'il n'a pas de lecteur
-(à créer avec lui). Le lexique de corrections H3 reste dans
+conversationnels de `.claude/skills/`, qui gardent leur usage en chat. Le
+chargeur (`lib/llm/skills.ts`, construit le 2026-10-01) assemble le prompt selon la
+convention du §9, sans manifeste : le dossier est la déclaration. Le lexique de corrections H3 reste dans
 `.claude/skills/fiche-de-plan/references/`, partagé par `plan-h3` et
 `iteration-plan`. Skills écrits : `plan-h3` (un plan), `iteration-plan`
 (correction après visionnage) et `prompt-asset` (prompt d'un asset).
@@ -202,10 +203,14 @@ l'utilisateur), `statut` (`en_cours` | `prete` | `appliquee` | `rejetee` |
 
 `avant` sert à la fois au diff et au **point de retour**.
 
-**`agent_traces`**
-`id`, `propositionId` (nullable), `agent`, `fournisseur`, `modele`,
-`prompt`, `sortie`, `jetons`, `durationMs`, `retourUtilisateur` (texte : « l'épée
-apparaît »), `createdAt`. C'est le journal de frictions automatisé et le jeu
+**`agent_traces`** — *construite* (migration 0030, `db/schema.ts`)
+`id`, `uuid`, `skill`, `fournisseur`, `modele`, `statut` (`ok` / `invalide` / `echoue`
+/ `interrompu`), `projectId` (nullable), `messages` (entrée, hors prompt système),
+`systemeEmpreinte` + `systemeCaracteres` (le prompt système vit dans git : on garde
+son empreinte), `sortieBrute`, `json` (valide), `erreursValidation`, `erreur`,
+`renvois`, `tokensEntree`, `tokensSortie`, `dureeMs`, `createdAt`. **À ajouter avec
+les propositions :** `propositionId` (nullable) et `retourUtilisateur` (texte :
+« l'épée apparaît »). C'est le journal de frictions automatisé et le jeu
 d'évaluation (§10).
 
 **Application** = une transaction : rejoue les changements `accepte`, écrit le
@@ -233,6 +238,34 @@ nouvelle UI d'édition. Il corrige **après un visionnage réel**, jamais à
 l'aveugle (F03).
 
 ## 9. Fournisseur de modèle
+
+**État construit (2026-10-01) :** `lib/llm/`.
+- `FournisseurLlm.generer(DemandeLlm) → ReponseLlm` ; `DemandeLlm` = prompt système,
+  messages, schéma de sortie, `maxTokens`, `temperature`, `signal` (annulation),
+  modèle ; `ReponseLlm` = texte, `json`, usage (jetons), durée, modèle, raison d'arrêt,
+  réponse brute.
+- Seul fournisseur : `compatibleOpenAI` (`/v1/chat/completions`, flux SSE, sortie
+  contrainte par `response_format` json_schema). Configuration : `LLM_FOURNISSEUR`,
+  `LLM_LOCAL_URL`, `LLM_LOCAL_MODELE`, `LLM_MODELE_<SKILL>` (voir `.env.example`).
+- **Emplacement du fournisseur Claude** : `lib/llm/claude.ts`, qui implémentera
+  `FournisseurLlm` avec `@anthropic-ai/sdk` (`ANTHROPIC_API_KEY` en `.env`, sortie
+  structurée `output_config.format`, prompt caching du texte des skills) et sera
+  branché dans `creerFournisseur` (`lib/llm/config.ts`) sous `LLM_FOURNISSEUR=claude`.
+  Pas de fournisseur « abonnement ».
+- `executerSkill(nom, entree, options)` : chargement du skill → appel → validation
+  contre `sortie.schema.json` → un renvoi automatique avec les erreurs si besoin →
+  trace (`agent_traces`). Jamais de JSON réparé en silence.
+- **Convention du chargeur** (`chargerSkill`) : le prompt système = `regles.md`, puis
+  les `guide-*.md` (ordre alphabétique), puis `exemples/*.md` (ordre alphabétique),
+  puis les fichiers partagés déclarés dans le code (le lexique H3 pour `plan-h3` et
+  `iteration-plan`), puis le contrat de sortie (`sortie.schema.json` en JSON compact).
+  Chaque fichier a un titre `=== type : nom ===`. Pas de manifeste.
+- **VRAM partagée** : le serveur LLM local et ComfyUI tournent sur la même machine et
+  ne tiennent pas ensemble en mémoire. Un appel LLM local sera une tâche de la file
+  (genre « llm », avec libération de la VRAM de l'autre côté aux changements de
+  domaine) : **chantier 2**. D'ici là, `npm run llm:essai` suppose ComfyUI au repos.
+
+**Conception d'origine :**
 
 Une interface unique `LLM` (entrée : messages, outils, schéma de sortie ; sortie :
 texte ou appel d'outil, jetons), derrière laquelle on branche l'API ou un modèle
@@ -290,7 +323,8 @@ contrôle verbatim les signale déjà. Les durées sont recalées à ce moment.
 
 ## 13. Ordre de construction proposé
 
-1. Interface `LLM` + trace.
+1. Interface `LLM` + trace — **fait (2026-10-01)**, fournisseur local ; reste le
+   fournisseur Claude et l'intégration à la file du worker.
 2. Tables `propositions` / `proposition_changements` et l'écran de revue
    (diff, accepter/refuser, appliquer, annuler) — utile même sans agent, testable
    avec des propositions écrites à la main.
