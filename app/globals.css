@@ -5281,3 +5281,19 @@ a.voix-chip:hover {
     }
   }
 }
+
+.tq-notif {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tq-notif input {
+  margin-top: 2px;
+  accent-color: var(--or);
+}
+.tq-notif small {
+  display: block;
+}

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { annulerTache, marquerToutVu, marquerVu } from "@/app/taches/actions";
+import { etatNotifications } from "@/lib/notifications-navigateur";
 import type { ResumeTaches, Tache } from "@/lib/taches";
 
 /** Un seul sondage de `/api/taches` pour toute l'application, placé dans le
@@ -94,7 +95,10 @@ export function TachesProvider({ children }: { children: ReactNode }) {
   const planifier = useCallback(() => {
     if (minuteur.current) clearTimeout(minuteur.current);
     minuteur.current = setTimeout(async () => {
-      if (document.visibilityState === "visible") await charger();
+      // Onglet caché : on saute le tour, SAUF si les notifications natives sont actives (il
+      // faut bien voir la fin d'une tâche pour la signaler ; le navigateur ralentit seul les
+      // minuteurs d'un onglet en arrière-plan).
+      if (document.visibilityState === "visible" || (rapideRef.current && etatNotifications() === "active")) await charger();
       planifier();
     }, rapideRef.current ? INTERVALLE_ACTIF_MS : INTERVALLE_REPOS_MS);
   }, [charger]);

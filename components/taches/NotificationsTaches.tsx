@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgents } from "@/components/agents/AgentsProvider";
 import { useTaches } from "@/components/taches/TachesProvider";
+import { etatNotifications, notifier, pageEnArriere } from "@/lib/notifications-navigateur";
 import type { Tache } from "@/lib/taches";
 
 /** Notifications de fin de tâche : un petit toast quand une génération, une
@@ -88,6 +89,24 @@ export function NotificationsTaches() {
     const vues = annoncees.current;
     const nouvelles = taches.filter((x) => estFinie(x) && x.vuAt == null && !vues.has(x.cle));
     if (nouvelles.length === 0) return;
+
+    // Page en arrière-plan (autre onglet, autre fenêtre) et notifications natives actives :
+    // une notification du système, pas de toast (il aurait disparu avant le retour).
+    if (etatNotifications() === "active" && pageEnArriere()) {
+      nouvelles.forEach((x) => vues.add(x.cle));
+      if (nouvelles.length > MAX_VISIBLES) {
+        const echecs = nouvelles.filter((x) => x.statut === "echoue").length;
+        notifier(
+          `Cadence : ${nouvelles.length} tâches terminées`,
+          echecs > 0 ? `Dont ${echecs} échec${echecs > 1 ? "s" : ""}.` : "Résultats prêts.",
+          "cadence-lot",
+          () => setPanneauOuvert(true),
+        );
+      } else {
+        nouvelles.forEach((x) => notifier(`Cadence : ${x.libelle}`, texteFin(x), x.cle, () => ouvrirTache(x)));
+      }
+      return;
+    }
     // Une popup modale ouverte : on garde les fins en réserve et on réessaie un peu plus tard.
     if (document.querySelector("dialog[open]")) {
       const t = setTimeout(() => setAttente((n) => n + 1), 1500);

@@ -1303,7 +1303,15 @@ Test réel du lot de scénarios sur « Nuit sur Tanger » (retours de l'utilisat
   la fin (ou à l'échec) d'une génération, d'un lot ou d'une proposition, avec « Voir ». Ce qui
   était déjà fini à l'ouverture de la page n'est pas annoncé ; une annulation voulue ne
   notifie pas ; on attend la fermeture d'une popup modale (elle cacherait le toast) ; au-delà de
-  3 fins simultanées, un seul toast les regroupe. Pas de notification navigateur pour l'instant.
+  3 fins simultanées, un seul toast les regroupe.
+- **Notifications natives du navigateur (2026-10-02)** : un interrupteur « Notifications du
+  navigateur » dans le panneau des générations (`BasculeNotifications`,
+  `lib/notifications-navigateur.ts`) ; l'autorisation se demande au clic, l'option est gardée
+  dans le localStorage. Page en arrière-plan (onglet caché ou fenêtre sans focus) : une
+  notification du système (clic = la fenêtre revient et ouvre la tâche), pas de toast ; page
+  visible : toast comme avant. Le sondage continue onglet caché tant que l'option est active
+  et qu'une tâche tourne (le navigateur ralentit seul les minuteurs d'un onglet en arrière-plan :
+  la notification peut arriver avec un décalage d'au plus une minute environ).
 - **Une seule validation à l'application.** La confirmation d'écrasement en deux temps est
   retirée de l'interface : un écrasement est décoché par défaut et montré en tête de la revue,
   le cocher EST la décision. Le bouton annonce « dont N écrasement(s) ». Le serveur exige

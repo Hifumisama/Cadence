@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAgents } from "@/components/agents/AgentsProvider";
+import { BasculeNotifications } from "@/components/taches/BasculeNotifications";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { estActive, type GenreTache, type Tache } from "@/lib/taches";
 import { urlMiniature } from "@/lib/miniatures";
@@ -80,6 +81,8 @@ export function IndicateurTaches() {
               </button>
             ) : null}
           </div>
+
+          <BasculeNotifications />
 
           {taches.length === 0 ? <p className="tq-vide">Aucune génération pour l&rsquo;instant.</p> : null}
 
