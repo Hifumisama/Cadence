@@ -18,7 +18,7 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assetGenerations, assets, briefs, plans, propositionChangements, propositions } from "../db/schema";
-import { construireSections } from "./agents/brief";
+import { briefVide, construireSections } from "./agents/brief";
 import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./agents/cochage";
 import { apercuContexteDe } from "./agents/contexte";
 import { planifierInsertion } from "./agents/rangs";
@@ -131,8 +131,25 @@ export async function lireBrief(projectId: number): Promise<VueBrief | null> {
     source: b.source as VueBrief["source"],
     version: b.version,
     contenu,
-    sections: construireSections(contenu, statuts),
+    sections: construireSections(contenu, statuts, b.statut as VueBrief["statut"]),
     updatedAt: b.updatedAt.toISOString(),
+  };
+}
+
+/** Comme `lireBrief`, mais un projet SANS brief renvoie un brief partiel VIDE exploitable (style et
+ * notes éditables) — rien n'est écrit en base avant la première édition. */
+export async function lireBriefOuVide(projectId: number, titreProjet: string): Promise<VueBrief> {
+  const existant = await lireBrief(projectId);
+  if (existant) return existant;
+  const contenu = briefVide(titreProjet);
+  return {
+    projectId,
+    statut: "partiel",
+    source: "reconstitue",
+    version: 0,
+    contenu,
+    sections: construireSections(contenu, {}, "partiel"),
+    updatedAt: new Date(0).toISOString(),
   };
 }
 

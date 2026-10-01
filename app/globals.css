@@ -4698,6 +4698,11 @@ a.voix-chip:hover {
   flex-direction: column;
   gap: var(--sp-4);
 }
+.ag-style-champs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
 .ag-legende {
   display: flex;
   flex-wrap: wrap;

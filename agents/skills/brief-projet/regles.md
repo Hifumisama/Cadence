@@ -67,6 +67,7 @@ Pour chaque section que tu remplis, dis dans `statuts` qui l'a posée : **`fourn
 
 - L'arc tient en deux à quatre phrases.
 - Le style est nommé, avec sa clause de style en anglais.
+- `notes` : seulement ce que l'utilisateur a écrit à ce titre ; si le projet a déjà une clause de style ou des notes posées par l'utilisateur, elles te sont données et tu les reprends telles quelles.
 - Toute rime entre deux moments est déclarée.
 - Chaque invention est listée et a été validée, pas seulement signalée.
 - Le découpage en épisodes a été validé s'il y a plusieurs épisodes.

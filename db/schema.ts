@@ -56,8 +56,11 @@ export const assetStatutEnum = pgEnum("asset_statut", [
   "valide",
 ]);
 
-// Racine d'un projet vidéo — OneShot ou Série (2026-09-28). clauseStyle
-// porte le réglage qui ne bouge pas à l'échelle du projet (retour
+// Racine d'un projet vidéo — OneShot ou Série (2026-09-28). 2026-10-02 : `clauseStyle` et
+// `notes` sont désormais des COPIES dénormalisées du BRIEF (source unique : `briefs.contenu`
+// style.clause / notes), écrites par le seul `synchroniserClauseStyle` (lib/agents/brief-db.ts) ;
+// ne JAMAIS les écrire ailleurs. Historique : clauseStyle
+// portait le réglage qui ne bouge pas à l'échelle du projet (retour
 // utilisateur : "des prompts qui vont pas bouger à l'échelle de la saison
 // voire du projet") — ex-DEFAULT global de lib/params.ts, migré ici. Un seul
 // niveau d'héritage volontairement : pas de surcharge par saison/épisode

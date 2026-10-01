@@ -133,17 +133,17 @@ async function main() {
     const gp = await s.genererProposition(uuid);
     ok(gp.ok && gp.runUuid === null, "squelette construit en code (aucune tâche LLM)");
     let prop = gp.ok ? await lireProposition(gp.propositionUuid) : null;
-    ok(prop?.statut === "prete" && prop.compteurs.total === 5, "proposition prête : brief, clause de style, saison, 2 épisodes");
-    ok(prop?.compteurs.selectionnes === 5 && prop.groupes.map((g) => g.id).join() === "brief,projet,saison,episodes", "créations cochées, groupes dans l'ordre");
+    ok(prop?.statut === "prete" && prop.compteurs.total === 4, "proposition prête : brief (qui porte la clause de style), saison, 2 épisodes");
+    ok(prop?.compteurs.selectionnes === 4 && prop.groupes.map((g) => g.id).join() === "brief,saison,episodes", "créations cochées, groupes dans l'ordre, plus de groupe « projet »");
     const nb2 = await s.cocherChangements(gp.ok ? gp.propositionUuid : "", { groupe: "episodes" }, false);
     ok(nb2.ok && nb2.modifies === 2, "décocher un groupe entier");
     const ap1 = await s.appliquerSelection(gp.ok ? gp.propositionUuid : "");
-    ok(ap1.ok && ap1.statut === "partielle" && ap1.appliques === 3, "application partielle (3 appliqués, 2 écartés)");
+    ok(ap1.ok && ap1.statut === "partielle" && ap1.appliques === 2, "application partielle (2 appliqués, 2 écartés)");
     const sais = await db.select().from(seasons).where(eq(seasons.projectId, p1!.id));
     ok(sais.length === 1 && sais[0]!.titre === BRIEF.titre, "la saison existe");
     ok((await db.select().from(episodes).where(eq(episodes.seasonId, sais[0]!.id))).length === 0, "les épisodes écartés n'existent pas");
     const [pr] = await db.select().from(projects).where(eq(projects.id, p1!.id));
-    ok(pr!.clauseStyle.startsWith("Cinematic live-action"), "la clause de style du projet est posée");
+    ok(pr!.clauseStyle.startsWith("Cinematic live-action"), "la clause de style du projet suit le brief appliqué");
     brief = await lireBrief(p1!.id);
     ok(brief?.statut === "valide", "le brief devient la référence du projet (valide)");
     ok(!(await s.appliquerSelection(gp.ok ? gp.propositionUuid : "")).ok, "une proposition appliquée ne se réapplique pas");
@@ -279,6 +279,59 @@ async function main() {
     ok((await lireBrief(p2!.id))?.statut === "brouillon", "brouillon généré");
     ok((await s.rejeterBrief(od.conversationUuid)).ok && (await lireBrief(p2!.id)) === null, "rejeterBrief : brouillon supprimé");
     ok((await db.select().from(briefs).where(eq(briefs.projectId, p2!.id))).length === 0, "…aucune ligne de brief ne subsiste");
+
+    // ── E. Le brief est la source unique de la clause de style et des notes ──
+    console.log("\nE. Clause de style et notes : source unique = brief (projet 2)");
+    const clauseMain = "Flat 2D, bold outlines, limited palette.";
+    const e1 = await s.modifierChampBrief(p2!.id, "style", { nom: "2D à plat", clause: clauseMain });
+    ok(e1.ok, "éditer le style d'un projet SANS brief crée un brief partiel");
+    let b2 = await lireBrief(p2!.id);
+    ok(b2?.statut === "partiel" && b2.source === "reconstitue" && b2.sections.map((x) => x.cle).join() === "style,notes", "brief partiel : seules les sections style et notes sont montrées");
+    ok(b2?.sections.find((x) => x.cle === "style")?.statut === "fourni", "…le style est « fourni »");
+    let [q2] = await db.select().from(projects).where(eq(projects.id, p2!.id));
+    ok(q2!.clauseStyle === clauseMain, "projects.clause_style est synchronisée depuis le brief (la génération d'images lit toujours la colonne)");
+    ok((await s.modifierChampBrief(p2!.id, "notes", "Rappel : jamais de logo à l'image.")).ok, "les notes se posent aussi");
+    [q2] = await db.select().from(projects).where(eq(projects.id, p2!.id));
+    ok(q2!.notes === "Rappel : jamais de logo à l'image.", "projects.notes est synchronisée");
+
+    ok(!(await s.genererProposition(od.conversationUuid)).ok, "un brief partiel n'est pas un brief : « génère d'abord le brief »");
+    const ge = await s.genererBrief(od.conversationUuid);
+    ok(ge.ok, "on peut rédiger le brief par-dessus un brief partiel");
+    await traiter(ge.ok ? ge.runUuid : null);
+    b2 = await lireBrief(p2!.id);
+    ok(b2?.statut === "brouillon" && b2.contenu.style.clause === clauseMain, "le brouillon de l'agent respecte la clause posée à la main (elle gagne sur la sienne)");
+    ok(b2?.sections.find((x) => x.cle === "style")?.statut === "fourni", "…et reste « fourni »");
+    [q2] = await db.select().from(projects).where(eq(projects.id, p2!.id));
+    ok(q2!.clauseStyle === clauseMain && !q2!.clauseStyle.startsWith("Cinematic"), "un brouillon ne synchronise rien : le projet garde sa clause");
+
+    ok((await s.rejeterBrief(od.conversationUuid)).ok, "rejeter le brouillon…");
+    b2 = await lireBrief(p2!.id);
+    ok(b2?.statut === "partiel" && b2.contenu.style.clause === clauseMain && b2.contenu.arc === "", "…ne perd pas ce qui a été posé à la main : retour en brief partiel (le contenu de l'agent disparaît)");
+
+    const ge2 = await s.genererBrief(od.conversationUuid);
+    await traiter(ge2.ok ? ge2.runUuid : null);
+    const nc = await s.nouvelleConversation(p2!.id, "projet", null);
+    b2 = await lireBrief(p2!.id);
+    ok(nc.ok && b2?.statut === "partiel" && b2.contenu.style.clause === clauseMain, "une nouvelle conversation abandonne le brouillon sans perdre le style posé");
+
+    // application : le brief devient la référence, la clause suit
+    const ge3 = nc.ok ? await s.envoyerMessage(nc.conversationUuid, "Une série sur un phare.") : null;
+    await traiter(ge3 && ge3.ok ? ge3.runUuid : null);
+    const ge4 = nc.ok ? await s.genererBrief(nc.conversationUuid) : null;
+    await traiter(ge4 && ge4.ok ? ge4.runUuid : null);
+    const gpe = nc.ok ? await s.genererProposition(nc.conversationUuid) : null;
+    const pe = gpe && gpe.ok ? await lireProposition(gpe.propositionUuid) : null;
+    ok(!!pe && !pe.groupes.some((g) => g.id === "projet"), "la proposition ne contient aucun changement « projet »");
+    const ape = gpe && gpe.ok ? await s.appliquerSelection(gpe.propositionUuid) : null;
+    ok(!!ape && ape.ok, "application de la proposition");
+    b2 = await lireBrief(p2!.id);
+    [q2] = await db.select().from(projects).where(eq(projects.id, p2!.id));
+    ok(b2?.statut === "valide" && b2.contenu.style.clause === clauseMain && q2!.clauseStyle === clauseMain, "brief validé : la clause posée à la main est conservée dans le brief ET dans le projet");
+
+    // édition directe d'un brief validé : la copie suit (un seul chemin d'écriture)
+    ok((await s.modifierChampBrief(p2!.id, "style", { nom: "2D à plat", clause: "Cel-shaded 2D, thick ink lines." })).ok, "édition directe de la clause d'un brief validé");
+    [q2] = await db.select().from(projects).where(eq(projects.id, p2!.id));
+    ok(q2!.clauseStyle === "Cel-shaded 2D, thick ink lines.", "projects.clause_style suit immédiatement");
   } finally {
     await db.delete(agentRuns).where(inArray(agentRuns.projectId, ids));
     await db.delete(projects).where(inArray(projects.id, ids));

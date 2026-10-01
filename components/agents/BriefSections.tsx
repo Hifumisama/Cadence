@@ -42,6 +42,30 @@ export function BriefSections({
   );
 }
 
+/** Style : un nom (« animation 2D ») et la clause (anglais), au lieu d'un objet JSON. La saisie reste
+ * la chaîne JSON {nom, clause} que `depuisSaisie("style", …)` relit. */
+function ChampsStyle({ saisie, onChange, libelle }: { saisie: string; onChange: (v: string) => void; libelle: string }) {
+  let v: { nom?: string; clause?: string } = {};
+  try {
+    v = JSON.parse(saisie) as { nom?: string; clause?: string };
+  } catch {
+    v = {};
+  }
+  const maj = (cle: "nom" | "clause", valeur: string) => onChange(JSON.stringify({ nom: v.nom ?? "", clause: v.clause ?? "", [cle]: valeur }));
+  return (
+    <div className="ag-style-champs">
+      <label className="tiny-note" htmlFor="ag-style-nom">
+        Style nommé
+      </label>
+      <input id="ag-style-nom" className="field" value={v.nom ?? ""} onChange={(e) => maj("nom", e.target.value)} aria-label={`${libelle} : style nommé`} />
+      <label className="tiny-note" htmlFor="ag-style-clause">
+        Clause de style
+      </label>
+      <textarea id="ag-style-clause" className="field" rows={3} value={v.clause ?? ""} onChange={(e) => maj("clause", e.target.value)} aria-label={`${libelle} : clause de style`} spellCheck={false} />
+    </div>
+  );
+}
+
 function Legende({ nombres }: { nombres: Record<StatutChamp, number> }) {
   return (
     <ul className="ag-legende" aria-label="Légende des états">
@@ -106,20 +130,26 @@ function Section({
       <div className="ag-section-corps">
         {edition ? (
           <>
-            <textarea
-              className="field"
-              rows={type === "texte" || type === "nombre" ? 2 : 8}
-              value={saisie}
-              onChange={(e) => setSaisie(e.target.value)}
-              aria-label={`Modifier : ${s.libelle}`}
-              spellCheck={type !== "json"}
-            />
+            {type === "style" ? (
+              <ChampsStyle saisie={saisie} onChange={setSaisie} libelle={s.libelle} />
+            ) : (
+              <textarea
+                className="field"
+                rows={type === "texte" || type === "nombre" ? 2 : type === "libre" ? 5 : 8}
+                value={saisie}
+                onChange={(e) => setSaisie(e.target.value)}
+                aria-label={`Modifier : ${s.libelle}`}
+                spellCheck={type !== "json"}
+              />
+            )}
             <p className="tiny-note">
               {type === "lignes"
                 ? "Un élément par ligne."
                 : type === "json"
                   ? "Format structuré (JSON) : le serveur le vérifie avant de l'enregistrer."
-                  : null}
+                  : type === "style"
+                    ? "La clause de style est ajoutée telle quelle aux prompts d'images du projet (en anglais, une ou deux phrases)."
+                    : null}
             </p>
             {erreur ? (
               <p className="tiny-note ag-erreur" role="alert">

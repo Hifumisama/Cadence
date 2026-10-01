@@ -3,11 +3,11 @@ import type { ChangementBrut } from "./changements";
 import type { BriefContenu, StatutChamp } from "./types";
 
 /** Le squelette d'un projet, construit EN CODE depuis le brief (aucun appel au modèle) :
- * clause de style, saison, épisodes, et le brief lui-même. Pur, testé. Idempotent : un
+ * saison, épisodes, et le brief lui-même (la clause de style du projet suit le brief : voir
+ * brief-db.ts, plus de changement « projet » séparé). Pur, testé. Idempotent : un
  * épisode du même titre dans la saison cible n'est pas recréé. */
 
 export type EtatProjetPourSquelette = {
-  clauseStyle: string;
   saisons: { id: number; numero: number; titre: string }[];
   /** `vide` : ni plan, ni scène, ni résumé : le squelette le réutilise au lieu d'en créer un de trop. */
   episodes: { id: number; seasonId: number; numero: number; titre: string; resume: string; vide?: boolean }[];
@@ -46,20 +46,7 @@ export function squeletteDepuisBrief(
     }
   }
 
-  // 2. La clause de style du projet (ajoutée telle quelle aux descriptions et prompts).
-  if (brief.style?.clause && brief.style.clause.trim() !== etat.clauseStyle.trim()) {
-    changements.push({
-      groupe: "projet",
-      cibleType: "projet",
-      cibleRef: "clauseStyle",
-      libelle: "Projet · clause de style",
-      operation: "modifier",
-      avant: etat.clauseStyle,
-      apres: { clauseStyle: brief.style.clause.trim() },
-    });
-  }
-
-  // 3. La saison : celle qui existe (la première), sinon une nouvelle.
+  // 2. La saison : celle qui existe (la première), sinon une nouvelle.
   const saison = [...etat.saisons].sort((a, b) => a.numero - b.numero)[0] ?? null;
   const cleSaison = "saison-1";
   if (!saison) {
@@ -74,7 +61,7 @@ export function squeletteDepuisBrief(
     });
   }
 
-  // 4. Les épisodes du brief, sauf ceux qui existent déjà (même titre) dans cette saison.
+  // 3. Les épisodes du brief, sauf ceux qui existent déjà (même titre) dans cette saison.
   const existants = saison ? etat.episodes.filter((e) => e.seasonId === saison.id) : [];
   const titresExistants = new Set(existants.map((e) => e.titre.trim().toLowerCase()));
   let numero = existants.reduce((m, e) => Math.max(m, e.numero), 0);

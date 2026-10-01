@@ -63,15 +63,106 @@ export function sortieVersBrief(sortie: Record<string, unknown>): { contenu: Bri
   return { contenu, statuts };
 }
 
-export function construireSections(contenu: BriefContenu, statuts: Record<string, StatutChamp>): SectionBrief[] {
+/** Un brief « partiel » vide : la forme complète (les consommateurs lisent `.length`/`.map`
+ * sans garde), rien d'inventé. Sert quand l'utilisateur pose le style ou les notes d'un projet
+ * qui n'a pas (encore) de brief rédigé par l'agent. */
+export function briefVide(titre: string): BriefContenu {
+  return {
+    titre: titre.trim() || "Projet",
+    source: "reconstitue",
+    arc: "",
+    style: { nom: "", clause: "" },
+    langueDialogues: "",
+    episodes: [],
+    personnages: [],
+    lieux: [],
+    continuite: [],
+    rimes: [],
+    progressions: [],
+    pieges: [],
+    inventions: [],
+    questionsOuvertes: [],
+    notes: "",
+  };
+}
+
+/** Sections montrées pour un brief partiel : le style et les notes (toujours éditables), plus
+ * toute section que l'utilisateur a posée (« fourni »). Un brief rédigé montre tout ce qui est défini. */
+function sectionVisible(partiel: boolean, cle: string, statuts: Record<string, StatutChamp>): boolean {
+  return !partiel || cle === "style" || cle === "notes" || statuts[cle] === "fourni";
+}
+
+/** La clause de style portée par un brief (trim), ou "" . */
+export function clauseDuBrief(contenu: BriefContenu | null | undefined): string {
+  const c = (contenu as unknown as { style?: { clause?: unknown } } | null | undefined)?.style?.clause;
+  return typeof c === "string" ? c.trim() : "";
+}
+
+/** Les notes libres d'un brief (trim), ou "". */
+export function notesDuBrief(contenu: BriefContenu | null | undefined): string {
+  const n = (contenu as unknown as { notes?: unknown } | null | undefined)?.notes;
+  return typeof n === "string" ? n.trim() : "";
+}
+
+export function construireSections(
+  contenu: BriefContenu,
+  statuts: Record<string, StatutChamp>,
+  statutBrief: "partiel" | "brouillon" | "valide" = "valide",
+): SectionBrief[] {
   const c = contenu as unknown as Record<string, unknown>;
-  return SECTIONS_BRIEF.filter((s) => c[s.cle] !== undefined).map((s) => ({
+  const partiel = statutBrief === "partiel";
+  return SECTIONS_BRIEF.filter((s) => (c[s.cle] !== undefined || (partiel && (s.cle === "style" || s.cle === "notes"))) && sectionVisible(partiel, s.cle, statuts)).map((s) => ({
     cle: s.cle,
     libelle: s.libelle,
     groupe: s.groupe,
-    statut: statuts[s.cle] ?? statutDeSection(s.cle, c[s.cle]),
-    valeur: c[s.cle],
+    // Brief partiel : une section jamais posée (notes vides…) reste « à valider » (à remplir), pas « déduite ».
+    statut: statuts[s.cle] ?? (partiel ? "a_valider" : statutDeSection(s.cle, c[s.cle])),
+    valeur: c[s.cle] ?? (s.cle === "style" ? { nom: "", clause: "" } : s.cle === "notes" ? "" : undefined),
   }));
+}
+
+/** Le brouillon qu'écrit l'agent, SANS écraser ce que l'utilisateur a posé à la main dans un brief
+ * partiel : les sections « fourni » du partiel gagnent (style, notes…). */
+export function fusionnerPartielDansBrouillon(
+  brouillon: { contenu: BriefContenu; statuts: Record<string, StatutChamp> },
+  partiel: { contenu: BriefContenu; statuts: Record<string, StatutChamp> },
+): { contenu: BriefContenu; statuts: Record<string, StatutChamp> } {
+  const contenu = { ...(brouillon.contenu as unknown as Record<string, unknown>) };
+  const statuts = { ...brouillon.statuts };
+  const posees = partiel.contenu as unknown as Record<string, unknown>;
+  for (const cle of CLES_SECTION) {
+    if (partiel.statuts[cle] !== "fourni" || posees[cle] === undefined) continue;
+    contenu[cle] = posees[cle];
+    statuts[cle] = "fourni";
+  }
+  return { contenu: contenu as unknown as BriefContenu, statuts };
+}
+
+/** Ce qu'il reste d'un brouillon abandonné : le brief PARTIEL qui porte la clause de style et les
+ * notes du projet — null s'il n'y en a aucune (le brouillon se supprime). Les valeurs viennent des
+ * COPIES du projet (`projects.clause_style` / `notes`), qui reflètent par invariant le brief de
+ * référence (brief-db.ts) : on ne devine pas, dans un brouillon, ce qui a été posé à la main. Le nom
+ * du style est gardé si la clause du brouillon est la même. Tout le reste du brouillon disparaît. */
+export function residuPartiel(
+  brouillon: { contenu: BriefContenu; statuts: Record<string, StatutChamp> },
+  projet: { titre: string; clauseStyle: string; notes: string },
+): { contenu: BriefContenu; statuts: Record<string, StatutChamp> } | null {
+  const clause = projet.clauseStyle.trim();
+  const notes = projet.notes.trim();
+  if (!clause && !notes) return null;
+  const contenu = briefVide(projet.titre) as unknown as Record<string, unknown>;
+  const statuts: Record<string, StatutChamp> = {};
+  if (clause) {
+    const style = (brouillon.contenu as unknown as { style?: { nom?: unknown; clause?: unknown } }).style;
+    const memeClause = typeof style?.clause === "string" && style.clause.trim() === clause;
+    contenu.style = { nom: memeClause && typeof style?.nom === "string" ? style.nom : "", clause };
+    statuts.style = "fourni";
+  }
+  if (notes) {
+    contenu.notes = notes;
+    statuts.notes = "fourni";
+  }
+  return { contenu: contenu as unknown as BriefContenu, statuts };
 }
 
 export type DifferenceSection = { cle: CleSectionBrief; avant: unknown; apres: unknown };

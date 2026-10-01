@@ -16,6 +16,7 @@ import {
 import { chargerSkill } from "../llm/skills";
 import { valider } from "../llm/validation";
 import { estCleSection, sousSchemaSection } from "./brief";
+import { abandonnerBrouillon, creerBriefPartiel, synchroniserClauseStyle } from "./brief-db";
 import type { BriefContenu, CibleDemandee, MessageConversation, Portee, Position, Profondeur, Resultat, StatutChamp } from "./types";
 import { PORTEES } from "./types";
 import { controleDuree } from "./applicateurs/plan";
@@ -152,7 +153,7 @@ export async function nouvelleConversation(projectId: number, portee: Portee, ci
   const existante = await trouver(projectId, portee, r.cibleId);
   if (existante) {
     await arreterTravaux(existante.id);
-    if (portee === "projet") await db.delete(briefs).where(and(eq(briefs.projectId, projectId), eq(briefs.statut, "brouillon")));
+    if (portee === "projet") await abandonnerBrouillon(db, projectId);
     await db.delete(agentConversations).where(eq(agentConversations.id, existante.id)); // propositions : conversation_id → null
   }
   const p = profondeur ?? existante?.profondeur ?? profondeurParDefaut(portee);
@@ -244,7 +245,7 @@ export async function rejeterBrief(conversationUuid: string): Promise<Resultat> 
     .update(propositions)
     .set({ statut: "rejetee" })
     .where(and(eq(propositions.conversationId, conv.id), inArray(propositions.statut, ["en_generation", "prete"])));
-  if (b) await db.delete(briefs).where(eq(briefs.id, b.id));
+  if (b) await abandonnerBrouillon(db, conv.projectId); // le brief partiel (style, notes) n'est jamais touché
   await db
     .update(agentConversations)
     .set({ etape: "conversation", briefPret: false, propositionId: null, updatedAt: new Date() })
@@ -254,22 +255,28 @@ export async function rejeterBrief(conversationUuid: string): Promise<Resultat> 
 
 export async function modifierChampBrief(projectId: number, section: string, valeur: unknown): Promise<Resultat> {
   if (!estCleSection(section)) return ERR(`Section de brief inconnue : « ${section} ».`);
-  const [b] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
-  if (!b) return ERR("Ce projet n'a pas de brief.");
   const sous = sousSchemaSection(chargerSkill("brief-projet").schema, section);
   if (sous) {
     const v = valider({ $schema: "https://json-schema.org/draft/2020-12/schema", ...sous }, valeur);
     if (!v.ok) return ERR(`Valeur invalide pour « ${section} » : ${v.erreurs.join(" ; ")}`);
   }
-  await db
-    .update(briefs)
-    .set({
-      contenu: { ...(b.contenu as Record<string, unknown>), [section]: valeur },
-      statuts: { ...(b.statuts as Record<string, StatutChamp>), [section]: "fourni" },
-      version: b.version + 1,
-      updatedAt: new Date(),
-    })
-    .where(eq(briefs.id, b.id));
+  // Un projet sans brief : la première édition à la main crée un brief PARTIEL (style, notes…),
+  // la source de la clause de style même quand l'agent n'a encore rien rédigé.
+  await creerBriefPartiel(db, projectId);
+  await db.transaction(async (tx) => {
+    const [b] = await tx.select().from(briefs).where(eq(briefs.projectId, projectId));
+    if (!b) throw new Error("Brief introuvable.");
+    await tx
+      .update(briefs)
+      .set({
+        contenu: { ...(b.contenu as Record<string, unknown>), [section]: valeur },
+        statuts: { ...(b.statuts as Record<string, StatutChamp>), [section]: "fourni" },
+        version: b.version + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(briefs.id, b.id));
+    await synchroniserClauseStyle(tx, projectId); // sans effet sur un brouillon : pas encore la référence
+  });
   return { ok: true };
 }
 
@@ -325,8 +332,7 @@ export async function genererProposition(conversationUuid: string, options: { co
   // Profondeur complète : le squelette se construit en code depuis le brief.
   if (conv.profondeur === "complete") {
     const [brief] = await db.select().from(briefs).where(eq(briefs.projectId, conv.projectId));
-    if (!brief) return ERR("Génère d'abord le brief.");
-    const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, conv.projectId));
+    if (!brief || brief.statut === "partiel") return ERR("Génère d'abord le brief.");
     const saisons = await db.select({ id: seasons.id, numero: seasons.numero, titre: seasons.titre }).from(seasons).where(eq(seasons.projectId, conv.projectId));
     const lignesEps = saisons.length
       ? await db
@@ -341,7 +347,6 @@ export async function genererProposition(conversationUuid: string, options: { co
     const avecScenes = new Set(idsEps.length ? (await db.select({ id: scenes.episodeId }).from(scenes).where(inArray(scenes.episodeId, idsEps))).map((r) => r.id) : []);
     const eps = lignesEps.map((e) => ({ ...e, vide: !e.resume.trim() && !avecPlans.has(e.id) && !avecScenes.has(e.id) }));
     const bruts = squeletteDepuisBrief(brief.contenu as BriefContenu, brief.statuts as Record<string, StatutChamp>, {
-      clauseStyle: projet?.clauseStyle ?? "",
       saisons,
       episodes: eps,
       briefValide: brief.statut === "valide" ? (brief.contenu as BriefContenu) : null,

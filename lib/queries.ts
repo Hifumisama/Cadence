@@ -33,8 +33,8 @@ export async function getDefaultEpisodeId(): Promise<number> {
   return episode.id;
 }
 
-/** Ligne complète du projet par défaut — clause de style + réglages
- * scénario (globaux du projet, voir ScenarioGlobalsEditor). */
+/** Ligne complète du projet par défaut. La clause de style et les notes qu'elle porte sont des
+ * COPIES du brief (voir lib/agents/brief-db.ts) : on les lit, on ne les écrit jamais ici. */
 export async function getDefaultProject() {
   const [projet] = await db.select().from(projects).orderBy(projects.id).limit(1);
   if (!projet) throw new Error("Aucun projet en base — voir db/migrations pour le projet créé par la migration 0007.");

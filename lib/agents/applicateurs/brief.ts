@@ -3,6 +3,7 @@ import { briefs } from "../../../db/schema";
 import { estCleSection } from "../brief";
 import type { ChangementBrut } from "../changements";
 import type { BriefContenu, StatutChamp } from "../types";
+import { synchroniserClauseStyle } from "../brief-db";
 import { apres, REFUS_SUPPRESSION, type Applicateur } from "./commun";
 
 /** Cible `brief` : `cibleRef` = « * » (le brief entier, création) ou une clé de section.
@@ -62,6 +63,7 @@ export const applicateurBrief: Applicateur = {
           target: briefs.projectId,
           set: { statut: "valide", contenu, statuts, version: sql`${briefs.version} + 1`, updatedAt: maintenant },
         });
+      await synchroniserClauseStyle(tx, ctx.projectId);
       return;
     }
     const [existant] = await tx.select().from(briefs).where(eq(briefs.projectId, ctx.projectId));
@@ -77,5 +79,6 @@ export const applicateurBrief: Applicateur = {
         updatedAt: maintenant,
       })
       .where(eq(briefs.id, existant.id));
+    await synchroniserClauseStyle(tx, ctx.projectId); // la clause de style du projet suit le brief
   },
 };

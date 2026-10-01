@@ -1,19 +1,10 @@
 "use server";
 
 import { db } from "@/db";
-import { scenes, plans, projects } from "@/db/schema";
+import { scenes, plans } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { recomposerOrdre, type Tx } from "@/lib/ordre-plans";
-
-const CHAMPS_PROJET = ["clauseStyle", "notes"] as const;
-
-/** Réglages qui ne bougent pas à l'échelle du projet (retour utilisateur
- * 2026-09-28) — colonnes de `projects`, plus de clé/valeur globale. */
-export async function updateScenarioGlobal(projectId: number, cle: (typeof CHAMPS_PROJET)[number], valeur: string) {
-  await db.update(projects).set({ [cle]: valeur }).where(eq(projects.id, projectId));
-  revalidatePath("/", "layout");
-}
 
 /** Un plan naît toujours en brouillon (défaut du schéma) — il faudra le
  * "développer" explicitement en fiche de plan avant qu'il entre dans Plans.

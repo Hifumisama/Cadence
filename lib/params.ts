@@ -4,8 +4,8 @@ import { eq } from "drizzle-orm";
 
 // Valeurs par défaut si la table n'a pas encore été seedée — voir
 // docs/FRICTIONS.md F03/F04 pour l'origine de chaque plafond. clause_style
-// et les scenario_* ont migré sur `projects` le 2026-09-28 (réglages propres
-// à une histoire, pas des constantes du pipeline) — voir db/schema.ts.
+// et les scenario_* ont migré sur `projects` le 2026-09-28, puis sont devenus des
+// copies du BRIEF le 2026-10-02 (source unique) — voir db/schema.ts.
 const DEFAULTS: {
   fps_defaut: string;
   duree_plafond_secondes: string;

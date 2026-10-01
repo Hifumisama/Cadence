@@ -1109,7 +1109,7 @@ validée par l'utilisateur. Décisions :
   brouillon sort de la conversation ; il devient `valide` à l'application. Un brief
   validé ne se régénère pas par-dessus : on le modifie section par section.
 - **Le squelette d'un projet se construit EN CODE depuis le brief**, sans appel au
-  modèle (clause de style, saison, épisodes, brief) ; il est idempotent (saison
+  modèle (saison, épisodes, brief — qui porte la clause de style, voir « Le brief, source unique ») ; il est idempotent (saison
   existante réutilisée, épisode du même titre non recréé, **épisode vide réutilisé** :
   un OneShot naît déjà avec sa saison et son épisode techniques).
 - **Les propositions des portées courtes se construisent en code depuis le JSON validé
@@ -1153,6 +1153,46 @@ validée par l'utilisateur. Décisions :
 - Validé : `npm run agents:e2e` (71 vérifications sur la base de dev, faux modèle, tout
   nettoyé) et un essai réel sur gemma via la file : deux tours de conversation (52 s et
   66 s) puis le brief (76 s, JSON valide du premier coup), puis le squelette en code.
+
+### Le brief, source unique de la clause de style et des notes (2026-10-02)
+Décision de l'utilisateur : « si on a un brief, les globaux du scénario n'ont plus aucun
+sens, c'est juste le brief ; notamment pour la clause de style, on la garde directement du
+brief ». **Remplace** les « globaux du scénario » des décisions précédentes (panneau
+`ScenarioGlobalsEditor`, `updateScenarioGlobal`, 2026-09-28) : ils sont supprimés.
+- **Une seule source : `briefs.contenu`** (`style.clause` et `notes`). Les colonnes
+  `projects.clause_style` et `projects.notes` restent, mais comme **copies dénormalisées**
+  (la génération d'images lit toujours la colonne ; `asset_generations.clause_style` reste un
+  instantané). Elles ne s'écrivent que par `synchroniserClauseStyle` (`lib/agents/brief-db.ts`),
+  appelée après toute écriture d'un brief `valide` ou `partiel` : édition directe
+  (`modifierChampBrief`) et application d'une proposition (applicateur de brief). Un
+  **brouillon ne synchronise rien** : ce n'est pas encore la référence du projet. Un test
+  (`brief-partiel.test.ts`) interdit toute autre écriture de ces colonnes.
+- **Nouveau statut de brief : `partiel`** = style et notes posés à la main, sans brief
+  rédigé par l'agent. La première édition d'un projet sans brief crée la ligne `briefs`
+  (source `reconstitue`) ; la page `/p/<id>/brief` n'affiche alors que « Style et notes »
+  (sections jamais posées : « à valider », pas « déduit »). Un brief partiel **n'est pas un
+  brief** : on peut le rédiger par-dessus (`genererBrief`), mais pas en tirer un squelette.
+- **Ce que l'utilisateur a posé gagne sur l'agent** : le brouillon généré par-dessus un brief
+  partiel garde les sections « fourni » du partiel (`fusionnerPartielDansBrouillon`).
+  Abandonner un brouillon (rejeter, nouvelle conversation, réinitialiser) ne perd pas la
+  clause ni les notes du projet : elles reviennent en brief partiel (`residuPartiel`, depuis
+  les copies du projet) ; sans clause ni notes, le brouillon est supprimé.
+- **Notes** : nouvelle section `notes` du brief (texte libre, groupe « Notes », jamais inventée
+  par l'agent — le schéma de `brief-projet` l'accepte, les règles du skill disent de n'écrire
+  que ce que l'utilisateur a dit). `dureeEpisodeSecondes` devient optionnelle dans le type
+  TypeScript (absente d'un brief partiel) ; elle reste obligatoire dans la sortie du skill.
+- **Le squelette n'émet plus de changement « projet »** : la clause voyage dans le
+  changement `brief` (création du brief ou section `style`). La cible `projet` reste dans les
+  types (anciennes propositions) mais son applicateur refuse avec un message clair.
+- **Interface** : le panneau « Globaux du scénario » disparaît de la page scénario, remplacé
+  par une ligne « Style et notes du projet : voir le Brief » (clause actuelle en lecture
+  seule). Dans l'éditeur du brief, le style s'édite en deux champs (nom, clause), les notes
+  en texte libre.
+- **Migration 0034** (idempotente, appliquée à la base de dev) : un projet sans brief mais avec
+  clause ou notes reçoit un brief partiel ; un brief existant dont la clause/les notes sont vides
+  les reprend du projet (jamais d'écrasement d'un champ rempli) ; les copies du projet suivent
+  ensuite le brief valide ou partiel. Dev : 2 projets (Les Yeux de Rubis, Troll beau frère) reçoivent
+  un brief partiel avec leur clause ; BitterSweet avait déjà la même clause dans son brief.
 
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme

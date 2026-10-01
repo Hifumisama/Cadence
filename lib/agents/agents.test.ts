@@ -169,11 +169,12 @@ test("diff de brief : seules les sections modifiées, insensible à l'ordre des 
 
 // --- squelette --------------------------------------------------------------
 
-const etatVide = { clauseStyle: "", saisons: [], episodes: [], briefValide: null };
+const etatVide = { saisons: [], episodes: [], briefValide: null };
 
-test("squelette d'un projet vide : brief, clause de style, saison 1, un épisode par entrée du brief", () => {
+test("squelette d'un projet vide : brief (qui porte la clause de style), saison 1, un épisode par entrée du brief", () => {
   const s = squeletteDepuisBrief(brief, { arc: "deduit" }, etatVide);
-  assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["brief:creer", "projet:modifier", "saison:creer", "episode:creer", "episode:creer"]);
+  assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["brief:creer", "saison:creer", "episode:creer", "episode:creer"]);
+  assert.ok(!s.some((x) => x.cibleType === "projet"), "plus de changement « projet » : la clause de style suit le brief");
   assert.equal(s[0]!.cibleRef, "*");
   const ep = s.filter((x) => x.cibleType === "episode");
   assert.deepEqual(ep.map((x) => x.cle), ["episode-1", "episode-2"]);
@@ -183,7 +184,6 @@ test("squelette d'un projet vide : brief, clause de style, saison 1, un épisode
 
 test("squelette idempotent : saison existante réutilisée, épisode du même titre non recréé, brief valide comparé", () => {
   const etat = {
-    clauseStyle: brief.style.clause,
     saisons: [{ id: 3, numero: 1, titre: "S1" }],
     episodes: [{ id: 9, seasonId: 3, numero: 1, titre: "le sel", resume: "" }],
     briefValide: brief,
@@ -249,7 +249,6 @@ test("plan à insérer et correction d'un plan : un seul changement, à la bonne
 
 test("squelette d'un OneShot : l'épisode technique vide est réutilisé, pas doublé", () => {
   const etat = {
-    clauseStyle: "",
     saisons: [{ id: 1, numero: 1, titre: "OneShot" }],
     episodes: [{ id: 5, seasonId: 1, numero: 1, titre: "Sans titre", resume: "", vide: true }],
     briefValide: null,

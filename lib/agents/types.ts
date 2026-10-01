@@ -92,7 +92,8 @@ export type BriefContenu = {
   genreTon?: string;
   style: { nom: string; clause: string };
   langueDialogues: string;
-  dureeEpisodeSecondes: number;
+  /** Absente dans un brief « partiel » (posé à la main : style, notes). */
+  dureeEpisodeSecondes?: number;
   episodes: { titre: string; resume: string; portee?: string }[];
   personnages: { nom: string; role: string; reconnaissable: string; voix?: string; statut?: string }[];
   lieux: { nom: string; description: string; statut?: string }[];
@@ -102,6 +103,8 @@ export type BriefContenu = {
   pieges: { cliche: string; formulationPositive: string }[];
   inventions: string[];
   questionsOuvertes: string[];
+  /** Notes libres du projet (ex-« globaux du scénario ») ; texte de l'utilisateur, jamais inventé. */
+  notes?: string;
 };
 
 /** Sections affichables d'un brief, dans l'ordre, avec leur libellé et leur groupe
@@ -122,6 +125,7 @@ export const SECTIONS_BRIEF = [
   { cle: "pieges", libelle: "Pièges", groupe: "Contraintes" },
   { cle: "inventions", libelle: "Inventions de l'agent", groupe: "À valider" },
   { cle: "questionsOuvertes", libelle: "Questions ouvertes", groupe: "À valider" },
+  { cle: "notes", libelle: "Notes du projet", groupe: "Notes" },
 ] as const;
 export type CleSectionBrief = (typeof SECTIONS_BRIEF)[number]["cle"];
 
@@ -135,8 +139,10 @@ export type SectionBrief = {
 
 export type VueBrief = {
   projectId: number;
-  /** `brouillon` : sorti d'une conversation, pas encore appliqué ; `valide` : référence du projet. */
-  statut: "brouillon" | "valide";
+  /** `brouillon` : sorti d'une conversation, pas encore appliqué ; `valide` : référence du projet ;
+   * `partiel` : posé à la main (style, notes…) sans brief complet — c'est la SOURCE de la clause de
+   * style du projet même quand l'agent n'a encore rien rédigé. */
+  statut: "partiel" | "brouillon" | "valide";
   source: "conversation" | "reconstitue";
   version: number;
   contenu: BriefContenu;

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
 import { methodeApplicable } from "../../lib/assetCode";
-import { sortieVersBrief } from "../../lib/agents/brief";
+import { fusionnerPartielDansBrouillon, sortieVersBrief } from "../../lib/agents/brief";
 import type { ChangementBrut } from "../../lib/agents/changements";
 import {
   depuisCorrectionPlan,
@@ -14,7 +14,7 @@ import {
 } from "../../lib/agents/conversion";
 import { entreeScenarioEpisode } from "../../lib/agents/contexte";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
-import type { Position } from "../../lib/agents/types";
+import type { BriefContenu, Position, StatutChamp } from "../../lib/agents/types";
 import type { Tx } from "../../lib/ordre-plans";
 
 /** Ce que devient le résultat validé d'une tâche du système d'agents, DANS la transaction qui
@@ -46,13 +46,18 @@ async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; briefP
 
 async function postBrief(tx: Tx, run: RunAgent, sortie: Record<string, unknown>) {
   if (run.projectId == null) throw new Error("Brief sans projet.");
-  const { contenu, statuts } = sortieVersBrief(sortie);
+  const genere = sortieVersBrief(sortie);
   const [existant] = await tx.select().from(briefs).where(eq(briefs.projectId, run.projectId));
   if (existant?.statut === "valide") throw new Error("Le projet a déjà un brief validé : le brouillon n'a pas été écrit par-dessus.");
+  // Un brief partiel (style, notes… posés à la main) : ce que l'utilisateur a posé gagne sur ce que l'agent rédige.
+  const { contenu, statuts } =
+    existant?.statut === "partiel"
+      ? fusionnerPartielDansBrouillon(genere, { contenu: existant.contenu as BriefContenu, statuts: existant.statuts as Record<string, StatutChamp> })
+      : genere;
   if (existant) {
     await tx
       .update(briefs)
-      .set({ contenu, statuts, version: existant.version + 1, updatedAt: new Date() })
+      .set({ statut: "brouillon", source: "conversation", contenu, statuts, version: existant.version + 1, updatedAt: new Date() })
       .where(eq(briefs.id, existant.id));
   } else {
     await tx.insert(briefs).values({ projectId: run.projectId, statut: "brouillon", source: "conversation", contenu, statuts });

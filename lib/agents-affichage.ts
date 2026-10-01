@@ -165,13 +165,15 @@ function compact(valeur: unknown, profondeur: number): string {
     .join(" — ");
 }
 
-export type TypeEdition = "nombre" | "texte" | "lignes" | "json";
+export type TypeEdition = "nombre" | "texte" | "lignes" | "json" | "style" | "libre";
 
 const CLES_NOMBRE: CleSectionBrief[] = ["dureeEpisodeSecondes"];
 const CLES_TEXTE: CleSectionBrief[] = ["titre", "arc", "genreTon", "langueDialogues"];
 const CLES_LIGNES: CleSectionBrief[] = ["continuite", "inventions", "questionsOuvertes"];
 
 export function typeEdition(cle: string): TypeEdition {
+  if (cle === "style") return "style"; // nom + clause : deux champs, pas du JSON brut
+  if (cle === "notes") return "libre"; // texte libre, peut être vide
   if ((CLES_NOMBRE as string[]).includes(cle)) return "nombre";
   if ((CLES_TEXTE as string[]).includes(cle)) return "texte";
   if ((CLES_LIGNES as string[]).includes(cle)) return "lignes";
@@ -183,7 +185,12 @@ export function versSaisie(cle: string, valeur: unknown): string {
   switch (typeEdition(cle)) {
     case "nombre":
     case "texte":
+    case "libre":
       return valeur == null ? "" : String(valeur);
+    case "style": {
+      const v = (valeur ?? {}) as { nom?: unknown; clause?: unknown };
+      return JSON.stringify({ nom: typeof v.nom === "string" ? v.nom : "", clause: typeof v.clause === "string" ? v.clause : "" });
+    }
     case "lignes":
       return Array.isArray(valeur) ? valeur.map(String).join("\n") : "";
     default:
@@ -204,6 +211,16 @@ export function depuisSaisie(cle: string, saisie: string): ResultatSaisie {
     case "texte":
       if (!saisie.trim() && cle !== "genreTon") return { ok: false, erreur: "Ce champ ne peut pas être vide." };
       return { ok: true, valeur: saisie.trim() };
+    case "libre":
+      return { ok: true, valeur: saisie.trim() };
+    case "style": {
+      try {
+        const v = JSON.parse(saisie) as { nom?: unknown; clause?: unknown };
+        return { ok: true, valeur: { nom: String(v.nom ?? "").trim(), clause: String(v.clause ?? "").trim() } };
+      } catch {
+        return { ok: false, erreur: "Style illisible." };
+      }
+    }
     case "lignes":
       return { ok: true, valeur: saisie.split("\n").map((l) => l.trim()).filter(Boolean) };
     default:

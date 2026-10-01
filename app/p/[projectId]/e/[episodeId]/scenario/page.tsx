@@ -1,7 +1,7 @@
+import Link from "next/link";
 import { getProject, getScenarioData } from "@/lib/queries";
 import { notFound } from "next/navigation";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
-import { ScenarioGlobalsEditor } from "@/components/scenario/ScenarioGlobalsEditor";
 import { NouveauPlanForm } from "@/components/scenario/NouveauPlanForm";
 import { NouveauSceneForm } from "@/components/scenario/NouveauSceneForm";
 import { SupprimerSceneButton } from "@/components/scenario/SupprimerSceneButton";
@@ -63,13 +63,15 @@ export default async function ScenarioPage({
         </div>
       </div>
 
-      <ScenarioGlobalsEditor
-        projectId={pid}
-        valeurs={{
-          clauseStyle: projet.clauseStyle,
-          notes: projet.notes,
-        }}
-      />
+      <p className="tiny-note" style={{ margin: "var(--sp-3) 0" }}>
+        Style et notes du projet : <Link href={`/p/${pid}/brief`} style={{ color: "var(--or)" }}>voir le Brief</Link>
+        {projet.clauseStyle.trim() ? (
+          <>
+            {" "}
+            · clause de style actuelle : <span className="num">{projet.clauseStyle.trim().slice(0, 140)}{projet.clauseStyle.trim().length > 140 ? "…" : ""}</span>
+          </>
+        ) : null}
+      </p>
 
       <div className="tally">
         <div className="tally-item">

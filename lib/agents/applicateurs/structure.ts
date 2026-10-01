@@ -7,7 +7,9 @@ import { apres, entierRef, parentDe, REFUS_SUPPRESSION, texte, type Applicateur 
 
 // --- projet -----------------------------------------------------------------
 
-/** Cible `projet` : seulement la clause de style (`cibleRef` = « clauseStyle »). */
+/** Cible `projet` : RETIRÉE (2026-10-02). La clause de style et les notes du projet sont des
+ * sections du BRIEF (cible `brief`) ; `projects.clause_style` n'en est qu'une copie (brief-db.ts).
+ * Les anciennes propositions qui portent encore ce type sont refusées avec un message clair. */
 export const applicateurProjet: Applicateur = {
   cibleType: "projet",
 
@@ -15,27 +17,16 @@ export const applicateurProjet: Applicateur = {
     return { type: "projet", operation: ch.operation };
   },
 
-  async previsualiser(db, ctx, ch) {
-    if (ch.operation !== "modifier" || ch.cibleRef !== "clauseStyle") {
-      return { ...ch, refuseRaison: "Seule la clause de style du projet se modifie par ce chemin." };
-    }
-    const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, ctx.projectId));
-    const sortie: ChangementBrut = { ...ch, avant: projet?.clauseStyle ?? "" };
-    if ((projet?.clauseStyle ?? "").trim() && (projet?.clauseStyle ?? "").trim() !== texte(apres(ch).clauseStyle)?.trim()) {
-      sortie.ecrase = "La clause de style actuelle du projet sera remplacée.";
-      sortie.avertissements = [...(ch.avertissements ?? []), { type: "ecrase_valide", texte: "Remplace la clause de style existante." }];
-    }
-    return sortie;
+  async previsualiser(_db, _ctx, ch) {
+    return { ...ch, refuseRaison: "La clause de style et les notes se modifient dans le brief du projet." };
   },
 
-  async verifier(_tx, _ctx, ch) {
-    return ch.operation === "modifier" && ch.cibleRef === "clauseStyle" && texte(apres(ch).clauseStyle) !== undefined
-      ? null
-      : "Changement de projet non pris en charge.";
+  async verifier() {
+    return "La clause de style et les notes se modifient dans le brief du projet.";
   },
 
-  async appliquer(tx, ctx, ch) {
-    await tx.update(projects).set({ clauseStyle: texte(apres(ch).clauseStyle) ?? "" }).where(eq(projects.id, ctx.projectId));
+  async appliquer() {
+    throw new Error("La clause de style et les notes se modifient dans le brief du projet.");
   },
 };
 

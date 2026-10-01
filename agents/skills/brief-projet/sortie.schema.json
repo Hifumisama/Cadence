@@ -240,9 +240,13 @@
       },
       "description": "Ce qui reste incertain. Jamais comblé en silence."
     },
+    "notes": {
+      "type": "string",
+      "description": "Notes libres du projet : uniquement ce que l'utilisateur a écrit à ce titre (consignes en vrac, rappels). Tu ne l'inventes jamais : laisse la clé absente s'il n'en a pas donné."
+    },
     "statuts": {
       "type": "object",
-      "description": "Pour chaque section que tu as remplie (clés : titre, arc, genreTon, style, langueDialogues, dureeEpisodeSecondes, episodes, personnages, lieux, continuite, rimes, progressions, pieges), qui l'a posée : fourni (l'utilisateur l'a dit), deduit (tu l'as conclu), a_valider (tu l'as inventé ou tu hésites).",
+      "description": "Pour chaque section que tu as remplie (clés : titre, arc, genreTon, style, langueDialogues, dureeEpisodeSecondes, episodes, personnages, lieux, continuite, rimes, progressions, pieges, notes), qui l'a posée : fourni (l'utilisateur l'a dit), deduit (tu l'as conclu), a_valider (tu l'as inventé ou tu hésites).",
       "additionalProperties": {
         "type": "string",
         "enum": [

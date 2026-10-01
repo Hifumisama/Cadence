@@ -378,7 +378,7 @@ contrôle verbatim les signale déjà. Les durées sont recalées à ce moment.
 | Table | Rôle |
 |---|---|
 | `agent_conversations` | une par (projet, portée, cible) — UNIQUE (projet, portée, coalesce(cible, 0)) ; `profondeur`, `etape`, `messages` jsonb, `consigne`, `brief_pret`, `proposition_id` (courante) |
-| `briefs` | un par projet : `contenu` jsonb (schéma de `brief-projet`), `statuts` jsonb (section → fourni / deduit / a_valider), `statut` (brouillon / valide), `version` |
+| `briefs` | un par projet : `contenu` jsonb (schéma de `brief-projet`), `statuts` jsonb (section → fourni / deduit / a_valider), `statut` (**partiel** = style et notes posés à la main / brouillon / valide), `version`. **Source unique de la clause de style et des notes** : `projects.clause_style` / `notes` n'en sont que des copies (`lib/agents/brief-db.ts`), voir `FRICTIONS.md` |
 | `propositions` | `uuid`, `conversation_id` (set null), `skill` (`squelette` ou un skill), `portee` + `cible_id`, `statut` (en_generation / prete / appliquee / partielle / rejetee / echouee), `run_id` → `agent_runs`, `parent_id` (affinage), `consigne`, `retour`, `resume`, `contexte` (« contexte utilisé »), `erreur` |
 | `proposition_changements` | `ordre`, `groupe`, `cle` (clé symbolique d'une création), `cible_type` (brief / projet / saison / episode / scene / asset / plan), `cible_ref`, `libelle`, `operation`, `avant`, `apres`, `position`, `avertissements`, `ecrase`, `coche`, `refuse_raison`, `applique_at` |
 | `agent_runs` (+3 colonnes) | `but` (tour / brief / proposition), `conversation_id`, `proposition_id` |
