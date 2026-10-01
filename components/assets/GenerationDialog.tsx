@@ -15,6 +15,10 @@ import {
 } from "@/lib/asset-generation";
 import type { GenerationVue, SourceDisponible } from "@/lib/queries-generations";
 
+/** Une génération de la page, complétée par ce que l'indicateur sait en direct :
+ * progression, aperçu, rang dans la file. */
+export type GenerationVivante = GenerationVue & { position: number | null; derriereVideo: boolean };
+
 const ACTIFS = ["en_attente", "en_cours"];
 
 /** Une source affichée dans un emplacement : un asset du registre ou un fichier
@@ -54,6 +58,7 @@ export function GenerationDialog({
   registre,
   imageActuelle,
   generations,
+  candidatInitialId,
   ouvert,
   onFermer,
   onAdopter,
@@ -72,7 +77,9 @@ export function GenerationDialog({
   registre: SourceDisponible[];
   /** L'image de l'asset lui-même, présélectionnée en source 1 du mode images. */
   imageActuelle: SourceDisponible | null;
-  generations: GenerationVue[];
+  generations: GenerationVivante[];
+  /** Candidat à montrer à l'ouverture (lien depuis l'indicateur du header). */
+  candidatInitialId: number | null;
   ouvert: boolean;
   onFermer: () => void;
   onAdopter: (id: number) => void;
@@ -100,7 +107,8 @@ export function GenerationDialog({
   const [mp, setMp] = useState(defauts.megapixels);
   const [lora, setLora] = useState(defauts.lora);
   const [picker, setPicker] = useState<"registre" | "import" | null>(null);
-  const [vu, setVu] = useState<number | null>(null);
+  const [vu, setVu] = useState<number | null>(candidatInitialId);
+  const [lancee, setLancee] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [etatImport, setImport] = useState<"repos" | "envoi" | "survol">("repos");
   const [envoi, startEnvoi] = useTransition();
@@ -133,7 +141,16 @@ export function GenerationDialog({
     if (!ouvert && d.open) d.close();
   }, [ouvert]);
 
-  const actif = generations.find((g) => ACTIFS.includes(g.statut)) ?? null;
+  // Plusieurs générations peuvent attendre : la scène montre celle qui tourne, à
+  // défaut la plus ancienne en attente (la prochaine à partir).
+  const actives = generations.filter((g) => ACTIFS.includes(g.statut));
+  const actif = actives.find((g) => g.statut === "en_cours") ?? actives[actives.length - 1] ?? null;
+  const autres = actives.length - (actif ? 1 : 0);
+
+  // Plus rien d'actif : le message de lancement n'a plus lieu d'être.
+  useEffect(() => {
+    if (!actif) setLancee(null);
+  }, [actif]);
   const terminees = generations.filter((g) => g.statut === "termine" && g.src);
   const courant = terminees.find((g) => g.id === vu) ?? terminees[0] ?? null;
   const derniere = generations[0] ?? null;
@@ -159,7 +176,6 @@ export function GenerationDialog({
 
   /** Pourquoi on ne peut pas lancer, ou null. */
   const raison = (): string | null => {
-    if (actif) return "Une génération est déjà en cours sur cet asset : attends sa fin.";
     if (etatImport === "envoi") return "Import de l'image en cours…";
     if (mode === "images" && sources.length === 0) return "Ajoute au moins une image : l'image 1 est celle qui sera modifiée.";
     if (!prompt.trim()) return mode === "texte" ? "Le prompt est vide : écris-le ici ou dans la fiche de l'asset." : "Décris la modification à appliquer.";
@@ -173,6 +189,7 @@ export function GenerationDialog({
       const r = await lancerGeneration(assetId, demande());
       setErreur(r.ok ? null : r.erreur);
       if (r.ok) {
+        setLancee(r.position > 1 ? `Ajoutée à la file, position ${r.position}.` : "Génération lancée.");
         setVu(null);
         setPicker(null);
       }
@@ -436,7 +453,7 @@ export function GenerationDialog({
 
         <div className="gd-col gd-scene">
           <div className="gd-grp">
-            <span className="gd-lbl">{actif ? "Génération en cours" : "Résultat"}</span>
+            <span className="gd-lbl">{actif ? (actif.statut === "en_cours" ? "Génération en cours" : "En file") : "Résultat"}</span>
             {actif ? (
               <>
                 <div className="gd-stage">
@@ -444,7 +461,11 @@ export function GenerationDialog({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={actif.apercuSrc} alt="Aperçu en cours de génération" />
                   ) : (
-                    <span className="tiny-note">{actif.statut === "en_attente" ? "En attente du worker…" : "Démarrage…"}</span>
+                    <span className="tiny-note">
+                      {actif.statut === "en_attente"
+                        ? `En file${actif.position ? ` · n°${actif.position}` : ""}${actif.derriereVideo ? " · derrière une vidéo" : ""}`
+                        : "Démarrage…"}
+                    </span>
                   )}
                 </div>
                 {actif.progression ? (
@@ -465,7 +486,17 @@ export function GenerationDialog({
                 ) : (
                   <progress className="gd-bar" aria-label="Génération en cours" />
                 )}
-                <p className="tiny-note">Tu peux fermer cette fenêtre : la génération continue, et le résultat arrive dans les candidats de la fiche.</p>
+                {lancee ? (
+                  <p className="tiny-note" role="status" style={{ color: "var(--or-glow)" }}>
+                    {lancee}
+                  </p>
+                ) : null}
+                {autres > 0 ? (
+                  <p className="tiny-note num">
+                    + {autres} autre{autres > 1 ? "s" : ""} en file pour cet asset
+                  </p>
+                ) : null}
+                <p className="tiny-note">Tu peux fermer cette fenêtre : la génération continue, et le suivi est dans l&rsquo;icône du bandeau.</p>
               </>
             ) : courant ? (
               <>
@@ -544,7 +575,7 @@ export function GenerationDialog({
             Fermer
           </button>
           <button type="button" className="btn btn-gold" onClick={lancer} disabled={bloque != null || lancement}>
-            {lancement ? "…" : "Générer"}
+            {lancement ? "…" : actif ? "Ajouter à la file" : "Générer"}
           </button>
         </div>
       </div>

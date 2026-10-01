@@ -40,6 +40,7 @@ export async function getGenerationsAsset(assetId: number) {
     .orderBy(desc(assetGenerations.createdAt), desc(assetGenerations.id));
   return lignes.map((g) => ({
     id: g.id,
+    uuid: g.uuid,
     statut: g.statut,
     methode: g.methode,
     aspect: g.aspect,

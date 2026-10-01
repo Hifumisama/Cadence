@@ -726,6 +726,44 @@ modifiée, les autres sont des références. Décisions :
 - Validé sur le vrai ComfyUI (2026-10-01) : édition à 2 sources en ~30 s (4 étapes,
   aperçu reçu), texte en ~18 s (8 étapes).
 
+### File d'attente : lecture unifiée et indicateur du header (2026-10-01)
+Lancer une génération est du « fire and forget » : on ferme la popup, le worker
+continue, et l'icône du bandeau dit ce qui tourne, ce qui est prêt, ce qui a
+échoué. Décisions :
+- **Une table par type de tâche** (`asset_generations`, `jobs`) **+ une couche de
+  lecture commune** (`lib/taches.ts` pour les règles pures, `lib/queries-taches.ts`
+  pour la base). Pas de table `taches` générique : les deux types ont des charges
+  utiles et des règles différentes, la décision « ne pas généraliser le worker »
+  tient. La vidéo y figure en **lecture seule** (libellé = titre du plan, lien par
+  son uuid public, jamais par sa position, F03).
+- **« Vu » en base** (`vu_at` sur les deux tables, migration 0028), pas en
+  localStorage : un seul utilisateur mais plusieurs navigateurs possibles. Posé en
+  cliquant sur une entrée, sur « Ignorer », « Tout marquer comme vu » ou en
+  adoptant un candidat ; jamais en effet de bord d'un rendu. Les tâches finies avant
+  la migration sont considérées comme vues.
+- **Relais par sondage** de `GET /api/taches` (un seul `TachesProvider` dans le
+  layout racine, qui survit aux navigations) : 3 s tant qu'une tâche est active ou
+  que le panneau est ouvert, 20 s sinon, tout de suite au retour de l'onglet,
+  suspendu onglet caché. Pas de SSE : la progression est déjà écrite au plus une
+  fois par seconde, une latence de 3 s ne se voit pas.
+- **Ordre de la file** (affichage) : en cours, puis en attente dans l'ordre où le
+  worker les prend (images avant vidéo, FIFO à égalité, sans préemption), puis les
+  terminées. Une image qui attend pendant qu'une vidéo tourne est signalée
+  « derrière une vidéo ». Terminées/échecs gardés 7 jours ou tant qu'ils ne sont
+  pas vus, 20 au plus.
+- **Indicateur** : badge or = tâches actives ; point écarlate = échecs non vus ;
+  point or plein = terminées non vues ; titre d'onglet « (n) ». Aucun fond rouge.
+  Un clic mène à `/p/<projet>/assets/<code>?generation=<uuid>` : la fiche ouvre la
+  popup sur ce résultat, le marque vu et retire le paramètre de l'adresse.
+- **La fiche de l'asset ne se recharge que lorsqu'une génération de CET asset
+  change d'état** (`pageEstPerimee`) ; la progression et l'aperçu viennent du
+  store, pas d'un rechargement toutes les 3 s.
+- **Plusieurs générations par asset** : la limite « une seule à la fois » est
+  levée ; la file est plafonnée à 10 images en attente (`PLAFOND_FILE_IMAGES`) et
+  la popup annonce « Ajoutée à la file, position N ».
+- Pas encore : annulation, toasts, miniatures (le panneau charge les PNG pleine
+  taille, bornés à 44 px par CSS), progression vidéo.
+
 ### Suivi en direct des générations : WebSocket ComfyUI, relayé par la base (2026-10-01)
 Le worker suit un prompt par le WebSocket de ComfyUI (`/ws?clientId=…`) en plus
 du HTTP, pas à sa place. Décisions :
@@ -750,6 +788,46 @@ du HTTP, pas à sa place. Décisions :
 - Seules les images sont branchées dans l'interface ; le client de suivi est
   générique (il marche pour un `prompt_id` vidéo), le branchement du worker
   vidéo et de son écran reste à faire.
+
+### File d'attente du worker : reprise et priorité (2026-10-01)
+Premier lot de la file d'attente (rapport de recherche : modèle de données,
+indicateur du header et annulation viennent après). Décisions :
+- **Reprise au démarrage** (`worker/reprise.ts`, une seule fois, idempotente) :
+  ce qui est « en cours » appartenait à un worker mort — `npm run worker` est un
+  `tsx watch`, donc **chaque sauvegarde d'un fichier importé redémarre le worker**.
+  Une image `en_cours` passe à `echoue` (« Interrompue (worker redémarré) », pas
+  de rejeu automatique : même règle que tout échec d'image) ; une vidéo `en_cours`
+  repasse `en_attente` **sans consommer de tentative** (F04 : une interruption
+  n'est pas un échec de rendu). Le statut du plan n'est pas touché (le job le
+  repasse « en cours » en repartant, comme après une indisponibilité). La barre de
+  progression et le fichier d'aperçu de l'image interrompue sont nettoyés.
+- **Hypothèse : un seul worker sur la base.** Un second worker (ex. un conteneur
+  `cadence-worker-1` oublié, en mode `stub`) verrait ses tâches en cours reprises
+  à tort, et se disputerait la file avec le worker de dev.
+- **Doublon possible** : si ComfyUI exécute encore le prompt de la tâche reprise,
+  une vidéo remise en file sera soumise une seconde fois. V2 (non codée) : retrouver
+  la tâche par `comfyui_prompt_id` — `/history` s'il est fini (on récupère le
+  résultat), `/queue` s'il tourne encore (on se rattache au suivi) — avant de
+  décider.
+- **Priorité** (`worker/ordonnanceur.ts`, fonction pure) : à chaque tour, **images
+  avant vidéo**, FIFO à genre égal (puis `id`), **sans préemption** — une vidéo en
+  cours n'est jamais coupée, une image qui arrive pendant ce temps attend sa fin
+  (30 min au plus). Une image se refait en quelques secondes, une vidéo dure des
+  minutes ; cela colle à F04 (le jour les itérations, la nuit la file vidéo).
+  Aucune généralisation de `worker/comfyui/` : l'ordonnanceur ne connaît que le
+  genre, la date et l'id.
+- **Enchaînement sans temps mort** : quand une tâche vient d'être traitée, le
+  worker enchaîne après 1 s au lieu d'attendre l'intervalle (10 s) ; il ne patiente
+  l'intervalle complet que s'il n'y avait rien à faire ou si ComfyUI est
+  injoignable (la tâche reste en attente, rien n'est consommé).
+- Statut **`annulee`** ajouté aux générations d'images (varchar, sans migration) ;
+  l'annulation elle-même (drapeau + `/interrupt` après vérification du `prompt_id`)
+  reste à faire.
+- **Plus de sondage infini côté worker** : la reprise règle le redémarrage ; une
+  génération vivante est bornée par le délai de 10 min (30 min pour une vidéo). Reste
+  le cas d'un worker arrêté sans redémarrer : les demandes restent « en attente »
+  (ou « en cours » jusqu'à son retour) et l'écran continue de les sonder — c'est la
+  tâche de l'indicateur du header de le montrer clairement.
 
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme

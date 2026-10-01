@@ -9,6 +9,8 @@ import { access, copyFile, mkdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { nouvelleSeed, raisonDemandeInvalide, raisonNonGenerable, type DemandeGeneration } from "@/lib/asset-generation";
 import { supprimerGenerationEtFichiers } from "@/lib/generation-sources";
+import { nbImagesEnAttente, rangDansLaFile } from "@/lib/queries-taches";
+import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
 import {
   MEDIA_ROOT,
   TAILLE_MAX_UPLOAD_ASSET,
@@ -28,6 +30,9 @@ import {
 
 type Resultat = { ok: true } | { ok: false; erreur: string };
 
+/** `position` : 1 = la génération part tout de suite ; n = n-1 tâches passent devant. */
+type ResultatLancement = { ok: true; position: number } | { ok: false; erreur: string };
+
 const EXTENSIONS_IMPORT = [".png", ".jpg", ".jpeg", ".webp"];
 
 async function existe(chemin: string): Promise<boolean> {
@@ -43,13 +48,18 @@ async function existe(chemin: string): Promise<boolean> {
  * assetGenerationSources). */
 type SourceResolue = { origine: "asset" | "import"; assetId: number | null; fichier: string };
 
-export async function lancerGeneration(assetId: number, demande: DemandeGeneration): Promise<Resultat> {
+/** Pose une demande dans la file : plusieurs générations peuvent attendre (même
+ * pour un seul asset), jusqu'à PLAFOND_FILE_IMAGES en attente au total. */
+export async function lancerGeneration(assetId: number, demande: DemandeGeneration): Promise<ResultatLancement> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
   const raisonAsset = raisonNonGenerable(asset);
   if (raisonAsset) return { ok: false, erreur: raisonAsset };
   const raison = raisonDemandeInvalide(demande);
   if (raison) return { ok: false, erreur: raison };
+  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
+    return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} images en attente) : laisse le worker en vider quelques-unes.` };
+  }
 
   const prompt = demande.prompt.trim();
   const sources: SourceResolue[] = [];
@@ -80,7 +90,7 @@ export async function lancerGeneration(assetId: number, demande: DemandeGenerati
   const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, asset.projectId));
   const texte = demande.mode === "texte";
 
-  await db.transaction(async (tx) => {
+  const genId = await db.transaction(async (tx) => {
     const [gen] = await tx
       .insert(assetGenerations)
       .values({
@@ -101,9 +111,10 @@ export async function lancerGeneration(assetId: number, demande: DemandeGenerati
         sources.map((s, i) => ({ generationId: gen!.id, position: i + 1, origine: s.origine, assetId: s.assetId, fichier: s.fichier })),
       );
     }
+    return gen!.id;
   });
   revalidatePath("/", "layout");
-  return { ok: true };
+  return { ok: true, position: await rangDansLaFile(genId) };
 }
 
 /** Dépose une image source jetable pour le mode « images » : rangée sous le
@@ -157,6 +168,8 @@ export async function adopterGeneration(generationId: number): Promise<Resultat>
     await unlink(join(MEDIA_ROOT, cheminAssetMedia(asset.fichier))).catch(() => undefined);
   }
   await db.update(assets).set({ fichier: nom, statut: "en_cours", promptGeneration: gen.prompt }).where(eq(assets.id, asset.id));
+  // Adopter, c'est avoir vu le résultat : l'indicateur du header ne le signale plus.
+  if (!gen.vuAt) await db.update(assetGenerations).set({ vuAt: new Date() }).where(eq(assetGenerations.id, gen.id));
   revalidatePath("/", "layout");
   return { ok: true };
 }

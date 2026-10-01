@@ -2,7 +2,7 @@
  * par l'application et le worker. Voir docs/FRICTIONS.md (tâches ComfyUI) et
  * workflows/README.md (contrat des workflows d'images). */
 
-export const STATUTS_GENERATION = ["en_attente", "en_cours", "termine", "echoue"] as const;
+export const STATUTS_GENERATION = ["en_attente", "en_cours", "termine", "echoue", "annulee"] as const;
 export type StatutGeneration = (typeof STATUTS_GENERATION)[number];
 
 export const LIBELLE_STATUT_GENERATION: Record<StatutGeneration, string> = {
@@ -10,6 +10,7 @@ export const LIBELLE_STATUT_GENERATION: Record<StatutGeneration, string> = {
   en_cours: "En cours",
   termine: "Terminée",
   echoue: "Échouée",
+  annulee: "Annulée",
 };
 
 /** Formats proposés, associés aux chaînes exactes du nœud `ResolutionSelector`

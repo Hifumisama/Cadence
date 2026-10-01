@@ -58,10 +58,10 @@ export default async function AssetDetailPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string; code: string }>;
-  searchParams: Promise<{ statut?: string; type?: string }>;
+  searchParams: Promise<{ statut?: string; type?: string; generation?: string }>;
 }) {
   const { projectId, code } = await params;
-  const { statut: statutBrut, type: typeBrut } = await searchParams;
+  const { statut: statutBrut, type: typeBrut, generation: generationBrute } = await searchParams;
   const filtres = {
     statut: STATUTS_FILTRABLES.includes(statutBrut ?? "") ? (statutBrut as string) : null,
     type: (TYPES_ASSET as readonly string[]).includes(typeBrut ?? "") ? (typeBrut as string) : null,
@@ -175,6 +175,7 @@ export default async function AssetDetailPage({
                     registre={registreImages}
                     imageActuelle={imageActuelle(noeud)}
                     generations={generations}
+                    generationInitiale={generationBrute ?? null}
                     simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
                   />
                 </div>

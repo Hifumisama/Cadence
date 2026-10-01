@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test lib/*.test.ts worker/comfyui/*.test.ts",
+    "test": "tsx --test lib/*.test.ts worker/*.test.ts worker/comfyui/*.test.ts",
     "worker": "tsx watch worker/index.ts",
     "worker:start": "tsx worker/index.ts",
     "db:generate": "drizzle-kit generate",

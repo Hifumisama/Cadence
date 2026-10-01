@@ -397,6 +397,9 @@ export const assetGenerations = pgTable("asset_generations", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
+  // « Vu » : l'utilisateur a pris connaissance du résultat ou de l'échec
+  // (indicateur du header). null = pas encore vu.
+  vuAt: timestamp("vu_at"),
 });
 
 // Images sources d'une génération « à partir d'images » (IMG_Simple_Edit : de 1
@@ -441,6 +444,8 @@ export const jobs = pgTable("jobs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
+  // « Vu » : voir asset_generations.vuAt.
+  vuAt: timestamp("vu_at"),
 });
 
 // Réglages globaux clé/valeur, techniques et indépendants du récit : plafond

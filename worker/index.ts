@@ -8,10 +8,13 @@ import { assemblerPrompt } from "../lib/prompt";
 import { getAllParams } from "../lib/params";
 import { creerClientComfyUI } from "./comfyui";
 import type { SubmissionInput } from "./comfyui/types";
-import { traiterProchaineGenerationImage } from "./images";
+import { prochaineGenerationEnAttente, traiterGenerationImage } from "./images";
+import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
+import { reprendreOrphelines } from "./reprise";
 
 const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 const INTERVALLE_MS = Number(process.env.WORKER_INTERVAL_MS ?? 10_000);
+const PAUSE_ENTRE_TACHES_MS = 1_000; // une tâche vient de finir : on enchaîne vite sur la suivante
 const INTERVALLE_POLL_MS = 5_000;
 const DUREE_MAX_POLL_MS = 30 * 60_000; // un plan H3 ne devrait jamais dépasser 30 min
 
@@ -67,12 +70,14 @@ async function construireSubmissionInput(
 }
 
 /** Distinction stricte (F04) : une API ComfyUI injoignable ne consomme
- * jamais une tentative — seul un vrai échec de rendu compte. */
-async function traiterJob(job: typeof jobs.$inferSelect) {
+ * jamais une tentative — seul un vrai échec de rendu compte. Renvoie `true` si
+ * le job est allé au bout (rendu, échec de rendu, rejeu), `false` s'il est resté
+ * ou reparti en attente faute de ComfyUI : le worker patiente alors. */
+async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
   const disponible = await client.healthcheck();
   if (!disponible) {
     console.log(`[worker] ComfyUI injoignable — job ${job.id} reste en_attente`);
-    return;
+    return false;
   }
 
   await db.update(jobs).set({ statut: "en_cours", startedAt: new Date() }).where(eq(jobs.id, job.id));
@@ -101,7 +106,7 @@ async function traiterJob(job: typeof jobs.$inferSelect) {
 
       if (resultat.statut === "erreur") {
         await gererEchecReel(job, resultat.message);
-        return;
+        return true;
       }
 
       // termine
@@ -122,10 +127,11 @@ async function traiterJob(job: typeof jobs.$inferSelect) {
         .where(eq(jobs.id, job.id));
       await db.update(plans).set({ statut: statutPlan }).where(eq(plans.id, job.planId));
       console.log(`[worker] Job ${job.id} (plan ${job.planId}) -> ${statutPlan} (${cheminRelatif})`);
-      return;
+      return true;
     }
 
     await gererEchecReel(job, "Délai de génération dépassé (30 min)");
+    return true;
   } catch (err) {
     // Une exception ici (réseau coupé en cours de route, ComfyUI qui plante
     // avant d'avoir répondu) est traitée comme une indisponibilité, pas comme
@@ -135,6 +141,7 @@ async function traiterJob(job: typeof jobs.$inferSelect) {
       .update(jobs)
       .set({ statut: "en_attente", startedAt: null })
       .where(eq(jobs.id, job.id));
+    return false;
   }
 }
 
@@ -159,19 +166,41 @@ async function gererEchecReel(job: typeof jobs.$inferSelect, message: string) {
   }
 }
 
+/** Une tâche par appel : la carte graphique ne fait qu'une chose à la fois. Le
+ * choix (images avant vidéo, FIFO, sans préemption) vit dans ordonnanceur.ts.
+ * Renvoie `true` si une tâche a été traitée. */
+async function traiterProchaineTache(): Promise<boolean> {
+  const [gen, job] = await Promise.all([prochaineGenerationEnAttente(), prochainJobEnAttente()]);
+  const candidates: TacheEnAttente[] = [];
+  if (gen) candidates.push({ genre: "image", id: gen.id, createdAt: gen.createdAt });
+  if (job) candidates.push({ genre: "video", id: job.id, createdAt: job.createdAt });
+
+  const choix = choisirProchaineTache(candidates);
+  if (!choix) return false;
+  return choix.genre === "image" ? traiterGenerationImage(client, gen!, MEDIA_ROOT) : traiterJob(job!);
+}
+
 async function boucle() {
   console.log(`[worker] Cadence worker démarré (mode ComfyUI : ${process.env.COMFYUI_MODE ?? "stub"})`);
+  // Une seule fois, avant la première prise : ce qui était « en cours » appartenait
+  // à un worker mort (voir worker/reprise.ts).
+  try {
+    const { images, videos } = await reprendreOrphelines(MEDIA_ROOT);
+    if (images || videos) {
+      console.log(`[worker] Reprise : ${images} image(s) interrompue(s), ${videos} vidéo(s) remise(s) en file`);
+    }
+  } catch (err) {
+    console.error("[worker] Reprise des tâches interrompues impossible :", err);
+  }
+
   while (true) {
+    let fait = false;
     try {
-      const job = await prochainJobEnAttente();
-      if (job) await traiterJob(job);
-      // Tâche d'images (candidats d'asset) : un aller-retour par tour de boucle,
-      // après le job vidéo — la carte graphique ne fait qu'une chose à la fois.
-      await traiterProchaineGenerationImage(client, MEDIA_ROOT);
+      fait = await traiterProchaineTache();
     } catch (err) {
       console.error("[worker] Erreur de boucle :", err);
     }
-    await new Promise((r) => setTimeout(r, INTERVALLE_MS));
+    await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
   }
 }
 

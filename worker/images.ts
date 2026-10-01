@@ -61,22 +61,37 @@ async function envoyerSources(client: ComfyUIClient, gen: Generation, mediaRoot:
   return noms;
 }
 
-export async function traiterProchaineGenerationImage(client: ComfyUIClient, mediaRoot: string): Promise<void> {
+/** La plus ancienne demande en attente (FIFO), ou null. Le worker la compare à la
+ * prochaine vidéo (worker/ordonnanceur.ts) avant de choisir. */
+export async function prochaineGenerationEnAttente(): Promise<Generation | null> {
   const [gen] = await db
     .select()
     .from(assetGenerations)
     .where(eq(assetGenerations.statut, "en_attente"))
-    .orderBy(assetGenerations.createdAt)
+    .orderBy(assetGenerations.createdAt, assetGenerations.id)
     .limit(1);
-  if (!gen) return;
+  return gen ?? null;
+}
 
+/** Traite une demande. Renvoie `true` si elle a été prise (réussie ou échouée),
+ * `false` si ComfyUI est injoignable : elle reste alors en attente et le worker
+ * patiente avant de réessayer. */
+export async function traiterGenerationImage(client: ComfyUIClient, gen: Generation, mediaRoot: string): Promise<boolean> {
   if (!(await client.healthcheck())) {
     console.log(`[worker] ComfyUI injoignable — génération ${gen.id} reste en_attente`);
-    return;
+    return false;
   }
 
   const [asset] = await db.select().from(assets).where(eq(assets.id, gen.assetId));
-  if (!asset) return;
+  if (!asset) {
+    // Ne devrait pas arriver (suppression en cascade) ; surtout ne pas la laisser
+    // en tête de file : elle bloquerait toutes les tâches derrière elle.
+    await db
+      .update(assetGenerations)
+      .set({ statut: "echoue", erreur: "Asset introuvable", finishedAt: new Date() })
+      .where(eq(assetGenerations.id, gen.id));
+    return true;
+  }
 
   await db.update(assetGenerations).set({ statut: "en_cours", startedAt: new Date(), erreur: null }).where(eq(assetGenerations.id, gen.id));
 
@@ -138,7 +153,7 @@ export async function traiterProchaineGenerationImage(client: ComfyUIClient, med
         .where(eq(assetGenerations.id, gen.id));
       console.log(`[worker] Génération ${gen.id} (${asset.code}) terminée : ${nom}`);
       await purgerAnciens(gen.assetId, mediaRoot);
-      return;
+      return true;
     }
     throw new Error("Délai de génération dépassé (10 min)");
   } catch (err) {
@@ -152,6 +167,7 @@ export async function traiterProchaineGenerationImage(client: ComfyUIClient, med
     suivi?.fermer();
     await relais?.nettoyer();
   }
+  return true;
 }
 
 /** Ne garde que les derniers candidats terminés : ce sont des essais, pas un
