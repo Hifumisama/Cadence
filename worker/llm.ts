@@ -9,6 +9,7 @@ import { surveillerAnnulation } from "./annulation";
 import { limiteur } from "./comfyui/limiteur";
 import { llmJoignable } from "./llamaSwap";
 import { postTraiterRun, surEchecRun } from "./agents/postTraitement";
+import { controleurPourSkill } from "../lib/llm/controles";
 
 // Tâche LLM : un appel à un skill d'agent posé dans `agent_runs` (genre « llm »
 // du worker). Même contrat que les images : une demande n'est jamais rejouée toute
@@ -82,6 +83,7 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
       projectId: run.projectId,
       modele: options.modele,
       variante: options.variante,
+      controler: controleurPourSkill(run.skill, run.entree),
       signal: abandon.signal,
       surProgres: (jetons) => {
         if (peutEcrire()) enfiler(() => db.update(agentRuns).set({ progressionJetons: jetons }).where(eq(agentRuns.id, run.id)));

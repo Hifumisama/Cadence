@@ -78,3 +78,9 @@ test("notes de l'agent : remontées en information ; mots par seconde en alerte"
   assert.ok(p.some((x) => x.niveau === "info" && x.message.includes("PROP_lettre")));
   assert.ok(p.some((x) => x.regle === "mots-seconde"));
 });
+
+test("définition : « is … » est refusé, « island … » ne l'est pas", () => {
+  const avec = (definition: string) => controlerSortiePlanH3({ ...bonne, sujets: [{ asset: "CHAR_maya", role: "r", definition }, bonne.sujets[1]!] }, ctx).filter((x) => x.regle === "definition");
+  assert.equal(avec("is Maya {picture}, walking").length, 1);
+  assert.equal(avec("island {picture}, walking").length, 0);
+});

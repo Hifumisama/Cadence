@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { creerFournisseur, modelePourSkill, type Env } from "./config";
+import { corpsPourSkill, creerFournisseur, maxTokensPourSkill, modelePourSkill, type Env } from "./config";
 import { chargerSkill } from "./skills";
 import { enregistrerTrace, type EnregistreurTrace, type StatutTrace, type TraceAEnregistrer } from "./traces";
 import { valider } from "./validation";
@@ -29,6 +29,11 @@ export type OptionsExecution = {
   racine?: string;
   /** Variante de skill : restreint les guides chargés (voir lib/llm/skills.ts). */
   variante?: string;
+  /** Contrôle sémantique d'une sortie VALIDE contre le schéma (voir lib/llm/controles.ts) : la liste de ses
+   * erreurs déclenche un renvoi (dans la limite de `maxRenvois`) ; si elles persistent, la sortie est gardée. */
+  controler?: (json: unknown) => string[];
+  /** Champs ajoutés au corps de la requête ; sinon `LLM_CORPS_<SKILL>` / `LLM_CORPS` (voir config.ts). */
+  corps?: Record<string, unknown>;
 };
 
 export type ResultatSkill = {
@@ -112,7 +117,8 @@ export async function executerSkill(
         messages: courants,
         schemaSortie: options.contrainte === false ? undefined : skill.schema,
         modele,
-        maxTokens: options.maxTokens ?? MAX_TOKENS_PAR_DEFAUT,
+        maxTokens: options.maxTokens ?? maxTokensPourSkill(nomSkill, env) ?? MAX_TOKENS_PAR_DEFAUT,
+        corps: options.corps ?? corpsPourSkill(nomSkill, env),
         temperature: options.temperature,
         signal: options.signal,
         surProgres: options.surProgres,
@@ -123,6 +129,16 @@ export async function executerSkill(
       dureeMs += rep.dureeMs;
 
       const a = analyser(rep, skill.schema);
+      // Sortie valide contre le schéma : un contrôle sémantique peut encore demander UN renvoi.
+      if (a.ok && options.controler && renvois < maxRenvois) {
+        const soucis = options.controler(a.json);
+        if (soucis.length > 0) {
+          erreursValidation = soucis;
+          renvois += 1;
+          courants = [...messages, { role: "assistant", content: rep.texte }, { role: "user", content: messageDeRenvoi(soucis) }];
+          continue;
+        }
+      }
       if (a.ok) {
         statut = "ok";
         json = a.json;

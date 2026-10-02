@@ -48,6 +48,37 @@ export function modelePourSkill(skill: string, env: Env = process.env): string {
   return env[nomVariableModele(skill)]?.trim() || configLlm(env).modeleParDefaut;
 }
 
+function suffixeSkill(skill: string): string {
+  return skill.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+}
+
+/** Champs ajoutés au corps de la requête pour un skill : `LLM_CORPS_<SKILL>` sinon `LLM_CORPS`, en JSON.
+ * Sert surtout à régler la RÉFLEXION du modèle (ex. `{"chat_template_kwargs":{"enable_thinking":false}}`) :
+ * ses jetons de réflexion comptent dans `max_tokens` et allongent beaucoup l'appel. Un JSON invalide
+ * est une erreur franche (jamais ignoré en silence). */
+export function corpsPourSkill(skill: string, env: Env = process.env): Record<string, unknown> | undefined {
+  const nom = `LLM_CORPS_${suffixeSkill(skill)}`;
+  const brut = env[nom]?.trim() || env.LLM_CORPS?.trim();
+  if (!brut) return undefined;
+  try {
+    const v = JSON.parse(brut) as unknown;
+    if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error("un objet JSON est attendu");
+    return v as Record<string, unknown>;
+  } catch (e) {
+    throw new Error(`${env[nom]?.trim() ? nom : "LLM_CORPS"} n'est pas un objet JSON valide : ${(e as Error).message}`);
+  }
+}
+
+/** Limite de jetons de sortie d'un skill : `LLM_MAX_TOKENS_<SKILL>` sinon `LLM_MAX_TOKENS`, sinon null
+ * (le défaut de l'exécuteur s'applique). */
+export function maxTokensPourSkill(skill: string, env: Env = process.env): number | null {
+  const brut = env[`LLM_MAX_TOKENS_${suffixeSkill(skill)}`]?.trim() || env.LLM_MAX_TOKENS?.trim();
+  if (!brut) return null;
+  const n = Number(brut);
+  if (!Number.isInteger(n) || n < 256) throw new Error(`LLM_MAX_TOKENS doit être un entier d'au moins 256 (reçu « ${brut} »).`);
+  return n;
+}
+
 export function creerFournisseur(env: Env = process.env): FournisseurLlm {
   const c = configLlm(env);
   return new FournisseurCompatibleOpenAI({ url: c.url, modele: c.modeleParDefaut, delaiMs: c.delaiMs, flux: c.flux });

@@ -74,6 +74,7 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     codesSujets.add(s.asset);
     if (!registre.has(s.asset)) ajouter("erreur", "asset-inconnu", `Le sujet « ${s.asset} » n'est pas dans le registre (un asset manquant se signale dans les notes, il ne s'invente pas).`);
     if (!s.definition?.includes("{picture}")) ajouter("erreur", "definition", `La définition de ${s.asset} ne contient pas le jeton {picture}.`);
+    if (/^\s*(is|are)\b/i.test(s.definition ?? "")) ajouter("erreur", "definition", `La définition de ${s.asset} commence par « is » : elle suit déjà « <Subject N> is », écris directement ce qu'est le sujet.`);
     if (/<\s*(Subject|Picture|Audio)\s*\d*\s*>/i.test(s.definition ?? "")) ajouter("erreur", "labels", `La définition de ${s.asset} écrit un label <Subject/Picture N> : c'est le code qui les attribue.`);
   }
 

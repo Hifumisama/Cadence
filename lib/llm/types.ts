@@ -20,6 +20,9 @@ export type DemandeLlm = {
   modele?: string;
   /** Reçoit le nombre de jetons de sortie reçus au fil de l'eau (progression). */
   surProgres?: (jetonsSortie: number) => void;
+  /** Champs ajoutés tels quels au corps de la requête, pour CET appel (ex. couper la réflexion :
+   * `{ chat_template_kwargs: { enable_thinking: false } }`). Voir `LLM_CORPS` dans lib/llm/config.ts. */
+  corps?: Record<string, unknown>;
 };
 
 export type ReponseLlm = {

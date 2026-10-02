@@ -42,6 +42,7 @@ export class FournisseurCompatibleOpenAI implements FournisseurLlm {
         ? { response_format: { type: "json_schema", json_schema: { name: "sortie", strict: true, schema: d.schemaSortie } } }
         : {}),
       ...this.options.corpsSupplementaire,
+      ...d.corps,
     };
 
     try {

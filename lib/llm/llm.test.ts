@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { FournisseurCompatibleOpenAI } from "./compatibleOpenAI";
-import { configLlm, modelePourSkill, nomVariableModele } from "./config";
+import { configLlm, corpsPourSkill, maxTokensPourSkill, modelePourSkill, nomVariableModele } from "./config";
 import { executerSkill, messageDeRenvoi, versMessages } from "./executer";
 import { chargerSkill, listerSkills } from "./skills";
 import type { TraceAEnregistrer } from "./traces";
@@ -348,3 +348,53 @@ test("versMessages / messageDeRenvoi", () => {
   assert.equal(versMessages({ x: 1 })[0]!.content, '{\n  "x": 1\n}');
   assert.match(messageDeRenvoi(["/n : requis"]), /- \/n : requis/);
 });
+
+// ── contrôle sémantique, corps et limite de jetons par skill ──────────────────
+
+test("executerSkill : un contrôle sémantique renvoie UNE fois le modèle avec ses erreurs, puis garde la sortie corrigée", async () => {
+  let n = 0;
+  const s = await demarrer((_c, res) => reponseJson(res, ++n === 1 ? '{"titre":"MAUVAIS","n":1}' : '{"titre":"bon","n":2}'));
+  const controler = (j: unknown) => ((j as { titre: string }).titre === "MAUVAIS" ? ["Le titre est interdit."] : []);
+  const r = await executerSkill("demo", "e", { racine, fournisseur: fournisseur(s.url), enregistrer: null, env: {}, controler });
+  assert.deepEqual(r.json, { titre: "bon", n: 2 });
+  assert.equal(r.renvois, 1);
+  assert.match(s.requetes[1]!.messages.at(-1)!.content, /Le titre est interdit/);
+});
+
+test("executerSkill : si le défaut persiste après le renvoi, la sortie est gardée (jamais d'échec ni de réparation)", async () => {
+  const s = await demarrer((_c, res) => reponseJson(res, '{"titre":"MAUVAIS","n":1}'));
+  const r = await executerSkill("demo", "e", { racine, fournisseur: fournisseur(s.url), enregistrer: null, env: {}, controler: () => ["Toujours faux."] });
+  assert.deepEqual(r.json, { titre: "MAUVAIS", n: 1 });
+  assert.equal(r.renvois, 1);
+  assert.equal(s.requetes.length, 2);
+});
+
+test("executerSkill : sans renvois autorisés, le contrôle ne relance pas", async () => {
+  const s = await demarrer((_c, res) => reponseJson(res, '{"titre":"MAUVAIS","n":1}'));
+  const r = await executerSkill("demo", "e", { racine, fournisseur: fournisseur(s.url), enregistrer: null, env: {}, maxRenvois: 0, controler: () => ["Faux."] });
+  assert.equal(r.renvois, 0);
+  assert.equal(s.requetes.length, 1);
+});
+
+test("config : LLM_CORPS_<SKILL> prime sur LLM_CORPS, JSON invalide = erreur franche", () => {
+  const thinking = '{"chat_template_kwargs":{"enable_thinking":false}}';
+  assert.deepEqual(corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { chat_template_kwargs: { enable_thinking: false } });
+  assert.deepEqual(corpsPourSkill("brief-projet", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { a: 1 });
+  assert.equal(corpsPourSkill("brief-projet", {}), undefined);
+  assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: "{pas du json" }), /LLM_CORPS_PLAN_H3/);
+  assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS: "[1]" }), /LLM_CORPS/);
+});
+
+test("config : LLM_MAX_TOKENS_<SKILL> prime sur LLM_MAX_TOKENS, valeurs absurdes refusées", () => {
+  assert.equal(maxTokensPourSkill("plan-h3", { LLM_MAX_TOKENS_PLAN_H3: "32768", LLM_MAX_TOKENS: "8000" }), 32768);
+  assert.equal(maxTokensPourSkill("brief-projet", { LLM_MAX_TOKENS_PLAN_H3: "32768", LLM_MAX_TOKENS: "8000" }), 8000);
+  assert.equal(maxTokensPourSkill("brief-projet", {}), null);
+  assert.throws(() => maxTokensPourSkill("plan-h3", { LLM_MAX_TOKENS: "12" }), /au moins 256/);
+});
+
+test("fournisseur : le corps d'un appel s'ajoute à la requête", async () => {
+  const s = await demarrer((_c, res) => reponseJson(res, '{"titre":"ok","n":2}'));
+  await fournisseur(s.url).generer({ systeme: "S", messages: [{ role: "user", content: "x" }], corps: { chat_template_kwargs: { enable_thinking: false } } });
+  assert.deepEqual((s.requetes[0] as Record<string, unknown>).chat_template_kwargs, { enable_thinking: false });
+});
+
