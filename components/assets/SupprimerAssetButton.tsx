@@ -10,12 +10,15 @@ export function SupprimerAssetButton({
   bloque,
   raisonBlocage,
   redirectTo,
+  confirmation,
 }: {
   assetId: number;
   code: string;
   bloque: boolean;
   raisonBlocage: string | null;
   redirectTo: string;
+  /** Précision ajoutée à la confirmation (ce qui changera). */
+  confirmation?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -23,7 +26,7 @@ export function SupprimerAssetButton({
 
   const onSupprimer = () => {
     if (bloque) return;
-    if (!window.confirm(`Supprimer définitivement ${code} ?`)) return;
+    if (!window.confirm(`Supprimer définitivement ${code} ?${confirmation ? ` ${confirmation}` : ""}`)) return;
     setErreur(null);
     startTransition(async () => {
       const resultat = await supprimerAsset(assetId);

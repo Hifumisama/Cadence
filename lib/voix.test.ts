@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { TEXTE_REFERENCE_DEFAUT, checksInstruction, checksReference, estEtapeVoix, etatPhases, promptTestVoix } from "./voix";
+import { TEXTE_REFERENCE_DEFAUT, checksInstruction, checksReference, estEtapeVoix, etatPhases, promptTestVoix, verdictSuppressionVoix } from "./voix";
 
 const base = { source: "design" as const, instruction: null, referenceFichier: null, refText: "", testVideo: null, nbRepliques: 0, nbRepliquesMesurees: 0 };
 
@@ -62,4 +62,17 @@ test("prompt de test : la réplique est citée telle quelle dans <d>", () => {
 test("texte de référence par défaut : non vide, en anglais", () => {
   assert.ok(TEXTE_REFERENCE_DEFAUT.trim().length > 20);
   assert.match(TEXTE_REFERENCE_DEFAUT, /welcome/i);
+});
+
+test("suppression d'une voix : libre, bloquée par une citation ou des répliques directes, avertie pour celles du personnage", () => {
+  const v = (citations: number, repliquesDirectes: number, repliquesDuPersonnage: number, perso: string | null = "CHAR_maya") => verdictSuppressionVoix({ citations, repliquesDirectes, repliquesDuPersonnage }, perso);
+  assert.deepEqual(v(0, 0, 0), { bloque: false, raison: null, avertissement: null });
+  assert.equal(v(2, 0, 0).bloque, true);
+  assert.match(v(2, 0, 0).raison!, /2 fiches de plan/);
+  assert.equal(v(0, 1, 0).bloque, true);
+  assert.match(v(0, 1, 0).raison!, /1 réplique/);
+  const a = v(0, 0, 3);
+  assert.equal(a.bloque, false);
+  assert.match(a.avertissement!, /3 répliques de CHAR_maya repasseront « sans voix »/);
+  assert.match(v(0, 0, 1, null).avertissement!, /1 réplique repassera/);
 });

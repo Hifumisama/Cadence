@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { assets, voixFiches } from "../db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { assets, planRefs, repliques as tableRepliques, voixFiches } from "../db/schema";
+import { and, count, eq, inArray, or } from "drizzle-orm";
 import { assetMediaSrc, voixMediaSrc } from "./media";
 import { estSourceVoix, etatPhases } from "./voix";
 import { getEpisodesProjet, getOptionsLocuteur, getRepliquesProjet } from "./queries-repliques";
@@ -10,6 +10,18 @@ import { getEpisodesProjet, getOptionsLocuteur, getRepliquesProjet } from "./que
  * serveur uniquement (accès disque pour résoudre les URL média). */
 
 export type VoixCatalogueItem = Awaited<ReturnType<typeof getCastingCatalogue>>["voix"][number];
+
+/** Ce qui est relié à une voix (voir `verdictSuppressionVoix` dans lib/voix.ts). */
+export async function liensDeLaVoix(assetId: number, personnageId: number | null) {
+  const [[citations], [directes], [duPersonnage]] = await Promise.all([
+    db.select({ n: count() }).from(planRefs).where(eq(planRefs.assetId, assetId)),
+    db.select({ n: count() }).from(tableRepliques).where(or(eq(tableRepliques.voixId, assetId), eq(tableRepliques.locuteurId, assetId))),
+    personnageId == null
+      ? Promise.resolve([{ n: 0 }])
+      : db.select({ n: count() }).from(tableRepliques).where(eq(tableRepliques.locuteurId, personnageId)),
+  ]);
+  return { citations: citations?.n ?? 0, repliquesDirectes: directes?.n ?? 0, repliquesDuPersonnage: duPersonnage?.n ?? 0 };
+}
 
 /** Catalogue : toutes les voix du projet, avec de quoi afficher leur
  * avancement dans les quatre étapes sans ouvrir chaque fiche. */

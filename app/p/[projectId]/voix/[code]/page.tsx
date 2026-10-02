@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
-import { getVoixDetail } from "@/lib/queries-voix";
-import { ETAPES_VOIX, estEtapeVoix, type EtapeVoix } from "@/lib/voix";
+import { getVoixDetail, liensDeLaVoix } from "@/lib/queries-voix";
+import { ETAPES_VOIX, estEtapeVoix, verdictSuppressionVoix, type EtapeVoix } from "@/lib/voix";
 import { Topbar } from "@/components/ui/Topbar";
 import { StatutSelector } from "@/components/assets/StatutSelector";
+import { SupprimerAssetButton } from "@/components/assets/SupprimerAssetButton";
 import { EtapeVoix as EtapeVoixForm } from "@/components/voix/EtapeVoix";
 import { EtapeReference } from "@/components/voix/EtapeReference";
 import { EtapeTest } from "@/components/voix/EtapeTest";
@@ -28,6 +29,7 @@ export default async function VoixDetailPage({
     getFirstEpisodeId(pid),
   ]);
   if (!projet || !d) notFound();
+  const suppression = verdictSuppressionVoix(await liensDeLaVoix(d.asset.id, d.personnage?.id ?? null), d.personnage?.code ?? null);
 
   const { asset, fiche } = d;
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
@@ -85,6 +87,14 @@ export default async function VoixDetailPage({
           <div className="fiche-actions">
             {asset.critique ? <span className="crit-tag">Critique</span> : null}
             <StatutSelector assetId={asset.id} statut={asset.statut} />
+            <SupprimerAssetButton
+              assetId={asset.id}
+              code={asset.code}
+              bloque={suppression.bloque}
+              raisonBlocage={suppression.raison}
+              confirmation={suppression.avertissement}
+              redirectTo={`/p/${pid}/voix`}
+            />
           </div>
         </div>
 

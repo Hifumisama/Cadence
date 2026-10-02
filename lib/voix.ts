@@ -160,3 +160,27 @@ A faint warm room tone, distant and low, with no music and no crowd.
 non_diegetic_music:
 N/A`;
 }
+
+/** Ce qui est relié à une voix, et ce que cela change pour sa suppression. Même règle que `supprimerAsset`
+ * (app/assets/actions.ts), côté serveur : une voix citée comme référence dans une fiche de plan, ou
+ * locuteur direct de répliques, ne se supprime pas. Les répliques de son PERSONNAGE ne bloquent pas : elles
+ * repassent « sans voix » (l'étape « casting des voix » peut alors la recréer), mais on le dit avant. */
+export type LiensVoix = { citations: number; repliquesDirectes: number; repliquesDuPersonnage: number };
+
+export function verdictSuppressionVoix(liens: LiensVoix, personnageCode: string | null): { bloque: boolean; raison: string | null; avertissement: string | null } {
+  const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
+  if (liens.citations > 0) {
+    return { bloque: true, raison: `Encore citée comme référence dans ${pluriel(liens.citations, "fiche")} de plan — délie-la d'abord.`, avertissement: null };
+  }
+  if (liens.repliquesDirectes > 0) {
+    return { bloque: true, raison: `Voix directe de ${pluriel(liens.repliquesDirectes, "réplique")} — change leur voix ou supprime-les d'abord.`, avertissement: null };
+  }
+  if (liens.repliquesDuPersonnage > 0) {
+    return {
+      bloque: false,
+      raison: null,
+      avertissement: `${pluriel(liens.repliquesDuPersonnage, "réplique")}${personnageCode ? ` de ${personnageCode}` : ""} repasser${liens.repliquesDuPersonnage > 1 ? "ont" : "a"} « sans voix ».`,
+    };
+  }
+  return { bloque: false, raison: null, avertissement: null };
+}
