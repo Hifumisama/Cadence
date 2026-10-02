@@ -1,5 +1,5 @@
 import { construireCode, slugifyCode } from "../assetCode";
-import { normaliser } from "./locuteurs";
+import { normaliser, rapprocherLocuteur } from "./locuteurs";
 
 /** Étape « casting des voix » : une VOIX pour chaque personnage qui parle et qui n'en a pas, plus la voix
  * off quand des répliques en réclament une. Pur (aucune lecture) : des personnages, des fiches de voix
@@ -48,8 +48,19 @@ const VOIX_OFF = /^(voix off|voix hors champ|narrateur|narratrice|narration|off|
 
 /** Les voix à créer, dans l'ordre : personnages (ordre du registre) qui ont au moins une réplique et pas de
  * voix, puis la voix off si des répliques la réclament et qu'aucune voix « off » n'existe. */
-export function candidatsVoix(personnages: PersonnageParlant[], fiches: FicheVoixExistante[], voixExistantes: string[], repliques: RepliqueLue[]): CandidatVoix[] {
-  const codesPris = new Set(voixExistantes);
+export function candidatsVoix(personnages: PersonnageParlant[], fiches: FicheVoixExistante[], voixExistantes: { id: number; code: string }[], repliques: RepliqueLue[]): CandidatVoix[] {
+  const codesPris = new Set(voixExistantes.map((v) => v.code));
+  // Une réplique écrite avant son personnage garde un locuteur en simple texte : on la rapproche du registre,
+  // comme à la création d'une réplique, pour savoir à qui elle appartient.
+  const registre = [
+    ...personnages.map((p) => ({ id: p.id, code: p.code, type: "personnage" as const })),
+    ...voixExistantes.map((v) => ({ id: v.id, code: v.code, type: "voix" as const })),
+  ];
+  const duPersonnage = (r: RepliqueLue): number | null => {
+    if (r.locuteurId != null) return r.locuteurId;
+    if (r.voixId != null || !r.locuteurTexte.trim()) return null;
+    return rapprocherLocuteur(r.locuteurTexte, registre).locuteurId;
+  };
   const aDejaUneVoix = new Set(fiches.map((f) => f.personnageId).filter((x): x is number => x != null));
   const sortie: CandidatVoix[] = [];
 
@@ -74,7 +85,7 @@ export function candidatsVoix(personnages: PersonnageParlant[], fiches: FicheVoi
 
   for (const perso of personnages) {
     if (aDejaUneVoix.has(perso.id)) continue;
-    const textes = repliques.filter((r) => r.locuteurId === perso.id).map((r) => r.texte.trim()).filter(Boolean);
+    const textes = repliques.filter((r) => duPersonnage(r) === perso.id).map((r) => r.texte.trim()).filter(Boolean);
     if (textes.length === 0) continue;
     const suffixe = slugifyCode(perso.code.replace(/^[A-Z]+_/, ""));
     if (!suffixe) continue;
@@ -83,7 +94,7 @@ export function candidatsVoix(personnages: PersonnageParlant[], fiches: FicheVoi
 
   // Voix off : des répliques dites « voix off » sans voix du registre pour elles.
   const sansVoix = repliques.filter((r) => r.locuteurId == null && r.voixId == null && VOIX_OFF.test(normaliser(r.locuteurTexte)));
-  const uneVoixOffExiste = voixExistantes.some((c) => normaliser(c).split(" ").includes("off"));
+  const uneVoixOffExiste = voixExistantes.some((v) => normaliser(v.code).split(" ").includes("off"));
   if (sansVoix.length > 0 && !uneVoixOffExiste) {
     sortie.push(candidat({ personnageId: null, personnageCode: null, suffixe: "off", nom: "Voix off", description: "", textes: sansVoix.map((r) => r.texte.trim()).filter(Boolean) }));
   }

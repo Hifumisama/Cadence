@@ -680,7 +680,7 @@ export async function candidatsVoixDuProjet(projectId: number): Promise<Candidat
   return candidatsVoix(
     lesAssets.filter((a) => a.type === "personnage").map((a) => ({ id: a.id, code: a.code, description: a.description ?? "" })),
     fiches,
-    lesAssets.filter((a) => a.type === "voix").map((a) => a.code),
+    lesAssets.filter((a) => a.type === "voix").map((a) => ({ id: a.id, code: a.code })),
     lues,
   );
 }

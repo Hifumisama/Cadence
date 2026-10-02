@@ -1371,6 +1371,11 @@ toujours à part (ComfyUI, non branché).
   manquant). Code : `lib/agents/voix-casting.ts` (pur), `conversion.depuisCastingVoix`,
   `applicateurs/voix.ts`, `service.genererVoix`, `postSousTacheVoix` (worker), `ChoixVoix` (« Continuer »
   après le registre). Testé en pur (`voix-casting.test.ts`) ; l'application en base reste à essayer à la main.
+- **Répliques écrites avant leur personnage** (constaté sur « Le dernier maître du Hack » : scénarios avant registre) :
+  leur locuteur reste en simple texte (`locuteur_texte`), sans lien avec le personnage créé ensuite. Les candidats
+  de voix les rapprochent du registre (même règle que `rapprocherLocuteur`), et `rattacherRepliquesLibres`
+  (`lib/agents/rattachement.ts`) relie ces répliques à leur personnage ou à leur voix dès qu'une proposition
+  crée un personnage ou une voix (même transaction). Un locuteur inconnu n'est jamais touché.
 - Ordre du pipeline : brief → squelette → scénarios → registre → **voix** → fiches de plan.
 
 ### Étape 3 en préparation : entrée de plan-h3 et essai de qualité (2026-10-02)

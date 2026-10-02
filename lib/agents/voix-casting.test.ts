@@ -23,12 +23,12 @@ test("un personnage qui parle sans voix donne un candidat ; un personnage muet, 
 });
 
 test("un personnage qui a déjà une voix n'est pas un candidat", () => {
-  const c = candidatsVoix([maya, tenanciere], [{ assetCode: "VOICE_maya", personnageId: 1 }], ["VOICE_maya"], [rep(1, "Bonsoir."), rep(2, "Demain.")]);
+  const c = candidatsVoix([maya, tenanciere], [{ assetCode: "VOICE_maya", personnageId: 1 }], [{ id: 10, code: "VOICE_maya" }], [rep(1, "Bonsoir."), rep(2, "Demain.")]);
   assert.deepEqual(c.map((x) => x.codeVoix), ["VOICE_tenanciere"]);
 });
 
 test("code de voix déjà pris sans être rattaché : candidat bloqué, non coché", () => {
-  const [c] = candidatsVoix([maya], [], ["VOICE_maya"], [rep(1, "Bonsoir.")]);
+  const [c] = candidatsVoix([maya], [], [{ id: 10, code: "VOICE_maya" }], [rep(1, "Bonsoir.")]);
   assert.ok(c!.bloque?.includes("VOICE_maya"));
   assert.equal(c!.aTraiter, false);
 });
@@ -37,7 +37,7 @@ test("voix off : candidat quand des répliques la réclament et qu'aucune voix �
   const off = [rep(null, "La nuit tombe.", "Voix off"), rep(null, "Elle court.", "voix off")];
   const [c] = candidatsVoix([maya], [], [], off);
   assert.deepEqual([c!.codeVoix, c!.personnageCode, c!.personnageId, c!.nbRepliques, c!.cle], ["VOICE_off", null, null, 2, "voix:off"]);
-  assert.equal(candidatsVoix([maya], [], ["VOICE_off"], off).length, 0, "une voix off existe déjà");
+  assert.equal(candidatsVoix([maya], [], [{ id: 11, code: "VOICE_off" }], off).length, 0, "une voix off existe déjà");
   assert.equal(candidatsVoix([maya], [], [], [rep(null, "Salut", "Le capitaine")]).length, 0, "un locuteur libre n'est pas la voix off");
 });
 
@@ -45,6 +45,18 @@ test("au plus 6 répliques d'exemple, mais toutes comptées", () => {
   const [c] = candidatsVoix([maya], [], [], Array.from({ length: 9 }, (_, i) => rep(1, `Réplique ${i}.`)));
   assert.equal(c!.nbRepliques, 9);
   assert.equal(c!.exemples.length, 6);
+});
+
+test("répliques écrites avant le registre (locuteur en simple texte) : rapprochées du personnage", () => {
+  const narratrice = { id: 4, code: "CHAR_la_narratrice", description: "" };
+  const frere = { id: 5, code: "CHAR_le_frere", description: "" };
+  const c = candidatsVoix(
+    [narratrice, frere, maya],
+    [{ assetCode: "VOICE_narratrice", personnageId: 4 }],
+    [{ id: 20, code: "VOICE_narratrice" }],
+    [rep(null, "Il était une fois.", "La Narratrice"), rep(null, "Va-t-en.", "Le Frère"), rep(null, "Salut", "Le capitaine")],
+  );
+  assert.deepEqual(c.map((x) => [x.codeVoix, x.nbRepliques]), [["VOICE_le_frere", 1]]);
 });
 
 test("résumé de sélection", () => {
