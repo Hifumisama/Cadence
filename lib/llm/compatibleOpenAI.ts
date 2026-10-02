@@ -57,7 +57,7 @@ export class FournisseurCompatibleOpenAI implements FournisseurLlm {
       const type = res.headers.get("content-type") ?? "";
       const lu =
         this.options.flux && type.includes("text/event-stream") && res.body
-          ? await lireFlux(res.body, d.surProgres)
+          ? await lireFlux(res.body, d.surProgres, d.surFlux)
           : lireJson(await res.json());
 
       return {
@@ -97,7 +97,8 @@ function lireJson(j: any): Lu {
 }
 
 /** Assemble un flux SSE OpenAI. Tolérant : une ligne illisible est ignorée. */
-async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: number) => void): Promise<Lu> {
+async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: number) => void, surFlux?: DemandeLlm["surFlux"]): Promise<Lu> {
+  surFlux?.({ type: "debut", texte: "" });
   const lecteur = corps.getReader();
   const decodeur = new TextDecoder();
   let tampon = "";
@@ -107,11 +108,14 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
   let arret: string | undefined;
   let usage: Usage = { entree: 0, sortie: 0 };
   let dernier: unknown = null;
+  let reflexion = 0;
+  let fini = false;
 
   const traiter = (ligne: string) => {
     const l = ligne.trim();
     if (!l.startsWith("data:")) return;
     const charge = l.slice(5).trim();
+    if (charge === "[DONE]") fini = true;
     if (!charge || charge === "[DONE]") return;
     let j: any;
     try {
@@ -125,16 +129,22 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
     const morceau = choix?.delta?.content;
     if (typeof morceau === "string" && morceau) {
       texte += morceau;
+      surFlux?.({ type: "texte", texte: morceau });
       morceaux += 1;
       surProgres?.(morceaux);
     } else if (typeof choix?.delta?.reasoning_content === "string" && choix.delta.reasoning_content) {
       // Les modèles « qui réfléchissent » (Gemma 4, Qwen 3.6) émettent d'abord leur
       // raisonnement dans `reasoning_content` : il n'entre pas dans `texte`, mais il
       // consomme des jetons (et `max_tokens`) et compte pour la progression.
+      reflexion += choix.delta.reasoning_content.length;
+      surFlux?.({ type: "reflexion", texte: choix.delta.reasoning_content });
       morceaux += 1;
       surProgres?.(morceaux);
     }
-    if (choix?.finish_reason) arret = choix.finish_reason;
+    if (choix?.finish_reason) {
+      arret = choix.finish_reason;
+      fini = true;
+    }
     if (j?.usage) usage = { entree: Number(j.usage.prompt_tokens ?? 0), sortie: Number(j.usage.completion_tokens ?? 0) };
   };
 
@@ -149,10 +159,19 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
     }
   }
   traiter(tampon);
+  // Un flux qui se ferme sans `finish_reason` ni `[DONE]` a été COUPÉ (serveur planté, reverse proxy,
+  // swap de modèle) : son texte est un fragment, pas une sortie mal formée — on le dit franchement.
+  if (!fini) {
+    throw new ErreurLlm(
+      "flux_coupe",
+      `Flux interrompu par le serveur après ${texte.length} caractères de sortie et ${reflexion} de réflexion, sans fin de génération.`,
+      { texte, reflexion },
+    );
+  }
   // Sans bloc d'usage (serveur qui n'envoie pas `include_usage`) : on retombe sur le
   // nombre de morceaux reçus, une approximation des jetons de sortie.
   if (usage.sortie === 0) usage = { ...usage, sortie: morceaux };
-  return { texte, usage, modele, arret, brut: { assemble: true, dernierMorceau: dernier } };
+  return { texte, usage, modele, arret, brut: { assemble: true, caracteresReflexion: reflexion, dernierMorceau: dernier } };
 }
 
 function erreurHttp(statut: number, corps: string, modele: string): ErreurLlm {

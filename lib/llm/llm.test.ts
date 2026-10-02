@@ -125,6 +125,23 @@ test("fournisseur : flux sans bloc d'usage → approximation par les morceaux", 
   assert.equal(r.json, undefined);
 });
 
+test("fournisseur : flux coupé sans fin de génération → ErreurLlm « flux_coupe »", async () => {
+  const s = await demarrer((_c, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.write(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "hmm" } }] })}
+
+`);
+    res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: '{"titre":"coup' } }] })}
+
+`);
+    res.end();
+  });
+  await assert.rejects(
+    fournisseur(s.url, { flux: true }).generer({ systeme: "S", messages: [{ role: "user", content: "x" }] }),
+    (e: unknown) => e instanceof ErreurLlm && e.code === "flux_coupe" && /14 caractères.*3 de réflexion/.test(e.message),
+  );
+});
+
 test("fournisseur : serveur injoignable → ErreurLlm « injoignable »", async () => {
   const s = await demarrer(() => undefined);
   const url = s.url;

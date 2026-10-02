@@ -20,6 +20,9 @@ export type DemandeLlm = {
   modele?: string;
   /** Reçoit le nombre de jetons de sortie reçus au fil de l'eau (progression). */
   surProgres?: (jetonsSortie: number) => void;
+  /** Reçoit le TEXTE au fil du flux : `debut` à l'ouverture de chaque appel (un renvoi en ouvre un nouveau),
+   * puis `reflexion` (reasoning_content) et `texte` (la réponse). Sert aux essais en direct. */
+  surFlux?: (evenement: { type: "debut" | "reflexion" | "texte"; texte: string }) => void;
   /** Champs ajoutés tels quels au corps de la requête, pour CET appel (ex. couper la réflexion :
    * `{ chat_template_kwargs: { enable_thinking: false } }`). Voir `LLM_CORPS` dans lib/llm/config.ts. */
   corps?: Record<string, unknown>;
@@ -49,6 +52,7 @@ export type CodeErreurLlm =
   | "sortie_invalide"
   | "interrompu"
   | "delai"
+  | "flux_coupe"
   | "http";
 
 /** Erreur typée : l'appelant (et la trace) distingue « le serveur est éteint »

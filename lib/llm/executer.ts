@@ -3,7 +3,7 @@ import { corpsPourSkill, creerFournisseur, maxTokensPourSkill, modelePourSkill, 
 import { chargerSkill } from "./skills";
 import { enregistrerTrace, type EnregistreurTrace, type StatutTrace, type TraceAEnregistrer } from "./traces";
 import { valider } from "./validation";
-import { ErreurLlm, type FournisseurLlm, type MessageLlm, type ReponseLlm } from "./types";
+import { ErreurLlm, type DemandeLlm, type FournisseurLlm, type MessageLlm, type ReponseLlm } from "./types";
 
 /** Limite de sortie par défaut : un brief ou un plan tient largement, un plafond
  * évite une génération qui ne s'arrête pas. */
@@ -20,6 +20,8 @@ export type OptionsExecution = {
   /** Renvois automatiques après une sortie hors schéma (1 par défaut, 0 = aucun). */
   maxRenvois?: number;
   surProgres?: (jetonsSortie: number) => void;
+  /** Texte au fil du flux (voir `DemandeLlm.surFlux`). */
+  surFlux?: DemandeLlm["surFlux"];
   /** `false` : ne pas contraindre la sortie côté serveur (comparaison, diagnostic) ;
    * la validation contre le schéma reste faite. `true` par défaut. */
   contrainte?: boolean;
@@ -122,6 +124,7 @@ export async function executerSkill(
         temperature: options.temperature,
         signal: options.signal,
         surProgres: options.surProgres,
+        surFlux: options.surFlux,
       });
       derniere = rep;
       usage.entree += rep.usage.entree;
