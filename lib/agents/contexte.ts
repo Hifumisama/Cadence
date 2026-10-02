@@ -280,7 +280,8 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
  * - `scene`, `episode` : de quoi situer le plan ;
  * - `plansVoisins` : le précédent et le suivant (pour le raccord), titre et description ;
  * - `registre` : pour chaque asset candidat (hors voix, sons et plans clés) son code, sa description
- *   canonique (français), sa méthode, son prompt de génération (anglais) et s'il a une image ;
+ *   canonique (français), sa méthode, son prompt de génération (anglais) et s'il a déjà son fichier
+ *   (image, ou son pour un bruitage) ; hors voix et plans clés (les voix se dérivent des répliques) ;
  * - `repliques` : celles du plan (uuid, locuteur, texte exact, durée mesurée si la prise existe) ;
  * - `clauseStyleDuProjet`, `briefExtrait` : le style visuel, la continuité, les rimes, les pièges. */
 export async function entreePlanH3(
@@ -319,14 +320,14 @@ export async function entreePlanH3(
     .where(eq(assets.projectId, projectId))
     .orderBy(asc(assets.code));
   const candidats = registre
-    .filter((a) => a.type !== "voix" && a.type !== "sfx" && a.type !== "keyframe")
+    .filter((a) => a.type !== "voix" && a.type !== "keyframe")
     .map((a) => ({
       code: a.code,
       type: a.type,
       descriptionCanonique: a.description ?? "",
       methode: a.methode ?? "generation",
       promptGeneration: a.prompt ?? "",
-      aUneImage: !!a.fichier,
+      aUnFichier: !!a.fichier,
     }));
 
   const dialogues = await db

@@ -24,8 +24,21 @@ test("schémas de sortie : tout `pattern` est ancré (^…$), exigence de la gra
   }
 });
 
-test("plan-h3 : le motif du jeton {picture} accepte une définition correcte et refuse son absence", () => {
-  const motif = (chargerSkill("plan-h3").schema as any).properties.sujets.items.properties.definition.pattern as string;
-  assert.equal(new RegExp(motif).test("the corridor {picture}, dimly lit"), true);
-  assert.equal(new RegExp(motif).test("the corridor, dimly lit"), false);
+// Un motif « contient X » (`^.*X.*$`) piège la grammaire : `.` y accepte le guillemet, donc le modèle qui ferme
+// sa chaîne sans avoir écrit X voit le `"` avalé comme contenu, et tout le JSON suivant tombe DANS la chaîne,
+// jusqu'à `max_tokens` (observé avec `{picture}` sur Gemma et Qwen : 16 384 jetons, 5 minutes). Une règle de
+// contenu se vérifie APRÈS génération (lib/agents/plan-h3-controles.ts, avec renvoi), jamais dans la grammaire.
+test("schémas de sortie : aucun `pattern` « contient » (.* autour d'un littéral), piège de la grammaire", () => {
+  for (const nom of listerSkills()) {
+    for (const { chemin, motif } of patterns(chargerSkill(nom).schema)) {
+      assert.ok(!/\.\*/.test(motif), `${nom} ${chemin} : « ${motif} » contient « .* » ; vérifier la règle dans les contrôles, pas dans le schéma`);
+    }
+  }
+});
+
+test("plan-h3 : aucun jeton ni motif dans le schéma ; les labels sont posés par le code, le modèle n'en écrit pas", () => {
+  const schema = chargerSkill("plan-h3").schema as any;
+  assert.deepEqual(patterns(schema), []);
+  assert.equal(schema.properties.references.items.properties.definition.pattern, undefined);
+  assert.doesNotMatch(JSON.stringify(schema), /\{picture\}/);
 });

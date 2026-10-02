@@ -9,8 +9,8 @@ export type Controleur = (json: unknown) => string[];
 
 export function controleurPourSkill(skill: string, entree: unknown): Controleur | undefined {
   if (skill === "plan-h3") {
-    const e = (entree ?? {}) as { registre?: { code: string }[]; repliques?: { texte: string }[] };
-    const ctx = { codesRegistre: (e.registre ?? []).map((a) => a.code), repliques: (e.repliques ?? []).map((r) => ({ texte: r.texte })) };
+    const e = (entree ?? {}) as { registre?: { code: string; type: string }[]; repliques?: { texte: string }[] };
+    const ctx = { registre: (e.registre ?? []).map((a) => ({ code: a.code, type: a.type })), repliques: (e.repliques ?? []).map((r) => ({ texte: r.texte })) };
     return (json) =>
       controlerSortiePlanH3(json as SortiePlanH3, ctx)
         .filter((p) => p.niveau === "erreur")

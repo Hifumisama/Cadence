@@ -1353,16 +1353,45 @@ Un LOT, comme les scénarios (même infrastructure, voir « Étape 1 »). Décis
 ### Étape 3 en préparation : entrée de plan-h3 et essai de qualité (2026-10-02)
 - `entreePlanH3` (lib/agents/contexte.ts) assemble l'entrée de `plan-h3` pour un plan : intention,
   position dans la scène, durée et fps visés, scène, épisode, plans voisins, registre (code,
-  description canonique, méthode, prompt, image ou non ; hors voix, sons et plans clés), répliques
-  du plan (uuid, locuteur, texte exact, durée mesurée), clause de style, extraits du brief. Sur un
-  plan réel du projet 1 : ≈ 3 500 jetons d'entrée pour ≈ 10 500 de prompt système.
-- `controlerSortiePlanH3` (lib/agents/plan-h3-controles.ts, pur, testé) vérifie le CONTRAT de la sortie
-  (durée 5-15, 6 sujets au plus, assets du registre, jeton `{picture}`, placeholders `[[CODE]]` cités
-  dans les sujets, numérotation et timecodes des shots, verbatim des répliques, pas de mots par
-  seconde) ; il ne juge pas la mise en scène.
+  description canonique, méthode, prompt, fichier ou non ; hors voix et plans clés, **bruitages
+  compris** depuis le 2026-10-02), répliques du plan (uuid, locuteur, texte exact, durée mesurée),
+  clause de style, extraits du brief. Sur un plan réel du projet 1 : ≈ 3 500 jetons d'entrée pour
+  ≈ 10 500 de prompt système.
+- **Contrat de sortie : un brouillon, que le code assemble** (utilisateur, 2026-10-02). Constat : sur 8 essais
+  (Gemma, Qwen), 100 % ont eu besoin d'un renvoi, parce que le guide et les exemples montraient la forme
+  ASSEMBLÉE (`<Subject N>`, `<Picture N>`) alors que le contrat interdisait de l'écrire. Désormais :
+  - le modèle rend `references[]` (`asset`, `nature` `image` | `son`, `role`, `nom`, `definition`,
+    rétention facultative), `ouverture`, `shots[]` (`debutSecondes`, `texte`), `summary`, ambiance, musique,
+    `repliques[]`, `assetsManquants[]` (structuré, voir la décision d'ordre plus bas), `notes` ;
+  - un SEUL marqueur dans la prose : `[[CODE]]`. Plus de `{picture}`, plus de label numéroté ;
+  - `lib/agents/plan-h3-assemblage.ts` (pur) pose `<Subject i>`/`<Picture i>` (images, dans l'ordre de
+    `references`, 1 à n sans trou), `<Audio k>` (bruitages, sur les slots que les voix n'occupent pas),
+    `[Shot N]`, `At MM:SS.mmm, Hard cut to`, `subject_definitions`, `retention_analysis` (« appears in » par
+    shot) et le préfixe du summary ; plus de slot (6 images, 3 audio, **la voix prime**) : la référence est
+    décrite en prose, avec une alerte ;
+  - les **voix ne sont jamais des références** : dérivées de `repliques`, sans ligne `<Audio N>` (comme les
+    fiches validées) ;
+  - ce qui n'a pas besoin de référence s'écrit en prose (le modèle vidéo l'interprète) : deux natures, pas de
+    nature « texte » ;
+  - **régénérer une fiche remplace ensemble le texte ET les références d'image du plan** (les numéros ne sont
+    renumérotés qu'à cette occasion ; les slots des voix ne bougent pas) : soit la fiche est écrite à la main
+    et l'utilisateur synchronise, soit l'agent la synchronise, au risque d'écraser. À garder en tête : des
+    « musiques / environnements sonores » deviendront des assets plus tard.
+  Les exemples du skill sont des brouillons ; chacun est testé (schéma, contrôles, assemblage identique à
+  `lib/agents/fixtures/plan-h3/`, dérivée des plans validés aux « Hard cut to » près).
+- `controlerSortiePlanH3` (lib/agents/plan-h3-controles.ts, pur, testé) vérifie le CONTRAT du brouillon
+  (durée 5-15, 6 images au plus, assets du registre, nature cohérente avec le type, marqueurs `[[CODE]]`
+  présents dans `references`, aucun label ni titre de section recopié, premier shot à 0, débuts croissants,
+  shots d'au moins 1,5 s, verbatim des répliques, pas de mots par seconde) ; il ne juge pas la mise en scène.
 - `npm run plan-h3:essai -- --projet <id>` : passe des plans réels par la file du worker et écrit un
-  rapport comparant la sortie du modèle à la fiche écrite à la main (`data/_essais/`). Décide si gemma
-  suffit pour l'étape 3 ou s'il faut Claude. Aucun applicateur de fiche de plan n'est construit avant.
+  rapport comparant la sortie du modèle (brouillon puis prompt assemblé) à la fiche écrite à la main
+  (`data/_essais/`). Décide si gemma suffit pour l'étape 3 ou s'il faut Claude. Aucun applicateur de fiche
+  de plan (écriture en base des sections et de `plan_refs`) n'est construit avant. `--direct` lance le skill
+  dans le processus, flux visible ; `npm run plan-h3:reflexion` diagnostique la réflexion du serveur.
+- **Piège llama.cpp (2026-10-02)** : un `pattern` du schéma de sortie qui contient `.*` (« contient X ») piège
+  la grammaire : le guillemet fermant est avalé comme contenu et le JSON suivant tombe dans la chaîne
+  jusqu'à `max_tokens`. Une règle de contenu se vérifie après génération (contrôles + renvoi), jamais dans
+  la grammaire ; un test le garde (`lib/llm/schemas-patterns.test.ts`).
 - Décision d'ordre (utilisateur, 2026-10-02) : les arbres d'assets (dérivés, accessoires) se traitent
   APRÈS plan-h3, depuis les plans : plan-h3 déclarera ses assets manquants de façon structurée
   (nom, type, parent éventuel, description, raison), créés avec le plan dans la même proposition ; un

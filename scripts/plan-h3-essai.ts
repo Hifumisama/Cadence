@@ -5,6 +5,9 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns, agentTraces, episodes, planPromptSections, plans, seasons } from "../db/schema";
 import { entreePlanH3 } from "../lib/agents/contexte";
+import { executerSkill } from "../lib/llm/executer";
+import { controleurPourSkill } from "../lib/llm/controles";
+import { assemblerPlanH3 } from "../lib/agents/plan-h3-assemblage";
 import { controlerSortiePlanH3, resumeControles, type ProblemeH3, type SortiePlanH3 } from "../lib/agents/plan-h3-controles";
 
 /** Essai de QUALITÉ de `plan-h3` sur des plans réels d'un projet, pour savoir si le modèle local suffit
@@ -14,7 +17,10 @@ import { controlerSortiePlanH3, resumeControles, type ProblemeH3, type SortiePla
  * contrat (lib/agents/plan-h3-controles.ts).
  *
  *   npm run plan-h3:essai -- --projet 1 [--episode <id>] [--n 4] [--plans uuid,uuid]
- *                            [--modele gemma4-26b-A4B] [--consigne "…"]
+ *                            [--modele gemma4-26b-A4B] [--consigne "…"] [--direct]
+ * `--direct` : n'utilise PAS le worker. Le skill s'exécute dans le script (même exécuteur : validation,
+ * renvoi, contrôles) et la réflexion (jaune) comme la réponse (vert) s'affichent EN DIRECT ; rien n'est posé
+ * en file ni en base, pas de trace. Sert à vérifier ce que le serveur renvoie vraiment.
  * Rien n'est écrit dans le projet : les résultats vivent dans `agent_runs` (supprimés à la fin, sauf
  * --garder) et dans le rapport `data/_essais/plan-h3-<date>.md`. */
 
@@ -101,20 +107,56 @@ async function main(): Promise<number> {
       console.log("   plan illisible, ignoré");
       continue;
     }
-    const [run] = await db
-      .insert(agentRuns)
-      .values({ skill: "plan-h3", entree: e.entree, options: modele ? { modele } : null, projectId })
-      .returning();
-    runsPoses.push(run!.id);
-    const fin = await attendre(run!.id);
-    const [trace] = fin.traceId ? await db.select().from(agentTraces).where(eq(agentTraces.id, fin.traceId)) : [];
-    const jetons = (trace?.tokensEntree ?? 0) + (trace?.tokensSortie ?? 0);
-    const duree = trace?.dureeMs != null ? Math.round(trace.dureeMs / 1000) : null;
+    let fin: { statut: string; resultat: unknown; erreur: string | null };
+    let jetons: number;
+    let duree: number | null;
+    if (drapeau("--direct")) {
+      const debut = Date.now();
+      const ecrire = (couleur: string, titre: string) => process.stdout.write(`\n\x1b[${couleur}m── ${titre} ──\x1b[0m\n`);
+      let mode = "";
+      try {
+        const r = await executerSkill("plan-h3", e.entree as object, {
+          projectId,
+          modele,
+          enregistrer: null,
+          controler: controleurPourSkill("plan-h3", e.entree),
+          surFlux: (ev) => {
+            if (ev.type === "debut") {
+              mode = "";
+              ecrire("36", "appel au serveur");
+              return;
+            }
+            if (mode !== ev.type) ecrire(ev.type === "reflexion" ? "33" : "32", ev.type === "reflexion" ? "RÉFLEXION" : "RÉPONSE");
+            mode = ev.type;
+            process.stdout.write(ev.texte);
+          },
+        });
+        process.stdout.write(`\n\n   (${r.renvois} renvoi(s))\n`);
+        fin = { statut: "termine", resultat: r.json, erreur: null };
+        jetons = r.usage.entree + r.usage.sortie;
+      } catch (err) {
+        process.stdout.write("\n");
+        fin = { statut: "echoue", resultat: null, erreur: (err as Error).message };
+        jetons = 0;
+      }
+      duree = Math.round((Date.now() - debut) / 1000);
+    } else {
+      const [run] = await db
+        .insert(agentRuns)
+        .values({ skill: "plan-h3", entree: e.entree, options: modele ? { modele } : null, projectId })
+        .returning();
+      runsPoses.push(run!.id);
+      const fini = await attendre(run!.id);
+      fin = { statut: fini.statut, resultat: fini.resultat, erreur: fini.erreur };
+      const [trace] = fini.traceId ? await db.select().from(agentTraces).where(eq(agentTraces.id, fini.traceId)) : [];
+      jetons = (trace?.tokensEntree ?? 0) + (trace?.tokensSortie ?? 0);
+      duree = trace?.dureeMs != null ? Math.round(trace.dureeMs / 1000) : null;
+    }
 
-    const registre = (e.entree as { registre: { code: string }[]; repliques: { texte: string }[] }).registre.map((a) => a.code);
+    const registre = (e.entree as { registre: { code: string; type: string }[]; repliques: { texte: string }[] }).registre;
     const repliques = (e.entree as { repliques: { texte: string }[] }).repliques;
     let problemes: ProblemeH3[] = [];
-    if (fin.statut === "termine") problemes = controlerSortiePlanH3(fin.resultat as SortiePlanH3, { codesRegistre: registre, repliques });
+    if (fin.statut === "termine") problemes = controlerSortiePlanH3(fin.resultat as SortiePlanH3, { registre, repliques });
     const r = resumeControles(problemes);
     console.log(`   → ${fin.statut}${duree != null ? ` en ${duree} s` : ""} · ${r.erreurs} erreur(s), ${r.alertes} alerte(s)\n`);
     bilan.push({ titre: c.titre, statut: fin.statut, duree, jetons, erreurs: r.erreurs, alertes: r.alertes });
@@ -135,9 +177,14 @@ async function main(): Promise<number> {
     }
     if (fin.statut === "termine") {
       const s = fin.resultat as SortiePlanH3;
-      lignes.push(`### Sortie du modèle (${s.dureeSecondes} s, ${s.sujets.length} sujets)`, "");
-      lignes.push("Sujets : " + s.sujets.map((x) => `${x.asset} — ${x.definition}`).join(" | "), "");
-      lignes.push("**summary**", "", "```", s.summary, "```", "", "**detailed_description**", "", "```", s.detailed_description, "```", "");
+      // les voix occupent les premiers slots audio (comme à l'application d'une fiche, sans les lire en base ici)
+      const a = assemblerPlanH3(s, { slotsAudioPris: repliques.map((_, k) => k + 1) });
+      lignes.push(`### Sortie du modèle (${s.dureeSecondes} s, ${s.references.length} références, ${s.shots.length} shots)`, "");
+      lignes.push("Références : " + s.references.map((x) => `${x.asset} (${x.nature}) — ${x.nom}, ${x.definition}`).join(" | "), "");
+      lignes.push("**Prompt assemblé**", "", "```text", a.texte, "```", "");
+      for (const p of a.problemes) lignes.push(`- [assemblage ${p.niveau}] (${p.regle}) ${p.message}`);
+      if (a.problemes.length) lignes.push("");
+      if (s.assetsManquants?.length) lignes.push("**Assets manquants** : " + s.assetsManquants.map((m) => `${m.code} (${m.type})`).join(", "), "");
       if (s.notes?.trim()) lignes.push(`**notes** : ${s.notes.trim()}`, "");
     }
     if (humain.length) {

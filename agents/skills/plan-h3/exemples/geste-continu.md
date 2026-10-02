@@ -1,42 +1,41 @@
-# Exemple — Geste continu assumé — un seul mouvement, non découpé
+# Exemple — Geste continu assumé — un mouvement ininterrompu, déclaré dans `notes`
 
-> Plan réel de l'épisode 1 (« Les Yeux de Rubis »), rendu et validé en production. Les numéros de plan cités dans les notes sont ceux de la fiche source ; dans l'app, un plan s'identifie par son uuid. Le bloc « Prompt » montre le prompt **final assemblé** (labels `<Subject N>`, `<Picture N>`, `<Audio N>` déjà posés).
-
+> Plan réel de l'épisode 1 (« Les Yeux de Rubis »), rendu et validé en production. Ce bloc montre le plan **tel que tu dois le rendre** : le brouillon JSON. Le code en tire le prompt final (labels, `[Shot N]`, timecodes, « Hard cut to »).
 
 | Durée montage | Durée génération | FPS | Mode |
 |---|---|---|---|
 | 15 s | 15 s | 24 | full-reference |
 
-**Références (3/6)**
-| Label | Asset | Rôle dans le plan |
+**Références (3)**
+| Asset | Nature | Rôle dans le plan |
 |---|---|---|
-| `<Picture 1>` | `CHAR_tenanciere` | Tenancière, mépris puis geste de la gifle |
-| `<Picture 2>` | `CHAR_maya` | Maya, cible puis chancelante |
-| `<Picture 3>` | `DEC_couloir_bois` | Décor, couloir bleu nuit |
+| `CHAR_tenanciere` | image | Tenancière, mépris puis geste de la gifle |
+| `CHAR_maya` | image | Maya, cible puis chancelante |
+| `DEC_couloir_bois` | image | Décor, couloir bleu nuit |
 
-**Prompt**
-```text
-subject_definitions:
-<Subject 1> is the Tenancière from <Picture 1>, her pace slowed to a near-minimum but never fully stopped, until the single unbroken motion of the strike.
-<Subject 2> is Maya from <Picture 2>, caught mid-sentence, then reeling from the impact.
-<Subject 3> is the narrow wooden corridor from <Picture 3>, its constant deep indigo light unchanged throughout.
-
-summary:
-[reference generation] The target video holds on <Subject 1> delivering a joyless laugh and dismissive line within <Subject 3>, then strikes <Subject 2> across the face in one continuous stride, and holds on <Subject 2> staggering to keep from falling.
-
-retention_analysis:
-<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - her gown, expression, and continued motion through the strike are retained.
-<Subject 2> (appears in [Shot 2], [Shot 3]): fully_preserved - Maya's identity and physical reaction are retained across both shots.
-<Subject 3> (appears in [Shot 1], [Shot 2], [Shot 3]): fully_preserved - the corridor's indigo tone is retained throughout.
-
-detailed_description:
-Cinematic anime style, refined linework, pervasive deep indigo light, a hard flash of contrast at the moment of impact. [Shot 1] A close-up holds on <Subject 1>, the Tenancière (S1), her stride reduced to its slowest point yet without ever fully halting within <Subject 3>. A short, joyless laugh escapes her, cold and dry, before she says, in the same measured, unhurried tone, <d>[Français] Tu es trop optimiste pour une fille qui court toujours après ses propres ombres.</d> Her mismatched eyes narrow faintly with contempt, gone as quickly as it appeared. [Shot 2] At 00:05.000, a close shot frames <Subject 1>, her hand snapping upward and across in a single fast, precise motion, striking <Subject 2>, Maya, hard across the cheek, mid-word. The Tenancière's stride never falters through the motion, her expression unchanged, as if the strike were incidental inside a larger, uninterrupted movement. [Shot 3] At 00:09.000, the camera holds close on <Subject 2>, Maya, her head still tilted from the impact, legs buckling beneath her as she staggers sideways within <Subject 3>. Her hand shoots out and grips the edge of a nearby wooden service table hard enough to whiten her knuckles, steadying herself just before falling. Her breath comes short and ragged; she bites down involuntarily, wincing at a coppery taste in her mouth.
-
-overall_soundscape:
-A short, dry, joyless laugh, then a single sharp cracking slap that cuts off Maya's sentence mid-syllable, followed by her short, ragged breathing and a dull scrape as her hand catches the table's edge.
-
-non_diegetic_music:
-The cold string pulse holds static through the contempt, cuts out abruptly on the impact, then stays silent through the aftermath.
+**Brouillon rendu**
+```json
+{
+  "titre": "La gifle",
+  "dureeSecondes": 15,
+  "references": [
+    {"asset": "CHAR_tenanciere", "nature": "image", "role": "Tenancière, mépris puis geste de la gifle", "nom": "the Tenancière", "definition": "her pace slowed to a near-minimum but never fully stopped, until the single unbroken motion of the strike.", "retentionNote": "her gown, expression, and continued motion through the strike are retained."},
+    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, cible puis chancelante", "nom": "Maya", "definition": "caught mid-sentence, then reeling from the impact.", "retentionNote": "Maya's identity and physical reaction are retained across both shots."},
+    {"asset": "DEC_couloir_bois", "nature": "image", "role": "Décor, couloir bleu nuit", "nom": "the narrow wooden corridor", "definition": "its constant deep indigo light unchanged throughout.", "retentionNote": "the corridor's indigo tone is retained throughout."}
+  ],
+  "summary": "The target video holds on [[CHAR_tenanciere]] delivering a joyless laugh and dismissive line within [[DEC_couloir_bois]], then strikes [[CHAR_maya]] across the face in one continuous stride, and holds on [[CHAR_maya]] staggering to keep from falling.",
+  "ouverture": "Cinematic anime style, refined linework, pervasive deep indigo light, a hard flash of contrast at the moment of impact.",
+  "shots": [
+    {"debutSecondes": 0, "texte": "A close-up holds on [[CHAR_tenanciere]], the Tenancière (S1), her stride reduced to its slowest point yet without ever fully halting within [[DEC_couloir_bois]]. A short, joyless laugh escapes her, cold and dry, before she says, in the same measured, unhurried tone, <d>[Français] Tu es trop optimiste pour une fille qui court toujours après ses propres ombres.</d> Her mismatched eyes narrow faintly with contempt, gone as quickly as it appeared."},
+    {"debutSecondes": 5, "texte": "a close shot frames [[CHAR_tenanciere]] within [[DEC_couloir_bois]], her hand snapping upward and across in a single fast, precise motion, striking [[CHAR_maya]], Maya, hard across the cheek, mid-word. The Tenancière's stride never falters through the motion, her expression unchanged, as if the strike were incidental inside a larger, uninterrupted movement."},
+    {"debutSecondes": 9, "texte": "a held close shot on [[CHAR_maya]], Maya, her head still tilted from the impact, legs buckling beneath her as she staggers sideways within [[DEC_couloir_bois]]. Her hand shoots out and grips the edge of a nearby wooden service table hard enough to whiten her knuckles, steadying herself just before falling. Her breath comes short and ragged; she bites down involuntarily, wincing at a coppery taste in her mouth."}
+  ],
+  "overall_soundscape": "A short, dry, joyless laugh, then a single sharp cracking slap that cuts off Maya's sentence mid-syllable, followed by her short, ragged breathing and a dull scrape as her hand catches the table's edge.",
+  "non_diegetic_music": "The cold string pulse holds static through the contempt, cuts out abruptly on the impact, then stays silent through the aftermath.",
+  "repliques": [{"repliqueId": "b3f0a8d2-6e14-4c7b-a2d9-5e81c0f7d364", "debutSecondes": 1}],
+  "assetsManquants": [],
+  "notes": "Geste continu assumé : la gifle part de la foulée de la Tenancière sans interruption. Les trois shots se raccordent dans un seul mouvement ; à ne pas couper au montage."
+}
 ```
 
-**Notes** — Séquence de violence la plus dense de l'épisode, volontairement tenue en un seul geste ininterrompu de la Tenancière ; à ne surtout pas couper au montage, c'est tout l'intérêt de la fusion.
+**Notes** — Séquence de violence la plus dense de l'épisode, volontairement tenue en un seul geste ininterrompu de la Tenancière : c'est tout l'intérêt de la fusion.
