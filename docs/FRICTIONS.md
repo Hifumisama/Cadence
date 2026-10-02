@@ -674,6 +674,23 @@ ComfyUI pour être pilotée par l'application. On débloque d'abord les images
 (`IMG_01_TextToImage`, `IMG_Simple_Edit`) et la vidéo ; le contrat des workflows
 d'images est dans `workflows/README.md`.
 
+### Voix de référence : génération branchée (2026-10-02)
+Le workflow `workflows/audio/VOX_Generate_Voice_Simplified.json` (Qwen3-TTS Voice Design : trois nœuds, sans le
+`CharacterVoicesNode` qui rendait l'audio trop couplé à ComfyUI) lève le blocage noté plus haut pour **la voix de
+référence** ; les prises de répliques (CosyVoice3) restent à la main.
+- **Même file que les images et les sons** : méthode `voix` de `asset_generations` (colonnes `texte_reference`,
+  `langue_reference`, `temperature`, migration 0037) ; annulation, reprise, panneau du header et candidats en
+  profitent. Le panneau renvoie vers l'étape « Référence » du casting.
+- **Créativité de la voix** = la « température » de Qwen3-TTS, **0,8 à 1,2, 1,1 par défaut**, réglable dans la popup.
+- **Le résultat est un candidat** : « Utiliser comme référence » remplace la référence de la voix (`assets.fichier`),
+  son instruction (`prompt_generation`) et le texte lu (`voix_fiches.ref_text`), et repasse la voix « en cours ».
+  Le déposer à la main reste possible.
+- Le nœud d'écoute `PreviewAudio` du fichier exporté est remplacé à la soumission par `SaveAudioMP3` (V0), comme
+  pour les bruitages : le worker ne relit que le dossier `output`. Un FLAC serait préférable pour le clonage ;
+  à reprendre si le MP3 gêne CosyVoice3.
+- Code : `lib/asset-generation.ts` (règles), `worker/comfyui/voixMapping.ts` (+ test sur le vrai workflow),
+  `lancerGenerationVoix` (`app/assets/generation-actions.ts`), `GenerationVoixDialog`.
+
 ### Génération d'images d'assets : première tâche ComfyUI dédiée (2026-09-30)
 Premier type du système de tâches dédié (le worker vidéo n'est pas généralisé) :
 table `asset_generations`, boucle `worker/images.ts`, bouton « Générer » sur la

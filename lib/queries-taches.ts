@@ -4,7 +4,7 @@ import { and, eq, gte, isNotNull, isNull, or, inArray } from "drizzle-orm";
 import { versRunLot } from "./agents/lots";
 import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
-import { METHODE_AUDIO, formaterDuree } from "./asset-generation";
+import { METHODE_AUDIO, METHODE_VOIX, formaterDuree } from "./asset-generation";
 import { generationMediaSrc } from "./media";
 import {
   LIBELLE_SKILL,
@@ -92,16 +92,19 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     genre: "image",
     statut: g.statut,
     // Un son se reconnaît dans le panneau : « Son · CODE », sans miniature d'aperçu.
-    libelle: g.methode === METHODE_AUDIO ? `Son · ${code}` : code,
+    libelle: g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : code,
     detail:
-      g.methode === METHODE_AUDIO
+      g.methode === METHODE_VOIX
+        ? "Voix de référence"
+        : g.methode === METHODE_AUDIO
         ? g.dureeSecondes != null
           ? `Génération audio · ${formaterDuree(g.dureeSecondes)}`
           : "Génération audio"
         : g.methode === "edition"
           ? "À partir d'images"
           : "À partir du texte",
-    href: `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
+    // Une voix se retrouve au casting vocal (étape « Référence »), pas à la fiche d'asset.
+    href: g.methode === METHODE_VOIX ? `/p/${projectId}/voix/${code}?etape=reference&generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
     projectId,
     assetId: g.assetId,
     progression:
@@ -219,7 +222,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const taches = gardees.map((x) => {
     const g = parCle.get(x.cle);
     if (!g) return x;
-    if (g.methode === METHODE_AUDIO) return x; // un son n'a ni vignette ni aperçu
+    if (g.methode === METHODE_AUDIO || g.methode === METHODE_VOIX) return x; // un son ou une voix n'a ni vignette ni aperçu
     if (g.statut === "termine") return { ...x, vignetteSrc: generationMediaSrc(g.assetId, g.fichier) };
     if (g.statut === "en_cours" && g.apercuAt) {
       const url = generationMediaSrc(g.assetId, g.apercuFichier);

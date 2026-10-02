@@ -8,7 +8,7 @@ dépendance d'exécution.
 - `upscale/` — passe upscale isolée si distincte du workflow principal
 - `voice-clone/` — Qwen3-TTS (Voice Design) puis CosyVoice3 (répliques) (F06) ; **pas branché**, voir plus bas
 - `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
-- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas
+- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas ; Qwen3-TTS : voix de référence (`VOX_Generate_Voice_Simplified.json`) ; branché (asset `voix`), voir plus bas
 
 ## Avant de committer un workflow
 
@@ -123,6 +123,26 @@ l'aperçu de la durée.
 soumission (recommandé par la doc de Stability, absent du gabarit du workflow,
 non testé sur ce graphe), et le rôle d'une mention « Length: X seconds » dans un
 prompt brut. Voir le guide.
+
+### `VOX_Generate_Voice_Simplified.json` — voix de référence (Qwen3-TTS Voice Design)
+
+Branché (2026-10-02) : `worker/comfyui/voixMapping.ts` (injection) et `worker/images.ts` (tâche, méthode
+`voix` de `asset_generations`) ; popup `GenerationVoixDialog` à l'étape « Référence » du casting vocal.
+`voixMapping.test.ts` lit ce fichier et casse si un des nœuds ci-dessous disparaît après un ré-export. Trois
+nœuds seulement : le moteur, le concepteur de voix, l'écoute. Variable optionnelle : `COMFYUI_WORKFLOW_VOIX_PATH`.
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Instruction de timbre | `2` (UnifiedVoiceDesignerNode) | `voice_instruction` | en anglais ; aussi recopiée dans `1`.`instruct` |
+| Texte lu | `2` | `reference_text` | au mot près ce que dira la référence ; celui du projet par défaut |
+| Seed | `2` | `seed` | tirée côté serveur |
+| Créativité de la voix | `1` (Qwen3TTSEngineNode) | `temperature` | **0,8 à 1,2**, 1,1 par défaut (curseur de la popup) |
+| Langue du texte lu | `1` | `language` | `English` pour le texte par défaut du projet, sinon la langue de la fiche de voix |
+| Sortie | `3` (PreviewAudio) | — | **remplacé à la soumission** par `SaveAudioMP3` (qualité `V0`, préfixe `audio/cadence_<CODE>`), même id et même source `audio` : `PreviewAudio` écrit un fichier temporaire que le worker ne sait pas relire |
+
+Fixe : modèle `Voice Design - 1.7B VoiceDesign`, `top_k` 50, `top_p` 1, `repetition_penalty` 1,05, `max_new_tokens`
+2048. Le résultat est un **candidat** (comme les images et les sons) : « Utiliser comme référence » le copie sous
+`assets/<CODE>.mp3` et reporte l'instruction et le texte sur la fiche. CosyVoice3 (les répliques) reste à la main.
 
 ## Suivi en direct (WebSocket)
 

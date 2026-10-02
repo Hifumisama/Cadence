@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
+import { getGenerationsAsset } from "@/lib/queries-generations";
 import { getVoixDetail, liensDeLaVoix } from "@/lib/queries-voix";
 import { ETAPES_VOIX, estEtapeVoix, verdictSuppressionVoix, type EtapeVoix } from "@/lib/voix";
 import { Topbar } from "@/components/ui/Topbar";
@@ -19,9 +20,9 @@ export default async function VoixDetailPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string; code: string }>;
-  searchParams: Promise<{ etape?: string }>;
+  searchParams: Promise<{ etape?: string; generation?: string }>;
 }) {
-  const [{ projectId, code }, { etape: etapeBrute }] = await Promise.all([params, searchParams]);
+  const [{ projectId, code }, { etape: etapeBrute, generation: generationBrute }] = await Promise.all([params, searchParams]);
   const pid = Number(projectId);
   const [projet, d, premierEpisodeId] = await Promise.all([
     getProject(pid),
@@ -29,6 +30,7 @@ export default async function VoixDetailPage({
     getFirstEpisodeId(pid),
   ]);
   if (!projet || !d) notFound();
+  const generations = await getGenerationsAsset(d.asset.id);
   const suppression = verdictSuppressionVoix(await liensDeLaVoix(d.asset.id, d.personnage?.id ?? null), d.personnage?.code ?? null);
 
   const { asset, fiche } = d;
@@ -150,6 +152,10 @@ export default async function VoixDetailPage({
                   referenceFichier={asset.fichier}
                   referenceSrc={d.referenceSrc}
                   hrefEtapeVoix={base}
+                  code={asset.code}
+                  generations={generations}
+                  generationInitiale={generationBrute ?? null}
+                  simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
                 />
               </div>
             </>

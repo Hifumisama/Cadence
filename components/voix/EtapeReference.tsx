@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { deposerReference } from "@/app/voix/actions";
+import { GenerationPanel } from "@/components/assets/GenerationPanel";
+import { formatParDefaut } from "@/lib/asset-generation";
+import type { GenerationVue } from "@/lib/queries-generations";
 import { checksReference, type SourceVoix } from "@/lib/voix";
 import { CopierBouton } from "./CopierBouton";
 import { ZoneDepot } from "./ZoneDepot";
 
 /** Étape 2 — la voix de référence. En Voice Design, on la génère à partir de
- * l'instruction et du texte de référence ; en clonage, la référence est déjà
- * l'audio fourni à l'étape 1. La génération n'est pas branchée (pas d'agent ni
- * de système de tâches voix pour l'instant) : le bouton est là, la référence se
- * produit à la main dans ComfyUI et se dépose ici. */
+ * l'instruction et du texte de référence (Qwen3-TTS, depuis Cadence : un candidat à
+ * écouter puis à utiliser) ; en clonage, la référence est déjà l'audio fourni à
+ * l'étape 1. Une référence produite ailleurs se dépose toujours ici. */
 export function EtapeReference({
   assetId,
   source,
@@ -20,6 +22,10 @@ export function EtapeReference({
   referenceFichier,
   referenceSrc,
   hrefEtapeVoix,
+  code,
+  generations,
+  generationInitiale,
+  simule,
 }: {
   assetId: number;
   source: SourceVoix;
@@ -29,6 +35,10 @@ export function EtapeReference({
   referenceFichier: string | null;
   referenceSrc: string | null;
   hrefEtapeVoix: string;
+  code: string;
+  generations: GenerationVue[];
+  generationInitiale: string | null;
+  simule: boolean;
 }) {
   const checks = checksReference({ fichier: referenceFichier, refText });
 
@@ -74,17 +84,28 @@ export function EtapeReference({
       </div>
 
       <div className="gen-mock">
-        <button type="button" className="btn btn-primary" disabled title="La génération vocale n'est pas encore branchée">
-          Générer la voix de référence
-        </button>
-        <span className="badge b-brouillon">
-          <i />
-          Non branchée
-        </span>
+        <GenerationPanel
+          assetId={assetId}
+          code={code}
+          type="voix"
+          methodeGeneration={null}
+          parentCode={null}
+          promptInitial={instruction}
+          raisonBloquee={null}
+          defauts={{ ...formatParDefaut("voix"), lora: false }}
+          registre={[]}
+          imageActuelle={null}
+          dureeSecondes={null}
+          generations={generations}
+          generationInitiale={generationInitiale}
+          simule={simule}
+          voix={{ instruction, texte: refText }}
+          libelleBouton="Générer la voix de référence"
+        />
         <span className="tiny-note">
           {pret
-            ? "En attendant, génère-la dans ComfyUI avec l'instruction et le texte ci-dessus, puis dépose-la."
-            : "Complète l'instruction et le texte de référence (étape Voix), puis génère."}
+            ? "Qwen3-TTS lit le texte avec l'instruction : écoute les candidats, puis utilise le bon. Une référence faite ailleurs se dépose ci-dessous."
+            : "Tu peux compléter l'instruction et le texte dans la fenêtre de génération, ou à l'étape Voix."}
         </span>
       </div>
 

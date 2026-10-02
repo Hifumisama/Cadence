@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { adopterGeneration, supprimerGeneration } from "@/app/assets/generation-actions";
 import { GenerationAudioDialog } from "@/components/assets/GenerationAudioDialog";
 import { GenerationDialog, type GenerationVivante } from "@/components/assets/GenerationDialog";
+import { GenerationVoixDialog } from "@/components/assets/GenerationVoixDialog";
 import { useTaches } from "@/components/taches/TachesProvider";
 import type { Aspect } from "@/lib/asset-generation";
 import type { GenerationVue, SourceDisponible } from "@/lib/queries-generations";
@@ -32,6 +33,8 @@ export function GenerationPanel({
   generations,
   generationInitiale,
   simule,
+  voix,
+  libelleBouton,
 }: {
   assetId: number;
   code: string;
@@ -49,6 +52,9 @@ export function GenerationPanel({
   /** uuid d'une génération à ouvrir d'office (lien `?generation=` de l'indicateur). */
   generationInitiale: string | null;
   simule: boolean;
+  /** Voix du casting (type voix) : l'instruction et le texte de référence de la fiche. */
+  voix?: { instruction: string; texte: string };
+  libelleBouton?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -66,8 +72,9 @@ export function GenerationPanel({
     if (traite.current || !cible) return;
     traite.current = true;
     marquerVuLocal([cleImage(cible.uuid)]);
-    router.replace(pathname, { scroll: false });
-  }, [cible, marquerVuLocal, router, pathname]);
+    // Une voix se génère à l'étape « Référence » du casting : on y reste.
+    router.replace(type === "voix" ? `${pathname}?etape=reference` : pathname, { scroll: false });
+  }, [cible, marquerVuLocal, router, pathname, type]);
 
   // La page ne se recharge que lorsqu'une génération de CET asset change d'état
   // (démarre, finit, échoue, arrive d'un autre onglet) — pas à chaque étape.
@@ -107,9 +114,11 @@ export function GenerationPanel({
           ? {
               ok: true,
               texte:
-                type === "sfx"
-                  ? "Son, prompt et durée adoptés : l'asset repasse « en cours », à revalider."
-                  : "Image et prompt adoptés : l'asset repasse « en cours », à revalider.",
+                type === "voix"
+                  ? "Voix de référence, instruction et texte adoptés : la voix repasse « en cours », à revalider."
+                  : type === "sfx"
+                    ? "Son, prompt et durée adoptés : l'asset repasse « en cours », à revalider."
+                    : "Image et prompt adoptés : l'asset repasse « en cours », à revalider.",
             }
           : { ok: false, texte: r.erreur },
       );
@@ -128,12 +137,29 @@ export function GenerationPanel({
         type="button"
         onClick={() => setOuvert(true)}
         disabled={raisonBloquee != null}
-        title={raisonBloquee ?? (type === "sfx" ? "Générer un son pour cet asset" : "Générer une image pour cet asset")}
+        title={raisonBloquee ?? (type === "voix" ? "Générer la voix de référence" : type === "sfx" ? "Générer un son pour cet asset" : "Générer une image pour cet asset")}
       >
-        Générer…
+        {libelleBouton ?? "Générer…"}
       </button>
 
-      {type === "sfx" ? (
+      {type === "voix" ? (
+        <GenerationVoixDialog
+          assetId={assetId}
+          code={code}
+          instructionInitiale={voix?.instruction ?? promptInitial}
+          texteInitial={voix?.texte ?? ""}
+          generations={vivantes}
+          candidatInitialId={candidatInitialId}
+          ouvert={ouvert}
+          onFermer={() => setOuvert(false)}
+          onAdopter={adopter}
+          onSupprimer={supprimer}
+          onAnnuler={(g) => annuler(cleImage(g.uuid))}
+          occupe={pending}
+          retour={retour}
+          simule={simule}
+        />
+      ) : type === "sfx" ? (
         <GenerationAudioDialog
           assetId={assetId}
           code={code}

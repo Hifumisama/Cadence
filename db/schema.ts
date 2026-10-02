@@ -395,6 +395,12 @@ export const assetGenerations = pgTable("asset_generations", {
   // gardent leurs valeurs par défaut pour l'audio : l'affichage se règle sur la
   // méthode, jamais sur ces deux colonnes.
   dureeSecondes: real("duree_secondes"),
+  // Génération d'une VOIX de référence (méthode « voix », Qwen3-TTS Voice Design) : le texte lu (le prompt
+  // porte l'instruction de timbre), la langue de ce texte et la « température » (créativité de la voix,
+  // 0,8 à 1,2). null pour les images et les sons.
+  texteReference: text("texte_reference"),
+  langueReference: varchar("langue_reference", { length: 40 }),
+  temperature: real("temperature"),
   seed: text("seed").notNull(),
   comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
   fichier: varchar("fichier", { length: 255 }),

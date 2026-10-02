@@ -48,6 +48,9 @@ export async function getGenerationsAsset(assetId: number) {
     loraPersonnage: g.loraPersonnage,
     /** Durée demandée (génération audio), null pour une image. */
     dureeSecondes: g.dureeSecondes,
+    /** Génération de voix : le texte lu et la créativité demandée, null sinon. */
+    texteReference: g.texteReference,
+    temperature: g.temperature,
     erreur: g.erreur,
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
     src: g.statut === "termine" ? generationMediaSrc(assetId, g.fichier) : null,

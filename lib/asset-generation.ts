@@ -139,6 +139,50 @@ export function raisonDemandeAudioInvalide(d: DemandeAudio): string | null {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Génération d'une VOIX de référence (Qwen3-TTS Voice Design —
+// workflows/audio/VOX_Generate_Voice_Simplified.json). Même table et même file que
+// les images et les sons (`asset_generations`, méthode « voix »). Le prompt de la
+// génération est l'instruction de timbre ; le texte lu, sa langue et la température
+// sont des paramètres séparés.
+// ---------------------------------------------------------------------------
+
+export const METHODE_VOIX = "voix";
+/** « Température » de Qwen3-TTS : le niveau de créativité de la voix. */
+export const TEMPERATURE_VOIX_MIN = 0.8;
+export const TEMPERATURE_VOIX_MAX = 1.2;
+export const TEMPERATURE_VOIX_DEFAUT = 1.1;
+
+/** Ce que le casting envoie à `lancerGenerationVoix`. La seed est tirée côté serveur. */
+export type DemandeVoix = {
+  instruction: string;
+  texteReference: string;
+  temperature: number;
+};
+
+export function temperatureVoixValide(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v >= TEMPERATURE_VOIX_MIN && v <= TEMPERATURE_VOIX_MAX;
+}
+
+/** Seule une voix (asset de type `voix`) se génère ainsi. */
+export function raisonVoixNonGenerable(type: string): string | null {
+  return type === "voix" ? null : "La génération de voix ne concerne que les voix du casting (type voix).";
+}
+
+/** Validation de la structure d'une demande de voix (sans base ni disque). */
+export function raisonDemandeVoixInvalide(d: DemandeVoix): string | null {
+  if (!d.instruction?.trim()) return "Écris l'instruction de la voix (étape Voix du casting).";
+  if (!d.texteReference?.trim()) return "Écris le texte de référence (étape Voix du casting).";
+  if (!temperatureVoixValide(d.temperature)) return `Créativité hors limites (${TEMPERATURE_VOIX_MIN} à ${TEMPERATURE_VOIX_MAX}).`;
+  return null;
+}
+
+/** Langue du texte lu par Qwen3-TTS : le texte de référence du projet est en anglais (le même pour toutes les
+ * voix) ; un texte différent est supposé écrit dans la langue de la fiche de voix. */
+export function langueDuTexteDeReference(texte: string, texteParDefaut: string, langueFiche: string): string {
+  return texte.trim() === texteParDefaut.trim() ? "English" : langueFiche.trim() || "French";
+}
+
 /** « 4 s », « 2,5 s » : durée d'un son pour l'affichage. */
 export function formaterDuree(secondes: number): string {
   return `${String(Math.round(secondes * 10) / 10).replace(".", ",")} s`;

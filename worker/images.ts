@@ -3,13 +3,14 @@ import { extname, join, resolve } from "node:path";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
-import { CANDIDATS_GARDES, METHODE_AUDIO, estAspect, nomSourceDistante } from "../lib/asset-generation";
+import { CANDIDATS_GARDES, METHODE_AUDIO, METHODE_VOIX, estAspect, nomSourceDistante } from "../lib/asset-generation";
 import { annulationDemandeeImage, finirAnnulationImage } from "../lib/annulation-db";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";
 import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from "../lib/media";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import type { ComfyUIClient } from "./comfyui";
 import { NODE_IDS_AUDIO, injecterGenerationAudio } from "./comfyui/audioMapping";
+import { NODE_IDS_VOIX, injecterGenerationVoix } from "./comfyui/voixMapping";
 import {
   NODE_IDS_EDITION,
   NODE_IDS_TEXTE_VERS_IMAGE,
@@ -22,8 +23,9 @@ import { creerRelais } from "./progression";
 
 // Tâche de génération d'asset : text-to-image (Krea 2 Turbo, IMG_01_TextToImage,
 // méthode « generation »), à partir de 1 à 3 images (Qwen Image Edit 2511,
-// IMG_Simple_Edit, méthode « edition ») ou son (Stable Audio 3,
-// SFX_Generate_Sounds, méthode « audio »). Une génération n'est
+// IMG_Simple_Edit, méthode « edition »), son (Stable Audio 3,
+// SFX_Generate_Sounds, méthode « audio ») ou voix de référence (Qwen3-TTS Voice Design,
+// VOX_Generate_Voice_Simplified, méthode « voix »). Une génération n'est
 // pas rejouée automatiquement : un échec s'affiche avec son message et
 // l'utilisateur relance (contrairement aux plans H3, une image se refait en
 // quelques secondes). Une API ComfyUI injoignable ne consomme rien : la demande
@@ -37,6 +39,8 @@ const CHEMIN_WORKFLOW_EDITION = () =>
   resolve(process.env.COMFYUI_WORKFLOW_EDITION_PATH ?? "./workflows/image-refs/IMG_Simple_Edit.json");
 const CHEMIN_WORKFLOW_AUDIO = () =>
   resolve(process.env.COMFYUI_WORKFLOW_AUDIO_PATH ?? "./workflows/audio/SFX_Generate_Sounds.json");
+const CHEMIN_WORKFLOW_VOIX = () =>
+  resolve(process.env.COMFYUI_WORKFLOW_VOIX_PATH ?? "./workflows/audio/VOX_Generate_Voice_Simplified.json");
 
 type Generation = typeof assetGenerations.$inferSelect;
 
@@ -125,9 +129,22 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
 
   try {
     const edition = gen.methode === "edition";
-    const audio = gen.methode === METHODE_AUDIO;
+    const voix = gen.methode === METHODE_VOIX;
+    // Une voix est un son pour tout ce qui suit (pas d'aperçu, fichier audio, pas de vignette).
+    const audio = gen.methode === METHODE_AUDIO || voix;
     let graphe: WorkflowJson;
-    if (audio) {
+    if (voix) {
+      if (gen.texteReference == null || gen.temperature == null) throw new Error("Texte de référence ou créativité absents de la génération de voix");
+      const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_VOIX(), "utf-8")) as WorkflowJson;
+      graphe = injecterGenerationVoix(brut, {
+        instruction: gen.prompt,
+        texteReference: gen.texteReference,
+        langue: gen.langueReference ?? "English",
+        temperature: gen.temperature,
+        seed: gen.seed,
+        prefixeSortie: `audio/cadence_${asset.code}`,
+      });
+    } else if (audio) {
       if (gen.dureeSecondes == null) throw new Error("Durée absente de la génération audio");
       const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_AUDIO(), "utf-8")) as WorkflowJson;
       graphe = injecterGenerationAudio(brut, {
@@ -158,7 +175,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         prefixeSortie: `cadence_${asset.code}`,
       });
     }
-    const noeudSortie = audio ? NODE_IDS_AUDIO.sortie : edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
+    const noeudSortie = voix ? NODE_IDS_VOIX.sortie : audio ? NODE_IDS_AUDIO.sortie : edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
 
     // Le WebSocket s'ouvre AVANT la soumission (sinon un prompt court finit avant
     // qu'on l'écoute). Il ne décide de rien : le résultat vient de /history, la
@@ -199,7 +216,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         .update(assetGenerations)
         .set({ statut: "termine", fichier: nom, finishedAt: new Date() })
         .where(eq(assetGenerations.id, gen.id));
-      console.log(`[worker] Génération ${gen.id} (${asset.code}${audio ? ", son" : ""}) terminée : ${nom}`);
+      console.log(`[worker] Génération ${gen.id} (${asset.code}${voix ? ", voix" : audio ? ", son" : ""}) terminée : ${nom}`);
       await purgerAnciens(gen.assetId, mediaRoot);
       return true;
     }
