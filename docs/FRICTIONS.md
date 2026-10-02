@@ -1117,8 +1117,8 @@ validée par l'utilisateur. Décisions :
   `prompt-asset` → modifier le prompt d'un asset (méthode et durée d'un son si elles
   diffèrent) ; `scenario-episode` → scènes et plans d'un épisode (l'existant du même
   titre est modifié, le reste créé), un plan à insérer, ou la correction d'un plan.
-  Les répliques d'un scénario ne sont **pas** écrites (pas d'applicateur) : elles
-  restent en avertissement `non_pris_en_charge` sur le plan.
+  Les répliques d'un scénario SONT écrites et liées à leur plan (applicateur `replique`, ajouté
+  depuis ; vérifié à l'usage le 2026-10-02) : le locuteur est rapproché du registre, jamais créé.
 - **Insertion d'un plan** : pas de « + » dans la navigation. Le changement « créer un
   plan » porte une POSITION (`apresPlanUuid`, début ou fin) ; l'application réutilise la
   logique d'ordre du glisser-déposer (`lib/ordre-plans.ts`, extraite de
@@ -1145,7 +1145,8 @@ validée par l'utilisateur. Décisions :
   est refusé (parent non retenu, code d'asset déjà pris, plan de repère disparu…) ; le
   message dit lequel. La proposition passe `appliquee` (tous ses changements appliqués)
   ou `partielle` (certains écartés, bloqués ou refusés d'office). La suppression
-  n'est pas prise en charge (refus explicite) ; une voix ne se crée pas par ce chemin.
+  n'est pas prise en charge (refus explicite) ; une voix ne se crée que par l'étape « casting des voix »
+  (voir plus bas, 2026-10-02), jamais par une autre proposition.
 - **Hors lot** : point de retour / annulation d'une proposition appliquée, enchaînement
   automatique des étapes (validation manuelle à chaque revue), page Monitoring (seule
   `listerPropositions` existe), applicateurs de répliques, de plan H3 (sections du
@@ -1349,6 +1350,28 @@ Un LOT, comme les scénarios (même infrastructure, voir « Étape 1 »). Décis
 - Code : `lib/agents/registre.ts` (pur), `depuisRegistreAsset` (conversion), `entreePromptAssetCandidat`
   (entrée du skill), `genererRegistre` (service), `postSousTacheRegistre` (worker), `ChoixAssets` (UI).
   Testé : `lib/agents/registre.test.ts` et `npm run agents:e2e` (scénario du registre, faux modèle).
+
+### Casting des voix : une étape du pipeline, entre le registre et les fiches de plan (2026-10-02)
+Constat (utilisateur) : les scénarios écrivent des répliques, mais aucune voix n'existait pour les dire
+(répliques « orphelines »). Décision (utilisateur, option A) : une étape dédiée crée les voix manquantes.
+**Révise** deux décisions : « la voix se crée et s'édite uniquement au casting vocal » (2026-09-30) et
+« une voix ne se crée pas par ce chemin » (système d'agents, 2026-10-02). Désormais la **création** d'une voix
+peut passer par une proposition de cette étape ; son **édition** reste au casting vocal, et le son se génère
+toujours à part (ComfyUI, non branché).
+- **Qui a besoin d'une voix** : un personnage du registre avec au moins une réplique et sans fiche de voix
+  (un personnage n'en a qu'une), et la **voix off** si des répliques « voix off » n'ont aucune voix « off »
+  au registre. Un locuteur libre (absent du registre) n'en reçoit pas : c'est une invention à valider.
+  Un code `VOICE_x` déjà pris sans rattachement bloque le candidat (à rattacher au casting).
+- **Un lot** `prompt-voix`, une sous-tâche par voix (clé `voix:CHAR_maya`, `voix:off`), comme le registre ;
+  entrée : le personnage et sa description, l'impression vocale du brief, quelques répliques, les voix déjà au
+  casting. Sortie : l'instruction de timbre (Voice Design) et des remarques.
+- **Cible de changement `voix`** (création seulement) : l'applicateur crée l'asset `VOICE_*` (instruction en
+  prompt de génération, description canonique reprise du personnage) et sa `voix_fiches` rattachée au
+  personnage, avec le texte de référence par défaut du projet. Autorisée depuis toute portée (comme un asset
+  manquant). Code : `lib/agents/voix-casting.ts` (pur), `conversion.depuisCastingVoix`,
+  `applicateurs/voix.ts`, `service.genererVoix`, `postSousTacheVoix` (worker), `ChoixVoix` (« Continuer »
+  après le registre). Testé en pur (`voix-casting.test.ts`) ; l'application en base reste à essayer à la main.
+- Ordre du pipeline : brief → squelette → scénarios → registre → **voix** → fiches de plan.
 
 ### Étape 3 en préparation : entrée de plan-h3 et essai de qualité (2026-10-02)
 - `entreePlanH3` (lib/agents/contexte.ts) assemble l'entrée de `plan-h3` pour un plan : intention,

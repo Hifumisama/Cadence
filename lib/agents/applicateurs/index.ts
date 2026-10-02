@@ -3,6 +3,7 @@ import { applicateurAsset } from "./asset";
 import { applicateurBrief } from "./brief";
 import { applicateurPlan } from "./plan";
 import { applicateurReplique } from "./replique";
+import { applicateurVoix } from "./voix";
 import type { Applicateur } from "./commun";
 import { applicateurEpisode, applicateurProjet, applicateurSaison, applicateurScene } from "./structure";
 
@@ -17,6 +18,7 @@ const REGISTRE: Partial<Record<CibleType, Applicateur>> = {
   asset: applicateurAsset,
   plan: applicateurPlan,
   replique: applicateurReplique,
+  voix: applicateurVoix,
 };
 
 export function applicateurDe(type: string): Applicateur | null {

@@ -158,6 +158,17 @@ export async function genererRegistre(
   return rafraichir(await service.genererRegistre(conversationUuid, options));
 }
 
+/** Casting des voix : crée une voix pour chaque personnage qui parle et n'en a pas (et la voix off si des
+ * répliques la réclament) : un lot, une sous-tâche `prompt-voix` par voix. `cles` = les voix à traiter (par
+ * défaut : toutes celles qui manquent). Depuis la conversation du PROJET. La voix s'édite ensuite au casting
+ * vocal ; le son se génère à part. */
+export async function genererVoix(
+  conversationUuid: string,
+  options: { cles?: string[]; consigne?: string } = {},
+) {
+  return rafraichir(await service.genererVoix(conversationUuid, options));
+}
+
 /** « Écrire les scénarios » (étape 1 du pipeline) depuis une conversation de portée PROJET ou
  * SAISON, par exemple depuis l'étape « Appliqué » du squelette : une proposition EN LOT, une
  * sous-tâche (une tâche `scenario-episode`) par épisode, exécutées l'une après l'autre dans la file.

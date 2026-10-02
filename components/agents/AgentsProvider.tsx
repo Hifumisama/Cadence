@@ -21,7 +21,7 @@ export type DemandeAgent = {
   conversationUuid?: string;
   /** Vue directe : « registre » ouvre le sélecteur de la création du registre d'assets (depuis la
    * page des assets), sans passer par les étapes d'une conversation. */
-  vue?: "registre";
+  vue?: "registre" | "voix";
 };
 
 type Contexte = {

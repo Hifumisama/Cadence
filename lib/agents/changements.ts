@@ -55,7 +55,8 @@ export const TITRES_GROUPES: Record<string, string> = {
   plans: "Plans",
   repliques: "Répliques",
   assets: "Assets",
+  voix: "Voix",
 };
 
 /** Ordre d'affichage des groupes ; l'écrasement vient toujours en tête. */
-export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "saison", "episodes", "scenes", "plans", "repliques", "assets"];
+export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "saison", "episodes", "scenes", "plans", "repliques", "assets", "voix"];

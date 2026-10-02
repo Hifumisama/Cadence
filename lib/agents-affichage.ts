@@ -249,6 +249,7 @@ export const LIBELLE_CIBLE = {
   asset: "Asset",
   plan: "Plan",
   replique: "Réplique",
+  voix: "Voix",
 } as const;
 
 export type GraviteAvertissement = "info" | "attention" | "bloquant";

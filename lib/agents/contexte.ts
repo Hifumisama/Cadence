@@ -1,8 +1,10 @@
 import { and, asc, eq, gt, inArray, lt } from "drizzle-orm";
-import { assets, briefs, episodes, planDialogues, planRefs, plans, projects, repliques, scenes, seasons } from "../../db/schema";
+import { assets, briefs, episodes, planDialogues, planRefs, plans, projects, repliques, scenes, seasons, voixFiches } from "../../db/schema";
 import { variantePromptAsset } from "../llm/variantes";
 import type { Db } from "./applicateurs/commun";
+import { normaliser } from "./locuteurs";
 import type { BriefContenu, ContexteUtilise, Position } from "./types";
+import type { CandidatVoix } from "./voix-casting";
 
 /** Ce que l'agent lit AUTOMATIQUEMENT pour une portée courte : des extraits du brief et de
  * l'état courant, jamais le brief entier d'office. Chaque fonction renvoie l'entrée du skill
@@ -141,6 +143,45 @@ export async function entreePromptAssetCandidat(
       plansQuiLeCitent: [],
       clauseStyleDuProjet: projet?.clauseStyle ?? "",
       memeFamille: [],
+      briefExtrait: extrait,
+      consigne,
+      ...(retour ? { retourUtilisateur: retour } : {}),
+    },
+  };
+}
+
+/** L'entrée de `prompt-voix` pour une voix du CASTING (étape « casting des voix ») : le personnage (ou la
+ * voix off), ce que le brief en dit, quelques-unes de ses répliques (elles disent la prosodie attendue) et
+ * les voix déjà au casting (pour que la nouvelle s'en distingue). */
+export async function entreePromptVoixCandidat(db: Db, projectId: number, cand: CandidatVoix, consigne: string, retour?: string): Promise<EntreeSkill> {
+  const brief = await lireBriefDuProjet(db, projectId);
+  const { extrait, contexte } = extraitsBrief(brief?.contenu ?? null);
+  const nomCandidat = normaliser(cand.nom);
+  const duBrief = (brief?.contenu.personnages ?? []).find((p) => normaliser(p.nom ?? "") === nomCandidat);
+  const deja = await db
+    .select({ code: assets.code, instruction: assets.promptGeneration, description: assets.description, personnageId: voixFiches.personnageId })
+    .from(assets)
+    .innerJoin(voixFiches, eq(voixFiches.assetId, assets.id))
+    .where(eq(assets.projectId, projectId))
+    .orderBy(asc(assets.code));
+  return {
+    skill: "prompt-voix",
+    contexte: [
+      { type: "asset", libelle: `${cand.codeVoix} · ${cand.personnageCode ? `voix de ${cand.personnageCode}` : "voix off"}`, ref: cand.codeVoix },
+      ...(cand.nbRepliques ? [{ type: "plan" as const, libelle: `${cand.nbRepliques} réplique${cand.nbRepliques > 1 ? "s" : ""} de cette voix` }] : []),
+      ...(deja.length ? [{ type: "voix" as const, libelle: `${deja.length} voix déjà au casting (pour s'en distinguer)` }] : []),
+      ...contexte,
+    ],
+    entree: {
+      voix: {
+        code: cand.codeVoix,
+        personnage: cand.personnageCode ? { code: cand.personnageCode, descriptionCanonique: cand.description } : null,
+        role: cand.personnageCode ? "" : "voix off",
+      },
+      impressionVocaleDuBrief: duBrief?.voix ?? "",
+      langueDesDialogues: brief?.contenu.langueDialogues ?? "",
+      repliquesDeLaVoix: cand.exemples,
+      voixDejaAuCasting: deja.map((v) => ({ code: v.code, instruction: v.instruction ?? "", description: v.description ?? "" })),
       briefExtrait: extrait,
       consigne,
       ...(retour ? { retourUtilisateur: retour } : {}),

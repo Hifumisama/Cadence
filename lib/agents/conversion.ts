@@ -94,6 +94,39 @@ export function depuisRegistreAsset(sortie: SortiePromptAsset, a: AssetDuRegistr
   ];
 }
 
+// --- prompt-voix (casting des voix) ------------------------------------------
+
+export type SortiePromptVoix = {
+  instruction: string;
+  refText?: string;
+  remarques: { type: string; message: string }[];
+};
+
+/** Une voix du casting (étape « casting des voix ») : toujours une CRÉATION. `personnageId` rattache la
+ * voix à son personnage (null : voix off). `description` est celle du personnage, reprise comme description
+ * canonique du timbre tant que l'utilisateur n'en a pas écrit une. */
+export type VoixDuCasting = { codeVoix: string; suffixe: string; personnageId: number | null; personnageCode: string | null; description: string };
+
+export function depuisCastingVoix(sortie: SortiePromptVoix, v: VoixDuCasting): ChangementBrut[] {
+  return [
+    {
+      groupe: "voix",
+      cibleType: "voix",
+      cibleRef: null,
+      libelle: `${v.codeVoix} · nouvelle voix${v.personnageCode ? ` de ${v.personnageCode}` : ""}`,
+      operation: "creer",
+      apres: {
+        suffixe: v.suffixe,
+        personnageId: v.personnageId,
+        description: v.description.trim(),
+        instruction: sortie.instruction.trim(),
+        ...(sortie.refText?.trim() ? { refText: sortie.refText.trim() } : {}),
+      },
+      avertissements: avertissementsRemarques(sortie.remarques ?? []),
+    },
+  ];
+}
+
 // --- scenario-episode -------------------------------------------------------
 
 export type SortieScenarioEpisode = {

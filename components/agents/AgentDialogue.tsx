@@ -8,6 +8,7 @@ import { lireBriefVue, lireConversationVue, lirePropositionCouranteVue } from "@
 import type { DemandeAgent } from "@/components/agents/AgentsProvider";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { ChoixAssets } from "@/components/agents/ChoixAssets";
+import { ChoixVoix } from "@/components/agents/ChoixVoix";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { EtapeApplique } from "@/components/agents/EtapeApplique";
 import { EtapeBrief } from "@/components/agents/EtapeBrief";
@@ -120,6 +121,9 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
   // proposition n'est en cours ; dès que le lot est posé (étape « proposition » du serveur), c'est la
   // revue habituelle qui prend le relais, comme pour toute proposition.
   const vueRegistre = demande.vue === "registre" && !!conv && etapeServeur !== "proposition" && etapeServeur !== "applique";
+  // Même principe pour « créer les voix manquantes » (page du casting vocal).
+  const vueVoix = demande.vue === "voix" && !!conv && etapeServeur !== "proposition" && etapeServeur !== "applique";
+  const vueDirecte = vueRegistre || vueVoix;
   useEffect(() => {
     if (etapeServeur) setAffichee(etapeServeur);
   }, [etapeServeur, conv?.uuid]);
@@ -228,7 +232,7 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
         </div>
       </div>
 
-      {conv && !vueRegistre ? (
+      {conv && !vueDirecte ? (
         <div className="ag-sous-tete">
           <FilEtapes etapes={filEtapes(conv.profondeur, etapeServeur ?? "consigne", affichee)} onAller={setAffichee} />
           {reprend ? (
@@ -273,7 +277,15 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
             </div>
           </>
         ) : null}
-        {ctx && !vueRegistre ? (
+        {ctx && vueVoix ? (
+          <>
+            <ChoixVoix ctx={ctx} />
+            <div className="ag-etape-corps">
+              <EtatTacheAgent tache={ctx.conv.tache} />
+            </div>
+          </>
+        ) : null}
+        {ctx && !vueDirecte ? (
           <>
             {affichee === "consigne" ? <EtapeConsigne ctx={ctx} /> : null}
             {affichee === "conversation" ? <EtapeConversation ctx={ctx} /> : null}

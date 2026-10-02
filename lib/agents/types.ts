@@ -30,7 +30,7 @@ export type Operation = (typeof OPERATIONS)[number];
 /** Ce qu'un changement touche. Les applicateurs existent pour tous ces types. `replique`
  * (2026-10-02, étape « scénarios ») : une réplique créée liée à son plan (locuteur du registre
  * ou libre, jamais d'asset créé par ce chemin). */
-export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan", "replique"] as const;
+export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan", "replique", "voix"] as const;
 export type CibleType = (typeof CIBLES)[number];
 
 /** Qui a posé un champ du brief : `fourni` (l'utilisateur l'a dit ou corrigé),
@@ -185,7 +185,7 @@ export type VueConversation = {
 
 /** Ce que l'agent a lu automatiquement (la ligne « contexte utilisé » dépliable). */
 export type ContexteUtilise = {
-  type: "brief" | "projet" | "saison" | "episode" | "plan" | "asset" | "registre";
+  type: "brief" | "projet" | "saison" | "episode" | "plan" | "asset" | "registre" | "voix";
   libelle: string;
   ref?: string;
 };

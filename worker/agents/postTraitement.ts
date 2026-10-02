@@ -8,16 +8,19 @@ import {
   depuisCorrectionPlan,
   depuisPlanAInserer,
   depuisPromptAsset,
+  depuisCastingVoix,
   depuisRegistreAsset,
   depuisScenarioEpisode,
   type EpisodeCourant,
   type SortiePromptAsset,
+  type SortiePromptVoix,
   type SortieScenarioEpisode,
 } from "../../lib/agents/conversion";
 import { finaliserLot, runsDuLot } from "../../lib/agents/lots";
 import { PAS_ORDRE_SOUS_TACHE, episodeIdDeCle, groupeEpisode, rangSousTache } from "../../lib/agents/lots-pur";
 import { entreeScenarioEpisode } from "../../lib/agents/contexte";
 import { codeDeCleAsset } from "../../lib/agents/registre";
+import { codeDeCleVoix } from "../../lib/agents/voix-casting";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
 import type { BriefContenu, Position, StatutChamp } from "../../lib/agents/types";
 import type { Tx } from "../../lib/ordre-plans";
@@ -82,6 +85,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown) {
   // Lot : cette tâche n'est qu'une SOUS-TÂCHE (un épisode) d'une proposition plus grande.
   if (prop.lot) {
     if (run.skill === "prompt-asset") return postSousTacheRegistre(tx, run, prop, scope, json as SortiePromptAsset);
+    if (run.skill === "prompt-voix") return postSousTacheVoix(tx, run, prop, scope, json as SortiePromptVoix);
     return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
   }
 
@@ -182,6 +186,40 @@ async function postSousTacheRegistre(
     existant: existant
       ? { id: existant.id, code: existant.code, type: existant.type, methodeGeneration: existant.methodeGeneration, methodeApplicable: methodeApplicable(existant.type) }
       : null,
+  });
+  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
+  await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
+/** Une sous-tâche du lot « casting des voix » (une voix) : la création de la voix est proposée avec son
+ * instruction de timbre. Même règle que le registre : ses changements REMPLACENT ceux qu'elle avait posés
+ * (relance), idempotent, puis le lot décide de son statut. */
+async function postSousTacheVoix(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "saison" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortiePromptVoix,
+) {
+  const cle = run.cleSousTache;
+  if (!cle || codeDeCleVoix(cle) == null) throw new Error(`Sous-tâche de voix inconnue (« ${cle ?? "?"} »).`);
+  const entree = run.entree as { voix?: { code?: string; personnage?: { code?: string; descriptionCanonique?: string } | null } };
+  const codeVoix = entree.voix?.code;
+  if (!codeVoix) throw new Error("Sous-tâche de voix sans code de voix.");
+  const personnageCode = entree.voix?.personnage?.code ?? null;
+  let personnageId: number | null = null;
+  if (personnageCode) {
+    const [perso] = await tx.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, prop.projectId), eq(assets.code, personnageCode), eq(assets.type, "personnage")));
+    if (!perso) throw new Error(`Le personnage ${personnageCode} n'existe plus : la voix n'a pas pu être rattachée.`);
+    personnageId = perso.id;
+  }
+  const bruts = depuisCastingVoix(sortie, {
+    codeVoix,
+    suffixe: codeVoix.includes("_") ? codeVoix.slice(codeVoix.indexOf("_") + 1) : codeVoix,
+    personnageId,
+    personnageCode,
+    description: entree.voix?.personnage?.descriptionCanonique ?? "",
   });
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });

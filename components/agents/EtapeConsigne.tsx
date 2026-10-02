@@ -18,6 +18,7 @@ const LIBELLE_CONTEXTE: Record<ContexteUtilise["type"], string> = {
   plan: "Plan",
   asset: "Asset",
   registre: "Registre",
+  voix: "Voix",
 };
 
 type ChoixPosition = "debut" | "fin" | `apres:${string}`;

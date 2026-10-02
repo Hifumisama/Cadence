@@ -15,10 +15,10 @@ Conséquence : **tu n'écris pas de texte de référence**. Tout repose sur l'in
 
 ## Ce que tu reçois
 
-- Le **personnage** rattaché à la voix, avec sa description canonique, ou un rôle (voix off, narrateur) s'il n'a pas de personnage.
-- Le **brief** : ton, langue des dialogues (celle des répliques, dites par CosyVoice3), impression vocale pressentie.
-- Les **voix déjà au casting** du projet, avec leurs instructions : pour que la nouvelle s'en distingue.
-- Quelques **répliques** du personnage, quand elles existent : elles disent la prosodie qu'on lui attend (phrases longues ou hachées, ton).
+- `voix` : le **personnage** rattaché à la voix (`personnage.code` et sa `descriptionCanonique`), ou, s'il n'y en a pas, un `role` (voix off, narrateur).
+- `impressionVocaleDuBrief` et `briefExtrait` : le **brief** (ton, impression vocale pressentie) ; `langueDesDialogues` est celle des répliques, dites par CosyVoice3.
+- `voixDejaAuCasting` : les **voix déjà au casting** du projet, avec leurs instructions, pour que la nouvelle s'en distingue.
+- `repliquesDeLaVoix` : quelques **répliques**, quand elles existent : elles disent la prosodie qu'on lui attend (phrases longues ou hachées, ton).
 
 ## Le principe : une voix mémorable ne vient pas du modèle
 
