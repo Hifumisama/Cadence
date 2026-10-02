@@ -277,7 +277,8 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
  * devinée (voir agents/skills/plan-h3/regles.md, « Ce que tu reçois ») :
  * - `plan` : titre, intention (la description narrative, une ou deux phrases), position dans la scène,
  *   durée visée et fps ;
- * - `scene`, `episode` : de quoi situer le plan ;
+ * - `scene` (titre, fonction, et les intentions de TOUS ses plans dans l'ordre, `cePlan` marquant celui qu'on
+ *   écrit : c'est le seul « texte » de la scène), `episode` : de quoi situer le plan ;
  * - `plansVoisins` : le précédent et le suivant (pour le raccord), titre et description ;
  * - `registre` : pour chaque asset candidat (hors voix, sons et plans clés) son code, sa description
  *   canonique (français), sa méthode, son prompt de génération (anglais) et s'il a déjà son fichier
@@ -365,7 +366,19 @@ export async function entreePlanH3(
         dureeViseeSecondes: p.dureeGenerationSecondes,
         fps: p.fps,
       },
-      scene: scene ? { titre: scene.titre, fonction: scene.fonction ?? "" } : null,
+      // La scène n'a pas de texte narratif en base : son contenu, ce sont les intentions de ses plans, dans l'ordre.
+      scene: scene
+        ? {
+            titre: scene.titre,
+            fonction: scene.fonction ?? "",
+            plans: dansLaScene.map((x, k) => ({
+              position: k + 1,
+              titre: x.titre,
+              intention: (x.description ?? "").trim().slice(0, 400),
+              ...(x.uuid === p.uuid ? { cePlan: true } : {}),
+            })),
+          }
+        : null,
       episode: { titre: c.ep.titre, resume: c.ep.resume },
       plansVoisins: { precedent: voisin(c.lesPlans[i - 1]), suivant: voisin(c.lesPlans[i + 1]) },
       registre: candidats,

@@ -1,4 +1,4 @@
-import { MAX_AUDIOS, MAX_IMAGES, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
+import { COUPE_RETIRABLE, MAX_AUDIOS, MAX_IMAGES, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
 
 /** ASSEMBLAGE du prompt H3 à partir du brouillon de `plan-h3` (voir agents/skills/plan-h3/regles.md).
  * Pur, déterministe : le modèle écrit la prose, le code pose tout ce qui est mécanique :
@@ -57,9 +57,33 @@ export function timecode(secondes: number): string {
 function corpsDeShot(texte: string, premier: boolean): string {
   let t = texte.trim().replace(/^\[Shot\s+\d+[^\]]*\]\s*/i, "");
   if (!premier) {
-    t = t.replace(/^(?:at\s+\d{1,2}:\d{2}(?:\.\d{1,3})?\s*[,:]?\s*)?(?:(?:the\s+shot\s+)?(?:hard\s+)?cuts?\s*(?:to\s*)?[,:.—-]?\s*)?/i, "");
+    // Seule la coupe suivie de « to » / « on » se retire sans casser la phrase ; le reste est signalé par les contrôles.
+    t = t.replace(COUPE_RETIRABLE, "");
+    if (/^at\s+\d{1,2}:\d{2}/i.test(t)) t = t.replace(/^at\s+\d{1,2}:\d{2}(?:\.\d{1,3})?\s*[,:]?\s*/i, "");
+    // « Hard cut to » précède : l'article d'ouverture s'écrit en minuscule (« Hard cut to a close-up… »).
+    t = t.replace(/^(A|An|The)\b/, (m) => m.toLowerCase());
   }
   return t.trim();
+}
+
+/** Note de rétention par défaut, quand le modèle n'en écrit pas : elle suit le niveau choisi. */
+function noteParDefaut(nom: string, retention: string): string {
+  switch (retention) {
+    case "partially_preserved":
+      return `${nom} is used with some of its traits changed in this shot`;
+    case "attribute_transfer":
+      return `some traits of ${nom} are transferred to another subject`;
+    case "weak_reference":
+      return `only a general resemblance to ${nom} is kept`;
+    case "fully_copy":
+      return `${nom} is reused as is`;
+    case "partially_copy":
+      return `part of ${nom} is reused`;
+    case "reference":
+      return `the character of ${nom} is referenced without copying the signal`;
+    default:
+      return `the appearance of ${nom} is retained`;
+  }
 }
 
 export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): PromptAssemble {
@@ -131,7 +155,7 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
   const retention_analysis = ordre
     .map(({ r, a }) => {
       const nom = espaces(r.nom);
-      const note = espaces(r.retentionNote ?? "") || (a.nature === "image" ? `the appearance of ${nom} is retained` : `the character of ${nom} is referenced without copying the signal`);
+      const note = espaces(r.retentionNote ?? "") || noteParDefaut(nom, a.retention);
       if (a.nature === "son") return `${a.label}: ${a.retention} - ${finir(note)}`;
       const dans = shots.map((_, i) => i).filter((i) => citeDans(r.asset, corps[i]!)).map((i) => `[Shot ${i + 1}]`);
       return `${a.label} (${dans.length ? `appears in ${dans.join(", ")}` : "not cited in a shot"}): ${a.retention} - ${finir(note)}`;

@@ -7,7 +7,7 @@ Tu écris **un seul plan** pour MiniMax H3 (Hailuo 3), en mode full-reference, 2
 Le contexte est assemblé par l'application, jamais deviné :
 
 - **Le brief** du projet : style visuel (la clause de style), continuité, rimes, pièges.
-- **L'épisode et la scène** : résumé, texte narratif de la scène.
+- **L'épisode et la scène** : résumé de l'épisode ; titre et fonction de la scène, avec l'intention de **tous ses plans** dans l'ordre (`cePlan` marque celui que tu écris). Une scène n'a pas d'autre texte : lis les intentions voisines pour savoir **qui** fait quoi (un geste d'un personnage peut n'être nommé que dans le plan d'à côté).
 - **Ce que tu dois écrire** : l'intention du plan (une ligne) et sa position dans la scène.
 - **Les plans voisins** (avant et après), pour le raccord : direction d'écran, mouvement de caméra, lumière, position des personnages.
 - **Le registre** : pour chaque asset candidat, son code, son type, sa description canonique (français), sa méthode, son **prompt de génération** (anglais) et `aUnFichier` (l'image ou le son existe déjà). Ce sont des repères pour rester fidèle à l'asset : le rôle de l'asset dans CE plan, c'est toi qui l'écris. Un asset sans fichier se référence quand même : il sera produit.
@@ -35,6 +35,8 @@ Le contrat de sortie est dans `sortie.schema.json`. Chaque exemple montre un bro
 - **`repliques`**, **`assetsManquants`**, **`notes`**, **`titre`**, **`dureeSecondes`**.
 
 Le guide `guide-h3-compact.md` explique comment rédiger chaque champ.
+
+**Les exemples montrent la forme, jamais le contenu.** Ne recopie aucune phrase d'un exemple (ni description de décor, ni ambiance sonore, ni musique) : écris celles de ce plan, à partir de son intention et du registre.
 
 ## Règles de rédaction
 

@@ -17,7 +17,7 @@ const FIXTURES = join("lib", "agents", "fixtures", "plan-h3");
 
 function brouillon(nom: string): SortiePlanH3 {
   const md = readFileSync(join(DOSSIER, nom), "utf-8");
-  const m = /```json\n([\s\S]*?)\n```/.exec(md);
+  const m = /```json\r?\n([\s\S]*?)\r?\n```/.exec(md);
   assert.ok(m, `${nom} : bloc json introuvable`);
   return JSON.parse(m![1]!) as SortiePlanH3;
 }

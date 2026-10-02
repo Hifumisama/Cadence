@@ -151,3 +151,21 @@ test("un label écrit à la main qui ne correspond à rien remonte en alerte", (
   const r = assemblerPlanH3({ ...multi, summary: "[[CHAR_maya]] and <Subject 5>" }, { slotsAudioPris: [] });
   assert.ok(r.problemes.some((p) => p.regle === "label-residuel" && p.message.includes("<Subject 5>")));
 });
+
+test("coupe écrite par le modèle : retirée quand elle se retire proprement, article mis en minuscule", () => {
+  const avec = (texte: string) => assemblerPlanH3({ ...multi, shots: [multi.shots[0]!, { debutSecondes: 3, texte }] }, { slotsAudioPris: [] }).sections.detailed_description;
+  assert.match(avec("a sudden cut to an extreme close-up of her feet."), /\[Shot 2\] At 00:03\.000, Hard cut to an extreme close-up of her feet\./);
+  assert.match(avec("A hard cut to a wide shot."), /Hard cut to a wide shot\./);
+  assert.match(avec("The shot cuts to a close-up."), /Hard cut to a close-up\./);
+  assert.match(avec("A low-angle shot of her feet."), /Hard cut to a low-angle shot of her feet\./);
+  assert.match(avec("At 00:03.000, Hard cut to a close-up."), /At 00:03\.000, Hard cut to a close-up\./);
+});
+
+test("rétention sans note : la note par défaut suit le niveau choisi", () => {
+  const r = assemblerPlanH3(
+    { ...multi, references: [{ ...multi.references[0]!, retention: "partially_preserved" }, { ...multi.references[1]!, retention: "weak_reference" }] },
+    { slotsAudioPris: [] },
+  );
+  assert.match(r.sections.retention_analysis, /partially_preserved - Maya is used with some of its traits changed in this shot\./);
+  assert.match(r.sections.retention_analysis, /weak_reference - only a general resemblance to the corridor is kept\./);
+});

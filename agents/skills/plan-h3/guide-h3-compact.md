@@ -26,7 +26,7 @@ Une ou deux phrases de style, en anglais, qui précèdent le premier shot : la c
 Un objet par shot : `debutSecondes` et `texte`.
 
 - Le premier shot commence à `0` et son texte est une phrase complète (« A wide shot follows [[CHAR_maya]], Maya, running… »).
-- Les suivants commencent à leur instant d'entrée. **Le code écrit « Hard cut to » avant ton texte** : commence donc directement par le cadre (« a low-angle shot of… », « an extreme close-up on… »), jamais par un numéro, un timecode ou « Hard cut ».
+- Les suivants commencent à leur instant d'entrée. **Le code écrit « Hard cut to » avant ton texte** : commence donc directement par un **groupe nominal** qui décrit le cadre (« a low-angle shot of X, … », « an extreme close-up of X, … »), puis continue la phrase. Pas de verbe juste après (« holds on », « follows »), et jamais de numéro, de timecode, de « Hard cut » ni de « a sudden cut to » : ils s'additionneraient à ceux du code.
 - **Caméra** : une action anglaise naturelle dans la phrase (type, amplitude, vitesse), pas une étiquette collée en fin de phrase. Amplitude moyenne et vitesse normale s'omettent.
 - **Références** : à la première apparition d'une référence importante dans le plan, décris ses traits, sa place dans le cadre et son action ; ensuite, cite-la seulement. Chaque citation s'écrit `[[CODE]]`.
 - **Locuteurs** : chaque voix physiquement produite reçoit un `(S1)`, `(S2)`… attribué une fois, dans l'ordre des prises de parole du plan, et repris à chaque prise. Un personnage qui parle s'écrit `[[CHAR_x]] (Sx)`. Un locuteur hors champ garde la même forme, marqué `off-screen`. Une voix off sans personnage à l'image : une description stable de la voix suivie de `(Sx)`.

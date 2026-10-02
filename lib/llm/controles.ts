@@ -1,3 +1,4 @@
+import { corpusExemplesPlanH3 } from "../agents/plan-h3-corpus";
 import { controlerSortiePlanH3, type SortiePlanH3 } from "../agents/plan-h3-controles";
 
 /** Contrôles SÉMANTIQUES d'un skill, appliqués à une sortie qui respecte déjà le schéma : ce que le
@@ -10,7 +11,11 @@ export type Controleur = (json: unknown) => string[];
 export function controleurPourSkill(skill: string, entree: unknown): Controleur | undefined {
   if (skill === "plan-h3") {
     const e = (entree ?? {}) as { registre?: { code: string; type: string }[]; repliques?: { texte: string }[] };
-    const ctx = { registre: (e.registre ?? []).map((a) => ({ code: a.code, type: a.type })), repliques: (e.repliques ?? []).map((r) => ({ texte: r.texte })) };
+    const ctx = {
+      registre: (e.registre ?? []).map((a) => ({ code: a.code, type: a.type })),
+      repliques: (e.repliques ?? []).map((r) => ({ texte: r.texte })),
+      corpusExemples: corpusExemplesPlanH3(),
+    };
     return (json) =>
       controlerSortiePlanH3(json as SortiePlanH3, ctx)
         .filter((p) => p.niveau === "erreur")

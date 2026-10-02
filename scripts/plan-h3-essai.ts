@@ -8,6 +8,7 @@ import { entreePlanH3 } from "../lib/agents/contexte";
 import { executerSkill } from "../lib/llm/executer";
 import { controleurPourSkill } from "../lib/llm/controles";
 import { assemblerPlanH3 } from "../lib/agents/plan-h3-assemblage";
+import { corpusExemplesPlanH3 } from "../lib/agents/plan-h3-corpus";
 import { controlerSortiePlanH3, resumeControles, type ProblemeH3, type SortiePlanH3 } from "../lib/agents/plan-h3-controles";
 
 /** Essai de QUALITÉ de `plan-h3` sur des plans réels d'un projet, pour savoir si le modèle local suffit
@@ -156,7 +157,7 @@ async function main(): Promise<number> {
     const registre = (e.entree as { registre: { code: string; type: string }[]; repliques: { texte: string }[] }).registre;
     const repliques = (e.entree as { repliques: { texte: string }[] }).repliques;
     let problemes: ProblemeH3[] = [];
-    if (fin.statut === "termine") problemes = controlerSortiePlanH3(fin.resultat as SortiePlanH3, { registre, repliques });
+    if (fin.statut === "termine") problemes = controlerSortiePlanH3(fin.resultat as SortiePlanH3, { registre, repliques, corpusExemples: corpusExemplesPlanH3() });
     const r = resumeControles(problemes);
     console.log(`   → ${fin.statut}${duree != null ? ` en ${duree} s` : ""} · ${r.erreurs} erreur(s), ${r.alertes} alerte(s)\n`);
     bilan.push({ titre: c.titre, statut: fin.statut, duree, jetons, erreurs: r.erreurs, alertes: r.alertes });

@@ -97,12 +97,37 @@ test("shots : début non nul, non croissant, trop court, au-delà de la durée, 
   assert.equal(avec([t(0), t(3), t(6)]).length, 0, "conforme");
 });
 
-test("balisage : timecode, Hard cut ou [Shot N] écrits par le modèle ; titres de section recopiés", () => {
+test("balisage : coupe ou timecode écrits par le modèle ; [Shot N] et titres de section recopiés", () => {
   const p = (texte: string) => controlerSortiePlanH3({ ...bonne, shots: [bonne.shots[0]!, { debutSecondes: 5, texte }] }, ctx);
-  assert.ok(p("Hard cut to a close-up [[CHAR_maya]].").some((x) => x.regle === "balisage" && x.niveau === "alerte"));
-  assert.ok(p("At 00:05.000, a close-up.").some((x) => x.regle === "balisage"));
+  // retirables à l'assemblage : alerte
+  for (const t of ["Hard cut to a close-up [[CHAR_maya]].", "a hard cut to a close-up [[CHAR_maya]].", "a sudden cut to a close-up.", "the shot cuts to a close-up.", "At 00:05.000, a close-up."]) {
+    assert.ok(p(t).some((x) => x.regle === "balisage" && x.niveau === "alerte"), t);
+  }
+  // non retirables sans casser la phrase : erreur (renvoi)
+  for (const t of ["a final hard cut shows [[CHAR_maya]].", "Hard cut. A close-up."]) {
+    assert.ok(p(t).some((x) => x.regle === "balisage" && x.niveau === "erreur"), t);
+  }
+  assert.equal(p("a close-up of [[CHAR_maya]], hands.").filter((x) => x.regle === "balisage").length, 0);
   assert.ok(p("a close-up. [Shot 3] more").some((x) => x.regle === "shots" && x.niveau === "erreur"));
   assert.ok(p("a close-up.\noverall_soundscape: rain").some((x) => x.regle === "fuite" && x.niveau === "erreur"));
+});
+
+test("rétention : un niveau d'image ne va pas à un son, et inversement", () => {
+  const son = { asset: "SFX_porte", nature: "son" as const, role: "Porte", nom: "a door slam", definition: "", retention: "fully_preserved" };
+  const r = (references: SortiePlanH3["references"]) => erreurs({ ...bonne, references, summary: "[[CHAR_maya]] [[DEC_couloir]] [[SFX_porte]]" });
+  assert.ok(r([...bonne.references, son]).includes("retention"));
+  assert.ok(r([{ ...bonne.references[0]!, retention: "fully_copy" }, bonne.references[1]!]).includes("retention"));
+  assert.ok(!r([{ ...bonne.references[0]!, retention: "weak_reference" }, bonne.references[1]!]).includes("retention"));
+});
+
+test("recopie : une phrase de 10 mots identique à un exemple donne une alerte", () => {
+  const corpus = ["Heavy, uneven footsteps splash against wet cobblestones, the distant echo of a slamming door fading behind her."];
+  const avec = (overall_soundscape: string) => controlerSortiePlanH3({ ...bonne, overall_soundscape }, { ...ctx, corpusExemples: corpus }).filter((x) => x.regle === "recopie");
+  assert.equal(avec("Heavy, uneven footsteps splash against wet cobblestones, the distant echo of a slamming door fading behind her, then silence.").length, 1);
+  assert.equal(avec("Footsteps on wet stone, a door slams far away.").length, 0);
+  // l'ouverture reprend la clause de style du projet : jamais signalée
+  const style = "Cinematic anime style, refined linework, cold moonlight against deep shadow, faint blue haze.";
+  assert.equal(controlerSortiePlanH3({ ...bonne, ouverture: style }, { ...ctx, corpusExemples: [style] }).filter((x) => x.regle === "recopie").length, 0);
 });
 
 test("dialogue : le verbatim est exigé, la balise <d> aussi", () => {
