@@ -76,3 +76,10 @@ test("depuisCastingVoix : une création de voix rattachée à son personnage, av
   assert.deepEqual(ch!.apres, { suffixe: "maya", personnageId: 1, description: "Danseuse", instruction: "A calm native French speaker…" });
   assert.equal(ch!.avertissements?.length, 1);
 });
+
+test("deux personnages au même suffixe : le second candidat est bloqué (code déjà visé dans le lot)", () => {
+  const autre = { id: 4, code: "PROP_maya", description: "" };
+  const c = candidatsVoix([maya, autre], [], [], [rep(1, "Bonsoir."), rep(4, "Moi aussi.")]);
+  assert.deepEqual(c.map((x) => [x.cle, x.codeVoix, x.aTraiter]), [["voix:CHAR_maya", "VOICE_maya", true], ["voix:PROP_maya", "VOICE_maya", false]]);
+  assert.match(c[1]!.bloque ?? "", /déjà visé/);
+});

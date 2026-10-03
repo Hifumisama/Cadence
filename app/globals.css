@@ -4685,6 +4685,25 @@ a.voix-chip:hover {
 .ag-pret p {
   margin: 2px 0 0;
 }
+/* « Ce qu'il reste à définir » : la liste de l'agent, à côté de la conversation (or = information, pas d'alerte). */
+.ag-reste {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--or-soft);
+  background: var(--surface-2);
+}
+.ag-reste-titre {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ag-reste ul {
+  margin: 0 0 6px;
+  padding-left: 18px;
+  color: var(--ink);
+}
 .ag-saisie {
   display: flex;
   flex-direction: column;
@@ -5320,3 +5339,93 @@ a.voix-chip:hover {
 .tq-retirer:focus-visible {
   opacity: 1;
 }
+
+/* Brief : une section qui est une liste d'objets (épisodes, personnages…) s'édite par formulaire, pas en JSON. */
+.ag-liste-objets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.ag-liste-element {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.ag-liste-element legend {
+  padding: 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ag-liste-champ {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ag-liste-element .btn {
+  align-self: flex-start;
+}
+
+/* L installateur : la liste des étapes de la création du projet (or = fait, écarlate = échec ; jamais la couleur seule). */
+.inst-etapes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.inst-etape { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); }
+.inst-symbole { font-size: 16px; text-align: center; color: var(--ink-3); }
+.inst-corps { display: flex; flex-direction: column; gap: 2px; }
+.inst-nom { color: var(--ink); }
+.inst-etat { white-space: nowrap; }
+.inst-etape.s-fait .inst-symbole, .inst-etape.s-en_cours .inst-symbole { color: var(--or); }
+.inst-etape.s-en_cours { border-color: var(--or-soft); }
+.inst-etape.s-echoue { border-color: var(--ecarlate); }
+.inst-etape.s-echoue .inst-symbole { color: var(--ecarlate-glow); }
+.inst-etape.s-passe, .inst-etape.s-a_venir { opacity: 0.75; }
+
+/* Streaming : la réponse de l agent qui s écrit, et la fin de sa réflexion (repliable). */
+.ag-flux-reponse { margin: 6px 0 0; white-space: pre-wrap; color: var(--ink); }
+.ag-flux { margin-top: 6px; }
+.ag-flux summary { cursor: pointer; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.ag-flux-texte { margin: 4px 0 0; max-height: 160px; overflow: auto; white-space: pre-wrap; font-size: 12px; color: var(--ink-2); }
+
+/* Lecture de l épisode : écran 16:9, carton sans rendu, frise cliquable (largeur = durée). */
+.lecture-ecran { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border: 1px solid var(--line); }
+.lecture-ecran video { width: 100%; height: 100%; object-fit: contain; display: block; cursor: pointer; }
+.lecture-carton { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--ink-3); background: repeating-linear-gradient(135deg, #0b0b0e 0 10px, #101015 10px 20px); }
+.lecture-carton .num { font-size: 40px; color: var(--ink-2); }
+.lecture-titre { color: var(--ink); }
+.lecture-frise { list-style: none; margin: 0; padding: 0; display: flex; width: 100%; gap: 2px; }
+.lecture-frise li { min-width: 0; }
+.lecture-seg { width: 100%; height: 28px; padding: 0; border: 1px solid var(--line-strong); background: var(--surface-3); color: var(--ink-2); font-size: 11px; cursor: pointer; }
+.lecture-seg.is-vide { background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--surface-3) 6px 12px); color: var(--ink-4); }
+.lecture-seg.is-actif { border-color: var(--or); color: var(--or); }
+
+/* Cohérence entre les plans : asset x plan. */
+.matrice-wrap { overflow-x: auto; }
+.matrice { border-collapse: collapse; font-size: 12px; }
+.matrice th, .matrice td { padding: 4px 8px; border: 1px solid var(--line); text-align: center; }
+.matrice th[scope="row"] { text-align: left; white-space: nowrap; }
+.matrice td.is-oui { color: var(--or); }
+.matrice td.is-trou { color: var(--ecarlate-glow); }
+
+/* Agent : portée courante (élargissable) et trace des autres conversations du projet. */
+.ag-portee { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 6px var(--sp-4); border-bottom: 1px solid var(--line); }
+.ag-portee-choix { display: inline-flex; align-items: center; gap: 6px; }
+.ag-portee-autres ul { margin: 4px 0 0; padding-left: 16px; }
+.tq-agent { margin-right: 8px; }
+
+/* Machine à écrire : curseur clignotant au bout de la réponse qui s écrit. */
+.ag-curseur { display: inline-block; width: 7px; height: 1em; margin-left: 2px; vertical-align: text-bottom; background: var(--or); animation: ag-clignote 1s steps(1) infinite; }
+@keyframes ag-clignote { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ag-curseur { animation: none; } }
+
+/* Installateur : le détail d'une étape (appel en cours, sous-tâches une à une). */
+.inst-activite, .inst-sous { grid-column: 1 / -1; margin: 0; }
+.inst-sous { list-style: none; padding: 0 0 0 34px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.inst-sous li { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: baseline; }
+.inst-sous li.s-termine { color: var(--or); }
+.inst-sous li.s-echoue { color: var(--ecarlate-glow); }
+.inst-sous li.s-en_attente, .inst-sous li.s-annulee { color: var(--ink-3); }
+.inst-sous-nom { color: inherit; }

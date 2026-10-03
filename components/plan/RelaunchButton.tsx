@@ -7,9 +7,9 @@ export function RelaunchButton({ planId }: { planId: number }) {
   const [pending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
 
-  const lancer = (activerUpscale: boolean) =>
+  const lancer = (activerUpscale: boolean, variante = false) =>
     startTransition(async () => {
-      const r = await relancerPlan(planId, activerUpscale);
+      const r = await relancerPlan(planId, activerUpscale, variante);
       setErreur(r.ok ? null : r.erreur);
     });
 
@@ -31,6 +31,14 @@ export function RelaunchButton({ planId }: { planId: number }) {
           title="Rendu final avec upscale"
         >
           {pending ? "..." : "Rendu final"}
+        </button>
+        <button
+          onClick={() => lancer(false, true)}
+          disabled={pending}
+          className="rounded border border-or-soft px-3 py-2 text-sm text-or hover:bg-or/10 disabled:opacity-50"
+          title="Tire une nouvelle seed pour ce plan (autre rendu, même prompt) puis prévisualise. « Prévisualiser » garde la seed : même prompt, même rendu."
+        >
+          {pending ? "..." : "Nouvelle variante"}
         </button>
       </div>
       {erreur ? (

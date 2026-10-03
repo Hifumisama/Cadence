@@ -66,7 +66,14 @@ export function candidatsVoix(personnages: PersonnageParlant[], fiches: FicheVoi
 
   const candidat = (p: { personnageId: number | null; personnageCode: string | null; suffixe: string; nom: string; description: string; textes: string[] }): CandidatVoix => {
     const codeVoix = construireCode("voix", p.suffixe);
-    const bloque = codesPris.has(codeVoix) ? `${codeVoix} existe déjà sans être rattachée à ${p.personnageCode ?? "la voix off"} : rattache-la au casting vocal.` : null;
+    // Deux personnages dont le nom se réduit au même suffixe (CHAR_maya, PROP_maya) viseraient le même code :
+    // le premier passe, le suivant est bloqué (sinon l'application échouerait en cours de route).
+    const dejaVise = sortie.some((x) => x.codeVoix === codeVoix);
+    const bloque = codesPris.has(codeVoix)
+      ? `${codeVoix} existe déjà sans être rattachée à ${p.personnageCode ?? "la voix off"} : rattache-la au casting vocal.`
+      : dejaVise
+        ? `${codeVoix} est déjà visé par une autre voix de cette liste : crée-la au casting vocal sous un autre nom.`
+        : null;
     return {
       cle: cleSousTacheVoix(p.personnageCode ?? "off"),
       personnageCode: p.personnageCode,

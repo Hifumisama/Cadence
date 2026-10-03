@@ -1,8 +1,8 @@
 "use client";
 
-import { genererProposition, modifierChampBrief } from "@/app/agents/actions";
+import { genererBrief, modifierChampBrief } from "@/app/agents/actions";
 import { BriefSections } from "@/components/agents/BriefSections";
-import { CadrageGeneration } from "@/components/agents/CadrageGeneration";
+import { BoutonCreerTout } from "@/components/agents/BoutonCreerTout";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { estTacheActive } from "@/lib/agents-affichage";
@@ -51,6 +51,18 @@ export function EtapeBrief({ ctx }: { ctx: ContexteEtape }) {
         </button>
       </div>
 
+      {brief.statut === "brouillon" && conv.resteADefinir.length > 0 ? (
+        <div className="ag-reste" role="status">
+          <p className="ag-reste-titre">Première version du briefing</p>
+          <p className="tiny-note">L&rsquo;agent te pose encore {conv.resteADefinir.length} question{conv.resteADefinir.length > 1 ? "s" : ""} dans la conversation :</p>
+          <ul>
+            {conv.resteADefinir.map((x) => (
+              <li key={x}>{x}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <BriefSections brief={brief} onModifier={modifier} desactive={occupe} />
 
       {propositionEnCours ? (
@@ -65,10 +77,18 @@ export function EtapeBrief({ ctx }: { ctx: ContexteEtape }) {
       <EtatTacheAgent tache={conv.tache} />
 
       <div className="ag-lancer">
-        <CadrageGeneration conversationUuid={conv.uuid} libelle={conv.cibleLibelle} rafraichissement={conv.tache?.statut} />
-        <button type="button" className="btn btn-gold" onClick={() => void ctx.lancer(() => genererProposition(conv.uuid))} disabled={occupe || actif}>
-          {occupe ? "…" : "Générer la proposition"}
+        <span className="tiny-note ag-estimation">
+          Le projet est créé une fois le briefing validé : structure, scénarios, registre d&rsquo;assets, voix et fiches de plan s&rsquo;enchaînent, avec le détail sur une page dédiée.
+        </span>
+        {conv.resteADefinir.length > 0 ? (
+          <button type="button" className="btn btn-ghost" onClick={() => ctx.aller("conversation")} disabled={occupe}>
+            Répondre aux questions
+          </button>
+        ) : null}
+        <button type="button" className="btn btn-ghost" onClick={() => void ctx.lancer(() => genererBrief(conv.uuid))} disabled={occupe || actif} title="Réécrit le briefing à partir de toute la conversation">
+          Mettre à jour le briefing
         </button>
+        <BoutonCreerTout projectId={conv.projectId} libelle="Valider le briefing et créer le projet" desactive={occupe || actif} />
       </div>
     </div>
   );

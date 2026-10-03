@@ -8,6 +8,10 @@ import { FournisseurCompatibleOpenAI } from "./compatibleOpenAI";
 export const MODELE_LOCAL_PAR_DEFAUT = "gemma4-26b-A4B";
 export const URL_LOCALE_PAR_DEFAUT = "http://localhost:8080";
 export const DELAI_PAR_DEFAUT_MS = 10 * 60 * 1000;
+/** Silence maximal d'un flux (le chargement d'un modèle ou un long préremplissage ne renvoient rien). */
+export const INACTIVITE_PAR_DEFAUT_MS = 5 * 60 * 1000;
+/** Au bout de ce temps d'injoignabilité, les appels en attente échouent (au lieu d'attendre indéfiniment). */
+export const INJOIGNABLE_MAX_PAR_DEFAUT_MS = 5 * 60 * 1000;
 
 export type Env = Record<string, string | undefined>;
 
@@ -16,8 +20,17 @@ export type ConfigLlm = {
   url: string;
   modeleParDefaut: string;
   delaiMs: number;
+  inactiviteMs: number;
+  /** Route testée avant de prendre un appel (`/health` chez llama-swap ; `/v1/models` pour LM Studio, Ollama…). */
+  routeSante: string;
+  injoignableMaxMs: number;
   flux: boolean;
 };
+
+function dureeMs(brut: string | undefined, defaut: number): number {
+  const n = Number(brut);
+  return brut?.trim() && Number.isFinite(n) && n >= 0 ? n : defaut;
+}
 
 export function configLlm(env: Env = process.env): ConfigLlm {
   const fournisseur = (env.LLM_FOURNISSEUR ?? "local").trim();
@@ -32,6 +45,9 @@ export function configLlm(env: Env = process.env): ConfigLlm {
     url: (env.LLM_LOCAL_URL?.trim() || URL_LOCALE_PAR_DEFAUT).replace(/\/+$/, ""),
     modeleParDefaut: env.LLM_LOCAL_MODELE?.trim() || MODELE_LOCAL_PAR_DEFAUT,
     delaiMs: Number.isFinite(delai) && delai > 0 ? delai : DELAI_PAR_DEFAUT_MS,
+    inactiviteMs: dureeMs(env.LLM_INACTIVITE_MS, INACTIVITE_PAR_DEFAUT_MS),
+    routeSante: `/${(env.LLM_HEALTH_PATH?.trim() || "/health").replace(/^\/+/, "")}`,
+    injoignableMaxMs: dureeMs(env.LLM_INJOIGNABLE_MAX_MS, INJOIGNABLE_MAX_PAR_DEFAUT_MS),
     // Le flux évite qu'un reverse proxy coupe une connexion silencieuse pendant
     // une longue génération ; « 0 » le désactive.
     flux: env.LLM_FLUX !== "0",
@@ -81,5 +97,5 @@ export function maxTokensPourSkill(skill: string, env: Env = process.env): numbe
 
 export function creerFournisseur(env: Env = process.env): FournisseurLlm {
   const c = configLlm(env);
-  return new FournisseurCompatibleOpenAI({ url: c.url, modele: c.modeleParDefaut, delaiMs: c.delaiMs, flux: c.flux });
+  return new FournisseurCompatibleOpenAI({ url: c.url, modele: c.modeleParDefaut, delaiMs: c.delaiMs, inactiviteMs: c.inactiviteMs, flux: c.flux });
 }

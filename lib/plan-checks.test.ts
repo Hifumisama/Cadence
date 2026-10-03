@@ -7,6 +7,7 @@ import {
   extraireBalisesD,
   prochainSlotAudioLibre,
   calculerStatutDuree,
+  verifierCoherenceRefs,
   type RepliqueLiee,
 } from "./plan-checks";
 
@@ -172,4 +173,25 @@ test("structure : la forme à intervalle des plans validés est acceptée", () =
   assert.deepEqual(ok, []);
   const court = controlerStructure(desc("[Shot 1, 00:00.000–00:01.000] A. [Shot 2, 00:01.000–00:07.000] B."), 7).map((x) => x.type);
   assert.deepEqual(court, ["shot_trop_court"]);
+});
+
+test("cohérence des refs : la voix d'une réplique (ref dérivée) n'a pas à être citée", () => {
+  const sections = [
+    { section: "subject_definitions", contenu: "<Subject 1> is Maya from <Picture 1>." },
+    { section: "detailed_description", contenu: "[Shot 1] <Subject 1> says <d>[Français] Pas un bruit.</d> A door creaks <Audio 2>." },
+  ];
+  const refs = [
+    { type: "picture" as const, slot: 1 },
+    { type: "audio" as const, slot: 2 },
+  ];
+  // La prise de la réplique (slot 1) : déclarée, jamais « non citée ».
+  assert.deepEqual(verifierCoherenceRefs(sections, refs, [{ type: "audio", slot: 1 }]), { labelsOrphelins: [], refsNonCitees: [] });
+  // Un bruitage de plan_refs non cité reste signalé, même avec des voix dérivées.
+  const sansPorte = [sections[0]!, { section: "detailed_description", contenu: "[Shot 1] <Subject 1> says <d>[Français] Pas un bruit.</d>" }];
+  assert.deepEqual(verifierCoherenceRefs(sansPorte, refs, [{ type: "audio", slot: 1 }]).refsNonCitees, ["Audio:2"]);
+  // Citer la voix reste possible (déclarée par dérivation : pas d'orphelin)…
+  const citeVoix = [sections[0]!, { section: "detailed_description", contenu: "[Shot 1] <Subject 1> speaks <Audio 1>. A door creaks <Audio 2>." }];
+  assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, [{ type: "audio", slot: 1 }]).labelsOrphelins, []);
+  // … mais un label qui ne correspond à rien reste orphelin.
+  assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, []).labelsOrphelins, ["Audio:1"]);
 });

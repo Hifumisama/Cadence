@@ -29,8 +29,10 @@ export type Operation = (typeof OPERATIONS)[number];
 
 /** Ce qu'un changement touche. Les applicateurs existent pour tous ces types. `replique`
  * (2026-10-02, étape « scénarios ») : une réplique créée liée à son plan (locuteur du registre
- * ou libre, jamais d'asset créé par ce chemin). */
-export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan", "replique", "voix"] as const;
+ * ou libre, jamais d'asset créé par ce chemin). `fiche` (2026-10-02, étape 3 « fiches de plan ») :
+ * le prompt H3 d'un plan (ses six sections), ses références picture/audio et sa durée de génération ;
+ * écriture complète (plan-h3) ou partielle (seulement certaines sections, iteration-plan). */
+export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan", "replique", "voix", "fiche"] as const;
 export type CibleType = (typeof CIBLES)[number];
 
 /** Qui a posé un champ du brief : `fourni` (l'utilisateur l'a dit ou corrigé),
@@ -45,6 +47,7 @@ export const TYPES_AVERTISSEMENT = [
   "bloque_controle", // un contrôle mécanique échoue (ex. durée > 15 s) : à corriger
   "contredit_brief", // contredit le brief
   "non_pris_en_charge", // cible ou champ que l'application ne sait pas encore écrire
+  "alerte_controle", // un contrôle de la sortie signale un défaut qui ne bloque pas (ex. shot sous 1,5 s)
   "info",
 ] as const;
 export type TypeAvertissement = (typeof TYPES_AVERTISSEMENT)[number];
@@ -74,6 +77,9 @@ export type EtatTache = {
   statut: "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
   /** Jetons de sortie reçus (le maximum est inconnu : un compteur, pas une barre). */
   progressionJetons: number | null;
+  /** Streaming : le texte de la réponse (JSON en train de s'écrire, borné) et la fin de la réflexion, pendant l'appel. */
+  fluxTexte?: string | null;
+  fluxReflexion?: string | null;
   erreur: string | null;
   /** Rang dans la file des tâches GPU en attente (1 = la prochaine) ; null si en cours/finie. */
   positionFile: number | null;
@@ -123,8 +129,8 @@ export const SECTIONS_BRIEF = [
   { cle: "rimes", libelle: "Rimes", groupe: "Contraintes" },
   { cle: "progressions", libelle: "Progressions", groupe: "Contraintes" },
   { cle: "pieges", libelle: "Pièges", groupe: "Contraintes" },
-  { cle: "inventions", libelle: "Inventions de l'agent", groupe: "À valider" },
-  { cle: "questionsOuvertes", libelle: "Questions ouvertes", groupe: "À valider" },
+  { cle: "inventions", libelle: "Inventions de l'agent", groupe: "Notes de l'agent" },
+  { cle: "questionsOuvertes", libelle: "Questions encore ouvertes", groupe: "Notes de l'agent" },
   { cle: "notes", libelle: "Notes du projet", groupe: "Notes" },
 ] as const;
 export type CleSectionBrief = (typeof SECTIONS_BRIEF)[number]["cle"];
@@ -172,6 +178,8 @@ export type VueConversation = {
   consigne: string;
   /** L'agent estime avoir de quoi écrire le brief : l'UI propose « Vers le briefing ». */
   briefPret: boolean;
+  /** Ce qu'il reste à définir avec l'utilisateur (phrases courtes), remis à jour par l'agent à chaque tour. */
+  resteADefinir: string[];
   propositionUuid: string | null;
   /** Tâche en cours ou la dernière non vue (tour, brief) ; null sinon. */
   tache: EtatTache | null;
@@ -278,6 +286,22 @@ export type CompteursProposition = {
 /** Ce que `appliquerSelection` demande de confirmer quand la sélection écrase du validé. */
 export type EcrasementAConfirmer = { changementId: number; libelle: string; ecrase: string };
 
+/** Le diagnostic d'une correction après visionnage (skill `iteration-plan`), tel que la revue l'affiche : il
+ * existe même quand rien n'est écrit (durée incohérente, cause hors du prompt, abandon). Lu depuis le résultat
+ * de la tâche (agent_runs.resultat), jamais stocké ailleurs. */
+export type DiagnosticIteration = {
+  symptome: string;
+  cause: string;
+  categorie: string | null;
+  confiance: "haute" | "moyenne" | "faible";
+  verification: string | null;
+  dureeCoherente: boolean;
+  /** Nombre de passages proposés par l'agent (avant contrôle). */
+  nbPassages: number;
+  entreeLexique: { symptome: string; cause: string; formulationQuiTient: string } | null;
+  abandon: { propose: boolean; raison: string } | null;
+};
+
 export type VueProposition = {
   uuid: string;
   conversationUuid: string | null;
@@ -300,6 +324,8 @@ export type VueProposition = {
   tache: EtatTache | null;
   /** Proposition en lot (plusieurs sous-tâches, ex. un épisode chacune) ; null sinon. */
   lot: VueLot | null;
+  /** Correction après visionnage (`iteration-plan`) : le diagnostic de l'agent ; null sinon ou tant qu'il n'a pas répondu. */
+  diagnostic: DiagnosticIteration | null;
   createdAt: string;
   appliedAt: string | null;
 };
@@ -314,6 +340,39 @@ export type EpisodePourScenario = {
   vide: boolean;
   nbPlans: number;
   nbScenes: number;
+};
+
+/** Un plan proposable à l'écriture de sa fiche (sélecteur du lot « fiches de plan »). L'identifiant
+ * est l'uuid ; `rang` n'est qu'une position affichée dans l'épisode (F03). */
+export type PlanPourFiche = {
+  uuid: string;
+  titre: string;
+  rang: number;
+  episodeId: number;
+  episodeLibelle: string;
+  sceneTitre: string | null;
+  dureeSecondes: number;
+  /** Au moins une section du prompt non vide : réécrire = risque d'écrasement (décoché d'office). */
+  aDesSections: boolean;
+  /** Références picture/audio déjà posées. */
+  nbRefs: number;
+  /** Un rendu vidéo existe : la fiche ne lui correspondra plus. */
+  aUnRendu: boolean;
+  nbRepliques: number;
+  /** Plan sans intention (description) : l'agent n'aura que son titre. */
+  sansIntention: boolean;
+};
+
+/** Ce que la fenêtre « Corriger après visionnage » montre avant de lancer : le rendu qui sera regardé et ce
+ * qui a déjà été tenté sur ce plan. Routage par état du plan (2026-10-02) : sans rendu, pas d'iteration-plan. */
+export type EtatIterationPlan = {
+  titre: string;
+  aUneFiche: boolean;
+  /** Le dernier rendu terminé (généré ou importé) ; null : pas de correction possible. */
+  rendu: { termineLe: string | null; importe: boolean; dureeVoulueSecondes: number } | null;
+  /** Corrections après visionnage déjà proposées sur ce plan (toutes, appliquées ou non). */
+  nbCorrections: number;
+  nbCorrectionsAppliquees: number;
 };
 
 /** Ligne d'historique (Monitoring — hors de la popup). */

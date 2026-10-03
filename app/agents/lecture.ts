@@ -8,22 +8,28 @@ import type {
   ContexteUtilise,
   EpisodePourScenario,
   EstimationGeneration,
+  EtatIterationPlan,
   Portee,
+  PlanPourFiche,
   VueBrief,
   VueConversation,
   VueProposition,
 } from "@/lib/agents/types";
+import type { ResumeConversation } from "@/lib/queries-agents";
 import type { CandidatRegistre } from "@/lib/agents/registre";
 import type { CandidatVoix } from "@/lib/agents/voix-casting";
-import { candidatsDuProjet, candidatsVoixDuProjet, episodesPourScenarios } from "@/lib/agents/service";
+import { assetsCreesSansPrompt, candidatsDuProjet, candidatsVoixDuProjet, episodesPourScenarios, lireEtatIteration, plansPourFiches, propositionParUuid } from "@/lib/agents/service";
 import {
   apercuContexte,
   estimerGeneration,
+  estimerIteration,
   estimerRegistre,
+  estimerFiches,
   estimerVoix,
   estimerScenarios,
   lireBrief,
   lireConversation,
+  listerConversationsProjet,
   lirePropositionCourante,
   lireProposition,
   trouverConversation,
@@ -107,4 +113,35 @@ export async function listerPlansEpisode(episodeId: number): Promise<{ uuid: str
     .where(eq(plans.episodeId, episodeId))
     .orderBy(asc(plans.ordre), asc(plans.id));
   return lignes.map((p, i) => ({ uuid: p.uuid, titre: p.titre, rang: i + 1 }));
+}
+
+/** Les plans d'une portée (projet, saison, épisode, un plan) proposables à l'écriture de leur fiche : le
+ * sélecteur du lot « fiches de plan ». `aDesSections` = déjà écrit : décoché d'office (écrasement). */
+export async function listerPlansPourFichesVue(projectId: number, portee: Portee, cibleId: number | null): Promise<PlanPourFiche[]> {
+  return plansPourFiches(projectId, portee, cibleId);
+}
+
+export async function estimerFichesVue(nbPlans: number): Promise<EstimationGeneration> {
+  return estimerFiches(nbPlans);
+}
+
+/** « Corriger après visionnage » : le rendu qui sera regardé, la fiche, les corrections déjà tentées. */
+export async function lireEtatIterationVue(projectId: number, planUuid: string): Promise<EtatIterationPlan | null> {
+  return lireEtatIteration(projectId, planUuid);
+}
+
+export async function estimerIterationVue(): Promise<EstimationGeneration> {
+  return estimerIteration();
+}
+
+/** Les assets créés par une proposition de fiches (appliquée) qui attendent encore leur prompt d'image :
+ * la suite « écrire les prompts des assets créés ». */
+export async function assetsCreesSansPromptVue(propositionUuid: string): Promise<{ id: number; code: string; type: string }[]> {
+  const p = await propositionParUuid(propositionUuid);
+  return p ? assetsCreesSansPrompt(p.id) : [];
+}
+
+/** Les conversations du projet (trace de ce qui a déjà été demandé), pour la fenêtre de l'agent. */
+export async function listerConversationsProjetVue(projectId: number): Promise<ResumeConversation[]> {
+  return listerConversationsProjet(projectId);
 }

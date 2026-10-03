@@ -5,7 +5,7 @@ import { affiner, appliquerSelection, cocherChangement, cocherChangements, corri
 import { listerPlansEpisode } from "@/app/agents/lecture";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
-import { EtapeLotEnCours, ListeSousTaches } from "@/components/agents/EtapeLot";
+import { BoutonRelancerEchecs, EtapeLotEnCours, ListeSousTaches } from "@/components/agents/EtapeLot";
 import {
   AVERTISSEMENT,
   GROUPE_ECRASEMENT,
@@ -17,12 +17,14 @@ import {
   libellePosition,
   libelleRangs,
   lignesDiff,
+  motsDuLot,
   ordonnerGroupes,
   parSousGroupe,
   peutCocher,
   resumeCompteurs,
   type EtatCochage,
 } from "@/lib/agents-affichage";
+import { lireApresFiche } from "@/lib/agents/fiches";
 import type { VueChangement, VueGroupe, VueProposition } from "@/lib/agents/types";
 
 const SYMBOLE_GRAVITE = { info: "ℹ", attention: "▲", bloquant: "■" } as const;
@@ -87,7 +89,9 @@ export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
         <p className="ag-erreur" role="alert">
           La proposition a échoué{prop.erreur ? ` : ${prop.erreur}` : "."}
         </p>
+        {prop.lot ? <ListeSousTaches prop={prop} ctx={ctx} /> : null}
         <div className="gd-row">
+          {prop.lot ? <BoutonRelancerEchecs prop={prop} ctx={ctx} /> : null}
           <button
             type="button"
             className="btn btn-ghost"
@@ -132,17 +136,21 @@ export function EtapeProposition({ ctx }: { ctx: ContexteEtape }) {
     <div className="ag-etape-corps">
       <EnteteProposition prop={prop} />
 
+      {prop.diagnostic ? <DiagnosticVisionnage d={prop.diagnostic} /> : null}
+
       {prop.lot ? (
         <details className="ag-contexte ag-lot-bloc" open={aRelancer > 0 || undefined}>
           <summary>
-            Épisodes <span className="num">({prop.lot.terminees}/{prop.lot.total})</span>
+            {motsDuLot(prop.skill).titre} <span className="num">({prop.lot.terminees}/{prop.lot.total})</span>
             {aRelancer > 0 ? <span className="ag-lot-alerte"> · {aRelancer} à relancer</span> : null}
           </summary>
           <ListeSousTaches prop={prop} ctx={ctx} lectureSeule={appliquee} />
         </details>
       ) : null}
 
-      {groupes.length === 0 ? <p className="ag-vide">Cette proposition ne contient aucun changement.</p> : null}
+      {groupes.length === 0 ? (
+        <p className="ag-vide">{prop.diagnostic ? "Aucune écriture proposée : le diagnostic ci-dessus dit pourquoi. Rejette pour revenir, ou affine." : "Cette proposition ne contient aucun changement."}</p>
+      ) : null}
 
       {groupes.map((g) => (
         <GroupeChangements key={g.id} groupe={g} prop={prop} ctx={ctx} lecture={appliquee} rangDe={rangDe} ouvertParDefaut={!estGroupeEpisode(g.id) || g.id === premierEpisode} />
@@ -240,7 +248,11 @@ function EnteteProposition({ prop }: { prop: VueProposition }) {
           Dérivée de la proposition précédente{prop.retour ? <> · ton retour : « {prop.retour} »</> : null}
         </p>
       ) : null}
-      {prop.consigne ? <p className="tiny-note">Ta demande : « {prop.consigne} »</p> : null}
+      {prop.consigne ? (
+        <p className="tiny-note">
+          {prop.skill === "iteration-plan" ? "Ce que tu as vu" : "Ta demande"} : « {prop.consigne} »
+        </p>
+      ) : null}
       {prop.contexte.length > 0 ? (
         <details className="ag-contexte">
           <summary>
@@ -254,6 +266,64 @@ function EnteteProposition({ prop }: { prop: VueProposition }) {
         </details>
       ) : null}
     </div>
+  );
+}
+
+const LIBELLE_CONFIANCE = { haute: "haute", moyenne: "moyenne", faible: "faible" } as const;
+const LIBELLE_CATEGORIE: Record<string, string> = {
+  "decoupage-scenario": "découpage ou scénario (hors du prompt)",
+  cadence: "cadence des shots",
+  vocabulaire: "vocabulaire",
+  negation: "consigne négative",
+  "etat-arrivee": "état d'arrivée pris pour une première frame",
+  camera: "caméra",
+  lumiere: "lumière",
+  duree: "durée",
+  reference: "référence",
+  modele: "limite du modèle",
+  autre: "autre",
+};
+
+/** Le diagnostic d'une correction après visionnage (iteration-plan) : symptôme, cause, confiance, vérification à
+ * faire au prochain rendu ; la candidate au lexique n'est jamais écrite (information). */
+function DiagnosticVisionnage({ d }: { d: NonNullable<VueProposition["diagnostic"]> }) {
+  return (
+    <section className="ag-groupe" aria-label="Diagnostic après visionnage">
+      <header className="ag-groupe-tete">
+        <span className="ag-groupe-titre">Diagnostic après visionnage</span>
+        <span className={`tiny-note${d.confiance === "faible" ? " ag-lot-alerte" : ""}`}>confiance {LIBELLE_CONFIANCE[d.confiance]}</span>
+      </header>
+      <ul className="ag-avert">
+        {!d.dureeCoherente ? (
+          <li className="ag-avert-attention">
+            <span aria-hidden="true">▲</span> <strong>Durée du rendu incohérente</strong> — un rendu à la mauvaise durée comprime ou étire tous ses temps : régénère avant de corriger l&rsquo;écriture.
+          </li>
+        ) : null}
+        <li>
+          <strong>Symptôme</strong> — {d.symptome}
+        </li>
+        <li>
+          <strong>Cause visée</strong> — {d.cause}
+          {d.categorie ? <span className="tiny-note"> ({LIBELLE_CATEGORIE[d.categorie] ?? d.categorie})</span> : null}
+        </li>
+        {d.verification ? (
+          <li>
+            <strong>À vérifier au prochain rendu</strong> — {d.verification}
+          </li>
+        ) : null}
+        {d.abandon?.propose ? (
+          <li className="ag-avert-attention">
+            <span aria-hidden="true">▲</span> <strong>Abandon proposé</strong> — {d.abandon.raison || "trois corrections de causes différentes n'ont pas suffi : change de mouvement."}
+          </li>
+        ) : null}
+        {d.entreeLexique ? (
+          <li className="ag-avert-info">
+            <span aria-hidden="true">ℹ</span> <strong>Candidate au lexique</strong> (rien n&rsquo;est écrit : à ajouter à la main si le prochain rendu confirme) —{" "}
+            {d.entreeLexique.symptome} → {d.entreeLexique.cause} → « {d.entreeLexique.formulationQuiTient} »
+          </li>
+        ) : null}
+      </ul>
+    </section>
   );
 }
 
@@ -412,7 +482,9 @@ function Changement({
         </div>
       ) : null}
 
-      {aUnDiff ? (
+      {c.cibleType === "fiche" ? (
+        <ApercuFiche c={c} ouvert={ouvert} />
+      ) : aUnDiff ? (
         <details className="ag-diff-bloc" open={ouvert || undefined} onToggle={(e) => setDiffOuvert((e.currentTarget as HTMLDetailsElement).open)}>
           <summary>Avant / après</summary>
           <table className="ag-diff">
@@ -430,5 +502,88 @@ function Changement({
         </details>
       ) : null}
     </li>
+  );
+}
+
+const LABEL_REF = { picture: "Picture", audio: "Audio" } as const;
+const STYLE_TEXTE = { whiteSpace: "pre-wrap", fontSize: 12, margin: "4px 0 8px", maxHeight: 260, overflow: "auto" } as const;
+
+/** Aperçu d'une fiche de plan (cible `fiche`) : les six sections telles qu'elles seront écrites, les
+ * références (labels et assets) et la durée ; ce qu'elles remplacent reste dépliable. Rendu à la demande. */
+function ApercuFiche({ c, ouvert }: { c: VueChangement; ouvert: boolean }) {
+  const [deplie, setDeplie] = useState(ouvert);
+  const apres = lireApresFiche(c.apres);
+  const avant = lireApresFiche(c.avant);
+  const sections = Object.entries(apres.sections ?? {});
+  const passages = apres.passages ?? [];
+  return (
+    <details className="ag-diff-bloc" open={ouvert || passages.length > 0 || undefined} onToggle={(e) => setDeplie((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary>
+        {passages.length > 0 ? `Correction · ${passages.length} passage${passages.length > 1 ? "s" : ""} remplacé${passages.length > 1 ? "s" : ""} · ` : ""}
+        Aperçu de la fiche · {sections.length === 6 ? "six sections" : `${sections.length} section${sections.length > 1 ? "s" : ""}`}
+        {apres.refs ? ` · ${apres.refs.length} référence${apres.refs.length > 1 ? "s" : ""}` : ""}
+        {apres.dureeGenerationSecondes != null ? ` · ${apres.dureeGenerationSecondes} s` : ""}
+      </summary>
+      {deplie || passages.length > 0 ? (
+        <div>
+          {passages.length > 0 ? (
+            <table className="ag-diff">
+              <tbody>
+                {passages.map((p, i) => (
+                  <tr key={`${p.section}-${i}`} className="ag-diff-modifie">
+                    <th scope="row">{p.section}</th>
+                    <td className="ag-diff-avant">{p.avant || <span className="ag-diff-vide">(rien)</span>}</td>
+                    <td className="ag-diff-apres">{p.apres || <span className="ag-diff-vide">(supprimé)</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+          {apres.dureeGenerationSecondes != null && avant.dureeGenerationSecondes != null && avant.dureeGenerationSecondes !== apres.dureeGenerationSecondes ? (
+            <p className="tiny-note">
+              Durée de génération : {avant.dureeGenerationSecondes} s → {apres.dureeGenerationSecondes} s
+            </p>
+          ) : null}
+          {apres.refs ? (
+            <>
+              <p className="tiny-note">
+                <strong>Références</strong> (remplacent celles du plan ; les voix gardent leurs slots)
+              </p>
+              {apres.refs.length === 0 ? <p className="tiny-note">Aucune.</p> : null}
+              <ul className="tiny-note">
+                {apres.refs.map((r) => (
+                  <li key={`${r.type}-${r.slot}`}>
+                    &lt;{LABEL_REF[r.type]} {r.slot}&gt; · <span className="num">{r.asset}</span>
+                    {r.role ? ` — ${r.role}` : ""}
+                  </li>
+                ))}
+              </ul>
+              {avant.refs && avant.refs.length > 0 ? (
+                <p className="tiny-note">
+                  Actuelles : {avant.refs.map((r) => `<${LABEL_REF[r.type]} ${r.slot}> ${r.asset}`).join(", ")}
+                </p>
+              ) : null}
+            </>
+          ) : null}
+          {sections.map(([nom, texte]) => {
+            const actuel = avant.sections?.[nom as keyof typeof avant.sections];
+            return (
+              <div key={nom}>
+                <p className="tiny-note">
+                  <strong>{nom}</strong>
+                </p>
+                <pre style={STYLE_TEXTE}>{texte || "(vide)"}</pre>
+                {actuel?.trim() ? (
+                  <details>
+                    <summary className="tiny-note">Texte actuel (sera remplacé)</summary>
+                    <pre style={STYLE_TEXTE}>{actuel}</pre>
+                  </details>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </details>
   );
 }

@@ -267,6 +267,55 @@
       "when": 1792688400000,
       "tag": "0037_generation_voix",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792774800000,
+      "tag": "0038_numero_rendu_seed_par_plan",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792861200000,
+      "tag": "0039_registre_un_niveau",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792947600000,
+      "tag": "0040_reste_a_definir",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793034000000,
+      "tag": "0041_creations_projet",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793120400000,
+      "tag": "0042_flux_agents",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1793206800000,
+      "tag": "0043_progression_video",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1793293200000,
+      "tag": "0044_adoption_auto",
+      "breakpoints": true
     }
   ]
 }

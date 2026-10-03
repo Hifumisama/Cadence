@@ -1,4 +1,7 @@
 FROM node:22-alpine
+# ffmpeg et ffprobe : planche de vignettes d'un rendu vidéo (lib/planche-vignettes.ts, skill iteration-plan).
+# Le paquet Alpine fournit les deux binaires, dans le PATH.
+RUN apk add --no-cache ffmpeg
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install

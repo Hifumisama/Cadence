@@ -7,13 +7,14 @@ import { BasculeNotifications } from "@/components/taches/BasculeNotifications";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { estActive, type GenreTache, type Tache } from "@/lib/taches";
 import { urlMiniature } from "@/lib/miniatures";
+import { LIBELLE_SERVEUR, type ServeursInjoignables } from "@/lib/serveurs-injoignables-types";
 
 /** Icône du header : ce qui se génère, ce qui est prêt, ce qui a échoué. Badge
  * or = nombre de tâches actives ; point écarlate = échecs non vus ; point or plein
  * = terminées non vues. Le panneau liste les tâches (voir lib/taches.ts) ; un clic
  * mène à l'asset (popup ouverte sur le résultat) ou au plan. */
 export function IndicateurTaches() {
-  const { taches, resume, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe } = useTaches();
+  const { taches, resume, serveurs, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe } = useTaches();
   const [confirmerVidage, setConfirmerVidage] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
 
@@ -41,7 +42,9 @@ export function IndicateurTaches() {
   const finies = taches.filter((x) => x.statut === "termine");
   const nonVus = resume.echecsNonVus + resume.terminesNonVus;
 
+  const injoignables = (Object.keys(LIBELLE_SERVEUR) as (keyof ServeursInjoignables)[]).filter((k) => serveurs[k] != null);
   const etat = [
+    injoignables.length > 0 ? `${injoignables.map((k) => LIBELLE_SERVEUR[k]).join(" et ")} injoignable` : null,
     resume.actives > 0 ? `${resume.actives} génération${resume.actives > 1 ? "s" : ""} en cours ou en file` : null,
     resume.echecsNonVus > 0 ? `${resume.echecsNonVus} échec${resume.echecsNonVus > 1 ? "s" : ""} non vu${resume.echecsNonVus > 1 ? "s" : ""}` : null,
     resume.terminesNonVus > 0 ? `${resume.terminesNonVus} résultat${resume.terminesNonVus > 1 ? "s" : ""} prêt${resume.terminesNonVus > 1 ? "s" : ""}` : null,
@@ -69,7 +72,7 @@ export function IndicateurTaches() {
           <rect x="3" y="16" width="12" height="4" rx="1" />
         </svg>
         {resume.actives > 0 ? <span className="tq-badge num">{resume.actives}</span> : null}
-        {resume.echecsNonVus > 0 ? <span className="tq-pt tq-pt-echec" aria-hidden="true" /> : resume.terminesNonVus > 0 ? <span className="tq-pt tq-pt-ok" aria-hidden="true" /> : null}
+        {injoignables.length > 0 ? <span className="tq-pt tq-pt-echec" aria-hidden="true" /> : resume.echecsNonVus > 0 ? <span className="tq-pt tq-pt-echec" aria-hidden="true" /> : resume.terminesNonVus > 0 ? <span className="tq-pt tq-pt-ok" aria-hidden="true" /> : null}
       </button>
 
       {panneauOuvert ? (
@@ -82,6 +85,13 @@ export function IndicateurTaches() {
               </button>
             ) : null}
           </div>
+
+          {injoignables.map((k) => (
+            <p key={k} className="tq-vide" role="alert">
+              {LIBELLE_SERVEUR[k]} injoignable depuis {new Date(serveurs[k]!).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} : les tâches
+              restent en attente{k === "llm" ? " (elles échoueront au bout de quelques minutes, à relancer ensuite)" : ""}.
+            </p>
+          ))}
 
           <BasculeNotifications />
 

@@ -1,4 +1,9 @@
+import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, slugifyCode } from "../assetCode";
 import type { ChangementBrut } from "./changements";
+import { cleNouvelAsset, type ApresFiche, type RefFiche } from "./fiches";
+import { corrigerCodesInconnus } from "./codes-proches";
+import { assemblerPlanH3 } from "./plan-h3-assemblage";
+import { controlerSortiePlanH3, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
 import type { Avertissement, Position } from "./types";
 
 /** Des sorties validées des skills aux changements d'une proposition — EN CODE, sans second
@@ -362,5 +367,220 @@ export function depuisCorrectionPlan(sortie: SortieScenarioEpisode, plan: { uuid
         ...(p.repliques?.length ? [{ type: "info" as const, texte: "Les répliques du plan ne sont pas modifiées par une correction de plan : elles se changent dans la fiche de plan." }] : []),
       ],
     },
+  ];
+}
+
+// --- plan-h3 (étape 3 : la fiche d'un plan) ----------------------------------------
+
+export type PlanPourFicheH3 = {
+  uuid: string;
+  titre: string;
+  /** Slots `<Audio N>` déjà pris par les répliques liées (plan_dialogues) : l'entrée de l'assemblage. */
+  slotsAudioPris: number[];
+  /** Répliques liées au plan : uuid public et texte exact (verbatim). */
+  repliques: { uuid: string; texte: string }[];
+  /** Le registre du projet (code, type), tel qu'il est maintenant. */
+  registre: { code: string; type: string }[];
+};
+
+export type OptionsFichePlan = {
+  /** Lot : `ep-<id>` (un groupe par épisode) ; sinon « fiches » pour la fiche, « assets » pour les créations. */
+  groupe?: string;
+  /** Lot : la scène du plan, sous laquelle la revue range sa fiche et ses assets. */
+  sousGroupe?: string | null;
+  /** Codes dont la CRÉATION est déjà proposée par une autre sous-tâche du lot : pas de doublon. */
+  codesDejaProposes?: Set<string>;
+  /** Textes des exemples du skill (alerte de recopie). */
+  corpusExemples?: string[];
+};
+
+const echapperRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export const TYPES_MANQUANTS = new Set<string>(TYPES_ASSET.filter((t) => t !== "voix" && t !== "keyframe"));
+
+/** Remplace un marqueur `[[CODE]]` (ou `[CODE]`) par du texte : une référence qu'on ne peut pas poser est
+ * décrite en prose, par le nom que le modèle lui a donné. */
+function marqueurEnProse(texte: string, code: string, nom: string): string {
+  const c = echapperRe(code);
+  return texte.replace(new RegExp(`\\[\\[\\s*${c}\\s*\\]\\]|(?<!\\[)\\[${c}\\](?!\\])`, "g"), nom);
+}
+
+/** « PROP_lettre » (type prop) → suffixe « lettre » : le préfixe que le modèle a écrit est retiré, le code
+ * final est reconstruit depuis le type (convention du registre). */
+export function suffixeDeCode(code: string): string {
+  const prefixes = Object.values(PREFIXE_PAR_TYPE).sort((a, b) => b.length - a.length);
+  const p = prefixes.find((x) => code.toUpperCase().startsWith(x)) ?? /^[A-Z]{2,6}_/.exec(code)?.[0]; // préfixe connu, ou en capitales (ACC_…)
+  return slugifyCode(p ? code.slice(p.length) : code);
+}
+
+function versAvertissement(p: ProblemeH3): Avertissement | null {
+  if (p.regle === "asset-manquant" || p.regle === "manquant-existant") return null; // traités par les créations d'assets
+  if (p.niveau === "info") return { type: "info", texte: p.message };
+  return { type: "alerte_controle", texte: p.niveau === "erreur" ? `Contrat non tenu (après renvoi au modèle) : ${p.message}` : p.message };
+}
+
+/** La sortie de `plan-h3` (un BROUILLON) → les changements d'une proposition, EN CODE :
+ * - la fiche du plan (cible `fiche`) : les six sections ASSEMBLÉES (lib/agents/plan-h3-assemblage.ts) avec
+ *   les slots audio des voix du plan en entrée, ses références picture/audio (qui REMPLACENT celles du plan :
+ *   « régénérer = tout régénérer ») et sa durée de génération. Les voix ne deviennent jamais des références ;
+ * - un changement « créer un asset » par asset manquant (avec son parent : `deriveDeCode` s'il existe,
+ *   `deriveDeCle` s'il est créé par la même proposition). Un asset déclaré manquant qui existe déjà est
+ *   ignoré (avertissement) ; une référence ne vise jamais un asset manquant (il reste décrit en prose).
+ * Une référence qui n'est pas au registre, ou de la mauvaise nature, est retirée et décrite en prose par son
+ * nom (alerte). Les problèmes des contrôles remontent en avertissements ; un marqueur `[[CODE]]` que le code
+ * ne sait pas résoudre bloque la fiche (à relancer). L'état du plan (vide, rempli, rendu) est lu par
+ * l'applicateur `fiche` (écrasement). Pur, testé. */
+export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3, options: OptionsFichePlan = {}): ChangementBrut[] {
+  // Un code mal recopié (mots de liaison) se corrige sans ambiguïté ; sinon il reste une erreur franche (voir codes-proches.ts).
+  const { sortie, corrections } = corrigerCodesInconnus(sortieBrute, plan.registre.map((a) => a.code));
+  const typeDe = new Map(plan.registre.map((a) => [a.code, a.type]));
+  const avertissements: Avertissement[] = [];
+  const ajouter = (a: Avertissement | null) => {
+    if (a && !avertissements.some((x) => x.type === a.type && x.texte === a.texte)) avertissements.push(a);
+  };
+
+  for (const c of corrections) ajouter({ type: "info", texte: `Code « ${c.de} » corrigé en « ${c.vers} » : même asset, mal recopié par le modèle.` });
+
+  // 1. références : seules celles du registre, de la bonne nature, une fois chacune
+  let textes = {
+    summary: sortie.summary ?? "",
+    ouverture: sortie.ouverture ?? "",
+    shots: (sortie.shots ?? []).map((s) => ({ ...s, texte: s.texte ?? "" })),
+    overall_soundscape: sortie.overall_soundscape ?? "",
+    non_diegetic_music: sortie.non_diegetic_music ?? "",
+  };
+  const enProse = (code: string, nom: string) => {
+    textes = {
+      summary: marqueurEnProse(textes.summary, code, nom),
+      ouverture: marqueurEnProse(textes.ouverture, code, nom),
+      shots: textes.shots.map((s) => ({ ...s, texte: marqueurEnProse(s.texte, code, nom) })),
+      overall_soundscape: marqueurEnProse(textes.overall_soundscape, code, nom),
+      non_diegetic_music: marqueurEnProse(textes.non_diegetic_music, code, nom),
+    };
+  };
+  const gardees: SortiePlanH3["references"] = [];
+  for (const r of sortie.references ?? []) {
+    if (gardees.some((g) => g.asset === r.asset)) continue; // doublon : la première fait foi
+    const type = typeDe.get(r.asset);
+    let raison: string | null = null;
+    if (type == null) raison = `${r.asset} n'est pas au registre`;
+    else if (type === "voix") raison = `${r.asset} est une voix (les voix ne sont jamais des références)`;
+    else if (r.nature === "son" && type !== "sfx") raison = `${r.asset} (${type}) n'est pas un bruitage`;
+    else if (r.nature === "image" && type === "sfx") raison = `${r.asset} est un bruitage, sans image`;
+    if (raison) {
+      ajouter({ type: "alerte_controle", texte: `${raison} : la référence est retirée et décrite en prose (« ${r.nom} »).` });
+      enProse(r.asset, r.nom);
+    } else gardees.push(r);
+  }
+  const nettoyee: SortiePlanH3 = { ...sortie, ...textes, references: gardees };
+
+  // 2. assemblage (labels, timecodes, sections) avec les slots des voix
+  const assemble = assemblerPlanH3(nettoyee, { slotsAudioPris: plan.slotsAudioPris });
+  const refs: RefFiche[] = assemble.refs
+    .filter((r) => r.slot != null)
+    .map((r) => {
+      const ref = gardees.find((g) => g.asset === r.asset);
+      return {
+        type: r.nature === "image" ? ("picture" as const) : ("audio" as const),
+        slot: r.slot!,
+        asset: r.asset,
+        role: ref?.role ?? null,
+        retention: r.nature === "son" ? r.retention : null,
+      };
+    });
+
+  // 3. contrôles (sur la sortie du modèle) et problèmes de l'assemblage
+  const problemes = [
+    ...controlerSortiePlanH3(sortie, {
+      registre: plan.registre,
+      repliques: plan.repliques.map((r) => ({ texte: r.texte })),
+      slotsAudioPris: plan.slotsAudioPris,
+      corpusExemples: options.corpusExemples,
+    }),
+    ...assemble.problemes,
+  ];
+  for (const p of problemes) ajouter(versAvertissement(p));
+  const liees = new Set(plan.repliques.map((r) => r.uuid));
+  for (const r of sortie.repliques ?? []) {
+    if (!liees.has(r.repliqueId)) ajouter({ type: "alerte_controle", texte: `La sortie cite une réplique qui n'est pas liée au plan (${r.repliqueId}) : ignorée, les liens restent ceux du plan.` });
+  }
+  const residuel = /\[\[\s*([^\]]+?)\s*\]\]/.exec(assemble.texte);
+  if (residuel) {
+    ajouter({
+      type: "bloque_controle",
+      texte: `Le prompt garde un marqueur [[${residuel[1]}]] que le code ne sait pas résoudre (asset manquant ou absent des références) : relance la fiche avec ce retour.`,
+    });
+  }
+
+  // 4. assets manquants : créés dans la même proposition (leurs prompts s'écrivent ensuite)
+  const creations: ChangementBrut[] = [];
+  const declares = (sortie.assetsManquants ?? []).map((m) => ({ m, code: TYPES_MANQUANTS.has(m.type) && suffixeDeCode(m.code) ? construireCode(m.type, suffixeDeCode(m.code)) : null }));
+  const codesDeclares = new Map<string, string>(); // code écrit par le modèle (ou final) → code final
+  for (const { m, code } of declares) if (code) codesDeclares.set(m.code, code).set(code, code);
+  const vus = new Set<string>();
+  for (const { m, code } of declares) {
+    if (!code) {
+      ajouter({ type: "alerte_controle", texte: `Asset manquant « ${m.code} » (${m.type}) : type ou nom inutilisable, non créé.` });
+      continue;
+    }
+    if (typeDe.has(code)) {
+      ajouter({ type: "alerte_controle", texte: `${code} est déclaré manquant mais existe déjà au registre : rien n'est créé.` });
+      continue;
+    }
+    if (vus.has(code)) continue;
+    vus.add(code);
+    if (options.codesDejaProposes?.has(code)) {
+      ajouter({ type: "info", texte: `${code} manque aussi à ce plan : sa création est déjà proposée par un autre plan du lot.` });
+      continue;
+    }
+    const apres: Record<string, unknown> = { type: m.type, suffixe: suffixeDeCode(m.code), description: (m.description ?? "").trim(), critique: false };
+    const avertAsset: Avertissement[] = [{ type: "info", texte: `Manque au plan « ${plan.titre} » : ${(m.raison ?? "").trim() || "raison non dite"}` }];
+    if (code !== m.code) avertAsset.push({ type: "info", texte: `Code proposé « ${m.code} », construit selon la convention du registre : ${code}.` });
+    const parent = m.parent?.trim();
+    if (parent) {
+      const parentNouveau = codesDeclares.get(parent);
+      if (typeDe.has(parent)) apres.deriveDeCode = parent;
+      else if (parentNouveau && parentNouveau !== code && !typeDe.has(parentNouveau)) apres.deriveDeCle = cleNouvelAsset(parentNouveau);
+      else if (parentNouveau && typeDe.has(parentNouveau)) apres.deriveDeCode = parentNouveau;
+      else if (options.codesDejaProposes?.has(parent)) apres.deriveDeCle = cleNouvelAsset(parent);
+      else avertAsset.push({ type: "alerte_controle", texte: `Parent « ${parent} » introuvable (ni au registre, ni créé par cette proposition) : l'asset est créé sans parent.` });
+    }
+    creations.push({
+      groupe: options.groupe ?? "assets",
+      cle: cleNouvelAsset(code),
+      cibleType: "asset",
+      cibleRef: null,
+      libelle: `${code} · nouvel asset (manque au plan « ${plan.titre} »)`,
+      operation: "creer",
+      sousGroupe: options.sousGroupe ?? null,
+      apres,
+      avertissements: avertAsset,
+    });
+  }
+  if (creations.length) {
+    const n = creations.length;
+    ajouter({
+      type: "info",
+      texte:
+        n > 1
+          ? `${n} assets manquants proposés à la création : ils restent décrits en prose dans ce prompt ; leurs prompts d'image s'écriront ensuite.`
+          : "1 asset manquant proposé à la création : il reste décrit en prose dans ce prompt ; son prompt d'image s'écrira ensuite.",
+    });
+  }
+  // Un dérivé dont le parent est créé ici vient après lui (l'application ordonne aussi par dépendance).
+  creations.sort((a, b) => Number(!!(a.apres as Record<string, unknown>).deriveDeCle) - Number(!!(b.apres as Record<string, unknown>).deriveDeCle));
+
+  const fiche: ApresFiche = { sections: { ...assemble.sections }, refs, dureeGenerationSecondes: sortie.dureeSecondes };
+  return [
+    {
+      groupe: options.groupe ?? "fiches",
+      cibleType: "fiche",
+      cibleRef: plan.uuid,
+      libelle: `Fiche de plan · ${plan.titre}`,
+      operation: "modifier",
+      sousGroupe: options.sousGroupe ?? null,
+      apres: fiche,
+      avertissements,
+    },
+    ...creations,
   ];
 }

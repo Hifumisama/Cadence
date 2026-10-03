@@ -61,6 +61,8 @@ export async function etatTache(runId: number | null): Promise<EtatTache | null>
     but: (r.but ?? "tour") as ButRun,
     statut: r.statut as EtatTache["statut"],
     progressionJetons: r.progressionJetons,
+    fluxTexte: r.statut === "en_cours" ? r.fluxTexte : null,
+    fluxReflexion: r.statut === "en_cours" ? r.fluxReflexion : null,
     erreur: r.erreur,
     positionFile,
   };
@@ -79,11 +81,23 @@ export async function positionsFile(): Promise<Map<number, number>> {
   return new Map(attente.map((r, i) => [r.id, Number(images) + i + 1]));
 }
 
+/** La tâche qui occupe la conversation (en attente ou en cours), ou null : celle qu'un refus doit NOMMER
+ * pour que l'utilisateur puisse l'annuler. Priorité à la plus ancienne en cours, sinon à la plus ancienne en attente. */
+export type TacheBloquante = { runUuid: string; skill: string; but: ButRun; statut: "en_attente" | "en_cours"; libelle: string | null };
+
+export async function tacheBloquante(conversationId: number, buts?: ButRun[]): Promise<TacheBloquante | null> {
+  const l = await db
+    .select({ uuid: agentRuns.uuid, skill: agentRuns.skill, statut: agentRuns.statut, but: agentRuns.but, libelle: agentRuns.libelleSousTache })
+    .from(agentRuns)
+    .where(eq(agentRuns.conversationId, conversationId))
+    .orderBy(asc(agentRuns.createdAt), asc(agentRuns.id));
+  const actifs = l.filter((r) => (r.statut === "en_attente" || r.statut === "en_cours") && (!buts || buts.includes((r.but ?? "tour") as ButRun)));
+  const r = actifs.find((x) => x.statut === "en_cours") ?? actifs[0];
+  if (!r) return null;
+  return { runUuid: r.uuid, skill: r.skill, but: (r.but ?? "tour") as ButRun, statut: r.statut as "en_attente" | "en_cours", libelle: r.libelle };
+}
+
 /** `true` si une tâche de cette conversation est en attente ou en cours (un seul tour à la fois). */
 export async function tacheActive(conversationId: number, buts?: ButRun[]): Promise<boolean> {
-  const l = await db
-    .select({ statut: agentRuns.statut, but: agentRuns.but })
-    .from(agentRuns)
-    .where(eq(agentRuns.conversationId, conversationId));
-  return l.some((r) => (r.statut === "en_attente" || r.statut === "en_cours") && (!buts || buts.includes((r.but ?? "tour") as ButRun)));
+  return (await tacheBloquante(conversationId, buts)) != null;
 }

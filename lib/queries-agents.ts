@@ -19,6 +19,7 @@ import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assetGenerations, assets, briefs, episodes, plans, propositionChangements, propositions } from "../db/schema";
 import { briefVide, construireSections } from "./agents/brief";
+import { MAX_VIGNETTES_ITERATION, diagnosticIteration } from "./agents/iteration-plan";
 import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./agents/cochage";
 import { apercuContexteDe } from "./agents/contexte";
 import { planifierInsertion } from "./agents/rangs";
@@ -91,6 +92,7 @@ async function versVueConversation(c: typeof agentConversations.$inferSelect): P
     messages: ((c.messages as MessageConversation[]) ?? []).map((m) => ({ role: m.role, content: m.content, at: m.at })),
     consigne: c.consigne,
     briefPret: c.briefPret,
+    resteADefinir: ((c.resteADefinir as unknown[]) ?? []).filter((x): x is string => typeof x === "string"),
     propositionUuid,
     tache: await etatTache(run?.id ?? null),
     createdAt: c.createdAt.toISOString(),
@@ -239,6 +241,12 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
     const [c] = await db.select({ uuid: agentConversations.uuid }).from(agentConversations).where(eq(agentConversations.id, p.conversationId));
     conversationUuid = c?.uuid ?? null;
   }
+  // Correction après visionnage : le diagnostic vit dans le résultat de la tâche (il existe même sans écriture).
+  let diagnostic: VueProposition["diagnostic"] = null;
+  if (p.skill === "iteration-plan" && p.runId != null) {
+    const [run] = await db.select({ resultat: agentRuns.resultat }).from(agentRuns).where(eq(agentRuns.id, p.runId));
+    diagnostic = diagnosticIteration(run?.resultat ?? null);
+  }
   let parentUuid: string | null = null;
   if (p.parentId != null) {
     const [par] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, p.parentId));
@@ -263,6 +271,7 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
     ecrasements: ecrasementsAConfirmer(changements),
     tache: p.statut === "en_generation" && !p.lot ? await etatTache(p.runId) : null,
     lot: p.lot ? await vueLot(p.id, await positionsFile()) : null,
+    diagnostic,
     createdAt: p.createdAt.toISOString(),
     appliedAt: p.appliedAt?.toISOString() ?? null,
   };
@@ -294,7 +303,7 @@ export async function apercuContexte(projectId: number, portee: Portee, cible: C
   return apercuContexteDe(db, projectId, portee, r.cibleId);
 }
 
-const SORTIE_ESTIMEE: Record<string, number> = { "brief-projet": 2500, "scenario-episode": 1800, "prompt-asset": 500, "prompt-voix": 400, "conversation-agent": 600 };
+const SORTIE_ESTIMEE: Record<string, number> = { "brief-projet": 2500, "scenario-episode": 1800, "prompt-asset": 500, "prompt-voix": 400, "conversation-agent": 600, "plan-h3": 2500, "iteration-plan": 900 };
 
 /** Estimation avant lancement : fournisseur, modèle, coût (null en local), durée, tâches
  * devant dans la file. Ordres de grandeur (≈ 30 jetons/s en sortie sur le serveur local,
@@ -370,6 +379,46 @@ export async function estimerRegistre(nbAssets: number): Promise<EstimationGener
   };
 }
 
+/** Estimation des fiches de plan : un appel `plan-h3` par plan, l'un après l'autre (≈ 3 500 jetons d'entrée
+ * propres au plan en plus du prompt système, mesuré sur le projet 1). */
+export async function estimerFiches(nbPlans: number): Promise<EstimationGeneration> {
+  const conf = configLlm();
+  const n = Math.max(1, nbPlans);
+  const entree = chargerSkill("plan-h3").jetonsEstimes + 3500;
+  const sortie = SORTIE_ESTIMEE["plan-h3"] ?? 2500;
+  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
+  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
+  return {
+    fournisseur: conf.fournisseur,
+    modele: modelePourSkill("plan-h3"),
+    coutEstimeUsd: null,
+    jetonsEntreeEstimes: entree * n,
+    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
+    tachesDevant: images + appels,
+    skill: "plan-h3",
+  };
+}
+
+/** Estimation d'une correction après visionnage : un appel `iteration-plan` (prompt du plan et contexte ≈ 2 500
+ * jetons, plus la planche : ≈ 70 à 280 jetons par vignette de 384 px selon FRICTIONS, on prend le haut, 15 au plus).
+ * Ordre de grandeur, à affiner avec `usage.entree` du premier appel réel. */
+export async function estimerIteration(): Promise<EstimationGeneration> {
+  const conf = configLlm();
+  const entree = chargerSkill("iteration-plan").jetonsEstimes + 2500 + 280 * MAX_VIGNETTES_ITERATION;
+  const sortie = SORTIE_ESTIMEE["iteration-plan"] ?? 900;
+  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
+  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
+  return {
+    fournisseur: conf.fournisseur,
+    modele: modelePourSkill("iteration-plan"),
+    coutEstimeUsd: null,
+    jetonsEntreeEstimes: entree,
+    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30),
+    tachesDevant: images + appels,
+    skill: "iteration-plan",
+  };
+}
+
 /** Estimation du lot « casting des voix » : un appel `prompt-voix` par voix. */
 export async function estimerVoix(nbVoix: number): Promise<EstimationGeneration> {
   const conf = configLlm();
@@ -415,4 +464,34 @@ export async function listerPropositions(projectId: number, limite = 50): Promis
     createdAt: l.createdAt.toISOString(),
     appliedAt: l.appliedAt?.toISOString() ?? null,
   }));
+}
+
+/** Une conversation du projet, pour la liste « autres conversations » de la fenêtre de l'agent : la trace de ce qui a déjà
+ * été demandé (une conversation par portée et par cible). */
+export type ResumeConversation = {
+  uuid: string;
+  portee: Portee;
+  cibleLibelle: string;
+  etape: string;
+  nbMessages: number;
+  /** Une proposition courante (en génération, à relire ou appliquée). */
+  aProposition: boolean;
+  misAJour: string;
+};
+
+export async function listerConversationsProjet(projectId: number, limite = 30): Promise<ResumeConversation[]> {
+  const lignes = await db.select().from(agentConversations).where(eq(agentConversations.projectId, projectId)).orderBy(desc(agentConversations.updatedAt)).limit(limite);
+  const sortie: ResumeConversation[] = [];
+  for (const c of lignes) {
+    sortie.push({
+      uuid: c.uuid,
+      portee: c.portee as Portee,
+      cibleLibelle: await libelleCible(c.projectId, c.portee as Portee, c.cibleId),
+      etape: c.etape,
+      nbMessages: ((c.messages as unknown[]) ?? []).length,
+      aProposition: c.propositionId != null,
+      misAJour: c.updatedAt.toISOString(),
+    });
+  }
+  return sortie;
 }

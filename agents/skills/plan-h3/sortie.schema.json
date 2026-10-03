@@ -44,7 +44,7 @@
         "additionalProperties": false,
         "required": ["debutSecondes", "texte"],
         "properties": {
-          "debutSecondes": { "type": "number", "minimum": 0, "description": "Instant d'entrée du shot, en secondes depuis le début du plan. 0 pour le premier shot. Jamais moins de 1,5 s par shot." },
+          "debutSecondes": { "type": "number", "minimum": 0, "description": "Instant d'entrée du shot, en secondes depuis le début du plan. 0 pour le premier shot. Vise au moins 1,5 s par shot (en dessous, seulement pour un effet voulu, dit dans notes)." },
           "texte": { "type": "string", "description": "Le shot, en anglais. Premier shot : phrase complète. Shots suivants : complète « Hard cut to », donc commence par le cadre (« a low-angle shot of… »). Assets désignés par [[CODE_ASSET]] ; dialogues en <d>[Français] …</d>, verbatim, avec un locuteur (S1)." }
         }
       }

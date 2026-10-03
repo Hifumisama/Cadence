@@ -250,6 +250,7 @@ export const LIBELLE_CIBLE = {
   plan: "Plan",
   replique: "Réplique",
   voix: "Voix",
+  fiche: "Fiche de plan",
 } as const;
 
 export type GraviteAvertissement = "info" | "attention" | "bloquant";
@@ -261,6 +262,7 @@ export const AVERTISSEMENT: Record<TypeAvertissement, { libelle: string; gravite
   bloque_controle: { libelle: "Bloqué par un contrôle", gravite: "bloquant" },
   contredit_brief: { libelle: "Contredit le brief", gravite: "attention" },
   non_pris_en_charge: { libelle: "Pas encore pris en charge", gravite: "bloquant" },
+  alerte_controle: { libelle: "Contrôle", gravite: "attention" },
   info: { libelle: "À noter", gravite: "info" },
 };
 
@@ -443,4 +445,27 @@ export function libelleChoixEpisodes(total: number, selectionnes: number, vides:
   if (total === 0) return "Aucun épisode.";
   const pl = (n: number, s: string) => `${n} ${s}${n > 1 ? "s" : ""}`;
   return `${pl(selectionnes, "épisode")} sur ${total} sélectionné${selectionnes > 1 ? "s" : ""} · ${pl(vides, "vide")} (cochés d'office)`;
+}
+
+// ---------------------------------------------------------------------------
+// Lots : les mots qui disent ce que fait un lot (selon le skill de la proposition)
+// ---------------------------------------------------------------------------
+
+export type MotsLot = { titre: string; travail: string; ceci: string; dejaFaits: string };
+
+/** « Épisodes » / « l'agent écrit les épisodes un par un » / « cet épisode »… selon le lot. */
+export function motsDuLot(skill: string): MotsLot {
+  switch (skill) {
+    case "scenarios":
+      return { titre: "Épisodes", travail: "écrit les épisodes un par un", ceci: "cet épisode", dejaFaits: "Les épisodes déjà écrits" };
+    case "fiches":
+      return { titre: "Plans", travail: "écrit les fiches de plan une par une", ceci: "cette fiche", dejaFaits: "Les fiches déjà écrites" };
+    case "registre":
+    case "prompts-assets":
+      return { titre: "Assets", travail: "écrit les prompts des assets un par un", ceci: "cet asset", dejaFaits: "Les prompts déjà écrits" };
+    case "voix":
+      return { titre: "Voix", travail: "écrit les voix une par une", ceci: "cette voix", dejaFaits: "Les voix déjà écrites" };
+    default:
+      return { titre: "Sous-tâches", travail: "traite les sous-tâches une par une", ceci: "cette sous-tâche", dejaFaits: "Les résultats déjà obtenus" };
+  }
 }

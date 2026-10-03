@@ -144,6 +144,40 @@ Fixe : modèle `Voice Design - 1.7B VoiceDesign`, `top_k` 50, `top_p` 1, `repeti
 2048. Le résultat est un **candidat** (comme les images et les sons) : « Utiliser comme référence » le copie sous
 `assets/<CODE>.mp3` et reporte l'instruction et le texte sur la fiche. CosyVoice3 (les répliques) reste à la main.
 
+## Contrat du workflow vidéo (`video-generation/`)
+
+### `VID_REF2VA.json` — MiniMax H3 référence vers vidéo avec audio
+
+Branché : `worker/comfyui/mapping.ts` (`NODE_IDS`, `injecterValeurs`, `verifierEntree`) et `worker/index.ts`
+(`construireSubmissionInput`). `mapping.test.ts` lit ce fichier et casse si un nœud, un champ ou l'expression de durée
+change après un ré-export. Les valeurs du fichier sont des **valeurs de test**.
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Prompt assemblé | `22:11` (PrimitiveStringMultiline) | `value` | |
+| Durée du plan | `22:23` (PrimitiveFloat) | `value` | secondes, **5 à 15** (erreur franche sinon) ; `22:24` en tire le nombre d'images (24 i/s, forme 17k+5 : 5 s = 124, 8 s = 192, 12 s = 294, 15 s = 362) qui alimente `length` du nœud `5` |
+| Seeds | `16`, `103` (easy seed) : `seed` ; `135:27` (RandomNoise) : `noise_seed` | | la seed du plan, si elle existe |
+| Images de référence | `5` : `ref_images.ref_image_<slot-1>` | | **6 au plus** (images + vidéos) ; le nœud en accepte 9 |
+| Audios de référence | `5` : `ref_audios.ref_audio_<slot-1>` | | **3 au plus** ; prises des répliques liées d'abord, bruitages sur les emplacements libres |
+| Vidéos de référence | `5` : `ref_videos.ref_video_<slot-1>` | | 3 au plus ; sortie 0 (images) seulement |
+| Upscale | `34` (VHS_VideoCombine) | `images`, `audio` | oui : `165` / `261` (RIFE) ; non : `176` / `177` et `frame_rate` = 24 |
+| Sortie | `34` | `filename_prefix` | |
+
+**Créés à la volée** (ids `ref_img_N`, `ref_audio_N`, `ref_video_N`, absents du fichier ; les références du fichier sont
+purgées) : `LoadImageCrop` (`image`, `crop`, `max_megapixels` 1) ; `LoadAudioUI` (`start_time` 0, `end_time` =
+`duration` = durée mesurée de la prise, arrondie au centième par excès ; 0 si inconnue = défauts du nœud, « tout le
+fichier » **supposé, non vérifié**) ; `LoadVideoUI` (tous ses champs, obligatoires : défauts du nœud, 24 i/s). Les
+fichiers sont envoyés par `/upload/image` sous `cadence_<chemin relatif aplati>`.
+
+**Fixe, laissé au fichier** : résolution du 1er pass (`22:9`, 16:9, 0,2 Mpx, multiple de 32 : aucune donnée de
+projet ou de plan ne porte de format vidéo) ; cadence : le modèle génère à 24 i/s, RIFE (`165`, `source_fps` 24)
+interpole vers `168` (48) et le commutateur `170` impose cette valeur ; `plans.fps` (`SubmissionInput.fps`) n'est donc
+**pas injecté** ; `ref_image_size` `max` ; audio des vidéos de référence non câblé (`ref_video_audios`) ; modèles et LoRA.
+
+Vérifié par `GET /object_info` le 2026-10-02 : `MiniMaxH3ReferenceToVideo` (images max 9, audios max 3, vidéos max 3,
+`length` pas de 17), `LoadAudioUI` (start/end/duration FLOAT, défaut 0), `LoadVideoUI` (16 champs obligatoires),
+`LoadImageCrop`. **Jamais rendu en réel avec ces changements.**
+
 ## Suivi en direct (WebSocket)
 
 Le worker écoute `ws(s)://<COMFYUI_URL>/ws?clientId=…` pendant un prompt

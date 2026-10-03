@@ -2,13 +2,14 @@
 
 import { db } from "@/db";
 import { jobs, planDialogues, planPromptSections, planRefs, plans } from "@/db/schema";
-import { eq, and, isNotNull, desc } from "drizzle-orm";
+import { eq, and, isNotNull, max } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
 import { getDialoguesPlan } from "@/lib/queries-repliques";
+import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
 import type { RefLabel } from "@/lib/plan-checks";
 import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_VIDEO, cheminPlanMedia, estVideo } from "@/lib/media";
@@ -45,23 +46,34 @@ export async function updatePromptSection(
  * d'itération. Le worker applique ensuite le healthcheck et la distinction
  * indisponible/échec réel (F04). Ne revalide pas le cache : le batch veut
  * une seule revalidation après N plans, pas une par plan. */
-async function creerJobRelance(planId: number, activerUpscale: boolean) {
+async function creerJobRelance(planId: number, activerUpscale: boolean, nouvelleVariante = false) {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
+
+  // « Relancer » garde la seed du plan : même prompt + mêmes refs + même durée = même rendu (F04). Une
+  // « nouvelle variante » en tire une autre, qui devient la seed du plan.
+  const seed = nouvelleVariante || !plan.seed ? tirerSeed() : plan.seed;
+  const [rendus] = await db.select({ dernier: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, plan.id));
 
   await db.insert(jobs).values({
     planId: plan.id,
     statut: "en_attente",
     tentative: 1,
+    numeroRendu: (rendus?.dernier ?? 0) + 1,
     workflowFichier: "video-generation/VID_REF2VA.json",
-    seedUtilisee: plan.seed,
+    seedUtilisee: seed,
     activerUpscale,
   });
 
   await db
     .update(plans)
-    .set({ statut: "en_attente", updatedAt: new Date() })
+    .set({ statut: "en_attente", seed, updatedAt: new Date() })
     .where(eq(plans.id, plan.id));
+}
+
+/** Une seed de plan : un entier de 15 chiffres au plus (sûr en nombre JavaScript, accepté par les nœuds de seed). */
+function tirerSeed(): string {
+  return String(Math.floor(Math.random() * 1_000_000_000_000_000));
 }
 
 /** Invariant verbatim (F02, révision 2026-09-30) : un plan dont les dialogues
@@ -81,10 +93,11 @@ async function blocageDialogues(planId: number): Promise<string | null> {
 export async function relancerPlan(
   planId: number,
   activerUpscale: boolean,
+  nouvelleVariante = false,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const blocage = await blocageDialogues(planId);
   if (blocage) return { ok: false, erreur: `Dialogues à corriger avant de générer : ${blocage}.` };
-  await creerJobRelance(planId, activerUpscale);
+  await creerJobRelance(planId, activerUpscale, nouvelleVariante);
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -139,10 +152,9 @@ export async function updatePlanParametres(
   revalidatePath("/", "layout");
 }
 
-/** Ajoute une référence (image/audio/vidéo) au prochain slot disponible.
- * Ne renumérote jamais les slots existants — même philosophie que les
- * numéros de plan (F03) : un slot supprimé laisse un trou plutôt que
- * décaler les labels <Picture N> déjà cités dans le prompt. */
+/** Ajoute une référence (image/audio/vidéo) au prochain slot disponible, et la déclare dans le prompt
+ * (`subject_definitions`, `retention_analysis` : lib/references.ts). Les slots sont toujours sans trou
+ * (révision 2026-10-03 : un retrait renumérote, voir `supprimerRef`). */
 export async function ajouterRef(
   planId: number,
   type: RefLabel["type"],
@@ -165,18 +177,23 @@ export async function ajouterRef(
 
   const prochainSlot = [...existantes.map((r) => r.slot), ...slotsRepliques].reduce((acc, n) => Math.max(acc, n), 0) + 1;
 
-  await db.insert(planRefs).values({
-    planId,
-    type,
-    slot: prochainSlot,
-    assetId,
+  await db.transaction(async (tx) => {
+    await tx.insert(planRefs).values({
+      planId,
+      type,
+      slot: prochainSlot,
+      assetId,
+    });
+    await declarerRefDansLePrompt(tx, planId, type, prochainSlot, assetId);
   });
 
   revalidatePath("/", "layout");
 }
 
+/** Retire une référence : les images restantes sont renumérotées 1..n, le prompt suit (lignes de la référence
+ * retirées, labels réécrits, mentions en prose remplacées par le nom de l'asset). */
 export async function supprimerRef(refId: number) {
-  await db.delete(planRefs).where(eq(planRefs.id, refId));
+  await db.transaction((tx) => retirerRefDuPlan(tx, refId));
   revalidatePath("/", "layout");
 }
 
@@ -306,7 +323,8 @@ export async function analyserPromptColle(
     getDialoguesPlan(plan.projectId, planId, plan.episodeId),
   ]);
 
-  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, [...refs, ...audioRefs]);
+  // Les voix (audioRefs) sont des refs dérivées : déclarées, jamais « non citées » (voir verifierCoherenceRefs).
+  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, refs, audioRefs);
   const repliquesNonTrouvees = controlerDialogues(
     sectionsPourControle,
     liaisons.map((l) => ({ id: l.id, texte: l.texte, audioPresent: l.fichier != null, priseObsolete: l.priseObsolete })),
@@ -365,12 +383,7 @@ export async function importerVideoExistante(planId: number, formData: FormData)
     throw new Error(`Format vidéo non reconnu (${ext}) — attendu .mp4, .webm ou .mov.`);
   }
 
-  const [dernier] = await db
-    .select({ tentative: jobs.tentative })
-    .from(jobs)
-    .where(eq(jobs.planId, planId))
-    .orderBy(desc(jobs.tentative))
-    .limit(1);
+  const [rendus] = await db.select({ dernier: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, planId));
 
   const nomFichier = `import-${Date.now()}${ext}`;
   const cheminComplet = join(MEDIA_ROOT, cheminPlanMedia(planId, nomFichier));
@@ -380,7 +393,7 @@ export async function importerVideoExistante(planId: number, formData: FormData)
   await db.insert(jobs).values({
     planId,
     statut: "termine",
-    tentative: (dernier?.tentative ?? 0) + 1,
+    numeroRendu: (rendus?.dernier ?? 0) + 1,
     activerUpscale: true,
     workflowFichier: WORKFLOW_IMPORT_MANUEL,
     cheminSortie: cheminPlanMedia(planId, nomFichier),

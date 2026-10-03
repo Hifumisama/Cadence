@@ -132,12 +132,13 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     // plus) ; le panneau la montre comme une annulation, pas comme un échec.
     statut: j.statut === "echoue" && j.erreur === ERREUR_ANNULEE ? "annulee" : j.statut,
     libelle: titre,
-    detail: j.tentative > 1 ? `Vidéo · tentative ${j.tentative}` : "Vidéo",
+    // L'étape en cours (génération H3, interpolation, encodage) quand le worker la connaît ; sinon le rejeu éventuel.
+    detail: j.statut === "en_cours" && j.etapeLibelle ? `Vidéo · ${j.etapeLibelle}` : j.tentative > 1 ? `Vidéo · rejeu ${j.tentative}` : "Vidéo",
     // F03 : le plan se désigne par son uuid public, jamais par sa position.
     href: `/p/${projectId}/e/${episodeId}/plans/${planUuid}`,
     projectId,
     assetId: null,
-    progression: null,
+    progression: j.statut === "en_cours" && j.progressionValeur != null && j.progressionMax ? { valeur: j.progressionValeur, max: j.progressionMax, etape: j.etapeLibelle } : null,
     apercuSrc: null,
     vignetteSrc: null,
     createdAt: j.createdAt.toISOString(),
@@ -251,4 +252,14 @@ export async function rangDansLaFile(generationId: number): Promise<number> {
 export async function nbImagesEnAttente(): Promise<number> {
   const lignes = await db.select({ id: assetGenerations.id }).from(assetGenerations).where(eq(assetGenerations.statut, "en_attente"));
   return lignes.length;
+}
+
+/** Les assets d'un projet qui ont déjà une génération en attente ou en cours (un lot ne les double pas). */
+export async function assetsEnFile(projectId: number): Promise<Set<number>> {
+  const lignes = await db
+    .select({ assetId: assetGenerations.assetId })
+    .from(assetGenerations)
+    .innerJoin(assets, eq(assets.id, assetGenerations.assetId))
+    .where(and(eq(assets.projectId, projectId), inArray(assetGenerations.statut, ["en_attente", "en_cours"])));
+  return new Set(lignes.map((l) => l.assetId));
 }

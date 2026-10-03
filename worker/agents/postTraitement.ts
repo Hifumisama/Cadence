@@ -24,6 +24,14 @@ import { codeDeCleVoix } from "../../lib/agents/voix-casting";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
 import type { BriefContenu, Position, StatutChamp } from "../../lib/agents/types";
 import type { Tx } from "../../lib/ordre-plans";
+import { depuisFichePlan, type OptionsFichePlan } from "../../lib/agents/conversion";
+import { planUuidDeCle } from "../../lib/agents/fiches";
+import type { SortiePlanH3 } from "../../lib/agents/plan-h3-controles";
+import { corpusExemplesPlanH3 } from "../../lib/agents/plan-h3-corpus";
+import { planDialogues, planPromptSections, planRefs, propositionChangements, repliques, scenes } from "../../db/schema";
+import { depuisInventaire, type SortieInventaire } from "../../lib/agents/inventaire";
+import { depuisIterationPlan, raisonSansEcriture, type PlanPourIteration, type SortieIterationPlan } from "../../lib/agents/iteration-plan";
+import type { InfosExecution } from "./preparation";
 
 /** Ce que devient le résultat validé d'une tâche du système d'agents, DANS la transaction qui
  * l'écrit (worker/llm.ts) : un échec ici annule tout et la tâche est marquée échouée.
@@ -34,21 +42,33 @@ import type { Tx } from "../../lib/ordre-plans";
 type RunAgent = typeof agentRuns.$inferSelect;
 export type OptionsRunAgent = { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null };
 
-export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown): Promise<void> {
+export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execution: InfosExecution = {}): Promise<void> {
   if (!run.but) return; // appel hors système d'agents (npm run llm:tache) : rien à faire
-  if (run.but === "tour") return postTour(tx, run, json as { reponse: string; briefPret: boolean });
+  if (run.but === "tour") return postTour(tx, run, json as { reponse: string; briefPret: boolean; resteADefinir?: string[] });
   if (run.but === "brief") return postBrief(tx, run, json as Record<string, unknown>);
-  if (run.but === "proposition") return postProposition(tx, run, json);
+  if (run.but === "proposition") return postProposition(tx, run, json, execution);
 }
 
-async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; briefPret: boolean }) {
+/** La liste « reste à définir » d'un tour : des phrases courtes, sans doublon ni vide. */
+export function resteADefinirDe(sortie: { resteADefinir?: unknown }): string[] {
+  const l = Array.isArray(sortie.resteADefinir) ? sortie.resteADefinir : [];
+  return [...new Set(l.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean))].slice(0, 12);
+}
+
+/** `briefPret` : l'agent a de quoi écrire une PREMIÈRE VERSION du briefing (il peut lui rester des questions : elles
+ * continuent en conversation, et le briefing se met à jour). Le briefing est DÉFINITIF quand la liste est vide. */
+export function briefPretApresTour(sortie: { briefPret: boolean; resteADefinir?: unknown }): boolean {
+  return sortie.briefPret === true;
+}
+
+async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; briefPret: boolean; resteADefinir?: string[] }) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
   if (!conv) return; // conversation écrasée entre-temps : le tour est perdu, sans erreur
   const messages = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: sortie.reponse, at: new Date().toISOString() }];
   await tx
     .update(agentConversations)
-    .set({ messages, briefPret: sortie.briefPret === true, etape: "conversation", updatedAt: new Date() })
+    .set({ messages, briefPret: briefPretApresTour(sortie), resteADefinir: resteADefinirDe(sortie), etape: "conversation", updatedAt: new Date() })
     .where(eq(agentConversations.id, conv.id));
 }
 
@@ -75,7 +95,7 @@ async function postBrief(tx: Tx, run: RunAgent, sortie: Record<string, unknown>)
   }
 }
 
-async function postProposition(tx: Tx, run: RunAgent, json: unknown) {
+async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: InfosExecution) {
   if (run.propositionId == null) throw new Error("Tâche de proposition sans proposition.");
   const [prop] = await tx.select().from(propositions).where(eq(propositions.id, run.propositionId));
   if (!prop) return; // proposition supprimée entre-temps
@@ -86,6 +106,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown) {
   if (prop.lot) {
     if (run.skill === "prompt-asset") return postSousTacheRegistre(tx, run, prop, scope, json as SortiePromptAsset);
     if (run.skill === "prompt-voix") return postSousTacheVoix(tx, run, prop, scope, json as SortiePromptVoix);
+    if (run.skill === "plan-h3") return postSousTacheFiche(tx, run, prop, scope, json as SortiePlanH3);
     return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
   }
 
@@ -117,6 +138,31 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown) {
     } else {
       throw new Error(`Portée « ${prop.portee} » non prise en charge pour le skill scenario-episode.`);
     }
+  } else if (run.skill === "plan-h3") {
+    // La fiche d'UN plan (portée plan) : la fiche et ses assets manquants, dans les groupes communs.
+    if (prop.cibleId == null) throw new Error("Proposition de fiche sans plan.");
+    const [plan] = await tx.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, prop.cibleId));
+    if (!plan) throw new Error("Le plan visé n'existe plus.");
+    bruts = await brutsFiche(tx, prop.projectId, plan.uuid, json as SortiePlanH3);
+  } else if (run.skill === "inventaire-assets") {
+    // Les assets que les plans réclament et que le registre n'a pas : des créations sans prompt (il s'écrit ensuite).
+    const sortie = json as SortieInventaire;
+    const registre = await tx.select({ code: assets.code, type: assets.type, description: assets.description }).from(assets).where(eq(assets.projectId, prop.projectId));
+    bruts = depuisInventaire(sortie, registre.map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" })));
+    await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts);
+    // Rien à ajouter : la proposition le dit (avec les notes du modèle) plutôt que d'afficher une liste vide.
+    if (bruts.length === 0) {
+      const notes = (sortie.notes ?? "").trim();
+      await tx.update(propositions).set({ resume: `Le registre suffit : aucun asset à ajouter.${notes ? ` ${notes}` : ""}` }).where(eq(propositions.id, prop.id));
+    }
+    if (prop.conversationId != null) {
+      await tx.update(agentConversations).set({ etape: "proposition", updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
+    }
+    return;
+  } else if (run.skill === "iteration-plan") {
+    // Correction après visionnage : une écriture PARTIELLE de la fiche, ou rien (le diagnostic seul) avec la raison.
+    if (prop.cibleId == null) throw new Error("Correction de plan sans plan.");
+    return postIteration(tx, run, prop, scope, json as SortieIterationPlan, execution);
   } else {
     throw new Error(`Skill « ${run.skill} » : pas de conversion en proposition.`);
   }
@@ -224,6 +270,114 @@ async function postSousTacheVoix(
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
+/** Les changements d'une fiche de plan (sortie de `plan-h3`), depuis l'état du plan MAINTENANT : ses voix
+ * (slots `<Audio N>` de plan_dialogues, entrée de l'assemblage), ses répliques (verbatim), le registre. */
+async function brutsFiche(tx: Tx, projectId: number, planUuid: string, sortie: SortiePlanH3, options: OptionsFichePlan = {}): Promise<ChangementBrut[]> {
+  const [plan] = await tx.select({ id: plans.id, titre: plans.titre }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
+  if (!plan) throw new Error("Le plan visé n'existe plus.");
+  const [dialogues, registre] = await Promise.all([
+    tx
+      .select({ uuid: repliques.uuid, texte: repliques.texte, slot: planDialogues.slot })
+      .from(planDialogues)
+      .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
+      .where(eq(planDialogues.planId, plan.id)),
+    tx.select({ code: assets.code, type: assets.type }).from(assets).where(eq(assets.projectId, projectId)),
+  ]);
+  return depuisFichePlan(
+    sortie,
+    { uuid: planUuid, titre: plan.titre, slotsAudioPris: dialogues.map((d) => d.slot), repliques: dialogues.map((d) => ({ uuid: d.uuid, texte: d.texte })), registre },
+    { corpusExemples: corpusExemplesPlanH3(), ...options },
+  );
+}
+
+/** Une sous-tâche du lot « fiches de plan » (un plan) : sa fiche et ses assets manquants, rangés sous son
+ * épisode et sa scène. Même règle que les autres lots : ses changements REMPLACENT ceux qu'elle avait posés
+ * (relance), idempotent ; un asset manquant dont un autre plan du lot propose déjà la création n'est pas
+ * proposé deux fois ; puis le lot décide de son statut. */
+async function postSousTacheFiche(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "saison" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortiePlanH3,
+) {
+  const cle = run.cleSousTache;
+  const planUuid = planUuidDeCle(cle);
+  if (!cle || !planUuid) throw new Error(`Sous-tâche de fiche inconnue (« ${cle ?? "?"} »).`);
+  const [plan] = await tx.select({ episodeId: plans.episodeId, sceneId: plans.sceneId }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, prop.projectId)));
+  if (!plan) throw new Error("Le plan visé n'existe plus.");
+  const [scene] = plan.sceneId != null ? await tx.select({ titre: scenes.titre }).from(scenes).where(eq(scenes.id, plan.sceneId)) : [];
+  const autres = await tx
+    .select({ apres: propositionChangements.apres, sousTache: propositionChangements.sousTache, refuse: propositionChangements.refuseRaison })
+    .from(propositionChangements)
+    .where(and(eq(propositionChangements.propositionId, prop.id), eq(propositionChangements.cibleType, "asset"), eq(propositionChangements.operation, "creer")));
+  const codesDejaProposes = new Set(
+    autres.filter((a) => a.sousTache !== cle && !a.refuse).map((a) => (a.apres as { code?: unknown } | null)?.code).filter((c): c is string => typeof c === "string"),
+  );
+  const bruts = await brutsFiche(tx, prop.projectId, planUuid, sortie, { groupe: groupeEpisode(plan.episodeId), sousGroupe: scene?.titre ?? null, codesDejaProposes });
+  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
+  await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
+/** Une correction après visionnage (`iteration-plan`) : le plan tel qu'il est MAINTENANT (le prompt a pu changer
+ * pendant la génération : un passage introuvable sera alors bloqué, jamais appliqué à l'aveugle), la conversion
+ * pure, puis la proposition. Sans écriture (durée incohérente, abandon, cause hors du prompt…), la proposition est
+ * prête SANS changement et son résumé dit pourquoi ; la revue affiche le diagnostic. Le « contexte utilisé » gagne
+ * la mesure du rendu (durée réelle, nombre de vignettes). */
+async function postIteration(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "saison" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortieIterationPlan,
+  execution: InfosExecution,
+) {
+  const [plan] = await tx.select({ id: plans.id, uuid: plans.uuid, titre: plans.titre, duree: plans.dureeGenerationSecondes }).from(plans).where(eq(plans.id, prop.cibleId!));
+  if (!plan) throw new Error("Le plan visé n'existe plus.");
+  const [lignes, refs, voix, registre] = await Promise.all([
+    tx.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, plan.id)),
+    tx
+      .select({ type: planRefs.type, slot: planRefs.slot, role: planRefs.role, retention: planRefs.retention, asset: assets.code })
+      .from(planRefs)
+      .leftJoin(assets, eq(assets.id, planRefs.assetId))
+      .where(eq(planRefs.planId, plan.id)),
+    tx.select({ slot: planDialogues.slot }).from(planDialogues).where(eq(planDialogues.planId, plan.id)),
+    tx.select({ code: assets.code, type: assets.type }).from(assets).where(eq(assets.projectId, prop.projectId)),
+  ]);
+  const sections: Record<string, string> = {};
+  for (const l of lignes) sections[l.section] = sections[l.section] ? `${sections[l.section]}\n${l.contenu}` : l.contenu;
+  // La durée voulue est celle qu'a vue le modèle (celle de l'entrée), même si le plan a changé depuis.
+  const voulue = (run.entree as { plan?: { dureeVoulueSecondes?: number } } | null)?.plan?.dureeVoulueSecondes ?? plan.duree;
+  const courant: PlanPourIteration = {
+    uuid: plan.uuid,
+    titre: plan.titre,
+    sections,
+    refs,
+    registre,
+    slotsVoix: voix.map((v) => v.slot),
+    dureeGenerationSecondes: voulue,
+    dureeReelleSecondes: execution.dureeReelleSecondes ?? null,
+  };
+  const bruts = depuisIterationPlan(sortie, courant);
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts);
+  const raison = raisonSansEcriture(sortie, courant);
+  const mesure =
+    execution.dureeReelleSecondes != null
+      ? [{ type: "plan" as const, libelle: `Rendu mesuré : ${String(execution.dureeReelleSecondes).replace(".", ",")} s pour ${voulue} s voulues · ${execution.nbVignettes ?? "?"} vignettes regardées` }]
+      : [];
+  await tx
+    .update(propositions)
+    .set({
+      ...(raison ? { resume: `Diagnostic sans écriture. ${raison}` } : {}),
+      ...(mesure.length ? { contexte: [...((prop.contexte as unknown[]) ?? []), ...mesure] } : {}),
+    })
+    .where(eq(propositions.id, prop.id));
+  if (prop.conversationId != null) {
+    await tx.update(agentConversations).set({ etape: "proposition", updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
+  }
 }
 
 /** Échec ou annulation d'une tâche d'agent : la proposition liée n'attendra pas indéfiniment. */

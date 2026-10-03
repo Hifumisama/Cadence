@@ -1,9 +1,12 @@
-import { and, asc, eq, gt, inArray, lt } from "drizzle-orm";
-import { assets, briefs, episodes, planDialogues, planRefs, plans, projects, repliques, scenes, seasons, voixFiches } from "../../db/schema";
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-orm";
+import { agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons, voixFiches } from "../../db/schema";
 import { variantePromptAsset } from "../llm/variantes";
+import { WORKFLOW_IMPORT_MANUEL } from "../plan-checks";
+import { ORDRE_SECTIONS } from "../prompt";
 import type { Db } from "./applicateurs/commun";
+import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-plan";
 import { normaliser } from "./locuteurs";
-import type { BriefContenu, ContexteUtilise, Position } from "./types";
+import type { BriefContenu, ContexteUtilise, EtatIterationPlan, Position } from "./types";
 import type { CandidatVoix } from "./voix-casting";
 
 /** Ce que l'agent lit AUTOMATIQUEMENT pour une portée courte : des extraits du brief et de
@@ -437,6 +440,154 @@ export async function entreePlanH3(
   };
 }
 
+/** Le dernier rendu TERMINÉ d'un plan (généré ou importé) dont le fichier est connu, ou null. */
+export async function dernierRendu(db: Db, planId: number) {
+  const [j] = await db
+    .select({ id: jobs.id, cheminSortie: jobs.cheminSortie, finishedAt: jobs.finishedAt, createdAt: jobs.createdAt, workflowFichier: jobs.workflowFichier })
+    .from(jobs)
+    .where(and(eq(jobs.planId, planId), eq(jobs.statut, "termine"), isNotNull(jobs.cheminSortie)))
+    .orderBy(desc(jobs.createdAt), desc(jobs.id))
+    .limit(1);
+  return j ?? null;
+}
+
+/** L'historique des corrections après visionnage déjà tentées sur ce plan (voir `historiqueIteration`). */
+async function historiqueDuPlan(db: Db, projectId: number, planId: number) {
+  const props = await db
+    .select({ id: propositions.id, createdAt: propositions.createdAt, appliedAt: propositions.appliedAt, statut: propositions.statut, consigne: propositions.consigne, resultat: agentRuns.resultat })
+    .from(propositions)
+    .leftJoin(agentRuns, eq(agentRuns.id, propositions.runId))
+    .where(and(eq(propositions.projectId, projectId), eq(propositions.skill, "iteration-plan"), eq(propositions.portee, "plan"), eq(propositions.cibleId, planId)));
+  const ids = props.map((p) => p.id);
+  const comptes = ids.length
+    ? await db.select({ id: propositionChangements.propositionId, n: count() }).from(propositionChangements).where(inArray(propositionChangements.propositionId, ids)).groupBy(propositionChangements.propositionId)
+    : [];
+  const nb = new Map(comptes.map((c) => [c.id, Number(c.n)]));
+  const rendus = await db
+    .select({ fin: jobs.finishedAt })
+    .from(jobs)
+    .where(and(eq(jobs.planId, planId), eq(jobs.statut, "termine"), isNotNull(jobs.cheminSortie)));
+  return historiqueIteration(
+    props.map((p) => ({ ...p, nbChangements: nb.get(p.id) ?? 0 })),
+    rendus.map((r) => r.fin).filter((d): d is Date => d != null),
+  );
+}
+
+/** Ce que la fenêtre « Corriger après visionnage » montre avant de lancer. */
+export async function etatIterationPlan(db: Db, projectId: number, planUuid: string): Promise<EtatIterationPlan | null> {
+  const [p] = await db
+    .select({ id: plans.id, titre: plans.titre, duree: plans.dureeGenerationSecondes })
+    .from(plans)
+    .where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
+  if (!p) return null;
+  const [remplies, rendu, historique] = await Promise.all([
+    db.select({ contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, p.id)),
+    dernierRendu(db, p.id),
+    historiqueDuPlan(db, projectId, p.id),
+  ]);
+  return {
+    titre: p.titre,
+    aUneFiche: remplies.some((s) => s.contenu.trim().length > 0),
+    rendu: rendu
+      ? { termineLe: (rendu.finishedAt ?? rendu.createdAt)?.toISOString() ?? null, importe: rendu.workflowFichier === WORKFLOW_IMPORT_MANUEL, dureeVoulueSecondes: p.duree }
+      : null,
+    nbCorrections: historique.length,
+    nbCorrectionsAppliquees: historique.filter((h) => h.issue === "appliquee").length,
+  };
+}
+
+/** L'entrée d'`iteration-plan` pour UN plan qui a un rendu (routage par état du plan, 2026-10-02 : sans rendu, pas
+ * de correction à l'aveugle). Voir agents/skills/iteration-plan/regles.md, « Ce que tu reçois » :
+ * - `plan` (titre, intention, durée voulue, fps), `promptActuel` (les six sections STOCKÉES, labels compris) ;
+ * - `references` : chaque label du plan → asset, rôle, rétention ; les voix (`voix: true`) avec leur réplique ;
+ * - `repliques` (texte exact, slot, durée mesurée), `retourVisionnage` (obligatoire), `historique` ;
+ * - `planche` : un DESCRIPTEUR du rendu (job, chemin relatif à MEDIA_ROOT, plafond de vignettes). Les images ne
+ *   sont JAMAIS stockées dans agent_runs.entree : le worker reconstruit la planche à l'exécution
+ *   (worker/agents/preparation.ts), mesure la durée réelle (ffprobe) et remplace `planche` par `rendu`. */
+export async function entreeIterationPlan(
+  db: Db,
+  projectId: number,
+  planUuid: string,
+  retourVisionnage: string,
+): Promise<(EntreeSkill & { plan: { id: number; uuid: string; titre: string } }) | { erreur: string }> {
+  const [p] = await db.select().from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
+  if (!p) return { erreur: "Plan introuvable dans ce projet." };
+  const rendu = await dernierRendu(db, p.id);
+  if (!rendu?.cheminSortie) return { erreur: "Ce plan n'a pas encore de rendu terminé : on ne corrige pas un prompt à l'aveugle. Génère (ou importe) le plan, regarde-le, puis reviens." };
+  const lignes = await db.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, p.id));
+  const sections: Record<string, string> = {};
+  for (const l of lignes) sections[l.section] = sections[l.section] ? `${sections[l.section]}\n${l.contenu}` : l.contenu;
+  if (!Object.values(sections).some((s) => s.trim())) return { erreur: "Ce plan n'a pas de fiche (prompt vide) : écris-la d'abord (« Écrire la fiche »)." };
+
+  const [refs, dialogues, historique] = await Promise.all([
+    db
+      .select({ type: planRefs.type, slot: planRefs.slot, role: planRefs.role, retention: planRefs.retention, code: assets.code, typeAsset: assets.type })
+      .from(planRefs)
+      .leftJoin(assets, eq(assets.id, planRefs.assetId))
+      .where(eq(planRefs.planId, p.id))
+      .orderBy(asc(planRefs.type), asc(planRefs.slot)),
+    db
+      .select({ slot: planDialogues.slot, texte: repliques.texte, locuteurTexte: repliques.locuteurTexte, locuteurCode: assets.code, dureeSecondes: repliques.dureeSecondes })
+      .from(planDialogues)
+      .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
+      .leftJoin(assets, eq(assets.id, repliques.locuteurId))
+      .where(eq(planDialogues.planId, p.id))
+      .orderBy(asc(planDialogues.slot)),
+    historiqueDuPlan(db, projectId, p.id),
+  ]);
+  const libelleType = { picture: "Picture", audio: "Audio", video: "Video" } as const;
+  const references = [
+    ...refs.map((r) => ({
+      label: `<${libelleType[r.type]} ${r.slot}>`,
+      type: r.type,
+      slot: r.slot,
+      asset: r.code ?? null,
+      typeAsset: r.typeAsset ?? null,
+      role: r.role ?? "",
+      ...(r.retention ? { retention: r.retention } : {}),
+    })),
+    ...dialogues.map((d) => ({
+      label: `<Audio ${d.slot}>`,
+      type: "audio" as const,
+      slot: d.slot,
+      voix: true,
+      replique: d.texte,
+      locuteur: d.locuteurCode ?? d.locuteurTexte ?? "",
+    })),
+  ];
+  const importe = rendu.workflowFichier === WORKFLOW_IMPORT_MANUEL;
+  // Le registre : de quoi AJOUTER une référence (codes existants, jamais inventés) ; sans les voix ni les images clés.
+  const registre = (await registreResume(db, projectId)).filter((a) => a.type !== "voix");
+  const contexte: ContexteUtilise[] = [
+    { type: "plan", libelle: `Plan · ${p.titre} · prompt actuel (six sections)`, ref: p.uuid },
+    { type: "registre", libelle: `Registre : ${registre.length} asset${registre.length > 1 ? "s" : ""} à citer en référence` },
+    { type: "plan", libelle: `Rendu ${importe ? "importé" : "généré"} du ${(rendu.finishedAt ?? rendu.createdAt).toLocaleString("fr-FR")} · planche de vignettes (une par seconde), extraite à l'exécution` },
+    { type: "registre", libelle: `${refs.length} référence${refs.length > 1 ? "s" : ""} du plan` },
+    ...(dialogues.length ? [{ type: "plan" as const, libelle: `${dialogues.length} réplique${dialogues.length > 1 ? "s" : ""} liée${dialogues.length > 1 ? "s" : ""}` }] : []),
+    ...(historique.length ? [{ type: "plan" as const, libelle: `${historique.length} correction${historique.length > 1 ? "s" : ""} déjà tentée${historique.length > 1 ? "s" : ""} sur ce plan` }] : []),
+  ];
+  return {
+    skill: "iteration-plan",
+    contexte,
+    plan: { id: p.id, uuid: p.uuid, titre: p.titre },
+    entree: {
+      plan: { titre: p.titre, intention: p.description ?? "", dureeVoulueSecondes: p.dureeGenerationSecondes, fps: p.fps },
+      promptActuel: Object.fromEntries(ORDRE_SECTIONS.map((s) => [s, sections[s] ?? ""])),
+      references,
+      registre,
+      repliques: dialogues.map((d) => ({
+        locuteur: d.locuteurCode ?? d.locuteurTexte ?? "",
+        texte: d.texte,
+        slotAudio: d.slot,
+        ...(d.dureeSecondes != null ? { dureeMesureeSecondes: d.dureeSecondes } : {}),
+      })),
+      retourVisionnage,
+      historique,
+      planche: { jobId: rendu.id, cheminSortie: rendu.cheminSortie, maxVignettes: MAX_VIGNETTES_ITERATION, importe },
+    },
+  };
+}
+
 /** « Contexte utilisé » d'une portée, sans lancer de génération (aperçu avant lancement). */
 export async function apercuContexteDe(db: Db, projectId: number, portee: string, cibleId: number | null): Promise<ContexteUtilise[]> {
   if (portee === "asset" && cibleId != null) return (await entreePromptAsset(db, projectId, cibleId, ""))?.contexte ?? [];
@@ -447,4 +598,66 @@ export async function apercuContexteDe(db: Db, projectId: number, portee: string
   }
   const brief = await lireBriefDuProjet(db, projectId);
   return extraitsBrief(brief?.contenu ?? null).contexte;
+}
+
+// --- inventaire des assets -----------------------------------------------------
+
+/** Entrée d'`inventaire-assets` : TOUS les plans du projet (titre et intention, par scène et par épisode), le registre
+ * actuel et le brief. Un seul appel pour le projet : c'est la vue d'ensemble qui évite les doublons entre plans.
+ * `null` si le projet n'a aucun plan écrit. */
+export async function entreeInventaire(db: Db, projectId: number, consigne: string, retour?: string): Promise<(EntreeSkill & { nbPlans: number }) | null> {
+  const eps = await db
+    .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre, resume: episodes.resume, saison: seasons.numero })
+    .from(episodes)
+    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
+    .where(eq(seasons.projectId, projectId))
+    .orderBy(asc(seasons.numero), asc(episodes.numero));
+  if (eps.length === 0) return null;
+  const ids = eps.map((e) => e.id);
+  const lesScenes = await db.select({ id: scenes.id, episodeId: scenes.episodeId, titre: scenes.titre, fonction: scenes.fonction }).from(scenes).where(inArray(scenes.episodeId, ids)).orderBy(asc(scenes.ordre), asc(scenes.id));
+  const lesPlans = await db
+    .select({ episodeId: plans.episodeId, sceneId: plans.sceneId, titre: plans.titre, description: plans.description })
+    .from(plans)
+    .where(inArray(plans.episodeId, ids))
+    .orderBy(asc(plans.ordre), asc(plans.id));
+  if (lesPlans.length === 0) return null;
+
+  const registre = (await registreResume(db, projectId)).filter((a) => a.type !== "voix");
+  const lireBrief = await lireBriefDuProjet(db, projectId);
+  const { extrait, contexte: contexteBrief } = extraitsBrief(lireBrief?.contenu ?? null);
+  const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
+
+  const episodesEntree = eps.map((e) => {
+    const sc = lesScenes.filter((s) => s.episodeId === e.id);
+    const duPlan = lesPlans.filter((p) => p.episodeId === e.id);
+    const plansDe = (sceneId: number | null) => duPlan.filter((p) => p.sceneId === sceneId).map((p) => ({ titre: p.titre, intention: (p.description ?? "").trim().slice(0, 400) }));
+    const orphelins = plansDe(null);
+    return {
+      episode: `Épisode ${e.numero} · ${e.titre}`,
+      resume: e.resume,
+      scenes: [
+        ...sc.map((s) => ({ titre: s.titre, fonction: s.fonction ?? "", plans: plansDe(s.id) })),
+        ...(orphelins.length ? [{ titre: "(hors scène)", fonction: "", plans: orphelins }] : []),
+      ],
+    };
+  });
+  const contexte: ContexteUtilise[] = [
+    { type: "registre", libelle: `Registre : ${registre.length} asset${registre.length > 1 ? "s" : ""} existant${registre.length > 1 ? "s" : ""}` },
+    { type: "projet", libelle: `${lesPlans.length} plan${lesPlans.length > 1 ? "s" : ""} sur ${eps.length} épisode${eps.length > 1 ? "s" : ""}` },
+    ...(projet?.clauseStyle ? [{ type: "projet" as const, libelle: "Clause de style du projet" }] : []),
+    ...contexteBrief,
+  ];
+  return {
+    skill: "inventaire-assets",
+    contexte,
+    nbPlans: lesPlans.length,
+    entree: {
+      registre,
+      brief: extrait,
+      clauseStyleDuProjet: projet?.clauseStyle ?? "",
+      episodes: episodesEntree,
+      consigne,
+      ...(retour ? { retourUtilisateur: retour } : {}),
+    },
+  };
 }

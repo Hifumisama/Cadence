@@ -11,8 +11,10 @@ Le contexte est assemblé par l'application, jamais deviné :
 - **Ce que tu dois écrire** : l'intention du plan (une ligne) et sa position dans la scène.
 - **Les plans voisins** (avant et après), pour le raccord : direction d'écran, mouvement de caméra, lumière, position des personnages.
 - **Le registre** : pour chaque asset candidat, son code, son type, sa description canonique (français), sa méthode, son **prompt de génération** (anglais) et `aUnFichier` (l'image ou le son existe déjà). Ce sont des repères pour rester fidèle à l'asset : le rôle de l'asset dans CE plan, c'est toi qui l'écris. Un asset sans fichier se référence quand même : il sera produit.
+- **`assetsProposesParLeLot`** (parfois) : des assets que les fiches d'autres plans du même lot proposent déjà de créer (code, type, description). Ils n'existent pas encore : **ce ne sont pas des références** et tu ne les redéclares pas dans `assetsManquants` ; si ton plan en a besoin, décris-le en prose.
 - **Les répliques** de la scène : uuid, locuteur, texte exact, durée mesurée si la prise existe.
 - **Des exemples** de plans réels et validés, choisis selon la nature du plan.
+- **La consigne** de l'utilisateur (`consigne`) : une intention pour ce plan (ou pour tous les plans d'un lot), à suivre sans réécrire l'histoire. Quand il relance ou affine, son **retour** (`retourUtilisateur`) et, parfois, ton brouillon précédent (`propositionPrecedente`) : corrige ce que le retour vise et garde le reste.
 
 ## Ce que le code fait à ta place
 
@@ -42,6 +44,7 @@ Le guide `guide-h3-compact.md` explique comment rédiger chaque champ.
 
 ### 1. Les assets
 
+- **Le registre est complété avant les fiches** (inventaire des assets sur tous les plans) : l'accessoire, l'état de décor ou l'effet dont tu as besoin existe presque toujours déjà, **parfois sous un autre nom** (la lampe à huile est `PROP_lanterne`). **Cherche d'abord dans le registre**, dans les descriptions autant que dans les codes. Ne déclare un asset manquant qu'en dernier recours, quand rien d'existant ne peut jouer ce rôle : chaque asset en trop est un doublon à nettoyer.
 - N'utilise que des **codes d'assets existants** dans le registre pour `references`. Un asset manquant n'est jamais inventé : déclare-le dans `assetsManquants` (code proposé, type, parent éventuel, description en français, raison), et décris-le en prose.
 - **Une référence = un asset, réutilisé.** Un nouvel asset ne se justifie que si l'image doit réellement être différente : pose franchement autre, cadrage de détail impossible à recadrer, état altéré.
 - **6 images au plus.** Au-delà, arbitre : garde ce qui porte l'identité et le cadre, sacrifie ce que le texte peut décrire seul (il passe en prose), et dis-le dans `notes`.
@@ -59,9 +62,9 @@ Le nombre de shots suit **l'intensité de l'action, pas la durée du plan** :
 | **Modérée** : marche décidée, échange, transition | un `[Shot]` toutes les **2 à 3 s** | mouvements simples, valeurs qui alternent |
 | **Calme ou tension retenue** : écoute, attente, réaction | un `[Shot]` toutes les **2,5 à 4 s**, ou un seul shot tenu | verrouillée, symétrique, à hauteur d'yeux |
 
-- **Jamais sous 1,5 s par shot** : en dessous, H3 rallonge ou lisse.
+- **Vise au moins 1,5 s par shot** (conseil fort) : en dessous, H3 rallonge ou lisse souvent. Ne descends sous ce seuil que pour un effet voulu (une coupe-éclair dans une action intense), et dis-le dans `notes`.
 - Chaque shot après le premier est une coupe franche **avec un angle de caméra distinct**. Sans cela, H3 rend un seul mouvement lissé. Tu donnes `debutSecondes` ; le code écrit le repère, le timecode et `Hard cut to` : ton texte commence directement par le cadre (« a low-angle shot of… »).
-- **Premier shot à `0`**, débuts strictement croissants, dernier shot d'au moins 1,5 s avant la fin du plan.
+- **Premier shot à `0`**, débuts strictement croissants ; le dernier shot devrait lui aussi durer au moins 1,5 s avant la fin du plan.
 - **Geste continu assumé** : quand la continuité du geste est l'effet (une gifle en un seul mouvement), le plan reste en un seul mouvement. Dis-le dans `notes`.
 - **La cadence raconte l'état du personnage, par contraste.** Un personnage en danger se filme comme une proie (épaule, canté, angles bas, coupes courtes) ; le même qui reprend le contrôle, comme un prédateur (caméra verrouillée, cadre symétrique, coupes longues). Le calme n'a de poids qu'après du rapide : pense les plans par paires avec les voisins.
 - **Répartis les signaux de peur ou d'urgence sur les coupes** (regard par-dessus l'épaule, foulée inégale, main qui claque un mur, souffle visible). Un signal lisible par shot suffit.
@@ -107,7 +110,7 @@ Les `shots` (ouverture comprise) : 350 à 500 mots en tout pour un plan riche, m
 
 - Chaque `[[CODE]]` cité est dans `references`, et chaque référence est citée au moins une fois. Aucun label numéroté, aucun `{picture}`.
 - Chaque `<d>` est verbatim, et toutes les répliques liées sont citées et listées dans `repliques`.
-- Premier shot à `0`, débuts croissants, un angle distinct par shot, aucun shot sous 1,5 s ; ni timecode, ni `Hard cut`, ni `[Shot N]` dans les textes.
+- Premier shot à `0`, débuts croissants, un angle distinct par shot, pas de shot sous 1,5 s sans raison dite dans `notes` ; ni timecode, ni `Hard cut`, ni `[Shot N]` dans les textes.
 - Une `nature: "son"` uniquement pour un bruitage (`SFX_…`) ; une voix n'est pas une référence.
 - Pas de négation de comportement, pas de vocabulaire de précision sur un personnage en mouvement.
 - Corps en anglais, dialogues dans leur langue.

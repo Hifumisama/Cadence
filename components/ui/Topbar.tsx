@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { BoutonAgentGlobal } from "@/components/agents/BoutonAgentGlobal";
 import { IndicateurTaches } from "@/components/taches/IndicateurTaches";
 import { TopbarTabs } from "./TopbarTabs";
 
@@ -28,6 +29,7 @@ export function Topbar({
           </nav>
         </div>
         {tabs ? <TopbarTabs projectId={tabs.projectId} episodeBase={tabs.episodeBase} /> : null}
+        <BoutonAgentGlobal />
         <IndicateurTaches />
       </div>
     </header>

@@ -5,6 +5,7 @@ import { db } from "../db";
 import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
 import { CANDIDATS_GARDES, METHODE_AUDIO, METHODE_VOIX, estAspect, nomSourceDistante } from "../lib/asset-generation";
 import { annulationDemandeeImage, finirAnnulationImage } from "../lib/annulation-db";
+import { adopterCandidat } from "../lib/generation-adoption";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";
 import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from "../lib/media";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
@@ -217,6 +218,11 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         .set({ statut: "termine", fichier: nom, finishedAt: new Date() })
         .where(eq(assetGenerations.id, gen.id));
       console.log(`[worker] Génération ${gen.id} (${asset.code}${voix ? ", voix" : audio ? ", son" : ""}) terminée : ${nom}`);
+      // Générée par un lot : le résultat est adopté tout seul (il devient l'image de l'asset).
+      if (gen.adoptionAuto) {
+        const r = await adopterCandidat(gen.id, mediaRoot);
+        console.log(r.ok ? `[worker] Génération ${gen.id} adoptée automatiquement (${asset.code})` : `[worker] Adoption automatique impossible (${asset.code}) : ${r.erreur}`);
+      }
       await purgerAnciens(gen.assetId, mediaRoot);
       return true;
     }

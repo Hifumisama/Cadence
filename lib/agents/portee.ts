@@ -35,7 +35,8 @@ const LIBELLE_PORTEE: Record<Portee, string> = {
  * - `projet` : tout ;
  * - `saison` : la saison, ses épisodes, scènes et plans ;
  * - `episode` : l'épisode, ses scènes et ses plans (créer, modifier) ;
- * - `plan` : ce plan seulement (modifier) ;
+ * - `plan` : ce plan seulement (modifier, et écrire sa fiche) ;
+ * - `fiche` (prompt H3 d'un plan) : comme la modification d'un plan, depuis sa saison, son épisode ou lui ;
  * - `asset` : cet asset seulement (modifier) ;
  * - un asset peut toujours être CRÉÉ (un asset manquant se propose depuis n'importe quelle
  *   portée), mais ne se MODIFIE que dans la portée projet ou si c'est la cible. */
@@ -65,6 +66,13 @@ export function verifierPortee(scope: ScopeDemandee, c: CibleChangement): string
       if (scope.type === "plan" && c.type === "plan" && !creation && c.planId === scope.cibleId) return null;
       return refus(c.type === "plan" ? "ce plan n'est pas dans la portée visée" : c.type === "replique" ? "cette réplique n'est pas dans la portée visée" : "cette scène n'est pas dans la portée visée");
     }
+    case "fiche":
+      // La fiche (prompt H3 + références) d'un plan EXISTANT : jamais une création.
+      if (creation) return refus("une fiche s'écrit sur un plan existant");
+      if (scope.type === "saison" && c.saisonId === scope.cibleId) return null;
+      if (scope.type === "episode" && c.episodeId === scope.cibleId) return null;
+      if (scope.type === "plan" && c.planId === scope.cibleId) return null;
+      return refus("la fiche de ce plan n'est pas dans la portée visée");
     case "voix":
       // Une voix se CRÉE depuis n'importe quelle portée (comme un asset manquant) ; elle ne se modifie pas ici (casting vocal).
       if (creation) return null;

@@ -1,5 +1,7 @@
+import { corrigerCodesInconnus } from "../agents/codes-proches";
 import { corpusExemplesPlanH3 } from "../agents/plan-h3-corpus";
 import { controlerSortiePlanH3, type SortiePlanH3 } from "../agents/plan-h3-controles";
+import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-plan";
 
 /** Contrôles SÉMANTIQUES d'un skill, appliqués à une sortie qui respecte déjà le schéma : ce que le
  * schéma ne sait pas dire (un code d'asset recopié de travers, un timecode qui recule…). S'il en trouve,
@@ -17,7 +19,15 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
       corpusExemples: corpusExemplesPlanH3(),
     };
     return (json) =>
-      controlerSortiePlanH3(json as SortiePlanH3, ctx)
+      controlerSortiePlanH3(corrigerCodesInconnus(json as SortiePlanH3, ctx.registre.map((a) => a.code)).sortie, ctx)
+        .filter((p) => p.niveau === "erreur")
+        .map((p) => p.message);
+  }
+  if (skill === "iteration-plan") {
+    // L'entrée est celle que le worker envoie (texte, durée réelle comprise), jamais la planche d'images.
+    const ctx = contexteDepuisEntree(entree);
+    return (json) =>
+      controlerSortieIterationPlan(json as SortieIterationPlan, ctx)
         .filter((p) => p.niveau === "erreur")
         .map((p) => p.message);
   }

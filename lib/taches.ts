@@ -14,11 +14,14 @@ export const LIBELLE_SKILL: Record<string, string> = {
   "scenario-episode": "Scénario d'épisode",
   "prompt-asset": "Prompt d'asset",
   "prompt-voix": "Prompt de voix",
-  "plan-h3": "Plans H3",
-  "iteration-plan": "Itération de plan",
+  "plan-h3": "Fiche de plan",
+  "iteration-plan": "Correction après visionnage",
   scenarios: "Scénarios des épisodes",
   registre: "Registre d'assets",
   voix: "Casting des voix",
+  fiches: "Fiches de plan",
+  "prompts-assets": "Prompts des assets créés",
+  "inventaire-assets": "Inventaire des assets",
 };
 
 export type Tache = {

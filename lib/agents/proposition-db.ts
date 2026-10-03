@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { agentConversations, propositionChangements, propositions } from "../../db/schema";
 import { applicateurDe, refusSansApplicateur } from "./applicateurs";
 import type { CtxAppli, CtxPrevisu } from "./applicateurs/commun";
-import type { ChangementBrut, LigneChangement } from "./changements";
+import { clesParent, ordonnerParDependances, type ChangementBrut, type LigneChangement } from "./changements";
 import { cocheParDefaut, estBloque } from "./cochage";
 import { verifierPortee, type ScopeDemandee } from "./portee";
 import { rattacherRepliquesLibres } from "./rattachement";
@@ -15,14 +15,6 @@ import type { Tx } from "../ordre-plans";
  * sélection EN UNE transaction. Voir docs/CONCEPTION_AGENTS.md §14. */
 
 type DbOuTx = typeof db | Tx;
-
-const CLES_PARENT = ["saisonCle", "episodeCle", "sceneCle"] as const;
-
-function clesParent(apres: unknown): string[] {
-  if (!apres || typeof apres !== "object") return [];
-  const a = apres as Record<string, unknown>;
-  return CLES_PARENT.map((c) => a[c]).filter((v): v is string => typeof v === "string");
-}
 
 /** Phrase d'impact d'une proposition (affichée avant l'application). */
 export function resumeAutomatique(lignes: { operation: Operation; cibleType: CibleType; refuseRaison: string | null }[]): string {
@@ -55,6 +47,15 @@ export async function enregistrerChangements(
   options: OptionsEnregistrement = {},
 ): Promise<void> {
   const clesNouvelles = new Set(bruts.map((b) => b.cle).filter((c): c is string => !!c));
+  if (options.sousTache) {
+    // Lot : les créations déjà proposées par les AUTRES sous-tâches font partie de la proposition (un asset
+    // manquant d'un plan peut dériver d'un asset dont un autre plan du lot propose la création).
+    const autres = await tx
+      .select({ cle: propositionChangements.cle, sousTache: propositionChangements.sousTache, refuse: propositionChangements.refuseRaison })
+      .from(propositionChangements)
+      .where(eq(propositionChangements.propositionId, propositionId));
+    for (const a of autres) if (a.cle && a.sousTache !== options.sousTache && !a.refuse) clesNouvelles.add(a.cle);
+  }
   const ctx: CtxPrevisu = { projectId, scope, clesNouvelles };
   const refusees = new Set<string>();
   const lignes: (typeof propositionChangements.$inferInsert)[] = [];
@@ -160,7 +161,7 @@ export async function appliquerProposition(propositionId: number, options: { con
   if (prop.statut !== "prete") return { ok: false, erreur: `Cette proposition n'est plus applicable (statut : ${prop.statut}).` };
 
   const toutes = (await db.select().from(propositionChangements).where(eq(propositionChangements.propositionId, propositionId)).orderBy(asc(propositionChangements.ordre))).map(ligne);
-  const retenus = toutes.filter((c) => c.coche && !c.refuseRaison && !estBloque(c.avertissements));
+  const retenus = ordonnerParDependances(toutes.filter((c) => c.coche && !c.refuseRaison && !estBloque(c.avertissements)));
   if (retenus.length === 0) return { ok: false, erreur: "Aucun changement n'est sélectionné." };
 
   const ecrasements: EcrasementAConfirmer[] = retenus.filter((c) => c.ecrase).map((c) => ({ changementId: c.id, libelle: c.libelle, ecrase: c.ecrase as string }));

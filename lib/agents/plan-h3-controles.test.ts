@@ -85,16 +85,25 @@ test("natures : un son est un sfx ; un sfx ou une voix n'a pas d'image ; les slo
   assert.ok(erreurs({ ...bonne, references: [bonne.references[0]!, son], summary: "[[CHAR_maya]] [[SFX_porte]]", shots: [{ debutSecondes: 0, texte: "a <d>a</d> b c [[CHAR_maya]] [[SFX_porte]]" }] }, troisVoix).includes("references"), "la voix prime");
 });
 
-test("shots : début non nul, non croissant, trop court, au-delà de la durée, vide", () => {
+test("shots : début non nul, non croissant, au-delà de la durée, vide (erreurs)", () => {
   const avec = (shots: SortiePlanH3["shots"]) => controlerSortiePlanH3({ ...bonne, shots }, { ...ctx, repliques: [] }).filter((x) => x.niveau === "erreur" && x.regle === "shots");
   const t = (debutSecondes: number) => ({ debutSecondes, texte: "[[CHAR_maya]] [[DEC_couloir]]" });
   assert.ok(avec([t(1), t(5)]).length > 0, "premier shot non nul");
   assert.ok(avec([t(0), t(5), t(4)]).length > 0, "non croissant");
-  assert.ok(avec([t(0), t(1)]).length > 0, "shot trop court");
-  assert.ok(avec([t(0), t(9.5)]).length > 0, "dernier shot trop court");
   assert.ok(avec([t(0), t(12)]).length > 0, "au-delà de la durée");
   assert.equal(avec([]).length, 1, "aucun shot");
   assert.equal(avec([t(0), t(3), t(6)]).length, 0, "conforme");
+});
+
+test("shots sous 1,5 s : une ALERTE (conseil fort), jamais une erreur qui renvoie le modèle", () => {
+  const tous = (shots: SortiePlanH3["shots"]) => controlerSortiePlanH3({ ...bonne, shots }, { ...ctx, repliques: [] });
+  const t = (debutSecondes: number) => ({ debutSecondes, texte: "[[CHAR_maya]] [[DEC_couloir]]" });
+  for (const [shots, quoi] of [[[t(0), t(1), t(4)], "shot trop court"], [[t(0), t(9.5)], "dernier shot trop court"]] as const) {
+    const p = tous([...shots]);
+    assert.ok(p.some((x) => x.niveau === "alerte" && x.regle === "shot-court"), `${quoi} : alerte`);
+    assert.ok(!p.some((x) => x.niveau === "erreur" && x.regle === "shots"), `${quoi} : pas d'erreur`);
+  }
+  assert.ok(!tous([t(0), t(3), t(6)]).some((x) => x.regle === "shot-court"), "conforme : rien");
 });
 
 test("balisage : coupe ou timecode écrits par le modèle ; [Shot N] et titres de section recopiés", () => {

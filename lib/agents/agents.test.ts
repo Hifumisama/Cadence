@@ -143,17 +143,17 @@ const brief: BriefContenu = {
 
 test("statuts du brief : déclarés, sinon déduits du contenu ; une correction à la main = fourni", () => {
   assert.equal(statutDeSection("arc", "x", { arc: "fourni" }), "fourni");
-  assert.equal(statutDeSection("arc", "x", { arc: "incertain" }), "a_valider", "« incertain » devient a_valider");
-  assert.equal(statutDeSection("inventions", ["a"]), "a_valider");
+  assert.equal(statutDeSection("arc", "x", { arc: "incertain" }), "deduit", "plus de « à valider » : « incertain » vaut « déduit »");
+  assert.equal(statutDeSection("inventions", ["a"]), "deduit", "informatives : plus de point à valider un par un");
   assert.equal(statutDeSection("inventions", []), "deduit");
   assert.equal(statutDeSection("personnages", [{ statut: "fourni" }]), "fourni");
-  assert.equal(statutDeSection("personnages", [{ statut: "fourni" }, { statut: "incertain" }]), "a_valider");
+  assert.equal(statutDeSection("personnages", [{ statut: "fourni" }, { statut: "incertain" }]), "deduit");
   assert.equal(statutDeSection("lieux", [{ statut: "deduit" }]), "deduit");
   const { contenu, statuts } = sortieVersBrief({ ...brief, statuts: { arc: "fourni", style: "a_valider" } });
   assert.equal("statuts" in contenu, false, "les statuts ne restent pas dans le contenu");
   assert.equal(statuts.arc, "fourni");
-  assert.equal(statuts.style, "a_valider");
-  assert.equal(statuts.inventions, "a_valider");
+  assert.equal(statuts.style, "deduit", "un statut « à valider » déclaré vaut « déduit »");
+  assert.equal(statuts.inventions, "deduit", "inventions : informatives, jamais à valider");
   const sections = construireSections(contenu, statuts);
   assert.equal(sections[0]!.cle, "titre");
   assert.ok(sections.every((s) => ["fourni", "deduit", "a_valider"].includes(s.statut)));

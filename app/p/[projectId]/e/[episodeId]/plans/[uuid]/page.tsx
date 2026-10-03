@@ -16,6 +16,7 @@ import { PlanParamsEditor } from "@/components/plan/PlanParamsEditor";
 import { DialoguesPanel } from "@/components/plan/DialoguesPanel";
 import { ChecksPanel } from "@/components/plan/ChecksPanel";
 import { RelaunchButton } from "@/components/plan/RelaunchButton";
+import { SuiviRendus } from "@/components/plan/SuiviRendus";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
 import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
 
@@ -76,11 +77,13 @@ export default async function PlanPage({
   }));
 
   // L'audio de chaque réplique liée EST la ref <Audio N> du plan : elle compte
-  // comme déclarée sans être dans plan_refs.
-  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, [
-    ...refs.map((r) => ({ type: r.type, slot: r.slot })),
-    ...audioRefs,
-  ]);
+  // comme déclarée sans être dans plan_refs, et n'a pas à être citée (les
+  // fiches validées et le contrat de plan-h3 ne citent jamais les voix).
+  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(
+    sectionsPourControle,
+    refs.map((r) => ({ type: r.type, slot: r.slot })),
+    audioRefs,
+  );
   const structure = controlerStructure(sectionsPourControle, plan.dureeGenerationSecondes);
   const { statut: statutDuree, totalSecondes } = calculerStatutDuree(
     liaisons.map((l) => ({ dureeSecondes: l.dureeSecondes })),
@@ -89,6 +92,9 @@ export default async function PlanPage({
   );
 
   const dernierJobTermine = jobHistory.find((j) => j.statut === "termine");
+  // Un rendu exploitable par la correction après visionnage : terminé ET avec son fichier.
+  const aUnRendu = jobHistory.some((j) => j.statut === "termine" && !!j.cheminSortie);
+  const aUneFiche = promptSections.some((s) => s.contenu.trim());
 
   const sectionsParNom = new Map(promptSections.map((s) => [s.section, s]));
 
@@ -149,7 +155,46 @@ export default async function PlanPage({
             }}
             titre="Demander à l'agent : modifier ce plan, ou en ajouter un après lui"
           />
+          {/* Routage par état du plan (2026-10-02) : sans fiche ou sans rendu → plan-h3 (écrire / réécrire la
+              fiche) ; avec un rendu → la correction après visionnage (iteration-plan) est le geste normal, la
+              réécriture complète reste possible, avec un avertissement. */}
+          {aUnRendu && aUneFiche ? (
+            <BoutonAgent
+              demande={{
+                projectId: pid,
+                portee: "plan",
+                cible: { uuid },
+                profondeur: "courte",
+                libelle: `Plan ${String(position).padStart(2, "0")} · ${plan.titre}`,
+                episodeId: eid,
+                planUuid: uuid,
+                vue: "iteration",
+              }}
+              libelle="Corriger après visionnage"
+              className="btn btn-primary btn-sm"
+              titre="Tu as regardé le rendu : dis ce que tu as vu, l'agent compare le rendu au prompt et propose le plus petit changement"
+            />
+          ) : null}
+          <BoutonAgent
+            demande={{
+              projectId: pid,
+              portee: "plan",
+              cible: { uuid },
+              profondeur: "courte",
+              libelle: `Plan ${String(position).padStart(2, "0")} · ${plan.titre}`,
+              episodeId: eid,
+              planUuid: uuid,
+              vue: "fiches",
+            }}
+            libelle={aUneFiche ? "Réécrire la fiche" : "Écrire la fiche"}
+            titre={
+              aUnRendu
+                ? "Ce plan a un rendu : préfère « Corriger après visionnage ». Réécrire la fiche remplace tout (sections et références)."
+                : "L'agent écrit le prompt vidéo de ce plan (six sections, références, durée) ; tu relis avant qu'il soit écrit"
+            }
+          />
           {!estBrouillon ? <RelaunchButton planId={plan.id} /> : null}
+          <SuiviRendus planUuid={plan.uuid} jobs={jobHistory.map((j) => ({ id: j.id, statut: j.statut }))} />
           <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} />
         </div>
         {!estBrouillon && plan.description ? (
@@ -277,19 +322,38 @@ export default async function PlanPage({
               </div>
               <div className="panel-bd" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {jobHistory.map((job) => (
-                  <div
-                    key={job.id}
-                    style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 }}
-                  >
-                    <StatusBadge statut={job.statut} />
-                    <span style={{ color: "var(--ink-3)" }}>tentative {job.tentative}</span>
-                    <span className="eyebrow" style={{ marginLeft: "auto" }}>
-                      {job.workflowFichier === WORKFLOW_IMPORT_MANUEL
-                        ? "import manuel"
-                        : job.activerUpscale
-                          ? "rendu final"
-                          : "prévisualisation"}
-                    </span>
+                  <div key={job.id} style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <StatusBadge statut={job.statut} />
+                      <span style={{ color: "var(--ink-3)" }}>
+                        rendu n°{job.numeroRendu}
+                        {job.tentative > 1 ? ` · rejeu ${job.tentative}` : ""}
+                      </span>
+                      <span className="eyebrow" style={{ marginLeft: "auto" }}>
+                        {job.workflowFichier === WORKFLOW_IMPORT_MANUEL
+                          ? "import manuel"
+                          : job.activerUpscale
+                            ? "rendu final"
+                            : "prévisualisation"}
+                      </span>
+                    </div>
+                    {job.workflowFichier !== WORKFLOW_IMPORT_MANUEL && (job.seedUtilisee || job.dureeUtilisee) ? (
+                      <span className="tiny-note num">
+                        {job.seedUtilisee ? `seed ${job.seedUtilisee}` : ""}
+                        {job.seedUtilisee && job.dureeUtilisee ? " · " : ""}
+                        {job.dureeUtilisee ? `${job.dureeUtilisee} s` : ""}
+                      </span>
+                    ) : null}
+                    {job.promptUtilise ? (
+                      <details>
+                        <summary className="tiny-note" style={{ cursor: "pointer" }}>
+                          Prompt envoyé
+                        </summary>
+                        <pre className="tiny-note" style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
+                          {job.promptUtilise}
+                        </pre>
+                      </details>
+                    ) : null}
                   </div>
                 ))}
               </div>

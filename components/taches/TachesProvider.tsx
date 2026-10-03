@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { annulerTache, marquerToutVu, marquerVu, retirerTaches, viderFile as viderFileServeur, viderListe as viderListeServeur } from "@/app/taches/actions";
 import { etatNotifications } from "@/lib/notifications-navigateur";
 import type { ResumeTaches, Tache } from "@/lib/taches";
+import { SERVEURS_OK, type ServeursInjoignables } from "@/lib/serveurs-injoignables-types";
 
 /** Un seul sondage de `/api/taches` pour toute l'application, placé dans le
  * layout racine : il survit aux navigations (le Topbar, lui, se remonte à chaque
@@ -19,6 +20,8 @@ const RESUME_VIDE: ResumeTaches = { actives: 0, enCours: 0, enFile: 0, echecsNon
 type Contexte = {
   taches: Tache[];
   resume: ResumeTaches;
+  /** Serveurs trouvés injoignables par le worker alors que des tâches les attendent. */
+  serveurs: ServeursInjoignables;
   /** Vrai une fois la première réponse reçue (évite d'agir sur un état vide). */
   pret: boolean;
   panneauOuvert: boolean;
@@ -41,6 +44,7 @@ type Contexte = {
 const Ctx = createContext<Contexte>({
   taches: [],
   resume: RESUME_VIDE,
+  serveurs: SERVEURS_OK,
   pret: false,
   panneauOuvert: false,
   setPanneauOuvert: () => undefined,
@@ -71,6 +75,7 @@ function recompter(taches: Tache[]): ResumeTaches {
 export function TachesProvider({ children }: { children: ReactNode }) {
   const [taches, setTaches] = useState<Tache[]>([]);
   const [resume, setResume] = useState<ResumeTaches>(RESUME_VIDE);
+  const [serveurs, setServeurs] = useState<ServeursInjoignables>(SERVEURS_OK);
   const [pret, setPret] = useState(false);
   const [panneauOuvert, setPanneauOuvert] = useState(false);
 
@@ -87,9 +92,10 @@ export function TachesProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch("/api/taches", { cache: "no-store" });
       if (res.ok) {
-        const data = (await res.json()) as { taches: Tache[]; resume: ResumeTaches };
+        const data = (await res.json()) as { taches: Tache[]; resume: ResumeTaches; serveurs?: ServeursInjoignables };
         setTaches(data.taches);
         setResume(data.resume);
+        setServeurs(data.serveurs ?? SERVEURS_OK);
         setPret(true);
       }
     } catch {
@@ -235,8 +241,8 @@ export function TachesProvider({ children }: { children: ReactNode }) {
   );
 
   const valeur = useMemo<Contexte>(
-    () => ({ taches, resume, pret, panneauOuvert, setPanneauOuvert, rafraichir: charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe }),
-    [taches, resume, pret, panneauOuvert, charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe],
+    () => ({ taches, resume, serveurs, pret, panneauOuvert, setPanneauOuvert, rafraichir: charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe }),
+    [taches, resume, serveurs, pret, panneauOuvert, charger, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe],
   );
 
   return <Ctx.Provider value={valeur}>{children}</Ctx.Provider>;

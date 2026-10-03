@@ -175,12 +175,13 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     for (let i = 1; i < shots.length; i++) {
       const ecart = shots[i]!.debutSecondes - shots[i - 1]!.debutSecondes;
       if (ecart <= 0) ajouter("erreur", "shots", `Les débuts des shots ne sont pas croissants (shot ${i + 1}).`);
-      else if (ecart < SHOT_MIN_SECONDES) ajouter("erreur", "shots", `Le shot ${i} dure ${ecart.toFixed(2)} s : sous ${SHOT_MIN_SECONDES} s, H3 rallonge ou lisse.`);
+      // Conseil fort, pas un blocage (utilisateur, 2026-10-02) : une coupe très courte peut être voulue.
+      else if (ecart < SHOT_MIN_SECONDES) ajouter("alerte", "shot-court", `Le shot ${i} dure ${ecart.toFixed(2)} s : sous ${SHOT_MIN_SECONDES} s, H3 rallonge ou lisse souvent.`);
     }
     const dernier = shots[shots.length - 1]!.debutSecondes;
     if (Number.isInteger(d)) {
       if (dernier >= d) ajouter("erreur", "shots", `Un shot commence à ${dernier.toFixed(2)} s, au-delà de la durée du plan (${d} s).`);
-      else if (shots.length > 1 && d - dernier < SHOT_MIN_SECONDES) ajouter("erreur", "shots", `Le dernier shot ne dure que ${(d - dernier).toFixed(2)} s : sous ${SHOT_MIN_SECONDES} s.`);
+      else if (shots.length > 1 && d - dernier < SHOT_MIN_SECONDES) ajouter("alerte", "shot-court", `Le dernier shot ne dure que ${(d - dernier).toFixed(2)} s : sous ${SHOT_MIN_SECONDES} s, H3 rallonge ou lisse souvent.`);
     }
     shots.forEach((s, i) => {
       const t = s.texte ?? "";

@@ -158,6 +158,15 @@ export async function genererRegistre(
   return rafraichir(await service.genererRegistre(conversationUuid, options));
 }
 
+/** Inventaire des assets (avant les fiches de plan) : un appel qui lit tous les plans et le registre et propose les
+ * assets manquants en une liste consolidée (sans doublons). Depuis la conversation du PROJET. */
+export async function genererInventaire(
+  conversationUuid: string,
+  options: { consigne?: string } = {},
+): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
+  return rafraichir(await service.genererInventaire(conversationUuid, options));
+}
+
 /** Casting des voix : crée une voix pour chaque personnage qui parle et n'en a pas (et la voix off si des
  * répliques la réclament) : un lot, une sous-tâche `prompt-voix` par voix. `cles` = les voix à traiter (par
  * défaut : toutes celles qui manquent). Depuis la conversation du PROJET. La voix s'édite ensuite au casting
@@ -167,6 +176,40 @@ export async function genererVoix(
   options: { cles?: string[]; consigne?: string } = {},
 ) {
   return rafraichir(await service.genererVoix(conversationUuid, options));
+}
+
+/** Étape 3 : écrire la FICHE d'un plan (conversation de portée `plan` : une proposition simple, affinable)
+ * ou celles des plans d'un épisode, d'une saison ou du projet (un LOT, une sous-tâche `plan-h3` par plan,
+ * clé `plan:<uuid>`). `planUuids` = les plans à traiter (par défaut : ceux qui n'ont pas de fiche). Une fiche
+ * remplace ensemble les six sections et les références du plan ; un plan qui a déjà une fiche (ou un rendu)
+ * apparaît en « risque d'écrasement », décoché. Les assets manquants sont proposés à la création. */
+export async function genererFiches(
+  conversationUuid: string,
+  options: { planUuids?: string[]; consigne?: string } = {},
+): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
+  return rafraichir(await service.genererFiches(conversationUuid, options));
+}
+
+/** « Corriger après visionnage » (conversation de portée `plan`, plan qui a un RENDU terminé) : une tâche
+ * `iteration-plan`, proposition simple et affinable. `retour` = ce que l'utilisateur a vu (obligatoire). Le worker
+ * extrait la planche de vignettes du dernier rendu et mesure sa durée réelle à l'exécution ; la proposition est
+ * une écriture PARTIELLE de la fiche (seules les sections corrigées), ou un diagnostic sans écriture. Refusé sans
+ * rendu (jamais de correction à l'aveugle) ou sans fiche. */
+export async function genererIteration(
+  conversationUuid: string,
+  options: { retour: string },
+): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
+  return rafraichir(await service.genererIteration(conversationUuid, options));
+}
+
+/** Après l'application d'une fiche : écrire les prompts d'image des assets qu'elle a CRÉÉS (un lot
+ * `prompt-asset`, dans la conversation du PROJET, seule portée où l'on modifie un asset existant). Renvoie la
+ * conversation du projet, que l'interface ouvre pour suivre le lot. Jamais lancé tout seul. */
+export async function genererPromptsAssetsCrees(
+  propositionUuid: string,
+  options: { consigne?: string } = {},
+): Promise<Resultat<{ conversationUuid: string; propositionUuid: string; nbSousTaches: number }>> {
+  return rafraichir(await service.genererPromptsAssetsCrees(propositionUuid, options));
 }
 
 /** « Écrire les scénarios » (étape 1 du pipeline) depuis une conversation de portée PROJET ou

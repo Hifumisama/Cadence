@@ -63,17 +63,35 @@ export function EtapeConversation({ ctx }: { ctx: ContexteEtape }) {
         <div ref={fin} />
       </div>
 
+      {conv.resteADefinir.length > 0 ? (
+        <aside className="ag-reste" aria-label="Ce qu'il reste à définir">
+          <p className="ag-reste-titre">
+            Ce qu&rsquo;il reste à définir <span className="num">({conv.resteADefinir.length})</span>
+          </p>
+          <ul>
+            {conv.resteADefinir.map((x) => (
+              <li key={x}>{x}</li>
+            ))}
+          </ul>
+          <p className="tiny-note">L&rsquo;agent met cette liste à jour à chaque réponse : réponds-lui ici, dans la conversation.</p>
+        </aside>
+      ) : null}
+
       {briefEnCours ? <EtatTacheAgent tache={tache} /> : null}
       {tache && tache.statut === "echoue" ? <EtatTacheAgent tache={tache} /> : null}
 
       {conv.briefPret && !actif ? (
         <div className="ag-pret" role="status">
           <div>
-            <strong>Briefing prêt</strong>
-            <p className="tiny-note">L&rsquo;agent a de quoi écrire le brief de ce projet. Tu pourras le relire et le corriger avant d&rsquo;aller plus loin.</p>
+            <strong>{conv.resteADefinir.length > 0 ? "Une première version du briefing est possible" : "Briefing prêt"}</strong>
+            <p className="tiny-note">
+              {conv.resteADefinir.length > 0
+                ? `L'agent a de quoi écrire une première version du briefing. Il lui reste ${conv.resteADefinir.length} question${conv.resteADefinir.length > 1 ? "s" : ""} : tu pourras y répondre ici ensuite, et le briefing se mettra à jour.`
+                : "Tout est tranché : l'agent peut écrire le briefing définitif. Tu le relis et le valides avant que le projet soit créé."}
+            </p>
           </div>
           <button type="button" className="btn btn-gold" onClick={versBrief} disabled={occupe}>
-            Vers le briefing →
+            {conv.resteADefinir.length > 0 ? "Générer la première version →" : "Générer le briefing →"}
           </button>
         </div>
       ) : conv.messages.length > 0 && !actif ? (

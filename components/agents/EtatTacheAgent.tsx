@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useMachineAEcrire } from "@/components/agents/useMachineAEcrire";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { estTacheActive, libelleTache } from "@/lib/agents-affichage";
+import { extraireChainePartielle, fin } from "@/lib/llm/flux-partiel";
 import type { EtatTache } from "@/lib/agents/types";
 import { cleLlm } from "@/lib/taches";
 
@@ -14,9 +16,16 @@ export function EtatTacheAgent({ tache }: { tache: EtatTache | null }) {
   const { annuler } = useTaches();
   const [confirmer, setConfirmer] = useState(false);
   const texte = libelleTache(tache);
+  // Le streaming : la réponse de l'agent qui s'écrit (un tour de conversation), sinon la fin du JSON qu'il écrit ;
+  // et la fin de sa réflexion, repliée par défaut. La réponse apparaît lettre par lettre (machine à écrire).
+  const enDirect = tache?.statut === "en_cours";
+  const reponseRecue = enDirect && tache?.but === "tour" ? extraireChainePartielle(tache.fluxTexte ?? "", "reponse") : null;
+  const reponse = useMachineAEcrire(reponseRecue);
   if (!tache || !texte) return null;
   const actif = estTacheActive(tache);
   const echec = tache.statut === "echoue";
+  const ecrit = enDirect && tache.but !== "tour" && tache.fluxTexte ? fin(tache.fluxTexte, 600) : null;
+  const reflexion = enDirect && tache.fluxReflexion ? fin(tache.fluxReflexion, 1200) : null;
 
   return (
     <div className={`ag-tache${echec ? " ag-tache-echec" : ""}`} role={echec ? "alert" : "status"}>
@@ -52,6 +61,24 @@ export function EtatTacheAgent({ tache }: { tache: EtatTache | null }) {
           )
         ) : null}
       </div>
+      {reponseRecue != null ? (
+        <p className="ag-flux-reponse">
+          {reponse}
+          <span className="ag-curseur" aria-hidden="true" />
+        </p>
+      ) : null}
+      {reflexion ? (
+        <details className="ag-flux">
+          <summary>Réflexion de l&rsquo;agent</summary>
+          <pre className="ag-flux-texte">{reflexion}</pre>
+        </details>
+      ) : null}
+      {ecrit ? (
+        <details className="ag-flux">
+          <summary>Ce que l&rsquo;agent écrit</summary>
+          <pre className="ag-flux-texte">{ecrit}</pre>
+        </details>
+      ) : null}
     </div>
   );
 }

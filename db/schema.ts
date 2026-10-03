@@ -178,7 +178,10 @@ export const plans = pgTable("plans", {
   mode: varchar("mode", { length: 20 }).notNull().default("full-reference"),
   timecodeMusique: varchar("timecode_musique", { length: 50 }),
   statut: planStatutEnum("statut").notNull().default("brouillon"),
-  seed: text("seed"),
+  // Une seed PAR PLAN, tirée à la création (2026-10-03, F04) : sans elle tous les plans et toutes les relances
+  // partageaient la seed écrite dans le fichier du workflow. « Relancer » la garde (même résultat si rien n'a
+  // bougé) ; « Nouvelle variante » en tire une autre.
+  seed: text("seed").default(sql`floor(random() * 1000000000000000)::bigint::text`),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -411,6 +414,8 @@ export const assetGenerations = pgTable("asset_generations", {
   progressionValeur: integer("progression_valeur"),
   progressionMax: integer("progression_max"),
   etapeLibelle: varchar("etape_libelle", { length: 80 }),
+  // Génération lancée par un LOT : le worker l'adopte toute seule à sa fin (elle devient l'image de l'asset).
+  adoptionAuto: boolean("adoption_auto").notNull().default(false),
   apercuFichier: varchar("apercu_fichier", { length: 255 }),
   apercuAt: timestamp("apercu_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -455,7 +460,19 @@ export const jobs = pgTable("jobs", {
     .notNull()
     .references(() => plans.id, { onDelete: "cascade" }),
   statut: jobStatutEnum("statut").notNull().default("en_attente"),
+  // Rejeux AUTOMATIQUES d'un même rendu après un échec (F04) ; ce n'est PAS le numéro du rendu.
   tentative: integer("tentative").notNull().default(1),
+  // Numéro du rendu dans le plan (1, 2, 3…), posé à la création du job ; ce que l'historique affiche.
+  numeroRendu: integer("numero_rendu").notNull().default(1),
+  // Ce que le worker a réellement soumis : le prompt assemblé et la durée (la seed est dans `seedUtilisee`).
+  // Sert à comparer deux rendus, et à expliquer pourquoi deux relances donnent le même plan.
+  promptUtilise: text("prompt_utilise"),
+  dureeUtilisee: integer("duree_utilisee"),
+  // Progression du rendu en cours (2026-10-03) : l'étape (génération H3, interpolation, encodage) et, si ComfyUI en
+  // donne une, valeur / max. Remises à null en fin de rendu. Pas d'aperçu image (la génération H3 est un nœud d'API).
+  progressionValeur: integer("progression_valeur"),
+  progressionMax: integer("progression_max"),
+  etapeLibelle: varchar("etape_libelle", { length: 80 }),
   // Toggle prévisualisation/rendu final (F04, décidé le 2026-09-26) : la
   // sortie basse résolution (sans upscale) sert aux itérations rapides de
   // prompt (F03), le rendu final upscale une fois le plan validé.
@@ -598,6 +615,10 @@ export const agentRuns = pgTable("agent_runs", {
   // Jetons de sortie reçus au fil de l'eau (le maximum est inconnu : pas de barre
   // à pourcentage, un simple compteur). Remis à null en fin de tâche.
   progressionJetons: integer("progression_jetons"),
+  // Streaming (2026-10-03) : le texte de la réponse (borné) et la FIN de la réflexion, écrits au plus 1×/s pendant
+  // l'appel, remis à null en fin d'appel.
+  fluxTexte: text("flux_texte"),
+  fluxReflexion: text("flux_reflexion"),
   resultat: jsonb("resultat"),
   erreur: text("erreur"),
   traceId: integer("trace_id").references(() => agentTraces.id, { onDelete: "set null" }),
@@ -650,12 +671,28 @@ export const agentConversations = pgTable("agent_conversations", {
   consigne: text("consigne").notNull().default(""),
   // L'agent estime avoir de quoi écrire le brief (dernier tour).
   briefPret: boolean("brief_pret").notNull().default(false),
+  // Ce qu'il reste à définir avec l'utilisateur (liste de phrases courtes, remise à jour par l'agent à chaque tour) ;
+  // `briefPret` n'est vrai que lorsqu'elle est vide.
+  resteADefinir: jsonb("reste_a_definir").notNull().default(sql`'[]'::jsonb`),
   propositionId: integer("proposition_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("agent_conversations_cible_idx").on(table.projectId, table.portee, sql`coalesce(${table.cibleId}, 0)`),
 ]);
+
+// L'installateur (2026-10-03) : la création d'un projet de bout en bout, étape par étape et sans validation
+// intermédiaire. Une ligne par projet ; `statut` : en_cours | termine | echoue | arretee ; `etapes` : la liste ordonnée
+// des étapes et leur état (lib/agents/creation.ts), que le worker fait avancer à chaque tour de boucle.
+export const creationsProjet = pgTable("creations_projet", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().unique().references(() => projects.id, { onDelete: "cascade" }),
+  statut: varchar("statut", { length: 10 }).notNull().default("en_cours"),
+  etapes: jsonb("etapes").notNull().default(sql`'[]'::jsonb`),
+  erreur: text("erreur"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
 
 // Le brief : document de RÉFÉRENCE du projet (un seul par projet), modifiable après
 // coup. `contenu` suit le schéma de agents/skills/brief-projet/sortie.schema.json ;

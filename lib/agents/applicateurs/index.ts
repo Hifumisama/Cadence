@@ -1,6 +1,7 @@
 import type { CibleType } from "../types";
 import { applicateurAsset } from "./asset";
 import { applicateurBrief } from "./brief";
+import { applicateurFiche } from "./fiche";
 import { applicateurPlan } from "./plan";
 import { applicateurReplique } from "./replique";
 import { applicateurVoix } from "./voix";
@@ -19,6 +20,7 @@ const REGISTRE: Partial<Record<CibleType, Applicateur>> = {
   plan: applicateurPlan,
   replique: applicateurReplique,
   voix: applicateurVoix,
+  fiche: applicateurFiche,
 };
 
 export function applicateurDe(type: string): Applicateur | null {

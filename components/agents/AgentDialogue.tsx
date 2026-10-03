@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { nouvelleConversation, ouvrirConversation, reinitialiser } from "@/app/agents/actions";
+import { annulerTache } from "@/app/taches/actions";
 import { lireBriefVue, lireConversationVue, lirePropositionCouranteVue } from "@/app/agents/lecture";
 import type { DemandeAgent } from "@/components/agents/AgentsProvider";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { ChoixAssets } from "@/components/agents/ChoixAssets";
+import { ChoixIteration } from "@/components/agents/ChoixIteration";
+import { ChoixPlans } from "@/components/agents/ChoixPlans";
 import { ChoixVoix } from "@/components/agents/ChoixVoix";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { EtapeApplique } from "@/components/agents/EtapeApplique";
@@ -16,10 +19,13 @@ import { EtapeConsigne } from "@/components/agents/EtapeConsigne";
 import { EtapeConversation } from "@/components/agents/EtapeConversation";
 import { EtapeProposition } from "@/components/agents/RevueProposition";
 import { FilEtapes } from "@/components/agents/FilEtapes";
+import { SelecteurPortee } from "@/components/agents/SelecteurPortee";
 import { estLotActif, estTacheActive, etapeValide, filEtapes } from "@/lib/agents-affichage";
+import { LIBELLE_SKILL } from "@/lib/taches";
 import type { Etape, ResultatApplication, VueBrief, VueConversation, VueProposition } from "@/lib/agents/types";
 
 const INTERVALLE_SONDAGE_MS = 3000;
+const INTERVALLE_FLUX_MS = 1200;
 
 /** La popup d'agent (variante hybride validée) : UNE fenêtre large, ouverte depuis un point
  * d'entrée contextuel qui lui donne la portée. Deux profondeurs : COURTE (Consigne →
@@ -37,6 +43,8 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
   const [chargement, setChargement] = useState(true);
   const [reprise, setReprise] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // La tâche qui a fait refuser la dernière action (« une tâche est déjà en cours ») : on propose de l'annuler.
+  const [bloquante, setBloquante] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [affichee, setAffichee] = useState<Etape>("consigne");
   const [confirmation, setConfirmation] = useState<"reinit" | "nouvelle" | null>(null);
@@ -120,29 +128,53 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
   // Entrée directe « créer le registre » (page des assets) : le sélecteur tient lieu de vue tant qu'aucune
   // proposition n'est en cours ; dès que le lot est posé (étape « proposition » du serveur), c'est la
   // revue habituelle qui prend le relais, comme pour toute proposition.
-  const vueRegistre = demande.vue === "registre" && !!conv && etapeServeur !== "proposition" && etapeServeur !== "applique";
+  // Seule une proposition DE CETTE ÉTAPE (registre, voix) prend la place du sélecteur : une proposition d'une
+  // autre étape restée sur la conversation du projet (des scénarios, parfois échouée) ne doit pas s'afficher
+  // à sa place, sinon « créer les voix » montre la revue des scénarios.
+  const vueDirecteDe = (vue: "registre" | "voix") =>
+    demande.vue === vue && !!conv && !((etapeServeur === "proposition" || etapeServeur === "applique") && (!prop || prop.skill === vue));
+  const vueRegistre = vueDirecteDe("registre");
   // Même principe pour « créer les voix manquantes » (page du casting vocal).
-  const vueVoix = demande.vue === "voix" && !!conv && etapeServeur !== "proposition" && etapeServeur !== "applique";
-  const vueDirecte = vueRegistre || vueVoix;
+  const vueVoix = vueDirecteDe("voix");
+  // Lancer l'étape rejette la proposition qui attend encore sa revue : on le dit avant.
+  const autreEnAttente = (vueRegistre || vueVoix) && prop && (prop.statut === "prete" || prop.statut === "en_generation") ? prop : null;
+  // … et pour « écrire la fiche » (page d'un plan) ou « écrire les fiches » (épisode).
+  // Même règle : seule une proposition de fiche (un plan : « plan-h3 », un lot : « fiches ») prend sa place.
+  const vueFiches =
+    demande.vue === "fiches" &&
+    !!conv &&
+    !((etapeServeur === "proposition" || etapeServeur === "applique") && (!prop || prop.skill === "plan-h3" || prop.skill === "fiches"));
+  const autreQueFiche = vueFiches && prop && (prop.statut === "prete" || prop.statut === "en_generation") ? prop : null;
+  // … et pour « corriger après visionnage » (page d'un plan qui a un rendu) : seule une proposition iteration-plan.
+  const vueIteration =
+    demande.vue === "iteration" && !!conv && !((etapeServeur === "proposition" || etapeServeur === "applique") && (!prop || prop.skill === "iteration-plan"));
+  const autreQuIteration = vueIteration && prop && (prop.statut === "prete" || prop.statut === "en_generation") ? prop : null;
+  const vueDirecte = vueRegistre || vueVoix || vueFiches || vueIteration;
   useEffect(() => {
     if (etapeServeur) setAffichee(etapeServeur);
   }, [etapeServeur, conv?.uuid]);
 
   // Sondage : seulement tant qu'une tâche de cette conversation est active.
   const actif = estTacheActive(conv?.tache) || estTacheActive(prop?.tache) || estLotActif(prop?.lot);
+  // Plus vite pendant qu'un appel s'écrit (streaming : la réponse et la réflexion s'affichent au fil de l'eau).
+  const enDirect = conv?.tache?.statut === "en_cours" || prop?.tache?.statut === "en_cours";
   useEffect(() => {
     if (!actif) return;
-    const t = setInterval(() => void rafraichir(), INTERVALLE_SONDAGE_MS);
+    const t = setInterval(() => void rafraichir(), enDirect ? INTERVALLE_FLUX_MS : INTERVALLE_SONDAGE_MS);
     return () => clearInterval(t);
-  }, [actif, rafraichir]);
+  }, [actif, enDirect, rafraichir]);
 
   const lancer = useCallback<ContexteEtape["lancer"]>(
     async (action, apres) => {
       setOccupe(true);
       setErreur(null);
+      setBloquante(null);
       try {
         const r = await action();
-        if (!r.ok) setErreur((r as { erreur?: string }).erreur ?? "L'action a échoué.");
+        if (!r.ok) {
+          setErreur((r as { erreur?: string }).erreur ?? "L'action a échoué.");
+          setBloquante((r as { bloquante?: { runUuid: string } }).bloquante?.runUuid ?? null);
+        }
         else apres?.(r);
         await rafraichir();
       } catch (e) {
@@ -232,6 +264,8 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
         </div>
       </div>
 
+      {conv ? <SelecteurPortee conversationUuid={conv.uuid} projectId={conv.projectId} porteeActuelle={conv.portee} /> : null}
+
       {conv && !vueDirecte ? (
         <div className="ag-sous-tete">
           <FilEtapes etapes={filEtapes(conv.profondeur, etapeServeur ?? "consigne", affichee)} onAller={setAffichee} />
@@ -269,6 +303,11 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
             {erreur ?? "Impossible d'ouvrir l'agent."}
           </p>
         ) : null}
+        {ctx && autreEnAttente ? (
+          <p className="ag-eps-alerte tiny-note" role="status">
+            Une proposition « {LIBELLE_SKILL[autreEnAttente.skill] ?? autreEnAttente.skill} » attend encore sa revue : la lancer ici la rejettera.
+          </p>
+        ) : null}
         {ctx && vueRegistre ? (
           <>
             <ChoixAssets ctx={ctx} />
@@ -280,6 +319,32 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
         {ctx && vueVoix ? (
           <>
             <ChoixVoix ctx={ctx} />
+            <div className="ag-etape-corps">
+              <EtatTacheAgent tache={ctx.conv.tache} />
+            </div>
+          </>
+        ) : null}
+        {ctx && autreQueFiche ? (
+          <p className="ag-eps-alerte tiny-note" role="status">
+            Une proposition « {LIBELLE_SKILL[autreQueFiche.skill] ?? autreQueFiche.skill} » attend encore sa revue sur cette conversation : écrire la fiche la rejettera.
+          </p>
+        ) : null}
+        {ctx && vueFiches ? (
+          <>
+            <ChoixPlans ctx={ctx} />
+            <div className="ag-etape-corps">
+              <EtatTacheAgent tache={ctx.conv.tache} />
+            </div>
+          </>
+        ) : null}
+        {ctx && autreQuIteration ? (
+          <p className="ag-eps-alerte tiny-note" role="status">
+            Une proposition « {LIBELLE_SKILL[autreQuIteration.skill] ?? autreQuIteration.skill} » attend encore sa revue sur ce plan : lancer la correction la rejettera.
+          </p>
+        ) : null}
+        {ctx && vueIteration ? (
+          <>
+            <ChoixIteration ctx={ctx} />
             <div className="ag-etape-corps">
               <EtatTacheAgent tache={ctx.conv.tache} />
             </div>
@@ -299,6 +364,28 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
       <div className="gd-foot">
         <span className={`gd-raison${erreur ? " bloque" : ""}`} role={erreur ? "alert" : "status"}>
           {erreur ?? (actif ? "Tu peux fermer cette fenêtre : l'agent continue et le panneau des générations te prévient." : "")}
+          {erreur && bloquante ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                className="btn btn-ghost btn-mini"
+                disabled={occupe}
+                onClick={() => {
+                  setOccupe(true);
+                  void annulerTache(`llm:${bloquante}`)
+                    .then(() => {
+                      setErreur(null);
+                      setBloquante(null);
+                      return rafraichir();
+                    })
+                    .finally(() => setOccupe(false));
+                }}
+              >
+                Annuler cette tâche
+              </button>
+            </>
+          ) : null}
         </span>
         <div className="gd-row">
           {conv && affichee !== "applique" ? (

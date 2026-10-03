@@ -1,7 +1,9 @@
 import "dotenv/config";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { agentRuns, assets, briefs, episodes, planDialogues, plans, projects, propositionChangements, propositions, repliques, scenes, seasons } from "../db/schema";
+import { agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons } from "../db/schema";
+import { lireApresFiche } from "../lib/agents/fiches";
+import { controlerDialogues, controlerStructure, verifierCoherenceRefs } from "../lib/plan-checks";
 import { demanderAnnulation } from "../lib/annulation-db";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";
 import { listerTaches } from "../lib/queries-taches";
@@ -10,7 +12,10 @@ import { enregistrerChangements } from "../lib/agents/proposition-db";
 import * as s from "../lib/agents/service";
 import { lireBrief, lireConversation, lireProposition, listerPropositions } from "../lib/queries-agents";
 import type { executerSkill } from "../lib/llm/executer";
+import type { MessageLlm, PartieContenu } from "../lib/llm/types";
+import type { Planche } from "../lib/planche-vignettes";
 import { traiterTacheLlm } from "../worker/llm";
+import { arreterCreation, lancerCreation, lireCreation, piloterCreations, reprendreCreation } from "../lib/agents/creation-db";
 
 /**
  * Essai de bout en bout du système d'agents, SANS interface et SANS modèle : un FAUX
@@ -62,11 +67,15 @@ let echouerPromptAsset = false;
 /** Titre d'épisode dont l'appel `scenario-episode` échoue (lot de scénarios, essai F). */
 let echouerEpisode: string | null = null;
 
-const faux = (async (skill: string, entree: unknown) => {
+const faux = (async (skill: string, entree: unknown, options?: { controler?: (json: unknown) => string[] }) => {
   let json: unknown;
   if (skill === "conversation-agent") {
     tours += 1;
-    json = { reponse: tours === 1 ? "Voici mon arc en deux phrases… Style : live-action ?" : "Parfait, le briefing peut être généré.", briefPret: tours >= 2 };
+    json = {
+      reponse: tours === 1 ? "Voici mon arc en deux phrases… Style : live-action ?" : "Parfait, le briefing peut être généré.",
+      briefPret: tours >= 2,
+      resteADefinir: tours === 1 ? ["Choisir le style visuel"] : [],
+    };
   } else if (skill === "brief-projet") json = BRIEF;
   else if (skill === "prompt-asset") {
     if (echouerPromptAsset) throw new Error("Serveur LLM en panne (simulé)");
@@ -100,9 +109,86 @@ const faux = (async (skill: string, entree: unknown) => {
       inventions: [],
       notes: "",
     };
+  } else if (skill === "prompt-voix") {
+    json = { instruction: "A calm adult woman, native French speaker, slow and even pace, a low steady voice.", remarques: [] };
+  } else if (skill === "inventaire-assets") {
+    // L'inventaire : une clef, sa version rouillée (dérivée d'une création de la même liste), un asset qui existe déjà
+    // (au registre : écarté) et un doublon de la clef (écarté).
+    json = {
+      assets: [
+        { code: "PROP_clef", type: "prop", description: "La clef du phare", plans: ["Plan A"], raison: "elle ouvre la porte" },
+        { code: "PROP_clef_rouillee", type: "prop", parent: "PROP_clef", description: "La même clef, rouillée", plans: ["Plan B"], raison: "état altéré" },
+        { code: "DEC_le_phare", type: "decor", description: "Déjà au registre", plans: ["Plan A"], raison: "x" },
+        { code: "prop_clef", type: "prop", description: "Doublon", plans: ["Plan C"], raison: "x" },
+      ],
+      notes: "",
+    };
+  } else if (skill === "plan-h3") {
+    // Un brouillon de fiche : le personnage et le décor du registre en références, les répliques du plan
+    // verbatim, deux shots, et deux assets manquants (une lanterne dérivée d'Iris, sa mèche dérivée d'elle).
+    const e = entree as { plan: { titre: string }; registre: { code: string; type: string }[]; repliques: { repliqueId: string; texte: string }[] };
+    const refs = e.registre
+      .filter((a) => a.type === "personnage" || a.type === "decor")
+      .map((a) => ({ asset: a.code, nature: "image", role: a.type === "decor" ? "Décor" : "Iris", nom: a.type === "decor" ? "the lighthouse" : "Iris", definition: "" }));
+    const perso = e.registre.find((a) => a.type === "personnage")?.code;
+    json = {
+      titre: e.plan.titre,
+      dureeSecondes: 8,
+      references: refs,
+      summary: `${refs.map((r) => `[[${r.asset}]]`).join(" and ")} in the salt.`,
+      ouverture: "Cinematic live-action, desaturated blue-grey palette.",
+      shots: [
+        { debutSecondes: 0, texte: `A wide shot of ${refs.map((r) => `[[${r.asset}]]`).join(" and ")}. ${e.repliques.map((r) => `Iris (S1) says <d>[Français] ${r.texte}</d>`).join(" ")}` },
+        { debutSecondes: 4, texte: "a close-up of the salt on the railing." },
+      ],
+      overall_soundscape: "Wind and surf.",
+      non_diegetic_music: "N/A",
+      repliques: e.repliques.map((r) => ({ repliqueId: r.repliqueId })),
+      assetsManquants: [
+        { code: "PROP_lanterne", type: "prop", parent: perso, description: "La lanterne d'Iris", raison: "tenue en main" },
+        { code: "PROP_meche", type: "prop", parent: "PROP_lanterne", description: "La mèche de la lanterne", raison: "insert" },
+      ],
+      notes: "",
+    };
+  } else if (skill === "iteration-plan") {
+    // Contenu MIXTE (texte + vignettes) : le texte est la première partie du message.
+    const messages = entree as MessageLlm[];
+    const parties = Array.isArray(messages) && Array.isArray(messages[0]?.content) ? (messages[0]!.content as PartieContenu[]) : [];
+    imagesVuesIteration = parties.filter((p) => p.type === "image_url").length;
+    const texte = JSON.parse((parties[0] as { text?: string } | undefined)?.text ?? "{}") as { promptActuel?: Record<string, string>; historique?: unknown[] };
+    derniereEntreeIteration = texte;
+    const desc = texte.promptActuel?.detailed_description ?? "";
+    const avant = "a close-up of the salt on the railing.";
+    json =
+      modeIteration === "duree"
+        ? { dureeCoherente: false, symptome: "Le rendu dure 3 s au lieu de 8.", cause: "Génération à la mauvaise durée.", categorie: "duree", confiance: "haute", changements: [], abandon: { propose: false, raison: "" } }
+        : {
+            dureeCoherente: true,
+            symptome: "À 5 s, le sel défile derrière la rambarde.",
+            cause: "Gros plan sans caméra verrouillée : le fond bouge (lexique §4).",
+            categorie: "camera",
+            confiance: "moyenne",
+            changements: desc.includes(avant) ? [{ section: "detailed_description", avant, apres: "a static close-up of the salt on the railing, the camera locked, the background still." }] : [],
+            verification: "Entre 4 et 8 s, le fond ne bouge plus.",
+            entreeLexique: { symptome: "fond qui défile en gros plan", cause: "caméra non verrouillée", formulationQuiTient: "the camera locked, the background still" },
+            abandon: { propose: false, raison: "" },
+          };
+    erreursControleIteration = options?.controler ? options.controler(json) : null;
   } else throw new Error(`Skill inattendu : ${skill}`);
   return { json, reponse: {} as never, usage: { entree: 0, sortie: 0 }, dureeMs: 1, renvois: 0, modele: "faux", skill: { nom: skill, caracteres: 0, jetonsEstimes: 0 } };
 }) as unknown as typeof executerSkill;
+
+// iteration-plan : ce que le faux modèle a reçu, et ce que le contrôleur du worker en a dit.
+let modeIteration: "correction" | "duree" = "correction";
+let imagesVuesIteration = 0;
+let derniereEntreeIteration: { historique?: unknown[] } | null = null;
+let erreursControleIteration: string[] | null = null;
+/** Une fausse planche (le rendu n'existe pas sur disque, ffmpeg non plus en local). */
+const faussePlanche = (dureeSecondes: number) => async (): Promise<Planche> => ({
+  dureeSecondes,
+  largeur: 384,
+  vignettes: Array.from({ length: Math.floor(dureeSecondes) }, (_, i) => ({ instantSecondes: i, imageBase64: Buffer.from(`vignette ${i}`).toString("base64") })),
+});
 
 async function traiter(runUuid: string | null) {
   if (!runUuid) throw new Error("Pas de tâche à traiter.");
@@ -142,7 +228,7 @@ async function main() {
     ok(rb.statut === "termine", "le brief est généré");
     let brief = await lireBrief(p1!.id);
     ok(brief?.statut === "brouillon" && brief.contenu.titre === BRIEF.titre, "un BROUILLON de brief existe");
-    ok(brief?.sections.find((x) => x.cle === "arc")?.statut === "fourni" && brief.sections.find((x) => x.cle === "style")?.statut === "a_valider", "les statuts déclarés par l'agent sont conservés");
+    ok(brief?.sections.find((x) => x.cle === "arc")?.statut === "fourni" && brief.sections.find((x) => x.cle === "style")?.statut === "deduit", "les statuts déclarés sont conservés (« à valider » vaut « déduit » : plus de point à valider)");
     ok(!("statuts" in (brief?.contenu ?? {})), "les statuts ne polluent pas le contenu du brief");
     ok((await s.modifierChampBrief(p1!.id, "titre", "TEST Le Phare de Sel 2")).ok, "correction à la main d'une section");
     ok(!(await s.modifierChampBrief(p1!.id, "dureeEpisodeSecondes", "abc")).ok, "une valeur hors schéma est refusée");
@@ -605,6 +691,264 @@ async function main() {
     ok(!!phareReg && phareReg.type === "decor" && (phareReg.promptGeneration ?? "").startsWith("Nouveau prompt") && phareReg.methodeGeneration === "generation", "DEC_le_phare est créé avec son prompt, en génération");
     ok(!!irisReg && (irisReg.promptGeneration ?? "").startsWith("Nouveau prompt") && irisReg.description === "La gardienne", "CHAR_iris reçoit son prompt, sa description écrite à la main est gardée");
     ok(!(await s.genererRegistre(convF.conversationUuid)).ok, "ensuite : plus rien à écrire par défaut");
+
+    // --- inventaire des assets : entre le registre et les fiches (un appel pour tout le projet) ---
+    console.log("\nInventaire des assets (inventaire-assets)");
+    ok(!(await s.genererInventaire(convS.conversationUuid)).ok, "l'inventaire se demande depuis le projet, pas depuis une saison");
+    const gInv = await s.genererInventaire(convF.conversationUuid);
+    ok(gInv.ok, "inventaire : une proposition simple, un seul appel");
+    if (!gInv.ok) throw new Error(gInv.erreur);
+    await suspendre();
+    await traiter(gInv.runUuid);
+    const pInv = await lireProposition(gInv.propositionUuid);
+    const chInv = pInv?.groupes.flatMap((g) => g.changements) ?? [];
+    ok(pInv?.statut === "prete" && !pInv.lot && chInv.length === 2 && chInv.every((c) => c.cibleType === "asset" && c.operation === "creer"), "2 créations : l'asset du registre et le doublon sont écartés");
+    ok(chInv.map((c) => (c.apres as Record<string, unknown>).suffixe).join() === "clef,clef_rouillee", "…la clef puis sa version rouillée (dérivée de la même liste)");
+    const apInv = await s.appliquerSelection(gInv.propositionUuid, { confirmeEcrasement: true });
+    ok(apInv.ok, "appliquer l'inventaire");
+    const apresInv = await db.select().from(assets).where(eq(assets.projectId, p3!.id));
+    const clef = apresInv.find((a) => a.code === "PROP_clef");
+    const clefR = apresInv.find((a) => a.code === "PROP_clef_rouillee");
+    ok(!!clef && clef.deriveDeId == null && !(clef.promptGeneration ?? "").trim() && !!clefR && clefR.deriveDeId === clef.id, "assets créés sans prompt ; le dérivé se rattache à la clef");
+    const [propInv] = await db.select({ id: propositions.id }).from(propositions).where(eq(propositions.uuid, gInv.propositionUuid));
+    ok((await s.assetsCreesSansPrompt(propInv!.id)).length === 2, "…leurs prompts restent à écrire (les 2 sans prompt)");
+
+    // --- étape 3 : les fiches de plan (plan-h3), un lot par épisode, puis un plan seul ---
+    console.log("\nÉtape 3. Fiches de plan (plan-h3)");
+    // Les tâches d'une proposition seulement (une sous-tâche d'un lot précédent peut encore attendre).
+    const traiterDe = async (propositionUuid: string) => {
+      const [pr] = await db.select({ id: propositions.id }).from(propositions).where(eq(propositions.uuid, propositionUuid));
+      for (;;) {
+        const [r] = await db.select().from(agentRuns).where(and(eq(agentRuns.propositionId, pr!.id), eq(agentRuns.statut, "en_attente"))).orderBy(asc(agentRuns.id)).limit(1);
+        if (!r) break;
+        await traiterTacheLlm(r, { executer: faux, joignable: async () => true });
+      }
+    };
+    const convE = await s.ouvrirConversation(p3!.id, "episode", { id: idsEps[0]! }, "courte");
+    if (!convE.ok) throw new Error(convE.erreur);
+    const dispoF = await s.plansPourFiches(p3!.id, "episode", idsEps[0]!);
+    ok(dispoF.length === 3 && dispoF.every((p) => !p.aDesSections) && dispoF.map((p) => p.rang).join() === "1,2,3", "fiches : les 3 plans de l'épisode, sans fiche, avec leur rang");
+    const autreEp = (await s.plansPourFiches(p3!.id, "episode", idsEps[1]!))[0]!;
+    ok(!(await s.genererFiches(convE.conversationUuid, { planUuids: [autreEp.uuid] })).ok, "un plan d'un autre épisode est refusé (portée)");
+    const gFi = await s.genererFiches(convE.conversationUuid);
+    ok(gFi.ok && gFi.nbSousTaches === 3, "écrire les fiches de l'épisode : un lot de 3 sous-tâches");
+    if (!gFi.ok) throw new Error(gFi.erreur);
+    await suspendre();
+    let pFi = await lireProposition(gFi.propositionUuid);
+    ok(pFi?.lot?.sousTaches.every((x) => x.cle.startsWith("plan:")) && pFi.lot.sousTaches[0]!.libelle.startsWith("Plan 01 · "), "…clés plan:<uuid>, libellées « Plan 01 · titre »");
+    const tfi = (await listerTaches()).taches.filter((t) => t.cle === `lot:${gFi.propositionUuid}`);
+    ok(tfi.length === 1 && tfi[0]!.libelle.startsWith("Fiches de plan"), "header : une entrée de lot « Fiches de plan »");
+    await traiterDe(gFi.propositionUuid);
+    pFi = await lireProposition(gFi.propositionUuid);
+    ok(pFi?.statut === "prete" && pFi.lot?.terminees === 3, "les 3 fiches écrites : proposition prête");
+    let chF = pFi!.groupes.flatMap((g) => g.changements);
+    const fichesF = chF.filter((c) => c.cibleType === "fiche");
+    const creesF = chF.filter((c) => c.cibleType === "asset" && c.operation === "creer");
+    ok(fichesF.length === 3 && fichesF.every((c) => c.coche && !c.ecrase), "3 fiches sur des plans vides : cochées, sans écrasement");
+    ok(creesF.length === 2 && creesF.filter((c) => !c.refuseRaison).length === 2, "assets manquants : proposés UNE fois pour tout le lot (lanterne, mèche)");
+    ok(fichesF.some((c) => c.avertissements.some((a) => /déjà proposée par un autre plan/.test(a.texte))), "…les autres plans le disent");
+    ok(pFi!.groupes.some((g) => g.id === `ep-${idsEps[0]}`), "revue : rangée sous l'épisode");
+    const relF = await s.relancerSousTache(gFi.propositionUuid, pFi!.lot!.sousTaches[1]!.cle, "Plus serré");
+    await suspendre();
+    ok(relF.ok, "relancer la fiche d'un plan (clé plan:)");
+    await traiterDe(gFi.propositionUuid);
+    pFi = await lireProposition(gFi.propositionUuid);
+    chF = pFi!.groupes.flatMap((g) => g.changements);
+    ok(chF.filter((c) => c.cibleType === "fiche").length === 3 && chF.filter((c) => c.cibleType === "asset").length === 2, "…sans doublon après la relance");
+    const apF = await s.appliquerSelection(gFi.propositionUuid, { confirmeEcrasement: true });
+    ok(apF.ok, `appliquer les fiches${apF.ok ? "" : ` — ${apF.erreur}`}`);
+    const plansEp = await db.select().from(plans).where(eq(plans.episodeId, idsEps[0]!)).orderBy(asc(plans.ordre));
+    const secs = await db.select().from(planPromptSections).where(inArray(planPromptSections.planId, plansEp.map((p) => p.id)));
+    const refsF = await db.select().from(planRefs).where(inArray(planRefs.planId, plansEp.map((p) => p.id)));
+    ok(secs.length === 18 && plansEp.every((p) => secs.filter((x) => x.planId === p.id).map((x) => x.ordre).sort().join() === "0,1,2,3,4,5"), "6 sections par plan, dans l'ordre canonique");
+    ok(refsF.length === 6 && refsF.every((r) => r.type === "picture" && r.slot <= 2 && r.assetId != null), "2 références d'image par plan (Iris, le phare), aucune voix dans plan_refs");
+    ok(plansEp.every((p) => p.statut === "en_attente" && p.dureeGenerationSecondes === 8 && p.dureeMontageSecondes === 8), "plans développés (en attente), durée de génération écrite");
+    const lesAssetsF = await db.select().from(assets).where(eq(assets.projectId, p3!.id));
+    const lanterne = lesAssetsF.find((a) => a.code === "PROP_lanterne");
+    const meche = lesAssetsF.find((a) => a.code === "PROP_meche");
+    ok(!!lanterne && lanterne.deriveDeId === irisReg!.id && !!meche && meche.deriveDeId === irisReg!.id, "assets créés avec leur master (registre à un niveau : la mèche, demandée dérivée de la lanterne, se rattache à Iris)");
+    // contrôles de la page du plan sur une fiche écrite par ce chemin
+    const p1F = plansEp[0]!;
+    const sec1 = secs.filter((x) => x.planId === p1F.id).map((x) => ({ section: x.section, contenu: x.contenu }));
+    const coh = verifierCoherenceRefs(sec1, refsF.filter((r) => r.planId === p1F.id).map((r) => ({ type: r.type, slot: r.slot })));
+    ok(coh.labelsOrphelins.length === 0 && coh.refsNonCitees.length === 0, "page du plan : références cohérentes avec le prompt");
+    ok(controlerStructure(sec1, p1F.dureeGenerationSecondes).length === 0, "page du plan : structure des shots conforme");
+    const liees = await db.select({ id: repliques.id, texte: repliques.texte }).from(planDialogues).innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId)).where(eq(planDialogues.planId, p1F.id));
+    const dlg = controlerDialogues(sec1, liees.map((r) => ({ id: r.id, texte: r.texte, audioPresent: true, priseObsolete: false })));
+    ok(liees.length === 2 && dlg.ok, "page du plan : les répliques liées sont citées mot pour mot");
+
+    // réécrire : la fiche existante va en écrasement, décochée ; les assets existent déjà
+    ok(!(await s.genererFiches(convE.conversationUuid)).ok, "ensuite : toutes ont une fiche, « choisis celles à réécrire »");
+    const gFi2 = await s.genererFiches(convE.conversationUuid, { planUuids: [p1F.uuid] });
+    await suspendre();
+    if (gFi2.ok) await traiterDe(gFi2.propositionUuid);
+    const pFi2 = gFi2.ok ? await lireProposition(gFi2.propositionUuid) : null;
+    const ch2 = pFi2!.groupes.flatMap((g) => g.changements);
+    ok(pFi2?.groupes[0]?.id === "ecrasement" && ch2.find((c) => c.cibleType === "fiche")?.coche === false && /six sections/.test(ch2.find((c) => c.cibleType === "fiche")?.ecrase ?? ""), "réécrire une fiche : risque d'écrasement, décoché");
+    ok(!ch2.some((c) => c.cibleType === "asset") && ch2.some((c) => c.avertissements.some((a) => /existe déjà au registre/.test(a.texte))), "…les assets déclarés manquants qui existent ne sont pas recréés");
+    ok(!(await s.appliquerSelection(gFi2.ok ? gFi2.propositionUuid : "")).ok, "…rien à appliquer tant qu'on ne coche pas l'écrasement");
+
+    // suite : écrire les prompts des assets créés (lot prompt-asset, conversation du projet)
+    const suite = await s.genererPromptsAssetsCrees(gFi.propositionUuid);
+    ok(suite.ok && suite.nbSousTaches === 2 && suite.conversationUuid === convF.conversationUuid, "continuer : un lot de 2 prompts d'assets créés, dans la conversation du projet");
+    await suspendre();
+    if (suite.ok) {
+      await traiterDe(suite.propositionUuid);
+      const pSuite = await lireProposition(suite.propositionUuid);
+      ok(pSuite?.statut === "prete" && pSuite.groupes.flatMap((g) => g.changements).every((c) => c.cibleType === "asset" && c.operation === "modifier" && !c.refuseRaison), "…des prompts proposés aux assets créés (dans la portée projet)");
+      const apS = await s.appliquerSelection(suite.propositionUuid, { confirmeEcrasement: true });
+      ok(apS.ok, "…appliqués");
+      ok(!(await s.genererPromptsAssetsCrees(gFi.propositionUuid)).ok, "…ensuite plus rien à écrire");
+    }
+
+    // un plan seul (page du plan) : proposition simple
+    const convP = await s.ouvrirConversation(p3!.id, "plan", { uuid: plansEp[1]!.uuid }, "courte");
+    if (!convP.ok) throw new Error(convP.erreur);
+    const gP = await s.genererFiches(convP.conversationUuid);
+    await suspendre();
+    ok(gP.ok && gP.nbSousTaches === 1, "écrire la fiche d'un plan : une proposition simple");
+    if (gP.ok) await traiterDe(gP.propositionUuid);
+    const pP = gP.ok ? await lireProposition(gP.propositionUuid) : null;
+    ok(pP?.statut === "prete" && pP.lot === null && pP.groupes.flatMap((g) => g.changements).filter((c) => c.cibleType === "fiche").length === 1, "…prête, une fiche (en écrasement : le plan en a déjà une)");
+
+    // --- iteration-plan : corriger un plan APRÈS visionnage de son rendu ---
+    console.log("\nIteration-plan. Correction après visionnage");
+    const convI = await s.ouvrirConversation(p3!.id, "plan", { uuid: p1F.uuid }, "courte");
+    if (!convI.ok) throw new Error(convI.erreur);
+    ok(!(await s.genererIteration(convI.conversationUuid, { retour: "Le fond défile." })).ok, "sans rendu : refusé (jamais de correction à l'aveugle)");
+    ok((await s.lireEtatIteration(p3!.id, p1F.uuid))?.rendu === null, "…l'état du plan le dit (pas de rendu)");
+    await db.insert(jobs).values({ planId: p1F.id, statut: "termine", workflowFichier: "e2e", cheminSortie: `plans/${p1F.id}/e2e-rendu-inexistant.mp4`, finishedAt: new Date() });
+    ok(!(await s.genererIteration(convI.conversationUuid, { retour: "   " })).ok, "« ce que tu as vu » est obligatoire");
+    const etatI = await s.lireEtatIteration(p3!.id, p1F.uuid);
+    ok(etatI?.aUneFiche === true && etatI.rendu !== null && etatI.nbCorrections === 0, "avec un rendu et une fiche : correction possible, aucun historique");
+    const secsAvantI = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, p1F.id));
+    const refsAvantI = await db.select().from(planRefs).where(eq(planRefs.planId, p1F.id));
+    const traiterIteration = async (propositionUuid: string, planche?: () => Promise<Planche>) => {
+      await suspendre();
+      const [pr] = await db.select({ id: propositions.id }).from(propositions).where(eq(propositions.uuid, propositionUuid));
+      const [r] = await db.select().from(agentRuns).where(and(eq(agentRuns.propositionId, pr!.id), eq(agentRuns.statut, "en_attente"))).orderBy(asc(agentRuns.id)).limit(1);
+      await traiterTacheLlm(r!, { executer: faux, joignable: async () => true, planche });
+      return (await db.select().from(agentRuns).where(eq(agentRuns.id, r!.id)))[0]!;
+    };
+
+    const gI = await s.genererIteration(convI.conversationUuid, { retour: "À 5 s, le sel défile derrière la rambarde." });
+    ok(gI.ok, "lancer la correction : une tâche iteration-plan");
+    if (!gI.ok) throw new Error(gI.erreur);
+    const [runI] = await db.select().from(agentRuns).where(eq(agentRuns.uuid, gI.runUuid));
+    const entreeI = JSON.stringify(runI!.entree);
+    ok(entreeI.includes("\"planche\"") && !entreeI.includes("base64") && !entreeI.includes("image_url"), "l'entrée stockée porte un DESCRIPTEUR de planche, jamais d'images");
+    ok(entreeI.includes("<Subject 1>") && entreeI.includes("<Picture 1>"), "…et le prompt ASSEMBLÉ (labels), pas le brouillon");
+    const rI = await traiterIteration(gI.propositionUuid, faussePlanche(8.02));
+    ok(rI.statut === "termine" && imagesVuesIteration === 8, `le worker reconstruit la planche à l'exécution (${imagesVuesIteration} vignettes vues par le modèle)`);
+    ok(erreursControleIteration !== null && erreursControleIteration.length === 0, `le contrôleur sémantique du worker accepte la correction${erreursControleIteration?.length ? ` — ${erreursControleIteration.join(" ; ")}` : ""}`);
+    let pI = await lireProposition(gI.propositionUuid);
+    const chI2 = pI!.groupes.flatMap((g) => g.changements);
+    const ficheI = chI2.find((c) => c.cibleType === "fiche");
+    ok(pI?.statut === "prete" && chI2.length === 1 && !!ficheI, "proposition prête : une écriture de fiche");
+    ok(pI?.diagnostic?.symptome.startsWith("À 5 s") === true && pI.diagnostic.verification !== null && pI.diagnostic.entreeLexique !== null, "la revue a le diagnostic (symptôme, vérification, candidate au lexique)");
+    const apI = lireApresFiche(ficheI?.apres);
+    ok(Object.keys(apI.sections ?? {}).join() === "detailed_description" && apI.refs === undefined && apI.dureeGenerationSecondes === undefined && apI.passages?.length === 1, "écriture PARTIELLE : une section, ni références ni durée, le passage pour la revue");
+    ok(ficheI?.coche === false && !!ficheI.ecrase && ficheI.avertissements.some((a) => a.type === "ecrase_valide"), "le plan a un rendu : écrasement, décoché par défaut");
+    ok(pI!.contexte.some((c) => /Rendu mesuré : 8,02 s pour 8 s/.test(c.libelle)), "le contexte utilisé dit la durée mesurée et les vignettes regardées");
+    await s.cocherChangement(ficheI!.id, true);
+    const apIt = await s.appliquerSelection(gI.propositionUuid, { confirmeEcrasement: true });
+    ok(apIt.ok, `appliquer la correction${apIt.ok ? "" : ` — ${apIt.erreur}`}`);
+    const secsApresI = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, p1F.id));
+    const desc = (l: typeof secsApresI) => l.find((x) => x.section === "detailed_description")?.contenu ?? "";
+    ok(desc(secsApresI).includes("the camera locked, the background still") && !desc(secsApresI).includes("a close-up of the salt on the railing."), "la section corrigée est écrite");
+    ok(
+      secsApresI.length === secsAvantI.length && secsApresI.filter((x) => x.section !== "detailed_description").every((x) => secsAvantI.find((y) => y.section === x.section)?.contenu === x.contenu),
+      "les autres sections n'ont pas bougé",
+    );
+    ok((await db.select().from(planRefs).where(eq(planRefs.planId, p1F.id))).length === refsAvantI.length, "les références non plus");
+    const secC = secsApresI.map((x) => ({ section: x.section, contenu: x.contenu }));
+    const cohI = verifierCoherenceRefs(secC, (await db.select().from(planRefs).where(eq(planRefs.planId, p1F.id))).map((r) => ({ type: r.type, slot: r.slot })));
+    ok(cohI.labelsOrphelins.length === 0 && controlerStructure(secC, p1F.dureeGenerationSecondes).length === 0, "page du plan : contrôles toujours verts après la correction");
+
+    // durée incohérente : diagnostic sans écriture ; l'historique remonte la correction appliquée
+    modeIteration = "duree";
+    const gI2 = await s.genererIteration(convI.conversationUuid, { retour: "Le plan est beaucoup trop court." });
+    if (!gI2.ok) throw new Error(gI2.erreur);
+    await traiterIteration(gI2.propositionUuid, faussePlanche(3));
+    const hist = (derniereEntreeIteration?.historique ?? []) as { issue?: string }[];
+    ok(hist.length === 1 && hist[0]!.issue === "appliquee", "l'agent reçoit l'historique : la correction précédente, appliquée");
+    pI = await lireProposition(gI2.propositionUuid);
+    ok(pI?.statut === "prete" && pI.compteurs.total === 0 && /Diagnostic sans écriture.*3 s.*8 s/.test(pI.resume) && pI.diagnostic?.dureeCoherente === false, "durée réelle 3 s pour 8 voulues : aucune écriture, la raison est dans le résumé");
+    modeIteration = "correction";
+
+    // affiner rejoue le skill avec la planche re-extraite
+    const afI = await s.affiner(gI2.propositionUuid, "Regarde quand même le gros plan.");
+    ok(afI.ok, "affiner une correction : nouvelle proposition dérivée");
+    if (afI.ok) {
+      const rAf = await traiterIteration(afI.propositionUuid, faussePlanche(8));
+      ok(rAf.statut === "termine" && imagesVuesIteration === 8, "…planche reconstruite pour l'affinage aussi");
+    }
+
+    // rendu disparu du stockage (pas de planche injectée) : échec clair, jamais de diagnostic à l'aveugle
+    const gI3 = await s.genererIteration(convI.conversationUuid, { retour: "Le sel défile toujours." });
+    if (!gI3.ok) throw new Error(gI3.erreur);
+    const rI3 = await traiterIteration(gI3.propositionUuid);
+    pI = await lireProposition(gI3.propositionUuid);
+    ok(rI3.statut === "echoue" && /introuvable sur le stockage/.test(rI3.erreur ?? "") && pI?.statut === "echouee", "rendu introuvable : tâche échouée avec un message clair, proposition échouée");
+
+    // ── L'installateur : tout le pipeline, d'une seule demande, sans validation intermédiaire ──
+    console.log("\nInstallateur (création de bout en bout)");
+    const [pInst] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_4", type: "serie" }).returning();
+    ids.push(pInst!.id);
+    const oInst = await s.ouvrirConversation(pInst!.id, "projet", null);
+    if (!oInst.ok) throw new Error(oInst.erreur);
+    ok(!(await lancerCreation(pInst!.id)).ok, "installateur : refusé tant que rien n'a été dit à l'agent");
+    const m4 = await s.envoyerMessage(oInst.conversationUuid, "Un phare où le sel recouvre tout.");
+    if (!m4.ok) throw new Error(m4.erreur);
+    await db.execute(sql`update agent_runs set options = coalesce(options, '{}'::jsonb) || '{"suspendu": true}'::jsonb where project_id = ${pInst!.id} and statut = 'en_attente'`);
+    await traiter(m4.runUuid);
+    const l4 = await lancerCreation(pInst!.id);
+    ok(l4.ok, "installateur lancé depuis la conversation");
+    ok(!(await lancerCreation(pInst!.id)).ok, "…une seconde création en cours est refusée");
+    const suspendre4 = () =>
+      db.execute(sql`update agent_runs set options = coalesce(options, '{}'::jsonb) || '{"suspendu": true}'::jsonb where project_id = ${pInst!.id} and statut = 'en_attente'`);
+    // Le pilote avance d'une transition par appel ; les tâches posées sont traitées ici avec le faux modèle.
+    const faireTourner = async (max = 400) => {
+      for (let i = 0; i < max; i++) {
+        await piloterCreations({ essais: true });
+        await suspendre4();
+        const [r] = await db.select().from(agentRuns).where(and(eq(agentRuns.projectId, pInst!.id), eq(agentRuns.statut, "en_attente"))).orderBy(asc(agentRuns.createdAt), asc(agentRuns.id)).limit(1);
+        if (r) await traiterTacheLlm(r, { executer: faux, joignable: async () => true });
+        const c = await lireCreation(pInst!.id);
+        if (c && c.statut !== "en_cours") return c;
+      }
+      return await lireCreation(pInst!.id);
+    };
+    const fin4 = await faireTourner();
+    const etapes4 = ((fin4?.etapes ?? []) as { cle: string; statut: string; erreur?: string | null }[]).map((e) => `${e.cle}:${e.statut}${e.erreur ? ` « ${e.erreur} »` : ""}`);
+    ok(fin4?.statut === "termine", `installateur terminé (${etapes4.join(" ")})`);
+    ok(etapes4.every((e) => e.endsWith(":fait") || e.endsWith(":passe")), "toutes les étapes sont faites ou passées");
+    const [b4] = await db.select().from(briefs).where(eq(briefs.projectId, pInst!.id));
+    ok(b4?.statut === "valide", "le brief est validé (par l'application du squelette)");
+    const eps4 = await db.select().from(episodes).innerJoin(seasons, eq(seasons.id, episodes.seasonId)).where(eq(seasons.projectId, pInst!.id));
+    const plans4 = await db.select().from(plans).where(eq(plans.projectId, pInst!.id));
+    const assets4 = await db.select().from(assets).where(eq(assets.projectId, pInst!.id));
+    ok(eps4.length === 2 && plans4.length > 0, "épisodes et plans créés sans une seule revue");
+    ok(assets4.some((a) => a.code === "CHAR_iris") && assets4.some((a) => a.code === "PROP_clef"), "registre du brief ET inventaire des plans créés");
+    const secs4 = await db.select({ planId: planPromptSections.planId }).from(planPromptSections).where(inArray(planPromptSections.planId, plans4.map((p) => p.id)));
+    ok(new Set(secs4.map((x) => x.planId)).size === plans4.length, "chaque plan a sa fiche");
+    const attente4 = await db.select().from(propositions).where(and(eq(propositions.projectId, pInst!.id), eq(propositions.statut, "prete")));
+    ok(attente4.length === 0, "aucune proposition ne reste en attente de revue");
+
+    // reprise : une étape en échec puis relancée ; arrêt
+    const [pInst2] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_5", type: "serie" }).returning();
+    ids.push(pInst2!.id);
+    const oInst2 = await s.ouvrirConversation(pInst2!.id, "projet", null);
+    if (!oInst2.ok) throw new Error(oInst2.erreur);
+    await db.insert(briefs).values({ projectId: pInst2!.id, statut: "brouillon", source: "conversation", contenu: BRIEF, statuts: {} });
+    ok((await lancerCreation(pInst2!.id)).ok, "installateur sur un projet qui a déjà un brouillon de brief");
+    await piloterCreations({ essais: true });
+    const cInst2 = await lireCreation(pInst2!.id);
+    ok((cInst2?.etapes as { cle: string; statut: string }[])[0]?.statut === "passe", "…l'étape « brief » est passée (déjà écrit)");
+    const ar = await arreterCreation(pInst2!.id);
+    ok(ar.ok && (await lireCreation(pInst2!.id))?.statut === "arretee", "arrêter l'installateur");
+    ok((await reprendreCreation(pInst2!.id)).ok && (await lireCreation(pInst2!.id))?.statut === "en_cours", "…puis le reprendre");
+    await db.update(agentRuns).set({ statut: "annulee", finishedAt: new Date() }).where(and(eq(agentRuns.projectId, pInst2!.id), eq(agentRuns.statut, "en_attente")));
   } finally {
     await db.delete(agentRuns).where(inArray(agentRuns.projectId, ids));
     await db.delete(projects).where(inArray(projects.id, ids));

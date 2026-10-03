@@ -26,24 +26,24 @@ function stable(v: unknown): string {
 function normaliserStatut(v: unknown): StatutChamp | null {
   if (v === "fourni") return "fourni";
   if (v === "deduit") return "deduit";
-  if (v === "a_valider" || v === "incertain") return "a_valider";
+  // Plus de « à valider » dans un brief (retours du test, 2026-10-03) : ce que l'agent hésite à poser se règle en
+  // conversation (`resteADefinir`) ; un statut « à valider » ou « incertain » déclaré par le modèle vaut « déduit ».
+  if (v === "a_valider" || v === "incertain") return "deduit";
   return null;
 }
 
 /** Statut d'une section : celui que l'agent a déclaré (`statuts` de sa sortie), sinon déduit
- * du contenu — les inventions et les questions ouvertes sont toujours « à valider » ; une liste
+ * du contenu — les inventions et les questions ouvertes sont INFORMATIVES (« déduit ») : la conversation a
+ * levé les zones d'ombre, plus aucun point à valider un par un (retour du test général, 2026-10-03) ; une liste
  * de personnages/lieux est « à valider » si l'un d'eux est incertain, « fournie » si tous le
  * sont ; le reste est « déduit » (ce que l'agent a conclu, tant que l'utilisateur ne l'a pas
  * corrigé : une correction à la main passe la section à « fourni »). */
 export function statutDeSection(cle: string, valeur: unknown, declares: Record<string, unknown> = {}): StatutChamp {
   const declare = normaliserStatut(declares[cle]);
   if (declare) return declare;
-  if (cle === "inventions" || cle === "questionsOuvertes") {
-    return Array.isArray(valeur) && valeur.length > 0 ? "a_valider" : "deduit";
-  }
+  if (cle === "inventions" || cle === "questionsOuvertes") return "deduit";
   if ((cle === "personnages" || cle === "lieux") && Array.isArray(valeur) && valeur.length > 0) {
     const statuts = valeur.map((x) => normaliserStatut((x as { statut?: unknown })?.statut));
-    if (statuts.some((s) => s === "a_valider")) return "a_valider";
     if (statuts.every((s) => s === "fourni")) return "fourni";
   }
   return "deduit";

@@ -124,6 +124,20 @@ export function EpisodeInfoPanel({
                   episodeId,
                 }}
               />
+              <BoutonAgent
+                className="btn btn-ghost"
+                libelle="Écrire les fiches de plan"
+                titre="L'agent écrit la fiche (prompt vidéo) de chaque plan choisi, un par un ; tu relis avant que rien ne soit écrit"
+                demande={{
+                  projectId,
+                  portee: "episode",
+                  cible: { id: episodeId },
+                  profondeur: "courte",
+                  libelle: oneshot ? titreInitial || "Le film" : `Épisode ${two(numero)}`,
+                  episodeId,
+                  vue: "fiches",
+                }}
+              />
               <button className="btn btn-ghost" type="button" onClick={() => setEdition(true)}>
                 Modifier
               </button>
