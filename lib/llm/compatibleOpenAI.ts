@@ -75,6 +75,7 @@ export class FournisseurCompatibleOpenAI implements FournisseurLlm {
 
       return {
         texte: lu.texte,
+        reflexion: lu.reflexion,
         json: d.schemaSortie ? essayerJson(lu.texte) : undefined,
         usage: lu.usage,
         dureeMs: Date.now() - debut,
@@ -98,12 +99,16 @@ function essayerJson(texte: string): unknown {
   }
 }
 
-type Lu = { texte: string; usage: Usage; modele?: string; arret?: string; brut: unknown };
+/** Borne du raisonnement gardé pour la trace (caractères) : un modèle bavard peut en produire des centaines de milliers. */
+export const REFLEXION_MAX_CARACTERES = 100_000;
+
+type Lu = { texte: string; reflexion?: string; usage: Usage; modele?: string; arret?: string; brut: unknown };
 
 function lireJson(j: any): Lu {
   const choix = j?.choices?.[0];
   return {
     texte: String(choix?.message?.content ?? ""),
+    reflexion: typeof choix?.message?.reasoning_content === "string" && choix.message.reasoning_content ? choix.message.reasoning_content.slice(0, REFLEXION_MAX_CARACTERES) : undefined,
     usage: { entree: Number(j?.usage?.prompt_tokens ?? 0), sortie: Number(j?.usage?.completion_tokens ?? 0) },
     modele: typeof j?.model === "string" ? j.model : undefined,
     arret: choix?.finish_reason ?? undefined,
@@ -124,6 +129,7 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
   let usage: Usage = { entree: 0, sortie: 0 };
   let dernier: unknown = null;
   let reflexion = 0;
+  let reflexionTexte = "";
   let fini = false;
 
   const traiter = (ligne: string) => {
@@ -152,6 +158,7 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
       // raisonnement dans `reasoning_content` : il n'entre pas dans `texte`, mais il
       // consomme des jetons (et `max_tokens`) et compte pour la progression.
       reflexion += choix.delta.reasoning_content.length;
+      if (reflexionTexte.length < REFLEXION_MAX_CARACTERES) reflexionTexte += choix.delta.reasoning_content;
       surFlux?.({ type: "reflexion", texte: choix.delta.reasoning_content });
       morceaux += 1;
       surProgres?.(morceaux);
@@ -187,7 +194,7 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
   // Sans bloc d'usage (serveur qui n'envoie pas `include_usage`) : on retombe sur le
   // nombre de morceaux reçus, une approximation des jetons de sortie.
   if (usage.sortie === 0) usage = { ...usage, sortie: morceaux };
-  return { texte, usage, modele, arret, brut: { assemble: true, caracteresReflexion: reflexion, dernierMorceau: dernier } };
+  return { texte, reflexion: reflexionTexte ? reflexionTexte.slice(0, REFLEXION_MAX_CARACTERES) : undefined, usage, modele, arret, brut: { assemble: true, caracteresReflexion: reflexion, dernierMorceau: dernier } };
 }
 
 function contientImage(d: DemandeLlm): boolean {

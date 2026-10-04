@@ -585,6 +585,8 @@ export const agentTraces = pgTable("agent_traces", {
   systemeEmpreinte: varchar("systeme_empreinte", { length: 64 }).notNull(),
   systemeCaracteres: integer("systeme_caracteres").notNull(),
   sortieBrute: text("sortie_brute"),
+  // Raisonnement du modèle (reasoning_content), borné : sert à comprendre POURQUOI une sortie dérive (recette 2026-10-04).
+  reflexion: text("reflexion"),
   json: jsonb("json"),
   erreursValidation: jsonb("erreurs_validation"),
   erreur: text("erreur"),

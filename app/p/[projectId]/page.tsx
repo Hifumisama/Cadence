@@ -6,6 +6,7 @@ import { posterSrc } from "@/lib/media";
 import { Topbar } from "@/components/ui/Topbar";
 import { SaisonSection } from "@/components/projects/SaisonSection";
 import { CreerSaisonButton } from "@/components/projects/CreerSaisonButton";
+import { SupprimerProjetBouton } from "@/components/projects/SupprimerProjetBouton";
 import { ProjectEditModal } from "@/components/projects/ProjectEditModal";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
 
@@ -57,6 +58,7 @@ export default async function VueSeriePage({ params }: { params: Promise<{ proje
             />
             <ProjectEditModal projectId={id} nom={projet.nom} posterSrc={posterSrc("projects", id, projet.posterFichier)} />
             <CreerSaisonButton projectId={id} />
+            <SupprimerProjetBouton projectId={id} nom={projet.nom} />
           </div>
         </div>
 
