@@ -35,6 +35,8 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
     style: brief.style,
     langueDialogues: brief.langueDialogues,
     dureeEpisodeSecondes: brief.dureeEpisodeSecondes,
+    ...(brief.rythme ? { rythme: brief.rythme } : {}),
+    ...(brief.univers?.trim() ? { univers: brief.univers.trim() } : {}),
     personnages: brief.personnages,
     lieux: brief.lieux,
     continuite: brief.continuite,

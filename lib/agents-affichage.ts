@@ -170,12 +170,12 @@ function compact(valeur: unknown, profondeur: number): string {
 export type TypeEdition = "nombre" | "texte" | "lignes" | "json" | "style" | "libre";
 
 const CLES_NOMBRE: CleSectionBrief[] = ["dureeEpisodeSecondes"];
-const CLES_TEXTE: CleSectionBrief[] = ["titre", "arc", "genreTon", "langueDialogues"];
+const CLES_TEXTE: CleSectionBrief[] = ["titre", "arc", "genreTon", "langueDialogues", "rythme"];
 const CLES_LIGNES: CleSectionBrief[] = ["continuite", "inventions", "questionsOuvertes"];
 
 export function typeEdition(cle: string): TypeEdition {
   if (cle === "style") return "style"; // nom + clause : deux champs, pas du JSON brut
-  if (cle === "notes") return "libre"; // texte libre, peut être vide
+  if (cle === "notes" || cle === "univers") return "libre"; // texte libre, peut être vide
   if ((CLES_NOMBRE as string[]).includes(cle)) return "nombre";
   if ((CLES_TEXTE as string[]).includes(cle)) return "texte";
   if ((CLES_LIGNES as string[]).includes(cle)) return "lignes";

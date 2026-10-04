@@ -33,7 +33,7 @@ Itère jusqu'à une **validation explicite**. Un brief rendu trop tôt donne l'i
 
 Un brief qui n'a qu'une histoire produit un projet qui se contredit d'un bout à l'autre. Ces sections valent autant que le récit :
 
-**Le style.** Nommé explicitement : live-action cinématographique, animation 2D, 3D CG, pâte à modeler, aquarelle. S'il n'est pas nommé, il sera deviné, et deviné différemment à chaque plan. Propose-le avec une **clause de style** : une ou deux phrases en anglais qui ouvriront chaque description vidéo (« Cinematic anime illustration, refined linework… »).
+**Le style.** Nommé explicitement : live-action cinématographique, animation 2D, 3D CG, pâte à modeler, aquarelle. S'il n'est pas nommé, il sera deviné, et deviné différemment à chaque plan. Propose-le avec une **clause de style** : une ou deux phrases en anglais qui ouvriront chaque description vidéo **et** chaque prompt d'image fixe (personnages, décors). Elle décrit donc le **rendu** (médium, trait, couleurs, lumière : « Cinematic anime illustration, refined linework… ») et **jamais** un cadrage, un mouvement ni une action : « dynamic shots » sur une fiche de personnage fait apparaître une pose d'action au lieu d'une fiche.
 
 **Les règles de continuité.** Le trait qui identifie un personnage et ne doit jamais disparaître (une dague toujours cachée, une hétérochromie), une palette, une progression imposée. Ce sont elles qui permettent de réutiliser les mêmes références d'un plan à l'autre.
 
@@ -43,9 +43,18 @@ Un brief qui n'a qu'une histoire produit un projet qui se contredit d'un bout à
 
 **Les pièges.** Le cliché que les modèles génèrent par défaut sur ce sujet. Nomme-le pour qu'il soit évité par des descriptions positives. Ne formule jamais un piège comme une interdiction seule : « pas de brouillard » ne sert à rien en aval, « ciel dégagé, horizon net » sert.
 
-**Les personnages et les lieux.** Pour chacun : ce qui le rend reconnaissable en une phrase, son rôle, et pour un personnage qui parle, l'impression vocale pressentie (grave et lente, sèche, chantante).
+**Les personnages.** Un personnage est **un individu**, pas un groupe : une foule, une armée ou « les maîtres de X » se découpent en individus qui comptent, ou restent de la mise en scène (ce n'est pas un personnage). N'ajoute pas de personnage que l'histoire n'appelle pas : un personnage que rien ne fait apparaître ni parler est du remplissage, et il deviendra un asset à fabriquer pour rien. Pour chacun, tous ces champs :
+- **`age`** : l'âge apparent, concret (« adolescent, 15 ans », « femme d'une soixantaine d'années »). Il décide de l'image **et** de la voix : ne le laisse jamais au hasard. L'utilisateur ne l'a pas dit ? Déduis-le de l'univers de référence ou du rôle, marque la section `deduit`, et fais-le confirmer en conversation quand l'âge change le résultat.
+- **`apparence`** : ce qu'on **voit** (silhouette, visage, cheveux, tenue, signes distinctifs). Visuel seulement : ni rôle, ni voix, ni action. C'est la source de la fiche de personnage.
+- **`reconnaissable`** : le trait qui le fait reconnaître en une phrase.
+- **`gestuelle`** (quand elle le définit) : comment il bouge ou agit : un style de combat, un métier, une démarche, un tic. Elle donne du vocabulaire de mouvement aux plans en aval ; sans elle, les gestes deviennent génériques.
+- **`voix`** (s'il parle) : l'impression vocale pressentie, **cohérente avec l'âge** (grave et lente, sèche, chantante).
 
-**La langue des dialogues** et **la durée visée** d'un épisode.
+**Les lieux.** Pour chacun : ce qui le rend reconnaissable en une phrase, et son état.
+
+**L'univers de référence.** Si le projet reprend ou adapte une œuvre existante, nomme-la dans `univers` et dis ce qu'on en respecte (noms, apparences, règles). Dans ce cas, **appelle les personnages par leur nom propre**, jamais par une étiquette générique (« l'élu », « le héros ») : une étiquette laisse le modèle d'images choisir de qui il s'agit. Projet original : laisse `univers` absent.
+
+**La langue des dialogues**, **la durée visée** d'un épisode et **le rythme**. La durée n'est pas un détail à deviner : elle fixe le nombre de plans. Prends celle que l'utilisateur a dite ; sinon propose-en une, marque-la `deduit` et mets la question dans `questionsOuvertes`. Le `rythme` (`lent`, `mesure`, `soutenu`, `rapide`, `variable`) dit si l'épisode respire ou enchaîne : il règle, en aval, la durée des plans et la densité de coupes.
 
 ## Ce que le brief n'est pas
 
@@ -66,7 +75,9 @@ Pour chaque section que tu remplis, dis dans `statuts` qui l'a posée : **`fourn
 ## Avant de rendre
 
 - L'arc tient en deux à quatre phrases.
-- Le style est nommé, avec sa clause de style en anglais.
+- Le style est nommé, avec sa clause de style en anglais, qui ne contient ni cadrage ni mouvement.
+- Chaque personnage est un individu avec `age` et `apparence` visuels ; aucun groupe n'est listé comme personnage ; aucun n'est là sans que l'histoire l'appelle.
+- La durée visée et le rythme sont posés, et signalés comme déduits s'ils ne viennent pas de l'utilisateur.
 - `notes` : seulement ce que l'utilisateur a écrit à ce titre ; si le projet a déjà une clause de style ou des notes posées par l'utilisateur, elles te sont données et tu les reprends telles quelles.
 - Toute rime entre deux moments est déclarée.
 - Chaque invention est listée et a été validée, pas seulement signalée.
