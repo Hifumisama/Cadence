@@ -1,0 +1,76 @@
+{
+  "1": {
+    "inputs": {
+      "model_variant": "TTS - Base 1.7B (Voice Clone)",
+      "device": "auto",
+      "voice_preset": "Vivian",
+      "language": "French",
+      "instruct": "A mature British female voice with a sharp, posh Received Pronunciation accent. The tone is sophisticated, commanding, and slightly husky with a teasing, playful undertone. She speaks with deliberate, calm confidence and crisp articulation. The voice should sound elegant yet dangerous, like a theatrical high-society witch.",
+      "top_k": 50,
+      "top_p": 1,
+      "temperature": 1.2,
+      "repetition_penalty": 1.05,
+      "max_new_tokens": 2048,
+      "dtype": "auto",
+      "attn_implementation": "auto",
+      "x_vector_only_mode": false,
+      "use_torch_compile": false,
+      "use_cuda_graphs": false,
+      "compile_mode": "default",
+      "asr_use_forced_aligner": false,
+      "asr_translate_target_language": "French",
+      "asr_translate_instruction_override": "Translate the speech from {source_language} into {target_language} text. Return only the translated text.",
+      "runtime_mode": "⚠️ Shared Runtime"
+    },
+    "class_type": "Qwen3TTSEngineNode",
+    "_meta": {
+      "title": "⚙️ Qwen3-TTS Engine"
+    }
+  },
+  "3": {
+    "inputs": {
+      "audio": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "PreviewAudio",
+    "_meta": {
+      "title": "AperçuAudio"
+    }
+  },
+  "4": {
+    "inputs": {
+      "text": "L'Avatar.",
+      "narrator_voice": "none",
+      "seed": 1384132394,
+      "enable_chunking": true,
+      "max_chars_per_chunk": 400,
+      "chunk_combination_method": "auto",
+      "silence_between_chunks_ms": 100,
+      "enable_audio_cache": true,
+      "batch_size": 0,
+      "TTS_engine": [
+        "1",
+        0
+      ],
+      "opt_narrator": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "UnifiedTTSTextNode",
+    "_meta": {
+      "title": "🎤 TTS Text"
+    }
+  },
+  "5": {
+    "inputs": {
+      "audio": "VOICE_katara.mp3"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "ChargerAudio"
+    }
+  }
+}

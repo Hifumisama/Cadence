@@ -1815,3 +1815,29 @@ variantes de guides selon le genre de la scène.
   prévisualisation choisie. Les références (images d'assets) ne sont pas versionnées (F01) : si un asset a été remplacé depuis, le
   résultat peut différer. Logique pure dans `lib/rendus.ts`.
 - **Écho audio du plan 3** : défaut de génération du modèle vidéo, pas un bug de Cadence (retour utilisateur).
+
+## 2026-10-05 (suite) — Génération des prises de répliques dans l'application
+
+Workflow fourni par l'utilisateur (`VOX_Generate_Replique_Simplified.json`, Qwen3-TTS Base, clonage de la voix de référence). Contrat
+dans `workflows/README.md`.
+
+- **Où vit la demande : `asset_generations`** (méthode `replique`, nouvelle colonne nullable `replique_id`, migration 0047 ; `assetId` =
+  la voix clonée). Même file GPU (genre « image »), même panneau, mêmes annulations et notifications que les images, les sons et les
+  voix de référence — plutôt qu'une table et un genre de plus. Prix à payer : tout ce qui liste ou purge les candidats d'un asset écarte
+  les lignes à `replique_id` (`getGenerationsAsset`, `purgerAnciens`) ; le panneau les présente « Réplique · début du texte » et mène au
+  plan qui la cite.
+- **La prise générée est posée directement sur la réplique** (`lib/replique-prise.ts`), comme une prise déposée : fichier, texte dit (une
+  prise devient obsolète si le texte change), durée MESURÉE (FLAC : mesurable, d'où `SaveAudio` et non `SaveAudioMP3`), statut « prise
+  posée ». Elle **remplace** la précédente (pas de versionnage, F01) : régénérer donne une autre interprétation (nouvelle seed) mais
+  écrase la prise courante. Conséquence assumée : une prise validée repasse « posée » (la nouvelle n'a pas été écoutée).
+- **Ce qui est laissé tel que l'utilisateur l'a réglé** : le champ `instruct` du moteur (reste d'un essai de Voice Design, sans effet en
+  clonage) et les réglages exportés. Seul le cache audio du nœud de texte est coupé. La voix de référence part au dossier d'entrée de
+  ComfyUI sous un nom qui porte la date de modification du fichier (une référence remplacée ne resserve jamais l'ancienne copie).
+- **Langue** : celle des dialogues du brief, traduite pour le moteur (`lib/langues-tts.ts`), « Auto » si inconnue. Température 1,2 par
+  défaut (0,8 à 1,2 réglable côté code, pas encore dans l'interface).
+- **Boutons** (panneau Dialogues d'un plan) : « Générer la prise » / « Refaire la prise » par réplique, et « Générer les prises
+  manquantes (N) » (manquantes ou obsolètes ; les répliques sans voix ou dont la voix n'a pas de référence sont comptées avec leur
+  raison). Refus francs : pas de texte, pas de voix, voix sans référence, référence absente du stockage, prise déjà en file.
+- **Validé en réel** (copie jetable de la base, dossier média jetable, vrai ComfyUI) : FLAC 24 kHz de 1,34 s pour une réplique dont la
+  prise faite à la main durait 1,26 s, niveau sonore équivalent (−21,1 dB contre −21,3 dB en moyenne). Non fait : réglage de la
+  température et de la seed dans l'interface, génération des prises de TOUT l'épisode d'un coup.

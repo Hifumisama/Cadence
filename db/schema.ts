@@ -389,6 +389,10 @@ export const assetGenerations = pgTable("asset_generations", {
     .notNull()
     .references(() => assets.id, { onDelete: "cascade" }),
   methode: varchar("methode", { length: 12 }).notNull().default("generation"),
+  // Génération d'une PRISE de réplique (méthode « replique », Qwen3-TTS Voice Clone) : la réplique visée. `assetId` est alors la
+  // VOIX (VOICE_*) dont la référence est clonée. Ces lignes ne sont jamais des candidats d'image ou de voix de l'asset : tout
+  // ce qui liste ou purge les candidats d'un asset les écarte (`repliqueId` null). Supprimées avec leur réplique.
+  repliqueId: integer("replique_id").references(() => repliques.id, { onDelete: "cascade" }),
   statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
   prompt: text("prompt").notNull(),
   clauseStyle: text("clause_style").notNull().default(""),

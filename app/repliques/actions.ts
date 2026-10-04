@@ -22,8 +22,8 @@ import { getDialoguesPlan } from "@/lib/queries-repliques";
 
 // Répliques autonomes (docs/FRICTIONS.md F02, révision 2026-09-30). Une
 // réplique naît du scénario ou du casting, sans plan ; la fiche de plan n'en
-// est que la table d'assemblage. Aucune action ici ne lance de génération :
-// les prises se produisent hors Cadence et se déposent (F06 « à la main »).
+// est que la table d'assemblage. Les prises se déposent ici à la main ; leur génération
+// depuis l'application (clonage de la voix du casting) est dans generation-actions.ts.
 
 type Resultat<T = object> = ({ ok: true } & T) | { ok: false; erreur: string };
 

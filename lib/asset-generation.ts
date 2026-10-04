@@ -163,6 +163,10 @@ export type DemandeVoix = {
   temperature: number;
 };
 
+/** Génération d'une PRISE de réplique (Qwen3-TTS Voice Clone, workflows/audio/VOX_Generate_Replique_Simplified.json) : même
+ * table et même file que les images, les sons et les voix de référence ; `asset_generations.repliqueId` désigne la réplique. */
+export const METHODE_REPLIQUE = "replique";
+
 export function temperatureVoixValide(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v) && v >= TEMPERATURE_VOIX_MIN && v <= TEMPERATURE_VOIX_MAX;
 }
@@ -232,4 +236,10 @@ export function nomSourceDistante(genUuid: string, rang: number, ext: string): s
  * `plans.seed`. */
 export function nouvelleSeed(): string {
   return String(Math.floor(Math.random() * 2 ** 48));
+}
+
+/** Nom de la voix de référence une fois envoyée à ComfyUI (dossier d'entrée partagé) : porte la date de modification du fichier,
+ * pour qu'une référence REMPLACÉE ne resserve jamais l'ancienne copie du même nom. */
+export function nomReferenceVoixDistante(codeVoix: string, mtimeMs: number, ext: string): string {
+  return `cadence_voixref_${codeVoix}_${Math.floor(mtimeMs)}${ext || ".mp3"}`;
 }

@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { assets, episodes, planDialogues, planPromptSections, plans, repliques, seasons, voixFiches } from "../db/schema";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { assetGenerations, assets, episodes, planDialogues, planPromptSections, plans, repliques, seasons, voixFiches } from "../db/schema";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { cheminRepliqueMedia, repliqueMediaSrc } from "./media";
 import { controlerDialogues, type ControleDialogues, type RefLabel } from "./plan-checks";
 import { nomLocuteur, priseObsolete, type LigneExportReplique } from "./repliques";
@@ -210,6 +210,25 @@ export async function getDialoguesPlan(projectId: number, planId: number, episod
   // plan_refs) : seules celles qui ont une prise déclarent un label.
   const audioRefs: RefLabel[] = liaisons.filter((l) => l.fichier != null).map((l) => ({ type: "audio", slot: l.slot }));
   return { liaisons, disponibles, controle, audioRefs };
+}
+
+/** Une prise générée pour une réplique, telle que le panneau la montre. */
+export type EtatPrise = { uuid: string; statut: string; erreur: string | null };
+
+/** Les générations de prises des répliques données : la dernière de chacune (en file, en cours, échouée ou terminée), et la liste
+ * complète de leurs états (le panneau se recharge quand l'un d'eux change). */
+export async function getPrisesGenerees(repliqueIds: number[]): Promise<{ derniere: Record<number, EtatPrise>; suivi: { uuid: string; statut: string }[] }> {
+  if (repliqueIds.length === 0) return { derniere: {}, suivi: [] };
+  const lignes = await db
+    .select({ uuid: assetGenerations.uuid, statut: assetGenerations.statut, erreur: assetGenerations.erreur, repliqueId: assetGenerations.repliqueId })
+    .from(assetGenerations)
+    .where(inArray(assetGenerations.repliqueId, repliqueIds))
+    .orderBy(desc(assetGenerations.createdAt), desc(assetGenerations.id));
+  const derniere: Record<number, EtatPrise> = {};
+  for (const l of lignes) {
+    if (l.repliqueId != null && derniere[l.repliqueId] === undefined) derniere[l.repliqueId] = { uuid: l.uuid, statut: l.statut, erreur: l.erreur };
+  }
+  return { derniere, suivi: lignes.map((l) => ({ uuid: l.uuid, statut: l.statut })) };
 }
 
 export type OptionsLocuteur = {

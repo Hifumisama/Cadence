@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { genererPriseReplique, genererPrisesDuPlan } from "@/app/repliques/generation-actions";
+import { SuiviPrises } from "@/components/plan/SuiviPrises";
 import {
   corrigerRepliqueDansPrompt,
   definirDebutReplique,
@@ -9,7 +11,7 @@ import {
   lierReplique,
 } from "@/app/repliques/actions";
 import type { ControleDialogues, SegmentEcart, StatutDuree } from "@/lib/plan-checks";
-import type { LiaisonPlanVue, OptionsLocuteur, RepliqueVue } from "@/lib/queries-repliques";
+import type { EtatPrise, LiaisonPlanVue, OptionsLocuteur, RepliqueVue } from "@/lib/queries-repliques";
 import { NouvelleRepliqueForm } from "@/components/repliques/NouvelleRepliqueForm";
 
 const STATUT_DUREE: Record<StatutDuree, string> = {
@@ -46,6 +48,8 @@ function tronquer(t: string): string {
 
 export function DialoguesPanel({
   planId,
+  planUuid,
+  prises,
   projectId,
   episodeId,
   liaisons,
@@ -57,6 +61,9 @@ export function DialoguesPanel({
   plafondSecondes,
 }: {
   planId: number;
+  planUuid: string;
+  /** Prises générées depuis l'application : la dernière de chaque réplique, et les états à suivre. */
+  prises: { derniere: Record<number, EtatPrise>; suivi: { uuid: string; statut: string }[] };
   projectId: number;
   episodeId: number;
   liaisons: LiaisonPlanVue[];
@@ -81,11 +88,27 @@ export function DialoguesPanel({
     });
 
   const nbProblemes = controle.problemes.length;
+  const enFile = (id: number) => ["en_attente", "en_cours"].includes(prises.derniere[id]?.statut ?? "");
+  const aGenerer = liaisons.filter((l) => (l.fichier == null || l.priseObsolete) && l.voix != null && !enFile(l.id));
+  const generer = (id: number) => agir(async () => genererPriseReplique(id));
+  const genererManquantes = () =>
+    agir(async () => {
+      const r = await genererPrisesDuPlan(planId);
+      if (!r.ok) return r;
+      const refus = r.ignorees.map((x) => `${x.nb} × ${x.raison}`).join(" · ");
+      return { ok: true, note: `${r.lancees} prise${r.lancees > 1 ? "s" : ""} en file${refus ? ` — non lancées : ${refus}` : ""}.` };
+    });
 
   return (
     <section className="panel dlg-panel" id="dialogues">
       <div className="panel-hd">
         <h2>Dialogues</h2>
+        <SuiviPrises planUuid={planUuid} generations={prises.suivi} />
+        {aGenerer.length > 0 ? (
+          <button type="button" className="btn btn-ghost btn-mini" disabled={pending} onClick={genererManquantes} title="Génère, avec la voix de référence du casting, la prise des répliques qui n'en ont pas (ou dont le texte a changé).">
+            Générer les prises manquantes ({aGenerer.length})
+          </button>
+        ) : null}
         <span className="eyebrow">
           {liaisons.length === 0 ? "aucune réplique" : `${totalSecondes != null ? `${totalSecondes}s / ${plafondSecondes}s` : "—"} ${STATUT_DUREE[statutDuree]}`}
         </span>
@@ -211,6 +234,20 @@ export function DialoguesPanel({
                     </span>{" "}
                     {l.texte}
                     {l.audioSrc ? <audio controls preload="none" src={l.audioSrc} className="rep-audio" /> : null}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+                      {enFile(l.id) ? (
+                        <span className="tiny-note">{prises.derniere[l.id]?.statut === "en_cours" ? "Prise en cours de génération…" : "Prise en file d'attente…"}</span>
+                      ) : l.voix ? (
+                        <button type="button" className="btn btn-ghost btn-mini" disabled={pending} onClick={() => generer(l.id)} title="Génère la prise avec la voix de référence du casting (Qwen3-TTS, clonage). Elle remplace la prise actuelle.">
+                          {l.fichier ? "Refaire la prise" : "Générer la prise"}
+                        </button>
+                      ) : null}
+                      {prises.derniere[l.id]?.statut === "echoue" ? (
+                        <span className="tiny-note" role="alert" style={{ color: "var(--ecarlate-glow)" }}>
+                          Échec : {(prises.derniere[l.id]?.erreur ?? "erreur inconnue").slice(0, 160)}
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="py-1 text-right text-neutral-400">{l.dureeSecondes != null ? `${l.dureeSecondes}s` : "—"}</td>
                   <td className="py-1 text-right">
