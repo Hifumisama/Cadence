@@ -7,11 +7,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
 import { getDialoguesPlan } from "@/lib/queries-repliques";
 import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
 import type { RefLabel } from "@/lib/plan-checks";
 import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
+import { raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib/rendus";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_VIDEO, cheminPlanMedia, estVideo } from "@/lib/media";
 
 export async function updatePromptSection(
@@ -98,6 +99,64 @@ export async function relancerPlan(
   const blocage = await blocageDialogues(planId);
   if (blocage) return { ok: false, erreur: `Dialogues à corriger avant de générer : ${blocage}.` };
   await creerJobRelance(planId, activerUpscale, nouvelleVariante);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Reprend un rendu de l'historique comme référence du plan : sa seed et sa durée deviennent celles du plan, et, si on le
+ * demande, son prompt est restauré. Même seed + même prompt + mêmes références + même durée = même résultat (F04) : c'est ce
+ * qui permet d'upscaler EXACTEMENT la prévisualisation qu'on a choisie. */
+async function appliquerRendu(planId: number, jobId: number, restaurerPrompt: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const [job] = await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.planId, planId)));
+  if (!job) return { ok: false, erreur: "Rendu introuvable pour ce plan." };
+  const raison = raisonNonRetenable({
+    id: job.id,
+    numeroRendu: job.numeroRendu,
+    statut: job.statut,
+    cheminSortie: job.cheminSortie,
+    seedUtilisee: job.seedUtilisee,
+    dureeUtilisee: job.dureeUtilisee,
+    promptUtilise: job.promptUtilise,
+    activerUpscale: job.activerUpscale,
+    importe: job.workflowFichier === WORKFLOW_IMPORT_MANUEL,
+  });
+  if (raison) return { ok: false, erreur: raison };
+
+  if (restaurerPrompt) {
+    if (!job.promptUtilise) return { ok: false, erreur: "Ce rendu n'a pas gardé son prompt." };
+    const r = sectionsDuPromptEnvoye(job.promptUtilise);
+    if (!r.ok) return { ok: false, erreur: `Prompt de ce rendu illisible : ${r.erreurs.join(", ")}.` };
+    for (const section of ORDRE_SECTIONS) await updatePromptSection(planId, section, r.sections[section] ?? "");
+  }
+
+  const duree = job.dureeUtilisee;
+  const dureeValide = duree != null && Number.isInteger(duree) && duree >= DUREE_GENERATION_MIN && duree <= DUREE_GENERATION_MAX;
+  await db
+    .update(plans)
+    .set({
+      seed: job.seedUtilisee,
+      ...(dureeValide ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(plans.id, planId));
+  return { ok: true };
+}
+
+/** « Utiliser ce rendu » : le plan reprend sa seed (et sa durée, et son prompt si demandé) ; le prochain « Rendu final » ou
+ * « Prévisualiser » le reproduira. */
+export async function retenirRendu(planId: number, jobId: number, restaurerPrompt = false): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const r = await appliquerRendu(planId, jobId, restaurerPrompt);
+  if (r.ok) revalidatePath("/", "layout");
+  return r;
+}
+
+/** « Rendu final avec celui-ci » : reprend ce rendu (voir `retenirRendu`) puis lance l'upscale, en une seule action. */
+export async function rendreFinalAvecRendu(planId: number, jobId: number, restaurerPrompt = false): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const r = await appliquerRendu(planId, jobId, restaurerPrompt);
+  if (!r.ok) return r;
+  const blocage = await blocageDialogues(planId);
+  if (blocage) return { ok: false, erreur: `Dialogues à corriger avant de générer : ${blocage}.` };
+  await creerJobRelance(planId, true, false);
   revalidatePath("/", "layout");
   return { ok: true };
 }

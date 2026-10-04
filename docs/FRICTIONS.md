@@ -1798,3 +1798,20 @@ variantes de guides selon le genre de la scène.
 - **Non fait** : génération des répliques dans l'application avec `VOX_Generate_Replique_Simplified.json` (workflow fourni, à brancher sur le
   modèle de `voixMapping.ts`) ; réglages de vitesse du LLM local (raisonnement coupé sur les skills légers, voir les traces : 70 à 95 % des
   jetons de sortie sont du raisonnement).
+
+## 2026-10-05 (suite) — Retours de recette : enregistrement, format des fiches, historique des rendus
+
+- **« Prévisualiser » ne lit que la base.** Le curseur de durée et chaque section du prompt gardaient leur valeur en local jusqu'à
+  un clic sur « Enregistrer » : modifier puis lancer un rendu relançait avec l'ancienne valeur (retour : « la durée n'est pas prise en
+  compte »). Les sections du prompt et les paramètres du plan (durée, FPS) s'enregistrent maintenant à la sortie du champ (lâcher le
+  curseur, quitter le champ) ; le bouton dit « Enregistrer » tant que la valeur affichée n'est pas celle de la base.
+  « Nouvelle variante » tire une nouvelle seed (qui devient celle du plan) puis prévisualise ; « Prévisualiser » garde la seed.
+- **Personnages et décors en 16:9 par défaut** (`formatParDefaut`, 1,3 MP) : meilleurs résultats dans ce ratio ; réglable en
+  régénérant. Les effets et détails restent en 1:1.
+- **Historique des rendus d'un plan** : cliquer un rendu le charge dans le lecteur (`?rendu=<id du job>`), « Comparer avec A » en
+  ouvre un second à côté (`?compare=`), « Lire les deux » les démarre ensemble. « Rendu final avec celui-ci » reprend la seed et la
+  durée de ce rendu (et, si coché, son prompt) puis lance l'upscale ; « Utiliser cette seed » ne fait que reprendre. C'est la règle
+  d'invariance (même seed + même prompt + mêmes références + même durée = même résultat, F04) qui fait que l'upscale reproduit la
+  prévisualisation choisie. Les références (images d'assets) ne sont pas versionnées (F01) : si un asset a été remplacé depuis, le
+  résultat peut différer. Logique pure dans `lib/rendus.ts`.
+- **Écho audio du plan 3** : défaut de génération du modèle vidéo, pas un bug de Cadence (retour utilisateur).
