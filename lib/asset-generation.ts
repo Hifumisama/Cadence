@@ -74,7 +74,9 @@ export const CANDIDATS_GARDES = 8;
  * (16:9, ~1536×864), l'identité et les détails restent carrés (1024×1024),
  * comme dans le registre. */
 export function formatParDefaut(type: string): { aspect: Aspect; megapixels: number } {
-  if (type === "decor") return { aspect: "16:9", megapixels: 1.3 };
+  // Personnage et décor en 16:9 par défaut (retour de recette, 2026-10-05) : meilleurs résultats dans ce ratio, et c'est le
+  // format des plans vidéo. Réglable à la main en régénérant l'image.
+  if (type === "decor" || type === "personnage") return { aspect: "16:9", megapixels: 1.3 };
   return { aspect: "1:1", megapixels: 1 };
 }
 

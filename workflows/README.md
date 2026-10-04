@@ -31,7 +31,7 @@ test**, toujours remplacées à la soumission.
 |---|---|---|---|
 | Prompt de l'asset | `59` (PrimitiveStringMultiline) | `value` | le sujet seulement, sans style |
 | Clause de style | `60` (PrimitiveStringMultiline) | `value` | `projects.clauseStyle`, concaténée au prompt dans le graphe (`30:58`) |
-| Format | `49` (ResolutionSelector) | `aspect_ratio`, `megapixels` | 16:9 pour un décor, 1:1 pour une fiche ou un détail |
+| Format | `49` (ResolutionSelector) | `aspect_ratio`, `megapixels` | 16:9 par défaut pour un décor et une fiche personnage (meilleurs résultats, recette 2026-10-05) ; 1:1 pour un effet ou un détail |
 | Seed | `30:3` (KSampler) | `seed` | |
 | LoRA « CharacterDesign » | `30:23` (PrimitiveBoolean) | `value` | à `true` pour une fiche personnage (4 vues) ; `false` sinon |
 | Sortie | `29` (SaveImage) | `filename_prefix` | |

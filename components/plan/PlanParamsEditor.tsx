@@ -21,24 +21,34 @@ export function PlanParamsEditor({
   seed: string | null;
 }) {
   const [fps, setFps] = useState(fpsInitial);
-  const [duree, setDuree] = useState(Math.min(DUREE_MAX, Math.max(DUREE_MIN, dureeInitiale)));
+  const dureeBornee = Math.min(DUREE_MAX, Math.max(DUREE_MIN, dureeInitiale));
+  const [duree, setDuree] = useState(dureeBornee);
+  // Dernières valeurs écrites en base : « Prévisualiser » et « Rendu final » ne lisent que la base.
+  const [enregistre, setEnregistre] = useState({ fps: fpsInitial, duree: dureeBornee });
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const modifie = fps !== enregistre.fps || duree !== enregistre.duree;
 
   const onSave = () => {
+    const valeurs = { fps, duree };
     startTransition(async () => {
-      await updatePlanParametres(planId, { fps, dureeGenerationSecondes: duree });
+      await updatePlanParametres(planId, { fps: valeurs.fps, dureeGenerationSecondes: valeurs.duree });
+      setEnregistre(valeurs);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     });
+  };
+  // Lâcher le curseur ou sortir du champ enregistre : changer la durée puis lancer un rendu doit utiliser la nouvelle durée.
+  const enregistrerSiModifie = () => {
+    if (modifie && !pending) onSave();
   };
 
   return (
     <section className="panel">
       <div className="panel-hd">
         <h2>Paramètres globaux</h2>
-        <button className="btn btn-ghost btn-sm" type="button" onClick={onSave} disabled={pending}>
-          {pending ? "..." : saved ? "Enregistré" : "Enregistrer"}
+        <button className="btn btn-ghost btn-sm" type="button" onClick={onSave} disabled={pending || !modifie}>
+          {pending ? "..." : modifie ? "Enregistrer" : "Enregistré"}
         </button>
       </div>
       <div className="panel-bd">
@@ -56,6 +66,9 @@ export function PlanParamsEditor({
               step={1}
               value={duree}
               onChange={(e) => setDuree(Number(e.target.value))}
+              onPointerUp={enregistrerSiModifie}
+              onKeyUp={enregistrerSiModifie}
+              onBlur={enregistrerSiModifie}
             />
             <div className="slider-bornes num" aria-hidden="true">
               <span>{DUREE_MIN} s</span>
@@ -71,6 +84,7 @@ export function PlanParamsEditor({
               min={1}
               value={fps}
               onChange={(e) => setFps(Number(e.target.value))}
+              onBlur={enregistrerSiModifie}
             />
           </div>
         </div>

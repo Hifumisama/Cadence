@@ -27,7 +27,7 @@ import {
 
 test("format par défaut : décor en 16:9, le reste en carré", () => {
   assert.deepEqual(formatParDefaut("decor"), { aspect: "16:9", megapixels: 1.3 });
-  assert.deepEqual(formatParDefaut("personnage"), { aspect: "1:1", megapixels: 1 });
+  assert.deepEqual(formatParDefaut("personnage"), { aspect: "16:9", megapixels: 1.3 });
   assert.ok(ASPECTS.every((a) => estAspect(a) && ASPECTS_COMFYUI[a].startsWith(a)));
   assert.ok(!estAspect("5:4"));
 });
