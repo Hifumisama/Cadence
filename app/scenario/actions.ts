@@ -5,6 +5,7 @@ import { scenes, plans } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { recomposerOrdre, type Tx } from "@/lib/ordre-plans";
+import { genreOuNull } from "@/lib/scene-genres";
 
 /** Un plan naît toujours en brouillon (défaut du schéma) — il faudra le
  * "développer" explicitement en fiche de plan avant qu'il entre dans Plans.
@@ -43,7 +44,7 @@ export async function creerPlanScenario(
 
 /** Une scène naît vide : ses plans s'y rattachent au fur et à mesure
  * (rattacherPlanAScene). Plage de numéros et durée se déduisent des plans. */
-export async function creerScene(episodeId: number, valeurs: { titre: string; fonction: string }) {
+export async function creerScene(episodeId: number, valeurs: { titre: string; fonction: string; genre?: string | null; ambiance?: string }) {
   const existantes = await db.select().from(scenes).where(eq(scenes.episodeId, episodeId));
   const ordre = existantes.reduce((acc, sc) => Math.max(acc, sc.ordre), -1) + 1;
   await db.insert(scenes).values({
@@ -51,6 +52,8 @@ export async function creerScene(episodeId: number, valeurs: { titre: string; fo
     ordre,
     titre: valeurs.titre,
     fonction: valeurs.fonction || null,
+    genre: genreOuNull(valeurs.genre),
+    ambiance: valeurs.ambiance?.trim() || null,
   });
   revalidatePath("/", "layout");
 }
@@ -103,11 +106,15 @@ export async function rattacherPlanAScene(planId: number, sceneId: number | null
   revalidatePath("/", "layout");
 }
 
-/** Édition d'une scène : titre et fonction (description). */
-export async function modifierScene(sceneId: number, valeurs: { titre: string; fonction: string }) {
+/** Édition d'une scène : titre, fonction (description), genre (qui choisit les guides de rédaction de ses plans) et
+ * ambiance (cadre visuel tenu sur toute la scène). */
+export async function modifierScene(sceneId: number, valeurs: { titre: string; fonction: string; genre?: string | null; ambiance?: string }) {
   const titre = valeurs.titre.trim();
   if (!titre) return;
-  await db.update(scenes).set({ titre, fonction: valeurs.fonction.trim() || null }).where(eq(scenes.id, sceneId));
+  await db
+    .update(scenes)
+    .set({ titre, fonction: valeurs.fonction.trim() || null, genre: genreOuNull(valeurs.genre), ambiance: valeurs.ambiance?.trim() || null })
+    .where(eq(scenes.id, sceneId));
   revalidatePath("/", "layout");
 }
 

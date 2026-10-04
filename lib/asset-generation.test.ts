@@ -116,10 +116,10 @@ test("seed : entier positif sûr", () => {
   assert.ok(Number.isSafeInteger(s) && s >= 0);
 });
 
-test("voix : créativité de 0,8 à 1,2, 1,1 par défaut", () => {
+test("voix : créativité de 0,8 à 1,2, 1,2 par défaut", () => {
   assert.equal(TEMPERATURE_VOIX_MIN, 0.8);
   assert.equal(TEMPERATURE_VOIX_MAX, 1.2);
-  assert.equal(TEMPERATURE_VOIX_DEFAUT, 1.1);
+  assert.equal(TEMPERATURE_VOIX_DEFAUT, 1.2);
   assert.equal(temperatureVoixValide(TEMPERATURE_VOIX_DEFAUT), true);
   for (const v of [0.8, 1, 1.2]) assert.equal(temperatureVoixValide(v), true, String(v));
   for (const v of [0.79, 1.21, Number.NaN, "1.1", null]) assert.equal(temperatureVoixValide(v), false, String(v));

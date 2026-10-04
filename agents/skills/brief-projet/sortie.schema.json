@@ -10,6 +10,7 @@
     "style",
     "langueDialogues",
     "dureeEpisodeSecondes",
+    "rythme",
     "episodes",
     "personnages",
     "lieux",
@@ -56,7 +57,7 @@
         },
         "clause": {
           "type": "string",
-          "description": "Une ou deux phrases en anglais, ajoutées telles quelles au début des descriptions vidéo et aux prompts d'images."
+          "description": "Une ou deux phrases en anglais, ajoutées telles quelles au début des descriptions vidéo ET aux prompts d'images fixes (personnages, décors). Elle décrit le RENDU (médium, trait, couleurs, lumière), jamais un cadrage, un mouvement ni une action (« dynamic shots », « cinematic action » n'ont rien à faire sur une fiche de personnage)."
         }
       }
     },
@@ -67,7 +68,22 @@
     "dureeEpisodeSecondes": {
       "type": "integer",
       "minimum": 30,
-      "description": "Durée visée d'un épisode, en secondes."
+      "description": "Durée visée d'un épisode, en secondes. Celle que l'utilisateur a dite ou validée : ne l'invente pas en silence (voir `questionsOuvertes`)."
+    },
+    "rythme": {
+      "type": "string",
+      "enum": [
+        "lent",
+        "mesure",
+        "soutenu",
+        "rapide",
+        "variable"
+      ],
+      "description": "Cadence générale de l'épisode : lent (contemplatif, plans longs), mesure, soutenu, rapide (montage vif, coupes denses) ou variable (alterne selon les scènes). Elle règle la durée des plans et la densité de coupes en aval."
+    },
+    "univers": {
+      "type": "string",
+      "description": "Si le projet reprend une œuvre ou un univers préexistant : lequel, et comment le respecter (noms, apparences, règles). Absent pour un projet original."
     },
     "episodes": {
       "type": "array",
@@ -103,6 +119,8 @@
         "required": [
           "nom",
           "role",
+          "age",
+          "apparence",
           "reconnaissable"
         ],
         "properties": {
@@ -112,13 +130,27 @@
           "role": {
             "type": "string"
           },
+          "age": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Âge apparent, concret : « adolescente, 15 ans », « homme d'une quarantaine d'années ». Il pilote l'image ET la voix : jamais laissé au hasard."
+          },
+          "apparence": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Ce qu'on VOIT : silhouette, visage, cheveux, tenue, signes distinctifs. Visuel seulement : ni rôle, ni voix, ni action."
+          },
           "reconnaissable": {
             "type": "string",
             "description": "Ce qui le rend reconnaissable en une phrase."
           },
+          "gestuelle": {
+            "type": "string",
+            "description": "Comment le personnage bouge ou agit quand c'est ce qui le définit (style de combat, métier, démarche, tic). Vide s'il n'a pas de gestuelle marquée."
+          },
           "voix": {
             "type": "string",
-            "description": "Impression vocale pressentie, s'il parle. Vide sinon."
+            "description": "Impression vocale pressentie, s'il parle : cohérente avec l'âge. Vide sinon."
           },
           "statut": {
             "type": "string",
@@ -246,7 +278,7 @@
     },
     "statuts": {
       "type": "object",
-      "description": "Pour chaque section que tu as remplie (clés : titre, arc, genreTon, style, langueDialogues, dureeEpisodeSecondes, episodes, personnages, lieux, continuite, rimes, progressions, pieges, notes), qui l'a posée : fourni (l'utilisateur l'a dit), deduit (tu l'as conclu), a_valider (tu l'as inventé ou tu hésites).",
+      "description": "Pour chaque section que tu as remplie (clés : titre, arc, genreTon, style, langueDialogues, dureeEpisodeSecondes, rythme, univers, episodes, personnages, lieux, continuite, rimes, progressions, pieges, notes), qui l'a posée : fourni (l'utilisateur l'a dit), deduit (tu l'as conclu), a_valider (tu l'as inventé ou tu hésites).",
       "additionalProperties": {
         "type": "string",
         "enum": [

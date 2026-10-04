@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { episodes, projects, scenes, seasons } from "../../../db/schema";
 import type { ChangementBrut } from "../changements";
+import { genreOuNull } from "../../scene-genres";
 import { apres, entierRef, parentDe, REFUS_SUPPRESSION, texte, type Applicateur } from "./commun";
 
 /** Applicateurs de la structure : projet (clause de style), saison, épisode, scène. */
@@ -186,7 +187,7 @@ export const applicateurScene: Applicateur = {
     const id = entierRef(ch.cibleRef);
     const [s] = id == null ? [] : await db.select().from(scenes).where(eq(scenes.id, id));
     if (!s) return { ...ch, refuseRaison: "Scène introuvable." };
-    return { ...ch, avant: { titre: s.titre, fonction: s.fonction } };
+    return { ...ch, avant: { titre: s.titre, fonction: s.fonction, genre: s.genre, ambiance: s.ambiance } };
   },
 
   async verifier(tx, _ctx, ch) {
@@ -205,14 +206,17 @@ export const applicateurScene: Applicateur = {
     const a = apres(ch);
     const titre = texte(a.titre)!.trim();
     const fonction = texte(a.fonction)?.trim() || null;
+    // Genre et ambiance : posés seulement quand la proposition les porte (une modification qui ne les cite pas les laisse).
+    const genre = "genre" in a ? genreOuNull(a.genre) : undefined;
+    const ambiance = "ambiance" in a ? texte(a.ambiance)?.trim() || null : undefined;
     if (ch.operation === "modifier") {
-      await tx.update(scenes).set({ titre, fonction }).where(eq(scenes.id, entierRef(ch.cibleRef)!));
+      await tx.update(scenes).set({ titre, fonction, ...(genre !== undefined ? { genre } : {}), ...(ambiance !== undefined ? { ambiance } : {}) }).where(eq(scenes.id, entierRef(ch.cibleRef)!));
       return;
     }
     const episodeId = parentDe(a, "episodeCle", "episodeId", _ctx.cles).id!;
     const existantes = await tx.select({ ordre: scenes.ordre }).from(scenes).where(eq(scenes.episodeId, episodeId));
     const ordre = existantes.reduce((m, s) => Math.max(m, s.ordre), -1) + 1;
-    const [cree] = await tx.insert(scenes).values({ episodeId, ordre, titre, fonction }).returning({ id: scenes.id });
+    const [cree] = await tx.insert(scenes).values({ episodeId, ordre, titre, fonction, genre: genre ?? null, ambiance: ambiance ?? null }).returning({ id: scenes.id });
     if (ch.cle) _ctx.cles.set(ch.cle, cree!.id);
   },
 };

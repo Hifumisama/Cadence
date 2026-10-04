@@ -44,6 +44,9 @@ Pour un asset de type `sfx`, ignore tout ce qui concerne l'image (méthode d'éd
 ## Écrire
 
 - **Génération (Krea 2)** : prose continue, en anglais, guidée par `guide-krea2.md`. Sujet seulement, pas de style. Un personnage suit le gabarit à 4 vues du guide ; un décor, un accessoire ou un effet suit la prose seule.
+- **Un personnage est une fiche, seul.** La fiche sert de référence d'identité à tous les plans : elle montre **le personnage et rien d'autre**, en pose neutre, sur fond uni, **les mains vides** (un objet tenu dérive d'une vue à l'autre : c'est un asset à part). Aucun effet visuel, aucun décor, aucun autre personnage, aucune pose d'action, aucun cadrage de cinéma : ce que le personnage fait se dit plus tard, dans le prompt vidéo de chaque plan. Un effet (feu, eau, énergie, fumée) est un asset `vfx` distinct, jamais dans la fiche d'un personnage.
+- **L'identité d'un personnage tient dans le prompt** : âge, genre, morphologie, visage, cheveux, tenue, signes distinctifs, **tels que la description canonique les donne**. Une phrase vague (« a calm individual ») donne un inconnu au hasard : si la description ne dit pas assez, écris le prompt avec ce qu'elle dit, **n'invente pas** l'identité, et signale `description-vague` dans `remarques` en disant ce qui manque (âge ? tenue ?). Une description qui parle de voix, de rôle ou d'action au lieu d'apparence est vague : même traitement.
+- **Un personnage d'un univers existant** (le brief a un champ `univers`) se nomme par son **nom propre** dans le prompt, en plus des traits décrits : le modèle d'images connaît ses traits, et une étiquette générique (« the hero », « the chosen one ») le laisse choisir de qui il s'agit.
 - **Édition (Qwen)** : instructions impératives, une intention par ligne, une passe après l'autre, guidées par `guide-qwen-edit.md`. Nomme ce qui doit être préservé.
 - **Pas de negative prompt.** Ni « sans X », ni « pas de X » : décris l'état voulu (« ciel dégagé, horizon net » plutôt que « pas de brouillard »).
 - **Jamais de style dans un prompt d'asset** : le projet a une clause de style, ajoutée à part.
@@ -74,5 +77,6 @@ Remonter tôt évite de découvrir le problème au bout de vingt images :
 - `sources` liste les assets dont l'image est utilisée (trois au plus, la cible en premier) ; chacun est cité par son rang dans le prompt.
 - Un prompt d'édition ne décrit pas l'image : il énonce une transformation, une intention par ligne.
 - Les traits identifiants de la description canonique sont présents dans le prompt, sans contradiction.
+- Un personnage : fiche seule, mains vides, sans effet, sans décor, sans action ; âge et apparence présents, ou `description-vague` signalé.
 - La méthode recommandée est justifiée, et une édition a bien un parent.
 - Pour un `sfx` : prompt en anglais, une ou deux phrases, sans négation, sans voix, sans musique, sans terme visuel, sans mention de durée ; `dureeSecondes` entier (15 au plus sauf raison dite) ; `sources` vide ; `methode` à `generation`.

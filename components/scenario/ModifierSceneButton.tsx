@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { modifierScene } from "@/app/scenario/actions";
+import { ChampsGenreScene } from "./ChampsGenreScene";
 
 /** Bouton « Modifier » d'une scène : titre et fonction (description). Le
  * formulaire s'ouvre sous l'en-tête, sur toute la largeur. */
@@ -9,25 +10,33 @@ export function ModifierSceneButton({
   sceneId,
   titre,
   fonction,
+  genre = "",
+  ambiance = "",
 }: {
   sceneId: number;
   titre: string;
   fonction: string;
+  genre?: string;
+  ambiance?: string;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [t, setT] = useState(titre);
   const [f, setF] = useState(fonction);
+  const [g, setG] = useState(genre);
+  const [a, setA] = useState(ambiance);
   const [pending, startTransition] = useTransition();
 
   const ouvrir = () => {
     setT(titre);
     setF(fonction);
+    setG(genre);
+    setA(ambiance);
     setOuvert(true);
   };
   const enregistrer = () => {
     if (!t.trim()) return;
     startTransition(async () => {
-      await modifierScene(sceneId, { titre: t, fonction: f });
+      await modifierScene(sceneId, { titre: t, fonction: f, genre: g || null, ambiance: a });
       setOuvert(false);
     });
   };
@@ -48,6 +57,7 @@ export function ModifierSceneButton({
               <label>Description</label>
               <textarea className="field" rows={3} value={f} onChange={(e) => setF(e.target.value)} />
             </div>
+            <ChampsGenreScene genre={g} ambiance={a} onGenre={setG} onAmbiance={setA} />
             <div className="form-actions wide">
               <button className="btn btn-gold" type="button" onClick={enregistrer} disabled={pending || !t.trim()}>
                 {pending ? "..." : "Enregistrer"}

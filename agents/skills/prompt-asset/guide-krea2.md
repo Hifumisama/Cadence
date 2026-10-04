@@ -33,6 +33,8 @@
   [description du personnage], neutral standing pose, plain light background, character has 4 views : front full-body view, body side view, body back view, detailed single headshot view in foreground.
   ```
 
+  La fiche montre le personnage **seul**, **mains vides**, sans effet ni décor ni pose d'action : elle sert de référence d'identité, pas d'illustration de scène.
+
 - **Décor, accessoire, effet** : la prose descriptive seule, sans consigne de planche.
 
 ## Variantes et seed

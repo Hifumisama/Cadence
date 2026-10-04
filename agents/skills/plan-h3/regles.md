@@ -10,6 +10,7 @@ Le contexte est assemblé par l'application, jamais deviné :
 - **L'épisode et la scène** : résumé de l'épisode ; titre et fonction de la scène, avec l'intention de **tous ses plans** dans l'ordre (`cePlan` marque celui que tu écris). Une scène n'a pas d'autre texte : lis les intentions voisines pour savoir **qui** fait quoi (un geste d'un personnage peut n'être nommé que dans le plan d'à côté).
 - **Ce que tu dois écrire** : l'intention du plan (une ligne) et sa position dans la scène.
 - **Les plans voisins** (avant et après), pour le raccord : direction d'écran, mouvement de caméra, lumière, position des personnages.
+- **Le genre et l'ambiance de la scène** (`scene.genre`, `scene.ambiance`), quand ils existent : le genre a chargé le guide de rédaction qui lui correspond (`guide-genre-…`, dans ce prompt) ; l'ambiance (moment, météo, lumière générale) est le cadre que **tous les plans de la scène tiennent**.
 - **Le registre** : pour chaque asset candidat, son code, son type, sa description canonique (français), sa méthode, son **prompt de génération** (anglais) et `aUnFichier` (l'image ou le son existe déjà). Ce sont des repères pour rester fidèle à l'asset : le rôle de l'asset dans CE plan, c'est toi qui l'écris. Un asset sans fichier se référence quand même : il sera produit.
 - **`assetsProposesParLeLot`** (parfois) : des assets que les fiches d'autres plans du même lot proposent déjà de créer (code, type, description). Ils n'existent pas encore : **ce ne sont pas des références** et tu ne les redéclares pas dans `assetsManquants` ; si ton plan en a besoin, décris-le en prose.
 - **Les répliques** de la scène : uuid, locuteur, texte exact, durée mesurée si la prise existe.
@@ -98,6 +99,9 @@ Avant un plan à enjeu (action forte, effet visuel, montée en tension, plusieur
 
 ### 5. La continuité
 
+- **L'ambiance de la scène est tenue.** Si `scene.ambiance` est donnée, l'`ouverture` et les shots la respectent (moment de la journée, météo, lumière) : n'invente pas une autre lumière par plan. Un changement d'ambiance n'est permis que si l'intention du plan le dit, et il se joue par un geste visible.
+- **Un personnage qu'on n'entend que n'est pas une référence d'image** : une voix off ou un narrateur hors champ se dit par `(Sx)` et ne prend pas un des six emplacements d'image.
+- **Les gestes viennent du brief** : un personnage qui a une `gestuelle` la garde d'un plan à l'autre.
 - Reprends du brief les règles de continuité (traits distinctifs, palettes, rimes) et applique-les sans les commenter.
 - Deux plans qui doivent se répondre visuellement partagent le même asset ou un dérivé : ne fabrique pas deux images qui devraient être la même.
 - Raccorde avec les plans voisins : direction d'écran, sens du dernier mouvement de caméra, position des personnages.

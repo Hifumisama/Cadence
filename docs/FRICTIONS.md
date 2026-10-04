@@ -1758,3 +1758,43 @@ Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
   worker l'adopte toute seule à sa fin (`lib/generation-adoption.ts`, partagé avec le bouton « Adopter »). Non fait : lancer
   automatiquement la 2e vague (dérivés en édition) quand le master est adopté.
 - **Streaming** : la réponse s'écrit lettre par lettre (`useMachineAEcrire`, vitesse adaptée au retard), la réflexion est repliée par défaut.
+
+## 2026-10-05 — Recette « reprise d'une intro connue » : identité des personnages, rythme, genre de scène
+
+Test de bout en bout (pitch court, création de zéro, assets et plans rendus sans retouche). Constats et décisions ; les prompts des skills
+restent **génériques** (aucun nom du projet de test, vérifié par `lib/agents/genres-scene.test.ts`) : la spécialisation passe par des
+variantes de guides selon le genre de la scène.
+
+- **Cause racine des erreurs d'identité : le brief ne disait pas qui sont les personnages.** Les assets de personnages naissent du brief
+  (`candidatsRegistre`), et la description canonique recopiait « rôle : trait reconnaissable », parfois une VOIX. Résultat : une fiche
+  d'image à partir d'une voix (« A poised and calm individual »), un personnage générique nommé par un titre (l'image est devenue
+  l'« Avatar » d'un autre univers), un groupe de quatre individus fondu en UN asset (deux d'entre eux se ressemblaient dans les plans), un
+  personnage de remplissage jamais utilisé, une voix de trentenaire pour une adolescente. **Décision** : le brief porte, par personnage,
+  `age` et `apparence` (obligatoires pour tout nouveau brief, optionnels pour les anciens), `gestuelle` (facultative) ; au niveau du
+  brief, `rythme` (lent, mesure, soutenu, rapide, variable) et `univers` (œuvre de référence : on appelle les personnages par leur nom
+  propre). La description canonique d'un personnage se construit de l'apparence (`descriptionPersonnage`), jamais du rôle ni de la voix.
+  La clause de style décrit le rendu, jamais un cadrage ni un mouvement (elle s'applique aussi aux images fixes). Un personnage est un
+  individu, un groupe ne l'est pas. Le skill de voix prend l'âge du personnage et ne choisit jamais un âge adulte par défaut.
+- **Durée et rythme se demandent, ils ne se devinent pas.** La durée visée (120 s) avait été inventée par le modèle et rien ne la
+  confrontait au résultat (92 s). `conversation-agent` garde durée, rythme et âge dans `resteADefinir` tant que l'utilisateur ne les a pas
+  dits ; l'application signale (avertissement `info`, `avertissementDuree`) un scénario d'épisode qui s'écarte de plus de 20 % de la durée visée.
+- **Raffine (ne renverse pas) « plancher de 5 s, regrouper plutôt que découper » (2026-10-02).** Le plancher de 5 s et la recherche de
+  peu de plans restent. Mais « vise 8 à 15 s » devient « la durée suit le `rythme` du brief » (rapide : 5 à 8 s) et un enchaînement de brefs
+  moments qui se répondent (montage) est UN plan à coupes internes même s'il change de lieu. Retour de recette : quatre plans de 10 s pour
+  quatre gestes de 2 s donnent une séquence très longue et des raccords incompréhensibles.
+- **Genre et ambiance par scène** (`scenes.genre`, `scenes.ambiance`, migration 0046, nullables ; `lib/scene-genres.ts`). Genres : action,
+  dialogue, montage, contemplatif, tension ; null = standard. Le scénario les produit (obligatoires dans la sortie), l'utilisateur les édite,
+  `plan-h3` les reçoit : le genre choisit le guide `guide-genre-<genre>.md` (mécanisme de variantes du chargeur, `variante` = genre ou
+  « standard » = aucun guide de genre ; sans variante le chargeur enverrait tous les guides), l'ambiance est le cadre (moment, météo,
+  lumière) tenu sur toute la scène. Un basculement s'amorce dans le plan d'avant.
+- **Fiche de personnage seule** (`prompt-asset`, guide Krea 2, inventaire) : mains vides, sans effet, sans décor, sans action ; un effet est
+  un asset `vfx` distinct. Cause du plan « parti en tous sens » : la référence du personnage était une scène d'action avec un vortex.
+  `inventaire-assets` signale en `notes` les personnages et lieux du registre qu'aucun plan n'emploie, et rappelle qu'un personnage hors
+  champ n'est pas une image.
+- **Contrôle du locuteur** : un `<d>` sans `(Sx)` dans son shot donne une alerte (`plan-h3-controles`, règle `locuteur`). Deux plans de la
+  recette n'avaient pas le marqueur ; l'écho audio constaté sur l'un d'eux n'est PAS expliqué (le prompt envoyé ne contenait la réplique
+  qu'une fois) : expérience à faire, relancer le plan tel quel (même seed) puis avec `(S1)`.
+- **Voix** : température par défaut 1,2 (la plus expressive aux essais directs sous ComfyUI ; 0,8 à 1,2 reste réglable).
+- **Non fait** : génération des répliques dans l'application avec `VOX_Generate_Replique_Simplified.json` (workflow fourni, à brancher sur le
+  modèle de `voixMapping.ts`) ; réglages de vitesse du LLM local (raisonnement coupé sur les skills légers, voir les traces : 70 à 95 % des
+  jetons de sortie sont du raisonnement).

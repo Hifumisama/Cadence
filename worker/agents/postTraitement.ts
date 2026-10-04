@@ -133,7 +133,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       if (options.position) {
         bruts = depuisPlanAInserer(sortie, { episodeId: prop.cibleId, position: options.position, sceneId: options.sceneVoisineId ?? null });
       } else {
-        bruts = depuisScenarioEpisode(sortie, await episodeCourant(tx, prop.projectId, prop.cibleId));
+        bruts = depuisScenarioEpisode(sortie, await episodeCourant(tx, prop.projectId, prop.cibleId), { dureeCibleSecondes: await dureeCibleDuProjet(tx, prop.projectId) });
       }
     } else {
       throw new Error(`Portée « ${prop.portee} » non prise en charge pour le skill scenario-episode.`);
@@ -182,6 +182,13 @@ async function episodeCourant(tx: Tx, projectId: number, episodeId: number): Pro
   return { id: episodeId, titre: entree.episode.titre, resume: entree.episode.resume, scenes: entree.scenesExistantes, plans: lesPlans };
 }
 
+/** La durée visée d'un épisode, telle que le brief du projet la porte (null sans brief ni durée). */
+async function dureeCibleDuProjet(tx: Tx, projectId: number): Promise<number | null> {
+  const [b] = await tx.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
+  const d = (b?.contenu as { dureeEpisodeSecondes?: unknown } | undefined)?.dureeEpisodeSecondes;
+  return typeof d === "number" && d > 0 ? d : null;
+}
+
 /** Une sous-tâche d'un lot de scénarios (un épisode) : ses changements REMPLACENT ceux qu'elle avait
  * déjà posés (relance) sans toucher aux autres sous-tâches, dans la même transaction que son résultat
  * (idempotent : rejouer le même résultat ne double rien) ; puis le lot décide de son statut. */
@@ -199,6 +206,7 @@ async function postSousTacheLot(
     prefixeCle: `ep${episodeId}-`,
     groupe: groupeEpisode(episodeId),
     signalerEcrasement: true,
+    dureeCibleSecondes: await dureeCibleDuProjet(tx, prop.projectId),
   });
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
