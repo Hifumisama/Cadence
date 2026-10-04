@@ -151,7 +151,8 @@ export const METHODE_VOIX = "voix";
 /** « Température » de Qwen3-TTS : le niveau de créativité de la voix. */
 export const TEMPERATURE_VOIX_MIN = 0.8;
 export const TEMPERATURE_VOIX_MAX = 1.2;
-export const TEMPERATURE_VOIX_DEFAUT = 1.1;
+// 1,2 par défaut (retour de recette, 2026-10-05) : la plus expressive aux essais directs sous ComfyUI ; 0,8 à 1,2 reste réglable.
+export const TEMPERATURE_VOIX_DEFAUT = 1.2;
 
 /** Ce que le casting envoie à `lancerGenerationVoix`. La seed est tirée côté serveur. */
 export type DemandeVoix = {

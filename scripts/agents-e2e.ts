@@ -46,11 +46,12 @@ const BRIEF = {
   style: { nom: "Live-action cinématographique", clause: "Cinematic live-action, desaturated blue-grey palette, golden light." },
   langueDialogues: "French",
   dureeEpisodeSecondes: 90,
+  rythme: "soutenu",
   episodes: [
     { titre: "Le sel", resume: "Le pont est couvert de sel." },
     { titre: "La marée", resume: "Le bateau revient." },
   ],
-  personnages: [{ nom: "Iris", role: "gardienne", reconnaissable: "Cheveux gris attachés", statut: "fourni" }],
+  personnages: [{ nom: "Iris", role: "gardienne", age: "femme d'une soixantaine d'années", apparence: "silhouette sèche, cheveux gris attachés, ciré jaune", reconnaissable: "Cheveux gris attachés", statut: "fourni" }],
   lieux: [{ nom: "Le phare", description: "Tour blanche rongée par le sel", statut: "deduit" }],
   continuite: [],
   rimes: [],
