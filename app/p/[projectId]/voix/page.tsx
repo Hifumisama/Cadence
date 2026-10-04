@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
 import { getCastingCatalogue } from "@/lib/queries-voix";
+import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { Topbar } from "@/components/ui/Topbar";
 import { VoixCard } from "@/components/voix/VoixCard";
 import { NouvelleVoixForm } from "@/components/voix/NouvelleVoixForm";
@@ -73,6 +74,12 @@ export default async function CastingPage({
             </p>
           </div>
           <div className="actions" style={{ marginLeft: "auto" }}>
+            <BoutonAgent
+              className="btn btn-ghost"
+              libelle="Créer les voix manquantes"
+              demande={{ projectId: pid, portee: "projet", cible: null, profondeur: "complete", libelle: projet.nom, vue: "voix" }}
+              titre="L'agent décrit le timbre des personnages qui parlent sans avoir de voix (et la voix off), à partir de leurs répliques"
+            />
             <NouvelleVoixForm projectId={pid} personnages={catalogue.personnages} />
           </div>
         </div>

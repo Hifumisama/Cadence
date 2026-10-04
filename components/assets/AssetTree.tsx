@@ -78,7 +78,6 @@ function Mini({
           </span>
         </span>
       </Link>
-      <AjouterDeriveForm projectId={projectId} parentId={noeud.id} parentCode={noeud.code} parentType={noeud.type} />
       {enfants.length > 0 ? (
         <details className="tree-sub" open={contient(noeud, actifCode)}>
           <summary>
@@ -100,11 +99,14 @@ function Carte({
   noeud,
   actifCode,
   estompe = false,
+  peutDeriver = false,
 }: {
   projectId: number;
   noeud: AssetNode;
   actifCode: string;
   estompe?: boolean;
+  /** Registre à un niveau : seul un master reçoit des dérivés. */
+  peutDeriver?: boolean;
 }) {
   const { kind, etat, src } = infosMedia(noeud.type, noeud.fichier);
   return (
@@ -124,7 +126,7 @@ function Carte({
         actif={noeud.code === actifCode}
         voix={noeud.type === "personnage" ? noeud.voix : undefined}
       />
-      <AjouterDeriveForm projectId={projectId} parentId={noeud.id} parentCode={noeud.code} parentType={noeud.type} />
+      {peutDeriver ? <AjouterDeriveForm projectId={projectId} parentId={noeud.id} parentCode={noeud.code} parentType={noeud.type} /> : null}
     </div>
   );
 }
@@ -157,7 +159,7 @@ export function AssetTree({
   return (
     <div className="tree">
       <div className="tree-root-row">
-        <Carte projectId={projectId} noeud={master} actifCode={actifCode} />
+        <Carte projectId={projectId} noeud={master} actifCode={actifCode} peutDeriver />
       </div>
 
       {tous.length > 0 ? (

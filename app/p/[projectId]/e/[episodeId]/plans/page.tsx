@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { getPlansList } from "@/lib/queries";
+import { getMatriceAssets, getPlansList, getSegmentsLecture } from "@/lib/queries";
+import { MatriceAssets } from "@/components/plan/MatriceAssets";
+import { LectureEpisode } from "@/components/plan/LectureEpisode";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
 import { PassageNuitButton } from "@/components/plan/PassageNuitButton";
 
@@ -28,7 +30,7 @@ export default async function PlansPage({
 }) {
   const { projectId, episodeId } = await params;
   const base = `/p/${projectId}/e/${episodeId}`;
-  const plans = await getPlansList(Number(episodeId));
+  const [plans, segments, matrice] = await Promise.all([getPlansList(Number(episodeId)), getSegmentsLecture(Number(episodeId)), getMatriceAssets(Number(episodeId))]);
 
   const comptes = new Map<string, number>();
   for (const s of plans) {
@@ -66,6 +68,10 @@ export default async function PlansPage({
         </div>
       ) : null}
 
+      <LectureEpisode segments={segments} />
+
+      <MatriceAssets base={base} plans={matrice.plans} lignes={matrice.lignes} />
+
       <div className="frise">
         {plans.map((plan) => (
           <Link
@@ -80,7 +86,7 @@ export default async function PlansPage({
               {plan.dernierJob?.erreur ? (
                 <span className="shot-meta">
                   <span style={{ color: "var(--ecarlate-glow)" }}>
-                    Tentative {plan.dernierJob.tentative} : {plan.dernierJob.erreur}
+                    Rendu n°{plan.dernierJob.numeroRendu} : {plan.dernierJob.erreur}
                   </span>
                 </span>
               ) : null}

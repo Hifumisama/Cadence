@@ -56,8 +56,11 @@ export const assetStatutEnum = pgEnum("asset_statut", [
   "valide",
 ]);
 
-// Racine d'un projet vidéo — OneShot ou Série (2026-09-28). clauseStyle
-// porte le réglage qui ne bouge pas à l'échelle du projet (retour
+// Racine d'un projet vidéo — OneShot ou Série (2026-09-28). 2026-10-02 : `clauseStyle` et
+// `notes` sont désormais des COPIES dénormalisées du BRIEF (source unique : `briefs.contenu`
+// style.clause / notes), écrites par le seul `synchroniserClauseStyle` (lib/agents/brief-db.ts) ;
+// ne JAMAIS les écrire ailleurs. Historique : clauseStyle
+// portait le réglage qui ne bouge pas à l'échelle du projet (retour
 // utilisateur : "des prompts qui vont pas bouger à l'échelle de la saison
 // voire du projet") — ex-DEFAULT global de lib/params.ts, migré ici. Un seul
 // niveau d'héritage volontairement : pas de surcharge par saison/épisode
@@ -175,7 +178,10 @@ export const plans = pgTable("plans", {
   mode: varchar("mode", { length: 20 }).notNull().default("full-reference"),
   timecodeMusique: varchar("timecode_musique", { length: 50 }),
   statut: planStatutEnum("statut").notNull().default("brouillon"),
-  seed: text("seed"),
+  // Une seed PAR PLAN, tirée à la création (2026-10-03, F04) : sans elle tous les plans et toutes les relances
+  // partageaient la seed écrite dans le fichier du workflow. « Relancer » la garde (même résultat si rien n'a
+  // bougé) ; « Nouvelle variante » en tire une autre.
+  seed: text("seed").default(sql`floor(random() * 1000000000000000)::bigint::text`),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -392,6 +398,12 @@ export const assetGenerations = pgTable("asset_generations", {
   // gardent leurs valeurs par défaut pour l'audio : l'affichage se règle sur la
   // méthode, jamais sur ces deux colonnes.
   dureeSecondes: real("duree_secondes"),
+  // Génération d'une VOIX de référence (méthode « voix », Qwen3-TTS Voice Design) : le texte lu (le prompt
+  // porte l'instruction de timbre), la langue de ce texte et la « température » (créativité de la voix,
+  // 0,8 à 1,2). null pour les images et les sons.
+  texteReference: text("texte_reference"),
+  langueReference: varchar("langue_reference", { length: 40 }),
+  temperature: real("temperature"),
   seed: text("seed").notNull(),
   comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
   fichier: varchar("fichier", { length: 255 }),
@@ -402,6 +414,8 @@ export const assetGenerations = pgTable("asset_generations", {
   progressionValeur: integer("progression_valeur"),
   progressionMax: integer("progression_max"),
   etapeLibelle: varchar("etape_libelle", { length: 80 }),
+  // Génération lancée par un LOT : le worker l'adopte toute seule à sa fin (elle devient l'image de l'asset).
+  adoptionAuto: boolean("adoption_auto").notNull().default(false),
   apercuFichier: varchar("apercu_fichier", { length: 255 }),
   apercuAt: timestamp("apercu_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -410,6 +424,8 @@ export const assetGenerations = pgTable("asset_generations", {
   // « Vu » : l'utilisateur a pris connaissance du résultat ou de l'échec
   // (indicateur du header). null = pas encore vu.
   vuAt: timestamp("vu_at"),
+  // Retirée de la liste du panneau des générations (« vider la liste », ✕) : rien n'est supprimé.
+  masqueAt: timestamp("masque_at"),
   // Annulation d'une tâche EN COURS : l'interface pose le drapeau, le worker agit
   // (lib/annulation.ts). Une tâche en attente s'annule directement, sans drapeau.
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
@@ -444,7 +460,19 @@ export const jobs = pgTable("jobs", {
     .notNull()
     .references(() => plans.id, { onDelete: "cascade" }),
   statut: jobStatutEnum("statut").notNull().default("en_attente"),
+  // Rejeux AUTOMATIQUES d'un même rendu après un échec (F04) ; ce n'est PAS le numéro du rendu.
   tentative: integer("tentative").notNull().default(1),
+  // Numéro du rendu dans le plan (1, 2, 3…), posé à la création du job ; ce que l'historique affiche.
+  numeroRendu: integer("numero_rendu").notNull().default(1),
+  // Ce que le worker a réellement soumis : le prompt assemblé et la durée (la seed est dans `seedUtilisee`).
+  // Sert à comparer deux rendus, et à expliquer pourquoi deux relances donnent le même plan.
+  promptUtilise: text("prompt_utilise"),
+  dureeUtilisee: integer("duree_utilisee"),
+  // Progression du rendu en cours (2026-10-03) : l'étape (génération H3, interpolation, encodage) et, si ComfyUI en
+  // donne une, valeur / max. Remises à null en fin de rendu. Pas d'aperçu image (la génération H3 est un nœud d'API).
+  progressionValeur: integer("progression_valeur"),
+  progressionMax: integer("progression_max"),
+  etapeLibelle: varchar("etape_libelle", { length: 80 }),
   // Toggle prévisualisation/rendu final (F04, décidé le 2026-09-26) : la
   // sortie basse résolution (sans upscale) sert aux itérations rapides de
   // prompt (F03), le rendu final upscale une fois le plan validé.
@@ -459,6 +487,7 @@ export const jobs = pgTable("jobs", {
   finishedAt: timestamp("finished_at"),
   // « Vu » : voir asset_generations.vuAt.
   vuAt: timestamp("vu_at"),
+  masqueAt: timestamp("masque_at"),
   // Annulation : voir asset_generations.annulationDemandeeAt. Une vidéo annulée finit
   // `echoue` avec l'erreur « Annulée » (pas de statut d'enum de plus).
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
@@ -586,6 +615,10 @@ export const agentRuns = pgTable("agent_runs", {
   // Jetons de sortie reçus au fil de l'eau (le maximum est inconnu : pas de barre
   // à pourcentage, un simple compteur). Remis à null en fin de tâche.
   progressionJetons: integer("progression_jetons"),
+  // Streaming (2026-10-03) : le texte de la réponse (borné) et la FIN de la réflexion, écrits au plus 1×/s pendant
+  // l'appel, remis à null en fin d'appel.
+  fluxTexte: text("flux_texte"),
+  fluxReflexion: text("flux_reflexion"),
   resultat: jsonb("resultat"),
   erreur: text("erreur"),
   traceId: integer("trace_id").references(() => agentTraces.id, { onDelete: "set null" }),
@@ -594,4 +627,148 @@ export const agentRuns = pgTable("agent_runs", {
   finishedAt: timestamp("finished_at"),
   vuAt: timestamp("vu_at"),
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
-}, (table) => [index("agent_runs_statut_idx").on(table.statut, table.createdAt)]);
+  masqueAt: timestamp("masque_at"),
+  // Ce que le résultat devient (système d'agents, docs/CONCEPTION_AGENTS.md §14) :
+  // `but` = tour (réponse de conversation) | brief | proposition ; les ids relient la
+  // tâche à sa conversation / sa proposition (entiers simples, sans clé étrangère :
+  // les tables d'agents pointent déjà vers agent_runs, pas de référence circulaire).
+  but: varchar("but", { length: 12 }),
+  conversationId: integer("conversation_id"),
+  propositionId: integer("proposition_id"),
+  // LOT (2026-10-02, étape « scénarios d'épisodes ») : une proposition peut être composée de
+  // plusieurs tâches, une par sous-tâche (ex. un épisode). `cleSousTache` l'identifie dans le
+  // lot (« ep:12 ») ; `libelleSousTache` est ce que la revue et le header en disent. Vides
+  // pour une tâche seule (tour de conversation, brief, proposition simple).
+  cleSousTache: varchar("cle_sous_tache", { length: 80 }),
+  libelleSousTache: varchar("libelle_sous_tache", { length: 200 }),
+}, (table) => [
+  index("agent_runs_statut_idx").on(table.statut, table.createdAt),
+  index("agent_runs_proposition_idx").on(table.propositionId),
+]);
+
+// ---------------------------------------------------------------------
+// Système d'agents (2026-10-02) : conversation → brief → proposition → revue →
+// application. Voir docs/CONCEPTION_AGENTS.md §14. Aucun enum pg : valeurs en
+// varchar, contrôlées par l'application (lib/agents/types.ts).
+// ---------------------------------------------------------------------
+
+// Une conversation par (projet, portée, cible) : rouvrir reprend, en démarrer une
+// « nouvelle » sur la même cible écrase la précédente (unicité ci-dessous).
+// `portee` : projet | saison | episode | plan | asset ; `cibleId` = id interne de la
+// saison / de l'épisode / du plan / de l'asset visé (null pour le projet). `etape` :
+// consigne | conversation | brief | proposition | applique. `propositionId` = la
+// proposition courante (entier simple : les propositions pointent vers la conversation).
+export const agentConversations = pgTable("agent_conversations", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  portee: varchar("portee", { length: 10 }).notNull(),
+  cibleId: integer("cible_id"),
+  profondeur: varchar("profondeur", { length: 10 }).notNull().default("courte"),
+  etape: varchar("etape", { length: 12 }).notNull().default("consigne"),
+  // [{ role: "user" | "assistant", content, at }] — les tours de la conversation.
+  messages: jsonb("messages").notNull().default(sql`'[]'::jsonb`),
+  consigne: text("consigne").notNull().default(""),
+  // L'agent estime avoir de quoi écrire le brief (dernier tour).
+  briefPret: boolean("brief_pret").notNull().default(false),
+  // Ce qu'il reste à définir avec l'utilisateur (liste de phrases courtes, remise à jour par l'agent à chaque tour) ;
+  // `briefPret` n'est vrai que lorsqu'elle est vide.
+  resteADefinir: jsonb("reste_a_definir").notNull().default(sql`'[]'::jsonb`),
+  propositionId: integer("proposition_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("agent_conversations_cible_idx").on(table.projectId, table.portee, sql`coalesce(${table.cibleId}, 0)`),
+]);
+
+// L'installateur (2026-10-03) : la création d'un projet de bout en bout, étape par étape et sans validation
+// intermédiaire. Une ligne par projet ; `statut` : en_cours | termine | echoue | arretee ; `etapes` : la liste ordonnée
+// des étapes et leur état (lib/agents/creation.ts), que le worker fait avancer à chaque tour de boucle.
+export const creationsProjet = pgTable("creations_projet", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().unique().references(() => projects.id, { onDelete: "cascade" }),
+  statut: varchar("statut", { length: 10 }).notNull().default("en_cours"),
+  etapes: jsonb("etapes").notNull().default(sql`'[]'::jsonb`),
+  erreur: text("erreur"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Le brief : document de RÉFÉRENCE du projet (un seul par projet), modifiable après
+// coup. `contenu` suit le schéma de agents/skills/brief-projet/sortie.schema.json ;
+// `statuts` dit, section par section (clé de premier niveau), qui l'a posée :
+// fourni (dit par l'utilisateur) | deduit (conclu par l'agent) | a_valider (inventé
+// ou incertain). `statut` : brouillon (sorti d'une conversation, pas encore
+// appliqué) | valide.
+export const briefs = pgTable("briefs", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().unique().references(() => projects.id, { onDelete: "cascade" }),
+  statut: varchar("statut", { length: 10 }).notNull().default("brouillon"),
+  source: varchar("source", { length: 12 }).notNull().default("conversation"),
+  contenu: jsonb("contenu").notNull(),
+  statuts: jsonb("statuts").notNull().default(sql`'{}'::jsonb`),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Un lot de changements mis de côté, jamais appliqué sans l'utilisateur. `statut` :
+// en_generation | prete | appliquee | partielle | rejetee | echouee. La conversation
+// peut disparaître (écrasée) sans emporter l'historique : `set null`. `parentId` =
+// la proposition affinée (retour libre de l'utilisateur dans `retour`).
+export const propositions = pgTable("propositions", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  conversationId: integer("conversation_id").references(() => agentConversations.id, { onDelete: "set null" }),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  skill: varchar("skill", { length: 40 }).notNull(),
+  portee: varchar("portee", { length: 10 }).notNull(),
+  cibleId: integer("cible_id"),
+  statut: varchar("statut", { length: 14 }).notNull().default("en_generation"),
+  runId: integer("run_id").references(() => agentRuns.id, { onDelete: "set null" }),
+  parentId: integer("parent_id"),
+  consigne: text("consigne").notNull().default(""),
+  retour: text("retour"),
+  resume: text("resume").notNull().default(""),
+  // « Contexte utilisé » : ce que l'agent a lu automatiquement ([{ type, libelle, ref? }]).
+  contexte: jsonb("contexte").notNull().default(sql`'[]'::jsonb`),
+  erreur: text("erreur"),
+  // Proposition « en lot » : sa génération est composée de plusieurs tâches `agent_runs`
+  // (une par sous-tâche), elle reste `en_generation` tant qu'il en reste d'actives.
+  lot: boolean("lot").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  appliedAt: timestamp("applied_at"),
+}, (table) => [index("propositions_projet_idx").on(table.projectId, table.createdAt)]);
+
+// Un changement de proposition. `cibleType` : brief | projet | saison | episode |
+// scene | asset | plan. `cibleRef` : référence STABLE de l'existant (id interne, uuid
+// du plan, clé de section du brief) ; null pour une création, qui porte une `cle`
+// symbolique (« saison-1 », « episode-2 ») que ses enfants citent dans `apres`.
+// `avant`/`apres` : ce qui est lu / ce qui sera écrit (jsonb). `position` : où
+// insérer (plan : { apresPlanUuid } | { debut: true } | { fin: true }). `ecrase` : en
+// clair, ce qui sera perdu (null si rien). `coche` : retenu pour l'application ;
+// `refuseRaison` : refusé d'office (hors portée, non pris en charge…).
+export const propositionChangements = pgTable("proposition_changements", {
+  id: serial("id").primaryKey(),
+  propositionId: integer("proposition_id").notNull().references(() => propositions.id, { onDelete: "cascade" }),
+  ordre: integer("ordre").notNull(),
+  groupe: varchar("groupe", { length: 40 }).notNull(),
+  cle: varchar("cle", { length: 60 }),
+  cibleType: varchar("cible_type", { length: 12 }).notNull(),
+  cibleRef: varchar("cible_ref", { length: 100 }),
+  libelle: text("libelle").notNull(),
+  operation: varchar("operation", { length: 10 }).notNull(),
+  avant: jsonb("avant"),
+  apres: jsonb("apres"),
+  position: jsonb("position"),
+  avertissements: jsonb("avertissements").notNull().default(sql`'[]'::jsonb`),
+  ecrase: text("ecrase"),
+  coche: boolean("coche").notNull().default(false),
+  refuseRaison: text("refuse_raison"),
+  appliqueAt: timestamp("applique_at"),
+  // Lot : la sous-tâche (clé de agent_runs.cle_sous_tache) qui a produit ce changement, pour
+  // ne remplacer que SES lignes quand elle est relancée ; `sousGroupe` = le titre de la scène
+  // sous laquelle la revue range un plan ou une réplique.
+  sousTache: varchar("sous_tache", { length: 80 }),
+  sousGroupe: varchar("sous_groupe", { length: 200 }),
+}, (table) => [index("proposition_changements_prop_idx").on(table.propositionId, table.ordre)]);

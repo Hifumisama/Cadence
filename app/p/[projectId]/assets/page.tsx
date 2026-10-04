@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsTree, getFirstEpisodeId, getProject } from "@/lib/queries";
+import { assetsEnFile, nbImagesEnAttente } from "@/lib/queries-taches";
+import { PLAFOND_LOT_IMAGES, preparerLot, selectionParDefaut, type AssetPourLot } from "@/lib/generation-lot";
+import { GenererEnLot } from "@/components/assets/GenererEnLot";
 import { AjouterAssetForm } from "@/components/assets/AjouterAssetForm";
 import { AssetCard } from "@/components/assets/AssetCard";
 import { AssetFiltres } from "@/components/assets/AssetFiltres";
 import { TYPES_ASSET } from "@/lib/assetCode";
 import { infosMedia } from "@/lib/assetMedia";
+import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { Topbar } from "@/components/ui/Topbar";
 
 export const dynamic = "force-dynamic";
@@ -39,12 +43,32 @@ export default async function AssetsPage({
   const { type: typeBrut } = await searchParams;
   const typeActif = (TYPES_ASSET as readonly string[]).includes(typeBrut ?? "") ? (typeBrut as string) : null;
   const pid = Number(projectId);
-  const [projet, masters, premierEpisodeId] = await Promise.all([
+  const [projet, masters, premierEpisodeId, enFile, nbEnAttente] = await Promise.all([
     getProject(pid),
     getAssetsTree(pid),
     getFirstEpisodeId(pid),
+    assetsEnFile(pid),
+    nbImagesEnAttente(),
   ]);
   if (!projet) notFound();
+
+  // Génération en lot : tous les assets, masters puis dérivés ; ce qui peut partir et pourquoi le reste ne peut pas.
+  const aplatis = (noeuds: typeof masters): typeof masters => noeuds.flatMap((n) => [n, ...aplatis(n.derives)]);
+  const pourLot: AssetPourLot[] = aplatis(masters).map((a) => ({
+    id: a.id,
+    code: a.code,
+    type: a.type,
+    promptGeneration: a.promptGeneration,
+    methodeGeneration: a.methodeGeneration,
+    fichier: a.fichier,
+    deriveDeId: a.deriveDeId,
+  }));
+  const planLot = preparerLot(pourLot, pourLot, enFile, Math.max(0, PLAFOND_LOT_IMAGES - nbEnAttente));
+  const raisonPar = new Map(planLot.ecartes.map((e) => [e.assetId, e.raison]));
+  const parDefaut = new Set(selectionParDefaut(planLot, pourLot));
+  const lignesLot = pourLot
+    .filter((a) => a.type !== "voix" && a.type !== "sfx")
+    .map((a) => ({ id: a.id, code: a.code, type: a.type, raison: raisonPar.get(a.id) ?? null, aUneImage: !!a.fichier, estDerive: a.deriveDeId != null, parDefaut: parDefaut.has(a.id) }));
 
   const compteurs: Record<string, number> = {};
   for (const m of masters) compteurs[m.type] = (compteurs[m.type] ?? 0) + 1;
@@ -82,6 +106,14 @@ export default async function AssetsPage({
               arbre complet et les plans où il apparaît.
             </p>
           </div>
+          <div className="actions">
+            <BoutonAgent
+              className="btn btn-ghost"
+              libelle="Créer le registre depuis le brief"
+              demande={{ projectId: pid, portee: "projet", cible: null, profondeur: "complete", libelle: projet.nom, vue: "registre" }}
+              titre="L'agent écrit le prompt de chaque personnage et lieu du brief et crée les assets qui manquent"
+            />
+          </div>
         </div>
 
         <div className="tally">
@@ -105,6 +137,8 @@ export default async function AssetsPage({
         </div>
 
         <AjouterAssetForm projectId={pid} />
+
+        <GenererEnLot projectId={pid} lignes={lignesLot} />
 
         <section className="panel">
           <div className="panel-hd">

@@ -251,11 +251,19 @@ export function prochainSlotAudioLibre(pris: number[]): number | null {
 
 /** Cohérence des refs : chaque label <Picture N>/<Audio N>/<Video N> cité
  * dans le prompt doit exister dans la table de refs du plan, et
- * inversement. Les refs audio des répliques liées comptent comme déclarées
- * (voir DialoguesPanel : l'audio de la réplique EST la ref <Audio N>). */
+ * inversement.
+ *
+ * `derivees` : les refs audio DÉRIVÉES des répliques liées (l'audio de la
+ * réplique EST la ref <Audio N>, voir DialoguesPanel). Elles comptent comme
+ * déclarées (un prompt qui les cite n'a pas de label orphelin) mais ne sont
+ * jamais « non citées » : le contrat de plan-h3 et les fiches validées de
+ * l'épisode 1 ne citent pas les voix (docs/FRICTIONS.md, « iteration-plan
+ * branché », 2026-10-02). Une ref de plan_refs (bruitage, image) non citée
+ * reste signalée. */
 export function verifierCoherenceRefs(
   sections: PromptSection[],
   refs: RefLabel[],
+  derivees: RefLabel[] = [],
 ): { labelsOrphelins: string[]; refsNonCitees: string[] } {
   const texte = sections.map((s) => s.contenu).join("\n");
   const labelParType: Record<RefLabel["type"], string> = {
@@ -272,8 +280,11 @@ export function verifierCoherenceRefs(
   const labelsDeclares = new Set(
     refs.map((r) => `${labelParType[r.type]}:${r.slot}`),
   );
+  const labelsDerives = new Set(
+    derivees.map((r) => `${labelParType[r.type]}:${r.slot}`),
+  );
 
-  const labelsOrphelins = [...labelsCites].filter((l) => !labelsDeclares.has(l));
+  const labelsOrphelins = [...labelsCites].filter((l) => !labelsDeclares.has(l) && !labelsDerives.has(l));
   const refsNonCitees = [...labelsDeclares].filter((l) => !labelsCites.has(l));
 
   return { labelsOrphelins, refsNonCitees };
@@ -311,7 +322,7 @@ export function calculerStatutDuree(
 
 /** Plancher par shot : en dessous, H3 rallonge ou lisse le plan. */
 export const SHOT_MIN_SECONDES = 1.5;
-export const DUREE_GENERATION_MIN = 4;
+export const DUREE_GENERATION_MIN = 5;
 export const DUREE_GENERATION_MAX = 15;
 
 export type ProblemeStructure = {

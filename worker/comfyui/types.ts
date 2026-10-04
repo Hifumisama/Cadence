@@ -1,13 +1,21 @@
 import type { EtatDansLaFile } from "../../lib/annulation";
 
+/** `nomDistant` : nom sous lequel le fichier est déposé dans le dossier d'entrée de ComfyUI (unique ; à défaut, le nom du fichier local). */
+export type RefMedia = { slot: number; cheminLocal: string; nomDistant?: string };
+
 export type SubmissionInput = {
   promptAssemble: string;
   seed?: string;
+  /** Préfixe des fichiers de sortie, unique par rendu : sans lui le nom ne dépend que du compteur du dossier
+   * output de ComfyUI (collisions possibles, résultat en cache servi à un autre rendu). Absent : le fichier est laissé tel quel. */
+  prefixeSortie?: string;
   dureeSecondes: number;
   fps: number;
-  refsImage: { slot: number; cheminLocal: string }[]; // max 6
-  refsAudio: { slot: number; cheminLocal: string }[]; // max 3
-  refsVideo: { slot: number; cheminLocal: string }[];
+  /** `dureeSecondes` : 5 à 15 (nœud 22:23). `fps` : fps VISÉ du plan, informatif — le graphe génère à 24 i/s et
+   * règle la cadence finale lui-même (nœuds 168/169/170, voir workflows/README.md). */
+  refsImage: RefMedia[]; // max 6 (images + vidéos), emplacement 1 à 6
+  refsAudio: (RefMedia & { dureeSecondes?: number | null })[]; // max 3, emplacement 1 à 3 ; durée mesurée de la prise
+  refsVideo: RefMedia[]; // emplacement 1 à 3
   activerUpscale: boolean;
 };
 

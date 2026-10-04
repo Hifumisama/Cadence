@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import { assets, planRefs, repliques } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
+import { masterDe } from "@/lib/registre-assets";
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
@@ -38,7 +39,10 @@ export async function creerAsset(projectId: number, formData: FormData) {
   const description = String(formData.get("description") ?? "");
   const critique = formData.get("critique") === "on";
   const deriveDeIdBrut = formData.get("deriveDeId");
-  const deriveDeId = deriveDeIdBrut ? Number(deriveDeIdBrut) : null;
+  // Registre à un niveau : dériver d'un dérivé rattache au master (voir lib/registre-assets.ts).
+  const deriveDeId = deriveDeIdBrut
+    ? await masterDe(Number(deriveDeIdBrut), async (id) => (await db.select({ p: assets.deriveDeId }).from(assets).where(eq(assets.id, id)))[0]?.p ?? null)
+    : null;
   const fichier = formData.get("fichier");
 
   const [cree] = await db

@@ -14,11 +14,11 @@ type Fetch = typeof fetch;
 const TIMEOUT_SONDE_MS = 5_000;
 const TIMEOUT_DECHARGE_MS = 30_000; // /unload attend que les processus s'arrêtent
 
-/** Le serveur répond-il ? (`GET /health`, « OK » chez llama-swap). Ne charge aucun
- * modèle. */
-export async function llmJoignable(url: string, fetchFn: Fetch = fetch): Promise<boolean> {
+/** Le serveur répond-il ? (`GET /health`, « OK » chez llama-swap ; autre route via `LLM_HEALTH_PATH`).
+ * Ne charge aucun modèle. */
+export async function llmJoignable(url: string, fetchFn: Fetch = fetch, route = "/health"): Promise<boolean> {
   try {
-    const res = await fetchFn(`${url}/health`, { signal: AbortSignal.timeout(TIMEOUT_SONDE_MS) });
+    const res = await fetchFn(`${url}${route}`,{ signal: AbortSignal.timeout(TIMEOUT_SONDE_MS) });
     return res.ok;
   } catch {
     return false;

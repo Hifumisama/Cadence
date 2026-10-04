@@ -674,6 +674,23 @@ ComfyUI pour être pilotée par l'application. On débloque d'abord les images
 (`IMG_01_TextToImage`, `IMG_Simple_Edit`) et la vidéo ; le contrat des workflows
 d'images est dans `workflows/README.md`.
 
+### Voix de référence : génération branchée (2026-10-02)
+Le workflow `workflows/audio/VOX_Generate_Voice_Simplified.json` (Qwen3-TTS Voice Design : trois nœuds, sans le
+`CharacterVoicesNode` qui rendait l'audio trop couplé à ComfyUI) lève le blocage noté plus haut pour **la voix de
+référence** ; les prises de répliques (CosyVoice3) restent à la main.
+- **Même file que les images et les sons** : méthode `voix` de `asset_generations` (colonnes `texte_reference`,
+  `langue_reference`, `temperature`, migration 0037) ; annulation, reprise, panneau du header et candidats en
+  profitent. Le panneau renvoie vers l'étape « Référence » du casting.
+- **Créativité de la voix** = la « température » de Qwen3-TTS, **0,8 à 1,2, 1,1 par défaut**, réglable dans la popup.
+- **Le résultat est un candidat** : « Utiliser comme référence » remplace la référence de la voix (`assets.fichier`),
+  son instruction (`prompt_generation`) et le texte lu (`voix_fiches.ref_text`), et repasse la voix « en cours ».
+  Le déposer à la main reste possible.
+- Le nœud d'écoute `PreviewAudio` du fichier exporté est remplacé à la soumission par `SaveAudioMP3` (V0), comme
+  pour les bruitages : le worker ne relit que le dossier `output`. Un FLAC serait préférable pour le clonage ;
+  à reprendre si le MP3 gêne CosyVoice3.
+- Code : `lib/asset-generation.ts` (règles), `worker/comfyui/voixMapping.ts` (+ test sur le vrai workflow),
+  `lancerGenerationVoix` (`app/assets/generation-actions.ts`), `GenerationVoixDialog`.
+
 ### Génération d'images d'assets : première tâche ComfyUI dédiée (2026-09-30)
 Premier type du système de tâches dédié (le worker vidéo n'est pas généralisé) :
 table `asset_generations`, boucle `worker/images.ts`, bouton « Générer » sur la
@@ -1077,6 +1094,197 @@ validée sur le vrai ComfyUI. Décisions :
 - **Reste** : préremplir `duree_secondes` depuis la réponse du skill ; ambiances de plus
   de 15 s et raccord en boucle (non essayés) ; pas de miniature/forme d'onde dans le
   registre des assets.
+### Système d'agents : conversation → brief → proposition → revue → application (2026-10-02)
+Backend construit (sans interface : la popup s'appuie sur `app/agents/actions.ts` et
+`lib/queries-agents.ts`) ; conception dans `docs/CONCEPTION_AGENTS.md` §14, maquette
+validée par l'utilisateur. Décisions :
+- **Deux profondeurs** : `courte` (Consigne → Proposition → Appliqué ; itérations
+  ciblées : prompt d'un asset, un plan, un épisode) et `complete` (Conversation → Brief →
+  Proposition → Appliqué ; création de projet, gros éléments interconnectés). L'étape
+  Brief n'existe qu'en profondeur complète.
+- **Plus de modes ajouter / compléter / remplacer.** C'est la revue qui dit ce qui
+  bouge, et un élément qui risque l'écrasement a sa section spéciale avec ce qui sera
+  perdu en clair. La consigne de l'utilisateur (« ajoute un plan après… », « refais… »)
+  remplace le mode dans l'entrée des skills.
+- **Cochage par défaut** : les créations sont cochées ; les modifications d'éléments
+  validés (asset `valide`, plan avec rendu, brief validé, clause de style non vide), les
+  suppressions et les changements bloqués ou refusés sont décochés. Écraser du validé
+  exige `confirmeEcrasement` côté serveur à l'application.
+- **Verrou de portée** (`lib/agents/portee.ts`) : un changement hors de la portée
+  demandée est refusé d'office à la construction (raison affichée) ET re-vérifié à
+  l'application. Le brief est autorisé à toute portée ; un asset peut toujours être
+  créé (un asset manquant se propose de partout) mais ne se modifie que dans la portée
+  projet ou si c'est la cible.
+- **Un changement porte des avertissements typés** : `ecrase_valide`, `invention`,
+  `hors_portee`, `bloque_controle` (durée de plan hors 4–15 s : non cochable tant qu'elle
+  n'est pas corrigée sur place, `corrigerChangement`), `contredit_brief`,
+  `non_pris_en_charge`, `info`.
+- **Le brief est un document de référence**, un par projet (`briefs`), modifiable après
+  coup ; ses changements sont des changements de proposition comme les autres
+  (`cibleType = brief`). Trois états par section : `fourni` (dit ou corrigé par
+  l'utilisateur), `deduit` (conclu par l'agent), `a_valider` (inventé ou incertain). Un
+  brouillon sort de la conversation ; il devient `valide` à l'application. Un brief
+  validé ne se régénère pas par-dessus : on le modifie section par section.
+- **Le squelette d'un projet se construit EN CODE depuis le brief**, sans appel au
+  modèle (saison, épisodes, brief — qui porte la clause de style, voir « Le brief, source unique ») ; il est idempotent (saison
+  existante réutilisée, épisode du même titre non recréé, **épisode vide réutilisé** :
+  un OneShot naît déjà avec sa saison et son épisode techniques).
+- **Les propositions des portées courtes se construisent en code depuis le JSON validé
+  du skill** (`lib/agents/conversion.ts`, pas de second appel au modèle) :
+  `prompt-asset` → modifier le prompt d'un asset (méthode et durée d'un son si elles
+  diffèrent) ; `scenario-episode` → scènes et plans d'un épisode (l'existant du même
+  titre est modifié, le reste créé), un plan à insérer, ou la correction d'un plan.
+  Les répliques d'un scénario SONT écrites et liées à leur plan (applicateur `replique`, ajouté
+  depuis ; vérifié à l'usage le 2026-10-02) : le locuteur est rapproché du registre, jamais créé.
+- **Insertion d'un plan** : pas de « + » dans la navigation. Le changement « créer un
+  plan » porte une POSITION (`apresPlanUuid`, début ou fin) ; l'application réutilise la
+  logique d'ordre du glisser-déposer (`lib/ordre-plans.ts`, extraite de
+  `app/scenario/actions.ts`) ; la revue indique les rangs qui bougent. Rien n'est
+  renuméroté (F03).
+- **Trois gestes de retour** : « rejeter » (la proposition est abandonnée, la
+  conversation reste), « affiner » (une nouvelle proposition dérivée de la précédente :
+  l'agent reçoit sa sortie et le retour libre ; pas pour un squelette, qui se régénère
+  depuis le brief), « réinitialiser » (conversation, brouillon de brief et proposition
+  en cours remis à zéro) ; `rejeterBrief` abandonne le brouillon et revient à la
+  conversation.
+- **Une conversation par (projet, portée, cible)** : rouvrir reprend, en démarrer
+  « une nouvelle » sur la même cible écrase la précédente (l'historique des
+  propositions survit : `propositions.conversation_id` passe à null). Deux cibles ont
+  chacune la leur.
+- **Les appels au modèle sont des tâches de la file** (`agent_runs`, colonnes `but`,
+  `conversation_id`, `proposition_id`) : un tour de conversation, la génération du brief
+  et celle d'une proposition. Le résultat devient ce qu'il doit être
+  (`worker/agents/postTraitement.ts`) **dans la même transaction** que son écriture : si
+  la conversion échoue, rien n'est écrit et la tâche est marquée échouée. Une
+  proposition en génération dont la tâche échoue ou est annulée passe `echouee` (aussi
+  rattrapé à la lecture : reprise du worker, annulation depuis le header).
+- **Application = une transaction, tout ou rien** : aucun changement n'est écrit si l'un
+  est refusé (parent non retenu, code d'asset déjà pris, plan de repère disparu…) ; le
+  message dit lequel. La proposition passe `appliquee` (tous ses changements appliqués)
+  ou `partielle` (certains écartés, bloqués ou refusés d'office). La suppression
+  n'est pas prise en charge (refus explicite) ; une voix ne se crée que par l'étape « casting des voix »
+  (voir plus bas, 2026-10-02), jamais par une autre proposition.
+- **Hors lot** : point de retour / annulation d'une proposition appliquée, enchaînement
+  automatique des étapes (validation manuelle à chaque revue), page Monitoring (seule
+  `listerPropositions` existe), applicateurs de répliques, de plan H3 (sections du
+  prompt) et de suppression.
+- Validé : `npm run agents:e2e` (71 vérifications sur la base de dev, faux modèle, tout
+  nettoyé) et un essai réel sur gemma via la file : deux tours de conversation (52 s et
+  66 s) puis le brief (76 s, JSON valide du premier coup), puis le squelette en code.
+
+### Le brief, source unique de la clause de style et des notes (2026-10-02)
+Décision de l'utilisateur : « si on a un brief, les globaux du scénario n'ont plus aucun
+sens, c'est juste le brief ; notamment pour la clause de style, on la garde directement du
+brief ». **Remplace** les « globaux du scénario » des décisions précédentes (panneau
+`ScenarioGlobalsEditor`, `updateScenarioGlobal`, 2026-09-28) : ils sont supprimés.
+- **Une seule source : `briefs.contenu`** (`style.clause` et `notes`). Les colonnes
+  `projects.clause_style` et `projects.notes` restent, mais comme **copies dénormalisées**
+  (la génération d'images lit toujours la colonne ; `asset_generations.clause_style` reste un
+  instantané). Elles ne s'écrivent que par `synchroniserClauseStyle` (`lib/agents/brief-db.ts`),
+  appelée après toute écriture d'un brief `valide` ou `partiel` : édition directe
+  (`modifierChampBrief`) et application d'une proposition (applicateur de brief). Un
+  **brouillon ne synchronise rien** : ce n'est pas encore la référence du projet. Un test
+  (`brief-partiel.test.ts`) interdit toute autre écriture de ces colonnes.
+- **Nouveau statut de brief : `partiel`** = style et notes posés à la main, sans brief
+  rédigé par l'agent. La première édition d'un projet sans brief crée la ligne `briefs`
+  (source `reconstitue`) ; la page `/p/<id>/brief` n'affiche alors que « Style et notes »
+  (sections jamais posées : « à valider », pas « déduit »). Un brief partiel **n'est pas un
+  brief** : on peut le rédiger par-dessus (`genererBrief`), mais pas en tirer un squelette.
+- **Ce que l'utilisateur a posé gagne sur l'agent** : le brouillon généré par-dessus un brief
+  partiel garde les sections « fourni » du partiel (`fusionnerPartielDansBrouillon`).
+  Abandonner un brouillon (rejeter, nouvelle conversation, réinitialiser) ne perd pas la
+  clause ni les notes du projet : elles reviennent en brief partiel (`residuPartiel`, depuis
+  les copies du projet) ; sans clause ni notes, le brouillon est supprimé.
+- **Notes** : nouvelle section `notes` du brief (texte libre, groupe « Notes », jamais inventée
+  par l'agent — le schéma de `brief-projet` l'accepte, les règles du skill disent de n'écrire
+  que ce que l'utilisateur a dit). `dureeEpisodeSecondes` devient optionnelle dans le type
+  TypeScript (absente d'un brief partiel) ; elle reste obligatoire dans la sortie du skill.
+- **Le squelette n'émet plus de changement « projet »** : la clause voyage dans le
+  changement `brief` (création du brief ou section `style`). La cible `projet` reste dans les
+  types (anciennes propositions) mais son applicateur refuse avec un message clair.
+- **Interface** : le panneau « Globaux du scénario » disparaît de la page scénario, remplacé
+  par une ligne « Style et notes du projet : voir le Brief » (clause actuelle en lecture
+  seule). Dans l'éditeur du brief, le style s'édite en deux champs (nom, clause), les notes
+  en texte libre.
+- **Migration 0034** (idempotente, appliquée à la base de dev) : un projet sans brief mais avec
+  clause ou notes reçoit un brief partiel ; un brief existant dont la clause/les notes sont vides
+  les reprend du projet (jamais d'écrasement d'un champ rempli) ; les copies du projet suivent
+  ensuite le brief valide ou partiel. Dev : 2 projets (Les Yeux de Rubis, Troll beau frère) reçoivent
+  un brief partiel avec leur clause ; BitterSweet avait déjà la même clause dans son brief.
+
+### Écrire les scénarios des épisodes : un LOT de sous-tâches (2026-10-02)
+Étape 1 du pipeline (brief → squelette → **scénarios** → registre d'assets + prompts → plan-h3).
+Décisions : chaque étape reste une proposition RELUE (validation manuelle, pas de « tout
+enchaîner ») ; un bouton « Continuer » suit l'application d'une étape ; local (gemma) par défaut ;
+l'histoire d'abord (le scénario ne déclare AUCUN asset).
+- **Un lot = une proposition dont la génération est composée de plusieurs tâches** (`agent_runs`),
+  une par **sous-tâche** (un épisode). Colonnes (migration 0035) : `agent_runs.cle_sous_tache`
+  (« ep:12 ») + `libelle_sous_tache` ; `propositions.lot` ; `proposition_changements.sous_tache`
+  (qui l'a produit) + `sous_groupe` (la scène sous laquelle la revue range un plan ou une
+  réplique). Règles pures : `lib/agents/lots-pur.ts` ; base : `lib/agents/lots.ts`.
+- **Statut du lot** : `en_generation` tant qu'une sous-tâche est active ; `prete` dès que toutes
+  sont closes et qu'au moins une a réussi (**un échec isolé ne perd pas le reste** : il est montré
+  dans la revue, « Relancer ») ; `echouee` seulement si TOUT a échoué ; `rejetee` si tout est annulé.
+  Les résultats déjà écrits ne se perdent jamais.
+- **Exécution** : les sous-tâches sont posées d'un coup et passent l'une après l'autre dans la file
+  existante (ressource GPU unique, ordre image → llm → vidéo, FIFO). Le post-traitement
+  (`worker/agents/postTraitement.ts`) écrit les changements de CHAQUE sous-tâche dans la transaction
+  de son résultat, au fil de l'eau : il **remplace ses propres lignes** (relance) sans toucher aux
+  autres, donc rejouer un résultat ne double rien (idempotent). `finaliserLot` décide du statut à
+  chaque fin de sous-tâche (réussie, échouée, annulée) et au démarrage du worker
+  (`finaliserLotsOrphelins`, après la reprise : une sous-tâche « en cours » devient « Interrompue »,
+  relançable).
+- **Relance** (`relancerSousTache`, retour libre facultatif) : une nouvelle tâche pour la même clé ;
+  ses anciens changements restent jusqu'à ce que la réponse les remplace. **Pas d'« affiner » en
+  bloc** pour un lot : on relance l'épisode qui ne convient pas.
+- **Annulation du lot** : sous-tâches en attente annulées, celle qui tourne interrompue (connexion
+  coupée) ; le travail déjà fait reste relisible (`prete` s'il y a un résultat, `rejetee` sinon).
+  **Purge** : l'échec d'une sous-tâche d'un lot encore ouvert (en génération ou prête) n'est PAS
+  purgé au bout de 24 h (la revue en a besoin) ; il l'est une fois le lot clos.
+- **Header** : UNE entrée par lot (`lot:<uuid de la proposition>`), jamais une ligne par sous-tâche :
+  barre « 3/12 » + épisode en cours + jetons ; annulation du lot ; « vu » quand toutes les tâches le
+  sont ; le clic rouvre la popup sur la conversation.
+- **Scénario d'un épisode** (`depuisScenarioEpisode`, en code, sans second appel au modèle) : épisode,
+  scènes, plans ET **répliques**. Nouvelle cible `replique` (applicateur) : la réplique est créée et
+  **liée à son plan** (`plan_dialogues`, un emplacement <Audio N>, **3 au plus par plan** — la
+  quatrième est refusée d'office avec la raison). Le locuteur est rapproché du registre (personnage
+  par code ou nom, voix off du registre, sinon locuteur LIBRE signalé comme **invention**) ;
+  **aucun asset n'est créé** à cette étape. Une réplique identique déjà présente dans l'épisode
+  n'est pas redoublée. Clés symboliques préfixées par épisode (`ep12-scene-1`) : plusieurs épisodes
+  coexistent dans une même proposition.
+- **Épisode qui a déjà du contenu** : choisi explicitement, ses MODIFICATIONS (épisode, plans)
+  vont dans la section « risque d'écrasement », décochées ; les plans nouveaux s'ajoutent à la fin
+  et rien n'est supprimé (la revue le dit). Un squelette vide n'écrase rien. Verrou de portée :
+  un lot de saison ne sort pas de sa saison.
+- **Contexte de chaque épisode** : arc de l'épisode au brief (`briefEpisode`), résumés des épisodes
+  PRÉCÉDENTS et titres/résumés des SUIVANTS (continuité narrative), registre, extraits du brief dont
+  les **notes du projet** (point resté ouvert).
+- **Interface** : « Continuer : écrire les scénarios des épisodes » à l'étape « Appliqué » d'une
+  création de projet ; « Écrire les scénarios » au pied de chaque saison (portée saison, courte) ;
+  sélecteur d'épisodes (vides cochés d'office, estimation) ; liste des sous-tâches avec leur état et
+  « Relancer » ; revue **par épisode** (repliable : seul le premier s'ouvre, diffs rendus à la
+  demande) puis par scène ; sur la page d'un épisode, « Écrire le scénario » (consigne facultative)
+  ou « Ajouter un plan » (position).
+- **Essais** : `npm run agents:e2e` (159 vérifications : lot de 3 épisodes, un échec isolé relancé,
+  annulation, reprise, idempotence, application, répliques, écrasement, purge) ; les tâches de test
+  sont « suspendues » (`options.suspendu`) pour ne pas courir contre le worker de dev.
+- **Essai réel (2026-10-02, gemma4-26b-A4B par le worker de dev, ComfyUI au repos)** : projet de test
+  de 3 épisodes de 90 s (brief fictif, 2 assets au registre), squelette appliqué puis lot lancé.
+  **Durée totale 301 s pour 3 épisodes** (132 s, 84 s, 73 s ; ≈ 3 800 jetons en entrée, 3 900 à
+  5 800 en sortie, raisonnement compris) ; **JSON valide du premier coup, sans renvoi, pour les trois**.
+  Résultat : 34 changements (9 scènes, 22 plans, 3 répliques), tous appliqués d'un coup, 237 s de plans
+  au total. **Qualité** : fidèle au brief (arc, lieux, personnages, ton, rime des pas mouillés reprise
+  à l'épisode 3, notes du projet respectées : 3 répliques seulement, « les silences comptent »),
+  progression d'un épisode à l'autre cohérente (le sel gagne, Iris recule puis avance), inventions
+  déclarées dans `inventions` (contraste du ciré, dialogue du capitaine…), durées 7 à 15 s, aucune
+  description ne renvoie à un autre plan. Défauts : quelques descriptions glissent vers la lumière
+  (« lumière grise de l'aube ») que la règle du skill interdit ; peu de dialogue malgré un épisode
+  « dialogué » (cohérent avec les notes). **Bug trouvé par cet essai et corrigé** : le modèle écrit le
+  CODE du registre (« VOICE_off ») ; le rapprochement de locuteur ne reconnaissait pas une voix par son
+  code, la réplique devenait un locuteur libre signalé à tort comme invention (`rapprocherLocuteur`,
+  test ajouté). L'indicateur du header a montré l'entrée de lot en direct (« Scénarios des épisodes ·
+  projet », 0/3 puis 1/3…, jetons).
+
 ### Architecture envisagée (2026-09-25)
 Le besoin dépasse ce seul projet — souhaité réutilisable pour d'autres. Forme
 pressentie : un **catalogue de voix nommées**, chacune avec un échantillon de
@@ -1096,3 +1304,457 @@ autonome le jour où le volume de voix justifiera de sortir du « à la main ».
 | 2026-09-25 | génération | Ajustement de prompt sur plusieurs plans en parallèle — pénible sans outil dédié (→ F04) | |
 | 2026-09-25 | assets | Dérivés audio (voix/bruitages démuxés) : pas de convention de nommage, pas clair ce qui mérite d'être gardé (→ F01) | |
 | 2026-09-25 | assets/voix | Doublage via custom node micro live peu concluant, samples enregistrés en amont marchent mieux (→ F06) | |
+
+### Retours d'usage sur l'agent : plans plus longs, notifications, une seule validation (2026-10-02)
+Test réel du lot de scénarios sur « Nuit sur Tanger » (retours de l'utilisateur) :
+- **Plancher de 5 s par plan, et regrouper plutôt que découper.** Le scénario produisait
+  des plans de 5 s ou moins (le skill disait « pousse le plan de coupe plus loin »). Le but
+  est d'avoir PEU de plans à tourner. `DUREE_GENERATION_MIN` passe de 4 à **5** (contrôles de
+  structure, applicateur de plan, schémas de `scenario-episode` et `plan-h3`, skill de chat
+  `fiche-de-plan`) ; `scenario-episode` vise 8 à 15 s, fusionne les moments d'un même lieu et
+  d'un même temps qui tiennent en 15 s, et traduit la variété de points de vue et la cadence
+  par des COUPES INTERNES au plan (écrites plus tard par `plan-h3`), pas par des plans de plus.
+  Séparer reste justifié par un changement de lieu/temps, un dialogue qui dépasse 15 s, un jeu
+  de références très différent (6 images au plus par plan). Les plans existants de 4 s sont
+  désormais signalés par les contrôles de structure (à rallonger à la main).
+- **Notifications de fin de tâche** (`NotificationsTaches`, monté dans le layout) : un toast à
+  la fin (ou à l'échec) d'une génération, d'un lot ou d'une proposition, avec « Voir ». Ce qui
+  était déjà fini à l'ouverture de la page n'est pas annoncé ; une annulation voulue ne
+  notifie pas ; on attend la fermeture d'une popup modale (elle cacherait le toast) ; au-delà de
+  3 fins simultanées, un seul toast les regroupe.
+- **Notifications natives du navigateur (2026-10-02)** : un interrupteur « Notifications du
+  navigateur » dans le panneau des générations (`BasculeNotifications`,
+  `lib/notifications-navigateur.ts`) ; l'autorisation se demande au clic, l'option est gardée
+  dans le localStorage. Page en arrière-plan (onglet caché ou fenêtre sans focus) : une
+  notification du système (clic = la fenêtre revient et ouvre la tâche), pas de toast ; page
+  visible : toast comme avant. Le sondage continue onglet caché tant que l'option est active
+  et qu'une tâche tourne (le navigateur ralentit seul les minuteurs d'un onglet en arrière-plan :
+  la notification peut arriver avec un décalage d'au plus une minute environ).
+- **Une seule validation à l'application.** La confirmation d'écrasement en deux temps est
+  retirée de l'interface : un écrasement est décoché par défaut et montré en tête de la revue,
+  le cocher EST la décision. Le bouton annonce « dont N écrasement(s) ». Le serveur exige
+  toujours `confirmeEcrasement` ; l'interface le pose à l'application.
+- **« Vider la file » (2026-10-02)** : un bouton dans la section « En cours / en file » du
+  panneau des générations (confirmation inline « Oui, retirer N »). Il annule tout ce qui ATTEND
+  (images, sons, vidéos, appels d'agent, sous-tâches de lots) et laisse tourner ce qui a commencé :
+  rien n'est interrompu, tout se relance. Une vidéo retirée remet son plan dans son état précédent ;
+  un lot sans sous-tâche en cours voit son statut décidé tout de suite. Onglet « Brief » placé en
+  premier dans la navigation (avant « Scénario »).
+- **Retirer des tâches de la liste (2026-10-02)** : une croix ✕ par tâche terminée, échouée ou
+  annulée, et un « Vider la liste » par section (terminées / échecs et annulations) du panneau.
+  Rien n'est supprimé : la colonne `masque_at` (migration 0036, sur `asset_generations`, `jobs`
+  et `agent_runs`) masque la tâche (et la marque vue) ; le candidat d'une génération reste
+  relisible dans la popup de son asset, les traces restent intactes. Les tâches actives ne se
+  retirent pas (on les annule). Remplace le bouton « Ignorer » des échecs.
+
+### Étape 2 du pipeline : le registre d'assets depuis le brief (2026-10-02)
+Un LOT, comme les scénarios (même infrastructure, voir « Étape 1 »). Décisions :
+- **Une sous-tâche `prompt-asset` par MASTER du brief** (personnages → `CHAR_<nom>`, lieux →
+  `DEC_<nom>`), clé `asset:<code>`, l'une après l'autre dans la file. Les masters viennent du brief
+  seul (« l'histoire d'abord » : le scénario ne déclare aucun asset) ; les **voix** se créent au
+  casting vocal, les **accessoires, effets et sons** se déduiront des plans (étape 3).
+- **Créer ou compléter** : un asset absent est CRÉÉ (description canonique du brief + prompt, méthode
+  `generation`, variante de guide `generation` : on ne charge que le guide Krea) ; un asset existant
+  sans prompt reçoit son prompt (et la description du brief s'il n'en a pas) ; un asset qui a déjà un
+  prompt n'est pas coché d'office (le réécrire = section « risque d'écrasement », décochée). La
+  description écrite à la main n'est jamais remplacée.
+- **Depuis le projet seulement** (le verrou de portée n'autorise la modification d'assets existants
+  qu'à la portée projet). Entrées : « Continuer : créer le registre d'assets » à l'étape « Appliqué »
+  après les scénarios, et « Créer le registre depuis le brief » sur la page des assets (vue directe
+  de la popup, pour un projet qui a déjà un brief).
+- Revue : un groupe « Assets », une ligne cochable par asset ; relance d'une sous-tâche possible ;
+  libellé de lot « Registre d'assets » dans le header.
+- Code : `lib/agents/registre.ts` (pur), `depuisRegistreAsset` (conversion), `entreePromptAssetCandidat`
+  (entrée du skill), `genererRegistre` (service), `postSousTacheRegistre` (worker), `ChoixAssets` (UI).
+  Testé : `lib/agents/registre.test.ts` et `npm run agents:e2e` (scénario du registre, faux modèle).
+
+### Casting des voix : une étape du pipeline, entre le registre et les fiches de plan (2026-10-02)
+Constat (utilisateur) : les scénarios écrivent des répliques, mais aucune voix n'existait pour les dire
+(répliques « orphelines »). Décision (utilisateur, option A) : une étape dédiée crée les voix manquantes.
+**Révise** deux décisions : « la voix se crée et s'édite uniquement au casting vocal » (2026-09-30) et
+« une voix ne se crée pas par ce chemin » (système d'agents, 2026-10-02). Désormais la **création** d'une voix
+peut passer par une proposition de cette étape ; son **édition** reste au casting vocal, et le son se génère
+toujours à part (ComfyUI, non branché).
+- **Qui a besoin d'une voix** : un personnage du registre avec au moins une réplique et sans fiche de voix
+  (un personnage n'en a qu'une), et la **voix off** si des répliques « voix off » n'ont aucune voix « off »
+  au registre. Un locuteur libre (absent du registre) n'en reçoit pas : c'est une invention à valider.
+  Un code `VOICE_x` déjà pris sans rattachement bloque le candidat (à rattacher au casting).
+- **Un lot** `prompt-voix`, une sous-tâche par voix (clé `voix:CHAR_maya`, `voix:off`), comme le registre ;
+  entrée : le personnage et sa description, l'impression vocale du brief, quelques répliques, les voix déjà au
+  casting. Sortie : l'instruction de timbre (Voice Design) et des remarques.
+- **Cible de changement `voix`** (création seulement) : l'applicateur crée l'asset `VOICE_*` (instruction en
+  prompt de génération, description canonique reprise du personnage) et sa `voix_fiches` rattachée au
+  personnage, avec le texte de référence par défaut du projet. Autorisée depuis toute portée (comme un asset
+  manquant). Code : `lib/agents/voix-casting.ts` (pur), `conversion.depuisCastingVoix`,
+  `applicateurs/voix.ts`, `service.genererVoix`, `postSousTacheVoix` (worker), `ChoixVoix` (« Continuer »
+  après le registre). Testé en pur (`voix-casting.test.ts`) ; l'application en base reste à essayer à la main.
+- **Répliques écrites avant leur personnage** (constaté sur « Le dernier maître du Hack » : scénarios avant registre) :
+  leur locuteur reste en simple texte (`locuteur_texte`), sans lien avec le personnage créé ensuite. Les candidats
+  de voix les rapprochent du registre (même règle que `rapprocherLocuteur`), et `rattacherRepliquesLibres`
+  (`lib/agents/rattachement.ts`) relie ces répliques à leur personnage ou à leur voix dès qu'une proposition
+  crée un personnage ou une voix (même transaction). Un locuteur inconnu n'est jamais touché.
+- Ordre du pipeline : brief → squelette → scénarios → registre → **voix** → fiches de plan.
+
+### Étape 3 en préparation : entrée de plan-h3 et essai de qualité (2026-10-02)
+- `entreePlanH3` (lib/agents/contexte.ts) assemble l'entrée de `plan-h3` pour un plan : intention,
+  position dans la scène, durée et fps visés, scène, épisode, plans voisins, registre (code,
+  description canonique, méthode, prompt, fichier ou non ; hors voix et plans clés, **bruitages
+  compris** depuis le 2026-10-02), répliques du plan (uuid, locuteur, texte exact, durée mesurée),
+  clause de style, extraits du brief. Sur un plan réel du projet 1 : ≈ 3 500 jetons d'entrée pour
+  ≈ 10 500 de prompt système.
+- **Contrat de sortie : un brouillon, que le code assemble** (utilisateur, 2026-10-02). Constat : sur 8 essais
+  (Gemma, Qwen), 100 % ont eu besoin d'un renvoi, parce que le guide et les exemples montraient la forme
+  ASSEMBLÉE (`<Subject N>`, `<Picture N>`) alors que le contrat interdisait de l'écrire. Désormais :
+  - le modèle rend `references[]` (`asset`, `nature` `image` | `son`, `role`, `nom`, `definition`,
+    rétention facultative), `ouverture`, `shots[]` (`debutSecondes`, `texte`), `summary`, ambiance, musique,
+    `repliques[]`, `assetsManquants[]` (structuré, voir la décision d'ordre plus bas), `notes` ;
+  - un SEUL marqueur dans la prose : `[[CODE]]`. Plus de `{picture}`, plus de label numéroté ;
+  - `lib/agents/plan-h3-assemblage.ts` (pur) pose `<Subject i>`/`<Picture i>` (images, dans l'ordre de
+    `references`, 1 à n sans trou), `<Audio k>` (bruitages, sur les slots que les voix n'occupent pas),
+    `[Shot N]`, `At MM:SS.mmm, Hard cut to`, `subject_definitions`, `retention_analysis` (« appears in » par
+    shot) et le préfixe du summary ; plus de slot (6 images, 3 audio, **la voix prime**) : la référence est
+    décrite en prose, avec une alerte ;
+  - les **voix ne sont jamais des références** : dérivées de `repliques`, sans ligne `<Audio N>` (comme les
+    fiches validées) ;
+  - ce qui n'a pas besoin de référence s'écrit en prose (le modèle vidéo l'interprète) : deux natures, pas de
+    nature « texte » ;
+  - **régénérer une fiche remplace ensemble le texte ET les références d'image du plan** (les numéros ne sont
+    renumérotés qu'à cette occasion ; les slots des voix ne bougent pas) : soit la fiche est écrite à la main
+    et l'utilisateur synchronise, soit l'agent la synchronise, au risque d'écraser. À garder en tête : des
+    « musiques / environnements sonores » deviendront des assets plus tard.
+  Les exemples du skill sont des brouillons ; chacun est testé (schéma, contrôles, assemblage identique à
+  `lib/agents/fixtures/plan-h3/`, dérivée des plans validés aux « Hard cut to » près).
+- `controlerSortiePlanH3` (lib/agents/plan-h3-controles.ts, pur, testé) vérifie le CONTRAT du brouillon
+  (durée 5-15, 6 images au plus, assets du registre, nature cohérente avec le type, marqueurs `[[CODE]]`
+  présents dans `references`, aucun label ni titre de section recopié, premier shot à 0, débuts croissants,
+  shots d'au moins 1,5 s, verbatim des répliques, pas de mots par seconde) ; il ne juge pas la mise en scène.
+- `npm run plan-h3:essai -- --projet <id>` : passe des plans réels par la file du worker et écrit un
+  rapport comparant la sortie du modèle (brouillon puis prompt assemblé) à la fiche écrite à la main
+  (`data/_essais/`). Décide si gemma suffit pour l'étape 3 ou s'il faut Claude. Aucun applicateur de fiche
+  de plan (écriture en base des sections et de `plan_refs`) n'est construit avant. `--direct` lance le skill
+  dans le processus, flux visible ; `npm run plan-h3:reflexion` diagnostique la réflexion du serveur.
+- **Piège llama.cpp (2026-10-02)** : un `pattern` du schéma de sortie qui contient `.*` (« contient X ») piège
+  la grammaire : le guillemet fermant est avalé comme contenu et le JSON suivant tombe dans la chaîne
+  jusqu'à `max_tokens`. Une règle de contenu se vérifie après génération (contrôles + renvoi), jamais dans
+  la grammaire ; un test le garde (`lib/llm/schemas-patterns.test.ts`).
+- Décision d'ordre (utilisateur, 2026-10-02) : les arbres d'assets (dérivés, accessoires) se traitent
+  APRÈS plan-h3, depuis les plans : plan-h3 déclarera ses assets manquants de façon structurée
+  (nom, type, parent éventuel, description, raison), créés avec le plan dans la même proposition ; un
+  lot `prompt-asset` écrira ensuite leurs prompts, en édition à partir du parent quand c'est pertinent.
+
+### Briques d'iteration-plan : images vers le LLM, planche de vignettes (2026-10-02)
+Préparation du branchement d'`iteration-plan` (qui reste à faire : conversion, applicateur,
+interface). Rien ici ne modifie la « Direction retenue pour l'agent d'itération » (2026-09-30) :
+correction seulement après visionnage, durée mesurée par `ffprobe`, jamais estimée.
+- **Contenu mixte dans `lib/llm`** : `MessageLlm.content` est une chaîne (inchangé) OU une liste
+  de parties au format OpenAI (`{type:"text"}`, `{type:"image_url", image_url:{url:"data:image/jpeg;base64,…"}}`),
+  transmise telle quelle par le fournisseur. Aides : `partieImageJpeg`, `texteDuContenu`,
+  `messagesSansImages`. **Les images n'entrent jamais dans `agent_traces.messages`** : `executerSkill`
+  les remplace par un marqueur `[image n : X Ko]` (une planche pèse ~0,5 Mo de base64). Conséquence :
+  une trace d'iteration-plan n'est plus rejouable à l'identique sans réextraire la planche (le rendu,
+  lui, reste sur disque). Nouveau code d'erreur `vision_absente` (serveur sans projecteur `mmproj`).
+- **Test de vision (une requête, 2026-10-02)** : `gemma4-26b-A4B` sur le serveur local, image 64×64
+  rouge unie, `enable_thinking:false`, `max_tokens` 8 → HTTP 200, réponse « Red », 78 jetons d'entrée,
+  1,3 s. Le modèle par défaut **voit** (llama.cpp b9453, projecteur chargé). Qwen non testé.
+- **Planche de vignettes** : `lib/planche-vignettes.ts` (pur, exécuteur de commandes injectable) —
+  `mesurerDuree` (ffprobe, `format=duration`), `instantsVignettes` (0, 1, 2… s dans le fichier, marge de
+  fin 0,25 s ; au-delà de 15, 15 instants répartis), `extrairePlanche` (une commande ffmpeg par
+  vignette, `-ss` avant `-i`, 384 px de large, JPEG), `contenuPlanche` (« Vignette à 4 s : » + image).
+  Plafond 15 = le plafond de durée d'un plan (`duree_plafond_secondes`).
+- **ffmpeg/ffprobe absents de la machine de dev** (ni PATH, ni emplacements courants) : l'extraction
+  échoue avec « ffmpeg introuvable : installe-le ou renseigne FFMPEG_PATH » (`FFPROBE_PATH` facultatif,
+  sinon à côté de `FFMPEG_PATH`). Le test d'intégration réel est sauté tant qu'ils manquent. À prévoir
+  aussi dans l'image Docker du worker en prod.
+- **Coût en jetons** : à mesurer sur le premier appel réel (`usage.entree`) ; estimation Gemma 4 entre
+  ~70 et ~280 jetons par vignette de 384 px, soit ~1 000 à 4 200 pour 15 vignettes, à comparer aux
+  ~10 500 du prompt système de plan-h3 : négligeable devant le contexte (262 144).
+
+### Étape 3 branchée : plan-h3 de bout en bout (2026-10-02)
+Le skill `plan-h3` est relié à l'application : on génère la fiche d'un plan (ou celles de plusieurs plans en
+lot), on la relit dans la revue, on l'applique, elle est écrite sur la page du plan. Modèle : celui du serveur
+par défaut (gemma) ; rien ne force un autre modèle (`LLM_MODELE_PLAN_H3` absent du `.env`). Décisions de
+l'utilisateur :
+- **Points d'entrée** : « Écrire la fiche » / « Réécrire la fiche » sur la page d'un plan (portée `plan` : une
+  proposition SIMPLE, affinable) ; « Écrire les fiches de plan » sur l'en-tête d'un épisode (un LOT, une
+  sous-tâche `plan-h3` par plan, clé `plan:<uuid>`, l'une après l'autre dans la file, sélecteur de plans à
+  cocher) ; « Continuer : écrire les fiches de plan » après l'étape des voix (lot sur tout le projet). Les plans
+  sans fiche sont cochés d'office.
+- **Régénérer = tout régénérer.** Écrire une fiche remplace ensemble les six sections (`plan_prompt_sections`,
+  `ordre` canonique 0–5) ET les références picture/audio du plan (`plan_refs` ; les références vidéo ne
+  bougent pas), ainsi que la durée de génération (la durée de montage la suit). Les liens de répliques
+  (`plan_dialogues`) restent ceux de la base : leurs slots sont l'ENTRÉE de l'assemblage (`slotsAudioPris`), un
+  bruitage prend un slot libre, **une voix n'est jamais une ligne de `plan_refs`**. Un plan brouillon passe
+  « en attente » (développé), comme « Développer en fiche de plan ».
+- **Nouvelle cible de changement `fiche`** (`lib/agents/applicateurs/fiche.ts`, règles pures dans
+  `lib/agents/fiches.ts`) : `cibleRef` = uuid du plan, opération `modifier` seulement ; `apres` =
+  `{ sections?, refs?, dureeGenerationSecondes? }`. Champ absent = non touché : l'applicateur sert aussi à une
+  **écriture partielle** (iteration-plan : quelques sections, sans `refs`). Il refuse : section inconnue, durée
+  hors 5–15 entières, slot hors 1–6 (images) ou 1–3 (audio), deux références sur un slot, un slot audio pris par
+  une voix, plus de 3 audio voix comprises, asset absent du projet ou de la mauvaise nature, et **toute écriture
+  qui laisserait un label `<Picture N>`/`<Audio N>` sans sa référence** (état final : sections écrites
+  par-dessus celles qui restent). Verrou de portée : la fiche d'un plan depuis lui, son épisode, sa saison ou
+  le projet ; jamais une création.
+- **Écrasement** : un plan dont une section écrite a déjà du texte, ou dont on remplace des références, va en
+  « risque d'écrasement », **décoché** (le cocher est le « reset du plan ») ; un plan vide (sections absentes ou
+  vides, sans références) est une création, cochée. Un plan qui a déjà un rendu vidéo : écrasement aussi, avec
+  l'avertissement `ecrase_valide`. Une génération vidéo en file : simple information.
+- **Conversion** (`depuisFichePlan`, pure, testée) : une référence hors registre, une voix ou une nature fausse
+  est RETIRÉE et décrite en prose par son nom (alerte) ; l'assemblage pose labels, timecodes et sections ; les
+  problèmes des contrôles deviennent des avertissements (nouveau type `alerte_controle`, « Contrôle ») ; un
+  marqueur `[[CODE]]` que le code ne sait pas résoudre (asset manquant cité) **bloque** la fiche (à relancer).
+- **Règle des 1,5 s par shot : d'erreur à alerte** (conseil fort) dans `controlerSortiePlanH3` (shot trop
+  court, dernier shot trop court) : plus de renvoi au modèle pour ça ; `regles.md` dit « vise au moins 1,5 s,
+  en dessous seulement pour un effet voulu, dit dans notes ».
+- **Assets manquants** : créés dans la MÊME proposition (changements `asset` « créer », code reconstruit selon
+  la convention du type). Parent existant : `deriveDeCode` ; parent lui-même manquant : nouveau champ
+  `deriveDeCle` (clé `nouvel-asset-<CODE>`), l'application ordonne les créations par dépendance
+  (`ordonnerParDependances`) et un enfant dont le parent n'est pas retenu est refusé. Un asset déclaré manquant
+  qui existe déjà est ignoré (avertissement) ; dans un lot, un même code n'est proposé qu'une fois (les autres
+  plans le disent). Une référence ne vise jamais un asset manquant : il reste en prose. Limite connue : relancer
+  la sous-tâche qui proposait un asset partagé peut le faire disparaître du lot si la nouvelle sortie ne le
+  déclare plus.
+- **Prompts des assets créés : ensuite, sur clic.** À l'étape « Appliqué » d'une fiche : « Continuer : écrire
+  les prompts des assets créés » = un lot `prompt-asset` (`prompts-assets`) sur les assets créés sans prompt,
+  posé dans la conversation du PROJET (seule portée où l'on modifie un asset existant) ; refusé si cette
+  conversation a une tâche en cours ou une proposition en attente de revue. Jamais lancé tout seul.
+- Code : `genererFiches`, `plansPourFiches`, `genererPromptsAssetsCrees` (service), `postSousTacheFiche` et la
+  branche `plan-h3` non groupée (worker), `relancerSousTache` (clés `plan:`), `estimerFiches`, `ChoixPlans`,
+  `SuitePromptsAssets`, aperçu des six sections et des références dans la revue. Testé : `fiches.test.ts`
+  (conversion, vérification, écrasement, contrôles de la page sur une fiche écrite) et `npm run agents:e2e`
+  (lot de 3 fiches, dédoublonnage des assets, relance, application, contrôles de la page, réécriture en
+  écrasement, suite des prompts, plan seul ; faux modèle). Pas encore essayé avec gemma dans l'interface.
+- **Point ouvert (contradiction relevée, non tranchée)** : `verifierCoherenceRefs` (page du plan) compte la
+  prise d'une réplique liée comme une référence `<Audio N>` déclarée ; or le contrat de plan-h3 (et les fiches
+  validées) ne citent jamais les voix. Une fiche écrite par l'agent sur un plan dont une réplique a sa prise
+  affichera donc « référence non citée : Audio N ». À trancher : ne plus compter les voix dans ce contrôle, ou
+  faire citer les voix par l'assemblage.
+
+## 2026-10-02 — Workflow vidéo : câblage complété (VID_REF2VA)
+
+Rien de ce qui précède n'est contredit (F04 : toggle d'upscale par rebranchement du nœud 34, conservé).
+
+- **Durée** : `plans.dureeGenerationSecondes` (5 à 15 s, `DUREE_GENERATION_MIN/MAX`) est injectée dans le nœud `22:23`.
+  Avant, tous les plans sortaient à la durée du fichier (8 s). Hors 5-15 : `ErreurEntreeInvalide`, le job passe
+  `echoue` tout de suite, sans rejeu (réessayer ne changerait rien) ; seule une exception inattendue reste traitée
+  comme une indisponibilité.
+- **Audio de référence** : la prise d'une réplique liée (`plan_dialogues`) n'atteignait JAMAIS le modèle (le worker ne
+  lisait que `plan_refs`), contrairement à F02 (2026-09-30, « l'audio de la réplique EST la référence <Audio N> »).
+  Désormais les voix occupent leur emplacement, les bruitages de `plan_refs` prennent les emplacements libres
+  (la voix prime) ; la durée mesurée de la prise est passée à `LoadAudioUI` (start 0, end = duration).
+- **Noms de fichiers d'entrée** : `cadence_<chemin aplati>` (ex. `cadence_repliques_12_prise.wav`) : plus de collision entre
+  deux prises de même nom ni d'écrasement des fichiers de l'utilisateur dans le dossier d'entrée de ComfyUI.
+- **Prévisualisation** : sans upscale, la sortie `34` est forcée à 24 i/s (elle lisait 48 via les nœuds 168/170 alors que
+  les images n'ont pas été interpolées : vitesse double, son décalé).
+- **LoadVideoUI** : tous ses champs sont obligatoires (object_info) ; ils sont maintenant posés.
+- **Laissé au fichier, sans décision de FRICTIONS contraire** : `plans.fps` (informatif ; le graphe génère à 24 et RIFE
+  interpole à 48 via 168), format et mégapixels du 1er pass (`22:9` : 16:9, 0,2 Mpx ; aucune donnée de projet ou de
+  plan ne porte de format vidéo), audio de la vidéo de référence non câblé (`ref_video_audios`).
+
+### iteration-plan branché : corriger un plan après visionnage (2026-10-02)
+Le skill `iteration-plan` est relié à l'application, de bout en bout : un bouton sur la page du plan, une tâche de
+la file, une proposition relue puis appliquée. Rien ici ne modifie la « Direction retenue pour l'agent
+d'itération » (2026-09-30) : correction seulement après visionnage, plan par plan, durée mesurée, jamais estimée.
+- **Routage par état du plan** (décision de l'utilisateur) : plan sans fiche → `plan-h3` (« Écrire la fiche ») ;
+  fiche sans rendu → `plan-h3` (« Réécrire la fiche » : tout est remplacé, case d'écrasement décochée par défaut,
+  la cocher = reset du plan) ; **plan avec un rendu terminé → `iteration-plan`** (« Corriger après visionnage »,
+  régénération PARTIELLE). « Réécrire la fiche » reste possible sur un plan rendu, avec un avertissement (« ce plan
+  a un rendu : préfère la correction après visionnage »). Jamais d'iteration-plan sans rendu (refusé côté serveur
+  aussi) ni sans fiche. Un bouton par plan, pas de lot. Modèle : celui du serveur par défaut (gemma, qui voit).
+- **Entrée** (`entreeIterationPlan`, lib/agents/contexte.ts) : les six sections STOCKÉES (labels compris), les
+  références (label → asset, rôle, rétention ; les voix marquées `voix: true` avec leur réplique), les répliques
+  (texte exact), la durée voulue, « ce que tu as vu » (obligatoire, devient la consigne de la proposition) et
+  l'historique des corrections déjà tentées sur le plan (déduit des propositions `iteration-plan` : ce qui avait
+  été vu, symptôme, cause, catégorie, appliquée / non appliquée / sans écriture, rendu arrivé depuis ou non).
+- **La planche n'est jamais stockée** : `agent_runs.entree` porte un DESCRIPTEUR (`planche` : job, chemin relatif à
+  `MEDIA_ROOT`, 15 vignettes au plus). Le worker la reconstruit à l'exécution (`preparerEntree`,
+  worker/agents/preparation.ts, point d'extension « préparer l'entrée » propre au skill) : ffprobe mesure la durée
+  réelle, ffmpeg extrait une vignette par seconde, le `MessageLlm[]` est texte + images ; le contrôleur et le
+  post-traitement reçoivent la durée mesurée. Rendu disparu du stockage, ffmpeg absent, planche vide : la tâche
+  ÉCHOUE avec un message clair (la proposition passe « échouée ») ; jamais de diagnostic à l'aveugle. Un affinage
+  ré-extrait la planche du même rendu. La trace garde le texte, les images deviennent des marqueurs.
+- **Labels : le modèle édite le texte FINAL** (choix le plus simple et robuste, écrit dans `regles.md`, qui disait
+  à tort « sujets désignés par `[[CODE]]` », contrat du brouillon de plan-h3). Sortie : des remplacements de
+  passages (`section`, `avant` recopié exactement, `apres`). Le code (lib/agents/iteration-plan.ts, pur, testé) les
+  applique (exact, sinon aux blancs près ; jamais plus tolérant) et contrôle : section connue, passage trouvé UNE
+  fois, labels cités existants (plan_refs, slots des voix, `<Subject N>` déjà présents ; pas de `[[…]]`), balises
+  `<d>` identiques avant/après (multiensemble : déplacer une réplique est permis, la changer non). Ces erreurs
+  déclenchent UN renvoi au modèle (`controleurPourSkill`) ; si elles persistent, la fiche est BLOQUÉE (pas
+  d'écriture à moitié). Les dégradations de structure des shots apportées par la correction (`controlerStructure`)
+  et la confiance faible sont des alertes. Les références, les répliques et la durée ne sont jamais touchées.
+- **Sans écriture, avec la raison** (résumé de la proposition, diagnostic affiché seul) : durée réelle hors de
+  ±0,5 s de la durée voulue (mesurée par le code, indépendamment de l'avis du modèle) ou jugée incohérente par
+  l'agent, abandon proposé, `categorie: decoupage-scenario`, aucun passage, passages sans effet ou introuvables
+  dans le prompt actuel (il a pu changer pendant la génération). `entreeLexique` n'est jamais écrite : la revue la
+  montre comme candidate, à ajouter à la main si le rendu suivant confirme.
+- **Écrasement** : règles de lib/agents/fiches.ts inchangées. Un plan qui a un rendu = « risque d'écrasement »
+  avec `ecrase_valide`, décoché par défaut : l'utilisateur coche la correction pour l'appliquer. Écriture partielle
+  (`apres.sections` des seules sections corrigées ; `apres.passages` sert l'affichage avant → après, jamais écrit).
+- **Contrôle de cohérence des voix (point ouvert ci-dessus, tranché)** : `verifierCoherenceRefs` prend les refs
+  audio dérivées des répliques à part (3e argument) : déclarées (pas de label orphelin si un prompt les cite),
+  jamais « non citées ». Les vraies références non citées (bruitages, images de plan_refs) restent signalées.
+  Page du plan et analyse d'un collage (app/plans/actions.ts) passent les prises en dérivées.
+- Limites connues : aucun instantané du prompt par rendu (`jobs` ne le garde pas) : le diagnostic suppose que le
+  prompt actuel est celui du rendu regardé (la fenêtre le dit). Coût réel en jetons de la planche toujours à
+  mesurer sur le premier appel (estimation : 280 jetons par vignette). Les catégories `decoupage-scenario` sont
+  désormais comptables depuis les résultats des tâches (« Reste à observer » de F03).
+- Testé : lib/agents/iteration-plan.test.ts (conversion, contrôleur, cas limites), worker/preparation.test.ts
+  (planche reconstruite, erreurs), lib/plan-checks.test.ts (voix dérivées), `npm run agents:e2e` (faux modèle à
+  contenu mixte, fausse planche : correction appliquée, durée incohérente, historique, affinage, rendu disparu).
+  Pas encore essayé avec gemma ni avec un vrai rendu (ffmpeg absent de la machine de dev : image Docker du worker).
+
+## 2026-10-03 — Test général : file fiable, numéro de rendu, seed par plan (chantier 1)
+
+Issu du test général de l'application (feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`).
+
+- **Serveur LLM injoignable ne bloque plus la conversation.** Avant : l'appel restait `en_attente` sans limite,
+  `tacheActive` refusait toute nouvelle génération sur la conversation, et le refus (code HTTP 200, `ok: false`)
+  n'apparaissait qu'en pied de fenêtre sans nommer la tâche. Maintenant : (1) le worker note « injoignable
+  depuis » dans `parametres` (`injoignable_llm`, `injoignable_comfyui`, écrit aux seules transitions) ;
+  au bout de `LLM_INJOIGNABLE_MAX_MS` (5 min, 0 = jamais) les appels en attente passent `echoue` par le chemin
+  ordinaire (`surEchecRun` : lot finalisé, conversation revenue), relançables ; ComfyUI garde son attente (la
+  vidéo/image se relance à la main) mais la pastille du header signale l'indisponibilité. (2) La route de santé est
+  réglable (`LLM_HEALTH_PATH`, défaut `/health` : llama-swap ; `/v1/models` pour LM Studio, Ollama). (3) Le flux
+  LLM a un délai d'INACTIVITÉ (`LLM_INACTIVITE_MS`, 5 min, 0 = aucun) en plus du délai total : un serveur qui se
+  tait sans fermer la connexion n'occupe plus le GPU 10 min. (4) Le refus nomme la tâche en cause et la fenêtre
+  propose « Annuler cette tâche ». (5) Un lot échoué (ou en cours) offre « Relancer » par sous-tâche en échec et
+  « Relancer les N sous-tâches en échec » (le serveur acceptait déjà la relance sur un lot `echouee`).
+- **`jobs.tentative` ≠ numéro de rendu.** `tentative` compte les rejeux AUTOMATIQUES d'un même job après un échec
+  (F04) ; l'historique l'affichait comme un numéro, d'où « tentative 1 » partout. Nouveau `jobs.numero_rendu`
+  (par plan, max + 1 à la création du job, import manuel compris ; rattrapé par `created_at`). L'historique
+  affiche « rendu n°N » (+ « rejeu k » si tentative > 1).
+- **Une seed par plan (précise F04).** Aucun code n'écrivait `plans.seed` : `input.seed` était vide et les
+  seeds codées en dur dans `VID_REF2VA.json` servaient à TOUS les plans et TOUTES les relances (`seedUtilisee`
+  toujours null). `plans.seed` a désormais un défaut SQL (15 chiffres) et la migration 0038 rattrape les plans
+  existants. « Prévisualiser » / « Rendu final » gardent la seed : rien n'a bougé → même vidéo, voulu.
+  « Nouvelle variante » tire une autre seed (qui devient celle du plan).
+- **Ce que le rendu a vraiment soumis est gardé** : `jobs.prompt_utilise`, `jobs.duree_utilisee`, `seed_utilisee`
+  (écrits par le worker au moment de construire la soumission) — de quoi expliquer qu'un `summary` modifié sans
+  effet n'a pas bougé le prompt (le `summary` de PROMPT est une section ; `plans.description`, le résumé de
+  scénario, n'est jamais envoyé à ComfyUI). Lève la limite « aucun instantané du prompt par rendu » d'iteration-plan.
+- **Préfixe de sortie unique par rendu** (`cadence_p<plan>_r<rendu>[_t<rejeu>]`, `low_…` pour l'aperçu) : le nom
+  ne dépend plus du seul compteur du dossier output de ComfyUI (collisions, résultat en cache servi à un autre rendu).
+- **La page du plan se recharge** quand un de ses rendus change d'état (`SuiviRendus`, même principe que la fiche d'asset).
+- Reste à observer : un rendu relancé sans rien changer redonne la même vidéo (déterminisme) ; si ComfyUI sert un
+  résultat en cache malgré le préfixe distinct, c'est que le graphe est identique côté ComfyUI — à confirmer au test.
+
+## 2026-10-03 — Test général : registre à un niveau, inventaire avant les fiches, références renumérotées, lot d'images (chantier 2)
+
+Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
+
+- **Registre à UN SEUL niveau (précise F01).** Un asset est un master, ou un dérivé d'un master : les états d'un
+  décor, les tenues d'un personnage sont des dérivés du même master, jamais une chaîne. Règle posée à l'écriture
+  (`lib/registre-assets.ts`, `masterDe` : dériver d'un dérivé rattache au master ; utilisée par la création manuelle,
+  l'applicateur `asset`, l'import) et migration 0039 qui remonte les chaînes existantes au master. La carte « + dérivé »
+  n'existe plus que sur un master. Les lectures récursives de l'arbre (profondeur illimitée) restent, sans effet.
+- **L'inventaire des assets passe AVANT les fiches de plan (révise la décision du 2026-10-02 « dérivés et accessoires
+  après les fiches », FRICTIONS « Étape 3 en préparation » ; rejoint CONCEPTION_AGENTS §5 « les assets viennent avant
+  les plans »).** Cause des doublons observés au test : l'entrée de chaque fiche d'un lot est construite d'avance (elle
+  ne voit pas ce que les autres fiches proposent) et le dédoublonnage ne portait que sur le code exact, donc la lanterne,
+  la lampe à huile et la lampe étaient trois assets. Maintenant : (1) nouveau skill `inventaire-assets` (un seul appel
+  pour le projet : brief, tous les plans, registre) → une liste consolidée de créations d'assets SANS prompt, relue puis
+  appliquée ; leurs prompts s'écrivent ensuite par le lot `prompts-assets` existant. Ordre du pipeline : scénarios →
+  registre issu du brief → **inventaire** → prompts des assets créés → voix → fiches. (2) `plan-h3` cherche d'abord dans
+  le registre ; (3) filet de sécurité : à l'exécution d'une fiche d'un lot, l'entrée reçoit `assetsProposesParLeLot`
+  (ce que les autres fiches proposent déjà de créer, `worker/agents/preparation.ts`) ; (4) `depuisInventaire` signale
+  un asset qui ressemble à un existant (même type, mots communs).
+- **iteration-plan peut ajouter ou retirer des références (révise « les références ne sont jamais touchées »,
+  FRICTIONS « iteration-plan branché »).** Cause de « l'agent ne sait pas modifier subject_definitions /
+  retention_analysis » : ces deux sections ne sont dérivées que des références posées à l'assemblage, et les assets
+  créés par une fiche restaient en prose sans jamais être reliés au plan. Désormais l'itération voit le registre et
+  propose `references: { ajouter: [code du registre], retirer: [code] }` ; le CODE attribue les labels, renumérote les
+  images restantes 1..n, met `subject_definitions` / `retention_analysis` à jour et remplace le marqueur `[[CODE]]` d'une
+  référence ajoutée (seul marqueur permis) ; l'écriture porte la liste complète des références (applicateur `fiche`
+  inchangé). Un asset qui n'existe pas au registre n'est jamais inventé : la cause est dite, pas de référence.
+  Les sons et les voix ne sont pas concernés (leurs slots `<Audio N>` sont liés aux voix).
+- **Retirer / ajouter une référence à la main renumérote aussi** (`lib/references.ts`, `lib/plan-references.ts`) :
+  l'ancienne règle « un slot supprimé laisse un trou » est abandonnée ; un retrait compacte les images en 1..n, retire
+  les lignes de la référence des deux sections et remplace ses mentions en prose par le nom de l'asset ; un ajout
+  déclare la référence (définition + rétention par défaut). L'écrasement ne compte plus les références conservées à
+  l'identique (`evaluerEcrasementFiche`).
+- **Génération d'images en lot** (registre d'assets, panneau « Générer plusieurs images d'un coup ») : chaque asset
+  coché part avec son prompt, au format par défaut de son type ; un dérivé en édition part de l'image de son master et
+  attend sinon (deux vagues : masters, puis relance). Plafond de lot : 30 images en attente (10 pour une demande isolée).
+  Voix, sons, assets sans prompt ou déjà en file sont écartés AVEC leur raison (`lib/generation-lot.ts`).
+- Reste à observer : la qualité réelle de l'inventaire avec gemma (nombre d'assets proposés, rapprochements
+  lanterne/lampe) ; un seul appel pour tout le projet peut dépasser le contexte d'un projet très long (à segmenter
+  par épisode alors).
+
+## 2026-10-03 — Test général : briefing sans « points à valider », installateur, streaming (chantier 3)
+
+Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
+
+- **Le briefing se règle à l'oral (révise l'état `a_valider` des inventions et questions ouvertes, FRICTIONS « Système
+  d'agents », 2026-10-02).** `conversation-agent` rend un tour avec `resteADefinir` (liste de phrases courtes, remise à
+  jour à chaque tour, stockée dans `agent_conversations.reste_a_definir`) affichée à côté de la conversation ; `briefPret`
+  n'est vrai que si la liste est vide (l'application tranche une contradiction en faveur de la liste,
+  `briefPretApresTour`). Les `inventions` et `questionsOuvertes` du brief sont désormais informatives (statut « déduit ») :
+  plus aucun point à valider un par un après coup. Les sections qui sont des listes d'objets (épisodes, personnages,
+  lieux, rimes, progressions, pièges) s'éditent par formulaire au lieu du JSON brut (`BriefSections.tsx`, la saisie reste
+  la chaîne JSON validée côté serveur). Cartes de style avec images : reportées.
+- **L'installateur (exception actée au principe « rien n'est appliqué sans proposition relue », CONCEPTION_AGENTS.md:43-45
+  et FRICTIONS:1217).** « Créer tout le projet » enchaîne brief → structure → scénarios → registre (brief) → inventaire des
+  assets → prompts de l'inventaire → voix → fiches → prompts des assets des fiches, chaque étape générée PUIS appliquée toute
+  seule, sans revue. Seul retour en arrière : supprimer le projet. Garde-fous : on n'applique que ce qui est coché d'office
+  (les créations ; un écrasement est décoché par défaut et n'est jamais confirmé par l'installateur) ; les sous-tâches en
+  échec d'un lot sont relancées UNE fois automatiquement, puis l'étape échoue (« Reprendre » la refait) ; une étape qui n'a rien
+  à faire est « passée ». Architecture : table `creations_projet` (état, étapes), règles pures dans `lib/agents/creation.ts`
+  (testées), pilote `lib/agents/creation-db.ts` appelé à chaque tour de la boucle du worker (une transition au plus par
+  création : reprise sur redémarrage, pur travail en base, il ne retarde aucune tâche GPU), page `/p/<projet>/creation` qui
+  sonde `/api/creation/<projet>`. Les projets des essais bout en bout (`TEST_AGENTS_E2E*`) ne sont pilotés que par leur script.
+- **Streaming.** Le worker écrit, au plus 1×/s, le texte de la réponse (borné à 24 000 caractères) et la fin de la
+  réflexion (6 000) dans `agent_runs.flux_texte` / `flux_reflexion` (remis à null en fin d'appel) ; la fenêtre sonde toutes
+  les 1,2 s pendant un appel. Un tour de conversation montre la réponse qui s'écrit (extraction tolérante du champ `reponse` du
+  JSON partiel, `lib/llm/flux-partiel.ts`) ; les autres skills montrent la fin du JSON ; la réflexion est repliable.
+- Reste à observer : le coût d'une écriture par seconde sur la ligne `agent_runs` pendant un long appel ; la lisibilité du
+  JSON partiel des skills autres que la conversation (il ne s'affiche qu'en détail replié).
+
+## 2026-10-03 — Test général : lecture de l'épisode, cohérence entre plans, progression vidéo, un seul point d'accès (chantiers 4 et 5)
+
+Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
+
+- **Lecture de l'épisode bout à bout** (page Plans, `LectureEpisode`) : le dernier rendu terminé de chaque plan, dans l'ordre
+  `ordre`, joué l'un derrière l'autre sous une frise cliquable (largeur = durée du plan). Un plan sans rendu n'interrompt pas
+  la lecture : un carton « pas de rendu » (sa durée, bornée à 4 s) tient sa place. Positions affichées, jamais un identifiant (F03).
+- **Cohérence entre les plans** : un tableau asset × plan (`MatriceAssets`, `lib/matrice-assets.ts`) rend visible une référence
+  posée dans certains plans et pas dans d'autres (« ⚠ » : le plan n'a pas la référence alors que celui d'avant et celui d'après
+  l'ont), cause fréquente d'incohérences de détail. Pas de détection en prose (les prompts sont en anglais, les codes en
+  français) ni de planche de vignettes : la lecture de l'épisode couvre le besoin de regarder le tout.
+- **Progression d'un rendu vidéo, SANS aperçu image (précise J).** Un aperçu en direct n'est pas possible : la génération
+  est le nœud d'API distant MiniMax H3 (`5`), qui n'émet aucun latent ; les nœuds locaux (interpolation, encodage) n'ont rien à
+  montrer non plus. Le worker relaie donc l'ÉTAPE en cours (génération H3, interpolation, encodage) et la progression
+  valeur/max quand ComfyUI en donne une, dans `jobs.etape_libelle` / `progression_*`, affichées dans le panneau du header.
+  La mise à jour de la page à la fin du rendu est déjà faite (chantier 1).
+- **Un seul point d'accès à l'agent : la portée est déduite de la page, pas encore une conversation unique (écart assumé avec
+  la décision « une conversation par projet »).** Le bouton « Agent ✦ » du bandeau (`BoutonAgentGlobal`) déduit la portée de
+  l'URL, toujours la plus petite (plan, asset, épisode, sinon projet : `lib/agents/page-agent.ts`) ; la fenêtre permet de
+  l'élargir d'un clic (plan → épisode → projet) et liste les AUTRES conversations du projet (la trace de ce qui a déjà été
+  demandé). Les boutons contextuels existants restent des raccourcis (certains ouvrent une vue directe : fiches, itération,
+  voix, registre). **Pourquoi pas une seule conversation par projet** : `conv.portee` / `conv.cibleId` portent le VERROU DE PORTÉE
+  (`lib/agents/portee.ts` : l'agent ne modifie que ce que sa portée couvre) et toutes les fonctions de `service.ts` en dépendent ;
+  la fusion demande de déplacer la portée de la conversation vers chaque proposition, un chantier à part. Non fait : le routage
+  de l'intention par l'agent (choisir le skill d'après le message) ; le routage reste celui des boutons et des étapes.
+
+## 2026-10-03 (suite) — Retours du premier test : briefing en deux temps, installateur détaillé, lot d'images adopté
+
+- **Le briefing se valide AVANT la création (révise le bouton « Créer tout le projet » de la conversation).** `briefPret` = « de quoi
+  écrire une PREMIÈRE VERSION » (arc, structure et style au moins proposés), même s'il reste des questions ; l'interface le dit
+  (« Une première version du briefing est possible »), génère le briefing, et la conversation continue : `resteADefinir` se vide au
+  fil des réponses, « Mettre à jour le briefing » le regénère. Le briefing est définitif quand la liste est vide. « Valider le
+  briefing et créer le projet » (étape Brief) lance l'installateur ; « Générer la proposition seule » disparaît de ce parcours.
+- **Plus aucun « à valider » dans le brief** : un statut `a_valider`/`incertain` déclaré par le modèle vaut `deduit` (`lib/agents/brief.ts`) ;
+  le groupe des inventions et questions ouvertes s'appelle « Notes de l'agent » ; la légende n'affiche l'état « à valider » que s'il
+  existe encore (briefs anciens).
+- **Cause des plans restés en brouillon après l'installateur** (projet « Avatar ») : le modèle recopiait mal un code d'asset
+  (`DEC_le_monde_l_avatar` pour `DEC_le_monde_de_l_avatar`), le marqueur `[[CODE]]` ne se résolvait pas, la fiche était BLOQUÉE par un
+  contrôle (non cochable) et l'installateur l'écartait sans le dire. Corrigé à trois niveaux : (1) `lib/agents/codes-proches.ts` corrige
+  sans ambiguïté un code qui ne diffère d'UN seul code du registre que par des mots de liaison (de, du, la, le, l', un…), dans la
+  conversion ET le contrôleur du worker (plus de renvoi au modèle pour ça) ; tout autre écart reste une erreur franche, jamais
+  deviné ; (2) l'installateur relance UNE fois les sous-tâches dont un changement est bloqué (comme celles en échec) ; (3) ce qui reste
+  bloqué n'arrête pas la création mais l'étape le dit (« N écartés (à refaire depuis l'agent) »).
+- **Installateur : le détail au fil de l'eau.** Chaque étape montre l'appel en cours (file, jetons) ou, pour un lot, ses sous-tâches une
+  à une (épisode par épisode, asset par asset, plan par plan) avec leur état : ce sont les mêmes tâches que celles de la file du header
+  (`lib/agents/creation-vue.ts`).
+- **Générer par lot = utiliser le résultat.** Une génération lancée par le lot d'images porte `asset_generations.adoption_auto` et le
+  worker l'adopte toute seule à sa fin (`lib/generation-adoption.ts`, partagé avec le bouton « Adopter »). Non fait : lancer
+  automatiquement la 2e vague (dérivés en édition) quand le master est adopté.
+- **Streaming** : la réponse s'écrit lettre par lettre (`useMachineAEcrire`, vitesse adaptée au retard), la réflexion est repliée par défaut.

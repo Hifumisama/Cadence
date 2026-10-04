@@ -6,11 +6,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { FournisseurCompatibleOpenAI } from "./compatibleOpenAI";
-import { configLlm, modelePourSkill, nomVariableModele } from "./config";
+import { configLlm, corpsPourSkill, maxTokensPourSkill, modelePourSkill, nomVariableModele } from "./config";
 import { executerSkill, messageDeRenvoi, versMessages } from "./executer";
 import { chargerSkill, listerSkills } from "./skills";
 import type { TraceAEnregistrer } from "./traces";
-import { ErreurLlm } from "./types";
+import { ErreurLlm, messagesSansImages, partieImageJpeg, texteDuContenu, type MessageLlm } from "./types";
 import { compilerSchema, valider } from "./validation";
 
 // ── faux serveur compatible OpenAI ────────────────────────────────────────────
@@ -125,6 +125,23 @@ test("fournisseur : flux sans bloc d'usage → approximation par les morceaux", 
   assert.equal(r.json, undefined);
 });
 
+test("fournisseur : flux coupé sans fin de génération → ErreurLlm « flux_coupe »", async () => {
+  const s = await demarrer((_c, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.write(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "hmm" } }] })}
+
+`);
+    res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: '{"titre":"coup' } }] })}
+
+`);
+    res.end();
+  });
+  await assert.rejects(
+    fournisseur(s.url, { flux: true }).generer({ systeme: "S", messages: [{ role: "user", content: "x" }] }),
+    (e: unknown) => e instanceof ErreurLlm && e.code === "flux_coupe" && /14 caractères.*3 de réflexion/.test(e.message),
+  );
+});
+
 test("fournisseur : serveur injoignable → ErreurLlm « injoignable »", async () => {
   const s = await demarrer(() => undefined);
   const url = s.url;
@@ -214,7 +231,7 @@ test("chargeur : nom invalide, skill absent, fichiers obligatoires", () => {
 
 test("chargeur : les skills réels s'assemblent et leur schéma se compile", () => {
   const noms = listerSkills();
-  assert.deepEqual(noms, ["brief-projet", "iteration-plan", "plan-h3", "prompt-asset", "prompt-voix", "scenario-episode"]);
+  assert.deepEqual(noms, ["brief-projet", "conversation-agent", "inventaire-assets", "iteration-plan", "plan-h3", "prompt-asset", "prompt-voix", "scenario-episode"]);
   for (const nom of noms) {
     const s = chargerSkill(nom);
     assert.ok(s.caracteres > 2000, nom);
@@ -231,7 +248,9 @@ test("chargeur : les skills réels s'assemblent et leur schéma se compile", () 
 
 test("configuration : défauts, surcharge par skill, fournisseur inconnu refusé", () => {
   const c = configLlm({ LLM_LOCAL_URL: "http://h:1/", LLM_LOCAL_MODELE: "m1", LLM_TIMEOUT_MS: "1234" });
-  assert.deepEqual(c, { fournisseur: "local", url: "http://h:1", modeleParDefaut: "m1", delaiMs: 1234, flux: true });
+  assert.deepEqual(c, { fournisseur: "local", url: "http://h:1", modeleParDefaut: "m1", delaiMs: 1234, inactiviteMs: 300_000, routeSante: "/health", injoignableMaxMs: 300_000, flux: true });
+  assert.equal(configLlm({ LLM_HEALTH_PATH: "v1/models" }).routeSante, "/v1/models");
+  assert.equal(configLlm({ LLM_INACTIVITE_MS: "0" }).inactiviteMs, 0);
   assert.equal(configLlm({}).modeleParDefaut, "gemma4-26b-A4B");
   assert.equal(configLlm({ LLM_FLUX: "0" }).flux, false);
   assert.equal(nomVariableModele("plan-h3"), "LLM_MODELE_PLAN_H3");
@@ -347,4 +366,120 @@ test("versMessages / messageDeRenvoi", () => {
   assert.deepEqual(versMessages([{ role: "user", content: "b" }]), [{ role: "user", content: "b" }]);
   assert.equal(versMessages({ x: 1 })[0]!.content, '{\n  "x": 1\n}');
   assert.match(messageDeRenvoi(["/n : requis"]), /- \/n : requis/);
+});
+
+// ── contrôle sémantique, corps et limite de jetons par skill ──────────────────
+
+test("executerSkill : un contrôle sémantique renvoie UNE fois le modèle avec ses erreurs, puis garde la sortie corrigée", async () => {
+  let n = 0;
+  const s = await demarrer((_c, res) => reponseJson(res, ++n === 1 ? '{"titre":"MAUVAIS","n":1}' : '{"titre":"bon","n":2}'));
+  const controler = (j: unknown) => ((j as { titre: string }).titre === "MAUVAIS" ? ["Le titre est interdit."] : []);
+  const r = await executerSkill("demo", "e", { racine, fournisseur: fournisseur(s.url), enregistrer: null, env: {}, controler });
+  assert.deepEqual(r.json, { titre: "bon", n: 2 });
+  assert.equal(r.renvois, 1);
+  assert.match(s.requetes[1]!.messages.at(-1)!.content, /Le titre est interdit/);
+});
+
+test("executerSkill : si le défaut persiste après le renvoi, la sortie est gardée (jamais d'échec ni de réparation)", async () => {
+  const s = await demarrer((_c, res) => reponseJson(res, '{"titre":"MAUVAIS","n":1}'));
+  const r = await executerSkill("demo", "e", { racine, fournisseur: fournisseur(s.url), enregistrer: null, env: {}, controler: () => ["Toujours faux."] });
+  assert.deepEqual(r.json, { titre: "MAUVAIS", n: 1 });
+  assert.equal(r.renvois, 1);
+  assert.equal(s.requetes.length, 2);
+});
+
+test("executerSkill : sans renvois autorisés, le contrôle ne relance pas", async () => {
+  const s = await demarrer((_c, res) => reponseJson(res, '{"titre":"MAUVAIS","n":1}'));
+  const r = await executerSkill("demo", "e", { racine, fournisseur: fournisseur(s.url), enregistrer: null, env: {}, maxRenvois: 0, controler: () => ["Faux."] });
+  assert.equal(r.renvois, 0);
+  assert.equal(s.requetes.length, 1);
+});
+
+test("config : LLM_CORPS_<SKILL> prime sur LLM_CORPS, JSON invalide = erreur franche", () => {
+  const thinking = '{"chat_template_kwargs":{"enable_thinking":false}}';
+  assert.deepEqual(corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { chat_template_kwargs: { enable_thinking: false } });
+  assert.deepEqual(corpsPourSkill("brief-projet", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { a: 1 });
+  assert.equal(corpsPourSkill("brief-projet", {}), undefined);
+  assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: "{pas du json" }), /LLM_CORPS_PLAN_H3/);
+  assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS: "[1]" }), /LLM_CORPS/);
+});
+
+test("config : LLM_MAX_TOKENS_<SKILL> prime sur LLM_MAX_TOKENS, valeurs absurdes refusées", () => {
+  assert.equal(maxTokensPourSkill("plan-h3", { LLM_MAX_TOKENS_PLAN_H3: "32768", LLM_MAX_TOKENS: "8000" }), 32768);
+  assert.equal(maxTokensPourSkill("brief-projet", { LLM_MAX_TOKENS_PLAN_H3: "32768", LLM_MAX_TOKENS: "8000" }), 8000);
+  assert.equal(maxTokensPourSkill("brief-projet", {}), null);
+  assert.throws(() => maxTokensPourSkill("plan-h3", { LLM_MAX_TOKENS: "12" }), /au moins 256/);
+});
+
+test("fournisseur : le corps d'un appel s'ajoute à la requête", async () => {
+  const s = await demarrer((_c, res) => reponseJson(res, '{"titre":"ok","n":2}'));
+  await fournisseur(s.url).generer({ systeme: "S", messages: [{ role: "user", content: "x" }], corps: { chat_template_kwargs: { enable_thinking: false } } });
+  assert.deepEqual((s.requetes[0] as Record<string, unknown>).chat_template_kwargs, { enable_thinking: false });
+});
+
+
+// ── contenu mixte (texte + images) ────────────────────────────────────────────
+
+// 41 Ko décodés exactement (41 × 1024 octets) : le marqueur de trace doit le dire.
+const IMAGE_41K = Buffer.alloc(41 * 1024, 7).toString("base64");
+
+const messageMixte = (): MessageLlm => ({
+  role: "user",
+  content: [{ type: "text", text: "Vignette à 0 s :" }, partieImageJpeg("QUJD"), { type: "text", text: "Vignette à 1 s :" }, partieImageJpeg(IMAGE_41K)],
+});
+
+test("contenu mixte : le fournisseur transmet les parties texte/image telles quelles", async () => {
+  const s = await demarrer((_c, res) => reponseJson(res, "Rouge"));
+  const r = await fournisseur(s.url).generer({ systeme: "S", messages: [messageMixte(), { role: "user", content: "texte seul" }] });
+  assert.equal(r.texte, "Rouge");
+  const envoyes = (s.requetes[0] as unknown as { messages: { role: string; content: unknown }[] }).messages;
+  assert.deepEqual(envoyes[1], messageMixte());
+  assert.equal(envoyes[2]!.content, "texte seul");
+  const parties = envoyes[1]!.content as { type: string; image_url?: { url: string } }[];
+  assert.equal(parties[1]!.image_url!.url, "data:image/jpeg;base64,QUJD");
+});
+
+test("contenu mixte : serveur sans projecteur mmproj → « vision_absente » ; même texte sans image → « http »", async () => {
+  const s = await demarrer((_c, res) => {
+    res.statusCode = 500;
+    res.end('{"error":{"code":500,"message":"image input is not supported - hint: if this is unexpected, you may need to provide the mmproj","type":"server_error"}}');
+  });
+  await assert.rejects(
+    fournisseur(s.url).generer({ systeme: "S", messages: [messageMixte()] }),
+    (e: unknown) => e instanceof ErreurLlm && e.code === "vision_absente" && /mmproj/.test(e.message),
+  );
+  await assert.rejects(
+    fournisseur(s.url).generer({ systeme: "S", messages: [{ role: "user", content: "x" }] }),
+    (e: unknown) => e instanceof ErreurLlm && e.code === "http",
+  );
+});
+
+test("contenu mixte : les images ne vont jamais dans la trace (marqueur « [image n : X Ko] »)", async () => {
+  const s = await demarrer((_c, res) => reponseJson(res, '{"titre":"T","n":1}'));
+  const { traces, enregistrer } = enregistreur();
+  await executerSkill("demo", [messageMixte()], { racine, fournisseur: fournisseur(s.url), enregistrer, env: {} });
+  // Le serveur a bien reçu les images…
+  assert.match(JSON.stringify(s.requetes[0]!.messages), /base64,QUJD/);
+  // … la trace, non.
+  const trace = traces[0]!.messages;
+  assert.doesNotMatch(JSON.stringify(trace), /base64/);
+  assert.deepEqual(trace[0]!.content, [
+    { type: "text", text: "Vignette à 0 s :" },
+    { type: "text", text: "[image 1 : 1 Ko]" },
+    { type: "text", text: "Vignette à 1 s :" },
+    { type: "text", text: "[image 2 : 41 Ko]" },
+  ]);
+});
+
+test("messagesSansImages / texteDuContenu : rétro-compatibles avec le contenu texte", () => {
+  const texte: MessageLlm[] = [{ role: "user", content: "a" }, { role: "assistant", content: "b" }];
+  assert.deepEqual(messagesSansImages(texte), texte);
+  const m = [messageMixte()];
+  messagesSansImages(m);
+  assert.equal((m[0]!.content as { type: string }[])[1]!.type, "image_url", "l'original n'est pas modifié");
+  assert.equal(texteDuContenu("x"), "x");
+  assert.equal(texteDuContenu(messageMixte().content), "Vignette à 0 s :\nVignette à 1 s :");
+  assert.deepEqual(messagesSansImages([{ role: "user", content: [{ type: "image_url", image_url: { url: "https://x/y.jpg" } }] }])[0]!.content, [
+    { type: "text", text: "[image 1 : https://x/y.jpg]" },
+  ]);
 });

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sortie de l'agent inventaire-assets : les assets à ajouter au registre avant d'écrire les fiches de plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["assets", "notes"],
+  "properties": {
+    "assets": {
+      "type": "array",
+      "description": "Les assets que le registre ne contient pas encore et que les plans réclament. Vide si le registre suffit. Chaque asset n'apparaît qu'UNE fois, même s'il sert dans vingt plans.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "type", "description", "plans", "raison"],
+        "properties": {
+          "code": { "type": "string", "description": "Code proposé, préfixé par le type (PROP_lanterne, DEC_phare_nuit). Le code final est reconstruit selon la convention du registre." },
+          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "sfx", "oth"] },
+          "parent": { "type": "string", "description": "Optionnel. Code du MASTER du registre (ou d'un asset proposé ici) dont c'est un état ou une variante : le même décor la nuit, le même personnage blessé. Le registre n'a qu'un niveau : le parent est toujours un master." },
+          "description": { "type": "string", "minLength": 1, "description": "Ce que c'est, en français, comme dans le registre : ce qu'on voit, sans cadrage ni lumière de plan." },
+          "plans": { "type": "array", "items": { "type": "string" }, "description": "Les titres des plans (tels que donnés en entrée) où l'asset apparaît." },
+          "raison": { "type": "string", "description": "Pourquoi aucun asset du registre ne convient : ce qui doit réellement être différent à l'image." }
+        }
+      }
+    },
+    "notes": { "type": "string", "description": "Rapprochements douteux, assets du registre que tu as préférés à un nouvel asset, plans qui t'ont semblé demander un asset sans que tu en crées. Vide s'il n'y a rien à dire." }
+  }
+}

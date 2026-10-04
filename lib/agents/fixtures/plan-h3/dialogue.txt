@@ -1,0 +1,21 @@
+subject_definitions:
+<Subject 1> is the Tenancière from <Picture 1>, leaning in close, her stride reduced to a bare, controlled inclination without a full stop.
+<Subject 2> is Maya from <Picture 2>, pinned by the proximity and the threat.
+<Subject 3> is the narrow wooden corridor from <Picture 3>, its constant deep indigo light now edged with harder shadow.
+
+summary:
+[reference generation] The target video holds an extreme close-up as <Subject 1> opens the episode's central threat to <Subject 2> within <Subject 3>, never fully halting her motion.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1]): fully_preserved - her gown, expression, and controlled near-stillness are retained.
+<Subject 2> (appears in [Shot 1]): fully_preserved - Maya's identity and fear are retained.
+<Subject 3> (appears in [Shot 1]): fully_preserved - the corridor's indigo tone, now hard-edged, is retained.
+
+detailed_description:
+Cinematic anime style, refined linework, the corridor's deep indigo light sharpened into hard directional contrast, a heavy blue-black shadow cast across Maya's face. [Shot 1] An extreme close-up frames <Subject 1>, the Tenancière (S1), leaning in until her face is only centimeters from <Subject 2>, Maya, within <Subject 3>, her stride slowing to its barest inclination without ever stopping outright. Her voice drops to a slow, glacial murmur, each word measured and unhurried: <d>[Français] Demain, au lever du soleil, si l'or n'est pas sur mon bureau, je ne perdrai plus mon temps avec tes danses.</d> Maya's face, half in hard indigo shadow, holds rigid under the proximity, her breath shallow.
+
+overall_soundscape:
+Near-total silence surrounds the murmured threat, Maya's breath tight and controlled.
+
+non_diegetic_music:
+A single low, sustained cello note begins to hold unresolved beneath the threat, barely swelling.

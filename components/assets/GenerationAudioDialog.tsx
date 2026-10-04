@@ -181,7 +181,7 @@ export function GenerationAudioDialog({
               </div>
             </div>
             <p className="tiny-note">
-              Réglage du workflow, séparé du texte. Un impact : 1 à 3 s ; un bruitage de scène : 3 à 6 s ; une ambiance : 6 à 15 s (un plan dure 4 à 15 s).
+              Réglage du workflow, séparé du texte. Un impact : 1 à 3 s ; un bruitage de scène : 3 à 6 s ; une ambiance : 6 à 15 s (un plan dure 5 à 15 s).
             </p>
           </div>
         </div>

@@ -14,8 +14,14 @@ export const LIBELLE_SKILL: Record<string, string> = {
   "scenario-episode": "Scénario d'épisode",
   "prompt-asset": "Prompt d'asset",
   "prompt-voix": "Prompt de voix",
-  "plan-h3": "Plans H3",
-  "iteration-plan": "Itération de plan",
+  "plan-h3": "Fiche de plan",
+  "iteration-plan": "Correction après visionnage",
+  scenarios: "Scénarios des épisodes",
+  registre: "Registre d'assets",
+  voix: "Casting des voix",
+  fiches: "Fiches de plan",
+  "prompts-assets": "Prompts des assets créés",
+  "inventaire-assets": "Inventaire des assets",
 };
 
 export type Tache = {
@@ -52,6 +58,9 @@ export type Tache = {
   jetons: number | null;
   /** Tâche en cours dont l'annulation est demandée : le worker interrompt ComfyUI. */
   annulationDemandee: boolean;
+  /** Appel LLM d'une conversation d'agent : un clic sur la tâche rouvre la popup d'agent
+   * sur cette conversation (au lieu de la page du projet). Absent pour les autres genres. */
+  conversationUuid?: string | null;
 };
 
 export type ResumeTaches = {
@@ -156,21 +165,24 @@ export function pageEstPerimee(tachesAsset: Tache[], page: { uuid: string; statu
 export const cleImage = (uuid: string) => `image:${uuid}`;
 export const cleVideo = (jobId: number) => `video:${jobId}`;
 export const cleLlm = (uuid: string) => `llm:${uuid}`;
+/** Un LOT d'agent (une proposition dont la génération est composée de plusieurs tâches, ex. un
+ * épisode chacune) : UNE entrée dans le header, identifiée par l'uuid de la PROPOSITION. */
+export const cleLot = (propositionUuid: string) => `lot:${propositionUuid}`;
 
 /** Domaine GPU d'une tâche (voir lib/gpu.ts). */
 export const domaineDeTache = (t: Pick<Tache, "genre">) => domaineDe(t.genre);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function analyserCle(cle: string): { genre: GenreTache; ref: string } | null {
+export function analyserCle(cle: string): { genre: GenreTache | "lot"; ref: string } | null {
   const i = cle.indexOf(":");
   if (i < 0) return null;
   const genre = cle.slice(0, i);
   const ref = cle.slice(i + 1);
-  if ((genre !== "image" && genre !== "video" && genre !== "llm") || !ref) return null;
+  if ((genre !== "image" && genre !== "video" && genre !== "llm" && genre !== "lot") || !ref) return null;
   // Une clé vient du navigateur : un uuid ou un id mal formé ne doit jamais
   // atteindre la base (Postgres lèverait une erreur de syntaxe au lieu de l'ignorer).
-  if ((genre === "image" || genre === "llm") && !UUID.test(ref)) return null;
+  if ((genre === "image" || genre === "llm" || genre === "lot") && !UUID.test(ref)) return null;
   if (genre === "video" && !/^\d+$/.test(ref)) return null;
   return { genre, ref };
 }

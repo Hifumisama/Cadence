@@ -1,7 +1,8 @@
-import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "../db";
-import { agentRuns, assetGenerations, jobs, plans } from "../db/schema";
+import { agentRuns, assetGenerations, jobs, plans, propositions } from "../db/schema";
 import { ERREUR_ANNULEE, statutPlanApresAnnulation } from "./annulation";
+import { annulerEnAttenteDesLots, annulerLot } from "./agents/lots";
 import { analyserCle } from "./taches";
 
 // Accès base de l'annulation, partagé par l'action serveur (app/taches/actions.ts)
@@ -11,6 +12,40 @@ import { analyserCle } from "./taches";
 
 export type ResultatAnnulation = "annulee" | "demandee" | "deja" | "rien";
 
+/** « Vider la file » : annule TOUT ce qui attend (images, sons, vidéos, appels d'agent, sous-tâches
+ * de lots). Ce qui tourne continue : on n'interrompt rien, on retire seulement ce qui n'a pas
+ * commencé (rien n'est perdu, tout se relance). Une vidéo retirée remet son plan dans son état
+ * précédent. Renvoie le nombre de tâches annulées. */
+export async function viderFile(): Promise<number> {
+  const maintenant = new Date();
+  const images = await db
+    .update(assetGenerations)
+    .set({ statut: "annulee", finishedAt: maintenant, erreur: null })
+    .where(eq(assetGenerations.statut, "en_attente"))
+    .returning({ id: assetGenerations.id });
+  const videos = await db
+    .update(jobs)
+    .set({ statut: "echoue", erreur: ERREUR_ANNULEE, finishedAt: maintenant })
+    .where(eq(jobs.statut, "en_attente"))
+    .returning({ planId: jobs.planId });
+  for (const v of videos) await restaurerStatutPlan(v.planId);
+  // Les sous-tâches de lots passent par leur propre logique (statut du lot recalculé) ; les autres
+  // appels d'agent, directement.
+  const lots = await annulerEnAttenteDesLots();
+  const lotsIds = (await db.select({ id: propositions.id }).from(propositions).where(eq(propositions.lot, true))).map((p) => p.id);
+  const seuls = await db
+    .update(agentRuns)
+    .set({ statut: "annulee", finishedAt: maintenant, erreur: null })
+    .where(
+      and(
+        eq(agentRuns.statut, "en_attente"),
+        lotsIds.length > 0 ? or(isNull(agentRuns.propositionId), notInArray(agentRuns.propositionId, lotsIds)) : sql`true`,
+      ),
+    )
+    .returning({ id: agentRuns.id });
+  return images.length + videos.length + lots + seuls.length;
+}
+
 /** Demande l'annulation d'une tâche (`image:<uuid>` / `video:<id>`). Idempotente :
  * redemander ne change rien. En attente → annulée tout de suite ; en cours → le
  * drapeau est posé et le worker interrompt ComfyUI ; finie, échouée ou déjà
@@ -19,6 +54,12 @@ export async function demanderAnnulation(cle: string): Promise<ResultatAnnulatio
   const a = analyserCle(cle);
   if (!a) return "rien";
   const maintenant = new Date();
+
+  // Un lot d'agent : toutes ses sous-tâches en attente sont annulées, celle qui tourne est interrompue.
+  if (a.genre === "lot") {
+    const r = await annulerLot(a.ref);
+    return r === "annule" ? "annulee" : r === "demande" ? "demandee" : "rien";
+  }
 
   if (a.genre === "image") {
     const directe = await db

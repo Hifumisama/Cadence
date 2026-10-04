@@ -9,28 +9,27 @@ function workflowsVoix(): string[] {
   }
 }
 
-/** État STATIQUE, volontairement isolé : aucune génération voix n'est
- * lancée depuis Cadence pour l'instant. Le worker reste câblé sur la seule
- * génération vidéo (décision du 2026-09-28 : un système de tâches ComfyUI
- * dédié viendra plus tard, pas une généralisation du worker). Ce panneau
- * dit ce qui manque au lieu de simuler un bouton qui ne ferait rien.
+/** État STATIQUE, volontairement isolé : la voix de RÉFÉRENCE se génère depuis
+ * Cadence (étape « Référence », Qwen3-TTS), mais les prises de RÉPLIQUES
+ * (CosyVoice3) et le rendu du test vidéo ne sont pas branchés : ce panneau dit
+ * ce qui manque au lieu de simuler un bouton qui ne ferait rien.
  * Composant serveur (lecture du dossier workflows/). */
 export function GenerationNonBranchee({ compact = false }: { compact?: boolean }) {
   const fichiers = workflowsVoix();
   return (
-    <section className="panel gen-off" aria-label="Génération voix — non branchée">
+    <section className="panel gen-off" aria-label="Génération voix — branchée en partie">
       <div className="panel-hd">
         <h2>Génération ComfyUI</h2>
         <span className="badge b-brouillon">
           <i />
-          Non branchée
+          Branchée en partie
         </span>
       </div>
       <div className="panel-bd">
         <p className="tiny-note" style={{ color: "var(--ink-3)" }}>
-          Les prises se fabriquent encore à la main dans ComfyUI, puis se déposent ici (candidats, référence,
-          test de tenue, rendu T1). Cadence tient le carnet — paramètres retenus, verdicts, bancs d&rsquo;écoute
-          — mais ne soumet aucun job voix : le système de tâches ComfyUI dédié n&rsquo;existe pas encore.
+          La voix de référence se génère depuis l&rsquo;étape « Référence ». Les prises de répliques (CosyVoice3) et
+          le rendu du test vidéo se fabriquent encore à la main dans ComfyUI, puis se déposent ici : Cadence tient le
+          carnet (paramètres retenus, durées mesurées) mais ne soumet pas ces jobs.
         </p>
         {!compact ? (
           <div className="chips" style={{ marginTop: "var(--sp-3)" }}>

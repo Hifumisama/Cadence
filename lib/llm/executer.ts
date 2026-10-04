@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
-import { creerFournisseur, modelePourSkill, type Env } from "./config";
+import { corpsPourSkill, creerFournisseur, maxTokensPourSkill, modelePourSkill, type Env } from "./config";
 import { chargerSkill } from "./skills";
 import { enregistrerTrace, type EnregistreurTrace, type StatutTrace, type TraceAEnregistrer } from "./traces";
 import { valider } from "./validation";
-import { ErreurLlm, type FournisseurLlm, type MessageLlm, type ReponseLlm } from "./types";
+import { ErreurLlm, messagesSansImages, type DemandeLlm, type FournisseurLlm, type MessageLlm, type ReponseLlm } from "./types";
 
 /** Limite de sortie par défaut : un brief ou un plan tient largement, un plafond
  * évite une génération qui ne s'arrête pas. */
@@ -20,6 +20,8 @@ export type OptionsExecution = {
   /** Renvois automatiques après une sortie hors schéma (1 par défaut, 0 = aucun). */
   maxRenvois?: number;
   surProgres?: (jetonsSortie: number) => void;
+  /** Texte au fil du flux (voir `DemandeLlm.surFlux`). */
+  surFlux?: DemandeLlm["surFlux"];
   /** `false` : ne pas contraindre la sortie côté serveur (comparaison, diagnostic) ;
    * la validation contre le schéma reste faite. `true` par défaut. */
   contrainte?: boolean;
@@ -29,6 +31,11 @@ export type OptionsExecution = {
   racine?: string;
   /** Variante de skill : restreint les guides chargés (voir lib/llm/skills.ts). */
   variante?: string;
+  /** Contrôle sémantique d'une sortie VALIDE contre le schéma (voir lib/llm/controles.ts) : la liste de ses
+   * erreurs déclenche un renvoi (dans la limite de `maxRenvois`) ; si elles persistent, la sortie est gardée. */
+  controler?: (json: unknown) => string[];
+  /** Champs ajoutés au corps de la requête ; sinon `LLM_CORPS_<SKILL>` / `LLM_CORPS` (voir config.ts). */
+  corps?: Record<string, unknown>;
 };
 
 export type ResultatSkill = {
@@ -44,7 +51,8 @@ export type ResultatSkill = {
 };
 
 /** Une entrée peut être un texte, un objet (sérialisé en JSON lisible) ou une
- * conversation déjà en messages. */
+ * conversation déjà en messages — dont le contenu peut être mixte (texte + images,
+ * voir `PartieContenu`) : c'est la voie pour une planche de vignettes. */
 export function versMessages(entree: string | object | MessageLlm[]): MessageLlm[] {
   if (typeof entree === "string") return [{ role: "user", content: entree }];
   if (Array.isArray(entree)) return entree as MessageLlm[];
@@ -112,10 +120,12 @@ export async function executerSkill(
         messages: courants,
         schemaSortie: options.contrainte === false ? undefined : skill.schema,
         modele,
-        maxTokens: options.maxTokens ?? MAX_TOKENS_PAR_DEFAUT,
+        maxTokens: options.maxTokens ?? maxTokensPourSkill(nomSkill, env) ?? MAX_TOKENS_PAR_DEFAUT,
+        corps: options.corps ?? corpsPourSkill(nomSkill, env),
         temperature: options.temperature,
         signal: options.signal,
         surProgres: options.surProgres,
+        surFlux: options.surFlux,
       });
       derniere = rep;
       usage.entree += rep.usage.entree;
@@ -123,6 +133,16 @@ export async function executerSkill(
       dureeMs += rep.dureeMs;
 
       const a = analyser(rep, skill.schema);
+      // Sortie valide contre le schéma : un contrôle sémantique peut encore demander UN renvoi.
+      if (a.ok && options.controler && renvois < maxRenvois) {
+        const soucis = options.controler(a.json);
+        if (soucis.length > 0) {
+          erreursValidation = soucis;
+          renvois += 1;
+          courants = [...messages, { role: "assistant", content: rep.texte }, { role: "user", content: messageDeRenvoi(soucis) }];
+          continue;
+        }
+      }
       if (a.ok) {
         statut = "ok";
         json = a.json;
@@ -160,7 +180,8 @@ export async function executerSkill(
         modele: derniere?.modele ?? modele,
         statut,
         projectId: options.projectId ?? null,
-        messages,
+        // Les images (planche de vignettes) sont remplacées par un marqueur : jamais de base64 en base.
+        messages: messagesSansImages(messages),
         systemeEmpreinte: createHash("sha256").update(skill.systeme).digest("hex"),
         systemeCaracteres: skill.caracteres,
         sortieBrute: derniere?.texte ?? null,

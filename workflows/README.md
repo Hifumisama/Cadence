@@ -8,7 +8,7 @@ dépendance d'exécution.
 - `upscale/` — passe upscale isolée si distincte du workflow principal
 - `voice-clone/` — Qwen3-TTS (Voice Design) puis CosyVoice3 (répliques) (F06) ; **pas branché**, voir plus bas
 - `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
-- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas
+- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas ; Qwen3-TTS : voix de référence (`VOX_Generate_Voice_Simplified.json`) ; branché (asset `voix`), voir plus bas
 
 ## Avant de committer un workflow
 
@@ -123,6 +123,60 @@ l'aperçu de la durée.
 soumission (recommandé par la doc de Stability, absent du gabarit du workflow,
 non testé sur ce graphe), et le rôle d'une mention « Length: X seconds » dans un
 prompt brut. Voir le guide.
+
+### `VOX_Generate_Voice_Simplified.json` — voix de référence (Qwen3-TTS Voice Design)
+
+Branché (2026-10-02) : `worker/comfyui/voixMapping.ts` (injection) et `worker/images.ts` (tâche, méthode
+`voix` de `asset_generations`) ; popup `GenerationVoixDialog` à l'étape « Référence » du casting vocal.
+`voixMapping.test.ts` lit ce fichier et casse si un des nœuds ci-dessous disparaît après un ré-export. Trois
+nœuds seulement : le moteur, le concepteur de voix, l'écoute. Variable optionnelle : `COMFYUI_WORKFLOW_VOIX_PATH`.
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Instruction de timbre | `2` (UnifiedVoiceDesignerNode) | `voice_instruction` | en anglais ; aussi recopiée dans `1`.`instruct` |
+| Texte lu | `2` | `reference_text` | au mot près ce que dira la référence ; celui du projet par défaut |
+| Seed | `2` | `seed` | tirée côté serveur |
+| Créativité de la voix | `1` (Qwen3TTSEngineNode) | `temperature` | **0,8 à 1,2**, 1,1 par défaut (curseur de la popup) |
+| Langue du texte lu | `1` | `language` | `English` pour le texte par défaut du projet, sinon la langue de la fiche de voix |
+| Sortie | `3` (PreviewAudio) | — | **remplacé à la soumission** par `SaveAudioMP3` (qualité `V0`, préfixe `audio/cadence_<CODE>`), même id et même source `audio` : `PreviewAudio` écrit un fichier temporaire que le worker ne sait pas relire |
+
+Fixe : modèle `Voice Design - 1.7B VoiceDesign`, `top_k` 50, `top_p` 1, `repetition_penalty` 1,05, `max_new_tokens`
+2048. Le résultat est un **candidat** (comme les images et les sons) : « Utiliser comme référence » le copie sous
+`assets/<CODE>.mp3` et reporte l'instruction et le texte sur la fiche. CosyVoice3 (les répliques) reste à la main.
+
+## Contrat du workflow vidéo (`video-generation/`)
+
+### `VID_REF2VA.json` — MiniMax H3 référence vers vidéo avec audio
+
+Branché : `worker/comfyui/mapping.ts` (`NODE_IDS`, `injecterValeurs`, `verifierEntree`) et `worker/index.ts`
+(`construireSubmissionInput`). `mapping.test.ts` lit ce fichier et casse si un nœud, un champ ou l'expression de durée
+change après un ré-export. Les valeurs du fichier sont des **valeurs de test**.
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Prompt assemblé | `22:11` (PrimitiveStringMultiline) | `value` | |
+| Durée du plan | `22:23` (PrimitiveFloat) | `value` | secondes, **5 à 15** (erreur franche sinon) ; `22:24` en tire le nombre d'images (24 i/s, forme 17k+5 : 5 s = 124, 8 s = 192, 12 s = 294, 15 s = 362) qui alimente `length` du nœud `5` |
+| Seeds | `16`, `103` (easy seed) : `seed` ; `135:27` (RandomNoise) : `noise_seed` | | la seed du plan, si elle existe |
+| Images de référence | `5` : `ref_images.ref_image_<slot-1>` | | **6 au plus** (images + vidéos) ; le nœud en accepte 9 |
+| Audios de référence | `5` : `ref_audios.ref_audio_<slot-1>` | | **3 au plus** ; prises des répliques liées d'abord, bruitages sur les emplacements libres |
+| Vidéos de référence | `5` : `ref_videos.ref_video_<slot-1>` | | 3 au plus ; sortie 0 (images) seulement |
+| Upscale | `34` (VHS_VideoCombine) | `images`, `audio` | oui : `165` / `261` (RIFE) ; non : `176` / `177` et `frame_rate` = 24 |
+| Sortie | `34` | `filename_prefix` | |
+
+**Créés à la volée** (ids `ref_img_N`, `ref_audio_N`, `ref_video_N`, absents du fichier ; les références du fichier sont
+purgées) : `LoadImageCrop` (`image`, `crop`, `max_megapixels` 1) ; `LoadAudioUI` (`start_time` 0, `end_time` =
+`duration` = durée mesurée de la prise, arrondie au centième par excès ; 0 si inconnue = défauts du nœud, « tout le
+fichier » **supposé, non vérifié**) ; `LoadVideoUI` (tous ses champs, obligatoires : défauts du nœud, 24 i/s). Les
+fichiers sont envoyés par `/upload/image` sous `cadence_<chemin relatif aplati>`.
+
+**Fixe, laissé au fichier** : résolution du 1er pass (`22:9`, 16:9, 0,2 Mpx, multiple de 32 : aucune donnée de
+projet ou de plan ne porte de format vidéo) ; cadence : le modèle génère à 24 i/s, RIFE (`165`, `source_fps` 24)
+interpole vers `168` (48) et le commutateur `170` impose cette valeur ; `plans.fps` (`SubmissionInput.fps`) n'est donc
+**pas injecté** ; `ref_image_size` `max` ; audio des vidéos de référence non câblé (`ref_video_audios`) ; modèles et LoRA.
+
+Vérifié par `GET /object_info` le 2026-10-02 : `MiniMaxH3ReferenceToVideo` (images max 9, audios max 3, vidéos max 3,
+`length` pas de 17), `LoadAudioUI` (start/end/duration FLOAT, défaut 0), `LoadVideoUI` (16 champs obligatoires),
+`LoadImageCrop`. **Jamais rendu en réel avec ces changements.**
 
 ## Suivi en direct (WebSocket)
 

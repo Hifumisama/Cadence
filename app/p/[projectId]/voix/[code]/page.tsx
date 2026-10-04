@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
-import { getVoixDetail } from "@/lib/queries-voix";
-import { ETAPES_VOIX, estEtapeVoix, type EtapeVoix } from "@/lib/voix";
+import { getGenerationsAsset } from "@/lib/queries-generations";
+import { getVoixDetail, liensDeLaVoix } from "@/lib/queries-voix";
+import { ETAPES_VOIX, estEtapeVoix, verdictSuppressionVoix, type EtapeVoix } from "@/lib/voix";
 import { Topbar } from "@/components/ui/Topbar";
 import { StatutSelector } from "@/components/assets/StatutSelector";
+import { SupprimerAssetButton } from "@/components/assets/SupprimerAssetButton";
 import { EtapeVoix as EtapeVoixForm } from "@/components/voix/EtapeVoix";
 import { EtapeReference } from "@/components/voix/EtapeReference";
 import { EtapeTest } from "@/components/voix/EtapeTest";
@@ -18,9 +20,9 @@ export default async function VoixDetailPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string; code: string }>;
-  searchParams: Promise<{ etape?: string }>;
+  searchParams: Promise<{ etape?: string; generation?: string }>;
 }) {
-  const [{ projectId, code }, { etape: etapeBrute }] = await Promise.all([params, searchParams]);
+  const [{ projectId, code }, { etape: etapeBrute, generation: generationBrute }] = await Promise.all([params, searchParams]);
   const pid = Number(projectId);
   const [projet, d, premierEpisodeId] = await Promise.all([
     getProject(pid),
@@ -28,6 +30,8 @@ export default async function VoixDetailPage({
     getFirstEpisodeId(pid),
   ]);
   if (!projet || !d) notFound();
+  const generations = await getGenerationsAsset(d.asset.id);
+  const suppression = verdictSuppressionVoix(await liensDeLaVoix(d.asset.id, d.personnage?.id ?? null), d.personnage?.code ?? null);
 
   const { asset, fiche } = d;
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
@@ -85,6 +89,14 @@ export default async function VoixDetailPage({
           <div className="fiche-actions">
             {asset.critique ? <span className="crit-tag">Critique</span> : null}
             <StatutSelector assetId={asset.id} statut={asset.statut} />
+            <SupprimerAssetButton
+              assetId={asset.id}
+              code={asset.code}
+              bloque={suppression.bloque}
+              raisonBlocage={suppression.raison}
+              confirmation={suppression.avertissement}
+              redirectTo={`/p/${pid}/voix`}
+            />
           </div>
         </div>
 
@@ -140,6 +152,10 @@ export default async function VoixDetailPage({
                   referenceFichier={asset.fichier}
                   referenceSrc={d.referenceSrc}
                   hrefEtapeVoix={base}
+                  code={asset.code}
+                  generations={generations}
+                  generationInitiale={generationBrute ?? null}
+                  simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
                 />
               </div>
             </>

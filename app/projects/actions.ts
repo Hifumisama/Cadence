@@ -12,11 +12,11 @@ import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminPosterMedia, type PosterCibl
 /** Un OneShot obtient 1 saison + 1 épisode créés dans la foulée, jamais
  * montrés dans la nav (décision du 2026-09-28) — une Série ne les crée que
  * si `avecPremierEpisode` (coché par défaut côté UI, voir la maquette). */
-export async function creerProjet(valeurs: {
-  nom: string;
-  type: "oneshot" | "serie";
-  avecPremierEpisode: boolean;
-}) {
+type ValeursProjet = { nom: string; type: "oneshot" | "serie"; avecPremierEpisode: boolean };
+
+/** Crée le projet (et, selon le type, sa saison/son épisode) SANS rediriger : « Créer avec
+ * l'agent » ouvre ensuite la popup d'agent sur le projet vide. */
+export async function creerProjetSansRedirection(valeurs: ValeursProjet): Promise<{ projectId: number }> {
   const [projet] = await db
     .insert(projects)
     .values({ nom: valeurs.nom, type: valeurs.type })
@@ -33,7 +33,12 @@ export async function creerProjet(valeurs: {
   }
 
   revalidatePath("/", "layout");
-  redirect(`/p/${projet.id}`);
+  return { projectId: projet.id };
+}
+
+export async function creerProjet(valeurs: ValeursProjet) {
+  const { projectId } = await creerProjetSansRedirection(valeurs);
+  redirect(`/p/${projectId}`);
 }
 
 async function enregistrerPoster(cible: PosterCible, id: number, fichier: File): Promise<string> {

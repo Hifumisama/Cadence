@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sortie de l'agent conversation-agent : un tour de conversation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reponse",
+    "briefPret",
+    "resteADefinir"
+  ],
+  "properties": {
+    "reponse": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Ton message à l'utilisateur, en français : une proposition concrète, tes inventions signalées, deux ou trois questions au plus. Texte brut."
+    },
+    "briefPret": {
+      "type": "boolean",
+      "description": "Vrai dès que tu as de quoi écrire une PREMIÈRE VERSION du briefing (arc, structure et style au moins proposés), même s'il te reste des questions : l'application propose alors de le générer, et la conversation continue pour le préciser. resteADefinir vide = le briefing est définitif."
+    },
+    "resteADefinir": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ce qu'il te reste à savoir de l'utilisateur pour écrire le brief, en phrases courtes à l'impératif de l'utilisateur (« Choisir le style visuel », « Fixer le nombre d'épisodes »). L'application l'affiche en liste à côté de la conversation : l'utilisateur voit ce qui reste. Vide quand briefPret est vrai."
+    }
+  }
+}

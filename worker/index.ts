@@ -3,19 +3,25 @@ import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db";
-import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
+import { assets, jobs, planDialogues, planPromptSections, planRefs, plans, repliques } from "../db/schema";
+import { finaliserLotsOrphelins } from "../lib/agents/lots";
 import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/annulation-db";
 import { domaineDe, type DomaineGpu } from "../lib/gpu";
 import { configLlm } from "../lib/llm/config";
+import { cheminAssetMedia, cheminRepliqueMedia } from "../lib/media";
 import { assemblerPrompt } from "../lib/prompt";
 import { getAllParams } from "../lib/params";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import { creerClientComfyUI } from "./comfyui";
-import type { SubmissionInput } from "./comfyui/types";
+import { ErreurEntreeInvalide, nomDistantDepuisChemin, verifierEntree } from "./comfyui/mapping";
+import type { Suivi, SubmissionInput } from "./comfyui/types";
+import { creerRelaisJob } from "./progression";
 import { libererAvant } from "./gpu";
 import { prochaineGenerationEnAttente, traiterGenerationImage } from "./images";
 import { decharger, llmJoignable } from "./llamaSwap";
-import { prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
+import { echouerAppelsEnAttente, prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
+import { attenteDepassee, effacerSonde, noterSonde } from "./disponibilite";
+import { piloterCreations } from "../lib/agents/creation-db";
 import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
 import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
 import { reprendreOrphelines } from "./reprise";
@@ -45,19 +51,46 @@ async function construireSubmissionInput(
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
 
-  const [sections, refs] = await Promise.all([
+  const [sections, refs, dialogues] = await Promise.all([
     db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId)),
     db
       .select({ type: planRefs.type, slot: planRefs.slot, fichier: assets.fichier })
       .from(planRefs)
       .leftJoin(assets, eq(planRefs.assetId, assets.id))
       .where(eq(planRefs.planId, planId)),
+    // La prise d'une réplique liée EST la référence <Audio N> du plan (F02, révision 2026-09-30) : elle
+    // vient de plan_dialogues, jamais de plan_refs.
+    db
+      .select({ slot: planDialogues.slot, repliqueId: repliques.id, fichier: repliques.fichier, dureeSecondes: repliques.dureeSecondes })
+      .from(planDialogues)
+      .innerJoin(repliques, eq(planDialogues.repliqueId, repliques.id))
+      .where(eq(planDialogues.planId, planId)),
   ]);
 
   const promptAssemble = assemblerPrompt(sections);
 
-  const cheminAsset = (fichier: string | null) =>
-    fichier ? join(MEDIA_ROOT, "assets", fichier) : "";
+  // Un fichier de MEDIA_ROOT -> chemin local + nom unique côté ComfyUI (pas de collision entre deux plans,
+  // deux prises de même nom, ni avec les fichiers de l'utilisateur dans le dossier d'entrée).
+  const ref = (cheminRelatif: string) => ({
+    cheminLocal: join(MEDIA_ROOT, cheminRelatif),
+    nomDistant: nomDistantDepuisChemin(cheminRelatif),
+  });
+  const refAsset = (fichier: string | null) => ref(cheminAssetMedia(fichier ?? ""));
+
+  // Audio : les prises des répliques d'abord (la voix prime sur les bruitages), puis les bruitages sur les
+  // emplacements restants.
+  const audioVoix = dialogues
+    .filter((d) => d.fichier)
+    .map((d) => ({ slot: d.slot, ...ref(cheminRepliqueMedia(d.repliqueId, d.fichier!)), dureeSecondes: d.dureeSecondes }));
+  const emplacementsVoix = new Set(audioVoix.map((a) => a.slot));
+  const audioBruitages = refs
+    .filter((r) => r.type === "audio" && r.fichier)
+    .filter((r) => {
+      if (!emplacementsVoix.has(r.slot)) return true;
+      console.warn(`[worker] Plan ${planId} : l'emplacement <Audio ${r.slot}> est pris par une voix, le bruitage est ignoré`);
+      return false;
+    })
+    .map((r) => ({ slot: r.slot, ...refAsset(r.fichier), dureeSecondes: null as number | null }));
 
   return {
     promptAssemble,
@@ -66,13 +99,11 @@ async function construireSubmissionInput(
     fps: plan.fps,
     refsImage: refs
       .filter((r) => r.type === "picture" && r.fichier)
-      .map((r) => ({ slot: r.slot, cheminLocal: cheminAsset(r.fichier) })),
-    refsAudio: refs
-      .filter((r) => r.type === "audio" && r.fichier)
-      .map((r) => ({ slot: r.slot, cheminLocal: cheminAsset(r.fichier) })),
+      .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) })),
+    refsAudio: [...audioVoix, ...audioBruitages],
     refsVideo: refs
       .filter((r) => r.type === "video" && r.fichier)
-      .map((r) => ({ slot: r.slot, cheminLocal: cheminAsset(r.fichier) })),
+      .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) })),
     activerUpscale,
   };
 }
@@ -100,6 +131,8 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
 
   let promptId: string | null = null;
   let surveillance: ReturnType<typeof surveillerAnnulation> | null = null;
+  let suivi: Suivi | null = null;
+  let relais: ReturnType<typeof creerRelaisJob> | null = null;
 
   /** Annulation demandée : on interrompt ComfyUI après avoir vérifié dans /queue que
    * c'est bien notre prompt, on ne récupère rien. Le job finit `echoue` / « Annulée »
@@ -114,13 +147,27 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
 
   try {
     const input = await construireSubmissionInput(job.planId, job.activerUpscale);
+    // Un préfixe de fichier propre à ce rendu : plus de collision de noms, ni de résultat en cache servi à un autre rendu.
+    input.prefixeSortie = `cadence_p${job.planId}_r${job.numeroRendu}${job.tentative > 1 ? `_t${job.tentative}` : ""}`;
+    verifierEntree(input); // durée hors 5-15 s, trop de références : échec franc (voir catch)
+    // Ce qui est réellement soumis, gardé sur le rendu : de quoi comparer deux rendus (et voir qu'une
+    // modification n'a pas bougé le prompt).
+    await db
+      .update(jobs)
+      .set({ promptUtilise: input.promptAssemble, dureeUtilisee: input.dureeSecondes, seedUtilisee: input.seed ?? null })
+      .where(eq(jobs.id, job.id));
 
     for (const ref of [...input.refsImage, ...input.refsAudio, ...input.refsVideo]) {
       if (ref.cheminLocal) {
-        await client.uploadRef(ref.cheminLocal, ref.cheminLocal.split(/[\\/]/).pop()!);
+        await client.uploadRef(ref.cheminLocal, ref.nomDistant ?? ref.cheminLocal.split(/[\\/]/).pop()!);
       }
     }
 
+    // Le WebSocket s'ouvre AVANT la soumission ; il ne décide de rien (le résultat vient de /history) : il ne sert qu'à
+    // montrer l'étape en cours. S'il tombe ou n'existe pas (stub), le rendu se déroule sans progression.
+    relais = creerRelaisJob(job.id);
+    const relaisActif = relais;
+    suivi = await client.ouvrirSuivi((e) => relaisActif.surEvenement(e)).catch(() => null);
     promptId = await client.submit(input);
     await db.update(jobs).set({ comfyuiPromptId: promptId }).where(eq(jobs.id, job.id));
 
@@ -166,6 +213,16 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     await gererEchecReel(job, "Délai de génération dépassé (30 min)");
     return true;
   } catch (err) {
+    // Entrée que rien ne rendra valable en réessayant : échec définitif, sans rejeu ni attente.
+    if (err instanceof ErreurEntreeInvalide) {
+      await db
+        .update(jobs)
+        .set({ statut: "echoue", erreur: err.message, finishedAt: new Date() })
+        .where(eq(jobs.id, job.id));
+      await db.update(plans).set({ statut: "echoue" }).where(eq(plans.id, job.planId));
+      console.error(`[worker] Job ${job.id} (plan ${job.planId}) refusé avant soumission : ${err.message}`);
+      return true;
+    }
     // Une exception ici (réseau coupé en cours de route, ComfyUI qui plante
     // avant d'avoir répondu) est traitée comme une indisponibilité, pas comme
     // un échec de rendu : le job repart en_attente sans consommer de tentative.
@@ -179,6 +236,8 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     return false;
   } finally {
     surveillance?.arreter();
+    suivi?.fermer();
+    await relais?.nettoyer();
   }
 }
 
@@ -221,8 +280,23 @@ async function traiterProchaineTache(): Promise<boolean> {
   const comfyuiAttend = gen != null || job != null;
   const [comfyuiOk, llmOk] = await Promise.all([
     comfyuiAttend ? client.healthcheck() : Promise.resolve(false),
-    run ? llmJoignable(urlLlm()).catch(() => false) : Promise.resolve(false),
+    run ? llmJoignable(urlLlm(), fetch, configLlm().routeSante).catch(() => false) : Promise.resolve(false),
   ]);
+
+  // Disponibilité notée pour l'en-tête (pastille « injoignable ») ; sans rien en attente, rien à signaler.
+  const [, depuisLlm] = await Promise.all([
+    comfyuiAttend ? noterSonde("comfyui", comfyuiOk) : effacerSonde("comfyui"),
+    run ? noterSonde("llm", llmOk) : effacerSonde("llm"),
+  ]);
+  // Un serveur LLM muet depuis trop longtemps : les appels en attente échouent (relançables), ils ne bloquent
+  // plus la conversation. ComfyUI garde son attente (une vidéo ou une image se remet en file à la main).
+  const { injoignableMaxMs } = configLlm();
+  if (run && !llmOk && attenteDepassee(depuisLlm, Date.now(), injoignableMaxMs)) {
+    const n = await echouerAppelsEnAttente(
+      `Serveur LLM injoignable depuis plus de ${Math.round(injoignableMaxMs / 60_000)} min (${urlLlm()}) : relance quand il répond.`,
+    );
+    console.log(`[worker] Serveur LLM injoignable depuis trop longtemps — ${n} appel(s) en attente passé(s) en échec`);
+  }
 
   const candidates: TacheEnAttente[] = [];
   if (gen && comfyuiOk) candidates.push({ genre: "image", id: gen.id, createdAt: gen.createdAt });
@@ -264,6 +338,10 @@ async function boucle() {
     if (images || videos || llm || annulees) {
       console.log(`[worker] Reprise : ${images} image(s) et ${llm} appel(s) LLM interrompu(s), ${videos} vidéo(s) remise(s) en file, ${annulees} annulation(s) terminée(s)`);
     }
+    // Un lot dont la tâche en cours vient d'être interrompue n'attend plus rien d'elle : son statut
+    // (prête avec un échec à relancer, ou échouée) est rattrapé ici.
+    const lots = await finaliserLotsOrphelins();
+    if (lots) console.log(`[worker] Reprise : ${lots} lot(s) d'agent rattrapé(s)`);
   } catch (err) {
     console.error("[worker] Reprise des tâches interrompues impossible :", err);
   }
@@ -288,6 +366,13 @@ async function boucle() {
       fait = await traiterProchaineTache();
     } catch (err) {
       console.error("[worker] Erreur de boucle :", err);
+    }
+    // L'installateur : une transition au plus par création en cours (lancer une étape, appliquer, relancer les échecs).
+    // Pur travail en base, jamais le GPU : il ne retarde aucune tâche.
+    try {
+      if (await piloterCreations()) fait = true;
+    } catch (err) {
+      console.error("[worker] Installateur :", err);
     }
     await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
   }

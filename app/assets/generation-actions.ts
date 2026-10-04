@@ -1,22 +1,32 @@
 "use server";
 
 import { db } from "@/db";
-import { assetGenerationSources, assetGenerations, assets, projects } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { assetGenerationSources, assetGenerations, assets, projects, voixFiches } from "@/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { access, copyFile, mkdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import {
   METHODE_AUDIO,
+  METHODE_VOIX,
+  langueDuTexteDeReference,
   nouvelleSeed,
   raisonAudioNonGenerable,
   raisonDemandeAudioInvalide,
   raisonDemandeInvalide,
+  raisonDemandeVoixInvalide,
   raisonNonGenerable,
+  raisonVoixNonGenerable,
   type DemandeAudio,
   type DemandeGeneration,
+  type DemandeVoix,
+  formatParDefaut,
+  loraParDefaut,
 } from "@/lib/asset-generation";
+import { adopterCandidat } from "@/lib/generation-adoption";
+import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "@/lib/generation-lot";
+import { TEXTE_REFERENCE_DEFAUT } from "@/lib/voix";
 import { supprimerGenerationEtFichiers } from "@/lib/generation-sources";
 import { nbImagesEnAttente, rangDansLaFile } from "@/lib/queries-taches";
 import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
@@ -59,15 +69,15 @@ type SourceResolue = { origine: "asset" | "import"; assetId: number | null; fich
 
 /** Pose une demande dans la file : plusieurs générations peuvent attendre (même
  * pour un seul asset), jusqu'à PLAFOND_FILE_IMAGES en attente au total. */
-export async function lancerGeneration(assetId: number, demande: DemandeGeneration): Promise<ResultatLancement> {
+export async function lancerGeneration(assetId: number, demande: DemandeGeneration, plafond: number = PLAFOND_FILE_IMAGES, adoptionAuto = false): Promise<ResultatLancement> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
   const raisonAsset = raisonNonGenerable(asset);
   if (raisonAsset) return { ok: false, erreur: raisonAsset };
   const raison = raisonDemandeInvalide(demande);
   if (raison) return { ok: false, erreur: raison };
-  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
-    return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} images en attente) : laisse le worker en vider quelques-unes.` };
+  if ((await nbImagesEnAttente()) >= plafond) {
+    return { ok: false, erreur: `La file est pleine (${plafond} images en attente) : laisse le worker en vider quelques-unes.` };
   }
 
   const prompt = demande.prompt.trim();
@@ -113,6 +123,7 @@ export async function lancerGeneration(assetId: number, demande: DemandeGenerati
         loraPersonnage: texte ? demande.loraPersonnage : false,
         lightning: texte ? null : true,
         seed: nouvelleSeed(),
+        adoptionAuto,
       })
       .returning({ id: assetGenerations.id });
     if (sources.length > 0) {
@@ -124,6 +135,50 @@ export async function lancerGeneration(assetId: number, demande: DemandeGenerati
   });
   revalidatePath("/", "layout");
   return { ok: true, position: await rangDansLaFile(genId) };
+}
+
+/** Génération EN LOT (registre d'assets) : chaque asset coché part dans la file avec SON prompt, au format par défaut
+ * de son type (texte), ou en édition à partir de l'image de son master (dérivé). Les assets qui ne peuvent pas partir
+ * (voix, son, sans prompt, déjà en file, dérivé dont le master n'a pas d'image) sont rendus avec leur raison : rien
+ * n'est silencieusement ignoré. Règles dans lib/generation-lot.ts. */
+export async function lancerGenerationsLot(
+  projectId: number,
+  assetIds: number[],
+): Promise<{ ok: true; lancees: number; ecartes: EcarteLot[] } | { ok: false; erreur: string }> {
+  if (assetIds.length === 0) return { ok: false, erreur: "Coche au moins un asset." };
+  const tous = await db.select().from(assets).where(eq(assets.projectId, projectId));
+  const voulus = new Set(assetIds);
+  const selection = tous.filter((a) => voulus.has(a.id));
+  if (selection.length !== voulus.size) return { ok: false, erreur: "Un des assets cochés n'existe plus dans ce projet." };
+  const enFile = await db
+    .select({ assetId: assetGenerations.assetId })
+    .from(assetGenerations)
+    .where(and(inArray(assetGenerations.assetId, tous.map((a) => a.id)), inArray(assetGenerations.statut, ["en_attente", "en_cours"])));
+  const plan = preparerLot(selection, tous, new Set(enFile.map((g) => g.assetId)), Math.max(0, PLAFOND_LOT_IMAGES - (await nbImagesEnAttente())));
+
+  let lancees = 0;
+  const ecartes = [...plan.ecartes];
+  for (const l of plan.aLancer) {
+    const a = tous.find((x) => x.id === l.assetId)!;
+    const format = formatParDefaut(a.type);
+    const r = await lancerGeneration(
+      a.id,
+      {
+        mode: l.mode,
+        prompt: a.promptGeneration ?? "",
+        aspect: format.aspect,
+        megapixels: format.megapixels,
+        loraPersonnage: l.mode === "texte" && loraParDefaut(a.type),
+        sources: l.sourceAssetId != null ? [{ origine: "asset", assetId: l.sourceAssetId }] : [],
+      },
+      PLAFOND_LOT_IMAGES,
+      true, // un lot : le résultat est adopté tout seul à la fin de la génération
+    );
+    if (r.ok) lancees += 1;
+    else ecartes.push({ assetId: a.id, code: a.code, raison: r.erreur });
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, lancees, ecartes };
 }
 
 /** Pose une demande de génération AUDIO (SFX, Stable Audio 3) dans la même file que
@@ -148,6 +203,38 @@ export async function lancerGenerationAudio(assetId: number, demande: DemandeAud
       methode: METHODE_AUDIO,
       prompt: demande.prompt.trim(),
       dureeSecondes: demande.dureeSecondes,
+      seed: nouvelleSeed(),
+    })
+    .returning({ id: assetGenerations.id });
+  revalidatePath("/", "layout");
+  return { ok: true, position: await rangDansLaFile(gen!.id) };
+}
+
+/** Pose une demande de génération de VOIX DE RÉFÉRENCE (Qwen3-TTS Voice Design) dans la même file que les
+ * images et les sons (table `asset_generations`, méthode « voix »). Réservée aux assets de type `voix`.
+ * `instruction` = l'instruction de timbre (elle devient le prompt de la génération) ; `texteReference` est le
+ * texte lu ; `temperature` règle la créativité de la voix (0,8 à 1,2). La seed est tirée côté serveur. */
+export async function lancerGenerationVoix(assetId: number, demande: DemandeVoix): Promise<ResultatLancement> {
+  const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
+  if (!asset) return { ok: false, erreur: "Cette voix n'existe pas." };
+  const raisonAsset = raisonVoixNonGenerable(asset.type);
+  if (raisonAsset) return { ok: false, erreur: raisonAsset };
+  const raison = raisonDemandeVoixInvalide(demande);
+  if (raison) return { ok: false, erreur: raison };
+  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
+    return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} générations en attente) : laisse le worker en vider quelques-unes.` };
+  }
+  const [fiche] = await db.select({ langue: voixFiches.langue }).from(voixFiches).where(eq(voixFiches.assetId, assetId));
+
+  const [gen] = await db
+    .insert(assetGenerations)
+    .values({
+      assetId,
+      methode: METHODE_VOIX,
+      prompt: demande.instruction.trim(),
+      texteReference: demande.texteReference.trim(),
+      langueReference: langueDuTexteDeReference(demande.texteReference, TEXTE_REFERENCE_DEFAUT, fiche?.langue ?? "French"),
+      temperature: demande.temperature,
       seed: nouvelleSeed(),
     })
     .returning({ id: assetGenerations.id });
@@ -190,35 +277,9 @@ export async function deposerSourceImport(
  * devient aussi celle de l'asset. L'asset repasse « en cours » : un résultat
  * nouveau est à revalider. */
 export async function adopterGeneration(generationId: number): Promise<Resultat> {
-  const [gen] = await db.select().from(assetGenerations).where(eq(assetGenerations.id, generationId));
-  if (!gen || gen.statut !== "termine" || !gen.fichier) return { ok: false, erreur: "Ce candidat n'est pas disponible." };
-  const [asset] = await db.select().from(assets).where(eq(assets.id, gen.assetId));
-  if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
-
-  const nom = `${asset.code}${extname(gen.fichier).toLowerCase() || ".png"}`;
-  const cible = join(MEDIA_ROOT, cheminAssetMedia(nom));
-  try {
-    await mkdir(dirname(cible), { recursive: true });
-    await copyFile(join(MEDIA_ROOT, cheminGenerationMedia(gen.assetId, gen.fichier)), cible);
-  } catch {
-    return { ok: false, erreur: "Le fichier du candidat est introuvable sur le stockage." };
-  }
-  if (asset.fichier && asset.fichier !== nom) {
-    await unlink(join(MEDIA_ROOT, cheminAssetMedia(asset.fichier))).catch(() => undefined);
-  }
-  await db
-    .update(assets)
-    .set({
-      fichier: nom,
-      statut: "en_cours",
-      promptGeneration: gen.prompt,
-      ...(gen.methode === METHODE_AUDIO && gen.dureeSecondes != null ? { dureeSecondes: gen.dureeSecondes } : {}),
-    })
-    .where(eq(assets.id, asset.id));
-  // Adopter, c'est avoir vu le résultat : l'indicateur du header ne le signale plus.
-  if (!gen.vuAt) await db.update(assetGenerations).set({ vuAt: new Date() }).where(eq(assetGenerations.id, gen.id));
-  revalidatePath("/", "layout");
-  return { ok: true };
+  const r = await adopterCandidat(generationId, MEDIA_ROOT);
+  if (r.ok) revalidatePath("/", "layout");
+  return r;
 }
 
 export async function supprimerGeneration(generationId: number): Promise<Resultat> {

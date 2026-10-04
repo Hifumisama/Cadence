@@ -27,7 +27,7 @@ Gabarit : `<source + matière> <action / évolution>, <espace / perspective>, <c
 
 ## Durée (`dureeSecondes`)
 
-Une durée **qui colle au contenu** : la plupart des sons sont brefs. `[officiel]` Repères `[workflow]` : impact, claquement, tir, éclat 1 à 3 s ; action moyenne (pas, geste, objet déplacé) 3 à 6 s ; ambiance 6 à 15 s. **Entier.** Un plan dure 4 à 15 s : ne dépasse pas **15 s** sans raison dite dans `remarques`. `[projet]`
+Une durée **qui colle au contenu** : la plupart des sons sont brefs. `[officiel]` Repères `[workflow]` : impact, claquement, tir, éclat 1 à 3 s ; action moyenne (pas, geste, objet déplacé) 3 à 6 s ; ambiance 6 à 15 s. **Entier.** Un plan dure 5 à 15 s : ne dépasse pas **15 s** sans raison dite dans `remarques`. `[projet]`
 
 **Pas de « Length: X seconds » dans le texte** (le gabarit de réécriture du workflow l'ajoute, mais rien n'établit que le modèle en tire parti sur un prompt brut). `[projet, à éprouver]`
 

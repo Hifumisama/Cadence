@@ -2,16 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useAgents } from "@/components/agents/AgentsProvider";
+import { BasculeNotifications } from "@/components/taches/BasculeNotifications";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { estActive, type GenreTache, type Tache } from "@/lib/taches";
 import { urlMiniature } from "@/lib/miniatures";
+import { LIBELLE_SERVEUR, type ServeursInjoignables } from "@/lib/serveurs-injoignables-types";
 
 /** Icône du header : ce qui se génère, ce qui est prêt, ce qui a échoué. Badge
  * or = nombre de tâches actives ; point écarlate = échecs non vus ; point or plein
  * = terminées non vues. Le panneau liste les tâches (voir lib/taches.ts) ; un clic
  * mène à l'asset (popup ouverte sur le résultat) ou au plan. */
 export function IndicateurTaches() {
-  const { taches, resume, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler } = useTaches();
+  const { taches, resume, serveurs, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe } = useTaches();
+  const [confirmerVidage, setConfirmerVidage] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
 
   // Échap ou clic hors du panneau le ferme.
@@ -38,7 +42,9 @@ export function IndicateurTaches() {
   const finies = taches.filter((x) => x.statut === "termine");
   const nonVus = resume.echecsNonVus + resume.terminesNonVus;
 
+  const injoignables = (Object.keys(LIBELLE_SERVEUR) as (keyof ServeursInjoignables)[]).filter((k) => serveurs[k] != null);
   const etat = [
+    injoignables.length > 0 ? `${injoignables.map((k) => LIBELLE_SERVEUR[k]).join(" et ")} injoignable` : null,
     resume.actives > 0 ? `${resume.actives} génération${resume.actives > 1 ? "s" : ""} en cours ou en file` : null,
     resume.echecsNonVus > 0 ? `${resume.echecsNonVus} échec${resume.echecsNonVus > 1 ? "s" : ""} non vu${resume.echecsNonVus > 1 ? "s" : ""}` : null,
     resume.terminesNonVus > 0 ? `${resume.terminesNonVus} résultat${resume.terminesNonVus > 1 ? "s" : ""} prêt${resume.terminesNonVus > 1 ? "s" : ""}` : null,
@@ -66,7 +72,7 @@ export function IndicateurTaches() {
           <rect x="3" y="16" width="12" height="4" rx="1" />
         </svg>
         {resume.actives > 0 ? <span className="tq-badge num">{resume.actives}</span> : null}
-        {resume.echecsNonVus > 0 ? <span className="tq-pt tq-pt-echec" aria-hidden="true" /> : resume.terminesNonVus > 0 ? <span className="tq-pt tq-pt-ok" aria-hidden="true" /> : null}
+        {injoignables.length > 0 ? <span className="tq-pt tq-pt-echec" aria-hidden="true" /> : resume.echecsNonVus > 0 ? <span className="tq-pt tq-pt-echec" aria-hidden="true" /> : resume.terminesNonVus > 0 ? <span className="tq-pt tq-pt-ok" aria-hidden="true" /> : null}
       </button>
 
       {panneauOuvert ? (
@@ -80,11 +86,50 @@ export function IndicateurTaches() {
             ) : null}
           </div>
 
+          {injoignables.map((k) => (
+            <p key={k} className="tq-vide" role="alert">
+              {LIBELLE_SERVEUR[k]} injoignable depuis {new Date(serveurs[k]!).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} : les tâches
+              restent en attente{k === "llm" ? " (elles échoueront au bout de quelques minutes, à relancer ensuite)" : ""}.
+            </p>
+          ))}
+
+          <BasculeNotifications />
+
           {taches.length === 0 ? <p className="tq-vide">Aucune génération pour l&rsquo;instant.</p> : null}
 
           {actives.length > 0 ? (
             <section aria-label="En cours et en file">
-              <h3 className="tq-sec">En cours / en file</h3>
+              <div className="tq-sec-ligne">
+                <h3 className="tq-sec">En cours / en file</h3>
+                {resume.enFile > 0 ? (
+                  confirmerVidage ? (
+                    <span className="tq-confirm" role="group" aria-label="Confirmer le vidage de la file">
+                      <button
+                        type="button"
+                        className="tq-ignorer tq-annuler"
+                        onClick={() => {
+                          setConfirmerVidage(false);
+                          viderFile();
+                        }}
+                      >
+                        Oui, retirer {resume.enFile}
+                      </button>
+                      <button type="button" className="tq-ignorer" onClick={() => setConfirmerVidage(false)}>
+                        Non
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="tq-ignorer tq-annuler"
+                      onClick={() => setConfirmerVidage(true)}
+                      title="Retirer tout ce qui attend ; ce qui tourne continue"
+                    >
+                      Vider la file ({resume.enFile})
+                    </button>
+                  )
+                ) : null}
+              </div>
               <ul className="tq-liste">
                 {actives.map((x) => (
                   <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onAnnuler={() => annuler(x.cle)} />
@@ -95,20 +140,30 @@ export function IndicateurTaches() {
 
           {echecs.length > 0 ? (
             <section aria-label="Échecs et annulations">
-              <h3 className="tq-sec">{echecs.some((x) => x.statut === "annulee") ? "Échecs et annulations" : "Échecs"}</h3>
+              <div className="tq-sec-ligne">
+                <h3 className="tq-sec">{echecs.some((x) => x.statut === "annulee") ? "Échecs et annulations" : "Échecs"}</h3>
+                <button type="button" className="tq-ignorer" onClick={() => viderListe("echecs")} title="Retirer ces tâches de la liste (rien n'est supprimé)">
+                  Vider la liste
+                </button>
+              </div>
               <ul className="tq-liste">
                 {echecs.map((x) => (
-                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onIgnorer={x.vuAt == null ? () => marquerVuLocal([x.cle]) : undefined} />
+                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onRetirer={() => retirer([x.cle])} />
                 ))}
               </ul>
             </section>
           ) : null}
           {finies.length > 0 ? (
             <section aria-label="Terminées">
-              <h3 className="tq-sec">Terminées</h3>
+              <div className="tq-sec-ligne">
+                <h3 className="tq-sec">Terminées</h3>
+                <button type="button" className="tq-ignorer" onClick={() => viderListe("terminees")} title="Retirer ces tâches de la liste (rien n'est supprimé)">
+                  Vider la liste
+                </button>
+              </div>
               <ul className="tq-liste">
                 {finies.map((x) => (
-                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} />
+                  <Entree key={x.cle} x={x} onOuvrir={() => ouvrir(x)} onRetirer={() => retirer([x.cle])} />
                 ))}
               </ul>
             </section>
@@ -130,17 +185,30 @@ function heure(iso: string | null): string {
   return d.toDateString() === auj.toDateString() ? hm : `${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} ${hm}`;
 }
 
-function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () => void; onIgnorer?: () => void; onAnnuler?: () => void }) {
+function Entree({ x, onOuvrir, onRetirer, onAnnuler }: { x: Tache; onOuvrir: () => void; onRetirer?: () => void; onAnnuler?: () => void }) {
   // Une tâche en cours coûte du temps de GPU : on demande confirmation avant de la
   // couper. Une tâche en attente s'annule d'un clic (rien n'est perdu).
   const [confirmer, setConfirmer] = useState(false);
+  const { ouvrirAgent } = useAgents();
   // L'aperçu en direct est déjà léger (écrasé à chaque étape) ; la vignette d'un
   // résultat passe par la miniature.
   const image = x.apercuSrc ?? (x.vignetteSrc ? urlMiniature(x.vignetteSrc, 96) : null);
   const nonVu = x.vuAt == null && (x.statut === "termine" || x.statut === "echoue");
   return (
     <li className={`tq-entree s-${x.statut}${nonVu ? " non-vu" : ""}`}>
-      <Link href={x.href} className="tq-lien-entree" onClick={onOuvrir}>
+      <Link
+        href={x.href}
+        className="tq-lien-entree"
+        onClick={(e) => {
+          // Une tâche d'agent rouvre la popup sur sa conversation (à la bonne étape : la
+          // popup suit l'étape du serveur), sans changer de page.
+          if (x.genre === "llm" && x.conversationUuid) {
+            e.preventDefault();
+            ouvrirAgent({ conversationUuid: x.conversationUuid, projectId: x.projectId || undefined });
+          }
+          onOuvrir();
+        }}
+      >
         <span className="tq-vignette" aria-hidden="true">
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -165,9 +233,15 @@ function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () 
           {x.statut === "en_cours" && !x.annulationDemandee ? (
             x.genre === "llm" ? (
               // Un appel LLM n'a pas de maximum connu : un compteur de jetons, pas de pourcentage.
+              // Un LOT (plusieurs appels, ex. un épisode chacun) a une vraie barre : « 3/12 ».
               <span className="tq-prog">
-                <progress aria-label="Génération en cours" />
-                <span className="num">{x.jetons != null && x.jetons > 0 ? `${x.jetons} jeton${x.jetons > 1 ? "s" : ""}` : "Démarrage…"}</span>
+                {x.progression ? <progress value={x.progression.valeur} max={x.progression.max} aria-label="Avancement du lot" /> : <progress aria-label="Génération en cours" />}
+                <span className="num">
+                  {x.progression?.etape ? `${x.progression.etape} · ` : ""}
+                  {x.progression ? `${x.progression.valeur}/${x.progression.max}` : ""}
+                  {x.progression && x.jetons != null && x.jetons > 0 ? " · " : ""}
+                  {x.jetons != null && x.jetons > 0 ? `${x.jetons} jeton${x.jetons > 1 ? "s" : ""}` : x.progression ? "" : "Démarrage…"}
+                </span>
               </span>
             ) : x.progression ? (
               <span className="tq-prog">
@@ -199,9 +273,9 @@ function Entree({ x, onOuvrir, onIgnorer, onAnnuler }: { x: Tache; onOuvrir: () 
           ) : null}
         </span>
       </Link>
-      {onIgnorer ? (
-        <button type="button" className="tq-ignorer" onClick={onIgnorer}>
-          Ignorer
+      {onRetirer ? (
+        <button type="button" className="tq-retirer" onClick={onRetirer} aria-label={`Retirer ${x.libelle} de la liste`} title="Retirer de la liste">
+          ✕
         </button>
       ) : null}
       {onAnnuler && !x.annulationDemandee ? (

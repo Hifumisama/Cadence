@@ -15,13 +15,17 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
   // Casting vocal (2026-09-30) : même niveau que Assets — le catalogue de
   // voix est partagé par toute la série.
   const castingHref = `/p/${projectId}/voix`;
+  // Brief du projet (2026-10-02) : la référence du projet, au même niveau que Assets et Casting.
+  const briefHref = `/p/${projectId}/brief`;
   const suffixeEpisode = pathname.startsWith(episodeBase) ? pathname.slice(episodeBase.length) : "";
   const segmentsEpisode = suffixeEpisode.split("/").filter(Boolean);
   const surAssets = pathname === assetsHref || pathname.startsWith(`${assetsHref}/`);
   const surCasting = pathname === castingHref || pathname.startsWith(`${castingHref}/`);
-  const segmentActif = surAssets ? "assets" : surCasting ? "voix" : (segmentsEpisode[0] ?? "");
+  const surBrief = pathname === briefHref || pathname.startsWith(`${briefHref}/`);
+  const segmentActif = surAssets ? "assets" : surCasting ? "voix" : surBrief ? "brief" : (segmentsEpisode[0] ?? "");
 
   const onglets = [
+    { seg: "brief", label: "Brief", href: briefHref },
     { seg: "scenario", label: "Scénario", href: `${episodeBase}/scenario` },
     { seg: "assets", label: "Assets", href: assetsHref },
     { seg: "plans", label: "Plans", href: `${episodeBase}/plans` },

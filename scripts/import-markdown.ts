@@ -5,6 +5,7 @@ import { assets, scenes, planDialogues, planPromptSections, planRefs, plans, rep
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { getDefaultEpisodeId, getDefaultProjectId } from "../lib/queries";
 import { decouperSections, ORDRE_SECTIONS } from "../lib/prompt";
+import { masterDe } from "../lib/registre-assets";
 
 /**
  * Import one-shot depuis les markdown existants vers Postgres — voir le plan
@@ -110,7 +111,9 @@ async function importerAssets(projectId: number) {
     const [enfant] = await db.select().from(assets).where(eq(assets.code, code)).limit(1);
     const [parent] = await db.select().from(assets).where(eq(assets.code, parentCode)).limit(1);
     if (!enfant || !parent) continue;
-    await db.update(assets).set({ deriveDeId: parent.id }).where(eq(assets.id, enfant.id));
+    // Registre à un niveau : un dérivé de dérivé se rattache au master.
+    const master = await masterDe(parent.id, async (id) => (await db.select({ p: assets.deriveDeId }).from(assets).where(eq(assets.id, id)))[0]?.p ?? null);
+    await db.update(assets).set({ deriveDeId: master }).where(eq(assets.id, enfant.id));
   }
 
   console.log(`[import] ${n} assets importés depuis REGISTRE_ASSETS.md`);
