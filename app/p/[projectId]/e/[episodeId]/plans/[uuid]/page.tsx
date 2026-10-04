@@ -4,7 +4,7 @@ import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
 import { calculerStatutDuree, controlerStructure, verifierCoherenceRefs } from "@/lib/plan-checks";
-import { getDialoguesPlan, getOptionsLocuteur } from "@/lib/queries-repliques";
+import { getDialoguesPlan, getOptionsLocuteur, getPrisesGenerees } from "@/lib/queries-repliques";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { PromptSectionEditor } from "@/components/plan/PromptSectionEditor";
@@ -78,6 +78,7 @@ export default async function PlanPage({
     getOptionsLocuteur(pid),
   ]);
   const { liaisons, disponibles, controle, audioRefs } = dialoguesPlan;
+  const prisesGenerees = await getPrisesGenerees(liaisons.map((l) => l.id));
 
   const sectionsPourControle = promptSections.map((s) => ({
     section: s.section,
@@ -315,6 +316,8 @@ export default async function PlanPage({
 
           <DialoguesPanel
             planId={plan.id}
+            planUuid={plan.uuid}
+            prises={prisesGenerees}
             projectId={pid}
             episodeId={eid}
             liaisons={liaisons}

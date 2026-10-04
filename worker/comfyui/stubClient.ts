@@ -35,7 +35,7 @@ export class StubComfyUIClient implements ComfyUIClient {
 
   async submitGraph(graphe?: Record<string, unknown>): Promise<string> {
     // Un graphe qui sauvegarde de l'audio (SaveAudioMP3) donne un son factice.
-    const audio = Object.values(graphe ?? {}).some((n) => (n as { class_type?: string }).class_type === "SaveAudioMP3");
+    const audio = Object.values(graphe ?? {}).some((n) => ["SaveAudioMP3", "SaveAudio"].includes((n as { class_type?: string }).class_type ?? ""));
     const promptId = `stub-${audio ? "aud" : "img"}-${Date.now()}`;
     this.enCours.set(promptId, Date.now());
     return promptId;

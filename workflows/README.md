@@ -124,6 +124,28 @@ soumission (recommandé par la doc de Stability, absent du gabarit du workflow,
 non testé sur ce graphe), et le rôle d'une mention « Length: X seconds » dans un
 prompt brut. Voir le guide.
 
+### `VOX_Generate_Replique_Simplified.json` — prise d'une réplique (Qwen3-TTS Base, clonage)
+
+Branché (2026-10-05) : `worker/comfyui/repliqueMapping.ts` (injection), `worker/images.ts` (tâche, méthode `replique` de
+`asset_generations`, `repliqueId` = la réplique, `assetId` = la voix clonée), `lib/replique-prise.ts` (pose de la prise) ; boutons
+« Générer la prise » / « Générer les prises manquantes » du panneau Dialogues d'un plan. `repliqueMapping.test.ts` lit ce fichier et
+casse si un des nœuds ci-dessous disparaît après un ré-export. Variable optionnelle : `COMFYUI_WORKFLOW_REPLIQUE_PATH`. Validé en réel
+le 2026-10-05 (FLAC 24 kHz, durée mesurée, niveau sonore équivalent à une prise faite à la main).
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Texte dit | `4` (UnifiedTTSTextNode) | `text` | la réplique, mot pour mot |
+| Seed | `4` | `seed` | tirée à chaque demande : régénérer donne une autre interprétation |
+| Cache audio | `4` | `enable_audio_cache` | **coupé** à la soumission (une autre voix de référence de même nom ne doit pas resservir une ancienne prise) |
+| Voix de référence | `5` (LoadAudio) | `audio` | le fichier de l'asset voix (`assets/<fichier>`), envoyé au dossier d'entrée de ComfyUI sous `cadence_voixref_<CODE>_<date de modification>` |
+| Créativité de la voix | `1` (Qwen3TTSEngineNode) | `temperature` | **0,8 à 1,2**, 1,2 par défaut |
+| Langue | `1` | `language` | celle des dialogues du brief (`lib/langues-tts.ts`), « Auto » si inconnue |
+| Sortie | `3` | — | `PreviewAudio` dans le fichier, remplacé à la soumission par `SaveAudio` (FLAC : durée mesurable, format recommandé pour le clonage) |
+
+Le champ `instruct` du moteur (reste d'un essai de Voice Design) et les autres réglages exportés sont laissés tels quels : ce sont ceux
+des essais directs. La prise générée **remplace** la prise de la réplique (pas de versionnage, F01) et passe en « prise posée » ; une
+prise validée doit être réécoutée. Ces générations ne sont jamais des candidats de la voix ou de l'asset.
+
 ### `VOX_Generate_Voice_Simplified.json` — voix de référence (Qwen3-TTS Voice Design)
 
 Branché (2026-10-02) : `worker/comfyui/voixMapping.ts` (injection) et `worker/images.ts` (tâche, méthode

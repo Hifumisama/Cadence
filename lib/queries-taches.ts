@@ -1,10 +1,10 @@
 import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, jobs, plans, projects, propositions } from "../db/schema";
+import { agentConversations, agentRuns, assetGenerations, assets, jobs, planDialogues, plans, projects, propositions, repliques } from "../db/schema";
 import { and, eq, gte, isNotNull, isNull, or, inArray } from "drizzle-orm";
 import { versRunLot } from "./agents/lots";
 import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
-import { METHODE_AUDIO, METHODE_VOIX, formaterDuree } from "./asset-generation";
+import { METHODE_AUDIO, METHODE_REPLIQUE, METHODE_VOIX, formaterDuree } from "./asset-generation";
 import { generationMediaSrc } from "./media";
 import {
   LIBELLE_SKILL,
@@ -124,6 +124,28 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     jetons: null,
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
   }));
+
+  // Une prise de réplique : « Réplique · début du texte », et un clic mène au plan qui la cite (sinon à la voix).
+  const idsRepliques = [...new Set(lignesImages.flatMap((l) => (l.g.repliqueId != null ? [l.g.repliqueId] : [])))];
+  if (idsRepliques.length > 0) {
+    const infos = new Map<number, { texte: string; planUuid: string | null; episodeId: number | null }>();
+    const lignes = await db
+      .select({ id: repliques.id, texte: repliques.texte, planUuid: plans.uuid, episodeId: plans.episodeId })
+      .from(repliques)
+      .leftJoin(planDialogues, eq(planDialogues.repliqueId, repliques.id))
+      .leftJoin(plans, eq(plans.id, planDialogues.planId))
+      .where(inArray(repliques.id, idsRepliques));
+    for (const l of lignes) if (!infos.get(l.id)?.planUuid) infos.set(l.id, { texte: l.texte, planUuid: l.planUuid, episodeId: l.episodeId });
+    for (const [i, t] of images.entries()) {
+      const { g, code, projectId } = lignesImages[i]!;
+      if (g.repliqueId == null || g.methode !== METHODE_REPLIQUE) continue;
+      const info = infos.get(g.repliqueId);
+      const extrait = (info?.texte ?? g.texteReference ?? "").replace(/\s+/g, " ").trim();
+      t.libelle = `Réplique · ${extrait.length > 40 ? `${extrait.slice(0, 40)}…` : extrait || code}`;
+      t.detail = `Prise générée · voix ${code}`;
+      t.href = info?.planUuid && info.episodeId != null ? `/p/${projectId}/e/${info.episodeId}/plans/${info.planUuid}` : `/p/${projectId}/voix/${code}`;
+    }
+  }
 
   const videos: Tache[] = lignesVideos.map(({ j, planUuid, titre, projectId, episodeId }) => ({
     cle: cleVideo(j.id),

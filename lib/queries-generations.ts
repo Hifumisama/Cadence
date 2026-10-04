@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { assetGenerations, assets } from "../db/schema";
-import { and, asc, desc, eq, isNotNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, ne } from "drizzle-orm";
 import { estImage, fichierMediaExiste, generationMediaSrc, urlAssetMedia } from "./media";
 
 /** Une image du registre proposable comme source d'une génération « à partir
@@ -36,7 +36,7 @@ export async function getGenerationsAsset(assetId: number) {
   const lignes = await db
     .select()
     .from(assetGenerations)
-    .where(eq(assetGenerations.assetId, assetId))
+    .where(and(eq(assetGenerations.assetId, assetId), isNull(assetGenerations.repliqueId)))
     .orderBy(desc(assetGenerations.createdAt), desc(assetGenerations.id));
   return lignes.map((g) => ({
     id: g.id,
