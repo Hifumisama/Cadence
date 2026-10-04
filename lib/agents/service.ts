@@ -881,7 +881,7 @@ export async function genererFiches(
     const e = await entreePlanH3(db, conv.projectId, choisis[0]!.uuid, consigne);
     if (!e) return ERR("Plan introuvable.");
     const propId = await nouvelleProposition(conv, { skill: "plan-h3", consigne, contexte: e.contexte });
-    const run = await creerRun(db, { skill: "plan-h3", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId });
+    const run = await creerRun(db, { skill: "plan-h3", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: e.variante ? { variante: e.variante } : null });
     await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
     const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
     return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: 1 };
@@ -907,6 +907,7 @@ export async function genererFiches(
       projectId: conv.projectId,
       conversationId: conv.id,
       propositionId: propId,
+      options: e.variante ? { variante: e.variante } : null,
       cleSousTache: cleSousTachePlan(p.uuid),
       libelleSousTache: `${plusieursEpisodes ? `${p.episodeLibelle} · ` : ""}Plan ${String(p.rang).padStart(2, "0")} · ${p.titre}`,
     });
@@ -1046,7 +1047,7 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
     // Lot de fiches : le plan tel qu'il est maintenant (répliques, registre, voisins).
     const e = await entreePlanH3(db, prop.projectId, planUuid, prop.consigne || CONSIGNE_FICHE, retour?.trim() || undefined);
     if (!e) return ERR("Le plan n'existe plus.");
-    cible = { skill: "plan-h3", entree: e.entree, options: null };
+    cible = { skill: "plan-h3", entree: e.entree, options: e.variante ? { variante: e.variante } : null };
   } else if (codeAsset && prop.skill === "prompts-assets") {
     // Prompts des assets créés par les fiches : l'asset existe, on repart de lui (et de son parent).
     const [a] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, prop.projectId), eq(assets.code, codeAsset)));

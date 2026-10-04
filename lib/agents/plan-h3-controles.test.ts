@@ -22,7 +22,7 @@ const bonne: SortiePlanH3 = {
   summary: "[[CHAR_maya]] walks through [[DEC_couloir]].",
   ouverture: "Cinematic style, cold light.",
   shots: [
-    { debutSecondes: 0, texte: "A low static shot follows [[CHAR_maya]] in [[DEC_couloir]]. She says <d>[French] Encore du sel.</d>" },
+    { debutSecondes: 0, texte: "A low static shot follows [[CHAR_maya]] in [[DEC_couloir]]. She (S1) says <d>[French] Encore du sel.</d>" },
     { debutSecondes: 5, texte: "a close-up on her hands." },
   ],
   overall_soundscape: "Drip.",
@@ -156,4 +156,14 @@ test("définition : « is … » est refusé, « island … » ne l'est pas", ()
   const avec = (definition: string) => controlerSortiePlanH3({ ...bonne, references: [{ ...bonne.references[0]!, definition }, bonne.references[1]!] }, ctx).filter((x) => x.regle === "definition");
   assert.equal(avec("is walking").length, 1);
   assert.equal(avec("island of calm, walking").length, 0);
+});
+
+test("un dialogue <d> sans locuteur (S1) donne une alerte, pas une erreur", () => {
+  const sans: SortiePlanH3 = {
+    ...bonne,
+    shots: [{ debutSecondes: 0, texte: "A low static shot follows [[CHAR_maya]] in [[DEC_couloir]]. She says <d>[French] Encore du sel.</d>" }, bonne.shots[1]!],
+  };
+  const r = controlerSortiePlanH3(sans, ctx);
+  assert.ok(r.some((x) => x.regle === "locuteur" && x.niveau === "alerte"));
+  assert.equal(erreurs(sans).includes("locuteur"), false);
 });

@@ -200,6 +200,13 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     if (r.texte.trim() && !detail.includes(norme(r.texte))) ajouter("erreur", "verbatim", `Réplique absente ou altérée dans les shots : « ${r.texte.slice(0, 60)} ».`);
   }
   if (ctx.repliques.length > 0 && !/<d>/i.test(detail)) ajouter("alerte", "dialogue", "Le plan a des répliques mais les shots n'ont aucune balise <d>.");
+  // Chaque voix produite porte un locuteur (S1), (S2)… dans le shot qui la dit : c'est lui qui lie la parole à la voix de
+  // référence. Sans lui, le modèle vidéo invente une voix (voire parle deux fois : la sienne et celle de la référence).
+  shots.forEach((s, i) => {
+    if (/<d>/i.test(s.texte ?? "") && !/\(S\d\)/.test(s.texte ?? "")) {
+      ajouter("alerte", "locuteur", `Le shot ${i + 1} a un dialogue <d> sans locuteur « (S1) » : ajoute-le à celui qui parle (voix off comprise).`);
+    }
+  });
 
   // 6. calculs de mots par seconde (retirés du projet)
   if (/\b\d+\s*(words?|mots)\s*(per|par|\/)\s*(second|seconde|sec|s)\b/i.test(`${sortie.summary} ${detail}`)) {

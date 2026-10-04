@@ -125,6 +125,11 @@ export const scenes = pgTable("scenes", {
   ordre: integer("ordre").notNull(),
   titre: varchar("titre", { length: 255 }).notNull(),
   fonction: text("fonction"),
+  // Genre de la scène (lib/scene-genres.ts : action, dialogue, montage, contemplatif, tension) : il choisit les guides
+  // de rédaction du prompt vidéo de ses plans. Null = standard. Varchar contrôlé par l'application.
+  genre: varchar("genre", { length: 20 }),
+  // Cadre visuel tenu sur toute la scène (moment de la journée, météo, lumière générale) : la continuité entre plans.
+  ambiance: text("ambiance"),
 });
 
 // Le plan est la table pivot du système. Identification (révisé 2026-09-29,
