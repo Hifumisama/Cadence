@@ -108,6 +108,7 @@ export async function executerSkill(
   const usage = { entree: 0, sortie: 0 };
   let dureeMs = 0;
   let derniere: ReponseLlm | null = null;
+  const reflexions: string[] = [];
   let erreursValidation: string[] | null = null;
   let statut: StatutTrace = "echoue";
   let erreur: string | null = null;
@@ -128,6 +129,7 @@ export async function executerSkill(
         surFlux: options.surFlux,
       });
       derniere = rep;
+      if (rep.reflexion) reflexions.push(rep.reflexion);
       usage.entree += rep.usage.entree;
       usage.sortie += rep.usage.sortie;
       dureeMs += rep.dureeMs;
@@ -185,6 +187,8 @@ export async function executerSkill(
         systemeEmpreinte: createHash("sha256").update(skill.systeme).digest("hex"),
         systemeCaracteres: skill.caracteres,
         sortieBrute: derniere?.texte ?? null,
+        // Un renvoi = une nouvelle réflexion : on les garde toutes, séparées.
+        reflexion: reflexions.length ? reflexions.join("\n\n--- renvoi ---\n\n") : null,
         json: statut === "ok" ? json : null,
         erreursValidation,
         erreur,

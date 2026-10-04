@@ -125,6 +125,28 @@ test("fournisseur : flux sans bloc d'usage → approximation par les morceaux", 
   assert.equal(r.json, undefined);
 });
 
+test("fournisseur : le raisonnement du flux (reasoning_content) est gardé à part, hors du texte", async () => {
+  const s = await demarrer((_c, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.write(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "je " } }] })}
+
+`);
+    res.write(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "pense" } }] })}
+
+`);
+    res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] })}
+
+`);
+    res.write(`data: [DONE]
+
+`);
+    res.end();
+  });
+  const r = await fournisseur(s.url, { flux: true }).generer({ systeme: "S", messages: [{ role: "user", content: "x" }] });
+  assert.equal(r.texte, "ok");
+  assert.equal(r.reflexion, "je pense");
+});
+
 test("fournisseur : flux coupé sans fin de génération → ErreurLlm « flux_coupe »", async () => {
   const s = await demarrer((_c, res) => {
     res.setHeader("Content-Type", "text/event-stream");

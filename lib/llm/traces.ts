@@ -17,6 +17,8 @@ export type TraceAEnregistrer = {
   systemeEmpreinte: string;
   systemeCaracteres: number;
   sortieBrute: string | null;
+  /** Raisonnement du modèle (`reasoning_content`), s'il en émet un. */
+  reflexion?: string | null;
   json: unknown | null;
   erreursValidation: string[] | null;
   erreur: string | null;
@@ -41,6 +43,7 @@ export async function insererTrace(t: TraceAEnregistrer): Promise<number> {
     systemeEmpreinte: t.systemeEmpreinte,
     systemeCaracteres: t.systemeCaracteres,
     sortieBrute: t.sortieBrute,
+    reflexion: t.reflexion ?? null,
     json: t.json,
     erreursValidation: t.erreursValidation,
     erreur: t.erreur,

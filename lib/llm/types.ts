@@ -84,6 +84,8 @@ export type ReponseLlm = {
   modele: string;
   /** Raison d'arrêt du serveur (`stop`, `length` = sortie tronquée par max_tokens…). */
   arret?: string;
+  /** Raisonnement du modèle (`reasoning_content`), borné, pour la trace. Absent si le modèle n'en émet pas. */
+  reflexion?: string;
   /** Réponse brute du serveur (dernier message ou assemblage du flux), pour la trace. */
   brut: unknown;
 };
