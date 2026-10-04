@@ -2029,6 +2029,37 @@ button {
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--sp-4);
 }
+/* Pastille LLM du header : or = joignable, écarlate = injoignable (accents, jamais de fond). */
+.llm-pastille {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--sp-2);
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.llm-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-4);
+}
+.llm-pastille.is-ok .llm-dot {
+  background: var(--or);
+}
+.llm-pastille.is-down .llm-dot {
+  background: var(--ecarlate-glow);
+}
+.llm-pastille.is-down {
+  color: var(--ecarlate-glow);
+}
+@media (max-width: 900px) {
+  .llm-nom {
+    display: none;
+  }
+}
+
 /* Cellule de l'accueil : la carte est un lien, le bouton Supprimer est un frère (pas de bouton dans un <a>). */
 .proj-cell {
   position: relative;
