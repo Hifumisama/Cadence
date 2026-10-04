@@ -2029,6 +2029,22 @@ button {
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--sp-4);
 }
+/* Cellule de l'accueil : la carte est un lien, le bouton Supprimer est un frère (pas de bouton dans un <a>). */
+.proj-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.proj-cell > .proj-card {
+  flex: 1;
+}
+.proj-suppr {
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  background: rgba(8, 8, 10, 0.72);
+  color: var(--ink-3);
+}
 .proj-card {
   display: flex;
   flex-direction: column;
