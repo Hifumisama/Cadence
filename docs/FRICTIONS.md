@@ -1800,3 +1800,13 @@ Correction de la décision précédente (tâche directe + écriture immédiate d
 - `lib/agents/service.ts` : pour un asset de type `affiche`, `entreePourConversation` utilise `entreePromptAffiche` (lib/agents/affiche.ts) et le skill `prompt-affiche`.
 - `lib/agents/conversion.ts:depuisPromptAffiche` : un changement `asset`/`modifier` ; la ligne de titre suit le réglage de l'affiche au moment de la conversion ; la méthode « édition » n'est retenue que si l'image du personnage principal existait à la demande (l'applicateur d'asset l'autorise pour une affiche, qui n'a pas de parent).
 - Plus de `but = affiche`, ni de rafraîchissement automatique de la page.
+
+### 2026-10-05 — Casting vocal : test audio et test vidéo générés depuis Cadence
+
+Étape 3 du casting (« Test vidéo ») : l'audio et la vidéo de test se génèrent depuis l'application, comme la voix de référence.
+- **Même table, même file** : `asset_generations` sur l'asset `voix`, deux méthodes de plus — `test_audio` (VOX_Generate_Replique_Simplified : la voix de référence **clonée** dit le texte) et `test_video` (VID_REF2VA, le graphe des plans, sans plan). Pas de nouvelle table ni de nouveau genre de tâche : la file, l'annulation, la progression, le panneau du bandeau et les candidats servent tels quels. Colonne `parametres` (jsonb, migration 0045) pour ce que la méthode fige au lancement (références, prévisualisation ou rendu final).
+- **Prévisualisation puis rendu final** : même bascule que les plans (`activerUpscale`), deux boutons (« Prévisualiser », « Rendu final »).
+- **Adopter ne touche pas la voix** : le candidat devient `voix/<id>/test_audio.*` ou `test_video.*` (fiche de casting), jamais `assets.fichier`. Adopter l'audio fixe aussi `test_texte` : la vidéo dit le même texte au mot près. Le texte du test est prérempli avec le texte de référence de la voix.
+- **Une vidéo de test passe devant les vidéos de plans** : côté ordonnancement c'est une tâche « image » (priorité courte), parce qu'elle vit dans `asset_generations`. À reconsidérer le jour où la généralisation du système de tâches (déjà prévue) arrive.
+- Purge des candidats par méthode : les essais du test ne chassent pas ceux de la référence.
+- **Non vérifié en réel** : aucun des deux workflows n'a tourné contre un vrai ComfyUI depuis cette intégration (essai bout en bout avec le client factice : file, injection du graphe réel, adoption).

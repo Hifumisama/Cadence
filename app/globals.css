@@ -5773,3 +5773,34 @@ a.voix-chip:hover {
   flex: 0 0 auto;
   align-self: flex-start;
 }
+
+/* Étape « Test vidéo » du casting : les essais (audio, vidéo) en file, en cours, prêts ou échoués. */
+.test-essais {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.test-essai {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.test-essai-hd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+.test-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}

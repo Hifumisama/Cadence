@@ -5,6 +5,7 @@ import { lancerGenerationVoix } from "@/app/assets/generation-actions";
 import type { GenerationVivante } from "@/components/assets/GenerationDialog";
 import {
   CANDIDATS_GARDES,
+  METHODE_VOIX,
   TEMPERATURE_VOIX_DEFAUT,
   TEMPERATURE_VOIX_MAX,
   TEMPERATURE_VOIX_MIN,
@@ -25,7 +26,7 @@ export function GenerationVoixDialog({
   code,
   instructionInitiale,
   texteInitial,
-  generations,
+  generations: toutes,
   candidatInitialId,
   ouvert,
   onFermer,
@@ -52,6 +53,8 @@ export function GenerationVoixDialog({
   simule: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // La voix a aussi des essais de TEST (audio, vidéo : étape « Test vidéo ») : cette fenêtre ne montre que ceux de la référence.
+  const generations = toutes.filter((g) => g.methode === METHODE_VOIX);
   const [instruction, setInstruction] = useState(instructionInitiale);
   const [texte, setTexte] = useState(texteInitial);
   const [temperature, setTemperature] = useState(TEMPERATURE_VOIX_DEFAUT);

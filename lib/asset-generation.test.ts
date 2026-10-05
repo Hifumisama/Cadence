@@ -146,3 +146,39 @@ test("voix : langue du texte lu, anglais pour le texte du projet", () => {
   assert.equal(langueDuTexteDeReference("Bienvenue, aventurier.", defaut, "French"), "French");
   assert.equal(langueDuTexteDeReference("Bienvenue.", defaut, "  "), "French");
 });
+
+test("test de voix : les méthodes sont des méthodes à part, l'audio d'un test est un son", async () => {
+  const g = await import("./asset-generation");
+  assert.equal(g.estMethodeTestVoix(g.METHODE_TEST_AUDIO), true);
+  assert.equal(g.estMethodeTestVoix(g.METHODE_TEST_VIDEO), true);
+  assert.equal(g.estMethodeTestVoix(g.METHODE_VOIX), false);
+  assert.equal(g.estMethodeSon(g.METHODE_TEST_AUDIO), true);
+  assert.equal(g.estMethodeSon(g.METHODE_VOIX), true);
+  assert.equal(g.estMethodeSon(g.METHODE_TEST_VIDEO), false);
+  assert.ok(g.METHODE_TEST_AUDIO.length <= 12 && g.METHODE_TEST_VIDEO.length <= 12, "la colonne `methode` est un varchar(12)");
+});
+
+test("test de voix : un test audio exige une référence et un texte, un test vidéo un audio et un texte", async () => {
+  const g = await import("./asset-generation");
+  assert.match(g.raisonTestAudioInvalide({ texte: "Bonjour", referenceFichier: null }) ?? "", /voix de référence/);
+  assert.match(g.raisonTestAudioInvalide({ texte: "  ", referenceFichier: "VOICE_maya.mp3" }) ?? "", /texte/);
+  assert.equal(g.raisonTestAudioInvalide({ texte: "Bonjour", referenceFichier: "VOICE_maya.mp3" }), null);
+  assert.match(g.raisonTestVideoInvalide({ texte: "Bonjour", audio: null }) ?? "", /audio/);
+  assert.match(g.raisonTestVideoInvalide({ texte: "", audio: "assets/x.mp3" }) ?? "", /texte/);
+  assert.equal(g.raisonTestVideoInvalide({ texte: "Bonjour", audio: "assets/x.mp3" }), null);
+});
+
+test("test de voix : les paramètres figés sont relus avec prudence", async () => {
+  const g = await import("./asset-generation");
+  assert.deepEqual(g.parametresTestVideo({ upscale: true, personnage: "assets/a.png", decor: "", audio: "voix/1/test_audio.mp3" }), {
+    upscale: true,
+    personnage: "assets/a.png",
+    decor: null,
+    audio: "voix/1/test_audio.mp3",
+  });
+  assert.equal(g.parametresTestVideo(null), null);
+  assert.equal(g.parametresTestVideo({ personnage: "x" }), null, "sans mode, pas de test vidéo");
+  assert.deepEqual(g.parametresTestAudio({ reference: "assets/VOICE_maya.mp3" }), { reference: "assets/VOICE_maya.mp3" });
+  assert.equal(g.parametresTestAudio({ reference: " " }), null);
+  assert.equal(g.parametresTestAudio("x"), null);
+});

@@ -416,6 +416,9 @@ export const assetGenerations = pgTable("asset_generations", {
   etapeLibelle: varchar("etape_libelle", { length: 80 }),
   // Génération lancée par un LOT : le worker l'adopte toute seule à sa fin (elle devient l'image de l'asset).
   adoptionAuto: boolean("adoption_auto").notNull().default(false),
+  // Ce que la méthode fige au lancement quand les colonnes ci-dessus ne suffisent pas (voir lib/asset-generation.ts,
+  // `ParametresTestVideo`) : le test vidéo d'une voix. null pour les images, les sons et les voix.
+  parametres: jsonb("parametres"),
   apercuFichier: varchar("apercu_fichier", { length: 255 }),
   apercuAt: timestamp("apercu_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
