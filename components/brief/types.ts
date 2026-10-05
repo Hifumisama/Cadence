@@ -1,12 +1,21 @@
 import type { StatutChamp } from "@/lib/agents/types";
 
-/** Ce qu'on est en train de modifier dans le brief. `section` : une section entière (texte, nombre, style, liste de lignes) ;
- * `element` : UN élément d'une liste d'objets (un personnage, un lieu…) — `index === longueur de la liste` = en ajouter un. */
+/** Ce qu'on est en train de modifier dans le brief, directement dans le bloc concerné (une seule édition à la fois).
+ * - `section` : une valeur simple (titre, arc, langue, durée, genre et ton, style, notes) ;
+ * - `element` : UN élément d'une liste d'objets (personnage, lieu, épisode, rime, progression, piège) ;
+ * - `ligne`   : UNE ligne d'une liste de textes (règles de continuité, ajouts de l'agent, questions ouvertes).
+ * Pour `element` et `ligne`, `index === longueur de la liste` = en ajouter un. */
 export type Edition =
   | { type: "section"; cle: string; titre: string }
-  | { type: "element"; cle: string; index: number };
+  | { type: "element"; cle: string; index: number }
+  | { type: "ligne"; cle: string; index: number };
 
-/** Provenance affichée sur une carte : jamais la couleur seule, un symbole et un libellé (voir ETAT_CHAMP). */
+export function memeEdition(a: Edition | null, b: Edition): boolean {
+  if (!a || a.type !== b.type || a.cle !== b.cle) return false;
+  return a.type === "section" || (b.type !== "section" && a.index === b.index);
+}
+
+/** Provenance affichée sur un bloc : jamais la couleur seule, un symbole et un libellé (voir ETAT_CHAMP). */
 export type Provenance = "fourni" | "deduit" | "confirmer";
 
 export const PROVENANCE: Record<Provenance, { symbole: string; libelle: string }> = {

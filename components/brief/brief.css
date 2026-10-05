@@ -52,12 +52,6 @@
     opacity: 0.35;
   }
 }
-@keyframes bf-tiroir-entre {
-  from {
-    opacity: 0;
-    transform: translateX(28px);
-  }
-}
 .bf-press {
   transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
@@ -98,9 +92,6 @@
   }
   .bf-pulse {
     animation: bf-pulse 2.4s ease-in-out infinite;
-  }
-  .bf-tiroir[open] .bf-tiroir-corps {
-    animation: bf-tiroir-entre 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
 }
 /* Apparition à l'entrée dans l'écran : Chrome/Edge (animation-timeline) ; ailleurs, tout est simplement visible. */
@@ -458,63 +449,6 @@
   gap: 10px;
 }
 
-/* ---- À confirmer ---- */
-.bf-confirmer {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  background: var(--surface);
-  border: 1px dashed var(--ecarlate-soft);
-  border-radius: 3px;
-}
-.bf-confirmer-hd {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 16px;
-}
-.bf-confirmer-hd h2 {
-  margin: 0;
-  font-family: var(--font-brand), serif;
-  font-weight: 400;
-  font-size: 24px;
-}
-.bf-confirmer-hd h2 .bf-pulse {
-  color: var(--ecarlate-glow);
-  display: inline-block;
-}
-.bf-confirmer-hd p {
-  margin: 0;
-  font-size: 14px;
-  color: var(--ink-2);
-}
-.bf-confirmer-ligne {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 20px;
-  padding: 14px 0;
-  border-top: 1px solid var(--line);
-}
-.bf-confirmer-type {
-  width: 120px;
-}
-.bf-confirmer-texte {
-  flex: 1 1 260px;
-  min-width: 0;
-  font-size: 15.5px;
-}
-.bf-confirmer-texte small {
-  display: block;
-  font-size: 13.5px;
-  color: var(--ink-3);
-}
-.bf-confirmer-actions {
-  display: flex;
-  gap: 8px;
-}
-
 /* ---- Style ---- */
 .bf-style {
   flex-direction: row;
@@ -727,65 +661,6 @@
 }
 
 /* ---- Tiroir d'édition ---- */
-.bf-tiroir {
-  position: fixed;
-  inset: 0 0 0 auto;
-  margin: 0;
-  width: min(560px, 100vw);
-  max-width: 100vw;
-  height: 100dvh;
-  max-height: none;
-  padding: 0;
-  border: 0;
-  border-left: 1px solid var(--line-strong);
-  background: var(--surface);
-  color: var(--ink);
-}
-.bf-tiroir::backdrop {
-  background: rgba(8, 8, 11, 0.6);
-}
-.bf-tiroir-corps {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.bf-tiroir-hd {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 24px 28px 20px;
-  border-bottom: 1px solid var(--line);
-}
-.bf-tiroir-hd > div {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.bf-tiroir-hd h2 {
-  margin: 0;
-  font-family: var(--font-brand), serif;
-  font-weight: 400;
-  font-size: 26px;
-  line-height: 1.15;
-}
-.bf-tiroir-bd {
-  flex: 1;
-  overflow: auto;
-  padding: 24px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-.bf-tiroir-ft {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 18px 28px 24px;
-  border-top: 1px solid var(--line);
-}
 .bf-confirmer-box {
   padding: 16px 18px;
   background: var(--ground);
@@ -1120,4 +995,121 @@ html:has(.bf-page) {
   html:has(.bf-page) {
     scroll-behavior: auto;
   }
+}
+
+/* ---- Édition sur place : le bloc cliqué prend la place de son contenu ---- */
+.bf-edition {
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--or-soft);
+  border-radius: 3px;
+  min-width: 0;
+}
+.bf-bloc {
+  padding: 18px 20px;
+}
+.bf-editeur {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.bf-editeur-ft {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.bf-edition-ligne {
+  display: block;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--or-soft);
+}
+.bf-cliquable:has(.bf-zone:disabled) {
+  cursor: default;
+}
+
+/* ---- Colonne de droite de l'en-tête : provenance, puis notes de l'agent ---- */
+.bf-colonne {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.bf-agent {
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.bf-agent-hd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.bf-agent-hd h2 {
+  margin: 0;
+  font-family: var(--font-brand), serif;
+  font-weight: 400;
+  font-size: 22px;
+}
+.bf-agent-hd .bf-pulse {
+  display: inline-block;
+}
+.bf-agent-groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bf-agent-groupe + .bf-agent-groupe {
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.bf-agent-groupe h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+.bf-confirmer-ligne {
+  display: flex;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.bf-confirmer-texte {
+  flex: 1 1 160px;
+  min-width: 0;
+  font-size: 15.5px;
+}
+.bf-confirmer-texte .bf-etiquette {
+  display: block;
+}
+.bf-confirmer-texte small {
+  display: block;
+  font-size: 13.5px;
+  color: var(--ink-3);
+}
+.bf-confirmer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bf-puce {
+  position: relative;
+  margin: 0;
+  padding-left: 19px;
+  font-size: 15px;
+}
+.bf-puce::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 7px;
+  height: 7px;
+  background: var(--or);
 }
