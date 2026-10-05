@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { assetGenerations, assets, voixFiches } from "../db/schema";
 import { appliquerAffiche } from "./affiche-application";
-import { TYPE_AFFICHE } from "./affiches";
+import { TYPE_AFFICHE, titreDansPrompt } from "./affiches";
 import { METHODE_AUDIO, METHODE_VOIX } from "./asset-generation";
 import { cheminAssetMedia, cheminGenerationMedia } from "./media";
 
@@ -43,7 +43,7 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
   }
   // Une affiche de présentation : l'image adoptée devient celle du projet ou de l'épisode (lib/affiches.ts).
   if (asset.type === TYPE_AFFICHE) {
-    const appliquee = await appliquerAffiche(asset.code, nom, mediaRoot);
+    const appliquee = await appliquerAffiche(asset.code, nom, mediaRoot, titreDansPrompt(gen.prompt));
     if (!appliquee.ok) return appliquee;
   }
   // Adopter, c'est avoir vu le résultat : l'indicateur du header ne le signale plus.

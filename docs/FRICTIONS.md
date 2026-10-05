@@ -1785,3 +1785,10 @@ Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
 - Les affiches couvrent aussi les **saisons** (`AFFICHE_S<id>`, même mécanique que projet/épisode, invisibles du registre).
 - **Toutes les affiches sont en 2:3** (projet, saison, épisode) : le Poster « wide » 16:9 devient « apercu » 2:3. Le prompt par défaut demande donc toujours une composition verticale.
 - L'**état des plans** (anneau + « Écrire les fiches ») quitte le corps de la page Scénario et s'intègre à l'en-tête de l'épisode (affiché seulement sur `/scenario`). Il est alimenté par des agrégats SQL (`getEtatPlans`), calculés par le layout.
+
+### 2026-10-05 — Affiches : skill `prompt-affiche`, titre dans l'image, personnage principal
+
+- **Skill `agents/skills/prompt-affiche`** (réutilise les guides Krea 2 / Qwen de `prompt-asset` via `FICHIERS_PARTAGES`). Bouton « Rédiger le prompt avec l'agent » sur la page d'affiche : appel direct du skill (hors file du worker, comme un essai), le prompt remplace celui de l'affiche. Le gabarit de code ne sert plus que de point de départ : plus d'étiquette `Story:` ni de titre entre guillemets (le modèle les dessinait).
+- **Titre dans l'image** : réglage par affiche, porté par le PROMPT lui-même (ligne `Title lettering: "…"`). À l'adoption, `titreDansPrompt(gen.prompt)` donne un fichier `poster-<t>-titre.<ext>` et `Poster` ne superpose alors pas le titre. Pas de colonne en base.
+- **Personnage principal** : premier personnage du brief retrouvé dans le registre (sinon premier personnage avec image). Son image est la source 1 (mode « images », Qwen Image Edit) quand l'agent recommande l'édition ; sinon sa description nourrit le prompt.
+- Clic sur l'aperçu : image seule en grand (`AfficheZoom`).

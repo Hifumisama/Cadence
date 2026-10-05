@@ -26,11 +26,13 @@ import { join, resolve } from "node:path";
  * `edition` (Qwen), `image` (les deux guides d'image : la méthode reste à recommander). */
 
 /** Les seuls fichiers lus hors du dossier d'un skill : le lexique de corrections H3,
- * partagé par `plan-h3` et `iteration-plan` (source unique, voir CLAUDE.md). */
+ * partagé par `plan-h3` et `iteration-plan` (source unique, voir CLAUDE.md), et les guides d'image de `prompt-asset`. */
 const LEXIQUE_H3 = ".claude/skills/fiche-de-plan/references/h3-lexique-corrections.md";
 export const FICHIERS_PARTAGES: Record<string, string[]> = {
   "plan-h3": [LEXIQUE_H3],
   "iteration-plan": [LEXIQUE_H3],
+  // L'affiche s'écrit comme un asset d'image : mêmes guides Krea 2 / Qwen, jamais recopiés.
+  "prompt-affiche": ["agents/skills/prompt-asset/guide-krea2.md", "agents/skills/prompt-asset/guide-qwen-edit.md"],
 };
 
 export type OptionsChargement = {

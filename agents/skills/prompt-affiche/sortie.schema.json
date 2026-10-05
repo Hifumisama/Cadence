@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sortie de l'agent prompt-affiche : le prompt d'une affiche de présentation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["methode", "sources", "promptGeneration", "remarques"],
+  "properties": {
+    "methode": { "type": "string", "enum": ["generation", "edition"], "description": "`edition` seulement si l'image du personnage principal est disponible (elle est l'image 1) ; sinon `generation`." },
+    "sources": {
+      "type": "array",
+      "maxItems": 1,
+      "items": { "type": "string" },
+      "description": "Édition : le code du personnage principal. Génération : vide."
+    },
+    "promptGeneration": { "type": "string", "minLength": 1, "description": "Prose Krea 2 (génération) ou instructions impératives Qwen, une par ligne (édition), en anglais. Sans style graphique, sans étiquette, sans phrase du résumé. La dernière ligne est la ligne de titre exacte prévue par les règles." },
+    "remarques": {
+      "type": "array",
+      "description": "Points à remonter, une phrase chacun (résumé vague, pas de personnage principal, image du personnage absente…). Vide si rien à dire.",
+      "items": { "type": "string" }
+    }
+  }
+}

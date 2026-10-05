@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { episodes, projects, seasons } from "../db/schema";
 import { cibleDeCodeAffiche, type CibleAffiche } from "./affiches";
+import { SUFFIXE_TITRE } from "./poster";
 import { cheminAssetMedia, cheminPosterMedia } from "./media";
 
 const TABLES = { projects, seasons, episodes } as const;
@@ -36,6 +37,8 @@ export async function appliquerAffiche(
   codeAsset: string,
   fichierAsset: string,
   mediaRoot: string,
+  /** Le modèle a écrit le titre dans l'image : le fichier porte le suffixe `-titre` et le titre n'est pas superposé. */
+  titreIncruste = false,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const cible = cibleDeCodeAffiche(codeAsset);
   if (!cible) return { ok: false, erreur: "Ce code ne désigne ni un projet, ni une saison, ni un épisode." };
@@ -43,7 +46,7 @@ export async function appliquerAffiche(
   const courant = await lirePoster(cible.cible, cible.id);
   if (courant === undefined) return { ok: false, erreur: ABSENT[cible.cible] };
 
-  const nom = `poster-${Date.now().toString(36)}${extname(fichierAsset).toLowerCase() || ".png"}`;
+  const nom = `poster-${Date.now().toString(36)}${titreIncruste ? SUFFIXE_TITRE : ""}${extname(fichierAsset).toLowerCase() || ".png"}`;
   const destination = join(mediaRoot, cheminPosterMedia(cible.cible, cible.id, nom));
   try {
     await mkdir(dirname(destination), { recursive: true });

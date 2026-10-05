@@ -62,3 +62,11 @@ export function posterInitiale(titre: string): string {
   const match = sansArticle.match(/[A-Za-zÀ-ÿ]/);
   return match ? match[0]!.toUpperCase() : "·";
 }
+
+/** Une affiche dont le modèle a écrit le titre porte le suffixe `-titre` dans son nom de fichier (voir
+ * lib/affiche-application.ts) : le composant Poster ne superpose alors pas le titre une seconde fois. */
+export const SUFFIXE_TITRE = "-titre";
+
+export function posterPorteLeTitre(src: string | null): boolean {
+  return src != null && /-titre\.[a-z0-9]+(\?.*)?$/i.test(src);
+}

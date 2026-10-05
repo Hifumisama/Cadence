@@ -1,4 +1,4 @@
-import { posterBackgroundImage, posterInitiale } from "@/lib/poster";
+import { posterBackgroundImage, posterInitiale, posterPorteLeTitre } from "@/lib/poster";
 
 /** Poster "affiche de film" à trois échelles — carte (accueil, texte
  * complet), sm (en-tête de saison), mini (ligne d'épisode). `src` est déjà
@@ -29,7 +29,7 @@ export function Poster({
         {/* Le titre se superpose à l'image, comme sur le dégradé de repli : il n'est jamais incrusté dans le fichier
             (une affiche générée n'en contient pas), donc il reste net, suit le renommage et se lit sur chaque carte.
             Aux petites tailles (saison, épisode) l'image seule suffit. */}
-        {taille === "card" || taille === "apercu" ? <span className="pt">{titre}</span> : null}
+        {(taille === "card" || taille === "apercu") && !posterPorteLeTitre(src) ? <span className="pt">{titre}</span> : null}
       </span>
     );
   }

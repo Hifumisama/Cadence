@@ -47,3 +47,60 @@
   display: inline-flex;
   gap: var(--sp-2);
 }
+
+.aff-zoom {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+.aff-zoom:focus-visible {
+  outline: 2px solid var(--or);
+  outline-offset: 3px;
+}
+.aff-reglages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.aff-case {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  cursor: pointer;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.aff-case input {
+  margin-top: 4px;
+  accent-color: var(--or);
+}
+.aff-case small,
+.aff-agent small {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.aff-agent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.aff-agent small {
+  margin: 0;
+  max-width: 56ch;
+}
+.aff-retour {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.aff-retour.is-erreur {
+  color: var(--ecarlate-glow);
+}

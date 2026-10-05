@@ -4,10 +4,13 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assets, episodes, projects, seasons } from "@/db/schema";
 import { GenerationPanel } from "@/components/assets/GenerationPanel";
+import { AfficheZoom } from "@/components/affiches/AfficheZoom";
+import { ReglagesAffiche } from "@/components/affiches/ReglagesAffiche";
 import { RetirerAfficheButton } from "@/components/affiches/RetirerAfficheButton";
 import { Poster } from "@/components/ui/Poster";
 import { Topbar } from "@/components/ui/Topbar";
-import { TYPE_AFFICHE, cibleDeCodeAffiche, formatAfficheParDefaut } from "@/lib/affiches";
+import { lirePersonnagePrincipal } from "@/lib/affiche-personnage";
+import { TYPE_AFFICHE, cibleDeCodeAffiche, formatAfficheParDefaut, titreDansPrompt } from "@/lib/affiches";
 import { posterSrc } from "@/lib/media";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
 import "./affiche.css";
@@ -65,7 +68,13 @@ export default async function AffichePage({
     retour = `/p/${pid}/e/${cible.id}/scenario`;
   }
 
-  const [generations, registre] = await Promise.all([getGenerationsAsset(asset.id), getAssetsAvecImage(pid, asset.id)]);
+  const [generations, registre, principal] = await Promise.all([
+    getGenerationsAsset(asset.id),
+    getAssetsAvecImage(pid, asset.id),
+    lirePersonnagePrincipal(pid, projet.nom),
+  ]);
+  // Quand l'agent a recommandé de partir de l'image du personnage principal, la fenêtre s'ouvre en mode « images » avec lui en image 1.
+  const partDuPersonnage = asset.methodeGeneration === "edition" && principal?.aImage === true;
   const src = posterSrc(cible.cible, cible.id, posterFichier);
   const format = formatAfficheParDefaut();
   const sujet = cible.cible === "projects" ? "du projet" : cible.cible === "seasons" ? "de la saison" : "de l'épisode";
@@ -102,22 +111,31 @@ export default async function AffichePage({
         <div className="aff-corps">
           <div className="aff-apercus">
             <div className="aff-apercu">
-              <span className="eyebrow">Aperçu</span>
-              <Poster src={src} titre={titre} cleRepli={cleRepli} taille="card" />
+              <span className="eyebrow">Aperçu{src ? " · clique pour agrandir" : ""}</span>
+              <AfficheZoom src={src} titre={titre}>
+                <Poster src={src} titre={titre} cleRepli={cleRepli} taille="card" />
+              </AfficheZoom>
             </div>
           </div>
 
           <div className="aff-actions">
             <p>
-              L&rsquo;IA compose l&rsquo;image à partir du titre, du résumé et de la clause de style du projet. Le titre n&rsquo;est pas dans l&rsquo;image : il se superpose à l&rsquo;affichage, comme ci-contre.
+              L&rsquo;IA compose l&rsquo;image à partir du titre, du résumé et de la clause de style du projet. Par défaut le titre n&rsquo;est pas dans l&rsquo;image : il se superpose à l&rsquo;affichage, comme ci-contre.
             </p>
+            <ReglagesAffiche
+              cible={cible.cible}
+              id={cible.id}
+              titreDansImage={titreDansPrompt(asset.promptGeneration ?? "")}
+              personnage={principal ? { nom: principal.nom, aImage: principal.aImage } : null}
+            />
             <div className="aff-boutons">
               <GenerationPanel
+                key={asset.promptGeneration ?? ""}
                 assetId={asset.id}
                 code={asset.code}
                 type={asset.type}
-                methodeGeneration={asset.methodeGeneration}
-                parentCode={null}
+                methodeGeneration={partDuPersonnage ? "edition" : "generation"}
+                parentCode={partDuPersonnage ? principal!.code : null}
                 promptInitial={asset.promptGeneration ?? ""}
                 raisonBloquee={null}
                 defauts={{ aspect: format.aspect, megapixels: format.megapixels, lora: false }}
