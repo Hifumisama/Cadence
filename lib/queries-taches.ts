@@ -96,7 +96,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     genre: "image",
     statut: g.statut,
     // Un son se reconnaît dans le panneau : « Son · CODE », sans miniature d'aperçu.
-    libelle: g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : "épisode"}` : code,
+    libelle: g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : affiche.cible === "seasons" ? "saison" : "épisode"}` : code,
     detail:
       g.methode === METHODE_VOIX
         ? "Voix de référence"

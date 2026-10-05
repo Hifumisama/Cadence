@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { assets, episodes, projects, seasons } from "@/db/schema";
 import { TYPE_AFFICHE, codeAffiche, promptAffiche, type CibleAffiche } from "@/lib/affiches";
 import { MEDIA_ROOT, cheminPosterMedia } from "@/lib/media";
+import { ecrirePoster, lirePoster } from "@/lib/affiche-application";
 import { lireBriefOuVide } from "@/lib/queries-agents";
 
 /** Ce qu'une affiche habille, résolu une fois : le projet concerné, le titre à citer et le résumé qui nourrit le prompt. */
@@ -30,6 +31,21 @@ async function resoudre(cible: CibleAffiche, id: number): Promise<{ projectId: n
     }
     return { projectId: projet.id, titre: projet.nom, resume, genreTon: brief.statut === "partiel" ? null : (brief.contenu.genreTon ?? null) };
   }
+  if (cible === "seasons") {
+    const [ligne] = await db
+      .select({ titre: seasons.titre, projectId: seasons.projectId, nomProjet: projects.nom })
+      .from(seasons)
+      .innerJoin(projects, eq(projects.id, seasons.projectId))
+      .where(eq(seasons.id, id));
+    if (!ligne) return null;
+    const brief = await lireBriefOuVide(ligne.projectId, ligne.nomProjet);
+    return {
+      projectId: ligne.projectId,
+      titre: ligne.titre,
+      resume: brief.statut === "partiel" ? null : brief.contenu.arc || null,
+      genreTon: brief.statut === "partiel" ? null : (brief.contenu.genreTon ?? null),
+    };
+  }
   const [ligne] = await db
     .select({ episode: episodes, projectId: seasons.projectId, nomProjet: projects.nom })
     .from(episodes)
@@ -46,12 +62,12 @@ async function resoudre(cible: CibleAffiche, id: number): Promise<{ projectId: n
   };
 }
 
-/** Ouvre la page de génération de l'affiche d'un projet ou d'un épisode. L'asset d'affiche (invisible du registre) est
+/** Ouvre la page de génération de l'affiche d'un projet, d'une saison ou d'un épisode. L'asset d'affiche (invisible du registre) est
  * créé AU PREMIER CLIC, avec un prompt proposé à partir du titre et du résumé ; ensuite on le retrouve tel quel, prompt
  * modifié compris. */
 export async function ouvrirAffiche(cible: CibleAffiche, id: number): Promise<void> {
   const contexte = await resoudre(cible, id);
-  if (!contexte) throw new Error(cible === "projects" ? "Ce projet n'existe pas." : "Cet épisode n'existe pas.");
+  if (!contexte) throw new Error(cible === "projects" ? "Ce projet n'existe pas." : cible === "seasons" ? "Cette saison n'existe pas." : "Cet épisode n'existe pas.");
   const code = codeAffiche(cible, id);
 
   const [existant] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, contexte.projectId), eq(assets.code, code)));
@@ -73,13 +89,9 @@ export async function ouvrirAffiche(cible: CibleAffiche, id: number): Promise<vo
 
 /** Retire l'affiche (retour au dégradé de repli). L'asset d'affiche et ses candidats restent : on peut en réadopter un. */
 export async function retirerAffiche(cible: CibleAffiche, id: number): Promise<void> {
-  const [courant] =
-    cible === "projects"
-      ? await db.select({ poster: projects.posterFichier }).from(projects).where(eq(projects.id, id))
-      : await db.select({ poster: episodes.posterFichier }).from(episodes).where(eq(episodes.id, id));
-  if (!courant) return;
-  if (cible === "projects") await db.update(projects).set({ posterFichier: null }).where(eq(projects.id, id));
-  else await db.update(episodes).set({ posterFichier: null }).where(eq(episodes.id, id));
-  if (courant.poster) await unlink(join(MEDIA_ROOT, cheminPosterMedia(cible, id, courant.poster))).catch(() => undefined);
+  const courant = await lirePoster(cible, id);
+  if (courant === undefined) return;
+  await ecrirePoster(cible, id, null);
+  if (courant) await unlink(join(MEDIA_ROOT, cheminPosterMedia(cible, id, courant))).catch(() => undefined);
   revalidatePath("/", "layout");
 }

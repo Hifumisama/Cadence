@@ -8,25 +8,27 @@
 
 export const TYPE_AFFICHE = "affiche";
 
-/** Ce qu'une affiche habille : le projet ou un épisode (les saisons gardent leur import manuel). */
-export type CibleAffiche = "projects" | "episodes";
+/** Ce qu'une affiche habille : le projet, une saison ou un épisode. */
+export type CibleAffiche = "projects" | "seasons" | "episodes";
 
-/** Code de l'asset d'affiche : un par projet, un par épisode. */
+const LETTRE: Record<CibleAffiche, string> = { projects: "P", seasons: "S", episodes: "E" };
+
+/** Code de l'asset d'affiche : un par projet, par saison, par épisode. */
 export function codeAffiche(cible: CibleAffiche, id: number): string {
-  return cible === "projects" ? `AFFICHE_P${id}` : `AFFICHE_E${id}`;
+  return `AFFICHE_${LETTRE[cible]}${id}`;
 }
 
 /** Retrouve ce que désigne un code d'affiche, ou null si ce n'en est pas un. */
 export function cibleDeCodeAffiche(code: string): { cible: CibleAffiche; id: number } | null {
-  const m = /^AFFICHE_([PE])(\d+)$/.exec(code);
+  const m = /^AFFICHE_([PSE])(\d+)$/.exec(code);
   if (!m) return null;
-  return { cible: m[1] === "P" ? "projects" : "episodes", id: Number(m[2]) };
+  return { cible: m[1] === "P" ? "projects" : m[1] === "S" ? "seasons" : "episodes", id: Number(m[2]) };
 }
 
-/** Format et définition proposés d'entrée : l'affiche d'un projet vit surtout sur les cartes (2:3), celle d'un épisode dans
- * son en-tête (16:9). Modifiables dans la fenêtre de génération. */
-export function formatAfficheParDefaut(cible: CibleAffiche): { aspect: "2:3" | "16:9"; megapixels: number } {
-  return cible === "projects" ? { aspect: "2:3", megapixels: 1.3 } : { aspect: "16:9", megapixels: 1.3 };
+/** Format et définition proposés d'entrée : toutes les affiches (projet, saison, épisode) sont en 2:3, comme les cartes.
+ * Modifiables dans la fenêtre de génération. */
+export function formatAfficheParDefaut(): { aspect: "2:3"; megapixels: number } {
+  return { aspect: "2:3", megapixels: 1.3 };
 }
 
 /** Le prompt proposé : un gabarit rempli avec ce que le projet sait de lui-même. La clause de style n'y figure pas (le
@@ -36,12 +38,12 @@ export function promptAffiche(entree: { cible: CibleAffiche; titre: string; resu
   const titre = entree.titre.trim();
   const resume = (entree.resume ?? "").trim();
   const ton = (entree.genreTon ?? "").trim();
-  const forme = entree.cible === "projects" ? "Vertical poster composition" : "Wide cinematic composition";
+  const sujet = entree.cible === "seasons" ? "the season" : entree.cible === "episodes" ? "the episode" : "";
   const lignes = [
-    `Cinematic key art for "${titre || "an untitled story"}".`,
+    `Cinematic key art for ${sujet ? `${sujet} ` : ""}"${titre || "an untitled story"}".`,
     ...(ton ? [`Mood: ${ton}.`] : []),
     ...(resume ? [`Story: ${resume}`] : []),
-    `${forme}, one strong focal subject, atmospheric lighting, clear space left for a title.`,
+    `Vertical poster composition, one strong focal subject, atmospheric lighting, clear space left for a title.`,
     "No text, no lettering, no logo, no watermark.",
   ];
   return lignes.join("\n");

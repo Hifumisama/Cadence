@@ -44,6 +44,15 @@ export default async function AffichePage({
     titre = projet.nom;
     posterFichier = projet.posterFichier;
     retour = `/p/${pid}`;
+  } else if (cible.cible === "seasons") {
+    const [ligne] = await db
+      .select({ titre: seasons.titre, poster: seasons.posterFichier })
+      .from(seasons)
+      .where(and(eq(seasons.id, cible.id), eq(seasons.projectId, pid)));
+    if (!ligne) notFound();
+    titre = ligne.titre;
+    posterFichier = ligne.poster;
+    retour = `/p/${pid}`;
   } else {
     const [ligne] = await db
       .select({ titre: episodes.titre, poster: episodes.posterFichier })
@@ -58,8 +67,9 @@ export default async function AffichePage({
 
   const [generations, registre] = await Promise.all([getGenerationsAsset(asset.id), getAssetsAvecImage(pid, asset.id)]);
   const src = posterSrc(cible.cible, cible.id, posterFichier);
-  const format = formatAfficheParDefaut(cible.cible);
-  const sujet = cible.cible === "projects" ? "du projet" : "de l'épisode";
+  const format = formatAfficheParDefaut();
+  const sujet = cible.cible === "projects" ? "du projet" : cible.cible === "seasons" ? "de la saison" : "de l'épisode";
+  const cleRepli = cible.cible === "projects" ? `projet:${pid}` : cible.cible === "seasons" ? `saison:${cible.id}` : `episode:${cible.id}`;
 
   return (
     <>
@@ -92,12 +102,8 @@ export default async function AffichePage({
         <div className="aff-corps">
           <div className="aff-apercus">
             <div className="aff-apercu">
-              <span className="eyebrow">Sur les cartes</span>
-              <Poster src={src} titre={titre} cleRepli={cible.cible === "projects" ? `projet:${pid}` : `episode:${cible.id}`} taille="card" />
-            </div>
-            <div className="aff-apercu">
-              <span className="eyebrow">En-tête</span>
-              <Poster src={src} titre={titre} cleRepli={cible.cible === "projects" ? `projet:${pid}` : `episode:${cible.id}`} taille="wide" />
+              <span className="eyebrow">Aperçu</span>
+              <Poster src={src} titre={titre} cleRepli={cleRepli} taille="card" />
             </div>
           </div>
 

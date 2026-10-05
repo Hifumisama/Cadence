@@ -17,10 +17,9 @@ export function Poster({
   /** Clé stable pour le dégradé de repli (ex. "projet:12") — indépendante
    * du titre affiché, pour ne pas changer d'aspect si le titre est édité. */
   cleRepli: string;
-  /** "wide" : aperçu 16:9 plus grand utilisé dans les formulaires
-   * d'édition (projet/saison/épisode) — distinct de "card" (affiche
-   * verticale des cartes projet, accueil). */
-  taille: "card" | "wide" | "sm" | "mini";
+  /** Toutes les affiches sont en 2:3. "apercu" : petite affiche des en-têtes et des formulaires d'édition
+   * (projet/saison/épisode) — distincte de "card" (grande affiche des cartes projet, accueil). */
+  taille: "card" | "apercu" | "sm" | "mini";
 }) {
   if (src) {
     return (
@@ -30,12 +29,12 @@ export function Poster({
         {/* Le titre se superpose à l'image, comme sur le dégradé de repli : il n'est jamais incrusté dans le fichier
             (une affiche générée n'en contient pas), donc il reste net, suit le renommage et se lit sur chaque carte.
             Aux petites tailles (saison, épisode) l'image seule suffit. */}
-        {taille === "card" || taille === "wide" ? <span className="pt">{titre}</span> : null}
+        {taille === "card" || taille === "apercu" ? <span className="pt">{titre}</span> : null}
       </span>
     );
   }
 
-  const texte = taille === "card" || taille === "wide" ? titre : posterInitiale(titre);
+  const texte = taille === "card" || taille === "apercu" ? titre : posterInitiale(titre);
   return (
     <span
       className={`poster poster-${taille}`}

@@ -6,7 +6,6 @@ import { NouveauSceneForm } from "@/components/scenario/NouveauSceneForm";
 import { SupprimerSceneButton } from "@/components/scenario/SupprimerSceneButton";
 import { BasculeScene, ControleAccordeon, CorpsScene, PlanShotLink, PoigneeScene, ZoneScene } from "@/components/scenario/GlisserDeposer";
 import { ModifierSceneButton } from "@/components/scenario/ModifierSceneButton";
-import { EtatPlans } from "@/components/scenario/EtatPlans";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +29,6 @@ export default async function ScenarioPage({
   if (!projet || !episodeInfo) notFound();
 
   const tousLesPlans = [...scenes.flatMap((sc) => sc.plans), ...sansScene];
-  const nbBrouillons = tousLesPlans.filter((p) => p.statut === "brouillon").length;
-  const nbDeveloppes = tousLesPlans.length - nbBrouillons;
-  const dureeMontage = tousLesPlans.reduce((acc, p) => acc + p.dureeMontageSecondes, 0);
-  const libelleEpisode = projet.type === "oneshot" ? projet.nom : `Épisode ${String(episodeInfo.episode.numero).padStart(2, "0")}`;
 
   const groupes = [
     ...scenes.map((sc) => ({
@@ -53,22 +48,6 @@ export default async function ScenarioPage({
 
   return (
     <div>
-      <EtatPlans
-        nbPlans={tousLesPlans.length}
-        nbDeveloppes={nbDeveloppes}
-        nbScenes={scenes.length}
-        dureeSecondes={dureeMontage}
-        demandeFiches={{
-          projectId: pid,
-          portee: "episode",
-          cible: { id: eid },
-          profondeur: "courte",
-          libelle: libelleEpisode,
-          episodeId: eid,
-          vue: "fiches",
-        }}
-      />
-
       <div className="queue">
         <NouveauPlanForm
           projectId={pid}

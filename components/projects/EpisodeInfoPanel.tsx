@@ -27,6 +27,7 @@ export function EpisodeInfoPanel({
   clauseStyle,
   posterSrc,
   oneshot,
+  etatPlans,
 }: {
   projectId: number;
   episodeId: number;
@@ -37,9 +38,13 @@ export function EpisodeInfoPanel({
   clauseStyle: string;
   posterSrc: string | null;
   oneshot: { nom: string; posterSrc: string | null } | null;
+  /** L'état des plans et son action : intégré à l'en-tête, mais seulement sur la page Scénario. */
+  etatPlans?: React.ReactNode;
 }) {
   // La fiche de plan a besoin de toute la place : pas d'encart épisode dessus.
-  const surFichePlan = /\/plans\/[^/]+/.test(usePathname());
+  const chemin = usePathname();
+  const surFichePlan = /\/plans\/[^/]+/.test(chemin);
+  const surScenario = /\/scenario\/?$/.test(chemin);
   const titreInitial = oneshot ? oneshot.nom : titre;
   const posterInitial = oneshot ? oneshot.posterSrc : posterSrc;
 
@@ -93,7 +98,7 @@ export function EpisodeInfoPanel({
         src={posterLocal}
         titre={titreInitial || (oneshot ? "Sans titre" : `Épisode ${two(numero)}`)}
         cleRepli={oneshot ? `projet:${projectId}` : `episode:${episodeId}`}
-        taille="wide"
+        taille="apercu"
       />
       <div className="info-body">
         {edition ? (
@@ -155,6 +160,8 @@ export function EpisodeInfoPanel({
             </button>
           </div>
         ) : null}
+
+        {surScenario && !edition ? etatPlans : null}
       </div>
     </div>
   );

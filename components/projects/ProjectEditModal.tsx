@@ -81,7 +81,7 @@ export function ProjectEditModal({
             </div>
             <form onSubmit={onSubmit} className="modal-bd form-grid">
               <div className="field-group wide">
-                <Poster src={posterLocal} titre={valeurNom || "Sans titre"} cleRepli={`projet:${projectId}`} taille="wide" />
+                <Poster src={posterLocal} titre={valeurNom || "Sans titre"} cleRepli={`projet:${projectId}`} taille="apercu" />
                 <label className="btn btn-ghost btn-sm" style={{ marginTop: "var(--sp-2)", cursor: "pointer", alignSelf: "flex-start" }}>
                   {uploadPending ? "Envoi..." : "Changer l'image de présentation"}
                   <input

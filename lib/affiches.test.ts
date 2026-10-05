@@ -5,6 +5,8 @@ import { TYPE_AFFICHE, cibleDeCodeAffiche, codeAffiche, formatAfficheParDefaut, 
 test("code d'affiche : un par projet, un par épisode, et on retrouve la cible", () => {
   assert.equal(codeAffiche("projects", 12), "AFFICHE_P12");
   assert.equal(codeAffiche("episodes", 7), "AFFICHE_E7");
+  assert.equal(codeAffiche("seasons", 3), "AFFICHE_S3");
+  assert.deepEqual(cibleDeCodeAffiche("AFFICHE_S3"), { cible: "seasons", id: 3 });
   assert.deepEqual(cibleDeCodeAffiche("AFFICHE_P12"), { cible: "projects", id: 12 });
   assert.deepEqual(cibleDeCodeAffiche("AFFICHE_E7"), { cible: "episodes", id: 7 });
 });
@@ -20,9 +22,8 @@ test("le type d'asset d'affiche ne collisionne avec aucun type du registre", () 
   assert.ok(!["personnage", "decor", "voix", "prop", "vfx", "sfx", "keyframe", "oth"].includes(TYPE_AFFICHE));
 });
 
-test("format par défaut : 2:3 pour un projet (cartes), 16:9 pour un épisode (en-tête)", () => {
-  assert.equal(formatAfficheParDefaut("projects").aspect, "2:3");
-  assert.equal(formatAfficheParDefaut("episodes").aspect, "16:9");
+test("format par défaut : 2:3 pour toutes les affiches", () => {
+  assert.equal(formatAfficheParDefaut().aspect, "2:3");
 });
 
 test("prompt d'affiche : cite le titre, le résumé et le ton, et interdit tout texte dans l'image", () => {
@@ -34,10 +35,10 @@ test("prompt d'affiche : cite le titre, le résumé et le ton, et interdit tout 
   assert.match(p, /No text, no lettering/);
 });
 
-test("prompt d'affiche : sans résumé ni ton, rien d'inventé ; un épisode est une composition large", () => {
+test("prompt d'affiche : sans résumé ni ton, rien d'inventé ; un épisode reste une affiche verticale", () => {
   const p = promptAffiche({ cible: "episodes", titre: "Le sel", resume: "  ", genreTon: null });
   assert.doesNotMatch(p, /Story:/);
   assert.doesNotMatch(p, /Mood:/);
-  assert.match(p, /Wide cinematic composition/);
+  assert.match(p, /Vertical poster composition/);
   assert.match(promptAffiche({ cible: "projects", titre: "   " }), /"an untitled story"/);
 });

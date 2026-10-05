@@ -55,7 +55,7 @@ export function CreerSaisonButton({ projectId }: { projectId: number }) {
             </div>
             <form onSubmit={onSubmit} className="modal-bd form-grid">
               <div className="field-group wide">
-                <Poster src={apercu} titre={titre || "Nouvelle saison"} cleRepli="nouvelle-saison" taille="wide" />
+                <Poster src={apercu} titre={titre || "Nouvelle saison"} cleRepli="nouvelle-saison" taille="apercu" />
                 <label className="btn btn-ghost btn-sm" style={{ marginTop: "var(--sp-2)", cursor: "pointer", alignSelf: "flex-start" }}>
                   Choisir une image de présentation
                   <input

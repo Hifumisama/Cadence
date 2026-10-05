@@ -10,7 +10,7 @@ import {
   projects,
   seasons,
 } from "../db/schema";
-import { and, desc, eq, inArray, isNotNull, lt, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
 import { posterSrc } from "./media";
 import { getLiensVoix, getPlanIdsDesRepliques } from "./queries-repliques";
@@ -270,6 +270,27 @@ export async function getScenarioData(episodeId?: number) {
   return {
     scenes: scenesAvecPlans,
     sansScene,
+  };
+}
+
+/** Les chiffres de l'état des plans (en-tête de l'épisode) : de simples agrégats, sans charger les plans eux-mêmes. */
+export async function getEtatPlans(episodeId: number) {
+  const [[p], [sc]] = await Promise.all([
+    db
+      .select({
+        nbPlans: sql<number>`count(*)::int`,
+        nbBrouillons: sql<number>`count(*) filter (where ${plans.statut} = 'brouillon')::int`,
+        duree: sql<number>`coalesce(sum(${plans.dureeMontageSecondes}), 0)::int`,
+      })
+      .from(plans)
+      .where(eq(plans.episodeId, episodeId)),
+    db.select({ nbScenes: sql<number>`count(*)::int` }).from(scenes).where(eq(scenes.episodeId, episodeId)),
+  ]);
+  return {
+    nbPlans: p?.nbPlans ?? 0,
+    nbDeveloppes: (p?.nbPlans ?? 0) - (p?.nbBrouillons ?? 0),
+    nbScenes: sc?.nbScenes ?? 0,
+    dureeSecondes: p?.duree ?? 0,
   };
 }
 

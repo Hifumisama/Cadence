@@ -115,6 +115,7 @@ export async function supprimerSaison(
     }
   }
   await supprimerAffichesDesEpisodes((await db.select({ id: episodes.id }).from(episodes).where(eq(episodes.seasonId, saisonId))).map((e) => e.id));
+  await db.delete(assets).where(eq(assets.code, codeAffiche("seasons", saisonId)));
   await db.delete(seasons).where(eq(seasons.id, saisonId));
   revalidatePath("/", "layout");
   return { ok: true };

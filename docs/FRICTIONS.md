@@ -1779,3 +1779,9 @@ Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
   de style est ajoutée par le workflow comme pour tout asset. Modifiable avant de lancer. Non fait : le faire écrire par l'agent.
 - **Page dédiée** `/p/<projet>/affiche/<code>` (aperçus carte et en-tête, fenêtre de génération, retrait de l'image) ; les tâches du header y
   renvoient. Points d'entrée : en-tête d'un épisode (ou du OneShot) et vue d'une série.
+
+### 2026-10-05 — Affiches : saisons, tout en 2:3, état des plans dans l'en-tête
+
+- Les affiches couvrent aussi les **saisons** (`AFFICHE_S<id>`, même mécanique que projet/épisode, invisibles du registre).
+- **Toutes les affiches sont en 2:3** (projet, saison, épisode) : le Poster « wide » 16:9 devient « apercu » 2:3. Le prompt par défaut demande donc toujours une composition verticale.
+- L'**état des plans** (anneau + « Écrire les fiches ») quitte le corps de la page Scénario et s'intègre à l'en-tête de l'épisode (affiché seulement sur `/scenario`). Il est alimenté par des agrégats SQL (`getEtatPlans`), calculés par le layout.

@@ -1967,14 +1967,14 @@ button {
   pointer-events: none;
   user-select: none;
 }
-.poster-wide {
-  aspect-ratio: 16 / 9;
+.poster-apercu {
+  aspect-ratio: 2 / 3;
   width: 100%;
-  max-width: 420px;
+  max-width: 150px;
   padding: var(--sp-3);
 }
-.poster-wide .pt {
-  font-size: 22px;
+.poster-apercu .pt {
+  font-size: 18px;
 }
 .poster-sm,
 .poster-mini {
@@ -2461,6 +2461,9 @@ button {
   .info-panel {
     flex-direction: column;
   }
+  .info-panel .poster-apercu {
+    width: 110px;
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -2506,8 +2509,8 @@ button {
   color: var(--ink-4);
   font-style: italic;
 }
-.info-panel .poster-wide {
-  max-width: 220px;
+.info-panel .poster-apercu {
+  width: 150px;
   flex: 0 0 auto;
 }
 
@@ -5573,6 +5576,27 @@ a.voix-chip:hover {
 }
 .etat-action {
   flex: 0 0 auto;
+}
+
+/* Intégré à l'en-tête de l'épisode : plus de cadre propre, seulement un filet qui le sépare du résumé. */
+.info-panel .etat-plans {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-3) 0 0;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  gap: var(--sp-3) var(--sp-4);
+}
+.info-panel .etat-anneau {
+  width: 64px;
+  height: 64px;
+}
+.info-panel .etat-corps {
+  flex-basis: 260px;
+}
+.info-panel .etat-titre {
+  font-size: 14.5px;
 }
 
 .queue {
