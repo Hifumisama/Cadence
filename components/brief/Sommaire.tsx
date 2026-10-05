@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Icone } from "@/components/ui/Icone";
-import { LegendeMarques } from "./Marque";
 
 export type EntreeSommaire = { id: string; label: string; compte?: number; aConfirmer?: boolean };
 
@@ -69,8 +68,10 @@ export function Sommaire({ entrees }: { entrees: EntreeSommaire[] }) {
   return (
     <nav ref={racine} className={`bf-sommaire${ouvert ? " is-ouvert" : ""}`} aria-label="Sommaire du brief">
       <button type="button" className="bf-sommaire-bouton" aria-expanded={ouvert} aria-controls={idListe} onClick={() => setOuvert((v) => !v)}>
-        <span className="bf-etiquette">Sections</span>
-        <span className="bf-sommaire-courant">{courant?.label}</span>
+        <span className="bf-sommaire-texte">
+          <span className="bf-etiquette">Sections</span>
+          <span className="bf-sommaire-courant">{courant?.label}</span>
+        </span>
         <Icone nom="bas" taille={18} />
       </button>
       <div id={idListe} className="bf-sommaire-panneau">
@@ -99,7 +100,6 @@ export function Sommaire({ entrees }: { entrees: EntreeSommaire[] }) {
             </li>
           ))}
         </ul>
-        <LegendeMarques />
       </div>
     </nav>
   );
