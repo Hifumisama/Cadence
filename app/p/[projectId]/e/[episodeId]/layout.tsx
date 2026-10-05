@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEpisodeWithSeason, getProject } from "@/lib/queries";
+import { getEpisodeWithSeason, getEtatPlans, getProject } from "@/lib/queries";
 import { posterSrc } from "@/lib/media";
 import { Topbar } from "@/components/ui/Topbar";
+import { EtatPlans } from "@/components/scenario/EtatPlans";
 import { EpisodeInfoPanel } from "@/components/projects/EpisodeInfoPanel";
 
 function two(n: number): string {
@@ -20,7 +21,7 @@ export default async function EpisodeLayout({
   const pid = Number(projectId);
   const eid = Number(episodeId);
 
-  const [projet, episodeInfo] = await Promise.all([getProject(pid), getEpisodeWithSeason(eid)]);
+  const [projet, episodeInfo, etat] = await Promise.all([getProject(pid), getEpisodeWithSeason(eid), getEtatPlans(eid)]);
   if (!projet || !episodeInfo || episodeInfo.season.projectId !== pid) notFound();
   const { episode, season } = episodeInfo;
 
@@ -58,6 +59,21 @@ export default async function EpisodeLayout({
           episodeId={episode.id}
           numero={episode.numero}
           resume={episode.resume}
+          etatPlans={
+            <EtatPlans
+              {...etat}
+              demandeFiches={{
+                projectId: pid,
+                portee: "episode",
+                cible: { id: eid },
+                profondeur: "courte",
+                libelle: projet.type === "oneshot" ? projet.nom : `Épisode ${two(episode.numero)}`,
+                episodeId: eid,
+                vue: "fiches",
+              }}
+            />
+          }
+          clauseStyle={projet.clauseStyle}
           oneshot={
             projet.type === "oneshot"
               ? { nom: projet.nom, posterSrc: posterSrc("projects", pid, projet.posterFichier) }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import type { EtatPhases } from "@/lib/voix";
 import { PhasesVoix } from "./PhasesVoix";
+import { Icone } from "@/components/ui/Icone";
 
 // Une seule référence joue à la fois dans le catalogue.
 let carteActive: { stop: () => void } | null = null;
@@ -85,7 +86,7 @@ export function VoixCard({
         {referenceSrc ? (
           <>
             <button type="button" className="asset-card-play voix-card-play" onClick={basculer} aria-label={joue ? `Arrêter ${code}` : `Écouter la référence de ${code}`}>
-              {joue ? "■" : "▶"}
+              {joue ? <Icone nom="arret" taille={14} /> : <Icone nom="lecture" taille={14} />}
             </button>
             <span className="tiny-note">référence</span>
             <audio ref={audioRef} src={referenceSrc} preload="none" onEnded={() => setJoue(false)} />

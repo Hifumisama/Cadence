@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { creerAsset } from "@/app/assets/actions";
 import { PREFIXE_PAR_TYPE, TYPES_CREABLES, construireCode } from "@/lib/assetCode";
+import { Icone } from "@/components/ui/Icone";
 
 export function AjouterDeriveForm({
   projectId,
@@ -61,7 +62,7 @@ export function AjouterDeriveForm({
             <div className="modal-hd">
               <h2>Nouveau dérivé de {parentCode}</h2>
               <button className="modal-close" type="button" onClick={() => setOuvert(false)} aria-label="Fermer">
-                ×
+                <Icone nom="fermer" />
               </button>
             </div>
             <form ref={formRef} onSubmit={onSubmit} className="modal-bd form-grid">

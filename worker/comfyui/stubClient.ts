@@ -4,6 +4,9 @@ import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi 
 import { mp3Factice } from "./stubAudio";
 import { pngFactice } from "./stubPng";
 
+/** Une boîte `ftyp` : de quoi avoir un fichier .mp4 reconnaissable, pas une vidéo qui se lit. */
+const mp4Factice = () => Buffer.from("00000018667479706d70343200000000" + "6d70343269736f6d", "hex");
+
 /**
  * Client factice — permet de développer et tester toute la chaîne (queue,
  * pages, contrôles) tant que VID_REF2VA.json n'est pas ré-exporté en format
@@ -35,8 +38,11 @@ export class StubComfyUIClient implements ComfyUIClient {
 
   async submitGraph(graphe?: Record<string, unknown>): Promise<string> {
     // Un graphe qui sauvegarde de l'audio (SaveAudioMP3) donne un son factice.
-    const audio = Object.values(graphe ?? {}).some((n) => ["SaveAudioMP3", "SaveAudio"].includes((n as { class_type?: string }).class_type ?? ""));
-    const promptId = `stub-${audio ? "aud" : "img"}-${Date.now()}`;
+    const classes = Object.values(graphe ?? {}).map((n) => (n as { class_type?: string }).class_type);
+    const audio = classes.includes("SaveAudioMP3") || classes.includes("SaveAudio");
+    // Un graphe vidéo (test vidéo d'une voix : VHS_VideoCombine) donne un fichier vidéo factice.
+    const video = classes.includes("VHS_VideoCombine");
+    const promptId = `stub-${audio ? "aud" : video ? "vid" : "img"}-${Date.now()}`;
     this.enCours.set(promptId, Date.now());
     return promptId;
   }
@@ -44,7 +50,7 @@ export class StubComfyUIClient implements ComfyUIClient {
   async pollImage(promptId: string): Promise<PollResult> {
     const debut = this.enCours.get(promptId) ?? 0;
     if (Date.now() - debut < 2000) return { statut: "en_cours" };
-    return { statut: "termine", cheminSortieDistant: `stub/${promptId}.${promptId.startsWith("stub-aud-") ? "mp3" : "png"}` };
+    return { statut: "termine", cheminSortieDistant: `stub/${promptId}.${promptId.startsWith("stub-aud-") ? "mp3" : promptId.startsWith("stub-vid-") ? "mp4" : "png"}` };
   }
 
   /** Rejoue ~2 s de progression (8 étapes, un aperçu à mi-parcours) : de quoi
@@ -100,6 +106,9 @@ export class StubComfyUIClient implements ComfyUIClient {
       await writeFile(cheminLocalCible, pngFactice());
     } else if (cheminLocalCible?.toLowerCase().endsWith(".mp3")) {
       await writeFile(cheminLocalCible, mp3Factice());
+    } else if (cheminLocalCible?.toLowerCase().endsWith(".mp4") && /[\\/]generations[\\/]/.test(cheminLocalCible)) {
+      // Un candidat de test vidéo doit exister sur le disque pour être adopté (les rendus des plans, eux, restent sans fichier).
+      await writeFile(cheminLocalCible, mp4Factice());
     }
   }
 }

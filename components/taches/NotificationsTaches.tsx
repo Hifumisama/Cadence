@@ -6,6 +6,7 @@ import { useAgents } from "@/components/agents/AgentsProvider";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { etatNotifications, notifier, pageEnArriere } from "@/lib/notifications-navigateur";
 import type { Tache } from "@/lib/taches";
+import { Icone } from "@/components/ui/Icone";
 
 /** Notifications de fin de tâche : un petit toast quand une génération, une
  * proposition ou une vidéo se termine (ou échoue), même si on est ailleurs dans
@@ -166,7 +167,7 @@ export function NotificationsTaches() {
           onMouseLeave={() => programmer(t.id, 4000)}
         >
           <span className="nt-marque" aria-hidden="true">
-            {t.ok ? "✓" : "!"}
+            <Icone nom={t.ok ? "valide" : "alerte"} taille={16} />
           </span>
           <div className="nt-corps">
             <span className="nt-titre num" title={t.titre}>
@@ -185,7 +186,7 @@ export function NotificationsTaches() {
             {t.action.libelle}
           </button>
           <button type="button" className="nt-x" aria-label="Fermer la notification" onClick={() => fermer(t.id)}>
-            ✕
+            <Icone nom="fermer" />
           </button>
         </div>
       ))}

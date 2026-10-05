@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MediaKind } from "@/components/assets/AssetCard";
 import { urlMiniature } from "@/lib/miniatures";
+import { Icone } from "@/components/ui/Icone";
 
 /** Nœud d'asset allégé pour la galerie de références — construit côté
  * serveur (il faut vérifier les fichiers sur le disque) puis passé tel quel
@@ -46,7 +47,7 @@ function Vignette({ noeud }: { noeud: NoeudPicker }) {
       ) : null}
       {etat === "ok" && kind === "audio" ? (
         <span className="asset-card-note" aria-hidden="true">
-          ♪
+          <Icone nom="musique" taille={28} />
         </span>
       ) : null}
     </div>
@@ -172,7 +173,7 @@ export function AssetPickerModal({
           )}
         </h2>
         <button type="button" className="modal-close" onClick={onFermer} aria-label="Fermer">
-          ✕
+          <Icone nom="fermer" />
         </button>
       </div>
 

@@ -4,6 +4,7 @@ import { infosMedia } from "@/lib/assetMedia";
 import { urlMiniature } from "@/lib/miniatures";
 import { AssetCard } from "@/components/assets/AssetCard";
 import { AjouterDeriveForm } from "@/components/assets/AjouterDeriveForm";
+import { Icone } from "@/components/ui/Icone";
 
 export type FiltresArbre = { statut: string | null; type: string | null };
 
@@ -67,7 +68,7 @@ function Mini({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={urlMiniature(src, 96)} alt="" loading="lazy" decoding="async" />
           ) : null}
-          {etat === "ok" && kind === "audio" ? <span aria-hidden="true">♪</span> : null}
+          {etat === "ok" && kind === "audio" ? <Icone nom="musique" taille={13} /> : null}
           {etat === "ok" && kind === "video" && src ? <video src={`${src}#t=0.001`} preload="metadata" muted playsInline /> : null}
         </span>
         <span className="tree-mini-txt">

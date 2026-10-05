@@ -23,6 +23,7 @@ import { SelecteurPortee } from "@/components/agents/SelecteurPortee";
 import { estLotActif, estTacheActive, etapeValide, filEtapes } from "@/lib/agents-affichage";
 import { LIBELLE_SKILL } from "@/lib/taches";
 import type { Etape, ResultatApplication, VueBrief, VueConversation, VueProposition } from "@/lib/agents/types";
+import { Icone } from "@/components/ui/Icone";
 
 const INTERVALLE_SONDAGE_MS = 3000;
 const INTERVALLE_FLUX_MS = 1200;
@@ -248,7 +249,7 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
     >
       <div className="gd-head">
         <h2 id="ag-titre">
-          Demander à l&rsquo;agent <span aria-hidden="true">✦</span>
+          Demander à l&rsquo;agent <Icone nom="agent" taille={14} />
           {libelleCible ? <span className="ag-chip">{libelleCible}</span> : null}
         </h2>
         <div className="gd-head-r">
@@ -259,7 +260,7 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
             </Link>
           ) : null}
           <button type="button" className="gd-x" onClick={onFermer} aria-label="Fermer">
-            ✕
+            <Icone nom="fermer" />
           </button>
         </div>
       </div>

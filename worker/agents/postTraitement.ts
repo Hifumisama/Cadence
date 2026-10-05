@@ -1,17 +1,20 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
+import { horsAffiches } from "../../lib/assets-visibles";
 import { methodeApplicable } from "../../lib/assetCode";
 import { fusionnerPartielDansBrouillon, sortieVersBrief } from "../../lib/agents/brief";
 import type { ChangementBrut } from "../../lib/agents/changements";
 import {
   depuisCorrectionPlan,
   depuisPlanAInserer,
+  depuisPromptAffiche,
   depuisPromptAsset,
   depuisCastingVoix,
   depuisRegistreAsset,
   depuisScenarioEpisode,
   type EpisodeCourant,
+  type SortiePromptAffiche,
   type SortiePromptAsset,
   type SortiePromptVoix,
   type SortieScenarioEpisode,
@@ -122,6 +125,15 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       methodeGeneration: asset.methodeGeneration,
       methodeApplicable: methodeApplicable(asset.type),
     });
+  } else if (run.skill === "prompt-affiche") {
+    if (prop.cibleId == null) throw new Error("Proposition d'affiche sans cible.");
+    const [asset] = await tx.select().from(assets).where(eq(assets.id, prop.cibleId));
+    if (!asset) throw new Error("L'affiche visée n'existe plus.");
+    const entree = run.entree as { titre?: string; personnagePrincipal?: { imageDisponible?: boolean } | null };
+    bruts = depuisPromptAffiche(json as SortiePromptAffiche, asset, {
+      titre: entree.titre ?? "",
+      imagePersonnageDisponible: entree.personnagePrincipal?.imageDisponible === true,
+    });
   } else if (run.skill === "scenario-episode") {
     const sortie = json as SortieScenarioEpisode;
     if (prop.portee === "plan") {
@@ -147,7 +159,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
   } else if (run.skill === "inventaire-assets") {
     // Les assets que les plans réclament et que le registre n'a pas : des créations sans prompt (il s'écrit ensuite).
     const sortie = json as SortieInventaire;
-    const registre = await tx.select({ code: assets.code, type: assets.type, description: assets.description }).from(assets).where(eq(assets.projectId, prop.projectId));
+    const registre = await tx.select({ code: assets.code, type: assets.type, description: assets.description }).from(assets).where(and(eq(assets.projectId, prop.projectId), horsAffiches));
     bruts = depuisInventaire(sortie, registre.map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" })));
     await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts);
     // Rien à ajouter : la proposition le dit (avec les notes du modèle) plutôt que d'afficher une liste vide.
@@ -291,7 +303,7 @@ async function brutsFiche(tx: Tx, projectId: number, planUuid: string, sortie: S
       .from(planDialogues)
       .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
       .where(eq(planDialogues.planId, plan.id)),
-    tx.select({ code: assets.code, type: assets.type }).from(assets).where(eq(assets.projectId, projectId)),
+    tx.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches)),
   ]);
   return depuisFichePlan(
     sortie,
@@ -353,7 +365,7 @@ async function postIteration(
       .leftJoin(assets, eq(assets.id, planRefs.assetId))
       .where(eq(planRefs.planId, plan.id)),
     tx.select({ slot: planDialogues.slot }).from(planDialogues).where(eq(planDialogues.planId, plan.id)),
-    tx.select({ code: assets.code, type: assets.type }).from(assets).where(eq(assets.projectId, prop.projectId)),
+    tx.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, prop.projectId), horsAffiches)),
   ]);
   const sections: Record<string, string> = {};
   for (const l of lignes) sections[l.section] = sections[l.section] ? `${sections[l.section]}\n${l.contenu}` : l.contenu;

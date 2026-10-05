@@ -7,6 +7,7 @@ import type { MediaKind } from "@/components/assets/AssetCard";
 import { MediaZoom } from "@/components/assets/MediaZoom";
 import { urlMiniature } from "@/lib/miniatures";
 import { AssetPickerModal, type NoeudPicker } from "@/components/plan/AssetPickerModal";
+import { Icone } from "@/components/ui/Icone";
 
 export type RefVue = {
   id: number;
@@ -54,7 +55,7 @@ function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
     return (
       <div className="ref-thumb is-audio">
         <span className="ref-note" aria-hidden="true">
-          ♪
+          <Icone nom="musique" taille={28} />
         </span>
         <audio controls preload="none" src={asset.src} />
       </div>
@@ -112,7 +113,7 @@ function RefsType({
           disabled={plein}
           onClick={() => setOuvert(true)}
         >
-          {plein ? "Maximum atteint" : "+ Ajouter"}
+          {plein ? "Maximum atteint" : <><Icone nom="ajouter" taille={15} /> Ajouter</>}
         </button>
       </div>
 
@@ -137,7 +138,7 @@ function RefsType({
                 disabled={pending}
                 aria-label={`Retirer <${LABEL_TYPE[type]} ${r.slot}>`}
               >
-                ✕
+                <Icone nom="fermer" />
               </button>
             </figure>
           ))}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { assignerVoixAuPersonnage } from "@/app/voix/actions";
+import { Icone } from "@/components/ui/Icone";
 
 /** « Voix » d'un personnage au registre : le lien est calculé depuis le casting
  * (voix_fiches.personnageId) et n'existe qu'à cet endroit — ce composant ne
@@ -43,7 +44,7 @@ export function AssignerVoix({
       {voixActuelle && !edition ? (
         <div className="voix-lien">
           <Link href={`/p/${projectId}/voix/${voixActuelle.code}`} className="voix-chip">
-            <span aria-hidden="true">♪</span> {voixActuelle.code}
+            <Icone nom="musique" taille={13} /> {voixActuelle.code}
           </Link>
           <button type="button" className="btn btn-ghost btn-mini" onClick={() => setEdition(true)} disabled={pending}>
             Changer

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
+import { Icone } from "@/components/ui/Icone";
 
 const MIME_PLAN = "application/x-cadence-plan";
 const MIME_SCENE = "application/x-cadence-scene";
@@ -25,7 +26,7 @@ export function BasculeScene({ titre }: { titre: string }) {
       title={replie ? "Déplier" : "Replier"}
       onClick={basculer}
     >
-      {replie ? "▸" : "▾"}
+      <Icone nom={replie ? "droite" : "bas"} />
     </button>
   );
 }
@@ -39,16 +40,18 @@ export function CorpsScene({ children }: { children: React.ReactNode }) {
 
 /** « Tout replier » / « Tout déplier » : pilote toutes les scènes de la page. */
 export function ControleAccordeon() {
-  const envoyer = (replie: boolean) => window.dispatchEvent(new CustomEvent(EVT_ACCORDEON, { detail: { replie } }));
+  // Un seul bouton : il propose toujours l'action inverse de la dernière envoyée (les scènes gardent
+  // aussi leur état individuel, on ne peut donc pas le déduire d'ici).
+  const [toutReplie, setToutReplie] = useState(false);
+  const basculer = () => {
+    const replie = !toutReplie;
+    window.dispatchEvent(new CustomEvent(EVT_ACCORDEON, { detail: { replie } }));
+    setToutReplie(replie);
+  };
   return (
-    <>
-      <button type="button" className="btn btn-ghost" onClick={() => envoyer(true)}>
-        Tout replier
-      </button>
-      <button type="button" className="btn btn-ghost" onClick={() => envoyer(false)}>
-        Tout déplier
-      </button>
-    </>
+    <button type="button" className="btn btn-ghost btn-sm queue-toggle" onClick={basculer}>
+      <Icone nom={toutReplie ? "deplierTout" : "replierTout"} taille={15} /> {toutReplie ? "Tout déplier" : "Tout replier"}
+    </button>
   );
 }
 
@@ -139,7 +142,7 @@ export function PoigneeScene({ sceneId }: { sceneId: number }) {
         if (bloc) e.dataTransfer.setDragImage(bloc, 16, 16);
       }}
     >
-      ⠿
+      <Icone nom="poignee" taille={18} />
     </span>
   );
 }

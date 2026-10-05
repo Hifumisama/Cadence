@@ -15,6 +15,7 @@ import { Topbar } from "@/components/ui/Topbar";
 import { TYPES_ASSET } from "@/lib/assetCode";
 import { AssignerVoix } from "@/components/assets/AssignerVoix";
 import { delierRef } from "@/app/assets/actions";
+import { Icone } from "@/components/ui/Icone";
 
 export const dynamic = "force-dynamic";
 
@@ -238,8 +239,8 @@ export default async function AssetDetailPage({
                               await delierRef(c.refId!);
                             }}
                           >
-                            <button type="submit" title="Délier de ce plan">
-                              ×
+                            <button type="submit" title="Délier de ce plan" aria-label="Délier de ce plan">
+                              <Icone nom="fermer" />
                             </button>
                           </form>
                         ) : null}

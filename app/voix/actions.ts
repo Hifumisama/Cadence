@@ -1,21 +1,43 @@
 "use server";
 
 import { db } from "@/db";
-import { assets, voixFiches } from "@/db/schema";
+import { assets, repliques, voixFiches } from "@/db/schema";
 import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
-import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, TAILLE_MAX_UPLOAD_VIDEO, cheminAssetMedia, cheminVoixMedia, estAudio, estVideo } from "@/lib/media";
+import {
+  DUREE_TEST_VIDEO_SECONDES,
+  METHODE_TEST_AUDIO,
+  METHODE_TEST_VIDEO,
+  langueDuTexteDeReference,
+  nouvelleSeed,
+  raisonTestAudioInvalide,
+  raisonTestVideoInvalide,
+} from "@/lib/asset-generation";
+import { assetGenerations } from "@/db/schema";
+import { genererPriseReplique } from "@/app/repliques/generation-actions";
+import {
+  MEDIA_ROOT,
+  TAILLE_MAX_UPLOAD_ASSET,
+  TAILLE_MAX_UPLOAD_VIDEO,
+  cheminAssetMedia,
+  cheminVoixMedia,
+  estAudio,
+  estImage,
+  estVideo,
+  fichierMediaExiste,
+} from "@/lib/media";
+import { nbImagesEnAttente, rangDansLaFile } from "@/lib/queries-taches";
+import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
 import { construireCode } from "@/lib/assetCode";
 import { getVoixAsset } from "@/lib/queries-voix";
-import { estSourceVoix, type SourceVoix } from "@/lib/voix";
+import { TEXTE_REFERENCE_DEFAUT, estSourceVoix, promptTestVoix, type SourceVoix } from "@/lib/voix";
+import { existsSync } from "node:fs";
 
-// Casting vocal (F06, CDC §6). Aucune action ici ne lance de génération :
-// le backend ComfyUI voix n'existe pas encore (système de tâches dédié prévu,
-// le worker actuel reste câblé sur la seule génération vidéo). Tout ce qui
-// est écrit ici est du suivi réel — fichiers produits à la main dans
-// ComfyUI puis déposés, paramètres retenus.
+// Casting vocal (F06, CDC §6). Le suivi réel (fichiers déposés, paramètres retenus) vit ici ; les générations de la voix de
+// référence passent par app/assets/generation-actions.ts, celles du test (audio, vidéo) par lancerTestAudio / lancerTestVideo plus bas.
+// Les prises de RÉPLIQUES passent par lancerPriseReplique (même moteur que le panneau Dialogues d'un plan).
 
 function nombreOuNull(v: FormDataEntryValue | string | null | undefined): number | null {
   const s = String(v ?? "").trim().replace(",", ".");
@@ -228,6 +250,127 @@ export async function deposerVideoTest(assetId: number, formData: FormData) {
     .values({ assetId, testVideo: nom })
     .onConflictDoUpdate({ target: voixFiches.assetId, set: { testVideo: nom } });
   revalidatePath("/", "layout");
+}
+
+// ---------------------------------------------------------------------
+// Étape 3, génération — l'audio de test (la voix de référence clonée dit le texte) puis la vidéo de test (la voix sur un visage,
+// prévisualisation puis rendu final). Même file et mêmes candidats que les images : ces actions posent une demande en base, le
+// worker la prend (worker/images.ts), « Utiliser » (adopterGeneration) en fait l'audio ou la vidéo de test de la fiche.
+// ---------------------------------------------------------------------
+
+type ResultatLancement = { ok: true; position: number } | { ok: false; erreur: string };
+
+const FILE_PLEINE = `La file est pleine (${PLAFOND_FILE_IMAGES} générations en attente) : laisse le worker en vider quelques-unes.`;
+
+/** Texte, personnage et décor du test : la même écriture que « Enregistrer », pour que ce qu'on lance soit ce qu'on a sous les yeux. */
+async function memoriserTest(assetId: number, v: { decorId: number | null; personnageId: number | null; texte: string }) {
+  const r = await enregistrerTest(assetId, v);
+  if (!r.ok) return r;
+  return null;
+}
+
+/** « Générer l'audio de test » : la voix de référence (clonée) dit le texte du test, avec VOX_Generate_Replique_Simplified. La voix
+ * de référence est figée dans la demande : la remplacer pendant l'attente ne change pas ce test. */
+export async function lancerTestAudio(
+  assetId: number,
+  v: { decorId: number | null; personnageId: number | null; texte: string },
+): Promise<ResultatLancement> {
+  const asset = await exigerVoix(assetId);
+  const raison = raisonTestAudioInvalide({ texte: v.texte, referenceFichier: asset.fichier && fichierMediaExiste(asset.fichier) ? asset.fichier : null });
+  if (raison) return { ok: false, erreur: raison };
+  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) return { ok: false, erreur: FILE_PLEINE };
+  const refus = await memoriserTest(assetId, v);
+  if (refus) return refus;
+  const [fiche] = await db.select({ langue: voixFiches.langue }).from(voixFiches).where(eq(voixFiches.assetId, assetId));
+
+  const [gen] = await db
+    .insert(assetGenerations)
+    .values({
+      assetId,
+      methode: METHODE_TEST_AUDIO,
+      prompt: v.texte.trim(),
+      langueReference: langueDuTexteDeReference(v.texte, TEXTE_REFERENCE_DEFAUT, fiche?.langue ?? "French"),
+      seed: nouvelleSeed(),
+      parametres: { reference: cheminAssetMedia(asset.fichier!) },
+    })
+    .returning({ id: assetGenerations.id });
+  revalidatePath("/", "layout");
+  return { ok: true, position: await rangDansLaFile(gen!.id) };
+}
+
+/** « Générer » d'une réplique (étape 4) : la voix de référence (clonée) dit le texte de la réplique. C'est le même moteur que le panneau
+ * Dialogues d'un plan (app/repliques/generation-actions.ts : demande `replique` rattachée à sa réplique, prise posée par le worker, elle
+ * remplace la précédente, F01) ; ici on vérifie seulement que la réplique est bien du projet de la voix, puis on renvoie le rang dans la file. */
+export async function lancerPriseReplique(assetId: number, repliqueId: number): Promise<ResultatLancement> {
+  const asset = await exigerVoix(assetId);
+  const [r] = await db.select({ id: repliques.id }).from(repliques).where(and(eq(repliques.id, repliqueId), eq(repliques.projectId, asset.projectId)));
+  if (!r) return { ok: false, erreur: "Cette réplique n'existe pas." };
+  const res = await genererPriseReplique(repliqueId);
+  if (!res.ok) return { ok: false, erreur: res.erreur };
+  const [gen] = await db.select({ id: assetGenerations.id }).from(assetGenerations).where(eq(assetGenerations.uuid, res.generationUuid));
+  return { ok: true, position: gen ? await rangDansLaFile(gen.id) : 1 };
+}
+
+/** « Prévisualiser » (`upscale` faux : sortie basse résolution, rapide) ou « Rendu final » (`upscale` vrai) : la vidéo de test, avec
+ * le graphe des plans (VID_REF2VA). Le prompt est composé ici (lib/voix.ts:promptTestVoix) et les références sont figées dans la
+ * demande : personnage et décor (leur image), l'audio de test, à défaut la voix de référence. */
+export async function lancerTestVideo(
+  assetId: number,
+  v: { decorId: number | null; personnageId: number | null; texte: string; upscale: boolean },
+): Promise<ResultatLancement> {
+  const asset = await exigerVoix(assetId);
+  const [fiche] = await db.select().from(voixFiches).where(eq(voixFiches.assetId, assetId));
+  const audio = fiche?.testAudio && existsSync(join(MEDIA_ROOT, cheminVoixMedia(assetId, fiche.testAudio)))
+    ? cheminVoixMedia(assetId, fiche.testAudio)
+    : asset.fichier && fichierMediaExiste(asset.fichier)
+      ? cheminAssetMedia(asset.fichier)
+      : null;
+  const raison = raisonTestVideoInvalide({ texte: v.texte, audio });
+  if (raison) return { ok: false, erreur: raison };
+
+  // Une image de personnage ou de décor sélectionnée DOIT exister : sans elle, le prompt parlerait d'une <Picture> absente.
+  const lire = async (id: number | null, nature: "personnage" | "décor") => {
+    if (id == null) return { ok: true as const, ligne: null };
+    const [a] = await db.select().from(assets).where(and(eq(assets.id, id), eq(assets.projectId, asset.projectId)));
+    if (!a) return { ok: false as const, erreur: nature === "décor" ? "Ce décor n'existe pas dans le projet." : "Ce personnage n'existe pas dans le projet." };
+    if (!a.fichier || !estImage(a.fichier) || !fichierMediaExiste(a.fichier)) {
+      return { ok: false as const, erreur: `${a.code} n'a pas encore d'image : génère-la au registre, ou choisis ${nature === "décor" ? "un fond neutre" : "un personnage générique"}.` };
+    }
+    return { ok: true as const, ligne: a };
+  };
+  const perso = await lire(v.personnageId, "personnage");
+  if (!perso.ok) return perso;
+  const decor = await lire(v.decorId, "décor");
+  if (!decor.ok) return decor;
+
+  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) return { ok: false, erreur: FILE_PLEINE };
+  const refus = await memoriserTest(assetId, v);
+  if (refus) return refus;
+
+  const prompt = promptTestVoix({
+    texte: v.texte,
+    personnage: perso.ligne ? { code: perso.ligne.code, description: perso.ligne.description } : null,
+    decor: decor.ligne ? { code: decor.ligne.code, description: decor.ligne.description } : null,
+    avecAudio: true,
+  });
+  const [gen] = await db
+    .insert(assetGenerations)
+    .values({
+      assetId,
+      methode: METHODE_TEST_VIDEO,
+      prompt,
+      dureeSecondes: DUREE_TEST_VIDEO_SECONDES,
+      seed: nouvelleSeed(),
+      parametres: {
+        upscale: v.upscale,
+        personnage: perso.ligne ? cheminAssetMedia(perso.ligne.fichier!) : null,
+        decor: decor.ligne ? cheminAssetMedia(decor.ligne.fichier!) : null,
+        audio,
+      },
+    })
+    .returning({ id: assetGenerations.id });
+  revalidatePath("/", "layout");
+  return { ok: true, position: await rangDansLaFile(gen!.id) };
 }
 
 // ---------------------------------------------------------------------

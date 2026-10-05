@@ -1,3 +1,4 @@
+import { avecTitreDansImage, titreDansPrompt } from "../affiches";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, slugifyCode } from "../assetCode";
 import type { ChangementBrut } from "./changements";
 import { cleNouvelAsset, type ApresFiche, type RefFiche } from "./fiches";
@@ -612,5 +613,42 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
       avertissements,
     },
     ...creations,
+  ];
+}
+
+// --- prompt-affiche (affiche de présentation d'un projet, d'une saison ou d'un épisode) ---------------
+
+export type SortiePromptAffiche = {
+  methode: "generation" | "edition";
+  sources?: string[];
+  promptGeneration: string;
+  remarques: string[];
+};
+
+/** Le prompt d'une affiche : une modification de l'asset d'affiche. La ligne de titre suit le réglage ACTUEL de l'affiche (la
+ * case « écrire le titre dans l'image » a pu changer depuis la demande). La méthode « édition » (image du personnage principal
+ * en source 1) n'est retenue que si cette image existait au moment de la demande. */
+export function depuisPromptAffiche(
+  sortie: SortiePromptAffiche,
+  asset: { id: number; promptGeneration: string | null; methodeGeneration: string | null },
+  demande: { titre: string; imagePersonnageDisponible: boolean },
+): ChangementBrut[] {
+  const methode = sortie.methode === "edition" && demande.imagePersonnageDisponible ? "edition" : "generation";
+  const apres: Record<string, unknown> = {
+    promptGeneration: avecTitreDansImage(sortie.promptGeneration.trim(), demande.titre, titreDansPrompt(asset.promptGeneration ?? "")),
+  };
+  if (methode !== (asset.methodeGeneration ?? "generation")) apres.methodeGeneration = methode;
+  const avertissements: Avertissement[] = (sortie.remarques ?? []).map((texte) => ({ type: "info" as const, texte }));
+  if (methode === "edition") avertissements.unshift({ type: "info", texte: "L'image du personnage principal est la première source : la fenêtre de génération s'ouvre en mode « images »." });
+  return [
+    {
+      groupe: "assets",
+      cibleType: "asset",
+      cibleRef: String(asset.id),
+      libelle: `Affiche · ${demande.titre} · prompt de génération`,
+      operation: "modifier",
+      apres,
+      avertissements,
+    },
   ];
 }

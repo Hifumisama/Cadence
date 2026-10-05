@@ -20,9 +20,12 @@
   --line-strong: #3a3a47;
 
   --ink: #e9e6e0;
-  --ink-2: #b4b0bd;
-  --ink-3: #857f90;
-  --ink-4: #5f5a69;
+  /* Contrastes sur --ground / --surface / --surface-2 (WCAG AA : 4,5:1 pour du texte) :
+     ink-2 ≈ 10,5 · ink-3 ≈ 6,6 / 6,1 / 5,6 · ink-4 ≈ 5,2 / 4,8 / 4,4. Avant 2026-10-05, ink-4 (#5f5a69)
+     tombait à 2,4–2,8:1 et ink-3 (#857f90) à 4,1–4,8:1 : descriptions illisibles. */
+  --ink-2: #c4c0cc;
+  --ink-3: #9d98a8;
+  --ink-4: #8a8595;
 
   --ecarlate: #c8102e;
   --ecarlate-soft: #7a0f22;
@@ -120,7 +123,7 @@ button {
    --------------------------------------------------------------- */
 
 .eyebrow {
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -285,7 +288,7 @@ button {
   font-variant-numeric: tabular-nums;
 }
 .tally-item .k {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -539,8 +542,8 @@ button {
   flex-wrap: wrap;
   gap: 4px 12px;
   margin-top: 2px;
-  font-size: 11.5px;
-  color: var(--ink-4);
+  font-size: 13px;
+  color: var(--ink-3);
 }
 .shot-right {
   display: flex;
@@ -1040,7 +1043,7 @@ button {
 }
 
 .tiny-note {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--ink-4);
   margin: 0;
 }
@@ -1293,7 +1296,11 @@ button {
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  padding: 2px 6px;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
 }
 .modal-close:hover {
   color: var(--ecarlate-glow);
@@ -1307,7 +1314,7 @@ button {
 .btn-danger {
   background: transparent;
   border-color: var(--line);
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 .btn-danger:hover {
   border-color: var(--ecarlate);
@@ -1642,7 +1649,7 @@ button {
 }
 .scene-range {
   font-family: var(--font-mono), monospace;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--ink-3);
   flex: 0 0 auto;
 }
@@ -1946,14 +1953,28 @@ button {
 .poster-card .pt {
   font-size: 26px;
 }
-.poster-wide {
-  aspect-ratio: 16 / 9;
+.poster-card .pi {
+  position: absolute;
+  top: 18%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-brand), serif;
+  font-size: 150px;
+  line-height: 1;
+  color: var(--or-glow);
+  opacity: 0.14;
+  pointer-events: none;
+  user-select: none;
+}
+.poster-apercu {
+  aspect-ratio: 2 / 3;
   width: 100%;
-  max-width: 420px;
+  max-width: 150px;
   padding: var(--sp-3);
 }
-.poster-wide .pt {
-  font-size: 22px;
+.poster-apercu .pt {
+  font-size: 18px;
 }
 .poster-sm,
 .poster-mini {
@@ -2090,12 +2111,54 @@ button {
   color: inherit;
   transition: border-color 0.16s, background 0.16s, transform 0.16s;
 }
-.proj-card:hover {
+/* Le survol n'existe pas au doigt (et reste « collé » après un tap sur tablette) : on le limite
+   aux appareils qui en ont un. L'appui (:active) et la sélection (.is-choisie) marchent partout. */
+@media (hover: hover) {
+  .proj-card:hover {
+    border-color: var(--or-soft);
+    background: var(--surface-2);
+    transform: translateY(-1px);
+  }
+  .proj-card:hover .ft .go {
+    color: var(--or-glow);
+  }
+}
+.proj-card:active {
+  transform: scale(0.985);
   border-color: var(--or-soft);
+}
+.proj-card.is-choisie {
+  border-color: var(--or);
   background: var(--surface-2);
-  transform: translateY(-1px);
+}
+.proj-card.is-choisie .ft .go {
+  color: var(--or-glow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .proj-card {
+    transition: border-color 0.16s, background 0.16s, transform 0.2s, opacity 0.2s, filter 0.2s;
+  }
+  .proj-card.is-choisie {
+    animation: carte-choisie 0.24s ease-out both;
+  }
+  .proj-grid[data-choix] .proj-card:not(.is-choisie) {
+    opacity: 0.35;
+    filter: saturate(0.5);
+    transform: scale(0.97);
+  }
+}
+@keyframes carte-choisie {
+  from {
+    transform: scale(0.985);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--or) 60%, transparent);
+  }
+  to {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 6px transparent, 0 8px 28px color-mix(in srgb, var(--or) 25%, transparent);
+  }
 }
 .proj-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
@@ -2137,7 +2200,24 @@ button {
   margin-right: 5px;
   font-variant-numeric: tabular-nums;
 }
+.proj-card .etat {
+  margin-left: auto;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.proj-card .etat.is-prod {
+  color: var(--ecarlate-glow);
+}
+.proj-card .etat.is-fini {
+  color: var(--or-glow);
+}
+.proj-card .stats .is-zero b {
+  color: var(--or);
+}
 .proj-card .ft {
+  margin-top: auto;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -2149,9 +2229,6 @@ button {
 .proj-card .ft .go {
   margin-left: auto;
   color: var(--ink-2);
-}
-.proj-card:hover .ft .go {
-  color: var(--or-glow);
 }
 .proj-new {
   align-items: center;
@@ -2173,31 +2250,6 @@ button {
   font-size: 32px;
   color: var(--or);
   line-height: 1;
-}
-
-/* Barre segmentée : répartition des plans par statut sur une carte projet */
-.mix {
-  display: flex;
-  height: 4px;
-  border-radius: 2px;
-  overflow: hidden;
-  background: var(--surface-3);
-}
-.mix span {
-  display: block;
-  height: 100%;
-}
-.mix .m-t {
-  background: var(--or-glow);
-}
-.mix .m-e {
-  background: var(--ecarlate-glow);
-}
-.mix .m-a {
-  background: var(--ink-4);
-}
-.mix .m-b {
-  background: repeating-linear-gradient(90deg, var(--or-soft) 0 3px, transparent 3px 6px);
 }
 
 /* ---------------------------------------------------------------
@@ -2278,18 +2330,36 @@ button {
   margin-top: var(--sp-5);
 }
 .saison-hd {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-3);
   flex-wrap: wrap;
   width: 100%;
+  padding: 6px 0;
+  color: inherit;
+  text-align: left;
+}
+/* Le bouton de bascule couvre toute la ligne ; seule l'affiche (zoom) reste cliquable au-dessus. */
+.saison-bascule {
+  position: absolute;
+  inset: 0;
   appearance: none;
   background: none;
   border: 0;
-  padding: 6px 0;
+  padding: 0;
   cursor: pointer;
-  color: inherit;
-  text-align: left;
+}
+.saison-bascule:focus-visible {
+  outline: 2px solid var(--or);
+  outline-offset: 2px;
+}
+.saison-hd > :not(.saison-bascule):not(.aff-zoom) {
+  pointer-events: none;
+}
+.saison-hd .aff-zoom {
+  position: relative;
+  z-index: 1;
 }
 .saison-hd .chev {
   width: 14px;
@@ -2456,6 +2526,9 @@ button {
   .info-panel {
     flex-direction: column;
   }
+  .info-panel .poster-apercu {
+    width: 110px;
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -2501,8 +2574,8 @@ button {
   color: var(--ink-4);
   font-style: italic;
 }
-.info-panel .poster-wide {
-  max-width: 220px;
+.info-panel .poster-apercu {
+  width: 150px;
   flex: 0 0 auto;
 }
 
@@ -3812,8 +3885,10 @@ a.voix-chip:hover {
   gap: var(--sp-3);
 }
 .gd-x {
-  width: 30px;
-  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
   background: none;
   border: 1px solid transparent;
   color: var(--ink-2);
@@ -4830,12 +4905,12 @@ a.voix-chip:hover {
 .ag-section > summary::-webkit-details-marker {
   display: none;
 }
-.ag-section > summary::before {
-  content: "▸";
+.ag-chevron {
   color: var(--ink-4);
+  transition: transform 0.2s ease;
 }
-.ag-section[open] > summary::before {
-  content: "▾";
+.ag-section[open] > summary .ag-chevron {
+  transform: rotate(90deg);
 }
 .ag-section-nom {
   flex: 1 1 auto;
@@ -5476,3 +5551,303 @@ a.voix-chip:hover {
 .inst-sous li.s-echoue { color: var(--ecarlate-glow); }
 .inst-sous li.s-en_attente, .inst-sous li.s-annulee { color: var(--ink-3); }
 .inst-sous-nom { color: inherit; }
+
+
+/* ---------------------------------------------------------------
+   Scénario — état des plans, barre d'actions, lignes de plan
+   --------------------------------------------------------------- */
+
+.etat-plans {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4) var(--sp-5);
+  margin: var(--sp-4) 0 var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+  background: linear-gradient(180deg, var(--surface), rgba(26, 26, 33, 0.4));
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.etat-anneau {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 auto;
+}
+.etat-anneau circle {
+  fill: none;
+  stroke-width: 6;
+}
+.etat-anneau .piste {
+  stroke: var(--surface-3);
+}
+.etat-anneau .avance {
+  stroke: var(--or);
+  stroke-linecap: round;
+}
+.etat-anneau .centre-v {
+  font-family: var(--font-mono), monospace;
+  font-size: 20px;
+  font-weight: 500;
+  fill: var(--ink);
+}
+.etat-anneau .centre-k {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--ink-3);
+}
+.etat-corps {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.etat-titre {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.etat-aide {
+  margin: 2px 0 var(--sp-3);
+  font-size: 13px;
+  color: var(--ink-3);
+  max-width: 68ch;
+}
+.etat-puces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.etat-puces li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.etat-puces b {
+  font-family: var(--font-mono), monospace;
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--ink);
+}
+.etat-puces .is-brouillon b {
+  color: var(--or);
+}
+.etat-puces .is-developpe b {
+  color: var(--or-glow);
+}
+.etat-action {
+  flex: 0 0 auto;
+}
+
+/* Intégré à l'en-tête de l'épisode : plus de cadre propre, seulement un filet qui le sépare du résumé. */
+.info-panel .etat-plans {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-3) 0 0;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  gap: var(--sp-3) var(--sp-4);
+}
+.info-panel .etat-anneau {
+  width: 64px;
+  height: 64px;
+}
+.info-panel .etat-corps {
+  flex-basis: 260px;
+}
+.info-panel .etat-titre {
+  font-size: 14.5px;
+}
+
+.queue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-2);
+}
+/* Les formulaires de création s'ouvrent sous la barre, pas entre ses boutons. */
+.queue > .plan-form {
+  order: 10;
+  flex: 1 0 100%;
+}
+.queue-toggle {
+  margin-left: auto;
+}
+
+.shot-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.shot-duree {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.menu-plus {
+  position: relative;
+  display: inline-flex;
+}
+.menu-plus-btn {
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+.menu-plus-liste {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.7);
+}
+.menu-plus-item {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 2px;
+  color: var(--ink);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.menu-plus-item:hover {
+  background: var(--surface-2);
+}
+.menu-plus-item.is-danger {
+  color: var(--ecarlate-glow);
+}
+
+/* Clause de style, sous le résumé de l'épisode (encart d'en-tête) */
+.info-panel .clause-style {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--sp-3);
+  margin: 0;
+  font-size: 13px;
+}
+.info-panel .clause-style .k {
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--or);
+}
+.info-panel .clause-style .v {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--ink-2);
+}
+.info-panel .clause-style a {
+  color: var(--or);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.info-panel .clause-style a:hover {
+  text-decoration: underline;
+}
+
+
+/* Icônes (components/ui/Icone.tsx) : alignées sur la ligne de texte, jamais écrasées dans un flex. */
+.icone {
+  display: inline-block;
+  flex: 0 0 auto;
+  vertical-align: -0.2em;
+}
+@keyframes icone-tourne {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.icone-tourne {
+  animation: icone-tourne 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .icone-tourne {
+    animation: none;
+  }
+}
+
+/* L'anneau d'état se remplit au chargement (Scénario). */
+@keyframes anneau-remplit {
+  from {
+    stroke-dasharray: 0 188.5;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .etat-anneau .avance {
+    animation: anneau-remplit 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s backwards;
+  }
+}
+
+/* Une affiche cliquable (components/affiches/AfficheZoom.tsx) : le bouton ne change rien à la mise en page. */
+.aff-zoom {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+.aff-zoom:focus-visible {
+  outline: 2px solid var(--or);
+  outline-offset: 3px;
+}
+.info-panel .aff-zoom {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+/* Étape « Test vidéo » du casting : les essais (audio, vidéo) en file, en cours, prêts ou échoués. */
+.test-essais {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.test-essai {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.test-essai-hd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+.test-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}

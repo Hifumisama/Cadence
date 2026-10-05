@@ -4,8 +4,9 @@ import { and, eq, gte, isNotNull, isNull, or, inArray } from "drizzle-orm";
 import { versRunLot } from "./agents/lots";
 import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
-import { METHODE_AUDIO, METHODE_REPLIQUE, METHODE_VOIX, formaterDuree } from "./asset-generation";
+import { METHODE_AUDIO, METHODE_REPLIQUE, METHODE_TEST_AUDIO, METHODE_TEST_VIDEO, METHODE_VOIX, estMethodeSon, estMethodeTestVoix, formaterDuree, parametresTestVideo } from "./asset-generation";
 import { generationMediaSrc } from "./media";
+import { cibleDeCodeAffiche } from "./affiches";
 import {
   LIBELLE_SKILL,
   RETENTION_TERMINEES_JOURS,
@@ -87,14 +88,25 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
 
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
-  const images: Tache[] = lignesImages.map(({ g, code, projectId }) => ({
+  const images: Tache[] = lignesImages.map(({ g, code, projectId }) => {
+    // Une affiche de présentation n'est pas dans le registre : sa page à elle (app/p/[id]/affiche/[code]).
+    const affiche = cibleDeCodeAffiche(code);
+    return {
     cle: cleImage(g.uuid),
     genre: "image",
     statut: g.statut,
     // Un son se reconnaît dans le panneau : « Son · CODE », sans miniature d'aperçu.
-    libelle: g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : code,
+    libelle: g.methode === METHODE_TEST_VIDEO ? `Test vidéo · ${code}` : g.methode === METHODE_REPLIQUE ? `Réplique · ${code}` : g.methode === METHODE_TEST_AUDIO ? `Test audio · ${code}` : g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : affiche.cible === "seasons" ? "saison" : "épisode"}` : code,
     detail:
-      g.methode === METHODE_VOIX
+      g.methode === METHODE_TEST_VIDEO
+        ? parametresTestVideo(g.parametres)?.upscale
+          ? "Rendu final"
+          : "Prévisualisation"
+        : g.methode === METHODE_REPLIQUE
+          ? "Prise de réplique"
+          : g.methode === METHODE_TEST_AUDIO
+          ? "Réplique de test"
+          : g.methode === METHODE_VOIX
         ? "Voix de référence"
         : g.methode === METHODE_AUDIO
         ? g.dureeSecondes != null
@@ -104,7 +116,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
           ? "À partir d'images"
           : "À partir du texte",
     // Une voix se retrouve au casting vocal (étape « Référence »), pas à la fiche d'asset.
-    href: g.methode === METHODE_VOIX ? `/p/${projectId}/voix/${code}?etape=reference&generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
+    href: g.methode === METHODE_REPLIQUE ? `/p/${projectId}/voix/${code}?etape=repliques` : estMethodeTestVoix(g.methode) ? `/p/${projectId}/voix/${code}?etape=test&generation=${g.uuid}` : g.methode === METHODE_VOIX ? `/p/${projectId}/voix/${code}?etape=reference&generation=${g.uuid}` : affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
     projectId,
     assetId: g.assetId,
     progression:
@@ -123,7 +135,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     derriere: null,
     jetons: null,
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
-  }));
+    };
+  });
 
   // Une prise de réplique : « Réplique · début du texte », et un clic mène au plan qui la cite (sinon à la voix).
   const idsRepliques = [...new Set(lignesImages.flatMap((l) => (l.g.repliqueId != null ? [l.g.repliqueId] : [])))];
@@ -245,7 +258,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const taches = gardees.map((x) => {
     const g = parCle.get(x.cle);
     if (!g) return x;
-    if (g.methode === METHODE_AUDIO || g.methode === METHODE_VOIX) return x; // un son ou une voix n'a ni vignette ni aperçu
+    if (estMethodeSon(g.methode) || g.methode === METHODE_TEST_VIDEO) return x; // un son, une voix ou une vidéo n'a ni vignette ni aperçu
     if (g.statut === "termine") return { ...x, vignetteSrc: generationMediaSrc(g.assetId, g.fichier) };
     if (g.statut === "en_cours" && g.apercuAt) {
       const url = generationMediaSrc(g.assetId, g.apercuFichier);

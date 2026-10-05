@@ -1,6 +1,7 @@
 "use client";
 
 import { useAgents, type DemandeAgent } from "@/components/agents/AgentsProvider";
+import { Icone } from "@/components/ui/Icone";
 
 /** Le point d'entrée : « Demander à l'agent ✦ ». Il ne fait qu'ouvrir la popup (montée une
  * fois dans le layout) avec la portée de l'endroit où il se trouve. */
@@ -18,7 +19,7 @@ export function BoutonAgent({
   const { ouvrirAgent } = useAgents();
   return (
     <button type="button" className={className} onClick={() => ouvrirAgent(demande)} title={titre ?? "Demander à l'agent, avec cette portée"}>
-      {libelle} <span aria-hidden="true">✦</span>
+      {libelle} <Icone nom="agent" taille={14} />
     </button>
   );
 }

@@ -190,6 +190,56 @@ export function langueDuTexteDeReference(texte: string, texteParDefaut: string, 
   return texte.trim() === texteParDefaut.trim() ? "English" : langueFiche.trim() || "French";
 }
 
+// ---------------------------------------------------------------------------
+// Test d'une voix (casting vocal, étape « Test vidéo »). Deux méthodes de plus pour `asset_generations`, sur l'asset
+// `voix` : « test_audio » (une réplique dite avec la voix de référence, workflows/audio/VOX_Generate_Replique_Simplified.json)
+// puis « test_video » (la voix sur un visage, workflows/video-generation/VID_REF2VA.json). Comme pour les images, le résultat
+// est un candidat : « Utiliser » en fait l'audio ou la vidéo de test de la fiche, sans toucher à la voix de référence.
+// ---------------------------------------------------------------------------
+
+export const METHODE_TEST_AUDIO = "test_audio";
+export const METHODE_TEST_VIDEO = "test_video";
+
+export const estMethodeTestVoix = (m: string): boolean => m === METHODE_TEST_AUDIO || m === METHODE_TEST_VIDEO;
+
+/** Un son pour tout ce qui suit (pas de vignette ni d'aperçu, fichier audio) : un son, une voix, l'audio d'un test. */
+export const estMethodeSon = (m: string): boolean => m === METHODE_AUDIO || m === METHODE_VOIX || m === METHODE_TEST_AUDIO || m === METHODE_REPLIQUE;
+
+/** Durée du test vidéo : une réplique face caméra tient en huit secondes (prompt T1, lib/voix.ts:promptTestVoix). */
+export const DUREE_TEST_VIDEO_SECONDES = 8;
+
+/** Ce que le test vidéo fige au lancement (`asset_generations.parametres`) : les fichiers de références tels qu'ils étaient quand
+ * l'utilisateur a cliqué (le prompt a été composé avec eux), et le mode — prévisualisation rapide (`upscale` faux, sans
+ * l'interpolation et l'agrandissement) ou rendu final. Un fichier est un chemin relatif à MEDIA_ROOT. */
+export type ParametresTestVideo = {
+  upscale: boolean;
+  personnage: string | null;
+  decor: string | null;
+  audio: string | null;
+};
+
+export function parametresTestVideo(v: unknown): ParametresTestVideo | null {
+  if (typeof v !== "object" || v === null) return null;
+  const o = v as Record<string, unknown>;
+  const texte = (x: unknown) => (typeof x === "string" && x.trim() !== "" ? x : null);
+  if (typeof o.upscale !== "boolean") return null;
+  return { upscale: o.upscale, personnage: texte(o.personnage), decor: texte(o.decor), audio: texte(o.audio) };
+}
+
+/** Validation d'un test audio (sans base ni disque) : une référence à cloner, un texte à dire. */
+export function raisonTestAudioInvalide(v: { texte: string; referenceFichier: string | null }): string | null {
+  if (!v.referenceFichier) return "Il faut d'abord une voix de référence (étape Référence) : c'est elle qui est clonée.";
+  if (!v.texte?.trim()) return "Écris le texte à tester.";
+  return null;
+}
+
+/** Validation d'un test vidéo : sans audio, la voix n'est pas testée. */
+export function raisonTestVideoInvalide(v: { texte: string; audio: string | null }): string | null {
+  if (!v.texte?.trim()) return "Écris le texte à tester.";
+  if (!v.audio) return "Pas d'audio à tester : génère l'audio de test, ou dépose la voix de référence.";
+  return null;
+}
+
 /** « 4 s », « 2,5 s » : durée d'un son pour l'affichage. */
 export function formaterDuree(secondes: number): string {
   return `${String(Math.round(secondes * 10) / 10).replace(".", ",")} s`;
@@ -242,4 +292,14 @@ export function nouvelleSeed(): string {
  * pour qu'une référence REMPLACÉE ne resserve jamais l'ancienne copie du même nom. */
 export function nomReferenceVoixDistante(codeVoix: string, mtimeMs: number, ext: string): string {
   return `cadence_voixref_${codeVoix}_${Math.floor(mtimeMs)}${ext || ".mp3"}`;
+}
+
+/** Ce que le test audio fige au lancement : la voix de référence à cloner, telle qu'elle était (chemin relatif à MEDIA_ROOT, sous
+ * `assets/`) — la remplacer pendant que la demande attend ne change pas ce test. */
+export type ParametresTestAudio = { reference: string };
+
+export function parametresTestAudio(v: unknown): ParametresTestAudio | null {
+  if (typeof v !== "object" || v === null) return null;
+  const r = (v as Record<string, unknown>).reference;
+  return typeof r === "string" && r.trim() !== "" ? { reference: r } : null;
 }

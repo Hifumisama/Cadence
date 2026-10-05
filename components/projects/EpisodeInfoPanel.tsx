@@ -3,7 +3,9 @@
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { modifierEpisode, modifierNomProjet, uploaderPosterEpisode, uploaderPosterProjet } from "@/app/projects/actions";
-import { BoutonAgent } from "@/components/agents/BoutonAgent";
+import Link from "next/link";
+import { BoutonAffiche } from "@/components/affiches/BoutonAffiche";
+import { AfficheZoom } from "@/components/affiches/AfficheZoom";
 import { Poster } from "@/components/ui/Poster";
 
 function two(n: number): string {
@@ -23,19 +25,27 @@ export function EpisodeInfoPanel({
   numero,
   titre,
   resume,
+  clauseStyle,
   posterSrc,
   oneshot,
+  etatPlans,
 }: {
   projectId: number;
   episodeId: number;
   numero: number;
   titre: string;
   resume: string;
+  /** Clause de style du projet : une info qui cadre toute la génération, rappelée ici sous le résumé. */
+  clauseStyle: string;
   posterSrc: string | null;
   oneshot: { nom: string; posterSrc: string | null } | null;
+  /** L'état des plans et son action : intégré à l'en-tête, mais seulement sur la page Scénario. */
+  etatPlans?: React.ReactNode;
 }) {
   // La fiche de plan a besoin de toute la place : pas d'encart épisode dessus.
-  const surFichePlan = /\/plans\/[^/]+/.test(usePathname());
+  const chemin = usePathname();
+  const surFichePlan = /\/plans\/[^/]+/.test(chemin);
+  const surScenario = /\/scenario\/?$/.test(chemin);
   const titreInitial = oneshot ? oneshot.nom : titre;
   const posterInitial = oneshot ? oneshot.posterSrc : posterSrc;
 
@@ -85,12 +95,14 @@ export function EpisodeInfoPanel({
 
   return (
     <div className="info-panel">
-      <Poster
-        src={posterLocal}
-        titre={titreInitial || (oneshot ? "Sans titre" : `Épisode ${two(numero)}`)}
-        cleRepli={oneshot ? `projet:${projectId}` : `episode:${episodeId}`}
-        taille="wide"
-      />
+      <AfficheZoom src={posterLocal} titre={titreInitial || "Sans titre"}>
+        <Poster
+          src={posterLocal}
+          titre={titreInitial || (oneshot ? "Sans titre" : `Épisode ${two(numero)}`)}
+          cleRepli={oneshot ? `projet:${projectId}` : `episode:${episodeId}`}
+          taille="apercu"
+        />
+      </AfficheZoom>
       <div className="info-body">
         {edition ? (
           <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer", alignSelf: "flex-start" }}>
@@ -113,31 +125,7 @@ export function EpisodeInfoPanel({
           )}
           {!edition ? (
             <div className="info-hd-actions">
-              <BoutonAgent
-                className="btn btn-ghost"
-                demande={{
-                  projectId,
-                  portee: "episode",
-                  cible: { id: episodeId },
-                  profondeur: "courte",
-                  libelle: oneshot ? titreInitial || "Le film" : `Épisode ${two(numero)}`,
-                  episodeId,
-                }}
-              />
-              <BoutonAgent
-                className="btn btn-ghost"
-                libelle="Écrire les fiches de plan"
-                titre="L'agent écrit la fiche (prompt vidéo) de chaque plan choisi, un par un ; tu relis avant que rien ne soit écrit"
-                demande={{
-                  projectId,
-                  portee: "episode",
-                  cible: { id: episodeId },
-                  profondeur: "courte",
-                  libelle: oneshot ? titreInitial || "Le film" : `Épisode ${two(numero)}`,
-                  episodeId,
-                  vue: "fiches",
-                }}
-              />
+              <BoutonAffiche cible={oneshot ? "projects" : "episodes"} id={oneshot ? projectId : episodeId} className="btn btn-ghost" />
               <button className="btn btn-ghost" type="button" onClick={() => setEdition(true)}>
                 Modifier
               </button>
@@ -157,6 +145,14 @@ export function EpisodeInfoPanel({
           <p className={`resume ${resume.trim() ? "" : "is-empty"}`}>{resume.trim() || ""}</p>
         )}
 
+        {!edition && clauseStyle.trim() ? (
+          <p className="clause-style" title={clauseStyle.trim()}>
+            <span className="k">Style</span>
+            <span className="v">{clauseStyle.trim()}</span>
+            <Link href={`/p/${projectId}/brief`}>Brief</Link>
+          </p>
+        ) : null}
+
         {edition ? (
           <div className="form-actions">
             <button className="btn btn-gold" type="button" onClick={enregistrer} disabled={pending}>
@@ -167,6 +163,8 @@ export function EpisodeInfoPanel({
             </button>
           </div>
         ) : null}
+
+        {surScenario && !edition ? etatPlans : null}
       </div>
     </div>
   );

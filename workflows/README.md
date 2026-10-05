@@ -166,6 +166,26 @@ Fixe : modèle `Voice Design - 1.7B VoiceDesign`, `top_k` 50, `top_p` 1, `repeti
 2048. Le résultat est un **candidat** (comme les images et les sons) : « Utiliser comme référence » le copie sous
 `assets/<CODE>.mp3` et reporte l'instruction et le texte sur la fiche. CosyVoice3 (les répliques) reste à la main.
 
+### `VOX_Generate_Replique_Simplified.json` — test audio d'une voix (Qwen3-TTS Voice Clone)
+
+Branché : `worker/comfyui/voixMapping.ts` (`NODE_IDS_REPLIQUE_TEST`, `injecterRepliqueTest`) et `worker/images.ts` (tâche, méthode
+`test_audio` de `asset_generations`) ; étape « Test vidéo » du casting vocal (bouton « Générer l'audio de test »).
+`voixMapping.test.ts` lit ce fichier et casse si un des nœuds ci-dessous disparaît après un ré-export. La voix de référence (celle de
+l'étape 2) est **clonée** pour dire le texte du test. Variable optionnelle : `COMFYUI_WORKFLOW_REPLIQUE_TEST_PATH`.
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Texte dit | `4` (UnifiedTTSTextNode) | `text` | verbatim ; préremplie avec le texte de référence de la voix |
+| Seed | `4` | `seed` | tirée à chaque essai ; `enable_audio_cache` est mis à `false` (une même phrase doit donner une nouvelle prise) |
+| Langue du texte | `1` (Qwen3TTSEngineNode) | `language` | `English` pour le texte de référence par défaut du projet, sinon la langue de la fiche de voix |
+| Voix à cloner | `5` (LoadAudio) | `audio` | la référence de la voix, envoyée par `/upload/image` sous `cadence_assets_<fichier>` |
+| Sortie | `3` (PreviewAudio) | — | **remplacé à la soumission** par `SaveAudioMP3` (V0, préfixe `audio/cadence_test_<CODE>`), comme pour la voix de référence |
+
+Fixe, laissé au fichier : le modèle `TTS - Base 1.7B (Voice Clone)`, `top_k` / `top_p` / `temperature` (1,2) / `repetition_penalty`,
+`enable_chunking`. L'instruction (`instruct`) et la voix prédéfinie du moteur ne servent pas au clonage. **Non vérifié en réel** : le texte de la
+référence n'est pas transmis au clonage (le graphe n'a pas d'entrée pour lui) ; si la qualité du clone en souffre, c'est la première piste.
+Le candidat adopté devient l'audio de test de la fiche (`voix/<id>/test_audio.*`) et fixe aussi le texte du test.
+
 ## Contrat du workflow vidéo (`video-generation/`)
 
 ### `VID_REF2VA.json` — MiniMax H3 référence vers vidéo avec audio
@@ -199,6 +219,12 @@ interpole vers `168` (48) et le commutateur `170` impose cette valeur ; `plans.f
 Vérifié par `GET /object_info` le 2026-10-02 : `MiniMaxH3ReferenceToVideo` (images max 9, audios max 3, vidéos max 3,
 `length` pas de 17), `LoadAudioUI` (start/end/duration FLOAT, défaut 0), `LoadVideoUI` (16 champs obligatoires),
 `LoadImageCrop`. **Jamais rendu en réel avec ces changements.**
+
+**Test vidéo d'une voix** (casting vocal, étape « Test vidéo ») : le même graphe, soumis par `worker/images.ts` (méthode `test_video` de
+`asset_generations`) avec `injecterValeurs` — pas de plan : le personnage (`<Picture 1>`) et le décor (le suivant) en images de
+référence, l'audio de test (à défaut la voix de référence) en `<Audio 1>`, 8 s, le prompt T1 de `lib/voix.ts:promptTestVoix`.
+« Prévisualiser » = `activerUpscale` faux (branche basse résolution), « Rendu final » = vrai ; les références sont figées dans
+`asset_generations.parametres`. La sortie est lue sur le nœud `34`.
 
 ## Suivi en direct (WebSocket)
 

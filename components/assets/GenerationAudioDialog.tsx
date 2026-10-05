@@ -12,6 +12,7 @@ import {
   raisonDemandeAudioInvalide,
 } from "@/lib/asset-generation";
 import type { GenreTache } from "@/lib/taches";
+import { Icone } from "@/components/ui/Icone";
 
 const DERRIERE: Record<GenreTache, string> = { image: "une image", video: "une vidéo", llm: "un agent" };
 const ACTIFS = ["en_attente", "en_cours"];
@@ -131,7 +132,7 @@ export function GenerationAudioDialog({
           {simule ? <span className="tiny-note">Mode simulé : son factice (silence).</span> : null}
           <span className="num tiny-note">SFX_Generate_Sounds · Stable Audio 3</span>
           <button type="button" className="gd-x" onClick={onFermer} aria-label="Fermer">
-            ✕
+            <Icone nom="fermer" />
           </button>
         </div>
       </div>

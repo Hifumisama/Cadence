@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useAgents } from "@/components/agents/AgentsProvider";
 import { demandeDepuisChemin, porteesDepuisChemin } from "@/lib/agents/page-agent";
+import { Icone } from "@/components/ui/Icone";
 
 /** LE point d'accès à l'agent (bandeau, sur toutes les pages d'un projet) : la portée est déduite de la page où l'on se trouve,
  * toujours la plus petite qui s'y applique (un plan, un asset, un épisode, sinon le projet). On l'élargit dans la fenêtre
@@ -30,7 +31,7 @@ export function BoutonAgentGlobal() {
       title={`Demander à l'agent — portée : ${portee.toLowerCase()} (tu peux l'élargir dans la fenêtre)`}
       aria-label={`Demander à l'agent, portée : ${portee.toLowerCase()}`}
     >
-      Agent <span aria-hidden="true">✦</span>
+      Agent <Icone nom="agent" taille={14} />
     </button>
   );
 }
