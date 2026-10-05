@@ -1788,7 +1788,8 @@ Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
 
 ### 2026-10-05 — Affiches : skill `prompt-affiche`, titre dans l'image, personnage principal
 
-- **Skill `agents/skills/prompt-affiche`** (réutilise les guides Krea 2 / Qwen de `prompt-asset` via `FICHIERS_PARTAGES`). Bouton « Rédiger le prompt avec l'agent » sur la page d'affiche : appel direct du skill (hors file du worker, comme un essai), le prompt remplace celui de l'affiche. Le gabarit de code ne sert plus que de point de départ : plus d'étiquette `Story:` ni de titre entre guillemets (le modèle les dessinait).
+- **Skill `agents/skills/prompt-affiche`** (réutilise les guides Krea 2 / Qwen de `prompt-asset` via `FICHIERS_PARTAGES`). Bouton « Rédiger le prompt avec l'agent » sur la page d'affiche : la tâche passe par la file du worker comme toute tâche d'agent (`agent_runs`, `but = affiche`, `cleSousTache` = code de l'affiche) ; `postAffiche` remplace le prompt de l'affiche, en respectant le réglage de titre du moment. Le gabarit de code ne sert plus que de point de départ : plus d'étiquette `Story:` ni de titre entre guillemets (le modèle les dessinait).
 - **Titre dans l'image** : réglage par affiche, porté par le PROMPT lui-même (ligne `Title lettering: "…"`). À l'adoption, `titreDansPrompt(gen.prompt)` donne un fichier `poster-<t>-titre.<ext>` et `Poster` ne superpose alors pas le titre. Pas de colonne en base.
 - **Personnage principal** : premier personnage du brief retrouvé dans le registre (sinon premier personnage avec image). Son image est la source 1 (mode « images », Qwen Image Edit) quand l'agent recommande l'édition ; sinon sa description nourrit le prompt.
 - Clic sur l'aperçu : image seule en grand (`AfficheZoom`).
+- Le prompt de l'affiche est montré sous l'aperçu (dépliable) ; l'affiche de l'en-tête de l'épisode est cliquable pour l'agrandir.

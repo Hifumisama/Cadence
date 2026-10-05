@@ -8,8 +8,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { assets, episodes, projects, seasons } from "@/db/schema";
 import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, promptAffiche, titreDansPrompt, type CibleAffiche } from "@/lib/affiches";
-import { lirePersonnagePrincipal } from "@/lib/affiche-personnage";
-import { executerSkill } from "@/lib/llm";
+import { lirePersonnagePrincipal, redactionAfficheEnCours } from "@/lib/affiche-personnage";
+import { creerRun } from "@/lib/agents/runs";
 import { imageActuelle } from "@/lib/queries-generations";
 import { MEDIA_ROOT, cheminPosterMedia } from "@/lib/media";
 import { ecrirePoster, lirePoster } from "@/lib/affiche-application";
@@ -120,47 +120,38 @@ export async function reglerTitreAffiche(cible: CibleAffiche, id: number, actif:
   return { ok: true };
 }
 
-/** « Rédiger le prompt avec l'agent » : le skill `prompt-affiche` écrit le prompt à partir du titre, du résumé, du ton et du
- * personnage principal (son image sert de première source quand elle existe). Appel direct, comme une proposition : le
- * prompt remplace celui de l'affiche, que l'utilisateur relit et modifie avant de lancer. */
-export async function redigerPromptAffiche(cible: CibleAffiche, id: number): Promise<{ ok: true; remarques: string[] } | { ok: false; erreur: string }> {
+/** « Rédiger le prompt avec l'agent » : pose dans la file (comme toute tâche d'agent) un appel au skill `prompt-affiche`, qui
+ * écrit le prompt à partir du titre, du résumé, du ton et du personnage principal (son image sert de première source quand
+ * elle existe). Le worker remplace ensuite le prompt de l'affiche (worker/agents/postTraitement.ts) ; l'utilisateur le relit et
+ * le modifie avant de lancer. Une seule rédaction à la fois par affiche. */
+export async function redigerPromptAffiche(cible: CibleAffiche, id: number): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const contexte = await resoudre(cible, id);
   if (!contexte) return { ok: false, erreur: "Introuvable." };
   const asset = await assetAffiche(contexte.projectId, cible, id);
   if (!asset) return { ok: false, erreur: "Ouvre d'abord la page de génération de l'affiche." };
+  if (await redactionAfficheEnCours(contexte.projectId, asset.code)) return { ok: true };
 
   const [projet] = await db.select({ nom: projects.nom, clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, contexte.projectId));
   const principal = await lirePersonnagePrincipal(contexte.projectId, projet?.nom ?? "");
-  const titreDansImage = titreDansPrompt(asset.promptGeneration ?? "");
-
-  try {
-    const r = await executerSkill(
-      "prompt-affiche",
-      {
-        cible: cible === "projects" ? "projet" : cible === "seasons" ? "saison" : "episode",
-        titre: contexte.titre,
-        resume: contexte.resume ?? "",
-        genreTon: contexte.genreTon ?? "",
-        clauseStyleDuProjet: projet?.clauseStyle ?? "",
-        titreDansImage,
-        personnagePrincipal: principal
-          ? { code: principal.code, nom: principal.nom, description: principal.description, imageDisponible: principal.aImage }
-          : null,
-      },
-      { projectId: contexte.projectId },
-    );
-    const sortie = r.json as { methode: "generation" | "edition"; promptGeneration: string; remarques: string[] };
-    const edition = sortie.methode === "edition" && principal?.aImage === true;
-    await db
-      .update(assets)
-      .set({
-        promptGeneration: avecTitreDansImage(sortie.promptGeneration.trim(), contexte.titre, titreDansImage),
-        methodeGeneration: edition ? "edition" : "generation",
-      })
-      .where(eq(assets.id, asset.id));
-    revalidatePath(`/p/${contexte.projectId}/affiche/${asset.code}`);
-    return { ok: true, remarques: sortie.remarques ?? [] };
-  } catch (e) {
-    return { ok: false, erreur: e instanceof Error ? e.message : "L'agent n'a pas répondu." };
-  }
+  await creerRun(db, {
+    skill: "prompt-affiche",
+    entree: {
+      cible: cible === "projects" ? "projet" : cible === "seasons" ? "saison" : "episode",
+      titre: contexte.titre,
+      resume: contexte.resume ?? "",
+      genreTon: contexte.genreTon ?? "",
+      clauseStyleDuProjet: projet?.clauseStyle ?? "",
+      titreDansImage: titreDansPrompt(asset.promptGeneration ?? ""),
+      personnagePrincipal: principal
+        ? { code: principal.code, nom: principal.nom, description: principal.description, imageDisponible: principal.aImage }
+        : null,
+    },
+    but: "affiche",
+    projectId: contexte.projectId,
+    conversationId: null,
+    cleSousTache: asset.code,
+    libelleSousTache: `Affiche · ${contexte.titre}`.slice(0, 200),
+  });
+  revalidatePath(`/p/${contexte.projectId}/affiche/${asset.code}`);
+  return { ok: true };
 }

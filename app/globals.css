@@ -5735,3 +5735,23 @@ a.voix-chip:hover {
     animation: anneau-remplit 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s backwards;
   }
 }
+
+/* Une affiche cliquable (components/affiches/AfficheZoom.tsx) : le bouton ne change rien à la mise en page. */
+.aff-zoom {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+.aff-zoom:focus-visible {
+  outline: 2px solid var(--or);
+  outline-offset: 3px;
+}
+.info-panel .aff-zoom {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}

@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
+import { avecTitreDansImage, titreDansPrompt } from "../../lib/affiches";
 import { horsAffiches } from "../../lib/assets-visibles";
 import { methodeApplicable } from "../../lib/assetCode";
 import { fusionnerPartielDansBrouillon, sortieVersBrief } from "../../lib/agents/brief";
@@ -48,6 +49,25 @@ export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execu
   if (run.but === "tour") return postTour(tx, run, json as { reponse: string; briefPret: boolean; resteADefinir?: string[] });
   if (run.but === "brief") return postBrief(tx, run, json as Record<string, unknown>);
   if (run.but === "proposition") return postProposition(tx, run, json, execution);
+  if (run.but === "affiche") return postAffiche(tx, run, json as { methode: string; promptGeneration: string });
+}
+
+/** Le prompt d'une affiche de présentation, écrit par l'agent : il remplace celui de l'asset d'affiche (`cleSousTache` = son
+ * code). La ligne de titre suit le réglage ACTUEL de l'affiche (l'utilisateur a pu le changer pendant que l'agent rédigeait) ;
+ * la méthode « édition » n'est retenue que si l'image du personnage principal existait quand la tâche est partie. */
+async function postAffiche(tx: Tx, run: RunAgent, sortie: { methode: string; promptGeneration: string }) {
+  if (run.projectId == null || !run.cleSousTache) return;
+  const [asset] = await tx.select().from(assets).where(and(eq(assets.projectId, run.projectId), eq(assets.code, run.cleSousTache)));
+  if (!asset) return; // affiche supprimée entre-temps
+  const entree = run.entree as { titre?: string; personnagePrincipal?: { imageDisponible?: boolean } | null };
+  const edition = sortie.methode === "edition" && entree.personnagePrincipal?.imageDisponible === true;
+  await tx
+    .update(assets)
+    .set({
+      promptGeneration: avecTitreDansImage(sortie.promptGeneration.trim(), entree.titre ?? "", titreDansPrompt(asset.promptGeneration ?? "")),
+      methodeGeneration: edition ? "edition" : "generation",
+    })
+    .where(eq(assets.id, asset.id));
 }
 
 /** La liste « reste à définir » d'un tour : des phrases courtes, sans doublon ni vide. */

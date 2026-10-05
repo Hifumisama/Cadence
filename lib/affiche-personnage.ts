@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { assets } from "@/db/schema";
+import { agentRuns, assets } from "@/db/schema";
 import { personnagePrincipal } from "./affiches";
 import { horsAffiches } from "./assets-visibles";
 import { lireBriefOuVide } from "./queries-agents";
@@ -21,4 +21,21 @@ export async function lirePersonnagePrincipal(projectId: number, nomProjet: stri
   }));
   const choix = personnagePrincipal(brief.statut === "partiel" ? [] : brief.contenu.personnages, registre);
   return choix ? { ...choix.asset, nom: choix.nom ?? choix.asset.code } : null;
+}
+
+/** Une rédaction de prompt par l'agent est-elle en file ou en cours pour cette affiche ? */
+export async function redactionAfficheEnCours(projectId: number, code: string): Promise<boolean> {
+  const [run] = await db
+    .select({ id: agentRuns.id })
+    .from(agentRuns)
+    .where(
+      and(
+        eq(agentRuns.projectId, projectId),
+        eq(agentRuns.but, "affiche"),
+        eq(agentRuns.cleSousTache, code),
+        inArray(agentRuns.statut, ["en_attente", "en_cours"]),
+      ),
+    )
+    .limit(1);
+  return run != null;
 }

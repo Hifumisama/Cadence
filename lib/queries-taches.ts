@@ -202,7 +202,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     // Une tâche liée à une conversation rouvre la popup d'agent (le panneau du header
     // intercepte le clic, voir IndicateurTaches) ; sans conversation (script llm:tache),
     // elle mène à la page du projet (ou à l'accueil sans projet).
-    href: r.projectId != null ? `/p/${r.projectId}` : "/",
+    href: r.but === "affiche" && r.projectId != null && r.cleSousTache ? `/p/${r.projectId}/affiche/${r.cleSousTache}` : r.projectId != null ? `/p/${r.projectId}` : "/",
     conversationUuid: conversationUuid ?? null,
     projectId: r.projectId ?? 0,
     assetId: null,

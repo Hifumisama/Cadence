@@ -48,20 +48,6 @@
   gap: var(--sp-2);
 }
 
-.aff-zoom {
-  display: block;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: zoom-in;
-  color: inherit;
-  font: inherit;
-  text-align: inherit;
-}
-.aff-zoom:focus-visible {
-  outline: 2px solid var(--or);
-  outline-offset: 3px;
-}
 .aff-reglages {
   display: flex;
   flex-direction: column;
@@ -103,4 +89,20 @@
 }
 .aff-retour.is-erreur {
   color: var(--ecarlate-glow);
+}
+.aff-apercu {
+  max-width: 220px;
+}
+.aff-prompt summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.aff-prompt pre {
+  margin: var(--sp-2) 0 0;
+  white-space: pre-wrap;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
 }

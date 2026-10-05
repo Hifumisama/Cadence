@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { modifierEpisode, modifierNomProjet, uploaderPosterEpisode, uploaderPosterProjet } from "@/app/projects/actions";
 import Link from "next/link";
 import { BoutonAffiche } from "@/components/affiches/BoutonAffiche";
+import { AfficheZoom } from "@/components/affiches/AfficheZoom";
 import { Poster } from "@/components/ui/Poster";
 
 function two(n: number): string {
@@ -94,12 +95,14 @@ export function EpisodeInfoPanel({
 
   return (
     <div className="info-panel">
-      <Poster
-        src={posterLocal}
-        titre={titreInitial || (oneshot ? "Sans titre" : `Épisode ${two(numero)}`)}
-        cleRepli={oneshot ? `projet:${projectId}` : `episode:${episodeId}`}
-        taille="apercu"
-      />
+      <AfficheZoom src={posterLocal} titre={titreInitial || "Sans titre"}>
+        <Poster
+          src={posterLocal}
+          titre={titreInitial || (oneshot ? "Sans titre" : `Épisode ${two(numero)}`)}
+          cleRepli={oneshot ? `projet:${projectId}` : `episode:${episodeId}`}
+          taille="apercu"
+        />
+      </AfficheZoom>
       <div className="info-body">
         {edition ? (
           <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer", alignSelf: "flex-start" }}>

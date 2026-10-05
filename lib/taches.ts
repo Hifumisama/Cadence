@@ -14,6 +14,7 @@ export const LIBELLE_SKILL: Record<string, string> = {
   "scenario-episode": "Scénario d'épisode",
   "prompt-asset": "Prompt d'asset",
   "prompt-voix": "Prompt de voix",
+  "prompt-affiche": "Prompt d'affiche",
   "plan-h3": "Fiche de plan",
   "iteration-plan": "Correction après visionnage",
   scenarios: "Scénarios des épisodes",

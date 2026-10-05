@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { redigerPromptAffiche, reglerTitreAffiche } from "@/app/affiches/actions";
 import { Icone } from "@/components/ui/Icone";
 import type { CibleAffiche } from "@/lib/affiches";
@@ -13,15 +13,23 @@ export function ReglagesAffiche({
   id,
   titreDansImage,
   personnage,
+  redactionEnCours,
 }: {
   cible: CibleAffiche;
   id: number;
   titreDansImage: boolean;
   /** Le personnage principal retenu, et si son image sert de première source. */
   personnage: { nom: string; aImage: boolean } | null;
+  /** Une rédaction de l'agent est en file ou en cours : la page se rafraîchit jusqu'à ce que le prompt arrive. */
+  redactionEnCours: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  useEffect(() => {
+    if (!redactionEnCours) return;
+    const t = setInterval(() => router.refresh(), 3000);
+    return () => clearInterval(t);
+  }, [redactionEnCours, router]);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
 
   const basculer = (actif: boolean) =>
@@ -35,13 +43,11 @@ export function ReglagesAffiche({
     startTransition(async () => {
       setRetour(null);
       const r = await redigerPromptAffiche(cible, id);
-      setRetour(
-        r.ok
-          ? { ok: true, texte: r.remarques.length > 0 ? `Prompt rédigé. À noter : ${r.remarques.join(" ")}` : "Prompt rédigé : relis-le dans la fenêtre de génération." }
-          : { ok: false, texte: r.erreur },
-      );
+      if (!r.ok) setRetour({ ok: false, texte: r.erreur });
       router.refresh();
     });
+
+  const occupe = pending || redactionEnCours;
 
   return (
     <div className="aff-reglages">
@@ -58,8 +64,8 @@ export function ReglagesAffiche({
       </label>
 
       <div className="aff-agent">
-        <button type="button" className="btn btn-ghost" disabled={pending} onClick={rediger} aria-busy={pending}>
-          <Icone nom="agent" taille={16} /> {pending ? "L'agent rédige…" : "Rédiger le prompt avec l'agent"}
+        <button type="button" className="btn btn-ghost" disabled={occupe} onClick={rediger} aria-busy={occupe}>
+          <Icone nom="agent" taille={16} /> {occupe ? "L'agent rédige…" : "Rédiger le prompt avec l'agent"}
         </button>
         <small>
           {personnage
