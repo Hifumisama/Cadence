@@ -2,6 +2,7 @@ import { getAllProjects } from "@/lib/queries";
 import { totalBuckets } from "@/lib/phase";
 import { Topbar } from "@/components/ui/Topbar";
 import { ProjectCard } from "@/components/projects/ProjectCard";
+import { GrilleProjets } from "@/components/projects/GrilleProjets";
 import { NouveauProjetModal } from "@/components/projects/NouveauProjetModal";
 
 export const dynamic = "force-dynamic";
@@ -53,11 +54,11 @@ export default async function AccueilPage() {
           </div>
         </div>
 
-        <div className="proj-grid">
+        <GrilleProjets>
           {projets.map((p) => (
             <ProjectCard key={p.id} projet={p} />
           ))}
-        </div>
+        </GrilleProjets>
 
         {projets.length === 0 ? (
           <p className="tiny-note" style={{ marginTop: "var(--sp-6)" }}>
