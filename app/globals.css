@@ -20,9 +20,12 @@
   --line-strong: #3a3a47;
 
   --ink: #e9e6e0;
-  --ink-2: #b4b0bd;
-  --ink-3: #857f90;
-  --ink-4: #5f5a69;
+  /* Contrastes sur --ground / --surface / --surface-2 (WCAG AA : 4,5:1 pour du texte) :
+     ink-2 ≈ 10,5 · ink-3 ≈ 6,6 / 6,1 / 5,6 · ink-4 ≈ 5,2 / 4,8 / 4,4. Avant 2026-10-05, ink-4 (#5f5a69)
+     tombait à 2,4–2,8:1 et ink-3 (#857f90) à 4,1–4,8:1 : descriptions illisibles. */
+  --ink-2: #c4c0cc;
+  --ink-3: #9d98a8;
+  --ink-4: #8a8595;
 
   --ecarlate: #c8102e;
   --ecarlate-soft: #7a0f22;
@@ -120,7 +123,7 @@ button {
    --------------------------------------------------------------- */
 
 .eyebrow {
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -285,7 +288,7 @@ button {
   font-variant-numeric: tabular-nums;
 }
 .tally-item .k {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -539,8 +542,8 @@ button {
   flex-wrap: wrap;
   gap: 4px 12px;
   margin-top: 2px;
-  font-size: 11.5px;
-  color: var(--ink-4);
+  font-size: 13px;
+  color: var(--ink-3);
 }
 .shot-right {
   display: flex;
@@ -1040,7 +1043,7 @@ button {
 }
 
 .tiny-note {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--ink-4);
   margin: 0;
 }
@@ -1307,7 +1310,7 @@ button {
 .btn-danger {
   background: transparent;
   border-color: var(--line);
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 .btn-danger:hover {
   border-color: var(--ecarlate);
@@ -1642,7 +1645,7 @@ button {
 }
 .scene-range {
   font-family: var(--font-mono), monospace;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--ink-3);
   flex: 0 0 auto;
 }
