@@ -45,7 +45,7 @@ export function BriefSections({
 
 /** Style : un nom (« animation 2D ») et la clause (anglais), au lieu d'un objet JSON. La saisie reste
  * la chaîne JSON {nom, clause} que `depuisSaisie("style", …)` relit. */
-function ChampsStyle({ saisie, onChange, libelle }: { saisie: string; onChange: (v: string) => void; libelle: string }) {
+export function ChampsStyle({ saisie, onChange, libelle }: { saisie: string; onChange: (v: string) => void; libelle: string }) {
   let v: { nom?: string; clause?: string } = {};
   try {
     v = JSON.parse(saisie) as { nom?: string; clause?: string };
@@ -72,7 +72,7 @@ function ChampsStyle({ saisie, onChange, libelle }: { saisie: string; onChange: 
  * section : le formulaire ne fait que la produire. Les champs que le formulaire ne montre pas (le `statut` d'un
  * personnage) sont conservés tels quels. */
 type ChampListe = { cle: string; libelle: string; type: "texte" | "long" | "bool" };
-const FORMULAIRES_LISTE: Record<string, { element: string; champs: ChampListe[]; nouveau: Record<string, unknown> }> = {
+export const FORMULAIRES_LISTE: Record<string, { element: string; champs: ChampListe[]; nouveau: Record<string, unknown> }> = {
   episodes: {
     element: "Épisode",
     champs: [
