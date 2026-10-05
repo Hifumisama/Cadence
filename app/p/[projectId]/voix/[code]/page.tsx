@@ -203,7 +203,7 @@ export default async function VoixDetailPage({
                 {d.repliques.length > 0 ? (
                   <ul className="rep-lignes">
                     {d.repliques.map((r) => (
-                      <RepliqueLigne key={r.id} r={r} />
+                      <RepliqueLigne key={r.id} r={r} voixId={asset.id} />
                     ))}
                   </ul>
                 ) : (

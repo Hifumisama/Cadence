@@ -4,7 +4,7 @@ import { and, eq, gte, isNotNull, isNull, or, inArray } from "drizzle-orm";
 import { versRunLot } from "./agents/lots";
 import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
-import { METHODE_AUDIO, METHODE_TEST_AUDIO, METHODE_TEST_VIDEO, METHODE_VOIX, estMethodeSon, estMethodeTestVoix, formaterDuree, parametresTestVideo } from "./asset-generation";
+import { METHODE_AUDIO, METHODE_REPLIQUE, METHODE_TEST_AUDIO, METHODE_TEST_VIDEO, METHODE_VOIX, estMethodeSon, estMethodeTestVoix, formaterDuree, parametresTestVideo } from "./asset-generation";
 import { generationMediaSrc } from "./media";
 import { cibleDeCodeAffiche } from "./affiches";
 import {
@@ -96,13 +96,15 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     genre: "image",
     statut: g.statut,
     // Un son se reconnaît dans le panneau : « Son · CODE », sans miniature d'aperçu.
-    libelle: g.methode === METHODE_TEST_VIDEO ? `Test vidéo · ${code}` : g.methode === METHODE_TEST_AUDIO ? `Test audio · ${code}` : g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : affiche.cible === "seasons" ? "saison" : "épisode"}` : code,
+    libelle: g.methode === METHODE_TEST_VIDEO ? `Test vidéo · ${code}` : g.methode === METHODE_REPLIQUE ? `Réplique · ${code}` : g.methode === METHODE_TEST_AUDIO ? `Test audio · ${code}` : g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : affiche.cible === "seasons" ? "saison" : "épisode"}` : code,
     detail:
       g.methode === METHODE_TEST_VIDEO
         ? parametresTestVideo(g.parametres)?.upscale
           ? "Rendu final"
           : "Prévisualisation"
-        : g.methode === METHODE_TEST_AUDIO
+        : g.methode === METHODE_REPLIQUE
+          ? "Prise de réplique"
+          : g.methode === METHODE_TEST_AUDIO
           ? "Réplique de test"
           : g.methode === METHODE_VOIX
         ? "Voix de référence"
@@ -114,7 +116,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
           ? "À partir d'images"
           : "À partir du texte",
     // Une voix se retrouve au casting vocal (étape « Référence »), pas à la fiche d'asset.
-    href: estMethodeTestVoix(g.methode) ? `/p/${projectId}/voix/${code}?etape=test&generation=${g.uuid}` : g.methode === METHODE_VOIX ? `/p/${projectId}/voix/${code}?etape=reference&generation=${g.uuid}` : affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
+    href: g.methode === METHODE_REPLIQUE ? `/p/${projectId}/voix/${code}?etape=repliques` : estMethodeTestVoix(g.methode) ? `/p/${projectId}/voix/${code}?etape=test&generation=${g.uuid}` : g.methode === METHODE_VOIX ? `/p/${projectId}/voix/${code}?etape=reference&generation=${g.uuid}` : affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
     projectId,
     assetId: g.assetId,
     progression:

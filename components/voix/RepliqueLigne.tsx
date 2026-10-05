@@ -1,6 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { lancerPriseReplique } from "@/app/voix/actions";
+import { useTaches } from "@/components/taches/TachesProvider";
+import { estActive, tachesDeAsset } from "@/lib/taches";
 import { supprimerPriseReplique, uploaderPriseReplique } from "@/app/repliques/actions";
 import { LIBELLE_STATUT_REPLIQUE } from "@/lib/repliques";
 import type { RepliqueVue } from "@/lib/queries-repliques";
@@ -12,10 +16,29 @@ function two(n: number): string {
 }
 
 /** Une réplique en ligne (étape 4) : le texte, la prise et sa durée mesurée,
- * « Générer » (pas encore branché) et « Importer ». Une seule rangée — la
+ * « Générer » (la voix de référence clonée dit le texte ; la prise remplace la précédente) et « Importer ». Une seule rangée — la
  * fiche complète de la réplique (statut, plans, édition) reste au catalogue. */
-export function RepliqueLigne({ r }: { r: RepliqueVue }) {
+export function RepliqueLigne({ r, voixId }: { r: RepliqueVue; voixId: number }) {
+  const router = useRouter();
+  const { taches } = useTaches();
   const [pending, startTransition] = useTransition();
+  const [lancement, startLancement] = useTransition();
+  const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
+
+  // La prise arrive en arrière-plan (le worker l'adopte) : quand plus aucune génération de cette voix n'est active, la page se recharge.
+  const enCours = tachesDeAsset(taches, voixId).some(estActive);
+  const etaitEnCours = useRef(false);
+  useEffect(() => {
+    if (etaitEnCours.current && !enCours) router.refresh();
+    etaitEnCours.current = enCours;
+  }, [enCours, router]);
+
+  const generer = () =>
+    startLancement(async () => {
+      const res = await lancerPriseReplique(voixId, r.id);
+      setRetour(res.ok ? { ok: true, texte: res.position > 1 ? `File d'attente : position ${res.position}.` : "Génération lancée." } : { ok: false, texte: res.erreur });
+    });
+
   return (
     <li className={`rep-ligne v-${r.statut}`}>
       <span className="tiny-note num rep-ligne-ep">E{two(r.episodeNumero)}</span>
@@ -23,6 +46,7 @@ export function RepliqueLigne({ r }: { r: RepliqueVue }) {
         <span className="dlg-who">{r.locuteur.label}</span>
         <p className="dlg-line">{r.texte}</p>
         {r.priseObsolete ? <span className="vstat over">prise à refaire — le texte a changé</span> : null}
+        {retour && !retour.ok ? <span className="tiny-note" role="alert" style={{ color: "var(--ecarlate-glow)" }}>{retour.texte}</span> : null}
       </div>
       <div className="rep-ligne-prise">
         {r.audioSrc ? <audio controls preload="none" src={r.audioSrc} className="rep-audio" /> : <span className="tiny-note">pas de prise</span>}
@@ -34,8 +58,8 @@ export function RepliqueLigne({ r }: { r: RepliqueVue }) {
         <span className={`rep-statut s-${r.statut}`}>{LIBELLE_STATUT_REPLIQUE[r.statut as keyof typeof LIBELLE_STATUT_REPLIQUE] ?? r.statut}</span>
       </div>
       <div className="rep-ligne-actions">
-        <button type="button" className="btn btn-primary btn-mini" disabled title="La génération vocale n'est pas encore branchée">
-          Générer
+        <button type="button" className="btn btn-primary btn-mini" onClick={generer} disabled={lancement} title={retour?.texte ?? (r.fichier ? "Régénérer la prise (remplace l'actuelle)" : "Générer la prise avec la voix de référence")}>
+          {lancement ? "…" : "Générer"}
         </button>
         <DeposerFichier action={(fd) => uploaderPriseReplique(r.id, fd)} label="Importer" remplacer={r.fichier != null} />
         {r.fichier ? (

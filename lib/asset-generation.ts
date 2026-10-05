@@ -192,11 +192,14 @@ export function langueDuTexteDeReference(texte: string, texteParDefaut: string, 
 
 export const METHODE_TEST_AUDIO = "test_audio";
 export const METHODE_TEST_VIDEO = "test_video";
+/** Une prise de RÉPLIQUE (étape 4 du casting) : même workflow que l'audio de test, mais le résultat est adopté tout seul comme prise de
+ * la réplique (`parametres.repliqueId`), pas comme audio de test de la fiche. */
+export const METHODE_REPLIQUE = "replique";
 
 export const estMethodeTestVoix = (m: string): boolean => m === METHODE_TEST_AUDIO || m === METHODE_TEST_VIDEO;
 
 /** Un son pour tout ce qui suit (pas de vignette ni d'aperçu, fichier audio) : un son, une voix, l'audio d'un test. */
-export const estMethodeSon = (m: string): boolean => m === METHODE_AUDIO || m === METHODE_VOIX || m === METHODE_TEST_AUDIO;
+export const estMethodeSon = (m: string): boolean => m === METHODE_AUDIO || m === METHODE_VOIX || m === METHODE_TEST_AUDIO || m === METHODE_REPLIQUE;
 
 /** Durée du test vidéo : une réplique face caméra tient en huit secondes (prompt T1, lib/voix.ts:promptTestVoix). */
 export const DUREE_TEST_VIDEO_SECONDES = 8;
@@ -284,6 +287,13 @@ export function nouvelleSeed(): string {
 /** Ce que le test audio fige au lancement : la voix de référence à cloner, telle qu'elle était (chemin relatif à MEDIA_ROOT, sous
  * `assets/`) — la remplacer pendant que la demande attend ne change pas ce test. */
 export type ParametresTestAudio = { reference: string };
+
+/** L'id de la réplique visée par une génération `replique` (figé au lancement), ou null. */
+export function repliqueIdDesParametres(v: unknown): number | null {
+  if (typeof v !== "object" || v === null) return null;
+  const r = (v as Record<string, unknown>).repliqueId;
+  return typeof r === "number" && Number.isInteger(r) ? r : null;
+}
 
 export function parametresTestAudio(v: unknown): ParametresTestAudio | null {
   if (typeof v !== "object" || v === null) return null;

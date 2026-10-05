@@ -6,6 +6,7 @@ import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
 import {
   CANDIDATS_GARDES,
   DUREE_TEST_VIDEO_SECONDES,
+  METHODE_REPLIQUE,
   METHODE_TEST_AUDIO,
   METHODE_TEST_VIDEO,
   METHODE_VOIX,
@@ -150,7 +151,9 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
   try {
     const edition = gen.methode === "edition";
     const voix = gen.methode === METHODE_VOIX;
-    const testAudio = gen.methode === METHODE_TEST_AUDIO;
+    const priseReplique = gen.methode === METHODE_REPLIQUE;
+    // Une prise de réplique passe par le même graphe que l'audio de test (la voix de référence clonée dit le texte).
+    const testAudio = gen.methode === METHODE_TEST_AUDIO || priseReplique;
     const testVideo = gen.methode === METHODE_TEST_VIDEO;
     // Une voix, ou l'audio d'un test, est un son pour tout ce qui suit (pas d'aperçu, fichier audio, pas de vignette).
     const audio = estMethodeSon(gen.methode);
@@ -172,7 +175,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         langue: gen.langueReference ?? "French",
         seed: gen.seed,
         referenceDistante: distant,
-        prefixeSortie: `audio/cadence_test_${asset.code}`,
+        prefixeSortie: `audio/cadence_${priseReplique ? "replique" : "test"}_${asset.code}`,
       });
     } else if (testVideo) {
       const p = parametresTestVideo(gen.parametres);
@@ -288,7 +291,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         .update(assetGenerations)
         .set({ statut: "termine", fichier: nom, finishedAt: new Date() })
         .where(eq(assetGenerations.id, gen.id));
-      console.log(`[worker] Génération ${gen.id} (${asset.code}${testVideo ? ", test vidéo" : testAudio ? ", test audio" : voix ? ", voix" : audio ? ", son" : ""}) terminée : ${nom}`);
+      console.log(`[worker] Génération ${gen.id} (${asset.code}${testVideo ? ", test vidéo" : priseReplique ? ", réplique" : testAudio ? ", test audio" : voix ? ", voix" : audio ? ", son" : ""}) terminée : ${nom}`);
       // Générée par un lot : le résultat est adopté tout seul (il devient l'image de l'asset).
       if (gen.adoptionAuto) {
         const r = await adopterCandidat(gen.id, mediaRoot);
