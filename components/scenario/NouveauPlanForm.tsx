@@ -50,8 +50,8 @@ export function NouveauPlanForm({
 
   return (
     <>
-      <button className="btn btn-primary" type="button" onClick={() => setOuvert((v) => !v)}>
-        Nouveau plan
+      <button className="btn btn-ghost" type="button" onClick={() => setOuvert((v) => !v)}>
+        + Nouveau plan
       </button>
       {ouvert ? (
         <section className="plan-form is-new" style={{ margin: "var(--sp-3) 0 var(--sp-5)" }}>

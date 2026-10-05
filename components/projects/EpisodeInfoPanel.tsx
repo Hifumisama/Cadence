@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { modifierEpisode, modifierNomProjet, uploaderPosterEpisode, uploaderPosterProjet } from "@/app/projects/actions";
-import { BoutonAgent } from "@/components/agents/BoutonAgent";
+import Link from "next/link";
 import { Poster } from "@/components/ui/Poster";
 
 function two(n: number): string {
@@ -23,6 +23,7 @@ export function EpisodeInfoPanel({
   numero,
   titre,
   resume,
+  clauseStyle,
   posterSrc,
   oneshot,
 }: {
@@ -31,6 +32,8 @@ export function EpisodeInfoPanel({
   numero: number;
   titre: string;
   resume: string;
+  /** Clause de style du projet : une info qui cadre toute la génération, rappelée ici sous le résumé. */
+  clauseStyle: string;
   posterSrc: string | null;
   oneshot: { nom: string; posterSrc: string | null } | null;
 }) {
@@ -113,31 +116,6 @@ export function EpisodeInfoPanel({
           )}
           {!edition ? (
             <div className="info-hd-actions">
-              <BoutonAgent
-                className="btn btn-ghost"
-                demande={{
-                  projectId,
-                  portee: "episode",
-                  cible: { id: episodeId },
-                  profondeur: "courte",
-                  libelle: oneshot ? titreInitial || "Le film" : `Épisode ${two(numero)}`,
-                  episodeId,
-                }}
-              />
-              <BoutonAgent
-                className="btn btn-ghost"
-                libelle="Écrire les fiches de plan"
-                titre="L'agent écrit la fiche (prompt vidéo) de chaque plan choisi, un par un ; tu relis avant que rien ne soit écrit"
-                demande={{
-                  projectId,
-                  portee: "episode",
-                  cible: { id: episodeId },
-                  profondeur: "courte",
-                  libelle: oneshot ? titreInitial || "Le film" : `Épisode ${two(numero)}`,
-                  episodeId,
-                  vue: "fiches",
-                }}
-              />
               <button className="btn btn-ghost" type="button" onClick={() => setEdition(true)}>
                 Modifier
               </button>
@@ -156,6 +134,14 @@ export function EpisodeInfoPanel({
         ) : (
           <p className={`resume ${resume.trim() ? "" : "is-empty"}`}>{resume.trim() || ""}</p>
         )}
+
+        {!edition && clauseStyle.trim() ? (
+          <p className="clause-style" title={clauseStyle.trim()}>
+            <span className="k">Style</span>
+            <span className="v">{clauseStyle.trim()}</span>
+            <Link href={`/p/${projectId}/brief`}>Brief</Link>
+          </p>
+        ) : null}
 
         {edition ? (
           <div className="form-actions">

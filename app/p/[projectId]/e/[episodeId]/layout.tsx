@@ -58,6 +58,7 @@ export default async function EpisodeLayout({
           episodeId={episode.id}
           numero={episode.numero}
           resume={episode.resume}
+          clauseStyle={projet.clauseStyle}
           oneshot={
             projet.type === "oneshot"
               ? { nom: projet.nom, posterSrc: posterSrc("projects", pid, projet.posterFichier) }

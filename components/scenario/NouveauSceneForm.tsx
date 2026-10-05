@@ -22,7 +22,7 @@ export function NouveauSceneForm({ episodeId }: { episodeId: number }) {
   return (
     <>
       <button className="btn btn-ghost" type="button" onClick={() => setOuvert((v) => !v)}>
-        Nouvelle scène
+        + Nouvelle scène
       </button>
       {ouvert ? (
         <section className="plan-form is-new" style={{ margin: "var(--sp-3) 0 var(--sp-5)" }}>

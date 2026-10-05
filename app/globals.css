@@ -5432,3 +5432,198 @@ a.voix-chip:hover {
 .inst-sous li.s-echoue { color: var(--ecarlate-glow); }
 .inst-sous li.s-en_attente, .inst-sous li.s-annulee { color: var(--ink-3); }
 .inst-sous-nom { color: inherit; }
+
+
+/* ---------------------------------------------------------------
+   Scénario — état des plans, barre d'actions, lignes de plan
+   --------------------------------------------------------------- */
+
+.etat-plans {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4) var(--sp-5);
+  margin: var(--sp-4) 0 var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+  background: linear-gradient(180deg, var(--surface), rgba(26, 26, 33, 0.4));
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.etat-anneau {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 auto;
+}
+.etat-anneau circle {
+  fill: none;
+  stroke-width: 6;
+}
+.etat-anneau .piste {
+  stroke: var(--surface-3);
+}
+.etat-anneau .avance {
+  stroke: var(--or);
+  stroke-linecap: round;
+}
+.etat-anneau .centre-v {
+  font-family: var(--font-mono), monospace;
+  font-size: 20px;
+  font-weight: 500;
+  fill: var(--ink);
+}
+.etat-anneau .centre-k {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--ink-3);
+}
+.etat-corps {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.etat-titre {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.etat-aide {
+  margin: 2px 0 var(--sp-3);
+  font-size: 13px;
+  color: var(--ink-3);
+  max-width: 68ch;
+}
+.etat-puces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.etat-puces li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.etat-puces b {
+  font-family: var(--font-mono), monospace;
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--ink);
+}
+.etat-puces .is-brouillon b {
+  color: var(--or);
+}
+.etat-puces .is-developpe b {
+  color: var(--or-glow);
+}
+.etat-action {
+  flex: 0 0 auto;
+}
+
+.queue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-2);
+}
+/* Les formulaires de création s'ouvrent sous la barre, pas entre ses boutons. */
+.queue > .plan-form {
+  order: 10;
+  flex: 1 0 100%;
+}
+.queue-toggle {
+  margin-left: auto;
+}
+
+.shot-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.shot-duree {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.menu-plus {
+  position: relative;
+  display: inline-flex;
+}
+.menu-plus-btn {
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+.menu-plus-liste {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.7);
+}
+.menu-plus-item {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 2px;
+  color: var(--ink);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.menu-plus-item:hover {
+  background: var(--surface-2);
+}
+.menu-plus-item.is-danger {
+  color: var(--ecarlate-glow);
+}
+
+/* Clause de style, sous le résumé de l'épisode (encart d'en-tête) */
+.info-panel .clause-style {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--sp-3);
+  margin: 0;
+  font-size: 13px;
+}
+.info-panel .clause-style .k {
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--or);
+}
+.info-panel .clause-style .v {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--ink-2);
+}
+.info-panel .clause-style a {
+  color: var(--or);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.info-panel .clause-style a:hover {
+  text-decoration: underline;
+}

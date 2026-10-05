@@ -39,16 +39,18 @@ export function CorpsScene({ children }: { children: React.ReactNode }) {
 
 /** « Tout replier » / « Tout déplier » : pilote toutes les scènes de la page. */
 export function ControleAccordeon() {
-  const envoyer = (replie: boolean) => window.dispatchEvent(new CustomEvent(EVT_ACCORDEON, { detail: { replie } }));
+  // Un seul bouton : il propose toujours l'action inverse de la dernière envoyée (les scènes gardent
+  // aussi leur état individuel, on ne peut donc pas le déduire d'ici).
+  const [toutReplie, setToutReplie] = useState(false);
+  const basculer = () => {
+    const replie = !toutReplie;
+    window.dispatchEvent(new CustomEvent(EVT_ACCORDEON, { detail: { replie } }));
+    setToutReplie(replie);
+  };
   return (
-    <>
-      <button type="button" className="btn btn-ghost" onClick={() => envoyer(true)}>
-        Tout replier
-      </button>
-      <button type="button" className="btn btn-ghost" onClick={() => envoyer(false)}>
-        Tout déplier
-      </button>
-    </>
+    <button type="button" className="btn btn-ghost btn-sm queue-toggle" onClick={basculer}>
+      {toutReplie ? "Tout déplier" : "Tout replier"}
+    </button>
   );
 }
 
