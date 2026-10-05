@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { creerVoix } from "@/app/voix/actions";
 import { construireCode } from "@/lib/assetCode";
+import { Icone } from "@/components/ui/Icone";
 
 /** Nouvelle voix au catalogue — crée l'asset VOICE_* (registre) et sa fiche
  * de casting, puis ouvre la fiche. */
@@ -26,7 +27,7 @@ export function NouvelleVoixForm({ projectId, personnages }: { projectId: number
             <div className="modal-hd">
               <h2>Nouvelle voix</h2>
               <button className="modal-close" type="button" onClick={() => setOuvert(false)} aria-label="Fermer">
-                ×
+                <Icone nom="fermer" />
               </button>
             </div>
             <form

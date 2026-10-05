@@ -11,6 +11,7 @@ import {
 import type { ControleDialogues, SegmentEcart, StatutDuree } from "@/lib/plan-checks";
 import type { LiaisonPlanVue, OptionsLocuteur, RepliqueVue } from "@/lib/queries-repliques";
 import { NouvelleRepliqueForm } from "@/components/repliques/NouvelleRepliqueForm";
+import { Icone } from "@/components/ui/Icone";
 
 const STATUT_DUREE: Record<StatutDuree, string> = {
   tient: "✅ tient",
@@ -203,11 +204,11 @@ export function DialoguesPanel({
                   </td>
                   <td className="py-1">
                     <span className="dlg-who">{l.locuteur.label}</span>
-                    <div>{l.voix ? <span className="voix-chip"><span aria-hidden="true">♪</span> {l.voix.code}</span> : <span className="voix-chip is-none" title="Le personnage n'a pas encore de voix au casting">sans voix</span>}</div>
+                    <div>{l.voix ? <span className="voix-chip"><Icone nom="musique" taille={13} /> {l.voix.code}</span> : <span className="voix-chip is-none" title="Le personnage n'a pas encore de voix au casting">sans voix</span>}</div>
                   </td>
                   <td className="py-1 text-neutral-300">
                     <span className={`verbatim-etat v-${controle.parReplique[l.id] ?? "absente"}`} title={controle.parReplique[l.id] === "ok" ? "Citée mot pour mot dans le prompt" : "Pas citée mot pour mot dans le prompt"}>
-                      {controle.parReplique[l.id] === "ok" ? "✓" : "!"}
+                      <Icone nom={controle.parReplique[l.id] === "ok" ? "valide" : "alerte"} taille={14} />
                     </span>{" "}
                     {l.texte}
                     {l.audioSrc ? <audio controls preload="none" src={l.audioSrc} className="rep-audio" /> : null}
@@ -230,8 +231,8 @@ export function DialoguesPanel({
                     />
                   </td>
                   <td className="py-1 text-right">
-                    <button type="button" className="btn btn-danger btn-mini" disabled={pending} onClick={() => agir(() => delierReplique(planId, l.id))} title="Retirer du plan (la réplique continue d'exister)">
-                      ×
+                    <button type="button" className="btn btn-danger btn-mini" disabled={pending} onClick={() => agir(() => delierReplique(planId, l.id))} title="Retirer du plan (la réplique continue d'exister)" aria-label="Retirer du plan">
+                      <Icone nom="fermer" />
                     </button>
                   </td>
                 </tr>

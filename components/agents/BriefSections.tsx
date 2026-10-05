@@ -11,6 +11,7 @@ import {
   versSaisie,
 } from "@/lib/agents-affichage";
 import { STATUTS_CHAMP, type SectionBrief, type StatutChamp, type VueBrief } from "@/lib/agents/types";
+import { Icone } from "@/components/ui/Icone";
 
 /** Le brief en sections repliables par groupe, avec TROIS états explicites (jamais la
  * couleur seule : un symbole et un libellé) : ● fourni (or), ○ déduit (blanc),
@@ -235,6 +236,7 @@ function Section({
   return (
     <details className={`ag-section ag-etat-${s.statut}`} open={s.statut === "a_valider" || edition || undefined}>
       <summary>
+        <Icone nom="droite" className="ag-chevron" />
         <span className="ag-symbole" aria-hidden="true">
           {etat.symbole}
         </span>
@@ -287,7 +289,7 @@ function Section({
             <p className="ag-valeur">{valeurEnTexte(s.valeur)}</p>
             {onModifier ? (
               <button type="button" className="ag-modifier" onClick={ouvrir} disabled={desactive} aria-label={`Modifier : ${s.libelle}`}>
-                ✎ Modifier
+                <Icone nom="modifier" taille={14} /> Modifier
               </button>
             ) : null}
           </>

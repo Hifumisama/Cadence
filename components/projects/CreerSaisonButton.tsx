@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { creerSaison, uploaderPosterSaison } from "@/app/projects/actions";
 import { Poster } from "@/components/ui/Poster";
+import { Icone } from "@/components/ui/Icone";
 
 export function CreerSaisonButton({ projectId }: { projectId: number }) {
   const [ouvert, setOuvert] = useState(false);
@@ -49,7 +50,7 @@ export function CreerSaisonButton({ projectId }: { projectId: number }) {
             <div className="modal-hd">
               <h2>Nouvelle saison</h2>
               <button className="modal-close" type="button" onClick={fermer} aria-label="Fermer">
-                ×
+                <Icone nom="fermer" />
               </button>
             </div>
             <form onSubmit={onSubmit} className="modal-bd form-grid">

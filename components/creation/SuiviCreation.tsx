@@ -5,13 +5,14 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { arreterCreationProjet, reprendreCreationProjet } from "@/app/creation/actions";
 import { SYMBOLE_SOUS_TACHE } from "@/lib/agents-affichage";
 import type { VueCreation } from "@/lib/agents/creation-vue";
+import { Icone, type NomIcone } from "@/components/ui/Icone";
 
-const SYMBOLE: Record<VueCreation["etapes"][number]["statut"], { symbole: string; libelle: string }> = {
-  a_venir: { symbole: "○", libelle: "À venir" },
-  en_cours: { symbole: "◐", libelle: "En cours" },
-  fait: { symbole: "●", libelle: "Fait" },
-  passe: { symbole: "–", libelle: "Rien à faire" },
-  echoue: { symbole: "✕", libelle: "En échec" },
+const SYMBOLE: Record<VueCreation["etapes"][number]["statut"], { icone: NomIcone; libelle: string }> = {
+  a_venir: { icone: "vide", libelle: "À venir" },
+  en_cours: { icone: "encours", libelle: "En cours" },
+  fait: { icone: "fait", libelle: "Fait" },
+  passe: { icone: "neutre", libelle: "Rien à faire" },
+  echoue: { icone: "echec", libelle: "En échec" },
 };
 
 /** La page de l'installateur : l'avancement de la création du projet, étape par étape. Sondage de l'API tant que ça
@@ -79,7 +80,7 @@ export function SuiviCreation({ projectId, initial }: { projectId: number; initi
           {vue.etapes.map((e) => (
             <li key={e.cle} className={`inst-etape s-${e.statut}`} aria-current={etapeEnCours?.cle === e.cle ? "step" : undefined}>
               <span className="inst-symbole" aria-hidden="true">
-                {SYMBOLE[e.statut].symbole}
+                <Icone nom={SYMBOLE[e.statut].icone} taille={18} className={e.statut === "en_cours" ? "icone-tourne" : undefined} />
               </span>
               <span className="inst-corps">
                 <span className="inst-nom">{e.libelle}</span>

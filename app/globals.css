@@ -1296,7 +1296,11 @@ button {
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  padding: 2px 6px;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
 }
 .modal-close:hover {
   color: var(--ecarlate-glow);
@@ -3768,8 +3772,10 @@ a.voix-chip:hover {
   gap: var(--sp-3);
 }
 .gd-x {
-  width: 30px;
-  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
   background: none;
   border: 1px solid transparent;
   color: var(--ink-2);
@@ -4786,12 +4792,12 @@ a.voix-chip:hover {
 .ag-section > summary::-webkit-details-marker {
   display: none;
 }
-.ag-section > summary::before {
-  content: "▸";
+.ag-chevron {
   color: var(--ink-4);
+  transition: transform 0.2s ease;
 }
-.ag-section[open] > summary::before {
-  content: "▾";
+.ag-section[open] > summary .ag-chevron {
+  transform: rotate(90deg);
 }
 .ag-section-nom {
   flex: 1 1 auto;
@@ -5626,4 +5632,25 @@ a.voix-chip:hover {
 }
 .info-panel .clause-style a:hover {
   text-decoration: underline;
+}
+
+
+/* Icônes (components/ui/Icone.tsx) : alignées sur la ligne de texte, jamais écrasées dans un flex. */
+.icone {
+  display: inline-block;
+  flex: 0 0 auto;
+  vertical-align: -0.2em;
+}
+@keyframes icone-tourne {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.icone-tourne {
+  animation: icone-tourne 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .icone-tourne {
+    animation: none;
+  }
 }

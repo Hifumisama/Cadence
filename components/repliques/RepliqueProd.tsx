@@ -13,6 +13,7 @@ import {
 import { DeposerFichier } from "@/components/voix/DeposerFichier";
 import { LIBELLE_STATUT_REPLIQUE, STATUTS_REPLIQUE } from "@/lib/repliques";
 import type { RepliqueVue } from "@/lib/queries-repliques";
+import { Icone } from "@/components/ui/Icone";
 
 function two(n: number): string {
   return String(n).padStart(2, "0");
@@ -81,7 +82,7 @@ export function RepliqueProd({ r, projectId }: { r: RepliqueVue; projectId: numb
         <span className="dlg-who" title={r.locuteur.kind === "personnage" ? "Personnage" : r.locuteur.kind === "voix" ? "Voix seule" : "Locuteur libre"}>
           {r.locuteur.label}
         </span>
-        {r.voix ? <span className="voix-chip"><span aria-hidden="true">♪</span> {r.voix.code}</span> : <span className="voix-chip is-none">sans voix</span>}
+        {r.voix ? <span className="voix-chip"><Icone nom="musique" taille={13} /> {r.voix.code}</span> : <span className="voix-chip is-none">sans voix</span>}
         <span className={`rep-statut s-${r.statut}`}>{LIBELLE_STATUT_REPLIQUE[r.statut as keyof typeof LIBELLE_STATUT_REPLIQUE] ?? r.statut}</span>
         <span style={{ flex: 1 }} />
         <span className="tiny-note num">E{two(r.episodeNumero)}</span>
@@ -115,7 +116,7 @@ export function RepliqueProd({ r, projectId }: { r: RepliqueVue; projectId: numb
               title={u.verbatim === "ok" ? `${u.planTitre} — citée mot pour mot` : `${u.planTitre} — le prompt ne cite pas cette réplique mot pour mot`}
             >
               E{two(u.episodeNumero)} · {two(u.position)} · &lt;Audio {u.slot}&gt;
-              {u.verbatim === "ok" ? " ✓" : " · prompt à resynchroniser"}
+              {u.verbatim === "ok" ? <Icone nom="valide" taille={13} /> : " · prompt à resynchroniser"}
             </Link>
           ))
         )}
@@ -174,8 +175,8 @@ export function RepliqueProd({ r, projectId }: { r: RepliqueVue; projectId: numb
             Confirmer la suppression
           </button>
         ) : (
-          <button type="button" className="btn btn-danger btn-mini" onClick={() => setConfirmer(true)} disabled={pending} title="Supprimer la réplique">
-            ×
+          <button type="button" className="btn btn-danger btn-mini" onClick={() => setConfirmer(true)} disabled={pending} title="Supprimer la réplique" aria-label="Supprimer la réplique">
+            <Icone nom="supprimer" />
           </button>
         )}
       </div>

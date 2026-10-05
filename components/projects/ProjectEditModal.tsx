@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { modifierNomProjet, supprimerProjet, uploaderPosterProjet } from "@/app/projects/actions";
 import { Poster } from "@/components/ui/Poster";
+import { Icone } from "@/components/ui/Icone";
 
 export function ProjectEditModal({
   projectId,
@@ -75,7 +76,7 @@ export function ProjectEditModal({
             <div className="modal-hd">
               <h2>Modifier le projet</h2>
               <button className="modal-close" type="button" onClick={fermer} aria-label="Fermer">
-                ×
+                <Icone nom="fermer" />
               </button>
             </div>
             <form onSubmit={onSubmit} className="modal-bd form-grid">

@@ -16,6 +16,7 @@ import {
 } from "@/lib/asset-generation";
 import type { GenerationVue, SourceDisponible } from "@/lib/queries-generations";
 import type { GenreTache } from "@/lib/taches";
+import { Icone } from "@/components/ui/Icone";
 
 /** Une génération de la page, complétée par ce que l'indicateur sait en direct :
  * progression, aperçu, rang dans la file. */
@@ -273,7 +274,7 @@ export function GenerationDialog({
           {simule ? <span className="tiny-note">Mode simulé : images factices.</span> : null}
           <span className="num tiny-note">{workflow}</span>
           <button type="button" className="gd-x" onClick={onFermer} aria-label="Fermer">
-            ✕
+            <Icone nom="fermer" />
           </button>
         </div>
       </div>
@@ -327,10 +328,10 @@ export function GenerationDialog({
                             ◀
                           </button>
                           <button type="button" onClick={() => deplacer(i, 1)} disabled={i >= sources.length - 1} aria-label={`Image ${i + 1} : avancer d'un rang`}>
-                            ▶
+                            <Icone nom="droite" />
                           </button>
                           <button type="button" onClick={() => setSources(sources.filter((_, k) => k !== i))} aria-label={`Retirer l'image ${i + 1}`}>
-                            ✕
+                            <Icone nom="fermer" />
                           </button>
                         </div>
                       </>

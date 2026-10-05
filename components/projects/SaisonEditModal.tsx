@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { modifierTitreSaison, uploaderPosterSaison } from "@/app/projects/actions";
 import { Poster } from "@/components/ui/Poster";
+import { Icone } from "@/components/ui/Icone";
 
 export function SaisonEditModal({
   saisonId,
@@ -63,7 +64,7 @@ export function SaisonEditModal({
             <div className="modal-hd">
               <h2>Modifier la saison</h2>
               <button className="modal-close" type="button" onClick={fermer} aria-label="Fermer">
-                ×
+                <Icone nom="fermer" />
               </button>
             </div>
             <form onSubmit={onSubmit} className="modal-bd form-grid">

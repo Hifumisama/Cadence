@@ -8,6 +8,7 @@ import { useTaches } from "@/components/taches/TachesProvider";
 import { estActive, type GenreTache, type Tache } from "@/lib/taches";
 import { urlMiniature } from "@/lib/miniatures";
 import { LIBELLE_SERVEUR, type ServeursInjoignables } from "@/lib/serveurs-injoignables-types";
+import { Icone } from "@/components/ui/Icone";
 
 /** Icône du header : ce qui se génère, ce qui est prêt, ce qui a échoué. Badge
  * or = nombre de tâches actives ; point écarlate = échecs non vus ; point or plein
@@ -214,7 +215,7 @@ function Entree({ x, onOuvrir, onRetirer, onAnnuler }: { x: Tache; onOuvrir: () 
             // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt="" loading="lazy" decoding="async" />
           ) : (
-            <span className="tq-genre">{x.genre === "video" ? "▶" : x.genre === "llm" ? "✦" : "▣"}</span>
+            <span className="tq-genre"><Icone nom={x.genre === "video" ? "lecture" : x.genre === "llm" ? "agent" : "image"} taille={18} /></span>
           )}
         </span>
         <span className="tq-corps">
@@ -275,7 +276,7 @@ function Entree({ x, onOuvrir, onRetirer, onAnnuler }: { x: Tache; onOuvrir: () 
       </Link>
       {onRetirer ? (
         <button type="button" className="tq-retirer" onClick={onRetirer} aria-label={`Retirer ${x.libelle} de la liste`} title="Retirer de la liste">
-          ✕
+          <Icone nom="fermer" />
         </button>
       ) : null}
       {onAnnuler && !x.annulationDemandee ? (

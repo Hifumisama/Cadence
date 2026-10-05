@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
+import { Icone } from "@/components/ui/Icone";
 
 const MIME_PLAN = "application/x-cadence-plan";
 const MIME_SCENE = "application/x-cadence-scene";
@@ -25,7 +26,7 @@ export function BasculeScene({ titre }: { titre: string }) {
       title={replie ? "Déplier" : "Replier"}
       onClick={basculer}
     >
-      {replie ? "▸" : "▾"}
+      <Icone nom={replie ? "droite" : "bas"} />
     </button>
   );
 }
@@ -141,7 +142,7 @@ export function PoigneeScene({ sceneId }: { sceneId: number }) {
         if (bloc) e.dataTransfer.setDragImage(bloc, 16, 16);
       }}
     >
-      ⠿
+      <Icone nom="poignee" taille={18} />
     </span>
   );
 }

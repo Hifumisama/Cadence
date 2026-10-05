@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { creerProjet, creerProjetSansRedirection } from "@/app/projects/actions";
 import { useAgents } from "@/components/agents/AgentsProvider";
+import { Icone } from "@/components/ui/Icone";
 
 export function NouveauProjetModal() {
   const router = useRouter();
@@ -66,7 +67,7 @@ export function NouveauProjetModal() {
             <div className="modal-hd">
               <h2>Nouveau projet</h2>
               <button className="modal-close" type="button" onClick={fermer} aria-label="Fermer">
-                ×
+                <Icone nom="fermer" />
               </button>
             </div>
             <form onSubmit={onSubmit} className="modal-bd form-grid">
@@ -116,7 +117,7 @@ export function NouveauProjetModal() {
                   {pending ? "..." : type === "oneshot" ? "Créer et ouvrir le Scénario" : "Créer la série"}
                 </button>
                 <button className="btn btn-ghost" type="button" onClick={avecAgent} disabled={pending || !type || !nom.trim()} title="Crée le projet vide, puis ouvre la conversation avec l'agent">
-                  Créer avec l&rsquo;agent <span aria-hidden="true">✦</span>
+                  Créer avec l&rsquo;agent <Icone nom="agent" taille={14} />
                 </button>
                 <button className="btn btn-ghost" type="button" onClick={fermer}>
                   Annuler

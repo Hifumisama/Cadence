@@ -26,6 +26,7 @@ import {
 } from "@/lib/agents-affichage";
 import { lireApresFiche } from "@/lib/agents/fiches";
 import type { VueChangement, VueGroupe, VueProposition } from "@/lib/agents/types";
+import { Icone } from "@/components/ui/Icone";
 
 const SYMBOLE_GRAVITE = { info: "ℹ", attention: "▲", bloquant: "■" } as const;
 
@@ -373,7 +374,7 @@ function GroupeChangements({
           </span>
           {episode ? (
             <button type="button" className="ag-bascule" onClick={() => setOuvert((v) => !v)} aria-expanded={ouvert} aria-label={`${ouvert ? "Replier" : "Déplier"} : ${groupe.titre}`}>
-              {ouvert ? "▾" : "▸"}
+              <Icone nom={ouvert ? "bas" : "droite"} />
             </button>
           ) : null}
         </span>

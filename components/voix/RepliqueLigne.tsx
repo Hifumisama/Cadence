@@ -5,6 +5,7 @@ import { supprimerPriseReplique, uploaderPriseReplique } from "@/app/repliques/a
 import { LIBELLE_STATUT_REPLIQUE } from "@/lib/repliques";
 import type { RepliqueVue } from "@/lib/queries-repliques";
 import { DeposerFichier } from "./DeposerFichier";
+import { Icone } from "@/components/ui/Icone";
 
 function two(n: number): string {
   return String(n).padStart(2, "0");
@@ -44,8 +45,9 @@ export function RepliqueLigne({ r }: { r: RepliqueVue }) {
             onClick={() => startTransition(async () => { await supprimerPriseReplique(r.id); })}
             disabled={pending}
             title="Retirer la prise"
+          aria-label="Retirer la prise"
           >
-            ×
+            <Icone nom="fermer" />
           </button>
         ) : null}
       </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { supprimerScene } from "@/app/scenario/actions";
+import { Icone } from "@/components/ui/Icone";
 
 /** Menu « ⋯ » d'une scène : la suppression, destructive, ne reste pas à côté de « Modifier » en permanence. */
 export function SupprimerSceneButton({ sceneId, titre }: { sceneId: number; titre: string }) {
@@ -40,7 +41,7 @@ export function SupprimerSceneButton({ sceneId, titre }: { sceneId: number; titr
         onClick={() => setOuvert((v) => !v)}
         disabled={pending}
       >
-        ⋯
+        <Icone nom="plus" taille={18} />
       </button>
       {ouvert ? (
         <span className="menu-plus-liste" role="menu">

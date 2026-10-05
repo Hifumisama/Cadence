@@ -11,6 +11,7 @@ import {
   raisonDemandeVoixInvalide,
 } from "@/lib/asset-generation";
 import type { GenreTache } from "@/lib/taches";
+import { Icone } from "@/components/ui/Icone";
 
 const DERRIERE: Record<GenreTache, string> = { image: "une image", video: "une vidéo", llm: "un agent" };
 const ACTIFS = ["en_attente", "en_cours"];
@@ -128,7 +129,7 @@ export function GenerationVoixDialog({
           {simule ? <span className="tiny-note">Mode simulé : son factice (silence).</span> : null}
           <span className="num tiny-note">VOX_Generate_Voice_Simplified · Qwen3-TTS</span>
           <button type="button" className="gd-x" onClick={onFermer} aria-label="Fermer">
-            ✕
+            <Icone nom="fermer" />
           </button>
         </div>
       </div>

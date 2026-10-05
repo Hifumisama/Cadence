@@ -11,6 +11,7 @@ import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { SaisonEditModal } from "@/components/projects/SaisonEditModal";
 import { SupprimerSaisonButton } from "@/components/projects/SupprimerSaisonButton";
 import { creerEpisode } from "@/app/projects/actions";
+import { Icone } from "@/components/ui/Icone";
 
 type Saison = ProjectHierarchy["saisons"][number];
 
@@ -29,7 +30,7 @@ export function SaisonSection({ projectId, saison }: { projectId: number; saison
   return (
     <section className="saison" data-open={ouvert}>
       <button type="button" className="saison-hd" onClick={() => setOuvert((o) => !o)} aria-expanded={ouvert}>
-        <span className="chev">▶</span>
+        <span className="chev"><Icone nom="droite" /></span>
         <Poster src={saison.posterSrc} titre={saison.titre} cleRepli={`saison:${saison.id}`} taille="sm" />
         <span className="sno">S{two(saison.numero)}</span>
         <span className="stitle">{saison.titre}</span>

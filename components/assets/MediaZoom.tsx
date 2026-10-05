@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { Icone } from "@/components/ui/Icone";
 
 /** Aperçu cliquable : ouvre l'asset en taille réelle dans une fenêtre modale
  * (<dialog> natif : Échap et clic sur le fond ferment). Image : clic sur
@@ -53,7 +54,7 @@ export function MediaZoom({
         onClose={(e) => e.currentTarget.querySelector("video")?.pause()}
       >
         <button type="button" className="zoom-close" onClick={fermer} aria-label="Fermer">
-          ✕
+          <Icone nom="fermer" />
         </button>
         {kind === "image" ? (
           // loading="lazy" : une image dans un <dialog> fermé (display: none) est
