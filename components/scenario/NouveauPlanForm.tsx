@@ -6,6 +6,7 @@ import {
   ScenarioNarratifFields,
   type ChampsNarratifs,
 } from "@/components/plan/ScenarioNarratifFields";
+import { Icone } from "@/components/ui/Icone";
 
 type SceneOption = { id: number; titre: string };
 
@@ -51,7 +52,7 @@ export function NouveauPlanForm({
   return (
     <>
       <button className="btn btn-ghost" type="button" onClick={() => setOuvert((v) => !v)}>
-        + Nouveau plan
+        <Icone nom="ajouter" taille={15} /> Nouveau plan
       </button>
       {ouvert ? (
         <section className="plan-form is-new" style={{ margin: "var(--sp-3) 0 var(--sp-5)" }}>

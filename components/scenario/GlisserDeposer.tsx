@@ -50,7 +50,7 @@ export function ControleAccordeon() {
   };
   return (
     <button type="button" className="btn btn-ghost btn-sm queue-toggle" onClick={basculer}>
-      {toutReplie ? "Tout déplier" : "Tout replier"}
+      <Icone nom={toutReplie ? "deplierTout" : "replierTout"} taille={15} /> {toutReplie ? "Tout déplier" : "Tout replier"}
     </button>
   );
 }

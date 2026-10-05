@@ -1,5 +1,7 @@
 import {
   Check,
+  ChevronsDownUp,
+  ChevronsUpDown,
   ChevronDown,
   ChevronRight,
   Circle,
@@ -35,6 +37,8 @@ const ICONES = {
   poignee: GripVertical,
   bas: ChevronDown,
   droite: ChevronRight,
+  replierTout: ChevronsDownUp,
+  deplierTout: ChevronsUpDown,
   valide: Check,
   alerte: TriangleAlert,
   lecture: Play,

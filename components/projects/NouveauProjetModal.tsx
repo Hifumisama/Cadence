@@ -59,7 +59,7 @@ export function NouveauProjetModal() {
   return (
     <>
       <button className="btn btn-gold" type="button" onClick={() => setOuvert(true)}>
-        + Nouveau projet
+        <Icone nom="ajouter" taille={15} /> Nouveau projet
       </button>
       {ouvert ? (
         <div className="modal-overlay" onClick={fermer}>

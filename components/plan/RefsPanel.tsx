@@ -113,7 +113,7 @@ function RefsType({
           disabled={plein}
           onClick={() => setOuvert(true)}
         >
-          {plein ? "Maximum atteint" : "+ Ajouter"}
+          {plein ? "Maximum atteint" : <><Icone nom="ajouter" taille={15} /> Ajouter</>}
         </button>
       </div>
 

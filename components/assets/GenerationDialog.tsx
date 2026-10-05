@@ -337,7 +337,7 @@ export function GenerationDialog({
                       </>
                     ) : i === sources.length ? (
                       <button type="button" className="gd-add" onClick={() => setPicker(picker ? null : "registre")} aria-expanded={picker != null}>
-                        + Ajouter
+                        <Icone nom="ajouter" taille={15} /> Ajouter
                       </button>
                     ) : (
                       <div className="gd-add gd-add-off" aria-hidden="true" />

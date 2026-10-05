@@ -175,7 +175,7 @@ function ListeObjets({ cle, saisie, onChange, libelle }: { cle: string; saisie: 
         </fieldset>
       ))}
       <button type="button" className="btn btn-ghost btn-mini" onClick={() => maj([...liste, { ...f.nouveau }])}>
-        + Ajouter {f.element.toLowerCase()}
+        <Icone nom="ajouter" taille={15} /> Ajouter {f.element.toLowerCase()}
       </button>
     </div>
   );

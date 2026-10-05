@@ -5699,3 +5699,15 @@ a.voix-chip:hover {
     animation: none;
   }
 }
+
+/* L'anneau d'état se remplit au chargement (Scénario). */
+@keyframes anneau-remplit {
+  from {
+    stroke-dasharray: 0 188.5;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .etat-anneau .avance {
+    animation: anneau-remplit 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s backwards;
+  }
+}
