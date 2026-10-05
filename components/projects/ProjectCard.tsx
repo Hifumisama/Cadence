@@ -6,7 +6,6 @@ import { totalBuckets } from "@/lib/phase";
 export function ProjectCard({ projet }: { projet: ProjectListItem }) {
   const estSerie = projet.type === "serie";
   const total = totalBuckets(projet.buckets);
-  const { termine, actif, attente, brouillon } = projet.buckets;
 
   return (
     <Link href={`/p/${projet.id}`} className="proj-card" aria-label={projet.nom}>
@@ -35,14 +34,6 @@ export function ProjectCard({ projet }: { projet: ProjectListItem }) {
             <b>{projet.nbAssets}</b>assets
           </span>
         </span>
-        {total > 0 ? (
-          <span className="mix" role="img" aria-label={`${termine} terminés, ${actif} actifs, ${attente} en attente, ${brouillon} brouillons`}>
-            {termine ? <span className="m-t" style={{ width: `${(termine / total) * 100}%` }} /> : null}
-            {actif ? <span className="m-e" style={{ width: `${(actif / total) * 100}%` }} /> : null}
-            {attente ? <span className="m-a" style={{ width: `${(attente / total) * 100}%` }} /> : null}
-            {brouillon ? <span className="m-b" style={{ width: `${(brouillon / total) * 100}%` }} /> : null}
-          </span>
-        ) : null}
         <span className="ft">
           {estSerie ? "Voir les saisons" : "Ouvrir le pipeline"}
           <span className="go">→</span>

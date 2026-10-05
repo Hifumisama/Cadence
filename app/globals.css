@@ -2128,31 +2128,6 @@ button {
   line-height: 1;
 }
 
-/* Barre segmentée : répartition des plans par statut sur une carte projet */
-.mix {
-  display: flex;
-  height: 4px;
-  border-radius: 2px;
-  overflow: hidden;
-  background: var(--surface-3);
-}
-.mix span {
-  display: block;
-  height: 100%;
-}
-.mix .m-t {
-  background: var(--or-glow);
-}
-.mix .m-e {
-  background: var(--ecarlate-glow);
-}
-.mix .m-a {
-  background: var(--ink-4);
-}
-.mix .m-b {
-  background: repeating-linear-gradient(90deg, var(--or-soft) 0 3px, transparent 3px 6px);
-}
-
 /* ---------------------------------------------------------------
    Modale de création — choix OneShot / Série
    --------------------------------------------------------------- */
