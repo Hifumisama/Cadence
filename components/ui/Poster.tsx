@@ -27,6 +27,10 @@ export function Poster({
       <span className={`poster poster-${taille}`} aria-hidden="true">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" />
+        {/* Le titre se superpose à l'image, comme sur le dégradé de repli : il n'est jamais incrusté dans le fichier
+            (une affiche générée n'en contient pas), donc il reste net, suit le renommage et se lit sur chaque carte.
+            Aux petites tailles (saison, épisode) l'image seule suffit. */}
+        {taille === "card" || taille === "wide" ? <span className="pt">{titre}</span> : null}
       </span>
     );
   }
