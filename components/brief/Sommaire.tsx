@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Icone } from "@/components/ui/Icone";
 
 export type EntreeSommaire = { id: string; label: string; compte?: number; aConfirmer?: boolean };
 
-/** Sommaire de la page du brief : un rail collant à gauche sur grand écran, une bande défilante collée sous le bandeau
- * sur tablette et téléphone. Le clic fait DÉFILER en douceur jusqu'à la section (puis la fait briller un instant) ;
+/** Sommaire de la page du brief : un rail collant à gauche sur grand écran ; sur tablette et téléphone, une barre compacte
+ * collée sous le bandeau qui affiche la section en cours et ouvre la liste en menu déroulant (rien ne déborde, quel que
+ * soit le nombre de sections). Le clic fait DÉFILER en douceur jusqu'à la section, puis la fait briller un instant ;
  * l'entrée active suit la lecture. Animations coupées si l'utilisateur réduit les animations. */
 export function Sommaire({ entrees }: { entrees: EntreeSommaire[] }) {
   const [actif, setActif] = useState(entrees[0]?.id ?? "");
+  const [ouvert, setOuvert] = useState(false);
+  const racine = useRef<HTMLElement>(null);
+  const idListe = useId();
   const cle = entrees.map((e) => e.id).join("|");
 
   useEffect(() => {
@@ -29,7 +34,23 @@ export function Sommaire({ entrees }: { entrees: EntreeSommaire[] }) {
     return () => obs.disconnect();
   }, [cle]);
 
+  // Menu déroulant : se ferme au clic ailleurs et sur Échap.
+  useEffect(() => {
+    if (!ouvert) return;
+    const dehors = (e: Event) => {
+      if (!racine.current?.contains(e.target as Node)) setOuvert(false);
+    };
+    const echap = (e: KeyboardEvent) => e.key === "Escape" && setOuvert(false);
+    document.addEventListener("pointerdown", dehors);
+    document.addEventListener("keydown", echap);
+    return () => {
+      document.removeEventListener("pointerdown", dehors);
+      document.removeEventListener("keydown", echap);
+    };
+  }, [ouvert]);
+
   const aller = (id: string) => {
+    setOuvert(false);
     const cible = document.getElementById(id);
     if (!cible) return;
     const reduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -42,9 +63,16 @@ export function Sommaire({ entrees }: { entrees: EntreeSommaire[] }) {
     window.setTimeout(() => cible.classList.remove("is-cible"), 1600);
   };
 
+  const courant = entrees.find((e) => e.id === actif) ?? entrees[0];
+
   return (
-    <nav className="bf-sommaire" aria-label="Sommaire du brief">
-      <ul>
+    <nav ref={racine} className={`bf-sommaire${ouvert ? " is-ouvert" : ""}`} aria-label="Sommaire du brief">
+      <button type="button" className="bf-sommaire-bouton" aria-expanded={ouvert} aria-controls={idListe} onClick={() => setOuvert((v) => !v)}>
+        <span className="bf-etiquette">Sections</span>
+        <span className="bf-sommaire-courant">{courant?.label}</span>
+        <Icone nom="bas" taille={18} />
+      </button>
+      <ul id={idListe}>
         {entrees.map((e) => (
           <li key={e.id}>
             <a
