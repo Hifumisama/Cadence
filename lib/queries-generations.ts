@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { assetGenerations, assets } from "../db/schema";
 import { and, asc, desc, eq, isNotNull, ne } from "drizzle-orm";
+import { horsAffiches } from "./assets-visibles";
 import { estImage, fichierMediaExiste, generationMediaSrc, urlAssetMedia } from "./media";
 
 /** Une image du registre proposable comme source d'une génération « à partir
@@ -14,7 +15,7 @@ export async function getAssetsAvecImage(projectId: number, exceptAssetId: numbe
   const lignes = await db
     .select({ id: assets.id, code: assets.code, type: assets.type, fichier: assets.fichier })
     .from(assets)
-    .where(and(eq(assets.projectId, projectId), isNotNull(assets.fichier), ne(assets.id, exceptAssetId)))
+    .where(and(eq(assets.projectId, projectId), isNotNull(assets.fichier), ne(assets.id, exceptAssetId), horsAffiches))
     .orderBy(asc(assets.code));
   return lignes
     .filter((a) => a.fichier && estImage(a.fichier) && fichierMediaExiste(a.fichier))

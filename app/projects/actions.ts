@@ -1,8 +1,9 @@
 "use server";
 
 import { db } from "@/db";
-import { episodes, plans, projects, seasons } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { assets, episodes, plans, projects, seasons } from "@/db/schema";
+import { codeAffiche } from "@/lib/affiches";
+import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -113,9 +114,16 @@ export async function supprimerSaison(
       return { ok: false, erreur: "Cette saison a encore des épisodes — supprime-les d'abord, ou force la suppression." };
     }
   }
+  await supprimerAffichesDesEpisodes((await db.select({ id: episodes.id }).from(episodes).where(eq(episodes.seasonId, saisonId))).map((e) => e.id));
   await db.delete(seasons).where(eq(seasons.id, saisonId));
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/** Les assets d'affiche (invisibles du registre) ne cascadent pas depuis l'épisode : on les retire avec lui. */
+async function supprimerAffichesDesEpisodes(episodeIds: number[]) {
+  if (episodeIds.length === 0) return;
+  await db.delete(assets).where(inArray(assets.code, episodeIds.map((id) => codeAffiche("episodes", id))));
 }
 
 /** Bloquée tant que l'épisode a des plans (retour utilisateur 2026-09-28).
@@ -132,6 +140,7 @@ export async function supprimerEpisode(
       return { ok: false, erreur: "Cet épisode a encore des plans — supprime-les d'abord, ou force la suppression." };
     }
   }
+  await supprimerAffichesDesEpisodes([episodeId]);
   await db.delete(episodes).where(eq(episodes.id, episodeId));
   revalidatePath("/", "layout");
   return { ok: true };

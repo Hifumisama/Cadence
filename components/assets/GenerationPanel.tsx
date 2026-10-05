@@ -118,7 +118,9 @@ export function GenerationPanel({
                   ? "Voix de référence, instruction et texte adoptés : la voix repasse « en cours », à revalider."
                   : type === "sfx"
                     ? "Son, prompt et durée adoptés : l'asset repasse « en cours », à revalider."
-                    : "Image et prompt adoptés : l'asset repasse « en cours », à revalider.",
+                    : type === "affiche"
+                      ? "Image adoptée : c'est maintenant l'image de présentation."
+                      : "Image et prompt adoptés : l'asset repasse « en cours », à revalider.",
             }
           : { ok: false, texte: r.erreur },
       );

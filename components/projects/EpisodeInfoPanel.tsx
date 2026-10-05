@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { modifierEpisode, modifierNomProjet, uploaderPosterEpisode, uploaderPosterProjet } from "@/app/projects/actions";
 import Link from "next/link";
+import { BoutonAffiche } from "@/components/affiches/BoutonAffiche";
 import { Poster } from "@/components/ui/Poster";
 
 function two(n: number): string {
@@ -116,6 +117,7 @@ export function EpisodeInfoPanel({
           )}
           {!edition ? (
             <div className="info-hd-actions">
+              <BoutonAffiche cible={oneshot ? "projects" : "episodes"} id={oneshot ? projectId : episodeId} className="btn btn-ghost" />
               <button className="btn btn-ghost" type="button" onClick={() => setEdition(true)}>
                 Modifier
               </button>

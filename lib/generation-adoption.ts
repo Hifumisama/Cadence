@@ -3,6 +3,8 @@ import { dirname, extname, join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { assetGenerations, assets, voixFiches } from "../db/schema";
+import { appliquerAffiche } from "./affiche-application";
+import { TYPE_AFFICHE } from "./affiches";
 import { METHODE_AUDIO, METHODE_VOIX } from "./asset-generation";
 import { cheminAssetMedia, cheminGenerationMedia } from "./media";
 
@@ -38,6 +40,11 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
   // Une voix de référence adoptée fixe aussi le texte qu'elle lit (au mot près) sur la fiche de casting.
   if (gen.methode === METHODE_VOIX && gen.texteReference) {
     await db.update(voixFiches).set({ refText: gen.texteReference }).where(eq(voixFiches.assetId, asset.id));
+  }
+  // Une affiche de présentation : l'image adoptée devient celle du projet ou de l'épisode (lib/affiches.ts).
+  if (asset.type === TYPE_AFFICHE) {
+    const appliquee = await appliquerAffiche(asset.code, nom, mediaRoot);
+    if (!appliquee.ok) return appliquee;
   }
   // Adopter, c'est avoir vu le résultat : l'indicateur du header ne le signale plus.
   if (!gen.vuAt) await db.update(assetGenerations).set({ vuAt: new Date() }).where(eq(assetGenerations.id, gen.id));

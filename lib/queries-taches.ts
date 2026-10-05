@@ -6,6 +6,7 @@ import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
 import { METHODE_AUDIO, METHODE_VOIX, formaterDuree } from "./asset-generation";
 import { generationMediaSrc } from "./media";
+import { cibleDeCodeAffiche } from "./affiches";
 import {
   LIBELLE_SKILL,
   RETENTION_TERMINEES_JOURS,
@@ -87,12 +88,15 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
 
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
-  const images: Tache[] = lignesImages.map(({ g, code, projectId }) => ({
+  const images: Tache[] = lignesImages.map(({ g, code, projectId }) => {
+    // Une affiche de présentation n'est pas dans le registre : sa page à elle (app/p/[id]/affiche/[code]).
+    const affiche = cibleDeCodeAffiche(code);
+    return {
     cle: cleImage(g.uuid),
     genre: "image",
     statut: g.statut,
     // Un son se reconnaît dans le panneau : « Son · CODE », sans miniature d'aperçu.
-    libelle: g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : code,
+    libelle: g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : "épisode"}` : code,
     detail:
       g.methode === METHODE_VOIX
         ? "Voix de référence"
@@ -104,7 +108,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
           ? "À partir d'images"
           : "À partir du texte",
     // Une voix se retrouve au casting vocal (étape « Référence »), pas à la fiche d'asset.
-    href: g.methode === METHODE_VOIX ? `/p/${projectId}/voix/${code}?etape=reference&generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
+    href: g.methode === METHODE_VOIX ? `/p/${projectId}/voix/${code}?etape=reference&generation=${g.uuid}` : affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
     projectId,
     assetId: g.assetId,
     progression:
@@ -123,7 +127,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     derriere: null,
     jetons: null,
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
-  }));
+    };
+  });
 
   const videos: Tache[] = lignesVideos.map(({ j, planUuid, titre, projectId, episodeId }) => ({
     cle: cleVideo(j.id),

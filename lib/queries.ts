@@ -15,6 +15,7 @@ import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets
 import { posterSrc } from "./media";
 import { getLiensVoix, getPlanIdsDesRepliques } from "./queries-repliques";
 import { construireMatrice } from "./matrice-assets";
+import { horsAffiches } from "./assets-visibles";
 
 /** Pas encore de sélecteur de projet dans l'UI (2026-09-28) — toutes les
  * pages opèrent sur le premier projet créé. Le schéma est prêt pour
@@ -91,7 +92,7 @@ export async function getAllProjects() {
       .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
       .where(inArray(seasons.projectId, idsProjets)),
     db.select({ projectId: plans.projectId, statut: plans.statut }).from(plans).where(inArray(plans.projectId, idsProjets)),
-    db.select({ projectId: assets.projectId }).from(assets).where(inArray(assets.projectId, idsProjets)),
+    db.select({ projectId: assets.projectId }).from(assets).where(and(inArray(assets.projectId, idsProjets), horsAffiches)),
   ]);
 
   const saisonsParProjet = new Map<number, typeof toutesLesSaisons>();
@@ -219,7 +220,7 @@ export async function getPlanDetail(uuid: string, episodeId?: number) {
  * de référence sur la Fiche de plan. */
 export async function getAllAssets(projectId?: number) {
   const pid = projectId ?? (await getDefaultProjectId());
-  return db.select().from(assets).where(eq(assets.projectId, pid)).orderBy(assets.type, assets.code);
+  return db.select().from(assets).where(and(eq(assets.projectId, pid), horsAffiches)).orderBy(assets.type, assets.code);
 }
 
 /** Page Scénario : les scènes de l'épisode, et tous les plans (brouillon
@@ -372,7 +373,7 @@ export type AssetCitation = { planUuid: string; position: number; episodeNumero:
  * ici) et `nbRepliques` ; une voix porte `personnageCode`. */
 export async function getAssetsTree(projectId?: number) {
   const pid = projectId ?? (await getDefaultProjectId());
-  const tousLesAssets = await db.select().from(assets).where(eq(assets.projectId, pid)).orderBy(assets.code);
+  const tousLesAssets = await db.select().from(assets).where(and(eq(assets.projectId, pid), horsAffiches)).orderBy(assets.code);
   const toutesLesRefs = await db
     .select({ id: planRefs.id, assetId: planRefs.assetId, planId: planRefs.planId })
     .from(planRefs);

@@ -1758,3 +1758,24 @@ Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
   worker l'adopte toute seule à sa fin (`lib/generation-adoption.ts`, partagé avec le bouton « Adopter »). Non fait : lancer
   automatiquement la 2e vague (dérivés en édition) quand le master est adopté.
 - **Streaming** : la réponse s'écrit lettre par lettre (`useMachineAEcrire`, vitesse adaptée au retard), la réflexion est repliée par défaut.
+
+## 2026-10-05 — Affiches de présentation (image d'un projet ou d'un épisode, générée par l'IA)
+
+- **Une affiche est un asset d'un type à part, `affiche`, invisible du registre** (voie « A », tranchée avec l'utilisateur) : elle réutilise
+  tout ce que fait une image d'asset — file ComfyUI, candidats, fenêtre de génération, « Utiliser » — sans rien dupliquer. Code : `AFFICHE_P<id>`
+  (projet) ou `AFFICHE_E<id>` (épisode), créé AU PREMIER CLIC sur « Générer une image » (`app/affiches/actions.ts`), jamais à la lecture.
+  Les saisons gardent leur import manuel.
+- **Invisible du registre = un filtre sur chaque lecture « tous les assets d'un projet »** : `horsAffiches` (`lib/assets-visibles.ts`) sur le
+  total de l'Accueil, l'arbre du registre, le sélecteur de références, les sources de génération, les contextes et candidats de l'agent et les
+  post-traitements du worker. Les lectures par id, par code ou par type précis n'en ont pas besoin. **Toute NOUVELLE lecture « les assets du
+  projet » doit l'ajouter**, sinon l'affiche fuit dans le registre ou le contexte du LLM (vérifié à la main : total de l'Accueil, page Assets).
+- **Adopter = habiller** : `adopterCandidat` appelle `appliquerAffiche` (`lib/affiche-application.ts`) qui copie l'image dans le rangement des
+  posters et pointe `posterFichier` dessus. Nom UNIQUE à chaque application (`poster-<horodatage>.png`, jamais réécrit sur place : pas de cache
+  navigateur périmé), ancienne image supprimée. Les assets d'affiche d'un épisode sont supprimés avec l'épisode ou sa saison.
+- **Le titre n'est jamais dans l'image** : le prompt demande explicitement aucun texte (les modèles déforment les lettres) et le titre se
+  superpose à l'affichage (`components/ui/Poster.tsx`, grand format et cartes ; l'image seule en petit). Il reste net, suit le renommage,
+  et corrige au passage les cartes à image qui n'affichaient pas leur nom. Incrustation dans le fichier : écartée pour l'instant.
+- **Prompt proposé par gabarit** (`promptAffiche`, en anglais) : titre, résumé (arc du brief, ou résumé de l'épisode), genre et ton ; la clause
+  de style est ajoutée par le workflow comme pour tout asset. Modifiable avant de lancer. Non fait : le faire écrire par l'agent.
+- **Page dédiée** `/p/<projet>/affiche/<code>` (aperçus carte et en-tête, fenêtre de génération, retrait de l'image) ; les tâches du header y
+  renvoient. Points d'entrée : en-tête d'un épisode (ou du OneShot) et vue d'une série.

@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { assets, episodes, jobs, planDialogues, planPromptSections, planRefs, plans } from "../../../db/schema";
+import { horsAffiches } from "../../assets-visibles";
 import type { Tx } from "../../ordre-plans";
 import { SECTIONS_FICHE, estSectionFiche, evaluerEcrasementFiche, lireApresFiche, verifierFiche, type EtatPlanFiche } from "../fiches";
 import { REFUS_SUPPRESSION, type Applicateur, type Db } from "./commun";
@@ -42,7 +43,7 @@ export async function lireEtatPlanFiche(db: Db, projectId: number, plan: { id: n
       .leftJoin(assets, eq(assets.id, planRefs.assetId))
       .where(eq(planRefs.planId, plan.id)),
     db.select({ slot: planDialogues.slot }).from(planDialogues).where(eq(planDialogues.planId, plan.id)),
-    db.select({ code: assets.code, type: assets.type }).from(assets).where(eq(assets.projectId, projectId)),
+    db.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches)),
     db.select({ statut: jobs.statut, chemin: jobs.cheminSortie }).from(jobs).where(eq(jobs.planId, plan.id)),
   ]);
   const sections: Record<string, string> = {};

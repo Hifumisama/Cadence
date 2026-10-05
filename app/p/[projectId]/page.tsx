@@ -7,6 +7,7 @@ import { Topbar } from "@/components/ui/Topbar";
 import { SaisonSection } from "@/components/projects/SaisonSection";
 import { CreerSaisonButton } from "@/components/projects/CreerSaisonButton";
 import { ProjectEditModal } from "@/components/projects/ProjectEditModal";
+import { BoutonAffiche } from "@/components/affiches/BoutonAffiche";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +56,7 @@ export default async function VueSeriePage({ params }: { params: Promise<{ proje
               demande={{ projectId: id, portee: "projet", cible: null, profondeur: "complete", libelle: projet.nom }}
               titre="Parler du projet avec l'agent : brief, saisons, épisodes"
             />
+            <BoutonAffiche cible="projects" id={id} />
             <ProjectEditModal projectId={id} nom={projet.nom} posterSrc={posterSrc("projects", id, projet.posterFichier)} />
             <CreerSaisonButton projectId={id} />
           </div>

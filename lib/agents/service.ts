@@ -1,4 +1,5 @@
 import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
+import { horsAffiches } from "../assets-visibles";
 import { db } from "../../db";
 import {
   agentConversations,
@@ -617,7 +618,7 @@ export async function candidatsDuProjet(projectId: number): Promise<CandidatRegi
   const existants = await db
     .select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description, promptGeneration: assets.promptGeneration, statut: assets.statut })
     .from(assets)
-    .where(eq(assets.projectId, projectId));
+    .where(and(eq(assets.projectId, projectId), horsAffiches));
   return candidatsRegistre(brief.contenu, existants);
 }
 
@@ -712,7 +713,7 @@ const CONSIGNE_VOIX = "Écris l'instruction de timbre (Voice Design) de cette vo
 /** Les voix à créer : un personnage qui parle (au moins une réplique) sans voix, et la voix off si des
  * répliques la réclament. Vide tant que les scénarios n'ont écrit aucune réplique. */
 export async function candidatsVoixDuProjet(projectId: number): Promise<CandidatVoix[]> {
-  const lesAssets = await db.select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description }).from(assets).where(eq(assets.projectId, projectId)).orderBy(asc(assets.code));
+  const lesAssets = await db.select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches)).orderBy(asc(assets.code));
   const fiches = await db
     .select({ assetCode: assets.code, personnageId: voixFiches.personnageId })
     .from(voixFiches)
