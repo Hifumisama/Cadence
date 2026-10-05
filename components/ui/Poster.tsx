@@ -38,6 +38,13 @@ export function Poster({
       style={{ backgroundImage: posterBackgroundImage(cleRepli) }}
       aria-hidden="true"
     >
+      {/* Grande initiale en filigrane : sans affiche, les dégradés d'une même palette se ressemblent, l'initiale
+          fait la différence d'un coup d'œil. Réservée aux grandes cartes (le titre complet y est déjà écrit). */}
+      {taille === "card" ? (
+        <span className="pi" aria-hidden="true">
+          {posterInitiale(titre)}
+        </span>
+      ) : null}
       <span className="pt">{texte}</span>
     </span>
   );

@@ -1946,6 +1946,20 @@ button {
 .poster-card .pt {
   font-size: 26px;
 }
+.poster-card .pi {
+  position: absolute;
+  top: 18%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-brand), serif;
+  font-size: 150px;
+  line-height: 1;
+  color: var(--or-glow);
+  opacity: 0.14;
+  pointer-events: none;
+  user-select: none;
+}
 .poster-wide {
   aspect-ratio: 16 / 9;
   width: 100%;
