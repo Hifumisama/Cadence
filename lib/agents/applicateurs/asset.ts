@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { assets } from "../../../db/schema";
 import { TYPES_ASSET, construireCode, estMethodeAsset, methodeApplicable, slugifyCode } from "../../assetCode";
+import { TYPE_AFFICHE } from "../../affiches";
 import { masterDe } from "../../registre-assets";
 import type { ChangementBrut } from "../changements";
 import { apres, entierRef, REFUS_SUPPRESSION, texte, type Applicateur, type Db } from "./commun";
@@ -145,7 +146,7 @@ export const applicateurAsset: Applicateur = {
     const methode = texte(a.methodeGeneration);
     if (methode && estMethodeAsset(methode)) {
       const [courant] = await tx.select().from(assets).where(eq(assets.id, id));
-      if (courant && methodeApplicable(courant.type) && (methode !== "edition" || courant.deriveDeId != null)) valeurs.methodeGeneration = methode;
+      if (courant && methodeApplicable(courant.type) && (methode !== "edition" || courant.deriveDeId != null || courant.type === TYPE_AFFICHE)) valeurs.methodeGeneration = methode;
     }
     if (Object.keys(valeurs).length) await tx.update(assets).set(valeurs).where(eq(assets.id, id));
   },

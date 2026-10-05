@@ -7,7 +7,7 @@ import type { EtatTache } from "./types";
 /** Tâches LLM du système d'agents (agent_runs) : pose dans la file et lecture de l'état. */
 
 type DbOuTx = typeof db | Tx;
-export type ButRun = "tour" | "brief" | "proposition" | "affiche";
+export type ButRun = "tour" | "brief" | "proposition";
 
 export async function creerRun(
   d: DbOuTx,

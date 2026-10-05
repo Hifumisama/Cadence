@@ -1,53 +1,42 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { redigerPromptAffiche, reglerTitreAffiche } from "@/app/affiches/actions";
-import { Icone } from "@/components/ui/Icone";
+import { useState, useTransition } from "react";
+import { reglerTitreAffiche } from "@/app/affiches/actions";
+import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import type { CibleAffiche } from "@/lib/affiches";
 
 /** Les deux réglages de l'affiche, avant de lancer la génération : écrire le titre dans l'image (ligne de titre du prompt) et
- * faire rédiger le prompt par l'agent (titre, résumé, ton, personnage principal). */
+ * demander le prompt à l'agent. L'agent suit le même parcours que pour un asset : une consigne, le contexte lu, une proposition
+ * à relire et à accepter (elle remplace le prompt de l'affiche). */
 export function ReglagesAffiche({
   cible,
   id,
+  projectId,
+  assetCode,
+  libelle,
   titreDansImage,
   personnage,
-  redactionEnCours,
 }: {
   cible: CibleAffiche;
   id: number;
+  projectId: number;
+  assetCode: string;
+  libelle: string;
   titreDansImage: boolean;
   /** Le personnage principal retenu, et si son image sert de première source. */
   personnage: { nom: string; aImage: boolean } | null;
-  /** Une rédaction de l'agent est en file ou en cours : la page se rafraîchit jusqu'à ce que le prompt arrive. */
-  redactionEnCours: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  useEffect(() => {
-    if (!redactionEnCours) return;
-    const t = setInterval(() => router.refresh(), 3000);
-    return () => clearInterval(t);
-  }, [redactionEnCours, router]);
-  const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   const basculer = (actif: boolean) =>
     startTransition(async () => {
       const r = await reglerTitreAffiche(cible, id, actif);
-      setRetour(r.ok ? null : { ok: false, texte: r.erreur });
+      setErreur(r.ok ? null : r.erreur);
       router.refresh();
     });
-
-  const rediger = () =>
-    startTransition(async () => {
-      setRetour(null);
-      const r = await redigerPromptAffiche(cible, id);
-      if (!r.ok) setRetour({ ok: false, texte: r.erreur });
-      router.refresh();
-    });
-
-  const occupe = pending || redactionEnCours;
 
   return (
     <div className="aff-reglages">
@@ -64,9 +53,12 @@ export function ReglagesAffiche({
       </label>
 
       <div className="aff-agent">
-        <button type="button" className="btn btn-ghost" disabled={occupe} onClick={rediger} aria-busy={occupe}>
-          <Icone nom="agent" taille={16} /> {occupe ? "L'agent rédige…" : "Rédiger le prompt avec l'agent"}
-        </button>
+        <BoutonAgent
+          className="btn btn-ghost"
+          libelle="Demander le prompt à l'agent"
+          titre="L'agent lit le titre, le résumé, le ton et le personnage principal, puis propose un prompt que tu relis avant de l'accepter"
+          demande={{ projectId, portee: "asset", cible: { code: assetCode }, profondeur: "courte", libelle }}
+        />
         <small>
           {personnage
             ? personnage.aImage
@@ -76,9 +68,9 @@ export function ReglagesAffiche({
         </small>
       </div>
 
-      {retour ? (
-        <p className={retour.ok ? "aff-retour" : "aff-retour is-erreur"} role="status">
-          {retour.texte}
+      {erreur ? (
+        <p className="aff-retour is-erreur" role="status">
+          {erreur}
         </p>
       ) : null}
     </div>

@@ -9,7 +9,7 @@ import { ReglagesAffiche } from "@/components/affiches/ReglagesAffiche";
 import { RetirerAfficheButton } from "@/components/affiches/RetirerAfficheButton";
 import { Poster } from "@/components/ui/Poster";
 import { Topbar } from "@/components/ui/Topbar";
-import { lirePersonnagePrincipal, redactionAfficheEnCours } from "@/lib/affiche-personnage";
+import { lirePersonnagePrincipal } from "@/lib/agents/affiche";
 import { TYPE_AFFICHE, cibleDeCodeAffiche, formatAfficheParDefaut, titreDansPrompt } from "@/lib/affiches";
 import { posterSrc } from "@/lib/media";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
@@ -68,11 +68,10 @@ export default async function AffichePage({
     retour = `/p/${pid}/e/${cible.id}/scenario`;
   }
 
-  const [generations, registre, principal, redactionEnCours] = await Promise.all([
+  const [generations, registre, principal] = await Promise.all([
     getGenerationsAsset(asset.id),
     getAssetsAvecImage(pid, asset.id),
-    lirePersonnagePrincipal(pid, projet.nom),
-    redactionAfficheEnCours(pid, code),
+    lirePersonnagePrincipal(db, pid),
   ]);
   // Quand l'agent a recommandé de partir de l'image du personnage principal, la fenêtre s'ouvre en mode « images » avec lui en image 1.
   const partDuPersonnage = asset.methodeGeneration === "edition" && principal?.aImage === true;
@@ -134,7 +133,9 @@ export default async function AffichePage({
               id={cible.id}
               titreDansImage={titreDansPrompt(asset.promptGeneration ?? "")}
               personnage={principal ? { nom: principal.nom, aImage: principal.aImage } : null}
-              redactionEnCours={redactionEnCours}
+              projectId={pid}
+              assetCode={asset.code}
+              libelle={`Affiche · ${titre}`}
             />
             <div className="aff-boutons">
               <GenerationPanel

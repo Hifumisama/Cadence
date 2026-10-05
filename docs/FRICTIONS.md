@@ -1793,3 +1793,10 @@ Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
 - **Personnage principal** : premier personnage du brief retrouvé dans le registre (sinon premier personnage avec image). Son image est la source 1 (mode « images », Qwen Image Edit) quand l'agent recommande l'édition ; sinon sa description nourrit le prompt.
 - Clic sur l'aperçu : image seule en grand (`AfficheZoom`).
 - Le prompt de l'affiche est montré sous l'aperçu (dépliable) ; l'affiche de l'en-tête de l'épisode est cliquable pour l'agrandir.
+
+### 2026-10-05 — Affiches : le prompt de l'agent passe par une PROPOSITION (comme un asset)
+
+Correction de la décision précédente (tâche directe + écriture immédiate du prompt, sans relecture). L'affiche est un asset caché : « Demander le prompt à l'agent » ouvre la popup d'agent en portée `asset` sur cet asset, et suit le parcours normal : consigne → contexte lu (titre, résumé, ton, personnage principal, clause de style) → proposition (avant/après du prompt) à accepter. Rien n'est écrit avant l'acceptation.
+- `lib/agents/service.ts` : pour un asset de type `affiche`, `entreePourConversation` utilise `entreePromptAffiche` (lib/agents/affiche.ts) et le skill `prompt-affiche`.
+- `lib/agents/conversion.ts:depuisPromptAffiche` : un changement `asset`/`modifier` ; la ligne de titre suit le réglage de l'affiche au moment de la conversion ; la méthode « édition » n'est retenue que si l'image du personnage principal existait à la demande (l'applicateur d'asset l'autorise pour une affiche, qui n'a pas de parent).
+- Plus de `but = affiche`, ni de rafraîchissement automatique de la page.
