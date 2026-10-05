@@ -11,6 +11,7 @@ import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { SaisonEditModal } from "@/components/projects/SaisonEditModal";
 import { SupprimerSaisonButton } from "@/components/projects/SupprimerSaisonButton";
 import { creerEpisode } from "@/app/projects/actions";
+import { AfficheZoom } from "@/components/affiches/AfficheZoom";
 import { BoutonAffiche } from "@/components/affiches/BoutonAffiche";
 import { Icone } from "@/components/ui/Icone";
 
@@ -30,9 +31,14 @@ export function SaisonSection({ projectId, saison }: { projectId: number; saison
 
   return (
     <section className="saison" data-open={ouvert}>
-      <button type="button" className="saison-hd" onClick={() => setOuvert((o) => !o)} aria-expanded={ouvert}>
+      {/* Pas un seul <button> : l'affiche est cliquable (zoom) et ne peut pas être imbriquée dans un bouton. Le bouton de bascule
+          couvre toute la ligne, l'affiche passe au-dessus (z-index). */}
+      <div className="saison-hd">
+        <button type="button" className="saison-bascule" onClick={() => setOuvert((o) => !o)} aria-expanded={ouvert} aria-label={`Saison ${two(saison.numero)} : ${saison.titre}`} />
         <span className="chev"><Icone nom="droite" /></span>
-        <Poster src={saison.posterSrc} titre={saison.titre} cleRepli={`saison:${saison.id}`} taille="sm" />
+        <AfficheZoom src={saison.posterSrc} titre={saison.titre}>
+          <Poster src={saison.posterSrc} titre={saison.titre} cleRepli={`saison:${saison.id}`} taille="sm" />
+        </AfficheZoom>
         <span className="sno">S{two(saison.numero)}</span>
         <span className="stitle">{saison.titre}</span>
         <hr className="zellige-rule" />
@@ -41,7 +47,7 @@ export function SaisonSection({ projectId, saison }: { projectId: number; saison
           {phaseSaison.detail ? ` · ${phaseSaison.detail}` : ""}
         </span>
         <PhaseBadge agregee={phaseSaison} />
-      </button>
+      </div>
 
       {ouvert ? (
         <div className="saison-bd">

@@ -2283,18 +2283,36 @@ button {
   margin-top: var(--sp-5);
 }
 .saison-hd {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-3);
   flex-wrap: wrap;
   width: 100%;
+  padding: 6px 0;
+  color: inherit;
+  text-align: left;
+}
+/* Le bouton de bascule couvre toute la ligne ; seule l'affiche (zoom) reste cliquable au-dessus. */
+.saison-bascule {
+  position: absolute;
+  inset: 0;
   appearance: none;
   background: none;
   border: 0;
-  padding: 6px 0;
+  padding: 0;
   cursor: pointer;
-  color: inherit;
-  text-align: left;
+}
+.saison-bascule:focus-visible {
+  outline: 2px solid var(--or);
+  outline-offset: 2px;
+}
+.saison-hd > :not(.saison-bascule):not(.aff-zoom) {
+  pointer-events: none;
+}
+.saison-hd .aff-zoom {
+  position: relative;
+  z-index: 1;
 }
 .saison-hd .chev {
   width: 14px;
