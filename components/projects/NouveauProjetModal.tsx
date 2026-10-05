@@ -58,7 +58,7 @@ export function NouveauProjetModal() {
 
   return (
     <>
-      <button className="btn btn-primary" type="button" onClick={() => setOuvert(true)}>
+      <button className="btn btn-gold" type="button" onClick={() => setOuvert(true)}>
         + Nouveau projet
       </button>
       {ouvert ? (
@@ -83,7 +83,7 @@ export function NouveauProjetModal() {
                   <label className="choice">
                     <input type="radio" name="type" checked={type === "serie"} onChange={() => setType("serie")} />
                     <span className="t">Série</span>
-                    <span className="d">Des saisons et des épisodes. Chaque épisode numérote ses plans à partir de 010.</span>
+                    <span className="d">Des saisons et des épisodes. Chaque épisode a ses propres plans, réordonnables par glisser-déposer.</span>
                     <span className="shape">Projet → Saison → Épisode → …</span>
                   </label>
                 </div>

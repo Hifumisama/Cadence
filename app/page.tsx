@@ -1,7 +1,8 @@
 import { getAllProjects } from "@/lib/queries";
-import { totalBuckets } from "@/lib/phase";
+import { phaseDe, totalBuckets } from "@/lib/phase";
 import { Topbar } from "@/components/ui/Topbar";
 import { ProjectCard } from "@/components/projects/ProjectCard";
+import { GrilleProjets } from "@/components/projects/GrilleProjets";
 import { NouveauProjetModal } from "@/components/projects/NouveauProjetModal";
 
 export const dynamic = "force-dynamic";
@@ -11,24 +12,15 @@ export default async function AccueilPage() {
 
   const totalPlans = projets.reduce((acc, p) => acc + totalBuckets(p.buckets), 0);
   const totalAssets = projets.reduce((acc, p) => acc + p.nbAssets, 0);
-  const enProduction = projets.filter((p) => p.buckets.actif > 0).length;
+  const enProduction = projets.filter((p) => phaseDe(p.buckets) === "prod").length;
 
   return (
     <>
       <Topbar trail={<span className="here">Projets</span>} />
       <main className="page">
         <div className="screen-hd">
-          <div>
-            <p className="eyebrow" style={{ margin: "0 0 6px" }}>
-              Cadence · atelier de production
-            </p>
-            <h1>Projets</h1>
-            <p>
-              Un projet est un film seul (OneShot) ou une série découpée en saisons et
-              épisodes. Ouvrir un OneShot mène directement à son pipeline.
-            </p>
-          </div>
-          <div className="actions">
+          <h1>Projets</h1>
+          <div className="actions" style={{ marginLeft: "auto" }}>
             <NouveauProjetModal />
           </div>
         </div>
@@ -53,11 +45,11 @@ export default async function AccueilPage() {
           </div>
         </div>
 
-        <div className="proj-grid">
+        <GrilleProjets>
           {projets.map((p) => (
             <ProjectCard key={p.id} projet={p} />
           ))}
-        </div>
+        </GrilleProjets>
 
         {projets.length === 0 ? (
           <p className="tiny-note" style={{ marginTop: "var(--sp-6)" }}>

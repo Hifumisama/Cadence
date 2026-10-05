@@ -1953,6 +1953,20 @@ button {
 .poster-card .pt {
   font-size: 26px;
 }
+.poster-card .pi {
+  position: absolute;
+  top: 18%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-brand), serif;
+  font-size: 150px;
+  line-height: 1;
+  color: var(--or-glow);
+  opacity: 0.14;
+  pointer-events: none;
+  user-select: none;
+}
 .poster-wide {
   aspect-ratio: 16 / 9;
   width: 100%;
@@ -2050,12 +2064,54 @@ button {
   color: inherit;
   transition: border-color 0.16s, background 0.16s, transform 0.16s;
 }
-.proj-card:hover {
+/* Le survol n'existe pas au doigt (et reste « collé » après un tap sur tablette) : on le limite
+   aux appareils qui en ont un. L'appui (:active) et la sélection (.is-choisie) marchent partout. */
+@media (hover: hover) {
+  .proj-card:hover {
+    border-color: var(--or-soft);
+    background: var(--surface-2);
+    transform: translateY(-1px);
+  }
+  .proj-card:hover .ft .go {
+    color: var(--or-glow);
+  }
+}
+.proj-card:active {
+  transform: scale(0.985);
   border-color: var(--or-soft);
+}
+.proj-card.is-choisie {
+  border-color: var(--or);
   background: var(--surface-2);
-  transform: translateY(-1px);
+}
+.proj-card.is-choisie .ft .go {
+  color: var(--or-glow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .proj-card {
+    transition: border-color 0.16s, background 0.16s, transform 0.2s, opacity 0.2s, filter 0.2s;
+  }
+  .proj-card.is-choisie {
+    animation: carte-choisie 0.24s ease-out both;
+  }
+  .proj-grid[data-choix] .proj-card:not(.is-choisie) {
+    opacity: 0.35;
+    filter: saturate(0.5);
+    transform: scale(0.97);
+  }
+}
+@keyframes carte-choisie {
+  from {
+    transform: scale(0.985);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--or) 60%, transparent);
+  }
+  to {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 6px transparent, 0 8px 28px color-mix(in srgb, var(--or) 25%, transparent);
+  }
 }
 .proj-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
@@ -2097,7 +2153,24 @@ button {
   margin-right: 5px;
   font-variant-numeric: tabular-nums;
 }
+.proj-card .etat {
+  margin-left: auto;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.proj-card .etat.is-prod {
+  color: var(--ecarlate-glow);
+}
+.proj-card .etat.is-fini {
+  color: var(--or-glow);
+}
+.proj-card .stats .is-zero b {
+  color: var(--or);
+}
 .proj-card .ft {
+  margin-top: auto;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -2109,9 +2182,6 @@ button {
 .proj-card .ft .go {
   margin-left: auto;
   color: var(--ink-2);
-}
-.proj-card:hover .ft .go {
-  color: var(--or-glow);
 }
 .proj-new {
   align-items: center;
@@ -2133,31 +2203,6 @@ button {
   font-size: 32px;
   color: var(--or);
   line-height: 1;
-}
-
-/* Barre segmentée : répartition des plans par statut sur une carte projet */
-.mix {
-  display: flex;
-  height: 4px;
-  border-radius: 2px;
-  overflow: hidden;
-  background: var(--surface-3);
-}
-.mix span {
-  display: block;
-  height: 100%;
-}
-.mix .m-t {
-  background: var(--or-glow);
-}
-.mix .m-e {
-  background: var(--ecarlate-glow);
-}
-.mix .m-a {
-  background: var(--ink-4);
-}
-.mix .m-b {
-  background: repeating-linear-gradient(90deg, var(--or-soft) 0 3px, transparent 3px 6px);
 }
 
 /* ---------------------------------------------------------------
