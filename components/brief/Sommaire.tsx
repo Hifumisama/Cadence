@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Icone } from "@/components/ui/Icone";
+import { LegendeMarques } from "./Marque";
 
 export type EntreeSommaire = { id: string; label: string; compte?: number; aConfirmer?: boolean };
 
@@ -72,31 +73,34 @@ export function Sommaire({ entrees }: { entrees: EntreeSommaire[] }) {
         <span className="bf-sommaire-courant">{courant?.label}</span>
         <Icone nom="bas" taille={18} />
       </button>
-      <ul id={idListe}>
-        {entrees.map((e) => (
-          <li key={e.id}>
-            <a
-              href={`#${e.id}`}
-              className={`bf-sommaire-lien${actif === e.id ? " is-actif" : ""}`}
-              aria-current={actif === e.id ? "true" : undefined}
-              onClick={(ev) => {
-                ev.preventDefault();
-                aller(e.id);
-              }}
-            >
-              <span>{e.label}</span>
-              {e.aConfirmer ? (
-                <span className="bf-sommaire-alerte" title="À confirmer">
-                  <span aria-hidden="true">◇</span>
-                  <span className="bf-sr">à confirmer</span>
-                </span>
-              ) : e.compte != null ? (
-                <span className="bf-sommaire-n">{e.compte}</span>
-              ) : null}
-            </a>
-          </li>
-        ))}
-      </ul>
+      <div id={idListe} className="bf-sommaire-panneau">
+        <ul>
+          {entrees.map((e) => (
+            <li key={e.id}>
+              <a
+                href={`#${e.id}`}
+                className={`bf-sommaire-lien${actif === e.id ? " is-actif" : ""}`}
+                aria-current={actif === e.id ? "true" : undefined}
+                onClick={(ev) => {
+                  ev.preventDefault();
+                  aller(e.id);
+                }}
+              >
+                <span>{e.label}</span>
+                {e.aConfirmer ? (
+                  <span className="bf-sommaire-alerte" title="À confirmer">
+                    <span aria-hidden="true">◇</span>
+                    <span className="bf-sr">à confirmer</span>
+                  </span>
+                ) : e.compte != null ? (
+                  <span className="bf-sommaire-n">{e.compte}</span>
+                ) : null}
+              </a>
+            </li>
+          ))}
+        </ul>
+        <LegendeMarques />
+      </div>
     </nav>
   );
 }

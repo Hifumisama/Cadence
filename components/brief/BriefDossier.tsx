@@ -9,8 +9,9 @@ import { Icone } from "@/components/ui/Icone";
 import { decompterStatuts } from "@/lib/agents-affichage";
 import { SECTIONS_BRIEF, type StatutChamp, type VueBrief } from "@/lib/agents/types";
 import { EditeurBrief } from "./EditeurBrief";
+import { Marque } from "./Marque";
 import { Sommaire, type EntreeSommaire } from "./Sommaire";
-import { PROVENANCE, memeEdition, provenanceElement, provenanceSection, type Edition, type Provenance } from "./types";
+import { memeEdition, provenanceElement, provenanceSection, type Edition, type Provenance } from "./types";
 
 type Objet = Record<string, unknown>;
 
@@ -34,12 +35,9 @@ const ANCRES: Record<string, string> = {
 /** Listes d'objets éditées élément par élément (voir FORMULAIRES_LISTE). */
 const LISTES_OBJETS = ["episodes", "personnages", "lieux", "rimes", "progressions", "pieges"];
 
+/** La provenance d'un bloc : une petite marque à gauche du titre (voir Marque.tsx), expliquée par la légende du sommaire. */
 function Prov({ etat }: { etat: Provenance }) {
-  return (
-    <span className={`bf-prov is-${etat}`}>
-      <span aria-hidden="true">{PROVENANCE[etat].symbole}</span> {PROVENANCE[etat].libelle}
-    </span>
-  );
+  return <Marque etat={etat} />;
 }
 
 /** L'icône « modifier » d'un bloc, sans cadre : c'est le BLOC ENTIER qui est cliquable (le bouton s'étend à tout le
@@ -308,33 +306,17 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
                 <div className="bf-chiffres">
                   <div>
                     <span className="bf-pop">{nombres.fourni}</span>
-                    <span>sections fournies par toi</span>
+                    <span className="bf-chiffre-texte">
+                      <Marque etat="fourni" /> sections fournies par toi
+                    </span>
                   </div>
                   <div>
                     <span className="bf-pop is-neutre">{nombres.deduit}</span>
-                    <span>déduites par l&rsquo;agent</span>
+                    <span className="bf-chiffre-texte">
+                      <Marque etat="deduit" /> déduites par l&rsquo;agent
+                    </span>
                   </div>
                 </div>
-                <ul className="bf-legende">
-                  <li>
-                    <span aria-hidden="true" className="is-fourni">●</span>
-                    <span>
-                      <b>Fourni</b> : écrit ou corrigé par toi.
-                    </span>
-                  </li>
-                  <li>
-                    <span aria-hidden="true">○</span>
-                    <span>
-                      <b>Déduit</b> : tiré de ton pitch par l&rsquo;agent.
-                    </span>
-                  </li>
-                  <li>
-                    <span aria-hidden="true" className="is-confirmer">◇</span>
-                    <span>
-                      <b>À confirmer</b> : l&rsquo;agent n&rsquo;est pas sûr.
-                    </span>
-                  </li>
-                </ul>
                 <div className="bf-aside-actions">
                   <BoutonAgent
                     className="bf-btn bf-btn-or bf-btn-grand bf-press"

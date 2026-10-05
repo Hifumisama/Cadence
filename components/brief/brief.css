@@ -415,34 +415,6 @@
 .bf-pop.is-neutre {
   color: var(--ink);
 }
-.bf-legende {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: 13.5px;
-  color: var(--ink-2);
-}
-.bf-legende li {
-  display: flex;
-  gap: 10px;
-}
-.bf-legende li > span:first-child {
-  width: 14px;
-  color: var(--ink);
-}
-.bf-legende .is-fourni {
-  color: var(--or-glow);
-}
-.bf-legende .is-confirmer {
-  color: var(--ecarlate-glow);
-}
-.bf-legende b {
-  font-weight: 500;
-  color: var(--ink);
-}
 .bf-aside-actions {
   display: flex;
   flex-direction: column;
@@ -903,21 +875,24 @@
   transform: rotate(180deg);
 }
 .bf-sommaire ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bf-sommaire-panneau {
   display: none;
   position: absolute;
   left: 0;
   right: 0;
   top: 100%;
-  margin: 0;
-  padding: 6px var(--sp-3) 12px;
-  list-style: none;
+  padding: 6px var(--sp-3) 14px;
   max-height: calc(100dvh - 150px);
   overflow-y: auto;
   background: var(--surface);
   border-bottom: 1px solid var(--line-strong);
   box-shadow: 0 18px 30px -12px rgba(0, 0, 0, 0.7);
 }
-.bf-sommaire.is-ouvert ul {
+.bf-sommaire.is-ouvert .bf-sommaire-panneau {
   display: block;
 }
 .bf-sommaire-lien {
@@ -974,17 +949,20 @@
   .bf-sommaire-bouton {
     display: none;
   }
+  .bf-sommaire-panneau {
+    display: block;
+    position: static;
+    padding: 0;
+    max-height: calc(100dvh - 110px);
+    overflow-y: auto;
+    background: none;
+    border-bottom: 0;
+    box-shadow: none;
+  }
   .bf-sommaire ul {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    position: static;
-    padding: 0;
-    max-height: none;
-    overflow: visible;
-    background: none;
-    border-bottom: 0;
-    box-shadow: none;
   }
   .bf-sommaire-lien {
     min-height: 44px;
@@ -1166,4 +1144,68 @@ html:has(.bf-page) {
 
 .bf-page {
   overflow-x: clip;
+}
+
+/* ---- Marques de provenance (à gauche des titres) ----
+   Une FORME par état, pas seulement une couleur : disque plein = fourni (discret), anneau = déduit,
+   losange = à confirmer (le seul qui accroche l'œil). `order: -1` les place devant le titre dans les lignes flex. */
+.bf-marque {
+  order: -1;
+  flex: 0 0 auto;
+  display: inline-block;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  align-self: center;
+  margin-right: -3px;
+}
+.bf-marque.is-fourni {
+  border-radius: 50%;
+  background: var(--or);
+}
+.bf-marque.is-deduit {
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-3);
+}
+.bf-marque.is-confirmer {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ecarlate-glow);
+  transform: rotate(45deg);
+  margin-right: 0;
+}
+.bf-cle {
+  margin: 14px 0 0;
+  padding: 14px 4px 4px;
+  list-style: none;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.bf-cle li {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  column-gap: 10px;
+  align-items: start;
+}
+.bf-cle .bf-marque {
+  order: 0;
+  align-self: start;
+  margin: 0.4em 0 0;
+}
+.bf-cle .bf-marque.is-confirmer {
+  margin-top: 0.38em;
+}
+.bf-cle b {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.bf-chiffre-texte {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
