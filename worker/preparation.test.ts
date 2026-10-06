@@ -68,7 +68,7 @@ test("les autres skills : l'entrée stockée part telle quelle", async () => {
 
 // ── conversation d'entrée : la liste « reste à définir » ───────────────────────────────
 
-import { briefPretApresTour, resteADefinirDe } from "./agents/postTraitement";
+import { resteADefinirDe } from "./agents/postTraitement";
 
 test("resteADefinirDe : phrases courtes, sans vide ni doublon, plafonnées", () => {
   assert.deepEqual(resteADefinirDe({ resteADefinir: ["  Choisir le style ", "", "Choisir le style", 3, "Durée"] }), ["Choisir le style", "Durée"]);
@@ -76,18 +76,3 @@ test("resteADefinirDe : phrases courtes, sans vide ni doublon, plafonnées", () 
   assert.equal(resteADefinirDe({ resteADefinir: Array.from({ length: 30 }, (_, i) => `q${i}`) }).length, 12);
 });
 
-test("briefPretApresTour : « prêt » = de quoi écrire une première version, même s'il reste des questions", () => {
-  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [] }), true);
-  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: ["Le style"] }), true);
-  assert.equal(briefPretApresTour({ briefPret: false, resteADefinir: [] }), false);
-  assert.equal(briefPretApresTour({ briefPret: true }), true);
-  // Garde-fou : pas de briefing avant trois messages de l'utilisateur, quoi qu'en dise le modèle.
-  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [] }, 1), false);
-  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [] }, 2), false);
-  // …ni sans l'essentiel DIT par l'utilisateur (grille de couverture).
-  const dit = { coeur: "dit", basculementFin: "dit", ton: "dit", reglesMonde: "inconnu", personnagesLieux: "deduit", styleRythme: "dit", dureeForme: "dit" };
-  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [] }, 3), false); // pas de grille
-  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [], couverture: { ...dit, ton: "deduit" } }, 5), false);
-  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [], couverture: dit }, 3), true);
-  assert.equal(briefPretApresTour({ briefPret: false, resteADefinir: [], couverture: dit }, 5), false);
-});

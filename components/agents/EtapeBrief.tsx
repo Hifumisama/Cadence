@@ -1,6 +1,6 @@
 "use client";
 
-import { genererBrief, modifierChampBrief } from "@/app/agents/actions";
+import { modifierChampBrief } from "@/app/agents/actions";
 import { BriefSections } from "@/components/agents/BriefSections";
 import { BoutonCreerTout } from "@/components/agents/BoutonCreerTout";
 import type { ContexteEtape } from "@/components/agents/contexte";
@@ -85,9 +85,6 @@ export function EtapeBrief({ ctx }: { ctx: ContexteEtape }) {
             Répondre aux questions
           </button>
         ) : null}
-        <button type="button" className="btn btn-ghost" onClick={() => void ctx.lancer(() => genererBrief(conv.uuid))} disabled={occupe || actif} title="Réécrit le briefing à partir de toute la conversation">
-          Mettre à jour le briefing
-        </button>
         <BoutonCreerTout projectId={conv.projectId} libelle="Valider le briefing et créer le projet" desactive={occupe || actif} />
       </div>
     </div>

@@ -23,8 +23,8 @@
  *   const { conversationUuid } = await ouvrirConversation(projectId, "projet", null, "complete");
  *   await envoyerMessage(conversationUuid, "Un phare où le sel recouvre tout…"); // tâche « tour »
  *   // … lireConversation(conversationUuid).tache passe à "termine", messages gagne la réponse ;
- *   // briefPret = true → l'UI propose « Vers le briefing »
- *   await genererBrief(conversationUuid);                    // tâche « brief » → brouillon
+ *   // briefPret = true → la fiche de notes est complète : un BROUILLON de brief existe déjà, l'UI propose « Voir le briefing »
+ *   await genererBrief(conversationUuid);                    // fige la fiche en brouillon (immédiat), même incomplète
  *   // lireBrief(projectId) ; modifierChampBrief(projectId, "arc", "…") marque la section « fourni »
  *   const { propositionUuid } = await genererProposition(conversationUuid); // squelette : immédiat, sans LLM
  *   // lireProposition(propositionUuid) : groupes, compteurs, écrasements…
@@ -110,10 +110,10 @@ export async function reinitialiser(conversationUuid: string): Promise<Resultat>
 
 // --- Brief ------------------------------------------------------------------
 
-/** Profondeur complète : lance la génération du brief à partir de la conversation (tâche
- * `brief`, skill `brief-projet`). À la fin, un BROUILLON de brief existe (`lireBrief`) et
- * l'étape de la conversation passe à `brief`. Refusé si le projet a déjà un brief validé. */
-export async function genererBrief(conversationUuid: string): Promise<Resultat<{ runUuid: string }>> {
+/** Profondeur complète : fige la fiche de notes de la conversation en BROUILLON de brief (immédiat, aucun appel au modèle :
+ * la fiche se remplit déjà au fil de la conversation et devient seule le brouillon quand elle est complète) et passe l'étape de
+ * la conversation à `brief`. Sert à passer au briefing avant que la fiche soit complète. Refusé si le projet a déjà un brief validé. */
+export async function genererBrief(conversationUuid: string): Promise<Resultat> {
   return rafraichir(await service.genererBrief(conversationUuid));
 }
 

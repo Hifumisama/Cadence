@@ -4,8 +4,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join } from "node:path";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "../db";
-import { agentRuns, agentTraces, episodes, planPromptSections, plans, projects, scenes, seasons } from "../db/schema";
+import { agentConversations, agentRuns, agentTraces, episodes, planPromptSections, plans, projects, scenes, seasons } from "../db/schema";
 import * as s from "../lib/agents/service";
+import { lireFiche, manquesFiche } from "../lib/agents/fiche";
 import { lireBrief, lireConversation } from "../lib/queries-agents";
 import { ETAPES_CREATION, estFinale, type EtapeCreation } from "../lib/agents/creation";
 import { arreterCreation, lancerCreation, lireCreation, piloterCreations } from "../lib/agents/creation-db";
@@ -206,15 +207,16 @@ async function main(): Promise<number> {
       const m = await s.envoyerMessage(uuid, message);
       if (!m.ok) throw new Error(m.erreur);
       echanges++;
-      await attendreRun(pid, m.runUuid);
-      // Si l'agent a dit « prêt », le briefing s'écrit seul et bloque la conversation : un vrai utilisateur attend.
+      // Les notes (patch de la fiche), puis le tour de l'agent : la fiche complète devient seule le brouillon du briefing.
       await viderFile(pid);
       const conv = await lireConversation(uuid);
       if (!conv) throw new Error("Conversation perdue.");
       const dernier = conv.messages[conv.messages.length - 1];
       if (dernier?.role !== "assistant") throw new Error("L'agent n'a pas répondu (tour échoué).");
       log(`Agent : ${dernier.content.replace(/\s+/g, " ").slice(0, 240)} [prêt=${conv.briefPret}, reste=${conv.resteADefinir.length}]`);
-      if (conv.briefPret && conv.resteADefinir.length === 0) break;
+      const [ligne] = await db.select({ fiche: agentConversations.fiche }).from(agentConversations).where(eq(agentConversations.uuid, uuid));
+      log(`   Fiche : ${manquesFiche(lireFiche(ligne?.fiche)).length ? "manque " + manquesFiche(lireFiche(ligne?.fiche)).join(" ; ") : "complète"}`);
+      if (conv.briefPret) break; // la fiche est complète (décidé en code)
       if (echanges >= maxEchanges) {
         log(`Limite de ${maxEchanges} messages atteinte : on passe au briefing.`);
         break;
@@ -222,16 +224,13 @@ async function main(): Promise<number> {
       message = await repondreEnAuteur(fiche, conv.messages);
     }
 
-    // ── 2. Le briefing : la première version s'écrit seule ; on la met à jour si la conversation a continué ──
+    // ── 2. Le briefing : la fiche complète est déjà le brouillon ; on le réécrit seulement s'il n'est pas à jour ──
     await viderFile(pid);
-    const conv = await lireConversation(uuid);
-    const dernierMessage = [...(conv?.messages ?? [])].reverse().find((x) => x.role === "user")?.at ?? "";
     let brief = await lireBrief(pid);
-    if (!brief || brief.statut !== "brouillon" || brief.updatedAt < dernierMessage) {
-      log("Mise à jour du briefing à partir de toute la conversation…");
+    if (!brief || brief.statut !== "brouillon") {
+      log("Limite atteinte sans fiche complète : on fige la fiche telle quelle en brouillon (aucun appel au modèle).");
       const g = await s.genererBrief(uuid);
       if (!g.ok) throw new Error(g.erreur);
-      await attendreRun(pid, g.runUuid);
       brief = await lireBrief(pid);
     }
     const dureeCible = brief?.contenu.dureeEpisodeSecondes ?? null;

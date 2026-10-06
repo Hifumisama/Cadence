@@ -1,72 +1,82 @@
-/** Entrées LLM de la conversation d'entrée et de la rédaction du brief. Le brief, une fois une première version écrite, sert
- * de SUPPORT à l'itération : l'agent de conversation le lit pour creuser ce qui manque, et chaque réécriture du brief
- * part du brouillon courant plutôt que de zéro. Pur (utilisé par le service et par le worker). */
+/** Entrée LLM d'un tour de la conversation d'entrée. La FICHE DE NOTES (lib/agents/fiche.ts) est le support de la conversation :
+ * l'agent la lit pour creuser ce qui manque ; le brief de l'utilisateur en sort, sans appel de rédaction. Pur (utilisé par le
+ * service et par le worker). */
+
+import { REQUIS, fichePourAgent, suppositions, type Fiche } from "./fiche";
+import { SECTIONS_BRIEF } from "./types";
 
 export type MessageLlm = { role: "user" | "assistant"; content: string };
 
-/** Repère que les skills `conversation-agent` et `brief-projet` connaissent (voir leurs règles). */
-export const MARQUE_BRIEF_COURANT = "[Briefing actuel";
-export const MARQUE_COUVERTURE = "[Couverture de l'entretien";
+/** Repères que les skills connaissent (voir leurs règles). */
+export const MARQUE_FICHE = "[Fiche de notes";
 
-const CONSIGNE_PREMIERE_VERSION =
-  "Rédige maintenant le brief complet à partir de tout ce qui a été dit, sans poser de question : ce que je n'ai pas tranché est une invention (inventions) ou une question ouverte (questionsOuvertes). Remplis `statuts`.";
-
-const CONSIGNE_MISE_A_JOUR =
-  "Mets le briefing à jour à partir de tout ce qui a été dit, en partant du brouillon ci-dessous : garde ce qui est déjà tranché et que la conversation n'a pas remis en cause, corrige ce qui a changé, complète ce qui manquait, sans poser de question. Ce qui reste flou est une invention (inventions) ou une question ouverte (questionsOuvertes). Remplis `statuts`.";
-
-/** Sérialisation compacte du brouillon (JSON sur une ligne : le modèle le relit, il ne le recopie pas mot pour mot). */
-function brouillonEnTexte(brouillon: unknown): string {
-  return JSON.stringify(brouillon);
+/** Un modèle de chat veut une conversation qui COMMENCE par l'utilisateur ; or l'agent ouvre l'entretien (voir accroche.ts). */
+export function messagesPourLlm(messages: MessageLlm[]): MessageLlm[] {
+  return messages[0]?.role === "assistant" ? [{ role: "user", content: "Bonjour." }, ...messages] : messages;
 }
 
-/** Messages de l'appel `brief-projet` : la conversation, puis la consigne (et le brouillon courant s'il existe). */
-export function entreeBrief(messages: MessageLlm[], brouillon: unknown | null): MessageLlm[] {
-  return [
-    ...messages,
-    {
-      role: "user",
-      content: brouillon ? `${CONSIGNE_MISE_A_JOUR}\n\n${MARQUE_BRIEF_COURANT} (brouillon à mettre à jour)]\n${brouillonEnTexte(brouillon)}` : CONSIGNE_PREMIERE_VERSION,
-    },
-  ];
+/** Sérialisation compacte de la fiche (JSON sur une ligne : le modèle la relit, il ne la recopie pas mot pour mot). */
+const brouillonEnTexte = (o: unknown): string => JSON.stringify(o);
+
+/** Ce que le code dit à l'agent après avoir appliqué le dernier message à la fiche : ce qui reste à demander, ou « c'est complet ». */
+export type RappelFiche = { manques: string[]; complete: boolean };
+
+/** Messages d'un tour de `conversation-agent` : la conversation, avec, jointes au DERNIER message de l'utilisateur, les notes du
+ * code (la fiche telle qu'elle est après ce message, ce qui reste à demander). La conversation stockée n'est jamais modifiée :
+ * ce ne sont que des contextes de l'appel. Les manques sont un RAPPEL et non un questionnaire : l'agent mène librement. */
+export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelFiche): MessageLlm[] {
+  const tous = messagesPourLlm(messages);
+  const dernier = tous[tous.length - 1];
+  if (!dernier || dernier.role !== "user") return tous;
+  let contenu = `${dernier.content}\n\n${MARQUE_FICHE} (tenue par l'application d'après la conversation : ce que tu sais déjà)]\n${brouillonEnTexte(fichePourAgent(fiche))}`;
+  const tranches = REQUIS.filter((r) => fiche.statuts[r.cle] === "fourni" || fiche.statuts[r.cle] === "delegue").map((r) => r.libelle.replace(/ \(.*\)$/, ""));
+  const dejaDit = tranches.length ? ` Déjà tranché par l'utilisateur, à ne JAMAIS redemander : ${tranches.join(" ; ")}.` : "";
+  const propose = suppositions(fiche)
+    .filter((k) => ["style", "rythme", "genreTon", "dureeEpisodeSecondes", "langueDialogues"].includes(k))
+    .map((k) => `${k === "style" ? "style visuel" : libelleSection(k)} : ${resume(fiche.contenu[k])}`);
+  const dejaPropose = propose.length ? ` Déjà proposé dans la conversation et non contesté (ne le redemande pas : s'il y a lieu, fais-le confirmer d'un mot, en passant) : ${propose.join(" ; ")}.` : "";
+  const interdit = "Ne dis jamais que le briefing est prêt ni que l'entretien est fini, et ne propose jamais de passer à la suite : l'application l'annonce elle-même.";
+  if (rappel.complete) {
+    const supposees = suppositions(fiche).map(libelleSection);
+    contenu += `
+
+[État de l'entretien : la fiche est complète et l'utilisateur continue à l'affiner.${supposees.length ? ` Ce qui reste supposé : ${supposees.join(", ")}.` : ""} Creuse un point mince ou supposé avec une question de fond, ou prends en compte ce qu'il vient de préciser. ${interdit}]`;
+  } else {
+    contenu += `
+
+[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Une seule question de fond par message ; les points pratiques se regroupent.${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas. ${interdit}]`;
+  }
+  return [...tous.slice(0, -1), { role: "user", content: contenu }];
 }
 
-type BriefPourMessage = {
-  titre?: string;
-  arc?: string;
-  dureeEpisodeSecondes?: number;
-  rythme?: string;
-  personnages?: { nom?: string }[];
-  inventions?: string[];
+const resume = (v: unknown): string => {
+  const t = typeof v === "string" ? v : v && typeof v === "object" && typeof (v as { nom?: unknown }).nom === "string" ? (v as { nom: string }).nom : JSON.stringify(v);
+  return t.length > 80 ? `${t.slice(0, 80)}…` : t;
 };
 
-/** Le message qui rend la main après l'écriture de la première version du briefing : ce que l'agent a compris et, surtout,
- * ce qu'il a INVENTÉ (c'est là que l'utilisateur corrige), puis ce qu'il lui reste à savoir. Écrit en code, sans appel LLM. */
-export function messageBriefRedige(brief: BriefPourMessage, resteADefinir: string[]): string {
-  const l: string[] = [];
-  l.push(`J'ai rédigé une première version du briefing${brief.titre ? ` : « ${brief.titre} »` : ""}.`);
-  if (brief.arc) l.push(`L'arc, tel que je l'ai compris : ${brief.arc.trim()}`);
-  const noms = (brief.personnages ?? []).map((p) => p.nom).filter((n): n is string => !!n);
-  if (noms.length) l.push(`Personnages : ${noms.join(", ")}.`);
-  if (brief.dureeEpisodeSecondes) l.push(`Durée visée : ${brief.dureeEpisodeSecondes} s${brief.rythme ? `, rythme ${brief.rythme}` : ""}.`);
-  const inventions = (brief.inventions ?? []).filter(Boolean).slice(0, 4);
-  if (inventions.length) l.push(`Ce que j'ai inventé, à garder ou jeter : ${inventions.join(" ; ")}.`);
-  l.push(
-    resteADefinir.length
-      ? `Je m'appuie dessus pour la suite : il me reste ${resteADefinir.length} point${resteADefinir.length > 1 ? "s" : ""} à creuser avec toi. Dis-moi d'abord ce qui sonne faux.`
-      : "Dis-moi ce qui sonne faux, ou ce qui manque, avant que je le fige.",
-  );
-  return l.join("\n\n");
-}
+const libelleSection = (cle: string): string => (SECTIONS_BRIEF.find((x) => x.cle === cle)?.libelle ?? cle).replace(/ \(.*\)$/, "").toLowerCase();
 
-/** Messages d'un tour de `conversation-agent` : la conversation, avec le briefing courant (s'il existe) joint au DERNIER
- * message de l'utilisateur. La conversation stockée n'est jamais modifiée : le brief n'est qu'un contexte de l'appel. */
-export function entreeTour(messages: MessageLlm[], brouillon: unknown | null, manques: string[] = []): MessageLlm[] {
-  if ((!brouillon && manques.length === 0) || messages.length === 0) return messages;
-  const dernier = messages[messages.length - 1]!;
-  if (dernier.role !== "user") return messages;
-  let contenu = dernier.content;
-  // Ce que la grille de couverture du tour précédent a laissé « non dit » : le code le rappelle, c'est la prochaine question.
-  if (manques.length) contenu += `\n\n${MARQUE_COUVERTURE} : l'utilisateur n'a pas encore DIT : ${manques.join(" ; ")}. Ne déclare pas le briefing prêt avant, et ta prochaine question en porte un.]`;
-  if (brouillon) contenu += `\n\n${MARQUE_BRIEF_COURANT} (rédigé à partir de la conversation, à creuser et à faire évoluer)]\n${brouillonEnTexte(brouillon)}`;
-  return [...messages.slice(0, -1), { role: "user", content: contenu }];
+/** Le message que le CODE poste quand la fiche devient complète : un résumé du briefing, ce qui a été supposé, et la main à
+ * l'utilisateur (affiner, ou passer à l'étape suivante par le bouton). Il n'est jamais écrit par le modèle : seul le code sait que
+ * la fiche est complète, et l'agent ne peut donc pas l'annoncer à tort. */
+export function messageBriefPret(fiche: Fiche): string {
+  const c = fiche.contenu as Record<string, unknown>;
+  const texte = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const l: string[] = ["Le briefing est prêt."];
+  const titre = texte(c.titre);
+  const arc = texte(c.arc);
+  if (titre || arc) l.push(`${titre ? `« ${titre} » : ` : ""}${arc}`.trim());
+  const style = (c.style as { nom?: unknown } | undefined)?.nom;
+  const fiches: string[] = [];
+  if (texte(c.genreTon)) fiches.push(`ton ${texte(c.genreTon).replace(/[.\s]+$/, "")}`);
+  if (texte(style)) fiches.push(`style ${texte(style)}`);
+  if (typeof c.dureeEpisodeSecondes === "number") fiches.push(`durée visée ${c.dureeEpisodeSecondes} s`);
+  if (texte(c.rythme)) fiches.push(`rythme ${texte(c.rythme)}`);
+  if (fiches.length) l.push(fiches.join(" · ") + ".");
+  const noms = (Array.isArray(c.personnages) ? c.personnages : []).map((p) => texte((p as { nom?: unknown }).nom)).filter(Boolean);
+  if (noms.length) l.push(`Personnages : ${noms.join(", ")}.`);
+  const supposees = suppositions(fiche).map(libelleSection);
+  if (supposees.length) l.push(`Ce que j'ai supposé, à garder ou à jeter : ${supposees.join(", ")}.`);
+  l.push("Veux-tu encore affiner d'autres points ? Sinon, passe à l'étape suivante avec le bouton.");
+  return l.join("\n\n");
 }

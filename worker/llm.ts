@@ -115,6 +115,8 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
     const res = await executer(run.skill, prep.entree, {
       projectId: run.projectId,
       modele: options.modele,
+      // Les notes de l'entretien classent et citent : peu d'aléa, pour qu'un même message donne la même fiche.
+      temperature: run.skill === "notes-entretien" ? 0.1 : undefined,
       variante: options.variante,
       // Une mise à jour d'un brief repart d'un brouillon : la réflexion n'a servi qu'à la première version.
       corps: options.sansReflexion ? CORPS_SANS_REFLEXION : undefined,

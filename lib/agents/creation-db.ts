@@ -226,7 +226,10 @@ async function lancerEtape(projectId: number, cle: CleEtapeCreation, convUuid: s
   switch (cle) {
     case "brief":
       if (brief && brief.statut !== "partiel") return passe("Brief déjà écrit.");
-      return issue(await service.genererBrief(convUuid));
+      {
+        const r = await service.genererBrief(convUuid); // fige la fiche de notes en brouillon : immédiat, sans modèle
+        return r.ok ? passe("Brief écrit depuis la fiche de notes.") : issue(r);
+      }
     case "squelette":
       if (brief?.statut === "valide") return passe("Structure déjà appliquée.");
       return issue(await service.genererProposition(convUuid));

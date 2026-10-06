@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { briefs, projects } from "../../db/schema";
-import { briefVide, clauseDuBrief, notesDuBrief, residuPartiel } from "./brief";
+import { briefVide, clauseDuBrief, fusionnerPartielDansBrouillon, notesDuBrief, residuPartiel } from "./brief";
 import type { Db } from "./applicateurs/commun";
 import type { BriefContenu, StatutChamp } from "./types";
 
@@ -48,4 +48,24 @@ export async function creerBriefPartiel(db: Db, projectId: number): Promise<void
     .insert(briefs)
     .values({ projectId, statut: "partiel", source: "reconstitue", contenu: briefVide(projet?.nom ?? ""), statuts: {} })
     .onConflictDoNothing();
+}
+
+/** Écrit le BROUILLON du brief d'un projet (jamais par-dessus un brief validé). Un brief partiel (style, notes… posés à la main) :
+ * ce que l'utilisateur a posé gagne sur ce que l'agent a rédigé. Sert à la rédaction du brief (`brief-projet`) comme à la fiche de
+ * notes de l'entretien, qui devient le brouillon dès qu'elle est complète. */
+export async function ecrireBrouillon(db: Db, projectId: number, genere: { contenu: BriefContenu; statuts: Record<string, StatutChamp> }): Promise<void> {
+  const [existant] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
+  if (existant?.statut === "valide") throw new Error("Le projet a déjà un brief validé : le brouillon n'a pas été écrit par-dessus.");
+  const { contenu, statuts } =
+    existant?.statut === "partiel"
+      ? fusionnerPartielDansBrouillon(genere, { contenu: existant.contenu as BriefContenu, statuts: existant.statuts as Record<string, StatutChamp> })
+      : genere;
+  if (existant) {
+    await db
+      .update(briefs)
+      .set({ statut: "brouillon", source: "conversation", contenu, statuts, version: existant.version + 1, updatedAt: new Date() })
+      .where(eq(briefs.id, existant.id));
+  } else {
+    await db.insert(briefs).values({ projectId, statut: "brouillon", source: "conversation", contenu, statuts });
+  }
 }

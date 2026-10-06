@@ -303,7 +303,7 @@ export async function apercuContexte(projectId: number, portee: Portee, cible: C
   return apercuContexteDe(db, projectId, portee, r.cibleId);
 }
 
-const SORTIE_ESTIMEE: Record<string, number> = { "brief-projet": 2500, "scenario-episode": 1800, "prompt-asset": 500, "prompt-voix": 400, "conversation-agent": 600, "plan-h3": 2500, "iteration-plan": 900 };
+const SORTIE_ESTIMEE: Record<string, number> = { "scenario-episode": 1800, "prompt-asset": 500, "prompt-voix": 400, "conversation-agent": 600, "plan-h3": 2500, "iteration-plan": 900 };
 
 /** Estimation avant lancement : fournisseur, modèle, coût (null en local), durée, tâches
  * devant dans la file. Ordres de grandeur (≈ 30 jetons/s en sortie sur le serveur local,
@@ -313,7 +313,7 @@ export async function estimerGeneration(conversationUuid: string): Promise<Estim
   if (!c) return null;
   let skill: string | null = null;
   let variante: string | undefined;
-  if (c.profondeur === "complete") skill = c.etape === "conversation" ? (c.briefPret ? "brief-projet" : "conversation-agent") : null;
+  if (c.profondeur === "complete") skill = c.etape === "conversation" ? "conversation-agent" : null;
   else if (c.portee === "asset") skill = "prompt-asset";
   else if (c.portee === "episode" || c.portee === "plan") skill = "scenario-episode";
   if (skill === "prompt-asset" && c.cibleId != null) {

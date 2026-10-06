@@ -19,9 +19,10 @@ import {
 import { chargerSkill } from "../llm/skills";
 import { valider } from "../llm/validation";
 import { estCleSection, sousSchemaSection } from "./brief";
-import { abandonnerBrouillon, creerBriefPartiel, synchroniserClauseStyle } from "./brief-db";
-import { MARQUE_BRIEF_COURANT, entreeBrief, entreeTour } from "./brief-entree";
-import { lireCouverture, manquesEssentiels } from "./couverture";
+import { abandonnerBrouillon, creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
+import { accrocheEntretien } from "./accroche";
+import { entreeNotes, ficheVersBrief } from "./fiche";
+import { ficheCourante } from "./fiche-db";
 import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversation, Portee, Position, Profondeur, Resultat, StatutChamp } from "./types";
 import { PORTEES } from "./types";
 import { controleDuree } from "./applicateurs/plan";
@@ -58,13 +59,6 @@ async function refusSiTacheActive(conversationId: number, message: string, buts?
   return { ok: false as const, erreur: `${message} Tâche en cause : ${quoi}.`, bloquante: t as TacheBloquante };
 }
 const MAX_MESSAGE = 20_000;
-
-/** Contenu du brouillon de brief sorti de la conversation (le support de l'itération), ou null. Un brief partiel (style,
- * notes posés à la main) ou validé n'en est pas un. */
-async function contenuBriefBrouillon(projectId: number): Promise<unknown | null> {
-  const [b] = await db.select({ statut: briefs.statut, contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
-  return b?.statut === "brouillon" ? b.contenu : null;
-}
 
 // --- cibles -----------------------------------------------------------------
 
@@ -120,6 +114,8 @@ export async function libelleCible(projectId: number, portee: Portee, cibleId: n
 // --- conversation -----------------------------------------------------------
 
 const etapeInitiale = (p: Profondeur) => (p === "complete" ? "conversation" : "consigne");
+/** L'agent ouvre l'entretien d'entrée (conversation complète) : trois pistes très différentes pour qui n'a pas d'idée (accroche.ts). */
+const messagesInitiaux = (p: Profondeur): MessageConversation[] => (p === "complete" ? [{ role: "assistant", content: accrocheEntretien(), at: new Date().toISOString() }] : []);
 const profondeurParDefaut = (portee: Portee): Profondeur => (portee === "projet" ? "complete" : "courte");
 
 type ConversationRow = typeof agentConversations.$inferSelect;
@@ -171,7 +167,7 @@ export async function ouvrirConversation(projectId: number, portee: Portee, cibl
   const p = profondeur ?? profondeurParDefaut(portee);
   const [c] = await db
     .insert(agentConversations)
-    .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p) })
+    .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p), messages: messagesInitiaux(p) })
     .onConflictDoNothing()
     .returning({ uuid: agentConversations.uuid });
   if (c) return { ok: true, conversationUuid: c.uuid, reprise: false };
@@ -191,7 +187,7 @@ export async function nouvelleConversation(projectId: number, portee: Portee, ci
   const p = profondeur ?? existante?.profondeur ?? profondeurParDefaut(portee);
   const [c] = await db
     .insert(agentConversations)
-    .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p as Profondeur) })
+    .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p as Profondeur), messages: messagesInitiaux(p as Profondeur) })
     .returning({ uuid: agentConversations.uuid });
   return { ok: true, conversationUuid: c!.uuid };
 }
@@ -203,7 +199,7 @@ export async function reinitialiser(conversationUuid: string): Promise<Resultat>
   if (conv.portee === "projet") await db.delete(briefs).where(and(eq(briefs.projectId, conv.projectId), eq(briefs.statut, "brouillon")));
   await db
     .update(agentConversations)
-    .set({ messages: [], consigne: "", briefPret: false, resteADefinir: [], couverture: null, propositionId: null, etape: etapeInitiale(conv.profondeur as Profondeur), updatedAt: new Date() })
+    .set({ messages: messagesInitiaux(conv.profondeur as Profondeur), consigne: "", briefPret: false, resteADefinir: [], fiche: null, propositionId: null, etape: etapeInitiale(conv.profondeur as Profondeur), updatedAt: new Date() })
     .where(eq(agentConversations.id, conv.id));
   return { ok: true };
 }
@@ -218,13 +214,14 @@ export async function envoyerMessage(conversationUuid: string, texte: string): P
   // Un tour OU l'écriture du briefing (la première version part seule, et vaut qu'on l'attende) bloquent l'envoi.
   { const refus = await refusSiTacheActive(conv.id, "L'agent est déjà en train de répondre : attends sa réponse.", ["tour", "brief"]); if (refus) return refus; }
 
-  const brouillon = await contenuBriefBrouillon(conv.projectId);
   const messages = [...((conv.messages as MessageConversation[]) ?? []), { role: "user" as const, content: message, at: new Date().toISOString() }];
   const run = await db.transaction(async (tx) => {
     await tx.update(agentConversations).set({ messages, briefPret: false, etape: "conversation", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
+    // D'abord les notes (un appel court qui rend un patch de la fiche) : à son retour, le worker applique le patch et pose le tour
+    // de l'agent, avec la fiche à jour et ce qui reste à demander (worker/agents/postTraitement.ts, postNotes).
     return creerRun(tx, {
-      skill: "conversation-agent",
-      entree: entreeTour(messages.map((m) => ({ role: m.role, content: m.content })), brouillon, conv.couverture ? manquesEssentiels(lireCouverture(conv.couverture)) : []),
+      skill: "notes-entretien",
+      entree: entreeNotes(messages.map((m) => ({ role: m.role, content: m.content })), await ficheCourante(tx, conv)),
       but: "tour",
       projectId: conv.projectId,
       conversationId: conv.id,
@@ -235,7 +232,7 @@ export async function envoyerMessage(conversationUuid: string, texte: string): P
 
 // --- brief ------------------------------------------------------------------
 
-export async function genererBrief(conversationUuid: string): Promise<Resultat<{ runUuid: string }>> {
+export async function genererBrief(conversationUuid: string): Promise<Resultat> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   if (conv.profondeur !== "complete") return ERR("Le brief ne se génère que dans une conversation complète.");
@@ -245,13 +242,15 @@ export async function genererBrief(conversationUuid: string): Promise<Resultat<{
   if (existant?.statut === "valide") return ERR("Ce projet a déjà un brief validé : modifie-le section par section.");
   { const refus = await refusSiTacheActive(conv.id, "Une réponse de l'agent est déjà en cours.", ["tour", "brief"]); if (refus) return refus; }
 
-  // Un brouillon déjà écrit sert de point de départ : on le met à jour, on ne repart pas de zéro.
-  const entree = entreeBrief(messages.map((m) => ({ role: m.role, content: m.content })), await contenuBriefBrouillon(conv.projectId));
-  // La première version se réfléchit ; une mise à jour repart du brouillon, sans réflexion (rapide).
-  const brouillonExiste = (entree[entree.length - 1]?.content ?? "").includes(MARQUE_BRIEF_COURANT);
-  const run = await creerRun(db, { skill: "brief-projet", entree, but: "brief", projectId: conv.projectId, conversationId: conv.id, options: brouillonExiste ? { sansReflexion: true } : null });
-  await db.update(agentConversations).set({ updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
-  return { ok: true, runUuid: run.uuid };
+  // Aucun appel au modèle : le brief se remplit au fil de la conversation (la fiche de notes). « Passer au briefing » ne fait que
+  // figer la fiche telle qu'elle est en brouillon, même incomplète (ce que l'utilisateur n'a pas dit reste « déduit » ou vide).
+  const [projet] = await db.select({ nom: projects.nom }).from(projects).where(eq(projects.id, conv.projectId));
+  const genere = ficheVersBrief(await ficheCourante(db, conv), projet?.nom ?? "");
+  await db.transaction(async (tx) => {
+    await ecrireBrouillon(tx, conv.projectId, { contenu: genere.contenu, statuts: genere.statuts as Record<string, StatutChamp> });
+    await tx.update(agentConversations).set({ etape: "brief", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
+  });
+  return { ok: true };
 }
 
 /** Abandonne le brouillon de brief et revient à l'étape conversation (conversation conservée). Un

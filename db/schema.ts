@@ -686,13 +686,13 @@ export const agentConversations = pgTable("agent_conversations", {
   // [{ role: "user" | "assistant", content, at }] — les tours de la conversation.
   messages: jsonb("messages").notNull().default(sql`'[]'::jsonb`),
   consigne: text("consigne").notNull().default(""),
-  // L'agent estime avoir de quoi écrire le brief (dernier tour).
+  // La fiche de notes est complète (décidé en code, lib/agents/fiche.ts) : l'utilisateur peut passer au briefing.
   briefPret: boolean("brief_pret").notNull().default(false),
   // Ce qu'il reste à définir avec l'utilisateur (liste de phrases courtes, remise à jour par l'agent à chaque tour) ;
   // `briefPret` n'est vrai que lorsqu'elle est vide.
   resteADefinir: jsonb("reste_a_definir").notNull().default(sql`'[]'::jsonb`),
-  // Grille de couverture du dernier tour (lib/agents/couverture.ts) : ce que l'utilisateur a réellement dit.
-  couverture: jsonb("couverture"),
+  // La fiche de notes de l'entretien (lib/agents/fiche.ts) : le brief en train de se remplir, { contenu, statuts }, tenue par le code.
+  fiche: jsonb("fiche"),
   propositionId: integer("proposition_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

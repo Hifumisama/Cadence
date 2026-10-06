@@ -1,0 +1,74 @@
+{
+  "fiche": "Self made man",
+  "date": "2026-10-06T19:17:42.908Z",
+  "git": {
+    "sha": "f81685f",
+    "modifie": true
+  },
+  "modeles": [
+    "gemma-4-26B-A4B.gguf"
+  ],
+  "echangesUtilisateur": 8,
+  "empreintesSkills": {
+    "notes-entretien": "5e85925625",
+    "conversation-agent": "7dcf68e90f",
+    "brief-projet": "085b46f8de",
+    "scenario-episode": "ef99fbcdb8"
+  },
+  "dureeRejeuSecondes": 268,
+  "etapeAtteinte": "scenarios",
+  "episodes": [
+    {
+      "titre": "Ép. 1 · L'acte maladroit",
+      "cibleSecondes": 180,
+      "totalSecondes": 150,
+      "ecartPct": -17,
+      "nbPlans": 10,
+      "moyenneSecondes": 15,
+      "minSecondes": 15,
+      "maxSecondes": 15,
+      "sousCinq": 0,
+      "fusionnables": 0,
+      "repetitions": []
+    }
+  ],
+  "fiches": null,
+  "appels": [
+    {
+      "skill": "notes-entretien",
+      "n": 8,
+      "tokensEntree": 35893,
+      "tokensSortie": 2188,
+      "secondesMoyennes": 6,
+      "renvois": 0,
+      "pasOk": 0
+    },
+    {
+      "skill": "conversation-agent",
+      "n": 8,
+      "tokensEntree": 33792,
+      "tokensSortie": 841,
+      "secondesMoyennes": 5,
+      "renvois": 0,
+      "pasOk": 0
+    },
+    {
+      "skill": "brief-projet",
+      "n": 1,
+      "tokensEntree": 5257,
+      "tokensSortie": 2510,
+      "secondesMoyennes": 50,
+      "renvois": 0,
+      "pasOk": 0
+    },
+    {
+      "skill": "scenario-episode",
+      "n": 1,
+      "tokensEntree": 5229,
+      "tokensSortie": 6190,
+      "secondesMoyennes": 118,
+      "renvois": 0,
+      "pasOk": 0
+    }
+  ]
+}

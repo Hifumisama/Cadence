@@ -70,14 +70,21 @@ let echouerEpisode: string | null = null;
 
 const faux = (async (skill: string, entree: unknown, options?: { controler?: (json: unknown) => string[] }) => {
   let json: unknown;
-  if (skill === "conversation-agent") {
+  if (skill === "notes-entretien") {
+    // Les notes : un PATCH de la fiche avec les citations qui le prouvent. Les citations sont de vraies phrases des messages envoyés
+    // plus bas (le code les vérifie). Message 1 : l'arc ; message 2 : le style et le héros ; message 3 : ton, durée, rythme et fin.
+    const n = (entree as { conversation: { qui: string }[] }).conversation.filter((m) => m.qui === "utilisateur").length;
+    const patch: Record<number, unknown> = {
+      1: { analyse: "Un phare couvert de sel.", modifications: { arc: BRIEF.arc, titre: BRIEF.titre, episodes: BRIEF.episodes, lieux: BRIEF.lieux, langueDialogues: BRIEF.langueDialogues, personnages: BRIEF.personnages }, sources: [{ section: "arc", origine: "dit", citation: "phare où le sel recouvre tout" }, { section: "titre", origine: "invente", citation: "" }, { section: "personnages", origine: "invente", citation: "" }] },
+      2: { analyse: "Style et héroïne.", modifications: { style: BRIEF.style, personnages: BRIEF.personnages }, sources: [{ section: "style", origine: "dit", citation: "live-action" }, { section: "personnages", origine: "dit", citation: "une gardienne de trente ans" }] },
+      3: { analyse: "Ton, durée, rythme, fin.", modifications: { genreTon: BRIEF.genreTon, dureeEpisodeSecondes: 90, rythme: "soutenu" }, sources: [{ section: "genreTon", origine: "dit", citation: "Ton mystérieux" }, { section: "dureeEpisodeSecondes", origine: "dit", citation: "90 secondes" }, { section: "rythme", origine: "dit", citation: "rythme soutenu" }, { section: "fin", origine: "dit", citation: "Ça finit en silence" }] },
+    };
+    json = patch[n] ?? { analyse: "Rien de nouveau.", modifications: {}, sources: [] };
+  } else if (skill === "conversation-agent") {
     tours += 1;
-    // Le 2ᵉ tour dit « prêt » trop tôt (il manque un message et le ton) : le code le refuse ; le 3ᵉ a tout.
-    const complet = tours >= 3;
     json = {
-      reponse: tours === 1 ? "Voici mon arc en deux phrases… Style : live-action ?" : "Parfait, le briefing peut être généré.",
-      briefPret: tours >= 2,
-      couverture: { coeur: "dit", basculementFin: "dit", ton: complet ? "dit" : "deduit", reglesMonde: "inconnu", personnagesLieux: "deduit", styleRythme: "dit", dureeForme: complet ? "dit" : "inconnu" },
+      reponse: tours === 1 ? "Voici mon arc en deux phrases… Style : live-action ?" : "Parfait, j'ai de quoi écrire une première version du briefing.",
+      reflexion: "r",
       resteADefinir: tours === 1 ? ["Choisir le style visuel"] : [],
     };
   } else if (skill === "brief-projet") json = BRIEF;
@@ -194,6 +201,21 @@ const faussePlanche = (dureeSecondes: number) => async (): Promise<Planche> => (
   vignettes: Array.from({ length: Math.floor(dureeSecondes) }, (_, i) => ({ instantSecondes: i, imageBase64: Buffer.from(`vignette ${i}`).toString("base64") })),
 });
 
+/** Un message de l'utilisateur pose d'abord les notes (patch de la fiche) ; à leur retour, le worker pose le tour de l'agent :
+ * on traite les deux, et on rend le tour de l'agent. */
+async function traiterTour(conversationUuid: string, runUuid: string | null) {
+  const notes = await traiter(runUuid);
+  const conv = await s.conversationParUuid(conversationUuid);
+  const [tour] = await db
+    .select()
+    .from(agentRuns)
+    .where(and(eq(agentRuns.conversationId, conv!.id), eq(agentRuns.skill, "conversation-agent"), eq(agentRuns.statut, "en_attente")))
+    .orderBy(sql`${agentRuns.id} desc`)
+    .limit(1);
+  // Fiche devenue complète : le code poste lui-même le message de fin d'entretien, sans tour de l'agent.
+  return tour ? traiter(tour.uuid) : notes;
+}
+
 async function traiter(runUuid: string | null) {
   if (!runUuid) throw new Error("Pas de tâche à traiter.");
   const [run] = await db.select().from(agentRuns).where(eq(agentRuns.uuid, runUuid));
@@ -218,34 +240,31 @@ async function main() {
     const m1 = await s.envoyerMessage(uuid, "Un phare où le sel recouvre tout.");
     ok(m1.ok, "premier message envoyé (tâche posée)");
     ok(!(await s.envoyerMessage(uuid, "Autre chose ?")).ok, "un second tour est refusé tant que le premier tourne");
-    const r1 = await traiter(m1.ok ? m1.runUuid : null);
+    const r1 = await traiterTour(uuid, m1.ok ? m1.runUuid : null);
     ok(r1.statut === "termine", "le worker traite le tour");
     let conv = await lireConversation(uuid);
-    ok(conv?.messages.length === 2 && conv.messages[1]!.role === "assistant" && conv.briefPret === false, "la réponse de l'agent rejoint la conversation, brief pas prêt");
-    const m2 = await s.envoyerMessage(uuid, "Oui, live-action.");
-    await traiter(m2.ok ? m2.runUuid : null);
+    let brief0: Awaited<ReturnType<typeof lireBrief>> = null;
+    ok(conv?.messages.length === 3 && conv.messages[0]!.role === "assistant" && conv.messages[2]!.role === "assistant" && conv.briefPret === false, "l'agent ouvre la conversation ; sa réponse au premier message la rejoint, brief pas prêt");
+    const m2 = await s.envoyerMessage(uuid, "Oui, live-action, une gardienne de trente ans.");
+    await traiterTour(uuid, m2.ok ? m2.runUuid : null);
     conv = await lireConversation(uuid);
-    ok(conv?.briefPret === false && conv.messages.length === 4, "deuxième tour : l'agent dit « prêt » trop tôt (2 messages, ton et durée non dits) : le code le refuse");
+    ok(conv?.briefPret === false && conv.messages.length === 5, "deuxième tour : ton et durée pas dits : le code ne déclare pas le briefing prêt");
     ok(conv?.resteADefinir.some((x) => /ton et le genre/.test(x)) === true && conv.resteADefinir.some((x) => /durée/.test(x)), "…et la liste « reste à définir » dit ce qui manque");
-    const m3 = await s.envoyerMessage(uuid, "Ton mystérieux, 90 secondes, rythme soutenu.");
-    await traiter(m3.ok ? m3.runUuid : null);
+    const m3 = await s.envoyerMessage(uuid, "Ton mystérieux, 90 secondes, rythme soutenu. Ça finit en silence.");
+    await traiterTour(uuid, m3.ok ? m3.runUuid : null);
     conv = await lireConversation(uuid);
-    ok(conv?.briefPret === true && conv.messages.length === 6, "troisième tour : trois messages et l'essentiel dit, le brief est prêt");
-    // Première version : elle s'écrit TOUTE SEULE (tâche posée par le tour), bloque la conversation, et rend la main par un message.
-    const [auto] = await db.select().from(agentRuns).where(and(eq(agentRuns.conversationId, (await db.select({ id: agentConversations.id }).from(agentConversations).where(eq(agentConversations.uuid, uuid)))[0]!.id), eq(agentRuns.but, "brief"), eq(agentRuns.statut, "en_attente")));
-    ok(!!auto, "la première version du briefing est posée toute seule dans la file");
-    ok(!(await s.envoyerMessage(uuid, "Et aussi ?")).ok, "…et elle bloque la conversation le temps de son écriture");
-    await traiter(auto?.uuid ?? null);
-    conv = await lireConversation(uuid);
-    ok(conv?.etape === "conversation" && conv.messages.length === 7 && conv.messages[6]!.role === "assistant" && /première version du briefing/.test(conv.messages[6]!.content), "le briefing s'écrit en restant dans la conversation, et l'agent rend la main par un message");
-    ok((await lireBrief(p1!.id))?.statut === "brouillon", "un brouillon de brief existe sans clic");
+    ok(conv?.briefPret === true && conv.messages.length === 7, "troisième tour : l'essentiel est dit, la fiche est complète : le brief est prêt");
+    ok(conv?.messages[6]?.role === "assistant" && /^Le briefing est prêt\./.test(conv.messages[6].content) && /Veux-tu encore affiner/.test(conv.messages[6].content) && /Iris/.test(conv.messages[6].content), "…et c'est le CODE qui l'annonce (résumé, personnages, main à l'utilisateur), sans tour de l'agent");
+    // La fiche complète devient le brouillon du brief, sans appel de rédaction ni blocage de la conversation.
+    brief0 = await lireBrief(p1!.id);
+    ok(brief0?.statut === "brouillon" && brief0.contenu.titre === BRIEF.titre && brief0.contenu.dureeEpisodeSecondes === 90, "la fiche complète devient le brouillon du brief, sans appel de rédaction");
+    ok(brief0?.sections.find((x) => x.cle === "genreTon")?.statut === "fourni" && brief0.sections.find((x) => x.cle === "titre")?.statut === "deduit", "ce que l'utilisateur a dit est « fourni », ce que l'agent a posé est « déduit »");
+    const [tourEnCours] = await db.select().from(agentRuns).where(and(eq(agentRuns.conversationId, (await db.select({ id: agentConversations.id }).from(agentConversations).where(eq(agentConversations.uuid, uuid)))[0]!.id), inArray(agentRuns.statut, ["en_attente", "en_cours"])));
+    ok(!tourEnCours, "aucune tâche ne bloque la conversation : on peut continuer à discuter ou passer à la suite");
 
-    const gb = await s.genererBrief(uuid);
-    const rb = await traiter(gb.ok ? gb.runUuid : null);
-    ok(rb.statut === "termine", "le brief est généré");
     let brief = await lireBrief(p1!.id);
     ok(brief?.statut === "brouillon" && brief.contenu.titre === BRIEF.titre, "un BROUILLON de brief existe");
-    ok(brief?.sections.find((x) => x.cle === "arc")?.statut === "fourni" && brief.sections.find((x) => x.cle === "style")?.statut === "deduit", "les statuts déclarés sont conservés (« à valider » vaut « déduit » : plus de point à valider)");
+    ok(brief?.sections.find((x) => x.cle === "arc")?.statut === "fourni" && brief.sections.find((x) => x.cle === "lieux")?.statut === "deduit", "les statuts suivent la fiche : ce que l'utilisateur a dit est « fourni », le reste « déduit »");
     ok(!("statuts" in (brief?.contenu ?? {})), "les statuts ne polluent pas le contenu du brief");
     ok((await s.modifierChampBrief(p1!.id, "titre", "TEST Le Phare de Sel 2")).ok, "correction à la main d'une section");
     ok(!(await s.modifierChampBrief(p1!.id, "dureeEpisodeSecondes", "abc")).ok, "une valeur hors schéma est refusée");
@@ -257,8 +276,7 @@ async function main() {
     ok((await s.rejeterBrief(uuid)).ok && (await lireBrief(p1!.id)) === null, "rejeterBrief : brouillon abandonné");
     conv = await lireConversation(uuid);
     ok(conv?.etape === "conversation" && conv.messages.length === 7, "…conversation conservée, retour à l'étape conversation");
-    const gb2 = await s.genererBrief(uuid);
-    await traiter(gb2.ok ? gb2.runUuid : null);
+    ok((await s.genererBrief(uuid)).ok && (await lireBrief(p1!.id))?.statut === "brouillon", "…et la fiche se fige de nouveau en brouillon, sans appel au modèle");
 
     const gp = await s.genererProposition(uuid);
     ok(gp.ok && gp.runUuid === null, "squelette construit en code (aucune tâche LLM)");
@@ -403,9 +421,9 @@ async function main() {
     const od = await s.ouvrirConversation(p2!.id, "projet", null);
     if (!od.ok) throw new Error(od.erreur);
     tours = 1;
-    await traiter((await s.envoyerMessage(od.conversationUuid, "Une série sur un phare.")).ok ? ((await db.select().from(agentRuns).where(and(eq(agentRuns.projectId, p2!.id), eq(agentRuns.statut, "en_attente"))))[0]!.uuid) : null);
-    const gd = await s.genererBrief(od.conversationUuid);
-    await traiter(gd.ok ? gd.runUuid : null);
+    const md = await s.envoyerMessage(od.conversationUuid, "Une série sur un phare.");
+    await traiterTour(od.conversationUuid, md.ok ? md.runUuid : null);
+    ok((await s.genererBrief(od.conversationUuid)).ok, "passer au briefing avant que la fiche soit complète la fige en brouillon");
     ok((await lireBrief(p2!.id))?.statut === "brouillon", "brouillon généré");
     ok((await s.rejeterBrief(od.conversationUuid)).ok && (await lireBrief(p2!.id)) === null, "rejeterBrief : brouillon supprimé");
     ok((await db.select().from(briefs).where(eq(briefs.projectId, p2!.id))).length === 0, "…aucune ligne de brief ne subsiste");
@@ -426,8 +444,7 @@ async function main() {
 
     ok(!(await s.genererProposition(od.conversationUuid)).ok, "un brief partiel n'est pas un brief : « génère d'abord le brief »");
     const ge = await s.genererBrief(od.conversationUuid);
-    ok(ge.ok, "on peut rédiger le brief par-dessus un brief partiel");
-    await traiter(ge.ok ? ge.runUuid : null);
+    ok(ge.ok, "on peut figer le brief par-dessus un brief partiel");
     b2 = await lireBrief(p2!.id);
     ok(b2?.statut === "brouillon" && b2.contenu.style.clause === clauseMain, "le brouillon de l'agent respecte la clause posée à la main (elle gagne sur la sienne)");
     ok(b2?.sections.find((x) => x.cle === "style")?.statut === "fourni", "…et reste « fourni »");
@@ -438,17 +455,15 @@ async function main() {
     b2 = await lireBrief(p2!.id);
     ok(b2?.statut === "partiel" && b2.contenu.style.clause === clauseMain && b2.contenu.arc === "", "…ne perd pas ce qui a été posé à la main : retour en brief partiel (le contenu de l'agent disparaît)");
 
-    const ge2 = await s.genererBrief(od.conversationUuid);
-    await traiter(ge2.ok ? ge2.runUuid : null);
+    await s.genererBrief(od.conversationUuid);
     const nc = await s.nouvelleConversation(p2!.id, "projet", null);
     b2 = await lireBrief(p2!.id);
     ok(nc.ok && b2?.statut === "partiel" && b2.contenu.style.clause === clauseMain, "une nouvelle conversation abandonne le brouillon sans perdre le style posé");
 
     // application : le brief devient la référence, la clause suit
     const ge3 = nc.ok ? await s.envoyerMessage(nc.conversationUuid, "Une série sur un phare.") : null;
-    await traiter(ge3 && ge3.ok ? ge3.runUuid : null);
-    const ge4 = nc.ok ? await s.genererBrief(nc.conversationUuid) : null;
-    await traiter(ge4 && ge4.ok ? ge4.runUuid : null);
+    if (nc.ok) await traiterTour(nc.conversationUuid, ge3 && ge3.ok ? ge3.runUuid : null);
+    if (nc.ok) await s.genererBrief(nc.conversationUuid);
     const gpe = nc.ok ? await s.genererProposition(nc.conversationUuid) : null;
     const pe = gpe && gpe.ok ? await lireProposition(gpe.propositionUuid) : null;
     ok(!!pe && !pe.groupes.some((g) => g.id === "projet"), "la proposition ne contient aucun changement « projet »");

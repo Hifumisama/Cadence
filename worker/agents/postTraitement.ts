@@ -3,9 +3,11 @@ import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
 import { horsAffiches } from "../../lib/assets-visibles";
 import { methodeApplicable } from "../../lib/assetCode";
-import { fusionnerPartielDansBrouillon, sortieVersBrief } from "../../lib/agents/brief";
-import { entreeBrief, messageBriefRedige } from "../../lib/agents/brief-entree";
-import { couvertureSuffisante, lireCouverture, manquesEssentiels } from "../../lib/agents/couverture";
+import { sortieVersBrief } from "../../lib/agents/brief";
+import { ecrireBrouillon } from "../../lib/agents/brief-db";
+import { entreeTour, messageBriefPret } from "../../lib/agents/brief-entree";
+import { appliquerNotes, ficheComplete, manquesFiche } from "../../lib/agents/fiche";
+import { ficheCourante, enregistrerFiche } from "../../lib/agents/fiche-db";
 import { creerRun } from "../../lib/agents/runs";
 import type { ChangementBrut } from "../../lib/agents/changements";
 import {
@@ -41,7 +43,8 @@ import type { InfosExecution } from "./preparation";
 
 /** Ce que devient le résultat validé d'une tâche du système d'agents, DANS la transaction qui
  * l'écrit (worker/llm.ts) : un échec ici annule tout et la tâche est marquée échouée.
- * - `tour`        : le message de l'agent rejoint la conversation ; `briefPret` est mis à jour ;
+ * - `tour`        : soit la grille de couverture d'un message (skill `couverture-entretien`, qui pose ensuite le tour de
+ *                   l'agent), soit le message de l'agent, qui rejoint la conversation (`briefPret` est décidé en code) ;
  * - `brief`       : un BROUILLON de brief est écrit (jamais par-dessus un brief validé) ;
  * - `proposition` : les changements sont construits EN CODE depuis le JSON du skill. */
 
@@ -50,7 +53,10 @@ export type OptionsRunAgent = { modele?: string; variante?: string; position?: P
 
 export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execution: InfosExecution = {}): Promise<void> {
   if (!run.but) return; // appel hors système d'agents (npm run llm:tache) : rien à faire
-  if (run.but === "tour") return postTour(tx, run, json as { reponse: string; briefPret: boolean; resteADefinir?: string[] });
+  if (run.but === "tour") {
+    if (run.skill === "notes-entretien") return postNotes(tx, run, json);
+    return postTour(tx, run, json as { reponse: string; resteADefinir?: string[] });
+  }
   if (run.but === "brief") return postBrief(tx, run, json as Record<string, unknown>);
   if (run.but === "proposition") return postProposition(tx, run, json, execution);
 }
@@ -61,89 +67,59 @@ export function resteADefinirDe(sortie: { resteADefinir?: unknown }): string[] {
   return [...new Set(l.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean))].slice(0, 12);
 }
 
-/** `briefPret` : l'agent a de quoi écrire une PREMIÈRE VERSION du briefing (il peut lui rester des questions : elles
- * continuent en conversation, et le briefing se met à jour). Le briefing est DÉFINITIF quand la liste est vide. */
-export function briefPretApresTour(sortie: { briefPret: boolean; resteADefinir?: unknown; couverture?: unknown }, nbMessagesUtilisateur = Infinity): boolean {
-  // Garde-fous posés en code : un entretien creuse avant d'écrire (le skill le demande, le modèle l'oublie parfois).
-  // Sans nombre de messages (anciens appelants), seul l'avis du modèle compte ; avec, la grille de couverture est exigée.
-  if (sortie.briefPret !== true) return false;
-  if (nbMessagesUtilisateur === Infinity) return true;
-  return nbMessagesUtilisateur >= MIN_MESSAGES_AVANT_BRIEF && couvertureSuffisante(lireCouverture(sortie.couverture));
+/** Notes de l'entretien (skill `notes-entretien`) : un appel court posé AVANT chaque tour de l'agent. Il rend un PATCH de la fiche
+ * de notes avec les citations qui le prouvent ; le code vérifie les citations, applique le patch, décide seul de ce qui manque
+ * et de quand la fiche est complète (alors elle devient le brouillon du brief, sans appel de rédaction). C'est ici que le tour de
+ * l'agent est posé, avec la fiche à jour et ce qui reste à demander (ou « c'est complet »). */
+async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
+  if (run.conversationId == null) return;
+  const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
+  if (!conv) return; // conversation écrasée entre-temps
+  const messages = ((conv.messages as { role: "user" | "assistant"; content: string }[]) ?? []).map((m) => ({ role: m.role, content: m.content }));
+  const utilisateur = messages.filter((m) => m.role === "user").map((m) => m.content);
+  const avant = await ficheCourante(tx, conv);
+  const fiche = appliquerNotes(avant, sortie, utilisateur);
+  const complete = await enregistrerFiche(tx, conv, fiche, utilisateur.length);
+  if (complete && !ficheComplete(avant, utilisateur.length - 1)) {
+    // La fiche vient de devenir complète : c'est le CODE qui l'annonce (résumé, suppositions, bouton « étape suivante »), sans tour
+    // de l'agent. Si l'utilisateur continue, l'agent reprend pour affiner (note « complète » de entreeTour).
+    const messagesStockes = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: messageBriefPret(fiche), at: new Date().toISOString() }];
+    await tx.update(agentConversations).set({ messages: messagesStockes, briefPret: true, resteADefinir: [], etape: "conversation", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
+    return;
+  }
+  await creerRun(tx, {
+    skill: "conversation-agent",
+    entree: entreeTour(messages, fiche, { manques: manquesFiche(fiche), complete }),
+    but: "tour",
+    projectId: conv.projectId,
+    conversationId: conv.id,
+  });
 }
 
-/** Messages de l'utilisateur au moins, avant que le briefing puisse être déclaré prêt : l'idée, puis deux réponses. */
-export const MIN_MESSAGES_AVANT_BRIEF = 3;
+const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; briefPret: boolean; resteADefinir?: string[]; couverture?: unknown }) {
+async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[] }) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
   if (!conv) return; // conversation écrasée entre-temps : le tour est perdu, sans erreur
   const messages = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: sortie.reponse, at: new Date().toISOString() }];
   const nbUtilisateur = messages.filter((m) => (m as { role?: string }).role === "user").length;
-  const pret = briefPretApresTour(sortie, nbUtilisateur);
-  const couverture = lireCouverture(sortie.couverture);
-  // Le modèle a dit « prêt » mais l'essentiel n'est pas DIT : la liste affichée à l'utilisateur dit ce qui manque.
-  const reste = resteADefinirDe(sortie);
-  if (sortie.briefPret === true && !pret) {
-    for (const m of manquesEssentiels(couverture).reverse()) reste.unshift(`Faire dire : ${m}`);
-  }
+  // « Prêt » est décidé EN CODE, depuis la fiche de notes (postNotes) : l'essentiel dit par l'utilisateur, après un échange au moins.
+  const fiche = await ficheCourante(tx, conv);
+  const pret = ficheComplete(fiche, nbUtilisateur);
+  // La liste affichée : ce que le code constate non dit, puis les nuances que l'agent a notées.
+  const reste = [...manquesFiche(fiche).map(majuscule), ...resteADefinirDe(sortie)].filter((x, i, l) => l.indexOf(x) === i);
   await tx
     .update(agentConversations)
-    .set({ messages, briefPret: pret, couverture, resteADefinir: reste.slice(0, 12), etape: "conversation", updatedAt: new Date() })
+    .set({ messages, briefPret: pret, resteADefinir: reste.slice(0, 12), etape: "conversation", updatedAt: new Date() })
     .where(eq(agentConversations.id, conv.id));
-
-  // Première version du briefing : dès que l'agent dit « prêt » et qu'aucun brief n'est rédigé, elle s'écrit seule, en
-  // arrière-plan (la conversation continue ; le brief ne la quitte pas, voir postBrief). Elle sert ensuite de support :
-  // l'agent la relit à chaque tour, et elle est mise à jour quand on ouvre le briefing.
-  if (pret && conv.projectId != null) {
-    const [brief] = await tx.select({ statut: briefs.statut }).from(briefs).where(eq(briefs.projectId, conv.projectId));
-    const [enCours] = await tx
-      .select({ id: agentRuns.id })
-      .from(agentRuns)
-      .where(and(eq(agentRuns.conversationId, conv.id), eq(agentRuns.but, "brief"), inArray(agentRuns.statut, ["en_attente", "en_cours"])));
-    if ((!brief || brief.statut === "partiel") && !enCours) {
-      await creerRun(tx, {
-        skill: "brief-projet",
-        entree: entreeBrief(messages.map((m) => ({ role: (m as { role: "user" | "assistant" }).role, content: (m as { content: string }).content })), null),
-        but: "brief",
-        projectId: conv.projectId,
-        conversationId: conv.id,
-        options: { auto: true },
-      });
-    }
-  }
 }
 
 async function postBrief(tx: Tx, run: RunAgent, sortie: Record<string, unknown>) {
   if (run.projectId == null) throw new Error("Brief sans projet.");
-  const genere = sortieVersBrief(sortie);
-  const [existant] = await tx.select().from(briefs).where(eq(briefs.projectId, run.projectId));
-  if (existant?.statut === "valide") throw new Error("Le projet a déjà un brief validé : le brouillon n'a pas été écrit par-dessus.");
-  // Un brief partiel (style, notes… posés à la main) : ce que l'utilisateur a posé gagne sur ce que l'agent rédige.
-  const { contenu, statuts } =
-    existant?.statut === "partiel"
-      ? fusionnerPartielDansBrouillon(genere, { contenu: existant.contenu as BriefContenu, statuts: existant.statuts as Record<string, StatutChamp> })
-      : genere;
-  if (existant) {
-    await tx
-      .update(briefs)
-      .set({ statut: "brouillon", source: "conversation", contenu, statuts, version: existant.version + 1, updatedAt: new Date() })
-      .where(eq(briefs.id, existant.id));
-  } else {
-    await tx.insert(briefs).values({ projectId: run.projectId, statut: "brouillon", source: "conversation", contenu, statuts });
-  }
-  const automatique = (run.options as { auto?: boolean } | null)?.auto === true;
-  if (run.conversationId != null && !automatique) {
+  await ecrireBrouillon(tx, run.projectId, sortieVersBrief(sortie));
+  if (run.conversationId != null) {
     await tx.update(agentConversations).set({ etape: "brief", updatedAt: new Date() }).where(eq(agentConversations.id, run.conversationId));
-  }
-  if (run.conversationId != null && automatique) {
-    // Première version automatique : on reste dans la conversation, et l'agent rend la main par un message qui dit ce qu'il a
-    // compris et inventé (la conversation était bloquée le temps de l'écriture : ça doit valoir l'attente).
-    const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
-    if (conv) {
-      const messages = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: messageBriefRedige(contenu as Parameters<typeof messageBriefRedige>[0], resteADefinirDe({ resteADefinir: conv.resteADefinir })), at: new Date().toISOString() }];
-      await tx.update(agentConversations).set({ messages, updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
-    }
   }
 }
 
