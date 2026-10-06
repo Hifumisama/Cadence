@@ -3,7 +3,6 @@
 import { db } from "@/db";
 import { assets, planRefs, repliques } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
-import { masterDe } from "@/lib/registre-assets";
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
@@ -26,9 +25,10 @@ async function enregistrerFichierAsset(code: string, fichier: File): Promise<str
   return nomFichier;
 }
 
-/** Création d'un sujet (master) ou d'un dérivé, fichier média optionnel dès
- * la création (retour utilisateur 2026-09-28 : "évidemment on peut fournir
- * un fichier, c'est logique"). */
+/** Création d'un asset, fichier média optionnel dès la création (retour utilisateur 2026-09-28 : "évidemment on peut
+ * fournir un fichier, c'est logique"). `deriveDeId` n'est plus un rang dans une arborescence : c'est l'IMAGE DE DÉPART
+ * proposée d'office à la génération (« nouvel asset à partir de celui-ci ») ; la fenêtre de génération accepte jusqu'à 3
+ * images sources, c'est donc là qu'un composite se compose. */
 export async function creerAsset(projectId: number, formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
   if (!code) return;
@@ -39,10 +39,7 @@ export async function creerAsset(projectId: number, formData: FormData) {
   const description = String(formData.get("description") ?? "");
   const critique = formData.get("critique") === "on";
   const deriveDeIdBrut = formData.get("deriveDeId");
-  // Registre à un niveau : dériver d'un dérivé rattache au master (voir lib/registre-assets.ts).
-  const deriveDeId = deriveDeIdBrut
-    ? await masterDe(Number(deriveDeIdBrut), async (id) => (await db.select({ p: assets.deriveDeId }).from(assets).where(eq(assets.id, id)))[0]?.p ?? null)
-    : null;
+  const deriveDeId = deriveDeIdBrut ? Number(deriveDeIdBrut) : null;
   const fichier = formData.get("fichier");
 
   const [cree] = await db
@@ -54,8 +51,7 @@ export async function creerAsset(projectId: number, formData: FormData) {
       description: description || null,
       critique,
       deriveDeId,
-      // Une édition sans parent n'a pas de source : ignorée à la création.
-      methodeGeneration: methodeGeneration === "edition" && deriveDeId == null ? null : methodeGeneration,
+      methodeGeneration,
     })
     .returning();
 
@@ -98,9 +94,6 @@ export async function updateAsset(
         erreur: asset.type === "sfx" ? "Un son se génère par la génération audio : pas de méthode d'image." : "Une voix se fabrique au casting vocal, pas par image.",
       };
     }
-    if (methode === "edition" && asset.deriveDeId == null) {
-      return { ok: false, erreur: "Une édition part de l'image du parent : cet asset n'en a pas." };
-    }
   }
   // La durée n'existe que pour un son ; vide = non renseignée.
   const duree = valeurs.dureeSecondes ?? null;
@@ -141,23 +134,12 @@ export async function uploaderFichierAsset(
   
 }
 
-/** Suppression protégée (retour utilisateur 2026-09-28) : un asset relié à
- * quelque chose — des dérivés, une citation dans une fiche de plan (ref), un
- * rôle de locuteur ou de voix directe dans des répliques — ne se supprime pas
- * tant que ces liens n'ont pas été explicitement défaits. Contrairement aux scènes (qui se détachent
- * silencieusement), ici le lien est trop significatif pour être cassé sans
- * geste explicite. */
-export async function supprimerAsset(
-  assetId: number,
-): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  const [enfant] = await db.select().from(assets).where(eq(assets.deriveDeId, assetId)).limit(1);
-  if (enfant) {
-    return { ok: false, erreur: `A encore des dérivés (dont ${enfant.code}) — supprime-les d'abord.` };
-  }
+/** Pourquoi un asset ne peut pas être supprimé maintenant, ou null. Un asset cité dans une fiche de plan, ou locuteur ou
+ * voix de répliques, est trop lié pour disparaître sans geste explicite. Avoir servi d'image de départ à d'autres assets
+ * ne bloque PAS : leur image existe déjà, elle ne dépend pas de la source (le lien est simplement détaché). */
+async function raisonDeBlocage(assetId: number): Promise<string | null> {
   const [ref] = await db.select().from(planRefs).where(eq(planRefs.assetId, assetId)).limit(1);
-  if (ref) {
-    return { ok: false, erreur: "Encore cité comme référence dans une fiche de plan — délie-le d'abord." };
-  }
+  if (ref) return "Encore cité comme référence dans une fiche de plan — délie-le d'abord.";
   // Une voix rattachée à un personnage ne bloque pas : supprimée, ses répliques
   // repassent « sans voix » (voix_fiches disparaît en cascade).
   const [replique] = await db
@@ -165,13 +147,67 @@ export async function supprimerAsset(
     .from(repliques)
     .where(or(eq(repliques.locuteurId, assetId), eq(repliques.voixId, assetId)))
     .limit(1);
-  if (replique) {
-    return { ok: false, erreur: "Encore locuteur ou voix de répliques — change leur locuteur ou supprime-les d'abord." };
-  }
+  if (replique) return "Encore locuteur ou voix de répliques — change leur locuteur ou supprime-les d'abord.";
+  return null;
+}
 
+async function supprimerSansRevalider(assetId: number): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const erreur = await raisonDeBlocage(assetId);
+  if (erreur) return { ok: false, erreur };
+  // Les assets qui partaient de celui-ci gardent leur image : on détache simplement le lien.
+  await db.update(assets).set({ deriveDeId: null }).where(eq(assets.deriveDeId, assetId));
   await db.delete(assets).where(eq(assets.id, assetId));
-  revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/** Suppression protégée (retour utilisateur 2026-09-28) : voir `raisonDeBlocage`. */
+export async function supprimerAsset(
+  assetId: number,
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const r = await supprimerSansRevalider(assetId);
+  if (r.ok) revalidatePath("/", "layout");
+  return r;
+}
+
+/** Suppression de plusieurs assets (sélection du registre) : chacun suit les mêmes règles ; ceux qui sont bloqués sont
+ * rendus avec leur raison, les autres partent. */
+export async function supprimerAssets(
+  ids: number[],
+): Promise<{ supprimes: number; bloques: { code: string; erreur: string }[] }> {
+  let supprimes = 0;
+  const bloques: { code: string; erreur: string }[] = [];
+  for (const id of [...new Set(ids)]) {
+    const [asset] = await db.select({ code: assets.code }).from(assets).where(eq(assets.id, id));
+    if (!asset) continue;
+    const r = await supprimerSansRevalider(id);
+    if (r.ok) supprimes += 1;
+    else bloques.push({ code: asset.code, erreur: r.erreur });
+  }
+  if (supprimes > 0) revalidatePath("/", "layout");
+  return { supprimes, bloques };
+}
+
+/** Modifie UN champ (ou quelques-uns) de la fiche : les blocs de la fiche s'enregistrent chacun à leur tour. Les valeurs
+ * absentes restent ce qu'elles sont ; les règles sont celles de `updateAsset`. */
+export async function modifierChampAsset(
+  assetId: number,
+  champs: {
+    description?: string;
+    promptGeneration?: string;
+    methodeGeneration?: string | null;
+    critique?: boolean;
+    dureeSecondes?: number | null;
+  },
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
+  if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
+  return updateAsset(assetId, {
+    description: champs.description ?? asset.description ?? "",
+    promptGeneration: champs.promptGeneration ?? asset.promptGeneration ?? "",
+    methodeGeneration: champs.methodeGeneration !== undefined ? champs.methodeGeneration : asset.methodeGeneration,
+    critique: champs.critique ?? asset.critique,
+    dureeSecondes: champs.dureeSecondes !== undefined ? champs.dureeSecondes : asset.dureeSecondes,
+  });
 }
 
 /** Délie une référence (image/audio/vidéo) précise sans toucher au reste du

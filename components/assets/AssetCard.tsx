@@ -1,16 +1,15 @@
 "use client";
 
+import "./assets.css";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { urlMiniature } from "@/lib/miniatures";
 import { Icone } from "@/components/ui/Icone";
+import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/registre-types";
 
-export type MediaKind = "image" | "video" | "audio";
-export type FichierEtat = "aucun" | "manquant" | "ok";
+export type { FichierEtat, MediaKind } from "@/lib/registre-types";
 
-// Un seul média joue à la fois dans la grille : lancer une carte coupe la
-// précédente (retour utilisateur 2026-09-29 : ▶ sur la carte, lecteur complet
-// sur la page de détail).
+// Un seul média joue à la fois dans la grille : lancer une carte coupe la précédente.
 let mediaActif: { stop: () => void } | null = null;
 
 function formatDuree(secondes: number): string {
@@ -19,37 +18,22 @@ function formatDuree(secondes: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function AssetCard({
-  href,
-  code,
-  type,
-  description,
-  critique,
-  nbDerives,
-  statut,
-  fichier,
-  kind,
-  etat,
-  src,
-  actif = false,
-  voix,
-}: {
+const libellePlans = (n: number) => `${n} plan${n > 1 ? "s" : ""}`;
+
+type PropsCommunes = {
+  ligne: LigneRegistre;
   href: string;
-  code: string;
-  type: string;
-  description: string | null;
-  critique: boolean;
-  nbDerives: number;
-  statut: string;
-  fichier: string | null;
-  kind: MediaKind;
-  etat: FichierEtat;
-  src: string | null;
-  actif?: boolean;
-  /** Personnage uniquement : sa voix au casting (calculée, lecture seule) —
-   * `undefined` pour tout autre type, `null` = personnage sans voix. */
-  voix?: { code: string } | null;
-}) {
+  /** Un asset est coché. */
+  choisi: boolean;
+  /** Arrivée dans la sélection à l'instant : l'onde se dissipe et la coche claque. */
+  vient: boolean;
+  onActiver: (e: React.MouseEvent<HTMLAnchorElement>, code: string) => void;
+};
+
+/** Carte du registre : une vignette 16:9 (l'image entière, jamais recadrée), le statut en pastille sur l'image, le
+ * code en dessous. Reste un lien (un clic ouvre la fiche) ; le clic long, géré par le registre, la sélectionne. */
+export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommunes) {
+  const { code, type, statut, critique, description, nbPlans, voix, kind, etat, src, fichier } = ligne;
   const zoneRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLVideoElement & HTMLAudioElement>(null);
   const [visible, setVisible] = useState(false);
@@ -66,8 +50,7 @@ export function AssetCard({
     },
   });
 
-  // Chargement paresseux : on ne demande le fichier (métadonnées vidéo) que
-  // quand la carte entre dans le viewport.
+  // Chargement paresseux : on ne demande le fichier (métadonnées vidéo ou audio) que quand la carte entre dans l'écran.
   useEffect(() => {
     const el = zoneRef.current;
     if (!el || kind === "image") return;
@@ -114,18 +97,31 @@ export function AssetCard({
   const jouable = etat === "ok" && (kind === "video" || kind === "audio");
 
   return (
-    <Link href={href} className={`asset-card${actif ? " is-actif" : ""}`}>
-      <div ref={zoneRef} className={`asset-card-media${etat !== "ok" ? " is-vide" : ""}`}>
-        {etat === "aucun" ? <span className="tiny-note">pas de fichier</span> : null}
+    <Link
+      href={href}
+      data-code={code}
+      draggable={false}
+      className={`as-carte${choisi ? " is-choisi" : ""}${vient ? " is-vient" : ""}`}
+      aria-label={`${code}, ${LIBELLE_TYPE_ASSET[type] ?? type}, ${LIBELLE_STATUT[statut]}${choisi ? ", sélectionné" : ""}`}
+      onClick={(e) => onActiver(e, code)}
+    >
+      <div ref={zoneRef} className={`as-vis${etat !== "ok" ? " is-vide" : ""}`}>
+        {etat === "aucun" ? (
+          <span className="as-vide-ico">
+            <Icone nom={kind === "audio" ? "musique" : "image"} taille={24} />
+            {kind === "audio" ? "Pas de son" : "Pas d'image"}
+          </span>
+        ) : null}
         {etat === "manquant" ? (
-          <span className="tiny-note" title={fichier ?? undefined}>
-            introuvable
+          <span className="as-vide-ico" title={fichier ?? undefined}>
+            <Icone nom="alerte" taille={24} />
+            Fichier introuvable
           </span>
         ) : null}
 
         {etat === "ok" && kind === "image" && src ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={urlMiniature(src, 384)} alt={fichier ?? code} loading="lazy" decoding="async" />
+          <img src={urlMiniature(src, 384)} alt="" loading="lazy" decoding="async" draggable={false} />
         ) : null}
 
         {etat === "ok" && kind === "video" ? (
@@ -141,8 +137,8 @@ export function AssetCard({
 
         {etat === "ok" && kind === "audio" ? (
           <>
-            <span className="asset-card-note" aria-hidden="true">
-              <Icone nom="musique" taille={28} />
+            <span className="as-note-audio" aria-hidden="true">
+              <Icone nom="musique" taille={32} />
             </span>
             <audio
               ref={mediaRef}
@@ -154,43 +150,76 @@ export function AssetCard({
           </>
         ) : null}
 
-        {critique ? <span className="asset-card-crit">◆ Critique</span> : null}
-
+        <span className={`as-st is-${statut}`}>
+          <i />
+          {LIBELLE_STATUT[statut]}
+        </span>
+        {voix !== undefined ? (
+          <span className={`as-voix-pastille${voix ? "" : " is-sans"}`} title={voix ? `Voix : ${voix.code}` : "Sans voix au casting"}>
+            <Icone nom="musique" taille={14} />
+          </span>
+        ) : null}
+        <span className="as-coche" aria-hidden="true">
+          <Icone nom="valide" taille={15} strokeWidth={3} />
+        </span>
+        {critique ? <span className="as-crit">Critique</span> : null}
         {jouable ? (
-          <button
-            type="button"
-            className="asset-card-play"
-            onClick={basculer}
-            aria-label={joue ? `Arrêter ${code}` : `Lire ${code}`}
-          >
-            {joue ? <Icone nom="arret" taille={14} /> : <Icone nom="lecture" taille={14} />}
+          <button type="button" className="as-jouer" onClick={basculer} aria-label={joue ? `Arrêter ${code}` : `Lire ${code}`}>
+            <Icone nom={joue ? "arret" : "lecture"} taille={13} />
           </button>
         ) : null}
-        {jouable && duree != null && Number.isFinite(duree) ? (
-          <span className="asset-card-duree">{formatDuree(duree)}</span>
-        ) : null}
+        {jouable && duree != null && Number.isFinite(duree) ? <span className="as-duree">{formatDuree(duree)}</span> : null}
       </div>
 
-      <div className="asset-card-body">
-        <span className="asset-code" title={description ?? undefined}>
+      <div className="as-meta">
+        <span className="as-code" title={description ?? undefined}>
           {code}
         </span>
-        <div className="asset-card-meta">
-          <span className="type-tag">{type}</span>
-          <span className="subj-kids">
-            {nbDerives > 0 ? `${nbDerives} dérivé${nbDerives > 1 ? "s" : ""}` : "aucun dér."}
-          </span>
-        </div>
-        {voix !== undefined ? (
-          <span className={`voix-chip${voix ? "" : " is-none"}`} title={voix ? "Voix au casting" : "Aucune voix au casting pour l'instant"}>
-            <Icone nom="musique" taille={13} /> {voix ? voix.code : "sans voix"}
-          </span>
-        ) : null}
-        <span className={`badge ${statut === "valide" ? "b-termine" : statut === "en_cours" ? "b-rejoue" : "b-attente"}`}>
-          <i />
-          {statut === "valide" ? "Validé" : statut === "en_cours" ? "En cours" : "À produire"}
+        <span className="as-sous">
+          {LIBELLE_TYPE_ASSET[type] ?? type} · {libellePlans(nbPlans)}
         </span>
       </div>
+      <span className="as-onde" aria-hidden="true" />
+    </Link>
+  );
+}
+
+/** Une ligne de la vue liste : mêmes informations, plus denses, et la même sélection. */
+export function LigneAsset({ ligne, href, choisi, vient, onActiver, modeSelection }: PropsCommunes & { modeSelection: boolean }) {
+  const { code, type, statut, critique, description, nbPlans, voix, etat, src, kind } = ligne;
+  return (
+    <Link
+      href={href}
+      data-code={code}
+      draggable={false}
+      className={`as-ligne${choisi ? " is-choisi" : ""}${vient ? " is-vient" : ""}`}
+      onClick={(e) => onActiver(e, code)}
+    >
+      {modeSelection ? (
+        <span className="as-coche" aria-hidden="true">
+          <Icone nom="valide" taille={15} strokeWidth={3} />
+        </span>
+      ) : null}
+      <span className={`as-mini${etat === "ok" && kind === "image" && src ? "" : " is-vide"}`}>
+        {etat === "ok" && kind === "image" && src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={urlMiniature(src, 96)} alt="" loading="lazy" decoding="async" draggable={false} />
+        ) : null}
+      </span>
+      <span className="as-code" title={description ?? undefined}>
+        {code}
+        {critique ? <span className="as-crit-mot">Critique</span> : null}
+      </span>
+      <span className="as-cache-s">{LIBELLE_TYPE_ASSET[type] ?? type}</span>
+      <span className={`as-st is-${statut}`}>
+        <i />
+        {LIBELLE_STATUT[statut]}
+      </span>
+      <span className="num as-cache-s">{libellePlans(nbPlans)}</span>
+      <span className="as-cache-s" style={{ color: voix ? "var(--or-glow)" : "var(--ink-4)" }}>
+        {voix !== undefined ? <Icone nom="musique" taille={14} /> : null}
+      </span>
+      <span className="as-onde" aria-hidden="true" />
     </Link>
   );
 }

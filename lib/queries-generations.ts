@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { assetGenerations, assets } from "../db/schema";
-import { and, asc, desc, eq, isNotNull, isNull, ne } from "drizzle-orm";
+import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { horsAffiches } from "./assets-visibles";
 import { parametresTestVideo } from "./asset-generation";
 import { estImage, fichierMediaExiste, generationMediaSrc, urlAssetMedia } from "./media";
@@ -40,8 +40,27 @@ export async function getGenerationsAsset(assetId: number) {
     .from(assetGenerations)
     .where(and(eq(assetGenerations.assetId, assetId), isNull(assetGenerations.repliqueId)))
     .orderBy(desc(assetGenerations.createdAt), desc(assetGenerations.id));
+  // Provenance : les images sources de chaque génération « à partir d'images » (la 1re est la cible), par leur code
+  // quand elles viennent du registre, « image importée » sinon.
+  const sources =
+    lignes.length === 0
+      ? []
+      : await db
+          .select({ generationId: assetGenerationSources.generationId, position: assetGenerationSources.position, origine: assetGenerationSources.origine, code: assets.code })
+          .from(assetGenerationSources)
+          .leftJoin(assets, eq(assets.id, assetGenerationSources.assetId))
+          .where(inArray(assetGenerationSources.generationId, lignes.map((g) => g.id)))
+          .orderBy(asc(assetGenerationSources.position));
+  const sourcesParGeneration = new Map<number, string[]>();
+  for (const x of sources) {
+    const liste = sourcesParGeneration.get(x.generationId) ?? [];
+    liste.push(x.origine === "asset" && x.code ? x.code : "image importée");
+    sourcesParGeneration.set(x.generationId, liste);
+  }
   return lignes.map((g) => ({
     id: g.id,
+    /** Codes des images de départ (la 1re est la cible), vide pour une génération à partir du texte. */
+    sources: sourcesParGeneration.get(g.id) ?? [],
     uuid: g.uuid,
     statut: g.statut,
     methode: g.methode,

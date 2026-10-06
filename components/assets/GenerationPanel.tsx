@@ -35,6 +35,7 @@ export function GenerationPanel({
   simule,
   voix,
   libelleBouton,
+  classeBouton = "btn btn-gold btn-sm",
 }: {
   assetId: number;
   code: string;
@@ -55,6 +56,7 @@ export function GenerationPanel({
   /** Voix du casting (type voix) : l'instruction et le texte de référence de la fiche. */
   voix?: { instruction: string; texte: string };
   libelleBouton?: string;
+  classeBouton?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -135,7 +137,7 @@ export function GenerationPanel({
   return (
     <>
       <button
-        className="btn btn-gold btn-sm"
+        className={classeBouton}
         type="button"
         onClick={() => setOuvert(true)}
         disabled={raisonBloquee != null}

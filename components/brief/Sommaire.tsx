@@ -9,7 +9,7 @@ export type EntreeSommaire = { id: string; label: string; compte?: number; aConf
  * collée sous le bandeau qui affiche la section en cours et ouvre la liste en menu déroulant (rien ne déborde, quel que
  * soit le nombre de sections). Le clic fait DÉFILER en douceur jusqu'à la section, puis la fait briller un instant ;
  * l'entrée active suit la lecture. Animations coupées si l'utilisateur réduit les animations. */
-export function Sommaire({ entrees }: { entrees: EntreeSommaire[] }) {
+export function Sommaire({ entrees, libelle = "Sommaire du brief" }: { entrees: EntreeSommaire[]; libelle?: string }) {
   const [actif, setActif] = useState(entrees[0]?.id ?? "");
   const [ouvert, setOuvert] = useState(false);
   const racine = useRef<HTMLElement>(null);
@@ -66,7 +66,7 @@ export function Sommaire({ entrees }: { entrees: EntreeSommaire[] }) {
   const courant = entrees.find((e) => e.id === actif) ?? entrees[0];
 
   return (
-    <nav ref={racine} className={`bf-sommaire${ouvert ? " is-ouvert" : ""}`} aria-label="Sommaire du brief">
+    <nav ref={racine} className={`bf-sommaire${ouvert ? " is-ouvert" : ""}`} aria-label={libelle}>
       <button type="button" className="bf-sommaire-bouton" aria-expanded={ouvert} aria-controls={idListe} onClick={() => setOuvert((v) => !v)}>
         <span className="bf-sommaire-texte">
           <span className="bf-etiquette">Sections</span>

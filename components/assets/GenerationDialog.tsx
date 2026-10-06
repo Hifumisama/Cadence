@@ -296,11 +296,15 @@ export function GenerationDialog({
             </div>
             {methodeGeneration === "edition" && mode === "texte" ? (
               <p className="tiny-note">
-                Cet asset est un dérivé (méthode « édition »){parentCode ? ` : le texte seul ne reprendra pas l'apparence de ${parentCode}` : ""}.
+                Cet asset est en méthode « édition »{parentCode ? ` : le texte seul ne reprendra pas l'apparence de ${parentCode}` : " : le texte seul ne reprendra pas l'apparence d'une image existante"}.
               </p>
             ) : null}
-            {methodeGeneration === "edition" && !parentSource ? (
-              <p className="tiny-note">Le parent n&rsquo;a pas encore d&rsquo;image : il faut d&rsquo;abord lui en donner une, ou choisir une autre source.</p>
+            {methodeGeneration === "edition" && !parentSource && !soiSource ? (
+              <p className="tiny-note">
+                {parentCode
+                  ? `${parentCode} n'a pas encore d'image : donne-lui-en une d'abord, ou choisis une autre source.`
+                  : "Choisis les images de départ (jusqu'à 3) : la première est celle qui sera modifiée."}
+              </p>
             ) : null}
             {methodeGeneration !== "edition" && mode === "images" ? (
               <p className="tiny-note">La méthode de la fiche ne change pas : tu peux partir d&rsquo;images pour cette génération.</p>

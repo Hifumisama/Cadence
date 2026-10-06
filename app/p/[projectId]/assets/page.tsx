@@ -1,36 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAssetsTree, getFirstEpisodeId, getProject } from "@/lib/queries";
+import { getAssetsTree, getFirstEpisodeId, getProject, type AssetNode } from "@/lib/queries";
 import { assetsEnFile, nbImagesEnAttente } from "@/lib/queries-taches";
-import { PLAFOND_LOT_IMAGES, preparerLot, selectionParDefaut, type AssetPourLot } from "@/lib/generation-lot";
-import { GenererEnLot } from "@/components/assets/GenererEnLot";
+import { PLAFOND_LOT_IMAGES, preparerLot, type AssetPourLot } from "@/lib/generation-lot";
 import { AjouterAssetForm } from "@/components/assets/AjouterAssetForm";
-import { AssetCard } from "@/components/assets/AssetCard";
-import { AssetFiltres } from "@/components/assets/AssetFiltres";
+import { RegistreAssets } from "@/components/assets/RegistreAssets";
 import { TYPES_ASSET } from "@/lib/assetCode";
 import { infosMedia } from "@/lib/assetMedia";
+import type { LigneRegistre } from "@/lib/registre-types";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { Topbar } from "@/components/ui/Topbar";
 
 export const dynamic = "force-dynamic";
 
-function compterTout(masters: Awaited<ReturnType<typeof getAssetsTree>>): number {
-  return masters.reduce((acc, m) => acc + 1 + compterTout(m.derives), 0);
-}
-
-function compterValides(masters: Awaited<ReturnType<typeof getAssetsTree>>): number {
-  return masters.reduce(
-    (acc, m) => acc + (m.statut === "valide" ? 1 : 0) + compterValides(m.derives),
-    0,
-  );
-}
-
-function compterCritiques(masters: Awaited<ReturnType<typeof getAssetsTree>>): number {
-  return masters.reduce(
-    (acc, m) => acc + (m.critique ? 1 : 0) + compterCritiques(m.derives),
-    0,
-  );
-}
+/** Le registre est PLAT : un asset est un asset, qu'il serve d'image de départ à d'autres ou non (`deriveDeId` n'est plus
+ * qu'une indication de départ pour la génération, il ne range plus rien). */
+const aplatir = (noeuds: AssetNode[]): AssetNode[] => noeuds.flatMap((n) => [n, ...aplatir(n.derives)]);
 
 export default async function AssetsPage({
   params,
@@ -41,9 +26,9 @@ export default async function AssetsPage({
 }) {
   const { projectId } = await params;
   const { type: typeBrut } = await searchParams;
-  const typeActif = (TYPES_ASSET as readonly string[]).includes(typeBrut ?? "") ? (typeBrut as string) : null;
+  const typeInitial = (TYPES_ASSET as readonly string[]).includes(typeBrut ?? "") ? (typeBrut as string) : null;
   const pid = Number(projectId);
-  const [projet, masters, premierEpisodeId, enFile, nbEnAttente] = await Promise.all([
+  const [projet, racines, premierEpisodeId, enFile, nbEnAttente] = await Promise.all([
     getProject(pid),
     getAssetsTree(pid),
     getFirstEpisodeId(pid),
@@ -52,9 +37,10 @@ export default async function AssetsPage({
   ]);
   if (!projet) notFound();
 
-  // Génération en lot : tous les assets, masters puis dérivés ; ce qui peut partir et pourquoi le reste ne peut pas.
-  const aplatis = (noeuds: typeof masters): typeof masters => noeuds.flatMap((n) => [n, ...aplatis(n.derives)]);
-  const pourLot: AssetPourLot[] = aplatis(masters).map((a) => ({
+  const tous = aplatir(racines).sort((a, b) => a.code.localeCompare(b.code));
+
+  // Génération en lot : ce qui peut partir et pourquoi le reste ne peut pas (règles dans lib/generation-lot.ts).
+  const pourLot: AssetPourLot[] = tous.map((a) => ({
     id: a.id,
     code: a.code,
     type: a.type,
@@ -65,14 +51,36 @@ export default async function AssetsPage({
   }));
   const planLot = preparerLot(pourLot, pourLot, enFile, Math.max(0, PLAFOND_LOT_IMAGES - nbEnAttente));
   const raisonPar = new Map(planLot.ecartes.map((e) => [e.assetId, e.raison]));
-  const parDefaut = new Set(selectionParDefaut(planLot, pourLot));
-  const lignesLot = pourLot
-    .filter((a) => a.type !== "voix" && a.type !== "sfx")
-    .map((a) => ({ id: a.id, code: a.code, type: a.type, raison: raisonPar.get(a.id) ?? null, aUneImage: !!a.fichier, estDerive: a.deriveDeId != null, parDefaut: parDefaut.has(a.id) }));
 
-  const compteurs: Record<string, number> = {};
-  for (const m of masters) compteurs[m.type] = (compteurs[m.type] ?? 0) + 1;
-  const visibles = typeActif ? masters.filter((m) => m.type === typeActif) : masters;
+  // Les voix vivent au casting : elles ne figurent pas dans la grille, un lien y renvoie.
+  const nbVoix = tous.filter((a) => a.type === "voix").length;
+  const lignes: LigneRegistre[] = tous
+    .filter((a) => a.type !== "voix")
+    .map((a) => {
+      const { kind, etat, src } = infosMedia(a.type, a.fichier);
+      const citationsReelles = a.citations.filter((c) => !c.deduite);
+      return {
+        id: a.id,
+        code: a.code,
+        type: a.type,
+        statut: a.statut,
+        critique: a.critique,
+        description: a.description,
+        nbPlans: new Set(a.citations.map((c) => c.planUuid)).size,
+        voix: a.type === "personnage" ? (a.voix ? { code: a.voix.code } : null) : undefined,
+        kind,
+        etat,
+        src,
+        fichier: a.fichier,
+        blocageSuppression:
+          citationsReelles.length > 0
+            ? "cité dans une fiche de plan"
+            : a.nbRepliques > 0
+              ? `locuteur de ${a.nbRepliques} réplique${a.nbRepliques > 1 ? "s" : ""}`
+              : null,
+        raisonLot: a.type === "sfx" ? "un son se génère depuis sa fiche" : (raisonPar.get(a.id) ?? null),
+      };
+    });
 
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
 
@@ -101,12 +109,10 @@ export default async function AssetsPage({
               Registre unique pour tout le projet
             </p>
             <h1>Assets</h1>
-            <p>
-              Un sujet = un master et ses dérivés. Cliquer sur un sujet pour voir son
-              arbre complet et les plans où il apparaît.
-            </p>
+            <p>Les images de référence du projet. Les voix se gèrent au casting.</p>
           </div>
           <div className="actions">
+            <AjouterAssetForm projectId={pid} />
             <BoutonAgent
               className="btn btn-ghost"
               libelle="Créer le registre depuis le brief"
@@ -116,66 +122,7 @@ export default async function AssetsPage({
           </div>
         </div>
 
-        <div className="tally">
-          <div className="tally-item">
-            <span className="v">{compterTout(masters)}</span>
-            <span className="k">Assets</span>
-          </div>
-          <div className="tally-item">
-            <span className="v" style={{ color: "var(--ecarlate-glow)" }}>{compterCritiques(masters)}</span>
-            <span className="k">Critiques</span>
-          </div>
-          <div className="tally-item is-termine">
-            <span className="v">{compterValides(masters)}</span>
-            <span className="k">Validés</span>
-          </div>
-          <span className="tally-spacer" />
-          <div className="tally-item">
-            <span className="v" style={{ color: "var(--ink-2)" }}>{masters.length}</span>
-            <span className="k">Sujets</span>
-          </div>
-        </div>
-
-        <AjouterAssetForm projectId={pid} />
-
-        <GenererEnLot projectId={pid} lignes={lignesLot} />
-
-        <section className="panel">
-          <div className="panel-hd">
-            <h2>Sujets</h2>
-          </div>
-          <AssetFiltres base={`/p/${pid}/assets`} actif={typeActif} compteurs={compteurs} total={masters.length} />
-          <div className="asset-grid">
-            {visibles.map((m) => {
-              const { kind, etat, src } = infosMedia(m.type, m.fichier);
-              return (
-                <AssetCard
-                  key={m.id}
-                  href={`/p/${pid}/assets/${m.code}`}
-                  code={m.code}
-                  type={m.type}
-                  description={m.description}
-                  critique={m.critique}
-                  nbDerives={m.derives.length}
-                  statut={m.statut}
-                  fichier={m.fichier}
-                  kind={kind}
-                  etat={etat}
-                  src={src}
-                  voix={m.type === "personnage" ? m.voix : undefined}
-                />
-              );
-            })}
-          </div>
-          {masters.length === 0 ? (
-            <p className="tiny-note" style={{ padding: "var(--sp-4)" }}>
-              Aucun asset en base. Lancer <code>npm run db:import</code> ou en ajouter un
-              ci-dessus.
-            </p>
-          ) : visibles.length === 0 ? (
-            <p className="tiny-note" style={{ padding: "var(--sp-4)" }}>Aucun sujet de ce type.</p>
-          ) : null}
-        </section>
+        <RegistreAssets projectId={pid} lignes={lignes} nbVoix={nbVoix} typeInitial={typeInitial} />
       </main>
     </>
   );

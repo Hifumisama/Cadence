@@ -42,8 +42,8 @@ export function AjouterAssetForm({ projectId }: { projectId: number }) {
 
   return (
     <>
-      <button className="btn btn-primary" type="button" onClick={() => setOuvert(true)}>
-        Nouveau sujet
+      <button className="btn btn-gold" type="button" onClick={() => setOuvert(true)}>
+        <Icone nom="ajouter" taille={15} /> Nouveau sujet
       </button>
       {ouvert ? (
         <div className="modal-overlay" onClick={() => setOuvert(false)}>
