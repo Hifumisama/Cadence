@@ -64,7 +64,7 @@ async function registreResume(db: Db, projectId: number) {
     .from(assets)
     .where(and(eq(assets.projectId, projectId), horsAffiches))
     .orderBy(asc(assets.code));
-  return lignes.filter((a) => a.type !== "sfx" && a.type !== "keyframe").map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" }));
+  return lignes.filter((a) => a.type !== "sfx").map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" }));
 }
 
 // --- asset ------------------------------------------------------------------
@@ -328,9 +328,9 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
  * - `scene` (titre, fonction, et les intentions de TOUS ses plans dans l'ordre, `cePlan` marquant celui qu'on
  *   écrit : c'est le seul « texte » de la scène), `episode` : de quoi situer le plan ;
  * - `plansVoisins` : le précédent et le suivant (pour le raccord), titre et description ;
- * - `registre` : pour chaque asset candidat (hors voix, sons et plans clés) son code, sa description
+ * - `registre` : pour chaque asset candidat (hors voix) son code, sa description
  *   canonique (français), sa méthode, son prompt de génération (anglais) et s'il a déjà son fichier
- *   (image, ou son pour un bruitage) ; hors voix et plans clés (les voix se dérivent des répliques) ;
+ *   (image, ou son pour un bruitage) ; hors voix (les voix se dérivent des répliques) ;
  * - `repliques` : celles du plan (uuid, locuteur, texte exact, durée mesurée si la prise existe) ;
  * - `clauseStyleDuProjet`, `briefExtrait` : le style visuel, la continuité, les rimes, les pièges. */
 export async function entreePlanH3(
@@ -369,7 +369,7 @@ export async function entreePlanH3(
     .where(and(eq(assets.projectId, projectId), horsAffiches))
     .orderBy(asc(assets.code));
   const candidats = registre
-    .filter((a) => a.type !== "voix" && a.type !== "keyframe")
+    .filter((a) => a.type !== "voix")
     .map((a) => ({
       code: a.code,
       type: a.type,
@@ -564,7 +564,7 @@ export async function entreeIterationPlan(
     })),
   ];
   const importe = rendu.workflowFichier === WORKFLOW_IMPORT_MANUEL;
-  // Le registre : de quoi AJOUTER une référence (codes existants, jamais inventés) ; sans les voix ni les images clés.
+  // Le registre : de quoi AJOUTER une référence (codes existants, jamais inventés) ; sans les voix (les poses composites « keyframe » se citent comme les autres images).
   const registre = (await registreResume(db, projectId)).filter((a) => a.type !== "voix");
   const contexte: ContexteUtilise[] = [
     { type: "plan", libelle: `Plan · ${p.titre} · prompt actuel (six sections)`, ref: p.uuid },

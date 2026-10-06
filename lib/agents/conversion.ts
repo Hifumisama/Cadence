@@ -426,7 +426,9 @@ export type OptionsFichePlan = {
 };
 
 const echapperRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-export const TYPES_MANQUANTS = new Set<string>(TYPES_ASSET.filter((t) => t !== "voix" && t !== "keyframe"));
+/** Types d'assets qu'une proposition peut créer. Un « keyframe » (pose composite : plusieurs éléments mêlés dans une même
+ * image) en fait partie depuis le 2026-10-06 ; seule la voix se fabrique ailleurs (casting vocal). */
+export const TYPES_MANQUANTS = new Set<string>(TYPES_ASSET.filter((t) => t !== "voix"));
 
 /** Remplace un marqueur `[[CODE]]` (ou `[CODE]`) par du texte : une référence qu'on ne peut pas poser est
  * décrite en prose, par le nom que le modèle lui a donné. */

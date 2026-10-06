@@ -334,7 +334,7 @@ function controlerReferences(ops: OpsReferences | undefined, ctx: ContexteIterat
   for (const r of ops.ajouter ?? []) {
     const type = registre.get(r.asset);
     if (type == null) problemes.push({ niveau: "erreur", regle: "ajout-inconnu", message: `references.ajouter : ${r.asset} n'existe pas au registre ; n'utilise que des codes du registre (la création d'un asset se propose à part).` });
-    else if (type === "voix" || type === "sfx" || type === "keyframe") problemes.push({ niveau: "erreur", regle: "ajout-nature", message: `references.ajouter : ${r.asset} (${type}) n'est pas une référence d'image.` });
+    else if (type === "voix" || type === "sfx") problemes.push({ niveau: "erreur", regle: "ajout-nature", message: `references.ajouter : ${r.asset} (${type}) n'est pas une référence d'image.` });
     else if (codesImages.has(r.asset) && !retires.has(r.asset)) problemes.push({ niveau: "erreur", regle: "ajout-doublon", message: `references.ajouter : ${r.asset} est déjà une référence de ce plan.` });
     else if (ajoutes.has(r.asset)) problemes.push({ niveau: "erreur", regle: "ajout-doublon", message: `references.ajouter : ${r.asset} est cité deux fois.` });
     ajoutes.add(r.asset);
