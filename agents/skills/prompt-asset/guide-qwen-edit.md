@@ -5,7 +5,7 @@
 
 ## Le principe
 
-**Des instructions impératives, pas des descriptions.** On ne redécrit pas l'image : on énonce la transformation. L'image 1 est ce qu'on modifie (par défaut l'image du **parent** de l'asset). Les images 2 et 3, si elles existent, sont des références : on les cite par leur rang (« image 2 »).
+**Des instructions impératives, pas des descriptions.** On ne redécrit pas l'image : on énonce la transformation. L'image 1 est ce qu'on modifie (par défaut l'**image de départ** de l'asset). Les images 2 et 3, si elles existent, sont des références : on les cite par leur rang (« image 2 »).
 
 - **Une intention par instruction.** Empiler cinq modifications dans une phrase donne un résultat moyen sur les cinq.
 - **Nomme ce qui ne doit pas bouger** quand c'est structurant : « Preserve her exact facial identity, ruby-red eye color, tan skin tone ».
@@ -28,7 +28,7 @@ L'édition préserve la structure de l'image source. Elle échoue dans ces trois
 
 1. **Le but est une absence.** Retirer un élément structurant (effacer les doigts d'une main, ôter une silhouette d'un décor) revient à combattre sa fonction principale : le modèle rend l'élément quel que soit le nombre d'essais. Génère plutôt un concept que le modèle possède déjà (un pont plutôt qu'une paume sans doigts, un mur plutôt qu'un décor vidé de son personnage).
 2. **Le but est de changer de point de vue.** Reculer, monter, passer de face à trois quarts : ce sont des opérations géométriques, pas des retouches. Le modèle colle un élément par-dessus l'image existante (une colline au premier plan, sans rien recalculer). Deux vues d'un même lieu sont **deux générations**.
-3. **L'asset est un élément distinct**, pas un autre cadrage du même sujet : un effet visuel (flammes, éclairs), un accessoire, une pièce à part. Il se génère de zéro, même rattaché au master. Le lien de parenté dit à quelle famille il appartient, pas comment il se fabrique.
+3. **L'asset est un élément distinct**, pas un autre cadrage du même sujet : un effet visuel (flammes, éclairs), un accessoire, une pièce à part. Il se génère de zéro, même s'il a une image de départ proposée. Ce lien ne dit pas comment il se fabrique.
 
 Ce qui reste bon pour une édition : un flou, une bascule de lumière, une saison, un élément ajouté ou retiré **dans le plan de l'image** ; un cadrage serré ou un détail recadré depuis le master (les yeux, la main, la lame).
 

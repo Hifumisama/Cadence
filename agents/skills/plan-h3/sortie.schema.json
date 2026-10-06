@@ -73,8 +73,8 @@
         "required": ["code", "type", "description", "raison"],
         "properties": {
           "code": { "type": "string", "description": "Code proposé, préfixé par le type (PROP_lettre, DEC_ruelle_nuit)." },
-          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "sfx", "oth"] },
-          "parent": { "type": "string", "description": "Optionnel. Code de l'asset existant dont il dérive." },
+          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "sfx", "keyframe", "oth"] },
+          "parent": { "type": "string", "description": "Optionnel. Code de l'asset existant qui servira d'image de départ (le même lieu la nuit, le même personnage blessé). Simple proposition : le registre est à plat. Pour un `keyframe`, laisse vide et dis les éléments à réunir dans `raison`." },
           "description": { "type": "string", "description": "Ce que c'est, en français, comme dans le registre." },
           "raison": { "type": "string", "description": "Pourquoi une référence existante ne suffit pas." }
         }

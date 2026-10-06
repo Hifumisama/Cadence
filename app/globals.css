@@ -545,6 +545,9 @@ button {
   font-size: 13px;
   color: var(--ink-3);
 }
+.shot-perime {
+  color: var(--ecarlate-glow);
+}
 .shot-right {
   display: flex;
   align-items: center;
@@ -1355,201 +1358,9 @@ button {
 .chip-citation button:hover {
   color: var(--ecarlate-glow);
 }
-
-/* ---------------------------------------------------------------
-   Arborescence — arbre de compétences vertical : racine, tronc, grille de
-   dérivés qui retourne à la ligne, grappes pour les dérivés à enfants
-   (retour utilisateur 2026-09-29 : profondeur rarement > 2, beaucoup de
-   dérivés au niveau 1).
-   --------------------------------------------------------------- */
-
-.tree {
-  display: flex;
-  flex-direction: column;
-}
-.tree-root-row {
-  display: flex;
-  justify-content: center;
-}
-.tree-root-row .asset-card {
-  width: 240px;
-}
-.tree-trunk {
-  width: 2px;
-  height: 32px;
-  margin-inline: auto;
-  background: var(--or);
-}
-.tree-lane {
-  border: 1px solid var(--line);
-  border-top: 2px solid var(--or);
-  background: rgba(18, 18, 23, 0.45);
-  padding: var(--sp-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-}
-.tree-lane-hd {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-3) var(--sp-5);
-}
-.tree-lane-hd h3 {
-  font-family: var(--font-brand), serif;
-  font-weight: 400;
-  font-size: 16px;
-  margin: 0;
-}
-.tree-lane-hd h3 small {
-  font-family: var(--font-mono), monospace;
-  font-size: 11px;
-  color: var(--ink-3);
-  margin-left: var(--sp-2);
-}
-.tree-filtres {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.tree-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--sp-5) var(--sp-4);
-  align-items: start;
-}
-.tree-node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-2);
-  width: 100%;
-  max-width: 240px;
-}
-.tree-node .asset-card {
-  width: 100%;
-}
-.tree-node.is-estompe {
-  opacity: 0.55;
-}
 .asset-card.is-actif {
   border-color: var(--or);
   box-shadow: 0 0 0 1px var(--or), 0 0 22px rgba(201, 162, 75, 0.18);
-}
-.tree-cluster {
-  grid-column: span 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border: 1px dashed var(--line-strong);
-  padding: var(--sp-3) var(--sp-3) var(--sp-4);
-  background: rgba(33, 33, 41, 0.35);
-}
-.tree-cluster.on-path {
-  border-color: var(--or-soft);
-}
-.tree-stem {
-  width: 2px;
-  height: 16px;
-  background: var(--line-strong);
-}
-.tree-cluster.on-path .tree-stem {
-  background: var(--or);
-}
-.tree-minis {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--sp-3) var(--sp-2);
-  width: 100%;
-}
-.tree-mini-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex: 1 1 180px;
-  max-width: 200px;
-}
-.tree-mini {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  background: var(--surface-2);
-  border: 1px solid var(--line-strong);
-  padding: 6px 10px 6px 6px;
-  text-decoration: none;
-  transition: border-color 0.16s;
-}
-.tree-mini:hover {
-  border-color: var(--or-soft);
-}
-.tree-mini.is-active {
-  border-color: var(--or);
-  box-shadow: 0 0 0 1px var(--or);
-}
-.tree-mini-thumb {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  background: #17171d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink-3);
-  overflow: hidden;
-}
-.tree-mini-thumb.is-vide {
-  background: repeating-linear-gradient(135deg, #191920 0 4px, #16161c 4px 8px);
-}
-.tree-mini-thumb img,
-.tree-mini-thumb video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.tree-mini-txt {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-}
-.tree-mini-txt .asset-code {
-  font-size: 11px;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tree-sub {
-  width: 100%;
-  border-left: 1px solid var(--line-strong);
-  padding-left: var(--sp-2);
-}
-.tree-sub summary {
-  cursor: pointer;
-  font-family: var(--font-mono), monospace;
-  font-size: 11px;
-  color: var(--ink-3);
-}
-.tree-sub summary:hover {
-  color: var(--or);
-}
-.tree-sub .tree-minis {
-  flex-direction: column;
-  align-items: stretch;
-  margin-top: var(--sp-2);
-}
-.tree-sub .tree-mini-wrap {
-  max-width: 100%;
-  flex: 0 0 auto;
-}
-@media (max-width: 520px) {
-  .tree-cluster {
-    grid-column: span 1;
-  }
 }
 
 /* Fiche asset (détail) — média à gauche, infos éditables à droite, sur
@@ -1583,41 +1394,6 @@ button {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-2);
-}
-
-/* Arborescence simplifiée — grille de cartes cliquables, chacune menant
- * au détail complet de cet élément précis (retour utilisateur 2026-09-28 :
- * le header doit refléter l'élément sur lequel on clique, pas toujours le
- * master). */
-.family-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--sp-3);
-}
-.family-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--surface-2);
-  text-decoration: none;
-  text-align: center;
-  transition: border-color 0.16s, background 0.16s, transform 0.16s;
-}
-.family-card:hover {
-  border-color: var(--or-soft);
-  background: var(--surface-3);
-  transform: translateY(-1px);
-}
-.family-card.is-active {
-  border-color: var(--ecarlate-soft);
-  background: linear-gradient(180deg, rgba(200, 16, 46, 0.12), var(--surface-2));
-}
-.family-card .asset-code {
-  font-size: 12px;
 }
 
 /* Mouvement narratif — séparateur dédié (Scénario), chiffre romain +
@@ -1771,33 +1547,6 @@ button {
   font-size: 11px;
   color: var(--ink-4);
   white-space: nowrap;
-}
-
-.tree-root {
-  border: 1px solid var(--or-soft);
-  border-radius: 3px;
-  padding: var(--sp-3) var(--sp-4);
-  background: rgba(201, 162, 75, 0.06);
-}
-.tree-children {
-  margin: var(--sp-3) 0 0 var(--sp-3);
-  padding-left: var(--sp-4);
-  border-left: 1px dashed var(--line-strong);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-.tree-node {
-  padding: var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  background: var(--surface-2);
-}
-.tree-node-hd {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
 }
 
 .stat-seg {

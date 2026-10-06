@@ -1182,3 +1182,28 @@
   border-left: 2px solid var(--ecarlate-soft);
   background: rgba(200, 16, 46, 0.06);
 }
+
+/* Précédent / suivant : sobre, au-dessus de l'en-tête de la fiche. */
+.as-voisins {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--sp-3);
+  font-size: 12px;
+  color: var(--ink-4);
+}
+.as-voisins a {
+  color: var(--ink-3);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 38%;
+}
+.as-voisins a:hover {
+  color: var(--ink);
+}
+.as-voisins-rang {
+  letter-spacing: 0.08em;
+}

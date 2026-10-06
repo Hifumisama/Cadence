@@ -66,6 +66,10 @@ export default async function AssetDetailPage({
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
   const perimes = await getPlansPerimes({ assetId: noeud.id });
   const plansRendus = await nbPlansRendusCitant(noeud.id);
+  // Précédent / suivant : l'ordre du registre, pour parcourir les fiches sans repasser par la liste.
+  const rang = tous.findIndex((a) => a.id === noeud.id);
+  const precedent = rang > 0 ? tous[rang - 1] : null;
+  const suivant = rang < tous.length - 1 ? tous[rang + 1] : null;
   const promptVide = !(noeud.promptGeneration ?? "").trim();
 
   const entrees: EntreeSommaire[] = [
@@ -105,6 +109,11 @@ export default async function AssetDetailPage({
               <Sommaire entrees={entrees} libelle="Sections de la fiche" />
 
               <div className="bf-contenu">
+                <nav className="as-voisins" aria-label="Fiche précédente et suivante">
+                  {precedent ? <Link href={`/p/${pid}/assets/${precedent.code}`} rel="prev">‹ {precedent.code}</Link> : <span />}
+                  <span className="as-voisins-rang">{rang + 1} / {tous.length}</span>
+                  {suivant ? <Link href={`/p/${pid}/assets/${suivant.code}`} rel="next">{suivant.code} ›</Link> : <span />}
+                </nav>
                 <EnteteAsset
                   projectId={pid}
                   assetId={noeud.id}

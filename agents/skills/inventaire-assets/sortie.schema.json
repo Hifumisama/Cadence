@@ -14,8 +14,8 @@
         "required": ["code", "type", "description", "plans", "raison"],
         "properties": {
           "code": { "type": "string", "description": "Code proposé, préfixé par le type (PROP_lanterne, DEC_phare_nuit). Le code final est reconstruit selon la convention du registre." },
-          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "sfx", "oth"] },
-          "parent": { "type": "string", "description": "Optionnel. Code du MASTER du registre (ou d'un asset proposé ici) dont c'est un état ou une variante : le même décor la nuit, le même personnage blessé. Le registre n'a qu'un niveau : le parent est toujours un master." },
+          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "sfx", "keyframe", "oth"] },
+          "parent": { "type": "string", "description": "Optionnel. Code de l'asset (du registre, ou proposé ici) qui sert d'IMAGE DE DÉPART : le même décor la nuit, le même personnage blessé. Ce n'est qu'une image de départ proposée, pas une hiérarchie : le registre est à plat. Pour un `keyframe`, laisse vide et dis les éléments à réunir dans `raison`." },
           "description": { "type": "string", "minLength": 1, "description": "Ce que c'est, en français, comme dans le registre : ce qu'on voit, sans cadrage ni lumière de plan." },
           "plans": { "type": "array", "items": { "type": "string" }, "description": "Les titres des plans (tels que donnés en entrée) où l'asset apparaît." },
           "raison": { "type": "string", "description": "Pourquoi aucun asset du registre ne convient : ce qui doit réellement être différent à l'image." }

@@ -4,6 +4,7 @@ import { MatriceAssets } from "@/components/plan/MatriceAssets";
 import { LectureEpisode } from "@/components/plan/LectureEpisode";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
 import { PassageNuitButton } from "@/components/plan/PassageNuitButton";
+import { RelancePerimesButton } from "@/components/plan/RelancePerimesButton";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,8 @@ export default async function PlansPage({
   const base = `/p/${projectId}/e/${episodeId}`;
   const [plans, segments, matrice] = await Promise.all([getPlansList(Number(episodeId)), getSegmentsLecture(Number(episodeId)), getMatriceAssets(Number(episodeId))]);
 
+  const nPerimes = plans.filter((p) => p.codesPerimes.length > 0).length;
+
   const comptes = new Map<string, number>();
   for (const s of plans) {
     const cle = s.statut === "previsualise" ? "en_cours" : s.statut;
@@ -50,7 +53,8 @@ export default async function PlansPage({
           <h1>Plans</h1>
           <p>Tous les plans de cet épisode dans l&rsquo;ordre, sans remise à zéro.</p>
         </div>
-        <div style={{ marginLeft: "auto" }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 10 }}>
+          <RelancePerimesButton episodeId={Number(episodeId)} nPerimes={nPerimes} />
           <PassageNuitButton episodeId={Number(episodeId)} nPrevisualise={nPrevisualise} />
         </div>
       </div>
@@ -83,6 +87,13 @@ export default async function PlansPage({
             <span className="shot-no">{String(plan.position).padStart(2, "0")}</span>
             <span className="shot-title">
               {plan.titre}
+              {plan.codesPerimes.length > 0 ? (
+                <span className="shot-meta">
+                  <span className="shot-perime" title="Une référence a changé depuis le dernier rendu : relancer pour en tenir compte">
+                    Rendu périmé · {plan.codesPerimes.join(", ")}
+                  </span>
+                </span>
+              ) : null}
               {plan.dernierJob?.erreur ? (
                 <span className="shot-meta">
                   <span style={{ color: "var(--ecarlate-glow)" }}>

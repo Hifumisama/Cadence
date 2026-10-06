@@ -11,7 +11,7 @@
 
 | # | Friction | Fréq. | Statut |
 |---|---|---|---|
-| F01 | Registre d'assets illisible | 🔴 | requalifiée — structure (arbre) + voix définies, versioning abandonné |
+| F01 | Registre d'assets illisible | 🔴 | requalifiée — registre à plat (2026-10-06) + voix définies, versioning abandonné |
 | F02 | Fiche de plan : son + dialogues | 🔴 | fermé, prêt à intégrer au skill `fiche-de-plan` |
 | F03 | Itérations de prompt | 🔴 | motif identifié (découpage + vocabulaire) → direction définie |
 | F04 | Batch d'upscaling | 🔴 | confirmé en prod, prêt à implémenter |
@@ -27,7 +27,7 @@ gestionnaire d'assets : c'est une base de connaissance de la série.
 
 ## F01 — Registre d'assets : impossible de savoir où on en est
 
-**Fréquence :** 🔴 · **Étape :** assets · **Statut :** requalifiée — structure + casting voix définis, versioning abandonné
+**Fréquence :** 🔴 · **Étape :** assets · **Statut :** requalifiée — registre à plat (2026-10-06) + casting voix définis, versioning abandonné
 
 ### Symptôme
 Gestion manuelle dans des dossiers nommés. On perd le fil de :
@@ -1641,7 +1641,7 @@ Issu du test général de l'application (feuille de route : `docs/PLAN_APRES_TES
 
 Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
 
-- **Registre à UN SEUL niveau (précise F01).** Un asset est un master, ou un dérivé d'un master : les états d'un
+- **Registre à UN SEUL niveau (précise F01 ; révisé le 2026-10-06 : registre à plat, voir plus bas).** Un asset est un master, ou un dérivé d'un master : les états d'un
   décor, les tenues d'un personnage sont des dérivés du même master, jamais une chaîne. Règle posée à l'écriture
   (`lib/registre-assets.ts`, `masterDe` : dériver d'un dérivé rattache au master ; utilisée par la création manuelle,
   l'applicateur `asset`, l'import) et migration 0039 qui remonte les chaînes existantes au master. La carte « + dérivé »
@@ -1908,3 +1908,15 @@ Remplace l'enregistrement à la sortie du champ décidé le même jour (« Prév
 - **Mise en page** : gauche collante (lecteur, pellicule des rendus, console de rendu), droite (références, puis prompt replié et dialogues en deux colonnes). Plus d'onglets. Le rappel du scénario est dans l'en-tête ; les contrôles automatiques sont une pastille qui déplie la liste ; supprimer et importer une vidéo sont dans « ⋯ ». L'historique des rendus devient une pellicule de clichés (A / B comme avant, `?rendu=` et `?compare=` inchangés).
 - **Animations** : balayage « gel » et sceau « Figé n°X » pendant 5 s (le temps que le rendu se place dans la file), dé de seed, braises sur le lecteur vide, entrée des rendus et des références. Coupées par `prefers-reduced-motion`.
 - Retirés : `PlanParamsEditor`, `PromptSectionEditor`, `ChecksPanel`, `RelaunchButton` (`relancerPlan` reste, il sert encore côté serveur).
+
+## 2026-10-06 — Registre d'assets à plat, plans périmés
+
+Révise F01 (l'arbre) et la règle « registre à un seul niveau » du 2026-10-03.
+
+- **Registre à plat.** Un asset est un asset, qu'il serve ou non d'image de départ à d'autres : plus d'arbre, plus de bande « variantes ». La famille se lit au préfixe du code (`CHAR_sophia`, `CHAR_sophia_nuit`) et à la recherche. Motif : le worker lit les images sources enregistrées **par génération** (`asset_generation_sources`, trois au plus) et n'a pas besoin du lien parent ; supprimer un master ne casse rien (l'image dérivée existe déjà) ; un composite a plusieurs origines, qu'un parent unique ne dit pas.
+- `assets.deriveDeId` est conservé mais n'est plus qu'une **image de départ proposée** (« nouvel asset à partir de celui-ci »). Supprimer un asset détache ceux qui en partaient. Une édition n'exige plus de parent.
+- Le type `keyframe` (pose composite : plusieurs éléments mêlés dans une même image) est créable par les agents et citable comme référence ; rare, lié à un plan, trois images sources au plus. Skills `inventaire-assets`, `plan-h3`, `prompt-asset` et leurs `sortie.schema.json` repris en conséquence (le champ `parent` des sorties reste, relu comme « image de départ »).
+- Registre : sélection multiple au clic long, barre Générer / Supprimer ; filtre « Sans plan » ; un lot ne renvoie jamais un asset qui a déjà une image. Fiche d'asset : sections modifiables, « Apparaît dans » en badges sous la description.
+- **Plans périmés.** Pas de versionnage (F01) : adopter un candidat remplace le fichier, donc un plan déjà rendu avec l'ancienne image est dépassé. `assets.fichier_at` (migration 0049) date la dernière pose du fichier (adoption, import, prise de voix) ; un plan est **périmé** quand le début de son dernier rendu terminé est antérieur à `fichier_at` d'une de ses références (`lib/plans-perimes.ts`). Un plan jamais rendu n'est pas périmé ; les assets existants à la migration prennent la date de la migration (rien n'est périmé rétroactivement).
+- Surfaces : alerte « Rendu périmé » dans la fiche de plan ; badge « périmé » dans la frise des plans ; badges écarlates dans la fiche d'asset ; avertissement avant adoption (« périmera N plans déjà rendus ») ; bouton « Relancer les périmés » (`relancerPlansPerimes`) : un nouveau rendu par plan, avec sa seed et dans son mode (prévisualisation ou final), en sautant les plans déjà en file et ceux aux dialogues désalignés.
+- Reste : pas de précédent / suivant dans la fiche d'asset.

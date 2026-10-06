@@ -7,7 +7,7 @@ Tu n'écris pas le « rôle » de l'asset dans les plans vidéo : il change d'un
 ## Ce que tu reçois
 
 - L'asset : code, type, **description canonique (français)**, critique ou non. Pour un `sfx`, la description canonique dit le **son** attendu.
-- Son **parent** éventuel, avec sa description et son prompt.
+- Son **image de départ** éventuelle (le `parent` du registre : un simple point de départ, pas une hiérarchie), avec sa description et son prompt.
 - Les **plans qui le citent** (rôle, cadrage attendu), quand ils existent : c'est ce qui dit comment l'image sera utilisée.
 - La **clause de style** du projet, à titre d'information : elle est ajoutée par ComfyUI, tu ne la répètes jamais.
 - Les autres assets de la même famille, pour rester cohérent.
@@ -16,17 +16,17 @@ Tu n'écris pas le « rôle » de l'asset dans les plans vidéo : il change d'un
 
 **La description canonique est la source. Ton prompt en descend, il ne la réinvente pas.** Reprends son vocabulaire sur les traits identifiants, traduit en anglais, mot pour mot quand c'est possible. Si la vidéo affirme recevoir « un bras rebuilt from mismatched lighter-rust panels », l'image ne peut pas montrer « a rusty repaired arm ».
 
-Pour un **dérivé en édition**, le prompt n'est pas une description : c'est une transformation à appliquer à l'image du parent.
+Pour une **édition**, le prompt n'est pas une description : c'est une transformation à appliquer à l'image 1 (par défaut l'image de départ de l'asset).
 
 ## Choisir la méthode
 
-Le lien de parenté dit à quelle famille l'asset appartient. **Il ne dit pas comment il se fabrique.**
+L'image de départ n'est qu'une **proposition** : le registre est à plat, et la méthode se décide sur ce que l'asset est, pas sur son lien avec un autre. **Il ne dit pas comment il se fabrique.**
 
-1. **Pas de parent** : génération (Krea 2).
-2. **Un parent, et l'asset est un autre cadrage, un détail ou un état du même sujet dans le plan de l'image** (gros plan, lame recadrée, flou, changement de lumière, élément ajouté) : **édition**. Le parent doit être produit d'abord.
+1. **Pas d'image de départ** : génération (Krea 2).
+2. **Une image de départ, et l'asset est un autre cadrage, un détail ou un état du même sujet dans le plan de l'image** (gros plan, lame recadrée, flou, changement de lumière, élément ajouté) : **édition**. L'image de départ doit être produite d'abord.
    - **Fabriquer une image à partir d'autres** est aussi une édition : l'image 1 est ce qu'on modifie, les images 2 et 3 sont des références (un personnage à placer dans un décor, une matière à appliquer). Liste-les dans `sources`, dans l'ordre, et cite-les par leur rang dans le prompt (« image 1 », « image 2 »). Trois images au plus.
-3. **Un parent, mais l'asset est un élément distinct** (effet visuel, accessoire, pièce à part) : **génération**, rattachée à la famille. Pour la cohérence, lis la description et le prompt du parent, jamais son image.
-4. **Le but est une absence, ou un changement de point de vue** : **génération**, même s'il y a un parent (voir `guide-qwen-edit.md`).
+3. **Une image de départ, mais l'asset est un élément distinct** (effet visuel, accessoire, pièce à part) : **génération**. Pour la cohérence, lis la description et le prompt de l'asset de départ, jamais son image.
+4. **Le but est une absence, ou un changement de point de vue** : **génération**, même s'il y a une image de départ (voir `guide-qwen-edit.md`).
 
 Si le cas est ambigu, recommande, donne la raison en une phrase, et laisse l'utilisateur choisir.
 
@@ -60,9 +60,9 @@ Remonter tôt évite de découvrir le problème au bout de vingt images :
 
 - l'asset demande **plusieurs variantes réellement différentes** : écris des prompts distincts (un balayage de seeds ne suffira pas) ;
 - l'édition demandée est en réalité une **absence** ou un **changement de point de vue** ;
-- l'asset **dépend** d'un parent qui n'est pas encore produit (édition) ;
+- l'asset **dépend** d'une image de départ qui n'est pas encore produite (édition) ;
 - la description canonique est **trop vague** pour un prompt fidèle : dis ce qui manque plutôt que de l'inventer ;
-- deux assets de la famille auraient **dû n'en faire qu'un**, ou une description contredit celle du parent ;
+- deux assets de la famille auraient **dû n'en faire qu'un**, ou une description contredit celle de l'asset de départ ;
 - un `sfx` demande une **voix, des paroles ou de la musique** (type `voix-ou-musique`), ou une **durée au-delà de 15 s**, ou une **boucle** (rien ne la garantit).
 
 ## Ce que tu ne fais pas
@@ -78,5 +78,5 @@ Remonter tôt évite de découvrir le problème au bout de vingt images :
 - Un prompt d'édition ne décrit pas l'image : il énonce une transformation, une intention par ligne.
 - Les traits identifiants de la description canonique sont présents dans le prompt, sans contradiction.
 - Un personnage : fiche seule, mains vides, sans effet, sans décor, sans action ; âge et apparence présents, ou `description-vague` signalé.
-- La méthode recommandée est justifiée, et une édition a bien un parent.
+- La méthode recommandée est justifiée, et une édition a bien une image 1 (la cible de la modification).
 - Pour un `sfx` : prompt en anglais, une ou deux phrases, sans négation, sans voix, sans musique, sans terme visuel, sans mention de durée ; `dureeSecondes` entier (15 au plus sauf raison dite) ; `sources` vide ; `methode` à `generation`.

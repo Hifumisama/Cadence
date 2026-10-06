@@ -2,7 +2,8 @@
 
 import { db } from "@/db";
 import { jobs, planDialogues, planPromptSections, planRefs, plans } from "@/db/schema";
-import { eq, and, isNotNull, max } from "drizzle-orm";
+import { eq, and, desc, isNotNull, max } from "drizzle-orm";
+import { getPlansPerimes } from "@/lib/plans-perimes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -246,6 +247,36 @@ export async function lancerPassageNuit(episodeId: number): Promise<{ n: number;
 
   revalidatePath("/", "layout");
   return { n, bloques };
+}
+
+/** « Relancer les plans périmés » (lib/plans-perimes) : un nouveau rendu pour chaque plan de l'épisode dont une référence a
+ * changé depuis son dernier rendu. Chaque plan repart dans le mode de son dernier rendu (prévisualisation reste prévisualisation,
+ * final reste final) et avec sa seed — seule la référence change. Sont sautés : les plans déjà en file ou en cours, et ceux aux
+ * dialogues désalignés. */
+export async function relancerPlansPerimes(episodeId: number): Promise<{ n: number; bloques: number; dejaEnFile: number }> {
+  const episode = await db.select({ id: plans.id, statut: plans.statut }).from(plans).where(eq(plans.episodeId, episodeId));
+  const perimes = episode.length ? await getPlansPerimes({ planIds: episode.map((p) => p.id) }) : new Map();
+
+  let n = 0;
+  let bloques = 0;
+  let dejaEnFile = 0;
+  for (const p of episode) {
+    if (!perimes.has(p.id)) continue;
+    if (p.statut === "en_attente" || p.statut === "en_cours") {
+      dejaEnFile++;
+      continue;
+    }
+    if (await blocageDialogues(p.id)) {
+      bloques++;
+      continue;
+    }
+    const [dernier] = await db.select({ upscale: jobs.activerUpscale }).from(jobs).where(eq(jobs.planId, p.id)).orderBy(desc(jobs.id)).limit(1);
+    await creerJobRelance(p.id, dernier?.upscale ?? true);
+    n++;
+  }
+
+  revalidatePath("/", "layout");
+  return { n, bloques, dejaEnFile };
 }
 
 /** FPS et durée de génération, éditables depuis la Fiche de plan — le mode
