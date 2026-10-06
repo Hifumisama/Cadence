@@ -6,6 +6,7 @@ import { NouveauSceneForm } from "@/components/scenario/NouveauSceneForm";
 import { SupprimerSceneButton } from "@/components/scenario/SupprimerSceneButton";
 import { BasculeScene, ControleAccordeon, CorpsScene, PlanShotLink, PoigneeScene, ZoneScene } from "@/components/scenario/GlisserDeposer";
 import { ModifierSceneButton } from "@/components/scenario/ModifierSceneButton";
+import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
 
 export const dynamic = "force-dynamic";
 
@@ -36,13 +37,15 @@ export default async function ScenarioPage({
       titre: sc.titre,
       range: sc.plans.length > 0 ? `${sc.plans.length} plan${sc.plans.length > 1 ? "s" : ""}` : "",
       fonction: sc.fonction,
+      genre: sc.genre as string | null,
+      ambiance: sc.ambiance as string | null,
       duree: sc.dureeSecondes,
       plans: sc.plans,
     })),
     // Toujours présent dès qu'il existe une scène : c'est la zone où déposer
     // un plan pour le détacher.
     ...(sansScene.length > 0 || scenes.length > 0
-      ? [{ id: null, titre: "Sans scène", range: "", fonction: null, duree: null, plans: sansScene }]
+      ? [{ id: null, titre: "Sans scène", range: "", fonction: null, genre: null, ambiance: null, duree: null, plans: sansScene }]
       : []),
   ];
 
@@ -73,12 +76,17 @@ export default async function ScenarioPage({
               </span>
             ) : null}
             {g.id != null ? (
-              <ModifierSceneButton sceneId={g.id} titre={g.titre} fonction={g.fonction ?? ""} />
+              <ModifierSceneButton sceneId={g.id} titre={g.titre} fonction={g.fonction ?? ""} genre={g.genre ?? ""} ambiance={g.ambiance ?? ""} />
             ) : null}
             {g.id != null ? <SupprimerSceneButton sceneId={g.id} titre={g.titre} /> : null}
           </div>
           <CorpsScene>
           {g.fonction ? <p className="scene-fn">{g.fonction}</p> : null}
+          {genreOuNull(g.genre) || g.ambiance ? (
+            <p className="tiny-note" style={{ margin: "0 0 var(--sp-2)" }}>
+              {[genreOuNull(g.genre) ? `Genre : ${LIBELLE_GENRE[genreOuNull(g.genre)!]}` : null, g.ambiance ? `Ambiance : ${g.ambiance}` : null].filter(Boolean).join(" · ")}
+            </p>
+          ) : null}
           <div className="frise">
             {g.plans.map((plan, i) => (
               <PlanShotLink

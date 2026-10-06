@@ -22,15 +22,24 @@ export function PromptSectionEditor({
   initialContenu: string;
 }) {
   const [contenu, setContenu] = useState(initialContenu);
+  // Dernier contenu écrit en base : tout ce qui s'en écarte est « non enregistré » (« Prévisualiser » ne lit que la base).
+  const [enregistre, setEnregistre] = useState(initialContenu);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const modifie = contenu !== enregistre;
 
   const onSave = () => {
+    const aEcrire = contenu;
     startTransition(async () => {
-      await updatePromptSection(planId, section, contenu);
+      await updatePromptSection(planId, section, aEcrire);
+      setEnregistre(aEcrire);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     });
+  };
+  // Sortir du champ enregistre : un clic sur « Prévisualiser » juste après une modification doit la prendre en compte.
+  const onBlur = () => {
+    if (modifie && !pending) onSave();
   };
 
   return (
@@ -45,14 +54,15 @@ export function PromptSectionEditor({
         <span className="sec-key">{LABELS[section] ?? section}</span>
         <span className="sec-actions">
           <span className="sec-count">{contenu.length} c.</span>
-          <button className="btn btn-ghost" onClick={onSave} disabled={pending}>
-            {pending ? "..." : saved ? "Enregistré" : "Enregistrer"}
+          <button className="btn btn-ghost" onClick={onSave} disabled={pending || !modifie}>
+            {pending ? "..." : modifie ? "Enregistrer" : "Enregistré"}
           </button>
         </span>
       </div>
       <textarea
         value={contenu}
         onChange={(e) => setContenu(e.target.value)}
+        onBlur={onBlur}
         rows={section === "detailed_description" ? 12 : 3}
       />
     </div>

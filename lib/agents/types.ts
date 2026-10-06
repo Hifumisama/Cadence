@@ -89,6 +89,25 @@ export type EtatTache = {
 // Brief
 // ---------------------------------------------------------------------------
 
+export const RYTHMES_BRIEF = ["lent", "mesure", "soutenu", "rapide", "variable"] as const;
+export type RythmeBrief = (typeof RYTHMES_BRIEF)[number];
+
+/** Un personnage du brief. `age` et `apparence` sont obligatoires pour tout nouveau brief (ils alimentent l'image
+ * ET la voix) ; ils restent optionnels ici pour les briefs écrits avant. */
+export type PersonnageBrief = {
+  nom: string;
+  role: string;
+  reconnaissable: string;
+  /** Âge apparent, concret (« adolescente, 15 ans », « homme d'une quarantaine d'années »). */
+  age?: string;
+  /** Ce qu'on VOIT : corps, visage, cheveux, tenue. Jamais un rôle, une voix ni une action. */
+  apparence?: string;
+  /** Comment il bouge ou agit quand c'est ce qui le définit (combat, métier, démarche). */
+  gestuelle?: string;
+  voix?: string;
+  statut?: string;
+};
+
 /** Le brief, tel que le skill `brief-projet` le rend (agents/skills/brief-projet/
  * sortie.schema.json). Les clés de premier niveau sont les « sections » du brief. */
 export type BriefContenu = {
@@ -100,8 +119,12 @@ export type BriefContenu = {
   langueDialogues: string;
   /** Absente dans un brief « partiel » (posé à la main : style, notes). */
   dureeEpisodeSecondes?: number;
+  /** Cadence générale (lent → rapide) : elle règle la durée et la densité de coupes des plans. */
+  rythme?: RythmeBrief;
+  /** Œuvre ou univers préexistant dont on respecte les noms, apparences et règles ; vide pour un projet original. */
+  univers?: string;
   episodes: { titre: string; resume: string; portee?: string }[];
-  personnages: { nom: string; role: string; reconnaissable: string; voix?: string; statut?: string }[];
+  personnages: PersonnageBrief[];
   lieux: { nom: string; description: string; statut?: string }[];
   continuite: string[];
   rimes: { description: string; souligner: boolean }[];
@@ -121,6 +144,8 @@ export const SECTIONS_BRIEF = [
   { cle: "genreTon", libelle: "Genre et ton", groupe: "Univers" },
   { cle: "langueDialogues", libelle: "Langue des dialogues", groupe: "Univers" },
   { cle: "dureeEpisodeSecondes", libelle: "Durée d'un épisode (s)", groupe: "Univers" },
+  { cle: "rythme", libelle: "Rythme (lent, mesure, soutenu, rapide, variable)", groupe: "Univers" },
+  { cle: "univers", libelle: "Univers ou œuvre de référence", groupe: "Univers" },
   { cle: "style", libelle: "Style et clause de style", groupe: "Style" },
   { cle: "episodes", libelle: "Épisodes", groupe: "Épisodes" },
   { cle: "personnages", libelle: "Personnages", groupe: "Personnages" },

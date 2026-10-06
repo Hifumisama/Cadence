@@ -1,13 +1,12 @@
-import { copyFile, mkdir, readFile, unlink } from "node:fs/promises";
+import { copyFile, mkdir, unlink } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { assetGenerations, assets, repliques, voixFiches } from "../db/schema";
+import { assetGenerations, assets, voixFiches } from "../db/schema";
 import { appliquerAffiche } from "./affiche-application";
 import { TYPE_AFFICHE, titreDansPrompt } from "./affiches";
-import { METHODE_AUDIO, METHODE_REPLIQUE, METHODE_TEST_AUDIO, METHODE_VOIX, estMethodeTestVoix, repliqueIdDesParametres } from "./asset-generation";
-import { cheminAssetMedia, cheminGenerationMedia, cheminRepliqueMedia, cheminVoixMedia } from "./media";
-import { mesurerDureeAudio } from "./repliques";
+import { METHODE_AUDIO, METHODE_TEST_AUDIO, METHODE_VOIX, estMethodeTestVoix } from "./asset-generation";
+import { cheminAssetMedia, cheminGenerationMedia, cheminVoixMedia } from "./media";
 
 /** Adopter un candidat : son fichier devient l'image (ou le son, ou la voix) de l'asset, et son prompt celui de l'asset. Partagé par
  * l'action « Adopter » de l'interface (app/assets/generation-actions.ts) et par le worker, qui adopte tout seul les générations d'un
@@ -17,9 +16,6 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
   if (!gen || gen.statut !== "termine" || !gen.fichier) return { ok: false, erreur: "Ce candidat n'est pas disponible." };
   const [asset] = await db.select().from(assets).where(eq(assets.id, gen.assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
-
-  // Une prise de réplique devient la prise de la réplique visée, pas l'image ni le test de la voix.
-  if (gen.methode === METHODE_REPLIQUE) return adopterPriseReplique(gen, mediaRoot);
 
   // Le test d'une voix (audio, vidéo) ne remplace jamais la voix de référence : il va sur la fiche de casting.
   if (estMethodeTestVoix(gen.methode)) return adopterTestVoix(gen, mediaRoot);
@@ -79,32 +75,6 @@ async function adopterTestVoix(gen: typeof assetGenerations.$inferSelect, mediaR
     .insert(voixFiches)
     .values({ assetId: gen.assetId, ...valeurs })
     .onConflictDoUpdate({ target: voixFiches.assetId, set: valeurs });
-  if (!gen.vuAt) await db.update(assetGenerations).set({ vuAt: new Date() }).where(eq(assetGenerations.id, gen.id));
-  return { ok: true };
-}
-
-/** Adopte une prise générée pour une réplique : elle remplace l'ancienne (pas de versionnage, F01). `fichier_texte` garde le texte tel
- * qu'il était au lancement (`gen.prompt`) : si la réplique a été réécrite pendant l'attente, la prise est marquée « à refaire ». La
- * durée n'est mesurée que pour WAV/FLAC (lib/repliques.ts) ; sinon elle reste à saisir, jamais estimée (F03). */
-async function adopterPriseReplique(gen: typeof assetGenerations.$inferSelect, mediaRoot: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  const repliqueId = repliqueIdDesParametres(gen.parametres);
-  const [r] = repliqueId != null ? await db.select().from(repliques).where(eq(repliques.id, repliqueId)) : [];
-  if (!r) return { ok: false, erreur: "La réplique visée n'existe plus." };
-  const nom = `${r.uuid}${extname(gen.fichier!).toLowerCase() || ".mp3"}`;
-  const cible = join(mediaRoot, cheminRepliqueMedia(r.id, nom));
-  let octets: Uint8Array;
-  try {
-    await mkdir(dirname(cible), { recursive: true });
-    await copyFile(join(mediaRoot, cheminGenerationMedia(gen.assetId, gen.fichier!)), cible);
-    octets = await readFile(cible);
-  } catch {
-    return { ok: false, erreur: "Le fichier du candidat est introuvable sur le stockage." };
-  }
-  if (r.fichier && r.fichier !== nom) await unlink(join(mediaRoot, cheminRepliqueMedia(r.id, r.fichier))).catch(() => undefined);
-  await db
-    .update(repliques)
-    .set({ fichier: nom, fichierTexte: gen.prompt, dureeSecondes: mesurerDureeAudio(octets, nom), statut: "prise_posee", updatedAt: new Date() })
-    .where(eq(repliques.id, r.id));
   if (!gen.vuAt) await db.update(assetGenerations).set({ vuAt: new Date() }).where(eq(assetGenerations.id, gen.id));
   return { ok: true };
 }

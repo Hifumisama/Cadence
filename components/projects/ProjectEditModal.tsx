@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { modifierNomProjet, supprimerProjet, uploaderPosterProjet } from "@/app/projects/actions";
+import { modifierNomProjet, uploaderPosterProjet } from "@/app/projects/actions";
 import { Poster } from "@/components/ui/Poster";
 import { Icone } from "@/components/ui/Icone";
 
@@ -16,7 +16,6 @@ export function ProjectEditModal({
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [valeurNom, setValeurNom] = useState(nom);
-  const [confirmSuppr, setConfirmSuppr] = useState(false);
   const [pending, startTransition] = useTransition();
   const [uploadPending, startUpload] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -26,7 +25,6 @@ export function ProjectEditModal({
   const fermer = () => {
     setOuvert(false);
     setValeurNom(nom);
-    setConfirmSuppr(false);
     setErreur(null);
   };
 
@@ -52,16 +50,6 @@ export function ProjectEditModal({
     formData.set("fichier", fichier);
     startUpload(async () => {
       await uploaderPosterProjet(projectId, formData);
-    });
-  };
-
-  const onSupprimer = () => {
-    if (!confirmSuppr) {
-      setConfirmSuppr(true);
-      return;
-    }
-    startTransition(async () => {
-      await supprimerProjet(projectId);
     });
   };
 
@@ -112,21 +100,6 @@ export function ProjectEditModal({
                   Annuler
                 </button>
                 {erreur ? <span className="tiny-note" style={{ color: "var(--ecarlate-glow)" }}>{erreur}</span> : null}
-              </div>
-              <div className="danger-zone wide">
-                <button
-                  className="btn btn-danger"
-                  type="button"
-                  disabled={pending}
-                  onClick={onSupprimer}
-                >
-                  {confirmSuppr ? "Confirmer la suppression définitive" : "Supprimer le projet"}
-                </button>
-                {confirmSuppr ? (
-                  <button className="btn btn-ghost" type="button" onClick={() => setConfirmSuppr(false)}>
-                    Annuler
-                  </button>
-                ) : null}
               </div>
             </form>
           </div>

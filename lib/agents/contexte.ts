@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-o
 import { agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons, voixFiches } from "../../db/schema";
 import { horsAffiches } from "../assets-visibles";
 import { variantePromptAsset } from "../llm/variantes";
+import { genreOuNull, variantePlanH3 } from "../scene-genres";
 import { WORKFLOW_IMPORT_MANUEL } from "../plan-checks";
 import { ORDRE_SECTIONS } from "../prompt";
 import type { Db } from "./applicateurs/commun";
@@ -36,6 +37,8 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
     style: brief.style,
     langueDialogues: brief.langueDialogues,
     dureeEpisodeSecondes: brief.dureeEpisodeSecondes,
+    ...(brief.rythme ? { rythme: brief.rythme } : {}),
+    ...(brief.univers?.trim() ? { univers: brief.univers.trim() } : {}),
     personnages: brief.personnages,
     lieux: brief.lieux,
     continuite: brief.continuite,
@@ -223,7 +226,7 @@ async function contexteEpisode(db: Db, projectId: number, episodeId: number) {
     .from(episodes)
     .where(and(eq(episodes.seasonId, ep.seasonId), gt(episodes.numero, ep.numero)))
     .orderBy(asc(episodes.numero));
-  const lesScenes = await db.select({ id: scenes.id, titre: scenes.titre, fonction: scenes.fonction }).from(scenes).where(eq(scenes.episodeId, ep.id)).orderBy(asc(scenes.ordre));
+  const lesScenes = await db.select({ id: scenes.id, titre: scenes.titre, fonction: scenes.fonction, genre: scenes.genre, ambiance: scenes.ambiance }).from(scenes).where(eq(scenes.episodeId, ep.id)).orderBy(asc(scenes.ordre));
   const lesPlans = await plansDe(db, ep.id);
   const brief = await lireBriefDuProjet(db, projectId);
   const { extrait, contexte } = extraitsBrief(brief?.contenu ?? null);
@@ -344,7 +347,7 @@ export async function entreePlanH3(
   if (!p) return null;
   const c = await contexteEpisode(db, projectId, p.episodeId);
   if (!c) return null;
-  const [scene] = p.sceneId == null ? [] : await db.select({ titre: scenes.titre, fonction: scenes.fonction }).from(scenes).where(eq(scenes.id, p.sceneId));
+  const [scene] = p.sceneId == null ? [] : await db.select({ titre: scenes.titre, fonction: scenes.fonction, genre: scenes.genre, ambiance: scenes.ambiance }).from(scenes).where(eq(scenes.id, p.sceneId));
   const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
 
   const dansLaScene = c.lesPlans.filter((x) => x.sceneId === p.sceneId);
@@ -402,6 +405,8 @@ export async function entreePlanH3(
   return {
     skill: "plan-h3",
     contexte,
+    // Le genre de la scène choisit les guides de rédaction chargés (agents/skills/plan-h3/guide-genre-*.md).
+    variante: variantePlanH3(scene?.genre),
     plan: { id: p.id, uuid: p.uuid, titre: p.titre, episodeId: p.episodeId },
     entree: {
       plan: {
@@ -416,6 +421,8 @@ export async function entreePlanH3(
         ? {
             titre: scene.titre,
             fonction: scene.fonction ?? "",
+            ...(genreOuNull(scene.genre) ? { genre: scene.genre } : {}),
+            ...(scene.ambiance?.trim() ? { ambiance: scene.ambiance.trim() } : {}),
             plans: dansLaScene.map((x, k) => ({
               position: k + 1,
               titre: x.titre,

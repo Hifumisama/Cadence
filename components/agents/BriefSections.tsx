@@ -87,10 +87,13 @@ export const FORMULAIRES_LISTE: Record<string, { element: string; champs: ChampL
     champs: [
       { cle: "nom", libelle: "Nom", type: "texte" },
       { cle: "role", libelle: "Rôle", type: "texte" },
+      { cle: "age", libelle: "Âge apparent (ex. adolescente, 15 ans)", type: "texte" },
+      { cle: "apparence", libelle: "Apparence : ce qu'on voit (corps, visage, cheveux, tenue)", type: "long" },
       { cle: "reconnaissable", libelle: "Ce qui le rend reconnaissable", type: "long" },
+      { cle: "gestuelle", libelle: "Gestuelle : comment il bouge ou agit (facultatif)", type: "long" },
       { cle: "voix", libelle: "Impression vocale (s'il parle)", type: "texte" },
     ],
-    nouveau: { nom: "", role: "", reconnaissable: "" },
+    nouveau: { nom: "", role: "", age: "", apparence: "", reconnaissable: "" },
   },
   lieux: {
     element: "Lieu",

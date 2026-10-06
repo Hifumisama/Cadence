@@ -74,7 +74,9 @@ export const CANDIDATS_GARDES = 8;
  * (16:9, ~1536×864), l'identité et les détails restent carrés (1024×1024),
  * comme dans le registre. */
 export function formatParDefaut(type: string): { aspect: Aspect; megapixels: number } {
-  if (type === "decor") return { aspect: "16:9", megapixels: 1.3 };
+  // Personnage et décor en 16:9 par défaut (retour de recette, 2026-10-05) : meilleurs résultats dans ce ratio, et c'est le
+  // format des plans vidéo. Réglable à la main en régénérant l'image.
+  if (type === "decor" || type === "personnage") return { aspect: "16:9", megapixels: 1.3 };
   return { aspect: "1:1", megapixels: 1 };
 }
 
@@ -151,7 +153,8 @@ export const METHODE_VOIX = "voix";
 /** « Température » de Qwen3-TTS : le niveau de créativité de la voix. */
 export const TEMPERATURE_VOIX_MIN = 0.8;
 export const TEMPERATURE_VOIX_MAX = 1.2;
-export const TEMPERATURE_VOIX_DEFAUT = 1.1;
+// 1,2 par défaut (retour de recette, 2026-10-05) : la plus expressive aux essais directs sous ComfyUI ; 0,8 à 1,2 reste réglable.
+export const TEMPERATURE_VOIX_DEFAUT = 1.2;
 
 /** Ce que le casting envoie à `lancerGenerationVoix`. La seed est tirée côté serveur. */
 export type DemandeVoix = {
@@ -159,6 +162,10 @@ export type DemandeVoix = {
   texteReference: string;
   temperature: number;
 };
+
+/** Génération d'une PRISE de réplique (Qwen3-TTS Voice Clone, workflows/audio/VOX_Generate_Replique_Simplified.json) : même
+ * table et même file que les images, les sons et les voix de référence ; `asset_generations.repliqueId` désigne la réplique. */
+export const METHODE_REPLIQUE = "replique";
 
 export function temperatureVoixValide(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v) && v >= TEMPERATURE_VOIX_MIN && v <= TEMPERATURE_VOIX_MAX;
@@ -192,9 +199,6 @@ export function langueDuTexteDeReference(texte: string, texteParDefaut: string, 
 
 export const METHODE_TEST_AUDIO = "test_audio";
 export const METHODE_TEST_VIDEO = "test_video";
-/** Une prise de RÉPLIQUE (étape 4 du casting) : même workflow que l'audio de test, mais le résultat est adopté tout seul comme prise de
- * la réplique (`parametres.repliqueId`), pas comme audio de test de la fiche. */
-export const METHODE_REPLIQUE = "replique";
 
 export const estMethodeTestVoix = (m: string): boolean => m === METHODE_TEST_AUDIO || m === METHODE_TEST_VIDEO;
 
@@ -288,15 +292,14 @@ export function nouvelleSeed(): string {
  * `assets/`) — la remplacer pendant que la demande attend ne change pas ce test. */
 export type ParametresTestAudio = { reference: string };
 
-/** L'id de la réplique visée par une génération `replique` (figé au lancement), ou null. */
-export function repliqueIdDesParametres(v: unknown): number | null {
-  if (typeof v !== "object" || v === null) return null;
-  const r = (v as Record<string, unknown>).repliqueId;
-  return typeof r === "number" && Number.isInteger(r) ? r : null;
-}
-
 export function parametresTestAudio(v: unknown): ParametresTestAudio | null {
   if (typeof v !== "object" || v === null) return null;
   const r = (v as Record<string, unknown>).reference;
   return typeof r === "string" && r.trim() !== "" ? { reference: r } : null;
+}
+
+/** Nom de la voix de référence une fois envoyée à ComfyUI (dossier d'entrée partagé) : porte la date de modification du fichier,
+ * pour qu'une référence REMPLACÉE ne resserve jamais l'ancienne copie du même nom. */
+export function nomReferenceVoixDistante(codeVoix: string, mtimeMs: number, ext: string): string {
+  return `cadence_voixref_${codeVoix}_${Math.floor(mtimeMs)}${ext || ".mp3"}`;
 }

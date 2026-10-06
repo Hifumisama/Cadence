@@ -8,7 +8,6 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import {
   DUREE_TEST_VIDEO_SECONDES,
-  METHODE_REPLIQUE,
   METHODE_TEST_AUDIO,
   METHODE_TEST_VIDEO,
   langueDuTexteDeReference,
@@ -37,7 +36,7 @@ import { existsSync } from "node:fs";
 
 // Casting vocal (F06, CDC §6). Le suivi réel (fichiers déposés, paramètres retenus) vit ici ; les générations de la voix de
 // référence passent par app/assets/generation-actions.ts, celles du test (audio, vidéo) par lancerTestAudio / lancerTestVideo plus bas.
-// Les prises de RÉPLIQUES passent par lancerPriseReplique (même workflow que l'audio de test).
+// Les prises de RÉPLIQUES passent par app/repliques/generation-actions.ts (genererPriseReplique).
 
 function nombreOuNull(v: FormDataEntryValue | string | null | undefined): number | null {
   const s = String(v ?? "").trim().replace(",", ".");
@@ -292,34 +291,6 @@ export async function lancerTestAudio(
       langueReference: langueDuTexteDeReference(v.texte, TEXTE_REFERENCE_DEFAUT, fiche?.langue ?? "French"),
       seed: nouvelleSeed(),
       parametres: { reference: cheminAssetMedia(asset.fichier!) },
-    })
-    .returning({ id: assetGenerations.id });
-  revalidatePath("/", "layout");
-  return { ok: true, position: await rangDansLaFile(gen!.id) };
-}
-
-/** « Générer » d'une réplique (étape 4) : la voix de référence (clonée) dit le texte de la réplique, avec le même workflow que l'audio de
- * test. Le résultat est adopté tout seul comme prise de la réplique (lib/generation-adoption.ts) : générer, c'est vouloir l'utiliser, et
- * une prise remplace la précédente (F01). La voix est celle de l'étape en cours ; une réplique d'un autre locuteur est refusée. */
-export async function lancerPriseReplique(assetId: number, repliqueId: number): Promise<ResultatLancement> {
-  const asset = await exigerVoix(assetId);
-  const [r] = await db.select().from(repliques).where(and(eq(repliques.id, repliqueId), eq(repliques.projectId, asset.projectId)));
-  if (!r) return { ok: false, erreur: "Cette réplique n'existe pas." };
-  const raison = raisonTestAudioInvalide({ texte: r.texte, referenceFichier: asset.fichier && fichierMediaExiste(asset.fichier) ? asset.fichier : null });
-  if (raison) return { ok: false, erreur: raison };
-  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) return { ok: false, erreur: FILE_PLEINE };
-  const [fiche] = await db.select({ langue: voixFiches.langue }).from(voixFiches).where(eq(voixFiches.assetId, assetId));
-
-  const [gen] = await db
-    .insert(assetGenerations)
-    .values({
-      assetId,
-      methode: METHODE_REPLIQUE,
-      prompt: r.texte,
-      langueReference: langueDuTexteDeReference(r.texte, TEXTE_REFERENCE_DEFAUT, fiche?.langue ?? "French"),
-      seed: nouvelleSeed(),
-      adoptionAuto: true,
-      parametres: { reference: cheminAssetMedia(asset.fichier!), repliqueId: r.id },
     })
     .returning({ id: assetGenerations.id });
   revalidatePath("/", "layout");

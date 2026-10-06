@@ -41,9 +41,9 @@
   },
   "4": {
     "inputs": {
-      "text": "Depuis l'aube des temps, les éléments coexistaient en un équilibre sacré.",
+      "text": "L'Avatar.",
       "narrator_voice": "none",
-      "seed": 147602176,
+      "seed": 1384132394,
       "enable_chunking": true,
       "max_chars_per_chunk": 400,
       "chunk_combination_method": "auto",
@@ -66,7 +66,7 @@
   },
   "5": {
     "inputs": {
-      "audio": "VOICE_maya_P215.flac"
+      "audio": "VOICE_katara.mp3"
     },
     "class_type": "LoadAudio",
     "_meta": {

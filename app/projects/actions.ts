@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminPosterMedia, type PosterCible } from "@/lib/media";
+import { inventaireProjet, supprimerProjetComplet } from "@/lib/suppression-projet";
 
 /** Un OneShot obtient 1 saison + 1 épisode créés dans la foulée, jamais
  * montrés dans la nav (décision du 2026-09-28) — une Série ne les crée que
@@ -81,15 +82,22 @@ export async function uploaderPosterEpisode(episodeId: number, formData: FormDat
   revalidatePath("/", "layout");
 }
 
+/** Ce que la suppression emportera — pour la confirmation (lib/suppression-projet.ts). */
+export async function lireInventaireSuppression(projectId: number) {
+  return inventaireProjet(projectId);
+}
+
 /** Jamais bloquée (retour utilisateur 2026-09-28) : le projet est la racine
  * de la hiérarchie, sa suppression entraîne tout avec elle — saisons,
  * épisodes, scènes, plans (et leurs sections/refs/dialogues/jobs), ET
  * ses assets (db/schema.ts, cascade) — le seul cas où un asset disparaît.
+ * Depuis la recette du 2026-10-04 elle emporte aussi les traces et appels LLM du
+ * projet et ses fichiers sur disque (rendus, voix, posters, images d'assets).
  * Attention opérationnelle : tant qu'il n'existe qu'un projet, le supprimer
  * casse `getDefaultProjectId()` (lib/queries.ts) jusqu'à la création d'un
  * nouveau projet — pas de garde-fou ajouté ici, ce n'était pas demandé. */
 export async function supprimerProjet(projectId: number) {
-  await db.delete(projects).where(eq(projects.id, projectId));
+  await supprimerProjetComplet(projectId);
   revalidatePath("/", "layout");
   redirect("/");
 }

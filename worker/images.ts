@@ -1,6 +1,6 @@
-import { access, mkdir, readFile } from "node:fs/promises";
-import { extname, join, resolve } from "node:path";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { access, mkdir, readFile, stat } from "node:fs/promises";
+import { dirname, extname, join, resolve } from "node:path";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
 import {
@@ -10,8 +10,10 @@ import {
   METHODE_TEST_AUDIO,
   METHODE_TEST_VIDEO,
   METHODE_VOIX,
+  TEMPERATURE_VOIX_DEFAUT,
   estAspect,
   estMethodeSon,
+  nomReferenceVoixDistante,
   nomSourceDistante,
   parametresTestAudio,
   parametresTestVideo,
@@ -19,12 +21,14 @@ import {
 import { annulationDemandeeImage, finirAnnulationImage } from "../lib/annulation-db";
 import { adopterCandidat } from "../lib/generation-adoption";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";
-import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from "../lib/media";
+import { cheminAssetMedia, cheminGenerationMedia, cheminRepliqueMedia, cheminSourceImportMedia } from "../lib/media";
+import { poserPriseGeneree } from "../lib/replique-prise";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import type { ComfyUIClient } from "./comfyui";
 import { NODE_IDS_AUDIO, injecterGenerationAudio } from "./comfyui/audioMapping";
 import { ErreurEntreeInvalide, NODE_IDS, injecterValeurs, nomDistantDepuisChemin, verifierEntree } from "./comfyui/mapping";
-import { NODE_IDS_REPLIQUE_TEST, NODE_IDS_VOIX, injecterGenerationVoix, injecterRepliqueTest } from "./comfyui/voixMapping";
+import { NODE_IDS_VOIX, injecterGenerationVoix } from "./comfyui/voixMapping";
+import { NODE_IDS_REPLIQUE, injecterGenerationReplique } from "./comfyui/repliqueMapping";
 import {
   NODE_IDS_EDITION,
   NODE_IDS_TEXTE_VERS_IMAGE,
@@ -55,13 +59,16 @@ const CHEMIN_WORKFLOW_AUDIO = () =>
   resolve(process.env.COMFYUI_WORKFLOW_AUDIO_PATH ?? "./workflows/audio/SFX_Generate_Sounds.json");
 const CHEMIN_WORKFLOW_VOIX = () =>
   resolve(process.env.COMFYUI_WORKFLOW_VOIX_PATH ?? "./workflows/audio/VOX_Generate_Voice_Simplified.json");
-const CHEMIN_WORKFLOW_REPLIQUE_TEST = () =>
-  resolve(process.env.COMFYUI_WORKFLOW_REPLIQUE_TEST_PATH ?? "./workflows/audio/VOX_Generate_Replique_Simplified.json");
+const CHEMIN_WORKFLOW_REPLIQUE = () =>
+  resolve(process.env.COMFYUI_WORKFLOW_REPLIQUE_PATH ?? "./workflows/audio/VOX_Generate_Replique_Simplified.json");
 // Le test vidéo d'une voix passe par le même graphe que les plans (VID_REF2VA) : même variable que la tâche vidéo.
 const CHEMIN_WORKFLOW_VIDEO = () =>
   resolve(process.env.COMFYUI_WORKFLOW_PATH ?? "./workflows/video-generation/VID_REF2VA.json");
 // Une vidéo (H3) dure bien plus qu'une image : même plafond que les plans.
 const DUREE_MAX_POLL_VIDEO_MS = 30 * 60_000;
+
+/** Prises générées gardées par réplique dans la file (les lignes seulement : la prise courante est dans `repliques`). */
+const GENERATIONS_REPLIQUE_GARDEES = 3;
 
 type Generation = typeof assetGenerations.$inferSelect;
 
@@ -151,14 +158,36 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
   try {
     const edition = gen.methode === "edition";
     const voix = gen.methode === METHODE_VOIX;
-    const priseReplique = gen.methode === METHODE_REPLIQUE;
-    // Une prise de réplique passe par le même graphe que l'audio de test (la voix de référence clonée dit le texte).
-    const testAudio = gen.methode === METHODE_TEST_AUDIO || priseReplique;
+    const replique = gen.methode === METHODE_REPLIQUE;
+    const testAudio = gen.methode === METHODE_TEST_AUDIO;
     const testVideo = gen.methode === METHODE_TEST_VIDEO;
-    // Une voix, ou l'audio d'un test, est un son pour tout ce qui suit (pas d'aperçu, fichier audio, pas de vignette).
+    // Une voix, une prise de réplique ou l'audio d'un test est un son pour tout ce qui suit (pas d'aperçu, fichier audio, pas de vignette).
     const audio = estMethodeSon(gen.methode);
     let graphe: WorkflowJson;
-    if (testAudio) {
+    if (replique) {
+      if (gen.repliqueId == null || gen.texteReference == null || gen.temperature == null) {
+        throw new Error("Réplique, texte ou créativité absents de la génération de réplique");
+      }
+      // La voix clonée est la référence de l'asset voix (assets/<fichier>) : sans elle, rien à cloner.
+      if (!asset.fichier) throw new Error(`La voix ${asset.code} n'a pas de référence à cloner : génère-la d'abord au casting vocal.`);
+      const local = join(mediaRoot, cheminAssetMedia(asset.fichier));
+      try {
+        await access(local);
+      } catch {
+        throw new Error(`Référence de la voix ${asset.code} introuvable sur le stockage (${asset.fichier})`);
+      }
+      const distant = nomReferenceVoixDistante(asset.code, (await stat(local)).mtimeMs, extname(asset.fichier).toLowerCase());
+      await client.uploadRef(local, distant);
+      const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_REPLIQUE(), "utf-8")) as WorkflowJson;
+      graphe = injecterGenerationReplique(brut, {
+        texte: gen.texteReference,
+        langue: gen.langueReference ?? "Auto",
+        temperature: gen.temperature,
+        seed: gen.seed,
+        referenceDistante: distant,
+        prefixeSortie: `audio/cadence_replique_${gen.repliqueId}`,
+      });
+    } else if (testAudio) {
       const p = parametresTestAudio(gen.parametres);
       if (!p) throw new ErreurEntreeInvalide("Voix de référence absente de la demande de test audio");
       const local = join(mediaRoot, p.reference);
@@ -169,13 +198,14 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       }
       const distant = nomDistantDepuisChemin(p.reference);
       await client.uploadRef(local, distant);
-      const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_REPLIQUE_TEST(), "utf-8")) as WorkflowJson;
-      graphe = injecterRepliqueTest(brut, {
+      const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_REPLIQUE(), "utf-8")) as WorkflowJson;
+      graphe = injecterGenerationReplique(brut, {
         texte: gen.prompt,
         langue: gen.langueReference ?? "French",
+        temperature: TEMPERATURE_VOIX_DEFAUT,
         seed: gen.seed,
         referenceDistante: distant,
-        prefixeSortie: `audio/cadence_${priseReplique ? "replique" : "test"}_${asset.code}`,
+        prefixeSortie: `audio/cadence_test_${asset.code}`,
       });
     } else if (testVideo) {
       const p = parametresTestVideo(gen.parametres);
@@ -249,7 +279,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         prefixeSortie: `cadence_${asset.code}`,
       });
     }
-    const noeudSortie = testAudio ? NODE_IDS_REPLIQUE_TEST.sortie : testVideo ? NODE_IDS.sortieFinale : voix ? NODE_IDS_VOIX.sortie : audio ? NODE_IDS_AUDIO.sortie : edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
+    const noeudSortie = replique || testAudio ? NODE_IDS_REPLIQUE.sortie : testVideo ? NODE_IDS.sortieFinale : voix ? NODE_IDS_VOIX.sortie : audio ? NODE_IDS_AUDIO.sortie : edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
 
     // Le WebSocket s'ouvre AVANT la soumission (sinon un prompt court finit avant
     // qu'on l'écoute). Il ne décide de rien : le résultat vient de /history, la
@@ -283,6 +313,20 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       }
       if (r.statut === "erreur") throw new Error(r.message);
 
+      if (replique) {
+        // Une prise de réplique ne devient pas un candidat de l'asset : elle est posée directement sur sa réplique.
+        const nomPrise = `${gen.uuid}${extname(r.cheminSortieDistant).toLowerCase() || ".flac"}`;
+        const cibleRep = join(mediaRoot, cheminRepliqueMedia(gen.repliqueId!, nomPrise));
+        await mkdir(dirname(cibleRep), { recursive: true });
+        await client.fetchOutput(r.cheminSortieDistant, cibleRep);
+        const pose = await poserPriseGeneree(gen.repliqueId!, nomPrise, gen.texteReference ?? "", mediaRoot);
+        if (!pose.ok) throw new Error(pose.erreur);
+        await db.update(assetGenerations).set({ statut: "termine", fichier: null, finishedAt: new Date() }).where(eq(assetGenerations.id, gen.id));
+        console.log(`[worker] Prise de réplique ${gen.repliqueId} (${asset.code}) posée : ${nomPrise}${pose.dureeSecondes != null ? ` · ${pose.dureeSecondes} s` : ""}`);
+        await purgerAnciennesGenerationsReplique(gen.repliqueId!);
+        return true;
+      }
+
       const nom = `${gen.uuid}${audio ? extname(r.cheminSortieDistant).toLowerCase() || ".mp3" : testVideo ? extname(r.cheminSortieDistant).toLowerCase() || ".mp4" : ".png"}`;
       const cible = join(mediaRoot, cheminGenerationMedia(gen.assetId, nom));
       await mkdir(join(mediaRoot, "generations", String(gen.assetId)), { recursive: true });
@@ -291,7 +335,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         .update(assetGenerations)
         .set({ statut: "termine", fichier: nom, finishedAt: new Date() })
         .where(eq(assetGenerations.id, gen.id));
-      console.log(`[worker] Génération ${gen.id} (${asset.code}${testVideo ? ", test vidéo" : priseReplique ? ", réplique" : testAudio ? ", test audio" : voix ? ", voix" : audio ? ", son" : ""}) terminée : ${nom}`);
+      console.log(`[worker] Génération ${gen.id} (${asset.code}${testVideo ? ", test vidéo" : replique ? ", réplique" : testAudio ? ", test audio" : voix ? ", voix" : audio ? ", son" : ""}) terminée : ${nom}`);
       // Générée par un lot : le résultat est adopté tout seul (il devient l'image de l'asset).
       if (gen.adoptionAuto) {
         const r = await adopterCandidat(gen.id, mediaRoot);
@@ -319,13 +363,26 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
   return true;
 }
 
+/** Les lignes de génération d'une réplique s'accumulent à chaque essai : on ne garde que les dernières terminées (il n'y a pas de
+ * fichier à retirer, la prise courante vit dans `repliques`). */
+async function purgerAnciennesGenerationsReplique(repliqueId: number): Promise<void> {
+  const termines = await db
+    .select({ id: assetGenerations.id })
+    .from(assetGenerations)
+    .where(and(eq(assetGenerations.repliqueId, repliqueId), eq(assetGenerations.statut, "termine")))
+    .orderBy(desc(assetGenerations.createdAt), desc(assetGenerations.id));
+  for (const vieux of termines.slice(GENERATIONS_REPLIQUE_GARDEES)) {
+    await db.delete(assetGenerations).where(eq(assetGenerations.id, vieux.id));
+  }
+}
+
 /** Ne garde que les derniers candidats terminés DE LA MÊME MÉTHODE (les essais d'un test audio ne chassent pas ceux de la voix de
  * référence) : ce sont des essais, pas un historique (F01). Les échecs et les demandes en cours ne comptent pas. */
 async function purgerAnciens(assetId: number, methode: string, mediaRoot: string): Promise<void> {
   const termines = await db
     .select()
     .from(assetGenerations)
-    .where(and(eq(assetGenerations.assetId, assetId), eq(assetGenerations.methode, methode), inArray(assetGenerations.statut, ["termine"])))
+    .where(and(eq(assetGenerations.assetId, assetId), eq(assetGenerations.methode, methode), isNull(assetGenerations.repliqueId), inArray(assetGenerations.statut, ["termine"])))
     .orderBy(desc(assetGenerations.createdAt));
   for (const vieux of termines.slice(CANDIDATS_GARDES)) {
     await supprimerGenerationEtFichiers(vieux, mediaRoot);

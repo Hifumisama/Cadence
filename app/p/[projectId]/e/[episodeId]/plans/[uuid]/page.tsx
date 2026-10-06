@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "@/lib/queries";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
 import { calculerStatutDuree, controlerStructure, verifierCoherenceRefs } from "@/lib/plan-checks";
-import { getDialoguesPlan, getOptionsLocuteur } from "@/lib/queries-repliques";
+import { getDialoguesPlan, getOptionsLocuteur, getPrisesGenerees } from "@/lib/queries-repliques";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { PromptSectionEditor } from "@/components/plan/PromptSectionEditor";
@@ -19,6 +20,10 @@ import { RelaunchButton } from "@/components/plan/RelaunchButton";
 import { SuiviRendus } from "@/components/plan/SuiviRendus";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
 import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
+import { ActionsRendu } from "@/components/plan/ActionsRendu";
+import { LecteursRendus } from "@/components/plan/LecteursRendus";
+import { assemblerPrompt } from "@/lib/prompt";
+import { choisirComparaison, choisirRendu, estLisible, promptDiffere, raisonNonRetenable, type RenduVue } from "@/lib/rendus";
 
 export const dynamic = "force-dynamic";
 
@@ -50,10 +55,13 @@ function versNoeudPicker(n: AssetNode): NoeudPicker {
 
 export default async function PlanPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string; episodeId: string; uuid: string }>;
+  searchParams: Promise<{ rendu?: string; compare?: string }>;
 }) {
   const { projectId, episodeId, uuid } = await params;
+  const { rendu: renduParam, compare: compareParam } = await searchParams;
   const pid = Number(projectId);
   const eid = Number(episodeId);
   if (!UUID_RE.test(uuid)) notFound();
@@ -70,6 +78,7 @@ export default async function PlanPage({
     getOptionsLocuteur(pid),
   ]);
   const { liaisons, disponibles, controle, audioRefs } = dialoguesPlan;
+  const prisesGenerees = await getPrisesGenerees(liaisons.map((l) => l.id));
 
   const sectionsPourControle = promptSections.map((s) => ({
     section: s.section,
@@ -92,6 +101,31 @@ export default async function PlanPage({
   );
 
   const dernierJobTermine = jobHistory.find((j) => j.statut === "termine");
+  // L'historique se parcourt par l'URL (?rendu=… ?compare=…) : cliquer un rendu le charge dans le lecteur, on peut en comparer deux.
+  const rendusVus: RenduVue[] = jobHistory.map((j) => ({
+    id: j.id,
+    numeroRendu: j.numeroRendu,
+    statut: j.statut,
+    cheminSortie: j.cheminSortie,
+    seedUtilisee: j.seedUtilisee,
+    dureeUtilisee: j.dureeUtilisee,
+    promptUtilise: j.promptUtilise,
+    activerUpscale: j.activerUpscale,
+    importe: j.workflowFichier === WORKFLOW_IMPORT_MANUEL,
+  }));
+  const principal = choisirRendu(rendusVus, Number(renduParam) || null);
+  const comparaison = choisirComparaison(rendusVus, Number(compareParam) || null, principal);
+  const jobAffiche = (principal && jobHistory.find((j) => j.id === principal.id)) || dernierJobTermine;
+  const promptCourant = assemblerPrompt(promptSections);
+  const baseHref = `/p/${pid}/e/${eid}/plans/${uuid}`;
+  const hrefRendus = (rendu: number | null, compare: number | null) => {
+    const q = new URLSearchParams();
+    if (rendu != null) q.set("rendu", String(rendu));
+    if (compare != null) q.set("compare", String(compare));
+    const texte = q.toString();
+    return texte ? `${baseHref}?${texte}` : baseHref;
+  };
+  const libelleRendu = (r: RenduVue) => `rendu n°${r.numeroRendu} · ${r.importe ? "import manuel" : r.activerUpscale ? "rendu final" : "prévisualisation"}`;
   // Un rendu exploitable par la correction après visionnage : terminé ET avec son fichier.
   const aUnRendu = jobHistory.some((j) => j.statut === "termine" && !!j.cheminSortie);
   const aUneFiche = promptSections.some((s) => s.contenu.trim());
@@ -215,35 +249,37 @@ export default async function PlanPage({
         <div className="col">
           <section className="preview">
             <div className="preview-frame">
-              {dernierJobTermine?.cheminSortie ? (
-                <video
-                  controls
-                  style={{ width: "100%", height: "100%" }}
-                  src={`/api/media/${dernierJobTermine.cheminSortie}`}
+              {principal?.cheminSortie ? (
+                <LecteursRendus
+                  principal={{ src: `/api/media/${principal.cheminSortie}`, titre: libelleRendu(principal) }}
+                  comparaison={comparaison?.cheminSortie ? { src: `/api/media/${comparaison.cheminSortie}`, titre: libelleRendu(comparaison) } : null}
+                  hrefSansComparaison={hrefRendus(principal.id, null)}
                 />
               ) : (
                 <p className="preview-empty">Aucune génération terminée pour ce plan.</p>
               )}
             </div>
-            {dernierJobTermine ? (
+            {jobAffiche ? (
               <div className="preview-bar">
                 <span>
-                  {dernierJobTermine.workflowFichier === WORKFLOW_IMPORT_MANUEL
+                  {jobAffiche.workflowFichier === WORKFLOW_IMPORT_MANUEL
                     ? "Plan déjà tourné · importé"
-                    : "Dernière génération"}{" "}
+                    : jobAffiche.id === dernierJobTermine?.id
+                      ? "Dernière génération"
+                      : `Rendu n°${jobAffiche.numeroRendu}`}{" "}
                   ·{" "}
                   <span className="num">
-                    {dernierJobTermine.finishedAt
-                      ? new Date(dernierJobTermine.finishedAt).toLocaleString("fr-FR")
+                    {jobAffiche.finishedAt
+                      ? new Date(jobAffiche.finishedAt).toLocaleString("fr-FR")
                       : "—"}
                   </span>
                 </span>
-                {dernierJobTermine.seedUtilisee ? (
+                {jobAffiche.seedUtilisee ? (
                   <span>
-                    seed <span className="num">{dernierJobTermine.seedUtilisee}</span>
+                    seed <span className="num">{jobAffiche.seedUtilisee}</span>
                   </span>
                 ) : null}
-                <span className="file">{dernierJobTermine.cheminSortie}</span>
+                <span className="file">{jobAffiche.cheminSortie}</span>
               </div>
             ) : null}
             <div style={{ padding: "var(--sp-2) var(--sp-3)" }}>
@@ -280,6 +316,8 @@ export default async function PlanPage({
 
           <DialoguesPanel
             planId={plan.id}
+            planUuid={plan.uuid}
+            prises={prisesGenerees}
             projectId={pid}
             episodeId={eid}
             liaisons={liaisons}
@@ -321,41 +359,84 @@ export default async function PlanPage({
                 <span className="eyebrow">Pas de versionnage d&rsquo;assets</span>
               </div>
               <div className="panel-bd" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {jobHistory.map((job) => (
-                  <div key={job.id} style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <StatusBadge statut={job.statut} />
-                      <span style={{ color: "var(--ink-3)" }}>
-                        rendu n°{job.numeroRendu}
-                        {job.tentative > 1 ? ` · rejeu ${job.tentative}` : ""}
-                      </span>
-                      <span className="eyebrow" style={{ marginLeft: "auto" }}>
-                        {job.workflowFichier === WORKFLOW_IMPORT_MANUEL
-                          ? "import manuel"
-                          : job.activerUpscale
-                            ? "rendu final"
-                            : "prévisualisation"}
-                      </span>
+                {jobHistory.map((job, k) => {
+                  const rendu = rendusVus[k]!;
+                  const lisible = estLisible(rendu);
+                  const estPrincipal = principal?.id === job.id;
+                  const estComparaison = comparaison?.id === job.id;
+                  const retenable = raisonNonRetenable(rendu) == null;
+                  return (
+                    <div
+                      key={job.id}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                        fontSize: 12.5,
+                        padding: "6px 8px",
+                        borderLeft: `2px solid ${estPrincipal ? "var(--or)" : estComparaison ? "var(--ecarlate-glow)" : "transparent"}`,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <StatusBadge statut={job.statut} />
+                        <span style={{ color: "var(--ink-3)" }}>
+                          rendu n°{job.numeroRendu}
+                          {job.tentative > 1 ? ` · rejeu ${job.tentative}` : ""}
+                        </span>
+                        {estPrincipal ? <span className="eyebrow">A · affiché</span> : null}
+                        {estComparaison ? <span className="eyebrow">B · comparé</span> : null}
+                        <span className="eyebrow" style={{ marginLeft: "auto" }}>
+                          {job.workflowFichier === WORKFLOW_IMPORT_MANUEL
+                            ? "import manuel"
+                            : job.activerUpscale
+                              ? "rendu final"
+                              : "prévisualisation"}
+                        </span>
+                      </div>
+                      {job.workflowFichier !== WORKFLOW_IMPORT_MANUEL && (job.seedUtilisee || job.dureeUtilisee) ? (
+                        <span className="tiny-note num">
+                          {job.seedUtilisee ? `seed ${job.seedUtilisee}` : ""}
+                          {job.seedUtilisee && job.dureeUtilisee ? " · " : ""}
+                          {job.dureeUtilisee ? `${job.dureeUtilisee} s` : ""}
+                          {job.seedUtilisee && job.seedUtilisee === plan.seed ? " · seed du plan" : ""}
+                        </span>
+                      ) : null}
+                      {lisible ? (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {!estPrincipal ? (
+                            <Link className="btn btn-ghost btn-sm" href={hrefRendus(job.id, comparaison?.id ?? null)} scroll={false}>
+                              Voir
+                            </Link>
+                          ) : null}
+                          {!estPrincipal && principal ? (
+                            <Link className="btn btn-ghost btn-sm" href={hrefRendus(principal.id, estComparaison ? null : job.id)} scroll={false}>
+                              {estComparaison ? "Retirer de la comparaison" : "Comparer avec A"}
+                            </Link>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {retenable ? (
+                        <ActionsRendu
+                          planId={plan.id}
+                          jobId={job.id}
+                          promptChange={promptDiffere(promptCourant, job.promptUtilise)}
+                          aUnPrompt={!!job.promptUtilise}
+                          estSeedDuPlan={!!job.seedUtilisee && job.seedUtilisee === plan.seed}
+                        />
+                      ) : null}
+                      {job.promptUtilise ? (
+                        <details>
+                          <summary className="tiny-note" style={{ cursor: "pointer" }}>
+                            Prompt envoyé
+                          </summary>
+                          <pre className="tiny-note" style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
+                            {job.promptUtilise}
+                          </pre>
+                        </details>
+                      ) : null}
                     </div>
-                    {job.workflowFichier !== WORKFLOW_IMPORT_MANUEL && (job.seedUtilisee || job.dureeUtilisee) ? (
-                      <span className="tiny-note num">
-                        {job.seedUtilisee ? `seed ${job.seedUtilisee}` : ""}
-                        {job.seedUtilisee && job.dureeUtilisee ? " · " : ""}
-                        {job.dureeUtilisee ? `${job.dureeUtilisee} s` : ""}
-                      </span>
-                    ) : null}
-                    {job.promptUtilise ? (
-                      <details>
-                        <summary className="tiny-note" style={{ cursor: "pointer" }}>
-                          Prompt envoyé
-                        </summary>
-                        <pre className="tiny-note" style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
-                          {job.promptUtilise}
-                        </pre>
-                      </details>
-                    ) : null}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           ) : null}

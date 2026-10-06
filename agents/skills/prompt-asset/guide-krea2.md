@@ -8,7 +8,7 @@
 - **Turbo** : distillé en **8 étapes**, sans guidance (CFG 0 ou 1). `[officiel]` Notre workflow (`IMG_01_TextToImage.json`) : 8 étapes, CFG 1, `euler` / `simple`, avec un `ConditioningZeroOut` sur le négatif. `[projet]`
 - **Pas de negative prompt.** Le négatif est remis à zéro : « pas de X » ne s'obtient pas. Décris ce qu'on veut voir. `[projet]`, cohérent avec le guide communautaire (« les négations ne fonctionnent pas de façon fiable »).
 - **Encodeur de texte Qwen3-VL 4B** : il lit des phrases, pas des étiquettes. `[officiel]`
-- **Résolution** : jusqu'à 2K. `[officiel]` Le format est choisi par le workflow (`ResolutionSelector` : rapport d'aspect et mégapixels) : 16:9 pour un décor ou une plate, carré pour l'identité et les détails. `[projet]` Le prompt ne fixe jamais de dimensions.
+- **Résolution** : jusqu'à 2K. `[officiel]` Le format est choisi par le workflow (`ResolutionSelector` : rapport d'aspect et mégapixels) : 16:9 par défaut pour un décor, une plate ou une fiche personnage, carré pour un effet ou un détail. `[projet]` Le prompt ne fixe jamais de dimensions.
 - **LoRA « CharacterDesign »** : le workflow peut l'activer pour une fiche personnage (4 vues). `[projet]`
 - Le workflow expose un mode **prompt_enhance** (un LLM développe le prompt). On ne l'utilise pas : le prompt vient de l'agent, pour rester reproductible. `[projet]`
 
@@ -32,6 +32,8 @@
   ```text
   [description du personnage], neutral standing pose, plain light background, character has 4 views : front full-body view, body side view, body back view, detailed single headshot view in foreground.
   ```
+
+  La fiche montre le personnage **seul**, **mains vides**, sans effet ni décor ni pose d'action : elle sert de référence d'identité, pas d'illustration de scène.
 
 - **Décor, accessoire, effet** : la prose descriptive seule, sans consigne de planche.
 

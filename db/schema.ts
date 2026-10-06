@@ -125,6 +125,11 @@ export const scenes = pgTable("scenes", {
   ordre: integer("ordre").notNull(),
   titre: varchar("titre", { length: 255 }).notNull(),
   fonction: text("fonction"),
+  // Genre de la scène (lib/scene-genres.ts : action, dialogue, montage, contemplatif, tension) : il choisit les guides
+  // de rédaction du prompt vidéo de ses plans. Null = standard. Varchar contrôlé par l'application.
+  genre: varchar("genre", { length: 20 }),
+  // Cadre visuel tenu sur toute la scène (moment de la journée, météo, lumière générale) : la continuité entre plans.
+  ambiance: text("ambiance"),
 });
 
 // Le plan est la table pivot du système. Identification (révisé 2026-09-29,
@@ -384,6 +389,10 @@ export const assetGenerations = pgTable("asset_generations", {
     .notNull()
     .references(() => assets.id, { onDelete: "cascade" }),
   methode: varchar("methode", { length: 12 }).notNull().default("generation"),
+  // Génération d'une PRISE de réplique (méthode « replique », Qwen3-TTS Voice Clone) : la réplique visée. `assetId` est alors la
+  // VOIX (VOICE_*) dont la référence est clonée. Ces lignes ne sont jamais des candidats d'image ou de voix de l'asset : tout
+  // ce qui liste ou purge les candidats d'un asset les écarte (`repliqueId` null). Supprimées avec leur réplique.
+  repliqueId: integer("replique_id").references(() => repliques.id, { onDelete: "cascade" }),
   statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
   prompt: text("prompt").notNull(),
   clauseStyle: text("clause_style").notNull().default(""),
@@ -588,6 +597,8 @@ export const agentTraces = pgTable("agent_traces", {
   systemeEmpreinte: varchar("systeme_empreinte", { length: 64 }).notNull(),
   systemeCaracteres: integer("systeme_caracteres").notNull(),
   sortieBrute: text("sortie_brute"),
+  // Raisonnement du modèle (reasoning_content), borné : sert à comprendre POURQUOI une sortie dérive (recette 2026-10-04).
+  reflexion: text("reflexion"),
   json: jsonb("json"),
   erreursValidation: jsonb("erreurs_validation"),
   erreur: text("erreur"),

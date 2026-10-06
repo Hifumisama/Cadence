@@ -3,6 +3,7 @@ import { phaseDe, totalBuckets } from "@/lib/phase";
 import { Topbar } from "@/components/ui/Topbar";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { GrilleProjets } from "@/components/projects/GrilleProjets";
+import { SupprimerProjetBouton } from "@/components/projects/SupprimerProjetBouton";
 import { NouveauProjetModal } from "@/components/projects/NouveauProjetModal";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,10 @@ export default async function AccueilPage() {
 
         <GrilleProjets>
           {projets.map((p) => (
-            <ProjectCard key={p.id} projet={p} />
+            <div key={p.id} className="proj-cell">
+              <ProjectCard projet={p} />
+              <SupprimerProjetBouton projectId={p.id} nom={p.nom} compact />
+            </div>
           ))}
         </GrilleProjets>
 

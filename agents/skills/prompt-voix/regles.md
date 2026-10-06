@@ -15,7 +15,7 @@ Conséquence : **tu n'écris pas de texte de référence**. Tout repose sur l'in
 
 ## Ce que tu reçois
 
-- `voix` : le **personnage** rattaché à la voix (`personnage.code` et sa `descriptionCanonique`), ou, s'il n'y en a pas, un `role` (voix off, narrateur).
+- `voix` : le **personnage** rattaché à la voix (`personnage.code` et sa `descriptionCanonique`, qui porte son **âge**), ou, s'il n'y en a pas, un `role` (voix off, narrateur).
 - `impressionVocaleDuBrief` et `briefExtrait` : le **brief** (ton, impression vocale pressentie) ; `langueDesDialogues` est celle des répliques, dites par CosyVoice3.
 - `voixDejaAuCasting` : les **voix déjà au casting** du projet, avec leurs instructions, pour que la nouvelle s'en distingue.
 - `repliquesDeLaVoix` : quelques **répliques**, quand elles existent : elles disent la prosodie qu'on lui attend (phrases longues ou hachées, ton).
@@ -31,6 +31,7 @@ Cherche cette contrainte dans le personnage : s'il ne s'arrête jamais de marche
 Le guide `guide-qwen3-voicedesign.md` donne la forme. En bref :
 
 - **De la prose libre en anglais, un paragraphe**, même quand le texte est français.
+- **L'âge de la voix est celui du personnage**, tel que la description le dit : une adolescente n'a pas une voix de trentenaire, un narrateur n'est pas adulte par défaut parce qu'il raconte. Si la description ne donne aucun âge, **ne choisis pas un âge adulte par défaut** : écris l'instruction sans chiffre d'âge et signale `description-vague` dans `remarques`. Les adjectifs du brief (« grave », « mélodieuse ») se lisent à travers l'âge : une voix jeune peut être posée sans être grave.
 - **Quatre dimensions, dans cet ordre** : identité (genre, âge, registre), **origine** (toujours nommer la langue native : `native French speaker`), prosodie (débit, intonation, ce que font les fins de phrase), état (l'attitude, pas juste le son).
 - **Décris ce qu'on veut**, jamais ce qu'on refuse (pas de négation).
 - **Ne décris jamais un micro ni une prise de son**, et ne cite jamais une personne réelle ni « la voix de tel personnage » : décris les qualités, pas la source.
@@ -68,3 +69,4 @@ Il est celui du projet, identique pour toutes les voix, et il doit correspondre 
 - Aucune négation, aucun mot de micro ni de prise de son, aucun mot d'accent.
 - Une contrainte tenue est écrite dans l'instruction, ou son absence est signalée.
 - La voix se distingue des voix déjà au casting.
+- L'âge de l'instruction est celui du personnage ; sans âge dans la description, aucun âge n'est inventé et `description-vague` est signalé.

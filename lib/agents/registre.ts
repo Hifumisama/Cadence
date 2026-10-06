@@ -51,10 +51,19 @@ export type CandidatRegistre = {
 
 const LIBELLE_TYPE: Record<TypeMaster, string> = { personnage: "Personnage", decor: "Décor" };
 
-function descriptionPersonnage(p: BriefContenu["personnages"][number]): string {
-  const role = (p.role ?? "").trim();
+/** La description canonique d'un personnage : ce qu'on VOIT (âge, apparence, trait reconnaissable), jamais son rôle
+ * ni sa voix (un asset d'image décrit par une voix donne une image au hasard). Un brief écrit avant ces champs
+ * retombe sur « rôle : trait ». */
+export function descriptionPersonnage(p: BriefContenu["personnages"][number]): string {
+  const age = (p.age ?? "").trim();
+  const apparence = (p.apparence ?? "").trim();
   const trait = (p.reconnaissable ?? "").trim();
-  return [role, trait].filter(Boolean).join(" : ");
+  if (apparence) {
+    const tete = [age, apparence].filter(Boolean).map((s) => s.replace(/[.\s]+$/, "")).join(". ");
+    return trait ? `${tete}. ${trait}` : tete;
+  }
+  const role = (p.role ?? "").trim();
+  return [age, [role, trait].filter(Boolean).join(" : ")].filter(Boolean).join(". ");
 }
 
 /** Les candidats du registre pour un brief, dans l'ordre du brief (personnages puis lieux). Un nom

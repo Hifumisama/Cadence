@@ -31,7 +31,7 @@ test**, toujours remplacées à la soumission.
 |---|---|---|---|
 | Prompt de l'asset | `59` (PrimitiveStringMultiline) | `value` | le sujet seulement, sans style |
 | Clause de style | `60` (PrimitiveStringMultiline) | `value` | `projects.clauseStyle`, concaténée au prompt dans le graphe (`30:58`) |
-| Format | `49` (ResolutionSelector) | `aspect_ratio`, `megapixels` | 16:9 pour un décor, 1:1 pour une fiche ou un détail |
+| Format | `49` (ResolutionSelector) | `aspect_ratio`, `megapixels` | 16:9 par défaut pour un décor et une fiche personnage (meilleurs résultats, recette 2026-10-05) ; 1:1 pour un effet ou un détail |
 | Seed | `30:3` (KSampler) | `seed` | |
 | LoRA « CharacterDesign » | `30:23` (PrimitiveBoolean) | `value` | à `true` pour une fiche personnage (4 vues) ; `false` sinon |
 | Sortie | `29` (SaveImage) | `filename_prefix` | |
@@ -124,6 +124,28 @@ soumission (recommandé par la doc de Stability, absent du gabarit du workflow,
 non testé sur ce graphe), et le rôle d'une mention « Length: X seconds » dans un
 prompt brut. Voir le guide.
 
+### `VOX_Generate_Replique_Simplified.json` — prise d'une réplique (Qwen3-TTS Base, clonage)
+
+Branché (2026-10-05) : `worker/comfyui/repliqueMapping.ts` (injection), `worker/images.ts` (tâche, méthode `replique` de
+`asset_generations`, `repliqueId` = la réplique, `assetId` = la voix clonée), `lib/replique-prise.ts` (pose de la prise) ; boutons
+« Générer la prise » / « Générer les prises manquantes » du panneau Dialogues d'un plan. `repliqueMapping.test.ts` lit ce fichier et
+casse si un des nœuds ci-dessous disparaît après un ré-export. Variable optionnelle : `COMFYUI_WORKFLOW_REPLIQUE_PATH`. Validé en réel
+le 2026-10-05 (FLAC 24 kHz, durée mesurée, niveau sonore équivalent à une prise faite à la main).
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Texte dit | `4` (UnifiedTTSTextNode) | `text` | la réplique, mot pour mot |
+| Seed | `4` | `seed` | tirée à chaque demande : régénérer donne une autre interprétation |
+| Cache audio | `4` | `enable_audio_cache` | **coupé** à la soumission (une autre voix de référence de même nom ne doit pas resservir une ancienne prise) |
+| Voix de référence | `5` (LoadAudio) | `audio` | le fichier de l'asset voix (`assets/<fichier>`), envoyé au dossier d'entrée de ComfyUI sous `cadence_voixref_<CODE>_<date de modification>` |
+| Créativité de la voix | `1` (Qwen3TTSEngineNode) | `temperature` | **0,8 à 1,2**, 1,2 par défaut |
+| Langue | `1` | `language` | celle des dialogues du brief (`lib/langues-tts.ts`), « Auto » si inconnue |
+| Sortie | `3` | — | `PreviewAudio` dans le fichier, remplacé à la soumission par `SaveAudio` (FLAC : durée mesurable, format recommandé pour le clonage) |
+
+Le champ `instruct` du moteur (reste d'un essai de Voice Design) et les autres réglages exportés sont laissés tels quels : ce sont ceux
+des essais directs. La prise générée **remplace** la prise de la réplique (pas de versionnage, F01) et passe en « prise posée » ; une
+prise validée doit être réécoutée. Ces générations ne sont jamais des candidats de la voix ou de l'asset.
+
 ### `VOX_Generate_Voice_Simplified.json` — voix de référence (Qwen3-TTS Voice Design)
 
 Branché (2026-10-02) : `worker/comfyui/voixMapping.ts` (injection) et `worker/images.ts` (tâche, méthode
@@ -144,25 +166,11 @@ Fixe : modèle `Voice Design - 1.7B VoiceDesign`, `top_k` 50, `top_p` 1, `repeti
 2048. Le résultat est un **candidat** (comme les images et les sons) : « Utiliser comme référence » le copie sous
 `assets/<CODE>.mp3` et reporte l'instruction et le texte sur la fiche. CosyVoice3 (les répliques) reste à la main.
 
-### `VOX_Generate_Replique_Simplified.json` — test audio d'une voix (Qwen3-TTS Voice Clone)
-
-Branché : `worker/comfyui/voixMapping.ts` (`NODE_IDS_REPLIQUE_TEST`, `injecterRepliqueTest`) et `worker/images.ts` (tâche, méthode
-`test_audio` de `asset_generations`) ; étape « Test vidéo » du casting vocal (bouton « Générer l'audio de test »).
-`voixMapping.test.ts` lit ce fichier et casse si un des nœuds ci-dessous disparaît après un ré-export. La voix de référence (celle de
-l'étape 2) est **clonée** pour dire le texte du test. Variable optionnelle : `COMFYUI_WORKFLOW_REPLIQUE_TEST_PATH`.
-
-| Donnée | Nœud | Champ | Note |
-|---|---|---|---|
-| Texte dit | `4` (UnifiedTTSTextNode) | `text` | verbatim ; préremplie avec le texte de référence de la voix |
-| Seed | `4` | `seed` | tirée à chaque essai ; `enable_audio_cache` est mis à `false` (une même phrase doit donner une nouvelle prise) |
-| Langue du texte | `1` (Qwen3TTSEngineNode) | `language` | `English` pour le texte de référence par défaut du projet, sinon la langue de la fiche de voix |
-| Voix à cloner | `5` (LoadAudio) | `audio` | la référence de la voix, envoyée par `/upload/image` sous `cadence_assets_<fichier>` |
-| Sortie | `3` (PreviewAudio) | — | **remplacé à la soumission** par `SaveAudioMP3` (V0, préfixe `audio/cadence_test_<CODE>`), comme pour la voix de référence |
-
-Fixe, laissé au fichier : le modèle `TTS - Base 1.7B (Voice Clone)`, `top_k` / `top_p` / `temperature` (1,2) / `repetition_penalty`,
-`enable_chunking`. L'instruction (`instruct`) et la voix prédéfinie du moteur ne servent pas au clonage. **Non vérifié en réel** : le texte de la
+**Test audio d'une voix** (étape « Test vidéo » du casting, bouton « Générer l'audio de test ») : même graphe, même injection
+(`injecterGenerationReplique`), méthode `test_audio` de `asset_generations` ; température par défaut, langue de la fiche de voix
+(`English` pour le texte de référence par défaut du projet), sortie `audio/cadence_test_<CODE>` en FLAC. Le candidat adopté devient
+l'audio de test de la fiche (`voix/<id>/test_audio.*`) et fixe aussi le texte du test. **Non vérifié en réel** : le texte de la
 référence n'est pas transmis au clonage (le graphe n'a pas d'entrée pour lui) ; si la qualité du clone en souffre, c'est la première piste.
-Le candidat adopté devient l'audio de test de la fiche (`voix/<id>/test_audio.*`) et fixe aussi le texte du test.
 
 ## Contrat du workflow vidéo (`video-generation/`)
 

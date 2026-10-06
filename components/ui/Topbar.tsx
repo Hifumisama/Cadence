@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BoutonAgentGlobal } from "@/components/agents/BoutonAgentGlobal";
+import { PastilleLlm } from "@/components/llm/PastilleLlm";
 import { IndicateurTaches } from "@/components/taches/IndicateurTaches";
 import { TopbarTabs } from "./TopbarTabs";
 
@@ -30,6 +31,7 @@ export function Topbar({
         </div>
         {tabs ? <TopbarTabs projectId={tabs.projectId} episodeBase={tabs.episodeBase} /> : null}
         <BoutonAgentGlobal />
+        <PastilleLlm />
         <IndicateurTaches />
       </div>
     </header>

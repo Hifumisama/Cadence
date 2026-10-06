@@ -5,6 +5,7 @@ import { cleNouvelAsset, type ApresFiche, type RefFiche } from "./fiches";
 import { corrigerCodesInconnus } from "./codes-proches";
 import { assemblerPlanH3 } from "./plan-h3-assemblage";
 import { controlerSortiePlanH3, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
+import { genreOuNull } from "../scene-genres";
 import type { Avertissement, Position } from "./types";
 
 /** Des sorties validées des skills aux changements d'une proposition — EN CODE, sans second
@@ -140,6 +141,9 @@ export type SortieScenarioEpisode = {
   scenes: {
     titre: string;
     fonction: string;
+    /** Genre de la scène (lib/scene-genres.ts) et cadre visuel tenu sur toute la scène. */
+    genre?: string;
+    ambiance?: string;
     plans: {
       titre: string;
       description: string;
@@ -166,7 +170,24 @@ const norme = (s: string) => s.trim().toLowerCase();
  * la raison, plutôt que perdue en silence. */
 export const MAX_REPLIQUES_PAR_PLAN = 3;
 
+/** Écart toléré entre la durée totale du scénario et la durée visée du brief avant d'en avertir. */
+export const ECART_DUREE_TOLERE = 0.2;
+
+/** Avertissement « durée totale » : le scénario d'un épisode entier s'écarte de la durée visée du brief. Pur. */
+export function avertissementDuree(totalSecondes: number, cibleSecondes: number | null | undefined): Avertissement | null {
+  if (!cibleSecondes || cibleSecondes <= 0 || totalSecondes <= 0) return null;
+  const ecart = (totalSecondes - cibleSecondes) / cibleSecondes;
+  if (Math.abs(ecart) <= ECART_DUREE_TOLERE) return null;
+  const pct = Math.round(Math.abs(ecart) * 100);
+  return {
+    type: "info",
+    texte: `Durée totale des plans : ${totalSecondes} s pour ${cibleSecondes} s visées au brief (${ecart > 0 ? "+" : "−"}${pct} %). ${ecart > 0 ? "Plus long que voulu : resserre ou fusionne des plans." : "Plus court que voulu : ajoute de la matière ou revois la durée visée."}`,
+  };
+}
+
 export type OptionsScenario = {
+  /** Durée visée d'un épisode (brief) : le scénario d'un épisode ENTIER est comparé à elle (avertissement d'écart). */
+  dureeCibleSecondes?: number | null;
   /** Préfixe des clés symboliques : un lot met plusieurs épisodes dans UNE proposition, leurs clés
    * (« scene-1 »…) ne doivent pas se rencontrer. */
   prefixeCle?: string;
@@ -257,7 +278,13 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
         libelle: `Scène · ${sc.titre}`,
         operation: "creer",
         sousGroupe: sc.titre,
-        apres: { titre: sc.titre, fonction: sc.fonction, episodeId: ep.id },
+        apres: {
+          titre: sc.titre,
+          fonction: sc.fonction,
+          episodeId: ep.id,
+          ...(genreOuNull(sc.genre) ? { genre: sc.genre } : {}),
+          ...(sc.ambiance?.trim() ? { ambiance: sc.ambiance.trim() } : {}),
+        },
       });
     }
     for (const [j, p] of sc.plans.entries()) {
@@ -307,8 +334,11 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
 
   // Les inventions et les notes se posent sur le premier changement (la revue les remonte).
   if (changements.length > 0) {
+    const total = sortie.scenes.reduce((s, sc) => s + sc.plans.reduce((t, p) => t + (Number.isFinite(p.dureeSecondes) ? p.dureeSecondes : 0), 0), 0);
+    const ecartDuree = avertissementDuree(total, options.dureeCibleSecondes);
     changements[0]!.avertissements = [
       ...(changements[0]!.avertissements ?? []),
+      ...(ecartDuree ? [ecartDuree] : []),
       ...inventions,
       ...(sortie.notes?.trim() ? [{ type: "info" as const, texte: sortie.notes.trim() }] : []),
     ];

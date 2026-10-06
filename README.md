@@ -63,6 +63,8 @@ Variables optionnelles : `COMFYUI_WORKFLOW_IMAGE_PATH` (workflow texte → image
 `COMFYUI_WORKFLOW_EDITION_PATH` (workflow d'édition à partir d'images) et
 `COMFYUI_WORKFLOW_AUDIO_PATH` (workflow des bruitages, Stable Audio 3 : sur la fiche d'un
 asset `sfx`, « Générer… » ouvre la popup audio — prompt court en anglais et durée).
+`COMFYUI_WORKFLOW_REPLIQUE_PATH` (workflow des prises de répliques, Qwen3-TTS Base : sur un plan, « Générer la prise » clone la voix
+de référence du casting).
 
 ## Miniatures
 

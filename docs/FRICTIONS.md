@@ -1759,6 +1759,89 @@ Feuille de route : `docs/PLAN_APRES_TEST_GENERAL.md`.
   automatiquement la 2e vague (dérivés en édition) quand le master est adopté.
 - **Streaming** : la réponse s'écrit lettre par lettre (`useMachineAEcrire`, vitesse adaptée au retard), la réflexion est repliée par défaut.
 
+## 2026-10-05 — Recette « reprise d'une intro connue » : identité des personnages, rythme, genre de scène
+
+Test de bout en bout (pitch court, création de zéro, assets et plans rendus sans retouche). Constats et décisions ; les prompts des skills
+restent **génériques** (aucun nom du projet de test, vérifié par `lib/agents/genres-scene.test.ts`) : la spécialisation passe par des
+variantes de guides selon le genre de la scène.
+
+- **Cause racine des erreurs d'identité : le brief ne disait pas qui sont les personnages.** Les assets de personnages naissent du brief
+  (`candidatsRegistre`), et la description canonique recopiait « rôle : trait reconnaissable », parfois une VOIX. Résultat : une fiche
+  d'image à partir d'une voix (« A poised and calm individual »), un personnage générique nommé par un titre (l'image est devenue
+  l'« Avatar » d'un autre univers), un groupe de quatre individus fondu en UN asset (deux d'entre eux se ressemblaient dans les plans), un
+  personnage de remplissage jamais utilisé, une voix de trentenaire pour une adolescente. **Décision** : le brief porte, par personnage,
+  `age` et `apparence` (obligatoires pour tout nouveau brief, optionnels pour les anciens), `gestuelle` (facultative) ; au niveau du
+  brief, `rythme` (lent, mesure, soutenu, rapide, variable) et `univers` (œuvre de référence : on appelle les personnages par leur nom
+  propre). La description canonique d'un personnage se construit de l'apparence (`descriptionPersonnage`), jamais du rôle ni de la voix.
+  La clause de style décrit le rendu, jamais un cadrage ni un mouvement (elle s'applique aussi aux images fixes). Un personnage est un
+  individu, un groupe ne l'est pas. Le skill de voix prend l'âge du personnage et ne choisit jamais un âge adulte par défaut.
+- **Durée et rythme se demandent, ils ne se devinent pas.** La durée visée (120 s) avait été inventée par le modèle et rien ne la
+  confrontait au résultat (92 s). `conversation-agent` garde durée, rythme et âge dans `resteADefinir` tant que l'utilisateur ne les a pas
+  dits ; l'application signale (avertissement `info`, `avertissementDuree`) un scénario d'épisode qui s'écarte de plus de 20 % de la durée visée.
+- **Raffine (ne renverse pas) « plancher de 5 s, regrouper plutôt que découper » (2026-10-02).** Le plancher de 5 s et la recherche de
+  peu de plans restent. Mais « vise 8 à 15 s » devient « la durée suit le `rythme` du brief » (rapide : 5 à 8 s) et un enchaînement de brefs
+  moments qui se répondent (montage) est UN plan à coupes internes même s'il change de lieu. Retour de recette : quatre plans de 10 s pour
+  quatre gestes de 2 s donnent une séquence très longue et des raccords incompréhensibles.
+- **Genre et ambiance par scène** (`scenes.genre`, `scenes.ambiance`, migration 0046, nullables ; `lib/scene-genres.ts`). Genres : action,
+  dialogue, montage, contemplatif, tension ; null = standard. Le scénario les produit (obligatoires dans la sortie), l'utilisateur les édite,
+  `plan-h3` les reçoit : le genre choisit le guide `guide-genre-<genre>.md` (mécanisme de variantes du chargeur, `variante` = genre ou
+  « standard » = aucun guide de genre ; sans variante le chargeur enverrait tous les guides), l'ambiance est le cadre (moment, météo,
+  lumière) tenu sur toute la scène. Un basculement s'amorce dans le plan d'avant.
+- **Fiche de personnage seule** (`prompt-asset`, guide Krea 2, inventaire) : mains vides, sans effet, sans décor, sans action ; un effet est
+  un asset `vfx` distinct. Cause du plan « parti en tous sens » : la référence du personnage était une scène d'action avec un vortex.
+  `inventaire-assets` signale en `notes` les personnages et lieux du registre qu'aucun plan n'emploie, et rappelle qu'un personnage hors
+  champ n'est pas une image.
+- **Contrôle du locuteur** : un `<d>` sans `(Sx)` dans son shot donne une alerte (`plan-h3-controles`, règle `locuteur`). Deux plans de la
+  recette n'avaient pas le marqueur ; l'écho audio constaté sur l'un d'eux n'est PAS expliqué (le prompt envoyé ne contenait la réplique
+  qu'une fois) : expérience à faire, relancer le plan tel quel (même seed) puis avec `(S1)`.
+- **Voix** : température par défaut 1,2 (la plus expressive aux essais directs sous ComfyUI ; 0,8 à 1,2 reste réglable).
+- **Non fait** : génération des répliques dans l'application avec `VOX_Generate_Replique_Simplified.json` (workflow fourni, à brancher sur le
+  modèle de `voixMapping.ts`) ; réglages de vitesse du LLM local (raisonnement coupé sur les skills légers, voir les traces : 70 à 95 % des
+  jetons de sortie sont du raisonnement).
+
+## 2026-10-05 (suite) — Retours de recette : enregistrement, format des fiches, historique des rendus
+
+- **« Prévisualiser » ne lit que la base.** Le curseur de durée et chaque section du prompt gardaient leur valeur en local jusqu'à
+  un clic sur « Enregistrer » : modifier puis lancer un rendu relançait avec l'ancienne valeur (retour : « la durée n'est pas prise en
+  compte »). Les sections du prompt et les paramètres du plan (durée, FPS) s'enregistrent maintenant à la sortie du champ (lâcher le
+  curseur, quitter le champ) ; le bouton dit « Enregistrer » tant que la valeur affichée n'est pas celle de la base.
+  « Nouvelle variante » tire une nouvelle seed (qui devient celle du plan) puis prévisualise ; « Prévisualiser » garde la seed.
+- **Personnages et décors en 16:9 par défaut** (`formatParDefaut`, 1,3 MP) : meilleurs résultats dans ce ratio ; réglable en
+  régénérant. Les effets et détails restent en 1:1.
+- **Historique des rendus d'un plan** : cliquer un rendu le charge dans le lecteur (`?rendu=<id du job>`), « Comparer avec A » en
+  ouvre un second à côté (`?compare=`), « Lire les deux » les démarre ensemble. « Rendu final avec celui-ci » reprend la seed et la
+  durée de ce rendu (et, si coché, son prompt) puis lance l'upscale ; « Utiliser cette seed » ne fait que reprendre. C'est la règle
+  d'invariance (même seed + même prompt + mêmes références + même durée = même résultat, F04) qui fait que l'upscale reproduit la
+  prévisualisation choisie. Les références (images d'assets) ne sont pas versionnées (F01) : si un asset a été remplacé depuis, le
+  résultat peut différer. Logique pure dans `lib/rendus.ts`.
+- **Écho audio du plan 3** : défaut de génération du modèle vidéo, pas un bug de Cadence (retour utilisateur).
+
+## 2026-10-05 (suite) — Génération des prises de répliques dans l'application
+
+Workflow fourni par l'utilisateur (`VOX_Generate_Replique_Simplified.json`, Qwen3-TTS Base, clonage de la voix de référence). Contrat
+dans `workflows/README.md`.
+
+- **Où vit la demande : `asset_generations`** (méthode `replique`, nouvelle colonne nullable `replique_id`, migration 0047 ; `assetId` =
+  la voix clonée). Même file GPU (genre « image »), même panneau, mêmes annulations et notifications que les images, les sons et les
+  voix de référence — plutôt qu'une table et un genre de plus. Prix à payer : tout ce qui liste ou purge les candidats d'un asset écarte
+  les lignes à `replique_id` (`getGenerationsAsset`, `purgerAnciens`) ; le panneau les présente « Réplique · début du texte » et mène au
+  plan qui la cite.
+- **La prise générée est posée directement sur la réplique** (`lib/replique-prise.ts`), comme une prise déposée : fichier, texte dit (une
+  prise devient obsolète si le texte change), durée MESURÉE (FLAC : mesurable, d'où `SaveAudio` et non `SaveAudioMP3`), statut « prise
+  posée ». Elle **remplace** la précédente (pas de versionnage, F01) : régénérer donne une autre interprétation (nouvelle seed) mais
+  écrase la prise courante. Conséquence assumée : une prise validée repasse « posée » (la nouvelle n'a pas été écoutée).
+- **Ce qui est laissé tel que l'utilisateur l'a réglé** : le champ `instruct` du moteur (reste d'un essai de Voice Design, sans effet en
+  clonage) et les réglages exportés. Seul le cache audio du nœud de texte est coupé. La voix de référence part au dossier d'entrée de
+  ComfyUI sous un nom qui porte la date de modification du fichier (une référence remplacée ne resserve jamais l'ancienne copie).
+- **Langue** : celle des dialogues du brief, traduite pour le moteur (`lib/langues-tts.ts`), « Auto » si inconnue. Température 1,2 par
+  défaut (0,8 à 1,2 réglable côté code, pas encore dans l'interface).
+- **Boutons** (panneau Dialogues d'un plan) : « Générer la prise » / « Refaire la prise » par réplique, et « Générer les prises
+  manquantes (N) » (manquantes ou obsolètes ; les répliques sans voix ou dont la voix n'a pas de référence sont comptées avec leur
+  raison). Refus francs : pas de texte, pas de voix, voix sans référence, référence absente du stockage, prise déjà en file.
+- **Validé en réel** (copie jetable de la base, dossier média jetable, vrai ComfyUI) : FLAC 24 kHz de 1,34 s pour une réplique dont la
+  prise faite à la main durait 1,26 s, niveau sonore équivalent (−21,1 dB contre −21,3 dB en moyenne). Non fait : réglage de la
+  température et de la seed dans l'interface, génération des prises de TOUT l'épisode d'un coup.
+
 ## 2026-10-05 — Affiches de présentation (image d'un projet ou d'un épisode, générée par l'IA)
 
 - **Une affiche est un asset d'un type à part, `affiche`, invisible du registre** (voie « A », tranchée avec l'utilisateur) : elle réutilise
@@ -1804,9 +1887,14 @@ Correction de la décision précédente (tâche directe + écriture immédiate d
 ### 2026-10-05 — Casting vocal : test audio et test vidéo générés depuis Cadence
 
 Étape 3 du casting (« Test vidéo ») : l'audio et la vidéo de test se génèrent depuis l'application, comme la voix de référence.
-- **Même table, même file** : `asset_generations` sur l'asset `voix`, deux méthodes de plus — `test_audio` (VOX_Generate_Replique_Simplified : la voix de référence **clonée** dit le texte) et `test_video` (VID_REF2VA, le graphe des plans, sans plan). Pas de nouvelle table ni de nouveau genre de tâche : la file, l'annulation, la progression, le panneau du bandeau et les candidats servent tels quels. Colonne `parametres` (jsonb, migration 0045) pour ce que la méthode fige au lancement (références, prévisualisation ou rendu final).
+- **Même table, même file** : `asset_generations` sur l'asset `voix`, deux méthodes de plus — `test_audio` (VOX_Generate_Replique_Simplified : la voix de référence **clonée** dit le texte) et `test_video` (VID_REF2VA, le graphe des plans, sans plan). Pas de nouvelle table ni de nouveau genre de tâche : la file, l'annulation, la progression, le panneau du bandeau et les candidats servent tels quels. Colonne `parametres` (jsonb, migration 0048) pour ce que la méthode fige au lancement (références, prévisualisation ou rendu final).
 - **Prévisualisation puis rendu final** : même bascule que les plans (`activerUpscale`), deux boutons (« Prévisualiser », « Rendu final »).
 - **Adopter ne touche pas la voix** : le candidat devient `voix/<id>/test_audio.*` ou `test_video.*` (fiche de casting), jamais `assets.fichier`. Adopter l'audio fixe aussi `test_texte` : la vidéo dit le même texte au mot près. Le texte du test est prérempli avec le texte de référence de la voix.
 - **Une vidéo de test passe devant les vidéos de plans** : côté ordonnancement c'est une tâche « image » (priorité courte), parce qu'elle vit dans `asset_generations`. À reconsidérer le jour où la généralisation du système de tâches (déjà prévue) arrive.
 - Purge des candidats par méthode : les essais du test ne chassent pas ceux de la référence.
 - **Non vérifié en réel** : aucun des deux workflows n'a tourné contre un vrai ComfyUI depuis cette intégration (essai bout en bout avec le client factice : file, injection du graphe réel, adoption).
+- **Test audio sur le workflow des répliques** (fusion de `ux/refonte` dans `main`, 2026-10-06) : le test audio et les prises de répliques
+  partagent `VOX_Generate_Replique_Simplified.json` et `injecterGenerationReplique` (`repliqueMapping.ts`) ; le test audio sort donc en
+  FLAC, température par défaut. Les deux branches avaient chacune câblé « Générer » une réplique ; seule l'implémentation de `main`
+  (méthode `replique`, colonne `replique_id`, prise posée directement) est conservée, le bouton du casting vocal l'appelle
+  (`genererPriseReplique`). Migration du test vocal renumérotée 0045 → 0048 (la 0045 étant `trace_reflexion`).

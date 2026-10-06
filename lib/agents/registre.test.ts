@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { depuisRegistreAsset } from "./conversion";
-import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, resumeCandidats, type AssetExistant } from "./registre";
+import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, descriptionPersonnage, resumeCandidats, type AssetExistant } from "./registre";
 
 const brief = {
   personnages: [
@@ -82,4 +82,27 @@ test("depuisRegistreAsset : un asset existant ne reçoit que son prompt ; la des
   assert.deepEqual(a!.apres, { promptGeneration: sortie.promptGeneration });
   const [b] = depuisRegistreAsset(sortie, { code: "CHAR_maya", type: "personnage", suffixe: "maya", description: "du brief", existant: courant, descriptionVide: true });
   assert.deepEqual(b!.apres, { promptGeneration: sortie.promptGeneration, description: "du brief" });
+});
+
+test("descriptionPersonnage : ce qu'on voit (âge, apparence, trait), jamais le rôle ni la voix", () => {
+  const d = descriptionPersonnage({
+    nom: "Iris",
+    role: "narratrice",
+    age: "adolescente, 15 ans",
+    apparence: "silhouette fine, cheveux longs tressés, tunique bleue",
+    reconnaissable: "un collier de coquillages",
+    voix: "calme et posée",
+  });
+  assert.equal(d, "adolescente, 15 ans. silhouette fine, cheveux longs tressés, tunique bleue. un collier de coquillages");
+  assert.ok(!/narratrice|calme/.test(d));
+});
+
+test("descriptionPersonnage : un brief écrit avant les nouveaux champs garde « rôle : trait »", () => {
+  assert.equal(descriptionPersonnage({ nom: "Maya", role: "danseuse-espionne", reconnaissable: "cheveux rouges" }), "danseuse-espionne : cheveux rouges");
+  assert.equal(descriptionPersonnage({ nom: "Maya", role: "danseuse", reconnaissable: "cheveux rouges", age: "30 ans" }), "30 ans. danseuse : cheveux rouges");
+});
+
+test("candidatsRegistre : la description d'un personnage vient de son apparence", () => {
+  const c = candidatsRegistre({ personnages: [{ nom: "Iris", role: "narratrice", age: "15 ans", apparence: "cheveux tressés", reconnaissable: "un collier" }], lieux: [] }, []);
+  assert.equal(c[0]!.description, "15 ans. cheveux tressés. un collier");
 });
