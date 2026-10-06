@@ -111,7 +111,7 @@ export default async function AssetsPage({
             <h1>Assets</h1>
             <p>Les images de référence du projet. Les voix se gèrent au casting.</p>
           </div>
-          <div className="actions">
+          <div className="actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 10 }}>
             <AjouterAssetForm projectId={pid} />
             <BoutonAgent
               className="btn btn-ghost"

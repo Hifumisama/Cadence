@@ -402,32 +402,34 @@ export function RegistreAssets({
             </>
           ) : (
             <>
-              <span className="as-lot-n">
-                <b>{choisis.size}</b> sélectionné{choisis.size > 1 ? "s" : ""}
-              </span>
-              <span className="as-lot-detail">
-                {partants.length} à générer
-                {ecartes.length ? (
-                  <>
-                    {" · "}
-                    <u title={ecartes.map((l) => `${l.code} : ${raisonEcarte(l)}`).join("\n")}>
-                      {ecartes.length} écarté{ecartes.length > 1 ? "s" : ""}
-                    </u>
-                  </>
-                ) : null}
-                {bloques.length ? (
-                  <>
-                    {" · "}
-                    <u title={bloques.map((l) => `${l.code} : ${l.blocageSuppression}`).join("\n")}>
-                      {bloques.length} non supprimable{bloques.length > 1 ? "s" : ""}
-                    </u>
-                  </>
-                ) : null}
-              </span>
+              <button type="button" className="as-lot-fermer" onClick={sortirSelection} disabled={pending} aria-label="Annuler la sélection" title="Annuler la sélection (Échap)">
+                <Icone nom="fermer" taille={14} />
+              </button>
+              <div className="as-lot-texte">
+                <span className="as-lot-n">
+                  <b>{choisis.size}</b> sélectionné{choisis.size > 1 ? "s" : ""}
+                </span>
+                <span className="as-lot-detail">
+                  {partants.length} à générer
+                  {ecartes.length ? (
+                    <>
+                      {" · "}
+                      <u title={ecartes.map((l) => `${l.code} : ${raisonEcarte(l)}`).join("\n")}>
+                        {ecartes.length} écarté{ecartes.length > 1 ? "s" : ""}
+                      </u>
+                    </>
+                  ) : null}
+                  {bloques.length ? (
+                    <>
+                      {" · "}
+                      <u title={bloques.map((l) => `${l.code} : ${l.blocageSuppression}`).join("\n")}>
+                        {bloques.length} non supprimable{bloques.length > 1 ? "s" : ""}
+                      </u>
+                    </>
+                  ) : null}
+                </span>
+              </div>
               <div className="as-lot-actions">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={sortirSelection} disabled={pending}>
-                  Annuler
-                </button>
                 <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmer(true)} disabled={pending || supprimables.length === 0}>
                   {supprimables.length ? `Supprimer ${supprimables.length}` : "Rien à supprimer"}
                 </button>

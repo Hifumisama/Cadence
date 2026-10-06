@@ -176,7 +176,10 @@ export function EnteteAsset({
   blocageSuppression,
   redirectTo,
   casting,
+  children,
 }: {
+  /** Rendu sous la description (les apparitions). */
+  children?: React.ReactNode;
   projectId: number;
   assetId: number;
   code: string;
@@ -321,6 +324,7 @@ export function EnteteAsset({
       <div className="as-desc">
         <BlocTexte assetId={assetId} champ="description" libelle="Description" valeur={description} nu vide="Aucune description. Clique pour en écrire une." />
       </div>
+      {children}
     </section>
   );
 }

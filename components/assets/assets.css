@@ -582,9 +582,9 @@
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 10px 16px;
+  gap: 10px 14px;
   max-width: calc(100vw - 32px);
-  padding: 12px 14px 12px 18px;
+  padding: 10px 12px;
   background: var(--surface-3);
   border: 1px solid var(--or-soft);
   border-radius: 3px;
@@ -624,6 +624,40 @@
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  padding-left: 14px;
+  border-left: 1px solid var(--line-strong);
+}
+.as-lot .as-lot-texte {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.as-lot .as-lot-fermer {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.as-lot .as-lot-fermer:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+@media (max-width: 560px) {
+  .as-lot .as-lot-actions {
+    padding-left: 0;
+    border-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 /* =====================================================================
@@ -1077,11 +1111,28 @@
   font-size: 12.5px;
 }
 
-/* Apparitions */
+/* Apparitions : une ligne de badges sous la description */
+.as-apparus {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.as-apparus > span:first-child {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
 .as-plans {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+}
+.as-apparus .bf-vide {
+  margin: 0;
 }
 
 /* Fenêtre « nouvel asset à partir de celui-ci » : réutilise .modal-* ; seule la liste de sources est propre ici. */

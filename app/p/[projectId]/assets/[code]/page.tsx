@@ -58,7 +58,7 @@ export default async function AssetDetailPage({
   const citationsReelles = noeud.citations.filter((c) => !c.deduite);
   const blocage =
     citationsReelles.length > 0
-      ? "Encore cité dans une fiche de plan : délie-le d'abord (section Apparitions)."
+      ? "Encore cité dans une fiche de plan : délie-le d'abord (badges « Apparaît dans »)."
       : noeud.nbRepliques > 0
         ? `Locuteur de ${noeud.nbRepliques} réplique${noeud.nbRepliques > 1 ? "s" : ""} : change leur locuteur ou supprime-les d'abord.`
         : null;
@@ -69,7 +69,6 @@ export default async function AssetDetailPage({
     { id: "as-haut", label: "Vue d'ensemble" },
     { id: "as-image", label: sonOuVoix ? "Son" : "Image" },
     ...(noeud.type === "voix" ? [] : [{ id: "as-generation", label: "Génération" }]),
-    { id: "as-apparitions", label: "Apparitions", compte: noeud.citations.length },
     ...(noeud.type === "personnage" ? [{ id: "as-voix", label: "Voix" }] : []),
   ];
 
@@ -115,7 +114,37 @@ export default async function AssetDetailPage({
                   blocageSuppression={blocage}
                   redirectTo={`/p/${pid}/assets`}
                   casting={noeud.type === "voix" ? `/p/${pid}/voix/${noeud.code}` : null}
-                />
+                >
+                  {/* Apparitions : les plans qui citent cet asset */}
+                  <div className="as-apparus">
+                    <span>Apparaît dans</span>
+                    {noeud.citations.length > 0 ? (
+                      <div className="as-plans">
+                        {noeud.citations.map((c) => (
+                          <span key={`${c.refId ?? "voix"}-${c.planUuid}`} className="chip-citation">
+                            <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planUuid}`}>
+                              E{String(c.episodeNumero).padStart(2, "0")} · {String(c.position).padStart(2, "0")}
+                            </Link>
+                            {c.refId != null ? (
+                              <form
+                                action={async () => {
+                                  "use server";
+                                  await delierRef(c.refId!);
+                                }}
+                              >
+                                <button type="submit" title="Délier de ce plan" aria-label="Délier de ce plan">
+                                  <Icone nom="fermer" />
+                                </button>
+                              </form>
+                            ) : null}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="bf-vide">aucun plan pour l&rsquo;instant</span>
+                    )}
+                  </div>
+                </EnteteAsset>
 
                 {/* ---- Image (ou son) : le sujet de la page ---- */}
                 <section id="as-image" className="bf-section">
@@ -221,38 +250,6 @@ export default async function AssetDetailPage({
                     </div>
                   </section>
                 )}
-
-                {/* ---- Apparitions : les plans qui citent cet asset ---- */}
-                <section id="as-apparitions" className="bf-section">
-                  <Titre titre="Apparitions" />
-                  <div className="as-carte-bloc">
-                    {noeud.citations.length > 0 ? (
-                      <div className="as-plans">
-                        {noeud.citations.map((c) => (
-                          <span key={`${c.refId ?? "voix"}-${c.planUuid}`} className="chip-citation">
-                            <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planUuid}`}>
-                              E{String(c.episodeNumero).padStart(2, "0")} · {String(c.position).padStart(2, "0")}
-                            </Link>
-                            {c.refId != null ? (
-                              <form
-                                action={async () => {
-                                  "use server";
-                                  await delierRef(c.refId!);
-                                }}
-                              >
-                                <button type="submit" title="Délier de ce plan" aria-label="Délier de ce plan">
-                                  <Icone nom="fermer" />
-                                </button>
-                              </form>
-                            ) : null}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="bf-vide">Aucun plan n&rsquo;utilise cet asset pour l&rsquo;instant. Il apparaîtra ici dès qu&rsquo;une fiche de plan le cite.</p>
-                    )}
-                  </div>
-                </section>
 
                 {/* ---- Voix d'un personnage ---- */}
                 {noeud.type === "personnage" ? (
