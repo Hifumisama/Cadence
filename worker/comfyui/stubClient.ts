@@ -38,8 +38,8 @@ export class StubComfyUIClient implements ComfyUIClient {
 
   async submitGraph(graphe?: Record<string, unknown>): Promise<string> {
     // Un graphe qui sauvegarde de l'audio (SaveAudioMP3) donne un son factice.
-    const classes = Object.values(graphe ?? {}).map((n) => (n as { class_type?: string }).class_type);
-    const audio = classes.includes("SaveAudioMP3") || classes.includes("SaveAudio");
+    const classes = Object.values(graphe ?? {}).map((n) => (n as { class_type?: string }).class_type ?? "");
+    const audio = classes.some((c) => c === "SaveAudioMP3" || c === "SaveAudio");
     // Un graphe vidéo (test vidéo d'une voix : VHS_VideoCombine) donne un fichier vidéo factice.
     const video = classes.includes("VHS_VideoCombine");
     const promptId = `stub-${audio ? "aud" : video ? "vid" : "img"}-${Date.now()}`;

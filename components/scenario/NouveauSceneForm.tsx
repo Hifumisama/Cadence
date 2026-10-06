@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { creerScene } from "@/app/scenario/actions";
-import { ChampsGenreScene } from "./ChampsGenreScene";
 import { Icone } from "@/components/ui/Icone";
+import { ChampsGenreScene } from "./ChampsGenreScene";
 
 export function NouveauSceneForm({ episodeId }: { episodeId: number }) {
   const [ouvert, setOuvert] = useState(false);

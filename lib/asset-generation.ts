@@ -288,12 +288,6 @@ export function nouvelleSeed(): string {
   return String(Math.floor(Math.random() * 2 ** 48));
 }
 
-/** Nom de la voix de référence une fois envoyée à ComfyUI (dossier d'entrée partagé) : porte la date de modification du fichier,
- * pour qu'une référence REMPLACÉE ne resserve jamais l'ancienne copie du même nom. */
-export function nomReferenceVoixDistante(codeVoix: string, mtimeMs: number, ext: string): string {
-  return `cadence_voixref_${codeVoix}_${Math.floor(mtimeMs)}${ext || ".mp3"}`;
-}
-
 /** Ce que le test audio fige au lancement : la voix de référence à cloner, telle qu'elle était (chemin relatif à MEDIA_ROOT, sous
  * `assets/`) — la remplacer pendant que la demande attend ne change pas ce test. */
 export type ParametresTestAudio = { reference: string };
@@ -302,4 +296,10 @@ export function parametresTestAudio(v: unknown): ParametresTestAudio | null {
   if (typeof v !== "object" || v === null) return null;
   const r = (v as Record<string, unknown>).reference;
   return typeof r === "string" && r.trim() !== "" ? { reference: r } : null;
+}
+
+/** Nom de la voix de référence une fois envoyée à ComfyUI (dossier d'entrée partagé) : porte la date de modification du fichier,
+ * pour qu'une référence REMPLACÉE ne resserve jamais l'ancienne copie du même nom. */
+export function nomReferenceVoixDistante(codeVoix: string, mtimeMs: number, ext: string): string {
+  return `cadence_voixref_${codeVoix}_${Math.floor(mtimeMs)}${ext || ".mp3"}`;
 }

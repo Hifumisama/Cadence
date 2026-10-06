@@ -17,8 +17,6 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
   const [asset] = await db.select().from(assets).where(eq(assets.id, gen.assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
 
-
-
   // Le test d'une voix (audio, vidéo) ne remplace jamais la voix de référence : il va sur la fiche de casting.
   if (estMethodeTestVoix(gen.methode)) return adopterTestVoix(gen, mediaRoot);
 

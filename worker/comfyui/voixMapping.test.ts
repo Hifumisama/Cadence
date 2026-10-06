@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import type { WorkflowJson } from "./imageMapping";
-import { NODE_IDS_REPLIQUE_TEST, NODE_IDS_VOIX, injecterGenerationVoix, injecterRepliqueTest } from "./voixMapping";
+import { NODE_IDS_VOIX, injecterGenerationVoix } from "./voixMapping";
 
 // Lit le VRAI workflow : si un ré-export change un identifiant, ce test casse au
 // lieu de laisser le worker soumettre un graphe faux.
@@ -57,51 +57,4 @@ test("un nœud absent est une erreur franche", () => {
   const casse = structuredClone(workflow);
   delete casse[NODE_IDS_VOIX.concepteur];
   assert.throws(() => injecterGenerationVoix(casse, entree), /introuvable/);
-});
-
-// --- Test audio : VOX_Generate_Replique_Simplified.json -------------------------------------------------------------------------
-
-const workflowReplique = JSON.parse(
-  readFileSync(resolve(process.cwd(), "workflows/audio/VOX_Generate_Replique_Simplified.json"), "utf8"),
-) as WorkflowJson;
-
-const repliqueTest = {
-  texte: "Welcome adventurer, and be my guest.",
-  langue: "English",
-  seed: "987654",
-  referenceDistante: "cadence_assets_VOICE_maya.mp3",
-  prefixeSortie: "audio/cadence_test_VOICE_maya",
-};
-
-test("les nœuds du contrat existent dans VOX_Generate_Replique_Simplified.json", () => {
-  for (const id of Object.values(NODE_IDS_REPLIQUE_TEST)) assert.ok(workflowReplique[id], `nœud ${id} absent du workflow`);
-  assert.equal(workflowReplique[NODE_IDS_REPLIQUE_TEST.moteur]!.class_type, "Qwen3TTSEngineNode");
-  assert.equal(workflowReplique[NODE_IDS_REPLIQUE_TEST.texte]!.class_type, "UnifiedTTSTextNode");
-  assert.equal(workflowReplique[NODE_IDS_REPLIQUE_TEST.reference]!.class_type, "LoadAudio");
-  assert.equal(workflowReplique[NODE_IDS_REPLIQUE_TEST.sortie]!.class_type, "PreviewAudio");
-  assert.ok("language" in workflowReplique[NODE_IDS_REPLIQUE_TEST.moteur]!.inputs);
-  for (const champ of ["text", "seed", "TTS_engine", "opt_narrator"]) assert.ok(champ in workflowReplique[NODE_IDS_REPLIQUE_TEST.texte]!.inputs, `champ ${champ}`);
-  assert.ok("audio" in workflowReplique[NODE_IDS_REPLIQUE_TEST.reference]!.inputs);
-});
-
-test("test audio : texte, langue, seed, voix à cloner ; la sortie devient un SaveAudioMP3 ; le câblage reste", () => {
-  const g = injecterRepliqueTest(workflowReplique, repliqueTest);
-  const ids = NODE_IDS_REPLIQUE_TEST;
-  assert.equal(g[ids.moteur]!.inputs.language, "English");
-  assert.equal(g[ids.texte]!.inputs.text, repliqueTest.texte);
-  assert.equal(g[ids.texte]!.inputs.seed, 987654);
-  assert.equal(g[ids.texte]!.inputs.enable_audio_cache, false);
-  assert.deepEqual(g[ids.texte]!.inputs.opt_narrator, ["5", 0], "la voix de référence reste câblée sur le texte");
-  assert.equal(g[ids.reference]!.inputs.audio, repliqueTest.referenceDistante);
-  assert.equal(g[ids.sortie]!.class_type, "SaveAudioMP3");
-  assert.deepEqual(g[ids.sortie]!.inputs.audio, ["4", 0]);
-  assert.equal(g[ids.sortie]!.inputs.filename_prefix, repliqueTest.prefixeSortie);
-  // l'entrée n'est pas modifiée
-  assert.equal(workflowReplique[ids.sortie]!.class_type, "PreviewAudio");
-});
-
-test("test audio : un nœud absent est une erreur franche", () => {
-  const casse = structuredClone(workflowReplique);
-  delete casse[NODE_IDS_REPLIQUE_TEST.reference];
-  assert.throws(() => injecterRepliqueTest(casse, repliqueTest), /Nœud 5 introuvable/);
 });

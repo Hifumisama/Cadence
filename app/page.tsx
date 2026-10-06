@@ -2,8 +2,8 @@ import { getAllProjects } from "@/lib/queries";
 import { phaseDe, totalBuckets } from "@/lib/phase";
 import { Topbar } from "@/components/ui/Topbar";
 import { ProjectCard } from "@/components/projects/ProjectCard";
-import { SupprimerProjetBouton } from "@/components/projects/SupprimerProjetBouton";
 import { GrilleProjets } from "@/components/projects/GrilleProjets";
+import { SupprimerProjetBouton } from "@/components/projects/SupprimerProjetBouton";
 import { NouveauProjetModal } from "@/components/projects/NouveauProjetModal";
 
 export const dynamic = "force-dynamic";

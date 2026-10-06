@@ -16,7 +16,6 @@ import {
   raisonTestVideoInvalide,
 } from "@/lib/asset-generation";
 import { assetGenerations } from "@/db/schema";
-import { genererPriseReplique } from "@/app/repliques/generation-actions";
 import {
   MEDIA_ROOT,
   TAILLE_MAX_UPLOAD_ASSET,
@@ -37,7 +36,7 @@ import { existsSync } from "node:fs";
 
 // Casting vocal (F06, CDC §6). Le suivi réel (fichiers déposés, paramètres retenus) vit ici ; les générations de la voix de
 // référence passent par app/assets/generation-actions.ts, celles du test (audio, vidéo) par lancerTestAudio / lancerTestVideo plus bas.
-// Les prises de RÉPLIQUES passent par lancerPriseReplique (même moteur que le panneau Dialogues d'un plan).
+// Les prises de RÉPLIQUES passent par app/repliques/generation-actions.ts (genererPriseReplique).
 
 function nombreOuNull(v: FormDataEntryValue | string | null | undefined): number | null {
   const s = String(v ?? "").trim().replace(",", ".");
@@ -296,19 +295,6 @@ export async function lancerTestAudio(
     .returning({ id: assetGenerations.id });
   revalidatePath("/", "layout");
   return { ok: true, position: await rangDansLaFile(gen!.id) };
-}
-
-/** « Générer » d'une réplique (étape 4) : la voix de référence (clonée) dit le texte de la réplique. C'est le même moteur que le panneau
- * Dialogues d'un plan (app/repliques/generation-actions.ts : demande `replique` rattachée à sa réplique, prise posée par le worker, elle
- * remplace la précédente, F01) ; ici on vérifie seulement que la réplique est bien du projet de la voix, puis on renvoie le rang dans la file. */
-export async function lancerPriseReplique(assetId: number, repliqueId: number): Promise<ResultatLancement> {
-  const asset = await exigerVoix(assetId);
-  const [r] = await db.select({ id: repliques.id }).from(repliques).where(and(eq(repliques.id, repliqueId), eq(repliques.projectId, asset.projectId)));
-  if (!r) return { ok: false, erreur: "Cette réplique n'existe pas." };
-  const res = await genererPriseReplique(repliqueId);
-  if (!res.ok) return { ok: false, erreur: res.erreur };
-  const [gen] = await db.select({ id: assetGenerations.id }).from(assetGenerations).where(eq(assetGenerations.uuid, res.generationUuid));
-  return { ok: true, position: gen ? await rangDansLaFile(gen.id) : 1 };
 }
 
 /** « Prévisualiser » (`upscale` faux : sortie basse résolution, rapide) ou « Rendu final » (`upscale` vrai) : la vidéo de test, avec

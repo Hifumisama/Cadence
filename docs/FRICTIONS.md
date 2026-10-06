@@ -1841,6 +1841,7 @@ dans `workflows/README.md`.
 - **Validé en réel** (copie jetable de la base, dossier média jetable, vrai ComfyUI) : FLAC 24 kHz de 1,34 s pour une réplique dont la
   prise faite à la main durait 1,26 s, niveau sonore équivalent (−21,1 dB contre −21,3 dB en moyenne). Non fait : réglage de la
   température et de la seed dans l'interface, génération des prises de TOUT l'épisode d'un coup.
+
 ## 2026-10-05 — Affiches de présentation (image d'un projet ou d'un épisode, générée par l'IA)
 
 - **Une affiche est un asset d'un type à part, `affiche`, invisible du registre** (voie « A », tranchée avec l'utilisateur) : elle réutilise
@@ -1886,9 +1887,14 @@ Correction de la décision précédente (tâche directe + écriture immédiate d
 ### 2026-10-05 — Casting vocal : test audio et test vidéo générés depuis Cadence
 
 Étape 3 du casting (« Test vidéo ») : l'audio et la vidéo de test se génèrent depuis l'application, comme la voix de référence.
-- **Même table, même file** : `asset_generations` sur l'asset `voix`, deux méthodes de plus — `test_audio` (VOX_Generate_Replique_Simplified : la voix de référence **clonée** dit le texte) et `test_video` (VID_REF2VA, le graphe des plans, sans plan). Pas de nouvelle table ni de nouveau genre de tâche : la file, l'annulation, la progression, le panneau du bandeau et les candidats servent tels quels. Colonne `parametres` (jsonb, migration 0048 — renumérotée à la fusion avec main, qui avait pris 0045 à 0047) pour ce que la méthode fige au lancement (références, prévisualisation ou rendu final).
+- **Même table, même file** : `asset_generations` sur l'asset `voix`, deux méthodes de plus — `test_audio` (VOX_Generate_Replique_Simplified : la voix de référence **clonée** dit le texte) et `test_video` (VID_REF2VA, le graphe des plans, sans plan). Pas de nouvelle table ni de nouveau genre de tâche : la file, l'annulation, la progression, le panneau du bandeau et les candidats servent tels quels. Colonne `parametres` (jsonb, migration 0048) pour ce que la méthode fige au lancement (références, prévisualisation ou rendu final).
 - **Prévisualisation puis rendu final** : même bascule que les plans (`activerUpscale`), deux boutons (« Prévisualiser », « Rendu final »).
 - **Adopter ne touche pas la voix** : le candidat devient `voix/<id>/test_audio.*` ou `test_video.*` (fiche de casting), jamais `assets.fichier`. Adopter l'audio fixe aussi `test_texte` : la vidéo dit le même texte au mot près. Le texte du test est prérempli avec le texte de référence de la voix.
 - **Une vidéo de test passe devant les vidéos de plans** : côté ordonnancement c'est une tâche « image » (priorité courte), parce qu'elle vit dans `asset_generations`. À reconsidérer le jour où la généralisation du système de tâches (déjà prévue) arrive.
 - Purge des candidats par méthode : les essais du test ne chassent pas ceux de la référence.
 - **Non vérifié en réel** : aucun des deux workflows n'a tourné contre un vrai ComfyUI depuis cette intégration (essai bout en bout avec le client factice : file, injection du graphe réel, adoption).
+- **Test audio sur le workflow des répliques** (fusion de `ux/refonte` dans `main`, 2026-10-06) : le test audio et les prises de répliques
+  partagent `VOX_Generate_Replique_Simplified.json` et `injecterGenerationReplique` (`repliqueMapping.ts`) ; le test audio sort donc en
+  FLAC, température par défaut. Les deux branches avaient chacune câblé « Générer » une réplique ; seule l'implémentation de `main`
+  (méthode `replique`, colonne `replique_id`, prise posée directement) est conservée, le bouton du casting vocal l'appelle
+  (`genererPriseReplique`). Migration du test vocal renumérotée 0045 → 0048 (la 0045 étant `trace_reflexion`).
