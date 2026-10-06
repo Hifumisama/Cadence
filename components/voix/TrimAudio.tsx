@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { decoderAudio, encoderWav, formaterSecondes } from "@/lib/audio-trim";
+import { Icone } from "@/components/ui/Icone";
 
 /** Référence fournie : on dépose un audio, on règle début et fin pour qu'il
  * ait la taille exacte de la réplique, on l'écoute, puis on le dépose rogné
@@ -154,7 +155,7 @@ export function TrimAudio({
       </div>
       <div className="rep-actions">
         <button type="button" className="btn btn-ghost btn-mini" onClick={ecouter} disabled={pending}>
-          {joue ? "■ Arrêter" : "▶ Écouter la sélection"}
+          {joue ? <><Icone nom="arret" taille={14} /> Arrêter</> : <><Icone nom="lecture" taille={14} /> Écouter la sélection</>}
         </button>
         <button type="button" className="btn btn-gold btn-mini" onClick={deposer} disabled={pending}>
           {pending ? "Envoi…" : "Rogner et utiliser comme référence"}

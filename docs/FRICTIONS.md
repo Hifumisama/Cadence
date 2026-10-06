@@ -1841,3 +1841,60 @@ dans `workflows/README.md`.
 - **Validé en réel** (copie jetable de la base, dossier média jetable, vrai ComfyUI) : FLAC 24 kHz de 1,34 s pour une réplique dont la
   prise faite à la main durait 1,26 s, niveau sonore équivalent (−21,1 dB contre −21,3 dB en moyenne). Non fait : réglage de la
   température et de la seed dans l'interface, génération des prises de TOUT l'épisode d'un coup.
+
+## 2026-10-05 — Affiches de présentation (image d'un projet ou d'un épisode, générée par l'IA)
+
+- **Une affiche est un asset d'un type à part, `affiche`, invisible du registre** (voie « A », tranchée avec l'utilisateur) : elle réutilise
+  tout ce que fait une image d'asset — file ComfyUI, candidats, fenêtre de génération, « Utiliser » — sans rien dupliquer. Code : `AFFICHE_P<id>`
+  (projet) ou `AFFICHE_E<id>` (épisode), créé AU PREMIER CLIC sur « Générer une image » (`app/affiches/actions.ts`), jamais à la lecture.
+  Les saisons gardent leur import manuel.
+- **Invisible du registre = un filtre sur chaque lecture « tous les assets d'un projet »** : `horsAffiches` (`lib/assets-visibles.ts`) sur le
+  total de l'Accueil, l'arbre du registre, le sélecteur de références, les sources de génération, les contextes et candidats de l'agent et les
+  post-traitements du worker. Les lectures par id, par code ou par type précis n'en ont pas besoin. **Toute NOUVELLE lecture « les assets du
+  projet » doit l'ajouter**, sinon l'affiche fuit dans le registre ou le contexte du LLM (vérifié à la main : total de l'Accueil, page Assets).
+- **Adopter = habiller** : `adopterCandidat` appelle `appliquerAffiche` (`lib/affiche-application.ts`) qui copie l'image dans le rangement des
+  posters et pointe `posterFichier` dessus. Nom UNIQUE à chaque application (`poster-<horodatage>.png`, jamais réécrit sur place : pas de cache
+  navigateur périmé), ancienne image supprimée. Les assets d'affiche d'un épisode sont supprimés avec l'épisode ou sa saison.
+- **Le titre n'est jamais dans l'image** : le prompt demande explicitement aucun texte (les modèles déforment les lettres) et le titre se
+  superpose à l'affichage (`components/ui/Poster.tsx`, grand format et cartes ; l'image seule en petit). Il reste net, suit le renommage,
+  et corrige au passage les cartes à image qui n'affichaient pas leur nom. Incrustation dans le fichier : écartée pour l'instant.
+- **Prompt proposé par gabarit** (`promptAffiche`, en anglais) : titre, résumé (arc du brief, ou résumé de l'épisode), genre et ton ; la clause
+  de style est ajoutée par le workflow comme pour tout asset. Modifiable avant de lancer. Non fait : le faire écrire par l'agent.
+- **Page dédiée** `/p/<projet>/affiche/<code>` (aperçus carte et en-tête, fenêtre de génération, retrait de l'image) ; les tâches du header y
+  renvoient. Points d'entrée : en-tête d'un épisode (ou du OneShot) et vue d'une série.
+
+### 2026-10-05 — Affiches : saisons, tout en 2:3, état des plans dans l'en-tête
+
+- Les affiches couvrent aussi les **saisons** (`AFFICHE_S<id>`, même mécanique que projet/épisode, invisibles du registre).
+- **Toutes les affiches sont en 2:3** (projet, saison, épisode) : le Poster « wide » 16:9 devient « apercu » 2:3. Le prompt par défaut demande donc toujours une composition verticale.
+- L'**état des plans** (anneau + « Écrire les fiches ») quitte le corps de la page Scénario et s'intègre à l'en-tête de l'épisode (affiché seulement sur `/scenario`). Il est alimenté par des agrégats SQL (`getEtatPlans`), calculés par le layout.
+
+### 2026-10-05 — Affiches : skill `prompt-affiche`, titre dans l'image, personnage principal
+
+- **Skill `agents/skills/prompt-affiche`** (réutilise les guides Krea 2 / Qwen de `prompt-asset` via `FICHIERS_PARTAGES`). Bouton « Rédiger le prompt avec l'agent » sur la page d'affiche : la tâche passe par la file du worker comme toute tâche d'agent (`agent_runs`, `but = affiche`, `cleSousTache` = code de l'affiche) ; `postAffiche` remplace le prompt de l'affiche, en respectant le réglage de titre du moment. Le gabarit de code ne sert plus que de point de départ : plus d'étiquette `Story:` ni de titre entre guillemets (le modèle les dessinait).
+- **Titre dans l'image** : réglage par affiche, porté par le PROMPT lui-même (ligne `Title lettering: "…"`). À l'adoption, `titreDansPrompt(gen.prompt)` donne un fichier `poster-<t>-titre.<ext>` et `Poster` ne superpose alors pas le titre. Pas de colonne en base.
+- **Personnage principal** : premier personnage du brief retrouvé dans le registre (sinon premier personnage avec image). Son image est la source 1 (mode « images », Qwen Image Edit) quand l'agent recommande l'édition ; sinon sa description nourrit le prompt.
+- Clic sur l'aperçu : image seule en grand (`AfficheZoom`).
+- Le prompt de l'affiche est montré sous l'aperçu (dépliable) ; l'affiche de l'en-tête de l'épisode est cliquable pour l'agrandir.
+
+### 2026-10-05 — Affiches : le prompt de l'agent passe par une PROPOSITION (comme un asset)
+
+Correction de la décision précédente (tâche directe + écriture immédiate du prompt, sans relecture). L'affiche est un asset caché : « Demander le prompt à l'agent » ouvre la popup d'agent en portée `asset` sur cet asset, et suit le parcours normal : consigne → contexte lu (titre, résumé, ton, personnage principal, clause de style) → proposition (avant/après du prompt) à accepter. Rien n'est écrit avant l'acceptation.
+- `lib/agents/service.ts` : pour un asset de type `affiche`, `entreePourConversation` utilise `entreePromptAffiche` (lib/agents/affiche.ts) et le skill `prompt-affiche`.
+- `lib/agents/conversion.ts:depuisPromptAffiche` : un changement `asset`/`modifier` ; la ligne de titre suit le réglage de l'affiche au moment de la conversion ; la méthode « édition » n'est retenue que si l'image du personnage principal existait à la demande (l'applicateur d'asset l'autorise pour une affiche, qui n'a pas de parent).
+- Plus de `but = affiche`, ni de rafraîchissement automatique de la page.
+
+### 2026-10-05 — Casting vocal : test audio et test vidéo générés depuis Cadence
+
+Étape 3 du casting (« Test vidéo ») : l'audio et la vidéo de test se génèrent depuis l'application, comme la voix de référence.
+- **Même table, même file** : `asset_generations` sur l'asset `voix`, deux méthodes de plus — `test_audio` (VOX_Generate_Replique_Simplified : la voix de référence **clonée** dit le texte) et `test_video` (VID_REF2VA, le graphe des plans, sans plan). Pas de nouvelle table ni de nouveau genre de tâche : la file, l'annulation, la progression, le panneau du bandeau et les candidats servent tels quels. Colonne `parametres` (jsonb, migration 0048) pour ce que la méthode fige au lancement (références, prévisualisation ou rendu final).
+- **Prévisualisation puis rendu final** : même bascule que les plans (`activerUpscale`), deux boutons (« Prévisualiser », « Rendu final »).
+- **Adopter ne touche pas la voix** : le candidat devient `voix/<id>/test_audio.*` ou `test_video.*` (fiche de casting), jamais `assets.fichier`. Adopter l'audio fixe aussi `test_texte` : la vidéo dit le même texte au mot près. Le texte du test est prérempli avec le texte de référence de la voix.
+- **Une vidéo de test passe devant les vidéos de plans** : côté ordonnancement c'est une tâche « image » (priorité courte), parce qu'elle vit dans `asset_generations`. À reconsidérer le jour où la généralisation du système de tâches (déjà prévue) arrive.
+- Purge des candidats par méthode : les essais du test ne chassent pas ceux de la référence.
+- **Non vérifié en réel** : aucun des deux workflows n'a tourné contre un vrai ComfyUI depuis cette intégration (essai bout en bout avec le client factice : file, injection du graphe réel, adoption).
+- **Test audio sur le workflow des répliques** (fusion de `ux/refonte` dans `main`, 2026-10-06) : le test audio et les prises de répliques
+  partagent `VOX_Generate_Replique_Simplified.json` et `injecterGenerationReplique` (`repliqueMapping.ts`) ; le test audio sort donc en
+  FLAC, température par défaut. Les deux branches avaient chacune câblé « Générer » une réplique ; seule l'implémentation de `main`
+  (méthode `replique`, colonne `replique_id`, prise posée directement) est conservée, le bouton du casting vocal l'appelle
+  (`genererPriseReplique`). Migration du test vocal renumérotée 0045 → 0048 (la 0045 étant `trace_reflexion`).

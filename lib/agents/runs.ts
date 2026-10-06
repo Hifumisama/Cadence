@@ -18,7 +18,7 @@ export async function creerRun(
     projectId: number;
     conversationId: number | null;
     propositionId?: number | null;
-    options?: { modele?: string; variante?: string } | null;
+    options?: { modele?: string; variante?: string; [cle: string]: unknown } | null;
     /** Lot : la sous-tâche (« ep:12 ») et ce que la revue en dit (« Épisode 1 · Le sel »). */
     cleSousTache?: string | null;
     libelleSousTache?: string | null;

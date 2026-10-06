@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { creerScene } from "@/app/scenario/actions";
+import { Icone } from "@/components/ui/Icone";
 import { ChampsGenreScene } from "./ChampsGenreScene";
 
 export function NouveauSceneForm({ episodeId }: { episodeId: number }) {
@@ -27,7 +28,7 @@ export function NouveauSceneForm({ episodeId }: { episodeId: number }) {
   return (
     <>
       <button className="btn btn-ghost" type="button" onClick={() => setOuvert((v) => !v)}>
-        Nouvelle scène
+        <Icone nom="ajouter" taille={15} /> Nouvelle scène
       </button>
       {ouvert ? (
         <section className="plan-form is-new" style={{ margin: "var(--sp-3) 0 var(--sp-5)" }}>

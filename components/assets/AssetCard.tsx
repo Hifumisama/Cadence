@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { urlMiniature } from "@/lib/miniatures";
+import { Icone } from "@/components/ui/Icone";
 
 export type MediaKind = "image" | "video" | "audio";
 export type FichierEtat = "aucun" | "manquant" | "ok";
@@ -141,7 +142,7 @@ export function AssetCard({
         {etat === "ok" && kind === "audio" ? (
           <>
             <span className="asset-card-note" aria-hidden="true">
-              ♪
+              <Icone nom="musique" taille={28} />
             </span>
             <audio
               ref={mediaRef}
@@ -162,7 +163,7 @@ export function AssetCard({
             onClick={basculer}
             aria-label={joue ? `Arrêter ${code}` : `Lire ${code}`}
           >
-            {joue ? "■" : "▶"}
+            {joue ? <Icone nom="arret" taille={14} /> : <Icone nom="lecture" taille={14} />}
           </button>
         ) : null}
         {jouable && duree != null && Number.isFinite(duree) ? (
@@ -182,7 +183,7 @@ export function AssetCard({
         </div>
         {voix !== undefined ? (
           <span className={`voix-chip${voix ? "" : " is-none"}`} title={voix ? "Voix au casting" : "Aucune voix au casting pour l'instant"}>
-            <span aria-hidden="true">♪</span> {voix ? voix.code : "sans voix"}
+            <Icone nom="musique" taille={13} /> {voix ? voix.code : "sans voix"}
           </span>
         ) : null}
         <span className={`badge ${statut === "valide" ? "b-termine" : statut === "en_cours" ? "b-rejoue" : "b-attente"}`}>

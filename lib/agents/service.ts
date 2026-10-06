@@ -1,4 +1,5 @@
 import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
+import { horsAffiches } from "../assets-visibles";
 import { db } from "../../db";
 import {
   agentConversations,
@@ -23,6 +24,8 @@ import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversat
 import { PORTEES } from "./types";
 import { controleDuree } from "./applicateurs/plan";
 import { cocheParDefaut, groupeAffiche, raisonNonCochable } from "./cochage";
+import { TYPE_AFFICHE } from "../affiches";
+import { entreePromptAffiche } from "./affiche";
 import { entreeCorrectionPlan, entreePromptAsset, entreePromptAssetCandidat, entreePromptVoixCandidat, entreeScenarioEpisode, lireBriefDuProjet, type EntreeSkill } from "./contexte";
 import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registre";
 import { candidatsVoix, cleSousTacheVoix, codeDeCleVoix, type CandidatVoix } from "./voix-casting";
@@ -86,10 +89,10 @@ export async function resoudreCible(projectId: number, portee: Portee, cible: Ci
   }
   if (portee === "asset" && (cible.code || cible.id != null)) {
     const [a] = await db
-      .select({ id: assets.id, code: assets.code })
+      .select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description })
       .from(assets)
       .where(and(eq(assets.projectId, projectId), cible.code ? eq(assets.code, cible.code) : eq(assets.id, cible.id!)));
-    return a ? { cibleId: a.id, libelle: a.code } : { erreur: "Asset introuvable dans ce projet." };
+    return a ? { cibleId: a.id, libelle: a.type === TYPE_AFFICHE ? (a.description ?? a.code) : a.code } : { erreur: "Asset introuvable dans ce projet." };
   }
   return { erreur: "Cible mal désignée pour cette portée." };
 }
@@ -336,6 +339,12 @@ async function nouvelleProposition(conv: ConversationRow, p: { skill: string; co
 async function entreePourConversation(conv: ConversationRow, consigne: string, position?: Position, retour?: string): Promise<{ entree: EntreeSkill; options: Record<string, unknown> } | { erreur: string }> {
   const cibleId = conv.cibleId;
   if (conv.portee === "asset" && cibleId != null) {
+    // L'affiche d'un projet, d'une saison ou d'un épisode est un asset caché : son propre skill, même parcours de revue.
+    const [cibleAsset] = await db.select({ type: assets.type }).from(assets).where(and(eq(assets.id, cibleId), eq(assets.projectId, conv.projectId)));
+    if (cibleAsset?.type === TYPE_AFFICHE) {
+      const a = await entreePromptAffiche(db, conv.projectId, cibleId, consigne, retour);
+      return a ? { entree: a, options: {} } : { erreur: "Affiche introuvable." };
+    }
     const e = await entreePromptAsset(db, conv.projectId, cibleId, consigne, retour);
     return e ? { entree: e, options: { variante: e.variante } } : { erreur: "Asset introuvable." };
   }
@@ -617,7 +626,7 @@ export async function candidatsDuProjet(projectId: number): Promise<CandidatRegi
   const existants = await db
     .select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description, promptGeneration: assets.promptGeneration, statut: assets.statut })
     .from(assets)
-    .where(eq(assets.projectId, projectId));
+    .where(and(eq(assets.projectId, projectId), horsAffiches));
   return candidatsRegistre(brief.contenu, existants);
 }
 
@@ -712,7 +721,7 @@ const CONSIGNE_VOIX = "Écris l'instruction de timbre (Voice Design) de cette vo
 /** Les voix à créer : un personnage qui parle (au moins une réplique) sans voix, et la voix off si des
  * répliques la réclament. Vide tant que les scénarios n'ont écrit aucune réplique. */
 export async function candidatsVoixDuProjet(projectId: number): Promise<CandidatVoix[]> {
-  const lesAssets = await db.select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description }).from(assets).where(eq(assets.projectId, projectId)).orderBy(asc(assets.code));
+  const lesAssets = await db.select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches)).orderBy(asc(assets.code));
   const fiches = await db
     .select({ assetCode: assets.code, personnageId: voixFiches.personnageId })
     .from(voixFiches)

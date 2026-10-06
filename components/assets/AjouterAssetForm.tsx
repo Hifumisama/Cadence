@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { creerAsset } from "@/app/assets/actions";
 import { PREFIXE_PAR_TYPE, TYPES_CREABLES, construireCode } from "@/lib/assetCode";
+import { Icone } from "@/components/ui/Icone";
 
 export function AjouterAssetForm({ projectId }: { projectId: number }) {
   const [ouvert, setOuvert] = useState(false);
@@ -50,7 +51,7 @@ export function AjouterAssetForm({ projectId }: { projectId: number }) {
             <div className="modal-hd">
               <h2>Nouveau sujet</h2>
               <button className="modal-close" type="button" onClick={() => setOuvert(false)} aria-label="Fermer">
-                ×
+                <Icone nom="fermer" />
               </button>
             </div>
             <form ref={formRef} onSubmit={onSubmit} className="modal-bd form-grid">

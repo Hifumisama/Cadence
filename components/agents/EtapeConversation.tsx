@@ -5,6 +5,7 @@ import { envoyerMessage, genererBrief } from "@/app/agents/actions";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { estTacheActive } from "@/lib/agents-affichage";
+import { Icone } from "@/components/ui/Icone";
 
 /** Étape « Conversation » (profondeur complète). Un fil de messages ; chaque tour de l'agent
  * est une tâche de la file. AUCUN cadrage ici (portée, estimation) : il vit au niveau du
@@ -50,13 +51,13 @@ export function EtapeConversation({ ctx }: { ctx: ContexteEtape }) {
         ) : null}
         {conv.messages.map((m, i) => (
           <div key={`${m.at}-${i}`} className={`ag-msg ag-msg-${m.role}`}>
-            <span className="ag-msg-qui">{m.role === "user" ? "Toi" : "Agent ✦"}</span>
+            <span className="ag-msg-qui">{m.role === "user" ? "Toi" : <>Agent <Icone nom="agent" taille={14} /></>}</span>
             <p>{m.content}</p>
           </div>
         ))}
         {tourEnCours ? (
           <div className="ag-msg ag-msg-assistant ag-msg-attente">
-            <span className="ag-msg-qui">Agent ✦</span>
+            <span className="ag-msg-qui">Agent <Icone nom="agent" taille={14} /></span>
             <EtatTacheAgent tache={tache} />
           </div>
         ) : null}

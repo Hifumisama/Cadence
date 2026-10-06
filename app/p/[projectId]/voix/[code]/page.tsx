@@ -169,20 +169,25 @@ export default async function VoixDetailPage({
               </div>
               <div className="panel-bd">
                 <EtapeTest
-                  key={`${fiche.testDecorId}|${fiche.testPersonnageId}|${fiche.testTexte}`}
+                  key={`${fiche.testDecorId}|${fiche.testPersonnageId}|${fiche.testTexte}|${fiche.refText}`}
                   assetId={asset.id}
                   decors={d.decors}
                   personnages={d.personnages}
                   initial={{
                     decorId: fiche.testDecorId,
                     personnageId: fiche.testPersonnageId ?? fiche.personnageId,
-                    texte: fiche.testTexte,
+                    // Tant qu'aucun texte de test n'est écrit, celui de la référence : la voix dit ce qu'elle a déjà dit.
+                    texte: fiche.testTexte.trim() ? fiche.testTexte : fiche.refText,
                   }}
+                  refText={fiche.refText}
                   referenceSrc={d.referenceSrc}
                   testAudioSrc={d.testAudioSrc}
                   testAudioNom={fiche.testAudio}
                   testVideoSrc={d.testVideoSrc}
                   testVideoNom={fiche.testVideo}
+                  generations={generations}
+                  generationInitiale={generationBrute ?? null}
+                  simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
                 />
               </div>
             </>
@@ -198,7 +203,7 @@ export default async function VoixDetailPage({
                 {d.repliques.length > 0 ? (
                   <ul className="rep-lignes">
                     {d.repliques.map((r) => (
-                      <RepliqueLigne key={r.id} r={r} />
+                      <RepliqueLigne key={r.id} r={r} voixId={asset.id} />
                     ))}
                   </ul>
                 ) : (

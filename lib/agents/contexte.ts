@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-orm";
 import { agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons, voixFiches } from "../../db/schema";
+import { horsAffiches } from "../assets-visibles";
 import { variantePromptAsset } from "../llm/variantes";
 import { genreOuNull, variantePlanH3 } from "../scene-genres";
 import { WORKFLOW_IMPORT_MANUEL } from "../plan-checks";
@@ -61,7 +62,7 @@ async function registreResume(db: Db, projectId: number) {
   const lignes = await db
     .select({ code: assets.code, type: assets.type, description: assets.description })
     .from(assets)
-    .where(eq(assets.projectId, projectId))
+    .where(and(eq(assets.projectId, projectId), horsAffiches))
     .orderBy(asc(assets.code));
   return lignes.filter((a) => a.type !== "sfx" && a.type !== "keyframe").map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" }));
 }
@@ -365,7 +366,7 @@ export async function entreePlanH3(
       fichier: assets.fichier,
     })
     .from(assets)
-    .where(eq(assets.projectId, projectId))
+    .where(and(eq(assets.projectId, projectId), horsAffiches))
     .orderBy(asc(assets.code));
   const candidats = registre
     .filter((a) => a.type !== "voix" && a.type !== "keyframe")

@@ -16,6 +16,7 @@ import {
 } from "@/lib/asset-generation";
 import type { GenerationVue, SourceDisponible } from "@/lib/queries-generations";
 import type { GenreTache } from "@/lib/taches";
+import { Icone } from "@/components/ui/Icone";
 
 /** Une génération de la page, complétée par ce que l'indicateur sait en direct :
  * progression, aperçu, rang dans la file. */
@@ -42,6 +43,7 @@ const LIBELLE_TYPE: Record<string, string> = {
   vfx: "Effet",
   keyframe: "Plan clé",
   oth: "Autre",
+  affiche: "Affiche",
 };
 
 function libelleMode(nb: number): string {
@@ -192,7 +194,7 @@ export function GenerationDialog({
   const raison = (): string | null => {
     if (etatImport === "envoi") return "Import de l'image en cours…";
     if (mode === "images" && sources.length === 0) return "Ajoute au moins une image : l'image 1 est celle qui sera modifiée.";
-    if (!prompt.trim()) return mode === "texte" ? "Le prompt est vide : écris-le ici ou dans la fiche de l'asset." : "Décris la modification à appliquer.";
+    if (!prompt.trim()) return mode === "texte" ? type === "affiche" ? "Le prompt est vide : écris-le ici." : "Le prompt est vide : écris-le ici ou dans la fiche de l'asset." : "Décris la modification à appliquer.";
     return raisonDemandeInvalide(demande());
   };
   const bloque = raison();
@@ -267,13 +269,13 @@ export function GenerationDialog({
     >
       <div className="gd-head">
         <h2 id="gd-titre">
-          Générer une image <span className="num gd-code">{code}</span>
+          Générer une image <span className="num gd-code">{type === "affiche" ? "de présentation" : code}</span>
         </h2>
         <div className="gd-head-r">
           {simule ? <span className="tiny-note">Mode simulé : images factices.</span> : null}
           <span className="num tiny-note">{workflow}</span>
           <button type="button" className="gd-x" onClick={onFermer} aria-label="Fermer">
-            ✕
+            <Icone nom="fermer" />
           </button>
         </div>
       </div>
@@ -327,16 +329,16 @@ export function GenerationDialog({
                             ◀
                           </button>
                           <button type="button" onClick={() => deplacer(i, 1)} disabled={i >= sources.length - 1} aria-label={`Image ${i + 1} : avancer d'un rang`}>
-                            ▶
+                            <Icone nom="droite" />
                           </button>
                           <button type="button" onClick={() => setSources(sources.filter((_, k) => k !== i))} aria-label={`Retirer l'image ${i + 1}`}>
-                            ✕
+                            <Icone nom="fermer" />
                           </button>
                         </div>
                       </>
                     ) : i === sources.length ? (
                       <button type="button" className="gd-add" onClick={() => setPicker(picker ? null : "registre")} aria-expanded={picker != null}>
-                        + Ajouter
+                        <Icone nom="ajouter" taille={15} /> Ajouter
                       </button>
                     ) : (
                       <div className="gd-add gd-add-off" aria-hidden="true" />
@@ -428,9 +430,11 @@ export function GenerationDialog({
             />
             <p className="tiny-note">
               {mode === "texte"
-                ? "Prérempli depuis la fiche de l'asset."
+                ? type === "affiche"
+                  ? "Prérempli à partir du titre et du résumé : écris-le en anglais, sans demander de texte dans l'image."
+                  : "Prérempli depuis la fiche de l'asset."
                 : "Une consigne à l'impératif, pas une description : dis ce qui change et ce qui reste identique. Les images se citent par leur rang (« image 1 », « image 2 »)."}{" "}
-              Il devient le prompt de l&rsquo;asset quand tu utilises le résultat.
+              {type === "affiche" ? "La clause de style du projet est ajoutée automatiquement." : "Il devient le prompt de l’asset quand tu utilises le résultat."}
             </p>
           </div>
 

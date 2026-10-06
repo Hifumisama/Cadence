@@ -5,12 +5,14 @@ import { lancerGenerationVoix } from "@/app/assets/generation-actions";
 import type { GenerationVivante } from "@/components/assets/GenerationDialog";
 import {
   CANDIDATS_GARDES,
+  METHODE_VOIX,
   TEMPERATURE_VOIX_DEFAUT,
   TEMPERATURE_VOIX_MAX,
   TEMPERATURE_VOIX_MIN,
   raisonDemandeVoixInvalide,
 } from "@/lib/asset-generation";
 import type { GenreTache } from "@/lib/taches";
+import { Icone } from "@/components/ui/Icone";
 
 const DERRIERE: Record<GenreTache, string> = { image: "une image", video: "une vidéo", llm: "un agent" };
 const ACTIFS = ["en_attente", "en_cours"];
@@ -24,7 +26,7 @@ export function GenerationVoixDialog({
   code,
   instructionInitiale,
   texteInitial,
-  generations,
+  generations: toutes,
   candidatInitialId,
   ouvert,
   onFermer,
@@ -51,6 +53,8 @@ export function GenerationVoixDialog({
   simule: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // La voix a aussi des essais de TEST (audio, vidéo : étape « Test vidéo ») : cette fenêtre ne montre que ceux de la référence.
+  const generations = toutes.filter((g) => g.methode === METHODE_VOIX);
   const [instruction, setInstruction] = useState(instructionInitiale);
   const [texte, setTexte] = useState(texteInitial);
   const [temperature, setTemperature] = useState(TEMPERATURE_VOIX_DEFAUT);
@@ -128,7 +132,7 @@ export function GenerationVoixDialog({
           {simule ? <span className="tiny-note">Mode simulé : son factice (silence).</span> : null}
           <span className="num tiny-note">VOX_Generate_Voice_Simplified · Qwen3-TTS</span>
           <button type="button" className="gd-x" onClick={onFermer} aria-label="Fermer">
-            ✕
+            <Icone nom="fermer" />
           </button>
         </div>
       </div>

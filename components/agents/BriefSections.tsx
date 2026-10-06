@@ -11,6 +11,7 @@ import {
   versSaisie,
 } from "@/lib/agents-affichage";
 import { STATUTS_CHAMP, type SectionBrief, type StatutChamp, type VueBrief } from "@/lib/agents/types";
+import { Icone } from "@/components/ui/Icone";
 
 /** Le brief en sections repliables par groupe, avec TROIS états explicites (jamais la
  * couleur seule : un symbole et un libellé) : ● fourni (or), ○ déduit (blanc),
@@ -44,7 +45,7 @@ export function BriefSections({
 
 /** Style : un nom (« animation 2D ») et la clause (anglais), au lieu d'un objet JSON. La saisie reste
  * la chaîne JSON {nom, clause} que `depuisSaisie("style", …)` relit. */
-function ChampsStyle({ saisie, onChange, libelle }: { saisie: string; onChange: (v: string) => void; libelle: string }) {
+export function ChampsStyle({ saisie, onChange, libelle }: { saisie: string; onChange: (v: string) => void; libelle: string }) {
   let v: { nom?: string; clause?: string } = {};
   try {
     v = JSON.parse(saisie) as { nom?: string; clause?: string };
@@ -71,7 +72,7 @@ function ChampsStyle({ saisie, onChange, libelle }: { saisie: string; onChange: 
  * section : le formulaire ne fait que la produire. Les champs que le formulaire ne montre pas (le `statut` d'un
  * personnage) sont conservés tels quels. */
 type ChampListe = { cle: string; libelle: string; type: "texte" | "long" | "bool" };
-const FORMULAIRES_LISTE: Record<string, { element: string; champs: ChampListe[]; nouveau: Record<string, unknown> }> = {
+export const FORMULAIRES_LISTE: Record<string, { element: string; champs: ChampListe[]; nouveau: Record<string, unknown> }> = {
   episodes: {
     element: "Épisode",
     champs: [
@@ -177,7 +178,7 @@ function ListeObjets({ cle, saisie, onChange, libelle }: { cle: string; saisie: 
         </fieldset>
       ))}
       <button type="button" className="btn btn-ghost btn-mini" onClick={() => maj([...liste, { ...f.nouveau }])}>
-        + Ajouter {f.element.toLowerCase()}
+        <Icone nom="ajouter" taille={15} /> Ajouter {f.element.toLowerCase()}
       </button>
     </div>
   );
@@ -238,6 +239,7 @@ function Section({
   return (
     <details className={`ag-section ag-etat-${s.statut}`} open={s.statut === "a_valider" || edition || undefined}>
       <summary>
+        <Icone nom="droite" className="ag-chevron" />
         <span className="ag-symbole" aria-hidden="true">
           {etat.symbole}
         </span>
@@ -290,7 +292,7 @@ function Section({
             <p className="ag-valeur">{valeurEnTexte(s.valeur)}</p>
             {onModifier ? (
               <button type="button" className="ag-modifier" onClick={ouvrir} disabled={desactive} aria-label={`Modifier : ${s.libelle}`}>
-                ✎ Modifier
+                <Icone nom="modifier" taille={14} /> Modifier
               </button>
             ) : null}
           </>

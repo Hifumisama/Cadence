@@ -1,0 +1,108 @@
+/* Page de génération d'une image de présentation (/p/[id]/affiche/[code]). */
+
+.aff-corps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6) var(--sp-7);
+  align-items: flex-start;
+  margin-top: var(--sp-6);
+}
+.aff-apercus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+  align-items: flex-end;
+}
+.aff-apercu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.aff-apercu .poster-card {
+  width: 220px;
+}
+.aff-actions {
+  flex: 1 1 320px;
+  min-width: 0;
+  max-width: 62ch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.aff-actions p {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--ink-2);
+}
+.aff-actions .tiny-note {
+  color: var(--ink-3);
+}
+.aff-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.aff-confirmation {
+  display: inline-flex;
+  gap: var(--sp-2);
+}
+
+.aff-reglages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.aff-case {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  cursor: pointer;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.aff-case input {
+  margin-top: 4px;
+  accent-color: var(--or);
+}
+.aff-case small,
+.aff-agent small {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.aff-agent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.aff-agent small {
+  margin: 0;
+  max-width: 56ch;
+}
+.aff-retour {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.aff-retour.is-erreur {
+  color: var(--ecarlate-glow);
+}
+.aff-apercu {
+  max-width: 220px;
+}
+.aff-prompt summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.aff-prompt pre {
+  margin: var(--sp-2) 0 0;
+  white-space: pre-wrap;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}

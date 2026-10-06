@@ -267,3 +267,23 @@ test("squelette d'un OneShot : l'épisode technique vide est réutilisé, pas do
   assert.deepEqual(deux.map((x) => x.operation), ["modifier", "creer"]);
   assert.match(deux[1]!.libelle, /Épisode 2/);
 });
+
+test("prompt-affiche : une modification de l'asset d'affiche, avec la ligne de titre du réglage actuel", async () => {
+  const { depuisPromptAffiche } = await import("./conversion");
+  const sortie = { methode: "edition" as const, sources: ["CHAR_maya"], promptGeneration: "Place image 1 on a rooftop at dusk.\nNo text, no lettering, no logo, no watermark.", remarques: ["Résumé court."] };
+  // titre demandé dans l'image : la ligne « sans texte » est remplacée
+  const [avecTitre] = depuisPromptAffiche(sortie, { id: 7, promptGeneration: 'A.\nTitle lettering: "Rubis", written once.', methodeGeneration: null }, { titre: "Rubis", imagePersonnageDisponible: true });
+  assert.equal(avecTitre!.cibleType, "asset");
+  assert.equal(avecTitre!.operation, "modifier");
+  assert.equal(avecTitre!.cibleRef, "7");
+  const apres = avecTitre!.apres as { promptGeneration: string; methodeGeneration?: string };
+  assert.match(apres.promptGeneration, /Title lettering: "Rubis"/);
+  assert.doesNotMatch(apres.promptGeneration, /No text, no lettering/);
+  assert.equal(apres.methodeGeneration, "edition");
+  assert.ok(avecTitre!.avertissements!.some((a) => /première source/.test(a.texte)));
+  // sans image de personnage au moment de la demande : jamais d'édition, même recommandée
+  const [sansImage] = depuisPromptAffiche(sortie, { id: 7, promptGeneration: "A.", methodeGeneration: "generation" }, { titre: "Rubis", imagePersonnageDisponible: false });
+  const a2 = sansImage!.apres as { promptGeneration: string; methodeGeneration?: string };
+  assert.equal(a2.methodeGeneration, undefined);
+  assert.match(a2.promptGeneration, /No text, no lettering/);
+});

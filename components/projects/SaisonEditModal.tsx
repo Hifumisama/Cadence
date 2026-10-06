@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { modifierTitreSaison, uploaderPosterSaison } from "@/app/projects/actions";
 import { Poster } from "@/components/ui/Poster";
+import { Icone } from "@/components/ui/Icone";
 
 export function SaisonEditModal({
   saisonId,
@@ -63,12 +64,12 @@ export function SaisonEditModal({
             <div className="modal-hd">
               <h2>Modifier la saison</h2>
               <button className="modal-close" type="button" onClick={fermer} aria-label="Fermer">
-                ×
+                <Icone nom="fermer" />
               </button>
             </div>
             <form onSubmit={onSubmit} className="modal-bd form-grid">
               <div className="field-group wide">
-                <Poster src={posterLocal} titre={valeurTitre || "Sans titre"} cleRepli={`saison:${saisonId}`} taille="wide" />
+                <Poster src={posterLocal} titre={valeurTitre || "Sans titre"} cleRepli={`saison:${saisonId}`} taille="apercu" />
                 <label className="btn btn-ghost btn-sm" style={{ marginTop: "var(--sp-2)", cursor: "pointer", alignSelf: "flex-start" }}>
                   {uploadPending ? "Envoi..." : "Changer l'image de présentation"}
                   <input type="file" accept="image/*" style={{ display: "none" }} onChange={onChoisirFichier} />

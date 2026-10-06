@@ -166,6 +166,12 @@ Fixe : modèle `Voice Design - 1.7B VoiceDesign`, `top_k` 50, `top_p` 1, `repeti
 2048. Le résultat est un **candidat** (comme les images et les sons) : « Utiliser comme référence » le copie sous
 `assets/<CODE>.mp3` et reporte l'instruction et le texte sur la fiche. CosyVoice3 (les répliques) reste à la main.
 
+**Test audio d'une voix** (étape « Test vidéo » du casting, bouton « Générer l'audio de test ») : même graphe, même injection
+(`injecterGenerationReplique`), méthode `test_audio` de `asset_generations` ; température par défaut, langue de la fiche de voix
+(`English` pour le texte de référence par défaut du projet), sortie `audio/cadence_test_<CODE>` en FLAC. Le candidat adopté devient
+l'audio de test de la fiche (`voix/<id>/test_audio.*`) et fixe aussi le texte du test. **Non vérifié en réel** : le texte de la
+référence n'est pas transmis au clonage (le graphe n'a pas d'entrée pour lui) ; si la qualité du clone en souffre, c'est la première piste.
+
 ## Contrat du workflow vidéo (`video-generation/`)
 
 ### `VID_REF2VA.json` — MiniMax H3 référence vers vidéo avec audio
@@ -199,6 +205,12 @@ interpole vers `168` (48) et le commutateur `170` impose cette valeur ; `plans.f
 Vérifié par `GET /object_info` le 2026-10-02 : `MiniMaxH3ReferenceToVideo` (images max 9, audios max 3, vidéos max 3,
 `length` pas de 17), `LoadAudioUI` (start/end/duration FLOAT, défaut 0), `LoadVideoUI` (16 champs obligatoires),
 `LoadImageCrop`. **Jamais rendu en réel avec ces changements.**
+
+**Test vidéo d'une voix** (casting vocal, étape « Test vidéo ») : le même graphe, soumis par `worker/images.ts` (méthode `test_video` de
+`asset_generations`) avec `injecterValeurs` — pas de plan : le personnage (`<Picture 1>`) et le décor (le suivant) en images de
+référence, l'audio de test (à défaut la voix de référence) en `<Audio 1>`, 8 s, le prompt T1 de `lib/voix.ts:promptTestVoix`.
+« Prévisualiser » = `activerUpscale` faux (branche basse résolution), « Rendu final » = vrai ; les références sont figées dans
+`asset_generations.parametres`. La sortie est lue sur le nœud `34`.
 
 ## Suivi en direct (WebSocket)
 

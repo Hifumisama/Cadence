@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BoutonAgent } from "@/components/agents/BoutonAgent";
-import { BriefEditeur } from "@/components/agents/BriefEditeur";
+import { BriefDossier } from "@/components/brief/BriefDossier";
+import { BriefVide } from "@/components/brief/BriefVide";
 import { Topbar } from "@/components/ui/Topbar";
 import { lireBriefOuVide } from "@/lib/queries-agents";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
@@ -17,7 +17,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
   const [projet, premierEpisodeId] = await Promise.all([getProject(pid), getFirstEpisodeId(pid)]);
   if (!projet) notFound();
   const brief = await lireBriefOuVide(pid, projet.nom);
-  // « Rédigé » : un brief complet (valide ou brouillon) ; « partiel » : style et notes posés à la main.
+  // « partiel » : pas de brief rédigé, seuls le style et les notes ont pu être posés à la main.
   const redige = brief.statut !== "partiel";
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
 
@@ -36,44 +36,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
         tabs={{ projectId: pid, episodeBase }}
       />
       <main className="page">
-        <div className="screen-hd">
-          <div>
-            <p className="eyebrow" style={{ margin: "0 0 6px" }}>
-              Référence du projet
-            </p>
-            <h1>Brief</h1>
-            <p>
-              Ce que l&rsquo;agent sait du projet : il en lit les extraits utiles à chaque demande. Corriger une section la marque comme
-              « fournie ».
-            </p>
-          </div>
-          <div className="actions">
-            <BoutonAgent
-              className="btn btn-ghost"
-              demande={{ projectId: pid, portee: "projet", cible: null, profondeur: "complete", libelle: projet.nom }}
-              libelle={redige ? "Reprendre avec l'agent" : "Rédiger le brief avec l'agent"}
-            />
-          </div>
-        </div>
-
-        <section className="panel">
-          <div className="panel-hd">
-            <h2>{brief.contenu.titre || projet.nom}</h2>
-            <span className="eyebrow">
-              {brief.statut === "brouillon" ? "brouillon" : brief.statut === "partiel" ? "style et notes" : "brief du projet"}
-              {brief.version > 0 ? ` · version ${brief.version}` : ""}
-            </span>
-          </div>
-          <div className="panel-bd">
-            {brief.statut === "partiel" ? (
-              <p className="tiny-note" style={{ marginBottom: "var(--sp-3)" }}>
-                Pas encore de brief rédigé : tu peux déjà poser la clause de style et les notes du projet ici (elles servent à la génération
-                d&rsquo;images). Parle du projet à l&rsquo;agent pour qu&rsquo;il rédige le reste, sans écraser ce que tu as posé.
-              </p>
-            ) : null}
-            <BriefEditeur projectId={pid} brief={brief} />
-          </div>
-        </section>
+        {redige ? <BriefDossier projectId={pid} nomProjet={projet.nom} brief={brief} /> : <BriefVide projectId={pid} nomProjet={projet.nom} brief={brief} />}
       </main>
     </>
   );

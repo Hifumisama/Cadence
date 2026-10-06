@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { getProject, getScenarioData } from "@/lib/queries";
+import { getEpisodeWithSeason, getProject, getScenarioData } from "@/lib/queries";
 import { notFound } from "next/navigation";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
 import { NouveauPlanForm } from "@/components/scenario/NouveauPlanForm";
@@ -23,15 +22,14 @@ export default async function ScenarioPage({
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, { scenes, sansScene }] = await Promise.all([
+  const [projet, episodeInfo, { scenes, sansScene }] = await Promise.all([
     getProject(pid),
+    getEpisodeWithSeason(eid),
     getScenarioData(eid),
   ]);
-  if (!projet) notFound();
+  if (!projet || !episodeInfo) notFound();
 
   const tousLesPlans = [...scenes.flatMap((sc) => sc.plans), ...sansScene];
-  const nbBrouillons = tousLesPlans.filter((p) => p.statut === "brouillon").length;
-  const nbDeveloppes = tousLesPlans.length - nbBrouillons;
 
   const groupes = [
     ...scenes.map((sc) => ({
@@ -53,49 +51,6 @@ export default async function ScenarioPage({
 
   return (
     <div>
-      <div className="screen-hd">
-        <div>
-          <p className="eyebrow" style={{ margin: "0 0 6px" }}>
-            Découpage narratif · point d&rsquo;entrée
-          </p>
-          <h1>Scénario</h1>
-          <p>
-            Chaque plan naît ici en brouillon. Il entre en production quand on le
-            développe en fiche de plan.
-          </p>
-        </div>
-      </div>
-
-      <p className="tiny-note" style={{ margin: "var(--sp-3) 0" }}>
-        Style et notes du projet : <Link href={`/p/${pid}/brief`} style={{ color: "var(--or)" }}>voir le Brief</Link>
-        {projet.clauseStyle.trim() ? (
-          <>
-            {" "}
-            · clause de style actuelle : <span className="num">{projet.clauseStyle.trim().slice(0, 140)}{projet.clauseStyle.trim().length > 140 ? "…" : ""}</span>
-          </>
-        ) : null}
-      </p>
-
-      <div className="tally">
-        <div className="tally-item">
-          <span className="v">{tousLesPlans.length}</span>
-          <span className="k">Plans</span>
-        </div>
-        <div className="tally-item is-termine">
-          <span className="v">{nbDeveloppes}</span>
-          <span className="k">Développés</span>
-        </div>
-        <div className="tally-item">
-          <span className="v" style={{ color: "var(--or)" }}>{nbBrouillons}</span>
-          <span className="k">Brouillons</span>
-        </div>
-        <span className="tally-spacer" />
-        <div className="tally-item">
-          <span className="v" style={{ color: "var(--ink-2)" }}>{scenes.length}</span>
-          <span className="k">Scènes</span>
-        </div>
-      </div>
-
       <div className="queue">
         <NouveauPlanForm
           projectId={pid}
@@ -146,16 +101,14 @@ export default async function ScenarioPage({
                 <span className="shot-no">{String(plan.position).padStart(2, "0")}</span>
                 <span className="shot-title">
                   {plan.titre}
-                  <span className="shot-meta">
-                    {plan.description ? (
-                      <span>
-                        {plan.description.length > 90 ? `${plan.description.slice(0, 90)}…` : plan.description}
-                      </span>
-                    ) : null}
-                  </span>
+                  {plan.description ? <span className="shot-desc">{plan.description}</span> : null}
                 </span>
                 <span className="shot-right">
-                  <StatusBadge statut={plan.statut} />
+                  <span className="shot-duree num" title="Durée de montage">
+                    {plan.dureeMontageSecondes} s
+                  </span>
+                  {/* Brouillon = état par défaut d'un plan du scénario : on ne le répète pas 13 fois. */}
+                  {plan.statut !== "brouillon" ? <StatusBadge statut={plan.statut} /> : null}
                 </span>
               </PlanShotLink>
             ))}

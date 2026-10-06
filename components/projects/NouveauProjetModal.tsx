@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { creerProjet, creerProjetSansRedirection } from "@/app/projects/actions";
 import { useAgents } from "@/components/agents/AgentsProvider";
+import { Icone } from "@/components/ui/Icone";
 
 export function NouveauProjetModal() {
   const router = useRouter();
@@ -57,8 +58,8 @@ export function NouveauProjetModal() {
 
   return (
     <>
-      <button className="btn btn-primary" type="button" onClick={() => setOuvert(true)}>
-        + Nouveau projet
+      <button className="btn btn-gold" type="button" onClick={() => setOuvert(true)}>
+        <Icone nom="ajouter" taille={15} /> Nouveau projet
       </button>
       {ouvert ? (
         <div className="modal-overlay" onClick={fermer}>
@@ -66,7 +67,7 @@ export function NouveauProjetModal() {
             <div className="modal-hd">
               <h2>Nouveau projet</h2>
               <button className="modal-close" type="button" onClick={fermer} aria-label="Fermer">
-                ×
+                <Icone nom="fermer" />
               </button>
             </div>
             <form onSubmit={onSubmit} className="modal-bd form-grid">
@@ -82,7 +83,7 @@ export function NouveauProjetModal() {
                   <label className="choice">
                     <input type="radio" name="type" checked={type === "serie"} onChange={() => setType("serie")} />
                     <span className="t">Série</span>
-                    <span className="d">Des saisons et des épisodes. Chaque épisode numérote ses plans à partir de 010.</span>
+                    <span className="d">Des saisons et des épisodes. Chaque épisode a ses propres plans, réordonnables par glisser-déposer.</span>
                     <span className="shape">Projet → Saison → Épisode → …</span>
                   </label>
                 </div>
@@ -116,7 +117,7 @@ export function NouveauProjetModal() {
                   {pending ? "..." : type === "oneshot" ? "Créer et ouvrir le Scénario" : "Créer la série"}
                 </button>
                 <button className="btn btn-ghost" type="button" onClick={avecAgent} disabled={pending || !type || !nom.trim()} title="Crée le projet vide, puis ouvre la conversation avec l'agent">
-                  Créer avec l&rsquo;agent <span aria-hidden="true">✦</span>
+                  Créer avec l&rsquo;agent <Icone nom="agent" taille={14} />
                 </button>
                 <button className="btn btn-ghost" type="button" onClick={fermer}>
                   Annuler
