@@ -1,3 +1,4 @@
+import { getPlansPerimes, nbPlansRendusCitant } from "@/lib/plans-perimes";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsTree, getFirstEpisodeId, getProject, type AssetNode } from "@/lib/queries";
@@ -63,6 +64,8 @@ export default async function AssetDetailPage({
         ? `Locuteur de ${noeud.nbRepliques} réplique${noeud.nbRepliques > 1 ? "s" : ""} : change leur locuteur ou supprime-les d'abord.`
         : null;
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
+  const perimes = await getPlansPerimes({ assetId: noeud.id });
+  const plansRendus = await nbPlansRendusCitant(noeud.id);
   const promptVide = !(noeud.promptGeneration ?? "").trim();
 
   const entrees: EntreeSommaire[] = [
@@ -121,7 +124,11 @@ export default async function AssetDetailPage({
                     {noeud.citations.length > 0 ? (
                       <div className="as-plans">
                         {noeud.citations.map((c) => (
-                          <span key={`${c.refId ?? "voix"}-${c.planUuid}`} className="chip-citation">
+                          <span
+                            key={`${c.refId ?? "voix"}-${c.planUuid}`}
+                            className={`chip-citation${perimes.has(c.planId) ? " is-perime" : ""}`}
+                            title={perimes.has(c.planId) ? "Périmé : cette image a changé depuis le dernier rendu du plan" : undefined}
+                          >
                             <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planUuid}`}>
                               E{String(c.episodeNumero).padStart(2, "0")} · {String(c.position).padStart(2, "0")}
                             </Link>
@@ -245,7 +252,7 @@ export default async function AssetDetailPage({
                             classeBouton="btn btn-gold"
                           />
                         </ReglagesAsset>
-                        {noeud.type === "sfx" ? null : <RendusAsset generations={generations} />}
+                        {noeud.type === "sfx" ? null : <RendusAsset generations={generations} plansRendus={noeud.fichier ? plansRendus : 0} />}
                       </div>
                     </div>
                   </section>

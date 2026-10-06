@@ -376,7 +376,7 @@ export type AssetNode = Awaited<ReturnType<typeof getAssetsTree>>[number];
 /** `refId` : la ligne de plan_refs qui cite l'asset (déliable). `deduite` : la
  * citation d'une VOIX vient des répliques liées au plan (locuteur -> voix), pas
  * d'un lien stocké — il n'y a rien à délier, on retire la réplique du plan. */
-export type AssetCitation = { planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number | null; deduite: boolean };
+export type AssetCitation = { planId: number; planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number | null; deduite: boolean };
 
 /** Registre d'assets en arborescence par sujet (masters + dérivés), pas par
  * type — demande explicite de l'utilisateur (2026-09-27) : le type reste un
@@ -426,7 +426,7 @@ export async function getAssetsTree(projectId?: number) {
     const plan = planParId.get(ref.planId);
     if (!plan) continue;
     const liste = citationsParAssetId.get(ref.assetId) ?? [];
-    liste.push({ planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: ref.id, deduite: false });
+    liste.push({ planId: plan.id, planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: ref.id, deduite: false });
     citationsParAssetId.set(ref.assetId, liste);
   }
   // Voix : les plans où l'une de ses répliques est liée, un chip par plan.
@@ -437,7 +437,7 @@ export async function getAssetsTree(projectId?: number) {
     for (const planId of planIds) {
       const plan = planParId.get(planId);
       if (!plan) continue;
-      liste.push({ planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: null, deduite: true });
+      liste.push({ planId: plan.id, planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: null, deduite: true });
     }
     citationsParAssetId.set(voixId, liste);
   }

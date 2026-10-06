@@ -1,3 +1,4 @@
+import { getPlansPerimes } from "@/lib/plans-perimes";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "@/lib/queries";
@@ -187,8 +188,21 @@ export default async function PlanPage({
   const principalJob = principal ? jobHistory.find((j) => j.id === principal.id) : undefined;
   const retenable = principal ? raisonNonRetenable(principal) == null : false;
 
+  const perime = (await getPlansPerimes({ planIds: [plan.id] })).get(plan.id);
+
   // Contrôles repliés dans l'en-tête : références, structure, dialogues.
   const alertes: AlerteControle[] = [
+    ...(perime
+      ? [
+          {
+            cle: "refs-perimees",
+            niveau: "warn" as const,
+            titre: "Rendu périmé",
+            detail: `${perime.codes.join(", ")} ${perime.codes.length > 1 ? "ont changé" : "a changé"} depuis le dernier rendu : relance pour en tenir compte.`,
+            ancre: "fp-refs",
+          },
+        ]
+      : []),
     ...labelsOrphelins.map(
       (l): AlerteControle => ({
         cle: `orph-${l}`,

@@ -183,7 +183,7 @@ export async function deposerReference(assetId: number, formData: FormData) {
   if (asset.fichier && asset.fichier !== nom) {
     await unlink(join(MEDIA_ROOT, cheminAssetMedia(asset.fichier))).catch(() => undefined);
   }
-  await db.update(assets).set({ fichier: nom }).where(eq(assets.id, assetId));
+  await db.update(assets).set({ fichier: nom, fichierAt: new Date() }).where(eq(assets.id, assetId));
   revalidatePath("/", "layout");
 }
 

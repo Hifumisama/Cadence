@@ -57,7 +57,7 @@ export async function creerAsset(projectId: number, formData: FormData) {
 
   if (cree && fichier instanceof File && fichier.size > 0) {
     const nomFichier = await enregistrerFichierAsset(code, fichier);
-    await db.update(assets).set({ fichier: nomFichier }).where(eq(assets.id, cree.id));
+    await db.update(assets).set({ fichier: nomFichier, fichierAt: new Date() }).where(eq(assets.id, cree.id));
   }
 
   revalidatePath("/", "layout");
@@ -129,7 +129,7 @@ export async function uploaderFichierAsset(
 
   const nomFichier = await enregistrerFichierAsset(code, fichier);
 
-  await db.update(assets).set({ fichier: nomFichier }).where(eq(assets.id, assetId));
+  await db.update(assets).set({ fichier: nomFichier, fichierAt: new Date() }).where(eq(assets.id, assetId));
   revalidatePath("/", "layout");
   
 }

@@ -35,6 +35,7 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
     .update(assets)
     .set({
       fichier: nom,
+      fichierAt: new Date(),
       statut: "en_cours",
       promptGeneration: gen.prompt,
       ...(gen.methode === METHODE_AUDIO && gen.dureeSecondes != null ? { dureeSecondes: gen.dureeSecondes } : {}),

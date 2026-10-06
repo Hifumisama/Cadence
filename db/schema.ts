@@ -315,6 +315,9 @@ export const assets = pgTable("assets", {
   // pas encore choisi (un master vaut "generation"). Sans objet pour une voix.
   methodeGeneration: varchar("methode_generation", { length: 12 }),
   fichier: varchar("fichier", { length: 255 }),
+  // Quand le fichier a été posé ou remplacé (adoption, import, prise de voix) : un plan dont le dernier rendu est
+  // antérieur est « périmé » (lib/plans-perimes.ts). null = jamais posé.
+  fichierAt: timestamp("fichier_at"),
   // Durée du son retenu, en secondes (type sfx : paramètre de la génération audio,
   // qui n'est pas dans le prompt). null pour les autres types.
   dureeSecondes: real("duree_secondes"),

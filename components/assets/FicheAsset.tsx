@@ -438,7 +438,7 @@ export function ReglagesAsset({
 
 /** Les candidats déjà générés : on en adopte un (il remplace l'image et le prompt de l'asset) ou on le jette. La
  * provenance de chacun est dite : les images sources qui l'ont produit. */
-export function RendusAsset({ generations }: { generations: GenerationVue[] }) {
+export function RendusAsset({ generations, plansRendus = 0 }: { generations: GenerationVue[]; plansRendus?: number }) {
   const termines = generations.filter((g) => g.statut === "termine" && g.src);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -446,7 +446,14 @@ export function RendusAsset({ generations }: { generations: GenerationVue[] }) {
   const adopter = (id: number) =>
     startTransition(async () => {
       const r = await adopterGeneration(id);
-      setRetour(r.ok ? { ok: true, texte: "Image et prompt adoptés : l'asset repasse « en cours », à revalider." } : { ok: false, texte: r.erreur });
+      setRetour(
+        r.ok
+          ? {
+              ok: true,
+              texte: `Image et prompt adoptés : l'asset repasse « en cours », à revalider.${plansRendus ? ` ${plansRendus} plan${plansRendus > 1 ? "s" : ""} déjà rendu${plansRendus > 1 ? "s" : ""} ${plansRendus > 1 ? "sont périmés" : "est périmé"}.` : ""}`,
+            }
+          : { ok: false, texte: r.erreur },
+      );
     });
   const jeter = (id: number) =>
     startTransition(async () => {
@@ -462,6 +469,11 @@ export function RendusAsset({ generations }: { generations: GenerationVue[] }) {
           {termines.length}/{CANDIDATS_GARDES}
         </span>
       </div>
+      {plansRendus > 0 && termines.length > 0 ? (
+        <p className="as-attention" role="note">
+          Adopter un candidat remplace l&rsquo;image : {plansRendus} plan{plansRendus > 1 ? "s" : ""} déjà rendu{plansRendus > 1 ? "s" : ""} avec elle ser{plansRendus > 1 ? "ont" : "a"} marqué{plansRendus > 1 ? "s" : ""} périmé{plansRendus > 1 ? "s" : ""}.
+        </p>
+      ) : null}
       {termines.length === 0 ? (
         <p className="bf-aide" style={{ fontSize: 14 }}>
           Aucun candidat pour l&rsquo;instant. Chaque génération arrive ici : tu choisis lequel devient l&rsquo;image de l&rsquo;asset.
