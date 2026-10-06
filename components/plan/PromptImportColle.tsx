@@ -5,7 +5,7 @@ import { analyserPromptColle, importerPromptColle } from "@/app/plans/actions";
 
 type Analyse = Awaited<ReturnType<typeof analyserPromptColle>>;
 
-export function PromptImportColle({ planId }: { planId: number }) {
+export function PromptImportColle({ planId, onImporte }: { planId: number; onImporte?: () => void }) {
   const [ouvert, setOuvert] = useState(false);
   const [brut, setBrut] = useState("");
   const [analyse, setAnalyse] = useState<Analyse | null>(null);
@@ -24,6 +24,7 @@ export function PromptImportColle({ planId }: { planId: number }) {
       const resultat = await importerPromptColle(planId, brut);
       if (resultat.ok) {
         setImporte(true);
+        onImporte?.();
         setAnalyse(null);
         setBrut("");
       } else {

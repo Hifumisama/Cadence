@@ -1898,3 +1898,13 @@ Correction de la décision précédente (tâche directe + écriture immédiate d
   FLAC, température par défaut. Les deux branches avaient chacune câblé « Générer » une réplique ; seule l'implémentation de `main`
   (méthode `replique`, colonne `replique_id`, prise posée directement) est conservée, le bouton du casting vocal l'appelle
   (`genererPriseReplique`). Migration du test vocal renumérotée 0045 → 0048 (la 0045 étant `trace_reflexion`).
+
+### 2026-10-05 — Fiche de plan : refonte de la page, « figer » à la place de l'enregistrement à la sortie du champ
+
+Remplace l'enregistrement à la sortie du champ décidé le même jour (« Prévisualiser ne lit que la base ») : même problème de fond (un rendu doit partir avec ce qui est à l'écran), solution différente, voulue par l'utilisateur.
+- **On n'enregistre plus au fil de l'eau.** Le prompt (6 sections), la durée, les FPS et la seed restent un **brouillon** dans la page (`BrouillonPlan`). Lancer un rendu (« Figer et prévisualiser », « Rendu final », « Nouvelle variante ») les **fige** d'un coup (`figerEtLancer`, `app/plans/actions.ts`) puis crée le job. Un rechargement de la page (suivi des rendus) ne perd aucune saisie : chaque valeur affichée est dérivée (brouillon si elle diffère du serveur, serveur sinon). Les sections modifiées s'affichent avec un liseré orange, la console dit « Non figé : … » avec « tout annuler ».
+- **Dialogues contrôlés après l'écriture** : le contrôle verbatim lit le prompt qu'on vient de figer. Si un dialogue bloque, le brouillon reste figé mais aucun rendu ne part.
+- **Les références restent immédiates** : ajouter ou retirer une référence réécrit le prompt côté serveur (déclaration, renumérotation, F03). Le brouillon des sections est donc écrit juste avant (`ecrireSections`), sinon il serait écrasé. Elles ne font pas partie du « gel » au sens strict : seule la page garde un brouillon.
+- **Mise en page** : gauche collante (lecteur, pellicule des rendus, console de rendu), droite (références, puis prompt replié et dialogues en deux colonnes). Plus d'onglets. Le rappel du scénario est dans l'en-tête ; les contrôles automatiques sont une pastille qui déplie la liste ; supprimer et importer une vidéo sont dans « ⋯ ». L'historique des rendus devient une pellicule de clichés (A / B comme avant, `?rendu=` et `?compare=` inchangés).
+- **Animations** : balayage « gel » et sceau « Figé n°X » pendant 5 s (le temps que le rendu se place dans la file), dé de seed, braises sur le lecteur vide, entrée des rendus et des références. Coupées par `prefers-reduced-motion`.
+- Retirés : `PlanParamsEditor`, `PromptSectionEditor`, `ChecksPanel`, `RelaunchButton` (`relancerPlan` reste, il sert encore côté serveur).

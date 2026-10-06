@@ -58,6 +58,8 @@ export function PlanScenarioPanel({
         <dl>
           <dt>Description</dt>
           <dd style={{ whiteSpace: "pre-wrap" }}>{initial.description || "—"}</dd>
+          <dt>Durée au montage</dt>
+          <dd className="num">{initial.dureeMontageSecondes} s</dd>
         </dl>
       </div>
     );

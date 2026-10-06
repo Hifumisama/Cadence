@@ -161,6 +161,64 @@ export async function rendreFinalAvecRendu(planId: number, jobId: number, restau
   return { ok: true };
 }
 
+export type BrouillonPlan = {
+  /** Sections du prompt modifiées dans la page (nom → contenu). Seules celles-ci sont écrites. */
+  sections: Record<string, string>;
+  dureeGenerationSecondes?: number;
+  fps?: number;
+  /** Seed choisie à la main (dé de la console) ; absente = celle du plan. */
+  seed?: string;
+};
+
+/** « Figer et lancer » : la Fiche de plan n'enregistre rien au fil de l'eau. Au lancement d'un rendu, le prompt et tous les
+ * réglages du plan sont écrits d'un coup (c'est ce qui rend le rendu reproductible, F04), puis le job part. Les dialogues sont
+ * contrôlés APRÈS l'écriture : leur contrôle lit le prompt qu'on vient de figer. Si un dialogue bloque, le brouillon reste
+ * figé mais aucun rendu ne part. */
+export async function figerEtLancer(
+  planId: number,
+  brouillon: BrouillonPlan,
+  mode: "previsualiser" | "final" | "variante",
+): Promise<{ ok: true; numeroRendu: number } | { ok: false; erreur: string }> {
+  const { dureeGenerationSecondes: duree, fps, seed } = brouillon;
+  if (duree != null && (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
+    return { ok: false, erreur: `Durée de génération : entre ${DUREE_GENERATION_MIN} et ${DUREE_GENERATION_MAX} s.` };
+  }
+  if (fps != null && (!Number.isInteger(fps) || fps < 1)) return { ok: false, erreur: "FPS invalide." };
+  if (seed != null && !/^\d{1,15}$/.test(seed)) return { ok: false, erreur: "Seed invalide : 15 chiffres au plus." };
+  for (const section of Object.keys(brouillon.sections)) {
+    if (!(ORDRE_SECTIONS as readonly string[]).includes(section)) return { ok: false, erreur: `Section inconnue : ${section}.` };
+  }
+
+  for (const [section, contenu] of Object.entries(brouillon.sections)) await updatePromptSection(planId, section, contenu);
+  await db
+    .update(plans)
+    .set({
+      ...(fps != null ? { fps } : {}),
+      ...(duree != null ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}),
+      ...(seed != null ? { seed } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(plans.id, planId));
+
+  const blocage = await blocageDialogues(planId);
+  if (blocage) {
+    revalidatePath("/", "layout");
+    return { ok: false, erreur: `Figé, mais dialogues à corriger avant de générer : ${blocage}.` };
+  }
+  await creerJobRelance(planId, mode === "final", mode === "variante");
+  const [dernier] = await db.select({ n: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, planId));
+  revalidatePath("/", "layout");
+  return { ok: true, numeroRendu: dernier?.n ?? 1 };
+}
+
+/** Écrit les sections modifiées sans lancer de rendu : appelé avant d'ajouter ou de retirer une référence, car ces deux
+ * gestes réécrivent le prompt côté serveur (déclaration, renumérotation) et écraseraient un brouillon non figé. */
+export async function ecrireSections(planId: number, sections: Record<string, string>) {
+  for (const [section, contenu] of Object.entries(sections)) {
+    if ((ORDRE_SECTIONS as readonly string[]).includes(section)) await updatePromptSection(planId, section, contenu);
+  }
+}
+
 /** Passage nuit (CDC page 4, "Contrôle de la queue batch : déclenchement du
  * passage nuit (upscale en masse)") : relance en rendu final tous les plans
  * de l'épisode encore en "previsualise" — un plan dont la dernière

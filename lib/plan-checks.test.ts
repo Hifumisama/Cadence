@@ -5,6 +5,7 @@ import {
   controlerStructure,
   ecartVerbatim,
   extraireBalisesD,
+  extraireLabels,
   prochainSlotAudioLibre,
   calculerStatutDuree,
   verifierCoherenceRefs,
@@ -194,4 +195,14 @@ test("cohérence des refs : la voix d'une réplique (ref dérivée) n'a pas à �
   assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, [{ type: "audio", slot: 1 }]).labelsOrphelins, []);
   // … mais un label qui ne correspond à rien reste orphelin.
   assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, []).labelsOrphelins, ["Audio:1"]);
+});
+
+test("extraireLabels : labels cités, dans l'ordre, sans doublon", () => {
+  assert.deepEqual(extraireLabels("<Subject 1> from <Picture 1> and <Picture  2>, <Picture 1> again, <Audio 3> <Video 1>"), [
+    "Picture 1",
+    "Picture 2",
+    "Audio 3",
+    "Video 1",
+  ]);
+  assert.deepEqual(extraireLabels("aucun label"), []);
 });

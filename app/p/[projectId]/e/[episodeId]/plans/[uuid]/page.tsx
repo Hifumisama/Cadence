@@ -3,23 +3,24 @@ import { notFound } from "next/navigation";
 import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "@/lib/queries";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
-import { calculerStatutDuree, controlerStructure, verifierCoherenceRefs } from "@/lib/plan-checks";
+import { calculerStatutDuree, controlerStructure, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
 import { getDialoguesPlan, getOptionsLocuteur, getPrisesGenerees } from "@/lib/queries-repliques";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
-import { PromptSectionEditor } from "@/components/plan/PromptSectionEditor";
-import { PromptImportColle } from "@/components/plan/PromptImportColle";
 import { ImporterVideoForm } from "@/components/plan/ImporterVideoForm";
 import { WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { RefsPanel, type RefVue } from "@/components/plan/RefsPanel";
 import type { NoeudPicker } from "@/components/plan/AssetPickerModal";
-import { PlanParamsEditor } from "@/components/plan/PlanParamsEditor";
 import { DialoguesPanel } from "@/components/plan/DialoguesPanel";
-import { ChecksPanel } from "@/components/plan/ChecksPanel";
-import { RelaunchButton } from "@/components/plan/RelaunchButton";
 import { SuiviRendus } from "@/components/plan/SuiviRendus";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
 import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
+import { BrouillonProvider } from "@/components/plan/BrouillonPlan";
+import { ConsoleRendu } from "@/components/plan/ConsoleRendu";
+import { PromptBloc } from "@/components/plan/PromptBloc";
+import { ControlesEntete, type AlerteControle } from "@/components/plan/ControlesEntete";
+import { Pellicule, type PriseVue } from "@/components/plan/Pellicule";
+import { Braises } from "@/components/plan/Braises";
 import { ActionsRendu } from "@/components/plan/ActionsRendu";
 import { LecteursRendus } from "@/components/plan/LecteursRendus";
 import { assemblerPrompt } from "@/lib/prompt";
@@ -28,15 +29,6 @@ import { choisirComparaison, choisirRendu, estLisible, promptDiffere, raisonNonR
 export const dynamic = "force-dynamic";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const SECTIONS_ORDRE = [
-  "subject_definitions",
-  "summary",
-  "retention_analysis",
-  "detailed_description",
-  "overall_soundscape",
-  "non_diegetic_music",
-];
 
 function versNoeudPicker(n: AssetNode): NoeudPicker {
   const { kind, etat, src } = infosMedia(n.type, n.fichier);
@@ -130,8 +122,6 @@ export default async function PlanPage({
   const aUnRendu = jobHistory.some((j) => j.statut === "termine" && !!j.cheminSortie);
   const aUneFiche = promptSections.some((s) => s.contenu.trim());
 
-  const sectionsParNom = new Map(promptSections.map((s) => [s.section, s]));
-
   const scenarioInitial = {
     titre: plan.titre,
     description: plan.description ?? "",
@@ -153,295 +143,240 @@ export default async function PlanPage({
       : null,
   }));
 
+
   const scene = scenesEpisode.find((sc) => sc.id === plan.sceneId);
   const estBrouillon = plan.statut === "brouillon";
   const plansHref = `/p/${pid}/e/${eid}/plans`;
+  const posLabel = `Plan ${String(position).padStart(2, "0")} · ${plan.titre}`;
+  const demandeAgent = {
+    projectId: pid,
+    portee: "plan" as const,
+    cible: { uuid },
+    profondeur: "courte" as const,
+    libelle: posLabel,
+    episodeId: eid,
+    planUuid: uuid,
+  };
+
+  // Pellicule : le plus ancien rendu à gauche. A = le rendu du lecteur, B = celui qu'on lui compare.
+  const numeroDernier = jobHistory.reduce((m, j) => Math.max(m, j.numeroRendu), 0);
+  const lisibles = rendusVus.filter(estLisible);
+  const prises: PriseVue[] = [...jobHistory]
+    .sort((x, y) => x.numeroRendu - y.numeroRendu)
+    .map((j) => {
+      const rendu = rendusVus.find((r) => r.id === j.id)!;
+      const lisible = estLisible(rendu);
+      const estA = principal?.id === j.id;
+      return {
+        id: j.id,
+        numeroRendu: j.numeroRendu,
+        statut: j.statut,
+        src: lisible && j.cheminSortie ? `/api/media/${j.cheminSortie}` : null,
+        genre: rendu.importe ? "import" : rendu.activerUpscale ? "final" : "aperçu",
+        rejeu: j.tentative,
+        seedCourte: j.seedUtilisee ? j.seedUtilisee.slice(0, 4) : null,
+        hrefA: hrefRendus(j.id, comparaison && comparaison.id !== j.id ? comparaison.id : null),
+        hrefB: lisible && !estA && principal ? hrefRendus(principal.id, comparaison?.id === j.id ? null : j.id) : null,
+        estA,
+        estB: comparaison?.id === j.id,
+      };
+    });
+  const autreLisible = principal ? [...lisibles].reverse().find((r) => r.id !== principal.id) : undefined;
+  const hrefComparer = !comparaison && principal && autreLisible ? hrefRendus(principal.id, autreLisible.id) : null;
+  const hrefQuitter = comparaison && principal ? hrefRendus(principal.id, null) : null;
+  const principalJob = principal ? jobHistory.find((j) => j.id === principal.id) : undefined;
+  const retenable = principal ? raisonNonRetenable(principal) == null : false;
+
+  // Contrôles repliés dans l'en-tête : références, structure, dialogues.
+  const alertes: AlerteControle[] = [
+    ...labelsOrphelins.map(
+      (l): AlerteControle => ({
+        cle: `orph-${l}`,
+        niveau: "warn",
+        titre: "Référence citée mais non déclarée",
+        detail: `<${l.replace(":", " ")}> est cité dans le prompt mais absent des références du plan.`,
+        ancre: "fp-refs",
+      }),
+    ),
+    ...structure.map(
+      (p, i): AlerteControle => ({
+        cle: `struct-${p.type}-${i}`,
+        niveau: "warn",
+        titre: p.type === "duree_invalide" ? "Durée de génération" : "Découpage en shots",
+        detail: p.message,
+      }),
+    ),
+    ...(controle.ok
+      ? []
+      : [
+          {
+            cle: "dialogues",
+            niveau: "warn" as const,
+            titre: "Dialogues à corriger",
+            detail: resumerProblemesDialogues(controle.problemes),
+            ancre: "fp-dialogues",
+          },
+        ]),
+    ...refsNonCitees.map(
+      (l): AlerteControle => ({
+        cle: `noncite-${l}`,
+        niveau: "info",
+        titre: "Référence déclarée mais jamais citée",
+        detail: `<${l.replace(":", " ")}> n'apparaît dans aucune section du prompt.`,
+      }),
+    ),
+  ];
+
+  const declarees = [
+    ...refs.map((r) => `${r.type === "picture" ? "Picture" : r.type === "video" ? "Video" : "Audio"} ${r.slot}`),
+    ...audioRefs.map((r) => `Audio ${r.slot}`),
+  ];
+  const serveur = {
+    sections: Object.fromEntries(promptSections.map((s) => [s.section, s.contenu])),
+    duree: plan.dureeGenerationSecondes,
+    fps: plan.fps,
+    seed: plan.seed,
+  };
 
   return (
-    <div>
-      <div className="fiche-hd">
-        <div className="fiche-pivot">
-          <div className="pivot-no">
-            <small>Plan</small>
-            {String(position).padStart(2, "0")}
-          </div>
-          <div>
-            {scene ? <p className="eyebrow fiche-scene">{scene.titre}</p> : null}
-            <h1>{plan.titre}</h1>
-            <p className="sub">
-              {plan.numerosSource && plan.numerosSource.length > 1
-                ? `Fusion des plans ${plan.numerosSource.join(" + ")}`
-                : plan.acte ?? ""}
-            </p>
-          </div>
+    <div className="fp">
+      <div className="fp-bar">
+        <div className="pivot-no">
+          <small>Plan</small>
+          {String(position).padStart(2, "0")}
         </div>
-        <div className="fiche-actions">
+        <div className="fp-ident">
+          {scene ? <p className="eyebrow fiche-scene">{scene.titre}</p> : null}
+          <h1>{plan.titre}</h1>
+          <p className="sub">
+            {plan.numerosSource && plan.numerosSource.length > 1 ? `Fusion des plans ${plan.numerosSource.join(" + ")}` : plan.acte ?? ""}
+          </p>
+        </div>
+        <div className="fp-etat-plan">
           <StatusBadge statut={plan.statut} />
-          <BoutonAgent
-            demande={{
-              projectId: pid,
-              portee: "plan",
-              cible: { uuid },
-              profondeur: "courte",
-              libelle: `Plan ${String(position).padStart(2, "0")} · ${plan.titre}`,
-              episodeId: eid,
-              planUuid: uuid,
-            }}
-            titre="Demander à l'agent : modifier ce plan, ou en ajouter un après lui"
-          />
-          {/* Routage par état du plan (2026-10-02) : sans fiche ou sans rendu → plan-h3 (écrire / réécrire la
-              fiche) ; avec un rendu → la correction après visionnage (iteration-plan) est le geste normal, la
-              réécriture complète reste possible, avec un avertissement. */}
-          {aUnRendu && aUneFiche ? (
-            <BoutonAgent
-              demande={{
-                projectId: pid,
-                portee: "plan",
-                cible: { uuid },
-                profondeur: "courte",
-                libelle: `Plan ${String(position).padStart(2, "0")} · ${plan.titre}`,
-                episodeId: eid,
-                planUuid: uuid,
-                vue: "iteration",
-              }}
-              libelle="Corriger après visionnage"
-              className="btn btn-primary btn-sm"
-              titre="Tu as regardé le rendu : dis ce que tu as vu, l'agent compare le rendu au prompt et propose le plus petit changement"
-            />
-          ) : null}
-          <BoutonAgent
-            demande={{
-              projectId: pid,
-              portee: "plan",
-              cible: { uuid },
-              profondeur: "courte",
-              libelle: `Plan ${String(position).padStart(2, "0")} · ${plan.titre}`,
-              episodeId: eid,
-              planUuid: uuid,
-              vue: "fiches",
-            }}
-            libelle={aUneFiche ? "Réécrire la fiche" : "Écrire la fiche"}
-            titre={
-              aUnRendu
-                ? "Ce plan a un rendu : préfère « Corriger après visionnage ». Réécrire la fiche remplace tout (sections et références)."
-                : "L'agent écrit le prompt vidéo de ce plan (six sections, références, durée) ; tu relis avant qu'il soit écrit"
-            }
-          />
-          {!estBrouillon ? <RelaunchButton planId={plan.id} /> : null}
-          <SuiviRendus planUuid={plan.uuid} jobs={jobHistory.map((j) => ({ id: j.id, statut: j.statut }))} />
-          <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} />
+          {!estBrouillon ? <ControlesEntete alertes={alertes} /> : null}
+          <details className="fp-plus">
+            <summary className="btn btn-ghost btn-sm" aria-label="Autres actions">
+              ⋯
+            </summary>
+            <div className="fp-plus-pop">
+              {!estBrouillon ? <ImporterVideoForm planId={plan.id} /> : null}
+              <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} />
+            </div>
+          </details>
         </div>
-        {!estBrouillon && plan.description ? (
-          <p className="fiche-desc">{plan.description}</p>
-        ) : null}
+        <SuiviRendus planUuid={plan.uuid} jobs={jobHistory.map((j) => ({ id: j.id, statut: j.statut }))} />
       </div>
 
       {estBrouillon ? (
         <div style={{ marginTop: "var(--sp-5)", maxWidth: 760 }}>
-          <PlanScenarioPanel
-            planId={plan.id}
-            brouillon
-            initial={scenarioInitial}
-          />
+          <PlanScenarioPanel planId={plan.id} brouillon initial={scenarioInitial} />
         </div>
       ) : (
-      <div className="cols">
-        <div className="col">
-          <section className="preview">
-            <div className="preview-frame">
-              {principal?.cheminSortie ? (
-                <LecteursRendus
-                  principal={{ src: `/api/media/${principal.cheminSortie}`, titre: libelleRendu(principal) }}
-                  comparaison={comparaison?.cheminSortie ? { src: `/api/media/${comparaison.cheminSortie}`, titre: libelleRendu(comparaison) } : null}
-                  hrefSansComparaison={hrefRendus(principal.id, null)}
-                />
-              ) : (
-                <p className="preview-empty">Aucune génération terminée pour ce plan.</p>
-              )}
-            </div>
-            {jobAffiche ? (
-              <div className="preview-bar">
-                <span>
-                  {jobAffiche.workflowFichier === WORKFLOW_IMPORT_MANUEL
-                    ? "Plan déjà tourné · importé"
-                    : jobAffiche.id === dernierJobTermine?.id
-                      ? "Dernière génération"
-                      : `Rendu n°${jobAffiche.numeroRendu}`}{" "}
-                  ·{" "}
-                  <span className="num">
-                    {jobAffiche.finishedAt
-                      ? new Date(jobAffiche.finishedAt).toLocaleString("fr-FR")
-                      : "—"}
-                  </span>
-                </span>
-                {jobAffiche.seedUtilisee ? (
-                  <span>
-                    seed <span className="num">{jobAffiche.seedUtilisee}</span>
-                  </span>
-                ) : null}
-                <span className="file">{jobAffiche.cheminSortie}</span>
-              </div>
-            ) : null}
-            <div style={{ padding: "var(--sp-2) var(--sp-3)" }}>
-              <ImporterVideoForm planId={plan.id} />
-            </div>
-          </section>
+        <BrouillonProvider planId={plan.id} serveur={serveur} prochainRendu={numeroDernier + 1}>
+          {/* Rappel du scénario dans l'en-tête : lecture seule, « Modifier » ouvre le formulaire. */}
+          <div className="fp-rappel">
+            <PlanScenarioPanel planId={plan.id} brouillon={false} initial={scenarioInitial} />
+          </div>
 
-          <section className="panel">
-            <div className="panel-hd">
-              <h2>Prompt vidéo</h2>
-              <span className="eyebrow">6 sections · format MiniMax H3</span>
-            </div>
-            <div className="panel-bd">
-              <PromptImportColle planId={plan.id} />
-              <div className="sections">
-                {SECTIONS_ORDRE.map((section) => {
-                  const contenu = sectionsParNom.get(section)?.contenu ?? "";
-                  return (
-                    <PromptSectionEditor
-                      // Contenu dans la clé : un collage (PromptImportColle)
-                      // écrase les sections côté serveur, il faut donc
-                      // remonter l'éditeur pour resynchroniser son état local
-                      // — sinon le textarea reste affiché sur l'ancien texte.
-                      key={`${section}:${contenu}`}
-                      planId={plan.id}
-                      section={section}
-                      initialContenu={contenu}
+          <div className="fp-grille">
+            <div className="fp-gauche">
+              <section className="preview">
+                <div className="preview-frame">
+                  {principal?.cheminSortie ? (
+                    <LecteursRendus
+                      principal={{ src: `/api/media/${principal.cheminSortie}`, titre: libelleRendu(principal) }}
+                      comparaison={comparaison?.cheminSortie ? { src: `/api/media/${comparaison.cheminSortie}`, titre: libelleRendu(comparaison) } : null}
+                      hrefSansComparaison={hrefRendus(principal.id, null)}
                     />
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-
-          <DialoguesPanel
-            planId={plan.id}
-            planUuid={plan.uuid}
-            prises={prisesGenerees}
-            projectId={pid}
-            episodeId={eid}
-            liaisons={liaisons}
-            disponibles={disponibles}
-            options={optionsLocuteur}
-            controle={controle}
-            statutDuree={statutDuree}
-            totalSecondes={totalSecondes}
-            plafondSecondes={Number(parametresGlobaux.duree_plafond_secondes)}
-          />
-        </div>
-
-        <aside className="col">
-          <PlanParamsEditor
-            planId={plan.id}
-            fpsInitial={plan.fps}
-            dureeInitiale={plan.dureeGenerationSecondes}
-            timecodeMusique={plan.timecodeMusique}
-            seed={plan.seed}
-          />
-
-          <section className="panel">
-            <div className="panel-hd">
-              <h2>Contrôles automatiques</h2>
-            </div>
-            <ChecksPanel labelsOrphelins={labelsOrphelins} refsNonCitees={refsNonCitees} structure={structure} />
-          </section>
-
-          <RefsPanel
-            planId={plan.id}
-            refs={refsVue}
-            masters={mastersPicker}
-          />
-
-          {jobHistory.length > 0 ? (
-            <section className="panel">
-              <div className="panel-hd">
-                <h2>Historique</h2>
-                <span className="eyebrow">Pas de versionnage d&rsquo;assets</span>
-              </div>
-              <div className="panel-bd" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {jobHistory.map((job, k) => {
-                  const rendu = rendusVus[k]!;
-                  const lisible = estLisible(rendu);
-                  const estPrincipal = principal?.id === job.id;
-                  const estComparaison = comparaison?.id === job.id;
-                  const retenable = raisonNonRetenable(rendu) == null;
-                  return (
-                    <div
-                      key={job.id}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 4,
-                        fontSize: 12.5,
-                        padding: "6px 8px",
-                        borderLeft: `2px solid ${estPrincipal ? "var(--or)" : estComparaison ? "var(--ecarlate-glow)" : "transparent"}`,
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <StatusBadge statut={job.statut} />
-                        <span style={{ color: "var(--ink-3)" }}>
-                          rendu n°{job.numeroRendu}
-                          {job.tentative > 1 ? ` · rejeu ${job.tentative}` : ""}
-                        </span>
-                        {estPrincipal ? <span className="eyebrow">A · affiché</span> : null}
-                        {estComparaison ? <span className="eyebrow">B · comparé</span> : null}
-                        <span className="eyebrow" style={{ marginLeft: "auto" }}>
-                          {job.workflowFichier === WORKFLOW_IMPORT_MANUEL
-                            ? "import manuel"
-                            : job.activerUpscale
-                              ? "rendu final"
-                              : "prévisualisation"}
-                        </span>
-                      </div>
-                      {job.workflowFichier !== WORKFLOW_IMPORT_MANUEL && (job.seedUtilisee || job.dureeUtilisee) ? (
-                        <span className="tiny-note num">
-                          {job.seedUtilisee ? `seed ${job.seedUtilisee}` : ""}
-                          {job.seedUtilisee && job.dureeUtilisee ? " · " : ""}
-                          {job.dureeUtilisee ? `${job.dureeUtilisee} s` : ""}
-                          {job.seedUtilisee && job.seedUtilisee === plan.seed ? " · seed du plan" : ""}
-                        </span>
-                      ) : null}
-                      {lisible ? (
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          {!estPrincipal ? (
-                            <Link className="btn btn-ghost btn-sm" href={hrefRendus(job.id, comparaison?.id ?? null)} scroll={false}>
-                              Voir
-                            </Link>
-                          ) : null}
-                          {!estPrincipal && principal ? (
-                            <Link className="btn btn-ghost btn-sm" href={hrefRendus(principal.id, estComparaison ? null : job.id)} scroll={false}>
-                              {estComparaison ? "Retirer de la comparaison" : "Comparer avec A"}
-                            </Link>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      {retenable ? (
+                  ) : (
+                    <>
+                      <Braises />
+                      <p className="preview-empty">Aucune génération terminée pour ce plan.</p>
+                    </>
+                  )}
+                </div>
+                {jobAffiche ? (
+                  <div className="preview-bar">
+                    <span>
+                      {jobAffiche.workflowFichier === WORKFLOW_IMPORT_MANUEL
+                        ? "Plan déjà tourné · importé"
+                        : jobAffiche.id === dernierJobTermine?.id
+                          ? "Dernière génération"
+                          : `Rendu n°${jobAffiche.numeroRendu}`}{" "}
+                      ·{" "}
+                      <span className="num">{jobAffiche.finishedAt ? new Date(jobAffiche.finishedAt).toLocaleString("fr-FR") : "—"}</span>
+                    </span>
+                    {jobAffiche.seedUtilisee ? (
+                      <span>
+                        seed <span className="num">{jobAffiche.seedUtilisee}</span>
+                      </span>
+                    ) : null}
+                    <span className="file">{jobAffiche.cheminSortie}</span>
+                  </div>
+                ) : null}
+                <Pellicule prises={prises} hrefComparer={hrefComparer} hrefQuitter={hrefQuitter} />
+                {(aUnRendu && aUneFiche) || (principal && principalJob && (retenable || principalJob.promptUtilise)) ? (
+                  <div className="fp-sous-lecteur">
+                    {aUnRendu && aUneFiche ? (
+                      <BoutonAgent
+                        demande={{ ...demandeAgent, vue: "iteration" }}
+                        libelle="Corriger après visionnage"
+                        className="btn btn-primary btn-sm"
+                        titre="Tu as regardé le rendu : dis ce que tu as vu, l'agent compare le rendu au prompt et propose le plus petit changement"
+                      />
+                    ) : null}
+                    {principal && principalJob && retenable ? (
+                      <details className="fp-actions-rendu">
+                        <summary className="fp-lien">Actions sur le rendu n°{principal.numeroRendu}</summary>
                         <ActionsRendu
                           planId={plan.id}
-                          jobId={job.id}
-                          promptChange={promptDiffere(promptCourant, job.promptUtilise)}
-                          aUnPrompt={!!job.promptUtilise}
-                          estSeedDuPlan={!!job.seedUtilisee && job.seedUtilisee === plan.seed}
+                          jobId={principalJob.id}
+                          promptChange={promptDiffere(promptCourant, principalJob.promptUtilise)}
+                          aUnPrompt={!!principalJob.promptUtilise}
+                          estSeedDuPlan={!!principalJob.seedUtilisee && principalJob.seedUtilisee === plan.seed}
                         />
-                      ) : null}
-                      {job.promptUtilise ? (
-                        <details>
-                          <summary className="tiny-note" style={{ cursor: "pointer" }}>
-                            Prompt envoyé
-                          </summary>
-                          <pre className="tiny-note" style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
-                            {job.promptUtilise}
-                          </pre>
-                        </details>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                      </details>
+                    ) : null}
+                    {principalJob?.promptUtilise ? (
+                      <details className="fp-actions-rendu">
+                        <summary className="fp-lien">Prompt envoyé pour ce rendu</summary>
+                        <pre className="tiny-note" style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
+                          {principalJob.promptUtilise}
+                        </pre>
+                      </details>
+                    ) : null}
+                  </div>
+                ) : null}
+              </section>
+
+              <ConsoleRendu timecodeMusique={plan.timecodeMusique} />
+            </div>
+
+            <div className="fp-droite">
+              <RefsPanel planId={plan.id} refs={refsVue} masters={mastersPicker} />
+              <div className="fp-duo">
+                <PromptBloc planId={plan.id} declarees={declarees} demandeAgent={demandeAgent} aUneFiche={aUneFiche} />
+                <div id="fp-dialogues" className="fp-dialogues">
+                  <DialoguesPanel
+                    planId={plan.id}
+                    planUuid={plan.uuid}
+                    prises={prisesGenerees}
+                    projectId={pid}
+                    episodeId={eid}
+                    liaisons={liaisons}
+                    disponibles={disponibles}
+                    options={optionsLocuteur}
+                    controle={controle}
+                    statutDuree={statutDuree}
+                    totalSecondes={totalSecondes}
+                    plafondSecondes={Number(parametresGlobaux.duree_plafond_secondes)}
+                  />
+                </div>
               </div>
-            </section>
-          ) : null}
-        </aside>
-      </div>
+            </div>
+          </div>
+        </BrouillonProvider>
       )}
     </div>
   );

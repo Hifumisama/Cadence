@@ -290,6 +290,13 @@ export function verifierCoherenceRefs(
   return { labelsOrphelins, refsNonCitees };
 }
 
+/** Les labels de références cités dans un texte de prompt, dans l'ordre d'apparition, sans doublon (« Picture 1 », « Audio 2 »). */
+export function extraireLabels(texte: string): string[] {
+  const vus = new Set<string>();
+  for (const m of texte.matchAll(/<(Picture|Video|Audio)\s+(\d+)>/g)) vus.add(`${m[1]} ${m[2]}`);
+  return [...vus];
+}
+
 export type StatutDuree = "tient" | "a_mesurer" | "decoupage_a_envisager";
 
 /** Durée voix (F03) : somme des répliques + marge de respiration comparée au
