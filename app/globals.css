@@ -2733,11 +2733,28 @@ button {
   border-radius: 3px;
   background: rgba(26, 26, 33, 0.5);
 }
+.scene {
+  transition: opacity 0.2s, background 0.15s, box-shadow 0.15s;
+}
 .scene.is-pending {
   opacity: 0.6;
 }
 .frise .shot[draggable="true"] {
   cursor: grab;
+}
+/* Élément en cours de glissement : on le laisse en place, estompé, pour qu'on
+ * voie d'où il part ; l'image fantôme suit le curseur. */
+.frise .shot.is-drag,
+.scene.is-drag {
+  opacity: 0.35;
+}
+.frise .shot.is-drag {
+  transform: scale(0.985);
+  border-color: var(--or-soft);
+  border-style: dashed;
+}
+.frise .shot {
+  transition: background 0.16s, border-color 0.16s, transform 0.16s, opacity 0.16s, box-shadow 0.12s;
 }
 .frise .shot.drop-avant {
   box-shadow: 0 -2px 0 0 var(--or);
@@ -6656,4 +6673,62 @@ a.voix-chip:hover {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Apparition discrète des scènes et des plans (Scénario). Jouée au montage
+ * seulement : un plan qui change de scène réapparaît, un simple réordonnancement
+ * est animé par GlisserDeposer (glissement). */
+@keyframes scenario-entree {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .scene {
+    animation: scenario-entree 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  .scene .frise .shot {
+    animation: scenario-entree 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  .scene:nth-child(2) { animation-delay: 0.08s; }
+  .scene:nth-child(3) { animation-delay: 0.2s; }
+  .scene:nth-child(4) { animation-delay: 0.32s; }
+  .scene:nth-child(5) { animation-delay: 0.44s; }
+  .scene:nth-child(n + 6) { animation-delay: 0.56s; }
+  .scene .frise .shot:nth-child(2) { animation-delay: 0.12s; }
+  .scene .frise .shot:nth-child(3) { animation-delay: 0.19s; }
+  .scene .frise .shot:nth-child(4) { animation-delay: 0.26s; }
+  .scene .frise .shot:nth-child(5) { animation-delay: 0.33s; }
+  .scene .frise .shot:nth-child(6) { animation-delay: 0.4s; }
+  .scene .frise .shot:nth-child(n + 7) { animation-delay: 0.47s; }
+}
+
+/* Aperçu opaque qui suit le curseur pendant un glissement (Scénario). */
+.apercu-drag {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  margin: 0;
+  pointer-events: none;
+  opacity: 1;
+  background: var(--surface);
+  border: 1px solid var(--or);
+  border-radius: 3px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(201, 162, 75, 0.25);
+  transition: none;
+  animation: none;
+  will-change: transform;
+}
+.apercu-drag .node,
+.apercu-drag .scene-poignee,
+.apercu-drag button,
+.apercu-drag .zellige-rule {
+  display: none;
+}
+.apercu-drag.scene-top {
+  padding: var(--sp-3) var(--sp-4);
+  flex-wrap: nowrap;
+  overflow: hidden;
 }

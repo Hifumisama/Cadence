@@ -62,7 +62,7 @@ export default async function ScenarioPage({
       </div>
 
       {groupes.map((g, idx) => (
-        <ZoneScene key={idx} sceneId={g.id} suivantSceneId={idx < scenes.length - 1 ? scenes[idx + 1]!.id : null}>
+        <ZoneScene key={g.id ?? "sans"} sceneId={g.id} suivantSceneId={idx < scenes.length - 1 ? scenes[idx + 1]!.id : null}>
           <div className="scene-top">
             <BasculeScene titre={g.titre} />
             {g.id != null ? <PoigneeScene sceneId={g.id} /> : null}
