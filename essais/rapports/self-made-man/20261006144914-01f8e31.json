@@ -1,0 +1,40 @@
+{
+  "fiche": "Self made man",
+  "date": "2026-10-06T14:49:14.950Z",
+  "git": {
+    "sha": "01f8e31",
+    "modifie": true
+  },
+  "modeles": [
+    "gemma-4-26B-A4B.gguf"
+  ],
+  "echangesUtilisateur": 8,
+  "empreintesSkills": {
+    "conversation-agent": "7079eb0ef2",
+    "brief-projet": "085b46f8de"
+  },
+  "dureeRejeuSecondes": 123,
+  "etapeAtteinte": "brief",
+  "episodes": [],
+  "fiches": null,
+  "appels": [
+    {
+      "skill": "conversation-agent",
+      "n": 8,
+      "tokensEntree": 35730,
+      "tokensSortie": 1844,
+      "secondesMoyennes": 6,
+      "renvois": 0,
+      "pasOk": 0
+    },
+    {
+      "skill": "brief-projet",
+      "n": 1,
+      "tokensEntree": 5136,
+      "tokensSortie": 3644,
+      "secondesMoyennes": 69,
+      "renvois": 0,
+      "pasOk": 0
+    }
+  ]
+}

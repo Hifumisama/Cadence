@@ -6,24 +6,104 @@
   "required": [
     "reponse",
     "briefPret",
+    "couverture",
     "resteADefinir"
   ],
   "properties": {
     "reponse": {
       "type": "string",
       "minLength": 1,
-      "description": "Ton message à l'utilisateur, en français : une proposition concrète, tes inventions signalées, deux ou trois questions au plus. Texte brut."
+      "description": "Ton message à l'utilisateur, en français : ce que tu retiens de sa dernière réponse en UNE phrase courte (vingt mots au plus, sans la paraphraser ni l'embellir), puis UNE question qui rebondit dessus. Au premier tour : une reformulation et une question, aucune proposition complète. Texte brut."
+    },
+    "couverture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coeur",
+        "basculementFin",
+        "ton",
+        "reglesMonde",
+        "personnagesLieux",
+        "styleRythme",
+        "dureeForme"
+      ],
+      "description": "Où tu en es de l'entretien, dimension par dimension, À CE TOUR. « dit » = l'utilisateur l'a dit ou l'a confirmé en réponse à ta question, avec ses mots ; « deduit » = tu l'as supposé ou l'as proposé sans qu'il l'ait confirmé ; « inconnu » = jamais abordé. Sois sévère : une idée que TU as eue n'est jamais « dit ». L'application refuse le briefing tant que le cœur, le basculement et la fin, le ton, le style et le rythme, la durée et la forme ne sont pas tous « dit ».",
+      "properties": {
+        "coeur": {
+          "type": "string",
+          "enum": [
+            "dit",
+            "deduit",
+            "inconnu"
+          ],
+          "description": "Le cœur : qui est le personnage principal, ce qu'il veut, ce qui change chez lui."
+        },
+        "basculementFin": {
+          "type": "string",
+          "enum": [
+            "dit",
+            "deduit",
+            "inconnu"
+          ],
+          "description": "Le basculement de l'histoire et sa fin (ce qu'on doit ressentir en sortant)."
+        },
+        "ton": {
+          "type": "string",
+          "enum": [
+            "dit",
+            "deduit",
+            "inconnu"
+          ],
+          "description": "Le ton et le genre (comédie, drame, mélange, part d'humour ou de tension)."
+        },
+        "reglesMonde": {
+          "type": "string",
+          "enum": [
+            "dit",
+            "deduit",
+            "inconnu"
+          ],
+          "description": "Les règles du monde : limites du surnaturel ou de l'inhabituel, s'il y en a (« dit » si sans objet et confirmé)."
+        },
+        "personnagesLieux": {
+          "type": "string",
+          "enum": [
+            "dit",
+            "deduit",
+            "inconnu"
+          ],
+          "description": "Les autres personnages qui comptent et les lieux."
+        },
+        "styleRythme": {
+          "type": "string",
+          "enum": [
+            "dit",
+            "deduit",
+            "inconnu"
+          ],
+          "description": "Le style visuel (réalisme, caméra) et le rythme (lent, vif)."
+        },
+        "dureeForme": {
+          "type": "string",
+          "enum": [
+            "dit",
+            "deduit",
+            "inconnu"
+          ],
+          "description": "La durée visée, le nombre d'épisodes, la langue et la part de dialogue."
+        }
+      }
     },
     "briefPret": {
       "type": "boolean",
-      "description": "Vrai dès que tu as de quoi écrire une PREMIÈRE VERSION du briefing (arc, structure et style au moins proposés), même s'il te reste des questions : l'application propose alors de le générer, et la conversation continue pour le préciser. resteADefinir vide = le briefing est définitif."
+      "description": "Vrai seulement quand ta grille de couverture est « dit » partout où elle est essentielle (cœur, basculement et fin, ton, style et rythme, durée et forme) et que tu as réellement compris l'histoire : au moins trois échanges. L'application écrit alors seule une première version du briefing ; la conversation continue ensuite pour le préciser. Dans le doute, faux : une question de plus."
     },
     "resteADefinir": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "Ce qu'il te reste à savoir de l'utilisateur pour écrire le brief, en phrases courtes à l'impératif de l'utilisateur (« Choisir le style visuel », « Fixer le nombre d'épisodes »). L'application l'affiche en liste à côté de la conversation : l'utilisateur voit ce qui reste. Vide quand briefPret est vrai."
+      "description": "Ce qu'il te reste à comprendre de l'utilisateur, en phrases courtes (« Savoir ce que le héros veut vraiment », « Fixer la fin »), les plus importantes d'abord, sans ce qu'il vient de trancher. L'application l'affiche en liste à côté de la conversation. Vide quand le briefing est définitif."
     }
   }
 }

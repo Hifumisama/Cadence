@@ -68,14 +68,22 @@ function suffixeSkill(skill: string): string {
   return skill.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
 }
 
-/** Champs ajoutés au corps de la requête pour un skill : `LLM_CORPS_<SKILL>` sinon `LLM_CORPS`, en JSON.
+/** Skills qui partent SANS réflexion tant qu'aucune variable ne dit le contraire. Mesuré sur gemma-4 (2026-10-07) : pour
+ * traduire une description en prompt, la réflexion pesait ~90 % des jetons de sortie (1 500 jetons pour une réponse de 130,
+ * 30 s au lieu de 1). Le drapeau est honoré par le serveur (`reasoning_budget`, lui, ne l'est pas). `conversation-agent` : un
+ * tour de dialogue doit rester vif. À étendre skill par skill, après un essai de qualité. */
+export const SKILLS_SANS_REFLEXION: readonly string[] = ["prompt-asset", "prompt-voix", "prompt-affiche", "conversation-agent"];
+export const CORPS_SANS_REFLEXION = { chat_template_kwargs: { enable_thinking: false } };
+
+/** Champs ajoutés au corps de la requête pour un skill : `LLM_CORPS_<SKILL>` sinon `LLM_CORPS`, en JSON (`{}` pour rétablir
+ * la réflexion d'un skill de `SKILLS_SANS_REFLEXION`), sinon le défaut du skill.
  * Sert surtout à régler la RÉFLEXION du modèle (ex. `{"chat_template_kwargs":{"enable_thinking":false}}`) :
  * ses jetons de réflexion comptent dans `max_tokens` et allongent beaucoup l'appel. Un JSON invalide
  * est une erreur franche (jamais ignoré en silence). */
 export function corpsPourSkill(skill: string, env: Env = process.env): Record<string, unknown> | undefined {
   const nom = `LLM_CORPS_${suffixeSkill(skill)}`;
   const brut = env[nom]?.trim() || env.LLM_CORPS?.trim();
-  if (!brut) return undefined;
+  if (!brut) return SKILLS_SANS_REFLEXION.includes(skill) ? CORPS_SANS_REFLEXION : undefined;
   try {
     const v = JSON.parse(brut) as unknown;
     if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error("un objet JSON est attendu");

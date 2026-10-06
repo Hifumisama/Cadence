@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons } from "../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons } from "../db/schema";
 import { lireApresFiche } from "../lib/agents/fiches";
 import { controlerDialogues, controlerStructure, verifierCoherenceRefs } from "../lib/plan-checks";
 import { demanderAnnulation } from "../lib/annulation-db";
@@ -72,9 +72,12 @@ const faux = (async (skill: string, entree: unknown, options?: { controler?: (js
   let json: unknown;
   if (skill === "conversation-agent") {
     tours += 1;
+    // Le 2ᵉ tour dit « prêt » trop tôt (il manque un message et le ton) : le code le refuse ; le 3ᵉ a tout.
+    const complet = tours >= 3;
     json = {
       reponse: tours === 1 ? "Voici mon arc en deux phrases… Style : live-action ?" : "Parfait, le briefing peut être généré.",
       briefPret: tours >= 2,
+      couverture: { coeur: "dit", basculementFin: "dit", ton: complet ? "dit" : "deduit", reglesMonde: "inconnu", personnagesLieux: "deduit", styleRythme: "dit", dureeForme: complet ? "dit" : "inconnu" },
       resteADefinir: tours === 1 ? ["Choisir le style visuel"] : [],
     };
   } else if (skill === "brief-projet") json = BRIEF;
@@ -222,7 +225,20 @@ async function main() {
     const m2 = await s.envoyerMessage(uuid, "Oui, live-action.");
     await traiter(m2.ok ? m2.runUuid : null);
     conv = await lireConversation(uuid);
-    ok(conv?.briefPret === true && conv.messages.length === 4, "deuxième tour : l'agent estime le brief prêt");
+    ok(conv?.briefPret === false && conv.messages.length === 4, "deuxième tour : l'agent dit « prêt » trop tôt (2 messages, ton et durée non dits) : le code le refuse");
+    ok(conv?.resteADefinir.some((x) => /ton et le genre/.test(x)) === true && conv.resteADefinir.some((x) => /durée/.test(x)), "…et la liste « reste à définir » dit ce qui manque");
+    const m3 = await s.envoyerMessage(uuid, "Ton mystérieux, 90 secondes, rythme soutenu.");
+    await traiter(m3.ok ? m3.runUuid : null);
+    conv = await lireConversation(uuid);
+    ok(conv?.briefPret === true && conv.messages.length === 6, "troisième tour : trois messages et l'essentiel dit, le brief est prêt");
+    // Première version : elle s'écrit TOUTE SEULE (tâche posée par le tour), bloque la conversation, et rend la main par un message.
+    const [auto] = await db.select().from(agentRuns).where(and(eq(agentRuns.conversationId, (await db.select({ id: agentConversations.id }).from(agentConversations).where(eq(agentConversations.uuid, uuid)))[0]!.id), eq(agentRuns.but, "brief"), eq(agentRuns.statut, "en_attente")));
+    ok(!!auto, "la première version du briefing est posée toute seule dans la file");
+    ok(!(await s.envoyerMessage(uuid, "Et aussi ?")).ok, "…et elle bloque la conversation le temps de son écriture");
+    await traiter(auto?.uuid ?? null);
+    conv = await lireConversation(uuid);
+    ok(conv?.etape === "conversation" && conv.messages.length === 7 && conv.messages[6]!.role === "assistant" && /première version du briefing/.test(conv.messages[6]!.content), "le briefing s'écrit en restant dans la conversation, et l'agent rend la main par un message");
+    ok((await lireBrief(p1!.id))?.statut === "brouillon", "un brouillon de brief existe sans clic");
 
     const gb = await s.genererBrief(uuid);
     const rb = await traiter(gb.ok ? gb.runUuid : null);
@@ -240,7 +256,7 @@ async function main() {
     // rejeter le brouillon revient à la conversation ; on le régénère ensuite
     ok((await s.rejeterBrief(uuid)).ok && (await lireBrief(p1!.id)) === null, "rejeterBrief : brouillon abandonné");
     conv = await lireConversation(uuid);
-    ok(conv?.etape === "conversation" && conv.messages.length === 4, "…conversation conservée, retour à l'étape conversation");
+    ok(conv?.etape === "conversation" && conv.messages.length === 7, "…conversation conservée, retour à l'étape conversation");
     const gb2 = await s.genererBrief(uuid);
     await traiter(gb2.ok ? gb2.runUuid : null);
 

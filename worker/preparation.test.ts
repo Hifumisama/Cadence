@@ -81,4 +81,13 @@ test("briefPretApresTour : « prêt » = de quoi écrire une première version, 
   assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: ["Le style"] }), true);
   assert.equal(briefPretApresTour({ briefPret: false, resteADefinir: [] }), false);
   assert.equal(briefPretApresTour({ briefPret: true }), true);
+  // Garde-fou : pas de briefing avant trois messages de l'utilisateur, quoi qu'en dise le modèle.
+  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [] }, 1), false);
+  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [] }, 2), false);
+  // …ni sans l'essentiel DIT par l'utilisateur (grille de couverture).
+  const dit = { coeur: "dit", basculementFin: "dit", ton: "dit", reglesMonde: "inconnu", personnagesLieux: "deduit", styleRythme: "dit", dureeForme: "dit" };
+  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [] }, 3), false); // pas de grille
+  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [], couverture: { ...dit, ton: "deduit" } }, 5), false);
+  assert.equal(briefPretApresTour({ briefPret: true, resteADefinir: [], couverture: dit }, 3), true);
+  assert.equal(briefPretApresTour({ briefPret: false, resteADefinir: [], couverture: dit }, 5), false);
 });

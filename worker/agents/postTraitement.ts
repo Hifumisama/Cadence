@@ -1,9 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
 import { horsAffiches } from "../../lib/assets-visibles";
 import { methodeApplicable } from "../../lib/assetCode";
 import { fusionnerPartielDansBrouillon, sortieVersBrief } from "../../lib/agents/brief";
+import { entreeBrief, messageBriefRedige } from "../../lib/agents/brief-entree";
+import { couvertureSuffisante, lireCouverture, manquesEssentiels } from "../../lib/agents/couverture";
+import { creerRun } from "../../lib/agents/runs";
 import type { ChangementBrut } from "../../lib/agents/changements";
 import {
   depuisCorrectionPlan,
@@ -60,19 +63,55 @@ export function resteADefinirDe(sortie: { resteADefinir?: unknown }): string[] {
 
 /** `briefPret` : l'agent a de quoi écrire une PREMIÈRE VERSION du briefing (il peut lui rester des questions : elles
  * continuent en conversation, et le briefing se met à jour). Le briefing est DÉFINITIF quand la liste est vide. */
-export function briefPretApresTour(sortie: { briefPret: boolean; resteADefinir?: unknown }): boolean {
-  return sortie.briefPret === true;
+export function briefPretApresTour(sortie: { briefPret: boolean; resteADefinir?: unknown; couverture?: unknown }, nbMessagesUtilisateur = Infinity): boolean {
+  // Garde-fous posés en code : un entretien creuse avant d'écrire (le skill le demande, le modèle l'oublie parfois).
+  // Sans nombre de messages (anciens appelants), seul l'avis du modèle compte ; avec, la grille de couverture est exigée.
+  if (sortie.briefPret !== true) return false;
+  if (nbMessagesUtilisateur === Infinity) return true;
+  return nbMessagesUtilisateur >= MIN_MESSAGES_AVANT_BRIEF && couvertureSuffisante(lireCouverture(sortie.couverture));
 }
 
-async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; briefPret: boolean; resteADefinir?: string[] }) {
+/** Messages de l'utilisateur au moins, avant que le briefing puisse être déclaré prêt : l'idée, puis deux réponses. */
+export const MIN_MESSAGES_AVANT_BRIEF = 3;
+
+async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; briefPret: boolean; resteADefinir?: string[]; couverture?: unknown }) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
   if (!conv) return; // conversation écrasée entre-temps : le tour est perdu, sans erreur
   const messages = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: sortie.reponse, at: new Date().toISOString() }];
+  const nbUtilisateur = messages.filter((m) => (m as { role?: string }).role === "user").length;
+  const pret = briefPretApresTour(sortie, nbUtilisateur);
+  const couverture = lireCouverture(sortie.couverture);
+  // Le modèle a dit « prêt » mais l'essentiel n'est pas DIT : la liste affichée à l'utilisateur dit ce qui manque.
+  const reste = resteADefinirDe(sortie);
+  if (sortie.briefPret === true && !pret) {
+    for (const m of manquesEssentiels(couverture).reverse()) reste.unshift(`Faire dire : ${m}`);
+  }
   await tx
     .update(agentConversations)
-    .set({ messages, briefPret: briefPretApresTour(sortie), resteADefinir: resteADefinirDe(sortie), etape: "conversation", updatedAt: new Date() })
+    .set({ messages, briefPret: pret, couverture, resteADefinir: reste.slice(0, 12), etape: "conversation", updatedAt: new Date() })
     .where(eq(agentConversations.id, conv.id));
+
+  // Première version du briefing : dès que l'agent dit « prêt » et qu'aucun brief n'est rédigé, elle s'écrit seule, en
+  // arrière-plan (la conversation continue ; le brief ne la quitte pas, voir postBrief). Elle sert ensuite de support :
+  // l'agent la relit à chaque tour, et elle est mise à jour quand on ouvre le briefing.
+  if (pret && conv.projectId != null) {
+    const [brief] = await tx.select({ statut: briefs.statut }).from(briefs).where(eq(briefs.projectId, conv.projectId));
+    const [enCours] = await tx
+      .select({ id: agentRuns.id })
+      .from(agentRuns)
+      .where(and(eq(agentRuns.conversationId, conv.id), eq(agentRuns.but, "brief"), inArray(agentRuns.statut, ["en_attente", "en_cours"])));
+    if ((!brief || brief.statut === "partiel") && !enCours) {
+      await creerRun(tx, {
+        skill: "brief-projet",
+        entree: entreeBrief(messages.map((m) => ({ role: (m as { role: "user" | "assistant" }).role, content: (m as { content: string }).content })), null),
+        but: "brief",
+        projectId: conv.projectId,
+        conversationId: conv.id,
+        options: { auto: true },
+      });
+    }
+  }
 }
 
 async function postBrief(tx: Tx, run: RunAgent, sortie: Record<string, unknown>) {
@@ -93,8 +132,18 @@ async function postBrief(tx: Tx, run: RunAgent, sortie: Record<string, unknown>)
   } else {
     await tx.insert(briefs).values({ projectId: run.projectId, statut: "brouillon", source: "conversation", contenu, statuts });
   }
-  if (run.conversationId != null) {
+  const automatique = (run.options as { auto?: boolean } | null)?.auto === true;
+  if (run.conversationId != null && !automatique) {
     await tx.update(agentConversations).set({ etape: "brief", updatedAt: new Date() }).where(eq(agentConversations.id, run.conversationId));
+  }
+  if (run.conversationId != null && automatique) {
+    // Première version automatique : on reste dans la conversation, et l'agent rend la main par un message qui dit ce qu'il a
+    // compris et inventé (la conversation était bloquée le temps de l'écriture : ça doit valoir l'attente).
+    const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
+    if (conv) {
+      const messages = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: messageBriefRedige(contenu as Parameters<typeof messageBriefRedige>[0], resteADefinirDe({ resteADefinir: conv.resteADefinir })), at: new Date().toISOString() }];
+      await tx.update(agentConversations).set({ messages, updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
+    }
   }
 }
 

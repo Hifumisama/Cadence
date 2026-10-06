@@ -31,9 +31,15 @@ export function EtapeConversation({ ctx }: { ctx: ContexteEtape }) {
     void ctx.lancer(() => envoyerMessage(conv.uuid, t), () => setTexte(""));
   };
 
+  // Le briefing s'écrit seul en arrière-plan dès que l'agent est prêt, puis se met à jour à l'ouverture : il est « à jour »
+  // quand il date d'après le dernier message de l'utilisateur.
+  const dernierMessageAt = [...conv.messages].reverse().find((m) => m.role === "user")?.at ?? "";
+  const briefAJour = ctx.brief?.statut === "brouillon" && ctx.brief.updatedAt >= dernierMessageAt;
+  const briefExiste = ctx.brief?.statut === "brouillon";
+
   const versBrief = () => {
-    // Un brouillon existe déjà et l'étape l'a atteint : on y retourne sans le régénérer.
-    if (ctx.brief && conv.etape !== "conversation") {
+    // Un brouillon à jour : on l'ouvre. Sinon on le (ré)écrit à partir de la conversation, en partant du brouillon courant.
+    if (briefAJour) {
       ctx.aller("brief");
       return;
     }
@@ -45,8 +51,8 @@ export function EtapeConversation({ ctx }: { ctx: ContexteEtape }) {
       <div className="ag-fil-messages" role="log" aria-live="polite" aria-label="Conversation avec l'agent">
         {conv.messages.length === 0 ? (
           <p className="ag-vide">
-            Décris ton projet à l&rsquo;agent : l&rsquo;idée, le ton, les personnages, ce que tu veux éviter. Il te posera quelques
-            questions, puis rédigera un briefing que tu pourras relire et corriger.
+            Donne ton idée à l&rsquo;agent, même en une phrase. Il te posera des questions pour la creuser avec toi, puis rédigera un
+            briefing que tu pourras relire et corriger.
           </p>
         ) : null}
         {conv.messages.map((m, i) => (
@@ -78,28 +84,37 @@ export function EtapeConversation({ ctx }: { ctx: ContexteEtape }) {
         </aside>
       ) : null}
 
-      {briefEnCours ? <EtatTacheAgent tache={tache} /> : null}
+      {briefEnCours ? (
+        <>
+          <p className="tiny-note" role="status">
+            J&rsquo;écris une première version du briefing à partir de ta conversation : une à deux minutes. La conversation reprend dès qu&rsquo;elle est prête.
+          </p>
+          <EtatTacheAgent tache={tache} />
+        </>
+      ) : null}
       {tache && tache.statut === "echoue" ? <EtatTacheAgent tache={tache} /> : null}
 
       {conv.briefPret && !actif ? (
         <div className="ag-pret" role="status">
           <div>
-            <strong>{conv.resteADefinir.length > 0 ? "Une première version du briefing est possible" : "Briefing prêt"}</strong>
+            <strong>{conv.resteADefinir.length > 0 ? (briefExiste ? "Une première version du briefing est écrite" : "Une première version du briefing est possible") : "Briefing prêt"}</strong>
             <p className="tiny-note">
               {conv.resteADefinir.length > 0
-                ? `L'agent a de quoi écrire une première version du briefing. Il lui reste ${conv.resteADefinir.length} question${conv.resteADefinir.length > 1 ? "s" : ""} : tu pourras y répondre ici ensuite, et le briefing se mettra à jour.`
-                : "Tout est tranché : l'agent peut écrire le briefing définitif. Tu le relis et le valides avant que le projet soit créé."}
+                ? `${briefExiste ? "Le briefing s'est écrit à partir de la conversation et l'agent s'en sert pour creuser." : "L'agent a de quoi écrire une première version du briefing."} Il lui reste ${conv.resteADefinir.length} question${conv.resteADefinir.length > 1 ? "s" : ""} : réponds-y ici, le briefing se met à jour quand tu l'ouvres.`
+                : briefExiste
+                  ? "Tout est tranché : le briefing se met à jour à l'ouverture. Tu le relis et le valides avant que le projet soit créé."
+                  : "Tout est tranché : l'agent peut écrire le briefing définitif. Tu le relis et le valides avant que le projet soit créé."}
             </p>
           </div>
           <button type="button" className="btn btn-gold" onClick={versBrief} disabled={occupe}>
-            {conv.resteADefinir.length > 0 ? "Générer la première version →" : "Générer le briefing →"}
+            {briefAJour ? "Voir le briefing →" : briefExiste ? "Mettre à jour et voir le briefing →" : conv.resteADefinir.length > 0 ? "Générer la première version →" : "Générer le briefing →"}
           </button>
         </div>
       ) : conv.messages.length > 0 && !actif ? (
         <p className="tiny-note">
           L&rsquo;agent n&rsquo;a pas encore dit que le briefing est prêt.{" "}
           <button type="button" className="ag-lien" onClick={versBrief} disabled={occupe}>
-            Passer au briefing quand même
+            {briefExiste ? "Voir le briefing quand même" : "Passer au briefing quand même"}
           </button>
         </p>
       ) : null}

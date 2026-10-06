@@ -422,6 +422,9 @@ test("config : LLM_CORPS_<SKILL> prime sur LLM_CORPS, JSON invalide = erreur fra
   assert.deepEqual(corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { chat_template_kwargs: { enable_thinking: false } });
   assert.deepEqual(corpsPourSkill("brief-projet", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { a: 1 });
   assert.equal(corpsPourSkill("brief-projet", {}), undefined);
+  // Les skills de traduction partent sans réflexion ; une variable (même `{}`) reprend la main.
+  assert.deepEqual(corpsPourSkill("prompt-asset", {}), { chat_template_kwargs: { enable_thinking: false } });
+  assert.deepEqual(corpsPourSkill("prompt-asset", { LLM_CORPS_PROMPT_ASSET: "{}" }), {});
   assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: "{pas du json" }), /LLM_CORPS_PLAN_H3/);
   assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS: "[1]" }), /LLM_CORPS/);
 });

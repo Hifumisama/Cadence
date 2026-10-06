@@ -691,6 +691,8 @@ export const agentConversations = pgTable("agent_conversations", {
   // Ce qu'il reste à définir avec l'utilisateur (liste de phrases courtes, remise à jour par l'agent à chaque tour) ;
   // `briefPret` n'est vrai que lorsqu'elle est vide.
   resteADefinir: jsonb("reste_a_definir").notNull().default(sql`'[]'::jsonb`),
+  // Grille de couverture du dernier tour (lib/agents/couverture.ts) : ce que l'utilisateur a réellement dit.
+  couverture: jsonb("couverture"),
   propositionId: integer("proposition_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

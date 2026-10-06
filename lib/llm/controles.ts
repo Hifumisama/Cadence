@@ -1,6 +1,7 @@
 import { corrigerCodesInconnus } from "../agents/codes-proches";
 import { corpusExemplesPlanH3 } from "../agents/plan-h3-corpus";
 import { controlerSortiePlanH3, type SortiePlanH3 } from "../agents/plan-h3-controles";
+import { controlerDureeScenario } from "../agents/scenario-controles";
 import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-plan";
 
 /** Contrôles SÉMANTIQUES d'un skill, appliqués à une sortie qui respecte déjà le schéma : ce que le
@@ -30,6 +31,13 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
       controlerSortieIterationPlan(json as SortieIterationPlan, ctx)
         .filter((p) => p.niveau === "erreur")
         .map((p) => p.message);
+  }
+  if (skill === "scenario-episode") {
+    // Seul un scénario d'épisode ENTIER se compare à la durée visée (un plan à insérer ou à corriger n'en est qu'un morceau).
+    const e = (entree ?? {}) as { portee?: { type?: string }; briefExtrait?: { dureeEpisodeSecondes?: number } | null; plansExistants?: unknown[] };
+    if (e.portee?.type !== "episode" || (e.plansExistants?.length ?? 0) > 0) return undefined;
+    const cible = e.briefExtrait?.dureeEpisodeSecondes;
+    return (json) => controlerDureeScenario(json as Parameters<typeof controlerDureeScenario>[0], cible);
   }
   return undefined;
 }

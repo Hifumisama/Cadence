@@ -2,7 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns } from "../db/schema";
 import { annulationDemandeeLlm, finirAnnulationLlm } from "../lib/annulation-db";
-import { configLlm } from "../lib/llm/config";
+import { CORPS_SANS_REFLEXION, configLlm } from "../lib/llm/config";
 import { executerSkill } from "../lib/llm/executer";
 import { AccumulateurFlux } from "../lib/llm/flux-partiel";
 import { insererTrace } from "../lib/llm/traces";
@@ -105,7 +105,7 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
   };
 
   let traceId: number | null = null;
-  const options = (run.options ?? {}) as { modele?: string; variante?: string };
+  const options = (run.options ?? {}) as { modele?: string; variante?: string; sansReflexion?: boolean };
   const debut = Date.now();
 
   try {
@@ -116,6 +116,8 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
       projectId: run.projectId,
       modele: options.modele,
       variante: options.variante,
+      // Une mise à jour d'un brief repart d'un brouillon : la réflexion n'a servi qu'à la première version.
+      corps: options.sansReflexion ? CORPS_SANS_REFLEXION : undefined,
       controler: controleurPourSkill(run.skill, prep.controle),
       signal: abandon.signal,
       surProgres: (jetons) => {

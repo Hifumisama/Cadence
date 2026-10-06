@@ -351,6 +351,13 @@
       "when": 1793725200000,
       "tag": "0049_fichier_at",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1793811600000,
+      "tag": "0050_couverture_entretien",
+      "breakpoints": true
     }
   ]
 }
