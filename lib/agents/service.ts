@@ -21,7 +21,8 @@ import { valider } from "../llm/validation";
 import { estCleSection, sousSchemaSection } from "./brief";
 import { abandonnerBrouillon, creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
 import { accrocheEntretien } from "./accroche";
-import { entreeNotes, ficheVersBrief } from "./fiche";
+import { entreeNotes, ficheVersBrief, type Fiche } from "./fiche";
+import { ouvertureConcue } from "../conception-db";
 import { ficheCourante } from "./fiche-db";
 import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversation, Portee, Position, Profondeur, Resultat, StatutChamp } from "./types";
 import { PORTEES } from "./types";
@@ -116,6 +117,15 @@ export async function libelleCible(projectId: number, portee: Portee, cibleId: n
 const etapeInitiale = (p: Profondeur) => (p === "complete" ? "conversation" : "consigne");
 /** L'agent ouvre l'entretien d'entrée (conversation complète) : trois pistes très différentes pour qui n'a pas d'idée (accroche.ts). */
 const messagesInitiaux = (p: Profondeur): MessageConversation[] => (p === "complete" ? [{ role: "assistant", content: accrocheEntretien(), at: new Date().toISOString() }] : []);
+/** L'ouverture d'une conversation : pour l'entretien d'entrée d'un projet CONÇU (conception.ts), la fiche préremplie et l'accroche du scénariste ;
+ * sinon l'accroche à trois pistes, fiche vide. */
+async function ouverture(projectId: number, portee: Portee, p: Profondeur): Promise<{ messages: MessageConversation[]; fiche: Fiche | null }> {
+  if (portee === "projet" && p === "complete") {
+    const o = await ouvertureConcue(db, projectId);
+    if (o) return { messages: [{ role: "assistant", content: o.accroche, at: new Date().toISOString() }], fiche: o.fiche };
+  }
+  return { messages: messagesInitiaux(p), fiche: null };
+}
 const profondeurParDefaut = (portee: Portee): Profondeur => (portee === "projet" ? "complete" : "courte");
 
 type ConversationRow = typeof agentConversations.$inferSelect;
@@ -165,9 +175,10 @@ export async function ouvrirConversation(projectId: number, portee: Portee, cibl
   const existante = await trouver(projectId, portee, r.cibleId);
   if (existante) return { ok: true, conversationUuid: existante.uuid, reprise: true };
   const p = profondeur ?? profondeurParDefaut(portee);
+  const ouv = await ouverture(projectId, portee, p);
   const [c] = await db
     .insert(agentConversations)
-    .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p), messages: messagesInitiaux(p) })
+    .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p), messages: ouv.messages, fiche: ouv.fiche })
     .onConflictDoNothing()
     .returning({ uuid: agentConversations.uuid });
   if (c) return { ok: true, conversationUuid: c.uuid, reprise: false };
@@ -185,9 +196,10 @@ export async function nouvelleConversation(projectId: number, portee: Portee, ci
     await db.delete(agentConversations).where(eq(agentConversations.id, existante.id)); // propositions : conversation_id → null
   }
   const p = profondeur ?? existante?.profondeur ?? profondeurParDefaut(portee);
+  const ouv = await ouverture(projectId, portee, p as Profondeur);
   const [c] = await db
     .insert(agentConversations)
-    .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p as Profondeur), messages: messagesInitiaux(p as Profondeur) })
+    .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p as Profondeur), messages: ouv.messages, fiche: ouv.fiche })
     .returning({ uuid: agentConversations.uuid });
   return { ok: true, conversationUuid: c!.uuid };
 }
@@ -197,9 +209,10 @@ export async function reinitialiser(conversationUuid: string): Promise<Resultat>
   if (!conv) return ERR("Conversation introuvable.");
   await arreterTravaux(conv.id);
   if (conv.portee === "projet") await db.delete(briefs).where(and(eq(briefs.projectId, conv.projectId), eq(briefs.statut, "brouillon")));
+  const ouv = await ouverture(conv.projectId, conv.portee as Portee, conv.profondeur as Profondeur);
   await db
     .update(agentConversations)
-    .set({ messages: messagesInitiaux(conv.profondeur as Profondeur), consigne: "", briefPret: false, resteADefinir: [], fiche: null, propositionId: null, etape: etapeInitiale(conv.profondeur as Profondeur), updatedAt: new Date() })
+    .set({ messages: ouv.messages, consigne: "", briefPret: false, resteADefinir: [], fiche: ouv.fiche, propositionId: null, etape: etapeInitiale(conv.profondeur as Profondeur), updatedAt: new Date() })
     .where(eq(agentConversations.id, conv.id));
   return { ok: true };
 }

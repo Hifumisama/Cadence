@@ -25,24 +25,24 @@ export const EPISODES_MIN = 2;
 export const EPISODES_MAX = 40;
 
 /** Genres proposés, avec le ton de départ (0 = lumineux, 100 = sombre) que le curseur prend quand l'utilisateur ne l'a
- * pas ajusté. */
-export const GENRES: readonly { nom: string; ton: number }[] = [
-  { nom: "Action", ton: 55 },
-  { nom: "Aventure", ton: 40 },
-  { nom: "Épique", ton: 60 },
-  { nom: "Horreur", ton: 92 },
-  { nom: "Science-fiction", ton: 60 },
-  { nom: "Fantasy", ton: 45 },
-  { nom: "Drame", ton: 80 },
-  { nom: "Comédie", ton: 15 },
-  { nom: "Thriller", ton: 82 },
-  { nom: "Romance", ton: 35 },
-  { nom: "Policier", ton: 70 },
-  { nom: "Conte", ton: 25 },
-  { nom: "Documentaire", ton: 50 },
-  { nom: "Western", ton: 55 },
-  { nom: "Guerre", ton: 85 },
-  { nom: "Slice of life", ton: 28 },
+ * pas ajusté. `teinte` et `poids` ne servent qu'à l'affichage. */
+export const GENRES: readonly { nom: string; ton: number; /** Teinte HSL de la lumière d'ambiance (jamais de rouge plein). */ teinte: number; /** Taille relative de la bulle à l'écran. */ poids: number }[] = [
+  { nom: "Action", ton: 55, teinte: 38, poids: 3.4 },
+  { nom: "Aventure", ton: 40, teinte: 150, poids: 2.6 },
+  { nom: "Épique", ton: 60, teinte: 40, poids: 3.8 },
+  { nom: "Horreur", ton: 92, teinte: 270, poids: 2.8 },
+  { nom: "Science-fiction", ton: 60, teinte: 200, poids: 3.2 },
+  { nom: "Fantasy", ton: 45, teinte: 160, poids: 3.4 },
+  { nom: "Drame", ton: 80, teinte: 215, poids: 2.4 },
+  { nom: "Comédie", ton: 15, teinte: 48, poids: 2.2 },
+  { nom: "Thriller", ton: 82, teinte: 230, poids: 3 },
+  { nom: "Romance", ton: 35, teinte: 335, poids: 2.6 },
+  { nom: "Policier", ton: 70, teinte: 205, poids: 2.6 },
+  { nom: "Conte", ton: 25, teinte: 55, poids: 3 },
+  { nom: "Documentaire", ton: 50, teinte: 190, poids: 2.2 },
+  { nom: "Western", ton: 55, teinte: 32, poids: 2.6 },
+  { nom: "Guerre", ton: 85, teinte: 100, poids: 2.4 },
+  { nom: "Slice of life", ton: 28, teinte: 80, poids: 2.2 },
 ];
 
 /** Durée d'un plan selon le rythme (secondes) : les mêmes plages que le skill `scenario-episode`. */
@@ -229,4 +229,13 @@ export function informationsFormat(c: Pick<Conception, "format" | "episodesPrevu
  * elle, reçoit toujours la clause courte. */
 export function styleDesImages(projet: { clauseStyle: string; stylePromptImage: string } | null | undefined): string {
   return projet?.stylePromptImage?.trim() || projet?.clauseStyle || "";
+}
+
+/** Noms d'auteurs, de studios ou d'œuvres qu'un style libre ne devrait pas contenir (liste volontairement courte, à étoffer) : un
+ * avertissement, jamais un refus. */
+export const REFERENCES_NOMMEES = ["pixar", "disney", "ghibli", "miyazaki", "marvel", "dreamworks", "wes anderson", "tim burton", "laika", "akira", "van gogh", "picasso", "tarantino", "kubrick"];
+
+export function referencesNommees(texte: string): string[] {
+  const t = texte.toLowerCase();
+  return REFERENCES_NOMMEES.filter((r) => t.includes(r));
 }

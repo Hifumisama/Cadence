@@ -1,19 +1,14 @@
 import brut from "./bibliotheque.json";
 import { clausesProduites } from "./clause";
+import type { FiltresStyle } from "./filtres";
+
+export * from "./filtres";
 
 /** Bibliothèque de styles proposée à la création d'un projet. Source : `bibliotheque.json` (versionné, c'est le fichier
  * à trier à la main : retirer une entrée suffit à la retirer de l'application). Chaque style a un prompt long (le
  * descripteur, en anglais, qui part vers Krea 2) et un prompt d'aperçu = une scène commune + ce descripteur. La clause
  * courte pour la vidéo (H3) est un champ facultatif : tant qu'une entrée n'en a pas, l'application ne peut pas la
  * proposer comme style prêt à l'emploi (voir `styleUtilisable`). */
-
-export type FiltresStyle = {
-  medium: string;
-  rendu: string[];
-  palette: string[];
-  epoque: string;
-  ambiance: string[];
-};
 
 export type StyleBibliotheque = {
   /** Identifiant stable : slug du nom d'origine. Nom de fichier de l'aperçu. */
@@ -76,41 +71,6 @@ export function sceneApercu(s: Pick<StyleBibliotheque, "nom" | "promptApercu" | 
 /** Chemin relatif à MEDIA_ROOT de l'image de présentation (2:3). */
 export function cheminApercuStyle(id: string): string {
   return `styles/${id}.webp`;
-}
-
-/** Valeurs distinctes d'un axe de filtre, avec leur effectif, triées par effectif décroissant (puis alphabétique). */
-export type AxeFiltre = "medium" | "rendu" | "palette" | "epoque" | "ambiance";
-export function valeursFiltre(styles: StyleBibliotheque[], axe: AxeFiltre): { valeur: string; effectif: number }[] {
-  const compte = new Map<string, number>();
-  for (const s of styles) {
-    const v = s.filtres[axe];
-    for (const x of Array.isArray(v) ? v : [v]) compte.set(x, (compte.get(x) ?? 0) + 1);
-  }
-  return [...compte.entries()]
-    .map(([valeur, effectif]) => ({ valeur, effectif }))
-    .sort((a, b) => b.effectif - a.effectif || a.valeur.localeCompare(b.valeur, "fr"));
-}
-
-export type CritereStyles = {
-  recherche?: string;
-  categorie?: string;
-  /** Un style doit avoir au moins une des valeurs cochées sur chaque axe renseigné (ET entre axes, OU dans un axe). */
-  filtres?: Partial<Record<AxeFiltre, string[]>>;
-};
-
-export function filtrerStyles(styles: StyleBibliotheque[], c: CritereStyles): StyleBibliotheque[] {
-  const q = (c.recherche ?? "").trim().toLowerCase();
-  return styles.filter((s) => {
-    if (q && !`${s.nom} ${s.categories.join(" ")}`.toLowerCase().includes(q)) return false;
-    if (c.categorie && !s.categories.includes(c.categorie)) return false;
-    for (const [axe, valeurs] of Object.entries(c.filtres ?? {}) as [AxeFiltre, string[]][]) {
-      if (!valeurs?.length) continue;
-      const v = s.filtres[axe];
-      const propres = Array.isArray(v) ? v : [v];
-      if (!valeurs.some((x) => propres.includes(x))) return false;
-    }
-    return true;
-  });
 }
 
 /** Un style de la bibliothèque est utilisable tel quel pour un projet quand il a sa clause courte. */

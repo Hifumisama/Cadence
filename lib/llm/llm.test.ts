@@ -263,7 +263,7 @@ test("chargeur : nom invalide, skill absent, fichiers obligatoires", () => {
 
 test("chargeur : les skills réels s'assemblent et leur schéma se compile", () => {
   const noms = listerSkills();
-  assert.deepEqual(noms, ["brief-projet", "conversation-agent", "inventaire-assets", "iteration-plan", "notes-entretien", "plan-h3", "prompt-affiche", "prompt-asset", "prompt-voix", "scenario-episode", "style-clause"]);
+  assert.deepEqual(noms, ["brief-projet", "conversation-agent", "inventaire-assets", "iteration-plan", "notes-entretien", "plan-h3", "prompt-affiche", "prompt-asset", "prompt-voix", "scenario-episode"]);
   for (const nom of noms) {
     const s = chargerSkill(nom);
     assert.ok(s.caracteres > 2000, nom);

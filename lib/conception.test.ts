@@ -5,6 +5,7 @@ import { compilerSchema } from "./llm/validation";
 import { briefVersFiche, entreeNotes, lireFiche, manquesFiche, ficheComplete } from "./agents/fiche";
 import { briefVide, fusionnerPartielDansBrouillon, promptImageDuBrief, residuPartiel } from "./agents/brief";
 import type { BriefContenu } from "./agents/types";
+import { accrocheConception, accrochesConception } from "./agents/accroche";
 import {
   GENRES,
   LANGUES_DIALOGUES,
@@ -161,4 +162,20 @@ test("les schémas du brief et de l'entretien acceptent le prompt long et l'imag
   const notes = chargerSkill("notes-entretien").schema as unknown as { properties: { modifications: { properties: { style: Record<string, unknown> } } } };
   const valideStyle = compilerSchema({ ...notes.properties.modifications.properties.style, $schema: "https://json-schema.org/draft/2020-12/schema" } as never);
   assert.ok(valideStyle(contenu.style), JSON.stringify(valideStyle.errors));
+});
+
+test("accroche d'un projet conçu : selon le ton et le genre, qui tourne, sans accolade restante", () => {
+  const sombre = { genres: ["Drame"], ton: 80, dureeSecondes: 150, format: "film" as const };
+  const toutes = accrochesConception(sombre);
+  assert.equal(toutes.length, 3);
+  assert.match(toutes[0]!, /sombre|noir|sans filet/);
+  assert.match(toutes.join(" "), /2 min 30/);
+  assert.ok(toutes.every((t) => !/[{}]/.test(t)));
+  assert.equal(accrocheConception(sombre, 3), toutes[0], "la variante tourne");
+  assert.equal(accrocheConception(sombre, -1), toutes[2]);
+  const horreur = accrochesConception({ genres: ["Horreur", "Drame"], ton: 92, dureeSecondes: 60, format: "film" });
+  assert.match(horreur[0]!, /faire peur/, "la phrase du genre passe en premier");
+  assert.equal(horreur.length, 4);
+  assert.match(accrocheConception({ genres: ["Comédie"], ton: 15, dureeSecondes: 60, format: "serie" }, 1), /on va s.amuser/);
+  assert.match(accrocheConception({ genres: [], ton: 50, dureeSecondes: 60, format: "film" }, 0), /scénariste/);
 });

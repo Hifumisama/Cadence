@@ -138,9 +138,9 @@ M ≈ 1 journée, L > 1 journée.
   palette, époque, ambiance, catégories) et recherche, sans dépendance serveur.
 - Images de présentation servies par `app/api/media` depuis `data/styles/` (miniatures existantes réutilisables) ;
   repli dégradé si absente.
-- Script `scripts/styles-clauses.ts` : génère la clause courte de chaque style avec le LLM local (skill dédié ou
-  prompt de script), contrôle automatique (longueur, anglais, pas de nom propre, pas de cadrage/mouvement), sortie à
-  relire à la main avant de figer dans `bibliotheque.json`.
+- Clauses courtes : écrites une fois pour les 245 styles dans `lib/styles/clauses.json` (pas de skill dans l'app : la
+  bibliothèque est figée, un style libre se saisit à la main), contrôle automatique en test (longueur, pas de nom propre,
+  pas de cadrage/mouvement) ; à relire à la main.
 - Tests : chargeur, filtres, validation des clauses.
 
 ### Phase 3 — Page `/nouveau` (scènes 1 à 5) — L

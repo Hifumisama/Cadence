@@ -1,8 +1,7 @@
 import brutes from "./clauses.json";
 
-/** Les clauses courtes (vidéo) des styles de la bibliothèque : `clauses.json` (identifiant → clause), produit par
- * `npm run styles:clauses` (skill `style-clause`) puis relu à la main : c'est ce fichier qu'on corrige pour changer
- * une clause. Il est séparé de `bibliotheque.json` pour que le tri des styles et la génération des clauses ne s'écrasent pas. */
+/** Les clauses courtes (vidéo) des styles de la bibliothèque : `clauses.json` (identifiant → clause), écrit une fois pour toutes (relu
+ * à la main) : c'est ce fichier qu'on corrige pour changer une clause. Il est séparé de `bibliotheque.json` pour que le tri des styles et la génération des clauses ne s'écrasent pas. */
 
 export const clausesProduites = brutes as Record<string, string>;
 
