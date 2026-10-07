@@ -30,6 +30,8 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
   standard Agent Skills (`SKILL.md`, `references/`, `assets/`), instructions en
   anglais (lues par un petit modèle local), langue de sortie fixée champ par champ
   (voir FRICTIONS.md, 2026-10-07)
+- `docs/PLAN_CONCEPTION_PROJET.md` — page de conception d'un projet (choix avant l'entretien, bibliothèque
+  de styles `lib/styles/`, scénariste, avancée) : plan par phases et décisions (voir FRICTIONS.md, 2026-10-07)
 - `docs/REGISTRE_ASSETS.md` — état des assets de l'épisode 1
 - `docs/FICHE_DE_PLAN_S01_maya.md`, `docs/S01_maya.md` — contenu de
   l'épisode 1
