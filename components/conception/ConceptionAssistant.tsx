@@ -4,7 +4,6 @@ import "./conception.css";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { creerProjetConcu } from "@/app/nouveau/actions";
-import { useAgents } from "@/components/agents/AgentsProvider";
 import {
   CLE_SESSION,
   DERNIERE_ETAPE,
@@ -28,7 +27,6 @@ import type { MajEtat, StyleVue } from "./types";
  * avec sa fiche d'entretien préremplie, puis l'entretien s'ouvre. Plan : docs/PLAN_CONCEPTION_PROJET.md. */
 export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
   const router = useRouter();
-  const { ouvrirAgent } = useAgents();
   const [etat, setEtat] = useState<EtatAssistant>(etatInitial);
   const [etape, setEtape] = useState(0);
   const [recule, setRecule] = useState(false);
@@ -103,8 +101,7 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
       } catch {
         /* sans importance */
       }
-      router.push(`/p/${r.projectId}`);
-      ouvrirAgent({ projectId: r.projectId, portee: "projet", cible: null, profondeur: "complete", libelle: "Sans titre" });
+      router.push(`/p/${r.projectId}/demarrage`);
     } catch {
       setErreur("La création du projet a échoué. Réessaie.");
     } finally {

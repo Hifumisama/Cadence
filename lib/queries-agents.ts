@@ -19,6 +19,8 @@ import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assetGenerations, assets, briefs, episodes, plans, propositionChangements, propositions } from "../db/schema";
 import { briefVide, construireSections } from "./agents/brief";
+import { notesPourAffichage } from "./agents/fiche-affichage";
+import { ficheCourante } from "./agents/fiche-db";
 import { MAX_VIGNETTES_ITERATION, diagnosticIteration } from "./agents/iteration-plan";
 import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./agents/cochage";
 import { apercuContexteDe } from "./agents/contexte";
@@ -94,6 +96,7 @@ async function versVueConversation(c: typeof agentConversations.$inferSelect): P
     consigne: c.consigne,
     briefPret: c.briefPret,
     resteADefinir: ((c.resteADefinir as unknown[]) ?? []).filter((x): x is string => typeof x === "string"),
+    notes: c.portee === "projet" && c.profondeur === "complete" ? notesPourAffichage(await ficheCourante(db, c)) : [],
     propositionUuid,
     tache: await etatTache(run?.id ?? null),
     createdAt: c.createdAt.toISOString(),

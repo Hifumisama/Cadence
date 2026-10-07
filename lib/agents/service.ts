@@ -20,9 +20,9 @@ import { chargerSkill } from "../llm/skills";
 import { valider } from "../llm/validation";
 import { estCleSection, sousSchemaSection } from "./brief";
 import { abandonnerBrouillon, creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
-import { accrocheEntretien } from "./accroche";
+import { accrocheEntretien, accrochesConception } from "./accroche";
 import { entreeNotes, ficheVersBrief, type Fiche } from "./fiche";
-import { ouvertureConcue } from "../conception-db";
+import { lireConception, ouvertureConcue } from "../conception-db";
 import { ficheCourante } from "./fiche-db";
 import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversation, Portee, Position, Profondeur, Resultat, StatutChamp } from "./types";
 import { PORTEES } from "./types";
@@ -202,6 +202,22 @@ export async function nouvelleConversation(projectId: number, portee: Portee, ci
     .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p as Profondeur), messages: ouv.messages, fiche: ouv.fiche })
     .returning({ uuid: agentConversations.uuid });
   return { ok: true, conversationUuid: c!.uuid };
+}
+
+/** « Une autre accroche » : tant que l'utilisateur n'a rien dit, le premier message du scénariste est remplacé par l'accroche suivante
+ * (elles tournent : voir accroche.ts). Refusé dès que l'entretien a commencé ou qu'une tâche tourne. */
+export async function autreAccroche(conversationUuid: string): Promise<Resultat> {
+  const conv = await conversationParUuid(conversationUuid);
+  if (!conv) return ERR("Conversation introuvable.");
+  const messages = (conv.messages as MessageConversation[]) ?? [];
+  if (messages.length !== 1 || messages[0]!.role !== "assistant") return ERR("L'accroche ne change plus une fois l'entretien commencé.");
+  const conception = await lireConception(db, conv.projectId);
+  if (!conception) return ERR("Ce projet n'a pas de conception : pas d'autre accroche à proposer.");
+  const courante = accrochesConception(conception).indexOf(messages[0]!.content);
+  const o = await ouvertureConcue(db, conv.projectId, courante + 1);
+  if (!o) return ERR("Le style du projet est introuvable.");
+  await db.update(agentConversations).set({ messages: [{ role: "assistant", content: o.accroche, at: new Date().toISOString() }], updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
+  return { ok: true };
 }
 
 export async function reinitialiser(conversationUuid: string): Promise<Resultat> {

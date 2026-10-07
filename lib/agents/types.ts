@@ -1,3 +1,4 @@
+import type { NoteAffichee } from "./fiche-affichage";
 /** Système d'agents — types partagés par le serveur, le worker et l'interface
  * (conversation → brief → proposition → revue → application). Aucun accès base, disque
  * ni Next ici : ce fichier est importable partout, y compris par des composants client.
@@ -207,6 +208,8 @@ export type VueConversation = {
   briefPret: boolean;
   /** Ce qu'il reste à définir avec l'utilisateur (phrases courtes), remis à jour par l'agent à chaque tour. */
   resteADefinir: string[];
+  /** La fiche de notes de l'entretien, mise en forme pour l'écran (sujets de l'entretien d'abord) ; vide hors entretien d'entrée. */
+  notes: NoteAffichee[];
   propositionUuid: string | null;
   /** Tâche en cours ou la dernière non vue (tour, brief) ; null sinon. */
   tache: EtatTache | null;

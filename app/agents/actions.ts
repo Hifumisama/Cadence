@@ -95,6 +95,11 @@ export async function nouvelleConversation(
   return rafraichir(await service.nouvelleConversation(projectId, portee, cible, profondeur));
 }
 
+/** Projet CONÇU, avant tout message de l'utilisateur : remplace l'accroche du scénariste par la suivante. */
+export async function autreAccroche(conversationUuid: string): Promise<Resultat> {
+  return rafraichir(await service.autreAccroche(conversationUuid));
+}
+
 /** Profondeur complète : ajoute le message de l'utilisateur et lance un tour de
  * conversation (tâche). Refusé si un tour est déjà en cours sur cette conversation. */
 export async function envoyerMessage(conversationUuid: string, texte: string): Promise<Resultat<{ runUuid: string }>> {
