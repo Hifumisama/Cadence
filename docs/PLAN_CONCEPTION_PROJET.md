@@ -4,6 +4,13 @@ Rédigé le 2026-10-07. Maquette validée : <https://claude.ai/artifact/5dp9BvLw
 Décisions de l'utilisateur du 2026-10-07 intégrées (§7). Ce n'est plus une « pré-conception » avant l'entretien : c'est la conception complète d'un projet, de la page de départ jusqu'à l'avancée de la préparation. Ce plan s'appuie sur une lecture du code (chemins entre parenthèses) ; ce que je n'ai pas
 vérifié est marqué **à vérifier**.
 
+> **État au 2026-10-08 : phases 0 à 6 faites.** Écarts avec ce qui suit, décidés depuis (détail dans `docs/FRICTIONS.md`, 2026-10-08) :
+> la bibliothèque est passée de 245 à **55 styles**, en **6 familles** ; les images de présentation ne sont plus 1 par style mais **6 scènes
+> communes** (`lib/styles/sujets.ts`, `styles/<style>/<sujet>.webp`) ; l'accroche (D11) est **écrite par le modèle** (skill
+> `accroche-scenariste`), pas en code, une seule fois, sans « une autre accroche » ; la **pellicule des 8 étapes** est visible dès `/nouveau`,
+> avec une barre d'action sous le ruban à la place du pied de page ; les **séries sont désactivées** à l'écran (`SERIES_DISPONIBLES`).
+> Les champs `promptApercu` / `varianteApercu` n'existent plus.
+
 ## 1. Ce qu'on construit
 
 Une page de création de projet en 8 scènes, avant et autour de l'entretien :

@@ -448,3 +448,22 @@ Page Monitoring, point de retour, applicateurs de prompt H3 / de suppression / d
 de réplique, **étape 3 (plan-h3)** (l'étape 2, registre d'assets, est construite le 2026-10-02 : `genererRegistre`, voir FRICTIONS), fournisseur Claude,
 enchaînement automatique des étapes, comparaison des modèles locaux sur les skills longs
 (plan-h3 d'abord : l'essai de qualité sur les 27 plans réels de l'épisode 1).
+
+## 15. Le scénariste d'un projet conçu (2026-10-08)
+
+L'entretien d'entrée (§ 4 et 14) a deux ouvertures. Un projet **sans conception** garde l'accroche à trois pistes écrite en code
+(`accrocheEntretien`). Un projet **conçu** (page `/nouveau`, `lib/conception.ts`) ouvre autrement :
+
+- **La fiche de notes est préremplie** par le code (`ficheDepuisConception`, statut `fourni`) : format, genre et ton, durée, rythme,
+  langue et style sont tranchés ; `aTrancher` se réduit à l'arc, la fin et les personnages.
+- **Le premier message est écrit par le modèle** : skill `accroche-scenariste` (`agents/skills/accroche-scenariste/`). Il reçoit un seul
+  message qui liste les choix (`entreeAccroche`, `lib/agents/accroche.ts`), salue, nomme format, style et genre, cite au plus une œuvre
+  réelle dont il est sûr, pose une question ouverte et propose trois pistes différentes. Sa voix emprunte légèrement la couleur du style.
+- **Une seule fois** : la tâche (`but: "tour"`, rangée par `postTour` comme un tour de l'agent) est posée à la création de la
+  conversation (`service.ts`, `lancerAccroche`) et à sa réinitialisation. Jamais régénérée ; si elle échoue, `relancerAccroche` la
+  relance tant que la conversation est vide.
+- **Le reste de l'entretien** (`conversation-agent`, `notes-entretien`) est inchangé, sauf une consigne de voix : le ton choisi et,
+  légèrement, le style visuel.
+- Sans réflexion longue (`SKILLS_SANS_REFLEXION`) : un message d'ouverture doit arriver en quelques secondes.
+
+Décisions et raisons : `docs/FRICTIONS.md`, 2026-10-07 (conception) et 2026-10-08 (accroche par le modèle, qui remplace l'accroche en code).

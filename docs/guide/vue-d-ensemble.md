@@ -55,7 +55,7 @@ Chaque flèche pleine entre deux étapes passe par une **revue** : tu relis les 
 - Squelette en code : `lib/agents/squelette.ts` (`squeletteDepuisBrief`).
 
 **Où sont les boutons** (vérifié dans le code)
-- Nouveau projet : `components/projects/NouveauProjetModal.tsx` ouvre la conversation complète.
+- Nouveau projet : la page `/nouveau` (`components/conception/ConceptionAssistant.tsx`, cinq choix : format, genre et ton, durée, langue, style), puis `/p/<id>/demarrage` (`components/conception/DemarrageAssistant.tsx`) : l'entretien avec le scénariste, le clap, et le lancement de la préparation. L'ancienne modale `NouveauProjetModal` a disparu.
 - « Écrire les scénarios » : `components/projects/SaisonSection.tsx`.
 - « Créer le registre depuis le brief » : `app/p/[projectId]/assets/page.tsx`.
 - « Créer les voix manquantes » : `app/p/[projectId]/voix/page.tsx`.

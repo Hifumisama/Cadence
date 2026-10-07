@@ -23,7 +23,7 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
   le signaler explicitement plutôt que de trancher en silence.
 - `docs/CAHIER_DES_CHARGES.md` — spec de l'interface (pages, modèle de
   données, phasage)
-- `docs/CONCEPTION_AGENTS.md` — conception (non construite) des agents de
+- `docs/CONCEPTION_AGENTS.md` — conception des agents de
   génération : brief, propositions, portée × mode, fournisseur LLM
 - `agents/skills/` — prompts d'exécution des agents de l'app (`plan-h3`,
   `iteration-plan`…), distincts des skills de chat de `.claude/skills/`. Format
@@ -31,7 +31,8 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
   anglais (lues par un petit modèle local), langue de sortie fixée champ par champ
   (voir FRICTIONS.md, 2026-10-07)
 - `docs/PLAN_CONCEPTION_PROJET.md` — page de conception d'un projet (choix avant l'entretien, bibliothèque
-  de styles `lib/styles/`, scénariste, avancée) : plan par phases et décisions (voir FRICTIONS.md, 2026-10-07)
+  de styles `lib/styles/`, scénariste, avancée) : plan par phases et décisions, toutes phases faites (voir
+  FRICTIONS.md, 2026-10-07 et 2026-10-08)
 - `docs/REGISTRE_ASSETS.md` — état des assets de l'épisode 1
 - `docs/FICHE_DE_PLAN_S01_maya.md`, `docs/S01_maya.md` — contenu de
   l'épisode 1
@@ -73,8 +74,14 @@ système + outils, pas repris tels quels — point encore ouvert.
 
 ## État du projet
 
-Cahier des charges rédigé, pas encore de code. Voir `docs/CAHIER_DES_CHARGES.md`
-pour le phasage proposé (V1 : Shots + Fiche de plan, sans agent).
+L'application existe et tourne : pipeline de production (plans, assets, voix, fiches), système d'agents (conversation,
+brief, propositions) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
+huit étapes, de « format » à « avancée de la préparation »). Les décisions sont dans `docs/FRICTIONS.md` ; le phasage
+d'origine reste dans `docs/CAHIER_DES_CHARGES.md`.
+
+Pour la conception d'un projet : la bibliothèque de styles vit dans `lib/styles/` (`bibliotheque.json`, `clauses.json`,
+`sujets.ts` = les scènes communes des images de présentation) ; `npm run styles:apercus` génère ces images. Les séries
+sont désactivées à l'écran pour l'instant (`SERIES_DISPONIBLES` dans `lib/conception-ui.ts`).
 
 <!-- BEGIN:nextjs-agent-rules -->
 
