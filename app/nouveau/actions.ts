@@ -11,6 +11,7 @@ import { ouvrirConversation } from "@/lib/agents/service";
 import { resoudreStyle, validerConception } from "@/lib/conception";
 import { ecrireConception, poserStyleDuProjet } from "@/lib/conception-db";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET } from "@/lib/media";
+import { SUJET_AFFICHE_CLAP } from "@/lib/styles/sujets";
 import { bibliothequeStyles } from "@/lib/styles/bibliotheque";
 
 /** Actions de la page de conception d'un projet (`/nouveau`). Chaque action rend `{ ok: true, … } | { ok: false, erreur }` : jamais
@@ -64,7 +65,7 @@ export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; proje
   const style = resoudreStyle(conception, bibliotheque);
   if (!style.ok) return { ok: false, erreur: style.erreur };
   // Pour un style de la bibliothèque, l'image est son aperçu (s'il a été généré) : le brief garde le chemin relatif au dossier `styles/`.
-  const image = conception.style.source === "libre" ? conception.style.image : conception.style.styleId + ".webp";
+  const image = conception.style.source === "libre" ? conception.style.image : `${conception.style.styleId}/${SUJET_AFFICHE_CLAP}.webp`;
 
   const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre", type: conception.format === "film" ? "oneshot" : "serie", avecPremierEpisode: false });
   try {

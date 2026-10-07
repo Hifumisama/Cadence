@@ -32,6 +32,7 @@
 .cn-cadre span { font-size: 14px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.4em; }
 .cn-cadre[aria-current="step"] { border-color: var(--or); background: var(--surface-2); box-shadow: 0 0 0 1px var(--or-soft), 0 6px 26px -8px rgba(201, 162, 75, 0.55); }
 .cn-cadre[aria-current="step"] b { color: var(--or-glow); }
+.cn-cadre.is-futur { opacity: 0.45; }
 .cn-cadre.is-fait b { color: var(--or); }
 .cn-cadre.is-fait::after { content: ""; position: absolute; right: 6px; top: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--or); }
 
@@ -45,6 +46,18 @@
 .cn-titre em { font-style: normal; color: var(--or-glow); }
 .cn-sous { color: var(--ink-3); max-width: 58ch; margin: 0 0 clamp(18px, 4vh, 40px); font-size: 17px; }
 
+/* Barre d'action : sous le ruban, collée sous le bandeau, toujours visible. Le dernier pas est une claquette (« Action ! »). */
+.cn-barre { position: sticky; top: 56px; z-index: 6; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px var(--sp-5); border-bottom: 1px solid var(--line); background: rgba(14, 14, 19, 0.92); backdrop-filter: blur(8px); }
+.cn-barre-texte { color: var(--ink-2); font-size: 15px; }
+.cn-barre-texte b { color: var(--or-glow); font-weight: 500; }
+.cn-barre .cn-astuce { margin-left: auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); }
+.cn-suivant { min-width: 170px; font-size: 16px; }
+.cn-suivant:not(:disabled) { animation: cn-pouls 2.4s ease-in-out infinite; }
+.cn-clap { position: relative; font-size: 16px; padding-top: 14px; background-image: repeating-linear-gradient(-55deg, #0e0e13 0 12px, var(--or) 12px 24px); background-size: 100% 7px; background-repeat: no-repeat; background-position: top; }
+.cn-clap:not(:disabled) { animation: cn-pouls 2.4s ease-in-out infinite; }
+@keyframes cn-pouls { 0%, 100% { box-shadow: 0 0 0 0 rgba(201, 162, 75, 0); } 50% { box-shadow: 0 0 26px 2px rgba(201, 162, 75, 0.45); } }
+@media (prefers-reduced-motion: reduce) { .cn-suivant, .cn-clap { animation: none !important; } }
+
 /* Barre de navigation (collée en bas) */
 .cn-nav { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 14px var(--sp-5); border-top: 1px solid var(--line); background: rgba(14, 14, 19, 0.88); backdrop-filter: blur(8px); }
 .cn-nav .cn-astuce { margin-left: auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); }
@@ -52,6 +65,15 @@
 .cn-lien { appearance: none; background: none; border: 0; padding: 0; color: var(--or); text-decoration: underline; text-underline-offset: 3px; }
 .cn-tag { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); border: 1px solid var(--line-strong); padding: 1px 7px; margin-left: 8px; }
 .cn-tag.is-or { color: var(--or); border-color: var(--or-soft); }
+
+/* Fonction désactivée : deux rubans de chantier en croix par-dessus la carte. */
+.cn-affiche.is-bientot { overflow: hidden; cursor: not-allowed; }
+.cn-affiche.is-bientot:hover { transform: none; border-color: var(--line-strong); }
+.cn-affiche.is-bientot > :not(.cn-police):not(.cn-sr-seul) { opacity: 0.38; filter: grayscale(0.6); }
+.cn-police { position: absolute; left: -10%; right: -10%; top: 50%; height: 34px; margin-top: -17px; transform: rotate(-11deg); background: var(--or); color: #0e0e13; overflow: hidden; display: flex; align-items: center; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); pointer-events: none; border-top: 3px solid #0e0e13; border-bottom: 3px solid #0e0e13; outline: 2px solid var(--or); }
+.cn-police.is-croise { transform: rotate(9deg); background: #0e0e13; color: var(--or); border-color: var(--or); outline-color: #0e0e13; }
+.cn-police i { font-style: normal; font-family: var(--font-mono); font-weight: 700; font-size: 13px; letter-spacing: 0.28em; white-space: nowrap; }
+.cn-sr-seul { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* 1. Format */
 .cn-duo { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(12px, 2vw, 28px); }
@@ -130,7 +152,21 @@
 .cn-langue[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); box-shadow: 0 0 30px -8px rgba(201, 162, 75, 0.5); }
 .cn-note { margin-top: 20px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
 
-/* 5. Style */
+/* 5. Style : à gauche les filtres et la grille (qui défile dans son cadre, jamais la page), à droite le style choisi, collé. */
+.cn-scene[data-scene="style"] { padding-top: clamp(14px, 3vh, 28px); }
+.cn-scene[data-scene="style"] .cn-titre { font-size: clamp(26px, 3.4vw, 40px); margin-bottom: 4px; }
+.cn-scene[data-scene="style"] .cn-sous { margin-bottom: 14px; font-size: 15px; }
+.cn-style-mise { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 22px; align-items: start; }
+.cn-style-gauche { min-width: 0; }
+.cn-style-droite { position: sticky; top: 140px; max-height: calc(100dvh - 160px); overflow-y: auto; }
+.cn-style-droite .cn-detail { grid-template-columns: 1fr; margin-top: 0; padding: 16px; gap: 16px; }
+.cn-style-droite .cn-vide-style { border: 1px dashed var(--line-strong); padding: 22px; margin: 0; }
+.cn-galerie-panneau { max-height: calc(100dvh - 400px); min-height: 340px; overflow-y: auto; padding: 4px 8px 12px 4px; border: 1px solid var(--line); background: rgba(14, 14, 19, 0.35); }
+.cn-galerie { --min: 150px; display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--min), 1fr)); gap: 12px; }
+.cn-galerie[data-forme="carre"] { --min: 175px; }
+.cn-galerie[data-forme="paysage"] { --min: 235px; }
+.cn-grand { padding: 0; border: 1px solid var(--line-strong); background: none; position: relative; cursor: zoom-in; display: block; width: 100%; }
+.cn-grand::after { content: "⤢"; position: absolute; right: 8px; bottom: 6px; font-size: 16px; color: rgba(255, 255, 255, 0.9); text-shadow: 0 0 4px #000; }
 .cn-filtres { display: grid; gap: 10px; margin-bottom: 18px; }
 .cn-filtres-ligne { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .cn-filtres input[type="search"] { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); padding: 8px 12px; width: min(260px, 100%); font: inherit; }
@@ -138,29 +174,24 @@
 .cn-puce:hover { background: var(--surface-2); }
 .cn-puce[aria-pressed="true"] { color: var(--or-glow); border-color: var(--or); }
 .cn-puce small { font-family: var(--font-mono); color: var(--ink-3); margin-left: 6px; font-size: 11px; }
-.cn-vues { margin-left: auto; display: flex; gap: 6px; }
 .cn-axe { display: grid; grid-template-columns: 90px 1fr; gap: 8px; align-items: baseline; }
 .cn-axe > span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
-.cn-galerie { display: flex; gap: 16px; overflow-x: auto; padding: 8px 4px 22px; scroll-snap-type: x proximity; margin: 0 -4px; max-width: 100%; }
-.cn-galerie::-webkit-scrollbar { height: 8px; } .cn-galerie::-webkit-scrollbar-thumb { background: var(--line-strong); }
-.cn-carte { flex: 0 0 clamp(190px, 22vw, 250px); scroll-snap-align: start; text-align: left; border: 1px solid var(--line-strong); background: var(--surface); padding: 0; display: grid; grid-template-rows: auto 1fr; color: var(--ink); transition: transform 0.4s var(--cn-ease), border-color 0.3s, box-shadow 0.4s; }
-.cn-carte:hover { transform: translateY(-6px) rotate(-0.4deg); }
-.cn-carte[aria-pressed="true"] { border-color: var(--or); box-shadow: 0 0 0 1px var(--or), 0 26px 50px -22px rgba(201, 162, 75, 0.5); transform: translateY(-8px); }
-.cn-apercu { aspect-ratio: 2 / 3; position: relative; overflow: hidden; background: var(--surface-3); }
+.cn-carte { min-width: 0; text-align: left; border: 1px solid var(--line-strong); background: var(--surface); padding: 0; display: grid; grid-template-rows: auto 1fr; color: var(--ink); transition: transform 0.4s var(--cn-ease), border-color 0.3s, box-shadow 0.4s; }
+.cn-sujets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+.cn-sujets-titre { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-right: 4px; }
+.cn-sujets-note { color: var(--ink-3); font-size: 13px; margin-left: 6px; }
+.cn-lightbox-corps .cn-sujets { justify-content: center; margin: 8px 0 0; }
+.cn-lightbox-corps[data-forme="paysage"] { width: min(900px, 92vw); }
+.cn-lightbox-corps[data-forme="carre"] { width: min(560px, 90vw); }
+.cn-carte:hover { transform: translateY(-3px); }
+.cn-carte[aria-pressed="true"] { border-color: var(--or); box-shadow: 0 0 0 1px var(--or), 0 26px 50px -22px rgba(201, 162, 75, 0.5); }
+.cn-apercu { aspect-ratio: var(--ar, 2 / 3); position: relative; overflow: hidden; background: var(--surface-3); }
 .cn-apercu img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cn-apercu.is-vide { background: repeating-linear-gradient(45deg, var(--surface-2) 0 10px, var(--surface-3) 10px 20px); }
 .cn-apercu em { position: absolute; left: 8px; bottom: 8px; font-family: var(--font-mono); font-size: 10px; font-style: normal; color: rgba(255, 255, 255, 0.8); background: rgba(14, 14, 19, 0.7); padding: 1px 6px; }
 .cn-carte-corps { padding: 10px 14px 14px; display: grid; gap: 2px; }
 .cn-carte-corps b { font-family: var(--font-brand); font-weight: 400; font-size: 18px; line-height: 1.2; }
 .cn-carte-corps span { color: var(--ink-3); font-size: 12.5px; }
-.cn-liste { display: grid; gap: 8px; max-width: 760px; max-height: 46vh; overflow-y: auto; padding-right: 6px; margin-bottom: 18px; }
-.cn-ligne { display: grid; grid-template-columns: 64px 1fr; border: 1px solid var(--line-strong); background: var(--surface); transition: border-color 0.3s, box-shadow 0.3s; }
-.cn-ligne[aria-pressed="true"] { border-color: var(--or); box-shadow: 0 0 0 1px var(--or); }
-.cn-vignette { padding: 0; border: 0; border-right: 1px solid var(--line-strong); background: none; position: relative; }
-.cn-vignette::after { content: "⤢"; position: absolute; right: 4px; bottom: 3px; font-size: 13px; color: rgba(255, 255, 255, 0.85); text-shadow: 0 0 4px #000; }
-.cn-ligne-corps { text-align: left; border: 0; background: none; padding: 10px 14px; display: grid; gap: 2px; align-content: center; color: var(--ink); }
-.cn-ligne-corps b { font-family: var(--font-brand); font-weight: 400; font-size: 19px; }
-.cn-ligne-corps span { color: var(--ink-3); font-size: 13px; }
 .cn-aucun { color: var(--ink-3); padding: 28px 4px; }
 .cn-detail { margin-top: 6px; border: 1px solid var(--line-strong); background: rgba(26, 26, 33, 0.9); padding: clamp(16px, 2.5vw, 28px); display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1200px; animation: cn-entre 0.5s var(--cn-ease) both; }
 .cn-detail h3 { font-family: var(--font-brand); font-weight: 400; font-size: 22px; margin: 0 0 6px; }
@@ -186,9 +217,13 @@
   .cn-ruban { padding: 14px 12px 12px; }
   .cn-cadre { min-width: 104px; flex: 0 0 auto; }
   .cn-scene { padding: 20px 16px; }
-  .cn-nav { padding: 10px 16px; } .cn-nav .cn-astuce { display: none; }
+  .cn-nav { padding: 10px 16px; } .cn-nav .cn-astuce, .cn-barre .cn-astuce { display: none; }
+  .cn-barre { padding: 10px 16px; gap: 10px; } .cn-barre-texte { order: 3; flex-basis: 100%; font-size: 13.5px; } .cn-suivant, .cn-clap { margin-left: auto; min-width: 0; }
   .cn-duo, .cn-detail { grid-template-columns: 1fr; }
-  .cn-vues { margin-left: 0; }
+  .cn-style-mise { grid-template-columns: 1fr; }
+  .cn-style-droite { position: static; max-height: none; }
+  .cn-galerie-panneau { max-height: 56dvh; }
+  .cn-galerie { --min: 130px; } .cn-galerie[data-forme="paysage"] { --min: 180px; }
   .cn-axe { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .cn-salle *, .cn-salle *::before, .cn-salle *::after, .cn-lightbox { animation: none !important; transition: none !important; } }

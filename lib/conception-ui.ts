@@ -42,6 +42,11 @@ export type EtatAssistant = {
 
 export const ETAPES_ASSISTANT = ["Format", "Genre & ton", "Durée", "Langue", "Style"] as const;
 export const DERNIERE_ETAPE = ETAPES_ASSISTANT.length - 1;
+/** Les séries sont désactivées pour l'instant (« coming soon ») : la fonctionnalité reste dans le code (format, épisodes prévus, création),
+ * seul le choix est grisé à l'écran. Repasser à `true` pour la rouvrir. */
+export const SERIES_DISPONIBLES = false;
+/** La pellicule entière, visible dès la page de départ : les cinq choix, puis ce qui suit la création du projet. */
+export const ETAPES_CONCEPTION = [...ETAPES_ASSISTANT, "Scénario", "Clap", "Avancée"] as const;
 export const CLE_SESSION = "cadence.conception.v1";
 
 export function etatInitial(): EtatAssistant {

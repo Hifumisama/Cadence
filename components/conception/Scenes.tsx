@@ -14,7 +14,7 @@ import {
   motDuTon,
   plansEstimes,
 } from "@/lib/conception";
-import { ajusterTon, basculerGenre, minutesSecondes, reinitialiserTon } from "@/lib/conception-ui";
+import { ajusterTon, basculerGenre, minutesSecondes, reinitialiserTon, SERIES_DISPONIBLES } from "@/lib/conception-ui";
 import { Curseur } from "./Curseur";
 import type { PropsScene } from "./types";
 
@@ -33,6 +33,8 @@ export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactN
 
 /* ---------------------------------------------------------------- 1. Format */
 
+const BANDE = "COMING SOON · COMING SOON · COMING SOON · COMING SOON · COMING SOON · COMING SOON · ";
+
 export function SceneFormat({ etat, maj }: PropsScene) {
   return (
     <>
@@ -43,12 +45,25 @@ export function SceneFormat({ etat, maj }: PropsScene) {
           <span className="cn-gros">Film</span>
           <p>Une histoire, un seul bloc, une fin.</p>
         </button>
-        <button type="button" className="cn-affiche" aria-pressed={etat.format === "serie"} onClick={() => maj((e) => ({ ...e, format: "serie" }))}>
+        <button
+          type="button"
+          className={`cn-affiche${SERIES_DISPONIBLES ? "" : " is-bientot"}`}
+          aria-pressed={etat.format === "serie"}
+          disabled={!SERIES_DISPONIBLES}
+          onClick={() => maj((e) => ({ ...e, format: "serie" }))}
+        >
           <span className="cn-visuel" aria-hidden="true">
             <span className="cn-pile"><i /><i /><i /></span>
           </span>
           <span className="cn-gros">Série</span>
           <p>Des épisodes qui se suivent, un fil qui court d’un épisode à l’autre.</p>
+          {SERIES_DISPONIBLES ? null : (
+            <>
+              <span className="cn-police" aria-hidden="true"><i>{BANDE}</i></span>
+              <span className="cn-police is-croise" aria-hidden="true"><i>{BANDE}</i></span>
+              <span className="cn-sr-seul">Bientôt disponible</span>
+            </>
+          )}
         </button>
       </div>
       <div className={`cn-episodes${etat.format === "serie" ? " is-on" : ""}`} aria-hidden={etat.format !== "serie"}>

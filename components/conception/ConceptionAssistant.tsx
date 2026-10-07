@@ -7,7 +7,8 @@ import { creerProjetConcu } from "@/app/nouveau/actions";
 import {
   CLE_SESSION,
   DERNIERE_ETAPE,
-  ETAPES_ASSISTANT,
+  ETAPES_CONCEPTION,
+  SERIES_DISPONIBLES,
   etapeMax,
   etapeValide,
   etatInitial,
@@ -21,7 +22,10 @@ import { SceneDuree, SceneFormat, SceneGenreTon, SceneLangue } from "./Scenes";
 import { SceneStyle } from "./SceneStyle";
 import type { MajEtat, StyleVue } from "./types";
 
-/** La page de conception d'un projet : cinq scènes (format, genre et ton, durée, langue, style), un ruban de pellicule pour naviguer,
+/** Ce qu'il manque pour avancer, par étape (affiché dans la barre d'action tant que « Continuer » est grisé). */
+const INVITES = ["Choisis un format pour continuer.", "Choisis au moins un genre (deux au plus).", "Règle la durée pour continuer.", "Choisis la langue des dialogues.", "Choisis un style, ou écris le tien."];
+
+/** La page de conception d'un projet : cinq scènes (format, genre et ton, durée, langue, style), un ruban de pellicule des huit étapes pour naviguer,
  * une lumière d'ambiance qui suit les choix. L'état vit ici et dans la session du navigateur (rien n'est créé tant qu'on n'a pas
  * rencontré le scénariste : abandonner ne laisse aucun projet). Au dernier pas, le projet est créé côté serveur (app/nouveau/actions.ts)
  * avec sa fiche d'entretien préremplie, puis l'entretien s'ouvre. Plan : docs/PLAN_CONCEPTION_PROJET.md. */
@@ -44,7 +48,8 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
   useEffect(() => {
     try {
       const sauve = lireEtatSauvegarde(window.sessionStorage.getItem(CLE_SESSION));
-      if (sauve) setEtat(sauve);
+      // Une session sauvegardée avant la désactivation des séries ne doit pas rouvrir ce choix.
+      if (sauve) setEtat(SERIES_DISPONIBLES || sauve.format !== "serie" ? sauve : { ...sauve, format: "film" });
     } catch {
       /* stockage indisponible (navigation privée…) : on part de zéro */
     }
@@ -122,15 +127,16 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
     <div className="cn-salle" style={style}>
       <div className="cn-ambiance" aria-hidden="true"><i /><i /></div>
       <nav className="cn-ruban" aria-label="Étapes de la conception">
-        {ETAPES_ASSISTANT.map((nom, i) => {
-          const resume = resumeEtape(i, etat, nomStyle);
+        {ETAPES_CONCEPTION.map((nom, i) => {
+          // Les trois dernières étapes (scénario, clap, avancée) viennent après la création du projet : visibles, pas encore rejoignables.
+          const resume = i <= DERNIERE_ETAPE ? resumeEtape(i, etat, nomStyle) : "";
           return (
             <button
               key={nom}
               type="button"
-              className={`cn-cadre${resume && i !== etape ? " is-fait" : ""}`}
+              className={`cn-cadre${resume && i !== etape ? " is-fait" : ""}${i > DERNIERE_ETAPE ? " is-futur" : ""}`}
               aria-current={i === etape ? "step" : undefined}
-              disabled={i > maxAtteignable}
+              disabled={i > DERNIERE_ETAPE || i > maxAtteignable}
               title={resume ? `${nom} : ${resume}` : nom}
               onClick={() => aller(i)}
             >
@@ -141,7 +147,23 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
         })}
       </nav>
 
-      <div className={`cn-scene${recule ? " is-recule" : ""}`} key={etape} ref={scene}>
+      <div className="cn-barre" role="group" aria-label="Avancer dans la conception">
+        <button type="button" className="btn" disabled={etape === 0 || envoi} onClick={() => aller(etape - 1)}>← Retour</button>
+        <span className="cn-barre-texte" aria-live="polite">
+          {!peutContinuer ? INVITES[etape] : etape < DERNIERE_ETAPE ? <>Ensuite : <b>{ETAPES_CONCEPTION[etape + 1]}</b></> : <>Les cinq choix sont faits : <b>le scénariste t’attend</b>.</>}
+        </span>
+        {erreur ? <span className="cn-erreur" role="alert">{erreur}</span> : null}
+        <span className="cn-astuce">← → pour naviguer</span>
+        {etape < DERNIERE_ETAPE ? (
+          <button type="button" className="btn btn-gold cn-suivant" disabled={!peutContinuer} onClick={() => aller(etape + 1)}>Continuer →</button>
+        ) : (
+          <button type="button" className="btn btn-gold cn-clap" disabled={!peutContinuer || envoi} onClick={() => void rencontrer()}>
+            {envoi ? "Création…" : "Action ! Rencontrer le scénariste"}
+          </button>
+        )}
+      </div>
+
+      <div className={`cn-scene${recule ? " is-recule" : ""}`} data-scene={etape === 4 ? "style" : undefined} key={etape} ref={scene}>
         {etape === 0 ? <SceneFormat etat={etat} maj={maj} /> : null}
         {etape === 1 ? <SceneGenreTon etat={etat} maj={maj} /> : null}
         {etape === 2 ? <SceneDuree etat={etat} maj={maj} /> : null}
@@ -149,18 +171,6 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
         {etape === 4 ? <SceneStyle etat={etat} maj={maj} styles={styles} /> : null}
       </div>
 
-      <div className="cn-nav">
-        <button type="button" className="btn" disabled={etape === 0 || envoi} onClick={() => aller(etape - 1)}>Retour</button>
-        {etape < DERNIERE_ETAPE ? (
-          <button type="button" className="btn btn-gold" disabled={!peutContinuer} onClick={() => aller(etape + 1)}>Continuer</button>
-        ) : (
-          <button type="button" className="btn btn-gold" disabled={!peutContinuer || envoi} onClick={() => void rencontrer()}>
-            {envoi ? "Création…" : "Rencontrer le scénariste"}
-          </button>
-        )}
-        {erreur ? <p className="cn-erreur" role="alert">{erreur}</p> : null}
-        <span className="cn-astuce">← → pour naviguer</span>
-      </div>
     </div>
   );
 }
