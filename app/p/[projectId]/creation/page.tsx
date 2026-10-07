@@ -7,7 +7,7 @@ import { Topbar } from "@/components/ui/Topbar";
 import { db } from "@/db";
 import { lireVueCreation } from "@/lib/agents/creation-vue";
 import { lireConception } from "@/lib/conception-db";
-import { MEDIA_ROOT } from "@/lib/media";
+import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
 import { lireBrief } from "@/lib/queries-agents";
 
@@ -41,7 +41,7 @@ export default async function CreationPage({ params }: { params: Promise<{ proje
         tabs={{ projectId: pid, episodeBase }}
       />
       <main>
-        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image }} />
+        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} />
       </main>
     </>
   );

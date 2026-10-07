@@ -8,7 +8,7 @@ import { db } from "@/db";
 import { lireVueCreation } from "@/lib/agents/creation-vue";
 import { ouvrirConversation } from "@/lib/agents/service";
 import { lireConception } from "@/lib/conception-db";
-import { MEDIA_ROOT } from "@/lib/media";
+import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getProject } from "@/lib/queries";
 import { lireBrief, lireConversation, trouverConversation } from "@/lib/queries-agents";
 
@@ -51,7 +51,7 @@ export default async function DemarragePage({ params }: { params: Promise<{ proj
         }
       />
       <main>
-        <DemarrageAssistant projectId={pid} nomProjet={projet.nom} convInitiale={conv} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image }} />
+        <DemarrageAssistant projectId={pid} nomProjet={projet.nom} convInitiale={conv} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} />
       </main>
     </>
   );

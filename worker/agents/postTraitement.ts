@@ -11,6 +11,7 @@ import { ficheCourante, enregistrerFiche } from "../../lib/agents/fiche-db";
 import { informationsFormat } from "../../lib/conception";
 import { lireConception } from "../../lib/conception-db";
 import { creerRun } from "../../lib/agents/runs";
+import { ecrireAfficheEtGenerer } from "../../lib/agents/affiche-clap";
 import type { ChangementBrut } from "../../lib/agents/changements";
 import {
   depuisCorrectionPlan,
@@ -48,7 +49,8 @@ import type { InfosExecution } from "./preparation";
  * - `tour`        : soit la grille de couverture d'un message (skill `couverture-entretien`, qui pose ensuite le tour de
  *                   l'agent), soit le message de l'agent, qui rejoint la conversation (`briefPret` est décidé en code) ;
  * - `brief`       : un BROUILLON de brief est écrit (jamais par-dessus un brief validé) ;
- * - `proposition` : les changements sont construits EN CODE depuis le JSON du skill. */
+ * - `proposition` : les changements sont construits EN CODE depuis le JSON du skill ;
+ * - `affiche`     : l'affiche du clap (lib/agents/affiche-clap.ts) : le prompt écrit lance la génération de l'image. */
 
 type RunAgent = typeof agentRuns.$inferSelect;
 export type OptionsRunAgent = { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null };
@@ -57,9 +59,15 @@ export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execu
   if (!run.but) return; // appel hors système d'agents (npm run llm:tache) : rien à faire
   if (run.but === "tour") {
     if (run.skill === "notes-entretien") return postNotes(tx, run, json);
+    // L'accroche du scénariste (premier message d'un projet conçu) se range comme un tour de l'agent : elle ouvre la conversation.
     return postTour(tx, run, json as { reponse: string; resteADefinir?: string[] });
   }
   if (run.but === "brief") return postBrief(tx, run, json as Record<string, unknown>);
+  // L'affiche du clap : le prompt écrit par `prompt-affiche` lance tout de suite la génération de l'affiche du projet (adoption automatique).
+  if (run.but === "affiche") {
+    if (run.projectId == null) throw new Error("Affiche sans projet.");
+    return ecrireAfficheEtGenerer(tx, run.projectId, json as { promptGeneration?: unknown });
+  }
   if (run.but === "proposition") return postProposition(tx, run, json, execution);
 }
 

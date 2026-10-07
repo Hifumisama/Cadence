@@ -41,6 +41,11 @@
 .cn-clap-layout { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: clamp(16px, 3vw, 40px); align-items: start; max-width: 1180px; }
 .cn-poster { position: relative; aspect-ratio: 2 / 3; border: 1px solid var(--line-strong); overflow: hidden; box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(201, 162, 75, 0.18); background: var(--surface-2); }
 .cn-poster img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cn-poster.is-attente img { filter: saturate(0.55) brightness(0.62); animation: cn-respire 2.2s ease-in-out infinite; }
+.cn-poster-attente { position: absolute; left: 0; right: 0; top: 46%; z-index: 2; margin: 0; text-align: center; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--or-glow); text-shadow: 0 0 10px #000; }
+.cn-poster-attente.is-echec { text-transform: none; letter-spacing: 0; font-size: 13px; padding: 0 16px; color: var(--ink); }
+@keyframes cn-respire { 0%, 100% { opacity: 1; } 50% { opacity: 0.78; } }
+@media (prefers-reduced-motion: reduce) { .cn-poster.is-attente img { animation: none; } }
 .cn-poster.is-vide { background: repeating-linear-gradient(45deg, #212129 0 10px, #282833 10px 20px); }
 .cn-poster-voile { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(14, 14, 19, 0.55), rgba(14, 14, 19, 0) 28%, rgba(14, 14, 19, 0) 45%, rgba(14, 14, 19, 0.92) 85%); }
 .cn-poster-texte { position: absolute; inset: 0; padding: 18px 18px 16px; display: flex; flex-direction: column; text-align: center; }
@@ -65,10 +70,10 @@
 .cn-claps-grille dd .cn-tag { font-family: var(--font-mono); font-size: 10.5px; }
 .cn-claps-grille > div.is-large { grid-column: span 3; border-right: 0; }
 .cn-claps-grille dd.is-texte { font-family: var(--font-data); font-size: 15px; color: var(--ink-2); line-height: 1.45; white-space: pre-wrap; }
-.cn-action { margin-top: 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cn-lancer { position: sticky; bottom: 0; z-index: 4; margin-top: 22px; padding: 14px 0; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: linear-gradient(to top, var(--ground) 65%, transparent); }
+.cn-lancer .cn-clap { font-size: 18px; padding: 18px 28px 12px; }
 .cn-manque { color: var(--ink-3); font-size: 14px; margin: 0; }
 .cn-cadre:disabled { opacity: 0.7; cursor: default; }
-.cn-cadre.is-futur { opacity: 0.45; }
 
 @media (max-width: 860px) {
   .cn-entretien, .cn-clap-layout { grid-template-columns: 1fr; }
