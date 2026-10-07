@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the iteration-plan agent: a diagnosis and a proposed correction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "dureeCoherente",
+    "symptome",
+    "cause",
+    "confiance",
+    "changements",
+    "abandon"
+  ],
+  "properties": {
+    "dureeCoherente": {
+      "type": "boolean",
+      "description": "Does the real file duration match the wanted duration (gap of half a second at most)? If false, no writing diagnosis: `changements` stays empty."
+    },
+    "symptome": {
+      "type": "string",
+      "description": "(French) What is wrong, with the thumbnail instants (« à 4 s, l'épée apparaît »)."
+    },
+    "cause": {
+      "type": "string",
+      "description": "(French) The precise cause targeted by this correction, only one. Points to a lexicon entry when one exists."
+    },
+    "categorie": {
+      "type": "string",
+      "enum": [
+        "decoupage-scenario",
+        "cadence",
+        "vocabulaire",
+        "negation",
+        "etat-arrivee",
+        "camera",
+        "lumiere",
+        "duree",
+        "reference",
+        "modele",
+        "autre"
+      ],
+      "description": "`decoupage-scenario` = the cause is not in the prompt (to be handled separately): `changements` stays empty."
+    },
+    "confiance": {
+      "type": "string",
+      "enum": [
+        "haute",
+        "moyenne",
+        "faible"
+      ]
+    },
+    "changements": {
+      "type": "array",
+      "description": "The smallest text change that treats the cause: replacements of passages in the FINAL prompt (labels <Subject N>/<Picture N>/<Audio N> kept as they are, <d> tags intact). Empty if the cause is not in the prompt, if the duration is inconsistent, or on abandon.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "section",
+          "avant",
+          "apres"
+        ],
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": [
+              "subject_definitions",
+              "summary",
+              "retention_analysis",
+              "detailed_description",
+              "overall_soundscape",
+              "non_diegetic_music"
+            ]
+          },
+          "avant": {
+            "type": "string",
+            "description": "Exact passage replaced, copied as is from promptActuel (a single occurrence in the section)."
+          },
+          "apres": {
+            "type": "string",
+            "description": "(English) Replacing passage, with the same labels and the same <d> tags."
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "string",
+      "description": "(French) What to look at on the next render to know whether the correction worked."
+    },
+    "entreeLexique": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "(English) Optional. Lexicon candidate, to be entered only after a render that solved the symptom (never written by the application).",
+      "required": [
+        "symptome",
+        "cause",
+        "formulationQuiTient"
+      ],
+      "properties": {
+        "symptome": {
+          "type": "string"
+        },
+        "cause": {
+          "type": "string"
+        },
+        "formulationQuiTient": {
+          "type": "string"
+        }
+      }
+    },
+    "abandon": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "propose = true only if three corrections targeting different causes failed (see historique); otherwise propose = false and empty raison.",
+      "required": [
+        "propose",
+        "raison"
+      ],
+      "properties": {
+        "propose": {
+          "type": "boolean"
+        },
+        "raison": {
+          "type": "string",
+          "description": "(French) What was tried, and the proposed replacement move."
+        }
+      }
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional. When the cause is a missing or excessive reference image (a registry asset that should have been cited, or that disturbs the render): the references to add (by registry CODE) and to remove. The code assigns the labels, renumbers the remaining images and updates subject_definitions and retention_analysis: you touch neither the numbers nor those two sections for this. An added reference is cited in your passages as `[[CODE]]`.",
+      "properties": {
+        "ajouter": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "asset",
+              "nom"
+            ],
+            "properties": {
+              "asset": {
+                "type": "string",
+                "description": "Code of a registry asset (never invented), not yet a reference of this plan."
+              },
+              "nom": {
+                "type": "string",
+                "description": "(English) Its name, as it will be written in subject_definitions."
+              },
+              "role": {
+                "type": "string",
+                "description": "(French) Optional. Its role in this plan."
+              }
+            }
+          }
+        },
+        "retirer": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Codes of the plan's current image references to remove."
+        }
+      }
+    }
+  }
+}

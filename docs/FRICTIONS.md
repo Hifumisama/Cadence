@@ -939,7 +939,7 @@ Premier chantier de la génération depuis une conversation (`docs/CONCEPTION_AG
   délai / http. Annuler = couper la connexion (le serveur arrête de générer).
 - **Flux SSE par défaut** : une génération de plusieurs minutes ne laisse pas la
   connexion muette (un reverse proxy la couperait) et donne la progression en jetons.
-- **Chargeur sans manifeste** : le dossier EST la déclaration (règles → guides →
+- **Chargeur sans manifeste** (révisé le 2026-10-07 : format Agent Skills, voir la fin du fichier) : le dossier EST la déclaration (règles → guides →
   exemples → fichiers partagés → contrat de sortie). Seule exception, déclarée dans le
   code : le lexique H3 partagé par `plan-h3` et `iteration-plan`.
 - **`agent_traces`** : skill, fournisseur, modèle, statut (`ok` / `invalide` / `echoue`
@@ -1920,3 +1920,17 @@ Révise F01 (l'arbre) et la règle « registre à un seul niveau » du 2026-10-0
 - **Plans périmés.** Pas de versionnage (F01) : adopter un candidat remplace le fichier, donc un plan déjà rendu avec l'ancienne image est dépassé. `assets.fichier_at` (migration 0049) date la dernière pose du fichier (adoption, import, prise de voix) ; un plan est **périmé** quand le début de son dernier rendu terminé est antérieur à `fichier_at` d'une de ses références (`lib/plans-perimes.ts`). Un plan jamais rendu n'est pas périmé ; les assets existants à la migration prennent la date de la migration (rien n'est périmé rétroactivement).
 - Surfaces : alerte « Rendu périmé » dans la fiche de plan ; badge « périmé » dans la frise des plans ; badges écarlates dans la fiche d'asset ; avertissement avant adoption (« périmera N plans déjà rendus ») ; bouton « Relancer les périmés » (`relancerPlansPerimes`) : un nouveau rendu par plan, avec sa seed et dans son mode (prévisualisation ou final), en sautant les plans déjà en file et ceux aux dialogues désalignés.
 - Reste : pas de précédent / suivant dans la fiche d'asset.
+
+## 2026-10-07 — Skills d'agents : format Agent Skills, instructions en anglais
+
+Amende « Chargeur sans manifeste » (CONCEPTION_AGENTS §5, 2026-10-01). Les skills sont lus par un petit modèle local (MoE à environ 3-4B de paramètres actifs) : l'anglais lui est plus sûr que le français, et le format standard rend les skills réutilisables hors de Cadence.
+
+- **Format standard Agent Skills** (agentskills.io) : `agents/skills/<nom>/SKILL.md` (ancien `regles.md`, avec un en-tête YAML `name` + `description`), `references/` (`guide-*.md`, `exemples/`, lexique), `assets/sortie.schema.json`. Le dossier reste la déclaration : le chargeur lit les mêmes fichiers dans le même ordre, **retire l'en-tête du prompt** et vérifie seulement que `name` est le nom du dossier. `chargerSkill` lève une erreur sinon.
+- **Instructions en anglais, resserrées** (règles courtes et numérotées, une checklist « Before you answer »). Les titres de section du prompt et la phrase du contrat de sortie sont en anglais aussi. Le fond des règles n'a pas changé.
+- **Langue de sortie dite champ par champ**, dans une section `Output language` de chaque `SKILL.md` et dans les `description` du schéma (`(French)` / `(English)`) : français pour ce que l'utilisateur lit (`titre`, `notes`, `role`, messages, contenu du brief), anglais pour ce qui part vers un modèle de génération (prompts H3, Krea 2, Qwen, Qwen3-TTS, Stable Audio, `style.clause`). Les dialogues gardent leur langue (`<d>[Français] …</d>`), les citations de `notes-entretien` sont recopiées telles quelles. `entreeLexique` (iteration-plan) est en anglais : le lexique l'est devenu.
+- **Inchangé** : clés JSON, valeurs d'`enum`, codes d'assets, marqueurs posés par le code et cités tels quels dans les skills (`[Fiche de notes …]`, `[Briefing actuel (brouillon à mettre à jour)]`, `Vignette à 4 s :`), lignes exactes de titre de `prompt-affiche`. Les fixtures d'assemblage de `plan-h3` n'ont pas bougé : l'assemblage est intact.
+- **Lexique de corrections H3** déplacé dans `agents/skills/plan-h3/references/h3-lexique-corrections.md` (source unique, traduit) ; le skill de chat `fiche-de-plan` y renvoie. Le skill de l'app ne dépend plus d'un skill de chat.
+- `CARACTERES_PAR_JETON` passe de 3,5 à 4 (estimation pour de l'anglais, pas une mesure). Taille totale des prompts : environ 9 % de caractères en moins ; les jetons réels avec le tokenizer du modèle restent à mesurer.
+- **À mesurer avant de conclure** (rien n'est validé sur le vrai modèle à cette date) : `npm run plan-h3:essai` et `npm run agents:rejeu -- essais/fiches/self-made-man.json`, comparés à un essai fait avant le changement (HEAD `791adf7`).
+- **Point ouvert** : le tool-calling (par exemple un `chercher_asset` pour retrouver un asset existant sous un autre nom) a été évalué, pas décidé. Rien dans `lib/llm/` ne l'utilise ; compatibilité `tools` + `response_format` à vérifier sur llama-swap (`--jinja`) avant tout développement.
+

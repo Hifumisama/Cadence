@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { assemblerPlanH3, timecode } from "./plan-h3-assemblage";
 import type { SortiePlanH3 } from "./plan-h3-controles";
 
-// Brouillon de l'exemple « dialogue » (plan réel validé en production, agents/skills/plan-h3/exemples/dialogue.md).
+// Brouillon de l'exemple « dialogue » (plan réel validé en production, agents/skills/plan-h3/references/exemples/dialogue.md).
 const dialogue: SortiePlanH3 = {
   titre: "La sentence — la menace",
   dureeSecondes: 7,

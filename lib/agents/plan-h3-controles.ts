@@ -2,7 +2,7 @@ import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, SHOT_MIN_SECONDES } from ".
 
 /** Contrôles AUTOMATIQUES du BROUILLON rendu par `plan-h3`, avant assemblage et avant toute relecture
  * humaine (étape 3 : la fiche de plan). Pur, sans accès base ni disque. Ils vérifient le contrat du skill
- * (agents/skills/plan-h3/regles.md et sortie.schema.json), pas la qualité de la mise en scène : un plan
+ * (agents/skills/plan-h3/SKILL.md et sortie.schema.json), pas la qualité de la mise en scène : un plan
  * peut passer tous les contrôles et rester médiocre, mais un plan qui en échoue un est à refaire.
  * Le prompt final (labels, timecodes, sections) est produit par lib/agents/plan-h3-assemblage.ts. */
 

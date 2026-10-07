@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the scenario-episode agent: an episode's screenplay",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["episode", "scenes", "inventions", "notes"],
+  "properties": {
+    "episode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titre", "resume"],
+      "properties": {
+        "titre": { "type": "string", "description": "(French)" },
+        "resume": { "type": "string", "description": "(French) What the episode tells." }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "In episode order. Two to four for a whole episode.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["titre", "fonction", "genre", "ambiance", "plans"],
+        "properties": {
+          "titre": { "type": "string", "description": "(French)" },
+          "fonction": { "type": "string", "description": "(French) What the scene accomplishes in the episode." },
+          "genre": { "type": "string", "enum": ["action", "dialogue", "montage", "contemplatif", "tension"], "description": "The scene's genre: it decides the cutting here and the writing guides of its plans later. action: a physical gesture or a clash; dialogue: characters talking to each other; montage: a series of brief moments that answer each other; contemplatif: a place or a state left to breathe; tension: a build-up or a tipping point." },
+          "ambiance": { "type": "string", "description": "(French) The visual frame HELD over the whole scene, in one sentence: time of day, weather, general light. Sole exception to « no light » in this screenplay: it is continuity, not staging." },
+          "plans": {
+            "type": "array",
+            "minItems": 1,
+            "description": "In reading order. Order is that of the array: no plan number.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["titre", "description", "dureeSecondes", "repliques"],
+              "properties": {
+                "titre": { "type": "string", "maxLength": 200, "description": "(French)" },
+                "description": { "type": "string", "minLength": 1, "description": "(French) What happens and why the plan exists. Narrative, with no framing, light, sound or camera movement, and no reference to another plan." },
+                "dureeSecondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "Generation duration, whole seconds, from 5 to 15 (never less than 5). It follows the brief's rhythm and the scene's genre (see the rules); group close moments into a single plan. A dialogue plan: generous duration, breathing margin of at least 2 s, to adjust after the voice take." },
+                "repliques": {
+                  "type": "array",
+                  "description": "Lines said in this plan, in speaking order.",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["locuteur", "texte"],
+                    "properties": {
+                      "locuteur": { "type": "string", "description": "A registry character (name or code), or « voix off »." },
+                      "texte": { "type": "string", "minLength": 1, "description": "The exact text, in the dialogue language, punctuation included." }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "inventions": { "type": "array", "items": { "type": "string" }, "description": "(French) Everything that was not in the brief. To validate or throw out." },
+    "notes": { "type": "string", "description": "(French) Risky plans, duration trade-offs, proposed cuts for a dialogue that is too long. Empty if nothing to report." }
+  }
+}

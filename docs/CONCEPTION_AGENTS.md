@@ -103,12 +103,12 @@ Chaque étape produit sa propre proposition. Une étape ne démarre qu'à partir
 l'état **appliqué** de la précédente (ou de sa proposition acceptée), jamais d'un
 brouillon non validé.
 
-Les skills de l'app vivent dans `agents/skills/<nom>/` (règles, guides, schéma
-de sortie, exemples) : ce sont les prompts d'exécution de l'app, pas les skills
+Les skills de l'app vivent dans `agents/skills/<nom>/`, au format standard Agent Skills
+(`SKILL.md`, `references/`, `assets/` ; révisé le 2026-10-07) : ce sont les prompts d'exécution de l'app, pas les skills
 conversationnels de `.claude/skills/`, qui gardent leur usage en chat. Le
 chargeur (`lib/llm/skills.ts`, construit le 2026-10-01) assemble le prompt selon la
-convention du §9, sans manifeste : le dossier est la déclaration. Le lexique de corrections H3 reste dans
-`.claude/skills/fiche-de-plan/references/`, partagé par `plan-h3` et
+convention du §9 : le dossier est la déclaration, l'en-tête de `SKILL.md` ne sert qu'à la portabilité. Le lexique de
+corrections H3 vit dans `agents/skills/plan-h3/references/`, partagé par `plan-h3` et
 `iteration-plan`. Skills écrits : `plan-h3` (un plan), `iteration-plan`
 (correction après visionnage) et `prompt-asset` (prompt d'un asset).
 Ils s'appuient sur les textes d'assets : la description canonique (français,
@@ -255,11 +255,13 @@ l'aveugle (F03).
 - `executerSkill(nom, entree, options)` : chargement du skill → appel → validation
   contre `sortie.schema.json` → un renvoi automatique avec les erreurs si besoin →
   trace (`agent_traces`). Jamais de JSON réparé en silence.
-- **Convention du chargeur** (`chargerSkill`) : le prompt système = `regles.md`, puis
-  les `guide-*.md` (ordre alphabétique), puis `exemples/*.md` (ordre alphabétique),
-  puis les fichiers partagés déclarés dans le code (le lexique H3 pour `plan-h3` et
-  `iteration-plan`), puis le contrat de sortie (`sortie.schema.json` en JSON compact).
-  Chaque fichier a un titre `=== type : nom ===`. Pas de manifeste.
+- **Convention du chargeur** (`chargerSkill`) : le prompt système = `SKILL.md` (sans son en-tête
+  YAML), puis les `references/guide-*.md` (ordre alphabétique), puis
+  `references/exemples/*.md` (ordre alphabétique), puis les fichiers partagés déclarés dans
+  le code (le lexique H3 pour `plan-h3` et `iteration-plan`), puis le contrat de sortie
+  (`assets/sortie.schema.json` en JSON compact). Chaque fichier a un titre
+  `=== type: nom ===` (en anglais). L'en-tête (`name` = nom du dossier, `description`) est
+  obligatoire et vérifié, mais ne pilote aucun chargement.
   **Variantes (2026-10-01)** : un guide peut se réserver à certains cas par une
   première ligne `<!-- variantes: image, generation -->` (retirée du prompt). Quand
   l'appelant passe une `variante` (`executerSkill(skill, entree, { variante })`, ou

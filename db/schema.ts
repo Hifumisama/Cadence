@@ -714,7 +714,7 @@ export const creationsProjet = pgTable("creations_projet", {
 });
 
 // Le brief : document de RÉFÉRENCE du projet (un seul par projet), modifiable après
-// coup. `contenu` suit le schéma de agents/skills/brief-projet/sortie.schema.json ;
+// coup. `contenu` suit le schéma de agents/skills/brief-projet/assets/sortie.schema.json ;
 // `statuts` dit, section par section (clé de premier niveau), qui l'a posée :
 // fourni (dit par l'utilisateur) | deduit (conclu par l'agent) | a_valider (inventé
 // ou incertain). `statut` : brouillon (sorti d'une conversation, pas encore

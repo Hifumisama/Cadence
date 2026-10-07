@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the prompt-asset agent: an asset's texts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["methode", "raisonMethode", "promptGeneration", "remarques"],
+  "properties": {
+    "methode": { "type": "string", "enum": ["generation", "edition"], "description": "Recommended method. `edition` has an image 1, the target of the modification (usually the asset's starting image). An `sfx` is always `generation`." },
+    "raisonMethode": { "type": "string", "description": "(French) One sentence justifying the method." },
+    "sources": {
+      "type": "array",
+      "maxItems": 3,
+      "items": { "type": "string" },
+      "description": "Edit only: codes of the assets whose image is supplied to the workflow, in order. The first is the target of the modification (by default the starting image), the next ones are references. Three at most. Empty for a generation."
+    },
+    "promptGeneration": { "type": "string", "minLength": 1, "description": "(English) Krea 2 prose (generation) or Qwen imperative instructions, one per line (edit); for an `sfx`, one or two sentences describing the sound (Stable Audio 3). No style, no negation, no duration." },
+    "dureeSecondes": { "type": "integer", "minimum": 1, "maximum": 60, "description": "`sfx` asset only (omit for an image): sound duration in whole seconds. Impact 1–3, action 3–6, ambience 6–15; 15 at most unless a reason is given in `remarques`. Never written in the prompt." },
+    "remarques": {
+      "type": "array",
+      "description": "Points to raise: requested variants, absence or change of viewpoint, dependency on an unproduced starting image, description too vague, duplicates, voice or music requested for a sound.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "message"],
+        "properties": {
+          "type": { "type": "string", "enum": ["variantes", "absence-ou-point-de-vue", "dependance-parent", "description-vague", "incoherence-famille", "voix-ou-musique", "autre"] },
+          "message": { "type": "string", "description": "(French)" }
+        }
+      }
+    }
+  }
+}

@@ -322,7 +322,7 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
 }
 
 /** L'entrée de `plan-h3` pour UN plan (étape 3 : la fiche de plan). Assemblée par l'application, jamais
- * devinée (voir agents/skills/plan-h3/regles.md, « Ce que tu reçois ») :
+ * devinée (voir agents/skills/plan-h3/SKILL.md, « Ce que tu reçois ») :
  * - `plan` : titre, intention (la description narrative, une ou deux phrases), position dans la scène,
  *   durée visée et fps ;
  * - `scene` (titre, fonction, et les intentions de TOUS ses plans dans l'ordre, `cePlan` marquant celui qu'on
@@ -505,7 +505,7 @@ export async function etatIterationPlan(db: Db, projectId: number, planUuid: str
 }
 
 /** L'entrée d'`iteration-plan` pour UN plan qui a un rendu (routage par état du plan, 2026-10-02 : sans rendu, pas
- * de correction à l'aveugle). Voir agents/skills/iteration-plan/regles.md, « Ce que tu reçois » :
+ * de correction à l'aveugle). Voir agents/skills/iteration-plan/SKILL.md, « Ce que tu reçois » :
  * - `plan` (titre, intention, durée voulue, fps), `promptActuel` (les six sections STOCKÉES, labels compris) ;
  * - `references` : chaque label du plan → asset, rôle, rétention ; les voix (`voix: true`) avec leur réplique ;
  * - `repliques` (texte exact, slot, durée mesurée), `retourVisionnage` (obligatoire), `historique` ;

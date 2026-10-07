@@ -321,7 +321,7 @@ export function calculerStatutDuree(
 
 // ---------------------------------------------------------------------
 // Structure des shots et durée de génération — règles de agents/skills/
-// plan-h3/regles.md (cadence de coupe, plancher). Pas de contrôle du « Hard cut » :
+// plan-h3/SKILL.md (cadence de coupe, plancher). Pas de contrôle du « Hard cut » :
 // les plans validés en production ne l'écrivent pas toujours littéralement. Signalements,
 // pas de blocage : c'est de la vigilance d'écriture, pas un invariant de
 // données comme le verbatim.

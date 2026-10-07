@@ -5,7 +5,7 @@ import { ajouterReference, compacterImages, nomDepuisCode, retirerReference } fr
 import { SECTIONS_FICHE, estSectionFiche, type ApresFiche, type PassageFiche, type RefFiche, type SectionsFiche } from "./fiches";
 import type { Avertissement, DiagnosticIteration } from "./types";
 
-/** `iteration-plan` : corriger un plan APRÈS visionnage de son rendu (agents/skills/iteration-plan/regles.md).
+/** `iteration-plan` : corriger un plan APRÈS visionnage de son rendu (agents/skills/iteration-plan/SKILL.md).
  * Règles PURES (sans base, disque ni Next), partagées par le contrôleur sémantique (lib/llm/controles.ts), la
  * conversion en proposition (worker/agents/postTraitement.ts), la revue et les tests. Voir docs/FRICTIONS.md,
  * « iteration-plan branché » (2026-10-02).

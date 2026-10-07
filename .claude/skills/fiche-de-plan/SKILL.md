@@ -174,7 +174,7 @@ Points de vigilance, tirés des deux guides :
 - **En full-reference**, le style s'annonce en une ou deux phrases **avant** `[Shot 1]` ; en mode base, il s'écrit après `[Shot 1]`. Cette différence est réelle et les deux guides la précisent.
 - **Longueur** : vise 350–500 mots de `detailed_description` pour un plan riche en full-reference, moins pour un plan simple. Un plan unique ne justifie pas une description courte s'il porte beaucoup d'information.
 
-**Avant d'écrire un plan à enjeu — action forte, effet visuel, montée en tension, plusieurs temps — lis `references/h3-lexique-corrections.md`.** Ce fichier recense les formulations qui se retournent contre nous et celles qui tiennent, chacune sourcée sur un rendu réel. Les quatre pièges qui reviennent le plus souvent :
+**Avant d'écrire un plan à enjeu — action forte, effet visuel, montée en tension, plusieurs temps — lis `agents/skills/plan-h3/references/h3-lexique-corrections.md` (depuis la racine du dépôt).** Ce fichier recense les formulations qui se retournent contre nous et celles qui tiennent, chacune sourcée sur un rendu réel. Les quatre pièges qui reviennent le plus souvent :
 
 - une description en plusieurs temps sans `Hard cut` ni angles distincts rend **un seul mouvement lissé** ;
 - une consigne négative fait produire exactement ce qu'elle interdit — toujours reformuler en état voulu ;
@@ -295,7 +295,7 @@ Premier réflexe avant tout diagnostic : vérifier la durée réelle du fichier.
 
 **Sache t'arrêter.** Si le même symptôme survit à trois corrections visant des causes *différentes*, ce n'est plus le prompt, c'est le modèle : change le mouvement plutôt que d'engager une quatrième passe. Et consigne l'abandon dans les notes du plan, avec ce qui a été tenté — sans quoi il sera retenté quelques mois plus tard avec enthousiasme.
 
-**Chaque correction retenue enrichit le lexique.** Quand une passe résout un symptôme reproductible, consigne-la dans `references/h3-lexique-corrections.md` — à créer s'il n'existe pas encore — avec le plan où elle a été observée. C'est ce qui distingue ce fichier d'une liste de conseils : chaque ligne a coûté un rendu.
+**Chaque correction retenue enrichit le lexique.** Quand une passe résout un symptôme reproductible, consigne-la dans `agents/skills/plan-h3/references/h3-lexique-corrections.md` (depuis la racine du dépôt) — à créer s'il n'existe pas encore — avec le plan où elle a été observée. C'est ce qui distingue ce fichier d'une liste de conseils : chaque ligne a coûté un rendu.
 
 ## Vérifications avant de rendre
 

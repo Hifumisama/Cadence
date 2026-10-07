@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the prompt-voix agent: a voice's instruction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["instruction", "remarques"],
+  "properties": {
+    "instruction": { "type": "string", "minLength": 1, "description": "(English) Prose, one paragraph: identity, origin (native language named), prosody, state. Includes the held physical constraint if the character carries one. No negation, no recording words, no accent words." },
+    "refText": { "type": "string", "description": "(English) Optional. Only if the user wants to depart from the project's reference text (the same English text for all voices, by default). It must match word for word what the voice will say." },
+    "remarques": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "message"],
+        "properties": {
+          "type": { "type": "string", "enum": ["pas-de-contrainte", "voix-proche", "attribut-ambigu", "description-vague", "autre"] },
+          "message": { "type": "string", "description": "(French)" }
+        }
+      }
+    }
+  }
+}

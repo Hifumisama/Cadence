@@ -62,7 +62,7 @@ Le worker (`worker/index.ts`) choisit à chaque tour la prochaine tâche : image
 - appelle `executerSkill` avec le **contrôleur** du skill (`controleurPourSkill`, `lib/llm/controles.ts`).
 
 ### 3. L'exécution du skill (`lib/llm/executer.ts`)
-1. `chargerSkill` (`lib/llm/skills.ts`) assemble le prompt système : `regles.md`, les `guide-*.md` (filtrés par variante), les `exemples/*.md`, les fichiers partagés, puis le schéma de sortie.
+1. `chargerSkill` (`lib/llm/skills.ts`) assemble le prompt système : `SKILL.md`, les `references/guide-*.md` (filtrés par variante), les `references/exemples/*.md`, les fichiers partagés, puis le schéma de sortie.
 2. Le fournisseur (`lib/llm/compatibleOpenAI.ts`) envoie la requête, avec le schéma en contrainte (`response_format` json_schema) et, en flux, compte les jetons reçus (affichés dans le header).
 3. `analyser` : sortie tronquée (`length`) ou JSON illisible = erreur ; sinon validation contre le schéma (`valider`, `lib/llm/validation.ts`).
 4. Si le JSON est valide et qu'un contrôleur existe (`plan-h3`, `iteration-plan`), ses **erreurs** (pas ses alertes) déclenchent un renvoi.

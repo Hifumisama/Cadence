@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the plan-h3 agent: the draft of one plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["titre", "dureeSecondes", "references", "summary", "ouverture", "shots", "overall_soundscape", "non_diegetic_music", "repliques", "assetsManquants", "notes"],
+  "properties": {
+    "titre": { "type": "string", "minLength": 1, "maxLength": 200, "description": "(French) Short title of the plan." },
+    "dureeSecondes": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 15,
+      "description": "Generation duration, whole seconds. Dialogue plan: expected duration of the lines plus a breathing margin of at least 2 s, rounded up. It is extended later if the real voice requires it."
+    },
+    "references": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "description": "The plan's reference assets, in the wanted order: characters, extras, props and effects, then set. The code assigns the labels (<Subject N>, <Picture N>, <Audio N>): never write one.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["asset", "nature", "role", "nom", "definition"],
+        "properties": {
+          "asset": { "type": "string", "description": "Code of an existing registry asset (CHAR_maya, DEC_couloir_bois, SFX_porte…). Never an invented code: a missing asset is declared in `assetsManquants`." },
+          "nature": { "type": "string", "enum": ["image", "son"], "description": "image: the asset is cited by its image (character, set, prop, effect). son: sound effect (SFX_… code) cited as an audio reference." },
+          "role": { "type": "string", "description": "(French) Role in the plan, for the sheet (« Décor, couloir bleu nuit »)." },
+          "nom": { "type": "string", "description": "(English) How the sheet names the asset, no mandatory definite article: « Maya », « the Tenancière », « the narrow wooden corridor »." },
+          "definition": { "type": "string", "description": "(English) What the asset does or shows in THIS plan, without « is » and without a label: « leaning in close, her stride reduced to a bare, controlled inclination without a full stop »." },
+          "retention": { "type": "string", "enum": ["fully_preserved", "partially_preserved", "attribute_transfer", "weak_reference", "fully_copy", "partially_copy", "reference"], "description": "Optional. Default: fully_preserved for an image, reference for a sound." },
+          "retentionNote": { "type": "string", "description": "(English) Optional. What is kept or changed." }
+        }
+      }
+    },
+    "summary": { "type": "string", "description": "(English) One paragraph, WITHOUT a bracketed prefix (the code adds it). Assets are written [[CODE_ASSET]]." },
+    "ouverture": { "type": "string", "description": "(English) One or two sentences setting the visual style before the first shot (the project's style clause, the light). No asset cited." },
+    "shots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "description": "The shots in order. The code adds [Shot N], the timecode and « Hard cut to »: write no number, no timecode, no « Hard cut ».",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["debutSecondes", "texte"],
+        "properties": {
+          "debutSecondes": { "type": "number", "minimum": 0, "description": "Entry time of the shot, in seconds from the start of the plan. 0 for the first shot. Aim for at least 1.5 s per shot (shorter only for a deliberate effect, stated in notes)." },
+          "texte": { "type": "string", "description": "(English) The shot. First shot: a complete sentence. Next shots: completes « Hard cut to », so start with the framing (« a low-angle shot of… »). Assets are written [[CODE_ASSET]]; dialogue in <d>[Français] …</d>, verbatim, with a speaker (S1)." }
+        }
+      }
+    },
+    "overall_soundscape": { "type": "string", "description": "(English) The physical ambience, without the heading « overall_soundscape: ». May cite a sound effect as [[SFX_…]]." },
+    "non_diegetic_music": { "type": "string", "description": "(English) The music only the audience hears, without the heading « non_diegetic_music: ». « N/A » when there is none." },
+    "repliques": {
+      "type": "array",
+      "description": "Lines (existing entities) carried by this plan, in speaking order. Voices are never references: the code derives them from this list and checks verbatim.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repliqueId"],
+        "properties": {
+          "repliqueId": { "type": "string", "description": "Public uuid of the line." },
+          "debutSecondes": { "type": "number", "minimum": 0, "description": "Indicative: where the line starts in the plan." }
+        }
+      }
+    },
+    "assetsManquants": {
+      "type": "array",
+      "description": "Assets that should be created and that the registry does not contain. Empty if none is missing. A missing asset is never cited as [[CODE]]: describe it in prose.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "type", "description", "raison"],
+        "properties": {
+          "code": { "type": "string", "description": "Proposed code, prefixed by the type (PROP_lettre, DEC_ruelle_nuit)." },
+          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "sfx", "keyframe", "oth"] },
+          "parent": { "type": "string", "description": "Optional. Code of the existing asset that will serve as starting image (the same place at night, the same wounded character). A mere proposal: the registry is flat. For a `keyframe`, leave empty and list the elements to combine in `raison`." },
+          "description": { "type": "string", "description": "(French) What it is, as in the registry." },
+          "raison": { "type": "string", "description": "(French) Why an existing reference is not enough." }
+        }
+      }
+    },
+    "notes": { "type": "string", "description": "(French) Trade-offs, deliberate continuous gesture, deviations. Empty if nothing to report." }
+  }
+}

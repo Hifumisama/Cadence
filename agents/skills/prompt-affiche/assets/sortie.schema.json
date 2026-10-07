@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the prompt-affiche agent: the prompt of a presentation poster",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["methode", "sources", "promptGeneration", "remarques"],
+  "properties": {
+    "methode": { "type": "string", "enum": ["generation", "edition"], "description": "`edition` only if the main character's image is available (it is image 1); otherwise `generation`." },
+    "sources": {
+      "type": "array",
+      "maxItems": 1,
+      "items": { "type": "string" },
+      "description": "Edit: the main character's code. Generation: empty."
+    },
+    "promptGeneration": { "type": "string", "minLength": 1, "description": "(English) Krea 2 prose (generation) or Qwen imperative instructions, one per line (edit). No graphic style, no label, no sentence of the summary. The last line is the exact title line prescribed by the rules." },
+    "remarques": {
+      "type": "array",
+      "description": "(French) Points to raise, one sentence each (vague summary, no main character, character's image missing…). Empty if nothing to say.",
+      "items": { "type": "string" }
+    }
+  }
+}

@@ -36,7 +36,7 @@ test("prompt-asset : chaque variante ne charge que ses guides", () => {
   assert.deepEqual(guidesDe(edi), ["guide-qwen-edit.md"]);
   const img = chargerSkill("prompt-asset", undefined, { variante: "image" });
   assert.deepEqual(guidesDe(img), ["guide-krea2.md", "guide-qwen-edit.md"]);
-  assert.ok(!img.systeme.includes("Stable Audio 3 — prompter"), "pas de guide audio pour une image");
+  assert.ok(!img.systeme.includes("Stable Audio 3 — prompting a sound"), "pas de guide audio pour une image");
   assert.ok(img.jetonsEstimes < chargerSkill("prompt-asset").jetonsEstimes, "le prompt d'image est plus léger");
   assert.ok(sfx.jetonsEstimes < chargerSkill("prompt-asset").jetonsEstimes);
   assert.equal(img.guidesIgnores.length, 1);

@@ -7,12 +7,12 @@ import { chargerSkill } from "../llm/skills";
 import { assemblerPlanH3 } from "./plan-h3-assemblage";
 import { controlerSortiePlanH3, type SortiePlanH3 } from "./plan-h3-controles";
 
-// Les exemples du skill (agents/skills/plan-h3/exemples/*.md) montrent le brouillon que le modèle doit rendre.
+// Les exemples du skill (agents/skills/plan-h3/references/exemples/*.md) montrent le brouillon que le modèle doit rendre.
 // Ce test garantit qu'ils restent rendables : conformes au schéma, sans erreur de contrat, et qu'ils s'assemblent
 // en un prompt final identique à la fixture (lib/agents/fixtures/plan-h3/<nom>.txt), elle-même dérivée du plan
 // validé en production (aux « Hard cut to » près, que le code pose). `REGENERER_FIXTURES=1` réécrit les fixtures.
 
-const DOSSIER = join("agents", "skills", "plan-h3", "exemples");
+const DOSSIER = join("agents", "skills", "plan-h3", "references", "exemples");
 const FIXTURES = join("lib", "agents", "fixtures", "plan-h3");
 
 function brouillon(nom: string): SortiePlanH3 {

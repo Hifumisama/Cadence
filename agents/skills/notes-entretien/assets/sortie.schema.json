@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of notes-entretien: what the user's last message changes in the notes sheet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "analyse",
+    "fin",
+    "modifications",
+    "sources"
+  ],
+  "properties": {
+    "analyse": {
+      "type": "string",
+      "description": "(French) One or two sentences: what the user just taught the sheet (or « rien de nouveau »). Written BEFORE the modifications: it helps you forget nothing."
+    },
+    "fin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origine",
+        "citation"
+      ],
+      "description": "Did the user say, in ANY of their messages (not only the last), how the story ends or what one should feel on leaving? origine = \"dit\" with the quotation copied word for word from THEIR messages (their choice among proposals counts: quote their words); \"delegue\" if they leave the ending to the agent (quotation of their delegation); \"aucune\" otherwise (empty quotation). If the ending already appears in `arc`, it means it was said: find the message.",
+      "properties": {
+        "origine": {
+          "type": "string",
+          "enum": [
+            "dit",
+            "delegue",
+            "aucune"
+          ]
+        },
+        "citation": {
+          "type": "string",
+          "description": "Verbatim, in the user's language."
+        }
+      }
+    },
+    "modifications": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The only sections this message changes or completes, each in its complete form (a list is returned in full). Empty if nothing changes.",
+      "properties": {
+        "titre": {
+          "type": "string",
+          "minLength": 1,
+          "description": "(French)"
+        },
+        "arc": {
+          "type": "string",
+          "description": "(French) Two to four sentences: what the story tells and its tipping point."
+        },
+        "genreTon": {
+          "type": "string",
+          "description": "(French) Genre and tone, in one or two sentences."
+        },
+        "style": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "nom",
+            "clause"
+          ],
+          "properties": {
+            "nom": {
+              "type": "string",
+              "description": "(French) The style named explicitly (animation 2D, live-action cinématographique…)."
+            },
+            "clause": {
+              "type": "string",
+              "description": "(English) One or two sentences, added as is at the start of video descriptions AND of still-image prompts (characters, sets). It describes the RENDERING (medium, line, colours, light), never a framing, a movement or an action (« dynamic shots », « cinematic action » have no place on a character sheet)."
+            }
+          }
+        },
+        "langueDialogues": {
+          "type": "string",
+          "description": "French, English…"
+        },
+        "dureeEpisodeSecondes": {
+          "type": "integer",
+          "minimum": 30,
+          "description": "Target duration of an episode, in seconds. The one the user said or validated: do not invent it silently (see `questionsOuvertes`)."
+        },
+        "rythme": {
+          "type": "string",
+          "enum": [
+            "lent",
+            "mesure",
+            "soutenu",
+            "rapide",
+            "variable"
+          ],
+          "description": "General cadence of the episode: lent (contemplative, long plans), mesure, soutenu, rapide (lively montage, dense cuts) or variable (alternates by scene). It sets plan duration and cut density downstream."
+        },
+        "univers": {
+          "type": "string",
+          "description": "(French) If the project takes up a pre-existing work or universe: which, and how to respect it (names, appearances, rules). Absent for an original project."
+        },
+        "episodes": {
+          "type": "array",
+          "minItems": 1,
+          "description": "One episode per entry. For a full text: the proposed and validated split.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "titre",
+              "resume"
+            ],
+            "properties": {
+              "titre": {
+                "type": "string",
+                "description": "(French)"
+              },
+              "resume": {
+                "type": "string",
+                "description": "(French) What the episode tells, in a few sentences."
+              },
+              "portee": {
+                "type": "string",
+                "description": "(French) For a full text: the chapters or arc covered."
+              }
+            }
+          }
+        },
+        "personnages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "nom",
+              "role",
+              "age",
+              "apparence",
+              "reconnaissable"
+            ],
+            "properties": {
+              "nom": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "description": "(French)"
+              },
+              "age": {
+                "type": "string",
+                "minLength": 1,
+                "description": "(French) Concrete apparent age: « adolescente, 15 ans », « homme d'une quarantaine d'années ». It drives the image AND the voice: never left to chance."
+              },
+              "apparence": {
+                "type": "string",
+                "minLength": 1,
+                "description": "(French) What is SEEN: silhouette, face, hair, outfit, distinguishing marks. Visual only: no role, no voice, no action."
+              },
+              "reconnaissable": {
+                "type": "string",
+                "description": "(French) What makes them recognizable in one sentence."
+              },
+              "gestuelle": {
+                "type": "string",
+                "description": "(French) How the character moves or acts when that is what defines them (fighting style, trade, gait, tic). Empty if they have no marked gesture."
+              },
+              "voix": {
+                "type": "string",
+                "description": "(French) Expected vocal impression, if they speak: consistent with age. Empty otherwise."
+              },
+              "statut": {
+                "type": "string",
+                "enum": [
+                  "fourni",
+                  "deduit",
+                  "incertain"
+                ],
+                "description": "Supplied by the user, deduced by you, or uncertain (reconstruction)."
+              }
+            }
+          }
+        },
+        "lieux": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "nom",
+              "description"
+            ],
+            "properties": {
+              "nom": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string",
+                "description": "(French)"
+              },
+              "statut": {
+                "type": "string",
+                "enum": [
+                  "fourni",
+                  "deduit",
+                  "incertain"
+                ]
+              }
+            }
+          }
+        },
+        "continuite": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "(French) Continuity rules: traits that never disappear, palettes."
+        },
+        "rimes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "description",
+              "souligner"
+            ],
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "(French) The two moments that answer each other and what repeats."
+              },
+              "souligner": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "progressions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "quoi",
+              "evolution"
+            ],
+            "properties": {
+              "quoi": {
+                "type": "string",
+                "description": "(French)"
+              },
+              "evolution": {
+                "type": "string",
+                "description": "(French)"
+              }
+            }
+          }
+        },
+        "pieges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cliche",
+              "formulationPositive"
+            ],
+            "properties": {
+              "cliche": {
+                "type": "string",
+                "description": "(French) What models produce by default on this subject."
+              },
+              "formulationPositive": {
+                "type": "string",
+                "description": "(French) What is described instead: never a negation."
+              }
+            }
+          }
+        },
+        "inventions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "(French) Everything that was not in the input. Each line was validated by the user."
+        },
+        "questionsOuvertes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "(French) What remains uncertain. Never filled in silently."
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "description": "For each modified or confirmed section, where the information comes from: « dit » or « delegue » with the user's quotation, or « invente » if you assumed it.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "section",
+          "origine",
+          "citation"
+        ],
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": [
+              "titre",
+              "arc",
+              "genreTon",
+              "style",
+              "langueDialogues",
+              "dureeEpisodeSecondes",
+              "rythme",
+              "univers",
+              "episodes",
+              "personnages",
+              "lieux",
+              "continuite",
+              "rimes",
+              "progressions",
+              "pieges",
+              "inventions",
+              "questionsOuvertes",
+              "fin"
+            ]
+          },
+          "origine": {
+            "type": "string",
+            "enum": [
+              "dit",
+              "delegue",
+              "invente"
+            ]
+          },
+          "citation": {
+            "type": "string",
+            "description": "Passage copied word for word from a message of the USER (the shortest that suffices), in the user's language; \"\" if origine = invente."
+          }
+        }
+      }
+    }
+  }
+}

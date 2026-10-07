@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the conversation-agent agent: one conversation turn",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reflexion",
+    "reponse",
+    "resteADefinir"
+  ],
+  "properties": {
+    "reflexion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "(French) Your draft, NEVER shown to the user, in 4 to 6 short numbered lines: (0) reread the conversation: what the user has ALREADY said or decided (duration, ending, tone, style, rhythm, names, taboos…) and what you have ALREADY asked, so you do not ask it again; (1) what their last message really asks (answer a question? hand you the lead? react? tell a story?); (2) the most alive or the vaguest detail of what they just said; (3) the angle you choose among what is missing, the one that hooks best onto this detail (order is free); (4) if you bring an idea of your own, which, in one sentence; (5) your way of opening your message, different from the previous turn's."
+    },
+    "reponse": {
+      "type": "string",
+      "minLength": 1,
+      "description": "(French) Your message to the user, like a collaborator speaking: you react to what they just said (a reaction, an idea, a remark, not a paraphrase), then, if appropriate, ONE question that hooks onto it, or two or three short questions on the same theme about the practical. If they ask you for ideas or let you decide, you propose some. Plain text."
+    },
+    "resteADefinir": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "(French) Your gray areas that only you see (an ambiguity, a point to specify, a contradiction), in short phrases, the most important first, without what the user just decided. The application adds by itself what it finds unsaid. May be empty."
+    }
+  }
+}

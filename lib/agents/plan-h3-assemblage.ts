@@ -1,6 +1,6 @@
 import { COUPE_RETIRABLE, MAX_AUDIOS, MAX_IMAGES, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
 
-/** ASSEMBLAGE du prompt H3 à partir du brouillon de `plan-h3` (voir agents/skills/plan-h3/regles.md).
+/** ASSEMBLAGE du prompt H3 à partir du brouillon de `plan-h3` (voir agents/skills/plan-h3/SKILL.md).
  * Pur, déterministe : le modèle écrit la prose, le code pose tout ce qui est mécanique :
  * - les labels : `<Subject i>` et `<Picture i>` (images, dans l'ordre de `references`, de 1 à n sans trou),
  *   `<Audio k>` (bruitages, sur les slots que les voix du plan n'occupent pas) ;

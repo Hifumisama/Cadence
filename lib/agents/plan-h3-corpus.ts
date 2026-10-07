@@ -1,10 +1,10 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-/** Les textes des exemples du skill `plan-h3` (brouillons JSON de agents/skills/plan-h3/exemples/*.md), pour que
+/** Les textes des exemples du skill `plan-h3` (brouillons JSON de agents/skills/plan-h3/references/exemples/*.md), pour que
  * les contrôles repèrent une phrase recopiée d'un exemple. Vide si le dossier est absent. Côté serveur. */
 export function corpusExemplesPlanH3(racine = process.cwd()): string[] {
-  const dossier = join(racine, "agents", "skills", "plan-h3", "exemples");
+  const dossier = join(racine, "agents", "skills", "plan-h3", "references", "exemples");
   if (!existsSync(dossier)) return [];
   const textes: string[] = [];
   for (const nom of readdirSync(dossier).filter((n) => n.endsWith(".md"))) {

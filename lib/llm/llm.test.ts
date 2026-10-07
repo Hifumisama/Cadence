@@ -69,14 +69,15 @@ const racine = mkdtempSync(join(tmpdir(), "cadence-llm-"));
 after(() => rmSync(racine, { recursive: true, force: true }));
 {
   const d = join(racine, "agents", "skills", "demo");
-  mkdirSync(join(d, "exemples"), { recursive: true });
-  writeFileSync(join(d, "regles.md"), "# Règles\nFais ceci.\n");
-  writeFileSync(join(d, "guide-b.md"), "GUIDE B");
-  writeFileSync(join(d, "guide-a.md"), "GUIDE A");
-  writeFileSync(join(d, "autre.md"), "NE DOIT PAS ENTRER");
-  writeFileSync(join(d, "exemples", "2-deux.md"), "EXEMPLE 2");
-  writeFileSync(join(d, "exemples", "1-un.md"), "EXEMPLE 1");
-  writeFileSync(join(d, "sortie.schema.json"), JSON.stringify(SCHEMA));
+  mkdirSync(join(d, "references", "exemples"), { recursive: true });
+  mkdirSync(join(d, "assets"), { recursive: true });
+  writeFileSync(join(d, "SKILL.md"), "---\nname: demo\ndescription: Demo skill.\n---\n# Rules\nDo this.\n");
+  writeFileSync(join(d, "references", "guide-b.md"), "GUIDE B");
+  writeFileSync(join(d, "references", "guide-a.md"), "GUIDE A");
+  writeFileSync(join(d, "references", "autre.md"), "NE DOIT PAS ENTRER");
+  writeFileSync(join(d, "references", "exemples", "2-deux.md"), "EXEMPLE 2");
+  writeFileSync(join(d, "references", "exemples", "1-un.md"), "EXEMPLE 1");
+  writeFileSync(join(d, "assets", "sortie.schema.json"), JSON.stringify(SCHEMA));
 }
 
 // ── fournisseur ───────────────────────────────────────────────────────────────
@@ -234,21 +235,30 @@ test("validation : erreurs lisibles, schéma mis en cache", () => {
 
 test("chargeur : ordre règles → guides → exemples → contrat, fichiers étrangers ignorés", () => {
   const s = chargerSkill("demo", racine);
-  const ordre = ["# Règles", "GUIDE A", "GUIDE B", "EXEMPLE 1", "EXEMPLE 2", "contrat de sortie"].map((m) => s.systeme.indexOf(m));
+  const ordre = ["# Rules", "GUIDE A", "GUIDE B", "EXEMPLE 1", "EXEMPLE 2", "output contract"].map((m) => s.systeme.indexOf(m));
   assert.ok(ordre.every((i) => i >= 0), JSON.stringify(ordre));
   assert.deepEqual([...ordre].sort((a, b) => a - b), ordre);
   assert.ok(!s.systeme.includes("NE DOIT PAS ENTRER"));
   assert.ok(s.systeme.includes('"required":["titre","n"]'), "le schéma figure dans le prompt, en JSON compact");
   assert.deepEqual(s.schema, SCHEMA);
-  assert.equal(s.fichiers.at(-1), "agents/skills/demo/sortie.schema.json");
+  assert.ok(!s.systeme.includes("description: Demo skill"), "l'en-tête YAML n'entre pas dans le prompt");
+  assert.equal(s.fichiers.at(-1), "agents/skills/demo/assets/sortie.schema.json");
 });
 
 test("chargeur : nom invalide, skill absent, fichiers obligatoires", () => {
   assert.throws(() => chargerSkill("../etc", racine), /invalide/);
   assert.throws(() => chargerSkill("absent", racine), /introuvable/);
   mkdirSync(join(racine, "agents", "skills", "sans-schema"), { recursive: true });
-  writeFileSync(join(racine, "agents", "skills", "sans-schema", "regles.md"), "x");
+  writeFileSync(join(racine, "agents", "skills", "sans-schema", "SKILL.md"), "---\nname: sans-schema\ndescription: x\n---\nx");
   assert.throws(() => chargerSkill("sans-schema", racine), /sortie\.schema\.json manquant/);
+  mkdirSync(join(racine, "agents", "skills", "sans-entete", "assets"), { recursive: true });
+  writeFileSync(join(racine, "agents", "skills", "sans-entete", "SKILL.md"), "# pas d'en-tête");
+  writeFileSync(join(racine, "agents", "skills", "sans-entete", "assets", "sortie.schema.json"), JSON.stringify(SCHEMA));
+  assert.throws(() => chargerSkill("sans-entete", racine), /en-tête/);
+  mkdirSync(join(racine, "agents", "skills", "mauvais-nom", "assets"), { recursive: true });
+  writeFileSync(join(racine, "agents", "skills", "mauvais-nom", "SKILL.md"), "---\nname: autre\ndescription: x\n---\nx");
+  writeFileSync(join(racine, "agents", "skills", "mauvais-nom", "assets", "sortie.schema.json"), JSON.stringify(SCHEMA));
+  assert.throws(() => chargerSkill("mauvais-nom", racine), /en-tête/);
 });
 
 test("chargeur : les skills réels s'assemblent et leur schéma se compile", () => {
@@ -257,9 +267,9 @@ test("chargeur : les skills réels s'assemblent et leur schéma se compile", () 
   for (const nom of noms) {
     const s = chargerSkill(nom);
     assert.ok(s.caracteres > 2000, nom);
-    assert.ok(s.systeme.includes("=== contrat de sortie"), nom);
+    assert.ok(s.systeme.includes("=== output contract"), nom);
     assert.ok(compilerSchema(s.schema), nom);
-    assert.equal(s.jetonsEstimes, Math.ceil(s.caracteres / 3.5));
+    assert.equal(s.jetonsEstimes, Math.ceil(s.caracteres / 4));
   }
   const h3 = chargerSkill("plan-h3");
   assert.ok(h3.fichiers.some((f) => f.endsWith("h3-lexique-corrections.md")), "le lexique partagé est inclus");
@@ -296,7 +306,7 @@ test("executerSkill : succès, trace « ok », schéma envoyé au serveur", asyn
   assert.equal(r.renvois, 0);
   assert.deepEqual(r.usage, { entree: 100, sortie: 8 });
   const c = s.requetes[0]!;
-  assert.match(c.messages[0]!.content, /=== demo : règles ===/);
+  assert.match(c.messages[0]!.content, /=== demo: rules ===/);
   assert.match(c.messages[1]!.content, /"pitch": "x"/);
   assert.ok(c.response_format);
   assert.equal(traces.length, 1);
