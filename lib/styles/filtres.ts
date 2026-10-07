@@ -2,6 +2,7 @@
  * embarquer 250 Ko de JSON). Les fonctions sont génériques : elles marchent sur une entrée complète ou sur sa vue allégée. */
 
 export type FiltresStyle = {
+  /** Famille du style (Animation 2D, Peinture, BD, Dessin & gravure, Photo & ciné, 3D & matière) : les puces de la galerie. */
   medium: string;
   rendu: string[];
   palette: string[];

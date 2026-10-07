@@ -6,9 +6,9 @@ export * from "./filtres";
 
 /** Bibliothèque de styles proposée à la création d'un projet. Source : `bibliotheque.json` (versionné, c'est le fichier
  * à trier à la main : retirer une entrée suffit à la retirer de l'application). Chaque style a un prompt long (le
- * descripteur, en anglais, qui part vers Krea 2) et un prompt d'aperçu = une scène commune + ce descripteur. La clause
- * courte pour la vidéo (H3) est un champ facultatif : tant qu'une entrée n'en a pas, l'application ne peut pas la
- * proposer comme style prêt à l'emploi (voir `styleUtilisable`). */
+ * descripteur, en anglais, qui part vers Krea 2). Ses images de présentation sont les scènes communes de `sujets.ts`
+ * rendues dans ce style. La clause courte pour la vidéo (H3) est un champ facultatif : tant qu'une entrée n'en a pas,
+ * l'application ne peut pas la proposer comme style prêt à l'emploi (voir `styleUtilisable`). */
 
 export type StyleBibliotheque = {
   /** Identifiant stable : slug du nom d'origine. Nom de fichier de l'aperçu. */
@@ -16,10 +16,6 @@ export type StyleBibliotheque = {
   nom: string;
   /** Prompt long du style (anglais). */
   descriptor: string;
-  /** Scène d'aperçu + descripteur : le prompt complet d'une image de présentation. */
-  promptApercu: string;
-  /** Famille de scène d'aperçu (base, fantasy, photo…). */
-  varianteApercu: string;
   categories: string[];
   filtres: FiltresStyle;
   /** Clause courte pour la vidéo (1 à 2 phrases d'anglais, rendu seulement), quand elle a été produite. */
@@ -59,18 +55,9 @@ export function styleParId(id: string): StyleBibliotheque | null {
   return bibliothequeStyles().find((s) => s.id === id) ?? null;
 }
 
-/** La scène seule (sans le style) : ce que reçoit le nœud « prompt » du workflow d'image, le descripteur allant dans
- * le nœud « style ». Erreur franche si le prompt d'aperçu ne se termine plus par le descripteur. */
-export function sceneApercu(s: Pick<StyleBibliotheque, "nom" | "promptApercu" | "descriptor">): string {
-  if (!s.promptApercu.endsWith(s.descriptor)) {
-    throw new Error(`Style « ${s.nom} » : le prompt d'aperçu ne se termine pas par le descripteur`);
-  }
-  return s.promptApercu.slice(0, s.promptApercu.length - s.descriptor.length).trim();
-}
-
-/** Chemin relatif à MEDIA_ROOT de l'image de présentation (2:3). */
-export function cheminApercuStyle(id: string): string {
-  return `styles/${id}.webp`;
+/** Chemin relatif à MEDIA_ROOT de l'image de présentation d'un style pour un sujet (`sujets.ts`). */
+export function cheminApercuStyle(id: string, sujet: string): string {
+  return `styles/${id}/${sujet}.webp`;
 }
 
 /** Un style de la bibliothèque est utilisable tel quel pour un projet quand il a sa clause courte. */

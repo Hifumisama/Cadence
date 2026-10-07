@@ -6,12 +6,13 @@ import type { StyleVue } from "@/components/conception/types";
 import { Topbar } from "@/components/ui/Topbar";
 import { MEDIA_ROOT } from "@/lib/media";
 import { bibliothequeStyles, cheminApercuStyle, styleUtilisable } from "@/lib/styles/bibliotheque";
+import { IDS_SUJETS } from "@/lib/styles/sujets";
 
 export const dynamic = "force-dynamic";
 
 /** La conception d'un projet : les choix qu'on fait avant de raconter l'histoire (format, genre, ton, durée, langue, style), puis la
- * rencontre avec le scénariste. Seuls les styles prêts à l'emploi (avec leur clause courte pour la vidéo) sont proposés ; l'image de
- * présentation est facultative (`data/styles/<id>.webp`, générée par `npm run styles:apercus`). */
+ * rencontre avec le scénariste. Seuls les styles prêts à l'emploi (avec leur clause courte pour la vidéo) sont proposés ; les images de
+ * présentation sont facultatives (`data/styles/<id>/<sujet>.webp`, générées par `npm run styles:apercus`). */
 export default function NouveauProjetPage() {
   const styles: StyleVue[] = bibliothequeStyles()
     .filter(styleUtilisable)
@@ -22,7 +23,7 @@ export default function NouveauProjetPage() {
       filtres: s.filtres,
       descriptor: s.descriptor,
       clause: s.clause ?? "",
-      aImage: existsSync(join(MEDIA_ROOT, cheminApercuStyle(s.id))),
+      images: IDS_SUJETS.filter((sujet) => existsSync(join(MEDIA_ROOT, cheminApercuStyle(s.id, sujet)))),
     }));
 
   return (

@@ -11,8 +11,8 @@ export type StyleVue = {
   descriptor: string;
   /** Clause courte (vidéo). */
   clause: string;
-  /** L'image de présentation a été générée (`data/styles/<id>.webp`). */
-  aImage: boolean;
+  /** Sujets d'aperçu (`lib/styles/sujets.ts`) dont l'image a été générée (`data/styles/<id>/<sujet>.webp`). */
+  images: string[];
 };
 
 export type MajEtat = (f: (e: EtatAssistant) => EtatAssistant) => void;
