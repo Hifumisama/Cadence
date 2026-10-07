@@ -10,6 +10,7 @@ import type { Conception } from "@/lib/conception";
 import { ETAPES_ASSISTANT, minutesSecondes, teinteAmbiance } from "@/lib/conception-ui";
 import { motDuTon } from "@/lib/conception";
 import { ClapScene, type StyleAffiche } from "./ClapScene";
+import { RubanConception } from "./RubanConception";
 import { ScenarioScene } from "./ScenarioScene";
 
 /** La suite de la conception, une fois le projet créé : le scénario (entretien avec le scénariste) puis le clap, dans le même ruban de
@@ -84,27 +85,14 @@ export function DemarrageAssistant({
   return (
     <div className="cn-salle" style={ambiance}>
       <div className="cn-ambiance" aria-hidden="true"><i /><i /></div>
-      <nav className="cn-ruban" aria-label="Étapes de la conception">
-        {ETAPES.map((nom, i) => {
-          const fait = i < SCENARIO;
-          const resume = fait ? resumes[i] : i === SCENARIO ? (parle ? "en cours" : "") : i === CLAP ? "" : "";
-          const accessible = i === SCENARIO || (i === CLAP && peutClap);
-          return (
-            <button
-              key={nom}
-              type="button"
-              className={`cn-cadre${fait ? " is-fait" : ""}${i > CLAP ? " is-futur" : ""}`}
-              aria-current={i === etape ? "step" : undefined}
-              disabled={!accessible}
-              title={fait ? `${nom} : ${resume} (choisi)` : nom}
-              onClick={() => aller(i)}
-            >
-              <b>{String(i + 1).padStart(2, "0")} · {nom}</b>
-              <span>{resume || "—"}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <RubanConception
+        cadres={ETAPES.map((nom, i) => ({
+          nom,
+          resume: i < SCENARIO ? (resumes[i] ?? "") : i === SCENARIO && parle ? "en cours" : "",
+          etat: i < SCENARIO ? "fait" : i === etape ? "courant" : i > CLAP ? "futur" : "actif",
+          onClick: i === SCENARIO || (i === CLAP && peutClap) ? () => aller(i) : undefined,
+        }))}
+      />
 
       <div className={`cn-scene${recule ? " is-recule" : ""}`} key={etape}>
         {etape === SCENARIO ? <ScenarioScene conv={conv} rafraichir={rafraichir} /> : null}

@@ -21,12 +21,12 @@ export function ProjectCard({ projet }: { projet: ProjectListItem }) {
   const sansAsset = total > 0 && projet.nbAssets === 0;
 
   return (
-    <Link href={`/p/${projet.id}`} className="proj-card" aria-label={projet.nom}>
+    <Link href={projet.conceptionEnCours ? `/p/${projet.id}/demarrage` : `/p/${projet.id}`} className="proj-card" aria-label={projet.conceptionEnCours ? `${projet.nom} : reprendre la conception` : projet.nom}>
       <Poster src={projet.posterSrc} titre={projet.nom} cleRepli={`projet:${projet.id}`} taille="card" />
       <span className="proj-body">
         <span className="hd">
           <span className="type-tag">{estSerie ? "Série" : "OneShot"}</span>
-          <span className={`etat ${etat.classe}`}>{etat.label}</span>
+          <span className={`etat ${projet.conceptionEnCours ? "is-ecriture" : etat.classe}`}>{projet.conceptionEnCours ? "Conception en cours" : etat.label}</span>
         </span>
         <span className="stats">
           {estSerie ? (
@@ -49,7 +49,7 @@ export function ProjectCard({ projet }: { projet: ProjectListItem }) {
           </span>
         </span>
         <span className="ft">
-          {estSerie ? "Voir les saisons" : "Ouvrir"}
+          {projet.conceptionEnCours ? "Reprendre la conception" : estSerie ? "Voir les saisons" : "Ouvrir"}
           <span className="go">→</span>
         </span>
       </span>

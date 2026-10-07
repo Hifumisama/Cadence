@@ -1,6 +1,7 @@
 import { db } from "../db";
 import {
   assets,
+  conceptions,
   episodes,
   jobs,
   scenes,
@@ -85,7 +86,7 @@ export async function getAllProjects() {
   if (tousLesProjets.length === 0) return [];
   const idsProjets = tousLesProjets.map((p) => p.id);
 
-  const [toutesLesSaisons, tousLesEpisodesAvecSaison, tousLesPlans, tousLesAssets] = await Promise.all([
+  const [toutesLesSaisons, tousLesEpisodesAvecSaison, tousLesPlans, tousLesAssets, conceptionsOuvertes] = await Promise.all([
     db.select().from(seasons).where(inArray(seasons.projectId, idsProjets)),
     db
       .select({ episode: episodes, projectId: seasons.projectId })
@@ -94,7 +95,13 @@ export async function getAllProjects() {
       .where(inArray(seasons.projectId, idsProjets)),
     db.select({ projectId: plans.projectId, statut: plans.statut }).from(plans).where(inArray(plans.projectId, idsProjets)),
     db.select({ projectId: assets.projectId }).from(assets).where(and(inArray(assets.projectId, idsProjets), horsAffiches)),
+    // Conception commencée mais préparation pas lancée : l'utilisateur est encore dans l'entretien (ou au clap) ; la carte le ramène à /demarrage.
+    db
+      .select({ projectId: conceptions.projectId })
+      .from(conceptions)
+      .where(and(inArray(conceptions.projectId, idsProjets), sql`not exists (select 1 from creations_projet c where c.project_id = ${conceptions.projectId})`)),
   ]);
+  const enConception = new Set(conceptionsOuvertes.map((c) => c.projectId));
 
   const saisonsParProjet = new Map<number, typeof toutesLesSaisons>();
   for (const s of toutesLesSaisons) saisonsParProjet.set(s.projectId, [...(saisonsParProjet.get(s.projectId) ?? []), s]);
@@ -119,6 +126,7 @@ export async function getAllProjects() {
     episodes: episodesParProjet.get(p.id) ?? [],
     buckets: bucketsParProjet.get(p.id) ?? bucketsVides(),
     nbAssets: assetsParProjet.get(p.id) ?? 0,
+    conceptionEnCours: enConception.has(p.id),
   }));
 }
 

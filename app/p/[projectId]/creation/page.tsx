@@ -1,22 +1,30 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BoutonAgent } from "@/components/agents/BoutonAgent";
-import { SuiviCreation } from "@/components/creation/SuiviCreation";
+import { AvanceeScene } from "@/components/conception/AvanceeScene";
 import { Topbar } from "@/components/ui/Topbar";
+import { db } from "@/db";
 import { lireVueCreation } from "@/lib/agents/creation-vue";
+import { lireConception } from "@/lib/conception-db";
+import { MEDIA_ROOT } from "@/lib/media";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
+import { lireBrief } from "@/lib/queries-agents";
 
 export const dynamic = "force-dynamic";
 
-/** L'installateur : la création du projet, étape par étape (brief, structure, scénarios, registre, inventaire, voix, fiches),
- * sans validation intermédiaire. Ici on suit l'avancement ; le worker fait le travail. */
+/** La huitième étape de la conception : l'avancée de la préparation (l'installateur : brief, structure, scénarios, registre, inventaire,
+ * voix, fiches), sans validation intermédiaire. Ici on suit l'avancement ; le worker fait le travail. Un projet créé avant la
+ * conception s'affiche sans le ruban ni l'affiche. */
 export default async function CreationPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
   const pid = Number(projectId);
   const [projet, premierEpisodeId] = await Promise.all([getProject(pid), getFirstEpisodeId(pid)]);
   if (!projet) notFound();
-  const creation = await lireVueCreation(pid);
+  const [creation, conception, brief] = await Promise.all([lireVueCreation(pid), lireConception(db, pid), lireBrief(pid)]);
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
+  const styleBrief = brief?.contenu.style;
+  const image = styleBrief?.image && existsSync(join(MEDIA_ROOT, "styles", styleBrief.image)) ? styleBrief.image : null;
 
   return (
     <>
@@ -32,26 +40,8 @@ export default async function CreationPage({ params }: { params: Promise<{ proje
         }
         tabs={{ projectId: pid, episodeBase }}
       />
-      <main className="page">
-        <div className="screen-hd">
-          <div>
-            <p className="eyebrow" style={{ margin: "0 0 6px" }}>
-              Installateur
-            </p>
-            <h1>Création du projet</h1>
-            <p>
-              Chaque étape est écrite puis appliquée toute seule. Tu relis ensuite le résultat là où il se trouve (épisodes, registre, plans) et tu retouches ce qui doit l&rsquo;être.
-            </p>
-          </div>
-          <div className="actions">
-            <BoutonAgent
-              className="btn btn-ghost"
-              demande={{ projectId: pid, portee: "projet", cible: null, profondeur: "complete", libelle: projet.nom }}
-              libelle="Revenir à la conversation"
-            />
-          </div>
-        </div>
-        <SuiviCreation projectId={pid} initial={creation} />
+      <main>
+        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image }} />
       </main>
     </>
   );
