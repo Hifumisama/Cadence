@@ -24,7 +24,7 @@ export type RappelFiche = { manques: string[]; complete: boolean };
 /** Messages d'un tour de `conversation-agent` : la conversation, avec, jointes au DERNIER message de l'utilisateur, les notes du
  * code (la fiche telle qu'elle est après ce message, ce qui reste à demander). La conversation stockée n'est jamais modifiée :
  * ce ne sont que des contextes de l'appel. Les manques sont un RAPPEL et non un questionnaire : l'agent mène librement. */
-export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelFiche): MessageLlm[] {
+export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelFiche, format?: string): MessageLlm[] {
   const tous = messagesPourLlm(messages);
   const dernier = tous[tous.length - 1];
   if (!dernier || dernier.role !== "user") return tous;
@@ -35,16 +35,18 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
     .filter((k) => ["style", "rythme", "genreTon", "dureeEpisodeSecondes", "langueDialogues"].includes(k))
     .map((k) => `${k === "style" ? "style visuel" : libelleSection(k)} : ${resume(fiche.contenu[k])}`);
   const dejaPropose = propose.length ? ` Déjà proposé dans la conversation et non contesté (ne le redemande pas : s'il y a lieu, fais-le confirmer d'un mot, en passant) : ${propose.join(" ; ")}.` : "";
+  // Projet conçu avant l'entretien : le format (film ou série, épisodes prévus) n'est pas une section du brief, on le dit à part.
+  const formatDit = format ? ` ${format}` : "";
   const interdit = "Ne dis jamais que le briefing est prêt ni que l'entretien est fini, et ne propose jamais de passer à la suite : l'application l'annonce elle-même.";
   if (rappel.complete) {
     const supposees = suppositions(fiche).map(libelleSection);
     contenu += `
 
-[État de l'entretien : la fiche est complète et l'utilisateur continue à l'affiner.${supposees.length ? ` Ce qui reste supposé : ${supposees.join(", ")}.` : ""} Creuse un point mince ou supposé avec une question de fond, ou prends en compte ce qu'il vient de préciser. ${interdit}]`;
+[État de l'entretien : la fiche est complète et l'utilisateur continue à l'affiner.${supposees.length ? ` Ce qui reste supposé : ${supposees.join(", ")}.` : ""} Creuse un point mince ou supposé avec une question de fond, ou prends en compte ce qu'il vient de préciser.${formatDit} ${interdit}]`;
   } else {
     contenu += `
 
-[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Une seule question de fond par message ; les points pratiques se regroupent.${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas. ${interdit}]`;
+[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Une seule question de fond par message ; les points pratiques se regroupent.${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
   }
   return [...tous.slice(0, -1), { role: "user", content: contenu }];
 }

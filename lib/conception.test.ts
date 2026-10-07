@@ -22,6 +22,7 @@ import {
   valeursParDefaut,
   type Conception,
 } from "./conception";
+import { entreeTour } from "./agents/brief-entree";
 import type { StyleBibliotheque } from "./styles/bibliotheque";
 
 const filtres = { medium: "peinture", rendu: ["aplats"], palette: ["pastel"], epoque: "intemporel", ambiance: ["doux"] };
@@ -178,4 +179,15 @@ test("accroche d'un projet conçu : selon le ton et le genre, qui tourne, sans a
   assert.equal(horreur.length, 4);
   assert.match(accrocheConception({ genres: ["Comédie"], ton: 15, dureeSecondes: 60, format: "serie" }, 1), /on va s.amuser/);
   assert.match(accrocheConception({ genres: [], ton: 50, dureeSecondes: 60, format: "film" }, 0), /scénariste/);
+});
+
+test("entreeTour : le format du projet conçu est dit à l'agent, sans changer l'entrée des autres projets", () => {
+  const conv = [{ role: "assistant" as const, content: "Bonjour" }, { role: "user" as const, content: "Un phare" }];
+  const fiche = { contenu: {}, statuts: {} };
+  const sans = entreeTour(conv, fiche, { manques: ["le héros"], complete: false });
+  const avec = entreeTour(conv, fiche, { manques: ["le héros"], complete: false }, informationsFormat({ format: "serie", episodesPrevus: 6 }));
+  assert.ok(!sans.at(-1)!.content.includes("Format :"));
+  assert.match(avec.at(-1)!.content, /Format : une série, 6 épisodes prévus./);
+  const complet = entreeTour(conv, fiche, { manques: [], complete: true }, informationsFormat({ format: "film" }));
+  assert.match(complet.at(-1)!.content, /Format : un film/);
 });

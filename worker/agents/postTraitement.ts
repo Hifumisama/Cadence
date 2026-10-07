@@ -8,6 +8,8 @@ import { ecrireBrouillon } from "../../lib/agents/brief-db";
 import { entreeTour, messageBriefPret } from "../../lib/agents/brief-entree";
 import { appliquerNotes, ficheComplete, manquesFiche } from "../../lib/agents/fiche";
 import { ficheCourante, enregistrerFiche } from "../../lib/agents/fiche-db";
+import { informationsFormat } from "../../lib/conception";
+import { lireConception } from "../../lib/conception-db";
 import { creerRun } from "../../lib/agents/runs";
 import type { ChangementBrut } from "../../lib/agents/changements";
 import {
@@ -89,11 +91,17 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   }
   await creerRun(tx, {
     skill: "conversation-agent",
-    entree: entreeTour(messages, fiche, { manques: manquesFiche(fiche), complete }),
+    entree: entreeTour(messages, fiche, { manques: manquesFiche(fiche), complete }, await formatDuProjet(tx, conv.projectId)),
     but: "tour",
     projectId: conv.projectId,
     conversationId: conv.id,
   });
+}
+
+/** Le format du projet conçu (film ou série), pour l'agent de conversation ; undefined pour un projet sans conception. */
+async function formatDuProjet(tx: Tx, projectId: number): Promise<string | undefined> {
+  const c = await lireConception(tx, projectId);
+  return c ? informationsFormat(c) : undefined;
 }
 
 const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
