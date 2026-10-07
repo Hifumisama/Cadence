@@ -178,7 +178,14 @@ export function ficheVersBrief(fiche: Fiche, titreProjet: string): { contenu: Br
 export function briefVersFiche(brouillon: { contenu: unknown; statuts: Record<string, string> }, memorisee: Fiche): Fiche {
   const statuts: Record<string, StatutFiche> = { ...memorisee.statuts };
   for (const [k, v] of Object.entries(brouillon.statuts)) statuts[k] = v === "fourni" ? "fourni" : statuts[k] === "delegue" ? "delegue" : "deduit";
-  return { contenu: { ...objet(brouillon.contenu) }, statuts };
+  const contenu = { ...objet(brouillon.contenu) };
+  // Le prompt long et l'image du style appartiennent au code : le modèle de l'entretien ne les voit pas (et ne peut pas les réécrire).
+  const style = objet(contenu.style);
+  if ("promptImage" in style || "image" in style) {
+    const { promptImage: _p, image: _i, ...visible } = style;
+    contenu.style = visible;
+  }
+  return { contenu, statuts };
 }
 
 /** Ce qui s'affiche à l'agent de conversation : les sections remplies, sans les statuts. */

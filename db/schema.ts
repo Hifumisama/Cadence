@@ -84,6 +84,9 @@ export const projects = pgTable("projects", {
   // valeur ici), pas de vraie image placeholder à générer.
   posterFichier: varchar("poster_fichier", { length: 255 }),
   clauseStyle: text("clause_style").notNull().default(""),
+  // Prompt LONG du style (images). Copie dénormalisée de briefs.contenu.style.promptImage, comme clause_style (écrite par
+  // synchroniserClauseStyle) ; vide pour un projet sans conception : les images retombent alors sur la clause.
+  stylePromptImage: text("style_prompt_image").notNull().default(""),
   notes: text("notes").notNull().default(""),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -727,6 +730,17 @@ export const briefs = pgTable("briefs", {
   contenu: jsonb("contenu").notNull(),
   statuts: jsonb("statuts").notNull().default(sql`'{}'::jsonb`),
   version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// La conception du projet (2026-10-07) : les choix faits AVANT l'entretien (format, genres, ton, durée, rythme, langue, style),
+// tels que l'utilisateur les a faits (lib/conception.ts). Le brief reçoit les valeurs dérivées ; cette ligne garde les choix
+// bruts (ton ajusté ou non, valeurs par défaut non visitées, nombre d'épisodes prévus) pour les réafficher.
+export const conceptions = pgTable("conceptions", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().unique().references(() => projects.id, { onDelete: "cascade" }),
+  contenu: jsonb("contenu").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

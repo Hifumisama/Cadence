@@ -98,6 +98,12 @@ export function clauseDuBrief(contenu: BriefContenu | null | undefined): string 
   return typeof c === "string" ? c.trim() : "";
 }
 
+/** Le prompt long du style (images), ou "" : un projet sans conception (ou un style retouché) n'en a pas, les images retombent alors sur la clause. */
+export function promptImageDuBrief(contenu: BriefContenu | null | undefined): string {
+  const p = (contenu as unknown as { style?: { promptImage?: unknown } } | null | undefined)?.style?.promptImage;
+  return typeof p === "string" ? p.trim() : "";
+}
+
 /** Les notes libres d'un brief (trim), ou "". */
 export function notesDuBrief(contenu: BriefContenu | null | undefined): string {
   const n = (contenu as unknown as { notes?: unknown } | null | undefined)?.notes;
@@ -153,9 +159,12 @@ export function residuPartiel(
   const contenu = briefVide(projet.titre) as unknown as Record<string, unknown>;
   const statuts: Record<string, StatutChamp> = {};
   if (clause) {
-    const style = (brouillon.contenu as unknown as { style?: { nom?: unknown; clause?: unknown } }).style;
+    const style = (brouillon.contenu as unknown as { style?: { nom?: unknown; clause?: unknown; promptImage?: unknown; image?: unknown } }).style;
     const memeClause = typeof style?.clause === "string" && style.clause.trim() === clause;
     contenu.style = { nom: memeClause && typeof style?.nom === "string" ? style.nom : "", clause };
+    // Le prompt long et l'image du style (posés par le code à la création) suivent la clause : même clause, même style.
+    if (memeClause && typeof style?.promptImage === "string" && style.promptImage.trim()) (contenu.style as Record<string, unknown>).promptImage = style.promptImage;
+    if (memeClause && typeof style?.image === "string" && style.image.trim()) (contenu.style as Record<string, unknown>).image = style.image;
     statuts.style = "fourni";
   }
   if (notes) {

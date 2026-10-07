@@ -59,6 +59,14 @@
         "clause": {
           "type": "string",
           "description": "(English) One or two sentences, added as is at the start of video descriptions AND of still-image prompts (characters, sets). It describes the RENDERING (medium, line, colours, light), never a framing, a movement or an action (« dynamic shots », « cinematic action » have no place on a character sheet)."
+        },
+        "promptImage": {
+          "type": "string",
+          "description": "(English) Set by the application when the project is created, never by you: leave it out."
+        },
+        "image": {
+          "type": "string",
+          "description": "Set by the application (file name of the style picture): leave it out."
         }
       }
     },

@@ -24,6 +24,7 @@ import {
   formatParDefaut,
   loraParDefaut,
 } from "@/lib/asset-generation";
+import { styleDesImages } from "@/lib/conception";
 import { adopterCandidat } from "@/lib/generation-adoption";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "@/lib/generation-lot";
 import { TEXTE_REFERENCE_DEFAUT } from "@/lib/voix";
@@ -106,7 +107,7 @@ export async function lancerGeneration(assetId: number, demande: DemandeGenerati
     }
   }
 
-  const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, asset.projectId));
+  const [projet] = await db.select({ clauseStyle: projects.clauseStyle, stylePromptImage: projects.stylePromptImage }).from(projects).where(eq(projects.id, asset.projectId));
   const texte = demande.mode === "texte";
 
   const genId = await db.transaction(async (tx) => {
@@ -118,7 +119,8 @@ export async function lancerGeneration(assetId: number, demande: DemandeGenerati
         prompt,
         // Instantané de ce qui est soumis : la clause de style et le format ne
         // concernent que le mode texte (l'édition suit l'image 1, sans style).
-        clauseStyle: texte ? (projet?.clauseStyle ?? "") : "",
+        // Les images reçoivent le prompt LONG du style quand le projet en a un (conception), sinon la clause courte.
+        clauseStyle: texte ? styleDesImages(projet) : "",
         ...(texte ? { aspect: demande.aspect, megapixels: demande.megapixels } : {}),
         loraPersonnage: texte ? demande.loraPersonnage : false,
         lightning: texte ? null : true,

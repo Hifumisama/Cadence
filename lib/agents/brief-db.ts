@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { briefs, projects } from "../../db/schema";
-import { briefVide, clauseDuBrief, fusionnerPartielDansBrouillon, notesDuBrief, residuPartiel } from "./brief";
+import { briefVide, clauseDuBrief, fusionnerPartielDansBrouillon, notesDuBrief, promptImageDuBrief, residuPartiel } from "./brief";
 import type { Db } from "./applicateurs/commun";
 import type { BriefContenu, StatutChamp } from "./types";
 
@@ -16,7 +16,7 @@ export async function synchroniserClauseStyle(db: Db, projectId: number): Promis
   const contenu = b.contenu as BriefContenu;
   await db
     .update(projects)
-    .set({ clauseStyle: clauseDuBrief(contenu), notes: notesDuBrief(contenu) })
+    .set({ clauseStyle: clauseDuBrief(contenu), stylePromptImage: promptImageDuBrief(contenu), notes: notesDuBrief(contenu) })
     .where(eq(projects.id, projectId));
 }
 
