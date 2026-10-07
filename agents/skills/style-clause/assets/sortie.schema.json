@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the style-clause agent: the short style clause of an image style",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["clause"],
+  "properties": {
+    "clause": {
+      "type": "string",
+      "minLength": 40,
+      "maxLength": 400,
+      "description": "(English) One or two sentences, 15 to 40 words, describing the RENDERING only (medium, line, colour, light, texture). No proper name, no subject, no camera or movement, no story."
+    }
+  }
+}

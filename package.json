@@ -15,6 +15,7 @@
     "llm:essai": "tsx scripts/llm-essai.ts",
     "llm:tache": "tsx scripts/llm-tache.ts",
     "styles:apercus": "tsx scripts/styles-apercus.ts",
+    "styles:clauses": "tsx scripts/styles-clauses.ts",
     "plan-h3:essai": "tsx scripts/plan-h3-essai.ts",
     "plan-h3:reflexion": "tsx scripts/plan-h3-reflexion.ts",
     "worker": "tsx watch worker/index.ts",

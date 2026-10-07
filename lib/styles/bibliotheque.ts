@@ -1,4 +1,5 @@
 import brut from "./bibliotheque.json";
+import { clausesProduites } from "./clause";
 
 /** Bibliothèque de styles proposée à la création d'un projet. Source : `bibliotheque.json` (versionné, c'est le fichier
  * à trier à la main : retirer une entrée suffit à la retirer de l'application). Chaque style a un prompt long (le
@@ -56,7 +57,7 @@ export function construireBibliotheque(entrees: EntreeBrute[]): StyleBibliothequ
 }
 
 export function bibliothequeStyles(): StyleBibliotheque[] {
-  return construireBibliotheque(brut as unknown as EntreeBrute[]);
+  return construireBibliotheque(brut as unknown as EntreeBrute[]).map((s) => (s.clause ? s : clausesProduites[s.id] ? { ...s, clause: clausesProduites[s.id] } : s));
 }
 
 export function styleParId(id: string): StyleBibliotheque | null {
