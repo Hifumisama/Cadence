@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { agentConversations, agentRuns, assetGenerations, assets, jobs, planDialogues, plans, projects, propositions, repliques } from "../db/schema";
-import { and, eq, gte, isNotNull, isNull, or, inArray } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, ne, or, inArray } from "drizzle-orm";
 import { versRunLot } from "./agents/lots";
 import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
@@ -66,6 +66,9 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .where(
       and(
         isNull(agentRuns.masqueAt),
+        // Un TOUR de conversation (notes, puis réponse de l'agent) passe par la file du worker, mais il dure quelques secondes
+        // et la popup de conversation l'affiche déjà : il n'a pas sa place dans le panneau, le badge ni les notifications.
+        or(isNull(agentRuns.but), ne(agentRuns.but, "tour")),
         or(inArray(agentRuns.statut, ["en_attente", "en_cours"]), isNull(agentRuns.vuAt), gte(agentRuns.createdAt, depuis)),
       ),
     );
