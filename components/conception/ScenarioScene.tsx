@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { autreAccroche, envoyerMessage } from "@/app/agents/actions";
+import { envoyerMessage, relancerAccroche } from "@/app/agents/actions";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { estTacheActive } from "@/lib/agents-affichage";
 import type { NoteAffichee } from "@/lib/agents/fiche-affichage";
@@ -46,11 +46,12 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
     }
   };
 
-  const autre = async () => {
+  /** L'accroche n'a pas pu s'écrire (modèle injoignable, sortie refusée) : la conversation est vide, on la relance. */
+  const relancer = async () => {
     setOccupe(true);
     setErreur(null);
     try {
-      const r = await autreAccroche(conv.uuid);
+      const r = await relancerAccroche(conv.uuid);
       if (!r.ok) setErreur(r.erreur);
       await rafraichir();
     } finally {
@@ -75,6 +76,9 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
             ))}
             {tourEnCours ? <div className="cn-msg-attente"><EtatTacheAgent tache={tache} /></div> : null}
             {tache && tache.statut === "echoue" ? <div className="cn-msg-attente"><EtatTacheAgent tache={tache} /></div> : null}
+            {conv.messages.length === 0 && !actif ? (
+              <p className="cn-msg is-agent">Le scénariste n’a pas pu se présenter. <button type="button" className="cn-lien" disabled={occupe} onClick={() => void relancer()}>Réessayer</button></p>
+            ) : null}
             <div ref={fin} />
           </div>
           <div className="cn-saisie">
@@ -94,7 +98,6 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
             />
             <div className="cn-saisie-bas">
               <span className="cn-note" style={{ margin: 0 }}>Entrée pour envoyer, Maj + Entrée pour un retour à la ligne.</span>
-              {!dejaCommence && conv.messages.length === 1 && !actif ? <button type="button" className="cn-lien" disabled={occupe} onClick={() => void autre()}>↻ Une autre accroche</button> : null}
               <button type="button" className="btn btn-gold" disabled={!texte.trim() || occupe || actif} onClick={() => void envoyer()}>{occupe ? "…" : "Envoyer"}</button>
             </div>
             {erreur ? <p className="cn-erreur" role="alert">{erreur}</p> : null}

@@ -76,7 +76,7 @@ function suffixeSkill(skill: string): string {
  * traduire une description en prompt, la réflexion pesait ~90 % des jetons de sortie (1 500 jetons pour une réponse de 130,
  * 30 s au lieu de 1). Le drapeau est honoré par le serveur (`reasoning_budget`, lui, ne l'est pas). `conversation-agent` : un
  * tour de dialogue doit rester vif. À étendre skill par skill, après un essai de qualité. */
-export const SKILLS_SANS_REFLEXION: readonly string[] = ["prompt-asset", "prompt-voix", "prompt-affiche", "conversation-agent", "notes-entretien"];
+export const SKILLS_SANS_REFLEXION: readonly string[] = ["prompt-asset", "prompt-voix", "prompt-affiche", "conversation-agent", "notes-entretien", "accroche-scenariste"];
 export const CORPS_SANS_REFLEXION = { chat_template_kwargs: { enable_thinking: false } };
 
 /** Champs ajoutés au corps de la requête pour un skill : `LLM_CORPS_<SKILL>` sinon `LLM_CORPS`, en JSON (`{}` pour rétablir

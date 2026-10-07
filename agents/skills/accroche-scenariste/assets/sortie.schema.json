@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of accroche-scenariste: the screenwriter's opening message",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reflexion", "reponse"],
+  "properties": {
+    "reflexion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "(French) Your draft, NEVER shown to the user, in one or two short lines: the real, well-known work you will cite and why it fits this combination of genre, tone and style (or 'aucune' if you are not sure of one), and the colour your voice will take from the style."
+    },
+    "reponse": {
+      "type": "string",
+      "minLength": 1,
+      "description": "(French) Your first message to the user, plain text: greeting, one sentence naming the format, the style and the genre, at most one reference work you are sure exists, one open question about the story they want to tell, then three very different example pitches, one line each, each starting with '• '."
+    }
+  }
+}

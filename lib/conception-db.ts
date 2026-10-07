@@ -4,7 +4,7 @@ import type { Db } from "./agents/applicateurs/commun";
 import { briefVide } from "./agents/brief";
 import { synchroniserClauseStyle } from "./agents/brief-db";
 import type { BriefContenu } from "./agents/types";
-import { accrocheConception } from "./agents/accroche";
+import { entreeAccroche } from "./agents/accroche";
 import type { Fiche } from "./agents/fiche";
 import { ficheDepuisConception, validerConception, type Conception, type StyleResolu } from "./conception";
 
@@ -63,10 +63,11 @@ export async function poserStyleDuProjet(db: Db, projectId: number, style: Style
   return { ok: true };
 }
 
-/** L'ouverture d'un projet CONÇU : la fiche de l'entretien préremplie et le premier message de l'agent (accroche choisie selon le ton et
- * le genre). Le style vient du brief du projet (nom et clause posés à la création) et non de la bibliothèque : un style retiré depuis de
- * la bibliothèque ne casse pas un projet existant. Null pour un projet sans conception (l'entretien ouvre alors comme avant). */
-export async function ouvertureConcue(db: Db, projectId: number, variante = 0): Promise<{ fiche: Fiche; accroche: string } | null> {
+/** L'ouverture d'un projet CONÇU : la fiche de l'entretien préremplie et l'entrée du skill qui écrit l'accroche du scénariste (le modèle
+ * l'écrit : voir `accroche.ts`). Le style vient du brief du projet (nom et clause posés à la création) et non de la bibliothèque : un
+ * style retiré depuis de la bibliothèque ne casse pas un projet existant. Null pour un projet sans conception (l'entretien ouvre alors
+ * comme avant, avec l'accroche à trois pistes). */
+export async function ouvertureConcue(db: Db, projectId: number): Promise<{ fiche: Fiche; entreeAccroche: ReturnType<typeof entreeAccroche> } | null> {
   const conception = await lireConception(db, projectId);
   if (!conception) return null;
   const [b] = await db.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
@@ -74,6 +75,6 @@ export async function ouvertureConcue(db: Db, projectId: number, variante = 0): 
   if (!style?.clause?.trim()) return null;
   return {
     fiche: ficheDepuisConception(conception, { nom: style.nom, clause: style.clause, promptImage: "" }),
-    accroche: accrocheConception(conception, variante),
+    entreeAccroche: entreeAccroche(conception, { nom: style.nom, clause: style.clause }),
   };
 }

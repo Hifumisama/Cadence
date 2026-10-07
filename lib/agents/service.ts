@@ -20,7 +20,7 @@ import { chargerSkill } from "../llm/skills";
 import { valider } from "../llm/validation";
 import { estCleSection, sousSchemaSection } from "./brief";
 import { abandonnerBrouillon, creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
-import { accrocheEntretien, accrochesConception } from "./accroche";
+import { accrocheEntretien } from "./accroche";
 import { entreeNotes, ficheVersBrief, type Fiche } from "./fiche";
 import { lireConception, ouvertureConcue } from "../conception-db";
 import { ficheCourante } from "./fiche-db";
@@ -117,14 +117,21 @@ export async function libelleCible(projectId: number, portee: Portee, cibleId: n
 const etapeInitiale = (p: Profondeur) => (p === "complete" ? "conversation" : "consigne");
 /** L'agent ouvre l'entretien d'entrée (conversation complète) : trois pistes très différentes pour qui n'a pas d'idée (accroche.ts). */
 const messagesInitiaux = (p: Profondeur): MessageConversation[] => (p === "complete" ? [{ role: "assistant", content: accrocheEntretien(), at: new Date().toISOString() }] : []);
-/** L'ouverture d'une conversation : pour l'entretien d'entrée d'un projet CONÇU (conception.ts), la fiche préremplie et l'accroche du scénariste ;
- * sinon l'accroche à trois pistes, fiche vide. */
-async function ouverture(projectId: number, portee: Portee, p: Profondeur): Promise<{ messages: MessageConversation[]; fiche: Fiche | null }> {
+/** L'ouverture d'une conversation : pour l'entretien d'entrée d'un projet CONÇU (conception.ts), la fiche préremplie et, à la place du premier
+ * message, la demande d'accroche au modèle (`entreeAccroche`, tâche posée par `lancerAccroche` une fois la conversation créée) ; sinon
+ * l'accroche à trois pistes, fiche vide. */
+async function ouverture(projectId: number, portee: Portee, p: Profondeur): Promise<{ messages: MessageConversation[]; fiche: Fiche | null; entreeAccroche: object | null }> {
   if (portee === "projet" && p === "complete") {
     const o = await ouvertureConcue(db, projectId);
-    if (o) return { messages: [{ role: "assistant", content: o.accroche, at: new Date().toISOString() }], fiche: o.fiche };
+    if (o) return { messages: [], fiche: o.fiche, entreeAccroche: o.entreeAccroche };
   }
-  return { messages: messagesInitiaux(p), fiche: null };
+  return { messages: messagesInitiaux(p), fiche: null, entreeAccroche: null };
+}
+
+/** Pose la tâche qui écrit l'accroche du scénariste (skill `accroche-scenariste`) : une tâche « tour », que l'interface affiche comme
+ * une réponse en cours. Une seule fois par conversation ; `relancerAccroche` sert si elle a échoué. */
+async function lancerAccroche(conversationId: number, projectId: number, entree: object) {
+  await creerRun(db, { skill: "accroche-scenariste", entree, but: "tour", projectId, conversationId });
 }
 const profondeurParDefaut = (portee: Portee): Profondeur => (portee === "projet" ? "complete" : "courte");
 
@@ -181,7 +188,10 @@ export async function ouvrirConversation(projectId: number, portee: Portee, cibl
     .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p), messages: ouv.messages, fiche: ouv.fiche })
     .onConflictDoNothing()
     .returning({ uuid: agentConversations.uuid });
-  if (c) return { ok: true, conversationUuid: c.uuid, reprise: false };
+  if (c) {
+    await lancerAccrocheSiConcu(c.uuid, projectId, ouv.entreeAccroche);
+    return { ok: true, conversationUuid: c.uuid, reprise: false };
+  }
   const apres = await trouver(projectId, portee, r.cibleId);
   return apres ? { ok: true, conversationUuid: apres.uuid, reprise: true } : ERR("Conversation non créée.");
 }
@@ -201,22 +211,26 @@ export async function nouvelleConversation(projectId: number, portee: Portee, ci
     .insert(agentConversations)
     .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p as Profondeur), messages: ouv.messages, fiche: ouv.fiche })
     .returning({ uuid: agentConversations.uuid });
+  await lancerAccrocheSiConcu(c!.uuid, projectId, ouv.entreeAccroche);
   return { ok: true, conversationUuid: c!.uuid };
 }
 
-/** « Une autre accroche » : tant que l'utilisateur n'a rien dit, le premier message du scénariste est remplacé par l'accroche suivante
- * (elles tournent : voir accroche.ts). Refusé dès que l'entretien a commencé ou qu'une tâche tourne. */
-export async function autreAccroche(conversationUuid: string): Promise<Resultat> {
+async function lancerAccrocheSiConcu(conversationUuid: string, projectId: number, entree: object | null) {
+  if (!entree) return;
+  const conv = await conversationParUuid(conversationUuid);
+  if (conv) await lancerAccroche(conv.id, projectId, entree);
+}
+
+/** Relance l'accroche du scénariste quand sa première écriture a échoué (la conversation n'a alors aucun message). Refusé dès qu'un message
+ * existe ou qu'une tâche tourne : l'accroche ne se régénère jamais pour le plaisir. */
+export async function relancerAccroche(conversationUuid: string): Promise<Resultat> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
-  const messages = (conv.messages as MessageConversation[]) ?? [];
-  if (messages.length !== 1 || messages[0]!.role !== "assistant") return ERR("L'accroche ne change plus une fois l'entretien commencé.");
-  const conception = await lireConception(db, conv.projectId);
-  if (!conception) return ERR("Ce projet n'a pas de conception : pas d'autre accroche à proposer.");
-  const courante = accrochesConception(conception).indexOf(messages[0]!.content);
-  const o = await ouvertureConcue(db, conv.projectId, courante + 1);
-  if (!o) return ERR("Le style du projet est introuvable.");
-  await db.update(agentConversations).set({ messages: [{ role: "assistant", content: o.accroche, at: new Date().toISOString() }], updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
+  if (((conv.messages as MessageConversation[]) ?? []).length > 0) return ERR("L'entretien a déjà commencé : l'accroche ne change plus.");
+  { const refus = await refusSiTacheActive(conv.id, "L'accroche est déjà en cours d'écriture.", ["tour"]); if (refus) return refus; }
+  const o = await ouvertureConcue(db, conv.projectId);
+  if (!o) return ERR("Ce projet n'a pas de conception : pas d'accroche à écrire.");
+  await lancerAccroche(conv.id, conv.projectId, o.entreeAccroche);
   return { ok: true };
 }
 
@@ -230,6 +244,7 @@ export async function reinitialiser(conversationUuid: string): Promise<Resultat>
     .update(agentConversations)
     .set({ messages: ouv.messages, consigne: "", briefPret: false, resteADefinir: [], fiche: ouv.fiche, propositionId: null, etape: etapeInitiale(conv.profondeur as Profondeur), updatedAt: new Date() })
     .where(eq(agentConversations.id, conv.id));
+  if (ouv.entreeAccroche) await lancerAccroche(conv.id, conv.projectId, ouv.entreeAccroche);
   return { ok: true };
 }
 

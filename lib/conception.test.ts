@@ -5,7 +5,7 @@ import { compilerSchema } from "./llm/validation";
 import { briefVersFiche, entreeNotes, lireFiche, manquesFiche, ficheComplete } from "./agents/fiche";
 import { briefVide, fusionnerPartielDansBrouillon, promptImageDuBrief, residuPartiel } from "./agents/brief";
 import type { BriefContenu } from "./agents/types";
-import { accrocheConception, accrochesConception } from "./agents/accroche";
+import { entreeAccroche, MARQUE_PROJET_CONCU } from "./agents/accroche";
 import {
   GENRES,
   LANGUES_DIALOGUES,
@@ -27,8 +27,8 @@ import type { StyleBibliotheque } from "./styles/bibliotheque";
 
 const filtres = { medium: "peinture", rendu: ["aplats"], palette: ["pastel"], epoque: "intemporel", ambiance: ["doux"] };
 const BIBLIO: StyleBibliotheque[] = [
-  { id: "gouache", nom: "Gouache", descriptor: "A painterly gouache style…", promptApercu: "scène. A painterly gouache style…", varianteApercu: "base", categories: ["Painting"], filtres, clause: "A matte gouache look." },
-  { id: "sans-clause", nom: "Sans clause", descriptor: "Long prompt", promptApercu: "scène. Long prompt", varianteApercu: "base", categories: ["Painting"], filtres },
+  { id: "gouache", nom: "Gouache", descriptor: "A painterly gouache style…", categories: ["Painting"], filtres, clause: "A matte gouache look." },
+  { id: "sans-clause", nom: "Sans clause", descriptor: "Long prompt", categories: ["Painting"], filtres },
 ];
 const base = { format: "film", genres: ["Drame", "Thriller"], style: { source: "bibliotheque", styleId: "gouache" } };
 
@@ -165,20 +165,21 @@ test("les schémas du brief et de l'entretien acceptent le prompt long et l'imag
   assert.ok(valideStyle(contenu.style), JSON.stringify(valideStyle.errors));
 });
 
-test("accroche d'un projet conçu : selon le ton et le genre, qui tourne, sans accolade restante", () => {
-  const sombre = { genres: ["Drame"], ton: 80, dureeSecondes: 150, format: "film" as const };
-  const toutes = accrochesConception(sombre);
-  assert.equal(toutes.length, 3);
-  assert.match(toutes[0]!, /sombre|noir|sans filet/);
-  assert.match(toutes.join(" "), /2 min 30/);
-  assert.ok(toutes.every((t) => !/[{}]/.test(t)));
-  assert.equal(accrocheConception(sombre, 3), toutes[0], "la variante tourne");
-  assert.equal(accrocheConception(sombre, -1), toutes[2]);
-  const horreur = accrochesConception({ genres: ["Horreur", "Drame"], ton: 92, dureeSecondes: 60, format: "film" });
-  assert.match(horreur[0]!, /faire peur/, "la phrase du genre passe en premier");
-  assert.equal(horreur.length, 4);
-  assert.match(accrocheConception({ genres: ["Comédie"], ton: 15, dureeSecondes: 60, format: "serie" }, 1), /on va s.amuser/);
-  assert.match(accrocheConception({ genres: [], ton: 50, dureeSecondes: 60, format: "film" }, 0), /scénariste/);
+test("entrée de l'accroche d'un projet conçu : les choix sont dits au modèle, une seule fois", () => {
+  const c = valide({ genres: ["Thriller", "Drame"], ton: 80, tonAjuste: true, dureeSecondes: 150 });
+  const e = entreeAccroche(c, { nom: "Film Noir 2", clause: "A moody noir look." });
+  assert.equal(e.length, 1);
+  const m = e[0]!.content;
+  assert.ok(m.startsWith(MARQUE_PROJET_CONCU));
+  assert.match(m, /Format : film/);
+  assert.match(m, /Genre : Thriller, Drame/);
+  assert.match(m, /Ton : sombre|Ton : grave/);
+  assert.match(m, /Durée : 2 min 30/);
+  assert.match(m, /Style visuel : « Film Noir 2 » : A moody noir look\./);
+  const serie = entreeAccroche({ ...c, format: "serie", episodesPrevus: 6 }, { nom: "", clause: "" });
+  assert.match(serie[0]!.content, /Format : série \(6 épisodes prévus\)/);
+  assert.match(serie[0]!.content, /par épisode/);
+  assert.match(serie[0]!.content, /style libre/);
 });
 
 test("entreeTour : le format du projet conçu est dit à l'agent, sans changer l'entrée des autres projets", () => {
