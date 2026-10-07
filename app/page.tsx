@@ -4,7 +4,8 @@ import { Topbar } from "@/components/ui/Topbar";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { GrilleProjets } from "@/components/projects/GrilleProjets";
 import { SupprimerProjetBouton } from "@/components/projects/SupprimerProjetBouton";
-import { NouveauProjetModal } from "@/components/projects/NouveauProjetModal";
+import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,9 @@ export default async function AccueilPage() {
         <div className="screen-hd">
           <h1>Projets</h1>
           <div className="actions" style={{ marginLeft: "auto" }}>
-            <NouveauProjetModal />
+            <Link className="btn btn-gold" href="/nouveau">
+              <Icone nom="ajouter" taille={15} /> Nouveau projet
+            </Link>
           </div>
         </div>
 
