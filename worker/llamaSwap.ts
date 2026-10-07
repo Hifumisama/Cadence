@@ -45,6 +45,28 @@ export async function modelesCharges(url: string, fetchFn: Fetch = fetch): Promi
   }
 }
 
+/** Modèles déclarés par le serveur (`GET /v1/models`, format OpenAI : `{ data: [{ id }] }` ; llama-swap, LM Studio et Ollama
+ * l'exposent). Décodage tolérant : une liste d'identifiants ou d'objets `{ id }`. null si la forme est inattendue. */
+export function decoderListeModeles(corps: unknown): string[] | null {
+  const liste = Array.isArray(corps) ? corps : (corps as { data?: unknown } | null)?.data;
+  if (!Array.isArray(liste)) return null;
+  const ids = liste
+    .map((x) => (typeof x === "string" ? x : typeof (x as { id?: unknown })?.id === "string" ? (x as { id: string }).id : null))
+    .filter((m): m is string => m != null && m.trim() !== "");
+  return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
+}
+
+/** Les modèles que le serveur sait charger, ou null si on ne peut pas le savoir. Ne charge aucun modèle. */
+export async function listerModeles(url: string, fetchFn: Fetch = fetch): Promise<string[] | null> {
+  try {
+    const res = await fetchFn(`${url}/v1/models`, { signal: AbortSignal.timeout(TIMEOUT_SONDE_MS) });
+    if (!res.ok) return null;
+    return decoderListeModeles(await res.json());
+  } catch {
+    return null;
+  }
+}
+
 /** Décharge tous les modèles (`GET /unload`). Inoffensif quand rien n'est chargé. */
 export async function decharger(url: string, fetchFn: Fetch = fetch): Promise<{ ok: boolean; detail: string }> {
   try {

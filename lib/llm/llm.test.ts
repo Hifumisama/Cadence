@@ -288,6 +288,11 @@ test("configuration : défauts, surcharge par skill, fournisseur inconnu refusé
   assert.equal(nomVariableModele("plan-h3"), "LLM_MODELE_PLAN_H3");
   assert.equal(modelePourSkill("plan-h3", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }), "qwen");
   assert.equal(modelePourSkill("brief-projet", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }), "m1");
+  // Le modèle choisi dans l'interface prime sur LLM_LOCAL_MODELE, mais pas sur la surcharge d'un skill.
+  assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, "choisi"), "choisi");
+  assert.equal(modelePourSkill("plan-h3", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }, "choisi"), "qwen");
+  assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, null), "m1");
+  assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, "  "), "m1");
   assert.throws(() => configLlm({ LLM_FOURNISSEUR: "dev" }), /inconnu/);
 });
 

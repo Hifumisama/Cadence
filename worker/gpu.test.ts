@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { DOMAINE_GENRE, domaineAliberer, domaineDe } from "../lib/gpu";
 import { libererAvant, type Liberateurs } from "./gpu";
-import { decharger, decoderModelesCharges, llmJoignable, modelesCharges } from "./llamaSwap";
+import { decharger, decoderListeModeles, decoderModelesCharges, listerModeles, llmJoignable, modelesCharges } from "./llamaSwap";
 
 test("domaines : image et vidéo partagent ComfyUI, le LLM a le sien", () => {
   assert.equal(domaineDe("image"), "comfyui");
@@ -93,4 +93,17 @@ test("llama-swap : joignable / décharger / modèles chargés, y compris quand l
 
   assert.deepEqual(await modelesCharges("http://x", reponse(JSON.stringify({ running: [{ model: "m" }] }))), ["m"]);
   assert.equal(await modelesCharges("http://x", reponse("pas du json")), null);
+});
+
+test("llama-swap : liste des modèles déclarés (/v1/models), triée, dédoublonnée, tolérante", async () => {
+  assert.deepEqual(decoderListeModeles({ object: "list", data: [{ id: "qwen" }, { id: "gemma" }, { id: "qwen" }] }), ["gemma", "qwen"]);
+  assert.deepEqual(decoderListeModeles(["b", "a"]), ["a", "b"]);
+  assert.deepEqual(decoderListeModeles({ data: [{ id: " " }, { nom: "x" }, null] }), []);
+  assert.equal(decoderListeModeles({ erreur: "x" }), null);
+  assert.equal(decoderListeModeles(null), null);
+
+  assert.deepEqual(await listerModeles("http://x", reponse(JSON.stringify({ data: [{ id: "m" }] }))), ["m"]);
+  assert.equal(await listerModeles("http://x", reponse("pas du json")), null);
+  assert.equal(await listerModeles("http://x", reponse("erreur", 500)), null);
+  assert.equal(await listerModeles("http://x", async () => { throw new Error("ECONNREFUSED"); }), null);
 });

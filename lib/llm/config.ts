@@ -59,9 +59,13 @@ export function nomVariableModele(skill: string): string {
   return `LLM_MODELE_${skill.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`;
 }
 
-/** Modèle d'un skill : surcharge `LLM_MODELE_<SKILL>`, sinon le modèle par défaut. */
-export function modelePourSkill(skill: string, env: Env = process.env): string {
-  return env[nomVariableModele(skill)]?.trim() || configLlm(env).modeleParDefaut;
+/** Clé de `parametres` où l'interface (pastille du header) range le modèle choisi. */
+export const CLE_MODELE_CHOISI = "llm_modele";
+
+/** Modèle d'un skill, par ordre de priorité : surcharge `LLM_MODELE_<SKILL>` (un choix de configuration délibéré, par
+ * skill), puis le modèle choisi dans l'interface (`choisi`, lu en base par l'appelant), puis `LLM_LOCAL_MODELE`. */
+export function modelePourSkill(skill: string, env: Env = process.env, choisi?: string | null): string {
+  return env[nomVariableModele(skill)]?.trim() || choisi?.trim() || configLlm(env).modeleParDefaut;
 }
 
 function suffixeSkill(skill: string): string {

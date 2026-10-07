@@ -1829,6 +1829,121 @@ button {
     display: none;
   }
 }
+/* Choix du modèle : la pastille devient un bouton, la liste s'ouvre dessous (même gabarit que le panneau des tâches). */
+.llm-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.llm-bouton {
+  appearance: none;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.llm-bouton:hover {
+  color: var(--ink-2);
+}
+.llm-chevron {
+  width: 5px;
+  height: 5px;
+  margin-left: 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-1px) rotate(45deg);
+}
+.llm-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 30;
+  width: min(320px, 92vw);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.llm-menu-titre {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.llm-menu-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.llm-menu-item {
+  appearance: none;
+  width: 100%;
+  background: none;
+  border: 1px solid transparent;
+  border-left: 2px solid transparent;
+  padding: 6px 8px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+}
+.llm-menu-item:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  border-left-color: transparent;
+}
+.llm-menu-item.is-actif {
+  border-left-color: var(--or);
+  color: var(--ink);
+}
+.llm-menu-item:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+.llm-menu-nom {
+  overflow-wrap: anywhere;
+}
+.llm-menu-notes {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.llm-menu-reset {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--or);
+  text-align: left;
+  cursor: pointer;
+}
+.llm-menu-reset:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.llm-menu-alerte {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ecarlate-glow);
+}
+.llm-menu-aide {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-3);
+}
 
 /* Cellule de l'accueil : la carte est un lien, le bouton Supprimer est un frère (pas de bouton dans un <a>). */
 .proj-cell {

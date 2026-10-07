@@ -1933,4 +1933,11 @@ Amende « Chargeur sans manifeste » (CONCEPTION_AGENTS §5, 2026-10-01). Les sk
 - `CARACTERES_PAR_JETON` passe de 3,5 à 4 (estimation pour de l'anglais, pas une mesure). Taille totale des prompts : environ 9 % de caractères en moins ; les jetons réels avec le tokenizer du modèle restent à mesurer.
 - **À mesurer avant de conclure** (rien n'est validé sur le vrai modèle à cette date) : `npm run plan-h3:essai` et `npm run agents:rejeu -- essais/fiches/self-made-man.json`, comparés à un essai fait avant le changement (HEAD `791adf7`).
 - **Point ouvert** : le tool-calling (par exemple un `chercher_asset` pour retrouver un asset existant sous un autre nom) a été évalué, pas décidé. Rien dans `lib/llm/` ne l'utilise ; compatibilité `tools` + `response_format` à vérifier sur llama-swap (`--jinja`) avant tout développement.
-
+
+### 2026-10-07 — Choix du modèle LLM depuis le header
+
+- **La pastille LLM du header devient un sélecteur** : un clic liste les modèles que le serveur déclare (`GET /v1/models`, `listerModeles` dans `worker/llamaSwap.ts`), choisir en enregistre un. Rangé dans `parametres` (clé `llm_modele`, pas de migration), un seul choix global (mono-utilisateur). « Revenir au modèle par défaut » le retire.
+- **Priorité** (`modelePourSkill`, `lib/llm/config.ts`) : modèle forcé par la tâche (`options.modele`) > surcharge d'un skill `LLM_MODELE_<SKILL>` > choix du header > `LLM_LOCAL_MODELE`. Une variable par skill reste un choix de configuration délibéré : elle prime sur le header.
+- **Lu au démarrage de chaque appel** (`worker/llm.ts`) : un changement vaut pour les prochains appels, y compris ceux déjà en file. L'appel en cours garde son modèle. Les estimations des popups d'agents (`lib/queries-agents.ts`) affichent le modèle effectif.
+- **Garde-fous** : `choisirModeleLlm` (`app/llm/actions.ts`) n'enregistre qu'un modèle que le serveur déclare, et refuse si le serveur ne répond pas (jamais enregistré à l'aveugle). Un modèle choisi puis retiré de la configuration de llama-swap est signalé dans le menu ; ses appels échouent franchement, sans retomber en silence sur un autre modèle.
+- Les scripts (`llm:essai`, `plan-h3:essai`…) restent pilotés par `--modele` et l'environnement : ils ne lisent pas le choix du header.

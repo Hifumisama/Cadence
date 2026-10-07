@@ -3,6 +3,7 @@ import { db } from "../db";
 import { agentRuns } from "../db/schema";
 import { annulationDemandeeLlm, finirAnnulationLlm } from "../lib/annulation-db";
 import { CORPS_SANS_REFLEXION, configLlm } from "../lib/llm/config";
+import { modeleEffectifPourSkill } from "../lib/llm/modele-choisi";
 import { executerSkill } from "../lib/llm/executer";
 import { AccumulateurFlux } from "../lib/llm/flux-partiel";
 import { insererTrace } from "../lib/llm/traces";
@@ -114,7 +115,9 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
     const prep = await preparerEntree(run, { planche: deps.planche });
     const res = await executer(run.skill, prep.entree, {
       projectId: run.projectId,
-      modele: options.modele,
+      // Le modèle choisi dans le header est lu ICI, au démarrage de l'appel : un changement vaut pour les appels
+      // suivants, y compris ceux déjà en file. Une surcharge de la tâche prime (relance d'une proposition).
+      modele: options.modele ?? (await modeleEffectifPourSkill(run.skill)),
       // Les notes de l'entretien classent et citent : peu d'aléa, pour qu'un même message donne la même fiche.
       temperature: run.skill === "notes-entretien" ? 0.1 : undefined,
       variante: options.variante,

@@ -48,7 +48,8 @@ import type {
   VueGroupe,
   VueProposition,
 } from "./agents/types";
-import { configLlm, modelePourSkill } from "./llm/config";
+import { configLlm } from "./llm/config";
+import { modeleEffectifPourSkill, modeleParDefautEffectif } from "./llm/modele-choisi";
 import { chargerSkill } from "./llm/skills";
 import { variantePromptAsset } from "./llm/variantes";
 
@@ -325,13 +326,13 @@ export async function estimerGeneration(conversationUuid: string): Promise<Estim
   const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
   const tachesDevant = images + appels;
   if (!skill) {
-    return { fournisseur: conf.fournisseur, modele: conf.modeleParDefaut, coutEstimeUsd: null, jetonsEntreeEstimes: 0, dureeEstimeeSecondes: 1, tachesDevant: 0, skill: null };
+    return { fournisseur: conf.fournisseur, modele: await modeleParDefautEffectif(), coutEstimeUsd: null, jetonsEntreeEstimes: 0, dureeEstimeeSecondes: 1, tachesDevant: 0, skill: null };
   }
   const entree = chargerSkill(skill, undefined, { variante }).jetonsEstimes + 600 + Math.ceil(JSON.stringify(c.messages ?? []).length / 3.5);
   const sortie = SORTIE_ESTIMEE[skill] ?? 1000;
   return {
     fournisseur: conf.fournisseur,
-    modele: modelePourSkill(skill),
+    modele: await modeleEffectifPourSkill(skill),
     coutEstimeUsd: null,
     jetonsEntreeEstimes: entree,
     dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30),
@@ -351,7 +352,7 @@ export async function estimerScenarios(episodeIds: number[]): Promise<Estimation
   const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
   return {
     fournisseur: conf.fournisseur,
-    modele: modelePourSkill("scenario-episode"),
+    modele: await modeleEffectifPourSkill("scenario-episode"),
     coutEstimeUsd: null,
     jetonsEntreeEstimes: entree * n,
     dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
@@ -370,7 +371,7 @@ export async function estimerRegistre(nbAssets: number): Promise<EstimationGener
   const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
   return {
     fournisseur: conf.fournisseur,
-    modele: modelePourSkill("prompt-asset"),
+    modele: await modeleEffectifPourSkill("prompt-asset"),
     coutEstimeUsd: null,
     jetonsEntreeEstimes: entree * n,
     dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
@@ -390,7 +391,7 @@ export async function estimerFiches(nbPlans: number): Promise<EstimationGenerati
   const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
   return {
     fournisseur: conf.fournisseur,
-    modele: modelePourSkill("plan-h3"),
+    modele: await modeleEffectifPourSkill("plan-h3"),
     coutEstimeUsd: null,
     jetonsEntreeEstimes: entree * n,
     dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
@@ -410,7 +411,7 @@ export async function estimerIteration(): Promise<EstimationGeneration> {
   const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
   return {
     fournisseur: conf.fournisseur,
-    modele: modelePourSkill("iteration-plan"),
+    modele: await modeleEffectifPourSkill("iteration-plan"),
     coutEstimeUsd: null,
     jetonsEntreeEstimes: entree,
     dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30),
@@ -429,7 +430,7 @@ export async function estimerVoix(nbVoix: number): Promise<EstimationGeneration>
   const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
   return {
     fournisseur: conf.fournisseur,
-    modele: modelePourSkill("prompt-voix"),
+    modele: await modeleEffectifPourSkill("prompt-voix"),
     coutEstimeUsd: null,
     jetonsEntreeEstimes: entree * n,
     dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
