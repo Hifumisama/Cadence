@@ -1,6 +1,8 @@
 node_modules/
 .next/
-data/
+data/*
+# Les aperçus des styles (images de présentation de la bibliothèque) se versionnent : ~20 Mo, regénérés rarement.
+!data/styles/
 .env
 *.log
 *.tsbuildinfo
