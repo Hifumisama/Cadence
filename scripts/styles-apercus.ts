@@ -56,7 +56,7 @@ async function main() {
   const cibles = tous.filter((s) => !only || only.includes(s.id));
   const aFaire = cibles.filter((s) => force || !existsSync(join(MEDIA_ROOT, cheminApercuStyle(s.id)))).slice(0, limite);
 
-  console.log(`${tous.length} styles dans la bibliothèque, ${cibles.length} ciblés, ${cibles.length - cibles.filter((s) => aFaire.includes(s)).length} déjà faits, ${aFaire.length} à générer.`);
+  console.log(`${tous.length} styles dans la bibliothèque, ${cibles.length} ciblés, ${cibles.filter((s) => existsSync(join(MEDIA_ROOT, cheminApercuStyle(s.id)))).length} déjà faits, ${aFaire.length} à générer.`);
   if (drapeau("--liste")) {
     for (const s of cibles) console.log(`${existsSync(join(MEDIA_ROOT, cheminApercuStyle(s.id))) ? "✓" : "·"} ${s.id}  [${s.varianteApercu}]`);
     return;
