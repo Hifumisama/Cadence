@@ -7,6 +7,7 @@ import type { NoteAffichee } from "@/lib/agents/fiche-affichage";
 import { motDuTon, plansEstimes, valeursParDefaut, type Conception } from "@/lib/conception";
 import { minutesSecondes } from "@/lib/conception-ui";
 import { urlMiniature } from "@/lib/miniatures";
+import { posterPorteLeTitre } from "@/lib/poster";
 import { EnteteScene } from "./Scenes";
 
 /** Scène « Clap » : tout ce qui a été récolté sur une planche (la claquette), l'affiche du projet à côté (générée à l'arrivée sur le clap, voir lib/agents/affiche-clap.ts), un
@@ -21,6 +22,8 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
   const genres = conception.genres.join(" et ").toLowerCase();
   const reelle = affiche?.src ?? style.poster ?? null;
   const enCours = affiche?.etat === "en_cours";
+  // Une affiche dont le titre est écrit dans l'image (suffixe -titre) ne reçoit pas le titre une seconde fois par-dessus.
+  const titreDansImage = posterPorteLeTitre(reelle);
   return (
     <aside className={`cn-poster${reelle || style.image ? "" : " is-vide"}${enCours ? " is-attente" : ""}`} aria-label="Affiche du projet" aria-busy={enCours}>
       {/* eslint-disable-next-line @next/next/no-img-element -- stockage média, redimensionné par la route */}
@@ -34,7 +37,7 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
       ) : null}
       <div className="cn-poster-texte">
         <p className="cn-poster-haut">CADENCE PRÉSENTE</p>
-        <p className="cn-poster-titre">{titre.trim() || "Titre à venir"}</p>
+        {titreDansImage ? null : <p className="cn-poster-titre">{titre.trim() || "Titre à venir"}</p>}
         <p className="cn-poster-accroche">{conception.format === "serie" ? "Une série" : "Un film"} {genres}, {motDuTon(conception.ton)}</p>
         <p className="cn-poster-style">Style · {style.nom}</p>
         <p className="cn-poster-bas">
@@ -67,6 +70,7 @@ export function ClapScene({
   pret,
   affiche,
   reessayer,
+  apresTitre,
 }: {
   projectId: number;
   nomProjet: string;
@@ -77,9 +81,12 @@ export function ClapScene({
   pret: boolean;
   affiche?: AfficheEtat | null;
   reessayer?: () => void;
+  /** Le titre vient d'être enregistré (il est écrit dans l'affiche) : l'affiche doit se refaire. */
+  apresTitre?: () => void;
 }) {
   const provisoire = nomProjet === "Sans titre";
   const [titre, setTitre] = useState(provisoire ? "" : nomProjet);
+  const [enregistre, setEnregistre] = useState(provisoire ? "" : nomProjet);
   const [frappe, setFrappe] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -87,6 +94,20 @@ export function ClapScene({
   const plans = plansEstimes(conception.dureeSecondes, conception.rythme);
   const note = (cle: string) => notes.find((n) => n.cle === cle)?.texte || "—";
   const extras = notes.filter((n) => !n.requis && n.texte);
+
+  // Le titre est dans l'affiche : on l'enregistre dès qu'on quitte le champ, et l'affiche se refait pour qu'elle porte le bon.
+  const validerTitre = async () => {
+    const nom = titre.trim();
+    if (!nom || nom === enregistre) return;
+    setErreur(null);
+    try {
+      await modifierNomProjet(projectId, nom);
+      setEnregistre(nom);
+      apresTitre?.();
+    } catch {
+      setErreur("Le titre n’a pas pu être enregistré. Réessaie.");
+    }
+  };
 
   const lancer = async () => {
     setEnvoi(true);
@@ -118,7 +139,7 @@ export function ClapScene({
         <div style={{ minWidth: 0 }}>
           <label className="cn-champ-titre">
             Titre
-            <input type="text" value={titre} maxLength={120} placeholder="Un titre pour le projet (facultatif)" onChange={(e) => setTitre(e.target.value)} />
+            <input type="text" value={titre} maxLength={120} placeholder="Un titre pour le projet (facultatif)" onChange={(e) => setTitre(e.target.value)} onBlur={() => void validerTitre()} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
           </label>
           <div className={`cn-claps${frappe ? " is-frappe" : ""}`}>
             <div className="cn-claps-haut" />

@@ -15,6 +15,7 @@ import {
   lireFiche,
   manquesFiche,
   suppositions,
+  titreAAdopter,
   type Fiche,
 } from "./fiche";
 
@@ -185,4 +186,17 @@ test("accroche : trois pistes de genres différents, tirage au sort, le message 
   assert.match(t, /Ça te dirait de faire un film/);
   assert.equal(t.split("\n").filter((l) => l.startsWith("• ")).length, 3);
   assert.notEqual(accrocheEntretien(() => 0), accrocheEntretien(() => 0.99));
+});
+
+test("titreAAdopter : le titre de l'entretien devient le nom du projet tant que celui-ci est provisoire", () => {
+  const avec = (titre: string): Fiche => ({ contenu: { titre }, statuts: {} });
+  assert.equal(titreAAdopter(avec("Le Chat Témoin"), FICHE_VIDE, "Sans titre"), "Le Chat Témoin");
+  // Le titre proposé une première fois, puis affiné : on suit tant que le nom n'a pas été touché à la main.
+  assert.equal(titreAAdopter(avec("Le Chat et la Rupture"), avec("Le Chat Témoin"), "Le Chat Témoin"), "Le Chat et la Rupture");
+  // Un nom corrigé au clap n'est jamais écrasé.
+  assert.equal(titreAAdopter(avec("Le Chat et la Rupture"), avec("Le Chat Témoin"), "Mon titre à moi"), null);
+  // Jamais de titre vide ni provisoire, ni de réécriture identique.
+  assert.equal(titreAAdopter(avec("Sans titre"), FICHE_VIDE, "Sans titre"), null);
+  assert.equal(titreAAdopter(avec("  "), FICHE_VIDE, "Sans titre"), null);
+  assert.equal(titreAAdopter(avec("Le Chat"), FICHE_VIDE, "Le Chat"), null);
 });

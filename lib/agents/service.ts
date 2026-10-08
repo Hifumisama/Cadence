@@ -18,7 +18,7 @@ import {
 } from "../../db/schema";
 import { chargerSkill } from "../llm/skills";
 import { valider } from "../llm/validation";
-import { estCleSection, sousSchemaSection } from "./brief";
+import { SECTIONS_FIGEES_PAR_LA_CONCEPTION, estCleSection, sousSchemaSection } from "./brief";
 import { abandonnerBrouillon, creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
 import { accrocheEntretien } from "./accroche";
 import { entreeNotes, ficheVersBrief, type Fiche } from "./fiche";
@@ -328,6 +328,9 @@ export async function rejeterBrief(conversationUuid: string): Promise<Resultat> 
 
 export async function modifierChampBrief(projectId: number, section: string, valeur: unknown): Promise<Resultat> {
   if (!estCleSection(section)) return ERR(`Section de brief inconnue : « ${section} ».`);
+  if (SECTIONS_FIGEES_PAR_LA_CONCEPTION.includes(section) && (await lireConception(db, projectId))) {
+    return ERR("Ce choix a été fait à la conception du projet : le changer reviendrait à refaire le projet (la langue touche tous les dialogues, la durée tout le découpage).");
+  }
   const sous = sousSchemaSection(chargerSkill("brief-projet").schema, section);
   if (sous) {
     const v = valider({ $schema: "https://json-schema.org/draft/2020-12/schema", ...sous }, valeur);

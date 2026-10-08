@@ -15,7 +15,7 @@ const base: DonneesAffiche = {
   styleImage: "A moody noir look.",
   clauseStyle: "Noir.",
 };
-const { titre: _t, clauseStyle: _c, ...nourrit } = base;
+const { clauseStyle: _c, ...nourrit } = base;
 
 test("signature de l'affiche : stable, et seul ce qui nourrit l'image la change", () => {
   const s = signatureAffiche(nourrit);
@@ -29,12 +29,15 @@ test("signature de l'affiche : stable, et seul ce qui nourrit l'image la change"
   assert.notEqual(signatureAffiche({ ...nourrit, genres: ["Comédie"] }), s, "le genre");
   assert.notEqual(signatureAffiche({ ...nourrit, ton: 20 }), s, "le ton (autre mot)");
   assert.notEqual(signatureAffiche({ ...nourrit, styleImage: "A watercolour look." }), s, "le style");
+  assert.notEqual(signatureAffiche({ ...nourrit, titre: "La Nuit des Brumes" }), s, "le titre (il est écrit dans l'image)");
+  assert.equal(signatureAffiche({ ...nourrit, titre: "  La Nuit des Brumes " }), signatureAffiche({ ...nourrit, titre: "La Nuit des Brumes" }), "les espaces du titre ne comptent pas");
 });
 
-test("entrée du skill prompt-affiche pour le clap : texte seul, héros décrit, titre hors image", () => {
+test("entrée du skill prompt-affiche pour le clap : texte seul, héros décrit, titre dans l'image dès qu'il existe", () => {
   const e = entreeAfficheClap(base) as Record<string, unknown> & { personnagePrincipal: { nom: string; description: string; imageDisponible: boolean } };
   assert.equal(e.cible, "projet");
-  assert.equal(e.titreDansImage, false);
+  assert.equal(e.titreDansImage, false, "pas encore de titre : pas de lettrage");
+  assert.equal((entreeAfficheClap({ ...base, titre: "La Nuit des Brumes" }) as { titreDansImage: boolean }).titreDansImage, true);
   assert.equal(e.personnagePrincipal.nom, "Yasmine");
   assert.equal(e.personnagePrincipal.imageDisponible, false);
   assert.match(e.personnagePrincipal.description, /30 ans/);

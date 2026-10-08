@@ -46,17 +46,39 @@
 .cn-titre em { font-style: normal; color: var(--or-glow); }
 .cn-sous { color: var(--ink-3); max-width: 58ch; margin: 0 0 clamp(18px, 4vh, 40px); font-size: 17px; }
 
-/* Barre d'action : sous le ruban, collée sous le bandeau, toujours visible. Le dernier pas est une claquette (« Action ! »). */
-.cn-barre { position: sticky; top: 56px; z-index: 6; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px var(--sp-5); border-bottom: 1px solid var(--line); background: rgba(14, 14, 19, 0.92); backdrop-filter: blur(8px); }
+/* Barre d'action : un quai collé au bas de la fenêtre, toujours visible (Retour à gauche, la glissière à droite). Le dernier pas est une claquette (« Action ! »). */
+.cn-barre { position: sticky; bottom: 0; z-index: 40; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px var(--sp-5); border-top: 1px solid var(--line-strong); background: rgba(14, 14, 19, 0.94); backdrop-filter: blur(10px); }
 .cn-barre-texte { color: var(--ink-2); font-size: 15px; }
+.cn-barre-texte b.cn-fige { color: var(--ink); text-decoration: underline; text-decoration-color: var(--or-soft); text-underline-offset: 3px; }
 .cn-barre-texte b { color: var(--or-glow); font-weight: 500; }
 .cn-barre .cn-astuce { margin-left: auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); }
-.cn-suivant { min-width: 170px; font-size: 16px; }
-.cn-suivant:not(:disabled) { animation: cn-pouls 2.4s ease-in-out infinite; }
 .cn-clap { position: relative; font-size: 16px; padding-top: 14px; background-image: repeating-linear-gradient(-55deg, #0e0e13 0 12px, var(--or) 12px 24px); background-size: 100% 7px; background-repeat: no-repeat; background-position: top; }
 .cn-clap:not(:disabled) { animation: cn-pouls 2.4s ease-in-out infinite; }
 @keyframes cn-pouls { 0%, 100% { box-shadow: 0 0 0 0 rgba(201, 162, 75, 0); } 50% { box-shadow: 0 0 26px 2px rgba(201, 162, 75, 0.45); } }
-@media (prefers-reduced-motion: reduce) { .cn-suivant, .cn-clap { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .cn-clap, .cn-glisse { animation: none !important; } }
+
+/* La glissière : une pellicule à tirer. La poignée (or) entraîne un remplissage doré ; passé le seuil, la piste s'allume et l'étape change. */
+.cn-glisse { --p: 0; position: relative; flex: 1 1 300px; max-width: 480px; margin-left: auto; height: 60px; border: 1px solid var(--line-strong); background: var(--surface); overflow: hidden; touch-action: pan-y; user-select: none; }
+.cn-glisse::before, .cn-glisse::after { content: ""; position: absolute; left: 0; right: 0; height: 5px; background: repeating-linear-gradient(to right, transparent 0 8px, var(--line-strong) 8px 14px, transparent 14px 22px); opacity: 0.7; pointer-events: none; }
+.cn-glisse::before { top: 3px; } .cn-glisse::after { bottom: 3px; }
+.cn-glisse:not(.is-inerte) { animation: cn-pouls 2.8s ease-in-out infinite; }
+.cn-glisse.is-tire, .cn-glisse.is-pret { animation: none; }
+.cn-glisse-rempli { position: absolute; inset: 0 auto 0 0; width: calc(var(--p) * (100% - 8px) + 76px); background: linear-gradient(to right, rgba(201, 162, 75, 0.05), rgba(201, 162, 75, 0.34)); transition: width 0.28s var(--cn-ease); }
+.cn-glisse.is-tire .cn-glisse-rempli { transition: none; }
+.cn-glisse-texte { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding-left: 70px; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); opacity: calc(1 - var(--p) * 1.6); pointer-events: none; white-space: nowrap; }
+.cn-glisse-texte i { font-style: normal; color: var(--or); animation: cn-fleche 1.4s ease-in-out infinite; }
+.cn-glisse-texte i:nth-child(2) { animation-delay: 0.15s; } .cn-glisse-texte i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes cn-fleche { 0%, 100% { opacity: 0.25; transform: translateX(0); } 50% { opacity: 1; transform: translateX(4px); } }
+.cn-glisse-poignee { position: absolute; top: 7px; bottom: 7px; left: calc(4px + var(--p) * (100% - 84px)); width: 76px; padding: 0; border: 1px solid var(--or-glow); background: linear-gradient(160deg, var(--or-glow), var(--or)); color: #0e0e13; font-family: var(--font-brand); font-size: 22px; line-height: 1; touch-action: none; transition: left 0.28s var(--cn-ease), box-shadow 0.3s; box-shadow: 0 0 18px rgba(201, 162, 75, 0.35); }
+.cn-glisse.is-tire .cn-glisse-poignee { transition: none; cursor: grabbing; box-shadow: 0 0 28px rgba(240, 208, 137, 0.6); }
+.cn-glisse.is-pret .cn-glisse-poignee { box-shadow: 0 0 34px rgba(240, 208, 137, 0.9); }
+.cn-glisse.is-action .cn-glisse-poignee { width: 118px; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; padding-top: 6px; background-image: repeating-linear-gradient(-55deg, #0e0e13 0 9px, transparent 9px 18px), linear-gradient(160deg, var(--or-glow), var(--or)); background-size: 100% 6px, 100% 100%; background-repeat: no-repeat; background-position: top, 0 0; }
+.cn-glisse.is-action .cn-glisse-poignee { left: calc(4px + var(--p) * (100% - 126px)); }
+.cn-glisse.is-action .cn-glisse-rempli { width: calc(var(--p) * (100% - 8px) + 118px); }
+.cn-glisse.is-action .cn-glisse-texte { padding-left: 120px; }
+.cn-glisse.is-inerte { opacity: 0.55; }
+.cn-glisse.is-inerte .cn-glisse-poignee { background: var(--surface-3); border-color: var(--line-strong); color: var(--ink-3); box-shadow: none; cursor: not-allowed; }
+.cn-glisse.is-inerte .cn-glisse-texte i { animation: none; }
 
 /* Barre de navigation (collée en bas) */
 .cn-nav { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 14px var(--sp-5); border-top: 1px solid var(--line); background: rgba(14, 14, 19, 0.88); backdrop-filter: blur(8px); }
@@ -121,6 +143,8 @@
 /* 3. Durée et rythme */
 .cn-grande-duree { font-family: var(--font-brand); font-size: clamp(54px, 10vw, 130px); line-height: 1; margin: 0 0 4px; color: var(--or-glow); }
 .cn-grande-duree small { font-size: 0.3em; color: var(--ink-3); margin-left: 0.3em; }
+.cn-note-duree { margin: 0 0 6px; max-width: 1100px; color: var(--ink-2); font-size: 14px; border-left: 2px solid var(--or-soft); padding-left: 10px; }
+.cn-note-duree b { color: var(--or-glow); font-weight: 500; }
 .cn-regle { position: relative; height: 56px; margin: 18px 0 8px; max-width: 1100px; cursor: ew-resize; user-select: none; touch-action: pan-y; }
 .cn-graduation { position: absolute; inset: 0 0 auto 0; height: 26px; background: repeating-linear-gradient(to right, var(--line-strong) 0 1px, transparent 1px 8px); -webkit-mask: linear-gradient(to bottom, #000 40%, transparent); mask: linear-gradient(to bottom, #000 40%, transparent); }
 .cn-rempli { position: absolute; left: 0; top: 0; height: 100%; border-right: 2px solid var(--or); background: linear-gradient(to right, rgba(201, 162, 75, 0), rgba(201, 162, 75, 0.22)); transition: width 0.15s linear; pointer-events: none; }
@@ -158,10 +182,10 @@
 .cn-scene[data-scene="style"] .cn-sous { margin-bottom: 14px; font-size: 15px; }
 .cn-style-mise { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 22px; align-items: start; }
 .cn-style-gauche { min-width: 0; }
-.cn-style-droite { position: sticky; top: 140px; max-height: calc(100dvh - 160px); overflow-y: auto; }
+.cn-style-droite { position: sticky; top: 90px; max-height: calc(100dvh - 240px); overflow-y: auto; }
 .cn-style-droite .cn-detail { grid-template-columns: 1fr; margin-top: 0; padding: 16px; gap: 16px; }
 .cn-style-droite .cn-vide-style { border: 1px dashed var(--line-strong); padding: 22px; margin: 0; }
-.cn-galerie-panneau { max-height: calc(100dvh - 400px); min-height: 340px; overflow-y: auto; padding: 4px 8px 12px 4px; border: 1px solid var(--line); background: rgba(14, 14, 19, 0.35); }
+.cn-galerie-panneau { max-height: calc(100dvh - 420px); min-height: 340px; overflow-y: auto; padding: 4px 8px 12px 4px; border: 1px solid var(--line); background: rgba(14, 14, 19, 0.35); }
 .cn-galerie { --min: 150px; display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--min), 1fr)); gap: 12px; }
 .cn-galerie[data-forme="carre"] { --min: 175px; }
 .cn-galerie[data-forme="paysage"] { --min: 235px; }
@@ -218,7 +242,8 @@
   .cn-cadre { min-width: 104px; flex: 0 0 auto; }
   .cn-scene { padding: 20px 16px; }
   .cn-nav { padding: 10px 16px; } .cn-nav .cn-astuce, .cn-barre .cn-astuce { display: none; }
-  .cn-barre { padding: 10px 16px; gap: 10px; } .cn-barre-texte { order: 3; flex-basis: 100%; font-size: 13.5px; } .cn-suivant, .cn-clap { margin-left: auto; min-width: 0; }
+  .cn-barre { padding: 10px 16px; gap: 10px; } .cn-barre-texte { order: 3; flex-basis: 100%; font-size: 13.5px; }
+  .cn-glisse { flex-basis: 220px; height: 54px; } .cn-glisse-texte { font-size: 11px; letter-spacing: 0.08em; }
   .cn-duo, .cn-detail { grid-template-columns: 1fr; }
   .cn-style-mise { grid-template-columns: 1fr; }
   .cn-style-droite { position: static; max-height: none; }

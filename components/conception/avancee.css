@@ -13,9 +13,9 @@
 .cn-etape.s-fait:not(:last-child)::before, .cn-etape.s-passe:not(:last-child)::before { background: var(--or); }
 .cn-num { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-strong); display: grid; place-items: center; font-family: var(--font-mono); font-size: 13px; color: var(--ink-3); background: var(--ground); position: relative; z-index: 1; transition: all 0.4s var(--cn-ease); }
 .cn-etape.s-fait .cn-num, .cn-etape.s-passe .cn-num { border-color: var(--or); color: var(--or-glow); }
-.cn-etape.s-en_cours .cn-num { border-color: var(--or); color: var(--ink); box-shadow: 0 0 24px -4px rgba(201, 162, 75, 0.7); animation: cn-pouls 1.4s infinite; }
+.cn-etape.s-en_cours .cn-num { border-color: var(--or); color: var(--ink); box-shadow: 0 0 24px -4px rgba(201, 162, 75, 0.7); animation: cn-pouls-etape 1.4s infinite; }
 .cn-etape.s-echoue .cn-num { border-color: var(--ecarlate-glow); color: var(--ecarlate-glow); }
-@keyframes cn-pouls { 50% { box-shadow: 0 0 30px 0 rgba(201, 162, 75, 0.85); } }
+@keyframes cn-pouls-etape { 50% { box-shadow: 0 0 30px 0 rgba(201, 162, 75, 0.85); } }
 .cn-etape-corps { min-width: 0; display: grid; gap: 2px; }
 .cn-etape-corps b { font-family: var(--font-brand); font-weight: 400; font-size: 20px; }
 .cn-etape.s-a_venir .cn-etape-corps b { color: var(--ink-3); }
@@ -24,12 +24,28 @@
 .cn-badge { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); border: 1px solid var(--line-strong); padding: 2px 8px; white-space: nowrap; }
 .cn-etape.s-fait .cn-badge, .cn-etape.s-passe .cn-badge { color: var(--or); border-color: var(--or-soft); }
 .cn-etape.s-echoue .cn-badge { color: var(--ecarlate-glow); border-color: var(--ecarlate-glow); }
-.cn-barre { height: 3px; background: var(--line); margin-top: 8px; overflow: hidden; position: relative; }
-.cn-etape.s-en_cours .cn-barre::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 35%; background: linear-gradient(to right, var(--or-soft), var(--or-glow)); animation: cn-course 1.6s ease-in-out infinite; }
+.cn-progres { height: 3px; background: var(--line); margin-top: 8px; overflow: hidden; position: relative; }
+.cn-etape.s-en_cours .cn-progres::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 35%; background: linear-gradient(to right, var(--or-soft), var(--or-glow)); animation: cn-course 1.6s ease-in-out infinite; }
 @keyframes cn-course { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+.cn-deplier { justify-self: start; font-size: 12.5px; margin-top: 4px; }
 .cn-sous { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; font-size: 12.5px; color: var(--ink-3); }
 .cn-sous li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; }
 .cn-av-actions { margin-top: 18px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .cn-av-actions .cn-note { margin: 0; }
 
 @media (max-width: 860px) { .cn-avancee { grid-template-columns: 1fr; } .cn-etape { grid-template-columns: 44px minmax(0, 1fr); } .cn-badge { grid-column: 2; justify-self: start; } }
+
+/* Le grand clap : remplace la liste des étapes quand tout est prêt. Toute la carte est le lien « Voir le projet ». */
+.cn-grand-clap { display: block; max-width: 640px; text-decoration: none; color: inherit; border: 1px solid var(--line-strong); background: rgba(26, 26, 33, 0.92); transition: border-color 0.3s, box-shadow 0.4s; }
+.cn-grand-clap:hover, .cn-grand-clap:focus-visible { border-color: var(--or); box-shadow: 0 0 60px -10px rgba(201, 162, 75, 0.55); }
+.cn-grand-clap-haut { display: block; height: 72px; background: repeating-linear-gradient(115deg, #e9e6e0 0 44px, #14141a 44px 88px); border-bottom: 1px solid var(--line-strong); transform-origin: left bottom; transition: transform 0.35s var(--cn-ease); }
+.cn-grand-clap:hover .cn-grand-clap-haut, .cn-grand-clap:focus-visible .cn-grand-clap-haut { transform: rotate(-8deg); }
+.cn-grand-clap:active .cn-grand-clap-haut { transform: rotate(0); transition-duration: 0.08s; }
+.cn-grand-clap-corps { display: grid; gap: 10px; padding: clamp(20px, 3vw, 34px); }
+.cn-grand-clap-corps small { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--or); }
+.cn-grand-clap-corps b { font-family: var(--font-brand); font-weight: 400; font-size: clamp(30px, 4.4vw, 48px); line-height: 1.05; overflow-wrap: anywhere; }
+.cn-grand-clap-corps > span { color: var(--ink-2); }
+.cn-grand-clap-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.cn-grand-clap-puces i { font-style: normal; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); border: 1px solid var(--line-strong); padding: 2px 9px; }
+.cn-grand-clap-corps em { font-style: normal; font-family: var(--font-brand); font-size: 22px; color: var(--or-glow); }
+@media (prefers-reduced-motion: reduce) { .cn-grand-clap-haut { transition: none; } }

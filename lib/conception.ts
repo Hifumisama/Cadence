@@ -16,7 +16,52 @@ export const SANS_DIALOGUE = "Sans dialogue";
 export const LANGUE_PAR_DEFAUT = "Français";
 
 export const DUREE_MIN_SECONDES = 30;
-export const DUREE_MAX_SECONDES = 600;
+export const DUREE_MAX_SECONDES = 5400; // 90 min : un long métrage. Au-delà de 10 min c'est expérimental (le scénario d'un épisode se débat avec des centaines de plans).
+/** Au-delà de cette durée, l'écran prévient que c'est expérimental. */
+export const DUREE_EXPERIMENTALE_SECONDES = 600;
+
+/** Le curseur de durée est gradué à l'échelle du temps vécu, pas du temps réel : chaque tronçon de la piste (0 à 1000) couvre une plage de
+ * durées, de plus en plus large (30 s → 3 min → 10 min → 30 min → 90 min). Sans cela, la précision utile aux courts-métrages disparaîtrait. */
+export const REPERES_DUREE = [
+  { position: 0, secondes: DUREE_MIN_SECONDES },
+  { position: 250, secondes: 180 },
+  { position: 500, secondes: 600 },
+  { position: 750, secondes: 1800 },
+  { position: 1000, secondes: 5400 },
+] as const;
+export const POSITION_DUREE_MAX = 1000;
+
+/** Le pas de la durée selon sa taille : 15 s jusqu'à 10 min, 1 min jusqu'à 30 min, 5 min au-delà. */
+export function pasDuree(secondes: number): number {
+  return secondes <= 600 ? 15 : secondes <= 1800 ? 60 : 300;
+}
+
+function arrondirDuree(secondes: number): number {
+  const pas = pasDuree(secondes);
+  return Math.min(DUREE_MAX_SECONDES, Math.max(DUREE_MIN_SECONDES, Math.round(secondes / pas) * pas));
+}
+
+/** Position du curseur (0 à 1000) → durée en secondes, arrondie au pas de sa plage. */
+export function dureeDepuisPosition(position: number): number {
+  const p = Math.min(POSITION_DUREE_MAX, Math.max(0, position));
+  for (let i = 1; i < REPERES_DUREE.length; i++) {
+    const a = REPERES_DUREE[i - 1]!;
+    const b = REPERES_DUREE[i]!;
+    if (p <= b.position) return arrondirDuree(a.secondes + ((p - a.position) / (b.position - a.position)) * (b.secondes - a.secondes));
+  }
+  return DUREE_MAX_SECONDES;
+}
+
+/** Durée en secondes → position du curseur (réciproque de `dureeDepuisPosition`). */
+export function positionDepuisDuree(secondes: number): number {
+  const d = Math.min(DUREE_MAX_SECONDES, Math.max(DUREE_MIN_SECONDES, secondes));
+  for (let i = 1; i < REPERES_DUREE.length; i++) {
+    const a = REPERES_DUREE[i - 1]!;
+    const b = REPERES_DUREE[i]!;
+    if (d <= b.secondes) return a.position + ((d - a.secondes) / (b.secondes - a.secondes)) * (b.position - a.position);
+  }
+  return POSITION_DUREE_MAX;
+}
 export const DUREE_PAR_DEFAUT_SECONDES = 120;
 export const RYTHME_PAR_DEFAUT: RythmeBrief = "mesure";
 export const TON_PAR_DEFAUT = 50;

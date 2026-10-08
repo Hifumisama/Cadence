@@ -44,6 +44,10 @@ export function AvanceeScene({
   const [vue, setVue] = useState<VueCreation | null>(initial);
   const [pending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+  // Détail d'une étape : replié quand tout va bien, ouvert d'office tant qu'elle travaille ou qu'elle a échoué (sauf choix contraire).
+  const [depliees, setDepliees] = useState<Record<string, boolean>>({});
+  // Une fois la préparation terminée : le grand clap (« Voir le projet ») remplace la liste, qu'un petit bouton ramène.
+  const [affichage, setAffichage] = useState<"clap" | "etapes" | null>(null);
   const enVol = useRef(false);
 
   const charger = useCallback(async () => {
@@ -84,6 +88,10 @@ export function AvanceeScene({
   const pct = vue && vue.total ? Math.round((vue.faites / vue.total) * 100) : 0;
   const titre = !vue ? <>Pas encore de <em>préparation</em>.</> : { en_cours: <>La préparation <em>avance</em>.</>, termine: <>Le projet est <em>prêt</em>.</>, echoue: <>La préparation est <em>interrompue</em>.</>, arretee: <>La préparation est <em>arrêtée</em>.</> }[vue.statut];
   const etapeCourante = vue?.etapes.find((e) => e.statut === "en_cours" || e.statut === "echoue");
+  const termine = vue?.statut === "termine";
+  const vueClap = termine && (affichage ?? "clap") === "clap";
+  const nomAffiche = nomProjet === "Sans titre" ? "Ton projet" : nomProjet;
+  const faits = vue?.etapes.filter((e) => e.statut === "fait" && e.resultat).map((e) => e.resultat as string) ?? [];
 
   return (
     <div className="cn-salle" style={ambiance}>
@@ -109,6 +117,17 @@ export function AvanceeScene({
           <div className="cn-av-droite">
             {!vue ? (
               <p className="cn-note" style={{ margin: 0 }}>Aucune préparation pour ce projet. Parle de ton projet au scénariste, puis lance la préparation depuis le clap.</p>
+            ) : vueClap ? (
+              <Link href={`/p/${projectId}`} className="cn-grand-clap" aria-label={`Voir le projet ${nomAffiche}`}>
+                <span className="cn-grand-clap-haut" aria-hidden="true" />
+                <span className="cn-grand-clap-corps">
+                  <small>Tout est prêt</small>
+                  <b>{nomAffiche}</b>
+                  <span>Les épisodes, les plans, les personnages et les décors sont en place. À toi de relire, de retoucher, puis de tourner.</span>
+                  {faits.length > 0 ? <span className="cn-grand-clap-puces">{faits.slice(0, 5).map((f) => <i key={f}>{f}</i>)}</span> : null}
+                  <em>Voir le projet →</em>
+                </span>
+              </Link>
             ) : (
               <ol className="cn-etapes" aria-label="Avancement de la préparation">
                 {vue.etapes.map((e, i) => (
@@ -119,8 +138,18 @@ export function AvanceeScene({
                       <span>{e.resultat ?? e.detail}</span>
                       {e.erreur ? <span className="cn-erreur" role="alert">{e.erreur}</span> : null}
                       {e.activite ? <span role="status">{e.activite}</span> : null}
-                      {e.statut === "en_cours" ? <span className="cn-barre" aria-hidden="true" /> : null}
+                      {e.statut === "en_cours" ? <span className="cn-progres" aria-hidden="true" /> : null}
                       {e.sousTaches.length > 0 ? (
+                        <button
+                          type="button"
+                          className="cn-lien cn-deplier"
+                          aria-expanded={depliees[e.cle] ?? (e.statut === "en_cours" || e.statut === "echoue")}
+                          onClick={() => setDepliees((d) => ({ ...d, [e.cle]: !(d[e.cle] ?? (e.statut === "en_cours" || e.statut === "echoue")) }))}
+                        >
+                          {(depliees[e.cle] ?? (e.statut === "en_cours" || e.statut === "echoue")) ? "Masquer le détail" : `Voir le détail (${e.sousTaches.length})`}
+                        </button>
+                      ) : null}
+                      {e.sousTaches.length > 0 && (depliees[e.cle] ?? (e.statut === "en_cours" || e.statut === "echoue")) ? (
                         <ul className="cn-sous" aria-label={`Détail : ${e.libelle}`}>
                           {e.sousTaches.map((s, k) => (
                             <li key={`${s.libelle}-${k}`}>
@@ -146,7 +175,12 @@ export function AvanceeScene({
                   {vue.statut === "echoue" ? "Reprendre depuis l’étape en échec" : "Reprendre"}
                 </button>
               ) : null}
-              {vue?.statut === "termine" ? <Link href={`/p/${projectId}`} className="btn btn-gold">Voir le projet</Link> : null}
+              {termine ? (
+                <button type="button" className="btn" onClick={() => setAffichage(vueClap ? "etapes" : "clap")}>
+                  {vueClap ? "Revoir les étapes" : "Retour au clap"}
+                </button>
+              ) : null}
+              {termine && !vueClap ? <Link href={`/p/${projectId}`} className="btn btn-gold">Voir le projet</Link> : null}
               {conception && !vue ? <Link href={`/p/${projectId}/demarrage`} className="btn btn-gold">Retourner à la conception</Link> : null}
               <span className="cn-note">Tu peux quitter cette page : la préparation continue sur le serveur. Il n’y a pas de point de retour : pour tout défaire, supprime le projet.</span>
             </div>

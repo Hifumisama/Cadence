@@ -3,8 +3,9 @@
   "title": "Output of the prompt-asset agent: an asset's texts",
   "type": "object",
   "additionalProperties": false,
-  "required": ["methode", "raisonMethode", "promptGeneration", "remarques"],
+  "required": ["reflexion", "methode", "raisonMethode", "promptGeneration", "remarques"],
   "properties": {
+    "reflexion": { "type": "string", "minLength": 1, "description": "(French) Your draft, NEVER shown to the user, in two to four short lines, BEFORE writing the prompt: (1) what the canonical description and the brief say, to be kept word for word; (2) what is missing or hesitant (an \"or\", an absent trait) and the precise choice you make; (3) for an image, the details you add to reach the length the guide asks (40 to 100 words, more for a character)." },
     "methode": { "type": "string", "enum": ["generation", "edition"], "description": "Recommended method. `edition` has an image 1, the target of the modification (usually the asset's starting image). An `sfx` is always `generation`." },
     "raisonMethode": { "type": "string", "description": "(French) One sentence justifying the method." },
     "sources": {

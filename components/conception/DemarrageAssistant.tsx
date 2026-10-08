@@ -2,6 +2,7 @@
 
 import "./conception.css";
 import "./demarrage.css";
+import { Glissiere } from "./Glissiere";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { lireConversationVue } from "@/app/agents/lecture";
 import { estTacheActive } from "@/lib/agents-affichage";
@@ -114,6 +115,11 @@ export function DemarrageAssistant({
         }))}
       />
 
+      <div className={`cn-scene${recule ? " is-recule" : ""}`} key={etape}>
+        {etape === SCENARIO ? <ScenarioScene conv={conv} rafraichir={rafraichir} /> : null}
+        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} style={style} notes={conv.notes} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
+      </div>
+
       <div className="cn-barre" role="group" aria-label="Avancer dans la conception">
         {etape === CLAP ? <button type="button" className="btn" onClick={() => aller(SCENARIO)}>← Retour à l’entretien</button> : null}
         <span className="cn-barre-texte" aria-live="polite">
@@ -129,14 +135,7 @@ export function DemarrageAssistant({
             <>Il manque encore quelques points, mais <b>tu peux passer au clap</b> quand tu veux.</>
           )}
         </span>
-        {etape === SCENARIO ? (
-          <button type="button" className="btn btn-gold cn-clap" disabled={!peutClap} onClick={() => aller(CLAP)}>Voir le clap →</button>
-        ) : null}
-      </div>
-
-      <div className={`cn-scene${recule ? " is-recule" : ""}`} key={etape}>
-        {etape === SCENARIO ? <ScenarioScene conv={conv} rafraichir={rafraichir} /> : null}
-        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} style={style} notes={conv.notes} pret={pret} affiche={affiche} reessayer={() => preparer(true)} /> : null}
+        {etape === SCENARIO ? <Glissiere libelle="Glisse : voir le clap" action desactive={!peutClap} onValider={() => aller(CLAP)} /> : null}
       </div>
 
     </div>

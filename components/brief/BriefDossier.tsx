@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { modifierChampBrief } from "@/app/agents/actions";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
+import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
 import { decompterStatuts } from "@/lib/agents-affichage";
+import { construireCode, slugifyCode } from "@/lib/assetCode";
+import { urlMiniature } from "@/lib/miniatures";
 import { SECTIONS_BRIEF, type StatutChamp, type VueBrief } from "@/lib/agents/types";
 import { EditeurBrief } from "./EditeurBrief";
 import { Marque } from "./Marque";
@@ -14,6 +17,15 @@ import { Sommaire, type EntreeSommaire } from "./Sommaire";
 import { memeEdition, provenanceElement, provenanceSection, type Edition, type Provenance } from "./types";
 
 type Objet = Record<string, unknown>;
+
+/** Un personnage ou un décor du registre, tel que le brief le montre (lecture seule). */
+export type EntreeRegistre = { code: string; type: "personnage" | "decor"; description: string; src: string | null };
+
+/** « DEC_le_monde_de_l_avatar » → « Le monde de l avatar » : le nom lisible d'un asset que le brief ne connaît pas. */
+const nomDepuisCode = (code: string): string => {
+  const brut = code.replace(/^[A-Z]+_/, "").replace(/_/g, " ").trim();
+  return brut ? brut[0]!.toUpperCase() + brut.slice(1) : code;
+};
 
 /** Où se trouve, dans la page, le bloc d'une section du brief (pour y faire défiler depuis « À confirmer »). */
 const ANCRES: Record<string, string> = {
@@ -71,7 +83,11 @@ function TitreSection({ id, titre, children }: { id: string; titre: string; chil
 /** La page du brief : un dossier de production lisible d'un coup d'œil. Un clic sur un bloc le passe en édition SUR PLACE
  * (une seule modification à la fois) ; ce que l'agent n'a pas pu trancher, ses ajouts et ses questions sont réunis dans
  * « Notes de l'agent », sous « D'où vient ce brief ». */
-export function BriefDossier({ projectId, nomProjet, brief }: { projectId: number; nomProjet: string; brief: VueBrief }) {
+/** Les choix de la conception : les changer, c'est refaire le projet (la langue touche tous les dialogues, la durée tout le découpage…). Figés une fois
+ * l'entretien passé : lecture seule ici. */
+const IDENTITE_FIGEE = ["langueDialogues", "dureeEpisodeSecondes", "genreTon"];
+
+export function BriefDossier({ projectId, nomProjet, brief, identiteFigee = false, registre = [] }: { projectId: number; nomProjet: string; brief: VueBrief; identiteFigee?: boolean; registre?: EntreeRegistre[] }) {
   const router = useRouter();
   const c = brief.contenu;
   const donnees = c as unknown as Record<string, unknown>;
@@ -93,6 +109,15 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
   const progressions = liste("progressions");
   const pieges = liste("pieges");
   const notes = texte(donnees.notes);
+
+  // Le registre fait foi dès qu'il existe : lieux = décors, personnages = personnages du registre (le brief ne garde que ce qu'il y ajoute : rôle, voix…).
+  const decors = registre.filter((a) => a.type === "decor");
+  const persosRegistre = registre.filter((a) => a.type === "personnage");
+  const codePerso = (p: Objet) => construireCode("personnage", slugifyCode(texte(p.nom)));
+  const briefParCode = new Map(personnages.map((p, i) => [codePerso(p), { p, i }] as const));
+  const apparies = new Set(persosRegistre.filter((a) => briefParCode.has(a.code)).map((a) => briefParCode.get(a.code)!.i));
+  const lieuxViaRegistre = decors.length > 0;
+  const persosViaRegistre = persosRegistre.length > 0;
 
   // --- Écritures (tout passe par modifierChampBrief : la section écrite passe à « fourni ») ---
   const enregistrer = async (cle: string, valeur: unknown): Promise<string | null> => {
@@ -177,10 +202,31 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
     );
   };
 
+  const carteRegistre = (a: EntreeRegistre, nom: string, complement?: React.ReactNode) => (
+    <article key={a.code} className="bf-carte bf-reveal bf-registre">
+      <Link href={`/p/${projectId}/assets/${a.code}`} className="bf-registre-lien" aria-label={`Ouvrir ${nom} dans le registre`}>
+        <span className={`bf-registre-vignette${a.src ? "" : " is-vide"}`} aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element -- stockage média, redimensionné par la route */}
+          {a.src ? <img src={urlMiniature(a.src, 192)} alt="" loading="lazy" decoding="async" /> : (nom.trim()[0] ?? "?").toUpperCase()}
+        </span>
+        <span className="bf-registre-corps">
+          <h3>{nom}</h3>
+          {complement}
+          <p>{a.description || "Pas encore de description."}</p>
+        </span>
+      </Link>
+    </article>
+  );
+  const lienRegistre = (
+    <Link href={`/p/${projectId}/assets`} className="bf-btn bf-press">
+      Ouvrir le registre
+    </Link>
+  );
+
   // Ce que l'agent n'a pas pu trancher : éléments « incertains » et sections à valider.
   const aConfirmer: { cle: string; type: string; titre: string; detail: string; confirmer: () => Promise<string | null>; ouvrir: () => void }[] = [];
   personnages.forEach((p, i) => {
-    if (p.statut === "incertain")
+    if (p.statut === "incertain" && !apparies.has(i))
       aConfirmer.push({
         cle: `p${i}`,
         type: "Personnage",
@@ -194,7 +240,7 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
       });
   });
   lieux.forEach((l, i) => {
-    if (l.statut === "incertain")
+    if (l.statut === "incertain" && !lieuxViaRegistre)
       aConfirmer.push({
         cle: `l${i}`,
         type: "Lieu",
@@ -229,14 +275,13 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
     { cle: "genreTon", label: "Genre et ton", valeur: texte(c.genreTon) },
   ];
 
-  const inventions = lignes("inventions");
   const entrees: EntreeSommaire[] = [
     { id: "bf-haut", label: "Vue d'ensemble" },
-    { id: "bf-agent", label: "Notes de l'agent", ...(aConfirmer.length > 0 ? { aConfirmer: true } : { compte: inventions.length + lignes("questionsOuvertes").length }) },
+    ...(aConfirmer.length > 0 ? [{ id: "bf-agent", label: "À confirmer", aConfirmer: true }] : []),
     { id: "bf-style", label: "Style" },
     { id: "bf-episodes", label: "Épisodes", compte: episodes.length },
-    { id: "bf-personnages", label: "Personnages", compte: personnages.length },
-    { id: "bf-lieux", label: "Lieux", compte: lieux.length },
+    { id: "bf-personnages", label: "Personnages", compte: persosViaRegistre ? persosRegistre.length + personnages.filter((_, i) => !apparies.has(i)).length : personnages.length },
+    { id: "bf-lieux", label: "Lieux", compte: lieuxViaRegistre ? decors.length : lieux.length },
     { id: "bf-contraintes", label: "Contraintes" },
     { id: "bf-notes", label: "Notes du projet" },
   ];
@@ -282,7 +327,7 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
 
               <div className="bf-faits bf-in bf-d4">
                 {faits.map((f) =>
-                  enCours(S(f.cle)) ? (
+                  enCours(S(f.cle)) && !(identiteFigee && IDENTITE_FIGEE.includes(f.cle)) ? (
                     <div key={f.cle} className="bf-fait bf-edition">
                       {editeur(S(f.cle))}
                     </div>
@@ -291,7 +336,11 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
                       <div className="bf-tete">
                         <span className="bf-etiquette">{f.label}</span>
                         <Prov etat={provenanceSection(statut(f.cle))} />
-                        <Zone label={f.label} onClick={() => setEdition(S(f.cle))} disabled={verrou} />
+                        {identiteFigee && IDENTITE_FIGEE.includes(f.cle) ? (
+                          <span className="bf-fige" title="Choisi à la conception : le changer reviendrait à refaire le projet.">fixé</span>
+                        ) : (
+                          <Zone label={f.label} onClick={() => setEdition(S(f.cle))} disabled={verrou} />
+                        )}
                       </div>
                       <span className={`bf-fait-valeur${f.valeur ? "" : " is-vide"}`}>{f.valeur || "À définir"}</span>
                     </div>
@@ -327,9 +376,10 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
                 </div>
               </aside>
 
+              {aConfirmer.length > 0 ? (
               <section id="bf-agent" className="bf-agent bf-in bf-d4" aria-labelledby="bf-t-agent">
                 <header className="bf-agent-hd">
-                  <h2 id="bf-t-agent">Notes de l&rsquo;agent</h2>
+                  <h2 id="bf-t-agent">À confirmer</h2>
                   {aConfirmer.length > 0 ? (
                     <span className="bf-prov is-confirmer">
                       <span className="bf-pulse" aria-hidden="true">◇</span> {aConfirmer.length} à confirmer
@@ -358,29 +408,8 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
                     ))}
                   </div>
                 ) : null}
-
-                <div className="bf-agent-groupe">
-                  <div className="bf-carte-hd">
-                    <h3>Ce que l&rsquo;agent a ajouté</h3>
-                    <span className="bf-pousse">
-                      <BoutonAjouter label="Ajouter" onClick={() => setEdition(L("inventions", inventions.length))} disabled={verrou} />
-                    </span>
-                  </div>
-                  <p className="bf-aide">Absent de ton pitch : à garder ou à retirer.</p>
-                  {lignesJSX("inventions", "Rien d'ajouté.")}
-                </div>
-
-                <div className="bf-agent-groupe">
-                  <div className="bf-carte-hd">
-                    <h3>Questions encore ouvertes</h3>
-                    <span className="bf-pousse">
-                      <BoutonAjouter label="Ajouter" onClick={() => setEdition(L("questionsOuvertes", lignes("questionsOuvertes").length))} disabled={verrou} />
-                    </span>
-                  </div>
-                  <p className="bf-aide">Ce que l&rsquo;agent aimerait te demander.</p>
-                  {lignesJSX("questionsOuvertes", "Aucune question en suspens.")}
-                </div>
               </section>
+              ) : null}
             </div>
           </section>
 
@@ -443,12 +472,17 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
 
           <section id="bf-personnages" className="bf-section" aria-labelledby="bf-t-personnages">
             <TitreSection id="bf-t-personnages" titre="Personnages">
-              <BoutonAjouter label="Ajouter" onClick={() => setEdition(E("personnages", personnages.length))} disabled={verrou} />
+              {persosViaRegistre ? lienRegistre : <BoutonAjouter label="Ajouter" onClick={() => setEdition(E("personnages", personnages.length))} disabled={verrou} />}
             </TitreSection>
-            {personnages.length === 0 && !enCours(E("personnages", 0)) ? <p className="bf-vide">Aucun personnage dans le brief.</p> : null}
+            {persosViaRegistre ? <p className="bf-aide">Vue du registre : c&rsquo;est là que les personnages se modifient (description, image, voix).</p> : null}
+            {personnages.length === 0 && !persosViaRegistre && !enCours(E("personnages", 0)) ? <p className="bf-vide">Aucun personnage dans le brief.</p> : null}
             <div className="bf-grille">
+              {persosRegistre.map((a) => {
+                const lie = briefParCode.get(a.code)?.p;
+                return carteRegistre(a, lie ? texte(lie.nom) || nomDepuisCode(a.code) : nomDepuisCode(a.code), lie && texte(lie.role) ? <p className="bf-registre-role">{texte(lie.role)}</p> : undefined);
+              })}
               {personnages.map((p, i) =>
-                enCours(E("personnages", i)) ? (
+                persosViaRegistre && apparies.has(i) ? null : enCours(E("personnages", i)) ? (
                   <article key={i} id={`bf-personnages-${i}`} className="bf-carte bf-edition">
                     {editeur(E("personnages", i))}
                   </article>
@@ -482,11 +516,13 @@ export function BriefDossier({ projectId, nomProjet, brief }: { projectId: numbe
 
           <section id="bf-lieux" className="bf-section" aria-labelledby="bf-t-lieux">
             <TitreSection id="bf-t-lieux" titre="Lieux">
-              <BoutonAjouter label="Ajouter" onClick={() => setEdition(E("lieux", lieux.length))} disabled={verrou} />
+              {lieuxViaRegistre ? lienRegistre : <BoutonAjouter label="Ajouter" onClick={() => setEdition(E("lieux", lieux.length))} disabled={verrou} />}
             </TitreSection>
-            {lieux.length === 0 && !enCours(E("lieux", 0)) ? <p className="bf-vide">Aucun lieu dans le brief.</p> : null}
+            {lieuxViaRegistre ? <p className="bf-aide">Vue du registre : les lieux sont les décors, et c&rsquo;est là qu&rsquo;ils se modifient.</p> : null}
+            {lieux.length === 0 && !lieuxViaRegistre && !enCours(E("lieux", 0)) ? <p className="bf-vide">Aucun lieu dans le brief.</p> : null}
             <div className="bf-grille">
-              {lieux.map((l, i) =>
+              {lieuxViaRegistre ? decors.map((a) => carteRegistre(a, nomDepuisCode(a.code))) : null}
+              {(lieuxViaRegistre ? [] : lieux).map((l, i) =>
                 enCours(E("lieux", i)) ? (
                   <article key={i} id={`bf-lieux-${i}`} className="bf-carte bf-edition">
                     {editeur(E("lieux", i))}

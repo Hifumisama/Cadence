@@ -2,17 +2,20 @@
 
 import { useMemo, type ReactNode } from "react";
 import {
-  DUREE_MAX_SECONDES,
-  DUREE_MIN_SECONDES,
+  DUREE_EXPERIMENTALE_SECONDES,
   EPISODES_MAX,
   EPISODES_MIN,
   GENRES,
   GENRES_MAX,
   LANGUES_DIALOGUES,
   PLAGES_RYTHME,
+  POSITION_DUREE_MAX,
+  REPERES_DUREE,
   SANS_DIALOGUE,
+  dureeDepuisPosition,
   motDuTon,
   plansEstimes,
+  positionDepuisDuree,
 } from "@/lib/conception";
 import { ajusterTon, basculerGenre, minutesSecondes, reinitialiserTon, SERIES_DISPONIBLES } from "@/lib/conception-ui";
 import { Curseur } from "./Curseur";
@@ -147,7 +150,8 @@ export function SceneGenreTon({ etat, maj }: PropsScene) {
 
 /* ------------------------------------------------------ 3. Durée et rythme */
 
-const PRESETS = [60, 120, 180, 300] as const;
+const PRESETS = [60, 120, 180, 300, 600, 1800, 3600, 5400] as const;
+const MAX_CASES = 120;
 const RYTHMES = [
   { id: "lent", nom: "Lent" },
   { id: "mesure", nom: "Mesuré" },
@@ -158,20 +162,36 @@ const RYTHMES = [
 export function SceneDuree({ etat, maj }: PropsScene) {
   const plans = plansEstimes(etat.duree, etat.rythme);
   const plage = PLAGES_RYTHME[etat.rythme];
+  // Au-delà de MAX_CASES plans, une case en représente plusieurs (une bande de plusieurs centaines de cases ne dirait plus rien).
+  const parCase = Math.max(1, Math.ceil(plans.moyen / MAX_CASES));
   const blocs = useMemo(() => {
-    // Largeur de chaque plan : la même partout, sauf au rythme « variable » où elle varie de façon stable (suite déterministe).
-    return Array.from({ length: plans.moyen }, (_, k) => (etat.rythme === "variable" ? 5 + ((k * 7919) % 11) : (plage.min + plage.max) / 2));
-  }, [plans.moyen, etat.rythme, plage.min, plage.max]);
+    // Largeur de chaque case : la même partout, sauf au rythme « variable » où elle varie de façon stable (suite déterministe).
+    return Array.from({ length: Math.ceil(plans.moyen / parCase) }, (_, k) => (etat.rythme === "variable" ? 5 + ((k * 7919) % 11) : (plage.min + plage.max) / 2) * parCase);
+  }, [plans.moyen, parCase, etat.rythme, plage.min, plage.max]);
+  const film = etat.format === "film";
   const poser = (duree: number) => maj((e) => ({ ...e, duree, dureeChoisie: true }));
   return (
     <>
-      <EnteteScene acte="Acte 03" titre={<>Combien de <em>temps</em> ?</>} sous="La durée et le rythme fixent le nombre de plans que le scénario devra écrire." />
-      <p className="cn-grande-duree">{minutesSecondes(etat.duree)}<small>par épisode</small></p>
-      <Curseur className="cn-regle" valeur={etat.duree} min={DUREE_MIN_SECONDES} max={DUREE_MAX_SECONDES} pas={15} pasGrand={60} etiquette="Durée de l’épisode" texteValeur={minutesSecondes(etat.duree)} onChange={poser}>
+      <EnteteScene acte="Acte 03" titre={<>Combien de <em>temps</em> ?</>} sous={film ? "La durée du film et le rythme fixent le nombre de plans que le scénario devra écrire." : "La durée d’un épisode et le rythme fixent le nombre de plans que le scénario devra écrire."} />
+      <p className="cn-grande-duree">{minutesSecondes(etat.duree)}{film ? null : <small>par épisode</small>}</p>
+      {etat.duree > DUREE_EXPERIMENTALE_SECONDES ? (
+        <p className="cn-note-duree">Au-delà de 10 min, c’est <b>expérimental</b> : le scénario compte des centaines de plans, et le modèle local risque d’y perdre le fil.</p>
+      ) : null}
+      <Curseur
+        className="cn-regle"
+        valeur={Math.round(positionDepuisDuree(etat.duree))}
+        min={0}
+        max={POSITION_DUREE_MAX}
+        pas={25}
+        pasGrand={100}
+        etiquette={film ? "Durée du film" : "Durée de l’épisode"}
+        texteValeur={minutesSecondes(etat.duree)}
+        onChange={(position) => poser(dureeDepuisPosition(position))}
+      >
         <div className="cn-graduation" aria-hidden="true" />
-        <div className="cn-rempli" style={{ width: `${((etat.duree - DUREE_MIN_SECONDES) / (DUREE_MAX_SECONDES - DUREE_MIN_SECONDES)) * 100}%` }} aria-hidden="true" />
-        {[60, 180, 300, 600].map((s) => (
-          <span key={s} className="cn-repere" style={{ left: `${((s - DUREE_MIN_SECONDES) / (DUREE_MAX_SECONDES - DUREE_MIN_SECONDES)) * 100}%` }} aria-hidden="true">{minutesSecondes(s)}</span>
+        <div className="cn-rempli" style={{ width: `${positionDepuisDuree(etat.duree) / 10}%` }} aria-hidden="true" />
+        {REPERES_DUREE.map((r) => (
+          <span key={r.secondes} className="cn-repere" style={{ left: `${r.position / 10}%` }} aria-hidden="true">{minutesSecondes(r.secondes)}</span>
         ))}
       </Curseur>
       <div className="cn-presets">
@@ -186,7 +206,7 @@ export function SceneDuree({ etat, maj }: PropsScene) {
           </i>
         ))}
       </div>
-      <div className="cn-bande-axe" aria-hidden="true"><span>0 s</span><span>1 case = 1 plan, largeur = durée</span></div>
+      <div className="cn-bande-axe" aria-hidden="true"><span>0 s</span><span>{parCase === 1 ? "1 case = 1 plan, largeur = durée" : `1 case ≈ ${parCase} plans`}</span></div>
       <p className="cn-bande-legende">≈ <b>{plans.min} à {plans.max} plans</b> · compter <b>{plans.moyen}</b> en moyenne</p>
       <div className="cn-rythmes" role="group" aria-label="Rythme">
         {RYTHMES.map((r) => (

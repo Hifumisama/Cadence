@@ -194,3 +194,16 @@ export function fichePourAgent(fiche: Fiche): Record<string, unknown> {
   for (const [k, v] of Object.entries(fiche.contenu)) if (!valeurVide(v)) o[k] = v;
   return o;
 }
+
+const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);
+
+/** Le titre que l'entretien donne au projet : celui de la fiche (dit par l'utilisateur ou proposé par le modèle), adopté tant que le
+ * nom du projet est encore provisoire (« Sans titre ») ou n'est que l'ancien titre de la fiche. Un titre corrigé à la main (au clap)
+ * n'est jamais écrasé. `null` : rien à changer. Pur. */
+export function titreAAdopter(fiche: Fiche, ancienne: Fiche, nomProjet: string): string | null {
+  const titre = typeof fiche.contenu.titre === "string" ? fiche.contenu.titre.trim() : "";
+  if (TITRES_PROVISOIRES.has(titre.toLowerCase()) || titre === nomProjet.trim()) return null;
+  const avant = typeof ancienne.contenu.titre === "string" ? ancienne.contenu.titre.trim() : "";
+  const provisoire = TITRES_PROVISOIRES.has(nomProjet.trim().toLowerCase()) || (avant !== "" && nomProjet.trim() === avant);
+  return provisoire ? titre.slice(0, 200) : null;
+}

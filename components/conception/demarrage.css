@@ -70,7 +70,7 @@
 .cn-claps-grille dd .cn-tag { font-family: var(--font-mono); font-size: 10.5px; }
 .cn-claps-grille > div.is-large { grid-column: span 3; border-right: 0; }
 .cn-claps-grille dd.is-texte { font-family: var(--font-data); font-size: 15px; color: var(--ink-2); line-height: 1.45; white-space: pre-wrap; }
-.cn-lancer { position: sticky; bottom: 0; z-index: 4; margin-top: 22px; padding: 14px 0; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: linear-gradient(to top, var(--ground) 65%, transparent); }
+.cn-lancer { position: sticky; bottom: 78px; z-index: 4; margin-top: 22px; padding: 14px 0; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: linear-gradient(to top, var(--ground) 65%, transparent); }
 .cn-lancer .cn-clap { font-size: 18px; padding: 18px 28px 12px; }
 .cn-manque { color: var(--ink-3); font-size: 14px; margin: 0; }
 .cn-cadre:disabled { opacity: 0.7; cursor: default; }

@@ -3,6 +3,10 @@ import { SECTIONS_BRIEF, type BriefContenu, type CleSectionBrief, type SectionBr
 /** Le brief — fonctions pures (aucun accès base ni disque) : de la sortie du skill
  * `brief-projet` au contenu + statuts stockés, aux sections affichées, aux différences. */
 
+/** Les sections qui reprennent un choix de la conception (langue, durée, genre et ton) : les changer reviendrait à refaire le projet, elles ne
+ * se modifient donc plus à la main une fois la conception faite (voir `modifierChampBrief`). */
+export const SECTIONS_FIGEES_PAR_LA_CONCEPTION: readonly string[] = ["langueDialogues", "dureeEpisodeSecondes", "genreTon"];
+
 export const CLES_SECTION: string[] = SECTIONS_BRIEF.map((s) => s.cle);
 
 export function estCleSection(cle: string): cle is CleSectionBrief {

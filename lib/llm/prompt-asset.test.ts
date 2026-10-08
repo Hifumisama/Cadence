@@ -7,8 +7,9 @@ import { valider } from "./validation";
 // Le skill prompt-asset sert les images ET les sons (asset `sfx`) : le guide
 // Stable Audio est chargé avec les deux autres, et le schéma accepte la durée.
 
-const image = { methode: "generation", raisonMethode: "Pas de parent.", promptGeneration: "A weathered stone lighthouse at dusk.", remarques: [] };
+const image = { reflexion: "Brouillon.", methode: "generation", raisonMethode: "Pas de parent.", promptGeneration: "A weathered stone lighthouse at dusk.", remarques: [] };
 const sfx = {
+  reflexion: "Brouillon.",
   methode: "generation",
   raisonMethode: "Un son généré par Stable Audio.",
   promptGeneration: "Heavy wooden door creaking open slowly on a rusty hinge, long low groan, echoing hollow stone interior.",

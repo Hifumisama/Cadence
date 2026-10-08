@@ -7,9 +7,14 @@ import { briefVide, fusionnerPartielDansBrouillon, promptImageDuBrief, residuPar
 import type { BriefContenu } from "./agents/types";
 import { entreeAccroche, MARQUE_PROJET_CONCU } from "./agents/accroche";
 import {
+  DUREE_MAX_SECONDES,
+  DUREE_MIN_SECONDES,
   GENRES,
   LANGUES_DIALOGUES,
   SANS_DIALOGUE,
+  dureeDepuisPosition,
+  pasDuree,
+  positionDepuisDuree,
   ficheDepuisConception,
   genreTonTexte,
   informationsFormat,
@@ -62,7 +67,7 @@ test("validerConception : les valeurs hors liste sont refusées, jamais corrigé
   refuse({ ton: 101 }, /Ton/);
   refuse({ ton: 40.5 }, /Ton/);
   refuse({ dureeSecondes: 29 }, /Durée/);
-  refuse({ dureeSecondes: 601 }, /Durée/);
+  refuse({ dureeSecondes: 5401 }, /Durée/);
   refuse({ rythme: "frénétique" }, /Rythme/);
   refuse({ langue: "Klingon" }, /Langue/);
   refuse({ format: "serie", episodesPrevus: 1 }, /Épisodes/);
@@ -191,4 +196,23 @@ test("entreeTour : le format du projet conçu est dit à l'agent, sans changer l
   assert.match(avec.at(-1)!.content, /Format : une série, 6 épisodes prévus./);
   const complet = entreeTour(conv, fiche, { manques: [], complete: true }, informationsFormat({ format: "film" }));
   assert.match(complet.at(-1)!.content, /Format : un film/);
+});
+
+test("durée : l'échelle du curseur est monotone, réversible et s'arrête à 90 min", () => {
+  assert.equal(dureeDepuisPosition(0), DUREE_MIN_SECONDES);
+  assert.equal(dureeDepuisPosition(250), 180);
+  assert.equal(dureeDepuisPosition(500), 600);
+  assert.equal(dureeDepuisPosition(1000), 5400);
+  let precedente = 0;
+  for (let p = 0; p <= 1000; p += 5) {
+    const d = dureeDepuisPosition(p);
+    assert.ok(d >= precedente, `monotone à ${p}`);
+    assert.ok(d >= DUREE_MIN_SECONDES && d <= DUREE_MAX_SECONDES);
+    assert.equal(d % pasDuree(d), 0, `${d} s est un multiple de son pas`);
+    precedente = d;
+  }
+  // Aller-retour : une durée de l'échelle retombe sur elle-même.
+  for (const s of [30, 60, 120, 180, 300, 600, 1800, 3600, 5400]) assert.equal(dureeDepuisPosition(positionDepuisDuree(s)), s);
+  // Les flèches du clavier (25 positions) font toujours bouger la durée.
+  for (let p = 0; p < 975; p += 25) assert.notEqual(dureeDepuisPosition(p + 25), dureeDepuisPosition(p), `bloqué à ${p}`);
 });

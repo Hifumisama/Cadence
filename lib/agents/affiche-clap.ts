@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { agentConversations, agentRuns, assetGenerations, assets, briefs, projects } from "../../db/schema";
-import { TYPE_AFFICHE, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../affiches";
+import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../affiches";
 import { nouvelleSeed } from "../asset-generation";
 import { motDuTon, styleDesImages } from "../conception";
 import { lireConception } from "../conception-db";
@@ -12,8 +12,8 @@ import type { BriefContenu, PersonnageBrief } from "./types";
 
 /** L'affiche du projet, au moment du clap. Elle est VRAIE : c'est l'affiche habituelle du projet (asset caché `AFFICHE_P<id>`, mêmes
  * générations ComfyUI, `posterFichier` du projet), pas une image de décor. Elle se prépare à l'arrivée sur le clap, pas avant, et ne se
- * refait que si ce qui la nourrit a changé (`signatureAffiche`) : l'histoire, le héros, les lieux, le genre, le ton, le style. Un titre
- * modifié ne la refait pas (le titre n'est pas dans l'image).
+ * refait que si ce qui la nourrit a changé (`signatureAffiche`) : l'histoire, le héros, les lieux, le genre, le ton, le style, et le titre (il
+ * est ÉCRIT dans l'image, en lettrage intégré à la composition : un titre corrigé au clap refait donc l'affiche).
  *
  * Deux temps, portés par le worker : (1) une tâche du skill `prompt-affiche` (but « affiche ») écrit le prompt à partir de la fiche de
  * l'entretien ; (2) à son retour (`ecrireAfficheEtGenerer`, appelée par worker/agents/postTraitement.ts), la génération part dans la file
@@ -37,9 +37,10 @@ export type DonneesAffiche = {
 const net = (s: unknown): string => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
 
 /** Empreinte de ce qui nourrit l'affiche : quand elle change, l'affiche se refait ; sinon non. Le ton compte par son MOT (un curseur
- * qui bouge de trois points ne refait rien), le titre ne compte pas. */
-export function signatureAffiche(d: Omit<DonneesAffiche, "titre" | "clauseStyle">): string {
+ * qui bouge de trois points ne refait rien) ; le titre compte (il est dans l'image). */
+export function signatureAffiche(d: Omit<DonneesAffiche, "clauseStyle">): string {
   const canon = JSON.stringify({
+    titre: net(d.titre),
     arc: net(d.arc),
     personnages: d.personnages.map((p) => [net(p.nom), net(p.age), net(p.apparence), net(p.gestuelle), net(p.reconnaissable)]),
     lieux: net(d.lieux),
@@ -63,7 +64,8 @@ export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
     resume: [d.arc, d.lieux ? `Lieux : ${d.lieux}` : "", autres.length ? `Autres personnages : ${autres.join(" ; ")}` : ""].map(net).filter(Boolean).join("\n"),
     genreTon: `${d.genres.join(" + ")}, ton ${motDuTon(d.ton)}`,
     clauseStyleDuProjet: d.clauseStyle,
-    titreDansImage: false,
+    // Le titre est écrit dans l'image (ligne « Title lettering » ajoutée par le skill, et reposée par le code au retour) tant qu'il existe.
+    titreDansImage: net(d.titre) !== "",
     promptActuel: "",
     personnagePrincipal: heros ? { code: "HERO", nom: net(heros.nom), description: decrire(heros), imageDisponible: false } : null,
     consigne: "Poster written at the end of the design interview: no character image exists yet, so write a text-only generation (method `generation`, no sources). The summary is the whole story: choose one striking moment.",
@@ -131,7 +133,7 @@ export async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<Don
       type: TYPE_AFFICHE,
       statut: "a_produire",
       description: `Affiche : ${d.titre || "projet"}`,
-      promptGeneration: promptAffiche({ cible: "projects", titre: d.titre, resume: d.arc, genreTon: `${d.genres.join(" + ")}, ${motDuTon(d.ton)}` }),
+      promptGeneration: promptAffiche({ cible: "projects", titre: d.titre, resume: d.arc, genreTon: `${d.genres.join(" + ")}, ${motDuTon(d.ton)}`, titreDansImage: net(d.titre) !== "" }),
     })
     .onConflictDoNothing();
   const [cree] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, code)));
@@ -148,12 +150,15 @@ export async function lancerAfficheClap(db: Db, projectId: number, d: DonneesAff
 /** Retour du skill (appelée par le worker, dans sa transaction) : le prompt devient celui de l'affiche, et la génération part dans la file des
  * images, adoptée toute seule (c'est elle l'affiche du projet). Même demande que `lancerGeneration` pour une affiche : 2:3, mode texte. */
 export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: { promptGeneration?: unknown }): Promise<void> {
-  const prompt = typeof sortie.promptGeneration === "string" ? sortie.promptGeneration.trim() : "";
-  if (!prompt) throw new Error("Le prompt de l'affiche est vide.");
+  const promptModele = typeof sortie.promptGeneration === "string" ? sortie.promptGeneration.trim() : "";
+  if (!promptModele) throw new Error("Le prompt de l'affiche est vide.");
   const [asset] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, codeAffiche("projects", projectId))));
   if (!asset) throw new Error("L'asset d'affiche du projet n'existe pas.");
-  const [projet] = await db.select({ clauseStyle: projects.clauseStyle, stylePromptImage: projects.stylePromptImage }).from(projects).where(eq(projects.id, projectId));
+  const [projet] = await db.select({ nom: projects.nom, clauseStyle: projects.clauseStyle, stylePromptImage: projects.stylePromptImage }).from(projects).where(eq(projects.id, projectId));
   const format = formatAfficheParDefaut();
+  // Le titre est posé par le code, mot pour mot : le modèle ne le réécrit ni ne le traduit (voir `avecTitreDansImage`).
+  const titre = projet && projet.nom !== "Sans titre" ? projet.nom.trim() : "";
+  const prompt = titre ? avecTitreDansImage(promptModele, titre, true) : promptModele;
   await db.update(assets).set({ promptGeneration: prompt }).where(eq(assets.id, asset.id));
   await db.insert(assetGenerations).values({
     assetId: asset.id,
