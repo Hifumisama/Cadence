@@ -2,28 +2,26 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import type { EtatPhases } from "@/lib/voix";
+import { LIBELLE_ETAT_FICHE, type EtatFiche, type EtatPhases } from "@/lib/voix";
 import { PhasesVoix } from "./PhasesVoix";
 import { Icone } from "@/components/ui/Icone";
 
-// Une seule référence joue à la fois dans le catalogue.
+// Une seule référence joue à la fois dans la liste.
 let carteActive: { stop: () => void } | null = null;
 
-const STATUT: Record<string, { t: string; cls: string }> = {
-  valide: { t: "Figée", cls: "b-termine" },
-  en_cours: { t: "En essais", cls: "b-rejoue" },
-  a_produire: { t: "À concevoir", cls: "b-attente" },
-};
+const CLASSE_ETAT: Record<EtatFiche, string> = { a_creer: "b-attente", a_valider: "b-rejoue", validee: "b-termine" };
 
-/** Carte du catalogue : la voix se présente par sa description canonique.
- * ▶ écoute la voix de référence sans quitter le catalogue. */
+/** Carte d'une fiche vocale : son nom, sa pastille d'état (libellé texte en plus de la couleur), sa langue, le personnage assigné
+ * (lecture seule), le nombre de répliques, et en citation la réplique d'écoute — la « signature vocale ». ▶ écoute la voix de
+ * référence sans quitter la liste. Le code de la voix n'apparaît pas. */
 export function VoixCard({
   href,
-  code,
-  statut,
+  nom,
+  etat,
   critique,
-  description,
-  personnageCode,
+  langue,
+  personnageNom,
+  refText,
   referenceSrc,
   referenceFichier,
   phases,
@@ -31,11 +29,13 @@ export function VoixCard({
   nbRepliquesMesurees,
 }: {
   href: string;
-  code: string;
-  statut: string;
+  nom: string;
+  etat: EtatFiche;
   critique: boolean;
-  description: string;
-  personnageCode: string | null;
+  /** Libellé français de la langue (« Français »). */
+  langue: string;
+  personnageNom: string | null;
+  refText: string;
   referenceSrc: string | null;
   referenceFichier: string | null;
   phases: EtatPhases;
@@ -54,11 +54,8 @@ export function VoixCard({
       setJoue(false);
     },
   });
-  const s = STATUT[statut] ?? STATUT.a_produire!;
 
-  const basculer = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const basculer = () => {
     const a = audioRef.current;
     if (!a) return;
     if (joue) {
@@ -72,43 +69,49 @@ export function VoixCard({
   };
 
   return (
-    <Link href={href} className={`voix-card${statut === "valide" ? " is-figee" : ""}`}>
+    <article className={`voix-card${etat === "validee" ? " is-figee" : ""}`}>
       <div className="voix-card-hd">
-        <span className="asset-code num">{code}</span>
-        {critique ? <span className="crit-tag">Critique</span> : null}
+        <h2 className="voix-card-nom">{nom}</h2>
+        <span className={`badge ${CLASSE_ETAT[etat]}`}>
+          <i />
+          {LIBELLE_ETAT_FICHE[etat]}
+        </span>
       </div>
 
-      <p className={`voix-card-regle${description.trim() ? "" : " is-vide"}`}>
-        {description.trim() || "Description du timbre à écrire."}
+      <p className="voix-card-meta tiny-note">
+        <span>{langue}</span>
+        <span aria-hidden="true">·</span>
+        <span>{personnageNom ? `Personnage : ${personnageNom}` : "Voix directe, sans personnage"}</span>
+        <span aria-hidden="true">·</span>
+        <span className="num">
+          {nbRepliques} réplique{nbRepliques > 1 ? "s" : ""}
+          {nbRepliques > 0 ? `, ${nbRepliquesMesurees} mesurée${nbRepliquesMesurees > 1 ? "s" : ""}` : ""}
+        </span>
+        {critique ? <span className="crit-tag">Critique</span> : null}
       </p>
+
+      <blockquote className={`voix-card-regle${refText.trim() ? "" : " is-vide"}`}>
+        {refText.trim() ? `« ${refText.trim()} »` : "Réplique d'écoute à écrire."}
+      </blockquote>
+
+      <PhasesVoix phases={phases} />
 
       <div className="voix-card-ref">
         {referenceSrc ? (
           <>
-            <button type="button" className="asset-card-play voix-card-play" onClick={basculer} aria-label={joue ? `Arrêter ${code}` : `Écouter la référence de ${code}`}>
-              {joue ? <Icone nom="arret" taille={14} /> : <Icone nom="lecture" taille={14} />}
+            <button type="button" className="asset-card-play voix-card-play" onClick={basculer} aria-pressed={joue} aria-label={joue ? `Arrêter la voix de ${nom}` : `Écouter la voix de référence de ${nom}`}>
+              {joue ? <Icone nom="arret" taille={16} /> : <Icone nom="lecture" taille={16} />}
             </button>
-            <span className="tiny-note">référence</span>
             <audio ref={audioRef} src={referenceSrc} preload="none" onEnded={() => setJoue(false)} />
           </>
         ) : (
-          <span className="tiny-note">{referenceFichier ? "référence introuvable" : "pas de référence"}</span>
+          <span className="tiny-note">{referenceFichier ? "Référence introuvable" : "Pas de voix de référence"}</span>
         )}
         <span style={{ flex: 1 }} />
-        {personnageCode ? <span className="type-tag">{personnageCode}</span> : null}
+        <Link href={href} className="btn voix-card-ouvrir">
+          Ouvrir la fiche
+        </Link>
       </div>
-
-      <PhasesVoix phases={phases} />
-
-      <div className="voix-card-ft">
-        <span className={`badge ${s.cls}`}>
-          <i />
-          {s.t}
-        </span>
-        <span className="subj-kids num">
-          {nbRepliquesMesurees}/{nbRepliques} répl. mesurées
-        </span>
-      </div>
-    </Link>
+    </article>
   );
 }

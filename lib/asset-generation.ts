@@ -2,6 +2,9 @@
  * par l'application et le worker. Voir docs/FRICTIONS.md (tâches ComfyUI) et
  * workflows/README.md (contrat des workflows d'images). */
 
+import { langueFicheVoix } from "./langues-tts";
+import { PHRASES_MIN_ECOUTE, compterPhrases } from "./voix";
+
 export const STATUTS_GENERATION = ["en_attente", "en_cours", "termine", "echoue", "annulee"] as const;
 export type StatutGeneration = (typeof STATUTS_GENERATION)[number];
 
@@ -178,8 +181,9 @@ export function raisonVoixNonGenerable(type: string): string | null {
 
 /** Validation de la structure d'une demande de voix (sans base ni disque). */
 export function raisonDemandeVoixInvalide(d: DemandeVoix): string | null {
-  if (!d.instruction?.trim()) return "Écris l'instruction de la voix (étape Voix du casting).";
-  if (!d.texteReference?.trim()) return "Écris le texte de référence (étape Voix du casting).";
+  if (!d.instruction?.trim()) return "Écris l'instruction de la voix (mode Décrire, voix de référence).";
+  if (!d.texteReference?.trim()) return "Écris le texte de la réplique d'écoute de la voix (étape Fiche).";
+  if (compterPhrases(d.texteReference) < PHRASES_MIN_ECOUTE) return `La réplique d'écoute doit compter au moins ${PHRASES_MIN_ECOUTE} phrases (étape Fiche).`;
   if (!temperatureVoixValide(d.temperature)) return `Créativité hors limites (${TEMPERATURE_VOIX_MIN} à ${TEMPERATURE_VOIX_MAX}).`;
   return null;
 }
@@ -187,7 +191,7 @@ export function raisonDemandeVoixInvalide(d: DemandeVoix): string | null {
 /** Langue du texte lu par Qwen3-TTS : le texte de référence du projet est en anglais (le même pour toutes les
  * voix) ; un texte différent est supposé écrit dans la langue de la fiche de voix. */
 export function langueDuTexteDeReference(texte: string, texteParDefaut: string, langueFiche: string): string {
-  return texte.trim() === texteParDefaut.trim() ? "English" : langueFiche.trim() || "French";
+  return texte.trim() === texteParDefaut.trim() ? "English" : langueFicheVoix(langueFiche);
 }
 
 // ---------------------------------------------------------------------------
@@ -209,10 +213,10 @@ export const estMethodeSon = (m: string): boolean => m === METHODE_AUDIO || m ==
 export const DUREE_TEST_VIDEO_SECONDES = 8;
 
 /** Ce que le test vidéo fige au lancement (`asset_generations.parametres`) : les fichiers de références tels qu'ils étaient quand
- * l'utilisateur a cliqué (le prompt a été composé avec eux), et le mode — prévisualisation rapide (`upscale` faux, sans
- * l'interpolation et l'agrandissement) ou rendu final. Un fichier est un chemin relatif à MEDIA_ROOT. */
+ * l'utilisateur a cliqué (le prompt a été composé avec eux). Un fichier est un chemin relatif à MEDIA_ROOT. Le test vidéo ne passe
+ * JAMAIS par l'upscale (2026-10-08) : il sert à juger la voix sur un visage, pas à produire un rendu final. Les anciennes demandes
+ * portent encore un champ `upscale`, ignoré à la lecture. */
 export type ParametresTestVideo = {
-  upscale: boolean;
   personnage: string | null;
   decor: string | null;
   audio: string | null;
@@ -222,8 +226,7 @@ export function parametresTestVideo(v: unknown): ParametresTestVideo | null {
   if (typeof v !== "object" || v === null) return null;
   const o = v as Record<string, unknown>;
   const texte = (x: unknown) => (typeof x === "string" && x.trim() !== "" ? x : null);
-  if (typeof o.upscale !== "boolean") return null;
-  return { upscale: o.upscale, personnage: texte(o.personnage), decor: texte(o.decor), audio: texte(o.audio) };
+  return { personnage: texte(o.personnage), decor: texte(o.decor), audio: texte(o.audio) };
 }
 
 /** Validation d'un test audio (sans base ni disque) : une référence à cloner, un texte à dire. */
@@ -286,6 +289,25 @@ export function nomSourceDistante(genUuid: string, rang: number, ext: string): s
  * `plans.seed`. */
 export function nouvelleSeed(): string {
   return String(Math.floor(Math.random() * 2 ** 48));
+}
+
+/** Plus grande seed acceptée par les nœuds Qwen3-TTS (`UnifiedVoiceDesignerNode`, `UnifiedTTSTextNode`) : un entier 32 bits non
+ * signé. ComfyUI valide chaque entrée contre le `max` du nœud AVANT d'exécuter et répond par une HTTP 400 (« Value … bigger than max
+ * of … ») ; les seeds 48 bits des images, des sons et de la vidéo (KSampler, easy seed : bien plus larges) y échouaient. */
+export const SEED_TTS_MAX = 2 ** 32 - 1;
+
+/** Seed d'une génération de voix, de test audio ou de prise de réplique : dans la plage du moteur vocal. */
+export function nouvelleSeedTts(): string {
+  return String(Math.floor(Math.random() * (SEED_TTS_MAX + 1)));
+}
+
+/** La seed (texte, stockée en base) ramenée dans la plage du moteur vocal. Une valeur déjà valide est inchangée ; une plus grande
+ * (demande posée avant ce correctif, restée en file) est repliée de façon déterministe — même seed, même résultat. */
+export function seedTts(seed: string | number): number {
+  const n = Number(seed);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`Seed invalide : ${seed}`);
+  const entier = Math.floor(n);
+  return entier <= SEED_TTS_MAX ? entier : entier % (SEED_TTS_MAX + 1);
 }
 
 /** Ce que le test audio fige au lancement : la voix de référence à cloner, telle qu'elle était (chemin relatif à MEDIA_ROOT, sous

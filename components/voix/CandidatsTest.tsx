@@ -18,6 +18,7 @@ export function CandidatsTest({
   onSupprimer,
   onAnnuler,
   libelleMode,
+  libelleAdopter,
 }: {
   nature: "audio" | "video";
   generations: GenerationVivante[];
@@ -25,8 +26,10 @@ export function CandidatsTest({
   onAdopter: (id: number) => void;
   onSupprimer: (id: number) => void;
   onAnnuler: (g: GenerationVivante) => void;
-  /** Vidéo : « Prévisualisation » ou « Rendu final » selon la demande. */
+  /** Libellé facultatif du mode d'un essai (le test vidéo n'en a plus : un seul mode, sans upscale). */
   libelleMode?: (g: GenerationVivante) => string | null;
+  /** Libellé du geste d'adoption (« Garder celle-ci » pour une voix de référence) ; à défaut, « Utiliser comme audio / vidéo de test ». */
+  libelleAdopter?: string;
 }) {
   const [confirmer, setConfirmer] = useState<number | null>(null);
   if (generations.length === 0) return <p className="tiny-note">Aucun essai pour l&rsquo;instant.</p>;
@@ -91,7 +94,7 @@ export function CandidatsTest({
                 )}
                 <div className="gd-row">
                   <button type="button" className="btn btn-primary btn-mini" onClick={() => onAdopter(g.id)} disabled={occupe}>
-                    {nature === "audio" ? "Utiliser comme audio de test" : "Utiliser comme vidéo de test"}
+                    {libelleAdopter ?? (nature === "audio" ? "Utiliser comme audio de test" : "Utiliser comme vidéo de test")}
                   </button>
                   <button type="button" className="btn btn-ghost btn-mini" onClick={() => onSupprimer(g.id)} disabled={occupe}>
                     Supprimer

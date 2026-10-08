@@ -224,7 +224,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         refsImage,
         refsAudio: p.audio ? [{ ...ref(p.audio, 1), dureeSecondes: null }] : [],
         refsVideo: [],
-        activerUpscale: p.upscale,
+        activerUpscale: false, // le test vidéo ne passe jamais par l'interpolation ni l'agrandissement
       };
       verifierEntree(entree);
       for (const r of [...entree.refsImage, ...entree.refsAudio]) {

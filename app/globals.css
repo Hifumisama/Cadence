@@ -6596,3 +6596,459 @@ a.voix-chip:hover {
   flex-wrap: nowrap;
   overflow: hidden;
 }
+
+/* ---------------------------------------------------------------
+   Fiche vocale en slider (refonte 2026-10-09) — un stepper cliquable,
+   un seul panneau visible à la fois, Précédent / Suivant en bas. Or =
+   fait ; pointillé = en cours ; gris = à faire. Cibles tactiles >= 44 px,
+   rien ne dépend du survol.
+   --------------------------------------------------------------- */
+.fiche-slider {
+  display: grid;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.stepper-voix {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.stp-voix {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: center;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 10px;
+  color: var(--ink-3);
+  cursor: pointer;
+  font: inherit;
+}
+.stp-voix .dot {
+  grid-row: 1 / 3;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.stp-voix.ph-on .dot {
+  background: var(--or);
+  border-color: var(--or);
+  color: #17140b;
+}
+.stp-voix.ph-part .dot {
+  border-style: dashed;
+  border-color: var(--or-soft);
+}
+.stp-voix .tt {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.stp-voix .etat {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.stp-voix.ph-on .etat {
+  color: var(--or-glow);
+}
+.stp-voix.is-actif {
+  background: var(--surface-2);
+  border-color: var(--or);
+  color: var(--ink);
+}
+.stp-voix:hover {
+  color: var(--ink-2);
+}
+.slides-voix {
+  overflow: hidden;
+  min-width: 0;
+}
+.slide-voix {
+  display: grid;
+  gap: var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.slide-voix[hidden] {
+  display: none;
+}
+.slide-voix:focus {
+  outline: none;
+}
+.slide-voix:focus-visible {
+  outline: 2px solid var(--or-glow);
+  outline-offset: 2px;
+}
+.slide-voix-titre {
+  margin: 0;
+  font-weight: 400;
+  font-size: 22px;
+}
+.slide-voix.in-r {
+  animation: voix-in-r 0.38s cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+.slide-voix.in-l {
+  animation: voix-in-l 0.38s cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+@keyframes voix-in-r {
+  from {
+    transform: translateX(72px);
+    opacity: 0.3;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes voix-in-l {
+  from {
+    transform: translateX(-72px);
+    opacity: 0.3;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-voix.in-r,
+  .slide-voix.in-l {
+    animation: none;
+  }
+}
+.foot-voix {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+@media (max-width: 899px) {
+  .stp-voix .etat {
+    font-size: 11.5px;
+  }
+}
+@media (max-width: 560px) {
+  .stepper-voix {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* contrôles communs des étapes : cibles tactiles >= 44 px */
+.fiche-slider .btn,
+.fiche-slider .btn-mini,
+.fiche-slider select.field,
+.fiche-slider input.field {
+  min-height: 44px;
+}
+.fiche-slider .btn-mini {
+  min-width: 44px;
+}
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.lien-bouton {
+  background: none;
+  border: 0;
+  padding: 0 4px;
+  min-height: 44px;
+  color: var(--or-glow);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.lbl-voix {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.h3-voix {
+  margin: 0;
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+  font-weight: 400;
+  font-size: 20px;
+}
+.h3-petit {
+  margin: 0 0 var(--sp-2);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.sous-bloc {
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.ligne-ref {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.avert-voix {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--or-soft);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.chip-langue {
+  font-size: 12px;
+  color: var(--ink-3);
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+/* étape 1 */
+.fiche-entete {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
+  gap: var(--sp-3);
+  align-items: start;
+}
+@media (max-width: 560px) {
+  .fiche-entete {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.signature-voix {
+  border-left: 2px solid var(--or-soft);
+  padding-left: var(--sp-4);
+  display: grid;
+  gap: var(--sp-2);
+}
+.signature-champ {
+  font-size: 17px;
+  line-height: 1.45;
+}
+.pill-phrases {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-3);
+}
+.pill-phrases.ok {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
+}
+.pill-phrases.manque {
+  color: var(--ecarlate-glow);
+  border-color: var(--ecarlate);
+}
+.chk-voix {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chk-voix input {
+  width: 20px;
+  height: 20px;
+}
+.fiche-pied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+/* étape 2 : les deux modes, côte à côte (empilés sous 700 px) */
+.modes-voix {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+@media (max-width: 699px) {
+  .modes-voix {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.mode-voix {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: var(--sp-3);
+  display: grid;
+  gap: var(--sp-3);
+  align-content: start;
+  min-width: 0;
+  background: var(--surface);
+}
+.mode-voix[data-on="true"] {
+  border-color: var(--or);
+  background: var(--surface-2);
+}
+.mode-rd {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.mode-rd i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  flex: none;
+}
+.mode-rd[aria-checked="true"] i {
+  border-color: var(--or);
+  background: radial-gradient(circle, var(--or) 0 4px, transparent 5px);
+}
+.mode-rd b {
+  display: block;
+  font-size: 16px;
+}
+.mode-rd .aide {
+  display: block;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.crea-voix {
+  border: 1px solid var(--or-soft);
+  border-radius: 6px;
+  padding: var(--sp-3) var(--sp-4);
+  display: grid;
+  gap: 2px;
+  background: var(--surface-2);
+}
+.crea-lbl {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.crea-lbl label {
+  margin: 0;
+  color: var(--ink-2);
+}
+.crea-lbl output {
+  color: var(--or-glow);
+  font-size: 20px;
+}
+.crea-voix input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--or);
+  background: transparent;
+}
+.crea-bornes {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: 12.5px;
+  color: var(--ink-3);
+  flex-wrap: wrap;
+}
+
+/* confirmation d'un changement de voix de référence */
+.dlg-confirm {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0;
+  width: min(520px, calc(100vw - 24px));
+}
+.dlg-confirm::backdrop {
+  background: rgba(8, 8, 11, 0.7);
+}
+.dlg-confirm-in {
+  padding: var(--sp-4);
+  display: grid;
+  gap: var(--sp-3);
+}
+.dlg-confirm-in h2 {
+  margin: 0;
+  font-weight: 400;
+  font-size: 22px;
+}
+.dlg-confirm-warn {
+  border: 1px solid var(--ecarlate);
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  display: grid;
+  gap: 6px;
+}
+.dlg-confirm-warn p {
+  margin: 0;
+}
+.dlg-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+/* liste des fiches vocales */
+.voix-liste .voix-liste-item {
+  display: flex;
+  min-width: 0;
+}
+.voix-liste .voix-card {
+  flex: 1;
+  min-width: 0;
+}
+.voix-card-nom {
+  margin: 0;
+  font-weight: 400;
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+.voix-card-meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+blockquote.voix-card-regle {
+  margin: 0;
+}
+.voix-card-ouvrir {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.voix-card-play {
+  min-width: 44px;
+  min-height: 44px;
+}

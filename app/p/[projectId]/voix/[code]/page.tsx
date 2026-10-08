@@ -3,18 +3,23 @@ import { notFound } from "next/navigation";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
 import { getGenerationsAsset } from "@/lib/queries-generations";
 import { getVoixDetail, liensDeLaVoix } from "@/lib/queries-voix";
-import { ETAPES_VOIX, estEtapeVoix, verdictSuppressionVoix, type EtapeVoix } from "@/lib/voix";
+import { libelleLangueMoteur } from "@/lib/langues-tts";
+import { ETAPES_VOIX, LIBELLE_ETAT_FICHE, etapeDepuisParametre, verdictSuppressionVoix, type EtapeVoix } from "@/lib/voix";
 import { Topbar } from "@/components/ui/Topbar";
-import { StatutSelector } from "@/components/assets/StatutSelector";
 import { SupprimerAssetButton } from "@/components/assets/SupprimerAssetButton";
-import { EtapeVoix as EtapeVoixForm } from "@/components/voix/EtapeVoix";
+import { EtapeFiche } from "@/components/voix/EtapeFiche";
 import { EtapeReference } from "@/components/voix/EtapeReference";
-import { EtapeTest } from "@/components/voix/EtapeTest";
+import { EtapeValidation } from "@/components/voix/EtapeValidation";
+import { FicheVoixSlider } from "@/components/voix/FicheVoixSlider";
 import { RepliqueLigne } from "@/components/voix/RepliqueLigne";
 import { NouvelleRepliqueForm } from "@/components/repliques/NouvelleRepliqueForm";
 
 export const dynamic = "force-dynamic";
 
+const CLASSE_ETAT = { a_creer: "b-attente", a_valider: "b-rejoue", validee: "b-termine" } as const;
+
+/** Fiche vocale : quatre étapes en slider (fiche, voix de référence, validation, répliques). Elle s'ouvre toujours sur l'étape 1,
+ * sauf `?etape=` explicite. Le code de la voix (VOICE_*) n'apparaît nulle part : le nom affiché est dérivé (lib/voix.ts:nomVoix). */
 export default async function VoixDetailPage({
   params,
   searchParams,
@@ -24,29 +29,109 @@ export default async function VoixDetailPage({
 }) {
   const [{ projectId, code }, { etape: etapeBrute, generation: generationBrute }] = await Promise.all([params, searchParams]);
   const pid = Number(projectId);
-  const [projet, d, premierEpisodeId] = await Promise.all([
-    getProject(pid),
-    getVoixDetail(pid, decodeURIComponent(code)),
-    getFirstEpisodeId(pid),
-  ]);
+  const [projet, d, premierEpisodeId] = await Promise.all([getProject(pid), getVoixDetail(pid, decodeURIComponent(code)), getFirstEpisodeId(pid)]);
   if (!projet || !d) notFound();
   const generations = await getGenerationsAsset(d.asset.id);
   const suppression = verdictSuppressionVoix(await liensDeLaVoix(d.asset.id, d.personnage?.id ?? null), d.personnage?.code ?? null);
 
   const { asset, fiche } = d;
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
-  const etape: EtapeVoix = estEtapeVoix(etapeBrute) ? etapeBrute : "voix";
-  const base = `/p/${pid}/voix/${asset.code}`;
+  const etape: EtapeVoix = etapeDepuisParametre(etapeBrute);
+  const simule = (process.env.COMFYUI_MODE ?? "stub") !== "http";
 
-  const valeursVoix = {
-    description: asset.description ?? "",
-    instruction: asset.promptGeneration ?? "",
-    critique: asset.critique,
-    personnageId: fiche.personnageId,
-    source: fiche.source,
-    langue: fiche.langue,
-    refText: fiche.refText,
+  const nbMesurees = d.repliques.filter((r) => r.dureeSecondes != null).length;
+  // Ce qu'un changement de voix de référence ferait regénérer : les prises déjà là, et le test vidéo.
+  const impact = { nbPrises: d.repliques.filter((r) => r.fichier != null).length, testVideo: fiche.testVideo != null };
+
+  const panneaux: Record<EtapeVoix, React.ReactNode> = {
+    fiche: (
+      <EtapeFiche
+        assetId={asset.id}
+        codeVoix={asset.code}
+        initial={{
+          description: asset.description ?? "",
+          critique: asset.critique,
+          personnageId: fiche.personnageId,
+          langue: fiche.langue,
+          refText: fiche.refText,
+        }}
+        instruction={asset.promptGeneration ?? ""}
+        personnages={d.personnages}
+        suppression={
+          <SupprimerAssetButton
+            assetId={asset.id}
+            code={asset.code}
+            libelle={`la voix « ${d.nom} »`}
+            bloque={suppression.bloque}
+            raisonBlocage={suppression.raison}
+            confirmation={suppression.avertissement}
+            redirectTo={`/p/${pid}/voix`}
+          />
+        }
+      />
+    ),
+    reference: (
+      <EtapeReference
+        assetId={asset.id}
+        source={fiche.source}
+        instruction={asset.promptGeneration ?? ""}
+        refText={fiche.refText}
+        referenceFichier={asset.fichier}
+        referenceSrc={d.referenceSrc}
+        generations={generations}
+        generationInitiale={generationBrute ?? null}
+        simule={simule}
+        impact={impact}
+      />
+    ),
+    validation: (
+      <EtapeValidation
+        assetId={asset.id}
+        nomVoix={d.nom}
+        statut={asset.statut}
+        referenceFichier={asset.fichier}
+        referenceSrc={d.referenceSrc}
+        decors={d.decors}
+        personnages={d.personnages}
+        initial={{ decorId: fiche.testDecorId, personnageId: fiche.testPersonnageId ?? fiche.personnageId, texte: fiche.testTexte }}
+        refText={fiche.refText}
+        testVideoSrc={d.testVideoSrc}
+        testVideoNom={fiche.testVideo}
+        generations={generations}
+        generationInitiale={generationBrute ?? null}
+        simule={simule}
+      />
+    ),
+    repliques: (
+      <div className="voix-fiche">
+        {asset.fichier && asset.statut !== "valide" ? (
+          <p className="avert-voix">La voix n&rsquo;est pas encore validée. Les répliques produites maintenant seront à regénérer si la voix change.</p>
+        ) : null}
+        <NouvelleRepliqueForm projectId={pid} options={d.optionsLocuteur} episodes={d.episodes} locuteurInitial={d.locuteurParDefaut} />
+        {d.repliques.length > 0 ? (
+          <ul className="rep-lignes">
+            {d.repliques.map((r) => (
+              <RepliqueLigne key={r.id} r={r} voixId={asset.id} sansReference={!asset.fichier} />
+            ))}
+          </ul>
+        ) : (
+          <p className="chip-none">
+            Aucune réplique pour cette voix.{" "}
+            {d.personnage
+              ? `Celles de ${d.personnage.code} la prennent automatiquement ; écris-en une ci-dessus.`
+              : "Écris la première ci-dessus : elle naît dans cette voix."}
+          </p>
+        )}
+        <p className="tiny-note">Une génération par réplique, jamais un bloc tagué. La durée mesurée sur la prise remonte à la fiche de plan. « Refaire » remplace la prise sans confirmation.</p>
+      </div>
+    ),
   };
+
+  const etapes = ETAPES_VOIX.map((e) => ({
+    cle: e.cle,
+    etat: d.phases[e.cle],
+    detail: e.cle === "repliques" && d.repliques.length > 0 ? `${nbMesurees}/${d.repliques.length}` : undefined,
+  }));
 
   return (
     <>
@@ -59,7 +144,7 @@ export default async function VoixDetailPage({
             <span className="sep">›</span>
             <Link href={`/p/${pid}/voix`}>Casting</Link>
             <span className="sep">›</span>
-            <span className="here">{asset.code}</span>
+            <span className="here">{d.nom}</span>
           </>
         }
         tabs={{ projectId: pid, episodeBase }}
@@ -70,7 +155,7 @@ export default async function VoixDetailPage({
             Casting
           </Link>
           <span>/</span>
-          <span className="num" style={{ color: "var(--ink)" }}>{asset.code}</span>
+          <span style={{ color: "var(--ink)" }}>{d.nom}</span>
           <span style={{ flex: 1 }} />
           <Link href={`/p/${pid}/assets/${asset.code}`} className="tiny-note" style={{ color: "var(--ink-3)" }}>
             Fiche au registre d&rsquo;assets →
@@ -79,160 +164,17 @@ export default async function VoixDetailPage({
 
         <div className="voix-entete">
           <div className="voix-titre">
-            <h1 className="master-code">{asset.code}</h1>
-            {d.personnage ? (
-              <Link href={`/p/${pid}/assets/${d.personnage.code}`} className="type-tag" title="Personnage rattaché">
-                {d.personnage.code}
-              </Link>
-            ) : null}
-          </div>
-          <div className="fiche-actions">
+            <h1 className="master-code">{d.nom}</h1>
+            <span className={`badge ${CLASSE_ETAT[d.etat]}`}>
+              <i />
+              {LIBELLE_ETAT_FICHE[d.etat]}
+            </span>
+            <span className="chip-langue">{libelleLangueMoteur(fiche.langue)}</span>
             {asset.critique ? <span className="crit-tag">Critique</span> : null}
-            <StatutSelector assetId={asset.id} statut={asset.statut} />
-            <SupprimerAssetButton
-              assetId={asset.id}
-              code={asset.code}
-              bloque={suppression.bloque}
-              raisonBlocage={suppression.raison}
-              confirmation={suppression.avertissement}
-              redirectTo={`/p/${pid}/voix`}
-            />
           </div>
         </div>
 
-        <nav className="etapes-voix" aria-label="Étapes du casting">
-          {ETAPES_VOIX.map((e, i) => (
-            <Link
-              key={e.cle}
-              href={e.cle === "voix" ? base : `${base}?etape=${e.cle}`}
-              scroll={false}
-              className={`etape-onglet ph-${d.phases[e.cle]}${etape === e.cle ? " is-actif" : ""}`}
-              aria-current={etape === e.cle ? "step" : undefined}
-            >
-              <i />
-              <span className="n num">{i + 1}</span>
-              <span className="l">{e.label}</span>
-              <span className="a">{e.aide}</span>
-            </Link>
-          ))}
-        </nav>
-
-        <section className="panel etape-panel">
-          {etape === "voix" ? (
-            <>
-              <div className="panel-hd">
-                <h2>1 · La voix</h2>
-                <span className="eyebrow">une description, ou un audio</span>
-              </div>
-              <div className="panel-bd">
-                <EtapeVoixForm
-                  key={JSON.stringify(valeursVoix)}
-                  assetId={asset.id}
-                  initial={valeursVoix}
-                  personnages={d.personnages}
-                  referenceSrc={d.referenceSrc}
-                />
-              </div>
-            </>
-          ) : null}
-
-          {etape === "reference" ? (
-            <>
-              <div className="panel-hd">
-                <h2>2 · Voix de référence</h2>
-                <span className="eyebrow">{fiche.source === "design" ? "générée depuis l'instruction" : "l'audio fourni"}</span>
-              </div>
-              <div className="panel-bd">
-                <EtapeReference
-                  assetId={asset.id}
-                  source={fiche.source}
-                  instruction={asset.promptGeneration ?? ""}
-                  refText={fiche.refText}
-                  langue={fiche.langue}
-                  referenceFichier={asset.fichier}
-                  referenceSrc={d.referenceSrc}
-                  hrefEtapeVoix={base}
-                  code={asset.code}
-                  generations={generations}
-                  generationInitiale={generationBrute ?? null}
-                  simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
-                />
-              </div>
-            </>
-          ) : null}
-
-          {etape === "test" ? (
-            <>
-              <div className="panel-hd">
-                <h2>3 · Test vidéo</h2>
-                <span className="eyebrow">la voix sur un visage</span>
-              </div>
-              <div className="panel-bd">
-                <EtapeTest
-                  key={`${fiche.testDecorId}|${fiche.testPersonnageId}|${fiche.testTexte}|${fiche.refText}`}
-                  assetId={asset.id}
-                  decors={d.decors}
-                  personnages={d.personnages}
-                  initial={{
-                    decorId: fiche.testDecorId,
-                    personnageId: fiche.testPersonnageId ?? fiche.personnageId,
-                    // Tant qu'aucun texte de test n'est écrit, celui de la référence : la voix dit ce qu'elle a déjà dit.
-                    texte: fiche.testTexte.trim() ? fiche.testTexte : fiche.refText,
-                  }}
-                  refText={fiche.refText}
-                  referenceSrc={d.referenceSrc}
-                  testAudioSrc={d.testAudioSrc}
-                  testAudioNom={fiche.testAudio}
-                  testVideoSrc={d.testVideoSrc}
-                  testVideoNom={fiche.testVideo}
-                  generations={generations}
-                  generationInitiale={generationBrute ?? null}
-                  simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
-                />
-              </div>
-            </>
-          ) : null}
-
-          {etape === "repliques" ? (
-            <>
-              <div className="panel-hd">
-                <h2>4 · Production des répliques</h2>
-                <span className="eyebrow">{d.repliques.length} réplique{d.repliques.length > 1 ? "s" : ""}</span>
-              </div>
-              <div className="panel-bd">
-                {d.repliques.length > 0 ? (
-                  <ul className="rep-lignes">
-                    {d.repliques.map((r) => (
-                      <RepliqueLigne key={r.id} r={r} voixId={asset.id} />
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="chip-none">
-                    Aucune réplique n&rsquo;a cette voix.{" "}
-                    {d.personnage
-                      ? `Celles de ${d.personnage.code} la prennent automatiquement.`
-                      : "Rattache la voix à un personnage (étape Voix) ou écris une réplique dont elle est le locuteur."}
-                  </p>
-                )}
-                <details className="repl-orphelines" style={{ marginTop: "var(--sp-4)" }}>
-                  <summary>Nouvelle réplique pour {d.personnage ? d.personnage.code : asset.code}</summary>
-                  <NouvelleRepliqueForm
-                    projectId={pid}
-                    options={d.optionsLocuteur}
-                    episodes={d.episodes}
-                    locuteurInitial={d.locuteurParDefaut}
-                  />
-                </details>
-                <p className="tiny-note" style={{ marginTop: "var(--sp-3)" }}>
-                  Une génération par réplique, jamais un bloc tagué. La durée mesurée sur la prise remonte à la fiche de plan.{" "}
-                  <a href={`/api/export/repliques?projectId=${pid}&format=csv`} style={{ color: "var(--or)" }}>Exporter (CSV)</a>
-                  {" · "}
-                  <a href={`/api/export/repliques?projectId=${pid}&format=json`} style={{ color: "var(--or)" }}>JSON</a>
-                </p>
-              </div>
-            </>
-          ) : null}
-        </section>
+        <FicheVoixSlider etapes={etapes} initiale={etape} signal={`${etape}|${generationBrute ?? ""}`} panneaux={panneaux} />
       </main>
     </>
   );

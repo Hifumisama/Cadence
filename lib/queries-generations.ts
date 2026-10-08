@@ -2,7 +2,6 @@ import { db } from "../db";
 import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { horsAffiches } from "./assets-visibles";
-import { parametresTestVideo } from "./asset-generation";
 import { estImage, fichierMediaExiste, generationMediaSrc, urlAssetMedia } from "./media";
 
 /** Une image du registre proposable comme source d'une génération « à partir
@@ -73,8 +72,6 @@ export async function getGenerationsAsset(assetId: number) {
     texteReference: g.texteReference,
     temperature: g.temperature,
     erreur: g.erreur,
-    /** Test vidéo d'une voix : rendu final (vrai) ou prévisualisation (faux) ; null pour toute autre génération. */
-    upscale: parametresTestVideo(g.parametres)?.upscale ?? null,
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
     src: g.statut === "termine" ? generationMediaSrc(assetId, g.fichier) : null,
     // Progression relayée par le worker, tant que la demande est en cours. L'aperçu

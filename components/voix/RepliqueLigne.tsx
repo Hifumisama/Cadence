@@ -10,15 +10,17 @@ import { LIBELLE_STATUT_REPLIQUE } from "@/lib/repliques";
 import type { RepliqueVue } from "@/lib/queries-repliques";
 import { DeposerFichier } from "./DeposerFichier";
 import { Icone } from "@/components/ui/Icone";
+import { useEtapesVoix } from "./FicheVoixSlider";
 
 function two(n: number): string {
   return String(n).padStart(2, "0");
 }
 
 /** Une réplique en ligne (étape 4) : le texte, la prise et sa durée mesurée,
- * « Générer » (la voix de référence clonée dit le texte ; la prise remplace la précédente) et « Importer ». Une seule rangée — la
- * fiche complète de la réplique (statut, plans, édition) reste au catalogue. */
-export function RepliqueLigne({ r, voixId }: { r: RepliqueVue; voixId: number }) {
+ * « Générer » / « Refaire » (la voix de référence clonée dit le texte ; la prise remplace la précédente, sans confirmation) et
+ * « Importer ». Sans voix de référence, les trois sont désactivés, avec la raison et le chemin vers l'étape 2. */
+export function RepliqueLigne({ r, voixId, sansReference = false }: { r: RepliqueVue; voixId: number; sansReference?: boolean }) {
+  const { aller } = useEtapesVoix();
   const router = useRouter();
   const { taches } = useTaches();
   const [pending, startTransition] = useTransition();
@@ -47,6 +49,14 @@ export function RepliqueLigne({ r, voixId }: { r: RepliqueVue; voixId: number })
         <p className="dlg-line">{r.texte}</p>
         {r.priseObsolete ? <span className="vstat over">prise à refaire — le texte a changé</span> : null}
         {retour && !retour.ok ? <span className="tiny-note" role="alert" style={{ color: "var(--ecarlate-glow)" }}>{retour.texte}</span> : null}
+        {sansReference ? (
+          <span className="tiny-note" id={`sans-ref-${r.id}`}>
+            Pas de voix de référence pour cette voix.{" "}
+            <button type="button" className="lien-bouton" onClick={() => aller("reference", { focus: "action" })}>
+              Créer la voix d&rsquo;abord
+            </button>
+          </span>
+        ) : null}
       </div>
       <div className="rep-ligne-prise">
         {r.audioSrc ? <audio controls preload="none" src={r.audioSrc} className="rep-audio" /> : <span className="tiny-note">pas de prise</span>}
@@ -58,10 +68,17 @@ export function RepliqueLigne({ r, voixId }: { r: RepliqueVue; voixId: number })
         <span className={`rep-statut s-${r.statut}`}>{LIBELLE_STATUT_REPLIQUE[r.statut as keyof typeof LIBELLE_STATUT_REPLIQUE] ?? r.statut}</span>
       </div>
       <div className="rep-ligne-actions">
-        <button type="button" className="btn btn-primary btn-mini" onClick={generer} disabled={lancement} title={retour?.texte ?? (r.fichier ? "Régénérer la prise (remplace l'actuelle)" : "Générer la prise avec la voix de référence")}>
-          {lancement ? "…" : "Générer"}
+        <button
+          type="button"
+          className="btn btn-primary btn-mini"
+          onClick={generer}
+          disabled={lancement || sansReference}
+          aria-describedby={sansReference ? `sans-ref-${r.id}` : undefined}
+          title={retour?.texte ?? (r.fichier ? "Refaire la prise (remplace l'actuelle)" : "Générer la prise avec la voix de référence")}
+        >
+          {lancement ? "…" : r.fichier ? "Refaire" : "Générer"}
         </button>
-        <DeposerFichier action={(fd) => uploaderPriseReplique(r.id, fd)} label="Importer" remplacer={r.fichier != null} />
+        <DeposerFichier action={(fd) => uploaderPriseReplique(r.id, fd)} label="Importer" remplacer={r.fichier != null} disabled={sansReference} decritPar={`sans-ref-${r.id}`} />
         {r.fichier ? (
           <button
             type="button"

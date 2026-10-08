@@ -11,6 +11,7 @@ import {
   METHODE_TEST_AUDIO,
   METHODE_TEST_VIDEO,
   langueDuTexteDeReference,
+  nouvelleSeedTts,
   nouvelleSeed,
   raisonTestAudioInvalide,
   raisonTestVideoInvalide,
@@ -32,7 +33,11 @@ import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
 import { construireCode } from "@/lib/assetCode";
 import { getVoixAsset } from "@/lib/queries-voix";
 import { TEXTE_REFERENCE_DEFAUT, estSourceVoix, promptTestVoix, type SourceVoix } from "@/lib/voix";
+import { genererPrisesDeLaVoix } from "@/app/repliques/generation-actions";
 import { existsSync } from "node:fs";
+import { langueFicheVoix } from "@/lib/langues-tts";
+import { ecrireRepliqueEcoute } from "@/lib/replique-ecoute";
+import { modeleParDefautEffectif } from "@/lib/llm/modele-choisi";
 
 // Casting vocal (F06, CDC §6). Le suivi réel (fichiers déposés, paramètres retenus) vit ici ; les générations de la voix de
 // référence passent par app/assets/generation-actions.ts, celles du test (audio, vidéo) par lancerTestAudio / lancerTestVideo plus bas.
@@ -89,13 +94,43 @@ async function conflitPersonnage(personnageId: number | null, assetId: number | 
     .innerJoin(assets, eq(assets.id, voixFiches.assetId))
     .where(and(eq(voixFiches.personnageId, personnageId), assetId != null ? ne(voixFiches.assetId, assetId) : undefined))
     .limit(1);
-  return autre[0] ? `${perso.code} a déjà une voix (${autre[0].code}) — un personnage n'en a qu'une.` : null;
+  return autre[0] ? "Ce personnage a déjà une autre fiche vocale — un personnage n'en a qu'une." : null;
 }
 
 async function exigerVoix(assetId: number) {
   const asset = await getVoixAsset(assetId);
   if (!asset) throw new Error("Cette voix n'existe pas (ou n'est pas un asset de type voix).");
   return asset;
+}
+
+// ---------------------------------------------------------------------
+// Réplique d'écoute : le texte que la voix de référence lit. Écrite à la demande par le LLM configuré, SANS skill d'agent
+// (lib/replique-ecoute.ts) : cohérente avec le caractère du personnage, deux phrases au moins, dans la langue de la voix.
+// ---------------------------------------------------------------------
+
+/** « Écrire une réplique d'écoute » : propose un texte de référence pour cette voix. N'écrit rien en base (le texte se relit, se
+ * corrige, puis s'enregistre ou se lance). `instruction` et `langue` : les valeurs en cours d'édition, pas encore enregistrées. */
+export async function proposerRepliqueEcoute(
+  assetId: number,
+  actuel: { instruction?: string; langue?: string } = {},
+): Promise<{ ok: true; texte: string; langue: string; source: "modele" | "repli" } | { ok: false; erreur: string }> {
+  const asset = await exigerVoix(assetId);
+  const [fiche] = await db.select().from(voixFiches).where(eq(voixFiches.assetId, assetId));
+  const [perso] = fiche?.personnageId
+    ? await db.select({ code: assets.code, description: assets.description }).from(assets).where(eq(assets.id, fiche.personnageId))
+    : [];
+  const caractere = perso?.description?.trim() ? `${perso.code} : ${perso.description.trim()}` : asset.description?.trim() || null;
+  const instruction = (actuel.instruction ?? asset.promptGeneration ?? "").trim() || null;
+  const langue = langueFicheVoix(actuel.langue ?? fiche?.langue);
+  try {
+    const r = await ecrireRepliqueEcoute(
+      { langue, caractere, instruction, role: perso ? null : asset.code },
+      { modele: await modeleParDefautEffectif() },
+    );
+    return { ok: true, ...r };
+  } catch (e) {
+    return { ok: false, erreur: (e as Error).message };
+  }
 }
 
 /** Nouvelle voix au catalogue = nouvel asset `VOICE_*` + sa fiche de casting. */
@@ -133,28 +168,34 @@ export type ValeursVoix = {
   refText: string;
 };
 
-/** Étape 1 : la voix. L'instruction VoiceDesign et la description canonique du
- * timbre restent sur l'asset (promptGeneration / description, déjà affichés
- * par le registre) ; le reste va dans voix_fiches. */
-export async function enregistrerVoix(assetId: number, v: ValeursVoix): Promise<{ ok: true } | { ok: false; erreur: string }> {
+/** Enregistre ce qui change dans la fiche. Les deux étapes qui écrivent (« Fiche » : identité, réplique d'écoute ; « Voix de
+ * référence » : mode et instruction) n'envoient que leurs champs : chacune laisse l'autre intacte. L'instruction VoiceDesign et la
+ * description canonique du timbre restent sur l'asset (promptGeneration / description, déjà affichés par le registre) ; le reste va
+ * dans voix_fiches. `refText` est la RÉPLIQUE D'ÉCOUTE : le texte unique que lit la voix de référence. */
+export async function enregistrerVoix(assetId: number, v: Partial<ValeursVoix>): Promise<{ ok: true } | { ok: false; erreur: string }> {
   await exigerVoix(assetId);
-  if (!estSourceVoix(v.source)) return { ok: false, erreur: "Source de voix inconnue." };
-  const conflit = await conflitPersonnage(v.personnageId, assetId);
-  if (conflit) return { ok: false, erreur: conflit };
-  await db
-    .update(assets)
-    .set({ description: v.description.trim() || null, promptGeneration: v.instruction.trim() || null, critique: v.critique })
-    .where(eq(assets.id, assetId));
-  const valeurs = {
-    personnageId: v.personnageId,
-    source: v.source,
-    langue: v.langue.trim() || "French",
-    refText: v.refText.trim(),
-  };
-  await db
-    .insert(voixFiches)
-    .values({ assetId, ...valeurs })
-    .onConflictDoUpdate({ target: voixFiches.assetId, set: valeurs });
+  if (v.source !== undefined && !estSourceVoix(v.source)) return { ok: false, erreur: "Source de voix inconnue." };
+  if (v.personnageId !== undefined) {
+    const conflit = await conflitPersonnage(v.personnageId, assetId);
+    if (conflit) return { ok: false, erreur: conflit };
+  }
+  const surAsset: { description?: string | null; promptGeneration?: string | null; critique?: boolean } = {};
+  if (v.description !== undefined) surAsset.description = v.description.trim() || null;
+  if (v.instruction !== undefined) surAsset.promptGeneration = v.instruction.trim() || null;
+  if (v.critique !== undefined) surAsset.critique = v.critique;
+  if (Object.keys(surAsset).length > 0) await db.update(assets).set(surAsset).where(eq(assets.id, assetId));
+
+  const valeurs: { personnageId?: number | null; source?: SourceVoix; langue?: string; refText?: string } = {};
+  if (v.personnageId !== undefined) valeurs.personnageId = v.personnageId;
+  if (v.source !== undefined) valeurs.source = v.source;
+  if (v.langue !== undefined) valeurs.langue = langueFicheVoix(v.langue); // toujours le nom anglais du moteur (« French »), jamais « Français » ni « fr »
+  if (v.refText !== undefined) valeurs.refText = v.refText.trim();
+  if (Object.keys(valeurs).length > 0) {
+    await db
+      .insert(voixFiches)
+      .values({ assetId, ...valeurs })
+      .onConflictDoUpdate({ target: voixFiches.assetId, set: valeurs });
+  }
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -165,7 +206,9 @@ export async function enregistrerVoix(assetId: number, v: ValeursVoix): Promise<
 
 /** Dépose la voix de référence : générée à la main dans ComfyUI, ou fournie
  * puis rognée à la taille de la réplique (rognage côté navigateur, le fichier
- * arrive déjà coupé). Elle remplace la précédente (F01). */
+ * arrive déjà coupé). Elle remplace la précédente (F01) ; remplacer une référence existante repasse la fiche « à valider »
+ * (statut « en cours »). Les prises et le test qui en dépendaient se regénèrent à part : `regenererApresChangementReference`,
+ * appelé par l'écran après confirmation. */
 export async function deposerReference(assetId: number, formData: FormData) {
   const asset = await exigerVoix(assetId);
   const fichier = formData.get("fichier");
@@ -183,8 +226,46 @@ export async function deposerReference(assetId: number, formData: FormData) {
   if (asset.fichier && asset.fichier !== nom) {
     await unlink(join(MEDIA_ROOT, cheminAssetMedia(asset.fichier))).catch(() => undefined);
   }
-  await db.update(assets).set({ fichier: nom, fichierAt: new Date() }).where(eq(assets.id, assetId));
+  await db
+    .update(assets)
+    .set({ fichier: nom, fichierAt: new Date(), ...(asset.fichier ? { statut: "en_cours" as const } : {}) })
+    .where(eq(assets.id, assetId));
   revalidatePath("/", "layout");
+}
+
+/** Après un changement de voix de référence CONFIRMÉ (garder une candidate, déposer, rogner un audio) : la fiche repasse « à valider »,
+ * toutes les prises de ses répliques qui en ont déjà une sont remises en file (une génération par réplique, nouvelle seed) et le test
+ * vidéo est relancé (adopté tout seul à la fin : il remplace l'ancien). Ce qui ne peut pas partir est rendu avec sa raison. */
+export async function regenererApresChangementReference(
+  assetId: number,
+): Promise<{ ok: true; repliques: number; testVideo: boolean; ignorees: string[] } | { ok: false; erreur: string }> {
+  const asset = await exigerVoix(assetId);
+  if (!asset.fichier) return { ok: false, erreur: "Cette voix n'a pas encore de voix de référence." };
+  await db.update(assets).set({ statut: "en_cours" }).where(and(eq(assets.id, assetId), eq(assets.statut, "valide")));
+
+  const ignorees: string[] = [];
+  const prises = await genererPrisesDeLaVoix(assetId);
+  let repliques = 0;
+  if (prises.ok) {
+    repliques = prises.lancees;
+    for (const i of prises.ignorees) ignorees.push(i.nb > 1 ? `${i.nb} répliques : ${i.raison}` : i.raison);
+  } else {
+    ignorees.push(prises.erreur);
+  }
+
+  let testVideo = false;
+  const [fiche] = await db.select().from(voixFiches).where(eq(voixFiches.assetId, assetId));
+  if (fiche?.testVideo) {
+    const r = await lancerTestVideo(
+      assetId,
+      { decorId: fiche.testDecorId, personnageId: fiche.testPersonnageId ?? fiche.personnageId, texte: fiche.testTexte.trim() || fiche.refText },
+      { avecReference: true, adoptionAuto: true },
+    );
+    if (r.ok) testVideo = true;
+    else ignorees.push(`Test vidéo : ${r.erreur}`);
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, repliques, testVideo, ignorees };
 }
 
 // ---------------------------------------------------------------------
@@ -289,7 +370,7 @@ export async function lancerTestAudio(
       methode: METHODE_TEST_AUDIO,
       prompt: v.texte.trim(),
       langueReference: langueDuTexteDeReference(v.texte, TEXTE_REFERENCE_DEFAUT, fiche?.langue ?? "French"),
-      seed: nouvelleSeed(),
+      seed: nouvelleSeedTts(),
       parametres: { reference: cheminAssetMedia(asset.fichier!) },
     })
     .returning({ id: assetGenerations.id });
@@ -297,16 +378,19 @@ export async function lancerTestAudio(
   return { ok: true, position: await rangDansLaFile(gen!.id) };
 }
 
-/** « Prévisualiser » (`upscale` faux : sortie basse résolution, rapide) ou « Rendu final » (`upscale` vrai) : la vidéo de test, avec
- * le graphe des plans (VID_REF2VA). Le prompt est composé ici (lib/voix.ts:promptTestVoix) et les références sont figées dans la
+/** « Lancer le test » : la vidéo de test, avec le graphe des plans (VID_REF2VA), toujours en sortie basse résolution et sans
+ * interpolation ni agrandissement (le test sert à juger la voix, pas à produire un rendu final). Le prompt est composé ici (lib/voix.ts:promptTestVoix) et les références sont figées dans la
  * demande : personnage et décor (leur image), l'audio de test, à défaut la voix de référence. */
 export async function lancerTestVideo(
   assetId: number,
-  v: { decorId: number | null; personnageId: number | null; texte: string; upscale: boolean },
+  v: { decorId: number | null; personnageId: number | null; texte: string },
+  /** `avecReference` : la voix de référence dit le texte, même s'il reste un audio de test (la fiche n'en propose plus à l'écran) ;
+   * `adoptionAuto` : le rendu devient tout seul le test vidéo de la fiche (regénération après un changement de référence). */
+  options: { avecReference?: boolean; adoptionAuto?: boolean } = {},
 ): Promise<ResultatLancement> {
   const asset = await exigerVoix(assetId);
   const [fiche] = await db.select().from(voixFiches).where(eq(voixFiches.assetId, assetId));
-  const audio = fiche?.testAudio && existsSync(join(MEDIA_ROOT, cheminVoixMedia(assetId, fiche.testAudio)))
+  const audio = !options.avecReference && fiche?.testAudio && existsSync(join(MEDIA_ROOT, cheminVoixMedia(assetId, fiche.testAudio)))
     ? cheminVoixMedia(assetId, fiche.testAudio)
     : asset.fichier && fichierMediaExiste(asset.fichier)
       ? cheminAssetMedia(asset.fichier)
@@ -347,8 +431,8 @@ export async function lancerTestVideo(
       prompt,
       dureeSecondes: DUREE_TEST_VIDEO_SECONDES,
       seed: nouvelleSeed(),
+      adoptionAuto: options.adoptionAuto ?? false,
       parametres: {
-        upscale: v.upscale,
         personnage: perso.ligne ? cheminAssetMedia(perso.ligne.fichier!) : null,
         decor: decor.ligne ? cheminAssetMedia(decor.ligne.fichier!) : null,
         audio,

@@ -2,9 +2,9 @@
 
 import { db } from "@/db";
 import { assetGenerations, assets, briefs, planDialogues, plans, repliques, voixFiches } from "@/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { METHODE_REPLIQUE, TEMPERATURE_VOIX_DEFAUT, TEMPERATURE_VOIX_MAX, TEMPERATURE_VOIX_MIN, nouvelleSeed, temperatureVoixValide } from "@/lib/asset-generation";
+import { METHODE_REPLIQUE, TEMPERATURE_VOIX_DEFAUT, TEMPERATURE_VOIX_MAX, TEMPERATURE_VOIX_MIN, nouvelleSeedTts, temperatureVoixValide } from "@/lib/asset-generation";
 import { langueMoteurVoix } from "@/lib/langues-tts";
 import { fichierMediaExiste } from "@/lib/media";
 import { priseObsolete } from "@/lib/repliques";
@@ -43,8 +43,8 @@ async function verifier(r: Replique): Promise<{ erreur: string } | { voix: { id:
   if (!r.texte.trim()) return { erreur: "La réplique n'a pas de texte." };
   const voix = await voixDeReplique(r);
   if (!voix) return { erreur: "Cette réplique n'a pas de voix : choisis un locuteur qui a une voix au casting." };
-  if (!voix.fichier) return { erreur: `La voix ${voix.code} n'a pas de référence à cloner : génère-la d'abord au casting vocal.` };
-  if (!fichierMediaExiste(voix.fichier)) return { erreur: `La référence de la voix ${voix.code} est introuvable sur le stockage (${voix.fichier}).` };
+  if (!voix.fichier) return { erreur: "Cette voix n'a pas de voix de référence à cloner : crée-la d'abord (étape « Voix de référence »)." };
+  if (!fichierMediaExiste(voix.fichier)) return { erreur: `La voix de référence est introuvable sur le stockage (${voix.fichier}).` };
   const [enFile] = await db
     .select({ id: assetGenerations.id })
     .from(assetGenerations)
@@ -65,7 +65,7 @@ async function lancer(r: Replique, voixId: number, temperature: number, langue: 
       texteReference: r.texte,
       langueReference: langue,
       temperature,
-      seed: nouvelleSeed(),
+      seed: nouvelleSeedTts(),
     })
     .returning({ uuid: assetGenerations.uuid });
   return cree!.uuid;
@@ -110,6 +110,32 @@ export async function genererPrisesDuPlan(planId: number, options: { temperature
   let lancees = 0;
   for (const { r } of liees) {
     if (r.fichier != null && !priseObsolete(r)) continue; // déjà à jour
+    const v = await verifier(r);
+    if ("erreur" in v) {
+      ignorees.set(v.erreur, (ignorees.get(v.erreur) ?? 0) + 1);
+      continue;
+    }
+    await lancer(r, v.voix.id, temp.temperature, langue);
+    lancees += 1;
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, lancees, ignorees: [...ignorees].map(([raison, nb]) => ({ raison, nb })) };
+}
+
+/** Regénère la prise de TOUTES les répliques d'une voix qui en ont déjà une (voix de référence changée) : une génération par réplique,
+ * nouvelle seed, la prise actuelle reste en place jusqu'à ce que la nouvelle arrive. Les répliques sans prise ne sont pas touchées. */
+export async function genererPrisesDeLaVoix(voixId: number, options: { temperature?: number } = {}): Promise<Resultat<BilanPrises>> {
+  const temp = temperatureDemandee(options.temperature);
+  if (!temp.ok) return temp;
+  const [voix] = await db.select({ projectId: assets.projectId }).from(assets).where(and(eq(assets.id, voixId), eq(assets.type, "voix")));
+  if (!voix) return { ok: false, erreur: "Cette voix n'existe pas." };
+  const avecPrise = await db.select().from(repliques).where(and(eq(repliques.projectId, voix.projectId), isNotNull(repliques.fichier)));
+
+  const langue = await langueDesRepliques(voix.projectId);
+  const ignorees = new Map<string, number>();
+  let lancees = 0;
+  for (const r of avecPrise) {
+    if ((await voixDeReplique(r))?.id !== voixId) continue;
     const v = await verifier(r);
     if ("erreur" in v) {
       ignorees.set(v.erreur, (ignorees.get(v.erreur) ?? 0) + 1);

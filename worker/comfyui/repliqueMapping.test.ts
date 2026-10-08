@@ -56,3 +56,20 @@ test("créativité hors des bornes, texte vide, nœud absent : refus francs", ()
   delete casse[NODE_IDS_REPLIQUE.reference];
   assert.throws(() => injecterGenerationReplique(casse, entree), /introuvable/);
 });
+
+test("seed : jamais au-delà de la plage 32 bits du moteur vocal (sinon HTTP 400 de ComfyUI)", () => {
+  const champ = (g: WorkflowJson) => Object.values(g).find((n) => n.class_type === "UnifiedVoiceDesignerNode" || n.class_type === "UnifiedTTSTextNode")!.inputs.seed as number;
+  assert.equal(champ(injecterGenerationReplique(workflow, { ...entree, seed: "123456" })), 123456);
+  assert.ok(champ(injecterGenerationReplique(workflow, { ...entree, seed: "281474976710655" })) <= 4294967295, "seed 48 bits d'une ancienne demande");
+  assert.ok(champ(injecterGenerationReplique(workflow, { ...entree, seed: "4294967295" })) <= 4294967295);
+});
+
+test("langue : toujours un nom anglais du moteur, quelle que soit la valeur reçue", () => {
+  const langue = (l: string) => injecterGenerationReplique(workflow, { ...entree, langue: l })[NODE_IDS_REPLIQUE.moteur]!.inputs.language;
+  assert.equal(langue("Français"), "French");
+  assert.equal(langue("fr"), "French");
+  assert.equal(langue("anglais"), "English");
+  assert.equal(langue("English"), "English");
+  assert.equal(langue("Auto"), "Auto");
+  assert.equal(langue("klingon"), "Auto");
+});

@@ -126,11 +126,13 @@ test("voix : créativité de 0,8 à 1,2, 1,2 par défaut", () => {
 });
 
 test("voix : une demande exige instruction, texte et créativité valides", () => {
-  const ok = { instruction: "A calm native French speaker.", texteReference: "Welcome adventurer.", temperature: 1.1 };
+  const ok = { instruction: "A calm native French speaker.", texteReference: "Welcome adventurer. Come have a seat.", temperature: 1.1 };
   assert.equal(raisonDemandeVoixInvalide(ok), null);
   assert.match(raisonDemandeVoixInvalide({ ...ok, instruction: "  " }) ?? "", /instruction/i);
   assert.match(raisonDemandeVoixInvalide({ ...ok, texteReference: "" }) ?? "", /texte/i);
   assert.match(raisonDemandeVoixInvalide({ ...ok, temperature: 1.5 }) ?? "", /Créativité/);
+  // La réplique d'écoute doit compter au moins deux phrases.
+  assert.match(raisonDemandeVoixInvalide({ ...ok, texteReference: "Welcome adventurer." }) ?? "", /2 phrases/);
 });
 
 test("voix : seul un asset voix se génère ainsi", () => {
@@ -171,14 +173,37 @@ test("test de voix : un test audio exige une référence et un texte, un test vi
 test("test de voix : les paramètres figés sont relus avec prudence", async () => {
   const g = await import("./asset-generation");
   assert.deepEqual(g.parametresTestVideo({ upscale: true, personnage: "assets/a.png", decor: "", audio: "voix/1/test_audio.mp3" }), {
-    upscale: true,
     personnage: "assets/a.png",
     decor: null,
     audio: "voix/1/test_audio.mp3",
   });
   assert.equal(g.parametresTestVideo(null), null);
-  assert.equal(g.parametresTestVideo({ personnage: "x" }), null, "sans mode, pas de test vidéo");
+  assert.equal(g.parametresTestVideo("x"), null);
+  assert.deepEqual(g.parametresTestVideo({ personnage: "x" }), { personnage: "x", decor: null, audio: null }, "plus de mode : l'ancien champ `upscale` est ignoré");
   assert.deepEqual(g.parametresTestAudio({ reference: "assets/VOICE_maya.mp3" }), { reference: "assets/VOICE_maya.mp3" });
   assert.equal(g.parametresTestAudio({ reference: " " }), null);
   assert.equal(g.parametresTestAudio("x"), null);
+});
+
+test("seed TTS : toujours dans la plage 32 bits du moteur vocal (HTTP 400 de ComfyUI au-delà)", async () => {
+  const g = await import("./asset-generation");
+  assert.equal(g.SEED_TTS_MAX, 4294967295);
+  for (let i = 0; i < 2000; i++) {
+    const n = Number(g.nouvelleSeedTts());
+    assert.ok(Number.isInteger(n) && n >= 0 && n <= g.SEED_TTS_MAX, String(n));
+  }
+  // Les seeds des images/sons/vidéos restent larges (KSampler, easy seed).
+  assert.ok(Number.MAX_SAFE_INTEGER > 2 ** 48);
+});
+
+test("seedTts : une seed valide est inchangée, une trop grande est repliée de façon déterministe", async () => {
+  const g = await import("./asset-generation");
+  assert.equal(g.seedTts("0"), 0);
+  assert.equal(g.seedTts("4294967295"), 4294967295);
+  assert.equal(g.seedTts("4294967296"), 0);
+  assert.equal(g.seedTts("391417644818565"), 391417644818565 % 4294967296);
+  assert.equal(g.seedTts("391417644818565"), g.seedTts(391417644818565), "même seed, même résultat");
+  assert.ok(g.seedTts(String(2 ** 48 - 1)) <= g.SEED_TTS_MAX);
+  assert.throws(() => g.seedTts("abc"), /Seed invalide/);
+  assert.throws(() => g.seedTts("-1"), /Seed invalide/);
 });

@@ -1,35 +1,97 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { TEXTE_REFERENCE_DEFAUT, checksInstruction, checksReference, estEtapeVoix, etatPhases, promptTestVoix, verdictSuppressionVoix } from "./voix";
+import {
+  TEXTE_REFERENCE_DEFAUT,
+  changementDemandeConfirmation,
+  checksInstruction,
+  checksReference,
+  compterPhrases,
+  estEtapeVoix,
+  etapeDepuisParametre,
+  etatFiche,
+  etatPhases,
+  nomVoix,
+  promptTestVoix,
+  raisonGenerationReference,
+  verdictSuppressionVoix,
+} from "./voix";
 
-const base = { source: "design" as const, instruction: null, referenceFichier: null, refText: "", testVideo: null, nbRepliques: 0, nbRepliquesMesurees: 0 };
+const base = { source: "design" as const, instruction: null, referenceFichier: null, refText: "", statut: "a_produire", testVideo: null, nbRepliques: 0, nbRepliquesMesurees: 0 };
+const DEUX_PHRASES = "Bonjour, ravi de vous voir. Installez-vous.";
 
 test("étapes : rien de fait, tout est vide", () => {
-  assert.deepEqual(etatPhases(base), { voix: "vide", reference: "vide", test: "vide", repliques: "vide" });
+  assert.deepEqual(etatPhases(base), { fiche: "vide", reference: "vide", validation: "vide", repliques: "vide" });
 });
 
-test("étape voix : design = instruction + texte de référence", () => {
-  assert.equal(etatPhases({ ...base, instruction: "A native French speaker" }).voix, "part");
-  assert.equal(etatPhases({ ...base, instruction: "A native French speaker", refText: "Bonjour." }).voix, "on");
+test("étape fiche : design = instruction + réplique d'écoute de deux phrases", () => {
+  assert.equal(etatPhases({ ...base, instruction: "A native French speaker" }).fiche, "part");
+  assert.equal(etatPhases({ ...base, instruction: "A native French speaker", refText: "Bonjour." }).fiche, "part");
+  assert.equal(etatPhases({ ...base, instruction: "A native French speaker", refText: DEUX_PHRASES }).fiche, "on");
 });
 
-test("étape voix : audio fourni = fichier + texte de référence", () => {
+test("étape fiche : audio fourni = fichier + réplique d'écoute", () => {
   const v = { ...base, source: "reference" as const, referenceFichier: "VOICE_x.wav" };
-  assert.equal(etatPhases(v).voix, "part");
-  assert.equal(etatPhases({ ...v, refText: "Bonjour." }).voix, "on");
+  assert.equal(etatPhases(v).fiche, "part");
+  assert.equal(etatPhases({ ...v, refText: DEUX_PHRASES }).fiche, "on");
 });
 
-test("étapes : référence, test et répliques", () => {
+test("étapes : référence, validation et répliques", () => {
   const e = etatPhases({ ...base, referenceFichier: "a.flac", testVideo: "t.mp4", nbRepliques: 2, nbRepliquesMesurees: 1 });
   assert.equal(e.reference, "on");
-  assert.equal(e.test, "on");
+  assert.equal(e.validation, "part"); // un test vidéo existe, la voix n'est pas validée
   assert.equal(e.repliques, "part");
+  assert.equal(etatPhases({ ...base, referenceFichier: "a.flac", statut: "valide" }).validation, "on");
+  assert.equal(etatPhases({ ...base, statut: "valide" }).validation, "vide"); // « valide » sans référence ne compte pas
 });
 
-test("estEtapeVoix", () => {
-  assert.ok(estEtapeVoix("test"));
-  assert.ok(!estEtapeVoix("tenue"));
+test("estEtapeVoix et étape demandée : la fiche s'ouvre sur l'étape 1 sauf ?etape= explicite", () => {
+  assert.ok(estEtapeVoix("validation"));
+  assert.ok(!estEtapeVoix("test"));
   assert.ok(!estEtapeVoix(undefined));
+  assert.equal(etapeDepuisParametre(undefined), "fiche");
+  assert.equal(etapeDepuisParametre("n'importe quoi"), "fiche");
+  assert.equal(etapeDepuisParametre("repliques"), "repliques");
+  assert.equal(etapeDepuisParametre("test"), "validation"); // ancien nom (liens du bandeau de suivi)
+  assert.equal(etapeDepuisParametre("voix"), "fiche");
+});
+
+test("état d'une fiche : à créer sans référence, à valider avec, validée si le statut l'est", () => {
+  assert.equal(etatFiche({ fichier: null, statut: "a_produire" }), "a_creer");
+  assert.equal(etatFiche({ fichier: null, statut: "valide" }), "a_creer");
+  assert.equal(etatFiche({ fichier: "VOICE_x.wav", statut: "a_produire" }), "a_valider");
+  assert.equal(etatFiche({ fichier: "VOICE_x.wav", statut: "en_cours" }), "a_valider");
+  assert.equal(etatFiche({ fichier: "VOICE_x.wav", statut: "valide" }), "validee");
+});
+
+test("nom d'une voix : le personnage assigné, sinon le code de la voix, sans préfixe", () => {
+  assert.equal(nomVoix({ code: "VOICE_maya", personnageCode: "CHAR_conspirateur_nerveux" }), "Conspirateur nerveux");
+  assert.equal(nomVoix({ code: "VOICE_voix_off", personnageCode: null }), "Voix off");
+  assert.equal(nomVoix({ code: "VOICE_kai" }), "Kai");
+  assert.equal(nomVoix({ code: "VOICE_", personnageCode: null }), "VOICE_");
+});
+
+test("phrases : segments séparés par . ! ? …, la dernière sans ponctuation compte", () => {
+  assert.equal(compterPhrases(""), 0);
+  assert.equal(compterPhrases("Bonjour."), 1);
+  assert.equal(compterPhrases("Bonjour. Installez-vous"), 2);
+  assert.equal(compterPhrases("Quoi ?! Non... Ah."), 3);
+  assert.equal(compterPhrases(" ... "), 0);
+  assert.equal(compterPhrases(TEXTE_REFERENCE_DEFAUT), 2);
+});
+
+test("génération de la référence : mode Décrire, instruction non vide, réplique d'écoute de 2 phrases", () => {
+  const ok = { source: "design" as const, instruction: "A native French speaker.", refText: DEUX_PHRASES };
+  assert.equal(raisonGenerationReference(ok), null);
+  assert.match(raisonGenerationReference({ ...ok, instruction: "  " }) ?? "", /description/);
+  assert.match(raisonGenerationReference({ ...ok, refText: "Bonjour." }) ?? "", /2 phrases/);
+  assert.match(raisonGenerationReference({ ...ok, source: "reference" }) ?? "", /Cloner/);
+});
+
+test("changer la voix de référence : confirmation seulement si une référence existe et que des prises ou le test en dépendent", () => {
+  assert.equal(changementDemandeConfirmation(false, { nbPrises: 3, testVideo: true }), false); // première référence : directe
+  assert.equal(changementDemandeConfirmation(true, { nbPrises: 0, testVideo: false }), false);
+  assert.equal(changementDemandeConfirmation(true, { nbPrises: 1, testVideo: false }), true);
+  assert.equal(changementDemandeConfirmation(true, { nbPrises: 0, testVideo: true }), true);
 });
 
 test("garde-fous de l'instruction", () => {

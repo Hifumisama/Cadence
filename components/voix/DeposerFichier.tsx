@@ -10,11 +10,16 @@ export function DeposerFichier({
   accept = "audio/*",
   label = "Déposer",
   remplacer = false,
+  disabled = false,
+  decritPar,
 }: {
   action: (formData: FormData) => Promise<void>;
   accept?: string;
   label?: string;
   remplacer?: boolean;
+  /** Désactivé : la raison s'affiche à côté (id passé dans `decritPar`). */
+  disabled?: boolean;
+  decritPar?: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
@@ -36,12 +41,13 @@ export function DeposerFichier({
           });
         }}
       >
-        <label className="btn btn-ghost btn-mini" style={{ cursor: "pointer" }}>
+        <label className="btn btn-ghost btn-mini" aria-disabled={disabled || undefined} aria-describedby={disabled ? decritPar : undefined} style={disabled ? { cursor: "not-allowed", opacity: 0.45, pointerEvents: "none" } : { cursor: "pointer" }}>
           {pending ? "Envoi…" : remplacer ? "Remplacer" : label}
           <input
             type="file"
             name="fichier"
             accept={accept}
+            disabled={disabled}
             style={{ display: "none" }}
             onChange={(e) => {
               if (e.target.files?.[0]) formRef.current?.requestSubmit();

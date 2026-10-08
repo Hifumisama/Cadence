@@ -1,4 +1,5 @@
-import { TEMPERATURE_VOIX_MAX, TEMPERATURE_VOIX_MIN, temperatureVoixValide } from "../../lib/asset-generation";
+import { TEMPERATURE_VOIX_MAX, TEMPERATURE_VOIX_MIN, seedTts, temperatureVoixValide } from "../../lib/asset-generation";
+import { langueMoteurVoix } from "../../lib/langues-tts";
 import type { WorkflowJson } from "./imageMapping";
 
 /**
@@ -52,11 +53,11 @@ export function injecterGenerationReplique(workflow: WorkflowJson, entree: Entre
 
   const moteur = noeud(ids.moteur);
   moteur.inputs.temperature = entree.temperature;
-  moteur.inputs.language = entree.langue;
+  moteur.inputs.language = langueMoteurVoix(entree.langue);
 
   const texte = noeud(ids.texte);
   texte.inputs.text = entree.texte;
-  texte.inputs.seed = Number(entree.seed);
+  texte.inputs.seed = seedTts(entree.seed);
   texte.inputs.enable_audio_cache = false;
 
   noeud(ids.reference).inputs.audio = entree.referenceDistante;

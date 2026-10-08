@@ -12,6 +12,7 @@ import {
   METHODE_VOIX,
   langueDuTexteDeReference,
   nouvelleSeed,
+  nouvelleSeedTts,
   raisonAudioNonGenerable,
   raisonDemandeAudioInvalide,
   raisonDemandeInvalide,
@@ -237,7 +238,7 @@ export async function lancerGenerationVoix(assetId: number, demande: DemandeVoix
       texteReference: demande.texteReference.trim(),
       langueReference: langueDuTexteDeReference(demande.texteReference, TEXTE_REFERENCE_DEFAUT, fiche?.langue ?? "French"),
       temperature: demande.temperature,
-      seed: nouvelleSeed(),
+      seed: nouvelleSeedTts(),
     })
     .returning({ id: assetGenerations.id });
   revalidatePath("/", "layout");

@@ -11,6 +11,7 @@ export function SupprimerAssetButton({
   raisonBlocage,
   redirectTo,
   confirmation,
+  libelle,
 }: {
   assetId: number;
   code: string;
@@ -19,6 +20,8 @@ export function SupprimerAssetButton({
   redirectTo: string;
   /** Précision ajoutée à la confirmation (ce qui changera). */
   confirmation?: string | null;
+  /** Ce que la confirmation nomme à la place du code (le casting n'affiche jamais le code VOICE_*). */
+  libelle?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -26,7 +29,7 @@ export function SupprimerAssetButton({
 
   const onSupprimer = () => {
     if (bloque) return;
-    if (!window.confirm(`Supprimer définitivement ${code} ?${confirmation ? ` ${confirmation}` : ""}`)) return;
+    if (!window.confirm(`Supprimer définitivement ${libelle ?? code} ?${confirmation ? ` ${confirmation}` : ""}`)) return;
     setErreur(null);
     startTransition(async () => {
       const resultat = await supprimerAsset(assetId);

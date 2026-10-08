@@ -135,11 +135,11 @@ le 2026-10-05 (FLAC 24 kHz, durée mesurée, niveau sonore équivalent à une pr
 | Donnée | Nœud | Champ | Note |
 |---|---|---|---|
 | Texte dit | `4` (UnifiedTTSTextNode) | `text` | la réplique, mot pour mot |
-| Seed | `4` | `seed` | tirée à chaque demande : régénérer donne une autre interprétation |
+| Seed | `4` | `seed` | tirée à chaque demande : régénérer donne une autre interprétation ; **entier 32 bits au plus** (0 à 4 294 967 295, `nouvelleSeedTts` / `seedTts` dans `lib/asset-generation.ts`) : au-delà, ComfyUI répond HTTP 400 à la validation du prompt |
 | Cache audio | `4` | `enable_audio_cache` | **coupé** à la soumission (une autre voix de référence de même nom ne doit pas resservir une ancienne prise) |
 | Voix de référence | `5` (LoadAudio) | `audio` | le fichier de l'asset voix (`assets/<fichier>`), envoyé au dossier d'entrée de ComfyUI sous `cadence_voixref_<CODE>_<date de modification>` |
 | Créativité de la voix | `1` (Qwen3TTSEngineNode) | `temperature` | **0,8 à 1,2**, 1,2 par défaut |
-| Langue | `1` | `language` | celle des dialogues du brief (`lib/langues-tts.ts`), « Auto » si inconnue |
+| Langue | `1` | `language` | celle des dialogues du brief, **toujours le nom anglais du moteur** (« French », « English », « German », « Spanish », « Italian », « Portuguese », « Japanese », « Korean », « Russian », « Chinese », ou « Auto ») : `langueMoteurVoix` (`lib/langues-tts.ts`) est appliquée dans l'injection même, quelle que soit la valeur reçue (code ISO, libellé français) |
 | Sortie | `3` | — | `PreviewAudio` dans le fichier, remplacé à la soumission par `SaveAudio` (FLAC : durée mesurable, format recommandé pour le clonage) |
 
 Le champ `instruct` du moteur (reste d'un essai de Voice Design) et les autres réglages exportés sont laissés tels quels : ce sont ceux
@@ -157,9 +157,9 @@ nœuds seulement : le moteur, le concepteur de voix, l'écoute. Variable optionn
 |---|---|---|---|
 | Instruction de timbre | `2` (UnifiedVoiceDesignerNode) | `voice_instruction` | en anglais ; aussi recopiée dans `1`.`instruct` |
 | Texte lu | `2` | `reference_text` | au mot près ce que dira la référence ; celui du projet par défaut |
-| Seed | `2` | `seed` | tirée côté serveur |
+| Seed | `2` | `seed` | tirée côté serveur, **entier 32 bits au plus** (voir la réplique) |
 | Créativité de la voix | `1` (Qwen3TTSEngineNode) | `temperature` | **0,8 à 1,2**, 1,1 par défaut (curseur de la popup) |
-| Langue du texte lu | `1` | `language` | `English` pour le texte par défaut du projet, sinon la langue de la fiche de voix |
+| Langue du texte lu | `1` | `language` | `English` pour le texte par défaut du projet, sinon la langue de la fiche de voix ; nom anglais du moteur dans tous les cas (`langueMoteurVoix`, appliquée dans l'injection) |
 | Sortie | `3` (PreviewAudio) | — | **remplacé à la soumission** par `SaveAudioMP3` (qualité `V0`, préfixe `audio/cadence_<CODE>`), même id et même source `audio` : `PreviewAudio` écrit un fichier temporaire que le worker ne sait pas relire |
 
 Fixe : modèle `Voice Design - 1.7B VoiceDesign`, `top_k` 50, `top_p` 1, `repetition_penalty` 1,05, `max_new_tokens`
@@ -209,7 +209,7 @@ Vérifié par `GET /object_info` le 2026-10-02 : `MiniMaxH3ReferenceToVideo` (im
 **Test vidéo d'une voix** (casting vocal, étape « Test vidéo ») : le même graphe, soumis par `worker/images.ts` (méthode `test_video` de
 `asset_generations`) avec `injecterValeurs` — pas de plan : le personnage (`<Picture 1>`) et le décor (le suivant) en images de
 référence, l'audio de test (à défaut la voix de référence) en `<Audio 1>`, 8 s, le prompt T1 de `lib/voix.ts:promptTestVoix`.
-« Prévisualiser » = `activerUpscale` faux (branche basse résolution), « Rendu final » = vrai ; les références sont figées dans
+`activerUpscale` toujours faux (branche basse résolution : le test sert à juger la voix, **pas d'upscale ni de « rendu final »**, 2026-10-08) ; les références sont figées dans
 `asset_generations.parametres`. La sortie est lue sur le nœud `34`.
 
 ## Suivi en direct (WebSocket)

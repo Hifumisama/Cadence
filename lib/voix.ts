@@ -1,6 +1,6 @@
 /** Casting vocal — constantes métier et garde-fous, tirés du skill
- * `.claude/skills/voix-comfyui`. Quatre étapes (2026-09-30) : la voix, sa
- * référence, le test vidéo, les répliques. Pur, sans accès disque ni base :
+ * `.claude/skills/voix-comfyui`. Quatre étapes (refonte 2026-10-09) : fiche,
+ * voix de référence, validation, répliques. Pur, sans accès disque ni base :
  * importable côté client comme côté serveur. */
 
 export const SOURCES_VOIX = ["design", "reference"] as const;
@@ -17,11 +17,13 @@ export function estSourceVoix(v: string): v is SourceVoix {
 export const TEXTE_REFERENCE_DEFAUT =
   "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !";
 
+/** Les quatre étapes de la fiche vocale (refonte UX 2026-10-09) : la fiche (identité, réplique d'écoute), la voix de référence
+ * (décrire ou cloner, générer, garder une candidate), la validation (test vidéo, geste « Valider ») et les répliques. */
 export const ETAPES_VOIX = [
-  { cle: "voix", label: "Voix", aide: "instruction ou audio · texte de référence" },
-  { cle: "reference", label: "Référence", aide: "voix de référence générée" },
-  { cle: "test", label: "Test vidéo", aide: "voix sur un visage" },
-  { cle: "repliques", label: "Répliques", aide: "prises produites et mesurées" },
+  { cle: "fiche", label: "Fiche", aide: "identité · réplique d'écoute" },
+  { cle: "reference", label: "Voix de référence", aide: "décrire ou cloner, générer" },
+  { cle: "validation", label: "Validation", aide: "test vidéo · valider" },
+  { cle: "repliques", label: "Répliques", aide: "prises de la voix" },
 ] as const;
 
 export type EtapeVoix = (typeof ETAPES_VOIX)[number]["cle"];
@@ -30,29 +32,84 @@ export function estEtapeVoix(v: string | undefined): v is EtapeVoix {
   return ETAPES_VOIX.some((e) => e.cle === v);
 }
 
+/** Étape demandée par `?etape=` : les anciennes valeurs (« voix », « test ») mènent à leur équivalent ; sans paramètre (ou valeur
+ * inconnue), la fiche s'ouvre toujours sur l'étape 1. */
+export function etapeDepuisParametre(v: string | undefined): EtapeVoix {
+  if (estEtapeVoix(v)) return v;
+  if (v === "test") return "validation";
+  return "fiche";
+}
+
 export type EtatEtape = "vide" | "part" | "on";
 export type EtatPhases = Record<EtapeVoix, EtatEtape>;
+
+export const LIBELLE_ETAT_ETAPE: Record<EtatEtape, string> = { vide: "À faire", part: "En cours", on: "Fait" };
+
+/** Nombre de phrases d'un texte : des segments contenant au moins une lettre, séparés par . ! ? ou … (une dernière phrase sans
+ * ponctuation compte). */
+export function compterPhrases(texte: string): number {
+  return texte.split(/[.!?…]+/).filter((s) => /\p{L}/u.test(s)).length;
+}
+
+/** La réplique d'écoute doit montrer le caractère de la voix : deux phrases au moins. */
+export const PHRASES_MIN_ECOUTE = 2;
 
 export function etatPhases(v: {
   source: SourceVoix;
   instruction: string | null;
   referenceFichier: string | null;
   refText: string;
+  statut: string;
   testVideo: string | null;
   nbRepliques: number;
   nbRepliquesMesurees: number;
 }): EtatPhases {
   const instruction = v.instruction?.trim() ?? "";
   const refText = v.refText.trim();
-  // « Voix » : de quoi produire la référence (design), ou la référence même
-  // (audio fourni) — dans les deux cas avec son texte.
+  // « Fiche » : de quoi produire la référence (une instruction, ou l'audio fourni) et la réplique d'écoute (2 phrases).
   const sourcePrete = v.source === "design" ? instruction !== "" : !!v.referenceFichier;
+  const ecouteOk = compterPhrases(refText) >= PHRASES_MIN_ECOUTE;
   return {
-    voix: sourcePrete && refText ? "on" : sourcePrete || refText ? "part" : "vide",
+    fiche: sourcePrete && ecouteOk ? "on" : sourcePrete || refText ? "part" : "vide",
     reference: v.referenceFichier ? "on" : "vide",
-    test: v.testVideo ? "on" : "vide",
+    // « Validation » : fait quand la voix est validée ; entamée dès qu'un test vidéo existe.
+    validation: v.referenceFichier && v.statut === "valide" ? "on" : v.testVideo ? "part" : "vide",
     repliques: v.nbRepliques === 0 ? "vide" : v.nbRepliquesMesurees >= v.nbRepliques ? "on" : "part",
   };
+}
+
+/** L'état d'une fiche vocale, tel qu'on l'affiche (pastille avec libellé texte) : « voix à créer » = pas de référence ;
+ * « à valider » = une référence, statut pas encore « valide » ; « validée » = statut « valide ». */
+export type EtatFiche = "a_creer" | "a_valider" | "validee";
+
+export const LIBELLE_ETAT_FICHE: Record<EtatFiche, string> = { a_creer: "Voix à créer", a_valider: "À valider", validee: "Validée" };
+
+export function etatFiche(v: { fichier: string | null; statut: string }): EtatFiche {
+  if (!v.fichier) return "a_creer";
+  return v.statut === "valide" ? "validee" : "a_valider";
+}
+
+/** Le nom lisible d'une voix, partout dans le casting (le code VOICE_* n'y apparaît plus). Il n'y a pas de colonne « nom » : on le
+ * dérive du personnage assigné (CHAR_conspirateur_nerveux → « Conspirateur nerveux »), à défaut du code de la voix sans son préfixe. */
+export function nomVoix(v: { code: string; personnageCode?: string | null }): string {
+  const brut = (v.personnageCode?.trim() || v.code).replace(/^(CHAR|VOICE)_/i, "").replace(/_+/g, " ").trim();
+  return brut ? brut.charAt(0).toUpperCase() + brut.slice(1) : v.code;
+}
+
+/** Pourquoi la voix de référence ne peut pas être générée (null = possible). Même règle côté écran et côté serveur. */
+export function raisonGenerationReference(v: { source: SourceVoix; instruction: string; refText: string }): string | null {
+  if (v.source !== "design") return "Mode Cloner : la référence est l'audio rogné ci-dessus, il n'y a rien à générer.";
+  if (!v.instruction.trim()) return "Écris la description du mode Décrire (l'instruction de la voix, en anglais).";
+  if (compterPhrases(v.refText) < PHRASES_MIN_ECOUTE) return `La réplique d'écoute doit compter au moins ${PHRASES_MIN_ECOUTE} phrases (étape 1).`;
+  return null;
+}
+
+/** Ce que coûte un changement de voix de référence : les répliques de la voix qui ont déjà une prise, et le test vidéo, sont
+ * regénérés ; la fiche repasse « à valider ». Rien de tout cela (ou première référence) : le changement est direct. */
+export type ImpactReference = { nbPrises: number; testVideo: boolean };
+
+export function changementDemandeConfirmation(aDejaUneReference: boolean, impact: ImpactReference): boolean {
+  return aDejaUneReference && (impact.nbPrises > 0 || impact.testVideo);
 }
 
 export type CheckVoix = { niveau: "warn" | "info"; titre: string; detail?: string };
@@ -114,7 +171,7 @@ export function checksReference(v: { fichier: string | null; refText: string }):
   if (!v.refText.trim()) {
     checks.push({
       niveau: "warn",
-      titre: "Texte de référence manquant",
+      titre: "Réplique d'écoute manquante",
       detail: "Le texte lu dans la référence est une entrée du clonage — au mot près, sans lui la référence est diminuée.",
     });
   }

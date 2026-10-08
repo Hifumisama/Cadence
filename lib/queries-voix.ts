@@ -2,7 +2,8 @@ import { db } from "../db";
 import { assets, planRefs, repliques as tableRepliques, voixFiches } from "../db/schema";
 import { and, count, eq, inArray, or } from "drizzle-orm";
 import { assetMediaSrc, voixMediaSrc } from "./media";
-import { estSourceVoix, etatPhases } from "./voix";
+import { estSourceVoix, etatFiche, etatPhases, nomVoix } from "./voix";
+import { langueFicheVoix } from "./langues-tts";
 import { getEpisodesProjet, getOptionsLocuteur, getRepliquesProjet } from "./queries-repliques";
 
 /** Requêtes du casting vocal (F06, CDC §6). Une voix est un asset de type
@@ -33,7 +34,7 @@ export async function getCastingCatalogue(projectId: number) {
     .orderBy(assets.code);
   const ids = lesVoix.map((v) => v.id);
 
-  const [fiches, repliques, personnages, episodes, optionsLocuteur] = await Promise.all([
+  const [fiches, repliques, personnages] = await Promise.all([
     ids.length ? db.select().from(voixFiches).where(inArray(voixFiches.assetId, ids)) : [],
     getRepliquesProjet(projectId),
     db
@@ -41,8 +42,6 @@ export async function getCastingCatalogue(projectId: number) {
       .from(assets)
       .where(and(eq(assets.projectId, projectId), eq(assets.type, "personnage")))
       .orderBy(assets.code),
-    getEpisodesProjet(projectId),
-    getOptionsLocuteur(projectId),
   ]);
 
   const ficheParId = new Map(fiches.map((f) => [f.assetId, f]));
@@ -52,10 +51,17 @@ export async function getCastingCatalogue(projectId: number) {
     const fiche = ficheParId.get(v.id) ?? null;
     const sesRepliques = repliques.filter((r) => r.voix?.id === v.id);
     const source = fiche && estSourceVoix(fiche.source) ? fiche.source : "design";
+    const personnageCode = fiche?.personnageId ? (codePersonnage.get(fiche.personnageId) ?? null) : null;
     return {
       ...v,
       source,
-      personnageCode: fiche?.personnageId ? (codePersonnage.get(fiche.personnageId) ?? null) : null,
+      personnageCode,
+      // Le nom affiché (le code VOICE_* n'apparaît plus dans le casting) et l'état de la fiche (à créer / à valider / validée).
+      nom: nomVoix({ code: v.code, personnageCode }),
+      personnageNom: personnageCode ? nomVoix({ code: personnageCode }) : null,
+      etat: etatFiche({ fichier: v.fichier, statut: v.statut }),
+      langue: langueFicheVoix(fiche?.langue),
+      refText: fiche?.refText ?? "",
       referenceSrc: assetMediaSrc(v.fichier),
       nbRepliques: sesRepliques.length,
       nbRepliquesMesurees: sesRepliques.filter((r) => r.dureeSecondes != null).length,
@@ -64,6 +70,7 @@ export async function getCastingCatalogue(projectId: number) {
         instruction: v.promptGeneration,
         referenceFichier: v.fichier,
         refText: fiche?.refText ?? "",
+        statut: v.statut,
         testVideo: fiche?.testVideo ?? null,
         nbRepliques: sesRepliques.length,
         nbRepliquesMesurees: sesRepliques.filter((r) => r.dureeSecondes != null).length,
@@ -71,15 +78,11 @@ export async function getCastingCatalogue(projectId: number) {
     };
   });
 
-  const repliquesSansVoix = repliques.filter((r) => r.voix == null);
   return {
     voix,
     personnages,
-    episodes,
-    optionsLocuteur,
     nbRepliques: repliques.length,
-    repliquesSansVoix,
-    nbRepliquesSansVoix: repliquesSansVoix.length,
+    nbRepliquesSansVoix: repliques.filter((r) => r.voix == null).length,
   };
 }
 
@@ -113,7 +116,7 @@ export async function getVoixDetail(projectId: number, code: string) {
   const ficheComplete = {
     personnageId: fiche?.personnageId ?? null,
     source: fiche && estSourceVoix(fiche.source) ? fiche.source : ("design" as const),
-    langue: fiche?.langue ?? "French",
+    langue: langueFicheVoix(fiche?.langue), // une ancienne valeur saisie à la main (« Français ») est remise au nom du moteur
     refText: fiche?.refText ?? "",
     testDecorId: fiche?.testDecorId ?? null,
     testPersonnageId: fiche?.testPersonnageId ?? null,
@@ -128,6 +131,9 @@ export async function getVoixDetail(projectId: number, code: string) {
     fiche: ficheComplete,
     personnage: personnages.find((p) => p.id === ficheComplete.personnageId) ?? null,
     personnages,
+    // Nom lisible et état de la fiche : dérivés ici, une seule fois (lib/voix.ts).
+    nom: nomVoix({ code: asset.code, personnageCode: personnages.find((p) => p.id === ficheComplete.personnageId)?.code ?? null }),
+    etat: etatFiche({ fichier: asset.fichier, statut: asset.statut }),
     decors,
     referenceSrc: assetMediaSrc(asset.fichier),
     testAudioSrc: voixMediaSrc(asset.id, ficheComplete.testAudio),
@@ -145,6 +151,7 @@ export async function getVoixDetail(projectId: number, code: string) {
       instruction: asset.promptGeneration,
       referenceFichier: asset.fichier,
       refText: ficheComplete.refText,
+      statut: asset.statut,
       testVideo: ficheComplete.testVideo,
       nbRepliques: sesRepliques.length,
       nbRepliquesMesurees: sesRepliques.filter((r) => r.dureeSecondes != null).length,

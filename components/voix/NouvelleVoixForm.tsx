@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { creerVoix } from "@/app/voix/actions";
 import { construireCode } from "@/lib/assetCode";
+import { nomVoix } from "@/lib/voix";
 import { Icone } from "@/components/ui/Icone";
 
 /** Nouvelle voix au catalogue — crée l'asset VOICE_* (registre) et sa fiche
@@ -45,8 +46,7 @@ export function NouvelleVoixForm({ projectId, personnages }: { projectId: number
             >
               <div className="field-group">
                 <label>Nom</label>
-                <input className="field field-mono" name="nom" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="tenanciere" autoComplete="off" required />
-                <span className="tiny-note num">{code !== "VOICE_" ? code : "VOICE_…"}</span>
+                <input className="field" name="nom" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="La tenancière" autoComplete="off" required />
               </div>
               <div className="field-group">
                 <label>Personnage</label>
@@ -54,7 +54,7 @@ export function NouvelleVoixForm({ projectId, personnages }: { projectId: number
                   <option value="">— aucun</option>
                   {personnages.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.code}
+                      {nomVoix({ code: p.code })}
                     </option>
                   ))}
                 </select>
