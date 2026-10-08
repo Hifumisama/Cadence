@@ -8,6 +8,7 @@ import { motDuTon, plansEstimes, valeursParDefaut, type Conception } from "@/lib
 import { minutesSecondes } from "@/lib/conception-ui";
 import { urlMiniature } from "@/lib/miniatures";
 import { posterPorteLeTitre } from "@/lib/poster";
+import { AfficheZoom } from "@/components/affiches/AfficheZoom";
 import { EnteteScene } from "./Scenes";
 
 /** Scène « Clap » : tout ce qui a été récolté sur une planche (la claquette), l'affiche du projet à côté (générée à l'arrivée sur le clap, voir lib/agents/affiche-clap.ts), un
@@ -24,7 +25,7 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
   const enCours = affiche?.etat === "en_cours";
   // Une affiche dont le titre est écrit dans l'image (suffixe -titre) ne reçoit pas le titre une seconde fois par-dessus.
   const titreDansImage = posterPorteLeTitre(reelle);
-  return (
+  const poster = (
     <aside className={`cn-poster${reelle || style.image ? "" : " is-vide"}${enCours ? " is-attente" : ""}`} aria-label="Affiche du projet" aria-busy={enCours}>
       {/* eslint-disable-next-line @next/next/no-img-element -- stockage média, redimensionné par la route */}
       {reelle ? <img src={reelle} alt="" /> : style.image ? <img src={urlMiniature(`/api/media/styles/${style.image}`, 768)} alt="" /> : null}
@@ -35,18 +36,25 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
           L’affiche n’a pas pu se faire.{reessayer ? <> <button type="button" className="cn-lien" onClick={reessayer}>Réessayer</button></> : null}
         </p>
       ) : null}
+      {/* En haut et en bas, sur des voiles sombres : ce qui était posé au milieu se perdait dans l'image. */}
       <div className="cn-poster-texte">
-        <p className="cn-poster-haut">CADENCE PRÉSENTE</p>
-        {titreDansImage ? null : <p className="cn-poster-titre">{titre.trim() || "Titre à venir"}</p>}
-        <p className="cn-poster-accroche">{conception.format === "serie" ? "Une série" : "Un film"} {genres}, {motDuTon(conception.ton)}</p>
-        <p className="cn-poster-style">Style · {style.nom}</p>
-        <p className="cn-poster-bas">
-          {conception.format === "serie" && conception.episodesPrevus ? `${conception.episodesPrevus} épisodes · ` : ""}
-          {minutesSecondes(conception.dureeSecondes)} · {conception.langue === "Sans dialogue" ? "sans dialogue" : conception.langue}
-        </p>
+        <div className="cn-poster-tete">
+          <p className="cn-poster-haut">CADENCE PRÉSENTE</p>
+          <p className="cn-poster-accroche">{conception.format === "serie" ? "Une série" : "Un film"} {genres}, {motDuTon(conception.ton)}</p>
+        </div>
+        <div className="cn-poster-pied">
+          {titreDansImage ? null : <p className="cn-poster-titre">{titre.trim() || "Titre à venir"}</p>}
+          <p className="cn-poster-style">Style · {style.nom}</p>
+          <p className="cn-poster-bas">
+            {conception.format === "serie" && conception.episodesPrevus ? `${conception.episodesPrevus} épisodes · ` : ""}
+            {minutesSecondes(conception.dureeSecondes)} · {conception.langue === "Sans dialogue" ? "sans dialogue" : conception.langue}
+          </p>
+        </div>
       </div>
     </aside>
   );
+  // L'affiche réelle s'agrandit d'un clic (sauf pendant qu'elle se refait).
+  return reelle && !enCours ? <AfficheZoom src={reelle} titre={titre.trim() || "ce projet"}>{poster}</AfficheZoom> : poster;
 }
 
 function Cellule({ cle, valeur, defaut, large }: { cle: string; valeur: string; defaut?: boolean; large?: boolean }) {
@@ -90,6 +98,8 @@ export function ClapScene({
   const [frappe, setFrappe] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // On ne lance pas avant que l'affiche soit prête (sinon elle est zappée) ; en cas d'échec ou sans générateur, on ne bloque pas.
+  const afficheAttendue = affiche === null || affiche === undefined || affiche.etat === "en_cours";
   const defauts = valeursParDefaut(conception);
   const plans = plansEstimes(conception.dureeSecondes, conception.rythme);
   const note = (cle: string) => notes.find((n) => n.cle === cle)?.texte || "—";
@@ -157,7 +167,7 @@ export function ClapScene({
             </dl>
           </div>
           <div className="cn-lancer">
-            <button type="button" className="btn btn-gold cn-clap" disabled={!pret || envoi} onClick={() => void lancer()}>{envoi ? "Lancement…" : "Action ! Lancer la préparation"}</button>
+            <button type="button" className="btn btn-gold cn-clap" disabled={!pret || envoi || afficheAttendue} onClick={() => void lancer()}>{envoi ? "Lancement…" : afficheAttendue ? "L’affiche se tourne…" : "Action ! Lancer la préparation"}</button>
             {!pret ? <p className="cn-manque">Le scénariste n’a pas encore l’essentiel : retourne à l’entretien.</p> : null}
             {erreur ? <p className="cn-erreur" role="alert">{erreur}</p> : null}
           </div>

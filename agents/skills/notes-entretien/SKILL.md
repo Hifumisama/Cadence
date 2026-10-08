@@ -19,6 +19,7 @@ A user tells an agent the idea of a video. Meanwhile, **you** keep the **notes s
 ## What you receive
 
 - `fiche`: `contenu` (the sections already noted, in the brief's form) and `statuts` (for each section: `fourni` if the user said it, `deduit` if it was assumed). A `fin` key may appear alone in `statuts`: it says whether the user already said how the story ends.
+- `titreAProposer`: when `true`, the sheet has no real title yet and the story has a heart: **you must fill `titre` in `modifications` this turn** (two to five words, `invente`), without waiting for the user to ask.
 - `aTrancher`: the essential sections the user has not yet decided (`arc`, `fin`, `genreTon`, `style`, `rythme`, `dureeEpisodeSecondes`, `personnages`).
 - `conversation`: all turns, each with `qui` (`utilisateur` or `agent`) and its `texte`.
 

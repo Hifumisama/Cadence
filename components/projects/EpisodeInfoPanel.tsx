@@ -121,7 +121,7 @@ export function EpisodeInfoPanel({
               style={{ fontSize: 16 }}
             />
           ) : (
-            <h1>{oneshot ? titreInitial || "Sans titre" : `E${two(numero)} — ${titre || "Sans titre"}`}</h1>
+            <h1>{oneshot ? titreInitial || "Sans titre" : (titre && titre !== "Sans titre" ? `E${two(numero)} — ${titre}` : `E${two(numero)}`)}</h1>
           )}
           {!edition ? (
             <div className="info-hd-actions">

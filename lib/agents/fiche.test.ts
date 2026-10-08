@@ -200,3 +200,12 @@ test("titreAAdopter : le titre de l'entretien devient le nom du projet tant que 
   assert.equal(titreAAdopter(avec("  "), FICHE_VIDE, "Sans titre"), null);
   assert.equal(titreAAdopter(avec("Le Chat"), FICHE_VIDE, "Le Chat"), null);
 });
+
+test("entrée des notes : le titre est à proposer dès que l'histoire a un cœur et qu'aucun titre n'existe", async () => {
+  const { entreeNotes, titreManquant } = await import("./fiche");
+  const avecArc = { contenu: { arc: "Un chat témoin d'un cambriolage." }, statuts: {} };
+  assert.equal(entreeNotes([], FICHE_VIDE).titreAProposer, false, "pas d'arc : trop tôt");
+  assert.equal(entreeNotes([], avecArc).titreAProposer, true);
+  assert.equal(entreeNotes([], { ...avecArc, contenu: { ...avecArc.contenu, titre: "Le Chat Témoin" } }).titreAProposer, false);
+  assert.equal(titreManquant({ contenu: { titre: "Sans titre" }, statuts: {} }), true);
+});

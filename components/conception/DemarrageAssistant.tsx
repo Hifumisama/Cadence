@@ -71,8 +71,8 @@ export function DemarrageAssistant({
   }, [rafraichir]);
 
   const parle = conv.messages.some((m) => m.role === "user");
-  const pret = parle; // arriver au clap vaut accord : l'installateur part de ce qui a été dit
-  const peutClap = parle && !actif;
+  const pret = parle && conv.briefPret;
+  const peutClap = parle && !actif && conv.briefPret; // le clap ne s'ouvre que quand le scénariste a l'essentiel
   const aller = (i: number) => {
     if (i < SCENARIO || i > CLAP || i === etape || (i === CLAP && !peutClap)) return;
     setRecule(i < etape);
@@ -132,7 +132,7 @@ export function DemarrageAssistant({
           ) : conv.briefPret ? (
             <><b>Le scénariste a l’essentiel</b> : le clap t’attend.</>
           ) : (
-            <>Il manque encore quelques points, mais <b>tu peux passer au clap</b> quand tu veux.</>
+            <>Le briefing n’est pas encore prêt : <b>continue l’entretien</b>, le clap s’ouvrira ensuite.</>
           )}
         </span>
         {etape === SCENARIO ? <Glissiere libelle="Glisse : voir le clap" action desactive={!peutClap} onValider={() => aller(CLAP)} /> : null}

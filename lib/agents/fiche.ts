@@ -141,12 +141,19 @@ export function suppositions(fiche: Fiche): string[] {
   return Object.keys(fiche.contenu).filter((k) => !valeurVide(fiche.contenu[k]) && fiche.statuts[k] !== "fourni" && !["inventions", "questionsOuvertes"].includes(k));
 }
 
+const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);
+
+/** La fiche n'a pas (encore) de vrai titre. */
+export const titreManquant = (fiche: Fiche): boolean => TITRES_PROVISOIRES.has(String(fiche.contenu.titre ?? "").trim().toLowerCase());
+
 /** Entrée du skill `notes-entretien` : la fiche telle qu'elle est, et la conversation (qui parle, quoi). */
 export function entreeNotes(messages: { role: string; content: string }[], fiche: Fiche) {
   return {
     fiche: { contenu: fiche.contenu, statuts: fiche.statuts },
     /** Ce que l'utilisateur n'a pas encore tranché : si son message laisse TOUT le reste à l'agent, chaque point est une délégation. */
     aTrancher: REQUIS.filter((r) => manquesFiche(fiche).includes(r.libelle)).map((r) => r.cle),
+    /** Le titre manque et l'histoire a un cœur : le modèle DOIT en proposer un (il l'oubliait quand rien ne l'y obligeait). */
+    titreAProposer: titreManquant(fiche) && !valeurVide(fiche.contenu.arc),
     conversation: messages.map((m) => ({ qui: m.role === "user" ? ("utilisateur" as const) : ("agent" as const), texte: m.content })),
   };
 }
@@ -167,7 +174,8 @@ export function ficheVersBrief(fiche: Fiche, titreProjet: string): { contenu: Br
     statuts.langueDialogues = "deduit";
   }
   if (valeurVide(contenu.episodes)) {
-    contenu.episodes = [{ titre: String(contenu.titre || titreProjet), resume: String(contenu.arc ?? "") }];
+    const titreEp = String(contenu.titre || titreProjet);
+    contenu.episodes = [{ titre: TITRES_PROVISOIRES.has(titreEp.trim().toLowerCase()) ? "" : titreEp, resume: String(contenu.arc ?? "") }];
     statuts.episodes = "deduit";
   }
   return { contenu: contenu as unknown as BriefContenu, statuts };
@@ -194,8 +202,6 @@ export function fichePourAgent(fiche: Fiche): Record<string, unknown> {
   for (const [k, v] of Object.entries(fiche.contenu)) if (!valeurVide(v)) o[k] = v;
   return o;
 }
-
-const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);
 
 /** Le titre que l'entretien donne au projet : celui de la fiche (dit par l'utilisateur ou proposé par le modèle), adopté tant que le
  * nom du projet est encore provisoire (« Sans titre ») ou n'est que l'ancien titre de la fiche. Un titre corrigé à la main (au clap)
