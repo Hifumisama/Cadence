@@ -61,7 +61,7 @@ export default async function RealisateurPage({
     <>
       <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: `/p/${pid}/e/${eid}`, brouillon }} />
       <main>
-        <SalleRevision projectId={pid} episodeId={eid} numeroEpisode={episode.numero} titreEpisode={episode.titre} initial={vue} amorce={amorce} />
+        <SalleRevision projectId={pid} episodeId={eid} numeroEpisode={episode.numero} titreEpisode={episode.titre} initial={vue} amorce={amorce} planCible={amorce ? plan ?? null : null} />
       </main>
     </>
   );

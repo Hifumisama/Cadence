@@ -16,11 +16,13 @@ export function FicheDecisions({
   occupe,
   onRetirer,
   onRelu,
+  onAnnulerRendu,
 }: {
   etat: EtatRevision;
   occupe: boolean;
   onRetirer: (decisionUuid: string) => void;
   onRelu: (decisionUuid: string) => void;
+  onAnnulerRendu: (planUuid: string) => void;
 }) {
   const [ouvertes, setOuvertes] = useState<Record<string, boolean>>({});
   const [scenario, setScenario] = useState(false);
@@ -70,6 +72,7 @@ export function FicheDecisions({
             bascule={() => setOuvertes((o) => ({ ...o, [d.uuid]: !o[d.uuid] }))}
             onRetirer={() => onRetirer(d.uuid)}
             onRelu={() => onRelu(d.uuid)}
+            onAnnulerRendu={onAnnulerRendu}
           />
         ))}
       </ol>
@@ -96,6 +99,7 @@ function Decision({
   bascule,
   onRetirer,
   onRelu,
+  onAnnulerRendu,
 }: {
   d: VueDecisionRevision;
   ouvert: boolean;
@@ -103,6 +107,7 @@ function Decision({
   bascule: () => void;
   onRetirer: () => void;
   onRelu: () => void;
+  onAnnulerRendu: (planUuid: string) => void;
 }) {
   const classe = d.statut === "conflit" ? "is-conflit" : d.statut === "attention" ? "is-attention" : "is-fait";
   const g = gain(d.gainSecondes);
@@ -138,6 +143,14 @@ function Decision({
               </li>
             ))}
           </ul>
+          {d.rendusActifs.map((r) => (
+            <p key={r.planUuid} className="rv-raison">
+              <button type="button" className="cn-lien" disabled={occupe} onClick={() => onAnnulerRendu(r.planUuid)}>
+                Annuler le rendu de {r.handle}
+              </button>{" "}
+              pour débloquer la suppression.
+            </p>
+          ))}
           {d.constats.length > 0 ? (
             <ul className="rv-constats">
               {d.constats.map((c, i) => (

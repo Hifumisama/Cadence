@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   abandonnerRevisionAction,
+  annulerRendusDuPlanAction,
   appliquerRevisionAction,
   envoyerMessageRevisionAction,
   lireVueRevisionAction,
@@ -55,6 +56,7 @@ export function SalleRevision({
   titreEpisode,
   initial,
   amorce,
+  planCible,
 }: {
   projectId: number;
   episodeId: number;
@@ -63,6 +65,8 @@ export function SalleRevision({
   initial: Vue;
   /** Début de message proposé (venu d'un plan : « À propos du plan 07 … »), jamais envoyé tout seul. */
   amorce: string;
+  /** Le plan d'où l'on vient (uuid), ou null : on y revient une fois le chantier appliqué, sauf s'il a été supprimé. */
+  planCible: string | null;
 }) {
   const router = useRouter();
   const [vue, setVue] = useState<Vue>(initial);
@@ -94,11 +98,13 @@ export function SalleRevision({
     [uuid],
   );
 
+  // Un rendu à annuler se libère quand le worker s'arrête : on relit tant qu'une décision attend cela.
+  const attendRendu = etat.ouverte && etat.decisions.some((d) => d.rendusActifs.length > 0);
   useEffect(() => {
-    if (!actif) return;
+    if (!actif && !attendRendu) return;
     const t = setInterval(() => void rafraichir(), 2000);
     return () => clearInterval(t);
-  }, [actif, rafraichir]);
+  }, [actif, attendRendu, rafraichir]);
 
   useEffect(() => {
     const focus = () => void rafraichir();
@@ -168,10 +174,15 @@ export function SalleRevision({
     setErreur(null);
     try {
       // La glissière rouge VAUT confirmation d'écrasement : la barre a dit, juste avant, ce qui serait écrasé.
+      const supprime = etat.decisions.some((d) => d.operations.some((o) => o.type === "couper_plan" && o.planUuid === planCible));
       const r = await appliquerRevisionAction(uuid, resume.danger);
-      if (!r.ok) setErreur(r.erreur);
-      await rafraichir();
-      router.refresh();
+      if (!r.ok) {
+        setErreur(r.erreur);
+        await rafraichir();
+        return;
+      }
+      // La conversation est close : on retourne là d'où l'on vient (le plan, s'il existe encore ; sinon le scénario de l'épisode).
+      router.push(planCible && !supprime ? `/p/${projectId}/e/${episodeId}/plans/${planCible}` : `/p/${projectId}/e/${episodeId}/scenario`);
     } catch {
       setErreur("L’application a échoué.");
     } finally {
@@ -306,6 +317,7 @@ export function SalleRevision({
               occupe={occupe || actif}
               onRetirer={(d) => void agir(() => retirerDecisionAction(uuid, d))}
               onRelu={(d) => void agir(() => reconfirmerDecisionAction(uuid, d))}
+              onAnnulerRendu={(p) => void agir(() => annulerRendusDuPlanAction(uuid, p))}
             />
           ) : null}
         </div>

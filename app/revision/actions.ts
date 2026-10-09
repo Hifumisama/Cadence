@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import type { EtatTache } from "@/lib/agents/types";
 import {
   abandonnerRevision,
+  annulerRendusDuPlan,
   appliquerRevision,
   envoyerMessageRevision,
   lireVueRevision,
@@ -66,4 +67,8 @@ export async function abandonnerRevisionAction(conversationUuid: string): Promis
 /** Applique le chantier. `confirmeEcrasement` : la glissière rouge vaut confirmation (la barre du bas a dit ce qui est écrasé). */
 export async function appliquerRevisionAction(conversationUuid: string, confirmeEcrasement: boolean): Promise<ResultatApplicationRevision> {
   return rafraichir(await appliquerRevision(conversationUuid, { confirmeEcrasement }));
+}
+
+export async function annulerRendusDuPlanAction(conversationUuid: string, planUuid: string): Promise<Resultat<{ enCours: boolean }>> {
+  return rafraichir(await annulerRendusDuPlan(conversationUuid, planUuid));
 }

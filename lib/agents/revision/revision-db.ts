@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../../db";
-import { agentConversations, agentRuns, plans, propositionChangements, propositions, revisionDecisions } from "../../../db/schema";
+import { agentConversations, agentRuns, jobs, plans, propositionChangements, propositions, revisionDecisions } from "../../../db/schema";
+import { demanderAnnulation } from "../../annulation-db";
 import type { Tx } from "../../ordre-plans";
 import { estBloque } from "../cochage";
 import { appliquerProposition, enregistrerChangements, enrichirChangements, type ChangementEnrichi } from "../proposition-db";
@@ -57,6 +58,8 @@ export type VueDecisionRevision = {
   changements: ChangementDecision[];
   /** Combien d'éléments validés (rendu réussi, prise validée) cette décision écrase à l'application. */
   ecrasements: number;
+  /** Les plans que cette décision supprime et dont un rendu est en file ou en cours : l'écran propose de l'annuler. */
+  rendusActifs: { planUuid: string; handle: string }[];
 };
 
 export type VuePisteRevision = { numero: number; titre: string; resume: string; gainSecondes: number; dureeApres: number };
@@ -104,6 +107,7 @@ function versVueDecision(r: DecisionRow): VueDecisionRevision {
       avertissements: (c.avertissements ?? []) as Avertissement[],
     })),
     ecrasements: ((r.changements as ChangementEnrichi[]) ?? []).filter((c) => !!c.ecrase && !c.refuseRaison).length,
+    rendusActifs: [],
   };
 }
 
@@ -245,6 +249,13 @@ export async function recalculerDecisions(tx: DbOuTx, conv: ConversationRow, vue
 async function construireEtat(d: DbOuTx, conv: ConversationRow, vue: VueEpisode): Promise<EtatRevision> {
   const lignes = await d.select().from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv.id)).orderBy(asc(revisionDecisions.ordre));
   const actives = lignes.filter(estActive).map(versVueDecision);
+  for (const x of actives) {
+    for (const op of x.operations) {
+      if (op.type !== "couper_plan") continue;
+      const p = planParUuid(vue, op.planUuid);
+      if (p?.etat === "en_file" && !x.rendusActifs.some((r) => r.planUuid === p.uuid)) x.rendusActifs.push({ planUuid: p.uuid, handle: p.handle });
+    }
+  }
   const operations = actives.flatMap((x) => x.operations);
   const brouillon = appliquerAuBrouillon(vue, operations);
   const actuelle = vue.plans.reduce((a, p) => a + p.duree, 0);
@@ -356,6 +367,22 @@ export async function retirerDecision(conversationUuid: string, decisionUuid: st
     await recalculerDecisions(tx, conv, vue);
   });
   return { ok: true };
+}
+
+/** Annule les rendus en file ou en cours d'un plan de l'épisode (pour pouvoir le supprimer). Un rendu en cours s'arrête quand le worker
+ * prend le drapeau : l'écran relit l'état et la décision se débloque d'elle-même. */
+export async function annulerRendusDuPlan(conversationUuid: string, planUuid: string): Promise<Resultat<{ enCours: boolean }>> {
+  const conv = await conversationRevisionParUuid(db, conversationUuid);
+  if (!conv || conv.fermeeAt) return ERR("Révision introuvable ou terminée.");
+  if (conv.cibleId == null) return ERR("Révision sans épisode.");
+  const [plan] = await db.select({ id: plans.id }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.episodeId, conv.cibleId)));
+  if (!plan) return ERR("Plan introuvable dans cet épisode.");
+  const actifs = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.planId, plan.id), inArray(jobs.statut, ["en_attente", "en_cours"])));
+  let enCours = false;
+  for (const j of actifs) if ((await demanderAnnulation(`video:${j.id}`)) === "demandee") enCours = true;
+  const vue = await lireVueEpisode(db, conv.projectId, conv.cibleId);
+  if (vue) await db.transaction((tx) => recalculerDecisions(tx, conv, vue));
+  return { ok: true, enCours };
 }
 
 /** L'utilisateur a relu une décision « à revérifier » : on lève le drapeau avec l'état courant. */
