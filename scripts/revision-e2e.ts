@@ -2,7 +2,7 @@ import "dotenv/config";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, plans, projects, repliques, revisionDecisions, scenes, seasons } from "../db/schema";
-import { LIGNES_LE_SEL } from "../lib/agents/revision/fixture-le-sel";
+import { semerLeSel } from "./semis-le-sel";
 import type { SortieAnalyse } from "../lib/agents/revision/analyse";
 import { abandonnerRevision, appliquerRevision, appliquerSortieAnalyse, conversationRevisionParUuid, envoyerMessageRevision, lireEtatRevision, ouvrirRevision, reconfirmerDecision, relancerTourRevision, retirerDecision } from "../lib/agents/revision/revision-db";
 import type { executerSkill } from "../lib/llm/executer";
@@ -26,48 +26,6 @@ function ok(cond: unknown, msg: string) {
     echecs.push(msg);
     console.error(`  ✖ ${msg}`);
   } else console.log(`  ✔ ${msg}`);
-}
-
-/** L'épisode « Le sel » de la maquette (lib/agents/revision/fixture-le-sel.ts), en vraie base. */
-async function semerLeSel(nom: string) {
-  const [projet] = await db.insert(projects).values({ nom, type: "serie" }).returning();
-  const [saison] = await db.insert(seasons).values({ projectId: projet!.id, numero: 1, titre: "Saison 1" }).returning();
-  const [episode] = await db.insert(episodes).values({ seasonId: saison!.id, numero: 1, titre: "Le sel", resume: "Maya quitte le port." }).returning();
-  await db.insert(briefs).values({ projectId: projet!.id, statut: "valide", source: "conversation", contenu: { dureeEpisodeSecondes: 120 }, statuts: {} });
-  const lesScenes = await db.insert(scenes).values(LIGNES_LE_SEL.scenes.map((s, i) => ({ episodeId: episode!.id, ordre: i, titre: s.titre }))).returning();
-  const sceneDe = new Map(LIGNES_LE_SEL.scenes.map((s, i) => [s.id, lesScenes[i]!.id]));
-  const lesPlans = await db
-    .insert(plans)
-    .values(
-      LIGNES_LE_SEL.plans.map((p, i) => ({
-        projectId: projet!.id,
-        episodeId: episode!.id,
-        ordre: i,
-        titre: p.titre,
-        sceneId: sceneDe.get(p.sceneId!)!,
-        dureeMontageSecondes: p.duree,
-        dureeGenerationSecondes: p.duree,
-        statut: p.statut as "brouillon" | "termine",
-      })),
-    )
-    .returning();
-  const planDe = (uuidFixture: string) => lesPlans[LIGNES_LE_SEL.plans.findIndex((p) => p.uuid === uuidFixture)]!;
-  for (const [i, p] of LIGNES_LE_SEL.plans.entries()) {
-    if (p.aFiche) await db.insert(planPromptSections).values({ planId: lesPlans[i]!.id, section: "summary", ordre: 1, contenu: "Fiche écrite." });
-    if (p.statut === "termine") await db.insert(jobs).values({ planId: lesPlans[i]!.id, statut: "termine", workflowFichier: "e2e", cheminSortie: `plans/${lesPlans[i]!.id}/e2e.mp4`, finishedAt: new Date() });
-  }
-  await db.insert(assets).values([
-    { projectId: projet!.id, code: "CHAR_maya", type: "personnage", description: "Maya" },
-    { projectId: projet!.id, code: "CHAR_pecheur", type: "personnage", description: "Le pêcheur" },
-  ]);
-  const lesReps = await db
-    .insert(repliques)
-    .values(LIGNES_LE_SEL.repliques.map((r) => ({ projectId: projet!.id, episodeId: episode!.id, ordre: r.ordre, texte: r.texte, locuteurTexte: r.locuteur === "CHAR_maya" ? "Maya" : "Pêcheur" })))
-    .returning();
-  for (const [i, r] of LIGNES_LE_SEL.repliques.entries()) {
-    for (const li of r.liaisons) await db.insert(planDialogues).values({ planId: planDe(li.planUuid).id, repliqueId: lesReps[i]!.id, slot: li.slot });
-  }
-  return { projectId: projet!.id, episodeId: episode!.id };
 }
 
 // --- le faux modèle du réalisateur --------------------------------------------------

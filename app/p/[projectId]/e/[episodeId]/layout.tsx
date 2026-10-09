@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEpisodeWithSeason, getEtatPlans, getProject } from "@/lib/queries";
+import { nbDecisionsEnCours } from "@/lib/agents/revision/revision-db";
 import { posterSrc } from "@/lib/media";
 import { Topbar } from "@/components/ui/Topbar";
 import { EtatPlans } from "@/components/scenario/EtatPlans";
@@ -21,7 +22,7 @@ export default async function EpisodeLayout({
   const pid = Number(projectId);
   const eid = Number(episodeId);
 
-  const [projet, episodeInfo, etat] = await Promise.all([getProject(pid), getEpisodeWithSeason(eid), getEtatPlans(eid)]);
+  const [projet, episodeInfo, etat, brouillon] = await Promise.all([getProject(pid), getEpisodeWithSeason(eid), getEtatPlans(eid), nbDecisionsEnCours(pid, eid)]);
   if (!projet || !episodeInfo || episodeInfo.season.projectId !== pid) notFound();
   const { episode, season } = episodeInfo;
 
@@ -52,7 +53,7 @@ export default async function EpisodeLayout({
 
   return (
     <>
-      <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: base }} />
+      <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: base, brouillon }} />
       <main className="page">
         <EpisodeInfoPanel
           projectId={pid}

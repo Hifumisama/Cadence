@@ -1,12 +1,13 @@
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../../db";
-import { agentConversations, propositionChangements, propositions, revisionDecisions } from "../../../db/schema";
+import { agentConversations, agentRuns, plans, propositionChangements, propositions, revisionDecisions } from "../../../db/schema";
 import type { Tx } from "../../ordre-plans";
 import { estBloque } from "../cochage";
 import { appliquerProposition, enregistrerChangements, enrichirChangements, type ChangementEnrichi } from "../proposition-db";
-import { creerRun, tacheActive } from "../runs";
-import type { Avertissement, EcrasementAConfirmer, MessageConversation, Position } from "../types";
+import { creerRun, etatTache, tacheActive } from "../runs";
+import type { Avertissement, EcrasementAConfirmer, EtatTache, MessageConversation, Position } from "../types";
 import { chiffresPiste, idCourt, interpreterAnalyse, statutDeDecision, type DecisionEtat, type SortieAnalyse } from "./analyse";
+import { scenesTouchees, type SceneTouchee } from "./affichage";
 import { appliquerAuBrouillon, gainSecondes } from "./brouillon";
 import { conflitsEntreDecisions, constatDuree, recoupementsEntreDecisions, type ConflitDecisions } from "./constats";
 import { construireFaits, type FaitsTour } from "./faits";
@@ -54,6 +55,8 @@ export type VueDecisionRevision = {
   constats: Constat[];
   operations: Operation[];
   changements: ChangementDecision[];
+  /** Combien d'éléments validés (rendu réussi, prise validée) cette décision écrase à l'application. */
+  ecrasements: number;
 };
 
 export type VuePisteRevision = { numero: number; titre: string; resume: string; gainSecondes: number; dureeApres: number };
@@ -67,6 +70,8 @@ export type EtatRevision = {
   decisions: VueDecisionRevision[];
   appliquees: { id: string; titre: string; gainSecondes: number }[];
   pistes: VuePisteRevision[];
+  /** Le scénario avec le brouillon, seulement les scènes touchées (voir `scenesTouchees`). */
+  scenes: SceneTouchee[];
   duree: { actuelle: number; avecBrouillon: number; objectif: number | null; constat: Constat };
   conflits: ConflitDecisions[];
 };
@@ -98,6 +103,7 @@ function versVueDecision(r: DecisionRow): VueDecisionRevision {
       refuseRaison: c.refuseRaison ?? null,
       avertissements: (c.avertissements ?? []) as Avertissement[],
     })),
+    ecrasements: ((r.changements as ChangementEnrichi[]) ?? []).filter((c) => !!c.ecrase && !c.refuseRaison).length,
   };
 }
 
@@ -255,6 +261,7 @@ async function construireEtat(d: DbOuTx, conv: ConversationRow, vue: VueEpisode)
     decisions: actives,
     appliquees: lignes.filter((r) => !estActive(r)).map((r) => ({ id: idCourt(r.ordre), titre: r.titre, gainSecondes: r.gainSecondes })),
     pistes,
+    scenes: scenesTouchees(vue, operations),
     duree: { actuelle, avecBrouillon: brouillon.total, objectif: vue.objectifSecondes, constat: constatDuree(brouillon.total, vue.objectifSecondes) },
     conflits: conflitsEntreDecisions(actives.map((x) => ({ id: x.id, titre: x.titre, operations: x.operations })), vue),
   };
@@ -477,4 +484,44 @@ export async function relancerTourRevision(conversationUuid: string): Promise<Re
   if (await tacheActive(conv.id)) return ERR("Un tour est déjà en cours.");
   const run = await creerRun(db, { skill: "realisateur-analyse", entree: { conversation: conv.uuid }, but: "tour", projectId: conv.projectId, conversationId: conv.id });
   return { ok: true, runUuid: run.uuid };
+}
+
+// --- pour l'écran ------------------------------------------------------------------------------
+
+/** L'état de la révision ET l'état de la dernière tâche de sa conversation (file, travail en cours, échec) : ce que l'écran sonde tant
+ * qu'un tour tourne. Recalcule les décisions (constats, « à revérifier »), comme `lireEtatRevision`. */
+export async function lireVueRevision(conversationUuid: string): Promise<{ etat: EtatRevision; tache: EtatTache | null } | null> {
+  const etat = await lireEtatRevision(conversationUuid);
+  if (!etat) return null;
+  const conv = await conversationRevisionParUuid(db, conversationUuid);
+  const [run] = await db.select({ id: agentRuns.id }).from(agentRuns).where(eq(agentRuns.conversationId, conv!.id)).orderBy(desc(agentRuns.id)).limit(1);
+  return { etat, tache: await etatTache(run?.id ?? null) };
+}
+
+/** Combien de décisions en cours (non appliquées) a la révision ouverte de cet épisode : la pastille de l'onglet « Réalisateur ». */
+export async function nbDecisionsEnCours(projectId: number, episodeId: number): Promise<number> {
+  const [conv] = await db
+    .select({ id: agentConversations.id })
+    .from(agentConversations)
+    .where(
+      and(
+        eq(agentConversations.projectId, projectId),
+        eq(agentConversations.portee, "episode"),
+        eq(agentConversations.cibleId, episodeId),
+        eq(agentConversations.profondeur, "revision"),
+        isNull(agentConversations.fermeeAt),
+      ),
+    );
+  if (!conv) return 0;
+  const lignes = await db.select({ statut: revisionDecisions.statut }).from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv.id));
+  return lignes.filter((l) => l.statut !== "appliquee").length;
+}
+
+/** Le début de message proposé quand on arrive d'un plan : « À propos du plan 07 (Maya lit la lettre) : ». Chaîne vide si le plan n'est
+ * pas de cet épisode ou si l'uuid n'en est pas un (jamais une erreur : c'est un confort). */
+export async function amorceDePlan(episodeId: number, planUuid: string | null | undefined): Promise<string> {
+  if (!planUuid || !/^[0-9a-f-]{36}$/i.test(planUuid)) return "";
+  const lignes = await db.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(asc(plans.ordre), asc(plans.id));
+  const i = lignes.findIndex((p) => p.uuid === planUuid);
+  return i < 0 ? "" : `À propos du plan ${String(i + 1).padStart(2, "0")} (${lignes[i]!.titre}) : `;
 }

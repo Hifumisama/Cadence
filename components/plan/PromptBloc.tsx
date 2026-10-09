@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import type { DemandeAgent } from "@/components/agents/AgentsProvider";
@@ -126,7 +127,18 @@ export function PromptBloc({ planId, declarees, demandeAgent, aUneFiche }: { pla
           </button>
           {menu ? (
             <div className="fp-menu-pop" role="menu">
-              <BoutonAgent demande={demandeAgent} libelle="Demander à l'agent" className="fp-menu-item" titre="Modifier ce plan, ou en ajouter un après lui" />
+              {demandeAgent.projectId != null && demandeAgent.episodeId != null && demandeAgent.planUuid ? (
+                <Link
+                  href={`/p/${demandeAgent.projectId}/realisateur/${demandeAgent.episodeId}?plan=${demandeAgent.planUuid}`}
+                  className="fp-menu-item"
+                  role="menuitem"
+                  title="Discuter de ce plan avec le réalisateur : couper, raccourcir, déplacer, changer une réplique"
+                >
+                  Réviser avec le réalisateur
+                </Link>
+              ) : (
+                <BoutonAgent demande={demandeAgent} libelle="Demander à l'agent" className="fp-menu-item" titre="Modifier ce plan, ou en ajouter un après lui" />
+              )}
               <BoutonAgent
                 demande={{ ...demandeAgent, vue: "fiches" }}
                 libelle={aUneFiche ? "Réécrire la fiche" : "Écrire la fiche"}

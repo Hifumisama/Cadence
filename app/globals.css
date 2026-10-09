@@ -236,6 +236,21 @@ button {
   color: var(--ink);
   border-bottom-color: var(--ecarlate);
 }
+/* Pastille de l'onglet « Réalisateur » : le nombre de décisions en cours dans le brouillon de l'épisode. */
+.tab-pastille {
+  margin-left: 7px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--or-soft);
+  border-radius: 999px;
+  color: var(--or-glow);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0;
+  line-height: 16px;
+  text-align: center;
+}
 
 .page {
   max-width: 1240px;

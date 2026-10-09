@@ -11,6 +11,8 @@ export type { GenreTache };
 /** Nom lisible du travail d'un skill d'agent, pour le panneau. */
 export const LIBELLE_SKILL: Record<string, string> = {
   "brief-projet": "Brief du projet",
+  "realisateur-analyse": "Réalisateur · analyse",
+  "realisateur-reponse": "Réalisateur · réponse",
   "scenario-episode": "Scénario d'épisode",
   "prompt-asset": "Prompt d'asset",
   "prompt-voix": "Prompt de voix",

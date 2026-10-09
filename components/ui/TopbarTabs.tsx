@@ -9,7 +9,7 @@ import { usePathname } from "next/navigation";
  * par toute la série (retour utilisateur 2026-09-28 : "super important que
  * l'on puisse accéder à assets depuis la vue projet"). Remplace l'ancien
  * TopbarNav.tsx, qui codait `/scenario` etc. en dur. */
-export function TopbarTabs({ projectId, episodeBase }: { projectId: number; episodeBase: string }) {
+export function TopbarTabs({ projectId, episodeBase, brouillon = 0 }: { projectId: number; episodeBase: string; brouillon?: number }) {
   const pathname = usePathname();
   const assetsHref = `/p/${projectId}/assets`;
   // Casting vocal (2026-09-30) : même niveau que Assets — le catalogue de
@@ -17,18 +17,23 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
   const castingHref = `/p/${projectId}/voix`;
   // Brief du projet (2026-10-02) : la référence du projet, au même niveau que Assets et Casting.
   const briefHref = `/p/${projectId}/brief`;
+  // Réalisateur (2026-10) : la révision de l'épisode, une salle plein cadre hors du layout d'épisode (`/p/<projet>/realisateur/<épisode>`).
+  const episodeId = /\/e\/(\d+)\/?$/.exec(episodeBase)?.[1] ?? null;
+  const realisateurHref = episodeId ? `/p/${projectId}/realisateur/${episodeId}` : null;
+  const surRealisateur = pathname.startsWith(`/p/${projectId}/realisateur`);
   const suffixeEpisode = pathname.startsWith(episodeBase) ? pathname.slice(episodeBase.length) : "";
   const segmentsEpisode = suffixeEpisode.split("/").filter(Boolean);
   const surAssets = pathname === assetsHref || pathname.startsWith(`${assetsHref}/`);
   const surCasting = pathname === castingHref || pathname.startsWith(`${castingHref}/`);
   const surBrief = pathname === briefHref || pathname.startsWith(`${briefHref}/`);
-  const segmentActif = surAssets ? "assets" : surCasting ? "voix" : surBrief ? "brief" : (segmentsEpisode[0] ?? "");
+  const segmentActif = surRealisateur ? "realisateur" : surAssets ? "assets" : surCasting ? "voix" : surBrief ? "brief" : (segmentsEpisode[0] ?? "");
 
   const onglets = [
     { seg: "brief", label: "Brief", href: briefHref },
     { seg: "scenario", label: "Scénario", href: `${episodeBase}/scenario` },
     { seg: "assets", label: "Assets", href: assetsHref },
     { seg: "plans", label: "Plans", href: `${episodeBase}/plans` },
+    ...(realisateurHref ? [{ seg: "realisateur", label: "Réalisateur", href: realisateurHref }] : []),
     { seg: "voix", label: "Casting", href: castingHref },
   ];
 
@@ -37,6 +42,11 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
       {onglets.map((o) => (
         <Link key={o.seg} href={o.href} className="tab" aria-selected={segmentActif === o.seg}>
           {o.label}
+          {o.seg === "realisateur" && brouillon > 0 ? (
+            <span className="tab-pastille" title={`${brouillon} décision${brouillon > 1 ? "s" : ""} en cours`}>
+              {brouillon}
+            </span>
+          ) : null}
         </Link>
       ))}
     </nav>

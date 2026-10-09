@@ -16,7 +16,7 @@ export function Topbar({
   tabs,
 }: {
   trail: ReactNode;
-  tabs?: { projectId: number; episodeBase: string };
+  tabs?: { projectId: number; episodeBase: string; /** Décisions en cours dans la révision de l'épisode (pastille de l'onglet « Réalisateur »). */ brouillon?: number };
 }) {
   return (
     <header className="topbar">
@@ -29,7 +29,7 @@ export function Topbar({
             {trail}
           </nav>
         </div>
-        {tabs ? <TopbarTabs projectId={tabs.projectId} episodeBase={tabs.episodeBase} /> : null}
+        {tabs ? <TopbarTabs projectId={tabs.projectId} episodeBase={tabs.episodeBase} brouillon={tabs.brouillon} /> : null}
         <BoutonAgentGlobal />
         <PastilleLlm />
         <IndicateurTaches />

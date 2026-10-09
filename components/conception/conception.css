@@ -76,6 +76,11 @@
 .cn-glisse.is-action .cn-glisse-poignee { left: calc(4px + var(--p) * (100% - 126px)); }
 .cn-glisse.is-action .cn-glisse-rempli { width: calc(var(--p) * (100% - 8px) + 118px); }
 .cn-glisse.is-action .cn-glisse-texte { padding-left: 120px; }
+.cn-glisse.is-danger .cn-glisse-rempli { background: linear-gradient(to right, rgba(200, 16, 46, 0.05), rgba(200, 16, 46, 0.34)); }
+.cn-glisse.is-danger .cn-glisse-poignee { border-color: var(--ecarlate-glow); color: #fff; box-shadow: 0 0 18px rgba(200, 16, 46, 0.45); }
+.cn-glisse.is-danger.is-action .cn-glisse-poignee { background-image: repeating-linear-gradient(-55deg, #0e0e13 0 9px, transparent 9px 18px), linear-gradient(160deg, var(--ecarlate-glow), var(--ecarlate)); }
+.cn-glisse.is-danger.is-pret .cn-glisse-poignee { box-shadow: 0 0 34px rgba(255, 79, 109, 0.9); }
+.cn-glisse.is-danger .cn-glisse-texte i { color: var(--ecarlate-glow); }
 .cn-glisse.is-inerte { opacity: 0.55; }
 .cn-glisse.is-inerte .cn-glisse-poignee { background: var(--surface-3); border-color: var(--line-strong); color: var(--ink-3); box-shadow: none; cursor: not-allowed; }
 .cn-glisse.is-inerte .cn-glisse-texte i { animation: none; }
