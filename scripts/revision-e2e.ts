@@ -1,0 +1,233 @@
+import "dotenv/config";
+import { and, asc, eq } from "drizzle-orm";
+import { db } from "../db";
+import { agentConversations, assets, briefs, episodes, jobs, planDialogues, planPromptSections, plans, projects, repliques, revisionDecisions, scenes, seasons } from "../db/schema";
+import { LIGNES_LE_SEL } from "../lib/agents/revision/fixture-le-sel";
+import type { SortieAnalyse } from "../lib/agents/revision/analyse";
+import { abandonnerRevision, appliquerRevision, appliquerSortieAnalyse, conversationRevisionParUuid, lireEtatRevision, ouvrirRevision, reconfirmerDecision, retirerDecision } from "../lib/agents/revision/revision-db";
+
+/**
+ * Essai de bout en bout du MOTEUR de la révision d'épisode, SANS modèle : les sorties de l'analyse sont écrites à la main (ce que
+ * le réalisateur rendrait pour les trois parcours de la maquette), le code les range, calcule les constats et applique le chantier
+ * dans la vraie base. Tout est supprimé à la fin.
+ *
+ *   npm run revision:e2e
+ *
+ * Écrit dans la base de DATABASE_URL : à lancer sur une base jetable (la migration 0054 doit être appliquée).
+ */
+
+const echecs: string[] = [];
+let nb = 0;
+function ok(cond: unknown, msg: string) {
+  nb++;
+  if (!cond) {
+    echecs.push(msg);
+    console.error(`  ✖ ${msg}`);
+  } else console.log(`  ✔ ${msg}`);
+}
+
+/** L'épisode « Le sel » de la maquette (lib/agents/revision/fixture-le-sel.ts), en vraie base. */
+async function semerLeSel(nom: string) {
+  const [projet] = await db.insert(projects).values({ nom, type: "serie" }).returning();
+  const [saison] = await db.insert(seasons).values({ projectId: projet!.id, numero: 1, titre: "Saison 1" }).returning();
+  const [episode] = await db.insert(episodes).values({ seasonId: saison!.id, numero: 1, titre: "Le sel", resume: "Maya quitte le port." }).returning();
+  await db.insert(briefs).values({ projectId: projet!.id, statut: "valide", source: "conversation", contenu: { dureeEpisodeSecondes: 120 }, statuts: {} });
+  const lesScenes = await db.insert(scenes).values(LIGNES_LE_SEL.scenes.map((s, i) => ({ episodeId: episode!.id, ordre: i, titre: s.titre }))).returning();
+  const sceneDe = new Map(LIGNES_LE_SEL.scenes.map((s, i) => [s.id, lesScenes[i]!.id]));
+  const lesPlans = await db
+    .insert(plans)
+    .values(
+      LIGNES_LE_SEL.plans.map((p, i) => ({
+        projectId: projet!.id,
+        episodeId: episode!.id,
+        ordre: i,
+        titre: p.titre,
+        sceneId: sceneDe.get(p.sceneId!)!,
+        dureeMontageSecondes: p.duree,
+        dureeGenerationSecondes: p.duree,
+        statut: p.statut as "brouillon" | "termine",
+      })),
+    )
+    .returning();
+  const planDe = (uuidFixture: string) => lesPlans[LIGNES_LE_SEL.plans.findIndex((p) => p.uuid === uuidFixture)]!;
+  for (const [i, p] of LIGNES_LE_SEL.plans.entries()) {
+    if (p.aFiche) await db.insert(planPromptSections).values({ planId: lesPlans[i]!.id, section: "summary", ordre: 1, contenu: "Fiche écrite." });
+    if (p.statut === "termine") await db.insert(jobs).values({ planId: lesPlans[i]!.id, statut: "termine", workflowFichier: "e2e", cheminSortie: `plans/${lesPlans[i]!.id}/e2e.mp4`, finishedAt: new Date() });
+  }
+  await db.insert(assets).values([
+    { projectId: projet!.id, code: "CHAR_maya", type: "personnage", description: "Maya" },
+    { projectId: projet!.id, code: "CHAR_pecheur", type: "personnage", description: "Le pêcheur" },
+  ]);
+  const lesReps = await db
+    .insert(repliques)
+    .values(LIGNES_LE_SEL.repliques.map((r) => ({ projectId: projet!.id, episodeId: episode!.id, ordre: r.ordre, texte: r.texte, locuteurTexte: r.locuteur === "CHAR_maya" ? "Maya" : "Pêcheur" })))
+    .returning();
+  for (const [i, r] of LIGNES_LE_SEL.repliques.entries()) {
+    for (const li of r.liaisons) await db.insert(planDialogues).values({ planId: planDe(li.planUuid).id, repliqueId: lesReps[i]!.id, slot: li.slot });
+  }
+  return { projectId: projet!.id, episodeId: episode!.id };
+}
+
+const sortie = (o: Partial<SortieAnalyse>): SortieAnalyse => ({ decisions: [], retirer: [], pistes: [], retenirPistes: [], narratif: [], ...o });
+const coupes = (...n: number[]) => n.map((x) => ({ type: "couper_plan", plan: `P${x}` }));
+const tour = async (convUuid: string, s: SortieAnalyse) => {
+  const conv = await conversationRevisionParUuid(db, convUuid);
+  return db.transaction((tx) => appliquerSortieAnalyse(tx, conv!, s));
+};
+const ordreDesPlans = async (episodeId: number) => (await db.select({ titre: plans.titre, ordre: plans.ordre }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(asc(plans.ordre))).map((p) => p.titre);
+
+async function main() {
+  const ids: number[] = [];
+  try {
+    // ── A. Le parcours « ressenti » ───────────────────────────────────────────────
+    console.log("\nA. Parcours « ressenti » : pistes, choix, conflit, résolution, application");
+    const a = await semerLeSel("TEST_REVISION_E2E_A");
+    ids.push(a.projectId);
+    const o1 = await ouvrirRevision(a.projectId, a.episodeId);
+    if (!o1.ok) throw new Error(o1.erreur);
+    const o2 = await ouvrirRevision(a.projectId, a.episodeId);
+    ok(!o1.reprise && o2.ok && o2.reprise && o2.conversationUuid === o1.conversationUuid, "rouvrir la révision d'un épisode reprend la même conversation");
+    const e0 = await lireEtatRevision(o1.conversationUuid);
+    ok(e0 != null && e0.messages.length === 1 && /14 plans, 2:34.*2:00 visées/.test(e0.messages[0]!.content), "message d'ouverture écrit en code : 14 plans, 2:34, 2:00 visées");
+    ok(e0!.duree.actuelle === 154 && e0!.duree.objectif === 120, "durée lue en base : 154 s pour 120 visées");
+
+    const t1 = await tour(
+      o1.conversationUuid,
+      sortie({
+        pistes: [
+          { titre: "Couper quatre plans d'ambiance", resume: "05, 10, 02, 08", operations: coupes(5, 10, 2, 8) },
+          { titre: "Raccourcir le plan 06", resume: "", operations: [{ type: "duree_plan", plan: "P06", secondes: 12 }] },
+          { titre: "Accélérer la scène 1", resume: "durées 5 à 7 s", operations: [{ type: "duree_plan", plan: "P01", secondes: 6 }, { type: "duree_plan", plan: "P03", secondes: 7 }] },
+        ],
+      }),
+    );
+    ok(t1.pistes.length === 3 && t1.pistes[0]!.gain === "−35 s" && t1.pistes[0]!.dureeApres === "1:59", "trois pistes, chiffrées par le code (−35 s → 1:59)");
+    ok(t1.decisions.length === 0, "un ressenti ne crée aucune décision");
+
+    const t2 = await tour(o1.conversationUuid, sortie({ retenirPistes: [1, 3] }));
+    ok(t2.decisions.length === 2 && t2.ceTour.creees.join() === "D1,D2" && t2.ceTour.pistesChoisies.join() === "1,3", "« combine 1 et 3 » : deux décisions créées");
+    ok(t2.duree.avecBrouillon === "1:52" && t2.pistes.length === 0, "durée avec le brouillon 1:52, pistes consommées");
+    ok(t2.decisions.every((d) => d.statut === "retenue"), "aucun rendu touché : décisions simplement retenues");
+
+    const t3 = await tour(
+      o1.conversationUuid,
+      sortie({
+        decisions: [{ id: null, titre: "Réplique du plan 07 plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }] }],
+        narratif: [{ decision: "D3", niveau: "conflit", texte: "Le plan 08 est coupé parce que la réplique disait ce que l'insert montre." }],
+      }),
+    );
+    const d3 = t3.decisions.find((d) => d.id === "D3");
+    ok(d3?.statut === "conflit", "le jugement narratif du modèle met la décision en conflit");
+    ok(d3!.constats.some((c) => c.source === "code" && /fiche de P07 cite l'ancienne réplique/.test(c.texte)) && d3!.constats.some((c) => c.source === "modele"), "constats du code (fiche à resynchroniser) ET du modèle (conflit)");
+    const refus1 = await appliquerRevision(o1.conversationUuid);
+    ok(!refus1.ok && /en conflit \(D3\)/.test(refus1.ok ? "" : refus1.erreur), "appliquer est refusé tant qu'une décision est en conflit");
+
+    const t4 = await tour(
+      o1.conversationUuid,
+      sortie({
+        decisions: [
+          { id: "D1", titre: "Couper trois plans d'ambiance", raison: "le 08 reste", operations: coupes(5, 10, 2) },
+          { id: "D3", titre: "Réplique du plan 07 plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }] },
+        ],
+      }),
+    );
+    ok(t4.decisions.find((d) => d.id === "D3")?.statut === "attention", "conflit levé : la décision n'est plus qu'« à surveiller »");
+    ok(t4.duree.avecBrouillon === "2:00" && t4.duree.objectifTenu === true, "durée avec le brouillon : 2:00 pile, objectif tenu");
+
+    const avantApplication = await ordreDesPlans(a.episodeId);
+    const app = await appliquerRevision(o1.conversationUuid);
+    if (!app.ok) console.error("    →", app.erreur);
+    ok(app.ok && app.appliquees === 3, "chantier appliqué (3 décisions)");
+    const apres = await ordreDesPlans(a.episodeId);
+    ok(avantApplication.length === 14 && apres.length === 11 && !apres.includes("Mouettes dans le ciel") && apres.includes("Insert : l'écriture sur le papier"), "3 plans supprimés, le plan 08 reste");
+    const lignes = await db.select({ ordre: plans.ordre, duree: plans.dureeGenerationSecondes }).from(plans).where(eq(plans.episodeId, a.episodeId)).orderBy(asc(plans.ordre));
+    ok(lignes.every((l, i) => l.ordre === i) && lignes.reduce((x, l) => x + l.duree, 0) === 120, "ordre dense (aucun trou) et 120 s au total");
+    const [rep] = await db.select({ texte: repliques.texte }).from(repliques).where(eq(repliques.episodeId, a.episodeId)).orderBy(asc(repliques.ordre));
+    ok(rep?.texte === "Je ne reviendrai pas.", "la réplique a été réécrite");
+    const [conv] = await db.select().from(agentConversations).where(eq(agentConversations.uuid, o1.conversationUuid));
+    ok(conv?.fermeeAt != null && conv.etape === "applique", "la conversation est fermée à l'application");
+    const decs = await db.select({ statut: revisionDecisions.statut }).from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv!.id));
+    ok(decs.length === 3 && decs.every((d) => d.statut === "appliquee"), "les décisions sont marquées appliquées (historique conservé)");
+    const o3 = await ouvrirRevision(a.projectId, a.episodeId);
+    ok(o3.ok && !o3.reprise && o3.conversationUuid !== o1.conversationUuid, "une révision neuve peut s'ouvrir sur le même épisode");
+
+    // ── B. La demande technique : écrasement, confirmation, déplacement ────────────
+    console.log("\nB. Demande technique : conflit mécanique, écrasement confirmé, déplacement");
+    const b = await semerLeSel("TEST_REVISION_E2E_B");
+    ids.push(b.projectId);
+    const ob = await ouvrirRevision(b.projectId, b.episodeId);
+    if (!ob.ok) throw new Error(ob.erreur);
+    const tb1 = await tour(ob.conversationUuid, sortie({ decisions: [{ id: null, titre: "Supprimer les plans 04 et 07", raison: "", operations: coupes(4, 7) }] }));
+    const db1 = tb1.decisions[0]!;
+    ok(db1.statut === "attention", "deux plans à rendu réussi : à surveiller (pas bloqué)");
+    ok(db1.constats.filter((c) => /Écrase le rendu réussi/.test(c.texte)).length === 2, "un constat d'écrasement par plan");
+    const sansConfirmation = await appliquerRevision(ob.conversationUuid);
+    if (!sansConfirmation.ok && !sansConfirmation.confirmationRequise) console.error("    →", sansConfirmation.erreur);
+    ok(!sansConfirmation.ok && (sansConfirmation.ok ? 0 : (sansConfirmation.confirmationRequise?.length ?? 0)) === 2, "appliquer demande la confirmation de 2 écrasements");
+    const tb2 = await tour(
+      ob.conversationUuid,
+      sortie({ decisions: [{ id: null, titre: "Ranger le 09 après le 03", raison: "", operations: [{ type: "deplacer_plan", plan: "P09", apres: "P03" }] }] }),
+    );
+    ok(tb2.decisions.length === 2, "une seconde décision s'empile");
+    const tb3 = await tour(
+      ob.conversationUuid,
+      sortie({ decisions: [{ id: null, titre: "Durée du 07", raison: "", operations: [{ type: "duree_plan", plan: "P07", secondes: 9 }] }] }),
+    );
+    ok(tb3.decisions.find((d) => d.id === "D3")?.statut === "conflit" && tb3.conflits.length === 1, "couper un plan et le modifier ailleurs : conflit mécanique détecté par le code");
+    const tb4 = await tour(ob.conversationUuid, sortie({ retirer: ["D3"] }));
+    ok(tb4.decisions.length === 2 && tb4.conflits.length === 0, "retirer la décision en cause lève le conflit");
+    const confirmee = await appliquerRevision(ob.conversationUuid, { confirmeEcrasement: true });
+    if (!confirmee.ok) console.error("    →", confirmee.erreur);
+    ok(confirmee.ok, "appliqué avec la confirmation d'écrasement");
+    const ordreB = await ordreDesPlans(b.episodeId);
+    ok(ordreB.length === 12 && ordreB.indexOf("Le vieux pêcheur l'observe") === 3, "plans 04 et 07 supprimés ; le plan 09 est devenu le 4e");
+    const [plan07] = await db.select().from(plans).where(eq(plans.episodeId, b.episodeId)).limit(1);
+    ok(plan07 != null, "l'épisode existe toujours");
+    const [replique01] = await db.select({ id: repliques.id }).from(repliques).where(and(eq(repliques.episodeId, b.episodeId), eq(repliques.texte, "Je ne reviendrai jamais.")));
+    ok(replique01 != null, "la réplique du plan supprimé reste dans l'épisode (elle existe par elle-même)");
+
+    // ── C. Ce que visait une décision a changé : « à revérifier » ──────────────────
+    console.log("\nC. Cible disparue : à revérifier, jamais effacée en silence");
+    const c = await semerLeSel("TEST_REVISION_E2E_C");
+    ids.push(c.projectId);
+    const oc = await ouvrirRevision(c.projectId, c.episodeId);
+    if (!oc.ok) throw new Error(oc.erreur);
+    await tour(oc.conversationUuid, sortie({ decisions: [{ id: null, titre: "Durée du 05", raison: "", operations: [{ type: "duree_plan", plan: "P05", secondes: 5 }] }, { id: null, titre: "Couper le 10", raison: "", operations: coupes(10) }] }));
+    const [p05] = await db.select({ id: plans.id }).from(plans).where(and(eq(plans.episodeId, c.episodeId), eq(plans.titre, "Mouettes dans le ciel")));
+    await db.update(plans).set({ dureeGenerationSecondes: 6 }).where(eq(plans.id, p05!.id));
+    const ec1 = await lireEtatRevision(oc.conversationUuid);
+    const d1c = ec1!.decisions.find((d) => d.id === "D1")!;
+    ok(d1c.aReverifier && d1c.constats.some((c) => /a changé depuis qu'elle a été prise/.test(c.texte)), "un plan modifié à la main depuis : la décision est « à revérifier »");
+    ok(ec1!.decisions.find((d) => d.id === "D2")?.aReverifier === false, "l'autre décision n'est pas touchée");
+    const refus = await appliquerRevision(oc.conversationUuid);
+    ok(!refus.ok && /à revérifier \(D1\)/.test(refus.ok ? "" : refus.erreur), "appliquer est refusé tant qu'une décision est à revérifier");
+    await reconfirmerDecision(oc.conversationUuid, d1c.uuid);
+    const ec2 = await lireEtatRevision(oc.conversationUuid);
+    ok(ec2!.decisions.find((d) => d.id === "D1")?.aReverifier === false, "relue et reconfirmée : le drapeau tombe");
+    const [p10] = await db.select({ id: plans.id }).from(plans).where(and(eq(plans.episodeId, c.episodeId), eq(plans.titre, "Plan de coupe : la mer")));
+    await db.delete(plans).where(eq(plans.id, p10!.id));
+    const ec3 = await lireEtatRevision(oc.conversationUuid);
+    const d2c = ec3!.decisions.find((d) => d.id === "D2")!;
+    ok(d2c.statut === "conflit" && d2c.constats.some((c) => /n'existe plus/.test(c.texte)), "un plan supprimé depuis : la décision est en conflit, avec la raison");
+    const sup = await retirerDecision(oc.conversationUuid, d2c.uuid);
+    ok(sup.ok && (await lireEtatRevision(oc.conversationUuid))!.decisions.length === 1, "retirer une décision");
+    const ab = await abandonnerRevision(oc.conversationUuid);
+    const [convC] = await db.select().from(agentConversations).where(eq(agentConversations.uuid, oc.conversationUuid));
+    ok(ab.ok && convC?.fermeeAt != null, "abandonner ferme la conversation");
+    const restantes = await db.select().from(revisionDecisions).where(eq(revisionDecisions.conversationId, convC!.id));
+    ok(restantes.length === 0, "…et vide le brouillon");
+  } finally {
+    for (const id of ids) await db.delete(projects).where(eq(projects.id, id));
+  }
+  console.log(`\n${nb - echecs.length}/${nb} vérifications.`);
+  if (echecs.length) {
+    console.error(`\n${echecs.length} échec(s) :\n- ${echecs.join("\n- ")}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
