@@ -288,6 +288,10 @@ test("configuration : défauts, surcharge par skill, fournisseur inconnu refusé
   assert.equal(nomVariableModele("plan-h3"), "LLM_MODELE_PLAN_H3");
   assert.equal(modelePourSkill("plan-h3", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }), "qwen");
   assert.equal(modelePourSkill("brief-projet", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }), "m1");
+  // Le réalisateur a son modèle par défaut : la surcharge par variable, puis le choix du header, le priment.
+  assert.equal(modelePourSkill("realisateur-analyse", { LLM_LOCAL_MODELE: "m1" }), "qwen3.6-35b-A3B");
+  assert.equal(modelePourSkill("realisateur-reponse", { LLM_LOCAL_MODELE: "m1" }, "choisi"), "choisi");
+  assert.equal(modelePourSkill("realisateur-analyse", { LLM_LOCAL_MODELE: "m1", LLM_MODELE_REALISATEUR_ANALYSE: "autre" }, "choisi"), "autre");
   // Le modèle choisi dans l'interface prime sur LLM_LOCAL_MODELE, mais pas sur la surcharge d'un skill.
   assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, "choisi"), "choisi");
   assert.equal(modelePourSkill("plan-h3", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }, "choisi"), "qwen");
