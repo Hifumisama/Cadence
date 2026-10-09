@@ -35,32 +35,25 @@ export function resumeAutomatique(lignes: { operation: Operation; cibleType: Cib
  * touché (c'est `finaliserLot` qui le décide quand toutes les sous-tâches sont closes). */
 export type OptionsEnregistrement = { sousTache?: string; baseOrdre?: number };
 
-/** Enrichit les changements bruts (état courant, écrasements, contrôles), applique le verrou de
- * portée, calcule le cochage par défaut et ENREGISTRE les lignes ; la proposition passe `prete`.
- * Remplace d'éventuelles lignes existantes (affinage / régénération). */
-export async function enregistrerChangements(
+/** Un changement enrichi par son applicateur (état courant, écrasement, avertissements, refus), prêt à être enregistré. */
+export type ChangementEnrichi = Omit<typeof propositionChangements.$inferInsert, "propositionId" | "ordre" | "sousTache">;
+
+/** Enrichit les changements bruts (état courant, écrasements, contrôles), applique le verrou de portée et calcule le cochage par
+ * défaut. LECTURE SEULE : n'écrit rien. Sert à `enregistrerChangements` et à la révision d'épisode (les constats d'une décision).
+ * `clesExistantes` : les clés de créations déjà proposées ailleurs (les autres sous-tâches d'un lot). */
+export async function enrichirChangements(
   tx: DbOuTx,
-  propositionId: number,
   projectId: number,
   scope: ScopeDemandee,
   bruts: ChangementBrut[],
-  options: OptionsEnregistrement = {},
-): Promise<void> {
-  const clesNouvelles = new Set(bruts.map((b) => b.cle).filter((c): c is string => !!c));
-  if (options.sousTache) {
-    // Lot : les créations déjà proposées par les AUTRES sous-tâches font partie de la proposition (un asset
-    // manquant d'un plan peut dériver d'un asset dont un autre plan du lot propose la création).
-    const autres = await tx
-      .select({ cle: propositionChangements.cle, sousTache: propositionChangements.sousTache, refuse: propositionChangements.refuseRaison })
-      .from(propositionChangements)
-      .where(eq(propositionChangements.propositionId, propositionId));
-    for (const a of autres) if (a.cle && a.sousTache !== options.sousTache && !a.refuse) clesNouvelles.add(a.cle);
-  }
+  clesExistantes: Iterable<string> = [],
+): Promise<ChangementEnrichi[]> {
+  const clesNouvelles = new Set([...bruts.map((b) => b.cle).filter((c): c is string => !!c), ...clesExistantes]);
   const ctx: CtxPrevisu = { projectId, scope, clesNouvelles };
   const refusees = new Set<string>();
-  const lignes: (typeof propositionChangements.$inferInsert)[] = [];
+  const lignes: ChangementEnrichi[] = [];
 
-  for (const [ordre, brut] of bruts.entries()) {
+  for (const brut of bruts) {
     const applicateur = applicateurDe(brut.cibleType);
     let c: ChangementBrut = { ...brut, avertissements: [...(brut.avertissements ?? [])] };
 
@@ -88,9 +81,6 @@ export async function enregistrerChangements(
 
     const avertissements = (c.avertissements ?? []) as Avertissement[];
     lignes.push({
-      propositionId,
-      ordre: (options.baseOrdre ?? 0) + ordre,
-      sousTache: options.sousTache ?? null,
       sousGroupe: c.sousGroupe ?? null,
       groupe: c.groupe,
       cle: c.cle ?? null,
@@ -107,6 +97,36 @@ export async function enregistrerChangements(
       refuseRaison: c.refuseRaison ?? null,
     });
   }
+  return lignes;
+}
+
+/** Enrichit les changements bruts (voir `enrichirChangements`) et les ENREGISTRE ; la proposition passe `prete`.
+ * Remplace d'éventuelles lignes existantes (affinage / régénération). */
+export async function enregistrerChangements(
+  tx: DbOuTx,
+  propositionId: number,
+  projectId: number,
+  scope: ScopeDemandee,
+  bruts: ChangementBrut[],
+  options: OptionsEnregistrement = {},
+): Promise<void> {
+  const clesExistantes: string[] = [];
+  if (options.sousTache) {
+    // Lot : les créations déjà proposées par les AUTRES sous-tâches font partie de la proposition (un asset
+    // manquant d'un plan peut dériver d'un asset dont un autre plan du lot propose la création).
+    const autres = await tx
+      .select({ cle: propositionChangements.cle, sousTache: propositionChangements.sousTache, refuse: propositionChangements.refuseRaison })
+      .from(propositionChangements)
+      .where(eq(propositionChangements.propositionId, propositionId));
+    for (const a of autres) if (a.cle && a.sousTache !== options.sousTache && !a.refuse) clesExistantes.push(a.cle);
+  }
+  const enrichis = await enrichirChangements(tx, projectId, scope, bruts, clesExistantes);
+  const lignes: (typeof propositionChangements.$inferInsert)[] = enrichis.map((e, ordre) => ({
+    ...e,
+    propositionId,
+    ordre: (options.baseOrdre ?? 0) + ordre,
+    sousTache: options.sousTache ?? null,
+  }));
 
   if (options.sousTache) {
     await tx

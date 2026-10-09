@@ -703,11 +703,43 @@ export const agentConversations = pgTable("agent_conversations", {
   // La fiche de notes de l'entretien (lib/agents/fiche.ts) : le brief en train de se remplir, { contenu, statuts }, tenue par le code.
   fiche: jsonb("fiche"),
   propositionId: integer("proposition_id"),
+  // Révision d'épisode (profondeur « revision », docs/FRICTIONS.md 2026-10-09) : les PISTES proposées au dernier tour et pas encore
+  // choisies ([{ titre, resume, operations }]), remplacées à chaque tour d'analyse.
+  pistes: jsonb("pistes").notNull().default(sql`'[]'::jsonb`),
+  // Une révision appliquée (ou abandonnée) se FERME : elle garde son historique, une neuve peut s'ouvrir sur le même épisode.
+  fermeeAt: timestamp("fermee_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [
-  uniqueIndex("agent_conversations_cible_idx").on(table.projectId, table.portee, sql`coalesce(${table.cibleId}, 0)`),
+  // Une conversation OUVERTE par (projet, portée, profondeur, cible) : la révision d'un épisode coexiste avec sa conversation « courte ».
+  uniqueIndex("agent_conversations_cible_idx")
+    .on(table.projectId, table.portee, table.profondeur, sql`coalesce(${table.cibleId}, 0)`)
+    .where(sql`${table.fermeeAt} is null`),
 ]);
+
+// Les DÉCISIONS d'une révision d'épisode : le brouillon, jamais une table métier. Chacune porte les opérations que le réalisateur a
+// proposées (validées par le code), les changements qu'elles produisent (aperçu des applicateurs : avant/après, écrasement) et les
+// constats (calculés par le code ; `source` dit si le jugement est celui du code ou du modèle). `statut` : discussion | retenue |
+// attention | conflit | appliquee. À l'application, les décisions retenues deviennent UNE proposition (`proposition_id`).
+export const revisionDecisions = pgTable("revision_decisions", {
+  id: serial("id").primaryKey(),
+  uuid: uuid("uuid").notNull().defaultRandom().unique(),
+  conversationId: integer("conversation_id").notNull().references(() => agentConversations.id, { onDelete: "cascade" }),
+  ordre: integer("ordre").notNull().default(0),
+  titre: varchar("titre", { length: 200 }).notNull(),
+  raison: text("raison").notNull().default(""),
+  statut: varchar("statut", { length: 12 }).notNull().default("retenue"),
+  operations: jsonb("operations").notNull().default(sql`'[]'::jsonb`),
+  changements: jsonb("changements").notNull().default(sql`'[]'::jsonb`),
+  constats: jsonb("constats").notNull().default(sql`'[]'::jsonb`),
+  gainSecondes: integer("gain_secondes").notNull().default(0),
+  // Ce que la décision visait a changé depuis qu'elle a été prise (modifié à la main ailleurs) : à relire, jamais effacée en silence.
+  aReverifier: boolean("a_reverifier").notNull().default(false),
+  propositionId: integer("proposition_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  appliqueAt: timestamp("applique_at"),
+}, (table) => [index("revision_decisions_conversation_idx").on(table.conversationId, table.ordre)]);
 
 // L'installateur (2026-10-03) : la création d'un projet de bout en bout, étape par étape et sans validation
 // intermédiaire. Une ligne par projet ; `statut` : en_cours | termine | echoue | arretee ; `etapes` : la liste ordonnée

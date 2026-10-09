@@ -15,7 +15,7 @@
  *   const est = await estimerGeneration(conv.uuid);                  // « ~80 s, local : gratuit »
  */
 
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assetGenerations, assets, briefs, episodes, plans, propositionChangements, propositions } from "../db/schema";
 import { briefVide, construireSections } from "./agents/brief";
@@ -116,6 +116,8 @@ export async function trouverConversation(projectId: number, portee: Portee, cib
         eq(agentConversations.projectId, projectId),
         eq(agentConversations.portee, portee),
         r.cibleId == null ? sql`${agentConversations.cibleId} is null` : eq(agentConversations.cibleId, r.cibleId),
+        // La révision d'un épisode (réalisateur) a son propre écran : elle n'est jamais « la » conversation de la cible.
+        ne(agentConversations.profondeur, "revision"),
       ),
     );
   return c ? versVueConversation(c) : null;
@@ -508,7 +510,7 @@ export type ResumeConversation = {
 };
 
 export async function listerConversationsProjet(projectId: number, limite = 30): Promise<ResumeConversation[]> {
-  const lignes = await db.select().from(agentConversations).where(eq(agentConversations.projectId, projectId)).orderBy(desc(agentConversations.updatedAt)).limit(limite);
+  const lignes = await db.select().from(agentConversations).where(and(eq(agentConversations.projectId, projectId), ne(agentConversations.profondeur, "revision"))).orderBy(desc(agentConversations.updatedAt)).limit(limite);
   const sortie: ResumeConversation[] = [];
   for (const c of lignes) {
     sortie.push({

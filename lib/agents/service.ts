@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, ne } from "drizzle-orm";
 import { horsAffiches } from "../assets-visibles";
 import { db } from "../../db";
 import {
@@ -137,7 +137,10 @@ const profondeurParDefaut = (portee: Portee): Profondeur => (portee === "projet"
 
 type ConversationRow = typeof agentConversations.$inferSelect;
 
-async function trouver(projectId: number, portee: Portee, cibleId: number | null): Promise<ConversationRow | null> {
+/** La conversation du (projet, portée, cible). La RÉVISION d'un épisode (profondeur « revision ») est cherchée à part, et seulement
+ * ouverte (une révision fermée garde son historique mais n'est plus « la » conversation) ; toutes les autres profondeurs l'ignorent,
+ * donc la conversation « courte » d'un épisode et sa révision coexistent. */
+async function trouver(projectId: number, portee: Portee, cibleId: number | null, revision = false): Promise<ConversationRow | null> {
   const [c] = await db
     .select()
     .from(agentConversations)
@@ -146,6 +149,7 @@ async function trouver(projectId: number, portee: Portee, cibleId: number | null
         eq(agentConversations.projectId, projectId),
         eq(agentConversations.portee, portee),
         cibleId == null ? isNull(agentConversations.cibleId) : eq(agentConversations.cibleId, cibleId),
+        revision ? and(eq(agentConversations.profondeur, "revision"), isNull(agentConversations.fermeeAt)) : ne(agentConversations.profondeur, "revision"),
       ),
     );
   return c ?? null;

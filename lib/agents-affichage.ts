@@ -29,6 +29,8 @@ import type {
 export const ETAPES_PAR_PROFONDEUR: Record<Profondeur, readonly Etape[]> = {
   courte: ["consigne", "proposition", "applique"],
   complete: ["conversation", "brief", "proposition", "applique"],
+  // Révision d'épisode : une discussion, pas un parcours ; elle se ferme à l'application (docs/FRICTIONS.md 2026-10-09).
+  revision: ["conversation", "applique"],
 };
 
 export const LIBELLE_ETAPE: Record<Etape, string> = {

@@ -14,8 +14,10 @@ export type Portee = (typeof PORTEES)[number];
 
 /** `courte` : Consigne → Proposition → Appliqué (itérations ciblées).
  * `complete` : Conversation → Brief → Proposition → Appliqué (création de projet,
- * gros éléments interconnectés). L'étape Brief n'existe qu'en profondeur complète. */
-export const PROFONDEURS = ["courte", "complete"] as const;
+ * gros éléments interconnectés). L'étape Brief n'existe qu'en profondeur complète.
+ * `revision` : la conversation libre du réalisateur sur un épisode (Conversation → Appliqué), qui se ferme
+ * à l'application (lib/agents/revision/, docs/FRICTIONS.md 2026-10-09). */
+export const PROFONDEURS = ["courte", "complete", "revision"] as const;
 export type Profondeur = (typeof PROFONDEURS)[number];
 
 /** Étape courante d'une conversation (le fil d'étapes de la popup). */
