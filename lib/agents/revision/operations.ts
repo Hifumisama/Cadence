@@ -61,7 +61,20 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
         continue;
       }
       let position: Position | null = null;
-      if (b.avant) {
+      if (b.avant && b.apres) {
+        // « Entre P03 et P04 » : les deux repères doivent être voisins, sinon on ne sait pas où poser le plan.
+        const apresPlan = planParPoignee(vue, b.apres);
+        const avantPlan = planParPoignee(vue, b.avant);
+        if (!apresPlan || !avantPlan) {
+          refuse(b, `Repère « ${!apresPlan ? b.apres : b.avant} » introuvable pour placer le plan ajouté.`);
+          continue;
+        }
+        if (avantPlan.position !== apresPlan.position + 1) {
+          refuse(b, `${apresPlan.handle} et ${avantPlan.handle} ne se suivent pas : entre lesquels placer le plan ajouté ?`);
+          continue;
+        }
+        position = { apresPlanUuid: apresPlan.uuid };
+      } else if (b.avant) {
         const cible = planParPoignee(vue, b.avant);
         if (!cible) {
           refuse(b, `Repère « ${b.avant} » introuvable pour placer le plan ajouté.`);

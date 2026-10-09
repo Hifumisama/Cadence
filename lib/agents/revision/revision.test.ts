@@ -314,3 +314,16 @@ test("3c bis : quatre plans ajoutés avant le premier se lisent dans l'ordre dem
   const pleine = constatsOperations([op({ type: "ajouter_replique", planUuid: planUuid(12), locuteur: "x", texte: "y" })], { ...vue, plans: vue.plans.map((p) => (p.uuid === planUuid(12) ? { ...p, repliques: ["a", "b", "c"] } : p)) });
   assert.ok(pleine.some((c) => c.niveau === "bloquant"), "un plan a au plus 3 répliques");
 });
+
+test("3c ter : « entre P03 et P04 » = après P03 ; deux repères qui ne se suivent pas sont refusés", () => {
+  const { valides, refusees } = validerOperations(
+    [
+      { type: "ajouter_plan", apres: "P03", avant: "P04", titre: "x", secondes: 6 },
+      { type: "ajouter_plan", apres: "P03", avant: "P07", titre: "y", secondes: 6 },
+    ],
+    vue,
+  );
+  assert.deepEqual((valides[0] as Extract<Operation, { type: "ajouter_plan" }>).position, { apresPlanUuid: planUuid(3) });
+  assert.equal(valides.length, 1);
+  assert.match(refusees[0]!.raison, /ne se suivent pas/);
+});
