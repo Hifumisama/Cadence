@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../../db";
-import { agentConversations, briefs, creationsProjet, projects, propositionChangements } from "../../db/schema";
+import { agentConversations, agentRuns, briefs, creationsProjet, projects, propositionChangements } from "../../db/schema";
+import { estDeLaCreation, fenetreDeCreation } from "./creation-tache";
 import { lireProposition } from "../queries-agents";
 import {
   decider,
@@ -39,6 +40,20 @@ async function ecrire(c: LigneCreation, etapes: EtapeCreation[], extra: { statut
     .update(creationsProjet)
     .set({ etapes, statut, erreur: extra.erreur !== undefined ? extra.erreur : statut === "echoue" ? (etapes.find((e) => e.statut === "echoue")?.erreur ?? null) : null, updatedAt: new Date() })
     .where(eq(creationsProjet.id, c.id));
+}
+
+/** Les tâches d'agent de la création d'un projet (voir creation-tache.ts) : ce que la ligne « Conception » du header regroupe. */
+export async function idsRunsDeCreation(projectId: number): Promise<number[]> {
+  const c = await lireCreation(projectId);
+  if (!c) return [];
+  const [conv] = await db
+    .select({ id: agentConversations.id })
+    .from(agentConversations)
+    .where(and(eq(agentConversations.projectId, projectId), eq(agentConversations.portee, "projet"), isNull(agentConversations.cibleId)));
+  if (!conv) return [];
+  const f = fenetreDeCreation(c, conv.id);
+  const runs = await db.select({ id: agentRuns.id, conversationId: agentRuns.conversationId, createdAt: agentRuns.createdAt }).from(agentRuns).where(and(eq(agentRuns.projectId, projectId), eq(agentRuns.conversationId, conv.id)));
+  return runs.filter((r) => estDeLaCreation(r, f)).map((r) => r.id);
 }
 
 /** Lance l'installateur : une création par projet (une précédente, finie ou arrêtée, est remplacée). Refusé si une

@@ -2026,3 +2026,11 @@ Décisions (utilisateur), validées sur une maquette itérée en huit versions, 
 - **Assignation voix → personnage** : deux endroits seulement, la fiche (étape 1) et le registre d'assets. Pas de bloc « Personnages » sur la page casting, pas de système de patch.
 - **Pas de timeline ici** : un module de montage / post-production viendra séparément, dans l'app.
 - Points laissés ouverts par la maquette : la validation n'est qu'un avertissement avant de produire des répliques (non exigée) ; la réplique d'écoute modifiée après rattachement d'une référence ne propose pas de regénérer ; le rendu mobile n'est pas travaillé (tablette d'abord).
+
+## 2026-10-09 (file d'attente) — La création d'un projet tient en UNE ligne
+
+Décisions (utilisateur), appliquées dans le code :
+- **Une ligne « Conception · <projet> »** (`creation:<projectId>`, `lib/agents/creation-tache.ts`) regroupe toutes les tâches de l'installateur dans le header, au lieu d'une ligne par étape ou par lot. Barre « étape · faites/total » (ex. « Registre d'assets · 3/9 »). **Un clic mène à `/p/<id>/creation`** (l'avancée), pas à la popup d'agent.
+- **Seules les tâches de l'installateur sont regroupées** : ce sont les tâches d'agent de la conversation du projet créées pendant la fenêtre de la création (de son début à sa fin ; sans fin tant qu'elle travaille). Une affiche, une image, une vidéo, ou du travail avec l'agent du projet après la création restent des lignes à part.
+- **L'ordonnancement ne change pas** (voir `worker/ordonnanceur.ts` : image, puis LLM, puis vidéo, FIFO, sans préemption). Seul l'affichage est regroupé ; la ligne passe « en file » quand ses tâches attendent derrière la tâche qui tient le GPU.
+- **« Annuler » sur la ligne arrête l'installateur** (`arreterCreation`, avec confirmation) : annuler une sous-tâche seule la ferait relancer aussitôt. Ce qui est déjà écrit n'est pas défait. « Vu » et ✕ (retirer) s'appliquent aux tâches regroupées ; une création en cours reste toujours listée.

@@ -1,5 +1,7 @@
 import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, jobs, planDialogues, plans, projects, propositions, repliques } from "../db/schema";
+import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, jobs, planDialogues, plans, projects, propositions, repliques } from "../db/schema";
+import type { EtapeCreation, StatutCreation } from "./agents/creation";
+import { estDeLaCreation, fenetreDeCreation, tacheDeCreation } from "./agents/creation-tache";
 import { and, eq, gte, isNotNull, isNull, ne, or, inArray } from "drizzle-orm";
 import { versRunLot } from "./agents/lots";
 import { etatLotPourHeader } from "./agents/lots-pur";
@@ -58,7 +60,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .innerJoin(plans, eq(plans.id, jobs.planId))
     .where(and(isNull(jobs.masqueAt), or(inArray(jobs.statut, ["en_attente", "en_cours"]), isNull(jobs.vuAt), gte(jobs.createdAt, depuis))));
 
-  const lignesLlm = await db
+  const toutesLignesLlm = await db
     .select({ r: agentRuns, projetNom: projects.nom, conversationUuid: agentConversations.uuid })
     .from(agentRuns)
     .leftJoin(projects, eq(projects.id, agentRuns.projectId))
@@ -72,6 +74,33 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         or(inArray(agentRuns.statut, ["en_attente", "en_cours"]), isNull(agentRuns.vuAt), gte(agentRuns.createdAt, depuis)),
       ),
     );
+
+  // La CRÉATION d'un projet (l'installateur) = UNE entrée : ses tâches d'agent (celles de la conversation du projet,
+  // pendant sa fenêtre de travail) quittent la liste et se retrouvent dans la page d'avancée. Les autres tâches du
+  // projet (affiche, images, travail d'agent hors installateur) restent des lignes à part.
+  const creations = await db
+    .select({ c: creationsProjet, nom: projects.nom, conversationId: agentConversations.id })
+    .from(creationsProjet)
+    .innerJoin(projects, eq(projects.id, creationsProjet.projectId))
+    .innerJoin(agentConversations, and(eq(agentConversations.projectId, creationsProjet.projectId), eq(agentConversations.portee, "projet"), isNull(agentConversations.cibleId)));
+  const fenetres = creations.map((x) => ({ ...x, fenetre: fenetreDeCreation(x.c, x.conversationId) }));
+  const deLaCreation = (l: (typeof toutesLignesLlm)[number]) => fenetres.find((f) => f.c.projectId === l.r.projectId && estDeLaCreation({ conversationId: l.r.conversationId, createdAt: l.r.createdAt }, f.fenetre));
+  const lignesLlm = toutesLignesLlm.filter((l) => !deLaCreation(l));
+  const tachesCreations: Tache[] = fenetres.flatMap((f) => {
+    const t = tacheDeCreation({
+      projectId: f.c.projectId,
+      projetNom: f.nom,
+      statut: f.c.statut as StatutCreation,
+      erreur: f.c.erreur,
+      etapes: (Array.isArray(f.c.etapes) ? f.c.etapes : []) as EtapeCreation[],
+      createdAt: f.c.createdAt,
+      updatedAt: f.c.updatedAt,
+      runs: toutesLignesLlm
+        .filter((l) => deLaCreation(l) === f)
+        .map((l) => ({ conversationId: l.r.conversationId, createdAt: l.r.createdAt, statut: l.r.statut, vuAt: l.r.vuAt, jetons: l.r.progressionJetons, annulationDemandee: l.r.annulationDemandeeAt != null })),
+    });
+    return t ? [t] : [];
+  });
 
   // Un LOT (plusieurs tâches d'une même proposition) = UNE entrée dans le panneau : on relit TOUTES
   // les tâches des lots touchés (celles déjà vues ou anciennes ne passent pas le filtre ci-dessus,
@@ -252,7 +281,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     annulationDemandee: r.annulationDemandeeAt != null && r.statut === "en_cours",
   }));
 
-  const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots], maintenant);
+  const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots, ...tachesCreations], maintenant);
 
   // Disque : seulement pour les tâches d'images gardées.
   const parCle = new Map(lignesImages.map((l) => [cleImage(l.g.uuid), l.g]));

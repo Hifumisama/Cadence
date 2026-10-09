@@ -169,21 +169,24 @@ export const cleLlm = (uuid: string) => `llm:${uuid}`;
 /** Un LOT d'agent (une proposition dont la génération est composée de plusieurs tâches, ex. un
  * épisode chacune) : UNE entrée dans le header, identifiée par l'uuid de la PROPOSITION. */
 export const cleLot = (propositionUuid: string) => `lot:${propositionUuid}`;
+/** La CRÉATION d'un projet (l'installateur, lib/agents/creation.ts) : UNE entrée dans le header pour toutes ses
+ * étapes, identifiée par le projet. Un clic mène à la page d'avancée (`/p/<id>/creation`). */
+export const cleCreation = (projectId: number) => `creation:${projectId}`;
 
 /** Domaine GPU d'une tâche (voir lib/gpu.ts). */
 export const domaineDeTache = (t: Pick<Tache, "genre">) => domaineDe(t.genre);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function analyserCle(cle: string): { genre: GenreTache | "lot"; ref: string } | null {
+export function analyserCle(cle: string): { genre: GenreTache | "lot" | "creation"; ref: string } | null {
   const i = cle.indexOf(":");
   if (i < 0) return null;
   const genre = cle.slice(0, i);
   const ref = cle.slice(i + 1);
-  if ((genre !== "image" && genre !== "video" && genre !== "llm" && genre !== "lot") || !ref) return null;
+  if ((genre !== "image" && genre !== "video" && genre !== "llm" && genre !== "lot" && genre !== "creation") || !ref) return null;
   // Une clé vient du navigateur : un uuid ou un id mal formé ne doit jamais
   // atteindre la base (Postgres lèverait une erreur de syntaxe au lieu de l'ignorer).
   if ((genre === "image" || genre === "llm" || genre === "lot") && !UUID.test(ref)) return null;
-  if (genre === "video" && !/^\d+$/.test(ref)) return null;
+  if ((genre === "video" || genre === "creation") && !/^\d+$/.test(ref)) return null;
   return { genre, ref };
 }

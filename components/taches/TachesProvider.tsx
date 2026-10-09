@@ -198,8 +198,8 @@ export function TachesProvider({ children }: { children: ReactNode }) {
       appliquerVu(
         tachesRef.current.map((x) => {
           if (x.cle !== cle) return x;
-          // Un lot garde ce qui est déjà terminé : on ne le range pas « annulé » avant la réponse du serveur.
-          if (cle.startsWith("lot:")) return { ...x, annulationDemandee: true };
+          // Un lot (ou la création d'un projet) garde ce qui est déjà terminé : on ne le range pas « annulé » avant la réponse du serveur.
+          if (cle.startsWith("lot:") || cle.startsWith("creation:")) return { ...x, annulationDemandee: true };
           if (x.statut === "en_attente") return { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null };
           if (x.statut === "en_cours") return { ...x, annulationDemandee: true };
           return x;
@@ -216,7 +216,7 @@ export function TachesProvider({ children }: { children: ReactNode }) {
     // le reste est retiré tout de suite à l'écran.
     appliquerVu(
       tachesRef.current.map((x) =>
-        x.statut === "en_attente" && !x.cle.startsWith("lot:") ? { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null } : x,
+        x.statut === "en_attente" && !x.cle.startsWith("lot:") && !x.cle.startsWith("creation:") ? { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null } : x,
       ),
     );
     void viderFileServeur().then(charger);
