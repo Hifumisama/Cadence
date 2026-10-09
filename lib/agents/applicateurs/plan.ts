@@ -181,7 +181,11 @@ export const applicateurPlan: Applicateur = {
       const valeurs: Partial<typeof plans.$inferInsert> = { updatedAt: new Date() };
       if (texte(a.titre) !== undefined) valeurs.titre = texte(a.titre)!.trim();
       if (texte(a.description) !== undefined) valeurs.description = texte(a.description)!.trim() || null;
-      if (typeof a.dureeGenerationSecondes === "number") valeurs.dureeGenerationSecondes = a.dureeGenerationSecondes;
+      // La durée au montage suit la durée de génération (même règle que les actions de l'interface, app/plans/actions.ts).
+      if (typeof a.dureeGenerationSecondes === "number") {
+        valeurs.dureeGenerationSecondes = a.dureeGenerationSecondes;
+        valeurs.dureeMontageSecondes = a.dureeGenerationSecondes;
+      }
       await tx.update(plans).set(valeurs).where(eq(plans.id, plan.id));
       if (ch.position) {
         const existants = await plansDeEpisode(tx, plan.episodeId);
