@@ -9,6 +9,7 @@ import { chiffresPiste, idCourt, ordreDeDecision, type SortieAnalyse } from "./a
 import { appliquerAuBrouillon } from "./brouillon";
 import type { FaitsTour } from "./faits";
 import { fmtDuree } from "./format";
+import { conflitsEntreDecisions, recoupementsEntreDecisions } from "./constats";
 import { operationEnPoignees, validerOperations } from "./operations";
 import type { Constat, Operation, OperationBrute, Piste } from "./types";
 import { lireVueEpisode, type VueEpisode } from "./vue-episode";
@@ -47,7 +48,7 @@ export type EntreeAnalyse = {
   message: string;
 };
 
-export type ControleAnalyse = { vue: VueEpisode; ordres: number[]; prochainOrdre: number };
+export type ControleAnalyse = { vue: VueEpisode; ordres: number[]; prochainOrdre: number; decisionsExistantes?: { id: string; titre: string; operations: Operation[] }[] };
 
 /** Ce que le réalisateur lit du brief : l'arc, le ton, le rythme, la durée et les règles de continuité (pas le registre : les personnages et
  * les lieux sont déjà dans les plans). Tolérant : un brief ancien ou partiel ne fait pas échouer le tour. */
@@ -136,7 +137,10 @@ export function construireEntreeAnalyse(p: {
     conversation: messages.filter((m) => m !== dernier).map((m) => ({ qui: qui(m.role), texte: m.content })),
     message: dernier?.content ?? "",
   };
-  return { entree, controle: { vue, ordres: p.decisions.map((d) => d.ordre), prochainOrdre: p.prochainOrdre } };
+  return {
+    entree,
+    controle: { vue, ordres: p.decisions.map((d) => d.ordre), prochainOrdre: p.prochainOrdre, decisionsExistantes: p.decisions.map((d) => ({ id: idCourt(d.ordre), titre: d.titre, operations: d.operations })) },
+  };
 }
 
 export async function entreeAnalyse(d: Db, conv: ConversationRow): Promise<{ entree: EntreeAnalyse; controle: ControleAnalyse } | null> {
@@ -174,6 +178,23 @@ export function controleurAnalyse(c: ControleAnalyse): Controleur {
     for (const d of s.decisions ?? []) {
       verifier(`Décision « ${d.titre} »`, d.operations);
       if (d.id && !connu(d.id, false)) soucis.push(`Décision « ${d.titre} » : l'id « ${d.id} » n'existe pas dans "decisions" de l'entrée ; mets null pour une nouvelle décision.`);
+    }
+    // Une NOUVELLE décision qui recoupe ou contredit une décision existante : presque toujours une correction postée comme un ajout.
+    for (const d of s.decisions ?? []) {
+      if (d.id) continue;
+      const nouvelle = { id: "nouvelle", titre: d.titre, operations: validerOperations(d.operations ?? [], c.vue).valides };
+      // Une décision re-postée ou retirée dans CETTE sortie n'est plus ce qu'elle était : on ne compare pas la nouvelle à son ancienne version.
+      const touchees = new Set([...(s.decisions ?? []).map((x) => x.id), ...(s.retirer ?? [])].map((x) => ordreDeDecision(x)).filter((x): x is number => x != null).map(idCourt));
+      const existantes = (c.decisionsExistantes ?? []).filter((e) => !touchees.has(e.id));
+      const textes = [
+        ...recoupementsEntreDecisions([...existantes, nouvelle], c.vue).filter((x) => x.ids[1] === "nouvelle").map((x) => x.texte),
+        ...conflitsEntreDecisions([...existantes, nouvelle], c.vue).filter((x) => x.ids.includes("nouvelle")).map((x) => x.texte),
+      ];
+      if (textes.length > 0) {
+        soucis.push(
+          `Décision « ${d.titre} » : ${textes[0]} Il n'existe pas d'opération « garder » ni « annuler » : pour réduire, corriger ou défaire une décision existante, re-poste CETTE décision avec son id et ses opérations complètes (ou retire-la) ; n'en ajoute pas une seconde à côté.`,
+        );
+      }
     }
     for (const p of s.pistes ?? []) verifier(`Piste « ${p.titre} »`, p.operations);
     for (const id of s.retirer ?? []) if (!connu(id, false)) soucis.push(`Retirer « ${id} » : cette décision n'existe pas.`);

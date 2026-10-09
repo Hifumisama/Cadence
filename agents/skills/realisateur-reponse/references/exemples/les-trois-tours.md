@@ -59,3 +59,16 @@ The message asks to keep P08, but no decision cuts P08: nothing to undo. The use
   "reponse": "C'est fait : D2 resserre le rythme (−10 s) et D3 élague les plans de transition (−26 s). Les deux se recoupaient sur deux plans, alors j'ai gardé les coupes et écarté les raccourcissements de ces mêmes plans. On tombe à 1:58, l'objectif est tenu, et la scène 2 n'est pas touchée."
 }
 ```
+
+## 6. A correction posted as an addition (say what really happened)
+
+`message`: "Coupe seulement le 04."
+`faits`: `ceTour.creees` ["D2"], `retirees` [] and `modifiees` []; `decisions`: D1 "Supprimer les plans 04 et 07" statut "conflit" (constat bloquant du modèle : le plan 07 est celui où Maya lit la lettre…), D2 "Supprimer le plan 04" statut "attention" gain "−8 s", constats: alerte "Écrase le rendu réussi de P04", alerte "Recoupe une décision plus ancienne : P04 est déjà coupé par D1 « Supprimer les plans 04 et 07 ». Pour la corriger, remplace-la plutôt que d'en ajouter une."; `duree`: avecBrouillon "2:11".
+
+D1 is **still there** (not in `retirees`): do not say it was removed.
+
+```json
+{
+  "reponse": "J'ai ajouté D2 (supprimer le plan 04, −8 s), mais il recoupe D1, qui coupe aussi le plan 07 et reste en conflit : on est toujours à 2:11. Je remplace D1 par la seule coupe du 04 ?"
+}
+```

@@ -70,3 +70,24 @@ test("entrée de la réponse : derniers échanges, dernier message de l'utilisat
   assert.deepEqual(e.conversation, [{ qui: "realisateur", texte: "Bonjour." }]);
   assert.equal(e.faits, faits);
 });
+
+test("contrôle de l'analyse : une correction postée comme un ajout est renvoyée au modèle, sauf si la décision existante est re-postée", () => {
+  const d1 = { id: "D1", titre: "Supprimer les plans 04 et 07", operations: [couper(4), couper(7)] };
+  const controle = controleurAnalyse({ vue, ordres: [1], prochainOrdre: 2, decisionsExistantes: [d1] });
+  // « Coupe seulement le 04 » posté comme une décision de plus : P04 est déjà coupé par D1.
+  const ajout = controle(sortie({ decisions: [{ id: null, titre: "Supprimer le plan 04", raison: "", operations: [{ type: "couper_plan", plan: "P04" }] }] }));
+  assert.equal(ajout.length, 1);
+  assert.match(ajout[0]!, /P04 est déjà coupé par D1/);
+  assert.match(ajout[0]!, /re-poste CETTE décision avec son id/);
+  // « Garder le plan 07 » inventé comme une décision qui modifie un plan que D1 coupe : conflit, même consigne.
+  const garder = controle(sortie({ decisions: [{ id: null, titre: "Garder le plan 07", raison: "", operations: [{ type: "duree_plan", plan: "P07", secondes: 15 }] }] }));
+  assert.equal(garder.length, 1);
+  assert.match(garder[0]!, /coupe P07/);
+  assert.match(garder[0]!, /« garder » ni « annuler »/);
+  // La bonne façon : D1 re-posté avec son id → rien à redire.
+  assert.deepEqual(controle(sortie({ decisions: [{ id: "D1", titre: "Supprimer le plan 04", raison: "", operations: [{ type: "couper_plan", plan: "P04" }] }] })), []);
+  // Une décision indépendante ne déclenche rien.
+  assert.deepEqual(controle(sortie({ decisions: [{ id: null, titre: "Durée du 01", raison: "", operations: [{ type: "duree_plan", plan: "P01", secondes: 6 }] }] })), []);
+  // D1 retiré dans la même sortie, puis la même demande en neuf : permis.
+  assert.deepEqual(controle(sortie({ retirer: ["D1"], decisions: [{ id: null, titre: "Supprimer le plan 04", raison: "", operations: [{ type: "couper_plan", plan: "P04" }] }] })), []);
+});

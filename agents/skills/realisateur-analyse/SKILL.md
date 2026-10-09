@@ -69,6 +69,7 @@ Every operation is an object with a `type` and only the fields that type uses.
 - **Rewriting a line**: keep its meaning and the speaker unless asked; "plus sobre", "plus sec" mean shorter and plainer. One line per operation.
 - A title (`titre`) stays short (about 60 characters). A description stays one or two sentences.
 - Do not move the same plan twice, and do not give two durations to one plan.
+- **There is no operation that means "keep", "undo" or "restore".** To keep a plan that a decision cuts ("garde le 08"), to cut fewer plans ("seulement le 04"), or to give up a change ("finalement non"), **re-post the decision concerned** with its `id` and its complete new operations, or `retirer` it. Never create a decision called "Garder le plan 08": it has no operation to carry.
 
 ## `narratif` — the only judgments that are yours
 
