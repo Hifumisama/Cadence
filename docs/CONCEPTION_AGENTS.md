@@ -227,7 +227,8 @@ que d'écraser).
 | Assets | `prompt-asset` | lire le registre, un asset et son parent ; proposer un prompt et une méthode |
 | Voix | `prompt-voix` | lire un personnage et les voix au casting ; proposer une instruction et un texte de référence |
 | Plans | `plan-h3` | lire plans, scène et registre ; proposer des plans, leurs refs et répliques ; lancer les contrôles |
-| Itération | `iteration-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt |
+| Itération | `iteration-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt. **Absorbé par le réalisateur** (§16) |
+| Réalisateur | à créer (§16) | lire tout un épisode (scénario, fiches, rendus) et le brouillon ; proposer des décisions ; calculer les constats ; déléguer la réécriture à `scenario-episode` et `plan-h3` |
 
 Tous les outils **de lecture** répondent directement. Tous les outils **d'écriture**
 créent des changements de proposition — aucun n'écrit sur les tables métier.
@@ -467,3 +468,15 @@ L'entretien d'entrée (§ 4 et 14) a deux ouvertures. Un projet **sans conceptio
 - Sans réflexion longue (`SKILLS_SANS_REFLEXION`) : un message d'ouverture doit arriver en quelques secondes.
 
 Décisions et raisons : `docs/FRICTIONS.md`, 2026-10-07 (conception) et 2026-10-08 (accroche par le modèle, qui remplace l'accroche en code).
+
+## 16. Le réalisateur d'un épisode (conçu, 2026-10-09)
+
+**Pas construit.** Un agent d'**orchestration** pour réviser un scénario existant, par la conversation : une conversation libre par épisode, des décisions retenues qui s'accumulent en brouillon, une application par glissière. Il ne remplace pas les assistants de création (projet, casting, registre, fiches manquantes) ; il remplace `iteration-plan` et les boutons « Demander à l'agent » des plans.
+
+- **Rôle.** Il lit l'épisode entier et le brouillon, propose des idées à partir d'un ressenti ou vérifie la cohérence d'une demande précise, puis appelle les skills existants pour réécrire (`scenario-episode` en retouche de scène ou de réplique, `plan-h3` en écriture partielle de fiche). Les constats mécaniques (durée contre objectif, protégés, périmés, verbatim, limites de 5 à 15 s) sont calculés par le **code** ; le modèle ne juge que le narratif.
+- **Portée.** `episode` du verrou de portée (`lib/agents/portee.ts`) : l'épisode, ses scènes et ses plans. Un asset manquant est signalé, sa création reste dans le flux des assets.
+- **Modèle.** Qwen3.6-35B-A3B par défaut (`LLM_MODELE_REALISATEUR`, `.env.example`).
+- **À construire côté code.** Trois capacités d'écriture que les applicateurs refusent aujourd'hui (supprimer un plan, modifier ou supprimer une réplique, déplacer un plan) ; le « périmé » étendu aux fiches, durées et répliques ; le statut des décisions et un contexte qui montre à l'agent le scénario *avec* le brouillon.
+- **Pas de point de retour** : l'annulation d'une proposition appliquée reste écartée (voir 2026-10-02), les garde-fous sont avant l'application.
+
+Décisions, cascade et raisons : `docs/FRICTIONS.md`, 2026-10-09 (révision d'épisode). Maquettes : `docs/maquettes/revision-episode.html` (la conversation) et `docs/maquettes/cascade-chantier.html` (les conséquences de chaque changement).
