@@ -56,12 +56,14 @@
                     "deplacer_plan",
                     "modifier_plan",
                     "remplacer_replique",
-                    "supprimer_replique"
+                    "supprimer_replique",
+                    "refondre_fiche",
+                    "ajouter_plan"
                   ]
                 },
                 "plan": {
                   "type": "string",
-                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan."
+                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan, refondre_fiche."
                 },
                 "replique": {
                   "type": "string",
@@ -71,11 +73,11 @@
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 60,
-                  "description": "duree_plan only: the new duration in whole seconds, within the limits of the input."
+                  "description": "duree_plan and ajouter_plan: the duration in whole seconds, within the limits of the input."
                 },
                 "apres": {
                   "type": "string",
-                  "description": "deplacer_plan only: the reference of the plan AFTER which the plan is placed. Use either apres or position."
+                  "description": "deplacer_plan and ajouter_plan: the reference of the plan AFTER which the plan is placed. Use either apres or position."
                 },
                 "position": {
                   "type": "string",
@@ -83,15 +85,15 @@
                     "debut",
                     "fin"
                   ],
-                  "description": "deplacer_plan only: place the plan at the start or at the end of the episode. Use either apres or position."
+                  "description": "deplacer_plan and ajouter_plan: place the plan at the start or at the end of the episode. Use either apres or position."
                 },
                 "titre": {
                   "type": "string",
-                  "description": "(French) modifier_plan: the new title."
+                  "description": "(French) modifier_plan: the new title. ajouter_plan: the title of the new plan."
                 },
                 "description": {
                   "type": "string",
-                  "description": "(French) modifier_plan: the new description, one or two sentences."
+                  "description": "(French) modifier_plan: the new description, one or two sentences. ajouter_plan: what the new plan shows, one or two sentences."
                 },
                 "texte": {
                   "type": "string",
@@ -100,6 +102,10 @@
                 "locuteur": {
                   "type": "string",
                   "description": "remplacer_replique: the new speaker, only if the user asks to change it."
+                },
+                "consigne": {
+                  "type": "string",
+                  "description": "(French) refondre_fiche only: what to change in the sheet, in a few words (\"la réplique est plus sèche, le plan doit finir sur le visage\"). Empty if the sheet only has to follow the plan as it is now."
                 }
               }
             }
@@ -156,12 +162,14 @@
                     "deplacer_plan",
                     "modifier_plan",
                     "remplacer_replique",
-                    "supprimer_replique"
+                    "supprimer_replique",
+                    "refondre_fiche",
+                    "ajouter_plan"
                   ]
                 },
                 "plan": {
                   "type": "string",
-                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan."
+                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan, refondre_fiche."
                 },
                 "replique": {
                   "type": "string",
@@ -171,11 +179,11 @@
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 60,
-                  "description": "duree_plan only: the new duration in whole seconds, within the limits of the input."
+                  "description": "duree_plan and ajouter_plan: the duration in whole seconds, within the limits of the input."
                 },
                 "apres": {
                   "type": "string",
-                  "description": "deplacer_plan only: the reference of the plan AFTER which the plan is placed. Use either apres or position."
+                  "description": "deplacer_plan and ajouter_plan: the reference of the plan AFTER which the plan is placed. Use either apres or position."
                 },
                 "position": {
                   "type": "string",
@@ -183,15 +191,15 @@
                     "debut",
                     "fin"
                   ],
-                  "description": "deplacer_plan only: place the plan at the start or at the end of the episode. Use either apres or position."
+                  "description": "deplacer_plan and ajouter_plan: place the plan at the start or at the end of the episode. Use either apres or position."
                 },
                 "titre": {
                   "type": "string",
-                  "description": "(French) modifier_plan: the new title."
+                  "description": "(French) modifier_plan: the new title. ajouter_plan: the title of the new plan."
                 },
                 "description": {
                   "type": "string",
-                  "description": "(French) modifier_plan: the new description, one or two sentences."
+                  "description": "(French) modifier_plan: the new description, one or two sentences. ajouter_plan: what the new plan shows, one or two sentences."
                 },
                 "texte": {
                   "type": "string",
@@ -200,6 +208,10 @@
                 "locuteur": {
                   "type": "string",
                   "description": "remplacer_replique: the new speaker, only if the user asks to change it."
+                },
+                "consigne": {
+                  "type": "string",
+                  "description": "(French) refondre_fiche only: what to change in the sheet, in a few words (\"la réplique est plus sèche, le plan doit finir sur le visage\"). Empty if the sheet only has to follow the plan as it is now."
                 }
               }
             }

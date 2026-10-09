@@ -14,6 +14,18 @@ const pluriel = (n: number, un: string, plusieurs: string) => (n > 1 ? plusieurs
 export function constatsOperations(operations: Operation[], vue: VueEpisode): Constat[] {
   const constats: Constat[] = [];
   for (const op of operations) {
+    if (op.type === "ajouter_plan") {
+      constats.push(ok(`Le plan « ${op.titre} » (${op.secondes} s) est créé sans fiche : elle est écrite juste après l'application, et tu la relis avant qu'elle soit enregistrée.`));
+      continue;
+    }
+    if (op.type === "refondre_fiche") {
+      const p = planParUuid(vue, op.planUuid);
+      if (!p) continue;
+      if (p.etat === "brouillon") constats.push(ok(`${p.handle} n'a pas encore de fiche : elle est écrite juste après l'application, à relire.`));
+      else constats.push(ok(`La fiche de ${p.handle} est réécrite juste après l'application : tu relis la proposition avant qu'elle remplace l'ancienne.`));
+      if (p.etat === "rendu") constats.push(alerte(`Le rendu de ${p.handle} sera périmé si tu acceptes la nouvelle fiche.`));
+      continue;
+    }
     if (op.type === "couper_plan") {
       const p = planParUuid(vue, op.planUuid);
       if (!p) continue;
@@ -90,6 +102,12 @@ export function conflitsEntreDecisions(decisions: DecisionPourConflit[], vue: Vu
       for (const oa of a.operations) {
         for (const ob of b.operations) {
           if (oa.type === "couper_plan") {
+            if (ob.type === "refondre_fiche" && ob.planUuid === oa.planUuid) {
+              ajoute(a, b, `« ${a.titre} » coupe ${nomPlan(oa.planUuid)}, dont « ${b.titre} » veut refondre la fiche.`);
+            }
+            if (ob.type === "ajouter_plan" && "apresPlanUuid" in ob.position && ob.position.apresPlanUuid === oa.planUuid) {
+              ajoute(a, b, `« ${b.titre} » ajoute un plan après ${nomPlan(oa.planUuid)}, que « ${a.titre} » coupe.`);
+            }
             if ((ob.type === "duree_plan" || ob.type === "modifier_plan" || ob.type === "deplacer_plan") && ob.planUuid === oa.planUuid) {
               ajoute(a, b, `« ${a.titre} » coupe ${nomPlan(oa.planUuid)}, que « ${b.titre} » veut aussi modifier.`);
             }

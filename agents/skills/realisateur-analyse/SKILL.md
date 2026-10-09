@@ -1,6 +1,6 @@
 ---
 name: realisateur-analyse
-description: Read the user's last message about an existing episode and turn it into operations on that episode (cut a plan, change a duration, move a plan, rewrite or remove a line), either as decisions to keep or as options to choose from; the application checks every operation and nothing is written before the user validates.
+description: Read the user's last message about an existing episode and turn it into operations on that episode (cut, add or move a plan, change a duration, rewrite a plan's sheet, rewrite or remove a line), either as decisions to keep or as options to choose from; the application checks every operation and nothing is written before the user validates.
 metadata:
   language: instructions in English; titles, reasons and texts in French (a rewritten line keeps the language of the existing lines)
 ---
@@ -60,6 +60,15 @@ Every operation is an object with a `type` and only the fields that type uses.
 | `modifier_plan` | `plan`, `titre` and/or `description` | rewrite the title or the description |
 | `remplacer_replique` | `replique`, `texte` and/or `locuteur` | rewrite a line (and/or change its speaker) |
 | `supprimer_replique` | `replique` | delete a line |
+| `ajouter_plan` | `titre`, `description`, `secondes`, and `apres` (a plan ref) **or** `position` (`"debut"` / `"fin"`) | add a new plan with no sheet yet; **you write its title and its description** (what it shows, one or two sentences, in the style of the neighbouring plans); it joins the scene of the plan it follows; its sheet is written right after the draft is applied |
+| `refondre_fiche` | `plan`, `consigne` (optional) | have the plan's technical sheet (its video prompt) rewritten after the draft is applied; `consigne` says what to change, in a few words |
+
+## Sheets, lines and new plans
+
+- A plan's **sheet** (its video prompt) is written from the plan's description, duration and lines. **The application changes a line's text inside the sheet by itself** when a sheet quotes it word for word: for `remplacer_replique` you add nothing.
+- Add `refondre_fiche` **only when the user wants the sheet itself rewritten** (the shot, the staging, the pace changed), or when a change leaves the sheet wrong beyond a line's text: a description rewritten with `modifier_plan`, a duration changed a lot (a plan going from 6 s to 12 s), a line **deleted** (its tag stays in the sheet). Put what to change in `consigne`. Never add it "just in case", and never for a plan that is cut or new.
+- `ajouter_plan` needs the user's intention or an obvious gap ("il manque un plan de transition entre la 3 et la 4"). Place it with `apres`. A new plan has **no reference yet**: do not target it with another operation in the same sentence; its sheet is written automatically.
+- A new plan has no lines. If the user wants one, say it in the plan's description; lines are written in the next revision.
 
 ## How to choose
 

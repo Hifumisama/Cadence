@@ -199,9 +199,11 @@ export const applicateurPlan: Applicateur = {
       return;
     }
     const episodeId = parentDe(a, "episodeCle", "episodeId", ctx.cles).id!;
-    const sceneId = parentDe(a, "sceneCle", "sceneId", ctx.cles).id ?? null;
     const existants = await plansDeEpisode(tx, episodeId);
     const insertion = planifierInsertion(existants, (ch.position as Position | null) ?? { fin: true })!;
+    // Sans scène donnée (le réalisateur ajoute un plan), il entre dans la scène de son voisin : celui qui le précède, sinon celui qui le suit.
+    const sceneDonnee = parentDe(a, "sceneCle", "sceneId", ctx.cles).id;
+    const sceneId = sceneDonnee ?? (existants[insertion.index - 1]?.sceneId ?? existants[insertion.index]?.sceneId ?? null);
     const duree = a.dureeGenerationSecondes as number;
     const [cree] = await tx
       .insert(plans)

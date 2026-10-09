@@ -3,7 +3,7 @@ import type { Position } from "../types";
 /** La révision d'un épisode (le réalisateur, docs/FRICTIONS.md 2026-10-09 « révision d'épisode »). Types partagés par le
  * serveur, le worker et l'interface : aucun accès base ni Next ici. */
 
-export const TYPES_OPERATION = ["couper_plan", "duree_plan", "deplacer_plan", "modifier_plan", "remplacer_replique", "supprimer_replique"] as const;
+export const TYPES_OPERATION = ["couper_plan", "duree_plan", "deplacer_plan", "modifier_plan", "remplacer_replique", "supprimer_replique", "refondre_fiche", "ajouter_plan"] as const;
 export type TypeOperation = (typeof TYPES_OPERATION)[number];
 
 /** L'opération telle que le modèle la rend : une structure PLATE (sortie contrainte), les plans et les répliques cités par une
@@ -21,6 +21,8 @@ export type OperationBrute = {
   description?: string | null;
   texte?: string | null;
   locuteur?: string | null;
+  /** refondre_fiche : ce qu'il faut changer dans la fiche, dit simplement (facultatif). */
+  consigne?: string | null;
 };
 
 /** L'opération VALIDÉE, stockée : les cibles sont des uuid (stables), jamais des poignées ni des rangs (F03). */
@@ -30,7 +32,13 @@ export type Operation =
   | { type: "deplacer_plan"; planUuid: string; position: Position }
   | { type: "modifier_plan"; planUuid: string; titre?: string; description?: string }
   | { type: "remplacer_replique"; repliqueUuid: string; texte?: string; locuteur?: string }
-  | { type: "supprimer_replique"; repliqueUuid: string };
+  | { type: "supprimer_replique"; repliqueUuid: string }
+  /** Réécrire la fiche du plan avec `plan-h3`. Jamais exécuté dans l'application du chantier (c'est un appel de modèle) : le code lance la
+   * génération APRÈS, et le résultat arrive en proposition à relire. */
+  | { type: "refondre_fiche"; planUuid: string; consigne: string }
+  /** Ajouter un plan SANS fiche (sa fiche s'écrit ensuite, comme une refonte). `ref` est un uuid tiré à la validation : l'identifiant du plan
+   * dans le brouillon, tant qu'il n'existe pas. */
+  | { type: "ajouter_plan"; ref: string; position: Position; titre: string; description: string; secondes: number };
 
 export type OperationRefusee = { brute: OperationBrute; raison: string };
 

@@ -75,3 +75,16 @@ test("barre du bas : un plan coupé et raccourci ne compte que comme coupé", ()
   const r = resumerChantier([decision("D1", "retenue", [couper(5), duree(5, 6), duree(1, 6)])], 140, 120);
   assert.match(texte(r.segments), /supprime 1 plan, raccourcit 1 durée/);
 });
+
+test("3c : un plan ajouté rejoint la scène de son voisin ; la barre dit les ajouts et les fiches réécrites", () => {
+  const ajout: Operation = { type: "ajouter_plan", ref: "11111111-1111-4111-8111-111111111111", position: { apresPlanUuid: planUuid(3) }, titre: "Transition", description: "d", secondes: 6 };
+  const scenes = scenesTouchees(vue, [ajout]);
+  assert.equal(scenes.length, 1);
+  const nouveau = scenes[0]!.plans.find((p) => p.ajoute);
+  assert.ok(nouveau);
+  assert.equal(nouveau!.fiche, true);
+  assert.equal(scenes[0]!.dureeApres, scenes[0]!.dureeAvant + 6);
+
+  const r = resumerChantier([decision("D1", "retenue", [ajout, { type: "refondre_fiche", planUuid: planUuid(7), consigne: "" }])], 160, 120);
+  assert.match(texte(r.segments), /ajoute 1 plan, réécrit 2 fiches ensuite/);
+});

@@ -27,8 +27,24 @@ export function operationsVersChangements(operations: Operation[], vue: VueEpiso
       }
       continue;
     }
+    if (op.type === "ajouter_plan") {
+      // L'applicateur « plan » crée : la scène est celle du plan qu'il suit (déduite à l'application), la fiche vient après (refondre_fiche).
+      bruts.push({
+        groupe: "plans",
+        cibleType: "plan",
+        cibleRef: null,
+        cle: op.ref,
+        libelle: `Ajouter « ${coupe(op.titre)} » (${op.secondes} s)`,
+        operation: "creer",
+        apres: { titre: op.titre, description: op.description, dureeGenerationSecondes: op.secondes, episodeId: vue.episodeId },
+        position: op.position,
+      });
+      continue;
+    }
     const p = planParUuid(vue, op.planUuid);
     if (!p) continue;
+    // Une refonte de fiche n'écrit rien dans la transaction : le code lance `plan-h3` après l'application (revision-db.ts).
+    if (op.type === "refondre_fiche") continue;
     const nom = `${p.handle} · ${p.titre}`;
     if (op.type === "couper_plan") {
       bruts.push({ groupe: "plans", cibleType: "plan", cibleRef: p.uuid, libelle: `Supprimer ${nom}`, operation: "supprimer" });

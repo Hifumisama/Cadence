@@ -183,3 +183,80 @@ test("opérations vers changements : la forme attendue par les applicateurs", ()
   assert.equal(bruts[5]!.operation, "supprimer");
   assert.match(bruts[0]!.libelle, /Supprimer P04 · Gros plan/);
 });
+
+test("3c : ajouter_plan et refondre_fiche sont validés, les inventions refusées", () => {
+  const { valides, refusees } = validerOperations(
+    [
+      { type: "ajouter_plan", apres: "P03", titre: "  Transition  ", description: "Un plan de passage.", secondes: 6 },
+      { type: "ajouter_plan", position: "fin", titre: "Fin", description: "", secondes: 8 },
+      { type: "refondre_fiche", plan: "P07", consigne: "  réplique plus sèche " },
+      { type: "refondre_fiche", plan: "P07" },
+    ],
+    vue,
+  );
+  assert.equal(refusees.length, 0);
+  assert.equal(valides[0]!.type, "ajouter_plan");
+  const a = valides[0] as Extract<Operation, { type: "ajouter_plan" }>;
+  assert.deepEqual({ ...a, ref: "x" }, { type: "ajouter_plan", ref: "x", position: { apresPlanUuid: planUuid(3) }, titre: "Transition", description: "Un plan de passage.", secondes: 6 });
+  assert.match(a.ref, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(valides[2], { type: "refondre_fiche", planUuid: planUuid(7), consigne: "réplique plus sèche" });
+  assert.deepEqual(valides[3], { type: "refondre_fiche", planUuid: planUuid(7), consigne: "" });
+
+  const mauvaises = validerOperations(
+    [
+      { type: "ajouter_plan", apres: "P03", titre: "", secondes: 6 },
+      { type: "ajouter_plan", apres: "P03", titre: "x", secondes: 30 },
+      { type: "ajouter_plan", apres: "P99", titre: "x", secondes: 6 },
+      { type: "ajouter_plan", titre: "x", secondes: 6 },
+      { type: "refondre_fiche", plan: "P99" },
+    ],
+    vue,
+  );
+  assert.equal(mauvaises.valides.length, 0);
+  assert.equal(mauvaises.refusees.length, 5);
+});
+
+test("3c : un plan ajouté entre dans le brouillon (durée, place, scène), une refonte n'en change pas la durée", () => {
+  const ajout: Operation = { type: "ajouter_plan", ref: "11111111-1111-4111-8111-111111111111", position: { apresPlanUuid: planUuid(3) }, titre: "Transition", description: "d", secondes: 6 };
+  const b = appliquerAuBrouillon(vue, [ajout]);
+  assert.equal(b.plans.length, 15);
+  assert.equal(b.plans[3]!.uuid, ajout.ref);
+  assert.equal(b.plans[3]!.ajoute, true);
+  assert.equal(b.total, 160);
+  assert.equal(gainSecondes(vue, [ajout]), -6);
+
+  const refonte = appliquerAuBrouillon(vue, [op({ type: "refondre_fiche", planUuid: planUuid(7), consigne: "" })]);
+  assert.equal(refonte.total, 154);
+  assert.equal(refonte.plans[6]!.fiche, true);
+
+  const coupe = appliquerAuBrouillon(vue, [couper(7), op({ type: "refondre_fiche", planUuid: planUuid(7), consigne: "" })]);
+  assert.equal(coupe.ignorees.length, 1, "refondre la fiche d'un plan coupé est sans effet");
+  const reperePerdu = appliquerAuBrouillon(vue, [couper(3), { ...ajout }]);
+  assert.equal(reperePerdu.plans.length, 14, "un repère coupé annule l'ajout");
+});
+
+test("3c : constats et conflits des nouvelles opérations, et passage aux changements des applicateurs", () => {
+  const ajout: Operation = { type: "ajouter_plan", ref: "11111111-1111-4111-8111-111111111111", position: { apresPlanUuid: planUuid(3) }, titre: "Transition", description: "d", secondes: 6 };
+  assert.match(constatsOperations([ajout], vue)[0]!.texte, /créé sans fiche/);
+  const sur4 = constatsOperations([op({ type: "refondre_fiche", planUuid: planUuid(4), consigne: "" })], vue);
+  assert.ok(sur4.some((c) => /rendu de P04 sera périmé si tu acceptes/.test(c.texte)));
+  assert.ok(sur4.some((c) => c.niveau === "ok" && /réécrite juste après l'application/.test(c.texte)));
+  assert.ok(constatsOperations([op({ type: "refondre_fiche", planUuid: planUuid(1), consigne: "" })], vue).some((c) => /n'a pas encore de fiche/.test(c.texte)));
+
+  const conflits = conflitsEntreDecisions(
+    [
+      { id: "D1", titre: "Couper le 3", operations: [couper(3)] },
+      { id: "D2", titre: "Ajouter après le 3", operations: [ajout] },
+      { id: "D3", titre: "Refaire la fiche du 3", operations: [op({ type: "refondre_fiche", planUuid: planUuid(3), consigne: "" })] },
+    ],
+    vue,
+  );
+  assert.equal(conflits.length, 2);
+
+  const bruts = operationsVersChangements([ajout, op({ type: "refondre_fiche", planUuid: planUuid(7), consigne: "x" })], vue);
+  assert.equal(bruts.length, 1, "une refonte n'écrit rien dans la transaction");
+  assert.equal(bruts[0]!.operation, "creer");
+  assert.equal(bruts[0]!.cle, ajout.ref);
+  assert.deepEqual(bruts[0]!.position, { apresPlanUuid: planUuid(3) });
+  assert.equal((bruts[0]!.apres as Record<string, unknown>).dureeGenerationSecondes, 6);
+});

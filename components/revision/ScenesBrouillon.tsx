@@ -17,10 +17,12 @@ export function ScenesBrouillon({ scenes }: { scenes: SceneTouchee[] }) {
           </header>
           {s.plans.map((p) => (
             <div key={p.uuid} className={`rv-plan${p.coupe ? " is-coupe" : ""}`}>
-              <span className="rv-plan-ref">{p.handle}</span>
+              <span className="rv-plan-ref">{p.ajoute ? "+" : p.handle}</span>
               <span className="rv-plan-corps">
                 <span className="rv-plan-titre">{p.titre}</span>
                 {p.coupe ? <span className="rv-pil is-rouge">coupé</span> : null}
+                {p.ajoute ? <span className="rv-pil">nouveau</span> : null}
+                {p.fiche ? <span className="rv-pil">fiche à relire</span> : null}
                 {p.deplace ? <span className="rv-pil">déplacé</span> : null}
                 {p.etat === "rendu" && (p.coupe || p.duree !== p.dureeOriginale) ? <span className="rv-pil is-rouge">rendu</span> : null}
                 {p.repliques
@@ -40,6 +42,8 @@ export function ScenesBrouillon({ scenes }: { scenes: SceneTouchee[] }) {
               <span className="rv-plan-duree">
                 {p.coupe ? (
                   <del>{p.dureeOriginale} s</del>
+                ) : p.ajoute ? (
+                  <ins>{p.duree} s</ins>
                 ) : p.duree !== p.dureeOriginale ? (
                   <>
                     <del>{p.dureeOriginale} s</del> <ins>{p.duree} s</ins>

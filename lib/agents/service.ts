@@ -926,7 +926,7 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
  * fiche remplace ensemble ses six sections ET ses références ; les répliques liées restent celles du plan. */
 export async function genererFiches(
   conversationUuid: string,
-  options: { planUuids?: string[]; consigne?: string } = {},
+  options: { planUuids?: string[]; consigne?: string; /** Une consigne PAR plan (le réalisateur : chaque refonte a la sienne) ; à défaut, `consigne`. */ consignes?: Record<string, string> } = {},
 ): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
@@ -956,7 +956,7 @@ export async function genererFiches(
   const plusieursEpisodes = new Set(choisis.map((p) => p.episodeId)).size > 1;
   const sousTaches: { p: PlanPourFiche; e: EntreeSkill }[] = [];
   for (const p of choisis) {
-    const e = await entreePlanH3(db, conv.projectId, p.uuid, consigne);
+    const e = await entreePlanH3(db, conv.projectId, p.uuid, options.consignes?.[p.uuid]?.trim() || consigne);
     if (e) sousTaches.push({ p, e });
   }
   if (sousTaches.length === 0) return ERR("Aucun plan lisible.");

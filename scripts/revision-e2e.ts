@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, plans, projects, repliques, revisionDecisions, scenes, seasons } from "../db/schema";
 import { semerLeSel } from "./semis-le-sel";
@@ -71,9 +71,8 @@ async function main() {
     // ── A. Le parcours « ressenti » ───────────────────────────────────────────────
     console.log("\nA. Parcours « ressenti » : pistes, choix, conflit, résolution, application");
     const a = await semerLeSel("TEST_REVISION_E2E_A");
-    // La fiche du plan 07 cite sa réplique mot pour mot : l'application doit mettre son dialogue à jour.
+    // La fiche du plan 07 (semée) cite sa réplique mot pour mot : l'application doit mettre son dialogue à jour.
     const [p07] = (await db.select({ id: plans.id }).from(plans).where(eq(plans.episodeId, a.episodeId)).orderBy(asc(plans.ordre))).slice(6);
-    await db.insert(planPromptSections).values({ planId: p07!.id, section: "detailed_description", ordre: 4, contenu: "He turns and says <d>[Français] Je ne reviendrai jamais.</d> then leaves." });
     ids.push(a.projectId);
     const o1 = await ouvrirRevision(a.projectId, a.episodeId);
     if (!o1.ok) throw new Error(o1.erreur);
@@ -137,7 +136,7 @@ async function main() {
     const [rep] = await db.select({ texte: repliques.texte }).from(repliques).where(eq(repliques.episodeId, a.episodeId)).orderBy(asc(repliques.ordre));
     ok(rep?.texte === "Je ne reviendrai pas.", "la réplique a été réécrite");
     const [dd] = await db.select({ contenu: planPromptSections.contenu }).from(planPromptSections).where(and(eq(planPromptSections.planId, p07!.id), eq(planPromptSections.section, "detailed_description")));
-    ok(dd?.contenu === "He turns and says <d>[Français] Je ne reviendrai pas.</d> then leaves.", "le dialogue de la fiche du plan 07 est mis à jour");
+    ok((dd?.contenu ?? "").includes("<d>[Français] Je ne reviendrai pas.</d>") && !(dd?.contenu ?? "").includes("jamais"), "le dialogue de la fiche du plan 07 est mis à jour");
     const [conv] = await db.select().from(agentConversations).where(eq(agentConversations.uuid, o1.conversationUuid));
     ok(conv?.fermeeAt != null && conv.etape === "applique", "la conversation est fermée à l'application");
     const decs = await db.select({ statut: revisionDecisions.statut }).from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv!.id));
@@ -293,6 +292,39 @@ async function main() {
     // une révision fermée n'accepte plus de message
     await abandonnerRevision(od.conversationUuid);
     ok(!(await envoyerMessageRevision(od.conversationUuid, "Encore ?")).ok, "une révision terminée refuse les messages");
+
+    // ── E. La suite de l'application (3c) : plan ajouté, fiche refondue, lot `plan-h3` posé ─────────────────
+    console.log("\nE. Plan ajouté et fiche refondue : le chantier s'applique, puis un lot de fiches attend la relecture");
+    const e = await semerLeSel("TEST_REVISION_E2E_E");
+    ids.push(e.projectId);
+    const oe = await ouvrirRevision(e.projectId, e.episodeId);
+    if (!oe.ok) throw new Error(oe.erreur);
+    const avantE = await db.select({ uuid: plans.uuid, titre: plans.titre, sceneId: plans.sceneId }).from(plans).where(eq(plans.episodeId, e.episodeId)).orderBy(asc(plans.ordre));
+    const te = await tour(
+      oe.conversationUuid,
+      sortie({
+        decisions: [
+          { id: null, titre: "Un plan de transition après le 3", raison: "", operations: [{ type: "ajouter_plan", apres: "P03", titre: "Les filets au matin", description: "Les filets sèchent sur le quai, le port se réveille.", secondes: 6 }] },
+          { id: null, titre: "Refaire la fiche du plan 02", raison: "", operations: [{ type: "refondre_fiche", plan: "P02", consigne: "le plan finit plus sèche" }] },
+        ],
+      }),
+    );
+    ok(te.decisions.length === 2 && te.decisions.every((d) => d.statut === "retenue"), "plan ajouté et refonte : deux décisions retenues (sans alerte)");
+    ok(te.duree.avecBrouillon === "2:40", "le plan ajouté compte dans la durée (154 s + 6 s = 2:40)");
+    const apresE = await appliquerRevision(oe.conversationUuid);
+    console.error("    →", JSON.stringify(apresE.ok ? apresE.suite : apresE.erreur));
+    ok(apresE.ok && apresE.suite?.plans === 2 && apresE.suite.erreur === null, "chantier appliqué ; deux fiches à écrire (le nouveau plan et le plan 02)");
+    const lesE = await db.select({ uuid: plans.uuid, titre: plans.titre, sceneId: plans.sceneId, duree: plans.dureeGenerationSecondes, montage: plans.dureeMontageSecondes, desc: plans.description }).from(plans).where(eq(plans.episodeId, e.episodeId)).orderBy(asc(plans.ordre));
+    ok(lesE.length === avantE.length + 1 && lesE[3]!.titre === "Les filets au matin", "le plan est créé juste après le plan 03");
+    ok(lesE[3]!.sceneId === avantE[2]!.sceneId && lesE[3]!.duree === 6 && lesE[3]!.montage === 6, "…dans la scène du plan 03, avec sa durée (génération = montage)");
+    ok(lesE[3]!.desc === "Les filets sèchent sur le quai, le port se réveille.", "…et la description écrite par le réalisateur");
+    const [convCourte] = await db.select().from(agentConversations).where(and(eq(agentConversations.projectId, e.projectId), eq(agentConversations.portee, "episode"), ne(agentConversations.profondeur, "revision")));
+    const lot = convCourte ? await db.select().from(agentRuns).where(and(eq(agentRuns.conversationId, convCourte.id), eq(agentRuns.skill, "plan-h3"))) : [];
+    ok(lot.length === 2 && lot.every((r) => r.statut === "en_attente"), "un lot `plan-h3` de deux sous-tâches attend dans la file");
+    const consignes = lot.map((r) => JSON.stringify((r.entree as { consigne?: unknown })?.consigne ?? r.entree));
+    ok(consignes.some((c) => /plus s\u00e8che|plus sèche/.test(c)), "…dont la consigne de l'utilisateur est transmise à la refonte");
+    const [fermee] = await db.select().from(agentConversations).where(eq(agentConversations.uuid, oe.conversationUuid));
+    ok(fermee?.fermeeAt != null, "la révision est fermée");
   } finally {
     for (const id of ids) await db.delete(projects).where(eq(projects.id, id));
   }

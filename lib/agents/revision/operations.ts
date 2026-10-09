@@ -42,6 +42,36 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
       continue;
     }
 
+    if (b.type === "ajouter_plan") {
+      const titre = texteNet(b.titre);
+      const description = texteNet(b.description);
+      const s = b.secondes;
+      if (!titre) {
+        refuse(b, "Un plan ajouté a besoin d'un titre.");
+        continue;
+      }
+      if (typeof s !== "number" || !Number.isInteger(s) || s < DUREE_GENERATION_MIN || s > DUREE_GENERATION_MAX) {
+        refuse(b, `Durée ${typeof s === "number" ? `${s} s` : "absente"} pour le plan ajouté : un plan dure ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières.`);
+        continue;
+      }
+      let position: Position | null = null;
+      if (b.apres) {
+        const cible = planParPoignee(vue, b.apres);
+        if (!cible) {
+          refuse(b, `Repère « ${b.apres} » introuvable pour placer le plan ajouté.`);
+          continue;
+        }
+        position = { apresPlanUuid: cible.uuid };
+      } else if (b.position === "debut") position = { debut: true };
+      else if (b.position === "fin") position = { fin: true };
+      if (!position) {
+        refuse(b, "Où placer le plan ajouté ? Il faut « après un plan », « debut » ou « fin ».");
+        continue;
+      }
+      valides.push({ type: "ajouter_plan", ref: globalThis.crypto.randomUUID(), position, titre, description, secondes: s });
+      continue;
+    }
+
     const p = planParPoignee(vue, b.plan);
     if (!p) {
       refuse(b, `Plan « ${b.plan ?? "?"} » introuvable (l'épisode a ${nbPlans} plan${nbPlans > 1 ? "s" : ""}).`);
@@ -50,6 +80,8 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
 
     if (b.type === "couper_plan") {
       valides.push({ type: "couper_plan", planUuid: p.uuid });
+    } else if (b.type === "refondre_fiche") {
+      valides.push({ type: "refondre_fiche", planUuid: p.uuid, consigne: texteNet(b.consigne) });
     } else if (b.type === "duree_plan") {
       const s = b.secondes;
       if (typeof s !== "number" || !Number.isInteger(s) || s < DUREE_GENERATION_MIN || s > DUREE_GENERATION_MAX) {
@@ -112,5 +144,15 @@ export function operationEnPoignees(op: Operation, vue: VueEpisode): OperationBr
       return { type: op.type, replique: replique(op.repliqueUuid), ...(op.texte !== undefined ? { texte: op.texte } : {}), ...(op.locuteur !== undefined ? { locuteur: op.locuteur } : {}) };
     case "supprimer_replique":
       return { type: op.type, replique: replique(op.repliqueUuid) };
+    case "refondre_fiche":
+      return { type: op.type, plan: plan(op.planUuid), ...(op.consigne ? { consigne: op.consigne } : {}) };
+    case "ajouter_plan":
+      return {
+        type: op.type,
+        ...("apresPlanUuid" in op.position ? { apres: plan(op.position.apresPlanUuid) } : { position: "debut" in op.position ? "debut" : "fin" }),
+        titre: op.titre,
+        description: op.description,
+        secondes: op.secondes,
+      };
   }
 }

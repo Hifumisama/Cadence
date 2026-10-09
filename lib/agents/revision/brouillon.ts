@@ -18,6 +18,10 @@ export type PlanBrouillon = {
   dureeOriginale: number;
   coupe: boolean;
   deplace: boolean;
+  /** Plan ajouté par le brouillon : il n'existe pas encore (son uuid est la `ref` de l'opération). */
+  ajoute: boolean;
+  /** La fiche de ce plan sera réécrite après l'application (refondre_fiche, ou plan ajouté). */
+  fiche: boolean;
 };
 
 export type RepliqueBrouillon = { uuid: string; handle: string; texte: string; texteOriginal: string; locuteur: string; supprimee: boolean };
@@ -33,7 +37,7 @@ export type Brouillon = {
 };
 
 export function appliquerAuBrouillon(vue: VueEpisode, operations: Operation[]): Brouillon {
-  const plans: PlanBrouillon[] = vue.plans.map((p) => ({ uuid: p.uuid, handle: p.handle, titre: p.titre, description: p.description, duree: p.duree, dureeOriginale: p.duree, coupe: false, deplace: false }));
+  const plans: PlanBrouillon[] = vue.plans.map((p) => ({ uuid: p.uuid, handle: p.handle, titre: p.titre, description: p.description, duree: p.duree, dureeOriginale: p.duree, coupe: false, deplace: false, ajoute: false, fiche: false }));
   const repliques: RepliqueBrouillon[] = vue.repliques.map((r) => ({ uuid: r.uuid, handle: r.handle, texte: r.texte, texteOriginal: r.texte, locuteur: r.locuteur, supprimee: false }));
   const ignorees: Brouillon["ignorees"] = [];
   const plan = (uuid: string) => plans.find((p) => p.uuid === uuid);
@@ -54,8 +58,30 @@ export function appliquerAuBrouillon(vue: VueEpisode, operations: Operation[]): 
       }
       continue;
     }
+    if (op.type === "ajouter_plan") {
+      const nouveau: PlanBrouillon = { uuid: op.ref, handle: "nouveau", titre: op.titre, description: op.description, duree: op.secondes, dureeOriginale: 0, coupe: false, deplace: false, ajoute: true, fiche: true };
+      let index: number;
+      if ("fin" in op.position) index = plans.length;
+      else if ("debut" in op.position) index = 0;
+      else {
+        const repere = op.position.apresPlanUuid;
+        const i = plans.findIndex((x) => x.uuid === repere);
+        if (i === -1 || plans[i]!.coupe) {
+          ignorees.push({ operation: op, raison: "Le repère du plan ajouté est coupé ou introuvable." });
+          continue;
+        }
+        index = i + 1;
+      }
+      plans.splice(index, 0, nouveau);
+      continue;
+    }
     const p = plan(op.planUuid);
     if (!p) continue;
+    if (op.type === "refondre_fiche") {
+      if (p.coupe) ignorees.push({ operation: op, raison: `${p.handle} est coupé : sa fiche disparaît avec lui.` });
+      else p.fiche = true;
+      continue;
+    }
     if (op.type === "couper_plan") {
       p.coupe = true;
       continue;
@@ -101,6 +127,9 @@ export function plansTouches(operations: Operation[], vue: VueEpisode): Set<stri
   for (const op of operations) {
     if (op.type === "supprimer_replique" || op.type === "remplacer_replique") {
       for (const uuid of repliqueParUuid(vue, op.repliqueUuid)?.plans ?? []) touches.add(uuid);
+    } else if (op.type === "ajouter_plan") {
+      touches.add(op.ref);
+      if ("apresPlanUuid" in op.position && planParUuid(vue, op.position.apresPlanUuid)) touches.add(op.position.apresPlanUuid);
     } else if (planParUuid(vue, op.planUuid)) touches.add(op.planUuid);
   }
   return touches;

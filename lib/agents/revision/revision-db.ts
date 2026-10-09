@@ -180,7 +180,13 @@ const scopeEpisode = (conv: ConversationRow) => ({ type: "episode" as const, cib
 
 /** Ce que la décision VISE existe-t-il encore ? Une opération dont la cible a disparu (supprimée à la main depuis) est écartée du calcul. */
 function operationsExistantes(ops: Operation[], vue: VueEpisode): { existantes: Operation[]; manquantes: number } {
-  const existantes = ops.filter((o) => (o.type === "supprimer_replique" || o.type === "remplacer_replique" ? !!repliqueParUuid(vue, o.repliqueUuid) : !!planParUuid(vue, o.planUuid)));
+  const existantes = ops.filter((o) =>
+    o.type === "supprimer_replique" || o.type === "remplacer_replique"
+      ? !!repliqueParUuid(vue, o.repliqueUuid)
+      : o.type === "ajouter_plan"
+        ? !("apresPlanUuid" in o.position) || !!planParUuid(vue, o.position.apresPlanUuid)
+        : !!planParUuid(vue, o.planUuid),
+  );
   return { existantes, manquantes: ops.length - existantes.length };
 }
 
@@ -410,7 +416,7 @@ export async function abandonnerRevision(conversationUuid: string): Promise<Resu
 // --- appliquer ---------------------------------------------------------------------
 
 export type ResultatApplicationRevision =
-  | { ok: true; appliquees: number; changements: number }
+  | { ok: true; appliquees: number; changements: number; suite: SuiteFiches | null }
   | { ok: false; erreur: string; confirmationRequise?: EcrasementAConfirmer[] };
 
 /** Applique le chantier : les décisions actives deviennent UNE proposition (skill `realisateur`, portée épisode), appliquée par
@@ -479,7 +485,39 @@ export async function appliquerRevision(conversationUuid: string, options: { con
       `Chantier appliqué : ${decisions.length} décision${decisions.length > 1 ? "s" : ""}, ${r.appliques} changement${r.appliques > 1 ? "s" : ""}. Cette conversation est terminée : une prochaine révision en ouvrira une neuve.`,
     );
   });
-  return { ok: true, appliquees: decisions.length, changements: r.appliques };
+  const suite = await lancerSuiteFiches(conv, decisions.flatMap((d) => (d.operations as Operation[]) ?? []), new Set(vue.plans.map((p) => p.uuid)));
+  return { ok: true, appliquees: decisions.length, changements: r.appliques, suite };
+}
+
+/** Ce qui suit l'application : les fiches à réécrire (refondre_fiche) et celles des plans ajoutés, en UN lot `plan-h3` posé sur la
+ * conversation courte de l'épisode. Rien n'est écrit : le résultat arrive en proposition, à relire. Un échec ici ne défait pas le chantier. */
+export type SuiteFiches = { plans: number; erreur: string | null };
+
+const CONSIGNE_REFONTE =
+  "Rewrite this plan's sheet so that it matches the plan as it is now: its description, its duration and the lines it says, word for word. Keep what already works.";
+const CONSIGNE_PLAN_AJOUTE = "Write the complete sheet of this new plan from its description and its duration.";
+
+async function lancerSuiteFiches(conv: ConversationRow, operations: Operation[], avant: Set<string>): Promise<SuiteFiches | null> {
+  if (conv.cibleId == null) return null;
+  const consignes: Record<string, string> = {};
+  for (const op of operations) {
+    if (op.type !== "refondre_fiche") continue;
+    consignes[op.planUuid] = [consignes[op.planUuid] ?? CONSIGNE_REFONTE, op.consigne ? `The user asks: ${op.consigne}` : ""].filter(Boolean).join(" ");
+  }
+  const maintenant = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.episodeId, conv.cibleId));
+  const presents = new Set(maintenant.map((p) => p.uuid));
+  const aFaire = [...Object.keys(consignes).filter((u) => presents.has(u)), ...maintenant.map((p) => p.uuid).filter((u) => !avant.has(u))];
+  if (aFaire.length === 0) return null;
+  for (const u of aFaire) consignes[u] ??= CONSIGNE_PLAN_AJOUTE;
+  try {
+    const service = await import("../service");
+    const ouv = await service.ouvrirConversation(conv.projectId, "episode", { id: conv.cibleId });
+    if (!ouv.ok) return { plans: aFaire.length, erreur: ouv.erreur };
+    const r = await service.genererFiches(ouv.conversationUuid, { planUuids: aFaire, consignes });
+    return r.ok ? { plans: aFaire.length, erreur: null } : { plans: aFaire.length, erreur: r.erreur };
+  } catch (e) {
+    return { plans: aFaire.length, erreur: e instanceof Error ? e.message : "Erreur inconnue." };
+  }
 }
 
 // --- le tour de conversation -----------------------------------------------------------

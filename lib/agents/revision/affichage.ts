@@ -16,6 +16,10 @@ export type PlanScene = {
   dureeOriginale: number;
   coupe: boolean;
   deplace: boolean;
+  /** Plan ajouté par le brouillon (il n'existe pas encore). */
+  ajoute: boolean;
+  /** Sa fiche est écrite ou réécrite juste après l'application. */
+  fiche: boolean;
   etat: string;
   repliques: RepliqueScene[];
 };
@@ -30,11 +34,20 @@ export function scenesTouchees(vue: VueEpisode, operations: Operation[]): SceneT
   const touches = plansTouches(operations, vue);
   const parUuid = new Map(vue.plans.map((p) => [p.uuid, p]));
   const repParUuid = new Map(brouillon.repliques.map((r) => [r.uuid, r]));
-  const nomScene = (uuid: string) => parUuid.get(uuid)?.sceneTitre ?? "Sans scène";
+  // Un plan ajouté rejoint la scène du plan qui le précède dans le brouillon (ou, en tête d'épisode, celle du premier plan existant).
+  const sceneDe = new Map<string, string>();
+  let derniere: string | null = null;
+  for (const b of brouillon.plans) {
+    const reel = parUuid.get(b.uuid);
+    if (reel) derniere = reel.sceneTitre ?? "Sans scène";
+    if (reel || derniere) sceneDe.set(b.uuid, derniere!);
+  }
+  const premiere = vue.plans[0]?.sceneTitre ?? "Sans scène";
+  const nomScene = (uuid: string) => sceneDe.get(uuid) ?? premiere;
 
   const titres: string[] = [];
   for (const p of vue.plans) {
-    const t = nomScene(p.uuid);
+    const t = p.sceneTitre ?? "Sans scène";
     if (!titres.includes(t)) titres.push(t);
   }
   const touchees = new Set([...touches].map(nomScene));
@@ -45,7 +58,7 @@ export function scenesTouchees(vue: VueEpisode, operations: Operation[]): SceneT
       const plans = brouillon.plans
         .filter((b) => nomScene(b.uuid) === titre)
         .map((b): PlanScene => {
-          const p = parUuid.get(b.uuid)!;
+          const p = parUuid.get(b.uuid);
           return {
             uuid: b.uuid,
             handle: b.handle,
@@ -54,8 +67,10 @@ export function scenesTouchees(vue: VueEpisode, operations: Operation[]): SceneT
             dureeOriginale: b.dureeOriginale,
             coupe: b.coupe,
             deplace: b.deplace,
-            etat: p.etat,
-            repliques: p.repliques.flatMap((u) => {
+            ajoute: b.ajoute,
+            fiche: b.fiche,
+            etat: p?.etat ?? "brouillon",
+            repliques: (p?.repliques ?? []).flatMap((u) => {
               const r = repParUuid.get(u);
               return r ? [{ handle: r.handle, locuteur: r.locuteur, texte: r.texte, texteOriginal: r.texteOriginal, supprimee: r.supprimee }] : [];
             }),
@@ -101,16 +116,20 @@ export function resumerChantier(decisions: DecisionPourBarre[], dureeAvecBrouill
   const coupes = new Set(ops.filter((o) => o.type === "couper_plan").map((o) => (o as { planUuid: string }).planUuid));
   const durees = new Set(ops.filter((o) => o.type === "duree_plan").map((o) => (o as { planUuid: string }).planUuid).filter((u) => !coupes.has(u)));
   const deplaces = new Set(ops.filter((o) => o.type === "deplacer_plan").map((o) => (o as { planUuid: string }).planUuid).filter((u) => !coupes.has(u)));
+  const ajoutes = ops.filter((o) => o.type === "ajouter_plan").length;
+  const fiches = new Set([...ops.filter((o) => o.type === "refondre_fiche").map((o) => (o as { planUuid: string }).planUuid).filter((u) => !coupes.has(u)), ...ops.filter((o) => o.type === "ajouter_plan").map((o) => (o as { ref: string }).ref)]);
   const repliquesChangees = new Set(ops.filter((o) => o.type === "remplacer_replique").map((o) => (o as { repliqueUuid: string }).repliqueUuid));
   const repliquesSupprimees = new Set(ops.filter((o) => o.type === "supprimer_replique").map((o) => (o as { repliqueUuid: string }).repliqueUuid));
   const ecrasements = decisions.reduce((a, d) => a + d.ecrasements, 0);
 
   const faits: Segment[][] = [];
+  if (ajoutes) faits.push([{ t: "ajoute " }, { t: `${ajoutes} plan${pl(ajoutes, "", "s")}`, fort: true }]);
   if (coupes.size) faits.push([{ t: "supprime " }, { t: `${coupes.size} plan${pl(coupes.size, "", "s")}`, fort: true }]);
   if (durees.size) faits.push([{ t: "raccourcit " }, { t: `${durees.size} durée${pl(durees.size, "", "s")}`, fort: true }]);
   if (deplaces.size) faits.push([{ t: "déplace " }, { t: `${deplaces.size} plan${pl(deplaces.size, "", "s")}`, fort: true }]);
   if (repliquesChangees.size) faits.push([{ t: "change " }, { t: `${repliquesChangees.size} réplique${pl(repliquesChangees.size, "", "s")}`, fort: true }]);
   if (repliquesSupprimees.size) faits.push([{ t: "supprime " }, { t: `${repliquesSupprimees.size} réplique${pl(repliquesSupprimees.size, "", "s")}`, fort: true }]);
+  if (fiches.size) faits.push([{ t: "réécrit " }, { t: `${fiches.size} fiche${pl(fiches.size, "", "s")}`, fort: true }, { t: " ensuite" }]);
   const segments: Segment[] = [];
   if (conflits.length) {
     segments.push({ t: "Il manque : " }, { t: conflits.length > 1 ? `trancher ${conflits.length} conflits` : "trancher le conflit", rouge: true, fort: true }, { t: " avant d'appliquer. " });

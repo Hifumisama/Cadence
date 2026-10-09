@@ -16,6 +16,7 @@ import {
   relancerTourRevisionAction,
   retirerDecisionAction,
 } from "@/app/revision/actions";
+import { useAgents } from "@/components/agents/AgentsProvider";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { Glissiere } from "@/components/conception/Glissiere";
 import { estTacheActive } from "@/lib/agents-affichage";
@@ -69,6 +70,7 @@ export function SalleRevision({
   planCible: string | null;
 }) {
   const router = useRouter();
+  const { ouvrirAgent } = useAgents();
   const [vue, setVue] = useState<Vue>(initial);
   const [uuid, setUuid] = useState(initial.etat.conversationUuid);
   const [texte, setTexte] = useState(amorce);
@@ -182,7 +184,16 @@ export function SalleRevision({
         return;
       }
       // La conversation est close : on retourne là d'où l'on vient (le plan, s'il existe encore ; sinon le scénario de l'épisode).
+      if (r.suite?.erreur) {
+        // Le chantier est appliqué ; seule la réécriture des fiches n'a pas pu être lancée : on le dit et on reste ici.
+        setErreur(`Chantier appliqué, mais la réécriture des fiches n'a pas pu être lancée : ${r.suite.erreur}`);
+        await rafraichir();
+        router.refresh();
+        return;
+      }
       router.push(planCible && !supprime ? `/p/${projectId}/e/${episodeId}/plans/${planCible}` : `/p/${projectId}/e/${episodeId}/scenario`);
+      // Des fiches à relire : la popup des agents (globale) reprend la conversation de l'épisode, où le lot de fiches attend d'être relu.
+      if (r.suite) ouvrirAgent({ projectId, portee: "episode", cible: { id: episodeId }, episodeId, libelle: `Épisode ${numeroEpisode} · ${titreEpisode}` });
     } catch {
       setErreur("L’application a échoué.");
     } finally {
