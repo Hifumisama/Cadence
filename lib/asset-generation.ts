@@ -170,6 +170,38 @@ export type DemandeVoix = {
  * table et même file que les images, les sons et les voix de référence ; `asset_generations.repliqueId` désigne la réplique. */
 export const METHODE_REPLIQUE = "replique";
 
+/** Extraction d'une voix FOURNIE (workflows/audio/VOX_Get_Audio_and_ASR.json) : une fenêtre d'un audio ou d'une vidéo, la voix isolée
+ * (musique et bruits retirés) et sa transcription. Le résultat est un candidat de la voix ; « Utiliser cette voix » en fait la voix de
+ * référence et fixe sa transcription (`texteReference`, corrigée à la main) sur la fiche. */
+export const METHODE_VOIX_SOURCE = "voix_source";
+
+/** Doublage d'une réplique (workflows/audio/VOX_Doublage_voix_API_Mode.json) : l'utilisateur joue la réplique, la voix de référence
+ * la redit avec son intonation et son rythme (CosyVoice3, speech-to-speech). Comme une prise générée, le résultat est posé sur la
+ * réplique (`asset_generations.repliqueId`) et remplace la prise précédente. */
+export const METHODE_DOUBLAGE = "doublage";
+
+/** Ce que l'extraction fige au lancement (`asset_generations.parametres`) : le fichier source (chemin relatif à MEDIA_ROOT), la
+ * fenêtre gardée en secondes et si le fichier est une vidéo (le graphe a deux chargeurs et un commutateur). */
+export type ParametresVoixSource = { source: string; debut: number; fin: number; video: boolean };
+
+export function parametresVoixSource(v: unknown): ParametresVoixSource | null {
+  if (typeof v !== "object" || v === null) return null;
+  const o = v as Record<string, unknown>;
+  if (typeof o.source !== "string" || o.source.trim() === "") return null;
+  if (typeof o.debut !== "number" || typeof o.fin !== "number" || !Number.isFinite(o.debut) || !Number.isFinite(o.fin)) return null;
+  return { source: o.source, debut: o.debut, fin: o.fin, video: o.video === true };
+}
+
+/** Ce que le doublage fige : la prise jouée par l'utilisateur (chemin relatif à MEDIA_ROOT). La voix de référence est celle de
+ * l'asset au moment du lancement. */
+export type ParametresDoublage = { prise: string };
+
+export function parametresDoublage(v: unknown): ParametresDoublage | null {
+  if (typeof v !== "object" || v === null) return null;
+  const p = (v as Record<string, unknown>).prise;
+  return typeof p === "string" && p.trim() !== "" ? { prise: p } : null;
+}
+
 export function temperatureVoixValide(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v) && v >= TEMPERATURE_VOIX_MIN && v <= TEMPERATURE_VOIX_MAX;
 }
@@ -181,9 +213,9 @@ export function raisonVoixNonGenerable(type: string): string | null {
 
 /** Validation de la structure d'une demande de voix (sans base ni disque). */
 export function raisonDemandeVoixInvalide(d: DemandeVoix): string | null {
-  if (!d.instruction?.trim()) return "Écris l'instruction de la voix (mode Décrire, voix de référence).";
-  if (!d.texteReference?.trim()) return "Écris le texte de la réplique d'écoute de la voix (étape Fiche).";
-  if (compterPhrases(d.texteReference) < PHRASES_MIN_ECOUTE) return `La réplique d'écoute doit compter au moins ${PHRASES_MIN_ECOUTE} phrases (étape Fiche).`;
+  if (!d.instruction?.trim()) return "Écris l'instruction de la voix (scène « Le timbre »).";
+  if (!d.texteReference?.trim()) return "Écris le texte de la réplique d'écoute de la voix (scène « Le timbre »).";
+  if (compterPhrases(d.texteReference) < PHRASES_MIN_ECOUTE) return `La réplique d'écoute doit compter au moins ${PHRASES_MIN_ECOUTE} phrases (scène « Le timbre »).`;
   if (!temperatureVoixValide(d.temperature)) return `Créativité hors limites (${TEMPERATURE_VOIX_MIN} à ${TEMPERATURE_VOIX_MAX}).`;
   return null;
 }
@@ -207,7 +239,8 @@ export const METHODE_TEST_VIDEO = "test_video";
 export const estMethodeTestVoix = (m: string): boolean => m === METHODE_TEST_AUDIO || m === METHODE_TEST_VIDEO;
 
 /** Un son pour tout ce qui suit (pas de vignette ni d'aperçu, fichier audio) : un son, une voix, l'audio d'un test. */
-export const estMethodeSon = (m: string): boolean => m === METHODE_AUDIO || m === METHODE_VOIX || m === METHODE_TEST_AUDIO || m === METHODE_REPLIQUE;
+export const estMethodeSon = (m: string): boolean =>
+  m === METHODE_AUDIO || m === METHODE_VOIX || m === METHODE_TEST_AUDIO || m === METHODE_REPLIQUE || m === METHODE_VOIX_SOURCE || m === METHODE_DOUBLAGE;
 
 /** Durée du test vidéo : une réplique face caméra tient en huit secondes (prompt T1, lib/voix.ts:promptTestVoix). */
 export const DUREE_TEST_VIDEO_SECONDES = 8;
@@ -219,14 +252,19 @@ export const DUREE_TEST_VIDEO_SECONDES = 8;
 export type ParametresTestVideo = {
   personnage: string | null;
   decor: string | null;
+  /** L'audio que la vidéo habille : un fichier déjà là (la voix de référence, un audio déposé). */
   audio: string | null;
+  /** …ou la génération « test audio » qui le produit (texte du test ≠ réplique d'écoute) : posée juste avant dans la file, le worker
+   * en lit le fichier au moment de la vidéo. Exclusif de `audio`. */
+  audioGenerationId: number | null;
 };
 
 export function parametresTestVideo(v: unknown): ParametresTestVideo | null {
   if (typeof v !== "object" || v === null) return null;
   const o = v as Record<string, unknown>;
   const texte = (x: unknown) => (typeof x === "string" && x.trim() !== "" ? x : null);
-  return { personnage: texte(o.personnage), decor: texte(o.decor), audio: texte(o.audio) };
+  const id = typeof o.audioGenerationId === "number" && Number.isInteger(o.audioGenerationId) ? o.audioGenerationId : null;
+  return { personnage: texte(o.personnage), decor: texte(o.decor), audio: texte(o.audio), audioGenerationId: id };
 }
 
 /** Validation d'un test audio (sans base ni disque) : une référence à cloner, un texte à dire. */

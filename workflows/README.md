@@ -8,7 +8,7 @@ dépendance d'exécution.
 - `upscale/` — passe upscale isolée si distincte du workflow principal
 - `voice-clone/` — Qwen3-TTS (Voice Design) puis CosyVoice3 (répliques) (F06) ; **pas branché**, voir plus bas
 - `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
-- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas ; Qwen3-TTS : voix de référence (`VOX_Generate_Voice_Simplified.json`) ; branché (asset `voix`), voir plus bas
+- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas ; Qwen3-TTS : voix de référence (`VOX_Generate_Voice_Simplified.json`) ; branché (asset `voix`), voir plus bas ; extraction d'une voix fournie (`VOX_Get_Audio_and_ASR.json`) et doublage d'une réplique (`VOX_Doublage_voix_API_Mode.json`) ; branchés, voir plus bas
 
 ## Avant de committer un workflow
 
@@ -171,6 +171,45 @@ Fixe : modèle `Voice Design - 1.7B VoiceDesign`, `top_k` 50, `top_p` 1, `repeti
 (`English` pour le texte de référence par défaut du projet), sortie `audio/cadence_test_<CODE>` en FLAC. Le candidat adopté devient
 l'audio de test de la fiche (`voix/<id>/test_audio.*`) et fixe aussi le texte du test. **Non vérifié en réel** : le texte de la
 référence n'est pas transmis au clonage (le graphe n'a pas d'entrée pour lui) ; si la qualité du clone en souffre, c'est la première piste.
+
+### `VOX_Get_Audio_and_ASR.json` — extraction d'une voix fournie (isolement de la voix + transcription)
+
+Branché (2026-10-09) : `worker/comfyui/voixSourceMapping.ts` (injection, lecture de la transcription) et `worker/images.ts` (tâche, méthode
+`voix_source` de `asset_generations`, fichier source et fenêtre figés dans `parametres`) ; scène « La source » de l'assistant d'une voix.
+`voixSourceMapping.test.ts` lit ce fichier et casse si un des nœuds ci-dessous disparaît après un ré-export. Variable optionnelle :
+`COMFYUI_WORKFLOW_VOIX_SOURCE_PATH`. **Non vérifié en réel** : le rognage par les chargeurs et la lecture du texte dans `/history`.
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Fichier source | `4` (LoadAudioUI) **et** `16` (LoadVideoUI) | `audio` / `video` | **le même fichier aux deux** : ComfyUI valide le nom de chaque chargeur même si le commutateur n'en lit qu'un ; envoyé au dossier d'entrée sous `cadence_<uuid de la génération>_1.<ext>` |
+| Fenêtre | `4` et `16` | `start_time`, `end_time`, `duration` | en secondes, **30 s au plus** (`raisonFenetreInvalide`, `lib/voix.ts`) ; jamais le fichier entier |
+| Fenêtre (vidéo) | `16` | `start_frame`, `end_frame`, `duration_frames` | recalculés à partir des secondes et de `frame_rate` (24 dans l'export), pour que le nœud reste cohérent quelle que soit la valeur qu'il lit |
+| Audio ou vidéo | `21` (ComfySwitchNode « isVideo ? ») | `switch` | `true` pour une vidéo (sa piste audio) |
+| Langue parlée | `6` (UnifiedASRTranscribeNode) | `language` | celle de la fiche de voix, nom anglais du moteur (`langueMoteurVoix`) |
+| Voix isolée | `10` (SaveAudioAdvanced) | `filename_prefix` | FLAC ; préfixe `audio/cadence_source_<CODE>` ; la sortie de l'ASR passe par `5` (MelBand, musique et bruits retirés) |
+| Transcription | `11` (ShowText\|pysssss) | — | **pas un fichier** : le worker lit `outputs["11"].text` dans `/history` (`lireTexteSortie`) et attend qu'il arrive (le nœud peut finir après l'enregistrement). Son entrée `text_0` (la transcription d'exemple de l'export) est retirée à la soumission |
+
+Le texte est un JSON `{ text, language, segments }` : on garde `text` (propre, avec ses traits d'union), jamais les mots horodatés (collés :
+« regardezles », « ceuxci »). La transcription est un **point de départ** : l'utilisateur la corrige au mot près avant d'utiliser la voix.
+Le résultat est un candidat de la voix ; « Utiliser cette voix » (`adopterSourceVoix`) le copie sous `assets/<CODE>.flac` et fixe la
+transcription corrigée (`voix_fiches.ref_text`). Le fichier source (audio ou vidéo, 300 Mo au plus) arrive par la route
+`POST /api/voix/<assetId>/source` (une Server Action est plafonnée à 10 Mo) et reste sous `voix/<assetId>/source.<ext>`.
+
+### `VOX_Doublage_voix_API_Mode.json` — doublage d'une réplique (CosyVoice3, speech-to-speech)
+
+Branché (2026-10-09) : `worker/comfyui/doublageMapping.ts` (injection), `worker/images.ts` (tâche, méthode `doublage` de
+`asset_generations`, `repliqueId` = la réplique, `assetId` = la voix) ; cabine de doublage de l'assistant d'une voix.
+`doublageMapping.test.ts` lit ce fichier et casse si un des nœuds ci-dessous disparaît. Variable optionnelle : `COMFYUI_WORKFLOW_DOUBLAGE_PATH`.
+**Non vérifié en réel.** L'utilisateur joue la réplique ; la voix de référence la redit avec son intonation et son rythme.
+
+| Donnée | Nœud | Champ | Note |
+|---|---|---|---|
+| Prise jouée | `12` (LoadAudio « Voix utilisateur ») | `audio` | WAV mono enregistré dans la cabine (ou un audio déposé), envoyé au dossier d'entrée sous `cadence_<uuid>_1.<ext>` ; supprimé du stockage une fois le doublage posé |
+| Voix cible | `13` (LoadAudio « Voix de référence ») | `audio` | la référence de l'asset voix, comme pour les prises de réplique (`cadence_voixref_<CODE>_<date>`). **Un chargeur ordinaire** : l'ancienne version passait par `CharacterVoicesNode` (voix lue dans un dossier propre à ComfyUI, texte de référence et rognage saisis dans le graphe), trop couplé pour être piloté par l'application |
+| Sortie | `5` (PreviewAudio) | — | **remplacé à la soumission** par `SaveAudio` (FLAC), préfixe `audio/cadence_doublage_<id réplique>` |
+
+Réglages laissés tels quels : `UnifiedVoiceChangerNode` (`refinement_passes` 1, `max_chunk_duration` 15, `chunk_method` smart) et le moteur
+CosyVoice3 (`instruct_text` vide). Le doublage **remplace** la prise de la réplique, comme une prise générée (pas de versionnage, F01).
 
 ## Contrat du workflow vidéo (`video-generation/`)
 

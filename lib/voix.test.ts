@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "./plan-checks";
 import {
+  ESSAIS_GARDES,
+  TEST_VIDEO_DUREE_MAX,
+  TEST_VIDEO_DUREE_MIN,
   TEXTE_REFERENCE_DEFAUT,
+  ajusterDureePromptTest,
+  dureeVideoPourAudio,
+  formaterPlageH3,
   changementDemandeConfirmation,
   checksInstruction,
   checksReference,
@@ -10,49 +17,148 @@ import {
   etapeDepuisParametre,
   etatFiche,
   etatPhases,
+  libelleEtapeVoix,
+  lireEssais,
+  manquePourAvancer,
   nomVoix,
   promptTestVoix,
+  raisonFenetreInvalide,
   raisonGenerationReference,
+  texteDuPromptTest,
   verdictSuppressionVoix,
 } from "./voix";
 
 const base = { source: "design" as const, instruction: null, referenceFichier: null, refText: "", statut: "a_produire", testVideo: null, nbRepliques: 0, nbRepliquesMesurees: 0 };
 const DEUX_PHRASES = "Bonjour, ravi de vous voir. Installez-vous.";
 
-test("étapes : rien de fait, tout est vide", () => {
-  assert.deepEqual(etatPhases(base), { fiche: "vide", reference: "vide", validation: "vide", repliques: "vide" });
+test("scènes : rien de fait, seule l'identité existe", () => {
+  assert.deepEqual(etatPhases(base), { identite: "on", origine: "vide", voix: "vide", reference: "vide", ressenti: "vide", repliques: "vide" });
 });
 
-test("étape fiche : design = instruction + réplique d'écoute de deux phrases", () => {
-  assert.equal(etatPhases({ ...base, instruction: "A native French speaker" }).fiche, "part");
-  assert.equal(etatPhases({ ...base, instruction: "A native French speaker", refText: "Bonjour." }).fiche, "part");
-  assert.equal(etatPhases({ ...base, instruction: "A native French speaker", refText: DEUX_PHRASES }).fiche, "on");
+test("scène du timbre : décrite = instruction + réplique d'écoute de deux phrases", () => {
+  assert.equal(etatPhases({ ...base, instruction: "A native French speaker" }).voix, "part");
+  assert.equal(etatPhases({ ...base, instruction: "A native French speaker", refText: "Bonjour." }).voix, "part");
+  assert.equal(etatPhases({ ...base, instruction: "A native French speaker", refText: DEUX_PHRASES }).voix, "on");
+  assert.equal(etatPhases({ ...base, instruction: "A native French speaker" }).origine, "on");
 });
 
-test("étape fiche : audio fourni = fichier + réplique d'écoute", () => {
+test("scène de la source : fournie = audio isolé + transcription", () => {
   const v = { ...base, source: "reference" as const, referenceFichier: "VOICE_x.wav" };
-  assert.equal(etatPhases(v).fiche, "part");
-  assert.equal(etatPhases({ ...v, refText: DEUX_PHRASES }).fiche, "on");
+  assert.equal(etatPhases(v).voix, "part");
+  assert.equal(etatPhases({ ...v, refText: DEUX_PHRASES }).voix, "on");
+  assert.equal(etatPhases({ ...v, refText: "Bonjour." }).voix, "on"); // une transcription fidèle peut ne faire qu'une phrase
 });
 
-test("étapes : référence, validation et répliques", () => {
+test("scènes : référence, ressenti et répliques", () => {
   const e = etatPhases({ ...base, referenceFichier: "a.flac", testVideo: "t.mp4", nbRepliques: 2, nbRepliquesMesurees: 1 });
   assert.equal(e.reference, "on");
-  assert.equal(e.validation, "part"); // un test vidéo existe, la voix n'est pas validée
+  assert.equal(e.ressenti, "part"); // un test vidéo existe, la voix n'est pas validée
   assert.equal(e.repliques, "part");
-  assert.equal(etatPhases({ ...base, referenceFichier: "a.flac", statut: "valide" }).validation, "on");
-  assert.equal(etatPhases({ ...base, statut: "valide" }).validation, "vide"); // « valide » sans référence ne compte pas
+  assert.equal(etatPhases({ ...base, referenceFichier: "a.flac", statut: "valide" }).ressenti, "on");
+  assert.equal(etatPhases({ ...base, statut: "valide" }).ressenti, "vide"); // « valide » sans référence ne compte pas
 });
 
-test("estEtapeVoix et étape demandée : la fiche s'ouvre sur l'étape 1 sauf ?etape= explicite", () => {
-  assert.ok(estEtapeVoix("validation"));
+test("estEtapeVoix et scène demandée : la fiche s'ouvre sur l'identité sauf ?etape= explicite", () => {
+  assert.ok(estEtapeVoix("ressenti"));
+  assert.ok(estEtapeVoix("voix"));
   assert.ok(!estEtapeVoix("test"));
   assert.ok(!estEtapeVoix(undefined));
-  assert.equal(etapeDepuisParametre(undefined), "fiche");
-  assert.equal(etapeDepuisParametre("n'importe quoi"), "fiche");
+  assert.equal(etapeDepuisParametre(undefined), "identite");
+  assert.equal(etapeDepuisParametre("n'importe quoi"), "identite");
   assert.equal(etapeDepuisParametre("repliques"), "repliques");
-  assert.equal(etapeDepuisParametre("test"), "validation"); // ancien nom (liens du bandeau de suivi)
-  assert.equal(etapeDepuisParametre("voix"), "fiche");
+  assert.equal(etapeDepuisParametre("reference"), "reference");
+  // anciens noms (liens du bandeau de suivi, ancien slider)
+  assert.equal(etapeDepuisParametre("test"), "ressenti");
+  assert.equal(etapeDepuisParametre("validation"), "ressenti");
+  assert.equal(etapeDepuisParametre("fiche"), "identite");
+});
+
+test("ce qu'il manque pour avancer : un conseil par scène, null quand c'est fait", () => {
+  const v = { source: "design" as const, instruction: null, refText: "", referenceFichier: null, valide: false, testVideo: false };
+  assert.match(manquePourAvancer("voix", v)!, /timbre/);
+  assert.match(manquePourAvancer("voix", { ...v, instruction: "A native French speaker" })!, /réplique d'écoute/);
+  assert.equal(manquePourAvancer("voix", { ...v, instruction: "A native French speaker", refText: DEUX_PHRASES }), null);
+  const f = { ...v, source: "reference" as const };
+  assert.match(manquePourAvancer("voix", f)!, /source/);
+  assert.match(manquePourAvancer("voix", { ...f, referenceFichier: "a.flac" })!, /transcription/);
+  assert.equal(manquePourAvancer("voix", { ...f, referenceFichier: "a.flac", refText: "Bonjour" }), null);
+  assert.match(manquePourAvancer("reference", v)!, /prise gardée/);
+  assert.match(manquePourAvancer("reference", f)!, /voix isolée/);
+  assert.equal(manquePourAvancer("reference", { ...v, referenceFichier: "a.flac" }), null);
+  assert.match(manquePourAvancer("ressenti", v)!, /voix de référence/);
+  assert.match(manquePourAvancer("ressenti", { ...v, referenceFichier: "a.flac" })!, /test vidéo/);
+  assert.match(manquePourAvancer("ressenti", { ...v, referenceFichier: "a.flac", testVideo: true })!, /juger/);
+  assert.equal(manquePourAvancer("ressenti", { ...v, referenceFichier: "a.flac", valide: true }), null);
+  assert.equal(manquePourAvancer("identite", v), null);
+  assert.equal(manquePourAvancer("repliques", v), null);
+});
+
+test("le texte dit dans un prompt de test se relit dans sa balise <d>", () => {
+  const p = promptTestVoix({ texte: "Il y a des soirs où\nle silence parle.", personnage: null, decor: null, avecAudio: true });
+  assert.equal(texteDuPromptTest(p), "Il y a des soirs où le silence parle.");
+  assert.equal(texteDuPromptTest("pas de balise"), "");
+});
+
+test("durée de la vidéo de test = celle de l'audio + 1 s de silence, entre 5 et 15 s", () => {
+  const duree = (a: number | null) => {
+    const r = dureeVideoPourAudio(a);
+    return r.ok ? r.duree : r.erreur;
+  };
+  assert.equal(duree(2.2), 5, "un audio très court : le minimum du modèle");
+  assert.equal(duree(6.1), 8); // 6,1 + 1 = 7,1 → 8
+  assert.equal(duree(6.0), 7);
+  assert.equal(duree(13.2), 15, "14,2 → 15");
+  assert.equal(duree(14.9), 15, "plafonné à 15 : l'audio tient, la queue est plus courte");
+  assert.equal(duree(null), 8, "audio non mesuré : la durée d'avant");
+  assert.match(String(duree(15.4)), /15 s au plus/);
+  assert.match(String(duree(0)), /vide ou illisible/);
+  // Les bornes sont celles des plans.
+  assert.equal(TEST_VIDEO_DUREE_MIN, DUREE_GENERATION_MIN);
+  assert.equal(TEST_VIDEO_DUREE_MAX, DUREE_GENERATION_MAX);
+});
+
+test("prompt de test : la plage du plan suit la durée, la balise suit la langue", () => {
+  const base = { texte: "Hello there.", personnage: null, decor: null, avecAudio: true };
+  assert.match(promptTestVoix(base), /\[Shot 1, 00:00\.000–00:08\.000\]/);
+  assert.match(promptTestVoix({ ...base, dureeSecondes: 11 }), /\[Shot 1, 00:00\.000–00:11\.000\]/);
+  assert.match(promptTestVoix(base), /<d>\[Français\] Hello there\.<\/d>/, "sans langue : Français, comme avant");
+  assert.match(promptTestVoix({ ...base, langue: "English" }), /<d>\[English\] Hello there\.<\/d>/);
+  assert.equal(formaterPlageH3(65.5), "01:05.500");
+});
+
+test("ajuster la plage d'un prompt déjà composé", () => {
+  const p = promptTestVoix({ texte: "Bonjour.", personnage: null, decor: null, avecAudio: true });
+  const ajuste = ajusterDureePromptTest(p, 12);
+  assert.match(ajuste, /\[Shot 1, 00:00\.000–00:12\.000\]/);
+  assert.equal(ajuste.replace("00:12.000", "00:08.000"), p, "rien d'autre ne change");
+  assert.equal(ajusterDureePromptTest("sans plage", 12), "sans plage");
+  assert.equal(texteDuPromptTest(ajuste), "Bonjour.");
+});
+
+test("libellé de la scène 3 : le timbre (décrite) ou la source (fournie)", () => {
+  assert.equal(libelleEtapeVoix("voix", "design"), "Le timbre");
+  assert.equal(libelleEtapeVoix("voix", "reference"), "La source");
+  assert.equal(libelleEtapeVoix("ressenti", "reference"), "Ressenti");
+});
+
+test("fenêtre d'une source fournie : 30 secondes au plus, 3 au moins", () => {
+  assert.equal(raisonFenetreInvalide(12, 38), null);
+  assert.equal(raisonFenetreInvalide(0, 30), null);
+  assert.match(raisonFenetreInvalide(0, 31)!, /30 secondes au maximum/);
+  assert.match(raisonFenetreInvalide(5, 6)!, /au moins 3/);
+  assert.match(raisonFenetreInvalide(-1, 10)!, /invalide/);
+  assert.match(raisonFenetreInvalide(NaN, 10)!, /invalide/);
+});
+
+test("journal des essais : lecture tolérante, les plus récents seulement", () => {
+  assert.deepEqual(lireEssais(null), []);
+  assert.deepEqual(lireEssais([{ n: 1, instruction: "A warm voice", verdict: "ajuster", note: "trop posée" }, { n: "x" }, 4]), [
+    { n: 1, instruction: "A warm voice", verdict: "ajuster", note: "trop posée" },
+  ]);
+  assert.equal(lireEssais([{ n: 1, instruction: "x", verdict: "bizarre" }])[0]!.verdict, null);
+  const beaucoup = Array.from({ length: 20 }, (_, i) => ({ n: i + 1, instruction: "x", verdict: null, note: "" }));
+  assert.equal(lireEssais(beaucoup).length, ESSAIS_GARDES);
+  assert.equal(lireEssais(beaucoup).at(-1)!.n, 20);
 });
 
 test("état d'une fiche : à créer sans référence, à valider avec, validée si le statut l'est", () => {
@@ -67,6 +173,8 @@ test("nom d'une voix : le personnage assigné, sinon le code de la voix, sans pr
   assert.equal(nomVoix({ code: "VOICE_maya", personnageCode: "CHAR_conspirateur_nerveux" }), "Conspirateur nerveux");
   assert.equal(nomVoix({ code: "VOICE_voix_off", personnageCode: null }), "Voix off");
   assert.equal(nomVoix({ code: "VOICE_kai" }), "Kai");
+  assert.equal(nomVoix({ code: "VOICE_kai", personnageCode: "CHAR_maya", nom: "  Maya (voix douce) " }), "Maya (voix douce)"); // le nom choisi passe avant
+  assert.equal(nomVoix({ code: "VOICE_kai", personnageCode: "CHAR_maya", nom: "   " }), "Maya"); // un nom vide retombe sur le nom dérivé
   assert.equal(nomVoix({ code: "VOICE_", personnageCode: null }), "VOICE_");
 });
 

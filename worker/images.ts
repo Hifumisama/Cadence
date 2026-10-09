@@ -1,34 +1,41 @@
-import { access, mkdir, readFile, stat } from "node:fs/promises";
+import { access, mkdir, readFile, stat, unlink } from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
 import {
   CANDIDATS_GARDES,
-  DUREE_TEST_VIDEO_SECONDES,
+  METHODE_DOUBLAGE,
   METHODE_REPLIQUE,
   METHODE_TEST_AUDIO,
   METHODE_TEST_VIDEO,
   METHODE_VOIX,
+  METHODE_VOIX_SOURCE,
   TEMPERATURE_VOIX_DEFAUT,
   estAspect,
   estMethodeSon,
   nomReferenceVoixDistante,
   nomSourceDistante,
+  parametresDoublage,
   parametresTestAudio,
   parametresTestVideo,
+  parametresVoixSource,
 } from "../lib/asset-generation";
 import { annulationDemandeeImage, finirAnnulationImage } from "../lib/annulation-db";
 import { adopterCandidat } from "../lib/generation-adoption";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";
 import { cheminAssetMedia, cheminGenerationMedia, cheminRepliqueMedia, cheminSourceImportMedia } from "../lib/media";
 import { poserPriseGeneree } from "../lib/replique-prise";
+import { mesurerDureeAudio } from "../lib/repliques";
+import { ajusterDureePromptTest, dureeVideoPourAudio } from "../lib/voix";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import type { ComfyUIClient } from "./comfyui";
 import { NODE_IDS_AUDIO, injecterGenerationAudio } from "./comfyui/audioMapping";
 import { ErreurEntreeInvalide, NODE_IDS, injecterValeurs, nomDistantDepuisChemin, verifierEntree } from "./comfyui/mapping";
 import { NODE_IDS_VOIX, injecterGenerationVoix } from "./comfyui/voixMapping";
 import { NODE_IDS_REPLIQUE, injecterGenerationReplique } from "./comfyui/repliqueMapping";
+import { NODE_IDS_DOUBLAGE, injecterDoublage } from "./comfyui/doublageMapping";
+import { NODE_IDS_VOIX_SOURCE, extraireTranscription, injecterExtractionVoix } from "./comfyui/voixSourceMapping";
 import {
   NODE_IDS_EDITION,
   NODE_IDS_TEXTE_VERS_IMAGE,
@@ -61,6 +68,11 @@ const CHEMIN_WORKFLOW_VOIX = () =>
   resolve(process.env.COMFYUI_WORKFLOW_VOIX_PATH ?? "./workflows/audio/VOX_Generate_Voice_Simplified.json");
 const CHEMIN_WORKFLOW_REPLIQUE = () =>
   resolve(process.env.COMFYUI_WORKFLOW_REPLIQUE_PATH ?? "./workflows/audio/VOX_Generate_Replique_Simplified.json");
+// Extraction d'une voix fournie (audio ou vidéo → voix isolée + transcription) et doublage d'une réplique (speech-to-speech).
+const CHEMIN_WORKFLOW_VOIX_SOURCE = () =>
+  resolve(process.env.COMFYUI_WORKFLOW_VOIX_SOURCE_PATH ?? "./workflows/audio/VOX_Get_Audio_and_ASR.json");
+const CHEMIN_WORKFLOW_DOUBLAGE = () =>
+  resolve(process.env.COMFYUI_WORKFLOW_DOUBLAGE_PATH ?? "./workflows/audio/VOX_Doublage_voix_API_Mode.json");
 // Le test vidéo d'une voix passe par le même graphe que les plans (VID_REF2VA) : même variable que la tâche vidéo.
 const CHEMIN_WORKFLOW_VIDEO = () =>
   resolve(process.env.COMFYUI_WORKFLOW_PATH ?? "./workflows/video-generation/VID_REF2VA.json");
@@ -158,13 +170,55 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
   try {
     const edition = gen.methode === "edition";
     const voix = gen.methode === METHODE_VOIX;
-    const replique = gen.methode === METHODE_REPLIQUE;
+    // Le doublage se pose comme une prise de réplique : même sortie (la réplique), seul le graphe change.
+    const doublage = gen.methode === METHODE_DOUBLAGE;
+    const voixSource = gen.methode === METHODE_VOIX_SOURCE;
+    const replique = gen.methode === METHODE_REPLIQUE || doublage;
     const testAudio = gen.methode === METHODE_TEST_AUDIO;
     const testVideo = gen.methode === METHODE_TEST_VIDEO;
     // Une voix, une prise de réplique ou l'audio d'un test est un son pour tout ce qui suit (pas d'aperçu, fichier audio, pas de vignette).
     const audio = estMethodeSon(gen.methode);
     let graphe: WorkflowJson;
-    if (replique) {
+    if (doublage) {
+      const p = parametresDoublage(gen.parametres);
+      if (gen.repliqueId == null || !p) throw new ErreurEntreeInvalide("Réplique ou prise jouée absentes de la demande de doublage");
+      if (!asset.fichier) throw new ErreurEntreeInvalide(`La voix ${asset.code} n'a pas de référence : crée-la d'abord au casting vocal.`);
+      const localReference = join(mediaRoot, cheminAssetMedia(asset.fichier));
+      const localPrise = join(mediaRoot, p.prise);
+      for (const [local, nom] of [[localReference, `la référence de la voix ${asset.code}`], [localPrise, "la prise jouée"]] as const) {
+        try {
+          await access(local);
+        } catch {
+          throw new ErreurEntreeInvalide(`${nom[0]!.toUpperCase()}${nom.slice(1)} est introuvable sur le stockage`);
+        }
+      }
+      const referenceDistante = nomReferenceVoixDistante(asset.code, (await stat(localReference)).mtimeMs, extname(asset.fichier).toLowerCase());
+      const priseDistante = nomSourceDistante(gen.uuid, 1, extname(p.prise).toLowerCase() || ".wav");
+      await client.uploadRef(localReference, referenceDistante);
+      await client.uploadRef(localPrise, priseDistante);
+      const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_DOUBLAGE(), "utf-8")) as WorkflowJson;
+      graphe = injecterDoublage(brut, { priseDistante, referenceDistante, prefixeSortie: `audio/cadence_doublage_${gen.repliqueId}` });
+    } else if (voixSource) {
+      const p = parametresVoixSource(gen.parametres);
+      if (!p) throw new ErreurEntreeInvalide("Fichier ou fenêtre absents de la demande d'extraction de voix");
+      const local = join(mediaRoot, p.source);
+      try {
+        await access(local);
+      } catch {
+        throw new ErreurEntreeInvalide(`Le fichier source est introuvable sur le stockage (${p.source}) : dépose-le à nouveau.`);
+      }
+      const fichierDistant = nomSourceDistante(gen.uuid, 1, extname(p.source).toLowerCase() || ".wav");
+      await client.uploadRef(local, fichierDistant);
+      const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_VOIX_SOURCE(), "utf-8")) as WorkflowJson;
+      graphe = injecterExtractionVoix(brut, {
+        fichierDistant,
+        debut: p.debut,
+        fin: p.fin,
+        video: p.video,
+        langue: gen.langueReference ?? "Auto",
+        prefixeSortie: `audio/cadence_source_${asset.code}`,
+      });
+    } else if (replique) {
       if (gen.repliqueId == null || gen.texteReference == null || gen.temperature == null) {
         throw new Error("Réplique, texte ou créativité absents de la génération de réplique");
       }
@@ -215,14 +269,42 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       const refsImage: RefMedia[] = [];
       if (p.personnage) refsImage.push(ref(p.personnage, refsImage.length + 1));
       if (p.decor) refsImage.push(ref(p.decor, refsImage.length + 1));
+
+      // L'audio de la vidéo : un fichier déjà là, ou celui du « test audio » posé juste avant (texte ≠ réplique d'écoute).
+      let audio = p.audio;
+      if (!audio && p.audioGenerationId != null) {
+        const [ag] = await db.select().from(assetGenerations).where(eq(assetGenerations.id, p.audioGenerationId));
+        if (!ag) throw new ErreurEntreeInvalide("L'audio de ce test a disparu (les tentatives sont effacées quand la voix change) : relance le test.");
+        if (ag.statut === "echoue") throw new ErreurEntreeInvalide(`L'audio de ce test n'a pas pu être généré : ${ag.erreur ?? "sans message"}`);
+        if (ag.statut === "annulee") throw new ErreurEntreeInvalide("L'audio de ce test a été annulé : relance le test.");
+        if (ag.statut !== "termine" || !ag.fichier) throw new ErreurEntreeInvalide("L'audio de ce test n'est pas encore prêt : relance le test.");
+        audio = cheminGenerationMedia(ag.assetId, ag.fichier);
+      }
+      if (!audio) throw new ErreurEntreeInvalide("Pas d'audio à mettre en images : la demande de test n'en porte aucun.");
+
+      // La vidéo dure autant que l'audio (+ une seconde de silence, 5 à 15 s) : une durée fixe couperait la phrase ou ferait parler le
+      // visage dans le vide. Le prompt (plage du plan) et la ligne de la demande suivent. Un audio non mesurable (M4A…) garde 8 s.
+      const cheminAudio = audio;
+      const octetsAudio = await readFile(join(mediaRoot, cheminAudio)).catch(() => {
+        throw new ErreurEntreeInvalide(`L'audio du test est introuvable sur le stockage (${cheminAudio})`);
+      });
+      const dureeAudio = mesurerDureeAudio(new Uint8Array(octetsAudio), cheminAudio);
+      const duree = dureeVideoPourAudio(dureeAudio);
+      if (!duree.ok) throw new ErreurEntreeInvalide(duree.erreur);
+      const promptTest = ajusterDureePromptTest(gen.prompt, duree.duree);
+      if (duree.duree !== gen.dureeSecondes || promptTest !== gen.prompt) {
+        await db.update(assetGenerations).set({ dureeSecondes: duree.duree, prompt: promptTest }).where(eq(assetGenerations.id, gen.id));
+      }
+      console.log(`[worker] Test vidéo ${gen.id} (${asset.code}) : audio ${dureeAudio != null ? `${dureeAudio} s` : "non mesuré"} → vidéo de ${duree.duree} s`);
+
       const entree: SubmissionInput = {
-        promptAssemble: gen.prompt,
+        promptAssemble: promptTest,
         seed: gen.seed,
         prefixeSortie: `cadence_test_${asset.code}_${gen.id}`,
-        dureeSecondes: gen.dureeSecondes ?? DUREE_TEST_VIDEO_SECONDES,
+        dureeSecondes: duree.duree,
         fps: 24,
         refsImage,
-        refsAudio: p.audio ? [{ ...ref(p.audio, 1), dureeSecondes: null }] : [],
+        refsAudio: [{ ...ref(cheminAudio, 1), dureeSecondes: dureeAudio }],
         refsVideo: [],
         activerUpscale: false, // le test vidéo ne passe jamais par l'interpolation ni l'agrandissement
       };
@@ -279,7 +361,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         prefixeSortie: `cadence_${asset.code}`,
       });
     }
-    const noeudSortie = replique || testAudio ? NODE_IDS_REPLIQUE.sortie : testVideo ? NODE_IDS.sortieFinale : voix ? NODE_IDS_VOIX.sortie : audio ? NODE_IDS_AUDIO.sortie : edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
+    const noeudSortie = doublage ? NODE_IDS_DOUBLAGE.sortie : voixSource ? NODE_IDS_VOIX_SOURCE.sortieAudio : replique || testAudio ? NODE_IDS_REPLIQUE.sortie : testVideo ? NODE_IDS.sortieFinale : voix ? NODE_IDS_VOIX.sortie : audio ? NODE_IDS_AUDIO.sortie : edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
 
     // Le WebSocket s'ouvre AVANT la soumission (sinon un prompt court finit avant
     // qu'on l'écoute). Il ne décide de rien : le résultat vient de /history, la
@@ -322,9 +404,27 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         const pose = await poserPriseGeneree(gen.repliqueId!, nomPrise, gen.texteReference ?? "", mediaRoot);
         if (!pose.ok) throw new Error(pose.erreur);
         await db.update(assetGenerations).set({ statut: "termine", fichier: null, finishedAt: new Date() }).where(eq(assetGenerations.id, gen.id));
-        console.log(`[worker] Prise de réplique ${gen.repliqueId} (${asset.code}) posée : ${nomPrise}${pose.dureeSecondes != null ? ` · ${pose.dureeSecondes} s` : ""}`);
+        console.log(`[worker] ${doublage ? "Doublage" : "Prise"} de réplique ${gen.repliqueId} (${asset.code}) posé : ${nomPrise}${pose.dureeSecondes != null ? ` · ${pose.dureeSecondes} s` : ""}`);
+        // La prise jouée n'a servi qu'au doublage : on ne la garde pas.
+        const prise = doublage ? parametresDoublage(gen.parametres)?.prise : null;
+        if (prise) await unlink(join(mediaRoot, prise)).catch(() => undefined);
         await purgerAnciennesGenerationsReplique(gen.repliqueId!);
         return true;
+      }
+
+      // Extraction d'une voix fournie : le nœud qui enregistre la voix isolée a fini, la transcription peut arriver un instant après.
+      let transcription: string | null = null;
+      if (voixSource) {
+        for (;;) {
+          const brut = await client.lireTexteSortie(promptId, NODE_IDS_VOIX_SOURCE.sortieTexte);
+          if (brut != null) {
+            transcription = extraireTranscription(brut);
+            break;
+          }
+          if (Date.now() - debut >= delaiMax) throw new Error("La transcription n'est pas arrivée à temps");
+          if (await annulationDemandeeImage(gen.id)) return await annuler();
+          await new Promise((res) => setTimeout(res, INTERVALLE_POLL_MS));
+        }
       }
 
       const nom = `${gen.uuid}${audio ? extname(r.cheminSortieDistant).toLowerCase() || ".mp3" : testVideo ? extname(r.cheminSortieDistant).toLowerCase() || ".mp4" : ".png"}`;
@@ -333,9 +433,9 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       await client.fetchOutput(r.cheminSortieDistant, cible);
       await db
         .update(assetGenerations)
-        .set({ statut: "termine", fichier: nom, finishedAt: new Date() })
+        .set({ statut: "termine", fichier: nom, finishedAt: new Date(), ...(transcription != null ? { texteReference: transcription } : {}) })
         .where(eq(assetGenerations.id, gen.id));
-      console.log(`[worker] Génération ${gen.id} (${asset.code}${testVideo ? ", test vidéo" : replique ? ", réplique" : testAudio ? ", test audio" : voix ? ", voix" : audio ? ", son" : ""}) terminée : ${nom}`);
+      console.log(`[worker] Génération ${gen.id} (${asset.code}${voixSource ? ", voix fournie" : testVideo ? ", test vidéo" : replique ? ", réplique" : testAudio ? ", test audio" : voix ? ", voix" : audio ? ", son" : ""}) terminée : ${nom}`);
       // Générée par un lot : le résultat est adopté tout seul (il devient l'image de l'asset).
       if (gen.adoptionAuto) {
         const r = await adopterCandidat(gen.id, mediaRoot);

@@ -60,8 +60,33 @@ test("durée d'un FLAC (STREAMINFO)", () => {
   assert.equal(mesurerDureeAudio(flac(12.5, 24000), "ref.flac"), 12.5);
 });
 
+/** Un MP3 synthétique : `n` trames MPEG1 couche III à 128 kbit/s, 44,1 kHz (417 octets, 1152 échantillons chacune). */
+function mp3(n: number, options: { id3?: boolean; xing?: boolean } = {}): Uint8Array {
+  const morceaux: number[][] = [];
+  if (options.id3) morceaux.push([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 20, ...new Array(20).fill(0)]);
+  const trame = (etiquette?: string) => {
+    const t = new Array(417).fill(0);
+    t[0] = 0xff;
+    t[1] = 0xfb;
+    t[2] = 0x90;
+    if (etiquette) for (let i = 0; i < 4; i++) t[36 + i] = etiquette.charCodeAt(i);
+    return t;
+  };
+  if (options.xing) morceaux.push(trame("Xing"));
+  for (let i = 0; i < n; i++) morceaux.push(trame());
+  return Uint8Array.from(morceaux.flat());
+}
+
+test("durée d'un MP3 : les trames sont comptées, après un bloc ID3 et sans la trame Xing", () => {
+  assert.equal(mesurerDureeAudio(mp3(100), "voix.mp3"), 2.61); // 100 × 1152 / 44100
+  assert.equal(mesurerDureeAudio(mp3(100, { id3: true }), "voix.MP3"), 2.61);
+  assert.equal(mesurerDureeAudio(mp3(100, { xing: true }), "voix.mp3"), 2.61, "la trame Xing/Info ne porte pas de son");
+  assert.equal(mesurerDureeAudio(mp3(1000), "voix.mp3"), 26.12);
+});
+
 test("format non mesurable ou fichier invalide : null, jamais une estimation", () => {
   assert.equal(mesurerDureeAudio(new Uint8Array(100), "prise.mp3"), null);
+  assert.equal(mesurerDureeAudio(new Uint8Array(100), "prise.m4a"), null);
   assert.equal(mesurerDureeAudio(new Uint8Array(100), "prise.wav"), null);
   assert.equal(mesurerDureeAudio(new Uint8Array(10), "ref.flac"), null);
 });

@@ -371,6 +371,12 @@ export const voixFiches = pgTable("voix_fiches", {
   testTexte: text("test_texte").notNull().default(""),
   testAudio: varchar("test_audio", { length: 255 }),
   testVideo: varchar("test_video", { length: 255 }),
+  // Nom choisi pour la voix (assistant, 2026-10-09). null = le nom reste dérivé du personnage ou du code (lib/voix.ts:nomVoix).
+  nom: varchar("nom", { length: 80 }),
+  // Voix FOURNIE : l'audio ou la vidéo déposé avant l'extraction (voix/<assetId>/<nom>). La voix isolée qui en sort est un candidat.
+  sourceFichier: varchar("source_fichier", { length: 255 }),
+  // Journal des essais de timbre (EssaiVoix[], lib/voix.ts) : une ligne par instruction essayée, avec le verdict rendu au ressenti.
+  essais: jsonb("essais").notNull().default(sql`'[]'::jsonb`),
 }, (table) => [
   // Un personnage a au plus UNE voix (2026-09-30) ; personnageId reste
   // nullable (voix off, narrateur). À relâcher si un personnage reçoit un jour

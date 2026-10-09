@@ -216,8 +216,9 @@ export async function lancerGenerationAudio(assetId: number, demande: DemandeAud
 /** Pose une demande de génération de VOIX DE RÉFÉRENCE (Qwen3-TTS Voice Design) dans la même file que les
  * images et les sons (table `asset_generations`, méthode « voix »). Réservée aux assets de type `voix`.
  * `instruction` = l'instruction de timbre (elle devient le prompt de la génération) ; `texteReference` est le
- * texte lu ; `temperature` règle la créativité de la voix (0,8 à 1,2). La seed est tirée côté serveur. */
-export async function lancerGenerationVoix(assetId: number, demande: DemandeVoix): Promise<ResultatLancement> {
+ * texte lu ; `temperature` règle la créativité de la voix (0,8 à 1,2). La seed est tirée côté serveur, sauf `options.seed` : la retouche
+ * d'un timbre « au même tirage » réutilise celle de l'essai précédent, pour que seul le texte de l'instruction change. */
+export async function lancerGenerationVoix(assetId: number, demande: DemandeVoix, options: { seed?: string } = {}): Promise<ResultatLancement> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cette voix n'existe pas." };
   const raisonAsset = raisonVoixNonGenerable(asset.type);
@@ -238,7 +239,7 @@ export async function lancerGenerationVoix(assetId: number, demande: DemandeVoix
       texteReference: demande.texteReference.trim(),
       langueReference: langueDuTexteDeReference(demande.texteReference, TEXTE_REFERENCE_DEFAUT, fiche?.langue ?? "French"),
       temperature: demande.temperature,
-      seed: nouvelleSeedTts(),
+      seed: options.seed ?? nouvelleSeedTts(),
     })
     .returning({ id: assetGenerations.id });
   revalidatePath("/", "layout");

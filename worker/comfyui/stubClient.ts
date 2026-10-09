@@ -39,7 +39,7 @@ export class StubComfyUIClient implements ComfyUIClient {
   async submitGraph(graphe?: Record<string, unknown>): Promise<string> {
     // Un graphe qui sauvegarde de l'audio (SaveAudioMP3) donne un son factice.
     const classes = Object.values(graphe ?? {}).map((n) => (n as { class_type?: string }).class_type ?? "");
-    const audio = classes.some((c) => c === "SaveAudioMP3" || c === "SaveAudio");
+    const audio = classes.some((c) => c === "SaveAudioMP3" || c === "SaveAudio" || c === "SaveAudioAdvanced");
     // Un graphe vidéo (test vidéo d'une voix : VHS_VideoCombine) donne un fichier vidéo factice.
     const video = classes.includes("VHS_VideoCombine");
     const promptId = `stub-${audio ? "aud" : video ? "vid" : "img"}-${Date.now()}`;
@@ -51,6 +51,11 @@ export class StubComfyUIClient implements ComfyUIClient {
     const debut = this.enCours.get(promptId) ?? 0;
     if (Date.now() - debut < 2000) return { statut: "en_cours" };
     return { statut: "termine", cheminSortieDistant: `stub/${promptId}.${promptId.startsWith("stub-aud-") ? "mp3" : promptId.startsWith("stub-vid-") ? "mp4" : "png"}` };
+  }
+
+  /** Une transcription factice, au format de l'ASR (JSON texte + segments), pour tester l'extraction d'une voix sans ComfyUI. */
+  async lireTexteSortie(): Promise<string | null> {
+    return JSON.stringify({ text: "Bonjour, ceci est une transcription factice. Corrige-la au mot près avant de l'utiliser.", language: "French", segments: [] });
   }
 
   /** Rejoue ~2 s de progression (8 étapes, un aperçu à mi-parcours) : de quoi

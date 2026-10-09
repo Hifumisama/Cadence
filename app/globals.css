@@ -7052,3 +7052,137 @@ blockquote.voix-card-regle {
   min-width: 44px;
   min-height: 44px;
 }
+
+/* La salle d'écoute (maquette docs/maquettes/casting-assistant.html) : cartes en largeur, recherche et filtres. */
+.salle-em {
+  font-style: normal;
+  color: var(--or-glow);
+}
+.salle-outils {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: var(--sp-4) var(--sp-4) 0;
+}
+.salle-recherche {
+  width: min(320px, 100%);
+}
+.salle-filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cn-puce-salle {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-2);
+  padding: 5px 14px;
+  font-size: 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.cn-puce-salle:hover {
+  background: var(--surface-2);
+}
+.cn-puce-salle[aria-pressed="true"] {
+  color: var(--or-glow);
+  border-color: var(--or);
+}
+.cn-puce-salle small {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.salle-compte {
+  margin-left: auto;
+}
+.voix-grid.voix-liste {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: var(--sp-3);
+}
+.voix-liste .voix-card {
+  gap: var(--sp-2);
+  padding: 14px 16px;
+}
+.voix-liste .voix-card-nom {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-brand);
+  font-size: 24px;
+  line-height: 1.1;
+}
+.voix-liste .voix-card-regle {
+  -webkit-line-clamp: 2;
+  min-height: 2.9em;
+}
+.voix-card-onde {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+}
+.voix-card-onde i {
+  flex: 1;
+  min-width: 2px;
+  background: var(--line-strong);
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+.voix-card.is-joue .voix-card-onde i {
+  background: var(--or);
+  animation: voix-bat 0.9s ease-in-out infinite alternate;
+}
+@keyframes voix-bat {
+  from { transform: scaleY(0.35); }
+  to { transform: scaleY(1.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voix-card.is-joue .voix-card-onde i { animation: none; }
+}
+.voix-liste .voix-card-ouvrir {
+  min-height: 40px;
+}
+.voix-card-sup {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: inline-grid;
+  place-items: center;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--ink-4);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.voix-card-sup:hover,
+.voix-card-sup:focus-visible {
+  color: var(--ecarlate-glow);
+  border-color: var(--ecarlate-glow);
+}
+.voix-card-conf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--ecarlate);
+  padding-top: var(--sp-3);
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.voix-card-conf p {
+  margin: 0;
+  flex: 1 1 200px;
+}
+.voix-card-conf b {
+  color: var(--ecarlate-glow);
+  font-weight: 500;
+}
+.voix-card-conf-actions {
+  display: flex;
+  gap: var(--sp-2);
+}

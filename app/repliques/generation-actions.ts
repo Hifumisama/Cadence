@@ -4,9 +4,14 @@ import { db } from "@/db";
 import { assetGenerations, assets, briefs, planDialogues, plans, repliques, voixFiches } from "@/db/schema";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { METHODE_REPLIQUE, TEMPERATURE_VOIX_DEFAUT, TEMPERATURE_VOIX_MAX, TEMPERATURE_VOIX_MIN, nouvelleSeedTts, temperatureVoixValide } from "@/lib/asset-generation";
+import { mkdir, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { dirname, extname, join } from "node:path";
+import { METHODE_DOUBLAGE, METHODE_REPLIQUE, TEMPERATURE_VOIX_DEFAUT, TEMPERATURE_VOIX_MAX, TEMPERATURE_VOIX_MIN, nouvelleSeedTts, temperatureVoixValide } from "@/lib/asset-generation";
 import { langueMoteurVoix } from "@/lib/langues-tts";
-import { fichierMediaExiste } from "@/lib/media";
+import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminRepliqueMedia, estAudio, fichierMediaExiste } from "@/lib/media";
+import { nbImagesEnAttente } from "@/lib/queries-taches";
+import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
 import { priseObsolete } from "@/lib/repliques";
 
 // Génération des PRISES de répliques depuis l'application (Qwen3-TTS Base, clonage de la voix de référence du casting :
@@ -43,7 +48,7 @@ async function verifier(r: Replique): Promise<{ erreur: string } | { voix: { id:
   if (!r.texte.trim()) return { erreur: "La réplique n'a pas de texte." };
   const voix = await voixDeReplique(r);
   if (!voix) return { erreur: "Cette réplique n'a pas de voix : choisis un locuteur qui a une voix au casting." };
-  if (!voix.fichier) return { erreur: "Cette voix n'a pas de voix de référence à cloner : crée-la d'abord (étape « Voix de référence »)." };
+  if (!voix.fichier) return { erreur: "Cette voix n'a pas de voix de référence à cloner : crée-la d'abord (scène « Référence »)." };
   if (!fichierMediaExiste(voix.fichier)) return { erreur: `La voix de référence est introuvable sur le stockage (${voix.fichier}).` };
   const [enFile] = await db
     .select({ id: assetGenerations.id })
@@ -87,6 +92,48 @@ export async function genererPriseReplique(repliqueId: number, options: { temper
   const generationUuid = await lancer(r, v.voix.id, temp.temperature, await langueDesRepliques(r.projectId));
   revalidatePath("/", "layout");
   return { ok: true, generationUuid };
+}
+
+/** DOUBLE une réplique : l'utilisateur l'a jouée (`prise`, un audio, enregistré dans la cabine ou déposé), la voix de référence la
+ * redit avec son intonation et son rythme (CosyVoice3, workflows/audio/VOX_Doublage_voix_API_Mode.json). Même file, même panneau des
+ * tâches que les autres prises ; le résultat est posé sur la réplique et REMPLACE la prise précédente (une réplique n'a qu'une prise,
+ * F01). La prise jouée est rangée sous repliques/<id>/ le temps du doublage, puis supprimée par le worker. */
+export async function doublerReplique(repliqueId: number, formData: FormData): Promise<Resultat<{ generationUuid: string }>> {
+  const [r] = await db.select().from(repliques).where(eq(repliques.id, repliqueId));
+  if (!r) return { ok: false, erreur: "Cette réplique n'existe pas." };
+  const v = await verifier(r);
+  if ("erreur" in v) return { ok: false, erreur: v.erreur };
+
+  const prise = formData.get("prise");
+  if (!(prise instanceof File) || prise.size === 0) return { ok: false, erreur: "Aucune prise reçue : enregistre ou dépose ta réplique." };
+  if (prise.size > TAILLE_MAX_UPLOAD_ASSET) {
+    return { ok: false, erreur: `Prise trop volumineuse (${(prise.size / 1024 / 1024).toFixed(1)} Mo, max ${TAILLE_MAX_UPLOAD_ASSET / 1024 / 1024} Mo).` };
+  }
+  if (!estAudio(prise.name)) return { ok: false, erreur: "Fichier audio attendu (WAV ou FLAC de préférence)." };
+  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
+    return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} générations en attente) : laisse le worker en vider quelques-unes.` };
+  }
+
+  const nom = `doublage_${randomUUID()}${extname(prise.name).toLowerCase()}`;
+  const relatif = cheminRepliqueMedia(r.id, nom);
+  await mkdir(dirname(join(MEDIA_ROOT, relatif)), { recursive: true });
+  await writeFile(join(MEDIA_ROOT, relatif), Buffer.from(await prise.arrayBuffer()));
+
+  const [cree] = await db
+    .insert(assetGenerations)
+    .values({
+      assetId: v.voix.id,
+      repliqueId: r.id,
+      methode: METHODE_DOUBLAGE,
+      prompt: r.texte,
+      texteReference: r.texte,
+      langueReference: await langueDesRepliques(r.projectId),
+      seed: nouvelleSeedTts(),
+      parametres: { prise: relatif },
+    })
+    .returning({ uuid: assetGenerations.uuid });
+  revalidatePath("/", "layout");
+  return { ok: true, generationUuid: cree!.uuid };
 }
 
 export type BilanPrises = { lancees: number; ignorees: { raison: string; nb: number }[] };

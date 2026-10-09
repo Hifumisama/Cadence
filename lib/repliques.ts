@@ -136,13 +136,76 @@ function dureeFlac(o: Uint8Array): number | null {
   return frequence > 0 && total > 0 ? arrondi(total / frequence) : null;
 }
 
-/** Durée en secondes lue dans l'en-tête d'un WAV ou d'un FLAC, ou null si le
- * format n'est pas mesurable ici (MP3, M4A…) — la durée se saisit alors à la
- * main, jamais estimée. */
+// MPEG audio (MP3) : débits (kbit/s) par version et couche, fréquences d'échantillonnage par version. Index 0 = « libre », 15 = invalide.
+const DEBITS_MPEG1: Record<number, number[]> = {
+  1: [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448],
+  2: [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384],
+  3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+};
+const DEBITS_MPEG2: Record<number, number[]> = {
+  1: [0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256],
+  2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],
+  3: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],
+};
+const FREQUENCES: Record<number, number[]> = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] };
+
+/** Durée d'un MP3 en parcourant ses trames (en-têtes MPEG audio), après un éventuel bloc ID3v2. Exacte pour un MP3 bien formé, VBR
+ * compris (le débit de chaque trame est lu). La trame d'information Xing/Info qui ouvre un MP3 VBR/LAME ne porte pas de son : elle
+ * n'est pas comptée. Null si aucune trame valide n'est trouvée. */
+function dureeMp3(o: Uint8Array): number | null {
+  let i = 0;
+  if (o.length >= 10 && o[0] === 0x49 && o[1] === 0x44 && o[2] === 0x33) {
+    i = 10 + (((o[6]! & 0x7f) << 21) | ((o[7]! & 0x7f) << 14) | ((o[8]! & 0x7f) << 7) | (o[9]! & 0x7f));
+  }
+  let echantillons = 0;
+  let frequenceTrames = 0;
+  let trames = 0;
+  while (i + 4 <= o.length) {
+    // Synchronisation : 11 bits à 1.
+    if (o[i] !== 0xff || (o[i + 1]! & 0xe0) !== 0xe0) {
+      i++;
+      continue;
+    }
+    const versionBits = (o[i + 1]! >> 3) & 3; // 3 = MPEG1, 2 = MPEG2, 0 = MPEG2.5, 1 = réservé
+    const couche = 4 - ((o[i + 1]! >> 1) & 3); // 1, 2, 3 ; 4 = réservé
+    const debitIdx = (o[i + 2]! >> 4) & 15;
+    const freqIdx = (o[i + 2]! >> 2) & 3;
+    const bourrage = (o[i + 2]! >> 1) & 1;
+    if (versionBits === 1 || couche === 4 || debitIdx === 0 || debitIdx === 15 || freqIdx === 3) {
+      i++;
+      continue;
+    }
+    const debit = (versionBits === 3 ? DEBITS_MPEG1 : DEBITS_MPEG2)[couche]![debitIdx]! * 1000;
+    const frequence = FREQUENCES[versionBits]![freqIdx]!;
+    const parTrame = couche === 1 ? 384 : couche === 3 && versionBits !== 3 ? 576 : 1152;
+    const longueur = couche === 1 ? (Math.floor((12 * debit) / frequence) + bourrage) * 4 : Math.floor(((parTrame / 8) * debit) / frequence) + bourrage;
+    if (longueur < 4) {
+      i++;
+      continue;
+    }
+    // Trame d'information (Xing/Info) : le premier élément d'un MP3 VBR, sans son.
+    const canalMono = ((o[i + 3]! >> 6) & 3) === 3;
+    const decalageTag = 4 + (versionBits === 3 ? (canalMono ? 17 : 32) : canalMono ? 9 : 17);
+    const etiquette = i + decalageTag + 4 <= o.length ? texte4(o, i + decalageTag) : "";
+    if (trames === 0 && (etiquette === "Xing" || etiquette === "Info")) {
+      i += longueur;
+      continue;
+    }
+    echantillons += parTrame;
+    frequenceTrames = frequence;
+    trames++;
+    i += longueur;
+  }
+  return trames > 0 && frequenceTrames > 0 ? arrondi(echantillons / frequenceTrames) : null;
+}
+
+/** Durée en secondes lue dans l'en-tête d'un WAV ou d'un FLAC, ou dans les trames d'un MP3, ou null si le format n'est pas mesurable ici
+ * (M4A, OGG…) — la durée se saisit alors à la main, jamais estimée. */
 export function mesurerDureeAudio(octets: Uint8Array, nomFichier: string): number | null {
   const ext = nomFichier.slice(nomFichier.lastIndexOf(".")).toLowerCase();
   if (ext === ".wav") return dureeWav(octets);
   if (ext === ".flac") return dureeFlac(octets);
+  if (ext === ".mp3") return dureeMp3(octets);
   return null;
 }
 

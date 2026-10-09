@@ -61,6 +61,9 @@ export interface ComfyUIClient {
    * l'appelant, le client ne fait que le soumettre puis lire une sortie. */
   submitGraph(graphe: Record<string, unknown>): Promise<string>;
   pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult>;
+  /** Le texte qu'un nœud d'affichage (`ShowText`) a produit, lu dans /history ; null tant qu'il n'est pas là (le nœud peut finir
+   * après le nœud d'enregistrement). Sert à l'extraction de voix (transcription). Ne rejette jamais. */
+  lireTexteSortie(promptId: string, nodeIdSortie: string): Promise<string | null>;
 
   /** Ouvre le WebSocket de suivi AVANT la soumission (ComfyUI n'envoie les
    * événements qu'au clientId qui a soumis le prompt, et un prompt court peut

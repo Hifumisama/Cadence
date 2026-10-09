@@ -1,5 +1,6 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { mesurerDureeAudio } from "./repliques";
 
 export const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 
@@ -34,6 +35,18 @@ export function estAudio(chemin: string): boolean {
 
 export function estVideo(chemin: string): boolean {
   return EXT_VIDEO.includes(extension(chemin));
+}
+
+/** Durée MESURÉE d'un fichier audio du stockage (chemin relatif à MEDIA_ROOT : WAV, FLAC, MP3), ou null s'il est illisible ou d'un
+ * format non mesurable (jamais estimée). Côté serveur uniquement (accès disque). */
+export function dureeAudioMedia(relatif: string): number | null {
+  try {
+    const chemin = resolve(MEDIA_ROOT, relatif);
+    if (!chemin.startsWith(MEDIA_ROOT)) return null; // jamais hors du stockage
+    return mesurerDureeAudio(new Uint8Array(readFileSync(chemin)), relatif);
+  } catch {
+    return null;
+  }
 }
 
 /** Convention de rangement des fichiers d'assets sur le stockage média,

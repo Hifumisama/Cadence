@@ -5,8 +5,10 @@ import { db } from "../db";
 import { assetGenerations, assets, voixFiches } from "../db/schema";
 import { appliquerAffiche } from "./affiche-application";
 import { TYPE_AFFICHE, titreDansPrompt } from "./affiches";
-import { METHODE_AUDIO, METHODE_TEST_AUDIO, METHODE_VOIX, estMethodeTestVoix } from "./asset-generation";
+import { METHODE_AUDIO, METHODE_TEST_AUDIO, METHODE_VOIX, METHODE_VOIX_SOURCE, estMethodeTestVoix } from "./asset-generation";
 import { cheminAssetMedia, cheminGenerationMedia, cheminVoixMedia } from "./media";
+import { supprimerEssaisTest } from "./essais-test";
+import { texteDuPromptTest } from "./voix";
 
 /** Adopter un candidat : son fichier devient l'image (ou le son, ou la voix) de l'asset, et son prompt celui de l'asset. Partagé par
  * l'action « Adopter » de l'interface (app/assets/generation-actions.ts) et par le worker, qui adopte tout seul les générations d'un
@@ -37,13 +39,19 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
       fichier: nom,
       fichierAt: new Date(),
       statut: "en_cours",
-      promptGeneration: gen.prompt,
+      // La voix isolée d'une source fournie n'a pas d'instruction : celle de la voix (si elle en avait une) reste en place.
+      ...(gen.methode === METHODE_VOIX_SOURCE ? {} : { promptGeneration: gen.prompt }),
       ...(gen.methode === METHODE_AUDIO && gen.dureeSecondes != null ? { dureeSecondes: gen.dureeSecondes } : {}),
     })
     .where(eq(assets.id, asset.id));
-  // Une voix de référence adoptée fixe aussi le texte qu'elle lit (au mot près) sur la fiche de casting.
+  // Une voix de référence adoptée fixe aussi le texte qu'elle lit (au mot près) sur la fiche de casting. Une voix FOURNIE fixe sa
+  // transcription (celle de l'extraction, corrigée à la main avant l'adoption) et passe la fiche en mode « fournie ».
   if (gen.methode === METHODE_VOIX && gen.texteReference) {
     await db.update(voixFiches).set({ refText: gen.texteReference }).where(eq(voixFiches.assetId, asset.id));
+  }
+  if (gen.methode === METHODE_VOIX_SOURCE) {
+    const valeurs = { source: "reference", refText: (gen.texteReference ?? "").trim() };
+    await db.insert(voixFiches).values({ assetId: asset.id, ...valeurs }).onConflictDoUpdate({ target: voixFiches.assetId, set: valeurs });
   }
   // Une affiche de présentation : l'image adoptée devient celle du projet ou de l'épisode (lib/affiches.ts).
   if (asset.type === TYPE_AFFICHE) {
@@ -52,6 +60,9 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
   }
   // Adopter, c'est avoir vu le résultat : l'indicateur du header ne le signale plus.
   if (!gen.vuAt) await db.update(assetGenerations).set({ vuAt: new Date() }).where(eq(assetGenerations.id, gen.id));
+  // Une NOUVELLE voix de référence : les tentatives du ressenti jugeaient l'ancienne, elles partent (la référence ressenti, elle, est
+  // refaite par la resynchronisation).
+  if (gen.methode === METHODE_VOIX || gen.methode === METHODE_VOIX_SOURCE) await supprimerEssaisTest(asset.id, mediaRoot);
   return { ok: true };
 }
 
@@ -71,7 +82,8 @@ async function adopterTestVoix(gen: typeof assetGenerations.$inferSelect, mediaR
   const [fiche] = await db.select().from(voixFiches).where(eq(voixFiches.assetId, gen.assetId));
   const ancien = audio ? fiche?.testAudio : fiche?.testVideo;
   if (ancien && ancien !== nom) await unlink(join(mediaRoot, cheminVoixMedia(gen.assetId, ancien))).catch(() => undefined);
-  const valeurs = audio ? { testAudio: nom, testTexte: gen.prompt } : { testVideo: nom };
+  // La vidéo gardée devient la « référence ressenti » : on retient aussi le texte qu'elle dit, pour la nommer dans la liste.
+  const valeurs = audio ? { testAudio: nom, testTexte: gen.prompt } : { testVideo: nom, testTexte: gen.texteReference?.trim() || texteDuPromptTest(gen.prompt) };
   await db
     .insert(voixFiches)
     .values({ assetId: gen.assetId, ...valeurs })

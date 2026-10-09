@@ -1,0 +1,70 @@
+{
+  "1": {
+    "inputs": {
+      "refinement_passes": 1,
+      "max_chunk_duration": 15,
+      "chunk_method": "smart",
+      "TTS_engine": [
+        "2",
+        0
+      ],
+      "source_audio": [
+        "12",
+        0
+      ],
+      "narrator_target": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "UnifiedVoiceChangerNode",
+    "_meta": {
+      "title": "🔄 Voice Changer"
+    }
+  },
+  "2": {
+    "inputs": {
+      "model_path": "local:Fun-CosyVoice3-0.5B-RL",
+      "device": "auto",
+      "speed": 1,
+      "use_fp16": true,
+      "instruct_text": "",
+      "load_trt": false,
+      "load_vllm": false
+    },
+    "class_type": "CosyVoiceEngineNode",
+    "_meta": {
+      "title": "⚙️ CosyVoice3 Engine"
+    }
+  },
+  "5": {
+    "inputs": {
+      "audio": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "PreviewAudio",
+    "_meta": {
+      "title": "AperçuAudio"
+    }
+  },
+  "12": {
+    "inputs": {
+      "audio": "1788963738985_KEY_reference_salto.mp4"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "Voix utilisateur"
+    }
+  },
+  "13": {
+    "inputs": {
+      "audio": "1788963738985_KEY_reference_salto.mp4"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "Voix de référence"
+    }
+  }
+}

@@ -2,10 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
 import { getCastingCatalogue } from "@/lib/queries-voix";
-import { libelleLangueMoteur } from "@/lib/langues-tts";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { Topbar } from "@/components/ui/Topbar";
-import { VoixCard } from "@/components/voix/VoixCard";
+import { SalleVoix } from "@/components/voix/SalleVoix";
 import { NouvelleVoixForm } from "@/components/voix/NouvelleVoixForm";
 import { GenerationNonBranchee } from "@/components/voix/GenerationNonBranchee";
 
@@ -21,7 +20,6 @@ export default async function CastingPage({ params }: { params: Promise<{ projec
 
   const { voix } = catalogue;
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
-  const base = `/p/${pid}/voix`;
 
   return (
     <>
@@ -44,13 +42,10 @@ export default async function CastingPage({ params }: { params: Promise<{ projec
       <main className="page">
         <div className="screen-hd">
           <div>
-            <p className="eyebrow" style={{ margin: "0 0 6px" }}>
-              Fiches vocales du projet
-            </p>
-            <h1>Casting vocal</h1>
-            <p>
-              Une fiche par voix : sa réplique d&rsquo;écoute, sa voix de référence, sa validation et ses répliques. {voix.length} fiche{voix.length > 1 ? "s" : ""}.
-            </p>
+            <h1>
+              La salle <em className="salle-em">d&rsquo;écoute</em>
+            </h1>
+            <p>Écoute, compare, choisis. Chaque voix se fabrique pas à pas dans sa fiche.</p>
           </div>
           <div className="actions" style={{ marginLeft: "auto" }}>
             <BoutonAgent
@@ -68,26 +63,7 @@ export default async function CastingPage({ params }: { params: Promise<{ projec
             Aucune fiche vocale. Crée-en une avec « Nouvelle voix », ou laisse l&rsquo;agent décrire celles qui manquent.
           </p>
         ) : (
-          <div className="voix-grid voix-liste" role="list" aria-label="Fiches vocales">
-            {voix.map((v) => (
-              <div key={v.id} role="listitem" className="voix-liste-item">
-                <VoixCard
-                  href={`${base}/${v.code}`}
-                  nom={v.nom}
-                  etat={v.etat}
-                  critique={v.critique}
-                  langue={libelleLangueMoteur(v.langue)}
-                  personnageNom={v.personnageNom}
-                  refText={v.refText}
-                  referenceSrc={v.referenceSrc}
-                  referenceFichier={v.fichier}
-                  phases={v.phases}
-                  nbRepliques={v.nbRepliques}
-                  nbRepliquesMesurees={v.nbRepliquesMesurees}
-                />
-              </div>
-            ))}
-          </div>
+          <SalleVoix projectId={pid} voix={voix} />
         )}
 
         <p className="tiny-note" style={{ marginTop: "var(--sp-4)" }}>

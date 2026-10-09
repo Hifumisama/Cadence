@@ -176,10 +176,15 @@ test("test de voix : les paramètres figés sont relus avec prudence", async () 
     personnage: "assets/a.png",
     decor: null,
     audio: "voix/1/test_audio.mp3",
+    audioGenerationId: null,
   });
   assert.equal(g.parametresTestVideo(null), null);
   assert.equal(g.parametresTestVideo("x"), null);
-  assert.deepEqual(g.parametresTestVideo({ personnage: "x" }), { personnage: "x", decor: null, audio: null }, "plus de mode : l'ancien champ `upscale` est ignoré");
+  assert.deepEqual(g.parametresTestVideo({ personnage: "x" }), { personnage: "x", decor: null, audio: null, audioGenerationId: null }, "plus de mode : l'ancien champ `upscale` est ignoré");
+  // L'audio peut venir d'une génération « test audio » posée juste avant (texte ≠ réplique d'écoute).
+  assert.equal(g.parametresTestVideo({ audioGenerationId: 42 })!.audioGenerationId, 42);
+  assert.equal(g.parametresTestVideo({ audioGenerationId: "42" })!.audioGenerationId, null);
+  assert.equal(g.parametresTestVideo({ audioGenerationId: 4.5 })!.audioGenerationId, null);
   assert.deepEqual(g.parametresTestAudio({ reference: "assets/VOICE_maya.mp3" }), { reference: "assets/VOICE_maya.mp3" });
   assert.equal(g.parametresTestAudio({ reference: " " }), null);
   assert.equal(g.parametresTestAudio("x"), null);

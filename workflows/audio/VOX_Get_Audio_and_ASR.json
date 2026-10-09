@@ -1,0 +1,161 @@
+{
+  "4": {
+    "inputs": {
+      "audio": "Monologue dEris.mp3",
+      "start_time": 0,
+      "end_time": 52.17,
+      "duration": 52.17,
+      "audio_ui": ""
+    },
+    "class_type": "LoadAudioUI",
+    "_meta": {
+      "title": "Load Audio UI"
+    }
+  },
+  "5": {
+    "inputs": {
+      "model": "MELBAND/MelBandRoformer_fp16.safetensors",
+      "use_cache": true,
+      "aggressiveness": 10,
+      "format": "flac",
+      "audio": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "VocalRemovalNode",
+    "_meta": {
+      "title": "🤐 Noise or Vocal Removal"
+    }
+  },
+  "6": {
+    "inputs": {
+      "language": "French",
+      "task": "transcribe",
+      "timestamps": "word",
+      "chunk_size": 30,
+      "overlap": 2,
+      "enable_asr_cache": true,
+      "diarization": false,
+      "engine": [
+        "7",
+        0
+      ],
+      "audio": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "UnifiedASRTranscribeNode",
+    "_meta": {
+      "title": "✏️ ASR Transcribe"
+    }
+  },
+  "7": {
+    "inputs": {
+      "model_name": "granite-speech-4.1-2b",
+      "device": "auto",
+      "max_new_tokens": 200,
+      "dtype": "auto",
+      "attn_implementation": "auto",
+      "asr_use_forced_aligner": true,
+      "asr_translate_target_language": "French",
+      "asr_translate_instruction_override": "translate the speech from {source_language} into {target_language}. Return only the {target_language} translation, not the original {source_language} transcript.",
+      "do_sample": false,
+      "num_beams": 2,
+      "temperature": 1,
+      "top_k": 50,
+      "top_p": 1,
+      "repetition_penalty": 1,
+      "length_penalty": 1,
+      "no_repeat_ngram_size": 0,
+      "early_stopping": false
+    },
+    "class_type": "GraniteASREngineNode",
+    "_meta": {
+      "title": "⚙️ Granite ASR Engine"
+    }
+  },
+  "8": {
+    "inputs": {
+      "value": [
+        "6",
+        1
+      ]
+    },
+    "class_type": "easy string",
+    "_meta": {
+      "title": "String"
+    }
+  },
+  "10": {
+    "inputs": {
+      "filename_prefix": "audio/ComfyUI",
+      "format": "flac",
+      "audio": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "SaveAudioAdvanced",
+    "_meta": {
+      "title": "Enregistrer l’Audio (Avancé)"
+    }
+  },
+  "11": {
+    "inputs": {
+      "text_0": "{\n  \"text\": \"debout mes trésors la vie est si belle c'est un jour nouveau et le monde des mortels est en paix mais pas pour longtemps approchez regardez-les leur vie ne tient qu'à un fil et si je le coupe le monde sombrera dans le chaos un extraordinaire chaos et que pourrais-je trouver de plus parfait que de plus parfait que ceux-ci un noble prince un trésor inestimable et un voleur au coeur de pierre oh! je sens que nous allons bien nous amuser c'est tout à toi de jouer, mon mignon, que la fête commence.\",\n  \"language\": \"French\",\n  \"segments\": [\n    {\n      \"start\": 0.16,\n      \"end\": 0.64,\n      \"text\": \"debout\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 0.16,\n          \"end\": 0.64,\n          \"text\": \"debout\"\n        }\n      ]\n    },\n    {\n      \"start\": 0.64,\n      \"end\": 0.8,\n      \"text\": \"mes\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 0.64,\n          \"end\": 0.8,\n          \"text\": \"mes\"\n        }\n      ]\n    },\n    {\n      \"start\": 0.8,\n      \"end\": 1.6,\n      \"text\": \"trésors\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 0.8,\n          \"end\": 1.6,\n          \"text\": \"trésors\"\n        }\n      ]\n    },\n    {\n      \"start\": 2.16,\n      \"end\": 2.4,\n      \"text\": \"la\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 2.16,\n          \"end\": 2.4,\n          \"text\": \"la\"\n        }\n      ]\n    },\n    {\n      \"start\": 2.4,\n      \"end\": 2.72,\n      \"text\": \"vie\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 2.4,\n          \"end\": 2.72,\n          \"text\": \"vie\"\n        }\n      ]\n    },\n    {\n      \"start\": 2.72,\n      \"end\": 3.04,\n      \"text\": \"est\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 2.72,\n          \"end\": 3.04,\n          \"text\": \"est\"\n        }\n      ]\n    },\n    {\n      \"start\": 3.04,\n      \"end\": 3.04,\n      \"text\": \"si\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 3.04,\n          \"end\": 3.04,\n          \"text\": \"si\"\n        }\n      ]\n    },\n    {\n      \"start\": 3.2,\n      \"end\": 3.36,\n      \"text\": \"belle\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 3.2,\n          \"end\": 3.36,\n          \"text\": \"belle\"\n        }\n      ]\n    },\n    {\n      \"start\": 4.32,\n      \"end\": 4.56,\n      \"text\": \"c'est\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 4.32,\n          \"end\": 4.56,\n          \"text\": \"c'est\"\n        }\n      ]\n    },\n    {\n      \"start\": 4.56,\n      \"end\": 4.72,\n      \"text\": \"un\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 4.56,\n          \"end\": 4.72,\n          \"text\": \"un\"\n        }\n      ]\n    },\n    {\n      \"start\": 4.72,\n      \"end\": 5.04,\n      \"text\": \"jour\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 4.72,\n          \"end\": 5.04,\n          \"text\": \"jour\"\n        }\n      ]\n    },\n    {\n      \"start\": 5.04,\n      \"end\": 5.6,\n      \"text\": \"nouveau\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 5.04,\n          \"end\": 5.6,\n          \"text\": \"nouveau\"\n        }\n      ]\n    },\n    {\n      \"start\": 5.84,\n      \"end\": 5.92,\n      \"text\": \"et\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 5.84,\n          \"end\": 5.92,\n          \"text\": \"et\"\n        }\n      ]\n    },\n    {\n      \"start\": 5.92,\n      \"end\": 6.08,\n      \"text\": \"le\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 5.92,\n          \"end\": 6.08,\n          \"text\": \"le\"\n        }\n      ]\n    },\n    {\n      \"start\": 6.08,\n      \"end\": 6.48,\n      \"text\": \"monde\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 6.08,\n          \"end\": 6.48,\n          \"text\": \"monde\"\n        }\n      ]\n    },\n    {\n      \"start\": 6.48,\n      \"end\": 6.72,\n      \"text\": \"des\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 6.48,\n          \"end\": 6.72,\n          \"text\": \"des\"\n        }\n      ]\n    },\n    {\n      \"start\": 6.72,\n      \"end\": 7.36,\n      \"text\": \"mortels\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 6.72,\n          \"end\": 7.36,\n          \"text\": \"mortels\"\n        }\n      ]\n    },\n    {\n      \"start\": 7.36,\n      \"end\": 7.52,\n      \"text\": \"est\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 7.36,\n          \"end\": 7.52,\n          \"text\": \"est\"\n        }\n      ]\n    },\n    {\n      \"start\": 7.6,\n      \"end\": 7.76,\n      \"text\": \"en\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 7.6,\n          \"end\": 7.76,\n          \"text\": \"en\"\n        }\n      ]\n    },\n    {\n      \"start\": 8.0,\n      \"end\": 8.32,\n      \"text\": \"paix\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 8.0,\n          \"end\": 8.32,\n          \"text\": \"paix\"\n        }\n      ]\n    },\n    {\n      \"start\": 9.6,\n      \"end\": 9.84,\n      \"text\": \"mais\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 9.6,\n          \"end\": 9.84,\n          \"text\": \"mais\"\n        }\n      ]\n    },\n    {\n      \"start\": 10.0,\n      \"end\": 10.16,\n      \"text\": \"pas\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 10.0,\n          \"end\": 10.16,\n          \"text\": \"pas\"\n        }\n      ]\n    },\n    {\n      \"start\": 10.24,\n      \"end\": 10.48,\n      \"text\": \"pour\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 10.24,\n          \"end\": 10.48,\n          \"text\": \"pour\"\n        }\n      ]\n    },\n    {\n      \"start\": 10.48,\n      \"end\": 10.72,\n      \"text\": \"longtemps\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 10.48,\n          \"end\": 10.72,\n          \"text\": \"longtemps\"\n        }\n      ]\n    },\n    {\n      \"start\": 13.44,\n      \"end\": 14.08,\n      \"text\": \"approchez\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 13.44,\n          \"end\": 14.08,\n          \"text\": \"approchez\"\n        }\n      ]\n    },\n    {\n      \"start\": 14.48,\n      \"end\": 15.36,\n      \"text\": \"regardezles\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 14.48,\n          \"end\": 15.36,\n          \"text\": \"regardezles\"\n        }\n      ]\n    },\n    {\n      \"start\": 16.56,\n      \"end\": 16.72,\n      \"text\": \"leur\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 16.56,\n          \"end\": 16.72,\n          \"text\": \"leur\"\n        }\n      ]\n    },\n    {\n      \"start\": 16.72,\n      \"end\": 17.04,\n      \"text\": \"vie\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 16.72,\n          \"end\": 17.04,\n          \"text\": \"vie\"\n        }\n      ]\n    },\n    {\n      \"start\": 17.04,\n      \"end\": 17.12,\n      \"text\": \"ne\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 17.04,\n          \"end\": 17.12,\n          \"text\": \"ne\"\n        }\n      ]\n    },\n    {\n      \"start\": 17.2,\n      \"end\": 17.44,\n      \"text\": \"tient\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 17.2,\n          \"end\": 17.44,\n          \"text\": \"tient\"\n        }\n      ]\n    },\n    {\n      \"start\": 17.44,\n      \"end\": 17.76,\n      \"text\": \"qu'à\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 17.44,\n          \"end\": 17.76,\n          \"text\": \"qu'à\"\n        }\n      ]\n    },\n    {\n      \"start\": 17.76,\n      \"end\": 17.76,\n      \"text\": \"un\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 17.76,\n          \"end\": 17.76,\n          \"text\": \"un\"\n        }\n      ]\n    },\n    {\n      \"start\": 17.76,\n      \"end\": 18.24,\n      \"text\": \"fil\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 17.76,\n          \"end\": 18.24,\n          \"text\": \"fil\"\n        }\n      ]\n    },\n    {\n      \"start\": 18.24,\n      \"end\": 18.4,\n      \"text\": \"et\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 18.24,\n          \"end\": 18.4,\n          \"text\": \"et\"\n        }\n      ]\n    },\n    {\n      \"start\": 18.4,\n      \"end\": 18.64,\n      \"text\": \"si\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 18.4,\n          \"end\": 18.64,\n          \"text\": \"si\"\n        }\n      ]\n    },\n    {\n      \"start\": 18.64,\n      \"end\": 18.72,\n      \"text\": \"je\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 18.64,\n          \"end\": 18.72,\n          \"text\": \"je\"\n        }\n      ]\n    },\n    {\n      \"start\": 18.72,\n      \"end\": 19.04,\n      \"text\": \"le\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 18.72,\n          \"end\": 19.04,\n          \"text\": \"le\"\n        }\n      ]\n    },\n    {\n      \"start\": 19.04,\n      \"end\": 19.36,\n      \"text\": \"coupe\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 19.04,\n          \"end\": 19.36,\n          \"text\": \"coupe\"\n        }\n      ]\n    },\n    {\n      \"start\": 19.36,\n      \"end\": 19.52,\n      \"text\": \"le\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 19.36,\n          \"end\": 19.52,\n          \"text\": \"le\"\n        }\n      ]\n    },\n    {\n      \"start\": 19.52,\n      \"end\": 19.92,\n      \"text\": \"monde\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 19.52,\n          \"end\": 19.92,\n          \"text\": \"monde\"\n        }\n      ]\n    },\n    {\n      \"start\": 19.92,\n      \"end\": 20.8,\n      \"text\": \"sombrera\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 19.92,\n          \"end\": 20.8,\n          \"text\": \"sombrera\"\n        }\n      ]\n    },\n    {\n      \"start\": 20.8,\n      \"end\": 20.96,\n      \"text\": \"dans\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 20.8,\n          \"end\": 20.96,\n          \"text\": \"dans\"\n        }\n      ]\n    },\n    {\n      \"start\": 20.96,\n      \"end\": 21.12,\n      \"text\": \"le\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 20.96,\n          \"end\": 21.12,\n          \"text\": \"le\"\n        }\n      ]\n    },\n    {\n      \"start\": 21.12,\n      \"end\": 21.92,\n      \"text\": \"chaos\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 21.12,\n          \"end\": 21.92,\n          \"text\": \"chaos\"\n        }\n      ]\n    },\n    {\n      \"start\": 22.48,\n      \"end\": 22.56,\n      \"text\": \"un\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 22.48,\n          \"end\": 22.56,\n          \"text\": \"un\"\n        }\n      ]\n    },\n    {\n      \"start\": 22.56,\n      \"end\": 23.6,\n      \"text\": \"extraordinaire\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 22.56,\n          \"end\": 23.6,\n          \"text\": \"extraordinaire\"\n        }\n      ]\n    },\n    {\n      \"start\": 24.16,\n      \"end\": 24.24,\n      \"text\": \"chaos\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 24.16,\n          \"end\": 24.24,\n          \"text\": \"chaos\"\n        }\n      ]\n    },\n    {\n      \"start\": 26.88,\n      \"end\": 27.04,\n      \"text\": \"et\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 26.88,\n          \"end\": 27.04,\n          \"text\": \"et\"\n        }\n      ]\n    },\n    {\n      \"start\": 27.04,\n      \"end\": 27.2,\n      \"text\": \"que\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 27.04,\n          \"end\": 27.2,\n          \"text\": \"que\"\n        }\n      ]\n    },\n    {\n      \"start\": 27.2,\n      \"end\": 27.84,\n      \"text\": \"pourraisje\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 27.2,\n          \"end\": 27.84,\n          \"text\": \"pourraisje\"\n        }\n      ]\n    },\n    {\n      \"start\": 27.84,\n      \"end\": 28.32,\n      \"text\": \"trouver\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 27.84,\n          \"end\": 28.32,\n          \"text\": \"trouver\"\n        }\n      ]\n    },\n    {\n      \"start\": 28.32,\n      \"end\": 28.4,\n      \"text\": \"de\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 28.32,\n          \"end\": 28.4,\n          \"text\": \"de\"\n        }\n      ]\n    },\n    {\n      \"start\": 28.4,\n      \"end\": 28.64,\n      \"text\": \"plus\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 28.4,\n          \"end\": 28.64,\n          \"text\": \"plus\"\n        }\n      ]\n    },\n    {\n      \"start\": 28.8,\n      \"end\": 29.44,\n      \"text\": \"parfait\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 28.8,\n          \"end\": 29.44,\n          \"text\": \"parfait\"\n        }\n      ]\n    },\n    {\n      \"start\": 29.52,\n      \"end\": 29.6,\n      \"text\": \"que\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 29.52,\n          \"end\": 29.6,\n          \"text\": \"que\"\n        }\n      ]\n    },\n    {\n      \"start\": 28.0,\n      \"end\": 28.4,\n      \"text\": \"de\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 28.0,\n          \"end\": 28.4,\n          \"text\": \"de\"\n        }\n      ]\n    },\n    {\n      \"start\": 28.4,\n      \"end\": 28.64,\n      \"text\": \"plus\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 28.4,\n          \"end\": 28.64,\n          \"text\": \"plus\"\n        }\n      ]\n    },\n    {\n      \"start\": 28.8,\n      \"end\": 29.44,\n      \"text\": \"parfait\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 28.8,\n          \"end\": 29.44,\n          \"text\": \"parfait\"\n        }\n      ]\n    },\n    {\n      \"start\": 29.52,\n      \"end\": 29.6,\n      \"text\": \"que\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 29.52,\n          \"end\": 29.6,\n          \"text\": \"que\"\n        }\n      ]\n    },\n    {\n      \"start\": 29.6,\n      \"end\": 30.240000000000002,\n      \"text\": \"ceuxci\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 29.6,\n          \"end\": 30.240000000000002,\n          \"text\": \"ceuxci\"\n        }\n      ]\n    },\n    {\n      \"start\": 31.36,\n      \"end\": 31.52,\n      \"text\": \"un\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 31.36,\n          \"end\": 31.52,\n          \"text\": \"un\"\n        }\n      ]\n    },\n    {\n      \"start\": 31.52,\n      \"end\": 32.24,\n      \"text\": \"noble\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 31.52,\n          \"end\": 32.24,\n          \"text\": \"noble\"\n        }\n      ]\n    },\n    {\n      \"start\": 32.32,\n      \"end\": 33.36,\n      \"text\": \"prince\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 32.32,\n          \"end\": 33.36,\n          \"text\": \"prince\"\n        }\n      ]\n    },\n    {\n      \"start\": 33.76,\n      \"end\": 33.84,\n      \"text\": \"un\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 33.76,\n          \"end\": 33.84,\n          \"text\": \"un\"\n        }\n      ]\n    },\n    {\n      \"start\": 33.84,\n      \"end\": 34.4,\n      \"text\": \"trésor\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 33.84,\n          \"end\": 34.4,\n          \"text\": \"trésor\"\n        }\n      ]\n    },\n    {\n      \"start\": 34.4,\n      \"end\": 35.04,\n      \"text\": \"inestimable\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 34.4,\n          \"end\": 35.04,\n          \"text\": \"inestimable\"\n        }\n      ]\n    },\n    {\n      \"start\": 36.08,\n      \"end\": 36.16,\n      \"text\": \"et\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 36.08,\n          \"end\": 36.16,\n          \"text\": \"et\"\n        }\n      ]\n    },\n    {\n      \"start\": 36.16,\n      \"end\": 36.32,\n      \"text\": \"un\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 36.16,\n          \"end\": 36.32,\n          \"text\": \"un\"\n        }\n      ]\n    },\n    {\n      \"start\": 36.32,\n      \"end\": 37.12,\n      \"text\": \"voleur\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 36.32,\n          \"end\": 37.12,\n          \"text\": \"voleur\"\n        }\n      ]\n    },\n    {\n      \"start\": 37.12,\n      \"end\": 37.2,\n      \"text\": \"au\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 37.12,\n          \"end\": 37.2,\n          \"text\": \"au\"\n        }\n      ]\n    },\n    {\n      \"start\": 37.2,\n      \"end\": 37.519999999999996,\n      \"text\": \"coeur\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 37.2,\n          \"end\": 37.519999999999996,\n          \"text\": \"coeur\"\n        }\n      ]\n    },\n    {\n      \"start\": 37.519999999999996,\n      \"end\": 37.6,\n      \"text\": \"de\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 37.519999999999996,\n          \"end\": 37.6,\n          \"text\": \"de\"\n        }\n      ]\n    },\n    {\n      \"start\": 37.6,\n      \"end\": 38.32,\n      \"text\": \"pierre\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 37.6,\n          \"end\": 38.32,\n          \"text\": \"pierre\"\n        }\n      ]\n    },\n    {\n      \"start\": 38.88,\n      \"end\": 39.36,\n      \"text\": \"oh\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 38.88,\n          \"end\": 39.36,\n          \"text\": \"oh\"\n        }\n      ]\n    },\n    {\n      \"start\": 39.519999999999996,\n      \"end\": 39.68,\n      \"text\": \"je\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 39.519999999999996,\n          \"end\": 39.68,\n          \"text\": \"je\"\n        }\n      ]\n    },\n    {\n      \"start\": 39.68,\n      \"end\": 40.08,\n      \"text\": \"sens\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 39.68,\n          \"end\": 40.08,\n          \"text\": \"sens\"\n        }\n      ]\n    },\n    {\n      \"start\": 40.08,\n      \"end\": 40.24,\n      \"text\": \"que\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 40.08,\n          \"end\": 40.24,\n          \"text\": \"que\"\n        }\n      ]\n    },\n    {\n      \"start\": 40.24,\n      \"end\": 40.480000000000004,\n      \"text\": \"nous\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 40.24,\n          \"end\": 40.480000000000004,\n          \"text\": \"nous\"\n        }\n      ]\n    },\n    {\n      \"start\": 40.480000000000004,\n      \"end\": 40.64,\n      \"text\": \"allons\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 40.480000000000004,\n          \"end\": 40.64,\n          \"text\": \"allons\"\n        }\n      ]\n    },\n    {\n      \"start\": 40.64,\n      \"end\": 41.04,\n      \"text\": \"bien\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 40.64,\n          \"end\": 41.04,\n          \"text\": \"bien\"\n        }\n      ]\n    },\n    {\n      \"start\": 41.04,\n      \"end\": 41.28,\n      \"text\": \"nous\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 41.04,\n          \"end\": 41.28,\n          \"text\": \"nous\"\n        }\n      ]\n    },\n    {\n      \"start\": 41.28,\n      \"end\": 42.0,\n      \"text\": \"amuser\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 41.28,\n          \"end\": 42.0,\n          \"text\": \"amuser\"\n        }\n      ]\n    },\n    {\n      \"start\": 43.28,\n      \"end\": 43.92,\n      \"text\": \"c'est\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 43.28,\n          \"end\": 43.92,\n          \"text\": \"c'est\"\n        }\n      ]\n    },\n    {\n      \"start\": 43.92,\n      \"end\": 43.92,\n      \"text\": \"tout\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 43.92,\n          \"end\": 43.92,\n          \"text\": \"tout\"\n        }\n      ]\n    },\n    {\n      \"start\": 44.879999999999995,\n      \"end\": 44.96,\n      \"text\": \"à\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 44.879999999999995,\n          \"end\": 44.96,\n          \"text\": \"à\"\n        }\n      ]\n    },\n    {\n      \"start\": 44.96,\n      \"end\": 45.2,\n      \"text\": \"toi\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 44.96,\n          \"end\": 45.2,\n          \"text\": \"toi\"\n        }\n      ]\n    },\n    {\n      \"start\": 45.2,\n      \"end\": 45.36,\n      \"text\": \"de\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 45.2,\n          \"end\": 45.36,\n          \"text\": \"de\"\n        }\n      ]\n    },\n    {\n      \"start\": 45.36,\n      \"end\": 45.84,\n      \"text\": \"jouer\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 45.36,\n          \"end\": 45.84,\n          \"text\": \"jouer\"\n        }\n      ]\n    },\n    {\n      \"start\": 45.84,\n      \"end\": 46.0,\n      \"text\": \"mon\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 45.84,\n          \"end\": 46.0,\n          \"text\": \"mon\"\n        }\n      ]\n    },\n    {\n      \"start\": 46.0,\n      \"end\": 46.56,\n      \"text\": \"mignon\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 46.0,\n          \"end\": 46.56,\n          \"text\": \"mignon\"\n        }\n      ]\n    },\n    {\n      \"start\": 47.44,\n      \"end\": 47.519999999999996,\n      \"text\": \"que\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 47.44,\n          \"end\": 47.519999999999996,\n          \"text\": \"que\"\n        }\n      ]\n    },\n    {\n      \"start\": 47.519999999999996,\n      \"end\": 47.68,\n      \"text\": \"la\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 47.519999999999996,\n          \"end\": 47.68,\n          \"text\": \"la\"\n        }\n      ]\n    },\n    {\n      \"start\": 47.68,\n      \"end\": 48.08,\n      \"text\": \"fête\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 47.68,\n          \"end\": 48.08,\n          \"text\": \"fête\"\n        }\n      ]\n    },\n    {\n      \"start\": 48.480000000000004,\n      \"end\": 49.36,\n      \"text\": \"commence\",\n      \"speaker\": null,\n      \"words\": [\n        {\n          \"start\": 48.480000000000004,\n          \"end\": 49.36,\n          \"text\": \"commence\"\n        }\n      ]\n    }\n  ],\n  \"raw\": null\n}",
+      "text": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "ShowText|pysssss",
+    "_meta": {
+      "title": "Show Text 🐍"
+    }
+  },
+  "16": {
+    "inputs": {
+      "video": "1788963738985_KEY_reference_salto.mp4",
+      "start_time": 0,
+      "end_time": 1750.8078,
+      "duration": 1750.81,
+      "start_frame": 0,
+      "end_frame": 42019,
+      "duration_frames": 42019,
+      "resize_method": "maintain aspect ratio",
+      "custom_width": 0,
+      "custom_height": 0,
+      "frame_rate": 24,
+      "display_mode": "seconds",
+      "crop_x": 0,
+      "crop_y": 0,
+      "crop_w": 1,
+      "crop_h": 1,
+      "choose file to upload": null,
+      "VideoUI": ""
+    },
+    "class_type": "LoadVideoUI",
+    "_meta": {
+      "title": "Load Video UI"
+    }
+  },
+  "21": {
+    "inputs": {
+      "switch": false,
+      "on_false": [
+        "4",
+        0
+      ],
+      "on_true": [
+        "16",
+        1
+      ]
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": {
+      "title": "isVideo ?"
+    }
+  }
+}

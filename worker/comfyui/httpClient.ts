@@ -113,6 +113,21 @@ export class HttpComfyUIClient implements ComfyUIClient {
     return { statut: "termine", cheminSortieDistant: cheminSortieDistant(fichier) };
   }
 
+  async lireTexteSortie(promptId: string, nodeIdSortie: string): Promise<string | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/history/${promptId}`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return null;
+      const entree = (await res.json())[promptId];
+      // `ShowText|pysssss` range son texte sous `text` (une liste de chaînes) ; on prend la première non vide.
+      const liste: unknown = entree?.outputs?.[nodeIdSortie]?.text;
+      if (typeof liste === "string") return liste;
+      if (Array.isArray(liste)) return liste.find((x): x is string => typeof x === "string" && x.trim() !== "") ?? null;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   async poll(promptId: string): Promise<PollResult> {
     const res = await fetch(`${this.baseUrl}/history/${promptId}`);
     if (!res.ok) return { statut: "en_cours" };

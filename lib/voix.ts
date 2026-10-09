@@ -1,7 +1,8 @@
 /** Casting vocal — constantes métier et garde-fous, tirés du skill
- * `.claude/skills/voix-comfyui`. Quatre étapes (refonte 2026-10-09) : fiche,
- * voix de référence, validation, répliques. Pur, sans accès disque ni base :
- * importable côté client comme côté serveur. */
+ * `.claude/skills/voix-comfyui`. Six scènes dans l'assistant d'une voix (2026-10-09) : identité, origine, timbre (ou source),
+ * référence, ressenti, répliques. Pur, sans accès disque ni base : importable côté client comme côté serveur. */
+
+import { langueBalise } from "./repliques";
 
 export const SOURCES_VOIX = ["design", "reference"] as const;
 export type SourceVoix = (typeof SOURCES_VOIX)[number];
@@ -17,13 +18,16 @@ export function estSourceVoix(v: string): v is SourceVoix {
 export const TEXTE_REFERENCE_DEFAUT =
   "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !";
 
-/** Les quatre étapes de la fiche vocale (refonte UX 2026-10-09) : la fiche (identité, réplique d'écoute), la voix de référence
- * (décrire ou cloner, générer, garder une candidate), la validation (test vidéo, geste « Valider ») et les répliques. */
+/** Les six scènes de l'assistant d'une voix (2026-10-09, remplace les quatre étapes du 2026-10-08) : l'identité (nom, personnage,
+ * langue), l'origine (la décrire ou la fournir), le timbre (décrit) ou la source (fournie) — une même scène « voix », dont le contenu
+ * suit l'origine —, la référence (générer, garder), le ressenti (test vidéo, verdict, retouche) et les répliques (prises, doublage). */
 export const ETAPES_VOIX = [
-  { cle: "fiche", label: "Fiche", aide: "identité · réplique d'écoute" },
-  { cle: "reference", label: "Voix de référence", aide: "décrire ou cloner, générer" },
-  { cle: "validation", label: "Validation", aide: "test vidéo · valider" },
-  { cle: "repliques", label: "Répliques", aide: "prises de la voix" },
+  { cle: "identite", label: "Identité", aide: "nom · personnage · langue" },
+  { cle: "origine", label: "Origine", aide: "la décrire ou la fournir" },
+  { cle: "voix", label: "Le timbre", aide: "décrire le timbre, ou fournir la source" },
+  { cle: "reference", label: "Référence", aide: "générer, garder" },
+  { cle: "ressenti", label: "Ressenti", aide: "test vidéo · verdict" },
+  { cle: "repliques", label: "Répliques", aide: "prises · doublage" },
 ] as const;
 
 export type EtapeVoix = (typeof ETAPES_VOIX)[number]["cle"];
@@ -32,12 +36,54 @@ export function estEtapeVoix(v: string | undefined): v is EtapeVoix {
   return ETAPES_VOIX.some((e) => e.cle === v);
 }
 
-/** Étape demandée par `?etape=` : les anciennes valeurs (« voix », « test ») mènent à leur équivalent ; sans paramètre (ou valeur
- * inconnue), la fiche s'ouvre toujours sur l'étape 1. */
+/** Libellé de la scène 3 : « Le timbre » pour une voix décrite, « La source » pour une voix fournie. */
+export function libelleEtapeVoix(cle: EtapeVoix, source: SourceVoix): string {
+  if (cle === "voix") return source === "design" ? "Le timbre" : "La source";
+  return ETAPES_VOIX.find((e) => e.cle === cle)!.label;
+}
+
+/** Étape demandée par `?etape=` : les anciennes valeurs (« fiche », « validation », « test ») mènent à leur équivalent (les liens du
+ * bandeau de suivi en portent encore) ; sans paramètre (ou valeur inconnue), la fiche s'ouvre sur la première scène. */
 export function etapeDepuisParametre(v: string | undefined): EtapeVoix {
   if (estEtapeVoix(v)) return v;
-  if (v === "test") return "validation";
-  return "fiche";
+  if (v === "validation" || v === "test") return "ressenti";
+  return "identite";
+}
+
+/** Longueur maximale de la fenêtre d'une voix FOURNIE : on n'extrait jamais le fichier entier, seulement ce qui sert de référence. */
+export const FENETRE_SOURCE_MAX_SECONDES = 30;
+export const FENETRE_SOURCE_MIN_SECONDES = 3;
+
+/** Pourquoi la fenêtre choisie dans une source ne peut pas partir (null = possible). */
+export function raisonFenetreInvalide(debut: number, fin: number): string | null {
+  if (![debut, fin].every(Number.isFinite) || debut < 0) return "Fenêtre invalide.";
+  const duree = fin - debut;
+  if (duree < FENETRE_SOURCE_MIN_SECONDES) return `Garde au moins ${FENETRE_SOURCE_MIN_SECONDES} secondes.`;
+  if (duree > FENETRE_SOURCE_MAX_SECONDES + 0.05) return `${FENETRE_SOURCE_MAX_SECONDES} secondes au maximum : choisis une fenêtre plus courte.`;
+  return null;
+}
+
+/** Le verdict rendu au ressenti. « À ajuster » ouvre la retouche ; « à refaire » renvoie à la scène du timbre. */
+export type VerdictVoix = "ok" | "ajuster" | "refaire";
+export const LIBELLE_VERDICT: Record<VerdictVoix, string> = { ok: "validé", ajuster: "à ajuster", refaire: "à refaire" };
+
+/** Une ligne du journal des essais : l'instruction essayée et ce qu'on en a pensé. Le journal est lu par l'IA qui propose une
+ * retouche, pour ne pas revenir sur ce qui a déjà été refusé. */
+export type EssaiVoix = { n: number; instruction: string; verdict: VerdictVoix | null; note: string };
+
+export const ESSAIS_GARDES = 12;
+
+export function lireEssais(v: unknown): EssaiVoix[] {
+  if (!Array.isArray(v)) return [];
+  const essais: EssaiVoix[] = [];
+  for (const x of v) {
+    if (typeof x !== "object" || x === null) continue;
+    const o = x as Record<string, unknown>;
+    if (typeof o.n !== "number" || typeof o.instruction !== "string") continue;
+    const verdict = o.verdict === "ok" || o.verdict === "ajuster" || o.verdict === "refaire" ? o.verdict : null;
+    essais.push({ n: o.n, instruction: o.instruction, verdict, note: typeof o.note === "string" ? o.note : "" });
+  }
+  return essais.slice(-ESSAIS_GARDES);
 }
 
 export type EtatEtape = "vide" | "part" | "on";
@@ -66,16 +112,50 @@ export function etatPhases(v: {
 }): EtatPhases {
   const instruction = v.instruction?.trim() ?? "";
   const refText = v.refText.trim();
-  // « Fiche » : de quoi produire la référence (une instruction, ou l'audio fourni) et la réplique d'écoute (2 phrases).
+  // « Origine » : de quoi produire la référence existe (une instruction, ou l'audio fourni).
   const sourcePrete = v.source === "design" ? instruction !== "" : !!v.referenceFichier;
+  // « Le timbre » (voix décrite : l'instruction + la réplique d'écoute de 2 phrases) ou « La source » (voix fournie : l'audio isolé
+  // + sa transcription).
   const ecouteOk = compterPhrases(refText) >= PHRASES_MIN_ECOUTE;
+  const voix: EtatEtape =
+    v.source === "design"
+      ? instruction !== "" && ecouteOk ? "on" : instruction !== "" || refText ? "part" : "vide"
+      : v.referenceFichier && refText ? "on" : v.referenceFichier ? "part" : "vide";
   return {
-    fiche: sourcePrete && ecouteOk ? "on" : sourcePrete || refText ? "part" : "vide",
+    identite: "on", // le nom existe toujours (dérivé à défaut d'être choisi)
+    origine: sourcePrete ? "on" : "vide",
+    voix,
     reference: v.referenceFichier ? "on" : "vide",
-    // « Validation » : fait quand la voix est validée ; entamée dès qu'un test vidéo existe.
-    validation: v.referenceFichier && v.statut === "valide" ? "on" : v.testVideo ? "part" : "vide",
+    // « Ressenti » : fait quand la voix est validée ; entamé dès qu'un test vidéo existe.
+    ressenti: v.referenceFichier && v.statut === "valide" ? "on" : v.testVideo ? "part" : "vide",
     repliques: v.nbRepliques === 0 ? "vide" : v.nbRepliquesMesurees >= v.nbRepliques ? "on" : "part",
   };
+}
+
+/** Ce qu'il manque pour que la scène soit « faite », en une phrase (affichée dans la barre du bas), ou null. Un conseil, jamais un
+ * verrou : on peut toujours glisser vers la scène suivante. */
+export function manquePourAvancer(
+  etape: EtapeVoix,
+  v: { source: SourceVoix; instruction: string | null; refText: string; referenceFichier: string | null; valide: boolean; testVideo: boolean },
+): string | null {
+  switch (etape) {
+    case "voix":
+      if (v.source === "design") {
+        if (!v.instruction?.trim()) return "Il manque : le timbre de la voix.";
+        if (compterPhrases(v.refText) < PHRASES_MIN_ECOUTE) return `Il manque : une réplique d'écoute d'au moins ${PHRASES_MIN_ECOUTE} phrases.`;
+        return null;
+      }
+      if (!v.referenceFichier) return "Il manque : la source, extraite puis utilisée comme voix.";
+      return v.refText.trim() ? null : "Il manque : la transcription, au mot près.";
+    case "reference":
+      return v.referenceFichier ? null : v.source === "design" ? "Il manque : une prise gardée comme voix de référence." : "Il manque : la voix isolée de la source.";
+    case "ressenti":
+      if (!v.referenceFichier) return "Il faut d'abord une voix de référence.";
+      if (v.valide) return null;
+      return v.testVideo ? "À toi de juger : c'est bon, à ajuster ou à refaire." : "Lance un test vidéo pour juger la voix.";
+    default:
+      return null;
+  }
 }
 
 /** L'état d'une fiche vocale, tel qu'on l'affiche (pastille avec libellé texte) : « voix à créer » = pas de référence ;
@@ -89,9 +169,12 @@ export function etatFiche(v: { fichier: string | null; statut: string }): EtatFi
   return v.statut === "valide" ? "validee" : "a_valider";
 }
 
-/** Le nom lisible d'une voix, partout dans le casting (le code VOICE_* n'y apparaît plus). Il n'y a pas de colonne « nom » : on le
- * dérive du personnage assigné (CHAR_conspirateur_nerveux → « Conspirateur nerveux »), à défaut du code de la voix sans son préfixe. */
-export function nomVoix(v: { code: string; personnageCode?: string | null }): string {
+/** Le nom lisible d'une voix, partout dans le casting (le code VOICE_* n'y apparaît plus). Le nom choisi dans l'assistant
+ * (`voix_fiches.nom`) passe avant tout ; à défaut on le dérive du personnage assigné (CHAR_conspirateur_nerveux → « Conspirateur
+ * nerveux »), puis du code de la voix sans son préfixe. Le code, lui, ne change jamais : il nomme les fichiers. */
+export function nomVoix(v: { code: string; personnageCode?: string | null; nom?: string | null }): string {
+  const choisi = v.nom?.trim();
+  if (choisi) return choisi;
   const brut = (v.personnageCode?.trim() || v.code).replace(/^(CHAR|VOICE)_/i, "").replace(/_+/g, " ").trim();
   return brut ? brut.charAt(0).toUpperCase() + brut.slice(1) : v.code;
 }
@@ -178,15 +261,67 @@ export function checksReference(v: { fichier: string | null; refText: string }):
   return checks;
 }
 
+/** Le texte dit dans un prompt de test (la balise `<d>[Langue] texte</d>` de `promptTestVoix`), ou "" s'il n'y en a pas. Sert à
+ * nommer les anciennes tentatives, lancées avant que le texte soit gardé à part. */
+export function texteDuPromptTest(prompt: string): string {
+  const m = prompt.match(/<d>\s*(?:\[[^\]]*\]\s*)?([\s\S]*?)<\/d>/);
+  return m ? m[1]!.replace(/\s+/g, " ").trim() : "";
+}
+
+// — Durée du test vidéo : celle de l'AUDIO. Un test à durée fixe désynchronise : trop court, la phrase est coupée ; trop long, le visage
+// parle dans le vide (ou, pire, ComfyUI étire/tronque l'audio). Le modèle vidéo accepte 5 à 15 s (DUREE_GENERATION_MIN/MAX,
+// lib/plan-checks.ts — un test de cohérence veille à l'égalité). —
+
+export const TEST_VIDEO_DUREE_MIN = 5;
+export const TEST_VIDEO_DUREE_MAX = 15;
+/** Durée quand l'audio n'est pas mesurable (M4A, OGG…) : l'ancienne durée fixe. */
+export const TEST_VIDEO_DUREE_DEFAUT = 8;
+/** Le plan garde le visage une seconde après la dernière syllabe (le prompt : « then falls silent and holds the gaze »). */
+export const TEST_VIDEO_QUEUE_SECONDES = 1;
+
+/** La durée de la vidéo de test pour un audio de `audioSecondes` secondes (null = non mesuré) : l'audio plus une seconde de silence,
+ * arrondie à la seconde, entre 5 et 15 s. Un audio de plus de 15 s ne tient pas dans une vidéo : refus, avec la raison (le plan
+ * tronquerait la phrase). */
+export function dureeVideoPourAudio(audioSecondes: number | null): { ok: true; duree: number } | { ok: false; erreur: string } {
+  if (audioSecondes == null) return { ok: true, duree: TEST_VIDEO_DUREE_DEFAUT };
+  if (!Number.isFinite(audioSecondes) || audioSecondes <= 0) return { ok: false, erreur: "L'audio du test est vide ou illisible." };
+  if (audioSecondes > TEST_VIDEO_DUREE_MAX) {
+    return { ok: false, erreur: `L'audio dure ${Math.round(audioSecondes * 10) / 10} s : une vidéo de test tient en ${TEST_VIDEO_DUREE_MAX} s au plus. Raccourcis le texte du test.` };
+  }
+  const voulue = Math.ceil(audioSecondes + TEST_VIDEO_QUEUE_SECONDES);
+  return { ok: true, duree: Math.min(TEST_VIDEO_DUREE_MAX, Math.max(TEST_VIDEO_DUREE_MIN, voulue)) };
+}
+
+/** « 00:08.000 » : une durée en secondes dans la forme des plages du prompt H3. */
+export function formaterPlageH3(secondes: number): string {
+  const ms = Math.round(secondes * 1000);
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(ms % 1000).padStart(3, "0")}`;
+}
+
+const PLAGE_TEST = /\[Shot 1, 00:00\.000–[0-9:.]+\]/;
+
+/** Remet la plage du plan d'un prompt de test à la durée réelle de la vidéo (`[Shot 1, 00:00.000–00:08.000]`). Le worker l'appelle une
+ * fois l'audio connu : le prompt composé au lancement n'avait que la durée par défaut. Un prompt sans plage est rendu tel quel. */
+export function ajusterDureePromptTest(prompt: string, secondes: number): string {
+  return prompt.replace(PLAGE_TEST, `[Shot 1, 00:00.000–${formaterPlageH3(secondes)}]`);
+}
+
 /** Prompt vidéo dédié au test de voix (gabarit T1 de FICHE_DE_PLAN_UTILITAIRES.md) :
  * plan fixe, une seule réplique face caméra, aucun geste — la voix porte seule.
- * Le texte va dans `<d>` tel quel (verbatim), le reste du corps est en anglais. */
+ * Le texte va dans `<d>` tel quel (verbatim), le reste du corps est en anglais. La plage du plan suit `dureeSecondes` (8 s à défaut,
+ * puis ajustée à l'audio par le worker : `ajusterDureePromptTest`) ; la balise de langue suit celle de la voix (« French » → [Français]). */
 export function promptTestVoix(v: {
   texte: string;
   personnage: { code: string; description: string | null } | null;
   decor: { code: string; description: string | null } | null;
   avecAudio: boolean;
+  dureeSecondes?: number;
+  langue?: string | null;
 }): string {
+  const plage = formaterPlageH3(v.dureeSecondes ?? TEST_VIDEO_DUREE_DEFAUT);
+  const langue = langueBalise(v.langue);
   const perso = v.personnage
     ? `the character from <Picture 1>${v.personnage.description?.trim() ? `, ${v.personnage.description.trim().replace(/\.$/, "")}` : ""}`
     : "a character facing the camera";
@@ -208,8 +343,8 @@ retention_analysis:
 <Subject 2> (appears in [Shot 1]): fully_preserved - the setting is retained as an out-of-focus background.
 
 detailed_description:
-[Shot 1, 00:00.000–00:08.000] A locked medium shot of <Subject 1>, framed from the chest up, standing still in <Subject 2>. The camera does not move at any point. <Subject 1> faces the lens directly and speaks one single line, then falls silent and holds the gaze. There is no gesture, no step, no head tilt and no hand entering frame at any moment; the only motion in the entire video is the mouth, the eyes and the natural settle of breathing.
-<d>[Français] ${texte}</d>
+[Shot 1, 00:00.000–${plage}] A locked medium shot of <Subject 1>, framed from the chest up, standing still in <Subject 2>. The camera does not move at any point. <Subject 1> faces the lens directly and speaks one single line, then falls silent and holds the gaze. There is no gesture, no step, no head tilt and no hand entering frame at any moment; the only motion in the entire video is the mouth, the eyes and the natural settle of breathing.
+<d>[${langue}] ${texte}</d>
 
 overall_soundscape:
 A faint warm room tone, distant and low, with no music and no crowd.

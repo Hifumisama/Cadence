@@ -1,8 +1,8 @@
 import { db } from "../db";
 import { assets, planRefs, repliques as tableRepliques, voixFiches } from "../db/schema";
 import { and, count, eq, inArray, or } from "drizzle-orm";
-import { assetMediaSrc, voixMediaSrc } from "./media";
-import { estSourceVoix, etatFiche, etatPhases, nomVoix } from "./voix";
+import { assetMediaSrc, estImage, estVideo, voixMediaSrc } from "./media";
+import { estSourceVoix, etatFiche, etatPhases, lireEssais, nomVoix, verdictSuppressionVoix } from "./voix";
 import { langueFicheVoix } from "./langues-tts";
 import { getEpisodesProjet, getOptionsLocuteur, getRepliquesProjet } from "./queries-repliques";
 
@@ -47,7 +47,10 @@ export async function getCastingCatalogue(projectId: number) {
   const ficheParId = new Map(fiches.map((f) => [f.assetId, f]));
   const codePersonnage = new Map(personnages.map((p) => [p.id, p.code]));
 
-  const voix = lesVoix.map((v) => {
+  // Ce qui relie chaque voix au reste du projet : la carte propose « Supprimer » et en dit d'avance les conséquences.
+  const liens = await Promise.all(lesVoix.map((v) => liensDeLaVoix(v.id, ficheParId.get(v.id)?.personnageId ?? null)));
+
+  const voix = lesVoix.map((v, i) => {
     const fiche = ficheParId.get(v.id) ?? null;
     const sesRepliques = repliques.filter((r) => r.voix?.id === v.id);
     const source = fiche && estSourceVoix(fiche.source) ? fiche.source : "design";
@@ -57,7 +60,7 @@ export async function getCastingCatalogue(projectId: number) {
       source,
       personnageCode,
       // Le nom affiché (le code VOICE_* n'apparaît plus dans le casting) et l'état de la fiche (à créer / à valider / validée).
-      nom: nomVoix({ code: v.code, personnageCode }),
+      nom: nomVoix({ code: v.code, personnageCode, nom: fiche?.nom }),
       personnageNom: personnageCode ? nomVoix({ code: personnageCode }) : null,
       etat: etatFiche({ fichier: v.fichier, statut: v.statut }),
       langue: langueFicheVoix(fiche?.langue),
@@ -65,6 +68,7 @@ export async function getCastingCatalogue(projectId: number) {
       referenceSrc: assetMediaSrc(v.fichier),
       nbRepliques: sesRepliques.length,
       nbRepliquesMesurees: sesRepliques.filter((r) => r.dureeSecondes != null).length,
+      suppression: verdictSuppressionVoix(liens[i]!, personnageCode),
       phases: etatPhases({
         source,
         instruction: v.promptGeneration,
@@ -105,7 +109,7 @@ export async function getVoixDetail(projectId: number, code: string) {
       .where(and(eq(assets.projectId, projectId), eq(assets.type, "personnage")))
       .orderBy(assets.code),
     db
-      .select({ id: assets.id, code: assets.code, description: assets.description })
+      .select({ id: assets.id, code: assets.code, description: assets.description, fichier: assets.fichier })
       .from(assets)
       .where(and(eq(assets.projectId, projectId), eq(assets.type, "decor")))
       .orderBy(assets.code),
@@ -123,6 +127,9 @@ export async function getVoixDetail(projectId: number, code: string) {
     testTexte: fiche?.testTexte ?? "",
     testAudio: fiche?.testAudio ?? null,
     testVideo: fiche?.testVideo ?? null,
+    nomChoisi: fiche?.nom ?? null,
+    sourceFichier: fiche?.sourceFichier ?? null,
+    essais: lireEssais(fiche?.essais),
   };
 
   const sesRepliques = repliques.filter((r) => r.voix?.id === asset.id);
@@ -132,10 +139,14 @@ export async function getVoixDetail(projectId: number, code: string) {
     personnage: personnages.find((p) => p.id === ficheComplete.personnageId) ?? null,
     personnages,
     // Nom lisible et état de la fiche : dérivés ici, une seule fois (lib/voix.ts).
-    nom: nomVoix({ code: asset.code, personnageCode: personnages.find((p) => p.id === ficheComplete.personnageId)?.code ?? null }),
+    nom: nomVoix({ code: asset.code, personnageCode: personnages.find((p) => p.id === ficheComplete.personnageId)?.code ?? null, nom: ficheComplete.nomChoisi }),
     etat: etatFiche({ fichier: asset.fichier, statut: asset.statut }),
-    decors,
+    // Chaque décor avec son image (si elle existe) : le ressenti l'affiche derrière la vidéo.
+    decors: decors.map((x) => ({ ...x, src: x.fichier && estImage(x.fichier) ? assetMediaSrc(x.fichier) : null })),
     referenceSrc: assetMediaSrc(asset.fichier),
+    // La source fournie (audio ou vidéo déposé avant l'extraction) : son URL et sa nature, pour la prévisualiser.
+    sourceSrc: voixMediaSrc(asset.id, ficheComplete.sourceFichier),
+    sourceEstVideo: ficheComplete.sourceFichier != null && estVideo(ficheComplete.sourceFichier),
     testAudioSrc: voixMediaSrc(asset.id, ficheComplete.testAudio),
     testVideoSrc: voixMediaSrc(asset.id, ficheComplete.testVideo),
     // Les répliques de cette voix : celles de son personnage (voix déduite du
