@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { assets, briefs, episodes, planDialogues, planPromptSections, plans, repliques, scenes, seasons } from "../../../db/schema";
+import { assets, briefs, episodes, jobs, planDialogues, planPromptSections, plans, repliques, scenes, seasons } from "../../../db/schema";
 import { getPlansPerimes } from "../../plans-perimes";
 import type { Db } from "../applicateurs/commun";
 
@@ -150,6 +150,10 @@ export async function lireVueEpisode(db: Db, projectId: number, episodeId: numbe
   const sections = idsPlans.length
     ? await db.select({ planId: planPromptSections.planId, contenu: planPromptSections.contenu }).from(planPromptSections).where(inArray(planPromptSections.planId, idsPlans))
     : [];
+  // `plans.statut` vaut « en_attente » pour un plan simplement prêt à rendre : seul un job actif est un rendu en file ou en cours.
+  const rendusActifs = new Set(
+    idsPlans.length ? (await db.select({ planId: jobs.planId }).from(jobs).where(and(inArray(jobs.planId, idsPlans), inArray(jobs.statut, ["en_attente", "en_cours"])))).map((j) => j.planId) : [],
+  );
   const avecFiche = new Set(sections.filter((s) => s.contenu.trim() !== "").map((s) => s.planId));
   const perimes = idsPlans.length ? await getPlansPerimes({ planIds: idsPlans }) : new Map();
 
@@ -193,7 +197,7 @@ export async function lireVueEpisode(db: Db, projectId: number, episodeId: numbe
       description: p.description ?? "",
       duree: p.duree,
       sceneId: p.sceneId,
-      statut: p.statut,
+      statut: (p.statut === "en_attente" || p.statut === "en_cours") && !rendusActifs.has(p.id) ? "brouillon" : p.statut,
       aFiche: avecFiche.has(p.id),
       perime: perimes.has(p.id),
     })),
