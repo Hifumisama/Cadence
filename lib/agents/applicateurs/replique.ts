@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
-import { assets, episodes, planDialogues, planRefs, plans, repliques, seasons } from "../../../db/schema";
-import { MAX_REFS, prochainSlotAudioLibre } from "../../plan-checks";
+import { assets, episodes, planDialogues, planPromptSections, planRefs, plans, repliques, seasons } from "../../../db/schema";
+import { MAX_REFS, prochainSlotAudioLibre, remplacerDialogue } from "../../plan-checks";
 import { changerTexteReplique } from "../../repliques-ecriture";
 import type { ChangementBrut } from "../changements";
 import { rapprocherLocuteur, texteComparable, type AssetLocuteur, type LocuteurResolu } from "../locuteurs";
@@ -45,6 +45,25 @@ async function repliqueParUuid(db: Db, projectId: number, uuid: string | null) {
 async function plansQuiCitent(db: Db, repliqueId: number): Promise<number> {
   const liaisons = await db.select({ id: planDialogues.id }).from(planDialogues).where(eq(planDialogues.repliqueId, repliqueId));
   return liaisons.length;
+}
+
+/** Les sections des plans qui citent la réplique, avec ce qu'un remplacement exact de l'ancien texte y changerait. */
+async function dialoguesAResynchroniser(db: Db, repliqueId: number, ancien: string, nouveau: string) {
+  const liaisons = await db.select({ planId: planDialogues.planId }).from(planDialogues).where(eq(planDialogues.repliqueId, repliqueId));
+  const parPlan = new Map<number, { sectionId: number; contenu: string } | null>();
+  for (const { planId } of liaisons) {
+    const sections = await db.select({ id: planPromptSections.id, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, planId));
+    let trouve: { sectionId: number; contenu: string } | null = null;
+    for (const s of sections) {
+      const c = remplacerDialogue(s.contenu, ancien, nouveau);
+      if (c != null) {
+        trouve = { sectionId: s.id, contenu: c };
+        break;
+      }
+    }
+    parPlan.set(planId, trouve);
+  }
+  return parPlan;
 }
 
 const pluriel = (n: number, un: string, plusieurs: string) => (n > 1 ? plusieurs : un);
@@ -146,6 +165,11 @@ export const applicateurReplique: Applicateur = {
       if (texte(a.texte) !== undefined) {
         const modif = changerTexteReplique(r, texte(a.texte)!);
         if (modif.ok) Object.assign(set, modif.set);
+        // La fiche cite la réplique mot pour mot (verbatim) : on la met à jour, sans modèle. Le prompt change, donc le rendu devient périmé.
+        if (modif.ok && modif.texteChange) {
+          const aFaire = await dialoguesAResynchroniser(tx, r.id, r.texte, texte(a.texte)!);
+          for (const m of aFaire.values()) if (m) await tx.update(planPromptSections).set({ contenu: m.contenu }).where(eq(planPromptSections.id, m.sectionId));
+        }
       }
       if (texte(a.locuteur) !== undefined) {
         const loc = rapprocherLocuteur(texte(a.locuteur)!, await registreLocuteurs(tx, ctx.projectId));
@@ -227,10 +251,11 @@ async function previsualiserModification(db: Db, ctx: CtxPrevisu, ch: Changement
       const n = await plansQuiCitent(db, r.id);
       if (r.fichier) avertissements.push({ type: "info", texte: "Sa prise audio deviendra obsolète : elle sera à refaire." });
       if (n > 0) {
-        avertissements.push({
-          type: "info",
-          texte: n === 1 ? "1 plan cite cette réplique : sa fiche est à resynchroniser (le contrôle verbatim la verra différente)." : `${n} plans citent cette réplique : leurs fiches sont à resynchroniser (le contrôle verbatim les verra différentes).`,
-        });
+        const parPlan = await dialoguesAResynchroniser(db, r.id, r.texte, modif.set.texte ?? r.texte);
+        const misAJour = [...parPlan.values()].filter(Boolean).length;
+        const reste = n - misAJour;
+        if (misAJour > 0) avertissements.push({ type: "info", texte: `${misAJour} fiche${misAJour > 1 ? "s" : ""} de plan cite${misAJour > 1 ? "nt" : ""} cette réplique mot pour mot : son dialogue sera mis à jour (le rendu, s'il y en a un, deviendra périmé).` });
+        if (reste > 0) avertissements.push({ type: "info", texte: `${reste} fiche${reste > 1 ? "s" : ""} de plan ne cite${reste > 1 ? "nt" : ""} pas cette réplique mot pour mot : à resynchroniser à la main (le contrôle verbatim le signalera).` });
       }
       if (r.statut === "validee") {
         ecrase = "Sa prise est validée : elle repassera « posée » (elle ne dit plus le texte).";

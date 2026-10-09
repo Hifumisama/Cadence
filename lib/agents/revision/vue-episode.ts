@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { assets, briefs, episodes, jobs, planDialogues, planPromptSections, plans, repliques, scenes, seasons } from "../../../db/schema";
+import { extraireBalisesD } from "../../plan-checks";
 import { getPlansPerimes } from "../../plans-perimes";
 import type { Db } from "../applicateurs/commun";
 
@@ -37,6 +38,8 @@ export type RepliqueVue = {
   priseValidee: boolean;
   /** Les plans qui citent la réplique (uuid). */
   plans: string[];
+  /** Parmi eux, ceux dont la fiche cite la réplique mot pour mot (la fiche peut alors être mise à jour sans modèle). */
+  plansVerbatim: string[];
 };
 
 export type VueEpisode = {
@@ -70,7 +73,7 @@ export type LignesEpisode = {
   /** Dans l'ordre de lecture (`plans.ordre`). */
   plans: { uuid: string; titre: string; description: string; duree: number; sceneId: number | null; statut: string; aFiche: boolean; perime: boolean }[];
   scenes: { id: number; titre: string }[];
-  repliques: { uuid: string; ordre: number; texte: string; locuteur: string; statut: string; avecPrise: boolean; liaisons: { planUuid: string; slot: number }[] }[];
+  repliques: { uuid: string; ordre: number; texte: string; locuteur: string; statut: string; avecPrise: boolean; liaisons: { planUuid: string; slot: number }[]; verbatim?: string[] }[];
 };
 
 export function construireVue(l: LignesEpisode): VueEpisode {
@@ -110,6 +113,7 @@ export function construireVue(l: LignesEpisode): VueEpisode {
     avecPrise: r.avecPrise,
     priseValidee: r.statut === "validee",
     plans: r.liaisons.map((li) => li.planUuid),
+    plansVerbatim: r.verbatim ?? [],
   }));
 
   return { episodeId: l.episode.id, numero: l.episode.numero, titre: l.episode.titre, objectifSecondes: l.objectifSecondes, plans: planVues, repliques: repliqueVues };
@@ -183,6 +187,7 @@ export async function lireVueEpisode(db: Db, projectId: number, episodeId: numbe
   const codes = idsAssets.length ? await db.select({ id: assets.id, code: assets.code }).from(assets).where(inArray(assets.id, idsAssets)) : [];
   const codeDe = new Map(codes.map((a) => [a.id, a.code]));
   const uuidDePlan = new Map(lesPlans.map((p) => [p.id, p.uuid]));
+  const citeMotPourMot = (planId: number, t: string) => sections.some((s) => s.planId === planId && extraireBalisesD([{ section: "", contenu: s.contenu }]).some((b) => b.texte === t.trim()));
 
   const [brief] = await db.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
   const d = (brief?.contenu as { dureeEpisodeSecondes?: unknown } | undefined)?.dureeEpisodeSecondes;
@@ -209,6 +214,7 @@ export async function lireVueEpisode(db: Db, projectId: number, episodeId: numbe
       statut: r.statut,
       avecPrise: r.fichier != null,
       liaisons: liaisons.filter((li) => li.repliqueId === r.id).flatMap((li) => (uuidDePlan.has(li.planId) ? [{ planUuid: uuidDePlan.get(li.planId)!, slot: li.slot }] : [])),
+      verbatim: liaisons.filter((li) => li.repliqueId === r.id).flatMap((li) => (citeMotPourMot(li.planId, r.texte) ? [uuidDePlan.get(li.planId)!] : [])),
     })),
   });
 }

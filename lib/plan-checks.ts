@@ -444,3 +444,13 @@ export function controlerStructure(
 
   return problemes;
 }
+
+/** Remplace, dans le contenu d'UNE section, le texte de la première balise `<d>` qui dit EXACTEMENT `ancien` (aux blancs de bord
+ * près) par `nouveau`. Renvoie le contenu modifié, ou null si aucune balise ne dit l'ancien texte : on ne devine jamais une
+ * correspondance approchée, la fiche reste alors à retoucher (contrôle verbatim). Sert à resynchroniser la fiche quand une réplique
+ * change (réalisateur, docs/FRICTIONS.md 2026-10-09, 3c). */
+export function remplacerDialogue(contenu: string, ancien: string, nouveau: string): string | null {
+  const cible = ancien.trim();
+  const b = extraireBalisesD([{ section: "", contenu }]).find((x) => x.texte === cible);
+  return b ? contenu.slice(0, b.debut) + nouveau.trim() + contenu.slice(b.fin) : null;
+}

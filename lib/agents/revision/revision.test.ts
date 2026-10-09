@@ -119,9 +119,13 @@ test("constats : le rendu réussi est écrasé, la réplique cite sa fiche, le r
   assert.deepEqual(constatsOperations([couper(5)], vue).map((c) => c.niveau), ["ok"]);
 
   const rep = constatsOperations([op({ type: "remplacer_replique", repliqueUuid: vue.repliques[0]!.uuid, texte: "Je ne reviendrai pas." })], vue);
-  assert.ok(rep.some((c) => /fiche de P07 cite l'ancienne réplique/.test(c.texte)));
+  assert.ok(rep.some((c) => /fiche de P07 ne cite pas l'ancienne réplique mot pour mot/.test(c.texte)));
   assert.ok(rep.some((c) => /rendu de P07 sera périmé/.test(c.texte)));
   assert.ok(rep.every((c) => c.source === "code"));
+  const vueVerbatim = { ...vue, repliques: vue.repliques.map((r, i) => (i === 0 ? { ...r, plansVerbatim: r.plans } : r)) };
+  const rep2 = constatsOperations([op({ type: "remplacer_replique", repliqueUuid: vue.repliques[0]!.uuid, texte: "Je ne reviendrai pas." })], vueVerbatim);
+  assert.ok(rep2.some((c) => c.niveau === "alerte" && /mot pour mot : son dialogue est mis à jour/.test(c.texte)));
+  assert.ok(rep2.some((c) => /rendu de P07 sera périmé : le prompt/.test(c.texte)));
 
   const duree4 = constatsOperations([duree(4, 6)], vue);
   assert.match(duree4[0]!.texte, /périmé le rendu de P04/);

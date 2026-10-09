@@ -35,8 +35,13 @@ export function constatsOperations(operations: Operation[], vue: VueEpisode): Co
         for (const uuid of r.plans) {
           const p = planParUuid(vue, uuid);
           if (!p) continue;
-          constats.push(alerte(`La fiche de ${p.handle} cite l'ancienne réplique : à resynchroniser (dialogues à corriger).`));
-          if (p.etat === "rendu") constats.push(alerte(`Le rendu de ${p.handle} sera périmé quand sa fiche sera resynchronisée.`));
+          if (r.plansVerbatim.includes(uuid)) {
+            constats.push(alerte(`La fiche de ${p.handle} cite la réplique mot pour mot : son dialogue est mis à jour avec le nouveau texte.`));
+            if (p.etat === "rendu") constats.push(alerte(`Le rendu de ${p.handle} sera périmé : le prompt de sa fiche change.`));
+          } else {
+            constats.push(alerte(`La fiche de ${p.handle} ne cite pas l'ancienne réplique mot pour mot : à resynchroniser à la main (dialogues à corriger).`));
+            if (p.etat === "rendu") constats.push(alerte(`Le rendu de ${p.handle} sera périmé quand sa fiche sera resynchronisée.`));
+          }
         }
       }
     } else if (op.type === "supprimer_replique") {

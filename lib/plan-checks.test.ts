@@ -206,3 +206,11 @@ test("extraireLabels : labels cités, dans l'ordre, sans doublon", () => {
   ]);
   assert.deepEqual(extraireLabels("aucun label"), []);
 });
+
+test("remplacerDialogue : remplace la balise qui dit exactement l'ancien texte, jamais une approchante", async () => {
+  const { remplacerDialogue } = await import("./plan-checks");
+  const c = 'She says <d>[Français] Il manque du sel.</d> then <d>[Français] Pars.</d>';
+  assert.equal(remplacerDialogue(c, "Il manque du sel.", "Le sel est fini."), 'She says <d>[Français] Le sel est fini.</d> then <d>[Français] Pars.</d>');
+  assert.equal(remplacerDialogue(c, "Il manque du sel", "x"), null);
+  assert.equal(remplacerDialogue("rien", "a", "b"), null);
+});

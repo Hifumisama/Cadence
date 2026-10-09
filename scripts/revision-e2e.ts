@@ -71,6 +71,9 @@ async function main() {
     // ── A. Le parcours « ressenti » ───────────────────────────────────────────────
     console.log("\nA. Parcours « ressenti » : pistes, choix, conflit, résolution, application");
     const a = await semerLeSel("TEST_REVISION_E2E_A");
+    // La fiche du plan 07 cite sa réplique mot pour mot : l'application doit mettre son dialogue à jour.
+    const [p07] = (await db.select({ id: plans.id }).from(plans).where(eq(plans.episodeId, a.episodeId)).orderBy(asc(plans.ordre))).slice(6);
+    await db.insert(planPromptSections).values({ planId: p07!.id, section: "detailed_description", ordre: 4, contenu: "He turns and says <d>[Français] Je ne reviendrai jamais.</d> then leaves." });
     ids.push(a.projectId);
     const o1 = await ouvrirRevision(a.projectId, a.episodeId);
     if (!o1.ok) throw new Error(o1.erreur);
@@ -107,7 +110,7 @@ async function main() {
     );
     const d3 = t3.decisions.find((d) => d.id === "D3");
     ok(d3?.statut === "conflit", "le jugement narratif du modèle met la décision en conflit");
-    ok(d3!.constats.some((c) => c.source === "code" && /fiche de P07 cite l'ancienne réplique/.test(c.texte)) && d3!.constats.some((c) => c.source === "modele"), "constats du code (fiche à resynchroniser) ET du modèle (conflit)");
+    ok(d3!.constats.some((c) => c.source === "code" && /fiche de P07 cite la réplique mot pour mot/.test(c.texte)) && d3!.constats.some((c) => c.source === "modele"), "constats du code (fiche à resynchroniser) ET du modèle (conflit)");
     const refus1 = await appliquerRevision(o1.conversationUuid);
     ok(!refus1.ok && /en conflit \(D3\)/.test(refus1.ok ? "" : refus1.erreur), "appliquer est refusé tant qu'une décision est en conflit");
 
@@ -133,6 +136,8 @@ async function main() {
     ok(lignes.every((l, i) => l.ordre === i) && lignes.reduce((x, l) => x + l.duree, 0) === 120, "ordre dense (aucun trou) et 120 s au total");
     const [rep] = await db.select({ texte: repliques.texte }).from(repliques).where(eq(repliques.episodeId, a.episodeId)).orderBy(asc(repliques.ordre));
     ok(rep?.texte === "Je ne reviendrai pas.", "la réplique a été réécrite");
+    const [dd] = await db.select({ contenu: planPromptSections.contenu }).from(planPromptSections).where(and(eq(planPromptSections.planId, p07!.id), eq(planPromptSections.section, "detailed_description")));
+    ok(dd?.contenu === "He turns and says <d>[Français] Je ne reviendrai pas.</d> then leaves.", "le dialogue de la fiche du plan 07 est mis à jour");
     const [conv] = await db.select().from(agentConversations).where(eq(agentConversations.uuid, o1.conversationUuid));
     ok(conv?.fermeeAt != null && conv.etape === "applique", "la conversation est fermée à l'application");
     const decs = await db.select({ statut: revisionDecisions.statut }).from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv!.id));
