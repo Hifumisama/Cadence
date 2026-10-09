@@ -19,6 +19,7 @@ import {
   priseObsolete,
 } from "@/lib/repliques";
 import { getDialoguesPlan } from "@/lib/queries-repliques";
+import { changerTexteReplique } from "@/lib/repliques-ecriture";
 
 // Répliques autonomes (docs/FRICTIONS.md F02, révision 2026-09-30). Une
 // réplique naît du scénario ou du casting, sans plan ; la fiche de plan n'en
@@ -133,13 +134,10 @@ export async function modifierReplique(
   let texteChange = false;
 
   if (valeurs.texte !== undefined) {
-    const texte = nettoyer(valeurs.texte);
-    if (!texte) return { ok: false, erreur: "Le texte de la réplique est vide." };
-    if (texte !== r.texte) {
-      set.texte = texte;
-      texteChange = true;
-      if (r.statut === "validee") set.statut = "prise_posee";
-    }
+    const modif = changerTexteReplique(r, valeurs.texte);
+    if (!modif.ok) return { ok: false, erreur: modif.erreur };
+    Object.assign(set, modif.set);
+    texteChange = modif.texteChange;
   }
   if (valeurs.locuteur !== undefined) {
     const loc = await resoudreLocuteur(r.projectId, valeurs.locuteur);

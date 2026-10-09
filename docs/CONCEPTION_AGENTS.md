@@ -477,7 +477,8 @@ Décisions et raisons : `docs/FRICTIONS.md`, 2026-10-07 (conception) et 2026-10-
 - **Cycle de vie.** Une conversation ouverte par épisode. Le brouillon de décisions reste attaché à l'épisode tant qu'il n'est ni appliqué ni abandonné (rien n'est réinitialisé en silence quand on quitte la page). **À l'application, la conversation se ferme** ; la révision suivante en ouvre une neuve.
 - **Portée.** `episode` du verrou de portée (`lib/agents/portee.ts`) : l'épisode, ses scènes et ses plans. Un asset manquant est signalé, sa création reste dans le flux des assets.
 - **Modèle.** Qwen3.6-35B-A3B par défaut (`LLM_MODELE_REALISATEUR`, `.env.example`).
-- **À construire côté code.** Trois capacités d'écriture que les applicateurs refusent aujourd'hui (supprimer un plan, modifier ou supprimer une réplique, déplacer un plan) ; le « périmé » étendu aux fiches, durées et répliques ; le statut des décisions et un contexte qui montre à l'agent le scénario *avec* le brouillon.
+- **Écritures (faites, étape 1).** Supprimer un plan, déplacer un plan (`modifier` avec une position), modifier ou supprimer une réplique : applicateurs `plan.ts` et `replique.ts`, règle du texte partagée (`lib/repliques-ecriture.ts`). Le détail est dans `docs/FRICTIONS.md`, « Étape 1 construite ».
+- **À construire côté code.** Le « périmé » étendu aux fiches, durées et répliques ; l'affichage du déplacement dans la revue ; les convertisseurs vers les changements ; le statut des décisions et un contexte qui montre à l'agent le scénario *avec* le brouillon ; le skill et la conversation.
 - **Pas de point de retour** : l'annulation d'une proposition appliquée reste écartée (voir 2026-10-02), les garde-fous sont avant l'application.
 
 Décisions, cascade et raisons : `docs/FRICTIONS.md`, 2026-10-09 (révision d'épisode). Maquettes : `docs/maquettes/revision-episode.html` (la conversation) et `docs/maquettes/cascade-chantier.html` (les conséquences de chaque changement).

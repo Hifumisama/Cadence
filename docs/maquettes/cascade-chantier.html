@@ -102,20 +102,20 @@ td b{font-weight:500;color:var(--ink)}
 <section id="ecrire">
   <div>
     <p class="acte">Ce que l'application sait écrire</p>
-    <h2>Trois capacités manquent aujourd'hui</h2>
-    <p class="sous">Relevé dans <code>lib/agents/applicateurs/</code>. Une proposition peut créer et modifier, mais la suppression est refusée partout (« Suppression non prise en charge pour l'instant : fais-la à la main »). Or un chantier coupe, déplace et retouche des répliques.</p>
+    <h2>Trois capacités ajoutées à l'étape 1</h2>
+    <p class="sous">Relevé dans <code>lib/agents/applicateurs/</code>. Avant l'étape 1, une proposition savait créer et modifier mais la suppression était refusée partout (« Suppression non prise en charge pour l'instant : fais-la à la main »). Un chantier coupe, déplace et retouche des répliques : ces trois écritures existent maintenant pour les plans et les répliques.</p>
   </div>
   <div class="tableau" role="region" aria-label="Capacités d'écriture" tabindex="0">
     <table>
       <thead><tr><th>Cible</th><th>Créer</th><th>Modifier</th><th>Supprimer</th><th>Déplacer</th></tr></thead>
       <tbody>
-        <tr><td><b>Plan</b></td><td><span class="ok">oui, à une position</span></td><td><span class="ok">oui : titre, description, durée de 5 à 15 s</span></td><td><span class="non">refusé</span></td><td><span class="non">non géré</span><br><span class="tiny">le glisser-déposer manuel existe (<code>recomposerOrdre</code>)</span></td></tr>
-        <tr><td><b>Réplique</b></td><td><span class="ok">oui, liée à son plan</span></td><td><span class="non">refusé</span><br><span class="tiny">« se change dans la fiche »</span></td><td><span class="non">refusé</span></td><td>—</td></tr>
+        <tr><td><b>Plan</b></td><td><span class="ok">oui, à une position</span></td><td><span class="ok">oui : titre, description, durée de 5 à 15 s</span></td><td><span class="ok">oui</span><br><span class="tiny">rendu réussi : confirmation ; rendu en file : bloqué</span></td><td><span class="ok">oui : modifier avec une position</span><br><span class="tiny">même ordre que le glisser-déposer (<code>recomposerOrdre</code>)</span></td></tr>
+        <tr><td><b>Réplique</b></td><td><span class="ok">oui, liée à son plan</span></td><td><span class="ok">oui : texte et locuteur</span></td><td><span class="ok">oui</span><br><span class="tiny">prise validée ou citée par un plan : confirmation</span></td><td>—</td></tr>
         <tr><td><b>Fiche de plan</b></td><td><span class="ok">oui</span></td><td><span class="ok">oui, complète ou par sections</span></td><td>—</td><td>—</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="tiny">À construire pour le réalisateur : supprimer un plan (en reprenant ce que fait la suppression manuelle : répliques, fiche, références, dossier de rendu), modifier ou supprimer une réplique, déplacer un plan. Ce sont des opérations de code, sans modèle.</p>
+  <p class="tiny">Ce sont des opérations de code, sans modèle. Reste à faire : nettoyer les fichiers (rendus d'un plan supprimé, prise d'une réplique supprimée) après l'application, et afficher le déplacement dans la revue.</p>
 </section>
 
 <section id="controles">
@@ -154,23 +154,23 @@ td b{font-weight:500;color:var(--ink)}
 (function(){
   /* o : e = existe, n = à construire, v = à vérifier. q : qui le fait (code ou modèle). */
   var D=[
-    {t:"Supprimer un plan",etat:"capacité manquante : la suppression est refusée aujourd'hui",
-     auto:[["Les positions des plans suivants se recalculent, sans trou","e","code"],["La durée de l'épisode est recalculée contre l'objectif","n","code"],["Répliques, fiche, références et dossier de rendu partent avec le plan","v","code, comme la suppression manuelle"],["Les assets du plan ne sont jamais supprimés : ils passent en « Sans plan »","e","code"]],
-     prop:[["Un plan qui en dépendait devient orphelin (un insert, par exemple) : proposer de le couper aussi","n","modèle"],["Une réplique ailleurs qui lui répondait perd sa cause : proposer de la reprendre","n","modèle"],["Raccord entre les deux plans qui se touchent désormais","n","modèle"]],
-     bloc:[["Plan avec rendu réussi : confirmation d'écrasement","e","code"],["Réplique avec prise validée : confirmation","e","code"],["Suppression refusée par les applicateurs : à lever","e","code"]]},
+    {t:"Supprimer un plan",etat:"écriture ajoutée (étape 1) ; les fichiers de rendu ne sont pas touchés",
+     auto:[["Les positions des plans suivants se recalculent, sans trou","e","code"],["La durée de l'épisode est recalculée contre l'objectif","n","code"],["La fiche, les références, les liaisons de répliques et les rendus (en base) partent avec le plan, par cascade","e","code"],["Les répliques du plan restent dans l'épisode, sans plan : une réplique existe par elle-même","e","code"],["Les assets du plan ne sont jamais supprimés : ils passent en « Sans plan »","e","code"]],
+     prop:[["Un plan qui en dépendait devient orphelin (un insert, par exemple) : proposer de le couper aussi","n","modèle"],["Une réplique ailleurs qui lui répondait perd sa cause : proposer de la reprendre","n","modèle"],["Raccord entre les deux plans qui se touchent désormais","n","modèle"],["Des répliques restées sans plan : proposer de les supprimer aussi, ou de les relier à un autre plan","n","modèle"]],
+     bloc:[["Plan avec rendu réussi : confirmation d'écrasement","e","code"],["Un rendu en file ou en cours bloque la suppression : l'annuler d'abord","e","code"]]},
     {t:"Changer la durée d'un plan",etat:"existe déjà (modification d'un plan)",
      auto:[["La durée de l'épisode est recalculée","n","code"],["Le rendu existant est marqué périmé","n","code"],["La durée de génération du plan est mise à jour","e","code"]],
      prop:[["Réécrire les timecodes de la fiche pour la nouvelle durée (écriture partielle)","e","modèle"],["Vérifier que la réplique tient encore dans la durée, avec sa marge de respiration","n","code"]],
      bloc:[["Durée hors de 5 à 15 s entières","e","code"]]},
-    {t:"Changer une réplique",etat:"capacité manquante : la modification est refusée aujourd'hui",
+    {t:"Changer une réplique",etat:"écriture ajoutée (étape 1)",
      auto:[["La prise audio de la réplique devient obsolète","e","code"],["Le dialogue de la fiche ne correspond plus : la fiche est marquée à refondre","n","code"],["Le rendu du plan est marqué périmé","n","code"]],
      prop:[["Refondre la fiche (son, caméra, durée)","e","modèle"],["Refaire la prise audio (« Générer les prises manquantes »)","e","code"],["Reprendre le plan voisin qui y répond","n","modèle"]],
-     bloc:[["Réplique avec prise validée : confirmation","e","code"],["Une fiche ne s'applique pas si son dialogue diffère de la réplique","e","code"],["Modification refusée par les applicateurs : à lever","e","code"]]},
+     bloc:[["Réplique avec prise validée : confirmation","e","code"],["Une fiche ne s'applique pas si son dialogue diffère de la réplique","e","code"]]},
     {t:"Refondre la fiche d'un plan",etat:"existe déjà (écriture de fiche, complète ou partielle)",
      auto:[["Le rendu du plan est marqué périmé","n","code"],["Les références de la fiche sont revalidées","v","code"]],
      prop:[["Un asset cité n'existe pas : le créer au registre. L'épisode ne crée pas d'asset lui-même, c'est le flux des assets qui s'en charge","e","modèle"],["Relancer le rendu (« Relancer les périmés »)","e","code"]],
      bloc:[["Contrôles de la fiche : shots d'au moins 1,5 s, 3 slots audio, verbatim, références limitées","e","code"],["Plan avec rendu réussi : avertissement d'écrasement","e","code"]]},
-    {t:"Déplacer un plan",etat:"capacité manquante : seul le glisser-déposer manuel existe",
+    {t:"Déplacer un plan",etat:"écriture ajoutée (étape 1) : modifier avec une position",
      auto:[["Les positions sont recalculées, l'ordre est celui de la monteuse (<code>plans.ordre</code>)","e","code"],["Les rendus restent valables : l'ordre n'entre pas dans un rendu","v","code"]],
      prop:[["Vérifier le raccord avec les nouveaux voisins (direction d'écran, mouvement)","n","modèle"],["Une réplique qui renvoyait au plan d'avant ou d'après","n","modèle"]],
      bloc:[]},
