@@ -94,3 +94,14 @@ Chaque cas repart d'un état propre : **« Abandonner le brouillon »** (sous la
 - **Honnêteté** : il ne dit jamais avoir fait ce qu'il n'a pas fait (cas 1.7, 1.8, 2.2, 2.3).
 - **Avertissements en doublon** ou trop bavards dans les Détails.
 - **Le moindre écart** entre ce que dit le réalisateur et ce qu'affichent la fiche et la barre : c'est le plus important à me rapporter.
+
+## 7. Le cas réel qui avait bloqué (à rejouer)
+
+| | Cas | Écris | Attendu | Remarque |
+|---|---|---|---|---|
+| ☐ | 7.1 Quatre plans avec répliques | Le message d'origine : « Je pense que tu peux découper le plan 01 en 4, chacun de 5 secondes : l'eau… (réplique de Katara : L'eau...), le feu… (Le feu...), la terre… (La terre...), l'air… (L'air...) » puis « Chaque plan dure 6 secondes. » | **Une seule décision** avec quatre ajouts ; la durée avec le brouillon augmente de 24 s ; dans « Voir le scénario » : quatre plans « nouveau » **avant le plan 01, dans l'ordre eau, feu, terre, air**, chacun avec sa réplique soulignée. Aucun refus, aucune « option en attente » inventée. | |
+| ☐ | 7.2 « Juste avant » | « Mets-les juste avant le plan 01. » (si le lieu n'était pas dit) | Il place les plans avant P01 (pas après). | |
+| ☐ | 7.3 Durée oubliée | Redemande sans donner de durée | Il **demande la durée**, une seule question, sans proposer d'autres options. | |
+| ☐ | 7.4 Application | Glisse | Les quatre plans existent dans l'ordre, 6 s chacun, avec leur réplique liée (page du plan : une réplique à l'emplacement audio 1) ; un lot de **quatre fiches** s'écrit ; les fiches citent la réplique mot pour mot. | |
+| ☐ | 7.5 Réplique sur un plan existant | « Fais dire "Tu pars ?" au pêcheur dans le plan 12. » | Décision « ajouter une réplique » ; constat « réplique créée et liée au plan, fiche réécrite ensuite » ; au-delà de 3 répliques sur un plan : bloquant. | |
+| ☐ | 7.6 Réplique avec locuteur inconnu | « Ajoute une réplique de Zorg au plan 3 : "Salut." » | La réplique prend un locuteur libre (avertissement « absent du registre »), aucun asset n'est créé. | |

@@ -3,7 +3,7 @@ import type { Position } from "../types";
 /** La révision d'un épisode (le réalisateur, docs/FRICTIONS.md 2026-10-09 « révision d'épisode »). Types partagés par le
  * serveur, le worker et l'interface : aucun accès base ni Next ici. */
 
-export const TYPES_OPERATION = ["couper_plan", "duree_plan", "deplacer_plan", "modifier_plan", "remplacer_replique", "supprimer_replique", "refondre_fiche", "ajouter_plan"] as const;
+export const TYPES_OPERATION = ["couper_plan", "duree_plan", "deplacer_plan", "modifier_plan", "remplacer_replique", "supprimer_replique", "refondre_fiche", "ajouter_plan", "ajouter_replique"] as const;
 export type TypeOperation = (typeof TYPES_OPERATION)[number];
 
 /** L'opération telle que le modèle la rend : une structure PLATE (sortie contrainte), les plans et les répliques cités par une
@@ -15,6 +15,8 @@ export type OperationBrute = {
   secondes?: number | null;
   /** Déplacement : la poignée du plan APRÈS lequel on pose le plan (sinon `position`). */
   apres?: string | null;
+  /** ajouter_plan : la poignée du plan AVANT lequel on pose le nouveau plan (sinon `apres` ou `position`). */
+  avant?: string | null;
   /** Déplacement : « debut » ou « fin » de l'épisode. */
   position?: string | null;
   titre?: string | null;
@@ -38,7 +40,9 @@ export type Operation =
   | { type: "refondre_fiche"; planUuid: string; consigne: string }
   /** Ajouter un plan SANS fiche (sa fiche s'écrit ensuite, comme une refonte). `ref` est un uuid tiré à la validation : l'identifiant du plan
    * dans le brouillon, tant qu'il n'existe pas. */
-  | { type: "ajouter_plan"; ref: string; position: Position; titre: string; description: string; secondes: number };
+  | { type: "ajouter_plan"; ref: string; position: Position; titre: string; description: string; secondes: number; replique?: { locuteur: string; texte: string } }
+  /** Ajouter une réplique à un plan EXISTANT (sa fiche est réécrite après l'application). */
+  | { type: "ajouter_replique"; planUuid: string; locuteur: string; texte: string };
 
 export type OperationRefusee = { brute: OperationBrute; raison: string };
 

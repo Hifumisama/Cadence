@@ -20,8 +20,10 @@ export type PlanBrouillon = {
   deplace: boolean;
   /** Plan ajouté par le brouillon : il n'existe pas encore (son uuid est la `ref` de l'opération). */
   ajoute: boolean;
-  /** La fiche de ce plan sera réécrite après l'application (refondre_fiche, ou plan ajouté). */
+  /** La fiche de ce plan sera réécrite après l'application (refondre_fiche, plan ajouté, réplique ajoutée). */
   fiche: boolean;
+  /** Les répliques que le brouillon ajoute à ce plan (elles n'existent pas encore). */
+  repliquesAjoutees: { locuteur: string; texte: string }[];
 };
 
 export type RepliqueBrouillon = { uuid: string; handle: string; texte: string; texteOriginal: string; locuteur: string; supprimee: boolean };
@@ -37,7 +39,7 @@ export type Brouillon = {
 };
 
 export function appliquerAuBrouillon(vue: VueEpisode, operations: Operation[]): Brouillon {
-  const plans: PlanBrouillon[] = vue.plans.map((p) => ({ uuid: p.uuid, handle: p.handle, titre: p.titre, description: p.description, duree: p.duree, dureeOriginale: p.duree, coupe: false, deplace: false, ajoute: false, fiche: false }));
+  const plans: PlanBrouillon[] = vue.plans.map((p) => ({ uuid: p.uuid, handle: p.handle, titre: p.titre, description: p.description, duree: p.duree, dureeOriginale: p.duree, coupe: false, deplace: false, ajoute: false, fiche: false, repliquesAjoutees: [] }));
   const repliques: RepliqueBrouillon[] = vue.repliques.map((r) => ({ uuid: r.uuid, handle: r.handle, texte: r.texte, texteOriginal: r.texte, locuteur: r.locuteur, supprimee: false }));
   const ignorees: Brouillon["ignorees"] = [];
   const plan = (uuid: string) => plans.find((p) => p.uuid === uuid);
@@ -59,7 +61,7 @@ export function appliquerAuBrouillon(vue: VueEpisode, operations: Operation[]): 
       continue;
     }
     if (op.type === "ajouter_plan") {
-      const nouveau: PlanBrouillon = { uuid: op.ref, handle: "nouveau", titre: op.titre, description: op.description, duree: op.secondes, dureeOriginale: 0, coupe: false, deplace: false, ajoute: true, fiche: true };
+      const nouveau: PlanBrouillon = { uuid: op.ref, handle: "nouveau", titre: op.titre, description: op.description, duree: op.secondes, dureeOriginale: 0, coupe: false, deplace: false, ajoute: true, fiche: true, repliquesAjoutees: op.replique ? [op.replique] : [] };
       let index: number;
       if ("fin" in op.position) index = plans.length;
       else if ("debut" in op.position) index = 0;
@@ -72,11 +74,21 @@ export function appliquerAuBrouillon(vue: VueEpisode, operations: Operation[]): 
         }
         index = i + 1;
       }
+      // Plusieurs plans ajoutés au même endroit se lisent dans l'ordre où ils ont été demandés : on passe ceux qui sont déjà là.
+      while (plans[index]?.ajoute) index++;
       plans.splice(index, 0, nouveau);
       continue;
     }
     const p = plan(op.planUuid);
     if (!p) continue;
+    if (op.type === "ajouter_replique") {
+      if (p.coupe) ignorees.push({ operation: op, raison: `${p.handle} est coupé : sa réplique n'a plus de plan.` });
+      else {
+        p.repliquesAjoutees.push({ locuteur: op.locuteur, texte: op.texte });
+        p.fiche = true;
+      }
+      continue;
+    }
     if (op.type === "refondre_fiche") {
       if (p.coupe) ignorees.push({ operation: op, raison: `${p.handle} est coupé : sa fiche disparaît avec lui.` });
       else p.fiche = true;

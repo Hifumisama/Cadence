@@ -26,10 +26,14 @@ export function ScenesBrouillon({ scenes }: { scenes: SceneTouchee[] }) {
                 {p.deplace ? <span className="rv-pil">déplacé</span> : null}
                 {p.etat === "rendu" && (p.coupe || p.duree !== p.dureeOriginale) ? <span className="rv-pil is-rouge">rendu</span> : null}
                 {p.repliques
-                  .filter((r) => r.supprimee || r.texte !== r.texteOriginal)
+                  .filter((r) => r.ajoutee || r.supprimee || r.texte !== r.texteOriginal)
                   .map((r) => (
                     <span key={r.handle} className="rv-replique">
-                      {r.supprimee ? (
+                      {r.ajoutee ? (
+                        <ins>
+                          {r.locuteur} : {r.texte}
+                        </ins>
+                      ) : r.supprimee ? (
                         <del>{r.texteOriginal}</del>
                       ) : (
                         <>

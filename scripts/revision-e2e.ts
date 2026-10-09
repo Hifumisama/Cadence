@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, plans, projects, repliques, revisionDecisions, scenes, seasons } from "../db/schema";
 import { semerLeSel } from "./semis-le-sel";
@@ -325,6 +325,44 @@ async function main() {
     ok(consignes.some((c) => /plus s\u00e8che|plus sèche/.test(c)), "…dont la consigne de l'utilisateur est transmise à la refonte");
     const [fermee] = await db.select().from(agentConversations).where(eq(agentConversations.uuid, oe.conversationUuid));
     ok(fermee?.fermeeAt != null, "la révision est fermée");
+
+    // ── F. Quatre plans avant le plan 01, chacun avec sa réplique (le cas réel qui avait bloqué le réalisateur) ──────────
+    console.log("\nF. Quatre plans ajoutés avant le premier, chacun avec sa réplique : ordre de lecture, répliques liées, lot de fiches");
+    const f = await semerLeSel("TEST_REVISION_E2E_F");
+    ids.push(f.projectId);
+    const of = await ouvrirRevision(f.projectId, f.episodeId);
+    if (!of.ok) throw new Error(of.erreur);
+    const elements = ["L'eau", "Le feu", "La terre", "L'air"];
+    const tf = await tour(
+      of.conversationUuid,
+      sortie({
+        decisions: [
+          {
+            id: null,
+            titre: "Quatre plans des éléments avant le plan 01",
+            raison: "",
+            operations: elements.map((t) => ({ type: "ajouter_plan", avant: "P01", titre: t, description: `Un maître : ${t}`, secondes: 6, texte: `${t}...`, locuteur: "CHAR_maya" })),
+          },
+        ],
+      }),
+    );
+    ok(tf.decisions.length === 1 && tf.decisions[0]!.statut === "retenue" && tf.duree.avecBrouillon === "2:58", "une décision retenue : quatre plans de 6 s (154 + 24 = 2:58)");
+    const appF = await appliquerRevision(of.conversationUuid);
+    if (!appF.ok) console.error("    →", appF.erreur);
+    ok(appF.ok && appF.suite?.plans === 4 && appF.suite.erreur === null, "chantier appliqué ; quatre fiches à écrire");
+    const lesF = await db.select({ id: plans.id, titre: plans.titre, duree: plans.dureeGenerationSecondes, sceneId: plans.sceneId }).from(plans).where(eq(plans.episodeId, f.episodeId)).orderBy(asc(plans.ordre));
+    ok(lesF.slice(0, 5).map((p) => p.titre).join("|") === "L'eau|Le feu|La terre|L'air|Plan large du port, brume", "les quatre plans sont avant le plan 01, dans l'ordre demandé");
+    ok(lesF.slice(0, 4).every((p) => p.duree === 6 && p.sceneId === lesF[4]!.sceneId), "…de 6 s chacun, dans la scène du plan 01");
+    const lignesF = await db
+      .select({ plan: plans.titre, texte: repliques.texte, slot: planDialogues.slot })
+      .from(planDialogues)
+      .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
+      .innerJoin(plans, eq(plans.id, planDialogues.planId))
+      .where(inArray(plans.id, lesF.slice(0, 4).map((p) => p.id)));
+    ok(lignesF.length === 4 && elements.every((t) => lignesF.some((l) => l.plan === t && l.texte === `${t}...` && l.slot === 1)), "chaque plan a sa réplique, liée à l'emplacement audio 1");
+    const [convF] = await db.select().from(agentConversations).where(and(eq(agentConversations.projectId, f.projectId), eq(agentConversations.portee, "episode"), ne(agentConversations.profondeur, "revision")));
+    const lotF = convF ? await db.select().from(agentRuns).where(and(eq(agentRuns.conversationId, convF.id), eq(agentRuns.skill, "plan-h3"))) : [];
+    ok(lotF.length === 4, "un lot `plan-h3` de quatre sous-tâches attend dans la file");
   } finally {
     for (const id of ids) await db.delete(projects).where(eq(projects.id, id));
   }

@@ -6,7 +6,7 @@ import type { VueEpisode } from "./vue-episode";
 /** Ce que l'écran de la révision montre, calculé SANS base ni React (pur, testé) : les scènes que le brouillon touche (et elles seulement),
  * et la phrase de la barre du bas avec l'état de la glissière. Port de la maquette (docs/maquettes/revision-episode.html). */
 
-export type RepliqueScene = { handle: string; locuteur: string; texte: string; texteOriginal: string; supprimee: boolean };
+export type RepliqueScene = { handle: string; locuteur: string; texte: string; texteOriginal: string; supprimee: boolean; ajoutee?: boolean };
 
 export type PlanScene = {
   uuid: string;
@@ -70,10 +70,13 @@ export function scenesTouchees(vue: VueEpisode, operations: Operation[]): SceneT
             ajoute: b.ajoute,
             fiche: b.fiche,
             etat: p?.etat ?? "brouillon",
-            repliques: (p?.repliques ?? []).flatMap((u) => {
-              const r = repParUuid.get(u);
-              return r ? [{ handle: r.handle, locuteur: r.locuteur, texte: r.texte, texteOriginal: r.texteOriginal, supprimee: r.supprimee }] : [];
-            }),
+            repliques: [
+              ...(p?.repliques ?? []).flatMap((u) => {
+                const r = repParUuid.get(u);
+                return r ? [{ handle: r.handle, locuteur: r.locuteur, texte: r.texte, texteOriginal: r.texteOriginal, supprimee: r.supprimee }] : [];
+              }),
+              ...b.repliquesAjoutees.map((r, i) => ({ handle: `+${i + 1}`, locuteur: r.locuteur, texte: r.texte, texteOriginal: "", supprimee: false, ajoutee: true })),
+            ],
           };
         });
       return {
@@ -117,7 +120,8 @@ export function resumerChantier(decisions: DecisionPourBarre[], dureeAvecBrouill
   const durees = new Set(ops.filter((o) => o.type === "duree_plan").map((o) => (o as { planUuid: string }).planUuid).filter((u) => !coupes.has(u)));
   const deplaces = new Set(ops.filter((o) => o.type === "deplacer_plan").map((o) => (o as { planUuid: string }).planUuid).filter((u) => !coupes.has(u)));
   const ajoutes = ops.filter((o) => o.type === "ajouter_plan").length;
-  const fiches = new Set([...ops.filter((o) => o.type === "refondre_fiche").map((o) => (o as { planUuid: string }).planUuid).filter((u) => !coupes.has(u)), ...ops.filter((o) => o.type === "ajouter_plan").map((o) => (o as { ref: string }).ref)]);
+  const repliquesAjoutees = ops.filter((o) => o.type === "ajouter_replique" || (o.type === "ajouter_plan" && o.replique)).length;
+  const fiches = new Set([...ops.filter((o) => o.type === "refondre_fiche" || o.type === "ajouter_replique").map((o) => (o as { planUuid: string }).planUuid).filter((u) => !coupes.has(u)), ...ops.filter((o) => o.type === "ajouter_plan").map((o) => (o as { ref: string }).ref)]);
   const repliquesChangees = new Set(ops.filter((o) => o.type === "remplacer_replique").map((o) => (o as { repliqueUuid: string }).repliqueUuid));
   const repliquesSupprimees = new Set(ops.filter((o) => o.type === "supprimer_replique").map((o) => (o as { repliqueUuid: string }).repliqueUuid));
   const ecrasements = decisions.reduce((a, d) => a + d.ecrasements, 0);
@@ -127,6 +131,7 @@ export function resumerChantier(decisions: DecisionPourBarre[], dureeAvecBrouill
   if (coupes.size) faits.push([{ t: "supprime " }, { t: `${coupes.size} plan${pl(coupes.size, "", "s")}`, fort: true }]);
   if (durees.size) faits.push([{ t: "raccourcit " }, { t: `${durees.size} durée${pl(durees.size, "", "s")}`, fort: true }]);
   if (deplaces.size) faits.push([{ t: "déplace " }, { t: `${deplaces.size} plan${pl(deplaces.size, "", "s")}`, fort: true }]);
+  if (repliquesAjoutees) faits.push([{ t: "ajoute " }, { t: `${repliquesAjoutees} réplique${pl(repliquesAjoutees, "", "s")}`, fort: true }]);
   if (repliquesChangees.size) faits.push([{ t: "change " }, { t: `${repliquesChangees.size} réplique${pl(repliquesChangees.size, "", "s")}`, fort: true }]);
   if (repliquesSupprimees.size) faits.push([{ t: "supprime " }, { t: `${repliquesSupprimees.size} réplique${pl(repliquesSupprimees.size, "", "s")}`, fort: true }]);
   if (fiches.size) faits.push([{ t: "réécrit " }, { t: `${fiches.size} fiche${pl(fiches.size, "", "s")}`, fort: true }, { t: " ensuite" }]);

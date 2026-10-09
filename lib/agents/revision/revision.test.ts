@@ -260,3 +260,57 @@ test("3c : constats et conflits des nouvelles opérations, et passage aux change
   assert.deepEqual(bruts[0]!.position, { apresPlanUuid: planUuid(3) });
   assert.equal((bruts[0]!.apres as Record<string, unknown>).dureeGenerationSecondes, 6);
 });
+
+test("3c bis : « avant », durée absente, réplique d'un plan ajouté, ajouter_replique", () => {
+  const { valides, refusees } = validerOperations(
+    [
+      { type: "ajouter_plan", avant: "P01", titre: "L'eau", description: "d", secondes: 6, texte: "L'eau...", locuteur: "CHAR_katara" },
+      { type: "ajouter_plan", avant: "P05", titre: "X", description: "", secondes: 7 },
+      { type: "ajouter_replique", plan: "P12", texte: "Tu pars ?", locuteur: "CHAR_pecheur" },
+    ],
+    vue,
+  );
+  assert.equal(refusees.length, 0);
+  const a = valides[0] as Extract<Operation, { type: "ajouter_plan" }>;
+  assert.deepEqual(a.position, { debut: true }, "« avant le premier plan » = au début");
+  assert.deepEqual(a.replique, { locuteur: "CHAR_katara", texte: "L'eau..." });
+  assert.deepEqual((valides[1] as Extract<Operation, { type: "ajouter_plan" }>).position, { apresPlanUuid: planUuid(4) }, "« avant P05 » = après P04");
+  assert.deepEqual(valides[2], { type: "ajouter_replique", planUuid: planUuid(12), locuteur: "CHAR_pecheur", texte: "Tu pars ?" });
+
+  const mauvaises = validerOperations(
+    [
+      { type: "ajouter_plan", avant: "P01", titre: "L'eau", consigne: "6 secondes" },
+      { type: "ajouter_plan", avant: "P01", titre: "x", secondes: 6, texte: "Seul" },
+      { type: "ajouter_replique", plan: "P12", texte: "Tu pars ?" },
+    ],
+    vue,
+  );
+  assert.equal(mauvaises.valides.length, 0);
+  assert.match(mauvaises.refusees[0]!.raison, /"secondes"/, "le refus nomme le champ manquant");
+  assert.match(mauvaises.refusees[1]!.raison, /locuteur/);
+});
+
+test("3c bis : quatre plans ajoutés avant le premier se lisent dans l'ordre demandé, brouillon comme application", () => {
+  const ajouts = ["L'eau", "Le feu", "La terre", "L'air"].map((titre, i): Operation => ({ type: "ajouter_plan", ref: `0000000${i + 1}-0000-4000-8000-000000000000`, position: { debut: true }, titre, description: "", secondes: 6, replique: { locuteur: "CHAR_katara", texte: `${titre}...` } }));
+  const b = appliquerAuBrouillon(vue, ajouts);
+  assert.deepEqual(b.plans.slice(0, 5).map((p) => p.titre), ["L'eau", "Le feu", "La terre", "L'air", "Plan large du port, brume"]);
+  assert.equal(b.total, 154 + 24);
+
+  const bruts = operationsVersChangements(ajouts, vue);
+  const plansCrees = bruts.filter((c) => c.cibleType === "plan").map((c) => c.cle);
+  assert.deepEqual(plansCrees, [...ajouts].reverse().map((o) => (o as { ref: string }).ref), "appliqués en sens inverse : chacun s'insère au début, l'ordre de lecture final est le bon");
+  const i = bruts.findIndex((c) => c.cle === (ajouts[0] as { ref: string }).ref);
+  assert.equal(bruts[i + 1]!.cibleType, "replique", "la réplique suit immédiatement son plan");
+  assert.equal((bruts[i + 1]!.apres as Record<string, unknown>).planCle, (ajouts[0] as { ref: string }).ref);
+
+  const fin = ["A", "B"].map((titre, k): Operation => ({ type: "ajouter_plan", ref: `1000000${k}-0000-4000-8000-000000000000`, position: { fin: true }, titre, description: "", secondes: 5 }));
+  assert.deepEqual(operationsVersChangements(fin, vue).map((c) => c.libelle.slice(0, 11)), ["Ajouter « A", "Ajouter « B"], "à la fin, l'ordre direct");
+  assert.deepEqual(appliquerAuBrouillon(vue, fin).plans.slice(-2).map((p) => p.titre), ["A", "B"]);
+
+  const rep = operationsVersChangements([{ type: "ajouter_replique", planUuid: planUuid(12), locuteur: "CHAR_pecheur", texte: "Tu pars ?" }], vue);
+  assert.equal(rep.length, 1);
+  assert.equal((rep[0]!.apres as Record<string, unknown>).planUuid, planUuid(12));
+  assert.ok(constatsOperations([op({ type: "ajouter_replique", planUuid: planUuid(12), locuteur: "x", texte: "y" })], vue).some((c) => c.niveau === "ok" && /liée au plan/.test(c.texte)));
+  const pleine = constatsOperations([op({ type: "ajouter_replique", planUuid: planUuid(12), locuteur: "x", texte: "y" })], { ...vue, plans: vue.plans.map((p) => (p.uuid === planUuid(12) ? { ...p, repliques: ["a", "b", "c"] } : p)) });
+  assert.ok(pleine.some((c) => c.niveau === "bloquant"), "un plan a au plus 3 répliques");
+});

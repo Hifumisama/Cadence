@@ -47,15 +47,31 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
       const description = texteNet(b.description);
       const s = b.secondes;
       if (!titre) {
-        refuse(b, "Un plan ajouté a besoin d'un titre.");
+        refuse(b, "Un plan ajouté a besoin d'un titre (\"titre\").");
         continue;
       }
       if (typeof s !== "number" || !Number.isInteger(s) || s < DUREE_GENERATION_MIN || s > DUREE_GENERATION_MAX) {
-        refuse(b, `Durée ${typeof s === "number" ? `${s} s` : "absente"} pour le plan ajouté : un plan dure ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières.`);
+        refuse(b, typeof s === "number" ? `Durée ${s} s pour le plan ajouté : un plan dure ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières.` : `Le plan ajouté « ${titre} » n'a pas de durée : renseigne le champ "secondes" (entier de ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX}) ; "consigne" ne sert qu'à refondre_fiche.`);
+        continue;
+      }
+      const texteReplique = texteNet(b.texte);
+      const locuteurReplique = texteNet(b.locuteur);
+      if (!!texteReplique !== !!locuteurReplique) {
+        refuse(b, texteReplique ? "La réplique du plan ajouté n'a pas de locuteur (\"locuteur\")." : "La réplique du plan ajouté n'a pas de texte (\"texte\").");
         continue;
       }
       let position: Position | null = null;
-      if (b.apres) {
+      if (b.avant) {
+        const cible = planParPoignee(vue, b.avant);
+        if (!cible) {
+          refuse(b, `Repère « ${b.avant} » introuvable pour placer le plan ajouté.`);
+          continue;
+        }
+        // « Avant P05 » = après le plan qui précède P05 (ou au début s'il est le premier) : le brouillon et l'application gardent l'ordre de lecture
+        // de plusieurs plans ajoutés au même endroit.
+        const precedent = vue.plans[cible.position - 2];
+        position = precedent ? { apresPlanUuid: precedent.uuid } : { debut: true };
+      } else if (b.apres) {
         const cible = planParPoignee(vue, b.apres);
         if (!cible) {
           refuse(b, `Repère « ${b.apres} » introuvable pour placer le plan ajouté.`);
@@ -65,10 +81,26 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
       } else if (b.position === "debut") position = { debut: true };
       else if (b.position === "fin") position = { fin: true };
       if (!position) {
-        refuse(b, "Où placer le plan ajouté ? Il faut « après un plan », « debut » ou « fin ».");
+        refuse(b, "Où placer le plan ajouté ? Il faut \"avant\" ou \"apres\" un plan, ou \"position\" debut / fin.");
         continue;
       }
-      valides.push({ type: "ajouter_plan", ref: globalThis.crypto.randomUUID(), position, titre, description, secondes: s });
+      valides.push({ type: "ajouter_plan", ref: globalThis.crypto.randomUUID(), position, titre, description, secondes: s, ...(texteReplique ? { replique: { locuteur: locuteurReplique, texte: texteReplique } } : {}) });
+      continue;
+    }
+
+    if (b.type === "ajouter_replique") {
+      const cible = planParPoignee(vue, b.plan);
+      const texte = texteNet(b.texte);
+      const locuteur = texteNet(b.locuteur);
+      if (!cible) {
+        refuse(b, `Plan « ${b.plan ?? "?"} » introuvable pour ajouter une réplique (l'épisode a ${nbPlans} plan${nbPlans > 1 ? "s" : ""}).`);
+        continue;
+      }
+      if (!texte || !locuteur) {
+        refuse(b, `Une réplique ajoutée au plan ${cible.handle} a besoin de son texte ("texte") et de son locuteur ("locuteur").`);
+        continue;
+      }
+      valides.push({ type: "ajouter_replique", planUuid: cible.uuid, locuteur, texte });
       continue;
     }
 
@@ -153,6 +185,9 @@ export function operationEnPoignees(op: Operation, vue: VueEpisode): OperationBr
         titre: op.titre,
         description: op.description,
         secondes: op.secondes,
+        ...(op.replique ? { texte: op.replique.texte, locuteur: op.replique.locuteur } : {}),
       };
+    case "ajouter_replique":
+      return { type: op.type, plan: plan(op.planUuid), texte: op.texte, locuteur: op.locuteur };
   }
 }

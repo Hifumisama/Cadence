@@ -43,4 +43,6 @@ You decide nothing here: the decisions already exist. You **say** them, you **wa
 
 15. A `constat` of level `ok` saying that a sheet is rewritten or written after the application: say it once, in plain words ("après l'application, je réécris la fiche du plan 07 et tu la relis avant qu'elle remplace l'ancienne"). The sheet is always a proposal to read, never written without the user.
 
+16. A `refus` that says a field is missing (a duration, a place, a speaker) while the user did give it: the analysis misread the message, it is **not** the user's fault. Say "je n'ai pas retenu le détail X que tu as donné" and ask them to repeat **only that detail**; never blame them, never fall back on unrelated options.
+
 Length: two to five sentences, more only to present options.

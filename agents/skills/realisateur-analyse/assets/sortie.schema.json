@@ -58,12 +58,13 @@
                     "remplacer_replique",
                     "supprimer_replique",
                     "refondre_fiche",
-                    "ajouter_plan"
+                    "ajouter_plan",
+                    "ajouter_replique"
                   ]
                 },
                 "plan": {
                   "type": "string",
-                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan, refondre_fiche."
+                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan, refondre_fiche and ajouter_replique (the plan that will say the line)."
                 },
                 "replique": {
                   "type": "string",
@@ -73,11 +74,15 @@
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 60,
-                  "description": "duree_plan and ajouter_plan: the duration in whole seconds, within the limits of the input."
+                  "description": "REQUIRED for ajouter_plan (the duration of the new plan, a whole number of seconds within the limits of the input: \"chacun de 6 secondes\" = 6 on each), and for duree_plan. Never put a duration in consigne."
                 },
                 "apres": {
                   "type": "string",
-                  "description": "deplacer_plan and ajouter_plan: the reference of the plan AFTER which the plan is placed. Use either apres or position."
+                  "description": "deplacer_plan and ajouter_plan: the reference of the plan AFTER which the plan is placed. Use one of avant, apres or position."
+                },
+                "avant": {
+                  "type": "string",
+                  "description": "ajouter_plan only: the reference of the plan BEFORE which the new plan is placed (\"juste avant le plan 1\" = P01). Several new plans placed at the same spot: list them in reading order with the same avant."
                 },
                 "position": {
                   "type": "string",
@@ -85,7 +90,7 @@
                     "debut",
                     "fin"
                   ],
-                  "description": "deplacer_plan and ajouter_plan: place the plan at the start or at the end of the episode. Use either apres or position."
+                  "description": "deplacer_plan and ajouter_plan: place the plan at the start or at the end of the episode. Use one of avant, apres or position."
                 },
                 "titre": {
                   "type": "string",
@@ -97,15 +102,15 @@
                 },
                 "texte": {
                   "type": "string",
-                  "description": "remplacer_replique: the new text of the line, in the language of the existing lines, ready to be spoken."
+                  "description": "remplacer_replique: the new text of the line. ajouter_plan (optional) and ajouter_replique: the text of the line said, in the language of the existing lines, ready to be spoken, exactly as the user gave it."
                 },
                 "locuteur": {
                   "type": "string",
-                  "description": "remplacer_replique: the new speaker, only if the user asks to change it."
+                  "description": "remplacer_replique: the new speaker, only if the user asks to change it. ajouter_plan (with texte) and ajouter_replique: who says the line, one of locuteursConnus when the speaker is there (\"Maya\" -> CHAR_maya), otherwise the name as given."
                 },
                 "consigne": {
                   "type": "string",
-                  "description": "(French) refondre_fiche only: what to change in the sheet, in a few words (\"la réplique est plus sèche, le plan doit finir sur le visage\"). Empty if the sheet only has to follow the plan as it is now."
+                  "description": "(French) refondre_fiche ONLY: what to change in the sheet, in a few words. Never use it for another type of operation."
                 }
               }
             }
@@ -164,12 +169,13 @@
                     "remplacer_replique",
                     "supprimer_replique",
                     "refondre_fiche",
-                    "ajouter_plan"
+                    "ajouter_plan",
+                    "ajouter_replique"
                   ]
                 },
                 "plan": {
                   "type": "string",
-                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan, refondre_fiche."
+                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan, refondre_fiche and ajouter_replique (the plan that will say the line)."
                 },
                 "replique": {
                   "type": "string",
@@ -179,11 +185,15 @@
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 60,
-                  "description": "duree_plan and ajouter_plan: the duration in whole seconds, within the limits of the input."
+                  "description": "REQUIRED for ajouter_plan (the duration of the new plan, a whole number of seconds within the limits of the input: \"chacun de 6 secondes\" = 6 on each), and for duree_plan. Never put a duration in consigne."
                 },
                 "apres": {
                   "type": "string",
-                  "description": "deplacer_plan and ajouter_plan: the reference of the plan AFTER which the plan is placed. Use either apres or position."
+                  "description": "deplacer_plan and ajouter_plan: the reference of the plan AFTER which the plan is placed. Use one of avant, apres or position."
+                },
+                "avant": {
+                  "type": "string",
+                  "description": "ajouter_plan only: the reference of the plan BEFORE which the new plan is placed (\"juste avant le plan 1\" = P01). Several new plans placed at the same spot: list them in reading order with the same avant."
                 },
                 "position": {
                   "type": "string",
@@ -191,7 +201,7 @@
                     "debut",
                     "fin"
                   ],
-                  "description": "deplacer_plan and ajouter_plan: place the plan at the start or at the end of the episode. Use either apres or position."
+                  "description": "deplacer_plan and ajouter_plan: place the plan at the start or at the end of the episode. Use one of avant, apres or position."
                 },
                 "titre": {
                   "type": "string",
@@ -203,15 +213,15 @@
                 },
                 "texte": {
                   "type": "string",
-                  "description": "remplacer_replique: the new text of the line, in the language of the existing lines, ready to be spoken."
+                  "description": "remplacer_replique: the new text of the line. ajouter_plan (optional) and ajouter_replique: the text of the line said, in the language of the existing lines, ready to be spoken, exactly as the user gave it."
                 },
                 "locuteur": {
                   "type": "string",
-                  "description": "remplacer_replique: the new speaker, only if the user asks to change it."
+                  "description": "remplacer_replique: the new speaker, only if the user asks to change it. ajouter_plan (with texte) and ajouter_replique: who says the line, one of locuteursConnus when the speaker is there (\"Maya\" -> CHAR_maya), otherwise the name as given."
                 },
                 "consigne": {
                   "type": "string",
-                  "description": "(French) refondre_fiche only: what to change in the sheet, in a few words (\"la réplique est plus sèche, le plan doit finir sur le visage\"). Empty if the sheet only has to follow the plan as it is now."
+                  "description": "(French) refondre_fiche ONLY: what to change in the sheet, in a few words. Never use it for another type of operation."
                 }
               }
             }

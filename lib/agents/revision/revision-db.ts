@@ -440,7 +440,8 @@ export async function appliquerRevision(conversationUuid: string, options: { con
   const aRelire = decisions.filter((d) => d.aReverifier);
   if (aRelire.length > 0) return ERR(`${aRelire.length} décision${aRelire.length > 1 ? "s" : ""} à revérifier (${aRelire.map((d) => idCourt(d.ordre)).join(", ")}) : ce qu'elles visent a changé depuis.`);
 
-  const bruts = decisions.flatMap((d) => operationsVersChangements((d.operations as Operation[]) ?? [], vue));
+  // Une seule traduction pour tout le chantier : l'ordre de lecture de plusieurs plans ajoutés au même endroit se décide sur l'ensemble.
+  const bruts = operationsVersChangements(decisions.flatMap((d) => (d.operations as Operation[]) ?? []), vue);
   const episode = `Épisode ${vue.numero} · ${vue.titre}`;
   const propId = await db.transaction(async (tx) => {
     const [prop] = await tx
@@ -501,8 +502,8 @@ async function lancerSuiteFiches(conv: ConversationRow, operations: Operation[],
   if (conv.cibleId == null) return null;
   const consignes: Record<string, string> = {};
   for (const op of operations) {
-    if (op.type !== "refondre_fiche") continue;
-    consignes[op.planUuid] = [consignes[op.planUuid] ?? CONSIGNE_REFONTE, op.consigne ? `The user asks: ${op.consigne}` : ""].filter(Boolean).join(" ");
+    if (op.type === "refondre_fiche") consignes[op.planUuid] = [consignes[op.planUuid] ?? CONSIGNE_REFONTE, op.consigne ? `The user asks: ${op.consigne}` : ""].filter(Boolean).join(" ");
+    else if (op.type === "ajouter_replique") consignes[op.planUuid] = [consignes[op.planUuid] ?? CONSIGNE_REFONTE, `A new line was added to this plan: ${op.locuteur} says "${op.texte}". Include it word for word.`].join(" ");
   }
   const maintenant = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.episodeId, conv.cibleId));
   const presents = new Set(maintenant.map((p) => p.uuid));

@@ -1,5 +1,5 @@
-import { asc, eq } from "drizzle-orm";
-import { agentConversations, revisionDecisions } from "../../../db/schema";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { agentConversations, assets, revisionDecisions } from "../../../db/schema";
 import type { Controleur } from "../../llm/controles";
 import type { Db } from "../applicateurs/commun";
 import { lireBriefDuProjet } from "../contexte";
@@ -39,6 +39,8 @@ export type EntreeAnalyse = {
     brouillon: { coupe: true } | { dureeSecondes: number } | null;
   }[];
   repliques: { ref: string; locuteur: string; texte: string; plans: string[]; prise: "aucune" | "posée" | "validée" }[];
+  /** Les codes des personnages et des voix du projet : les locuteurs possibles d'une réplique ajoutée. */
+  locuteursConnus: string[];
   decisions: { id: string; titre: string; raison: string; statut: string; operations: OperationBrute[]; constats: { niveau: string; texte: string }[] }[];
   /** L'identifiant que recevra la prochaine décision CRÉÉE (puis les suivants, dans l'ordre) : pour qu'un jugement `narratif` puisse la viser. */
   prochainId: string;
@@ -78,6 +80,7 @@ export function construireEntreeAnalyse(p: {
   pistes: Piste[];
   messages: MessageConversation[];
   brief: Record<string, unknown> | null | undefined;
+  locuteurs?: string[];
 }): { entree: EntreeAnalyse; controle: ControleAnalyse } {
   const { vue } = p;
   const operations = p.decisions.flatMap((d) => d.operations);
@@ -120,6 +123,7 @@ export function construireEntreeAnalyse(p: {
       plans: r.plans.map((u) => vue.plans.find((x) => x.uuid === u)?.handle ?? "?"),
       prise: prise(r),
     })),
+    locuteursConnus: p.locuteurs ?? [],
     decisions: p.decisions.map((d) => ({
       id: idCourt(d.ordre),
       titre: d.titre,
@@ -149,7 +153,9 @@ export async function entreeAnalyse(d: Db, conv: ConversationRow): Promise<{ ent
   if (!vue) return null;
   const lignes = await d.select().from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv.id)).orderBy(asc(revisionDecisions.ordre));
   const brief = await lireBriefDuProjet(d, conv.projectId);
+  const locuteurs = (await d.select({ code: assets.code }).from(assets).where(and(eq(assets.projectId, conv.projectId), inArray(assets.type, ["personnage", "voix"]))).orderBy(asc(assets.code))).map((a) => a.code);
   return construireEntreeAnalyse({
+    locuteurs,
     vue,
     decisions: lignes
       .filter((l) => l.statut !== "appliquee")

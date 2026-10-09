@@ -15,7 +15,16 @@ export function constatsOperations(operations: Operation[], vue: VueEpisode): Co
   const constats: Constat[] = [];
   for (const op of operations) {
     if (op.type === "ajouter_plan") {
+      if (op.replique) constats.push(ok(`${op.replique.locuteur} dit « ${op.replique.texte} » dans « ${op.titre} ».`));
       constats.push(ok(`Le plan « ${op.titre} » (${op.secondes} s) est créé sans fiche : elle est écrite juste après l'application, et tu la relis avant qu'elle soit enregistrée.`));
+      continue;
+    }
+    if (op.type === "ajouter_replique") {
+      const p = planParUuid(vue, op.planUuid);
+      if (!p) continue;
+      constats.push(ok(`${op.locuteur} dit « ${op.texte} » dans ${p.handle} : la réplique est créée et liée au plan, et sa fiche est réécrite juste après l'application.`));
+      if (p.repliques.length >= 3) constats.push(bloquant(`${p.handle} a déjà 3 répliques : c'est le maximum (références audio de MiniMax H3).`));
+      if (p.etat === "rendu") constats.push(alerte(`Le rendu de ${p.handle} sera périmé si tu acceptes la nouvelle fiche.`));
       continue;
     }
     if (op.type === "refondre_fiche") {
@@ -104,6 +113,9 @@ export function conflitsEntreDecisions(decisions: DecisionPourConflit[], vue: Vu
           if (oa.type === "couper_plan") {
             if (ob.type === "refondre_fiche" && ob.planUuid === oa.planUuid) {
               ajoute(a, b, `« ${a.titre} » coupe ${nomPlan(oa.planUuid)}, dont « ${b.titre} » veut refondre la fiche.`);
+            }
+            if (ob.type === "ajouter_replique" && ob.planUuid === oa.planUuid) {
+              ajoute(a, b, `« ${a.titre} » coupe ${nomPlan(oa.planUuid)}, auquel « ${b.titre} » veut ajouter une réplique.`);
             }
             if (ob.type === "ajouter_plan" && "apresPlanUuid" in ob.position && ob.position.apresPlanUuid === oa.planUuid) {
               ajoute(a, b, `« ${b.titre} » ajoute un plan après ${nomPlan(oa.planUuid)}, que « ${a.titre} » coupe.`);
