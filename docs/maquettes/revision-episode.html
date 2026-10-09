@@ -94,6 +94,8 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
 .cn-saisie-bas{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px}
 .cn-saisie-bas .btn{margin-left:auto}
 .cn-note{font-family:var(--font-mono);font-size:12px;color:var(--ink-3)}
+.cn-ferme{display:grid;gap:6px;justify-items:start;font-size:14px;color:var(--ink-2)}
+.cn-ferme b{font-family:var(--font-brand);font-weight:400;font-size:18px;color:var(--or-glow)}
 .cn-aide{font-size:12.5px;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
 .cn-aide .cn-lien{font-size:12.5px;text-align:left}
 .cn-puces{display:flex;flex-wrap:wrap;gap:8px}
@@ -245,7 +247,7 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
 
   var $=function(s){return document.querySelector(s)};
   var plans,D,M,chips,S,nid;
-  function init(){plans=INIT.map(function(p){return Object.assign({},p)});D=[];M=[];chips=[];S={typing:false,ouv:{},scen:false,touchees:null,commence:true};nid=1;M.push({who:"a",html:ouverture()})}
+  function init(){plans=INIT.map(function(p){return Object.assign({},p)});D=[];M=[];chips=[];S={typing:false,ouv:{},scen:false,touchees:null,commence:true,ferme:false};nid=1;M.push({who:"a",html:ouverture()})}
 
   function byId(i){return plans.filter(function(p){return p.id===i})[0]}
   function pos(i){var p=byId(i);return String(plans.indexOf(p)+1).padStart(2,"0")}
@@ -306,6 +308,15 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
     var vis=D.length>0;
     f.hidden=!vis;$("#entretien").classList.toggle("avec",vis);
     if(!vis)return;
+    if(S.ferme){
+      var tf=plans.reduce(function(a,p){return a+p.duree},0),echf=Math.max(tf,OBJECTIF)*1.05,fait=D.filter(function(x){return x.applique});
+      var hf='<h2>Appliqué</h2><p class="cn-duree"><span><b style="font-weight:500;color:var(--ink)">'+fmt(tf)+'</b></span><span>visé '+fmt(OBJECTIF)+'</span></p>'
+        +'<div class="cn-mini"><i class="'+(tf<=OBJECTIF?'ok':'')+'" style="width:'+(tf/echf*100)+'%"></i><b style="left:'+(OBJECTIF/echf*100)+'%"></b></div>'
+        +'<ol class="cn-notes">'+fait.map(function(q){return '<li class="is-fait"><div class="cn-ligne"><b>'+q.titre+'</b>'+(q.gain?'<span class="cn-gain">'+(q.gain>0?'−':'+')+Math.abs(q.gain)+' s</span>':'')+'</div></li>'}).join("")+'</ol>'
+        +'<p class="cn-fiche-pied"><button class="cn-lien" type="button" data-act="scen" aria-expanded="'+S.scen+'">'+(S.scen?'Masquer les scènes modifiées':'Voir les scènes modifiées')+'</button></p>'
+        +(S.scen?'<div class="cn-scen">'+rendreScenes(derive())+'</div>':'');
+      f.innerHTML=hf;return;
+    }
     var d=derive(),t=total(d),base=plans.reduce(function(a,p){return a+p.duree},0),ech=Math.max(base,OBJECTIF)*1.05;
     var h='<h2>Décisions</h2>';
     if(act.length){
@@ -322,10 +333,8 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
       h+='<p class="cn-fiche-pied"><button class="cn-lien" type="button" data-act="scen" aria-expanded="'+S.scen+'">'+(S.scen?'Masquer le scénario':'Voir le scénario avec le brouillon')+'</button></p>';
       if(S.scen)h+='<div class="cn-scen">'+rendreScenes(d)+'</div>';
     }else{
-      h+='<p class="cn-fiche-pied" style="margin-top:0">Plus rien en brouillon. Le fil continue : demande autre chose.</p>';
+      h+='<p class="cn-fiche-pied" style="margin-top:0">Plus rien en brouillon. La conversation continue : demande autre chose.</p>';
     }
-    var fait=D.filter(function(x){return x.applique});
-    if(fait.length)h+='<p class="cn-deja">Déjà appliqué : '+fait.length+' décision'+(fait.length>1?'s':'')+'.</p>';
     f.innerHTML=h;
   }
   function rendreFil(){
@@ -338,6 +347,10 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
   }
   function rendreSaisie(){
     var z=$("#saisie-zone"),ancien=$("#saisie"),v=ancien?ancien.value:"",h="";
+    if(S.ferme){
+      z.innerHTML='<div class="cn-ferme"><b>Conversation terminée</b><span>Le chantier est appliqué. Une prochaine révision ouvrira une conversation neuve, à partir de l\'épisode tel qu\'il est maintenant.</span><button class="btn btn-gold" type="button" data-act="nouvelle">Nouvelle révision</button></div>';
+      return;
+    }
     if(!S.typing){
       var o=options();
       h+='<p class="cn-aide"><span>Pour la démo, tu pourrais écrire :</span>'+o.map(function(c,i){return '<button class="cn-lien is-sobre" type="button" data-act="essai" data-v="'+i+'">« '+c.t+' »</button>'}).join("")+'</p>';
@@ -348,6 +361,7 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
   }
   function etatBarre(){
     var act=actives(),d=derive();
+    if(S.ferme){var fait=D.filter(function(x){return x.applique}).length,tt=plans.reduce(function(a,p){return a+p.duree},0);return {txt:"<b>Chantier appliqué</b> : "+fait+" décision"+(fait>1?"s":"")+" · "+fmt(tt)+" pour "+fmt(OBJECTIF)+". La conversation est terminée.",ferme:true}}
     if(!act.length)return {txt:S.commence?"Rien en brouillon. Dis ce que tu veux changer.":"Choisis par où commencer, ou écris directement.",inerte:true};
     var conf=act.filter(function(q){return q.st==="conflit"}).length;
     var cuts=Object.keys(d.cuts).map(Number),nd=Object.keys(d.dur).filter(function(i){return !d.cuts[i]&&!d.refonte[i]}).length,nr=Object.keys(d.rep).length,nf=Object.keys(d.refonte).length;
@@ -367,6 +381,7 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
   }
   function rendreBarre(){
     var e=etatBarre(),lib=e.danger?"Glisse : écraser et appliquer":"Glisse pour appliquer";
+    if(e.ferme){$("#barre").innerHTML='<div class="cn-barre-texte" aria-live="polite">'+e.txt+'</div>';return}
     $("#barre").innerHTML='<div class="cn-barre-texte" aria-live="polite">'+e.txt+'</div>'
       +'<div class="cn-glisse is-action'+(e.inerte?' is-inerte':'')+(e.danger?' is-danger':'')+'"><div class="cn-glisse-rempli" aria-hidden="true"></div><span class="cn-glisse-texte" aria-hidden="true">'+lib+'<i>›</i><i>›</i><i>›</i></span>'
       +'<button type="button" role="slider" class="cn-glisse-poignee" aria-label="'+lib+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-disabled="'+e.inerte+'">Action !</button></div>';
@@ -541,6 +556,7 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
   function appliquer(){
     var d=derive(),act=actives();
     if(!act.length)return;
+    act.forEach(function(q){q.gain=gainDe(q)});
     S.touchees=scenesTouchees(d);
     plans=plans.filter(function(p){return !d.cuts[p.id]}).map(function(p){
       var np=Object.assign({},p),flags=(p.flags||[]).slice(),ch=false;
@@ -552,9 +568,9 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
     });
     var t=0;plans.forEach(function(p){t+=p.duree});
     act.forEach(function(q){q.applique=true});
-    chips=[];
+    chips=[];S.ferme=true;
     M.push({sep:"Chantier appliqué · "+act.length+" décision"+(act.length>1?"s":"")+" · "+fmt(t)});
-    say("Appliqué. Les positions sont recalculées"+(plans.some(function(p){return p.etat==="perime"})?", et les rendus périmés sont signalés dans le scénario":"")+". Le fil de l'épisode continue : dis-moi la suite quand tu veux.");
+    say("Appliqué. Les positions sont recalculées"+(plans.some(function(p){return p.etat==="perime"})?", et les rendus périmés sont signalés dans le scénario":"")+". Cette conversation est terminée : une prochaine révision en ouvrira une neuve.");
     rendre();
   }
 
@@ -594,7 +610,7 @@ ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
   document.addEventListener("click",function(e){
     var b=e.target.closest("[data-act]");if(!b)return;
     var a=b.dataset.act,v=b.dataset.v;
-    if(a==="reset")demarrer();
+    if(a==="reset"||a==="nouvelle")demarrer();
     else if(a==="essai"){var z=$("#saisie");z.value=options()[+v].t;z.focus()}
     else if(a==="envoi")envoyer();
     else if(a==="det"){S.ouv[v]=!S.ouv[v];rendreFiche()}
