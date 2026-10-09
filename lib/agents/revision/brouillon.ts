@@ -1,5 +1,9 @@
 import type { Operation } from "./types";
-import { planParUuid, repliqueParUuid, type VueEpisode } from "./vue-episode";
+import type { PlanVue, RepliqueVue, VueEpisode } from "./vue-episode";
+
+// Locaux : vue-episode.ts touche à la base, et ce module est importé côté navigateur (affichage.ts).
+const planParUuid = (vue: VueEpisode, uuid: string): PlanVue | undefined => vue.plans.find((p) => p.uuid === uuid);
+const repliqueParUuid = (vue: VueEpisode, uuid: string): RepliqueVue | undefined => vue.repliques.find((r) => r.uuid === uuid);
 
 /** Le scénario AVEC le brouillon : les opérations des décisions appliquées, en mémoire, sur la vue de l'épisode. Pur, testé.
  * Sert aux chiffres (durée totale, gain d'une décision) et à l'affichage ; n'écrit rien. */
