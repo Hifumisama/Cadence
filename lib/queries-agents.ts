@@ -24,7 +24,7 @@ import { ficheCourante } from "./agents/fiche-db";
 import { MAX_VIGNETTES_ITERATION, diagnosticIteration } from "./agents/iteration-plan";
 import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./agents/cochage";
 import { apercuContexteDe } from "./agents/contexte";
-import { planifierInsertion } from "./agents/rangs";
+import { planifierDeplacement, planifierInsertion, planifierSuppression } from "./agents/rangs";
 import { vueLot } from "./agents/lots";
 import { episodeIdDeGroupe } from "./agents/lots-pur";
 import { etatTache, positionsFile } from "./agents/runs";
@@ -172,14 +172,26 @@ async function rangsDeplacesDe(
   position: Position | null,
   apres: unknown,
   plansDe: (episodeId: number) => Promise<PlansEpisode>,
+  cibleRef: string | null,
+  episodeDePlan: (uuid: string) => Promise<number | null>,
 ): Promise<RangDeplace[]> {
-  if (cibleType !== "plan" || operation !== "creer" || !position) return [];
-  // Ajouter à la fin ne déplace aucun rang : pas de lecture (un lot en crée des dizaines, et la
-  // popup relit tout toutes les 3 s).
-  if ("fin" in position) return [];
-  const episodeId = (apres as { episodeId?: unknown } | null)?.episodeId;
-  if (typeof episodeId !== "number") return [];
-  return planifierInsertion(await plansDe(episodeId), position)?.deplaces ?? [];
+  if (cibleType !== "plan") return [];
+  if (operation === "creer") {
+    if (!position) return [];
+    // Ajouter à la fin ne déplace aucun rang : pas de lecture (un lot en crée des dizaines, et la
+    // popup relit tout toutes les 3 s).
+    if ("fin" in position) return [];
+    const episodeId = (apres as { episodeId?: unknown } | null)?.episodeId;
+    if (typeof episodeId !== "number") return [];
+    return planifierInsertion(await plansDe(episodeId), position)?.deplaces ?? [];
+  }
+  // Supprimer un plan, ou le déplacer (modifier avec une position) : les rangs des autres changent aussi.
+  if (!cibleRef || (operation === "modifier" && !position) || (operation !== "modifier" && operation !== "supprimer")) return [];
+  const episodeId = await episodeDePlan(cibleRef);
+  if (episodeId == null) return [];
+  const existants = await plansDe(episodeId);
+  if (operation === "supprimer") return planifierSuppression(existants, cibleRef) ?? [];
+  return planifierDeplacement(existants, cibleRef, position!)?.deplaces ?? [];
 }
 
 /** Un lot range ses changements par épisode (groupe `ep-<id>`) : le titre du groupe est celui de
@@ -213,6 +225,18 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
     return p;
   };
 
+  const cacheEpisodes = new Map<string, Promise<number | null>>();
+  const episodeDePlan = (uuid: string): Promise<number | null> => {
+    let e = cacheEpisodes.get(uuid);
+    if (!e) {
+      e = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)
+        ? db.select({ episodeId: plans.episodeId }).from(plans).where(eq(plans.uuid, uuid)).then((r) => r[0]?.episodeId ?? null)
+        : Promise.resolve(null);
+      cacheEpisodes.set(uuid, e);
+    }
+    return e;
+  };
+
   const changements: VueChangement[] = [];
   for (const l of lignes) {
     const avertissements = (l.avertissements ?? []) as Avertissement[];
@@ -230,7 +254,7 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
       avant: l.avant,
       apres: l.apres,
       position,
-      rangsDeplaces: await rangsDeplacesDe(l.operation, l.cibleType, position, l.apres, plansDe),
+      rangsDeplaces: await rangsDeplacesDe(l.operation, l.cibleType, position, l.apres, plansDe, l.cibleRef, episodeDePlan),
       avertissements,
       ecrase: l.ecrase,
       coche: l.coche,

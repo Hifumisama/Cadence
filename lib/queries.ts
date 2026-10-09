@@ -18,6 +18,7 @@ import { getLiensVoix, getPlanIdsDesRepliques } from "./queries-repliques";
 import { construireMatrice } from "./matrice-assets";
 import { horsAffiches } from "./assets-visibles";
 import { getPlansPerimes } from "./plans-perimes";
+import type { RaisonPerime } from "./rendus";
 
 /** Pas encore de sélecteur de projet dans l'UI (2026-09-28) — toutes les
  * pages opèrent sur le premier projet créé. Le schéma est prêt pour
@@ -138,6 +139,8 @@ export type PlanListItem = {
   dernierJob: { numeroRendu: number; erreur: string | null } | null;
   /** Codes des références changées depuis le dernier rendu (lib/plans-perimes) ; vide = rendu à jour ou jamais rendu. */
   codesPerimes: string[];
+  /** Ce qui a changé dans le contenu (prompt, durée) depuis le dernier rendu ; vide = contenu à jour. */
+  raisonsPerime: RaisonPerime[];
 };
 
 /** Frise des plans : tous les plans d'un ÉPISODE, dans l'ordre `ordre` (montage,
@@ -173,6 +176,7 @@ export async function getPlansList(episodeId?: number): Promise<PlanListItem[]> 
     uuid: p.uuid,
     position: positionParId.get(p.id) ?? 0,
     codesPerimes: perimes.get(p.id)?.codes ?? [],
+    raisonsPerime: perimes.get(p.id)?.raisons ?? [],
     titre: p.titre,
     statut: p.statut,
     dernierJob: dernierJobParPlan.has(p.id)

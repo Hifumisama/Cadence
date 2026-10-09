@@ -249,9 +249,9 @@ export async function lancerPassageNuit(episodeId: number): Promise<{ n: number;
   return { n, bloques };
 }
 
-/** « Relancer les plans périmés » (lib/plans-perimes) : un nouveau rendu pour chaque plan de l'épisode dont une référence a
- * changé depuis son dernier rendu. Chaque plan repart dans le mode de son dernier rendu (prévisualisation reste prévisualisation,
- * final reste final) et avec sa seed — seule la référence change. Sont sautés : les plans déjà en file ou en cours, et ceux aux
+/** « Relancer les plans périmés » (lib/plans-perimes) : un nouveau rendu pour chaque plan de l'épisode dont une référence, le prompt ou la durée
+ * ont changé depuis son dernier rendu. Chaque plan repart dans le mode de son dernier rendu (prévisualisation reste prévisualisation,
+ * final reste final) et avec sa seed et le prompt et la durée du plan tels qu'ils sont maintenant. Sont sautés : les plans déjà en file ou en cours, et ceux aux
  * dialogues désalignés. */
 export async function relancerPlansPerimes(episodeId: number): Promise<{ n: number; bloques: number; dejaEnFile: number }> {
   const episode = await db.select({ id: plans.id, statut: plans.statut }).from(plans).where(eq(plans.episodeId, episodeId));

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getMatriceAssets, getPlansList, getSegmentsLecture } from "@/lib/queries";
+import { estPerime, resumerPerime } from "@/lib/rendus";
 import { MatriceAssets } from "@/components/plan/MatriceAssets";
 import { LectureEpisode } from "@/components/plan/LectureEpisode";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
@@ -33,7 +34,7 @@ export default async function PlansPage({
   const base = `/p/${projectId}/e/${episodeId}`;
   const [plans, segments, matrice] = await Promise.all([getPlansList(Number(episodeId)), getSegmentsLecture(Number(episodeId)), getMatriceAssets(Number(episodeId))]);
 
-  const nPerimes = plans.filter((p) => p.codesPerimes.length > 0).length;
+  const nPerimes = plans.filter((p) => estPerime({ codes: p.codesPerimes, raisons: p.raisonsPerime })).length;
 
   const comptes = new Map<string, number>();
   for (const s of plans) {
@@ -87,10 +88,10 @@ export default async function PlansPage({
             <span className="shot-no">{String(plan.position).padStart(2, "0")}</span>
             <span className="shot-title">
               {plan.titre}
-              {plan.codesPerimes.length > 0 ? (
+              {estPerime({ codes: plan.codesPerimes, raisons: plan.raisonsPerime }) ? (
                 <span className="shot-meta">
-                  <span className="shot-perime" title="Une référence a changé depuis le dernier rendu : relancer pour en tenir compte">
-                    Rendu périmé · {plan.codesPerimes.join(", ")}
+                  <span className="shot-perime" title="Une référence ou le contenu du plan a changé depuis le dernier rendu : relancer pour en tenir compte">
+                    Rendu périmé · {resumerPerime({ codes: plan.codesPerimes, raisons: plan.raisonsPerime })}
                   </span>
                 </span>
               ) : null}

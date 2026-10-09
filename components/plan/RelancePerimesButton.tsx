@@ -39,7 +39,7 @@ export function RelancePerimesButton({ episodeId, nPerimes }: { episodeId: numbe
           onClick={onLancer}
           onBlur={() => setConfirmation(false)}
           disabled={pending}
-          title="Relance, avec leur seed et dans leur mode, les plans dont une référence a changé depuis le dernier rendu"
+          title="Relance, avec leur seed et dans leur mode, les plans dont une référence, le prompt ou la durée ont changé depuis le dernier rendu"
         >
           {pending
             ? "Lancement..."

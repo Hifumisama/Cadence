@@ -40,6 +40,38 @@ export function promptDiffere(promptCourant: string, promptUtilise: string | nul
   return normaliser(promptCourant) !== normaliser(promptUtilise);
 }
 
+/** Ce qui, dans le CONTENU du plan, a changé depuis son dernier rendu terminé : le prompt assemblé, la durée de génération.
+ * Comparé par VALEUR (ce que le worker a réellement soumis, `promptUtilise` / `dureeUtilisee`), pas par date : aucun
+ * horodatage de plus à tenir. Sans valeur enregistrée (anciens rendus, vidéo importée), on ne sait pas : rien. */
+export type RaisonPerime = "prompt" | "duree";
+
+export function raisonsContenuPerime(
+  courant: { prompt: string | null; duree: number | null },
+  rendu: { promptUtilise: string | null; dureeUtilisee: number | null },
+): RaisonPerime[] {
+  const raisons: RaisonPerime[] = [];
+  if (courant.prompt != null && promptDiffere(courant.prompt, rendu.promptUtilise)) raisons.push("prompt");
+  if (courant.duree != null && rendu.dureeUtilisee != null && courant.duree !== rendu.dureeUtilisee) raisons.push("duree");
+  return raisons;
+}
+
+export const LIBELLE_RAISON_PERIME: Record<RaisonPerime, string> = { prompt: "prompt modifié", duree: "durée modifiée" };
+
+/** Un plan est périmé s'il a une référence changée OU un contenu changé. */
+export const estPerime = (p: { codes: string[]; raisons: RaisonPerime[] }): boolean => p.codes.length > 0 || p.raisons.length > 0;
+
+/** « CHAR_maya, prompt modifié » : ce qui est périmé, en une ligne (frise des plans). */
+export const resumerPerime = (p: { codes: string[]; raisons: RaisonPerime[] }): string => [...p.codes, ...p.raisons.map((r) => LIBELLE_RAISON_PERIME[r])].join(", ");
+
+/** La phrase de l'alerte de la fiche de plan. */
+export function detailPerime(p: { codes: string[]; raisons: RaisonPerime[] }): string {
+  const parts: string[] = [];
+  if (p.codes.length > 0) parts.push(`${p.codes.join(", ")} ${p.codes.length > 1 ? "ont changé" : "a changé"}`);
+  if (p.raisons.includes("prompt")) parts.push("le prompt a changé");
+  if (p.raisons.includes("duree")) parts.push("la durée a changé");
+  return `${parts.join(" ; ")} depuis le dernier rendu : relance pour en tenir compte.`;
+}
+
 /** Pourquoi on ne peut pas rendre ce rendu en final (null = possible). Même seed + même prompt + mêmes références + même
  * durée = même résultat : il faut donc une seed. */
 export function raisonNonRetenable(r: RenduVue): string | null {

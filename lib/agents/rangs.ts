@@ -69,3 +69,11 @@ export function planifierDeplacement(existants: PlanOrdonne[], planUuid: string,
   const repere = index > 0 ? sans[index - 1] : sans[0];
   return { index, rangAvant: depart + 1, rangApres: index + 1, sceneId: repere ? (repere.sceneId ?? null) : undefined, deplaces };
 }
+
+/** Suppression d'un plan : les plans qui le suivent montent d'un rang (aucun trou, F03). Pur, testé. Null si le plan
+ * n'est pas dans la liste. */
+export function planifierSuppression(existants: PlanOrdonne[], planUuid: string): RangDeplace[] | null {
+  const i = existants.findIndex((p) => p.uuid === planUuid);
+  if (i === -1) return null;
+  return existants.slice(i + 1).map((p, k) => ({ planUuid: p.uuid, titre: p.titre, rangAvant: i + k + 2, rangApres: i + k + 1 }));
+}

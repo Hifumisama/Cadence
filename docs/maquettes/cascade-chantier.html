@@ -132,7 +132,8 @@ td b{font-weight:500;color:var(--ink)}
         <tr><td>Plan avec rendu réussi, réplique avec prise validée</td><td>Code (protégés, <code>ecrase_valide</code>)</td><td><span class="o existe">existe</span></td></tr>
         <tr><td>Dialogue de la fiche identique à la réplique, mot pour mot</td><td>Code (contrôle verbatim)</td><td><span class="o existe">existe</span></td></tr>
         <tr><td>Rendu périmé parce qu'un asset a changé</td><td>Code (<code>lib/plans-perimes.ts</code>)</td><td><span class="o existe">existe</span></td></tr>
-        <tr><td>Rendu périmé parce que la fiche, la durée ou une réplique a changé</td><td>Code</td><td><span class="o neuf">à construire</span></td></tr>
+        <tr><td>Rendu périmé parce que le prompt ou la durée a changé (comparés par valeur au dernier rendu)</td><td>Code (<code>lib/plans-perimes.ts</code>)</td><td><span class="o existe">existe</span></td></tr>
+        <tr><td>Fiche à resynchroniser parce qu'une réplique a changé</td><td>Code (contrôle verbatim, « dialogues à corriger »)</td><td><span class="o existe">existe</span></td></tr>
         <tr><td>Prise audio obsolète quand le texte change</td><td>Code</td><td><span class="o existe">existe</span></td></tr>
         <tr><td>Plan orphelin, réplique sans cause, raccord avec les voisins</td><td>Modèle (jugement narratif)</td><td><span class="o neuf">à construire</span></td></tr>
       </tbody>
@@ -159,15 +160,15 @@ td b{font-weight:500;color:var(--ink)}
      prop:[["Un plan qui en dépendait devient orphelin (un insert, par exemple) : proposer de le couper aussi","n","modèle"],["Une réplique ailleurs qui lui répondait perd sa cause : proposer de la reprendre","n","modèle"],["Raccord entre les deux plans qui se touchent désormais","n","modèle"],["Des répliques restées sans plan : proposer de les supprimer aussi, ou de les relier à un autre plan","n","modèle"]],
      bloc:[["Plan avec rendu réussi : confirmation d'écrasement","e","code"],["Un rendu en file ou en cours bloque la suppression : l'annuler d'abord","e","code"]]},
     {t:"Changer la durée d'un plan",etat:"existe déjà (modification d'un plan)",
-     auto:[["La durée de l'épisode est recalculée","n","code"],["Le rendu existant est marqué périmé","n","code"],["La durée de génération du plan est mise à jour","e","code"]],
+     auto:[["La durée de l'épisode est recalculée","n","code"],["Le rendu existant est marqué périmé : la durée soumise au dernier rendu n'est plus celle du plan","e","code"],["La durée de génération du plan est mise à jour","e","code"]],
      prop:[["Réécrire les timecodes de la fiche pour la nouvelle durée (écriture partielle)","e","modèle"],["Vérifier que la réplique tient encore dans la durée, avec sa marge de respiration","n","code"]],
      bloc:[["Durée hors de 5 à 15 s entières","e","code"]]},
     {t:"Changer une réplique",etat:"écriture ajoutée (étape 1)",
-     auto:[["La prise audio de la réplique devient obsolète","e","code"],["Le dialogue de la fiche ne correspond plus : la fiche est marquée à refondre","n","code"],["Le rendu du plan est marqué périmé","n","code"]],
+     auto:[["La prise audio de la réplique devient obsolète","e","code"],["Le dialogue de la fiche ne correspond plus : « dialogues à corriger » (contrôle verbatim), la relance est refusée","e","code"],["Le rendu du plan devient périmé dès que la fiche est resynchronisée (son prompt change)","e","code"]],
      prop:[["Refondre la fiche (son, caméra, durée)","e","modèle"],["Refaire la prise audio (« Générer les prises manquantes »)","e","code"],["Reprendre le plan voisin qui y répond","n","modèle"]],
      bloc:[["Réplique avec prise validée : confirmation","e","code"],["Une fiche ne s'applique pas si son dialogue diffère de la réplique","e","code"]]},
     {t:"Refondre la fiche d'un plan",etat:"existe déjà (écriture de fiche, complète ou partielle)",
-     auto:[["Le rendu du plan est marqué périmé","n","code"],["Les références de la fiche sont revalidées","v","code"]],
+     auto:[["Le rendu du plan est marqué périmé : le prompt soumis au dernier rendu n'est plus celui de la fiche","e","code"],["Les références de la fiche sont revalidées","v","code"]],
      prop:[["Un asset cité n'existe pas : le créer au registre. L'épisode ne crée pas d'asset lui-même, c'est le flux des assets qui s'en charge","e","modèle"],["Relancer le rendu (« Relancer les périmés »)","e","code"]],
      bloc:[["Contrôles de la fiche : shots d'au moins 1,5 s, 3 slots audio, verbatim, références limitées","e","code"],["Plan avec rendu réussi : avertissement d'écrasement","e","code"]]},
     {t:"Déplacer un plan",etat:"écriture ajoutée (étape 1) : modifier avec une position",

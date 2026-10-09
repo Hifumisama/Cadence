@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { changerTexteReplique } from "../repliques-ecriture";
-import { planifierDeplacement } from "./rangs";
+import { planifierDeplacement, planifierSuppression } from "./rangs";
 
 // Les plans d'un épisode dans l'ordre de lecture : deux scènes (1 et 2), un plan par lettre.
 const plans = [
@@ -64,4 +64,10 @@ test("texte de réplique : une prise validée repasse posée, les autres statuts
     set: { texte: "Au revoir.", statut: "prise_posee" },
   });
   assert.deepEqual(changerTexteReplique({ texte: "Salut.", statut: "prise_posee" }, "Au revoir.\r\n"), { ok: true, texteChange: true, set: { texte: "Au revoir." } });
+});
+
+test("suppression : les plans suivants montent d'un rang, rien ne bouge avant", () => {
+  assert.deepEqual(planifierSuppression(plans, "b")!.map((r) => [r.planUuid, r.rangAvant, r.rangApres]), [["c", 3, 2], ["d", 4, 3]]);
+  assert.deepEqual(planifierSuppression(plans, "d"), []);
+  assert.equal(planifierSuppression(plans, "zz"), null);
 });

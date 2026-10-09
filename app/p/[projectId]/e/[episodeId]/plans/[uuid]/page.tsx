@@ -25,7 +25,7 @@ import { Braises } from "@/components/plan/Braises";
 import { ActionsRendu } from "@/components/plan/ActionsRendu";
 import { LecteursRendus } from "@/components/plan/LecteursRendus";
 import { assemblerPrompt } from "@/lib/prompt";
-import { choisirComparaison, choisirRendu, estLisible, promptDiffere, raisonNonRetenable, type RenduVue } from "@/lib/rendus";
+import { choisirComparaison, choisirRendu, detailPerime, estLisible, promptDiffere, raisonNonRetenable, type RenduVue } from "@/lib/rendus";
 
 export const dynamic = "force-dynamic";
 
@@ -198,8 +198,8 @@ export default async function PlanPage({
             cle: "refs-perimees",
             niveau: "warn" as const,
             titre: "Rendu périmé",
-            detail: `${perime.codes.join(", ")} ${perime.codes.length > 1 ? "ont changé" : "a changé"} depuis le dernier rendu : relance pour en tenir compte.`,
-            ancre: "fp-refs",
+            detail: detailPerime(perime),
+            ancre: perime.codes.length > 0 ? "fp-refs" : perime.raisons.includes("prompt") ? "fp-prompt" : "fp-console",
           },
         ]
       : []),
