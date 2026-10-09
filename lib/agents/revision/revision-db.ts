@@ -4,14 +4,15 @@ import { agentConversations, propositionChangements, propositions, revisionDecis
 import type { Tx } from "../../ordre-plans";
 import { estBloque } from "../cochage";
 import { appliquerProposition, enregistrerChangements, enrichirChangements, type ChangementEnrichi } from "../proposition-db";
-import { tacheActive } from "../runs";
+import { creerRun, tacheActive } from "../runs";
 import type { Avertissement, EcrasementAConfirmer, MessageConversation, Position } from "../types";
 import { chiffresPiste, idCourt, interpreterAnalyse, statutDeDecision, type DecisionEtat, type SortieAnalyse } from "./analyse";
 import { appliquerAuBrouillon, gainSecondes } from "./brouillon";
-import { conflitsEntreDecisions, constatDuree, constatsOperations, type ConflitDecisions } from "./constats";
+import { conflitsEntreDecisions, constatDuree, type ConflitDecisions } from "./constats";
 import { construireFaits, type FaitsTour } from "./faits";
 import { fmtDuree } from "./format";
 import { operationsVersChangements } from "./operations-vers-changements";
+import { assemblerConstats } from "./tour-pur";
 import type { Constat, Operation, Piste, StatutDecision } from "./types";
 import { lireVueEpisode, planParUuid, repliqueParUuid, type VueEpisode } from "./vue-episode";
 
@@ -198,25 +199,26 @@ export async function recalculerDecisions(tx: DbOuTx, conv: ConversationRow, vue
     const { existantes, manquantes } = operationsExistantes(ops, vue);
     const enrichis = await enrichirChangements(tx, conv.projectId, scopeEpisode(conv), operationsVersChangements(existantes, vue));
 
-    const constats: Constat[] = [...constatsOperations(existantes, vue)];
-    if (manquantes > 0) constats.push({ niveau: "bloquant", texte: `${manquantes} cible${manquantes > 1 ? "s n'existent" : " n'existe"} plus (supprimée${manquantes > 1 ? "s" : ""} depuis).`, source: "code" });
+    const desApplicateurs: Constat[] = [];
     for (const e of enrichis) {
-      if (e.refuseRaison) constats.push({ niveau: "bloquant", texte: `Refusé : ${e.refuseRaison}`, source: "code" });
+      if (e.refuseRaison) desApplicateurs.push({ niveau: "bloquant", texte: `Refusé : ${e.refuseRaison}`, source: "code" });
       else if (estBloque((e.avertissements ?? []) as Avertissement[])) {
-        for (const a of (e.avertissements ?? []) as Avertissement[]) if (a.type === "bloque_controle") constats.push({ niveau: "bloquant", texte: a.texte, source: "code" });
+        for (const a of (e.avertissements ?? []) as Avertissement[]) if (a.type === "bloque_controle") desApplicateurs.push({ niveau: "bloquant", texte: a.texte, source: "code" });
       }
     }
     const mesConflits = conflits.filter((c) => c.ids.includes(idCourt(l.ordre)));
-    for (const c of mesConflits) constats.push({ niveau: "bloquant", texte: `Conflit : ${c.texte}`, source: "code" });
-    const narratifs = ((l.constats as Constat[]) ?? []).filter((c) => c.source === "modele");
-    constats.push(...narratifs);
-
-    const ancien = ((l.changements as ChangementEnrichi[]) ?? []);
+    const ancien = (l.changements as ChangementEnrichi[]) ?? [];
     const perime = ancien.length > 0 && signature(ancien) !== signature(enrichis);
     const aReverifier = options.reconfirmer === l.uuid ? false : l.aReverifier || perime || manquantes > 0;
-    if (perime && options.reconfirmer !== l.uuid) constats.push({ niveau: "alerte", texte: "Ce que cette décision vise a changé depuis qu'elle a été prise : à relire.", source: "code" });
-    // Un « ok » ne reste que s'il n'y a rien d'autre à dire.
-    const utiles = constats.some((c) => c.niveau !== "ok") ? constats.filter((c) => c.niveau !== "ok") : constats;
+    const utiles = assemblerConstats({
+      operationsExistantes: existantes,
+      vue,
+      manquantes,
+      desApplicateurs,
+      conflits: mesConflits.map((c) => c.texte),
+      narratifs: ((l.constats as Constat[]) ?? []).filter((c) => c.source === "modele"),
+      aRelire: perime && options.reconfirmer !== l.uuid,
+    });
 
     await tx
       .update(revisionDecisions)
@@ -443,4 +445,35 @@ export async function appliquerRevision(conversationUuid: string, options: { con
     );
   });
   return { ok: true, appliquees: decisions.length, changements: r.appliques };
+}
+
+// --- le tour de conversation -----------------------------------------------------------
+
+const MAX_MESSAGE = 4000;
+
+/** L'utilisateur écrit au réalisateur : le message rejoint la conversation et le tour d'ANALYSE est posé dans la file (un seul tour à la fois).
+ * L'analyse relit l'épisode et le brouillon À L'EXÉCUTION ; sa réponse suit, posée par le worker (worker/agents/postTraitement.ts). */
+export async function envoyerMessageRevision(conversationUuid: string, texte: string): Promise<Resultat<{ runUuid: string }>> {
+  const conv = await conversationRevisionParUuid(db, conversationUuid);
+  if (!conv || conv.fermeeAt) return ERR("Révision introuvable ou terminée : ouvres-en une neuve.");
+  const message = texte.trim();
+  if (!message) return ERR("Le message est vide.");
+  if (message.length > MAX_MESSAGE) return ERR(`Message trop long (${MAX_MESSAGE} caractères au plus).`);
+  if (await tacheActive(conv.id)) return ERR("Le réalisateur est déjà en train de répondre : attends sa réponse.");
+  const run = await db.transaction(async (tx) => {
+    await ajouterMessage(tx, conv, "user", message);
+    return creerRun(tx, { skill: "realisateur-analyse", entree: { conversation: conv.uuid }, but: "tour", projectId: conv.projectId, conversationId: conv.id });
+  });
+  return { ok: true, runUuid: run.uuid };
+}
+
+/** Relance le tour quand il a échoué (serveur LLM en panne, sortie invalide) : le dernier message est celui de l'utilisateur, rien ne tourne. */
+export async function relancerTourRevision(conversationUuid: string): Promise<Resultat<{ runUuid: string }>> {
+  const conv = await conversationRevisionParUuid(db, conversationUuid);
+  if (!conv || conv.fermeeAt) return ERR("Révision introuvable ou terminée.");
+  const messages = (conv.messages as MessageConversation[]) ?? [];
+  if (messages.at(-1)?.role !== "user") return ERR("Le réalisateur a déjà répondu : il n'y a rien à relancer.");
+  if (await tacheActive(conv.id)) return ERR("Un tour est déjà en cours.");
+  const run = await creerRun(db, { skill: "realisateur-analyse", entree: { conversation: conv.uuid }, but: "tour", projectId: conv.projectId, conversationId: conv.id });
+  return { ok: true, runUuid: run.uuid };
 }

@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the realisateur-analyse agent: what one user message means as operations on an episode",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decisions",
+    "retirer",
+    "pistes",
+    "retenirPistes",
+    "narratif"
+  ],
+  "properties": {
+    "decisions": {
+      "type": "array",
+      "maxItems": 6,
+      "description": "Decisions to keep NOW: precise requests, or the changed version of an existing decision. Empty for a pure feeling, a question, or a choice among pending options.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "titre",
+          "raison",
+          "operations"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Leave it OUT for a NEW decision. Give the id of an existing decision (D1, D2…) to REPLACE its operations by the complete new list."
+          },
+          "titre": {
+            "type": "string",
+            "minLength": 1,
+            "description": "(French) A short action phrase, about 60 characters, no figures: « Couper les plans d'ambiance », « Réplique du plan 07 plus sobre »."
+          },
+          "raison": {
+            "type": "string",
+            "description": "(French) One sentence: why, in the user's terms."
+          },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "couper_plan",
+                    "duree_plan",
+                    "deplacer_plan",
+                    "modifier_plan",
+                    "remplacer_replique",
+                    "supprimer_replique"
+                  ]
+                },
+                "plan": {
+                  "type": "string",
+                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan."
+                },
+                "replique": {
+                  "type": "string",
+                  "description": "Reference of the line concerned (R01, R02…). Used by remplacer_replique and supprimer_replique."
+                },
+                "secondes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 60,
+                  "description": "duree_plan only: the new duration in whole seconds, within the limits of the input."
+                },
+                "apres": {
+                  "type": "string",
+                  "description": "deplacer_plan only: the reference of the plan AFTER which the plan is placed. Use either apres or position."
+                },
+                "position": {
+                  "type": "string",
+                  "enum": [
+                    "debut",
+                    "fin"
+                  ],
+                  "description": "deplacer_plan only: place the plan at the start or at the end of the episode. Use either apres or position."
+                },
+                "titre": {
+                  "type": "string",
+                  "description": "(French) modifier_plan: the new title."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "(French) modifier_plan: the new description, one or two sentences."
+                },
+                "texte": {
+                  "type": "string",
+                  "description": "remplacer_replique: the new text of the line, in the language of the existing lines, ready to be spoken."
+                },
+                "locuteur": {
+                  "type": "string",
+                  "description": "remplacer_replique: the new speaker, only if the user asks to change it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "retirer": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "string"
+      },
+      "description": "Ids (D1, D2…) of decisions the user withdraws."
+    },
+    "pistes": {
+      "type": "array",
+      "maxItems": 3,
+      "description": "2 or 3 clearly different options when the user gives a feeling or a problem without a precise action. Each carries its operations, already prepared. Empty otherwise.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "titre",
+          "resume",
+          "operations"
+        ],
+        "properties": {
+          "titre": {
+            "type": "string",
+            "minLength": 1,
+            "description": "(French) A short phrase naming the option, no figures."
+          },
+          "resume": {
+            "type": "string",
+            "description": "(French) One sentence: what it does and what it costs the story. No figure: the application adds the real durations."
+          },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 14,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "couper_plan",
+                    "duree_plan",
+                    "deplacer_plan",
+                    "modifier_plan",
+                    "remplacer_replique",
+                    "supprimer_replique"
+                  ]
+                },
+                "plan": {
+                  "type": "string",
+                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan."
+                },
+                "replique": {
+                  "type": "string",
+                  "description": "Reference of the line concerned (R01, R02…). Used by remplacer_replique and supprimer_replique."
+                },
+                "secondes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 60,
+                  "description": "duree_plan only: the new duration in whole seconds, within the limits of the input."
+                },
+                "apres": {
+                  "type": "string",
+                  "description": "deplacer_plan only: the reference of the plan AFTER which the plan is placed. Use either apres or position."
+                },
+                "position": {
+                  "type": "string",
+                  "enum": [
+                    "debut",
+                    "fin"
+                  ],
+                  "description": "deplacer_plan only: place the plan at the start or at the end of the episode. Use either apres or position."
+                },
+                "titre": {
+                  "type": "string",
+                  "description": "(French) modifier_plan: the new title."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "(French) modifier_plan: the new description, one or two sentences."
+                },
+                "texte": {
+                  "type": "string",
+                  "description": "remplacer_replique: the new text of the line, in the language of the existing lines, ready to be spoken."
+                },
+                "locuteur": {
+                  "type": "string",
+                  "description": "remplacer_replique: the new speaker, only if the user asks to change it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "retenirPistes": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 3
+      },
+      "description": "Numbers (from 1) of the pending options the user accepts."
+    },
+    "narratif": {
+      "type": "array",
+      "maxItems": 6,
+      "description": "Story judgments only you can make (a plan left without purpose, a line left without cause, a contradiction in the story), about a decision of the draft. Empty if you see nothing.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decision",
+          "niveau",
+          "texte"
+        ],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "description": "The id (D1, D2…) of the decision concerned; a new decision uses the next ids announced by prochainId."
+          },
+          "niveau": {
+            "type": "string",
+            "enum": [
+              "conflit",
+              "alerte"
+            ]
+          },
+          "texte": {
+            "type": "string",
+            "minLength": 1,
+            "description": "(French) One sentence naming the plans and lines by their references."
+          }
+        }
+      }
+    }
+  }
+}

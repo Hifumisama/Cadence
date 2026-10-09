@@ -41,8 +41,13 @@ import type { SortiePlanH3 } from "../../lib/agents/plan-h3-controles";
 import { corpusExemplesPlanH3 } from "../../lib/agents/plan-h3-corpus";
 import { planDialogues, planPromptSections, planRefs, propositionChangements, repliques, scenes } from "../../db/schema";
 import { depuisInventaire, type SortieInventaire } from "../../lib/agents/inventaire";
+import { lireVueEpisode } from "../../lib/agents/revision/vue-episode";
 import { depuisIterationPlan, raisonSansEcriture, type PlanPourIteration, type SortieIterationPlan } from "../../lib/agents/iteration-plan";
 import type { InfosExecution } from "./preparation";
+import { appliquerSortieAnalyse, ajouterMessage } from "../../lib/agents/revision/revision-db";
+import { entreeReponse } from "../../lib/agents/revision/entrees";
+import type { SortieAnalyse } from "../../lib/agents/revision/analyse";
+import type { MessageConversation } from "../../lib/agents/types";
 
 /** Ce que devient le résultat validé d'une tâche du système d'agents, DANS la transaction qui
  * l'écrit (worker/llm.ts) : un échec ici annule tout et la tâche est marquée échouée.
@@ -58,6 +63,9 @@ export type OptionsRunAgent = { modele?: string; variante?: string; position?: P
 export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execution: InfosExecution = {}): Promise<void> {
   if (!run.but) return; // appel hors système d'agents (npm run llm:tache) : rien à faire
   if (run.but === "tour") {
+    // La révision d'un épisode (réalisateur) : l'analyse range les décisions puis pose la réponse ; la réponse rejoint la conversation.
+    if (run.skill === "realisateur-analyse") return postAnalyseRevision(tx, run, json as SortieAnalyse);
+    if (run.skill === "realisateur-reponse") return postReponseRevision(tx, run, json as { reponse: string });
     if (run.skill === "notes-entretien") return postNotes(tx, run, json);
     // L'accroche du scénariste (premier message d'un projet conçu) se range comme un tour de l'agent : elle ouvre la conversation.
     return postTour(tx, run, json as { reponse: string; resteADefinir?: string[] });
@@ -104,6 +112,31 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
     projectId: conv.projectId,
     conversationId: conv.id,
   });
+}
+
+/** Tour d'analyse du réalisateur : les opérations que le modèle propose sont validées par le code, rangées en décisions (brouillon), les
+ * constats sont recalculés ; puis la tâche de RÉPONSE est posée avec les FAITS du tour. Tout dans la transaction de l'analyse. */
+async function postAnalyseRevision(tx: Tx, run: RunAgent, sortie: SortieAnalyse) {
+  if (run.conversationId == null) return;
+  const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
+  if (!conv || conv.fermeeAt) return; // révision fermée ou écrasée entre-temps : le tour est perdu, sans erreur
+  const faits = await appliquerSortieAnalyse(tx, conv, sortie);
+  const vue = await lireVueEpisode(tx, conv.projectId, conv.cibleId!);
+  await creerRun(tx, {
+    skill: "realisateur-reponse",
+    entree: entreeReponse({ episode: { numero: vue?.numero ?? 0, titre: vue?.titre ?? "" }, messages: (conv.messages as MessageConversation[]) ?? [], faits }),
+    but: "tour",
+    projectId: conv.projectId,
+    conversationId: conv.id,
+  });
+}
+
+/** La réponse du réalisateur rejoint la conversation. */
+async function postReponseRevision(tx: Tx, run: RunAgent, sortie: { reponse: string }) {
+  if (run.conversationId == null) return;
+  const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
+  if (!conv || conv.fermeeAt) return;
+  await ajouterMessage(tx, conv, "assistant", sortie.reponse.trim());
 }
 
 /** Le format du projet conçu (film ou série), pour l'agent de conversation ; undefined pour un projet sans conception. */

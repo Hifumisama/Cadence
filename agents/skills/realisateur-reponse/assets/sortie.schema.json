@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the realisateur-reponse agent: the director's reply",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reponse"
+  ],
+  "properties": {
+    "reponse": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1500,
+      "description": "(French) Your reply to the user, like a colleague speaking: short, direct, using only the figures of the facts. Plain text; a short numbered list is allowed to present options."
+    }
+  }
+}

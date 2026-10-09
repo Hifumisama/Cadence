@@ -1,10 +1,12 @@
 import "dotenv/config";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "../db";
-import { agentConversations, assets, briefs, episodes, jobs, planDialogues, planPromptSections, plans, projects, repliques, revisionDecisions, scenes, seasons } from "../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, plans, projects, repliques, revisionDecisions, scenes, seasons } from "../db/schema";
 import { LIGNES_LE_SEL } from "../lib/agents/revision/fixture-le-sel";
 import type { SortieAnalyse } from "../lib/agents/revision/analyse";
-import { abandonnerRevision, appliquerRevision, appliquerSortieAnalyse, conversationRevisionParUuid, lireEtatRevision, ouvrirRevision, reconfirmerDecision, retirerDecision } from "../lib/agents/revision/revision-db";
+import { abandonnerRevision, appliquerRevision, appliquerSortieAnalyse, conversationRevisionParUuid, envoyerMessageRevision, lireEtatRevision, ouvrirRevision, reconfirmerDecision, relancerTourRevision, retirerDecision } from "../lib/agents/revision/revision-db";
+import type { executerSkill } from "../lib/llm/executer";
+import { traiterTacheLlm } from "../worker/llm";
 
 /**
  * Essai de bout en bout du MOTEUR de la révision d'épisode, SANS modèle : les sorties de l'analyse sont écrites à la main (ce que
@@ -66,6 +68,35 @@ async function semerLeSel(nom: string) {
     for (const li of r.liaisons) await db.insert(planDialogues).values({ planId: planDe(li.planUuid).id, repliqueId: lesReps[i]!.id, slot: li.slot });
   }
   return { projectId: projet!.id, episodeId: episode!.id };
+}
+
+// --- le faux modèle du réalisateur --------------------------------------------------
+
+/** Ce que le faux modèle a reçu et ce que le contrôleur du worker en a dit (la même sémantique qu'un vrai renvoi). */
+const vu: { analyse: Record<string, unknown>[]; reponse: Record<string, unknown>[]; soucis: string[][] } = { analyse: [], reponse: [], soucis: [] };
+let prochainesAnalyses: SortieAnalyse[] = [];
+let tomberEnPanne = false;
+
+const faux = (async (skill: string, entree: unknown, options?: { controler?: (json: unknown) => string[] }) => {
+  let json: unknown;
+  if (skill === "realisateur-analyse") {
+    if (tomberEnPanne) throw new Error("Serveur LLM en panne (simulé)");
+    vu.analyse.push(entree as Record<string, unknown>);
+    json = prochainesAnalyses.shift() ?? { decisions: [], retirer: [], pistes: [], retenirPistes: [], narratif: [] };
+    vu.soucis.push(options?.controler ? options.controler(json) : []);
+  } else if (skill === "realisateur-reponse") {
+    vu.reponse.push(entree as Record<string, unknown>);
+    json = { reponse: "Réponse du réalisateur (faux modèle)." };
+  } else throw new Error(`Skill inattendu : ${skill}`);
+  return { json, reponse: {} as never, usage: { entree: 0, sortie: 0 }, dureeMs: 1, renvois: 0, modele: "faux", skill: { nom: skill, caracteres: 0, jetonsEstimes: 0 } };
+}) as unknown as typeof executerSkill;
+
+async function traiterProchain(conversationUuid: string) {
+  const conv = await conversationRevisionParUuid(db, conversationUuid);
+  const [run] = await db.select().from(agentRuns).where(and(eq(agentRuns.conversationId, conv!.id), eq(agentRuns.statut, "en_attente"))).orderBy(desc(agentRuns.id)).limit(1);
+  if (!run) throw new Error("Aucune tâche en attente.");
+  await traiterTacheLlm(run, { executer: faux, joignable: async () => true });
+  return (await db.select().from(agentRuns).where(eq(agentRuns.id, run.id)))[0]!;
 }
 
 const sortie = (o: Partial<SortieAnalyse>): SortieAnalyse => ({ decisions: [], retirer: [], pistes: [], retenirPistes: [], narratif: [], ...o });
@@ -216,6 +247,89 @@ async function main() {
     ok(ab.ok && convC?.fermeeAt != null, "abandonner ferme la conversation");
     const restantes = await db.select().from(revisionDecisions).where(eq(revisionDecisions.conversationId, convC!.id));
     ok(restantes.length === 0, "…et vide le brouillon");
+
+    // ── D. Le tour de conversation : analyse → décisions → réponse, avec le vrai worker et un faux modèle ──
+    console.log("\nD. Tour de conversation (worker, faux modèle)");
+    const d = await semerLeSel("TEST_REVISION_E2E_D");
+    ids.push(d.projectId);
+    const od = await ouvrirRevision(d.projectId, d.episodeId);
+    if (!od.ok) throw new Error(od.erreur);
+    ok(!(await envoyerMessageRevision(od.conversationUuid, "   ")).ok, "un message vide est refusé");
+    const m1 = await envoyerMessageRevision(od.conversationUuid, "Je trouve l'épisode trop long, et la scène 1 traîne.");
+    ok(m1.ok, "le message part : la tâche d'analyse est posée");
+    ok(!(await envoyerMessageRevision(od.conversationUuid, "Autre chose ?")).ok, "un second tour est refusé tant que le premier tourne");
+
+    prochainesAnalyses = [
+      sortie({
+        pistes: [
+          { titre: "Couper quatre plans d'ambiance", resume: "05, 10, 02, 08", operations: coupes(5, 10, 2, 8) },
+          { titre: "Accélérer la scène 1", resume: "durées 5 à 7 s", operations: [{ type: "duree_plan", plan: "P01", secondes: 6 }, { type: "duree_plan", plan: "P03", secondes: 7 }] },
+        ],
+      }),
+    ];
+    const r1 = await traiterProchain(od.conversationUuid);
+    ok(r1.statut === "termine", "le worker traite l'analyse");
+    const e1 = vu.analyse[0] as { episode: { duree: string; aEconomiserSecondes: number }; plans: { ref: string }[]; limites: { dureePlanMinSecondes: number; dureePlanMaxSecondes: number }; message: string; prochainId: string; decisions: unknown[] };
+    ok(e1.plans.length === 14 && e1.plans[0]!.ref === "P01" && e1.plans[13]!.ref === "P14", "le modèle reçoit l'épisode avec ses poignées P01…P14");
+    ok(e1.episode.duree === "2:34" && e1.episode.aEconomiserSecondes === 34 && e1.limites.dureePlanMinSecondes === 5 && e1.limites.dureePlanMaxSecondes === 15, "…la durée, ce qu'il reste à économiser et les limites d'un plan");
+    ok(e1.message === "Je trouve l'épisode trop long, et la scène 1 traîne." && e1.prochainId === "D1" && e1.decisions.length === 0, "…le message de l'utilisateur, le prochain id, aucun brouillon");
+    ok(vu.soucis[0]!.length === 0, "le contrôleur du worker ne voit rien à redire");
+    const [suite1] = await db.select().from(agentRuns).where(and(eq(agentRuns.skill, "realisateur-reponse"), eq(agentRuns.statut, "en_attente")));
+    ok(suite1 != null, "l'analyse pose la tâche de réponse");
+    const faits1 = (suite1!.entree as { faits: { pistes: { gain: string; dureeApres: string }[]; decisions: unknown[] } }).faits;
+    ok(faits1.pistes.length === 2 && faits1.pistes[0]!.gain === "−35 s" && faits1.pistes[0]!.dureeApres === "1:59" && faits1.decisions.length === 0, "…avec les faits du code : pistes chiffrées, aucune décision");
+    const r2 = await traiterProchain(od.conversationUuid);
+    ok(r2.statut === "termine", "le worker traite la réponse");
+    const conv1 = await conversationRevisionParUuid(db, od.conversationUuid);
+    const msgs = conv1!.messages as { role: string; content: string }[];
+    ok(msgs.length === 3 && msgs[1]!.role === "user" && msgs[2]!.role === "assistant" && msgs[2]!.content.startsWith("Réponse du réalisateur"), "la conversation : ouverture, message, réponse");
+
+    // tour 2 : le modèle voit les pistes en attente ; « combine » les transforme en décisions
+    await envoyerMessageRevision(od.conversationUuid, "Combine la 1 et la 2.");
+    prochainesAnalyses = [sortie({ retenirPistes: [1, 2] })];
+    await traiterProchain(od.conversationUuid);
+    const e2 = vu.analyse[1] as { pistesEnAttente: { numero: number; gain: string }[]; conversation: { qui: string }[] };
+    ok(e2.pistesEnAttente.length === 2 && e2.pistesEnAttente[0]!.gain === "−35 s" && e2.conversation.length === 3 && e2.conversation[0]!.qui === "realisateur" && e2.conversation[1]!.qui === "utilisateur", "tour 2 : le modèle voit les pistes en attente (chiffrées) et la conversation");
+    await traiterProchain(od.conversationUuid);
+    const etat2 = await lireEtatRevision(od.conversationUuid);
+    ok(etat2!.decisions.length === 2 && etat2!.pistes.length === 0 && etat2!.duree.avecBrouillon === 112, "les deux pistes sont devenues deux décisions (112 s)");
+
+    // tour 3 : le modèle relit le brouillon avec les poignées d'aujourd'hui ; une poignée inventée est refusée et signalée
+    await envoyerMessageRevision(od.conversationUuid, "Plan 07 : une réplique plus sobre.");
+    prochainesAnalyses = [
+      sortie({
+        decisions: [{ id: null, titre: "Réplique du plan 07 plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }, { type: "couper_plan", plan: "P99" }] }],
+        narratif: [{ decision: "D3", niveau: "conflit", texte: "Le plan 08 est coupé parce que la réplique disait ce qu'il montre." }],
+      }),
+    ];
+    await traiterProchain(od.conversationUuid);
+    const e3 = vu.analyse[2] as { plans: { ref: string; brouillon: { coupe?: boolean; dureeSecondes?: number } | null }[]; decisions: { id: string; operations: { type: string; plan?: string }[] }[]; prochainId: string };
+    ok(e3.prochainId === "D3" && e3.decisions.length === 2 && e3.decisions[0]!.id === "D1" && e3.decisions[0]!.operations[0]!.plan === "P05", "tour 3 : les décisions reviennent au modèle avec leurs opérations en poignées");
+    ok(e3.plans[4]!.brouillon?.coupe === true && e3.plans[0]!.brouillon?.dureeSecondes === 6 && e3.plans[5]!.brouillon === null, "…et le scénario porte le brouillon (P05 coupé, P01 à 6 s)");
+    ok(vu.soucis[2]!.length === 1 && /P99/.test(vu.soucis[2]![0]!), "le contrôleur du worker signale la poignée inventée (c'est ce qui déclencherait un renvoi)");
+    await traiterProchain(od.conversationUuid);
+    const faits3 = (vu.reponse[2] as { faits: { refus: { raison: string }[]; decisions: { id: string; statut: string }[] } }).faits;
+    ok(faits3.refus.length === 1 && /P99/.test(faits3.refus[0]!.raison), "…le refus arrive tel quel dans les faits de la réponse");
+    ok(faits3.decisions.find((x) => x.id === "D3")?.statut === "conflit", "la décision D3 est en conflit (jugement du modèle)");
+    ok(!(await appliquerRevision(od.conversationUuid)).ok, "appliquer reste refusé tant que le conflit n'est pas tranché");
+
+    // une panne du serveur : le message reste, la tâche échoue, on relance
+    ok(!(await relancerTourRevision(od.conversationUuid)).ok, "on ne relance pas un tour déjà répondu");
+    await envoyerMessageRevision(od.conversationUuid, "Garde le 08.");
+    tomberEnPanne = true;
+    const panne = await traiterProchain(od.conversationUuid);
+    ok(panne.statut === "echoue" && /en panne/.test(panne.erreur ?? ""), "serveur LLM en panne : la tâche échoue avec son message");
+    tomberEnPanne = false;
+    const relance = await relancerTourRevision(od.conversationUuid);
+    ok(relance.ok, "…le tour se relance (le dernier message est celui de l'utilisateur)");
+    await traiterProchain(od.conversationUuid);
+    await traiterProchain(od.conversationUuid);
+    const conv4 = await conversationRevisionParUuid(db, od.conversationUuid);
+    ok((conv4!.messages as { role: string }[]).at(-1)!.role === "assistant", "…et le réalisateur répond");
+
+    // une révision fermée n'accepte plus de message
+    await abandonnerRevision(od.conversationUuid);
+    ok(!(await envoyerMessageRevision(od.conversationUuid, "Encore ?")).ok, "une révision terminée refuse les messages");
   } finally {
     for (const id of ids) await db.delete(projects).where(eq(projects.id, id));
   }

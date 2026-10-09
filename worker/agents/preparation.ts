@@ -6,7 +6,8 @@ import { contenuPlanche, ErreurPlanche, extrairePlanche, type Planche } from "..
 import type { MessageLlm } from "../../lib/llm/types";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { propositionChangements, type agentRuns } from "../../db/schema";
+import { agentConversations, propositionChangements, type agentRuns } from "../../db/schema";
+import { entreeAnalyse } from "../../lib/agents/revision/entrees";
 
 /** « Préparer l'entrée » d'une tâche LLM, AU MOMENT de l'exécution (worker/llm.ts), propre à chaque skill. Par
  * défaut l'entrée stockée (agent_runs.entree) part telle quelle. Pour `iteration-plan`, l'entrée stockée ne porte
@@ -45,8 +46,20 @@ const arrondi = (n: number) => Math.round(n * 100) / 100;
 
 export async function preparerEntree(run: RunAgent, deps: DepsPreparation = {}): Promise<EntreePreparee> {
   if (run.skill === "iteration-plan") return preparerIteration(run, deps);
+  if (run.skill === "realisateur-analyse") return preparerAnalyse(run);
   if (run.skill === "plan-h3" && run.propositionId != null && run.cleSousTache) return preparerFiche(run);
   return { entree: run.entree as string | object, controle: run.entree };
+}
+
+/** L'analyse du réalisateur : l'entrée stockée n'est qu'un déclencheur ; l'épisode, le brouillon et la conversation sont relus ICI, à
+ * l'exécution (le modèle voit l'état du moment, pas celui de l'envoi du message). Le contrôle garde l'épisode lu (poignées valides). */
+async function preparerAnalyse(run: RunAgent): Promise<EntreePreparee> {
+  if (run.conversationId == null) throw new Error("Analyse du réalisateur sans conversation.");
+  const [conv] = await db.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
+  if (!conv || conv.fermeeAt) throw new Error("Cette révision n'existe plus ou est terminée.");
+  const e = await entreeAnalyse(db, conv);
+  if (!e) throw new Error("L'épisode de cette révision n'existe plus.");
+  return { entree: e.entree, controle: e.controle };
 }
 
 /** Une fiche d'un LOT : l'entrée stockée a été construite quand le lot est parti, avant que les autres fiches proposent

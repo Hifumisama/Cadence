@@ -13,6 +13,7 @@
     "test": "tsx --test lib/*.test.ts lib/llm/*.test.ts lib/styles/*.test.ts lib/agents/*.test.ts lib/agents/revision/*.test.ts worker/*.test.ts worker/comfyui/*.test.ts",
     "agents:e2e": "tsx scripts/agents-e2e.ts",
     "revision:e2e": "tsx scripts/revision-e2e.ts",
+    "revision:essai": "tsx scripts/revision-essai.ts",
     "agents:rejeu": "tsx scripts/rejeu-creation.ts",
     "llm:essai": "tsx scripts/llm-essai.ts",
     "llm:tache": "tsx scripts/llm-tache.ts",

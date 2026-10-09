@@ -3,6 +3,7 @@ import { corpusExemplesPlanH3 } from "../agents/plan-h3-corpus";
 import { controlerSortiePlanH3, type SortiePlanH3 } from "../agents/plan-h3-controles";
 import { controlerDureeScenario } from "../agents/scenario-controles";
 import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-plan";
+import { controleurAnalyse, type ControleAnalyse } from "../agents/revision/entrees";
 
 /** Contrôles SÉMANTIQUES d'un skill, appliqués à une sortie qui respecte déjà le schéma : ce que le
  * schéma ne sait pas dire (un code d'asset recopié de travers, un timecode qui recule…). S'il en trouve,
@@ -31,6 +32,10 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
       controlerSortieIterationPlan(json as SortieIterationPlan, ctx)
         .filter((p) => p.niveau === "erreur")
         .map((p) => p.message);
+  }
+  if (skill === "realisateur-analyse") {
+    // L'épisode tel que le modèle l'a lu : une poignée inventée, une durée hors limites, un id inconnu sont renvoyés UNE fois.
+    return entree ? controleurAnalyse(entree as ControleAnalyse) : undefined;
   }
   if (skill === "scenario-episode") {
     // Seul un scénario d'épisode ENTIER se compare à la durée visée (un plan à insérer ou à corriger n'en est qu'un morceau).
