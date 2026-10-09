@@ -42,77 +42,259 @@
             "minItems": 1,
             "maxItems": 12,
             "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "type"
-              ],
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "enum": [
-                    "couper_plan",
-                    "duree_plan",
-                    "deplacer_plan",
-                    "modifier_plan",
-                    "remplacer_replique",
-                    "supprimer_replique",
-                    "refondre_fiche",
-                    "ajouter_plan",
-                    "ajouter_replique"
-                  ]
-                },
-                "plan": {
-                  "type": "string",
-                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan, refondre_fiche and ajouter_replique (the plan that will say the line)."
-                },
-                "replique": {
-                  "type": "string",
-                  "description": "Reference of the line concerned (R01, R02…). Used by remplacer_replique and supprimer_replique."
-                },
-                "secondes": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 60,
-                  "description": "REQUIRED for ajouter_plan (the duration of the new plan, a whole number of seconds within the limits of the input: \"chacun de 6 secondes\" = 6 on each), and for duree_plan. Never put a duration in consigne."
-                },
-                "apres": {
-                  "type": "string",
-                  "description": "deplacer_plan and ajouter_plan: the reference of the plan AFTER which the plan is placed. Use one of avant, apres or position."
-                },
-                "avant": {
-                  "type": "string",
-                  "description": "ajouter_plan only: the reference of the plan BEFORE which the new plan is placed (\"juste avant le plan 1\" = P01). Several new plans placed at the same spot: list them in reading order with the same avant."
-                },
-                "position": {
-                  "type": "string",
-                  "enum": [
-                    "debut",
-                    "fin"
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan"
                   ],
-                  "description": "deplacer_plan and ajouter_plan: place the plan at the start or at the end of the episode. Use one of avant, apres or position."
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "couper_plan"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    }
+                  }
                 },
-                "titre": {
-                  "type": "string",
-                  "description": "(French) modifier_plan: the new title. ajouter_plan: the title of the new plan."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan",
+                    "secondes"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "duree_plan"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "secondes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 15,
+                      "description": "The new duration in whole seconds, within the limits of the input."
+                    }
+                  }
                 },
-                "description": {
-                  "type": "string",
-                  "description": "(French) modifier_plan: the new description, one or two sentences. ajouter_plan: what the new plan shows, one or two sentences."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "deplacer_plan"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "apres": {
+                      "type": "string",
+                      "description": "The reference of the plan AFTER which the plan is placed (\"après le plan 3\", \"entre le plan 3 et le plan 4\" = P03)."
+                    },
+                    "avant": {
+                      "type": "string",
+                      "description": "The reference of the plan BEFORE which the plan is placed (\"juste avant le plan 1\" = P01). Several new plans at the same spot: list them in reading order with the same avant."
+                    },
+                    "position": {
+                      "type": "string",
+                      "description": "\"debut\" or \"fin\": the start or the end of the episode.",
+                      "enum": [
+                        "debut",
+                        "fin"
+                      ]
+                    }
+                  }
                 },
-                "texte": {
-                  "type": "string",
-                  "description": "remplacer_replique: the new text of the line. ajouter_plan (optional) and ajouter_replique: the text of the line said, in the language of the existing lines, ready to be spoken, exactly as the user gave it."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "modifier_plan"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "titre": {
+                      "type": "string",
+                      "description": "(French) the new title."
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "(French) the new description, one or two sentences."
+                    }
+                  }
                 },
-                "locuteur": {
-                  "type": "string",
-                  "description": "remplacer_replique: the new speaker, only if the user asks to change it. ajouter_plan (with texte) and ajouter_replique: who says the line, one of locuteursConnus when the speaker is there (\"Maya\" -> CHAR_maya), otherwise the name as given."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "replique"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "remplacer_replique"
+                    },
+                    "replique": {
+                      "type": "string",
+                      "description": "Reference of the line concerned, exactly as in the input (R01, R02…)."
+                    },
+                    "texte": {
+                      "type": "string",
+                      "description": "The new text of the line, in the language of the existing lines, ready to be spoken."
+                    },
+                    "locuteur": {
+                      "type": "string",
+                      "description": "The new speaker, only if the user asks to change it."
+                    }
+                  }
                 },
-                "consigne": {
-                  "type": "string",
-                  "description": "(French) refondre_fiche ONLY: what to change in the sheet, in a few words. Never use it for another type of operation."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "replique"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "supprimer_replique"
+                    },
+                    "replique": {
+                      "type": "string",
+                      "description": "Reference of the line concerned, exactly as in the input (R01, R02…)."
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "refondre_fiche"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "consigne": {
+                      "type": "string",
+                      "description": "(French) What to change in the plan's sheet, in a few words. Empty if the sheet only has to follow the plan as it is now."
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "titre",
+                    "description",
+                    "secondes"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "ajouter_plan"
+                    },
+                    "titre": {
+                      "type": "string",
+                      "description": "(French) the title of the new plan, short."
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "(French) what the new plan shows, one or two sentences."
+                    },
+                    "secondes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 15,
+                      "description": "The duration of the new plan, in whole seconds (\"6s\", \"6 secondes\" = 6)."
+                    },
+                    "apres": {
+                      "type": "string",
+                      "description": "The reference of the plan AFTER which the plan is placed (\"après le plan 3\", \"entre le plan 3 et le plan 4\" = P03)."
+                    },
+                    "avant": {
+                      "type": "string",
+                      "description": "The reference of the plan BEFORE which the plan is placed (\"juste avant le plan 1\" = P01). Several new plans at the same spot: list them in reading order with the same avant."
+                    },
+                    "position": {
+                      "type": "string",
+                      "description": "\"debut\" or \"fin\": the start or the end of the episode.",
+                      "enum": [
+                        "debut",
+                        "fin"
+                      ]
+                    },
+                    "texte": {
+                      "type": "string",
+                      "description": "The line said in this plan, exactly as the user gave it (optional, with locuteur)."
+                    },
+                    "locuteur": {
+                      "type": "string",
+                      "description": "Who says the line: one of locuteursConnus when the name matches (\"Maya\" -> CHAR_maya)."
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan",
+                    "texte",
+                    "locuteur"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "ajouter_replique"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "texte": {
+                      "type": "string",
+                      "description": "The text of the new line, exactly as the user gave it."
+                    },
+                    "locuteur": {
+                      "type": "string",
+                      "description": "Who says it: one of locuteursConnus when the name matches."
+                    }
+                  }
                 }
-              }
+              ]
             }
           }
         }
@@ -153,77 +335,259 @@
             "minItems": 1,
             "maxItems": 14,
             "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "type"
-              ],
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "enum": [
-                    "couper_plan",
-                    "duree_plan",
-                    "deplacer_plan",
-                    "modifier_plan",
-                    "remplacer_replique",
-                    "supprimer_replique",
-                    "refondre_fiche",
-                    "ajouter_plan",
-                    "ajouter_replique"
-                  ]
-                },
-                "plan": {
-                  "type": "string",
-                  "description": "Reference of the plan concerned, exactly as in the input (P01, P02…). Used by couper_plan, duree_plan, deplacer_plan, modifier_plan, refondre_fiche and ajouter_replique (the plan that will say the line)."
-                },
-                "replique": {
-                  "type": "string",
-                  "description": "Reference of the line concerned (R01, R02…). Used by remplacer_replique and supprimer_replique."
-                },
-                "secondes": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 60,
-                  "description": "REQUIRED for ajouter_plan (the duration of the new plan, a whole number of seconds within the limits of the input: \"chacun de 6 secondes\" = 6 on each), and for duree_plan. Never put a duration in consigne."
-                },
-                "apres": {
-                  "type": "string",
-                  "description": "deplacer_plan and ajouter_plan: the reference of the plan AFTER which the plan is placed. Use one of avant, apres or position."
-                },
-                "avant": {
-                  "type": "string",
-                  "description": "ajouter_plan only: the reference of the plan BEFORE which the new plan is placed (\"juste avant le plan 1\" = P01). Several new plans placed at the same spot: list them in reading order with the same avant."
-                },
-                "position": {
-                  "type": "string",
-                  "enum": [
-                    "debut",
-                    "fin"
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan"
                   ],
-                  "description": "deplacer_plan and ajouter_plan: place the plan at the start or at the end of the episode. Use one of avant, apres or position."
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "couper_plan"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    }
+                  }
                 },
-                "titre": {
-                  "type": "string",
-                  "description": "(French) modifier_plan: the new title. ajouter_plan: the title of the new plan."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan",
+                    "secondes"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "duree_plan"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "secondes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 15,
+                      "description": "The new duration in whole seconds, within the limits of the input."
+                    }
+                  }
                 },
-                "description": {
-                  "type": "string",
-                  "description": "(French) modifier_plan: the new description, one or two sentences. ajouter_plan: what the new plan shows, one or two sentences."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "deplacer_plan"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "apres": {
+                      "type": "string",
+                      "description": "The reference of the plan AFTER which the plan is placed (\"après le plan 3\", \"entre le plan 3 et le plan 4\" = P03)."
+                    },
+                    "avant": {
+                      "type": "string",
+                      "description": "The reference of the plan BEFORE which the plan is placed (\"juste avant le plan 1\" = P01). Several new plans at the same spot: list them in reading order with the same avant."
+                    },
+                    "position": {
+                      "type": "string",
+                      "description": "\"debut\" or \"fin\": the start or the end of the episode.",
+                      "enum": [
+                        "debut",
+                        "fin"
+                      ]
+                    }
+                  }
                 },
-                "texte": {
-                  "type": "string",
-                  "description": "remplacer_replique: the new text of the line. ajouter_plan (optional) and ajouter_replique: the text of the line said, in the language of the existing lines, ready to be spoken, exactly as the user gave it."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "modifier_plan"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "titre": {
+                      "type": "string",
+                      "description": "(French) the new title."
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "(French) the new description, one or two sentences."
+                    }
+                  }
                 },
-                "locuteur": {
-                  "type": "string",
-                  "description": "remplacer_replique: the new speaker, only if the user asks to change it. ajouter_plan (with texte) and ajouter_replique: who says the line, one of locuteursConnus when the speaker is there (\"Maya\" -> CHAR_maya), otherwise the name as given."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "replique"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "remplacer_replique"
+                    },
+                    "replique": {
+                      "type": "string",
+                      "description": "Reference of the line concerned, exactly as in the input (R01, R02…)."
+                    },
+                    "texte": {
+                      "type": "string",
+                      "description": "The new text of the line, in the language of the existing lines, ready to be spoken."
+                    },
+                    "locuteur": {
+                      "type": "string",
+                      "description": "The new speaker, only if the user asks to change it."
+                    }
+                  }
                 },
-                "consigne": {
-                  "type": "string",
-                  "description": "(French) refondre_fiche ONLY: what to change in the sheet, in a few words. Never use it for another type of operation."
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "replique"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "supprimer_replique"
+                    },
+                    "replique": {
+                      "type": "string",
+                      "description": "Reference of the line concerned, exactly as in the input (R01, R02…)."
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "refondre_fiche"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "consigne": {
+                      "type": "string",
+                      "description": "(French) What to change in the plan's sheet, in a few words. Empty if the sheet only has to follow the plan as it is now."
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "titre",
+                    "description",
+                    "secondes"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "ajouter_plan"
+                    },
+                    "titre": {
+                      "type": "string",
+                      "description": "(French) the title of the new plan, short."
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "(French) what the new plan shows, one or two sentences."
+                    },
+                    "secondes": {
+                      "type": "integer",
+                      "minimum": 5,
+                      "maximum": 15,
+                      "description": "The duration of the new plan, in whole seconds (\"6s\", \"6 secondes\" = 6)."
+                    },
+                    "apres": {
+                      "type": "string",
+                      "description": "The reference of the plan AFTER which the plan is placed (\"après le plan 3\", \"entre le plan 3 et le plan 4\" = P03)."
+                    },
+                    "avant": {
+                      "type": "string",
+                      "description": "The reference of the plan BEFORE which the plan is placed (\"juste avant le plan 1\" = P01). Several new plans at the same spot: list them in reading order with the same avant."
+                    },
+                    "position": {
+                      "type": "string",
+                      "description": "\"debut\" or \"fin\": the start or the end of the episode.",
+                      "enum": [
+                        "debut",
+                        "fin"
+                      ]
+                    },
+                    "texte": {
+                      "type": "string",
+                      "description": "The line said in this plan, exactly as the user gave it (optional, with locuteur)."
+                    },
+                    "locuteur": {
+                      "type": "string",
+                      "description": "Who says the line: one of locuteursConnus when the name matches (\"Maya\" -> CHAR_maya)."
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "plan",
+                    "texte",
+                    "locuteur"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "ajouter_replique"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
+                    },
+                    "texte": {
+                      "type": "string",
+                      "description": "The text of the new line, exactly as the user gave it."
+                    },
+                    "locuteur": {
+                      "type": "string",
+                      "description": "Who says it: one of locuteursConnus when the name matches."
+                    }
+                  }
                 }
-              }
+              ]
             }
           }
         }

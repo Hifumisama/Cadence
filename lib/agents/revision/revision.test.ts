@@ -327,3 +327,17 @@ test("3c ter : « entre P03 et P04 » = après P03 ; deux repères qui ne se sui
   assert.equal(valides.length, 1);
   assert.match(refusees[0]!.raison, /ne se suivent pas/);
 });
+
+test("schéma de l'analyse : chaque opération a ses champs requis (un plan ajouté sans durée est invalide, « consigne » n'y a pas sa place)", async () => {
+  const { chargerSkill } = await import("../../llm/skills");
+  const { valider } = await import("../../llm/validation");
+  const schema = chargerSkill("realisateur-analyse").schema;
+  const sortie = (operations: object[]) => ({ decisions: [{ titre: "t", raison: "r", operations }], retirer: [], pistes: [], retenirPistes: [], narratif: [] });
+  const ajout = { type: "ajouter_plan", titre: "L'eau", description: "d", secondes: 6, avant: "P01", texte: "L'eau...", locuteur: "CHAR_maya" };
+  assert.equal(valider(schema, sortie([ajout, { type: "ajouter_replique", plan: "P02", texte: "x", locuteur: "CHAR_maya" }, { type: "refondre_fiche", plan: "P03", consigne: "plus serré" }, { type: "couper_plan", plan: "P04" }, { type: "duree_plan", plan: "P05", secondes: 9 }])).ok, true);
+  const { secondes: _s, ...sansDuree } = ajout;
+  assert.equal(valider(schema, sortie([sansDuree])).ok, false, "pas de durée");
+  assert.equal(valider(schema, sortie([{ ...ajout, consigne: "6 secondes" }])).ok, false, "consigne n'existe pas pour un ajout");
+  assert.equal(valider(schema, sortie([{ type: "ajouter_replique", plan: "P02", texte: "x" }])).ok, false, "une réplique ajoutée a son locuteur");
+  assert.equal(valider(schema, sortie([{ type: "duree_plan", plan: "P05" }])).ok, false, "une durée sans secondes");
+});
