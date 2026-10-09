@@ -35,3 +35,27 @@
   "reponse": "Je n'ai rien retenu : le plan 22 n'existe pas, l'épisode en compte 14. Tu pensais à quel plan ?"
 }
 ```
+
+## 4. An instruction that matched nothing (nothing was done)
+
+`message`: "Garde le 08 et prends la formulation sobre."
+`faits`: `ceTour` empty (creees, modifiees, retirees: []); `decisions`: [D1 "Réplique du plan 07 plus sobre", statut "attention"]; `pistes`: two options still pending; `refus` empty; `duree`: avecBrouillon "2:34".
+
+The message asks to keep P08, but no decision cuts P08: nothing to undo. The user probably thinks the options were chosen.
+
+```json
+{
+  "reponse": "Je n'ai rien changé : aucune décision ne coupe le plan 08, parce que les deux pistes que je t'ai proposées sont encore en attente. Tu veux en retenir une (ou les deux) avant de parler du 08 ? La réplique sobre du plan 07 existe toujours (D1)."
+}
+```
+
+## 5. The application adjusted something, and a decision overlaps another
+
+`message`: "Les deux, scène 2 intacte."
+`faits`: `ceTour.pistesChoisies` [1, 2], `creees` ["D2", "D3"]; `decisions` D2 "Resserrer le rythme global" gain "−10 s", D3 "Élaguer des plans de transition" gain "−26 s" (statut "retenue"); `notes`: ["« Resserrer le rythme global » : 2 opérations écartées, un plan visé étant déjà coupé par une autre option retenue."]; `duree`: avecBrouillon "1:58", objectifTenu true.
+
+```json
+{
+  "reponse": "C'est fait : D2 resserre le rythme (−10 s) et D3 élague les plans de transition (−26 s). Les deux se recoupaient sur deux plans, alors j'ai gardé les coupes et écarté les raccourcissements de ces mêmes plans. On tombe à 1:58, l'objectif est tenu, et la scène 2 n'est pas touchée."
+}
+```

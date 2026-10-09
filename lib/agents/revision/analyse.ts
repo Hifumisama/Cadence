@@ -40,6 +40,8 @@ export type ResultatAnalyse = {
   retirees: number[];
   pistesChoisies: number[];
   refus: { contexte: string; raison: string }[];
+  /** Ce que l'application a ajusté d'elle-même (voir `fusionnerPistes`). */
+  notes: string[];
 };
 
 export const idCourt = (ordre: number): string => `D${ordre}`;
@@ -62,6 +64,7 @@ export function interpreterAnalyse(etat: EtatAvantTour, sortie: SortieAnalyse): 
   const retirees: number[] = [];
   const pistesChoisies: number[] = [];
   const refus: ResultatAnalyse["refus"] = [];
+  const notes: string[] = [];
   const parOrdre = (n: number) => decisions.find((d) => d.ordre === n);
 
   for (const id of sortie.retirer ?? []) {
@@ -107,15 +110,17 @@ export function interpreterAnalyse(etat: EtatAvantTour, sortie: SortieAnalyse): 
     }
   }
 
-  for (const numero of sortie.retenirPistes ?? []) {
+  const retenues: Piste[] = [];
+  for (const numero of [...new Set(sortie.retenirPistes ?? [])]) {
     const piste = etat.pistes[numero - 1];
     if (!piste) {
       refus.push({ contexte: `Piste ${numero}`, raison: `Piste ${numero} introuvable (il y en a ${etat.pistes.length}).` });
       continue;
     }
     pistesChoisies.push(numero);
-    creer(piste.titre, piste.resume, piste.operations);
+    retenues.push(piste);
   }
+  for (const piste of fusionnerPistes(retenues, notes)) creer(piste.titre, piste.resume, piste.operations);
 
   if (pistesChoisies.length > 0) pistes = [];
   if ((sortie.pistes ?? []).length > 0) {
@@ -136,7 +141,30 @@ export function interpreterAnalyse(etat: EtatAvantTour, sortie: SortieAnalyse): 
     if (!d.narratifs.some((c) => c.texte === constat.texte)) d.narratifs.push(constat);
   }
 
-  return { decisions, pistes, ordreSuivant, creees, modifiees, retirees, pistesChoisies, refus };
+  return { decisions, pistes, ordreSuivant, creees, modifiees, retirees, pistesChoisies, refus, notes };
+}
+
+/** Plusieurs pistes retenues ENSEMBLE (« les deux », « combine la 1 et la 3 ») peuvent se recouvrir : un plan coupé par l'une et raccourci
+ * par l'autre, ou coupé deux fois. Couper l'emporte sur tout le reste, et un plan n'est coupé qu'une fois : les opérations dominées sont
+ * écartées, et on le dit (`notes`). Une piste qui n'a plus rien à faire disparaît. Pur, testé. */
+export function fusionnerPistes(pistes: Piste[], notes: string[]): Piste[] {
+  if (pistes.length < 2) return pistes;
+  const coupeePar = new Map<string, number>(); // plan → index de la PREMIÈRE piste qui le coupe
+  pistes.forEach((p, i) => {
+    for (const o of p.operations) if (o.type === "couper_plan" && !coupeePar.has(o.planUuid)) coupeePar.set(o.planUuid, i);
+  });
+  const resultat: Piste[] = [];
+  pistes.forEach((p, i) => {
+    const gardees = p.operations.filter((o) => {
+      if (o.type === "couper_plan") return coupeePar.get(o.planUuid) === i;
+      if (o.type === "duree_plan" || o.type === "modifier_plan" || o.type === "deplacer_plan") return !coupeePar.has(o.planUuid);
+      return true;
+    });
+    const ecartees = p.operations.length - gardees.length;
+    if (ecartees > 0) notes.push(`« ${p.titre} » : ${ecartees} opération${ecartees > 1 ? "s" : ""} écartée${ecartees > 1 ? "s" : ""}, un plan visé étant déjà coupé par une autre option retenue.`);
+    if (gardees.length > 0) resultat.push({ ...p, operations: gardees });
+  });
+  return resultat;
 }
 
 /** Le statut d'une décision, DÉRIVÉ de ses constats : un bloquant (ou un conflit) la met « en conflit » (elle empêche d'appliquer),

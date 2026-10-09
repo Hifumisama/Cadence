@@ -1,6 +1,6 @@
 import { chiffresPiste, idCourt, statutDeDecision, type ResultatAnalyse } from "./analyse";
 import { gainSecondes, appliquerAuBrouillon } from "./brouillon";
-import { conflitsEntreDecisions, constatsOperations } from "./constats";
+import { conflitsEntreDecisions, constatsOperations, recoupementsEntreDecisions } from "./constats";
 import { construireFaits, type FaitsTour } from "./faits";
 import { fmtDuree } from "./format";
 import type { DecisionPourEntree } from "./entrees";
@@ -17,6 +17,8 @@ export function assemblerConstats(p: {
   /** Ce que les applicateurs en disent (refus, contrôles qui bloquent), déjà au format constat ; vide sans base. */
   desApplicateurs: Constat[];
   conflits: string[];
+  /** Ce que la décision a en commun avec une décision plus ancienne (voir `recoupementsEntreDecisions`). */
+  recoupements?: string[];
   narratifs: Constat[];
   aRelire: boolean;
 }): Constat[] {
@@ -24,6 +26,7 @@ export function assemblerConstats(p: {
   if (p.manquantes > 0) constats.push({ niveau: "bloquant", texte: `${p.manquantes} cible${p.manquantes > 1 ? "s n'existent" : " n'existe"} plus (supprimée${p.manquantes > 1 ? "s" : ""} depuis).`, source: "code" });
   constats.push(...p.desApplicateurs);
   for (const c of p.conflits) constats.push({ niveau: "bloquant", texte: `Conflit : ${c}`, source: "code" });
+  for (const r of p.recoupements ?? []) constats.push({ niveau: "alerte", texte: `Recoupe une décision plus ancienne : ${r} Pour la corriger, remplace-la plutôt que d'en ajouter une.`, source: "code" });
   constats.push(...p.narratifs);
   if (p.aRelire) constats.push({ niveau: "alerte", texte: "Ce que cette décision vise a changé depuis qu'elle a été prise : à relire.", source: "code" });
   return constats.some((c) => c.niveau !== "ok") ? constats.filter((c) => c.niveau !== "ok") : constats;
@@ -33,10 +36,13 @@ export function assemblerConstats(p: {
  * tour de réponse. Ne connaît pas les aperçus des applicateurs (écrasements, refus de base) : c'est une approximation fidèle pour juger
  * ce que le MODÈLE propose, pas un substitut de la base. */
 export function tourPur(vue: VueEpisode, res: ResultatAnalyse): { decisions: DecisionPourEntree[]; faits: FaitsTour } {
-  const conflits = conflitsEntreDecisions(res.decisions.map((d) => ({ id: idCourt(d.ordre), titre: d.titre, operations: d.operations })), vue);
+  const pourConflit = res.decisions.map((d) => ({ id: idCourt(d.ordre), titre: d.titre, operations: d.operations }));
+  const conflits = conflitsEntreDecisions(pourConflit, vue);
+  const recoupements = recoupementsEntreDecisions(pourConflit, vue);
   const decisions: DecisionPourEntree[] = res.decisions.map((d) => {
     const mes = conflits.filter((c) => c.ids.includes(idCourt(d.ordre))).map((c) => c.texte);
-    const constats = assemblerConstats({ operationsExistantes: d.operations, vue, manquantes: 0, desApplicateurs: [], conflits: mes, narratifs: d.narratifs, aRelire: false });
+    const recoupe = recoupements.filter((r) => r.ids[1] === idCourt(d.ordre)).map((r) => r.texte);
+    const constats = assemblerConstats({ operationsExistantes: d.operations, vue, manquantes: 0, desApplicateurs: [], conflits: mes, recoupements: recoupe, narratifs: d.narratifs, aRelire: false });
     return { ordre: d.ordre, titre: d.titre, raison: d.raison, statut: statutDeDecision(constats, mes.length > 0), operations: d.operations, constats };
   });
   const operations = decisions.flatMap((d) => d.operations);
@@ -52,6 +58,7 @@ export function tourPur(vue: VueEpisode, res: ResultatAnalyse): { decisions: Dec
     }),
     refus: res.refus,
     conflits: conflits.map((c) => c.texte),
+    notes: res.notes,
   });
   return { decisions, faits };
 }

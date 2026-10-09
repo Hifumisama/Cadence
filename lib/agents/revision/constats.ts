@@ -107,3 +107,30 @@ export function conflitsEntreDecisions(decisions: DecisionPourConflit[], vue: Vu
   }
   return conflits;
 }
+
+/** Les RECOUPEMENTS : deux décisions qui demandent la même chose (même plan coupé, même durée, même texte). Ce n'est pas un conflit, mais
+ * c'est ce que produit un modèle qui poste « seulement le 04 » comme une décision de plus au lieu de corriger la première : on le dit.
+ * `ids` = [la plus ancienne, la plus récente] ; l'alerte se pose sur la plus récente. */
+export function recoupementsEntreDecisions(decisions: DecisionPourConflit[], vue: VueEpisode): ConflitDecisions[] {
+  const res: ConflitDecisions[] = [];
+  const nomPlan = (uuid: string) => planParUuid(vue, uuid)?.handle ?? "un plan";
+  const nomRep = (uuid: string) => repliqueParUuid(vue, uuid)?.handle ?? "une réplique";
+  const vus = new Set<string>();
+  for (const [i, b] of decisions.entries()) {
+    for (const a of decisions.slice(0, i)) {
+      for (const ob of b.operations) {
+        for (const oa of a.operations) {
+          let texte: string | null = null;
+          if (oa.type === "couper_plan" && ob.type === "couper_plan" && oa.planUuid === ob.planUuid) texte = `${nomPlan(oa.planUuid)} est déjà coupé par ${a.id} « ${a.titre} ».`;
+          else if (oa.type === "duree_plan" && ob.type === "duree_plan" && oa.planUuid === ob.planUuid && oa.secondes === ob.secondes) texte = `${nomPlan(oa.planUuid)} a déjà cette durée dans ${a.id} « ${a.titre} ».`;
+          else if (oa.type === "supprimer_replique" && ob.type === "supprimer_replique" && oa.repliqueUuid === ob.repliqueUuid) texte = `${nomRep(oa.repliqueUuid)} est déjà supprimée par ${a.id} « ${a.titre} ».`;
+          else if (oa.type === "remplacer_replique" && ob.type === "remplacer_replique" && oa.repliqueUuid === ob.repliqueUuid && oa.texte === ob.texte) texte = `${nomRep(oa.repliqueUuid)} a déjà ce texte dans ${a.id} « ${a.titre} ».`;
+          if (!texte || vus.has(b.id + texte)) continue;
+          vus.add(b.id + texte);
+          res.push({ ids: [a.id, b.id], texte });
+        }
+      }
+    }
+  }
+  return res;
+}

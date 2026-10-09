@@ -25,6 +25,8 @@ export type FaitsTour = {
   refus: { contexte: string; raison: string }[];
   /** Contradictions mécaniques entre décisions. */
   conflits: string[];
+  /** Ce que l'application a ajusté d'elle-même (ex. : des opérations écartées parce qu'un plan est déjà coupé par une autre option retenue). */
+  notes: string[];
 };
 
 const gain = (s: number): string => (s === 0 ? "0 s" : s > 0 ? `−${s} s` : `+${-s} s`);
@@ -38,6 +40,7 @@ export function construireFaits(p: {
   pistes: PistePourFaits[];
   refus: { contexte: string; raison: string }[];
   conflits: string[];
+  notes?: string[];
 }): FaitsTour {
   const objectif = p.objectifSecondes;
   return {
@@ -60,5 +63,6 @@ export function construireFaits(p: {
     pistes: p.pistes.map((x) => ({ numero: x.numero, titre: x.titre, resume: x.resume, gain: gain(x.gainSecondes), dureeApres: x.dureeApres })),
     refus: p.refus,
     conflits: p.conflits,
+    notes: p.notes ?? [],
   };
 }

@@ -1,6 +1,6 @@
-# Example — the rest of the discussion: choosing options, a new request that contradicts the draft, resolving it
+# Example — the rest of the discussion: choosing options, a new request that contradicts the draft, resolving it, narrowing a decision
 
-Same episode "Le sel". Three consecutive turns.
+Same episode "Le sel". Turns 1 to 3 follow one another; turns 4 and 5 are independent cases.
 
 ## 1. Choosing among pending options
 
@@ -71,4 +71,37 @@ Change **both** decisions concerned with their **complete** operations: `D1` wit
   "retenirPistes": [],
   "narratif": []
 }
+```
+
+## 4. Narrowing an existing decision (do not add a second one)
+
+Input (abridged): `decisions` = `D1` "Supprimer les plans 04 et 07" (cuts P04 and P07, flagged `conflit` by you). `prochainId`: `"D2"`. `"message": "Coupe seulement le 04."`
+
+The user narrows `D1`: re-post **`D1`** with its complete new operations. A new decision "Supprimer le plan 04" next to `D1` would cut P04 twice and leave P07 cut.
+
+```json
+{
+  "decisions": [
+    {
+      "id": "D1",
+      "titre": "Supprimer le plan 04",
+      "raison": "Le 04 redit la lettre ; le 07 reste.",
+      "operations": [{"type": "couper_plan", "plan": "P04"}]
+    }
+  ],
+  "retirer": [],
+  "pistes": [],
+  "retenirPistes": [],
+  "narratif": []
+}
+```
+
+## 5. "Both", with overlapping options
+
+Input (abridged): `pistesEnAttente` = 1 "Resserrer le rythme global" (shortens P05, P11, P01) and 2 "Élaguer des plans de transition" (cuts P05, P11). `"message": "Les deux, scène 2 intacte."`
+
+The user **chooses**: `retenirPistes`. Do not rewrite the options as decisions: the application merges them (P05 and P11 are cut, their shortening is dropped).
+
+```json
+{"decisions": [], "retirer": [], "pistes": [], "retenirPistes": [1, 2], "narratif": []}
 ```

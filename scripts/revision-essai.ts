@@ -24,7 +24,7 @@ import type { MessageConversation } from "../lib/agents/types";
  */
 
 const PARCOURS: Record<string, string[]> = {
-  ressenti: ["Je trouve l'épisode trop long, et la scène 1 traîne.", "Combine la 1 et la 3.", "Plan 07 : une réplique plus sobre.", "Garde le 08 et prends la formulation sobre."],
+  ressenti: ["Je trouve l'épisode trop long, et la scène 1 traîne.", "Combine la 1 et la 2.", "Plan 07 : une réplique plus sobre.", "Garde le 08 et prends la formulation sobre."],
   precise: ["Supprime le plan 04 et le plan 07.", "Coupe seulement le 04.", "La scène 1 est aussi trop lente."],
   melange: ["C'est trop long, mais ne touche pas à la scène 2. Et supprime le plan 04.", "Les deux, scène 2 intacte."],
 };

@@ -8,7 +8,7 @@ import { creerRun, tacheActive } from "../runs";
 import type { Avertissement, EcrasementAConfirmer, MessageConversation, Position } from "../types";
 import { chiffresPiste, idCourt, interpreterAnalyse, statutDeDecision, type DecisionEtat, type SortieAnalyse } from "./analyse";
 import { appliquerAuBrouillon, gainSecondes } from "./brouillon";
-import { conflitsEntreDecisions, constatDuree, type ConflitDecisions } from "./constats";
+import { conflitsEntreDecisions, constatDuree, recoupementsEntreDecisions, type ConflitDecisions } from "./constats";
 import { construireFaits, type FaitsTour } from "./faits";
 import { fmtDuree } from "./format";
 import { operationsVersChangements } from "./operations-vers-changements";
@@ -189,10 +189,9 @@ const signature = (l: ChangementEnrichi[]): string => stable(l.map((c) => [c.cib
  * on lève le « à revérifier » (l'utilisateur l'a relue). */
 export async function recalculerDecisions(tx: DbOuTx, conv: ConversationRow, vue: VueEpisode, options: { reconfirmer?: string } = {}): Promise<void> {
   const lignes = (await tx.select().from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv.id)).orderBy(asc(revisionDecisions.ordre))).filter(estActive);
-  const conflits = conflitsEntreDecisions(
-    lignes.map((l) => ({ id: idCourt(l.ordre), titre: l.titre, operations: (l.operations as Operation[]) ?? [] })),
-    vue,
-  );
+  const pourConflit = lignes.map((l) => ({ id: idCourt(l.ordre), titre: l.titre, operations: (l.operations as Operation[]) ?? [] }));
+  const conflits = conflitsEntreDecisions(pourConflit, vue);
+  const recoupements = recoupementsEntreDecisions(pourConflit, vue);
 
   for (const l of lignes) {
     const ops = (l.operations as Operation[]) ?? [];
@@ -216,6 +215,7 @@ export async function recalculerDecisions(tx: DbOuTx, conv: ConversationRow, vue
       manquantes,
       desApplicateurs,
       conflits: mesConflits.map((c) => c.texte),
+      recoupements: recoupements.filter((r) => r.ids[1] === idCourt(l.ordre)).map((r) => r.texte),
       narratifs: ((l.constats as Constat[]) ?? []).filter((c) => c.source === "modele"),
       aRelire: perime && options.reconfirmer !== l.uuid,
     });
@@ -332,6 +332,7 @@ export async function appliquerSortieAnalyse(tx: Tx, conv: ConversationRow, sort
     pistes: etat.pistes.map((p) => ({ numero: p.numero, titre: p.titre, resume: p.resume, gainSecondes: p.gainSecondes, dureeApres: fmtDuree(p.dureeApres) })),
     refus: res.refus,
     conflits: etat.conflits.map((c) => c.texte),
+    notes: res.notes,
   });
 }
 

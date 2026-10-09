@@ -59,6 +59,7 @@ test("entrée de la réponse : derniers échanges, dernier message de l'utilisat
     pistes: [],
     refus: [],
     conflits: [],
+    notes: [],
   };
   const messages = [
     { role: "assistant" as const, content: "Bonjour.", at: "t" },
