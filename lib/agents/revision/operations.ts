@@ -1,0 +1,91 @@
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
+import type { Position } from "../types";
+import { planParPoignee, repliqueParPoignee, type VueEpisode } from "./vue-episode";
+import { TYPES_OPERATION, type Operation, type OperationBrute, type OperationRefusee } from "./types";
+
+/** Valide les opérations que le modèle propose et les traduit en opérations STOCKABLES (uuid). Pur, testé.
+ * Le modèle cite des poignées (« P07 ») : tout ce qu'il invente est refusé ici, avec une raison lisible que le tour de réponse
+ * peut lui renvoyer. Jamais d'écriture sur une cible inconnue. */
+
+const texteNet = (v: string | null | undefined): string => (v ?? "").replace(/\r\n/g, "\n").trim();
+
+export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { valides: Operation[]; refusees: OperationRefusee[] } {
+  const valides: Operation[] = [];
+  const refusees: OperationRefusee[] = [];
+  const refuse = (brute: OperationBrute, raison: string) => refusees.push({ brute, raison });
+  const nbPlans = vue.plans.length;
+  const nbRepliques = vue.repliques.length;
+
+  for (const b of brutes) {
+    if (!(TYPES_OPERATION as readonly string[]).includes(b.type)) {
+      refuse(b, `Opération « ${b.type} » inconnue.`);
+      continue;
+    }
+
+    if (b.type === "supprimer_replique" || b.type === "remplacer_replique") {
+      const r = repliqueParPoignee(vue, b.replique);
+      if (!r) {
+        refuse(b, `Réplique « ${b.replique ?? "?"} » introuvable (l'épisode a ${nbRepliques} réplique${nbRepliques > 1 ? "s" : ""}).`);
+        continue;
+      }
+      if (b.type === "supprimer_replique") {
+        valides.push({ type: "supprimer_replique", repliqueUuid: r.uuid });
+        continue;
+      }
+      const texte = texteNet(b.texte);
+      const locuteur = texteNet(b.locuteur);
+      if (!texte && !locuteur) {
+        refuse(b, `La réplique ${r.handle} n'a ni nouveau texte ni nouveau locuteur.`);
+        continue;
+      }
+      valides.push({ type: "remplacer_replique", repliqueUuid: r.uuid, ...(texte ? { texte } : {}), ...(locuteur ? { locuteur } : {}) });
+      continue;
+    }
+
+    const p = planParPoignee(vue, b.plan);
+    if (!p) {
+      refuse(b, `Plan « ${b.plan ?? "?"} » introuvable (l'épisode a ${nbPlans} plan${nbPlans > 1 ? "s" : ""}).`);
+      continue;
+    }
+
+    if (b.type === "couper_plan") {
+      valides.push({ type: "couper_plan", planUuid: p.uuid });
+    } else if (b.type === "duree_plan") {
+      const s = b.secondes;
+      if (typeof s !== "number" || !Number.isInteger(s) || s < DUREE_GENERATION_MIN || s > DUREE_GENERATION_MAX) {
+        refuse(b, `Durée ${typeof s === "number" ? `${s} s` : "absente"} pour ${p.handle} : un plan dure ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières.`);
+        continue;
+      }
+      valides.push({ type: "duree_plan", planUuid: p.uuid, secondes: s });
+    } else if (b.type === "deplacer_plan") {
+      let position: Position | null = null;
+      if (b.apres) {
+        const cible = planParPoignee(vue, b.apres);
+        if (!cible) {
+          refuse(b, `Repère « ${b.apres} » introuvable pour déplacer ${p.handle}.`);
+          continue;
+        }
+        if (cible.uuid === p.uuid) {
+          refuse(b, `${p.handle} ne peut pas être placé après lui-même.`);
+          continue;
+        }
+        position = { apresPlanUuid: cible.uuid };
+      } else if (b.position === "debut") position = { debut: true };
+      else if (b.position === "fin") position = { fin: true };
+      if (!position) {
+        refuse(b, `Où placer ${p.handle} ? Il faut « après un plan », « debut » ou « fin ».`);
+        continue;
+      }
+      valides.push({ type: "deplacer_plan", planUuid: p.uuid, position });
+    } else {
+      const titre = texteNet(b.titre);
+      const description = texteNet(b.description);
+      if (!titre && !description) {
+        refuse(b, `${p.handle} : ni nouveau titre ni nouvelle description.`);
+        continue;
+      }
+      valides.push({ type: "modifier_plan", planUuid: p.uuid, ...(titre ? { titre } : {}), ...(description ? { description } : {}) });
+    }
+  }
+  return { valides, refusees };
+}
