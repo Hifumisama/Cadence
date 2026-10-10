@@ -1,8 +1,8 @@
 subject_definitions:
-<Subject 1> is Maya from <Picture 1>, alert, hearing distant voices.
-<Subject 2> is the two cloaked, hooded figures from <Picture 2>, faintly visible one alley over.
-<Subject 3> is the concealed dagger from <Picture 3>, at Maya's waist.
-<Subject 4> is the hidden medina alley passage from <Picture 4>.
+<Subject 1> is Maya from <Picture 1>, in her dancer's costume, alert, hearing distant voices.
+<Subject 2> is the two cloaked, hooded figures from <Picture 2>, dark cloaks pulled over their faces, faintly visible one alley over.
+<Subject 3> is the concealed dagger from <Picture 3>, its hilt hidden at Maya's waist.
+<Subject 4> is the hidden medina alley passage from <Picture 4>, ochre-plastered walls under striped cloth awnings, in faint moonlight.
 
 summary:
 [reference generation] The target video shows <Subject 1> catching sight of <Subject 2> in the distance within <Subject 4> and instinctively moving two fingers toward <Subject 3>.

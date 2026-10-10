@@ -409,7 +409,7 @@ export type PlanPourFicheH3 = {
   /** Slots `<Audio N>` déjà pris par les répliques liées (plan_dialogues) : l'entrée de l'assemblage. */
   slotsAudioPris: number[];
   /** Répliques liées au plan : uuid public et texte exact (verbatim). */
-  repliques: { uuid: string; texte: string }[];
+  repliques: { uuid: string; texte: string; slot?: number; locuteurCode?: string | null }[];
   /** Le registre du projet (code, type), tel qu'il est maintenant. */
   registre: { code: string; type: string }[];
 };
@@ -502,12 +502,21 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
     if (raison) {
       ajouter({ type: "alerte_controle", texte: `${raison} : la référence est retirée et décrite en prose (« ${r.nom} »).` });
       enProse(r.asset, r.nom);
+    } else if (type === "vfx" && r.nature === "image" && (r.retention == null || r.retention === "fully_preserved")) {
+      // Un effet est un matériau, pas un sujet : « conservé tel quel », H3 le montre comme un plan à part (guide H3,
+      // retention_analysis). Le code pose le niveau léger ; le modèle peut choisir attribute_transfer.
+      gardees.push({
+        ...r,
+        retention: "weak_reference",
+        retentionNote: r.retentionNote?.trim() || `only the colour, texture and motion of ${r.nom} are kept; it never appears as a standalone image, it plays on the subjects of the shots`,
+      });
     } else gardees.push(r);
   }
   const nettoyee: SortiePlanH3 = { ...sortie, ...textes, references: gardees };
 
   // 2. assemblage (labels, timecodes, sections) avec les slots des voix
-  const assemble = assemblerPlanH3(nettoyee, { slotsAudioPris: plan.slotsAudioPris });
+  const voix = plan.repliques.flatMap((r) => (r.slot == null ? [] : [{ slot: r.slot, texte: r.texte, locuteurCode: r.locuteurCode }]));
+  const assemble = assemblerPlanH3(nettoyee, { slotsAudioPris: plan.slotsAudioPris, voix });
   const refs: RefFiche[] = assemble.refs
     .filter((r) => r.slot != null)
     .map((r) => {

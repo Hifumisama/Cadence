@@ -18,7 +18,7 @@
   "titre": "Maya fuit dans les ruelles",
   "dureeSecondes": 12,
   "references": [
-    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, en fuite puis essoufflée", "nom": "Maya", "definition": "running, her usual lightness replaced by panic, then stopping to catch her breath.", "retentionNote": "Maya's identity and physical state are retained across both shots."},
+    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, en fuite puis essoufflée", "nom": "Maya", "definition": "in her dancer's costume, running, her usual lightness replaced by panic, then stopping to catch her breath.", "retentionNote": "Maya's identity and physical state are retained across both shots."},
     {"asset": "DEC_ruelles_bazar", "nature": "image", "role": "Décor, ruelles nocturnes de médina", "nom": "the bazar's nocturnal Persian/Arab-style back alleys", "definition": "narrow passages under striped cloth awnings, ochre-plastered walls, chipped zellige tilework, horseshoe archways, shuttered stalls, wet cobblestones under moonlight.", "retentionNote": "the medina-style alley architecture and moonlit shadows are retained."}
   ],
   "summary": "The target video shows [[CHAR_maya]] plunging into [[DEC_ruelles_bazar]], her steps heavy and erratic, then leaning against a damp stone wall in a hidden side passage to catch her breath.",

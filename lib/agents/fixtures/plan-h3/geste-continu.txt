@@ -1,7 +1,7 @@
 subject_definitions:
-<Subject 1> is the Tenancière from <Picture 1>, her pace slowed to a near-minimum but never fully stopped, until the single unbroken motion of the strike.
-<Subject 2> is Maya from <Picture 2>, caught mid-sentence, then reeling from the impact.
-<Subject 3> is the narrow wooden corridor from <Picture 3>, its constant deep indigo light unchanged throughout.
+<Subject 1> is the Tenancière from <Picture 1>, in her gown, mismatched eyes, her pace slowed to a near-minimum but never fully stopped, until the single unbroken motion of the strike.
+<Subject 2> is Maya from <Picture 2>, in her dancer's costume, caught mid-sentence, then reeling from the impact.
+<Subject 3> is the narrow wooden corridor from <Picture 3>, narrow wooden walls, their constant deep indigo light unchanged throughout.
 
 summary:
 [reference generation] The target video holds on <Subject 1> delivering a joyless laugh and dismissive line within <Subject 3>, then strikes <Subject 2> across the face in one continuous stride, and holds on <Subject 2> staggering to keep from falling.

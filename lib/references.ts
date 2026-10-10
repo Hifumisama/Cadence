@@ -9,7 +9,8 @@
 
 export type TypeRef = "picture" | "audio" | "video";
 export type SectionsTexte = Record<string, string>;
-export type RefTexte = { type: TypeRef; slot: number; nom: string };
+/** `vfx` : l'asset est un effet visuel, repris en `weak_reference` (jamais montré tel quel). */
+export type RefTexte = { type: TypeRef; slot: number; nom: string; vfx?: boolean };
 
 /** « CHAR_iris_phare » → « iris phare » : le nom lisible d'un asset dont on n'a que le code. */
 export function nomDepuisCode(code: string): string {
@@ -59,7 +60,9 @@ export function ajouterReference(sections: SectionsTexte, ref: RefTexte): Sectio
     sortie.subject_definitions = ajouterLigne(sections.subject_definitions ?? "", finir(`<Subject ${ref.slot}> is ${ref.nom} from <Picture ${ref.slot}>`));
     sortie.retention_analysis = ajouterLigne(
       sections.retention_analysis ?? "",
-      `<Subject ${ref.slot}> (not cited in a shot): fully_preserved - ${finir(`the appearance of ${ref.nom} is retained`)}`,
+      ref.vfx
+        ? `<Subject ${ref.slot}> (not cited in a shot): weak_reference - ${finir(`only the colour, texture and motion of ${ref.nom} are kept; it never appears as a standalone image`)}`
+        : `<Subject ${ref.slot}> (not cited in a shot): fully_preserved - ${finir(`the appearance of ${ref.nom} is retained`)}`,
     );
   } else if (ref.type === "audio") {
     sortie.subject_definitions = ajouterLigne(sections.subject_definitions ?? "", finir(`<Audio ${ref.slot}> is ${ref.nom}`));

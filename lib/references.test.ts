@@ -61,3 +61,8 @@ test("nomDepuisCode", () => {
   assert.equal(nomDepuisCode("CHAR_iris_phare"), "iris phare");
   assert.equal(nomDepuisCode("seul"), "seul");
 });
+
+test("ajouterReference : un effet (vfx) est repris en weak_reference", () => {
+  const s = ajouterReference({}, { type: "picture", slot: 2, nom: "energie doree", vfx: true });
+  assert.match(s.retention_analysis!, /^<Subject 2> \(not cited in a shot\): weak_reference - /);
+});

@@ -13,6 +13,9 @@ import { COUPE_RETIRABLE, MAX_AUDIOS, MAX_IMAGES, type ProblemeH3, type SortiePl
 export type ContexteAssemblage = {
   /** Slots `<Audio N>` déjà pris par les voix du plan (plan_dialogues.slot). */
   slotsAudioPris: number[];
+  /** Les voix du plan, avec leur texte exact et, si connu, le code du personnage qui parle : le code écrit leur ligne
+   * de définition (`<Audio N> is the voice-timbre reference for <Subject k> (Sx)`) et de rétention. */
+  voix?: { slot: number; texte: string; locuteurCode?: string | null }[];
 };
 
 export type RefAssemblee = {
@@ -64,6 +67,23 @@ function corpsDeShot(texte: string, premier: boolean): string {
     t = t.replace(/^(A|An|The)\b/, (m) => m.toLowerCase());
   }
   return t.trim();
+}
+
+/** L'identifiant `(Sx)` qui précède le `<d>` de cette réplique dans les shots, ou null (réplique absente ou sans locuteur). */
+function locuteurDeReplique(corps: string[], texte: string): string | null {
+  const cle = espaces(texte).slice(0, 40);
+  if (!cle) return null;
+  for (const c of corps) {
+    const t = espaces(c);
+    const i = t.indexOf(cle);
+    if (i < 0) continue;
+    const d = t.lastIndexOf("<d>", i);
+    if (d < 0) continue;
+    const avant = t.slice(Math.max(0, t.lastIndexOf("</d>", d) + 1), d);
+    const ids = [...avant.matchAll(/\((S\d+(?:\s*,\s*S\d+)*)\)/g)];
+    if (ids.length) return ids[ids.length - 1]![1]!.replace(/\s+/g, "");
+  }
+  return null;
 }
 
 /** Note de rétention par défaut, quand le modèle n'en écrit pas : elle suit le niveau choisi. */
@@ -149,7 +169,19 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
   };
   const posees = [...parCode.values()].filter((x) => x.a.label != null);
   const ordre = [...posees.filter((x) => x.a.nature === "image"), ...posees.filter((x) => x.a.nature === "son")];
-  const subject_definitions = ordre.map((x) => ligneDef(x.a, x.r)).join("\n");
+
+  // 4b. les voix du plan : jamais des références du modèle, mais H3 doit savoir ce que chaque `<Audio N>` désigne
+  const lignesVoix = (ctx.voix ?? []).map((v) => {
+    const sx = locuteurDeReplique(corps, v.texte);
+    const sujet = v.locuteurCode ? parCode.get(v.locuteurCode)?.a.label ?? null : null;
+    const pour = [sujet ?? (sx ? "the speaker" : null), sx ? `(${sx})` : null].filter(Boolean).join(" ");
+    return {
+      slot: v.slot,
+      definition: `<Audio ${v.slot}> is the voice-timbre reference${pour ? ` for ${pour}` : ""}.`,
+      retention: `<Audio ${v.slot}>: reference - ${pour ? `${pour} follows` : "the speaker follows"} the voice timbre and measured delivery of <Audio ${v.slot}> without copying the original signal.`,
+    };
+  });
+  const subject_definitions = [...ordre.map((x) => ligneDef(x.a, x.r)), ...lignesVoix.map((v) => v.definition)].join("\n");
 
   // 5. retention_analysis
   const retention_analysis = ordre
@@ -160,11 +192,12 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
       const dans = shots.map((_, i) => i).filter((i) => citeDans(r.asset, corps[i]!)).map((i) => `[Shot ${i + 1}]`);
       return `${a.label} (${dans.length ? `appears in ${dans.join(", ")}` : "not cited in a shot"}): ${a.retention} - ${finir(note)}`;
     })
+    .concat(lignesVoix.map((v) => v.retention))
     .join("\n");
 
   // 6. summary et ambiance
   const tout = (texte: string, titre: string) => marqueurs(espaces(texte)).replace(new RegExp(`^${titre}\\s*:\\s*`, "i"), "");
-  const prefixe = posees.some((x) => x.a.nature === "son") ? "[reference generation + audio reference]" : "[reference generation]";
+  const prefixe = posees.some((x) => x.a.nature === "son") || lignesVoix.length > 0 ? "[reference generation + audio reference]" : "[reference generation]";
   const resume = marqueurs(espaces(sortie.summary ?? "")).replace(/^\s*\[(?!\[)[^\]]*\]\s*/, "");
   const summary = `${prefixe} ${resume}`;
   const overall_soundscape = tout(sortie.overall_soundscape ?? "", "overall_soundscape");
@@ -174,6 +207,7 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
   const sections = { subject_definitions, summary, retention_analysis, detailed_description, overall_soundscape, non_diegetic_music };
   const texte = (Object.entries(sections) as [string, string][]).map(([nom, v]) => `${nom}:\n${v}`).join("\n\n");
   const posesLabels = new Set(ordre.flatMap((x) => (x.a.nature === "image" ? [x.a.label, `<Picture ${x.a.slot}>`] : [x.a.label])));
+  for (const v of lignesVoix) posesLabels.add(`<Audio ${v.slot}>`);
   for (const m of texte.matchAll(/<\s*(Subject|Picture|Audio|Video)\s*(\d+)\s*>/gi)) {
     const l = `<${m[1]![0]!.toUpperCase()}${m[1]!.slice(1).toLowerCase()} ${m[2]}>`;
     if (!posesLabels.has(l)) signaler("alerte", "label-residuel", `Le label ${l} est présent sans correspondre à une référence posée.`);

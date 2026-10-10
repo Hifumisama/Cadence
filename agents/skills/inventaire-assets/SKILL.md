@@ -46,6 +46,8 @@ In **French**, like the registry: what is seen, with no framing, no plan light, 
 
 The description **shows the asset alone**: no character in a set or a prop ("the cat sits on it", "the master slumps into it"), no action. Who uses it and how is said in the plans, not here, and a person drawn into a set's reference would be confused with the character sheet. Likewise a **light or time-of-day state** of a place ("evening", "night") is a state of that set (`DEC_`, see rule 3), not a `vfx`; a `vfx` is a visual phenomenon (fire, smoke, energy).
 
+**A `vfx` is generic and reusable.** It is defined by its **matter and behaviour** (golden energy wisps, drifting ash, cold blue sparks), never by the story: no character, no set, no action, no plan-specific context in its name or description. The code names the phenomenon (`VFX_energie_doree`, not `VFX_energie_doree_maya_intro`). **Search the registry first**: if an existing `vfx` is close (same matter, another colour or intensity), reuse it, the plan says in prose what changes. Propose a new one only when the matter really differs. Where it lands (hands, sky, a doorway) is said in the plans, not in the asset.
+
 ## What you return
 
 `assets` (may be empty) and `notes`. Nothing else.

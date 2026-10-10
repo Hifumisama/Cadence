@@ -47,6 +47,6 @@ export async function retirerRefDuPlan(db: Db, refId: number): Promise<void> {
 export async function declarerRefDansLePrompt(db: Db, planId: number, type: TypeRef, slot: number, assetId: number): Promise<void> {
   const [a] = await db.select({ code: assets.code }).from(assets).where(eq(assets.id, assetId));
   const avant = await lireSections(db, planId);
-  const apres = ajouterReference(avant, { type, slot, nom: nomDepuisCode(a?.code ?? "référence") });
+  const apres = ajouterReference(avant, { type, slot, nom: nomDepuisCode(a?.code ?? "référence"), vfx: a?.code?.startsWith("VFX_") });
   await ecrireSections(db, planId, avant, apres);
 }

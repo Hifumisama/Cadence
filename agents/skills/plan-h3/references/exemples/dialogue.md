@@ -21,9 +21,9 @@
   "titre": "La sentence — la menace",
   "dureeSecondes": 7,
   "references": [
-    {"asset": "CHAR_tenanciere", "nature": "image", "role": "Tenancière, penchée, menace", "nom": "the Tenancière", "definition": "leaning in close, her stride reduced to a bare, controlled inclination without a full stop.", "retentionNote": "her gown, expression, and controlled near-stillness are retained."},
-    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, sous la menace", "nom": "Maya", "definition": "pinned by the proximity and the threat.", "retentionNote": "Maya's identity and fear are retained."},
-    {"asset": "DEC_couloir_bois", "nature": "image", "role": "Décor, couloir bleu nuit", "nom": "the narrow wooden corridor", "definition": "its constant deep indigo light now edged with harder shadow.", "retentionNote": "the corridor's indigo tone, now hard-edged, is retained."}
+    {"asset": "CHAR_tenanciere", "nature": "image", "role": "Tenancière, penchée, menace", "nom": "the Tenancière", "definition": "in her gown, mismatched eyes, leaning in close, her stride reduced to a bare, controlled inclination without a full stop.", "retentionNote": "her gown, expression, and controlled near-stillness are retained."},
+    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, sous la menace", "nom": "Maya", "definition": "in her dancer's costume, pinned by the proximity and the threat.", "retentionNote": "Maya's identity and fear are retained."},
+    {"asset": "DEC_couloir_bois", "nature": "image", "role": "Décor, couloir bleu nuit", "nom": "the narrow wooden corridor", "definition": "narrow wooden walls, their constant deep indigo light now edged with harder shadow.", "retentionNote": "the corridor's indigo tone, now hard-edged, is retained."}
   ],
   "summary": "The target video holds an extreme close-up as [[CHAR_tenanciere]] opens the episode's central threat to [[CHAR_maya]] within [[DEC_couloir_bois]], never fully halting her motion.",
   "ouverture": "Cinematic anime style, refined linework, the corridor's deep indigo light sharpened into hard directional contrast, a heavy blue-black shadow cast across Maya's face.",

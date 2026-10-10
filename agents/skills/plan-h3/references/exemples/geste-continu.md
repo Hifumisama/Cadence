@@ -19,9 +19,9 @@
   "titre": "La gifle",
   "dureeSecondes": 15,
   "references": [
-    {"asset": "CHAR_tenanciere", "nature": "image", "role": "Tenancière, mépris puis geste de la gifle", "nom": "the Tenancière", "definition": "her pace slowed to a near-minimum but never fully stopped, until the single unbroken motion of the strike.", "retentionNote": "her gown, expression, and continued motion through the strike are retained."},
-    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, cible puis chancelante", "nom": "Maya", "definition": "caught mid-sentence, then reeling from the impact.", "retentionNote": "Maya's identity and physical reaction are retained across both shots."},
-    {"asset": "DEC_couloir_bois", "nature": "image", "role": "Décor, couloir bleu nuit", "nom": "the narrow wooden corridor", "definition": "its constant deep indigo light unchanged throughout.", "retentionNote": "the corridor's indigo tone is retained throughout."}
+    {"asset": "CHAR_tenanciere", "nature": "image", "role": "Tenancière, mépris puis geste de la gifle", "nom": "the Tenancière", "definition": "in her gown, mismatched eyes, her pace slowed to a near-minimum but never fully stopped, until the single unbroken motion of the strike.", "retentionNote": "her gown, expression, and continued motion through the strike are retained."},
+    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, cible puis chancelante", "nom": "Maya", "definition": "in her dancer's costume, caught mid-sentence, then reeling from the impact.", "retentionNote": "Maya's identity and physical reaction are retained across both shots."},
+    {"asset": "DEC_couloir_bois", "nature": "image", "role": "Décor, couloir bleu nuit", "nom": "the narrow wooden corridor", "definition": "narrow wooden walls, their constant deep indigo light unchanged throughout.", "retentionNote": "the corridor's indigo tone is retained throughout."}
   ],
   "summary": "The target video holds on [[CHAR_tenanciere]] delivering a joyless laugh and dismissive line within [[DEC_couloir_bois]], then strikes [[CHAR_maya]] across the face in one continuous stride, and holds on [[CHAR_maya]] staggering to keep from falling.",
   "ouverture": "Cinematic anime style, refined linework, pervasive deep indigo light, a hard flash of contrast at the moment of impact.",

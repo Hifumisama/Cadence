@@ -169,3 +169,18 @@ test("rétention sans note : la note par défaut suit le niveau choisi", () => {
   assert.match(r.sections.retention_analysis, /partially_preserved - Maya is used with some of its traits changed in this shot\./);
   assert.match(r.sections.retention_analysis, /weak_reference - only a general resemblance to the corridor is kept\./);
 });
+
+test("les voix du plan : ligne de définition et de rétention <Audio N>, préfixe « audio reference »", () => {
+  const texte = "Demain, au lever du soleil, si l'or n'est pas sur mon bureau, je ne perdrai plus mon temps avec tes danses.";
+  const r = assemblerPlanH3(dialogue, { slotsAudioPris: [1], voix: [{ slot: 1, texte, locuteurCode: "CHAR_tenanciere" }] });
+  assert.match(r.sections.subject_definitions, /\n<Audio 1> is the voice-timbre reference for <Subject 1> \(S1\)\.$/);
+  assert.match(r.sections.retention_analysis, /\n<Audio 1>: reference - <Subject 1> \(S1\) follows the voice timbre and measured delivery of <Audio 1> without copying the original signal\.$/);
+  assert.match(r.sections.summary, /^\[reference generation \+ audio reference\] /);
+  assert.ok(!r.problemes.some((p) => p.regle === "label-residuel"));
+});
+
+test("une voix dont le locuteur n'est pas une référence : « the speaker (Sx) »", () => {
+  const texte = "Demain, au lever du soleil, si l'or n'est pas sur mon bureau, je ne perdrai plus mon temps avec tes danses.";
+  const r = assemblerPlanH3(dialogue, { slotsAudioPris: [1], voix: [{ slot: 1, texte, locuteurCode: null }] });
+  assert.match(r.sections.subject_definitions, /<Audio 1> is the voice-timbre reference for the speaker \(S1\)\./);
+});

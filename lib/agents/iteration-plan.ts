@@ -384,7 +384,7 @@ export function appliquerOpsReferences(
     if (!connus.has(a.asset) || images.some((x) => x.asset === a.asset)) continue;
     const slot = images.length + 1;
     const nom = (a.nom ?? "").trim() || nomDepuisCode(a.asset);
-    courant = ajouterReference(courant, { type: "picture", slot, nom });
+    courant = ajouterReference(courant, { type: "picture", slot, nom, vfx: a.asset.startsWith("VFX_") });
     images = [...images, { type: "picture", slot, asset: a.asset, role: a.role ?? null }];
     const marqueur = new RegExp(`\\[\\[\\s*${echapperRe(a.asset)}\\s*\\]\\]`, "g");
     courant = Object.fromEntries(Object.entries(courant).map(([k, v]) => [k, v.replace(marqueur, `<Subject ${slot}>`)]));

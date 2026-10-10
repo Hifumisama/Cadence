@@ -15,6 +15,7 @@ const registre = [
   { code: "CHAR_tenanciere", type: "personnage" },
   { code: "DEC_couloir", type: "decor" },
   { code: "SFX_porte", type: "sfx" },
+  { code: "VFX_energie", type: "vfx" },
   { code: "VOICE_maya", type: "voix" },
   ...Array.from({ length: 7 }, (_, i) => ({ code: `PROP_${i}`, type: "prop" })),
 ];
@@ -305,4 +306,17 @@ test("portée d'une fiche : son plan, son épisode, sa saison, le projet ; jamai
   assert.match(verifierPortee({ type: "plan", cibleId: 6 }, c) ?? "", /Hors portée/);
   assert.match(verifierPortee({ type: "episode", cibleId: 8 }, c) ?? "", /Hors portée/);
   assert.match(verifierPortee({ type: "episode", cibleId: 7 }, { ...c, operation: "creer" }) ?? "", /Hors portée/);
+});
+
+test("un effet (vfx) cité en image passe en weak_reference, jamais fully_preserved", () => {
+  const sortie: SortiePlanH3 = {
+    ...base,
+    references: [...base.references, { asset: "VFX_energie", nature: "image", role: "Énergie", nom: "the golden energy", definition: "wrapping her forearms" }],
+    summary: "[[CHAR_maya]] runs through [[DEC_couloir]], [[VFX_energie]] around her arms.",
+  };
+  const a = apresDe(depuisFichePlan(sortie, plan()));
+  const retention = a.sections!.retention_analysis!;
+  assert.match(retention, /<Subject 3>.*weak_reference/);
+  assert.match(retention, /never appears as a standalone image/);
+  assert.doesNotMatch(retention, /fully_preserved.*golden energy|<Subject 3>.*fully_preserved/);
 });

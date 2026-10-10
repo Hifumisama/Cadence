@@ -1,7 +1,7 @@
 subject_definitions:
-<Subject 1> is the Tenancière from <Picture 1>, leaning in close, her stride reduced to a bare, controlled inclination without a full stop.
-<Subject 2> is Maya from <Picture 2>, pinned by the proximity and the threat.
-<Subject 3> is the narrow wooden corridor from <Picture 3>, its constant deep indigo light now edged with harder shadow.
+<Subject 1> is the Tenancière from <Picture 1>, in her gown, mismatched eyes, leaning in close, her stride reduced to a bare, controlled inclination without a full stop.
+<Subject 2> is Maya from <Picture 2>, in her dancer's costume, pinned by the proximity and the threat.
+<Subject 3> is the narrow wooden corridor from <Picture 3>, narrow wooden walls, their constant deep indigo light now edged with harder shadow.
 
 summary:
 [reference generation] The target video holds an extreme close-up as <Subject 1> opens the episode's central threat to <Subject 2> within <Subject 3>, never fully halting her motion.

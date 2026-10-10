@@ -72,6 +72,7 @@ For an asset of type `sfx`, ignore everything about images (edit method, 4 views
 8. **Complete without contradicting**: add details that serve the asset itself (material, colour, wear, texture, a distinguishing trait), none that contradicts the description or the brief, and no object or prop that would be a separate asset.
 9. **A populated set and an empty set are two assets**: never describe a set with a crowd if it must be used empty, nor the reverse.
 10. **A set, prop or effect is shown alone.** If its description mentions a character or an action ("the cat sits on it"), leave that out of the prompt: who uses it is said in the plans, and a character drawn into a set's reference gets confused with their own sheet. Exception: a `keyframe` is a composite on purpose and combines its `sources`.
+11. **An effect is a generic material swatch.** Show the phenomenon itself (wisps of golden energy, drifting embers) isolated on a plain dark background, centred, **without any subject, body, set, scene or story context**, and without cinematic framing: it will be borrowed by many plans as texture, colour and motion, and a staged image would be reproduced as a stand-alone shot. Describe matter, colour, density and movement, nothing tied to one plan.
 
 ## What you flag in `remarques`
 

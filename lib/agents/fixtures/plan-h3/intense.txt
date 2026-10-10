@@ -1,5 +1,5 @@
 subject_definitions:
-<Subject 1> is Maya from <Picture 1>, running, her usual lightness replaced by panic, then stopping to catch her breath.
+<Subject 1> is Maya from <Picture 1>, in her dancer's costume, running, her usual lightness replaced by panic, then stopping to catch her breath.
 <Subject 2> is the bazar's nocturnal Persian/Arab-style back alleys from <Picture 2>, narrow passages under striped cloth awnings, ochre-plastered walls, chipped zellige tilework, horseshoe archways, shuttered stalls, wet cobblestones under moonlight.
 
 summary:

@@ -67,7 +67,8 @@ The output contract is `assets/sortie.schema.json`. Each example is a complete d
 5. **Six images at most.** Beyond that, arbitrate: keep what carries identity and framing, sacrifice what text can describe alone (it goes to prose), and say so in `notes`.
 6. **One reference carries a character's face.** Several face references dilute identity.
 7. **Fill free slots usefully** (set, validated detail) only if you can say why. Otherwise leave them free.
-8. **A populated set and an empty set are two assets.** A populated reference populates plans that should be empty. Do not take the full room for an empty-room plan.
+8. **An effect (`VFX_…`) is a material, not a subject.** Cited as an image, H3 treats it as content to keep and may show the reference itself as a stand-alone shot unrelated to the plan. So its `retention` is **never `fully_preserved`**: `weak_reference` (only colour, texture, motion are borrowed) or `attribute_transfer` (the effect passes onto a named subject: "golden energy on Maya's hands"). `retentionNote` says what is borrowed and where it lands. In the shots, the effect is always **something a subject does or undergoes** (energy wraps her forearms), never a scene of its own; the effect's own reference, with its original framing, must not drive the composition of the plan.
+9. **A populated set and an empty set are two assets.** A populated reference populates plans that should be empty. Do not take the full room for an empty-room plan.
 
 ### 2. Cut into shots — cadence follows intensity
 
@@ -125,6 +126,10 @@ Before a high-stakes plan (strong action, visual effect, rising tension, several
 ### 6. Length
 
 `shots` (opening included): 350–500 words in total for a rich plan, fewer for a simple one. A dialogue plan favours covering the whole spoken timeline over word count.
+
+## Retention: choose the lightest level that fits
+
+`fully_preserved` is for what must be recognisable (a character, a set, a prop). New actions, movements or events in the plan are **not** a loss of fidelity: a running or crying character is still `fully_preserved`. Use `partially_preserved` only when a defined trait really changes (a costume torn, a set altered), `attribute_transfer` when a trait passes to another subject, `weak_reference` when only the general look is borrowed (always the case for an effect, see assets rule 8).
 
 ## Before you answer
 

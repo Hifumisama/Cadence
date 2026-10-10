@@ -20,10 +20,10 @@
   "titre": "Maya, à l'écoute dans la ruelle",
   "dureeSecondes": 6,
   "references": [
-    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, à l'écoute", "nom": "Maya", "definition": "alert, hearing distant voices.", "retentionNote": "Maya's identity and controlled alertness are retained."},
-    {"asset": "HUM_silhouettes_encapuchonnees", "nature": "image", "role": "Silhouettes lointaines", "nom": "the two cloaked, hooded figures", "definition": "faintly visible one alley over.", "retention": "weak_reference", "retentionNote": "only their distant, cloaked silhouettes register in low moonlight."},
-    {"asset": "PROP_dague_maya", "nature": "image", "role": "Détail du geste vers la dague", "nom": "the concealed dagger", "definition": "at Maya's waist.", "retentionNote": "the dagger and its position remain concealed but referenced by the gesture."},
-    {"asset": "DEC_ruelles_bazar", "nature": "image", "role": "Décor, passage dérobé de médina", "nom": "the hidden medina alley passage", "definition": "", "retentionNote": "the passage's moonlit shadow and medina architecture are retained."}
+    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, à l'écoute", "nom": "Maya", "definition": "in her dancer's costume, alert, hearing distant voices.", "retentionNote": "Maya's identity and controlled alertness are retained."},
+    {"asset": "HUM_silhouettes_encapuchonnees", "nature": "image", "role": "Silhouettes lointaines", "nom": "the two cloaked, hooded figures", "definition": "dark cloaks pulled over their faces, faintly visible one alley over.", "retention": "weak_reference", "retentionNote": "only their distant, cloaked silhouettes register in low moonlight."},
+    {"asset": "PROP_dague_maya", "nature": "image", "role": "Détail du geste vers la dague", "nom": "the concealed dagger", "definition": "its hilt hidden at Maya's waist.", "retentionNote": "the dagger and its position remain concealed but referenced by the gesture."},
+    {"asset": "DEC_ruelles_bazar", "nature": "image", "role": "Décor, passage dérobé de médina", "nom": "the hidden medina alley passage", "definition": "ochre-plastered walls under striped cloth awnings, in faint moonlight.", "retentionNote": "the passage's moonlit shadow and medina architecture are retained."}
   ],
   "summary": "The target video shows [[CHAR_maya]] catching sight of [[HUM_silhouettes_encapuchonnees]] in the distance within [[DEC_ruelles_bazar]] and instinctively moving two fingers toward [[PROP_dague_maya]].",
   "ouverture": "Cinematic anime style, refined linework, faint moonlight against deep shadow.",

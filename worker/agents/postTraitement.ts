@@ -373,15 +373,16 @@ async function brutsFiche(tx: Tx, projectId: number, planUuid: string, sortie: S
   if (!plan) throw new Error("Le plan visé n'existe plus.");
   const [dialogues, registre] = await Promise.all([
     tx
-      .select({ uuid: repliques.uuid, texte: repliques.texte, slot: planDialogues.slot })
+      .select({ uuid: repliques.uuid, texte: repliques.texte, slot: planDialogues.slot, locuteurCode: assets.code })
       .from(planDialogues)
       .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
+      .leftJoin(assets, eq(assets.id, repliques.locuteurId))
       .where(eq(planDialogues.planId, plan.id)),
     tx.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches)),
   ]);
   return depuisFichePlan(
     sortie,
-    { uuid: planUuid, titre: plan.titre, slotsAudioPris: dialogues.map((d) => d.slot), repliques: dialogues.map((d) => ({ uuid: d.uuid, texte: d.texte })), registre },
+    { uuid: planUuid, titre: plan.titre, slotsAudioPris: dialogues.map((d) => d.slot), repliques: dialogues.map((d) => ({ uuid: d.uuid, texte: d.texte, slot: d.slot, locuteurCode: d.locuteurCode })), registre },
     { corpusExemples: corpusExemplesPlanH3(), ...options },
   );
 }
