@@ -114,9 +114,10 @@ export function resumeEtape(i: number, etat: EtatAssistant, nomStyle: (id: strin
     case 1:
       return etat.genres.length ? `${etat.genres.join("/")} · ${motDuTon(etat.ton)}` : "";
     case 2:
-      return etat.dureeChoisie ? minutesSecondes(etat.duree) : "";
+      return minutesSecondes(etat.duree);
     case 3:
-      return etat.langueChoisie ? etat.langue : "";
+      // La langue est présélectionnée à l'écran : le ruban la montre aussi (sinon « — » à côté d'un choix visiblement coché).
+      return etat.langue;
     case 4:
       if (!etat.style) return "";
       return etat.style.source === "libre" ? etat.style.nom.trim() || "Style libre" : (nomStyle(etat.style.styleId) ?? "");

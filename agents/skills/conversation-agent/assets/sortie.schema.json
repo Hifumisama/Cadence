@@ -12,6 +12,7 @@
     "reflexion": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 900,
       "description": "(French) Your draft, NEVER shown to the user, in 4 to 6 short numbered lines: (0) reread the conversation: what the user has ALREADY said or decided (duration, ending, tone, style, rhythm, names, taboos…) and what you have ALREADY asked, so you do not ask it again; (1) what their last message really asks (answer a question? hand you the lead? react? tell a story?); (2) the most alive or the vaguest detail of what they just said; (3) the angle you choose among what is missing, the one that hooks best onto this detail (order is free); (4) if you bring an idea of your own, which, in one sentence; (5) your way of opening your message, different from the previous turn's."
     },
     "reponse": {

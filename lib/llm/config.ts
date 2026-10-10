@@ -106,11 +106,15 @@ export function corpsPourSkill(skill: string, env: Env = process.env): Record<st
   }
 }
 
-/** Limite de jetons de sortie d'un skill : `LLM_MAX_TOKENS_<SKILL>` sinon `LLM_MAX_TOKENS`, sinon null
- * (le défaut de l'exécuteur s'applique). */
+/** Plafond de sortie propre à un skill quand aucune variable ne le fixe. Un tour de conversation tient en ~600 jetons : au-delà,
+ * c'est une boucle de répétition (observé 2026-10-10, trace 755 : 2 × 16 384 jetons, 10 minutes). Un plafond bas la coupe vite. */
+export const MAX_TOKENS_PAR_DEFAUT_SKILL: Readonly<Record<string, number>> = { "conversation-agent": 3000 };
+
+/** Limite de jetons de sortie d'un skill : `LLM_MAX_TOKENS_<SKILL>` sinon `LLM_MAX_TOKENS`, sinon le défaut du skill
+ * (`MAX_TOKENS_PAR_DEFAUT_SKILL`), sinon null (le défaut de l'exécuteur s'applique). */
 export function maxTokensPourSkill(skill: string, env: Env = process.env): number | null {
   const brut = env[`LLM_MAX_TOKENS_${suffixeSkill(skill)}`]?.trim() || env.LLM_MAX_TOKENS?.trim();
-  if (!brut) return null;
+  if (!brut) return MAX_TOKENS_PAR_DEFAUT_SKILL[skill] ?? null;
   const n = Number(brut);
   if (!Number.isInteger(n) || n < 256) throw new Error(`LLM_MAX_TOKENS doit être un entier d'au moins 256 (reçu « ${brut} »).`);
   return n;

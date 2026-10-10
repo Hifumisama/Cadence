@@ -4,6 +4,7 @@ import "../conception/conception.css";
 import "../conception/demarrage.css";
 import "./revision.css";
 import { useRouter } from "next/navigation";
+import { useDefilementBas } from "@/components/ui/useDefilementBas";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   abandonnerRevisionAction,
@@ -114,9 +115,7 @@ export function SalleRevision({
     return () => window.removeEventListener("focus", focus);
   }, [rafraichir]);
 
-  useEffect(() => {
-    fin.current?.scrollIntoView({ block: "end" });
-  }, [etat.messages.length, actif, tache?.fluxTexte]);
+  useDefilementBas(fin, `${actif}${tache?.fluxTexte ?? ""}`, etat.messages.length);
 
   // Une amorce venue d'un plan place le curseur au bout, prête à continuer la phrase.
   useEffect(() => {

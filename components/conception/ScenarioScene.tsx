@@ -6,6 +6,7 @@ import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { estTacheActive } from "@/lib/agents-affichage";
 import type { NoteAffichee } from "@/lib/agents/fiche-affichage";
 import type { VueConversation } from "@/lib/agents/types";
+import { useDefilementBas } from "@/components/ui/useDefilementBas";
 import { EnteteScene } from "./Scenes";
 
 /** Scène « Scénario » : l'entretien avec le scénariste. Le moteur est celui de l'entretien d'entrée existant (fiche de notes tenue par le
@@ -22,9 +23,8 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
   const tourEnCours = actif && tache?.but === "tour";
   const dejaCommence = conv.messages.some((m) => m.role === "user");
 
-  useEffect(() => {
-    fin.current?.scrollIntoView({ block: "end" });
-  }, [conv.messages.length, tourEnCours, tache?.fluxTexte]);
+  // Suit le flux sans arracher l'ascenseur à qui est remonté lire.
+  useDefilementBas(fin, `${tourEnCours}${tache?.fluxTexte ?? ""}`, conv.messages.length);
 
   const envoyer = async () => {
     const t = texte.trim();

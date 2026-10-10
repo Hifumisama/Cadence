@@ -452,6 +452,9 @@ test("config : LLM_MAX_TOKENS_<SKILL> prime sur LLM_MAX_TOKENS, valeurs absurdes
   assert.equal(maxTokensPourSkill("plan-h3", { LLM_MAX_TOKENS_PLAN_H3: "32768", LLM_MAX_TOKENS: "8000" }), 32768);
   assert.equal(maxTokensPourSkill("brief-projet", { LLM_MAX_TOKENS_PLAN_H3: "32768", LLM_MAX_TOKENS: "8000" }), 8000);
   assert.equal(maxTokensPourSkill("brief-projet", {}), null);
+  // Un tour de conversation a un plafond bas par défaut (une boucle de répétition échoue vite), une variable le dépasse.
+  assert.equal(maxTokensPourSkill("conversation-agent", {}), 3000);
+  assert.equal(maxTokensPourSkill("conversation-agent", { LLM_MAX_TOKENS: "8000" }), 8000);
   assert.throws(() => maxTokensPourSkill("plan-h3", { LLM_MAX_TOKENS: "12" }), /au moins 256/);
 });
 

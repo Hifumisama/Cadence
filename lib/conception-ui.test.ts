@@ -71,10 +71,10 @@ test("style libre : les deux prompts sont obligatoires, le nom et l'image non", 
   assert.equal(styleComplet(null, tout), false);
 });
 
-test("résumés du ruban : vides tant que rien n'est choisi", () => {
+test("résumés du ruban : vides tant que rien n'est choisi, sauf la durée et la langue présélectionnées", () => {
   let e = etatInitial();
   const nom = (id: string) => (id === "g" ? "Gouache" : null);
-  assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Film", "", "", "", ""]);
+  assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Film", "", minutesSecondes(e.duree), "Français", ""]);
   e = { ...basculerGenre(etatInitial(), "Drame"), format: "serie", dureeChoisie: true, duree: 150, langueChoisie: true, langue: SANS_DIALOGUE, style: { source: "bibliotheque", styleId: "g" } };
   assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Série", "Drame · grave", "2 min 30", SANS_DIALOGUE, "Gouache"]);
   assert.equal(resumeEtape(4, { ...e, style: { source: "libre", nom: " ", promptImage: "a", clause: "b" } }, nom), "Style libre");
