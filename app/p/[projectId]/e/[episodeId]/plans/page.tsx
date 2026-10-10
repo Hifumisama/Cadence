@@ -6,6 +6,7 @@ import { LectureEpisode } from "@/components/plan/LectureEpisode";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
 import { PassageNuitButton } from "@/components/plan/PassageNuitButton";
 import { RelancePerimesButton } from "@/components/plan/RelancePerimesButton";
+import { ToutesPrevisualisationsButton } from "@/components/plan/ToutesPrevisualisationsButton";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default async function PlansPage({
           <p>Tous les plans de cet épisode dans l&rsquo;ordre, sans remise à zéro.</p>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 10 }}>
+          {plans.length > 0 ? <ToutesPrevisualisationsButton episodeId={Number(episodeId)} /> : null}
           <RelancePerimesButton episodeId={Number(episodeId)} nPerimes={nPerimes} />
           <PassageNuitButton episodeId={Number(episodeId)} nPrevisualise={nPrevisualise} />
         </div>

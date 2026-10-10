@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { jobs, planDialogues, planPromptSections, planRefs, plans } from "@/db/schema";
-import { eq, and, desc, isNotNull, max } from "drizzle-orm";
+import { eq, and, desc, inArray, isNotNull, max } from "drizzle-orm";
 import { getPlansPerimes } from "@/lib/plans-perimes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -248,6 +248,90 @@ export async function lancerPassageNuit(episodeId: number): Promise<{ n: number;
 
   revalidatePath("/", "layout");
   return { n, bloques };
+}
+
+/** Classement des plans d'un épisode pour « Toutes les prévisualisations » : `neufs` (développés, sans aucun rendu terminé : ils partent
+ * d'office), `avecRendu` (au moins un rendu terminé : il faut l'accord de l'utilisateur pour en refaire un), `dejaEnFile` (un rendu attend
+ * ou tourne déjà) et `brouillons` (fiche pas encore développée : ni l'un ni l'autre). */
+async function classerPourPrevisualisations(episodeId: number) {
+  const lignes = await db.select({ id: plans.id, statut: plans.statut }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre);
+  const jobsDuPlan = lignes.length
+    ? await db.select({ planId: jobs.planId, statut: jobs.statut }).from(jobs).where(inArray(jobs.planId, lignes.map((l) => l.id)))
+    : [];
+  const aJob = (id: number, statuts: string[]) => jobsDuPlan.some((j) => j.planId === id && statuts.includes(j.statut));
+  const neufs: number[] = [];
+  const avecRendu: number[] = [];
+  let dejaEnFile = 0;
+  let brouillons = 0;
+  for (const l of lignes) {
+    if (l.statut === "brouillon") brouillons++;
+    else if (l.statut === "en_cours" || aJob(l.id, ["en_attente", "en_cours"])) dejaEnFile++;
+    else if (aJob(l.id, ["termine"])) avecRendu.push(l.id);
+    else neufs.push(l.id);
+  }
+  return { neufs, avecRendu, dejaEnFile, brouillons };
+}
+
+export type PlanPrevisualisation = {
+  uuid: string;
+  /** Rang dans l'épisode (« 04 ») : ce qu'on affiche, jamais un identifiant. */
+  position: number;
+  titre: string;
+  /** `neuf` : aucun rendu, part d'office ; `rendu` : en a déjà un (à cocher pour le refaire) ; `en_file` : un rendu attend ou tourne ; `bloque` : dialogues à corriger. */
+  etat: "neuf" | "rendu" | "en_file" | "bloque";
+  raison: string | null;
+};
+
+/** Les plans de l'épisode tels que la fenêtre « Toutes les prévisualisations » les liste, pour choisir ce qu'on (re)rend. Les brouillons
+ * (fiche pas développée) n'y figurent pas. */
+export async function listerPrevisualisations(episodeId: number): Promise<PlanPrevisualisation[]> {
+  const c = await classerPourPrevisualisations(episodeId);
+  const toutes = await db
+    .select({ id: plans.id, uuid: plans.uuid, titre: plans.titre, statut: plans.statut })
+    .from(plans)
+    .where(eq(plans.episodeId, episodeId))
+    .orderBy(plans.ordre, plans.id);
+  const lignes: PlanPrevisualisation[] = [];
+  for (const [i, p] of toutes.entries()) {
+    if (p.statut === "brouillon") continue;
+    const base = { uuid: p.uuid, position: i + 1, titre: p.titre };
+    if (!c.neufs.includes(p.id) && !c.avecRendu.includes(p.id)) {
+      lignes.push({ ...base, etat: "en_file", raison: "Un rendu attend ou tourne déjà" });
+      continue;
+    }
+    const blocage = await blocageDialogues(p.id);
+    if (blocage) lignes.push({ ...base, etat: "bloque", raison: `Dialogues à corriger : ${blocage}` });
+    else lignes.push({ ...base, etat: c.neufs.includes(p.id) ? "neuf" : "rendu", raison: null });
+  }
+  return lignes;
+}
+
+/** Lance une prévisualisation (sans upscale, seed du plan) pour les plans choisis dans la fenêtre. Le choix est l'accord : un plan qui a
+ * déjà un rendu et qu'on a coché en reçoit un NOUVEAU (l'historique garde les anciens). Revérifié ici, au moment de lancer : un plan
+ * devenu « en file » entre-temps ou aux dialogues bloquants est sauté. */
+export async function lancerPrevisualisations(
+  episodeId: number,
+  planUuids: string[],
+): Promise<{ n: number; bloques: number; dejaEnFile: number }> {
+  const c = await classerPourPrevisualisations(episodeId);
+  const choisis = planUuids.length ? await db.select({ id: plans.id }).from(plans).where(and(eq(plans.episodeId, episodeId), inArray(plans.uuid, planUuids))) : [];
+  let n = 0;
+  let bloques = 0;
+  let dejaEnFile = 0;
+  for (const { id } of choisis) {
+    if (!c.neufs.includes(id) && !c.avecRendu.includes(id)) {
+      dejaEnFile++;
+      continue;
+    }
+    if (await blocageDialogues(id)) {
+      bloques++;
+      continue;
+    }
+    await creerJobRelance(id, false);
+    n++;
+  }
+  revalidatePath("/", "layout");
+  return { n, bloques, dejaEnFile };
 }
 
 /** « Relancer les plans périmés » (lib/plans-perimes) : un nouveau rendu pour chaque plan de l'épisode dont une référence, le prompt ou la durée
