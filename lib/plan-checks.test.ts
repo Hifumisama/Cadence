@@ -111,6 +111,14 @@ test("réplique sans prise audio, ou prise obsolète : signalé", () => {
   ]);
   assert.deepEqual(c.problemes.map((p) => p.type), ["sans_audio", "prise_obsolete"]);
   assert.equal(c.ok, false);
+  // Un audio manquant avertit (voix estimée) mais ne bloque pas la génération.
+  assert.equal(c.peutGenerer, true);
+});
+
+test("une réplique absente du prompt avertit sans bloquer ; un texte cité autrement ou une balise orpheline bloquent", () => {
+  assert.equal(controlerDialogues(prompt("Aucun dialogue ici."), [rep(1, "Un.")]).peutGenerer, true);
+  assert.equal(controlerDialogues(prompt("<d>Bonjour</d>"), []).peutGenerer, false);
+  assert.equal(controlerDialogues(prompt("<d>[Français] Je reviens demain</d>"), [rep(1, "Je reviens demain.")]).peutGenerer, false);
 });
 
 test("emplacements audio : plus petit libre, null quand plein", () => {

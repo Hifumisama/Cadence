@@ -141,11 +141,24 @@ export type ProblemeDialogue =
   | { type: "sans_audio"; repliqueId: number; texte: string }
   | { type: "prise_obsolete"; repliqueId: number; texte: string };
 
+/** Les problèmes qui n'empêchent PAS de générer : sans prise (ou prise périmée), la vidéo part avec une voix estimée par le modèle,
+ * potentiellement instable. On peut avoir choisi de faire les voix plus tard, ou de ne pas les faire du tout. */
+export const PROBLEMES_AUDIO: readonly ProblemeDialogue["type"][] = ["sans_audio", "prise_obsolete"];
+
+export const estProblemeAudio = (p: ProblemeDialogue): boolean => PROBLEMES_AUDIO.includes(p.type);
+
+/** Ne bloque pas non plus : une réplique absente du prompt (on peut ne pas la vouloir dans ce plan, ou la mettre plus tard). Seul un
+ * texte cité autrement que mot pour mot, ou une balise sans réplique liée, bloque : les lèvres diraient autre chose que ce qu'on monte. */
+export const estProblemeBloquant = (p: ProblemeDialogue): boolean => p.type === "differente" || p.type === "orpheline";
+
 export type ControleDialogues = {
   problemes: ProblemeDialogue[];
   /** État de chaque réplique liée dans le prompt. */
   parReplique: Record<number, "ok" | "absente" | "differente">;
+  /** Aucun problème, d'aucune sorte. */
   ok: boolean;
+  /** Aucun problème bloquant (voir `estProblemeBloquant`) : la génération peut partir, même avec des prises audio manquantes ou une réplique absente. */
+  peutGenerer: boolean;
 };
 
 /** Invariant verbatim (docs/FRICTIONS.md F02, révision 2026-09-30) : chaque
@@ -219,7 +232,7 @@ export function controlerDialogues(
     else if (r.priseObsolete) problemes.push({ type: "prise_obsolete", repliqueId: r.id, texte: r.texte });
   }
 
-  return { problemes, parReplique, ok: problemes.length === 0 };
+  return { problemes, parReplique, ok: problemes.length === 0, peutGenerer: !problemes.some(estProblemeBloquant) };
 }
 
 /** Une phrase pour dire pourquoi les dialogues d'un plan bloquent la

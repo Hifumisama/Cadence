@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { mkdir, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, estProblemeBloquant, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
 import { getDialoguesPlan } from "@/lib/queries-repliques";
 import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
 import type { RefLabel } from "@/lib/plan-checks";
@@ -81,12 +81,13 @@ function tirerSeed(): string {
 /** Invariant verbatim (F02, révision 2026-09-30) : un plan dont les dialogues
  * ne sont pas alignés avec ses répliques ne part pas en génération — les
  * lèvres bougeraient sur un autre texte que celui qu'on montera. null = rien
- * ne bloque (ou plan sans dialogue). */
+ * ne bloque (ou plan sans dialogue). Une prise audio manquante ou périmée, ou une réplique absente du prompt, ne bloquent PAS : avertissement
+ * dans la fiche (voix estimée par le modèle, potentiellement instable ; voir `estProblemeBloquant`). */
 async function blocageDialogues(planId: number): Promise<string | null> {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) return null;
   const { controle } = await getDialoguesPlan(plan.projectId, planId, plan.episodeId);
-  return controle.ok ? null : resumerProblemesDialogues(controle.problemes);
+  return controle.peutGenerer ? null : resumerProblemesDialogues(controle.problemes.filter(estProblemeBloquant));
 }
 
 /** activerUpscale distingue la prévisualisation rapide (itération de

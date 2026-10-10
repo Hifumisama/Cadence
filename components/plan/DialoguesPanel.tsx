@@ -10,7 +10,7 @@ import {
   insererRepliqueDansPrompt,
   lierReplique,
 } from "@/app/repliques/actions";
-import type { ControleDialogues, SegmentEcart, StatutDuree } from "@/lib/plan-checks";
+import { estProblemeAudio, resumerProblemesDialogues, type ControleDialogues, type SegmentEcart, type StatutDuree } from "@/lib/plan-checks";
 import type { EtatPrise, LiaisonPlanVue, OptionsLocuteur, RepliqueVue } from "@/lib/queries-repliques";
 import { NouvelleRepliqueForm } from "@/components/repliques/NouvelleRepliqueForm";
 import { Icone } from "@/components/ui/Icone";
@@ -115,7 +115,7 @@ export function DialoguesPanel({
         </span>
       </div>
       <div className="panel-bd">
-        {/* Bandeau : l'invariant verbatim (F02). Bloque Prévisualiser / Rendu final. */}
+        {/* Bandeau : l'invariant verbatim (F02). Bloque Prévisualiser / Rendu final ; l'audio manquant, lui, avertit seulement. */}
         {liaisons.length > 0 || nbProblemes > 0 ? (
           <div className={`dlg-bandeau ${controle.ok ? "is-ok" : "is-alerte"}`} role="status">
             <span className="glyph">{controle.ok ? "✅" : "⚠️"}</span>
@@ -123,6 +123,11 @@ export function DialoguesPanel({
               {controle.ok ? (
                 <>
                   <strong>Verbatim aligné.</strong> Chaque réplique est citée au mot près dans le prompt, avec sa prise audio.
+                </>
+              ) : controle.peutGenerer ? (
+                <>
+                  <strong>{nbProblemes} point{nbProblemes > 1 ? "s" : ""} à vérifier, rien ne bloque.</strong> {resumerProblemesDialogues(controle.problemes)}.
+                  {controle.problemes.some(estProblemeAudio) ? " Sans prise à jour, la vidéo aura une voix estimée par le modèle, potentiellement instable." : ""}
                 </>
               ) : (
                 <>

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "@/lib/queries";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
-import { calculerStatutDuree, controlerStructure, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
+import { calculerStatutDuree, controlerStructure, estProblemeAudio, estProblemeBloquant, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
 import { getDialoguesPlan, getOptionsLocuteur, getPrisesGenerees } from "@/lib/queries-repliques";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
@@ -220,17 +220,29 @@ export default async function PlanPage({
         detail: p.message,
       }),
     ),
-    ...(controle.ok
+    ...(controle.peutGenerer
       ? []
       : [
           {
             cle: "dialogues",
             niveau: "warn" as const,
             titre: "Dialogues à corriger",
-            detail: resumerProblemesDialogues(controle.problemes),
+            detail: resumerProblemesDialogues(controle.problemes.filter(estProblemeBloquant)),
             ancre: "fp-dialogues",
           },
         ]),
+    // Ce qui n'empêche pas de générer : une réplique absente du prompt, et l'audio (sans prise, la voix est estimée par le modèle).
+    ...(controle.problemes.some((p) => !estProblemeBloquant(p))
+      ? [
+          {
+            cle: "dialogues-a-verifier",
+            niveau: "info" as const,
+            titre: controle.problemes.some(estProblemeAudio) ? "Voix estimée" : "Dialogues à vérifier",
+            detail: `${resumerProblemesDialogues(controle.problemes.filter((p) => !estProblemeBloquant(p)))}${controle.problemes.some(estProblemeAudio) ? " : sans prise à jour, la vidéo aura une voix estimée par le modèle, potentiellement instable" : ""}.`,
+            ancre: "fp-dialogues",
+          },
+        ]
+      : []),
     ...refsNonCitees.map(
       (l): AlerteControle => ({
         cle: `noncite-${l}`,
