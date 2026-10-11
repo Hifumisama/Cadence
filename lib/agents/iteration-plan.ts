@@ -19,7 +19,7 @@ import type { Avertissement, DiagnosticIteration } from "./types";
  * - la structure des shots ne se dégrade pas (lib/plan-checks.ts, `controlerStructure`) : alerte seulement.
  * Le résultat est une écriture PARTIELLE de la fiche (seulement les sections touchées, sans `refs` ni durée). */
 
-export const CATEGORIES_ITERATION = ["decoupage-scenario", "cadence", "vocabulaire", "negation", "etat-arrivee", "camera", "lumiere", "duree", "reference", "modele", "autre"] as const;
+export const CATEGORIES_ITERATION = ["decoupage-scenario", "cadence", "vocabulaire", "negation", "etat-arrivee", "camera", "lumiere", "duree", "reference", "mise-en-scene", "modele", "autre"] as const;
 
 /** Écart toléré entre la durée réelle du fichier (ffprobe) et la durée voulue : au-delà, le rendu a été généré
  * à une autre durée, tous ses temps sont comprimés ou étirés : aucun diagnostic d'écriture n'est valable. */

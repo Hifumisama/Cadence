@@ -50,6 +50,8 @@ export type ContexteControleH3 = {
   corpusExemples?: string[];
 };
 
+/** Seuil de l'alerte de longueur (norme du guide officiel : 350 à 500 mots ; on laisse de la marge avant d'alerter). */
+export const MOTS_MAX_DESCRIPTION = 600;
 export const MAX_IMAGES = 6;
 export const MAX_AUDIOS = 3;
 
@@ -192,6 +194,12 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
         ajouter("alerte", "balisage", `Le shot ${i + 1} écrit lui-même son timecode ou sa coupe : le code les pose (retirés à l'assemblage), commence par le cadre.`);
       }
     });
+  }
+
+  // 4 bis. longueur : la norme du guide officiel est de 350 à 500 mots ; au-delà, les rendus du banc de test étaient moins lisibles
+  const motsDuTexte = [sortie.ouverture ?? "", ...shots.map((s) => s.texte ?? "")].join(" ").split(/\s+/).filter(Boolean).length;
+  if (motsDuTexte > MOTS_MAX_DESCRIPTION) {
+    ajouter("alerte", "description-longue", `L'ouverture et les shots font ${motsDuTexte} mots : la norme est de 350 à 500, au-delà le plan se brouille. Garde ce qui se voit et se fait.`);
   }
 
   // 5. dialogues : verbatim

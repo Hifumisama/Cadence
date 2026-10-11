@@ -33,7 +33,7 @@
       }
     },
     "summary": { "type": "string", "description": "(English) One paragraph, WITHOUT a bracketed prefix (the code adds it). Assets are written [[CODE_ASSET]]." },
-    "ouverture": { "type": "string", "description": "(English) One or two sentences setting the visual style before the first shot (the project's style clause, the light). No asset cited." },
+    "ouverture": { "type": "string", "description": "(English) One to three sentences before the first shot: the visual style (the project's style clause), the light and, when two or more characters act together, which one is on the left of the frame and which on the right, facing which way. No [[CODE]] marker." },
     "shots": {
       "type": "array",
       "minItems": 1,

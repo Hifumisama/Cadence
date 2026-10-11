@@ -69,6 +69,7 @@ The output contract is `assets/sortie.schema.json`. Each example is a complete d
 7. **Fill free slots usefully** (set, validated detail) only if you can say why. Otherwise leave them free.
 8. **An effect (`VFX_…`) is a material, not a subject.** Cited as an image, H3 treats it as content to keep and may show the reference itself as a stand-alone shot unrelated to the plan. So its `retention` is **never `fully_preserved`**: `weak_reference` (only colour, texture, motion are borrowed) or `attribute_transfer` (the effect passes onto a named subject: "golden energy on Maya's hands"). `retentionNote` says what is borrowed and where it lands. In the shots, the effect is always **something a subject does or undergoes** (energy wraps her forearms), never a scene of its own; the effect's own reference, with its original framing, must not drive the composition of the plan.
 9. **A populated set and an empty set are two assets.** A populated reference populates plans that should be empty. Do not take the full room for an empty-room plan.
+10. **A registry asset that the shots show is a reference** (up to the six): a held weapon or prop seen up close, a set used for a whole shot. Do not drop it to shorten the text: without its image the video model draws another one (a dagger becomes a sword).
 
 ### 2. Cut into shots — cadence follows intensity
 
@@ -76,8 +77,9 @@ Shot count follows **action intensity, not plan duration**:
 
 | Action | Cadence | Camera |
 |---|---|---|
-| **Intense**: run, flight, fight, fall, panic | one shot every **1.5–2 s** | mobile, varied angles (ground, high-angle, canted, high wide, insert) |
-| **Moderate**: determined walk, exchange, transition | one shot every **2–3 s** | simple movements, alternating shot sizes |
+| **Intense**: run, flight, fall, panic | one shot every **1.5–2 s** | mobile, varied angles (ground, high-angle, canted, high wide, insert) |
+| **Exchange of blows between two characters** | one shot every **2.5–4 s**, each holding one linked exchange (2–4 blows) | the camera moves **inside** the shot (tracking, pan, push-in) instead of cutting again |
+| **Moderate**: determined walk, dialogue exchange, transition | one shot every **2–3 s** | simple movements, alternating shot sizes |
 | **Calm or held tension**: listening, waiting, reaction | one shot every **2.5–4 s**, or a single held shot | locked, symmetrical, eye level |
 
 1. **Aim for at least 1.5 s per shot** (strong advice): below it, H3 often stretches or smooths. Go below only for a deliberate effect (a flash-cut in intense action) and say so in `notes`.
@@ -122,10 +124,13 @@ Before a high-stakes plan (strong action, visual effect, rising tension, several
 4. Take the brief's continuity rules (distinctive traits, palettes, rhymes) and apply them without commenting on them.
 5. Two plans that must answer each other visually share the same asset or a derivative. Do not make two images that should be the same.
 6. Match the neighbouring plans: screen direction, direction of the last camera movement, character positions.
+7. **Two or more characters acting together: fix the sides in `ouverture`**, in one sentence (who is on the left of the frame, who on the right, facing which way). Keep it in every side-on, low or two-person shot; change it only through a stated move, and then say where each character ends.
+8. **Cut on the movement.** The next shot picks the gesture up mid-motion, with **both** characters in the frame at the moment of contact. Never cut to a single character on the instant of a blow: the contact is never seen.
+9. **Say where everyone is after each cut**, in one real space: a broken wall opens onto a named adjoining room, a thrown object ends somewhere visible.
 
 ### 6. Length
 
-`shots` (opening included): 350–500 words in total for a rich plan, fewer for a simple one. A dialogue plan favours covering the whole spoken timeline over word count.
+`shots` (opening included): **350–500 words** in total, the official norm (a calm or dialogue plan may be shorter); the assembled prompt stays around 4,500–7,500 characters. Under 350 an action plan turns abstract and the video model invents; over 500 it blurs (render tests of a 15 s fight were clearly worse at about 12,000 characters and at about 3,000). Spend the words on **what is seen and done**: for each blow, who strikes, with which limb or weapon, what it touches and what moves in reaction. Adjectives and moods ("frantic", "chaotic", "a whirlwind of fabric") are not actions. The reference definitions already carry identity: do not repeat them in the shots. A dialogue plan favours covering the whole spoken timeline over word count.
 
 ## Retention: choose the lightest level that fits
 
@@ -136,6 +141,9 @@ Before a high-stakes plan (strong action, visual effect, rising tension, several
 - Every cited `[[CODE]]` is in `references`, and every reference is cited at least once. No numbered label, no `{picture}`.
 - Every `<d>` is verbatim; all linked lines are cited and listed in `repliques`.
 - First shot at `0`, increasing starts, a distinct angle per shot, no shot under 1.5 s without a reason in `notes`; no timecode, no `Hard cut`, no `[Shot N]` in the texts.
+- Two or more characters acting together: the sides are fixed in `ouverture`, each cut picks the movement up with both in frame at contact, and a fight shot holds an exchange of 2–4 blows, not a single one.
+- `shots` and `ouverture` total about 350–500 words for an action plan, each blow described concretely (who, which limb or weapon, what it touches, what moves).
+- No action verb in a `definition` (`lunging`, `advancing`, `running`): it anchors identity, the action goes in the shots.
 - `nature: "son"` only for a sound effect (`SFX_…`); a voice is not a reference.
 - No negated behaviour, no precision vocabulary on a moving character.
 - English body, dialogues in their own language; French only in `titre`, `role`, `description`, `raison`, `notes`.

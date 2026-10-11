@@ -1,6 +1,6 @@
 # H3 / Hailuo 3 corrections lexicon
 
-> Every line cost a render. Source: real production of "Les Yeux de Rubis", episode 1.
+> Every line cost a render. Source: real production of "Les Yeux de Rubis", episode 1, and the Singularity A/B bench (2026-10-11, project 43, plans noted "bench").
 > Format: **symptom → cause → wording that holds** · plan where observed.
 > This file grows with each proven correction (see Step 7 of the chat skill `.claude/skills/fiche-de-plan`). Never add an untested hypothesis.
 
@@ -9,6 +9,11 @@
 - **Intense action written in 1–2 shots → flat edit, fear or energy unreadable.** Cut cadence must follow intensity, not duration. Panicked run: one `[Shot]` every 1.5–2 s, distinct angles (eye level, ground, canted front, rear high-angle, high wide, low-angle). Far more dynamic and readable than a single take · SHOT 23 (plan 310).
 - **Shot under ~1.5 s → H3 ignores the raw timecode and stretches or smooths the plan.** Spread durations with explicit per-shot instructions and stay at 1.5 s minimum · plan 110.
 - **Multi-beat description without `Hard cut` or distinct angles → one smoothed movement.** Each shot: `Hard cut`, timecode, its own angle · plans 110, 125.
+- **A fight cut into single-blow shots of 1.5 s (8–10 cuts in 15 s) → flat, no exchange; 1.5 s shots holding 4–5 actions → smeared.** A shot of 2.5–4 s holding one linked exchange (2–4 blows), the camera moving inside it, stays readable · bench, 10 shots and 9 shots vs 5 and 4 shots.
+- **Two characters, sides not stated → the sides flip between cuts.** One sentence in `ouverture` fixes who is left and right; kept in every two-person view, it held to the end · bench, before and after.
+- **Cut to a single character on the instant of a blow → the contact is never seen and the next shot starts afresh.** Both in frame at contact, next shot opened mid-gesture · bench, agent plan vs rewrite.
+- **Too long a prompt blurs the plan.** About 12,000 characters (1,400 words of shots) was the least readable; 4,500–7,500 characters (350–500 words of shots) was clearly better · bench, long vs compact versions.
+- **A slow-motion hold at the decisive blow holds on screen**: "the frame slows almost to stillness for a heartbeat, dust and embers hanging in the air, then time snaps back", with a close-up on the receiving face · bench.
 - **Deliberate continuous gesture: do not cut it.** The slap in one movement (plans 240+250+260) and the landing after the jump (140+150) hold by continuity; note them as such.
 - **Calm by contrast.** The listening plans (330 to 360) only hold because the run before them cuts fast. Write in pairs: fast cadence during tension, slow cadence for the release and the final rhyme.
 - **Prey / predator camera grammar.** Prey: shoulder cam, canted, low angles, short cuts, a crowd you crash into. Predator: locked camera, symmetrical frame, steady stride, a crowd that parts · plans 310 vs 370.

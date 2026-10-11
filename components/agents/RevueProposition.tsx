@@ -281,6 +281,7 @@ const LIBELLE_CATEGORIE: Record<string, string> = {
   lumiere: "lumière",
   duree: "durée",
   reference: "référence",
+  "mise-en-scene": "mise en scène (côtés, positions, raccords, contact)",
   modele: "limite du modèle",
   autre: "autre",
 };
