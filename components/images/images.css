@@ -1,0 +1,106 @@
+/* Images de référence d'un projet : bandeau « Prochaine étape », bouton « Générer les N images », ligne du registre.
+   Anthracite ; or en accent (progression, filet) ; jamais de fond rouge. */
+.im-bandeau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-bottom: var(--sp-6);
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--or);
+  border-radius: 3px;
+}
+.im-bandeau-texte {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.im-eyebrow {
+  margin: 0 0 4px;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--or);
+}
+.im-bandeau h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.im-compte {
+  margin: 0 0 8px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+}
+.im-compte b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.im-barre {
+  height: 3px;
+  background: var(--surface-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.im-barre i {
+  display: block;
+  height: 100%;
+  background: var(--or);
+  transition: width 0.4s;
+}
+.im-bandeau-actions {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.im-lancer {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.im-confirm {
+  max-width: 420px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+}
+.im-confirm p {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.im-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.im-retour {
+  margin: 0;
+  max-width: 420px;
+  font-size: 13px;
+}
+/* En tête du registre : une courte ligne et le bouton. */
+.im-registre {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: var(--sp-4);
+  padding: 10px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 3px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+}
+.im-registre b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.im-registre .im-lancer {
+  margin-left: auto;
+}

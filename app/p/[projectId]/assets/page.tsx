@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsTree, getFirstEpisodeId, getProject, type AssetNode } from "@/lib/queries";
 import { assetsEnFile, nbImagesEnAttente } from "@/lib/queries-taches";
+import { lireEtatImages } from "@/lib/queries-images";
 import { PLAFOND_LOT_IMAGES, preparerLot, type AssetPourLot } from "@/lib/generation-lot";
 import { AjouterAssetForm } from "@/components/assets/AjouterAssetForm";
 import { RegistreAssets } from "@/components/assets/RegistreAssets";
@@ -28,12 +29,13 @@ export default async function AssetsPage({
   const { type: typeBrut } = await searchParams;
   const typeInitial = (TYPES_ASSET as readonly string[]).includes(typeBrut ?? "") ? (typeBrut as string) : null;
   const pid = Number(projectId);
-  const [projet, racines, premierEpisodeId, enFile, nbEnAttente] = await Promise.all([
+  const [projet, racines, premierEpisodeId, enFile, nbEnAttente, images] = await Promise.all([
     getProject(pid),
     getAssetsTree(pid),
     getFirstEpisodeId(pid),
     assetsEnFile(pid),
     nbImagesEnAttente(),
+    lireEtatImages(pid),
   ]);
   if (!projet) notFound();
 
@@ -122,7 +124,7 @@ export default async function AssetsPage({
           </div>
         </div>
 
-        <RegistreAssets projectId={pid} lignes={lignes} nbVoix={nbVoix} typeInitial={typeInitial} />
+        <RegistreAssets projectId={pid} lignes={lignes} nbVoix={nbVoix} typeInitial={typeInitial} imagesInitial={images} />
       </main>
     </>
   );

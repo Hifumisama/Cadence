@@ -4,6 +4,7 @@ import { getEpisodeWithSeason, getEtatPlans, getProject } from "@/lib/queries";
 import { nbDecisionsEnCours } from "@/lib/agents/revision/revision-db";
 import { posterSrc } from "@/lib/media";
 import { Topbar } from "@/components/ui/Topbar";
+import { ProchaineEtape } from "@/components/images/ProchaineEtape";
 import { EtatPlans } from "@/components/scenario/EtatPlans";
 import { EpisodeInfoPanel } from "@/components/projects/EpisodeInfoPanel";
 
@@ -55,6 +56,8 @@ export default async function EpisodeLayout({
     <>
       <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: base, brouillon }} />
       <main className="page">
+        {/* Un film n'a pas de page d'accueil (son épisode unique s'ouvre directement) : le bandeau vit ici. Une série l'a sur /p/<id>. */}
+        {projet.type === "oneshot" ? <ProchaineEtape projectId={pid} /> : null}
         <EpisodeInfoPanel
           projectId={pid}
           episodeId={episode.id}

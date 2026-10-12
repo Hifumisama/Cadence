@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { supprimerAssets } from "@/app/assets/actions";
 import { lancerGenerationsLot } from "@/app/assets/generation-actions";
+import { useRouter } from "next/navigation";
+import { BoutonGenererImages, useEtatImages } from "@/components/images/ImagesProjet";
 import { Icone } from "@/components/ui/Icone";
+import type { EtatImages } from "@/lib/images-projet";
 import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/registre-types";
 import { AssetCard, LigneAsset } from "./AssetCard";
 
@@ -28,13 +31,27 @@ export function RegistreAssets({
   lignes,
   nbVoix,
   typeInitial,
+  imagesInitial,
 }: {
   projectId: number;
   lignes: LigneRegistre[];
   /** Voix du casting : hors de la grille, un lien les ramène à leur module. */
   nbVoix: number;
   typeInitial: string | null;
+  /** Où en sont les images du projet (lib/images-projet.ts) : alimente la ligne « Il reste N images à générer ». */
+  imagesInitial: EtatImages;
 }) {
+  const router = useRouter();
+  const { etat: images, recharger: rechargerImages } = useEtatImages(projectId, imagesInitial);
+  // Une image adoptée par le worker change la grille : on relit la page quand le compte bouge.
+  const avecImage = images?.avecImage;
+  const dernierCompte = useRef(avecImage);
+  useEffect(() => {
+    if (dernierCompte.current !== avecImage) {
+      dernierCompte.current = avecImage;
+      router.refresh();
+    }
+  }, [avecImage, router]);
   const [q, setQ] = useState("");
   const [type, setType] = useState<string | null>(typeInitial);
   const [statut, setStatut] = useState<string>("");
@@ -251,6 +268,15 @@ export function RegistreAssets({
 
   return (
     <>
+      {images && images.sansImage > 0 ? (
+        <div className="im-registre">
+          <span>
+            Il reste <b>{images.sansImage} image{images.sansImage > 1 ? "s" : ""}</b> à générer
+            {images.enFile > 0 ? ` (${images.enFile} déjà en file ou en cours)` : ""}.
+          </span>
+          <BoutonGenererImages projectId={projectId} etat={images} recharger={rechargerImages} petit />
+        </div>
+      ) : null}
       <div className="as-outils" role="search">
         <label className="as-recherche">
           <Icone nom="recherche" taille={16} />

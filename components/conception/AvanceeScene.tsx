@@ -10,6 +10,8 @@ import { SYMBOLE_SOUS_TACHE } from "@/lib/agents-affichage";
 import type { VueCreation } from "@/lib/agents/creation-vue";
 import { motDuTon, type Conception } from "@/lib/conception";
 import { minutesSecondes, teinteAmbiance } from "@/lib/conception-ui";
+import { BoutonGenererImages, useEtatImages } from "@/components/images/ImagesProjet";
+import { phraseCompteImages, type EtatImages } from "@/lib/images-projet";
 import { AfficheProjet, type StyleAffiche } from "./ClapScene";
 import { RubanConception } from "./RubanConception";
 import { EnteteScene } from "./Scenes";
@@ -32,12 +34,15 @@ export function AvanceeScene({
   projectId,
   nomProjet,
   initial,
+  imagesInitial,
   conception,
   style,
 }: {
   projectId: number;
   nomProjet: string;
   initial: VueCreation | null;
+  /** Où en sont les images de référence (lib/images-projet.ts) : le clap final dit ce qui est vraiment fait. */
+  imagesInitial: EtatImages;
   conception: Conception | null;
   style: StyleAffiche;
 }) {
@@ -49,6 +54,9 @@ export function AvanceeScene({
   // Une fois la préparation terminée : le grand clap (« Voir le projet ») remplace la liste, qu'un petit bouton ramène.
   const [affichage, setAffichage] = useState<"clap" | "etapes" | null>(null);
   const enVol = useRef(false);
+  const { etat: images, recharger: rechargerImages } = useEtatImages(projectId, imagesInitial);
+  // Le clap ne dit « tout est prêt » que s'il n'y a rien à illustrer ou si toutes les images existent.
+  const imagesAFaire = images != null && images.sansImage > 0;
 
   const charger = useCallback(async () => {
     if (enVol.current) return;
@@ -117,6 +125,25 @@ export function AvanceeScene({
           <div className="cn-av-droite">
             {!vue ? (
               <p className="cn-note" style={{ margin: 0 }}>Aucune préparation pour ce projet. Parle de ton projet au scénariste, puis lance la préparation depuis le clap.</p>
+            ) : vueClap && imagesAFaire && images ? (
+              // Préparation finie mais images de référence pas faites : le clap le dit et pointe la suite (pas un lien d'un bloc : il porte des boutons).
+              <div className="cn-grand-clap cn-grand-clap-suite">
+                <span className="cn-grand-clap-haut" aria-hidden="true" />
+                <span className="cn-grand-clap-corps">
+                  <small>Préparation terminée</small>
+                  <b>{nomAffiche}</b>
+                  <span>
+                    {phraseCompteImages(images)}
+                    {images.enFile > 0 ? ` · ${images.enFile} en file ou en cours` : ""}. Les épisodes, les plans et le registre sont en place ; il reste à fabriquer les images de référence, qui donnent l’ambiance du projet.
+                  </span>
+                  {faits.length > 0 ? <span className="cn-grand-clap-puces">{faits.slice(0, 5).map((f) => <i key={f}>{f}</i>)}</span> : null}
+                  <span className="cn-clap-actions">
+                    <Link href={`/p/${projectId}/assets`} className="btn btn-gold">Fabriquer les images</Link>
+                    <BoutonGenererImages projectId={projectId} etat={images} recharger={rechargerImages} />
+                    <Link href={`/p/${projectId}`} className="cn-lien">Voir le projet</Link>
+                  </span>
+                </span>
+              </div>
             ) : vueClap ? (
               <Link href={`/p/${projectId}`} className="cn-grand-clap" aria-label={`Voir le projet ${nomAffiche}`}>
                 <span className="cn-grand-clap-haut" aria-hidden="true" />

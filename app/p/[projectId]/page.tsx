@@ -10,6 +10,7 @@ import { SupprimerProjetBouton } from "@/components/projects/SupprimerProjetBout
 import { ProjectEditModal } from "@/components/projects/ProjectEditModal";
 import { BoutonAffiche } from "@/components/affiches/BoutonAffiche";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
+import { ProchaineEtape } from "@/components/images/ProchaineEtape";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,8 @@ export default async function VueSeriePage({ params }: { params: Promise<{ proje
             <SupprimerProjetBouton projectId={id} nom={projet.nom} />
           </div>
         </div>
+
+        <ProchaineEtape projectId={id} />
 
         <div className="tally">
           <div className="tally-item">

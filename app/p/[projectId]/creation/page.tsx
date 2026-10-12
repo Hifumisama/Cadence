@@ -10,6 +10,7 @@ import { lireConception } from "@/lib/conception-db";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
 import { lireBrief } from "@/lib/queries-agents";
+import { lireEtatImages } from "@/lib/queries-images";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function CreationPage({ params }: { params: Promise<{ proje
   const pid = Number(projectId);
   const [projet, premierEpisodeId] = await Promise.all([getProject(pid), getFirstEpisodeId(pid)]);
   if (!projet) notFound();
-  const [creation, conception, brief] = await Promise.all([lireVueCreation(pid), lireConception(db, pid), lireBrief(pid)]);
+  const [creation, conception, brief, images] = await Promise.all([lireVueCreation(pid), lireConception(db, pid), lireBrief(pid), lireEtatImages(pid)]);
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
   const styleBrief = brief?.contenu.style;
   const image = styleBrief?.image && existsSync(join(MEDIA_ROOT, "styles", styleBrief.image)) ? styleBrief.image : null;
@@ -41,7 +42,7 @@ export default async function CreationPage({ params }: { params: Promise<{ proje
         tabs={{ projectId: pid, episodeBase }}
       />
       <main>
-        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} />
+        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} imagesInitial={images} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} />
       </main>
     </>
   );

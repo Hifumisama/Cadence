@@ -26,7 +26,9 @@ import {
   loraParDefaut,
 } from "@/lib/asset-generation";
 import { styleDesImages } from "@/lib/conception";
+import { horsAffiches } from "@/lib/assets-visibles";
 import { adopterCandidat } from "@/lib/generation-adoption";
+import { idsSansImage } from "@/lib/images-projet";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "@/lib/generation-lot";
 import { TEXTE_REFERENCE_DEFAUT } from "@/lib/voix";
 import { supprimerGenerationEtFichiers } from "@/lib/generation-sources";
@@ -182,6 +184,19 @@ export async function lancerGenerationsLot(
   }
   revalidatePath("/", "layout");
   return { ok: true, lancees, ecartes };
+}
+
+/** « Générer toutes les images de référence » (clap de la préparation, bandeau « Prochaine étape », registre) : le lot ci-dessus
+ * appliqué à tous les assets à illustrer qui n'ont pas d'image (définition dans lib/images-projet.ts). Mêmes règles que le lot : prompt
+ * et format par défaut de chaque type, adoption automatique, assets déjà en file sautés. Un dérivé en édition dont le master n'a pas
+ * encore d'image est écarté (avec sa raison) : il part au clic suivant, une fois le master adopté. */
+export async function genererImagesManquantes(
+  projectId: number,
+): Promise<{ ok: true; lancees: number; ecartes: EcarteLot[] } | { ok: false; erreur: string }> {
+  const lignes = await db.select({ id: assets.id, type: assets.type, fichier: assets.fichier }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches));
+  const ids = idsSansImage(lignes);
+  if (ids.length === 0) return { ok: false, erreur: "Toutes les images de référence sont déjà là." };
+  return lancerGenerationsLot(projectId, ids);
 }
 
 /** Pose une demande de génération AUDIO (SFX, Stable Audio 3) dans la même file que
