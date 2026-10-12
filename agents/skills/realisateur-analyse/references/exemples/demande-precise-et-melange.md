@@ -54,7 +54,7 @@ Input (abridged): `"message": "C'est trop long, mais ne touche pas à la scène 
   "pistes": [
     {
       "titre": "Accélérer la scène 1",
-      "resume": "Sans le gros plan, le port peut s'établir plus vite : 5 à 7 secondes par plan.",
+      "resume": "Sans le gros plan, le port peut s'établir plus vite, avec des plans resserrés.",
       "operations": [
         {"type": "duree_plan", "plan": "P01", "secondes": 6},
         {"type": "duree_plan", "plan": "P02", "secondes": 6},
@@ -64,7 +64,7 @@ Input (abridged): `"message": "C'est trop long, mais ne touche pas à la scène 
     },
     {
       "titre": "Resserrer la scène 3",
-      "resume": "Le plan 12 peut ouvrir directement sur Maya debout ; le bateau n'a pas besoin de trois secondes de plus.",
+      "resume": "Le plan 12 peut ouvrir directement sur Maya debout ; le bateau n'a pas besoin de durer autant.",
       "operations": [
         {"type": "couper_plan", "plan": "P11"},
         {"type": "duree_plan", "plan": "P13", "secondes": 12}

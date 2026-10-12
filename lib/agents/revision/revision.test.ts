@@ -76,6 +76,32 @@ test("validation : les poignées deviennent des uuid, les inventions sont refus�
   assert.match(r.refusees[11]!.raison, /inconnue/);
 });
 
+test("validation : déplacer « avant » un plan = après son précédent (ou au début) ; un seul repère, jamais deux", () => {
+  const ok = validerOperations(
+    [
+      { type: "deplacer_plan", plan: "P05", avant: "P02" },
+      { type: "deplacer_plan", plan: "P05", avant: "P01" },
+    ],
+    vue,
+  );
+  assert.equal(ok.refusees.length, 0);
+  assert.deepEqual(ok.valides[0], { type: "deplacer_plan", planUuid: planUuid(5), position: { apresPlanUuid: planUuid(1) } });
+  assert.deepEqual(ok.valides[1], { type: "deplacer_plan", planUuid: planUuid(5), position: { debut: true } });
+
+  const mauvaises: OperationBrute[] = [
+    { type: "deplacer_plan", plan: "P05", avant: "P02", apres: "P01" },
+    { type: "deplacer_plan", plan: "P05", avant: "P02", position: "fin" },
+    { type: "deplacer_plan", plan: "P05", avant: "P05" },
+    { type: "deplacer_plan", plan: "P05", avant: "P06" },
+    { type: "deplacer_plan", plan: "P05", avant: "P77" },
+  ];
+  const r = validerOperations(mauvaises, vue);
+  assert.equal(r.valides.length, 0);
+  assert.equal(r.refusees.length, mauvaises.length);
+  assert.match(r.refusees[0]!.raison, /Un seul repère/);
+  assert.match(r.refusees[3]!.raison, /déjà juste avant/);
+});
+
 test("brouillon : les chiffres de la maquette, parcours « ressenti » (1:59 puis 1:50, 1:52, 2:00 pile)", () => {
   const coupes = [couper(5), couper(10), couper(2), couper(8)];
   assert.equal(gainSecondes(vue, coupes), 35);

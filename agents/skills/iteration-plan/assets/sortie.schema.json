@@ -7,8 +7,10 @@
     "dureeCoherente",
     "symptome",
     "cause",
+    "categorie",
     "confiance",
     "changements",
+    "verification",
     "abandon"
   ],
   "properties": {
@@ -40,7 +42,7 @@
         "modele",
         "autre"
       ],
-      "description": "`decoupage-scenario` = the cause is not in the prompt (to be handled separately): `changements` stays empty."
+      "description": "`decoupage-scenario` = the cause is not in the prompt (to be handled separately): `changements` stays empty. `modele` = the same symptom survived three corrections aimed at different causes (goes with `abandon.propose`). `autre` = a cause that fits no other category."
     },
     "confiance": {
       "type": "string",

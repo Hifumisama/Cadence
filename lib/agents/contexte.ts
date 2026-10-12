@@ -413,7 +413,6 @@ export async function entreePlanH3(
         titre: p.titre,
         intention: p.description ?? "",
         positionDansLaScene: dansLaScene.length > 0 ? `${rang + 1}/${dansLaScene.length}` : "",
-        dureeViseeSecondes: p.dureeGenerationSecondes,
         fps: p.fps,
       },
       // La scène n'a pas de texte narratif en base : son contenu, ce sont les intentions de ses plans, dans l'ordre.

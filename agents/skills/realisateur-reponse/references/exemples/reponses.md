@@ -1,4 +1,4 @@
-# Example — three replies from the facts
+# Example — six replies from the facts
 
 ## 1. Options to choose from (the user gave a feeling)
 
@@ -21,7 +21,7 @@
 
 ```json
 {
-  "reponse": "J'ai noté D3 : « Je ne reviendrai pas. ». Mais j'y vois un conflit avec D1 : on a coupé le plan 08 parce que la réplique du 07 disait déjà ce que l'insert montre, et plus sobre elle le dit moins bien. Ça bloque l'application tant qu'on n'a pas tranché. Trois sorties : on garde le 08 et la réplique sobre, on garde la réplique actuelle, ou on sacrifie le 08. À noter aussi : la fiche du plan 07 devra être resynchronisée, et son rendu sera périmé."
+  "reponse": "J'ai noté D3 (la réplique du 07, plus sobre). Mais j'y vois un conflit avec D1 : on a coupé le plan 08 parce que la réplique du 07 disait déjà ce que l'insert montre, et plus sobre elle le dit moins bien. Ça bloque l'application tant qu'on n'a pas tranché. Trois sorties : on garde le 08 et la réplique sobre, on garde la réplique actuelle, ou on sacrifie le 08. À noter aussi : la fiche du plan 07 devra être resynchronisée, et son rendu sera périmé."
 }
 ```
 

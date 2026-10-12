@@ -1,49 +1,46 @@
 # H3 / Hailuo 3 corrections lexicon
 
-> Every line cost a render. Source: real production of "Les Yeux de Rubis", episode 1, and the Singularity A/B bench (2026-10-11, project 43, plans noted "bench").
-> Format: **symptom → cause → wording that holds** · plan where observed.
-> This file grows with each proven correction (see Step 7 of the chat skill `.claude/skills/fiche-de-plan`). Never add an untested hypothesis.
+> Every line cost a render. Format: **symptom → cause → wording that holds**. Loaded by `iteration-plan` (to link a symptom on screen to its cause); the writing rules of `plan-h3` carry the same lessons as rules. A line enters this file only after a render proved it.
 
-## §1 — Cutting and cadence
+## Cutting and cadence
 
-- **Intense action written in 1–2 shots → flat edit, fear or energy unreadable.** Cut cadence must follow intensity, not duration. Panicked run: one `[Shot]` every 1.5–2 s, distinct angles (eye level, ground, canted front, rear high-angle, high wide, low-angle). Far more dynamic and readable than a single take · SHOT 23 (plan 310).
-- **Shot under ~1.5 s → H3 ignores the raw timecode and stretches or smooths the plan.** Spread durations with explicit per-shot instructions and stay at 1.5 s minimum · plan 110.
-- **Multi-beat description without `Hard cut` or distinct angles → one smoothed movement.** Each shot: `Hard cut`, timecode, its own angle · plans 110, 125.
-- **A fight cut into single-blow shots of 1.5 s (8–10 cuts in 15 s) → flat, no exchange; 1.5 s shots holding 4–5 actions → smeared.** A shot of 2.5–4 s holding one linked exchange (2–4 blows), the camera moving inside it, stays readable · bench, 10 shots and 9 shots vs 5 and 4 shots.
-- **What matters at a cut is the match, not only the count.** The same fight chained logically in 8 shots of 1.5–2 s, cut at the contact on a single fighter (close-up of the floor, of the face), had the end of each movement and the start of the next not matching (CD). In 4 shots of 3–4 s with the camera moving inside (CE) the shots followed one another far more logically, and the camera supplied the dynamism. 6 shots of 2–3 s written by the agent with elements (CG) were clean too, because each shot opens on the last gesture of the previous one (the flames hit the stone → the slab cracking under them), with both fighters in frame · gesture bench, plans CC, CD, CE, CG of project 212.
-- **Two characters, sides not stated → the sides flip between cuts.** One sentence in `ouverture` fixes who is left and right; kept in every two-person view, it held to the end · bench, before and after.
-- **Cut to a single character on the instant of a blow → the contact is never seen and the next shot starts afresh.** Both in frame at contact, next shot opened mid-gesture · bench, agent plan vs rewrite.
-- **The name of a martial move, alone, does not drive the render.** Six moves × three wordings (name in its own language, plain English name, name + description of the mechanics): the move is rendered when the name resonates with a known one (roundhouse, lunge punch), and the name + description version is always the cleanest and most impactful; a name the model does not know (ashi barai) gives nothing. The description alone works as well as name + description (tested by the user afterwards). **What makes the scene is the logical link between the gestures**: she crouches, her leg sweeps the ankles, he takes it on his leg and falls. In the bench, the opponent's reaction was the same fixed sentence for every move (a forearm block); against the low sweep it contradicted the blow and the clip became a split · gesture bench, project 212.
-- **Too long a prompt blurs the plan.** About 12,000 characters was the least readable; under 7,000 characters was clearly better · bench, long vs compact versions.
-- **A slow-motion hold at the decisive blow holds on screen**: "the frame slows almost to stillness for a heartbeat, dust and embers hanging in the air, then time snaps back", with a close-up on the receiving face · bench.
-- **Deliberate continuous gesture: do not cut it.** The slap in one movement (plans 240+250+260) and the landing after the jump (140+150) hold by continuity; note them as such.
-- **Calm by contrast.** The listening plans (330 to 360) only hold because the run before them cuts fast. Write in pairs: fast cadence during tension, slow cadence for the release and the final rhyme.
-- **Prey / predator camera grammar.** Prey: shoulder cam, canted, low angles, short cuts, a crowd you crash into. Predator: locked camera, symmetrical frame, steady stride, a crowd that parts · plans 310 vs 370.
+- **Intense action in 1–2 shots → flat edit, energy unreadable.** Cadence follows intensity: a panicked run takes one shot every 1.5–2 s, each with its own angle (eye level, ground, canted front, rear high-angle, high wide).
+- **Shot under ~1.5 s → H3 ignores the timecode and stretches or smooths.** Keep 1.5 s at least, or move the effect into a camera movement.
+- **Several beats without a hard cut or distinct angles → one smoothed movement.** Each shot: `Hard cut`, timecode, its own angle.
+- **Fight cut into single-blow shots (8–10 cuts in 15 s) → no exchange; 1.5 s shots holding 4–5 actions → smeared.** A shot of 2.5–4 s holding one linked exchange (2–4 blows), with the camera moving inside it, stays readable.
+- **Cuts that do not match → each shot starts afresh.** Open each shot on the last gesture of the previous one (the flames hit the stone → the slab cracking under them), with both fighters in frame.
+- **Sides not stated → they flip between cuts.** One sentence in `ouverture` fixes who is left and right; keep it in every two-person view.
+- **Cut to one character at the instant of a blow → the contact is never seen.** Both in frame at contact, the next shot opened mid-gesture.
+- **A martial move named alone → the name does not drive the render.** Name + description of the mechanics works best; the description alone works as well. The receiver's reaction must follow from the blow (a low sweep takes the legs from under him; a forearm block against it makes a split clip).
+- **Prompt too long → the plan blurs.** About 12,000 characters was the least readable; under 7,000 was clearly better. Correct by cutting.
+- **A slow-motion hold at the decisive blow → holds on screen.** "The frame slows almost to stillness for a heartbeat, dust and embers hanging in the air, then time snaps back", with a close-up on the receiving face.
+- **Deliberate continuous gesture → it holds by continuity in one shot** (a slap in one movement, a landing after a jump); cuts frame what comes before and after.
+- **Calm without contrast → no weight.** Slow cadence only works after a fast one: write plans in pairs.
+- **Prey / predator grammar.** Prey: shoulder cam, canted, low angles, short cuts, a crowd you crash into. Predator: locked camera, symmetrical frame, steady stride, a crowd that parts.
 
-## §2 — Light and end state
+## Light and end state
 
-- **Light drop described globally → the whole image goes to black.** Describe exposure as constant between two dated events, and have a visible gesture carry each change · plan 30.
-- **Light match between two internal `[Shot]`s → does not hold.** Describe the end state of the first and the start state of the second separately, or remove the cut · plan 30.
-- **A `<Picture N>` is not a first frame.** An image showing a state to be reached must be declared as an end state, otherwise the model places it at the opening and skips the build-up.
+- **Light drop described globally → the whole image goes to black.** Describe exposure as constant between two dated events, and have a visible gesture carry each change.
+- **Light matched across two internal shots → does not hold.** Describe the end state of the first and the start state of the second separately, or remove the cut.
+- **A reference image shows a state to be reached → the model places it at the opening and skips the build-up.** Declare it as an end state in `definition` `[official guide]`.
 
-## §3 — Negative instructions
+## Negative instructions
 
-- **A negative instruction produces what it forbids.** Always rephrase as the wanted state. Example: the word `empty` in an end-of-plan description is enough to empty the room · plan 30.
-- **Do not write "dagger not visible".** Write what is visible: "fingers settle on the leather strap" · SHOT 24.
+- **A negative instruction produces what it forbids.** Rephrase as the wanted state: the word `empty` in an end-of-plan description empties the room; "dagger not visible" becomes "fingers settle on the leather strap".
 
-## §4 — Camera and close-ups
+## Camera and close-ups
 
-- **A mention of walking or travel in an extreme close-up makes the background scroll behind the character.** Describe the camera as locked and the background as still whenever a plan is meant to be static · plans 320, 330, 340.
-- **Push-in or dolly on a reveal → the model "rushes" the subject.** Forbid the movement on reveals by describing a held camera, then a clean pan · plan 110.
-- **Precision vocabulary freezes a character** (`planted`, `isolated`, `square`, `exact`, `contained`): avoid it on any moving character.
+- **Walking or travel mentioned in an extreme close-up → the background scrolls.** Describe the camera as locked and the background as still whenever a plan is meant to be static.
+- **Push-in or dolly on a reveal → the model rushes the subject.** Held camera, then a clean pan.
+- **Precision vocabulary (`planted`, `isolated`, `square`, `exact`, `contained`) → a moving character freezes.** Reserve it for a character who stays still.
 
-## §5 — Crowd, extras, sets
+## Crowd, extras, sets
 
-- **Far extras smear at low resolution.** Prefer framings where the front row is large in the image, or a close balcony view rather than a distant wide shot · SHOT 23.
-- **A set reference without extras cannot be declared as an end state: the model empties the plan of its characters.** Describe the final state in text, and convey the extras' presence through what the light reveals (silhouettes cut out against a lit area) · plan 30, SHOT 23b.
-- **A populated set and an empty set are two assets.** A populated reference populates plans that should be empty: create a derivative of the master rather than overwrite it · bazaar alleys.
+- **Far extras → smeared at low resolution.** Frame with the front row large, or a close balcony view.
+- **A set image declared as an end state → the plan loses its characters.** Describe the final state in text and show the extras through what the light reveals (silhouettes against a lit area).
+- **A populated set used for an empty-room plan → the room fills up.** Create a separate asset (starting image: the populated set).
 
-## §6 — Voice and durations
+## Voice and durations
 
-- **A line that is too long cannot be fixed in editing.** Measure the voice takes' durations before writing the plan, and split if the total exceeds the H3 ceiling (case 270 → 271/274/277).
-- **Cuts of a dialogue plan: fit them to the real takes, never the reverse.** Place the cut on a meaning boundary (just before the key sentence) · SHOT 25.
+- **A line too long for the plan → no fix in editing.** Measure the voice takes before writing, and split if the total exceeds the H3 ceiling.
+- **Cuts of a dialogue plan → fit them to the real takes**, on a meaning boundary (just before the key sentence).

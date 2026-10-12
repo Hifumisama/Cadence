@@ -29,6 +29,7 @@ The application assembles the input. Nothing is guessed.
   - `repliques`: the lines said in the plan (`R01`…);
   - `brouillon`: what the **current draft** does to it — `{"coupe": true}` (already cut), `{"dureeSecondes": n}` (duration changed), or `null`.
 - **`repliques`**: each with `ref`, speaker, exact text, the plans that say it, and the state of its audio take (`aucune`, `posée`, `validée`).
+- **`locuteursConnus`**: the codes of the project's characters and voices, the possible speakers of an added line.
 - **`decisions`**: the draft so far — `id` (`D1`…), title, reason, status, **its operations written exactly as you write them**, and its warnings.
 - **`prochainId`**: the id the next **new** decision will get (then the following ones, in order).
 - **`pistesEnAttente`**: options proposed at an earlier turn and not chosen yet, numbered from 1.
@@ -56,7 +57,7 @@ Every operation is an object with a `type` and only the fields that type uses.
 |---|---|---|
 | `couper_plan` | `plan` | delete the plan |
 | `duree_plan` | `plan`, `secondes` | new duration, a whole number within `limites` |
-| `deplacer_plan` | `plan`, and `apres` (a plan ref) **or** `position` (`"debut"` / `"fin"`) | move the plan; it joins the scene of the plan it follows |
+| `deplacer_plan` | `plan`, and **one** placement: `avant` (a plan ref) **or** `apres` (a plan ref) **or** `position` (`"debut"` / `"fin"`) | move the plan; it joins the scene of the plan it follows. "Mets le 5 avant le 2" is `"avant": "P02"`, "mets le 9 après le 3" is `"apres": "P03"` |
 | `modifier_plan` | `plan`, `titre` and/or `description` | rewrite the title or the description |
 | `remplacer_replique` | `replique`, `texte` and/or `locuteur` | rewrite a line (and/or change its speaker) |
 | `supprimer_replique` | `replique` | delete a line |
@@ -97,3 +98,12 @@ One sentence per judgment, in French, naming the plans and lines by their refere
 - `retirer` only when the user withdraws something ("finalement non").
 - When you re-post a decision that carried a `narratif`, add the `narratif` again only if the problem still stands: the application forgets the old judgments of a decision you re-post.
 - The ids of new decisions follow `prochainId`, in the order of `decisions[]` (only the ones without an `id`).
+
+## Before you answer
+
+- Every `P…`, `R…`, `D…` you write exists in the input (or is the next `prochainId` for a new decision).
+- A decision has an `id` only when you re-post an existing one, with its complete list of operations.
+- A choice among pending options is `retenirPistes` alone, with no copied operation.
+- A plan is kept by re-posting the decision that cuts it, or by `retirer` (every decision carries real operations).
+- Every `ajouter_plan` has `secondes` and one place; every `deplacer_plan` has exactly one placement.
+- Each `resume` says in words which plans and why; the application adds the durations.

@@ -104,15 +104,15 @@
                     },
                     "apres": {
                       "type": "string",
-                      "description": "The reference of the plan AFTER which the plan is placed (\"après le plan 3\", \"entre le plan 3 et le plan 4\" = P03)."
+                      "description": "Move the plan right AFTER this plan (\"mets le 9 après le 3\" = P03). One placement only: avant, apres or position."
                     },
                     "avant": {
                       "type": "string",
-                      "description": "The reference of the plan BEFORE which the plan is placed (\"juste avant le plan 1\" = P01). Several new plans at the same spot: list them in reading order with the same avant."
+                      "description": "Move the plan right BEFORE this plan (\"mets le 5 avant le 2\" = P02). One placement only: avant, apres or position."
                     },
                     "position": {
                       "type": "string",
-                      "description": "\"debut\" or \"fin\": the start or the end of the episode.",
+                      "description": "\"debut\" or \"fin\": move the plan to the start or the end of the episode. One placement only: avant, apres or position.",
                       "enum": [
                         "debut",
                         "fin"
@@ -397,15 +397,15 @@
                     },
                     "apres": {
                       "type": "string",
-                      "description": "The reference of the plan AFTER which the plan is placed (\"après le plan 3\", \"entre le plan 3 et le plan 4\" = P03)."
+                      "description": "Move the plan right AFTER this plan (\"mets le 9 après le 3\" = P03). One placement only: avant, apres or position."
                     },
                     "avant": {
                       "type": "string",
-                      "description": "The reference of the plan BEFORE which the plan is placed (\"juste avant le plan 1\" = P01). Several new plans at the same spot: list them in reading order with the same avant."
+                      "description": "Move the plan right BEFORE this plan (\"mets le 5 avant le 2\" = P02). One placement only: avant, apres or position."
                     },
                     "position": {
                       "type": "string",
-                      "description": "\"debut\" or \"fin\": the start or the end of the episode.",
+                      "description": "\"debut\" or \"fin\": move the plan to the start or the end of the episode. One placement only: avant, apres or position.",
                       "enum": [
                         "debut",
                         "fin"

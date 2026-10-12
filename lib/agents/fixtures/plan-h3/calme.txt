@@ -1,23 +1,25 @@
 subject_definitions:
-<Subject 1> is Maya from <Picture 1>, in her dancer's costume, alert, hearing distant voices.
-<Subject 2> is the two cloaked, hooded figures from <Picture 2>, dark cloaks pulled over their faces, faintly visible one alley over.
-<Subject 3> is the concealed dagger from <Picture 3>, its hilt hidden at Maya's waist.
-<Subject 4> is the hidden medina alley passage from <Picture 4>, ochre-plastered walls under striped cloth awnings, in faint moonlight.
+<Subject 1> is Maya from <Picture 1>, in her deep-red dancer's costume with a gilded corset, ruby eyes, alert and still.
+<Subject 2> is the first hooded figure from <Picture 2>, in a dark cloak with the hood pulled over the face, standing far off.
+<Subject 3> is the second hooded figure from <Picture 3>, in a dark cloak with the hood pulled over the face, standing far off.
+<Subject 4> is the concealed dagger from <Picture 4>, a short utilitarian combat dagger, hilt hidden under a leather strap at Maya's belt.
+<Subject 5> is the hidden medina alley passage from <Picture 5>, ochre-plastered walls under striped cloth awnings, in faint moonlight.
 
 summary:
-[reference generation] The target video shows <Subject 1> catching sight of <Subject 2> in the distance within <Subject 4> and instinctively moving two fingers toward <Subject 3>.
+[reference generation] The target video shows <Subject 1> catching sight of <Subject 2> and <Subject 3> in the distance within <Subject 5> and moving two fingers toward <Subject 4>.
 
 retention_analysis:
 <Subject 1> (appears in [Shot 1]): fully_preserved - Maya's identity and controlled alertness are retained.
-<Subject 2> (appears in [Shot 1]): weak_reference - only their distant, cloaked silhouettes register in low moonlight.
-<Subject 3> (appears in [Shot 1]): fully_preserved - the dagger and its position remain concealed but referenced by the gesture.
-<Subject 4> (appears in [Shot 1]): fully_preserved - the passage's moonlit shadow and medina architecture are retained.
+<Subject 2> (appears in [Shot 1]): weak_reference - only the distant cloaked silhouette registers in low moonlight.
+<Subject 3> (appears in [Shot 1]): weak_reference - only the distant cloaked silhouette registers in low moonlight.
+<Subject 4> (appears in [Shot 1]): fully_preserved - the dagger and its position remain hidden and are referenced by the gesture.
+<Subject 5> (appears in [Shot 1]): fully_preserved - the passage's moonlit shadow and medina architecture are retained.
 
 detailed_description:
-Cinematic anime style, refined linework, faint moonlight against deep shadow. [Shot 1] A medium close shot holds on <Subject 1>, Maya, her head turning slightly as she catches the sound of distant voices. One alley over within <Subject 4>, <Subject 2>, two cloaked, hooded figures, are barely visible in the faint moonlight beneath a striped awning, faces obscured. Without breaking her stillness, Maya's fingers drift slowly and precisely toward her waist, toward <Subject 3>, the concealed dagger, the same cold precision she showed scanning the inn's room earlier. Her body stays otherwise motionless, controlled, invisible in the shadow.
+Cinematic anime style, refined linework, faint moonlight against deep shadow. [Shot 1] A medium close static shot, the camera locked and the background still, holds on <Subject 1>, Maya, her head turning slightly toward distant voices. One alley over within <Subject 5>, <Subject 2> and <Subject 3>, two hooded figures, stand barely visible in the faint moonlight beneath a striped awning. Maya's fingers drift slowly and precisely toward her waist, toward <Subject 4>, the concealed dagger, while the rest of her body stays motionless in the shadow.
 
 overall_soundscape:
-Muffled distant voices carry faintly from the neighboring alley, otherwise near-total stillness on Maya's side.
+Muffled distant voices carry faintly from the neighboring alley, the night air otherwise quiet.
 
 non_diegetic_music:
-N/A — tension carried by silence rather than score.
+N/A

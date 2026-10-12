@@ -4,7 +4,7 @@ Same episode "Le sel". Turns 1 to 3 follow one another; turns 4 and 5 are indepe
 
 ## 1. Choosing among pending options
 
-Input (abridged): `pistesEnAttente` has three options (1: cut P05, P10, P02, P08 · 2: shorten P06, P07, P09 · 3: speed up scene 1 with P01 → 6 s, P03 → 7 s). `decisions`: empty. `prochainId`: `"D1"`. `"message": "Combine la 1 et la 3."`
+Input (abridged): `pistesEnAttente` has three options (1: cut P05, P10, P02, P08 · 2: shorten P06, P07, P09 · 3: speed up scene 1 with P01 → 6 s, P02 → 6 s, P03 → 7 s, P05 → 5 s). `decisions`: empty. `prochainId`: `"D1"`. `"message": "Combine la 1 et la 3."`
 
 Nothing else to say: the options become decisions in the application.
 
@@ -14,7 +14,7 @@ Nothing else to say: the options become decisions in the application.
 
 ## 2. A new precise request that contradicts an earlier decision
 
-Input (abridged): `decisions` = `D1` "Couper quatre plans d'ambiance" (cuts P05, P10, P02, P08) and `D2` "Accélérer la scène 1" (P01 → 6 s, P03 → 7 s). `prochainId`: `"D3"`. R01 = "Je ne reviendrai jamais." (said in P07). `"message": "Plan 07 : une réplique plus sobre."`
+Input (abridged): `decisions` = `D1` "Couper quatre plans d'ambiance" (cuts P05, P10, P02, P08) and `D2` "Accélérer la scène 1" (P01 → 6 s, P02 → 6 s, P03 → 7 s, P05 → 5 s). `prochainId`: `"D3"`. R01 = "Je ne reviendrai jamais." (said in P07). `"message": "Plan 07 : une réplique plus sobre."`
 
 One new decision (it will be `D3`). And a **story judgment** on it: `D1` cut P08 because the line of P07 already says what the insert shows; a plainer line says it less well.
 

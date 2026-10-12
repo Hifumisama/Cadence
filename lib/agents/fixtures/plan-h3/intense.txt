@@ -1,19 +1,19 @@
 subject_definitions:
-<Subject 1> is Maya from <Picture 1>, in her dancer's costume, running, her usual lightness replaced by panic, then stopping to catch her breath.
-<Subject 2> is the bazar's nocturnal Persian/Arab-style back alleys from <Picture 2>, narrow passages under striped cloth awnings, ochre-plastered walls, chipped zellige tilework, horseshoe archways, shuttered stalls, wet cobblestones under moonlight.
+<Subject 1> is Maya from <Picture 1>, in her deep-red dancer's costume with a gilded corset, ruby eyes, breathless and dishevelled.
+<Subject 2> is the bazar's nocturnal back alleys from <Picture 2>, narrow passages under striped cloth awnings, ochre-plastered walls, chipped zellige tilework, horseshoe archways, shuttered stalls, wet cobblestones under moonlight.
 
 summary:
-[reference generation] The target video shows <Subject 1> plunging into <Subject 2>, her steps heavy and erratic, then leaning against a damp stone wall in a hidden side passage to catch her breath.
+[reference generation] The target video shows <Subject 1> plunging into <Subject 2> in a panicked run, glancing back, slipping past walls and stalls, then leaning against a damp stone wall in a side passage to catch her breath.
 
 retention_analysis:
-<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - Maya's identity and physical state are retained across both shots.
-<Subject 2> (appears in [Shot 1], [Shot 2]): fully_preserved - the medina-style alley architecture and moonlit shadows are retained.
+<Subject 1> (appears in [Shot 1], [Shot 2], [Shot 3], [Shot 4], [Shot 5], [Shot 6]): fully_preserved - Maya's identity and physical state are retained across all shots.
+<Subject 2> (appears in [Shot 1], [Shot 4]): fully_preserved - the medina-style alley architecture and moonlit shadows are retained.
 
 detailed_description:
-Cinematic anime style, refined linework, cold moonlight against deep shadow. [Shot 1] A wide shot follows <Subject 1>, Maya, running into <Subject 2>, the maze of the bazar's back alleys — narrow passages winding beneath striped cloth awnings strung overhead, their fabric ghost-pale in the moonlight, ochre-plastered walls broken by chipped zellige tilework and shuttered horseshoe-arched stalls closed for the night. Her steps land heavy and erratic against the wet cobblestones, a sharp contrast to her usual dancer's lightness. Moonlight catches her costume in fragments between deep pools of shadow as she cuts between the narrow passages, her breath visible in ragged bursts. A muffled echo of the service door slamming shut carries behind her from off-frame. [Shot 2] At 00:07.000, Hard cut to a medium close static shot of <Subject 1> as she stops and leans back against a damp stone wall in a hidden side passage of <Subject 2>, unlit copper lanterns hanging cold and dark above her. Her shoulders rise and fall sharply with each labored breath, her chest heaving beneath the still-disheveled costume. She tips her head back briefly against the cold stone, eyes closing for a single instant of forced stillness.
+Cinematic anime style, refined linework, cold moonlight against deep shadow. [Shot 1] A wide shot follows <Subject 1>, Maya, from the front as she runs toward the camera down the central alley of <Subject 2>, her ruby eyes fixed on the way ahead. Her steps land heavy and erratic on the wet cobblestones and the camera backs away at the same speed, keeping her centred in the frame. [Shot 2] At 00:02.000, Hard cut to a ground-level shot of the feet of <Subject 1>, Maya, slapping through a shallow puddle, water spraying sideways in the moonlight, the camera sliding along the cobblestones just ahead of her stride. [Shot 3] At 00:03.500, Hard cut to a canted close-up of the face of <Subject 1>, Maya, from the front, her head snapping to look over her shoulder, her breath puffing out in ragged bursts, a strand of hair stuck to her cheek. [Shot 4] At 00:05.500, Hard cut to a high-angle shot from behind and above <Subject 1>, Maya, as she cuts left through a narrow passage of <Subject 2>, one hand slapping the ochre wall to steer her turn, awnings flicking past overhead. [Shot 5] At 00:07.500, Hard cut to a high wide shot over the rooftops showing <Subject 1>, Maya, as a small figure darting between shuttered stalls, the alley branching in three directions below her, the sound of a service door slamming shut far behind. [Shot 6] At 00:09.500, Hard cut to a medium close static shot, the camera locked and the background still, of <Subject 1>, Maya, stopping and leaning back against a damp stone wall in a hidden side passage, unlit copper lanterns hanging dark above her. Her shoulders rise and fall with each labored breath, and she tips her head back against the cold stone, eyes closing for an instant.
 
 overall_soundscape:
-Heavy, uneven footsteps splash against wet cobblestones, the distant echo of a slamming door fading behind her, giving way to Maya's labored breathing and faint distant bazar ambiance.
+A faint murmur of the distant bazar drifts over the rooftops, a low hum of voices and cloth shifting in the night air.
 
 non_diegetic_music:
-The tense string pulse continues, low and unresolved through the run, fading down to near silence as her breathing slows.
+Low strings at a fast pulse of about 110 bpm, fading to near silence over the last two seconds.

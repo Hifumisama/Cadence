@@ -42,7 +42,7 @@ The user gives a **feeling**, not an action: no decision, **three different opti
     },
     {
       "titre": "Resserrer les plans les plus longs",
-      "resume": "Aucun plan ne disparaît : on retire deux ou trois secondes aux plus longs.",
+      "resume": "Aucun plan ne disparaît : on resserre les plus longs.",
       "operations": [
         {"type": "duree_plan", "plan": "P06", "secondes": 12},
         {"type": "duree_plan", "plan": "P07", "secondes": 13},
@@ -51,7 +51,7 @@ The user gives a **feeling**, not an action: no decision, **three different opti
     },
     {
       "titre": "Accélérer la scène 1",
-      "resume": "Le port s'établit vite : chaque plan de la scène dure entre 5 et 7 secondes, sans rien couper.",
+      "resume": "Le port s'établit vite : chaque plan de la scène est resserré, sans rien couper.",
       "operations": [
         {"type": "duree_plan", "plan": "P01", "secondes": 6},
         {"type": "duree_plan", "plan": "P02", "secondes": 6},

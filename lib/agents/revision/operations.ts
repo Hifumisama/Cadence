@@ -136,7 +136,29 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
       valides.push({ type: "duree_plan", planUuid: p.uuid, secondes: s });
     } else if (b.type === "deplacer_plan") {
       let position: Position | null = null;
-      if (b.apres) {
+      // « avant », « apres » et « position » sont des alternatives : un seul repère par déplacement.
+      if ([b.avant, b.apres, b.position].filter(Boolean).length > 1) {
+        refuse(b, `Un seul repère pour déplacer ${p.handle} : « avant » un plan, « apres » un plan, ou « position » debut / fin.`);
+        continue;
+      }
+      if (b.avant) {
+        const cible = planParPoignee(vue, b.avant);
+        if (!cible) {
+          refuse(b, `Repère « ${b.avant} » introuvable pour déplacer ${p.handle}.`);
+          continue;
+        }
+        if (cible.uuid === p.uuid) {
+          refuse(b, `${p.handle} ne peut pas être placé avant lui-même.`);
+          continue;
+        }
+        // « Avant P02 » = après le plan qui précède P02 (ou au début s'il est le premier).
+        const precedent = vue.plans[cible.position - 2];
+        if (precedent?.uuid === p.uuid) {
+          refuse(b, `${p.handle} est déjà juste avant ${cible.handle}.`);
+          continue;
+        }
+        position = precedent ? { apresPlanUuid: precedent.uuid } : { debut: true };
+      } else if (b.apres) {
         const cible = planParPoignee(vue, b.apres);
         if (!cible) {
           refuse(b, `Repère « ${b.apres} » introuvable pour déplacer ${p.handle}.`);
@@ -150,7 +172,7 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
       } else if (b.position === "debut") position = { debut: true };
       else if (b.position === "fin") position = { fin: true };
       if (!position) {
-        refuse(b, `Où placer ${p.handle} ? Il faut « après un plan », « debut » ou « fin ».`);
+        refuse(b, `Où placer ${p.handle} ? Il faut « avant un plan », « après un plan », « debut » ou « fin ».`);
         continue;
       }
       valides.push({ type: "deplacer_plan", planUuid: p.uuid, position });

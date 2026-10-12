@@ -1,41 +1,27 @@
-# Example — Held tension — held plan, locked camera, close-up
+# Example — Held tension — one held shot, locked camera, close-up
 
-> Real plan from episode 1 ("Les Yeux de Rubis"), rendered and validated in production. This block shows the plan **as you must return it**: the JSON draft. The code derives the final prompt from it (labels, `[Shot N]`, timecodes, "Hard cut to").
+> A 6 s plan: Maya listens and her hand drifts toward her dagger. One held shot; the calm plays out over time. Each hooded silhouette is its own asset. This block shows the draft **as you must return it**; the code derives the final prompt from it (labels, `[Shot N]`, timecodes, "Hard cut to").
 
-| Edit duration | Generation duration | FPS | Mode |
-|---|---|---|---|
-| 6 s | 6 s | 24 | full-reference |
-
-**References (4)**
-| Asset | Nature | Role in the plan |
-|---|---|---|
-| `CHAR_maya` | image | Maya, à l'écoute |
-| `HUM_silhouettes_encapuchonnees` | image | Silhouettes lointaines |
-| `PROP_dague_maya` | image | Détail du geste vers la dague |
-| `DEC_ruelles_bazar` | image | Décor, passage dérobé de médina |
-
-**Rendered draft**
 ```json
 {
   "titre": "Maya, à l'écoute dans la ruelle",
   "dureeSecondes": 6,
   "references": [
-    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, à l'écoute", "nom": "Maya", "definition": "in her dancer's costume, alert, hearing distant voices.", "retentionNote": "Maya's identity and controlled alertness are retained."},
-    {"asset": "HUM_silhouettes_encapuchonnees", "nature": "image", "role": "Silhouettes lointaines", "nom": "the two cloaked, hooded figures", "definition": "dark cloaks pulled over their faces, faintly visible one alley over.", "retention": "weak_reference", "retentionNote": "only their distant, cloaked silhouettes register in low moonlight."},
-    {"asset": "PROP_dague_maya", "nature": "image", "role": "Détail du geste vers la dague", "nom": "the concealed dagger", "definition": "its hilt hidden at Maya's waist.", "retentionNote": "the dagger and its position remain concealed but referenced by the gesture."},
+    {"asset": "CHAR_maya", "nature": "image", "role": "Maya, à l'écoute", "nom": "Maya", "definition": "in her deep-red dancer's costume with a gilded corset, ruby eyes, alert and still.", "retentionNote": "Maya's identity and controlled alertness are retained."},
+    {"asset": "CHAR_silhouette_gauche", "nature": "image", "role": "Première silhouette lointaine", "nom": "the first hooded figure", "definition": "in a dark cloak with the hood pulled over the face, standing far off.", "retention": "weak_reference", "retentionNote": "only the distant cloaked silhouette registers in low moonlight."},
+    {"asset": "CHAR_silhouette_droite", "nature": "image", "role": "Seconde silhouette lointaine", "nom": "the second hooded figure", "definition": "in a dark cloak with the hood pulled over the face, standing far off.", "retention": "weak_reference", "retentionNote": "only the distant cloaked silhouette registers in low moonlight."},
+    {"asset": "PROP_dague_maya", "nature": "image", "role": "Détail du geste vers la dague", "nom": "the concealed dagger", "definition": "a short utilitarian combat dagger, hilt hidden under a leather strap at Maya's belt.", "retentionNote": "the dagger and its position remain hidden and are referenced by the gesture."},
     {"asset": "DEC_ruelles_bazar", "nature": "image", "role": "Décor, passage dérobé de médina", "nom": "the hidden medina alley passage", "definition": "ochre-plastered walls under striped cloth awnings, in faint moonlight.", "retentionNote": "the passage's moonlit shadow and medina architecture are retained."}
   ],
-  "summary": "The target video shows [[CHAR_maya]] catching sight of [[HUM_silhouettes_encapuchonnees]] in the distance within [[DEC_ruelles_bazar]] and instinctively moving two fingers toward [[PROP_dague_maya]].",
+  "summary": "The target video shows [[CHAR_maya]] catching sight of [[CHAR_silhouette_gauche]] and [[CHAR_silhouette_droite]] in the distance within [[DEC_ruelles_bazar]] and moving two fingers toward [[PROP_dague_maya]].",
   "ouverture": "Cinematic anime style, refined linework, faint moonlight against deep shadow.",
   "shots": [
-    {"debutSecondes": 0, "texte": "A medium close shot holds on [[CHAR_maya]], Maya, her head turning slightly as she catches the sound of distant voices. One alley over within [[DEC_ruelles_bazar]], [[HUM_silhouettes_encapuchonnees]], two cloaked, hooded figures, are barely visible in the faint moonlight beneath a striped awning, faces obscured. Without breaking her stillness, Maya's fingers drift slowly and precisely toward her waist, toward [[PROP_dague_maya]], the concealed dagger, the same cold precision she showed scanning the inn's room earlier. Her body stays otherwise motionless, controlled, invisible in the shadow."}
+    {"debutSecondes": 0, "texte": "A medium close static shot, the camera locked and the background still, holds on [[CHAR_maya]], Maya, her head turning slightly toward distant voices. One alley over within [[DEC_ruelles_bazar]], [[CHAR_silhouette_gauche]] and [[CHAR_silhouette_droite]], two hooded figures, stand barely visible in the faint moonlight beneath a striped awning. Maya's fingers drift slowly and precisely toward her waist, toward [[PROP_dague_maya]], the concealed dagger, while the rest of her body stays motionless in the shadow."}
   ],
-  "overall_soundscape": "Muffled distant voices carry faintly from the neighboring alley, otherwise near-total stillness on Maya's side.",
-  "non_diegetic_music": "N/A — tension carried by silence rather than score.",
+  "overall_soundscape": "Muffled distant voices carry faintly from the neighboring alley, the night air otherwise quiet.",
+  "non_diegetic_music": "N/A",
   "repliques": [],
   "assetsManquants": [],
-  "notes": ""
+  "notes": "Un seul shot tenu, caméra verrouillée : le calme se joue dans la durée."
 }
 ```
-
-**Notes** — Same appraising-gaze logic as a neighbouring plan: identical restraint in staging, minimal gesture, so the link between the two moments stays readable without dialogue. A single held shot: the calm plays out over time.
