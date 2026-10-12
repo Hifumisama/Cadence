@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Icone } from "@/components/ui/Icone";
 
-export type EntreeSommaire = { id: string; label: string; compte?: number; aConfirmer?: boolean };
+export type EntreeSommaire = { id: string; label: string; compte?: number };
 
 /** Sommaire de la page du brief : un rail collant à gauche sur grand écran ; sur tablette et téléphone, une barre compacte
  * collée sous le bandeau qui affiche la section en cours et ouvre la liste en menu déroulant (rien ne déborde, quel que
@@ -88,14 +88,7 @@ export function Sommaire({ entrees, libelle = "Sommaire du brief" }: { entrees: 
                 }}
               >
                 <span>{e.label}</span>
-                {e.aConfirmer ? (
-                  <span className="bf-sommaire-alerte" title="À confirmer">
-                    <span aria-hidden="true">◇</span>
-                    <span className="bf-sr">à confirmer</span>
-                  </span>
-                ) : e.compte != null ? (
-                  <span className="bf-sommaire-n">{e.compte}</span>
-                ) : null}
+                {e.compte != null ? <span className="bf-sommaire-n">{e.compte}</span> : null}
               </a>
             </li>
           ))}

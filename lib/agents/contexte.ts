@@ -6,6 +6,7 @@ import { genreOuNull, variantePlanH3 } from "../scene-genres";
 import { WORKFLOW_IMPORT_MANUEL } from "../plan-checks";
 import { ORDRE_SECTIONS } from "../prompt";
 import type { Db } from "./applicateurs/commun";
+import { sansClesAbandonnees } from "./brief";
 import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-plan";
 import { normaliser } from "./locuteurs";
 import type { BriefContenu, ContexteUtilise, EtatIterationPlan, Position } from "./types";
@@ -25,7 +26,7 @@ export type EntreeSkill = {
 
 export async function lireBriefDuProjet(db: Db, projectId: number): Promise<{ contenu: BriefContenu; statut: string } | null> {
   const [b] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
-  return b ? { contenu: b.contenu as BriefContenu, statut: b.statut } : null;
+  return b ? { contenu: sansClesAbandonnees(b.contenu as BriefContenu), statut: b.statut } : null;
 }
 
 /** Les extraits du brief utiles à une génération courte, et ce qu'on a lu. */
@@ -41,10 +42,6 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
     ...(brief.univers?.trim() ? { univers: brief.univers.trim() } : {}),
     personnages: brief.personnages,
     lieux: brief.lieux,
-    continuite: brief.continuite,
-    rimes: brief.rimes,
-    progressions: brief.progressions,
-    pieges: brief.pieges,
     // Les notes libres du projet (ex-« globaux du scénario ») : ce que l'utilisateur veut qu'on garde en tête.
     ...(brief.notes?.trim() ? { notes: brief.notes.trim() } : {}),
   };
@@ -52,7 +49,6 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
     { type: "brief", libelle: "Brief · style et clause de style", ref: "style" },
     { type: "brief", libelle: "Brief · arc et ton", ref: "arc" },
     { type: "brief", libelle: `Brief · ${brief.personnages.length} personnage${brief.personnages.length > 1 ? "s" : ""}, ${brief.lieux.length} lieu${brief.lieux.length > 1 ? "x" : ""}`, ref: "personnages" },
-    { type: "brief", libelle: "Brief · continuité, rimes, progressions, pièges", ref: "continuite" },
     ...(brief.notes?.trim() ? [{ type: "brief" as const, libelle: "Brief · notes du projet", ref: "notes" }] : []),
   ];
   return { extrait, contexte };
@@ -332,7 +328,7 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
  *   canonique (français), sa méthode, son prompt de génération (anglais) et s'il a déjà son fichier
  *   (image, ou son pour un bruitage) ; hors voix (les voix se dérivent des répliques) ;
  * - `repliques` : celles du plan (uuid, locuteur, texte exact, durée mesurée si la prise existe) ;
- * - `clauseStyleDuProjet`, `briefExtrait` : le style visuel, la continuité, les rimes, les pièges. */
+ * - `clauseStyleDuProjet`, `briefExtrait` : le style visuel, l'arc, les personnages et les lieux du brief. */
 export async function entreePlanH3(
   db: Db,
   projectId: number,

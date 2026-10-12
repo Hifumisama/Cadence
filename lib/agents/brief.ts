@@ -14,6 +14,19 @@ export const SECTIONS_FIGEES_PAR_LA_CONCEPTION: readonly string[] = ["langueDial
 
 export const CLES_SECTION: string[] = SECTIONS_BRIEF.map((s) => s.cle);
 
+/** Les anciennes sections « Contraintes » du brief, supprimées le 2026-10-12 (jamais remplies ni utilisées sérieusement). Pas de migration :
+ * un brief déjà stocké peut encore les porter, elles sont simplement ignorées à la lecture (voir `sansClesAbandonnees`). */
+export const CLES_ABANDONNEES: readonly string[] = ["continuite", "rimes", "progressions", "pieges"];
+
+/** Une copie de l'objet SANS les clés abandonnées (le schéma du brief est strict : un vieux brief ne le satisfait plus tel quel). Pur ; ce
+ * qui n'est pas un objet est rendu tel quel. */
+export function sansClesAbandonnees<T>(objet: T): T {
+  if (!objet || typeof objet !== "object" || Array.isArray(objet)) return objet;
+  const copie = { ...(objet as Record<string, unknown>) };
+  for (const cle of CLES_ABANDONNEES) delete copie[cle];
+  return copie as T;
+}
+
 export function estCleSection(cle: string): cle is CleSectionBrief {
   return CLES_SECTION.includes(cle);
 }
@@ -61,7 +74,7 @@ export function statutDeSection(cle: string, valeur: unknown, declares: Record<s
 /** De la sortie du skill (avec son éventuel champ `statuts`) au contenu et aux statuts stockés. */
 export function sortieVersBrief(sortie: Record<string, unknown>): { contenu: BriefContenu; statuts: Record<string, StatutChamp> } {
   const { statuts: declares, ...reste } = sortie;
-  const contenu = reste as unknown as BriefContenu;
+  const contenu = sansClesAbandonnees(reste) as unknown as BriefContenu;
   const decl = (declares && typeof declares === "object" ? declares : {}) as Record<string, unknown>;
   const statuts: Record<string, StatutChamp> = {};
   for (const cle of CLES_SECTION) {
@@ -85,10 +98,6 @@ export function briefVide(titre: string): BriefContenu {
     episodes: [],
     personnages: [],
     lieux: [],
-    continuite: [],
-    rimes: [],
-    progressions: [],
-    pieges: [],
     inventions: [],
     questionsOuvertes: [],
     notes: "",

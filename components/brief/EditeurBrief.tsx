@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ChampsStyle, FORMULAIRES_LISTE } from "@/components/agents/BriefSections";
+import { FORMULAIRES_LISTE } from "@/components/agents/BriefSections";
 import { depuisSaisie, typeEdition, versSaisie } from "@/lib/agents-affichage";
 import type { BriefContenu } from "@/lib/agents/types";
 import type { Edition } from "./types";
@@ -13,39 +13,28 @@ const AVEC_STATUT = ["personnages", "lieux"];
 const UNE_LIGNE = ["titre", "langueDialogues", "genreTon", "dureeEpisodeSecondes"];
 
 /** L'éditeur EN LIGNE : il prend la place du contenu du bloc cliqué (plus de panneau latéral). Il modifie une valeur
- * simple, UN élément d'une liste d'objets, ou UNE ligne d'une liste de textes. Enregistrer passe le tout à « fourni ».
+ * simple ou UN élément d'une liste d'objets (personnage, lieu). Enregistrer marque la section comme « fournie » (côté serveur).
  * Échap annule, Ctrl/Cmd + Entrée enregistre. */
 export function EditeurBrief({
   edition,
   contenu,
-  etatAConfirmer,
   onFermer,
   onEnregistrer,
   onRetirer,
-  onConfirmer,
 }: {
   edition: Edition;
   contenu: BriefContenu;
-  /** L'élément est à confirmer : on propose « Confirmer tel quel ». */
-  etatAConfirmer: boolean;
   onFermer: () => void;
   onEnregistrer: (cle: string, valeur: unknown) => Promise<string | null>;
   onRetirer: (edition: Edition) => Promise<string | null>;
-  onConfirmer: (edition: Edition) => Promise<string | null>;
 }) {
   const idBase = useId();
   const donnees = contenu as unknown as Record<string, unknown>;
   const formulaire = edition.type === "element" ? FORMULAIRES_LISTE[edition.cle] : undefined;
   const objets: Liste = edition.type === "element" && Array.isArray(donnees[edition.cle]) ? (donnees[edition.cle] as Liste) : [];
-  const textes: string[] = edition.type === "ligne" && Array.isArray(donnees[edition.cle]) ? (donnees[edition.cle] as unknown[]).map(String) : [];
-  const taille = edition.type === "element" ? objets.length : edition.type === "ligne" ? textes.length : 0;
-  const ajout = edition.type !== "section" && edition.index >= taille;
+  const ajout = edition.type === "element" && edition.index >= objets.length;
 
-  const [saisie, setSaisie] = useState(() => {
-    if (edition.type === "section") return versSaisie(edition.cle, donnees[edition.cle]);
-    if (edition.type === "ligne") return textes[edition.index] ?? "";
-    return "";
-  });
+  const [saisie, setSaisie] = useState(() => (edition.type === "section" ? versSaisie(edition.cle, donnees[edition.cle]) : ""));
   const [champs, setChamps] = useState<Record<string, unknown>>(() => ({ ...(edition.type === "element" ? (objets[edition.index] ?? formulaire?.nouveau ?? {}) : {}) }));
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
@@ -67,17 +56,11 @@ export function EditeurBrief({
         if (!lu.ok) return lu.erreur;
         return onEnregistrer(edition.cle, lu.valeur);
       }
-      if (edition.type === "ligne") {
-        const texte = saisie.trim();
-        if (!texte) return "Ce champ ne peut pas être vide.";
-        const suite = edition.index < textes.length ? textes.map((t, i) => (i === edition.index ? texte : t)) : [...textes, texte];
-        return onEnregistrer(edition.cle, suite);
-      }
       const premier = formulaire?.champs[0];
       if (premier && premier.type !== "bool" && !String(champs[premier.cle] ?? "").trim()) return `« ${premier.libelle} » est obligatoire.`;
       const nettoye: Record<string, unknown> = { ...champs };
       for (const c of formulaire?.champs ?? []) if (typeof nettoye[c.cle] === "string") nettoye[c.cle] = (nettoye[c.cle] as string).trim();
-      // Une correction à la main vaut confirmation : le personnage ou le lieu passe à « fourni ».
+      // Une correction à la main : le personnage ou le lieu passe à « fourni ».
       if (AVEC_STATUT.includes(edition.cle)) nettoye.statut = "fourni";
       const suite = edition.index < objets.length ? objets.map((x, i) => (i === edition.index ? nettoye : x)) : [...objets, nettoye];
       return onEnregistrer(edition.cle, suite);
@@ -99,35 +82,14 @@ export function EditeurBrief({
         }
       }}
     >
-      {etatAConfirmer && !ajout ? (
-        <div className="bf-confirmer-box">
-          <span className="bf-prov is-confirmer">
-            <span aria-hidden="true">◇</span> À confirmer
-          </span>
-          <p>L&rsquo;agent n&rsquo;est pas sûr de cet élément. Si tout te va, confirme-le sans rien changer.</p>
-          <button type="button" className="bf-btn bf-btn-or bf-press" disabled={envoi} onClick={() => terminer(() => onConfirmer(edition))}>
-            Confirmer tel quel
-          </button>
-        </div>
-      ) : null}
-
       {edition.type === "section" ? (
-        type === "style" ? (
-          <ChampsStyle saisie={saisie} onChange={setSaisie} libelle={edition.titre} />
-        ) : (
-          <div className="bf-champ">
-            <label htmlFor={`${idBase}-s`}>{edition.titre}</label>
-            {uneLigne ? (
-              <input id={`${idBase}-s`} className="field" autoFocus inputMode={type === "nombre" ? "numeric" : undefined} value={saisie} onChange={(e) => setSaisie(e.target.value)} />
-            ) : (
-              <textarea id={`${idBase}-s`} className="field" autoFocus rows={edition.cle === "arc" ? 4 : 5} value={saisie} onChange={(e) => setSaisie(e.target.value)} spellCheck />
-            )}
-          </div>
-        )
-      ) : edition.type === "ligne" ? (
         <div className="bf-champ">
-          <label htmlFor={`${idBase}-l`}>{ajout ? "Nouvelle ligne" : "Texte"}</label>
-          <textarea id={`${idBase}-l`} className="field" autoFocus rows={2} value={saisie} onChange={(e) => setSaisie(e.target.value)} spellCheck />
+          <label htmlFor={`${idBase}-s`}>{edition.titre}</label>
+          {uneLigne ? (
+            <input id={`${idBase}-s`} className="field" autoFocus inputMode={type === "nombre" ? "numeric" : undefined} value={saisie} onChange={(e) => setSaisie(e.target.value)} />
+          ) : (
+            <textarea id={`${idBase}-s`} className="field" autoFocus rows={edition.cle === "arc" ? 4 : 5} value={saisie} onChange={(e) => setSaisie(e.target.value)} spellCheck />
+          )}
         </div>
       ) : (
         formulaire?.champs.map((c, i) => {
@@ -167,7 +129,7 @@ export function EditeurBrief({
         <button type="button" className="bf-btn bf-press" onClick={onFermer} disabled={envoi}>
           Annuler
         </button>
-        {edition.type !== "section" && !ajout ? (
+        {edition.type === "element" && !ajout ? (
           retraitDemande ? (
             <button type="button" className="bf-btn-texte is-danger" disabled={envoi} onClick={() => terminer(() => onRetirer(edition))}>
               Oui, retirer

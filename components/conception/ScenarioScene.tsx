@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { envoyerMessage, relancerAccroche } from "@/app/agents/actions";
+import { Fragment, useId, useRef, useState } from "react";
+import { envoyerMessage, relancerAccroche, repondreAuChoix } from "@/app/agents/actions";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { estTacheActive } from "@/lib/agents-affichage";
+import { estDecider } from "@/lib/agents/choix";
 import type { NoteAffichee } from "@/lib/agents/fiche-affichage";
-import type { VueConversation } from "@/lib/agents/types";
+import type { Choix, VueConversation } from "@/lib/agents/types";
 import { useDefilementBas } from "@/components/ui/useDefilementBas";
 import { EnteteScene } from "./Scenes";
 
@@ -25,6 +26,25 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
 
   // Suit le flux sans arracher l'ascenseur à qui est remonté lire.
   useDefilementBas(fin, `${tourEnCours}${tache?.fluxTexte ?? ""}`, conv.messages.length);
+
+  /** Une réponse par carte : même chemin que le texte libre (un tour de l'agent), le serveur formule le message. */
+  const repondre = async (libelles: string[]) => {
+    if (occupe || actif) return;
+    setOccupe(true);
+    setErreur(null);
+    try {
+      const r = await repondreAuChoix(conv.uuid, libelles);
+      if (!r.ok) {
+        setErreur(r.erreur);
+        return;
+      }
+      await rafraichir();
+    } catch {
+      setErreur("La réponse n’a pas pu être envoyée.");
+    } finally {
+      setOccupe(false);
+    }
+  };
 
   const envoyer = async () => {
     const t = texte.trim();
@@ -72,7 +92,17 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
           </div>
           <div className="cn-fil" role="log" aria-live="polite" aria-label="Conversation avec le scénariste">
             {conv.messages.map((m, i) => (
-              <p key={`${m.at}-${i}`} className={`cn-msg ${m.role === "user" ? "is-moi" : "is-agent"}`}>{m.content}</p>
+              <Fragment key={`${m.at}-${i}`}>
+                <p className={`cn-msg ${m.role === "user" ? "is-moi" : "is-agent"}`}>{m.content}</p>
+                {m.choix ? (
+                  <CartesChoix
+                    choix={m.choix}
+                    choisis={conv.messages[i + 1]?.choisis ?? []}
+                    disponibles={i === conv.messages.length - 1 && !actif && !occupe}
+                    repondre={(libelles) => void repondre(libelles)}
+                  />
+                ) : null}
+              </Fragment>
             ))}
             {tourEnCours ? <div className="cn-msg-attente"><EtatTacheAgent tache={tache} /></div> : null}
             {tache && tache.statut === "echoue" ? <div className="cn-msg-attente"><EtatTacheAgent tache={tache} /></div> : null}
@@ -137,7 +167,59 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
   );
 }
 
-function Note({ note, courante, ouverte, bascule }: { note: NoteAffichee; courante: boolean; ouverte: boolean; bascule: () => void }) {
+/** Cartes de choix proposées par le scénariste, sous son message. Actives seulement sur le dernier message (`disponibles`) ; une fois
+ * répondu (clic ou texte libre), elles restent dans le fil, figées : la carte retenue est mise en évidence (`choisis`, porté par le message
+ * de l'utilisateur). Choix simple : un clic envoie. Choix multiple : on coche, puis « Valider » envoie une seule réponse. */
+function CartesChoix({ choix, choisis, disponibles, repondre }: { choix: Choix; choisis: string[]; disponibles: boolean; repondre: (libelles: string[]) => void }) {
+  const [coches, setCoches] = useState<string[]>([]);
+  const titre = useId();
+  const figee = !disponibles;
+
+  // « Je te laisse décider » ne se mêle pas aux autres options d'une liste.
+  const basculer = (libelle: string) =>
+    setCoches((c) => {
+      if (c.includes(libelle)) return c.filter((x) => x !== libelle);
+      if (estDecider(libelle)) return [libelle];
+      return [...c.filter((x) => !estDecider(x)), libelle];
+    });
+
+  return (
+    <div className={`cn-choix${figee ? " is-fige" : ""}`} role="group" aria-labelledby={choix.question ? titre : undefined} aria-label={choix.question ? undefined : "Réponses proposées"}>
+      {choix.question ? <p id={titre} className="cn-choix-question">{choix.question}</p> : null}
+      <ul className="cn-choix-liste">
+        {choix.options.map((o) => {
+          const retenue = figee ? choisis.includes(o.libelle) : choix.multiple ? coches.includes(o.libelle) : false;
+          const contenu = (
+            <>
+              <b>{o.libelle}</b>
+              {o.description ? <small>{o.description}</small> : null}
+            </>
+          );
+          return (
+            <li key={o.libelle}>
+              {choix.multiple ? (
+                <label className={`cn-choix-carte${retenue ? " is-choisie" : ""}`}>
+                  <input type="checkbox" disabled={figee} checked={retenue} onChange={() => basculer(o.libelle)} />
+                  <span className="cn-choix-texte">{contenu}</span>
+                </label>
+              ) : (
+                <button type="button" className={`cn-choix-carte${retenue ? " is-choisie" : ""}`} disabled={figee} aria-pressed={retenue} onClick={() => repondre([o.libelle])}>
+                  {contenu}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {choix.multiple && !figee ? (
+        <button type="button" className="btn btn-gold cn-choix-valider" disabled={coches.length === 0} onClick={() => repondre(coches)}>Valider</button>
+      ) : null}
+      {!figee ? <p className="cn-choix-pied">Tu peux aussi écrire ta propre réponse ci-dessous.</p> : null}
+    </div>
+  );
+}
+
+function Note({ note, courante, ouverte, bascule }:{ note: NoteAffichee; courante: boolean; ouverte: boolean; bascule: () => void }) {
   const long = note.texte.length > 80 || note.texte.includes("\n");
   const classe = note.statut !== "absent" ? "is-fait" : courante ? "is-courant" : "";
   return (

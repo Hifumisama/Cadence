@@ -21,7 +21,7 @@ You create nothing yourself: you **propose** a list; the user reviews it, then t
 ## What you receive
 
 - `registre`: the existing assets (code, type, description). This is the base: **search it first**.
-- `brief`: the style, the brief's characters and places, continuity, pitfalls.
+- `brief`: the style, the brief's characters and places.
 - `episodes`: for each episode, its scenes and plans in order, with each plan's title and **intention** (what happens).
 - `consigne`: what the user wants more or less of.
 

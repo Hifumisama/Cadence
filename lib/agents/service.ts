@@ -21,6 +21,7 @@ import { VARIANTE_AFFICHE } from "../llm/variantes";
 import { SCHEMA_BRIEF, SECTIONS_FIGEES_PAR_LA_CONCEPTION, estCleSection, sousSchemaSection } from "./brief";
 import { abandonnerBrouillon, creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
 import { accrocheEntretien } from "./accroche";
+import { choixActif, formulerReponse, selectionValide } from "./choix";
 import { entreeNotes, ficheVersBrief, type Fiche } from "./fiche";
 import { lireConception, ouvertureConcue } from "../conception-db";
 import { ficheCourante } from "./fiche-db";
@@ -252,7 +253,17 @@ export async function reinitialiser(conversationUuid: string): Promise<Resultat>
   return { ok: true };
 }
 
-export async function envoyerMessage(conversationUuid: string, texte: string): Promise<Resultat<{ runUuid: string }>> {
+/** Réponse par cartes : le texte envoyé est formulé ici depuis les libellés retenus (jamais depuis le client), et seules les cartes du
+ * DERNIER message de l'agent répondent encore. */
+export async function repondreAuChoix(conversationUuid: string, libelles: string[]): Promise<Resultat<{ runUuid: string }>> {
+  const conv = await conversationParUuid(conversationUuid);
+  if (!conv) return ERR("Conversation introuvable.");
+  const choix = choixActif((conv.messages as MessageConversation[]) ?? []);
+  if (!choix || !selectionValide(choix, libelles)) return ERR("Ce choix n'est plus disponible : réponds dans la zone de saisie.");
+  return envoyerMessage(conversationUuid, formulerReponse(choix, libelles), libelles);
+}
+
+export async function envoyerMessage(conversationUuid: string, texte: string, choisis?: string[]): Promise<Resultat<{ runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   if (conv.profondeur !== "complete") return ERR("Cette conversation est courte : donne une consigne et génère la proposition.");
@@ -262,7 +273,7 @@ export async function envoyerMessage(conversationUuid: string, texte: string): P
   // Un tour OU l'écriture du briefing (la première version part seule, et vaut qu'on l'attende) bloquent l'envoi.
   { const refus = await refusSiTacheActive(conv.id, "L'agent est déjà en train de répondre : attends sa réponse.", ["tour", "brief"]); if (refus) return refus; }
 
-  const messages = [...((conv.messages as MessageConversation[]) ?? []), { role: "user" as const, content: message, at: new Date().toISOString() }];
+  const messages = [...((conv.messages as MessageConversation[]) ?? []), { role: "user" as const, content: message, at: new Date().toISOString(), ...(choisis ? { choisis } : {}) }];
   const run = await db.transaction(async (tx) => {
     await tx.update(agentConversations).set({ messages, briefPret: false, etape: "conversation", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
     // D'abord les notes (un appel court qui rend un patch de la fiche) : à son retour, le worker applique le patch et pose le tour

@@ -49,6 +49,7 @@ import { appliquerSortieAnalyse, ajouterMessage } from "../../lib/agents/revisio
 import { entreeReponse } from "../../lib/agents/revision/entrees";
 import type { SortieAnalyse } from "../../lib/agents/revision/analyse";
 import type { MessageConversation } from "../../lib/agents/types";
+import { normaliserChoix } from "../../lib/agents/choix";
 
 /** Ce que devient le résultat validé d'une tâche du système d'agents, DANS la transaction qui
  * l'écrit (worker/llm.ts) : un échec ici annule tout et la tâche est marquée échouée.
@@ -148,11 +149,14 @@ async function formatDuProjet(tx: Tx, projectId: number): Promise<string | undef
 
 const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[] }) {
+async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[]; choix?: unknown }) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
   if (!conv) return; // conversation écrasée entre-temps : le tour est perdu, sans erreur
-  const messages = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: sortie.reponse, at: new Date().toISOString() }];
+  // Cartes de choix : facultatives, validées ici ; une forme invalide est ignorée et le message reste du texte seul.
+  const choix = normaliserChoix(sortie.choix);
+  const message: MessageConversation = { role: "assistant", content: sortie.reponse, at: new Date().toISOString(), ...(choix ? { choix } : {}) };
+  const messages = [...((conv.messages as unknown[]) ?? []), message];
   const nbUtilisateur = messages.filter((m) => (m as { role?: string }).role === "user").length;
   // « Prêt » est décidé EN CODE, depuis la fiche de notes (postNotes) : l'essentiel dit par l'utilisateur, après un échange au moins.
   const fiche = await ficheCourante(tx, conv);

@@ -13,6 +13,22 @@
 .cn-msg.is-agent { background: var(--surface-2); border-left: 2px solid var(--or); align-self: flex-start; }
 .cn-msg.is-moi { background: var(--surface-3); border-right: 2px solid var(--line-strong); align-self: flex-end; }
 .cn-msg-attente { align-self: flex-start; max-width: 80%; background: var(--surface-2); border-left: 2px solid var(--or); padding: 8px 12px; }
+.cn-choix { align-self: flex-start; max-width: 80%; display: grid; gap: 8px; animation: cn-entre 0.45s var(--cn-ease) both; }
+.cn-choix-question { margin: 0; font-size: 13px; color: var(--ink-3); }
+.cn-choix-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cn-choix-carte { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 9px 12px; text-align: left; font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-strong); cursor: pointer; transition: border-color 0.2s, background 0.2s, opacity 0.2s; }
+.cn-choix-carte b { display: block; font-weight: 500; color: var(--or-glow); line-height: 1.35; }
+.cn-choix-carte small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--ink-3); }
+.cn-choix-carte input { margin-top: 3px; accent-color: var(--or); }
+.cn-choix-texte { display: block; min-width: 0; }
+.cn-choix-carte:not(:disabled):hover,
+.cn-choix-carte:not(:disabled):focus-visible { border-color: var(--or); }
+.cn-choix-carte:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 2px; }
+.cn-choix-carte:disabled { cursor: default; }
+.cn-choix-carte.is-choisie { border-color: var(--or); background: rgba(201, 162, 75, 0.1); }
+.cn-choix.is-fige .cn-choix-carte:not(.is-choisie) { opacity: 0.45; }
+.cn-choix-valider { justify-self: start; }
+.cn-choix-pied { margin: 0; font-size: 12.5px; color: var(--ink-3); }
 .cn-saisie { border-top: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 8px; }
 .cn-saisie textarea { background: var(--ground); color: var(--ink); border: 1px solid var(--line-strong); padding: 10px 12px; width: 100%; resize: none; font: inherit; font-size: 15px; }
 .cn-saisie-bas { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; }

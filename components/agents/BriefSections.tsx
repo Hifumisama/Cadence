@@ -103,30 +103,6 @@ export const FORMULAIRES_LISTE: Record<string, { element: string; champs: ChampL
     ],
     nouveau: { nom: "", description: "" },
   },
-  rimes: {
-    element: "Rime",
-    champs: [
-      { cle: "description", libelle: "Les deux moments qui se répondent et ce qui se répète", type: "long" },
-      { cle: "souligner", libelle: "À souligner à l'image", type: "bool" },
-    ],
-    nouveau: { description: "", souligner: false },
-  },
-  progressions: {
-    element: "Progression",
-    champs: [
-      { cle: "quoi", libelle: "Ce qui évolue", type: "texte" },
-      { cle: "evolution", libelle: "Comment", type: "long" },
-    ],
-    nouveau: { quoi: "", evolution: "" },
-  },
-  pieges: {
-    element: "Piège",
-    champs: [
-      { cle: "cliche", libelle: "Ce que les modèles produisent par défaut", type: "long" },
-      { cle: "formulationPositive", libelle: "Ce qu'on décrit à la place (jamais une négation)", type: "long" },
-    ],
-    nouveau: { cliche: "", formulationPositive: "" },
-  },
 };
 
 function ListeObjets({ cle, saisie, onChange, libelle }: { cle: string; saisie: string; onChange: (v: string) => void; libelle: string }) {

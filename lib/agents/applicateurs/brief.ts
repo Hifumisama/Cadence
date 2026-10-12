@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { briefs } from "../../../db/schema";
-import { estCleSection } from "../brief";
+import { estCleSection, sansClesAbandonnees } from "../brief";
 import type { ChangementBrut } from "../changements";
 import type { BriefContenu, StatutChamp } from "../types";
 import { synchroniserClauseStyle } from "../brief-db";
@@ -54,7 +54,7 @@ export const applicateurBrief: Applicateur = {
     const a = apres(ch);
     const maintenant = new Date();
     if (ch.cibleRef === "*") {
-      const contenu = a.contenu as BriefContenu;
+      const contenu = sansClesAbandonnees(a.contenu as BriefContenu);
       const statuts = (a.statuts ?? {}) as Record<string, StatutChamp>;
       await tx
         .insert(briefs)

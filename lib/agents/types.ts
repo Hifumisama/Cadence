@@ -69,7 +69,13 @@ export type CibleDemandee = { id?: number; uuid?: string; code?: string };
 // Messages, tâches
 // ---------------------------------------------------------------------------
 
-export type MessageConversation = { role: "user" | "assistant"; content: string; at: string };
+/** Une carte de choix proposée par le scénariste (validée par lib/agents/choix.ts). `multiple` n'est vrai que pour une liste. */
+export type OptionChoix = { libelle: string; description?: string };
+export type Choix = { question?: string; multiple: boolean; options: OptionChoix[] };
+
+/** `choix` : cartes proposées avec un message de l'agent. `choisis` : libellés retenus, portés par le message de l'utilisateur
+ * qui répond par une carte (absent quand il a écrit sa réponse). */
+export type MessageConversation = { role: "user" | "assistant"; content: string; at: string; choix?: Choix; choisis?: string[] };
 
 /** La tâche de la file (agent_runs) liée à une étape : un tour de conversation, la
  * génération du brief ou d'une proposition. Null quand rien n'est en cours. */
@@ -111,7 +117,9 @@ export type PersonnageBrief = {
   statut?: string;
 };
 
-/** Le brief stocké (`lib/agents/brief-schema.json` ; ses sections se remplissent via `notes-entretien`). Les clés de premier niveau sont les « sections » du brief. */
+/** Le brief stocké (`lib/agents/brief-schema.json` ; ses sections se remplissent via `notes-entretien`). Les clés de premier niveau sont les « sections » du brief.
+ * Les anciennes sections « Contraintes » (continuite, rimes, progressions, pieges) n'existent plus : un brief ancien qui les porte
+ * encore est lu sans elles (`sansClesAbandonnees`, brief.ts). */
 export type BriefContenu = {
   titre: string;
   source: "pitch" | "texte" | "reconstitue";
@@ -130,10 +138,6 @@ export type BriefContenu = {
   episodes: { titre: string; resume: string; portee?: string }[];
   personnages: PersonnageBrief[];
   lieux: { nom: string; description: string; statut?: string }[];
-  continuite: string[];
-  rimes: { description: string; souligner: boolean }[];
-  progressions: { quoi: string; evolution: string }[];
-  pieges: { cliche: string; formulationPositive: string }[];
   inventions: string[];
   questionsOuvertes: string[];
   /** Notes libres du projet (ex-« globaux du scénario ») ; texte de l'utilisateur, jamais inventé. */
@@ -154,10 +158,6 @@ export const SECTIONS_BRIEF = [
   { cle: "episodes", libelle: "Épisodes", groupe: "Épisodes" },
   { cle: "personnages", libelle: "Personnages", groupe: "Personnages" },
   { cle: "lieux", libelle: "Lieux", groupe: "Lieux" },
-  { cle: "continuite", libelle: "Règles de continuité", groupe: "Contraintes" },
-  { cle: "rimes", libelle: "Rimes", groupe: "Contraintes" },
-  { cle: "progressions", libelle: "Progressions", groupe: "Contraintes" },
-  { cle: "pieges", libelle: "Pièges", groupe: "Contraintes" },
   { cle: "inventions", libelle: "Inventions de l'agent", groupe: "Notes de l'agent" },
   { cle: "questionsOuvertes", libelle: "Questions encore ouvertes", groupe: "Notes de l'agent" },
   { cle: "notes", libelle: "Notes du projet", groupe: "Notes" },

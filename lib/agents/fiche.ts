@@ -1,4 +1,4 @@
-import { briefVide } from "./brief";
+import { CLES_ABANDONNEES, briefVide, sansClesAbandonnees } from "./brief";
 import type { BriefContenu } from "./types";
 
 /** La fiche de notes de l'entretien d'entrée : le brief en train de se remplir, tenu PAR LE CODE. À chaque message de
@@ -27,10 +27,6 @@ export const SECTIONS_PATCHABLES = [
   "episodes",
   "personnages",
   "lieux",
-  "continuite",
-  "rimes",
-  "progressions",
-  "pieges",
   "inventions",
   "questionsOuvertes",
 ] as const;
@@ -84,9 +80,9 @@ export function valeurVide(v: unknown): boolean {
 /** Lit une fiche venue de la base : une forme inattendue donne une fiche vide. */
 export function lireFiche(brut: unknown): Fiche {
   const o = objet(brut);
-  const contenu = objet(o.contenu);
+  const contenu = sansClesAbandonnees(objet(o.contenu));
   const statuts: Record<string, StatutFiche> = {};
-  for (const [k, v] of Object.entries(objet(o.statuts))) if (v === "fourni" || v === "deduit" || v === "delegue") statuts[k] = v;
+  for (const [k, v] of Object.entries(objet(o.statuts))) if (!CLES_ABANDONNEES.includes(k) && (v === "fourni" || v === "deduit" || v === "delegue")) statuts[k] = v;
   return { contenu: { ...contenu }, statuts };
 }
 
@@ -185,8 +181,8 @@ export function ficheVersBrief(fiche: Fiche, titreProjet: string): { contenu: Br
  * qui passe alors « fourni »). Les suivis qui ne sont pas des sections du brief (la fin) viennent de la fiche mémorisée. */
 export function briefVersFiche(brouillon: { contenu: unknown; statuts: Record<string, string> }, memorisee: Fiche): Fiche {
   const statuts: Record<string, StatutFiche> = { ...memorisee.statuts };
-  for (const [k, v] of Object.entries(brouillon.statuts)) statuts[k] = v === "fourni" ? "fourni" : statuts[k] === "delegue" ? "delegue" : "deduit";
-  const contenu = { ...objet(brouillon.contenu) };
+  for (const [k, v] of Object.entries(brouillon.statuts)) if (!CLES_ABANDONNEES.includes(k)) statuts[k] = v === "fourni" ? "fourni" : statuts[k] === "delegue" ? "delegue" : "deduit";
+  const contenu = sansClesAbandonnees({ ...objet(brouillon.contenu) });
   // Le prompt long et l'image du style appartiennent au code : le modèle de l'entretien ne les voit pas (et ne peut pas les réécrire).
   const style = objet(contenu.style);
   if ("promptImage" in style || "image" in style) {

@@ -33,7 +33,7 @@ The application assembles the input. Nothing is guessed.
 - **`decisions`**: the draft so far — `id` (`D1`…), title, reason, status, **its operations written exactly as you write them**, and its warnings.
 - **`prochainId`**: the id the next **new** decision will get (then the following ones, in order).
 - **`pistesEnAttente`**: options proposed at an earlier turn and not chosen yet, numbered from 1.
-- **`brief`**: the project's arc, tone, rhythm, continuity rules.
+- **`brief`**: the project's arc, tone, rhythm, project notes.
 - **`conversation`** and **`message`**: the previous exchanges and the user's last message — the one you analyse.
 
 References (`P07`, `R12`) are the order of the episode **as it is now**, not as the draft would leave it. Use them exactly as given. **Never invent a reference.**

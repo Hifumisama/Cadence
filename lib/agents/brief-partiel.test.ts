@@ -10,7 +10,7 @@ import { depuisSaisie, typeEdition, versSaisie } from "../agents-affichage";
 test("briefVide : forme complète sans rien d'inventé, exploitable par les consommateurs", () => {
   const b = briefVide("  Le Phare  ");
   assert.equal(b.titre, "Le Phare");
-  assert.deepEqual([b.episodes, b.personnages, b.lieux, b.pieges, b.inventions], [[], [], [], [], []]);
+  assert.deepEqual([b.episodes, b.personnages, b.lieux, b.inventions], [[], [], [], []]);
   assert.equal(clauseDuBrief(b), "");
   assert.equal(notesDuBrief(b), "");
   assert.equal(briefVide("").titre, "Projet");
@@ -30,7 +30,8 @@ test("sections d'un brief partiel : style et notes toujours là, le reste seulem
   const avec = construireSections(avecSection(briefVide("x"), "arc", "Une île."), { arc: "fourni" }, "partiel");
   assert.deepEqual(avec.map((s) => s.cle), ["arc", "style", "notes"]);
   // Un brief rédigé montre tout ce qui est défini.
-  assert.ok(construireSections(briefVide("x"), {}, "valide").length > 10);
+  const toutes = construireSections(briefVide("x"), {}, "valide").map((s) => s.cle) as string[];
+  assert.ok(["titre", "arc", "style", "episodes", "personnages", "lieux", "inventions", "notes"].every((cle) => toutes.includes(cle)));
   assert.ok(SECTIONS_BRIEF.some((s) => s.cle === "notes"), "notes est une section du brief");
 });
 

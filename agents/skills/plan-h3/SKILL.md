@@ -21,7 +21,7 @@ You write **one plan** for MiniMax H3 (Hailuo 3), full-reference mode, 24 fps. Y
 
 The application assembles the context. Nothing is guessed.
 
-- **Brief**: visual style (the style clause), continuity, rhymes, pitfalls.
+- **Brief**: visual style (the style clause), arc, characters and places.
 - **Episode and scene**: episode summary; scene title and function, with the intention of **all its plans** in order (`cePlan` marks yours). Read neighbouring intentions to know **who** does what: a character's gesture may be named only in the next plan.
 - **What to write**: the plan's one-line intention and its position in the scene.
 - **Neighbouring plans** (before and after), for continuity: title, intention and duration of each.
@@ -125,7 +125,7 @@ Shot count follows **action intensity, not plan duration**. The cadences below a
 1. **The scene mood is held.** If `scene.ambiance` is given, `ouverture` and the shots respect it (time of day, weather, light). Do not invent another light per plan. A mood change is allowed only if the plan's intention says so, and it plays out through a visible gesture.
 2. **A character only heard is not an image reference.** A voice-over or off-screen narrator is written `(Sx)` and takes none of the six image slots.
 3. **Gestures come from the brief**: a character with a `gestuelle` keeps it from plan to plan.
-4. Take the brief's continuity rules (distinctive traits, palettes, rhymes) and apply them without commenting on them.
+4. Take the brief's distinctive traits (characters, places, palette) and apply them without commenting on them.
 5. Two plans that must answer each other visually share the same asset or a derivative. Do not make two images that should be the same.
 6. Match the neighbouring plans from their title and intention: what they say happens holds in your plan (who is where, what just occurred, what comes next). Every continuity detail comes from those texts.
 7. **Two or more characters acting together: fix the sides in `ouverture`**, in one sentence (who is on the left of the frame, who on the right, facing which way). Keep it in every side-on, low or two-person shot; change it only through a stated move, and then say where each character ends.

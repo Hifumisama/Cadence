@@ -106,6 +106,11 @@ export async function envoyerMessage(conversationUuid: string, texte: string): P
   return rafraichir(await service.envoyerMessage(conversationUuid, texte));
 }
 
+/** Réponse par une carte de choix du scénariste (libellés retenus) : le texte envoyé est formulé côté serveur. */
+export async function repondreAuChoix(conversationUuid: string, libelles: string[]): Promise<Resultat<{ runUuid: string }>> {
+  return rafraichir(await service.repondreAuChoix(conversationUuid, libelles));
+}
+
 /** Remet la conversation à zéro (messages, consigne, brouillon de brief, proposition
  * courante rejetée). Le brief VALIDE du projet n'est pas touché. L'UI demande une
  * confirmation qui liste ce qui est perdu. */

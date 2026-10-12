@@ -52,11 +52,11 @@ export type EntreeAnalyse = {
 
 export type ControleAnalyse = { vue: VueEpisode; ordres: number[]; prochainOrdre: number; decisionsExistantes?: { id: string; titre: string; operations: Operation[] }[] };
 
-/** Ce que le réalisateur lit du brief : l'arc, le ton, le rythme, la durée et les règles de continuité (pas le registre : les personnages et
+/** Ce que le réalisateur lit du brief : l'arc, le ton, le rythme, la durée et les notes du projet (pas le registre : les personnages et
  * les lieux sont déjà dans les plans). Tolérant : un brief ancien ou partiel ne fait pas échouer le tour. */
 function extraitBriefRevision(brief: Record<string, unknown> | null | undefined): object | null {
   if (!brief) return null;
-  const garde = ["arc", "genreTon", "rythme", "dureeEpisodeSecondes", "continuite", "rimes", "progressions", "pieges", "notes"];
+  const garde = ["arc", "genreTon", "rythme", "dureeEpisodeSecondes", "notes"];
   const sortie: Record<string, unknown> = {};
   for (const cle of garde) {
     const v = brief[cle];

@@ -10,10 +10,9 @@ import type { VueBrief } from "@/lib/agents/types";
 const CONTENU = [
   { nom: "Univers", detail: "Titre, arc, genre et ton, langue, durée d'un épisode" },
   { nom: "Style", detail: "Le style nommé et sa clause" },
-  { nom: "Épisodes", detail: "Titre et résumé de chaque épisode" },
+  { nom: "Résumé des scènes", detail: "Ce que raconte le film" },
   { nom: "Personnages", detail: "Rôle, silhouette, voix" },
   { nom: "Lieux", detail: "Les décors récurrents" },
-  { nom: "Contraintes", detail: "Continuité, rimes, progressions, pièges" },
   { nom: "Notes de l'agent", detail: "Ce qu'il a ajouté, ce qu'il se demande" },
   { nom: "Notes du projet", detail: "Tes notes libres" },
 ];

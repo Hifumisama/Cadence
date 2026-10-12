@@ -26,6 +26,9 @@
         "type": "string"
       },
       "description": "(French) Your gray areas that only you see (an ambiguity, a point to specify, a contradiction), in short phrases, the most important first, without what the user just decided. The application adds by itself what it finds unsaid. May be empty."
+    },
+    "choix": {
+      "description": "(French labels) Optional, usually omitted. Clickable answer cards shown under your reponse: { \"question\": optional short question, \"multiple\": false (true only for a list of characters, places or taboos), \"options\": 2 to 4 items, each { \"libelle\": short label, \"description\": optional short line }, one of them labelled \"Je te laisse décider\" }. See the skill for when to offer them."
     }
   }
 }

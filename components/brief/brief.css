@@ -30,28 +30,6 @@
     transform: scaleX(1);
   }
 }
-@keyframes bf-pop {
-  0% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.14);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-@keyframes bf-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
 .bf-press {
   transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
@@ -86,12 +64,6 @@
   }
   .bf-filet {
     animation: bf-draw 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.35s both;
-  }
-  .bf-pop {
-    animation: bf-pop 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) 0.6s both;
-  }
-  .bf-pulse {
-    animation: bf-pulse 2.4s ease-in-out infinite;
   }
 }
 /* Apparition à l'entrée dans l'écran : Chrome/Edge (animation-timeline) ; ailleurs, tout est simplement visible. */
@@ -140,33 +112,6 @@
   font-size: 13.5px;
   color: var(--ecarlate-glow);
 }
-.bf-prov {
-  display: inline-flex;
-  align-items: center;
-  line-height: 1.2;
-  gap: 6px;
-  padding: 3px 10px;
-  border: 1px solid;
-  border-radius: 2px;
-  font-size: 11.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.bf-prov.is-fourni {
-  color: var(--or-glow);
-  border-color: var(--or-soft);
-  background: rgba(201, 162, 75, 0.1);
-}
-.bf-prov.is-deduit {
-  color: var(--ink-2);
-  border-color: var(--line-strong);
-}
-.bf-prov.is-confirmer {
-  color: var(--ecarlate-glow);
-  border-color: var(--ecarlate-soft);
-  border-style: dashed;
-}
 .bf-btn {
   appearance: none;
   display: inline-flex;
@@ -183,8 +128,7 @@
   font-size: 13.5px;
   cursor: pointer;
 }
-.bf-btn:disabled,
-.bf-icone-btn:disabled {
+.bf-btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
@@ -213,23 +157,6 @@
 .bf-btn-texte.is-danger {
   color: var(--ecarlate-glow);
   margin-left: auto;
-}
-.bf-icone-btn {
-  appearance: none;
-  flex: 0 0 auto;
-  display: inline-grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  background: transparent;
-  border: 1px solid var(--line-strong);
-  border-radius: 2px;
-  color: var(--ink-2);
-  cursor: pointer;
-}
-.bf-icone-btn:hover {
-  color: var(--or-glow);
-  border-color: var(--or-soft);
 }
 .bf-carte {
   padding: 22px;
@@ -362,9 +289,6 @@
 .bf-tete h3 {
   min-width: 0;
 }
-.bf-pousse {
-  margin-left: auto;
-}
 .bf-fige { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--line-strong); padding: 1px 7px; cursor: help; }
 .bf-fait-valeur {
   font-size: 20px;
@@ -376,82 +300,11 @@
   font-weight: 400;
   font-style: italic;
 }
-
-/* ---- Provenance ---- */
-.bf-provenance {
-  padding: 24px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.bf-provenance h2 {
-  margin: 0;
-  font-family: var(--font-brand), serif;
-  font-weight: 400;
-  font-size: 22px;
-}
-.bf-chiffres {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.bf-chiffres > div {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 15px;
-  color: var(--ink-2);
-}
-.bf-pop {
-  display: inline-block;
-  flex: 0 0 auto;
-  min-width: 2ch;
-  text-align: right;
-  font-family: var(--font-mono), monospace;
-  font-size: 34px;
-  line-height: 1;
-  color: var(--or-glow);
-}
-.bf-pop.is-neutre {
-  color: var(--ink);
-}
-.bf-aside-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* ---- Style ---- */
-.bf-style {
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 24px;
-}
-.bf-style-nom {
-  flex: 1 1 260px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: stretch;
-}
 .bf-style-titre {
   font-family: var(--font-brand), serif;
   font-size: 30px;
   line-height: 1.15;
   color: var(--or-glow);
-}
-.bf-style-clause {
-  flex: 2 1 420px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.bf-style-clause .bf-tete {
-  align-self: stretch;
 }
 .bf-clause {
   align-self: stretch;
@@ -473,34 +326,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-.bf-episode {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 20px 28px;
-}
-.bf-episode-no {
-  font-family: var(--font-mono), monospace;
-  font-size: 34px;
-  line-height: 1;
-  color: var(--or);
-}
-.bf-episode-corps {
-  flex: 1 1 320px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.bf-episode-corps p {
-  max-width: 70ch;
-  color: var(--ink-2);
-}
-.bf-carte-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 .bf-grille {
   display: grid;
@@ -554,62 +379,6 @@
 .bf-def dd {
   margin: 0;
 }
-.bf-carte-hd {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.bf-carte-hd h3 {
-  font-size: 17px;
-}
-.bf-ligne {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-.bf-ligne > div,
-.bf-ligne > p {
-  flex: 1;
-  min-width: 0;
-}
-.bf-ligne b {
-  font-weight: 500;
-  color: var(--ink);
-}
-.bf-puces {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.bf-puces li {
-  position: relative;
-  padding-left: 19px;
-  font-size: 15px;
-}
-.bf-puces li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.6em;
-  width: 7px;
-  height: 7px;
-  background: var(--or);
-}
-.bf-piege {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.bf-piege .bf-etiquette {
-  display: block;
-}
 .bf-notes {
   flex-direction: row;
   align-items: flex-start;
@@ -632,23 +401,6 @@
   margin: 0;
   max-width: 64ch;
   font-size: 15px;
-  color: var(--ink-2);
-}
-
-/* ---- Tiroir d'édition ---- */
-.bf-confirmer-box {
-  padding: 16px 18px;
-  background: var(--ground);
-  border: 1px dashed var(--ecarlate-soft);
-  border-radius: 3px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-}
-.bf-confirmer-box p {
-  margin: 0;
-  font-size: 14.5px;
   color: var(--ink-2);
 }
 .bf-champ {
@@ -934,17 +686,6 @@
   font-size: 12px;
   color: var(--ink-3);
 }
-.bf-sommaire-alerte {
-  color: var(--ecarlate-glow);
-}
-.bf-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
 
 /* À partir de 1100 px : rail collant à gauche, toujours déployé. */
 @media (min-width: 1100px) {
@@ -990,15 +731,13 @@ html:has(.bf-page) {
   scroll-behavior: smooth;
 }
 .bf-hero,
-.bf-section,
-.bf-confirmer {
+.bf-section {
   scroll-margin-top: 84px;
 }
 /* Sous 1100 px le sommaire est une bande collée sous le bandeau : on laisse la place. */
 @media (max-width: 1099px) {
   .bf-hero,
-  .bf-section,
-  .bf-confirmer {
+.bf-section {
     scroll-margin-top: 140px;
   }
 }
@@ -1026,8 +765,7 @@ html:has(.bf-page) {
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .is-cible .bf-section-hd h2,
-  .is-cible .bf-confirmer-hd h2 {
+  .is-cible .bf-section-hd h2 {
     animation: bf-cible 1.5s ease;
   }
   .is-cible .bf-section-hd .bf-rule {
@@ -1062,137 +800,12 @@ html:has(.bf-page) {
   align-items: center;
   gap: 10px;
 }
-.bf-edition-ligne {
-  display: block;
-  padding: 14px 0 4px;
-  border-top: 1px solid var(--or-soft);
-}
 .bf-cliquable:has(.bf-zone:disabled) {
   cursor: default;
 }
 
-/* ---- Colonne de droite de l'en-tête : provenance, puis notes de l'agent ---- */
-.bf-colonne {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  min-width: 0;
-}
-.bf-agent {
-  padding: 22px 24px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.bf-agent-hd {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 14px;
-}
-.bf-agent-hd h2 {
-  margin: 0;
-  font-family: var(--font-brand), serif;
-  font-weight: 400;
-  font-size: 22px;
-}
-.bf-agent-hd .bf-pulse {
-  display: inline-block;
-}
-.bf-agent-groupe {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.bf-agent-groupe + .bf-agent-groupe {
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
-}
-.bf-agent-groupe h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-}
-.bf-confirmer-ligne {
-  display: flex;
-  align-items: center;
-  gap: 10px 16px;
-  padding: 12px 0;
-  border-top: 1px solid var(--line);
-}
-.bf-confirmer-texte {
-  flex: 1 1 160px;
-  min-width: 0;
-  font-size: 15.5px;
-}
-.bf-confirmer-texte .bf-etiquette {
-  display: block;
-}
-.bf-confirmer-texte small {
-  display: block;
-  font-size: 13.5px;
-  color: var(--ink-3);
-}
-.bf-confirmer-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.bf-puce {
-  position: relative;
-  margin: 0;
-  padding-left: 19px;
-  font-size: 15px;
-}
-.bf-puce::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.6em;
-  width: 7px;
-  height: 7px;
-  background: var(--or);
-}
-
 .bf-page {
   overflow-x: clip;
-}
-
-/* ---- Marques de provenance (à gauche des titres) ----
-   Une FORME par état, pas seulement une couleur : disque plein = fourni (discret), anneau = déduit,
-   losange = à confirmer (le seul qui accroche l'œil). `order: -1` les place devant le titre dans les lignes flex. */
-.bf-marque {
-  order: -1;
-  flex: 0 0 auto;
-  display: inline-block;
-  box-sizing: border-box;
-  width: 10px;
-  height: 10px;
-  align-self: center;
-  margin-right: -3px;
-}
-.bf-marque.is-fourni {
-  border-radius: 50%;
-  background: var(--or);
-}
-.bf-marque.is-deduit {
-  border-radius: 50%;
-  border: 1.5px solid var(--ink-3);
-}
-.bf-marque.is-confirmer {
-  width: 9px;
-  height: 9px;
-  border: 2px solid var(--ecarlate-glow);
-  transform: rotate(45deg);
-  margin-right: 0;
-}
-.bf-chiffre-texte {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* Vue du registre (lieux et personnages) : lecture seule, chaque carte renvoie à l'asset. */
@@ -1205,3 +818,44 @@ html:has(.bf-page) {
 .bf-registre-corps h3 { margin: 0; transition: color 0.2s; }
 .bf-registre-corps p { margin: 0; color: var(--ink-2); font-size: 14px; overflow-wrap: anywhere; }
 .bf-registre-corps .bf-registre-role { color: var(--ink-3); font-size: 13px; }
+
+/* ---- Style (lecture seule, présenté comme dans l'assistant de création : voir StyleBrief.tsx, classes cn-* de conception.css) ---- */
+.bf-style-vue {
+  --cn-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px 32px;
+}
+.bf-style-visuel {
+  flex: 0 1 300px;
+  min-width: min(240px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bf-style-visuel .cn-apercu {
+  width: 100%;
+  max-height: 440px;
+  border: 1px solid var(--line-strong);
+}
+.bf-style-sujets {
+  margin: 0;
+}
+.bf-style-texte {
+  flex: 2 1 380px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---- Résumé des scènes (lecture seule) ---- */
+.bf-resume {
+  gap: 12px;
+}
+.bf-resume p {
+  max-width: 70ch;
+  color: var(--ink-2);
+  line-height: 1.65;
+}

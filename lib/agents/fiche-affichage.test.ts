@@ -35,14 +35,14 @@ test("personnages, lieux et autres sections en lignes lisibles ; les notes compl
     contenu: {
       personnages: [{ nom: "Maya", role: "héroïne", age: "la trentaine", apparence: "manteau trop grand" }, { nom: "Le marchand", role: "mentor" }],
       lieux: [{ nom: "Le port", description: "brumeux" }],
-      pieges: [{ cliche: "le mentor qui meurt", formulationPositive: "…" }],
+      univers: "Une œuvre existante.",
       inventions: ["x"],
       notes: "n",
     },
     statuts: { personnages: "fourni", lieux: "deduit" },
   };
   const n = notesPourAffichage(f);
-  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "personnages", "lieux", "pieges"]);
+  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "personnages", "lieux", "univers"]);
   assert.equal(n[2]!.texte, "Maya : héroïne, la trentaine, manteau trop grand\nLe marchand : mentor");
   assert.deepEqual([n[3]!.statut, n[3]!.requis, n[3]!.texte], ["deduit", false, "Le port : brumeux"]);
   assert.equal(n[4]!.statut, "deduit", "sans statut connu : supposée");
@@ -52,5 +52,5 @@ test("resumerSection : valeurs vides et formes inattendues", () => {
   assert.equal(resumerSection("arc", "  "), "");
   assert.equal(resumerSection("lieux", []), "");
   assert.equal(resumerSection("lieux", 3), "");
-  assert.equal(resumerSection("continuite", ["a", " b "]), "a\nb");
+  assert.equal(resumerSection("inventions",["a", " b "]), "a\nb");
 });

@@ -14,10 +14,6 @@
     "episodes",
     "personnages",
     "lieux",
-    "continuite",
-    "rimes",
-    "progressions",
-    "pieges",
     "inventions",
     "questionsOuvertes"
   ],
@@ -203,75 +199,6 @@
         }
       }
     },
-    "continuite": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "(French) Continuity rules: traits that never disappear, palettes."
-    },
-    "rimes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "description",
-          "souligner"
-        ],
-        "properties": {
-          "description": {
-            "type": "string",
-            "description": "(French) The two moments that answer each other and what repeats."
-          },
-          "souligner": {
-            "type": "boolean"
-          }
-        }
-      }
-    },
-    "progressions": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "quoi",
-          "evolution"
-        ],
-        "properties": {
-          "quoi": {
-            "type": "string",
-            "description": "(French)"
-          },
-          "evolution": {
-            "type": "string",
-            "description": "(French)"
-          }
-        }
-      }
-    },
-    "pieges": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "cliche",
-          "formulationPositive"
-        ],
-        "properties": {
-          "cliche": {
-            "type": "string",
-            "description": "(French) What models produce by default on this subject."
-          },
-          "formulationPositive": {
-            "type": "string",
-            "description": "(French) What is described instead: never a negation."
-          }
-        }
-      }
-    },
     "inventions": {
       "type": "array",
       "items": {
@@ -292,7 +219,7 @@
     },
     "statuts": {
       "type": "object",
-      "description": "For each section you filled (keys: titre, arc, genreTon, style, langueDialogues, dureeEpisodeSecondes, rythme, univers, episodes, personnages, lieux, continuite, rimes, progressions, pieges, notes), who set it: fourni (the user said it), deduit (concluded or assumed by the agent), a_valider (legacy value, treated as deduit by the code; `incertain` on a character or place is read the same way). Correspondence with the notes sheet (notes-entretien): origine dit = fourni, delegue = delegue (a proposal the user left to the agent), invente = deduit; `fin` (aucune/dit/delegue) is tracked outside the brief.",
+      "description": "For each section you filled (keys: titre, arc, genreTon, style, langueDialogues, dureeEpisodeSecondes, rythme, univers, episodes, personnages, lieux, notes), who set it: fourni (the user said it), deduit (concluded or assumed by the agent), a_valider (legacy value, treated as deduit by the code; `incertain` on a character or place is read the same way). Correspondence with the notes sheet (notes-entretien): origine dit = fourni, delegue = delegue (a proposal the user left to the agent), invente = deduit; `fin` (aucune/dit/delegue) is tracked outside the brief.",
       "additionalProperties": {
         "type": "string",
         "enum": [

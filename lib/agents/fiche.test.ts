@@ -143,7 +143,7 @@ test("fiche → brief : la forme complète, avec ce que le code peut poser sans 
   assert.equal(statuts.langueDialogues, "deduit");
   assert.equal(contenu.episodes.length, 1);
   assert.equal(contenu.source, "pitch");
-  assert.deepEqual(contenu.pieges, []);
+  assert.deepEqual(contenu.inventions, []);
   assert.equal(statuts.arc, "fourni");
   assert.equal((statuts as Record<string, string>).fin, undefined, "la fin n'est pas une section du brief");
   const valide = compilerSchema(SCHEMA_BRIEF);

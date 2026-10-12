@@ -30,7 +30,7 @@ une scène, un seul plan) sur un projet déjà créé.
 
 | Terme | Définition |
 |---|---|
-| **Brief** | Document structuré et sauvegardé, issu de la conversation : pitch, ton, style, personnages, lieux, durée visée, contraintes. Il alimente toutes les générations. Vivant : on peut le modifier. |
+| **Brief** | Document structuré et sauvegardé, issu de la conversation : pitch, ton, style, personnages, lieux, durée visée. Il alimente toutes les générations. Vivant : on peut le modifier. |
 | **Portée** | Ce que la génération vise : `projet`, `saison`, `episode`, `scene`, `plan`. |
 | **Mode** | Ce que la génération a le droit de faire à l'existant : `ajouter`, `completer`, `remplacer`. |
 | **Proposition** | Lot de changements **mis de côté**, jamais appliqué tant que l'utilisateur ne l'a pas accepté. |

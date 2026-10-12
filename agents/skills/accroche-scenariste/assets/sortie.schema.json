@@ -13,7 +13,10 @@
     "reponse": {
       "type": "string",
       "minLength": 1,
-      "description": "(French) Your first message to the user, plain text: greeting, one sentence naming the format, the style and the genre, at most one reference work you are sure exists, one open question about the story they want to tell, then three very different example pitches, one line each, each starting with '• '."
+      "description": "(French) Your first message to the user, plain text: greeting, one sentence naming the format, the style and the genre, at most one reference work you are sure exists, one open question about the story they want to tell, and a short line inviting them to pick one of the pitch cards or write their own idea. The three pitches are NOT in this text: they go in `choix`."
+    },
+    "choix": {
+      "description": "(French labels) Answer cards shown under your message: { \"question\": optional short question, \"multiple\": false, \"options\": exactly 4 items, each { \"libelle\": short evocative title (about 40 characters), \"description\": the pitch in one line }: three very different pitches, then a last option labelled \"Je te laisse décider\" }. See the skill."
     }
   }
 }

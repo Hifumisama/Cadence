@@ -94,7 +94,7 @@ test("entrée de l'analyse sans base : poignées, brouillon, pistes chiffrées, 
       { role: "assistant", content: "Bonjour.", at: "t" },
       { role: "user", content: "Garde le 08.", at: "t" },
     ],
-    brief: { arc: "Maya quitte le port.", dureeEpisodeSecondes: 120, personnages: [{ nom: "Maya" }], continuite: [] },
+    brief: { arc: "Maya quitte le port.", dureeEpisodeSecondes: 120, personnages: [{ nom: "Maya" }] },
   });
   assert.equal(entree.plans.length, 14);
   assert.deepEqual(entree.plans[4]!.brouillon, { coupe: true });

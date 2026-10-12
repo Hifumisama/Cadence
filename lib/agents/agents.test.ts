@@ -133,10 +133,6 @@ const brief: BriefContenu = {
   ],
   personnages: [{ nom: "Iris", role: "gardienne", reconnaissable: "Cheveux gris attachés", statut: "fourni" }],
   lieux: [{ nom: "Le phare", description: "Tour blanche rongée par le sel", statut: "deduit" }],
-  continuite: [],
-  rimes: [],
-  progressions: [],
-  pieges: [],
   inventions: ["Le capitaine est une silhouette"],
   questionsOuvertes: [],
 };

@@ -18,7 +18,7 @@
 import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assetGenerations, assets, briefs, episodes, plans, propositionChangements, propositions } from "../db/schema";
-import { briefVide, construireSections } from "./agents/brief";
+import { briefVide, construireSections, sansClesAbandonnees } from "./agents/brief";
 import { notesPourAffichage } from "./agents/fiche-affichage";
 import { ficheCourante } from "./agents/fiche-db";
 import { MAX_VIGNETTES_ITERATION, diagnosticIteration } from "./agents/iteration-plan";
@@ -92,7 +92,13 @@ async function versVueConversation(c: typeof agentConversations.$inferSelect): P
     cibleLibelle: await libelleCible(c.projectId, c.portee as Portee, c.cibleId),
     profondeur: c.profondeur as VueConversation["profondeur"],
     etape: c.etape as VueConversation["etape"],
-    messages: ((c.messages as MessageConversation[]) ?? []).map((m) => ({ role: m.role, content: m.content, at: m.at })),
+    messages: ((c.messages as MessageConversation[]) ?? []).map((m) => ({
+      role: m.role,
+      content: m.content,
+      at: m.at,
+      ...(m.choix ? { choix: m.choix } : {}),
+      ...(m.choisis ? { choisis: m.choisis } : {}),
+    })),
     consigne: c.consigne,
     briefPret: c.briefPret,
     resteADefinir: ((c.resteADefinir as unknown[]) ?? []).filter((x): x is string => typeof x === "string"),
@@ -134,7 +140,7 @@ export async function lireConversation(conversationUuid: string): Promise<VueCon
 export async function lireBrief(projectId: number): Promise<VueBrief | null> {
   const [b] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
   if (!b) return null;
-  const contenu = b.contenu as BriefContenu;
+  const contenu = sansClesAbandonnees(b.contenu as BriefContenu);
   const statuts = b.statuts as Record<string, StatutChamp>;
   return {
     projectId,

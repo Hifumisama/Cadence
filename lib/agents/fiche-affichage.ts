@@ -22,10 +22,6 @@ const LIBELLES: Record<string, string> = {
   personnages: "Le héros et les personnages",
   univers: "L’univers",
   lieux: "Les lieux",
-  continuite: "Règles de continuité",
-  rimes: "Rimes",
-  progressions: "Progressions",
-  pieges: "Pièges à éviter",
   episodes: "Épisodes",
   titre: "Titre",
 };
@@ -52,12 +48,6 @@ export function resumerSection(cle: string, valeur: unknown): string {
       }
       case "lieux":
         return `${chaine(o.nom)}${chaine(o.description) ? ` : ${chaine(o.description)}` : ""}`;
-      case "rimes":
-        return chaine(o.description);
-      case "progressions":
-        return `${chaine(o.quoi)}${chaine(o.evolution) ? ` : ${chaine(o.evolution)}` : ""}`;
-      case "pieges":
-        return chaine(o.cliche);
       case "episodes":
         return `${chaine(o.titre)}${chaine(o.resume) ? ` : ${chaine(o.resume)}` : ""}`;
       default:
