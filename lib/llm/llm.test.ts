@@ -263,7 +263,7 @@ test("chargeur : nom invalide, skill absent, fichiers obligatoires", () => {
 
 test("chargeur : les skills réels s'assemblent et leur schéma se compile", () => {
   const noms = listerSkills();
-  assert.deepEqual(noms, ["accroche-scenariste", "brief-projet", "conversation-agent", "inventaire-assets", "iteration-plan", "notes-entretien", "plan-h3", "prompt-affiche", "prompt-asset", "prompt-voix", "realisateur-analyse", "realisateur-reponse", "scenario-episode"]);
+  assert.deepEqual(noms, ["accroche-scenariste", "conversation-agent", "inventaire-assets", "iteration-plan", "notes-entretien", "plan-h3", "prompt-asset", "prompt-voix", "realisateur-analyse", "realisateur-reponse", "scenario-episode"]);
   for (const nom of noms) {
     const s = chargerSkill(nom);
     assert.ok(s.caracteres > 2000, nom);
@@ -272,7 +272,8 @@ test("chargeur : les skills réels s'assemblent et leur schéma se compile", () 
     assert.equal(s.jetonsEstimes, Math.ceil(s.caracteres / 4));
   }
   const h3 = chargerSkill("plan-h3");
-  assert.ok(h3.fichiers.some((f) => f.endsWith("h3-lexique-corrections.md")), "le lexique partagé est inclus");
+  assert.ok(chargerSkill("iteration-plan").fichiers.some((f) => f.endsWith("h3-lexique-corrections.md")), "le lexique partagé est inclus dans iteration-plan");
+  assert.ok(!h3.fichiers.some((f) => f.endsWith("h3-lexique-corrections.md")), "plan-h3 porte ces règles dans son SKILL");
   assert.ok(h3.fichiers.filter((f) => f.includes("/exemples/")).length === 4);
 });
 

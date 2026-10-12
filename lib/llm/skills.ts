@@ -24,16 +24,16 @@ import { join, resolve } from "node:path";
  * déclaration et ceux qui la nomment ; sans `variante`, tous les guides sont chargés.
  * Cela évite d'envoyer au modèle (surtout un petit modèle local) un guide audio pour
  * écrire un prompt d'image. Exemple prompt-asset : `sfx`, `generation` (Krea 2),
- * `edition` (Qwen), `image` (les deux guides d'image : la méthode reste à recommander). */
+ * `edition` (Qwen), `image` (les deux guides d'image : la méthode reste à recommander),
+ * `affiche` (l'affiche de présentation : les deux guides d'image aussi). */
 
-/** Les seuls fichiers lus hors du dossier d'un skill : le lexique de corrections H3 (qui vit dans
- * `plan-h3`), partagé avec `iteration-plan` (source unique), et les guides d'image de `prompt-asset`. */
+/** Le seul fichier lu hors du dossier d'un skill : le lexique de corrections H3 (qui vit dans
+ * `plan-h3`), partagé avec `iteration-plan` (source unique). L'affiche n'est plus un skill : c'est la variante
+ * `affiche` de `prompt-asset`, qui charge ses guides d'image par la déclaration `variantes` (voir plus haut). */
 const LEXIQUE_H3 = "agents/skills/plan-h3/references/h3-lexique-corrections.md";
 export const FICHIERS_PARTAGES: Record<string, string[]> = {
-  "plan-h3": [LEXIQUE_H3],
+  // Le lexique ne sert qu'à iteration-plan (symptôme → cause) : plan-h3 en porte les leçons sous forme de règles dans son SKILL.
   "iteration-plan": [LEXIQUE_H3],
-  // L'affiche s'écrit comme un asset d'image : mêmes guides Krea 2 / Qwen, jamais recopiés.
-  "prompt-affiche": ["agents/skills/prompt-asset/references/guide-krea2.md", "agents/skills/prompt-asset/references/guide-qwen-edit.md"],
 };
 
 export type OptionsChargement = {

@@ -21,6 +21,7 @@ import {
   parametresTestVideo,
   parametresVoixSource,
 } from "../lib/asset-generation";
+import { TYPE_AFFICHE } from "../lib/affiches";
 import { annulationDemandeeImage, finirAnnulationImage } from "../lib/annulation-db";
 import { adopterCandidat } from "../lib/generation-adoption";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";
@@ -29,6 +30,7 @@ import { poserPriseGeneree } from "../lib/replique-prise";
 import { mesurerDureeAudio } from "../lib/repliques";
 import { ajusterDureePromptTest, dureeVideoPourAudio } from "../lib/voix";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
+import { cheminCanevasAffiche } from "./canevas-affiche";
 import type { ComfyUIClient } from "./comfyui";
 import { NODE_IDS_AUDIO, injecterGenerationAudio } from "./comfyui/audioMapping";
 import { ErreurEntreeInvalide, NODE_IDS, injecterValeurs, nomDistantDepuisChemin, verifierEntree } from "./comfyui/mapping";
@@ -109,6 +111,19 @@ async function envoyerSources(client: ComfyUIClient, gen: Generation, mediaRoot:
     noms.push(distant);
   }
   return noms;
+}
+
+/** Sources d'une édition. Pour une affiche, un canevas vide 2:3 passe en image 1 : la sortie de Qwen suit le format de
+ * l'image 1, et sans lui une fiche personnage 16:9 donnerait une affiche 16:9. Le personnage (la source enregistrée)
+ * devient l'image 2. */
+async function sourcesEdition(client: ComfyUIClient, gen: Generation, mediaRoot: string, affiche: boolean): Promise<string[]> {
+  const sources = await envoyerSources(client, gen, mediaRoot);
+  if (!affiche) return sources;
+  if (sources.length > 2) throw new Error("Une affiche éditée prend 2 images au plus (le canevas occupe la première des 3 places)");
+  const local = await cheminCanevasAffiche(join(mediaRoot, "_canevas"));
+  const distant = nomSourceDistante(gen.uuid, 0, ".png");
+  await client.uploadRef(local, distant);
+  return [distant, ...sources];
 }
 
 /** La plus ancienne demande en attente (FIFO), ou null. Le worker la compare à la
@@ -345,7 +360,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         prompt: gen.prompt,
         seed: gen.seed,
         lightning: gen.lightning ?? true,
-        sourcesDistantes: await envoyerSources(client, gen, mediaRoot),
+        sourcesDistantes: await sourcesEdition(client, gen, mediaRoot, asset.type === TYPE_AFFICHE),
         prefixeSortie: `cadence_${asset.code}`,
       });
     } else {

@@ -111,8 +111,7 @@ export type PersonnageBrief = {
   statut?: string;
 };
 
-/** Le brief, tel que le skill `brief-projet` le rend (agents/skills/brief-projet/
- * assets/sortie.schema.json). Les clés de premier niveau sont les « sections » du brief. */
+/** Le brief stocké (`lib/agents/brief-schema.json` ; ses sections se remplissent via `notes-entretien`). Les clés de premier niveau sont les « sections » du brief. */
 export type BriefContenu = {
   titre: string;
   source: "pitch" | "texte" | "reconstitue";

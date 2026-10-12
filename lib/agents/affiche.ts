@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { assets, episodes, projects, seasons } from "../../db/schema";
 import { cibleDeCodeAffiche, personnagePrincipal, titreDansPrompt, type CibleAffiche } from "../affiches";
 import { horsAffiches } from "../assets-visibles";
+import { VARIANTE_AFFICHE } from "../llm/variantes";
 import { imageActuelle } from "../queries-generations";
 import type { Db } from "./applicateurs/commun";
 import { extraitsBrief, lireBriefDuProjet, type EntreeSkill } from "./contexte";
@@ -73,8 +74,8 @@ export async function lirePersonnagePrincipal(db: Db, projectId: number) {
   return choix ? { ...choix.asset, nom: choix.nom ?? choix.asset.code } : null;
 }
 
-/** L'entrée du skill `prompt-affiche` pour l'asset d'affiche d'un projet, d'une saison ou d'un épisode : titre, résumé, ton,
- * personnage principal (et si son image existe : elle sert de première source), clause de style en information. */
+/** L'entrée du skill `prompt-asset`, variante `affiche`, pour l'asset d'affiche d'un projet, d'une saison ou d'un épisode : titre,
+ * résumé, ton, personnage principal (et si son image existe : elle sert de première source), clause de style en information. */
 export async function entreePromptAffiche(db: Db, projectId: number, assetId: number, consigne: string, retour?: string): Promise<EntreeSkill | null> {
   const [asset] = await db.select().from(assets).where(and(eq(assets.id, assetId), eq(assets.projectId, projectId)));
   const cible = asset ? cibleDeCodeAffiche(asset.code) : null;
@@ -87,7 +88,8 @@ export async function entreePromptAffiche(db: Db, projectId: number, assetId: nu
   const principal = await lirePersonnagePrincipal(db, projectId);
 
   return {
-    skill: "prompt-affiche",
+    skill: "prompt-asset",
+    variante: VARIANTE_AFFICHE,
     contexte: [
       { type: "asset", libelle: `Affiche · ${contexteAffiche.titre}`, ref: asset.code },
       ...(principal ? [{ type: "asset" as const, libelle: `Personnage principal ${principal.code}${principal.aImage ? " (image en source 1)" : " (sans image)"}`, ref: principal.code }] : []),

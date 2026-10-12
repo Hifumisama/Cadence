@@ -1,4 +1,4 @@
-<!-- variantes: image, edition -->
+<!-- variantes: image, edition, affiche -->
 # Qwen Image Edit 2511 — prompting an edit
 
 > Grammar taken from the `assets-comfyui` skill (real production) and the model's official page: [ComfyUI, Qwen-Image-Edit-2511](https://docs.comfy.org/tutorials/image/qwen/qwen-image-edit-2511). The official docs give no prompt instruction; everything below comes from our practice `[project]`. The edit workflow is `workflows/image-refs/IMG_Simple_Edit.json` (up to three images: the first is the target of the modification).

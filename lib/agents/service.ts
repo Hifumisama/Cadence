@@ -16,9 +16,9 @@ import {
   seasons,
   voixFiches,
 } from "../../db/schema";
-import { chargerSkill } from "../llm/skills";
 import { valider } from "../llm/validation";
-import { SECTIONS_FIGEES_PAR_LA_CONCEPTION, estCleSection, sousSchemaSection } from "./brief";
+import { VARIANTE_AFFICHE } from "../llm/variantes";
+import { SCHEMA_BRIEF, SECTIONS_FIGEES_PAR_LA_CONCEPTION, estCleSection, sousSchemaSection } from "./brief";
 import { abandonnerBrouillon, creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
 import { accrocheEntretien } from "./accroche";
 import { entreeNotes, ficheVersBrief, type Fiche } from "./fiche";
@@ -335,7 +335,7 @@ export async function modifierChampBrief(projectId: number, section: string, val
   if (SECTIONS_FIGEES_PAR_LA_CONCEPTION.includes(section) && (await lireConception(db, projectId))) {
     return ERR("Ce choix a été fait à la conception du projet : le changer reviendrait à refaire le projet (la langue touche tous les dialogues, la durée tout le découpage).");
   }
-  const sous = sousSchemaSection(chargerSkill("brief-projet").schema, section);
+  const sous = sousSchemaSection(SCHEMA_BRIEF, section);
   if (sous) {
     const v = valider({ $schema: "https://json-schema.org/draft/2020-12/schema", ...sous }, valeur);
     if (!v.ok) return ERR(`Valeur invalide pour « ${section} » : ${v.erreurs.join(" ; ")}`);
@@ -396,11 +396,11 @@ async function nouvelleProposition(conv: ConversationRow, p: { skill: string; co
 async function entreePourConversation(conv: ConversationRow, consigne: string, position?: Position, retour?: string): Promise<{ entree: EntreeSkill; options: Record<string, unknown> } | { erreur: string }> {
   const cibleId = conv.cibleId;
   if (conv.portee === "asset" && cibleId != null) {
-    // L'affiche d'un projet, d'une saison ou d'un épisode est un asset caché : son propre skill, même parcours de revue.
+    // L'affiche d'un projet, d'une saison ou d'un épisode est un asset caché : le skill `prompt-asset`, variante `affiche`, même parcours de revue.
     const [cibleAsset] = await db.select({ type: assets.type }).from(assets).where(and(eq(assets.id, cibleId), eq(assets.projectId, conv.projectId)));
     if (cibleAsset?.type === TYPE_AFFICHE) {
       const a = await entreePromptAffiche(db, conv.projectId, cibleId, consigne, retour);
-      return a ? { entree: a, options: {} } : { erreur: "Affiche introuvable." };
+      return a ? { entree: a, options: { variante: a.variante } } : { erreur: "Affiche introuvable." };
     }
     const e = await entreePromptAsset(db, conv.projectId, cibleId, consigne, retour);
     return e ? { entree: e, options: { variante: e.variante } } : { erreur: "Asset introuvable." };
@@ -587,8 +587,11 @@ export async function affiner(propositionUuid: string, retour: string): Promise<
     retourUtilisateur: texte,
     propositionPrecedente: runParent.resultat ?? null,
   };
-  const propId = await nouvelleProposition(conv, { skill: parent.skill, consigne: parent.consigne, contexte: (parent.contexte as unknown[]) ?? [], parentId: parent.id, retour: texte });
-  const run = await creerRun(db, { skill: parent.skill, entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: optionsParent });
+  // Une proposition d'affiche écrite avant la fusion porte encore l'ancien skill `prompt-affiche` : elle se rejoue en variante `affiche` de `prompt-asset`.
+  const ancienneAffiche = parent.skill === "prompt-affiche";
+  const skillRejoue = ancienneAffiche ? "prompt-asset" : parent.skill;
+  const propId = await nouvelleProposition(conv, { skill: skillRejoue, consigne: parent.consigne, contexte: (parent.contexte as unknown[]) ?? [], parentId: parent.id, retour: texte });
+  const run = await creerRun(db, { skill: skillRejoue, entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: ancienneAffiche ? { ...optionsParent, variante: VARIANTE_AFFICHE } : optionsParent });
   await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
   const [nouvelle] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
   return { ok: true, propositionUuid: nouvelle!.uuid, runUuid: run.uuid };

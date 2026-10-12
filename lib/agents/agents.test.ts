@@ -280,10 +280,13 @@ test("prompt-affiche : une modification de l'asset d'affiche, avec la ligne de t
   assert.match(apres.promptGeneration, /Title lettering: "Rubis"/);
   assert.doesNotMatch(apres.promptGeneration, /No text, no lettering/);
   assert.equal(apres.methodeGeneration, "edition");
-  assert.ok(avecTitre!.avertissements!.some((a) => /première source/.test(a.texte)));
+  assert.ok(avecTitre!.avertissements!.some((a) => /canevas vide 2:3/.test(a.texte)));
   // sans image de personnage au moment de la demande : jamais d'édition, même recommandée
   const [sansImage] = depuisPromptAffiche(sortie, { id: 7, promptGeneration: "A.", methodeGeneration: "generation" }, { titre: "Rubis", imagePersonnageDisponible: false });
   const a2 = sansImage!.apres as { promptGeneration: string; methodeGeneration?: string };
   assert.equal(a2.methodeGeneration, undefined);
   assert.match(a2.promptGeneration, /No text, no lettering/);
+  // remarques harmonisées avec prompt-asset : {type, message}
+  const [typees] = depuisPromptAffiche({ ...sortie, remarques: [{ type: "description-vague", message: "Résumé court." }] }, { id: 7, promptGeneration: "A.", methodeGeneration: null }, { titre: "Rubis", imagePersonnageDisponible: false });
+  assert.ok(typees!.avertissements!.some((a) => a.texte === "description-vague : Résumé court."));
 });

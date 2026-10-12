@@ -12,6 +12,7 @@ import { informationsFormat } from "../../lib/conception";
 import { lireConception } from "../../lib/conception-db";
 import { creerRun } from "../../lib/agents/runs";
 import { ecrireAfficheEtGenerer } from "../../lib/agents/affiche-clap";
+import { VARIANTE_AFFICHE } from "../../lib/llm/variantes";
 import type { ChangementBrut } from "../../lib/agents/changements";
 import {
   depuisCorrectionPlan,
@@ -71,7 +72,7 @@ export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execu
     return postTour(tx, run, json as { reponse: string; resteADefinir?: string[] });
   }
   if (run.but === "brief") return postBrief(tx, run, json as Record<string, unknown>);
-  // L'affiche du clap : le prompt écrit par `prompt-affiche` lance tout de suite la génération de l'affiche du projet (adoption automatique).
+  // L'affiche du clap : le prompt écrit par `prompt-asset` (variante `affiche`) lance tout de suite la génération de l'affiche du projet (adoption automatique).
   if (run.but === "affiche") {
     if (run.projectId == null) throw new Error("Affiche sans projet.");
     return ecrireAfficheEtGenerer(tx, run.projectId, json as { promptGeneration?: unknown });
@@ -188,7 +189,9 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
   }
 
   let bruts: ChangementBrut[] = [];
-  if (run.skill === "prompt-asset") {
+  // L'affiche de présentation est la variante `affiche` du skill `prompt-asset` : même sortie, autre conversion.
+  const estAffiche = run.skill === "prompt-asset" && options.variante === VARIANTE_AFFICHE;
+  if (run.skill === "prompt-asset" && !estAffiche) {
     if (prop.cibleId == null) throw new Error("Proposition d'asset sans cible.");
     const [asset] = await tx.select().from(assets).where(eq(assets.id, prop.cibleId));
     if (!asset) throw new Error("L'asset visé n'existe plus.");
@@ -199,7 +202,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       methodeGeneration: asset.methodeGeneration,
       methodeApplicable: methodeApplicable(asset.type),
     });
-  } else if (run.skill === "prompt-affiche") {
+  } else if (estAffiche) {
     if (prop.cibleId == null) throw new Error("Proposition d'affiche sans cible.");
     const [asset] = await tx.select().from(assets).where(eq(assets.id, prop.cibleId));
     if (!asset) throw new Error("L'affiche visée n'existe plus.");

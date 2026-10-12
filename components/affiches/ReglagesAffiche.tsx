@@ -62,7 +62,7 @@ export function ReglagesAffiche({
         <small>
           {personnage
             ? personnage.aImage
-              ? `Le personnage principal (${personnage.nom}) sert de point de départ : son image est la première source.`
+              ? `Le personnage principal (${personnage.nom}) sert de point de départ : son image est la source ; un canevas 2:3 vide est ajouté devant à la génération.`
               : `Le personnage principal (${personnage.nom}) est décrit dans le prompt, mais il n'a pas encore d'image : la cohérence sera moindre.`
             : "Aucun personnage principal repéré dans le registre : l'agent compose à partir du résumé."}
         </small>

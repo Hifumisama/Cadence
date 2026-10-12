@@ -1,4 +1,4 @@
-<!-- variantes: image, generation -->
+<!-- variantes: image, generation, affiche -->
 # Krea 2 (Turbo) — prompting a master or an asset generated from scratch
 
 > Sources. **Official**: [krea-ai/krea-2, `docs/prompting.md`](https://github.com/krea-ai/krea-2/blob/main/docs/prompting.md) and [`docs/expansion.txt`](https://github.com/krea-ai/krea-2/blob/main/docs/expansion.txt) (retrieved 2026-09-30); [ComfyUI, Krea-2 workflow](https://docs.comfy.org/tutorials/image/krea/krea-2). **Community, unofficial**: a third-party author's prompt-block guide (order framing → light → subject → set → style, word weighting, pose scheme). Every rule below is tagged `[official]`, `[community]` or `[project]` (observed on our renders, or inherited from our registry). A `[community]` rule is a lead to test, never a fact.
@@ -18,12 +18,11 @@
 2. **Long and detailed gives the best results**, but the model already holds a correct image with little. `[official]` Aim for 40 to 100 words for a simple asset, more for a rich character. `[project]`
 3. **Text in the image**: wrap the words to display in quotes `"…"`. `[official]` (the "Le Voile Écarlate" sign from the registry)
 4. **Subject only, no style.** The project's style is added by ComfyUI from the style clause: do not repeat it in an asset prompt. `[project]`
-5. **Suggested order**: framing and light first, subject (the longest block) next, set, then style. `[community]` Each block on its own line improves coherence. `[community]` Our registry writes from subject to framing: both produced validated images, so do not rewrite a prompt that worked to respect this order. `[project]`
-6. **Stay faithful to the description**: add no object, prop or character that the description does not say. `[official, expansion.txt]`
+5. **Suggested order**: framing and light first, subject (the longest block) next, set. `[community]` Each block on its own line improves coherence. `[community]` Our registry writes from subject to framing: both produced validated images, so do not rewrite a prompt that worked to respect this order. `[project]`
+6. **Complete what the description leaves out with a precise choice**; never contradict it; add no separate object or character. `[project, overrides expansion.txt]`
 7. **A requested medium is a respected medium**: do not switch from one rendering to another to work around a difficulty. `[official, expansion.txt]`
 8. **An already detailed prompt is polished, not rewritten.** `[official, expansion.txt]`
-9. **Do not over-specify**: do not invent an outfit, colour or material that the input does not support. `[official, expansion.txt]`
-10. **One paragraph** per prompt. `[official, expansion.txt]`
+9. **One paragraph** per prompt. `[official, expansion.txt]`
 
 ## Project templates
 

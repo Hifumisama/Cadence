@@ -43,7 +43,7 @@ The docs recommend this tag at the head of a sound prompt (more "reasonable" sou
 4. **No technical parameters** ("48kHz", "stereo", "high quality") and no brands, artists or works. `[project, to test]`
 5. **Add no sound element** absent from the canonical description (a crackling fire does not get owls as a bonus).
 6. **No loop promise**: nothing guarantees an ambience loops cleanly. `[project, unverified]`
-7. **Inconsistent duration**: an ambience over 2 s or a gunshot over 12 s does not render what you describe.
+7. **Inconsistent duration**: an ambience under 2 s or a gunshot over 12 s does not render what you describe.
 
 ## Examples (prompt, duration in seconds)
 
@@ -57,17 +57,17 @@ The docs recommend this tag at the head of a sound prompt (more "reasonable" sou
 | Soft pillow thud landing on a stone floor, muffled fabric impact with a small puff of air, dry and close. | 1 |
 | Sword drawn from a leather scabbard, bright metallic scrape ending in a clean ring, dry close perspective. | 2 |
 | Ocean waves rolling onto a rocky shore, strong sea breeze, distant seagulls, wide open outdoor ambience. | 12 |
-| Wooden floorboards creaking under slow footsteps in an old quiet house, sparse and tense, large reverberant room. | 6 |
+| Wooden floorboards creaking under slow footsteps in an old quiet house, slow and irregular, large reverberant room. | 6 |
 | Single deep gong strike with a long metallic bloom fading slowly into silence, reverberant temple hall. | 8 |
 | Glass goblet shattering on a stone floor, sharp impact followed by scattering shards. | 2 |
-| Magical shimmer, rising glassy tonal sparkle with a soft airy whoosh, dissolving into faint chimes. | 4 |
+| Glittering shimmer, rising glassy sparkle with a soft airy whoosh, dissolving into a faint high rustle. | 4 |
 
 ## Before you answer
 
 - English, one or two sentences, a single sound scene, at least two layers out of three (source, action, production).
 - No negation, voice, music, visual term, technical parameter, tag, duration mention.
 - Nothing added to the canonical description, nothing important forgotten.
-- Integer `dureeSecondes`, consistent with the sound, 15 at most unless a reason is given; empty `sources`; `methode` set to `generation`.
+- Integer `dureeSecondes`, consistent with the sound, 15 at most unless a reason is given; `sources` omitted; `methode` set to `generation`.
 
 ## Uncertain
 

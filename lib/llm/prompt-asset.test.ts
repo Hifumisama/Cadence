@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { chargerSkill, variantesDuGuide } from "./skills";
-import { variantePromptAsset } from "./variantes";
+import { chargerSkill, listerSkills, variantesDuGuide } from "./skills";
+import { VARIANTE_AFFICHE, variantePromptAsset } from "./variantes";
 import { valider } from "./validation";
 
 // Le skill prompt-asset sert les images ET les sons (asset `sfx`) : le guide
@@ -41,6 +41,14 @@ test("prompt-asset : chaque variante ne charge que ses guides", () => {
   assert.ok(img.jetonsEstimes < chargerSkill("prompt-asset").jetonsEstimes, "le prompt d'image est plus léger");
   assert.ok(sfx.jetonsEstimes < chargerSkill("prompt-asset").jetonsEstimes);
   assert.equal(img.guidesIgnores.length, 1);
+  const affiche = chargerSkill("prompt-asset", undefined, { variante: VARIANTE_AFFICHE });
+  assert.deepEqual(guidesDe(affiche), ["guide-krea2.md", "guide-qwen-edit.md"], "l'affiche charge les deux guides d'image, jamais le guide audio");
+  assert.ok(affiche.systeme.includes("A poster (variant `affiche`)"));
+});
+
+test("prompt-asset : l'ancien skill prompt-affiche n'existe plus (fusionné en variante)", () => {
+  assert.ok(!listerSkills().includes("prompt-affiche"));
+  assert.throws(() => chargerSkill("prompt-affiche"), /introuvable/);
 });
 
 test("variantePromptAsset : le type et la méthode choisissent la variante", () => {
@@ -72,4 +80,20 @@ test("prompt-asset : la durée doit être un entier de 1 à 60 secondes", () => 
     assert.equal(valider(schema, { ...sfx, dureeSecondes: duree }).ok, false, String(duree));
   }
   assert.equal(valider(schema, { ...sfx, dureeSecondes: 15 }).ok, true);
+});
+
+test("prompt-asset : le schéma est en deux variantes (anyOf) : un son exige sa durée et n'a pas de sources, une image n'a pas de durée", () => {
+  const { schema } = chargerSkill("prompt-asset");
+  const s = schema as { anyOf: { required: string[]; properties: Record<string, unknown> }[] };
+  assert.equal(s.anyOf.length, 2);
+  // Les variantes portent leurs champs : llama.cpp ignore les `properties` voisins d'un `anyOf`.
+  assert.ok(s.anyOf.every((v) => ["reflexion", "methode", "raisonMethode", "promptGeneration", "remarques"].every((c) => c in v.properties)));
+  const { dureeSecondes: _d, ...sansDuree } = sfx;
+  assert.equal(valider(schema, sansDuree).ok, true, "sans durée, la sortie est celle d'une image");
+  assert.equal(valider(schema, { ...sfx, sources: [] }).ok, false, "un son n'a pas de sources");
+  assert.equal(valider(schema, { ...sfx, methode: "edition" }).ok, false, "un son se génère");
+  assert.equal(valider(schema, { ...image, dureeSecondes: 4 }).ok, true, "une durée appartient à la variante son");
+  assert.equal(valider(schema, { ...image, methode: "edition", sources: ["CHAR_maya"] }).ok, true);
+  assert.equal(valider(schema, { ...image, methode: "edition", sources: ["A", "B", "C", "D"] }).ok, false);
+  assert.equal(valider(schema, { ...image, remarques: [{ type: "description-vague", message: "Résumé court." }] }).ok, true);
 });

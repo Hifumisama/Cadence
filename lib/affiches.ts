@@ -37,7 +37,7 @@ const DEBUT_LIGNE_TITRE = "Title lettering:";
 
 /** Le prompt proposé : un gabarit rempli avec ce que le projet sait de lui-même. La clause de style n'y figure pas (le
  * workflow l'ajoute à part). Pas d'étiquette (« Story: ») ni de titre entre guillemets hors du cas « titre dans l'image » :
- * le modèle dessinerait les mots qu'on lui donne. Le résumé est en français, donc seul l'agent (skill `prompt-affiche`)
+ * le modèle dessinerait les mots qu'on lui donne. Le résumé est en français, donc seul l'agent (skill `prompt-asset`, variante `affiche`)
  * fait un vrai prompt ; ce gabarit n'est que le point de départ. */
 export function promptAffiche(entree: { cible: CibleAffiche; titre: string; resume?: string | null; genreTon?: string | null; titreDansImage?: boolean }): string {
   const resume = (entree.resume ?? "").trim().replace(/\s+/g, " ");

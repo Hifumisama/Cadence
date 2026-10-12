@@ -3,6 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { agentConversations, agentRuns, assetGenerations, assets, briefs, projects } from "../../db/schema";
 import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../affiches";
 import { nouvelleSeed } from "../asset-generation";
+import { VARIANTE_AFFICHE } from "../llm/variantes";
 import { motDuTon, styleDesImages } from "../conception";
 import { lireConception } from "../conception-db";
 import type { Db } from "./applicateurs/commun";
@@ -15,7 +16,7 @@ import type { BriefContenu, PersonnageBrief } from "./types";
  * refait que si ce qui la nourrit a changé (`signatureAffiche`) : l'histoire, le héros, les lieux, le genre, le ton, le style, et le titre (il
  * est ÉCRIT dans l'image, en lettrage intégré à la composition : un titre corrigé au clap refait donc l'affiche).
  *
- * Deux temps, portés par le worker : (1) une tâche du skill `prompt-affiche` (but « affiche ») écrit le prompt à partir de la fiche de
+ * Deux temps, portés par le worker : (1) une tâche du skill `prompt-asset`, variante `affiche` (but « affiche ») écrit le prompt à partir de la fiche de
  * l'entretien ; (2) à son retour (`ecrireAfficheEtGenerer`, appelée par worker/agents/postTraitement.ts), la génération part dans la file
  * des images avec adoption automatique, et son résultat devient l'affiche du projet (lib/generation-adoption.ts). */
 
@@ -53,7 +54,7 @@ export function signatureAffiche(d: Omit<DonneesAffiche, "clauseStyle">): string
 
 const decrire = (p: DonneesAffiche["personnages"][number]): string => [net(p.age), net(p.apparence), net(p.gestuelle) || net(p.reconnaissable)].filter(Boolean).join(", ");
 
-/** L'entrée du skill `prompt-affiche` pour l'affiche du clap. Les images de personnages n'existent pas encore : c'est une génération par
+/** L'entrée du skill `prompt-asset` (variante `affiche`) pour l'affiche du clap. Les images de personnages n'existent pas encore : c'est une génération par
  * le texte, le héros est décrit par sa fiche. */
 export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
   const [heros] = d.personnages;
@@ -144,7 +145,7 @@ export async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<Don
 export async function lancerAfficheClap(db: Db, projectId: number, d: DonneesAffiche, signature: string): Promise<void> {
   await assurerAssetAffiche(db, projectId, d);
   await db.update(agentRuns).set({ statut: "annulee", finishedAt: new Date() }).where(and(eq(agentRuns.projectId, projectId), eq(agentRuns.but, "affiche"), eq(agentRuns.statut, "en_attente")));
-  await creerRun(db, { skill: "prompt-affiche", entree: entreeAfficheClap(d), but: "affiche", projectId, conversationId: null, options: { signature } });
+  await creerRun(db, { skill: "prompt-asset", entree: entreeAfficheClap(d), but: "affiche", projectId, conversationId: null, options: { signature, variante: VARIANTE_AFFICHE } });
 }
 
 /** Retour du skill (appelée par le worker, dans sa transaction) : le prompt devient celui de l'affiche, et la génération part dans la file des

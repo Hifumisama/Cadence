@@ -627,13 +627,14 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   ];
 }
 
-// --- prompt-affiche (affiche de présentation d'un projet, d'une saison ou d'un épisode) ---------------
+// --- prompt-asset, variante affiche (affiche de présentation d'un projet, d'une saison ou d'un épisode) ---------------
 
+/** Même sortie que `SortiePromptAsset` (`remarques` en `{type, message}`) ; une remarque en simple chaîne (ancien format) reste lue. */
 export type SortiePromptAffiche = {
   methode: "generation" | "edition";
   sources?: string[];
   promptGeneration: string;
-  remarques: string[];
+  remarques: (string | { type: string; message: string })[];
 };
 
 /** Le prompt d'une affiche : une modification de l'asset d'affiche. La ligne de titre suit le réglage ACTUEL de l'affiche (la
@@ -649,8 +650,11 @@ export function depuisPromptAffiche(
     promptGeneration: avecTitreDansImage(sortie.promptGeneration.trim(), demande.titre, titreDansPrompt(asset.promptGeneration ?? "")),
   };
   if (methode !== (asset.methodeGeneration ?? "generation")) apres.methodeGeneration = methode;
-  const avertissements: Avertissement[] = (sortie.remarques ?? []).map((texte) => ({ type: "info" as const, texte }));
-  if (methode === "edition") avertissements.unshift({ type: "info", texte: "L'image du personnage principal est la première source : la fenêtre de génération s'ouvre en mode « images »." });
+  const avertissements: Avertissement[] = [
+    ...avertissementsRemarques((sortie.remarques ?? []).filter((r): r is { type: string; message: string } => typeof r !== "string")),
+    ...(sortie.remarques ?? []).filter((r): r is string => typeof r === "string").map((texte) => ({ type: "info" as const, texte })),
+  ];
+  if (methode === "edition") avertissements.unshift({ type: "info", texte: "L'image du personnage principal est la source ; à la génération, un canevas vide 2:3 est ajouté en image 1 pour fixer le format de l'affiche : la fenêtre s'ouvre en mode « images »." });
   return [
     {
       groupe: "assets",
