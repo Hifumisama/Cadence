@@ -2168,7 +2168,7 @@ Test du VFX « avatar intro » (projet 210) : l'image de l'effet ressortait comm
 
 ## 2026-10-12 — Skill plan-h3 après le banc Singularity : ce qui est retiré, ce qui est tranché, ce qui reste à tester
 
-*Branche `plan-h3-banc-singularity`. Contexte : `docs/RETRO_BANC_SINGULARITY.md` et `docs/NOTE_REPRISE_PLAN_H3.md`.*
+*Branche `plan-h3-banc-singularity`. Contexte : `docs/ARCHIVE_BANC_SINGULARITY.md` (les scripts `ab-*` et les deux documents de rétrospective ont été supprimés).*
 
 - **Retiré** : la ligne de cadence « échange de coups, un plan toutes les 2,5 à 4 s » (un combat reste en cadence **intense**, 1,5–2 s ; le minimum de 1,5 s par plan demeure) et l'insistance sur « 350–500 mots » (elle faisait écrire plus court et plus abstrait à gemma4-26b-A4B). Les guides tiers vont dans ce sens : au moins 2 s par plan, fixer le **nombre de contacts lisibles**, simplifier la chorégraphie autour de l'impact.
 - **Budget de longueur** : le prompt assemblé reste **sous 7 000 caractères** (limite donnée par l'utilisateur ; le guide officiel plafonne à 7 000). On ne compte plus les mots dans le skill ; l'alerte de code `description-longue` (600 mots) reste.
