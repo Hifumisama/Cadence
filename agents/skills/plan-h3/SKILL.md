@@ -78,7 +78,7 @@ Shot count follows **action intensity, not plan duration**:
 | Action | Cadence | Camera |
 |---|---|---|
 | **Intense**: run, flight, fall, panic | one shot every **1.5–2 s** | mobile, varied angles (ground, high-angle, canted, high wide, insert) |
-| **Fight between characters** | one shot every **3–4 s**, each holding a linked exchange | the camera moves **inside** the shot (tracking, pan, push-in, arc) for the dynamism; the cut falls before or after a contact, never on it, with both fighters in frame |
+| **Fight between characters** | one shot every **2.5–4 s**, each holding a linked exchange | the camera moves **inside** the shot (tracking, pan, push-in, arc) for the dynamism; the cut falls before or after a contact, never on it, with both fighters in frame |
 | **Moderate**: determined walk, exchange, transition | one shot every **2–3 s** | simple movements, alternating shot sizes |
 | **Calm or held tension**: listening, waiting, reaction | one shot every **2.5–4 s**, or a single held shot | locked, symmetrical, eye level |
 
@@ -87,7 +87,7 @@ Shot count follows **action intensity, not plan duration**:
 3. **First shot at `0`**, strictly increasing starts; the last shot should also last at least 1.5 s before the end of the plan.
 4. **Deliberate continuous gesture**: when continuity of the gesture is the effect (a slap in one movement), keep one movement and say so in `notes`.
 5. **Cadence tells the character's state by contrast.** A character in danger is filmed as prey (shoulder cam, canted, low angles, short cuts); the same character taking control, as a predator (locked camera, symmetrical frame, long cuts). Calm only has weight after fast: think of plans in pairs with their neighbours.
-6. **A cut must bring something new**: a subject, a space, a state or a viewpoint. A cut that reveals none is replaced by a camera movement inside the shot. The more cuts, the more junctions where the end of one movement and the start of the next must match, and they often do not (render bench: 7 junctions mismatched, 3 matched).
+6. **A cut must bring something new**: a subject, a space, a state or a viewpoint. A cut that reveals none is replaced by a camera movement inside the shot. Every cut is a junction where the end of one movement and the start of the next must match: **each shot starts by picking up the last gesture of the previous one** (the flames hit the stone, then the next shot opens on the slab cracking under them). Render bench: 8 shots cut at the contact with one fighter in frame mismatched; 4 shots and 6 shots that each pick the gesture up matched.
 7. **Spread fear or urgency signals across the cuts** (look over the shoulder, uneven stride, hand slapping a wall, visible breath). One readable signal per shot is enough.
 
 ### 3. Write what can be seen
