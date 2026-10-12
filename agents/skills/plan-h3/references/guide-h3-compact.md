@@ -42,7 +42,7 @@ One object per shot: `debutSecondes` and `texte`.
 6. **Dialogue**: `<d>[Français] …</d>`, verbatim, punctuation included. Punctuation limited to `, . ? !`; a complete sentence ends with `.`, `?` or `!` before `</d>`. An unintelligible passage is written `[unclear]`.
 7. **On-screen text** (sign, label, subtitle, neon): in English double quotes, verbatim and in its own language ("a red neon sign reading "营业中"").
 8. **Cut-off dialogue**: `<scenetrans>` and `<cutoff>` with the matching continuity descriptions, when a line crosses a cut or is truncated by the end of the video.
-9. **Length**: 350–500 words in all for a rich plan. A dialogue plan favours covering the whole spoken timeline over word count.
+9. **Length**: the whole assembled prompt stays under 7,000 characters. A dialogue plan favours covering the whole spoken timeline over length.
 
 ## `overall_soundscape` and `non_diegetic_music`
 

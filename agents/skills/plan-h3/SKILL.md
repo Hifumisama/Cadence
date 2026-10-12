@@ -77,9 +77,8 @@ Shot count follows **action intensity, not plan duration**:
 
 | Action | Cadence | Camera |
 |---|---|---|
-| **Intense**: run, flight, fall, panic | one shot every **1.5–2 s** | mobile, varied angles (ground, high-angle, canted, high wide, insert) |
-| **Exchange of blows between two characters** | one shot every **2.5–4 s**, each holding one linked exchange (2–4 blows) | the camera moves **inside** the shot (tracking, pan, push-in) instead of cutting again |
-| **Moderate**: determined walk, dialogue exchange, transition | one shot every **2–3 s** | simple movements, alternating shot sizes |
+| **Intense**: run, flight, fight, fall, panic | one shot every **1.5–2 s** | mobile, varied angles (ground, high-angle, canted, high wide, insert) |
+| **Moderate**: determined walk, exchange, transition | one shot every **2–3 s** | simple movements, alternating shot sizes |
 | **Calm or held tension**: listening, waiting, reaction | one shot every **2.5–4 s**, or a single held shot | locked, symmetrical, eye level |
 
 1. **Aim for at least 1.5 s per shot** (strong advice): below it, H3 often stretches or smooths. Go below only for a deliberate effect (a flash-cut in intense action) and say so in `notes`.
@@ -93,7 +92,7 @@ Shot count follows **action intensity, not plan duration**:
 
 1. **English body.** Only dialogues (inside `<d>`) and on-screen text keep their language.
 2. **Every detail is visible or audible.** An intention cannot be prompted. "The first decision we see her make" means nothing to the model; "her walk stops, her head turns slowly" does. Turn each intention into an observable event.
-3. **Never phrase an instruction as a negation.** "No crowd" makes a crowd appear. Describe the wanted state: "the corridor is empty" becomes "indigo light falls on a bare floor". (The word `empty` in an end-of-plan description is enough to empty the room.)
+3. **Never phrase an instruction as a negation** (the only exception is the short closing line of §6). "No crowd" makes a crowd appear. Describe the wanted state: "the corridor is empty" becomes "indigo light falls on a bare floor". (The word `empty` in an end-of-plan description is enough to empty the room.)
 4. **Camera movement is a natural action in the sentence** (`the camera pushes in slowly`), not a label.
 5. **Editing vocabulary, French → English**: travelling avant = `push in`, panoramique = `pan`, contre-plongée = `low-angle`, plan d'ensemble = `wide shot`, gros plan = `close-up`, caméra fixe = `static shot`.
 6. **A reference image is not a first frame.** An image showing an **end state** (final pose, already transformed set) must be declared as such in `definition`, otherwise the model places it at the opening and skips the build-up.
@@ -130,7 +129,9 @@ Before a high-stakes plan (strong action, visual effect, rising tension, several
 
 ### 6. Length
 
-`shots` (opening included): **350–500 words** in total, the official norm (a calm or dialogue plan may be shorter); the assembled prompt stays around 4,500–7,500 characters. Under 350 an action plan turns abstract and the video model invents; over 500 it blurs (render tests of a 15 s fight were clearly worse at about 12,000 characters and at about 3,000). Spend the words on **what is seen and done**: for each blow, who strikes, with which limb or weapon, what it touches and what moves in reaction. Adjectives and moods ("frantic", "chaotic", "a whirlwind of fabric") are not actions. The reference definitions already carry identity: do not repeat them in the shots. A dialogue plan favours covering the whole spoken timeline over word count.
+The assembled prompt (definitions, summary, retention, shots, sound, music) stays **under 7,000 characters**: past about 12,000 characters a 15 s fight was the least readable, and a very short one invents what it does not say. Spend the budget on **what is seen and done**: for each blow, who strikes, with which limb or weapon, what it touches and what moves in reaction. Adjectives and moods ("frantic", "chaotic", "a whirlwind of fabric") are not actions. The reference definitions already carry identity: do not repeat them in the shots. A dialogue plan favours covering the whole spoken timeline over length.
+
+**Closing line.** After the last shot, one short sentence of constraints is allowed to protect identity and count, never behaviour or content: "Exactly two fighters; no identity drift or left-right reversal; no text." (Render tests J to M used it and held.) Everything else stays phrased as the wanted state (§3.3).
 
 ## Retention: choose the lightest level that fits
 
@@ -141,8 +142,8 @@ Before a high-stakes plan (strong action, visual effect, rising tension, several
 - Every cited `[[CODE]]` is in `references`, and every reference is cited at least once. No numbered label, no `{picture}`.
 - Every `<d>` is verbatim; all linked lines are cited and listed in `repliques`.
 - First shot at `0`, increasing starts, a distinct angle per shot, no shot under 1.5 s without a reason in `notes`; no timecode, no `Hard cut`, no `[Shot N]` in the texts.
-- Two or more characters acting together: the sides are fixed in `ouverture`, each cut picks the movement up with both in frame at contact, and a fight shot holds an exchange of 2–4 blows, not a single one.
-- `shots` and `ouverture` total about 350–500 words for an action plan, each blow described concretely (who, which limb or weapon, what it touches, what moves).
+- Two or more characters acting together: the sides are fixed in `ouverture`, each cut picks the movement up with both in frame at contact, and a fight shot holds a readable exchange, not an isolated blow smeared with five actions.
+- The assembled prompt stays under 7,000 characters; each blow is described concretely (who, which limb or weapon, what it touches, what moves).
 - No action verb in a `definition` (`lunging`, `advancing`, `running`): it anchors identity, the action goes in the shots.
 - `nature: "son"` only for a sound effect (`SFX_…`); a voice is not a reference.
 - No negated behaviour, no precision vocabulary on a moving character.
