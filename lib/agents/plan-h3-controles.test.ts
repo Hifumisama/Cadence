@@ -114,6 +114,24 @@ test("prompt trop long (au-delà de 7 000 caractères) : une ALERTE, jamais une 
   assert.ok(!controlerSortiePlanH3(bonne, ctx).some((x) => x.regle === "prompt-long"), "un plan court : rien");
 });
 
+test("numérotation des locuteurs : un trou et un numéro partagé donnent une alerte, jamais une erreur", () => {
+  const avec = (...textes: string[]) => ({ ...bonne, shots: textes.map((texte, i) => ({ debutSecondes: i * 5, texte })) });
+  const regles = (s: SortiePlanH3) => controlerSortiePlanH3(s, ctx).filter((x) => x.niveau === "alerte").map((x) => x.regle);
+  // S1 puis S3 : il manque S2
+  const trou = avec("[[CHAR_maya]] (S1) says <d>[French] Encore du sel.</d>", "[[CHAR_maya]] (S3) says <d>[French] Vraiment.</d>");
+  assert.ok(regles(trou).includes("locuteur-numerotation"));
+  assert.equal(erreurs(trou).includes("locuteur-numerotation"), false);
+  // deux personnages sous (S1)
+  const partage = avec("[[CHAR_maya]] (S1) says <d>[French] Encore du sel.</d>", "[[CHAR_tenanciere]] with a deep voice (S1) says <d>[French] Non.</d>");
+  assert.ok(regles(partage).includes("locuteur-partage"));
+  // numérotation continue, même personnage qui reprend la parole, plusieurs locuteurs à la fois : rien
+  const bon = avec("[[CHAR_maya]] (S1) says <d>[French] Encore du sel.</d> then [[CHAR_tenanciere]] with a deep voice (S2) says <d>[French] Non.</d>", "[[CHAR_maya]] (S1) and [[CHAR_tenanciere]] (S1,S2) speak at once.");
+  assert.ok(!regles(bon).includes("locuteur-numerotation") && !regles(bon).includes("locuteur-partage"));
+  // un plan sans locuteur, ou un numéro séparé de son personnage par une phrase : rien
+  assert.ok(!regles(bonne).some((r) => r.startsWith("locuteur-")));
+  assert.ok(!regles(avec("[[CHAR_maya]] walks. A voice in the dark (S1) says <d>[French] Ici.</d>", "[[CHAR_tenanciere]] listens. The voice again (S1).")).includes("locuteur-partage"));
+});
+
 test("balisage : coupe ou timecode écrits par le modèle ; [Shot N] et titres de section recopiés", () => {
   const p = (texte: string) => controlerSortiePlanH3({ ...bonne, shots: [bonne.shots[0]!, { debutSecondes: 5, texte }] }, ctx);
   // retirables à l'assemblage : alerte

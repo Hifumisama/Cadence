@@ -221,6 +221,36 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     }
   });
 
+  // Numérotation des locuteurs : pas de trou (S1, S3 sans S2) et jamais deux personnages sous le même numéro. Ce sont des défauts
+  // observés sur de vrais prompts (dépôt hyukudan/ComfyUI-MiniMax-H3-Prompt-Enhancer) : le modèle vidéo mélange alors les voix.
+  const numeros = new Set<number>();
+  const porteurs = new Map<number, Set<string>>();
+  for (const sh of shots) {
+    const texte = sh.texte ?? "";
+    for (const m of texte.matchAll(/\(((?:S\d+)(?:\s*,\s*S\d+)*)\)/g)) {
+      const nums = [...m[1]!.matchAll(/S(\d+)/g)].map((x) => Number(x[1]));
+      nums.forEach((n) => numeros.add(n));
+      // un numéro seul est rattaché au personnage cité juste avant, dans la même phrase (rien entre eux qu'une description de voix)
+      if (nums.length !== 1) continue;
+      const avant = texte.slice(0, m.index);
+      const dernier = [...avant.matchAll(/\[\[([A-Za-z0-9_]+)\]\]/g)].pop();
+      if (!dernier) continue;
+      const entre = avant.slice(dernier.index! + dernier[0].length);
+      if (/\[\[|<d>|[.!?]/.test(entre) || entre.length > 160) continue;
+      const set = porteurs.get(nums[0]!) ?? new Set<string>();
+      set.add(dernier[1]!);
+      porteurs.set(nums[0]!, set);
+    }
+  }
+  const maxNumero = Math.max(0, ...numeros);
+  const numerosAbsents = Array.from({ length: maxNumero }, (_, i) => i + 1).filter((n) => !numeros.has(n));
+  if (numerosAbsents.length > 0) {
+    ajouter("alerte", "locuteur-numerotation", `Les locuteurs sautent un numéro (${numerosAbsents.map((n) => `(S${n})`).join(", ")} manque) : numérote (S1), (S2)… sans trou, dans l'ordre de parole.`);
+  }
+  for (const [n, codes] of porteurs) {
+    if (codes.size > 1) ajouter("alerte", "locuteur-partage", `Le numéro (S${n}) est donné à plusieurs personnages (${[...codes].join(", ")}) : un numéro par voix.`);
+  }
+
   // 6. calculs de mots par seconde (retirés du projet)
   if (/\b\d+\s*(words?|mots)\s*(per|par|\/)\s*(second|seconde|sec|s)\b/i.test(`${sortie.summary} ${detail}`)) {
     ajouter("alerte", "mots-seconde", "Une estimation en mots par seconde : on ne calcule pas la durée d'une réplique ainsi.");
