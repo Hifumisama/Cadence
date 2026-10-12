@@ -2,7 +2,20 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { FournisseurLlm } from "./llm/types";
 import { checksInstruction } from "./voix";
-import { ecrireTimbre, lireReponseTimbre, messageTimbre, timbreDeRepli } from "./timbre-voix";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { REGLES_INSTRUCTION_TIMBRE, SYSTEME_TIMBRE, ecrireTimbre, lireReponseTimbre, messageTimbre, timbreDeRepli } from "./timbre-voix";
+
+test("les règles du prompt de timbre sont celles du guide du skill prompt-voix, mot pour mot (une seule source)", () => {
+  const guide = readFileSync(resolve(process.cwd(), "agents/skills/prompt-voix/references/guide-qwen3-voicedesign.md"), "utf8");
+  const debut = guide.indexOf("## Rules of the instruction");
+  assert.ok(debut >= 0, "la section « Rules of the instruction » existe");
+  const fin = guide.indexOf("\n## ", debut + 5);
+  const section = guide.slice(debut, fin < 0 ? undefined : fin);
+  const regles = section.split(/\r?\n/).filter((l) => l.startsWith("- ")).map((l) => l.slice(2).trim());
+  assert.deepEqual(regles, [...REGLES_INSTRUCTION_TIMBRE]);
+  for (const r of REGLES_INSTRUCTION_TIMBRE) assert.ok(SYSTEME_TIMBRE.includes(`- ${r}`));
+});
 
 const fournisseurQuiRepond = (texte: string): FournisseurLlm => ({ generer: async () => ({ texte }) }) as unknown as FournisseurLlm;
 const fournisseurEnPanne = (): FournisseurLlm => ({ generer: async () => { throw new Error("injoignable"); } }) as unknown as FournisseurLlm;

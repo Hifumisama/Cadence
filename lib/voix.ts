@@ -1,5 +1,5 @@
-/** Casting vocal — constantes métier et garde-fous, tirés du skill
- * `.claude/skills/voix-comfyui`. Six scènes dans l'assistant d'une voix (2026-10-09) : identité, origine, timbre (ou source),
+/** Casting vocal — constantes métier et garde-fous, tirés de la pratique
+ * du skill `prompt-voix` et de l'usage. Six scènes dans l'assistant d'une voix (2026-10-09) : identité, origine, timbre (ou source),
  * référence, ressenti, répliques. Pur, sans accès disque ni base : importable côté client comme côté serveur. */
 
 import { langueBalise } from "./repliques";
@@ -11,10 +11,9 @@ export function estSourceVoix(v: string): v is SourceVoix {
   return (SOURCES_VOIX as readonly string[]).includes(v);
 }
 
-/** Texte de référence par défaut : le même pour toutes les voix. Meilleur
- * résultat observé (2026-09-30) : Qwen3 VoiceDesign lit ce texte **anglais** avec
- * l'instruction du personnage, puis CosyVoice3 clone cette référence pour dire
- * les répliques françaises. Voir workflows/voice-clone/VOX_Voice-design.json. */
+/** Texte de référence anglais, proposé quand une voix n'a pas encore sa réplique d'écoute. Depuis le 2026-10-08, le texte de référence
+ * d'une voix est SA réplique d'écoute (au moins 2 phrases, dans la langue de la voix : `lib/replique-ecoute.ts`, ou `refText` écrit par
+ * le skill `prompt-voix`) ; Qwen3-TTS Voice Design la lit, puis Qwen3-TTS Base clone la voix obtenue pour les répliques. */
 export const TEXTE_REFERENCE_DEFAUT =
   "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !";
 

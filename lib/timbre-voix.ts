@@ -1,7 +1,8 @@
 /** Le TIMBRE d'une voix décrite : l'instruction Voice Design (en anglais, c'est ce que lit Qwen3-TTS) que l'IA propose au départ, puis
  * RETOUCHE quand le ressenti dit « à ajuster ». Comme la réplique d'écoute (lib/replique-ecoute.ts) : pas de skill d'agent, un prompt
  * court intégré, envoyé au fournisseur LLM configuré (lib/llm/). Les règles d'écriture sont celles de `checksInstruction` (lib/voix.ts) :
- * langue native nommée, pas de négations, pas de vocabulaire de prise de son, pas de mot qui traîne un accent.
+ * langue native nommée, pas de négations, pas de vocabulaire de prise de son, pas de mot qui traîne un accent. Leur source unique est le
+ * guide du skill `prompt-voix` (voir `REGLES_INSTRUCTION_TIMBRE`) : le skill et ce prompt écrivent la même instruction avec les mêmes règles.
  *
  * Aucun accès à la base ni au disque : le message, la lecture de la réponse et le repli sont purs et testables ; l'appel au modèle prend
  * son fournisseur en paramètre. */
@@ -38,14 +39,22 @@ export type PropositionTimbre = {
   source: "modele" | "repli";
 };
 
+/** Les règles de l'instruction de timbre : UNE seule source, le guide du skill `prompt-voix`
+ * (agents/skills/prompt-voix/references/guide-qwen3-voicedesign.md, section « Rules of the instruction »). Ces lignes en sont la
+ * copie mot pour mot, que `timbre-voix.test.ts` compare au guide : modifier l'un sans l'autre fait échouer le test. */
+export const REGLES_INSTRUCTION_TIMBRE = [
+  "ONE paragraph in English, 35 to 80 words, in this order: who speaks (age range when known, gender, role), their native language and origin (always write 'a native <Language> speaker'), the prosody (pace, pitch, texture, energy), the emotional state.",
+  "The voice's age is the character's, as given: with no age given, write no age figure.",
+  "Describe what the voice IS. Never describe what it is not: no negations (no, not, never, without).",
+  "Describe a throat, not a microphone: no 'close-miked', 'studio', 'reverb', 'recording'.",
+  "No class or regional marker word ('posh', 'aristocratic', 'southern'): describe the function instead (commanding, gentle). An accent only for a character written as foreign.",
+  "No names, no plot, no quotation marks.",
+] as const;
+
 export const SYSTEME_TIMBRE = [
   "You write the voice instruction for a text-to-speech 'voice design' model (Qwen3-TTS). The instruction describes ONE character's voice.",
   "Rules for the instruction:",
-  "- ONE paragraph in English, 35 to 80 words, in this order: who speaks (age range, gender, role), their native language and origin (always write 'a native <Language> speaker'), the prosody (pace, pitch, texture, energy), the emotional state.",
-  "- Describe what the voice IS. Never describe what it is not: no negations (no, not, never, without).",
-  "- Describe a throat, not a microphone: no 'close-miked', 'studio', 'reverb', 'recording'.",
-  "- No words that carry an accent or a social class by birth ('posh', 'aristocratic', 'southern'): describe the function instead (commanding, gentle).",
-  "- No names, no plot, no quotation marks.",
+  ...REGLES_INSTRUCTION_TIMBRE.map((r) => `- ${r}`),
   'Answer with a JSON object only, on a single line: {"instruction": "...", "resume": "..."}.',
   "'resume' is ONE short sentence in French. For a first proposal, it says in plain words what the voice sounds like. For a retouch, it says what changed.",
 ].join("\n");

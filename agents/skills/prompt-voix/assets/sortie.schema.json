@@ -6,7 +6,7 @@
   "required": ["instruction", "remarques"],
   "properties": {
     "instruction": { "type": "string", "minLength": 1, "description": "(English) Prose, one paragraph: identity, origin (native language named), prosody, state. Includes the held physical constraint if the character carries one. No negation, no recording words, no accent words." },
-    "refText": { "type": "string", "description": "(English) Optional. Only if the user wants to depart from the project's reference text (the same English text for all voices, by default). It must match word for word what the voice will say." },
+    "refText": { "type": "string", "description": "(Language of the dialogues, `langueDesDialogues`) The voice's listening line, which is its reference text: 2 or 3 complete sentences (at least 2), first person, in the character's manner, factual with no stakes. The reference voice reads it word for word." },
     "remarques": {
       "type": "array",
       "items": {
