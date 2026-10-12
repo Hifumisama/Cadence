@@ -88,7 +88,7 @@ viennent **avant** les plans, puisque les plans les citent en références.
 
 | # | Étape | Skill | Produit |
 |---|---|---|---|
-| 1 | Structure | `brief-projet` | saison, épisode(s), tirés du brief |
+| 1 | Structure | aucun (code) | saison, épisode(s), tirés du brief |
 | 2 | Scénario | `scenario-episode` | scènes, plans (description narrative, durée), répliques avec locuteur |
 | 3 | Registre | `prompt-asset`, `prompt-voix` | les masters connus par le brief (personnages, lieux) et leurs voix, avec prompt de génération |
 | 4 | Plans | `plan-h3` | prompts H3, références, liaison des répliques ; propose aussi les assets manquants (accessoires, dérivés, effets) |
@@ -104,8 +104,7 @@ l'état **appliqué** de la précédente (ou de sa proposition acceptée), jamai
 brouillon non validé.
 
 Les skills de l'app vivent dans `agents/skills/<nom>/`, au format standard Agent Skills
-(`SKILL.md`, `references/`, `assets/` ; révisé le 2026-10-07) : ce sont les prompts d'exécution de l'app, pas les skills
-conversationnels de `.claude/skills/`, qui gardent leur usage en chat. Le
+(`SKILL.md`, `references/`, `assets/` ; révisé le 2026-10-07) : ce sont les prompts d'exécution de l'app (les skills de chat de `.claude/skills/` ont été supprimés le 2026-10-12). Le
 chargeur (`lib/llm/skills.ts`, construit le 2026-10-01) assemble le prompt selon la
 convention du §9 : le dossier est la déclaration, l'en-tête de `SKILL.md` ne sert qu'à la portabilité. Le lexique de
 corrections H3 vit dans `agents/skills/plan-h3/references/`, partagé par `plan-h3` et
@@ -222,12 +221,12 @@ que d'écraser).
 
 | Agent | Skill | Outils (actions serveur) |
 |---|---|---|
-| Intake | `brief-projet` | lire/écrire le brief, résumer un texte |
+| Intake | `notes-entretien` | tenir la fiche de notes (le brief) au fil de la conversation ; plus de skill `brief-projet` (2026-10-12) |
 | Scénario | `scenario-episode` | lire le brief et le registre ; proposer saison/épisode/scènes/plans/répliques |
 | Assets | `prompt-asset` | lire le registre, un asset et son parent ; proposer un prompt et une méthode |
 | Voix | `prompt-voix` | lire un personnage et les voix au casting ; proposer une instruction et un texte de référence |
 | Plans | `plan-h3` | lire plans, scène et registre ; proposer des plans, leurs refs et répliques ; lancer les contrôles |
-| Itération | `iteration-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt. **Absorbé par le réalisateur** (§16) |
+| Itération | `iteration-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt. Garde « Corriger après visionnage » (il lit les vignettes du rendu) ; son rôle dans la révision d'épisode est tenu par le réalisateur (§16, FRICTIONS 2026-10-09) |
 | Réalisateur | à créer (§16) | lire tout un épisode (scénario, fiches, rendus) et le brouillon ; proposer des décisions ; calculer les constats ; déléguer la réécriture à `scenario-episode` et `plan-h3` |
 
 Tous les outils **de lecture** répondent directement. Tous les outils **d'écriture**
@@ -278,7 +277,7 @@ l'aveugle (F03).
   `worker/llm.ts`) : le GPU est une ressource unique, ordre image → llm → vidéo, sans
   préemption, et le worker décharge l'autre côté aux changements de domaine
   (`POST /free` sur ComfyUI, `GET /unload` sur llama-swap, au mieux). Poser un appel :
-  `npm run llm:tache -- brief-projet [--projet <id>] [--suivre]` (le worker doit
+  `npm run llm:tache -- <skill> --entree <fichier> [--projet <id>] [--suivre]` (le worker doit
   tourner) ; la tâche apparaît dans le panneau du header, avec annulation. Le résultat
   validé est dans `agent_runs.resultat`, la trace complète dans `agent_traces`.
   `npm run llm:essai` reste l'appel direct, hors file (ComfyUI au repos). Voir
@@ -367,7 +366,7 @@ contrôle verbatim les signale déjà. Les durées sont recalées à ce moment.
 ### Parcours
 - **Profondeur complète** (création de projet) : Conversation → Brief → Proposition →
   Appliqué. Chaque tour de conversation est une tâche de la file (`conversation-agent`) ;
-  la génération du brief est une tâche (`brief-projet`, un BROUILLON) ; la proposition est
+  le brief se remplit au fil de la conversation (`notes-entretien`), « passer au briefing » fige la fiche en BROUILLON (sans appel au modèle) ; la proposition est
   le **squelette**, construit en code depuis le brief (pas d'appel au modèle).
 - **Profondeur courte** : Consigne → Proposition → Appliqué. Une tâche (`prompt-asset` pour un
   asset, `scenario-episode` pour un épisode ou un plan) dont le JSON est converti en code en
@@ -381,7 +380,7 @@ contrôle verbatim les signale déjà. Les durées sont recalées à ce moment.
 | Table | Rôle |
 |---|---|
 | `agent_conversations` | une par (projet, portée, cible) — UNIQUE (projet, portée, coalesce(cible, 0)) ; `profondeur`, `etape`, `messages` jsonb, `consigne`, `brief_pret`, `proposition_id` (courante) |
-| `briefs` | un par projet : `contenu` jsonb (schéma de `brief-projet`), `statuts` jsonb (section → fourni / deduit / a_valider), `statut` (**partiel** = style et notes posés à la main / brouillon / valide), `version`. **Source unique de la clause de style et des notes** : `projects.clause_style` / `notes` n'en sont que des copies (`lib/agents/brief-db.ts`), voir `FRICTIONS.md` |
+| `briefs` | un par projet : `contenu` jsonb (schéma `lib/agents/brief-schema.json`), `statuts` jsonb (section → fourni / deduit / a_valider), `statut` (**partiel** = style et notes posés à la main / brouillon / valide), `version`. **Source unique de la clause de style et des notes** : `projects.clause_style` / `notes` n'en sont que des copies (`lib/agents/brief-db.ts`), voir `FRICTIONS.md` |
 | `propositions` | `uuid`, `conversation_id` (set null), `skill` (`squelette` ou un skill), `portee` + `cible_id`, `statut` (en_generation / prete / appliquee / partielle / rejetee / echouee), `run_id` → `agent_runs`, `parent_id` (affinage), `consigne`, `retour`, `resume`, `contexte` (« contexte utilisé »), `erreur` |
 | `proposition_changements` | `ordre`, `groupe`, `cle` (clé symbolique d'une création), `cible_type` (brief / projet / saison / episode / scene / asset / plan), `cible_ref`, `libelle`, `operation`, `avant`, `apres`, `position`, `avertissements`, `ecrase`, `coche`, `refuse_raison`, `applique_at` |
 | `agent_runs` (+3 colonnes) | `but` (tour / brief / proposition), `conversation_id`, `proposition_id` |
@@ -398,8 +397,7 @@ contrôle verbatim les signale déjà. Les durées sont recalées à ce moment.
   logique ; les actions n'en sont que des enveloppes), `lib/ordre-plans.ts` (ordre des plans).
 - Worker : `worker/agents/postTraitement.ts`, appelé par `worker/llm.ts` dans la transaction
   d'écriture du résultat.
-- Skills : `conversation-agent` (un tour, `{ reponse, briefPret }`), `brief-projet` (+ champ
-  optionnel `statuts`), `scenario-episode` (portées `episode`, `plan-a-inserer`,
+- Skills : `conversation-agent` (un tour, `{ reponse, briefPret }`), `notes-entretien` (la fiche, avec sources et citations), `scenario-episode` (portées `episode`, `plan-a-inserer`,
   `plan-a-corriger`).
 - Essai : `npm run agents:e2e` (faux exécuteur injecté dans le vrai worker, base de dev,
   nettoyage complet).
@@ -471,7 +469,7 @@ Décisions et raisons : `docs/FRICTIONS.md`, 2026-10-07 (conception) et 2026-10-
 
 ## 16. Le réalisateur d'un épisode (conçu, 2026-10-09)
 
-**Pas construit.** Un agent d'**orchestration** pour réviser un scénario existant, par la conversation : une conversation libre par épisode, des décisions retenues qui s'accumulent en brouillon, une application par glissière. Il ne remplace pas les assistants de création (projet, casting, registre, fiches manquantes) ; il remplace `iteration-plan` et les boutons « Demander à l'agent » des plans.
+**Construit** (2026-10-09 ; skills `realisateur-analyse` et `realisateur-reponse`, voir FRICTIONS 2026-10-09). Un agent d'**orchestration** pour réviser un scénario existant, par la conversation : une conversation libre par épisode, des décisions retenues qui s'accumulent en brouillon, une application par glissière. Il ne remplace pas les assistants de création (projet, casting, registre, fiches manquantes) ; il remplace `iteration-plan` et les boutons « Demander à l'agent » des plans.
 
 - **Rôle.** Il lit l'épisode entier et le brouillon, propose des idées à partir d'un ressenti ou vérifie la cohérence d'une demande précise, puis appelle les skills existants pour réécrire (`scenario-episode` en retouche de scène ou de réplique, `plan-h3` en écriture partielle de fiche). Les constats mécaniques (durée contre objectif, protégés, périmés, verbatim, limites de 5 à 15 s) sont calculés par le **code** ; le modèle ne juge que le narratif.
 - **Cycle de vie.** Une conversation ouverte par épisode. Le brouillon de décisions reste attaché à l'épisode tant qu'il n'est ni appliqué ni abandonné (rien n'est réinitialisé en silence quand on quitte la page). **À l'application, la conversation se ferme** ; la révision suivante en ouvre une neuve.

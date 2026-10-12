@@ -84,7 +84,7 @@ plage de numéros de plan.
 - Branches : dérivés (costumes, expressions, props liés) — chaque branche
   garde son statut ✅ / 🟡 / ⬜.
 - Agent personnage (chat) : génère fiches et prompts Krea 2/Qwen Image Edit
-  pour un nouveau dérivé, à partir du skill `assets-comfyui`.
+  pour un nouvel asset, à partir du skill d'agent `prompt-asset`.
 - Pas de versionnage (F01, tranché 2026-09-25) : une retouche remplace le
   nœud, elle n'empile pas d'historique.
 
@@ -139,10 +139,9 @@ Le cœur de la friction la plus fréquente (F03, 2 à 30 itérations/plan).
 Chaque agent est un chat intégré à l'app, façon interface Claude, mais
 scopé à sa catégorie :
 
-- **Un agent = un skill existant**, exposé comme prompt système : `scenario`,
-  `assets-comfyui`, `voix-comfyui` (les skills `fiche-de-plan` et
-  `voix-comfyui` couvrent respectivement la génération technique et le
-  casting).
+- **Un agent = un skill**, exposé comme prompt système (`agents/skills/` : `scenario-episode`,
+  `prompt-asset`, `prompt-voix`, `plan-h3`… ; les skills de chat d'origine ont été
+  supprimés le 2026-10-12, voir FRICTIONS).
 - Chaque agent a accès aux outils propres à son domaine : lire/écrire le
   registre correspondant, lancer un job ComfyUI, consulter le plan courant.
 - Techniquement, ça veut dire un appel API (Claude ou équivalent) côté
@@ -199,6 +198,6 @@ juste une question de ROI qu'on a déjà tranchée. Proposition :
   rejoindre le projet un jour (mentionné pour F05) — ça change la question
   de l'authentification et du conflit d'écriture concurrent.
 - **Skills réutilisés tels quels ou adaptés** : les agents rejouent-ils le
-  contenu exact des skills `scenario` / `assets-comfyui` / `voix-comfyui`,
+  contenu exact des anciens skills de chat `scenario` / `assets-comfyui` / `voix-comfyui` (tranché : des skills d'agents dédiés, voir FRICTIONS 2026-10-07),
   ou une version condensée pensée pour un usage in-app plus court que la
   conversation actuelle ?

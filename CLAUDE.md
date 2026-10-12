@@ -26,13 +26,16 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
 - `docs/CONCEPTION_AGENTS.md` — conception des agents de
   génération : brief, propositions, portée × mode, fournisseur LLM
 - `agents/skills/` — prompts d'exécution des agents de l'app (`plan-h3`,
-  `iteration-plan`…), distincts des skills de chat de `.claude/skills/`. Format
-  standard Agent Skills (`SKILL.md`, `references/`, `assets/`), instructions en
+  `iteration-plan`, `scenario-episode`, `prompt-asset`, `notes-entretien`…). Ce sont
+  les seuls skills du dépôt : les skills de chat de `.claude/skills/` ont été
+  supprimés (FRICTIONS, 2026-10-12). Format standard Agent Skills (`SKILL.md`, `references/`, `assets/`), instructions en
   anglais (lues par un petit modèle local), langue de sortie fixée champ par champ
   (voir FRICTIONS.md, 2026-10-07)
 - `docs/PLAN_CONCEPTION_PROJET.md` — page de conception d'un projet (choix avant l'entretien, bibliothèque
   de styles `lib/styles/`, scénariste, avancée) : plan par phases et décisions, toutes phases faites (voir
   FRICTIONS.md, 2026-10-07 et 2026-10-08)
+- `docs/references/` — guide officiel MiniMax H3 (`h3-guide-fullref.md`, `h3-guide-base.md`), référence de lecture pour `plan-h3` et `lib/prompt.ts` (aucun code ne les lit)
+- `docs/guide/` — guide de développement (cycle d'un skill, vue d'ensemble)
 - `docs/REGISTRE_ASSETS.md` — état des assets de l'épisode 1
 - `docs/FICHE_DE_PLAN_S01_maya.md`, `docs/S01_maya.md` — contenu de
   l'épisode 1
@@ -59,23 +62,21 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
 
 ## Skills disponibles
 
-`.claude/skills/` contient les skills déjà utilisés en amont de ce projet
-(rédaction assistée, hors interface) :
+Les skills vivent dans `agents/skills/` (un dossier par skill, chargés par `lib/llm/skills.ts`) :
 
-- `scenario` — texte narratif → découpage plan par plan
-- `fiche-de-plan` — découpage → prompts MiniMax H3 par plan
-- `assets-comfyui` — prompts de génération d'images de référence
-- `voix-comfyui` — voice design et génération de répliques
+- conception du projet : `accroche-scenariste`, `conversation-agent`, `notes-entretien` (le brief se remplit au
+  fil de la conversation ; son schéma est `lib/agents/brief-schema.json`)
+- production : `scenario-episode`, `inventaire-assets`, `prompt-asset`, `prompt-voix`, `prompt-affiche`, `plan-h3`
+- correction et révision : `iteration-plan`, `realisateur-analyse`, `realisateur-reponse`
 
-Ces skills sont pensés pour un usage conversationnel (rédaction assistée en
-chat). Pour l'interface elle-même (agents intégrés — voir F. "agents" du
-cahier des charges), ils devront probablement être adaptés en prompts
-système + outils, pas repris tels quels — point encore ouvert.
+Les anciens skills de chat (`scenario`, `fiche-de-plan`, `assets-comfyui`, `voix-comfyui`) n'existent plus. Les
+règles de nommage et de versionnage ci-dessus et `docs/FRICTIONS.md` priment sur toute copie qui en traînerait
+ailleurs (claude.ai, `~/.claude`).
 
 ## État du projet
 
 L'application existe et tourne : pipeline de production (plans, assets, voix, fiches), système d'agents (conversation,
-brief, propositions) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
+brief, propositions, réalisateur d'épisode, casting vocal, affiches) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
 huit étapes, de « format » à « avancée de la préparation »). Les décisions sont dans `docs/FRICTIONS.md` ; le phasage
 d'origine reste dans `docs/CAHIER_DES_CHARGES.md`.
 

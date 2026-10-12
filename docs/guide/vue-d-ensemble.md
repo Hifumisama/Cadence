@@ -14,7 +14,7 @@
 ```mermaid
 flowchart TD
   idee([Ton idée]) --> conv["Conversation<br/>skill conversation-agent"]
-  conv --> brief["Brief (brouillon)<br/>skill brief-projet"]
+  conv --> brief["Brief (brouillon)<br/>skill notes-entretien"]
   brief -->|tu valides| sq["Squelette : saison, épisodes<br/>code seul, sans modèle"]
   sq -->|Continuer| sc["1. Scénarios des épisodes<br/>lot scenario-episode"]
   sc -->|Continuer| reg["2. Registre d'assets<br/>lot prompt-asset"]
@@ -31,7 +31,7 @@ Chaque flèche pleine entre deux étapes passe par une **revue** : tu relis les 
 | Étape | Qui travaille | Ce qui est écrit | État |
 |---|---|---|---|
 | Conversation | modèle, un tour par message | messages de la conversation | branché |
-| Brief | modèle (`brief-projet`) | un brouillon de brief, puis validé à l'application | branché |
+| Brief | modèle (`notes-entretien`, au fil de la conversation) | un brouillon de brief, puis validé à l'application | branché |
 | Squelette | code seul | saison, épisodes, brief (avec la clause de style) | branché |
 | 1. Scénarios | modèle, un appel par épisode (lot) | scènes, plans (durée 5 à 15 s), répliques liées aux plans | branché |
 | 2. Registre d'assets | modèle, un appel par personnage ou lieu du brief (lot) | assets `CHAR_…`, `DEC_…` et leur prompt d'image | branché |

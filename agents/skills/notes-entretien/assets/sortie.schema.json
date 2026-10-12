@@ -69,7 +69,7 @@
             },
             "clause": {
               "type": "string",
-              "description": "(English) One or two sentences, added as is at the start of video descriptions AND of still-image prompts (characters, sets). It describes the RENDERING (medium, line, colours, light), never a framing, a movement or an action (« dynamic shots », « cinematic action » have no place on a character sheet)."
+              "description": "(English) One or two sentences, added as is at the start of every video description (and of image prompts when the project has no long image prompt). It describes the RENDERING (medium, line, colours, light), never a framing, a movement or an action (« dynamic shots », « cinematic action » have no place on a character sheet)."
             },
             "promptImage": {
               "type": "string",
@@ -288,7 +288,7 @@
           "items": {
             "type": "string"
           },
-          "description": "(French) Everything that was not in the input. Each line was validated by the user."
+          "description": "(French) What the agent assumed, for information."
         },
         "questionsOuvertes": {
           "type": "array",
@@ -330,9 +330,9 @@
               "progressions",
               "pieges",
               "inventions",
-              "questionsOuvertes",
-              "fin"
-            ]
+              "questionsOuvertes"
+            ],
+            "description": "Never `fin`: the ending is answered only in the top-level `fin` field."
           },
           "origine": {
             "type": "string",

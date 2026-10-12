@@ -61,7 +61,7 @@ l'utilisateur à la fin de chaque chantier.
 ## Reste à faire (rappels de l'utilisateur)
 
 - **Voix → répliques.** Une fois une voix de référence générée puis VALIDÉE (adoptée), pouvoir générer les répliques des personnages avec
-  cette voix : il faut brancher un workflow ComfyUI pour ça (clonage de la voix de référence + direction de jeu, cf. skill `voix-comfyui` et
+  cette voix : il faut brancher un workflow ComfyUI pour ça (clonage de la voix de référence + direction de jeu, cf. `prompt-voix` et
   `workflows/voice-clone/`), puis une action « Générer les répliques » depuis le casting vocal / la fiche du plan.
 - **Une conversation unique par projet + routage de l'intention** (chantier 5, voir plus haut) : non fait, décision à reprendre.
 - **Cartes de style avec images** (briefing) : reportées.

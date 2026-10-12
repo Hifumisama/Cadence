@@ -65,17 +65,13 @@ Each scene has a **genre** that sets the cutting here and the writing guides of 
 
 The **mood** (`ambiance`) is the visual frame held over the **whole scene**: time of day, weather, general light. All plans of a scene share it; it changes from one scene to the next. A change inside a scene (the sky clouding over) is an event: write it in the description of the plan where it happens.
 
-## Camera is expensive
-
-Compound movements (orbit, multiple movement, speed change mid-plan) often fail in generation. Write the intention of the simplest movement that produces the effect.
-
 ## The lines
 
 Lines are written here, then linked to plans:
 
 1. **Word for word**, in the dialogue language, punctuation included. They are reused verbatim in the video prompt, never rephrased.
 2. Each line has a **speaker**: a registry character, or "voix off". Never change a speaker "to make it fit".
-3. A line belongs to the **plan** where it is said. A plan may carry several (shot/reverse shot); a line may cover two plans if it crosses a cut.
+3. A line belongs to the **plan** where it is said. A plan may carry several (shot/reverse shot); a line belongs to one plan only.
 4. **Dialogue decides duration.** Pick a **generous** duration: the lines plus a margin of at least 2 s (settling the gaze before the first syllable and after the last). Do not compute it from word count; it adjusts after the voice take.
 5. A line too long for 15 s: cut **at a meaning boundary**, between two lines, never mid-line; use the second plan to change angle.
 

@@ -63,7 +63,7 @@ commits f81685f / 791adf7) : il faudra l'écrire, en plus de l'entrée de cette 
 `created_at`) qui garde les choix bruts (format, genres, ton + « touché », durée, rythme, langue, nombre d'épisodes
 prévus, id du style). Le brief reçoit les valeurs **dérivées** (`genreTon` en texte, `style`, etc.) : la règle
 « une seule source : `briefs.contenu` » (FRICTIONS, décision sur la clause de style) reste vraie pour tout ce que lisent
-les agents. Raison : ne pas changer le schéma de sortie du skill `brief-projet`, que `notes-entretien` recopie sous
+les agents. Raison : ne pas changer le schéma du brief (`lib/agents/brief-schema.json`, ex-skill `brief-projet`), que `notes-entretien` recopie sous
 forme de sous-schémas (test `fiche.test.ts`).
 
 **D2 — Deux champs de style.** Prompt image (long, bibliothèque ou libre) pour Krea 2, clause courte (1–2 phrases
@@ -73,7 +73,7 @@ images. Proposition : `brief.contenu.style` gagne `promptImage?` et `image?` (no
 le code (jamais par un agent : `appliquerNotes` et `sortieVersBrief` les préservent, test dédié) ; colonne copie
 `projects.style_prompt_image` écrite par `synchroniserClauseStyle` ; `imageMapping` lit `promptImage ?? clauseStyle`
 (les projets existants n'ont que la clause, aucun changement pour eux).
-Le schéma `brief-projet` et le sous-schéma de `notes-entretien` doivent rester identiques (test) : décrire le champ comme
+Le schéma du brief et le sous-schéma de `notes-entretien` doivent rester identiques (test) : décrire le champ comme
 « rempli par l'application, laisser vide ».
 
 **D3 — Création du projet au passage de la scène 5 à la 6.** Les scènes 1–5 vivent côté client (état sauvegardé dans
@@ -132,7 +132,7 @@ M ≈ 1 journée, L > 1 journée.
 - Migration `0052_preconception.sql` : table `preconceptions` ; colonne `projects.style_prompt_image` (nullable) ;
   entrée dans `meta/_journal.json` ; schéma Drizzle (`db/schema.ts`).
 - `lib/agents/types.ts` : type `Preconception`, `BriefContenu.style.promptImage?` / `image?` ; schémas
-  `brief-projet` et sous-schéma `notes-entretien` mis à jour ensemble.
+  du brief (`brief-schema.json`) et sous-schéma `notes-entretien` mis à jour ensemble.
 - `lib/preconception.ts` (pur) : validation, `ton → texte` (« Drame + Thriller, sombre »), estimation du nombre de plans
   (mêmes règles que `scenario-episode`), `ficheDepuisPreconception`, `briefPartielDepuisPreconception`.
 - `synchroniserClauseStyle` étend la copie à `style_prompt_image`.
@@ -198,7 +198,7 @@ M ≈ 1 journée, L > 1 journée.
 - **Images de style** : 245 images à générer ; le reste de l'app ne doit pas dépendre de leur présence.
 - **Deux champs de style** : toucher `imageMapping` change le comportement de la génération d'images pour les nouveaux
   projets seulement (repli sur la clause) ; vérifier avec une génération réelle.
-- **Schémas partagés** : `brief-projet` et `notes-entretien` doivent rester synchrones (test existant) ; le test échouera
+- **Schémas partagés** : `brief-schema.json` et `notes-entretien` doivent rester synchrones (test existant) ; le test échouera
   tant qu'ils ne sont pas modifiés ensemble.
 - **Projet créé trop tôt** : D3 le crée à la scène 6 ; si l'utilisateur ferme l'onglet pendant l'entretien, le projet
   existe avec une conversation entamée (c'est le comportement actuel de « Créer avec l'agent »).

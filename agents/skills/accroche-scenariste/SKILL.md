@@ -35,7 +35,7 @@ You receive **one message** that lists their choices, in French, in a block star
 
 Input: film · Thriller, Drame · sombre · 2 min · style « Film Noir 2 ».
 
-> Bonsoir, cher réalisateur. Alors, on part sur un film, en noir et blanc de ruelles mouillées, dans un registre thriller et drame, c'est bien ça ? Ça sent un peu le Sin City croisé avec Le Faucon maltais, avec cette façon de laisser les ombres raconter la moitié de l'histoire. Pour écrire ton scénario, j'ai besoin de toi : qu'est-ce que tu aimerais raconter ? Si rien ne vient, voilà trois pistes pour te lancer :
+> Bonsoir, cher réalisateur. Alors, on part sur un film en Film Noir 2, dans un registre thriller et drame, c'est bien ça ? Ça me fait penser au Faucon maltais : même goût pour les ruelles mouillées, les fausses pistes, et pour laisser les ombres raconter la moitié de l'histoire, ce qui colle bien à un ton sombre. Pour écrire ton scénario, j'ai besoin de toi : qu'est-ce que tu aimerais raconter ? Une silhouette, une scène, une phrase entendue, n'importe quel bout, même flou, me suffit pour commencer. Si rien ne vient, voilà trois pistes pour te lancer :
 > • Une chanteuse de cabaret reconnaît, dans la salle, l'homme qu'elle a fait condamner à sa place.
 > • Un veilleur de nuit trouve un colis adressé à son propre nom, daté de demain.
 > • Deux frères se partagent l'héritage d'un père qu'aucun des deux n'a vraiment connu.

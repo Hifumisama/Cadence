@@ -27,7 +27,7 @@
 | Comprendre une tâche d'agent en échec | [Recette : déboguer une tâche d'agent](recettes/deboguer-une-tache-agent.md) |
 | Lancer les tests et les essais | [Recette : lancer les tests](recettes/lancer-les-tests.md) |
 | Ajouter une colonne ou une table | [Recette : appliquer une migration](recettes/appliquer-une-migration.md) |
-| Écrire une fiche de plan à la main (hors application) | [`docs/FICHE_DE_PLAN_S01_maya.md`](../FICHE_DE_PLAN_S01_maya.md) (exemples validés) et le skill de chat `.claude/skills/fiche-de-plan/SKILL.md` |
+| Écrire une fiche de plan à la main (hors application) | [`docs/FICHE_DE_PLAN_S01_maya.md`](../FICHE_DE_PLAN_S01_maya.md) (exemples validés) et le skill d'agent `agents/skills/plan-h3/SKILL.md` |
 | Retrouver une décision par thème | [Index des décisions](decisions.md) |
 | Comprendre un mot du projet | [Glossaire](glossaire.md) |
 
