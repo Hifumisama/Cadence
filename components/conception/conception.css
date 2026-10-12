@@ -257,3 +257,25 @@
   .cn-axe { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .cn-salle *, .cn-salle *::before, .cn-salle *::after, .cn-lightbox { animation: none !important; transition: none !important; } }
+
+/* Écran d'accueil, titre du curseur de ton, bouton « Nouveau style », popup avant le scénariste. */
+.cn-accueil-etapes { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; max-width: 640px; counter-reset: accueil; }
+.cn-accueil-etapes li { counter-increment: accueil; display: grid; grid-template-columns: 40px 1fr; column-gap: 14px; padding: 14px 16px; border: 1px solid var(--line); background: rgba(14, 14, 19, 0.35); }
+.cn-accueil-etapes li::before { content: counter(accueil, decimal-leading-zero); grid-row: span 2; font-family: var(--font-mono); color: var(--or); align-self: center; }
+.cn-accueil-etapes b { font-weight: 500; color: var(--ink); }
+.cn-accueil-etapes span { color: var(--ink-3); }
+.cn-ton-titre { text-align: center; margin: 0 0 14px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--or); }
+.cn-nouveau-style[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); }
+.cn-confirmation { display: grid; gap: 12px; width: min(460px, 90vw); padding: 24px; border: 1px solid var(--line-strong); background: var(--surface); }
+.cn-confirmation > b { font-family: var(--font-brand); font-weight: 400; font-size: 22px; }
+.cn-confirmation p { margin: 0; color: var(--ink-2); }
+.cn-confirmation b.cn-fige { color: var(--ink); text-decoration: underline; text-decoration-color: var(--or-soft); text-underline-offset: 3px; }
+.cn-confirmation-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+/* Glissière géante de l'écran d'accueil : même geste que dans la barre, en grand. */
+.cn-glisse.is-geant { flex: none; width: min(100%, 760px); max-width: none; margin: clamp(24px, 5vh, 48px) 0 0; height: 104px; }
+.cn-glisse.is-geant::before, .cn-glisse.is-geant::after { height: 7px; }
+.cn-glisse.is-geant .cn-glisse-poignee { top: 12px; bottom: 12px; width: 124px; font-size: 40px; left: calc(6px + var(--p) * (100% - 136px)); }
+.cn-glisse.is-geant .cn-glisse-rempli { width: calc(var(--p) * (100% - 12px) + 130px); }
+.cn-glisse.is-geant .cn-glisse-texte { padding-left: 130px; font-size: 16px; letter-spacing: 0.18em; }
+@media (max-width: 720px) { .cn-glisse.is-geant { height: 84px; } .cn-glisse.is-geant .cn-glisse-poignee { width: 92px; font-size: 30px; left: calc(6px + var(--p) * (100% - 104px)); } .cn-glisse.is-geant .cn-glisse-rempli { width: calc(var(--p) * (100% - 12px) + 98px); } .cn-glisse.is-geant .cn-glisse-texte { padding-left: 98px; font-size: 12px; letter-spacing: 0.1em; } }

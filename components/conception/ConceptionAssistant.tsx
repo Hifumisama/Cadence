@@ -18,13 +18,13 @@ import {
   versCharge,
   type EtatAssistant,
 } from "@/lib/conception-ui";
-import { SceneDuree, SceneFormat, SceneGenreTon, SceneLangue } from "./Scenes";
+import { SceneAccueil, SceneDuree, SceneGenreTon, SceneLangue } from "./Scenes";
 import { Glissiere } from "./Glissiere";
 import { SceneStyle } from "./SceneStyle";
 import type { MajEtat, StyleVue } from "./types";
 
 /** Ce qu'il manque pour avancer, par étape (affiché dans la barre d'action tant que « Continuer » est grisé). */
-const INVITES = ["Choisis un format pour continuer.", "Choisis au moins un genre (deux au plus).", "Règle la durée pour continuer.", "Choisis la langue des dialogues.", "Choisis un style, ou écris le tien."];
+const INVITES = ["", "Choisis au moins un genre (deux au plus).", "Règle la durée pour continuer.", "Choisis la langue des dialogues.", "Choisis un style, ou écris le tien."];
 
 /** La page de conception d'un projet : cinq scènes (format, genre et ton, durée, langue, style), un ruban de pellicule des huit étapes pour naviguer,
  * une lumière d'ambiance qui suit les choix. L'état vit ici et dans la session du navigateur (rien n'est créé tant qu'on n'a pas
@@ -38,6 +38,7 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
   const [restaure, setRestaure] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [confirmer, setConfirmer] = useState(false);
   const scene = useRef<HTMLDivElement>(null);
 
   const utilisable = useCallback((id: string) => styles.some((s) => s.id === id), [styles]);
@@ -94,6 +95,7 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
   }, [etape]);
 
   const rencontrer = async () => {
+    setConfirmer(false);
     setEnvoi(true);
     setErreur(null);
     try {
@@ -149,7 +151,12 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
       </nav>
 
       <div className={`cn-scene${recule ? " is-recule" : ""}`} data-scene={etape === 4 ? "style" : undefined} key={etape} ref={scene}>
-        {etape === 0 ? <SceneFormat etat={etat} maj={maj} /> : null}
+        {etape === 0 ? (
+          <>
+            <SceneAccueil />
+            <Glissiere geant libelle="Glisse pour commencer" onValider={() => aller(1)} />
+          </>
+        ) : null}
         {etape === 1 ? <SceneGenreTon etat={etat} maj={maj} /> : null}
         {etape === 2 ? <SceneDuree etat={etat} maj={maj} /> : null}
         {etape === 3 ? <SceneLangue etat={etat} maj={maj} /> : null}
@@ -159,17 +166,30 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
       <div className="cn-barre" role="group" aria-label="Avancer dans la conception">
         <button type="button" className="btn" disabled={etape === 0 || envoi} onClick={() => aller(etape - 1)}>← Retour</button>
         <span className="cn-barre-texte" aria-live="polite">
-          {!peutContinuer ? INVITES[etape] : etape < DERNIERE_ETAPE ? <>Ensuite : <b>{ETAPES_CONCEPTION[etape + 1]}</b></> : <>Les cinq choix sont faits : <b>le scénariste t’attend</b>. <b className="cn-fige">Une fois l’entretien commencé, ces choix sont figés</b> : relis-les avant de glisser.</>}
+          {!peutContinuer ? INVITES[etape] : etape < DERNIERE_ETAPE ? <>Ensuite : <b>{ETAPES_CONCEPTION[etape + 1]}</b></> : <>Les choix sont faits : <b>le scénariste t’attend</b>.</>}
         </span>
         {erreur ? <span className="cn-erreur" role="alert">{erreur}</span> : null}
-        <Glissiere
+        {etape === 0 ? null : <Glissiere
           libelle={etape < DERNIERE_ETAPE ? "Glisse pour continuer" : "Glisse : rencontrer le scénariste"}
           action={etape === DERNIERE_ETAPE}
           desactive={!peutContinuer}
           occupe={envoi}
-          onValider={etape < DERNIERE_ETAPE ? () => aller(etape + 1) : () => void rencontrer()}
-        />
+          onValider={etape < DERNIERE_ETAPE ? () => aller(etape + 1) : () => setConfirmer(true)}
+        />}
       </div>
+
+      {confirmer ? (
+        <div className="cn-lightbox" role="dialog" aria-modal="true" aria-label="Avant de rencontrer le scénariste" onClick={() => setConfirmer(false)} onKeyDown={(e) => e.key === "Escape" && setConfirmer(false)}>
+          <div className="cn-confirmation" onClick={(e) => e.stopPropagation()}>
+            <b>Avant de rencontrer le scénariste</b>
+            <p>Une fois l’entretien commencé, <b className="cn-fige">ces choix sont figés</b> : genre, ton, durée, langue et style ne se modifient plus. Relis-les si tu as un doute.</p>
+            <div className="cn-confirmation-actions">
+              <button type="button" className="btn" autoFocus onClick={() => setConfirmer(false)}>Revenir aux choix</button>
+              <button type="button" className="btn btn-gold" onClick={() => void rencontrer()}>Rencontrer le scénariste</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

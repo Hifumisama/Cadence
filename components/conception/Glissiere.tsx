@@ -11,6 +11,7 @@ export function Glissiere({
   libelle,
   action = false,
   danger = false,
+  geant = false,
   desactive = false,
   occupe = false,
   onValider,
@@ -19,6 +20,8 @@ export function Glissiere({
   action?: boolean;
   /** Le geste écrase quelque chose de validé : la poignée est rouge (la révision d'épisode, docs/FRICTIONS.md 2026-10-09). */
   danger?: boolean;
+  /** Version démonstration, en grand dans la scène d'accueil : apprend le geste avant qu'il serve dans la barre du bas. */
+  geant?: boolean;
   desactive?: boolean;
   occupe?: boolean;
   onValider: () => void;
@@ -78,7 +81,7 @@ export function Glissiere({
   return (
     <div
       ref={piste}
-      className={`cn-glisse${action ? " is-action" : ""}${danger ? " is-danger" : ""}${inerte ? " is-inerte" : ""}${tire ? " is-tire" : ""}${p >= SEUIL ? " is-pret" : ""}`}
+      className={`cn-glisse${action ? " is-action" : ""}${danger ? " is-danger" : ""}${geant ? " is-geant" : ""}${inerte ? " is-inerte" : ""}${tire ? " is-tire" : ""}${p >= SEUIL ? " is-pret" : ""}`}
       style={{ "--p": p } as React.CSSProperties}
     >
       <div className="cn-glisse-rempli" aria-hidden="true" />

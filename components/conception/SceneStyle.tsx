@@ -51,20 +51,18 @@ export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVu
   const nbAffinages = Object.values(axes).reduce((n, v) => n + (v?.length ?? 0), 0);
 
   const entrees: Entree[] = [
-    { id: "__libre", nom: "Style libre", sous: "Tes deux prompts, ton image", fichier: etat.style?.source === "libre" ? (etat.style.image ?? null) : null, libre: true },
     ...visibles.map((s) => ({ id: s.id, nom: s.nom, sous: s.filtres.medium, fichier: fichierDe(s), libre: false, style: s })),
   ];
-  const choisi = (en: Entree) => (en.libre ? etat.style?.source === "libre" : etat.style?.source === "bibliotheque" && etat.style.styleId === en.id);
+  const libreChoisi = etat.style?.source === "libre";
+  const choisi = (en: Entree) => etat.style?.source === "bibliotheque" && etat.style.styleId === en.id;
+  const nouveauStyle = () => maj((e) => (e.style?.source === "libre" ? e : { ...e, style: { source: "libre", nom: "", promptImage: "", clause: "" } }));
   /** Un clic choisit le style ; un second clic sur le style déjà choisi l'agrandit. */
   const cliquer = (en: Entree) => {
     if (choisi(en)) {
       if (en.fichier) setAgrandi(en);
       return;
     }
-    maj((e) => {
-      if (!en.libre) return { ...e, style: { source: "bibliotheque", styleId: en.id } };
-      return e.style?.source === "libre" ? e : { ...e, style: { source: "libre", nom: "", promptImage: "", clause: "" } };
-    });
+    maj((e) => ({ ...e, style: { source: "bibliotheque", styleId: en.id } }));
   };
   const bascule = (axe: AxeFiltre, valeur: string) =>
     setAxes((a) => {
@@ -76,7 +74,7 @@ export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVu
 
   return (
     <>
-      <EnteteScene acte="Acte 05" titre={<>Quelle <em>image</em> pour cette histoire ?</>} sous="Un rendu, pas un sujet : ces styles tiennent sur un personnage, un décor ou un objet." />
+      <EnteteScene acte="Acte 05" titre={<>Quel <em>style graphique</em> pour ce film ?</>} />
 
       <div className="cn-style-mise">
         <div className="cn-style-gauche">
@@ -102,6 +100,7 @@ export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVu
               <button type="button" className="cn-puce" aria-expanded={affiner} onClick={() => setAffiner((v) => !v)}>
                 Affiner{nbAffinages ? <small>{nbAffinages}</small> : null}
               </button>
+              <button type="button" className="btn cn-nouveau-style" aria-pressed={libreChoisi} onClick={nouveauStyle}>+ Nouveau style</button>
             </div>
             {affiner ? (
               <>
@@ -122,7 +121,7 @@ export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVu
             ) : null}
           </div>
 
-          {visibles.length === 0 ? <p className="cn-aucun">Aucun style de la bibliothèque ne correspond. Le style libre reste disponible.</p> : null}
+          {visibles.length === 0 ? <p className="cn-aucun">Aucun style de la bibliothèque ne correspond. Tu peux créer un nouveau style.</p> : null}
           <div className="cn-galerie-panneau">
             <div className="cn-galerie" role="list" data-forme={formeDe(sujet)} style={{ ["--ar" as string]: ratioCss(sujet) }}>
               {entrees.map((en) => (
@@ -149,7 +148,7 @@ export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVu
                 ) : null}
                 <label className="cn-champ">Prompt image (génère les images de référence)<textarea readOnly rows={6} value={selection.descriptor} /></label>
                 <label className="cn-champ">Clause courte envoyée à la vidéo<textarea readOnly rows={3} value={selection.clause} /></label>
-                <p className="cn-note" style={{ margin: 0 }}>Les styles de la bibliothèque ne se modifient pas : pour écrire les tiens, choisis « Style libre ».</p>
+                <p className="cn-note" style={{ margin: 0 }}>Les styles de la bibliothèque ne se modifient pas : pour écrire les tiens, crée un « Nouveau style ».</p>
               </div>
               <Usage />
             </div>

@@ -40,7 +40,7 @@ export type EtatAssistant = {
   style: StyleChoisi | null;
 };
 
-export const ETAPES_ASSISTANT = ["Format", "Genre & ton", "Durée", "Langue", "Style"] as const;
+export const ETAPES_ASSISTANT = ["Accueil", "Genre & ton", "Durée", "Langue", "Style"] as const;
 export const DERNIERE_ETAPE = ETAPES_ASSISTANT.length - 1;
 /** Les séries sont désactivées pour l'instant (« coming soon ») : la fonctionnalité reste dans le code (format, épisodes prévus, création),
  * seul le choix est grisé à l'écran. Repasser à `true` pour la rouvrir. */
@@ -110,7 +110,7 @@ export function minutesSecondes(s: number): string {
 export function resumeEtape(i: number, etat: EtatAssistant, nomStyle: (id: string) => string | null): string {
   switch (i) {
     case 0:
-      return etat.format === "serie" ? "Série" : "Film";
+      return "Film IA";
     case 1:
       return etat.genres.length ? `${etat.genres.join("/")} · ${motDuTon(etat.ton)}` : "";
     case 2:

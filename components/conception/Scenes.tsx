@@ -24,17 +24,34 @@ import type { PropsScene } from "./types";
 /** Les quatre premières scènes de la conception : format, genre et ton, durée et rythme, langue. La scène du style est à part
  * (SceneStyle.tsx). Chaque scène ne fait qu'afficher l'état et le modifier par `maj` ; les règles vivent dans lib/conception-ui.ts. */
 
-export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactNode; sous: string }) {
+export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactNode; sous?: string }) {
   return (
     <>
       <p className="cn-acte">{acte}</p>
       <h1 className="cn-titre">{titre}</h1>
-      <p className="cn-sous">{sous}</p>
+      {sous ? <p className="cn-sous">{sous}</p> : null}
     </>
   );
 }
 
-/* ---------------------------------------------------------------- 1. Format */
+/* ---------------------------------------------------------------- 1. Accueil */
+
+/** Écran d'accueil : dit ce qu'on va faire. Le choix du format (film / série) n'y figure plus : les séries sont désactivées
+ * (`SERIES_DISPONIBLES`), le format reste « film » dans l'état. `SceneFormat` est conservée pour la réouverture des séries. */
+export function SceneAccueil() {
+  return (
+    <>
+      <EnteteScene acte="Bienvenue" titre={<>On va <em>générer un film</em> avec l’IA.</>} sous="En quelques choix (genre, durée, langue, style), tu poses le cadre de ton film. Ensuite, un scénariste te pose ses questions pour écrire l’histoire avec toi, et la production des images, des voix et des plans peut commencer." />
+      <ol className="cn-accueil-etapes">
+        <li><b>Tu choisis</b><span>l’univers, la durée, la langue et le style graphique.</span></li>
+        <li><b>Tu rencontres le scénariste</b><span>un entretien pour transformer ton idée en scénario.</span></li>
+        <li><b>L’IA fabrique le film</b><span>assets, voix, plans, jusqu’au montage.</span></li>
+      </ol>
+    </>
+  );
+}
+
+/* ---------------------------------------------------------------- Format (désactivée) */
 
 const BANDE = "COMING SOON · COMING SOON · COMING SOON · COMING SOON · COMING SOON · COMING SOON · ";
 
@@ -123,6 +140,7 @@ export function SceneGenreTon({ etat, maj }: PropsScene) {
       </p>
 
       <div className="cn-ton">
+        <p className="cn-ton-titre">Style et Intensité</p>
         <p className="cn-ton-mot" aria-live="polite" style={{ letterSpacing: `${(((etat.ton - 50) / 50) * 0.04).toFixed(3)}em` }}>
           {motDuTon(etat.ton).replace(/^./, (c) => c.toUpperCase())}
         </p>
@@ -135,7 +153,7 @@ export function SceneGenreTon({ etat, maj }: PropsScene) {
           </div>
           <div className="cn-poignee" style={{ left: `${etat.ton}%` }} aria-hidden="true" />
         </Curseur>
-        <div className="cn-fader-bord" aria-hidden="true"><span>Lumineux</span><span>Sombre</span></div>
+        <div className="cn-fader-bord" aria-hidden="true"><span>+ lumineux</span><span>+ sombre</span></div>
         <p className="cn-ton-info">
           {etat.tonAjuste ? "Ajusté à la main" : etat.genres.length ? `Calé sur ${etat.genres.join(" + ")}` : "Valeur neutre (aucun genre choisi)"}
           <span className={`cn-tag${etat.tonAjuste ? " is-or" : ""}`}>{etat.tonAjuste ? "ajusté" : "par défaut"}</span>
