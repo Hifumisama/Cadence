@@ -1,5 +1,5 @@
 // Contrôles mécaniques de la Fiche de plan — voir docs/FRICTIONS.md F02/F03
-// et .claude/skills/fiche-de-plan/SKILL.md. Aucun n'a besoin d'IA : c'est la
+// et agents/skills/plan-h3/SKILL.md. Aucun n'a besoin d'IA : c'est la
 // vérification qui remplace la relecture manuelle avant validation.
 
 export type PromptSection = {

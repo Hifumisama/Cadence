@@ -4,10 +4,9 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns } from "../db/schema";
 import { listerSkills } from "../lib/llm/skills";
-import { PITCH_FICTIF } from "./entrees-fictives";
 
 /** Pose un appel LLM dans la file du worker (table `agent_runs`), sans interface :
- *   npm run llm:tache -- brief-projet [--entree fichier.json|.txt] [--projet <id>]
+ *   npm run llm:tache -- <skill> [--entree fichier.json|.txt] [--projet <id>]
  *                                      [--modele X] [--variante V] [--suivre]
  * Le worker (`npm run dev:all`) doit tourner : il prend la tâche quand le GPU est
  * libre (image, puis LLM, puis vidéo), décharge ComfyUI si besoin, appelle le
@@ -32,7 +31,7 @@ async function main(): Promise<number> {
     return 2;
   }
   const fichier = arg("--entree");
-  const entree = fichier ? readFileSync(fichier, "utf-8") : skill === "brief-projet" ? PITCH_FICTIF : null;
+  const entree = fichier ? readFileSync(fichier, "utf-8") : null;
   if (entree == null) {
     console.error(`Pas d'entrée fictive intégrée pour « ${skill} » : passe --entree <fichier>.`);
     return 2;

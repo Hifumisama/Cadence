@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { chargerSkill } from "./llm/skills";
 import { compilerSchema } from "./llm/validation";
 import { briefVersFiche, entreeNotes, lireFiche, manquesFiche, ficheComplete } from "./agents/fiche";
-import { briefVide, fusionnerPartielDansBrouillon, promptImageDuBrief, residuPartiel } from "./agents/brief";
+import { SCHEMA_BRIEF, briefVide, fusionnerPartielDansBrouillon, promptImageDuBrief, residuPartiel } from "./agents/brief";
 import type { BriefContenu } from "./agents/types";
 import { entreeAccroche, MARQUE_PROJET_CONCU } from "./agents/accroche";
 import {
@@ -162,7 +162,7 @@ test("brief : le prompt long et l'image du style suivent la clause, et restent h
 });
 
 test("les schémas du brief et de l'entretien acceptent le prompt long et l'image du style (posés par le code)", () => {
-  const valideBrief = compilerSchema(chargerSkill("brief-projet").schema);
+  const valideBrief = compilerSchema(SCHEMA_BRIEF);
   const contenu = { ...briefVide("Projet"), source: "pitch", arc: "a", style: { nom: "Gouache", clause: "Court", promptImage: "Long", image: "g.webp" }, langueDialogues: "Français", dureeEpisodeSecondes: 120, rythme: "mesure", episodes: [{ titre: "t", resume: "r" }] };
   assert.ok(valideBrief(contenu), JSON.stringify(valideBrief.errors));
   const notes = chargerSkill("notes-entretien").schema as unknown as { properties: { modifications: { properties: { style: Record<string, unknown> } } } };

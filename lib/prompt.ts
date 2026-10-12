@@ -1,7 +1,7 @@
 import type { PromptSection } from "./plan-checks";
 
 // Ordre canonique du format MiniMax H3 — voir
-// .claude/skills/fiche-de-plan/references/h3-guide-fullref.md.
+// docs/references/h3-guide-fullref.md.
 export const ORDRE_SECTIONS = [
   "subject_definitions",
   "summary",

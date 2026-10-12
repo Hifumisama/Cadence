@@ -51,8 +51,8 @@ export async function creerBriefPartiel(db: Db, projectId: number): Promise<void
 }
 
 /** Écrit le BROUILLON du brief d'un projet (jamais par-dessus un brief validé). Un brief partiel (style, notes… posés à la main) :
- * ce que l'utilisateur a posé gagne sur ce que l'agent a rédigé. Sert à la rédaction du brief (`brief-projet`) comme à la fiche de
- * notes de l'entretien, qui devient le brouillon dès qu'elle est complète. */
+ * ce que l'utilisateur a posé gagne sur ce que l'agent a rédigé. Sert au brouillon issu de la fiche de
+ * notes de l'entretien, dès qu'elle est complète. */
 export async function ecrireBrouillon(db: Db, projectId: number, genere: { contenu: BriefContenu; statuts: Record<string, StatutChamp> }): Promise<void> {
   const [existant] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
   if (existant?.statut === "valide") throw new Error("Le projet a déjà un brief validé : le brouillon n'a pas été écrit par-dessus.");

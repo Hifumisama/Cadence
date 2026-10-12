@@ -70,7 +70,7 @@ const LANGUES_BALISE: Record<string, string> = {
 };
 
 /** Langue de la fiche voix (« French ») -> libellé de la balise (`[Français]`,
- * voir le skill fiche-de-plan). Une langue inconnue est reprise telle quelle. */
+  * voir `plan-h3`). Une langue inconnue est reprise telle quelle. */
 export function langueBalise(langue: string | null | undefined): string {
   const l = (langue ?? "").trim();
   return LANGUES_BALISE[l.toLowerCase()] ?? (l || "Français");

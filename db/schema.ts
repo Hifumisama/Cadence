@@ -196,7 +196,7 @@ export const plans = pgTable("plans", {
 });
 
 // Le prompt H3 découpé par section (format officiel MiniMax H3 — voir
-// .claude/skills/fiche-de-plan/references/h3-guide-fullref.md). Une retouche
+// docs/references/h3-guide-fullref.md). Une retouche
 // vise presque toujours detailed_description : l'isoler par section est le
 // point qui débloque la boucle F03 (2 à 30 itérations/plan).
 export const planPromptSections = pgTable("plan_prompt_sections", {
@@ -336,7 +336,7 @@ export const assets = pgTable("assets", {
 // promptGeneration = instruction VoiceDesign retenue) : le catalogue n'est
 // qu'une vue spécialisée du registre, pas un second registre. Ces tables ne
 // portent que ce que le registre générique ne sait pas dire — le carnet
-// d'atelier du skill voix-comfyui (ex-REGISTRE_VOIX.md, jamais créé).
+// d'atelier des voix (ex-REGISTRE_VOIX.md, jamais créé).
 //
 // Aucun enum pg : verdicts en varchar, contrôlés côté application (voir
 // lib/voix.ts) — évite le piège « ajouter + utiliser une valeur d'enum dans
@@ -755,7 +755,7 @@ export const creationsProjet = pgTable("creations_projet", {
 });
 
 // Le brief : document de RÉFÉRENCE du projet (un seul par projet), modifiable après
-// coup. `contenu` suit le schéma de agents/skills/brief-projet/assets/sortie.schema.json ;
+// coup. `contenu` suit le schéma de lib/agents/brief-schema.json ;
 // `statuts` dit, section par section (clé de premier niveau), qui l'a posée :
 // fourni (dit par l'utilisateur) | deduit (conclu par l'agent) | a_valider (inventé
 // ou incertain). `statut` : brouillon (sorti d'une conversation, pas encore

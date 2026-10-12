@@ -1,7 +1,7 @@
 /** Rognage audio côté navigateur (casting vocal, étape 1 : référence fournie
  * qu'on coupe à la taille exacte de la réplique). Décode le fichier, garde
  * l'intervalle [debut, fin] et le réencode en WAV PCM 16 bits — sans perte
- * par rapport au signal décodé, et lisible partout (jamais de MP3, voix-comfyui).
+ * par rapport au signal décodé, et lisible partout (jamais de MP3).
  * Client uniquement (AudioContext). */
 
 export async function decoderAudio(fichier: File): Promise<AudioBuffer> {

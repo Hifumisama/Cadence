@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Output of the brief-projet agent: the validated brief",
+  "title": "The project brief (stored form; the sections are patched by notes-entretien, whose schema repeats these sub-schemas)",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -58,7 +58,7 @@
         },
         "clause": {
           "type": "string",
-          "description": "(English) One or two sentences, added as is at the start of video descriptions AND of still-image prompts (characters, sets). It describes the RENDERING (medium, line, colours, light), never a framing, a movement or an action (« dynamic shots », « cinematic action » have no place on a character sheet)."
+          "description": "(English) One or two sentences, added as is at the start of every video description (and of image prompts when the project has no long image prompt). It describes the RENDERING (medium, line, colours, light), never a framing, a movement or an action (« dynamic shots », « cinematic action » have no place on a character sheet)."
         },
         "promptImage": {
           "type": "string",
@@ -277,7 +277,7 @@
       "items": {
         "type": "string"
       },
-      "description": "(French) Everything that was not in the input. Each line was validated by the user."
+      "description": "(French) What the agent assumed, for information."
     },
     "questionsOuvertes": {
       "type": "array",
@@ -292,7 +292,7 @@
     },
     "statuts": {
       "type": "object",
-      "description": "For each section you filled (keys: titre, arc, genreTon, style, langueDialogues, dureeEpisodeSecondes, rythme, univers, episodes, personnages, lieux, continuite, rimes, progressions, pieges, notes), who set it: fourni (the user said it), deduit (you concluded it), a_valider (you invented it or you hesitate).",
+      "description": "For each section you filled (keys: titre, arc, genreTon, style, langueDialogues, dureeEpisodeSecondes, rythme, univers, episodes, personnages, lieux, continuite, rimes, progressions, pieges, notes), who set it: fourni (the user said it), deduit (concluded or assumed by the agent), a_valider (legacy value, treated as deduit by the code; `incertain` on a character or place is read the same way). Correspondence with the notes sheet (notes-entretien): origine dit = fourni, delegue = delegue (a proposal the user left to the agent), invente = deduit; `fin` (aucune/dit/delegue) is tracked outside the brief.",
       "additionalProperties": {
         "type": "string",
         "enum": [

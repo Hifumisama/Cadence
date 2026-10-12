@@ -15,7 +15,7 @@ export const TAILLE_MAX_UPLOAD_ASSET = 10 * 1024 * 1024;
 export const TAILLE_MAX_UPLOAD_VIDEO = 300 * 1024 * 1024;
 
 const EXT_IMAGE = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
-// .flac : format recommandé pour les références de clonage (voix-comfyui —
+// .flac : format recommandé pour les références de clonage (usage du projet —
 // jamais de MP3, le modèle recopierait les artefacts de compression).
 const EXT_AUDIO = [".wav", ".flac", ".mp3", ".ogg", ".m4a"];
 const EXT_VIDEO = [".mp4", ".webm", ".mov"];

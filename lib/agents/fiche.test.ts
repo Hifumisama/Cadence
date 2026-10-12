@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chargerSkill } from "../llm/skills";
 import { compilerSchema } from "../llm/validation";
+import { SCHEMA_BRIEF } from "./brief";
 import { accrocheEntretien, PISTES, tirerPistes } from "./accroche";
 import {
   FICHE_VIDE,
@@ -145,7 +146,7 @@ test("fiche → brief : la forme complète, avec ce que le code peut poser sans 
   assert.deepEqual(contenu.pieges, []);
   assert.equal(statuts.arc, "fourni");
   assert.equal((statuts as Record<string, string>).fin, undefined, "la fin n'est pas une section du brief");
-  const valide = compilerSchema(chargerSkill("brief-projet").schema);
+  const valide = compilerSchema(SCHEMA_BRIEF);
   assert.ok(valide({ ...contenu }), JSON.stringify(valide.errors));
 });
 
@@ -171,10 +172,10 @@ test("entreeNotes : la fiche et la conversation (qui parle)", () => {
 
 test("notes-entretien : les sections patchables reprennent EXACTEMENT les sous-schémas du brief", () => {
   const notes = chargerSkill("notes-entretien").schema as unknown as { properties: { modifications: { properties: Record<string, unknown> }; sources: { items: { properties: { section: { enum: string[] } } } } } };
-  const brief = chargerSkill("brief-projet").schema as unknown as { properties: Record<string, unknown> };
+  const brief = SCHEMA_BRIEF as unknown as { properties: Record<string, unknown> };
   assert.deepEqual(Object.keys(notes.properties.modifications.properties).sort(), [...SECTIONS_PATCHABLES].sort());
   for (const cle of SECTIONS_PATCHABLES) assert.deepEqual(notes.properties.modifications.properties[cle], brief.properties[cle], cle);
-  assert.deepEqual([...notes.properties.sources.items.properties.section.enum].sort(), [...SECTIONS_PATCHABLES, "fin"].sort());
+  assert.deepEqual([...notes.properties.sources.items.properties.section.enum].sort(), [...SECTIONS_PATCHABLES].sort(), "`fin` ne se dit que dans le champ de premier niveau");
 });
 
 test("accroche : trois pistes de genres différents, tirage au sort, le message invite sans imposer", () => {

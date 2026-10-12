@@ -1,7 +1,12 @@
+import schemaBrief from "./brief-schema.json";
 import { SECTIONS_BRIEF, type BriefContenu, type CleSectionBrief, type SectionBrief, type StatutChamp } from "./types";
 
-/** Le brief — fonctions pures (aucun accès base ni disque) : de la sortie du skill
- * `brief-projet` au contenu + statuts stockés, aux sections affichées, aux différences. */
+/** Le brief — fonctions pures (aucun accès base ni disque) : de la fiche de l'entretien (`notes-entretien`) au contenu +
+ * statuts stockés, aux sections affichées, aux différences. */
+
+/** Schéma du brief stocké (`brief-schema.json`). Plus de skill `brief-projet` (2026-10-12) : le brief se remplit au fil de la
+ * conversation. Les sous-schémas des sections patchables sont répétés dans celui de `notes-entretien` (un test les impose identiques). */
+export const SCHEMA_BRIEF = schemaBrief as unknown as Record<string, unknown>;
 
 /** Les sections qui reprennent un choix de la conception (langue, durée, genre et ton) : les changer reviendrait à refaire le projet, elles ne
  * se modifient donc plus à la main une fois la conception faite (voir `modifierChampBrief`). */

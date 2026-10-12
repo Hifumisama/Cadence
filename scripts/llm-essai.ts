@@ -4,13 +4,12 @@ import { ErreurLlm } from "../lib/llm/types";
 import { executerSkill } from "../lib/llm/executer";
 import { configLlm, modelePourSkill } from "../lib/llm/config";
 import { chargerSkill, listerSkills } from "../lib/llm/skills";
-import { PITCH_FICTIF } from "./entrees-fictives";
 
 /** Essai d'un skill d'agent sur le fournisseur configuré (.env) :
- *   npm run llm:essai -- brief-projet [--modele gemma4-26b-A4B] [--sans-contrainte]
+ *   npm run llm:essai -- <skill> [--modele gemma4-26b-A4B] [--sans-contrainte]
  *                                     [--entree fichier.json|.txt] [--sans-trace]
  *   npm run llm:essai -- --skills         (liste les skills et la taille de leur prompt)
- * Entrée fictive intégrée pour `brief-projet` ; les autres skills demandent --entree.
+ * Pas d'entrée fictive intégrée : chaque skill demande --entree.
  * Un vrai appel : il occupe le GPU du serveur LLM le temps de la génération. */
 
 
@@ -36,9 +35,7 @@ async function main() {
   const fichierEntree = arg("--entree");
   const entree = fichierEntree
     ? readFileSync(fichierEntree, "utf-8")
-    : nom === "brief-projet"
-      ? PITCH_FICTIF
-      : null;
+    : null;
   if (entree == null) {
     console.error(`Pas d'entrée fictive intégrée pour « ${nom} » : passe --entree <fichier>.`);
     return 2;

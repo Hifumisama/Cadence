@@ -87,8 +87,7 @@ const faux = (async (skill: string, entree: unknown, options?: { controler?: (js
       reflexion: "r",
       resteADefinir: tours === 1 ? ["Choisir le style visuel"] : [],
     };
-  } else if (skill === "brief-projet") json = BRIEF;
-  else if (skill === "prompt-asset") {
+  } else if (skill === "prompt-asset") {
     if (echouerPromptAsset) throw new Error("Serveur LLM en panne (simulé)");
     json = { methode: "generation", raisonMethode: "Pas de parent.", promptGeneration: `Nouveau prompt ${Date.now() % 1000}`, remarques: [] };
   } else if (skill === "scenario-episode" && (entree as { portee?: { type?: string } }).portee?.type === "episode") {

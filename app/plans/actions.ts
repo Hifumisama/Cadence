@@ -574,7 +574,7 @@ export async function analyserPromptColle(
 /** Écrase les 6 sections du plan avec le contenu d'un prompt H3 collé en
  * bloc — alternative à la saisie section par section (voir
  * PromptSectionEditor), pour ne pas retaper à la main un prompt déjà rédigé
- * ailleurs (skill fiche-de-plan). Refuse tout ou rien : jamais d'écriture
+ * ailleurs. Refuse tout ou rien : jamais d'écriture
  * partielle si une section manque ou est en double. */
 export async function importerPromptColle(
   planId: number,
