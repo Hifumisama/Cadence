@@ -106,12 +106,12 @@ test("shots sous 1,5 s : une ALERTE (conseil fort), jamais une erreur qui renvoi
   assert.ok(!tous([t(0), t(3), t(6)]).some((x) => x.regle === "shot-court"), "conforme : rien");
 });
 
-test("description trop longue (au-delà de 600 mots) : une ALERTE, jamais une erreur", () => {
-  const long = Array.from({ length: 650 }, (_, i) => `mot${i}`).join(" ");
+test("prompt trop long (au-delà de 7 000 caractères) : une ALERTE, jamais une erreur", () => {
+  const long = Array.from({ length: 1300 }, (_, i) => `mot${i}`).join(" ");
   const p = controlerSortiePlanH3({ ...bonne, shots: [{ debutSecondes: 0, texte: `[[CHAR_maya]] [[DEC_couloir]] (S1) <d>[French] Encore du sel.</d> ${long}` }, bonne.shots[1]!] }, ctx);
-  assert.ok(p.some((x) => x.niveau === "alerte" && x.regle === "description-longue"), "alerte de longueur");
-  assert.ok(!p.some((x) => x.niveau === "erreur" && x.regle === "description-longue"), "pas une erreur");
-  assert.ok(!controlerSortiePlanH3(bonne, ctx).some((x) => x.regle === "description-longue"), "un plan court : rien");
+  assert.ok(p.some((x) => x.niveau === "alerte" && x.regle === "prompt-long"), "alerte de longueur");
+  assert.ok(!p.some((x) => x.niveau === "erreur" && x.regle === "prompt-long"), "pas une erreur");
+  assert.ok(!controlerSortiePlanH3(bonne, ctx).some((x) => x.regle === "prompt-long"), "un plan court : rien");
 });
 
 test("balisage : coupe ou timecode écrits par le modèle ; [Shot N] et titres de section recopiés", () => {

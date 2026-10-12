@@ -67,7 +67,7 @@ The output contract is `assets/sortie.schema.json`. Each example is a complete d
 5. **Six images at most.** Beyond that, arbitrate: keep what carries identity and framing, sacrifice what text can describe alone (it goes to prose), and say so in `notes`.
 6. **One reference carries a character's face.** Several face references dilute identity.
 7. **Fill free slots usefully** (set, validated detail) only if you can say why. Otherwise leave them free.
-8. **An effect (`VFX_…`) is a material, not a subject.** Cited as an image, H3 treats it as content to keep and may show the reference itself as a stand-alone shot unrelated to the plan. So its `retention` is **never `fully_preserved`**: `weak_reference` (only colour, texture, motion are borrowed) or `attribute_transfer` (the effect passes onto a named subject: "golden energy on Maya's hands"). `retentionNote` says what is borrowed and where it lands. In the shots, the effect is always **something a subject does or undergoes** (energy wraps her forearms), never a scene of its own; the effect's own reference, with its original framing, must not drive the composition of the plan.
+8. **An effect (`VFX_…`) is a material, not a subject.** Cited as an image, H3 treats it as content to keep and may show the reference itself as a stand-alone shot unrelated to the plan. So its `retention` is **never `fully_preserved`**: `weak_reference` (only colour, texture, motion are borrowed) or `attribute_transfer` (the effect passes onto a named subject: "golden energy on Maya's hands"). `retentionNote` says what is borrowed, where it lands **and what the reference does not own** (an effect supplies no framing or composition). In the shots, the effect is always **something a subject does or undergoes** (energy wraps her forearms), never a scene of its own; the effect's own reference, with its original framing, must not drive the composition of the plan.
 9. **A populated set and an empty set are two assets.** A populated reference populates plans that should be empty. Do not take the full room for an empty-room plan.
 10. **A registry asset that the shots show is a reference** (up to the six): a held weapon or prop seen up close, a set used for a whole shot. Do not drop it to shorten the text: without its image the video model draws another one (a dagger becomes a sword).
 
@@ -77,7 +77,8 @@ Shot count follows **action intensity, not plan duration**:
 
 | Action | Cadence | Camera |
 |---|---|---|
-| **Intense**: run, flight, fight, fall, panic | one shot every **1.5–2 s** | mobile, varied angles (ground, high-angle, canted, high wide, insert) |
+| **Intense**: run, flight, fall, panic | one shot every **1.5–2 s** | mobile, varied angles (ground, high-angle, canted, high wide, insert) |
+| **Fight between characters** | one shot every **3–4 s**, each holding a linked exchange | the camera moves **inside** the shot (tracking, pan, push-in, arc) for the dynamism; the cut falls before or after a contact, never on it, with both fighters in frame |
 | **Moderate**: determined walk, exchange, transition | one shot every **2–3 s** | simple movements, alternating shot sizes |
 | **Calm or held tension**: listening, waiting, reaction | one shot every **2.5–4 s**, or a single held shot | locked, symmetrical, eye level |
 
@@ -86,7 +87,8 @@ Shot count follows **action intensity, not plan duration**:
 3. **First shot at `0`**, strictly increasing starts; the last shot should also last at least 1.5 s before the end of the plan.
 4. **Deliberate continuous gesture**: when continuity of the gesture is the effect (a slap in one movement), keep one movement and say so in `notes`.
 5. **Cadence tells the character's state by contrast.** A character in danger is filmed as prey (shoulder cam, canted, low angles, short cuts); the same character taking control, as a predator (locked camera, symmetrical frame, long cuts). Calm only has weight after fast: think of plans in pairs with their neighbours.
-6. **Spread fear or urgency signals across the cuts** (look over the shoulder, uneven stride, hand slapping a wall, visible breath). One readable signal per shot is enough.
+6. **A cut must bring something new**: a subject, a space, a state or a viewpoint. A cut that reveals none is replaced by a camera movement inside the shot. The more cuts, the more junctions where the end of one movement and the start of the next must match, and they often do not (render bench: 7 junctions mismatched, 3 matched).
+7. **Spread fear or urgency signals across the cuts** (look over the shoulder, uneven stride, hand slapping a wall, visible breath). One readable signal per shot is enough.
 
 ### 3. Write what can be seen
 
@@ -96,7 +98,8 @@ Shot count follows **action intensity, not plan duration**:
 4. **Camera movement is a natural action in the sentence** (`the camera pushes in slowly`), not a label.
 5. **Editing vocabulary, French → English**: travelling avant = `push in`, panoramique = `pan`, contre-plongée = `low-angle`, plan d'ensemble = `wide shot`, gros plan = `close-up`, caméra fixe = `static shot`.
 6. **A reference image is not a first frame.** An image showing an **end state** (final pose, already transformed set) must be declared as such in `definition`, otherwise the model places it at the opening and skips the build-up.
-7. **Precision vocabulary freezes a character** (`planted`, `isolated`, `square`, `exact`, `contained`). Avoid it on any moving character.
+8. **When two or more subjects are in the frame, every sentence names its subject** (`[[CODE]]`, or its role noun in `ouverture`). No bare "he hits him" or "she" where two people could be meant.
+9. **Precision vocabulary freezes a character** (`planted`, `isolated`, `square`, `exact`, `contained`). Avoid it on any moving character.
 8. **Static shot or close-up: say the camera is locked and the background does not move.** Any mention of walking makes the background scroll behind the character.
 9. **Reveal: no push-in, no dolly** (the model rushes the subject). Held camera, then a clean pan.
 10. **Light**: describe exposure as constant between two dated events, and have a visible gesture carry each change. Do not match light across two internal shots: describe the end state of the first and the start state of the second.

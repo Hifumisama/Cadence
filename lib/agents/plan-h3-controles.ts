@@ -51,7 +51,8 @@ export type ContexteControleH3 = {
 };
 
 /** Seuil de l'alerte de longueur (norme du guide officiel : 350 à 500 mots ; on laisse de la marge avant d'alerter). */
-export const MOTS_MAX_DESCRIPTION = 600;
+/** Budget du prompt assemblé (le plafond de l'API v2, retenu aussi en local : au-delà de ~12 000 caractères les rendus du banc étaient moins lisibles). */
+export const CARACTERES_MAX_PROMPT = 7000;
 export const MAX_IMAGES = 6;
 export const MAX_AUDIOS = 3;
 
@@ -196,10 +197,14 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     });
   }
 
-  // 4 bis. longueur : la norme du guide officiel est de 350 à 500 mots ; au-delà, les rendus du banc de test étaient moins lisibles
-  const motsDuTexte = [sortie.ouverture ?? "", ...shots.map((s) => s.texte ?? "")].join(" ").split(/\s+/).filter(Boolean).length;
-  if (motsDuTexte > MOTS_MAX_DESCRIPTION) {
-    ajouter("alerte", "description-longue", `L'ouverture et les shots font ${motsDuTexte} mots : la norme est de 350 à 500, au-delà le plan se brouille. Garde ce qui se voit et se fait.`);
+  // 4 bis. longueur : on estime le prompt assemblé (définitions, résumé, rétention, ouverture, shots, son, musique) ; l'assemblage
+  // ajoute les étiquettes, les timecodes et « Hard cut to » (de l'ordre de 120 caractères par référence et 40 par shot).
+  const caracteres =
+    sortie.references.reduce((n, r) => n + (r.nom ?? "").length + (r.definition ?? "").length + (r.retentionNote ?? "").length + 120, 0) +
+    [sortie.summary, sortie.ouverture, sortie.overall_soundscape, sortie.non_diegetic_music].reduce((n, t) => n + (t ?? "").length, 0) +
+    shots.reduce((n, sh) => n + (sh.texte ?? "").length + 40, 0);
+  if (caracteres > CARACTERES_MAX_PROMPT) {
+    ajouter("alerte", "prompt-long", `Le prompt assemblé fera environ ${caracteres} caractères : au-delà de ${CARACTERES_MAX_PROMPT} le plan se brouille. Garde ce qui se voit et se fait.`);
   }
 
   // 5. dialogues : verbatim

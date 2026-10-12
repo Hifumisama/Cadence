@@ -28,7 +28,7 @@
           "nom": { "type": "string", "description": "(English) How the sheet names the asset, no mandatory definite article: « Maya », « the Tenancière », « the narrow wooden corridor »." },
           "definition": { "type": "string", "description": "(English) The visible traits to follow (registry description: clothes, colours, materials, marks) then its state in THIS plan, without « is » and without a label: « leaning in close, her stride reduced to a bare, controlled inclination without a full stop »." },
           "retention": { "type": "string", "enum": ["fully_preserved", "partially_preserved", "attribute_transfer", "weak_reference", "fully_copy", "partially_copy", "reference"], "description": "Optional. Default: fully_preserved for an image, reference for a sound. An effect (VFX_…) is never fully_preserved: weak_reference (default, set by the code) or attribute_transfer." },
-          "retentionNote": { "type": "string", "description": "(English) Optional. What is kept or changed." }
+          "retentionNote": { "type": "string", "description": "(English) Optional. What is kept or changed, and what the reference does not own (for an effect: no framing or composition)." }
         }
       }
     },
