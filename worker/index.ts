@@ -181,9 +181,10 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     verifierEntree(input); // durée hors 5-15 s, trop de références : échec franc (voir catch)
     // Ce qui est réellement soumis, gardé sur le rendu : de quoi comparer deux rendus (et voir qu'une
     // modification n'a pas bougé le prompt).
+    const [lePlan] = await db.select({ description: plans.description }).from(plans).where(eq(plans.id, job.planId));
     await db
       .update(jobs)
-      .set({ promptUtilise: input.promptAssemble, dureeUtilisee: input.dureeSecondes, seedUtilisee: input.seed ?? null })
+      .set({ promptUtilise: input.promptAssemble, dureeUtilisee: input.dureeSecondes, seedUtilisee: input.seed ?? null, descriptionUtilisee: lePlan?.description ?? null })
       .where(eq(jobs.id, job.id));
 
     for (const ref of [...input.refsImage, ...input.refsAudio, ...input.refsVideo]) {

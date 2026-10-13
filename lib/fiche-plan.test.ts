@@ -229,3 +229,28 @@ test("decisionIteration : un asset suggéré par l'agent devient une NOTE de l'e
   assert.equal(d.action, "appliquer");
   assert.deepEqual(d.action === "appliquer" ? d.notes : [], ["L'agent suggère de créer CHAR_dragon_ombre, DEC_cave_nuit (non créés) : crée-le, génère son image, puis itère de nouveau."]);
 });
+
+test("decisionIteration : une réécriture (diagnostic) sans rien d'applicable devient « reecrire », avec la nouvelle description", () => {
+  const d = decisionIteration(prop({ groupes: [], diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, reecriture: { description: "Mai réessaie.\n\nÉtat en fin de plan : feu allumé." } } }));
+  assert.deepEqual(d, { action: "reecrire", description: "Mai réessaie.\n\nÉtat en fin de plan : feu allumé." });
+  // une retouche applicable reste une retouche
+  assert.equal(decisionIteration(prop({ diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, reecriture: null } })).action, "appliquer");
+});
+
+test("decisionIteration : une réécriture (plan-h3) n'applique que la fiche ; les créations d'assets sont laissées et signalées", () => {
+  const d = decisionIteration(
+    prop({
+      diagnostic: null,
+      groupes: [
+        { changements: [{ id: 1, bloque: false, refuseRaison: null, cibleType: "fiche", avertissements: [{ type: "info", texte: "L'état de fin du plan a changé : le plan suivant n'a pas été revérifié." }] }] },
+        { changements: [{ id: 2, bloque: false, refuseRaison: null, cibleType: "asset", avertissements: [] }] },
+      ],
+    }),
+  );
+  assert.equal(d.action, "appliquer");
+  if (d.action === "appliquer") {
+    assert.deepEqual(d.ids, [1]);
+    assert.ok(d.notes.some((n) => /1 création d'asset suggérée par la réécriture, non créée/.test(n)));
+    assert.ok(d.notes.some((n) => /état de fin du plan a changé/i.test(n)));
+  }
+});

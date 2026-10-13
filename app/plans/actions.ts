@@ -151,6 +151,8 @@ async function appliquerRendu(planId: number, jobId: number, restaurerPrompt: bo
     const r = sectionsDuPromptEnvoye(job.promptUtilise);
     if (!r.ok) return { ok: false, erreur: `Prompt de ce rendu illisible : ${r.erreurs.join(", ")}.` };
     for (const section of ORDRE_SECTIONS) await updatePromptSection(planId, section, r.sections[section] ?? "");
+    // La description du plan suit son prompt (elle est versionnée par essai) ; un essai d'avant ne l'a pas gardée : on n'y touche pas.
+    if (job.descriptionUtilisee != null) await db.update(plans).set({ description: job.descriptionUtilisee, updatedAt: new Date() }).where(eq(plans.id, planId));
   }
 
   const duree = job.dureeUtilisee;
@@ -259,12 +261,13 @@ export async function appliquerIterationEtGenerer(
   if (fps != null && (!Number.isInteger(fps) || fps < 1)) return { ok: false, erreur: "FPS invalide." };
   if (seed != null && !/^\d{1,15}$/.test(seed)) return { ok: false, erreur: "Seed invalide : 15 chiffres au plus." };
   const prop = await propositionParUuid(propositionUuid);
-  if (!prop || prop.skill !== "iteration-plan" || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
+  if (!prop || (prop.skill !== "iteration-plan" && prop.skill !== "plan-h3") || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
   const vue = await lireProposition(propositionUuid);
   const decision = decisionIteration(vue);
   if (decision.action === "attendre") return { ok: false, erreur: "L'agent n'a pas encore fini de répondre." };
   if (decision.action === "echec") return { ok: false, erreur: decision.erreur };
   if (decision.action === "rien") return { ok: false, erreur: decision.message };
+  if (decision.action === "reecrire") return { ok: false, erreur: "Cette correction change ce qui se passe dans le plan : sa fiche doit être réécrite, depuis « Itérer »." };
 
   const enFile = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.planId, planId), inArray(jobs.statut, ["en_attente", "en_cours"]))).limit(1);
   if (enFile.length > 0) return { ok: false, erreur: "Un essai est déjà en file ou en cours sur ce plan : rien n'a été appliqué." };
@@ -763,7 +766,9 @@ export async function preparerBaseIteration(planId: number, jobId: number): Prom
   });
   if (raison) return { ok: true, restaure: false };
   const sections = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId));
-  const restaurer = !!base.promptUtilise && promptDiffere(assemblerPrompt(sections), base.promptUtilise);
+  const [lePlan] = await db.select({ description: plans.description }).from(plans).where(eq(plans.id, planId));
+  const descriptionDiffere = base.descriptionUtilisee != null && base.descriptionUtilisee.replace(/\s+/g, " ").trim() !== (lePlan?.description ?? "").replace(/\s+/g, " ").trim();
+  const restaurer = !!base.promptUtilise && (promptDiffere(assemblerPrompt(sections), base.promptUtilise) || descriptionDiffere);
   const r = await appliquerRendu(planId, jobId, restaurer);
   if (!r.ok) return r;
   revalidatePath("/", "layout");

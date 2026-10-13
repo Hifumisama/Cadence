@@ -426,6 +426,9 @@ export async function entreePlanH3(
   planUuid: string,
   consigne: string,
   retour?: string,
+  /** `intention` : une description du plan qui REMPLACE celle de la base pour cette écriture (réécriture d'un plan depuis « Itérer » : elle n'est
+   * écrite en base qu'avec la fiche, à l'application). */
+  options: { intention?: string } = {},
 ): Promise<(EntreeSkill & { plan: { id: number; uuid: string; titre: string; episodeId: number } }) | null> {
   const [p] = await db
     .select()
@@ -502,7 +505,7 @@ export async function entreePlanH3(
     entree: {
       plan: {
         titre: p.titre,
-        intention: p.description ?? "",
+        intention: options.intention ?? p.description ?? "",
         positionDansLaScene: dansLaScene.length > 0 ? `${rang + 1}/${dansLaScene.length}` : "",
         fps: p.fps,
       },
@@ -516,7 +519,7 @@ export async function entreePlanH3(
             plans: dansLaScene.map((x, k) => ({
               position: k + 1,
               titre: x.titre,
-              intention: (x.description ?? "").trim().slice(0, 800),
+              intention: (x.uuid === p.uuid ? (options.intention ?? x.description ?? "") : (x.description ?? "")).trim().slice(0, 800),
               ...(x.uuid === p.uuid ? { cePlan: true } : {}),
             })),
           }

@@ -170,8 +170,9 @@ export type PropositionIteration = {
   erreur: string | null;
   /** Le résumé de la proposition : dit pourquoi rien n'est écrit quand l'agent ne propose aucun changement. */
   resume?: string | null;
-  diagnostic: { confiance: string; dureeCoherente: boolean; abandon: { propose: boolean } | null; assetsSuggeres?: { code: string }[] } | null;
-  groupes: { changements: { id: number; bloque: boolean; refuseRaison: string | null; avertissements: { type: string }[] }[] }[];
+  diagnostic: { confiance: string; dureeCoherente: boolean; abandon: { propose: boolean } | null; assetsSuggeres?: { code: string }[]; reecriture?: { description: string } | null } | null;
+  /** `cibleType` : une proposition `plan-h3` (réécriture du plan) porte aussi des créations d'assets, que « Itérer » n'applique jamais. */
+  groupes: { changements: { id: number; bloque: boolean; refuseRaison: string | null; cibleType?: string; avertissements: { type: string; texte?: string }[] }[] }[];
 };
 
 export type DecisionIteration =
@@ -180,6 +181,8 @@ export type DecisionIteration =
   | { action: "echec"; erreur: string }
   /** Aucune écriture appliquable (diagnostic seul, tout bloqué ou refusé) : message clair, aucun essai n'est créé. */
   | { action: "rien"; message: string }
+  /** La consigne change ce qui se passe dans le plan : on ne retouche pas des passages, la fiche est RÉÉCRITE (plan-h3, depuis cette nouvelle description). */
+  | { action: "reecrire"; description: string }
   /** On applique ce qui passe, puis on génère, sans confirmation. `notes` = ce que l'agent ou les contrôles ont signalé : gardé sur l'essai
    * créé (le prompt d'avant reste dans l'essai précédent, « Repartir de là »), jamais un blocage. */
   | { action: "appliquer"; ids: number[]; notes: string[] };
@@ -193,7 +196,11 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   if (p.statut === "echouee" || p.statut === "rejetee") return { action: "echec", erreur: p.erreur ?? "L'agent n'a pas pu proposer de correction." };
   if (p.statut !== "prete") return { action: "attendre" };
   const tous = p.groupes.flatMap((g) => g.changements);
-  const appliquables = tous.filter((c) => !c.bloque && !c.refuseRaison);
+  // « Itérer » n'écrit que la fiche : les créations d'assets d'une réécriture restent proposées, jamais créées d'office.
+  const cestLaFiche = (c: { cibleType?: string }) => c.cibleType === undefined || c.cibleType === "fiche";
+  const appliquables = tous.filter((c) => !c.bloque && !c.refuseRaison && cestLaFiche(c));
+  const creationsLaissees = tous.filter((c) => !c.bloque && !c.refuseRaison && !cestLaFiche(c)).length;
+  if (appliquables.length === 0 && p.diagnostic?.reecriture?.description) return { action: "reecrire", description: p.diagnostic.reecriture.description };
   if (appliquables.length === 0) {
     const raison = p.resume?.trim() || (tous.length > 0 ? "tous les changements proposés ont été refusés par un contrôle." : "l'agent ne propose aucun changement du prompt.");
     const phrase = `Rien n'a été appliqué ni généré : ${raison}`;
@@ -205,7 +212,9 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   if (p.diagnostic && !p.diagnostic.dureeCoherente) notes.push("La durée du rendu ne correspondait pas à celle du plan.");
   const suggeres = p.diagnostic?.assetsSuggeres ?? [];
   if (suggeres.length > 0) notes.push(`L'agent suggère de créer ${suggeres.map((a) => a.code).join(", ")} (non créé${suggeres.length > 1 ? "s" : ""}) : crée-le, génère son image, puis itère de nouveau.`);
-  const ecartes = tous.length - appliquables.length;
+  if (creationsLaissees > 0) notes.push(`${creationsLaissees} création${creationsLaissees > 1 ? "s" : ""} d'asset suggérée${creationsLaissees > 1 ? "s" : ""} par la réécriture, non créée${creationsLaissees > 1 ? "s" : ""} : crée-${creationsLaissees > 1 ? "les" : "le"} depuis le registre.`);
+  if (appliquables.some((c) => c.avertissements.some((a) => a.type === "info" && /l'état de fin du plan a changé/i.test(a.texte ?? "")))) notes.push("L'état de fin du plan a changé : le plan suivant n'a pas été revérifié.");
+  const ecartes = tous.length - appliquables.length - creationsLaissees;
   if (ecartes > 0) notes.push(`${ecartes} changement${ecartes > 1 ? "s" : ""} refusé${ecartes > 1 ? "s" : ""} par un contrôle.`);
   if (appliquables.some((c) => c.avertissements.some((a) => a.type === "alerte_controle"))) notes.push("Un contrôle signale une dégradation de structure des shots.");
   return { action: "appliquer", ids: appliquables.map((c) => c.id), notes };

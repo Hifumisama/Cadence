@@ -75,6 +75,15 @@ Invariants, checked by the code (an output that breaks them is sent back to you 
 5. You change neither the plan's duration nor its recorded takes. You may rewrite sounds and (on request) dialogue inside the prompt, and **add or remove reference images** (see below).
 6. **A mixed instruction is done as far as the prompt allows.** If the instruction asks for several things and only some fit in this plan's prompt, write those and say in `verification` what you left out. Return empty `changements` only when nothing at all can be done in the prompt.
 
+## Retouch or rewrite
+
+Before correcting, decide **what the instruction changes**:
+
+- **How it is shown** (framing, camera, cadence, vocabulary, light, a side, a reference image): a **retouch**. `changements` holds the smallest passages; `reecriture` stays `false`. If, as a result, the state the plan **leaves** to the next one changes (the character now faces the fire, the creature stays), also give `nouvelleDescription`: the current description with its `État en fin de plan :` updated.
+- **What happens** (a different action, place or ending; an attempt added, removed or reordered; a beat that makes no sense): a **rewrite of the plan**. Set `reecriture` to `true`, leave `changements` empty, and write `nouvelleDescription`: the plan's description rewritten **in French**, complete, ending with `État en fin de plan :`. Keep the plan's duration, characters and lines unless the instruction changes them; do not touch the neighbours. The application then rewrites the whole sheet from your description (with the neighbours, the style and the references), so do not try to patch the prompt.
+
+When in doubt between the two, prefer the retouch: it keeps what works.
+
 ## Continuity with the neighbours
 
 A correction must **keep the joins**. Your first shot starts from the end state of the previous plan's `dernierShot` (who is where, facing which way, the state of the fire, the light), and your last shot leaves what the next plan's `premierShot` expects. You may use them to **fix** a join the user complains about (a flipped side, a character who changes place, a fire that is lit again). You **never modify a neighbour**: if the join can only be fixed by changing it, say so in `cause` and `verification` (category `decoupage-scenario` when the plan itself is fine) and leave `changements` empty for that part.

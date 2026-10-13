@@ -411,3 +411,50 @@ test("assetsManquants : le schéma l'accepte ; sans modification du prompt, la r
   assert.deepEqual(diagnosticIteration(s)!.assetsSuggeres, [{ code: "CHAR_dragon_ombre", type: "personnage", parent: "CHAR_dragon", raison: "Aucune image de cet état." }]);
   assert.deepEqual(diagnosticIteration(sortie())!.assetsSuggeres, []);
 });
+
+// --- description du plan : mise à jour de l'état de fin, et réécriture du plan (2026-10-14) ---
+
+const DESC_AVANT = "Mai attend devant le feu.\n\nÉtat en fin de plan : Mai assise à gauche du feu, tournée vers lui ; feu allumé.";
+const DESC_APRES = "Mai attend devant le feu, puis se lève.\n\nÉtat en fin de plan : Mai debout à gauche du feu, tournée vers lui ; feu allumé.";
+
+test("etatEnFinDePlan : ce que le plan laisse au suivant, vide s'il manque", async () => {
+  const { etatEnFinDePlan } = await import("./iteration-plan");
+  assert.equal(etatEnFinDePlan(DESC_AVANT), "Mai assise à gauche du feu, tournée vers lui ; feu allumé.");
+  assert.equal(etatEnFinDePlan("Rien d'autre."), "");
+  assert.equal(etatEnFinDePlan(undefined), "");
+});
+
+test("nouvelleDescription : écrite avec la fiche (apres.description), avec la note « le plan suivant n'a pas été revérifié » si l'état de fin change", () => {
+  const ch = depuisIterationPlan(sortie({ nouvelleDescription: DESC_APRES }), plan({ description: DESC_AVANT }));
+  const a = lireApresFiche(ch[0]!.apres);
+  assert.equal(a.description, DESC_APRES);
+  assert.ok(ch[0]!.avertissements!.some((v) => /l'état de fin du plan a changé/i.test(v.texte)));
+  // même état de fin : pas de note
+  const meme = depuisIterationPlan(sortie({ nouvelleDescription: DESC_AVANT.replace("attend", "patiente") }), plan({ description: DESC_AVANT }));
+  assert.ok(!meme[0]!.avertissements!.some((v) => /état de fin/i.test(v.texte)));
+});
+
+test("nouvelleDescription seule (sans passage) est une écriture ; identique à l'actuelle, ce n'est rien", () => {
+  const seule = sortie({ changements: [], nouvelleDescription: DESC_APRES });
+  assert.equal(raisonSansEcriture(seule, plan({ description: DESC_AVANT })), null);
+  assert.equal(depuisIterationPlan(seule, plan({ description: DESC_AVANT })).length, 1);
+  assert.match(raisonSansEcriture(sortie({ changements: [], nouvelleDescription: DESC_AVANT }), plan({ description: DESC_AVANT })) ?? "", /aucune modification/i);
+});
+
+test("contrôles : la nouvelle description doit finir par l'état de fin ; une réécriture exige une description", () => {
+  const sansEtat = erreurs(sortie({ nouvelleDescription: "Mai se lève." }), plan({ description: DESC_AVANT }));
+  assert.ok(sansEtat.includes("description-etat"));
+  assert.ok(erreurs(sortie({ reecriture: true, changements: [] }), plan({ description: DESC_AVANT })).includes("reecriture-sans-description"));
+  assert.deepEqual(erreurs(sortie({ nouvelleDescription: DESC_APRES }), plan({ description: DESC_AVANT })), []);
+});
+
+test("réécriture : aucune retouche de passages, le diagnostic porte la nouvelle description, la raison dit qu'elle est réécrite à part", () => {
+  const s = sortie({ reecriture: true, nouvelleDescription: DESC_APRES });
+  assert.match(raisonSansEcriture(s, plan({ description: DESC_AVANT })) ?? "", /réécrire/i);
+  assert.deepEqual(depuisIterationPlan(s, plan({ description: DESC_AVANT })), []);
+  assert.deepEqual(diagnosticIteration(s)!.reecriture, { description: DESC_APRES });
+  assert.equal(diagnosticIteration(sortie())!.reecriture, null);
+  assert.equal(diagnosticIteration(sortie({ reecriture: true }))!.reecriture, null);
+  const v = valider(chargerSkill("iteration-plan").schema, s);
+  assert.ok(v.ok, v.ok ? "" : v.erreurs.join(" ; "));
+});

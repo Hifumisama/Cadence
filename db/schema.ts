@@ -505,6 +505,8 @@ export const jobs = pgTable("jobs", {
   // Sert à comparer deux rendus, et à expliquer pourquoi deux relances donnent le même plan.
   promptUtilise: text("prompt_utilise"),
   dureeUtilisee: integer("duree_utilisee"),
+  // La description (intention) du plan au moment de la soumission : versionnée par essai comme le prompt (2026-10-14).
+  descriptionUtilisee: text("description_utilisee"),
   // Progression du rendu en cours (2026-10-03) : l'étape (génération H3, interpolation, encodage) et, si ComfyUI en
   // donne une, valeur / max. Remises à null en fin de rendu. Pas d'aperçu image (la génération H3 est un nœud d'API).
   progressionValeur: integer("progression_valeur"),

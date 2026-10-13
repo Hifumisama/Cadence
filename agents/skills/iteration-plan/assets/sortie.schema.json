@@ -111,6 +111,14 @@
         }
       }
     },
+    "nouvelleDescription": {
+      "type": "string",
+      "description": "(French) Optional. The plan's NEW description (its intention), complete, ending with « État en fin de plan : … » (where the characters who matter stand and what they face, relative to fixed landmarks of the place, never to the camera; the state of what changed). Give it when the correction changes what happens in the plan, or the state it leaves to the next plan. Required when `reecriture` is true."
+    },
+    "reecriture": {
+      "type": "boolean",
+      "description": "Optional (default false). true when the instruction changes WHAT HAPPENS in the plan (a different action, place, ending, an attempt added or removed): it is no longer a retouch of passages but a rewrite of the plan. Then `changements` stays empty and `nouvelleDescription` is the plan rewritten; the application rewrites the whole sheet from it."
+    },
     "assetsManquants": {
       "type": "array",
       "description": "Optional. Assets you SUGGEST to create because the cause is a missing image and NO registry asset fits (search the registry first). You create nothing and cite none in your passages: the user creates it, generates its image, then iterates again. A STATE of a subject (character, creature, set, prop) has the same type as the subject and its `parent`.",

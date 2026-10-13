@@ -46,6 +46,10 @@ export type ApresFiche = {
   refs?: RefFiche[];
   dureeGenerationSecondes?: number;
   passages?: PassageFiche[];
+  /** La NOUVELLE description (intention) du plan, avec son « État en fin de plan : … » : écrite avec la fiche quand la correction change ce
+   * qui se passe dans le plan ou l'état qu'il laisse au suivant (« Itérer » : lib/agents/iteration-plan.ts). L'ancienne reste dans l'essai
+   * précédent (`jobs.description_utilisee`), comme le prompt. */
+  description?: string;
 };
 
 export function estSectionFiche(s: string): s is NomSection {
@@ -63,6 +67,7 @@ export function lireApresFiche(apres: unknown): ApresFiche {
   }
   if (Array.isArray(a.refs)) sortie.refs = a.refs as RefFiche[];
   if (a.dureeGenerationSecondes !== undefined) sortie.dureeGenerationSecondes = a.dureeGenerationSecondes as number;
+  if (typeof a.description === "string" && a.description.trim()) sortie.description = a.description.trim();
   if (Array.isArray(a.passages)) {
     sortie.passages = (a.passages as unknown[]).filter(
       (p): p is PassageFiche => !!p && typeof p === "object" && typeof (p as PassageFiche).section === "string" && typeof (p as PassageFiche).avant === "string" && typeof (p as PassageFiche).apres === "string",
@@ -98,7 +103,7 @@ const DUREE_MAX = 15;
 export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | null {
   const sections = apres.sections ?? {};
   const cles = Object.keys(sections);
-  if (cles.length === 0 && apres.refs === undefined && apres.dureeGenerationSecondes === undefined) return "Rien à écrire dans la fiche.";
+  if (cles.length === 0 && apres.refs === undefined && apres.dureeGenerationSecondes === undefined && apres.description === undefined) return "Rien à écrire dans la fiche.";
   const inconnue = cles.find((k) => !estSectionFiche(k));
   if (inconnue) return `Section de prompt inconnue : « ${inconnue} ».`;
   const d = apres.dureeGenerationSecondes;

@@ -237,6 +237,11 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
     const [plan] = await tx.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, prop.cibleId));
     if (!plan) throw new Error("Le plan visé n'existe plus.");
     bruts = await brutsFiche(tx, prop.projectId, plan.uuid, json as SortiePlanH3);
+    // Réécriture depuis « Itérer » : la nouvelle description du plan s'écrit avec la fiche (l'ancienne reste dans l'essai précédent).
+    const nouvelle = (run.options as { descriptionNouvelle?: unknown } | null)?.descriptionNouvelle;
+    if (typeof nouvelle === "string" && nouvelle.trim()) {
+      for (const b of bruts) if (b.cibleType === "fiche") b.apres = { ...(b.apres as object), description: nouvelle.trim() };
+    }
   } else if (run.skill === "inventaire-assets") {
     // Les assets que les plans réclament et que le registre n'a pas : des créations sans prompt (il s'écrit ensuite).
     const sortie = json as SortieInventaire;
@@ -441,7 +446,7 @@ async function postIteration(
   sortie: SortieIterationPlan,
   execution: InfosExecution,
 ) {
-  const [plan] = await tx.select({ id: plans.id, uuid: plans.uuid, titre: plans.titre, duree: plans.dureeGenerationSecondes }).from(plans).where(eq(plans.id, prop.cibleId!));
+  const [plan] = await tx.select({ id: plans.id, uuid: plans.uuid, titre: plans.titre, duree: plans.dureeGenerationSecondes, description: plans.description }).from(plans).where(eq(plans.id, prop.cibleId!));
   if (!plan) throw new Error("Le plan visé n'existe plus.");
   const [lignes, refs, voix, registre] = await Promise.all([
     tx.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, plan.id)),
@@ -460,6 +465,7 @@ async function postIteration(
   const courant: PlanPourIteration = {
     uuid: plan.uuid,
     titre: plan.titre,
+    description: plan.description ?? "",
     sections,
     refs,
     registre,

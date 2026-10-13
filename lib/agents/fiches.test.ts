@@ -398,3 +398,12 @@ test("depuisFichePlan : voixOff réécrit la parole d'un plan dont le brief met 
   const sans = depuisFichePlan(sortie, { ...plan, voixOff: false });
   assert.ok(!/off-screen/.test((sans[0]!.apres as { sections: { detailed_description: string } }).sections.detailed_description));
 });
+
+test("ApresFiche.description : lue, et suffisante pour une écriture (la nouvelle intention du plan)", async () => {
+  const { lireApresFiche, verifierFiche } = await import("./fiches");
+  assert.equal(lireApresFiche({ description: "  Mai se lève.\n\nÉtat en fin de plan : debout.  " }).description, "Mai se lève.\n\nÉtat en fin de plan : debout.");
+  assert.equal(lireApresFiche({ description: "   " }).description, undefined);
+  const etat = { titre: "t", sections: {}, refs: [], slotsDialogues: [], registre: new Map(), aUnRendu: false, generationEnCours: false, dureeGenerationSecondes: 8 };
+  assert.equal(verifierFiche({ description: "Mai se lève." }, etat), null);
+  assert.equal(verifierFiche({}, etat), "Rien à écrire dans la fiche.");
+});

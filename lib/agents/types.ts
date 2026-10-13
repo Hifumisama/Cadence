@@ -331,6 +331,8 @@ export type DiagnosticIteration = {
   nbPassages: number;
   entreeLexique: { symptome: string; cause: string; formulationQuiTient: string } | null;
   abandon: { propose: boolean; raison: string } | null;
+  /** La consigne change ce qui se passe dans le plan : sa fiche est réécrite à part, depuis cette nouvelle description. Null sinon. */
+  reecriture: { description: string } | null;
   /** Assets que l'agent suggère de créer (jamais créés par l'itération). */
   assetsSuggeres: { code: string; type: string; parent?: string; raison: string }[];
 };

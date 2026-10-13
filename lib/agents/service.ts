@@ -1028,6 +1028,31 @@ export async function genererIteration(
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
 }
 
+/** « Itérer » quand la consigne change ce qui se passe dans le plan : la fiche est RÉÉCRITE (`plan-h3`, une proposition simple) depuis la nouvelle
+ * description que l'agent d'itération a écrite. Cette description n'est écrite en base qu'à l'application, avec la fiche (`apres.description`) ;
+ * l'ancienne reste dans l'essai précédent. Comme toute fiche de plan, elle voit les voisins, le style, le registre et la voix off du brief. */
+export async function genererReecriturePlan(
+  conversationUuid: string,
+  options: { consigne: string; description: string },
+): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
+  const conv = await conversationParUuid(conversationUuid);
+  if (!conv) return ERR("Conversation introuvable.");
+  if (conv.portee !== "plan" || conv.cibleId == null) return ERR("La réécriture d'un plan se demande depuis la page d'un plan.");
+  const description = (options.description ?? "").trim();
+  if (!description) return ERR("Pas de nouvelle description à écrire.");
+  { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur ce plan."); if (refus) return refus; }
+  const [p] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, conv.cibleId));
+  if (!p) return ERR("Plan introuvable.");
+  const consigne = `Réécris la fiche de ce plan depuis sa nouvelle description (elle fait foi). Demande de l'utilisateur : « ${options.consigne.trim().slice(0, 600)} ». Garde la durée, les personnages et les répliques liées sauf si la description les change.`;
+  const e = await entreePlanH3(db, conv.projectId, p.uuid, consigne, undefined, { intention: description });
+  if (!e) return ERR("Plan introuvable.");
+  const propId = await nouvelleProposition(conv, { skill: "plan-h3", consigne: options.consigne.trim(), contexte: e.contexte });
+  const run = await creerRun(db, { skill: "plan-h3", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: { ...(e.variante ? { variante: e.variante } : {}), descriptionNouvelle: description } });
+  await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
+  const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
+  return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
+}
+
 /** Ce que la fenêtre de correction montre avant de lancer (rendu, fiche, corrections déjà tentées). */
 export async function lireEtatIteration(projectId: number, planUuid: string): Promise<EtatIterationPlan | null> {
   if (!/^[0-9a-f-]{36}$/i.test(planUuid)) return null;

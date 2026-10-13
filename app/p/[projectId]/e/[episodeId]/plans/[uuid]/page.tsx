@@ -364,7 +364,7 @@ export default async function PlanPage({
                 hrefQuitter={hrefQuitter}
                 enCours={enCours}
               >
-                {principal && principalJob && (retenable || principalJob.promptUtilise) ? (
+                {principal && principalJob && (retenable || principalJob.promptUtilise || principalJob.descriptionUtilisee) ? (
                   <div className="tm-sous-legende">
                     {retenable ? (
                       <details className="tm-details">
@@ -376,6 +376,14 @@ export default async function PlanPage({
                           aUnPrompt={!!principalJob.promptUtilise}
                           estSeedDuPlan={!!principalJob.seedUtilisee && principalJob.seedUtilisee === plan.seed}
                         />
+                      </details>
+                    ) : null}
+                    {principalJob.descriptionUtilisee && principalJob.descriptionUtilisee.trim() !== (plan.description ?? "").trim() ? (
+                      <details className="tm-details">
+                        <summary className="tm-lien">Description du plan pour cet essai (différente de l&rsquo;actuelle)</summary>
+                        <pre className="tiny-note" style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
+                          {principalJob.descriptionUtilisee}
+                        </pre>
                       </details>
                     ) : null}
                     {principalJob.promptUtilise ? (

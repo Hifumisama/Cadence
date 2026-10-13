@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { genererIteration, ouvrirConversation, rejeter } from "@/app/agents/actions";
+import { genererIteration, genererReecriture, ouvrirConversation, rejeter } from "@/app/agents/actions";
 import { lirePropositionVue } from "@/app/agents/lecture";
 import { preparerBaseIteration, rouvrirIteration, validerPretUpscale } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
@@ -148,7 +148,7 @@ export function IntentionPlan({
   };
 
   /** Prépare l'essai de base, écrit les retouches du prompt, lance l'agent et attend sa proposition. Renvoie null (erreur déjà affichée) si on s'arrête. */
-  const interroger = async (retour: string, avecPlanche: boolean): Promise<{ propositionUuid: string; proposition: VueProposition } | null> => {
+  const interroger = async (retour: string, avecPlanche: boolean): Promise<{ propositionUuid: string; proposition: VueProposition; conversationUuid: string } | null> => {
     if (!base) return null;
     if (!base.estDernier && retouches) {
       setErreur("Tes retouches du prompt ne sont pas figées : lance-les d'abord (Réglages) ou annule-les, puis repars de cet essai.");
@@ -188,7 +188,35 @@ export function IntentionPlan({
       setPhase("repos");
       return null;
     }
-    return { propositionUuid: g.propositionUuid, proposition: prop };
+    return { propositionUuid: g.propositionUuid, proposition: prop, conversationUuid: conv.conversationUuid };
+  };
+
+  /** La consigne change ce qui se passe dans le plan : l'agent a écrit la NOUVELLE description, la fiche est réécrite depuis elle (plan-h3), puis
+   * appliquée et générée comme une correction (une seule transaction côté serveur ; l'ancienne description reste dans l'essai précédent). */
+  const reecrire = async (conversationUuid: string, description: string, consigneEssai: string) => {
+    setVision("fiche");
+    setPhase("agent");
+    const g = await genererReecriture(conversationUuid, { consigne: consigneEssai, description });
+    if (!g.ok) {
+      setErreur(g.erreur);
+      setPhase("repos");
+      return;
+    }
+    const prop = await attendre(g.propositionUuid);
+    if (demonte.current) return;
+    if (!prop) {
+      setErreur(annule.current ? null : "L'agent n'a pas répondu à temps. Sa proposition reste dans le panneau des tâches.");
+      setPhase("repos");
+      return;
+    }
+    const d = decisionIteration(prop);
+    if (d.action === "echec") setErreur(d.erreur);
+    else if (d.action === "rien") setErreur(d.message);
+    else if (d.action === "appliquer") {
+      await appliquerEtLancer(g.propositionUuid, consigneEssai);
+      return;
+    }
+    setPhase("repos");
   };
 
   const iterer = async () => {
@@ -226,6 +254,10 @@ export function IntentionPlan({
         await appliquerEtLancer(r.propositionUuid, texte);
         return;
       }
+      if (decision.action === "reecrire") {
+        await reecrire(r.conversationUuid, decision.description, texte);
+        return;
+      }
       setPhase("repos");
     } catch (e) {
       setErreur(e instanceof Error ? e.message : "Quelque chose a échoué.");
@@ -248,6 +280,8 @@ export function IntentionPlan({
         setErreur(decision.erreur);
       } else if (decision.action === "rien" || decision.action === "appliquer") {
         setRevue({ propositionUuid: r.propositionUuid, decision, proposition: r.proposition });
+      } else if (decision.action === "reecrire") {
+        setInfo(`L'agent propose de réécrire le plan (la consigne change ce qui s'y passe) : ${decision.description} Lance « Itérer » pour le réécrire.`);
       }
       setPhase("repos");
     } catch (e) {
@@ -351,6 +385,11 @@ export function IntentionPlan({
         </p>
       ) : null}
 
+      {aUnRendu && !montrer && /(?<![a-zàâçéèêëîïôûùüÿ])(dos|face|côté|cote|gauche|droite|derrière|derriere|devant|position|tourné|tourne|visage|regarde)(?![a-zàâçéèêëîïôûùüÿ])/i.test(texte) ? (
+        <p className="tiny-note" role="note">
+          Pour une question de position ou de côté, coche « Montrer au chef opérateur » : l&rsquo;agent voit alors le rendu au lieu de deviner.
+        </p>
+      ) : null}
       {aUnRendu ? (
         <label className="tm-montrer">
           <input type="checkbox" checked={montrer} disabled={occupe} onChange={(e) => setMontrer(e.target.checked)} />

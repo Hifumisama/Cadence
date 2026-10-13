@@ -212,6 +212,14 @@ export async function genererIteration(
   return rafraichir(await service.genererIteration(conversationUuid, { retour: options.retour, renduId: options.renduId, planche: options.planche }));
 }
 
+/** « Itérer » avec réécriture du plan : la fiche est réécrite (plan-h3) depuis la nouvelle description de l'agent d'itération. */
+export async function genererReecriture(
+  conversationUuid: string,
+  options: { consigne: string; description: string },
+): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
+  return rafraichir(await service.genererReecriturePlan(conversationUuid, options));
+}
+
 /** Après l'application d'une fiche : écrire les prompts d'image des assets qu'elle a CRÉÉS (un lot
  * `prompt-asset`, dans la conversation du PROJET, seule portée où l'on modifie un asset existant). Renvoie la
  * conversation du projet, que l'interface ouvre pour suivre le lot. Jamais lancé tout seul. */

@@ -139,6 +139,8 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
     valeurs.dureeGenerationSecondes = apres.dureeGenerationSecondes;
     valeurs.dureeMontageSecondes = apres.dureeGenerationSecondes;
   }
+  // La nouvelle intention du plan (correction qui change ce qui s'y passe) : l'ancienne reste dans l'essai précédent.
+  if (apres.description) valeurs.description = apres.description;
   if (p.statut === "brouillon") valeurs.statut = "en_attente"; // développé en fiche de plan (developperEnFichePlan)
   await tx.update(plans).set(valeurs).where(eq(plans.id, p.id));
 }
