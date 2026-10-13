@@ -11,11 +11,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["code", "type", "description", "plans", "raison"],
+        "required": ["code", "type", "parent", "description", "plans", "raison"],
         "properties": {
           "code": { "type": "string", "description": "Proposed code, prefixed by the type (PROP_lanterne, DEC_phare_nuit). The final code is rebuilt according to the registry's convention." },
           "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "sfx", "keyframe", "oth"] },
-          "parent": { "type": "string", "description": "Optional. Code of the asset (from the registry, or proposed here) that serves as STARTING IMAGE: the same set at night, the same wounded character. Only a proposed starting image, not a hierarchy: the registry is flat. For a `keyframe`, leave empty and list the elements to combine in `raison`." },
+          "parent": { "type": ["string", "null"], "description": "ALWAYS answer. MANDATORY for a state of a recurring subject (character, creature, set or prop: the same set at night, the same character wounded, the same creature emerging): the code of the BASE subject (from the registry, or proposed here), same type as this asset. It is the starting image of the state; the registry is flat, so a state of a state also points to the base subject. `null` only for an independent asset (a distinct prop, a new character, a generic effect). For a `keyframe`, leave empty and list the elements to combine in `raison`." },
           "description": { "type": "string", "minLength": 1, "description": "(French) What it is, as in the registry: what is seen, with no framing or plan light." },
           "plans": { "type": "array", "items": { "type": "string" }, "description": "The titles of the plans (as given in the input) where the asset appears." },
           "raison": { "type": "string", "description": "(French) Why no registry asset fits: what must really differ in the image." }

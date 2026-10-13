@@ -18,7 +18,7 @@ A short English paragraph: who does what, where. It introduces no new reference 
 
 ## `ouverture`
 
-One to three English sentences before the first shot: the project's style clause, the dominant light, and, when two or more characters act together, **the sides** ("Maya is always on the left of the frame facing right, the Tenancière on the right facing left; the fight runs left to right"). Names in plain prose, no `[[CODE]]` marker.
+One to three English sentences before the first shot: the dominant light (the code puts the project's style clause in front: do not write a visual style), and, when two or more characters act together, **the sides** ("Maya is always on the left of the frame facing right, the Tenancière on the right facing left; the fight runs left to right"). Names in plain prose, no `[[CODE]]` marker.
 
 ## `shots`
 

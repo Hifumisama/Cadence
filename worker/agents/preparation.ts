@@ -4,9 +4,11 @@ import { dureesCoherentes } from "../../lib/agents/iteration-plan";
 import { MEDIA_ROOT } from "../../lib/media";
 import { contenuPlanche, ErreurPlanche, extrairePlanche, type Planche } from "../../lib/planche-vignettes";
 import type { MessageLlm } from "../../lib/llm/types";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { db } from "../../db";
-import { agentConversations, propositionChangements, type agentRuns } from "../../db/schema";
+import { agentConversations, agentRuns, plans, propositionChangements } from "../../db/schema";
+import { dernierShotDuBrouillon } from "../../lib/agents/contexte";
+import { cleSousTachePlan, planUuidDeCle } from "../../lib/agents/fiches";
 import { entreeAnalyse } from "../../lib/agents/revision/entrees";
 
 /** « Préparer l'entrée » d'une tâche LLM, AU MOMENT de l'exécution (worker/llm.ts), propre à chaque skill. Par
@@ -14,7 +16,8 @@ import { entreeAnalyse } from "../../lib/agents/revision/entrees";
  * qu'un DESCRIPTEUR du rendu (`planche` : job, chemin relatif à MEDIA_ROOT, plafond de vignettes) : jamais
  * d'images en base. Ici, on reconstruit la planche (ffprobe + ffmpeg), on mesure la durée réelle du fichier, et on
  * produit le `MessageLlm[]` (texte + vignettes). Un rendu disparu ou un ffmpeg absent : la tâche ÉCHOUE avec un
- * message clair, jamais une planche vide ni un diagnostic à l'aveugle. */
+ * message clair, jamais une planche vide ni une planche promise puis absente. La planche n'est demandée que sur action
+ * explicite (« Montrer au chef opérateur », « Analyser ») ; sans descripteur, l'entrée part sans rendu ni ffmpeg. */
 
 type RunAgent = typeof agentRuns.$inferSelect;
 
@@ -76,14 +79,43 @@ async function preparerFiche(run: RunAgent): Promise<EntreePreparee> {
     .map((l) => l.apres as { code?: unknown; type?: unknown; description?: unknown } | null)
     .filter((a): a is { code: string; type?: unknown; description?: unknown } => typeof a?.code === "string")
     .map((a) => ({ code: a.code, type: String(a.type ?? ""), description: String(a.description ?? "") }));
-  if (proposes.length === 0) return { entree: run.entree as string | object, controle: run.entree };
-  return { entree: { ...(run.entree as object), assetsProposesParLeLot: proposes }, controle: run.entree };
+  const dernierShot = await dernierShotDuPrecedent(run);
+  const stockee = run.entree as { plansVoisins?: { precedent?: object | null } } & Record<string, unknown>;
+  const precedent = dernierShot && stockee.plansVoisins?.precedent ? { ...stockee.plansVoisins.precedent, dernierShot } : null;
+  if (proposes.length === 0 && !precedent) return { entree: run.entree as string | object, controle: run.entree };
+  const entree = {
+    ...stockee,
+    ...(precedent ? { plansVoisins: { ...stockee.plansVoisins, precedent } } : {}),
+    ...(proposes.length ? { assetsProposesParLeLot: proposes } : {}),
+  };
+  return { entree, controle: run.entree };
+}
+
+/** Le dernier shot que le plan PRÉCÉDENT du lot vient d'écrire (sa sortie, pas encore en base) : le premier shot de ce plan reprend là
+ * où il finit (qui est où, tourné vers quoi, état du feu). Null si le précédent n'est pas du lot, n'a pas fini, ou n'a pas de shot. */
+async function dernierShotDuPrecedent(run: RunAgent): Promise<string | null> {
+  const planUuid = planUuidDeCle(run.cleSousTache);
+  if (!planUuid || run.propositionId == null) return null;
+  const [ce] = await db.select({ episodeId: plans.episodeId, ordre: plans.ordre }).from(plans).where(eq(plans.uuid, planUuid));
+  if (!ce) return null;
+  const [prec] = await db.select({ uuid: plans.uuid }).from(plans).where(and(eq(plans.episodeId, ce.episodeId), lt(plans.ordre, ce.ordre))).orderBy(desc(plans.ordre)).limit(1);
+  if (!prec) return null;
+  const [fini] = await db
+    .select({ resultat: agentRuns.resultat })
+    .from(agentRuns)
+    .where(and(eq(agentRuns.propositionId, run.propositionId), eq(agentRuns.cleSousTache, cleSousTachePlan(prec.uuid)), eq(agentRuns.statut, "termine")))
+    .orderBy(desc(agentRuns.id))
+    .limit(1);
+  return dernierShotDuBrouillon((fini?.resultat as { shots?: unknown } | null)?.shots);
 }
 
 async function preparerIteration(run: RunAgent, deps: DepsPreparation): Promise<EntreePreparee> {
   const stockee = (run.entree ?? {}) as Record<string, unknown> & { planche?: DescripteurPlanche; plan?: { dureeVoulueSecondes?: number } };
   const d = stockee.planche;
-  if (!d?.cheminSortie) throw new Error("Entrée d'iteration-plan sans rendu (descripteur de planche absent) : relance la correction depuis la page du plan.");
+  // Sans descripteur : la planche n'a pas été demandée (jamais automatique, 2026-10-12). L'agent travaille depuis la consigne et la fiche
+  // actuelle : l'entrée stockée part telle quelle, sans `rendu` ni durée mesurée (les garde-fous de durée réelle sont alors sans objet).
+  if (!d) return { entree: stockee, controle: stockee };
+  if (!d.cheminSortie) throw new Error("Entrée d'iteration-plan : descripteur de planche sans chemin de rendu. Relance l'analyse depuis la page du plan.");
   const chemin = resolve(MEDIA_ROOT, d.cheminSortie);
   let planche: Planche;
   try {

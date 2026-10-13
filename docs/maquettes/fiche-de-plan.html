@@ -1,0 +1,622 @@
+<title>Table de montage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Jost:wght@300;400;500;600&family=Marcellus&display=swap" rel="stylesheet">
+<style>
+/* Concept : la fiche de plan devient une table de montage. En haut la pellicule des PLANS (on passe d'un plan au voisin d'un geste), au centre
+   le lecteur et la pellicule des ESSAIS du plan, et juste dessous l'INTENTION : la consigne en langage naturel est la boucle d'itération.
+   Prompt, références, dialogues et réglages sont rangés en onglets, à côté. Or = validé, écarlate = en travail ou alerte. */
+:root{
+  color-scheme:dark;
+  --ground:#121217;--surface:#1a1a21;--surface-2:#212129;--surface-3:#282833;--line:#2c2c36;--line-strong:#3a3a47;
+  --ink:#e9e6e0;--ink-2:#c4c0cc;--ink-3:#9d98a8;--ink-4:#8a8595;
+  --ecarlate:#c8102e;--ecarlate-glow:#ff4f6d;--or:#c9a24b;--or-soft:#8a7136;--or-glow:#f0d089;
+  --film:#0b0b0f;
+  --font-brand:"Marcellus",Georgia,serif;--font-data:"Jost",system-ui,sans-serif;--font-mono:"IBM Plex Mono",ui-monospace,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*{box-sizing:border-box}
+html{background:var(--ground)}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font-data);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;padding-inline:16px;padding-block:0 40px}
+button,textarea,input{font:inherit;color:inherit}
+button{cursor:pointer}
+p{margin:0}
+:focus-visible{outline:2px solid var(--or-glow);outline-offset:2px}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1380px;margin-inline:auto}
+
+.btn{background:var(--surface);border:1px solid var(--line-strong);padding:9px 16px;color:var(--ink-2);transition:all .25s var(--ease);border-radius:2px;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--surface-2);border-color:var(--or-soft);color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:linear-gradient(160deg,var(--or-glow),var(--or));border-color:var(--or-glow);color:#0e0e13;font-weight:500}
+.btn-gold:hover:not(:disabled){color:#0e0e13;background:linear-gradient(160deg,var(--or-glow),var(--or));box-shadow:0 0 22px -4px rgba(240,208,137,.55)}
+.btn-line{background:transparent;border-color:var(--or-soft);color:var(--or-glow)}
+.btn-sm{padding:5px 11px;font-size:13px}
+.lien{background:none;border:0;padding:0;color:var(--or);text-decoration:underline;text-underline-offset:3px;font-size:13px}
+
+/* Barre du haut */
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px;border-bottom:1px solid var(--line)}
+.crumb{font-size:13px;color:var(--ink-3);display:flex;gap:8px;align-items:center;min-width:0}
+.crumb b{font-family:var(--font-brand);font-weight:400;letter-spacing:.16em;text-transform:uppercase;color:var(--or);font-size:14px}
+.top .push{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.avance{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-3)}
+.avance .barre{width:120px;height:4px;background:var(--surface-3);border-radius:2px;overflow:hidden}
+.avance .barre i{display:block;height:100%;background:linear-gradient(90deg,var(--or-soft),var(--or-glow));transition:width .5s var(--ease)}
+
+/* Pellicule des plans */
+.reel-zone{display:flex;align-items:center;gap:8px;margin-top:22px;position:sticky;bottom:0;z-index:15;background:var(--ground);padding-block:10px 12px;border-top:1px solid var(--line)}
+.reel-nav{flex:none;width:36px;height:64px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);border-radius:2px}
+.reel-nav:hover:not(:disabled){border-color:var(--or-soft);color:var(--or-glow)}
+.reel-nav:disabled{opacity:.3;cursor:default}
+.reel{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;padding:16px 10px;background:var(--film);border:1px solid var(--line);border-radius:2px;scroll-snap-type:x proximity;
+  background-image:repeating-linear-gradient(90deg,transparent 0 10px,#2a2a33 10px 16px,transparent 16px 24px),repeating-linear-gradient(90deg,transparent 0 10px,#2a2a33 10px 16px,transparent 16px 24px);
+  background-size:100% 5px,100% 5px;background-position:0 4px,0 calc(100% - 4px);background-repeat:no-repeat;scrollbar-width:thin}
+.cadre{position:relative;flex:none;width:150px;scroll-snap-align:center;background:none;border:0;padding:0;text-align:left;transition:transform .3s var(--ease),opacity .3s}
+.cadre .img{position:relative;display:block;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--line-strong);border-radius:1px;opacity:.72;transition:all .3s var(--ease)}
+.cadre:hover .img{opacity:1}
+.cadre.is-on{transform:translateY(-3px) scale(1.04)}
+.cadre.is-on .img{opacity:1;border-color:var(--or-glow);box-shadow:0 0 0 1px var(--or-glow),0 8px 24px -8px rgba(240,208,137,.45)}
+.cadre .pos{position:absolute;left:5px;top:4px;font-size:11px;color:var(--ink);background:rgba(11,11,15,.7);padding:0 5px}
+.cadre .etat{position:absolute;right:5px;top:4px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;line-height:1}
+.cadre .etat.pret{background:var(--or);color:#0e0e13;font-weight:600}
+.cadre .etat.iteration{background:var(--ecarlate);box-shadow:0 0 0 3px rgba(200,16,46,.25)}
+.cadre .etat.brouillon{border:1px dashed var(--ink-4)}
+.cadre .nom{display:block;margin-top:5px;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cadre.is-on .nom{color:var(--ink)}
+.cadre.vide .img{border-style:dashed;background:var(--surface)}
+
+/* Image fictive (le rendu) */
+.vue{position:absolute;inset:0;overflow:hidden;background:var(--bg)}
+.vue .sil{position:absolute;inset:auto 0 0 0;height:46%;background:var(--sil);clip-path:var(--clip)}
+.vue .orbe{position:absolute;width:34%;aspect-ratio:1;border-radius:50%;left:var(--ox);top:var(--oy);background:radial-gradient(circle,var(--glow),transparent 68%);filter:blur(2px)}
+.vue .grain{position:absolute;inset:0;background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+.vue.vide{background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 8px,var(--surface-2) 8px 16px)}
+
+/* Scène */
+.scene{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr);gap:20px;margin-top:20px;align-items:start}
+.titre-plan{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.titre-plan .no{font-family:var(--font-brand);font-size:44px;line-height:1;color:var(--or)}
+.titre-plan h1{margin:0;font-family:var(--font-brand);font-weight:400;font-size:26px;line-height:1.15}
+.titre-plan .scn{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-4);width:100%}
+.pastille{display:inline-flex;align-items:center;gap:7px;font-size:12px;padding:3px 10px;border:1px solid var(--line-strong);border-radius:20px;color:var(--ink-2)}
+.pastille i{width:7px;height:7px;border-radius:50%;background:var(--ink-4)}
+.pastille.pret{border-color:var(--or-soft);color:var(--or-glow)}.pastille.pret i{background:var(--or)}
+.pastille.iteration{border-color:rgba(200,16,46,.5);color:var(--ecarlate-glow)}.pastille.iteration i{background:var(--ecarlate)}
+.ctrl{position:relative}
+.ctrl>button{background:none;border:1px solid rgba(200,16,46,.45);color:var(--ecarlate-glow);border-radius:20px;font-size:12px;padding:3px 10px}
+.pop{position:absolute;z-index:20;top:30px;left:0;width:min(340px,80vw);background:var(--surface-2);border:1px solid var(--line-strong);padding:12px 14px;box-shadow:0 18px 40px -12px #000;font-size:13px;color:var(--ink-2);display:grid;gap:10px}
+.pop b{display:block;color:var(--ink)}
+
+.lecteur{position:relative;aspect-ratio:16/9;background:var(--film);border:1px solid var(--line-strong);overflow:hidden}
+.lecteur .vue{animation:derive 14s ease-in-out infinite alternate;animation-play-state:paused}
+.lecteur.joue .vue{animation-play-state:running}
+@keyframes derive{from{transform:scale(1) translate(0,0)}to{transform:scale(1.09) translate(-1.5%,1%)}}
+.lecteur .lab{position:absolute;z-index:3;font-size:11px;background:rgba(11,11,15,.72);padding:2px 8px;letter-spacing:.06em}
+.lecteur .lab.a{left:10px;top:10px}.lecteur .lab.b{right:10px;top:10px;color:var(--or-glow)}
+.lecteur .tc{position:absolute;z-index:3;right:12px;bottom:10px;font-size:13px;background:rgba(11,11,15,.72);padding:2px 8px}
+.lecteur .lire{position:absolute;z-index:3;left:12px;bottom:8px;width:38px;height:38px;border-radius:50%;background:rgba(11,11,15,.72);border:1px solid var(--line-strong);display:grid;place-items:center}
+.lecteur .lire:hover{border-color:var(--or-glow);color:var(--or-glow)}
+.lecteur .couche-b{position:absolute;inset:0;z-index:2;clip-path:inset(0 0 0 var(--cut,50%))}
+.lecteur .manche{position:absolute;z-index:3;top:0;bottom:0;left:var(--cut,50%);width:2px;background:var(--or-glow);pointer-events:none}
+.lecteur .manche::after{content:"";position:absolute;top:50%;left:-9px;width:20px;height:20px;border-radius:50%;background:var(--or-glow);transform:translateY(-50%);box-shadow:0 0 14px rgba(240,208,137,.6)}
+.lecteur .curseur{position:absolute;z-index:4;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;margin:0}
+.lecteur img-comparison-slider{position:absolute;inset:0;z-index:2;width:100%;height:100%;--divider-color:var(--or-glow);--default-handle-color:var(--or-glow);--divider-width:2px}
+.lecteur img-comparison-slider>div{position:relative;width:100%;height:100%}
+.lecteur .travail{position:absolute;inset:0;z-index:5;display:none;place-items:center;background:rgba(11,11,15,.62);backdrop-filter:blur(3px)}
+.lecteur.travaille .travail{display:grid}
+.travail div{text-align:center;display:grid;gap:10px;justify-items:center}
+.travail .fil{width:200px;height:3px;background:var(--surface-3);overflow:hidden}
+.travail .fil i{display:block;height:100%;width:40%;background:var(--or-glow);animation:va 1.3s var(--ease) infinite}
+@keyframes va{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
+
+/* Plateau : le lecteur et, à sa droite, la colonne des essais (défilante, 30 essais tiennent sans agrandir la page) */
+.plateau{display:grid;grid-template-columns:minmax(0,1fr) 188px;gap:12px;align-items:start}
+.colonne{position:relative;align-self:stretch;min-height:240px;display:flex;flex-direction:column;border:1px solid var(--line);background:var(--surface)}
+.col-tete{flex:none;display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-4)}
+.col-tete .num{letter-spacing:0;color:var(--ink-3)}
+.col-fl{margin-left:auto;display:flex;gap:4px}
+.col-fl button{width:26px;height:24px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line-strong);color:var(--ink-2);font-size:11px;border-radius:2px;padding:0}
+.col-fl button:hover:not(:disabled){border-color:var(--or-glow);color:var(--or-glow)}
+.col-fl button:disabled{opacity:.3;cursor:default}
+.col-zone{position:relative;flex:1;min-height:0}
+.col-liste{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:6px;padding:8px;scrollbar-width:thin;scroll-snap-type:y proximity}
+.essai{position:relative;flex:none;scroll-snap-align:center;background:var(--surface-2);border:1px solid var(--line);padding:5px;text-align:left;transition:border-color .25s var(--ease)}
+.essai:hover{border-color:var(--or-soft)}
+.essai.is-a{border-color:var(--or-glow);box-shadow:0 0 0 1px var(--or-glow)}
+.essai.is-b{border-color:var(--ink-2);border-style:dashed}
+.essai .img{position:relative;display:block;aspect-ratio:16/9;overflow:hidden}
+.essai .m{display:block;margin-top:4px;font-size:12px;color:var(--ink-3)}
+.essai .m b{color:var(--ink);font-weight:500}
+.essai .drap{position:absolute;right:4px;top:4px;z-index:2;font-size:10px;padding:0 5px;background:var(--or);color:#0e0e13}
+.essai .drap.rouge{background:var(--ecarlate);color:#fff}
+.essai .b{position:absolute;right:9px;bottom:26px;z-index:2;font-size:11px;border:1px solid var(--line-strong);background:rgba(11,11,15,.85);color:var(--ink-2);padding:0 6px}
+.essai .b:hover{color:var(--or-glow);border-color:var(--or-glow)}
+.essai.run .img::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.14) 50%,transparent 80%);animation:glisse 1.3s linear infinite}
+@keyframes glisse{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.legende{margin-top:10px;display:flex;gap:10px 18px;align-items:baseline;flex-wrap:wrap;font-size:14px;color:var(--ink-2);min-height:44px}
+.legende q{quotes:"« " " »";color:var(--ink);font-size:15px}
+.legende .qui{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4)}
+.legende .push{margin-left:auto}
+
+/* Intention */
+.intention{margin-top:16px;background:var(--surface);border:1px solid var(--line-strong);padding:16px 18px 14px;position:relative}
+.intention::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(var(--or-glow),var(--or-soft))}
+.intention label{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;font-family:var(--font-brand);font-size:20px}
+.intention label small{font-family:var(--font-data);font-size:13px;color:var(--ink-3)}
+.intention textarea{width:100%;margin-top:10px;background:var(--ground);border:1px solid var(--line);padding:12px 14px;resize:vertical;min-height:76px;font-size:16px;line-height:1.45}
+.intention textarea:focus{outline:none;border-color:var(--or-soft);box-shadow:0 0 0 3px rgba(201,162,75,.14)}
+.puces{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.puce{background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);font-size:13px;padding:3px 11px;border-radius:20px}
+.puce:hover{border-color:var(--or-soft);color:var(--or-glow)}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.actions .push{margin-left:auto;color:var(--ink-3);font-size:13px}
+.base{font-size:13px;color:var(--ink-3);margin-top:8px}
+.base b{color:var(--or-glow);font-weight:500}
+
+/* Onglets */
+.panneau{background:var(--surface);border:1px solid var(--line);position:sticky;top:12px}
+.onglets{display:flex;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:none}
+.onglet{flex:1 0 auto;background:none;border:0;border-bottom:2px solid transparent;padding:12px 14px;color:var(--ink-3);font-size:14px;white-space:nowrap}
+.onglet:hover{color:var(--ink)}
+.onglet[aria-selected=true]{color:var(--or-glow);border-bottom-color:var(--or)}
+.onglet .n{font-size:11px;color:var(--ink-4);margin-left:5px}
+.contenu{padding:16px;display:grid;gap:14px;max-height:calc(100dvh - 150px);overflow:auto}
+.contenu h3{margin:0;font-family:var(--font-brand);font-weight:400;font-size:17px}
+.aide{font-size:13px;color:var(--ink-3)}
+.refs{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.ref{border:1px solid var(--line);background:var(--surface-2);padding:6px}
+.ref .img{position:relative;display:block;aspect-ratio:1;overflow:hidden}
+.ref b{display:block;font-size:12px;font-weight:500;margin-top:6px}
+.ref span{font-size:12px;color:var(--ink-3)}
+.ref.alerte{border-color:rgba(200,16,46,.5)}
+.ref.ajout{display:grid;place-items:center;border-style:dashed;background:none;color:var(--ink-3);min-height:150px;text-align:center}
+.ref.ajout:hover{color:var(--or-glow);border-color:var(--or-soft)}
+.sect{display:grid;gap:5px}
+.sect .t{display:flex;gap:8px;align-items:center;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4)}
+.sect .t em{font-style:normal;letter-spacing:0;text-transform:none;font-size:11px;color:var(--or-glow);border:1px solid var(--or-soft);padding:0 6px;border-radius:10px}
+.sect textarea{width:100%;background:var(--ground);border:1px solid var(--line);padding:9px 11px;resize:none;font-size:14px;line-height:1.45;overflow:hidden}
+.sect textarea:focus{outline:none;border-color:var(--or-soft)}
+.sect.change textarea{border-color:var(--or-soft);background:rgba(201,162,75,.06)}
+.rep{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line)}
+.rep b{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--or)}
+.rep .d{font-size:12px;color:var(--ink-3)}
+.rep p{grid-column:2/4;font-size:14px;color:var(--ink-2)}
+.jauge{height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden}
+.jauge i{display:block;height:100%;background:var(--or)}
+.champ{display:grid;gap:6px}
+.champ .l{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-2)}
+.champ input[type=range]{width:100%;accent-color:var(--or)}
+.seed{display:flex;gap:8px;align-items:center}
+.seed .num{flex:1;background:var(--ground);border:1px solid var(--line);padding:8px 10px;color:var(--ink)}
+.journal{display:grid;gap:10px}
+.j{display:grid;grid-template-columns:72px 1fr;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.j .img{position:relative;display:block;aspect-ratio:16/9;overflow:hidden}
+.j p{font-size:14px;color:var(--ink)}
+.j small{display:block;color:var(--ink-3);font-size:12px;margin-top:2px}
+.j .ac{display:flex;gap:12px;margin-top:6px}
+ins{background:rgba(201,162,75,.16);color:var(--or-glow);text-decoration:none}
+
+/* Réalisateur */
+.voile{position:fixed;inset:0;z-index:50;background:rgba(8,8,11,.7);backdrop-filter:blur(4px);display:none;justify-content:flex-end}
+.voile.ouvert{display:flex}
+.tiroir{width:min(520px,100%);height:100%;background:var(--surface);border-left:1px solid var(--line-strong);display:flex;flex-direction:column;animation:entre .35s var(--ease)}
+@keyframes entre{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.tiroir header{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.tiroir header b{font-family:var(--font-brand);font-weight:400;font-size:20px}
+.tiroir header .push{margin-left:auto}
+.fil-r{flex:1;overflow:auto;padding:18px;display:grid;gap:12px;align-content:start}
+.msg{max-width:90%;padding:10px 14px;font-size:14px;line-height:1.5}
+.msg.moi{justify-self:end;background:var(--surface-3)}
+.msg.agent{background:var(--surface-2);border-left:2px solid var(--or-soft)}
+.proj{border:1px solid var(--or-soft);background:rgba(201,162,75,.06);padding:12px 14px;display:grid;gap:8px;font-size:14px}
+.proj b{font-family:var(--font-brand);font-weight:400;font-size:16px;color:var(--or-glow)}
+.proj ul{margin:0;padding-left:18px;color:var(--ink-2)}
+.saisie-r{border-top:1px solid var(--line);padding:14px 18px;display:grid;gap:10px}
+.saisie-r textarea{width:100%;background:var(--ground);border:1px solid var(--line);padding:10px 12px;resize:none;min-height:64px}
+.pied{margin-top:28px;font-size:12px;color:var(--ink-4);display:flex;gap:10px;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);opacity:0;z-index:60;background:var(--surface-3);border:1px solid var(--or-soft);padding:10px 16px;font-size:14px;transition:all .35s var(--ease);pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%)}
+
+@media (max-width:980px){.scene{grid-template-columns:minmax(0,1fr)}.plateau{grid-template-columns:minmax(0,1fr)}.colonne{min-height:0}.col-zone{height:240px;flex:none}.panneau{position:static}.contenu{max-height:none}.avance .barre{width:80px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="crumb"><b>Cadence</b><span>Projets › Le Pirate aux pommes › Épisode unique › Plans</span></div>
+    <div class="push">
+      <div class="avance" id="avance" aria-live="polite"></div>
+      <button class="btn btn-gold btn-sm" id="upscale" hidden>Lancer l’upscale</button>
+      <button class="btn" id="previz" title="Une prévisualisation pour chaque plan qui n’en a pas encore">Générer les prévisualisations</button>
+      <button class="btn btn-line" id="ouvrirReal" title="Réécrire, prolonger ou changer la direction du projet">Demander au réalisateur</button>
+    </div>
+  </div>
+
+  <div class="scene">
+    <main>
+      <div class="titre-plan" id="titre"></div>
+      <div class="plateau">
+        <div class="lecteur" id="lecteur"></div>
+        <div class="colonne">
+          <div class="col-tete"><span>Essais</span><span class="num" id="nbEssais"></span><span class="col-fl"><button id="haut" aria-label="Essai plus récent">▲</button><button id="bas" aria-label="Essai plus ancien">▼</button></span></div>
+          <div class="col-zone"><div class="col-liste" id="essais" role="list" aria-label="Essais du plan"></div></div>
+        </div>
+      </div>
+      <div class="legende" id="legende" aria-live="polite"></div>
+
+      <section class="intention" aria-labelledby="lbl">
+        <label for="consigne" id="lbl">Qu’est-ce qu’on change ? <small>Dis-le comme tu le dirais à un chef opérateur.</small></label>
+        <textarea id="consigne" placeholder=""></textarea>
+        <div class="puces" id="puces"></div>
+        <p class="base" id="base"></p>
+        <div class="actions">
+          <button class="btn btn-gold" id="iterer">Itérer</button>
+          <button class="btn" id="pret"></button>
+          <span class="push num" id="aide"></span>
+        </div>
+      </section>
+    </main>
+
+    <aside class="panneau" aria-label="Détails du plan">
+      <div class="onglets" id="onglets" role="tablist"></div>
+      <div class="contenu" id="contenu" role="tabpanel"></div>
+    </aside>
+  </div>
+
+  <div class="reel-zone">
+    <button class="reel-nav" id="prev" aria-label="Plan précédent">‹</button>
+    <div class="reel" id="reel" role="tablist" aria-label="Plans de l’épisode"></div>
+    <button class="reel-nav" id="next" aria-label="Plan suivant">›</button>
+  </div>
+
+
+  <p class="pied"><span>Maquette. Données fictives, aucun rendu réel.</span><span>Raccourcis : ← → changent de plan, ↑ ↓ d’essai, Ctrl + Entrée itère.</span></p>
+</div>
+
+<div class="voile" id="voile" role="dialog" aria-modal="true" aria-labelledby="tr">
+  <div class="tiroir">
+    <header><b id="tr">Le réalisateur</b><span class="aide">Il travaille sur tout le projet, pas sur un plan.</span><button class="btn btn-sm push" id="fermerReal">Fermer</button></header>
+    <div class="fil-r" id="filR">
+      <div class="msg agent">Je connais le film en entier : scènes, plans, personnages. Dis-moi ce que tu veux changer, prolonger ou durcir, on en discute, puis je te propose une nouvelle version du projet.</div>
+    </div>
+    <div class="saisie-r">
+      <textarea id="saisieR" placeholder="Ex. : J’aimerais une nouvelle scène avec un pirate impitoyable qui adore les pommes par-dessus tout."></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-gold" id="envoyerR">Envoyer</button><button class="btn" id="exR">Autre exemple</button></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module" src="https://cdn.jsdelivr.net/npm/img-comparison-slider@8.0.6/dist/index.js"></script>
+<script>
+(function(){
+  /* ---------- Données fictives ---------- */
+  var SIL=["polygon(0 100%,0 62%,14% 48%,28% 66%,44% 38%,60% 60%,76% 44%,100% 64%,100% 100%)",
+           "polygon(0 100%,0 74%,18% 74%,18% 52%,26% 52%,26% 74%,52% 74%,52% 30%,58% 30%,58% 74%,100% 74%,100% 100%)",
+           "polygon(0 100%,0 80%,30% 70%,50% 82%,72% 60%,100% 76%,100% 100%)"];
+  function mkTake(n,h,genre,consigne,seed,base){return {n:n,h:h,genre:genre,consigne:consigne,seed:seed,base:base||null,statut:"ok",dur:8,heure:"14:"+(10+n*3)};}
+  var PLANS=[
+    {t:"Le port au petit matin",sc:"Scène 1 · L’arrivée",st:"pret",ret:2,h:208,s:0,
+     takes:[mkTake(1,208,"aperçu","Première génération.",4812),mkTake(2,214,"aperçu","Brume plus basse, lumière rasante.",4812,1)]},
+    {t:"Le pirate sur le quai",sc:"Scène 1 · L’arrivée",st:"pret",ret:1,h:18,s:2,
+     takes:[mkTake(1,18,"aperçu","Première génération.",1930)]},
+    {t:"Les pommes du marchand",sc:"Scène 2 · Le marché",st:"iteration",ret:null,h:352,s:1,
+     takes:[mkTake(1,352,"aperçu","Première génération.",7741),mkTake(2,6,"aperçu","Plus de pommes dans le cadre, étal en gros plan.",7741,1),mkTake(3,24,"aperçu","Le pirate se penche vers les pommes, caméra qui le suit.",7741,2)]},
+    {t:"Duel sur le pont",sc:"Scène 3 · L’abordage",st:"iteration",ret:null,h:196,s:0,
+     takes:[mkTake(1,196,"aperçu","Première génération.",3306)]},
+    {t:"Le trésor d’Alba",sc:"Scène 3 · L’abordage",st:"brouillon",ret:null,h:40,s:2,takes:[]},
+    {t:"Le dernier fruit",sc:"Scène 4 · Le départ",st:"brouillon",ret:null,h:120,s:1,takes:[]}
+  ];
+  PLANS.forEach(function(p,i){
+    p.fiche={
+      Style:"Hand-painted storybook animation, warm gouache textures, soft grain.",
+      Sujet:"A tall pirate in a patched crimson coat, <Picture 1>, a lopsided tricorn hat.",
+      Décor:"A harbour market at dawn, stalls of fruit under striped awnings, <Picture 2>.",
+      Action:"The pirate leans over the stall, picks up an apple and studies it like a jewel.",
+      Caméra:"Slow dolly-in, eye level, shallow depth of field.",
+      Lumière:"Low golden sun from the left, long soft shadows."
+    };
+    p.base=JSON.parse(JSON.stringify(p.fiche));
+    p.dialogues=i===1?[{q:"Capitaine Rubis",d:"Chaque pomme est une promesse.",s:3},{q:"Marchand",d:"Celle-ci coûte un doublon.",s:2}]:[];
+    p.duree=8;p.fps=24;p.seed=p.takes.length?p.takes[p.takes.length-1].seed:null;p.fige=false;
+    p.refs=[{l:"Picture 1",c:"PER_capitaine_rubis",h:8,cite:true},{l:"Picture 2",c:"DEC_marche_du_port",h:208,cite:true}];
+    if(i===2)p.refs.push({l:"Picture 3",c:"OBJ_pomme_doree",h:44,cite:false});
+    p.cur=p.takes.length?p.takes[p.takes.length-1].n:null;p.cmp=null;p.dirty=false;p.draft="";
+  });
+
+  var ONGLETS=[["refs","Références"],["prompt","Prompt"],["dial","Dialogues"],["reg","Réglages"],["jr","Journal"]];
+  var EX=["Plus de mouvement, la caméra suit le pirate.","Plan plus serré sur son visage.","Lumière de fin de journée, plus chaude.","Ralentis : on veut sentir qu’il savoure."];
+  var PUCES=["Plus dynamique","Plus serré","Plus lent","Lumière plus chaude","Plus sombre"];
+  var i=0,onglet="refs",jouant=false,tc=0,minuteur=null;
+  var $=function(id){return document.getElementById(id)};
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+  function p(){return PLANS[i]}
+  function enTravail(pl){return pl.takes.some(function(t){return t.statut==="run"})}
+  function oks(pl){return pl.takes.filter(function(t){return t.statut==="ok"})}
+  function take(pl,n){for(var k=0;k<pl.takes.length;k++)if(pl.takes[k].n===n)return pl.takes[k];return null}
+  function vue(h,k,idx){
+    var s=SIL[(idx||0)%3];
+    var x=18+((h*7)%52),y=14+((h*3)%34);
+    return '<span class="vue" style="--bg:linear-gradient(165deg,hsl('+h+' 42% 26%),hsl('+((h+50)%360)+' 48% 9%));--sil:hsl('+((h+20)%360)+' 36% 7%);--clip:'+s+';--glow:hsl('+((h+16)%360)+' 80% 66% / .85);--ox:'+x+'%;--oy:'+y+'%"><i class="orbe"></i><i class="sil"></i><i class="grain"></i></span>';
+  }
+  function toast(t){var e=$("toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(function(){e.classList.remove("on")},2600)}
+  function fmt(s){var m=Math.floor(s/60),r=Math.floor(s%60);return "0"+m+":"+(r<10?"0":"")+r}
+
+  /* ---------- Haut de page ---------- */
+  function rAvance(){
+    var n=PLANS.filter(function(x){return x.st==="pret"}).length,t=PLANS.length;
+    $("avance").innerHTML='<span class="num">'+n+' / '+t+'</span> prêts à upscaler<span class="barre"><i style="width:'+Math.round(100*n/t)+'%"></i></span>';
+    $("upscale").hidden=n!==t;
+    var m=PLANS.filter(function(x){return !x.takes.length}).length,B=$("previz");
+    B.textContent=m?"Générer les prévisualisations ("+m+")":"Prévisualisations générées";B.disabled=!m;
+  }
+  function rReel(){
+    $("reel").innerHTML=PLANS.map(function(x,k){
+      var ic=x.st==="pret"?'<span class="etat pret" aria-hidden="true">✓</span>':x.st==="iteration"?'<span class="etat iteration" aria-hidden="true"></span>':'<span class="etat brouillon" aria-hidden="true"></span>';
+      var ol=oks(x),tk=ol.length?take(x,x.ret||ol[ol.length-1].n):null;
+      var img=tk?vue(tk.h,0,x.s):'<span class="vue vide"></span>';
+      var lib=x.st==="pret"?"prêt à upscaler":x.st==="iteration"?"en itération":"brouillon";
+      return '<button class="cadre'+(k===i?' is-on':'')+(tk?'':' vide')+'" role="tab" aria-selected="'+(k===i)+'" aria-label="Plan '+(k+1)+', '+esc(x.t)+', '+lib+'" data-plan="'+k+'"><span class="img">'+img+'<span class="pos num">'+String(k+1).padStart(2,"0")+'</span>'+ic+'</span><span class="nom">'+esc(x.t)+'</span></button>';
+    }).join("");
+    $("prev").disabled=i===0;$("next").disabled=i===PLANS.length-1;
+    var on=$("reel").querySelector(".is-on");if(on&&on.scrollIntoView)on.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"});
+  }
+
+  /* ---------- Plan courant ---------- */
+  function controles(pl){
+    var a=[];
+    if(pl.refs.some(function(r){return !r.cite}))a.push(["Référence déclarée, jamais citée","<Picture 3> n’apparaît dans aucune section du prompt."]);
+    if(pl.dirty)a.push(["Prompt modifié","Le dernier essai ne contient pas tes retouches : lance un essai pour les voir."]);
+    return a;
+  }
+  function rTitre(){
+    var pl=p(),c=controles(pl);
+    var lib=pl.st==="pret"?"Prêt à upscaler":pl.st==="iteration"?"En itération":"Brouillon";
+    $("titre").innerHTML='<span class="scn">'+esc(pl.sc)+'</span><span class="no">'+String(i+1).padStart(2,"0")+'</span><h1>'+esc(pl.t)+'</h1><span class="pastille '+pl.st+'"><i></i>'+lib+'</span>'
+      +(c.length?'<span class="ctrl"><button id="ctrlB" aria-expanded="false">'+c.length+' contrôle'+(c.length>1?'s':'')+'</button><span class="pop" id="pop" hidden>'+c.map(function(x){return '<span><b>'+esc(x[0])+'</b>'+esc(x[1])+'</span>'}).join("")+'</span></span>':'');
+  }
+  function rLecteur(){
+    var pl=p(),L=$("lecteur");
+    L.className="lecteur"+(jouant?" joue":"")+(enTravail(pl)?" travaille":"");
+    var a=pl.cur?take(pl,pl.cur):null,b=pl.cmp?take(pl,pl.cmp):null;
+    if(!a){L.innerHTML='<span class="vue vide"></span><div style="position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;z-index:3"><div><p style="font-family:var(--font-brand);font-size:22px">Pas encore de rendu</p><p class="aide" style="margin-top:6px">Décris la scène ci-dessous : la première prévisualisation part de ta consigne.</p></div></div><div class="travail"><div><span class="fil"><i></i></span><span>Prévisualisation en cours…</span></div></div>';return}
+    var h='<div class="vue" style="position:absolute;inset:0">'+vue(a.h,0,pl.s)+'</div><span class="lab a num">A · n°'+a.n+'</span>';
+    if(b){
+      if(window.customElements&&customElements.get("img-comparison-slider")){
+        h+='<img-comparison-slider><div slot="first">'+vue(a.h,0,pl.s)+'</div><div slot="second">'+vue(b.h,0,pl.s)+'</div></img-comparison-slider><span class="lab b num">B · n°'+b.n+'</span>';
+      }else{
+        h+='<div class="couche-b">'+vue(b.h,0,pl.s)+'</div><span class="lab b num">B · n°'+b.n+'</span><span class="manche"></span><input class="curseur" id="cut" type="range" min="4" max="96" value="50" aria-label="Glisser pour comparer A et B">';
+      }
+    }
+    h+='<button class="lire" id="lire" aria-label="'+(jouant?"Pause":"Lecture")+'">'+(jouant?"❚❚":"▶")+'</button><span class="tc num" id="tc">'+fmt(tc)+' / '+fmt(pl.duree)+'</span>';
+    h+='<div class="travail"><div><span class="fil"><i></i></span><span>Prévisualisation en cours…</span></div></div>';
+    L.innerHTML=h;
+  }
+  function rEssais(){
+    var pl=p(),Z=$("essais");
+    $("nbEssais").textContent=pl.takes.length?pl.takes.length:"";
+    Z.innerHTML=pl.takes.length?pl.takes.slice().reverse().map(function(t){
+      var run=t.statut==="run";
+      var dr=pl.ret===t.n?'<span class="drap">retenu</span>':run?'<span class="drap rouge">en cours</span>':'';
+      return '<div class="essai'+(pl.cur===t.n?' is-a':'')+(pl.cmp===t.n?' is-b':'')+(run?' run':'')+'" role="listitem"><button style="all:unset;display:block;cursor:pointer;width:100%" data-take="'+t.n+'" aria-label="Voir l’essai n°'+t.n+'"><span class="img">'+vue(t.h,0,pl.s)+dr+'</span><span class="m"><b class="num">n°'+t.n+'</b> '+t.genre+' · <span class="num">'+t.seed+'</span></span></button>'
+        +(!run&&pl.cur!==t.n?'<button class="b" data-b="'+t.n+'" title="Comparer avec A">B</button>':'')+'</div>';
+    }).join(""):'<p class="aide" style="padding:6px">Aucun essai. Le premier apparaîtra ici.</p>';
+    var cur=Z.querySelector(".is-a");
+    if(cur)Z.scrollTop=cur.offsetTop-Z.clientHeight/2+cur.offsetHeight/2;
+    else Z.scrollTop=0;
+    var o=oks(pl),k=-1;o.forEach(function(t,j){if(t.n===pl.cur)k=j});
+    $("haut").disabled=k<0||k>=o.length-1;$("bas").disabled=k<=0;
+  }
+  function parcourir(d){
+    var pl=p(),o=oks(pl),k=-1;o.forEach(function(t,j){if(t.n===pl.cur)k=j});
+    var cible=o[k+d];if(!cible)return;
+    pl.cur=cible.n;if(pl.cmp===pl.cur)pl.cmp=null;tc=0;tout();
+  }
+  function rLegende(){
+    var pl=p(),a=pl.cur?take(pl,pl.cur):null,L=$("legende");
+    if(!a){L.innerHTML="";return}
+    var autre=oks(pl).filter(function(t){return t.n!==pl.cur}).length;
+    L.innerHTML='<span class="qui num">Essai n°'+a.n+(a.base?' · depuis n°'+a.base:'')+'</span><q>'+esc(a.consigne)+'</q>'
+      +(pl.cmp?'<span class="push"><button class="lien" id="cmp">Quitter la comparaison</button></span>':autre?'<span class="push"><button class="lien" id="cmp">Comparer A / B</button></span>':'');
+  }
+  function rIntention(){
+    var pl=p(),a=pl.cur?take(pl,pl.cur):null;
+    var T=$("consigne");
+    T.placeholder=pl.takes.length?"Ex. "+EX[(i+pl.takes.length)%EX.length]:"Ex. Le pirate se penche sur un étal de pommes, lumière du petit matin.";
+    $("iterer").textContent=pl.takes.length?"Itérer":"Générer la prévisualisation";
+    $("iterer").disabled=enTravail(pl);
+    $("puces").innerHTML=pl.takes.length?PUCES.map(function(x){return '<button class="puce" data-puce="'+esc(x)+'">'+esc(x)+'</button>'}).join(""):"";
+    $("base").innerHTML=a?(pl.ret&&pl.ret!==a.n&&pl.st==="pret"?'':'')+'Base : <b>essai n°'+a.n+'</b>. Ta consigne s’applique à son prompt, pas forcément au dernier essai.':"";
+    var b=$("pret");
+    if(pl.st==="pret"){b.textContent="Rouvrir l’itération";b.className="btn"}else{b.textContent=i<PLANS.length-1?"Prêt à upscaler · plan suivant":"Prêt à upscaler";b.className="btn btn-line"}
+    b.disabled=!oks(pl).length||enTravail(pl);
+    $("aide").textContent=pl.dirty?"retouches du prompt prises en compte":"Ctrl + Entrée";
+  }
+
+  /* ---------- Onglets ---------- */
+  function rOnglets(){
+    var pl=p();
+    $("onglets").innerHTML=ONGLETS.map(function(o){
+      var n=o[0]==="refs"?pl.refs.length:o[0]==="dial"?pl.dialogues.length:o[0]==="jr"?pl.takes.length:"";
+      return '<button class="onglet" role="tab" id="o-'+o[0]+'" aria-selected="'+(onglet===o[0])+'" data-onglet="'+o[0]+'">'+o[1]+(n!==""?'<span class="n num">'+n+'</span>':'')+'</button>';
+    }).join("");
+    var c=$("contenu"),h="";
+    if(onglet==="refs"){
+      h='<h3>Références</h3><p class="aide">Choisies par l’agent à partir du registre. Elles partent telles quelles au modèle.</p><div class="refs">'
+        +pl.refs.map(function(r){return '<div class="ref'+(r.cite?'':' alerte')+'"><span class="img">'+vue(r.h,0,1)+'</span><b class="num">&lt;'+r.l+'&gt;</b><span>'+esc(r.c)+'</span>'+(r.cite?'':'<span style="display:block;color:var(--ecarlate-glow)">jamais citée dans le prompt</span>')+'</div>'}).join("")
+        +'<button class="ref ajout">+ Ajouter depuis<br>le registre</button></div>';
+    }else if(onglet==="prompt"){
+      h='<h3>Prompt</h3><p class="aide">Rien à faire ici en temps normal. Ouvre-le pour fixer un mot précis ou pour tester.</p>'
+        +Object.keys(pl.fiche).map(function(k){var ch=pl.fiche[k]!==pl.base[k];return '<div class="sect'+(ch?' change':'')+'"><span class="t">'+k+(ch?'<em>modifié</em>':'')+'</span><textarea data-sect="'+k+'" rows="2">'+esc(pl.fiche[k])+'</textarea></div>'}).join("")
+        +(pl.dirty?'<button class="btn btn-line" data-act="essai-prompt">Essayer avec mes retouches</button>':'');
+    }else if(onglet==="dial"){
+      var tot=pl.dialogues.reduce(function(a,d){return a+d.s},0);
+      h='<h3>Dialogues</h3><p class="aide">Facultatif au départ : le modèle sait déjà faire parler les personnages. Ajoute des répliques quand la voix doit être exacte.</p>'
+        +(pl.dialogues.length?pl.dialogues.map(function(d){return '<div class="rep"><b>'+esc(d.q)+'</b><span></span><span class="d num">'+d.s+' s</span><p>« '+esc(d.d)+' »</p></div>'}).join('')+'<div><div class="jauge"><i style="width:'+Math.round(100*tot/pl.duree)+'%"></i></div><p class="aide" style="margin-top:6px"><span class="num">'+tot+' s</span> de paroles pour <span class="num">'+pl.duree+' s</span> de plan.</p></div>':'<p class="aide">Aucune réplique sur ce plan.</p>')
+        +'<button class="btn">+ Ajouter une réplique</button>';
+    }else if(onglet==="reg"){
+      h='<h3>Réglages</h3><p class="aide">Laisse-les tels quels tant que le plan avance. Ils servent aux tests.</p>'
+        +'<div class="champ"><span class="l"><label for="dur">Durée de génération</label><span class="num" id="durv">'+pl.duree+' s</span></span><input id="dur" type="range" min="3" max="15" value="'+pl.duree+'"></div>'
+        +'<div class="champ"><span class="l"><span>Seed</span><span>'+(pl.fige?"figée":"tirée à chaque essai")+'</span></span><div class="seed"><span class="num">'+(pl.seed||"—")+'</span><button class="btn btn-sm" data-act="fige">'+(pl.fige?"Libérer":"Figer")+'</button></div></div>'
+        +'<div class="champ"><span class="l"><span>Images par seconde</span><span class="num">'+pl.fps+'</span></span></div>';
+    }else{
+      h='<h3>Journal des essais</h3><p class="aide">Chaque essai garde la consigne qui l’a produit. Tu peux repartir de n’importe lequel.</p><div class="journal">'
+        +(pl.takes.length?pl.takes.slice().reverse().map(function(t){return '<div class="j"><span class="img">'+vue(t.h,0,pl.s)+'</span><div><p>« '+esc(t.consigne)+' »</p><small class="num">n°'+t.n+' · '+t.heure+(t.base?' · depuis n°'+t.base:'')+'</small><div class="ac"><button class="lien" data-take="'+t.n+'">Voir</button><button class="lien" data-reprendre="'+t.n+'">Repartir de là</button>'+(t.statut==="ok"?'<button class="lien" data-suppr="'+t.n+'" style="color:var(--ink-3)">Supprimer</button>':'')+'</div></div></div>'}).join(""):'<p class="aide">Rien pour l’instant.</p>')+'</div>';
+    }
+    c.innerHTML=h;
+    c.setAttribute("aria-labelledby","o-"+onglet);
+    c.querySelectorAll("textarea[data-sect]").forEach(fit);
+  }
+  function fit(t){t.style.height="auto";t.style.height=t.scrollHeight+2+"px"}
+
+  function tout(){rAvance();rReel();rTitre();rLecteur();rEssais();rLegende();rIntention();rOnglets()}
+  function allerPlan(k){if(k<0||k>=PLANS.length)return;i=k;jouant=false;tc=0;stop();$("consigne").value=PLANS[i].draft||"";tout()}
+  function stop(){clearInterval(minuteur);minuteur=null}
+
+  /* ---------- Itération ---------- */
+  function reecrire(pl,txt){
+    var m=txt.toLowerCase(),k="Action",neuf=pl.fiche.Action;
+    if(/dynami|mouvement|suit/.test(m)){k="Caméra";neuf="Handheld tracking shot that follows the pirate, quick push-ins, energetic."}
+    else if(/serr|visage|gros plan/.test(m)){k="Caméra";neuf="Tight close-up on the pirate’s face, shallow depth of field, slow dolly-in."}
+    else if(/chaud|lumi/.test(m)){k="Lumière";neuf="Warm amber late-afternoon light, long golden shadows, glowing highlights."}
+    else if(/lent|savour|ralenti/.test(m)){k="Action";neuf="The pirate moves slowly, savouring each gesture, lingering on the apple."}
+    else if(/sombre|nuit/.test(m)){k="Lumière";neuf="Low-key dusk light, deep blue shadows, a single warm lantern."}
+    else if(txt.trim()){neuf=pl.fiche.Action.replace(/\.$/,"")+". "+txt.trim().replace(/\.$/,"")+"."}
+    return [k,neuf];
+  }
+  function itere(base){
+    var pl=p();if(enTravail(pl))return;
+    var txt=$("consigne").value.trim();
+    if(!txt&&!pl.dirty&&pl.takes.length){$("consigne").focus();toast("Dis ce que tu veux changer, ou clique une suggestion.");return}
+    var n=pl.takes.length?Math.max.apply(null,pl.takes.map(function(t){return t.n}))+1:1;
+    var b=base||pl.cur;
+    var h=((b&&take(pl,b)?take(pl,b).h:pl.h)+34+(n*11))%360;
+    var mod=!pl.dirty&&txt?reecrire(pl,txt):null;
+    var t={n:n,h:h,genre:"aperçu",consigne:txt||"Retouches du prompt.",seed:pl.fige&&pl.seed?pl.seed:1000+Math.floor(Math.random()*8999),base:b,statut:"run",dur:pl.duree,heure:"15:"+String(10+n).padStart(2,"0")};
+    pl.takes.push(t);
+    if(pl.st==="pret"){pl.st="iteration";pl.ret=null}
+    if(pl.st==="brouillon")pl.st="iteration";
+    jouant=false;stop();
+    $("consigne").value="";pl.draft="";
+    tout();
+    setTimeout(function(){
+      t.statut="ok";pl.cur=t.n;pl.cmp=null;pl.seed=t.seed;
+      if(mod){pl.fiche[mod[0]]=mod[1]}
+      pl.base=JSON.parse(JSON.stringify(pl.fiche));pl.dirty=false;
+      tout();toast("Essai n°"+t.n+" prêt."+(mod?" Prompt réécrit : section "+mod[0]+".":""));
+    },2600);
+  }
+  function pret(){
+    var pl=p();
+    if(pl.st==="pret"){pl.st="iteration";pl.ret=null;tout();toast("Itération rouverte.");return}
+    if(!oks(pl).length)return;
+    pl.st="pret";pl.ret=pl.cur||oks(pl)[oks(pl).length-1].n;
+    var suivant=i<PLANS.length-1;
+    toast("Plan "+(i+1)+" prêt à upscaler (essai n°"+pl.ret+").");
+    if(suivant)allerPlan(i+1);else tout();
+  }
+
+  function supprimer(n){
+    var pl=p(),t=take(pl,n);if(!t||t.statut!=="ok")return;
+    pl.takes=pl.takes.filter(function(x){return x.n!==n});
+    if(pl.cmp===n)pl.cmp=null;
+    var o=oks(pl);
+    if(pl.cur===n){pl.cur=o.length?o[o.length-1].n:null;pl.cmp=null}
+    if(pl.ret===n){pl.ret=null;if(pl.st==="pret")pl.st="iteration"}
+    if(!pl.takes.length){pl.st="brouillon";pl.cur=null}
+    tout();toast("Essai n°"+n+" supprimé du journal.");
+  }
+  function previz(){
+    var manque=PLANS.filter(function(x){return !x.takes.length});
+    if(!manque.length){toast("Tous les plans ont déjà une prévisualisation.");return}
+    manque.forEach(function(x,k){
+      var t={n:1,h:x.h,genre:"aperçu",consigne:"Première génération.",seed:1000+Math.floor(Math.random()*8999),base:null,statut:"run",dur:x.duree,heure:"15:0"+k};
+      x.takes.push(t);x.st="iteration";
+      setTimeout(function(){t.statut="ok";x.cur=t.n;x.seed=t.seed;tout();toast("Plan "+(PLANS.indexOf(x)+1)+" : prévisualisation prête.")},1800*(k+1));
+    });
+    toast("Génération de "+manque.length+" prévisualisation"+(manque.length>1?"s":"")+" en file.");tout();
+  }
+
+  /* ---------- Événements ---------- */
+  document.addEventListener("click",function(e){
+    var el=e.target.closest("button");if(!el){if(!e.target.closest(".ctrl")){var po=$("pop");if(po)po.hidden=true}return}
+    var pl=p();
+    if(el.dataset.plan!==undefined)return allerPlan(+el.dataset.plan);
+    if(el.id==="prev")return allerPlan(i-1);
+    if(el.id==="next")return allerPlan(i+1);
+    if(el.id==="haut")return parcourir(1);
+    if(el.id==="bas")return parcourir(-1);
+    if(el.id==="previz")return previz();
+    if(el.dataset.suppr){
+      if(el.dataset.sur)return supprimer(+el.dataset.suppr);
+      el.dataset.sur="1";el.textContent="Confirmer la suppression";el.style.color="var(--ecarlate-glow)";
+      setTimeout(function(){if(el.isConnected){delete el.dataset.sur;el.textContent="Supprimer";el.style.color="var(--ink-3)"}},3000);
+      return;
+    }
+    if(el.dataset.take){pl.cur=+el.dataset.take;if(pl.cmp===pl.cur)pl.cmp=null;tc=0;return tout()}
+    if(el.dataset.b){pl.cmp=+el.dataset.b;return tout()}
+    if(el.id==="cmp"){if(pl.cmp)pl.cmp=null;else{var o=pl.takes.filter(function(t){return t.n!==pl.cur&&t.statut==="ok"});if(o.length)pl.cmp=o[o.length-1].n}return tout()}
+    if(el.dataset.puce){var T=$("consigne");T.value=(T.value.trim()?T.value.trim().replace(/[.,]$/,"")+", ":"")+el.dataset.puce.toLowerCase();T.focus();return}
+    if(el.id==="iterer")return itere();
+    if(el.id==="pret")return pret();
+    if(el.id==="upscale")return toast("Maquette : l’upscale des "+PLANS.length+" plans partirait ici.");
+    if(el.dataset.onglet){onglet=el.dataset.onglet;return rOnglets()}
+    if(el.dataset.reprendre){pl.cur=+el.dataset.reprendre;onglet="refs";tout();$("consigne").focus();return toast("Base : essai n°"+pl.cur+". Écris ta consigne.")}
+    if(el.dataset.act==="fige"){pl.fige=!pl.fige;return rOnglets()}
+    if(el.dataset.act==="essai-prompt")return itere();
+    if(el.id==="lire"){jouant=!jouant;rLecteur();stop();if(jouant)minuteur=setInterval(function(){tc+=.25;if(tc>=p().duree){tc=0}var t=$("tc");if(t)t.textContent=fmt(tc)+" / "+fmt(p().duree)},250);return}
+    if(el.id==="ctrlB"){var q=$("pop");q.hidden=!q.hidden;el.setAttribute("aria-expanded",String(!q.hidden));return}
+  });
+  document.addEventListener("input",function(e){
+    var t=e.target;
+    if(t.id==="consigne")p().draft=t.value;
+    if(t.dataset&&t.dataset.sect){var pl=p();pl.fiche[t.dataset.sect]=t.value;pl.dirty=JSON.stringify(pl.fiche)!==JSON.stringify(pl.base);fit(t);rTitre();rIntention();var s=t.closest(".sect");s.classList.toggle("change",pl.fiche[t.dataset.sect]!==pl.base[t.dataset.sect])}
+    if(t.id==="dur"){p().duree=+t.value;$("durv").textContent=t.value+" s"}
+    if(t.id==="cut")$("lecteur").style.setProperty("--cut",t.value+"%");
+  });
+  document.addEventListener("keydown",function(e){
+    var tag=(e.target.tagName||"").toLowerCase();
+    if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)&&e.target.id==="consigne"){e.preventDefault();return itere()}
+    if(tag==="textarea"||tag==="input")return;
+    if($("voile").classList.contains("ouvert")){if(e.key==="Escape")fermer();return}
+    if(e.key==="ArrowRight")allerPlan(i+1);
+    if(e.key==="ArrowLeft")allerPlan(i-1);
+    if(e.key==="ArrowUp"){e.preventDefault();parcourir(1)}
+    if(e.key==="ArrowDown"){e.preventDefault();parcourir(-1)}
+  });
+
+  /* ---------- Réalisateur ---------- */
+  var exIdx=0,REAL=[
+    ["J’aimerais une nouvelle scène avec un pirate impitoyable qui adore les pommes par-dessus tout.",
+     "Bonne idée, et elle répond bien au pirate déjà là. Je vois deux endroits possibles : avant le duel, pour qu’on comprenne pourquoi il est craint, ou après, comme une chute inattendue. Tu préfères laquelle ? Je penche pour avant le duel : le spectateur rit, puis il a peur.",
+     "Nouvelle scène « Le verger du capitaine »",["3 plans ajoutés après la scène 2","Plan 4 « Duel sur le pont » : une pomme tombe en plein combat","Durée du film : +24 s"]],
+    ["La scène 3, le duel, manque cruellement de dynamisme. Des idées pour le rendre plus fun ?",
+     "Oui. Le problème vient surtout du découpage : un seul plan large sur toute la durée. Je te propose de le casser en trois : une feinte vue de près, un saut de cordage, puis le pirate qui rattrape sa pomme au vol. Ça reste dans le ton.",
+     "Scène 3 réécrite",["Plan « Duel sur le pont » remplacé par 3 plans plus courts","Plan « Le trésor d’Alba » conservé","Les essais déjà faits restent consultables"]]
+  ];
+  function ouvrir(){$("voile").classList.add("ouvert");$("saisieR").focus()}
+  function fermer(){$("voile").classList.remove("ouvert");$("ouvrirReal").focus()}
+  $("ouvrirReal").addEventListener("click",ouvrir);
+  $("fermerReal").addEventListener("click",fermer);
+  $("voile").addEventListener("click",function(e){if(e.target===$("voile"))fermer()});
+  $("exR").addEventListener("click",function(){exIdx=(exIdx+1)%REAL.length;$("saisieR").value=REAL[exIdx][0];$("saisieR").focus()});
+  $("saisieR").placeholder=REAL[0][0];
+  $("envoyerR").addEventListener("click",function(){
+    var T=$("saisieR"),txt=T.value.trim()||REAL[exIdx][0],r=REAL[exIdx],F=$("filR");
+    F.insertAdjacentHTML("beforeend",'<div class="msg moi">'+esc(txt)+'</div>');
+    T.value="";F.scrollTop=F.scrollHeight;
+    setTimeout(function(){
+      F.insertAdjacentHTML("beforeend",'<div class="msg agent">'+esc(r[1])+'</div><div class="proj"><b>Proposition : '+esc(r[2])+'</b><ul>'+r[3].map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-gold btn-sm" data-real="ok">Appliquer au projet</button><button class="btn btn-sm" data-real="non">Continuer à discuter</button></div></div>');
+      F.scrollTop=F.scrollHeight;
+    },700);
+  });
+  $("filR").addEventListener("click",function(e){
+    var b=e.target.closest("button[data-real]");if(!b)return;
+    if(b.dataset.real==="ok"){b.closest(".proj").querySelector("div").innerHTML='<span class="aide">Maquette : une nouvelle itération du projet serait créée ici, plans et fiches compris.</span>'}
+  });
+
+  $("consigne").value="";
+  tout();
+  if(window.customElements&&customElements.whenDefined)customElements.whenDefined("img-comparison-slider").then(function(){rLecteur()});
+})();
+</script>

@@ -46,9 +46,9 @@ For an **edit**, the prompt is not a description: it is a transformation to appl
 The starting image is only a **proposal**: the registry is flat, and the method is decided by what the asset is, not by its link to another. **The link does not say how the asset is made.**
 
 1. **No starting image**: generation (Krea 2).
-2. **A starting image, and the asset is a tighter crop or a detail of the same image, or a state of the same subject within the image's plane** (close-up, cropped blade, blur, light change, added element): **edit**. The starting image must be produced first.
+2. **A starting image, and the asset is a tighter crop or a detail of the same image, or a STATE of the same subject** (a character, creature, set or prop with the same identity in another condition: wounded, transformed, emerging, burnt, at night, fire out, broken, in another outfit; or a close-up, cropped blade, blur, light change, added element): **edit**. The starting image must be produced first. A state is edited, not regenerated, precisely so that it stays recognisable as the same subject; if the change is so large that an edit would fail (see the three cases of `guide-qwen-edit.md`), recommend the method and the reason in `raisonMethode`, and copy the subject's identifying traits from the starting asset's description and prompt.
    - **Making an image from other images** is also an edit: image 1 is what gets modified, images 2 and 3 are references (a character to place in a set, a material to apply). List them in `sources`, in order, and cite them by rank in the prompt ("image 1", "image 2"). Three images at most.
-3. **A starting image, but the asset is a distinct element** (visual effect, prop, separate piece): **generation**. For consistency, read the starting asset's description and prompt, never its image.
+3. **A starting image, but the asset is a different subject or generic matter, not a state of the starting subject** (a visual effect, a separate prop, a separate piece): **generation**. For consistency, read the starting asset's description and prompt, never its image.
 4. **The goal is an absence, or a change of viewpoint**: **generation**, even with a starting image (see `guide-qwen-edit.md`).
 
 If the case is ambiguous, recommend, give the reason in one sentence, and let the user choose.

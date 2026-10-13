@@ -858,7 +858,7 @@ async function main() {
       return (await db.select().from(agentRuns).where(eq(agentRuns.id, r!.id)))[0]!;
     };
 
-    const gI = await s.genererIteration(convI.conversationUuid, { retour: "À 5 s, le sel défile derrière la rambarde." });
+    const gI = await s.genererIteration(convI.conversationUuid, { retour: "À 5 s, le sel défile derrière la rambarde.", planche: true });
     ok(gI.ok, "lancer la correction : une tâche iteration-plan");
     if (!gI.ok) throw new Error(gI.erreur);
     const [runI] = await db.select().from(agentRuns).where(eq(agentRuns.uuid, gI.runUuid));
@@ -894,7 +894,7 @@ async function main() {
 
     // durée incohérente : diagnostic sans écriture ; l'historique remonte la correction appliquée
     modeIteration = "duree";
-    const gI2 = await s.genererIteration(convI.conversationUuid, { retour: "Le plan est beaucoup trop court." });
+    const gI2 = await s.genererIteration(convI.conversationUuid, { retour: "Le plan est beaucoup trop court.", planche: true });
     if (!gI2.ok) throw new Error(gI2.erreur);
     await traiterIteration(gI2.propositionUuid, faussePlanche(3));
     const hist = (derniereEntreeIteration?.historique ?? []) as { issue?: string }[];
@@ -912,11 +912,20 @@ async function main() {
     }
 
     // rendu disparu du stockage (pas de planche injectée) : échec clair, jamais de diagnostic à l'aveugle
-    const gI3 = await s.genererIteration(convI.conversationUuid, { retour: "Le sel défile toujours." });
+    const gI3 = await s.genererIteration(convI.conversationUuid, { retour: "Le sel défile toujours.", planche: true });
     if (!gI3.ok) throw new Error(gI3.erreur);
     const rI3 = await traiterIteration(gI3.propositionUuid);
     pI = await lireProposition(gI3.propositionUuid);
     ok(rI3.statut === "echoue" && /introuvable sur le stockage/.test(rI3.erreur ?? "") && pI?.statut === "echouee", "rendu introuvable : tâche échouée avec un message clair, proposition échouée");
+
+    // la planche n'est JAMAIS automatique : sans `planche: true`, pas de descripteur, pas de ffmpeg, la tâche ne dépend pas du rendu
+    const gI4 = await s.genererIteration(convI.conversationUuid, { retour: "Plus de mouvement de caméra." });
+    if (!gI4.ok) throw new Error(gI4.erreur);
+    const [runI4] = await db.select().from(agentRuns).where(eq(agentRuns.uuid, gI4.runUuid));
+    const entreeI4 = JSON.stringify(runI4!.entree);
+    ok(!entreeI4.includes("\"planche\"") && entreeI4.includes("\"sansPlanche\":true"), "par défaut : aucun descripteur de planche dans l'entrée (consigne + fiche seulement)");
+    const rI4 = await traiterIteration(gI4.propositionUuid);
+    ok(rI4.statut === "termine", "…la tâche s'exécute sans rendu lisible ni ffmpeg");
 
     // ── L'installateur : tout le pipeline, d'une seule demande, sans validation intermédiaire ──
     console.log("\nInstallateur (création de bout en bout)");

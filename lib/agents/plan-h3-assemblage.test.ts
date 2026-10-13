@@ -184,3 +184,38 @@ test("une voix dont le locuteur n'est pas une référence : « the speaker (Sx) 
   const r = assemblerPlanH3(dialogue, { slotsAudioPris: [1], voix: [{ slot: 1, texte, locuteurCode: null }] });
   assert.match(r.sections.subject_definitions, /<Audio 1> is the voice-timbre reference for the speaker \(S1\)\./);
 });
+
+// --- clause de style posée par le code, définitions sans consignes de feuille (2026-10-13) ---
+
+const CLAUSE = "A pre-rendered JRPG cutscene look: near-photoreal 3D modelling, dramatic film-grade lighting, luminous subsurface-scattered surfaces and glossy reflective detail with a blockbuster CGI polish.";
+
+test("clause de style : posée en tête de l'ouverture, le style des exemples est retiré", () => {
+  const r = assemblerPlanH3({ ...dialogue, ouverture: "Cinematic anime style, refined linework, the corridor's light sharpened into hard contrast." }, { slotsAudioPris: [1], clauseStyle: CLAUSE });
+  assert.ok(r.sections.detailed_description.startsWith(`${CLAUSE} the corridor's light sharpened into hard contrast. [Shot 1]`));
+  assert.ok(!/anime/i.test(r.sections.detailed_description));
+  assert.ok(r.problemes.some((p) => p.regle === "style"));
+});
+
+test("clause de style : déjà écrite par le modèle, elle n'est pas doublée ; sans clause connue, l'ouverture est intacte", () => {
+  const deja = assemblerPlanH3({ ...dialogue, ouverture: `${CLAUSE} The forest is dark.` }, { slotsAudioPris: [1], clauseStyle: CLAUSE });
+  assert.equal(deja.sections.detailed_description.split("pre-rendered JRPG").length - 1, 1);
+  assert.ok(!deja.problemes.some((p) => p.regle === "style"));
+  const sans = assemblerPlanH3(dialogue, { slotsAudioPris: [1] });
+  assert.ok(sans.sections.detailed_description.startsWith("Cinematic anime style, refined linework,"));
+});
+
+test("définition : les consignes de feuille d'asset (vues, pose neutre, fond uni, gros plan) sont retirées", () => {
+  const sale = {
+    ...dialogue,
+    references: [
+      { ...dialogue.references[0]!, definition: "a young woman in a black robe, holding a wand, standing in a neutral pose against a plain background, character has 4 views : front full-body view, body side view, body back view, detailed single headshot view in foreground." },
+      { ...dialogue.references[1]!, definition: "A medium-sized dark wooden wand with carved patterns. Detailed close-up shot of the magical artifact." },
+      dialogue.references[2]!,
+    ],
+  };
+  const r = assemblerPlanH3(sale, { slotsAudioPris: [1] });
+  const defs = r.sections.subject_definitions;
+  assert.ok(defs.includes("<Subject 1> is the Tenancière from <Picture 1>, a young woman in a black robe, holding a wand."), defs);
+  assert.ok(!/4 views|plain background|neutral pose|close-up shot of the magical/i.test(defs), defs);
+  assert.ok(defs.includes("A medium-sized dark wooden wand with carved patterns."));
+});

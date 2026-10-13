@@ -12,7 +12,7 @@ retention_analysis:
 <Subject 3> (appears in [Shot 1]): fully_preserved - the corridor's indigo tone, now hard-edged, is retained.
 
 detailed_description:
-Cinematic anime style, refined linework, the corridor's deep indigo light sharpened into hard directional contrast, a heavy blue-black shadow cast across Maya's face. [Shot 1] An extreme close-up frames <Subject 1>, the Tenancière (S1), leaning in until her face is only centimeters from <Subject 2>, Maya, within <Subject 3>, her slow lean continuing through the line. Her voice drops to a glacial murmur, each word measured and unhurried: <d>[Français] Demain, au lever du soleil, si l'or n'est pas sur mon bureau, je ne perdrai plus mon temps avec tes danses.</d> Maya's face, half in hard indigo shadow, holds rigid under the proximity, her breath shallow.
+The corridor's deep indigo light sharpened into hard directional contrast, a heavy blue-black shadow cast across Maya's face. [Shot 1] An extreme close-up frames <Subject 1>, the Tenancière (S1), leaning in until her face is only centimeters from <Subject 2>, Maya, within <Subject 3>, her slow lean continuing through the line. Her voice drops to a glacial murmur, each word measured and unhurried: <d>[Français] Demain, au lever du soleil, si l'or n'est pas sur mon bureau, je ne perdrai plus mon temps avec tes danses.</d> Maya's face, half in hard indigo shadow, holds rigid under the proximity, her breath shallow.
 
 overall_soundscape:
 A low, quiet hum of the wooden corridor surrounds the murmured line.

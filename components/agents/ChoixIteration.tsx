@@ -8,7 +8,7 @@ import { libelleEstimation } from "@/lib/agents-affichage";
 import type { EstimationGeneration, EtatIterationPlan } from "@/lib/agents/types";
 
 /** « Corriger après visionnage » (page d'un plan qui a un rendu) : ce que l'utilisateur a vu, en texte libre et
- * OBLIGATOIRE, puis une tâche `iteration-plan`. Le worker découpe le dernier rendu en vignettes (une par seconde)
+ * OBLIGATOIRE, puis une tâche `iteration-plan`. Lancement MANUEL de l'analyse : la planche est demandée explicitement (`planche: true`). Le worker découpe le dernier rendu en vignettes (une par seconde)
  * et mesure sa durée réelle ; l'agent pose un diagnostic et propose le plus petit changement du prompt. Rien n'est
  * écrit avant la revue. Sans rendu : pas de correction (jamais à l'aveugle). */
 export function ChoixIteration({ ctx }: { ctx: ContexteEtape }) {
@@ -44,7 +44,7 @@ export function ChoixIteration({ ctx }: { ctx: ContexteEtape }) {
   const lancer = () => {
     const texte = vu.trim();
     if (!texte || !possible || occupe) return;
-    void ctx.lancer(() => genererIteration(conv.uuid, { retour: texte }));
+    void ctx.lancer(() => genererIteration(conv.uuid, { retour: texte, planche: true }));
   };
 
   return (

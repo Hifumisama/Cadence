@@ -23,8 +23,9 @@ The application assembles the context. Nothing is guessed.
 
 - **Brief**: visual style (the style clause), arc, characters and places.
 - **Episode and scene**: episode summary; scene title and function, with the intention of **all its plans** in order (`cePlan` marks yours). Read neighbouring intentions to know **who** does what: a character's gesture may be named only in the next plan.
-- **What to write**: the plan's one-line intention and its position in the scene.
-- **Neighbouring plans** (before and after), for continuity: title, intention and duration of each.
+- **What to write**: the plan's intention and its position in the scene. A last sentence starting `Consigne de l'auteur :` is the **author's explicit direction** (a framing, a sound, a gesture, a voice-over): follow it **before** your own defaults (cadence, framing, sound), without rewriting the story.
+- **Neighbouring plans** (before and after), for continuity: title, intention and duration of each. For the **previous plan** of the batch, `dernierShot` is the last shot it has just been given (read-only, asset codes in plain text): your first shot **picks up from its end** (who is where, facing which way, the state of the fire, the light) and never contradicts it.
+- **Where everyone stands**: each plan's intention ends with `État en fin de plan :` (who is where and what they face, relative to fixed landmarks of the place; the state of what changed), and the first plan of a place names its landmarks. The end state of the previous plan is the **starting state** of yours, and yours is the starting state of the next. **You choose the camera**, shot by shot, from those positions: a plan about a character's emotion shows their face.
 - **Scene genre and mood** (`scene.genre`, `scene.ambiance`) when present. The genre loaded the matching writing guide (`guide-genre-…`, in this prompt). The mood (time of day, weather, general light) is the frame **every plan of the scene holds**.
 - **Registry**: for each candidate asset: code, type, canonical description (French), method, **generation prompt** (English), `aUnFichier` (the image or sound already exists). These keep you faithful to the asset; the asset's role in THIS plan is yours to write. An asset without a file is still referenced: it will be produced.
 - **`assetsProposesParLeLot`** (sometimes): assets that other plans of the same batch already propose to create. They do not exist yet: **they are not references**, and you do not redeclare them in `assetsManquants`. If your plan needs one, describe it in prose.
@@ -36,6 +37,7 @@ The application assembles the context. Nothing is guessed.
 
 - It assigns **all labels** and numbers. You never write a numbered label, shot number, timecode or "Hard cut".
 - It replaces each `[[CODE]]` with the reference's label, writes the definition and retention lines (with the shots where each reference appears), and adds the `summary` prefix, `[Shot N]`, `At MM:SS.mmm,` and `Hard cut to`.
+- It puts the **project's style clause** first in `ouverture` (you never write the visual style) and **inserts a linked line missing from the shots** (the video prompt is what counts).
 - It derives the **voice** audio references from `repliques` and enforces the limits: 6 images, 3 audio, **voice wins over sound effects**.
 - It checks verbatim dialogue, durations and shot structure.
 
@@ -119,6 +121,7 @@ Shot count follows **action intensity, not plan duration**. The cadences below a
 5. If voice and margin exceed 15 s, do not force it. Propose in `notes` a split at a meaning boundary, between two lines, never mid-line, with an angle change (for example the listener's reaction).
 6. Lip-sync comes from the voice take, which the code plugs in as an audio reference. You write `<d>`: it makes the mouth move on the right phrasing.
 7. When a line crosses a cut or is truncated by the end of the video, use `<scenetrans>` and `<cutoff>` (see the guide).
+8. **Voice-over over a character who is on screen.** When the brief gives that character a `voix` of voice-over / inner voice, or the intention says the line is voice-over, the line is **not spoken by the mouth**: write `[[CHAR_x]] (Sx) says in an off-screen voiceover: <d>[Français] …</d> while her lips remain completely closed` (after **every** such `<d>`). The character stays an image reference (she is on screen), but there is no lip-sync: do not describe her speaking.
 
 ### 5. Continuity
 
@@ -128,7 +131,7 @@ Shot count follows **action intensity, not plan duration**. The cadences below a
 4. Take the brief's distinctive traits (characters, places, palette) and apply them without commenting on them.
 5. Two plans that must answer each other visually share the same asset or a derivative. Do not make two images that should be the same.
 6. Match the neighbouring plans from their title and intention: what they say happens holds in your plan (who is where, what just occurred, what comes next). Every continuity detail comes from those texts.
-7. **Two or more characters acting together: fix the sides in `ouverture`**, in one sentence (who is on the left of the frame, who on the right, facing which way). Keep it in every side-on, low or two-person shot; change it only through a stated move, and then say where each character ends.
+7. **Two or more subjects in a fixed arrangement: fix the sides in `ouverture`**, in one sentence (who or what is on the left of the frame, on the right, facing which way). This holds for two characters, but also for **a character and a set element** (the fire between the camera and her, she faces it: say so). Take the positions from the previous end state; keep them in every side-on, low or two-person shot; change it only through a stated move, and then say where each one ends. "Facing the fire" means the viewer sees her face over the fire, not her back, unless the intention says otherwise; the hero's face stays readable in the plans about their emotion.
 8. **Cut on the movement.** The next shot picks the gesture up mid-motion, with **both** characters in the frame at the moment of contact. Never cut to a single character on the instant of a blow: the contact is never seen.
 9. **Say where everyone is after each cut**, in one real space: a broken wall opens onto a named adjoining room, a thrown object ends somewhere visible.
 
@@ -148,8 +151,9 @@ The assembled prompt (definitions, summary, retention, shots, sound, music) stay
 - Every `<d>` is verbatim; all linked lines are cited and listed in `repliques`.
 - First shot at `0`, increasing starts, a distinct angle per shot; a shot shorter than 1.5 s, or a cadence slower than the defaults of section 2, carries its reason in `notes`; no timecode, no `Hard cut`, no `[Shot N]` in the texts.
 - Sounds tied to an action sit in the shot's text; only background sound sits in `overall_soundscape`; `non_diegetic_music` is instrumentation, tempo and dynamics, or `N/A` alone.
-- Two or more characters acting together: the sides are fixed in `ouverture`, each cut picks the movement up with both in frame at contact, and a fight shot holds a readable exchange, not an isolated blow smeared with five actions.
+- Two or more subjects (characters, or a character and a set element) in a fixed arrangement: the sides are fixed in `ouverture`, each cut picks the movement up with both in frame at contact, and a fight shot holds a readable exchange, not an isolated blow smeared with five actions.
 - The assembled prompt stays under 7,000 characters; each blow is described concretely (who, which limb or weapon, what it touches, what moves).
+- Never copy the sheet instructions of an asset's generation prompt into a `definition` ("4 views", "neutral pose", "plain background", "detailed close-up"): they describe the reference image, not the plan.
 - Each `definition` reads "visible traits from the registry, then a static state" (`in her deep-red costume, ruby eyes, breathless`): the action verbs (`lunging`, `advancing`, `running`) go in the shots.
 - `nature: "son"` only for a sound effect (`SFX_…`); a voice is not a reference.
 - Every behaviour is phrased as the wanted state; precision vocabulary only on a character who stays still.

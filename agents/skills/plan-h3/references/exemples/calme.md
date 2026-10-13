@@ -14,7 +14,7 @@
     {"asset": "DEC_ruelles_bazar", "nature": "image", "role": "Décor, passage dérobé de médina", "nom": "the hidden medina alley passage", "definition": "ochre-plastered walls under striped cloth awnings, in faint moonlight.", "retentionNote": "the passage's moonlit shadow and medina architecture are retained."}
   ],
   "summary": "The target video shows [[CHAR_maya]] catching sight of [[CHAR_silhouette_gauche]] and [[CHAR_silhouette_droite]] in the distance within [[DEC_ruelles_bazar]] and moving two fingers toward [[PROP_dague_maya]].",
-  "ouverture": "Cinematic anime style, refined linework, faint moonlight against deep shadow.",
+  "ouverture": "Faint moonlight against deep shadow.",
   "shots": [
     {"debutSecondes": 0, "texte": "A medium close static shot, the camera locked and the background still, holds on [[CHAR_maya]], Maya, her head turning slightly toward distant voices. One alley over within [[DEC_ruelles_bazar]], [[CHAR_silhouette_gauche]] and [[CHAR_silhouette_droite]], two hooded figures, stand barely visible in the faint moonlight beneath a striped awning. Maya's fingers drift slowly and precisely toward her waist, toward [[PROP_dague_maya]], the concealed dagger, while the rest of her body stays motionless in the shadow."}
   ],

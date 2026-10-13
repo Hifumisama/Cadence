@@ -11,7 +11,17 @@ const lancable = (p: PlanPrevisualisation) => p.etat === "neuf" || p.etat === "r
 /** « Toutes les prévisualisations » : une fenêtre liste les plans de l'épisode, pour choisir exactement ce qu'on (re)rend. Les plans sans
  * rendu sont cochés d'office ; ceux qui en ont déjà un ne le sont pas (les cocher en fait un NOUVEAU rendu : l'historique garde les anciens) ;
  * ceux déjà en file ou aux dialogues bloquants sont grisés. */
-export function ToutesPrevisualisationsButton({ episodeId }: { episodeId: number }) {
+export function ToutesPrevisualisationsButton({
+  episodeId,
+  nbManquants,
+  className = "btn btn-ghost",
+}: {
+  episodeId: number;
+  /** Fiche de plan : le nombre de plans sans aucun rendu. Quand il est donné, le bouton le montre (« Générer les prévisualisations (3) »)
+   * et se désactive à zéro ; absent, c'est le bouton « Toutes les prévisualisations » de la frise des plans. */
+  nbManquants?: number;
+  className?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const [liste, setListe] = useState<PlanPrevisualisation[] | null>(null);
   const [coches, setCoches] = useState<Set<string>>(new Set());
@@ -74,12 +84,18 @@ export function ToutesPrevisualisationsButton({ episodeId }: { episodeId: number
     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
       <button
         type="button"
-        className="btn btn-ghost"
-        disabled={pending}
+        className={className}
+        disabled={pending || nbManquants === 0}
         onClick={ouvrir}
         title="Choisis les plans dont on lance la prévisualisation (sans upscale) : ceux sans rendu sont cochés d'office."
       >
-        {pending && !liste ? "Lecture..." : "Toutes les prévisualisations"}
+        {pending && !liste
+          ? "Lecture..."
+          : nbManquants === undefined
+            ? "Toutes les prévisualisations"
+            : nbManquants === 0
+              ? "Prévisualisations générées"
+              : `Générer les prévisualisations (${nbManquants})`}
       </button>
       {resultat ? <span className="tiny-note">{notes.join(" · ")}.</span> : null}
       {erreur ? (

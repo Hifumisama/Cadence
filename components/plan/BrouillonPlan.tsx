@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { ecrireSections, figerEtLancer } from "@/app/plans/actions";
+import { appliquerIterationEtGenerer, ecrireSections, figerEtLancer } from "@/app/plans/actions";
 
 /** Les panneaux de la Fiche de plan qui reçoivent le balayage « gel » quand un rendu part. */
 const PANNEAUX_GEL = ["fp-console", "fp-refs", "fp-prompt", "fp-dialogues"];
@@ -9,6 +9,10 @@ const DUREE_SCEAU_MS = 5000;
 
 type Serveur = { sections: Record<string, string>; duree: number; fps: number; seed: string | null };
 export type ModeRendu = "previsualiser" | "final" | "variante";
+export type EssaiLance = { consigne?: string | null; depuisNumero?: number | null };
+export type ResultatLancement = { ok: true; numeroRendu: number } | { ok: false; erreur: string };
+/** `notes` : ce que l'agent ou les contrôles ont signalé en appliquant la correction (gardé sur l'essai créé). */
+export type ResultatIteration = { ok: true; numeroRendu: number; notes: string[] } | { ok: false; erreur: string };
 
 type Ctx = {
   sectionVue: (section: string) => string;
@@ -29,6 +33,10 @@ type Ctx = {
   /** Abandonne le brouillon sans rien écrire (après un collage de prompt, qui remplace tout côté serveur). */
   abandonner: () => void;
   figer: (mode: ModeRendu) => void;
+  /** Comme `figer`, mais on attend le résultat et l'essai garde sa consigne et l'essai dont il part (fiche de plan « table de montage »). */
+  lancer: (mode: ModeRendu, essai?: EssaiLance) => Promise<ResultatLancement>;
+  /** Applique la correction de l'agent et crée l'essai en une transaction (« Itérer », « Appliquer et générer »). */
+  lancerIteration: (propositionUuid: string, essai: { consigne: string | null; depuisNumero: number | null }) => Promise<ResultatIteration>;
   /** Écrit les sections modifiées, exécute `fn`, puis reprend le contenu du serveur : pour les gestes qui réécrivent le
    * prompt côté serveur (ajouter / retirer une référence) et écraseraient un brouillon. */
   avecSectionsEcrites: <T,>(fn: () => Promise<T>) => Promise<T>;
@@ -107,37 +115,72 @@ export function BrouillonProvider({
 
   const brouillonModifie = (): Record<string, string> => Object.fromEntries(modifiees.map((s) => [s, sections[s]!]));
 
+  /** Fige le brouillon puis crée le job ; le balayage « gel » et le sceau suivent. Renvoie le résultat du serveur. */
+  const executer = async (mode: ModeRendu, essai: EssaiLance = {}): Promise<ResultatLancement> => {
+    setErreur(null);
+    const r = await figerEtLancer(
+      planId,
+      {
+        sections: brouillonModifie(),
+        ...(dureeModifiee ? { dureeGenerationSecondes: dureeVue } : {}),
+        ...(fpsModifie ? { fps: fpsVue } : {}),
+        ...(seedModifiee && seedVue ? { seed: seedVue } : {}),
+      },
+      mode,
+      essai,
+    );
+    nettoyer();
+    if (!r.ok) {
+      setErreur(r.erreur);
+      return r;
+    }
+    apresLancement(r.numeroRendu);
+    return r;
+  };
+
+  /** Balayage « gel » sur les panneaux, puis sceau pendant 5 s : le temps que le rendu se place dans la file. */
+  const apresLancement = (numeroRendu: number) => {
+    for (const id of PANNEAUX_GEL) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.classList.remove("fp-gel");
+      void el.offsetWidth;
+      el.classList.add("fp-gel");
+    }
+    setSceau(numeroRendu);
+    if (minuteur.current) clearTimeout(minuteur.current);
+    minuteur.current = setTimeout(() => setSceau(null), DUREE_SCEAU_MS);
+  };
+
+  /** Fin d'« Itérer » : la correction de l'agent est appliquée ET l'essai créé en une seule transaction côté serveur (`appliquerIterationEtGenerer`).
+   * Les réglages retouchés à la main (durée, FPS, seed) partent avec ; les sections, elles, ont été écrites avant l'agent. */
+  const lancerIteration = async (propositionUuid: string, essai: { consigne: string | null; depuisNumero: number | null }): Promise<ResultatIteration> => {
+    if (pending || sceau != null) return { ok: false, erreur: "Un lancement vient de partir : attends une seconde." };
+    setErreur(null);
+    const r = await appliquerIterationEtGenerer(planId, propositionUuid, essai, {
+      ...(dureeModifiee ? { dureeGenerationSecondes: dureeVue } : {}),
+      ...(fpsModifie ? { fps: fpsVue } : {}),
+      ...(seedModifiee && seedVue ? { seed: seedVue } : {}),
+    });
+    if (!r.ok) {
+      setErreur(r.erreur);
+      return r;
+    }
+    nettoyer();
+    apresLancement(r.numeroRendu);
+    return r;
+  };
+
   const figer = (mode: ModeRendu) => {
     if (pending || sceau != null) return;
-    setErreur(null);
     startTransition(async () => {
-      const r = await figerEtLancer(
-        planId,
-        {
-          sections: brouillonModifie(),
-          ...(dureeModifiee ? { dureeGenerationSecondes: dureeVue } : {}),
-          ...(fpsModifie ? { fps: fpsVue } : {}),
-          ...(seedModifiee && seedVue ? { seed: seedVue } : {}),
-        },
-        mode,
-      );
-      nettoyer();
-      if (!r.ok) {
-        setErreur(r.erreur);
-        return;
-      }
-      // Balayage « gel » sur les panneaux, puis sceau pendant 5 s : le temps que le rendu se place dans la file.
-      for (const id of PANNEAUX_GEL) {
-        const el = document.getElementById(id);
-        if (!el) continue;
-        el.classList.remove("fp-gel");
-        void el.offsetWidth;
-        el.classList.add("fp-gel");
-      }
-      setSceau(r.numeroRendu);
-      if (minuteur.current) clearTimeout(minuteur.current);
-      minuteur.current = setTimeout(() => setSceau(null), DUREE_SCEAU_MS);
+      await executer(mode);
     });
+  };
+
+  const lancer = async (mode: ModeRendu, essai?: EssaiLance): Promise<ResultatLancement> => {
+    if (pending || sceau != null) return { ok: false, erreur: "Un lancement vient de partir : attends une seconde." };
+    return executer(mode, essai);
   };
 
   const avecSectionsEcrites = async <T,>(fn: () => Promise<T>): Promise<T> => {
@@ -172,6 +215,8 @@ export function BrouillonProvider({
     annuler: nettoyer,
     abandonner: nettoyer,
     figer,
+    lancer,
+    lancerIteration,
     avecSectionsEcrites,
     occupe: pending || sceau != null,
     sceau,

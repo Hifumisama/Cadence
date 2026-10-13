@@ -132,13 +132,15 @@ export type RepliqueLiee = {
   texte: string;
   audioPresent: boolean;
   priseObsolete: boolean;
+  /** Pas de prise, mais la voix du locuteur a une voix de référence (« Master ») : elle sert de référence audio du plan. */
+  voixMaster?: boolean;
 };
 
 export type ProblemeDialogue =
   | { type: "absente"; repliqueId: number; texte: string }
-  | { type: "differente"; repliqueId: number; texte: string; trouve: string; ecart: SegmentEcart[]; balise: BaliseD }
+  | { type: "differente"; repliqueId: number; texte: string; trouve: string; ecart: SegmentEcart[]; balise: BaliseD; avecPrise: boolean }
   | { type: "orpheline"; trouve: string; balise: BaliseD }
-  | { type: "sans_audio"; repliqueId: number; texte: string }
+  | { type: "sans_audio"; repliqueId: number; texte: string; master: boolean }
   | { type: "prise_obsolete"; repliqueId: number; texte: string };
 
 /** Les problèmes qui n'empêchent PAS de générer : sans prise (ou prise périmée), la vidéo part avec une voix estimée par le modèle,
@@ -147,9 +149,25 @@ export const PROBLEMES_AUDIO: readonly ProblemeDialogue["type"][] = ["sans_audio
 
 export const estProblemeAudio = (p: ProblemeDialogue): boolean => PROBLEMES_AUDIO.includes(p.type);
 
-/** Ne bloque pas non plus : une réplique absente du prompt (on peut ne pas la vouloir dans ce plan, ou la mettre plus tard). Seul un
- * texte cité autrement que mot pour mot, ou une balise sans réplique liée, bloque : les lèvres diraient autre chose que ce qu'on monte. */
-export const estProblemeBloquant = (p: ProblemeDialogue): boolean => p.type === "differente" || p.type === "orpheline";
+/** Ce que la vidéo fera des voix, en une phrase, d'après les problèmes audio du plan (ou null s'il n'y en a pas). */
+export function phraseVoix(problemes: ProblemeDialogue[]): string | null {
+  const sansPrise = problemes.filter((p): p is Extract<ProblemeDialogue, { type: "sans_audio" }> => p.type === "sans_audio");
+  const sansRien = sansPrise.some((p) => !p.master);
+  const surMaster = sansPrise.some((p) => p.master);
+  const periment = problemes.some((p) => p.type === "prise_obsolete");
+  const morceaux = [
+    surMaster ? "sans prise, la voix de référence du personnage sert de signature" : null,
+    sansRien ? "sans prise ni voix de référence, la voix est choisie par le modèle, potentiellement instable" : null,
+    periment ? "une prise ne dit plus le texte courant : la refaire" : null,
+  ].filter((m): m is string => m != null);
+  return morceaux.length ? morceaux.join(" ; ") : null;
+}
+
+/** Trois niveaux de voix (décision 2026-10-12) : rien (le modèle vidéo se débrouille), une voix Master (sa signature sert de référence
+ * audio), une prise (le doublage EST l'audio). Seul le dernier impose le mot pour mot : le lipsync suit la prise, qui ne dit plus le texte
+ * du prompt si les deux divergent. Une réplique absente, une balise sans réplique liée, un texte différent SANS prise ne bloquent pas :
+ * le modèle dit ce que le prompt écrit, c'est signalé à la revue. */
+export const estProblemeBloquant = (p: ProblemeDialogue): boolean => p.type === "differente" && p.avecPrise;
 
 export type ControleDialogues = {
   problemes: ProblemeDialogue[];
@@ -221,6 +239,7 @@ export function controlerDialogues(
         trouve: balise.texte,
         ecart: ecartVerbatim(r.texte.trim(), balise.texte),
         balise,
+        avecPrise: r.audioPresent,
       });
     }
   }
@@ -228,7 +247,7 @@ export function controlerDialogues(
     problemes.push({ type: "orpheline", trouve: balises[i]!.texte, balise: balises[i]! });
   }
   for (const r of repliques) {
-    if (!r.audioPresent) problemes.push({ type: "sans_audio", repliqueId: r.id, texte: r.texte });
+    if (!r.audioPresent) problemes.push({ type: "sans_audio", repliqueId: r.id, texte: r.texte, master: r.voixMaster === true });
     else if (r.priseObsolete) problemes.push({ type: "prise_obsolete", repliqueId: r.id, texte: r.texte });
   }
 

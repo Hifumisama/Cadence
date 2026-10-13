@@ -28,9 +28,9 @@ Editing preserves the source image's structure. It fails in these three cases:
 
 1. **The goal is an absence.** Removing a structural element (erasing the fingers of a hand, taking a silhouette out of a set) means fighting its main function: the model renders the element however many tries you make. Generate a concept the model already owns instead (a bridge rather than a palm without fingers, a wall rather than a set emptied of its character).
 2. **The goal is to change the viewpoint.** Stepping back, going up, turning from front to three-quarter: these are geometric operations, not retouches. The model pastes an element over the existing image (a hill in the foreground, with nothing recomputed). Two views of the same place are **two generations**.
-3. **The asset is a distinct element**, not another framing of the same subject: a visual effect (flames, lightning), a prop, a separate piece. It is generated from scratch, even if it has a proposed starting image. That link does not say how it is made.
+3. **The asset is a different subject or generic matter**, neither another framing nor a state of the same subject: a visual effect (flames, lightning), a separate prop, a separate piece. (A state of a character, creature, set or prop is NOT in this case: it is edited from the master.) It is generated from scratch, even if it has a proposed starting image. That link does not say how it is made.
 
-What remains good for an edit: a blur, a light shift, a season, an element added or removed **within the image's plane**; a tight framing or a detail cropped from the master (the eyes, the hand, the blade).
+What remains good for an edit: a blur, a light shift, a season, an element added or removed **within the image's plane**; a **state** of the same subject (damage, transformation, lit or extinguished, day or night) as long as the master's structure is reworked rather than erased; a tight framing or a detail cropped from the master (the eyes, the hand, the blade).
 
 ## Official workflow settings
 

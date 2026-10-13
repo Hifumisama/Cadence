@@ -1,7 +1,7 @@
 import { corrigerCodesInconnus } from "../agents/codes-proches";
 import { corpusExemplesPlanH3 } from "../agents/plan-h3-corpus";
 import { controlerSortiePlanH3, type SortiePlanH3 } from "../agents/plan-h3-controles";
-import { controlerDureeScenario } from "../agents/scenario-controles";
+import { controlerDureeScenario, controlerStructureScenario } from "../agents/scenario-controles";
 import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-plan";
 import { controleurAnalyse, type ControleAnalyse } from "../agents/revision/entrees";
 
@@ -42,7 +42,10 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
     const e = (entree ?? {}) as { portee?: { type?: string }; briefExtrait?: { dureeEpisodeSecondes?: number } | null; plansExistants?: unknown[] };
     if (e.portee?.type !== "episode" || (e.plansExistants?.length ?? 0) > 0) return undefined;
     const cible = e.briefExtrait?.dureeEpisodeSecondes;
-    return (json) => controlerDureeScenario(json as Parameters<typeof controlerDureeScenario>[0], cible);
+    return (json) => [
+      ...controlerStructureScenario(json as Parameters<typeof controlerStructureScenario>[0]),
+      ...controlerDureeScenario(json as Parameters<typeof controlerDureeScenario>[0], cible),
+    ];
   }
   return undefined;
 }

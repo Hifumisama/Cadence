@@ -16,11 +16,11 @@
   "properties": {
     "dureeCoherente": {
       "type": "boolean",
-      "description": "Does the real file duration match the wanted duration (gap of half a second at most)? If false, no writing diagnosis: `changements` stays empty."
+      "description": "Does the real file duration match the wanted duration (gap of half a second at most)? If false, no writing diagnosis: `changements` stays empty. Always true without a thumbnail sheet (no real duration was measured)."
     },
     "symptome": {
       "type": "string",
-      "description": "(French) What is wrong, with the thumbnail instants (« à 4 s, l'épée apparaît »)."
+      "description": "(French) What is wrong, with the thumbnail instants (« à 4 s, l'épée apparaît »). Without a thumbnail sheet: the user's request restated in one sentence, no instants."
     },
     "cause": {
       "type": "string",
@@ -108,6 +108,22 @@
         },
         "formulationQuiTient": {
           "type": "string"
+        }
+      }
+    },
+    "assetsManquants": {
+      "type": "array",
+      "description": "Optional. Assets you SUGGEST to create because the cause is a missing image and NO registry asset fits (search the registry first). You create nothing and cite none in your passages: the user creates it, generates its image, then iterates again. A STATE of a subject (character, creature, set, prop) has the same type as the subject and its `parent`.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "type", "description", "raison"],
+        "properties": {
+          "code": { "type": "string", "description": "Proposed code, type prefix + short lowercase name (CHAR_, DEC_, PROP_, VFX_)." },
+          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx"] },
+          "parent": { "type": "string", "description": "Code of the base subject (registry) when the asset is a state of it." },
+          "description": { "type": "string", "description": "(French) What is seen, as in the registry." },
+          "raison": { "type": "string", "description": "(French) Why no registry asset fits." }
         }
       }
     },

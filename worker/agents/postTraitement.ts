@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
-import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
+import { agentConversations, agentRuns, assets, briefs, plans, projects, propositions } from "../../db/schema";
 import { horsAffiches } from "../../lib/assets-visibles";
 import { methodeApplicable } from "../../lib/assetCode";
 import { sortieVersBrief } from "../../lib/agents/brief";
@@ -36,7 +36,7 @@ import { codeDeCleVoix } from "../../lib/agents/voix-casting";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
 import type { BriefContenu, Position, StatutChamp } from "../../lib/agents/types";
 import type { Tx } from "../../lib/ordre-plans";
-import { depuisFichePlan, type OptionsFichePlan } from "../../lib/agents/conversion";
+import { codesEnVoixOff, depuisFichePlan, type OptionsFichePlan } from "../../lib/agents/conversion";
 import { planUuidDeCle } from "../../lib/agents/fiches";
 import type { SortiePlanH3 } from "../../lib/agents/plan-h3-controles";
 import { corpusExemplesPlanH3 } from "../../lib/agents/plan-h3-corpus";
@@ -378,6 +378,8 @@ async function postSousTacheVoix(
 async function brutsFiche(tx: Tx, projectId: number, planUuid: string, sortie: SortiePlanH3, options: OptionsFichePlan = {}): Promise<ChangementBrut[]> {
   const [plan] = await tx.select({ id: plans.id, titre: plans.titre }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!plan) throw new Error("Le plan visé n'existe plus.");
+  const [projet] = await tx.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
+  const [leBrief] = await tx.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
   const [dialogues, registre] = await Promise.all([
     tx
       .select({ uuid: repliques.uuid, texte: repliques.texte, slot: planDialogues.slot, locuteurCode: assets.code })
@@ -387,9 +389,11 @@ async function brutsFiche(tx: Tx, projectId: number, planUuid: string, sortie: S
       .where(eq(planDialogues.planId, plan.id)),
     tx.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches)),
   ]);
+  const enVoixOff = codesEnVoixOff(((leBrief?.contenu as { personnages?: { nom?: string; voix?: string }[] } | undefined)?.personnages ?? []), dialogues.map((d) => d.locuteurCode).filter((c): c is string => !!c));
+  const voixOff = dialogues.length > 0 && dialogues.every((d) => !!d.locuteurCode && enVoixOff.has(d.locuteurCode));
   return depuisFichePlan(
     sortie,
-    { uuid: planUuid, titre: plan.titre, slotsAudioPris: dialogues.map((d) => d.slot), repliques: dialogues.map((d) => ({ uuid: d.uuid, texte: d.texte, slot: d.slot, locuteurCode: d.locuteurCode })), registre },
+    { uuid: planUuid, titre: plan.titre, slotsAudioPris: dialogues.map((d) => d.slot), repliques: dialogues.map((d) => ({ uuid: d.uuid, texte: d.texte, slot: d.slot, locuteurCode: d.locuteurCode })), registre, clauseStyle: projet?.clauseStyle ?? "", voixOff },
     { corpusExemples: corpusExemplesPlanH3(), ...options },
   );
 }
@@ -470,13 +474,12 @@ async function postIteration(
     execution.dureeReelleSecondes != null
       ? [{ type: "plan" as const, libelle: `Rendu mesuré : ${String(execution.dureeReelleSecondes).replace(".", ",")} s pour ${voulue} s voulues · ${execution.nbVignettes ?? "?"} vignettes regardées` }]
       : [];
-  await tx
-    .update(propositions)
-    .set({
-      ...(raison ? { resume: `Diagnostic sans écriture. ${raison}` } : {}),
-      ...(mesure.length ? { contexte: [...((prop.contexte as unknown[]) ?? []), ...mesure] } : {}),
-    })
-    .where(eq(propositions.id, prop.id));
+  // Sans planche (« Itérer » par défaut) il n'y a pas de mesure ; avec une écriture, pas de raison : rien à mettre à jour (un `set` vide fait échouer Drizzle).
+  const maj = {
+    ...(raison ? { resume: `Diagnostic sans écriture. ${raison}` } : {}),
+    ...(mesure.length ? { contexte: [...((prop.contexte as unknown[]) ?? []), ...mesure] } : {}),
+  };
+  if (Object.keys(maj).length) await tx.update(propositions).set(maj).where(eq(propositions.id, prop.id));
   if (prop.conversationId != null) {
     await tx.update(agentConversations).set({ etape: "proposition", updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
   }

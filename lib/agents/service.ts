@@ -1005,7 +1005,11 @@ const MAX_RETOUR_VISIONNAGE = 4000;
  * proposition. Routage par état du plan (décision 2026-10-02) : sans rendu terminé, refusé (jamais de correction à
  * l'aveugle) ; sans fiche, refusé (« écris-la d'abord »). La planche de vignettes est extraite par le worker à
  * l'exécution, jamais stockée. */
-export async function genererIteration(conversationUuid: string, options: { retour: string }): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
+export async function genererIteration(
+  conversationUuid: string,
+  /** `planche` : joindre la planche de vignettes du rendu (jamais par défaut : case « Montrer au chef opérateur », bouton « Analyser »). */
+  options: { retour: string; renduId?: number | null; planche?: boolean },
+): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   if (conv.portee !== "plan" || conv.cibleId == null) return ERR("La correction après visionnage se demande depuis la page d'un plan.");
@@ -1015,7 +1019,7 @@ export async function genererIteration(conversationUuid: string, options: { reto
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur ce plan."); if (refus) return refus; }
   const [p] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, conv.cibleId));
   if (!p) return ERR("Plan introuvable.");
-  const e = await entreeIterationPlan(db, conv.projectId, p.uuid, retour);
+  const e = await entreeIterationPlan(db, conv.projectId, p.uuid, retour, options.renduId ?? null, options.planche === true);
   if ("erreur" in e) return ERR(e.erreur);
   const propId = await nouvelleProposition(conv, { skill: "iteration-plan", consigne: retour, contexte: e.contexte });
   const run = await creerRun(db, { skill: "iteration-plan", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId });
@@ -1179,7 +1183,7 @@ export async function annulerLotProposition(propositionUuid: string): Promise<Re
   return { ok: true, resultat: await annulerLot(propositionUuid) };
 }
 
-export async function appliquerSelection(propositionUuid: string, options: { confirmeEcrasement?: boolean } = {}): Promise<ResultatApplication> {
+export async function appliquerSelection(propositionUuid: string, options: Parameters<typeof appliquerProposition>[1] = {}): Promise<ResultatApplication> {
   const prop = await propositionParUuid(propositionUuid);
   if (!prop) return { ok: false, erreur: "Proposition introuvable." };
   return appliquerProposition(prop.id, options);

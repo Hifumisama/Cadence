@@ -331,6 +331,8 @@ export type DiagnosticIteration = {
   nbPassages: number;
   entreeLexique: { symptome: string; cause: string; formulationQuiTient: string } | null;
   abandon: { propose: boolean; raison: string } | null;
+  /** Assets que l'agent suggère de créer (jamais créés par l'itération). */
+  assetsSuggeres: { code: string; type: string; parent?: string; raison: string }[];
 };
 
 export type VueProposition = {

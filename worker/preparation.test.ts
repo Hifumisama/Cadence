@@ -56,7 +56,21 @@ test("iteration-plan : rendu disparu, ffmpeg absent, planche vide → erreur cla
     /Planche de vignettes impossible : ffmpeg introuvable.*FFMPEG_PATH/,
   );
   await assert.rejects(preparerEntree(run(entreeStockee), { planche: async () => ({ ...planche, vignettes: [] }) }), /vide/);
-  await assert.rejects(preparerEntree(run({ ...entreeStockee, planche: undefined })), /descripteur/);
+  await assert.rejects(preparerEntree(run({ ...entreeStockee, planche: { jobId: 1 } })), /sans chemin de rendu/);
+});
+
+test("iteration-plan : sans planche demandée, l'entrée part telle quelle, sans ffmpeg ni durée mesurée", async () => {
+  const { planche: _p, ...sans } = entreeStockee;
+  void _p;
+  const stockee = { ...sans, sansPlanche: true };
+  const p = await preparerEntree(run(stockee), {
+    planche: async () => {
+      throw new Error("ne doit pas être appelée");
+    },
+  });
+  assert.equal(p.entree, stockee);
+  assert.equal(p.controle, stockee);
+  assert.equal(p.execution, undefined, "pas de durée mesurée : les garde-fous de durée réelle sont sans objet");
 });
 
 test("les autres skills : l'entrée stockée part telle quelle", async () => {

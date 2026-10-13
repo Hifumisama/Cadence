@@ -35,3 +35,17 @@ export function controlerDureeScenario(sortie: SortieScenario, cibleSecondes: nu
     `Durée totale : tes ${nbPlans} plans font ${secondes} s (${moyenne.toFixed(1)} s en moyenne), pour ${cibleSecondes} s visées au brief : le total doit tenir entre ${bas} et ${haut} s. ${consigne} Recompte avant de rendre.`,
   ];
 }
+
+/** Structure exigée par le skill (état en fin de plan) : un manque est une ERREUR, donc un renvoi au modèle. Sans elle, le modèle l'oublie
+ * (le suivi d'état est ce qui porte la continuité d'un plan à l'autre). Aucune règle de disposition : elle varie avec chaque scène. Pur. */
+export function controlerStructureScenario(sortie: { scenes?: { titre?: string; plans?: { titre?: string; description?: string }[] }[] }): string[] {
+  const erreurs: string[] = [];
+  for (const scene of sortie.scenes ?? []) {
+    for (const plan of scene.plans ?? []) {
+      if (!/[ée]tat en fin de plan\s*:/i.test(plan.description ?? "")) {
+        erreurs.push(`Le plan « ${plan.titre ?? "?"} » : sa description doit se terminer par « État en fin de plan : … » (où se tiennent les personnages qui comptent et vers quoi ils sont tournés, par rapport aux repères fixes du lieu et non à la caméra ; l'état de ce qui a changé : feu allumé ou éteint, créature présente ou non). N'y écris que ce que la description a montré.`);
+      }
+    }
+  }
+  return erreurs;
+}

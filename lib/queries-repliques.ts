@@ -49,6 +49,8 @@ export type RepliqueVue = {
   audioSrc: string | null;
   dureeSecondes: number | null;
   priseObsolete: boolean;
+  /** Voix de référence (« Master ») du locuteur, si elle existe : sans prise, elle est la référence audio du plan. */
+  voixMaster: boolean;
   locuteur: LocuteurVue;
   voix: VoixVue | null;
   usages: UsageRepliqueVue[];
@@ -67,7 +69,7 @@ async function chargerContexte(projectId: number): Promise<ContexteProjet> {
       .innerJoin(episodes, eq(repliques.episodeId, episodes.id))
       .where(eq(repliques.projectId, projectId)),
     db
-      .select({ id: assets.id, code: assets.code, type: assets.type })
+      .select({ id: assets.id, code: assets.code, type: assets.type, fichier: assets.fichier })
       .from(assets)
       .where(and(eq(assets.projectId, projectId), inArray(assets.type, ["personnage", "voix"]))),
     db.select({ assetId: voixFiches.assetId, personnageId: voixFiches.personnageId }).from(voixFiches),
@@ -94,6 +96,13 @@ async function chargerContexte(projectId: number): Promise<ContexteProjet> {
     if (f.personnageId != null && code) voixParPersonnage.set(f.personnageId, { id: f.assetId, code });
   }
 
+  const voixAvecFichier = new Set(lesAssets.filter((a) => a.type === "voix" && a.fichier).map((a) => a.id));
+  /** La voix de la réplique (directe, sinon celle du personnage) a-t-elle une voix de référence ? */
+  const aUnMaster = (r: { voixId: number | null; locuteurId: number | null }): boolean => {
+    const voixId = r.voixId ?? (r.locuteurId != null ? voixParPersonnage.get(r.locuteurId)?.id : undefined);
+    return voixId != null && voixAvecFichier.has(voixId);
+  };
+
   const ids = lignes.map((l) => l.r.id);
   const liaisons = ids.length && planParId.size
     ? await db.select().from(planDialogues).where(inArray(planDialogues.repliqueId, ids))
@@ -116,7 +125,7 @@ async function chargerContexte(projectId: number): Promise<ContexteProjet> {
       .sort((a, b) => a.slot - b.slot)
       .map((l) => repliqueParId.get(l.repliqueId))
       .filter((r): r is NonNullable<typeof r> => r != null)
-      .map((r) => ({ id: r.id, texte: r.texte, audioPresent: r.fichier != null, priseObsolete: priseObsolete(r) }));
+      .map((r) => ({ id: r.id, texte: r.texte, audioPresent: r.fichier != null, priseObsolete: priseObsolete(r), voixMaster: aUnMaster(r) }));
     controles.set(
       planId,
       controlerDialogues(
@@ -173,6 +182,7 @@ async function chargerContexte(projectId: number): Promise<ContexteProjet> {
       audioSrc: repliqueMediaSrc(r.id, r.fichier),
       dureeSecondes: r.dureeSecondes,
       priseObsolete: priseObsolete(r),
+      voixMaster: aUnMaster(r),
       locuteur,
       voix,
       usages,
@@ -208,7 +218,7 @@ export async function getDialoguesPlan(projectId: number, planId: number, episod
     controles.get(planId) ?? controlerDialogues([], []);
   // L'audio de la réplique EST la ref <Audio N> du plan (pas recopiée dans
   // plan_refs) : seules celles qui ont une prise déclarent un label.
-  const audioRefs: RefLabel[] = liaisons.filter((l) => l.fichier != null).map((l) => ({ type: "audio", slot: l.slot }));
+  const audioRefs: RefLabel[] = liaisons.filter((l) => l.fichier != null || l.voixMaster).map((l) => ({ type: "audio", slot: l.slot }));
   return { liaisons, disponibles, controle, audioRefs };
 }
 

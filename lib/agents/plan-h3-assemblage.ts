@@ -16,6 +16,8 @@ export type ContexteAssemblage = {
   /** Les voix du plan, avec leur texte exact et, si connu, le code du personnage qui parle : le code écrit leur ligne
    * de définition (`<Audio N> is the voice-timbre reference for <Subject k> (Sx)`) et de rétention. */
   voix?: { slot: number; texte: string; locuteurCode?: string | null }[];
+  /** La clause de style du projet (brief) : posée EN TÊTE de l'ouverture par le code, jamais recopiée par le modèle. */
+  clauseStyle?: string;
 };
 
 export type RefAssemblee = {
@@ -106,6 +108,41 @@ function noteParDefaut(nom: string, retention: string): string {
   }
 }
 
+/** Le style des exemples du skill (un autre projet) : le modèle le recopie parfois au lieu de la clause du projet. */
+const STYLE_DES_EXEMPLES = /\bcinematic anime style,?\s*(?:refined linework,?\s*)?/gi;
+
+const motsDe = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, " ").split(/\s+/).filter(Boolean);
+
+/** L'ouverture finale : la clause de style du projet vient du CODE (en tête), le modèle n'écrit que la lumière et les côtés.
+ * Le style des exemples du skill est retiré ; une clause que le modèle a déjà écrite (six mots de suite) n'est pas doublée.
+ * Sans clause connue, l'ouverture du modèle reste telle quelle. */
+export function poserClauseStyle(ouverture: string, clause?: string): { texte: string; changee: boolean } {
+  const brute = espaces(ouverture);
+  const c = espaces(clause ?? "");
+  if (!c) return { texte: brute, changee: false };
+  const propre = brute.replace(STYLE_DES_EXEMPLES, "").replace(/^\s*(?:the\s+)?project'?s\s+style\s*:\s*/i, "").replace(/^[\s,;]+/, "");
+  const mc = motsDe(c);
+  const mo = motsDe(propre).join(" ");
+  const present = mc.length >= 6 ? Array.from({ length: mc.length - 5 }, (_, i) => mc.slice(i, i + 6).join(" ")).some((x) => mo.includes(x)) : mo.includes(mc.join(" "));
+  const texte = present ? propre : `${finir(c)} ${propre}`.trim();
+  return { texte, changee: texte !== brute };
+}
+
+/** Les consignes de la FEUILLE d'un asset (vues multiples, pose neutre, fond uni, gros plan de présentation) n'ont rien à faire
+ * dans la définition d'un sujet du prompt vidéo : H3 les prendrait pour des instructions de plan. */
+const CONSIGNES_DE_FEUILLE = [
+  /,?\s*character has \d+ views?\s*:?[^.]*/gi,
+  /,?\s*(?:standing |posed? )?in a neutral pose against a plain background/gi,
+  /,?\s*against a plain (?:white |grey |gray )?background/gi,
+  /(?:^|(?<=[.,]\s))\s*detailed (?:close-up|single headshot|macro)[^.]*\.?/gi,
+];
+
+export function nettoyerDefinition(definition: string): string {
+  let t = definition;
+  for (const re of CONSIGNES_DE_FEUILLE) t = t.replace(re, "");
+  return espaces(t).replace(/\s+([,.])/g, "$1").replace(/^[\s,;]+/, "").replace(/[,;]\s*$/, "");
+}
+
 export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): PromptAssemble {
   const problemes: ProblemeH3[] = [];
   const signaler = (niveau: ProblemeH3["niveau"], regle: string, message: string) => problemes.push({ niveau, regle, message });
@@ -156,12 +193,16 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
     const entete = i === 0 ? `[Shot 1]` : `[Shot ${i + 1}] At ${timecode(s.debutSecondes)}, Hard cut to`;
     return `${entete} ${marqueurs(corps[i]!)}`.replace(/\s+/g, " ").trim();
   });
-  const ouverture = marqueurs(espaces(sortie.ouverture ?? ""));
+  const style = poserClauseStyle(sortie.ouverture ?? "", ctx.clauseStyle);
+  if (style.changee) signaler("info", "style", "La clause de style du projet est posée par le code en tête de l'ouverture (le style des exemples est retiré).");
+  const ouverture = marqueurs(style.texte);
   const detailed_description = [ouverture, ...rendus].filter(Boolean).join(" ");
 
   // 4. subject_definitions
   const ligneDef = (a: RefAssemblee, r: SortiePlanH3["references"][number]) => {
-    const def = espaces((r.definition ?? "").replace(/^[\s,]+/, ""));
+    const brute = espaces((r.definition ?? "").replace(/^[\s,]+/, ""));
+    const def = nettoyerDefinition(brute);
+    if (def !== brute) signaler("info", "definition-feuille", `${a.asset} : consignes de feuille d'asset (vues, pose neutre, fond uni) retirées de sa définition.`);
     const nom = espaces(r.nom);
     return a.nature === "image"
       ? `${a.label} is ${nom} from <Picture ${a.slot}>${def ? `, ${def}` : ""}`.replace(/\.$/, "") + "."

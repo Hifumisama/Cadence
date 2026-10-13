@@ -148,11 +148,15 @@ test("labels : seuls ceux du plan (références, voix, sujets déjà définis)",
   assert.deepEqual(erreurs(avec("[[PROP_lanterne]] glows.")), ["marqueur"]);
 });
 
-test("réplique altérée : erreur (les balises <d> restent verbatim)", () => {
+const alertesDe = (s: SortieIterationPlan) => controlerSortieIterationPlan(s, plan()).filter((x) => x.niveau === "alerte").map((x) => x.regle);
+
+test("réplique altérée : simple alerte (la consigne peut en demander une), jamais un renvoi au modèle", () => {
   const modifiee = sortie({ changements: [{ section: "detailed_description", avant: "<d>[Français] Pas un bruit.</d>", apres: "<d>[Français] Pas un seul bruit.</d>" }] });
-  assert.deepEqual(erreurs(modifiee), ["replique-modifiee"]);
+  assert.deepEqual(erreurs(modifiee), []);
+  assert.ok(alertesDe(modifiee).includes("replique-modifiee"));
   const retiree = sortie({ changements: [{ section: "detailed_description", avant: "<Subject 1> says <d>[Français] Pas un bruit.</d> ", apres: "" }] });
-  assert.deepEqual(erreurs(retiree), ["replique-modifiee"]);
+  assert.deepEqual(erreurs(retiree), []);
+  assert.ok(alertesDe(retiree).includes("replique-modifiee"));
   // Déplacer une réplique sans la changer reste permis (même multiensemble de <d>).
   const deplacee = sortie({
     changements: [
@@ -192,9 +196,13 @@ test("abandon et cause hors du prompt : information, pas de changement", () => {
   const abandon = sortie({ abandon: { propose: true, raison: "Trois causes tentées (cadence, caméra, négation) : remplacer la course par une marche." } });
   assert.deepEqual(depuisIterationPlan(abandon, plan()), []);
   assert.match(raisonSansEcriture(abandon, plan()) ?? "", /abandonner.*marche/);
-  const decoupage = sortie({ categorie: "decoupage-scenario" });
+  const decoupage = sortie({ categorie: "decoupage-scenario", changements: [] });
   assert.deepEqual(depuisIterationPlan(decoupage, plan()), []);
   assert.match(raisonSansEcriture(decoupage, plan()) ?? "", /découpage/);
+  // Étiquette « découpage » mais passages écrits (consigne qui change l'action du plan) : la correction est appliquée.
+  const etiquetteSeule = sortie({ categorie: "decoupage-scenario" });
+  assert.equal(raisonSansEcriture(etiquetteSeule, plan()), null);
+  assert.equal(depuisIterationPlan(etiquetteSeule, plan()).length, 1);
 });
 
 test("confiance faible et structure des shots dégradée : alertes, la correction reste proposée", () => {
@@ -383,4 +391,23 @@ test("références : l'écrasement ne compte que les références qui disparaiss
   const retrait = { refs: [{ type: "picture" as const, slot: 1, asset: "CHAR_maya" }] };
   assert.match(evaluerEcrasementFiche(retrait, etat).ecrase ?? "", /1 référence/);
   assert.equal(verifierFiche(ajout, etat), null);
+});
+
+test("parole entre guillemets hors balise <d> : erreur, renvoi au modèle ; avec <d> : accepté", () => {
+  const nue = sortie({ changements: [{ section: "detailed_description", avant: "the camera tracking alongside.", apres: "the camera tracking alongside. <Subject 1> says: 'Grand gardien, je viens'." }] });
+  assert.ok(erreurs(nue).includes("parole-sans-balise"));
+  const balisee = sortie({ changements: [{ section: "detailed_description", avant: "the camera tracking alongside.", apres: "the camera tracking alongside. <Subject 1> says, <d>[Français] Grand gardien, je viens.</d>" }] });
+  assert.ok(!erreurs(balisee).includes("parole-sans-balise"));
+});
+
+test("assetsManquants : le schéma l'accepte ; sans modification du prompt, la raison nomme l'asset à créer ; le diagnostic le garde", () => {
+  const s = sortie({
+    changements: [],
+    assetsManquants: [{ code: "CHAR_dragon_ombre", type: "personnage", parent: "CHAR_dragon", description: "Le dragon en ombre incomplète.", raison: "Aucune image de cet état." }],
+  });
+  const v = valider(chargerSkill("iteration-plan").schema, s);
+  assert.ok(v.ok, v.ok ? "" : v.erreurs.join(" ; "));
+  assert.match(raisonSansEcriture(s, plan()) ?? "", /suggère de créer CHAR_dragon_ombre/);
+  assert.deepEqual(diagnosticIteration(s)!.assetsSuggeres, [{ code: "CHAR_dragon_ombre", type: "personnage", parent: "CHAR_dragon", raison: "Aucune image de cet état." }]);
+  assert.deepEqual(diagnosticIteration(sortie())!.assetsSuggeres, []);
 });

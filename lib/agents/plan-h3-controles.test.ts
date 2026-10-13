@@ -193,3 +193,12 @@ test("un dialogue <d> sans locuteur (S1) donne une alerte, pas une erreur", () =
   assert.ok(r.some((x) => x.regle === "locuteur" && x.niveau === "alerte"));
   assert.equal(erreurs(sans).includes("locuteur"), false);
 });
+
+test("voix off : un <d> « off-screen voiceover » sans bouche close juste après est signalé", () => {
+  const base = { titre: "t", dureeSecondes: 8, references: [], summary: "s", ouverture: "o", overall_soundscape: "x", non_diegetic_music: "N/A", repliques: [], assetsManquants: [], notes: "" };
+  const ctx = { registre: [], repliques: [{ texte: "Concentre-toi." }] };
+  const sans = controlerSortiePlanH3({ ...base, shots: [{ debutSecondes: 0, texte: "a close-up of Mai (S1) says in an off-screen voiceover: <d>[Français] Concentre-toi.</d> Her eyes are closed." }] }, ctx);
+  assert.ok(sans.some((p) => p.regle === "voix-off"));
+  const avec = controlerSortiePlanH3({ ...base, shots: [{ debutSecondes: 0, texte: "a close-up of Mai (S1) says in an off-screen voiceover: <d>[Français] Concentre-toi.</d> while her lips remain completely closed." }] }, ctx);
+  assert.ok(!avec.some((p) => p.regle === "voix-off"));
+});

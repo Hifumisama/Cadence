@@ -12,7 +12,7 @@
     {"asset": "DEC_couloir_bois", "nature": "image", "role": "Décor, couloir bleu nuit", "nom": "the narrow wooden corridor", "definition": "narrow wooden walls under a deep indigo light edged with harder shadow.", "retentionNote": "the corridor's indigo tone, now hard-edged, is retained."}
   ],
   "summary": "The target video holds an extreme close-up as [[CHAR_tenanciere]] opens the episode's central threat to [[CHAR_maya]] within [[DEC_couloir_bois]], her slow lean continuing through the line.",
-  "ouverture": "Cinematic anime style, refined linework, the corridor's deep indigo light sharpened into hard directional contrast, a heavy blue-black shadow cast across Maya's face.",
+  "ouverture": "The corridor's deep indigo light sharpened into hard directional contrast, a heavy blue-black shadow cast across Maya's face.",
   "shots": [
     {"debutSecondes": 0, "texte": "An extreme close-up frames [[CHAR_tenanciere]], the Tenancière (S1), leaning in until her face is only centimeters from [[CHAR_maya]], Maya, within [[DEC_couloir_bois]], her slow lean continuing through the line. Her voice drops to a glacial murmur, each word measured and unhurried: <d>[Français] Demain, au lever du soleil, si l'or n'est pas sur mon bureau, je ne perdrai plus mon temps avec tes danses.</d> Maya's face, half in hard indigo shadow, holds rigid under the proximity, her breath shallow."}
   ],

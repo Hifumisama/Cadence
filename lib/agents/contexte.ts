@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-orm";
-import { agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons, voixFiches } from "../../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons, voixFiches } from "../../db/schema";
 import { horsAffiches } from "../assets-visibles";
 import { variantePromptAsset } from "../llm/variantes";
 import { genreOuNull, variantePlanH3 } from "../scene-genres";
@@ -230,6 +230,94 @@ async function contexteEpisode(db: Db, projectId: number, episodeId: number) {
   return { ep, precedents, suivants, brief: brief?.contenu ?? null, lesScenes, lesPlans, extrait, contexteBrief: contexte, registre };
 }
 
+/** Ce que l'AUTEUR a lui-même écrit pendant la conception du projet (ses messages, dans l'ordre), pour que le scénario parte de ses mots et
+ * non du seul arc résumé du brief : un pitch précis (plan large d'ouverture, geste, bruitage, réplique, voix off) se perdait dans le résumé.
+ * Plafonné (contexte léger) : les derniers messages l'emportent, chacun est coupé net au-delà de `MAX_MESSAGE`. */
+export const MAX_PAROLES_AUTEUR = 6000;
+const MAX_MESSAGE = 3000;
+
+export function parolesDeLAuteur(messages: unknown): string[] {
+  const dits = (Array.isArray(messages) ? messages : [])
+    .filter((m): m is { role: string; content: string } => !!m && typeof m === "object" && (m as { role?: unknown }).role === "user" && typeof (m as { content?: unknown }).content === "string")
+    .map((m) => m.content.trim().slice(0, MAX_MESSAGE))
+    .filter(Boolean);
+  const gardes: string[] = [];
+  let total = 0;
+  for (const t of dits.reverse()) {
+    if (total + t.length > MAX_PAROLES_AUTEUR && gardes.length > 0) break;
+    gardes.unshift(t);
+    total += t.length;
+  }
+  return gardes;
+}
+
+async function parolesDuProjet(db: Db, projectId: number): Promise<string[]> {
+  const l = await db.select({ messages: agentConversations.messages }).from(agentConversations).where(and(eq(agentConversations.projectId, projectId), eq(agentConversations.portee, "projet"))).orderBy(asc(agentConversations.id));
+  return parolesDeLAuteur(l.flatMap((c) => (Array.isArray(c.messages) ? c.messages : [])));
+}
+
+/** Le DERNIER shot d'un prompt vidéo assemblé (`detailed_description`), lisible hors de son plan : le timecode et la coupe sont retirés, et
+ * les labels `<Subject N>` (propres à CE plan) sont remplacés par le code de l'asset (`codes[N]`). Sert au plan suivant : son premier shot
+ * reprend là où celui-ci finit (qui est où, tourné vers quoi, état du feu). Plafonné : contexte léger. Pur, testé. */
+export const MAX_DERNIER_SHOT = 450;
+
+export function dernierShotLisible(detailed: string, codes: Record<number, string>): string | null {
+  const reperes = [...(detailed ?? "").matchAll(/\[Shot\s+\d+\]/g)];
+  if (reperes.length === 0) return null;
+  const dernier = reperes[reperes.length - 1]!;
+  const corps = detailed
+    .slice((dernier.index ?? 0) + dernier[0].length)
+    .replace(/^\s*At\s+\d{1,2}:\d{2}(?:\.\d{1,3})?\s*,?\s*(?:Hard cut to\s*)?/i, "")
+    .replace(/<\s*(?:Subject|Picture)\s*(\d+)\s*>/g, (_m, n: string) => codes[Number(n)] ?? "the subject")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!corps) return null;
+  return corps.length > MAX_DERNIER_SHOT ? `…${corps.slice(corps.length - MAX_DERNIER_SHOT + 1)}` : corps;
+}
+
+/** Le dernier shot d'un BROUILLON de `plan-h3` (sortie du modèle, avant assemblage) : les marqueurs `[[CODE]]` deviennent le code. Sert au plan
+ * suivant d'un lot, dont la fiche n'est pas encore écrite en base quand il s'exécute (les plans d'un lot passent l'un après l'autre). */
+export function dernierShotDuBrouillon(shots: unknown): string | null {
+  const l = Array.isArray(shots) ? shots : [];
+  const t = (l[l.length - 1] as { texte?: unknown } | undefined)?.texte;
+  if (typeof t !== "string") return null;
+  const corps = t.replace(/\[\[\s*([^\]]+?)\s*\]\]/g, "$1").replace(/\s+/g, " ").trim();
+  if (!corps) return null;
+  return corps.length > MAX_DERNIER_SHOT ? `…${corps.slice(corps.length - MAX_DERNIER_SHOT + 1)}` : corps;
+}
+
+/** Le PREMIER shot d'un prompt assemblé, lisible hors de son plan (même traitement que `dernierShotLisible`) : le plan d'avant doit
+ * finir là où celui-ci commence (itération : raccord vers l'aval). Le préambule d'ouverture (style, lumière) est écarté. */
+export function premierShotLisible(detailed: string, codes: Record<number, string>): string | null {
+  const reperes = [...(detailed ?? "").matchAll(/\[Shot\s+\d+\]/g)];
+  if (reperes.length === 0) return null;
+  const fin = reperes[1]?.index ?? detailed.length;
+  const corps = detailed
+    .slice((reperes[0]!.index ?? 0) + reperes[0]![0].length, fin)
+    .replace(/<\s*(?:Subject|Picture)\s*(\d+)\s*>/g, (_m, n: string) => codes[Number(n)] ?? "the subject")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!corps) return null;
+  return corps.length > MAX_DERNIER_SHOT ? `${corps.slice(0, MAX_DERNIER_SHOT - 1)}…` : corps;
+}
+
+/** Les shots extrêmes (premier, dernier) d'un plan qui a une fiche en base, lisibles hors de lui. */
+async function shotsExtremesDuPlan(db: Db, planUuid: string): Promise<{ premier: string | null; dernier: string | null }> {
+  const [pl] = await db.select({ id: plans.id }).from(plans).where(eq(plans.uuid, planUuid));
+  if (!pl) return { premier: null, dernier: null };
+  const [[sec], refs] = await Promise.all([
+    db.select({ contenu: planPromptSections.contenu }).from(planPromptSections).where(and(eq(planPromptSections.planId, pl.id), eq(planPromptSections.section, "detailed_description"))),
+    db.select({ slot: planRefs.slot, code: assets.code }).from(planRefs).innerJoin(assets, eq(assets.id, planRefs.assetId)).where(and(eq(planRefs.planId, pl.id), eq(planRefs.type, "picture"))),
+  ]);
+  if (!sec?.contenu) return { premier: null, dernier: null };
+  const codes = Object.fromEntries(refs.map((r) => [r.slot, r.code]));
+  return { premier: premierShotLisible(sec.contenu, codes), dernier: dernierShotLisible(sec.contenu, codes) };
+}
+
+async function dernierShotDuPlan(db: Db, planUuid: string): Promise<string | null> {
+  return (await shotsExtremesDuPlan(db, planUuid)).dernier;
+}
+
 /** L'entrée du brief qui correspond à cet épisode : même titre (insensible à la casse), sinon même rang. */
 export function briefDeEpisode(brief: BriefContenu | null, titre: string, numero: number): { titre: string; resume: string; portee?: string } | null {
   if (!brief?.episodes?.length) return null;
@@ -246,6 +334,7 @@ export async function entreeScenarioEpisode(
 ): Promise<(EntreeSkill & { sceneVoisineId: number | null }) | null> {
   const c = await contexteEpisode(db, projectId, episodeId);
   if (!c) return null;
+  const paroles = await parolesDuProjet(db, projectId);
   const insertion = options.position != null;
   let voisinAvant: PlanLu | null = null;
   let voisinApres: PlanLu | null = null;
@@ -263,6 +352,7 @@ export async function entreeScenarioEpisode(
     ...(voisinApres ? [{ type: "plan" as const, libelle: `Plan suivant · ${voisinApres.titre}`, ref: voisinApres.uuid }] : []),
     { type: "registre", libelle: `Registre : ${c.registre.length} asset${c.registre.length > 1 ? "s" : ""} (noms existants)` },
     ...c.contexteBrief,
+    ...(paroles.length ? [{ type: "brief" as const, libelle: `Paroles de l'auteur (${paroles.length} message${paroles.length > 1 ? "s" : ""} de sa conception)` }] : []),
   ];
   return {
     skill: "scenario-episode",
@@ -280,6 +370,7 @@ export async function entreeScenarioEpisode(
       ...(insertion ? { planPrecedent: voisinAvant, planSuivant: voisinApres } : {}),
       registre: c.registre,
       briefExtrait: c.extrait,
+      ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),
       consigne,
       ...(options.retour ? { retourUtilisateur: options.retour } : {}),
     },
@@ -349,8 +440,12 @@ export async function entreePlanH3(
   const dansLaScene = c.lesPlans.filter((x) => x.sceneId === p.sceneId);
   const rang = Math.max(0, dansLaScene.findIndex((x) => x.uuid === p.uuid));
   const i = c.lesPlans.findIndex((x) => x.uuid === p.uuid);
-  const voisin = (x: { titre: string; description: string; dureeGenerationSecondes: number | null } | undefined) =>
-    x ? { titre: x.titre, description: x.description, dureeSecondes: x.dureeGenerationSecondes } : null;
+  // Un voisin DE LA MÊME SCÈNE est déjà dans `scene.plans` avec son intention : on ne la répète pas (contexte léger).
+  const voisin = (x: { uuid: string; sceneId: number | null; titre: string; description: string; dureeGenerationSecondes: number | null } | undefined) =>
+    x ? { titre: x.titre, ...(x.sceneId === p.sceneId && p.sceneId != null ? { memeScene: true } : { description: x.description }), dureeSecondes: x.dureeGenerationSecondes } : null;
+  // Les plans d'un lot s'écrivent l'un après l'autre : si le précédent a déjà sa fiche, son dernier shot dit où l'on en est.
+  const precedentLu = c.lesPlans[i - 1];
+  const dernierShotPrecedent = precedentLu ? await dernierShotDuPlan(db, precedentLu.uuid) : null;
 
   const registre = await db
     .select({
@@ -421,13 +516,13 @@ export async function entreePlanH3(
             plans: dansLaScene.map((x, k) => ({
               position: k + 1,
               titre: x.titre,
-              intention: (x.description ?? "").trim().slice(0, 400),
+              intention: (x.description ?? "").trim().slice(0, 800),
               ...(x.uuid === p.uuid ? { cePlan: true } : {}),
             })),
           }
         : null,
       episode: { titre: c.ep.titre, resume: c.ep.resume },
-      plansVoisins: { precedent: voisin(c.lesPlans[i - 1]), suivant: voisin(c.lesPlans[i + 1]) },
+      plansVoisins: { precedent: precedentLu ? { ...voisin(precedentLu)!, ...(dernierShotPrecedent ? { dernierShot: dernierShotPrecedent } : {}) } : null, suivant: voisin(c.lesPlans[i + 1]) },
       registre: candidats,
       repliques: dialogues.map((d) => ({
         repliqueId: d.uuid,
@@ -450,6 +545,16 @@ export async function dernierRendu(db: Db, planId: number) {
     .from(jobs)
     .where(and(eq(jobs.planId, planId), eq(jobs.statut, "termine"), isNotNull(jobs.cheminSortie)))
     .orderBy(desc(jobs.createdAt), desc(jobs.id))
+    .limit(1);
+  return j ?? null;
+}
+
+/** Un rendu TERMINÉ précis d'un plan (même forme que `dernierRendu`), ou null s'il n'existe pas, n'est pas fini ou n'a pas de fichier. */
+async function renduDuPlan(db: Db, planId: number, jobId: number) {
+  const [j] = await db
+    .select({ id: jobs.id, cheminSortie: jobs.cheminSortie, finishedAt: jobs.finishedAt, createdAt: jobs.createdAt, workflowFichier: jobs.workflowFichier })
+    .from(jobs)
+    .where(and(eq(jobs.id, jobId), eq(jobs.planId, planId), eq(jobs.statut, "termine"), isNotNull(jobs.cheminSortie)))
     .limit(1);
   return j ?? null;
 }
@@ -506,22 +611,35 @@ export async function etatIterationPlan(db: Db, projectId: number, planUuid: str
  * - `repliques` (texte exact, slot, durée mesurée), `retourVisionnage` (obligatoire), `historique` ;
  * - `planche` : un DESCRIPTEUR du rendu (job, chemin relatif à MEDIA_ROOT, plafond de vignettes). Les images ne
  *   sont JAMAIS stockées dans agent_runs.entree : le worker reconstruit la planche à l'exécution
- *   (worker/agents/preparation.ts), mesure la durée réelle (ffprobe) et remplace `planche` par `rendu`. */
+ *   (worker/agents/preparation.ts), mesure la durée réelle (ffprobe) et remplace `planche` par `rendu`.
+ *   La planche n'est JAMAIS automatique (décision 2026-10-12) : sans `avecPlanche`, le descripteur est absent, l'entrée porte
+ *   `sansPlanche: true` et l'agent travaille depuis la consigne et la fiche actuelle (ni `rendu` ni durée mesurée). */
 export async function entreeIterationPlan(
   db: Db,
   projectId: number,
   planUuid: string,
   retourVisionnage: string,
+  /** Fiche de plan « table de montage » : l'essai (job) que l'agent doit regarder, quand ce n'est pas le dernier. */
+  renduId?: number | null,
+  /** Joindre la planche de vignettes du rendu (ffprobe + ffmpeg à l'exécution) : « Montrer au chef opérateur » ou « Analyser ». */
+  avecPlanche = false,
 ): Promise<(EntreeSkill & { plan: { id: number; uuid: string; titre: string } }) | { erreur: string }> {
   const [p] = await db.select().from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!p) return { erreur: "Plan introuvable dans ce projet." };
-  const rendu = await dernierRendu(db, p.id);
+  const rendu = renduId != null ? (await renduDuPlan(db, p.id, renduId)) ?? (await dernierRendu(db, p.id)) : await dernierRendu(db, p.id);
   if (!rendu?.cheminSortie) return { erreur: "Ce plan n'a pas encore de rendu terminé : on ne corrige pas un prompt à l'aveugle. Génère (ou importe) le plan, regarde-le, puis reviens." };
   const lignes = await db.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, p.id));
   const sections: Record<string, string> = {};
   for (const l of lignes) sections[l.section] = sections[l.section] ? `${sections[l.section]}\n${l.contenu}` : l.contenu;
   if (!Object.values(sections).some((s) => s.trim())) return { erreur: "Ce plan n'a pas de fiche (prompt vide) : écris-la d'abord (« Écrire la fiche »)." };
 
+  // Les voisins, pour le RACCORD (lecture seule) : intention et fin du précédent, intention et début du suivant. Contexte léger : 300 caractères
+  // d'intention et 450 de shot au plus par voisin.
+  const lesPlans = await plansDe(db, p.episodeId);
+  const rangPlan = lesPlans.findIndex((x) => x.uuid === p.uuid);
+  const avant = rangPlan > 0 ? lesPlans[rangPlan - 1]! : null;
+  const apres = rangPlan >= 0 ? lesPlans[rangPlan + 1] ?? null : null;
+  const [shotsAvant, shotsApres] = await Promise.all([avant ? shotsExtremesDuPlan(db, avant.uuid) : null, apres ? shotsExtremesDuPlan(db, apres.uuid) : null]);
   const [refs, dialogues, historique] = await Promise.all([
     db
       .select({ type: planRefs.type, slot: planRefs.slot, role: planRefs.role, retention: planRefs.retention, code: assets.code, typeAsset: assets.type })
@@ -564,10 +682,17 @@ export async function entreeIterationPlan(
   const contexte: ContexteUtilise[] = [
     { type: "plan", libelle: `Plan · ${p.titre} · prompt actuel (six sections)`, ref: p.uuid },
     { type: "registre", libelle: `Registre : ${registre.length} asset${registre.length > 1 ? "s" : ""} à citer en référence` },
-    { type: "plan", libelle: `Rendu ${importe ? "importé" : "généré"} du ${(rendu.finishedAt ?? rendu.createdAt).toLocaleString("fr-FR")} · planche de vignettes (une par seconde), extraite à l'exécution` },
+    {
+      type: "plan",
+      libelle: avecPlanche
+        ? `Rendu ${importe ? "importé" : "généré"} du ${(rendu.finishedAt ?? rendu.createdAt).toLocaleString("fr-FR")} · planche de vignettes (une par seconde), extraite à l'exécution`
+        : "Sans planche de vignettes : la consigne et la fiche actuelle seulement",
+    },
     { type: "registre", libelle: `${refs.length} référence${refs.length > 1 ? "s" : ""} du plan` },
     ...(dialogues.length ? [{ type: "plan" as const, libelle: `${dialogues.length} réplique${dialogues.length > 1 ? "s" : ""} liée${dialogues.length > 1 ? "s" : ""}` }] : []),
     ...(historique.length ? [{ type: "plan" as const, libelle: `${historique.length} correction${historique.length > 1 ? "s" : ""} déjà tentée${historique.length > 1 ? "s" : ""} sur ce plan` }] : []),
+    ...(avant ? [{ type: "plan" as const, libelle: `Plan précédent · ${avant.titre} (lecture seule, pour le raccord)`, ref: avant.uuid }] : []),
+    ...(apres ? [{ type: "plan" as const, libelle: `Plan suivant · ${apres.titre} (lecture seule, pour le raccord)`, ref: apres.uuid }] : []),
   ];
   return {
     skill: "iteration-plan",
@@ -586,7 +711,13 @@ export async function entreeIterationPlan(
       })),
       retourVisionnage,
       historique,
-      planche: { jobId: rendu.id, cheminSortie: rendu.cheminSortie, maxVignettes: MAX_VIGNETTES_ITERATION, importe },
+      plansVoisins: {
+        precedent: avant ? { titre: avant.titre, intention: avant.description.trim().slice(0, 300), ...(shotsAvant?.dernier ? { dernierShot: shotsAvant.dernier } : {}) } : null,
+        suivant: apres ? { titre: apres.titre, intention: apres.description.trim().slice(0, 300), ...(shotsApres?.premier ? { premierShot: shotsApres.premier } : {}) } : null,
+      },
+      ...(avecPlanche
+        ? { planche: { jobId: rendu.id, cheminSortie: rendu.cheminSortie, maxVignettes: MAX_VIGNETTES_ITERATION, importe } }
+        : { sansPlanche: true }),
     },
   };
 }

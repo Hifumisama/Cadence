@@ -10,7 +10,7 @@ import {
   insererRepliqueDansPrompt,
   lierReplique,
 } from "@/app/repliques/actions";
-import { estProblemeAudio, resumerProblemesDialogues, type ControleDialogues, type SegmentEcart, type StatutDuree } from "@/lib/plan-checks";
+import { phraseVoix, resumerProblemesDialogues, type ControleDialogues, type SegmentEcart, type StatutDuree } from "@/lib/plan-checks";
 import type { EtatPrise, LiaisonPlanVue, OptionsLocuteur, RepliqueVue } from "@/lib/queries-repliques";
 import { NouvelleRepliqueForm } from "@/components/repliques/NouvelleRepliqueForm";
 import { Icone } from "@/components/ui/Icone";
@@ -127,7 +127,7 @@ export function DialoguesPanel({
               ) : controle.peutGenerer ? (
                 <>
                   <strong>{nbProblemes} point{nbProblemes > 1 ? "s" : ""} à vérifier, rien ne bloque.</strong> {resumerProblemesDialogues(controle.problemes)}.
-                  {controle.problemes.some(estProblemeAudio) ? " Sans prise à jour, la vidéo aura une voix estimée par le modèle, potentiellement instable." : ""}
+                  {phraseVoix(controle.problemes) ? ` ${phraseVoix(controle.problemes)}.` : ""}
                 </>
               ) : (
                 <>
@@ -192,8 +192,12 @@ export function DialoguesPanel({
                   <div key={i} className="check warn">
                     <span className="glyph">⚠️</span>
                     <span>
-                      <span className="t">Pas de prise audio</span>
-                      <span className="d">« {tronquer(p.texte)} » n&rsquo;a pas de prise : la référence <code>&lt;Audio N&gt;</code> qui pilote le lipsync manque.</span>
+                      <span className="t">{p.master ? "Voix de référence" : "Pas de voix"}</span>
+                      <span className="d">
+                        {p.master
+                          ? <>« {tronquer(p.texte)} » n&rsquo;a pas de prise : la voix de référence du personnage sert de signature (<code>&lt;Audio N&gt;</code>), le modèle dit la ligne.</>
+                          : <>« {tronquer(p.texte)} » n&rsquo;a ni prise ni voix de référence : le modèle choisit la voix.</>}
+                      </span>
                     </span>
                   </div>
                 );

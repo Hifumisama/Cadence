@@ -11,7 +11,7 @@
     {"asset": "DEC_ruelles_bazar", "nature": "image", "role": "Décor, ruelles nocturnes de médina", "nom": "the bazar's nocturnal back alleys", "definition": "narrow passages under striped cloth awnings, ochre-plastered walls, chipped zellige tilework, horseshoe archways, shuttered stalls, wet cobblestones under moonlight.", "retentionNote": "the medina-style alley architecture and moonlit shadows are retained."}
   ],
   "summary": "The target video shows [[CHAR_maya]] plunging into [[DEC_ruelles_bazar]] in a panicked run, glancing back, slipping past walls and stalls, then leaning against a damp stone wall in a side passage to catch her breath.",
-  "ouverture": "Cinematic anime style, refined linework, cold moonlight against deep shadow.",
+  "ouverture": "Cold moonlight against deep shadow.",
   "shots": [
     {"debutSecondes": 0, "texte": "A wide shot follows [[CHAR_maya]], Maya, from the front as she runs toward the camera down the central alley of [[DEC_ruelles_bazar]], her ruby eyes fixed on the way ahead. Her steps land heavy and erratic on the wet cobblestones and the camera backs away at the same speed, keeping her centred in the frame."},
     {"debutSecondes": 2, "texte": "a ground-level shot of the feet of [[CHAR_maya]], Maya, slapping through a shallow puddle, water spraying sideways in the moonlight, the camera sliding along the cobblestones just ahead of her stride."},

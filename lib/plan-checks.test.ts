@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   controlerDialogues,
+  phraseVoix,
   controlerStructure,
   ecartVerbatim,
   extraireBalisesD,
@@ -115,10 +116,25 @@ test("réplique sans prise audio, ou prise obsolète : signalé", () => {
   assert.equal(c.peutGenerer, true);
 });
 
-test("une réplique absente du prompt avertit sans bloquer ; un texte cité autrement ou une balise orpheline bloquent", () => {
+test("trois niveaux de voix : seul un texte cité autrement que mot pour mot AVEC une prise bloque", () => {
+  // Réplique absente du prompt : jamais bloquant.
   assert.equal(controlerDialogues(prompt("Aucun dialogue ici."), [rep(1, "Un.")]).peutGenerer, true);
-  assert.equal(controlerDialogues(prompt("<d>Bonjour</d>"), []).peutGenerer, false);
-  assert.equal(controlerDialogues(prompt("<d>[Français] Je reviens demain</d>"), [rep(1, "Je reviens demain.")]).peutGenerer, false);
+  // Balise orpheline : le modèle dit ce que le prompt écrit, signalé sans bloquer.
+  const orpheline = controlerDialogues(prompt("<d>Bonjour</d>"), []);
+  assert.equal(orpheline.peutGenerer, true);
+  assert.equal(orpheline.ok, false);
+  // Texte différent : bloque seulement quand une prise (le doublage) fixe l'audio du lipsync.
+  const p = prompt("<d>[Français] Je reviens demain</d>");
+  assert.equal(controlerDialogues(p, [rep(1, "Je reviens demain.", { audioPresent: true })]).peutGenerer, false);
+  assert.equal(controlerDialogues(p, [rep(1, "Je reviens demain.", { audioPresent: false })]).peutGenerer, true);
+  assert.equal(controlerDialogues(p, [rep(1, "Je reviens demain.", { audioPresent: false, voixMaster: true })]).peutGenerer, true);
+});
+
+test("phrase des voix : Master, rien, prise périmée", () => {
+  const sans = (master: boolean) => controlerDialogues(prompt("<d>Un.</d>"), [rep(1, "Un.", { audioPresent: false, voixMaster: master })]).problemes;
+  assert.match(phraseVoix(sans(true)) ?? "", /voix de référence du personnage sert de signature/);
+  assert.match(phraseVoix(sans(false)) ?? "", /choisie par le modèle/);
+  assert.equal(phraseVoix([]), null);
 });
 
 test("emplacements audio : plus petit libre, null quand plein", () => {

@@ -13,6 +13,7 @@ import {
   real,
   jsonb,
   index,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -191,6 +192,11 @@ export const plans = pgTable("plans", {
   // bougé) ; « Nouvelle variante » en tire une autre.
   seed: text("seed").default(sql`floor(random() * 1000000000000000)::bigint::text`),
   notes: text("notes"),
+  // Fiche de plan « table de montage » (2026-10-12) : l'état affiché d'un plan est DÉRIVÉ (lib/fiche-plan.ts, etatPlan) : sans essai =
+  // brouillon, pret_upscale_at posé = prêt à upscaler, sinon en itération. Pas de valeur d'enum de plus. Un nouvel essai efface les deux.
+  pretUpscaleAt: timestamp("pret_upscale_at"),
+  // L'essai (job) validé quand le plan est prêt ; remis à null si on le supprime.
+  renduRetenuId: integer("rendu_retenu_id").references((): AnyPgColumn => jobs.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -488,6 +494,13 @@ export const jobs = pgTable("jobs", {
   tentative: integer("tentative").notNull().default(1),
   // Numéro du rendu dans le plan (1, 2, 3…), posé à la création du job ; ce que l'historique affiche.
   numeroRendu: integer("numero_rendu").notNull().default(1),
+  // La consigne en langage naturel qui a produit cet essai (fiche de plan, 2026-10-12) et le numéro de l'essai dont on est parti.
+  // Null pour une première génération, un import et les rendus d'avant.
+  consigne: text("consigne"),
+  depuisNumeroRendu: integer("depuis_numero_rendu"),
+  // Ce que l'agent d'« Itérer » a signalé en appliquant sa correction (doute sur son diagnostic, changement refusé par un contrôle…) :
+  // des informations gardées sur l'essai, jamais un blocage (lib/fiche-plan.ts, `decisionIteration`). Null hors itération.
+  alertesIteration: jsonb("alertes_iteration").$type<string[]>(),
   // Ce que le worker a réellement soumis : le prompt assemblé et la durée (la seed est dans `seedUtilisee`).
   // Sert à comparer deux rendus, et à expliquer pourquoi deux relances donnent le même plan.
   promptUtilise: text("prompt_utilise"),

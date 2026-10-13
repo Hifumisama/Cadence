@@ -412,7 +412,102 @@ export type PlanPourFicheH3 = {
   repliques: { uuid: string; texte: string; slot?: number; locuteurCode?: string | null }[];
   /** Le registre du projet (code, type), tel qu'il est maintenant. */
   registre: { code: string; type: string }[];
+  /** La clause de style du projet : le code la pose en tête de l'ouverture (plan-h3-assemblage). */
+  clauseStyle?: string;
+  /** Langue des dialogues du projet, pour une réplique que le code doit insérer lui-même (« Français » par défaut). */
+  langueDialogues?: string;
+  /** Toutes les répliques du plan sont de la voix off d'un personnage à l'écran (le brief dit sa `voix` : voix off, pensées) : le code écrit
+   * leur balise à la forme H3 (« says in an off-screen voiceover », bouche close). */
+  voixOff?: boolean;
 };
+
+/** Les codes des personnages dont le brief dit que la voix est une voix off (pensées, monologue intérieur) : leur `voix` le dit en clair. */
+export function codesEnVoixOff(personnages: { nom?: string; voix?: string }[], codes: string[]): Set<string> {
+  const voixOff = /voix\s*off|pens[ée]e|monologue|int[ée]rieur|inner|voice-?over/i;
+  const noms = personnages.filter((p) => typeof p.nom === "string" && voixOff.test(p.voix ?? "")).map((p) => slugifyCode(p.nom!));
+  return new Set(codes.filter((c) => noms.includes(slugifyCode(c.includes("_") ? c.slice(c.indexOf("_") + 1) : c))));
+}
+
+/** Met en voix off les balises `<d>` d'un shot : la phrase de parole devient « <locuteur> (Sx) says in an off-screen voiceover: <d>…</d> while the
+ * character's lips remain completely closed » (forme exigée par H3 : sans elle le personnage à l'écran bouge les lèvres). Une balise déjà en
+ * voix off est laissée telle quelle. Pur, testé. */
+export function mettreEnVoixOff(texte: string, locuteur: { code: string | null; numero: string }): { texte: string; change: boolean } {
+  const qui = locuteur.code ? `[[${locuteur.code}]]` : "The character";
+  const SUITE = /^\s*while\b[^.<]{0,60}lips[^.<]*\.?/i; // « while her lips remain completely closed. »
+  let change = false;
+  let sortie = "";
+  let reste = texte;
+  for (;;) {
+    const m = /<d>[\s\S]*?<\/d>/i.exec(reste);
+    if (!m) break;
+    const avant = reste.slice(0, m.index);
+    reste = reste.slice(m.index + m[0].length);
+    if (/off-screen voice-?over[^<]*$/i.test(avant)) {
+      sortie += avant + m[0];
+    } else {
+      // La phrase de parole (« …, and murmurs to herself: ») est remplacée : la phrase d'avant est close, puis la forme H3.
+      const verbe = /,?\s*(?:and\s+)?\b(?:murmurs?|whispers?|says?|speaks?|mutters?|thinks?|declares?|states?|asks?|replies)\b[^.<:]*[:,]?\s*$/i.exec(avant);
+      let tete = (verbe ? avant.slice(0, verbe.index) : avant).trimEnd();
+      if (tete && !/[.!?]$/.test(tete)) tete += ".";
+      sortie += `${tete}${tete ? " " : ""}${qui} (${locuteur.numero}) says in an off-screen voiceover: ${m[0]}`;
+      change = true;
+    }
+    const suite = SUITE.exec(reste);
+    if (suite) {
+      sortie += suite[0];
+      reste = reste.slice(suite[0].length);
+    } else {
+      sortie += " while the character's lips remain completely closed.";
+      reste = reste.replace(/^\s*[.!?]/, "");
+      change = true;
+    }
+  }
+  return { texte: sortie + reste, change };
+}
+
+const normeEspaces = (s: string) => s.replace(/\s+/g, " ").trim();
+
+/** Une réplique liée au plan mais ABSENTE des shots : le prompt vidéo fait foi (décision 2026-10-13), le code l'y insère au lieu de
+ * laisser un plan muet. Elle va dans le shot qui couvre `debutSecondes` (celui que le modèle a donné pour elle), sinon le dernier.
+ * Une réplique dont un fragment est déjà dans une balise `<d>` (coupée en deux, retouchée) n'est PAS réinsérée : elle serait dite
+ * deux fois ; le contrôle verbatim la signale. Pur, testé. */
+export function injecterRepliquesAbsentes(
+  shots: { debutSecondes: number; texte: string }[],
+  repliquesSortie: { repliqueId: string; debutSecondes?: number }[],
+  repliquesPlan: { uuid: string; texte: string; locuteurCode?: string | null }[],
+  codesReferences: Set<string>,
+  langueDefaut = "Français",
+): { shots: { debutSecondes: number; texte: string }[]; inserees: { texte: string; shot: number }[] } {
+  const sortie = shots.map((s) => ({ ...s }));
+  const inserees: { texte: string; shot: number }[] = [];
+  if (sortie.length === 0) return { shots: sortie, inserees };
+  for (const r of repliquesPlan) {
+    const t = normeEspaces(r.texte);
+    if (!t) continue;
+    const tout = normeEspaces(sortie.map((s) => s.texte ?? "").join(" "));
+    if (tout.includes(t)) continue;
+    const balises = [...tout.matchAll(/<d>([\s\S]*?)<\/d>/gi)].map((m) => normeEspaces(m[1]!.replace(/^\s*\[[^\]]*\]\s*/, "")));
+    if (balises.some((b) => b.length >= 6 && (t.includes(b) || b.includes(t)))) continue;
+    const debut = repliquesSortie.find((x) => x.repliqueId === r.uuid)?.debutSecondes;
+    let idx = sortie.length - 1;
+    if (typeof debut === "number") {
+      idx = 0;
+      sortie.forEach((s, i) => {
+        if (s.debutSecondes <= debut) idx = i;
+      });
+    }
+    const langue = /<d>\s*\[([^\]]+)\]/i.exec(tout)?.[1]?.trim() || langueDefaut;
+    const code = r.locuteurCode && codesReferences.has(r.locuteurCode) ? r.locuteurCode : null;
+    const existant = code ? new RegExp(`\\[\\[${echapperRe(code)}\\]\\]\\s*\\((S\\d+)\\)`).exec(tout)?.[1] : null;
+    const numeros = [...tout.matchAll(/\(S(\d+)\)/g)].map((m) => Number(m[1]));
+    const locuteur = existant ?? `S${(numeros.length ? Math.max(...numeros) : 0) + 1}`;
+    const avant = (sortie[idx]!.texte ?? "").trim();
+    const fin = /[.!?:>]$/.test(avant) ? "" : ".";
+    sortie[idx] = { ...sortie[idx]!, texte: `${avant}${fin} ${code ? `[[${code}]]` : "The character"} (${locuteur}) says, <d>[${langue}] ${r.texte.trim()}</d>` };
+    inserees.push({ texte: r.texte, shot: idx + 1 });
+  }
+  return { shots: sortie, inserees };
+}
 
 export type OptionsFichePlan = {
   /** Lot : `ep-<id>` (un groupe par épisode) ; sinon « fiches » pour la fiche, « assets » pour les créations. */
@@ -464,7 +559,30 @@ function versAvertissement(p: ProblemeH3): Avertissement | null {
  * l'applicateur `fiche` (écrasement). Pur, testé. */
 export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3, options: OptionsFichePlan = {}): ChangementBrut[] {
   // Un code mal recopié (mots de liaison) se corrige sans ambiguïté ; sinon il reste une erreur franche (voir codes-proches.ts).
-  const { sortie, corrections } = corrigerCodesInconnus(sortieBrute, plan.registre.map((a) => a.code));
+  const { sortie: sortieCorrigee, corrections } = corrigerCodesInconnus(sortieBrute, plan.registre.map((a) => a.code));
+  // Le prompt vidéo fait foi : une réplique liée au plan mais absente des shots y est insérée (au lieu d'un plan muet).
+  const insertion = injecterRepliquesAbsentes(
+    (sortieCorrigee.shots ?? []).map((s) => ({ debutSecondes: s.debutSecondes, texte: s.texte ?? "" })),
+    sortieCorrigee.repliques ?? [],
+    plan.repliques,
+    new Set((sortieCorrigee.references ?? []).map((r) => r.asset)),
+    plan.langueDialogues,
+  );
+  // Voix off d'un personnage à l'écran (le brief le dit) : le code écrit la forme H3 (« says in an off-screen voiceover », bouche close).
+  let shotsFinaux = insertion.shots;
+  let voixOffEcrite = false;
+  if (plan.voixOff) {
+    const code = plan.repliques.map((r) => r.locuteurCode).find((c): c is string => !!c && (sortieCorrigee.references ?? []).some((x) => x.asset === c)) ?? null;
+    const tout = shotsFinaux.map((s) => s.texte).join(" ");
+    const numero = (code ? new RegExp(`\\[\\[${echapperRe(code)}\\]\\]\\s*\\((S\\d+)\\)`).exec(tout)?.[1] : null) ?? /\((S\d+)\)/.exec(tout)?.[1] ?? "S1";
+    shotsFinaux = shotsFinaux.map((s) => {
+      if (!/<d>/i.test(s.texte)) return s;
+      const r = mettreEnVoixOff(s.texte, { code, numero });
+      voixOffEcrite ||= r.change;
+      return { ...s, texte: r.texte };
+    });
+  }
+  const sortie: SortiePlanH3 = { ...sortieCorrigee, shots: shotsFinaux };
   const typeDe = new Map(plan.registre.map((a) => [a.code, a.type]));
   const avertissements: Avertissement[] = [];
   const ajouter = (a: Avertissement | null) => {
@@ -472,6 +590,8 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   };
 
   for (const c of corrections) ajouter({ type: "info", texte: `Code « ${c.de} » corrigé en « ${c.vers} » : même asset, mal recopié par le modèle.` });
+  // (la mise en voix off est annoncée plus bas, une fois `voixOffEcrite` connue)
+  for (const i of insertion.inserees) ajouter({ type: "alerte_controle", texte: `Réplique « ${i.texte.slice(0, 60)} » absente des shots : insérée par le code dans le shot ${i.shot} (le prompt vidéo fait foi) ; relis son placement.` });
 
   // 1. références : seules celles du registre, de la bonne nature, une fois chacune
   let textes = {
@@ -516,7 +636,7 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
 
   // 2. assemblage (labels, timecodes, sections) avec les slots des voix
   const voix = plan.repliques.flatMap((r) => (r.slot == null ? [] : [{ slot: r.slot, texte: r.texte, locuteurCode: r.locuteurCode }]));
-  const assemble = assemblerPlanH3(nettoyee, { slotsAudioPris: plan.slotsAudioPris, voix });
+  const assemble = assemblerPlanH3(nettoyee, { slotsAudioPris: plan.slotsAudioPris, voix, clauseStyle: plan.clauseStyle });
   const refs: RefFiche[] = assemble.refs
     .filter((r) => r.slot != null)
     .map((r) => {
@@ -545,6 +665,7 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   for (const r of sortie.repliques ?? []) {
     if (!liees.has(r.repliqueId)) ajouter({ type: "alerte_controle", texte: `La sortie cite une réplique qui n'est pas liée au plan (${r.repliqueId}) : ignorée, les liens restent ceux du plan.` });
   }
+  if (voixOffEcrite) ajouter({ type: "info", texte: "Voix off : le brief dit que ce personnage parle en voix off ; ses répliques sont écrites « says in an off-screen voiceover… lips remain completely closed » par le code (aucun mouvement de lèvres)." });
   const residuel = /\[\[\s*([^\]]+?)\s*\]\]/.exec(assemble.texte);
   if (residuel) {
     ajouter({

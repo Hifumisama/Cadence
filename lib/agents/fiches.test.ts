@@ -320,3 +320,81 @@ test("un effet (vfx) cité en image passe en weak_reference, jamais fully_preser
   assert.match(retention, /never appears as a standalone image/);
   assert.doesNotMatch(retention, /fully_preserved.*golden energy|<Subject 3>.*fully_preserved/);
 });
+
+// --- réplique liée mais absente des shots : le prompt vidéo fait foi, le code l'insère (2026-10-13) ---
+
+test("injecterRepliquesAbsentes : insère la réplique manquante dans le shot qui couvre son début, avec le locuteur", async () => {
+  const { injecterRepliquesAbsentes } = await import("./conversion");
+  const shots = [
+    { debutSecondes: 0, texte: "A medium shot holds on [[CHAR_mai]], Mai, standing still" },
+    { debutSecondes: 4, texte: "a close-up of [[CHAR_mai]], her face lit by the fire." },
+    { debutSecondes: 7, texte: "a medium shot from the side" },
+  ];
+  const r = injecterRepliquesAbsentes(shots, [{ repliqueId: "u1", debutSecondes: 8 }], [{ uuid: "u1", texte: "Encore une fois... il faut y arriver.", locuteurCode: "CHAR_mai" }], new Set(["CHAR_mai"]));
+  assert.deepEqual(r.inserees, [{ texte: "Encore une fois... il faut y arriver.", shot: 3 }]);
+  assert.equal(r.shots[2]!.texte, "a medium shot from the side. [[CHAR_mai]] (S1) says, <d>[Français] Encore une fois... il faut y arriver.</d>");
+  assert.equal(r.shots[0]!.texte, shots[0]!.texte);
+});
+
+test("injecterRepliquesAbsentes : rien si la réplique y est déjà, ou si un fragment est déjà dans une balise <d> (pas de double parole)", async () => {
+  const { injecterRepliquesAbsentes } = await import("./conversion");
+  const pr = [{ uuid: "u1", texte: "Oui... c'est ça ! Viens à moi.", locuteurCode: "CHAR_mai" }];
+  const entiere = [{ debutSecondes: 0, texte: "[[CHAR_mai]] (S1) says <d>[Français] Oui... c'est ça ! Viens à moi.</d>" }];
+  assert.equal(injecterRepliquesAbsentes(entiere, [], pr, new Set(["CHAR_mai"])).inserees.length, 0);
+  const coupee = [{ debutSecondes: 0, texte: "<d>[Français] Oui... c'est ça !</d>" }, { debutSecondes: 3, texte: "<d>[Français] Viens à moi.</d>" }];
+  const r = injecterRepliquesAbsentes(coupee, [], pr, new Set(["CHAR_mai"]));
+  assert.equal(r.inserees.length, 0);
+  assert.deepEqual(r.shots, coupee);
+});
+
+test("injecterRepliquesAbsentes : numéro de locuteur suivant, 'The character' sans référence, langue reprise des balises existantes", async () => {
+  const { injecterRepliquesAbsentes } = await import("./conversion");
+  const shots = [{ debutSecondes: 0, texte: "[[CHAR_a]] (S1) speaks <d>[English] Hello there.</d>" }];
+  const r = injecterRepliquesAbsentes(shots, [], [{ uuid: "u2", texte: "Goodbye now.", locuteurCode: "CHAR_inconnu" }], new Set(["CHAR_a"]));
+  assert.equal(r.shots[0]!.texte, "[[CHAR_a]] (S1) speaks <d>[English] Hello there.</d> The character (S2) says, <d>[English] Goodbye now.</d>");
+});
+
+// --- voix off d'un personnage à l'écran (brief : « voix off ») : la forme H3 est écrite par le code (2026-10-14) ---
+
+test("mettreEnVoixOff : la phrase de parole devient la forme H3, bouche close après chaque <d>", async () => {
+  const { mettreEnVoixOff } = await import("./conversion");
+  const r = mettreEnVoixOff("A close-up holds on [[CHAR_mai]], Mai. She closes her eyes, takes a deep breath, and murmurs to herself: <d>[Français] Ok... Mai, concentre-toi.</d> Her shoulders relax.", { code: "CHAR_mai", numero: "S1" });
+  assert.equal(r.change, true);
+  assert.equal(
+    r.texte,
+    "A close-up holds on [[CHAR_mai]], Mai. She closes her eyes, takes a deep breath. [[CHAR_mai]] (S1) says in an off-screen voiceover: <d>[Français] Ok... Mai, concentre-toi.</d> while the character's lips remain completely closed. Her shoulders relax.",
+  );
+});
+
+test("mettreEnVoixOff : déjà en voix off avec la bouche close = intact ; sans verbe de parole ; plusieurs <d>", async () => {
+  const { mettreEnVoixOff } = await import("./conversion");
+  const deja = "[[CHAR_mai]] (S1) says in an off-screen voiceover: <d>[Français] Plus fort.</d> while her lips remain completely closed.";
+  assert.deepEqual(mettreEnVoixOff(deja, { code: "CHAR_mai", numero: "S1" }), { texte: deja, change: false });
+  const sans = mettreEnVoixOff("Mai lowers the wand. <d>[Français] Plus fort.</d>.", { code: null, numero: "S2" });
+  assert.equal(sans.texte, "Mai lowers the wand. The character (S2) says in an off-screen voiceover: <d>[Français] Plus fort.</d> while the character's lips remain completely closed.");
+  const deux = mettreEnVoixOff("She whispers: <d>[Français] Un.</d> Then, she says <d>[Français] Deux.</d>", { code: "CHAR_mai", numero: "S1" });
+  assert.equal((deux.texte.match(/off-screen voiceover/g) ?? []).length, 2);
+  assert.equal((deux.texte.match(/lips remain completely closed/g) ?? []).length, 2);
+});
+
+test("codesEnVoixOff : un personnage dont le brief dit « voix off » ; les autres non", async () => {
+  const { codesEnVoixOff } = await import("./conversion");
+  const persos = [{ nom: "Mai", voix: "Voix off lors de ses auto-instructions." }, { nom: "Le Garde", voix: "grave, posée" }];
+  assert.deepEqual([...codesEnVoixOff(persos, ["CHAR_mai", "CHAR_le_garde", "VOICE_off"])], ["CHAR_mai"]);
+});
+
+test("depuisFichePlan : voixOff réécrit la parole d'un plan dont le brief met le personnage en voix off", () => {
+  const sortie = {
+    titre: "t", dureeSecondes: 8, summary: "s", ouverture: "Dark.", overall_soundscape: "x", non_diegetic_music: "N/A", assetsManquants: [], notes: "",
+    references: [{ asset: "CHAR_mai", nature: "image" as const, role: "Mai", nom: "Mai", definition: "in her robe." }],
+    shots: [{ debutSecondes: 0, texte: "a close-up of [[CHAR_mai]], eyes closed, and whispers: <d>[Français] Plus fort.</d>" }],
+    repliques: [{ repliqueId: "u1" }],
+  };
+  const plan = { uuid: "p", titre: "Plan", slotsAudioPris: [1], repliques: [{ uuid: "u1", texte: "Plus fort.", slot: 1, locuteurCode: "CHAR_mai" }], registre: [{ code: "CHAR_mai", type: "personnage" }], voixOff: true };
+  const r = depuisFichePlan(sortie, plan);
+  const prompt = (r[0]!.apres as { sections: { detailed_description: string } }).sections.detailed_description;
+  assert.match(prompt, /<Subject 1> \(S1\) says in an off-screen voiceover: <d>\[Français\] Plus fort\.<\/d> while the character's lips remain completely closed\./);
+  assert.ok(r[0]!.avertissements!.some((a) => /Voix off/.test(a.texte)));
+  const sans = depuisFichePlan(sortie, { ...plan, voixOff: false });
+  assert.ok(!/off-screen/.test((sans[0]!.apres as { sections: { detailed_description: string } }).sections.detailed_description));
+});

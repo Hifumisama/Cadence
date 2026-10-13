@@ -33,7 +33,7 @@
       }
     },
     "summary": { "type": "string", "description": "(English) One paragraph, WITHOUT a bracketed prefix (the code adds it). Assets are written [[CODE_ASSET]]." },
-    "ouverture": { "type": "string", "description": "(English) One to three sentences before the first shot: the visual style (the project's style clause), the light and, when two or more characters act together, which one is on the left of the frame and which on the right, facing which way. No [[CODE]] marker." },
+    "ouverture": { "type": "string", "description": "(English) One to three sentences before the first shot: the light (the code puts the project's style clause first: write no visual style) and, when two or more characters act together, which one is on the left of the frame and which on the right, facing which way. No [[CODE]] marker." },
     "shots": {
       "type": "array",
       "minItems": 1,
@@ -70,11 +70,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["code", "type", "description", "raison"],
+        "required": ["code", "type", "parent", "description", "raison"],
         "properties": {
           "code": { "type": "string", "description": "Proposed code, prefixed by the type (PROP_lettre, DEC_ruelle_nuit)." },
           "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "sfx", "keyframe", "oth"] },
-          "parent": { "type": "string", "description": "Optional. Code of the existing asset that will serve as starting image (the same place at night, the same wounded character). A mere proposal: the registry is flat. For a `keyframe`, leave empty and list the elements to combine in `raison`." },
+          "parent": { "type": ["string", "null"], "description": "ALWAYS answer: the code of the BASE subject (from the registry) when this missing asset is a STATE of it (the same set with the fire out or at night, the same character wounded or transformed, the same prop broken): same type as that subject. `null` only for an independent asset. A state of a state also points to the base subject. For a `keyframe`, `null` and list the elements to combine in `raison`." },
           "description": { "type": "string", "description": "(French) What it is, as in the registry." },
           "raison": { "type": "string", "description": "(French) Why an existing reference is not enough." }
         }

@@ -2,19 +2,24 @@
 
 import { db } from "@/db";
 import { jobs, planDialogues, planPromptSections, planRefs, plans } from "@/db/schema";
-import { eq, and, desc, inArray, isNotNull, max } from "drizzle-orm";
+import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { getPlansPerimes } from "@/lib/plans-perimes";
+import { classerPourPrevisualisation, consequencesSuppression, decisionIteration, essaiEnFile } from "@/lib/fiche-plan";
+import { appliquerSelection, cocherChangements, propositionParUuid } from "@/lib/agents/service";
+import { lireProposition } from "@/lib/queries-agents";
+import type { Tx } from "@/lib/ordre-plans";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { mkdir, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { extname, join, resolve } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, estProblemeBloquant, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
 import { getDialoguesPlan } from "@/lib/queries-repliques";
 import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
 import type { RefLabel } from "@/lib/plan-checks";
 import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
-import { raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib/rendus";
+import { promptDiffere, raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib/rendus";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_VIDEO, cheminPlanMedia, estVideo } from "@/lib/media";
+import { assemblerPrompt } from "@/lib/prompt";
 
 export async function updatePromptSection(
   planId: number,
@@ -48,16 +53,23 @@ export async function updatePromptSection(
  * d'itération. Le worker applique ensuite le healthcheck et la distinction
  * indisponible/échec réel (F04). Ne revalide pas le cache : le batch veut
  * une seule revalidation après N plans, pas une par plan. */
-async function creerJobRelance(planId: number, activerUpscale: boolean, nouvelleVariante = false) {
-  const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
+async function creerJobRelance(
+  planId: number,
+  activerUpscale: boolean,
+  nouvelleVariante = false,
+  options: { consigne?: string | null; depuisNumero?: number | null; garderPret?: boolean; alertesIteration?: string[] } = {},
+  /** Une transaction en cours (« Itérer » : application de la correction + création de l'essai, tout ou rien). */
+  exec: typeof db | Tx = db,
+) {
+  const [plan] = await exec.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
 
   // « Relancer » garde la seed du plan : même prompt + mêmes refs + même durée = même rendu (F04). Une
   // « nouvelle variante » en tire une autre, qui devient la seed du plan.
   const seed = nouvelleVariante || !plan.seed ? tirerSeed() : plan.seed;
-  const [rendus] = await db.select({ dernier: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, plan.id));
+  const [rendus] = await exec.select({ dernier: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, plan.id));
 
-  await db.insert(jobs).values({
+  await exec.insert(jobs).values({
     planId: plan.id,
     statut: "en_attente",
     tentative: 1,
@@ -65,11 +77,21 @@ async function creerJobRelance(planId: number, activerUpscale: boolean, nouvelle
     workflowFichier: "video-generation/VID_REF2VA.json",
     seedUtilisee: seed,
     activerUpscale,
+    consigne: options.consigne?.trim() || null,
+    depuisNumeroRendu: options.depuisNumero ?? null,
+    alertesIteration: options.alertesIteration?.length ? options.alertesIteration : null,
   });
 
-  await db
+  // Un nouvel essai remet un plan « prêt à upscaler » en itération (fiche de plan 2026-10-12) ; seul l'upscale de l'essai retenu
+  // (`garderPret`) laisse le marqueur en place.
+  await exec
     .update(plans)
-    .set({ statut: "en_attente", seed, updatedAt: new Date() })
+    .set({
+      statut: "en_attente",
+      seed,
+      ...(options.garderPret ? {} : { pretUpscaleAt: null, renduRetenuId: null }),
+      updatedAt: new Date(),
+    })
     .where(eq(plans.id, plan.id));
 }
 
@@ -158,7 +180,8 @@ export async function rendreFinalAvecRendu(planId: number, jobId: number, restau
   if (!r.ok) return r;
   const blocage = await blocageDialogues(planId);
   if (blocage) return { ok: false, erreur: `Dialogues à corriger avant de générer : ${blocage}.` };
-  await creerJobRelance(planId, true, false);
+  const [plan] = await db.select({ retenu: plans.renduRetenuId }).from(plans).where(eq(plans.id, planId));
+  await creerJobRelance(planId, true, false, { garderPret: plan?.retenu === jobId });
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -180,6 +203,8 @@ export async function figerEtLancer(
   planId: number,
   brouillon: BrouillonPlan,
   mode: "previsualiser" | "final" | "variante",
+  /** Fiche de plan : la consigne de l'utilisateur et le numéro de l'essai dont on part, gardés sur l'essai créé. */
+  essai: { consigne?: string | null; depuisNumero?: number | null } = {},
 ): Promise<{ ok: true; numeroRendu: number } | { ok: false; erreur: string }> {
   const { dureeGenerationSecondes: duree, fps, seed } = brouillon;
   if (duree != null && (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
@@ -207,10 +232,68 @@ export async function figerEtLancer(
     revalidatePath("/", "layout");
     return { ok: false, erreur: `Figé, mais dialogues à corriger avant de générer : ${blocage}.` };
   }
-  await creerJobRelance(planId, mode === "final", mode === "variante");
+  await creerJobRelance(planId, mode === "final", mode === "variante", { consigne: essai.consigne, depuisNumero: essai.depuisNumero });
   const [dernier] = await db.select({ n: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, planId));
   revalidatePath("/", "layout");
   return { ok: true, numeroRendu: dernier?.n ?? 1 };
+}
+
+/** « Itérer » (et « Appliquer et générer » après une analyse) : la FIN de la transaction indissociable consigne → l'agent réécrit →
+ * application → génération, sans confirmation (décision 2026-10-12, docs/FRICTIONS.md). La proposition `iteration-plan` est lue ici (jamais
+ * crue sur parole du client), sa décision (`decisionIteration`) recalculée, puis la correction est appliquée ET l'essai créé dans UNE
+ * transaction : si l'un échoue, rien n'est écrit. On applique les changements qui passent les contrôles, on garde le reste en notes sur
+ * l'essai (`jobs.alertes_iteration`). Le prompt remplacé reste dans l'essai précédent (« Repartir de là »). Seuls arrêts, sans rien écrire :
+ * l'agent a échoué, aucune écriture appliquable, un essai déjà en file, des dialogues à corriger. Les dialogues sont contrôlés AVANT :
+ * une correction ne touche jamais aux balises `<d>` (contrôle verbatim), son application ne change donc pas leur état. */
+export async function appliquerIterationEtGenerer(
+  planId: number,
+  propositionUuid: string,
+  essai: { consigne: string | null; depuisNumero: number | null },
+  /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits dans la même transaction que l'essai. */
+  reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string } = {},
+): Promise<{ ok: true; numeroRendu: number; notes: string[] } | { ok: false; erreur: string }> {
+  const { dureeGenerationSecondes: duree, fps, seed } = reglages;
+  if (duree != null && (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
+    return { ok: false, erreur: `Durée de génération : entre ${DUREE_GENERATION_MIN} et ${DUREE_GENERATION_MAX} s.` };
+  }
+  if (fps != null && (!Number.isInteger(fps) || fps < 1)) return { ok: false, erreur: "FPS invalide." };
+  if (seed != null && !/^\d{1,15}$/.test(seed)) return { ok: false, erreur: "Seed invalide : 15 chiffres au plus." };
+  const prop = await propositionParUuid(propositionUuid);
+  if (!prop || prop.skill !== "iteration-plan" || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
+  const vue = await lireProposition(propositionUuid);
+  const decision = decisionIteration(vue);
+  if (decision.action === "attendre") return { ok: false, erreur: "L'agent n'a pas encore fini de répondre." };
+  if (decision.action === "echec") return { ok: false, erreur: decision.erreur };
+  if (decision.action === "rien") return { ok: false, erreur: decision.message };
+
+  const enFile = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.planId, planId), inArray(jobs.statut, ["en_attente", "en_cours"]))).limit(1);
+  if (enFile.length > 0) return { ok: false, erreur: "Un essai est déjà en file ou en cours sur ce plan : rien n'a été appliqué." };
+  const blocage = await blocageDialogues(planId);
+  if (blocage) return { ok: false, erreur: `Dialogues à corriger avant de générer : ${blocage}. Rien n'a été appliqué.` };
+
+  const c = await cocherChangements(propositionUuid, { ids: decision.ids }, true);
+  if (!c.ok) return { ok: false, erreur: c.erreur };
+  try {
+    const r = await appliquerSelection(propositionUuid, {
+      // Lancer « Itérer » consent à écraser le prompt actuel : il reste dans l'essai précédent.
+      confirmeEcrasement: true,
+      dansTransaction: async (tx) => {
+        if (fps != null || duree != null || seed != null) {
+          await tx
+            .update(plans)
+            .set({ ...(fps != null ? { fps } : {}), ...(duree != null ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}), ...(seed != null ? { seed } : {}), updatedAt: new Date() })
+            .where(eq(plans.id, planId));
+        }
+        await creerJobRelance(planId, false, false, { consigne: essai.consigne, depuisNumero: essai.depuisNumero, alertesIteration: decision.notes }, tx);
+      },
+    });
+    if (!r.ok) return { ok: false, erreur: r.erreur };
+  } catch (e) {
+    return { ok: false, erreur: `Rien n'a été appliqué ni généré : ${e instanceof Error ? e.message : "erreur inattendue"}.` };
+  }
+  const [dernier] = await db.select({ n: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, planId));
+  revalidatePath("/", "layout");
+  return { ok: true, numeroRendu: dernier?.n ?? 1, notes: decision.notes };
 }
 
 /** Écrit les sections modifiées sans lancer de rendu : appelé avant d'ajouter ou de retirer une référence, car ces deux
@@ -242,7 +325,7 @@ export async function lancerPassageNuit(episodeId: number): Promise<{ n: number;
       bloques++;
       continue;
     }
-    await creerJobRelance(p.id, true);
+    await creerJobRelance(p.id, true, false, { garderPret: true });
     n++;
   }
 
@@ -258,18 +341,14 @@ async function classerPourPrevisualisations(episodeId: number) {
   const jobsDuPlan = lignes.length
     ? await db.select({ planId: jobs.planId, statut: jobs.statut }).from(jobs).where(inArray(jobs.planId, lignes.map((l) => l.id)))
     : [];
-  const aJob = (id: number, statuts: string[]) => jobsDuPlan.some((j) => j.planId === id && statuts.includes(j.statut));
-  const neufs: number[] = [];
-  const avecRendu: number[] = [];
-  let dejaEnFile = 0;
-  let brouillons = 0;
-  for (const l of lignes) {
-    if (l.statut === "brouillon") brouillons++;
-    else if (l.statut === "en_cours" || aJob(l.id, ["en_attente", "en_cours"])) dejaEnFile++;
-    else if (aJob(l.id, ["termine"])) avecRendu.push(l.id);
-    else neufs.push(l.id);
-  }
-  return { neufs, avecRendu, dejaEnFile, brouillons };
+  return classerPourPrevisualisation(
+    lignes.map((l) => ({
+      id: l.id,
+      statut: l.statut,
+      nbTermines: jobsDuPlan.filter((j) => j.planId === l.id && j.statut === "termine").length,
+      nbEnFile: jobsDuPlan.filter((j) => j.planId === l.id && (j.statut === "en_attente" || j.statut === "en_cours")).length,
+    })),
+  );
 }
 
 export type PlanPrevisualisation = {
@@ -560,7 +639,7 @@ export async function analyserPromptColle(
   const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, refs, audioRefs);
   const repliquesNonTrouvees = controlerDialogues(
     sectionsPourControle,
-    liaisons.map((l) => ({ id: l.id, texte: l.texte, audioPresent: l.fichier != null, priseObsolete: l.priseObsolete })),
+    liaisons.map((l) => ({ id: l.id, texte: l.texte, audioPresent: l.fichier != null, priseObsolete: l.priseObsolete, voixMaster: l.voixMaster })),
   )
     .problemes.flatMap((p) => (p.type === "absente" || p.type === "differente" ? [p.texte] : []));
 
@@ -633,7 +712,150 @@ export async function importerVideoExistante(planId: number, formData: FormData)
     finishedAt: new Date(),
   });
 
-  await db.update(plans).set({ statut: "termine", updatedAt: new Date() }).where(eq(plans.id, planId));
+  await db.update(plans).set({ statut: "termine", pretUpscaleAt: null, renduRetenuId: null, updatedAt: new Date() }).where(eq(plans.id, planId));
 
   revalidatePath("/", "layout");
+}
+
+// --- fiche de plan « table de montage » (2026-10-12) --------------------------------------------------------------------
+
+type Resume = { ok: true } | { ok: false; erreur: string };
+
+/** « Prêt à upscaler » : l'essai affiché (A) devient l'essai retenu du plan. Il faut un essai terminé avec son fichier ; une vidéo
+ * importée peut être validée (elle n'aura simplement pas d'upscale : pas de seed, voir `lancerUpscaleEpisode`). */
+export async function validerPretUpscale(planId: number, jobId: number): Promise<Resume> {
+  const [job] = await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.planId, planId)));
+  if (!job) return { ok: false, erreur: "Essai introuvable pour ce plan." };
+  if (job.statut !== "termine" || !job.cheminSortie) return { ok: false, erreur: "Cet essai n'est pas terminé : on ne valide qu'un essai qu'on peut regarder." };
+  await db.update(plans).set({ pretUpscaleAt: new Date(), renduRetenuId: job.id, updatedAt: new Date() }).where(eq(plans.id, planId));
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** « Rouvrir l'itération » : le plan n'est plus prêt (l'essai retenu est oublié, les essais restent). */
+export async function rouvrirIteration(planId: number): Promise<Resume> {
+  await db.update(plans).set({ pretUpscaleAt: null, renduRetenuId: null, updatedAt: new Date() }).where(eq(plans.id, planId));
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Avant « Itérer » depuis un essai qui n'est pas le plus récent : le plan reprend le prompt, la seed et la durée de CET essai, pour que
+ * la consigne s'applique à son prompt (et que l'agent regarde son rendu). Ne fait rien pour le plus récent essai, pour un import (ni
+ * seed ni prompt) ni quand le prompt est déjà le bon ; le prompt de l'essai qu'on quitte reste retrouvable dans son propre essai
+ * (`promptUtilise`), « Repartir de là » le rend. `restaure` dit si le prompt a été réécrit. */
+export async function preparerBaseIteration(planId: number, jobId: number): Promise<{ ok: true; restaure: boolean } | { ok: false; erreur: string }> {
+  const lignes = await db.select().from(jobs).where(eq(jobs.planId, planId));
+  const base = lignes.find((j) => j.id === jobId);
+  if (!base) return { ok: false, erreur: "Essai de départ introuvable pour ce plan." };
+  const lisibles = lignes.filter((j) => j.statut === "termine" && !!j.cheminSortie);
+  const dernier = lisibles.reduce<(typeof lisibles)[number] | null>((m, j) => (!m || j.numeroRendu > m.numeroRendu ? j : m), null);
+  if (!dernier || dernier.id === base.id) return { ok: true, restaure: false };
+  const raison = raisonNonRetenable({
+    id: base.id,
+    numeroRendu: base.numeroRendu,
+    statut: base.statut,
+    cheminSortie: base.cheminSortie,
+    seedUtilisee: base.seedUtilisee,
+    dureeUtilisee: base.dureeUtilisee,
+    promptUtilise: base.promptUtilise,
+    activerUpscale: base.activerUpscale,
+    importe: base.workflowFichier === WORKFLOW_IMPORT_MANUEL,
+  });
+  if (raison) return { ok: true, restaure: false };
+  const sections = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId));
+  const restaurer = !!base.promptUtilise && promptDiffere(assemblerPrompt(sections), base.promptUtilise);
+  const r = await appliquerRendu(planId, jobId, restaurer);
+  if (!r.ok) return r;
+  revalidatePath("/", "layout");
+  return { ok: true, restaure: restaurer };
+}
+
+/** Supprime un essai du journal. Interdit tant qu'il est en file ou en cours. Cascades (voir `consequencesSuppression`) : la ligne de
+ * rendu part ; son fichier vidéo aussi du stockage, sauf si un autre essai le référence ; si c'était l'essai retenu le plan n'est plus
+ * prêt (retour « en itération ») ; si c'était le dernier essai le plan redevient brouillon ; la projection `plans.statut` suit. */
+export async function supprimerEssai(planId: number, jobId: number): Promise<{ ok: true; fichierSupprime: boolean } | { ok: false; erreur: string }> {
+  const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
+  if (!plan) return { ok: false, erreur: "Plan introuvable." };
+  const lignes = await db.select().from(jobs).where(eq(jobs.planId, planId));
+  const cible = lignes.find((j) => j.id === jobId);
+  if (!cible) return { ok: false, erreur: "Essai introuvable pour ce plan." };
+  const vue = (j: (typeof lignes)[number]) => ({ id: j.id, numeroRendu: j.numeroRendu, statut: j.statut, cheminSortie: j.cheminSortie, activerUpscale: j.activerUpscale });
+  const c = consequencesSuppression(
+    { renduRetenuId: plan.renduRetenuId, pretUpscaleAt: plan.pretUpscaleAt, statut: plan.statut },
+    vue(cible),
+    lignes.filter((j) => j.id !== jobId).map(vue),
+  );
+  if (!c.ok) return { ok: false, erreur: c.raison };
+
+  // Un autre plan (ou une autre ligne) qui pointerait le même fichier le garde : on vérifie en base, pas seulement dans ce plan.
+  let supprimerFichier = c.supprimerFichier;
+  if (supprimerFichier && cible.cheminSortie) {
+    const [autre] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.cheminSortie, cible.cheminSortie), ne(jobs.id, cible.id))).limit(1);
+    if (autre) supprimerFichier = false;
+  }
+
+  await db
+    .update(plans)
+    .set({ renduRetenuId: c.renduRetenuId, pretUpscaleAt: c.pretUpscaleAt, statut: c.statutPlan as typeof plan.statut, updatedAt: new Date() })
+    .where(eq(plans.id, planId));
+  await db.delete(jobs).where(eq(jobs.id, jobId));
+
+  let fichierSupprime = false;
+  if (supprimerFichier && cible.cheminSortie) {
+    const absolu = resolve(MEDIA_ROOT, cible.cheminSortie);
+    // Jamais hors du dossier de rendus de ce plan.
+    if (absolu.startsWith(resolve(MEDIA_ROOT, "plans", String(planId)))) {
+      try {
+        await rm(absolu, { force: true });
+        fichierSupprime = true;
+      } catch {
+        // Le fichier reste sur le disque : la ligne est partie, c'est l'essentiel (rien ne le référence plus).
+      }
+    }
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, fichierSupprime };
+}
+
+/** « Lancer l'upscale » (tous les plans prêts) : pour chaque plan prêt, reprend la seed, la durée et le prompt de son essai RETENU
+ * (même seed + même prompt + mêmes références + même durée = même résultat, F04) puis lance le rendu final. Le plan reste prêt.
+ * Sont sautés : un plan déjà en file, dont l'essai retenu est déjà un rendu final ou une vidéo importée (sans seed), ou aux dialogues
+ * désalignés. */
+export async function lancerUpscaleEpisode(episodeId: number): Promise<{ n: number; dejaFinal: number; dejaEnFile: number; bloques: number; nonPrets: number }> {
+  const lignes = await db.select().from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id);
+  const res = { n: 0, dejaFinal: 0, dejaEnFile: 0, bloques: 0, nonPrets: 0 };
+  for (const p of lignes) {
+    if (!p.pretUpscaleAt || !p.renduRetenuId) {
+      res.nonPrets++;
+      continue;
+    }
+    const duPlan = await db.select().from(jobs).where(eq(jobs.planId, p.id));
+    const retenu = duPlan.find((j) => j.id === p.renduRetenuId);
+    if (!retenu) {
+      res.nonPrets++;
+      continue;
+    }
+    if (duPlan.some((j) => essaiEnFile(j.statut))) {
+      res.dejaEnFile++;
+      continue;
+    }
+    // Un rendu final (activerUpscale) ou une vidéo importée (déjà tournée, sans seed) n'a rien à upscaler.
+    if (retenu.activerUpscale) {
+      res.dejaFinal++;
+      continue;
+    }
+    if (await blocageDialogues(p.id)) {
+      res.bloques++;
+      continue;
+    }
+    const r = await appliquerRendu(p.id, retenu.id, !!retenu.promptUtilise);
+    if (!r.ok) {
+      res.bloques++;
+      continue;
+    }
+    await creerJobRelance(p.id, true, false, { depuisNumero: retenu.numeroRendu, garderPret: true });
+    res.n++;
+  }
+  revalidatePath("/", "layout");
+  return res;
 }

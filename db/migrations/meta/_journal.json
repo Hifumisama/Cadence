@@ -386,6 +386,20 @@
       "when": 1794157200000,
       "tag": "0054_revision_episode",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1794243600000,
+      "tag": "0055_fiche_plan_table_de_montage",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794330000000,
+      "tag": "0056_alertes_iteration",
+      "breakpoints": true
     }
   ]
 }

@@ -16,7 +16,7 @@ export type ReferenceH3 = {
   retentionNote?: string;
 };
 
-export type AssetManquantH3 = { code: string; type: string; parent?: string; description: string; raison: string };
+export type AssetManquantH3 = { code: string; type: string; parent?: string | null; description: string; raison: string };
 
 export type SortiePlanH3 = {
   titre: string;
@@ -218,6 +218,13 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
   shots.forEach((s, i) => {
     if (/<d>/i.test(s.texte ?? "") && !/\(S\d\)/.test(s.texte ?? "")) {
       ajouter("alerte", "locuteur", `Le shot ${i + 1} a un dialogue <d> sans locuteur « (S1) » : ajoute-le à celui qui parle (voix off comprise).`);
+    }
+  });
+
+  // Voix off : H3 exige la bouche close après CHAQUE <d> dit « off-screen voiceover », sinon le personnage à l'écran remue les lèvres.
+  shots.forEach((s, i) => {
+    for (const m of (s.texte ?? "").matchAll(/off-screen voice-?over[^<]*<d>[\s\S]*?<\/d>([^<]{0,80})/gi)) {
+      if (!/lips[^.]{0,30}closed|mouth[^.]{0,30}closed/i.test(m[1] ?? "")) ajouter("alerte", "voix-off", `Le shot ${i + 1} a une voix off sans « while her/his lips remain completely closed » juste après le <d> : le personnage à l'écran bougerait les lèvres.`);
     }
   });
 

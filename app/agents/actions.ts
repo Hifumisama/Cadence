@@ -207,9 +207,9 @@ export async function genererFiches(
  * rendu (jamais de correction à l'aveugle) ou sans fiche. */
 export async function genererIteration(
   conversationUuid: string,
-  options: { retour: string },
+  options: { retour: string; renduId?: number | null; planche?: boolean },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
-  return rafraichir(await service.genererIteration(conversationUuid, options));
+  return rafraichir(await service.genererIteration(conversationUuid, { retour: options.retour, renduId: options.renduId, planche: options.planche }));
 }
 
 /** Après l'application d'une fiche : écrire les prompts d'image des assets qu'elle a CRÉÉS (un lot
@@ -303,5 +303,5 @@ export async function appliquerSelection(
   propositionUuid: string,
   options?: { confirmeEcrasement?: boolean },
 ): Promise<ResultatApplication> {
-  return rafraichir(await service.appliquerSelection(propositionUuid, options));
+  return rafraichir(await service.appliquerSelection(propositionUuid, { confirmeEcrasement: options?.confirmeEcrasement === true }));
 }

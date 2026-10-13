@@ -46,6 +46,9 @@ export type SortieIterationPlan = {
   verification?: string;
   entreeLexique?: { symptome: string; cause: string; formulationQuiTient: string };
   abandon: { propose: boolean; raison: string };
+  /** Assets que l'agent SUGGÈRE de créer (aucun n'existe au registre pour ce rôle) : jamais créés par l'itération ; l'utilisateur les crée,
+   * génère leur image, puis itère de nouveau pour les ajouter en référence. */
+  assetsManquants?: { code: string; type: string; parent?: string; description: string; raison: string }[];
 };
 
 /** Ce que les contrôles et la conversion savent du plan : son prompt, ses labels déclarés, sa durée. */
@@ -184,9 +187,15 @@ export function raisonSansEcriture(sortie: SortieIterationPlan, ctx: ContexteIte
   }
   if (!sortie.dureeCoherente) return "L'agent juge la durée du rendu incohérente avec la durée voulue : aucune correction d'écriture n'est proposée.";
   if (sortie.abandon?.propose) return `L'agent propose d'abandonner ce mouvement plutôt qu'une correction de plus${sortie.abandon.raison?.trim() ? ` : ${sortie.abandon.raison.trim()}` : "."}`;
-  if (sortie.categorie === "decoupage-scenario") return "La cause n'est pas dans le prompt (découpage ou scénario) : rien n'est écrit. Revois le découpage du plan, puis réécris sa fiche.";
   const avecRefs = aDesOpsReferences(sortie);
-  if ((sortie.changements ?? []).length === 0 && !avecRefs) return "L'agent ne propose aucune modification du prompt.";
+  // « Découpage ou scénario » n'interdit que les sorties VIDES : si le modèle a quand même écrit des passages du prompt (consigne qui
+  // change ce qui se passe dans le plan), c'est une correction de ce plan, la consigne de l'utilisateur prime sur l'étiquette.
+  if (sortie.categorie === "decoupage-scenario" && (sortie.changements ?? []).length === 0 && !avecRefs) return "La cause n'est pas dans le prompt (découpage ou scénario) : rien n'est écrit. Revois le découpage du plan, puis réécris sa fiche.";
+  if ((sortie.changements ?? []).length === 0 && !avecRefs) {
+    const manquants = (sortie.assetsManquants ?? []).map((a) => a.code).filter(Boolean);
+    if (manquants.length > 0) return `Aucune modification du prompt : l'agent suggère de créer ${manquants.join(", ")} (aucun asset du registre ne convient). Crée-le, génère son image, puis itère de nouveau pour l'ajouter en référence.`;
+    return "L'agent ne propose aucune modification du prompt.";
+  }
   const a = appliquerChangements(ctx.sections, sortie.changements ?? []);
   if (Object.keys(a.sections).length === 0 && !avecRefs) {
     const erreurs = a.problemes.filter((p) => p.niveau === "erreur");
@@ -217,10 +226,9 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
   if (changements.length > 0 || aDesOpsReferences(sortie)) {
     if (!sortie.dureeCoherente) problemes.push({ niveau: "alerte", regle: "ignores", message: "Durée jugée incohérente : les changements proposés sont ignorés." });
     else if (sortie.abandon?.propose) problemes.push({ niveau: "alerte", regle: "ignores", message: "Abandon proposé : les changements proposés sont ignorés." });
-    else if (sortie.categorie === "decoupage-scenario") problemes.push({ niveau: "alerte", regle: "ignores", message: "Cause hors du prompt (découpage ou scénario) : les changements proposés sont ignorés." });
   }
   // Rien ne sera écrit : pas de contrôle passage par passage (ni de renvoi pour du texte qui sera ignoré).
-  if ((changements.length === 0 && !aDesOpsReferences(sortie)) || !sortie.dureeCoherente || sortie.abandon?.propose || sortie.categorie === "decoupage-scenario") return problemes;
+  if ((changements.length === 0 && !aDesOpsReferences(sortie)) || !sortie.dureeCoherente || sortie.abandon?.propose) return problemes;
   if (reelle != null && !dureesCoherentes(ctx.dureeGenerationSecondes, reelle)) return problemes;
 
   const a = appliquerChangements(ctx.sections, changements);
@@ -258,8 +266,23 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
   const avant = toutes(ctx.sections);
   const apres = toutes(ctx.sections, a.sections);
   if (signatureRepliques(avant) !== signatureRepliques(apres)) {
-    problemes.push({ niveau: "erreur", regle: "replique-modifiee", message: "Une balise <d> (réplique) a été modifiée, ajoutée ou retirée : les répliques restent verbatim, n'y touche pas." });
+    // Alerte, pas erreur (décision 2026-10-12, trois niveaux de voix) : la consigne peut demander une réplique. Une prise enregistrée qui ne
+    // dit plus le texte bloquera la génération au contrôle des dialogues (`estProblemeBloquant`), pas ici.
+    problemes.push({ niveau: "alerte", regle: "replique-modifiee", message: "Une balise <d> (réplique) a été modifiée, ajoutée ou retirée : vérifie qu'elle correspond à la réplique du plan ; une prise déjà enregistrée devra être refaite." });
   }
+
+  // Une parole écrite entre guillemets, hors balise <d> : le modèle vidéo la dirait sans que le plan la sache (ni la prise, ni le contrôle des
+  // dialogues). Erreur, donc renvoi au modèle : les paroles s'écrivent `<d>[Langue] texte</d>`.
+  const RE_PAROLE_NUE = /\b(?:says?|said|replies|replying|responds?|answers?|whispers?|asks?|calls?|shouts?|murmurs?|declares?|speaks?)\b[^.\n<]{0,60}?[:,]?\s*['"“«‘]/i;
+  changements.forEach((c, i) => {
+    if (RE_PAROLE_NUE.test(c.apres.replace(/<d>[\s\S]*?<\/d>/gi, ""))) {
+      problemes.push({
+        niveau: "erreur",
+        regle: "parole-sans-balise",
+        message: `Changement ${i + 1} (${c.section}) : une parole est écrite entre guillemets ; écris-la \`<d>[Français] texte exact</d>\` (balise <d>, langue entre crochets), sans guillemets autour.`,
+      });
+    }
+  });
 
   // Structure des shots : seules les dégradations APPORTÉES par la correction sont signalées.
   if (a.sections.detailed_description !== undefined) {
@@ -414,6 +437,9 @@ export function diagnosticIteration(json: unknown): DiagnosticIteration | null {
     nbPassages: Array.isArray(s.changements) ? s.changements.length : 0,
     entreeLexique: l && typeof l.symptome === "string" && typeof l.cause === "string" && typeof l.formulationQuiTient === "string" ? l : null,
     abandon: s.abandon && typeof s.abandon.propose === "boolean" ? { propose: s.abandon.propose, raison: s.abandon.raison ?? "" } : null,
+    assetsSuggeres: (Array.isArray(s.assetsManquants) ? s.assetsManquants : [])
+      .filter((a): a is NonNullable<SortieIterationPlan["assetsManquants"]>[number] => !!a && typeof a.code === "string" && typeof a.type === "string")
+      .map((a) => ({ code: a.code, type: a.type, ...(typeof a.parent === "string" && a.parent.trim() ? { parent: a.parent.trim() } : {}), raison: typeof a.raison === "string" ? a.raison : "" })),
   };
 }
 

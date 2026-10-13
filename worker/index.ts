@@ -1,9 +1,9 @@
 import "dotenv/config";
 import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { assets, jobs, planDialogues, planPromptSections, planRefs, plans, repliques } from "../db/schema";
+import { assets, jobs, planDialogues, planPromptSections, planRefs, plans, repliques, voixFiches } from "../db/schema";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";
 import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/annulation-db";
 import { domaineDe, type DomaineGpu } from "../lib/gpu";
@@ -61,11 +61,38 @@ async function construireSubmissionInput(
     // La prise d'une réplique liée EST la référence <Audio N> du plan (F02, révision 2026-09-30) : elle
     // vient de plan_dialogues, jamais de plan_refs.
     db
-      .select({ slot: planDialogues.slot, repliqueId: repliques.id, fichier: repliques.fichier, dureeSecondes: repliques.dureeSecondes })
+      .select({
+        slot: planDialogues.slot,
+        repliqueId: repliques.id,
+        fichier: repliques.fichier,
+        dureeSecondes: repliques.dureeSecondes,
+        voixId: repliques.voixId,
+        locuteurId: repliques.locuteurId,
+      })
       .from(planDialogues)
       .innerJoin(repliques, eq(planDialogues.repliqueId, repliques.id))
       .where(eq(planDialogues.planId, planId)),
   ]);
+
+  // Trois niveaux de voix (2026-10-12) : une prise de la réplique, sinon la voix de référence (« Master ») de son locuteur
+  // (voix directe, sinon celle de son personnage), sinon rien : le modèle vidéo choisit la voix.
+  const sansPrise = dialogues.filter((d) => !d.fichier);
+  const masters = new Map<number, string>();
+  if (sansPrise.length > 0) {
+    const personnages = sansPrise.map((d) => d.locuteurId).filter((x): x is number => x != null);
+    const fiches = personnages.length
+      ? await db.select({ assetId: voixFiches.assetId, personnageId: voixFiches.personnageId }).from(voixFiches).where(inArray(voixFiches.personnageId, personnages))
+      : [];
+    const voixDuPersonnage = new Map(fiches.map((f) => [f.personnageId, f.assetId]));
+    const voixIds = [...new Set(sansPrise.map((d) => d.voixId ?? (d.locuteurId != null ? voixDuPersonnage.get(d.locuteurId) : undefined)).filter((x): x is number => x != null))];
+    const fichiers = voixIds.length ? await db.select({ id: assets.id, fichier: assets.fichier }).from(assets).where(and(inArray(assets.id, voixIds), eq(assets.type, "voix"))) : [];
+    const fichierDeVoix = new Map(fichiers.filter((f) => f.fichier).map((f) => [f.id, f.fichier!]));
+    for (const d of sansPrise) {
+      const voixId = d.voixId ?? (d.locuteurId != null ? voixDuPersonnage.get(d.locuteurId) : undefined);
+      const f = voixId != null ? fichierDeVoix.get(voixId) : undefined;
+      if (f) masters.set(d.repliqueId, f);
+    }
+  }
 
   const promptAssemble = assemblerPrompt(sections);
 
@@ -79,9 +106,11 @@ async function construireSubmissionInput(
 
   // Audio : les prises des répliques d'abord (la voix prime sur les bruitages), puis les bruitages sur les
   // emplacements restants.
-  const audioVoix = dialogues
-    .filter((d) => d.fichier)
-    .map((d) => ({ slot: d.slot, ...ref(cheminRepliqueMedia(d.repliqueId, d.fichier!)), dureeSecondes: d.dureeSecondes }));
+  const audioVoix = dialogues.flatMap((d) => {
+    if (d.fichier) return [{ slot: d.slot, ...ref(cheminRepliqueMedia(d.repliqueId, d.fichier)), dureeSecondes: d.dureeSecondes }];
+    const master = masters.get(d.repliqueId);
+    return master ? [{ slot: d.slot, ...refAsset(master), dureeSecondes: null as number | null }] : [];
+  });
   const emplacementsVoix = new Set(audioVoix.map((a) => a.slot));
   const audioBruitages = refs
     .filter((r) => r.type === "audio" && r.fichier)

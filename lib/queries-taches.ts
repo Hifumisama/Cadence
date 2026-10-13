@@ -61,7 +61,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .where(and(isNull(jobs.masqueAt), or(inArray(jobs.statut, ["en_attente", "en_cours"]), isNull(jobs.vuAt), gte(jobs.createdAt, depuis))));
 
   const toutesLignesLlm = await db
-    .select({ r: agentRuns, projetNom: projects.nom, conversationUuid: agentConversations.uuid })
+    .select({ r: agentRuns, projetNom: projects.nom, conversationUuid: agentConversations.uuid, portee: agentConversations.portee, cibleId: agentConversations.cibleId, profondeur: agentConversations.profondeur })
     .from(agentRuns)
     .leftJoin(projects, eq(projects.id, agentRuns.projectId))
     .leftJoin(agentConversations, eq(agentConversations.id, agentRuns.conversationId))
@@ -108,7 +108,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const idsLots = [...new Set(lignesLlm.filter((l) => l.r.cleSousTache != null && l.r.propositionId != null).map((l) => l.r.propositionId!))];
   const runsDesLots = idsLots.length
     ? await db
-        .select({ r: agentRuns, projetNom: projects.nom, conversationUuid: agentConversations.uuid })
+        .select({ r: agentRuns, projetNom: projects.nom, conversationUuid: agentConversations.uuid, portee: agentConversations.portee, cibleId: agentConversations.cibleId, profondeur: agentConversations.profondeur })
         .from(agentRuns)
         .leftJoin(projects, eq(projects.id, agentRuns.projectId))
         .leftJoin(agentConversations, eq(agentConversations.id, agentRuns.conversationId))
@@ -119,6 +119,32 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const skillDeProposition = new Map(propositionsLots.map((p) => [p.id, p.skill]));
 
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
+
+  // Où mène une tâche d'agent : la page où le travail se lit, plus l'ancienne popup d'agent (décision 2026-10-12). Un plan → sa fiche,
+  // une révision d'épisode → la salle du réalisateur, un épisode → son scénario, un asset → sa page. Sinon (projet, saison) la page
+  // du projet, et seulement alors la popup reste le repli (`conversationUuid`).
+  const cibles = [...lignesLlm, ...runsDesLots].filter((l) => l.cibleId != null);
+  const idsPlans = [...new Set(cibles.filter((l) => l.portee === "plan").map((l) => l.cibleId!))];
+  const idsAssets = [...new Set(cibles.filter((l) => l.portee === "asset").map((l) => l.cibleId!))];
+  const [plansCibles, assetsCibles] = await Promise.all([
+    idsPlans.length ? db.select({ id: plans.id, uuid: plans.uuid, episodeId: plans.episodeId }).from(plans).where(inArray(plans.id, idsPlans)) : [],
+    idsAssets.length ? db.select({ id: assets.id, code: assets.code, type: assets.type }).from(assets).where(inArray(assets.id, idsAssets)) : [],
+  ]);
+  const planParId = new Map(plansCibles.map((x) => [x.id, x]));
+  const assetParId = new Map(assetsCibles.map((x) => [x.id, x]));
+  const pageAgent = (l: { portee: string | null; cibleId: number | null; profondeur: string | null }, projectId: number | null): string | null => {
+    if (projectId == null || l.cibleId == null) return null;
+    if (l.portee === "plan") {
+      const x = planParId.get(l.cibleId);
+      return x ? `/p/${projectId}/e/${x.episodeId}/plans/${x.uuid}` : null;
+    }
+    if (l.portee === "episode") return l.profondeur === "revision" ? `/p/${projectId}/realisateur/${l.cibleId}` : `/p/${projectId}/e/${l.cibleId}/scenario`;
+    if (l.portee === "asset") {
+      const x = assetParId.get(l.cibleId);
+      return x ? (x.type === "voix" ? `/p/${projectId}/voix/${x.code}` : `/p/${projectId}/assets/${x.code}`) : null;
+    }
+    return null;
+  };
 
   const images: Tache[] = lignesImages.map(({ g, code, projectId }) => {
     // Une affiche de présentation n'est pas dans le registre : sa page à elle (app/p/[id]/affiche/[code]).
@@ -229,6 +255,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     if (!etat || !uuid || lignes.length === 0) return [];
     const { projetNom, conversationUuid } = lignes[0]!;
     const projectId = lignes[0]!.r.projectId ?? 0;
+    const page = pageAgent(lignes[0]!, projectId || null);
     return [
       {
         cle: cleLot(uuid),
@@ -236,8 +263,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         statut: etat.statut,
         libelle: `${LIBELLE_SKILL[skillDeProposition.get(id) ?? "scenarios"] ?? LIBELLE_SKILL.scenarios}${projetNom ? ` · ${projetNom}` : ""}`,
         detail: etat.detail,
-        href: projectId ? `/p/${projectId}` : "/",
-        conversationUuid: conversationUuid ?? null,
+        href: page ?? (projectId ? `/p/${projectId}` : "/"),
+        conversationUuid: page ? null : (conversationUuid ?? null),
         projectId,
         assetId: null,
         progression: etat.progression,
@@ -257,7 +284,10 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     ];
   });
 
-  const llm: Tache[] = lignesLlm.filter((l) => !(l.r.cleSousTache != null && l.r.propositionId != null)).map(({ r, projetNom, conversationUuid }) => ({
+  const llm: Tache[] = lignesLlm.filter((l) => !(l.r.cleSousTache != null && l.r.propositionId != null)).map((l) => {
+    const { r, projetNom, conversationUuid } = l;
+    const page = pageAgent(l, r.projectId);
+    return {
     cle: cleLlm(r.uuid),
     genre: "llm",
     statut: r.statut,
@@ -266,8 +296,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     // Une tâche liée à une conversation rouvre la popup d'agent (le panneau du header
     // intercepte le clic, voir IndicateurTaches) ; sans conversation (script llm:tache),
     // elle mène à la page du projet (ou à l'accueil sans projet).
-    href: r.projectId != null ? `/p/${r.projectId}` : "/",
-    conversationUuid: conversationUuid ?? null,
+    href: page ?? (r.projectId != null ? `/p/${r.projectId}` : "/"),
+    conversationUuid: page ? null : (conversationUuid ?? null),
     projectId: r.projectId ?? 0,
     assetId: null,
     progression: null,
@@ -283,7 +313,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     derriere: null,
     jetons: r.statut === "en_cours" ? r.progressionJetons : null,
     annulationDemandee: r.annulationDemandeeAt != null && r.statut === "en_cours",
-  }));
+    };
+  });
 
   const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots, ...tachesCreations], maintenant);
 

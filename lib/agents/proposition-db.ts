@@ -175,7 +175,14 @@ function ligne(r: typeof propositionChangements.$inferSelect): LigneChangement {
  * confirmation explicite d'un écrasement ; refuse hors portée ; refuse un changement dont le
  * parent proposé n'est pas retenu. `appliquee` si tous les changements l'ont été, `partielle`
  * si certains ont été écartés, bloqués ou refusés. */
-export async function appliquerProposition(propositionId: number, options: { confirmeEcrasement?: boolean } = {}): Promise<ResultatApplication> {
+export async function appliquerProposition(
+  propositionId: number,
+  options: {
+    confirmeEcrasement?: boolean;
+    /** Exécuté dans la MÊME transaction, après les écritures : s'il échoue, rien n'est appliqué (« Itérer » : application + création de l'essai). */
+    dansTransaction?: (tx: Tx) => Promise<void>;
+  } = {},
+): Promise<ResultatApplication> {
   const [prop] = await db.select().from(propositions).where(eq(propositions.id, propositionId));
   if (!prop) return { ok: false, erreur: "Proposition introuvable." };
   if (prop.statut !== "prete") return { ok: false, erreur: `Cette proposition n'est plus applicable (statut : ${prop.statut}).` };
@@ -221,6 +228,7 @@ export async function appliquerProposition(propositionId: number, options: { con
       if (prop.conversationId != null) {
         await tx.update(agentConversations).set({ etape: "applique", updatedAt: new Date() }).where(and(eq(agentConversations.id, prop.conversationId), eq(agentConversations.propositionId, propositionId)));
       }
+      if (options.dansTransaction) await options.dansTransaction(tx);
     });
   } catch (e) {
     if (e instanceof RefusApplication) return { ok: false, erreur: `Rien n'a été appliqué. ${e.message}` };

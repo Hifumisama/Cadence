@@ -286,3 +286,43 @@ test("prompt-affiche : une modification de l'asset d'affiche, avec la ligne de t
   const [typees] = depuisPromptAffiche({ ...sortie, remarques: [{ type: "description-vague", message: "Résumé court." }] }, { id: 7, promptGeneration: "A.", methodeGeneration: null }, { titre: "Rubis", imagePersonnageDisponible: false });
   assert.ok(typees!.avertissements!.some((a) => a.texte === "description-vague : Résumé court."));
 });
+
+test("parolesDeLAuteur : seulement les messages de l'utilisateur, dans l'ordre, plafonnés (les derniers l'emportent)", async () => {
+  const { parolesDeLAuteur, MAX_PAROLES_AUTEUR } = await import("./contexte");
+  const msgs = [
+    { role: "assistant", content: "Salut" },
+    { role: "user", content: "  Mon idée : une mage et un feu.  " },
+    { role: "assistant", content: "Précise ?" },
+    { role: "user", content: "Elle ferme les yeux." },
+  ];
+  assert.deepEqual(parolesDeLAuteur(msgs), ["Mon idée : une mage et un feu.", "Elle ferme les yeux."]);
+  assert.deepEqual(parolesDeLAuteur(null), []);
+  const longs = Array.from({ length: 5 }, (_, i) => ({ role: "user", content: `${i}`.repeat(2500) }));
+  const r = parolesDeLAuteur(longs);
+  assert.ok(r.join("").length <= MAX_PAROLES_AUTEUR);
+  assert.ok(r[r.length - 1]!.startsWith("4"));
+});
+
+test("dernierShotLisible : dernier shot sans timecode ni coupe, labels remplacés par les codes d'assets, plafonné", async () => {
+  const { dernierShotLisible, MAX_DERNIER_SHOT } = await import("./contexte");
+  const d = "Style. [Shot 1] A wide shot of <Subject 2>. [Shot 2] At 00:04.000, Hard cut to a close-up of <Subject 1>, Mai, facing the fire <Subject 2>.";
+  assert.equal(dernierShotLisible(d, { 1: "CHAR_mai", 2: "DEC_foret" }), "a close-up of CHAR_mai, Mai, facing the fire DEC_foret.");
+  assert.equal(dernierShotLisible("pas de shot", {}), null);
+  assert.ok(dernierShotLisible(`[Shot 1] ${"x ".repeat(400)}`, {})!.length <= MAX_DERNIER_SHOT);
+  assert.equal(dernierShotLisible("[Shot 1] <Subject 9> walks.", {}), "the subject walks.");
+});
+
+test("dernierShotDuBrouillon : le dernier shot du brouillon, marqueurs [[CODE]] remplacés par le code", async () => {
+  const { dernierShotDuBrouillon } = await import("./contexte");
+  assert.equal(dernierShotDuBrouillon([{ debutSecondes: 0, texte: "a" }, { debutSecondes: 3, texte: "a close-up of [[CHAR_mai]],  Mai, by [[ DEC_x ]]." }]), "a close-up of CHAR_mai, Mai, by DEC_x.");
+  assert.equal(dernierShotDuBrouillon([]), null);
+  assert.equal(dernierShotDuBrouillon(undefined), null);
+});
+
+test("premierShotLisible : le premier shot seul, sans préambule d'ouverture ni coupe, labels remplacés", async () => {
+  const { premierShotLisible } = await import("./contexte");
+  const d = "A JRPG look. [Shot 1] A wide shot of <Subject 2>, <Subject 1> waiting. [Shot 2] At 00:04.000, Hard cut to a close-up.";
+  assert.equal(premierShotLisible(d, { 1: "CHAR_mai", 2: "DEC_foret" }), "A wide shot of DEC_foret, CHAR_mai waiting.");
+  assert.equal(premierShotLisible("[Shot 1] only one shot here.", {}), "only one shot here.");
+  assert.equal(premierShotLisible("rien", {}), null);
+});

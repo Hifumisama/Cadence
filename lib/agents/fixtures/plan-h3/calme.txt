@@ -16,7 +16,7 @@ retention_analysis:
 <Subject 5> (appears in [Shot 1]): fully_preserved - the passage's moonlit shadow and medina architecture are retained.
 
 detailed_description:
-Cinematic anime style, refined linework, faint moonlight against deep shadow. [Shot 1] A medium close static shot, the camera locked and the background still, holds on <Subject 1>, Maya, her head turning slightly toward distant voices. One alley over within <Subject 5>, <Subject 2> and <Subject 3>, two hooded figures, stand barely visible in the faint moonlight beneath a striped awning. Maya's fingers drift slowly and precisely toward her waist, toward <Subject 4>, the concealed dagger, while the rest of her body stays motionless in the shadow.
+Faint moonlight against deep shadow. [Shot 1] A medium close static shot, the camera locked and the background still, holds on <Subject 1>, Maya, her head turning slightly toward distant voices. One alley over within <Subject 5>, <Subject 2> and <Subject 3>, two hooded figures, stand barely visible in the faint moonlight beneath a striped awning. Maya's fingers drift slowly and precisely toward her waist, toward <Subject 4>, the concealed dagger, while the rest of her body stays motionless in the shadow.
 
 overall_soundscape:
 Muffled distant voices carry faintly from the neighboring alley, the night air otherwise quiet.

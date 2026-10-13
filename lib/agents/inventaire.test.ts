@@ -51,3 +51,36 @@ test("ressemblant : même type et mots communs seulement", () => {
   assert.equal(ressemblant("decor", "lanterne", registre), null);
   assert.equal(ressemblant("prop", "clef", registre), null);
 });
+
+// --- état d'un sujet récurrent : le parent est posé quand le modèle l'oublie (2026-10-13) ---
+
+test("depuisInventaire : un asset du même type qui cite son sujet reçoit ce parent (décor, personnage, prop)", () => {
+  const r = depuisInventaire(
+    sortie([
+      a("DEC_phare_eteint", "decor", { description: "Le même lieu que DEC_phare, feu éteint.", raison: "état différent" }),
+      a("CHAR_iris_blessee", "personnage", { description: "Iris blessée.", raison: "CHAR_iris, après le combat" }),
+    ]),
+    registre,
+  );
+  const phare = r.find((c) => c.cle === "nouvel-asset-DEC_phare_eteint")!;
+  assert.equal((phare.apres as Record<string, unknown>).deriveDeCode, "DEC_phare");
+  assert.ok(phare.avertissements!.some((v) => v.type === "info" && /Parent DEC_phare posé/.test(v.texte)));
+  const iris = r.find((c) => c.cle === "nouvel-asset-CHAR_iris_blessee")!;
+  assert.equal((iris.apres as Record<string, unknown>).deriveDeCode, "CHAR_iris");
+});
+
+test("depuisInventaire : parent créé dans la même sortie, et un parent déjà donné n'est pas écrasé", () => {
+  const r = depuisInventaire(
+    sortie([a("CHAR_golem", "personnage"), a("CHAR_golem_brise", "personnage", { description: "CHAR_golem en morceaux" }), a("DEC_phare_nuit", "decor", { parent: "DEC_phare", raison: "cite PROP_lanterne" })]),
+    registre,
+  );
+  assert.equal((r.find((c) => c.cle === "nouvel-asset-CHAR_golem_brise")!.apres as Record<string, unknown>).deriveDeCle, "nouvel-asset-CHAR_golem");
+  assert.equal((r.find((c) => c.cle === "nouvel-asset-DEC_phare_nuit")!.apres as Record<string, unknown>).deriveDeCode, "DEC_phare");
+});
+
+test("depuisInventaire : un VFX qui cite un personnage d'un autre type, sans parent, est signalé (état ≠ effet)", () => {
+  const r = depuisInventaire(sortie([a("VFX_iris_emergence", "vfx", { raison: "le registre contient CHAR_iris mais pas son émergence" })]), registre);
+  const v = r[0]!;
+  assert.equal((v.apres as Record<string, unknown>).deriveDeCode, undefined);
+  assert.ok(v.avertissements!.some((x) => x.type === "alerte_controle" && /CHAR_iris/.test(x.texte) && /ÉTAT/.test(x.texte)));
+});
