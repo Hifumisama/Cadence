@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { mesurerDureeAudio } from "./repliques";
+import { mesurerDureeAudio } from "./audio-duree";
 
 export const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 

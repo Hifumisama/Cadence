@@ -74,7 +74,7 @@ règles de nommage et de versionnage ci-dessus et `docs/FRICTIONS.md` priment su
 ailleurs (claude.ai, `~/.claude`).
 
 Le casting vocal (skill `prompt-voix`, assets `voix`, `voix_fiches`, prises, doublage) est retiré (FRICTIONS, 2026-10-14) : **la voix est un champ
-du personnage** (`assets.voix_*`), créée depuis le bloc « Voix » de sa fiche (`/p/<id>/assets/<code>`) ; une réplique n'est qu'un texte inséré dans le prompt (`<d>`).
+du personnage** (`assets.voix_*`), créée depuis le bloc « Voix » de sa fiche (`/p/<id>/assets/<code>`) ; il n'y a plus d'entité « réplique » : le dialogue vit dans la description du plan puis dans le prompt (`<d>`), voir FRICTIONS 2026-10-14.
 
 ## État du projet
 

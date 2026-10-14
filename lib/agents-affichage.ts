@@ -251,7 +251,6 @@ export const LIBELLE_CIBLE = {
   scene: "Scène",
   asset: "Asset",
   plan: "Plan",
-  replique: "Réplique",
   fiche: "Fiche de plan",
 } as const;
 

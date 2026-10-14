@@ -2,7 +2,21 @@
  * vocal (assistant de voix, fiches, prises, doublage) a été retiré (docs/FRICTIONS.md, 2026-10-14). Pur, sans accès disque ni base :
  * importable côté client comme côté serveur. */
 
-import { langueBalise } from "./repliques";
+const LANGUES_BALISE: Record<string, string> = {
+  french: "Français",
+  english: "English",
+  spanish: "Español",
+  german: "Deutsch",
+  italian: "Italiano",
+  portuguese: "Português",
+};
+
+/** Langue de la fiche voix (« French ») -> libellé de la balise (`[Français]`,
+  * voir `plan-h3`). Une langue inconnue est reprise telle quelle. */
+export function langueBalise(langue: string | null | undefined): string {
+  const l = (langue ?? "").trim();
+  return LANGUES_BALISE[l.toLowerCase()] ?? (l || "Français");
+}
 
 /** Texte de référence anglais de repli (rédacteur de la réplique du test, `lib/replique-ecoute.ts`) quand le modèle ne répond pas. */
 export const TEXTE_REFERENCE_DEFAUT =

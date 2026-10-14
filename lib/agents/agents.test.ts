@@ -209,25 +209,23 @@ const scenario: SortieScenarioEpisode = {
   episode: { titre: "Le sel", resume: "Le pont se couvre de sel." },
   scenes: [
     { titre: "Le pont", fonction: "Installer le lieu", plans: [
-      { titre: "Arrivée", description: "Iris traverse le pont.", dureeSecondes: 6, repliques: [{ locuteur: "Iris", texte: "Encore du sel." }] },
-      { titre: "Regard", description: "Elle observe l'horizon.", dureeSecondes: 5, repliques: [] },
+      { titre: "Arrivée", description: "Iris traverse le pont.\nIris : « Encore du sel. »", dureeSecondes: 6 },
+      { titre: "Regard", description: "Elle observe l'horizon.", dureeSecondes: 5 },
     ] },
   ],
   inventions: ["Une mouette"],
   notes: "",
 };
 
-test("scenario-episode → épisode, scènes, plans, répliques : l'existant est modifié, le reste créé", () => {
+test("scenario-episode → épisode, scènes, plans : l'existant est modifié, le reste créé", () => {
   const ep = { id: 2, titre: "Le sel", resume: "ancien", scenes: [], plans: [{ uuid: "u-regard", titre: "Regard", sceneId: null }] };
   const s = depuisScenarioEpisode(scenario, ep);
-  assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["episode:modifier", "scene:creer", "plan:creer", "replique:creer", "plan:modifier"]);
+  assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["episode:modifier", "scene:creer", "plan:creer", "plan:modifier"]);
   const cree = s.find((x) => x.cibleType === "plan" && x.operation === "creer")!;
   assert.deepEqual(cree.position, { fin: true });
   assert.equal((cree.apres as { sceneCle: string }).sceneCle, "scene-1");
-  assert.equal(cree.avertissements!.some((w) => w.type === "non_pris_en_charge"), false, "les répliques sont reprises (changement « réplique »), plus signalées non prises en charge");
-  const rep = s.find((x) => x.cibleType === "replique")!;
-  assert.equal((rep.apres as { planCle: string }).planCle, cree.cle, "la réplique se rattache au plan créé par la même proposition");
-  assert.equal(rep.sousGroupe, "Le pont");
+  assert.match((cree.apres as { description: string }).description, /Iris : « Encore du sel\. »/, "le dialogue voyage dans la description du plan");
+  assert.equal(s.some((x) => x.cibleType !== "episode" && x.cibleType !== "scene" && x.cibleType !== "plan"), false, "plus de changement « réplique »");
   assert.equal(s.find((x) => x.operation === "modifier" && x.cibleType === "plan")!.cibleRef, "u-regard");
   assert.ok(s[0]!.avertissements!.some((w) => w.type === "invention"), "les inventions se posent sur le premier changement");
   const dejaScene = depuisScenarioEpisode(scenario, { ...ep, scenes: [{ id: 11, titre: "le pont" }], plans: [] });

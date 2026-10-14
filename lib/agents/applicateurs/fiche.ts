@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { assets, episodes, jobs, planDialogues, planPromptSections, planRefs, plans } from "../../../db/schema";
+import { assets, episodes, jobs, planPromptSections, planRefs, plans } from "../../../db/schema";
 import { horsAffiches } from "../../assets-visibles";
 import type { Tx } from "../../ordre-plans";
 import { SECTIONS_FICHE, cleNouvelAsset, estSectionFiche, evaluerEcrasementFiche, lireApresFiche, verifierFiche, type EtatPlanFiche } from "../fiches";
@@ -35,14 +35,13 @@ async function planParUuid(db: Db, projectId: number, uuid: string | null) {
 
 /** L'état du plan que la fiche remplacerait (sections, références, voix, registre, rendu). */
 export async function lireEtatPlanFiche(db: Db, projectId: number, plan: { id: number; titre: string; statut: string; duree: number }): Promise<EtatPlanFiche> {
-  const [lignes, refs, dialogues, registre, rendus] = await Promise.all([
+  const [lignes, refs, registre, rendus] = await Promise.all([
     db.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, plan.id)),
     db
       .select({ type: planRefs.type, slot: planRefs.slot, asset: assets.code })
       .from(planRefs)
       .leftJoin(assets, eq(assets.id, planRefs.assetId))
       .where(eq(planRefs.planId, plan.id)),
-    db.select({ slot: planDialogues.slot }).from(planDialogues).where(eq(planDialogues.planId, plan.id)),
     db.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches)),
     db.select({ statut: jobs.statut, chemin: jobs.cheminSortie }).from(jobs).where(eq(jobs.planId, plan.id)),
   ]);
@@ -53,7 +52,6 @@ export async function lireEtatPlanFiche(db: Db, projectId: number, plan: { id: n
     titre: plan.titre,
     sections,
     refs: refs.map((r) => ({ type: r.type, slot: r.slot, asset: r.asset })),
-    slotsDialogues: dialogues.map((d) => d.slot),
     registre: new Map(registre.map((a) => [a.code, a.type])),
     aUnRendu: plan.statut === "previsualise" || plan.statut === "termine" || rendus.some((j) => j.statut === "termine" && j.chemin != null),
     generationEnCours: rendus.some((j) => j.statut === "en_attente" || j.statut === "en_cours"),
@@ -115,8 +113,6 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
   const manquantes = SECTIONS_FICHE.filter((s) => !presentes.has(s));
   if (manquantes.length) await tx.insert(planPromptSections).values(manquantes.map((section) => ({ planId: p.id, section, ordre: SECTIONS_FICHE.indexOf(section), contenu: "" })));
 
-  // Le prompt est la source des répliques : les anciennes liaisons de répliques du plan sont détachées (les répliques elles-mêmes restent).
-  if (apres.voixDuPrompt) await tx.delete(planDialogues).where(eq(planDialogues.planId, p.id));
   if (apres.refs) {
     await tx.delete(planRefs).where(and(eq(planRefs.planId, p.id), inArray(planRefs.type, ["picture", "audio"])));
     if (apres.refs.length) {

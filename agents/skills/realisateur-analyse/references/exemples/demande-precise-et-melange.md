@@ -1,6 +1,6 @@
 # Example — a precise request, then a precise request mixed with a feeling
 
-Same episode "Le sel" (plans P01–P14, lines R01 "Je ne reviendrai jamais." in P07, R02 "Tu pars ?" and R03 "Le sel ne ment pas." in P12). P04 and P07 have a successful render (`rendu`).
+Same episode "Le sel" (plans P01–P14; P07's description holds Maya's line "Je ne reviendrai jamais.", P12's the fisherman's "Tu pars ?" and Maya's "Le sel ne ment pas."). P04 and P07 have a successful render (`rendu`).
 
 ## 1. A precise request, with a story problem you can see
 
@@ -27,7 +27,7 @@ One decision. The application will warn about the two overwritten renders itself
     {
       "decision": "D1",
       "niveau": "conflit",
-      "texte": "Le plan 07 est celui où Maya lit la lettre : sans lui, l'insert du plan 08 n'a plus d'objet et la réplique R03 du plan 12 (« Le sel ne ment pas. ») perd sa cause."
+      "texte": "Le plan 07 est celui où Maya lit la lettre : sans lui, l'insert du plan 08 n'a plus d'objet et la réplique du plan 12 (« Le sel ne ment pas. ») perd sa cause."
     }
   ]
 }

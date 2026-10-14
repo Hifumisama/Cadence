@@ -16,7 +16,7 @@ import { fmtDuree } from "./format";
 import { operationsVersChangements } from "./operations-vers-changements";
 import { assemblerConstats } from "./tour-pur";
 import type { Constat, Operation, Piste, StatutDecision } from "./types";
-import { lireVueEpisode, planParUuid, repliqueParUuid, type VueEpisode } from "./vue-episode";
+import { lireVueEpisode, planParUuid, type VueEpisode } from "./vue-episode";
 
 /** Le côté base de la révision d'un épisode (docs/FRICTIONS.md 2026-10-09) : ouvrir la conversation, ranger ce que l'analyse du
  * réalisateur décide, recalculer les constats, appliquer le chantier. Les décisions (`revision_decisions`) sont le BROUILLON : elles
@@ -181,11 +181,7 @@ const scopeEpisode = (conv: ConversationRow) => ({ type: "episode" as const, cib
 /** Ce que la décision VISE existe-t-il encore ? Une opération dont la cible a disparu (supprimée à la main depuis) est écartée du calcul. */
 function operationsExistantes(ops: Operation[], vue: VueEpisode): { existantes: Operation[]; manquantes: number } {
   const existantes = ops.filter((o) =>
-    o.type === "supprimer_replique" || o.type === "remplacer_replique"
-      ? !!repliqueParUuid(vue, o.repliqueUuid)
-      : o.type === "ajouter_plan"
-        ? !("apresPlanUuid" in o.position) || !!planParUuid(vue, o.position.apresPlanUuid)
-        : !!planParUuid(vue, o.planUuid),
+    o.type === "ajouter_plan" ? !("apresPlanUuid" in o.position) || !!planParUuid(vue, o.position.apresPlanUuid) : !!planParUuid(vue, o.planUuid),
   );
   return { existantes, manquantes: ops.length - existantes.length };
 }
@@ -503,7 +499,6 @@ async function lancerSuiteFiches(conv: ConversationRow, operations: Operation[],
   const consignes: Record<string, string> = {};
   for (const op of operations) {
     if (op.type === "refondre_fiche") consignes[op.planUuid] = [consignes[op.planUuid] ?? CONSIGNE_REFONTE, op.consigne ? `The user asks: ${op.consigne}` : ""].filter(Boolean).join(" ");
-    else if (op.type === "ajouter_replique") consignes[op.planUuid] = [consignes[op.planUuid] ?? CONSIGNE_REFONTE, `A new line was added to this plan: ${op.locuteur} says "${op.texte}". Include it word for word.`].join(" ");
   }
   const maintenant = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.episodeId, conv.cibleId));
   const presents = new Set(maintenant.map((p) => p.uuid));

@@ -45,8 +45,8 @@ const ep: EpisodeCourant = { id: 1, titre: "E", resume: "R", scenes: [], plans: 
 const sortie: SortieScenarioEpisode = {
   episode: { titre: "E", resume: "R" },
   scenes: [
-    { titre: "S1", fonction: "f", genre: "montage", ambiance: "plein jour, ciel dégagé", plans: [{ titre: "P1", description: "d", dureeSecondes: 10, repliques: [] }] },
-    { titre: "S2", fonction: "f", genre: "n'importe quoi", plans: [{ titre: "P2", description: "d", dureeSecondes: 10, repliques: [] }] },
+    { titre: "S1", fonction: "f", genre: "montage", ambiance: "plein jour, ciel dégagé", plans: [{ titre: "P1", description: "d", dureeSecondes: 10 }] },
+    { titre: "S2", fonction: "f", genre: "n'importe quoi", plans: [{ titre: "P2", description: "d", dureeSecondes: 10 }] },
   ],
   inventions: [],
   notes: "",

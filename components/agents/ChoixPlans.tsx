@@ -74,7 +74,7 @@ export function ChoixPlans({ ctx, titre }: { ctx: ContexteEtape; titre?: string 
   const lancer = () => void ctx.lancer(() => genererFiches(conv.uuid, { planUuids: uuids, consigne: consigne.trim() || undefined }));
 
   const etat = (p: PlanPourFiche) =>
-    [p.aDesSections ? "a déjà une fiche" : p.nbRefs > 0 ? "a des références" : "à écrire", p.aUnRendu ? "rendu vidéo" : null, p.nbRepliques ? `${p.nbRepliques} réplique${p.nbRepliques > 1 ? "s" : ""}` : null, p.sansIntention ? "sans intention" : null]
+    [p.aDesSections ? "a déjà une fiche" : p.nbRefs > 0 ? "a des références" : "à écrire", p.aUnRendu ? "rendu vidéo" : null, p.sansIntention ? "sans intention" : null]
       .filter(Boolean)
       .join(" · ");
 

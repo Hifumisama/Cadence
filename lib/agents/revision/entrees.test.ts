@@ -17,10 +17,10 @@ test("opération stockée → poignées d'aujourd'hui (ce que le modèle relit d
   assert.deepEqual(operationEnPoignees(duree(1, 6), vue), { type: "duree_plan", plan: "P01", secondes: 6 });
   assert.deepEqual(operationEnPoignees(op({ type: "deplacer_plan", planUuid: planUuid(9), position: { apresPlanUuid: planUuid(3) } }), vue), { type: "deplacer_plan", plan: "P09", apres: "P03" });
   assert.deepEqual(operationEnPoignees(op({ type: "deplacer_plan", planUuid: planUuid(9), position: { fin: true } }), vue), { type: "deplacer_plan", plan: "P09", position: "fin" });
-  assert.deepEqual(operationEnPoignees(op({ type: "remplacer_replique", repliqueUuid: vue.repliques[0]!.uuid, texte: "Autre." }), vue), { type: "remplacer_replique", replique: "R01", texte: "Autre." });
+  assert.deepEqual(operationEnPoignees(op({ type: "refondre_fiche", planUuid: planUuid(7), consigne: "plus sec" }), vue), { type: "refondre_fiche", plan: "P07", consigne: "plus sec" });
   assert.equal(operationEnPoignees(op({ type: "couper_plan", planUuid: "inconnu" }), vue).plan, "?", "une cible disparue devient « ? »");
   // Aller-retour : ce que le code écrit pour le modèle, le code le relit.
-  const brutes = [couper(5), duree(1, 6), op({ type: "supprimer_replique", repliqueUuid: vue.repliques[1]!.uuid })].map((o) => operationEnPoignees(o, vue));
+  const brutes = [couper(5), duree(1, 6), op({ type: "refondre_fiche", planUuid: planUuid(12), consigne: "" })].map((o) => operationEnPoignees(o, vue));
   assert.equal(validerOperations(brutes, vue).valides.length, 3);
 });
 

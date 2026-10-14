@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { assets, jobs, planDialogues, planPromptSections, planRefs, plans, repliques } from "../db/schema";
+import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";
 import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/annulation-db";
 import { domaineDe, type DomaineGpu } from "../lib/gpu";
@@ -55,33 +55,14 @@ async function construireSubmissionInput(
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
 
-  const [sections, refs, dialogues] = await Promise.all([
+  const [sections, refs] = await Promise.all([
     db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId)),
     db
       .select({ type: planRefs.type, slot: planRefs.slot, fichier: assets.fichier, assetId: assets.id, assetType: assets.type, voixMaster: assets.voixMaster })
       .from(planRefs)
       .leftJoin(assets, eq(planRefs.assetId, assets.id))
       .where(eq(planRefs.planId, planId)),
-    // Le master du locuteur d'une réplique liée EST la référence <Audio N> du plan (F02, révision 2026-10-14) : elle
-    // vient de plan_dialogues, jamais de plan_refs.
-    db
-      .select({
-        slot: planDialogues.slot,
-        repliqueId: repliques.id,
-        locuteurId: repliques.locuteurId,
-      })
-      .from(planDialogues)
-      .innerJoin(repliques, eq(planDialogues.repliqueId, repliques.id))
-      .where(eq(planDialogues.planId, planId)),
   ]);
-
-  // La voix d'une réplique : le master de son locuteur (voix/<personnageId>/<fichier>, chantier voix/master 2026-10-14), sinon rien
-  // (jamais bloquant : le modèle vidéo invente la voix).
-  const personnages = [...new Set(dialogues.map((d) => d.locuteurId).filter((x): x is number => x != null))];
-  const mastersDesPersonnages = personnages.length
-    ? await db.select({ id: assets.id, voixMaster: assets.voixMaster }).from(assets).where(and(inArray(assets.id, personnages), eq(assets.type, "personnage")))
-    : [];
-  const masterDuPersonnage = new Map(mastersDesPersonnages.filter((p) => p.voixMaster).map((p) => [p.id, cheminVoixMedia(p.id, p.voixMaster!)]));
 
   const promptFiche = assemblerPrompt(sections);
 
@@ -93,19 +74,12 @@ async function construireSubmissionInput(
   });
   const refAsset = (fichier: string | null) => ref(cheminAssetMedia(fichier ?? ""));
 
-  // Audio : les masters des locuteurs d'abord (la voix prime sur les bruitages), puis les bruitages sur les
-  // emplacements restants.
-  // Depuis le 2026-10-14 le prompt est la source des répliques : la voix d'un personnage qui parle est une référence audio de la fiche dont
-  // l'asset est le PERSONNAGE (son master). Les anciennes répliques liées ne servent que pour une fiche écrite avant (sans voix de ce genre).
-  const voixDeLaFiche = refs
+  // Audio : les voix d'abord (la voix prime sur les bruitages), puis les bruitages sur les emplacements restants. Le prompt est la source
+  // des répliques (2026-10-14) : la voix d'un personnage qui parle est une référence audio de la fiche dont l'asset est le PERSONNAGE
+  // (son master) ; sans master, le modèle vidéo invente la voix (jamais bloquant).
+  const audioVoix = refs
     .filter((r) => r.type === "audio" && r.assetType === "personnage")
     .flatMap((r) => (r.voixMaster && r.assetId != null ? [{ slot: r.slot, ...ref(cheminVoixMedia(r.assetId, r.voixMaster)), dureeSecondes: null as number | null }] : []));
-  const audioVoix = refs.some((r) => r.type === "audio" && r.assetType === "personnage")
-    ? voixDeLaFiche
-    : dialogues.flatMap((d) => {
-        const master = d.locuteurId != null ? masterDuPersonnage.get(d.locuteurId) : undefined;
-        return master ? [{ slot: d.slot, ...ref(master), dureeSecondes: null as number | null }] : [];
-      });
   const emplacementsVoix = new Set(audioVoix.map((a) => a.slot));
   const audioBruitages = refs
     .filter((r) => r.type === "audio" && r.assetType !== "personnage" && r.fichier)

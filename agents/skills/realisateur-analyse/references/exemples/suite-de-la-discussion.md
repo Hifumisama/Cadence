@@ -14,7 +14,7 @@ Nothing else to say: the options become decisions in the application.
 
 ## 2. A new precise request that contradicts an earlier decision
 
-Input (abridged): `decisions` = `D1` "Couper quatre plans d'ambiance" (cuts P05, P10, P02, P08) and `D2` "Accélérer la scène 1" (P01 → 6 s, P02 → 6 s, P03 → 7 s, P05 → 5 s). `prochainId`: `"D3"`. R01 = "Je ne reviendrai jamais." (said in P07). `"message": "Plan 07 : une réplique plus sobre."`
+Input (abridged): `decisions` = `D1` "Couper quatre plans d'ambiance" (cuts P05, P10, P02, P08) and `D2` "Accélérer la scène 1" (P01 → 6 s, P02 → 6 s, P03 → 7 s, P05 → 5 s). `prochainId`: `"D3"`. P07's description holds Maya's line "Je ne reviendrai jamais.". `"message": "Plan 07 : une réplique plus sobre."`
 
 One new decision (it will be `D3`). And a **story judgment** on it: `D1` cut P08 because the line of P07 already says what the insert shows; a plainer line says it less well.
 
@@ -24,7 +24,10 @@ One new decision (it will be `D3`). And a **story judgment** on it: `D1` cut P08
     {
       "titre": "Réplique du plan 07 plus sobre",
       "raison": "Le ton de la lettre doit rester contenu.",
-      "operations": [{"type": "remplacer_replique", "replique": "R01", "texte": "Je ne reviendrai pas."}]
+      "operations": [
+        {"type": "modifier_plan", "plan": "P07", "description": "Maya lit la lettre jusqu'au bout, puis la repose sur la table.\nMaya : « Je ne reviendrai pas. »\nÉtat en fin de plan : Maya reste assise à la table, la lettre posée devant elle."},
+        {"type": "refondre_fiche", "plan": "P07", "consigne": "Maya says \"Je ne reviendrai pas.\""}
+      ]
     }
   ],
   "retirer": [],
@@ -34,7 +37,7 @@ One new decision (it will be `D3`). And a **story judgment** on it: `D1` cut P08
     {
       "decision": "D3",
       "niveau": "conflit",
-      "texte": "Le plan 08 est coupé (D1) parce que la réplique R01 du plan 07 disait déjà ce que l'insert montre ; plus sobre, elle le dit moins bien."
+      "texte": "Le plan 08 est coupé (D1) parce que la réplique du plan 07 disait déjà ce que l'insert montre ; plus sobre, elle le dit moins bien."
     }
   ]
 }
@@ -63,7 +66,10 @@ Change **both** decisions concerned with their **complete** operations: `D1` wit
       "id": "D3",
       "titre": "Réplique du plan 07 plus sobre",
       "raison": "Le ton de la lettre doit rester contenu.",
-      "operations": [{"type": "remplacer_replique", "replique": "R01", "texte": "Je ne reviendrai pas."}]
+      "operations": [
+        {"type": "modifier_plan", "plan": "P07", "description": "Maya lit la lettre jusqu'au bout, puis la repose sur la table.\nMaya : « Je ne reviendrai pas. »\nÉtat en fin de plan : Maya reste assise à la table, la lettre posée devant elle."},
+        {"type": "refondre_fiche", "plan": "P07", "consigne": "Maya says \"Je ne reviendrai pas.\""}
+      ]
     }
   ],
   "retirer": [],

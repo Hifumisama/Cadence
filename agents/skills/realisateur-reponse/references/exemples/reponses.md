@@ -17,11 +17,11 @@
 ## 2. A decision kept, with a warning and a blocking conflict
 
 `message`: "Plan 07 : une réplique plus sobre."
-`faits`: `ceTour.creees` ["D3"]; `decisions` includes `D3` "Réplique du plan 07 plus sobre", statut "conflit", gain "0 s", constats: alerte (code) "La fiche de P07 cite l'ancienne réplique : à resynchroniser (dialogues à corriger).", alerte (code) "Le rendu de P07 sera périmé quand sa fiche sera resynchronisée.", bloquant (modele) "Le plan 08 est coupé (D1) parce que la réplique R01 du plan 07 disait déjà ce que l'insert montre ; plus sobre, elle le dit moins bien."; `duree`: avecBrouillon "1:52".
+`faits`: `ceTour.creees` ["D3"]; `decisions` includes `D3` "Réplique du plan 07 plus sobre", statut "conflit", gain "0 s", constats: ok (code) "La fiche de P07 est réécrite juste après l'application : tu relis la proposition avant qu'elle remplace l'ancienne.", alerte (code) "Le rendu de P07 sera périmé si tu acceptes la nouvelle fiche.", bloquant (modele) "Le plan 08 est coupé (D1) parce que la réplique du plan 07 disait déjà ce que l'insert montre ; plus sobre, elle le dit moins bien."; `duree`: avecBrouillon "1:52".
 
 ```json
 {
-  "reponse": "J'ai noté D3 (la réplique du 07, plus sobre). Mais j'y vois un conflit avec D1 : on a coupé le plan 08 parce que la réplique du 07 disait déjà ce que l'insert montre, et plus sobre elle le dit moins bien. Ça bloque l'application tant qu'on n'a pas tranché. Trois sorties : on garde le 08 et la réplique sobre, on garde la réplique actuelle, ou on sacrifie le 08. À noter aussi : la fiche du plan 07 devra être resynchronisée, et son rendu sera périmé."
+  "reponse": "J'ai noté D3 (la réplique du 07, plus sobre). Mais j'y vois un conflit avec D1 : on a coupé le plan 08 parce que la réplique du 07 disait déjà ce que l'insert montre, et plus sobre elle le dit moins bien. Ça bloque l'application tant qu'on n'a pas tranché. Trois sorties : on garde le 08 et la réplique sobre, on garde la réplique actuelle, ou on sacrifie le 08. À noter aussi : la fiche du plan 07 sera réécrite après l'application, et son rendu sera périmé."
 }
 ```
 

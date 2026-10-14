@@ -24,7 +24,6 @@ const dialogue: SortiePlanH3 = {
   ],
   overall_soundscape: "Near-total silence surrounds the murmured threat, Maya's breath tight and controlled.",
   non_diegetic_music: "A single low, sustained cello note begins to hold unresolved beneath the threat, barely swelling.",
-  repliques: [{ repliqueId: "u1" }],
   assetsManquants: [],
   notes: "",
 };
@@ -67,7 +66,6 @@ test("timecode : MM:SS.mmm", () => {
 const multi: SortiePlanH3 = {
   ...dialogue,
   dureeSecondes: 9,
-  repliques: [],
   references: [
     { asset: "CHAR_maya", nature: "image", role: "Maya", nom: "Maya", definition: "running" },
     { asset: "DEC_couloir_bois", nature: "image", role: "Décor", nom: "the corridor", definition: "" },

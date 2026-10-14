@@ -184,7 +184,7 @@ test("revue d'un lot : un groupe par épisode, les changements rangés par scèn
     changement({ id: 2, sousGroupe: "Le pont", cibleType: "scene" }),
     changement({ id: 3, sousGroupe: "Le pont", cibleType: "plan" }),
     changement({ id: 4, sousGroupe: "La lampe", cibleType: "plan" }),
-    changement({ id: 5, sousGroupe: "Le pont", cibleType: "replique" }),
+    changement({ id: 5, sousGroupe: "Le pont", cibleType: "fiche" }),
   ];
   const blocs = parSousGroupe(liste);
   assert.deepEqual(blocs.map((b) => b.titre), [null, "Le pont", "La lampe"]);

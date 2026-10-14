@@ -39,8 +39,8 @@ const plan = (over: Partial<PlanPourIteration> = {}): PlanPourIteration => ({
     { type: "picture", slot: 1 },
     { type: "picture", slot: 2 },
     { type: "audio", slot: 2 },
+    { type: "audio", slot: 1 },
   ],
-  slotsVoix: [1],
   dureeGenerationSecondes: 6,
   dureeReelleSecondes: 6.04,
   ...over,
@@ -101,8 +101,8 @@ test("un plan avec rendu : écrasement à cocher, décoché par défaut (règles
       { type: "picture", slot: 1, asset: "CHAR_maya" },
       { type: "picture", slot: 2, asset: "DEC_couloir" },
       { type: "audio", slot: 2, asset: "SFX_porte" },
+      { type: "audio", slot: 1, asset: "CHAR_maya" },
     ],
-    slotsDialogues: [1],
     registre: new Map([["CHAR_maya", "personnage"], ["DEC_couloir", "decor"], ["SFX_porte", "sfx"]]),
     aUnRendu: true,
     dureeGenerationSecondes: 6,
@@ -221,13 +221,12 @@ test("le contrôleur du worker ne renvoie que les erreurs, depuis l'entrée text
       { label: "<Picture 1>", type: "picture", slot: 1, asset: "CHAR_maya" },
       { label: "<Picture 2>", type: "picture", slot: 2, asset: "DEC_couloir" },
       { label: "<Audio 2>", type: "audio", slot: 2, asset: "SFX_porte" },
-      { label: "<Audio 1>", type: "audio", slot: 1, voix: true, replique: "Pas un bruit." },
+      { label: "<Audio 1>", type: "audio", slot: 1, asset: "CHAR_maya" },
     ],
     rendu: { dureeReelleSecondes: 6.04 },
   };
   const ctx = contexteDepuisEntree(entree);
-  assert.deepEqual(ctx.slotsVoix, [1]);
-  assert.equal(ctx.refs.length, 3);
+  assert.equal(ctx.refs.length, 4);
   assert.equal(ctx.dureeReelleSecondes, 6.04);
   const controler = controleurPourSkill("iteration-plan", entree)!;
   assert.deepEqual(controler(sortie()), []);
@@ -375,7 +374,6 @@ test("références : l'écrasement ne compte que les références qui disparaiss
     titre: "Le couloir",
     sections: { summary: "x" },
     refs: [{ type: "picture", slot: 1, asset: "CHAR_maya" }, { type: "picture", slot: 2, asset: "DEC_couloir" }],
-    slotsDialogues: [],
     registre: new Map([["CHAR_maya", "personnage"], ["DEC_couloir", "decor"], ["PROP_lampe", "prop"]]),
     aUnRendu: false,
     dureeGenerationSecondes: 8,

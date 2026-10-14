@@ -15,10 +15,6 @@ export type PromptSection = {
  * fichier "use server" — il ne peut exporter que des fonctions async. */
 export const WORKFLOW_IMPORT_MANUEL = "import-manuel";
 
-export type Dialogue = {
-  dureeSecondes: number | null;
-};
-
 export type RefLabel = {
   type: "picture" | "video" | "audio";
   slot: number;
@@ -56,192 +52,12 @@ export function extraireBalisesD(sections: PromptSection[]): BaliseD[] {
   return balises;
 }
 
-export type SegmentEcart = {
-  /** "=" commun aux deux · "-" attendu (dans la réplique) mais absent du
-   * prompt · "+" présent dans le prompt mais pas dans la réplique. */
-  type: "=" | "-" | "+";
-  texte: string;
-};
-
-// Mots, blancs et signes de ponctuation séparés : une virgule manquante
-// ressort comme une virgule, pas comme un mot entier différent.
-const RE_JETONS = /\s+|[\p{L}\p{N}_]+|[^\s\p{L}\p{N}_]/gu;
-
-function jetons(texte: string): string[] {
-  return texte.match(RE_JETONS) ?? [];
-}
-
-function tableLcs(a: string[], b: string[]): number[][] {
-  const t: number[][] = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
-  for (let i = a.length - 1; i >= 0; i--) {
-    for (let j = b.length - 1; j >= 0; j--) {
-      t[i]![j] = a[i] === b[j] ? t[i + 1]![j + 1]! + 1 : Math.max(t[i + 1]![j]!, t[i]![j + 1]!);
-    }
-  }
-  return t;
-}
-
-/** Écart mot à mot entre la réplique attendue et ce que le prompt dit. */
-export function ecartVerbatim(attendu: string, trouve: string): SegmentEcart[] {
-  const a = jetons(attendu);
-  const b = jetons(trouve);
-  const t = tableLcs(a, b);
-  const segments: SegmentEcart[] = [];
-  const pousser = (type: SegmentEcart["type"], texte: string) => {
-    const dernier = segments[segments.length - 1];
-    if (dernier && dernier.type === type) dernier.texte += texte;
-    else segments.push({ type, texte });
-  };
-  let i = 0;
-  let j = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      pousser("=", a[i]!);
-      i++;
-      j++;
-    } else if (t[i + 1]![j]! >= t[i]![j + 1]!) {
-      pousser("-", a[i]!);
-      i++;
-    } else {
-      pousser("+", b[j]!);
-      j++;
-    }
-  }
-  while (i < a.length) pousser("-", a[i++]!);
-  while (j < b.length) pousser("+", b[j++]!);
-  return segments;
-}
-
-/** Ressemblance 0..1 entre deux textes (part de jetons communs) — sert
- * seulement à décider qu'une balise `<d>` est probablement la version
- * déformée d'une réplique, plutôt qu'un dialogue sans rapport. */
-function ressemblance(a: string, b: string): number {
-  const ja = jetons(a);
-  const jb = jetons(b);
-  if (ja.length === 0 && jb.length === 0) return 1;
-  return (2 * tableLcs(ja, jb)[0]![0]!) / (ja.length + jb.length);
-}
-
-const SEUIL_RESSEMBLANCE = 0.4;
-
-/** Réplique liée à un plan, telle que le contrôle a besoin de la voir : son texte, rien d'autre (une réplique n'est qu'un texte inséré
- * dans le prompt, chantier voix/master 2026-10-14). */
-export type RepliqueLiee = {
-  id: number;
-  texte: string;
-};
-
-export type ProblemeDialogue =
-  | { type: "absente"; repliqueId: number; texte: string }
-  | { type: "differente"; repliqueId: number; texte: string; trouve: string; ecart: SegmentEcart[]; balise: BaliseD }
-  | { type: "orpheline"; trouve: string; balise: BaliseD };
-
-export type ControleDialogues = {
-  problemes: ProblemeDialogue[];
-  /** État de chaque réplique liée dans le prompt. */
-  parReplique: Record<number, "ok" | "absente" | "differente">;
-  /** Aucun problème, d'aucune sorte. */
-  ok: boolean;
-};
-
-/** Invariant verbatim (docs/FRICTIONS.md F02, révision 2026-09-30) : chaque
- * réplique liée au plan doit apparaître au mot près, ponctuation comprise, dans
- * une balise <d> du prompt — voix de personnage comme voix off — et chaque <d>
- * doit venir d'une réplique liée. Sans ça les lèvres bougent sur un autre texte
- * que celui monté. Un écart est signalé, jamais bloquant.
- *
- * Appariement : d'abord les correspondances exactes ; parmi le reste, une
- * balise assez proche d'une réplique en est la version « différente » (avec
- * l'écart), sinon la réplique est « absente » et la balise « orpheline ». */
-export function controlerDialogues(
-  sections: PromptSection[],
-  repliques: RepliqueLiee[],
-): ControleDialogues {
-  const balises = extraireBalisesD(sections);
-  const balisesLibres = new Set(balises.keys());
-  const parReplique: ControleDialogues["parReplique"] = {};
-  const sansCorrespondance: RepliqueLiee[] = [];
-
-  for (const r of repliques) {
-    const cible = r.texte.trim();
-    const idx = [...balisesLibres].find((i) => balises[i]!.texte === cible);
-    if (idx === undefined) {
-      sansCorrespondance.push(r);
-    } else {
-      balisesLibres.delete(idx);
-      parReplique[r.id] = "ok";
-    }
-  }
-
-  const candidats = sansCorrespondance
-    .flatMap((r) =>
-      [...balisesLibres].map((i) => ({ r, i, sim: ressemblance(r.texte.trim(), balises[i]!.texte) })),
-    )
-    .filter((c) => c.sim >= SEUIL_RESSEMBLANCE)
-    .sort((x, y) => y.sim - x.sim);
-  const differentes = new Map<number, number>(); // repliqueId -> index de balise
-  for (const c of candidats) {
-    if (differentes.has(c.r.id) || !balisesLibres.has(c.i)) continue;
-    differentes.set(c.r.id, c.i);
-    balisesLibres.delete(c.i);
-  }
-
-  const problemes: ProblemeDialogue[] = [];
-  for (const r of sansCorrespondance) {
-    const i = differentes.get(r.id);
-    if (i === undefined) {
-      parReplique[r.id] = "absente";
-      problemes.push({ type: "absente", repliqueId: r.id, texte: r.texte });
-    } else {
-      const balise = balises[i]!;
-      parReplique[r.id] = "differente";
-      problemes.push({
-        type: "differente",
-        repliqueId: r.id,
-        texte: r.texte,
-        trouve: balise.texte,
-        ecart: ecartVerbatim(r.texte.trim(), balise.texte),
-        balise,
-      });
-    }
-  }
-  for (const i of balisesLibres) {
-    problemes.push({ type: "orpheline", trouve: balises[i]!.texte, balise: balises[i]! });
-  }
-
-  return { problemes, parReplique, ok: problemes.length === 0 };
-}
-
-/** Une phrase pour résumer les points à vérifier dans les dialogues d'un plan (« 1 réplique absente du prompt, 1 balise sans réplique liée »). */
-export function resumerProblemesDialogues(problemes: ProblemeDialogue[]): string {
-  const n = (type: ProblemeDialogue["type"]) => problemes.filter((p) => p.type === type).length;
-  const morceaux: [number, string, string][] = [
-    [n("absente"), "réplique absente du prompt", "répliques absentes du prompt"],
-    [n("differente"), "réplique citée autrement que mot pour mot", "répliques citées autrement que mot pour mot"],
-    [n("orpheline"), "dialogue du prompt sans réplique liée", "dialogues du prompt sans réplique liée"],
-  ];
-  return morceaux
-    .filter(([k]) => k > 0)
-    .map(([k, un, plusieurs]) => `${k} ${k > 1 ? plusieurs : un}`)
-    .join(", ");
-}
-
-/** Emplacements `<Audio N>` : la voix prime sur les bruitages (F02), donc les
- * répliques prennent les slots d'abord. Renvoie le plus petit slot libre, ou
- * null s'il n'en reste plus. */
-export function prochainSlotAudioLibre(pris: number[]): number | null {
-  for (let slot = 1; slot <= MAX_REFS.audio; slot++) {
-    if (!pris.includes(slot)) return slot;
-  }
-  return null;
-}
-
 /** Cohérence des refs : chaque label <Picture N>/<Audio N>/<Video N> cité
  * dans le prompt doit exister dans la table de refs du plan, et
  * inversement.
  *
- * `derivees` : les refs audio DÉRIVÉES des répliques liées (l'audio de la
- * réplique EST la ref <Audio N>, voir DialoguesPanel). Elles comptent comme
+ * `derivees` : les refs audio qui sont la VOIX d'un personnage (son master,
+ * `lib/queries-voix-plan.ts`). Elles comptent comme
  * déclarées (un prompt qui les cite n'a pas de label orphelin) mais ne sont
  * jamais « non citées » : le contrat de plan-h3 et les fiches validées de
  * l'épisode 1 ne citent pas les voix (docs/FRICTIONS.md, « iteration-plan
@@ -282,28 +98,6 @@ export function extraireLabels(texte: string): string[] {
   const vus = new Set<string>();
   for (const m of texte.matchAll(/<(Picture|Video|Audio)\s+(\d+)>/g)) vus.add(`${m[1]} ${m[2]}`);
   return [...vus];
-}
-
-export type StatutDuree = "tient" | "a_mesurer" | "decoupage_a_envisager";
-
-/** Durée voix (F03) : somme des répliques + marge de respiration comparée au
- * plafond (15s par défaut). Une réplique non mesurée bloque le calcul —
- * la durée se mesure, elle ne s'estime pas. */
-export function calculerStatutDuree(
-  dialogues: Dialogue[],
-  plafondSecondes: number,
-  margeSecondes: number,
-): { statut: StatutDuree; totalSecondes: number | null } {
-  if (dialogues.length === 0) return { statut: "tient", totalSecondes: 0 };
-  if (dialogues.some((d) => d.dureeSecondes == null)) {
-    return { statut: "a_mesurer", totalSecondes: null };
-  }
-  const total = dialogues.reduce((acc, d) => acc + (d.dureeSecondes ?? 0), 0);
-  const avecMarge = total + margeSecondes;
-  return {
-    statut: avecMarge <= plafondSecondes ? "tient" : "decoupage_a_envisager",
-    totalSecondes: Math.round(total * 100) / 100,
-  };
 }
 
 // ---------------------------------------------------------------------
@@ -430,14 +224,4 @@ export function controlerStructure(
   }
 
   return problemes;
-}
-
-/** Remplace, dans le contenu d'UNE section, le texte de la première balise `<d>` qui dit EXACTEMENT `ancien` (aux blancs de bord
- * près) par `nouveau`. Renvoie le contenu modifié, ou null si aucune balise ne dit l'ancien texte : on ne devine jamais une
- * correspondance approchée, la fiche reste alors à retoucher (contrôle verbatim). Sert à resynchroniser la fiche quand une réplique
- * change (réalisateur, docs/FRICTIONS.md 2026-10-09, 3c). */
-export function remplacerDialogue(contenu: string, ancien: string, nouveau: string): string | null {
-  const cible = ancien.trim();
-  const b = extraireBalisesD([{ section: "", contenu }]).find((x) => x.texte === cible);
-  return b ? contenu.slice(0, b.debut) + nouveau.trim() + contenu.slice(b.fin) : null;
 }

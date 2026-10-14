@@ -47,19 +47,19 @@ test("parcours « ressenti » sans base : le conflit narratif du modèle bloque,
   const t2 = tour(
     etat,
     sortie({
-      decisions: [{ id: null, titre: "Réplique plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }] }],
+      decisions: [{ id: null, titre: "Réplique plus sobre", raison: "", operations: [{ type: "refondre_fiche", plan: "P07", consigne: "réplique plus sobre" }] }],
       narratif: [{ decision: "D2", niveau: "conflit", texte: "Le 08 est coupé parce que la réplique disait ce qu'il montre." }],
     }),
   );
   assert.equal(t2.faits.decisions.find((d) => d.id === "D2")!.statut, "conflit");
   assert.ok(t2.faits.decisions[1]!.constats.some((c) => c.source === "modele" && c.niveau === "bloquant"));
-  assert.ok(t2.faits.decisions[1]!.constats.some((c) => c.source === "code" && /fiche de P07/.test(c.texte)));
+  assert.ok(t2.faits.decisions[1]!.constats.some((c) => c.source === "code" && /rendu de P07 sera périmé/.test(c.texte)));
   const t3 = tour(
     t2.suivant,
     sortie({
       decisions: [
         { id: "D1", titre: "Couper 3 plans", raison: "", operations: coupes(5, 10, 2) },
-        { id: "D2", titre: "Réplique plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }] },
+        { id: "D2", titre: "Réplique plus sobre", raison: "", operations: [{ type: "refondre_fiche", plan: "P07", consigne: "réplique plus sobre" }] },
       ],
     }),
   );

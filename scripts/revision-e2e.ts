@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "../db";
-import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, plans, projects, repliques, revisionDecisions, scenes, seasons } from "../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, plans, projects, revisionDecisions, scenes, seasons } from "../db/schema";
 import { semerLeSel } from "./semis-le-sel";
 import type { SortieAnalyse } from "../lib/agents/revision/analyse";
 import { abandonnerRevision, appliquerRevision, appliquerSortieAnalyse, conversationRevisionParUuid, envoyerMessageRevision, lireEtatRevision, ouvrirRevision, reconfirmerDecision, relancerTourRevision, retirerDecision } from "../lib/agents/revision/revision-db";
@@ -71,8 +71,6 @@ async function main() {
     // ── A. Le parcours « ressenti » ───────────────────────────────────────────────
     console.log("\nA. Parcours « ressenti » : pistes, choix, conflit, résolution, application");
     const a = await semerLeSel("TEST_REVISION_E2E_A");
-    // La fiche du plan 07 (semée) cite sa réplique mot pour mot : l'application doit mettre son dialogue à jour.
-    const [p07] = (await db.select({ id: plans.id }).from(plans).where(eq(plans.episodeId, a.episodeId)).orderBy(asc(plans.ordre))).slice(6);
     ids.push(a.projectId);
     const o1 = await ouvrirRevision(a.projectId, a.episodeId);
     if (!o1.ok) throw new Error(o1.erreur);
@@ -103,13 +101,13 @@ async function main() {
     const t3 = await tour(
       o1.conversationUuid,
       sortie({
-        decisions: [{ id: null, titre: "Réplique du plan 07 plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }] }],
+        decisions: [{ id: null, titre: "Réplique du plan 07 plus sobre", raison: "", operations: [{ type: "refondre_fiche", plan: "P07", consigne: "réplique plus sobre" }] }],
         narratif: [{ decision: "D3", niveau: "conflit", texte: "Le plan 08 est coupé parce que la réplique disait ce que l'insert montre." }],
       }),
     );
     const d3 = t3.decisions.find((d) => d.id === "D3");
     ok(d3?.statut === "conflit", "le jugement narratif du modèle met la décision en conflit");
-    ok(d3!.constats.some((c) => c.source === "code" && /fiche de P07 cite la réplique mot pour mot/.test(c.texte)) && d3!.constats.some((c) => c.source === "modele"), "constats du code (fiche à resynchroniser) ET du modèle (conflit)");
+    ok(d3!.constats.some((c) => c.source === "code" && /rendu de P07 sera périmé/.test(c.texte)) && d3!.constats.some((c) => c.source === "modele"), "constats du code (rendu périmé) ET du modèle (conflit)");
     const refus1 = await appliquerRevision(o1.conversationUuid);
     ok(!refus1.ok && /en conflit \(D3\)/.test(refus1.ok ? "" : refus1.erreur), "appliquer est refusé tant qu'une décision est en conflit");
 
@@ -118,7 +116,7 @@ async function main() {
       sortie({
         decisions: [
           { id: "D1", titre: "Couper trois plans d'ambiance", raison: "le 08 reste", operations: coupes(5, 10, 2) },
-          { id: "D3", titre: "Réplique du plan 07 plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }] },
+          { id: "D3", titre: "Réplique du plan 07 plus sobre", raison: "", operations: [{ type: "refondre_fiche", plan: "P07", consigne: "réplique plus sobre" }] },
         ],
       }),
     );
@@ -133,10 +131,6 @@ async function main() {
     ok(avantApplication.length === 14 && apres.length === 11 && !apres.includes("Mouettes dans le ciel") && apres.includes("Insert : l'écriture sur le papier"), "3 plans supprimés, le plan 08 reste");
     const lignes = await db.select({ ordre: plans.ordre, duree: plans.dureeGenerationSecondes }).from(plans).where(eq(plans.episodeId, a.episodeId)).orderBy(asc(plans.ordre));
     ok(lignes.every((l, i) => l.ordre === i) && lignes.reduce((x, l) => x + l.duree, 0) === 120, "ordre dense (aucun trou) et 120 s au total");
-    const [rep] = await db.select({ texte: repliques.texte }).from(repliques).where(eq(repliques.episodeId, a.episodeId)).orderBy(asc(repliques.ordre));
-    ok(rep?.texte === "Je ne reviendrai pas.", "la réplique a été réécrite");
-    const [dd] = await db.select({ contenu: planPromptSections.contenu }).from(planPromptSections).where(and(eq(planPromptSections.planId, p07!.id), eq(planPromptSections.section, "detailed_description")));
-    ok((dd?.contenu ?? "").includes("<d>[Français] Je ne reviendrai pas.</d>") && !(dd?.contenu ?? "").includes("jamais"), "le dialogue de la fiche du plan 07 est mis à jour");
     const [conv] = await db.select().from(agentConversations).where(eq(agentConversations.uuid, o1.conversationUuid));
     ok(conv?.fermeeAt != null && conv.etape === "applique", "la conversation est fermée à l'application");
     const decs = await db.select({ statut: revisionDecisions.statut }).from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv!.id));
@@ -176,8 +170,6 @@ async function main() {
     ok(ordreB.length === 12 && ordreB.indexOf("Le vieux pêcheur l'observe") === 3, "plans 04 et 07 supprimés ; le plan 09 est devenu le 4e");
     const [plan07] = await db.select().from(plans).where(eq(plans.episodeId, b.episodeId)).limit(1);
     ok(plan07 != null, "l'épisode existe toujours");
-    const [replique01] = await db.select({ id: repliques.id }).from(repliques).where(and(eq(repliques.episodeId, b.episodeId), eq(repliques.texte, "Je ne reviendrai jamais.")));
-    ok(replique01 != null, "la réplique du plan supprimé reste dans l'épisode (elle existe par elle-même)");
 
     // ── C. Ce que visait une décision a changé : « à revérifier » ──────────────────
     console.log("\nC. Cible disparue : à revérifier, jamais effacée en silence");
@@ -260,7 +252,7 @@ async function main() {
     await envoyerMessageRevision(od.conversationUuid, "Plan 07 : une réplique plus sobre.");
     prochainesAnalyses = [
       sortie({
-        decisions: [{ id: null, titre: "Réplique du plan 07 plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }, { type: "couper_plan", plan: "P99" }] }],
+        decisions: [{ id: null, titre: "Réplique du plan 07 plus sobre", raison: "", operations: [{ type: "refondre_fiche", plan: "P07", consigne: "réplique plus sobre" }, { type: "couper_plan", plan: "P99" }] }],
         narratif: [{ decision: "D3", niveau: "conflit", texte: "Le plan 08 est coupé parce que la réplique disait ce qu'il montre." }],
       }),
     ];
@@ -341,7 +333,7 @@ async function main() {
             id: null,
             titre: "Quatre plans des éléments avant le plan 01",
             raison: "",
-            operations: elements.map((t) => ({ type: "ajouter_plan", avant: "P01", titre: t, description: `Un maître : ${t}`, secondes: 6, texte: `${t}...`, locuteur: "CHAR_maya" })),
+            operations: elements.map((t) => ({ type: "ajouter_plan", avant: "P01", titre: t, description: `Un maître : ${t}\nMaya : « ${t}... »`, secondes: 6 })),
           },
         ],
       }),
@@ -353,13 +345,6 @@ async function main() {
     const lesF = await db.select({ id: plans.id, titre: plans.titre, duree: plans.dureeGenerationSecondes, sceneId: plans.sceneId }).from(plans).where(eq(plans.episodeId, f.episodeId)).orderBy(asc(plans.ordre));
     ok(lesF.slice(0, 5).map((p) => p.titre).join("|") === "L'eau|Le feu|La terre|L'air|Plan large du port, brume", "les quatre plans sont avant le plan 01, dans l'ordre demandé");
     ok(lesF.slice(0, 4).every((p) => p.duree === 6 && p.sceneId === lesF[4]!.sceneId), "…de 6 s chacun, dans la scène du plan 01");
-    const lignesF = await db
-      .select({ plan: plans.titre, texte: repliques.texte, slot: planDialogues.slot })
-      .from(planDialogues)
-      .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
-      .innerJoin(plans, eq(plans.id, planDialogues.planId))
-      .where(inArray(plans.id, lesF.slice(0, 4).map((p) => p.id)));
-    ok(lignesF.length === 4 && elements.every((t) => lignesF.some((l) => l.plan === t && l.texte === `${t}...` && l.slot === 1)), "chaque plan a sa réplique, liée à l'emplacement audio 1");
     const [convF] = await db.select().from(agentConversations).where(and(eq(agentConversations.projectId, f.projectId), eq(agentConversations.portee, "episode"), ne(agentConversations.profondeur, "revision")));
     const lotF = convF ? await db.select().from(agentRuns).where(and(eq(agentRuns.conversationId, convF.id), eq(agentRuns.skill, "plan-h3"))) : [];
     ok(lotF.length === 4, "un lot `plan-h3` de quatre sous-tâches attend dans la file");

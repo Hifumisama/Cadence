@@ -91,8 +91,6 @@ export type EtatPlanFiche = {
   sections: Partial<Record<string, string>>;
   /** Références actuelles (picture, audio, video), avec le code et le type de l'asset. */
   refs: { type: "picture" | "audio" | "video"; slot: number; asset: string | null }[];
-  /** Slots `<Audio N>` des répliques liées (plan_dialogues), qu'elles aient une prise ou non. */
-  slotsDialogues: number[];
   /** Codes du registre du projet → type. */
   registre: Map<string, string>;
   aUnRendu: boolean;
@@ -105,7 +103,7 @@ const DUREE_MIN = 5;
 const DUREE_MAX = 15;
 
 /** Raison d'un REFUS d'écrire cette fiche sur ce plan, ou null. Vérifie le contenu (sections connues,
- * durée entière 5–15, slots 1–6 images et 1–3 audio, uniques, sans prendre ceux des voix, assets
+ * durée entière 5–15, slots 1–6 images et 1–3 audio, uniques, assets
  * existants et de la bonne nature) ET l'état final : aucune écriture ne doit laisser un label
  * `<Picture N>` / `<Audio N>` sans la référence qu'il cite. */
 export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | null {
@@ -119,16 +117,12 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
     return `Durée de génération invalide (${String(d)}) : un plan dure ${DUREE_MIN} à ${DUREE_MAX} s entières.`;
   }
 
-  // Une fiche qui lit ses voix dans le prompt ignore les anciennes liaisons de répliques (elles sont détachées à l'écriture).
-  const slotsDialogues = apres.voixDuPrompt ? [] : etat.slotsDialogues;
   if (apres.refs) {
     const images = apres.refs.filter((r) => r.type === "picture");
     const sons = apres.refs.filter((r) => r.type === "audio");
     if (apres.refs.some((r) => r.type !== "picture" && r.type !== "audio")) return "Une fiche n'écrit que des références d'image ou de son.";
     if (images.length > MAX_REFS.picture) return `${images.length} images de référence : ${MAX_REFS.picture} au plus.`;
-    if (sons.length + slotsDialogues.length > MAX_REFS.audio) {
-      return `${sons.length} son${sons.length > 1 ? "s" : ""} et ${slotsDialogues.length} voix : ${MAX_REFS.audio} références audio au plus (la voix prime).`;
-    }
+    if (sons.length > MAX_REFS.audio) return `${sons.length} références audio : ${MAX_REFS.audio} au plus (la voix prime sur les bruitages).`;
     const vus = new Set<string>();
     for (const r of apres.refs) {
       const max = r.type === "picture" ? MAX_REFS.picture : MAX_REFS.audio;
@@ -136,7 +130,6 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
       const cle = `${r.type}:${r.slot}`;
       if (vus.has(cle)) return `Deux références sur le même slot (${r.type === "picture" ? "Picture" : "Audio"} ${r.slot}).`;
       vus.add(cle);
-      if (r.type === "audio" && slotsDialogues.includes(r.slot)) return `Le slot Audio ${r.slot} est pris par une réplique liée : la voix prime.`;
       const type = etat.registre.get(r.asset);
       if (type == null) return `L'asset ${r.asset} n'existe pas dans ce projet.`;
       if (r.type === "picture" && (type === "voix" || type === "sfx")) return `${r.asset} (${type}) n'a pas d'image : il ne peut pas être une référence d'image.`;
@@ -149,7 +142,6 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
   const finales = SECTIONS_FICHE.map((section) => ({ section, contenu: sections[section] ?? etat.sections[section] ?? "" }));
   const refsFinales: RefLabel[] = [
     ...(apres.refs ? [...apres.refs.map((r) => ({ type: r.type, slot: r.slot })), ...etat.refs.filter((r) => r.type === "video")] : etat.refs.map((r) => ({ type: r.type, slot: r.slot }))),
-    ...slotsDialogues.map((slot) => ({ type: "audio" as const, slot })),
   ];
   // Seuls les labels orphelins que CETTE écriture introduit la refusent : une incohérence déjà là (une réplique déliée du plan dont les lignes de voix
   // `<Audio 1>` sont restées dans le prompt) ne doit pas bloquer une correction sans rapport ; elle est signalée à part (`labelsOrphelinsActuels`).
@@ -166,7 +158,7 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
 /** Les labels que le prompt ACTUEL cite sans référence (avant toute écriture) : un plan incohérent d'avance. */
 export function labelsOrphelinsActuels(etat: EtatPlanFiche): string[] {
   const sections = SECTIONS_FICHE.map((section) => ({ section, contenu: etat.sections[section] ?? "" }));
-  const refs: RefLabel[] = [...etat.refs.map((r) => ({ type: r.type, slot: r.slot })), ...etat.slotsDialogues.map((slot) => ({ type: "audio" as const, slot }))];
+  const refs: RefLabel[] = etat.refs.map((r) => ({ type: r.type, slot: r.slot }));
   return verifierCoherenceRefs(sections, refs).labelsOrphelins;
 }
 

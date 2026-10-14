@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { jobs, planDialogues, planPromptSections, planRefs, plans } from "@/db/schema";
+import { jobs, planPromptSections, planRefs, plans } from "@/db/schema";
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { getPlansPerimes } from "@/lib/plans-perimes";
 import { classerPourPrevisualisation, consequencesSuppression, decisionIteration, essaiEnFile } from "@/lib/fiche-plan";
@@ -12,8 +12,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
-import { getDialoguesPlan } from "@/lib/queries-repliques";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL, verifierCoherenceRefs } from "@/lib/plan-checks";
+import { getVoixDuPlan } from "@/lib/queries-voix-plan";
 import { estLiaison } from "@/lib/plan-liaison";
 import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
 import type { RefLabel } from "@/lib/plan-checks";
@@ -449,17 +449,10 @@ export async function ajouterRef(
     .from(planRefs)
     .where(and(eq(planRefs.planId, planId), eq(planRefs.type, type)));
 
-  // Les répliques liées occupent des slots <Audio N> (la voix prime sur les
-  // bruitages, F02) : ils comptent dans le maximum et dans la numérotation.
-  const slotsRepliques =
-    type === "audio"
-      ? (await db.select({ slot: planDialogues.slot }).from(planDialogues).where(eq(planDialogues.planId, planId))).map((d) => d.slot)
-      : [];
-
-  if (existantes.length + slotsRepliques.length >= MAX_REFS[type]) return;
+  if (existantes.length >= MAX_REFS[type]) return;
   if (existantes.some((r) => r.assetId === assetId)) return;
 
-  const prochainSlot = [...existantes.map((r) => r.slot), ...slotsRepliques].reduce((acc, n) => Math.max(acc, n), 0) + 1;
+  const prochainSlot = existantes.map((r) => r.slot).reduce((acc, n) => Math.max(acc, n), 0) + 1;
 
   await db.transaction(async (tx) => {
     await tx.insert(planRefs).values({
@@ -577,7 +570,6 @@ type AnalysePromptColle =
       avertissements: {
         labelsOrphelins: string[];
         refsNonCitees: string[];
-        repliquesNonTrouvees: string[];
       };
     };
 
@@ -602,26 +594,21 @@ export async function analyserPromptColle(
 
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) return { ok: false, erreurs: ["plan introuvable"] };
-  const [refs, { liaisons, audioRefs }] = await Promise.all([
+  const [refs, audioRefs] = await Promise.all([
     db
       .select({ type: planRefs.type, slot: planRefs.slot })
       .from(planRefs)
       .where(eq(planRefs.planId, planId)),
-    getDialoguesPlan(plan.projectId, planId, plan.episodeId),
+    getVoixDuPlan(planId),
   ]);
 
   // Les voix (audioRefs) sont des refs dérivées : déclarées, jamais « non citées » (voir verifierCoherenceRefs).
   const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, refs, audioRefs);
-  const repliquesNonTrouvees = controlerDialogues(
-    sectionsPourControle,
-    liaisons.map((l) => ({ id: l.id, texte: l.texte })),
-  )
-    .problemes.flatMap((p) => (p.type === "absente" || p.type === "differente" ? [p.texte] : []));
 
   return {
     ok: true,
     sections,
-    avertissements: { labelsOrphelins, refsNonCitees, repliquesNonTrouvees },
+    avertissements: { labelsOrphelins, refsNonCitees },
   };
 }
 

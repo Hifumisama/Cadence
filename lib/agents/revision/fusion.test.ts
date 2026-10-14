@@ -23,11 +23,10 @@ test("recoupement : « seulement le 04 » posté comme une décision de plus est
   assert.equal(faits.duree.avecBrouillon, "2:11", "la durée ne compte pas deux fois le plan");
 });
 
-test("recoupements : même durée, même texte, même suppression ; des durées différentes sont un conflit, pas un recoupement", () => {
-  const rep = vue.repliques[0]!.uuid;
-  const a = { id: "D1", titre: "A", operations: [duree(1, 6), { type: "remplacer_replique", repliqueUuid: rep, texte: "Autre." } as Operation, { type: "supprimer_replique", repliqueUuid: vue.repliques[1]!.uuid } as Operation] };
-  const b = { id: "D2", titre: "B", operations: [duree(1, 6), { type: "remplacer_replique", repliqueUuid: rep, texte: "Autre." } as Operation, { type: "supprimer_replique", repliqueUuid: vue.repliques[1]!.uuid } as Operation] };
-  assert.equal(recoupementsEntreDecisions([a, b], vue).length, 3);
+test("recoupements : même durée, même plan coupé ; des durées différentes sont un conflit, pas un recoupement", () => {
+  const a = { id: "D1", titre: "A", operations: [duree(1, 6), { type: "refondre_fiche", planUuid: planUuid(12), consigne: "" } as Operation] };
+  const b = { id: "D2", titre: "B", operations: [duree(1, 6), { type: "refondre_fiche", planUuid: planUuid(12), consigne: "" } as Operation] };
+  assert.equal(recoupementsEntreDecisions([a, b], vue).length, 1, "la durée recoupe ; refondre deux fois une fiche n'est pas signalé");
   assert.equal(recoupementsEntreDecisions([a, { id: "D2", titre: "B", operations: [duree(1, 7)] }], vue).length, 0);
   assert.equal(recoupementsEntreDecisions([a], vue).length, 0);
 });

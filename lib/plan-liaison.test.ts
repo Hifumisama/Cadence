@@ -15,7 +15,7 @@ test("liaison : deux valeurs, « suite » par défaut pour tout le reste", () =>
 
 const sortie = (liaison?: string): SortieScenarioEpisode => ({
   episode: { titre: "Le sel", resume: "r" },
-  scenes: [{ titre: "Le pont", fonction: "f", plans: [{ titre: "Arrivée", description: "Iris traverse.", liaison, dureeSecondes: 6, repliques: [] }] }],
+  scenes: [{ titre: "Le pont", fonction: "f", plans: [{ titre: "Arrivée", description: "Iris traverse.", liaison, dureeSecondes: 6 }] }],
   inventions: [],
   notes: "",
 });

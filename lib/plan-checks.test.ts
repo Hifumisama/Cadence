@@ -1,18 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  controlerDialogues,
-  controlerStructure,
-  ecartVerbatim,
-  extraireBalisesD,
-  extraireLabels,
-  prochainSlotAudioLibre,
-  calculerStatutDuree,
-  verifierCoherenceRefs,
-  type RepliqueLiee,
-} from "./plan-checks";
-
-const rep = (id: number, texte: string): RepliqueLiee => ({ id, texte });
+import { controlerStructure, extraireBalisesD, extraireLabels, verifierCoherenceRefs } from "./plan-checks";
 
 const prompt = (contenu: string) => [{ section: "detailed_description", contenu }];
 
@@ -29,85 +17,6 @@ test("balise sans langue, espaces autour du texte ignorés", () => {
   const [b] = extraireBalisesD(prompt("<d>  Bonjour  </d>"));
   assert.equal(b?.langue, null);
   assert.equal(b?.texte, "Bonjour");
-});
-
-test("réplique citée mot pour mot : rien à signaler", () => {
-  const c = controlerDialogues(prompt("<d>[Français] Je reviens demain.</d>"), [rep(1, "Je reviens demain.")]);
-  assert.equal(c.ok, true);
-  assert.deepEqual(c.parReplique, { 1: "ok" });
-});
-
-test("réplique absente du prompt", () => {
-  const c = controlerDialogues(prompt("Aucun dialogue ici."), [rep(1, "Je reviens demain.")]);
-  assert.equal(c.ok, false);
-  assert.deepEqual(c.problemes.map((p) => p.type), ["absente"]);
-  assert.equal(c.parReplique[1], "absente");
-});
-
-test("ponctuation différente : « différente » avec écart surligné", () => {
-  const c = controlerDialogues(prompt("<d>[Français] Je reviens demain</d>"), [rep(1, "Je reviens demain.")]);
-  const p = c.problemes[0];
-  assert.equal(p?.type, "differente");
-  if (p?.type !== "differente") return;
-  assert.equal(p.trouve, "Je reviens demain");
-  assert.deepEqual(p.ecart, [
-    { type: "=", texte: "Je reviens demain" },
-    { type: "-", texte: "." },
-  ]);
-});
-
-test("mot reformulé : l'écart isole le mot", () => {
-  const ecart = ecartVerbatim("Tu ne passeras pas", "Tu ne passeras jamais");
-  assert.deepEqual(ecart, [
-    { type: "=", texte: "Tu ne passeras " },
-    { type: "-", texte: "pas" },
-    { type: "+", texte: "jamais" },
-  ]);
-});
-
-test("balise sans réplique liée : orpheline", () => {
-  const c = controlerDialogues(prompt("<d>[Français] Bonjour</d>"), []);
-  assert.deepEqual(c.problemes.map((p) => p.type), ["orpheline"]);
-});
-
-test("texte sans rapport : absente + orpheline, pas « différente »", () => {
-  const c = controlerDialogues(prompt("<d>[Français] Complètement autre chose ici</d>"), [rep(1, "Silence.")]);
-  assert.deepEqual(c.problemes.map((p) => p.type).sort(), ["absente", "orpheline"]);
-});
-
-test("deux répliques identiques : chacune consomme sa propre balise", () => {
-  const un = controlerDialogues(prompt("<d>Oui.</d>"), [rep(1, "Oui."), rep(2, "Oui.")]);
-  assert.deepEqual(un.parReplique, { 1: "ok", 2: "absente" });
-  const deux = controlerDialogues(prompt("<d>Oui.</d> <d>Oui.</d>"), [rep(1, "Oui."), rep(2, "Oui.")]);
-  assert.equal(deux.ok, true);
-});
-
-test("plusieurs répliques par plan, dans une autre ordre que le prompt", () => {
-  const c = controlerDialogues(prompt("<d>[Français] B.</d> puis <d>[Français] A.</d>"), [rep(1, "A."), rep(2, "B.")]);
-  assert.equal(c.ok, true);
-});
-
-test("balises réparties sur plusieurs sections", () => {
-  const c = controlerDialogues(
-    [
-      { section: "summary", contenu: "<d>Un.</d>" },
-      { section: "detailed_description", contenu: "<d>Deux.</d>" },
-    ],
-    [rep(1, "Un."), rep(2, "Deux.")],
-  );
-  assert.equal(c.ok, true);
-});
-
-test("emplacements audio : plus petit libre, null quand plein", () => {
-  assert.equal(prochainSlotAudioLibre([]), 1);
-  assert.equal(prochainSlotAudioLibre([1, 3]), 2);
-  assert.equal(prochainSlotAudioLibre([1, 2, 3]), null);
-});
-
-test("durée voix : non mesurée bloque, mesurée compare au plafond avec marge", () => {
-  assert.equal(calculerStatutDuree([{ dureeSecondes: null }], 15, 2).statut, "a_mesurer");
-  assert.equal(calculerStatutDuree([{ dureeSecondes: 6.5 }, { dureeSecondes: 6 }], 15, 2).statut, "tient");
-  assert.equal(calculerStatutDuree([{ dureeSecondes: 13.5 }], 15, 2).statut, "decoupage_a_envisager");
 });
 
 // --- Structure des shots -------------------------------------------------
@@ -190,12 +99,4 @@ test("extraireLabels : labels cités, dans l'ordre, sans doublon", () => {
     "Video 1",
   ]);
   assert.deepEqual(extraireLabels("aucun label"), []);
-});
-
-test("remplacerDialogue : remplace la balise qui dit exactement l'ancien texte, jamais une approchante", async () => {
-  const { remplacerDialogue } = await import("./plan-checks");
-  const c = 'She says <d>[Français] Il manque du sel.</d> then <d>[Français] Pars.</d>';
-  assert.equal(remplacerDialogue(c, "Il manque du sel.", "Le sel est fini."), 'She says <d>[Français] Le sel est fini.</d> then <d>[Français] Pars.</d>');
-  assert.equal(remplacerDialogue(c, "Il manque du sel", "x"), null);
-  assert.equal(remplacerDialogue("rien", "a", "b"), null);
 });

@@ -27,8 +27,6 @@ export type SortiePlanH3 = {
   shots: { debutSecondes: number; texte: string }[];
   overall_soundscape: string;
   non_diegetic_music: string;
-  /** Ancien contrat (répliques liées) : plus demandé, ignoré s'il est là. Le dialogue vit dans les `<d>` des shots. */
-  repliques?: { repliqueId: string; debutSecondes?: number }[];
   assetsManquants: AssetManquantH3[];
   notes: string;
 };

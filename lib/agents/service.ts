@@ -40,7 +40,7 @@ import type { Avertissement, ResultatApplication } from "./types";
 import { entreeIterationPlan, entreeInventaire, entreePlanH3, etatIterationPlan } from "./contexte";
 import { cleSousTachePlan, planUuidDeCle } from "./fiches";
 import type { EtatIterationPlan, PlanPourFiche } from "./types";
-import { jobs, planDialogues, planPromptSections, planRefs } from "../../db/schema";
+import { jobs, planPromptSections, planRefs } from "../../db/schema";
 import { isNotNull, sql } from "drizzle-orm";
 
 /** Logique serveur du système d'agents : conversations, brief, propositions. Aucune dépendance à
@@ -828,16 +828,14 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
   );
   if (lignes.length === 0) return [];
   const ids = lignes.map((p) => p.id);
-  const [remplies, refs, dialogues, rendus, lesScenes] = await Promise.all([
+  const [remplies, refs, rendus, lesScenes] = await Promise.all([
     db.select({ planId: planPromptSections.planId }).from(planPromptSections).where(and(inArray(planPromptSections.planId, ids), sql`length(trim(${planPromptSections.contenu})) > 0`)),
     db.select({ planId: planRefs.planId, n: count() }).from(planRefs).where(and(inArray(planRefs.planId, ids), inArray(planRefs.type, ["picture", "audio"]))).groupBy(planRefs.planId),
-    db.select({ planId: planDialogues.planId, n: count() }).from(planDialogues).where(inArray(planDialogues.planId, ids)).groupBy(planDialogues.planId),
     db.select({ planId: jobs.planId }).from(jobs).where(and(inArray(jobs.planId, ids), eq(jobs.statut, "termine"), isNotNull(jobs.cheminSortie))),
     db.select({ id: scenes.id, titre: scenes.titre }).from(scenes).where(inArray(scenes.episodeId, [...new Set(lignes.map((p) => p.episodeId))])),
   ]);
   const avecSections = new Set(remplies.map((r) => r.planId));
   const nbRefs = new Map(refs.map((r) => [r.planId, Number(r.n)]));
-  const nbRepliques = new Map(dialogues.map((r) => [r.planId, Number(r.n)]));
   const avecRendu = new Set(rendus.map((r) => r.planId));
   const titreScene = new Map(lesScenes.map((s) => [s.id, s.titre]));
   const plusieursSaisons = new Set(lignes.map((p) => p.saisonNumero)).size > 1;
@@ -852,7 +850,6 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
     aDesSections: avecSections.has(p.id),
     nbRefs: nbRefs.get(p.id) ?? 0,
     aUnRendu: p.statut === "previsualise" || p.statut === "termine" || avecRendu.has(p.id),
-    nbRepliques: nbRepliques.get(p.id) ?? 0,
     sansIntention: !(p.description ?? "").trim(),
   }));
 }

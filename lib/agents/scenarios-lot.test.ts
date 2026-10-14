@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_REPLIQUES_PAR_PLAN, depuisPlanAInserer, depuisScenarioEpisode, type SortieScenarioEpisode } from "./conversion";
-import { rapprocherLocuteur, texteComparable, type AssetLocuteur } from "./locuteurs";
+import { depuisPlanAInserer, depuisScenarioEpisode, type SortieScenarioEpisode } from "./conversion";
 import {
   comptesLot,
   dernieresSousTaches,
@@ -112,43 +111,6 @@ test("clé de tâche du header : un lot se désigne par l'uuid de sa proposition
   assert.equal(analyserCle("lot:"), null);
 });
 
-// --- locuteurs -------------------------------------------------------------------
-
-const registre: AssetLocuteur[] = [
-  { id: 1, code: "CHAR_maya", type: "personnage" },
-  { id: 2, code: "CHAR_iris_mercier", type: "personnage" },
-  { id: 3, code: "CHAR_voix_off", type: "personnage" },
-  { id: 4, code: "CHAR_marc", type: "personnage" },
-  { id: 5, code: "CHAR_marie", type: "personnage" },
-];
-
-test("locuteur : le registre d'abord (code ou nom), « voix off » ensuite, un inconnu reste libre", () => {
-  assert.deepEqual(rapprocherLocuteur("Maya", registre), { locuteurId: 1, locuteurTexte: "", connu: true });
-  assert.equal(rapprocherLocuteur("CHAR_maya", registre).locuteurId, 1);
-  assert.equal(rapprocherLocuteur("  MAYA  ", registre).locuteurId, 1, "casse et espaces");
-  assert.equal(rapprocherLocuteur("Iris Mercier", registre).locuteurId, 2, "le nom complet suit le code");
-  assert.equal(rapprocherLocuteur("Maya (au téléphone)", registre).locuteurId, 1, "le premier mot suffit, sans ambiguïté");
-
-  assert.deepEqual(rapprocherLocuteur("voix off", registre), { locuteurId: 3, locuteurTexte: "", connu: true }, "le personnage voix off du registre");
-  assert.equal(rapprocherLocuteur("Narrateur", registre).locuteurId, 3);
-  assert.deepEqual(rapprocherLocuteur("Voix-off", [{ id: 1, code: "CHAR_maya", type: "personnage" }]), { locuteurId: null, locuteurTexte: "Voix off", connu: true }, "sans voix off au registre : un locuteur libre, légitime");
-
-  // Le modèle écrit souvent le CODE du registre.
-  assert.equal(rapprocherLocuteur("CHAR_voix_off", registre).locuteurId, 3, "la voix off citée par son code");
-
-  const inconnu = rapprocherLocuteur("Le capitaine", registre);
-  assert.deepEqual(inconnu, { locuteurId: null, locuteurTexte: "Le capitaine", connu: false }, "jamais d'asset créé : un locuteur libre, signalé");
-  assert.equal(rapprocherLocuteur("", registre).connu, false);
-  assert.equal(rapprocherLocuteur("x".repeat(300), registre).locuteurTexte.length, 100, "borné comme la colonne");
-  // Deux prénoms qui commencent pareil : pas d'amalgame sur le premier mot.
-  assert.equal(rapprocherLocuteur("Mar", registre).connu, false);
-});
-
-test("texte comparable : insensible à la casse, aux accents et à la ponctuation", () => {
-  assert.equal(texteComparable("Encore du sel !"), texteComparable("encore du sel"));
-  assert.equal(texteComparable("Où est-elle ?"), texteComparable("ou est elle"));
-});
-
 // --- scénario d'un épisode en lot ---------------------------------------------------
 
 const sortie: SortieScenarioEpisode = {
@@ -158,11 +120,11 @@ const sortie: SortieScenarioEpisode = {
       titre: "Le pont",
       fonction: "Installer le lieu",
       plans: [
-        { titre: "Arrivée", description: "Iris traverse le pont.", dureeSecondes: 6, repliques: [{ locuteur: "Iris", texte: "Encore du sel." }, { locuteur: "Voix off", texte: "Il revenait chaque marée." }] },
-        { titre: "Regard", description: "Elle observe l'horizon.", dureeSecondes: 5, repliques: [] },
+        { titre: "Arrivée", description: "Iris traverse le pont.\nIris : « Encore du sel. »\nvoix off : « Il revenait chaque marée. »", dureeSecondes: 6 },
+        { titre: "Regard", description: "Elle observe l'horizon.", dureeSecondes: 5 },
       ],
     },
-    { titre: "La lampe", fonction: "Rupture", plans: [{ titre: "Lampe éteinte", description: "La lampe ne brille plus.", dureeSecondes: 8, repliques: [{ locuteur: "Iris", texte: "Elle s'est éteinte." }] }] },
+    { titre: "La lampe", fonction: "Rupture", plans: [{ titre: "Lampe éteinte", description: "La lampe ne brille plus.\nIris : « Elle s'est éteinte. »", dureeSecondes: 8 }] },
   ],
   inventions: ["Une mouette"],
   notes: "",
@@ -180,17 +142,9 @@ test("lot : les clés symboliques sont préfixées par épisode, le groupe est c
   assert.ok(cles(a).every((c) => c.length <= 60), "tient dans la colonne `cle`");
 });
 
-test("lot : plans et répliques sont rangés sous leur scène", () => {
+test("lot : les plans sont rangés sous leur scène, dialogue compris dans la description", () => {
   const l = depuisScenarioEpisode(sortie, vide, { prefixeCle: "ep7-", groupe: "ep-7" });
-  assert.deepEqual(l.map((x) => `${x.cibleType}:${x.sousGroupe ?? "-"}`), [
-    "scene:Le pont", "plan:Le pont", "replique:Le pont", "replique:Le pont", "plan:Le pont",
-    "scene:La lampe", "plan:La lampe", "replique:La lampe",
-  ]);
-  const repliques = l.filter((x) => x.cibleType === "replique");
-  assert.equal(repliques.length, 3);
-  assert.deepEqual(repliques.map((r) => (r.apres as { planCle: string }).planCle), ["ep7-plan-1-1", "ep7-plan-1-1", "ep7-plan-2-1"]);
-  assert.ok(repliques.every((r) => (r.apres as { sceneCle?: string }).sceneCle?.startsWith("ep7-scene-")), "la scène est celle du plan, créée par la même proposition");
-  assert.ok(repliques.every((r) => (r.apres as { episodeId: number }).episodeId === 7));
+  assert.deepEqual(l.map((x) => `${x.cibleType}:${x.sousGroupe ?? "-"}`), ["scene:Le pont", "plan:Le pont", "plan:Le pont", "scene:La lampe", "plan:La lampe"]);
 });
 
 test("lot : un squelette VIDE n'écrase rien ; un épisode qui a du contenu voit ses modifications signalées", () => {
@@ -215,30 +169,9 @@ test("lot : un squelette VIDE n'écrase rien ; un épisode qui a du contenu voit
   assert.ok(depuisScenarioEpisode(sortie, rempli).every((x) => !x.ecrase));
 });
 
-test("répliques : trois par plan au plus (références audio), la quatrième est refusée d'office avec la raison", () => {
-  const dense: SortieScenarioEpisode = {
-    ...sortie,
-    scenes: [{ titre: "Dispute", fonction: "f", plans: [{ titre: "Cris", description: "Ils se disputent.", dureeSecondes: 12, repliques: ["a", "b", "c", "d", "e"].map((t) => ({ locuteur: "Iris", texte: `Réplique ${t}` })) }] }],
-  };
-  const reps = depuisScenarioEpisode(dense, vide).filter((x) => x.cibleType === "replique");
-  assert.equal(reps.length, 5);
-  assert.deepEqual(reps.map((r) => !!r.refuseRaison), [false, false, false, true, true]);
-  assert.equal(MAX_REPLIQUES_PAR_PLAN, 3);
-  assert.match(reps[3]!.refuseRaison!, /maximum de références audio/);
-});
-
-test("plan à insérer : ses répliques suivent, rattachées au plan inséré", () => {
+test("plan à insérer : un seul changement, le dialogue reste dans la description", () => {
   const l = depuisPlanAInserer(sortie, { episodeId: 7, position: { apresPlanUuid: "u-a" }, sceneId: 4 });
-  assert.deepEqual(l.map((x) => x.cibleType), ["plan", "replique", "replique"]);
-  assert.equal((l[1]!.apres as { planCle: string }).planCle, "plan-insere");
-  assert.equal((l[1]!.apres as { sceneId: number }).sceneId, 4);
-});
-
-test("verrou de portée : une réplique suit la portée de son épisode", () => {
-  const cible = { type: "replique" as const, operation: "creer" as const, episodeId: 7, saisonId: 2 };
-  assert.equal(verifierPortee({ type: "projet", cibleId: null }, cible), null);
-  assert.equal(verifierPortee({ type: "saison", cibleId: 2 }, cible), null);
-  assert.equal(verifierPortee({ type: "episode", cibleId: 7 }, cible), null);
-  assert.match(verifierPortee({ type: "episode", cibleId: 8 }, cible) ?? "", /réplique n'est pas dans la portée/);
-  assert.match(verifierPortee({ type: "saison", cibleId: 3 }, cible) ?? "", /Hors portée/);
+  assert.deepEqual(l.map((x) => x.cibleType), ["plan"]);
+  assert.match((l[0]!.apres as { description: string }).description, /Iris : « Encore du sel\. »/);
+  assert.equal((l[0]!.apres as { sceneId: number }).sceneId, 4);
 });

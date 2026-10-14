@@ -1,5 +1,5 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
-import { episodes, jobs, planDialogues, planPromptSections, planRefs, plans, scenes, seasons } from "../../../db/schema";
+import { episodes, jobs, planPromptSections, planRefs, plans, scenes, seasons } from "../../../db/schema";
 import { recomposerOrdre } from "../../ordre-plans";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
 import { estLiaison, liaisonOuDefaut } from "../../plan-liaison";
@@ -65,12 +65,10 @@ const aUnRenduReussi = (statut: string) => statut === "previsualise" || statut =
 /** Ce qu'un plan emporte (ou laisse) quand il est supprimé : de quoi avertir, sans rien deviner. */
 async function contenuDuPlan(db: Db, planId: number) {
   const [refs] = await db.select({ n: count() }).from(planRefs).where(eq(planRefs.planId, planId));
-  const [liaisons] = await db.select({ n: count() }).from(planDialogues).where(eq(planDialogues.planId, planId));
   const [actifs] = await db.select({ n: count() }).from(jobs).where(and(eq(jobs.planId, planId), inArray(jobs.statut, ["en_attente", "en_cours"])));
   const sections = await db.select({ contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, planId));
   return {
     refs: refs?.n ?? 0,
-    repliques: liaisons?.n ?? 0,
     rendusActifs: actifs?.n ?? 0,
     fiche: sections.some((s) => s.contenu.trim() !== ""),
   };
@@ -248,11 +246,5 @@ async function previsualiserSuppression(db: Db, projectId: number, ch: Changemen
   }
   if (contenu.fiche) avertissements.push({ type: "info", texte: "Sa fiche (prompt) est supprimée avec lui." });
   if (contenu.refs > 0) avertissements.push({ type: "info", texte: `${contenu.refs} référence${contenu.refs > 1 ? "s" : ""} retirée${contenu.refs > 1 ? "s" : ""} du plan : les assets eux-mêmes restent.` });
-  if (contenu.repliques > 0) {
-    avertissements.push({
-      type: "info",
-      texte: `${contenu.repliques} réplique${contenu.repliques > 1 ? "s" : ""} reste${contenu.repliques > 1 ? "nt" : ""} dans l'épisode, sans plan : une réplique existe par elle-même.`,
-    });
-  }
   return { ...ch, avant: { titre: plan.titre, description: plan.description ?? "", dureeGenerationSecondes: plan.duree, rang }, apres: null, ecrase, avertissements };
 }

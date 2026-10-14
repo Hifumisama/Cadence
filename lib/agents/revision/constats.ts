@@ -1,10 +1,10 @@
 import { fmtDuree } from "./format";
 import type { Constat, Operation } from "./types";
-import { planParUuid, repliqueParUuid, type VueEpisode } from "./vue-episode";
+import { planParUuid, type VueEpisode } from "./vue-episode";
 
 /** Les constats MÉCANIQUES, calculés par le code (jamais par le modèle) : ce qui est écrasé, ce qui devient périmé, ce qui bloque, la durée
- * contre l'objectif, les contradictions entre décisions. Purs, testés. Le modèle, lui, ne juge que le narratif (plan orphelin, réplique
- * sans cause), et ses jugements portent `source: "modele"`. */
+ * contre l'objectif, les contradictions entre décisions. Purs, testés. Le modèle, lui, ne juge que le narratif (plan orphelin, ce qui n'a
+ * pas de cause), et ses jugements portent `source: "modele"`. */
 
 const alerte = (texte: string): Constat => ({ niveau: "alerte", texte, source: "code" });
 const bloquant = (texte: string): Constat => ({ niveau: "bloquant", texte, source: "code" });
@@ -15,16 +15,7 @@ export function constatsOperations(operations: Operation[], vue: VueEpisode): Co
   const constats: Constat[] = [];
   for (const op of operations) {
     if (op.type === "ajouter_plan") {
-      if (op.replique) constats.push(ok(`${op.replique.locuteur} dit « ${op.replique.texte} » dans « ${op.titre} ».`));
       constats.push(ok(`Le plan « ${op.titre} » (${op.secondes} s) est créé sans fiche : elle est écrite juste après l'application, et tu la relis avant qu'elle soit enregistrée.`));
-      continue;
-    }
-    if (op.type === "ajouter_replique") {
-      const p = planParUuid(vue, op.planUuid);
-      if (!p) continue;
-      constats.push(ok(`${op.locuteur} dit « ${op.texte} » dans ${p.handle} : la réplique est créée et liée au plan, et sa fiche est réécrite juste après l'application.`));
-      if (p.repliques.length >= 3) constats.push(bloquant(`${p.handle} a déjà 3 répliques : c'est le maximum (références audio de MiniMax H3).`));
-      if (p.etat === "rendu") constats.push(alerte(`Le rendu de ${p.handle} sera périmé si tu acceptes la nouvelle fiche.`));
       continue;
     }
     if (op.type === "refondre_fiche") {
@@ -40,36 +31,11 @@ export function constatsOperations(operations: Operation[], vue: VueEpisode): Co
       if (!p) continue;
       if (p.etat === "en_file") constats.push(bloquant(`Un rendu de ${p.handle} est en file ou en cours : l'annuler avant de supprimer le plan.`));
       else if (p.etat === "rendu") constats.push(alerte(`Écrase le rendu réussi de ${p.handle} : il disparaît avec le plan.`));
-      if (p.repliques.length > 0) constats.push(alerte(`${p.repliques.length} ${pluriel(p.repliques.length, "réplique reste", "répliques restent")} dans l'épisode, sans plan.`));
     } else if (op.type === "duree_plan") {
       const p = planParUuid(vue, op.planUuid);
       if (!p) continue;
       if (op.secondes === p.duree) constats.push(alerte(`${p.handle} dure déjà ${p.duree} s : rien ne change.`));
       else if (p.etat === "rendu") constats.push(alerte(`Rend périmé le rendu de ${p.handle} : la durée soumise au rendu n'est plus la sienne.`));
-    } else if (op.type === "remplacer_replique") {
-      const r = repliqueParUuid(vue, op.repliqueUuid);
-      if (!r) continue;
-      if (op.texte !== undefined && op.texte === r.texte) constats.push(alerte(`Le texte de ${r.handle} est identique : rien ne change.`));
-      else if (op.texte !== undefined) {
-        for (const uuid of r.plans) {
-          const p = planParUuid(vue, uuid);
-          if (!p) continue;
-          if (r.plansVerbatim.includes(uuid)) {
-            constats.push(alerte(`La fiche de ${p.handle} cite la réplique mot pour mot : son dialogue est mis à jour avec le nouveau texte.`));
-            if (p.etat === "rendu") constats.push(alerte(`Le rendu de ${p.handle} sera périmé : le prompt de sa fiche change.`));
-          } else {
-            constats.push(alerte(`La fiche de ${p.handle} ne cite pas l'ancienne réplique mot pour mot : à resynchroniser à la main (dialogues à corriger).`));
-            if (p.etat === "rendu") constats.push(alerte(`Le rendu de ${p.handle} sera périmé quand sa fiche sera resynchronisée.`));
-          }
-        }
-      }
-    } else if (op.type === "supprimer_replique") {
-      const r = repliqueParUuid(vue, op.repliqueUuid);
-      if (!r) continue;
-      for (const uuid of r.plans) {
-        const p = planParUuid(vue, uuid);
-        if (p) constats.push(alerte(`${r.handle} est retirée de la fiche de ${p.handle} : à resynchroniser.`));
-      }
     }
   }
   const uniques = constats.filter((c, i) => constats.findIndex((x) => x.texte === c.texte) === i);
@@ -88,12 +54,11 @@ export type DecisionPourConflit = { id: string; titre: string; operations: Opera
 export type ConflitDecisions = { ids: string[]; texte: string };
 
 /** Les contradictions MÉCANIQUES entre décisions (deux décisions qui ne peuvent pas s'appliquer ensemble) :
- * couper un plan qu'une autre décision modifie ou déplace, déplacer après un plan coupé, deux durées ou deux textes différents pour
- * la même cible, modifier une réplique qu'une autre supprime. */
+ * couper un plan qu'une autre décision modifie ou déplace, déplacer après un plan coupé, deux durées différentes pour
+ * le même plan. */
 export function conflitsEntreDecisions(decisions: DecisionPourConflit[], vue: VueEpisode): ConflitDecisions[] {
   const conflits: ConflitDecisions[] = [];
   const nomPlan = (uuid: string) => planParUuid(vue, uuid)?.handle ?? "un plan";
-  const nomRep = (uuid: string) => repliqueParUuid(vue, uuid)?.handle ?? "une réplique";
   const vus = new Set<string>();
   const ajoute = (a: DecisionPourConflit, b: DecisionPourConflit, texte: string) => {
     const cle = [a.id, b.id].sort().join("|") + texte;
@@ -111,9 +76,6 @@ export function conflitsEntreDecisions(decisions: DecisionPourConflit[], vue: Vu
             if (ob.type === "refondre_fiche" && ob.planUuid === oa.planUuid) {
               ajoute(a, b, `« ${a.titre} » coupe ${nomPlan(oa.planUuid)}, dont « ${b.titre} » veut refondre la fiche.`);
             }
-            if (ob.type === "ajouter_replique" && ob.planUuid === oa.planUuid) {
-              ajoute(a, b, `« ${a.titre} » coupe ${nomPlan(oa.planUuid)}, auquel « ${b.titre} » veut ajouter une réplique.`);
-            }
             if (ob.type === "ajouter_plan" && "apresPlanUuid" in ob.position && ob.position.apresPlanUuid === oa.planUuid) {
               ajoute(a, b, `« ${b.titre} » ajoute un plan après ${nomPlan(oa.planUuid)}, que « ${a.titre} » coupe.`);
             }
@@ -126,12 +88,6 @@ export function conflitsEntreDecisions(decisions: DecisionPourConflit[], vue: Vu
           }
           if (oa.type === "duree_plan" && ob.type === "duree_plan" && oa.planUuid === ob.planUuid && oa.secondes !== ob.secondes) {
             ajoute(a, b, `« ${a.titre} » et « ${b.titre} » donnent deux durées différentes à ${nomPlan(oa.planUuid)}.`);
-          }
-          if (oa.type === "remplacer_replique" && ob.type === "supprimer_replique" && oa.repliqueUuid === ob.repliqueUuid) {
-            ajoute(a, b, `« ${a.titre} » modifie ${nomRep(oa.repliqueUuid)}, que « ${b.titre} » supprime.`);
-          }
-          if (oa.type === "remplacer_replique" && ob.type === "remplacer_replique" && oa.repliqueUuid === ob.repliqueUuid && oa.texte !== ob.texte) {
-            ajoute(a, b, `« ${a.titre} » et « ${b.titre} » donnent deux textes différents à ${nomRep(oa.repliqueUuid)}.`);
           }
         }
       }
@@ -146,7 +102,6 @@ export function conflitsEntreDecisions(decisions: DecisionPourConflit[], vue: Vu
 export function recoupementsEntreDecisions(decisions: DecisionPourConflit[], vue: VueEpisode): ConflitDecisions[] {
   const res: ConflitDecisions[] = [];
   const nomPlan = (uuid: string) => planParUuid(vue, uuid)?.handle ?? "un plan";
-  const nomRep = (uuid: string) => repliqueParUuid(vue, uuid)?.handle ?? "une réplique";
   const vus = new Set<string>();
   for (const [i, b] of decisions.entries()) {
     for (const a of decisions.slice(0, i)) {
@@ -155,8 +110,6 @@ export function recoupementsEntreDecisions(decisions: DecisionPourConflit[], vue
           let texte: string | null = null;
           if (oa.type === "couper_plan" && ob.type === "couper_plan" && oa.planUuid === ob.planUuid) texte = `${nomPlan(oa.planUuid)} est déjà coupé par ${a.id} « ${a.titre} ».`;
           else if (oa.type === "duree_plan" && ob.type === "duree_plan" && oa.planUuid === ob.planUuid && oa.secondes === ob.secondes) texte = `${nomPlan(oa.planUuid)} a déjà cette durée dans ${a.id} « ${a.titre} ».`;
-          else if (oa.type === "supprimer_replique" && ob.type === "supprimer_replique" && oa.repliqueUuid === ob.repliqueUuid) texte = `${nomRep(oa.repliqueUuid)} est déjà supprimée par ${a.id} « ${a.titre} ».`;
-          else if (oa.type === "remplacer_replique" && ob.type === "remplacer_replique" && oa.repliqueUuid === ob.repliqueUuid && oa.texte === ob.texte) texte = `${nomRep(oa.repliqueUuid)} a déjà ce texte dans ${a.id} « ${a.titre} ».`;
           if (!texte || vus.has(b.id + texte)) continue;
           vus.add(b.id + texte);
           res.push({ ids: [a.id, b.id], texte });

@@ -157,7 +157,7 @@ export function fusionnerPistes(pistes: Piste[], notes: string[]): Piste[] {
   pistes.forEach((p, i) => {
     const gardees = p.operations.filter((o) => {
       if (o.type === "couper_plan") return coupeePar.get(o.planUuid) === i;
-      if (o.type === "duree_plan" || o.type === "modifier_plan" || o.type === "deplacer_plan" || o.type === "refondre_fiche" || o.type === "ajouter_replique") return !coupeePar.has(o.planUuid);
+      if (o.type === "duree_plan" || o.type === "modifier_plan" || o.type === "deplacer_plan" || o.type === "refondre_fiche") return !coupeePar.has(o.planUuid);
       return true;
     });
     const ecartees = p.operations.length - gardees.length;

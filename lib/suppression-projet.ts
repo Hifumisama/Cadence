@@ -11,7 +11,6 @@ import {
   jobs,
   plans,
   projects,
-  repliques,
   seasons,
 } from "@/db/schema";
 import { MEDIA_ROOT, cheminAssetMedia, cheminPosterMedia } from "@/lib/media";
@@ -23,7 +22,6 @@ export type InventaireSuppression = {
   episodes: number;
   plans: number;
   assets: number;
-  repliques: number;
   rendus: number;
   generations: number;
   appelsLlm: number;
@@ -36,7 +34,6 @@ type Identifiants = {
   episodes: number[];
   plans: number[];
   assets: number[];
-  repliques: number[];
 };
 
 /** Dossiers (relatifs à MEDIA_ROOT) qui n'appartiennent qu'au projet : un par entité, rangés sous
@@ -48,17 +45,15 @@ export function dossiersDuProjet(projectId: number, ids: Identifiants): string[]
     ...ids.saisons.map((id) => cheminPosterMedia("seasons", id, "").replace(/\/$/, "")),
     ...ids.episodes.map((id) => cheminPosterMedia("episodes", id, "").replace(/\/$/, "")),
     ...ids.plans.map((id) => `plans/${id}`),
-    ...ids.repliques.map((id) => `repliques/${id}`),
     ...ids.assets.flatMap((id) => [`voix/${id}`, `generations/${id}`]),
   ];
 }
 
 async function identifiants(projectId: number): Promise<Identifiants> {
-  const [saisons, plansProjet, assetsProjet, repliquesProjet] = await Promise.all([
+  const [saisons, plansProjet, assetsProjet] = await Promise.all([
     db.select({ id: seasons.id }).from(seasons).where(eq(seasons.projectId, projectId)),
     db.select({ id: plans.id }).from(plans).where(eq(plans.projectId, projectId)),
     db.select({ id: assets.id }).from(assets).where(eq(assets.projectId, projectId)),
-    db.select({ id: repliques.id }).from(repliques).where(eq(repliques.projectId, projectId)),
   ]);
   const idsSaisons = saisons.map((s) => s.id);
   const episodesProjet = idsSaisons.length
@@ -69,7 +64,6 @@ async function identifiants(projectId: number): Promise<Identifiants> {
     episodes: episodesProjet.map((e) => e.id),
     plans: plansProjet.map((p) => p.id),
     assets: assetsProjet.map((a) => a.id),
-    repliques: repliquesProjet.map((r) => r.id),
   };
 }
 
@@ -100,7 +94,6 @@ export async function inventaireProjet(projectId: number): Promise<InventaireSup
     episodes: ids.episodes.length,
     plans: ids.plans.length,
     assets: ids.assets.length,
-    repliques: ids.repliques.length,
     rendus: nbRendus,
     generations: nbGenerations,
     appelsLlm: appels?.n ?? 0,

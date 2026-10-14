@@ -3,7 +3,6 @@ import { applicateurAsset } from "./asset";
 import { applicateurBrief } from "./brief";
 import { applicateurFiche } from "./fiche";
 import { applicateurPlan } from "./plan";
-import { applicateurReplique } from "./replique";
 import type { Applicateur } from "./commun";
 import { applicateurEpisode, applicateurProjet, applicateurSaison, applicateurScene } from "./structure";
 
@@ -17,7 +16,6 @@ const REGISTRE: Partial<Record<CibleType, Applicateur>> = {
   scene: applicateurScene,
   asset: applicateurAsset,
   plan: applicateurPlan,
-  replique: applicateurReplique,
   fiche: applicateurFiche,
 };
 

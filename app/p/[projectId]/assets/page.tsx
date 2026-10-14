@@ -57,7 +57,6 @@ export default async function AssetsPage({
   const lignes: LigneRegistre[] = tous
     .map((a) => {
       const { kind, etat, src } = infosMedia(a.type, a.fichier);
-      const citationsReelles = a.citations.filter((c) => !c.deduite);
       return {
         id: a.id,
         code: a.code,
@@ -71,12 +70,7 @@ export default async function AssetsPage({
         etat,
         src,
         fichier: a.fichier,
-        blocageSuppression:
-          citationsReelles.length > 0
-            ? "cité dans une fiche de plan"
-            : a.nbRepliques > 0
-              ? `locuteur de ${a.nbRepliques} réplique${a.nbRepliques > 1 ? "s" : ""}`
-              : null,
+        blocageSuppression: a.citations.length > 0 ? "cité dans une fiche de plan" : null,
         raisonLot: a.type === "sfx" ? "un son se génère depuis sa fiche" : (raisonPar.get(a.id) ?? null),
       };
     });

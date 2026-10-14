@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { changerTexteReplique } from "../repliques-ecriture";
 import { planifierDeplacement, planifierSuppression } from "./rangs";
 
 // Les plans d'un épisode dans l'ordre de lecture : deux scènes (1 et 2), un plan par lettre.
@@ -50,12 +49,6 @@ test("déplacement : un épisode d'un seul plan n'a pas de scène voisine", () =
   const d = planifierDeplacement([{ uuid: "a", titre: "A", sceneId: 1 }], "a", { fin: true })!;
   assert.equal(d.sceneId, undefined, "le plan garde sa scène");
   assert.equal(d.rangApres, 1);
-});
-
-test("texte de réplique : vide refusé, identique sans effet, sinon seul le texte s'écrit", () => {
-  assert.deepEqual(changerTexteReplique({ texte: "Salut." }, "  \n "), { ok: false, erreur: "Le texte de la réplique est vide." });
-  assert.deepEqual(changerTexteReplique({ texte: "Salut." }, " Salut. "), { ok: true, texteChange: false, set: {} });
-  assert.deepEqual(changerTexteReplique({ texte: "Salut." }, "Au revoir.\r\n"), { ok: true, texteChange: true, set: { texte: "Au revoir." } });
 });
 
 test("suppression : les plans suivants montent d'un rang, rien ne bouge avant", () => {

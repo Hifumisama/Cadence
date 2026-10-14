@@ -29,7 +29,6 @@ const sortie = (over: Partial<SortiePlanH3> = {}): SortiePlanH3 => ({
   shots: [{ debutSecondes: 0, texte: "a wide shot of [[ DEC_le_monde_l_avatar ]] and [[CHAR_aang]]" }],
   overall_soundscape: "",
   non_diegetic_music: "",
-  repliques: [],
   assetsManquants: [],
   notes: "",
   ...over,

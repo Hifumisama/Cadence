@@ -5,7 +5,7 @@ import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
 import { controlerStructure, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
-import { getDialoguesPlan } from "@/lib/queries-repliques";
+import { getVoixDuPlan } from "@/lib/queries-voix-plan";
 import { avanceeUpscale, compterAPrevisualiser, essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/fiche-plan";
 import { ImporterVideoForm } from "@/components/plan/ImporterVideoForm";
 import { RefsPanel, type RefVue } from "@/components/plan/RefsPanel";
@@ -70,14 +70,13 @@ export default async function PlanPage({
 
   const { plan, position, promptSections, refs, jobHistory } = detail;
 
-  const [parametresGlobaux, mastersRegistre, scenesEpisode, dialoguesPlan, pellicule] = await Promise.all([
+  const [parametresGlobaux, mastersRegistre, scenesEpisode, audioRefs, pellicule] = await Promise.all([
     getAllParams(),
     getAssetsTree(pid),
     getScenesEpisode(eid),
-    getDialoguesPlan(pid, plan.id, eid),
+    getVoixDuPlan(plan.id),
     getPelliculePlans(eid),
   ]);
-  const { audioRefs } = dialoguesPlan;
 
   const sectionsPourControle = promptSections.map((s) => ({
     section: s.section,

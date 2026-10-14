@@ -1,8 +1,8 @@
 ---
 name: realisateur-analyse
-description: Read the user's last message about an existing episode and turn it into operations on that episode (cut, add or move a plan, change a duration, rewrite a plan's sheet, rewrite or remove a line), either as decisions to keep or as options to choose from; the application checks every operation and nothing is written before the user validates.
+description: Read the user's last message about an existing episode and turn it into operations on that episode (cut, add or move a plan, change a duration, rewrite a plan's description, lines included, or its sheet), either as decisions to keep or as options to choose from; the application checks every operation and nothing is written before the user validates.
 metadata:
-  language: instructions in English; titles, reasons and texts in French (a rewritten line keeps the language of the existing lines)
+  language: instructions in English; titles, reasons and texts in French (the lines inside a rewritten description keep the language of the existing lines)
 ---
 
 # realisateur-analyse — from a remark to operations on an episode
@@ -14,8 +14,8 @@ Nothing is written to the project here. The application validates every operatio
 ## Output language
 
 - **French**: `decisions[].titre`, `decisions[].raison`, `pistes[].titre`, `pistes[].resume`, `narratif[].texte`.
-- `remplacer_replique.texte` (a rewritten line): the language of the existing lines in the input, same register, ready to be spoken.
-- Never change enum values, JSON keys or references (`P07`, `R12`, `D3`).
+- The **lines** inside a description you write (`modifier_plan.description`, `ajouter_plan.description`): the language of the existing lines, same register, ready to be spoken.
+- Never change enum values, JSON keys or references (`P07`, `D3`).
 
 ## What you receive
 
@@ -23,20 +23,17 @@ The application assembles the input. Nothing is guessed.
 
 - **`episode`**: number, title, current duration, wanted duration (`objectif`, may be null), duration **with the draft** (`dureeAvecBrouillonSecondes`) and how many seconds are still missing to reach the wanted duration (`aEconomiserSecondes`).
 - **`limites`**: a plan lasts a whole number of seconds between `dureePlanMinSecondes` and `dureePlanMaxSecondes`.
-- **`plans`**: in reading order, each with a reference `ref` (`P01`, `P02`…), its scene, title, description, `dureeSecondes`, and:
+- **`plans`**: in reading order, each with a reference `ref` (`P01`, `P02`…), its scene, title, description (**the lines said in the plan are in it**, written `NAME : « text »`), `dureeSecondes`, and:
   - `etat`: `brouillon` (no sheet yet), `fiche` (sheet written, never rendered), `en_file` (a render is queued or running), `rendu` (has a successful render);
   - `rendu_perime`: the render is outdated;
-  - `repliques`: the lines said in the plan (`R01`…);
   - `brouillon`: what the **current draft** does to it — `{"coupe": true}` (already cut), `{"dureeSecondes": n}` (duration changed), or `null`.
-- **`repliques`**: each with `ref`, speaker, exact text and the plans that say it.
-- **`locuteursConnus`**: the codes of the project's characters (the voice-over is one), the possible speakers of an added line.
 - **`decisions`**: the draft so far — `id` (`D1`…), title, reason, status, **its operations written exactly as you write them**, and its warnings.
 - **`prochainId`**: the id the next **new** decision will get (then the following ones, in order).
 - **`pistesEnAttente`**: options proposed at an earlier turn and not chosen yet, numbered from 1.
 - **`brief`**: the project's arc, tone, rhythm, project notes.
 - **`conversation`** and **`message`**: the previous exchanges and the user's last message — the one you analyse.
 
-References (`P07`, `R12`) are the order of the episode **as it is now**, not as the draft would leave it. Use them exactly as given. **Never invent a reference.**
+References (`P07`, `D3`) are the order of the episode **as it is now**, not as the draft would leave it. Use them exactly as given. **Never invent a reference.**
 
 ## What the user can say, and what you return
 
@@ -59,18 +56,18 @@ Every operation is an object with a `type` and only the fields that type uses.
 | `duree_plan` | `plan`, `secondes` | new duration, a whole number within `limites` |
 | `deplacer_plan` | `plan`, and **one** placement: `avant` (a plan ref) **or** `apres` (a plan ref) **or** `position` (`"debut"` / `"fin"`) | move the plan; it joins the scene of the plan it follows. "Mets le 5 avant le 2" is `"avant": "P02"`, "mets le 9 après le 3" is `"apres": "P03"` |
 | `modifier_plan` | `plan`, `titre` and/or `description` | rewrite the title or the description |
-| `remplacer_replique` | `replique`, `texte` and/or `locuteur` | rewrite a line (and/or change its speaker) |
-| `supprimer_replique` | `replique` | delete a line |
-| `ajouter_plan` | `titre`, `description`, **`secondes`** (required, a whole number within `limites`), the place (`avant` a plan ref, **or** `apres` a plan ref, **or** `position` `"debut"` / `"fin"`), and optionally its line: `texte` + `locuteur` | add a new plan with no sheet yet; **you write its title and its description** (what it shows, one or two sentences, in the style of the neighbouring plans); it joins the scene of its neighbour; its sheet is written right after the draft is applied. Several new plans at the same spot: list them in reading order with the same `avant` / `apres` |
-| `ajouter_replique` | `plan`, `texte`, `locuteur` | add a line to a plan that already exists (at most 3 lines per plan); its sheet is rewritten after the draft is applied |
+| `ajouter_plan` | `titre`, `description`, **`secondes`** (required, a whole number within `limites`), the place (`avant` a plan ref, **or** `apres` a plan ref, **or** `position` `"debut"` / `"fin"`) | add a new plan with no sheet yet; **you write its title and its description** (what it shows, one or two sentences, in the style of the neighbouring plans, **with the lines said**, if any, as `NAME : « text »`); it joins the scene of its neighbour; its sheet is written right after the draft is applied. Several new plans at the same spot: list them in reading order with the same `avant` / `apres` |
 | `refondre_fiche` | `plan`, `consigne` (optional) | have the plan's technical sheet (its video prompt) rewritten after the draft is applied; `consigne` says what to change, in a few words |
 
 ## Sheets, lines and new plans
 
-- A plan's **sheet** (its video prompt) is written from the plan's description, duration and lines. **The application changes a line's text inside the sheet by itself** when a sheet quotes it word for word: for `remplacer_replique` you add nothing.
-- Add `refondre_fiche` **only when the user wants the sheet itself rewritten** (the shot, the staging, the pace changed), or when a change leaves the sheet wrong beyond a line's text: a description rewritten with `modifier_plan`, a duration changed a lot (a plan going from 6 s to 12 s), a line **deleted** (its tag stays in the sheet). Put what to change in `consigne`. Never add it "just in case", and never for a plan that is cut or new.
+**A line is not an object of its own**: it lives in the plan's `description` (as `NAME : « text »`, `NAME` being a character of the episode or `voix off`) and, once the sheet is written, in the video prompt. To add, change or remove a line, rewrite the description.
+
+- A plan's **sheet** (its video prompt) is written from the plan's description and duration, **lines included**. Changing a line therefore means `modifier_plan` with the **complete** new description (keep the rest as it is, change only the line), then `refondre_fiche` so the sheet follows.
+- Add `refondre_fiche` when the user wants the sheet itself rewritten (the shot, the staging, the pace changed), or when a change leaves the sheet wrong: **a description rewritten with `modifier_plan`** (a changed, added or removed line included), a duration changed a lot (a plan going from 6 s to 12 s). Put what to change in `consigne`, for a line the words as given (`NAME says "…"`). Never add it "just in case", and never for a plan that is cut or new.
 - `ajouter_plan` needs the user's intention or an obvious gap ("il manque un plan de transition entre la 3 et la 4"). **Every new plan carries its `secondes`** (if the user gave one duration for all, repeat it on each). Place it with `avant`, `apres` or `position`: "juste avant le plan 1" is `"avant": "P01"`, "après le plan 3" is `"apres": "P03"`, "entre le plan 3 et le plan 4" is `"apres": "P03"` (or both `apres` P03 and `avant` P04, which must follow each other). A new plan has **no reference yet**: do not target it with another operation in the same sentence; its sheet is written automatically.
-- **A line the user gives for a new plan goes in the same `ajouter_plan`** (`texte` = the words as given, `locuteur` = who says it, taken from `locuteursConnus` when the name matches: "Maya" is `CHAR_maya`). A line for a plan that already exists is an `ajouter_replique`. Never put a duration or a line in `consigne`: it is only for `refondre_fiche`.
+- **A line the user gives for a new plan goes in the description of the same `ajouter_plan`**, as `NAME : « the words as given »`, the speaker's name as in the other plans' descriptions. A line for a plan that already exists goes into that plan's description (`modifier_plan` + `refondre_fiche`). Never put a duration in `consigne`: it is only for `refondre_fiche`.
+- **At most three characters speak in one plan** (each needs a voice reference): beyond that, say it instead of adding the line.
 - If a required field is missing and the user did not give it (no duration, no place), return no operation: the reply step will ask. If the user gave it, fill it: do not answer with other options.
 
 ## How to choose
@@ -78,7 +75,7 @@ Every operation is an object with a `type` and only the fields that type uses.
 - **To shorten**, use `aEconomiserSecondes` as the target and say nothing about figures yourself (the application computes the real duration of every option). Prefer, in this order: plans that repeat what another plan or a line already gives (ambience, establishing, insert), then plans with `etat` `brouillon` or `fiche`, then shortening durations where the scene's text calls for pace. **Avoid cutting a plan whose `etat` is `rendu`** unless the user asks: the application warns, but you should not make it a habit.
 - A plan already `coupe` in `brouillon` is gone: do not cut it again, do not modify it, do not use it as a place to move something after.
 - **Respect the constraint**: a scene the user wants left alone gets no operation on its plans.
-- **Rewriting a line**: keep its meaning and the speaker unless asked; "plus sobre", "plus sec" mean shorter and plainer. One line per operation.
+- **Rewriting a line**: keep its meaning and the speaker unless asked; "plus sobre", "plus sec" mean shorter and plainer. Rewrite the whole description, changing only that line.
 - A title (`titre`) stays short (about 60 characters). A description stays one or two sentences.
 - Do not move the same plan twice, and do not give two durations to one plan.
 - **There is no operation that means "keep", "undo" or "restore".** To keep a plan that a decision cuts ("garde le 08"), to cut fewer plans ("seulement le 04"), or to give up a change ("finalement non"), **re-post the decision concerned** with its `id` and its complete new operations, or `retirer` it. Never create a decision called "Garder le plan 08": it has no operation to carry.
@@ -101,7 +98,7 @@ One sentence per judgment, in French, naming the plans and lines by their refere
 
 ## Before you answer
 
-- Every `P…`, `R…`, `D…` you write exists in the input (or is the next `prochainId` for a new decision).
+- Every `P…`, `D…` you write exists in the input (or is the next `prochainId` for a new decision).
 - A decision has an `id` only when you re-post an existing one, with its complete list of operations.
 - A choice among pending options is `retenirPistes` alone, with no copied operation.
 - A plan is kept by re-posting the decision that cuts it, or by `retirer` (every decision carries real operations).

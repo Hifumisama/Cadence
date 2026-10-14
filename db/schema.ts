@@ -232,59 +232,8 @@ export const planRefs = pgTable("plan_refs", {
   retention: varchar("retention", { length: 30 }), // audio uniquement : "reference"...
 });
 
-// Réplique = entité autonome (2026-09-30, docs/FRICTIONS.md F02 révision) :
-// elle naît du scénario ou du casting, AVANT toute fiche de plan, et survit à
-// la suppression d'un plan qui la cite. Identifiant public `uuid` (comme les
-// plans) ; `ordre` = position dans l'épisode (dense, réécrite à chaque
-// déplacement, jamais une clé).
-//
-// Locuteur : `locuteurId` (asset personnage, la voix off en est un) quand c'est un personnage ; sinon `locuteurTexte` libre (foule,
-// « inconnu »). Une réplique n'est qu'un TEXTE inséré dans le prompt (chantier voix/master, 2026-10-14) : ni prise, ni voix directe, ni
-// statut ; sa voix est le master du personnage (`assets.voix_master`) quand il en a un. `dureeSecondes` : durée saisie à la main (budget
-// de voix du plan, F03), jamais estimée.
-export const repliques = pgTable("repliques", {
-  id: serial("id").primaryKey(),
-  uuid: uuid("uuid").notNull().defaultRandom().unique(),
-  projectId: integer("project_id")
-    .notNull()
-    .references(() => projects.id, { onDelete: "cascade" }),
-  episodeId: integer("episode_id")
-    .notNull()
-    .references(() => episodes.id, { onDelete: "cascade" }),
-  sceneId: integer("scene_id").references(() => scenes.id, { onDelete: "set null" }),
-  ordre: integer("ordre").notNull().default(0),
-  // Sans cascade vers assets (comme plan_refs) : un personnage cité
-  // ne se supprime pas tant qu'il est lié (voir app/assets/actions.ts).
-  locuteurId: integer("locuteur_id").references(() => assets.id),
-  locuteurTexte: varchar("locuteur_texte", { length: 100 }).notNull().default(""),
-  texte: text("texte").notNull(),
-  // Durée estimée ou mesurée à la main (budget de voix du plan) ; une réplique n'a ni fichier, ni voix, ni statut (2026-10-14).
-  dureeSecondes: real("duree_secondes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Table d'assemblage plan ↔ réplique (n-n) : plusieurs répliques par plan
-// (champ-contrechamp), une même réplique dans plusieurs plans. `slot` = son
-// emplacement <Audio N> dans le plan (3 max, MiniMax H3) : l'audio de la
-// réplique EST la référence audio, dérivée d'ici, jamais recopiée dans
-// plan_refs. La voix prime sur les bruitages en cas de concurrence de slots
-// (arbitrage F02, 2026-09-17). `debutSecondes` : indicatif (le moment où la
-// réplique est dite se dit dans le prompt H3), jamais une contrainte.
-export const planDialogues = pgTable("plan_dialogues", {
-  id: serial("id").primaryKey(),
-  planId: integer("plan_id")
-    .notNull()
-    .references(() => plans.id, { onDelete: "cascade" }),
-  repliqueId: integer("replique_id")
-    .notNull()
-    .references(() => repliques.id, { onDelete: "cascade" }),
-  slot: integer("slot").notNull(),
-  debutSecondes: real("debut_secondes"),
-}, (table) => [
-  unique().on(table.planId, table.slot),
-  unique().on(table.planId, table.repliqueId),
-]);
+// Il n'y a plus de table de répliques (migration 0062, 2026-10-14) : le dialogue vit dans le prompt vidéo (`<d>`), la voix d'un personnage
+// est son champ `voix_master`.
 
 // Registre d'assets en arborescence par sujet (deriveDeId) — voir
 // lib/queries.ts:getAssetsTree. Édition manuelle complète depuis /assets.
@@ -297,7 +246,7 @@ export const assets = pgTable("assets", {
   // Cascade (2026-09-28, règles de suppression) : le seul cas où un asset
   // disparaît, c'est la suppression du projet entier — un plan/épisode/
   // saison supprimé, lui, ne fait que détacher ses refs vers l'asset (voir
-  // plan_refs/plan_dialogues, qui n'ont pas de cascade vers assets).
+  // plan_refs, qui n'a pas de cascade vers assets).
   projectId: integer("project_id")
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
@@ -486,7 +435,6 @@ export const parametres = pgTable("parametres", {
 export const plansRelations = relations(plans, ({ many, one }) => ({
   promptSections: many(planPromptSections),
   refs: many(planRefs),
-  dialogues: many(planDialogues),
   jobs: many(jobs),
   scene: one(scenes, { fields: [plans.sceneId], references: [scenes.id] }),
   project: one(projects, { fields: [plans.projectId], references: [projects.id] }),
@@ -529,16 +477,6 @@ export const planPromptSectionsRelations = relations(
 export const planRefsRelations = relations(planRefs, ({ one }) => ({
   plan: one(plans, { fields: [planRefs.planId], references: [plans.id] }),
   asset: one(assets, { fields: [planRefs.assetId], references: [assets.id] }),
-}));
-
-export const planDialoguesRelations = relations(planDialogues, ({ one }) => ({
-  plan: one(plans, { fields: [planDialogues.planId], references: [plans.id] }),
-  replique: one(repliques, { fields: [planDialogues.repliqueId], references: [repliques.id] }),
-}));
-
-export const repliquesRelations = relations(repliques, ({ many, one }) => ({
-  episode: one(episodes, { fields: [repliques.episodeId], references: [episodes.id] }),
-  liaisons: many(planDialogues),
 }));
 
 export const jobsRelations = relations(jobs, ({ one }) => ({

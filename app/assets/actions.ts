@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { assets, planRefs, repliques } from "@/db/schema";
+import { assets, planRefs } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -133,18 +133,11 @@ export async function uploaderFichierAsset(
   
 }
 
-/** Pourquoi un asset ne peut pas être supprimé maintenant, ou null. Un asset cité dans une fiche de plan, ou locuteur de
- * répliques, est trop lié pour disparaître sans geste explicite. Avoir servi d'image de départ à d'autres assets
+/** Pourquoi un asset ne peut pas être supprimé maintenant, ou null. Un asset cité dans une fiche de plan est trop lié pour disparaître sans geste explicite. Avoir servi d'image de départ à d'autres assets
  * ne bloque PAS : leur image existe déjà, elle ne dépend pas de la source (le lien est simplement détaché). */
 async function raisonDeBlocage(assetId: number): Promise<string | null> {
   const [ref] = await db.select().from(planRefs).where(eq(planRefs.assetId, assetId)).limit(1);
   if (ref) return "Encore cité comme référence dans une fiche de plan — délie-le d'abord.";
-  const [replique] = await db
-    .select({ id: repliques.id })
-    .from(repliques)
-    .where(eq(repliques.locuteurId, assetId))
-    .limit(1);
-  if (replique) return "Encore locuteur de répliques — change leur locuteur ou supprime-les d'abord.";
   return null;
 }
 

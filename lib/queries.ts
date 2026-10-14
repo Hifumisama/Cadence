@@ -14,7 +14,6 @@ import {
 import { and, desc, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
 import { posterSrc } from "./media";
-import { getRepliquesParPersonnage, getPlanIdsDesRepliques } from "./queries-repliques";
 import { construireMatrice } from "./matrice-assets";
 import { horsAffiches } from "./assets-visibles";
 import { getPlansPerimes } from "./plans-perimes";
@@ -189,8 +188,8 @@ export async function getPlansList(episodeId?: number): Promise<PlanListItem[]> 
 }
 
 /** Fiche de plan complète : plan + prompt sectionné + refs (avec l'asset
- * associé) + historique des jobs. Les dialogues (répliques liées) vivent dans
- * lib/queries-repliques.ts, getDialoguesPlan. Retrouvée par `uuid` (identifiant
+ * associé) + historique des jobs. Le dialogue vit dans le prompt (`<d>`) ; les voix sont des refs audio, lues par
+ * lib/queries-voix-plan.ts pour les voix. Retrouvée par `uuid` (identifiant
  * public, voir docs/FRICTIONS.md F03) ; le filtre episodeId garde l'URL
  * cohérente avec l'épisode affiché. */
 export async function getPlanDetail(uuid: string, episodeId?: number) {
@@ -391,10 +390,8 @@ export async function getProjectHierarchy(projectId: number) {
 }
 
 export type AssetNode = Awaited<ReturnType<typeof getAssetsTree>>[number];
-/** `refId` : la ligne de plan_refs qui cite l'asset (déliable). `deduite` : la
- * citation d'un PERSONNAGE par ses répliques vient des répliques liées au plan (locuteur), pas
- * d'un lien stocké — il n'y a rien à délier, on retire la réplique du plan. */
-export type AssetCitation = { planId: number; planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number | null; deduite: boolean };
+/** `refId` : la ligne de plan_refs qui cite l'asset (déliable). */
+export type AssetCitation = { planId: number; planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number };
 
 /** Registre d'assets en arborescence par sujet (masters + dérivés), pas par
  * type — demande explicite de l'utilisateur (2026-09-27) : le type reste un
@@ -404,17 +401,14 @@ export type AssetCitation = { planId: number; planUuid: string; position: number
  * numéros de plan — nécessaire pour pouvoir délier une citation précise sans
  * supprimer les autres (retour utilisateur 2026-09-28 : la suppression d'un
  * asset cité doit être bloquée tant qu'il n'a pas été délié explicitement de
- * chaque plan qui le cite). Un personnage est aussi « cité » par les plans dont
- * les répliques il est le locuteur (citation déduite, non déliable).
- *
- * Un personnage porte en plus `nbRepliques` (les répliques dont il est le locuteur). Sa voix est un champ de l'asset (`voixMaster`, ...). */
+ * chaque plan qui le cite). La voix d'un personnage est un champ de l'asset (`voixMaster`, ...) ; elle entre dans un plan comme référence audio
+ * dont l'asset est le personnage : c'est une citation comme une autre. */
 export async function getAssetsTree(projectId?: number) {
   const pid = projectId ?? (await getDefaultProjectId());
   const tousLesAssets = await db.select().from(assets).where(and(eq(assets.projectId, pid), horsAffiches)).orderBy(assets.code);
   const toutesLesRefs = await db
     .select({ id: planRefs.id, assetId: planRefs.assetId, planId: planRefs.planId })
     .from(planRefs);
-  const liensRepliques = await getRepliquesParPersonnage(pid);
   // Filtré au même projet : un ref vers un plan d'un autre projet (ne devrait
   // jamais arriver, mais rien ne l'empêche au niveau FK) sort naturellement du
   // calcul de citations puisque son planId n'aura pas d'entrée dans planParId.
@@ -442,22 +436,9 @@ export async function getAssetsTree(projectId?: number) {
     const plan = planParId.get(ref.planId);
     if (!plan) continue;
     const liste = citationsParAssetId.get(ref.assetId) ?? [];
-    liste.push({ planId: plan.id, planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: ref.id, deduite: false });
+    liste.push({ planId: plan.id, planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: ref.id });
     citationsParAssetId.set(ref.assetId, liste);
   }
-  // Personnage : les plans où l'une de ses répliques est liée, un chip par plan (citation déduite).
-  const planIdsParReplique = await getPlanIdsDesRepliques([...liensRepliques.repliquesParPersonnage.values()].flat());
-  for (const [voixId, idsRepliques] of liensRepliques.repliquesParPersonnage) {
-    const planIds = new Set(idsRepliques.flatMap((id) => planIdsParReplique.get(id) ?? []));
-    const liste = citationsParAssetId.get(voixId) ?? [];
-    for (const planId of planIds) {
-      const plan = planParId.get(planId);
-      if (!plan) continue;
-      liste.push({ planId: plan.id, planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: null, deduite: true });
-    }
-    citationsParAssetId.set(voixId, liste);
-  }
-
   const enfantsParParentId = new Map<number, typeof tousLesAssets>();
   for (const asset of tousLesAssets) {
     if (asset.deriveDeId == null) continue;
@@ -469,8 +450,6 @@ export async function getAssetsTree(projectId?: number) {
   type AssetAvecDerives = (typeof tousLesAssets)[number] & {
     citations: AssetCitation[];
     plansCitants: number[];
-    /** Personnage : nombre de répliques qu'il porte. */
-    nbRepliques: number;
     derives: AssetAvecDerives[];
   };
 
@@ -480,7 +459,6 @@ export async function getAssetsTree(projectId?: number) {
       ...asset,
       citations,
       plansCitants: [...new Set(citations.map((c) => c.position))].sort((a, b) => a - b),
-      nbRepliques: liensRepliques.repliquesParPersonnage.get(asset.id)?.length ?? 0,
       derives: (enfantsParParentId.get(asset.id) ?? [])
         .sort((a, b) => a.code.localeCompare(b.code))
         .map(construireNoeud),

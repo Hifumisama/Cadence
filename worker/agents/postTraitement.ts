@@ -37,7 +37,7 @@ import { codesEnVoixOff, depuisFichePlan, type OptionsFichePlan } from "../../li
 import { planUuidDeCle } from "../../lib/agents/fiches";
 import type { SortiePlanH3 } from "../../lib/agents/plan-h3-controles";
 import { corpusExemplesPlanH3 } from "../../lib/agents/plan-h3-corpus";
-import { planDialogues, planPromptSections, planRefs, propositionChangements, repliques, scenes } from "../../db/schema";
+import { planPromptSections, planRefs, propositionChangements, scenes } from "../../db/schema";
 import { depuisInventaire, type SortieInventaire } from "../../lib/agents/inventaire";
 import { lireVueEpisode } from "../../lib/agents/revision/vue-episode";
 import { depuisIterationPlan, raisonSansEcriture, type PlanPourIteration, type SortieIterationPlan } from "../../lib/agents/iteration-plan";
@@ -402,14 +402,13 @@ async function postIteration(
 ) {
   const [plan] = await tx.select({ id: plans.id, uuid: plans.uuid, titre: plans.titre, duree: plans.dureeGenerationSecondes, description: plans.description }).from(plans).where(eq(plans.id, prop.cibleId!));
   if (!plan) throw new Error("Le plan visé n'existe plus.");
-  const [lignes, refs, voix, registre] = await Promise.all([
+  const [lignes, refs, registre] = await Promise.all([
     tx.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, plan.id)),
     tx
       .select({ type: planRefs.type, slot: planRefs.slot, role: planRefs.role, retention: planRefs.retention, asset: assets.code })
       .from(planRefs)
       .leftJoin(assets, eq(assets.id, planRefs.assetId))
       .where(eq(planRefs.planId, plan.id)),
-    tx.select({ slot: planDialogues.slot }).from(planDialogues).where(eq(planDialogues.planId, plan.id)),
     tx.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, prop.projectId), horsAffiches)),
   ]);
   const sections: Record<string, string> = {};
@@ -424,7 +423,6 @@ async function postIteration(
     sections,
     refs,
     registre,
-    slotsVoix: voix.map((v) => v.slot),
     dureeGenerationSecondes: voulue,
     dureeReelleSecondes: execution.dureeReelleSecondes ?? null,
   };

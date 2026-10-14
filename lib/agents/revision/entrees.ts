@@ -34,13 +34,9 @@ export type EntreeAnalyse = {
     dureeSecondes: number;
     etat: string;
     rendu_perime: boolean;
-    repliques: string[];
     /** Ce que le brouillon en fait : coupé, ou sa durée si elle change ; null s'il n'est pas touché. */
     brouillon: { coupe: true } | { dureeSecondes: number } | null;
   }[];
-  repliques: { ref: string; locuteur: string; texte: string; plans: string[] }[];
-  /** Les codes des personnages du projet (la voix off en est un) : les locuteurs possibles d'une réplique ajoutée. */
-  locuteursConnus: string[];
   decisions: { id: string; titre: string; raison: string; statut: string; operations: OperationBrute[]; constats: { niveau: string; texte: string }[] }[];
   /** L'identifiant que recevra la prochaine décision CRÉÉE (puis les suivants, dans l'ordre) : pour qu'un jugement `narratif` puisse la viser. */
   prochainId: string;
@@ -78,7 +74,6 @@ export function construireEntreeAnalyse(p: {
   pistes: Piste[];
   messages: MessageConversation[];
   brief: Record<string, unknown> | null | undefined;
-  locuteurs?: string[];
 }): { entree: EntreeAnalyse; controle: ControleAnalyse } {
   const { vue } = p;
   const operations = p.decisions.flatMap((d) => d.operations);
@@ -110,17 +105,9 @@ export function construireEntreeAnalyse(p: {
         dureeSecondes: x.duree,
         etat: x.etat,
         rendu_perime: x.perime,
-        repliques: x.repliques.map((u) => vue.repliques.find((r) => r.uuid === u)?.handle ?? "?"),
         brouillon: b?.coupe ? { coupe: true as const } : b && b.duree !== x.duree ? { dureeSecondes: b.duree } : null,
       };
     }),
-    repliques: vue.repliques.map((r) => ({
-      ref: r.handle,
-      locuteur: r.locuteur,
-      texte: r.texte,
-      plans: r.plans.map((u) => vue.plans.find((x) => x.uuid === u)?.handle ?? "?"),
-    })),
-    locuteursConnus: p.locuteurs ?? [],
     decisions: p.decisions.map((d) => ({
       id: idCourt(d.ordre),
       titre: d.titre,
@@ -150,9 +137,7 @@ export async function entreeAnalyse(d: Db, conv: ConversationRow): Promise<{ ent
   if (!vue) return null;
   const lignes = await d.select().from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv.id)).orderBy(asc(revisionDecisions.ordre));
   const brief = await lireBriefDuProjet(d, conv.projectId);
-  const locuteurs = (await d.select({ code: assets.code }).from(assets).where(and(eq(assets.projectId, conv.projectId), eq(assets.type, "personnage"))).orderBy(asc(assets.code))).map((a) => a.code);
   return construireEntreeAnalyse({
-    locuteurs,
     vue,
     decisions: lignes
       .filter((l) => l.statut !== "appliquee")

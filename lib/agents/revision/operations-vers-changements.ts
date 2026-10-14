@@ -1,8 +1,8 @@
 import type { ChangementBrut } from "../changements";
 import type { Operation } from "./types";
-import { planParUuid, repliqueParUuid, type VueEpisode } from "./vue-episode";
+import { planParUuid, type VueEpisode } from "./vue-episode";
 
-/** Une opération validée devient un changement pour les applicateurs existants (`plan.ts`, `replique.ts`) : eux calculent l'aperçu
+/** Une opération validée devient un changement pour les applicateurs existants (`plan.ts`) : eux calculent l'aperçu
  * (avant/après, écrasement, refus) et appliquent dans la transaction de la proposition. Pur, testé. */
 
 const coupe = (t: string, n = 48) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
@@ -26,37 +26,6 @@ export function operationsVersChangements(operations: Operation[], vue: VueEpiso
 }
 
 function versChangements(op: Operation, vue: VueEpisode): ChangementBrut[] {
-  if (op.type === "supprimer_replique" || op.type === "remplacer_replique") {
-    const r = repliqueParUuid(vue, op.repliqueUuid);
-    if (!r) return [];
-    if (op.type === "supprimer_replique") {
-      return [{ groupe: "repliques", cibleType: "replique", cibleRef: r.uuid, libelle: `Supprimer ${r.handle} · « ${coupe(r.texte)} »`, operation: "supprimer" }];
-    }
-    return [
-      {
-        groupe: "repliques",
-        cibleType: "replique",
-        cibleRef: r.uuid,
-        libelle: `Modifier ${r.handle} · « ${coupe(r.texte)} »`,
-        operation: "modifier",
-        apres: { ...(op.texte !== undefined ? { texte: op.texte } : {}), ...(op.locuteur !== undefined ? { locuteur: op.locuteur } : {}) },
-      },
-    ];
-  }
-  if (op.type === "ajouter_replique") {
-    const p = planParUuid(vue, op.planUuid);
-    if (!p) return [];
-    return [
-      {
-        groupe: "repliques",
-        cibleType: "replique",
-        cibleRef: null,
-        libelle: `Ajouter à ${p.handle} · ${op.locuteur} : « ${coupe(op.texte)} »`,
-        operation: "creer",
-        apres: { texte: op.texte, locuteur: op.locuteur, episodeId: vue.episodeId, planUuid: p.uuid },
-      },
-    ];
-  }
   if (op.type === "ajouter_plan") {
     // L'applicateur « plan » crée : la scène est celle du plan qu'il suit (déduite à l'application), la fiche vient après (refondre_fiche).
     const plan: ChangementBrut = {
@@ -69,19 +38,7 @@ function versChangements(op: Operation, vue: VueEpisode): ChangementBrut[] {
       apres: { titre: op.titre, description: op.description, dureeGenerationSecondes: op.secondes, episodeId: vue.episodeId },
       position: op.position,
     };
-    if (!op.replique) return [plan];
-    // Sa réplique se rattache au plan par sa clé : l'applicateur « réplique » la retrouve une fois le plan créé.
-    return [
-      plan,
-      {
-        groupe: "repliques",
-        cibleType: "replique",
-        cibleRef: null,
-        libelle: `Réplique de « ${coupe(op.titre, 28)} » · ${op.replique.locuteur} : « ${coupe(op.replique.texte)} »`,
-        operation: "creer",
-        apres: { texte: op.replique.texte, locuteur: op.replique.locuteur, episodeId: vue.episodeId, planCle: op.ref },
-      },
-    ];
+    return [plan];
   }
   const p = planParUuid(vue, op.planUuid);
   if (!p) return [];

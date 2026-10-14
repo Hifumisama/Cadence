@@ -93,7 +93,7 @@ test("modifier une décision (id donné) remplace ses opérations et efface ses 
     sortie({
       decisions: [
         { id: null, titre: "Couper 4 plans d'ambiance", raison: "", operations: coupes(5, 10, 2, 8) },
-        { id: null, titre: "Réplique plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }] },
+        { id: null, titre: "Réplique plus sobre", raison: "", operations: [{ type: "refondre_fiche", plan: "P07", consigne: "réplique plus sobre" }] },
       ],
       narratif: [{ decision: "D2", niveau: "conflit", texte: "Le plan 08 est coupé parce que la réplique disait ce qu'il montre." }],
     }),
@@ -108,7 +108,7 @@ test("modifier une décision (id donné) remplace ses opérations et efface ses 
     sortie({
       decisions: [
         { id: "D1", titre: "Couper 3 plans d'ambiance", raison: "le 08 reste", operations: coupes(5, 10, 2) },
-        { id: "D2", titre: "Réplique plus sobre", raison: "", operations: [{ type: "remplacer_replique", replique: "R01", texte: "Je ne reviendrai pas." }] },
+        { id: "D2", titre: "Réplique plus sobre", raison: "", operations: [{ type: "refondre_fiche", plan: "P07", consigne: "réplique plus sobre" }] },
       ],
     }),
   );

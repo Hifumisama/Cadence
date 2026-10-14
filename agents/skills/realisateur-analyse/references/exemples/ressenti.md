@@ -12,7 +12,7 @@ Episode "Le sel", 14 plans, 2:34 for a wanted 2:00 (`aEconomiserSecondes`: 34). 
     {"ref": "P04", "scene": "Le port à l'aube", "titre": "Gros plan : ses mains serrent la lettre", "dureeSecondes": 8, "etat": "rendu"},
     {"ref": "P05", "scene": "Le port à l'aube", "titre": "Mouettes dans le ciel", "dureeSecondes": 8, "etat": "brouillon"},
     {"ref": "P06", "scene": "La lettre", "titre": "Maya s'assoit sur la caisse de sel", "dureeSecondes": 14, "etat": "fiche"},
-    {"ref": "P07", "scene": "La lettre", "titre": "Maya lit la lettre", "dureeSecondes": 15, "etat": "rendu", "repliques": ["R01"]},
+    {"ref": "P07", "scene": "La lettre", "titre": "Maya lit la lettre", "dureeSecondes": 15, "etat": "rendu"},
     {"ref": "P08", "scene": "La lettre", "titre": "Insert : l'écriture sur le papier", "dureeSecondes": 8, "etat": "brouillon"},
     {"ref": "P09", "scene": "La lettre", "titre": "Le vieux pêcheur l'observe", "dureeSecondes": 12, "etat": "fiche"},
     {"ref": "P10", "scene": "La lettre", "titre": "Plan de coupe : la mer", "dureeSecondes": 10, "etat": "brouillon"}

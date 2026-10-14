@@ -122,7 +122,6 @@ export type SortieScenarioEpisode = {
       /** Liaison avec le plan précédent (lib/plan-liaison.ts) : absente d'un scénario d'avant, alors la liaison du plan ne change pas. */
       liaison?: string;
       dureeSecondes: number;
-      repliques: { locuteur: string; texte: string }[];
     }[];
   }[];
   inventions: string[];
@@ -138,11 +137,6 @@ export type EpisodeCourant = {
 };
 
 const norme = (s: string) => s.trim().toLowerCase();
-
-/** Au plus trois répliques par plan : chacune occupe un emplacement <Audio N>, et MiniMax H3
- * en accepte trois (lib/plan-checks.ts, MAX_REFS.audio). La suivante est refusée d'office, avec
- * la raison, plutôt que perdue en silence. */
-export const MAX_REPLIQUES_PAR_PLAN = 3;
 
 /** Écart toléré entre la durée totale du scénario et la durée visée du brief avant d'en avertir. */
 export const ECART_DUREE_TOLERE = 0.2;
@@ -172,52 +166,9 @@ export type OptionsScenario = {
   signalerEcrasement?: boolean;
 };
 
-type Repliques = { locuteur: string; texte: string }[];
-
-function extrait(texte: string, max = 60): string {
-  const t = texte.replace(/\s+/g, " ").trim();
-  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
-}
-
-/** Les répliques d'un plan, en changements « créer une réplique » rattachés à ce plan (par sa clé
- * s'il est créé par la même proposition, par son uuid sinon). Aucun asset n'est créé : le
- * locuteur est rapproché du registre par l'applicateur. */
-function changementsRepliques(
-  repliques: Repliques | undefined,
-  cible: { episodeId: number; planCle?: string; planUuid?: string; sceneCle?: string; sceneId?: number | null },
-  prefixe: string,
-  groupe: string,
-  sousGroupe: string | null,
-  cles: [number, number],
-): ChangementBrut[] {
-  return (repliques ?? []).map((r, k) => {
-    const hors = k >= MAX_REPLIQUES_PAR_PLAN;
-    return {
-      groupe,
-      cle: `${prefixe}rep-${cles[0]}-${cles[1]}-${k + 1}`,
-      cibleType: "replique" as const,
-      cibleRef: null,
-      libelle: `Réplique · ${r.locuteur.trim() || "?"} : « ${extrait(r.texte)} »`,
-      operation: "creer" as const,
-      sousGroupe,
-      apres: {
-        texte: r.texte,
-        locuteur: r.locuteur,
-        episodeId: cible.episodeId,
-        ...(cible.planCle ? { planCle: cible.planCle } : { planUuid: cible.planUuid }),
-        ...(cible.sceneCle ? { sceneCle: cible.sceneCle } : cible.sceneId != null ? { sceneId: cible.sceneId } : {}),
-      },
-      ...(hors
-        ? { refuseRaison: `Ce plan a déjà ${MAX_REPLIQUES_PAR_PLAN} répliques : c'est le maximum de références audio (MiniMax H3). Coupe le plan à une frontière de sens pour répartir le dialogue.` }
-        : {}),
-    };
-  });
-}
-
-/** Épisode entier (« compléter / préparer l'épisode ») : l'épisode, ses scènes, ses plans ET leurs
- * répliques. Ce qui existe déjà (même titre) est MODIFIÉ, le reste est créé : jamais deux fois. Les
- * plans neufs sont ajoutés en fin d'épisode, dans l'ordre de la sortie ; les répliques se lient à
- * leur plan. Rien n'est supprimé (un nouveau scénario qui change les titres AJOUTE ses plans à ceux
+/** Épisode entier (« compléter / préparer l'épisode ») : l'épisode, ses scènes, ses plans et leurs
+ * descriptions (le dialogue s'y écrit). Ce qui existe déjà (même titre) est MODIFIÉ, le reste est créé : jamais deux fois. Les
+ * plans neufs sont ajoutés en fin d'épisode, dans l'ordre de la sortie. Rien n'est supprimé (un nouveau scénario qui change les titres AJOUTE ses plans à ceux
  * qui existent : la revue le dit). */
 export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: EpisodeCourant, options: OptionsScenario = {}): ChangementBrut[] {
   const pref = options.prefixeCle ?? "";
@@ -279,7 +230,6 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
           avertissements: avert,
           ...ecrase(`La description et la durée actuelles de « ${p.titre} » seront remplacées.`),
         });
-        changements.push(...changementsRepliques(p.repliques, { episodeId: ep.id, planUuid: dejaLa.uuid, ...(existante ? { sceneId: existante.id } : { sceneCle: cleScene ?? undefined }) }, pref, g("repliques"), sc.titre, [i + 1, j + 1]));
       } else {
         planCree = true;
         const clePlan = `${pref}plan-${i + 1}-${j + 1}`;
@@ -302,7 +252,6 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
           },
           avertissements: avert,
         });
-        changements.push(...changementsRepliques(p.repliques, { episodeId: ep.id, planCle: clePlan, ...(existante ? { sceneId: existante.id } : { sceneCle: cleScene ?? undefined }) }, pref, g("repliques"), sc.titre, [i + 1, j + 1]));
       }
     }
   }
@@ -352,7 +301,6 @@ export function depuisPlanAInserer(
       },
       avertissements: info,
     },
-    ...changementsRepliques(p.repliques, { episodeId: cible.episodeId, planCle: "plan-insere", sceneId: cible.sceneId }, "", "repliques", null, [1, 1]),
   ];
 }
 
@@ -371,7 +319,6 @@ export function depuisCorrectionPlan(sortie: SortieScenarioEpisode, plan: { uuid
       apres: { description: p.description, dureeGenerationSecondes: p.dureeSecondes, ...liaisonDe(p) },
       avertissements: [
         ...(sortie.inventions ?? []).map((t) => ({ type: "invention" as const, texte: t })),
-        ...(p.repliques?.length ? [{ type: "info" as const, texte: "Les répliques du plan ne sont pas modifiées par une correction de plan : elles se changent dans la fiche de plan." }] : []),
       ],
     },
   ];

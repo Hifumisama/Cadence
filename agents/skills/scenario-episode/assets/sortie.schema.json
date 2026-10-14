@@ -34,25 +34,12 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["titre", "description", "liaison", "dureeSecondes", "repliques"],
+              "required": ["titre", "description", "liaison", "dureeSecondes"],
               "properties": {
                 "titre": { "type": "string", "maxLength": 200, "description": "(French)" },
-                "description": { "type": "string", "minLength": 1, "description": "(French) What happens and why the plan exists. Narrative, with no framing, light, sound or camera movement, and no reference to another plan." },
+                "description": { "type": "string", "minLength": 1, "description": "(French) What happens and why the plan exists, then the lines said (each `NAME : « exact text »`, in the dialogue language, before « État en fin de plan : »). Narrative, with no framing, light, sound or camera movement, and no reference to another plan." },
                 "liaison": { "type": "string", "enum": ["suite", "coupe"], "description": "How this plan links to the PREVIOUS one (its only link: the description refers to no other plan). suite: it takes up where the previous plan ends (same place, same moment or seconds later, same people where the previous « État en fin de plan » left them). coupe: a clean cut (another place, another moment, another point of view). The first plan of the episode is a coupe. When unsure: suite." },
-                "dureeSecondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "Generation duration, whole seconds, from 5 to 15 (never less than 5). It follows the brief's rhythm and the scene's genre (see the rules); group close moments into a single plan. A dialogue plan: generous duration, breathing margin of at least 2 s, to adjust after the voice take." },
-                "repliques": {
-                  "type": "array",
-                  "description": "Lines said in this plan, in speaking order.",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["locuteur", "texte"],
-                    "properties": {
-                      "locuteur": { "type": "string", "description": "A registry character (name or code), or « voix off »." },
-                      "texte": { "type": "string", "minLength": 1, "description": "The exact text, in the dialogue language, punctuation included." }
-                    }
-                  }
-                }
+                "dureeSecondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "Generation duration, whole seconds, from 5 to 15 (never less than 5). It follows the brief's rhythm and the scene's genre (see the rules); group close moments into a single plan. A dialogue plan: generous duration, breathing margin of at least 2 s, to adjust after the voice take." }
               }
             }
           }

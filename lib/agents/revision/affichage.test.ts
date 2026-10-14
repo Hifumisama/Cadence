@@ -25,12 +25,11 @@ test("scènes touchées : seulement celles que le brouillon touche, plans dans l
   assert.equal(s1!.plans.find((p) => p.handle === "P01")!.dureeOriginale, 10);
 });
 
-test("scènes touchées : une réplique changée touche la scène du plan qui la dit, avec son avant/après", () => {
-  const r = vue.repliques[0]!.uuid;
-  const scenes = scenesTouchees(vue, [{ type: "remplacer_replique", repliqueUuid: r, texte: "Je ne reviendrai pas." }]);
+test("scènes touchées : une fiche à réécrire touche la scène de son plan, marquée « fiche »", () => {
+  const scenes = scenesTouchees(vue, [{ type: "refondre_fiche", planUuid: planUuid(7), consigne: "réplique plus sobre" }]);
   assert.deepEqual(scenes.map((s) => s.titre), ["La lettre"]);
   const p07 = scenes[0]!.plans.find((p) => p.handle === "P07")!;
-  assert.deepEqual(p07.repliques, [{ handle: "R01", locuteur: "CHAR_maya", texte: "Je ne reviendrai pas.", texteOriginal: "Je ne reviendrai jamais.", supprimee: false }]);
+  assert.equal(p07.fiche, true);
 });
 
 test("scènes touchées : un déplacement est signalé, le plan reste dans sa scène d'origine", () => {
@@ -49,8 +48,8 @@ test("barre du bas : rien en brouillon → glissière inerte", () => {
 });
 
 test("barre du bas : le parcours « ressenti » (3 décisions, 2:00 pile), glissière libre", () => {
-  const r = resumerChantier([decision("D1", "retenue", [couper(5), couper(10), couper(2)]), decision("D2", "retenue", [duree(1, 6), duree(3, 7)]), decision("D3", "attention", [{ type: "remplacer_replique", repliqueUuid: vue.repliques[0]!.uuid, texte: "x" }])], 120, 120);
-  assert.equal(texte(r.segments), "3 décisions : supprime 3 plans, raccourcit 2 durées, change 1 réplique · 2:00 pour 2:00");
+  const r = resumerChantier([decision("D1", "retenue", [couper(5), couper(10), couper(2)]), decision("D2", "retenue", [duree(1, 6), duree(3, 7)]), decision("D3", "attention", [{ type: "refondre_fiche", planUuid: planUuid(7), consigne: "x" }])], 120, 120);
+  assert.equal(texte(r.segments), "3 décisions : supprime 3 plans, raccourcit 2 durées, réécrit 1 fiche ensuite · 2:00 pour 2:00");
   assert.equal(r.inerte, false);
   assert.equal(r.danger, false);
 });

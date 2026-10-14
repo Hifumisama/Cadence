@@ -33,7 +33,7 @@ Chaque flèche pleine entre deux étapes passe par une **revue** : tu relis les 
 | Conversation | modèle, un tour par message | messages de la conversation | branché |
 | Brief | modèle (`notes-entretien`, au fil de la conversation) | un brouillon de brief, puis validé à l'application | branché |
 | Squelette | code seul | saison, épisodes, brief (avec la clause de style) | branché |
-| 1. Scénarios | modèle, un appel par épisode (lot) | scènes, plans (durée 5 à 15 s), répliques liées aux plans | branché |
+| 1. Scénarios | modèle, un appel par épisode (lot) | scènes, plans (durée 5 à 15 s, dialogue écrit dans leur description) | branché |
 | 2. Registre d'assets | modèle, un appel par personnage ou lieu du brief (lot) | assets `CHAR_…`, `DEC_…` et leur prompt d'image | branché |
 | 2 bis. Casting des voix | modèle, un appel par voix manquante (lot) | asset `VOICE_…` et sa fiche de casting | branché |
 | 3. Fiches de plan | modèle, un appel par plan (seul ou en lot) | six sections du prompt H3, références, durée ; assets manquants créés | branché, pas encore essayé avec le vrai modèle dans l'interface (FRICTIONS) |
@@ -41,7 +41,7 @@ Chaque flèche pleine entre deux étapes passe par une **revue** : tu relis les 
 | Correction après visionnage | modèle qui voit (images du rendu) | quelques passages des sections du prompt | branché, pas encore essayé avec un vrai rendu (FRICTIONS) |
 | Production | worker + ComfyUI | candidats d'images, de sons, de voix de référence ; rendus vidéo | branché à la main, **non enchaîné** au pipeline |
 
-**Ce qui n'est pas branché** : les prises de répliques (CosyVoice3, voir `workflows/README.md`) ; l'enchaînement automatique des étapes ; la suppression par une proposition (refus explicite) ; le fournisseur Claude (seul le modèle local existe).
+**Ce qui n'est pas branché** : l'enchaînement automatique des étapes ; la suppression par une proposition (refus explicite) ; le fournisseur Claude (seul le modèle local existe).
 
 **Écarté (décision de l'utilisateur, 2026-10-02)** : la page de suivi des propositions (Monitoring) et le point de retour. La fonction `listerPropositions` (`lib/queries-agents.ts`) existe mais aucune page ne l'affiche.
 
@@ -70,7 +70,7 @@ Chaque flèche pleine entre deux étapes passe par une **revue** : tu relis les 
 
 **Pièges connus**
 - Un skill ne voit que ce qui a déjà été **appliqué** : lancer les fiches avant d'avoir appliqué le registre donne des fiches sans références.
-- Des répliques écrites avant que leur personnage existe gardent un locuteur texte ; elles sont rattachées quand une proposition crée ce personnage ou sa voix (`lib/agents/rattachement.ts`).
+- Le dialogue n'a pas d'entité propre : il est dans la description du plan, puis dans les `<d>` du prompt ; la voix d'un personnage qui parle (son master) est une référence audio de la fiche.
 
 **Tester** : `npm run agents:e2e` parcourt tout le pipeline avec un faux modèle sur la base de dev (voir [Lancer les tests](recettes/lancer-les-tests.md)).
 

@@ -46,7 +46,6 @@ export function SupprimerProjetBouton({ projectId, nom, compact = false }: { pro
           : null,
         pluriel(inventaire.plans, "plan"),
         pluriel(inventaire.assets, "asset") + " (images, voix, sons du registre)",
-        pluriel(inventaire.repliques, "réplique"),
         `${pluriel(inventaire.rendus, "rendu")} vidéo et ${pluriel(inventaire.generations, "génération")} d'assets`,
         `${pluriel(inventaire.appelsLlm, "appel")} LLM, conversations, briefs, propositions et traces`,
         "tous les fichiers correspondants sur le disque",

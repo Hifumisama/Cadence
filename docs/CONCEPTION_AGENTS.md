@@ -17,7 +17,7 @@ génération :
 - la saison (une seule au début) et le ou les épisodes ;
 - les scènes ;
 - les fiches de plan (prompts H3, références, durées) ;
-- les répliques ;
+- le dialogue (écrit dans la description de chaque plan, puis dans les `<d>` du prompt) ;
 - le registre d'assets, avec un prompt de génération par asset (image ou voix).
 
 Entrées acceptées : un **pitch** (texte libre) ou un **texte complet** (roman). Un
@@ -89,9 +89,9 @@ viennent **avant** les plans, puisque les plans les citent en références.
 | # | Étape | Skill | Produit |
 |---|---|---|---|
 | 1 | Structure | aucun (code) | saison, épisode(s), tirés du brief |
-| 2 | Scénario | `scenario-episode` | scènes, plans (description narrative, durée), répliques avec locuteur |
+| 2 | Scénario | `scenario-episode` | scènes, plans (description narrative, **dialogue compris** : `NOM : « texte »`, durée) |
 | 3 | Registre | `prompt-asset`, `prompt-voix` | les masters connus par le brief (personnages, lieux) et leurs voix, avec prompt de génération |
-| 4 | Plans | `plan-h3` | prompts H3, références, liaison des répliques ; propose aussi les assets manquants (accessoires, dérivés, effets) |
+| 4 | Plans | `plan-h3` | prompts H3, références (dont la voix des personnages qui parlent) ; propose aussi les assets manquants (accessoires, dérivés, effets) |
 
 Le scénario ne déclare aucun asset : « l'histoire d'abord » (F03, 2026-09-29).
 Le registre de l'étape 3 ne contient donc que ce que le **brief** nomme déjà
@@ -126,7 +126,7 @@ et recommande la méthode de fabrication (`assets.methodeGeneration`).
 | `projet` | « générer le projet » | brief |
 | `saison` | régénérer la saison | brief, arc de la saison |
 | `episode` | préparer l'épisode 2 | brief, résumé des épisodes précédents (continuité narrative seulement), registre |
-| `scene` | remplir une scène | brief, résumé d'épisode, texte de la scène, registre, plans et répliques existants |
+| `scene` | remplir une scène | brief, résumé d'épisode, texte de la scène, registre, plans existants |
 | `plan` | un plan de coupe entre deux plans | voir §6.3 |
 
 La continuité **visuelle** se tient à l'échelle de l'épisode, pas de la série
@@ -161,7 +161,7 @@ Contexte assemblé :
   d'écran, exemple de `FRICTIONS.md` (entrée par la droite après un travelling
   vers la gauche) ;
 - le registre d'assets, **d'abord ceux déjà cités dans la scène** ;
-- les répliques de la scène ;
+- le dialogue de la scène (dans les descriptions de ses plans) ;
 - les contraintes techniques (15 s, 3 slots audio, verbatim, marge de
   respiration en plan dialogué).
 
@@ -170,7 +170,7 @@ Sortie : une proposition qui contient
 - ses références ;
 - les **assets manquants**, en changements explicites (« `PROP_lettre` n'existe
   pas : le créer ? », avec son prompt d'image) ;
-- les répliques nouvelles, créées comme entités autonomes et liées au plan ;
+- le dialogue, écrit dans la description du plan (plus d'entité « réplique », FRICTIONS 2026-10-14) ;
   le contrôle verbatim s'applique dès la proposition.
 
 ## 7. Propositions : modèle de données
@@ -222,10 +222,10 @@ que d'écraser).
 | Agent | Skill | Outils (actions serveur) |
 |---|---|---|
 | Intake | `notes-entretien` | tenir la fiche de notes (le brief) au fil de la conversation ; plus de skill `brief-projet` (2026-10-12) |
-| Scénario | `scenario-episode` | lire le brief et le registre ; proposer saison/épisode/scènes/plans/répliques |
+| Scénario | `scenario-episode` | lire le brief et le registre ; proposer saison/épisode/scènes/plans (dialogue compris) |
 | Assets | `prompt-asset` | lire le registre, un asset et son parent ; proposer un prompt et une méthode |
 | Voix | `prompt-voix` | lire un personnage et les voix au casting ; proposer une instruction et un texte de référence |
-| Plans | `plan-h3` | lire plans, scène et registre ; proposer des plans, leurs refs et répliques ; lancer les contrôles |
+| Plans | `plan-h3` | lire plans, scène et registre ; proposer des plans et leurs refs (voix comprises) ; lancer les contrôles |
 | Itération | `iteration-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt. Garde « Corriger après visionnage » (il lit les vignettes du rendu) ; son rôle dans la révision d'épisode est tenu par le réalisateur (§16, FRICTIONS 2026-10-09) |
 | Réalisateur | à créer (§16) | lire tout un épisode (scénario, fiches, rendus) et le brouillon ; proposer des décisions ; calculer les constats ; déléguer la réécriture à `scenario-episode` et `plan-h3` |
 
@@ -422,7 +422,7 @@ sous-tâche (`cle_sous_tache`) ; le statut du lot se décide à chaque fin de so
 Nouvelles actions : `genererScenarios(conversationUuid, { episodeIds?, consigne? })`,
 `relancerSousTache(propositionUuid, cle, retour?)`, `annulerLot(propositionUuid)` ; lectures :
 `VueProposition.lot`, `listerEpisodesPourScenariosVue`, `estimerScenariosVue`. Nouvelle cible de
-changement : `replique`.
+changement : *(`replique`, retiré le 2026-10-14 : le dialogue vit dans la description des plans)*.
 
 **Brancher les étapes 2 et 3 sur la même infrastructure** :
 1. Une **étape = une proposition en lot** dont chaque sous-tâche est une tâche `agent_runs` d'un
@@ -475,7 +475,7 @@ Décisions et raisons : `docs/FRICTIONS.md`, 2026-10-07 (conception) et 2026-10-
 - **Cycle de vie.** Une conversation ouverte par épisode. Le brouillon de décisions reste attaché à l'épisode tant qu'il n'est ni appliqué ni abandonné (rien n'est réinitialisé en silence quand on quitte la page). **À l'application, la conversation se ferme** ; la révision suivante en ouvre une neuve.
 - **Portée.** `episode` du verrou de portée (`lib/agents/portee.ts`) : l'épisode, ses scènes et ses plans. Un asset manquant est signalé, sa création reste dans le flux des assets.
 - **Modèle.** Qwen3.6-35B-A3B par défaut (`LLM_MODELE_REALISATEUR_ANALYSE` et `_REPONSE`, `.env.example`).
-- **Écritures (faites, étape 1).** Supprimer un plan, déplacer un plan (`modifier` avec une position), modifier ou supprimer une réplique : applicateurs `plan.ts` et `replique.ts`, règle du texte partagée (`lib/repliques-ecriture.ts`). Le détail est dans `docs/FRICTIONS.md`, « Étape 1 construite ».
+- **Écritures (faites, étape 1).** Supprimer un plan, déplacer un plan (`modifier` avec une position), applicateur `plan.ts` (les applicateurs et opérations de réplique ont été retirés le 2026-10-14). Le détail est dans `docs/FRICTIONS.md`, « Étape 1 construite ».
 - **Périmé et revue (faits, étape 2).** Un rendu est périmé aussi quand le prompt ou la durée du plan ne sont plus ceux du dernier rendu (comparés par valeur) ; la revue affiche les rangs qui bougent pour une suppression ou un déplacement. Voir `docs/FRICTIONS.md`, « Étape 2 construite ».
 - **Le moteur (fait, étape 3).** Deux skills, `realisateur-analyse` (opérations typées, jamais de prose) puis `realisateur-reponse` (formule les faits du code) ; une conversation de profondeur `revision` par épisode ; les décisions (`revision_decisions`) sont le brouillon, appliqué en UNE proposition ; constats mécaniques par le code, jugements narratifs par le modèle. Code dans `lib/agents/revision/`, détail dans `docs/FRICTIONS.md`, « Étape 3 construite ». Essai sur le modèle : `npm run revision:essai`.
 - **L'interface (faite, étape 4).** Page `/p/<projet>/realisateur/<épisode>` + onglet ; les anciens boutons y mènent ; voir FRICTIONS, « Étape 4 construite ».

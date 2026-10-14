@@ -4,7 +4,7 @@ import type { Avertissement, CibleType, Operation, Position } from "./types";
  * skills) AVANT enrichissement par l'applicateur de sa cible (état courant, écrasement,
  * contrôles). Pur : aucune lecture. */
 export type ChangementBrut = {
-  /** Groupe d'affichage stable : brief | projet | saison | episodes | scenes | plans | repliques | fiches | assets
+  /** Groupe d'affichage stable : brief | projet | saison | episodes | scenes | plans | fiches | assets
    * (un lot : `ep-<id>`, un groupe par épisode). */
   groupe: string;
   /** Clé symbolique d'une création (« saison-1 », « episode-2 ») citée par ses enfants. */
@@ -54,13 +54,12 @@ export const TITRES_GROUPES: Record<string, string> = {
   episodes: "Épisodes",
   scenes: "Scènes",
   plans: "Plans",
-  repliques: "Répliques",
   fiches: "Fiches de plan",
   assets: "Assets",
 };
 
 /** Ordre d'affichage des groupes ; l'écrasement vient toujours en tête. */
-export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "saison", "episodes", "scenes", "plans", "repliques", "fiches", "assets"];
+export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "saison", "episodes", "scenes", "plans", "fiches", "assets"];
 
 /** Les clés symboliques des parents qu'un changement cite (créés par la même proposition). */
 export const CLES_PARENT = ["saisonCle", "episodeCle", "sceneCle", "deriveDeCle"] as const;

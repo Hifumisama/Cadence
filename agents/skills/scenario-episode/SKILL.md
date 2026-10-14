@@ -12,7 +12,7 @@ You write an **episode's screenplay**: its scenes, plans and lines. It is **narr
 ## Output language
 
 - **Every text field in French**: `episode.titre`, `episode.resume`, scene titles, functions and moods, plan titles and descriptions, `inventions`, `notes`.
-- **Lines** (`repliques[].texte`) in the **brief's dialogue language**, word for word. Inputs are in French.
+- **Lines** (written inside each plan's `description`) in the **brief's dialogue language**, word for word. Inputs are in French.
 - Never change enum values or JSON keys.
 
 ## What you receive
@@ -36,7 +36,7 @@ A plan is **one video generation call** of **5 to 15 seconds**, which may hold s
 3. **Duration follows `rythme`.** `lent`: **10–15 s**. `mesure` and `soutenu`: **8–12 s**. `rapide`: **5–8 s**, with brief moments arranged as a montage. `variable`: each scene's genre decides. No `rythme`: 8–15 s. A 5–6 s plan outside a fast rhythm is an exception (an isolated gesture, a reaction, an insert).
 4. **The total stays within ±20% of `dureeEpisodeSecondes`.** Add the durations before answering; the application recounts and sends the total back if it is off. The number of plans moves the total most.
 5. **Write the generated duration**, not the duration seen on screen.
-6. **The description** is one or two short paragraphs: what happens, and **why the plan exists**. The intention is the only thing that later lets the video prompt turn "the first decision we see her make" into observable events. A plan without intention is empty.
+6. **The description** is one or two short paragraphs: what happens, **why the plan exists** and, if someone speaks, **the lines** (see "The lines"). The intention is the only thing that later lets the video prompt turn "the first decision we see her make" into observable events. A plan without intention is empty.
 7. **Each description stands alone.** No framing, light, sound or camera movement of your own (decided per cut, in the video prompt), except the author's explicit directions (see "The author's words"); no reference to another plan ("like the previous one": it goes out of sync when a plan moves; order is the array's); no asset list (name the characters, places and objects that matter, with the registry's names).
 
 ### The state of the world, plan by plan
@@ -91,13 +91,14 @@ The **mood** (`ambiance`) is the visual frame held over the **whole scene**: tim
 
 ## The lines
 
-Lines are written here, then linked to plans:
+A line lives **in the plan's description and nowhere else**: the video prompt step (`plan-h3`) reads it there and writes it into the shot. There is no separate list of lines.
 
-1. **Word for word**, in the dialogue language, punctuation included. They are reused verbatim in the video prompt, never rephrased.
-2. Each line has a **speaker**: a registry character, or "voix off". Never change a speaker "to make it fit".
-3. A line belongs to the **plan** where it is said. A plan may carry several (shot/reverse shot); a line belongs to one plan only.
-4. **Dialogue decides duration.** Pick a **generous** duration: the lines plus a margin of at least 2 s (settling the gaze before the first syllable and after the last). Do not compute it from word count; it adjusts after the voice take.
+1. **Write each line as `NAME : « text »`**, one per line of the description, in speaking order, after the narrative and **before** `État en fin de plan :`. `NAME` is a registry character's name, or `voix off`. Never change a speaker "to make it fit".
+2. **Word for word**, in the dialogue language, punctuation included: the lines are reused verbatim in the video prompt, never rephrased.
+3. A line belongs to **one plan** only. A plan may carry several (shot/reverse shot); an exchange that fits in 15 s is one plan.
+4. **Dialogue decides duration.** Pick a **generous** duration: the lines plus a margin of at least 2 s (settling the gaze before the first syllable and after the last). Do not compute it from word count.
 5. A line too long for 15 s: cut **at a meaning boundary**, between two lines, never mid-line; use the second plan to change angle.
+6. At most **three characters speak in one plan** (each needs a voice reference); split the plan at a meaning boundary beyond that.
 
 ## The author's words
 
@@ -121,5 +122,5 @@ The brief's style and notes apply: you do not redefine them. Stay faithful to th
 - The total is within ±20% of the target.
 - Every scene has a genre and a mood; montages are one plan; a tipping point is set up.
 - No consecutive plans could merge into 15 s; no plan refers to another; no description holds framing, light, sound or camera.
-- Every line has a speaker, an exact text and a plan, with at least 2 s of margin.
+- Every line is in its plan's description as `NAME : « text »`, exact, before `État en fin de plan :`, with at least 2 s of margin; at most three speakers per plan.
 - Your additions are in `inventions`.

@@ -1,9 +1,9 @@
 import "dotenv/config";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons } from "../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes, seasons } from "../db/schema";
 import { lireApresFiche } from "../lib/agents/fiches";
-import { controlerDialogues, controlerStructure, verifierCoherenceRefs } from "../lib/plan-checks";
+import { controlerStructure, verifierCoherenceRefs } from "../lib/plan-checks";
 import { demanderAnnulation } from "../lib/annulation-db";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";
 import { listerTaches } from "../lib/queries-taches";
@@ -98,11 +98,11 @@ const faux = (async (skill: string, entree: unknown, options?: { controler?: (js
           titre: `Ouverture de ${titre}`,
           fonction: "Installer",
           plans: [
-            { titre: `${titre} · arrivée`, description: "Iris traverse le pont.", dureeSecondes: 6, repliques: [{ locuteur: "Iris", texte: `Encore du sel (${titre}).` }, { locuteur: "Voix off", texte: `Il revenait chaque marée (${titre}).` }] },
-            { titre: `${titre} · dispute`, description: "Ils se disputent.", dureeSecondes: 12, repliques: ["a", "b", "c", "d"].map((t) => ({ locuteur: t === "c" ? "Le capitaine" : "Iris", texte: `Réplique ${t} (${titre})` })) },
+            { titre: `${titre} · arrivée`, description: `Iris traverse le pont.\nIris : « Encore du sel (${titre}). »\nvoix off : « Il revenait chaque marée (${titre}). »`, dureeSecondes: 6 },
+            { titre: `${titre} · dispute`, description: "Ils se disputent.", dureeSecondes: 12 },
           ],
         },
-        { titre: `Rupture de ${titre}`, fonction: "Rupture", plans: [{ titre: `${titre} · lampe`, description: "La lampe s'éteint.", dureeSecondes: 8, repliques: [] }] },
+        { titre: `Rupture de ${titre}`, fonction: "Rupture", plans: [{ titre: `${titre} · lampe`, description: "La lampe s'éteint.", dureeSecondes: 8 }] },
       ],
       inventions: ["Une mouette"],
       notes: "",
@@ -130,9 +130,8 @@ const faux = (async (skill: string, entree: unknown, options?: { controler?: (js
       notes: "",
     };
   } else if (skill === "plan-h3") {
-    // Un brouillon de fiche : le personnage et le décor du registre en références, les répliques du plan
-    // verbatim, deux shots, et deux assets manquants (une lanterne dérivée d'Iris, sa mèche dérivée d'elle).
-    const e = entree as { plan: { titre: string }; registre: { code: string; type: string }[]; repliques: { repliqueId: string; texte: string }[] };
+    // Un brouillon de fiche : le personnage et le décor du registre en références, le dialogue dans le prompt, deux shots, et deux assets manquants (une lanterne dérivée d'Iris, sa mèche dérivée d'elle).
+    const e = entree as { plan: { titre: string }; registre: { code: string; type: string }[] };
     const refs = e.registre
       .filter((a) => a.type === "personnage" || a.type === "decor")
       .map((a) => ({ asset: a.code, nature: "image", role: a.type === "decor" ? "Décor" : "Iris", nom: a.type === "decor" ? "the lighthouse" : "Iris", definition: "" }));
@@ -144,12 +143,11 @@ const faux = (async (skill: string, entree: unknown, options?: { controler?: (js
       summary: `${refs.map((r) => `[[${r.asset}]]`).join(" and ")} in the salt.`,
       ouverture: "Cinematic live-action, desaturated blue-grey palette.",
       shots: [
-        { debutSecondes: 0, texte: `A wide shot of ${refs.map((r) => `[[${r.asset}]]`).join(" and ")}. ${e.repliques.map((r) => `Iris (S1) says <d>[Français] ${r.texte}</d>`).join(" ")}` },
+        { debutSecondes: 0, texte: `A wide shot of ${refs.map((r) => `[[${r.asset}]]`).join(" and ")}. Iris (S1) says <d>[Français] Pas un bruit.</d>` },
         { debutSecondes: 4, texte: "a close-up of the salt on the railing." },
       ],
       overall_soundscape: "Wind and surf.",
       non_diegetic_music: "N/A",
-      repliques: e.repliques.map((r) => ({ repliqueId: r.repliqueId })),
       assetsManquants: [
         { code: "PROP_lanterne", type: "prop", parent: perso, description: "La lanterne d'Iris", raison: "tenue en main" },
         { code: "PROP_meche", type: "prop", parent: "PROP_lanterne", description: "La mèche de la lanterne", raison: "insert" },
@@ -577,32 +575,18 @@ async function main() {
     ok(gr[0]!.titre === "Épisode 1 · Ep1", "…titré « Épisode N · titre »");
     const tous = gr.flatMap((g) => g.changements);
     ok(tous.every((c) => c.coche || c.refuseRaison), "squelette vide : tout est coché, sauf les refus d'office");
-    ok(tous.filter((c) => c.cibleType === "replique").length === 18, "6 répliques proposées par épisode × 3");
-    ok(tous.filter((c) => c.refuseRaison && c.cibleType === "replique").length === 3, "…dont la 4e réplique du plan dispute de chaque épisode, refusée d'office (3 max par plan)");
-    ok(tous.some((c) => c.cibleType === "replique" && c.avertissements.some((a) => a.type === "invention" && /Le capitaine/.test(a.texte))), "un locuteur absent du registre est signalé comme invention");
-    ok(tous.filter((c) => c.sousGroupe?.startsWith("Ouverture")).length > 0, "plans et répliques sont rangés sous leur scène");
+    ok(tous.filter((c) => c.sousGroupe?.startsWith("Ouverture")).length > 0, "les plans sont rangés sous leur scène");
+    ok(tous.every((c) => c.cibleType !== ("replique" as string)), "plus aucun changement « réplique » : le dialogue est dans la description des plans");
     ok(pl!.compteurs.inventions >= 3, "les inventions sont comptées");
 
     // application : tout ou rien, dans la portée
     const apl = await s.appliquerSelection(gl.propositionUuid);
-    ok(apl.ok && apl.statut === "partielle" && apl.refuses === 3, `application de la sélection (3 répliques refusées d'office)${apl.ok ? "" : ` — ${apl.erreur}`}`);
+    ok(apl.ok && apl.statut === "appliquee" && apl.refuses === 0, `application de la sélection${apl.ok ? "" : ` — ${apl.erreur}`}`);
     const scenesF = await db.select().from(scenes).where(inArray(scenes.episodeId, idsEps));
     const plansF = await db.select().from(plans).where(inArray(plans.episodeId, idsEps));
-    const repsF = await db.select().from(repliques).where(inArray(repliques.episodeId, idsEps));
     ok(scenesF.length === 6 && plansF.length === 9, "6 scènes et 9 plans créés");
-    ok(repsF.length === 15, "15 répliques créées (5 par épisode)");
-    const [iris] = await db.select().from(assets).where(and(eq(assets.projectId, p3!.id), eq(assets.code, "CHAR_iris")));
-    const [off] = await db.select().from(assets).where(and(eq(assets.projectId, p3!.id), eq(assets.code, "CHAR_voix_off")));
-    ok(repsF.some((x) => x.locuteurId === iris!.id), "un personnage du registre devient le locuteur de sa réplique");
-    ok(repsF.some((x) => x.locuteurId === off!.id), "« voix off » → le personnage voix off du registre");
-    ok(repsF.filter((x) => x.locuteurTexte === "Le capitaine").length === 3 && repsF.every((x) => x.locuteurId !== null || x.locuteurTexte !== ""), "un inconnu devient un locuteur libre (aucun asset créé)");
-    ok((await db.select().from(assets).where(eq(assets.projectId, p3!.id))).length === 2, "…et le registre n'a pas bougé");
-    const liens = await db.select().from(planDialogues).where(inArray(planDialogues.repliqueId, repsF.map((x) => x.id)));
-    ok(liens.length === 15 && Math.max(...liens.map((l) => l.slot)) <= 3, "chaque réplique est liée à son plan, emplacement <Audio N> ≤ 3");
-    const parPlan = new Map<number, number>();
-    for (const l of liens) parPlan.set(l.planId, (parPlan.get(l.planId) ?? 0) + 1);
-    ok(Math.max(...parPlan.values()) === 3, "jamais plus de 3 répliques sur un plan");
-    ok(repsF.every((x) => x.sceneId !== null), "les répliques gardent la scène de leur plan");
+    ok(plansF.some((x) => /Iris : « Encore du sel/.test(x.description ?? "")), "le dialogue voyage dans la description du plan");
+    ok((await db.select().from(assets).where(eq(assets.projectId, p3!.id))).length === 2, "le registre n'a pas bougé (aucun asset créé par un scénario)");
     const ordresPlans = await db.select({ ordre: plans.ordre }).from(plans).where(eq(plans.episodeId, idsEps[0]!)).orderBy(asc(plans.ordre));
     ok(ordresPlans.map((x) => x.ordre).join() === "0,1,2", "plans ordonnés par épisode");
 
@@ -615,7 +599,7 @@ async function main() {
     const p2l = g2.ok ? await lireProposition(g2.propositionUuid) : null;
     ok(p2l?.statut === "prete" && p2l.groupes[0]!.id === "ecrasement", "section « risque d'écrasement » en tête");
     ok(p2l!.groupes[0]!.changements.every((c) => !c.coche && !!c.ecrase), "…décochée et nommée");
-    ok(p2l!.groupes.flatMap((g) => g.changements).some((c) => c.cibleType === "replique" && c.refuseRaison?.includes("existe déjà")), "…les répliques déjà écrites ne sont pas redoublées");
+
     ok(!(await s.appliquerSelection(g2.ok ? g2.propositionUuid : "")).ok || true, "(l'application sans confirmation est contrôlée plus haut)");
 
     // annuler un lot : tout en attente → rejeté ; en partie fait → prêt avec ce qui existe
@@ -800,9 +784,6 @@ async function main() {
     const coh = verifierCoherenceRefs(sec1, refsF.filter((r) => r.planId === p1F.id).map((r) => ({ type: r.type, slot: r.slot })));
     ok(coh.labelsOrphelins.length === 0 && coh.refsNonCitees.length === 0, "page du plan : références cohérentes avec le prompt");
     ok(controlerStructure(sec1, p1F.dureeGenerationSecondes).length === 0, "page du plan : structure des shots conforme");
-    const liees = await db.select({ id: repliques.id, texte: repliques.texte }).from(planDialogues).innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId)).where(eq(planDialogues.planId, p1F.id));
-    const dlg = controlerDialogues(sec1, liees.map((r) => ({ id: r.id, texte: r.texte, audioPresent: true, priseObsolete: false })));
-    ok(liees.length === 2 && dlg.ok, "page du plan : les répliques liées sont citées mot pour mot");
 
     // réécrire : la fiche existante va en écrasement, décochée ; les assets existent déjà
     ok(!(await s.genererFiches(convE.conversationUuid)).ok, "ensuite : toutes ont une fiche, « choisis celles à réécrire »");

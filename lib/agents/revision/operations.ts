@@ -1,6 +1,6 @@
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
 import type { Position } from "../types";
-import { planParPoignee, planParUuid, repliqueParPoignee, repliqueParUuid, type VueEpisode } from "./vue-episode";
+import { planParPoignee, planParUuid, type VueEpisode } from "./vue-episode";
 import { TYPES_OPERATION, type Operation, type OperationBrute, type OperationRefusee } from "./types";
 
 /** Valide les opérations que le modèle propose et les traduit en opérations STOCKABLES (uuid). Pur, testé.
@@ -14,31 +14,10 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
   const refusees: OperationRefusee[] = [];
   const refuse = (brute: OperationBrute, raison: string) => refusees.push({ brute, raison });
   const nbPlans = vue.plans.length;
-  const nbRepliques = vue.repliques.length;
 
   for (const b of brutes) {
     if (!(TYPES_OPERATION as readonly string[]).includes(b.type)) {
       refuse(b, `Opération « ${b.type} » inconnue.`);
-      continue;
-    }
-
-    if (b.type === "supprimer_replique" || b.type === "remplacer_replique") {
-      const r = repliqueParPoignee(vue, b.replique);
-      if (!r) {
-        refuse(b, `Réplique « ${b.replique ?? "?"} » introuvable (l'épisode a ${nbRepliques} réplique${nbRepliques > 1 ? "s" : ""}).`);
-        continue;
-      }
-      if (b.type === "supprimer_replique") {
-        valides.push({ type: "supprimer_replique", repliqueUuid: r.uuid });
-        continue;
-      }
-      const texte = texteNet(b.texte);
-      const locuteur = texteNet(b.locuteur);
-      if (!texte && !locuteur) {
-        refuse(b, `La réplique ${r.handle} n'a ni nouveau texte ni nouveau locuteur.`);
-        continue;
-      }
-      valides.push({ type: "remplacer_replique", repliqueUuid: r.uuid, ...(texte ? { texte } : {}), ...(locuteur ? { locuteur } : {}) });
       continue;
     }
 
@@ -52,12 +31,6 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
       }
       if (typeof s !== "number" || !Number.isInteger(s) || s < DUREE_GENERATION_MIN || s > DUREE_GENERATION_MAX) {
         refuse(b, typeof s === "number" ? `Durée ${s} s pour le plan ajouté : un plan dure ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières.` : `Le plan ajouté « ${titre} » n'a pas de durée : renseigne le champ "secondes" (entier de ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX}) ; "consigne" ne sert qu'à refondre_fiche.`);
-        continue;
-      }
-      const texteReplique = texteNet(b.texte);
-      const locuteurReplique = texteNet(b.locuteur);
-      if (!!texteReplique !== !!locuteurReplique) {
-        refuse(b, texteReplique ? "La réplique du plan ajouté n'a pas de locuteur (\"locuteur\")." : "La réplique du plan ajouté n'a pas de texte (\"texte\").");
         continue;
       }
       let position: Position | null = null;
@@ -97,23 +70,7 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
         refuse(b, "Où placer le plan ajouté ? Il faut \"avant\" ou \"apres\" un plan, ou \"position\" debut / fin.");
         continue;
       }
-      valides.push({ type: "ajouter_plan", ref: globalThis.crypto.randomUUID(), position, titre, description, secondes: s, ...(texteReplique ? { replique: { locuteur: locuteurReplique, texte: texteReplique } } : {}) });
-      continue;
-    }
-
-    if (b.type === "ajouter_replique") {
-      const cible = planParPoignee(vue, b.plan);
-      const texte = texteNet(b.texte);
-      const locuteur = texteNet(b.locuteur);
-      if (!cible) {
-        refuse(b, `Plan « ${b.plan ?? "?"} » introuvable pour ajouter une réplique (l'épisode a ${nbPlans} plan${nbPlans > 1 ? "s" : ""}).`);
-        continue;
-      }
-      if (!texte || !locuteur) {
-        refuse(b, `Une réplique ajoutée au plan ${cible.handle} a besoin de son texte ("texte") et de son locuteur ("locuteur").`);
-        continue;
-      }
-      valides.push({ type: "ajouter_replique", planUuid: cible.uuid, locuteur, texte });
+      valides.push({ type: "ajouter_plan", ref: globalThis.crypto.randomUUID(), position, titre, description, secondes: s });
       continue;
     }
 
@@ -193,7 +150,6 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
  * cours. Une cible disparue devient « ? ». */
 export function operationEnPoignees(op: Operation, vue: VueEpisode): OperationBrute {
   const plan = (uuid: string) => planParUuid(vue, uuid)?.handle ?? "?";
-  const replique = (uuid: string) => repliqueParUuid(vue, uuid)?.handle ?? "?";
   switch (op.type) {
     case "couper_plan":
       return { type: op.type, plan: plan(op.planUuid) };
@@ -207,10 +163,6 @@ export function operationEnPoignees(op: Operation, vue: VueEpisode): OperationBr
       };
     case "modifier_plan":
       return { type: op.type, plan: plan(op.planUuid), ...(op.titre !== undefined ? { titre: op.titre } : {}), ...(op.description !== undefined ? { description: op.description } : {}) };
-    case "remplacer_replique":
-      return { type: op.type, replique: replique(op.repliqueUuid), ...(op.texte !== undefined ? { texte: op.texte } : {}), ...(op.locuteur !== undefined ? { locuteur: op.locuteur } : {}) };
-    case "supprimer_replique":
-      return { type: op.type, replique: replique(op.repliqueUuid) };
     case "refondre_fiche":
       return { type: op.type, plan: plan(op.planUuid), ...(op.consigne ? { consigne: op.consigne } : {}) };
     case "ajouter_plan":
@@ -220,9 +172,6 @@ export function operationEnPoignees(op: Operation, vue: VueEpisode): OperationBr
         titre: op.titre,
         description: op.description,
         secondes: op.secondes,
-        ...(op.replique ? { texte: op.replique.texte, locuteur: op.replique.locuteur } : {}),
       };
-    case "ajouter_replique":
-      return { type: op.type, plan: plan(op.planUuid), texte: op.texte, locuteur: op.locuteur };
   }
 }

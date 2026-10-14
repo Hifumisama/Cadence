@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { TEXTE_REFERENCE_DEFAUT, formaterPlageH3, promptMasterVoix } from "./voix";
+import { TEXTE_REFERENCE_DEFAUT, formaterPlageH3, langueBalise, promptMasterVoix } from "./voix";
 
 test("prompt du master : la plage du plan suit la durée, la balise suit la langue", () => {
   const base = { texte: "Hello there.", personnage: null };
@@ -32,4 +32,10 @@ test("prompt du master : le timbre voulu entre dans le plan, sans lui le modèle
 test("texte de référence par défaut : non vide, en anglais", () => {
   assert.ok(TEXTE_REFERENCE_DEFAUT.trim().length > 20);
   assert.match(TEXTE_REFERENCE_DEFAUT, /welcome/i);
+});
+
+test("langue de la balise : French -> Français", () => {
+  assert.equal(langueBalise("French"), "Français");
+  assert.equal(langueBalise("english"), "English");
+  assert.equal(langueBalise(""), "Français");
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { controlerDialogues, controlerStructure, verifierCoherenceRefs } from "../plan-checks";
+import { controlerStructure, verifierCoherenceRefs } from "../plan-checks";
 import { ordonnerParDependances } from "./changements";
 import { cocheParDefaut } from "./cochage";
 import { depuisFichePlan, type PlanPourFicheH3 } from "./conversion";
@@ -38,7 +38,6 @@ const base: SortiePlanH3 = {
   ],
   overall_soundscape: "Footsteps on wood.",
   non_diegetic_music: "N/A",
-  repliques: [],
   assetsManquants: [],
   notes: "",
 };
@@ -50,7 +49,6 @@ const etatVide = (o: Partial<EtatPlanFiche> = {}): EtatPlanFiche => ({
   titre: "La fuite",
   sections: {},
   refs: [],
-  slotsDialogues: [],
   registre: new Map(registre.map((a) => [a.code, a.type])),
   aUnRendu: false,
   dureeGenerationSecondes: 8,
@@ -206,8 +204,6 @@ test("après écriture : cohérence des refs, structure et dialogues s'allument 
   // Le locuteur a un master : sa voix est une référence audio de la fiche (slot 1), déclarée dans le prompt.
   assert.deepEqual(verifierCoherenceRefs(sections, refs), { labelsOrphelins: [], refsNonCitees: [] });
   assert.deepEqual(controlerStructure(sections, a.dureeGenerationSecondes!), []);
-  const d = controlerDialogues(sections, [{ id: 1, texte: "Pas un bruit." }]);
-  assert.ok(d.ok, "verbatim : la réplique est retrouvée dans <d>");
   // Locuteur AVEC master : la page déclare <Audio 1> pour la voix comme ref DÉRIVÉE, que le prompt (comme les
   // fiches validées) ne cite pas : plus d'alerte « référence non citée » (point ouvert tranché le 2026-10-02).
   assert.deepEqual(verifierCoherenceRefs(sections, refs, [{ type: "audio", slot: 1 }]), { labelsOrphelins: [], refsNonCitees: [] });
@@ -238,8 +234,7 @@ test("verifierFiche : refus clairs (rien à écrire, durée, slots, voix, assets
   const sept = Array.from({ length: 7 }, (_, i) => ({ type: "picture" as const, slot: i + 1, asset: `PROP_${i}` }));
   assert.match(verifierFiche({ refs: sept }, etatVide()) ?? "", /6 au plus/);
   assert.match(verifierFiche({ refs: [{ type: "picture", slot: 7, asset: "PROP_0" }] }, etatVide()) ?? "", /Slot 7/);
-  assert.match(verifierFiche({ refs: [{ type: "audio", slot: 1, asset: "SFX_porte" }] }, etatVide({ slotsDialogues: [1] })) ?? "", /voix prime/);
-  assert.match(verifierFiche({ refs: [{ type: "audio", slot: 3, asset: "SFX_porte" }] }, etatVide({ slotsDialogues: [1, 2, 3] })) ?? "", /3 références audio au plus/);
+  assert.match(verifierFiche({ refs: [1, 2, 3, 4].map((slot) => ({ type: "audio" as const, slot, asset: "SFX_porte" })) }, etatVide()) ?? "", /3 au plus/);
   assert.match(verifierFiche({ refs: [{ type: "picture", slot: 1, asset: "PROP_x" }] }, etatVide()) ?? "", /n'existe pas/);
   assert.match(verifierFiche({ refs: [{ type: "picture", slot: 1, asset: "SFX_porte" }] }, etatVide()) ?? "", /pas d'image/);
   assert.match(verifierFiche({ refs: [{ type: "audio", slot: 2, asset: "CHAR_maya" }] }, etatVide()) ?? "", /pas un bruitage/);
@@ -261,8 +256,8 @@ test("verifierFiche : aucune écriture ne laisse un label orphelin (partielle co
   assert.match(verifierFiche({ sections: { detailed_description: "[Shot 1] <Picture 3> appears." } }, etat) ?? "", /sans référence.*Picture 3/);
   // remplacer les références sans réécrire les sections qui citent les anciennes → refusée
   assert.match(verifierFiche({ refs: [] }, etat) ?? "", /Picture 1/);
-  // une voix liée rend <Audio 1> légitime
-  assert.equal(verifierFiche({ sections: { summary: "with <Audio 1>" } }, etatVide({ slotsDialogues: [1] })), null);
+  // une référence audio (la voix d'un personnage) rend <Audio 1> légitime
+  assert.equal(verifierFiche({ sections: { summary: "with <Audio 1>" } }, etatVide({ refs: [{ type: "audio", slot: 1, asset: "CHAR_maya" }] })), null);
 });
 
 // --- écrasement (cochage) -------------------------------------------------------------
@@ -380,7 +375,7 @@ test("ApresFiche.description : lue, et suffisante pour une écriture (la nouvell
   const { lireApresFiche, verifierFiche } = await import("./fiches");
   assert.equal(lireApresFiche({ description: "  Mai se lève.\n\nÉtat en fin de plan : debout.  " }).description, "Mai se lève.\n\nÉtat en fin de plan : debout.");
   assert.equal(lireApresFiche({ description: "   " }).description, undefined);
-  const etat = { titre: "t", sections: {}, refs: [], slotsDialogues: [], registre: new Map(), aUnRendu: false, generationEnCours: false, dureeGenerationSecondes: 8 };
+  const etat = { titre: "t", sections: {}, refs: [], registre: new Map(), aUnRendu: false, generationEnCours: false, dureeGenerationSecondes: 8 };
   assert.equal(verifierFiche({ description: "Mai se lève." }, etat), null);
   assert.equal(verifierFiche({}, etat), "Rien à écrire dans la fiche.");
 });
@@ -393,7 +388,7 @@ test("verifierFiche : un label orphelin déjà présent n'empêche pas une écri
     titre: "Geste préparatoire",
     sections: { subject_definitions: "<Subject 1> is Mai from <Picture 1>.\n<Audio 1> is the voice-timbre reference for <Subject 1>.", detailed_description: "[Shot 1] <Subject 1> raises the wand." },
     refs: [{ type: "picture" as const, slot: 1, asset: "CHAR_mai" }],
-    slotsDialogues: [] as number[], // la réplique a été déliée du plan : <Audio 1> n'a plus de référence
+    // la voix a été déliée du plan : <Audio 1> n'a plus de référence
     registre: new Map([["CHAR_mai", "personnage"]]),
     aUnRendu: true,
     generationEnCours: false,

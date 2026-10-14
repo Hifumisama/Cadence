@@ -54,14 +54,7 @@ export default async function AssetDetailPage({
   // Les essais de voix (vidéos de test) ont leur bloc : ils ne se mêlent pas aux images ni aux sons du panneau de génération.
   const generationsImages = generations.filter((g) => g.methode !== METHODE_MASTER_VOIX);
   const voixPerso = noeud.type === "personnage" ? await getVoixPersonnage(pid, noeud.id) : null;
-  // Une voix « citée » par ses répliques ne bloque rien (citation déduite) ; un personnage qui porte des répliques, si.
-  const citationsReelles = noeud.citations.filter((c) => !c.deduite);
-  const blocage =
-    citationsReelles.length > 0
-      ? "Encore cité dans une fiche de plan : délie-le d'abord (badges « Apparaît dans »)."
-      : noeud.nbRepliques > 0
-        ? `Locuteur de ${noeud.nbRepliques} réplique${noeud.nbRepliques > 1 ? "s" : ""} : change leur locuteur ou supprime-les d'abord.`
-        : null;
+  const blocage = noeud.citations.length > 0 ? "Encore cité dans une fiche de plan : délie-le d'abord (badges « Apparaît dans »)." : null;
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
   const perimes = await getPlansPerimes({ assetId: noeud.id });
   const plansRendus = await nbPlansRendusCitant(noeud.id);
@@ -132,25 +125,23 @@ export default async function AssetDetailPage({
                       <div className="as-plans">
                         {noeud.citations.map((c) => (
                           <span
-                            key={`${c.refId ?? "voix"}-${c.planUuid}`}
+                            key={`${c.refId}-${c.planUuid}`}
                             className={`chip-citation${perimes.has(c.planId) ? " is-perime" : ""}`}
                             title={perimes.has(c.planId) ? "Périmé : cette image a changé depuis le dernier rendu du plan" : undefined}
                           >
                             <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planUuid}`}>
                               E{String(c.episodeNumero).padStart(2, "0")} · {String(c.position).padStart(2, "0")}
                             </Link>
-                            {c.refId != null ? (
-                              <form
-                                action={async () => {
-                                  "use server";
-                                  await delierRef(c.refId!);
-                                }}
-                              >
-                                <button type="submit" title="Délier de ce plan" aria-label="Délier de ce plan">
-                                  <Icone nom="fermer" />
-                                </button>
-                              </form>
-                            ) : null}
+                            <form
+                              action={async () => {
+                                "use server";
+                                await delierRef(c.refId);
+                              }}
+                            >
+                              <button type="submit" title="Délier de ce plan" aria-label="Délier de ce plan">
+                                <Icone nom="fermer" />
+                              </button>
+                            </form>
                           </span>
                         ))}
                       </div>

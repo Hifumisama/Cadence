@@ -1,15 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  ajouterBalise,
-  corrigerBalise,
-  decoderLocuteur,
-  exportRepliquesCsv,
-  langueBalise,
-  mesurerDureeAudio,
-  nomLocuteur,
-} from "./repliques";
-import { extraireBalisesD } from "./plan-checks";
+import { mesurerDureeAudio } from "./audio-duree";
 
 function wav(secondes: number, hz = 16000, extraChunk = false): Uint8Array {
   const octetsParSeconde = hz * 2;
@@ -88,53 +79,4 @@ test("format non mesurable ou fichier invalide : null, jamais une estimation", (
   assert.equal(mesurerDureeAudio(new Uint8Array(100), "prise.m4a"), null);
   assert.equal(mesurerDureeAudio(new Uint8Array(100), "prise.wav"), null);
   assert.equal(mesurerDureeAudio(new Uint8Array(10), "ref.flac"), null);
-});
-
-test("locuteur : personnage, texte libre, invalide", () => {
-  assert.deepEqual(decoderLocuteur("p:12"), { kind: "personnage", id: 12 });
-  assert.equal(decoderLocuteur("v:7"), null, "plus de voix sans personnage : la voix off en est un");
-  assert.deepEqual(decoderLocuteur("t:Foule : un cri"), { kind: "texte", texte: "Foule : un cri" });
-  assert.equal(decoderLocuteur("p:abc"), null);
-  assert.equal(decoderLocuteur("t:  "), null);
-  assert.equal(decoderLocuteur(""), null);
-  assert.equal(nomLocuteur("CHAR_maya"), "maya");
-});
-
-test("langue de la balise : French -> Français", () => {
-  assert.equal(langueBalise("French"), "Français");
-  assert.equal(langueBalise("english"), "English");
-  assert.equal(langueBalise(""), "Français");
-});
-
-test("corriger une balise ne touche pas au reste de la phrase", () => {
-  const contenu = "Maya turns and says <d>[Français] Je reviens demain</d> before leaving.";
-  const [b] = extraireBalisesD([{ section: "detailed_description", contenu }]);
-  assert.ok(b);
-  assert.equal(
-    corrigerBalise(contenu, b, "Je reviens demain."),
-    "Maya turns and says <d>[Français] Je reviens demain.</d> before leaving.",
-  );
-});
-
-test("ajouter une balise en fin de section", () => {
-  assert.equal(ajouterBalise("", "maya", "Français", "Oui."), "maya says, <d>[Français] Oui.</d>");
-  assert.equal(ajouterBalise("Intro.\n", "maya", "Français", "Oui."), "Intro.\nmaya says, <d>[Français] Oui.</d>");
-});
-
-test("export CSV : guillemets et virgules échappés, plans en position:slot", () => {
-  const csv = exportRepliquesCsv([
-    {
-      uuid: "u1",
-      rang: 1,
-      episodeNumero: 1,
-      locuteur: "maya",
-      texte: 'Elle dit "oui", puis part.',
-      dureeSecondes: 3.5,
-      plans: [{ planUuid: "p", position: 4, slot: 1 }],
-    },
-  ]);
-  assert.equal(
-    csv,
-    'rang,uuid,episode,locuteur,texte,duree_secondes,plans\n1,u1,1,maya,"Elle dit ""oui"", puis part.",3.5,04:1\n',
-  );
 });

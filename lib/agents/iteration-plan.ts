@@ -14,7 +14,7 @@ import type { Avertissement, DiagnosticIteration } from "./types";
  * `<Picture N>`, `<Audio N>`, `[Shot N]`, `<d>`) et propose des remplacements de PASSAGES (`avant` recopié
  * exactement → `apres`) ; le code les applique et contrôle que :
  * - chaque `avant` se retrouve UNE fois dans sa section (exact, ou aux blancs près) ;
- * - les labels cités par `apres` existent (plan_refs, voix des répliques, `<Subject N>` déjà présents) ;
+ * - les labels cités par `apres` existent (plan_refs, `<Subject N>` déjà présents) ;
  * - les répliques sont libres (le prompt est leur seule source) ;
  * - la structure des shots ne se dégrade pas (lib/plan-checks.ts, `controlerStructure`) : alerte seulement.
  * Le résultat est une écriture PARTIELLE de la fiche (seulement les sections touchées, sans `refs` ni durée). */
@@ -73,8 +73,6 @@ export type ContexteIteration = {
   refs: { type: "picture" | "audio" | "video"; slot: number; asset?: string | null; role?: string | null; retention?: string | null }[];
   /** Les assets du projet (code, type) : ce que `references.ajouter` a le droit de citer. */
   registre?: { code: string; type: string }[];
-  /** Slots `<Audio N>` des répliques liées (voix dérivées, jamais dans plan_refs). */
-  slotsVoix: number[];
   dureeGenerationSecondes: number;
   /** Durée réelle du fichier rendu (ffprobe), si elle est connue au moment du contrôle. */
   dureeReelleSecondes?: number | null;
@@ -145,12 +143,11 @@ export function dureesCoherentes(voulueSecondes: number, reelleSecondes: number)
   return Math.abs(reelleSecondes - voulueSecondes) <= TOLERANCE_DUREE_SECONDES;
 }
 
-/** Les labels qu'un passage corrigé a le droit de citer : `Picture:1`, `Audio:2` (plan_refs et voix), `Subject:3`
+/** Les labels qu'un passage corrigé a le droit de citer : `Picture:1`, `Audio:2` (plan_refs, voix comprises), `Subject:3`
  * (déjà présents dans le prompt : une correction ne crée pas de sujet, elle ne touche pas aux références). */
 export function labelsConnus(ctx: ContexteIteration): Set<string> {
   const connus = new Set<string>();
   for (const r of ctx.refs) connus.add(`${TYPE_LABEL[r.type]}:${r.slot}`);
-  for (const s of ctx.slotsVoix) connus.add(`Audio:${s}`);
   for (const texte of Object.values(ctx.sections)) {
     for (const m of (texte ?? "").matchAll(RE_LABEL)) if (m[1] === "Subject") connus.add(`Subject:${m[2]}`);
   }
@@ -562,7 +559,7 @@ export function historiqueIteration(
 export function contexteDepuisEntree(entree: unknown): ContexteIteration {
   const e = (entree ?? {}) as {
     promptActuel?: Record<string, unknown>;
-    references?: { type?: string; slot?: number; voix?: boolean; asset?: string | null; role?: string | null; retention?: string | null }[];
+    references?: { type?: string; slot?: number; asset?: string | null; role?: string | null; retention?: string | null }[];
     registre?: { code?: string; type?: string }[];
     plan?: { dureeVoulueSecondes?: number; intention?: string };
     rendu?: { dureeReelleSecondes?: number };
@@ -570,11 +567,9 @@ export function contexteDepuisEntree(entree: unknown): ContexteIteration {
   const sections: Record<string, string> = {};
   for (const [k, v] of Object.entries(e.promptActuel ?? {})) if (typeof v === "string") sections[k] = v;
   const refs: ContexteIteration["refs"] = [];
-  const slotsVoix: number[] = [];
   for (const r of e.references ?? []) {
     if (typeof r.slot !== "number") continue;
-    if (r.voix) slotsVoix.push(r.slot);
-    else if (r.type === "picture" || r.type === "audio" || r.type === "video") refs.push({ type: r.type, slot: r.slot, asset: r.asset ?? null, role: r.role ?? null, retention: r.retention ?? null });
+    if (r.type === "picture" || r.type === "audio" || r.type === "video") refs.push({ type: r.type, slot: r.slot, asset: r.asset ?? null, role: r.role ?? null, retention: r.retention ?? null });
   }
   return {
     description: e.plan?.intention,
@@ -583,7 +578,6 @@ export function contexteDepuisEntree(entree: unknown): ContexteIteration {
     motsAnglais: Array.isArray((e as { motsDeReference?: unknown }).motsDeReference) ? ((e as { motsDeReference: string[] }).motsDeReference) : undefined,
     sections,
     refs,
-    slotsVoix,
     registre: (e.registre ?? []).filter((a): a is { code: string; type: string } => typeof a.code === "string" && typeof a.type === "string"),
     dureeGenerationSecondes: e.plan?.dureeVoulueSecondes ?? 0,
     dureeReelleSecondes: typeof e.rendu?.dureeReelleSecondes === "number" ? e.rendu.dureeReelleSecondes : null,

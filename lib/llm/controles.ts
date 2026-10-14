@@ -14,10 +14,9 @@ export type Controleur = (json: unknown) => string[];
 
 export function controleurPourSkill(skill: string, entree: unknown): Controleur | undefined {
   if (skill === "plan-h3") {
-    const e = (entree ?? {}) as { registre?: { code: string; type: string }[]; repliques?: { texte: string }[] };
+    const e = (entree ?? {}) as { registre?: { code: string; type: string }[] };
     const ctx = {
       registre: (e.registre ?? []).map((a) => ({ code: a.code, type: a.type })),
-      repliques: (e.repliques ?? []).map((r) => ({ texte: r.texte })),
       corpusExemples: corpusExemplesPlanH3(),
     };
     return (json) =>

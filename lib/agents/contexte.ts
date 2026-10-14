@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-orm";
-import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons } from "../../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes, seasons } from "../../db/schema";
 import { horsAffiches } from "../assets-visibles";
 import { variantePromptAsset } from "../llm/variantes";
 import { genreOuNull, variantePlanH3 } from "../scene-genres";
@@ -581,20 +581,13 @@ export async function entreeIterationPlan(
   const avant = rangPlan > 0 ? lesPlans[rangPlan - 1]! : null;
   const apres = rangPlan >= 0 ? lesPlans[rangPlan + 1] ?? null : null;
   const [shotsAvant, shotsApres] = await Promise.all([avant ? shotsExtremesDuPlan(db, avant.uuid) : null, apres ? shotsExtremesDuPlan(db, apres.uuid) : null]);
-  const [refs, dialogues, historique] = await Promise.all([
+  const [refs, historique] = await Promise.all([
     db
       .select({ type: planRefs.type, slot: planRefs.slot, role: planRefs.role, retention: planRefs.retention, code: assets.code, typeAsset: assets.type })
       .from(planRefs)
       .leftJoin(assets, eq(assets.id, planRefs.assetId))
       .where(eq(planRefs.planId, p.id))
       .orderBy(asc(planRefs.type), asc(planRefs.slot)),
-    db
-      .select({ slot: planDialogues.slot, texte: repliques.texte, locuteurTexte: repliques.locuteurTexte, locuteurCode: assets.code, dureeSecondes: repliques.dureeSecondes })
-      .from(planDialogues)
-      .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
-      .leftJoin(assets, eq(assets.id, repliques.locuteurId))
-      .where(eq(planDialogues.planId, p.id))
-      .orderBy(asc(planDialogues.slot)),
     historiqueDuPlan(db, projectId, p.id),
   ]);
   const libelleType = { picture: "Picture", audio: "Audio", video: "Video" } as const;
@@ -607,14 +600,6 @@ export async function entreeIterationPlan(
       typeAsset: r.typeAsset ?? null,
       role: r.role ?? "",
       ...(r.retention ? { retention: r.retention } : {}),
-    })),
-    ...dialogues.map((d) => ({
-      label: `<Audio ${d.slot}>`,
-      type: "audio" as const,
-      slot: d.slot,
-      voix: true,
-      replique: d.texte,
-      locuteur: d.locuteurCode ?? d.locuteurTexte ?? "",
     })),
   ];
   const importe = rendu.workflowFichier === WORKFLOW_IMPORT_MANUEL;
@@ -630,7 +615,6 @@ export async function entreeIterationPlan(
         : "Sans planche de vignettes : la consigne et la fiche actuelle seulement",
     },
     { type: "registre", libelle: `${refs.length} référence${refs.length > 1 ? "s" : ""} du plan` },
-    ...(dialogues.length ? [{ type: "plan" as const, libelle: `${dialogues.length} réplique${dialogues.length > 1 ? "s" : ""} liée${dialogues.length > 1 ? "s" : ""}` }] : []),
     ...(historique.length ? [{ type: "plan" as const, libelle: `${historique.length} correction${historique.length > 1 ? "s" : ""} déjà tentée${historique.length > 1 ? "s" : ""} sur ce plan` }] : []),
     ...(avant ? [{ type: "plan" as const, libelle: `Plan précédent · ${avant.titre} (lecture seule, pour le raccord)`, ref: avant.uuid }] : []),
     ...(apres ? [{ type: "plan" as const, libelle: `Plan suivant · ${apres.titre} (lecture seule, pour le raccord)`, ref: apres.uuid }] : []),

@@ -1,9 +1,8 @@
 import type { Operation } from "./types";
-import type { PlanVue, RepliqueVue, VueEpisode } from "./vue-episode";
+import type { PlanVue, VueEpisode } from "./vue-episode";
 
 // Locaux : vue-episode.ts touche à la base, et ce module est importé côté navigateur (affichage.ts).
 const planParUuid = (vue: VueEpisode, uuid: string): PlanVue | undefined => vue.plans.find((p) => p.uuid === uuid);
-const repliqueParUuid = (vue: VueEpisode, uuid: string): RepliqueVue | undefined => vue.repliques.find((r) => r.uuid === uuid);
 
 /** Le scénario AVEC le brouillon : les opérations des décisions appliquées, en mémoire, sur la vue de l'épisode. Pur, testé.
  * Sert aux chiffres (durée totale, gain d'une décision) et à l'affichage ; n'écrit rien. */
@@ -20,18 +19,13 @@ export type PlanBrouillon = {
   deplace: boolean;
   /** Plan ajouté par le brouillon : il n'existe pas encore (son uuid est la `ref` de l'opération). */
   ajoute: boolean;
-  /** La fiche de ce plan sera réécrite après l'application (refondre_fiche, plan ajouté, réplique ajoutée). */
+  /** La fiche de ce plan sera réécrite après l'application (refondre_fiche, plan ajouté). */
   fiche: boolean;
-  /** Les répliques que le brouillon ajoute à ce plan (elles n'existent pas encore). */
-  repliquesAjoutees: { locuteur: string; texte: string }[];
 };
-
-export type RepliqueBrouillon = { uuid: string; handle: string; texte: string; texteOriginal: string; locuteur: string; supprimee: boolean };
 
 export type Brouillon = {
   /** Dans l'ordre résultat ; un plan coupé reste à sa place (barré à l'affichage). */
   plans: PlanBrouillon[];
-  repliques: RepliqueBrouillon[];
   /** Durée des plans non coupés. */
   total: number;
   /** Opérations sans effet (cible déjà coupée ou supprimée, repère coupé) : à signaler, jamais appliquées. */
@@ -39,29 +33,13 @@ export type Brouillon = {
 };
 
 export function appliquerAuBrouillon(vue: VueEpisode, operations: Operation[]): Brouillon {
-  const plans: PlanBrouillon[] = vue.plans.map((p) => ({ uuid: p.uuid, handle: p.handle, titre: p.titre, description: p.description, duree: p.duree, dureeOriginale: p.duree, coupe: false, deplace: false, ajoute: false, fiche: false, repliquesAjoutees: [] }));
-  const repliques: RepliqueBrouillon[] = vue.repliques.map((r) => ({ uuid: r.uuid, handle: r.handle, texte: r.texte, texteOriginal: r.texte, locuteur: r.locuteur, supprimee: false }));
+  const plans: PlanBrouillon[] = vue.plans.map((p) => ({ uuid: p.uuid, handle: p.handle, titre: p.titre, description: p.description, duree: p.duree, dureeOriginale: p.duree, coupe: false, deplace: false, ajoute: false, fiche: false }));
   const ignorees: Brouillon["ignorees"] = [];
   const plan = (uuid: string) => plans.find((p) => p.uuid === uuid);
-  const replique = (uuid: string) => repliques.find((r) => r.uuid === uuid);
 
   for (const op of operations) {
-    if (op.type === "supprimer_replique" || op.type === "remplacer_replique") {
-      const r = replique(op.repliqueUuid);
-      if (!r) continue;
-      if (r.supprimee) {
-        ignorees.push({ operation: op, raison: `${r.handle} est déjà supprimée.` });
-        continue;
-      }
-      if (op.type === "supprimer_replique") r.supprimee = true;
-      else {
-        if (op.texte !== undefined) r.texte = op.texte;
-        if (op.locuteur !== undefined) r.locuteur = op.locuteur;
-      }
-      continue;
-    }
     if (op.type === "ajouter_plan") {
-      const nouveau: PlanBrouillon = { uuid: op.ref, handle: "nouveau", titre: op.titre, description: op.description, duree: op.secondes, dureeOriginale: 0, coupe: false, deplace: false, ajoute: true, fiche: true, repliquesAjoutees: op.replique ? [op.replique] : [] };
+      const nouveau: PlanBrouillon = { uuid: op.ref, handle: "nouveau", titre: op.titre, description: op.description, duree: op.secondes, dureeOriginale: 0, coupe: false, deplace: false, ajoute: true, fiche: true };
       let index: number;
       if ("fin" in op.position) index = plans.length;
       else if ("debut" in op.position) index = 0;
@@ -81,14 +59,6 @@ export function appliquerAuBrouillon(vue: VueEpisode, operations: Operation[]): 
     }
     const p = plan(op.planUuid);
     if (!p) continue;
-    if (op.type === "ajouter_replique") {
-      if (p.coupe) ignorees.push({ operation: op, raison: `${p.handle} est coupé : sa réplique n'a plus de plan.` });
-      else {
-        p.repliquesAjoutees.push({ locuteur: op.locuteur, texte: op.texte });
-        p.fiche = true;
-      }
-      continue;
-    }
     if (op.type === "refondre_fiche") {
       if (p.coupe) ignorees.push({ operation: op, raison: `${p.handle} est coupé : sa fiche disparaît avec lui.` });
       else p.fiche = true;
@@ -124,7 +94,7 @@ export function appliquerAuBrouillon(vue: VueEpisode, operations: Operation[]): 
       plans.splice(0, plans.length, ...sans.slice(0, index), p, ...sans.slice(index));
     }
   }
-  return { plans, repliques, total: plans.reduce((a, p) => a + (p.coupe ? 0 : p.duree), 0), ignorees };
+  return { plans, total: plans.reduce((a, p) => a + (p.coupe ? 0 : p.duree), 0), ignorees };
 }
 
 /** Les secondes que ces opérations font gagner à l'épisode (négatif : elles en font perdre). */
@@ -137,9 +107,7 @@ export function gainSecondes(vue: VueEpisode, operations: Operation[]): number {
 export function plansTouches(operations: Operation[], vue: VueEpisode): Set<string> {
   const touches = new Set<string>();
   for (const op of operations) {
-    if (op.type === "supprimer_replique" || op.type === "remplacer_replique") {
-      for (const uuid of repliqueParUuid(vue, op.repliqueUuid)?.plans ?? []) touches.add(uuid);
-    } else if (op.type === "ajouter_plan") {
+    if (op.type === "ajouter_plan") {
       touches.add(op.ref);
       if ("apresPlanUuid" in op.position && planParUuid(vue, op.position.apresPlanUuid)) touches.add(op.position.apresPlanUuid);
     } else if (planParUuid(vue, op.planUuid)) touches.add(op.planUuid);

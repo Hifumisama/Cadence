@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { readFile } from "node:fs/promises";
 import { db } from "../db";
-import { assets, scenes, planDialogues, planPromptSections, planRefs, plans, repliques } from "../db/schema";
+import { assets, scenes, planPromptSections, planRefs, plans } from "../db/schema";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { getDefaultEpisodeId, getDefaultProjectId } from "../lib/queries";
 import { decouperSections, ORDRE_SECTIONS } from "../lib/prompt";
@@ -180,25 +180,10 @@ async function importerPlans(projectId: number, episodeId: number) {
     if (existant) {
       // Plan déjà importé (import précédent, possiblement buggé sur le
       // parsing CRLF) : on rafraîchit le contenu dérivé de la fiche
-      // (sections/refs/dialogue), jamais le statut ni les champs déjà
+      // (sections/refs), jamais le statut ni les champs déjà
       // édités depuis l'app (fps, durée de génération, seed...).
       await db.delete(planPromptSections).where(eq(planPromptSections.planId, existant.id));
       await db.delete(planRefs).where(eq(planRefs.planId, existant.id));
-      // Répliques (entités autonomes, F02 révision 2026-09-30) : celles qui ne
-      // servent qu'à ce plan et n'ont pas de prise audio sont recréées depuis
-      // la fiche ; les autres (prise déposée, ou partagées avec un autre plan)
-      // sont conservées et seulement déliées, puis re-liées par leur texte.
-      const liees = await db.select().from(planDialogues).where(eq(planDialogues.planId, existant.id));
-      for (const l of liees) {
-        const [rep] = await db.select().from(repliques).where(eq(repliques.id, l.repliqueId));
-        const [ailleurs] = await db
-          .select({ id: planDialogues.id })
-          .from(planDialogues)
-          .where(and(eq(planDialogues.repliqueId, l.repliqueId), sql`${planDialogues.planId} <> ${existant.id}`))
-          .limit(1);
-        if (rep && !ailleurs) await db.delete(repliques).where(eq(repliques.id, rep.id));
-      }
-      await db.delete(planDialogues).where(eq(planDialogues.planId, existant.id));
     } else {
       [planInsere] = await db
         .insert(plans)
@@ -254,84 +239,13 @@ async function importerPlans(projectId: number, episodeId: number) {
       });
     }
 
-    // Dialogue — colonnes attendues : # | Locuteur | Asset voix | Réplique | Durée.
-    // Chaque ligne devient une RÉPLIQUE de l'épisode (entité autonome) liée au
-    // plan ; le locuteur est rattaché à un personnage quand le nom
-    // le permet (voir resoudreLocuteur), sinon il reste en texte libre.
-    const slotsPris = new Set<number>();
-    for (const ligne of dialogueTable) {
-      const slotMatch = (ligne["#"] ?? "").match(/\d+/);
-      const dureeMatch = (ligne["Durée"] ?? "").match(/[\d.]+/);
-      const texteReplique = (ligne["Réplique (verbatim)"] ?? ligne["Réplique"] ?? "").trim();
-      if (!texteReplique) continue;
-
-      // Slot unique par plan (unicité plan+slot) : « # » sert de préférence,
-      // sinon le premier libre.
-      let slot = slotMatch ? Number(slotMatch[0]) : 1;
-      while (slotsPris.has(slot)) slot++;
-      slotsPris.add(slot);
-
-      // Réutilise une réplique de l'épisode qui dit déjà ce texte et n'est pas
-      // encore liée à ce plan (réplique conservée d'un import précédent).
-      const candidates = await db
-        .select()
-        .from(repliques)
-        .where(and(eq(repliques.episodeId, episodeId), eq(repliques.texte, texteReplique)));
-      const dejaLiees = new Set(
-        (await db.select({ r: planDialogues.repliqueId }).from(planDialogues).where(eq(planDialogues.planId, planInsere.id))).map((x) => x.r),
-      );
-      let replique = candidates.find((c) => !dejaLiees.has(c.id));
-      if (!replique) {
-        const loc = await resoudreLocuteur(projectId, ligne["Locuteur"] ?? "");
-        const [dernier] = await db
-          .select({ ordre: repliques.ordre })
-          .from(repliques)
-          .where(eq(repliques.episodeId, episodeId))
-          .orderBy(desc(repliques.ordre))
-          .limit(1);
-        [replique] = await db
-          .insert(repliques)
-          .values({
-            projectId,
-            episodeId,
-            sceneId: planInsere.sceneId,
-            ordre: (dernier?.ordre ?? -1) + 1,
-            ...loc,
-            texte: texteReplique,
-            // Durée du tableau : reprise telle quelle (à la main, jamais estimée).
-            dureeSecondes: dureeMatch ? parseFloat(dureeMatch[0]) : null,
-          })
-          .returning();
-      }
-      if (replique) await db.insert(planDialogues).values({ planId: planInsere.id, repliqueId: replique.id, slot });
-    }
-
     if (existant) rafraichis++;
     else n++;
   }
 
   console.log(
-    `[import] ${n} plans importés, ${rafraichis} rafraîchis (sections/refs/dialogue) depuis FICHE_DE_PLAN_S01_maya.md`,
+    `[import] ${n} plans importés, ${rafraichis} rafraîchis (sections/refs) depuis FICHE_DE_PLAN_S01_maya.md`,
   );
-}
-
-/** Locuteur d'une ligne de dialogue -> colonnes de `repliques` : le personnage dont le code correspond au nom (« La Tenancière » ->
- * CHAR_tenanciere) ; à défaut, texte libre. La colonne « Asset voix » du markdown n'est plus lue (la voix est un champ du personnage). */
-async function resoudreLocuteur(projectId: number, nom: string) {
-  const slug = nom
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  const sansArticle = slug.replace(/^(le|la|les|l|un|une)_/, "");
-  const personnages = await db
-    .select({ id: assets.id, code: assets.code })
-    .from(assets)
-    .where(and(eq(assets.projectId, projectId), eq(assets.type, "personnage")));
-  const trouve = personnages.find((a) => [`char_${slug}`, `char_${sansArticle}`].includes(a.code.toLowerCase()));
-  if (trouve) return { locuteurId: trouve.id, locuteurTexte: "" };
-  return { locuteurId: null, locuteurTexte: nom.slice(0, 100) };
 }
 
 const CHAMPS_SCENARIO = [

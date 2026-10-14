@@ -87,17 +87,13 @@ export function PromptImportColle({ planId, onImporte }: { planId: number; onImp
               ))}
             </ul>
             {analyse.avertissements.labelsOrphelins.length > 0 ||
-            analyse.avertissements.refsNonCitees.length > 0 ||
-            analyse.avertissements.repliquesNonTrouvees.length > 0 ? (
+            analyse.avertissements.refsNonCitees.length > 0 ? (
               <ul className="tiny-note" style={{ color: "#c9a24b" }}>
                 {analyse.avertissements.labelsOrphelins.map((l) => (
                   <li key={`orph-${l}`}>Label {l} cité mais absent des références du plan</li>
                 ))}
                 {analyse.avertissements.refsNonCitees.map((l) => (
                   <li key={`noncite-${l}`}>Référence {l} du plan jamais citée dans le prompt</li>
-                ))}
-                {analyse.avertissements.repliquesNonTrouvees.map((r) => (
-                  <li key={`verb-${r}`}>Réplique non trouvée au mot près : « {r} »</li>
                 ))}
               </ul>
             ) : (

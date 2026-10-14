@@ -151,50 +151,6 @@
                   "additionalProperties": false,
                   "required": [
                     "type",
-                    "replique"
-                  ],
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "const": "remplacer_replique"
-                    },
-                    "replique": {
-                      "type": "string",
-                      "description": "Reference of the line concerned, exactly as in the input (R01, R02…)."
-                    },
-                    "texte": {
-                      "type": "string",
-                      "description": "The new text of the line, in the language of the existing lines, ready to be spoken."
-                    },
-                    "locuteur": {
-                      "type": "string",
-                      "description": "The new speaker, only if the user asks to change it."
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "type",
-                    "replique"
-                  ],
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "const": "supprimer_replique"
-                    },
-                    "replique": {
-                      "type": "string",
-                      "description": "Reference of the line concerned, exactly as in the input (R01, R02…)."
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "type",
                     "plan"
                   ],
                   "properties": {
@@ -255,42 +211,6 @@
                         "debut",
                         "fin"
                       ]
-                    },
-                    "texte": {
-                      "type": "string",
-                      "description": "The line said in this plan, exactly as the user gave it (optional, with locuteur)."
-                    },
-                    "locuteur": {
-                      "type": "string",
-                      "description": "Who says the line: one of locuteursConnus when the name matches (\"Maya\" -> CHAR_maya)."
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "type",
-                    "plan",
-                    "texte",
-                    "locuteur"
-                  ],
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "const": "ajouter_replique"
-                    },
-                    "plan": {
-                      "type": "string",
-                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
-                    },
-                    "texte": {
-                      "type": "string",
-                      "description": "The text of the new line, exactly as the user gave it."
-                    },
-                    "locuteur": {
-                      "type": "string",
-                      "description": "Who says it: one of locuteursConnus when the name matches."
                     }
                   }
                 }
@@ -444,50 +364,6 @@
                   "additionalProperties": false,
                   "required": [
                     "type",
-                    "replique"
-                  ],
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "const": "remplacer_replique"
-                    },
-                    "replique": {
-                      "type": "string",
-                      "description": "Reference of the line concerned, exactly as in the input (R01, R02…)."
-                    },
-                    "texte": {
-                      "type": "string",
-                      "description": "The new text of the line, in the language of the existing lines, ready to be spoken."
-                    },
-                    "locuteur": {
-                      "type": "string",
-                      "description": "The new speaker, only if the user asks to change it."
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "type",
-                    "replique"
-                  ],
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "const": "supprimer_replique"
-                    },
-                    "replique": {
-                      "type": "string",
-                      "description": "Reference of the line concerned, exactly as in the input (R01, R02…)."
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "type",
                     "plan"
                   ],
                   "properties": {
@@ -548,42 +424,6 @@
                         "debut",
                         "fin"
                       ]
-                    },
-                    "texte": {
-                      "type": "string",
-                      "description": "The line said in this plan, exactly as the user gave it (optional, with locuteur)."
-                    },
-                    "locuteur": {
-                      "type": "string",
-                      "description": "Who says the line: one of locuteursConnus when the name matches (\"Maya\" -> CHAR_maya)."
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "type",
-                    "plan",
-                    "texte",
-                    "locuteur"
-                  ],
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "const": "ajouter_replique"
-                    },
-                    "plan": {
-                      "type": "string",
-                      "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)."
-                    },
-                    "texte": {
-                      "type": "string",
-                      "description": "The text of the new line, exactly as the user gave it."
-                    },
-                    "locuteur": {
-                      "type": "string",
-                      "description": "Who says it: one of locuteursConnus when the name matches."
                     }
                   }
                 }
