@@ -140,12 +140,23 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
     ...(apres.refs ? [...apres.refs.map((r) => ({ type: r.type, slot: r.slot })), ...etat.refs.filter((r) => r.type === "video")] : etat.refs.map((r) => ({ type: r.type, slot: r.slot }))),
     ...etat.slotsDialogues.map((slot) => ({ type: "audio" as const, slot })),
   ];
+  // Seuls les labels orphelins que CETTE écriture introduit la refusent : une incohérence déjà là (une réplique déliée du plan dont les lignes de voix
+  // `<Audio 1>` sont restées dans le prompt) ne doit pas bloquer une correction sans rapport ; elle est signalée à part (`labelsOrphelinsActuels`).
   const { labelsOrphelins } = verifierCoherenceRefs(finales, refsFinales);
-  if (labelsOrphelins.length > 0) {
-    const l = labelsOrphelins.map((x) => `<${x.replace(":", " ")}>`).join(", ");
-    return `L'écriture laisserait ${labelsOrphelins.length > 1 ? "des labels" : "un label"} sans référence (${l}) : la fiche ne serait plus cohérente.`;
+  const dejaLa = new Set(labelsOrphelinsActuels(etat));
+  const nouveaux = labelsOrphelins.filter((x) => !dejaLa.has(x));
+  if (nouveaux.length > 0) {
+    const l = nouveaux.map((x) => `<${x.replace(":", " ")}>`).join(", ");
+    return `L'écriture laisserait ${nouveaux.length > 1 ? "des labels" : "un label"} sans référence (${l}) : la fiche ne serait plus cohérente.`;
   }
   return null;
+}
+
+/** Les labels que le prompt ACTUEL cite sans référence (avant toute écriture) : un plan incohérent d'avance. */
+export function labelsOrphelinsActuels(etat: EtatPlanFiche): string[] {
+  const sections = SECTIONS_FICHE.map((section) => ({ section, contenu: etat.sections[section] ?? "" }));
+  const refs: RefLabel[] = [...etat.refs.map((r) => ({ type: r.type, slot: r.slot })), ...etat.slotsDialogues.map((slot) => ({ type: "audio" as const, slot }))];
+  return verifierCoherenceRefs(sections, refs).labelsOrphelins;
 }
 
 const nonVide = (s: string | undefined) => (s ?? "").trim().length > 0;
@@ -176,6 +187,10 @@ export function evaluerEcrasementFiche(apres: ApresFiche, etat: EtatPlanFiche): 
   if (refsRemplacees.length) perdu.push(`${refsRemplacees.length} référence${refsRemplacees.length > 1 ? "s" : ""} d'image ou de son`);
   const avertissements: Avertissement[] = [];
   if (etat.aUnRendu) avertissements.push({ type: "ecrase_valide", texte: `« ${etat.titre} » a déjà un rendu vidéo : il ne correspondra plus à la fiche.` });
+  const orphelins = labelsOrphelinsActuels(etat);
+  if (orphelins.length > 0) {
+    avertissements.push({ type: "info", texte: `Ce plan citait déjà ${orphelins.map((x) => `<${x.replace(":", " ")}>`).join(", ")} sans référence (une réplique déliée du plan ?) : cette écriture ne l'a pas aggravé, mais la fiche est à nettoyer.` });
+  }
   if (etat.generationEnCours) avertissements.push({ type: "info", texte: "Une génération vidéo de ce plan est en file ou en cours : si elle a déjà commencé, elle utilise l'ancienne fiche." });
   let ecrase: string | null = null;
   if (perdu.length || etat.aUnRendu) {

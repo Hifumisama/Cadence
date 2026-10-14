@@ -4,9 +4,10 @@ import { dureesCoherentes } from "../../lib/agents/iteration-plan";
 import { MEDIA_ROOT } from "../../lib/media";
 import { contenuPlanche, ErreurPlanche, extrairePlanche, type Planche } from "../../lib/planche-vignettes";
 import type { MessageLlm } from "../../lib/llm/types";
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, asc, desc, eq, lt } from "drizzle-orm";
 import { db } from "../../db";
-import { agentConversations, agentRuns, plans, propositionChangements } from "../../db/schema";
+import { agentConversations, agentRuns, jobs, plans, propositionChangements, propositions } from "../../db/schema";
+import { motsDeReference } from "../../lib/agents/iteration-plan";
 import { dernierShotDuBrouillon } from "../../lib/agents/contexte";
 import { cleSousTachePlan, planUuidDeCle } from "../../lib/agents/fiches";
 import { entreeAnalyse } from "../../lib/agents/revision/entrees";
@@ -109,12 +110,25 @@ async function dernierShotDuPrecedent(run: RunAgent): Promise<string | null> {
   return dernierShotDuBrouillon((fini?.resultat as { shots?: unknown } | null)?.shots);
 }
 
+/** Les mots du prompt de RÉFÉRENCE du plan : celui de son premier essai (écrit en anglais à la création de la fiche, jamais retouché). Ce qui y est déjà
+ * est de l'anglais : le contrôle de traduction ne s'en prend qu'aux mots des consignes françaises qui n'y étaient pas. Absent si le plan n'a pas d'essai. */
+async function motsDeReferenceDuPlan(run: RunAgent): Promise<string[] | undefined> {
+  if (run.propositionId == null) return undefined;
+  const [prop] = await db.select({ cibleId: propositions.cibleId }).from(propositions).where(eq(propositions.id, run.propositionId));
+  if (prop?.cibleId == null) return undefined;
+  const [premier] = await db.select({ prompt: jobs.promptUtilise }).from(jobs).where(eq(jobs.planId, prop.cibleId)).orderBy(asc(jobs.id)).limit(1);
+  return premier?.prompt ? motsDeReference(premier.prompt) : undefined;
+}
+
 async function preparerIteration(run: RunAgent, deps: DepsPreparation): Promise<EntreePreparee> {
   const stockee = (run.entree ?? {}) as Record<string, unknown> & { planche?: DescripteurPlanche; plan?: { dureeVoulueSecondes?: number } };
+  // Le contrôle (jamais le modèle) reçoit en plus les mots de référence : de quoi vérifier que tout le prompt est traduit.
+  const reference = await motsDeReferenceDuPlan(run);
+  const pourLeControle = <T extends object>(e: T): T & { motsDeReference?: string[] } => (reference ? { ...e, motsDeReference: reference } : e);
   const d = stockee.planche;
   // Sans descripteur : la planche n'a pas été demandée (jamais automatique, 2026-10-12). L'agent travaille depuis la consigne et la fiche
   // actuelle : l'entrée stockée part telle quelle, sans `rendu` ni durée mesurée (les garde-fous de durée réelle sont alors sans objet).
-  if (!d) return { entree: stockee, controle: stockee };
+  if (!d) return { entree: stockee, controle: pourLeControle(stockee) };
   if (!d.cheminSortie) throw new Error("Entrée d'iteration-plan : descripteur de planche sans chemin de rendu. Relance l'analyse depuis la page du plan.");
   const chemin = resolve(MEDIA_ROOT, d.cheminSortie);
   let planche: Planche;
@@ -145,5 +159,5 @@ async function preparerIteration(run: RunAgent, deps: DepsPreparation): Promise<
       content: [{ type: "text", text: JSON.stringify(texte, null, 2) }, ...contenuPlanche(planche)],
     },
   ];
-  return { entree: messages, controle: texte, execution: { dureeReelleSecondes: arrondi(planche.dureeSecondes), nbVignettes: planche.vignettes.length } };
+  return { entree: messages, controle: pourLeControle(texte), execution: { dureeReelleSecondes: arrondi(planche.dureeSecondes), nbVignettes: planche.vignettes.length } };
 }

@@ -407,3 +407,24 @@ test("ApresFiche.description : lue, et suffisante pour une écriture (la nouvell
   assert.equal(verifierFiche({ description: "Mai se lève." }, etat), null);
   assert.equal(verifierFiche({}, etat), "Rien à écrire dans la fiche.");
 });
+
+// --- une incohérence DÉJÀ là (réplique déliée, lignes <Audio 1> restées) ne bloque plus une correction sans rapport (2026-10-14) ---
+
+test("verifierFiche : un label orphelin déjà présent n'empêche pas une écriture qui ne l'aggrave pas ; un nouveau orphelin refuse toujours", async () => {
+  const { verifierFiche, labelsOrphelinsActuels, evaluerEcrasementFiche } = await import("./fiches");
+  const etat = {
+    titre: "Geste préparatoire",
+    sections: { subject_definitions: "<Subject 1> is Mai from <Picture 1>.\n<Audio 1> is the voice-timbre reference for <Subject 1>.", detailed_description: "[Shot 1] <Subject 1> raises the wand." },
+    refs: [{ type: "picture" as const, slot: 1, asset: "CHAR_mai" }],
+    slotsDialogues: [] as number[], // la réplique a été déliée du plan : <Audio 1> n'a plus de référence
+    registre: new Map([["CHAR_mai", "personnage"]]),
+    aUnRendu: true,
+    generationEnCours: false,
+    dureeGenerationSecondes: 10,
+  };
+  assert.deepEqual(labelsOrphelinsActuels(etat), ["Audio:1"]);
+  assert.equal(verifierFiche({ sections: { detailed_description: "[Shot 1] <Subject 1> raises the wand, arm already lifted." } }, etat), null);
+  assert.match(verifierFiche({ sections: { detailed_description: "[Shot 1] <Subject 1> raises the wand. <Picture 3> appears." } }, etat) ?? "", /sans référence.*Picture 3/);
+  const ev = evaluerEcrasementFiche({ sections: { detailed_description: "x" } }, etat);
+  assert.ok(ev.avertissements.some((a) => /citait déjà <Audio 1> sans référence/.test(a.texte)));
+});

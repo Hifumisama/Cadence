@@ -466,6 +466,7 @@ async function postIteration(
     uuid: plan.uuid,
     titre: plan.titre,
     description: plan.description ?? "",
+    consigne: (run.entree as { retourVisionnage?: string } | null)?.retourVisionnage,
     sections,
     refs,
     registre,

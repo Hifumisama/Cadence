@@ -458,3 +458,50 @@ test("réécriture : aucune retouche de passages, le diagnostic porte la nouvell
   const v = valider(chargerSkill("iteration-plan").schema, s);
   assert.ok(v.ok, v.ok ? "" : v.erreurs.join(" ; "));
 });
+
+test("motsRecopiesDeLaConsigne : un mot français recopié dans le prompt anglais est signalé, pas les mots déjà présents ni ceux des balises <d>", async () => {
+  const { motsRecopiesDeLaConsigne } = await import("./iteration-plan");
+  const consigne = "On l'entend bruler sagement. Pas un bruit.";
+  const apres = ["A tight close-up of the campfire burning sagement and gently.", "Maya says <d>[Français] Pas un bruit sagement.</d> softly."];
+  assert.deepEqual(motsRecopiesDeLaConsigne(consigne, apres, "A close-up of the campfire."), ["sagement"]);
+  // déjà dans le prompt d'avant : pas signalé
+  assert.deepEqual(motsRecopiesDeLaConsigne(consigne, apres, "campfire sagement"), []);
+  assert.deepEqual(motsRecopiesDeLaConsigne(undefined, apres, ""), []);
+  assert.deepEqual(motsRecopiesDeLaConsigne("   ", apres, ""), []);
+});
+
+test("depuisIterationPlan : une info « mots de ta consigne recopiés » accompagne la correction", () => {
+  const ch = depuisIterationPlan(
+    sortie({ changements: [{ section: "detailed_description", avant: "walking through <Subject 2>, the camera tracking alongside.", apres: "standing still in <Subject 2> sagement, the camera locked." }] }),
+    plan({ consigne: "Elle reste sagement immobile." }),
+  );
+  assert.ok(ch[0]!.avertissements!.some((v) => v.type === "info" && /Mots de ta consigne recopiés.*sagement/.test(v.texte)));
+});
+
+test("motsNonTraduits : accents français et mots des consignes absents de la référence, hors <d> et noms propres", async () => {
+  const { motsNonTraduits, motsDeReference } = await import("./iteration-plan");
+  const reference = motsDeReference("A tight close-up of the campfire burning gently. Mai stands in front of the campfire.");
+  const sections = {
+    detailed_description: "[Shot 1] A close-up of the campfire burning sagement and gently. <Subject 1> says <d>[Français] Pas un bruit, très calme.</d> Tenancière watches, voilà.",
+    overall_soundscape: "The campfire burns sagement. Résumé of the scene, café nearby.",
+  };
+  // « sagement » : mot de la consigne absent de la référence ; « voilà » : accent ; « Tenancière » (nom propre), « <d> » et « Résumé »/« café » (admis ou majuscule) : écartés
+  assert.deepEqual(motsNonTraduits(sections, ["On l'entend bruler sagement."], reference), ["sagement", "voilà"]);
+  // sans consigne ni référence : seuls les accents
+  assert.deepEqual(motsNonTraduits(sections, undefined, undefined), ["voilà"]);
+  // un mot déjà dans la référence n'est pas jugé
+  assert.deepEqual(motsNonTraduits({ a: "the campfire burning" }, ["campfire burning"], reference), []);
+});
+
+test("contrôle : un mot français laissé dans le prompt (même hors de la zone retouchée) est une ERREUR (renvoi au modèle)", () => {
+  const s = sortie();
+  const ctx = plan({
+    consignes: ["Reste sagement immobile."],
+    motsAnglais: ["maya", "walking", "through", "corridor", "camera", "tracking", "alongside", "railing"],
+    sections: { ...plan().sections, overall_soundscape: "Footsteps on stone, a door creaks, sagement <Audio 2>." },
+  });
+  const e = controlerSortieIterationPlan(s, ctx).filter((p) => p.niveau === "erreur");
+  assert.ok(e.some((p) => p.regle === "non-traduit" && /sagement/.test(p.message)));
+  // sans mot à traduire : pas d'erreur
+  assert.ok(!controlerSortieIterationPlan(s, plan({ consignes: ["Reste immobile."], motsAnglais: ["maya"] })).some((p) => p.regle === "non-traduit"));
+});

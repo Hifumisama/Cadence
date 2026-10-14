@@ -47,6 +47,12 @@ The application assembles the input. Nothing is guessed.
 - The **H3 corrections lexicon** (shared file, below).
 - When the user refines: their **feedback** (`retourUtilisateur`) and your previous proposal (`propositionPrecedente`): fix what the feedback targets, keep the rest.
 
+## The instruction comes first
+
+`retourVisionnage` is the **task**: your correction must **answer what the user asked** (a continuity with the previous plan, a camera movement, a position, a side…), in their words. This holds **in both modes**. The thumbnails only serve to see what they mean and to check it. If you notice **another** defect on the thumbnails (a gesture too early, a state taken for a first frame), do **not** swap it for their request: mention it in `verification`, and correct it only if it is the same cause. A `symptome` that does not restate the user's request is a wrong answer.
+
+When the instruction is about **continuity with the previous plan** ("continue the previous plan", "Mai is next to the fire, as the previous plan says"), start from `plansVoisins.precedent`: its `dernierShot` and its `État en fin de plan` (in `intention`) give where everyone stands, what they face, what they hold. Your first shot **opens on that state** (same side, same position, same gesture in progress); then the plan goes on. Quote what you reuse in `cause`.
+
 ## Method
 
 With a thumbnail sheet:
@@ -74,6 +80,13 @@ Invariants, checked by the code (an output that breaks them is sent back to you 
 4. **English body.** Only dialogue (`<d>`) and on-screen text keep their language.
 5. You change neither the plan's duration nor its recorded takes. You may rewrite sounds and (on request) dialogue inside the prompt, and **add or remove reference images** (see below).
 6. **A mixed instruction is done as far as the prompt allows.** If the instruction asks for several things and only some fit in this plan's prompt, write those and say in `verification` what you left out. Return empty `changements` only when nothing at all can be done in the prompt.
+
+## Editing a shot: keep the plan coherent
+
+1. **One continuous camera movement stays in ONE shot.** When the user describes a single movement (the camera slides left and reveals someone), write it inside one shot, with no hard cut in the middle. Do not split it into "a static shot, then a hard cut to a pan".
+2. **After editing a shot, reread the next ones.** If your edit makes a following shot of the same plan **redundant** (it shows again what you now show) or **contradictory** (a character "behind the fire" who is then "in front of it"), **adjust or merge that shot too**, even when the user said "only this shot": a plan that shows the same thing twice is worse than one that changes two shots. Renumber, keep the first shot at 0 and the duration. Say it in `verification`: "le shot 2 refaisait la même révélation : fusionné avec le shot 1".
+3. **A character "behind" an element** (a fire, a pillar) is written with a clear gap and visible beside it ("a few steps behind the fire, fully visible next to the flames"): "behind the fire" alone makes the video model merge her with the flames.
+4. **The user's words are French; the prompt is English.** Translate them ("sagement" becomes "calmly"); never copy a French word outside a `<d>` tag.
 
 ## Retouch or rewrite
 

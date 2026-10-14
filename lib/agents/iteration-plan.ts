@@ -59,6 +59,12 @@ export type SortieIterationPlan = {
 
 /** Ce que les contrôles et la conversion savent du plan : son prompt, ses labels déclarés, sa durée. */
 export type ContexteIteration = {
+  /** Toutes les consignes françaises de ce plan (l'actuelle, puis celles des corrections déjà tentées). */
+  consignes?: string[];
+  /** Les mots du prompt de RÉFÉRENCE du plan (son premier essai, écrit en anglais par plan-h3 et jamais retouché) : ce qui y est déjà est de l'anglais. */
+  motsAnglais?: string[];
+  /** La consigne de l'utilisateur (ses mots, en français) : de quoi repérer un mot recopié tel quel dans le prompt anglais. */
+  consigne?: string;
   /** La description (intention) actuelle du plan, avec son « État en fin de plan » : de quoi voir si la correction la change. */
   description?: string;
   /** Contenu actuel par section (absente = vide). */
@@ -97,6 +103,43 @@ export function etatEnFinDePlan(description: string | undefined | null): string 
 const norm = (t: string) => t.replace(/\s+/g, " ").trim();
 const descriptionChangee = (sortie: SortieIterationPlan, ctx: ContexteIteration): boolean =>
   !!sortie.nouvelleDescription?.trim() && norm(sortie.nouvelleDescription) !== norm(ctx.description ?? "");
+
+/** Les mots de la CONSIGNE qui se retrouvent tels quels dans les passages écrits (hors balise `<d>`, seule à garder le français) et qui n'étaient pas
+ * déjà dans le prompt : le modèle a recopié « sagement » au lieu de le traduire. Un signal « à vérifier » (un mot identique dans les deux langues
+ * peut être légitime), jamais un blocage. Pur, testé. */
+export function motsRecopiesDeLaConsigne(consigne: string | undefined, passages: string[], promptActuel: string): string[] {
+  if (!consigne?.trim()) return [];
+  const mots = (t: string) => new Set((t.toLowerCase().match(/\p{L}{5,}/gu) ?? []));
+  const dits = mots(consigne);
+  const avant = mots(promptActuel);
+  const apres = mots(passages.map((p) => p.replace(/<d>[\s\S]*?<\/d>/gi, " ")).join(" "));
+  return [...apres].filter((m) => dits.has(m) && !avant.has(m)).sort();
+}
+
+const ACCENTUES_ADMIS = new Set(["café", "résumé", "naïve", "fiancé", "fiancée", "cliché", "façade", "décor", "entrée", "décolleté", "déjà"]);
+const sansBalises = (t: string) => t.replace(/<d>[\s\S]*?<\/d>/gi, " ").replace(/<\s*(?:Subject|Picture|Audio|Video)\s*\d+\s*>/g, " ");
+
+/** Les mots du prompt de référence : de l'anglais (lettres seules, 5 ou plus, en minuscules). */
+export function motsDeReference(prompt: string): string[] {
+  return [...new Set(sansBalises(prompt).toLowerCase().match(/\p{L}{5,}/gu) ?? [])];
+}
+
+/** Les mots d'un prompt qui ne sont PAS de l'anglais (hors balise `<d>`, seule à garder le français), pour vérifier dès la première correction que tout est
+ * traduit : (A) un mot en minuscules qui porte un accent français ; (B) un mot des consignes françaises du plan qui n'est pas dans le prompt de référence
+ * (« sagement » recopié tel quel, puis laissé par les corrections suivantes). Les noms propres (majuscule) sont écartés. Pur, testé. */
+export function motsNonTraduits(sections: Record<string, string>, consignes: string[] | undefined, reference: string[] | undefined): string[] {
+  const texte = sansBalises(Object.values(sections).join(" "));
+  const jetons = texte.match(/\p{L}+/gu) ?? [];
+  const connus = new Set(reference ?? []);
+  const dits = new Set((consignes ?? []).flatMap((c) => c.toLowerCase().match(/\p{L}{5,}/gu) ?? []));
+  const trouves = new Set<string>();
+  for (const j of jetons) {
+    if (j !== j.toLowerCase()) continue; // nom propre ou début de phrase : on ne juge pas sur la casse
+    if (/[àâäçéèêëîïôöùûüÿœ]/.test(j) && !ACCENTUES_ADMIS.has(j)) trouves.add(j);
+    else if (reference && j.length >= 5 && dits.has(j) && !connus.has(j)) trouves.add(j);
+  }
+  return [...trouves].sort();
+}
 
 export function dureesCoherentes(voulueSecondes: number, reelleSecondes: number): boolean {
   return Math.abs(reelleSecondes - voulueSecondes) <= TOLERANCE_DUREE_SECONDES;
@@ -267,6 +310,12 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
   const a = appliquerChangements(ctx.sections, changements);
   problemes.push(...a.problemes);
 
+  // Tout le prompt doit être en anglais (hors <d>), y compris ce qu'une correction précédente a laissé : erreur, donc renvoi au modèle.
+  const nonTraduits = motsNonTraduits({ ...ctx.sections, ...a.sections }, ctx.consignes, ctx.motsAnglais);
+  if (nonTraduits.length > 0) {
+    problemes.push({ niveau: "erreur", regle: "non-traduit", message: `Le prompt contient des mots qui ne sont pas de l'anglais (hors balise <d>) : ${nonTraduits.join(", ")}. Traduis-les dans tes passages, même s'ils sont hors de la zone que tu retouches (ex. « sagement » devient « calmly »).` });
+  }
+
   // Références : codes du registre, six images au plus ; le code pose les labels et renumérote.
   problemes.push(...controlerReferences(sortie.references, ctx));
   const codesAjoutes = new Set((sortie.references?.ajouter ?? []).map((r) => r.asset));
@@ -350,6 +399,8 @@ export function depuisIterationPlan(sortie: SortieIterationPlan, plan: PlanPourI
     ajouter({ type: "alerte_controle", texte: `Confiance faible de l'agent dans ce diagnostic${sortie.verification?.trim() ? ` ; à vérifier : ${sortie.verification.trim()}` : ""}.` });
   }
   for (const p of controlerSortieIterationPlan(sortie, plan)) ajouter(versAvertissement(p));
+  const recopies = motsRecopiesDeLaConsigne(plan.consigne, a.passages.map((p) => p.apres), Object.values(plan.sections).join(" "));
+  if (recopies.length > 0) ajouter({ type: "info", texte: `Mots de ta consigne recopiés tels quels dans le prompt anglais : ${recopies.join(", ")} (à vérifier : ils doivent être traduits).` });
   const description = descriptionChangee(sortie, plan) ? { description: sortie.nouvelleDescription!.trim() } : {};
   if (description.description && etatEnFinDePlan(description.description) !== etatEnFinDePlan(plan.description)) {
     ajouter({ type: "info", texte: "L'état de fin du plan a changé : le plan suivant n'a pas été revérifié." });
@@ -540,6 +591,9 @@ export function contexteDepuisEntree(entree: unknown): ContexteIteration {
   }
   return {
     description: e.plan?.intention,
+    consigne: (e as { retourVisionnage?: string }).retourVisionnage,
+    consignes: [(e as { retourVisionnage?: string }).retourVisionnage ?? "", ...(((e as { historique?: { ceQuiAvaitEteVu?: string }[] }).historique ?? []).map((h) => h.ceQuiAvaitEteVu ?? ""))].filter((c) => c.trim()),
+    motsAnglais: Array.isArray((e as { motsDeReference?: unknown }).motsDeReference) ? ((e as { motsDeReference: string[] }).motsDeReference) : undefined,
     sections,
     refs,
     slotsVoix,

@@ -202,7 +202,8 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   const creationsLaissees = tous.filter((c) => !c.bloque && !c.refuseRaison && !cestLaFiche(c)).length;
   if (appliquables.length === 0 && p.diagnostic?.reecriture?.description) return { action: "reecrire", description: p.diagnostic.reecriture.description };
   if (appliquables.length === 0) {
-    const raison = p.resume?.trim() || (tous.length > 0 ? "tous les changements proposés ont été refusés par un contrôle." : "l'agent ne propose aucun changement du prompt.");
+    const refus = [...new Set(tous.map((c) => c.refuseRaison).filter((r): r is string => !!r))];
+    const raison = refus.length > 0 ? `${refus.join(" ")} (refusé par un contrôle)` : p.resume?.trim() || (tous.length > 0 ? "tous les changements proposés ont été refusés par un contrôle." : "l'agent ne propose aucun changement du prompt.");
     const phrase = `Rien n'a été appliqué ni généré : ${raison}`;
     return { action: "rien", message: /[.!?…]$/.test(phrase) ? phrase : `${phrase}.` };
   }
@@ -214,6 +215,8 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   if (suggeres.length > 0) notes.push(`L'agent suggère de créer ${suggeres.map((a) => a.code).join(", ")} (non créé${suggeres.length > 1 ? "s" : ""}) : crée-le, génère son image, puis itère de nouveau.`);
   if (creationsLaissees > 0) notes.push(`${creationsLaissees} création${creationsLaissees > 1 ? "s" : ""} d'asset suggérée${creationsLaissees > 1 ? "s" : ""} par la réécriture, non créée${creationsLaissees > 1 ? "s" : ""} : crée-${creationsLaissees > 1 ? "les" : "le"} depuis le registre.`);
   if (appliquables.some((c) => c.avertissements.some((a) => a.type === "info" && /l'état de fin du plan a changé/i.test(a.texte ?? "")))) notes.push("L'état de fin du plan a changé : le plan suivant n'a pas été revérifié.");
+  const recopies = appliquables.flatMap((c) => c.avertissements.filter((a) => a.type === "info" && /^Mots de ta consigne recopiés/.test(a.texte ?? "")).map((a) => a.texte as string));
+  if (recopies.length > 0) notes.push(recopies[0]!);
   const ecartes = tous.length - appliquables.length - creationsLaissees;
   if (ecartes > 0) notes.push(`${ecartes} changement${ecartes > 1 ? "s" : ""} refusé${ecartes > 1 ? "s" : ""} par un contrôle.`);
   if (appliquables.some((c) => c.avertissements.some((a) => a.type === "alerte_controle"))) notes.push("Un contrôle signale une dégradation de structure des shots.");

@@ -254,3 +254,15 @@ test("decisionIteration : une réécriture (plan-h3) n'applique que la fiche ; l
     assert.ok(d.notes.some((n) => /état de fin du plan a changé/i.test(n)));
   }
 });
+
+test("decisionIteration : les mots français recopiés deviennent une note de l'essai", () => {
+  const d = decisionIteration(prop({ groupes: [{ changements: [{ id: 3, bloque: false, refuseRaison: null, cibleType: "fiche", avertissements: [{ type: "info", texte: "Mots de ta consigne recopiés tels quels dans le prompt anglais : sagement (à vérifier : ils doivent être traduits)." }] }] }] }));
+  assert.equal(d.action, "appliquer");
+  assert.ok(d.action === "appliquer" && d.notes.some((n) => /sagement/.test(n)));
+});
+
+test("decisionIteration : un refus d'office dit POURQUOI (la raison du contrôle), pas seulement « 1 refusé »", () => {
+  const d = decisionIteration(prop({ resume: "1 changement proposé : 1 refusé d'office.", groupes: [{ changements: [{ id: 9, bloque: false, refuseRaison: "L'écriture laisserait un label sans référence (<Audio 1>) : la fiche ne serait plus cohérente.", cibleType: "fiche", avertissements: [] }] }] }));
+  assert.equal(d.action, "rien");
+  assert.ok(d.action === "rien" && /label sans référence \(<Audio 1>\)/.test(d.message) && /refusé par un contrôle/.test(d.message));
+});
