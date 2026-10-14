@@ -144,26 +144,6 @@ export function assetMediaSrc(fichier: string | null): string | null {
   return urlAssetMedia(fichier);
 }
 
-/** Prises audio des répliques (F02, révision 2026-09-30) — rangées par
- * réplique, symétrique à `voix/<assetId>/`. La base ne stocke que le nom de
- * fichier ; une nouvelle prise remplace l'ancienne (pas de versionnage, F01). */
-export function cheminRepliqueMedia(repliqueId: number, fichier: string): string {
-  return `repliques/${repliqueId}/${fichier}`;
-}
-
-/** URL de service d'une prise de réplique, ou null si elle n'est pas (ou plus)
- * sur le stockage. Côté serveur uniquement (accès disque). */
-export function repliqueMediaSrc(repliqueId: number, fichier: string | null): string | null {
-  if (!fichier) return null;
-  const relatif = cheminRepliqueMedia(repliqueId, fichier);
-  try {
-    if (!existsSync(resolve(MEDIA_ROOT, relatif))) return null;
-  } catch {
-    return null;
-  }
-  return `/api/media/${relatif}`;
-}
-
 /** Images générées pour un asset (candidats, avant adoption) — rangées par
  * asset, symétrique à `voix/<assetId>/`. Un candidat adopté est COPIÉ sous
  * `assets/` (assets.fichier) ; le candidat lui-même reste ici jusqu'à sa purge. */

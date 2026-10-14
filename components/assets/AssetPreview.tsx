@@ -32,7 +32,7 @@ export function AssetPreview({
 
   const src = urlAssetMedia(fichier);
 
-  if (type === "voix" || type === "sfx" || estAudio(fichier)) {
+  if (type === "sfx" || estAudio(fichier)) {
     return (
       <div className={`${classe} is-audio`}>
         <audio controls src={src} style={{ width: "100%" }} />

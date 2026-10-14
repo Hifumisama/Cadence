@@ -46,7 +46,7 @@ test("création en cours : une ligne qui avance étape par étape", () => {
   assert.equal(x.statut, "en_cours");
   assert.equal(x.libelle, "Conception · Avatar");
   assert.equal(x.href, "/p/7/creation");
-  assert.deepEqual(x.progression, { valeur: 3, max: 9, etape: "Registre d'assets" });
+  assert.deepEqual(x.progression, { valeur: 3, max: 8, etape: "Registre d'assets" });
   assert.equal(x.jetons, 120);
   assert.equal(x.conversationUuid, undefined, "un clic mène à la page, pas à la popup d'agent");
 });

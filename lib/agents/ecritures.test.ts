@@ -52,18 +52,10 @@ test("déplacement : un épisode d'un seul plan n'a pas de scène voisine", () =
   assert.equal(d.rangApres, 1);
 });
 
-test("texte de réplique : vide refusé, identique sans effet", () => {
-  assert.deepEqual(changerTexteReplique({ texte: "Salut.", statut: "a_produire" }, "  \n "), { ok: false, erreur: "Le texte de la réplique est vide." });
-  assert.deepEqual(changerTexteReplique({ texte: "Salut.", statut: "validee" }, " Salut. "), { ok: true, texteChange: false, set: {} });
-});
-
-test("texte de réplique : une prise validée repasse posée, les autres statuts sont gardés", () => {
-  assert.deepEqual(changerTexteReplique({ texte: "Salut.", statut: "validee" }, "Au revoir."), {
-    ok: true,
-    texteChange: true,
-    set: { texte: "Au revoir.", statut: "prise_posee" },
-  });
-  assert.deepEqual(changerTexteReplique({ texte: "Salut.", statut: "prise_posee" }, "Au revoir.\r\n"), { ok: true, texteChange: true, set: { texte: "Au revoir." } });
+test("texte de réplique : vide refusé, identique sans effet, sinon seul le texte s'écrit", () => {
+  assert.deepEqual(changerTexteReplique({ texte: "Salut." }, "  \n "), { ok: false, erreur: "Le texte de la réplique est vide." });
+  assert.deepEqual(changerTexteReplique({ texte: "Salut." }, " Salut. "), { ok: true, texteChange: false, set: {} });
+  assert.deepEqual(changerTexteReplique({ texte: "Salut." }, "Au revoir.\r\n"), { ok: true, texteChange: true, set: { texte: "Au revoir." } });
 });
 
 test("suppression : les plans suivants montent d'un rang, rien ne bouge avant", () => {

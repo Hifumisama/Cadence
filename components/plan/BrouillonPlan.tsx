@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, useT
 import { appliquerIterationEtGenerer, ecrireSections, figerEtLancer } from "@/app/plans/actions";
 
 /** Les panneaux de la Fiche de plan qui reçoivent le balayage « gel » quand un rendu part. */
-const PANNEAUX_GEL = ["fp-console", "fp-refs", "fp-prompt", "fp-dialogues"];
+const PANNEAUX_GEL = ["fp-console", "fp-refs", "fp-prompt"];
 const DUREE_SCEAU_MS = 5000;
 
 type Serveur = { sections: Record<string, string>; duree: number; fps: number; seed: string | null };

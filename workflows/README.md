@@ -6,9 +6,9 @@ dépendance d'exécution.
 
 - `video-generation/` — génération H3, 1er pass + upscale (F04)
 - `upscale/` — passe upscale isolée si distincte du workflow principal
-- `voice-clone/` — Qwen3-TTS (Voice Design) puis CosyVoice3 (répliques) (F06) ; **pas branché**, voir plus bas
+- `voice-clone/` — Qwen3-TTS (Voice Design) puis CosyVoice3 (répliques) (F06) ; **pas branché**, ancien casting vocal retiré (2026-10-14)
 - `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
-- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas ; Qwen3-TTS : voix de référence (`VOX_Generate_Voice_Simplified.json`) ; branché (asset `voix`), voir plus bas ; extraction d'une voix fournie (`VOX_Get_Audio_and_ASR.json`) et doublage d'une réplique (`VOX_Doublage_voix_API_Mode.json`) ; branchés, voir plus bas
+- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas ; les workflows `VOX_*` ne sont plus branchés (casting vocal retiré, 2026-10-14)
 
 ## Avant de committer un workflow
 
@@ -124,92 +124,12 @@ soumission (recommandé par la doc de Stability, absent du gabarit du workflow,
 non testé sur ce graphe), et le rôle d'une mention « Length: X seconds » dans un
 prompt brut. Voir le guide.
 
-### `VOX_Generate_Replique_Simplified.json` — prise d'une réplique (Qwen3-TTS Base, clonage)
+### Workflows de voix retirés (2026-10-14)
 
-Branché (2026-10-05) : `worker/comfyui/repliqueMapping.ts` (injection), `worker/images.ts` (tâche, méthode `replique` de
-`asset_generations`, `repliqueId` = la réplique, `assetId` = la voix clonée), `lib/replique-prise.ts` (pose de la prise) ; boutons
-« Générer la prise » / « Générer les prises manquantes » du panneau Dialogues d'un plan. `repliqueMapping.test.ts` lit ce fichier et
-casse si un des nœuds ci-dessous disparaît après un ré-export. Variable optionnelle : `COMFYUI_WORKFLOW_REPLIQUE_PATH`. Validé en réel
-le 2026-10-05 (FLAC 24 kHz, durée mesurée, niveau sonore équivalent à une prise faite à la main).
-
-| Donnée | Nœud | Champ | Note |
-|---|---|---|---|
-| Texte dit | `4` (UnifiedTTSTextNode) | `text` | la réplique, mot pour mot |
-| Seed | `4` | `seed` | tirée à chaque demande : régénérer donne une autre interprétation ; **entier 32 bits au plus** (0 à 4 294 967 295, `nouvelleSeedTts` / `seedTts` dans `lib/asset-generation.ts`) : au-delà, ComfyUI répond HTTP 400 à la validation du prompt |
-| Cache audio | `4` | `enable_audio_cache` | **coupé** à la soumission (une autre voix de référence de même nom ne doit pas resservir une ancienne prise) |
-| Voix de référence | `5` (LoadAudio) | `audio` | le fichier de l'asset voix (`assets/<fichier>`), envoyé au dossier d'entrée de ComfyUI sous `cadence_voixref_<CODE>_<date de modification>` |
-| Créativité de la voix | `1` (Qwen3TTSEngineNode) | `temperature` | **0,8 à 1,2**, 1,2 par défaut |
-| Langue | `1` | `language` | celle des dialogues du brief, **toujours le nom anglais du moteur** (« French », « English », « German », « Spanish », « Italian », « Portuguese », « Japanese », « Korean », « Russian », « Chinese », ou « Auto ») : `langueMoteurVoix` (`lib/langues-tts.ts`) est appliquée dans l'injection même, quelle que soit la valeur reçue (code ISO, libellé français) |
-| Sortie | `3` | — | `PreviewAudio` dans le fichier, remplacé à la soumission par `SaveAudio` (FLAC : durée mesurable, format recommandé pour le clonage) |
-
-Le champ `instruct` du moteur (reste d'un essai de Voice Design) et les autres réglages exportés sont laissés tels quels : ce sont ceux
-des essais directs. La prise générée **remplace** la prise de la réplique (pas de versionnage, F01) et passe en « prise posée » ; une
-prise validée doit être réécoutée. Ces générations ne sont jamais des candidats de la voix ou de l'asset.
-
-### `VOX_Generate_Voice_Simplified.json` — voix de référence (Qwen3-TTS Voice Design)
-
-Branché (2026-10-02) : `worker/comfyui/voixMapping.ts` (injection) et `worker/images.ts` (tâche, méthode
-`voix` de `asset_generations`) ; popup `GenerationVoixDialog` à l'étape « Référence » du casting vocal.
-`voixMapping.test.ts` lit ce fichier et casse si un des nœuds ci-dessous disparaît après un ré-export. Trois
-nœuds seulement : le moteur, le concepteur de voix, l'écoute. Variable optionnelle : `COMFYUI_WORKFLOW_VOIX_PATH`.
-
-| Donnée | Nœud | Champ | Note |
-|---|---|---|---|
-| Instruction de timbre | `2` (UnifiedVoiceDesignerNode) | `voice_instruction` | en anglais ; aussi recopiée dans `1`.`instruct` |
-| Texte lu | `2` | `reference_text` | au mot près ce que dira la référence ; celui du projet par défaut |
-| Seed | `2` | `seed` | tirée côté serveur, **entier 32 bits au plus** (voir la réplique) |
-| Créativité de la voix | `1` (Qwen3TTSEngineNode) | `temperature` | **0,8 à 1,2**, 1,1 par défaut (curseur de la popup) |
-| Langue du texte lu | `1` | `language` | `English` pour le texte par défaut du projet, sinon la langue de la fiche de voix ; nom anglais du moteur dans tous les cas (`langueMoteurVoix`, appliquée dans l'injection) |
-| Sortie | `3` (PreviewAudio) | — | **remplacé à la soumission** par `SaveAudioMP3` (qualité `V0`, préfixe `audio/cadence_<CODE>`), même id et même source `audio` : `PreviewAudio` écrit un fichier temporaire que le worker ne sait pas relire |
-
-Fixe : modèle `Voice Design - 1.7B VoiceDesign`, `top_k` 50, `top_p` 1, `repetition_penalty` 1,05, `max_new_tokens`
-2048. Le résultat est un **candidat** (comme les images et les sons) : « Utiliser comme référence » le copie sous
-`assets/<CODE>.mp3` et reporte l'instruction et le texte sur la fiche. CosyVoice3 (les répliques) reste à la main.
-
-**Test audio d'une voix** (étape « Test vidéo » du casting, bouton « Générer l'audio de test ») : même graphe, même injection
-(`injecterGenerationReplique`), méthode `test_audio` de `asset_generations` ; température par défaut, langue de la fiche de voix
-(`English` pour le texte de référence par défaut du projet), sortie `audio/cadence_test_<CODE>` en FLAC. Le candidat adopté devient
-l'audio de test de la fiche (`voix/<id>/test_audio.*`) et fixe aussi le texte du test. **Non vérifié en réel** : le texte de la
-référence n'est pas transmis au clonage (le graphe n'a pas d'entrée pour lui) ; si la qualité du clone en souffre, c'est la première piste.
-
-### `VOX_Get_Audio_and_ASR.json` — extraction d'une voix fournie (isolement de la voix + transcription)
-
-Branché (2026-10-09) : `worker/comfyui/voixSourceMapping.ts` (injection, lecture de la transcription) et `worker/images.ts` (tâche, méthode
-`voix_source` de `asset_generations`, fichier source et fenêtre figés dans `parametres`) ; scène « La source » de l'assistant d'une voix.
-`voixSourceMapping.test.ts` lit ce fichier et casse si un des nœuds ci-dessous disparaît après un ré-export. Variable optionnelle :
-`COMFYUI_WORKFLOW_VOIX_SOURCE_PATH`. **Non vérifié en réel** : le rognage par les chargeurs et la lecture du texte dans `/history`.
-
-| Donnée | Nœud | Champ | Note |
-|---|---|---|---|
-| Fichier source | `4` (LoadAudioUI) **et** `16` (LoadVideoUI) | `audio` / `video` | **le même fichier aux deux** : ComfyUI valide le nom de chaque chargeur même si le commutateur n'en lit qu'un ; envoyé au dossier d'entrée sous `cadence_<uuid de la génération>_1.<ext>` |
-| Fenêtre | `4` et `16` | `start_time`, `end_time`, `duration` | en secondes, **30 s au plus** (`raisonFenetreInvalide`, `lib/voix.ts`) ; jamais le fichier entier |
-| Fenêtre (vidéo) | `16` | `start_frame`, `end_frame`, `duration_frames` | recalculés à partir des secondes et de `frame_rate` (24 dans l'export), pour que le nœud reste cohérent quelle que soit la valeur qu'il lit |
-| Audio ou vidéo | `21` (ComfySwitchNode « isVideo ? ») | `switch` | `true` pour une vidéo (sa piste audio) |
-| Langue parlée | `6` (UnifiedASRTranscribeNode) | `language` | celle de la fiche de voix, nom anglais du moteur (`langueMoteurVoix`) |
-| Voix isolée | `10` (SaveAudioAdvanced) | `filename_prefix` | FLAC ; préfixe `audio/cadence_source_<CODE>` ; la sortie de l'ASR passe par `5` (MelBand, musique et bruits retirés) |
-| Transcription | `11` (ShowText\|pysssss) | — | **pas un fichier** : le worker lit `outputs["11"].text` dans `/history` (`lireTexteSortie`) et attend qu'il arrive (le nœud peut finir après l'enregistrement). Son entrée `text_0` (la transcription d'exemple de l'export) est retirée à la soumission |
-
-Le texte est un JSON `{ text, language, segments }` : on garde `text` (propre, avec ses traits d'union), jamais les mots horodatés (collés :
-« regardezles », « ceuxci »). La transcription est un **point de départ** : l'utilisateur la corrige au mot près avant d'utiliser la voix.
-Le résultat est un candidat de la voix ; « Utiliser cette voix » (`adopterSourceVoix`) le copie sous `assets/<CODE>.flac` et fixe la
-transcription corrigée (`voix_fiches.ref_text`). Le fichier source (audio ou vidéo, 300 Mo au plus) arrive par la route
-`POST /api/voix/<assetId>/source` (une Server Action est plafonnée à 10 Mo) et reste sous `voix/<assetId>/source.<ext>`.
-
-### `VOX_Doublage_voix_API_Mode.json` — doublage d'une réplique (CosyVoice3, speech-to-speech)
-
-Branché (2026-10-09) : `worker/comfyui/doublageMapping.ts` (injection), `worker/images.ts` (tâche, méthode `doublage` de
-`asset_generations`, `repliqueId` = la réplique, `assetId` = la voix) ; cabine de doublage de l'assistant d'une voix.
-`doublageMapping.test.ts` lit ce fichier et casse si un des nœuds ci-dessous disparaît. Variable optionnelle : `COMFYUI_WORKFLOW_DOUBLAGE_PATH`.
-**Non vérifié en réel.** L'utilisateur joue la réplique ; la voix de référence la redit avec son intonation et son rythme.
-
-| Donnée | Nœud | Champ | Note |
-|---|---|---|---|
-| Prise jouée | `12` (LoadAudio « Voix utilisateur ») | `audio` | WAV mono enregistré dans la cabine (ou un audio déposé), envoyé au dossier d'entrée sous `cadence_<uuid>_1.<ext>` ; supprimé du stockage une fois le doublage posé |
-| Voix cible | `13` (LoadAudio « Voix de référence ») | `audio` | la référence de l'asset voix, comme pour les prises de réplique (`cadence_voixref_<CODE>_<date>`). **Un chargeur ordinaire** : l'ancienne version passait par `CharacterVoicesNode` (voix lue dans un dossier propre à ComfyUI, texte de référence et rognage saisis dans le graphe), trop couplé pour être piloté par l'application |
-| Sortie | `5` (PreviewAudio) | — | **remplacé à la soumission** par `SaveAudio` (FLAC), préfixe `audio/cadence_doublage_<id réplique>` |
-
-Réglages laissés tels quels : `UnifiedVoiceChangerNode` (`refinement_passes` 1, `max_chunk_duration` 15, `chunk_method` smart) et le moteur
-CosyVoice3 (`instruct_text` vide). Le doublage **remplace** la prise de la réplique, comme une prise générée (pas de versionnage, F01).
+`VOX_Generate_Replique_Simplified.json`, `VOX_Generate_Voice_Simplified.json`, `VOX_Get_Audio_and_ASR.json` et `VOX_Doublage_voix_API_Mode.json`
+(avec `voice-clone/`) ne sont **plus branchés** : le casting vocal (voix de référence, extraction d'une voix fournie, prises de réplique,
+doublage) a été retiré (docs/FRICTIONS.md, 2026-10-14). La voix d'un personnage est son **master**, produit par le workflow vidéo dédié
+(voir « Master de voix » en bas). Les fichiers restent dans le dépôt comme matière (par exemple pour le graphe de nettoyage vocal).
 
 ## Contrat du workflow vidéo (`video-generation/`)
 
@@ -245,11 +165,7 @@ Vérifié par `GET /object_info` le 2026-10-02 : `MiniMaxH3ReferenceToVideo` (im
 `length` pas de 17), `LoadAudioUI` (start/end/duration FLOAT, défaut 0), `LoadVideoUI` (16 champs obligatoires),
 `LoadImageCrop`. **Jamais rendu en réel avec ces changements.**
 
-**Test vidéo d'une voix** (casting vocal, étape « Test vidéo ») : le même graphe, soumis par `worker/images.ts` (méthode `test_video` de
-`asset_generations`) avec `injecterValeurs` — pas de plan : le personnage (`<Picture 1>`) et le décor (le suivant) en images de
-référence, l'audio de test (à défaut la voix de référence) en `<Audio 1>`, 8 s, le prompt T1 de `lib/voix.ts:promptTestVoix`.
-`activerUpscale` toujours faux (branche basse résolution : le test sert à juger la voix, **pas d'upscale ni de « rendu final »**, 2026-10-08) ; les références sont figées dans
-`asset_generations.parametres`. La sortie est lue sur le nœud `34`.
+**Master de voix** : le même graphe sert de repli au master d'un personnage (voir « Master de voix » en bas).
 
 ## Suivi en direct (WebSocket)
 
@@ -261,3 +177,18 @@ doit être lancé avec `--preview-method auto`) et `execution_success` /
 inspecter les messages réels (par exemple le transport propre du nœud
 `ModelPreviewOverrideKJ`), lancer le worker avec `COMFYUI_WS_DEBUG=1` : le
 journal brut est écrit sous `MEDIA_ROOT/_debug/`.
+
+## Master de voix d'un personnage (`audio/VID_Create_Voice_Master.json`)
+
+Variante du graphe vidéo H3 (`VID_REF2VA.json`) : la voix générée passe par « Noise or Vocal Removal » (MelBand RoFormer) puis « Voice Fixer ».
+Branché côté worker (`worker/images.ts`, méthode `master_voix`). En l'absence du fichier, le worker
+retombe sur `VID_REF2VA.json` (voix non nettoyée).
+
+- **Entrées** : celles de `VID_REF2VA` (injectées par `injecterValeurs`, `worker/comfyui/mapping.ts`) — prompt (`22:11`), seed (`16`), durée
+  (`22:23`), image du personnage en `<Picture 1>` (aucune pour une voix off), **aucun audio de référence** (H3 invente la voix). Les nœuds
+  `LoadImageCrop` (123), `LoadVideoUI` (251) et `LoadAudioUI` (157) du fichier sont des restes d'essai : les références sont recréées à chaque
+  soumission, ces nœuds ne sont plus reliés au nœud 5 et ne s'exécutent pas.
+- **Sorties** : la voix nettoyée est enregistrée par le nœud `313` (SaveAudioAdvanced, flac, préfixe imposé par le worker) = le master ; la
+  vidéo de test (voix nettoyée incluse) sort du nœud `18` (VHS_VideoCombine, `save_output` forcé à true par le worker : il est à false dans le
+  fichier). Les ids sont dans `NODE_IDS_MASTER` (`worker/comfyui/masterMapping.ts`). Sans le fichier : repli sur `VID_REF2VA` + extraction ffmpeg.
+- **Chemin** : `COMFYUI_WORKFLOW_MASTER_PATH` (défaut `./workflows/audio/VID_Create_Voice_Master.json`).

@@ -24,12 +24,12 @@ The application assembles the context. Nothing is guessed.
 - **Brief**: visual style (the style clause), arc, characters and places.
 - **Episode and scene**: episode summary; scene title and function, with the intention of **all its plans** in order (`cePlan` marks yours). Read neighbouring intentions to know **who** does what: a character's gesture may be named only in the next plan.
 - **What to write**: the plan's intention and its position in the scene. A last sentence starting `Consigne de l'auteur :` is the **author's explicit direction** (a framing, a sound, a gesture, a voice-over): follow it **before** your own defaults (cadence, framing, sound), without rewriting the story.
-- **Neighbouring plans** (before and after), for continuity: title, intention and duration of each. For the **previous plan** of the batch, `dernierShot` is the last shot it has just been given (read-only, asset codes in plain text): your first shot **picks up from its end** (who is where, facing which way, the state of the fire, the light) and never contradicts it.
+- **Neighbouring plans** (before and after), for continuity: title, intention and duration of each. For the **previous plan** of the batch, `dernierShot` is the last shot it has just been given (read-only, asset codes in plain text). What you do with it depends on **`plan.liaison`**: `suite` (the plan takes up where the previous one ends): your first shot **picks up from its end** (who is where, facing which way, the state of the fire, the light) and never contradicts it; `coupe` (a clean cut): your first shot **opens freely** on the plan's own intention, without reproducing the previous end (only the world's facts stay true: a fire put out stays out). **With `suite`, the application itself joins the previous plan's last image as `<Picture N>`, the first frame of [Shot 1], and declares it in the prompt when generating: you declare nothing for it and use none of your reference slots.** Write [Shot 1] as the **continuation of that image**: what the image already shows (pose, head direction, **eyes open or closed**, expression, what the hands hold) **stays as it is until the shot's action changes it, and the change is written as an action** (« slowly opens her eyes », not « her eyes are focused »); a detail described differently from the image is redrawn differently, and the join shows (same place, same positions, same light, the action goes on): never re-describe another composition for the opening, and never write « the previous plan » in the video prompt.
 - **Where everyone stands**: each plan's intention ends with `État en fin de plan :` (who is where and what they face, relative to fixed landmarks of the place; the state of what changed), and the first plan of a place names its landmarks. The end state of the previous plan is the **starting state** of yours, and yours is the starting state of the next. **You choose the camera**, shot by shot, from those positions: a plan about a character's emotion shows their face.
 - **Scene genre and mood** (`scene.genre`, `scene.ambiance`) when present. The genre loaded the matching writing guide (`guide-genre-…`, in this prompt). The mood (time of day, weather, general light) is the frame **every plan of the scene holds**.
 - **Registry**: for each candidate asset: code, type, canonical description (French), method, **generation prompt** (English), `aUnFichier` (the image or sound already exists). These keep you faithful to the asset; the asset's role in THIS plan is yours to write. An asset without a file is still referenced: it will be produced.
 - **`assetsProposesParLeLot`** (sometimes): assets that other plans of the same batch already propose to create. They do not exist yet: **they are not references**, and you do not redeclare them in `assetsManquants`. If your plan needs one, describe it in prose.
-- **Lines of dialogue** linked to this plan: uuid, speaker, exact text, measured duration if the take exists.
+- **The dialogue** is in the plan's intention and in the user's instruction (« … », with who says it): the video prompt is the ONLY place where a line lives. No list of lines is given to you and none is expected back.
 - **Examples**: four complete drafts, for the form only.
 - **The user's instruction** (`consigne`): an intention for this plan (or all plans of a batch). Follow it without rewriting the story. On a retry, their **feedback** (`retourUtilisateur`) and sometimes your previous draft (`propositionPrecedente`): fix what the feedback targets, keep the rest.
 
@@ -37,9 +37,9 @@ The application assembles the context. Nothing is guessed.
 
 - It assigns **all labels** and numbers. You never write a numbered label, shot number, timecode or "Hard cut".
 - It replaces each `[[CODE]]` with the reference's label, writes the definition and retention lines (with the shots where each reference appears), and adds the `summary` prefix, `[Shot N]`, `At MM:SS.mmm,` and `Hard cut to`.
-- It puts the **project's style clause** first in `ouverture` (you never write the visual style) and **inserts a linked line missing from the shots** (the video prompt is what counts).
-- It derives the **voice** audio references from `repliques` and enforces the limits: 6 images, 3 audio, **voice wins over sound effects**.
-- It checks verbatim dialogue, durations and shot structure.
+- It puts the **project's style clause** first in `ouverture` (you never write the visual style).
+- It reads who speaks in your `<d>` (the `[[CODE]] (Sx)` before each one) and gives a character that has a fixed voice its **voice audio reference**; it enforces the limits: 6 images, 3 audio, **voice wins over sound effects**.
+- It checks durations and shot structure.
 
 ## What you write
 
@@ -48,11 +48,11 @@ The output contract is `assets/sortie.schema.json`. Each example is a complete d
 - **`references`**: the plan's assets, in the order you want: characters, extras, props and effects, then set. Per item: `asset` (registry code), `nature`, `role` (French), `nom` and `definition` (English). Your order is the label order.
   - `nature: "image"`: the asset is cited by its image (character, extra, prop, effect, set).
   - `nature: "son"`: a registry sound effect (`SFX_…`), cited as an audio reference.
-  - **A voice is never a reference**: it comes from `repliques`.
-  - **Anything that needs no reference goes in prose** in the shots, without a marker: the video model interprets it. An asset missing from the registry is not a reference: declare it in `assetsManquants` and describe it in prose.
+  - **A voice is never a reference**: the code derives it from who speaks in your `<d>` (the speaker is `[[CHAR_x]] (Sx)` just before the tag).
+  - **Anything that needs no reference goes in prose** in the shots, without a marker: the video model interprets it. An **image** asset missing from the registry is declared in `assetsManquants` **and cited as a reference like any other** (same code, `nature: "image"`, `[[CODE]]` in the shots): it is created with this plan and its image comes later. A missing sound is never a reference: describe it in prose.
 - **One marker only** to point at a reference: its code in double brackets, `[[CHAR_maya]]`. Never write `<Subject 1>`, `<Picture 1>` or `{picture}`.
 - **`summary`**, **`ouverture`**, **`shots`**, **`overall_soundscape`**, **`non_diegetic_music`**: each in its own field, without repeating the field name.
-- **`repliques`**, **`assetsManquants`**, **`notes`**, **`titre`**, **`dureeSecondes`**.
+- **`assetsManquants`**, **`notes`** (a few short sentences: trade-offs only; never think aloud, never list options, never repeat yourself), **`titre`**, **`dureeSecondes`**.
 
 `references/guide-h3-compact.md` gives the form of each field; the rules below say what to write.
 
@@ -63,7 +63,7 @@ The output contract is `assets/sortie.schema.json`. Each example is a complete d
 ### 1. Assets
 
 1. **The registry is completed before the plans** (asset inventory over all plans). The prop, set state or effect you need almost always exists, **sometimes under another name** (the oil lamp is `PROP_lanterne`). **Search the registry first**, descriptions as well as codes. Declare a missing asset only as a last resort, when nothing existing can play the role: every extra asset is a duplicate to clean up.
-2. Use only **existing registry codes** in `references`. Never invent one. A missing asset goes in `assetsManquants` (proposed code, type, optional starting image `parent`, French description, reason) and is described in prose.
+2. Use only **existing registry codes** in `references`. Never invent one, except a missing image asset: it goes in `assetsManquants` (proposed code, type, optional starting image `parent`, French description, reason) **and** in `references` with that same code, written exactly as in `assetsManquants`. The six-image limit counts it.
 3. A **composite reference** (type `keyframe`: character, effect and prop combined in one pose) is a reference like any other, but H3 follows it closely. Cite it only if the plan wants exactly that pose, and never in addition to the individual assets it combines. If it is missing and truly needed, declare it in `assetsManquants` (type `keyframe`) and list the elements to combine in `raison` (three source images at most).
 4. **One reference = one asset, reused.** A new asset is justified only if the image must really differ: clearly different pose, detail framing that cropping cannot give, altered state.
 5. **Six images at most.** Beyond that, arbitrate: keep what carries identity and framing, sacrifice what text can describe alone (it goes to prose), and say so in `notes`.
@@ -114,12 +114,12 @@ Shot count follows **action intensity, not plan duration**. The cadences below a
 
 ### 4. Dialogue
 
-1. Each line linked to the plan is quoted **word for word**, punctuation included, in a `<d>[Français] …</d>` of one of the `shots`, with a speaker `(Sx)`, and listed in `repliques`. Each `<d>` matches a linked line and vice versa. This holds for characters and voice-over alike; the code blocks generation otherwise.
-2. **Never rephrase or translate a line.** If it seems wrong, say so in `notes`: the text is edited in the line itself, not in the prompt.
+1. The lines come from the plan's intention and the user's instruction. Each is quoted **word for word**, punctuation included, in a `<d>[Français] …</d>` of one of the `shots`, with a speaker `(Sx)` named in the sentence just before the tag (`[[CHAR_x]] (S1) says, <d>…</d>`). This holds for characters and voice-over alike.
+2. **Never rephrase or translate a line the author wrote.** When the instruction **changes** the dialogue (a new line, a different line, a line removed), the instruction wins: write the new lines and drop the old ones. No line is expected to exist elsewhere: there is nothing to link and no id to give.
 3. **Breathing margin of at least 2 s in total**, split between before the first syllable and after the last (time to settle the gaze). A 14 s line in a 15 s plan does not breathe.
-4. **Duration of a dialogue plan**: if the takes exist, sum of measured durations plus the margin. Otherwise pick a generous duration; it will grow after the voice take. **Never compute a duration from a word count.**
+4. **Duration of a dialogue plan**: pick a generous duration (the lines at a natural pace plus the margin); keep the plan's current duration when the instruction does not change it. **Never compute a duration from a word count.**
 5. If voice and margin exceed 15 s, do not force it. Propose in `notes` a split at a meaning boundary, between two lines, never mid-line, with an angle change (for example the listener's reaction).
-6. Lip-sync comes from the voice take, which the code plugs in as an audio reference. You write `<d>`: it makes the mouth move on the right phrasing.
+6. Lip-sync comes from `<d>` (and from the character's voice reference when the code adds one): it makes the mouth move on the right phrasing.
 7. When a line crosses a cut or is truncated by the end of the video, use `<scenetrans>` and `<cutoff>` (see the guide).
 8. **Voice-over over a character who is on screen.** When the brief gives that character a `voix` of voice-over / inner voice, or the intention says the line is voice-over, the line is **not spoken by the mouth**: write `[[CHAR_x]] (Sx) says in an off-screen voiceover: <d>[Français] …</d> while her lips remain completely closed` (after **every** such `<d>`). The character stays an image reference (she is on screen), but there is no lip-sync: do not describe her speaking.
 
@@ -148,7 +148,7 @@ The assembled prompt (definitions, summary, retention, shots, sound, music) stay
 ## Before you answer
 
 - Every cited `[[CODE]]` is in `references`, and every reference is cited at least once. No numbered label, no `{picture}`.
-- Every `<d>` is verbatim; all linked lines are cited and listed in `repliques`.
+- Every `<d>` is verbatim from the intention or the instruction, with its speaker `(Sx)`; no line is dropped unless the instruction removes it.
 - First shot at `0`, increasing starts, a distinct angle per shot; a shot shorter than 1.5 s, or a cadence slower than the defaults of section 2, carries its reason in `notes`; no timecode, no `Hard cut`, no `[Shot N]` in the texts.
 - Sounds tied to an action sit in the shot's text; only background sound sits in `overall_soundscape`; `non_diegetic_music` is instrumentation, tempo and dynamics, or `N/A` alone.
 - Two or more subjects (characters, or a character and a set element) in a fixed arrangement: the sides are fixed in `ouverture`, each cut picks the movement up with both in frame at contact, and a fight shot holds a readable exchange, not an isolated blow smeared with five actions.

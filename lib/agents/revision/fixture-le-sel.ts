@@ -42,9 +42,9 @@ export const LIGNES_LE_SEL: LignesEpisode = {
     p(14, 3, "Plan final : le bateau disparaît dans la brume", 10, "brouillon"),
   ],
   repliques: [
-    { uuid: "00000000-0000-4000-9000-000000000001", ordre: 0, texte: "Je ne reviendrai jamais.", locuteur: "CHAR_maya", statut: "a_produire", avecPrise: false, liaisons: [{ planUuid: planUuid(7), slot: 1 }] },
-    { uuid: "00000000-0000-4000-9000-000000000002", ordre: 1, texte: "Tu pars ?", locuteur: "CHAR_pecheur", statut: "a_produire", avecPrise: false, liaisons: [{ planUuid: planUuid(12), slot: 1 }] },
-    { uuid: "00000000-0000-4000-9000-000000000003", ordre: 2, texte: "Le sel ne ment pas.", locuteur: "CHAR_maya", statut: "a_produire", avecPrise: false, liaisons: [{ planUuid: planUuid(12), slot: 2 }] },
+    { uuid: "00000000-0000-4000-9000-000000000001", ordre: 0, texte: "Je ne reviendrai jamais.", locuteur: "CHAR_maya", liaisons: [{ planUuid: planUuid(7), slot: 1 }] },
+    { uuid: "00000000-0000-4000-9000-000000000002", ordre: 1, texte: "Tu pars ?", locuteur: "CHAR_pecheur", liaisons: [{ planUuid: planUuid(12), slot: 1 }] },
+    { uuid: "00000000-0000-4000-9000-000000000003", ordre: 2, texte: "Le sel ne ment pas.", locuteur: "CHAR_maya", liaisons: [{ planUuid: planUuid(12), slot: 2 }] },
   ],
 };
 

@@ -14,7 +14,7 @@ import {
 import { and, desc, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
 import { posterSrc } from "./media";
-import { getLiensVoix, getPlanIdsDesRepliques } from "./queries-repliques";
+import { getRepliquesParPersonnage, getPlanIdsDesRepliques } from "./queries-repliques";
 import { construireMatrice } from "./matrice-assets";
 import { horsAffiches } from "./assets-visibles";
 import { getPlansPerimes } from "./plans-perimes";
@@ -392,7 +392,7 @@ export async function getProjectHierarchy(projectId: number) {
 
 export type AssetNode = Awaited<ReturnType<typeof getAssetsTree>>[number];
 /** `refId` : la ligne de plan_refs qui cite l'asset (déliable). `deduite` : la
- * citation d'une VOIX vient des répliques liées au plan (locuteur -> voix), pas
+ * citation d'un PERSONNAGE par ses répliques vient des répliques liées au plan (locuteur), pas
  * d'un lien stocké — il n'y a rien à délier, on retire la réplique du plan. */
 export type AssetCitation = { planId: number; planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number | null; deduite: boolean };
 
@@ -404,19 +404,17 @@ export type AssetCitation = { planId: number; planUuid: string; position: number
  * numéros de plan — nécessaire pour pouvoir délier une citation précise sans
  * supprimer les autres (retour utilisateur 2026-09-28 : la suppression d'un
  * asset cité doit être bloquée tant qu'il n'a pas été délié explicitement de
- * chaque plan qui le cite). Une voix est aussi « citée » par les plans dont
- * les répliques la portent (citation déduite, non déliable).
+ * chaque plan qui le cite). Un personnage est aussi « cité » par les plans dont
+ * les répliques il est le locuteur (citation déduite, non déliable).
  *
- * Un personnage porte en plus `voix` (sa voix au casting, colonne CALCULÉE en
- * lecture seule : le lien vit sur voix_fiches.personnageId, jamais dupliqué
- * ici) et `nbRepliques` ; une voix porte `personnageCode`. */
+ * Un personnage porte en plus `nbRepliques` (les répliques dont il est le locuteur). Sa voix est un champ de l'asset (`voixMaster`, ...). */
 export async function getAssetsTree(projectId?: number) {
   const pid = projectId ?? (await getDefaultProjectId());
   const tousLesAssets = await db.select().from(assets).where(and(eq(assets.projectId, pid), horsAffiches)).orderBy(assets.code);
   const toutesLesRefs = await db
     .select({ id: planRefs.id, assetId: planRefs.assetId, planId: planRefs.planId })
     .from(planRefs);
-  const liensVoix = await getLiensVoix(pid);
+  const liensRepliques = await getRepliquesParPersonnage(pid);
   // Filtré au même projet : un ref vers un plan d'un autre projet (ne devrait
   // jamais arriver, mais rien ne l'empêche au niveau FK) sort naturellement du
   // calcul de citations puisque son planId n'aura pas d'entrée dans planParId.
@@ -447,9 +445,9 @@ export async function getAssetsTree(projectId?: number) {
     liste.push({ planId: plan.id, planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: ref.id, deduite: false });
     citationsParAssetId.set(ref.assetId, liste);
   }
-  // Voix : les plans où l'une de ses répliques est liée, un chip par plan.
-  const planIdsParReplique = await getPlanIdsDesRepliques([...liensVoix.repliquesParVoix.values()].flat());
-  for (const [voixId, idsRepliques] of liensVoix.repliquesParVoix) {
+  // Personnage : les plans où l'une de ses répliques est liée, un chip par plan (citation déduite).
+  const planIdsParReplique = await getPlanIdsDesRepliques([...liensRepliques.repliquesParPersonnage.values()].flat());
+  for (const [voixId, idsRepliques] of liensRepliques.repliquesParPersonnage) {
     const planIds = new Set(idsRepliques.flatMap((id) => planIdsParReplique.get(id) ?? []));
     const liste = citationsParAssetId.get(voixId) ?? [];
     for (const planId of planIds) {
@@ -468,15 +466,9 @@ export async function getAssetsTree(projectId?: number) {
     enfantsParParentId.set(asset.deriveDeId, liste);
   }
 
-  const codeParId = new Map(tousLesAssets.map((a) => [a.id, a.code]));
-
   type AssetAvecDerives = (typeof tousLesAssets)[number] & {
     citations: AssetCitation[];
     plansCitants: number[];
-    /** Personnage : sa voix au casting (calculée). */
-    voix: { id: number; code: string } | null;
-    /** Voix : le personnage auquel elle est rattachée (calculé). */
-    personnageCode: string | null;
     /** Personnage : nombre de répliques qu'il porte. */
     nbRepliques: number;
     derives: AssetAvecDerives[];
@@ -488,12 +480,7 @@ export async function getAssetsTree(projectId?: number) {
       ...asset,
       citations,
       plansCitants: [...new Set(citations.map((c) => c.position))].sort((a, b) => a - b),
-      voix: asset.type === "personnage" ? (liensVoix.voixParPersonnage.get(asset.id) ?? null) : null,
-      personnageCode:
-        asset.type === "voix" && liensVoix.personnageParVoix.has(asset.id)
-          ? (codeParId.get(liensVoix.personnageParVoix.get(asset.id)!) ?? null)
-          : null,
-      nbRepliques: liensVoix.nbRepliquesParPersonnage.get(asset.id) ?? 0,
+      nbRepliques: liensRepliques.repliquesParPersonnage.get(asset.id)?.length ?? 0,
       derives: (enfantsParParentId.get(asset.id) ?? [])
         .sort((a, b) => a.code.localeCompare(b.code))
         .map(construireNoeud),

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { agentConversations, assets, revisionDecisions } from "../../../db/schema";
 import type { Controleur } from "../../llm/controles";
 import type { Db } from "../applicateurs/commun";
@@ -38,8 +38,8 @@ export type EntreeAnalyse = {
     /** Ce que le brouillon en fait : coupé, ou sa durée si elle change ; null s'il n'est pas touché. */
     brouillon: { coupe: true } | { dureeSecondes: number } | null;
   }[];
-  repliques: { ref: string; locuteur: string; texte: string; plans: string[]; prise: "aucune" | "posée" | "validée" }[];
-  /** Les codes des personnages et des voix du projet : les locuteurs possibles d'une réplique ajoutée. */
+  repliques: { ref: string; locuteur: string; texte: string; plans: string[] }[];
+  /** Les codes des personnages du projet (la voix off en est un) : les locuteurs possibles d'une réplique ajoutée. */
   locuteursConnus: string[];
   decisions: { id: string; titre: string; raison: string; statut: string; operations: OperationBrute[]; constats: { niveau: string; texte: string }[] }[];
   /** L'identifiant que recevra la prochaine décision CRÉÉE (puis les suivants, dans l'ordre) : pour qu'un jugement `narratif` puisse la viser. */
@@ -65,8 +65,6 @@ function extraitBriefRevision(brief: Record<string, unknown> | null | undefined)
   }
   return Object.keys(sortie).length > 0 ? sortie : null;
 }
-
-const prise = (r: { avecPrise: boolean; priseValidee: boolean }): "aucune" | "posée" | "validée" => (r.priseValidee ? "validée" : r.avecPrise ? "posée" : "aucune");
 
 /** Une décision telle que l'entrée la montre au modèle (`ordre` = son numéro D1, D2…). */
 export type DecisionPourEntree = { ordre: number; titre: string; raison: string; statut: string; operations: Operation[]; constats: Constat[] };
@@ -121,7 +119,6 @@ export function construireEntreeAnalyse(p: {
       locuteur: r.locuteur,
       texte: r.texte,
       plans: r.plans.map((u) => vue.plans.find((x) => x.uuid === u)?.handle ?? "?"),
-      prise: prise(r),
     })),
     locuteursConnus: p.locuteurs ?? [],
     decisions: p.decisions.map((d) => ({
@@ -153,7 +150,7 @@ export async function entreeAnalyse(d: Db, conv: ConversationRow): Promise<{ ent
   if (!vue) return null;
   const lignes = await d.select().from(revisionDecisions).where(eq(revisionDecisions.conversationId, conv.id)).orderBy(asc(revisionDecisions.ordre));
   const brief = await lireBriefDuProjet(d, conv.projectId);
-  const locuteurs = (await d.select({ code: assets.code }).from(assets).where(and(eq(assets.projectId, conv.projectId), inArray(assets.type, ["personnage", "voix"]))).orderBy(asc(assets.code))).map((a) => a.code);
+  const locuteurs = (await d.select({ code: assets.code }).from(assets).where(and(eq(assets.projectId, conv.projectId), eq(assets.type, "personnage"))).orderBy(asc(assets.code))).map((a) => a.code);
   return construireEntreeAnalyse({
     locuteurs,
     vue,

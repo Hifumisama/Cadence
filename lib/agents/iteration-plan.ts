@@ -15,7 +15,7 @@ import type { Avertissement, DiagnosticIteration } from "./types";
  * exactement → `apres`) ; le code les applique et contrôle que :
  * - chaque `avant` se retrouve UNE fois dans sa section (exact, ou aux blancs près) ;
  * - les labels cités par `apres` existent (plan_refs, voix des répliques, `<Subject N>` déjà présents) ;
- * - les balises `<d>` (répliques verbatim) sont exactement les mêmes avant et après ;
+ * - les répliques sont libres (le prompt est leur seule source) ;
  * - la structure des shots ne se dégrade pas (lib/plan-checks.ts, `controlerStructure`) : alerte seulement.
  * Le résultat est une écriture PARTIELLE de la fiche (seulement les sections touchées, sans `refs` ni durée). */
 
@@ -230,14 +230,6 @@ export function appliquerChangements(sectionsActuelles: Partial<Record<string, s
 const toutes = (sections: Partial<Record<string, string>>, par?: SectionsFiche): PromptSection[] =>
   SECTIONS_FICHE.map((section) => ({ section, contenu: (par as Record<string, string> | undefined)?.[section] ?? sections[section] ?? "" }));
 
-/** Les balises `<d>` d'un prompt, en multiensemble trié (langue et texte) : une correction doit les laisser intactes. */
-function signatureRepliques(sections: PromptSection[]): string {
-  return extraireBalisesD(sections)
-    .map((b) => `${(b.langue ?? "").trim()}|${b.texte}`)
-    .sort()
-    .join("\n");
-}
-
 /** Pourquoi AUCUNE écriture n'est proposée, ou null : la durée du rendu ne correspond pas (mesurée par le code ou
  * jugée par l'agent), l'agent propose d'abandonner, la cause n'est pas dans le prompt, aucun passage, ou des
  * passages qui ne changent rien / qu'on ne retrouve pas. */
@@ -253,7 +245,7 @@ export function raisonSansEcriture(sortie: SortieIterationPlan, ctx: ContexteIte
   if (sortie.reecriture) {
     return sortie.nouvelleDescription?.trim()
       ? "Le plan est à réécrire : la consigne change ce qui s'y passe. Sa fiche est réécrite à partir de la nouvelle description de l'agent."
-      : "L'agent veut réécrire le plan mais n'a pas donné sa nouvelle description : rien n'est écrit. Précise la consigne.";
+      : "L'agent a bien compris qu'il faut réécrire le plan mais n'a pas écrit la nouvelle description (un défaut du modèle, pas de la consigne) : rien n'est écrit. Relance la correction ; si cela se répète, découpe la consigne en deux étapes.";
   }
   // « Découpage ou scénario » n'interdit que les sorties VIDES : si le modèle a quand même écrit des passages du prompt (consigne qui
   // change ce qui se passe dans le plan), c'est une correction de ce plan, la consigne de l'utilisateur prime sur l'étiquette.
@@ -344,14 +336,9 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
     }
   }
 
-  // Répliques : les balises <d> sont exactement les mêmes avant et après.
+  // Répliques : le prompt est leur seule source (2026-10-14), une balise <d> change librement.
   const avant = toutes(ctx.sections);
   const apres = toutes(ctx.sections, a.sections);
-  if (signatureRepliques(avant) !== signatureRepliques(apres)) {
-    // Alerte, pas erreur (décision 2026-10-12, trois niveaux de voix) : la consigne peut demander une réplique. Une prise enregistrée qui ne
-    // dit plus le texte bloquera la génération au contrôle des dialogues (`estProblemeBloquant`), pas ici.
-    problemes.push({ niveau: "alerte", regle: "replique-modifiee", message: "Une balise <d> (réplique) a été modifiée, ajoutée ou retirée : vérifie qu'elle correspond à la réplique du plan ; une prise déjà enregistrée devra être refaite." });
-  }
 
   // Une parole écrite entre guillemets, hors balise <d> : le modèle vidéo la dirait sans que le plan la sache (ni la prise, ni le contrôle des
   // dialogues). Erreur, donc renvoi au modèle : les paroles s'écrivent `<d>[Langue] texte</d>`.

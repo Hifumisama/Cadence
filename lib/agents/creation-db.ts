@@ -254,8 +254,6 @@ async function lancerEtape(projectId: number, cle: CleEtapeCreation, convUuid: s
       return issue(await service.genererRegistre(convUuid));
     case "inventaire":
       return issue(await service.genererInventaire(convUuid));
-    case "voix":
-      return issue(await service.genererVoix(convUuid));
     case "fiches":
       return issue(await service.genererFiches(convUuid));
     case "prompts-inventaire": {

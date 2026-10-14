@@ -97,7 +97,6 @@ export function NouvelAssetDepuis({
                 </div>
                 <span className="tiny-note">Code : {code || "—"}</span>
               </div>
-              {type !== "voix" ? (
                 <div className="field-group wide">
                   <label>Méthode de fabrication</label>
                   <select className="field" name="methodeGeneration" defaultValue="edition">
@@ -109,7 +108,6 @@ export function NouvelAssetDepuis({
                     Édition : un autre cadrage, une tenue, un détail, ou un composite de plusieurs éléments (jusqu&rsquo;à 3 images, choisies à la génération).
                   </span>
                 </div>
-              ) : null}
               <div className="field-group wide">
                 <label>Description</label>
                 <textarea className="field" name="description" rows={2} />

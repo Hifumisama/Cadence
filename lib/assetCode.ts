@@ -3,19 +3,16 @@
  * L'utilisateur ne saisit que le suffixe (ex. "maya"), le préfixe et
  * l'assemblage sont automatiques (retour utilisateur 2026-09-28 : pas de
  * raison de redemander en texte libre ce que le type dit déjà). */
-export const TYPES_ASSET = ["personnage", "decor", "voix", "prop", "vfx", "sfx", "keyframe", "oth"] as const;
+export const TYPES_ASSET = ["personnage", "decor", "prop", "vfx", "sfx", "keyframe", "oth"] as const;
 
 export type TypeAsset = (typeof TYPES_ASSET)[number];
 
-/** Types proposés à « Nouveau sujet » : une voix se crée au casting vocal
- * (instruction, texte de référence…), jamais en coquille vide depuis le
- * registre — elle y reste listée en lecture. */
-export const TYPES_CREABLES = TYPES_ASSET.filter((t) => t !== "voix");
+/** Types proposés à « Nouveau sujet » (une voix n'est plus un asset : c'est un champ du personnage, chantier voix/master 2026-10-14). */
+export const TYPES_CREABLES = TYPES_ASSET;
 
 export const PREFIXE_PAR_TYPE: Record<TypeAsset, string> = {
   personnage: "CHAR_",
   decor: "DEC_",
-  voix: "VOICE_",
   prop: "PROP_",
   vfx: "VFX_",
   sfx: "SFX_",
@@ -54,9 +51,7 @@ export function estMethodeAsset(v: string): v is MethodeAsset {
   return (METHODES_ASSET as readonly string[]).includes(v);
 }
 
-/** Les voix se fabriquent au casting vocal et les sons par la génération audio :
- * la méthode d'image (génération / édition) n'a de sens ni pour l'une ni pour
- * l'autre. */
+/** Les sons se fabriquent par la génération audio : la méthode d'image (génération / édition) n'a pas de sens pour eux. */
 export function methodeApplicable(type: string): boolean {
-  return type !== "voix" && type !== "sfx";
+  return type !== "sfx";
 }

@@ -175,7 +175,6 @@ export function EnteteAsset({
   departCode,
   blocageSuppression,
   redirectTo,
-  casting,
   children,
 }: {
   /** Rendu sous la description (les apparitions). */
@@ -192,8 +191,6 @@ export function EnteteAsset({
   /** Pourquoi la suppression est bloquée, ou null. */
   blocageSuppression: string | null;
   redirectTo: string;
-  /** Lien vers le casting (asset de type voix), sinon null. */
-  casting: string | null;
 }) {
   const router = useRouter();
   const [crit, setCrit] = useState(critique);
@@ -257,11 +254,6 @@ export function EnteteAsset({
         </button>
 
         <div className="as-droite">
-          {casting ? (
-            <Link href={casting} className="btn btn-gold btn-sm">
-              Modifier au casting
-            </Link>
-          ) : null}
           <div className="as-menu" ref={statutRef}>
             <button type="button" className={`as-pilule is-${statutLocal}`} aria-haspopup="menu" aria-expanded={menu === "statut"} onClick={() => setMenu(menu === "statut" ? null : "statut")}>
               <i />

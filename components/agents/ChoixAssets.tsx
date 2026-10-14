@@ -71,7 +71,7 @@ export function ChoixAssets({ ctx, titre }: { ctx: ContexteEtape; titre?: string
       <div>
         <h3 className="ag-eps-titre">{titre ?? "Créer le registre d'assets"}</h3>
         <p className="tiny-note">
-          L&rsquo;agent écrit le prompt de chaque personnage et lieu du brief, un asset à la fois. Les assets qui manquent seront créés ; tu relis tout ensuite, rien n&rsquo;est écrit dans le registre sans ton accord. Les voix se font au casting, les accessoires et effets viendront des plans.
+          L&rsquo;agent écrit le prompt de chaque personnage et lieu du brief, un asset à la fois. Les assets qui manquent seront créés ; tu relis tout ensuite, rien n&rsquo;est écrit dans le registre sans ton accord. La voix d'un personnage se crée sur sa fiche, les accessoires et effets viendront des plans.
         </p>
       </div>
 

@@ -18,7 +18,7 @@ const obs = (over: Partial<ObservationEtape> = {}): ObservationEtape => ({ occup
 const prop = (over: Partial<NonNullable<ObservationEtape["proposition"]>> = {}) => ({ statut: "prete", lot: false, echecs: 0, bloques: 0, nbChangements: 3, erreur: null, ...over });
 
 test("étapes : l'ordre du pipeline, toutes à venir au départ", () => {
-  assert.deepEqual(ETAPES_CREATION.map((e) => e.cle), ["brief", "squelette", "scenarios", "registre", "inventaire", "prompts-inventaire", "voix", "fiches", "prompts-fiches"]);
+  assert.deepEqual(ETAPES_CREATION.map((e) => e.cle), ["brief", "squelette", "scenarios", "registre", "inventaire", "prompts-inventaire", "fiches", "prompts-fiches"]);
   assert.ok(etapesNeuves().every((e) => e.statut === "a_venir"));
 });
 
@@ -30,7 +30,7 @@ test("étape courante : la première qui n'est ni faite ni passée", () => {
   assert.equal(etapeCourante(e)?.cle, "scenarios");
   for (const x of e) x.statut = "fait";
   assert.equal(etapeCourante(e), null);
-  assert.deepEqual(progression(e), { faites: 9, total: 9 });
+  assert.deepEqual(progression(e), { faites: 8, total: 8 });
 });
 
 test("décision : une étape à venir se lance, sauf si la conversation est occupée", () => {
@@ -69,9 +69,9 @@ test("décision : des changements bloqués par un contrôle sont relancés UNE f
 });
 
 test("décision : proposition rejetée ou disparue = échec ; étape en échec = on attend la reprise", () => {
-  assert.equal(decider(etape("voix", "en_cours"), obs({ proposition: prop({ statut: "rejetee" }) })).type, "echouer");
-  assert.equal(decider(etape("voix", "en_cours"), obs()).type, "echouer");
-  assert.deepEqual(decider(etape("voix", "echoue"), obs()), { type: "attendre" });
+  assert.equal(decider(etape("fiches", "en_cours"), obs({ proposition: prop({ statut: "rejetee" }) })).type, "echouer");
+  assert.equal(decider(etape("fiches", "en_cours"), obs()).type, "echouer");
+  assert.deepEqual(decider(etape("fiches", "echoue"), obs()), { type: "attendre" });
 });
 
 test("refus du service : « rien à faire » passe l'étape, « déjà en cours » attend", () => {

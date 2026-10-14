@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { langueDuTexteDeReference } from "./asset-generation";
 import { LANGUES_MOTEUR, LANGUE_AUTO, langueFicheVoix, langueMoteurVoix, libelleLangueMoteur } from "./langues-tts";
 
 test("langueMoteurVoix : le brief en français ou en anglais, accents compris", () => {
@@ -40,13 +39,4 @@ test("langueFicheVoix : stockée en anglais ; vide = French, inconnue = Auto", (
   assert.equal(langueFicheVoix(null), "French");
   assert.equal(langueFicheVoix("klingon"), "Auto");
   assert.equal(libelleLangueMoteur("French"), "Français");
-});
-
-test("langueDuTexteDeReference : la langue de la fiche est normalisée en anglais", () => {
-  const defaut = "Welcome adventurer.";
-  assert.equal(langueDuTexteDeReference(defaut, defaut, "Français"), "English");
-  assert.equal(langueDuTexteDeReference("Bienvenue.", defaut, "Français"), "French");
-  assert.equal(langueDuTexteDeReference("Bienvenue.", defaut, "fr"), "French");
-  assert.equal(langueDuTexteDeReference("Hallo.", defaut, "allemand"), "German");
-  assert.equal(langueDuTexteDeReference("Bienvenue.", defaut, ""), "French");
 });

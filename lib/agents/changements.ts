@@ -4,7 +4,7 @@ import type { Avertissement, CibleType, Operation, Position } from "./types";
  * skills) AVANT enrichissement par l'applicateur de sa cible (état courant, écrasement,
  * contrôles). Pur : aucune lecture. */
 export type ChangementBrut = {
-  /** Groupe d'affichage stable : brief | projet | saison | episodes | scenes | plans | repliques | fiches | assets | voix
+  /** Groupe d'affichage stable : brief | projet | saison | episodes | scenes | plans | repliques | fiches | assets
    * (un lot : `ep-<id>`, un groupe par épisode). */
   groupe: string;
   /** Clé symbolique d'une création (« saison-1 », « episode-2 ») citée par ses enfants. */
@@ -57,11 +57,10 @@ export const TITRES_GROUPES: Record<string, string> = {
   repliques: "Répliques",
   fiches: "Fiches de plan",
   assets: "Assets",
-  voix: "Voix",
 };
 
 /** Ordre d'affichage des groupes ; l'écrasement vient toujours en tête. */
-export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "saison", "episodes", "scenes", "plans", "repliques", "fiches", "assets", "voix"];
+export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "saison", "episodes", "scenes", "plans", "repliques", "fiches", "assets"];
 
 /** Les clés symboliques des parents qu'un changement cite (créés par la même proposition). */
 export const CLES_PARENT = ["saisonCle", "episodeCle", "sceneCle", "deriveDeCle"] as const;
@@ -69,7 +68,8 @@ export const CLES_PARENT = ["saisonCle", "episodeCle", "sceneCle", "deriveDeCle"
 export function clesParent(apres: unknown): string[] {
   if (!apres || typeof apres !== "object") return [];
   const a = apres as Record<string, unknown>;
-  return CLES_PARENT.map((c) => a[c]).filter((v): v is string => typeof v === "string");
+  const liste = Array.isArray(a.dependDeCles) ? a.dependDeCles.filter((v): v is string => typeof v === "string") : []; // une fiche qui cite des assets créés ici
+  return [...CLES_PARENT.map((c) => a[c]).filter((v): v is string => typeof v === "string"), ...liste];
 }
 
 /** Ordre d'application : celui de la proposition, sauf qu'un changement qui dépend d'une clé créée par un

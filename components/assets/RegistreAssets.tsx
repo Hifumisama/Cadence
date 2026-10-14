@@ -1,7 +1,6 @@
 "use client";
 
 import "./assets.css";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { supprimerAssets } from "@/app/assets/actions";
 import { lancerGenerationsLot } from "@/app/assets/generation-actions";
@@ -29,14 +28,12 @@ type Retour = { ok: boolean; texte: string };
 export function RegistreAssets({
   projectId,
   lignes,
-  nbVoix,
   typeInitial,
   imagesInitial,
 }: {
   projectId: number;
   lignes: LigneRegistre[];
   /** Voix du casting : hors de la grille, un lien les ramène à leur module. */
-  nbVoix: number;
   typeInitial: string | null;
   /** Où en sont les images du projet (lib/images-projet.ts) : alimente la ligne « Il reste N images à générer ». */
   imagesInitial: EtatImages;
@@ -387,19 +384,6 @@ export function RegistreAssets({
           </div>
         )}
       </div>
-
-      {nbVoix > 0 ? (
-        <div className="as-voix-ligne">
-          <Icone nom="musique" taille={16} />
-          <span>
-            <b>
-              {nbVoix} voix
-            </b>{" "}
-            · rattachées aux personnages, éditées au casting
-          </span>
-          <Link href={`/p/${projectId}/voix`}>Ouvrir le casting →</Link>
-        </div>
-      ) : null}
 
       {barreVisible ? (
         <div className="as-lot" role="region" aria-label="Actions sur la sélection">

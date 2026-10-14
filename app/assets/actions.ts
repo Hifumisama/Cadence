@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { assets, planRefs, repliques } from "@/db/schema";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
@@ -35,7 +35,6 @@ export async function creerAsset(projectId: number, formData: FormData) {
   const type = String(formData.get("type") ?? "oth");
   const methodeBrute = String(formData.get("methodeGeneration") ?? "");
   const methodeGeneration = methodeBrute && estMethodeAsset(methodeBrute) && methodeApplicable(type) ? methodeBrute : null;
-  if (type === "voix") throw new Error("Une voix se crée depuis le casting vocal.");
   const description = String(formData.get("description") ?? "");
   const critique = formData.get("critique") === "on";
   const deriveDeIdBrut = formData.get("deriveDeId");
@@ -91,7 +90,7 @@ export async function updateAsset(
     if (!methodeApplicable(asset.type)) {
       return {
         ok: false,
-        erreur: asset.type === "sfx" ? "Un son se génère par la génération audio : pas de méthode d'image." : "Une voix se fabrique au casting vocal, pas par image.",
+        erreur: "Un son se génère par la génération audio : pas de méthode d'image.",
       };
     }
   }
@@ -134,20 +133,18 @@ export async function uploaderFichierAsset(
   
 }
 
-/** Pourquoi un asset ne peut pas être supprimé maintenant, ou null. Un asset cité dans une fiche de plan, ou locuteur ou
- * voix de répliques, est trop lié pour disparaître sans geste explicite. Avoir servi d'image de départ à d'autres assets
+/** Pourquoi un asset ne peut pas être supprimé maintenant, ou null. Un asset cité dans une fiche de plan, ou locuteur de
+ * répliques, est trop lié pour disparaître sans geste explicite. Avoir servi d'image de départ à d'autres assets
  * ne bloque PAS : leur image existe déjà, elle ne dépend pas de la source (le lien est simplement détaché). */
 async function raisonDeBlocage(assetId: number): Promise<string | null> {
   const [ref] = await db.select().from(planRefs).where(eq(planRefs.assetId, assetId)).limit(1);
   if (ref) return "Encore cité comme référence dans une fiche de plan — délie-le d'abord.";
-  // Une voix rattachée à un personnage ne bloque pas : supprimée, ses répliques
-  // repassent « sans voix » (voix_fiches disparaît en cascade).
   const [replique] = await db
     .select({ id: repliques.id })
     .from(repliques)
-    .where(or(eq(repliques.locuteurId, assetId), eq(repliques.voixId, assetId)))
+    .where(eq(repliques.locuteurId, assetId))
     .limit(1);
-  if (replique) return "Encore locuteur ou voix de répliques — change leur locuteur ou supprime-les d'abord.";
+  if (replique) return "Encore locuteur de répliques — change leur locuteur ou supprime-les d'abord.";
   return null;
 }
 

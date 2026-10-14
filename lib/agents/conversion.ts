@@ -4,8 +4,10 @@ import type { ChangementBrut } from "./changements";
 import { cleNouvelAsset, type ApresFiche, type RefFiche } from "./fiches";
 import { corrigerCodesInconnus } from "./codes-proches";
 import { assemblerPlanH3 } from "./plan-h3-assemblage";
+import { parolesDuPrompt, voixDuPrompt } from "./voix-du-prompt";
 import { controlerSortiePlanH3, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
 import { genreOuNull } from "../scene-genres";
+import { estLiaison } from "../plan-liaison";
 import type { Avertissement, Position } from "./types";
 
 /** Des sorties validées des skills aux changements d'une proposition — EN CODE, sans second
@@ -28,7 +30,7 @@ export type AssetCourant = {
   code: string;
   type: string;
   methodeGeneration: string | null;
-  /** Une méthode d'image n'a pas de sens pour une voix ou un son. */
+  /** Une méthode d'image n'a pas de sens pour un son. */
   methodeApplicable: boolean;
 };
 
@@ -101,38 +103,8 @@ export function depuisRegistreAsset(sortie: SortiePromptAsset, a: AssetDuRegistr
   ];
 }
 
-// --- prompt-voix (casting des voix) ------------------------------------------
-
-export type SortiePromptVoix = {
-  instruction: string;
-  refText?: string;
-  remarques: { type: string; message: string }[];
-};
-
-/** Une voix du casting (étape « casting des voix ») : toujours une CRÉATION. `personnageId` rattache la
- * voix à son personnage (null : voix off). `description` est celle du personnage, reprise comme description
- * canonique du timbre tant que l'utilisateur n'en a pas écrit une. */
-export type VoixDuCasting = { codeVoix: string; suffixe: string; personnageId: number | null; personnageCode: string | null; description: string };
-
-export function depuisCastingVoix(sortie: SortiePromptVoix, v: VoixDuCasting): ChangementBrut[] {
-  return [
-    {
-      groupe: "voix",
-      cibleType: "voix",
-      cibleRef: null,
-      libelle: `${v.codeVoix} · nouvelle voix${v.personnageCode ? ` de ${v.personnageCode}` : ""}`,
-      operation: "creer",
-      apres: {
-        suffixe: v.suffixe,
-        personnageId: v.personnageId,
-        description: v.description.trim(),
-        instruction: sortie.instruction.trim(),
-        ...(sortie.refText?.trim() ? { refText: sortie.refText.trim() } : {}),
-      },
-      avertissements: avertissementsRemarques(sortie.remarques ?? []),
-    },
-  ];
-}
+/** `{ liaison }` à écrire avec un plan du scénario, ou rien si la sortie n'en donne pas (ou une valeur inconnue). */
+const liaisonDe = (p: { liaison?: string }): { liaison?: string } => (estLiaison(p.liaison) ? { liaison: p.liaison } : {});
 
 // --- scenario-episode -------------------------------------------------------
 
@@ -147,6 +119,8 @@ export type SortieScenarioEpisode = {
     plans: {
       titre: string;
       description: string;
+      /** Liaison avec le plan précédent (lib/plan-liaison.ts) : absente d'un scénario d'avant, alors la liaison du plan ne change pas. */
+      liaison?: string;
       dureeSecondes: number;
       repliques: { locuteur: string; texte: string }[];
     }[];
@@ -301,7 +275,7 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
           libelle: `Plan · ${p.titre}`,
           operation: "modifier",
           sousGroupe: sc.titre,
-          apres: { description: p.description, dureeGenerationSecondes: p.dureeSecondes },
+          apres: { description: p.description, dureeGenerationSecondes: p.dureeSecondes, ...liaisonDe(p) },
           avertissements: avert,
           ...ecrase(`La description et la durée actuelles de « ${p.titre} » seront remplacées.`),
         });
@@ -322,6 +296,7 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
             titre: p.titre,
             description: p.description,
             dureeGenerationSecondes: p.dureeSecondes,
+            ...liaisonDe(p),
             episodeId: ep.id,
             ...(existante ? { sceneId: existante.id } : { sceneCle: cleScene }),
           },
@@ -371,6 +346,7 @@ export function depuisPlanAInserer(
         titre: p.titre,
         description: p.description,
         dureeGenerationSecondes: p.dureeSecondes,
+        ...liaisonDe(p),
         episodeId: cible.episodeId,
         ...(cible.sceneId != null ? { sceneId: cible.sceneId } : {}),
       },
@@ -392,7 +368,7 @@ export function depuisCorrectionPlan(sortie: SortieScenarioEpisode, plan: { uuid
       cibleRef: plan.uuid,
       libelle: `Plan · ${plan.titre}`,
       operation: "modifier",
-      apres: { description: p.description, dureeGenerationSecondes: p.dureeSecondes },
+      apres: { description: p.description, dureeGenerationSecondes: p.dureeSecondes, ...liaisonDe(p) },
       avertissements: [
         ...(sortie.inventions ?? []).map((t) => ({ type: "invention" as const, texte: t })),
         ...(p.repliques?.length ? [{ type: "info" as const, texte: "Les répliques du plan ne sont pas modifiées par une correction de plan : elles se changent dans la fiche de plan." }] : []),
@@ -406,19 +382,15 @@ export function depuisCorrectionPlan(sortie: SortieScenarioEpisode, plan: { uuid
 export type PlanPourFicheH3 = {
   uuid: string;
   titre: string;
-  /** Slots `<Audio N>` déjà pris par les répliques liées (plan_dialogues) : l'entrée de l'assemblage. */
-  slotsAudioPris: number[];
-  /** Répliques liées au plan : uuid public et texte exact (verbatim). */
-  repliques: { uuid: string; texte: string; slot?: number; locuteurCode?: string | null }[];
+  /** Codes des personnages qui ont une voix fixée (`assets.voix_master`) : celui qui parle dans le prompt (`<d>`) a alors son `<Audio N>`. */
+  codesAvecMaster: string[];
   /** Le registre du projet (code, type), tel qu'il est maintenant. */
   registre: { code: string; type: string }[];
   /** La clause de style du projet : le code la pose en tête de l'ouverture (plan-h3-assemblage). */
   clauseStyle?: string;
-  /** Langue des dialogues du projet, pour une réplique que le code doit insérer lui-même (« Français » par défaut). */
-  langueDialogues?: string;
-  /** Toutes les répliques du plan sont de la voix off d'un personnage à l'écran (le brief dit sa `voix` : voix off, pensées) : le code écrit
-   * leur balise à la forme H3 (« says in an off-screen voiceover », bouche close). */
-  voixOff?: boolean;
+  /** Codes des personnages dont le brief dit que la voix est une voix off (pensées) : leurs paroles sont écrites à la forme H3
+   * (« says in an off-screen voiceover », bouche close). */
+  codesVoixOff?: string[];
 };
 
 /** Les codes des personnages dont le brief dit que la voix est une voix off (pensées, monologue intérieur) : leur `voix` le dit en clair. */
@@ -465,50 +437,6 @@ export function mettreEnVoixOff(texte: string, locuteur: { code: string | null; 
   return { texte: sortie + reste, change };
 }
 
-const normeEspaces = (s: string) => s.replace(/\s+/g, " ").trim();
-
-/** Une réplique liée au plan mais ABSENTE des shots : le prompt vidéo fait foi (décision 2026-10-13), le code l'y insère au lieu de
- * laisser un plan muet. Elle va dans le shot qui couvre `debutSecondes` (celui que le modèle a donné pour elle), sinon le dernier.
- * Une réplique dont un fragment est déjà dans une balise `<d>` (coupée en deux, retouchée) n'est PAS réinsérée : elle serait dite
- * deux fois ; le contrôle verbatim la signale. Pur, testé. */
-export function injecterRepliquesAbsentes(
-  shots: { debutSecondes: number; texte: string }[],
-  repliquesSortie: { repliqueId: string; debutSecondes?: number }[],
-  repliquesPlan: { uuid: string; texte: string; locuteurCode?: string | null }[],
-  codesReferences: Set<string>,
-  langueDefaut = "Français",
-): { shots: { debutSecondes: number; texte: string }[]; inserees: { texte: string; shot: number }[] } {
-  const sortie = shots.map((s) => ({ ...s }));
-  const inserees: { texte: string; shot: number }[] = [];
-  if (sortie.length === 0) return { shots: sortie, inserees };
-  for (const r of repliquesPlan) {
-    const t = normeEspaces(r.texte);
-    if (!t) continue;
-    const tout = normeEspaces(sortie.map((s) => s.texte ?? "").join(" "));
-    if (tout.includes(t)) continue;
-    const balises = [...tout.matchAll(/<d>([\s\S]*?)<\/d>/gi)].map((m) => normeEspaces(m[1]!.replace(/^\s*\[[^\]]*\]\s*/, "")));
-    if (balises.some((b) => b.length >= 6 && (t.includes(b) || b.includes(t)))) continue;
-    const debut = repliquesSortie.find((x) => x.repliqueId === r.uuid)?.debutSecondes;
-    let idx = sortie.length - 1;
-    if (typeof debut === "number") {
-      idx = 0;
-      sortie.forEach((s, i) => {
-        if (s.debutSecondes <= debut) idx = i;
-      });
-    }
-    const langue = /<d>\s*\[([^\]]+)\]/i.exec(tout)?.[1]?.trim() || langueDefaut;
-    const code = r.locuteurCode && codesReferences.has(r.locuteurCode) ? r.locuteurCode : null;
-    const existant = code ? new RegExp(`\\[\\[${echapperRe(code)}\\]\\]\\s*\\((S\\d+)\\)`).exec(tout)?.[1] : null;
-    const numeros = [...tout.matchAll(/\(S(\d+)\)/g)].map((m) => Number(m[1]));
-    const locuteur = existant ?? `S${(numeros.length ? Math.max(...numeros) : 0) + 1}`;
-    const avant = (sortie[idx]!.texte ?? "").trim();
-    const fin = /[.!?:>]$/.test(avant) ? "" : ".";
-    sortie[idx] = { ...sortie[idx]!, texte: `${avant}${fin} ${code ? `[[${code}]]` : "The character"} (${locuteur}) says, <d>[${langue}] ${r.texte.trim()}</d>` };
-    inserees.push({ texte: r.texte, shot: idx + 1 });
-  }
-  return { shots: sortie, inserees };
-}
-
 export type OptionsFichePlan = {
   /** Lot : `ep-<id>` (un groupe par épisode) ; sinon « fiches » pour la fiche, « assets » pour les créations. */
   groupe?: string;
@@ -522,8 +450,8 @@ export type OptionsFichePlan = {
 
 const echapperRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** Types d'assets qu'une proposition peut créer. Un « keyframe » (pose composite : plusieurs éléments mêlés dans une même
- * image) en fait partie depuis le 2026-10-06 ; seule la voix se fabrique ailleurs (casting vocal). */
-export const TYPES_MANQUANTS = new Set<string>(TYPES_ASSET.filter((t) => t !== "voix"));
+ * image) en fait partie depuis le 2026-10-06 ; la voix n'est plus un asset (champ du personnage). */
+export const TYPES_MANQUANTS = new Set<string>(TYPES_ASSET);
 
 /** Remplace un marqueur `[[CODE]]` (ou `[CODE]`) par du texte : une référence qu'on ne peut pas poser est
  * décrite en prose, par le nom que le modèle lui a donné. */
@@ -549,10 +477,11 @@ function versAvertissement(p: ProblemeH3): Avertissement | null {
 /** La sortie de `plan-h3` (un BROUILLON) → les changements d'une proposition, EN CODE :
  * - la fiche du plan (cible `fiche`) : les six sections ASSEMBLÉES (lib/agents/plan-h3-assemblage.ts) avec
  *   les slots audio des voix du plan en entrée, ses références picture/audio (qui REMPLACENT celles du plan :
- *   « régénérer = tout régénérer ») et sa durée de génération. Les voix ne deviennent jamais des références ;
+ *   « régénérer = tout régénérer ») et sa durée de génération. la voix d'un personnage qui parle (lue dans le prompt) devient une référence audio vers son master ;
  * - un changement « créer un asset » par asset manquant (avec son parent : `deriveDeCode` s'il existe,
  *   `deriveDeCle` s'il est créé par la même proposition). Un asset déclaré manquant qui existe déjà est
- *   ignoré (avertissement) ; une référence ne vise jamais un asset manquant (il reste décrit en prose).
+ *   ignoré (avertissement) ; la fiche CITE un asset d'image manquant comme n'importe quelle référence (`dependDeCles` : elle s'applique après
+ *   sa création, son image viendra ensuite) ; un son manquant ou un asset déjà proposé par un autre plan du lot reste décrit en prose.
  * Une référence qui n'est pas au registre, ou de la mauvaise nature, est retirée et décrite en prose par son
  * nom (alerte). Les problèmes des contrôles remontent en avertissements ; un marqueur `[[CODE]]` que le code
  * ne sait pas résoudre bloque la fiche (à relancer). L'état du plan (vide, rempli, rendu) est lu par
@@ -560,30 +489,33 @@ function versAvertissement(p: ProblemeH3): Avertissement | null {
 export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3, options: OptionsFichePlan = {}): ChangementBrut[] {
   // Un code mal recopié (mots de liaison) se corrige sans ambiguïté ; sinon il reste une erreur franche (voir codes-proches.ts).
   const { sortie: sortieCorrigee, corrections } = corrigerCodesInconnus(sortieBrute, plan.registre.map((a) => a.code));
-  // Le prompt vidéo fait foi : une réplique liée au plan mais absente des shots y est insérée (au lieu d'un plan muet).
-  const insertion = injecterRepliquesAbsentes(
-    (sortieCorrigee.shots ?? []).map((s) => ({ debutSecondes: s.debutSecondes, texte: s.texte ?? "" })),
-    sortieCorrigee.repliques ?? [],
-    plan.repliques,
-    new Set((sortieCorrigee.references ?? []).map((r) => r.asset)),
-    plan.langueDialogues,
-  );
-  // Voix off d'un personnage à l'écran (le brief le dit) : le code écrit la forme H3 (« says in an off-screen voiceover », bouche close).
-  let shotsFinaux = insertion.shots;
+  // Le prompt vidéo est la SEULE source des répliques (décision 2026-10-14) : rien n'est lié, rien n'est inséré. Un personnage qui parle
+  // et dont le brief dit « voix off » : le code écrit la forme H3 (« says in an off-screen voiceover », bouche close).
+  const codesVoixOff = new Set(plan.codesVoixOff ?? []);
+  let shotsFinaux = (sortieCorrigee.shots ?? []).map((s) => ({ debutSecondes: s.debutSecondes, texte: s.texte ?? "" }));
   let voixOffEcrite = false;
-  if (plan.voixOff) {
-    const code = plan.repliques.map((r) => r.locuteurCode).find((c): c is string => !!c && (sortieCorrigee.references ?? []).some((x) => x.asset === c)) ?? null;
-    const tout = shotsFinaux.map((s) => s.texte).join(" ");
-    const numero = (code ? new RegExp(`\\[\\[${echapperRe(code)}\\]\\]\\s*\\((S\\d+)\\)`).exec(tout)?.[1] : null) ?? /\((S\d+)\)/.exec(tout)?.[1] ?? "S1";
+  if (codesVoixOff.size) {
     shotsFinaux = shotsFinaux.map((s) => {
-      if (!/<d>/i.test(s.texte)) return s;
-      const r = mettreEnVoixOff(s.texte, { code, numero });
+      const paroles = parolesDuPrompt([s]).filter((p) => p.code);
+      if (paroles.length === 0 || !paroles.every((p) => p.code && codesVoixOff.has(p.code))) return s;
+      const p = paroles[0]!;
+      const r = mettreEnVoixOff(s.texte, { code: p.code, numero: p.numero ?? "S1" });
       voixOffEcrite ||= r.change;
       return { ...s, texte: r.texte };
     });
   }
   const sortie: SortiePlanH3 = { ...sortieCorrigee, shots: shotsFinaux };
   const typeDe = new Map(plan.registre.map((a) => [a.code, a.type]));
+  // Un asset d'IMAGE qui manque et qu'on crée avec ce plan (son code est celui du modèle, déjà conforme) se cite comme une référence : la
+  // fiche le référence, son image viendra après (le contrôle de la page dit « pas encore d'image »). Un son manquant, un code reconstruit ou
+  // un asset déjà proposé par un autre plan du lot restent décrits en prose.
+  const aCreer = new Map<string, string>();
+  for (const m of sortie.assetsManquants ?? []) {
+    const suffixe = TYPES_MANQUANTS.has(m.type) ? suffixeDeCode(m.code) : "";
+    if (!suffixe || m.type === "sfx" || construireCode(m.type, suffixe) !== m.code) continue;
+    if (typeDe.has(m.code) || options.codesDejaProposes?.has(m.code)) continue;
+    aCreer.set(m.code, m.type);
+  }
   const avertissements: Avertissement[] = [];
   const ajouter = (a: Avertissement | null) => {
     if (a && !avertissements.some((x) => x.type === a.type && x.texte === a.texte)) avertissements.push(a);
@@ -591,7 +523,6 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
 
   for (const c of corrections) ajouter({ type: "info", texte: `Code « ${c.de} » corrigé en « ${c.vers} » : même asset, mal recopié par le modèle.` });
   // (la mise en voix off est annoncée plus bas, une fois `voixOffEcrite` connue)
-  for (const i of insertion.inserees) ajouter({ type: "alerte_controle", texte: `Réplique « ${i.texte.slice(0, 60)} » absente des shots : insérée par le code dans le shot ${i.shot} (le prompt vidéo fait foi) ; relis son placement.` });
 
   // 1. références : seules celles du registre, de la bonne nature, une fois chacune
   let textes = {
@@ -613,10 +544,9 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   const gardees: SortiePlanH3["references"] = [];
   for (const r of sortie.references ?? []) {
     if (gardees.some((g) => g.asset === r.asset)) continue; // doublon : la première fait foi
-    const type = typeDe.get(r.asset);
+    const type = typeDe.get(r.asset) ?? aCreer.get(r.asset);
     let raison: string | null = null;
     if (type == null) raison = `${r.asset} n'est pas au registre`;
-    else if (type === "voix") raison = `${r.asset} est une voix (les voix ne sont jamais des références)`;
     else if (r.nature === "son" && type !== "sfx") raison = `${r.asset} (${type}) n'est pas un bruitage`;
     else if (r.nature === "image" && type === "sfx") raison = `${r.asset} est un bruitage, sans image`;
     if (raison) {
@@ -635,36 +565,36 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   const nettoyee: SortiePlanH3 = { ...sortie, ...textes, references: gardees };
 
   // 2. assemblage (labels, timecodes, sections) avec les slots des voix
-  const voix = plan.repliques.flatMap((r) => (r.slot == null ? [] : [{ slot: r.slot, texte: r.texte, locuteurCode: r.locuteurCode }]));
-  const assemble = assemblerPlanH3(nettoyee, { slotsAudioPris: plan.slotsAudioPris, voix, clauseStyle: plan.clauseStyle });
-  const refs: RefFiche[] = assemble.refs
-    .filter((r) => r.slot != null)
-    .map((r) => {
-      const ref = gardees.find((g) => g.asset === r.asset);
-      return {
-        type: r.nature === "image" ? ("picture" as const) : ("audio" as const),
-        slot: r.slot!,
-        asset: r.asset,
-        role: ref?.role ?? null,
-        retention: r.nature === "son" ? r.retention : null,
-      };
-    });
+  // Les voix se lisent dans le prompt : un `<Audio N>` par personnage qui parle et a une voix fixée, posé AVANT les bruitages.
+  const voix = voixDuPrompt(sortie.shots ?? [], new Set(plan.codesAvecMaster));
+  const assemble = assemblerPlanH3(nettoyee, { slotsAudioPris: voix.map((v) => v.slot), voix, clauseStyle: plan.clauseStyle });
+  const refs: RefFiche[] = [
+    ...assemble.refs
+      .filter((r) => r.slot != null)
+      .map((r) => {
+        const ref = gardees.find((g) => g.asset === r.asset);
+        return {
+          type: r.nature === "image" ? ("picture" as const) : ("audio" as const),
+          slot: r.slot!,
+          asset: r.asset,
+          role: ref?.role ?? null,
+          retention: r.nature === "son" ? r.retention : null,
+        };
+      }),
+    // La voix d'un personnage : une référence audio dont l'asset est le PERSONNAGE (le worker lit son master).
+    ...voix.map((v) => ({ type: "audio" as const, slot: v.slot, asset: v.locuteurCode, role: "Voix du personnage", retention: "reference" })),
+  ];
 
   // 3. contrôles (sur la sortie du modèle) et problèmes de l'assemblage
   const problemes = [
     ...controlerSortiePlanH3(sortie, {
       registre: plan.registre,
-      repliques: plan.repliques.map((r) => ({ texte: r.texte })),
-      slotsAudioPris: plan.slotsAudioPris,
+      slotsAudioPris: voix.map((v) => v.slot),
       corpusExemples: options.corpusExemples,
     }),
     ...assemble.problemes,
   ];
   for (const p of problemes) ajouter(versAvertissement(p));
-  const liees = new Set(plan.repliques.map((r) => r.uuid));
-  for (const r of sortie.repliques ?? []) {
-    if (!liees.has(r.repliqueId)) ajouter({ type: "alerte_controle", texte: `La sortie cite une réplique qui n'est pas liée au plan (${r.repliqueId}) : ignorée, les liens restent ceux du plan.` });
-  }
   if (voixOffEcrite) ajouter({ type: "info", texte: "Voix off : le brief dit que ce personnage parle en voix off ; ses répliques sont écrites « says in an off-screen voiceover… lips remain completely closed » par le code (aucun mouvement de lèvres)." });
   const residuel = /\[\[\s*([^\]]+?)\s*\]\]/.exec(assemble.texte);
   if (residuel) {
@@ -721,18 +651,23 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   }
   if (creations.length) {
     const n = creations.length;
+    const cites = refs.filter((r) => aCreer.has(r.asset)).length;
     ajouter({
       type: "info",
       texte:
-        n > 1
-          ? `${n} assets manquants proposés à la création : ils restent décrits en prose dans ce prompt ; leurs prompts d'image s'écriront ensuite.`
-          : "1 asset manquant proposé à la création : il reste décrit en prose dans ce prompt ; son prompt d'image s'écrira ensuite.",
+        `${n > 1 ? `${n} assets manquants proposés à la création` : "1 asset manquant proposé à la création"} : ` +
+        (cites > 0
+          ? `${cites > 1 ? "ceux que la fiche cite sont référencés" : "celui que la fiche cite est référencé"} dès maintenant (ils n'ont pas encore d'image : à générer avant le rendu) ; `
+          : "décrits en prose dans ce prompt ; ") +
+        `${n > 1 ? "leurs prompts d'image s'écriront" : "son prompt d'image s'écrira"} ensuite.`,
     });
   }
   // Un dérivé dont le parent est créé ici vient après lui (l'application ordonne aussi par dépendance).
   creations.sort((a, b) => Number(!!(a.apres as Record<string, unknown>).deriveDeCle) - Number(!!(b.apres as Record<string, unknown>).deriveDeCle));
 
-  const fiche: ApresFiche = { sections: { ...assemble.sections }, refs, dureeGenerationSecondes: sortie.dureeSecondes };
+  const fiche: ApresFiche = { sections: { ...assemble.sections }, refs, dureeGenerationSecondes: sortie.dureeSecondes, voixDuPrompt: true };
+  const citesACreer = [...new Set(refs.map((r) => r.asset).filter((c) => aCreer.has(c)))];
+  if (citesACreer.length) fiche.dependDeCles = citesACreer.map(cleNouvelAsset);
   return [
     {
       groupe: options.groupe ?? "fiches",

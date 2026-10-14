@@ -8,12 +8,12 @@ export type AlerteControle = {
   niveau: "warn" | "info";
   titre: string;
   detail: string;
-  /** Ancre du panneau concerné (« fp-dialogues »…) : un lien « Voir » ouvre l'onglet correspondant. */
+  /** Ancre du panneau concerné (« fp-refs »…) : un lien « Voir » ouvre l'onglet correspondant. */
   ancre?: string;
 };
 
 /** Les contrôles automatiques, repliés dans le titre du plan : une pastille « 2 contrôles » qui ouvre la liste (rendu périmé, référence
- * citée mais non déclarée, structure des shots, dialogues…). Quand tout est en règle, rien à lire : pas de pastille. */
+ * citée mais non déclarée, structure des shots…). Quand tout est en règle, rien à lire : pas de pastille. */
 export function ControlesEntete({ alertes }: { alertes: AlerteControle[] }) {
   const [ouvert, setOuvert] = useState(false);
   const racine = useRef<HTMLDivElement>(null);

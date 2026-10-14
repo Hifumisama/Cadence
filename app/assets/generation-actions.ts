@@ -1,27 +1,21 @@
 "use server";
 
 import { db } from "@/db";
-import { assetGenerationSources, assetGenerations, assets, projects, voixFiches } from "@/db/schema";
+import { assetGenerationSources, assetGenerations, assets, projects } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
-import { access, copyFile, mkdir, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import {
   METHODE_AUDIO,
-  METHODE_VOIX,
-  langueDuTexteDeReference,
   nouvelleSeed,
-  nouvelleSeedTts,
   raisonAudioNonGenerable,
   raisonDemandeAudioInvalide,
   raisonDemandeInvalide,
-  raisonDemandeVoixInvalide,
   raisonNonGenerable,
-  raisonVoixNonGenerable,
   type DemandeAudio,
   type DemandeGeneration,
-  type DemandeVoix,
   formatParDefaut,
   loraParDefaut,
 } from "@/lib/asset-generation";
@@ -30,7 +24,6 @@ import { horsAffiches } from "@/lib/assets-visibles";
 import { adopterCandidat } from "@/lib/generation-adoption";
 import { idsSansImage } from "@/lib/images-projet";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "@/lib/generation-lot";
-import { TEXTE_REFERENCE_DEFAUT } from "@/lib/voix";
 import { supprimerGenerationEtFichiers } from "@/lib/generation-sources";
 import { nbImagesEnAttente, rangDansLaFile } from "@/lib/queries-taches";
 import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
@@ -38,7 +31,6 @@ import {
   MEDIA_ROOT,
   TAILLE_MAX_UPLOAD_ASSET,
   cheminAssetMedia,
-  cheminGenerationMedia,
   cheminSourceImportMedia,
   estImage,
   estNomSourceImport,
@@ -222,39 +214,6 @@ export async function lancerGenerationAudio(assetId: number, demande: DemandeAud
       prompt: demande.prompt.trim(),
       dureeSecondes: demande.dureeSecondes,
       seed: nouvelleSeed(),
-    })
-    .returning({ id: assetGenerations.id });
-  revalidatePath("/", "layout");
-  return { ok: true, position: await rangDansLaFile(gen!.id) };
-}
-
-/** Pose une demande de génération de VOIX DE RÉFÉRENCE (Qwen3-TTS Voice Design) dans la même file que les
- * images et les sons (table `asset_generations`, méthode « voix »). Réservée aux assets de type `voix`.
- * `instruction` = l'instruction de timbre (elle devient le prompt de la génération) ; `texteReference` est le
- * texte lu ; `temperature` règle la créativité de la voix (0,8 à 1,2). La seed est tirée côté serveur, sauf `options.seed` : la retouche
- * d'un timbre « au même tirage » réutilise celle de l'essai précédent, pour que seul le texte de l'instruction change. */
-export async function lancerGenerationVoix(assetId: number, demande: DemandeVoix, options: { seed?: string } = {}): Promise<ResultatLancement> {
-  const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
-  if (!asset) return { ok: false, erreur: "Cette voix n'existe pas." };
-  const raisonAsset = raisonVoixNonGenerable(asset.type);
-  if (raisonAsset) return { ok: false, erreur: raisonAsset };
-  const raison = raisonDemandeVoixInvalide(demande);
-  if (raison) return { ok: false, erreur: raison };
-  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
-    return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} générations en attente) : laisse le worker en vider quelques-unes.` };
-  }
-  const [fiche] = await db.select({ langue: voixFiches.langue }).from(voixFiches).where(eq(voixFiches.assetId, assetId));
-
-  const [gen] = await db
-    .insert(assetGenerations)
-    .values({
-      assetId,
-      methode: METHODE_VOIX,
-      prompt: demande.instruction.trim(),
-      texteReference: demande.texteReference.trim(),
-      langueReference: langueDuTexteDeReference(demande.texteReference, TEXTE_REFERENCE_DEFAUT, fiche?.langue ?? "French"),
-      temperature: demande.temperature,
-      seed: options.seed ?? nouvelleSeedTts(),
     })
     .returning({ id: assetGenerations.id });
   revalidatePath("/", "layout");

@@ -66,17 +66,20 @@ Les skills vivent dans `agents/skills/` (un dossier par skill, chargés par `lib
 
 - conception du projet : `accroche-scenariste`, `conversation-agent`, `notes-entretien` (le brief se remplit au
   fil de la conversation ; son schéma est `lib/agents/brief-schema.json`)
-- production : `scenario-episode`, `inventaire-assets`, `prompt-asset`, `prompt-voix`, `prompt-affiche`, `plan-h3`
+- production : `scenario-episode`, `inventaire-assets`, `prompt-asset`, `prompt-affiche`, `plan-h3`
 - correction et révision : `iteration-plan`, `realisateur-analyse`, `realisateur-reponse`
 
 Les anciens skills de chat (`scenario`, `fiche-de-plan`, `assets-comfyui`, `voix-comfyui`) n'existent plus. Les
 règles de nommage et de versionnage ci-dessus et `docs/FRICTIONS.md` priment sur toute copie qui en traînerait
 ailleurs (claude.ai, `~/.claude`).
 
+Le casting vocal (skill `prompt-voix`, assets `voix`, `voix_fiches`, prises, doublage) est retiré (FRICTIONS, 2026-10-14) : **la voix est un champ
+du personnage** (`assets.voix_*`), créée depuis le bloc « Voix » de sa fiche (`/p/<id>/assets/<code>`) ; une réplique n'est qu'un texte inséré dans le prompt (`<d>`).
+
 ## État du projet
 
 L'application existe et tourne : pipeline de production (plans, assets, voix, fiches), système d'agents (conversation,
-brief, propositions, réalisateur d'épisode, casting vocal, affiches) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
+brief, propositions, réalisateur d'épisode, affiches) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
 huit étapes, de « format » à « avancée de la préparation »). Les décisions sont dans `docs/FRICTIONS.md` ; le phasage
 d'origine reste dans `docs/CAHIER_DES_CHARGES.md`.
 

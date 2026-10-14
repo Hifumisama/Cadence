@@ -61,6 +61,8 @@ const sortie = (over: Partial<SortieIterationPlan> = {}): SortieIterationPlan =>
   ],
   verification: "Entre 0 et 3 s, le couloir ne doit plus défiler.",
   abandon: { propose: false, raison: "" },
+  reecriture: false,
+  nouvelleDescription: "",
   ...over,
 });
 
@@ -150,21 +152,13 @@ test("labels : seuls ceux du plan (références, voix, sujets déjà définis)",
 
 const alertesDe = (s: SortieIterationPlan) => controlerSortieIterationPlan(s, plan()).filter((x) => x.niveau === "alerte").map((x) => x.regle);
 
-test("réplique altérée : simple alerte (la consigne peut en demander une), jamais un renvoi au modèle", () => {
+test("réplique changée, ajoutée ou retirée : libre, ni alerte ni renvoi (le prompt est la seule source, 2026-10-14)", () => {
   const modifiee = sortie({ changements: [{ section: "detailed_description", avant: "<d>[Français] Pas un bruit.</d>", apres: "<d>[Français] Pas un seul bruit.</d>" }] });
   assert.deepEqual(erreurs(modifiee), []);
-  assert.ok(alertesDe(modifiee).includes("replique-modifiee"));
+  assert.deepEqual(alertesDe(modifiee), []);
   const retiree = sortie({ changements: [{ section: "detailed_description", avant: "<Subject 1> says <d>[Français] Pas un bruit.</d> ", apres: "" }] });
   assert.deepEqual(erreurs(retiree), []);
-  assert.ok(alertesDe(retiree).includes("replique-modifiee"));
-  // Déplacer une réplique sans la changer reste permis (même multiensemble de <d>).
-  const deplacee = sortie({
-    changements: [
-      { section: "detailed_description", avant: " <Subject 1> says <d>[Français] Pas un bruit.</d> ", apres: " " },
-      { section: "detailed_description", avant: "the camera locked.", apres: "the camera locked. <Subject 1> says <d>[Français] Pas un bruit.</d>" },
-    ],
-  });
-  assert.deepEqual(erreurs(deplacee), []);
+  assert.deepEqual(alertesDe(retiree), []);
 });
 
 test("une erreur qui persiste après le renvoi BLOQUE la fiche (pas d'écriture à moitié)", () => {

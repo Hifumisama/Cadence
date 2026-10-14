@@ -7,7 +7,7 @@ import { useTaches } from "@/components/taches/TachesProvider";
 import type { GenerationVue } from "@/lib/queries-generations";
 import { cleImage, estActive, pageEstPerimee, tachesDeAsset } from "@/lib/taches";
 
-/** Le suivi en direct des générations d'une voix (référence, test vidéo), partagé par les deux étapes qui en lancent : la progression, le rang
+/** Le suivi en direct des essais de voix du personnage : la progression, le rang
  * dans la file et l'annulation viennent de l'indicateur du bandeau. `methodes` : celles que l'étape montre. `surveiller` : UNE étape
  * recharge la page quand une génération de la voix change d'état (démarre, finit, échoue, vient d'un autre onglet) — tous les
  * panneaux étant montés, une seule suffit. Arrivée depuis le bandeau (`?generation=`) : l'étape qui possède cette génération la marque
@@ -17,14 +17,12 @@ export function useGenerationsVoix({
   generations,
   generationInitiale,
   methodes,
-  etape,
   surveiller = false,
 }: {
   assetId: number;
   generations: GenerationVue[];
   generationInitiale: string | null;
   methodes: string[];
-  etape: string;
   surveiller?: boolean;
 }) {
   const router = useRouter();
@@ -38,8 +36,8 @@ export function useGenerationsVoix({
     if (!cible || !methodes.includes(cible.methode)) return;
     traite.current = true;
     marquerVuLocal([cleImage(cible.uuid)]);
-    router.replace(`${pathname}?etape=${etape}`, { scroll: false });
-  }, [generationInitiale, generations, methodes, etape, marquerVuLocal, router, pathname]);
+    router.replace(`${pathname}#as-voix`, { scroll: false });
+  }, [generationInitiale, generations, methodes, marquerVuLocal, router, pathname]);
 
   const tachesAsset = useMemo(() => tachesDeAsset(taches, assetId), [taches, assetId]);
   const dernierRefresh = useRef(0);

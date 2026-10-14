@@ -20,7 +20,6 @@
   ],
   "overall_soundscape": "Muffled distant voices carry faintly from the neighboring alley, the night air otherwise quiet.",
   "non_diegetic_music": "N/A",
-  "repliques": [],
   "assetsManquants": [],
   "notes": "Un seul shot tenu, caméra verrouillée : le calme se joue dans la durée."
 }

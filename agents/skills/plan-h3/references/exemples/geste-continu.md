@@ -20,7 +20,6 @@
   ],
   "overall_soundscape": "Faint creaking of the old wooden walls fills the corridor between the sounds of the plan.",
   "non_diegetic_music": "Low sustained strings at a slow pulse, stopping dead on the impact and silent for the rest of the plan.",
-  "repliques": [{"repliqueId": "b3f0a8d2-6e14-4c7b-a2d9-5e81c0f7d364", "debutSecondes": 1}],
   "assetsManquants": [],
   "notes": "Geste continu assumé : la gifle part de la foulée de la Tenancière et tient en un seul shot, sans coupe. Les coupes cadrent ce qui la précède (la réplique) et ce qui la suit (la réaction de Maya)."
 }

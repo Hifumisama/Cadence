@@ -237,7 +237,7 @@ test("decisionIteration : une réécriture (diagnostic) sans rien d'applicable d
   assert.equal(decisionIteration(prop({ diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, reecriture: null } })).action, "appliquer");
 });
 
-test("decisionIteration : une réécriture (plan-h3) n'applique que la fiche ; les créations d'assets sont laissées et signalées", () => {
+test("decisionIteration : une réécriture (plan-h3) applique la fiche ET crée les assets qu'elle déclare manquants (note : pas encore d'image) ; sans fiche appliquable, rien n'est créé", () => {
   const d = decisionIteration(
     prop({
       diagnostic: null,
@@ -249,10 +249,20 @@ test("decisionIteration : une réécriture (plan-h3) n'applique que la fiche ; l
   );
   assert.equal(d.action, "appliquer");
   if (d.action === "appliquer") {
-    assert.deepEqual(d.ids, [1]);
-    assert.ok(d.notes.some((n) => /1 création d'asset suggérée par la réécriture, non créée/.test(n)));
+    assert.deepEqual(d.ids, [1, 2]);
+    assert.ok(d.notes.some((n) => /1 asset créé avec la correction .* pas encore d'image/.test(n)));
     assert.ok(d.notes.some((n) => /état de fin du plan a changé/i.test(n)));
   }
+  const sansFiche = decisionIteration(
+    prop({
+      diagnostic: null,
+      groupes: [
+        { changements: [{ id: 1, bloque: false, refuseRaison: "Plan introuvable.", cibleType: "fiche", avertissements: [] }] },
+        { changements: [{ id: 2, bloque: false, refuseRaison: null, cibleType: "asset", avertissements: [] }] },
+      ],
+    }),
+  );
+  assert.equal(sansFiche.action, "rien", "une création seule n'est jamais appliquée : la fiche qui la cite est refusée");
 });
 
 test("decisionIteration : les mots français recopiés deviennent une note de l'essai", () => {

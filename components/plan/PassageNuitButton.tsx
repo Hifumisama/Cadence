@@ -16,7 +16,7 @@ export function PassageNuitButton({
 }) {
   const [pending, startTransition] = useTransition();
   const [confirmation, setConfirmation] = useState(false);
-  const [resultat, setResultat] = useState<{ n: number; bloques: number } | null>(null);
+  const [resultat, setResultat] = useState<{ n: number } | null>(null);
 
   if (nPrevisualise === 0) return null;
 
@@ -50,9 +50,6 @@ export function PassageNuitButton({
       {resultat !== null ? (
         <span className="tiny-note">
           {resultat.n} job{resultat.n > 1 ? "s" : ""} mis en file
-          {resultat.bloques > 0
-            ? ` · ${resultat.bloques} plan${resultat.bloques > 1 ? "s" : ""} sauté${resultat.bloques > 1 ? "s" : ""} (dialogues à corriger)`
-            : ""}
           .
         </span>
       ) : null}

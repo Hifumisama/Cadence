@@ -4,13 +4,12 @@ import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
-import { calculerStatutDuree, controlerStructure, estProblemeBloquant, phraseVoix, resumerProblemesDialogues, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
-import { getDialoguesPlan, getOptionsLocuteur, getPrisesGenerees } from "@/lib/queries-repliques";
+import { controlerStructure, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
+import { getDialoguesPlan } from "@/lib/queries-repliques";
 import { avanceeUpscale, compterAPrevisualiser, essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/fiche-plan";
 import { ImporterVideoForm } from "@/components/plan/ImporterVideoForm";
 import { RefsPanel, type RefVue } from "@/components/plan/RefsPanel";
 import type { NoeudPicker } from "@/components/plan/AssetPickerModal";
-import { DialoguesPanel } from "@/components/plan/DialoguesPanel";
 import { SuiviRendus } from "@/components/plan/SuiviRendus";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
 import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
@@ -27,6 +26,9 @@ import { OngletsPlan } from "@/components/plan/OngletsPlan";
 import { JournalEssais, type LigneJournal } from "@/components/plan/JournalEssais";
 import { srcRendu } from "@/components/plan/Vignette";
 import { assemblerPrompt } from "@/lib/prompt";
+import { liaisonOuDefaut } from "@/lib/plan-liaison";
+import { etatRaccord } from "@/lib/plan-raccord";
+import { raccordActuel } from "@/lib/queries-raccord";
 import { choisirComparaison, choisirRendu, detailPerime, estLisible, promptDiffere, raisonNonRetenable, type RenduVue } from "@/lib/rendus";
 
 export const dynamic = "force-dynamic";
@@ -68,16 +70,14 @@ export default async function PlanPage({
 
   const { plan, position, promptSections, refs, jobHistory } = detail;
 
-  const [parametresGlobaux, mastersRegistre, scenesEpisode, dialoguesPlan, optionsLocuteur, pellicule] = await Promise.all([
+  const [parametresGlobaux, mastersRegistre, scenesEpisode, dialoguesPlan, pellicule] = await Promise.all([
     getAllParams(),
     getAssetsTree(pid),
     getScenesEpisode(eid),
     getDialoguesPlan(pid, plan.id, eid),
-    getOptionsLocuteur(pid),
     getPelliculePlans(eid),
   ]);
-  const { liaisons, disponibles, controle, audioRefs } = dialoguesPlan;
-  const prisesGenerees = await getPrisesGenerees(liaisons.map((l) => l.id));
+  const { audioRefs } = dialoguesPlan;
 
   const sectionsPourControle = promptSections.map((s) => ({
     section: s.section,
@@ -93,11 +93,6 @@ export default async function PlanPage({
     audioRefs,
   );
   const structure = controlerStructure(sectionsPourControle, plan.dureeGenerationSecondes);
-  const { statut: statutDuree, totalSecondes } = calculerStatutDuree(
-    liaisons.map((l) => ({ dureeSecondes: l.dureeSecondes })),
-    Number(parametresGlobaux.duree_plafond_secondes),
-    Number(parametresGlobaux.marge_respiration_secondes),
-  );
 
   // L'historique se parcourt par l'URL (?rendu=… ?compare=…) : cliquer un essai le charge dans le lecteur, on peut en comparer deux.
   const rendusVus: RenduVue[] = jobHistory.map((j) => ({
@@ -124,10 +119,14 @@ export default async function PlanPage({
   };
   const aUneFiche = promptSections.some((s) => s.contenu.trim());
 
+  // Raccord (lib/plan-raccord.ts) : l'essai du plan précédent dont l'image serait prise maintenant, comparé à celui dont l'essai affiché est parti.
+  const raccordMaintenant = await raccordActuel(plan);
+
   const scenarioInitial = {
     titre: plan.titre,
     description: plan.description ?? "",
     dureeMontageSecondes: plan.dureeMontageSecondes,
+    liaison: liaisonOuDefaut(plan.liaison),
   };
 
   const mastersPicker = mastersRegistre.map(versNoeudPicker);
@@ -251,6 +250,18 @@ export default async function PlanPage({
         ancre: "fp-refs",
       }),
     ),
+    // Une référence dont l'asset n'a pas (encore) d'image : le rendu partirait sans elle (un asset créé par une correction n'a pas d'image tout de suite).
+    ...refsVue
+      .filter((r) => r.type === "picture" && r.asset != null && r.asset.etat !== "ok")
+      .map(
+        (r): AlerteControle => ({
+          cle: `sans-image-${r.id}`,
+          niveau: "warn",
+          titre: "Référence sans image",
+          detail: `<Picture ${r.slot}> (${r.asset!.code}) n'a pas encore d'image : le rendu partirait sans elle. Génère-la depuis le registre avant de lancer.`,
+          ancre: "fp-refs",
+        }),
+      ),
     ...structure.map(
       (p, i): AlerteControle => ({
         cle: `struct-${p.type}-${i}`,
@@ -260,29 +271,6 @@ export default async function PlanPage({
         ancre: "fp-prompt",
       }),
     ),
-    ...(controle.peutGenerer
-      ? []
-      : [
-          {
-            cle: "dialogues",
-            niveau: "warn" as const,
-            titre: "Dialogues à corriger",
-            detail: resumerProblemesDialogues(controle.problemes.filter(estProblemeBloquant)),
-            ancre: "fp-dialogues",
-          },
-        ]),
-    // Ce qui n'empêche pas de générer : une réplique absente du prompt, et l'audio (sans prise, la voix est estimée par le modèle).
-    ...(controle.problemes.some((p) => !estProblemeBloquant(p))
-      ? [
-          {
-            cle: "dialogues-a-verifier",
-            niveau: "info" as const,
-            titre: controle.problemes.some((p) => p.type === "sans_audio" && !p.master) ? "Voix estimée" : "Dialogues à vérifier",
-            detail: `${resumerProblemesDialogues(controle.problemes.filter((p) => !estProblemeBloquant(p)))}${phraseVoix(controle.problemes) ? ` : ${phraseVoix(controle.problemes)}` : ""}.`,
-            ancre: "fp-dialogues",
-          },
-        ]
-      : []),
     ...refsNonCitees.map(
       (l): AlerteControle => ({
         cle: `noncite-${l}`,
@@ -364,8 +352,12 @@ export default async function PlanPage({
                 hrefQuitter={hrefQuitter}
                 enCours={enCours}
               >
-                {principal && principalJob && (retenable || principalJob.promptUtilise || principalJob.descriptionUtilisee) ? (
+                {principal && principalJob && (retenable || principalJob.promptUtilise || principalJob.descriptionUtilisee || principalJob.raccordJobId != null) ? (
                   <div className="tm-sous-legende">
+                    {(() => {
+                      const r = etatRaccord({ liaison: plan.liaison, utilise: principalJob.raccordJobId, actuel: raccordMaintenant?.source ?? null, precedentTitre: raccordMaintenant?.precedent.titre ?? null });
+                      return r ? <p className="tiny-note" style={{ margin: "0 0 4px", ...(r.perime ? { color: "var(--gold, #c9a227)" } : {}) }}>{r.texte}</p> : null;
+                    })()}
                     {retenable ? (
                       <details className="tm-details">
                         <summary className="tm-lien">Actions sur l&rsquo;essai n°{principal.numeroRendu}</summary>
@@ -412,28 +404,10 @@ export default async function PlanPage({
             </main>
 
             <OngletsPlan
-              compteurs={{ refs: refsVue.length, dialogues: liaisons.length, journal: jobHistory.length }}
+              compteurs={{ refs: refsVue.length, journal: jobHistory.length }}
               panneaux={{
                 refs: <RefsPanel planId={plan.id} refs={refsVue} masters={mastersPicker} />,
                 prompt: <PromptBloc planId={plan.id} declarees={declarees} demandeAgent={demandeAgent} aUneFiche={aUneFiche} />,
-                dialogues: (
-                  <div id="fp-dialogues" className="fp-dialogues">
-                    <DialoguesPanel
-                      planId={plan.id}
-                      planUuid={plan.uuid}
-                      prises={prisesGenerees}
-                      projectId={pid}
-                      episodeId={eid}
-                      liaisons={liaisons}
-                      disponibles={disponibles}
-                      options={optionsLocuteur}
-                      controle={controle}
-                      statutDuree={statutDuree}
-                      totalSecondes={totalSecondes}
-                      plafondSecondes={Number(parametresGlobaux.duree_plafond_secondes)}
-                    />
-                  </div>
-                ),
                 reglages: (
                   <>
                     <ConsoleRendu timecodeMusique={plan.timecodeMusique} />

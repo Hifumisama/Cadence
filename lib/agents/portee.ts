@@ -73,10 +73,6 @@ export function verifierPortee(scope: ScopeDemandee, c: CibleChangement): string
       if (scope.type === "episode" && c.episodeId === scope.cibleId) return null;
       if (scope.type === "plan" && c.planId === scope.cibleId) return null;
       return refus("la fiche de ce plan n'est pas dans la portée visée");
-    case "voix":
-      // Une voix se CRÉE depuis n'importe quelle portée (comme un asset manquant) ; elle ne se modifie pas ici (casting vocal).
-      if (creation) return null;
-      return refus("cette voix ne se modifie pas par une proposition");
     case "asset":
       if (creation) return null;
       if (scope.type === "asset" && c.assetId === scope.cibleId) return null;

@@ -11,10 +11,8 @@ import {
   projects,
   propositionChangements,
   propositions,
-  repliques,
   scenes,
   seasons,
-  voixFiches,
 } from "../../db/schema";
 import { valider } from "../llm/validation";
 import { VARIANTE_AFFICHE } from "../llm/variantes";
@@ -31,9 +29,8 @@ import { controleDuree } from "./applicateurs/plan";
 import { cocheParDefaut, groupeAffiche, raisonNonCochable } from "./cochage";
 import { TYPE_AFFICHE } from "../affiches";
 import { entreePromptAffiche } from "./affiche";
-import { entreeCorrectionPlan, entreePromptAsset, entreePromptAssetCandidat, entreePromptVoixCandidat, entreeScenarioEpisode, lireBriefDuProjet, type EntreeSkill } from "./contexte";
+import { entreeCorrectionPlan, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, lireBriefDuProjet, type EntreeSkill } from "./contexte";
 import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registre";
-import { candidatsVoix, cleSousTacheVoix, codeDeCleVoix, type CandidatVoix } from "./voix-casting";
 import { annulerLot, annulerRunsDePropositions, runsDuLot, type ResultatAnnulationLot } from "./lots";
 import { cleSousTacheEpisode, dernieresSousTaches, episodeIdDeCle, estRunActif } from "./lots-pur";
 import { appliquerProposition, enregistrerChangements } from "./proposition-db";
@@ -787,79 +784,6 @@ export async function genererInventaire(
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
 }
 
-const CONSIGNE_VOIX = "Écris l'instruction de timbre (Voice Design) de cette voix, à partir du personnage et de ses répliques.";
-
-/** Les voix à créer : un personnage qui parle (au moins une réplique) sans voix, et la voix off si des
- * répliques la réclament. Vide tant que les scénarios n'ont écrit aucune réplique. */
-export async function candidatsVoixDuProjet(projectId: number): Promise<CandidatVoix[]> {
-  const lesAssets = await db.select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches)).orderBy(asc(assets.code));
-  const fiches = await db
-    .select({ assetCode: assets.code, personnageId: voixFiches.personnageId })
-    .from(voixFiches)
-    .innerJoin(assets, eq(assets.id, voixFiches.assetId))
-    .where(eq(assets.projectId, projectId));
-  const lues = await db
-    .select({ locuteurId: repliques.locuteurId, voixId: repliques.voixId, locuteurTexte: repliques.locuteurTexte, texte: repliques.texte })
-    .from(repliques)
-    .where(eq(repliques.projectId, projectId))
-    .orderBy(asc(repliques.episodeId), asc(repliques.ordre), asc(repliques.id));
-  return candidatsVoix(
-    lesAssets.filter((a) => a.type === "personnage").map((a) => ({ id: a.id, code: a.code, description: a.description ?? "" })),
-    fiches,
-    lesAssets.filter((a) => a.type === "voix").map((a) => ({ id: a.id, code: a.code })),
-    lues,
-  );
-}
-
-/** Étape « casting des voix » : UN lot de sous-tâches `prompt-voix`, une par voix manquante (personnage
- * qui parle sans voix, voix off), l'une après l'autre. Chaque sous-tâche propose la CRÉATION de la voix
- * (asset VOICE_* et fiche de casting) avec l'instruction de timbre ; l'utilisateur relit et coche. Depuis
- * la conversation du PROJET. Le son se génère à part, et la voix s'édite au casting vocal. */
-export async function genererVoix(
-  conversationUuid: string,
-  options: { cles?: string[]; consigne?: string } = {},
-): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
-  const conv = await conversationParUuid(conversationUuid);
-  if (!conv) return ERR("Conversation introuvable.");
-  if (conv.portee !== "projet") return ERR("Le casting des voix se crée depuis le projet : ouvre l'agent sur le projet.");
-  { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
-  const brief = await lireBriefDuProjet(db, conv.projectId);
-  if (!brief || brief.statut === "partiel") return ERR("Écris d'abord le brief du projet.");
-
-  const candidats = await candidatsVoixDuProjet(conv.projectId);
-  if (candidats.length === 0) return ERR("Aucune voix à créer : chaque personnage qui parle a déjà la sienne (ou aucune réplique n'est écrite).");
-  const voulus = options.cles ?? candidats.filter((c) => c.aTraiter).map((c) => c.cle);
-  if (voulus.length === 0) return ERR("Rien à créer : coche au moins une voix.");
-  const choisis = candidats.filter((c) => voulus.includes(c.cle));
-  if (choisis.length !== new Set(voulus).size) return ERR("Une des voix choisies n'est plus à créer.");
-  const bloquee = choisis.find((c) => c.bloque);
-  if (bloquee) return ERR(bloquee.bloque!);
-
-  const consigne = (options.consigne ?? "").trim() || CONSIGNE_VOIX;
-  const sousTaches: { c: CandidatVoix; e: EntreeSkill }[] = [];
-  for (const c of choisis) sousTaches.push({ c, e: await entreePromptVoixCandidat(db, conv.projectId, c, consigne) });
-
-  const contexte = [
-    { type: "brief" as const, libelle: `Brief du projet (${brief.statut})`, ref: "*" },
-    { type: "voix" as const, libelle: `${sousTaches.length} voix à écrire, une par une` },
-  ];
-  const propId = await nouvelleProposition(conv, { skill: "voix", consigne, contexte, lot: true });
-  for (const { c, e } of sousTaches) {
-    await creerRun(db, {
-      skill: "prompt-voix",
-      entree: e.entree,
-      but: "proposition",
-      projectId: conv.projectId,
-      conversationId: conv.id,
-      propositionId: propId,
-      cleSousTache: cleSousTacheVoix(c.personnageCode ?? "off"),
-      libelleSousTache: c.libelle,
-    });
-  }
-  const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
-  return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length };
-}
-
 // --- étape 3 : les fiches de plan (plan-h3) ------------------------------------------
 
 const CONSIGNE_FICHE = "Écris la fiche de plan complète.";
@@ -1043,7 +967,7 @@ export async function genererReecriturePlan(
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur ce plan."); if (refus) return refus; }
   const [p] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, conv.cibleId));
   if (!p) return ERR("Plan introuvable.");
-  const consigne = `Réécris la fiche de ce plan depuis sa nouvelle description (elle fait foi). Demande de l'utilisateur : « ${options.consigne.trim().slice(0, 600)} ». Garde la durée, les personnages et les répliques liées sauf si la description les change.`;
+  const consigne = `Réécris la fiche de ce plan depuis sa nouvelle description (elle fait foi). Demande de l'utilisateur : « ${options.consigne.trim().slice(0, 600)} ». Garde la durée et les personnages sauf si la description les change ; le dialogue de la description fait foi (chaque réplique dans un <d> avec son locuteur) : reprends-le mot pour mot, sans rien chercher d'autre à lier.`;
   const e = await entreePlanH3(db, conv.projectId, p.uuid, consigne, undefined, { intention: description });
   if (!e) return ERR("Plan introuvable.");
   const propId = await nouvelleProposition(conv, { skill: "plan-h3", consigne: options.consigne.trim(), contexte: e.contexte });
@@ -1081,7 +1005,7 @@ export async function assetsCreesSansPrompt(propositionId: number): Promise<{ id
     .from(assets)
     .where(and(eq(assets.projectId, prop.projectId), inArray(assets.code, codes)))
     .orderBy(asc(assets.code));
-  return lus.filter((a) => !(a.prompt ?? "").trim() && a.type !== "voix").map((a) => ({ id: a.id, code: a.code, type: a.type }));
+  return lus.filter((a) => !(a.prompt ?? "").trim()).map((a) => ({ id: a.id, code: a.code, type: a.type }));
 }
 
 /** Après l'application d'une fiche : « Continuer : écrire les prompts des assets créés ». Un LOT `prompt-asset`
@@ -1150,7 +1074,6 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
   if (estRunActif(sous.run)) return ERR("Cette sous-tâche est déjà en file ou en cours.");
   let cible: { skill: string; entree: object; options: { variante?: string } | null };
   const codeAsset = codeDeCleAsset(cle);
-  const cleVoix = codeDeCleVoix(cle);
   const planUuid = planUuidDeCle(cle);
   if (planUuid) {
     // Lot de fiches : le plan tel qu'il est maintenant (répliques, registre, voisins).
@@ -1163,11 +1086,6 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
     const e = a ? await entreePromptAsset(db, prop.projectId, a.id, prop.consigne || CONSIGNE_PROMPTS_CREES, retour?.trim() || undefined) : null;
     if (!e) return ERR("L'asset n'existe plus.");
     cible = { skill: "prompt-asset", entree: e.entree, options: e.variante ? { variante: e.variante } : null };
-  } else if (cleVoix) {
-    const cand = (await candidatsVoixDuProjet(prop.projectId)).find((c) => c.cle === cle);
-    if (!cand) return ERR("Cette voix n'est plus à créer (elle existe, ou plus aucune réplique ne la réclame).");
-    const e = await entreePromptVoixCandidat(db, prop.projectId, cand, prop.consigne || CONSIGNE_VOIX, retour?.trim() || undefined);
-    cible = { skill: "prompt-voix", entree: e.entree, options: null };
   } else if (codeAsset) {
     const cand = (await candidatsDuProjet(prop.projectId)).find((c) => c.code === codeAsset);
     if (!cand) return ERR("Cet asset n'est plus décrit par le brief.");

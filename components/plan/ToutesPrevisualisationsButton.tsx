@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { listerPrevisualisations, lancerPrevisualisations, type PlanPrevisualisation } from "@/app/plans/actions";
 
-type Resultat = { n: number; bloques: number; dejaEnFile: number };
+type Resultat = { n: number; dejaEnFile: number };
 
 const s = (n: number) => (n > 1 ? "s" : "");
 const lancable = (p: PlanPrevisualisation) => p.etat === "neuf" || p.etat === "rendu";
@@ -77,7 +77,6 @@ export function ToutesPrevisualisationsButton({
   if (resultat) {
     notes.push(resultat.n > 0 ? `${resultat.n} prévisualisation${s(resultat.n)} mise${s(resultat.n)} en file` : "Rien à lancer");
     if (resultat.dejaEnFile > 0) notes.push(`${resultat.dejaEnFile} déjà en file`);
-    if (resultat.bloques > 0) notes.push(`${resultat.bloques} sauté${s(resultat.bloques)} (dialogues à corriger)`);
   }
 
   return (

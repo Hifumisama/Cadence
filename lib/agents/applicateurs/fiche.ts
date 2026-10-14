@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { assets, episodes, jobs, planDialogues, planPromptSections, planRefs, plans } from "../../../db/schema";
 import { horsAffiches } from "../../assets-visibles";
 import type { Tx } from "../../ordre-plans";
-import { SECTIONS_FICHE, estSectionFiche, evaluerEcrasementFiche, lireApresFiche, verifierFiche, type EtatPlanFiche } from "../fiches";
+import { SECTIONS_FICHE, cleNouvelAsset, estSectionFiche, evaluerEcrasementFiche, lireApresFiche, verifierFiche, type EtatPlanFiche } from "../fiches";
 import { REFUS_SUPPRESSION, type Applicateur, type Db } from "./commun";
 
 /** Cible `fiche` (étape 3) : la fiche de plan, c'est-à-dire le prompt H3 en six sections
@@ -77,6 +77,8 @@ export const applicateurFiche: Applicateur = {
     if (!p) return { ...ch, refuseRaison: "Plan introuvable dans ce projet." };
     const etat = await lireEtatPlanFiche(db, ctx.projectId, p);
     const apres = lireApresFiche(ch.apres);
+    // Un asset que la même proposition crée n'existe pas encore : la fiche peut le citer (il sera là quand elle s'applique, voir `dependDeCles`).
+    for (const r of apres.refs ?? []) if (!etat.registre.has(r.asset) && ctx.clesNouvelles.has(cleNouvelAsset(r.asset))) etat.registre.set(r.asset, "oth");
     const refus = verifierFiche(apres, etat);
     const { avant, ecrase, avertissements } = evaluerEcrasementFiche(apres, etat);
     return {
@@ -113,6 +115,8 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
   const manquantes = SECTIONS_FICHE.filter((s) => !presentes.has(s));
   if (manquantes.length) await tx.insert(planPromptSections).values(manquantes.map((section) => ({ planId: p.id, section, ordre: SECTIONS_FICHE.indexOf(section), contenu: "" })));
 
+  // Le prompt est la source des répliques : les anciennes liaisons de répliques du plan sont détachées (les répliques elles-mêmes restent).
+  if (apres.voixDuPrompt) await tx.delete(planDialogues).where(eq(planDialogues.planId, p.id));
   if (apres.refs) {
     await tx.delete(planRefs).where(and(eq(planRefs.planId, p.id), inArray(planRefs.type, ["picture", "audio"])));
     if (apres.refs.length) {

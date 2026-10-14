@@ -48,7 +48,6 @@ test("exemples : mêmes règles que la sortie (definition sans action ni négati
       if (dit) assert.match(s.texte, /\(S\d\)/, `${nom} : shot ${i + 1} a un <d> sans (Sx)`);
       else assert.ok(!PAROLE.test(s.texte), `${nom} : shot ${i + 1} fait parler sans <d> ni (Sx)`);
     }
-    assert.equal(b.repliques.length, repliquesDe(b).length, `${nom} : une réplique listée par <d>`);
   }
 });
 
@@ -67,7 +66,7 @@ for (const nom of readdirSync(DOSSIER).filter((n) => n.endsWith(".md"))) {
     assert.ok(v.ok, v.ok ? "" : v.erreurs.join(" ; "));
 
     const repliques = repliquesDe(b);
-    const problemes = controlerSortiePlanH3(b, { registre: b.references.map((r) => ({ code: r.asset, type: typeParPrefixe(r.asset) })), repliques });
+    const problemes = controlerSortiePlanH3(b, { registre: b.references.map((r) => ({ code: r.asset, type: typeParPrefixe(r.asset) })), slotsAudioPris: repliques.map((_, i) => i + 1) });
     assert.deepEqual(problemes.filter((p) => p.niveau === "erreur" || p.niveau === "alerte"), []);
 
     const a = assemblerPlanH3(b, { slotsAudioPris: repliques.map((_, i) => i + 1) });

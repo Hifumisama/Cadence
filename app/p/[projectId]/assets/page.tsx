@@ -54,10 +54,7 @@ export default async function AssetsPage({
   const planLot = preparerLot(pourLot, pourLot, enFile, Math.max(0, PLAFOND_LOT_IMAGES - nbEnAttente));
   const raisonPar = new Map(planLot.ecartes.map((e) => [e.assetId, e.raison]));
 
-  // Les voix vivent au casting : elles ne figurent pas dans la grille, un lien y renvoie.
-  const nbVoix = tous.filter((a) => a.type === "voix").length;
   const lignes: LigneRegistre[] = tous
-    .filter((a) => a.type !== "voix")
     .map((a) => {
       const { kind, etat, src } = infosMedia(a.type, a.fichier);
       const citationsReelles = a.citations.filter((c) => !c.deduite);
@@ -69,7 +66,7 @@ export default async function AssetsPage({
         critique: a.critique,
         description: a.description,
         nbPlans: new Set(a.citations.map((c) => c.planUuid)).size,
-        voix: a.type === "personnage" ? (a.voix ? { code: a.voix.code } : null) : undefined,
+        voix: a.type === "personnage" ? (a.voixMaster ? { code: "voix fixée" } : null) : undefined,
         kind,
         etat,
         src,
@@ -111,7 +108,7 @@ export default async function AssetsPage({
               Registre unique pour tout le projet
             </p>
             <h1>Assets</h1>
-            <p>Les images de référence du projet. Les voix se gèrent au casting.</p>
+            <p>Les images de référence du projet. La voix d'un personnage se règle sur sa fiche.</p>
           </div>
           <div className="actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 10 }}>
             <AjouterAssetForm projectId={pid} />
@@ -124,7 +121,7 @@ export default async function AssetsPage({
           </div>
         </div>
 
-        <RegistreAssets projectId={pid} lignes={lignes} nbVoix={nbVoix} typeInitial={typeInitial} imagesInitial={images} />
+        <RegistreAssets projectId={pid} lignes={lignes} typeInitial={typeInitial} imagesInitial={images} />
       </main>
     </>
   );

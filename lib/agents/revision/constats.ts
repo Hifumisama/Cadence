@@ -51,8 +51,6 @@ export function constatsOperations(operations: Operation[], vue: VueEpisode): Co
       if (!r) continue;
       if (op.texte !== undefined && op.texte === r.texte) constats.push(alerte(`Le texte de ${r.handle} est identique : rien ne change.`));
       else if (op.texte !== undefined) {
-        if (r.priseValidee) constats.push(alerte(`La prise validée de ${r.handle} repasse « posée » : elle ne dit plus le texte.`));
-        else if (r.avecPrise) constats.push(alerte(`La prise audio de ${r.handle} sera à refaire.`));
         for (const uuid of r.plans) {
           const p = planParUuid(vue, uuid);
           if (!p) continue;
@@ -68,7 +66,6 @@ export function constatsOperations(operations: Operation[], vue: VueEpisode): Co
     } else if (op.type === "supprimer_replique") {
       const r = repliqueParUuid(vue, op.repliqueUuid);
       if (!r) continue;
-      if (r.priseValidee) constats.push(alerte(`Supprime la prise validée de ${r.handle}.`));
       for (const uuid of r.plans) {
         const p = planParUuid(vue, uuid);
         if (p) constats.push(alerte(`${r.handle} est retirée de la fiche de ${p.handle} : à resynchroniser.`));

@@ -10,7 +10,7 @@ test("portée déduite de la page : toujours la plus petite qui s'y applique", (
   assert.deepEqual(demandeDepuisChemin("/p/3/e/12"), { projectId: 3, portee: "episode", cible: { id: 12 }, episodeId: 12 });
   assert.deepEqual(demandeDepuisChemin("/p/3/assets/CHAR_maya"), { projectId: 3, portee: "asset", cible: { code: "CHAR_maya" } });
   assert.deepEqual(demandeDepuisChemin("/p/3/assets"), { projectId: 3, portee: "projet", cible: null, vue: "registre" });
-  assert.deepEqual(demandeDepuisChemin("/p/3/voix"), { projectId: 3, portee: "projet", cible: null, vue: "voix" });
+  assert.deepEqual(demandeDepuisChemin("/p/3/voix"), { projectId: 3, portee: "projet", cible: null });
   for (const chemin of ["/p/3", "/p/3/brief", "/p/3/creation"]) assert.deepEqual(demandeDepuisChemin(chemin), { projectId: 3, portee: "projet", cible: null }, chemin);
 });
 

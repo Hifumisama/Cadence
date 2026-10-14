@@ -485,7 +485,7 @@ async function main() {
     await db.insert(briefs).values({ projectId: p3!.id, statut: "valide", source: "conversation", contenu: BRIEF, statuts: {} });
     await db.insert(assets).values([
       { projectId: p3!.id, code: "CHAR_iris", type: "personnage", description: "La gardienne" },
-      { projectId: p3!.id, code: "VOICE_off", type: "voix", description: "Voix off" },
+      { projectId: p3!.id, code: "CHAR_voix_off", type: "personnage", description: "Voix off" },
     ]);
     const idsEps = epsF.map((e) => e.id);
     // Le worker de dev tourne peut-être : les tâches de test sont « suspendues » (jamais prises toutes
@@ -592,10 +592,10 @@ async function main() {
     ok(scenesF.length === 6 && plansF.length === 9, "6 scènes et 9 plans créés");
     ok(repsF.length === 15, "15 répliques créées (5 par épisode)");
     const [iris] = await db.select().from(assets).where(and(eq(assets.projectId, p3!.id), eq(assets.code, "CHAR_iris")));
-    const [off] = await db.select().from(assets).where(and(eq(assets.projectId, p3!.id), eq(assets.code, "VOICE_off")));
+    const [off] = await db.select().from(assets).where(and(eq(assets.projectId, p3!.id), eq(assets.code, "CHAR_voix_off")));
     ok(repsF.some((x) => x.locuteurId === iris!.id), "un personnage du registre devient le locuteur de sa réplique");
-    ok(repsF.some((x) => x.voixId === off!.id && x.locuteurId === null), "« voix off » → la voix off du registre");
-    ok(repsF.filter((x) => x.locuteurTexte === "Le capitaine").length === 3 && repsF.every((x) => x.locuteurId !== null || x.voixId !== null || x.locuteurTexte !== ""), "un inconnu devient un locuteur libre (aucun asset créé)");
+    ok(repsF.some((x) => x.locuteurId === off!.id), "« voix off » → le personnage voix off du registre");
+    ok(repsF.filter((x) => x.locuteurTexte === "Le capitaine").length === 3 && repsF.every((x) => x.locuteurId !== null || x.locuteurTexte !== ""), "un inconnu devient un locuteur libre (aucun asset créé)");
     ok((await db.select().from(assets).where(eq(assets.projectId, p3!.id))).length === 2, "…et le registre n'a pas bougé");
     const liens = await db.select().from(planDialogues).where(inArray(planDialogues.repliqueId, repsF.map((x) => x.id)));
     ok(liens.length === 15 && Math.max(...liens.map((l) => l.slot)) <= 3, "chaque réplique est liée à son plan, emplacement <Audio N> ≤ 3");

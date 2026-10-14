@@ -1,6 +1,6 @@
-# Example — Dialogue plan — one line, breathing margin, voice carried by `repliques`
+# Example — Dialogue plan — one line, breathing margin, the line lives in the shot
 
-> A 7 s plan: one line and a breathing margin of at least 2 s in total. The line is in `repliques` and quoted in a `<d>` with its speaker `(S1)`; the code plugs in the voice take. This block shows the draft **as you must return it**; the code derives the final prompt from it (labels, `[Shot N]`, timecodes, "Hard cut to").
+> A 7 s plan: one line and a breathing margin of at least 2 s in total. The line is written in a `<d>` with its speaker `(S1)`; the code plugs in the voice take. This block shows the draft **as you must return it**; the code derives the final prompt from it (labels, `[Shot N]`, timecodes, "Hard cut to").
 
 ```json
 {
@@ -18,7 +18,6 @@
   ],
   "overall_soundscape": "A low, quiet hum of the wooden corridor surrounds the murmured line.",
   "non_diegetic_music": "A single low sustained cello note, barely swelling.",
-  "repliques": [{"repliqueId": "7c1e5b0a-3d2f-4a8e-9b61-0f4d2a9c8e13", "debutSecondes": 1}],
   "assetsManquants": [],
   "notes": "Premier des trois plans de La sentence : la scène portait trois répliques (environ 24 s de voix), au-delà du plafond de 15 s ; elle est découpée en trois plans générés séparément."
 }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { updatePlanScenario, developperEnFichePlan } from "@/app/plans/actions";
+import { LIAISONS, LIBELLE_LIAISON, type Liaison } from "@/lib/plan-liaison";
 import {
   ScenarioNarratifFields,
   type ChampsNarratifs,
@@ -10,6 +11,7 @@ import {
 type Valeurs = ChampsNarratifs & {
   titre: string;
   dureeMontageSecondes: number;
+  liaison: Liaison;
 };
 
 export function PlanScenarioPanel({
@@ -60,6 +62,8 @@ export function PlanScenarioPanel({
           <dd style={{ whiteSpace: "pre-wrap" }}>{initial.description || "—"}</dd>
           <dt>Durée au montage</dt>
           <dd className="num">{initial.dureeMontageSecondes} s</dd>
+          <dt>Liaison</dt>
+          <dd>{LIBELLE_LIAISON[initial.liaison]}</dd>
         </dl>
       </div>
     );
@@ -85,6 +89,16 @@ export function PlanScenarioPanel({
               setChamps((c) => ({ ...c, dureeMontageSecondes: Number(e.target.value) || 0 }))
             }
           />
+        </div>
+        <div className="field-group">
+          <label>Liaison avec le plan précédent</label>
+          <select className="field" value={champs.liaison} onChange={(e) => setChamps((c) => ({ ...c, liaison: e.target.value as Liaison }))}>
+            {LIAISONS.map((l) => (
+              <option key={l} value={l}>
+                {LIBELLE_LIAISON[l]}
+              </option>
+            ))}
+          </select>
         </div>
         <ScenarioNarratifFields valeurs={champs} onChange={majNarratif} />
         <div className="form-actions wide">

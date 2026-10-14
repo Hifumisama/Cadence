@@ -1,12 +1,12 @@
 import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, jobs, planDialogues, plans, projects, propositions, repliques } from "../db/schema";
+import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, jobs, plans, projects, propositions } from "../db/schema";
 import type { EtapeCreation, StatutCreation } from "./agents/creation";
 import { estDeLaCreation, fenetreDeCreation, tacheDeCreation } from "./agents/creation-tache";
 import { and, eq, gte, isNotNull, isNull, ne, or, inArray } from "drizzle-orm";
 import { versRunLot } from "./agents/lots";
 import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
-import { METHODE_AUDIO, METHODE_DOUBLAGE, METHODE_REPLIQUE, METHODE_TEST_AUDIO, METHODE_TEST_VIDEO, METHODE_VOIX, METHODE_VOIX_SOURCE, estMethodeSon, estMethodeTestVoix, formaterDuree } from "./asset-generation";
+import { METHODE_AUDIO, METHODE_MASTER_VOIX, estMethodeSon, formaterDuree } from "./asset-generation";
 import { generationMediaSrc } from "./media";
 import { cibleDeCodeAffiche } from "./affiches";
 import {
@@ -141,7 +141,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     if (l.portee === "episode") return l.profondeur === "revision" ? `/p/${projectId}/realisateur/${l.cibleId}` : `/p/${projectId}/e/${l.cibleId}/scenario`;
     if (l.portee === "asset") {
       const x = assetParId.get(l.cibleId);
-      return x ? (x.type === "voix" ? `/p/${projectId}/voix/${x.code}` : `/p/${projectId}/assets/${x.code}`) : null;
+      return x ? `/p/${projectId}/assets/${x.code}` : null;
     }
     return null;
   };
@@ -154,29 +154,19 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     genre: "image",
     statut: g.statut,
     // Un son se reconnaît dans le panneau : « Son · CODE », sans miniature d'aperçu.
-    libelle: g.methode === METHODE_TEST_VIDEO ? `Test vidéo · ${code}` : g.methode === METHODE_DOUBLAGE ? `Doublage · ${code}` : g.methode === METHODE_VOIX_SOURCE ? `Extraction · ${code}` : g.methode === METHODE_REPLIQUE ? `Réplique · ${code}` : g.methode === METHODE_TEST_AUDIO ? `Test audio · ${code}` : g.methode === METHODE_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : affiche.cible === "seasons" ? "saison" : "épisode"}` : code,
+    libelle: g.methode === METHODE_MASTER_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : affiche.cible === "seasons" ? "saison" : "épisode"}` : code,
     detail:
-      g.methode === METHODE_TEST_VIDEO
-        ? "Test de la voix sur un visage"
-        : g.methode === METHODE_VOIX_SOURCE
-          ? "Voix isolée et transcription"
-          : g.methode === METHODE_DOUBLAGE
-            ? "Doublage d'une réplique"
-            : g.methode === METHODE_REPLIQUE
-          ? "Prise de réplique"
-          : g.methode === METHODE_TEST_AUDIO
-          ? "Réplique de test"
-          : g.methode === METHODE_VOIX
-        ? "Voix de référence"
+      g.methode === METHODE_MASTER_VOIX
+        ? "Master de voix"
         : g.methode === METHODE_AUDIO
-        ? g.dureeSecondes != null
-          ? `Génération audio · ${formaterDuree(g.dureeSecondes)}`
-          : "Génération audio"
-        : g.methode === "edition"
-          ? "À partir d'images"
-          : "À partir du texte",
-    // Une voix se retrouve au casting vocal (étape « Référence »), pas à la fiche d'asset.
-    href: g.methode === METHODE_REPLIQUE || g.methode === METHODE_DOUBLAGE ? `/p/${projectId}/voix/${code}?etape=repliques` : g.methode === METHODE_VOIX_SOURCE ? `/p/${projectId}/voix/${code}?etape=voix&generation=${g.uuid}` : estMethodeTestVoix(g.methode) ? `/p/${projectId}/voix/${code}?etape=ressenti&generation=${g.uuid}` : g.methode === METHODE_VOIX ? `/p/${projectId}/voix/${code}?etape=reference&generation=${g.uuid}` : affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
+          ? g.dureeSecondes != null
+            ? `Génération audio · ${formaterDuree(g.dureeSecondes)}`
+            : "Génération audio"
+          : g.methode === "edition"
+            ? "À partir d'images"
+            : "À partir du texte",
+    // Le master d'une voix se retrouve dans le bloc « Voix » de la fiche du personnage.
+    href: g.methode === METHODE_MASTER_VOIX ? `/p/${projectId}/assets/${code}?generation=${g.uuid}#as-voix` : affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
     projectId,
     assetId: g.assetId,
     progression:
@@ -197,28 +187,6 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
     };
   });
-
-  // Une prise de réplique : « Réplique · début du texte », et un clic mène au plan qui la cite (sinon à la voix).
-  const idsRepliques = [...new Set(lignesImages.flatMap((l) => (l.g.repliqueId != null ? [l.g.repliqueId] : [])))];
-  if (idsRepliques.length > 0) {
-    const infos = new Map<number, { texte: string; planUuid: string | null; episodeId: number | null }>();
-    const lignes = await db
-      .select({ id: repliques.id, texte: repliques.texte, planUuid: plans.uuid, episodeId: plans.episodeId })
-      .from(repliques)
-      .leftJoin(planDialogues, eq(planDialogues.repliqueId, repliques.id))
-      .leftJoin(plans, eq(plans.id, planDialogues.planId))
-      .where(inArray(repliques.id, idsRepliques));
-    for (const l of lignes) if (!infos.get(l.id)?.planUuid) infos.set(l.id, { texte: l.texte, planUuid: l.planUuid, episodeId: l.episodeId });
-    for (const [i, t] of images.entries()) {
-      const { g, code, projectId } = lignesImages[i]!;
-      if (g.repliqueId == null || (g.methode !== METHODE_REPLIQUE && g.methode !== METHODE_DOUBLAGE)) continue;
-      const info = infos.get(g.repliqueId);
-      const extrait = (info?.texte ?? g.texteReference ?? "").replace(/\s+/g, " ").trim();
-      t.libelle = `${g.methode === METHODE_DOUBLAGE ? "Doublage" : "Réplique"} · ${extrait.length > 40 ? `${extrait.slice(0, 40)}…` : extrait || code}`;
-      t.detail = `${g.methode === METHODE_DOUBLAGE ? "Prise doublée" : "Prise générée"} · voix ${code}`;
-      t.href = info?.planUuid && info.episodeId != null ? `/p/${projectId}/e/${info.episodeId}/plans/${info.planUuid}` : `/p/${projectId}/voix/${code}`;
-    }
-  }
 
   const videos: Tache[] = lignesVideos.map(({ j, planUuid, titre, projectId, episodeId }) => ({
     cle: cleVideo(j.id),
@@ -323,7 +291,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const taches = gardees.map((x) => {
     const g = parCle.get(x.cle);
     if (!g) return x;
-    if (estMethodeSon(g.methode) || g.methode === METHODE_TEST_VIDEO) return x; // un son, une voix ou une vidéo n'a ni vignette ni aperçu
+    if (estMethodeSon(g.methode)) return x; // un son, une voix ou une vidéo n'a ni vignette ni aperçu
     if (g.statut === "termine") return { ...x, vignetteSrc: generationMediaSrc(g.assetId, g.fichier) };
     if (g.statut === "en_cours" && g.apercuAt) {
       const url = generationMediaSrc(g.assetId, g.apercuFichier);

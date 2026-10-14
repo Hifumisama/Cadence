@@ -117,28 +117,27 @@ test("clé de tâche du header : un lot se désigne par l'uuid de sa proposition
 const registre: AssetLocuteur[] = [
   { id: 1, code: "CHAR_maya", type: "personnage" },
   { id: 2, code: "CHAR_iris_mercier", type: "personnage" },
-  { id: 3, code: "VOICE_off", type: "voix" },
+  { id: 3, code: "CHAR_voix_off", type: "personnage" },
   { id: 4, code: "CHAR_marc", type: "personnage" },
   { id: 5, code: "CHAR_marie", type: "personnage" },
 ];
 
 test("locuteur : le registre d'abord (code ou nom), « voix off » ensuite, un inconnu reste libre", () => {
-  assert.deepEqual(rapprocherLocuteur("Maya", registre), { locuteurId: 1, voixId: null, locuteurTexte: "", connu: true });
+  assert.deepEqual(rapprocherLocuteur("Maya", registre), { locuteurId: 1, locuteurTexte: "", connu: true });
   assert.equal(rapprocherLocuteur("CHAR_maya", registre).locuteurId, 1);
   assert.equal(rapprocherLocuteur("  MAYA  ", registre).locuteurId, 1, "casse et espaces");
   assert.equal(rapprocherLocuteur("Iris Mercier", registre).locuteurId, 2, "le nom complet suit le code");
   assert.equal(rapprocherLocuteur("Maya (au téléphone)", registre).locuteurId, 1, "le premier mot suffit, sans ambiguïté");
 
-  assert.deepEqual(rapprocherLocuteur("voix off", registre), { locuteurId: null, voixId: 3, locuteurTexte: "", connu: true }, "la voix off du registre");
-  assert.equal(rapprocherLocuteur("Narrateur", registre).voixId, 3);
-  assert.deepEqual(rapprocherLocuteur("Voix-off", [{ id: 1, code: "CHAR_maya", type: "personnage" }]), { locuteurId: null, voixId: null, locuteurTexte: "Voix off", connu: true }, "sans voix off au registre : un locuteur libre, légitime");
+  assert.deepEqual(rapprocherLocuteur("voix off", registre), { locuteurId: 3, locuteurTexte: "", connu: true }, "le personnage voix off du registre");
+  assert.equal(rapprocherLocuteur("Narrateur", registre).locuteurId, 3);
+  assert.deepEqual(rapprocherLocuteur("Voix-off", [{ id: 1, code: "CHAR_maya", type: "personnage" }]), { locuteurId: null, locuteurTexte: "Voix off", connu: true }, "sans voix off au registre : un locuteur libre, légitime");
 
-  // Le modèle écrit souvent le CODE du registre (essai réel du 2026-10-02 : « VOICE_off »).
-  assert.deepEqual(rapprocherLocuteur("VOICE_off", registre), { locuteurId: null, voixId: 3, locuteurTexte: "", connu: true }, "une voix citée par son code");
-  assert.equal(rapprocherLocuteur("VOICE_autre", registre).connu, false, "…mais pas n'importe quelle voix");
+  // Le modèle écrit souvent le CODE du registre.
+  assert.equal(rapprocherLocuteur("CHAR_voix_off", registre).locuteurId, 3, "la voix off citée par son code");
 
   const inconnu = rapprocherLocuteur("Le capitaine", registre);
-  assert.deepEqual(inconnu, { locuteurId: null, voixId: null, locuteurTexte: "Le capitaine", connu: false }, "jamais d'asset créé : un locuteur libre, signalé");
+  assert.deepEqual(inconnu, { locuteurId: null, locuteurTexte: "Le capitaine", connu: false }, "jamais d'asset créé : un locuteur libre, signalé");
   assert.equal(rapprocherLocuteur("", registre).connu, false);
   assert.equal(rapprocherLocuteur("x".repeat(300), registre).locuteurTexte.length, 100, "borné comme la colonne");
   // Deux prénoms qui commencent pareil : pas d'amalgame sur le premier mot.

@@ -10,7 +10,7 @@ export function infosMedia(
 ): { kind: MediaKind; etat: FichierEtat; src: string | null } {
   if (!fichier) return { kind: "image", etat: "aucun", src: null };
   const kind: MediaKind =
-    type === "voix" || type === "sfx" || estAudio(fichier) ? "audio" : estVideo(fichier) ? "video" : "image";
+    type === "sfx" || estAudio(fichier) ? "audio" : estVideo(fichier) ? "video" : "image";
   if (!fichierMediaExiste(fichier)) return { kind, etat: "manquant", src: null };
   return { kind, etat: "ok", src: urlAssetMedia(fichier) };
 }

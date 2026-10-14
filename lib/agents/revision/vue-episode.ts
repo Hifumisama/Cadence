@@ -33,9 +33,6 @@ export type RepliqueVue = {
   handle: string;
   texte: string;
   locuteur: string;
-  statut: string;
-  avecPrise: boolean;
-  priseValidee: boolean;
   /** Les plans qui citent la réplique (uuid). */
   plans: string[];
   /** Parmi eux, ceux dont la fiche cite la réplique mot pour mot (la fiche peut alors être mise à jour sans modèle). */
@@ -73,7 +70,7 @@ export type LignesEpisode = {
   /** Dans l'ordre de lecture (`plans.ordre`). */
   plans: { uuid: string; titre: string; description: string; duree: number; sceneId: number | null; statut: string; aFiche: boolean; perime: boolean }[];
   scenes: { id: number; titre: string }[];
-  repliques: { uuid: string; ordre: number; texte: string; locuteur: string; statut: string; avecPrise: boolean; liaisons: { planUuid: string; slot: number }[]; verbatim?: string[] }[];
+  repliques: { uuid: string; ordre: number; texte: string; locuteur: string; liaisons: { planUuid: string; slot: number }[]; verbatim?: string[] }[];
 };
 
 export function construireVue(l: LignesEpisode): VueEpisode {
@@ -109,9 +106,6 @@ export function construireVue(l: LignesEpisode): VueEpisode {
     handle: handle("R", i + 1),
     texte: r.texte,
     locuteur: r.locuteur,
-    statut: r.statut,
-    avecPrise: r.avecPrise,
-    priseValidee: r.statut === "validee",
     plans: r.liaisons.map((li) => li.planUuid),
     plansVerbatim: r.verbatim ?? [],
   }));
@@ -167,10 +161,7 @@ export async function lireVueEpisode(db: Db, projectId: number, episodeId: numbe
       uuid: repliques.uuid,
       ordre: repliques.ordre,
       texte: repliques.texte,
-      statut: repliques.statut,
-      fichier: repliques.fichier,
       locuteurId: repliques.locuteurId,
-      voixId: repliques.voixId,
       locuteurTexte: repliques.locuteurTexte,
     })
     .from(repliques)
@@ -183,7 +174,7 @@ export async function lireVueEpisode(db: Db, projectId: number, episodeId: numbe
         .from(planDialogues)
         .where(inArray(planDialogues.repliqueId, idsRepliques))
     : [];
-  const idsAssets = [...new Set(lesRepliques.flatMap((r) => [r.locuteurId, r.voixId]).filter((x): x is number => x != null))];
+  const idsAssets = [...new Set(lesRepliques.flatMap((r) => [r.locuteurId]).filter((x): x is number => x != null))];
   const codes = idsAssets.length ? await db.select({ id: assets.id, code: assets.code }).from(assets).where(inArray(assets.id, idsAssets)) : [];
   const codeDe = new Map(codes.map((a) => [a.id, a.code]));
   const uuidDePlan = new Map(lesPlans.map((p) => [p.id, p.uuid]));
@@ -210,9 +201,7 @@ export async function lireVueEpisode(db: Db, projectId: number, episodeId: numbe
       uuid: r.uuid,
       ordre: r.ordre,
       texte: r.texte,
-      locuteur: (r.locuteurId != null ? codeDe.get(r.locuteurId) : r.voixId != null ? codeDe.get(r.voixId) : undefined) ?? (r.locuteurTexte || "Inconnu"),
-      statut: r.statut,
-      avecPrise: r.fichier != null,
+      locuteur: (r.locuteurId != null ? codeDe.get(r.locuteurId) : undefined) ?? (r.locuteurTexte || "Inconnu"),
       liaisons: liaisons.filter((li) => li.repliqueId === r.id).flatMap((li) => (uuidDePlan.has(li.planId) ? [{ planUuid: uuidDePlan.get(li.planId)!, slot: li.slot }] : [])),
       verbatim: liaisons.filter((li) => li.repliqueId === r.id).flatMap((li) => (citeMotPourMot(li.planId, r.texte) ? [uuidDePlan.get(li.planId)!] : [])),
     })),

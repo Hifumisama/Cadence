@@ -3,13 +3,14 @@ import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { assets, jobs, planDialogues, planPromptSections, planRefs, plans, repliques, voixFiches } from "../db/schema";
+import { assets, jobs, planDialogues, planPromptSections, planRefs, plans, repliques } from "../db/schema";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";
 import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/annulation-db";
 import { domaineDe, type DomaineGpu } from "../lib/gpu";
 import { configLlm } from "../lib/llm/config";
-import { cheminAssetMedia, cheminRepliqueMedia } from "../lib/media";
+import { cheminAssetMedia, cheminVoixMedia } from "../lib/media";
 import { assemblerPrompt } from "../lib/prompt";
+import { sectionsAvecRaccord } from "../lib/plan-raccord";
 import { getAllParams } from "../lib/params";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import { creerClientComfyUI } from "./comfyui";
@@ -18,6 +19,7 @@ import type { Suivi, SubmissionInput } from "./comfyui/types";
 import { creerRelaisJob } from "./progression";
 import { libererAvant } from "./gpu";
 import { prochaineGenerationEnAttente, traiterGenerationImage } from "./images";
+import { preparerRaccord } from "./raccord";
 import { decharger, llmJoignable } from "./llamaSwap";
 import { echouerAppelsEnAttente, prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
 import { attenteDepassee, effacerSonde, noterSonde } from "./disponibilite";
@@ -44,29 +46,28 @@ async function prochainJobEnAttente() {
   return job ?? null;
 }
 
+/** Ce que le worker soumet, et ce qu'il garde de l'essai : `promptFiche` est le prompt de la FICHE (sans la déclaration de l'image de raccord, que le
+ * code ajoute au prompt soumis seulement) ; `raccordJobId` est l'essai du plan précédent dont la dernière image sert de première image. */
 async function construireSubmissionInput(
   planId: number,
   activerUpscale: boolean,
-): Promise<SubmissionInput> {
+): Promise<{ input: SubmissionInput; promptFiche: string; raccordJobId: number | null }> {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
 
   const [sections, refs, dialogues] = await Promise.all([
     db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId)),
     db
-      .select({ type: planRefs.type, slot: planRefs.slot, fichier: assets.fichier })
+      .select({ type: planRefs.type, slot: planRefs.slot, fichier: assets.fichier, assetId: assets.id, assetType: assets.type, voixMaster: assets.voixMaster })
       .from(planRefs)
       .leftJoin(assets, eq(planRefs.assetId, assets.id))
       .where(eq(planRefs.planId, planId)),
-    // La prise d'une réplique liée EST la référence <Audio N> du plan (F02, révision 2026-09-30) : elle
+    // Le master du locuteur d'une réplique liée EST la référence <Audio N> du plan (F02, révision 2026-10-14) : elle
     // vient de plan_dialogues, jamais de plan_refs.
     db
       .select({
         slot: planDialogues.slot,
         repliqueId: repliques.id,
-        fichier: repliques.fichier,
-        dureeSecondes: repliques.dureeSecondes,
-        voixId: repliques.voixId,
         locuteurId: repliques.locuteurId,
       })
       .from(planDialogues)
@@ -74,27 +75,15 @@ async function construireSubmissionInput(
       .where(eq(planDialogues.planId, planId)),
   ]);
 
-  // Trois niveaux de voix (2026-10-12) : une prise de la réplique, sinon la voix de référence (« Master ») de son locuteur
-  // (voix directe, sinon celle de son personnage), sinon rien : le modèle vidéo choisit la voix.
-  const sansPrise = dialogues.filter((d) => !d.fichier);
-  const masters = new Map<number, string>();
-  if (sansPrise.length > 0) {
-    const personnages = sansPrise.map((d) => d.locuteurId).filter((x): x is number => x != null);
-    const fiches = personnages.length
-      ? await db.select({ assetId: voixFiches.assetId, personnageId: voixFiches.personnageId }).from(voixFiches).where(inArray(voixFiches.personnageId, personnages))
-      : [];
-    const voixDuPersonnage = new Map(fiches.map((f) => [f.personnageId, f.assetId]));
-    const voixIds = [...new Set(sansPrise.map((d) => d.voixId ?? (d.locuteurId != null ? voixDuPersonnage.get(d.locuteurId) : undefined)).filter((x): x is number => x != null))];
-    const fichiers = voixIds.length ? await db.select({ id: assets.id, fichier: assets.fichier }).from(assets).where(and(inArray(assets.id, voixIds), eq(assets.type, "voix"))) : [];
-    const fichierDeVoix = new Map(fichiers.filter((f) => f.fichier).map((f) => [f.id, f.fichier!]));
-    for (const d of sansPrise) {
-      const voixId = d.voixId ?? (d.locuteurId != null ? voixDuPersonnage.get(d.locuteurId) : undefined);
-      const f = voixId != null ? fichierDeVoix.get(voixId) : undefined;
-      if (f) masters.set(d.repliqueId, f);
-    }
-  }
+  // La voix d'une réplique : le master de son locuteur (voix/<personnageId>/<fichier>, chantier voix/master 2026-10-14), sinon rien
+  // (jamais bloquant : le modèle vidéo invente la voix).
+  const personnages = [...new Set(dialogues.map((d) => d.locuteurId).filter((x): x is number => x != null))];
+  const mastersDesPersonnages = personnages.length
+    ? await db.select({ id: assets.id, voixMaster: assets.voixMaster }).from(assets).where(and(inArray(assets.id, personnages), eq(assets.type, "personnage")))
+    : [];
+  const masterDuPersonnage = new Map(mastersDesPersonnages.filter((p) => p.voixMaster).map((p) => [p.id, cheminVoixMedia(p.id, p.voixMaster!)]));
 
-  const promptAssemble = assemblerPrompt(sections);
+  const promptFiche = assemblerPrompt(sections);
 
   // Un fichier de MEDIA_ROOT -> chemin local + nom unique côté ComfyUI (pas de collision entre deux plans,
   // deux prises de même nom, ni avec les fichiers de l'utilisateur dans le dossier d'entrée).
@@ -104,16 +93,22 @@ async function construireSubmissionInput(
   });
   const refAsset = (fichier: string | null) => ref(cheminAssetMedia(fichier ?? ""));
 
-  // Audio : les prises des répliques d'abord (la voix prime sur les bruitages), puis les bruitages sur les
+  // Audio : les masters des locuteurs d'abord (la voix prime sur les bruitages), puis les bruitages sur les
   // emplacements restants.
-  const audioVoix = dialogues.flatMap((d) => {
-    if (d.fichier) return [{ slot: d.slot, ...ref(cheminRepliqueMedia(d.repliqueId, d.fichier)), dureeSecondes: d.dureeSecondes }];
-    const master = masters.get(d.repliqueId);
-    return master ? [{ slot: d.slot, ...refAsset(master), dureeSecondes: null as number | null }] : [];
-  });
+  // Depuis le 2026-10-14 le prompt est la source des répliques : la voix d'un personnage qui parle est une référence audio de la fiche dont
+  // l'asset est le PERSONNAGE (son master). Les anciennes répliques liées ne servent que pour une fiche écrite avant (sans voix de ce genre).
+  const voixDeLaFiche = refs
+    .filter((r) => r.type === "audio" && r.assetType === "personnage")
+    .flatMap((r) => (r.voixMaster && r.assetId != null ? [{ slot: r.slot, ...ref(cheminVoixMedia(r.assetId, r.voixMaster)), dureeSecondes: null as number | null }] : []));
+  const audioVoix = refs.some((r) => r.type === "audio" && r.assetType === "personnage")
+    ? voixDeLaFiche
+    : dialogues.flatMap((d) => {
+        const master = d.locuteurId != null ? masterDuPersonnage.get(d.locuteurId) : undefined;
+        return master ? [{ slot: d.slot, ...ref(master), dureeSecondes: null as number | null }] : [];
+      });
   const emplacementsVoix = new Set(audioVoix.map((a) => a.slot));
   const audioBruitages = refs
-    .filter((r) => r.type === "audio" && r.fichier)
+    .filter((r) => r.type === "audio" && r.assetType !== "personnage" && r.fichier)
     .filter((r) => {
       if (!emplacementsVoix.has(r.slot)) return true;
       console.warn(`[worker] Plan ${planId} : l'emplacement <Audio ${r.slot}> est pris par une voix, le bruitage est ignoré`);
@@ -121,19 +116,29 @@ async function construireSubmissionInput(
     })
     .map((r) => ({ slot: r.slot, ...refAsset(r.fichier), dureeSecondes: null as number | null }));
 
+  const refsImage = refs
+    .filter((r) => r.type === "picture" && r.fichier)
+    .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) }));
+  const refsVideo = refs
+    .filter((r) => r.type === "video" && r.fichier)
+    .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) }));
+
+  // Liaison « suite » : la dernière image du rendu du plan précédent devient la première image du premier shot (éphémère, lib/plan-raccord.ts).
+  const raccord = await preparerRaccord(plan, refsImage.map((r) => r.slot), refsVideo.length);
+
   return {
-    promptAssemble,
-    seed: plan.seed ?? undefined,
-    dureeSecondes: plan.dureeGenerationSecondes,
-    fps: plan.fps,
-    refsImage: refs
-      .filter((r) => r.type === "picture" && r.fichier)
-      .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) })),
-    refsAudio: [...audioVoix, ...audioBruitages],
-    refsVideo: refs
-      .filter((r) => r.type === "video" && r.fichier)
-      .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) })),
-    activerUpscale,
+    promptFiche,
+    raccordJobId: raccord?.sourceJobId ?? null,
+    input: {
+      promptAssemble: raccord ? assemblerPrompt(sectionsAvecRaccord(sections, raccord.slot)) : promptFiche,
+      seed: plan.seed ?? undefined,
+      dureeSecondes: plan.dureeGenerationSecondes,
+      fps: plan.fps,
+      refsImage: raccord ? [...refsImage, raccord.ref] : refsImage,
+      refsAudio: [...audioVoix, ...audioBruitages],
+      refsVideo,
+      activerUpscale,
+    },
   };
 }
 
@@ -175,16 +180,16 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
   };
 
   try {
-    const input = await construireSubmissionInput(job.planId, job.activerUpscale);
+    const { input, promptFiche, raccordJobId } = await construireSubmissionInput(job.planId, job.activerUpscale);
     // Un préfixe de fichier propre à ce rendu : plus de collision de noms, ni de résultat en cache servi à un autre rendu.
     input.prefixeSortie = `cadence_p${job.planId}_r${job.numeroRendu}${job.tentative > 1 ? `_t${job.tentative}` : ""}`;
     verifierEntree(input); // durée hors 5-15 s, trop de références : échec franc (voir catch)
-    // Ce qui est réellement soumis, gardé sur le rendu : de quoi comparer deux rendus (et voir qu'une
-    // modification n'a pas bougé le prompt).
+    // Ce qui est gardé sur le rendu : le prompt de la FICHE (de quoi comparer deux rendus et voir qu'une modification n'a pas bougé le prompt ;
+    // « Repartir de là » le restaure) et, s'il y en a un, l'essai dont l'image de raccord vient.
     const [lePlan] = await db.select({ description: plans.description }).from(plans).where(eq(plans.id, job.planId));
     await db
       .update(jobs)
-      .set({ promptUtilise: input.promptAssemble, dureeUtilisee: input.dureeSecondes, seedUtilisee: input.seed ?? null, descriptionUtilisee: lePlan?.description ?? null })
+      .set({ promptUtilise: promptFiche, raccordJobId, dureeUtilisee: input.dureeSecondes, seedUtilisee: input.seed ?? null, descriptionUtilisee: lePlan?.description ?? null })
       .where(eq(jobs.id, job.id));
 
     for (const ref of [...input.refsImage, ...input.refsAudio, ...input.refsVideo]) {

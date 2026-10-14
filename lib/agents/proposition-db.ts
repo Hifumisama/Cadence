@@ -220,8 +220,8 @@ export async function appliquerProposition(
         await applicateur.appliquer(tx, ctx, c);
         await tx.update(propositionChangements).set({ appliqueAt: new Date() }).where(eq(propositionChangements.id, c.id));
       }
-      // Un personnage ou une voix créé(e) ici peut être le locuteur de répliques écrites avant lui : on les relie.
-      const creeUnLocuteur = retenus.some((c) => c.operation === "creer" && (c.cibleType === "voix" || (c.cibleType === "asset" && (c.apres as { type?: string } | null)?.type === "personnage")));
+      // Un personnage créé ici peut être le locuteur de répliques écrites avant lui : on les relie.
+      const creeUnLocuteur = retenus.some((c) => c.operation === "creer" && ((c.cibleType === "asset" && (c.apres as { type?: string } | null)?.type === "personnage")));
       if (creeUnLocuteur) await rattacherRepliquesLibres(tx, prop.projectId);
       const statut = retenus.length === toutes.length ? "appliquee" : "partielle";
       await tx.update(propositions).set({ statut, appliedAt: new Date() }).where(eq(propositions.id, propositionId));

@@ -5,7 +5,7 @@ import { preparerLot, type AssetPourLot } from "./generation-lot";
  * le bandeau « Prochaine étape » et le registre d'assets. Règles pures (sans base ni disque) ; la lecture en base est dans
  * lib/queries-images.ts.
  *
- * Un asset « à illustrer » est un asset dont l'image de référence se génère : tout sauf une voix (casting vocal) et un son
+ * Un asset « à illustrer » est un asset dont l'image de référence se génère : tout sauf un son
  * (génération audio), c'est-à-dire exactement ce que `raisonNonGenerable` accepte. Il « a une image » quand `fichier` est
  * renseigné ; sans image sinon. Rien n'est versionné (F01) : un asset a une image ou n'en a pas. */
 

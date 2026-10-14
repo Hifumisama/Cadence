@@ -23,7 +23,7 @@ export type DemandeAgent = {
    * page des assets), sans passer par les étapes d'une conversation ; « fiches » celui des fiches de plan
    * (page d'un plan : sa fiche ; épisode : les fiches de ses plans, en lot) ; « iteration » la correction après
    * visionnage d'un plan qui a un rendu (iteration-plan). */
-  vue?: "registre" | "voix" | "fiches" | "iteration";
+  vue?: "registre" | "fiches" | "iteration";
 };
 
 type Contexte = {

@@ -11,7 +11,9 @@
     "confiance",
     "changements",
     "verification",
-    "abandon"
+    "abandon",
+    "reecriture",
+    "nouvelleDescription"
   ],
   "properties": {
     "dureeCoherente": {
@@ -111,13 +113,13 @@
         }
       }
     },
-    "nouvelleDescription": {
-      "type": "string",
-      "description": "(French) Optional. The plan's NEW description (its intention), complete, ending with « État en fin de plan : … » (where the characters who matter stand and what they face, relative to fixed landmarks of the place, never to the camera; the state of what changed). Give it when the correction changes what happens in the plan, or the state it leaves to the next plan. Required when `reecriture` is true."
-    },
     "reecriture": {
       "type": "boolean",
-      "description": "Optional (default false). true when the instruction changes WHAT HAPPENS in the plan (a different action, place, ending, an attempt added or removed): it is no longer a retouch of passages but a rewrite of the plan. Then `changements` stays empty and `nouvelleDescription` is the plan rewritten; the application rewrites the whole sheet from it."
+      "description": "Required. false for a retouch of passages (default). true when the instruction changes WHAT HAPPENS in the plan (a different action, place, ending, an attempt, an element added or removed, a new shot sequence): it is no longer a retouch of passages but a rewrite of the plan. Then `changements` stays empty and the NEXT field, `nouvelleDescription`, is the plan rewritten, complete; the application rewrites the whole sheet from it."
+    },
+    "nouvelleDescription": {
+      "type": "string",
+      "description": "(French) The plan's NEW description (its intention), complete, ending with « État en fin de plan : … » (where the characters who matter stand and what they face, relative to fixed landmarks of the place, never to the camera; the state of what changed). REQUIRED when `reecriture` is true: write it right here, it is the whole point of a rewrite (an answer with `reecriture` true and an empty description is refused). Also give it when a retouch changes the state it leaves to the next plan. Empty string when the description stays as it is."
     },
     "assetsManquants": {
       "type": "array",
@@ -125,13 +127,38 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["code", "type", "description", "raison"],
+        "required": [
+          "code",
+          "type",
+          "description",
+          "raison"
+        ],
         "properties": {
-          "code": { "type": "string", "description": "Proposed code, type prefix + short lowercase name (CHAR_, DEC_, PROP_, VFX_)." },
-          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx"] },
-          "parent": { "type": "string", "description": "Code of the base subject (registry) when the asset is a state of it." },
-          "description": { "type": "string", "description": "(French) What is seen, as in the registry." },
-          "raison": { "type": "string", "description": "(French) Why no registry asset fits." }
+          "code": {
+            "type": "string",
+            "description": "Proposed code, type prefix + short lowercase name (CHAR_, DEC_, PROP_, VFX_)."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "personnage",
+              "decor",
+              "prop",
+              "vfx"
+            ]
+          },
+          "parent": {
+            "type": "string",
+            "description": "Code of the base subject (registry) when the asset is a state of it."
+          },
+          "description": {
+            "type": "string",
+            "description": "(French) What is seen, as in the registry."
+          },
+          "raison": {
+            "type": "string",
+            "description": "(French) Why no registry asset fits."
+          }
         }
       }
     },

@@ -3,7 +3,7 @@
   "title": "Output of the plan-h3 agent: the draft of one plan",
   "type": "object",
   "additionalProperties": false,
-  "required": ["titre", "dureeSecondes", "references", "summary", "ouverture", "shots", "overall_soundscape", "non_diegetic_music", "repliques", "assetsManquants", "notes"],
+  "required": ["titre", "dureeSecondes", "references", "summary", "ouverture", "shots", "overall_soundscape", "non_diegetic_music", "assetsManquants", "notes"],
   "properties": {
     "titre": { "type": "string", "minLength": 1, "maxLength": 200, "description": "(French) Short title of the plan." },
     "dureeSecondes": {
@@ -22,7 +22,7 @@
         "additionalProperties": false,
         "required": ["asset", "nature", "role", "nom", "definition"],
         "properties": {
-          "asset": { "type": "string", "description": "Code of an existing registry asset (CHAR_maya, DEC_couloir_bois, SFX_porte…). Never an invented code: a missing asset is declared in `assetsManquants`." },
+          "asset": { "type": "string", "description": "Code of an existing registry asset (CHAR_maya, DEC_couloir_bois, SFX_porte…). Never an invented code, except a missing IMAGE asset that is also declared in `assetsManquants` with this exact same code." },
           "nature": { "type": "string", "enum": ["image", "son"], "description": "image: the asset is cited by its image (character, set, prop, effect). son: sound effect (SFX_… code) cited as an audio reference." },
           "role": { "type": "string", "description": "(French) Role in the plan, for the sheet (« Décor, couloir bleu nuit »)." },
           "nom": { "type": "string", "description": "(English) How the sheet names the asset, no mandatory definite article: « Maya », « the Tenancière », « the narrow wooden corridor »." },
@@ -51,22 +51,9 @@
     },
     "overall_soundscape": { "type": "string", "description": "(English) The background sound over the whole video (ambience, distant noises, crowd), without the heading « overall_soundscape: ». Sounds tied to an action are written in the shot text. May cite a sound effect as [[SFX_…]]." },
     "non_diegetic_music": { "type": "string", "description": "(English) The music only the audience hears, by instrumentation, tempo and dynamics, without the heading « non_diegetic_music: ». Exactly « N/A » when there is none." },
-    "repliques": {
-      "type": "array",
-      "description": "Lines (existing entities) carried by this plan, in speaking order. Voices are never references: the code derives them from this list and checks verbatim.",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["repliqueId"],
-        "properties": {
-          "repliqueId": { "type": "string", "description": "Public uuid of the line." },
-          "debutSecondes": { "type": "number", "minimum": 0, "description": "Indicative: where the line starts in the plan." }
-        }
-      }
-    },
     "assetsManquants": {
       "type": "array",
-      "description": "Assets that should be created and that the registry does not contain. Empty if none is missing. A missing asset is never cited as [[CODE]]: describe it in prose.",
+      "description": "Assets that should be created and that the registry does not contain. Empty if none is missing. A missing IMAGE asset is also cited in `references` (same code) and as [[CODE]] in the shots: it is created with the plan. A missing sound is described in prose.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -80,6 +67,6 @@
         }
       }
     },
-    "notes": { "type": "string", "description": "(French) Trade-offs, deliberate continuous gesture, deviations. Empty if nothing to report." }
+    "notes": { "type": "string", "maxLength": 600, "description": "(French) Trade-offs, deliberate continuous gesture, deviations: a few short sentences at most. Empty if nothing to report. Never think aloud, never list options, never repeat a sentence." }
   }
 }

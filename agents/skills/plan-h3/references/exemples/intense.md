@@ -22,7 +22,6 @@
   ],
   "overall_soundscape": "A faint murmur of the distant bazar drifts over the rooftops, a low hum of voices and cloth shifting in the night air.",
   "non_diegetic_music": "Low strings at a fast pulse of about 110 bpm, fading to near silence over the last two seconds.",
-  "repliques": [],
   "assetsManquants": [],
   "notes": "Cadence de course : un shot toutes les 2 s environ, un angle distinct à chaque coupe ; le dernier shot, plus long, ralentit pour la reprise de souffle."
 }

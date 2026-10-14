@@ -6,12 +6,13 @@ import { Sommaire, type EntreeSommaire } from "@/components/brief/Sommaire";
 import { AssetPreview } from "@/components/assets/AssetPreview";
 import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
 import { GenerationPanel } from "@/components/assets/GenerationPanel";
-import { AssignerVoix } from "@/components/assets/AssignerVoix";
 import { NouvelAssetDepuis } from "@/components/assets/NouvelAssetDepuis";
 import { BlocTexte, BoutonCopier, EnteteAsset, FicheProvider, RendusAsset, ReglagesAsset } from "@/components/assets/FicheAsset";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
+import { BlocVoix } from "@/components/voix/BlocVoix";
+import { getVoixPersonnage } from "@/lib/queries-master-voix";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
-import { formatParDefaut, loraParDefaut, raisonAudioNonGenerable, raisonNonGenerable } from "@/lib/asset-generation";
+import { METHODE_MASTER_VOIX, formatParDefaut, loraParDefaut, raisonAudioNonGenerable, raisonNonGenerable } from "@/lib/asset-generation";
 import { Topbar } from "@/components/ui/Topbar";
 import { delierRef } from "@/app/assets/actions";
 import { Icone } from "@/components/ui/Icone";
@@ -43,18 +44,16 @@ export default async function AssetDetailPage({
 
   const depart = noeud.deriveDeId != null ? (tous.find((a) => a.id === noeud.deriveDeId) ?? null) : null;
   const servis = noeud.derives;
-  const sonOuVoix = noeud.type === "voix" || noeud.type === "sfx";
+  const sonOuVoix = noeud.type === "sfx";
 
   // Un son n'a pas besoin du registre d'images (sources du mode « images »).
-  const [generations, registreImages] =
-    noeud.type === "voix"
-      ? [[], []]
-      : await Promise.all([
-          getGenerationsAsset(noeud.id),
-          noeud.type === "sfx" ? Promise.resolve([] as Awaited<ReturnType<typeof getAssetsAvecImage>>) : getAssetsAvecImage(pid, noeud.id),
-        ]);
-  // Voix du catalogue pas encore rattachées à un personnage — ce que « Assigner une voix » propose.
-  const voixLibres = tous.filter((n) => n.type === "voix" && n.personnageCode == null).map((n) => ({ id: n.id, code: n.code }));
+  const [generations, registreImages] = await Promise.all([
+    getGenerationsAsset(noeud.id),
+    noeud.type === "sfx" ? Promise.resolve([] as Awaited<ReturnType<typeof getAssetsAvecImage>>) : getAssetsAvecImage(pid, noeud.id),
+  ]);
+  // Les essais de voix (vidéos de test) ont leur bloc : ils ne se mêlent pas aux images ni aux sons du panneau de génération.
+  const generationsImages = generations.filter((g) => g.methode !== METHODE_MASTER_VOIX);
+  const voixPerso = noeud.type === "personnage" ? await getVoixPersonnage(pid, noeud.id) : null;
   // Une voix « citée » par ses répliques ne bloque rien (citation déduite) ; un personnage qui porte des répliques, si.
   const citationsReelles = noeud.citations.filter((c) => !c.deduite);
   const blocage =
@@ -75,7 +74,7 @@ export default async function AssetDetailPage({
   const entrees: EntreeSommaire[] = [
     { id: "as-haut", label: "Vue d'ensemble" },
     { id: "as-image", label: sonOuVoix ? "Son" : "Image" },
-    ...(noeud.type === "voix" ? [] : [{ id: "as-generation", label: "Génération" }]),
+    { id: "as-generation", label: "Génération" },
     ...(noeud.type === "personnage" ? [{ id: "as-voix", label: "Voix" }] : []),
   ];
 
@@ -125,7 +124,6 @@ export default async function AssetDetailPage({
                   departCode={depart?.code ?? null}
                   blocageSuppression={blocage}
                   redirectTo={`/p/${pid}/assets`}
-                  casting={noeud.type === "voix" ? `/p/${pid}/voix/${noeud.code}` : null}
                 >
                   {/* Apparitions : les plans qui citent cet asset */}
                   <div className="as-apparus">
@@ -197,21 +195,13 @@ export default async function AssetDetailPage({
                             </dd>
                           </>
                         ) : null}
-                        {noeud.type === "voix" && noeud.personnageCode ? (
-                          <>
-                            <dt>Personnage</dt>
-                            <dd>
-                              <Link href={`/p/${pid}/assets/${noeud.personnageCode}`}>{noeud.personnageCode}</Link>
-                            </dd>
-                          </>
-                        ) : null}
                       </dl>
                     </div>
                   </div>
                 </section>
 
                 {/* ---- Génération : le prompt, les réglages, les candidats ---- */}
-                {noeud.type === "voix" ? null : (
+                {(
                   <section id="as-generation" className="bf-section">
                     <Titre titre="Génération" />
                     <div className="as-gen">
@@ -254,14 +244,14 @@ export default async function AssetDetailPage({
                             registre={registreImages}
                             imageActuelle={imageActuelle(noeud)}
                             dureeSecondes={noeud.dureeSecondes ?? null}
-                            generations={generations}
+                            generations={generationsImages}
                             generationInitiale={generationBrute ?? null}
                             simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
                             libelleBouton={noeud.fichier ? (noeud.type === "sfx" ? "Régénérer le son…" : "Régénérer…") : noeud.type === "sfx" ? "Générer un son…" : "Générer…"}
                             classeBouton="btn btn-gold"
                           />
                         </ReglagesAsset>
-                        {noeud.type === "sfx" ? null : <RendusAsset generations={generations} plansRendus={noeud.fichier ? plansRendus : 0} />}
+                        {noeud.type === "sfx" ? null : <RendusAsset generations={generationsImages} plansRendus={noeud.fichier ? plansRendus : 0} />}
                       </div>
                     </div>
                   </section>
@@ -272,7 +262,16 @@ export default async function AssetDetailPage({
                   <section id="as-voix" className="bf-section">
                     <Titre titre="Voix" />
                     <div className="as-carte-bloc">
-                      <AssignerVoix projectId={pid} personnageId={noeud.id} voixActuelle={noeud.voix} voixLibres={voixLibres} nbRepliques={noeud.nbRepliques} />
+                      {voixPerso ? (
+                        <BlocVoix
+                          personnageId={noeud.id}
+                          nom={noeud.code.replace(/^CHAR_/, "").replace(/_/g, " ")}
+                          initial={{ description: voixPerso.description, repliqueBase: voixPerso.repliqueBase }}
+                          master={{ src: voixPerso.masterSrc, videoSrc: voixPerso.videoSrc, portraitSrc: voixPerso.portraitSrc }}
+                          generations={generations}
+                          generationInitiale={generationBrute ?? null}
+                        />
+                      ) : null}
                     </div>
                   </section>
                 ) : null}

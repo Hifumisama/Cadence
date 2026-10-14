@@ -1,7 +1,8 @@
 import { db } from "../db";
 import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { horsAffiches } from "./assets-visibles";
+import { METHODE_MASTER_VOIX, videoDeMaster } from "./asset-generation";
 import { estImage, fichierMediaExiste, generationMediaSrc, urlAssetMedia } from "./media";
 
 /** Une image du registre proposable comme source d'une génération « à partir
@@ -37,7 +38,7 @@ export async function getGenerationsAsset(assetId: number) {
   const lignes = await db
     .select()
     .from(assetGenerations)
-    .where(and(eq(assetGenerations.assetId, assetId), isNull(assetGenerations.repliqueId)))
+    .where(eq(assetGenerations.assetId, assetId))
     .orderBy(desc(assetGenerations.createdAt), desc(assetGenerations.id));
   // Provenance : les images sources de chaque génération « à partir d'images » (la 1re est la cible), par leur code
   // quand elles viennent du registre, « image importée » sinon.
@@ -68,12 +69,13 @@ export async function getGenerationsAsset(assetId: number) {
     loraPersonnage: g.loraPersonnage,
     /** Durée demandée (génération audio), null pour une image. */
     dureeSecondes: g.dureeSecondes,
-    /** Génération de voix : le texte lu et la créativité demandée, null sinon. */
+    /** Master de voix : la réplique du test, null sinon. */
     texteReference: g.texteReference,
-    temperature: g.temperature,
     erreur: g.erreur,
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
     src: g.statut === "termine" ? generationMediaSrc(assetId, g.fichier) : null,
+    /** Master de voix : la vidéo de test qui a produit l'audio (à côté de lui), null sinon ou si elle n'a pas pu être récupérée. */
+    videoSrc: g.statut === "termine" && g.methode === METHODE_MASTER_VOIX && g.fichier ? generationMediaSrc(assetId, videoDeMaster(g.fichier)) : null,
     // Progression relayée par le worker, tant que la demande est en cours. L'aperçu
     // est un fichier écrasé à chaque étape : `apercuAt` en fait une URL neuve.
     progression:

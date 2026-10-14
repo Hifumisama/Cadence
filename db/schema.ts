@@ -181,6 +181,9 @@ export const plans = pgTable("plans", {
   acte: varchar("acte", { length: 100 }),
   sceneId: integer("scene_id").references(() => scenes.id),
   description: text("description"),
+  // Liaison avec le plan PRÉCÉDENT de l'épisode (2026-10-14, lib/plan-liaison.ts) : « suite » = le plan reprend là où l'autre finit (même lieu, même
+  // instant à peu près) ; « coupe » = rupture franche (autre lieu, autre moment, autre angle libre). Posée par le scénario, modifiable à la main.
+  liaison: varchar("liaison", { length: 10 }).notNull().default("suite"),
   dureeMontageSecondes: integer("duree_montage_secondes").notNull(),
   dureeGenerationSecondes: integer("duree_generation_secondes").notNull(),
   fps: integer("fps").notNull().default(24),
@@ -235,18 +238,10 @@ export const planRefs = pgTable("plan_refs", {
 // plans) ; `ordre` = position dans l'épisode (dense, réécrite à chaque
 // déplacement, jamais une clé).
 //
-// Locuteur : `locuteurId` (asset personnage) quand c'est un personnage ; sinon
-// `locuteurTexte` libre (foule, « inconnu »). La VOIX se déduit du personnage
-// (voix_fiches.personnageId) — `voixId` n'existe que pour un locuteur qui n'est
-// PAS un personnage (voix off, conspirateurs de S01 : des voix du catalogue sans
-// asset personnage) et ne se remplit jamais pour un personnage qui a sa voix.
-//
-// `fichier` = prise audio (nom de fichier, rangée sous repliques/<id>/, voir
-// lib/media.ts) ; `fichierTexte` = le texte au moment où la prise a été posée,
-// pour signaler « prise à refaire » quand le texte change ensuite.
-// `dureeSecondes` est MESURÉE sur la prise (F03), jamais estimée. `statut`
-// (a_produire | prise_posee | validee) : varchar contrôlé côté application
-// (lib/repliques.ts), pas d'enum pg.
+// Locuteur : `locuteurId` (asset personnage, la voix off en est un) quand c'est un personnage ; sinon `locuteurTexte` libre (foule,
+// « inconnu »). Une réplique n'est qu'un TEXTE inséré dans le prompt (chantier voix/master, 2026-10-14) : ni prise, ni voix directe, ni
+// statut ; sa voix est le master du personnage (`assets.voix_master`) quand il en a un. `dureeSecondes` : durée saisie à la main (budget
+// de voix du plan, F03), jamais estimée.
 export const repliques = pgTable("repliques", {
   id: serial("id").primaryKey(),
   uuid: uuid("uuid").notNull().defaultRandom().unique(),
@@ -258,16 +253,13 @@ export const repliques = pgTable("repliques", {
     .references(() => episodes.id, { onDelete: "cascade" }),
   sceneId: integer("scene_id").references(() => scenes.id, { onDelete: "set null" }),
   ordre: integer("ordre").notNull().default(0),
-  // Sans cascade vers assets (comme plan_refs) : un personnage/une voix cité
+  // Sans cascade vers assets (comme plan_refs) : un personnage cité
   // ne se supprime pas tant qu'il est lié (voir app/assets/actions.ts).
   locuteurId: integer("locuteur_id").references(() => assets.id),
   locuteurTexte: varchar("locuteur_texte", { length: 100 }).notNull().default(""),
-  voixId: integer("voix_id").references(() => assets.id),
   texte: text("texte").notNull(),
-  fichier: varchar("fichier", { length: 255 }),
-  fichierTexte: text("fichier_texte"),
+  // Durée estimée ou mesurée à la main (budget de voix du plan) ; une réplique n'a ni fichier, ni voix, ni statut (2026-10-14).
   dureeSecondes: real("duree_secondes"),
-  statut: varchar("statut", { length: 20 }).notNull().default("a_produire"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -310,7 +302,7 @@ export const assets = pgTable("assets", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   code: varchar("code", { length: 100 }).notNull(), // CHAR_maya, DEC_auberge_salle...
-  type: varchar("type", { length: 30 }).notNull(), // personnage | decor | voix | prop | vfx | sfx | keyframe | oth
+  type: varchar("type", { length: 30 }).notNull(), // personnage | decor | prop | vfx | sfx | keyframe | oth
   statut: assetStatutEnum("statut").notNull().default("a_produire"),
   description: text("description"),
   // Prompt de génération (Krea 2 / Qwen Image Edit / Qwen3-TTS selon le
@@ -331,67 +323,21 @@ export const assets = pgTable("assets", {
   // qui n'est pas dans le prompt). null pour les autres types.
   dureeSecondes: real("duree_secondes"),
   critique: boolean("critique").notNull().default(false),
+  // Voix du PERSONNAGE (chantier voix/master, 2026-10-14) : une voix n'existe que portée par un personnage (la voix off en est un). Sans
+  // objet pour les autres types. `voixDescription` : la voix voulue, en texte libre (null = laissée au modèle) ; `voixRepliqueBase` : la
+  // réplique que dit le test ; `voixMaster` : l'audio nettoyé retenu, `voixVideo` : la vidéo de test qui l'a produit (les deux sous
+  // voix/<assetId>/). Le master sert de référence audio `<Audio N>` des plans du personnage, sans jamais bloquer.
+  voixDescription: text("voix_description"),
+  voixRepliqueBase: text("voix_replique_base"),
+  voixMaster: varchar("voix_master", { length: 255 }),
+  voixVideo: varchar("voix_video", { length: 255 }),
+  voixMasterAt: timestamp("voix_master_at"),
   deriveDeId: integer("derive_de_id"),
 }, (table) => [
   unique().on(table.projectId, table.code),
 ]);
 
 // ---------------------------------------------------------------------
-// Casting vocal (F06, CDC §6 — 2026-09-30). Une voix RESTE un asset de type
-// "voix" (code VOICE_*, statut, critique, fichier = référence de clonage,
-// promptGeneration = instruction VoiceDesign retenue) : le catalogue n'est
-// qu'une vue spécialisée du registre, pas un second registre. Ces tables ne
-// portent que ce que le registre générique ne sait pas dire — le carnet
-// d'atelier des voix (ex-REGISTRE_VOIX.md, jamais créé).
-//
-// Aucun enum pg : verdicts en varchar, contrôlés côté application (voir
-// lib/voix.ts) — évite le piège « ajouter + utiliser une valeur d'enum dans
-// le même lot de migrations ».
-// ---------------------------------------------------------------------
-
-// Fiche 1:1 d'un asset voix. Le personnage rattaché est un simple lien (pas
-// deriveDeId) : F01 range la voix dans son propre catalogue, séparé de
-// l'arbre des dérivés du personnage.
-//
-// Casting en quatre étapes (2026-09-30) : 1. la voix (`source` = "design" :
-// instruction VoiceDesign dans assets.promptGeneration ; "reference" : audio
-// fourni, rogné à la longueur de la réplique, dans assets.fichier) + `refText`
-// (texte de la référence, au mot près dans les deux cas) ; 2. la référence
-// générée (assets.fichier) ; 3. le test vidéo (décor, personnage, texte, audio
-// optionnel) ; 4. les répliques. Plus de règle absolue, de température, de
-// seed, de carnet de candidats ni de test de tenue.
-export const voixFiches = pgTable("voix_fiches", {
-  assetId: integer("asset_id")
-    .primaryKey()
-    .references(() => assets.id, { onDelete: "cascade" }),
-  personnageId: integer("personnage_id").references(() => assets.id, { onDelete: "set null" }),
-  source: varchar("source", { length: 12 }).notNull().default("design"), // design | reference
-  langue: varchar("langue", { length: 40 }).notNull().default("French"),
-  // Texte lu dans la référence — au mot près, que la référence soit générée
-  // (design) ou fournie (audio).
-  refText: text("ref_text").notNull().default(""),
-  // Test vidéo (ex-plan utilitaire T1) : décor et personnage optionnels, texte
-  // libre, audio déjà prêt (sinon la voix de référence), rendu déposé à la main.
-  testDecorId: integer("test_decor_id").references(() => assets.id, { onDelete: "set null" }),
-  testPersonnageId: integer("test_personnage_id").references(() => assets.id, { onDelete: "set null" }),
-  testTexte: text("test_texte").notNull().default(""),
-  testAudio: varchar("test_audio", { length: 255 }),
-  testVideo: varchar("test_video", { length: 255 }),
-  // Nom choisi pour la voix (assistant, 2026-10-09). null = le nom reste dérivé du personnage ou du code (lib/voix.ts:nomVoix).
-  nom: varchar("nom", { length: 80 }),
-  // Voix FOURNIE : l'audio ou la vidéo déposé avant l'extraction (voix/<assetId>/<nom>). La voix isolée qui en sort est un candidat.
-  sourceFichier: varchar("source_fichier", { length: 255 }),
-  // Journal des essais de timbre (EssaiVoix[], lib/voix.ts) : une ligne par instruction essayée, avec le verdict rendu au ressenti.
-  essais: jsonb("essais").notNull().default(sql`'[]'::jsonb`),
-}, (table) => [
-  // Un personnage a au plus UNE voix (2026-09-30) ; personnageId reste
-  // nullable (voix off, narrateur). À relâcher si un personnage reçoit un jour
-  // plusieurs voix.
-  uniqueIndex("voix_fiches_personnage_unique")
-    .on(table.personnageId)
-    .where(sql`${table.personnageId} is not null`),
-]);
-
 // Générations d'images d'un asset (tâche ComfyUI dédiée, 2026-09-30) : chaque
 // ligne est une demande, avec un instantané de ce qui a été soumis (prompt,
 // clause de style, format, seed). Le résultat est un CANDIDAT : il n'entre dans
@@ -407,10 +353,6 @@ export const assetGenerations = pgTable("asset_generations", {
     .notNull()
     .references(() => assets.id, { onDelete: "cascade" }),
   methode: varchar("methode", { length: 12 }).notNull().default("generation"),
-  // Génération d'une PRISE de réplique (méthode « replique », Qwen3-TTS Voice Clone) : la réplique visée. `assetId` est alors la
-  // VOIX (VOICE_*) dont la référence est clonée. Ces lignes ne sont jamais des candidats d'image ou de voix de l'asset : tout
-  // ce qui liste ou purge les candidats d'un asset les écarte (`repliqueId` null). Supprimées avec leur réplique.
-  repliqueId: integer("replique_id").references(() => repliques.id, { onDelete: "cascade" }),
   statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
   prompt: text("prompt").notNull(),
   clauseStyle: text("clause_style").notNull().default(""),
@@ -425,12 +367,8 @@ export const assetGenerations = pgTable("asset_generations", {
   // gardent leurs valeurs par défaut pour l'audio : l'affichage se règle sur la
   // méthode, jamais sur ces deux colonnes.
   dureeSecondes: real("duree_secondes"),
-  // Génération d'une VOIX de référence (méthode « voix », Qwen3-TTS Voice Design) : le texte lu (le prompt
-  // porte l'instruction de timbre), la langue de ce texte et la « température » (créativité de la voix,
-  // 0,8 à 1,2). null pour les images et les sons.
+  // Master de voix (méthode « master_voix ») : la réplique du test. null pour les images et les sons.
   texteReference: text("texte_reference"),
-  langueReference: varchar("langue_reference", { length: 40 }),
-  temperature: real("temperature"),
   seed: text("seed").notNull(),
   comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
   fichier: varchar("fichier", { length: 255 }),
@@ -444,7 +382,7 @@ export const assetGenerations = pgTable("asset_generations", {
   // Génération lancée par un LOT : le worker l'adopte toute seule à sa fin (elle devient l'image de l'asset).
   adoptionAuto: boolean("adoption_auto").notNull().default(false),
   // Ce que la méthode fige au lancement quand les colonnes ci-dessus ne suffisent pas (voir lib/asset-generation.ts,
-  // `ParametresTestVideo`) : le test vidéo d'une voix. null pour les images, les sons et les voix.
+  // `ParametresMasterVoix`) : l'image du personnage d'un master de voix. null pour les images et les sons.
   parametres: jsonb("parametres"),
   apercuFichier: varchar("apercu_fichier", { length: 255 }),
   apercuAt: timestamp("apercu_at"),
@@ -507,6 +445,9 @@ export const jobs = pgTable("jobs", {
   dureeUtilisee: integer("duree_utilisee"),
   // La description (intention) du plan au moment de la soumission : versionnée par essai comme le prompt (2026-10-14).
   descriptionUtilisee: text("description_utilisee"),
+  // L'essai (d'un AUTRE plan : le précédent) dont la dernière image a servi de première image à celui-ci (lib/plan-raccord.ts, 2026-10-14) ; null
+  // sans raccord. Sert à voir qu'un plan suit un rendu qui a changé depuis. L'image n'est jamais gardée comme asset.
+  raccordJobId: integer("raccord_job_id").references((): AnyPgColumn => jobs.id, { onDelete: "set null" }),
   // Progression du rendu en cours (2026-10-03) : l'étape (génération H3, interpolation, encodage) et, si ComfyUI en
   // donne une, valeur / max. Remises à null en fin de rendu. Pas d'aperçu image (la génération H3 est un nœud d'API).
   progressionValeur: integer("progression_valeur"),

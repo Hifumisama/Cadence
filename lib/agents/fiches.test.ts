@@ -20,7 +20,7 @@ const registre = [
   ...Array.from({ length: 7 }, (_, i) => ({ code: `PROP_${i}`, type: "prop" })),
 ];
 
-const plan = (o: Partial<PlanPourFicheH3> = {}): PlanPourFicheH3 => ({ uuid: UUID, titre: "La fuite", slotsAudioPris: [], repliques: [], registre, ...o });
+const plan = (o: Partial<PlanPourFicheH3> = {}): PlanPourFicheH3 => ({ uuid: UUID, titre: "La fuite", codesAvecMaster: [], registre, ...o });
 
 const base: SortiePlanH3 = {
   titre: "La fuite",
@@ -80,19 +80,31 @@ test("les voix gardent leurs slots : le bruitage prend le premier slot audio lib
     ...base,
     references: [...base.references, { asset: "SFX_porte", nature: "son", role: "Porte", nom: "a door slam", definition: "one hard impact" }],
     overall_soundscape: "Wind, then [[SFX_porte]].",
-    shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] in [[DEC_couloir]] says <d>[Français] Vite.</d>" }],
-    repliques: [{ repliqueId: "r1" }, { repliqueId: "r2" }],
+    shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] (S1) in [[DEC_couloir]] says <d>[Français] Vite.</d> [[CHAR_tenanciere]] (S2) answers <d>[Français] Trop tard.</d>" }],
   };
-  const a = apresDe(depuisFichePlan(sortie, plan({ slotsAudioPris: [1, 2], repliques: [{ uuid: "r1", texte: "Vite." }, { uuid: "r2", texte: "Vite." }] })));
-  assert.deepEqual(a.refs?.filter((r) => r.type === "audio").map((r) => [r.slot, r.asset, r.retention]), [[3, "SFX_porte", "reference"]]);
-  assert.ok(!a.refs?.some((r) => r.asset.startsWith("VOICE_")), "une voix n'est jamais une référence");
+  const a = apresDe(depuisFichePlan(sortie, plan({ codesAvecMaster: ["CHAR_maya", "CHAR_tenanciere"] })));
+  // Les voix se lisent dans le prompt : une référence audio vers CHAR_maya (slot 1) puis CHAR_tenanciere (slot 2), avant le bruitage.
+  assert.deepEqual(a.refs?.filter((r) => r.type === "audio").map((r) => [r.slot, r.asset]), [[3, "SFX_porte"], [1, "CHAR_maya"], [2, "CHAR_tenanciere"]]);
+  assert.equal(a.voixDuPrompt, true);
 });
 
-test("sons sans slot libre (3 voix) : le son est décrit en prose, aucune référence audio, alerte", () => {
-  const sortie: SortiePlanH3 = { ...base, references: [...base.references, { asset: "SFX_porte", nature: "son", role: "Porte", nom: "a door slam", definition: "" }], overall_soundscape: "Then [[SFX_porte]]." };
-  const b = depuisFichePlan(sortie, plan({ slotsAudioPris: [1, 2, 3] }));
-  const a = apresDe(b);
+test("une parole dont le locuteur n'a pas de voix fixée ne crée aucune référence audio (le modèle invente la voix)", () => {
+  const sortie: SortiePlanH3 = { ...base, shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] (S1) in [[DEC_couloir]] says <d>[Français] Vite.</d>" }] };
+  const a = apresDe(depuisFichePlan(sortie, plan({ codesAvecMaster: ["CHAR_tenanciere"] })));
   assert.equal(a.refs?.filter((r) => r.type === "audio").length, 0);
+});
+
+test("sons sans slot libre (3 voix) : le son est décrit en prose, aucune référence audio de bruitage, alerte", () => {
+  const trois = registre.concat([{ code: "CHAR_garde", type: "personnage" }]);
+  const sortie: SortiePlanH3 = {
+    ...base,
+    references: [...base.references, { asset: "SFX_porte", nature: "son", role: "Porte", nom: "a door slam", definition: "" }],
+    overall_soundscape: "Then [[SFX_porte]].",
+    shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] (S1) says <d>[Français] Un.</d> [[CHAR_tenanciere]] (S2) says <d>[Français] Deux.</d> [[CHAR_garde]] (S3) says <d>[Français] Trois.</d> in [[DEC_couloir]]" }],
+  };
+  const b = depuisFichePlan(sortie, plan({ registre: trois, codesAvecMaster: ["CHAR_maya", "CHAR_tenanciere", "CHAR_garde"] }));
+  const a = apresDe(b);
+  assert.equal(a.refs?.filter((r) => r.type === "audio" && r.asset === "SFX_porte").length, 0);
   assert.equal(a.sections!.overall_soundscape, "Then a door slam.");
   assert.ok((fiche(b).avertissements ?? []).some((x) => x.type === "alerte_controle" && /slot audio/.test(x.texte)));
 });
@@ -184,24 +196,23 @@ test("après écriture : cohérence des refs, structure et dialogues s'allument 
     references: [...base.references, { asset: "SFX_porte", nature: "son", role: "Porte", nom: "a door slam", definition: "" }],
     overall_soundscape: "Wind, then [[SFX_porte]].",
     shots: [
-      { debutSecondes: 0, texte: "A wide shot of [[CHAR_maya]] in [[DEC_couloir]]. Maya (S1) whispers: <d>[Français] Pas un bruit.</d>" },
+      { debutSecondes: 0, texte: "A wide shot of [[CHAR_maya]] in [[DEC_couloir]]. [[CHAR_maya]] (S1) whispers: <d>[Français] Pas un bruit.</d>" },
       { debutSecondes: 4, texte: "a close-up of [[CHAR_maya]]." },
     ],
-    repliques: [{ repliqueId: "r1" }],
   };
-  const a = apresDe(depuisFichePlan(sortie, plan({ slotsAudioPris: [1], repliques: [{ uuid: "r1", texte: "Pas un bruit." }] })));
+  const a = apresDe(depuisFichePlan(sortie, plan({ codesAvecMaster: ["CHAR_maya"] })));
   const sections = Object.entries(a.sections!).map(([section, contenu]) => ({ section, contenu }));
   const refs = a.refs!.map((r) => ({ type: r.type, slot: r.slot }));
-  // Réplique SANS prise : pas de label audio déclaré pour la voix (comme la page, getDialoguesPlan).
+  // Le locuteur a un master : sa voix est une référence audio de la fiche (slot 1), déclarée dans le prompt.
   assert.deepEqual(verifierCoherenceRefs(sections, refs), { labelsOrphelins: [], refsNonCitees: [] });
   assert.deepEqual(controlerStructure(sections, a.dureeGenerationSecondes!), []);
-  const d = controlerDialogues(sections, [{ id: 1, texte: "Pas un bruit.", audioPresent: true, priseObsolete: false }]);
+  const d = controlerDialogues(sections, [{ id: 1, texte: "Pas un bruit." }]);
   assert.ok(d.ok, "verbatim : la réplique est retrouvée dans <d>");
-  // Réplique AVEC prise : la page déclare <Audio 1> pour la voix comme ref DÉRIVÉE, que le prompt (comme les
+  // Locuteur AVEC master : la page déclare <Audio 1> pour la voix comme ref DÉRIVÉE, que le prompt (comme les
   // fiches validées) ne cite pas : plus d'alerte « référence non citée » (point ouvert tranché le 2026-10-02).
   assert.deepEqual(verifierCoherenceRefs(sections, refs, [{ type: "audio", slot: 1 }]), { labelsOrphelins: [], refsNonCitees: [] });
   // Le slot du bruitage n'est pas celui de la voix.
-  assert.deepEqual(a.refs!.filter((r) => r.type === "audio").map((r) => r.slot), [2]);
+  assert.deepEqual(a.refs!.filter((r) => r.type === "audio").map((r) => [r.slot, r.asset]), [[2, "SFX_porte"], [1, "CHAR_maya"]]);
 });
 
 test("après écriture : un shot court reste signalé par les contrôles de structure de la page", () => {
@@ -321,39 +332,6 @@ test("un effet (vfx) cité en image passe en weak_reference, jamais fully_preser
   assert.doesNotMatch(retention, /fully_preserved.*golden energy|<Subject 3>.*fully_preserved/);
 });
 
-// --- réplique liée mais absente des shots : le prompt vidéo fait foi, le code l'insère (2026-10-13) ---
-
-test("injecterRepliquesAbsentes : insère la réplique manquante dans le shot qui couvre son début, avec le locuteur", async () => {
-  const { injecterRepliquesAbsentes } = await import("./conversion");
-  const shots = [
-    { debutSecondes: 0, texte: "A medium shot holds on [[CHAR_mai]], Mai, standing still" },
-    { debutSecondes: 4, texte: "a close-up of [[CHAR_mai]], her face lit by the fire." },
-    { debutSecondes: 7, texte: "a medium shot from the side" },
-  ];
-  const r = injecterRepliquesAbsentes(shots, [{ repliqueId: "u1", debutSecondes: 8 }], [{ uuid: "u1", texte: "Encore une fois... il faut y arriver.", locuteurCode: "CHAR_mai" }], new Set(["CHAR_mai"]));
-  assert.deepEqual(r.inserees, [{ texte: "Encore une fois... il faut y arriver.", shot: 3 }]);
-  assert.equal(r.shots[2]!.texte, "a medium shot from the side. [[CHAR_mai]] (S1) says, <d>[Français] Encore une fois... il faut y arriver.</d>");
-  assert.equal(r.shots[0]!.texte, shots[0]!.texte);
-});
-
-test("injecterRepliquesAbsentes : rien si la réplique y est déjà, ou si un fragment est déjà dans une balise <d> (pas de double parole)", async () => {
-  const { injecterRepliquesAbsentes } = await import("./conversion");
-  const pr = [{ uuid: "u1", texte: "Oui... c'est ça ! Viens à moi.", locuteurCode: "CHAR_mai" }];
-  const entiere = [{ debutSecondes: 0, texte: "[[CHAR_mai]] (S1) says <d>[Français] Oui... c'est ça ! Viens à moi.</d>" }];
-  assert.equal(injecterRepliquesAbsentes(entiere, [], pr, new Set(["CHAR_mai"])).inserees.length, 0);
-  const coupee = [{ debutSecondes: 0, texte: "<d>[Français] Oui... c'est ça !</d>" }, { debutSecondes: 3, texte: "<d>[Français] Viens à moi.</d>" }];
-  const r = injecterRepliquesAbsentes(coupee, [], pr, new Set(["CHAR_mai"]));
-  assert.equal(r.inserees.length, 0);
-  assert.deepEqual(r.shots, coupee);
-});
-
-test("injecterRepliquesAbsentes : numéro de locuteur suivant, 'The character' sans référence, langue reprise des balises existantes", async () => {
-  const { injecterRepliquesAbsentes } = await import("./conversion");
-  const shots = [{ debutSecondes: 0, texte: "[[CHAR_a]] (S1) speaks <d>[English] Hello there.</d>" }];
-  const r = injecterRepliquesAbsentes(shots, [], [{ uuid: "u2", texte: "Goodbye now.", locuteurCode: "CHAR_inconnu" }], new Set(["CHAR_a"]));
-  assert.equal(r.shots[0]!.texte, "[[CHAR_a]] (S1) speaks <d>[English] Hello there.</d> The character (S2) says, <d>[English] Goodbye now.</d>");
-});
-
 // --- voix off d'un personnage à l'écran (brief : « voix off ») : la forme H3 est écrite par le code (2026-10-14) ---
 
 test("mettreEnVoixOff : la phrase de parole devient la forme H3, bouche close après chaque <d>", async () => {
@@ -388,14 +366,13 @@ test("depuisFichePlan : voixOff réécrit la parole d'un plan dont le brief met 
     titre: "t", dureeSecondes: 8, summary: "s", ouverture: "Dark.", overall_soundscape: "x", non_diegetic_music: "N/A", assetsManquants: [], notes: "",
     references: [{ asset: "CHAR_mai", nature: "image" as const, role: "Mai", nom: "Mai", definition: "in her robe." }],
     shots: [{ debutSecondes: 0, texte: "a close-up of [[CHAR_mai]], eyes closed, and whispers: <d>[Français] Plus fort.</d>" }],
-    repliques: [{ repliqueId: "u1" }],
   };
-  const plan = { uuid: "p", titre: "Plan", slotsAudioPris: [1], repliques: [{ uuid: "u1", texte: "Plus fort.", slot: 1, locuteurCode: "CHAR_mai" }], registre: [{ code: "CHAR_mai", type: "personnage" }], voixOff: true };
+  const plan = { uuid: "p", titre: "Plan", codesAvecMaster: [] as string[], registre: [{ code: "CHAR_mai", type: "personnage" }], codesVoixOff: ["CHAR_mai"] };
   const r = depuisFichePlan(sortie, plan);
   const prompt = (r[0]!.apres as { sections: { detailed_description: string } }).sections.detailed_description;
   assert.match(prompt, /<Subject 1> \(S1\) says in an off-screen voiceover: <d>\[Français\] Plus fort\.<\/d> while the character's lips remain completely closed\./);
   assert.ok(r[0]!.avertissements!.some((a) => /Voix off/.test(a.texte)));
-  const sans = depuisFichePlan(sortie, { ...plan, voixOff: false });
+  const sans = depuisFichePlan(sortie, { ...plan, codesVoixOff: [] });
   assert.ok(!/off-screen/.test((sans[0]!.apres as { sections: { detailed_description: string } }).sections.detailed_description));
 });
 
@@ -427,4 +404,34 @@ test("verifierFiche : un label orphelin déjà présent n'empêche pas une écri
   assert.match(verifierFiche({ sections: { detailed_description: "[Shot 1] <Subject 1> raises the wand. <Picture 3> appears." } }, etat) ?? "", /sans référence.*Picture 3/);
   const ev = evaluerEcrasementFiche({ sections: { detailed_description: "x" } }, etat);
   assert.ok(ev.avertissements.some((a) => /citait déjà <Audio 1> sans référence/.test(a.texte)));
+});
+
+test("asset d'image manquant CITÉ en référence : la fiche le référence (<Picture N>), dépend de sa création, et un son ou un code reconstruit reste en prose", () => {
+  const cercle = { code: "DEC_cercle", type: "decor", description: "Un cercle de runes", raison: "absent" };
+  const sortie: SortiePlanH3 = {
+    ...base,
+    references: [...base.references, { asset: "DEC_cercle", nature: "image", role: "Cercle", nom: "the rune circle", definition: "glowing on the floor" }],
+    summary: "[[CHAR_maya]] runs through [[DEC_couloir]] past [[DEC_cercle]].",
+    assetsManquants: [cercle],
+  };
+  const b = depuisFichePlan(sortie, plan());
+  const a = apresDe(b);
+  assert.deepEqual(a.refs?.map((r) => [r.slot, r.asset]), [[1, "CHAR_maya"], [2, "DEC_couloir"], [3, "DEC_cercle"]]);
+  assert.match(a.sections!.summary!, /<Subject 3>/);
+  assert.deepEqual(a.dependDeCles, [cleNouvelAsset("DEC_cercle")]);
+  assert.deepEqual(b.filter((x) => x.cibleType === "asset").map((x) => x.cle), [cleNouvelAsset("DEC_cercle")]);
+  assert.deepEqual(ordonnerParDependances(b.map((x) => ({ ...x, cle: x.cle ?? null, apres: x.apres }))).map((x) => x.cibleType), ["asset", "fiche"], "la création passe avant la fiche qui la cite");
+  // déjà proposé par un autre plan du lot, ou code que le modèle a mal écrit : prose, aucune référence
+  const lot = depuisFichePlan(sortie, plan(), { codesDejaProposes: new Set(["DEC_cercle"]) });
+  assert.ok(!apresDe(lot).refs?.some((r) => r.asset === "DEC_cercle") && apresDe(lot).dependDeCles === undefined);
+  const mal = depuisFichePlan({ ...sortie, references: [...base.references, { ...sortie.references[2]!, asset: "cercle" }], assetsManquants: [{ ...cercle, code: "cercle" }] }, plan());
+  assert.ok(!apresDe(mal).refs?.some((r) => r.asset === "cercle"));
+});
+
+test("fiche qui cite un asset créé par la même proposition : acceptée en aperçu (la clé existe), refusée sans elle", () => {
+  const avec = { refs: [{ type: "picture" as const, slot: 1, asset: "DEC_cercle" }], sections: { summary: "[reference generation] <Subject 1>" }, dependDeCles: [cleNouvelAsset("DEC_cercle")] };
+  assert.ok(verifierFiche(avec, etatVide())?.includes("DEC_cercle"), "l'état réel ne connaît pas l'asset");
+  const etat = etatVide();
+  etat.registre.set("DEC_cercle", "oth");
+  assert.equal(verifierFiche(avec, etat), null);
 });

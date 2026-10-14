@@ -11,7 +11,6 @@ import type { ContexteEtape } from "@/components/agents/contexte";
 import { ChoixAssets } from "@/components/agents/ChoixAssets";
 import { ChoixIteration } from "@/components/agents/ChoixIteration";
 import { ChoixPlans } from "@/components/agents/ChoixPlans";
-import { ChoixVoix } from "@/components/agents/ChoixVoix";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { EtapeApplique } from "@/components/agents/EtapeApplique";
 import { EtapeBrief } from "@/components/agents/EtapeBrief";
@@ -129,16 +128,14 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
   // Entrée directe « créer le registre » (page des assets) : le sélecteur tient lieu de vue tant qu'aucune
   // proposition n'est en cours ; dès que le lot est posé (étape « proposition » du serveur), c'est la
   // revue habituelle qui prend le relais, comme pour toute proposition.
-  // Seule une proposition DE CETTE ÉTAPE (registre, voix) prend la place du sélecteur : une proposition d'une
+  // Seule une proposition DE CETTE ÉTAPE (registre) prend la place du sélecteur : une proposition d'une
   // autre étape restée sur la conversation du projet (des scénarios, parfois échouée) ne doit pas s'afficher
-  // à sa place, sinon « créer les voix » montre la revue des scénarios.
-  const vueDirecteDe = (vue: "registre" | "voix") =>
+  // à sa place, sinon « créer le registre » montre la revue des scénarios.
+  const vueDirecteDe = (vue: "registre") =>
     demande.vue === vue && !!conv && !((etapeServeur === "proposition" || etapeServeur === "applique") && (!prop || prop.skill === vue));
   const vueRegistre = vueDirecteDe("registre");
-  // Même principe pour « créer les voix manquantes » (page du casting vocal).
-  const vueVoix = vueDirecteDe("voix");
   // Lancer l'étape rejette la proposition qui attend encore sa revue : on le dit avant.
-  const autreEnAttente = (vueRegistre || vueVoix) && prop && (prop.statut === "prete" || prop.statut === "en_generation") ? prop : null;
+  const autreEnAttente = vueRegistre && prop && (prop.statut === "prete" || prop.statut === "en_generation") ? prop : null;
   // … et pour « écrire la fiche » (page d'un plan) ou « écrire les fiches » (épisode).
   // Même règle : seule une proposition de fiche (un plan : « plan-h3 », un lot : « fiches ») prend sa place.
   const vueFiches =
@@ -150,7 +147,7 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
   const vueIteration =
     demande.vue === "iteration" && !!conv && !((etapeServeur === "proposition" || etapeServeur === "applique") && (!prop || prop.skill === "iteration-plan"));
   const autreQuIteration = vueIteration && prop && (prop.statut === "prete" || prop.statut === "en_generation") ? prop : null;
-  const vueDirecte = vueRegistre || vueVoix || vueFiches || vueIteration;
+  const vueDirecte = vueRegistre || vueFiches || vueIteration;
   useEffect(() => {
     if (etapeServeur) setAffichee(etapeServeur);
   }, [etapeServeur, conv?.uuid]);
@@ -312,14 +309,6 @@ export function AgentDialogue({ demande, onFermer }: { demande: DemandeAgent; on
         {ctx && vueRegistre ? (
           <>
             <ChoixAssets ctx={ctx} />
-            <div className="ag-etape-corps">
-              <EtatTacheAgent tache={ctx.conv.tache} />
-            </div>
-          </>
-        ) : null}
-        {ctx && vueVoix ? (
-          <>
-            <ChoixVoix ctx={ctx} />
             <div className="ag-etape-corps">
               <EtatTacheAgent tache={ctx.conv.tache} />
             </div>

@@ -27,11 +27,11 @@ test("preparerLot : la 2e vague — un dérivé en édition dont le master n'a p
   assert.match(r.ecartes[0]!.raison, /attend l'image de son master \(DEC_phare\)/);
 });
 
-test("preparerLot : écarte une voix, un son, un asset sans prompt, un asset déjà en file", () => {
-  const tous = [a(1, "VOICE_x", { type: "voix" }), a(2, "SFX_x", { type: "sfx" }), a(3, "CHAR_a", { promptGeneration: "  " }), a(4, "CHAR_b"), a(5, "CHAR_c")];
+test("preparerLot : écarte un son, un asset sans prompt, un asset déjà en file", () => {
+  const tous = [a(2, "SFX_x", { type: "sfx" }), a(3, "CHAR_a", { promptGeneration: "  " }), a(4, "CHAR_b"), a(5, "CHAR_c")];
   const r = preparerLot(tous, tous, new Set([4]), 10);
   assert.deepEqual(r.aLancer.map((l) => l.code), ["CHAR_c"]);
-  assert.deepEqual(r.ecartes.map((e) => e.code).sort(), ["CHAR_a", "CHAR_b", "SFX_x", "VOICE_x"]);
+  assert.deepEqual(r.ecartes.map((e) => e.code).sort(), ["CHAR_a", "CHAR_b", "SFX_x"]);
 });
 
 test("preparerLot : la file pleine tronque le lot, avec la raison", () => {

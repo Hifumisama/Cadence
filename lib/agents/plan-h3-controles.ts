@@ -27,7 +27,8 @@ export type SortiePlanH3 = {
   shots: { debutSecondes: number; texte: string }[];
   overall_soundscape: string;
   non_diegetic_music: string;
-  repliques: { repliqueId: string; debutSecondes?: number }[];
+  /** Ancien contrat (répliques liées) : plus demandé, ignoré s'il est là. Le dialogue vit dans les `<d>` des shots. */
+  repliques?: { repliqueId: string; debutSecondes?: number }[];
   assetsManquants: AssetManquantH3[];
   notes: string;
 };
@@ -42,9 +43,7 @@ export type ProblemeH3 = {
 export type ContexteControleH3 = {
   /** Les assets du registre qu'on a donnés au skill (code et type). */
   registre: { code: string; type: string }[];
-  /** Textes exacts des répliques du plan (verbatim attendu dans le prompt). */
-  repliques: { texte: string }[];
-  /** Slots `<Audio N>` déjà pris par les voix du plan ; par défaut, un par réplique. */
+  /** Slots `<Audio N>` pris par les voix du plan (un par personnage qui parle et a une voix fixée, lus dans le prompt). */
   slotsAudioPris?: number[];
   /** Textes des exemples du skill : une phrase de 10 mots ou plus recopiée d'un exemple donne une alerte. */
   corpusExemples?: string[];
@@ -115,9 +114,12 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
   // 2. références
   const references = sortie.references ?? [];
   const typeDe = new Map(ctx.registre.map((a) => [a.code, a.type]));
+  // Un asset manquant se CITE comme une référence d'image : il est créé avec la correction, sa fiche le référence (son image viendra après).
+  const manquants = new Set((sortie.assetsManquants ?? []).map((a) => a.code));
+  for (const a of sortie.assetsManquants ?? []) if (!typeDe.has(a.code)) typeDe.set(a.code, a.type);
   const images = references.filter((r) => r.nature === "image");
   const sons = references.filter((r) => r.nature === "son");
-  const audiosLibres = MAX_AUDIOS - (ctx.slotsAudioPris?.length ?? ctx.repliques.length);
+  const audiosLibres = MAX_AUDIOS - (ctx.slotsAudioPris?.length ?? 0);
   if (references.length === 0) ajouter("alerte", "references", "Aucune référence : un plan en full-reference porte au moins une image de référence.");
   if (images.length > MAX_IMAGES) ajouter("erreur", "references", `${images.length} images de référence : ${MAX_IMAGES} au plus.`);
   if (sons.length > Math.max(0, audiosLibres)) {
@@ -129,6 +131,7 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     codes.add(r.asset);
     const type = typeDe.get(r.asset);
     if (type == null) ajouter("erreur", "asset-inconnu", `La référence « ${r.asset} » n'est pas dans le registre (un asset manquant se déclare dans assetsManquants, il ne s'invente pas).`);
+    else if (r.nature === "son" && manquants.has(r.asset) && !ctx.registre.some((a) => a.code === r.asset)) ajouter("erreur", "nature", `${r.asset} n'existe pas encore : seul un asset d'image qui manque se cite comme référence, un son qui manque se décrit en prose.`);
     else if (r.nature === "son" && type !== "sfx") ajouter("erreur", "nature", `${r.asset} est de type ${type} : seule une référence de type sfx a la nature « son ».`);
     else if (r.nature === "image" && (type === "sfx" || type === "voix")) ajouter("erreur", "nature", `${r.asset} est de type ${type} : il n'a pas d'image, sa nature est « son » (ou ce n'est pas une référence).`);
     if (r.retention && !(r.nature === "image" ? RETENTIONS_IMAGE : RETENTIONS_SON).includes(r.retention)) {
@@ -142,7 +145,6 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
   }
 
   // 3. textes : labels, marqueurs [[CODE]], fuites
-  const manquants = new Set((sortie.assetsManquants ?? []).map((a) => a.code));
   const textes: [string, string][] = [
     ["summary", sortie.summary ?? ""],
     ["ouverture", sortie.ouverture ?? ""],
@@ -160,8 +162,7 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     for (const m of t.matchAll(/\[\[\s*([^\]]+?)\s*\]\]/g)) {
       const code = m[1]!;
       cites.add(code);
-      if (manquants.has(code)) ajouter("erreur", "placeholder", `${nom} cite [[${code}]], un asset manquant : décris-le en prose, sans marqueur.`);
-      else if (!codes.has(code)) ajouter("erreur", "placeholder", `${nom} cite [[${code}]], qui n'est pas dans les références du plan.`);
+      if (!codes.has(code)) ajouter("erreur", "placeholder", `${nom} cite [[${code}]], qui n'est pas dans les références du plan.`);
     }
   }
   if ((sortie.ouverture ?? "").includes("[[")) ajouter("alerte", "ouverture", "L'ouverture cite un asset : elle ne pose que le style.");
@@ -207,12 +208,8 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     ajouter("alerte", "prompt-long", `Le prompt assemblé fera environ ${caracteres} caractères : au-delà de ${CARACTERES_MAX_PROMPT} le plan se brouille. Garde ce qui se voit et se fait.`);
   }
 
-  // 5. dialogues : verbatim
+  // 5. dialogues : le prompt est la seule source (décision 2026-10-14), plus de verbatim contre des répliques liées.
   const detail = norme(shots.map((s) => s.texte ?? "").join(" "));
-  for (const r of ctx.repliques) {
-    if (r.texte.trim() && !detail.includes(norme(r.texte))) ajouter("erreur", "verbatim", `Réplique absente ou altérée dans les shots : « ${r.texte.slice(0, 60)} ».`);
-  }
-  if (ctx.repliques.length > 0 && !/<d>/i.test(detail)) ajouter("alerte", "dialogue", "Le plan a des répliques mais les shots n'ont aucune balise <d>.");
   // Chaque voix produite porte un locuteur (S1), (S2)… dans le shot qui la dit : c'est lui qui lie la parole à la voix de
   // référence. Sans lui, le modèle vidéo invente une voix (voire parle deux fois : la sienne et celle de la référence).
   shots.forEach((s, i) => {
@@ -283,7 +280,7 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
 
   // 7. assets manquants et notes
   for (const a of sortie.assetsManquants ?? []) {
-    if (typeDe.has(a.code)) ajouter("alerte", "manquant-existant", `${a.code} est déclaré manquant mais existe au registre.`);
+    if (ctx.registre.some((x) => x.code === a.code)) ajouter("alerte", "manquant-existant", `${a.code} est déclaré manquant mais existe au registre.`);
     else ajouter("info", "asset-manquant", `Asset manquant : ${a.code} (${a.type}) — ${a.raison}`.slice(0, 300));
   }
   if ((sortie.notes ?? "").trim()) ajouter("info", "notes", `Notes de l'agent : ${sortie.notes.trim().slice(0, 300)}`);

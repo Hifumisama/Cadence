@@ -252,7 +252,6 @@ export const LIBELLE_CIBLE = {
   asset: "Asset",
   plan: "Plan",
   replique: "Réplique",
-  voix: "Voix",
   fiche: "Fiche de plan",
 } as const;
 
@@ -466,8 +465,6 @@ export function motsDuLot(skill: string): MotsLot {
     case "registre":
     case "prompts-assets":
       return { titre: "Assets", travail: "écrit les prompts des assets un par un", ceci: "cet asset", dejaFaits: "Les prompts déjà écrits" };
-    case "voix":
-      return { titre: "Voix", travail: "écrit les voix une par une", ceci: "cette voix", dejaFaits: "Les voix déjà écrites" };
     default:
       return { titre: "Sous-tâches", travail: "traite les sous-tâches une par une", ceci: "cette sous-tâche", dejaFaits: "Les résultats déjà obtenus" };
   }

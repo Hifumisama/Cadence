@@ -53,6 +53,15 @@ The **first plan of a place** also names its landmarks in its description ("un f
 3. **The end state tells only what the description showed.** Never write a state the plan did not show (a fire "out" after a plan where it only flickered); if nothing changed for an element, say it stays as it was.
 4. **A state that exists only in one plan** (a ruined set, a transformed creature) is set up by the previous plan's end state and left by its own.
 
+### How a plan links to the one before: `liaison`
+
+A description never refers to another plan, so **`liaison` is the plan's only link to the previous one**. Give it to every plan:
+
+- **`suite`**: the plan takes up **where the previous one ends**: same place, same moment or a few seconds later, the same people where the previous `État en fin de plan` left them. The video prompt will open on that state.
+- **`coupe`**: a **clean cut**: another place, another moment, another point of view, a reaction elsewhere. Nothing of the previous plan's end has to be reproduced.
+
+Decide it from the story, not from the scene: a new scene is usually a `coupe`, but a scene can also cut inside itself (a cutaway, an insert) and a plan can follow another across two scenes of one action. The **first plan of the episode is a `coupe`**. When unsure, `suite`: a plan that follows on is the more common case.
+
 ## Grouping, and cutting better
 
 **Group** several moments into one plan (the default) when they share place, time and characters and follow each other without a break, and their sum fits in 15 s with dialogue and margin. Variety of viewpoints is not a reason to split.
@@ -108,7 +117,7 @@ The brief's style and notes apply: you do not redefine them. Stay faithful to th
 
 - Every beat of `parolesDeLAuteur` has its plan; their framing, sound and voice-over directions are in a `Consigne de l'auteur :` sentence; no line is invented that they did not ask for (or it is in `inventions`).
 - Every plan's description ends with `État en fin de plan :` (positions relative to landmarks, never to the camera); the first plan of a place names its landmarks; no event is done twice.
-- Every plan has a description with an intention, and an integer duration from 5 to 15 within the rhythm's range.
+- Every plan has a description with an intention, an integer duration from 5 to 15 within the rhythm's range, and a `liaison` (`suite` or `coupe`).
 - The total is within ±20% of the target.
 - Every scene has a genre and a mood; montages are one plan; a tipping point is set up.
 - No consecutive plans could merge into 15 s; no plan refers to another; no description holds framing, light, sound or camera.

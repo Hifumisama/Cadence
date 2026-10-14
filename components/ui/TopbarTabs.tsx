@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/** Onglets Scénario/Assets/Plans/Casting. Scénario et Plans vivent sous l'épisode
+/** Onglets Brief/Scénario/Assets/Plans/Réalisateur. Scénario et Plans vivent sous l'épisode
  * courant (`episodeBase`, ex. `/p/3/e/9`) ; Assets vit au niveau du PROJET
  * (`/p/3/assets`), jamais sous un épisode précis — le registre est partagé
  * par toute la série (retour utilisateur 2026-09-28 : "super important que
@@ -12,10 +12,7 @@ import { usePathname } from "next/navigation";
 export function TopbarTabs({ projectId, episodeBase, brouillon = 0 }: { projectId: number; episodeBase: string; brouillon?: number }) {
   const pathname = usePathname();
   const assetsHref = `/p/${projectId}/assets`;
-  // Casting vocal (2026-09-30) : même niveau que Assets — le catalogue de
-  // voix est partagé par toute la série.
-  const castingHref = `/p/${projectId}/voix`;
-  // Brief du projet (2026-10-02) : la référence du projet, au même niveau que Assets et Casting.
+  // Brief du projet (2026-10-02) : la référence du projet, au même niveau que Assets.
   const briefHref = `/p/${projectId}/brief`;
   // Réalisateur (2026-10) : la révision de l'épisode, une salle plein cadre hors du layout d'épisode (`/p/<projet>/realisateur/<épisode>`).
   const episodeId = /\/e\/(\d+)\/?$/.exec(episodeBase)?.[1] ?? null;
@@ -24,9 +21,8 @@ export function TopbarTabs({ projectId, episodeBase, brouillon = 0 }: { projectI
   const suffixeEpisode = pathname.startsWith(episodeBase) ? pathname.slice(episodeBase.length) : "";
   const segmentsEpisode = suffixeEpisode.split("/").filter(Boolean);
   const surAssets = pathname === assetsHref || pathname.startsWith(`${assetsHref}/`);
-  const surCasting = pathname === castingHref || pathname.startsWith(`${castingHref}/`);
   const surBrief = pathname === briefHref || pathname.startsWith(`${briefHref}/`);
-  const segmentActif = surRealisateur ? "realisateur" : surAssets ? "assets" : surCasting ? "voix" : surBrief ? "brief" : (segmentsEpisode[0] ?? "");
+  const segmentActif = surRealisateur ? "realisateur" : surAssets ? "assets" : surBrief ? "brief" : (segmentsEpisode[0] ?? "");
 
   const onglets = [
     { seg: "brief", label: "Brief", href: briefHref },
@@ -34,7 +30,6 @@ export function TopbarTabs({ projectId, episodeBase, brouillon = 0 }: { projectI
     { seg: "assets", label: "Assets", href: assetsHref },
     { seg: "plans", label: "Plans", href: `${episodeBase}/plans` },
     ...(realisateurHref ? [{ seg: "realisateur", label: "Réalisateur", href: realisateurHref }] : []),
-    { seg: "voix", label: "Casting", href: castingHref },
   ];
 
   return (

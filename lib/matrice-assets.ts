@@ -17,11 +17,11 @@ export type LigneMatrice = {
 const ORDRE_TYPES = ["personnage", "decor", "prop", "vfx", "oth"];
 
 /** Les lignes du tableau : un asset par ligne (au moins une citation dans l'épisode), regroupés par type puis du plus cité
- * au moins cité. Les voix et les sons ne sont pas des références d'image : ils n'y figurent pas. */
+ * au moins cité. Les sons ne sont pas des références d'image : ils n'y figurent pas. */
 export function construireMatrice(plans: PlanMatrice[], citations: CitationAsset[]): LigneMatrice[] {
   const parAsset = new Map<string, { type: string; plans: Set<string> }>();
   for (const c of citations) {
-    if (c.assetType === "voix" || c.assetType === "sfx") continue;
+    if (c.assetType === "sfx") continue;
     const l = parAsset.get(c.assetCode) ?? { type: c.assetType, plans: new Set<string>() };
     l.plans.add(c.planUuid);
     parAsset.set(c.assetCode, l);

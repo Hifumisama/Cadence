@@ -13,7 +13,7 @@ export type LigneRegistre = {
   description: string | null;
   /** Nombre de plans qui citent cet asset (0 = « sans plan »). */
   nbPlans: number;
-  /** Personnage uniquement : sa voix au casting, `null` = sans voix ; `undefined` pour tout autre type. */
+  /** Personnage uniquement : sa voix fixée (master), `null` = sans voix fixée ; `undefined` pour tout autre type. */
   voix?: { code: string } | null;
   kind: MediaKind;
   etat: FichierEtat;
@@ -34,7 +34,6 @@ export const LIBELLE_STATUT: Record<LigneRegistre["statut"], string> = {
 export const LIBELLE_TYPE_ASSET: Record<string, string> = {
   personnage: "Personnage",
   decor: "Décor",
-  voix: "Voix",
   prop: "Prop",
   vfx: "VFX",
   sfx: "SFX",

@@ -17,15 +17,13 @@ import type {
 } from "@/lib/agents/types";
 import type { ResumeConversation } from "@/lib/queries-agents";
 import type { CandidatRegistre } from "@/lib/agents/registre";
-import type { CandidatVoix } from "@/lib/agents/voix-casting";
-import { assetsCreesSansPrompt, candidatsDuProjet, candidatsVoixDuProjet, episodesPourScenarios, lireEtatIteration, plansPourFiches, propositionParUuid } from "@/lib/agents/service";
+import { assetsCreesSansPrompt, candidatsDuProjet, episodesPourScenarios, lireEtatIteration, plansPourFiches, propositionParUuid } from "@/lib/agents/service";
 import {
   apercuContexte,
   estimerGeneration,
   estimerIteration,
   estimerRegistre,
   estimerFiches,
-  estimerVoix,
   estimerScenarios,
   lireBrief,
   lireConversation,
@@ -85,15 +83,6 @@ export async function listerEpisodesPourScenariosVue(projectId: number, saisonId
  * le sélecteur de « créer le registre ». `aTraiter` = coché d'office (manque ou sans prompt). */
 export async function listerCandidatsRegistreVue(projectId: number): Promise<CandidatRegistre[]> {
   return candidatsDuProjet(projectId);
-}
-
-/** Les voix à créer (personnages qui parlent sans voix, voix off) : le sélecteur du « casting des voix ». */
-export async function listerCandidatsVoixVue(projectId: number): Promise<CandidatVoix[]> {
-  return candidatsVoixDuProjet(projectId);
-}
-
-export async function estimerVoixVue(nbVoix: number): Promise<EstimationGeneration> {
-  return estimerVoix(nbVoix);
 }
 
 export async function estimerRegistreVue(nbAssets: number): Promise<EstimationGeneration> {

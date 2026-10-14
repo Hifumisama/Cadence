@@ -407,6 +407,34 @@
       "when": 1794416400000,
       "tag": "0057_description_par_essai",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1794502800000,
+      "tag": "0058_liaison_du_plan",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794589200000,
+      "tag": "0059_raccord_du_essai",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794675600000,
+      "tag": "0060_voix_du_personnage",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794762000000,
+      "tag": "0061_retrait_casting_vocal",
+      "breakpoints": true
     }
   ]
 }

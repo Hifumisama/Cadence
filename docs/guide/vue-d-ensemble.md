@@ -58,7 +58,7 @@ Chaque flèche pleine entre deux étapes passe par une **revue** : tu relis les 
 - Nouveau projet : la page `/nouveau` (`components/conception/ConceptionAssistant.tsx`, cinq choix : format, genre et ton, durée, langue, style), puis `/p/<id>/demarrage` (`components/conception/DemarrageAssistant.tsx`) : l'entretien avec le scénariste, le clap, et le lancement de la préparation. L'ancienne modale `NouveauProjetModal` a disparu.
 - « Écrire les scénarios » : `components/projects/SaisonSection.tsx`.
 - « Créer le registre depuis le brief » : `app/p/[projectId]/assets/page.tsx`.
-- « Créer les voix manquantes » : `app/p/[projectId]/voix/page.tsx`.
+- La voix d'un personnage : le bloc « Voix » de sa fiche (`components/voix/BlocVoix.tsx`), plus de page de casting.
 - « Écrire les fiches de plan » : `components/projects/EpisodeInfoPanel.tsx`.
 - « Écrire la fiche » / « Réécrire la fiche » : menu « Agent » de l'onglet Prompt de la fiche (`app/p/[projectId]/e/[episodeId]/plans/[uuid]/page.tsx`). « Corriger après visionnage » est fondu dans « Itérer » (`components/plan/IntentionPlan.tsx`, FRICTIONS 2026-10-12) : consigne → l'agent réécrit → application → génération, sans confirmation (les doutes de l'agent et les changements refusés sont des notes sur l'essai) ; la planche de vignettes n'est jamais automatique (case « Montrer au chef opérateur », ou bouton « Analyser » qui affiche le diagnostic sans rien appliquer).
 

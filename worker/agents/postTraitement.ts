@@ -19,20 +19,17 @@ import {
   depuisPlanAInserer,
   depuisPromptAffiche,
   depuisPromptAsset,
-  depuisCastingVoix,
   depuisRegistreAsset,
   depuisScenarioEpisode,
   type EpisodeCourant,
   type SortiePromptAffiche,
   type SortiePromptAsset,
-  type SortiePromptVoix,
   type SortieScenarioEpisode,
 } from "../../lib/agents/conversion";
 import { finaliserLot, runsDuLot } from "../../lib/agents/lots";
 import { PAS_ORDRE_SOUS_TACHE, episodeIdDeCle, groupeEpisode, rangSousTache } from "../../lib/agents/lots-pur";
 import { entreeScenarioEpisode } from "../../lib/agents/contexte";
 import { codeDeCleAsset } from "../../lib/agents/registre";
-import { codeDeCleVoix } from "../../lib/agents/voix-casting";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
 import type { BriefContenu, Position, StatutChamp } from "../../lib/agents/types";
 import type { Tx } from "../../lib/ordre-plans";
@@ -187,7 +184,6 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
   // Lot : cette tâche n'est qu'une SOUS-TÂCHE (un épisode) d'une proposition plus grande.
   if (prop.lot) {
     if (run.skill === "prompt-asset") return postSousTacheRegistre(tx, run, prop, scope, json as SortiePromptAsset);
-    if (run.skill === "prompt-voix") return postSousTacheVoix(tx, run, prop, scope, json as SortiePromptVoix);
     if (run.skill === "plan-h3") return postSousTacheFiche(tx, run, prop, scope, json as SortiePlanH3);
     return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
   }
@@ -344,61 +340,19 @@ async function postSousTacheRegistre(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
-/** Une sous-tâche du lot « casting des voix » (une voix) : la création de la voix est proposée avec son
- * instruction de timbre. Même règle que le registre : ses changements REMPLACENT ceux qu'elle avait posés
- * (relance), idempotent, puis le lot décide de son statut. */
-async function postSousTacheVoix(
-  tx: Tx,
-  run: RunAgent,
-  prop: typeof propositions.$inferSelect,
-  scope: { type: "projet" | "saison" | "episode" | "plan" | "asset"; cibleId: number | null },
-  sortie: SortiePromptVoix,
-) {
-  const cle = run.cleSousTache;
-  if (!cle || codeDeCleVoix(cle) == null) throw new Error(`Sous-tâche de voix inconnue (« ${cle ?? "?"} »).`);
-  const entree = run.entree as { voix?: { code?: string; personnage?: { code?: string; descriptionCanonique?: string } | null } };
-  const codeVoix = entree.voix?.code;
-  if (!codeVoix) throw new Error("Sous-tâche de voix sans code de voix.");
-  const personnageCode = entree.voix?.personnage?.code ?? null;
-  let personnageId: number | null = null;
-  if (personnageCode) {
-    const [perso] = await tx.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, prop.projectId), eq(assets.code, personnageCode), eq(assets.type, "personnage")));
-    if (!perso) throw new Error(`Le personnage ${personnageCode} n'existe plus : la voix n'a pas pu être rattachée.`);
-    personnageId = perso.id;
-  }
-  const bruts = depuisCastingVoix(sortie, {
-    codeVoix,
-    suffixe: codeVoix.includes("_") ? codeVoix.slice(codeVoix.indexOf("_") + 1) : codeVoix,
-    personnageId,
-    personnageCode,
-    description: entree.voix?.personnage?.descriptionCanonique ?? "",
-  });
-  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
-  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
-  await finaliserLot(tx, prop.id, { runTermineId: run.id });
-}
-
-/** Les changements d'une fiche de plan (sortie de `plan-h3`), depuis l'état du plan MAINTENANT : ses voix
- * (slots `<Audio N>` de plan_dialogues, entrée de l'assemblage), ses répliques (verbatim), le registre. */
+/** Les changements d'une fiche de plan (sortie de `plan-h3`), depuis l'état du plan MAINTENANT : le registre, la clause de style, les
+ * personnages à voix fixée (le prompt fait foi pour les répliques : la voix se lit dans les `<d>`, décision 2026-10-14). */
 async function brutsFiche(tx: Tx, projectId: number, planUuid: string, sortie: SortiePlanH3, options: OptionsFichePlan = {}): Promise<ChangementBrut[]> {
   const [plan] = await tx.select({ id: plans.id, titre: plans.titre }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!plan) throw new Error("Le plan visé n'existe plus.");
   const [projet] = await tx.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
   const [leBrief] = await tx.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
-  const [dialogues, registre] = await Promise.all([
-    tx
-      .select({ uuid: repliques.uuid, texte: repliques.texte, slot: planDialogues.slot, locuteurCode: assets.code })
-      .from(planDialogues)
-      .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
-      .leftJoin(assets, eq(assets.id, repliques.locuteurId))
-      .where(eq(planDialogues.planId, plan.id)),
-    tx.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches)),
-  ]);
-  const enVoixOff = codesEnVoixOff(((leBrief?.contenu as { personnages?: { nom?: string; voix?: string }[] } | undefined)?.personnages ?? []), dialogues.map((d) => d.locuteurCode).filter((c): c is string => !!c));
-  const voixOff = dialogues.length > 0 && dialogues.every((d) => !!d.locuteurCode && enVoixOff.has(d.locuteurCode));
+  const registre = await tx.select({ code: assets.code, type: assets.type, voixMaster: assets.voixMaster }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches));
+  const codesAvecMaster = registre.filter((a) => a.type === "personnage" && a.voixMaster).map((a) => a.code);
+  const codesVoixOff = [...codesEnVoixOff(((leBrief?.contenu as { personnages?: { nom?: string; voix?: string }[] } | undefined)?.personnages ?? []), registre.filter((a) => a.type === "personnage").map((a) => a.code))];
   return depuisFichePlan(
     sortie,
-    { uuid: planUuid, titre: plan.titre, slotsAudioPris: dialogues.map((d) => d.slot), repliques: dialogues.map((d) => ({ uuid: d.uuid, texte: d.texte, slot: d.slot, locuteurCode: d.locuteurCode })), registre, clauseStyle: projet?.clauseStyle ?? "", voixOff },
+    { uuid: planUuid, titre: plan.titre, codesAvecMaster, codesVoixOff, registre: registre.map((a) => ({ code: a.code, type: a.type })), clauseStyle: projet?.clauseStyle ?? "" },
     { corpusExemples: corpusExemplesPlanH3(), ...options },
   );
 }

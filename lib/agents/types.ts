@@ -35,7 +35,7 @@ export type Operation = (typeof OPERATIONS)[number];
  * ou libre, jamais d'asset créé par ce chemin). `fiche` (2026-10-02, étape 3 « fiches de plan ») :
  * le prompt H3 d'un plan (ses six sections), ses références picture/audio et sa durée de génération ;
  * écriture complète (plan-h3) ou partielle (seulement certaines sections, iteration-plan). */
-export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan", "replique", "voix", "fiche"] as const;
+export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan", "replique", "fiche"] as const;
 export type CibleType = (typeof CIBLES)[number];
 
 /** Qui a posé un champ du brief : `fourni` (l'utilisateur l'a dit ou corrigé),
@@ -224,7 +224,7 @@ export type VueConversation = {
 
 /** Ce que l'agent a lu automatiquement (la ligne « contexte utilisé » dépliable). */
 export type ContexteUtilise = {
-  type: "brief" | "projet" | "saison" | "episode" | "plan" | "asset" | "registre" | "voix";
+  type: "brief" | "projet" | "saison" | "episode" | "plan" | "asset" | "registre";
   libelle: string;
   ref?: string;
 };

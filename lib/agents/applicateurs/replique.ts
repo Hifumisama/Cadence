@@ -9,15 +9,14 @@ import { apres, parentDe, texte, type Applicateur, type CtxPrevisu, type Db } fr
 /** Cible `replique` : CRÉER une réplique et la lier à son plan (modèle F02 : la réplique est une
  * entité autonome, `plan_dialogues` l'assemble au plan, un emplacement <Audio N> par réplique).
  * `apres` = { texte, locuteur, episodeId, planCle | planUuid, sceneCle | sceneId? }.
- * Le locuteur est rapproché du registre (personnage du projet ou voix off) ; un locuteur inconnu
+ * Le locuteur est rapproché du registre (personnage du projet, la voix off en est un) ; un locuteur inconnu
  * devient un locuteur LIBRE, signalé comme invention : JAMAIS d'asset créé par ce chemin.
  *
  * MODIFIER (2026-10) : `cibleRef` = uuid de la réplique ; `apres` = { texte?, locuteur? }. Le texte suit la même
- * règle que l'action manuelle (`changerTexteReplique`, lib/repliques-ecriture.ts) : une prise validée repasse
- * « posée », la prise devient obsolète, les plans qui la citent sont à resynchroniser (contrôle verbatim).
- * SUPPRIMER : `cibleRef` = uuid ; les liaisons aux plans partent par cascade. Une réplique à prise validée, ou citée
- * par un plan, demande confirmation (`ecrase`). Le dossier de média de la réplique n'est PAS supprimé ici : une
- * transaction qui échoue plus loin ne doit pas détruire de fichier (à nettoyer après l'application). */
+ * règle que l'action manuelle (`changerTexteReplique`, lib/repliques-ecriture.ts) : les plans qui la citent sont à
+ * resynchroniser (contrôle verbatim).
+ * SUPPRIMER : `cibleRef` = uuid ; les liaisons aux plans partent par cascade. Une réplique citée par un plan demande
+ * confirmation (`ecrase`). Une réplique n'est qu'un texte (chantier voix/master, 2026-10-14) : aucun fichier à nettoyer. */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -29,10 +28,7 @@ async function repliqueParUuid(db: Db, projectId: number, uuid: string | null) {
       id: repliques.id,
       episodeId: repliques.episodeId,
       texte: repliques.texte,
-      statut: repliques.statut,
-      fichier: repliques.fichier,
       locuteurId: repliques.locuteurId,
-      voixId: repliques.voixId,
       locuteurTexte: repliques.locuteurTexte,
       seasonId: episodes.seasonId,
     })
@@ -73,7 +69,7 @@ async function registreLocuteurs(db: Db, projectId: number): Promise<AssetLocute
     .select({ id: assets.id, code: assets.code, type: assets.type })
     .from(assets)
     .where(eq(assets.projectId, projectId));
-  return lignes.filter((a) => a.type === "personnage" || a.type === "voix").map((a) => ({ id: a.id, code: a.code, type: a.type as "personnage" | "voix" }));
+  return lignes.filter((a) => a.type === "personnage").map((a) => ({ id: a.id, code: a.code, type: "personnage" as const }));
 }
 
 async function episodeDuProjet(db: Db, projectId: number, episodeId: number) {
@@ -174,7 +170,6 @@ export const applicateurReplique: Applicateur = {
       if (texte(a.locuteur) !== undefined) {
         const loc = rapprocherLocuteur(texte(a.locuteur)!, await registreLocuteurs(tx, ctx.projectId));
         set.locuteurId = loc.locuteurId;
-        set.voixId = loc.voixId;
         set.locuteurTexte = loc.locuteurTexte;
       }
       await tx.update(repliques).set(set).where(eq(repliques.id, r.id));
@@ -197,7 +192,6 @@ export const applicateurReplique: Applicateur = {
         sceneId,
         ordre: (dernier?.ordre ?? -1) + 1,
         locuteurId: loc.locuteurId,
-        voixId: loc.voixId,
         locuteurTexte: loc.locuteurTexte,
         texte: texteDe(ch),
       })
@@ -227,12 +221,12 @@ async function planCible(db: Db, cles: Map<string, number>, a: Record<string, un
 }
 
 
-function nomLocuteur(r: { locuteurId: number | null; voixId: number | null; locuteurTexte: string }, registre: AssetLocuteur[]): string {
-  const id = r.locuteurId ?? r.voixId;
+function nomLocuteur(r: { locuteurId: number | null; locuteurTexte: string }, registre: AssetLocuteur[]): string {
+  const id = r.locuteurId;
   return (id != null ? registre.find((a) => a.id === id)?.code : undefined) ?? r.locuteurTexte;
 }
 
-/** Aperçu d'une modification (texte et/ou locuteur) : l'avant/après, ce qui devient obsolète, la prise validée à confirmer. */
+/** Aperçu d'une modification (texte et/ou locuteur) : l'avant/après, les fiches de plan à resynchroniser. */
 async function previsualiserModification(db: Db, ctx: CtxPrevisu, ch: ChangementBrut): Promise<ChangementBrut> {
   const r = await repliqueParUuid(db, ctx.projectId, ch.cibleRef);
   if (!r) return { ...ch, refuseRaison: "Réplique introuvable dans ce projet." };
@@ -249,7 +243,6 @@ async function previsualiserModification(db: Db, ctx: CtxPrevisu, ch: Changement
       avant.texte = r.texte;
       garde.texte = modif.set.texte;
       const n = await plansQuiCitent(db, r.id);
-      if (r.fichier) avertissements.push({ type: "info", texte: "Sa prise audio deviendra obsolète : elle sera à refaire." });
       if (n > 0) {
         const parPlan = await dialoguesAResynchroniser(db, r.id, r.texte, modif.set.texte ?? r.texte);
         const misAJour = [...parPlan.values()].filter(Boolean).length;
@@ -257,17 +250,13 @@ async function previsualiserModification(db: Db, ctx: CtxPrevisu, ch: Changement
         if (misAJour > 0) avertissements.push({ type: "info", texte: `${misAJour} fiche${misAJour > 1 ? "s" : ""} de plan cite${misAJour > 1 ? "nt" : ""} cette réplique mot pour mot : son dialogue sera mis à jour (le rendu, s'il y en a un, deviendra périmé).` });
         if (reste > 0) avertissements.push({ type: "info", texte: `${reste} fiche${reste > 1 ? "s" : ""} de plan ne cite${reste > 1 ? "nt" : ""} pas cette réplique mot pour mot : à resynchroniser à la main (le contrôle verbatim le signalera).` });
       }
-      if (r.statut === "validee") {
-        ecrase = "Sa prise est validée : elle repassera « posée » (elle ne dit plus le texte).";
-        avertissements.push({ type: "ecrase_valide", texte: "Modifie une réplique à prise validée." });
-      }
     }
   }
 
   if (texte(a.locuteur) !== undefined) {
     const registre = await registreLocuteurs(db, ctx.projectId);
     const loc = rapprocherLocuteur(texte(a.locuteur)!, registre);
-    const change = loc.locuteurId !== r.locuteurId || loc.voixId !== r.voixId || loc.locuteurTexte !== r.locuteurTexte;
+    const change = loc.locuteurId !== r.locuteurId || loc.locuteurTexte !== r.locuteurTexte;
     if (change) {
       avant.locuteur = nomLocuteur(r, registre);
       garde.locuteur = nomLocuteur(loc, registre);
@@ -281,21 +270,19 @@ async function previsualiserModification(db: Db, ctx: CtxPrevisu, ch: Changement
   return { ...ch, avant, apres: garde, ecrase, avertissements };
 }
 
-/** Aperçu d'une suppression : ce qui est retiré des plans, la prise validée à confirmer. */
+/** Aperçu d'une suppression : ce qui est retiré des plans. */
 async function previsualiserSuppression(db: Db, ctx: CtxPrevisu, ch: ChangementBrut): Promise<ChangementBrut> {
   const r = await repliqueParUuid(db, ctx.projectId, ch.cibleRef);
   if (!r) return { ...ch, refuseRaison: "Réplique introuvable dans ce projet." };
   const avertissements = [...(ch.avertissements ?? [])];
   const n = await plansQuiCitent(db, r.id);
   const raisons: string[] = [];
-  if (r.statut === "validee") raisons.push("sa prise validée sera supprimée");
   if (n > 0) raisons.push(`elle est citée par ${n} plan${pluriel(n, "", "s")} (retirée de leur fiche)`);
   let ecrase: string | null = null;
   if (raisons.length > 0) {
     ecrase = `« ${r.texte.slice(0, 40)}${r.texte.length > 40 ? "…" : ""} » : ${raisons.join(" ; ")}.`;
-    avertissements.push({ type: "ecrase_valide", texte: "Supprime une réplique utilisée ou à prise validée." });
+    avertissements.push({ type: "ecrase_valide", texte: "Supprime une réplique utilisée dans une fiche de plan." });
   }
-  if (r.fichier) avertissements.push({ type: "info", texte: "Sa prise audio n'est plus rattachée à rien ; son fichier est à nettoyer." });
   const registre = await registreLocuteurs(db, ctx.projectId);
   return { ...ch, avant: { texte: r.texte, locuteur: nomLocuteur(r, registre) }, apres: null, ecrase, avertissements };
 }

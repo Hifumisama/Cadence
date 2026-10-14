@@ -5,15 +5,16 @@ import { jobs, planDialogues, planPromptSections, planRefs, plans } from "@/db/s
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { getPlansPerimes } from "@/lib/plans-perimes";
 import { classerPourPrevisualisation, consequencesSuppression, decisionIteration, essaiEnFile } from "@/lib/fiche-plan";
-import { appliquerSelection, cocherChangements, propositionParUuid } from "@/lib/agents/service";
+import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "@/lib/agents/service";
 import { lireProposition } from "@/lib/queries-agents";
 import type { Tx } from "@/lib/ordre-plans";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, estProblemeBloquant, resumerProblemesDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL, controlerDialogues, verifierCoherenceRefs } from "@/lib/plan-checks";
 import { getDialoguesPlan } from "@/lib/queries-repliques";
+import { estLiaison } from "@/lib/plan-liaison";
 import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
 import type { RefLabel } from "@/lib/plan-checks";
 import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
@@ -100,28 +101,13 @@ function tirerSeed(): string {
   return String(Math.floor(Math.random() * 1_000_000_000_000_000));
 }
 
-/** Invariant verbatim (F02, révision 2026-09-30) : un plan dont les dialogues
- * ne sont pas alignés avec ses répliques ne part pas en génération — les
- * lèvres bougeraient sur un autre texte que celui qu'on montera. null = rien
- * ne bloque (ou plan sans dialogue). Une prise audio manquante ou périmée, ou une réplique absente du prompt, ne bloquent PAS : avertissement
- * dans la fiche (voix estimée par le modèle, potentiellement instable ; voir `estProblemeBloquant`). */
-async function blocageDialogues(planId: number): Promise<string | null> {
-  const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
-  if (!plan) return null;
-  const { controle } = await getDialoguesPlan(plan.projectId, planId, plan.episodeId);
-  return controle.peutGenerer ? null : resumerProblemesDialogues(controle.problemes.filter(estProblemeBloquant));
-}
-
 /** activerUpscale distingue la prévisualisation rapide (itération de
- * prompt) du rendu final. Refusée tant que les dialogues du plan ne sont pas
- * alignés avec ses répliques (blocageDialogues). */
+ * prompt) du rendu final. */
 export async function relancerPlan(
   planId: number,
   activerUpscale: boolean,
   nouvelleVariante = false,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  const blocage = await blocageDialogues(planId);
-  if (blocage) return { ok: false, erreur: `Dialogues à corriger avant de générer : ${blocage}.` };
   await creerJobRelance(planId, activerUpscale, nouvelleVariante);
   revalidatePath("/", "layout");
   return { ok: true };
@@ -180,8 +166,6 @@ export async function retenirRendu(planId: number, jobId: number, restaurerPromp
 export async function rendreFinalAvecRendu(planId: number, jobId: number, restaurerPrompt = false): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const r = await appliquerRendu(planId, jobId, restaurerPrompt);
   if (!r.ok) return r;
-  const blocage = await blocageDialogues(planId);
-  if (blocage) return { ok: false, erreur: `Dialogues à corriger avant de générer : ${blocage}.` };
   const [plan] = await db.select({ retenu: plans.renduRetenuId }).from(plans).where(eq(plans.id, planId));
   await creerJobRelance(planId, true, false, { garderPret: plan?.retenu === jobId });
   revalidatePath("/", "layout");
@@ -229,11 +213,6 @@ export async function figerEtLancer(
     })
     .where(eq(plans.id, planId));
 
-  const blocage = await blocageDialogues(planId);
-  if (blocage) {
-    revalidatePath("/", "layout");
-    return { ok: false, erreur: `Figé, mais dialogues à corriger avant de générer : ${blocage}.` };
-  }
   await creerJobRelance(planId, mode === "final", mode === "variante", { consigne: essai.consigne, depuisNumero: essai.depuisNumero });
   const [dernier] = await db.select({ n: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, planId));
   revalidatePath("/", "layout");
@@ -271,8 +250,6 @@ export async function appliquerIterationEtGenerer(
 
   const enFile = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.planId, planId), inArray(jobs.statut, ["en_attente", "en_cours"]))).limit(1);
   if (enFile.length > 0) return { ok: false, erreur: "Un essai est déjà en file ou en cours sur ce plan : rien n'a été appliqué." };
-  const blocage = await blocageDialogues(planId);
-  if (blocage) return { ok: false, erreur: `Dialogues à corriger avant de générer : ${blocage}. Rien n'a été appliqué.` };
 
   const c = await cocherChangements(propositionUuid, { ids: decision.ids }, true);
   if (!c.ok) return { ok: false, erreur: c.erreur };
@@ -294,9 +271,17 @@ export async function appliquerIterationEtGenerer(
   } catch (e) {
     return { ok: false, erreur: `Rien n'a été appliqué ni généré : ${e instanceof Error ? e.message : "erreur inattendue"}.` };
   }
+  const notes = [...decision.notes];
+  // Les assets créés avec la correction n'ont ni prompt ni image : leurs prompts s'écrivent à part (une proposition à relire dans la conversation du
+  // projet), sans retarder l'essai déjà en file. Un échec n'annule rien : le bouton « écrire les prompts » reste sur la proposition.
+  const idsCreations = new Set(vue!.groupes.flatMap((g) => g.changements).filter((c) => c.cibleType === "asset").map((c) => c.id));
+  if (decision.ids.some((id) => idsCreations.has(id))) {
+    const g = await genererPromptsAssetsCrees(propositionUuid).catch((e: unknown) => ({ ok: false as const, erreur: e instanceof Error ? e.message : "erreur inattendue" }));
+    notes.push(g.ok ? "Les prompts d'image des assets créés s'écrivent dans la conversation du projet : relis-les, puis génère les images." : `Les prompts d'image des assets créés n'ont pas été lancés (${g.erreur}) : lance-les depuis la proposition.`);
+  }
   const [dernier] = await db.select({ n: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, planId));
   revalidatePath("/", "layout");
-  return { ok: true, numeroRendu: dernier?.n ?? 1, notes: decision.notes };
+  return { ok: true, numeroRendu: dernier?.n ?? 1, notes };
 }
 
 /** Écrit les sections modifiées sans lancer de rendu : appelé avant d'ajouter ou de retirer une référence, car ces deux
@@ -314,26 +299,21 @@ export async function ecrireSections(planId: number, sections: Record<string, st
  * jamais passé en rendu final. Ne touche à rien d'autre : un plan encore
  * `en_attente`/`echoue` n'a pas eu son aller-retour de validation, ce
  * n'est pas ce bouton qui doit le faire avancer. */
-export async function lancerPassageNuit(episodeId: number): Promise<{ n: number; bloques: number }> {
+export async function lancerPassageNuit(episodeId: number): Promise<{ n: number }> {
   const aTraiter = await db
     .select({ id: plans.id })
     .from(plans)
-    .where(and(eq(plans.episodeId, episodeId), eq(plans.statut, "previsualise")));
+    .where(and(eq(plans.episodeId, episodeId), eq(plans.statut, "previsualise")))
+    .orderBy(plans.ordre, plans.id); // dans l'ordre : voir lancerPrevisualisations
 
-  // Un plan aux dialogues désalignés est sauté, pas relancé (voir relancerPlan).
   let n = 0;
-  let bloques = 0;
   for (const p of aTraiter) {
-    if (await blocageDialogues(p.id)) {
-      bloques++;
-      continue;
-    }
     await creerJobRelance(p.id, true, false, { garderPret: true });
     n++;
   }
 
   revalidatePath("/", "layout");
-  return { n, bloques };
+  return { n };
 }
 
 /** Classement des plans d'un épisode pour « Toutes les prévisualisations » : `neufs` (développés, sans aucun rendu terminé : ils partent
@@ -381,60 +361,49 @@ export async function listerPrevisualisations(episodeId: number): Promise<PlanPr
       lignes.push({ ...base, etat: "en_file", raison: "Un rendu attend ou tourne déjà" });
       continue;
     }
-    const blocage = await blocageDialogues(p.id);
-    if (blocage) lignes.push({ ...base, etat: "bloque", raison: `Dialogues à corriger : ${blocage}` });
-    else lignes.push({ ...base, etat: c.neufs.includes(p.id) ? "neuf" : "rendu", raison: null });
+    lignes.push({ ...base, etat: c.neufs.includes(p.id) ? "neuf" : "rendu", raison: null });
   }
   return lignes;
 }
 
 /** Lance une prévisualisation (sans upscale, seed du plan) pour les plans choisis dans la fenêtre. Le choix est l'accord : un plan qui a
  * déjà un rendu et qu'on a coché en reçoit un NOUVEAU (l'historique garde les anciens). Revérifié ici, au moment de lancer : un plan
- * devenu « en file » entre-temps ou aux dialogues bloquants est sauté. */
+ * devenu « en file » entre-temps est sauté. */
 export async function lancerPrevisualisations(
   episodeId: number,
   planUuids: string[],
-): Promise<{ n: number; bloques: number; dejaEnFile: number }> {
+): Promise<{ n: number; dejaEnFile: number }> {
   const c = await classerPourPrevisualisations(episodeId);
-  const choisis = planUuids.length ? await db.select({ id: plans.id }).from(plans).where(and(eq(plans.episodeId, episodeId), inArray(plans.uuid, planUuids))) : [];
+  // Dans l'ordre de l'épisode : le worker prend les essais dans l'ordre de création, et un plan en liaison « suite » prend la dernière image du rendu
+  // de son précédent (lib/plan-raccord.ts) : le précédent doit passer avant.
+  const choisis = planUuids.length ? await db.select({ id: plans.id }).from(plans).where(and(eq(plans.episodeId, episodeId), inArray(plans.uuid, planUuids))).orderBy(plans.ordre, plans.id) : [];
   let n = 0;
-  let bloques = 0;
   let dejaEnFile = 0;
   for (const { id } of choisis) {
     if (!c.neufs.includes(id) && !c.avecRendu.includes(id)) {
       dejaEnFile++;
       continue;
     }
-    if (await blocageDialogues(id)) {
-      bloques++;
-      continue;
-    }
     await creerJobRelance(id, false);
     n++;
   }
   revalidatePath("/", "layout");
-  return { n, bloques, dejaEnFile };
+  return { n, dejaEnFile };
 }
 
 /** « Relancer les plans périmés » (lib/plans-perimes) : un nouveau rendu pour chaque plan de l'épisode dont une référence, le prompt ou la durée
  * ont changé depuis son dernier rendu. Chaque plan repart dans le mode de son dernier rendu (prévisualisation reste prévisualisation,
- * final reste final) et avec sa seed et le prompt et la durée du plan tels qu'ils sont maintenant. Sont sautés : les plans déjà en file ou en cours, et ceux aux
- * dialogues désalignés. */
-export async function relancerPlansPerimes(episodeId: number): Promise<{ n: number; bloques: number; dejaEnFile: number }> {
-  const episode = await db.select({ id: plans.id, statut: plans.statut }).from(plans).where(eq(plans.episodeId, episodeId));
+ * final reste final) et avec sa seed et le prompt et la durée du plan tels qu'ils sont maintenant. Sont sautés : les plans déjà en file ou en cours. */
+export async function relancerPlansPerimes(episodeId: number): Promise<{ n: number; dejaEnFile: number }> {
+  const episode = await db.select({ id: plans.id, statut: plans.statut }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id); // dans l'ordre : voir lancerPrevisualisations
   const perimes = episode.length ? await getPlansPerimes({ planIds: episode.map((p) => p.id) }) : new Map();
 
   let n = 0;
-  let bloques = 0;
   let dejaEnFile = 0;
   for (const p of episode) {
     if (!perimes.has(p.id)) continue;
     if (p.statut === "en_attente" || p.statut === "en_cours") {
       dejaEnFile++;
-      continue;
-    }
-    if (await blocageDialogues(p.id)) {
-      bloques++;
       continue;
     }
     const [dernier] = await db.select({ upscale: jobs.activerUpscale }).from(jobs).where(eq(jobs.planId, p.id)).orderBy(desc(jobs.id)).limit(1);
@@ -443,7 +412,7 @@ export async function relancerPlansPerimes(episodeId: number): Promise<{ n: numb
   }
 
   revalidatePath("/", "layout");
-  return { n, bloques, dejaEnFile };
+  return { n, dejaEnFile };
 }
 
 /** FPS et durée de génération, éditables depuis la Fiche de plan — le mode
@@ -516,6 +485,8 @@ type ValeursScenario = {
   titre: string;
   description: string;
   dureeMontageSecondes: number;
+  /** Liaison avec le plan précédent (lib/plan-liaison.ts) ; une valeur inconnue n'écrit rien. */
+  liaison?: string;
 };
 
 /** Édition des champs scénario — reste ouverte même après développement en
@@ -528,6 +499,7 @@ export async function updatePlanScenario(planId: number, valeurs: ValeursScenari
       titre: valeurs.titre,
       description: valeurs.description || null,
       dureeMontageSecondes: valeurs.dureeMontageSecondes,
+      ...(estLiaison(valeurs.liaison) ? { liaison: valeurs.liaison } : {}),
       updatedAt: new Date(),
     })
     .where(eq(plans.id, planId));
@@ -642,7 +614,7 @@ export async function analyserPromptColle(
   const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, refs, audioRefs);
   const repliquesNonTrouvees = controlerDialogues(
     sectionsPourControle,
-    liaisons.map((l) => ({ id: l.id, texte: l.texte, audioPresent: l.fichier != null, priseObsolete: l.priseObsolete, voixMaster: l.voixMaster })),
+    liaisons.map((l) => ({ id: l.id, texte: l.texte })),
   )
     .problemes.flatMap((p) => (p.type === "absente" || p.type === "differente" ? [p.texte] : []));
 
@@ -847,10 +819,6 @@ export async function lancerUpscaleEpisode(episodeId: number): Promise<{ n: numb
     // Un rendu final (activerUpscale) ou une vidéo importée (déjà tournée, sans seed) n'a rien à upscaler.
     if (retenu.activerUpscale) {
       res.dejaFinal++;
-      continue;
-    }
-    if (await blocageDialogues(p.id)) {
-      res.bloques++;
       continue;
     }
     const r = await appliquerRendu(p.id, retenu.id, !!retenu.promptUtilise);

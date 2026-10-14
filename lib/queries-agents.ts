@@ -339,7 +339,7 @@ export async function apercuContexte(projectId: number, portee: Portee, cible: C
   return apercuContexteDe(db, projectId, portee, r.cibleId);
 }
 
-const SORTIE_ESTIMEE: Record<string, number> = { "scenario-episode": 1800, "prompt-asset": 500, "prompt-voix": 400, "conversation-agent": 600, "plan-h3": 2500, "iteration-plan": 900 };
+const SORTIE_ESTIMEE: Record<string, number> = { "scenario-episode": 1800, "prompt-asset": 500, "conversation-agent": 600, "plan-h3": 2500, "iteration-plan": 900 };
 
 /** Estimation avant lancement : fournisseur, modèle, coût (null en local), durée, tâches
  * devant dans la file. Ordres de grandeur (≈ 30 jetons/s en sortie sur le serveur local,
@@ -452,25 +452,6 @@ export async function estimerIteration(): Promise<EstimationGeneration> {
     dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30),
     tachesDevant: images + appels,
     skill: "iteration-plan",
-  };
-}
-
-/** Estimation du lot « casting des voix » : un appel `prompt-voix` par voix. */
-export async function estimerVoix(nbVoix: number): Promise<EstimationGeneration> {
-  const conf = configLlm();
-  const n = Math.max(1, nbVoix);
-  const entree = chargerSkill("prompt-voix").jetonsEstimes + 700;
-  const sortie = SORTIE_ESTIMEE["prompt-voix"] ?? 400;
-  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
-  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
-  return {
-    fournisseur: conf.fournisseur,
-    modele: await modeleEffectifPourSkill("prompt-voix"),
-    coutEstimeUsd: null,
-    jetonsEntreeEstimes: entree * n,
-    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
-    tachesDevant: images + appels,
-    skill: "prompt-voix",
   };
 }
 

@@ -2,13 +2,14 @@ import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { episodes, jobs, planDialogues, planPromptSections, planRefs, plans, scenes, seasons } from "../../../db/schema";
 import { recomposerOrdre } from "../../ordre-plans";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
+import { estLiaison, liaisonOuDefaut } from "../../plan-liaison";
 import type { ChangementBrut } from "../changements";
 import { planifierDeplacement, planifierInsertion } from "../rangs";
 import type { Avertissement, Position } from "../types";
 import { apres, parentDe, texte, type Applicateur, type Db } from "./commun";
 
 /** Cible `plan` : créer (à une POSITION : après tel plan par uuid, début ou fin — jamais un
- * numéro) ou modifier titre, description et durée de génération. `cibleRef` = uuid du plan
+ * numéro) ou modifier titre, description, liaison (avec le plan précédent, lib/plan-liaison.ts) et durée de génération. `cibleRef` = uuid du plan
  * (modification). `apres` (création) = { titre, description, dureeGenerationSecondes,
  * episodeId | episodeCle, sceneId | sceneCle? }. Les répliques et le prompt H3 (sections) ne
  * s'écrivent pas par ce chemin : ils restent à la fiche de plan.
@@ -52,7 +53,7 @@ async function plansDeEpisode(db: Db, episodeId: number) {
 async function planParUuid(db: Db, projectId: number, uuid: string | null) {
   if (!uuid) return null;
   const [p] = await db
-    .select({ id: plans.id, episodeId: plans.episodeId, statut: plans.statut, titre: plans.titre, description: plans.description, duree: plans.dureeGenerationSecondes, seasonId: episodes.seasonId })
+    .select({ id: plans.id, episodeId: plans.episodeId, statut: plans.statut, titre: plans.titre, description: plans.description, liaison: plans.liaison, duree: plans.dureeGenerationSecondes, seasonId: episodes.seasonId })
     .from(plans)
     .innerJoin(episodes, eq(episodes.id, plans.episodeId))
     .where(and(eq(plans.uuid, uuid), eq(plans.projectId, projectId)));
@@ -121,6 +122,7 @@ export const applicateurPlan: Applicateur = {
     if (texte(a.titre) !== undefined) { avant.titre = plan.titre; garde.titre = a.titre; }
     if (texte(a.description) !== undefined) { avant.description = plan.description ?? ""; garde.description = a.description; }
     if (a.dureeGenerationSecondes !== undefined) { avant.dureeGenerationSecondes = plan.duree; garde.dureeGenerationSecondes = a.dureeGenerationSecondes; }
+    if (estLiaison(a.liaison) && a.liaison !== plan.liaison) { avant.liaison = plan.liaison; garde.liaison = a.liaison; }
     const modifieDesChamps = Object.keys(garde).length > 0;
     if (ch.position) {
       const dep = planifierDeplacement(await plansDeEpisode(db, plan.episodeId), ch.cibleRef!, ch.position);
@@ -147,6 +149,7 @@ export const applicateurPlan: Applicateur = {
     }
     const a = apres(ch);
     if (a.dureeGenerationSecondes !== undefined && controleDuree(a.dureeGenerationSecondes)) return `Durée de plan invalide (${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières).`;
+    if (a.liaison !== undefined && !estLiaison(a.liaison)) return "Liaison de plan invalide (« suite » ou « coupe »).";
     if (ch.operation === "creer") {
       if (!texte(a.titre)?.trim()) return "Titre de plan manquant.";
       if (controleDuree(a.dureeGenerationSecondes)) return `Durée de plan invalide (${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières).`;
@@ -181,6 +184,7 @@ export const applicateurPlan: Applicateur = {
       const valeurs: Partial<typeof plans.$inferInsert> = { updatedAt: new Date() };
       if (texte(a.titre) !== undefined) valeurs.titre = texte(a.titre)!.trim();
       if (texte(a.description) !== undefined) valeurs.description = texte(a.description)!.trim() || null;
+      if (estLiaison(a.liaison)) valeurs.liaison = a.liaison;
       // La durée au montage suit la durée de génération (même règle que les actions de l'interface, app/plans/actions.ts).
       if (typeof a.dureeGenerationSecondes === "number") {
         valeurs.dureeGenerationSecondes = a.dureeGenerationSecondes;
@@ -214,6 +218,7 @@ export const applicateurPlan: Applicateur = {
         titre: texte(a.titre)!.trim(),
         sceneId,
         description: texte(a.description)?.trim() || null,
+        liaison: liaisonOuDefaut(a.liaison),
         dureeMontageSecondes: duree,
         dureeGenerationSecondes: duree,
       })

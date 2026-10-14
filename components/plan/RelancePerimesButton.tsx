@@ -7,7 +7,7 @@ import { relancerPlansPerimes } from "@/app/plans/actions";
 export function RelancePerimesButton({ episodeId, nPerimes }: { episodeId: number; nPerimes: number }) {
   const [pending, startTransition] = useTransition();
   const [confirmation, setConfirmation] = useState(false);
-  const [resultat, setResultat] = useState<{ n: number; bloques: number; dejaEnFile: number } | null>(null);
+  const [resultat, setResultat] = useState<{ n: number; dejaEnFile: number } | null>(null);
 
   if (nPerimes === 0 && resultat === null) return null;
 
@@ -27,7 +27,6 @@ export function RelancePerimesButton({ episodeId, nPerimes }: { episodeId: numbe
   if (resultat) {
     notes.push(`${resultat.n} rendu${s(resultat.n)} mis en file`);
     if (resultat.dejaEnFile > 0) notes.push(`${resultat.dejaEnFile} déjà en file`);
-    if (resultat.bloques > 0) notes.push(`${resultat.bloques} sauté${s(resultat.bloques)} (dialogues à corriger)`);
   }
 
   return (

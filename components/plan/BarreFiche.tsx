@@ -46,7 +46,7 @@ export function BarreFiche({
         const notes = [r.n > 0 ? `${r.n} rendu${s(r.n)} final${r.n > 1 ? "aux" : ""} mis en file` : "Rien à lancer"];
         if (r.dejaFinal) notes.push(`${r.dejaFinal} déjà en rendu final ou importé${s(r.dejaFinal)}`);
         if (r.dejaEnFile) notes.push(`${r.dejaEnFile} déjà en file`);
-        if (r.bloques) notes.push(`${r.bloques} sauté${s(r.bloques)} (dialogues ou essai à revoir)`);
+        if (r.bloques) notes.push(`${r.bloques} sauté${s(r.bloques)} (essai à revoir)`);
         setMessage(`${notes.join(" · ")}.`);
       } catch {
         setMessage("Le lancement de l'upscale a échoué.");

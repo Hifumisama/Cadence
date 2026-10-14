@@ -2,9 +2,6 @@
  * par l'application et le worker. Voir docs/FRICTIONS.md (tâches ComfyUI) et
  * workflows/README.md (contrat des workflows d'images). */
 
-import { langueFicheVoix } from "./langues-tts";
-import { PHRASES_MIN_ECOUTE, compterPhrases } from "./voix";
-
 export const STATUTS_GENERATION = ["en_attente", "en_cours", "termine", "echoue", "annulee"] as const;
 export type StatutGeneration = (typeof STATUTS_GENERATION)[number];
 
@@ -102,7 +99,6 @@ export type AssetGenerable = {
  * refusée (casting vocal) ; un son (sfx) aussi : il se génère par la popup audio
  * (raisonAudioNonGenerable). */
 export function raisonNonGenerable(a: AssetGenerable): string | null {
-  if (a.type === "voix") return "Une voix se fabrique au casting vocal, pas par image.";
   if (a.type === "sfx") return "Un son se génère avec la génération audio, pas par image.";
   return null;
 }
@@ -126,10 +122,9 @@ export type DemandeAudio = {
   dureeSecondes: number;
 };
 
-/** Seuls les assets `sfx` se génèrent en audio (la voix passe par le casting). */
+/** Seuls les assets `sfx` se génèrent en audio (la voix d'un personnage passe par son master). */
 export function raisonAudioNonGenerable(type: string): string | null {
   if (type === "sfx") return null;
-  if (type === "voix") return "Une voix se fabrique au casting vocal, pas par la génération audio.";
   return "La génération audio ne concerne que les sons (type sfx).";
 }
 
@@ -145,141 +140,33 @@ export function raisonDemandeAudioInvalide(d: DemandeAudio): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Génération d'une VOIX de référence (Qwen3-TTS Voice Design —
-// workflows/audio/VOX_Generate_Voice_Simplified.json). Même table et même file que
-// les images et les sons (`asset_generations`, méthode « voix »). Le prompt de la
-// génération est l'instruction de timbre ; le texte lu, sa langue et la température
-// sont des paramètres séparés.
+// Master de voix d'un personnage (chantier voix/master, 2026-10-14) : une vidéo de test H3, dont on garde la voix. Méthode de plus
+// pour `asset_generations`, sur l'asset personnage ; le résultat est un candidat, « Utiliser comme master » l'adopte.
 // ---------------------------------------------------------------------------
 
-export const METHODE_VOIX = "voix";
-/** « Température » de Qwen3-TTS : le niveau de créativité de la voix. */
-export const TEMPERATURE_VOIX_MIN = 0.8;
-export const TEMPERATURE_VOIX_MAX = 1.2;
-// 1,2 par défaut (retour de recette, 2026-10-05) : la plus expressive aux essais directs sous ComfyUI ; 0,8 à 1,2 reste réglable.
-export const TEMPERATURE_VOIX_DEFAUT = 1.2;
+/** Master de voix d'un PERSONNAGE (2026-10-14) : la vidéo de test H3 (sans audio fourni, le modèle invente la voix d'après le prompt),
+ * avec en plus la voix nettoyée (workflow dédié). Le fichier de la génération est l'AUDIO ; la vidéo est à côté (`videoDeMaster`).
+ * `assetId` est le personnage. */
+export const METHODE_MASTER_VOIX = "master_voix";
 
-/** Ce que le casting envoie à `lancerGenerationVoix`. La seed est tirée côté serveur. */
-export type DemandeVoix = {
-  instruction: string;
-  texteReference: string;
-  temperature: number;
-};
+/** Un son pour tout ce qui suit (pas de vignette ni d'aperçu, fichier audio) : un bruitage, ou la voix d'un master. */
+export const estMethodeSon = (m: string): boolean => m === METHODE_AUDIO || m === METHODE_MASTER_VOIX;
 
-/** Génération d'une PRISE de réplique (Qwen3-TTS Voice Clone, workflows/audio/VOX_Generate_Replique_Simplified.json) : même
- * table et même file que les images, les sons et les voix de référence ; `asset_generations.repliqueId` désigne la réplique. */
-export const METHODE_REPLIQUE = "replique";
-
-/** Extraction d'une voix FOURNIE (workflows/audio/VOX_Get_Audio_and_ASR.json) : une fenêtre d'un audio ou d'une vidéo, la voix isolée
- * (musique et bruits retirés) et sa transcription. Le résultat est un candidat de la voix ; « Utiliser cette voix » en fait la voix de
- * référence et fixe sa transcription (`texteReference`, corrigée à la main) sur la fiche. */
-export const METHODE_VOIX_SOURCE = "voix_source";
-
-/** Doublage d'une réplique (workflows/audio/VOX_Doublage_voix_API_Mode.json) : l'utilisateur joue la réplique, la voix de référence
- * la redit avec son intonation et son rythme (CosyVoice3, speech-to-speech). Comme une prise générée, le résultat est posé sur la
- * réplique (`asset_generations.repliqueId`) et remplace la prise précédente. */
-export const METHODE_DOUBLAGE = "doublage";
-
-/** Ce que l'extraction fige au lancement (`asset_generations.parametres`) : le fichier source (chemin relatif à MEDIA_ROOT), la
- * fenêtre gardée en secondes et si le fichier est une vidéo (le graphe a deux chargeurs et un commutateur). */
-export type ParametresVoixSource = { source: string; debut: number; fin: number; video: boolean };
-
-export function parametresVoixSource(v: unknown): ParametresVoixSource | null {
-  if (typeof v !== "object" || v === null) return null;
-  const o = v as Record<string, unknown>;
-  if (typeof o.source !== "string" || o.source.trim() === "") return null;
-  if (typeof o.debut !== "number" || typeof o.fin !== "number" || !Number.isFinite(o.debut) || !Number.isFinite(o.fin)) return null;
-  return { source: o.source, debut: o.debut, fin: o.fin, video: o.video === true };
-}
-
-/** Ce que le doublage fige : la prise jouée par l'utilisateur (chemin relatif à MEDIA_ROOT). La voix de référence est celle de
- * l'asset au moment du lancement. */
-export type ParametresDoublage = { prise: string };
-
-export function parametresDoublage(v: unknown): ParametresDoublage | null {
-  if (typeof v !== "object" || v === null) return null;
-  const p = (v as Record<string, unknown>).prise;
-  return typeof p === "string" && p.trim() !== "" ? { prise: p } : null;
-}
-
-export function temperatureVoixValide(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v) && v >= TEMPERATURE_VOIX_MIN && v <= TEMPERATURE_VOIX_MAX;
-}
-
-/** Seule une voix (asset de type `voix`) se génère ainsi. */
-export function raisonVoixNonGenerable(type: string): string | null {
-  return type === "voix" ? null : "La génération de voix ne concerne que les voix du casting (type voix).";
-}
-
-/** Validation de la structure d'une demande de voix (sans base ni disque). */
-export function raisonDemandeVoixInvalide(d: DemandeVoix): string | null {
-  if (!d.instruction?.trim()) return "Écris l'instruction de la voix (scène « Le timbre »).";
-  if (!d.texteReference?.trim()) return "Écris le texte de la réplique d'écoute de la voix (scène « Le timbre »).";
-  if (compterPhrases(d.texteReference) < PHRASES_MIN_ECOUTE) return `La réplique d'écoute doit compter au moins ${PHRASES_MIN_ECOUTE} phrases (scène « Le timbre »).`;
-  if (!temperatureVoixValide(d.temperature)) return `Créativité hors limites (${TEMPERATURE_VOIX_MIN} à ${TEMPERATURE_VOIX_MAX}).`;
-  return null;
-}
-
-/** Langue du texte lu par Qwen3-TTS : le texte de référence du projet est en anglais (le même pour toutes les
- * voix) ; un texte différent est supposé écrit dans la langue de la fiche de voix. */
-export function langueDuTexteDeReference(texte: string, texteParDefaut: string, langueFiche: string): string {
-  return texte.trim() === texteParDefaut.trim() ? "English" : langueFicheVoix(langueFiche);
-}
-
-// ---------------------------------------------------------------------------
-// Test d'une voix (casting vocal, étape « Test vidéo »). Deux méthodes de plus pour `asset_generations`, sur l'asset
-// `voix` : « test_audio » (une réplique dite avec la voix de référence, workflows/audio/VOX_Generate_Replique_Simplified.json)
-// puis « test_video » (la voix sur un visage, workflows/video-generation/VID_REF2VA.json). Comme pour les images, le résultat
-// est un candidat : « Utiliser » en fait l'audio ou la vidéo de test de la fiche, sans toucher à la voix de référence.
-// ---------------------------------------------------------------------------
-
-export const METHODE_TEST_AUDIO = "test_audio";
-export const METHODE_TEST_VIDEO = "test_video";
-
-export const estMethodeTestVoix = (m: string): boolean => m === METHODE_TEST_AUDIO || m === METHODE_TEST_VIDEO;
-
-/** Un son pour tout ce qui suit (pas de vignette ni d'aperçu, fichier audio) : un son, une voix, l'audio d'un test. */
-export const estMethodeSon = (m: string): boolean =>
-  m === METHODE_AUDIO || m === METHODE_VOIX || m === METHODE_TEST_AUDIO || m === METHODE_REPLIQUE || m === METHODE_VOIX_SOURCE || m === METHODE_DOUBLAGE;
-
-/** Durée du test vidéo : une réplique face caméra tient en huit secondes (prompt T1, lib/voix.ts:promptTestVoix). */
+/** Durée de la vidéo de test d'un master : une réplique face caméra tient en huit secondes (prompt T1, lib/voix.ts:promptMasterVoix). */
 export const DUREE_TEST_VIDEO_SECONDES = 8;
 
-/** Ce que le test vidéo fige au lancement (`asset_generations.parametres`) : les fichiers de références tels qu'ils étaient quand
- * l'utilisateur a cliqué (le prompt a été composé avec eux). Un fichier est un chemin relatif à MEDIA_ROOT. Le test vidéo ne passe
- * JAMAIS par l'upscale (2026-10-08) : il sert à juger la voix sur un visage, pas à produire un rendu final. Les anciennes demandes
- * portent encore un champ `upscale`, ignoré à la lecture. */
-export type ParametresTestVideo = {
-  personnage: string | null;
-  decor: string | null;
-  /** L'audio que la vidéo habille : un fichier déjà là (la voix de référence, un audio déposé). */
-  audio: string | null;
-  /** …ou la génération « test audio » qui le produit (texte du test ≠ réplique d'écoute) : posée juste avant dans la file, le worker
-   * en lit le fichier au moment de la vidéo. Exclusif de `audio`. */
-  audioGenerationId: number | null;
-};
+/** Ce que la génération d'un master fige au lancement : l'image du personnage (chemin relatif à MEDIA_ROOT, null pour une voix off sans
+ * visage). */
+export type ParametresMasterVoix = { personnage: string | null };
 
-export function parametresTestVideo(v: unknown): ParametresTestVideo | null {
+export function parametresMasterVoix(v: unknown): ParametresMasterVoix | null {
   if (typeof v !== "object" || v === null) return null;
-  const o = v as Record<string, unknown>;
-  const texte = (x: unknown) => (typeof x === "string" && x.trim() !== "" ? x : null);
-  const id = typeof o.audioGenerationId === "number" && Number.isInteger(o.audioGenerationId) ? o.audioGenerationId : null;
-  return { personnage: texte(o.personnage), decor: texte(o.decor), audio: texte(o.audio), audioGenerationId: id };
+  const p = (v as Record<string, unknown>).personnage;
+  return { personnage: typeof p === "string" && p.trim() !== "" ? p : null };
 }
 
-/** Validation d'un test audio (sans base ni disque) : une référence à cloner, un texte à dire. */
-export function raisonTestAudioInvalide(v: { texte: string; referenceFichier: string | null }): string | null {
-  if (!v.referenceFichier) return "Il faut d'abord une voix de référence (étape Référence) : c'est elle qui est clonée.";
-  if (!v.texte?.trim()) return "Écris le texte à tester.";
-  return null;
-}
-
-/** Validation d'un test vidéo : sans audio, la voix n'est pas testée. */
-export function raisonTestVideoInvalide(v: { texte: string; audio: string | null }): string | null {
-  if (!v.texte?.trim()) return "Écris le texte à tester.";
-  if (!v.audio) return "Pas d'audio à tester : génère l'audio de test, ou dépose la voix de référence.";
-  return null;
-}
+/** La vidéo de test d'un master vit à côté de son audio, sous le même nom (`<uuid>.mp4`) : rien à mémoriser, rien d'orphelin à la purge. */
+export const videoDeMaster = (fichierAudio: string): string => fichierAudio.replace(/\.[^./\\]+$/, "") + ".mp4";
 
 /** « 4 s », « 2,5 s » : durée d'un son pour l'affichage. */
 export function formaterDuree(secondes: number): string {
@@ -327,39 +214,4 @@ export function nomSourceDistante(genUuid: string, rang: number, ext: string): s
  * `plans.seed`. */
 export function nouvelleSeed(): string {
   return String(Math.floor(Math.random() * 2 ** 48));
-}
-
-/** Plus grande seed acceptée par les nœuds Qwen3-TTS (`UnifiedVoiceDesignerNode`, `UnifiedTTSTextNode`) : un entier 32 bits non
- * signé. ComfyUI valide chaque entrée contre le `max` du nœud AVANT d'exécuter et répond par une HTTP 400 (« Value … bigger than max
- * of … ») ; les seeds 48 bits des images, des sons et de la vidéo (KSampler, easy seed : bien plus larges) y échouaient. */
-export const SEED_TTS_MAX = 2 ** 32 - 1;
-
-/** Seed d'une génération de voix, de test audio ou de prise de réplique : dans la plage du moteur vocal. */
-export function nouvelleSeedTts(): string {
-  return String(Math.floor(Math.random() * (SEED_TTS_MAX + 1)));
-}
-
-/** La seed (texte, stockée en base) ramenée dans la plage du moteur vocal. Une valeur déjà valide est inchangée ; une plus grande
- * (demande posée avant ce correctif, restée en file) est repliée de façon déterministe — même seed, même résultat. */
-export function seedTts(seed: string | number): number {
-  const n = Number(seed);
-  if (!Number.isFinite(n) || n < 0) throw new Error(`Seed invalide : ${seed}`);
-  const entier = Math.floor(n);
-  return entier <= SEED_TTS_MAX ? entier : entier % (SEED_TTS_MAX + 1);
-}
-
-/** Ce que le test audio fige au lancement : la voix de référence à cloner, telle qu'elle était (chemin relatif à MEDIA_ROOT, sous
- * `assets/`) — la remplacer pendant que la demande attend ne change pas ce test. */
-export type ParametresTestAudio = { reference: string };
-
-export function parametresTestAudio(v: unknown): ParametresTestAudio | null {
-  if (typeof v !== "object" || v === null) return null;
-  const r = (v as Record<string, unknown>).reference;
-  return typeof r === "string" && r.trim() !== "" ? { reference: r } : null;
-}
-
-/** Nom de la voix de référence une fois envoyée à ComfyUI (dossier d'entrée partagé) : porte la date de modification du fichier,
- * pour qu'une référence REMPLACÉE ne resserve jamais l'ancienne copie du même nom. */
-export function nomReferenceVoixDistante(codeVoix: string, mtimeMs: number, ext: string): string {
-  return `cadence_voixref_${codeVoix}_${Math.floor(mtimeMs)}${ext || ".mp3"}`;
 }

@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-orm";
-import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons, voixFiches } from "../../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planDialogues, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, repliques, scenes, seasons } from "../../db/schema";
 import { horsAffiches } from "../assets-visibles";
 import { variantePromptAsset } from "../llm/variantes";
 import { genreOuNull, variantePlanH3 } from "../scene-genres";
@@ -8,9 +8,8 @@ import { ORDRE_SECTIONS } from "../prompt";
 import type { Db } from "./applicateurs/commun";
 import { sansClesAbandonnees } from "./brief";
 import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-plan";
-import { normaliser } from "./locuteurs";
+import { liaisonOuDefaut } from "../plan-liaison";
 import type { BriefContenu, ContexteUtilise, EtatIterationPlan, Position } from "./types";
-import type { CandidatVoix } from "./voix-casting";
 
 /** Ce que l'agent lit AUTOMATIQUEMENT pour une portée courte : des extraits du brief et de
  * l'état courant, jamais le brief entier d'office. Chaque fonction renvoie l'entrée du skill
@@ -146,45 +145,6 @@ export async function entreePromptAssetCandidat(
       plansQuiLeCitent: [],
       clauseStyleDuProjet: projet?.clauseStyle ?? "",
       memeFamille: [],
-      briefExtrait: extrait,
-      consigne,
-      ...(retour ? { retourUtilisateur: retour } : {}),
-    },
-  };
-}
-
-/** L'entrée de `prompt-voix` pour une voix du CASTING (étape « casting des voix ») : le personnage (ou la
- * voix off), ce que le brief en dit, quelques-unes de ses répliques (elles disent la prosodie attendue) et
- * les voix déjà au casting (pour que la nouvelle s'en distingue). */
-export async function entreePromptVoixCandidat(db: Db, projectId: number, cand: CandidatVoix, consigne: string, retour?: string): Promise<EntreeSkill> {
-  const brief = await lireBriefDuProjet(db, projectId);
-  const { extrait, contexte } = extraitsBrief(brief?.contenu ?? null);
-  const nomCandidat = normaliser(cand.nom);
-  const duBrief = (brief?.contenu.personnages ?? []).find((p) => normaliser(p.nom ?? "") === nomCandidat);
-  const deja = await db
-    .select({ code: assets.code, instruction: assets.promptGeneration, description: assets.description, personnageId: voixFiches.personnageId })
-    .from(assets)
-    .innerJoin(voixFiches, eq(voixFiches.assetId, assets.id))
-    .where(eq(assets.projectId, projectId))
-    .orderBy(asc(assets.code));
-  return {
-    skill: "prompt-voix",
-    contexte: [
-      { type: "asset", libelle: `${cand.codeVoix} · ${cand.personnageCode ? `voix de ${cand.personnageCode}` : "voix off"}`, ref: cand.codeVoix },
-      ...(cand.nbRepliques ? [{ type: "plan" as const, libelle: `${cand.nbRepliques} réplique${cand.nbRepliques > 1 ? "s" : ""} de cette voix` }] : []),
-      ...(deja.length ? [{ type: "voix" as const, libelle: `${deja.length} voix déjà au casting (pour s'en distinguer)` }] : []),
-      ...contexte,
-    ],
-    entree: {
-      voix: {
-        code: cand.codeVoix,
-        personnage: cand.personnageCode ? { code: cand.personnageCode, descriptionCanonique: cand.description } : null,
-        role: cand.personnageCode ? "" : "voix off",
-      },
-      impressionVocaleDuBrief: duBrief?.voix ?? "",
-      langueDesDialogues: brief?.contenu.langueDialogues ?? "",
-      repliquesDeLaVoix: cand.exemples,
-      voixDejaAuCasting: deja.map((v) => ({ code: v.code, instruction: v.instruction ?? "", description: v.description ?? "" })),
       briefExtrait: extrait,
       consigne,
       ...(retour ? { retourUtilisateur: retour } : {}),
@@ -415,10 +375,10 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
  * - `scene` (titre, fonction, et les intentions de TOUS ses plans dans l'ordre, `cePlan` marquant celui qu'on
  *   écrit : c'est le seul « texte » de la scène), `episode` : de quoi situer le plan ;
  * - `plansVoisins` : le précédent et le suivant (pour le raccord), titre et description ;
- * - `registre` : pour chaque asset candidat (hors voix) son code, sa description
+ * - `registre` : pour chaque asset candidat son code, sa description
  *   canonique (français), sa méthode, son prompt de génération (anglais) et s'il a déjà son fichier
- *   (image, ou son pour un bruitage) ; hors voix (les voix se dérivent des répliques) ;
- * - `repliques` : celles du plan (uuid, locuteur, texte exact, durée mesurée si la prise existe) ;
+ *   (image, ou son pour un bruitage) ; 
+ * (aucune réplique en entrée : le dialogue est dans l'intention et la consigne, le prompt vidéo est sa seule source, 2026-10-14) ;
  * - `clauseStyleDuProjet`, `briefExtrait` : le style visuel, l'arc, les personnages et les lieux du brief. */
 export async function entreePlanH3(
   db: Db,
@@ -463,7 +423,6 @@ export async function entreePlanH3(
     .where(and(eq(assets.projectId, projectId), horsAffiches))
     .orderBy(asc(assets.code));
   const candidats = registre
-    .filter((a) => a.type !== "voix")
     .map((a) => ({
       code: a.code,
       type: a.type,
@@ -473,26 +432,10 @@ export async function entreePlanH3(
       aUnFichier: !!a.fichier,
     }));
 
-  const dialogues = await db
-    .select({
-      uuid: repliques.uuid,
-      locuteurTexte: repliques.locuteurTexte,
-      locuteurCode: assets.code,
-      texte: repliques.texte,
-      dureeSecondes: repliques.dureeSecondes,
-      slot: planDialogues.slot,
-    })
-    .from(planDialogues)
-    .innerJoin(repliques, eq(repliques.id, planDialogues.repliqueId))
-    .leftJoin(assets, eq(assets.id, repliques.locuteurId))
-    .where(eq(planDialogues.planId, p.id))
-    .orderBy(asc(planDialogues.slot));
-
   const contexte: ContexteUtilise[] = [
     { type: "plan", libelle: `Plan · ${p.titre}`, ref: p.uuid },
     { type: "episode", libelle: `Épisode ${c.ep.numero} · ${c.ep.titre}`, ref: String(c.ep.id) },
     { type: "registre", libelle: `Registre : ${candidats.length} asset${candidats.length > 1 ? "s" : ""} candidat${candidats.length > 1 ? "s" : ""}` },
-    ...(dialogues.length ? [{ type: "plan" as const, libelle: `${dialogues.length} réplique${dialogues.length > 1 ? "s" : ""} du plan` }] : []),
     ...(projet?.clauseStyle ? [{ type: "projet" as const, libelle: "Clause de style du projet" }] : []),
     ...c.contexteBrief,
   ];
@@ -506,6 +449,7 @@ export async function entreePlanH3(
       plan: {
         titre: p.titre,
         intention: options.intention ?? p.description ?? "",
+        liaison: liaisonOuDefaut(p.liaison),
         positionDansLaScene: dansLaScene.length > 0 ? `${rang + 1}/${dansLaScene.length}` : "",
         fps: p.fps,
       },
@@ -527,12 +471,6 @@ export async function entreePlanH3(
       episode: { titre: c.ep.titre, resume: c.ep.resume },
       plansVoisins: { precedent: precedentLu ? { ...voisin(precedentLu)!, ...(dernierShotPrecedent ? { dernierShot: dernierShotPrecedent } : {}) } : null, suivant: voisin(c.lesPlans[i + 1]) },
       registre: candidats,
-      repliques: dialogues.map((d) => ({
-        repliqueId: d.uuid,
-        locuteur: d.locuteurCode ?? d.locuteurTexte ?? "",
-        texte: d.texte,
-        ...(d.dureeSecondes != null ? { dureeMesureeSecondes: d.dureeSecondes } : {}),
-      })),
       clauseStyleDuProjet: projet?.clauseStyle ?? "",
       briefExtrait: c.extrait,
       consigne,
@@ -611,7 +549,7 @@ export async function etatIterationPlan(db: Db, projectId: number, planUuid: str
  * de correction à l'aveugle). Voir agents/skills/iteration-plan/SKILL.md, « Ce que tu reçois » :
  * - `plan` (titre, intention, durée voulue, fps), `promptActuel` (les six sections STOCKÉES, labels compris) ;
  * - `references` : chaque label du plan → asset, rôle, rétention ; les voix (`voix: true`) avec leur réplique ;
- * - `repliques` (texte exact, slot, durée mesurée), `retourVisionnage` (obligatoire), `historique` ;
+ * - `retourVisionnage` (obligatoire), `historique` ;
  * - `planche` : un DESCRIPTEUR du rendu (job, chemin relatif à MEDIA_ROOT, plafond de vignettes). Les images ne
  *   sont JAMAIS stockées dans agent_runs.entree : le worker reconstruit la planche à l'exécution
  *   (worker/agents/preparation.ts), mesure la durée réelle (ffprobe) et remplace `planche` par `rendu`.
@@ -681,7 +619,7 @@ export async function entreeIterationPlan(
   ];
   const importe = rendu.workflowFichier === WORKFLOW_IMPORT_MANUEL;
   // Le registre : de quoi AJOUTER une référence (codes existants, jamais inventés) ; sans les voix (les poses composites « keyframe » se citent comme les autres images).
-  const registre = (await registreResume(db, projectId)).filter((a) => a.type !== "voix");
+  const registre = (await registreResume(db, projectId));
   const contexte: ContexteUtilise[] = [
     { type: "plan", libelle: `Plan · ${p.titre} · prompt actuel (six sections)`, ref: p.uuid },
     { type: "registre", libelle: `Registre : ${registre.length} asset${registre.length > 1 ? "s" : ""} à citer en référence` },
@@ -702,16 +640,10 @@ export async function entreeIterationPlan(
     contexte,
     plan: { id: p.id, uuid: p.uuid, titre: p.titre },
     entree: {
-      plan: { titre: p.titre, intention: p.description ?? "", dureeVoulueSecondes: p.dureeGenerationSecondes, fps: p.fps },
+      plan: { titre: p.titre, intention: p.description ?? "", liaison: liaisonOuDefaut(p.liaison), dureeVoulueSecondes: p.dureeGenerationSecondes, fps: p.fps },
       promptActuel: Object.fromEntries(ORDRE_SECTIONS.map((s) => [s, sections[s] ?? ""])),
       references,
       registre,
-      repliques: dialogues.map((d) => ({
-        locuteur: d.locuteurCode ?? d.locuteurTexte ?? "",
-        texte: d.texte,
-        slotAudio: d.slot,
-        ...(d.dureeSecondes != null ? { dureeMesureeSecondes: d.dureeSecondes } : {}),
-      })),
       retourVisionnage,
       historique,
       plansVoisins: {
@@ -759,7 +691,7 @@ export async function entreeInventaire(db: Db, projectId: number, consigne: stri
     .orderBy(asc(plans.ordre), asc(plans.id));
   if (lesPlans.length === 0) return null;
 
-  const registre = (await registreResume(db, projectId)).filter((a) => a.type !== "voix");
+  const registre = (await registreResume(db, projectId));
   const lireBrief = await lireBriefDuProjet(db, projectId);
   const { extrait, contexte: contexteBrief } = extraitsBrief(lireBrief?.contenu ?? null);
   const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));

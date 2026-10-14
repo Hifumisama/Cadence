@@ -11,15 +11,14 @@ export type ModificationTexte =
       /** Le texte a réellement changé (sinon `set` est vide : rien à écrire). */
       texteChange: boolean;
       /** Les colonnes de `repliques` à écrire. */
-      set: { texte?: string; statut?: string };
+      set: { texte?: string };
     };
 
-/** Un texte modifié laisse les plans qui citent la réplique en alerte (le contrôle verbatim les
- * voit « différente ») et rend la prise obsolète (`priseObsolete`, lib/repliques.ts) ; une prise
- * VALIDÉE repasse « posée » : elle ne dit plus le texte. */
-export function changerTexteReplique(actuelle: { texte: string; statut: string }, nouveau: string): ModificationTexte {
+/** Un texte modifié laisse les plans qui citent la réplique en alerte (le contrôle verbatim les voit « différente »). Une réplique
+ * n'est qu'un texte (chantier voix/master, 2026-10-14) : il n'y a ni prise ni statut à invalider. */
+export function changerTexteReplique(actuelle: { texte: string }, nouveau: string): ModificationTexte {
   const texte = nettoyerTexteReplique(nouveau);
   if (!texte) return { ok: false, erreur: "Le texte de la réplique est vide." };
   if (texte === actuelle.texte) return { ok: true, texteChange: false, set: {} };
-  return { ok: true, texteChange: true, set: actuelle.statut === "validee" ? { texte, statut: "prise_posee" } : { texte } };
+  return { ok: true, texteChange: true, set: { texte } };
 }

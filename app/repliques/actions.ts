@@ -1,30 +1,24 @@
 "use server";
 
 import { db } from "@/db";
-import { assets, episodes, planDialogues, planPromptSections, planRefs, plans, repliques, seasons, voixFiches } from "@/db/schema";
+import { assets, episodes, planDialogues, planPromptSections, planRefs, plans, repliques, seasons } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { mkdir, rm, unlink, writeFile } from "node:fs/promises";
-import { dirname, extname, join } from "node:path";
-import { randomUUID } from "node:crypto";
-import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminRepliqueMedia, estAudio } from "@/lib/media";
 import { MAX_REFS, prochainSlotAudioLibre } from "@/lib/plan-checks";
 import {
   ajouterBalise,
   corrigerBalise,
   decoderLocuteur,
-  estStatutReplique,
   langueBalise,
-  mesurerDureeAudio,
-  priseObsolete,
 } from "@/lib/repliques";
+import { langueDesDialogues } from "@/lib/langue-dialogues";
 import { getDialoguesPlan } from "@/lib/queries-repliques";
 import { changerTexteReplique } from "@/lib/repliques-ecriture";
 
 // Répliques autonomes (docs/FRICTIONS.md F02, révision 2026-09-30). Une
 // réplique naît du scénario ou du casting, sans plan ; la fiche de plan n'en
-// est que la table d'assemblage. Les prises se déposent ici à la main ; leur génération
-// depuis l'application (clonage de la voix du casting) est dans generation-actions.ts.
+// est que la table d'assemblage. Une réplique n'est qu'un texte inséré dans le prompt (chantier voix/master, 2026-10-14) :
+// ni fichier, ni voix, ni statut ; la voix est celle du master de son locuteur (`assets.voix_master`).
 
 type Resultat<T = object> = ({ ok: true } & T) | { ok: false; erreur: string };
 
@@ -36,23 +30,21 @@ async function exigerReplique(id: number) {
   return r;
 }
 
-/** Résout le sélecteur de locuteur (`p:<id>` / `v:<id>` / `t:<texte>`) en
- * colonnes de `repliques`, en vérifiant que l'asset appartient au projet. */
+/** Résout le sélecteur de locuteur (`p:<id>` / `t:<texte>`) en colonnes de `repliques`, en vérifiant que le personnage appartient
+ * au projet (la voix off est un personnage). */
 async function resoudreLocuteur(
   projectId: number,
   valeur: string,
-): Promise<Resultat<{ locuteurId: number | null; voixId: number | null; locuteurTexte: string }>> {
+): Promise<Resultat<{ locuteurId: number | null; locuteurTexte: string }>> {
   const choix = decoderLocuteur(valeur);
   if (!choix) return { ok: false, erreur: "Choisis un locuteur." };
-  if (choix.kind === "texte") return { ok: true, locuteurId: null, voixId: null, locuteurTexte: choix.texte.slice(0, 100) };
+  if (choix.kind === "texte") return { ok: true, locuteurId: null, locuteurTexte: choix.texte.slice(0, 100) };
   const [a] = await db
     .select()
     .from(assets)
-    .where(and(eq(assets.id, choix.id), eq(assets.projectId, projectId), eq(assets.type, choix.kind === "personnage" ? "personnage" : "voix")));
+    .where(and(eq(assets.id, choix.id), eq(assets.projectId, projectId), eq(assets.type, "personnage")));
   if (!a) return { ok: false, erreur: "Ce locuteur n'existe pas dans le projet." };
-  return choix.kind === "personnage"
-    ? { ok: true, locuteurId: a.id, voixId: null, locuteurTexte: "" }
-    : { ok: true, locuteurId: null, voixId: a.id, locuteurTexte: "" };
+  return { ok: true, locuteurId: a.id, locuteurTexte: "" };
 }
 
 // ---------------------------------------------------------------------
@@ -100,7 +92,6 @@ export async function creerReplique(
       sceneId,
       ordre: (dernier?.ordre ?? -1) + 1,
       locuteurId: loc.locuteurId,
-      voixId: loc.voixId,
       locuteurTexte: loc.locuteurTexte,
       texte,
     })
@@ -121,10 +112,8 @@ export async function creerReplique(
 }
 
 /** Change le texte et/ou le locuteur. Un texte modifié laisse les plans qui
- * citent la réplique en alerte (le contrôle verbatim les voit « différente »)
- * et marque la prise « à refaire » (priseObsolete) ; une prise validée repasse
- * « posée » — elle ne dit plus le texte. Renvoie le nombre de plans à
- * resynchroniser. */
+ * citent la réplique en alerte (le contrôle verbatim les voit « différente »).
+ * Renvoie le nombre de plans à resynchroniser. */
 export async function modifierReplique(
   id: number,
   valeurs: { texte?: string; locuteur?: string },
@@ -143,7 +132,6 @@ export async function modifierReplique(
     const loc = await resoudreLocuteur(r.projectId, valeurs.locuteur);
     if (!loc.ok) return loc;
     set.locuteurId = loc.locuteurId;
-    set.voixId = loc.voixId;
     set.locuteurTexte = loc.locuteurTexte;
   }
   await db.update(repliques).set(set).where(eq(repliques.id, id));
@@ -156,92 +144,27 @@ export async function modifierReplique(
 /** Une réplique citée par un plan ne se supprime pas sans geste explicite
  * (même philosophie que supprimerAsset) ; `force` la retire aussi des plans. */
 export async function supprimerReplique(id: number, force = false): Promise<Resultat> {
-  const r = await exigerReplique(id);
+  await exigerReplique(id);
   const liaisons = await db.select({ id: planDialogues.id }).from(planDialogues).where(eq(planDialogues.repliqueId, id));
   if (liaisons.length > 0 && !force) {
     return { ok: false, erreur: `Encore liée à ${liaisons.length} plan${liaisons.length > 1 ? "s" : ""} — retire-la d'abord, ou force la suppression.` };
   }
   await db.delete(repliques).where(eq(repliques.id, id)); // liaisons : cascade
-  await rm(join(MEDIA_ROOT, dirname(cheminRepliqueMedia(r.id, "x"))), { recursive: true, force: true }).catch(() => undefined);
   revalidatePath("/", "layout");
   return { ok: true };
 }
 
 // ---------------------------------------------------------------------
-// Prise audio — produite hors Cadence, déposée ici. Une nouvelle prise
-// remplace l'ancienne (pas de versionnage, F01).
+// Durée
 // ---------------------------------------------------------------------
 
-export async function uploaderPriseReplique(id: number, formData: FormData) {
-  const r = await exigerReplique(id);
-  const fichier = formData.get("fichier");
-  if (!(fichier instanceof File) || fichier.size === 0) return;
-  if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
-    throw new Error(
-      `Fichier trop volumineux (${(fichier.size / 1024 / 1024).toFixed(1)} Mo, max ${TAILLE_MAX_UPLOAD_ASSET / 1024 / 1024} Mo).`,
-    );
-  }
-  if (!estAudio(fichier.name)) throw new Error("Fichier audio attendu (WAV ou FLAC de préférence).");
-
-  const octets = new Uint8Array(await fichier.arrayBuffer());
-  const nom = `${r.uuid}${extname(fichier.name).toLowerCase()}`;
-  const chemin = join(MEDIA_ROOT, cheminRepliqueMedia(r.id, nom));
-  await mkdir(dirname(chemin), { recursive: true });
-  await writeFile(chemin, octets);
-  if (r.fichier && r.fichier !== nom) {
-    await unlink(join(MEDIA_ROOT, cheminRepliqueMedia(r.id, r.fichier))).catch(() => undefined);
-  }
-
-  await db
-    .update(repliques)
-    .set({
-      fichier: nom,
-      fichierTexte: r.texte,
-      // Mesurée sur la prise ; null si le format ne se mesure pas ici (MP3…) —
-      // à saisir à la main, jamais estimée (F03).
-      dureeSecondes: mesurerDureeAudio(octets, nom),
-      statut: "prise_posee",
-      updatedAt: new Date(),
-    })
-    .where(eq(repliques.id, id));
-  revalidatePath("/", "layout");
-}
-
-export async function supprimerPriseReplique(id: number): Promise<Resultat> {
-  const r = await exigerReplique(id);
-  if (r.fichier) await unlink(join(MEDIA_ROOT, cheminRepliqueMedia(r.id, r.fichier))).catch(() => undefined);
-  await db
-    .update(repliques)
-    .set({ fichier: null, fichierTexte: null, dureeSecondes: null, statut: "a_produire", updatedAt: new Date() })
-    .where(eq(repliques.id, id));
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
-/** Durée saisie à la main, seulement quand la prise n'est pas mesurable
- * automatiquement (MP3, M4A) — la valeur vient de l'éditeur audio, pas d'une
- * estimation à la lecture du texte. */
+/** Durée saisie à la main (le budget de voix du plan en tient compte) : jamais estimée à la lecture du texte. */
 export async function definirDureeReplique(id: number, secondes: number | null): Promise<Resultat> {
-  const r = await exigerReplique(id);
+  await exigerReplique(id);
   if (secondes != null && (!Number.isFinite(secondes) || secondes <= 0 || secondes > 600)) {
     return { ok: false, erreur: "Durée invalide." };
   }
-  if (secondes != null && !r.fichier) return { ok: false, erreur: "Pas de prise : la durée se mesure sur la prise." };
   await db.update(repliques).set({ dureeSecondes: secondes, updatedAt: new Date() }).where(eq(repliques.id, id));
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
-export async function changerStatutReplique(id: number, statut: string): Promise<Resultat> {
-  if (!estStatutReplique(statut)) return { ok: false, erreur: "Statut inconnu." };
-  const r = await exigerReplique(id);
-  if (statut === "validee") {
-    if (!r.fichier) return { ok: false, erreur: "Pas de prise à valider." };
-    if (priseObsolete(r)) return { ok: false, erreur: "La prise ne dit plus le texte courant — refais-la avant de valider." };
-    if (r.dureeSecondes == null) return { ok: false, erreur: "Durée non mesurée — saisis-la avant de valider." };
-  }
-  if (statut === "prise_posee" && !r.fichier) return { ok: false, erreur: "Pas de prise déposée." };
-  await db.update(repliques).set({ statut, updatedAt: new Date() }).where(eq(repliques.id, id));
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -288,11 +211,31 @@ export async function lierReplique(planId: number, repliqueId: number): Promise<
   return r;
 }
 
+/** Une réplique déliée libère son slot `<Audio N>` : les lignes d'assemblage qui le déclaraient (« <Audio N> is the voice-timbre
+ * reference… », « <Audio N>: reference - … », dans `subject_definitions` et `retention_analysis`) ne renvoient plus à rien et sont
+ * retirées. Une mention en cours de phrase (soundscape, description) est laissée : c'est du texte libre, la revue la signale. Rien
+ * n'est retiré si le slot est repris par un bruitage de `plan_refs`. */
+async function retirerLignesAudioOrphelines(planId: number, slot: number) {
+  const [repris] = await db.select({ id: planRefs.id }).from(planRefs).where(and(eq(planRefs.planId, planId), eq(planRefs.type, "audio"), eq(planRefs.slot, slot)));
+  if (repris) return;
+  const ligne = new RegExp(`^\\s*<Audio\\s+${slot}>[ :].*$`);
+  const sections = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId));
+  for (const sec of sections) {
+    if (sec.section !== "subject_definitions" && sec.section !== "retention_analysis") continue;
+    const lignes = sec.contenu.split("\n");
+    const gardees = lignes.filter((l) => !ligne.test(l));
+    if (gardees.length === lignes.length) continue;
+    await db.update(planPromptSections).set({ contenu: gardees.join("\n").trim() }).where(eq(planPromptSections.id, sec.id));
+  }
+}
+
 /** Retire une réplique du plan (elle continue d'exister). Les slots restants ne
  * sont jamais renumérotés : un `<Audio N>` déjà cité dans le prompt garde son
  * numéro (même philosophie que les slots de plan_refs). */
 export async function delierReplique(planId: number, repliqueId: number): Promise<Resultat> {
+  const [liaison] = await db.select().from(planDialogues).where(and(eq(planDialogues.planId, planId), eq(planDialogues.repliqueId, repliqueId)));
   await db.delete(planDialogues).where(and(eq(planDialogues.planId, planId), eq(planDialogues.repliqueId, repliqueId)));
+  if (liaison) await retirerLignesAudioOrphelines(planId, liaison.slot);
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -340,9 +283,8 @@ export async function insererRepliqueDansPrompt(planId: number, repliqueId: numb
   const vue = liaisons.find((l) => l.id === repliqueId);
   if (!vue) return { ok: false, erreur: "Cette réplique n'est pas liée au plan." };
 
-  const [fiche] = vue.voix ? await db.select().from(voixFiches).where(eq(voixFiches.assetId, vue.voix.id)) : [];
   const existante = await sectionDetaillee(planId);
-  const contenu = ajouterBalise(existante?.contenu ?? "", vue.locuteur.label, langueBalise(fiche?.langue), r.texte);
+  const contenu = ajouterBalise(existante?.contenu ?? "", vue.locuteur.label, langueBalise(await langueDesDialogues(plan.projectId)), r.texte);
   await ecrireSection(planId, "detailed_description", contenu, existante);
   revalidatePath("/", "layout");
   return { ok: true };

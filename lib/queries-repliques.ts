@@ -1,25 +1,21 @@
 import { db } from "../db";
-import { assetGenerations, assets, episodes, planDialogues, planPromptSections, plans, repliques, seasons, voixFiches } from "../db/schema";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { cheminRepliqueMedia, repliqueMediaSrc } from "./media";
+import { assets, episodes, planDialogues, planPromptSections, plans, repliques, seasons } from "../db/schema";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { controlerDialogues, type ControleDialogues, type RefLabel } from "./plan-checks";
-import { nomLocuteur, priseObsolete, type LigneExportReplique } from "./repliques";
+import { nomLocuteur, type LigneExportReplique } from "./repliques";
 
 /** Requêtes des répliques autonomes (docs/FRICTIONS.md F02, révision
  * 2026-09-30). Une réplique est rattachée à l'épisode ; la fiche de plan n'en
- * est que la table d'assemblage (plan_dialogues). La voix d'une réplique se
- * déduit de son locuteur : `voixId` direct (voix off) sinon la voix du
- * personnage (voix_fiches.personnageId). Côté serveur uniquement (accès disque
- * pour résoudre les URL média). */
+ * est que la table d'assemblage (plan_dialogues). Une réplique n'est qu'un texte
+ * (chantier voix/master, 2026-10-14) : sa voix est celle de son locuteur, le
+ * master du personnage (`assets.voix_master`) quand il en a un. */
 
 export type LocuteurVue = {
-  kind: "personnage" | "voix" | "texte";
-  /** Id de l'asset (personnage ou voix), null pour un locuteur libre. */
+  kind: "personnage" | "texte";
+  /** Id de l'asset personnage, null pour un locuteur libre. */
   assetId: number | null;
   label: string;
 };
-
-export type VoixVue = { id: number; code: string };
 
 export type UsageRepliqueVue = {
   liaisonId: number;
@@ -44,15 +40,10 @@ export type RepliqueVue = {
   sceneId: number | null;
   ordre: number;
   texte: string;
-  statut: string;
-  fichier: string | null;
-  audioSrc: string | null;
   dureeSecondes: number | null;
-  priseObsolete: boolean;
-  /** Voix de référence (« Master ») du locuteur, si elle existe : sans prise, elle est la référence audio du plan. */
+  /** Le locuteur a un master (voix fixée) : il sert de référence audio `<Audio N>` du plan. Sinon le modèle vidéo invente la voix. */
   voixMaster: boolean;
   locuteur: LocuteurVue;
-  voix: VoixVue | null;
   usages: UsageRepliqueVue[];
 };
 
@@ -62,17 +53,16 @@ type ContexteProjet = {
 };
 
 async function chargerContexte(projectId: number): Promise<ContexteProjet> {
-  const [lignes, lesAssets, fiches, lesPlans] = await Promise.all([
+  const [lignes, lesAssets, lesPlans] = await Promise.all([
     db
       .select({ r: repliques, episodeNumero: episodes.numero })
       .from(repliques)
       .innerJoin(episodes, eq(repliques.episodeId, episodes.id))
       .where(eq(repliques.projectId, projectId)),
     db
-      .select({ id: assets.id, code: assets.code, type: assets.type, fichier: assets.fichier })
+      .select({ id: assets.id, code: assets.code, voixMaster: assets.voixMaster })
       .from(assets)
-      .where(and(eq(assets.projectId, projectId), inArray(assets.type, ["personnage", "voix"]))),
-    db.select({ assetId: voixFiches.assetId, personnageId: voixFiches.personnageId }).from(voixFiches),
+      .where(and(eq(assets.projectId, projectId), eq(assets.type, "personnage"))),
     db
       .select({ id: plans.id, uuid: plans.uuid, titre: plans.titre, episodeId: plans.episodeId, episodeNumero: episodes.numero })
       .from(plans)
@@ -90,18 +80,9 @@ async function chargerContexte(projectId: number): Promise<ContexteProjet> {
   }
 
   const codeParId = new Map(lesAssets.map((a) => [a.id, a.code]));
-  const voixParPersonnage = new Map<number, VoixVue>();
-  for (const f of fiches) {
-    const code = codeParId.get(f.assetId);
-    if (f.personnageId != null && code) voixParPersonnage.set(f.personnageId, { id: f.assetId, code });
-  }
-
-  const voixAvecFichier = new Set(lesAssets.filter((a) => a.type === "voix" && a.fichier).map((a) => a.id));
-  /** La voix de la réplique (directe, sinon celle du personnage) a-t-elle une voix de référence ? */
-  const aUnMaster = (r: { voixId: number | null; locuteurId: number | null }): boolean => {
-    const voixId = r.voixId ?? (r.locuteurId != null ? voixParPersonnage.get(r.locuteurId)?.id : undefined);
-    return voixId != null && voixAvecFichier.has(voixId);
-  };
+  const personnagesAvecMaster = new Set(lesAssets.filter((a) => a.voixMaster).map((a) => a.id));
+  /** Le locuteur a-t-il un master ? Celui de son personnage (chantier voix/master, 2026-10-14). */
+  const aUnMaster = (r: { locuteurId: number | null }): boolean => r.locuteurId != null && personnagesAvecMaster.has(r.locuteurId);
 
   const ids = lignes.map((l) => l.r.id);
   const liaisons = ids.length && planParId.size
@@ -125,13 +106,16 @@ async function chargerContexte(projectId: number): Promise<ContexteProjet> {
       .sort((a, b) => a.slot - b.slot)
       .map((l) => repliqueParId.get(l.repliqueId))
       .filter((r): r is NonNullable<typeof r> => r != null)
-      .map((r) => ({ id: r.id, texte: r.texte, audioPresent: r.fichier != null, priseObsolete: priseObsolete(r), voixMaster: aUnMaster(r) }));
+      .map((r) => ({ id: r.id, texte: r.texte }));
+    // Un plan sans réplique liée : son dialogue vit dans le prompt (2026-10-14), aucune balise n'est « orpheline ».
     controles.set(
       planId,
-      controlerDialogues(
-        sections.filter((s) => s.planId === planId).map((s) => ({ section: s.section, contenu: s.contenu })),
-        liees,
-      ),
+      liees.length === 0
+        ? controlerDialogues([], [])
+        : controlerDialogues(
+            sections.filter((s) => s.planId === planId).map((s) => ({ section: s.section, contenu: s.contenu })),
+            liees,
+          ),
     );
   }
 
@@ -139,13 +123,9 @@ async function chargerContexte(projectId: number): Promise<ContexteProjet> {
     let locuteur: LocuteurVue;
     if (r.locuteurId != null) {
       locuteur = { kind: "personnage", assetId: r.locuteurId, label: nomLocuteur(codeParId.get(r.locuteurId) ?? "?") };
-    } else if (r.voixId != null) {
-      locuteur = { kind: "voix", assetId: r.voixId, label: r.locuteurTexte || nomLocuteur(codeParId.get(r.voixId) ?? "?") };
     } else {
       locuteur = { kind: "texte", assetId: null, label: r.locuteurTexte || "—" };
     }
-    const voixDirecte = r.voixId != null && codeParId.has(r.voixId) ? { id: r.voixId, code: codeParId.get(r.voixId)! } : null;
-    const voix = voixDirecte ?? (r.locuteurId != null ? (voixParPersonnage.get(r.locuteurId) ?? null) : null);
 
     const usages = liaisons
       .filter((l) => l.repliqueId === r.id)
@@ -177,14 +157,9 @@ async function chargerContexte(projectId: number): Promise<ContexteProjet> {
       sceneId: r.sceneId,
       ordre: r.ordre,
       texte: r.texte,
-      statut: r.statut,
-      fichier: r.fichier,
-      audioSrc: repliqueMediaSrc(r.id, r.fichier),
       dureeSecondes: r.dureeSecondes,
-      priseObsolete: priseObsolete(r),
       voixMaster: aUnMaster(r),
       locuteur,
-      voix,
       usages,
     };
   });
@@ -193,7 +168,7 @@ async function chargerContexte(projectId: number): Promise<ContexteProjet> {
   return { vues, controles };
 }
 
-/** Toutes les répliques du projet (casting, export), dans l'ordre épisode puis
+/** Toutes les répliques du projet, dans l'ordre épisode puis
  * `ordre`. */
 export async function getRepliquesProjet(projectId: number): Promise<RepliqueVue[]> {
   return (await chargerContexte(projectId)).vues;
@@ -217,101 +192,37 @@ export async function getDialoguesPlan(projectId: number, planId: number, episod
   const controle: ControleDialogues =
     controles.get(planId) ?? controlerDialogues([], []);
   // L'audio de la réplique EST la ref <Audio N> du plan (pas recopiée dans
-  // plan_refs) : seules celles qui ont une prise déclarent un label.
-  const audioRefs: RefLabel[] = liaisons.filter((l) => l.fichier != null || l.voixMaster).map((l) => ({ type: "audio", slot: l.slot }));
+  // plan_refs) : seules celles dont le locuteur a un master déclarent un label.
+  const audioRefs: RefLabel[] = liaisons.filter((l) => l.voixMaster).map((l) => ({ type: "audio", slot: l.slot }));
   return { liaisons, disponibles, controle, audioRefs };
 }
 
-/** Une prise générée pour une réplique, telle que le panneau la montre. */
-export type EtatPrise = { uuid: string; statut: string; erreur: string | null };
-
-/** Les générations de prises des répliques données : la dernière de chacune (en file, en cours, échouée ou terminée), et la liste
- * complète de leurs états (le panneau se recharge quand l'un d'eux change). */
-export async function getPrisesGenerees(repliqueIds: number[]): Promise<{ derniere: Record<number, EtatPrise>; suivi: { uuid: string; statut: string }[] }> {
-  if (repliqueIds.length === 0) return { derniere: {}, suivi: [] };
-  const lignes = await db
-    .select({ uuid: assetGenerations.uuid, statut: assetGenerations.statut, erreur: assetGenerations.erreur, repliqueId: assetGenerations.repliqueId })
-    .from(assetGenerations)
-    .where(inArray(assetGenerations.repliqueId, repliqueIds))
-    .orderBy(desc(assetGenerations.createdAt), desc(assetGenerations.id));
-  const derniere: Record<number, EtatPrise> = {};
-  for (const l of lignes) {
-    if (l.repliqueId != null && derniere[l.repliqueId] === undefined) derniere[l.repliqueId] = { uuid: l.uuid, statut: l.statut, erreur: l.erreur };
-  }
-  return { derniere, suivi: lignes.map((l) => ({ uuid: l.uuid, statut: l.statut })) };
-}
-
 export type OptionsLocuteur = {
-  personnages: { id: number; code: string; label: string; voixCode: string | null }[];
-  /** Voix du catalogue sans personnage : voix off, conspirateurs… */
-  voixSeules: { id: number; code: string }[];
+  personnages: { id: number; code: string; label: string; aMaster: boolean }[];
 };
 
-/** Ce que le sélecteur de locuteur propose : les personnages (avec leur voix,
- * ou « sans voix ») et les voix qui n'ont pas de personnage. */
+/** Ce que le sélecteur de locuteur propose : les personnages (la voix off en est un), avec ou sans voix fixée. */
 export async function getOptionsLocuteur(projectId: number): Promise<OptionsLocuteur> {
-  const [lesAssets, fiches] = await Promise.all([
-    db
-      .select({ id: assets.id, code: assets.code, type: assets.type })
-      .from(assets)
-      .where(and(eq(assets.projectId, projectId), inArray(assets.type, ["personnage", "voix"])))
-      .orderBy(asc(assets.code)),
-    db.select({ assetId: voixFiches.assetId, personnageId: voixFiches.personnageId }).from(voixFiches),
-  ]);
-  const voixIds = new Set(lesAssets.filter((a) => a.type === "voix").map((a) => a.id));
-  const codeParId = new Map(lesAssets.map((a) => [a.id, a.code]));
-  const voixParPersonnage = new Map<number, string>();
-  const voixAvecPersonnage = new Set<number>();
-  for (const f of fiches) {
-    if (!voixIds.has(f.assetId)) continue;
-    if (f.personnageId != null) {
-      voixParPersonnage.set(f.personnageId, codeParId.get(f.assetId) ?? "?");
-      voixAvecPersonnage.add(f.assetId);
-    }
-  }
-  return {
-    personnages: lesAssets
-      .filter((a) => a.type === "personnage")
-      .map((a) => ({ id: a.id, code: a.code, label: nomLocuteur(a.code), voixCode: voixParPersonnage.get(a.id) ?? null })),
-    voixSeules: lesAssets.filter((a) => a.type === "voix" && !voixAvecPersonnage.has(a.id)).map((a) => ({ id: a.id, code: a.code })),
-  };
+  const lignes = await db
+    .select({ id: assets.id, code: assets.code, voixMaster: assets.voixMaster })
+    .from(assets)
+    .where(and(eq(assets.projectId, projectId), eq(assets.type, "personnage")))
+    .orderBy(asc(assets.code));
+  return { personnages: lignes.map((a) => ({ id: a.id, code: a.code, label: nomLocuteur(a.code), aMaster: a.voixMaster != null })) };
 }
 
-/** Pour le registre d'assets : la voix de chaque personnage, le nombre de
- * répliques qu'il porte, et les plans où chaque voix parle (déduits des
+/** Pour le registre d'assets : le nombre de répliques que porte chaque personnage, et leurs ids (les plans où il parle se déduisent des
  * répliques liées — jamais un lien stocké sur le plan). */
-export async function getLiensVoix(projectId: number) {
-  const [lesAssets, fiches, lignes] = await Promise.all([
-    db
-      .select({ id: assets.id, code: assets.code, type: assets.type })
-      .from(assets)
-      .where(and(eq(assets.projectId, projectId), inArray(assets.type, ["personnage", "voix"]))),
-    db.select({ assetId: voixFiches.assetId, personnageId: voixFiches.personnageId }).from(voixFiches),
-    db
-      .select({ id: repliques.id, locuteurId: repliques.locuteurId, voixId: repliques.voixId })
-      .from(repliques)
-      .where(eq(repliques.projectId, projectId)),
-  ]);
-  const idsVoix = new Set(lesAssets.filter((a) => a.type === "voix").map((a) => a.id));
-  const codeParId = new Map(lesAssets.map((a) => [a.id, a.code]));
-
-  const voixParPersonnage = new Map<number, { id: number; code: string }>();
-  const personnageParVoix = new Map<number, number>();
-  for (const f of fiches) {
-    if (!idsVoix.has(f.assetId) || f.personnageId == null) continue;
-    voixParPersonnage.set(f.personnageId, { id: f.assetId, code: codeParId.get(f.assetId) ?? "?" });
-    personnageParVoix.set(f.assetId, f.personnageId);
-  }
-
-  const nbRepliquesParPersonnage = new Map<number, number>();
-  const repliquesParVoix = new Map<number, number[]>(); // voix -> ids de répliques
+export async function getRepliquesParPersonnage(projectId: number) {
+  const lignes = await db
+    .select({ id: repliques.id, locuteurId: repliques.locuteurId })
+    .from(repliques)
+    .where(eq(repliques.projectId, projectId));
+  const repliquesParPersonnage = new Map<number, number[]>();
   for (const l of lignes) {
-    if (l.locuteurId != null) nbRepliquesParPersonnage.set(l.locuteurId, (nbRepliquesParPersonnage.get(l.locuteurId) ?? 0) + 1);
-    const voixId = l.voixId ?? (l.locuteurId != null ? voixParPersonnage.get(l.locuteurId)?.id : undefined);
-    if (voixId != null) repliquesParVoix.set(voixId, [...(repliquesParVoix.get(voixId) ?? []), l.id]);
+    if (l.locuteurId != null) repliquesParPersonnage.set(l.locuteurId, [...(repliquesParPersonnage.get(l.locuteurId) ?? []), l.id]);
   }
-
-  return { voixParPersonnage, personnageParVoix, nbRepliquesParPersonnage, repliquesParVoix };
+  return { repliquesParPersonnage };
 }
 
 /** Plans (ids) qui citent au moins une des répliques données. */
@@ -326,7 +237,7 @@ export async function getPlanIdsDesRepliques(ids: number[]): Promise<Map<number,
   return parReplique;
 }
 
-/** Export des audios seuls — une ligne par réplique, dans l'ordre du montage :
+/** Export des répliques — une ligne par réplique, dans l'ordre du montage :
  * plan d'apparition (position, donc `ordre` des plans) puis slot ; les
  * répliques pas encore placées suivent, dans l'ordre de l'épisode. */
 export async function getExportRepliques(projectId: number, episodeId?: number): Promise<LigneExportReplique[]> {
@@ -348,11 +259,8 @@ export async function getExportRepliques(projectId: number, episodeId?: number):
     rang: rangParEpisode.set(r.episodeId, (rangParEpisode.get(r.episodeId) ?? 0) + 1).get(r.episodeId)!,
     episodeNumero: r.episodeNumero,
     locuteur: r.locuteur.label,
-    voix: r.voix?.code ?? null,
     texte: r.texte,
     dureeSecondes: r.dureeSecondes,
-    statut: r.statut,
-    fichier: r.fichier ? cheminRepliqueMedia(r.id, r.fichier) : null,
     plans: r.usages.map((u) => ({ planUuid: u.planUuid, position: u.position, slot: u.slot })),
   }));
 }

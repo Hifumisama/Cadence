@@ -154,10 +154,10 @@ async function main(): Promise<number> {
       duree = trace?.dureeMs != null ? Math.round(trace.dureeMs / 1000) : null;
     }
 
-    const registre = (e.entree as { registre: { code: string; type: string }[]; repliques: { texte: string }[] }).registre;
-    const repliques = (e.entree as { repliques: { texte: string }[] }).repliques;
+    const registre = (e.entree as { registre: { code: string; type: string }[] }).registre;
+    const repliques: { texte: string }[] = [];
     let problemes: ProblemeH3[] = [];
-    if (fin.statut === "termine") problemes = controlerSortiePlanH3(fin.resultat as SortiePlanH3, { registre, repliques, corpusExemples: corpusExemplesPlanH3() });
+    if (fin.statut === "termine") problemes = controlerSortiePlanH3(fin.resultat as SortiePlanH3, { registre, corpusExemples: corpusExemplesPlanH3() });
     const r = resumeControles(problemes);
     console.log(`   → ${fin.statut}${duree != null ? ` en ${duree} s` : ""} · ${r.erreurs} erreur(s), ${r.alertes} alerte(s)\n`);
     bilan.push({ titre: c.titre, statut: fin.statut, duree, jetons, erreurs: r.erreurs, alertes: r.alertes });

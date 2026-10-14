@@ -28,8 +28,8 @@ The application assembles the input. Nothing is guessed.
   - `rendu_perime`: the render is outdated;
   - `repliques`: the lines said in the plan (`R01`…);
   - `brouillon`: what the **current draft** does to it — `{"coupe": true}` (already cut), `{"dureeSecondes": n}` (duration changed), or `null`.
-- **`repliques`**: each with `ref`, speaker, exact text, the plans that say it, and the state of its audio take (`aucune`, `posée`, `validée`).
-- **`locuteursConnus`**: the codes of the project's characters and voices, the possible speakers of an added line.
+- **`repliques`**: each with `ref`, speaker, exact text and the plans that say it.
+- **`locuteursConnus`**: the codes of the project's characters (the voice-over is one), the possible speakers of an added line.
 - **`decisions`**: the draft so far — `id` (`D1`…), title, reason, status, **its operations written exactly as you write them**, and its warnings.
 - **`prochainId`**: the id the next **new** decision will get (then the following ones, in order).
 - **`pistesEnAttente`**: options proposed at an earlier turn and not chosen yet, numbered from 1.

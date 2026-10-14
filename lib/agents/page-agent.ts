@@ -9,8 +9,8 @@ export type DemandePage = {
   projectId: number;
   portee: Portee;
   cible: CibleDemandee | null;
-  /** Vue directe (la page des assets ouvre le registre, la page des voix le casting). */
-  vue?: "registre" | "voix";
+  /** Vue directe (la page des assets ouvre le registre). */
+  vue?: "registre";
   /** Épisode de la page (sert à placer un nouveau plan, et à élargir un plan vers son épisode). */
   episodeId?: number;
   planUuid?: string;
@@ -31,7 +31,6 @@ export function demandeDepuisChemin(chemin: string): DemandePage | null {
     const code = seg[3] ? decodeURIComponent(seg[3]) : null;
     return code ? { projectId, portee: "asset", cible: { code } } : { projectId, portee: "projet", cible: null, vue: "registre" };
   }
-  if (seg[2] === "voix") return { projectId, portee: "projet", cible: null, vue: "voix" };
   if (seg[2] === "e") {
     const episodeId = entier(seg[3]);
     if (episodeId == null) return { projectId, portee: "projet", cible: null };

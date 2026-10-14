@@ -177,17 +177,6 @@ export async function genererInventaire(
   return rafraichir(await service.genererInventaire(conversationUuid, options));
 }
 
-/** Casting des voix : crée une voix pour chaque personnage qui parle et n'en a pas (et la voix off si des
- * répliques la réclament) : un lot, une sous-tâche `prompt-voix` par voix. `cles` = les voix à traiter (par
- * défaut : toutes celles qui manquent). Depuis la conversation du PROJET. La voix s'édite ensuite au casting
- * vocal ; le son se génère à part. */
-export async function genererVoix(
-  conversationUuid: string,
-  options: { cles?: string[]; consigne?: string } = {},
-) {
-  return rafraichir(await service.genererVoix(conversationUuid, options));
-}
-
 /** Étape 3 : écrire la FICHE d'un plan (conversation de portée `plan` : une proposition simple, affinable)
  * ou celles des plans d'un épisode, d'une saison ou du projet (un LOT, une sous-tâche `plan-h3` par plan,
  * clé `plan:<uuid>`). `planUuids` = les plans à traiter (par défaut : ceux qui n'ont pas de fiche). Une fiche

@@ -14,21 +14,20 @@ const a = (id: number, code: string, over: Partial<AssetPourLot> = {}): AssetPou
   ...over,
 });
 
-test("estAIllustrer : voix et sons sont hors compte, le reste compte", () => {
+test("estAIllustrer : les sons sont hors compte, le reste compte", () => {
   for (const t of ["personnage", "decor", "prop", "vfx", "keyframe", "oth"]) assert.equal(estAIllustrer({ type: t }), true, t);
-  assert.equal(estAIllustrer({ type: "voix" }), false);
   assert.equal(estAIllustrer({ type: "sfx" }), false);
 });
 
-test("etatImages : compte les images, ignore voix et sons", () => {
-  const tous = [a(1, "MAYA", { fichier: "x.png" }), a(2, "CAFE", { type: "decor" }), a(3, "VX_MAYA", { type: "voix" }), a(4, "BIP", { type: "sfx" })];
+test("etatImages : compte les images, ignore les sons", () => {
+  const tous = [a(1, "MAYA", { fichier: "x.png" }), a(2, "CAFE", { type: "decor" }), a(3, "BIP", { type: "sfx" })];
   const e = etatImages(tous, new Set(), 10);
   assert.deepEqual(e, { total: 2, avecImage: 1, sansImage: 1, enFile: 0, aLancer: 1, attendentMaitre: 0, sansPrompt: 0 });
   assert.deepEqual(idsSansImage(tous), [2]);
 });
 
 test("etatImages : aucun asset à illustrer", () => {
-  const e = etatImages([a(1, "VX", { type: "voix" })], new Set(), 10);
+  const e = etatImages([a(1, "BIP", { type: "sfx" })], new Set(), 10);
   assert.equal(e.total, 0);
   assert.equal(e.sansImage, 0);
 });

@@ -14,8 +14,8 @@ test("matrice : un asset par ligne, présent dans les plans qui le citent, trous
   assert.deepEqual(m.find((l) => l.code === "DEC_phare")!.trous, []);
 });
 
-test("matrice : regroupée par type (personnages d'abord), du plus cité au moins cité ; voix et sons exclus", () => {
-  const m = construireMatrice(plans, [c("PROP_clef", "prop", "p1"), c("DEC_phare", "decor", "p1"), c("DEC_phare", "decor", "p2"), c("CHAR_iris", "personnage", "p1"), c("VOICE_x", "voix", "p1"), c("SFX_x", "sfx", "p1")]);
+test("matrice : regroupée par type (personnages d'abord), du plus cité au moins cité ; sons exclus", () => {
+  const m = construireMatrice(plans, [c("PROP_clef", "prop", "p1"), c("DEC_phare", "decor", "p1"), c("DEC_phare", "decor", "p2"), c("CHAR_iris", "personnage", "p1"), c("SFX_x", "sfx", "p1")]);
   assert.deepEqual(m.map((l) => l.code), ["CHAR_iris", "DEC_phare", "PROP_clef"]);
 });
 

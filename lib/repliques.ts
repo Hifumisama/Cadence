@@ -4,45 +4,21 @@
 
 import type { BaliseD } from "./plan-checks";
 
-/** Vie d'une réplique : `a_produire` (texte écrit, pas de prise), `prise_posee`
- * (une prise audio existe, pas encore jugée bonne), `validee` (prise retenue,
- * durée mesurée). Varchar contrôlé ici, pas d'enum pg. */
-export const STATUTS_REPLIQUE = ["a_produire", "prise_posee", "validee"] as const;
-export type StatutReplique = (typeof STATUTS_REPLIQUE)[number];
-
-export const LIBELLE_STATUT_REPLIQUE: Record<StatutReplique, string> = {
-  a_produire: "À produire",
-  prise_posee: "Prise posée",
-  validee: "Validée",
-};
-
-export function estStatutReplique(v: string): v is StatutReplique {
-  return (STATUTS_REPLIQUE as readonly string[]).includes(v);
-}
-
-/** La prise ne dit plus le texte courant : le texte a changé depuis qu'elle a
- * été posée. Sans prise, rien n'est obsolète. */
-export function priseObsolete(r: { fichier: string | null; fichierTexte: string | null; texte: string }): boolean {
-  return r.fichier != null && (r.fichierTexte ?? "").trim() !== r.texte.trim();
-}
-
 // ---------------------------------------------------------------------
-// Locuteur — encodé dans un seul <select> : `p:<id>` un personnage, `v:<id>`
-// une voix du catalogue sans personnage (voix off), `t:<texte>` un locuteur
-// libre (foule, « inconnu »).
+// Locuteur — encodé dans un seul <select> : `p:<id>` un personnage (la voix off
+// en est un), `t:<texte>` un locuteur libre (foule, « inconnu »).
 // ---------------------------------------------------------------------
 
 export type LocuteurChoisi =
   | { kind: "personnage"; id: number }
-  | { kind: "voix"; id: number }
   | { kind: "texte"; texte: string };
 
 export function decoderLocuteur(valeur: string): LocuteurChoisi | null {
   const [tete, ...reste] = valeur.split(":");
   const corps = reste.join(":");
-  if (tete === "p" || tete === "v") {
+  if (tete === "p") {
     const id = Number(corps);
-    return Number.isInteger(id) && id > 0 ? { kind: tete === "p" ? "personnage" : "voix", id } : null;
+    return Number.isInteger(id) && id > 0 ? { kind: "personnage", id } : null;
   }
   if (tete === "t") {
     const texte = corps.trim();
@@ -210,7 +186,7 @@ export function mesurerDureeAudio(octets: Uint8Array, nomFichier: string): numbe
 }
 
 // ---------------------------------------------------------------------
-// Export des audios seuls (montage : DaVinci Resolve ; OTIO plus tard)
+// Export des répliques (montage : DaVinci Resolve ; OTIO plus tard)
 // ---------------------------------------------------------------------
 
 export type LigneExportReplique = {
@@ -220,12 +196,8 @@ export type LigneExportReplique = {
   rang: number;
   episodeNumero: number;
   locuteur: string;
-  voix: string | null;
   texte: string;
   dureeSecondes: number | null;
-  statut: string;
-  /** Chemin relatif au stockage média (MEDIA_ROOT), ou null sans prise. */
-  fichier: string | null;
   /** Plans où elle est utilisée — position dans l'épisode + slot <Audio N>. */
   plans: { planUuid: string; position: number; slot: number }[];
 };
@@ -237,18 +209,15 @@ function celluleCsv(v: string | number | null): string {
 }
 
 export function exportRepliquesCsv(lignes: LigneExportReplique[]): string {
-  const entete = ["rang", "uuid", "episode", "locuteur", "voix", "texte", "duree_secondes", "statut", "fichier", "plans"];
+  const entete = ["rang", "uuid", "episode", "locuteur", "texte", "duree_secondes", "plans"];
   const corps = lignes.map((l) =>
     [
       l.rang,
       l.uuid,
       l.episodeNumero,
       l.locuteur,
-      l.voix,
       l.texte,
       l.dureeSecondes,
-      l.statut,
-      l.fichier,
       l.plans.map((p) => `${String(p.position).padStart(2, "0")}:${p.slot}`).join(" "),
     ]
       .map(celluleCsv)

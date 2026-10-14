@@ -8,7 +8,6 @@ import {
   langueBalise,
   mesurerDureeAudio,
   nomLocuteur,
-  priseObsolete,
 } from "./repliques";
 import { extraireBalisesD } from "./plan-checks";
 
@@ -91,9 +90,9 @@ test("format non mesurable ou fichier invalide : null, jamais une estimation", (
   assert.equal(mesurerDureeAudio(new Uint8Array(10), "ref.flac"), null);
 });
 
-test("locuteur : personnage, voix seule, texte libre, invalide", () => {
+test("locuteur : personnage, texte libre, invalide", () => {
   assert.deepEqual(decoderLocuteur("p:12"), { kind: "personnage", id: 12 });
-  assert.deepEqual(decoderLocuteur("v:7"), { kind: "voix", id: 7 });
+  assert.equal(decoderLocuteur("v:7"), null, "plus de voix sans personnage : la voix off en est un");
   assert.deepEqual(decoderLocuteur("t:Foule : un cri"), { kind: "texte", texte: "Foule : un cri" });
   assert.equal(decoderLocuteur("p:abc"), null);
   assert.equal(decoderLocuteur("t:  "), null);
@@ -105,12 +104,6 @@ test("langue de la balise : French -> Français", () => {
   assert.equal(langueBalise("French"), "Français");
   assert.equal(langueBalise("english"), "English");
   assert.equal(langueBalise(""), "Français");
-});
-
-test("prise obsolète quand le texte a changé depuis la prise", () => {
-  assert.equal(priseObsolete({ fichier: null, fichierTexte: null, texte: "A" }), false);
-  assert.equal(priseObsolete({ fichier: "x.wav", fichierTexte: "A", texte: "A " }), false);
-  assert.equal(priseObsolete({ fichier: "x.wav", fichierTexte: "A", texte: "B" }), true);
 });
 
 test("corriger une balise ne touche pas au reste de la phrase", () => {
@@ -135,16 +128,13 @@ test("export CSV : guillemets et virgules échappés, plans en position:slot", (
       rang: 1,
       episodeNumero: 1,
       locuteur: "maya",
-      voix: "VOICE_maya",
       texte: 'Elle dit "oui", puis part.',
       dureeSecondes: 3.5,
-      statut: "validee",
-      fichier: "repliques/1/u1.wav",
       plans: [{ planUuid: "p", position: 4, slot: 1 }],
     },
   ]);
   assert.equal(
     csv,
-    'rang,uuid,episode,locuteur,voix,texte,duree_secondes,statut,fichier,plans\n1,u1,1,maya,VOICE_maya,"Elle dit ""oui"", puis part.",3.5,validee,repliques/1/u1.wav,04:1\n',
+    'rang,uuid,episode,locuteur,texte,duree_secondes,plans\n1,u1,1,maya,"Elle dit ""oui"", puis part.",3.5,04:1\n',
   );
 });

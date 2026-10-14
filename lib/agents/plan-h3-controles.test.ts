@@ -9,7 +9,6 @@ const ctx = {
     { code: "SFX_porte", type: "sfx" },
     { code: "VOX_maya", type: "voix" },
   ],
-  repliques: [{ texte: "Encore du sel." }],
 };
 
 const bonne: SortiePlanH3 = {
@@ -27,7 +26,6 @@ const bonne: SortiePlanH3 = {
   ],
   overall_soundscape: "Drip.",
   non_diegetic_music: "N/A",
-  repliques: [{ repliqueId: "u1" }],
   assetsManquants: [],
   notes: "",
 };
@@ -66,7 +64,7 @@ test("durée, asset inventé, label écrit à la main, jeton {picture}", () => {
 test("marqueur hors références, asset manquant cité, référence non citée, plus de 6 images", () => {
   const p = controlerSortiePlanH3({ ...bonne, shots: [{ debutSecondes: 0, texte: "[[CHAR_x]] in [[DEC_couloir]], [[PROP_lettre]]." }, bonne.shots[1]!], assetsManquants: [{ code: "PROP_lettre", type: "prop", description: "une lettre", raison: "absente" }] }, ctx);
   assert.ok(p.some((x) => x.regle === "placeholder" && x.message.includes("CHAR_x")));
-  assert.ok(p.some((x) => x.regle === "placeholder" && x.message.includes("asset manquant")));
+  assert.ok(p.some((x) => x.regle === "placeholder" && x.message.includes("PROP_lettre") && x.message.includes("pas dans les références")), "un asset manquant cité sans être déclaré en référence");
   assert.ok(p.some((x) => x.niveau === "info" && x.message.includes("PROP_lettre")));
   const nonCitee = controlerSortiePlanH3({ ...bonne, summary: "A walk.", shots: [{ debutSecondes: 0, texte: "[[DEC_couloir]]" }, bonne.shots[1]!] }, ctx);
   assert.ok(nonCitee.some((x) => x.niveau === "alerte" && x.regle === "reference-non-citee" && x.message.includes("CHAR_maya")));
@@ -81,12 +79,12 @@ test("natures : un son est un sfx ; un sfx ou une voix n'a pas d'image ; les slo
   assert.ok(avec([{ ...son, asset: "CHAR_maya" }]).includes("nature"), "personnage en nature son");
   assert.ok(avec([{ ...son, nature: "image" }]).includes("nature"), "sfx en nature image");
   assert.ok(avec([{ ...son, asset: "VOX_maya", nature: "image" }]).includes("nature"), "voix en référence");
-  const troisVoix = { ...ctx, repliques: [{ texte: "a" }, { texte: "b" }, { texte: "c" }] };
+  const troisVoix = { ...ctx, slotsAudioPris: [1, 2, 3] };
   assert.ok(erreurs({ ...bonne, references: [bonne.references[0]!, son], summary: "[[CHAR_maya]] [[SFX_porte]]", shots: [{ debutSecondes: 0, texte: "a <d>a</d> b c [[CHAR_maya]] [[SFX_porte]]" }] }, troisVoix).includes("references"), "la voix prime");
 });
 
 test("shots : début non nul, non croissant, au-delà de la durée, vide (erreurs)", () => {
-  const avec = (shots: SortiePlanH3["shots"]) => controlerSortiePlanH3({ ...bonne, shots }, { ...ctx, repliques: [] }).filter((x) => x.niveau === "erreur" && x.regle === "shots");
+  const avec = (shots: SortiePlanH3["shots"]) => controlerSortiePlanH3({ ...bonne, shots }, ctx).filter((x) => x.niveau === "erreur" && x.regle === "shots");
   const t = (debutSecondes: number) => ({ debutSecondes, texte: "[[CHAR_maya]] [[DEC_couloir]]" });
   assert.ok(avec([t(1), t(5)]).length > 0, "premier shot non nul");
   assert.ok(avec([t(0), t(5), t(4)]).length > 0, "non croissant");
@@ -96,7 +94,7 @@ test("shots : début non nul, non croissant, au-delà de la durée, vide (erreur
 });
 
 test("shots sous 1,5 s : une ALERTE (conseil fort), jamais une erreur qui renvoie le modèle", () => {
-  const tous = (shots: SortiePlanH3["shots"]) => controlerSortiePlanH3({ ...bonne, shots }, { ...ctx, repliques: [] });
+  const tous = (shots: SortiePlanH3["shots"]) => controlerSortiePlanH3({ ...bonne, shots }, ctx);
   const t = (debutSecondes: number) => ({ debutSecondes, texte: "[[CHAR_maya]] [[DEC_couloir]]" });
   for (const [shots, quoi] of [[[t(0), t(1), t(4)], "shot trop court"], [[t(0), t(9.5)], "dernier shot trop court"]] as const) {
     const p = tous([...shots]);
@@ -165,11 +163,9 @@ test("recopie : une phrase de 10 mots identique à un exemple donne une alerte",
   assert.equal(controlerSortiePlanH3({ ...bonne, ouverture: style }, { ...ctx, corpusExemples: [style] }).filter((x) => x.regle === "recopie").length, 0);
 });
 
-test("dialogue : le verbatim est exigé, la balise <d> aussi", () => {
-  const p = controlerSortiePlanH3({ ...bonne, shots: [{ ...bonne.shots[0]!, texte: bonne.shots[0]!.texte.replace("Encore du sel.", "Encore du sable.") }, bonne.shots[1]!] }, ctx);
-  assert.ok(p.some((x) => x.regle === "verbatim"));
-  const sans = controlerSortiePlanH3({ ...bonne, shots: [{ ...bonne.shots[0]!, texte: bonne.shots[0]!.texte.replace(/<\/?d>/g, "") }, bonne.shots[1]!] }, ctx);
-  assert.ok(sans.some((x) => x.regle === "dialogue"));
+test("dialogue : le prompt est la seule source, un <d> libre n'est jamais contesté (2026-10-14)", () => {
+  const libre = controlerSortiePlanH3({ ...bonne, shots: [{ ...bonne.shots[0]!, texte: bonne.shots[0]!.texte.replace("Encore du sel.", "Une toute autre parole.") }, bonne.shots[1]!] }, ctx);
+  assert.ok(!libre.some((x) => x.regle === "verbatim" || x.regle === "dialogue"));
 });
 
 test("notes de l'agent : remontées en information ; mots par seconde en alerte", () => {
@@ -195,10 +191,24 @@ test("un dialogue <d> sans locuteur (S1) donne une alerte, pas une erreur", () =
 });
 
 test("voix off : un <d> « off-screen voiceover » sans bouche close juste après est signalé", () => {
-  const base = { titre: "t", dureeSecondes: 8, references: [], summary: "s", ouverture: "o", overall_soundscape: "x", non_diegetic_music: "N/A", repliques: [], assetsManquants: [], notes: "" };
-  const ctx = { registre: [], repliques: [{ texte: "Concentre-toi." }] };
+  const base = { titre: "t", dureeSecondes: 8, references: [], summary: "s", ouverture: "o", overall_soundscape: "x", non_diegetic_music: "N/A", assetsManquants: [], notes: "" };
+  const ctx = { registre: [] };
   const sans = controlerSortiePlanH3({ ...base, shots: [{ debutSecondes: 0, texte: "a close-up of Mai (S1) says in an off-screen voiceover: <d>[Français] Concentre-toi.</d> Her eyes are closed." }] }, ctx);
   assert.ok(sans.some((p) => p.regle === "voix-off"));
   const avec = controlerSortiePlanH3({ ...base, shots: [{ debutSecondes: 0, texte: "a close-up of Mai (S1) says in an off-screen voiceover: <d>[Français] Concentre-toi.</d> while her lips remain completely closed." }] }, ctx);
   assert.ok(!avec.some((p) => p.regle === "voix-off"));
+});
+
+test("asset d'image manquant : cité comme une référence (déclaré dans assetsManquants), sans erreur ; un son manquant ne se cite pas", () => {
+  const manquant = { code: "DEC_cercle", type: "decor", description: "un cercle de runes", raison: "absent" };
+  const avec = {
+    ...bonne,
+    references: [...bonne.references, { asset: "DEC_cercle", nature: "image" as const, role: "Cercle", nom: "the rune circle", definition: "glowing on the floor" }],
+    summary: "[[CHAR_maya]] walks through [[DEC_couloir]] and [[DEC_cercle]].",
+    assetsManquants: [manquant],
+  };
+  assert.deepEqual(erreurs(avec), []);
+  assert.ok(erreurs({ ...avec, assetsManquants: [] }).includes("asset-inconnu"), "sans déclaration, le code reste inventé");
+  const son = { ...avec, references: [...bonne.references, { asset: "SFX_gong", nature: "son" as const, role: "Gong", nom: "a gong", definition: "ringing" }], assetsManquants: [{ ...manquant, code: "SFX_gong", type: "sfx" }], summary: "[[CHAR_maya]] [[DEC_couloir]] [[SFX_gong]]" };
+  assert.ok(erreurs(son).includes("nature"));
 });

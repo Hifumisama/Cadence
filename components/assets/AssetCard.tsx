@@ -155,7 +155,7 @@ export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommun
           {LIBELLE_STATUT[statut]}
         </span>
         {voix !== undefined ? (
-          <span className={`as-voix-pastille${voix ? "" : " is-sans"}`} title={voix ? `Voix : ${voix.code}` : "Sans voix au casting"}>
+          <span className={`as-voix-pastille${voix ? "" : " is-sans"}`} title={voix ? "Voix fixée (master)" : "Pas de voix fixée : le modèle invente celle du personnage"}>
             <Icone nom="musique" taille={14} />
           </span>
         ) : null}

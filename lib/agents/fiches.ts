@@ -50,6 +50,12 @@ export type ApresFiche = {
    * qui se passe dans le plan ou l'état qu'il laisse au suivant (« Itérer » : lib/agents/iteration-plan.ts). L'ancienne reste dans l'essai
    * précédent (`jobs.description_utilisee`), comme le prompt. */
   description?: string;
+  /** Clés (`cleNouvelAsset`) des assets que la MÊME proposition crée et que `refs` cite : la fiche s'applique après eux (leur image n'existe
+   * pas encore, la fiche les cite quand même : le contrôle de la page dit « pas encore d'image »). */
+  dependDeCles?: string[];
+  /** Les répliques ne sont plus liées au plan (décision 2026-10-14) : la fiche porte ses voix elle-même, en références audio dont l'asset est
+   * le PERSONNAGE qui parle dans le prompt. Les anciennes liaisons (`plan_dialogues`) du plan sont détachées à l'écriture et ne comptent plus. */
+  voixDuPrompt?: boolean;
 };
 
 export function estSectionFiche(s: string): s is NomSection {
@@ -68,6 +74,8 @@ export function lireApresFiche(apres: unknown): ApresFiche {
   if (Array.isArray(a.refs)) sortie.refs = a.refs as RefFiche[];
   if (a.dureeGenerationSecondes !== undefined) sortie.dureeGenerationSecondes = a.dureeGenerationSecondes as number;
   if (typeof a.description === "string" && a.description.trim()) sortie.description = a.description.trim();
+  if (a.voixDuPrompt === true) sortie.voixDuPrompt = true;
+  if (Array.isArray(a.dependDeCles)) sortie.dependDeCles = a.dependDeCles.filter((c): c is string => typeof c === "string");
   if (Array.isArray(a.passages)) {
     sortie.passages = (a.passages as unknown[]).filter(
       (p): p is PassageFiche => !!p && typeof p === "object" && typeof (p as PassageFiche).section === "string" && typeof (p as PassageFiche).avant === "string" && typeof (p as PassageFiche).apres === "string",
@@ -111,13 +119,15 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
     return `Durée de génération invalide (${String(d)}) : un plan dure ${DUREE_MIN} à ${DUREE_MAX} s entières.`;
   }
 
+  // Une fiche qui lit ses voix dans le prompt ignore les anciennes liaisons de répliques (elles sont détachées à l'écriture).
+  const slotsDialogues = apres.voixDuPrompt ? [] : etat.slotsDialogues;
   if (apres.refs) {
     const images = apres.refs.filter((r) => r.type === "picture");
     const sons = apres.refs.filter((r) => r.type === "audio");
     if (apres.refs.some((r) => r.type !== "picture" && r.type !== "audio")) return "Une fiche n'écrit que des références d'image ou de son.";
     if (images.length > MAX_REFS.picture) return `${images.length} images de référence : ${MAX_REFS.picture} au plus.`;
-    if (sons.length + etat.slotsDialogues.length > MAX_REFS.audio) {
-      return `${sons.length} son${sons.length > 1 ? "s" : ""} et ${etat.slotsDialogues.length} voix : ${MAX_REFS.audio} références audio au plus (la voix prime).`;
+    if (sons.length + slotsDialogues.length > MAX_REFS.audio) {
+      return `${sons.length} son${sons.length > 1 ? "s" : ""} et ${slotsDialogues.length} voix : ${MAX_REFS.audio} références audio au plus (la voix prime).`;
     }
     const vus = new Set<string>();
     for (const r of apres.refs) {
@@ -126,11 +136,12 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
       const cle = `${r.type}:${r.slot}`;
       if (vus.has(cle)) return `Deux références sur le même slot (${r.type === "picture" ? "Picture" : "Audio"} ${r.slot}).`;
       vus.add(cle);
-      if (r.type === "audio" && etat.slotsDialogues.includes(r.slot)) return `Le slot Audio ${r.slot} est pris par une réplique liée : la voix prime.`;
+      if (r.type === "audio" && slotsDialogues.includes(r.slot)) return `Le slot Audio ${r.slot} est pris par une réplique liée : la voix prime.`;
       const type = etat.registre.get(r.asset);
       if (type == null) return `L'asset ${r.asset} n'existe pas dans ce projet.`;
       if (r.type === "picture" && (type === "voix" || type === "sfx")) return `${r.asset} (${type}) n'a pas d'image : il ne peut pas être une référence d'image.`;
-      if (r.type === "audio" && type !== "sfx") return `${r.asset} (${type}) n'est pas un bruitage : seule une référence sfx est un son de la fiche.`;
+      // Un son de la fiche est un bruitage (sfx) ; la voix d'un personnage est une référence audio vers le personnage (son master).
+      if (r.type === "audio" && type !== "sfx" && !(apres.voixDuPrompt && type === "personnage")) return `${r.asset} (${type}) n'est pas un bruitage : seule une référence sfx est un son de la fiche.`;
     }
   }
 
@@ -138,7 +149,7 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
   const finales = SECTIONS_FICHE.map((section) => ({ section, contenu: sections[section] ?? etat.sections[section] ?? "" }));
   const refsFinales: RefLabel[] = [
     ...(apres.refs ? [...apres.refs.map((r) => ({ type: r.type, slot: r.slot })), ...etat.refs.filter((r) => r.type === "video")] : etat.refs.map((r) => ({ type: r.type, slot: r.slot }))),
-    ...etat.slotsDialogues.map((slot) => ({ type: "audio" as const, slot })),
+    ...slotsDialogues.map((slot) => ({ type: "audio" as const, slot })),
   ];
   // Seuls les labels orphelins que CETTE écriture introduit la refusent : une incohérence déjà là (une réplique déliée du plan dont les lignes de voix
   // `<Audio 1>` sont restées dans le prompt) ne doit pas bloquer une correction sans rapport ; elle est signalée à part (`labelsOrphelinsActuels`).

@@ -124,50 +124,17 @@ function ressemblance(a: string, b: string): number {
 
 const SEUIL_RESSEMBLANCE = 0.4;
 
-/** Réplique liée à un plan, telle que le contrôle a besoin de la voir.
- * `audioPresent` : une prise existe (c'est la référence `<Audio N>` qui pilote
- * le lipsync) ; `priseObsolete` : le texte a changé depuis la prise. */
+/** Réplique liée à un plan, telle que le contrôle a besoin de la voir : son texte, rien d'autre (une réplique n'est qu'un texte inséré
+ * dans le prompt, chantier voix/master 2026-10-14). */
 export type RepliqueLiee = {
   id: number;
   texte: string;
-  audioPresent: boolean;
-  priseObsolete: boolean;
-  /** Pas de prise, mais la voix du locuteur a une voix de référence (« Master ») : elle sert de référence audio du plan. */
-  voixMaster?: boolean;
 };
 
 export type ProblemeDialogue =
   | { type: "absente"; repliqueId: number; texte: string }
-  | { type: "differente"; repliqueId: number; texte: string; trouve: string; ecart: SegmentEcart[]; balise: BaliseD; avecPrise: boolean }
-  | { type: "orpheline"; trouve: string; balise: BaliseD }
-  | { type: "sans_audio"; repliqueId: number; texte: string; master: boolean }
-  | { type: "prise_obsolete"; repliqueId: number; texte: string };
-
-/** Les problèmes qui n'empêchent PAS de générer : sans prise (ou prise périmée), la vidéo part avec une voix estimée par le modèle,
- * potentiellement instable. On peut avoir choisi de faire les voix plus tard, ou de ne pas les faire du tout. */
-export const PROBLEMES_AUDIO: readonly ProblemeDialogue["type"][] = ["sans_audio", "prise_obsolete"];
-
-export const estProblemeAudio = (p: ProblemeDialogue): boolean => PROBLEMES_AUDIO.includes(p.type);
-
-/** Ce que la vidéo fera des voix, en une phrase, d'après les problèmes audio du plan (ou null s'il n'y en a pas). */
-export function phraseVoix(problemes: ProblemeDialogue[]): string | null {
-  const sansPrise = problemes.filter((p): p is Extract<ProblemeDialogue, { type: "sans_audio" }> => p.type === "sans_audio");
-  const sansRien = sansPrise.some((p) => !p.master);
-  const surMaster = sansPrise.some((p) => p.master);
-  const periment = problemes.some((p) => p.type === "prise_obsolete");
-  const morceaux = [
-    surMaster ? "sans prise, la voix de référence du personnage sert de signature" : null,
-    sansRien ? "sans prise ni voix de référence, la voix est choisie par le modèle, potentiellement instable" : null,
-    periment ? "une prise ne dit plus le texte courant : la refaire" : null,
-  ].filter((m): m is string => m != null);
-  return morceaux.length ? morceaux.join(" ; ") : null;
-}
-
-/** Trois niveaux de voix (décision 2026-10-12) : rien (le modèle vidéo se débrouille), une voix Master (sa signature sert de référence
- * audio), une prise (le doublage EST l'audio). Seul le dernier impose le mot pour mot : le lipsync suit la prise, qui ne dit plus le texte
- * du prompt si les deux divergent. Une réplique absente, une balise sans réplique liée, un texte différent SANS prise ne bloquent pas :
- * le modèle dit ce que le prompt écrit, c'est signalé à la revue. */
-export const estProblemeBloquant = (p: ProblemeDialogue): boolean => p.type === "differente" && p.avecPrise;
+  | { type: "differente"; repliqueId: number; texte: string; trouve: string; ecart: SegmentEcart[]; balise: BaliseD }
+  | { type: "orpheline"; trouve: string; balise: BaliseD };
 
 export type ControleDialogues = {
   problemes: ProblemeDialogue[];
@@ -175,17 +142,13 @@ export type ControleDialogues = {
   parReplique: Record<number, "ok" | "absente" | "differente">;
   /** Aucun problème, d'aucune sorte. */
   ok: boolean;
-  /** Aucun problème bloquant (voir `estProblemeBloquant`) : la génération peut partir, même avec des prises audio manquantes ou une réplique absente. */
-  peutGenerer: boolean;
 };
 
 /** Invariant verbatim (docs/FRICTIONS.md F02, révision 2026-09-30) : chaque
  * réplique liée au plan doit apparaître au mot près, ponctuation comprise, dans
  * une balise <d> du prompt — voix de personnage comme voix off — et chaque <d>
  * doit venir d'une réplique liée. Sans ça les lèvres bougent sur un autre texte
- * que celui monté. Une réplique sans prise audio, ou dont la prise ne dit plus
- * le texte courant, est signalée aussi : la référence `<Audio N>` du lipsync
- * n'est alors pas fiable.
+ * que celui monté. Un écart est signalé, jamais bloquant.
  *
  * Appariement : d'abord les correspondances exactes ; parmi le reste, une
  * balise assez proche d'une réplique en est la version « différente » (avec
@@ -239,31 +202,23 @@ export function controlerDialogues(
         trouve: balise.texte,
         ecart: ecartVerbatim(r.texte.trim(), balise.texte),
         balise,
-        avecPrise: r.audioPresent,
       });
     }
   }
   for (const i of balisesLibres) {
     problemes.push({ type: "orpheline", trouve: balises[i]!.texte, balise: balises[i]! });
   }
-  for (const r of repliques) {
-    if (!r.audioPresent) problemes.push({ type: "sans_audio", repliqueId: r.id, texte: r.texte, master: r.voixMaster === true });
-    else if (r.priseObsolete) problemes.push({ type: "prise_obsolete", repliqueId: r.id, texte: r.texte });
-  }
 
-  return { problemes, parReplique, ok: problemes.length === 0, peutGenerer: !problemes.some(estProblemeBloquant) };
+  return { problemes, parReplique, ok: problemes.length === 0 };
 }
 
-/** Une phrase pour dire pourquoi les dialogues d'un plan bloquent la
- * génération (« 1 réplique absente du prompt, 1 sans prise audio »). */
+/** Une phrase pour résumer les points à vérifier dans les dialogues d'un plan (« 1 réplique absente du prompt, 1 balise sans réplique liée »). */
 export function resumerProblemesDialogues(problemes: ProblemeDialogue[]): string {
   const n = (type: ProblemeDialogue["type"]) => problemes.filter((p) => p.type === type).length;
   const morceaux: [number, string, string][] = [
     [n("absente"), "réplique absente du prompt", "répliques absentes du prompt"],
     [n("differente"), "réplique citée autrement que mot pour mot", "répliques citées autrement que mot pour mot"],
     [n("orpheline"), "dialogue du prompt sans réplique liée", "dialogues du prompt sans réplique liée"],
-    [n("sans_audio"), "réplique sans prise audio", "répliques sans prise audio"],
-    [n("prise_obsolete"), "prise audio à refaire (le texte a changé)", "prises audio à refaire (le texte a changé)"],
   ];
   return morceaux
     .filter(([k]) => k > 0)

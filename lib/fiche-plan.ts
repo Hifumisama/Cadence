@@ -196,10 +196,14 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   if (p.statut === "echouee" || p.statut === "rejetee") return { action: "echec", erreur: p.erreur ?? "L'agent n'a pas pu proposer de correction." };
   if (p.statut !== "prete") return { action: "attendre" };
   const tous = p.groupes.flatMap((g) => g.changements);
-  // « Itérer » n'écrit que la fiche : les créations d'assets d'une réécriture restent proposées, jamais créées d'office.
+  // « Itérer » écrit la fiche ET crée les assets que sa réécriture déclare manquants (décision 2026-10-14, qui révise « jamais créés d'office ») :
+  // la fiche les cite déjà, leur image viendra après (le rendu qui part sans elle est le prix accepté). Sans fiche appliquable, rien n'est créé.
   const cestLaFiche = (c: { cibleType?: string }) => c.cibleType === undefined || c.cibleType === "fiche";
-  const appliquables = tous.filter((c) => !c.bloque && !c.refuseRaison && cestLaFiche(c));
-  const creationsLaissees = tous.filter((c) => !c.bloque && !c.refuseRaison && !cestLaFiche(c)).length;
+  const passe = (c: { bloque: boolean; refuseRaison: string | null }) => !c.bloque && !c.refuseRaison;
+  const fiches = tous.filter((c) => passe(c) && cestLaFiche(c));
+  const creations = fiches.length > 0 ? tous.filter((c) => passe(c) && c.cibleType === "asset") : [];
+  const appliquables = [...fiches, ...creations];
+  const creationsLaissees = tous.filter((c) => passe(c) && !cestLaFiche(c) && c.cibleType !== "asset").length;
   if (appliquables.length === 0 && p.diagnostic?.reecriture?.description) return { action: "reecrire", description: p.diagnostic.reecriture.description };
   if (appliquables.length === 0) {
     const refus = [...new Set(tous.map((c) => c.refuseRaison).filter((r): r is string => !!r))];
@@ -213,6 +217,7 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   if (p.diagnostic && !p.diagnostic.dureeCoherente) notes.push("La durée du rendu ne correspondait pas à celle du plan.");
   const suggeres = p.diagnostic?.assetsSuggeres ?? [];
   if (suggeres.length > 0) notes.push(`L'agent suggère de créer ${suggeres.map((a) => a.code).join(", ")} (non créé${suggeres.length > 1 ? "s" : ""}) : crée-le, génère son image, puis itère de nouveau.`);
+  if (creations.length > 0) notes.push(`${creations.length} asset${creations.length > 1 ? "s" : ""} créé${creations.length > 1 ? "s" : ""} avec la correction et cité${creations.length > 1 ? "s" : ""} par la fiche : ${creations.length > 1 ? "ils n'ont" : "il n'a"} pas encore d'image (à générer avant un rendu qui l${creations.length > 1 ? "es" : "'"}utilise).`);
   if (creationsLaissees > 0) notes.push(`${creationsLaissees} création${creationsLaissees > 1 ? "s" : ""} d'asset suggérée${creationsLaissees > 1 ? "s" : ""} par la réécriture, non créée${creationsLaissees > 1 ? "s" : ""} : crée-${creationsLaissees > 1 ? "les" : "le"} depuis le registre.`);
   if (appliquables.some((c) => c.avertissements.some((a) => a.type === "info" && /l'état de fin du plan a changé/i.test(a.texte ?? "")))) notes.push("L'état de fin du plan a changé : le plan suivant n'a pas été revérifié.");
   const recopies = appliquables.flatMap((c) => c.avertissements.filter((a) => a.type === "info" && /^Mots de ta consigne recopiés/.test(a.texte ?? "")).map((a) => a.texte as string));
