@@ -33,7 +33,7 @@ type PropsCommunes = {
 /** Carte du registre : une vignette 16:9 (l'image entière, jamais recadrée), le statut en pastille sur l'image, le
  * code en dessous. Reste un lien (un clic ouvre la fiche) ; le clic long, géré par le registre, la sélectionne. */
 export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommunes) {
-  const { code, type, statut, critique, description, nbPlans, voix, kind, etat, src, fichier } = ligne;
+  const { code, libelle, type, statut, critique, description, nbPlans, voix, kind, etat, src, fichier } = ligne;
   const zoneRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLVideoElement & HTMLAudioElement>(null);
   const [visible, setVisible] = useState(false);
@@ -102,7 +102,7 @@ export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommun
       data-code={code}
       draggable={false}
       className={`as-carte${choisi ? " is-choisi" : ""}${vient ? " is-vient" : ""}`}
-      aria-label={`${code}, ${LIBELLE_TYPE_ASSET[type] ?? type}, ${LIBELLE_STATUT[statut]}${choisi ? ", sélectionné" : ""}`}
+      aria-label={`${libelle}, ${LIBELLE_TYPE_ASSET[type] ?? type}, ${LIBELLE_STATUT[statut]}${choisi ? ", sélectionné" : ""}`}
       onClick={(e) => onActiver(e, code)}
     >
       <div ref={zoneRef} className={`as-vis${etat !== "ok" ? " is-vide" : ""}`}>
@@ -159,12 +159,12 @@ export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommun
             <Icone nom="musique" taille={14} />
           </span>
         ) : null}
-        <span className="as-coche" aria-hidden="true">
+        <span className="as-coche" role="checkbox" aria-checked={choisi} aria-label={`Sélectionner ${libelle}`} title="Sélectionner (Maj+clic : une plage)">
           <Icone nom="valide" taille={15} strokeWidth={3} />
         </span>
         {critique ? <span className="as-crit">Critique</span> : null}
         {jouable ? (
-          <button type="button" className="as-jouer" onClick={basculer} aria-label={joue ? `Arrêter ${code}` : `Lire ${code}`}>
+          <button type="button" className="as-jouer" onClick={basculer} aria-label={joue ? `Arrêter ${libelle}` : `Lire ${libelle}`}>
             <Icone nom={joue ? "arret" : "lecture"} taille={13} />
           </button>
         ) : null}
@@ -172,8 +172,8 @@ export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommun
       </div>
 
       <div className="as-meta">
-        <span className="as-code" title={description ?? undefined}>
-          {code}
+        <span className="as-code" title={`${code}${description ? ` — ${description}` : ""}`}>
+          {libelle}
         </span>
         <span className="as-sous">
           {LIBELLE_TYPE_ASSET[type] ?? type} · {libellePlans(nbPlans)}
@@ -185,8 +185,8 @@ export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommun
 }
 
 /** Une ligne de la vue liste : mêmes informations, plus denses, et la même sélection. */
-export function LigneAsset({ ligne, href, choisi, vient, onActiver, modeSelection }: PropsCommunes & { modeSelection: boolean }) {
-  const { code, type, statut, critique, description, nbPlans, voix, etat, src, kind } = ligne;
+export function LigneAsset({ ligne, href, choisi, vient, onActiver }: PropsCommunes) {
+  const { code, libelle, type, statut, critique, description, nbPlans, voix, etat, src, kind } = ligne;
   return (
     <Link
       href={href}
@@ -195,19 +195,17 @@ export function LigneAsset({ ligne, href, choisi, vient, onActiver, modeSelectio
       className={`as-ligne${choisi ? " is-choisi" : ""}${vient ? " is-vient" : ""}`}
       onClick={(e) => onActiver(e, code)}
     >
-      {modeSelection ? (
-        <span className="as-coche" aria-hidden="true">
-          <Icone nom="valide" taille={15} strokeWidth={3} />
-        </span>
-      ) : null}
+      <span className="as-coche" role="checkbox" aria-checked={choisi} aria-label={`Sélectionner ${libelle}`}>
+        <Icone nom="valide" taille={15} strokeWidth={3} />
+      </span>
       <span className={`as-mini${etat === "ok" && kind === "image" && src ? "" : " is-vide"}`}>
         {etat === "ok" && kind === "image" && src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={urlMiniature(src, 96)} alt="" loading="lazy" decoding="async" draggable={false} />
         ) : null}
       </span>
-      <span className="as-code" title={description ?? undefined}>
-        {code}
+      <span className="as-code" title={`${code}${description ? ` — ${description}` : ""}`}>
+        {libelle}
         {critique ? <span className="as-crit-mot">Critique</span> : null}
       </span>
       <span className="as-cache-s">{LIBELLE_TYPE_ASSET[type] ?? type}</span>

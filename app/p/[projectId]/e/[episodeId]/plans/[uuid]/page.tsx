@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPlansPerimes } from "@/lib/plans-perimes";
-import { getAssetsTree, getPlanDetail, getScenesEpisode, type AssetNode } from "@/lib/queries";
+import { getAssetsRegistre, getPlanDetail, getScenesEpisode, type AssetRegistre } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
@@ -27,6 +27,8 @@ import { JournalEssais, type LigneJournal } from "@/components/plan/JournalEssai
 import { srcRendu } from "@/components/plan/Vignette";
 import { assemblerPrompt } from "@/lib/prompt";
 import { liaisonOuDefaut } from "@/lib/plan-liaison";
+import { libelleAsset } from "@/lib/assetCode";
+import { statutAsset } from "@/lib/asset-etat";
 import { etatRaccord } from "@/lib/plan-raccord";
 import { raccordActuel } from "@/lib/queries-raccord";
 import { choisirComparaison, choisirRendu, detailPerime, estLisible, promptDiffere, raisonNonRetenable, type RenduVue } from "@/lib/rendus";
@@ -35,18 +37,18 @@ export const dynamic = "force-dynamic";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function versNoeudPicker(n: AssetNode): NoeudPicker {
+function versNoeudPicker(n: AssetRegistre): NoeudPicker {
   const { kind, etat, src } = infosMedia(n.type, n.fichier);
   return {
     id: n.id,
     code: n.code,
+    libelle: libelleAsset(n),
     type: n.type,
     statut: n.statut,
     description: n.description,
     kind,
     etat,
     src,
-    derives: n.derives.map(versNoeudPicker),
   };
 }
 
@@ -70,9 +72,9 @@ export default async function PlanPage({
 
   const { plan, position, promptSections, refs, jobHistory } = detail;
 
-  const [parametresGlobaux, mastersRegistre, scenesEpisode, audioRefs, pellicule] = await Promise.all([
+  const [parametresGlobaux, assetsRegistre, scenesEpisode, audioRefs, pellicule] = await Promise.all([
     getAllParams(),
-    getAssetsTree(pid),
+    getAssetsRegistre(pid),
     getScenesEpisode(eid),
     getVoixDuPlan(plan.id),
     getPelliculePlans(eid),
@@ -128,7 +130,7 @@ export default async function PlanPage({
     liaison: liaisonOuDefaut(plan.liaison),
   };
 
-  const mastersPicker = mastersRegistre.map(versNoeudPicker);
+  const assetsPicker = assetsRegistre.map(versNoeudPicker);
   const refsVue: RefVue[] = refs.map((r) => ({
     id: r.id,
     type: r.type,
@@ -137,7 +139,8 @@ export default async function PlanPage({
       ? {
           id: r.asset.id,
           code: r.asset.code,
-          statut: r.asset.statut,
+          libelle: libelleAsset(r.asset),
+          statut: statutAsset(r.asset),
           ...infosMedia(r.asset.type, r.asset.fichier),
         }
       : null,
@@ -405,7 +408,7 @@ export default async function PlanPage({
             <OngletsPlan
               compteurs={{ refs: refsVue.length, journal: jobHistory.length }}
               panneaux={{
-                refs: <RefsPanel planId={plan.id} refs={refsVue} masters={mastersPicker} />,
+                refs: <RefsPanel planId={plan.id} refs={refsVue} assets={assetsPicker} />,
                 prompt: <PromptBloc planId={plan.id} declarees={declarees} demandeAgent={demandeAgent} aUneFiche={aUneFiche} />,
                 reglages: (
                   <>

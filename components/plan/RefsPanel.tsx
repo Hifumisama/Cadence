@@ -17,6 +17,7 @@ export type RefVue = {
   asset: {
     id: number;
     code: string;
+    libelle: string;
     statut: string;
     kind: MediaKind;
     etat: "aucun" | "manquant" | "ok";
@@ -70,7 +71,7 @@ function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
 /** Les références du plan, en bande compacte au-dessus du prompt. « + Référence » : on choisit d'abord le genre (image, vidéo,
  * audio), puis l'asset dans la galerie. Ajouter ou retirer une référence réécrit le prompt côté serveur (déclaration, renumérotation) :
  * le brouillon du prompt est donc écrit juste avant (BrouillonPlan.avecSectionsEcrites), sinon il serait écrasé. */
-export function RefsPanel({ planId, refs, masters }: { planId: number; refs: RefVue[]; masters: NoeudPicker[] }) {
+export function RefsPanel({ planId, refs, assets }: { planId: number; refs: RefVue[]; assets: NoeudPicker[] }) {
   const b = useBrouillon();
   const [menu, setMenu] = useState(false);
   const [choix, setChoix] = useState<Type | null>(null);
@@ -137,7 +138,7 @@ export function RefsPanel({ planId, refs, masters }: { planId: number; refs: Ref
                 <span className="num fp-ref-label">
                   &lt;{LABEL_TYPE[r.type]} {r.slot}&gt;
                 </span>
-                <span className="asset-code">{r.asset?.code ?? "—"}</span>
+                <span className="asset-code" title={r.asset?.code}>{r.asset?.libelle ?? "—"}</span>
                 {r.asset && r.asset.statut !== "valide" ? (
                   <span className="fp-ref-statut">{r.asset.statut === "en_cours" ? "en cours" : "à produire"}</span>
                 ) : null}
@@ -156,7 +157,7 @@ export function RefsPanel({ planId, refs, masters }: { planId: number; refs: Ref
         ouvert={choix != null}
         titre={choix ? TITRE_GALERIE[choix] : ""}
         kind={choix ? KIND_PAR_TYPE[choix] : "image"}
-        masters={masters}
+        assets={assets}
         dejaPris={dejaPris}
         enCours={pending}
         onFermer={() => setChoix(null)}

@@ -327,7 +327,7 @@
   right: 8px;
   top: 8px;
   z-index: 2;
-  display: none;
+  display: grid;
   place-items: center;
   width: 26px;
   height: 26px;
@@ -335,6 +335,25 @@
   background: rgba(157, 152, 168, 0.7);
   color: transparent;
   isolation: isolate;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.55);
+  transition: opacity 160ms ease, transform 260ms cubic-bezier(0.3, 1.6, 0.5, 1), background 160ms ease;
+}
+.as-carte:hover .as-coche,
+.as-carte:focus-visible .as-coche,
+.as-ligne:hover .as-coche {
+  opacity: 1;
+  transform: none;
+}
+.as-coche:hover {
+  background: var(--or-glow);
+}
+@media (hover: none) {
+  .as-coche {
+    opacity: 0.9;
+    transform: none;
+  }
 }
 .as-coche::before {
   content: "";
@@ -345,8 +364,10 @@
   z-index: -1;
   transition: background 0.2s;
 }
-.is-selection .as-coche {
-  display: grid;
+.is-selection .as-coche,
+.is-choisi .as-coche {
+  opacity: 1;
+  transform: none;
 }
 .is-selection .as-voix-pastille {
   display: none;
@@ -444,6 +465,49 @@
 }
 
 /* ---- Vue liste ---- */
+/* En liste, pas de disque doré par-dessus (il masquait le texte) : un voile qui balaie la ligne, DERRIÈRE le contenu. */
+.as-ligne {
+  isolation: isolate;
+}
+.as-ligne .as-onde {
+  z-index: -1;
+}
+.as-ligne .as-onde::after {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: linear-gradient(90deg, rgba(201, 162, 75, 0.05), rgba(240, 208, 137, 0.16));
+  transform: scaleX(0);
+  transform-origin: var(--rx, 0) 50%;
+}
+.as-ligne.is-appui .as-onde::after {
+  animation-name: as-balayage;
+}
+.as-ligne.is-vient .as-onde::after {
+  animation-name: as-balayage-fin;
+}
+@keyframes as-balayage {
+  from {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+@keyframes as-balayage-fin {
+  from {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
 .as-liste {
   display: grid;
   border: 1px solid var(--line);
@@ -454,7 +518,7 @@
 .as-ligne {
   position: relative;
   display: grid;
-  grid-template-columns: 64px minmax(0, 1.6fr) 120px 130px 80px 36px;
+  grid-template-columns: 26px 64px minmax(0, 1.6fr) 120px 130px 80px 36px;
   gap: 14px;
   align-items: center;
   padding: 8px 14px;
@@ -466,14 +530,13 @@
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
-.as-liste.is-selection .as-ligne {
-  grid-template-columns: 28px 64px minmax(0, 1.6fr) 120px 130px 80px 36px;
-}
 .as-liste > :first-child {
   border-top: 0;
 }
-.as-ligne:hover {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .as-ligne:hover {
+    background: rgba(201, 162, 75, 0.05);
+  }
 }
 .as-ligne.as-tete {
   background: var(--surface-2);
@@ -483,7 +546,10 @@
   color: var(--ink-4);
 }
 .as-ligne .as-coche {
-  position: static;
+  /* relative (pas static) : le fond rond de la coche (::before, en absolu) doit rester dans la coche, pas couvrir toute la ligne. */
+  position: relative;
+  right: auto;
+  top: auto;
 }
 .as-mini {
   position: relative;
@@ -525,12 +591,8 @@
   color: var(--ink-3);
 }
 @media (max-width: 760px) {
-  .as-ligne,
-  .as-liste.is-selection .as-ligne {
-    grid-template-columns: 64px minmax(0, 1fr) 100px;
-  }
-  .as-liste.is-selection .as-ligne {
-    grid-template-columns: 28px 64px minmax(0, 1fr);
+  .as-ligne {
+    grid-template-columns: 26px 64px minmax(0, 1fr) 100px;
   }
   .as-ligne .as-cache-s {
     display: none;
@@ -702,7 +764,7 @@
 }
 .as-titre-ligne h1 {
   margin: 0;
-  font: 500 28px/1.2 var(--font-mono), monospace;
+  font: 500 28px/1.2 var(--font-data), system-ui, sans-serif;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
@@ -722,39 +784,25 @@
   flex-wrap: wrap;
   gap: 10px;
 }
+/* Critique : calculé (cité par assez de plans), donc une étiquette, pas un bouton. */
 .as-critique {
-  appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   padding: 4px 10px 4px 8px;
-  background: none;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--ecarlate-soft);
   border-radius: 2px;
-  color: var(--ink-4);
-  font: inherit;
+  background: rgba(200, 16, 46, 0.1);
+  color: var(--ecarlate-glow);
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  cursor: pointer;
 }
 .as-critique i {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  border: 1.5px solid var(--ink-4);
-}
-.as-critique:hover {
-  color: var(--ink-2);
-}
-.as-critique[aria-pressed="true"] {
-  color: var(--ecarlate-glow);
-  border-color: var(--ecarlate-soft);
-  background: rgba(200, 16, 46, 0.1);
-}
-.as-critique[aria-pressed="true"] i {
   background: var(--ecarlate-glow);
-  border-color: var(--ecarlate-glow);
 }
 .as-menu {
   position: relative;
@@ -1206,4 +1254,227 @@
 }
 .as-voisins-rang {
   letter-spacing: 0.08em;
+}
+
+/* ---- Nouveau sujet : une « scène » plein cadre — on choisit ce qu'on crée, on le nomme ---- */
+.as-nouveau-fond {
+  animation: as-fondu 180ms ease-out;
+  background: radial-gradient(ellipse at 50% 30%, rgba(201, 162, 75, 0.08), transparent 60%), rgba(8, 8, 10, 0.82);
+}
+.as-nouveau {
+  position: relative;
+  max-width: 760px;
+  padding: clamp(22px, 4vw, 40px);
+  overflow: hidden;
+  animation: as-monte 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.as-nouveau::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: repeating-linear-gradient(-55deg, #0e0e13 0 10px, var(--or) 10px 20px);
+}
+.as-nouveau-fermer {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+.as-nouveau-form {
+  display: grid;
+  gap: 22px;
+}
+.as-nouveau-form h2,
+.as-nouveau-form .eyebrow {
+  animation: as-monte 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.as-nouveau-form h2 {
+  animation-delay: 60ms;
+  margin: 8px 0 0;
+  font: 400 clamp(26px, 4vw, 38px)/1.1 var(--font-brand), serif;
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.as-nouveau-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+.as-type {
+  appearance: none;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 14px;
+  background: var(--ground);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  color: var(--ink-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  animation: as-monte 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i) * 40ms);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 220ms ease;
+}
+.as-type svg {
+  color: var(--ink-4);
+  transition: transform 220ms cubic-bezier(0.3, 1.6, 0.5, 1), color 180ms ease;
+}
+.as-type b {
+  font-weight: 500;
+  font-size: 15px;
+}
+.as-type small {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-4);
+}
+.as-type:hover {
+  transform: translateY(-2px);
+  border-color: var(--ink-4);
+}
+.as-type[aria-checked="true"] {
+  border-color: var(--or);
+  background: linear-gradient(160deg, rgba(201, 162, 75, 0.16), rgba(201, 162, 75, 0.03));
+  box-shadow: 0 0 0 1px var(--or), 0 10px 30px -12px rgba(201, 162, 75, 0.45);
+  color: var(--ink);
+}
+.as-type[aria-checked="true"] svg {
+  color: var(--or-glow);
+  transform: scale(1.25) rotate(-6deg);
+}
+/* Le choix : un petit rebond, et un reflet doré qui balaie la carte. */
+.as-type {
+  position: relative;
+  overflow: hidden;
+}
+.as-type::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(240, 204, 120, 0.35) 50%, transparent 65%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+.as-type[aria-checked="true"] {
+  animation: as-monte 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both, as-rebond 460ms cubic-bezier(0.3, 1.5, 0.5, 1);
+  animation-delay: calc(var(--i) * 40ms), 0ms;
+}
+.as-type[aria-checked="true"]::after {
+  animation: as-reflet 700ms ease-out;
+}
+.as-type:focus-visible {
+  outline: 2px solid var(--or-glow);
+  outline-offset: 2px;
+}
+.as-nouveau-nom {
+  display: grid;
+  gap: 8px;
+  animation: as-monte 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 360ms both;
+}
+.as-nouveau-nom span {
+  font: 12px/1 var(--font-mono), monospace;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--or);
+}
+.as-nouveau-nom input {
+  width: 100%;
+  padding: 8px 0 12px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid var(--line-strong);
+  border-radius: 0;
+  color: var(--ink);
+  font: 400 clamp(24px, 4vw, 34px)/1.2 var(--font-brand), serif;
+  transition: border-color 200ms ease;
+}
+.as-nouveau-nom input::placeholder {
+  color: var(--ink-4);
+}
+.as-nouveau-nom input:focus {
+  outline: none;
+  border-bottom-color: var(--or-glow);
+}
+.as-nouveau-pied {
+  animation: as-monte 420ms cubic-bezier(0.2, 0.8, 0.2, 1) 440ms both;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.as-nouveau-pied .btn-gold:not(:disabled) {
+  animation: as-pulse 2.4s ease-in-out infinite;
+}
+@keyframes as-fondu {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes as-monte {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+@keyframes as-rebond {
+  0% {
+    transform: scale(0.94);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes as-reflet {
+  to {
+    transform: translateX(120%);
+  }
+}
+@keyframes as-pulse {
+  50% {
+    box-shadow: 0 0 22px rgba(201, 162, 75, 0.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .as-nouveau-fond,
+  .as-nouveau,
+  .as-type,
+  .as-nouveau-pied .btn-gold,
+  .as-nouveau-nom,
+  .as-nouveau-pied,
+  .as-nouveau-form h2,
+  .as-type::after {
+    animation: none !important;
+  }
+  .as-type,
+  .as-type svg {
+    transition: none;
+  }
+}
+
+/* ---- Filtres avancés (statut, sans plan) : une rangée qui se déplie sous la barre d'outils ---- */
+.as-filtres-plus {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 0 12px;
+  animation: as-monte 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.as-filtres-bouton em {
+  font-style: normal;
+  margin-left: 4px;
+  color: var(--or-glow);
+}
+@media (prefers-reduced-motion: reduce) {
+  .as-filtres-plus,
+  .as-coche {
+    animation: none;
+    transition: none;
+  }
 }

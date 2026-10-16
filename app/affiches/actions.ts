@@ -28,7 +28,6 @@ export async function ouvrirAffiche(cible: CibleAffiche, id: number): Promise<vo
         projectId: contexte.projectId,
         code,
         type: TYPE_AFFICHE,
-        statut: "a_produire",
         description: `Affiche : ${contexte.titre}`,
         promptGeneration: promptAffiche({ cible, titre: contexte.titre, resume: contexte.resume, genreTon: contexte.genreTon }),
       })

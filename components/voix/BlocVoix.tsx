@@ -1,20 +1,23 @@
 "use client";
 
-import "./voix.css";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { adopterGeneration, supprimerGeneration } from "@/app/assets/generation-actions";
 import { enregistrerVoixPersonnage, lancerMasterVoix, proposerRepliqueBase, supprimerMasterVoix } from "@/app/voix/master-actions";
+import { Icone } from "@/components/ui/Icone";
 import { METHODE_MASTER_VOIX } from "@/lib/asset-generation";
 import type { GenerationVue } from "@/lib/queries-generations";
+import { ilYa } from "@/lib/temps-relatif";
+import { urlMiniature } from "@/lib/miniatures";
 import { useGenerationsVoix } from "./useGenerationsVoix";
 
 const METHODES = [METHODE_MASTER_VOIX];
 const ACTIFS = ["en_attente", "en_cours"];
+const MASTER = "master";
 
-/** Le bloc « Voix » de la fiche d'un personnage : la voix voulue (texte libre, ou laissée au modèle), la réplique du test, puis la vidéo
- * de test H3 dont on garde la voix nettoyée (le master). Rien ne bloque : sans master, le modèle vidéo invente la voix du personnage à
- * chaque plan. Les champs se retiennent en quittant la case ; les essais restent là jusqu'à ce qu'on les garde ou les retire. */
+/** L'onglet « Voix » de la fiche d'un personnage, bâti comme l'atelier d'image : à gauche l'écran de test et sa légende (la voix gardée, ou
+ * l'essai qu'on regarde) ; à droite, sous les yeux, ce qu'on veut entendre (la voix voulue, la réplique du test) puis le journal des essais.
+ * Rien ne bloque : sans master, le modèle vidéo invente la voix du personnage à chaque plan. Les champs se retiennent en quittant la case. */
 export function BlocVoix({
   personnageId,
   nom,
@@ -37,6 +40,26 @@ export function BlocVoix({
   const [occupe, startTransition] = useTransition();
   const [idee, setIdee] = useState(false);
   const { vivantes, annuler } = useGenerationsVoix({ assetId: personnageId, generations, generationInitiale, methodes: METHODES, surveiller: true });
+
+  const aMaster = master.src != null;
+  // Ce qu'on regarde : la voix gardée (le master) ou un essai (par son uuid).
+  const [selection, setSelection] = useState<string>(() => {
+    const demande = generationInitiale && generations.find((g) => g.uuid === generationInitiale && g.methode === METHODE_MASTER_VOIX);
+    if (demande) return demande.uuid;
+    if (aMaster || master.videoSrc) return MASTER;
+    return generations.find((g) => g.methode === METHODE_MASTER_VOIX)?.uuid ?? MASTER;
+  });
+  // Un essai qui vient d'être lancé se montre aussitôt.
+  const dernier = useRef(vivantes[0]?.uuid ?? null);
+  useEffect(() => {
+    const premier = vivantes[0]?.uuid ?? null;
+    if (premier && premier !== dernier.current) setSelection(premier);
+    dernier.current = premier;
+  }, [vivantes]);
+
+  const essai = selection === MASTER ? null : (vivantes.find((g) => g.uuid === selection) ?? null);
+  const regardeMaster = essai == null;
+  const numero = (uuid: string) => vivantes.length - vivantes.findIndex((g) => g.uuid === uuid);
 
   const enregistrer = () => void enregistrerVoixPersonnage(personnageId, { description, repliqueBase: replique });
 
@@ -61,137 +84,253 @@ export function BlocVoix({
       } else setRetour({ ok: false, texte: r.erreur });
     });
 
-  const agir = (f: () => Promise<{ ok: true } | { ok: false; erreur: string }>, message: string) =>
+  const agir = (f: () => Promise<{ ok: true } | { ok: false; erreur: string }>, message: string, apres?: () => void) =>
     startTransition(async () => {
       const r = await f();
       setRetour(r.ok ? { ok: true, texte: message } : { ok: false, texte: r.erreur });
-      if (r.ok) router.refresh();
+      if (r.ok) {
+        apres?.();
+        router.refresh();
+      }
     });
 
-  const aDejaGenere = master.src || vivantes.some((g) => g.statut === "termine");
+  const aDejaGenere = aMaster || vivantes.some((g) => g.statut === "termine");
+  const etat = (g: (typeof vivantes)[number]) =>
+    g.statut === "en_attente"
+      ? `En file${g.position ? ` · n°${g.position}` : ""}`
+      : g.statut === "en_cours"
+        ? (g.progression?.etape ?? "En cours…")
+        : g.statut === "annulee"
+          ? "Annulé"
+          : g.statut === "echoue"
+            ? "Échoué"
+            : "Prêt";
+  const pourcent = (g: (typeof vivantes)[number]) => (g.progression ? Math.round((g.progression.valeur / g.progression.max) * 100) : 0);
 
   return (
-    <div className="bv">
-      <div className="bv-haut">
-        <div className="bv-plateau">
-          <div className="bv-ecran">
-            {master.videoSrc ? (
-              <video controls playsInline preload="metadata" src={master.videoSrc} poster={master.portraitSrc ?? undefined} />
-            ) : (
-              <>
-                {master.portraitSrc ? <img src={master.portraitSrc} alt="" className="bv-ecran-portrait" /> : null}
-                <p className="bv-ecran-vide">{master.src ? "Pas de vidéo de test conservée" : "Pas encore de vidéo de test"}</p>
-              </>
-            )}
-          </div>
-          {master.src ? (
-            <div className="bv-voix-nette">
-              <span className="bv-etiquette">Voix nettoyée · le master</span>
-              <audio controls preload="none" src={master.src} />
-              <button type="button" className="btn btn-ghost btn-mini" disabled={occupe} onClick={() => agir(() => supprimerMasterVoix(personnageId), "Master retiré.")}>
-                Retirer le master
-              </button>
-            </div>
+    <div className="atelier atelier-voix">
+      <div className="atelier-g">
+        <div className="outils">
+          <h2>
+            Voix <small>{aMaster ? "voix gardée" : vivantes.length ? `${vivantes.length} essai${vivantes.length > 1 ? "s" : ""}` : "pas encore de voix"}</small>
+          </h2>
+        </div>
+
+        {/* ---- L'écran de test ---- */}
+        <div className={`scene${regardeMaster && aMaster ? " valide" : ""}`}>
+          {regardeMaster ? (
+            <>
+              <span className={`etiq hg${aMaster ? " or" : ""}`}>{aMaster ? "Voix gardée · le master" : "Pas de voix gardée"}</span>
+              {master.videoSrc ? (
+                <div className="passe entre" key="master">
+                  <video controls playsInline preload="metadata" src={master.videoSrc} poster={master.portraitSrc ?? undefined} />
+                </div>
+              ) : (
+                <div className="boite vierge" style={{ "--ar": "16 / 9" } as React.CSSProperties}>
+                  <div>
+                    <Icone nom="son" taille={42} />
+                    <b>{aMaster ? "Pas de vidéo de test conservée" : "Pas encore de vidéo de test"}</b>
+                    <p>{aMaster ? "La voix est gardée, seule sa vidéo manque." : `Écris la réplique à droite : ${nom} la dira dans une courte vidéo, et on en garde la voix.`}</p>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : essai.statut === "termine" && essai.videoSrc ? (
+            <>
+              <span className="etiq hg">Essai n°{numero(essai.uuid)}</span>
+              <div className="passe entre" key={essai.uuid}>
+                <video controls playsInline preload="metadata" src={essai.videoSrc} poster={master.portraitSrc ?? undefined} />
+              </div>
+            </>
+          ) : ACTIFS.includes(essai.statut) ? (
+            <>
+              <span className="etiq hg">Essai n°{numero(essai.uuid)} · en travail</span>
+              <div className="boite plein chatoie entre" key={essai.uuid}>
+                {master.portraitSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="flou" src={urlMiniature(master.portraitSrc, 384)} alt="" style={{ "--flou": "14px", "--sat": "0.5", opacity: 0.7 } as React.CSSProperties} />
+                ) : null}
+              </div>
+              <div className="travail" role="status">
+                <div className="msg">
+                  <span className="num">n°{numero(essai.uuid)}</span>
+                  <span>{essai.statut === "en_attente" ? etat(essai) : `La vidéo se tourne · ${etat(essai)}${essai.progression ? ` · ${pourcent(essai)} %` : ""}`}</span>
+                </div>
+                <progress className="gd-bar" value={essai.progression?.valeur} max={essai.progression?.max} aria-label="Progression" />
+              </div>
+            </>
           ) : (
-            <p className="bv-aide">Sans master, le modèle vidéo invente la voix de {nom} à chaque plan.</p>
+            <>
+              <span className="etiq hg">Essai n°{numero(essai.uuid)}</span>
+              <div className="boite plein echec entre" key={essai.uuid}>
+                <div className="boite-contenu">
+                  <div>
+                    <b>{essai.statut === "annulee" ? "Cet essai a été annulé" : essai.statut === "echoue" ? "Cet essai n'a rien produit" : "Pas de vidéo"}</b>
+                    <p>{essai.erreur ? essai.erreur.slice(0, 220) : essai.statut === "echoue" ? "Échec sans message." : "La génération s'est arrêtée."}</p>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
 
-        <div className="bv-champs">
-          <label className="bv-champ">
-            <span className="bv-etiquette">La voix voulue</span>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={enregistrer}
-              placeholder="Timbre, âge, accent, état d'esprit… Vide : le modèle choisit."
-            />
-          </label>
-          <label className="bv-champ">
-            <span className="bv-etiquette">La réplique du test</span>
-            <textarea rows={4} value={replique} onChange={(e) => setReplique(e.target.value)} onBlur={enregistrer} placeholder="Deux ou trois phrases dans la langue du projet, qui montrent le caractère de la voix." />
-          </label>
-          <div className="bv-actions">
-            <button type="button" className="btn btn-primary" onClick={generer} disabled={occupe || !replique.trim()}>
-              {aDejaGenere ? "Générer une autre voix" : "Générer la voix"}
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={demanderIdee} disabled={idee}>
-              {idee ? "L’IA écrit…" : replique.trim() ? "Une autre réplique" : "Une réplique de l’IA"}
-            </button>
-          </div>
-          {retour ? (
-            <p className={`bv-retour ${retour.ok ? "is-ok" : "is-erreur"}`} role={retour.ok ? "status" : "alert"}>
-              {retour.texte}
-            </p>
-          ) : null}
+        {/* ---- La légende : l'audio, et ce qu'on peut en faire ---- */}
+        <div className="legende glisse" key={selection} aria-live="polite">
+          {regardeMaster ? (
+            <>
+              <div className="leg-tete">
+                <span className="qui">
+                  <b>{aMaster ? `La voix de ${nom}` : "Pas de voix gardée"}</b>
+                </span>
+                {aMaster ? (
+                  <span className="leg-actions">
+                    <span className="retenu-badge">
+                      <Icone nom="valide" taille={14} />
+                      Gardée
+                    </span>
+                    <button type="button" className="btn btn-fant btn-sm" disabled={occupe} onClick={() => agir(() => supprimerMasterVoix(personnageId), "Master retiré.")}>
+                      Retirer le master
+                    </button>
+                  </span>
+                ) : null}
+              </div>
+              <div className="leg-corps">
+                {aMaster ? <audio controls preload="none" src={master.src!} /> : <span className="sans">Sans master, le modèle vidéo invente la voix de {nom} à chaque plan.</span>}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="leg-tete">
+                <span className="qui">
+                  <b className="num">Essai n°{numero(essai.uuid)}</b> · <span suppressHydrationWarning>{ilYa(essai.createdAt)}</span> · {etat(essai).toLowerCase()}
+                </span>
+                <span className="leg-actions">
+                  {ACTIFS.includes(essai.statut) ? (
+                    <button type="button" className="btn btn-fant btn-sm" onClick={() => annuler(essai)} disabled={essai.annulationDemandee}>
+                      {essai.annulationDemandee ? "Annulation demandée…" : essai.statut === "en_cours" ? "Annuler" : "Retirer de la file"}
+                    </button>
+                  ) : (
+                    <>
+                      {essai.statut === "termine" && essai.src ? (
+                        <button type="button" className="btn btn-or btn-sm" disabled={occupe} onClick={() => agir(() => adopterGeneration(essai.id), `C'est la voix de ${nom} : le master est posé.`, () => setSelection(MASTER))}>
+                          <Icone nom="valide" taille={14} /> Garder cette voix
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="btn btn-fant btn-ico"
+                        disabled={occupe}
+                        onClick={() => agir(() => supprimerGeneration(essai.id), "Essai retiré.", () => setSelection(MASTER))}
+                        aria-label={essai.statut === "termine" ? "Supprimer cet essai" : "Retirer cet essai"}
+                        title={essai.statut === "termine" ? "Supprimer cet essai" : "Retirer cet essai"}
+                      >
+                        <Icone nom="supprimer" taille={15} />
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+              {essai.statut === "termine" && essai.src ? (
+                <div className="leg-corps">
+                  <audio controls preload="none" src={essai.src} />
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
 
-      {vivantes.length > 0 ? (
-        <>
-          <h3 className="bv-etiquette bv-titre-essais">Les essais</h3>
-          <ul className="bv-essais">
-            {vivantes.map((g, i) => {
+      <div className="atelier-d">
+        {/* ---- Ce qu'on veut entendre ---- */}
+        <section className="consigne" aria-labelledby="bv-titre">
+          <label htmlFor="bv-voix">
+            <b id="bv-titre">Quelle voix veut-on ?</b>
+            <small>Timbre, âge, accent, état d&rsquo;esprit. Vide : le modèle choisit.</small>
+          </label>
+          <textarea id="bv-voix" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} onBlur={enregistrer} placeholder="Une voix grave et posée, un léger accent du sud, jamais pressée…" />
+
+          <label htmlFor="bv-replique" className="bv-sous">
+            <b>La réplique du test</b>
+            <small>Deux ou trois phrases dans la langue du projet, qui montrent le caractère de la voix.</small>
+          </label>
+          <textarea id="bv-replique" rows={4} value={replique} onChange={(e) => setReplique(e.target.value)} onBlur={enregistrer} placeholder="Ce que le personnage dira dans la vidéo de test…" />
+          <div className="bv-idee">
+            <button type="button" className="btn btn-fant btn-sm" onClick={demanderIdee} disabled={idee}>
+              <Icone nom="agent" taille={14} /> {idee ? "L'IA écrit…" : replique.trim() ? "Une autre réplique" : "Une réplique de l'IA"}
+            </button>
+          </div>
+
+          {retour ? (
+            <p className={`retour ${retour.ok ? "ok" : "ko"}`} role={retour.ok ? "status" : "alert"}>
+              {retour.texte}
+            </p>
+          ) : null}
+          <div className="envoi">
+            <button type="button" className="btn btn-or" onClick={generer} disabled={occupe || !replique.trim()}>
+              <Icone nom="son" taille={15} /> {aDejaGenere ? "Générer une autre voix" : "Générer la voix"}
+            </button>
+          </div>
+        </section>
+
+        {/* ---- Le journal des essais ---- */}
+        <aside className="journal" aria-label="Voix gardée et essais">
+          <div className="j-tete">
+            <h3>Journal d&rsquo;essais</h3>
+            <span className="num">{vivantes.length}</span>
+          </div>
+          <div className="j-liste" role="listbox" aria-label="Voix gardée et essais, du plus récent au plus ancien">
+            {aMaster || master.videoSrc ? (
+              <button type="button" role="option" aria-selected={regardeMaster} className={`j-item${regardeMaster ? " on" : ""}`} onClick={() => setSelection(MASTER)}>
+                <span className="vign">{master.portraitSrc ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={urlMiniature(master.portraitSrc, 192)} alt="" loading="lazy" decoding="async" /> : null}</span>
+                <span className="j-m">
+                  <span className="j-l1">
+                    <span className="drap or">gardée</span>
+                  </span>
+                  <span className="j-txt titre">La voix de {nom}</span>
+                </span>
+              </button>
+            ) : null}
+            {vivantes.length > 0 ? <div className="j-sep">Essais · du plus récent</div> : <p className="j-vide">Le premier essai apparaîtra ici.</p>}
+            {vivantes.map((g) => {
+              const on = !regardeMaster && essai?.uuid === g.uuid;
               const actif = ACTIFS.includes(g.statut);
-              const etat =
-                g.statut === "en_attente"
-                  ? `En file${g.position ? ` · n°${g.position}` : ""}`
-                  : g.statut === "en_cours"
-                    ? (g.progression?.etape ?? "En cours…")
-                    : g.statut === "annulee"
-                      ? "Annulé"
-                      : g.statut === "echoue"
-                        ? "Échoué"
-                        : "Prêt";
               return (
-                <li key={g.id} className={`bv-essai st-${g.statut}`}>
-                  <div className="bv-essai-ecran">
-                    {g.statut === "termine" && g.videoSrc ? (
-                      <video controls playsInline preload="metadata" src={g.videoSrc} poster={master.portraitSrc ?? undefined} />
-                    ) : actif ? (
-                      <div className="bv-essai-attente">
-                        {g.progression ? <progress className="gd-bar" value={g.progression.valeur} max={g.progression.max} aria-label="Progression" /> : <progress className="gd-bar" aria-label="Génération en cours" />}
-                      </div>
-                    ) : g.statut === "echoue" ? (
-                      <p className="bv-essai-echec" role="alert">
-                        {g.erreur ? g.erreur.slice(0, 220) : "Échec sans message."}
-                      </p>
-                    ) : (
-                      <p className="bv-essai-vide">{g.statut === "termine" ? "Pas de vidéo" : etat}</p>
-                    )}
-                  </div>
-                  <div className="bv-essai-pied">
-                    <div className="bv-essai-titre">
-                      <b>Essai n°{vivantes.length - i}</b>
-                      <span>{etat}</span>
-                    </div>
-                    {g.statut === "termine" && g.src ? <audio controls preload="none" src={g.src} /> : null}
-                    <div className="bv-essai-actions">
-                      {actif ? (
-                        <button type="button" className="btn btn-ghost btn-mini" onClick={() => annuler(g)} disabled={g.annulationDemandee}>
-                          {g.annulationDemandee ? "Annulation demandée…" : g.statut === "en_cours" ? "Annuler" : "Retirer de la file"}
-                        </button>
-                      ) : (
-                        <>
-                          {g.statut === "termine" && g.src ? (
-                            <button type="button" className="btn btn-primary btn-mini" disabled={occupe} onClick={() => agir(() => adopterGeneration(g.id), `C’est la voix de ${nom} : le master est posé.`)}>
-                              Garder cette voix
-                            </button>
-                          ) : null}
-                          <button type="button" className="btn btn-ghost btn-mini" disabled={occupe} onClick={() => agir(() => supprimerGeneration(g.id), "Essai retiré.")}>
-                            {g.statut === "termine" ? "Supprimer" : "Retirer"}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </li>
+                <button key={g.uuid} type="button" role="option" aria-selected={on} className={`j-item${on ? " on" : ""}`} onClick={() => setSelection(g.uuid)}>
+                  <span className={`vign${g.statut === "termine" ? "" : g.statut === "echoue" || g.statut === "annulee" ? " echec" : " run flou"}${master.portraitSrc ? "" : " vide"}`}>
+                    {master.portraitSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={urlMiniature(master.portraitSrc, 192)} alt="" loading="lazy" decoding="async" />
+                    ) : null}
+                    {actif ? (
+                      <span className="mini-p">
+                        <b style={{ "--p": `${pourcent(g)}%` } as React.CSSProperties} />
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="j-m">
+                    <span className="j-l1">
+                      <span className="num">n°{numero(g.uuid)}</span>
+                      {g.statut === "en_attente" ? (
+                        <span className="drap rouge">en file</span>
+                      ) : g.statut === "en_cours" ? (
+                        <span className="drap rouge">en cours</span>
+                      ) : g.statut === "echoue" ? (
+                        <span className="drap echec">échoué</span>
+                      ) : g.statut === "annulee" ? (
+                        <span className="drap neutre">annulé</span>
+                      ) : null}
+                      <span className="quand" suppressHydrationWarning>
+                        {ilYa(g.createdAt)}
+                      </span>
+                    </span>
+                    <span className="j-txt">{g.texteReference ?? "Test de voix"}</span>
+                  </span>
+                </button>
               );
             })}
-          </ul>
-        </>
-      ) : null}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

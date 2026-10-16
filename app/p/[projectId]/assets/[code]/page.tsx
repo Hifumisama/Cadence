@@ -1,60 +1,54 @@
 import { getPlansPerimes, nbPlansRendusCitant } from "@/lib/plans-perimes";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAssetsTree, getFirstEpisodeId, getProject, type AssetNode } from "@/lib/queries";
-import { Sommaire, type EntreeSommaire } from "@/components/brief/Sommaire";
+import { getAssetsRegistre, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { AssetPreview } from "@/components/assets/AssetPreview";
 import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
 import { GenerationPanel } from "@/components/assets/GenerationPanel";
-import { NouvelAssetDepuis } from "@/components/assets/NouvelAssetDepuis";
-import { BlocTexte, BoutonCopier, EnteteAsset, FicheProvider, RendusAsset, ReglagesAsset } from "@/components/assets/FicheAsset";
+import { AtelierAsset } from "@/components/assets/AtelierAsset";
+import { BlocTexte, BoutonCopier, EnteteAsset, FicheProvider, ReglagesAsset } from "@/components/assets/FicheAsset";
+import { OngletsAsset, type OngletAsset } from "@/components/assets/OngletsAsset";
 import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { BlocVoix } from "@/components/voix/BlocVoix";
 import { getVoixPersonnage } from "@/lib/queries-master-voix";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
-import { METHODE_MASTER_VOIX, formatParDefaut, loraParDefaut, raisonAudioNonGenerable, raisonNonGenerable } from "@/lib/asset-generation";
+import { METHODE_MASTER_VOIX, formatParDefaut, raisonAudioNonGenerable, raisonNonGenerable } from "@/lib/asset-generation";
 import { Topbar } from "@/components/ui/Topbar";
 import { delierRef } from "@/app/assets/actions";
+import { libelleAsset } from "@/lib/assetCode";
 import { Icone } from "@/components/ui/Icone";
+import "@/components/assets/fiche-asset.css";
+import "@/components/assets/fiche-asset-mise-en-page.css";
 
 export const dynamic = "force-dynamic";
 
-/** Le registre est plat : `derives` n'est plus un rang mais la liste des assets dont l'image PART de celui-ci. */
-const aplatir = (noeuds: AssetNode[]): AssetNode[] => noeuds.flatMap((n) => [n, ...aplatir(n.derives)]);
-
 const nbMots = (t: string) => (t.trim() ? t.trim().split(/\s+/).length : 0);
 
-/** La fiche d'un asset : une pile de blocs, comme le brief — l'image d'abord (c'est le sujet), puis la génération, les
- * apparitions dans les plans et, pour un personnage, sa voix. Chaque texte se corrige au clic, sur place. */
+/** La fiche d'un asset : l'en-tête (nom, type, état, description, apparitions) puis des ONGLETS, un par chose que l'asset sait faire — l'image
+ * (l'atelier : image en grand, consigne en français, journal d'essais), la voix d'un personnage, le son d'un bruitage. Chaque texte se corrige au
+ * clic, sur place. Maquette : docs/maquettes/fiche-asset.html. */
 export default async function AssetDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ projectId: string; code: string }>;
-  searchParams: Promise<{ generation?: string }>;
+  searchParams: Promise<{ generation?: string; onglet?: string }>;
 }) {
   const { projectId, code } = await params;
-  const { generation: generationBrute } = await searchParams;
+  const { generation: generationBrute, onglet: ongletBrut } = await searchParams;
   const pid = Number(projectId);
-  const [projet, racines, premierEpisodeId] = await Promise.all([getProject(pid), getAssetsTree(pid), getFirstEpisodeId(pid)]);
+  const [projet, tous, premierEpisodeId] = await Promise.all([getProject(pid), getAssetsRegistre(pid), getFirstEpisodeId(pid)]);
   if (!projet) notFound();
-  const tous = aplatir(racines);
   const noeud = tous.find((a) => a.code === code);
   if (!noeud) notFound();
 
-  const depart = noeud.deriveDeId != null ? (tous.find((a) => a.id === noeud.deriveDeId) ?? null) : null;
-  const servis = noeud.derives;
   const sonOuVoix = noeud.type === "sfx";
 
-  // Un son n'a pas besoin du registre d'images (sources du mode « images »).
-  const [generations, registreImages] = await Promise.all([
-    getGenerationsAsset(noeud.id),
-    noeud.type === "sfx" ? Promise.resolve([] as Awaited<ReturnType<typeof getAssetsAvecImage>>) : getAssetsAvecImage(pid, noeud.id),
-  ]);
-  // Les essais de voix (vidéos de test) ont leur bloc : ils ne se mêlent pas aux images ni aux sons du panneau de génération.
+  const generations = await getGenerationsAsset(noeud.id);
+  // Les essais de voix (vidéos de test) ont leur onglet : ils ne se mêlent pas aux essais d'image.
   const generationsImages = generations.filter((g) => g.methode !== METHODE_MASTER_VOIX);
   const voixPerso = noeud.type === "personnage" ? await getVoixPersonnage(pid, noeud.id) : null;
-  const blocage = noeud.citations.length > 0 ? "Encore cité dans une fiche de plan : délie-le d'abord (badges « Apparaît dans »)." : null;
+  const blocage = noeud.citations.length > 0 ? "Encore cité par une fiche de plan : délie-le d'abord (pastilles « Apparaît dans »)." : null;
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
   const perimes = await getPlansPerimes({ assetId: noeud.id });
   const plansRendus = await nbPlansRendusCitant(noeud.id);
@@ -62,21 +56,124 @@ export default async function AssetDetailPage({
   const rang = tous.findIndex((a) => a.id === noeud.id);
   const precedent = rang > 0 ? tous[rang - 1] : null;
   const suivant = rang < tous.length - 1 ? tous[rang + 1] : null;
+  const libellesParId = new Map(tous.map((a) => [a.id, libelleAsset(a)]));
+  const registreJoignable = (await getAssetsAvecImage(pid, noeud.id)).map((a) => ({ id: a.id, libelle: libellesParId.get(a.id) ?? a.code, src: a.src }));
   const promptVide = !(noeud.promptGeneration ?? "").trim();
 
-  const entrees: EntreeSommaire[] = [
-    { id: "as-haut", label: "Vue d'ensemble" },
-    { id: "as-image", label: sonOuVoix ? "Son" : "Image" },
-    { id: "as-generation", label: "Génération" },
-    ...(noeud.type === "personnage" ? [{ id: "as-voix", label: "Voix" }] : []),
-  ];
+  // ---- Les onglets : un par chose que cet asset sait faire ----
+  const onglets: OngletAsset[] = [];
+  if (sonOuVoix) {
+    onglets.push({
+      id: "son",
+      libelle: "Son",
+      icone: "son",
+      point: noeud.fichier != null,
+      contenu: (
+        <div className="carte-onglet">
+          <div className="as-media">
+            <AssetPreview type={noeud.type} fichier={noeud.fichier} taille="lg" />
+            <div className="as-cote">
+              <div className="as-actions">
+                <UploadFichierForm assetId={noeud.id} code={noeud.code} />
+              </div>
+              <dl className="as-infos">
+                <dt>Fichier</dt>
+                <dd>{noeud.fichier ?? "aucun"}</dd>
+              </dl>
+            </div>
+          </div>
+          <div className="as-gen" style={{ marginTop: 20 }}>
+            <BlocTexte
+              assetId={noeud.id}
+              champ="promptGeneration"
+              libelle="Description du son"
+              valeur={noeud.promptGeneration ?? ""}
+              vide="Aucun prompt. Clique pour l'écrire, ou demande-le à l'agent."
+              mono
+              meta={promptVide ? undefined : `${nbMots(noeud.promptGeneration ?? "")} mots`}
+            >
+              <BoutonAgent
+                className="btn btn-ghost btn-sm"
+                libelle={promptVide ? "Écrire avec l'agent" : "Réécrire avec l'agent"}
+                demande={{ projectId: pid, portee: "asset", cible: { code: noeud.code }, profondeur: "courte", libelle: noeud.code }}
+                titre="Demander à l'agent d'écrire ou de réécrire le prompt de ce son"
+              />
+              <BoutonCopier texte={noeud.promptGeneration ?? ""} libelle="Copier le prompt" />
+            </BlocTexte>
 
-  const Titre = ({ titre }: { titre: string }) => (
-    <div className="bf-section-hd">
-      <h2>{titre}</h2>
-      <hr className="bf-rule" />
-    </div>
-  );
+            <div className="as-gen-deux">
+              <ReglagesAsset assetId={noeud.id} type={noeud.type} methodeGeneration={noeud.methodeGeneration} departCode={null} dureeSecondes={noeud.dureeSecondes ?? null} promptVide={promptVide}>
+                <GenerationPanel
+                  assetId={noeud.id}
+                  code={noeud.code}
+                  type={noeud.type}
+                  methodeGeneration={noeud.methodeGeneration}
+                  parentCode={null}
+                  promptInitial={noeud.promptGeneration ?? ""}
+                  raisonBloquee={raisonAudioNonGenerable(noeud.type)}
+                  defauts={{ aspect: formatParDefaut(noeud.type).aspect, megapixels: formatParDefaut(noeud.type).megapixels, lora: false }}
+                  registre={[]}
+                  imageActuelle={null}
+                  dureeSecondes={noeud.dureeSecondes ?? null}
+                  generations={generationsImages}
+                  generationInitiale={generationBrute ?? null}
+                  simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
+                  libelleBouton={noeud.fichier ? "Régénérer le son…" : "Générer un son…"}
+                  classeBouton="btn btn-gold"
+                />
+              </ReglagesAsset>
+            </div>
+          </div>
+        </div>
+      ),
+    });
+  } else {
+    const essaisImages = generationsImages.filter((g) => g.methode === "generation" || g.methode === "edition");
+    onglets.push({
+      id: "image",
+      libelle: "Image",
+      icone: "image",
+      compte: essaisImages.length || undefined,
+      contenu: (
+        <AtelierAsset
+          assetId={noeud.id}
+          code={noeud.code}
+          libelle={libelleAsset(noeud)}
+          imageSrc={imageActuelle(noeud)?.src ?? null}
+          fichierAt={noeud.fichierAt ? noeud.fichierAt.getTime() : null}
+          valide={noeud.statut === "valide"}
+          essais={essaisImages}
+          essaiInitial={generationBrute ?? null}
+          description={noeud.description ?? ""}
+          plansRendus={noeud.fichier ? plansRendus : 0}
+          raisonBloquee={raisonNonGenerable(noeud)}
+          registre={registreJoignable}
+        />
+      ),
+    });
+  }
+  if (noeud.type === "personnage" && voixPerso) {
+    onglets.push({
+      id: "voix",
+      libelle: "Voix",
+      icone: "son",
+      point: voixPerso.masterSrc != null,
+      contenu: (
+        <BlocVoix
+          personnageId={noeud.id}
+          nom={libelleAsset(noeud)}
+          initial={{ description: voixPerso.description, repliqueBase: voixPerso.repliqueBase }}
+          master={{ src: voixPerso.masterSrc, videoSrc: voixPerso.videoSrc, portraitSrc: voixPerso.portraitSrc }}
+          generations={generations}
+          generationInitiale={generationBrute ?? null}
+        />
+      ),
+    });
+  }
+
+  // L'onglet d'arrivée : celui de l'adresse, ou celui de l'essai qu'on vient ouvrir depuis l'indicateur des tâches.
+  const vientDeLaVoix = generationBrute != null && generations.some((g) => g.uuid === generationBrute && g.methode === METHODE_MASTER_VOIX);
+  const initial = ongletBrut ?? (vientDeLaVoix ? "voix" : onglets[0]!.id);
 
   return (
     <>
@@ -89,185 +186,76 @@ export default async function AssetDetailPage({
             <span className="sep">›</span>
             <Link href={`/p/${pid}/assets`}>Assets</Link>
             <span className="sep">›</span>
-            <span className="here">{noeud.code}</span>
+            <span className="here">{libelleAsset(noeud)}</span>
           </>
         }
         tabs={{ projectId: pid, episodeBase }}
       />
       <main className="page">
         <FicheProvider>
-          <div className="bf-page">
-            <div className="bf-layout">
-              <Sommaire entrees={entrees} libelle="Sections de la fiche" />
+          <div className="fa">
+            <nav className="voisins" aria-label="Fiche précédente et suivante">
+              {precedent ? (
+                <Link href={`/p/${pid}/assets/${precedent.code}`} rel="prev" title={precedent.code}>
+                  ‹ {libelleAsset(precedent)}
+                </Link>
+              ) : null}
+              <span className="rang num">
+                {rang + 1} / {tous.length}
+              </span>
+              {suivant ? (
+                <Link href={`/p/${pid}/assets/${suivant.code}`} rel="next" title={suivant.code}>
+                  {libelleAsset(suivant)} ›
+                </Link>
+              ) : null}
+            </nav>
 
-              <div className="bf-contenu">
-                <nav className="as-voisins" aria-label="Fiche précédente et suivante">
-                  {precedent ? <Link href={`/p/${pid}/assets/${precedent.code}`} rel="prev">‹ {precedent.code}</Link> : <span />}
-                  <span className="as-voisins-rang">{rang + 1} / {tous.length}</span>
-                  {suivant ? <Link href={`/p/${pid}/assets/${suivant.code}`} rel="next">{suivant.code} ›</Link> : <span />}
-                </nav>
-                <EnteteAsset
-                  projectId={pid}
-                  assetId={noeud.id}
-                  code={noeud.code}
-                  type={noeud.type}
-                  statut={noeud.statut}
-                  critique={noeud.critique}
-                  description={noeud.description ?? ""}
-                  departCode={depart?.code ?? null}
-                  blocageSuppression={blocage}
-                  redirectTo={`/p/${pid}/assets`}
-                >
-                  {/* Apparitions : les plans qui citent cet asset */}
-                  <div className="as-apparus">
-                    <span>Apparaît dans</span>
-                    {noeud.citations.length > 0 ? (
-                      <div className="as-plans">
-                        {noeud.citations.map((c) => (
-                          <span
-                            key={`${c.refId}-${c.planUuid}`}
-                            className={`chip-citation${perimes.has(c.planId) ? " is-perime" : ""}`}
-                            title={perimes.has(c.planId) ? "Périmé : cette image a changé depuis le dernier rendu du plan" : undefined}
-                          >
-                            <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planUuid}`}>
-                              E{String(c.episodeNumero).padStart(2, "0")} · {String(c.position).padStart(2, "0")}
-                            </Link>
-                            <form
-                              action={async () => {
-                                "use server";
-                                await delierRef(c.refId);
-                              }}
-                            >
-                              <button type="submit" title="Délier de ce plan" aria-label="Délier de ce plan">
-                                <Icone nom="fermer" />
-                              </button>
-                            </form>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="bf-vide">aucun plan pour l&rsquo;instant</span>
-                    )}
-                  </div>
-                </EnteteAsset>
-
-                {/* ---- Image (ou son) : le sujet de la page ---- */}
-                <section id="as-image" className="bf-section">
-                  <Titre titre={sonOuVoix ? "Son" : "Image"} />
-                  <div className="as-media">
-                    <AssetPreview type={noeud.type} fichier={noeud.fichier} taille="lg" />
-                    <div className="as-cote">
-                      <div className="as-actions">
-                        <UploadFichierForm assetId={noeud.id} code={noeud.code} />
-                        {sonOuVoix ? null : <NouvelAssetDepuis projectId={pid} departId={noeud.id} departCode={noeud.code} departType={noeud.type} />}
-                      </div>
-                      <dl className="as-infos">
-                        <dt>Fichier</dt>
-                        <dd>{noeud.fichier ?? "aucun"}</dd>
-                        {depart ? (
-                          <>
-                            <dt>Départ</dt>
-                            <dd>
-                              <Link href={`/p/${pid}/assets/${depart.code}`}>{depart.code}</Link>
-                            </dd>
-                          </>
-                        ) : null}
-                        {servis.length > 0 ? (
-                          <>
-                            <dt>Sert de départ à</dt>
-                            <dd>
-                              <span className="as-liens">
-                                {servis.map((s) => (
-                                  <Link key={s.id} href={`/p/${pid}/assets/${s.code}`}>
-                                    {s.code}
-                                  </Link>
-                                ))}
-                              </span>
-                            </dd>
-                          </>
-                        ) : null}
-                      </dl>
-                    </div>
-                  </div>
-                </section>
-
-                {/* ---- Génération : le prompt, les réglages, les candidats ---- */}
-                {(
-                  <section id="as-generation" className="bf-section">
-                    <Titre titre="Génération" />
-                    <div className="as-gen">
-                      <BlocTexte
-                        assetId={noeud.id}
-                        champ="promptGeneration"
-                        libelle={noeud.type === "sfx" ? "Description du son" : "Prompt de génération"}
-                        valeur={noeud.promptGeneration ?? ""}
-                        vide="Aucun prompt. Clique pour l'écrire, ou demande-le à l'agent."
-                        mono
-                        meta={promptVide ? undefined : `${nbMots(noeud.promptGeneration ?? "")} mots`}
+            <EnteteAsset
+              projectId={pid}
+              assetId={noeud.id}
+              code={noeud.code}
+              libelle={libelleAsset(noeud)}
+              type={noeud.type}
+              statut={noeud.statut}
+              critique={noeud.critique}
+              description={noeud.description ?? ""}
+              aImage={noeud.fichier != null}
+              blocageSuppression={blocage}
+              redirectTo={`/p/${pid}/assets`}
+            >
+              {/* Apparitions : les plans qui citent cet asset (délier : un clic, sans confirmation) */}
+              <div className="apparus">
+                <span>Apparaît dans</span>
+                {noeud.citations.length > 0 ? (
+                  noeud.citations.map((c, i) => (
+                    <span
+                      key={`${c.refId}-${c.planUuid}`}
+                      className={`citation${perimes.has(c.planId) ? " perime" : ""}`}
+                      style={{ "--i": i } as React.CSSProperties}
+                      title={perimes.has(c.planId) ? "Périmé : l'image a changé depuis le dernier rendu de ce plan" : undefined}
+                    >
+                      <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planUuid}`} className="num">
+                        E{String(c.episodeNumero).padStart(2, "0")} · {String(c.position).padStart(2, "0")}
+                      </Link>
+                      <form
+                        action={async () => {
+                          "use server";
+                          await delierRef(c.refId);
+                        }}
                       >
-                        <BoutonAgent
-                          className="btn btn-ghost btn-sm"
-                          libelle={promptVide ? "Écrire avec l'agent" : "Réécrire avec l'agent"}
-                          demande={{ projectId: pid, portee: "asset", cible: { code: noeud.code }, profondeur: "courte", libelle: noeud.code }}
-                          titre="Demander à l'agent d'écrire ou de réécrire le prompt de cet asset"
-                        />
-                        <BoutonCopier texte={noeud.promptGeneration ?? ""} libelle="Copier le prompt" />
-                      </BlocTexte>
-
-                      <div className="as-gen-deux">
-                        <ReglagesAsset
-                          assetId={noeud.id}
-                          type={noeud.type}
-                          methodeGeneration={noeud.methodeGeneration}
-                          departCode={depart?.code ?? null}
-                          dureeSecondes={noeud.dureeSecondes ?? null}
-                          promptVide={promptVide}
-                        >
-                          <GenerationPanel
-                            assetId={noeud.id}
-                            code={noeud.code}
-                            type={noeud.type}
-                            methodeGeneration={noeud.methodeGeneration}
-                            parentCode={depart?.code ?? null}
-                            promptInitial={noeud.promptGeneration ?? ""}
-                            raisonBloquee={noeud.type === "sfx" ? raisonAudioNonGenerable(noeud.type) : raisonNonGenerable(noeud)}
-                            defauts={{ aspect: formatParDefaut(noeud.type).aspect, megapixels: formatParDefaut(noeud.type).megapixels, lora: loraParDefaut(noeud.type) && depart == null }}
-                            registre={registreImages}
-                            imageActuelle={imageActuelle(noeud)}
-                            dureeSecondes={noeud.dureeSecondes ?? null}
-                            generations={generationsImages}
-                            generationInitiale={generationBrute ?? null}
-                            simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
-                            libelleBouton={noeud.fichier ? (noeud.type === "sfx" ? "Régénérer le son…" : "Régénérer…") : noeud.type === "sfx" ? "Générer un son…" : "Générer…"}
-                            classeBouton="btn btn-gold"
-                          />
-                        </ReglagesAsset>
-                        {noeud.type === "sfx" ? null : <RendusAsset generations={generationsImages} plansRendus={noeud.fichier ? plansRendus : 0} />}
-                      </div>
-                    </div>
-                  </section>
+                        <button type="submit" className="x" title="Délier de ce plan" aria-label="Délier de ce plan">
+                          <Icone nom="fermer" />
+                        </button>
+                      </form>
+                    </span>
+                  ))
+                ) : (
+                  <span className="aucun">Aucun plan ne l&rsquo;utilise encore.</span>
                 )}
-
-                {/* ---- Voix d'un personnage ---- */}
-                {noeud.type === "personnage" ? (
-                  <section id="as-voix" className="bf-section">
-                    <Titre titre="Voix" />
-                    <div className="as-carte-bloc">
-                      {voixPerso ? (
-                        <BlocVoix
-                          personnageId={noeud.id}
-                          nom={noeud.code.replace(/^CHAR_/, "").replace(/_/g, " ")}
-                          initial={{ description: voixPerso.description, repliqueBase: voixPerso.repliqueBase }}
-                          master={{ src: voixPerso.masterSrc, videoSrc: voixPerso.videoSrc, portraitSrc: voixPerso.portraitSrc }}
-                          generations={generations}
-                          generationInitiale={generationBrute ?? null}
-                        />
-                      ) : null}
-                    </div>
-                  </section>
-                ) : null}
               </div>
-            </div>
+            </EnteteAsset>
+
+            <OngletsAsset onglets={onglets} initial={initial} />
           </div>
         </FicheProvider>
       </main>

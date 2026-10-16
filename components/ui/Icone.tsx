@@ -1,30 +1,40 @@
 import {
+  AudioWaveform,
+  Box,
   Check,
+  Maximize2,
+  Clapperboard,
   ChevronsDownUp,
   ChevronsUpDown,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
+  Eraser,
+  Upload,
   Circle,
   CircleCheck,
   CircleX,
   Ellipsis,
+  Flame,
   GripVertical,
   Image as ImageIcone,
   LayoutGrid,
   List,
   LoaderCircle,
+  MapPin,
   Minus,
   Music,
   Pencil,
   Play,
   Plus,
   Search,
+  Shapes,
   Sparkles,
   Square,
   Trash2,
   TriangleAlert,
+  User,
   X,
   type LucideProps,
 } from "lucide-react";
@@ -60,9 +70,30 @@ const ICONES = {
   grille: LayoutGrid,
   liste: List,
   gauche: ChevronLeft,
+  agrandir: Maximize2,
+  effacer: Eraser,
+  importer: Upload,
+  personnage: User,
+  decor: MapPin,
+  prop: Box,
+  effet: Flame,
+  son: AudioWaveform,
+  keyframe: Clapperboard,
+  autre: Shapes,
 } as const;
 
 export type NomIcone = keyof typeof ICONES;
+
+/** L'icône de chaque type d'asset (le type en dit la nature : un visage, un lieu, un objet, un effet, un son…). */
+export const ICONE_TYPE_ASSET: Record<string, NomIcone> = {
+  personnage: "personnage",
+  decor: "decor",
+  prop: "prop",
+  vfx: "effet",
+  sfx: "son",
+  keyframe: "keyframe",
+  oth: "autre",
+};
 
 export function Icone({ nom, taille = 16, className, ...reste }: { nom: NomIcone; taille?: number } & Omit<LucideProps, "size">) {
   const Composant = ICONES[nom];

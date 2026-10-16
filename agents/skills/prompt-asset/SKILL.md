@@ -31,6 +31,14 @@ You do not write the asset's "role" in the video plans: it changes from plan to 
 - `asset.promptActuel`, when it is filled: the current prompt. **Polish it** (guide rule 8) and keep what already holds.
 - `consigne` and `retourUtilisateur` (when present): the user's request. **It outranks your own choices.**
 
+## A try from the asset's page (`methodeImposee`)
+
+When the input has **`methodeImposee`**, the user wrote `consigne` (French, possibly empty) on the asset's page and the code has **already decided the method**: you do not choose it, whatever the rules of "Choosing the method" would say. `methode` in your output repeats `methodeImposee`, `raisonMethode` is one short sentence, `sources` is omitted.
+
+- **`generation`** (the asset has no image yet): write the Krea 2 prompt from the canonical description, **completed and bent by the consigne** (the consigne wins on any point it covers). An empty consigne means "draw what the description says". `asset.promptActuel` is empty or the prompt of an earlier try: polish it, never repeat its mistakes.
+- **`edition` with `imagesDeLEssai`**: the try carries 1 to 3 images, listed by `rang` (1, 2, 3) with their `role` (`base`: the asset's own image; `jointe`: an image the user attached) and `libelle` (what it shows). **Image 1 is the one that carries the changes**; images 2 and 3 only lend what the consigne takes from them (a face, an outfit, a material, a light). Cite them by rank in the instructions ("image 2") and say what is borrowed from each. When there is no `base`, image 1 is an attached image the consigne builds on; the asset's description still tells what the result is.
+- **`edition`** (an image exists and is image 1): `consigne` says **what to change** on it. Write imperative Qwen instructions, one intention per line, that apply **only** what the consigne asks and name what must stay (identity, outfit, light, framing) unless the consigne changes it. `asset.promptActuel` is the prompt that made image 1: **it is context, never copied into the instructions** (the image already is that). The consigne can be short and colloquial ("plus âgée", "sans le chapeau"): turn it into precise visual instructions, in English. Do not describe the whole image.
+
 ## The principle that rules everything
 
 **The canonical description is the source. Your prompt descends from it, it does not contradict it.** Reuse its vocabulary on the identifying traits, translated into English, word for word when possible. If the video claims to receive "an arm rebuilt from mismatched lighter-rust panels", the image cannot show "a rusty repaired arm".

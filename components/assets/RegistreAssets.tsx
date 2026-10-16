@@ -2,12 +2,13 @@
 
 import "./assets.css";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { supprimerAssets } from "@/app/assets/actions";
+import { supprimerAssets, validerAssets } from "@/app/assets/actions";
 import { lancerGenerationsLot } from "@/app/assets/generation-actions";
 import { useRouter } from "next/navigation";
 import { BoutonGenererImages, useEtatImages } from "@/components/images/ImagesProjet";
 import { Icone } from "@/components/ui/Icone";
 import type { EtatImages } from "@/lib/images-projet";
+import { filtresUtiles, plageDeCodes } from "@/lib/registre-filtres";
 import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/registre-types";
 import { AssetCard, LigneAsset } from "./AssetCard";
 
@@ -53,6 +54,7 @@ export function RegistreAssets({
   const [type, setType] = useState<string | null>(typeInitial);
   const [statut, setStatut] = useState<string>("");
   const [sansPlan, setSansPlan] = useState(false);
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
   const [vue, setVue] = useState<"grille" | "liste">("grille");
   const [choisis, setChoisis] = useState<Set<string>>(() => new Set());
   const [vient, setVient] = useState<string | null>(null);
@@ -60,6 +62,8 @@ export function RegistreAssets({
   const [retour, setRetour] = useState<Retour | null>(null);
   const [pending, startTransition] = useTransition();
   const rechercheRef = useRef<HTMLInputElement>(null);
+  /** Le dernier asset coché : borne de départ d'une sélection par plage (Maj+clic). */
+  const dernier = useRef<string | null>(null);
 
   const modeSelection = choisis.size > 0;
 
@@ -88,18 +92,32 @@ export function RegistreAssets({
   const nbAProduire = useMemo(() => lignes.filter((l) => l.statut === "a_produire").length, [lignes]);
   const compteStatut = (s: string) => lignes.filter((l) => l.statut === s).length;
 
-  const visibles = useMemo(() => {
-    const terme = q.trim().toLowerCase();
-    return lignes.filter(
-      (l) =>
-        (!type || l.type === type) &&
-        (!statut || l.statut === statut) &&
-        (!sansPlan || l.nbPlans === 0) &&
-        (!terme || l.code.toLowerCase().includes(terme) || (l.description ?? "").toLowerCase().includes(terme) || (LIBELLE_TYPE_ASSET[l.type] ?? "").toLowerCase().includes(terme)),
-    );
-  }, [lignes, q, type, statut, sansPlan]);
+  // Quels filtres ont un sens selon le nombre d'assets (lib/registre-filtres.ts) ; un filtre que le registre ne propose plus ne s'applique plus :
+  // on ne filtre jamais en cachette.
+  const utiles = useMemo(() => filtresUtiles(lignes), [lignes]);
+  const typeActif = utiles.types ? type : null;
+  const statutActif = utiles.avances ? statut : "";
+  const sansPlanActif = utiles.avances && sansPlan;
+  const termeActif = utiles.recherche ? q.trim().toLowerCase() : "";
 
-  const filtresActifs = q.trim() !== "" || type != null || statut !== "" || sansPlan;
+  const visibles = useMemo(
+    () =>
+      lignes.filter(
+        (l) =>
+          (!typeActif || l.type === typeActif) &&
+          (!statutActif || l.statut === statutActif) &&
+          (!sansPlanActif || l.nbPlans === 0) &&
+          (!termeActif ||
+            l.code.toLowerCase().includes(termeActif) ||
+            l.libelle.toLowerCase().includes(termeActif) ||
+            (l.description ?? "").toLowerCase().includes(termeActif) ||
+            (LIBELLE_TYPE_ASSET[l.type] ?? "").toLowerCase().includes(termeActif)),
+      ),
+    [lignes, typeActif, statutActif, sansPlanActif, termeActif],
+  );
+
+  const filtresActifs = termeActif !== "" || typeActif != null || statutActif !== "" || sansPlanActif;
+  const nbFiltresAvances = (statutActif !== "" ? 1 : 0) + (sansPlanActif ? 1 : 0);
   const toutEffacer = () => {
     setQ("");
     setType(null);
@@ -123,16 +141,27 @@ export function RegistreAssets({
     setVient(null);
   }, []);
 
-  const basculer = (code: string) => {
+  const toutSelectionner = () => {
+    setConfirmer(false);
+    setVient(null);
+    setChoisis(new Set(visibles.map((l) => l.code)));
+  };
+
+  const basculer = (code: string, plage = false) => {
     setConfirmer(false);
     const suite = new Set(choisis);
-    if (suite.has(code)) {
+    if (plage && dernier.current && dernier.current !== code) {
+      // Maj+clic : tout ce qui sépare le dernier asset coché de celui-ci, dans l'ordre d'affichage.
+      for (const c of plageDeCodes(visibles.map((l) => l.code), dernier.current, code)) suite.add(c);
+      setVient(code);
+    } else if (suite.has(code)) {
       suite.delete(code);
       setVient(null);
     } else {
       suite.add(code);
       setVient(code);
     }
+    dernier.current = code;
     setChoisis(suite);
   };
 
@@ -198,9 +227,11 @@ export function RegistreAssets({
       return;
     }
     if (e.ctrlKey || e.metaKey) return; // nouvel onglet : comportement du navigateur
-    if (modeSelection || e.shiftKey) {
+    // La coche de la carte, Maj+clic, ou n'importe quel clic une fois en sélection : on coche au lieu d'ouvrir la fiche.
+    const surCoche = (e.target as HTMLElement).closest(".as-coche") != null;
+    if (surCoche || modeSelection || e.shiftKey) {
       e.preventDefault();
-      basculer(code);
+      basculer(code, e.shiftKey);
     }
   };
 
@@ -220,11 +251,14 @@ export function RegistreAssets({
         rechercheRef.current?.focus();
       } else if (e.key === "Escape" && !dansChamp) {
         sortirSelection();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a" && !dansChamp && modeSelection) {
+        e.preventDefault();
+        setChoisis(new Set(visibles.map((l) => l.code)));
       }
     };
     document.addEventListener("keydown", touche);
     return () => document.removeEventListener("keydown", touche);
-  }, [sortirSelection]);
+  }, [sortirSelection, modeSelection, visibles]);
 
   // Retour d'une action en lot : visible quelques secondes dans la barre, puis disparaît.
   useEffect(() => {
@@ -239,6 +273,8 @@ export function RegistreAssets({
   const ecartes = selection.filter((l) => raisonEcarte(l) != null);
   const supprimables = selection.filter((l) => l.blocageSuppression == null);
   const bloques = selection.filter((l) => l.blocageSuppression != null);
+  /** Ce qui peut être validé : un fichier présent, pas encore validé. */
+  const validables = selection.filter((l) => l.statut === "en_cours");
 
   const generer = () =>
     startTransition(async () => {
@@ -249,6 +285,13 @@ export function RegistreAssets({
       }
       const ecartesServeur = r.ecartes.length ? ` · ${r.ecartes.length} écartée${r.ecartes.length > 1 ? "s" : ""} : ${r.ecartes.map((e) => `${e.code} (${e.raison})`).join(" ; ")}` : "";
       setRetour({ ok: true, texte: `${r.lancees} génération${r.lancees > 1 ? "s" : ""} en file${ecartesServeur}` });
+      sortirSelection();
+    });
+
+  const valider = () =>
+    startTransition(async () => {
+      const r = await validerAssets(validables.map((l) => l.id));
+      setRetour({ ok: true, texte: `${r.valides} asset${r.valides > 1 ? "s" : ""} validé${r.valides > 1 ? "s" : ""}` });
       sortirSelection();
     });
 
@@ -275,43 +318,40 @@ export function RegistreAssets({
         </div>
       ) : null}
       <div className="as-outils" role="search">
-        <label className="as-recherche">
-          <Icone nom="recherche" taille={16} />
-          <input
-            ref={rechercheRef}
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Chercher un asset, une description…"
-            aria-label="Chercher un asset"
-            autoComplete="off"
-          />
-          <kbd aria-hidden="true">/</kbd>
-        </label>
+        {utiles.recherche ? (
+          <label className="as-recherche">
+            <Icone nom="recherche" taille={16} />
+            <input
+              ref={rechercheRef}
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Chercher un asset, une description…"
+              aria-label="Chercher un asset"
+              autoComplete="off"
+            />
+            <kbd aria-hidden="true">/</kbd>
+          </label>
+        ) : null}
 
-        <div className="as-puces" role="group" aria-label="Filtrer par type">
-          <button type="button" className="as-puce" aria-pressed={type == null} onClick={() => setType(null)}>
-            Tous <em>{lignes.length}</em>
-          </button>
-          {typesPresents.map((t) => (
-            <button key={t} type="button" className="as-puce" aria-pressed={type === t} onClick={() => setType(type === t ? null : t)}>
-              {LIBELLE_TYPE_ASSET[t] ?? t} <em>{compteurType(t)}</em>
+        {utiles.types ? (
+          <div className="as-puces" role="group" aria-label="Filtrer par type">
+            <button type="button" className="as-puce" aria-pressed={type == null} onClick={() => setType(null)}>
+              Tous <em>{lignes.length}</em>
             </button>
-          ))}
-        </div>
+            {typesPresents.map((t) => (
+              <button key={t} type="button" className="as-puce" aria-pressed={type === t} onClick={() => setType(type === t ? null : t)}>
+                {LIBELLE_TYPE_ASSET[t] ?? t} <em>{compteurType(t)}</em>
+              </button>
+            ))}
+          </div>
+        ) : null}
 
-        <select className="as-select" value={statut} onChange={(e) => setStatut(e.target.value)} aria-label="Filtrer par statut">
-          <option value="">Tous les statuts</option>
-          {(["a_produire", "en_cours", "valide"] as const).map((s) => (
-            <option key={s} value={s}>
-              {LIBELLE_STATUT[s]} ({compteStatut(s)})
-            </option>
-          ))}
-        </select>
-
-        <button type="button" className="as-puce" aria-pressed={sansPlan} onClick={() => setSansPlan(!sansPlan)} title="Assets qu'aucune fiche de plan ne cite : ce qu'on peut nettoyer">
-          Sans plan <em>{nbSansPlan}</em>
-        </button>
+        {utiles.avances ? (
+          <button type="button" className="as-puce as-filtres-bouton" aria-pressed={filtresOuverts || nbFiltresAvances > 0} aria-expanded={filtresOuverts} onClick={() => setFiltresOuverts(!filtresOuverts)}>
+            Filtres {nbFiltresAvances > 0 ? <em>{nbFiltresAvances}</em> : null}
+          </button>
+        ) : null}
 
         <div className="as-vues" role="group" aria-label="Affichage">
           <button type="button" aria-pressed={vue === "grille"} onClick={() => changerVue("grille")} aria-label="Grille" title="Grille">
@@ -323,9 +363,29 @@ export function RegistreAssets({
         </div>
       </div>
 
+      {utiles.avances && filtresOuverts ? (
+        <div className="as-filtres-plus" role="group" aria-label="Filtres avancés">
+          <select className="as-select" value={statut} onChange={(e) => setStatut(e.target.value)} aria-label="Filtrer par statut">
+            <option value="">Tous les statuts</option>
+            {(["a_produire", "en_cours", "valide"] as const).map((s) => (
+              <option key={s} value={s}>
+                {LIBELLE_STATUT[s]} ({compteStatut(s)})
+              </option>
+            ))}
+          </select>
+          <button type="button" className="as-puce" aria-pressed={sansPlan} onClick={() => setSansPlan(!sansPlan)} title="Assets qu'aucune fiche de plan ne cite : ce qu'on peut nettoyer">
+            Sans plan <em>{nbSansPlan}</em>
+          </button>
+        </div>
+      ) : null}
+
       <p className="as-astuce">
-        Clic pour ouvrir la fiche · <b style={{ fontWeight: 500, color: "var(--ink-3)" }}>clic long</b> (ou <kbd>Maj</kbd>+clic, ou <kbd>Espace</kbd>) pour sélectionner plusieurs assets
-        {" · "}
+        {lignes.length > 1 ? (
+          <>
+            Clic pour ouvrir la fiche · la <b style={{ fontWeight: 500, color: "var(--ink-3)" }}>coche</b> d&rsquo;une carte (ou un clic long) pour en sélectionner plusieurs, <kbd>Maj</kbd>+clic pour une plage
+            {" · "}
+          </>
+        ) : null}
         <span className="num" style={{ fontFamily: "var(--font-mono), monospace" }}>
           {visibles.length === lignes.length ? `${lignes.length} sujet${lignes.length > 1 ? "s" : ""}` : `${visibles.length} sur ${lignes.length}`}
           {nbAProduire > 0 ? `, ${nbAProduire} à produire` : ""}
@@ -370,7 +430,7 @@ export function RegistreAssets({
         ) : (
           <div className={`as-liste${modeSelection ? " is-selection" : ""}`}>
             <div className="as-ligne as-tete" aria-hidden="true">
-              {modeSelection ? <span /> : null}
+              <span />
               <span />
               <span>Code</span>
               <span className="as-cache-s">Type</span>
@@ -379,7 +439,7 @@ export function RegistreAssets({
               <span className="as-cache-s">Voix</span>
             </div>
             {visibles.map((l) => (
-              <LigneAsset key={l.id} ligne={l} href={href(l)} choisi={choisis.has(l.code)} vient={vient === l.code} onActiver={surActivation} modeSelection={modeSelection} />
+              <LigneAsset key={l.id} ligne={l} href={href(l)} choisi={choisis.has(l.code)} vient={vient === l.code} onActiver={surActivation} />
             ))}
           </div>
         )}
@@ -440,8 +500,16 @@ export function RegistreAssets({
                 </span>
               </div>
               <div className="as-lot-actions">
+                {choisis.size < visibles.length ? (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={toutSelectionner} disabled={pending}>
+                    Tout ({visibles.length})
+                  </button>
+                ) : null}
                 <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmer(true)} disabled={pending || supprimables.length === 0}>
                   {supprimables.length ? `Supprimer ${supprimables.length}` : "Rien à supprimer"}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={valider} disabled={pending || validables.length === 0} title="Marque comme validées les images déjà là (un fichier présent, pas encore validé)">
+                  <Icone nom="valide" taille={14} /> {validables.length ? `Valider ${validables.length}` : "Rien à valider"}
                 </button>
                 <button type="button" className="btn btn-gold btn-sm" onClick={generer} disabled={pending || partants.length === 0}>
                   {pending ? "…" : partants.length ? `Générer ${partants.length} image${partants.length > 1 ? "s" : ""}` : "Rien à générer"}

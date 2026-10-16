@@ -2,17 +2,12 @@
 
 import "./assets.css";
 import "@/components/brief/brief.css";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useRef, useState, useTransition, type ReactNode, type RefObject } from "react";
-import { modifierChampAsset, supprimerAsset, updateAssetStatut } from "@/app/assets/actions";
-import { adopterGeneration, supprimerGeneration } from "@/app/assets/generation-actions";
-import { BoutonAgent } from "@/components/agents/BoutonAgent";
-import { Icone } from "@/components/ui/Icone";
-import { CANDIDATS_GARDES } from "@/lib/asset-generation";
+import { createContext, useCallback, useContext, useEffect, useState, useTransition, type ReactNode } from "react";
+import { definirValidation, modifierChampAsset, renommerAsset, supprimerAsset } from "@/app/assets/actions";
+import { dupliquerAsset, retirerImageAsset } from "@/app/assets/essai-actions";
+import { ICONE_TYPE_ASSET, Icone } from "@/components/ui/Icone";
 import { LIBELLE_METHODE, methodeApplicable } from "@/lib/assetCode";
-import { urlMiniature } from "@/lib/miniatures";
-import type { GenerationVue } from "@/lib/queries-generations";
 import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/registre-types";
 
 /* ---------------------------------------------------------------------------------------------------------------
@@ -143,36 +138,85 @@ export function BlocTexte({
   );
 }
 
-/** Ferme un menu au clic ailleurs et sur Échap. */
-function useFermetureExterieure(ref: RefObject<HTMLElement | null>, ouvert: boolean, fermer: () => void) {
-  useEffect(() => {
-    if (!ouvert) return;
-    const dehors = (e: Event) => {
-      if (!ref.current?.contains(e.target as Node)) fermer();
-    };
-    const echap = (e: KeyboardEvent) => e.key === "Escape" && fermer();
-    document.addEventListener("pointerdown", dehors);
-    document.addEventListener("keydown", echap);
-    return () => {
-      document.removeEventListener("pointerdown", dehors);
-      document.removeEventListener("keydown", echap);
-    };
-  }, [ouvert, fermer, ref]);
+
+/** Le titre de la fiche : le nom de l'asset (modifiable au clic). Renommer ne touche jamais au code (l'identifiant, affiché à côté du type). */
+function NomAsset({ assetId, libelle }: { assetId: number; libelle: string }) {
+  const router = useRouter();
+  const [edition, setEdition] = useState(false);
+  const [saisie, setSaisie] = useState(libelle);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [envoi, startTransition] = useTransition();
+
+  const enregistrer = () =>
+    startTransition(async () => {
+      if (saisie.trim() === libelle) return setEdition(false);
+      const r = await renommerAsset(assetId, saisie);
+      if (r.ok) {
+        setEdition(false);
+        router.refresh();
+      } else setErreur(r.erreur);
+    });
+
+  return (
+    <>
+      {edition ? (
+        <input
+          className="nom-champ"
+          value={saisie}
+          autoFocus
+          maxLength={120}
+          aria-label="Nom de l'asset"
+          onChange={(e) => setSaisie(e.target.value)}
+          onBlur={enregistrer}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") enregistrer();
+            else if (e.key === "Escape") {
+              setSaisie(libelle);
+              setEdition(false);
+            }
+          }}
+          disabled={envoi}
+        />
+      ) : (
+        <button
+          type="button"
+          className="nom-btn"
+          title="Renommer (l'identifiant ne change pas)"
+          onClick={() => {
+            setSaisie(libelle);
+            setErreur(null);
+            setEdition(true);
+          }}
+        >
+          <h1>{libelle}</h1>
+          <span className="crayon">
+            <Icone nom="modifier" taille={18} />
+          </span>
+        </button>
+      )}
+      {erreur ? (
+        <span className="bf-erreur" role="alert">
+          {erreur}
+        </span>
+      ) : null}
+    </>
+  );
 }
 
 /* ---------------------------------------------------------------------------------------------------------------
-   En-tête : code, type, criticité, statut, agent, actions — et la description, modifiable au clic.
+   En-tête : type et identifiant, nom, état (calculé), actions — toutes visibles —, description, apparitions.
    --------------------------------------------------------------------------------------------------------------- */
 
 export function EnteteAsset({
   projectId,
   assetId,
   code,
+  libelle,
   type,
   statut,
   critique,
   description,
-  departCode,
+  aImage,
   blocageSuppression,
   redirectTo,
   children,
@@ -182,54 +226,34 @@ export function EnteteAsset({
   projectId: number;
   assetId: number;
   code: string;
+  /** Le nom affiché (label, sinon le code lisible). */
+  libelle: string;
   type: string;
   statut: LigneRegistre["statut"];
   critique: boolean;
   description: string;
-  /** Asset dont l'image sert de départ à celui-ci, ou null. */
-  departCode: string | null;
+  /** L'asset a un fichier (on peut le retirer). */
+  aImage: boolean;
   /** Pourquoi la suppression est bloquée, ou null. */
   blocageSuppression: string | null;
   redirectTo: string;
 }) {
   const router = useRouter();
-  const [crit, setCrit] = useState(critique);
-  const [statutLocal, setStatutLocal] = useState(statut);
-  const [menu, setMenu] = useState<"statut" | "plus" | null>(null);
-  const [confirmer, setConfirmer] = useState(false);
+  const [confirmer, setConfirmer] = useState<"supprimer" | "retirer" | null>(null);
+  const [reflet, setReflet] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const statutRef = useRef<HTMLDivElement>(null);
-  const plusRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => setCrit(critique), [critique]);
-  useEffect(() => setStatutLocal(statut), [statut]);
-
-  const fermerStatut = useCallback(() => setMenu((m) => (m === "statut" ? null : m)), []);
-  const fermerPlus = useCallback(() => {
-    setMenu((m) => (m === "plus" ? null : m));
-    setConfirmer(false);
-  }, []);
-  useFermetureExterieure(statutRef, menu === "statut", fermerStatut);
-  useFermetureExterieure(plusRef, menu === "plus", fermerPlus);
-
-  const basculerCritique = () => {
-    const suivant = !crit;
-    setCrit(suivant);
+  // Le statut se calcule ; seule la validation se décide (et l'import d'un fichier vaut validation).
+  const basculerValidation = () =>
     startTransition(async () => {
-      const r = await modifierChampAsset(assetId, { critique: suivant });
-      if (!r.ok) {
-        setCrit(!suivant);
-        setErreur(r.erreur);
-      }
+      const valider = statut !== "valide";
+      const r = await definirValidation(assetId, valider);
+      if (r.ok) {
+        setReflet(valider);
+        router.refresh();
+      } else setErreur(r.erreur);
     });
-  };
-
-  const choisirStatut = (s: LigneRegistre["statut"]) => {
-    setMenu(null);
-    setStatutLocal(s);
-    startTransition(() => updateAssetStatut(assetId, s));
-  };
 
   const supprimer = () =>
     startTransition(async () => {
@@ -238,84 +262,106 @@ export function EnteteAsset({
       else setErreur(r.erreur);
     });
 
-  return (
-    <section id="as-haut" className="as-haut">
-      <div className="as-titre-ligne">
-        <h1>{code}</h1>
-        <span className="as-etiquette">{LIBELLE_TYPE_ASSET[type] ?? type}</span>
-        {departCode ? (
-          <Link className="as-etiquette" href={`/p/${projectId}/assets/${departCode}`} title="L'image de cet asset est partie de celle-ci" style={{ color: "var(--or-glow)", borderColor: "var(--or-soft)", textDecoration: "none" }}>
-            à partir de {departCode}
-          </Link>
-        ) : null}
-        <button type="button" className="as-critique" aria-pressed={crit} onClick={basculerCritique} title="Un asset critique est signalé en rouge dans le registre">
-          <i />
-          {crit ? "Critique" : "Marquer critique"}
-        </button>
+  const dupliquer = () =>
+    startTransition(async () => {
+      const r = await dupliquerAsset(assetId);
+      if (r.ok) router.push(`/p/${projectId}/assets/${r.code}`);
+      else setErreur(r.erreur);
+    });
 
-        <div className="as-droite">
-          <div className="as-menu" ref={statutRef}>
-            <button type="button" className={`as-pilule is-${statutLocal}`} aria-haspopup="menu" aria-expanded={menu === "statut"} onClick={() => setMenu(menu === "statut" ? null : "statut")}>
-              <i />
-              {LIBELLE_STATUT[statutLocal]}
-              <Icone nom="bas" taille={13} />
-            </button>
-            {menu === "statut" ? (
-              <div className="as-popover" role="menu">
-                {(["a_produire", "en_cours", "valide"] as const).map((s) => (
-                  <button key={s} type="button" role="menuitem" className={`as-option is-${s}`} onClick={() => choisirStatut(s)}>
-                    <i />
-                    {LIBELLE_STATUT[s]}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <BoutonAgent
-            className="btn btn-gold btn-sm"
-            demande={{ projectId, portee: "asset", cible: { code }, profondeur: "courte", libelle: code }}
-            titre="Demander à l'agent de réécrire la fiche ou le prompt de cet asset"
-          />
-          <div className="as-menu" ref={plusRef}>
-            <button type="button" className="btn btn-ghost btn-sm" aria-label="Plus d'actions" aria-haspopup="menu" aria-expanded={menu === "plus"} onClick={() => setMenu(menu === "plus" ? null : "plus")}>
-              <Icone nom="plus" taille={16} />
-            </button>
-            {menu === "plus" ? (
-              <div className="as-popover" role="menu">
-                {confirmer ? (
-                  <div className="as-confirm">
-                    <span>Supprimer définitivement {code} ?</span>
-                    <div>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmer(false)} disabled={pending}>
-                        Annuler
-                      </button>
-                      <button type="button" className="btn btn-danger btn-sm" onClick={supprimer} disabled={pending}>
-                        {pending ? "…" : "Supprimer"}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button type="button" role="menuitem" className="as-option is-danger" disabled={blocageSuppression != null} onClick={() => setConfirmer(true)}>
-                    <Icone nom="supprimer" taille={15} />
-                    <span>
-                      Supprimer
-                      {blocageSuppression ? <small>{blocageSuppression}</small> : null}
-                    </span>
-                  </button>
-                )}
-              </div>
-            ) : null}
-          </div>
+  const retirer = () =>
+    startTransition(async () => {
+      const r = await retirerImageAsset(assetId);
+      setConfirmer(null);
+      if (r.ok) router.refresh();
+      else setErreur(r.erreur);
+    });
+
+  return (
+    <section id="as-haut" className="tete" aria-label="Fiche de l'asset">
+      <div>
+        <div className="sur-titre">
+          <span className="type">
+            <Icone nom={ICONE_TYPE_ASSET[type] ?? "autre"} taille={14} />
+            {LIBELLE_TYPE_ASSET[type] ?? type}
+          </span>
+          <span className="code" title="Identifiant technique : il ne change pas, même si le nom change">
+            {code}
+          </span>
+        </div>
+        <div className="nom">
+          <NomAsset assetId={assetId} libelle={libelle} />
+        </div>
+        <div className="desc">
+          <BlocTexte assetId={assetId} champ="description" libelle="Description" valeur={description} nu vide="Aucune description. Clique pour en écrire une." />
         </div>
       </div>
-      {erreur ? (
-        <p className="bf-erreur" role="alert">
-          {erreur}
-        </p>
-      ) : null}
-      <div className="as-desc">
-        <BlocTexte assetId={assetId} champ="description" libelle="Description" valeur={description} nu vide="Aucune description. Clique pour en écrire une." />
+
+      <div className="etat-zone">
+        <div className="etats">
+          {critique ? (
+            <span className="critique" title="Cité par assez de plans d'un épisode pour qu'une retouche se voie partout">
+              <Icone nom="alerte" taille={13} />
+              Critique
+            </span>
+          ) : null}
+          <span key={`${statut}-${reflet}`} className={`pilule ${statut}${reflet && statut === "valide" ? " reflet" : ""}`}>
+            <i />
+            {LIBELLE_STATUT[statut]}
+          </span>
+        </div>
+        <div className="actions-tete">
+          {statut === "en_cours" ? (
+            <button type="button" className="btn btn-trait btn-sm" onClick={basculerValidation} disabled={pending}>
+              <Icone nom="valide" taille={15} /> Valider l&rsquo;image
+            </button>
+          ) : statut === "valide" ? (
+            <button type="button" className="btn btn-fant btn-sm" onClick={basculerValidation} disabled={pending}>
+              Retirer la validation
+            </button>
+          ) : null}
+          <button type="button" className="btn btn-fant btn-sm" onClick={dupliquer} disabled={pending} title="Une copie à retoucher sans toucher à l'original">
+            <Icone nom="copier" taille={15} /> Dupliquer
+          </button>
+          {aImage ? (
+            confirmer === "retirer" ? (
+              <span className="confirme-ligne">
+                <button type="button" className="btn btn-danger btn-sm" onClick={retirer} disabled={pending}>
+                  Retirer pour de bon
+                </button>
+                <button type="button" className="btn btn-fant btn-sm" onClick={() => setConfirmer(null)}>
+                  Garder
+                </button>
+              </span>
+            ) : (
+              <button type="button" className="btn btn-fant btn-sm" onClick={() => setConfirmer("retirer")} disabled={pending} title="Efface l'image : le prochain essai repartira de zéro">
+                <Icone nom="effacer" taille={15} /> Retirer l&rsquo;image
+              </button>
+            )
+          ) : null}
+          {confirmer === "supprimer" ? (
+            <span className="confirme-ligne">
+              <button type="button" className="btn btn-danger btn-sm" onClick={supprimer} disabled={pending}>
+                {pending ? "…" : `Supprimer ${code}`}
+              </button>
+              <button type="button" className="btn btn-fant btn-sm" onClick={() => setConfirmer(null)}>
+                Garder
+              </button>
+            </span>
+          ) : (
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmer("supprimer")} disabled={pending || blocageSuppression != null}>
+              <Icone nom="supprimer" taille={15} /> Supprimer
+            </button>
+          )}
+        </div>
+        {blocageSuppression ? <p className="refus">{blocageSuppression}</p> : null}
+        {erreur ? (
+          <p className="bf-erreur" role="alert">
+            {erreur}
+          </p>
+        ) : null}
       </div>
+
       {children}
     </section>
   );
@@ -424,85 +470,6 @@ export function ReglagesAsset({
         {children}
         <small>{promptVide ? "Écris d'abord un prompt." : "La fenêtre propose le mode, les images sources et le format."}</small>
       </div>
-    </div>
-  );
-}
-
-/** Les candidats déjà générés : on en adopte un (il remplace l'image et le prompt de l'asset) ou on le jette. La
- * provenance de chacun est dite : les images sources qui l'ont produit. */
-export function RendusAsset({ generations, plansRendus = 0 }: { generations: GenerationVue[]; plansRendus?: number }) {
-  const termines = generations.filter((g) => g.statut === "termine" && g.src);
-  const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  const adopter = (id: number) =>
-    startTransition(async () => {
-      const r = await adopterGeneration(id);
-      setRetour(
-        r.ok
-          ? {
-              ok: true,
-              texte: `Image et prompt adoptés : l'asset repasse « en cours », à revalider.${plansRendus ? ` ${plansRendus} plan${plansRendus > 1 ? "s" : ""} déjà rendu${plansRendus > 1 ? "s" : ""} ${plansRendus > 1 ? "sont périmés" : "est périmé"}.` : ""}`,
-            }
-          : { ok: false, texte: r.erreur },
-      );
-    });
-  const jeter = (id: number) =>
-    startTransition(async () => {
-      const r = await supprimerGeneration(id);
-      setRetour(r.ok ? null : { ok: false, texte: r.erreur });
-    });
-
-  return (
-    <div className="as-carte-bloc">
-      <div className="as-tete">
-        <span className="bf-etiquette">Candidats</span>
-        <span className="bf-aide">
-          {termines.length}/{CANDIDATS_GARDES}
-        </span>
-      </div>
-      {plansRendus > 0 && termines.length > 0 ? (
-        <p className="as-attention" role="note">
-          Adopter un candidat remplace l&rsquo;image : {plansRendus} plan{plansRendus > 1 ? "s" : ""} déjà rendu{plansRendus > 1 ? "s" : ""} avec elle ser{plansRendus > 1 ? "ont" : "a"} marqué{plansRendus > 1 ? "s" : ""} périmé{plansRendus > 1 ? "s" : ""}.
-        </p>
-      ) : null}
-      {termines.length === 0 ? (
-        <p className="bf-aide" style={{ fontSize: 14 }}>
-          Aucun candidat pour l&rsquo;instant. Chaque génération arrive ici : tu choisis lequel devient l&rsquo;image de l&rsquo;asset.
-        </p>
-      ) : (
-        <ul className="as-rendus">
-          {termines.map((g) => (
-            <li key={g.id}>
-              <span className="as-vignette">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={urlMiniature(g.src!, 192)} alt="" loading="lazy" decoding="async" />
-              </span>
-              <span className="as-d">
-                <span suppressHydrationWarning>{new Date(g.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                <small>
-                  {g.methode === "edition"
-                    ? `à partir de ${g.sources.length ? g.sources.join(" + ") : "images"}`
-                    : `${g.aspect} · ${String(g.megapixels).replace(".", ",")} MP · texte seul`}
-                </small>
-              </span>
-              <span className="as-acts">
-                <button type="button" className="btn btn-gold btn-sm" onClick={() => adopter(g.id)} disabled={pending}>
-                  Utiliser
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => jeter(g.id)} disabled={pending} aria-label="Supprimer ce candidat" title="Supprimer ce candidat">
-                  <Icone nom="supprimer" taille={14} />
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {retour ? (
-        <p className="as-retour" role={retour.ok ? "status" : "alert"} style={{ color: retour.ok ? "var(--or-glow)" : "var(--ecarlate-glow)" }}>
-          {retour.texte}
-        </p>
-      ) : null}
     </div>
   );
 }

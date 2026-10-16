@@ -1,0 +1,662 @@
+/* Fiche d'un asset — ce que le portage de la maquette ne reprend pas : la disposition (retours de l'utilisateur, 2026-10-15), la scène,
+   le journal d'essais, les onglets. Toujours limité au conteneur `.fa`.
+
+   Disposition : à gauche l'image (pas trop haute) et sa légende ; à droite, tout de suite sous les yeux, la consigne (la « discussion
+   avec l'agent ») puis le journal d'essais. Sur écran étroit : image, consigne, journal, légende. */
+
+.fa {
+  max-width: 1500px;
+  margin-inline: auto;
+}
+
+/* ---------- Voisins (précédent / suivant) ---------- */
+.fa .voisins {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-block: 4px 0;
+  font: 12.5px/1.2 var(--font-mono), monospace;
+}
+.fa .voisins a {
+  display: inline-flex;
+  max-width: 44vw;
+  padding: 5px 9px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--ink-3);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fa .voisins a:hover {
+  border-color: var(--line-strong);
+  color: var(--or-glow);
+}
+.fa .voisins .rang {
+  padding-inline: 6px;
+  color: var(--ink-4);
+}
+
+/* ---------- En-tête : plus compact, pour laisser la place à l'atelier ---------- */
+.fa .tete {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 32px;
+  align-items: start;
+  padding-block: 14px 16px;
+}
+.fa .nom-btn h1,
+.fa .nom-champ {
+  font-size: clamp(28px, 3.2vw, 42px);
+}
+.fa .desc {
+  margin-top: 8px;
+  max-width: 72ch;
+}
+.fa .desc .as-lecture {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.fa .etat-zone {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+.fa .etats,
+.fa .actions-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.fa .refus {
+  max-width: 34ch;
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-4);
+  text-align: right;
+}
+.fa .confirme-ligne {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.fa .apparus {
+  grid-column: 1 / -1;
+}
+.fa .citation form {
+  display: inline-flex;
+  margin: 0;
+}
+
+/* ---------- Onglets ---------- */
+.fa .onglets {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.fa .onglet {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -1px;
+  padding: 10px 18px 11px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-3);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.25s var(--ease), border-color 0.25s var(--ease), background 0.25s var(--ease);
+}
+.fa .onglet svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ink-4);
+  transition: color 0.25s var(--ease), transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.fa .onglet:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+.fa .onglet[aria-selected="true"] {
+  color: var(--or-glow);
+  border-bottom-color: var(--or-glow);
+}
+.fa .onglet[aria-selected="true"] svg {
+  color: var(--or-glow);
+  transform: scale(1.15);
+}
+.fa .onglet .compte {
+  margin: 0;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--surface-3);
+  font: 11.5px/18px var(--font-mono), monospace;
+  color: var(--ink-3);
+}
+.fa .onglet .point {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--or-glow);
+  box-shadow: 0 0 8px var(--or-glow);
+}
+.fa .panneau {
+  animation: fa-monte 0.35s var(--ease-out) both;
+}
+.fa .panneau[hidden] {
+  display: none;
+}
+
+/* ---------- Atelier ---------- */
+.fa .atelier {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+  gap: 20px;
+  align-items: start;
+}
+.fa .atelier-g,
+.fa .atelier-d {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.fa .atelier-d {
+  position: sticky;
+  top: 12px;
+}
+.fa .outils {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fa .outils h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-right: auto;
+  font: 400 18px/1.2 var(--font-brand), serif;
+}
+.fa .outils h2 small {
+  font: 13px var(--font-data), sans-serif;
+  color: var(--ink-4);
+}
+
+/* ---------- Scène : l'image dans son passe-partout (pas trop haute) ---------- */
+.fa .scene {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: clamp(260px, 42vh, 480px);
+  padding: clamp(18px, 3vw, 40px);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  isolation: isolate;
+  background: radial-gradient(55% 65% at 50% 46%, color-mix(in srgb, var(--teinte) 26%, transparent), transparent 72%), radial-gradient(120% 80% at 50% 110%, rgba(0, 0, 0, 0.6), transparent 60%), var(--film);
+  transition: background 0.8s var(--ease);
+}
+.fa .scene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.5;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 4px 4px;
+  pointer-events: none;
+}
+.fa .scene.valide {
+  box-shadow: inset 0 0 0 1px rgba(201, 162, 75, 0.35);
+}
+.fa .passe .zoom-image {
+  display: block;
+  max-width: 100%;
+  max-height: min(38vh, 420px);
+  width: auto;
+  height: auto;
+  cursor: zoom-in;
+}
+.fa .boite {
+  max-height: min(38vh, 420px);
+}
+.fa .scene.valide .passe {
+  border-color: var(--or-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 34px 70px -30px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(201, 162, 75, 0.25), 0 0 70px -26px rgba(240, 208, 137, 0.55);
+}
+.fa .passe .zoom-image,
+.fa .scene .passe {
+  transition: opacity 0.2s;
+}
+
+/* ---------- Légende (sous l'image) ---------- */
+.fa .legende {
+  margin: 0;
+}
+
+/* ---------- Consigne : sous les yeux dès l'arrivée ---------- */
+.fa .consigne textarea {
+  min-height: 92px;
+}
+.fa .consigne .retour {
+  margin: 0;
+  font-size: 13px;
+  animation: fa-monte 0.3s var(--ease-out);
+}
+.fa .consigne .retour.ko {
+  color: var(--ecarlate-glow);
+}
+.fa .consigne .retour.ok {
+  color: var(--or-glow);
+}
+
+/* ---------- Journal d'essais, sous la consigne ---------- */
+.fa .journal {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(48vh, 480px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.fa .j-liste {
+  flex: 1;
+  min-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.fa .j-item {
+  cursor: pointer;
+}
+
+/* ---------- Plein écran ---------- */
+.fa .zoom-dialog {
+  max-width: 96vw;
+  max-height: 96vh;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+.fa .zoom-dialog::backdrop {
+  background: rgba(6, 6, 9, 0.92);
+  backdrop-filter: blur(6px);
+}
+.fa .zoom-dialog img {
+  display: block;
+  max-width: 96vw;
+  max-height: 92vh;
+  box-shadow: 0 40px 80px -30px #000;
+}
+.fa .zoom-dialog .fermer {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+}
+
+/* ---------- Voix et son : contenu des autres onglets ---------- */
+.fa .carte-onglet {
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+}
+
+/* ---------- Écrans étroits ---------- */
+@media (max-width: 980px) {
+  .fa .tete {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fa .etat-zone,
+  .fa .etats,
+  .fa .actions-tete {
+    justify-items: start;
+    justify-content: flex-start;
+  }
+  .fa .refus {
+    text-align: left;
+  }
+  .fa .atelier {
+    display: flex;
+    flex-direction: column;
+  }
+  .fa .atelier-g,
+  .fa .atelier-d {
+    display: contents;
+  }
+  .fa .outils {
+    order: 1;
+  }
+  .fa .scene {
+    order: 2;
+  }
+  .fa .consigne {
+    order: 3;
+  }
+  .fa .journal {
+    order: 4;
+    max-height: none;
+  }
+  .fa .legende {
+    order: 5;
+  }
+  .fa .j-liste {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    gap: 6px;
+    padding: 10px;
+  }
+  .fa .j-sep,
+  .fa .j-pied {
+    display: none;
+  }
+  .fa .j-item {
+    width: 86px;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 5px;
+    scroll-snap-align: start;
+  }
+  .fa .j-item .vign {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+  .fa .j-txt,
+  .fa .j-l1 .quand {
+    display: none;
+  }
+  .fa .j-l1 {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+@media (max-width: 520px) {
+  .fa .scene {
+    min-height: 220px;
+  }
+  .fa .consigne {
+    padding: 16px;
+  }
+  .fa .envoi .compte {
+    margin-left: 0;
+  }
+  .fa .onglet {
+    padding-inline: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fa .panneau,
+  .fa .consigne .retour {
+    animation: none;
+  }
+}
+
+/* La boîte (état vide, travail, échec) suit la hauteur de la scène : sa largeur découle de son format. */
+.fa .boite {
+  width: auto;
+  height: min(38vh, 420px);
+  max-width: 100%;
+}
+.fa .boite.vierge {
+  width: min(100%, 560px);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  max-height: min(38vh, 420px);
+}
+
+/* ---------- Essai en travail ou échoué : l'image remplit toute la scène (pas de passe-partout) ---------- */
+.fa .scene .boite.plein {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  height: auto;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}
+.fa .scene .boite.plein .flou {
+  transform: scale(1.12);
+}
+.fa .scene .boite.plein.echec {
+  display: grid;
+  place-items: center;
+}
+
+/* ---------- Images jointes à la consigne (jusqu'à 3 pour créer, base + 1 pour retoucher) ---------- */
+.fa .jt {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+.fa .jt-rang {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fa .jt-case {
+  position: relative;
+  margin: 0;
+  width: 92px;
+  height: 92px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+}
+.fa .jt-case img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fa .jt-case figcaption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 14px 6px 4px;
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: var(--ink-2);
+  background: linear-gradient(transparent, rgba(8, 8, 12, 0.85));
+}
+.fa .jt-case figcaption b {
+  color: var(--or-glow);
+  font-family: var(--font-mono);
+  margin-right: 2px;
+}
+.fa .jt-case.base {
+  border-color: var(--or-soft);
+}
+.fa .jt-case.libre,
+.fa .jt-case.vide {
+  border-style: dashed;
+  background: transparent;
+}
+.fa .jt-case.libre {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 6px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  text-align: center;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.fa .jt-case.libre:hover:not(:disabled),
+.fa .jt-case.libre[aria-expanded="true"] {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
+  background: rgba(201, 162, 75, 0.06);
+}
+.fa .jt-x,
+.fa .jt-un {
+  position: absolute;
+  top: 4px;
+  display: grid;
+  place-items: center;
+  height: 20px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(8, 8, 12, 0.72);
+  color: var(--ink-2);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.fa .jt-x {
+  right: 4px;
+  width: 20px;
+}
+.fa .jt-un {
+  left: 4px;
+  padding: 0 6px;
+  font-size: 10.5px;
+}
+.fa .jt-case:hover .jt-x,
+.fa .jt-case:hover .jt-un,
+.fa .jt-x:focus-visible,
+.fa .jt-un:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .fa .jt-x,
+  .fa .jt-un {
+    opacity: 1;
+  }
+}
+.fa .jt-x:hover,
+.fa .jt-un:hover {
+  background: var(--ecarlate);
+  color: #fff;
+}
+.fa .jt-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(420px, 100%);
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: 0 24px 50px -18px #000;
+  animation: fa-monte 0.2s var(--ease-out);
+}
+.fa .jt-import {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+.fa .jt-import:hover {
+  border-color: var(--or-soft);
+}
+.fa .jt-titre {
+  margin: 4px 2px 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.fa .jt-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 6px;
+  max-height: 232px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.fa .jt-vign {
+  display: grid;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-3);
+  font-size: 10.5px;
+  text-align: center;
+  cursor: pointer;
+}
+.fa .jt-vign img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.fa .jt-vign span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fa .jt-vign:hover:not(:disabled) {
+  border-color: var(--or-soft);
+  color: var(--ink);
+}
+.fa .jt-vign:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---------- Onglet « Voix » : même atelier que l'image ---------- */
+.fa .atelier-voix {
+  --teinte: var(--or-soft);
+}
+.fa .passe video {
+  display: block;
+  max-width: 100%;
+  max-height: min(38vh, 420px);
+  background: #08080b;
+}
+.fa .consigne .bv-sous {
+  margin-top: 6px;
+}
+.fa .consigne .bv-sous b {
+  font-size: 19px;
+}
+.fa .consigne textarea {
+  font-size: 16px;
+}
+.fa .bv-idee {
+  display: flex;
+}
+.fa .legende audio {
+  width: 100%;
+  height: 38px;
+}
+.fa .travail progress {
+  width: 100%;
+}
