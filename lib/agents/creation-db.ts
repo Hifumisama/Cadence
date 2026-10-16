@@ -16,6 +16,7 @@ import {
   type ObservationEtape,
   type StatutCreation,
 } from "./creation";
+import { lancerImagesPretes } from "../images-auto";
 import { tacheActive } from "./runs";
 import * as service from "./service";
 import type { Resultat } from "./types";
@@ -116,6 +117,10 @@ export async function piloterCreations(options: { essais?: boolean } = {}): Prom
   for (const c of enCours) {
     try {
       if (await avancer(c)) touchees += 1;
+      // Les images dont le prompt est écrit partent tout de suite (voie ComfyUI), pendant que le LLM continue les étapes.
+      // Ce passage suit `avancer` : les prompts que l'étape qui vient de finir a écrits partent dans le même tour, y compris
+      // ceux de la dernière étape.
+      if ((await lancerImagesPretes(c.projectId)) > 0) touchees += 1;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[worker] Création du projet ${c.projectId} : ${message}`);

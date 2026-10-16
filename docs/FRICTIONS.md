@@ -2423,3 +2423,11 @@ Décisions de l'utilisateur, prises en revue du registre (*révisent* F01 : « s
 - **Plus de déchargement entre voies** en mode `paralleles` (défaut). `WORKER_VOIES=serie` rétablit l'ancien fonctionnement (une boucle, une tâche à la fois, déchargement au changement de domaine) : repli si la tenue en charge est mauvaise.
 - **À mesurer** (journal `JOURNAL_WORKER=1`) : les deux voies sous charge simultanée (durées d'une image et d'un `plan-h3` en parallèle comparées aux durées en série). Non fait.
 - **Suite prévue** : déclenchement par dépendances (images dès qu'un asset a son prompt, étapes `prompts-*` sans attendre les étapes intermédiaires) ; prévisualisation automatique écartée pour l'instant (vidéo longue, bloque la voie ComfyUI).
+
+### 2026-10-17 — Les images de référence partent toutes seules pendant la création d'un projet
+
+- **Décision** : tant qu'une création (installateur) est en cours, chaque tour du pilote met en file les images des assets qui ont un prompt et pas d'image (`lib/images-auto.ts`, appelé par `piloterCreations`). Plus besoin du bouton « générer les images » pour un projet qu'on crée ; il reste pour tout le reste (retouches, itérations, regénération).
+- **Même lot que le bouton** : prompt et format par défaut du type, adoption automatique, assets déjà en file sautés, plafond de 30 images en attente. Un dérivé en édition part au tour suivant l'adoption de l'image de son master (le lot est relancé à chaque tour).
+- **Pourquoi seulement pendant la création** : un asset sans image mais avec prompt n'est pas toujours une demande (retouche en cours, image supprimée exprès) ; hors création, rien ne part sans geste.
+- **Limite connue** : les prompts n'existent en base qu'à l'application d'une étape (registre, prompts-inventaire, prompts-fiches), pas à la fin de chaque sous-tâche. Les images du registre partent donc dès l'étape « registre » appliquée, pendant que l'inventaire tourne sur la voie LLM ; celles de l'inventaire attendent la fin de leur lot de prompts. Pour les lancer au fil de l'eau, il faudrait appliquer par sous-tâche (à décider).
+- **Pas fait** : prévisualisations vidéo automatiques (écartées pour l'instant) ; itérations (même mécanisme possible, à brancher quand on décide ce qui part tout seul).

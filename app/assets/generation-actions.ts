@@ -24,6 +24,7 @@ import { annulerTraductionEssai } from "@/lib/agents/essai-asset";
 import { styleDesImages } from "@/lib/conception";
 import { horsAffiches } from "@/lib/assets-visibles";
 import { adopterCandidat } from "@/lib/generation-adoption";
+import { poserGeneration, poserGenerationsLot, type ResultatLancement } from "@/lib/generation-lancement";
 import { idsSansImage } from "@/lib/images-projet";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "@/lib/generation-lot";
 import { supprimerGenerationEtFichiers } from "@/lib/generation-sources";
@@ -48,7 +49,7 @@ import {
 type Resultat = { ok: true } | { ok: false; erreur: string };
 
 /** `position` : 1 = la génération part tout de suite ; n = n-1 tâches passent devant. */
-type ResultatLancement = { ok: true; position: number } | { ok: false; erreur: string };
+
 
 const EXTENSIONS_IMPORT = [".png", ".jpg", ".jpeg", ".webp"];
 
@@ -61,123 +62,21 @@ async function existe(chemin: string): Promise<boolean> {
   }
 }
 
-/** Source résolue au lancement : le nom de fichier est un instantané (voir
- * assetGenerationSources). */
-type SourceResolue = { origine: "asset" | "import"; assetId: number | null; fichier: string };
-
-/** Pose une demande dans la file : plusieurs générations peuvent attendre (même
- * pour un seul asset), jusqu'à PLAFOND_FILE_IMAGES en attente au total. */
+/** Pose une demande dans la file (règles et écriture dans lib/generation-lancement.ts). */
 export async function lancerGeneration(assetId: number, demande: DemandeGeneration, plafond: number = PLAFOND_FILE_IMAGES, adoptionAuto = false): Promise<ResultatLancement> {
-  const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
-  if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
-  const raisonAsset = raisonNonGenerable(asset);
-  if (raisonAsset) return { ok: false, erreur: raisonAsset };
-  const raison = raisonDemandeInvalide(demande);
-  if (raison) return { ok: false, erreur: raison };
-  if ((await nbImagesEnAttente()) >= plafond) {
-    return { ok: false, erreur: `La file est pleine (${plafond} images en attente) : laisse le worker en vider quelques-unes.` };
-  }
-
-  const prompt = demande.prompt.trim();
-  const sources: SourceResolue[] = [];
-
-  if (demande.mode === "images") {
-    for (const [i, src] of demande.sources.entries()) {
-      if (src.origine === "asset") {
-        const [source] = await db.select().from(assets).where(eq(assets.id, src.assetId));
-        if (!source || source.projectId !== asset.projectId) {
-          return { ok: false, erreur: `Image ${i + 1} : cet asset n'existe pas dans le projet.` };
-        }
-        if (!source.fichier) return { ok: false, erreur: `Image ${i + 1} : « ${source.code} » n'a pas encore d'image.` };
-        if (!estImage(source.fichier)) return { ok: false, erreur: `Image ${i + 1} : « ${source.code} » n'est pas une image.` };
-        if (!(await existe(join(MEDIA_ROOT, cheminAssetMedia(source.fichier))))) {
-          return { ok: false, erreur: `Image ${i + 1} : le fichier de « ${source.code} » est introuvable sur le stockage.` };
-        }
-        sources.push({ origine: "asset", assetId: source.id, fichier: source.fichier });
-      } else {
-        if (!estNomSourceImport(src.fichier)) return { ok: false, erreur: `Image ${i + 1} : nom de fichier invalide.` };
-        if (!(await existe(join(MEDIA_ROOT, cheminSourceImportMedia(assetId, src.fichier))))) {
-          return { ok: false, erreur: `Image ${i + 1} : l'image importée n'est plus disponible, dépose-la à nouveau.` };
-        }
-        sources.push({ origine: "import", assetId: null, fichier: src.fichier });
-      }
-    }
-  }
-
-  const [projet] = await db.select({ clauseStyle: projects.clauseStyle, stylePromptImage: projects.stylePromptImage }).from(projects).where(eq(projects.id, asset.projectId));
-  const texte = demande.mode === "texte";
-
-  const genId = await db.transaction(async (tx) => {
-    const [gen] = await tx
-      .insert(assetGenerations)
-      .values({
-        assetId,
-        methode: texte ? "generation" : "edition",
-        prompt,
-        // Instantané de ce qui est soumis : la clause de style et le format ne
-        // concernent que le mode texte (l'édition suit l'image 1, sans style).
-        // Les images reçoivent le prompt LONG du style quand le projet en a un (conception), sinon la clause courte.
-        clauseStyle: texte ? styleDesImages(projet) : "",
-        ...(texte ? { aspect: demande.aspect, megapixels: demande.megapixels } : {}),
-        loraPersonnage: texte ? demande.loraPersonnage : false,
-        lightning: texte ? null : true,
-        seed: nouvelleSeed(),
-        adoptionAuto,
-      })
-      .returning({ id: assetGenerations.id });
-    if (sources.length > 0) {
-      await tx.insert(assetGenerationSources).values(
-        sources.map((s, i) => ({ generationId: gen!.id, position: i + 1, origine: s.origine, assetId: s.assetId, fichier: s.fichier })),
-      );
-    }
-    return gen!.id;
-  });
+  const r = await poserGeneration(assetId, demande, plafond, adoptionAuto);
   revalidatePath("/", "layout");
-  return { ok: true, position: await rangDansLaFile(genId) };
+  return r;
 }
 
-/** Génération EN LOT (registre d'assets) : chaque asset coché part dans la file avec SON prompt, au format par défaut
- * de son type (texte), ou en édition à partir de l'image de son master (dérivé). Les assets qui ne peuvent pas partir
- * (voix, son, sans prompt, déjà en file, dérivé dont le master n'a pas d'image) sont rendus avec leur raison : rien
- * n'est silencieusement ignoré. Règles dans lib/generation-lot.ts. */
+/** Génération EN LOT (registre d'assets) : voir poserGenerationsLot. */
 export async function lancerGenerationsLot(
   projectId: number,
   assetIds: number[],
 ): Promise<{ ok: true; lancees: number; ecartes: EcarteLot[] } | { ok: false; erreur: string }> {
-  if (assetIds.length === 0) return { ok: false, erreur: "Coche au moins un asset." };
-  const tous = await db.select().from(assets).where(eq(assets.projectId, projectId));
-  const voulus = new Set(assetIds);
-  const selection = tous.filter((a) => voulus.has(a.id));
-  if (selection.length !== voulus.size) return { ok: false, erreur: "Un des assets cochés n'existe plus dans ce projet." };
-  const enFile = await db
-    .select({ assetId: assetGenerations.assetId })
-    .from(assetGenerations)
-    .where(and(inArray(assetGenerations.assetId, tous.map((a) => a.id)), inArray(assetGenerations.statut, ["en_attente", "en_cours"])));
-  const plan = preparerLot(selection, tous, new Set(enFile.map((g) => g.assetId)), Math.max(0, PLAFOND_LOT_IMAGES - (await nbImagesEnAttente())));
-
-  let lancees = 0;
-  const ecartes = [...plan.ecartes];
-  for (const l of plan.aLancer) {
-    const a = tous.find((x) => x.id === l.assetId)!;
-    const format = formatParDefaut(a.type);
-    const r = await lancerGeneration(
-      a.id,
-      {
-        mode: l.mode,
-        prompt: a.promptGeneration ?? "",
-        aspect: format.aspect,
-        megapixels: format.megapixels,
-        loraPersonnage: l.mode === "texte" && loraParDefaut(a.type),
-        sources: l.sourceAssetId != null ? [{ origine: "asset", assetId: l.sourceAssetId }] : [],
-      },
-      PLAFOND_LOT_IMAGES,
-      true, // un lot : le résultat est adopté tout seul à la fin de la génération
-    );
-    if (r.ok) lancees += 1;
-    else ecartes.push({ assetId: a.id, code: a.code, raison: r.erreur });
-  }
+  const r = await poserGenerationsLot(projectId, assetIds);
   revalidatePath("/", "layout");
-  return { ok: true, lancees, ecartes };
+  return r;
 }
 
 /** « Générer toutes les images de référence » (clap de la préparation, bandeau « Prochaine étape », registre) : le lot ci-dessus
