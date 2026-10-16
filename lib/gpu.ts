@@ -1,4 +1,7 @@
-/** Le GPU comme ressource unique — règles pures (sans base ni réseau), partagées
+/** (Révisé le 2026-10-16 : les deux domaines cohabitent en VRAM sur 16 Go, le worker a une boucle par voie ; le mode
+ * `WORKER_VOIES=serie` garde le fonctionnement décrit ci-dessous. Voir FRICTIONS.md, 2026-10-16.)
+ *
+ * Le GPU comme ressource unique — règles pures (sans base ni réseau), partagées
  * par l'ordonnanceur du worker, la lecture des tâches (lib/taches.ts) et les tests.
  *
  * ComfyUI (images, vidéo) et le LLM local (llama.cpp derrière llama-swap) tournent

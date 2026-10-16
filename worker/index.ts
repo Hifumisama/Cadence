@@ -18,6 +18,7 @@ import { ErreurEntreeInvalide, nomDistantDepuisChemin, verifierEntree } from "./
 import type { Suivi, SubmissionInput } from "./comfyui/types";
 import { creerRelaisJob } from "./progression";
 import { libererAvant } from "./gpu";
+import { VerrouGpu } from "./verrou-gpu";
 import { demarrerSondeVram, journaliserTache, noterEvenement } from "./journal";
 import { prochaineGenerationEnAttente, traiterGenerationImage } from "./images";
 import { preparerRaccord } from "./raccord";
@@ -272,20 +273,40 @@ async function gererEchecReel(job: typeof jobs.$inferSelect, message: string) {
   }
 }
 
-/** Domaine GPU de la dernière tâche menée au bout (ComfyUI ou LLM) ; null tant que
- * le worker n'en a fait aucune depuis son démarrage : le premier changement de
- * domaine décharge alors l'autre côté par prudence (worker/gpu.ts). */
+/** Domaine GPU de la dernière tâche menée au bout, mode `serie` seulement (en mode `paralleles` les deux domaines
+ * cohabitent : rien à décharger entre eux). null tant que le worker n'en a fait aucune depuis son démarrage : le
+ * premier changement de domaine décharge alors l'autre côté par prudence (worker/gpu.ts). */
 let dernierDomaine: DomaineGpu | null = null;
 
 const urlLlm = () => configLlm().url;
 
-/** Une tâche par appel : la carte graphique ne fait qu'une chose à la fois,
- * ComfyUI et le LLM local confondus. Le choix (image, puis LLM, puis vidéo ; FIFO ;
- * sans préemption ; même domaine à égalité) vit dans ordonnanceur.ts. Un domaine
- * injoignable ne bloque pas l'autre : ses tâches restent en attente, on prend ce
- * qui peut tourner. Renvoie `true` si une tâche a été traitée. */
-async function traiterProchaineTache(): Promise<boolean> {
-  const [gen, job, run] = await Promise.all([prochaineGenerationEnAttente(), prochainJobEnAttente(), prochaineTacheLlmEnAttente()]);
+/** `paralleles` (défaut) : une boucle par voie, ComfyUI et LLM travaillent en même temps (la VRAM de la carte les
+ * accueille ensemble, voir le journal du worker pour la tenue en charge). `serie` : l'ancien fonctionnement, une seule
+ * tâche à la fois tous genres confondus, avec déchargement de l'autre domaine à chaque changement. */
+const MODE_SERIE = process.env.WORKER_VOIES === "serie";
+
+/** Les tâches qui ne tiennent pas à côté de l'autre voie (l'upscale monte à 13 Go) prennent le verrou exclusif. */
+const verrou = new VerrouGpu();
+
+const journalLiberation = (message: string) => {
+  console.log(message);
+  noterEvenement("liberation", { message });
+};
+
+export type Voie = "comfyui" | "llm";
+
+/** Une tâche par appel sur les voies données : en `paralleles` chaque boucle n'en a qu'une, en `serie` la boucle
+ * unique les a toutes les deux. Le choix (image, puis LLM, puis vidéo ; FIFO ; sans préemption ; même domaine à
+ * égalité) vit dans ordonnanceur.ts. Un domaine injoignable ne bloque pas l'autre : ses tâches restent en attente,
+ * on prend ce qui peut tourner. Renvoie `true` si une tâche a été traitée. */
+async function traiterProchaineTache(voies: Voie[]): Promise<boolean> {
+  const avecComfyui = voies.includes("comfyui");
+  const avecLlm = voies.includes("llm");
+  const [gen, job, run] = await Promise.all([
+    avecComfyui ? prochaineGenerationEnAttente() : null,
+    avecComfyui ? prochainJobEnAttente() : null,
+    avecLlm ? prochaineTacheLlmEnAttente() : null,
+  ]);
 
   const comfyuiAttend = gen != null || job != null;
   const [comfyuiOk, llmOk] = await Promise.all([
@@ -295,8 +316,8 @@ async function traiterProchaineTache(): Promise<boolean> {
 
   // Disponibilité notée pour l'en-tête (pastille « injoignable ») ; sans rien en attente, rien à signaler.
   const [, depuisLlm] = await Promise.all([
-    comfyuiAttend ? noterSonde("comfyui", comfyuiOk) : effacerSonde("comfyui"),
-    run ? noterSonde("llm", llmOk) : effacerSonde("llm"),
+    avecComfyui ? (comfyuiAttend ? noterSonde("comfyui", comfyuiOk) : effacerSonde("comfyui")) : null,
+    avecLlm ? (run ? noterSonde("llm", llmOk) : effacerSonde("llm")) : null,
   ]);
   // Un serveur LLM muet depuis trop longtemps : les appels en attente échouent (relançables), ils ne bloquent
   // plus la conversation. ComfyUI garde son attente (une vidéo ou une image se remet en file à la main).
@@ -319,36 +340,33 @@ async function traiterProchaineTache(): Promise<boolean> {
     return false;
   }
 
-  const choix = choisirProchaineTache(candidates, dernierDomaine);
+  const choix = choisirProchaineTache(candidates, MODE_SERIE ? dernierDomaine : null);
   if (!choix) return false;
   const domaine = domaineDe(choix.genre);
+  const upscale = choix.genre === "video" && job!.activerUpscale;
 
-  // Même GPU : on décharge l'autre côté avant de commencer (au mieux, jamais bloquant).
-  noterEvenement("choix", { genre: choix.genre, id: choix.id, dernierDomaine, enAttente: candidates.map((c) => `${c.genre}:${c.id}`) });
-  const debutLiberation = Date.now();
-  const liberee = await libererAvant(
-    dernierDomaine,
-    domaine,
-    {
-      comfyui: () => client.libererMemoire(),
-      llm: () => decharger(urlLlm()),
-    },
-    (message) => {
-      console.log(message);
-      noterEvenement("liberation", { message });
-    },
-  );
-  if (liberee) noterEvenement("liberation_duree", { liberee, dureeMs: Date.now() - debutLiberation });
+  noterEvenement("choix", { genre: choix.genre, id: choix.id, voies, dernierDomaine, enAttente: candidates.map((c) => `${c.genre}:${c.id}`) });
+  return await verrou.avec(MODE_SERIE || upscale, async () => {
+    // Même GPU : en `serie` on décharge l'autre côté avant de commencer ; en `paralleles` seul l'upscale le fait
+    // (il ne tient pas à côté du LLM). Au mieux, jamais bloquant.
+    const debutLiberation = Date.now();
+    const liberee = MODE_SERIE
+      ? await libererAvant(dernierDomaine, domaine, { comfyui: () => client.libererMemoire(), llm: () => decharger(urlLlm()) }, journalLiberation)
+      : upscale
+        ? await libererAvant(null, "comfyui", { comfyui: () => client.libererMemoire(), llm: () => decharger(urlLlm()) }, journalLiberation)
+        : null;
+    if (liberee) noterEvenement("liberation_duree", { liberee, dureeMs: Date.now() - debutLiberation });
 
-  const fait = await journaliserTache(choix.genre, choix.id, domaine, async () =>
-    choix.genre === "image"
-      ? await traiterGenerationImage(client, gen!, MEDIA_ROOT)
-      : choix.genre === "llm"
-        ? await traiterTacheLlm(run!)
-        : await traiterJob(job!),
-  );
-  if (fait) dernierDomaine = domaine;
-  return fait;
+    const fait = await journaliserTache(choix.genre, choix.id, domaine, async () =>
+      choix.genre === "image"
+        ? await traiterGenerationImage(client, gen!, MEDIA_ROOT)
+        : choix.genre === "llm"
+          ? await traiterTacheLlm(run!)
+          : await traiterJob(job!),
+    );
+    if (fait) dernierDomaine = domaine;
+    return fait;
+  });
 }
 
 async function boucle() {
@@ -383,23 +401,36 @@ async function boucle() {
   };
   await purger();
 
-  while (true) {
-    if (Date.now() - dernierePurge >= INTERVALLE_PURGE_MS) await purger();
-    let fait = false;
-    try {
-      fait = await traiterProchaineTache();
-    } catch (err) {
-      console.error("[worker] Erreur de boucle :", err);
-    }
-    // L'installateur : une transition au plus par création en cours (lancer une étape, appliquer, relancer les échecs).
-    // Pur travail en base, jamais le GPU : il ne retarde aucune tâche.
-    try {
-      if (await piloterCreations()) fait = true;
-    } catch (err) {
-      console.error("[worker] Installateur :", err);
-    }
-    await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
-  }
+  // Les boucles : en `paralleles` une par voie (ComfyUI, LLM), en `serie` une seule pour les deux. L'installateur et la
+  // purge ne touchent jamais le GPU : ils ont leur propre boucle et ne retardent aucune tâche.
+  const voies: Voie[][] = MODE_SERIE ? [["comfyui", "llm"]] : [["comfyui"], ["llm"]];
+  console.log(`[worker] Voies : ${MODE_SERIE ? "série (une tâche à la fois)" : "parallèles (ComfyUI et LLM en même temps)"}`);
+  await Promise.all([
+    ...voies.map(async (v) => {
+      while (true) {
+        let fait = false;
+        try {
+          fait = await traiterProchaineTache(v);
+        } catch (err) {
+          console.error(`[worker] Erreur de boucle (${v.join("+")}) :`, err);
+        }
+        await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
+      }
+    }),
+    (async () => {
+      while (true) {
+        if (Date.now() - dernierePurge >= INTERVALLE_PURGE_MS) await purger();
+        let fait = false;
+        // L'installateur : une transition au plus par création en cours (lancer une étape, appliquer, relancer les échecs).
+        try {
+          if (await piloterCreations()) fait = true;
+        } catch (err) {
+          console.error("[worker] Installateur :", err);
+        }
+        await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
+      }
+    })(),
+  ]);
 }
 
 boucle();

@@ -2415,3 +2415,11 @@ Décisions de l'utilisateur, prises en revue du registre (*révisent* F01 : « s
 - **Onglet Voix** refait sur le modèle de l'atelier d'image : écran de test + légende (audio, « Garder cette voix ») à gauche, consigne puis journal des essais à droite ; l'essai regardé se choisit dans le journal.
 - **Liste du registre** : le clic long ne pose plus un disque doré par-dessus la ligne (texte illisible) mais un voile qui la balaie, derrière le contenu.
 - **Piste d'optimisation (plus tard)** : *gemma 4 E2B* (testé par l'utilisateur) retouche très bien les prompts sans effort — bon candidat pour la traduction de consigne (`prompt-asset`, but `essai`) quand on passera aux petits modèles (voir l'ordre des priorités LLM).
+
+## 2026-10-16 — Worker : deux voies (ComfyUI / LLM) — révise « Ressource GPU unique » (2026-10-01)
+
+- **Ce qui change** : la décision du 2026-10-01 (une seule tâche à la fois, l'autre domaine déchargé à chaque changement) venait d'une carte qui ne tenait pas les deux. Sur la 5070 Ti (16 Go), le journal du worker (session du 2026-10-16) montre un pic de 6,6 Go avec une image et Gemma 26B chargés : les deux voies cohabitent. Le worker lance donc **deux boucles** (`worker/index.ts`), une pour ComfyUI (image > vidéo, FIFO), une pour le LLM (FIFO), plus une troisième pour l'installateur et la purge (jamais le GPU).
+- **Verrou partagé / exclusif** (`worker/verrou-gpu.ts`) : les tâches ordinaires prennent le verrou partagé ; une vidéo **avec upscale** (pic 13,2 Go) prend l'exclusif : elle attend la fin de la tâche de l'autre voie, décharge le LLM, et rien ne démarre à côté d'elle.
+- **Plus de déchargement entre voies** en mode `paralleles` (défaut). `WORKER_VOIES=serie` rétablit l'ancien fonctionnement (une boucle, une tâche à la fois, déchargement au changement de domaine) : repli si la tenue en charge est mauvaise.
+- **À mesurer** (journal `JOURNAL_WORKER=1`) : les deux voies sous charge simultanée (durées d'une image et d'un `plan-h3` en parallèle comparées aux durées en série). Non fait.
+- **Suite prévue** : déclenchement par dépendances (images dès qu'un asset a son prompt, étapes `prompts-*` sans attendre les étapes intermédiaires) ; prévisualisation automatique écartée pour l'instant (vidéo longue, bloque la voie ComfyUI).
