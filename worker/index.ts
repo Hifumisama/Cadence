@@ -18,6 +18,7 @@ import { ErreurEntreeInvalide, nomDistantDepuisChemin, verifierEntree } from "./
 import type { Suivi, SubmissionInput } from "./comfyui/types";
 import { creerRelaisJob } from "./progression";
 import { libererAvant } from "./gpu";
+import { demarrerSondeVram, journaliserTache, noterEvenement } from "./journal";
 import { prochaineGenerationEnAttente, traiterGenerationImage } from "./images";
 import { preparerRaccord } from "./raccord";
 import { decharger, llmJoignable } from "./llamaSwap";
@@ -323,23 +324,37 @@ async function traiterProchaineTache(): Promise<boolean> {
   const domaine = domaineDe(choix.genre);
 
   // Même GPU : on décharge l'autre côté avant de commencer (au mieux, jamais bloquant).
-  await libererAvant(dernierDomaine, domaine, {
-    comfyui: () => client.libererMemoire(),
-    llm: () => decharger(urlLlm()),
-  });
+  noterEvenement("choix", { genre: choix.genre, id: choix.id, dernierDomaine, enAttente: candidates.map((c) => `${c.genre}:${c.id}`) });
+  const debutLiberation = Date.now();
+  const liberee = await libererAvant(
+    dernierDomaine,
+    domaine,
+    {
+      comfyui: () => client.libererMemoire(),
+      llm: () => decharger(urlLlm()),
+    },
+    (message) => {
+      console.log(message);
+      noterEvenement("liberation", { message });
+    },
+  );
+  if (liberee) noterEvenement("liberation_duree", { liberee, dureeMs: Date.now() - debutLiberation });
 
-  const fait =
+  const fait = await journaliserTache(choix.genre, choix.id, domaine, async () =>
     choix.genre === "image"
       ? await traiterGenerationImage(client, gen!, MEDIA_ROOT)
       : choix.genre === "llm"
         ? await traiterTacheLlm(run!)
-        : await traiterJob(job!);
+        : await traiterJob(job!),
+  );
   if (fait) dernierDomaine = domaine;
   return fait;
 }
 
 async function boucle() {
   console.log(`[worker] Cadence worker démarré (mode ComfyUI : ${process.env.COMFYUI_MODE ?? "stub"})`);
+  demarrerSondeVram(process.env.COMFYUI_URL, urlLlm());
+  noterEvenement("demarrage");
   // Une seule fois, avant la première prise : ce qui était « en cours » appartenait
   // à un worker mort (voir worker/reprise.ts).
   try {
