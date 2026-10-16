@@ -166,7 +166,6 @@ export default async function PlanPage({
   const lienPlan = (u: string) => `/p/${pid}/e/${eid}/plans/${u}`;
   const cadres: CadrePlan[] = pellicule.map((p) => ({ uuid: p.uuid, position: p.position, titre: p.titre, etat: p.etat, src: srcRendu(p.vignette), href: lienPlan(p.uuid) }));
   const suivant = planSuivant(pellicule, uuid);
-  const hrefRealisateur = `/p/${pid}/realisateur/${eid}?plan=${uuid}`;
 
   // --- les essais : du plus récent (haut de la colonne) au plus ancien ------------------------------------------------
   const essaisTries = trierEssais(jobHistory);
@@ -321,7 +320,7 @@ export default async function PlanPage({
   return (
     <div className="tm">
       <SuiviRendus planUuid={plan.uuid} jobs={jobHistory.map((j) => ({ id: j.id, statut: j.statut }))} />
-      <BarreFiche episodeId={eid} prets={avance.prets} total={avance.total} nbManquants={nbManquants} hrefRealisateur={hrefRealisateur} />
+      <BarreFiche episodeId={eid} prets={avance.prets} total={avance.total} nbManquants={nbManquants} />
 
       {estBrouillon ? (
         <div className="tm-brouillon">

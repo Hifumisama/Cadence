@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { lancerUpscaleEpisode } from "@/app/plans/actions";
 import { ToutesPrevisualisationsButton } from "@/components/plan/ToutesPrevisualisationsButton";
@@ -8,20 +7,18 @@ import { ToutesPrevisualisationsButton } from "@/components/plan/ToutesPrevisual
 const s = (n: number) => (n > 1 ? "s" : "");
 
 /** La barre du haut de la fiche : l'avancée vers l'upscale (« 3 / 6 prêts à upscaler »), « Lancer l'upscale » quand TOUS les plans sont
- * prêts (il reprend l'essai retenu de chaque plan, en rendu final), « Générer les prévisualisations (N) » pour les plans sans rendu, et
- * « Demander au réalisateur » (son écran de révision d'épisode, centré sur ce plan). */
+ * prêts (il reprend l'essai retenu de chaque plan, en rendu final) et « Générer les prévisualisations (N) » pour les plans sans rendu.
+ * Le réalisateur n'a pas de bouton ici : il travaille sur tout l'épisode, son onglet est le seul accès. */
 export function BarreFiche({
   episodeId,
   prets,
   total,
   nbManquants,
-  hrefRealisateur,
 }: {
   episodeId: number;
   prets: number;
   total: number;
   nbManquants: number;
-  hrefRealisateur: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [confirme, setConfirme] = useState(false);
@@ -71,13 +68,6 @@ export function BarreFiche({
         </button>
       ) : null}
       <ToutesPrevisualisationsButton episodeId={episodeId} nbManquants={nbManquants} className="btn" />
-      <Link
-        href={hrefRealisateur}
-        className="btn tm-btn-ligne"
-        title="Le réalisateur travaille sur tout l'épisode : couper, déplacer, réécrire une scène. Il s'ouvre sur ce plan."
-      >
-        Demander au réalisateur
-      </Link>
       {message ? (
         <span className="tiny-note tm-top-note" role="status">
           {message}
