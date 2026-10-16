@@ -451,6 +451,8 @@ export async function entreePlanH3(
         intention: options.intention ?? p.description ?? "",
         liaison: liaisonOuDefaut(p.liaison),
         positionDansLaScene: dansLaScene.length > 0 ? `${rang + 1}/${dansLaScene.length}` : "",
+        // Sans cette durée le modèle en invente une, et la fiche écrase celle du scénario (le total dérive : 125 s → 85 s).
+        dureeVoulueSecondes: p.dureeGenerationSecondes,
         fps: p.fps,
       },
       // La scène n'a pas de texte narratif en base : son contenu, ce sont les intentions de ses plans, dans l'ordre.
