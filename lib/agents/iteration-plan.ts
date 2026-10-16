@@ -52,6 +52,8 @@ export type SortieIterationPlan = {
   /** La NOUVELLE description (intention) du plan, en français, terminée par « État en fin de plan : … » : à fournir quand la correction change
    * ce qui se passe dans le plan, ou l'état (position, orientation, feu…) qu'il laisse au plan suivant. Écrite avec la fiche. */
   nouvelleDescription?: string;
+  /** La NOUVELLE durée de génération du plan (5 à 15 s), quand la consigne la demande : écrite avec la fiche, partout (rendu, montage). */
+  dureeSecondes?: number;
   /** La consigne change CE QUI SE PASSE dans le plan : ce n'est plus une retouche de passages mais une réécriture du plan. Les `changements`
    * sont ignorés ; la fiche est réécrite à part (`plan-h3`, depuis `nouvelleDescription`). */
   reecriture?: boolean;
@@ -101,6 +103,11 @@ export function etatEnFinDePlan(description: string | undefined | null): string 
 const norm = (t: string) => t.replace(/\s+/g, " ").trim();
 const descriptionChangee = (sortie: SortieIterationPlan, ctx: ContexteIteration): boolean =>
   !!sortie.nouvelleDescription?.trim() && norm(sortie.nouvelleDescription) !== norm(ctx.description ?? "");
+/** La durée demandée par la consigne, quand elle est valide (entière, 5 à 15 s) et change celle du plan ; sinon null. */
+export const dureeDemandee = (sortie: Pick<SortieIterationPlan, "dureeSecondes">, ctx: Pick<ContexteIteration, "dureeGenerationSecondes">): number | null => {
+  const d = sortie.dureeSecondes;
+  return typeof d === "number" && Number.isInteger(d) && d >= 5 && d <= 15 && d !== ctx.dureeGenerationSecondes ? d : null;
+};
 
 /** Les mots de la CONSIGNE qui se retrouvent tels quels dans les passages écrits (hors balise `<d>`, seule à garder le français) et qui n'étaient pas
  * déjà dans le prompt : le modèle a recopié « sagement » au lieu de le traduire. Un signal « à vérifier » (un mot identique dans les deux langues
@@ -247,13 +254,13 @@ export function raisonSansEcriture(sortie: SortieIterationPlan, ctx: ContexteIte
   // « Découpage ou scénario » n'interdit que les sorties VIDES : si le modèle a quand même écrit des passages du prompt (consigne qui
   // change ce qui se passe dans le plan), c'est une correction de ce plan, la consigne de l'utilisateur prime sur l'étiquette.
   if (sortie.categorie === "decoupage-scenario" && (sortie.changements ?? []).length === 0 && !avecRefs) return "La cause n'est pas dans le prompt (découpage ou scénario) : rien n'est écrit. Revois le découpage du plan, puis réécris sa fiche.";
-  if ((sortie.changements ?? []).length === 0 && !avecRefs && !descriptionChangee(sortie, ctx)) {
+  if ((sortie.changements ?? []).length === 0 && !avecRefs && !descriptionChangee(sortie, ctx) && dureeDemandee(sortie, ctx) == null) {
     const manquants = (sortie.assetsManquants ?? []).map((a) => a.code).filter(Boolean);
     if (manquants.length > 0) return `Aucune modification du prompt : l'agent suggère de créer ${manquants.join(", ")} (aucun asset du registre ne convient). Crée-le, génère son image, puis itère de nouveau pour l'ajouter en référence.`;
     return "L'agent ne propose aucune modification du prompt.";
   }
   const a = appliquerChangements(ctx.sections, sortie.changements ?? []);
-  if (Object.keys(a.sections).length === 0 && !avecRefs && !descriptionChangee(sortie, ctx)) {
+  if (Object.keys(a.sections).length === 0 && !avecRefs && !descriptionChangee(sortie, ctx) && dureeDemandee(sortie, ctx) == null) {
     const erreurs = a.problemes.filter((p) => p.niveau === "erreur");
     return erreurs.length
       ? `Aucun passage proposé n'a pu être appliqué au prompt actuel (${erreurs.map((e) => e.message).join(" ; ")}) : rien n'est écrit. Affine en le signalant.`
@@ -353,7 +360,7 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
   // Structure des shots : seules les dégradations APPORTÉES par la correction sont signalées.
   if (a.sections.detailed_description !== undefined) {
     const deja = new Set(controlerStructure(avant, ctx.dureeGenerationSecondes).map((p) => p.message));
-    for (const p of controlerStructure(apres, ctx.dureeGenerationSecondes)) {
+    for (const p of controlerStructure(apres, dureeDemandee(sortie, ctx) ?? ctx.dureeGenerationSecondes)) {
       if (!deja.has(p.message)) problemes.push({ niveau: "alerte", regle: "structure", message: `Structure des shots : ${p.message}` });
     }
   }
@@ -389,14 +396,17 @@ export function depuisIterationPlan(sortie: SortieIterationPlan, plan: PlanPourI
   if (description.description && etatEnFinDePlan(description.description) !== etatEnFinDePlan(plan.description)) {
     ajouter({ type: "info", texte: "L'état de fin du plan a changé : le plan suivant n'a pas été revérifié." });
   }
-  let apres: ApresFiche = { sections: a.sections, passages: a.passages, ...description };
+  const duree = dureeDemandee(sortie, plan);
+  if (duree != null) ajouter({ type: "info", texte: `Durée du plan : ${plan.dureeGenerationSecondes} s → ${duree} s (demandée dans ta consigne), appliquée au rendu et au montage.` });
+  const nouvelleDuree = duree != null ? { dureeGenerationSecondes: duree } : {};
+  let apres: ApresFiche = { sections: a.sections, passages: a.passages, ...description, ...nouvelleDuree };
   if (aDesOpsReferences(sortie)) {
     // Références : le code applique les passages, puis retire/ajoute, renumérote et résout les marqueurs ; l'écriture
     // porte alors la liste COMPLÈTE des références (picture/audio) et les sections touchées.
     const r = appliquerOpsReferences({ ...plan.sections, ...a.sections }, plan.refs, plan.registre ?? [], sortie.references ?? {});
     for (const p of r.problemes) ajouter(versAvertissement(p));
     const touchees = Object.fromEntries(Object.entries(r.sections).filter(([k, v]) => v !== (plan.sections[k] ?? "")));
-    apres = { sections: touchees as SectionsFiche, passages: a.passages, ...description, ...(r.refs ? { refs: r.refs } : {}) };
+    apres = { sections: touchees as SectionsFiche, passages: a.passages, ...description, ...nouvelleDuree, ...(r.refs ? { refs: r.refs } : {}) };
     for (const l of r.resume) ajouter({ type: "info", texte: l });
   }
   return [
@@ -509,7 +519,10 @@ export function diagnosticIteration(json: unknown): DiagnosticIteration | null {
     nbPassages: Array.isArray(s.changements) ? s.changements.length : 0,
     entreeLexique: l && typeof l.symptome === "string" && typeof l.cause === "string" && typeof l.formulationQuiTient === "string" ? l : null,
     abandon: s.abandon && typeof s.abandon.propose === "boolean" ? { propose: s.abandon.propose, raison: s.abandon.raison ?? "" } : null,
-    reecriture: s.reecriture === true && typeof s.nouvelleDescription === "string" && s.nouvelleDescription.trim() ? { description: s.nouvelleDescription.trim() } : null,
+    reecriture:
+      s.reecriture === true && typeof s.nouvelleDescription === "string" && s.nouvelleDescription.trim()
+        ? { description: s.nouvelleDescription.trim(), ...(typeof s.dureeSecondes === "number" && Number.isInteger(s.dureeSecondes) && s.dureeSecondes >= 5 && s.dureeSecondes <= 15 ? { dureeSecondes: s.dureeSecondes } : {}) }
+        : null,
     assetsSuggeres: (Array.isArray(s.assetsManquants) ? s.assetsManquants : [])
       .filter((a): a is NonNullable<SortieIterationPlan["assetsManquants"]>[number] => !!a && typeof a.code === "string" && typeof a.type === "string")
       .map((a) => ({ code: a.code, type: a.type, ...(typeof a.parent === "string" && a.parent.trim() ? { parent: a.parent.trim() } : {}), raison: typeof a.raison === "string" ? a.raison : "" })),

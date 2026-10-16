@@ -117,6 +117,12 @@
       "type": "boolean",
       "description": "Required. false for a retouch of passages (default). true when the instruction changes WHAT HAPPENS in the plan (a different action, place, ending, an attempt, an element added or removed, a new shot sequence): it is no longer a retouch of passages but a rewrite of the plan. Then `changements` stays empty and the NEXT field, `nouvelleDescription`, is the plan rewritten, complete; the application rewrites the whole sheet from it."
     },
+    "dureeSecondes": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 15,
+      "description": "Optional. The plan's NEW generation duration, whole seconds from 5 to 15, ONLY when the user's instruction asks for another duration (« passe-le à 12 secondes », « allonge-le »). Omit it otherwise: the plan keeps its duration. When you give it, re-time the shots' `At MM:SS.mmm` markers in `changements` so they spread over the new duration (or, on a rewrite, the whole sheet is rewritten for it)."
+    },
     "nouvelleDescription": {
       "type": "string",
       "description": "(French) The plan's NEW description (its intention), complete, ending with « État en fin de plan : … » (where the characters who matter stand and what they face, relative to fixed landmarks of the place, never to the camera; the state of what changed). REQUIRED when `reecriture` is true: write it right here, it is the whole point of a rewrite (an answer with `reecriture` true and an empty description is refused). Also give it when a retouch changes the state it leaves to the next plan. Empty string when the description stays as it is."

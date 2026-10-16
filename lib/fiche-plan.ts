@@ -170,7 +170,7 @@ export type PropositionIteration = {
   erreur: string | null;
   /** Le résumé de la proposition : dit pourquoi rien n'est écrit quand l'agent ne propose aucun changement. */
   resume?: string | null;
-  diagnostic: { confiance: string; dureeCoherente: boolean; abandon: { propose: boolean } | null; assetsSuggeres?: { code: string }[]; reecriture?: { description: string } | null } | null;
+  diagnostic: { confiance: string; dureeCoherente: boolean; abandon: { propose: boolean } | null; assetsSuggeres?: { code: string }[]; reecriture?: { description: string; dureeSecondes?: number } | null } | null;
   /** `cibleType` : une proposition `plan-h3` (réécriture du plan) porte aussi des créations d'assets, que « Itérer » n'applique jamais. */
   groupes: { changements: { id: number; bloque: boolean; refuseRaison: string | null; cibleType?: string; avertissements: { type: string; texte?: string }[] }[] }[];
 };
@@ -182,7 +182,7 @@ export type DecisionIteration =
   /** Aucune écriture appliquable (diagnostic seul, tout bloqué ou refusé) : message clair, aucun essai n'est créé. */
   | { action: "rien"; message: string }
   /** La consigne change ce qui se passe dans le plan : on ne retouche pas des passages, la fiche est RÉÉCRITE (plan-h3, depuis cette nouvelle description). */
-  | { action: "reecrire"; description: string }
+  | { action: "reecrire"; description: string; dureeSecondes?: number }
   /** On applique ce qui passe, puis on génère, sans confirmation. `notes` = ce que l'agent ou les contrôles ont signalé : gardé sur l'essai
    * créé (le prompt d'avant reste dans l'essai précédent, « Repartir de là »), jamais un blocage. */
   | { action: "appliquer"; ids: number[]; notes: string[] };
@@ -204,7 +204,7 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   const creations = fiches.length > 0 ? tous.filter((c) => passe(c) && c.cibleType === "asset") : [];
   const appliquables = [...fiches, ...creations];
   const creationsLaissees = tous.filter((c) => passe(c) && !cestLaFiche(c) && c.cibleType !== "asset").length;
-  if (appliquables.length === 0 && p.diagnostic?.reecriture?.description) return { action: "reecrire", description: p.diagnostic.reecriture.description };
+  if (appliquables.length === 0 && p.diagnostic?.reecriture?.description) return { action: "reecrire", description: p.diagnostic.reecriture.description, ...(p.diagnostic.reecriture.dureeSecondes ? { dureeSecondes: p.diagnostic.reecriture.dureeSecondes } : {}) };
   if (appliquables.length === 0) {
     const refus = [...new Set(tous.map((c) => c.refuseRaison).filter((r): r is string => !!r))];
     const raison = refus.length > 0 ? `${refus.join(" ")} (refusé par un contrôle)` : p.resume?.trim() || (tous.length > 0 ? "tous les changements proposés ont été refusés par un contrôle." : "l'agent ne propose aucun changement du prompt.");

@@ -497,3 +497,20 @@ test("contrôle : un mot français laissé dans le prompt (même hors de la zone
   // sans mot à traduire : pas d'erreur
   assert.ok(!controlerSortieIterationPlan(s, plan({ consignes: ["Reste immobile."], motsAnglais: ["maya"] })).some((p) => p.regle === "non-traduit"));
 });
+
+test("durée demandée par la consigne : écrite avec la fiche, une demande seule n'est pas refusée, une valeur hors bornes est ignorée", () => {
+  const avecDuree = sortie({ dureeSecondes: 9 });
+  const a = lireApresFiche(depuisIterationPlan(avecDuree, plan())[0]!.apres);
+  assert.equal(a.dureeGenerationSecondes, 9, "la durée demandée part avec la fiche (rendu et montage la lisent)");
+  assert.ok(depuisIterationPlan(avecDuree, plan())[0]!.avertissements!.some((x) => /6 s → 9 s/.test(x.texte ?? "")), "le changement de durée est annoncé");
+
+  const seule = sortie({ dureeSecondes: 12, changements: [], nouvelleDescription: undefined });
+  assert.equal(raisonSansEcriture(seule, plan()), null, "une demande de durée seule est une écriture, pas un refus");
+  assert.equal(lireApresFiche(depuisIterationPlan(seule, plan())[0]!.apres).dureeGenerationSecondes, 12);
+
+  for (const hors of [20, 4, 7.5]) {
+    const s = sortie({ dureeSecondes: hors });
+    assert.equal(lireApresFiche(depuisIterationPlan(s, plan())[0]!.apres).dureeGenerationSecondes, undefined, `${hors} s est ignoré`);
+  }
+  assert.equal(lireApresFiche(depuisIterationPlan(sortie({ dureeSecondes: 6 }), plan())[0]!.apres).dureeGenerationSecondes, undefined, "la même durée ne change rien");
+});

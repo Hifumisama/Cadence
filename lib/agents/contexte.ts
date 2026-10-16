@@ -388,7 +388,7 @@ export async function entreePlanH3(
   retour?: string,
   /** `intention` : une description du plan qui REMPLACE celle de la base pour cette écriture (réécriture d'un plan depuis « Itérer » : elle n'est
    * écrite en base qu'avec la fiche, à l'application). */
-  options: { intention?: string } = {},
+  options: { intention?: string; dureeVoulue?: number } = {},
 ): Promise<(EntreeSkill & { plan: { id: number; uuid: string; titre: string; episodeId: number } }) | null> {
   const [p] = await db
     .select()
@@ -452,7 +452,8 @@ export async function entreePlanH3(
         liaison: liaisonOuDefaut(p.liaison),
         positionDansLaScene: dansLaScene.length > 0 ? `${rang + 1}/${dansLaScene.length}` : "",
         // Sans cette durée le modèle en invente une, et la fiche écrase celle du scénario (le total dérive : 125 s → 85 s).
-        dureeVoulueSecondes: p.dureeGenerationSecondes,
+        // `dureeVoulue` : la durée que la consigne demande (« Itérer » : « passe-le à 12 s »), écrite en base avec la fiche.
+        dureeVoulueSecondes: options.dureeVoulue ?? p.dureeGenerationSecondes,
         fps: p.fps,
       },
       // La scène n'a pas de texte narratif en base : son contenu, ce sont les intentions de ses plans, dans l'ordre.

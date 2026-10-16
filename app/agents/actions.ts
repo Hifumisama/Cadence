@@ -204,7 +204,7 @@ export async function genererIteration(
 /** « Itérer » avec réécriture du plan : la fiche est réécrite (plan-h3) depuis la nouvelle description de l'agent d'itération. */
 export async function genererReecriture(
   conversationUuid: string,
-  options: { consigne: string; description: string },
+  options: { consigne: string; description: string; dureeSecondes?: number },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
   return rafraichir(await service.genererReecriturePlan(conversationUuid, options));
 }

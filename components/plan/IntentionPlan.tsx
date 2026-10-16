@@ -193,10 +193,10 @@ export function IntentionPlan({
 
   /** La consigne change ce qui se passe dans le plan : l'agent a écrit la NOUVELLE description, la fiche est réécrite depuis elle (plan-h3), puis
    * appliquée et générée comme une correction (une seule transaction côté serveur ; l'ancienne description reste dans l'essai précédent). */
-  const reecrire = async (conversationUuid: string, description: string, consigneEssai: string) => {
+  const reecrire = async (conversationUuid: string, description: string, consigneEssai: string, dureeSecondes?: number) => {
     setVision("fiche");
     setPhase("agent");
-    const g = await genererReecriture(conversationUuid, { consigne: consigneEssai, description });
+    const g = await genererReecriture(conversationUuid, { consigne: consigneEssai, description, ...(dureeSecondes ? { dureeSecondes } : {}) });
     if (!g.ok) {
       setErreur(g.erreur);
       setPhase("repos");
@@ -255,7 +255,7 @@ export function IntentionPlan({
         return;
       }
       if (decision.action === "reecrire") {
-        await reecrire(r.conversationUuid, decision.description, texte);
+        await reecrire(r.conversationUuid, decision.description, texte, decision.dureeSecondes);
         return;
       }
       setPhase("repos");
