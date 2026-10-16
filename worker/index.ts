@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";
@@ -26,7 +26,7 @@ import { decharger, llmJoignable } from "./llamaSwap";
 import { echouerAppelsEnAttente, prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
 import { attenteDepassee, effacerSonde, noterSonde } from "./disponibilite";
 import { piloterCreations } from "../lib/agents/creation-db";
-import { piloterIterations } from "../lib/iteration-suite";
+import { piloterDemandes } from "../lib/demandes-db";
 import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
 import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
 import { reprendreOrphelines } from "./reprise";
@@ -35,6 +35,7 @@ const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 const INTERVALLE_MS = Number(process.env.WORKER_INTERVAL_MS ?? 10_000);
 const PAUSE_ENTRE_TACHES_MS = 1_000; // une tâche vient de finir : on enchaîne vite sur la suivante
 const INTERVALLE_POLL_MS = 5_000;
+const INTERVALLE_DEMANDES_MS = 2_000; // une demande est en cours : on regarde souvent si son étape a fini
 const DUREE_MAX_POLL_MS = 30 * 60_000; // un plan H3 ne devrait jamais dépasser 30 min
 
 const client = creerClientComfyUI();
@@ -44,7 +45,8 @@ async function prochainJobEnAttente() {
     .select()
     .from(jobs)
     .where(eq(jobs.statut, "en_attente"))
-    .orderBy(jobs.createdAt)
+    // Le rendu d'une demande (itération) passe avant les autres vidéos : voir worker/ordonnanceur.ts.
+    .orderBy(sql`(${jobs.demandeId} is null)`, jobs.createdAt)
     .limit(1);
   return job ?? null;
 }
@@ -332,8 +334,8 @@ async function traiterProchaineTache(voies: Voie[]): Promise<boolean> {
 
   const candidates: TacheEnAttente[] = [];
   if (gen && comfyuiOk) candidates.push({ genre: "image", id: gen.id, createdAt: gen.createdAt });
-  if (run && llmOk) candidates.push({ genre: "llm", id: run.id, createdAt: run.createdAt });
-  if (job && comfyuiOk) candidates.push({ genre: "video", id: job.id, createdAt: job.createdAt });
+  if (run && llmOk) candidates.push({ genre: "llm", id: run.id, createdAt: run.createdAt, demande: run.demandeId != null });
+  if (job && comfyuiOk) candidates.push({ genre: "video", id: job.id, createdAt: job.createdAt, demande: job.demandeId != null });
   if (candidates.length === 0) {
     // Rien de lançable : on garde le message d'indisponibilité de chaque domaine.
     if (comfyuiAttend) console.log("[worker] ComfyUI injoignable — les tâches d'images et de vidéo restent en attente");
@@ -428,13 +430,40 @@ async function boucle() {
         } catch (err) {
           console.error("[worker] Installateur :", err);
         }
-        // La suite d'« Itérer » quand la page n'est plus là : réécriture de la fiche, application, essai.
+        // Les demandes (itérer un plan…) : une transition au plus par demande en cours. Tant qu'il y en a, on repasse vite : chaque
+        // étape qui finit doit lancer la suivante sans attendre le grand intervalle (pas de trou visible entre deux étapes).
+        let demandesActives = 0;
         try {
-          if (await piloterIterations()) fait = true;
+          const r = await piloterDemandes();
+          demandesActives = r.actives;
+          if (r.touchees > 0) fait = true;
         } catch (err) {
-          console.error("[worker] Suite d'itération :", err);
+          console.error("[worker] Demandes :", err);
         }
         await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
+      }
+    }),
+    (async () => {
+      while (true) {
+        if (Date.now() - dernierePurge >= INTERVALLE_PURGE_MS) await purger();
+        let fait = false;
+        // L'installateur : une transition au plus par création en cours (lancer une étape, appliquer, relancer les échecs).
+        try {
+          if (await piloterCreations()) fait = true;
+        } catch (err) {
+          console.error("[worker] Installateur :", err);
+        }
+        // Les demandes (itérer un plan…) : une transition au plus par demande en cours. Tant qu'il y en a, on repasse vite : chaque
+        // étape qui finit doit lancer la suivante sans attendre le grand intervalle (pas de trou visible entre deux étapes).
+        let demandesActives = 0;
+        try {
+          const r = await piloterDemandes();
+          demandesActives = r.actives;
+          if (r.touchees > 0) fait = true;
+        } catch (err) {
+          console.error("[worker] Demandes :", err);
+        }
+        await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : demandesActives > 0 ? INTERVALLE_DEMANDES_MS : INTERVALLE_MS));
       }
     })(),
   ]);

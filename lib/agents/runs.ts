@@ -22,6 +22,8 @@ export async function creerRun(
     /** Lot : la sous-tâche (« ep:12 ») et ce que la revue en dit (« Épisode 1 · Le sel »). */
     cleSousTache?: string | null;
     libelleSousTache?: string | null;
+    /** La demande (itération…) dont cette tâche est une étape : lib/demandes.ts. */
+    demandeId?: number | null;
   },
 ): Promise<{ id: number; uuid: string }> {
   const [run] = await d
@@ -36,6 +38,7 @@ export async function creerRun(
       propositionId: p.propositionId ?? null,
       cleSousTache: p.cleSousTache ?? null,
       libelleSousTache: p.libelleSousTache ?? null,
+      demandeId: p.demandeId ?? null,
     })
     .returning({ id: agentRuns.id, uuid: agentRuns.uuid });
   return run!;

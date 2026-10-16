@@ -1,5 +1,7 @@
 import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, jobs, plans, projects, propositions } from "../db/schema";
+import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, demandes, jobs, plans, projects, propositions } from "../db/schema";
+import { tacheDeDemande } from "./demandes-tache";
+import type { EtapeDemande, StatutDemande } from "./demandes";
 import type { EtapeCreation, StatutCreation } from "./agents/creation";
 import { estDeLaCreation, fenetreDeCreation, tacheDeCreation } from "./agents/creation-tache";
 import { and, eq, gte, isNotNull, isNull, ne, or, inArray } from "drizzle-orm";
@@ -58,7 +60,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     })
     .from(jobs)
     .innerJoin(plans, eq(plans.id, jobs.planId))
-    .where(and(isNull(jobs.masqueAt), or(inArray(jobs.statut, ["en_attente", "en_cours"]), isNull(jobs.vuAt), gte(jobs.createdAt, depuis))));
+    .where(and(isNull(jobs.masqueAt), isNull(jobs.demandeId), or(inArray(jobs.statut, ["en_attente", "en_cours"]), isNull(jobs.vuAt), gte(jobs.createdAt, depuis))));
 
   const toutesLignesLlm = await db
     .select({ r: agentRuns, projetNom: projects.nom, conversationUuid: agentConversations.uuid, portee: agentConversations.portee, cibleId: agentConversations.cibleId, profondeur: agentConversations.profondeur })
@@ -68,6 +70,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .where(
       and(
         isNull(agentRuns.masqueAt),
+        // Une étape de demande (itérer un plan…) n'a pas sa ligne : celle de la demande la remplace.
+        isNull(agentRuns.demandeId),
         // Un TOUR de conversation (notes, puis réponse de l'agent) passe par la file du worker, mais il dure quelques secondes
         // et la popup de conversation l'affiche déjà : il n'a pas sa place dans le panneau, le badge ni les notifications.
         or(isNull(agentRuns.but), ne(agentRuns.but, "tour")),
@@ -284,7 +288,46 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     };
   });
 
-  const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots, ...tachesCreations], maintenant);
+  // Les DEMANDES (lib/demandes.ts) : UNE entrée chacune ; l'état de la tâche de l'étape courante (en file, en cours, jetons, progression du rendu)
+  // se lit sur le run ou le job qu'elle a posé.
+  const lignesDemandes = await db
+    .select({ d: demandes, planUuid: plans.uuid, titre: plans.titre, episodeId: plans.episodeId })
+    .from(demandes)
+    .innerJoin(plans, and(eq(demandes.cibleType, "plan"), eq(plans.id, demandes.cibleId)))
+    .where(and(isNull(demandes.masqueAt), or(eq(demandes.statut, "en_cours"), isNull(demandes.vuAt), gte(demandes.createdAt, depuis))));
+  const tachesDemandes: Tache[] = await Promise.all(
+    lignesDemandes.map(async ({ d, planUuid, titre, episodeId }) => {
+      const etapes = (Array.isArray(d.etapes) ? d.etapes : []) as EtapeDemande[];
+      const ctx = d.contexte as { runUuid?: string; jobId?: number };
+      const courante = etapes.find((x) => x.statut === "en_cours");
+      const rendu = courante?.cle === "rendu";
+      const [run] = !rendu && ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
+      const [job] = rendu && ctx.jobId != null ? await db.select().from(jobs).where(eq(jobs.id, ctx.jobId)) : [];
+      const feuille = run ?? job ?? null;
+      return tacheDeDemande({
+        id: d.id,
+        projectId: d.projectId,
+        libelle: `Itérer · ${titre}`,
+        href: `/p/${d.projectId}/e/${episodeId}/plans/${planUuid}`,
+        statut: d.statut as StatutDemande,
+        erreur: d.erreur,
+        etapes,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
+        finishedAt: d.finishedAt,
+        vuAt: d.vuAt,
+        tacheEnFile: feuille?.statut === "en_attente",
+        tacheEnCours: feuille?.statut === "en_cours",
+        tacheCreeeLe: feuille?.createdAt ?? null,
+        jetons: run?.statut === "en_cours" ? run.progressionJetons : null,
+        annulationDemandee: feuille?.annulationDemandeeAt != null,
+        progressionRendu: job && job.statut === "en_cours" && job.progressionValeur != null && job.progressionMax ? { valeur: job.progressionValeur, max: job.progressionMax } : null,
+        rendu,
+      });
+    }),
+  );
+
+  const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots, ...tachesCreations, ...tachesDemandes], maintenant);
 
   // Disque : seulement pour les tâches d'images gardées.
   const parCle = new Map(lignesImages.map((l) => [cleImage(l.g.uuid), l.g]));

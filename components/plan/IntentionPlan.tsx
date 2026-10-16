@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { genererIteration, ouvrirConversation, rejeter } from "@/app/agents/actions";
 import { lirePropositionVue } from "@/app/agents/lecture";
+import { annulerLaDemande, demanderIteration, lireDemande } from "@/app/demandes/actions";
 import { preparerBaseIteration, rouvrirIteration, validerPretUpscale } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { ajouterSuggestion, decisionIteration, passagesDeChangement, SUGGESTIONS_CONSIGNE, type DecisionIteration, type EtatPlan } from "@/lib/fiche-plan";
@@ -147,8 +148,8 @@ export function IntentionPlan({
     return null;
   };
 
-  /** Prépare l'essai de base, écrit les retouches du prompt, lance l'agent et attend sa proposition. Renvoie null (erreur déjà affichée) si on s'arrête. */
-  const interroger = async (retour: string, avecPlanche: boolean, chaine?: { consigne: string; depuisNumero: number | null; reglages: ReturnType<typeof b.reglagesRetouches> }): Promise<{ propositionUuid: string; proposition: VueProposition; conversationUuid: string; runUuid: string } | null> => {
+  /** Prépare l'essai de base, écrit les retouches du prompt et ouvre la conversation du plan. Renvoie null (erreur déjà affichée) si on s'arrête. */
+  const preparerConversation = async (avecPlanche: boolean): Promise<string | null> => {
     if (!base) return null;
     if (!base.estDernier && retouches) {
       setErreur("Tes retouches du prompt ne sont pas figées : lance-les d'abord (Réglages) ou annule-les, puis repars de cet essai.");
@@ -174,7 +175,15 @@ export function IntentionPlan({
       setPhase("repos");
       return null;
     }
-    const g = await genererIteration(conv.conversationUuid, { retour, renduId: base.id, planche: avecPlanche, ...(chaine ? { chaine } : {}) });
+    return conv.conversationUuid;
+  };
+
+  /** Lance l'agent d'itération et attend sa proposition (« Analyser » : rien n'est appliqué sans geste). */
+  const interroger = async (retour: string, avecPlanche: boolean): Promise<{ propositionUuid: string; proposition: VueProposition; conversationUuid: string } | null> => {
+    if (!base) return null;
+    const conversationUuid = await preparerConversation(avecPlanche);
+    if (!conversationUuid) return null;
+    const g = await genererIteration(conversationUuid, { retour, renduId: base.id, planche: avecPlanche });
     if (!g.ok) {
       setErreur(g.erreur);
       setPhase("repos");
@@ -188,46 +197,43 @@ export function IntentionPlan({
       setPhase("repos");
       return null;
     }
-    return { propositionUuid: g.propositionUuid, proposition: prop, conversationUuid: conv.conversationUuid, runUuid: g.runUuid };
+    return { propositionUuid: g.propositionUuid, proposition: prop, conversationUuid };
   };
 
-  /** La suite d'« Itérer » : le SERVEUR enchaîne (réécriture de la fiche par plan-h3 si la consigne change ce qui se passe dans le plan,
-   * puis application et essai, une transaction). La page ne fait que la demander et suivre : si elle est quittée en route, le worker donne la
-   * suite (lib/iteration-suite.ts), rien ne se perd. */
-  const suivre = async (runUuid: string, consigneEssai: string): Promise<void> => {
-    for (let tour = 0; tour < 10; tour++) {
-      if (demonte.current || annule.current) return;
-      const r = await b.lancerSuite(runUuid);
-      if (!r.ok) {
-        setPhase("repos");
-        return;
+  /** « Itérer » = UNE demande (lib/demandes.ts) que le worker mène de la consigne au rendu (agent, réécriture de la fiche si la consigne change
+   * le plan, application, essai). La page ne fait que la suivre : on affiche l'étape en cours, et quand le rendu part, le même accusé qu'un
+   * lancement. Quitter la page ne coupe rien (la ligne du panneau des tâches reste). */
+  const suivreDemande = async (demandeId: number): Promise<void> => {
+    let dernier = "";
+    while (!demonte.current && !annule.current) {
+      const v = await lireDemande(demandeId);
+      if (!v) break;
+      if (v.etapeLibelle && v.etapeLibelle !== dernier) {
+        dernier = v.etapeLibelle;
+        if (v.etapes.find((e) => e.cle === "reecriture")?.statut === "en_cours") setVision("fiche");
+        setPhase("agent");
       }
-      if (r.etape === "essai") {
+      if (v.numeroRendu != null) {
+        b.accuserLancement(v.numeroRendu);
         setConsigne("");
         setMontrer(false);
         setRevue(null);
-        setInfo(r.notes.length ? `Essai n°${r.numeroRendu} lancé. À savoir, gardé sur l'essai : ${r.notes.join(" ")}` : null);
+        setInfo(v.notes.length ? `Essai n°${v.numeroRendu} lancé. À savoir, gardé sur l'essai : ${v.notes.join(" ")}` : null);
         setPhase("repos");
         router.push(hrefApresLancement, { scroll: false });
         return;
       }
-      if (r.etape === "reecriture") {
-        // La fiche est réécrite par plan-h3 : on attend sa proposition, puis son run donne la suite à son tour.
-        setVision("fiche");
-        setPhase("agent");
-        const prop = await attendre(r.propositionUuid);
-        if (demonte.current) return;
-        if (!prop) {
-          setErreur(annule.current ? null : "L'agent n'a pas répondu à temps. Sa proposition reste dans le panneau des tâches.");
-          setPhase("repos");
-          return;
-        }
-        return suivre(r.runUuid, consigneEssai);
+      if (v.statut !== "en_cours") {
+        if (v.statut === "echoue") setErreur(v.erreur ?? "L'itération a échoué.");
+        setPhase("repos");
+        return;
       }
-      await new Promise((res) => setTimeout(res, 1500)); // « attendre » : la tâche se referme, ou le worker a déjà pris la suite
+      await new Promise((r) => setTimeout(r, INTERVALLE_MS));
     }
-    setInfo("La suite d'« Itérer » continue côté serveur : l'essai apparaîtra dans la liste des rendus.");
-    setPhase("repos");
+    if (annule.current && !demonte.current) {
+      await annulerLaDemande(demandeId);
+      setPhase("repos");
+    }
   };
 
   const iterer = async () => {
@@ -248,9 +254,17 @@ export function IntentionPlan({
       return;
     }
     try {
-      const r = await interroger(texte, montrer, { consigne: texte, depuisNumero: base?.numero ?? null, reglages: b.reglagesRetouches() });
-      if (!r) return;
-      await suivre(r.runUuid, texte);
+      // Les mêmes préparatifs qu'une analyse (essai de base, retouches écrites, conversation du plan), puis UNE demande.
+      const c = await preparerConversation(montrer);
+      if (!c) return;
+      setPhase("agent");
+      const g = await demanderIteration(c, { retour: texte, renduId: base?.id ?? null, planche: montrer, depuisNumero: base?.numero ?? null, reglages: b.reglagesRetouches() });
+      if (!g.ok) {
+        setErreur(g.erreur);
+        setPhase("repos");
+        return;
+      }
+      await suivreDemande(g.demandeId);
       return;
       setPhase("repos");
     } catch (e) {

@@ -384,6 +384,8 @@ export const jobs = pgTable("jobs", {
   tentative: integer("tentative").notNull().default(1),
   // Numéro du rendu dans le plan (1, 2, 3…), posé à la création du job ; ce que l'historique affiche.
   numeroRendu: integer("numero_rendu").notNull().default(1),
+  // La DEMANDE dont ce rendu est la dernière étape (itération d'un plan) : le panneau n'en montre que la ligne de la demande.
+  demandeId: integer("demande_id"),
   // La consigne en langage naturel qui a produit cet essai (fiche de plan, 2026-10-12) et le numéro de l'essai dont on est parti.
   // Null pour une première génération, un import et les rendus d'avant.
   consigne: text("consigne"),
@@ -551,6 +553,8 @@ export const agentRuns = pgTable("agent_runs", {
   vuAt: timestamp("vu_at"),
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
   masqueAt: timestamp("masque_at"),
+  // La DEMANDE (itération d'un plan…) dont cette tâche est une étape : le panneau n'en montre alors qu'une ligne, celle de la demande.
+  demandeId: integer("demande_id"),
   // Ce que le résultat devient (système d'agents, docs/CONCEPTION_AGENTS.md §14) :
   // `but` = tour (réponse de conversation) | brief | proposition ; les ids relient la
   // tâche à sa conversation / sa proposition (entiers simples, sans clé étrangère :
@@ -650,6 +654,34 @@ export const creationsProjet = pgTable("creations_projet", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// Une DEMANDE (2026-10-17) : un geste de l'utilisateur qui tient en plusieurs étapes (itérer un plan : l'agent lit la consigne, la
+// fiche est réécrite si besoin, le rendu part). UNE ligne dans la file et le panneau, du clic au résultat, au lieu d'une suite de
+// tâches qui se relaient avec des trous entre elles. Ce n'est qu'un pilote : les tâches (runs d'agent, jobs vidéo, générations
+// d'images) gardent leurs voies et leur verrou GPU (voir lib/demandes.ts). `type` : iteration-plan | (à venir) iteration-asset ;
+// `statut` : en_cours | termine | echoue | annulee ; une seule demande en cours par cible (index unique partiel).
+export const demandes = pgTable(
+  "demandes",
+  {
+    id: serial("id").primaryKey(),
+    uuid: uuid("uuid").notNull().defaultRandom().unique(),
+    projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 24 }).notNull(),
+    cibleType: varchar("cible_type", { length: 8 }).notNull(),
+    cibleId: integer("cible_id").notNull(),
+    statut: varchar("statut", { length: 10 }).notNull().default("en_cours"),
+    etapes: jsonb("etapes").notNull().default(sql`'[]'::jsonb`),
+    // Ce qu'il faut pour finir : consigne, essai de départ, réglages, tâche courante, rendu créé (lib/demandes.ts).
+    contexte: jsonb("contexte").notNull().default(sql`'{}'::jsonb`),
+    erreur: text("erreur"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    finishedAt: timestamp("finished_at"),
+    vuAt: timestamp("vu_at"),
+    masqueAt: timestamp("masque_at"),
+  },
+  (table) => [uniqueIndex("demandes_une_en_cours_par_cible").on(table.cibleType, table.cibleId).where(sql`${table.statut} = 'en_cours'`)],
+);
 
 // Le brief : document de RÉFÉRENCE du projet (un seul par projet), modifiable après
 // coup. `contenu` suit le schéma de lib/agents/brief-schema.json ;

@@ -294,7 +294,7 @@ function Entree({ x, onOuvrir, onRetirer, onAnnuler }: { x: Tache; onOuvrir: () 
             type="button"
             className="tq-ignorer tq-annuler"
             onClick={() => (x.statut === "en_cours" || x.cle.startsWith("creation:") ? setConfirmer(true) : onAnnuler())}
-            title={x.cle.startsWith("creation:") ? "Arrêter la préparation du projet (ce qui est déjà écrit reste)" : x.statut === "en_cours" ? "Interrompre cette génération" : "Retirer de la file"}
+            title={x.cle.startsWith("creation:") ? "Arrêter la préparation du projet (ce qui est déjà écrit reste)" : x.cle.startsWith("demande:") ? "Annuler cette itération (ce qui est déjà écrit reste)" : x.statut === "en_cours" ? "Interrompre cette génération" : "Retirer de la file"}
           >
             Annuler
           </button>

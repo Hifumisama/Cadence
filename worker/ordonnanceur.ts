@@ -4,6 +4,10 @@ import { DOMAINE_GENRE, PRIORITE_GENRE, type DomaineGpu, type GenreTache } from 
  * ComfyUI et le LLM local : le worker ne fait qu'une chose à la fois, il choisit
  * donc la prochaine à chaque tour.
  *
+ * - **Une étape de demande d'abord** (2026-10-17) : la tâche qu'une demande en cours a posée (l'agent d'une itération, la
+ *   réécriture de la fiche, le rendu) passe avant le travail de fond de même voie (lot de 20 prompts, 20 images d'un projet en
+ *   création) : on a cliqué, on attend le résultat. Ce n'est pas de la préemption : rien n'est coupé, on choisit seulement entre
+ *   deux tâches qui n'ont pas commencé.
  * - **Image avant LLM avant vidéo** : les tâches courtes d'abord. Pendant la
  *   journée (itérations), une image ne doit pas attendre derrière un plan H3 en
  *   file ; un appel LLM (1 à 3 min) passe avant une vidéo (1 min 30 à 4 min) ; la
@@ -23,11 +27,13 @@ import { DOMAINE_GENRE, PRIORITE_GENRE, type DomaineGpu, type GenreTache } from 
 
 export type { DomaineGpu, GenreTache };
 
-export type TacheEnAttente = { genre: GenreTache; id: number; createdAt: Date };
+export type TacheEnAttente = { genre: GenreTache; id: number; createdAt: Date; /** Étape d'une demande en cours (itération) : passe avant le travail de fond. */ demande?: boolean };
 
 export function comparerTaches(a: TacheEnAttente, b: TacheEnAttente, precedent: DomaineGpu | null = null): number {
   const collant = (t: TacheEnAttente) => (precedent != null && DOMAINE_GENRE[t.genre] === precedent ? 0 : 1);
+  const demande = (t: TacheEnAttente) => (t.demande ? 0 : 1);
   return (
+    demande(a) - demande(b) ||
     PRIORITE_GENRE[a.genre] - PRIORITE_GENRE[b.genre] ||
     collant(a) - collant(b) ||
     a.createdAt.getTime() - b.createdAt.getTime() ||

@@ -1,8 +1,6 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { donnerSuiteIteration } from "@/app/agents/actions";
-import type { ResultatSuite } from "@/lib/iteration-suite";
 import { appliquerIterationEtGenerer, ecrireSections, figerEtLancer } from "@/app/plans/actions";
 
 /** Les panneaux de la Fiche de plan qui reçoivent le balayage « gel » quand un rendu part. */
@@ -39,10 +37,10 @@ type Ctx = {
   lancer: (mode: ModeRendu, essai?: EssaiLance) => Promise<ResultatLancement>;
   /** Applique la correction de l'agent et crée l'essai en une transaction (« Itérer », « Appliquer et générer »). */
   lancerIteration: (propositionUuid: string, essai: { consigne: string | null; depuisNumero: number | null }) => Promise<ResultatIteration>;
-  /** Les réglages retouchés à la main (durée, FPS, seed), tels que « Itérer » les confie à la suite côté serveur. */
+  /** Les réglages retouchés à la main (durée, FPS, seed), que « Itérer » confie à sa demande (écrits avec l'essai). */
   reglagesRetouches: () => { dureeGenerationSecondes?: number; fps?: number; seed?: string };
-  /** Donne la suite d'« Itérer » (réécriture, ou application + essai) et, si l'essai part, joue le même accusé que `lancerIteration`. */
-  lancerSuite: (runUuid: string) => Promise<ResultatSuite>;
+  /** L'essai d'une demande vient de partir (rendu créé) : même accusé qu'un lancement (balayage « gel », sceau, brouillon remis au serveur). */
+  accuserLancement: (numeroRendu: number) => void;
   /** Écrit les sections modifiées, exécute `fn`, puis reprend le contenu du serveur : pour les gestes qui réécrivent le
    * prompt côté serveur (ajouter / retirer une référence) et écraseraient un brouillon. */
   avecSectionsEcrites: <T,>(fn: () => Promise<T>) => Promise<T>;
@@ -183,19 +181,9 @@ export function BrouillonProvider({
     ...(seedModifiee && seedVue ? { seed: seedVue } : {}),
   });
 
-  /** Fin d'« Itérer » côté serveur : le worker ferait la même chose si la page n'était plus là (lib/iteration-suite.ts). */
-  const lancerSuite = async (runUuid: string): Promise<ResultatSuite> => {
-    setErreur(null);
-    const r = await donnerSuiteIteration(runUuid);
-    if (!r.ok) {
-      setErreur(r.erreur);
-      return r;
-    }
-    if (r.etape === "essai") {
-      nettoyer();
-      apresLancement(r.numeroRendu);
-    }
-    return r;
+  const accuserLancement = (numeroRendu: number) => {
+    nettoyer();
+    apresLancement(numeroRendu);
   };
 
   const figer = (mode: ModeRendu) => {
@@ -245,7 +233,7 @@ export function BrouillonProvider({
     lancer,
     lancerIteration,
     reglagesRetouches,
-    lancerSuite,
+    accuserLancement,
     avecSectionsEcrites,
     occupe: pending || sceau != null,
     sceau,

@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { jobs, planPromptSections, planRefs, plans } from "@/db/schema";
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { creerJobRelance } from "@/lib/job-relance";
-import { appliquerIterationEtGenererCore } from "@/lib/iteration-suite";
+import { appliquerIterationEtGenererCore } from "@/lib/iteration-application";
 import { getPlansPerimes } from "@/lib/plans-perimes";
 import { classerPourPrevisualisation, consequencesSuppression, decisionIteration, essaiEnFile } from "@/lib/fiche-plan";
 import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "@/lib/agents/service";

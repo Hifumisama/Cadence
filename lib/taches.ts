@@ -112,7 +112,9 @@ export function ordonnerTaches(entrees: Tache[], maintenant: Date): Tache[] {
   const attente = gardees.filter((x) => x.statut === "en_attente");
   const parAnciennete = (a: Tache, b: Tache) => t(a.createdAt) - t(b.createdAt);
   // L'ordre du worker (worker/ordonnanceur.ts) : image, puis llm, puis vidéo.
-  const file = [...attente].sort((a, b) => PRIORITE_GENRE[a.genre] - PRIORITE_GENRE[b.genre] || parAnciennete(a, b));
+  // Une demande (itération) passe avant le travail de fond, comme dans le worker.
+  const deDemande = (x: Tache) => (x.cle.startsWith("demande:") ? 0 : 1);
+  const file = [...attente].sort((a, b) => deDemande(a) - deDemande(b) || PRIORITE_GENRE[a.genre] - PRIORITE_GENRE[b.genre] || parAnciennete(a, b));
   const videoEnCours = enCours.some((x) => x.genre === "video");
   // La tâche qui tient le GPU : une tâche d'un autre genre patiente derrière elle.
   const genreEnCours = enCours[0]?.genre ?? null;
@@ -173,20 +175,23 @@ export const cleLot = (propositionUuid: string) => `lot:${propositionUuid}`;
  * étapes, identifiée par le projet. Un clic mène à la page d'avancée (`/p/<id>/creation`). */
 export const cleCreation = (projectId: number) => `creation:${projectId}`;
 
+/** Une DEMANDE (lib/demandes.ts : itérer un plan…) : UNE entrée pour toutes ses étapes, identifiée par son id. */
+export const cleDemande = (id: number) => `demande:${id}`;
+
 /** Domaine GPU d'une tâche (voir lib/gpu.ts). */
 export const domaineDeTache = (t: Pick<Tache, "genre">) => domaineDe(t.genre);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function analyserCle(cle: string): { genre: GenreTache | "lot" | "creation"; ref: string } | null {
+export function analyserCle(cle: string): { genre: GenreTache | "lot" | "creation" | "demande"; ref: string } | null {
   const i = cle.indexOf(":");
   if (i < 0) return null;
   const genre = cle.slice(0, i);
   const ref = cle.slice(i + 1);
-  if ((genre !== "image" && genre !== "video" && genre !== "llm" && genre !== "lot" && genre !== "creation") || !ref) return null;
+  if ((genre !== "image" && genre !== "video" && genre !== "llm" && genre !== "lot" && genre !== "creation" && genre !== "demande") || !ref) return null;
   // Une clé vient du navigateur : un uuid ou un id mal formé ne doit jamais
   // atteindre la base (Postgres lèverait une erreur de syntaxe au lieu de l'ignorer).
   if ((genre === "image" || genre === "llm" || genre === "lot") && !UUID.test(ref)) return null;
-  if ((genre === "video" || genre === "creation") && !/^\d+$/.test(ref)) return null;
+  if ((genre === "video" || genre === "creation" || genre === "demande") && !/^\d+$/.test(ref)) return null;
   return { genre, ref };
 }

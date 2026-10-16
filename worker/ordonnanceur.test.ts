@@ -128,3 +128,11 @@ test("reprise : seul le fichier d'aperçu d'une génération interrompue est à 
   assert.deepEqual(fichiersOrphelins({ assetId: 12, apercuFichier: null }), []);
   assert.match(ERREUR_INTERROMPUE, /Interrompue/);
 });
+
+test("une étape de demande passe avant le travail de fond, même d'un genre moins prioritaire", () => {
+  const t = (genre: TacheEnAttente["genre"], id: number, h: number, demande = false): TacheEnAttente => ({ genre, id, createdAt: new Date(2026, 9, 17, 10, h), demande });
+  const choix = choisirProchaineTache([t("image", 1, 0), t("video", 2, 5, true)]);
+  assert.equal(choix?.genre, "video");
+  // à demande égale, l'ordre habituel
+  assert.equal(choisirProchaineTache([t("video", 3, 0, true), t("video", 4, 1, true)])?.id, 3);
+});

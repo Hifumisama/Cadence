@@ -35,7 +35,8 @@ export async function prochaineTacheLlmEnAttente(): Promise<AgentRun | null> {
     .select()
     .from(agentRuns)
     .where(and(eq(agentRuns.statut, "en_attente"), sql`coalesce(${agentRuns.options}->>'suspendu', 'false') <> 'true'`))
-    .orderBy(agentRuns.createdAt, agentRuns.id)
+    // Les étapes d'une demande (itération) d'abord : voir worker/ordonnanceur.ts.
+    .orderBy(sql`(${agentRuns.demandeId} is null)`, agentRuns.createdAt, agentRuns.id)
     .limit(1);
   return run ?? null;
 }

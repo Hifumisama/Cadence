@@ -13,7 +13,7 @@ export async function creerJobRelance(
   planId: number,
   activerUpscale: boolean,
   nouvelleVariante = false,
-  options: { consigne?: string | null; depuisNumero?: number | null; garderPret?: boolean; alertesIteration?: string[] } = {},
+  options: { consigne?: string | null; depuisNumero?: number | null; garderPret?: boolean; alertesIteration?: string[]; demandeId?: number } = {},
   /** Une transaction en cours (« Itérer » : application de la correction + création de l'essai, tout ou rien). */
   exec: typeof db | Tx = db,
 ) {
@@ -36,6 +36,7 @@ export async function creerJobRelance(
     consigne: options.consigne?.trim() || null,
     depuisNumeroRendu: options.depuisNumero ?? null,
     alertesIteration: options.alertesIteration?.length ? options.alertesIteration : null,
+    demandeId: options.demandeId ?? null,
   });
 
   // Un nouvel essai remet un plan « prêt à upscaler » en itération (fiche de plan 2026-10-12) ; seul l'upscale de l'essai retenu
