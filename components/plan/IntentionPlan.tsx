@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { genererIteration, genererReecriture, ouvrirConversation, rejeter } from "@/app/agents/actions";
+import { genererIteration, ouvrirConversation, rejeter } from "@/app/agents/actions";
 import { lirePropositionVue } from "@/app/agents/lecture";
 import { preparerBaseIteration, rouvrirIteration, validerPretUpscale } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
@@ -148,7 +148,7 @@ export function IntentionPlan({
   };
 
   /** Prépare l'essai de base, écrit les retouches du prompt, lance l'agent et attend sa proposition. Renvoie null (erreur déjà affichée) si on s'arrête. */
-  const interroger = async (retour: string, avecPlanche: boolean): Promise<{ propositionUuid: string; proposition: VueProposition; conversationUuid: string } | null> => {
+  const interroger = async (retour: string, avecPlanche: boolean, chaine?: { consigne: string; depuisNumero: number | null; reglages: ReturnType<typeof b.reglagesRetouches> }): Promise<{ propositionUuid: string; proposition: VueProposition; conversationUuid: string; runUuid: string } | null> => {
     if (!base) return null;
     if (!base.estDernier && retouches) {
       setErreur("Tes retouches du prompt ne sont pas figées : lance-les d'abord (Réglages) ou annule-les, puis repars de cet essai.");
@@ -174,7 +174,7 @@ export function IntentionPlan({
       setPhase("repos");
       return null;
     }
-    const g = await genererIteration(conv.conversationUuid, { retour, renduId: base.id, planche: avecPlanche });
+    const g = await genererIteration(conv.conversationUuid, { retour, renduId: base.id, planche: avecPlanche, ...(chaine ? { chaine } : {}) });
     if (!g.ok) {
       setErreur(g.erreur);
       setPhase("repos");
@@ -188,34 +188,45 @@ export function IntentionPlan({
       setPhase("repos");
       return null;
     }
-    return { propositionUuid: g.propositionUuid, proposition: prop, conversationUuid: conv.conversationUuid };
+    return { propositionUuid: g.propositionUuid, proposition: prop, conversationUuid: conv.conversationUuid, runUuid: g.runUuid };
   };
 
-  /** La consigne change ce qui se passe dans le plan : l'agent a écrit la NOUVELLE description, la fiche est réécrite depuis elle (plan-h3), puis
-   * appliquée et générée comme une correction (une seule transaction côté serveur ; l'ancienne description reste dans l'essai précédent). */
-  const reecrire = async (conversationUuid: string, description: string, consigneEssai: string, dureeSecondes?: number) => {
-    setVision("fiche");
-    setPhase("agent");
-    const g = await genererReecriture(conversationUuid, { consigne: consigneEssai, description, ...(dureeSecondes ? { dureeSecondes } : {}) });
-    if (!g.ok) {
-      setErreur(g.erreur);
-      setPhase("repos");
-      return;
+  /** La suite d'« Itérer » : le SERVEUR enchaîne (réécriture de la fiche par plan-h3 si la consigne change ce qui se passe dans le plan,
+   * puis application et essai, une transaction). La page ne fait que la demander et suivre : si elle est quittée en route, le worker donne la
+   * suite (lib/iteration-suite.ts), rien ne se perd. */
+  const suivre = async (runUuid: string, consigneEssai: string): Promise<void> => {
+    for (let tour = 0; tour < 10; tour++) {
+      if (demonte.current || annule.current) return;
+      const r = await b.lancerSuite(runUuid);
+      if (!r.ok) {
+        setPhase("repos");
+        return;
+      }
+      if (r.etape === "essai") {
+        setConsigne("");
+        setMontrer(false);
+        setRevue(null);
+        setInfo(r.notes.length ? `Essai n°${r.numeroRendu} lancé. À savoir, gardé sur l'essai : ${r.notes.join(" ")}` : null);
+        setPhase("repos");
+        router.push(hrefApresLancement, { scroll: false });
+        return;
+      }
+      if (r.etape === "reecriture") {
+        // La fiche est réécrite par plan-h3 : on attend sa proposition, puis son run donne la suite à son tour.
+        setVision("fiche");
+        setPhase("agent");
+        const prop = await attendre(r.propositionUuid);
+        if (demonte.current) return;
+        if (!prop) {
+          setErreur(annule.current ? null : "L'agent n'a pas répondu à temps. Sa proposition reste dans le panneau des tâches.");
+          setPhase("repos");
+          return;
+        }
+        return suivre(r.runUuid, consigneEssai);
+      }
+      await new Promise((res) => setTimeout(res, 1500)); // « attendre » : la tâche se referme, ou le worker a déjà pris la suite
     }
-    const prop = await attendre(g.propositionUuid);
-    if (demonte.current) return;
-    if (!prop) {
-      setErreur(annule.current ? null : "L'agent n'a pas répondu à temps. Sa proposition reste dans le panneau des tâches.");
-      setPhase("repos");
-      return;
-    }
-    const d = decisionIteration(prop);
-    if (d.action === "echec") setErreur(d.erreur);
-    else if (d.action === "rien") setErreur(d.message);
-    else if (d.action === "appliquer") {
-      await appliquerEtLancer(g.propositionUuid, consigneEssai);
-      return;
-    }
+    setInfo("La suite d'« Itérer » continue côté serveur : l'essai apparaîtra dans la liste des rendus.");
     setPhase("repos");
   };
 
@@ -237,27 +248,10 @@ export function IntentionPlan({
       return;
     }
     try {
-      const r = await interroger(texte, montrer);
+      const r = await interroger(texte, montrer, { consigne: texte, depuisNumero: base?.numero ?? null, reglages: b.reglagesRetouches() });
       if (!r) return;
-      const decision = decisionIteration(r.proposition);
-      if (decision.action === "echec") {
-        setErreur(decision.erreur);
-        setPhase("repos");
-        return;
-      }
-      if (decision.action === "rien") {
-        setErreur(decision.message);
-        setPhase("repos");
-        return;
-      }
-      if (decision.action === "appliquer") {
-        await appliquerEtLancer(r.propositionUuid, texte);
-        return;
-      }
-      if (decision.action === "reecrire") {
-        await reecrire(r.conversationUuid, decision.description, texte, decision.dureeSecondes);
-        return;
-      }
+      await suivre(r.runUuid, texte);
+      return;
       setPhase("repos");
     } catch (e) {
       setErreur(e instanceof Error ? e.message : "Quelque chose a échoué.");

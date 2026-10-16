@@ -37,6 +37,7 @@ import { appliquerProposition, enregistrerChangements } from "./proposition-db";
 import { creerRun, tacheBloquante, type ButRun, type TacheBloquante } from "./runs";
 import { squeletteDepuisBrief } from "./squelette";
 import type { Avertissement, ResultatApplication } from "./types";
+import type { Chaine } from "../iteration-suite";
 import { entreeIterationPlan, entreeInventaire, entreePlanH3, etatIterationPlan } from "./contexte";
 import { cleSousTachePlan, planUuidDeCle } from "./fiches";
 import type { EtatIterationPlan, PlanPourFiche } from "./types";
@@ -921,6 +922,11 @@ export async function genererFiches(
 
 const MAX_RETOUR_VISIONNAGE = 4000;
 
+/** Ce que « Itérer » demande en plus pour que la SUITE (réécriture, application, essai) se fasse côté serveur même si la page est
+ * quittée : voir lib/iteration-suite.ts. Absent pour « Analyser » (rien n'est appliqué sans geste). */
+export type DemandeChaine = Omit<Chaine, "etat" | "issue">;
+const optionsChaine = (c: DemandeChaine | undefined): { chaine: Chaine } | null => (c ? { chaine: { ...c, etat: "attente" } } : null);
+
 /** « Corriger après visionnage » (page d'un plan qui a un RENDU) : une proposition simple, affinable, calquée sur
  * la fiche d'un plan seul. `retour` = ce que l'utilisateur a vu (obligatoire) ; il devient la consigne de la
  * proposition. Routage par état du plan (décision 2026-10-02) : sans rendu terminé, refusé (jamais de correction à
@@ -929,7 +935,7 @@ const MAX_RETOUR_VISIONNAGE = 4000;
 export async function genererIteration(
   conversationUuid: string,
   /** `planche` : joindre la planche de vignettes du rendu (jamais par défaut : case « Montrer au chef opérateur », bouton « Analyser »). */
-  options: { retour: string; renduId?: number | null; planche?: boolean },
+  options: { retour: string; renduId?: number | null; planche?: boolean; chaine?: DemandeChaine },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
@@ -943,7 +949,7 @@ export async function genererIteration(
   const e = await entreeIterationPlan(db, conv.projectId, p.uuid, retour, options.renduId ?? null, options.planche === true);
   if ("erreur" in e) return ERR(e.erreur);
   const propId = await nouvelleProposition(conv, { skill: "iteration-plan", consigne: retour, contexte: e.contexte });
-  const run = await creerRun(db, { skill: "iteration-plan", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId });
+  const run = await creerRun(db, { skill: "iteration-plan", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: optionsChaine(options.chaine) });
   await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
   const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
@@ -954,7 +960,7 @@ export async function genererIteration(
  * l'ancienne reste dans l'essai précédent. Comme toute fiche de plan, elle voit les voisins, le style, le registre et la voix off du brief. */
 export async function genererReecriturePlan(
   conversationUuid: string,
-  options: { consigne: string; description: string; dureeSecondes?: number },
+  options: { consigne: string; description: string; dureeSecondes?: number; chaine?: DemandeChaine },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
@@ -969,7 +975,7 @@ export async function genererReecriturePlan(
   const e = await entreePlanH3(db, conv.projectId, p.uuid, consigne, undefined, { intention: description, ...(duree ? { dureeVoulue: duree } : {}) });
   if (!e) return ERR("Plan introuvable.");
   const propId = await nouvelleProposition(conv, { skill: "plan-h3", consigne: options.consigne.trim(), contexte: e.contexte });
-  const run = await creerRun(db, { skill: "plan-h3", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: { ...(e.variante ? { variante: e.variante } : {}), descriptionNouvelle: description } });
+  const run = await creerRun(db, { skill: "plan-h3", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: { ...(e.variante ? { variante: e.variante } : {}), descriptionNouvelle: description, ...optionsChaine(options.chaine) } });
   await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
   const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };

@@ -26,6 +26,7 @@ import { decharger, llmJoignable } from "./llamaSwap";
 import { echouerAppelsEnAttente, prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
 import { attenteDepassee, effacerSonde, noterSonde } from "./disponibilite";
 import { piloterCreations } from "../lib/agents/creation-db";
+import { piloterIterations } from "../lib/iteration-suite";
 import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
 import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
 import { reprendreOrphelines } from "./reprise";
@@ -426,6 +427,12 @@ async function boucle() {
           if (await piloterCreations()) fait = true;
         } catch (err) {
           console.error("[worker] Installateur :", err);
+        }
+        // La suite d'« Itérer » quand la page n'est plus là : réécriture de la fiche, application, essai.
+        try {
+          if (await piloterIterations()) fait = true;
+        } catch (err) {
+          console.error("[worker] Suite d'itération :", err);
         }
         await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
       }

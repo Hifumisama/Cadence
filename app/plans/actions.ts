@@ -3,6 +3,8 @@
 import { db } from "@/db";
 import { jobs, planPromptSections, planRefs, plans } from "@/db/schema";
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
+import { creerJobRelance } from "@/lib/job-relance";
+import { appliquerIterationEtGenererCore } from "@/lib/iteration-suite";
 import { getPlansPerimes } from "@/lib/plans-perimes";
 import { classerPourPrevisualisation, consequencesSuppression, decisionIteration, essaiEnFile } from "@/lib/fiche-plan";
 import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "@/lib/agents/service";
@@ -46,59 +48,6 @@ export async function updatePromptSection(
       contenu,
     });
   }
-}
-
-/** Cœur du bouton relance (F03) et du passage nuit (CDC page 4, "queue
- * batch") : crée un NOUVEAU job en_attente plutôt que de réécrire le
- * précédent — l'historique des tentatives est la mémoire de la boucle
- * d'itération. Le worker applique ensuite le healthcheck et la distinction
- * indisponible/échec réel (F04). Ne revalide pas le cache : le batch veut
- * une seule revalidation après N plans, pas une par plan. */
-async function creerJobRelance(
-  planId: number,
-  activerUpscale: boolean,
-  nouvelleVariante = false,
-  options: { consigne?: string | null; depuisNumero?: number | null; garderPret?: boolean; alertesIteration?: string[] } = {},
-  /** Une transaction en cours (« Itérer » : application de la correction + création de l'essai, tout ou rien). */
-  exec: typeof db | Tx = db,
-) {
-  const [plan] = await exec.select().from(plans).where(eq(plans.id, planId));
-  if (!plan) throw new Error(`Plan ${planId} introuvable`);
-
-  // « Relancer » garde la seed du plan : même prompt + mêmes refs + même durée = même rendu (F04). Une
-  // « nouvelle variante » en tire une autre, qui devient la seed du plan.
-  const seed = nouvelleVariante || !plan.seed ? tirerSeed() : plan.seed;
-  const [rendus] = await exec.select({ dernier: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, plan.id));
-
-  await exec.insert(jobs).values({
-    planId: plan.id,
-    statut: "en_attente",
-    tentative: 1,
-    numeroRendu: (rendus?.dernier ?? 0) + 1,
-    workflowFichier: "video-generation/VID_REF2VA.json",
-    seedUtilisee: seed,
-    activerUpscale,
-    consigne: options.consigne?.trim() || null,
-    depuisNumeroRendu: options.depuisNumero ?? null,
-    alertesIteration: options.alertesIteration?.length ? options.alertesIteration : null,
-  });
-
-  // Un nouvel essai remet un plan « prêt à upscaler » en itération (fiche de plan 2026-10-12) ; seul l'upscale de l'essai retenu
-  // (`garderPret`) laisse le marqueur en place.
-  await exec
-    .update(plans)
-    .set({
-      statut: "en_attente",
-      seed,
-      ...(options.garderPret ? {} : { pretUpscaleAt: null, renduRetenuId: null }),
-      updatedAt: new Date(),
-    })
-    .where(eq(plans.id, plan.id));
-}
-
-/** Une seed de plan : un entier de 15 chiffres au plus (sûr en nombre JavaScript, accepté par les nœuds de seed). */
-function tirerSeed(): string {
-  return String(Math.floor(Math.random() * 1_000_000_000_000_000));
 }
 
 /** activerUpscale distingue la prévisualisation rapide (itération de
@@ -233,55 +182,9 @@ export async function appliquerIterationEtGenerer(
   /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits dans la même transaction que l'essai. */
   reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string } = {},
 ): Promise<{ ok: true; numeroRendu: number; notes: string[] } | { ok: false; erreur: string }> {
-  const { dureeGenerationSecondes: duree, fps, seed } = reglages;
-  if (duree != null && (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
-    return { ok: false, erreur: `Durée de génération : entre ${DUREE_GENERATION_MIN} et ${DUREE_GENERATION_MAX} s.` };
-  }
-  if (fps != null && (!Number.isInteger(fps) || fps < 1)) return { ok: false, erreur: "FPS invalide." };
-  if (seed != null && !/^\d{1,15}$/.test(seed)) return { ok: false, erreur: "Seed invalide : 15 chiffres au plus." };
-  const prop = await propositionParUuid(propositionUuid);
-  if (!prop || (prop.skill !== "iteration-plan" && prop.skill !== "plan-h3") || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
-  const vue = await lireProposition(propositionUuid);
-  const decision = decisionIteration(vue);
-  if (decision.action === "attendre") return { ok: false, erreur: "L'agent n'a pas encore fini de répondre." };
-  if (decision.action === "echec") return { ok: false, erreur: decision.erreur };
-  if (decision.action === "rien") return { ok: false, erreur: decision.message };
-  if (decision.action === "reecrire") return { ok: false, erreur: "Cette correction change ce qui se passe dans le plan : sa fiche doit être réécrite, depuis « Itérer »." };
-
-  const enFile = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.planId, planId), inArray(jobs.statut, ["en_attente", "en_cours"]))).limit(1);
-  if (enFile.length > 0) return { ok: false, erreur: "Un essai est déjà en file ou en cours sur ce plan : rien n'a été appliqué." };
-
-  const c = await cocherChangements(propositionUuid, { ids: decision.ids }, true);
-  if (!c.ok) return { ok: false, erreur: c.erreur };
-  try {
-    const r = await appliquerSelection(propositionUuid, {
-      // Lancer « Itérer » consent à écraser le prompt actuel : il reste dans l'essai précédent.
-      confirmeEcrasement: true,
-      dansTransaction: async (tx) => {
-        if (fps != null || duree != null || seed != null) {
-          await tx
-            .update(plans)
-            .set({ ...(fps != null ? { fps } : {}), ...(duree != null ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}), ...(seed != null ? { seed } : {}), updatedAt: new Date() })
-            .where(eq(plans.id, planId));
-        }
-        await creerJobRelance(planId, false, false, { consigne: essai.consigne, depuisNumero: essai.depuisNumero, alertesIteration: decision.notes }, tx);
-      },
-    });
-    if (!r.ok) return { ok: false, erreur: r.erreur };
-  } catch (e) {
-    return { ok: false, erreur: `Rien n'a été appliqué ni généré : ${e instanceof Error ? e.message : "erreur inattendue"}.` };
-  }
-  const notes = [...decision.notes];
-  // Les assets créés avec la correction n'ont ni prompt ni image : leurs prompts s'écrivent à part (une proposition à relire dans la conversation du
-  // projet), sans retarder l'essai déjà en file. Un échec n'annule rien : le bouton « écrire les prompts » reste sur la proposition.
-  const idsCreations = new Set(vue!.groupes.flatMap((g) => g.changements).filter((c) => c.cibleType === "asset").map((c) => c.id));
-  if (decision.ids.some((id) => idsCreations.has(id))) {
-    const g = await genererPromptsAssetsCrees(propositionUuid).catch((e: unknown) => ({ ok: false as const, erreur: e instanceof Error ? e.message : "erreur inattendue" }));
-    notes.push(g.ok ? "Les prompts d'image des assets créés s'écrivent dans la conversation du projet : relis-les, puis génère les images." : `Les prompts d'image des assets créés n'ont pas été lancés (${g.erreur}) : lance-les depuis la proposition.`);
-  }
-  const [dernier] = await db.select({ n: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, planId));
+  const r = await appliquerIterationEtGenererCore(planId, propositionUuid, essai, reglages);
   revalidatePath("/", "layout");
-  return { ok: true, numeroRendu: dernier?.n ?? 1, notes };
+  return r;
 }
 
 /** Écrit les sections modifiées sans lancer de rendu : appelé avant d'ajouter ou de retirer une référence, car ces deux

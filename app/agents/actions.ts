@@ -49,6 +49,7 @@
  * - une portée courte sans consigne, un brief déjà validé, un tour déjà en cours : erreur claire.
  */
 
+import { suiteIteration, type ResultatSuite } from "@/lib/iteration-suite";
 import { revalidatePath } from "next/cache";
 import * as service from "@/lib/agents/service";
 import type {
@@ -196,17 +197,15 @@ export async function genererFiches(
  * rendu (jamais de correction à l'aveugle) ou sans fiche. */
 export async function genererIteration(
   conversationUuid: string,
-  options: { retour: string; renduId?: number | null; planche?: boolean },
+  options: { retour: string; renduId?: number | null; planche?: boolean; chaine?: service.DemandeChaine },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
-  return rafraichir(await service.genererIteration(conversationUuid, { retour: options.retour, renduId: options.renduId, planche: options.planche }));
+  return rafraichir(await service.genererIteration(conversationUuid, { retour: options.retour, renduId: options.renduId, planche: options.planche, chaine: options.chaine }));
 }
 
-/** « Itérer » avec réécriture du plan : la fiche est réécrite (plan-h3) depuis la nouvelle description de l'agent d'itération. */
-export async function genererReecriture(
-  conversationUuid: string,
-  options: { consigne: string; description: string; dureeSecondes?: number },
-): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
-  return rafraichir(await service.genererReecriturePlan(conversationUuid, options));
+/** La suite d'« Itérer » (réécriture de la fiche, application, essai) pour un run marqué d'une chaîne : la même étape que le worker
+ * fait si la page n'est plus là (lib/iteration-suite.ts). La prise est atomique, la page et le worker ne la font jamais en double. */
+export async function donnerSuiteIteration(runUuid: string): Promise<ResultatSuite> {
+  return rafraichir(await suiteIteration(runUuid));
 }
 
 /** Après l'application d'une fiche : écrire les prompts d'image des assets qu'elle a CRÉÉS (un lot
