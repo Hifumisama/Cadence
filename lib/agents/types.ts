@@ -80,7 +80,7 @@ export type MessageConversation = { role: "user" | "assistant"; content: string;
 export type EtatTache = {
   runUuid: string;
   /** `but` de la tâche : ce qu'elle produit. */
-  but: "tour" | "brief" | "proposition" | "affiche";
+  but: "tour" | "brief" | "proposition" | "affiche" | "essai";
   statut: "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
   /** Jetons de sortie reçus (le maximum est inconnu : un compteur, pas une barre). */
   progressionJetons: number | null;

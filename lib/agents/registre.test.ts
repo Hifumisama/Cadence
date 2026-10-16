@@ -18,7 +18,6 @@ const existant = (o: Partial<AssetExistant> & { code: string }): AssetExistant =
   type: "personnage",
   description: "Déjà décrite",
   promptGeneration: null,
-  statut: "a_produire",
   ...o,
 });
 
@@ -70,7 +69,7 @@ test("depuisRegistreAsset : un asset absent donne UNE création portant descript
   assert.equal(c!.cibleType, "asset");
   assert.equal(c!.cibleRef, null);
   assert.equal(c!.groupe, "assets");
-  assert.deepEqual(c!.apres, { type: "personnage", suffixe: "maya", description: "danseuse", promptGeneration: sortie.promptGeneration, methodeGeneration: "generation", critique: false });
+  assert.deepEqual(c!.apres, { type: "personnage", suffixe: "maya", description: "danseuse", promptGeneration: sortie.promptGeneration, methodeGeneration: "generation" });
   assert.equal(c!.avertissements?.length, 1);
 });
 

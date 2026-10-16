@@ -17,7 +17,7 @@ test("depuisInventaire : une création par asset, sans prompt, avec la raison et
   assert.equal(r[0]!.cibleType, "asset");
   assert.equal(r[0]!.operation, "creer");
   assert.equal(r[0]!.cle, "nouvel-asset-PROP_clef");
-  assert.deepEqual(r[0]!.apres, { type: "prop", suffixe: "clef", description: "x", critique: false });
+  assert.deepEqual(r[0]!.apres, { type: "prop", suffixe: "clef", description: "x" });
   assert.match(r[0]!.avertissements![0]!.texte, /elle ouvre la porte/);
   assert.match(r[0]!.avertissements![0]!.texte, /Plan 1/);
 });

@@ -98,7 +98,7 @@ export async function entreePromptAsset(db: Db, projectId: number, assetId: numb
     variante: variantePromptAsset({ type: asset.type, methodeGeneration: asset.methodeGeneration }),
     contexte: ctx,
     entree: {
-      asset: { code: asset.code, type: asset.type, descriptionCanonique: asset.description ?? "", critique: asset.critique, methodeGeneration: asset.methodeGeneration, promptActuel: asset.promptGeneration ?? "" },
+      asset: { code: asset.code, type: asset.type, descriptionCanonique: asset.description ?? "", methodeGeneration: asset.methodeGeneration, promptActuel: asset.promptGeneration ?? "" },
       parent: parent ? { code: parent.code, description: parent.description ?? "", promptGeneration: parent.promptGeneration ?? "" } : null,
       plansQuiLeCitent: citations.map((c) => ({ titre: c.titre, role: c.role ?? "", description: c.description ?? "" })),
       clauseStyleDuProjet: projet?.clauseStyle ?? "",
@@ -140,7 +140,7 @@ export async function entreePromptAssetCandidat(
       ...contexte,
     ],
     entree: {
-      asset: { code: cand.code, type: cand.type, descriptionCanonique: cand.description, critique: false, methodeGeneration: "generation", promptActuel: "" },
+      asset: { code: cand.code, type: cand.type, descriptionCanonique: cand.description, methodeGeneration: "generation", promptActuel: "" },
       parent: null,
       plansQuiLeCitent: [],
       clauseStyleDuProjet: projet?.clauseStyle ?? "",

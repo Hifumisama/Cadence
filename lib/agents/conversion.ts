@@ -96,7 +96,6 @@ export function depuisRegistreAsset(sortie: SortiePromptAsset, a: AssetDuRegistr
         description: a.description.trim(),
         promptGeneration: sortie.promptGeneration,
         methodeGeneration: "generation",
-        critique: false,
       },
       avertissements: avertissementsRemarques(sortie.remarques ?? []),
     },
@@ -572,7 +571,7 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
       ajouter({ type: "info", texte: `${code} manque aussi à ce plan : sa création est déjà proposée par un autre plan du lot.` });
       continue;
     }
-    const apres: Record<string, unknown> = { type: m.type, suffixe: suffixeDeCode(m.code), description: (m.description ?? "").trim(), critique: false };
+    const apres: Record<string, unknown> = { type: m.type, suffixe: suffixeDeCode(m.code), description: (m.description ?? "").trim() };
     const avertAsset: Avertissement[] = [{ type: "info", texte: `Manque au plan « ${plan.titre} » : ${(m.raison ?? "").trim() || "raison non dite"}` }];
     if (code !== m.code) avertAsset.push({ type: "info", texte: `Code proposé « ${m.code} », construit selon la convention du registre : ${code}.` });
     const parent = m.parent?.trim();

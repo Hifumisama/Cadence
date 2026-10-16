@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { assets } from "../../../db/schema";
 import { TYPES_ASSET, construireCode, estMethodeAsset, methodeApplicable, slugifyCode } from "../../assetCode";
 import { TYPE_AFFICHE } from "../../affiches";
+import { statutAsset } from "../../asset-etat";
 import { masterDe } from "../../registre-assets";
 import type { ChangementBrut } from "../changements";
 import { apres, entierRef, REFUS_SUPPRESSION, texte, type Applicateur, type Db } from "./commun";
@@ -10,7 +11,7 @@ import { apres, entierRef, REFUS_SUPPRESSION, texte, type Applicateur, type Db }
  * unique dans le projet, jamais une voix : elle se crée au casting) ou modifier la description,
  * le prompt de génération, la méthode, la durée d'un son.
  * `apres` (création) = { type, suffixe, description?, promptGeneration?, methodeGeneration?,
- * deriveDeCode? | deriveDeCle?, dureeSecondes?, critique? } ; (modification) = les seuls champs changés. */
+ * deriveDeCode? | deriveDeCle?, dureeSecondes? } ; (modification) = les seuls champs changés. */
 
 const CHAMPS_MODIFIABLES = ["description", "promptGeneration", "methodeGeneration", "dureeSecondes"] as const;
 
@@ -98,7 +99,7 @@ export const applicateurAsset: Applicateur = {
     }
     sortie.avant = avant;
     sortie.apres = garde;
-    if (courant.statut === "valide") {
+    if (statutAsset(courant) === "valide") {
       sortie.ecrase = `${courant.code} est validé : son texte sera remplacé${courant.fichier ? " (l'image existante ne sera pas régénérée)" : ""}.`;
       sortie.avertissements = [...(ch.avertissements ?? []), { type: "ecrase_valide", texte: "Remplace le texte d'un asset validé." }];
     }
@@ -131,7 +132,6 @@ export const applicateurAsset: Applicateur = {
         promptGeneration: texte(a.promptGeneration) ?? null,
         methodeGeneration: methodeApplicable(type) ? (methode ?? (v.deriveDeId ? null : "generation")) : null,
         dureeSecondes: type === "sfx" && typeof a.dureeSecondes === "number" ? a.dureeSecondes : null,
-        critique: a.critique === true,
         deriveDeId: v.deriveDeId,
       }).returning({ id: assets.id });
       // Un dérivé créé par la même proposition s'y rattache par cette clé (`deriveDeCle`).

@@ -12,6 +12,7 @@ import { informationsFormat } from "../../lib/conception";
 import { lireConception } from "../../lib/conception-db";
 import { creerRun } from "../../lib/agents/runs";
 import { ecrireAfficheEtGenerer } from "../../lib/agents/affiche-clap";
+import { BUT_ESSAI, ecrireEssaiTraduit, terminerEssaiSansPrompt } from "../../lib/agents/essai-asset";
 import { VARIANTE_AFFICHE } from "../../lib/llm/variantes";
 import type { ChangementBrut } from "../../lib/agents/changements";
 import {
@@ -75,6 +76,8 @@ export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execu
     if (run.projectId == null) throw new Error("Affiche sans projet.");
     return ecrireAfficheEtGenerer(tx, run.projectId, json as { promptGeneration?: unknown });
   }
+  // Un essai de la fiche d'un asset : le prompt traduit lance l'essai dans la file d'images.
+  if (run.but === BUT_ESSAI) return ecrireEssaiTraduit(tx, run.options, json as { promptGeneration?: unknown });
   if (run.but === "proposition") return postProposition(tx, run, json, execution);
 }
 
@@ -446,6 +449,7 @@ async function postIteration(
 
 /** Échec ou annulation d'une tâche d'agent : la proposition liée n'attendra pas indéfiniment. */
 export async function surEchecRun(run: RunAgent, message: string): Promise<void> {
+  if (run.but === BUT_ESSAI) await terminerEssaiSansPrompt(db, run.options, "echoue", message);
   if (run.but === "proposition" && run.propositionId != null) {
     // Une sous-tâche de lot qui échoue ne fait pas échouer le lot : il décide d'après toutes ses tâches.
     const [prop] = await db.select({ lot: propositions.lot }).from(propositions).where(eq(propositions.id, run.propositionId));

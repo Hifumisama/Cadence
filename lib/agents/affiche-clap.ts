@@ -132,7 +132,6 @@ export async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<Don
       projectId,
       code,
       type: TYPE_AFFICHE,
-      statut: "a_produire",
       description: `Affiche : ${d.titre || "projet"}`,
       promptGeneration: promptAffiche({ cible: "projects", titre: d.titre, resume: d.arc, genreTon: `${d.genres.join(" + ")}, ${motDuTon(d.ton)}`, titreDansImage: net(d.titre) !== "" }),
     })

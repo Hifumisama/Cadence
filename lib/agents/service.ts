@@ -692,7 +692,7 @@ export async function candidatsDuProjet(projectId: number): Promise<CandidatRegi
   const brief = await lireBriefDuProjet(db, projectId);
   if (!brief || brief.statut === "partiel") return [];
   const existants = await db
-    .select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description, promptGeneration: assets.promptGeneration, statut: assets.statut })
+    .select({ id: assets.id, code: assets.code, type: assets.type, description: assets.description, promptGeneration: assets.promptGeneration })
     .from(assets)
     .where(and(eq(assets.projectId, projectId), horsAffiches));
   return candidatsRegistre(brief.contenu, existants);

@@ -80,6 +80,7 @@ const LIBELLE_BUT: Record<EtatTache["but"], string> = {
   brief: "L'agent rédige le brief…",
   proposition: "L'agent prépare la proposition…",
   affiche: "L'agent écrit le prompt de l'affiche…",
+  essai: "L'agent traduit ta consigne en prompt…",
 };
 
 /** Ce qu'on dit d'une tâche d'agent : file, travail en cours (avec le compteur de

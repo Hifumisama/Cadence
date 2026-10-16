@@ -76,7 +76,7 @@ export function depuisInventaire(sortie: SortieInventaire, registre: AssetRegist
     const proche = ressemblant(m.type, suffixe, registre);
     if (proche) avert.push({ type: "alerte_controle", texte: `Ressemble à ${proche}, déjà au registre : vérifie qu'il ne s'agit pas du même asset avant d'appliquer.` });
 
-    const apres: Record<string, unknown> = { type: m.type, suffixe, description: (m.description ?? "").trim(), critique: false };
+    const apres: Record<string, unknown> = { type: m.type, suffixe, description: (m.description ?? "").trim() };
     const parent = m.parent?.trim();
     if (parent) {
       if (existants.has(parent)) apres.deriveDeCode = parent;

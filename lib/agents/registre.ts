@@ -24,7 +24,6 @@ export type AssetExistant = {
   type: string;
   description: string | null;
   promptGeneration: string | null;
-  statut: string;
 };
 
 export type CandidatRegistre = {

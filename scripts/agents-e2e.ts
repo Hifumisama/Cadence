@@ -309,7 +309,7 @@ async function main() {
     // ── B. Asset : écrasement d'un validé, confirmation, affinage, portée, échec ──
     console.log("\nB. Prompt d'un asset (profondeur courte)");
     await db.insert(assets).values([
-      { projectId: p1!.id, code: "CHAR_e2e", type: "personnage", statut: "valide", description: "Une gardienne", promptGeneration: "old prompt" },
+      { projectId: p1!.id, code: "CHAR_e2e", type: "personnage", fichier: "CHAR_e2e.png", valide: true, description: "Une gardienne", promptGeneration: "old prompt" },
       { projectId: p1!.id, code: "CHAR_autre", type: "personnage", description: "Un autre", promptGeneration: "autre" },
     ]);
     const oa = await s.ouvrirConversation(p1!.id, "asset", { code: "CHAR_e2e" });
