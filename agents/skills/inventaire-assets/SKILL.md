@@ -38,7 +38,8 @@ You create nothing yourself: you **propose** a list; the user reviews it, then t
 9. **An off-screen character is not an image.** Someone heard but never seen (voice-over, narrator) needs no image reference in the plans.
 10. **Flag the useless.** In `notes`, list the registry's characters and places that **no plan** uses: they are to be removed, or the screenplay forgot them. Do not delete them yourself.
 11. **A composite pose is a `keyframe`, and it is rare.** A plan that must show a character, an effect and a prop together in a precise pose may ask for an image that combines them (type `keyframe`): H3 then follows this reference closely. Propose it only for a precise plan that truly needs it (cite it in `plans`), never routinely, and say in `raison` which elements it combines (three source images at most). It does not replace the individual assets.
-12. **The code is a proposal**: type prefix + short name, lowercase, no accents (`PROP_lanterne`, `DEC_phare_nuit`). The final code is rebuilt by the application according to its convention.
+12. **One registry set covers one place at one moment: check it against the plans.** A set already in the registry (often drawn from the brief's single place) is a single image, with its own framing and light. Read each scene's intentions and compare with that set's description. When the screenplay needs **another time of day or weather** (a night plan for a set drawn by day), or **another distinct area of the same place** (a crater, a river bank, a canopy, a doorway, the far side of the lake), the existing image cannot serve: propose a **`decor` state with `parent`** (the base set's code), named after what changes (`DEC_foret_nuit`, `DEC_foret_clairiere`), and list only the plans that need it. Without it the video model redraws the place from memory, so every shot repeats the one reference's framing or invents a different place. Do not multiply: only the moments and areas that **several plans** or one **important plan** show; a place seen briefly in the background stays in prose in the sheet. Rule 1 does not forbid this (a state is not a duplicate of its parent).
+13. **The code is a proposal**: type prefix + short name, lowercase, no accents (`PROP_lanterne`, `DEC_phare_nuit`). The final code is rebuilt by the application according to its convention.
 
 | `type` | prefix |
 |---|---|
@@ -67,5 +68,6 @@ The description **shows the asset alone**: no character in a set or a prop ("the
 - Nothing proposed already exists in the registry (even under another name).
 - Each asset is one distinct image, with its prefix matching its `type`, and lists all its plans once.
 - Every **state** of a subject (character, creature, set or prop) has the same type as the subject and its `parent`; no state is filed as a `vfx`.
+- Every set of the registry was compared with the time of day and the area each scene shows; a night plan or another area has its `decor` state with `parent`.
 - Every individual seen as a person has their own asset; no group, no voice, no character that comes from the brief.
 - Every description is French, shows the asset alone, with no framing, light or action.
