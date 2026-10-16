@@ -3,6 +3,7 @@ import { db } from "../db";
 import { agentRuns, assetGenerations, jobs, plans, propositions } from "../db/schema";
 import { ERREUR_ANNULEE, statutPlanApresAnnulation } from "./annulation";
 import { annulerEnAttenteDesLots, annulerLot } from "./agents/lots";
+import { balayerEssaisSansTache } from "./agents/essai-asset";
 import { analyserCle } from "./taches";
 
 // Accès base de l'annulation, partagé par l'action serveur (app/taches/actions.ts)
@@ -43,6 +44,7 @@ export async function viderFile(): Promise<number> {
       ),
     )
     .returning({ id: agentRuns.id });
+  await balayerEssaisSansTache(db);
   return images.length + videos.length + lots + seuls.length;
 }
 
@@ -87,7 +89,10 @@ export async function demanderAnnulation(cle: string): Promise<ResultatAnnulatio
       .set({ statut: "annulee", finishedAt: maintenant, erreur: null })
       .where(and(eq(agentRuns.uuid, a.ref), eq(agentRuns.statut, "en_attente")))
       .returning({ id: agentRuns.id });
-    if (directe.length > 0) return "annulee";
+    if (directe.length > 0) {
+      await balayerEssaisSansTache(db);
+      return "annulee";
+    }
     const pose = await db
       .update(agentRuns)
       .set({ annulationDemandeeAt: maintenant })
@@ -135,6 +140,7 @@ export async function finirAnnulationLlm(runId: number): Promise<void> {
     .update(agentRuns)
     .set({ statut: "annulee", erreur: null, finishedAt: new Date(), progressionJetons: null })
     .where(and(eq(agentRuns.id, runId), inArray(agentRuns.statut, ["en_attente", "en_cours"])));
+  await balayerEssaisSansTache(db);
 }
 
 export async function annulationDemandeeVideo(jobId: number): Promise<boolean> {

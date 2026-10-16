@@ -442,6 +442,27 @@
       "when": 1794848400000,
       "tag": "0062_repliques_dans_le_prompt",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1794934800000,
+      "tag": "0063_asset_valide",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1795021200000,
+      "tag": "0064_asset_label",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1795107600000,
+      "tag": "0065_essais_asset",
+      "breakpoints": true
     }
   ]
 }

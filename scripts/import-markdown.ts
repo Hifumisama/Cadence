@@ -33,12 +33,6 @@ const TYPE_PAR_SECTION: Record<string, string> = {
   "Références contextuelles": "keyframe",
 };
 
-const STATUT_ASSET: Record<string, "a_produire" | "en_cours" | "valide"> = {
-  "⬜": "a_produire",
-  "🟡": "en_cours",
-  "✅": "valide",
-};
-
 async function importerAssets(projectId: number) {
   // CRLF dans le fichier original — sans normalisation, "^## (.+)$" ne
   // matche jamais (le \r final bloque l'ancre $), et sectionCourante reste
@@ -68,19 +62,18 @@ async function importerAssets(projectId: number) {
     const bloc = lignes.slice(i + 1, i + 12).join("\n");
 
     const statutMatch = bloc.match(/\*\*Statut\*\*\s*:\s*([⬜🟡✅])/);
-    const critiqueMatch = bloc.match(/\*\*Critique\*\*\s*:\s*(oui|non)/);
     const fichierMatch = bloc.match(/\*\*Fichier\*\*\s*:\s*`([^`]+)`/);
     const descriptionMatch = bloc.match(/\*\*Description canonique\*\*\s*:\s*(.+)/);
     const deriveDeMatch = bloc.match(/\*\*Dérivé de\*\*\s*:\s*`([A-Za-z0-9_]+)`/);
 
     const type = TYPE_PAR_SECTION[sectionCourante] ?? "oth";
-    const clefStatut = statutMatch?.[1];
-    const statut = clefStatut ? STATUT_ASSET[clefStatut] ?? "a_produire" : "a_produire";
+    // Seule la validation (✅) survit : le statut et la criticité se calculent désormais (lib/asset-etat.ts).
+    const valide = statutMatch?.[1] === "✅";
 
     const [existant] = await db.select().from(assets).where(eq(assets.code, code)).limit(1);
     if (existant) {
       // Ligne déjà importée (import précédent) : on ne réécrit pas
-      // statut/description/critique (potentiellement édités depuis l'app),
+      // description (potentiellement édités depuis l'app),
       // mais le type et le rattachement au master viennent toujours du
       // registre — c'est de la structure, pas du contenu éditable.
       if (existant.type !== type) {
@@ -96,10 +89,9 @@ async function importerAssets(projectId: number) {
       projectId,
       code,
       type,
-      statut,
+      valide,
       description: descriptionMatch?.[1]?.trim() ?? null,
       fichier: fichierMatch?.[1] ?? null,
-      critique: critiqueMatch?.[1] === "oui",
     });
     if (deriveDeMatch?.[1]) parentsAResoudre.push({ code, parentCode: deriveDeMatch[1] });
     n++;

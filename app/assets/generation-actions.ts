@@ -9,6 +9,7 @@ import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import {
   METHODE_AUDIO,
+  STATUT_TRADUCTION,
   nouvelleSeed,
   raisonAudioNonGenerable,
   raisonDemandeAudioInvalide,
@@ -19,6 +20,7 @@ import {
   formatParDefaut,
   loraParDefaut,
 } from "@/lib/asset-generation";
+import { annulerTraductionEssai } from "@/lib/agents/essai-asset";
 import { styleDesImages } from "@/lib/conception";
 import { horsAffiches } from "@/lib/assets-visibles";
 import { adopterCandidat } from "@/lib/generation-adoption";
@@ -264,6 +266,7 @@ export async function supprimerGeneration(generationId: number): Promise<Resulta
   const [gen] = await db.select().from(assetGenerations).where(eq(assetGenerations.id, generationId));
   if (!gen) return { ok: true };
   if (gen.statut === "en_cours") return { ok: false, erreur: "Génération en cours : attends sa fin." };
+  if (gen.statut === STATUT_TRADUCTION) await annulerTraductionEssai(db, gen.id);
   await supprimerGenerationEtFichiers(gen, MEDIA_ROOT);
   revalidatePath("/", "layout");
   return { ok: true };

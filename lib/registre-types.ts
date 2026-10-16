@@ -7,6 +7,8 @@ export type FichierEtat = "aucun" | "manquant" | "ok";
 export type LigneRegistre = {
   id: number;
   code: string;
+  /** Le nom affiché (label, sinon le code lisible) ; le code reste l'identifiant. */
+  libelle: string;
   type: string;
   statut: "a_produire" | "en_cours" | "valide";
   critique: boolean;

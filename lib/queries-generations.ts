@@ -3,7 +3,7 @@ import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
 import { and, asc, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { horsAffiches } from "./assets-visibles";
 import { METHODE_MASTER_VOIX, videoDeMaster } from "./asset-generation";
-import { estImage, fichierMediaExiste, generationMediaSrc, urlAssetMedia } from "./media";
+import { estImage, fichierMediaExiste, generationMediaSrc, sourceImportMediaSrc, urlAssetMedia } from "./media";
 
 /** Une image du registre proposable comme source d'une génération « à partir
  * d'images » : l'asset a une image présente sur le stockage. */
@@ -46,12 +46,21 @@ export async function getGenerationsAsset(assetId: number) {
     lignes.length === 0
       ? []
       : await db
-          .select({ generationId: assetGenerationSources.generationId, position: assetGenerationSources.position, origine: assetGenerationSources.origine, code: assets.code })
+          .select({ generationId: assetGenerationSources.generationId, position: assetGenerationSources.position, origine: assetGenerationSources.origine, fichier: assetGenerationSources.fichier, code: assets.code })
           .from(assetGenerationSources)
           .leftJoin(assets, eq(assets.id, assetGenerationSources.assetId))
           .where(inArray(assetGenerationSources.generationId, lignes.map((g) => g.id)))
           .orderBy(asc(assetGenerationSources.position));
   const sourcesParGeneration = new Map<number, string[]>();
+  // L'image dont l'essai est parti (la source 1) : l'essai l'a photographiée, elle ne bouge plus.
+  const baseParGeneration = new Map<number, string>();
+  const jointesParGeneration = new Map<number, string[]>();
+  for (const x of sources) {
+    const src = x.origine === "import" ? sourceImportMediaSrc(assetId, x.fichier) : x.fichier ? urlAssetMedia(x.fichier) : null;
+    if (!src) continue;
+    if (x.position === 1) baseParGeneration.set(x.generationId, src);
+    else jointesParGeneration.set(x.generationId, [...(jointesParGeneration.get(x.generationId) ?? []), src]);
+  }
   for (const x of sources) {
     const liste = sourcesParGeneration.get(x.generationId) ?? [];
     liste.push(x.origine === "asset" && x.code ? x.code : "image importée");
@@ -61,6 +70,16 @@ export async function getGenerationsAsset(assetId: number) {
     id: g.id,
     /** Codes des images de départ (la 1re est la cible), vide pour une génération à partir du texte. */
     sources: sourcesParGeneration.get(g.id) ?? [],
+    /** L'image dont l'essai est parti (null : il est né du texte, ou la base n'est plus sur le stockage). */
+    baseSrc: baseParGeneration.get(g.id) ?? null,
+    /** Les images 2 et 3 de l'essai (jointes par l'utilisateur), dans l'ordre. */
+    jointesSrc: jointesParGeneration.get(g.id) ?? [],
+    /** La consigne française de l'utilisateur (null : essai sans consigne, lot ou ancien essai). */
+    consigne: g.consigne,
+    /** Le prompt envoyé au modèle (vide tant que la consigne n'est pas traduite). */
+    prompt: g.prompt,
+    /** Quand l'essai est devenu l'image de l'asset (ms), null s'il ne l'a pas été. */
+    adopteAt: g.adopteAt ? g.adopteAt.getTime() : null,
     uuid: g.uuid,
     statut: g.statut,
     methode: g.methode,

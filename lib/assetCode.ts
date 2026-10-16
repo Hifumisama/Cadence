@@ -31,6 +31,14 @@ export function slugifyCode(texte: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
+/** Le nom à afficher d'un asset : son `label` s'il en a un, sinon son code rendu lisible (« CHAR_maya_la_danseuse » → « Maya la danseuse »). */
+export function libelleAsset(a: { code: string; label?: string | null }): string {
+  const label = a.label?.trim();
+  if (label) return label;
+  const lisible = a.code.replace(/^[A-Z]+_/, "").replace(/_/g, " ").trim();
+  return lisible ? lisible.charAt(0).toUpperCase() + lisible.slice(1) : a.code;
+}
+
 export function construireCode(type: string, suffixe: string): string {
   const prefixe = PREFIXE_PAR_TYPE[type as TypeAsset] ?? "";
   return `${prefixe}${slugifyCode(suffixe)}`;

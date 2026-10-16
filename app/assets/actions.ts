@@ -2,12 +2,12 @@
 
 import { db } from "@/db";
 import { assets, planRefs } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
-import { estMethodeAsset, methodeApplicable } from "@/lib/assetCode";
+import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, methodeApplicable, type TypeAsset } from "@/lib/assetCode";
 import { DUREE_AUDIO_MAX, DUREE_AUDIO_MIN, dureeAudioValide } from "@/lib/asset-generation";
 
 async function enregistrerFichierAsset(code: string, fichier: File): Promise<string> {
@@ -25,92 +25,53 @@ async function enregistrerFichierAsset(code: string, fichier: File): Promise<str
   return nomFichier;
 }
 
-/** Création d'un asset, fichier média optionnel dès la création (retour utilisateur 2026-09-28 : "évidemment on peut
- * fournir un fichier, c'est logique"). `deriveDeId` n'est plus un rang dans une arborescence : c'est l'IMAGE DE DÉPART
- * proposée d'office à la génération (« nouvel asset à partir de celui-ci ») ; la fenêtre de génération accepte jusqu'à 3
- * images sources, c'est donc là qu'un composite se compose. */
-export async function creerAsset(projectId: number, formData: FormData) {
-  const code = String(formData.get("code") ?? "").trim();
-  if (!code) return;
-  const type = String(formData.get("type") ?? "oth");
-  const methodeBrute = String(formData.get("methodeGeneration") ?? "");
-  const methodeGeneration = methodeBrute && estMethodeAsset(methodeBrute) && methodeApplicable(type) ? methodeBrute : null;
-  const description = String(formData.get("description") ?? "");
-  const critique = formData.get("critique") === "on";
-  const deriveDeIdBrut = formData.get("deriveDeId");
-  const deriveDeId = deriveDeIdBrut ? Number(deriveDeIdBrut) : null;
-  const fichier = formData.get("fichier");
-
-  const [cree] = await db
-    .insert(assets)
-    .values({
-      projectId,
-      code,
-      type,
-      description: description || null,
-      critique,
-      deriveDeId,
-      methodeGeneration,
-    })
-    .returning();
-
-  if (cree && fichier instanceof File && fichier.size > 0) {
-    const nomFichier = await enregistrerFichierAsset(code, fichier);
-    await db.update(assets).set({ fichier: nomFichier, fichierAt: new Date() }).where(eq(assets.id, cree.id));
-  }
-
+/** « Nouveau sujet » : un type et un nom, rien d'autre — le reste se fait sur la fiche. Le nom saisi devient le `label` ; le `code`
+ * (préfixe du type + nom sans accents ni espaces) est l'identifiant et ne changera plus, même si le label change. */
+export async function creerAssetRapide(
+  projectId: number,
+  type: string,
+  nom: string,
+): Promise<{ ok: true; code: string } | { ok: false; erreur: string }> {
+  if (!(TYPES_ASSET as readonly string[]).includes(type)) return { ok: false, erreur: "Type d'asset inconnu." };
+  const label = nom.trim().slice(0, 120);
+  const code = construireCode(type, label);
+  if (!label || code === (PREFIXE_PAR_TYPE[type as TypeAsset] ?? "")) return { ok: false, erreur: "Donne un nom à l'asset." };
+  const [existant] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, code)));
+  if (existant) return { ok: false, erreur: `Un asset ${code} existe déjà dans ce projet.` };
+  await db.insert(assets).values({ projectId, code, type, label, methodeGeneration: methodeApplicable(type) ? "generation" : null });
   revalidatePath("/", "layout");
+  return { ok: true, code };
 }
 
-export async function updateAssetStatut(
-  assetId: number,
-  statut: "a_produire" | "en_cours" | "valide",
-) {
-  await db.update(assets).set({ statut }).where(eq(assets.id, assetId));
-  revalidatePath("/", "layout");
-  
-}
-
-export async function updateAsset(
-  assetId: number,
-  valeurs: {
-    description: string;
-    promptGeneration: string;
-    methodeGeneration: string | null;
-    critique: boolean;
-    /** Durée du son en secondes (type sfx seulement ; null = non renseignée). */
-    dureeSecondes?: number | null;
-  },
-): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
+/** Change le nom affiché d'un asset. Le code (l'identifiant) ne bouge pas : il nomme le fichier et reste cité tel quel par les plans
+ * et les agents. Un nom vide rend l'asset à son code lisible. */
+export async function renommerAsset(assetId: number, label: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const propre = label.trim().slice(0, 120);
+  const [asset] = await db.select({ id: assets.id }).from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
-  const methode = valeurs.methodeGeneration || null;
-  if (methode != null) {
-    if (!estMethodeAsset(methode)) return { ok: false, erreur: "Méthode inconnue." };
-    if (!methodeApplicable(asset.type)) {
-      return {
-        ok: false,
-        erreur: "Un son se génère par la génération audio : pas de méthode d'image.",
-      };
-    }
-  }
-  // La durée n'existe que pour un son ; vide = non renseignée.
-  const duree = valeurs.dureeSecondes ?? null;
-  if (asset.type === "sfx" && duree != null && !dureeAudioValide(duree)) {
-    return { ok: false, erreur: `Durée hors limites (${DUREE_AUDIO_MIN} à ${DUREE_AUDIO_MAX} secondes).` };
-  }
-  await db
-    .update(assets)
-    .set({
-      description: valeurs.description || null,
-      promptGeneration: valeurs.promptGeneration || null,
-      methodeGeneration: methode,
-      critique: valeurs.critique,
-      ...(asset.type === "sfx" ? { dureeSecondes: duree } : {}),
-    })
-    .where(eq(assets.id, assetId));
+  await db.update(assets).set({ label: propre || null }).where(eq(assets.id, assetId));
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/** Valide (ou dévalide) un asset : la seule décision de statut qui se saisit (le reste se calcule, lib/asset-etat.ts). Sans fichier,
+ * il n'y a rien à valider. */
+export async function definirValidation(assetId: number, valide: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const [asset] = await db.select({ fichier: assets.fichier }).from(assets).where(eq(assets.id, assetId));
+  if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
+  if (valide && !asset.fichier) return { ok: false, erreur: "Rien à valider : cet asset n'a pas encore de fichier." };
+  await db.update(assets).set({ valide }).where(eq(assets.id, assetId));
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Valide plusieurs assets d'un coup (sélection du registre) : ceux qui n'ont pas de fichier sont comptés à part. */
+export async function validerAssets(ids: number[]): Promise<{ valides: number; sansFichier: number }> {
+  const lignes = await db.select({ id: assets.id, fichier: assets.fichier }).from(assets).where(inArray(assets.id, [...new Set(ids)]));
+  const avecFichier = lignes.filter((l) => l.fichier).map((l) => l.id);
+  if (avecFichier.length) await db.update(assets).set({ valide: true }).where(inArray(assets.id, avecFichier));
+  revalidatePath("/", "layout");
+  return { valides: avecFichier.length, sansFichier: lignes.length - avecFichier.length };
 }
 
 /** Upload direct du fichier média (image/audio/vidéo) d'un asset déjà créé.
@@ -128,9 +89,9 @@ export async function uploaderFichierAsset(
 
   const nomFichier = await enregistrerFichierAsset(code, fichier);
 
-  await db.update(assets).set({ fichier: nomFichier, fichierAt: new Date() }).where(eq(assets.id, assetId));
+  // Un fichier importé est un travail déjà fait ailleurs : validé d'office (seule une génération adoptée repasse « en cours »).
+  await db.update(assets).set({ fichier: nomFichier, fichierAt: new Date(), valide: true }).where(eq(assets.id, assetId));
   revalidatePath("/", "layout");
-  
 }
 
 /** Pourquoi un asset ne peut pas être supprimé maintenant, ou null. Un asset cité dans une fiche de plan est trop lié pour disparaître sans geste explicite. Avoir servi d'image de départ à d'autres assets
@@ -177,27 +138,40 @@ export async function supprimerAssets(
   return { supprimes, bloques };
 }
 
-/** Modifie UN champ (ou quelques-uns) de la fiche : les blocs de la fiche s'enregistrent chacun à leur tour. Les valeurs
- * absentes restent ce qu'elles sont ; les règles sont celles de `updateAsset`. */
+/** Modifie UN champ (ou quelques-uns) de la fiche : les blocs de la fiche s'enregistrent chacun à leur tour. Les valeurs absentes
+ * restent ce qu'elles sont. */
 export async function modifierChampAsset(
   assetId: number,
   champs: {
     description?: string;
     promptGeneration?: string;
     methodeGeneration?: string | null;
-    critique?: boolean;
+    /** Durée du son en secondes (type sfx seulement ; null = non renseignée). */
     dureeSecondes?: number | null;
   },
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
-  return updateAsset(assetId, {
-    description: champs.description ?? asset.description ?? "",
-    promptGeneration: champs.promptGeneration ?? asset.promptGeneration ?? "",
-    methodeGeneration: champs.methodeGeneration !== undefined ? champs.methodeGeneration : asset.methodeGeneration,
-    critique: champs.critique ?? asset.critique,
-    dureeSecondes: champs.dureeSecondes !== undefined ? champs.dureeSecondes : asset.dureeSecondes,
-  });
+  const valeurs: Partial<typeof assets.$inferInsert> = {};
+  if (champs.description !== undefined) valeurs.description = champs.description || null;
+  if (champs.promptGeneration !== undefined) valeurs.promptGeneration = champs.promptGeneration || null;
+  if (champs.methodeGeneration !== undefined) {
+    const methode = champs.methodeGeneration || null;
+    if (methode != null) {
+      if (!estMethodeAsset(methode)) return { ok: false, erreur: "Méthode inconnue." };
+      if (!methodeApplicable(asset.type)) return { ok: false, erreur: "Un son se génère par la génération audio : pas de méthode d'image." };
+    }
+    valeurs.methodeGeneration = methode;
+  }
+  // La durée n'existe que pour un son ; vide = non renseignée.
+  if (asset.type === "sfx" && champs.dureeSecondes !== undefined) {
+    const duree = champs.dureeSecondes ?? null;
+    if (duree != null && !dureeAudioValide(duree)) return { ok: false, erreur: `Durée hors limites (${DUREE_AUDIO_MIN} à ${DUREE_AUDIO_MAX} secondes).` };
+    valeurs.dureeSecondes = duree;
+  }
+  if (Object.keys(valeurs).length) await db.update(assets).set(valeurs).where(eq(assets.id, assetId));
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 /** Délie une référence (image/audio/vidéo) précise sans toucher au reste du

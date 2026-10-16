@@ -15,6 +15,7 @@ import { and, desc, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
 import { posterSrc } from "./media";
 import { construireMatrice } from "./matrice-assets";
+import { estCritique, statutAsset } from "./asset-etat";
 import { horsAffiches } from "./assets-visibles";
 import { getPlansPerimes } from "./plans-perimes";
 import type { RaisonPerime } from "./rendus";
@@ -389,21 +390,20 @@ export async function getProjectHierarchy(projectId: number) {
   return { projet, saisons: saisonsAvecEpisodes, buckets: bucketsProjet, nbEpisodes };
 }
 
-export type AssetNode = Awaited<ReturnType<typeof getAssetsTree>>[number];
+export type AssetRegistre = Awaited<ReturnType<typeof getAssetsRegistre>>[number];
 /** `refId` : la ligne de plan_refs qui cite l'asset (déliable). */
 export type AssetCitation = { planId: number; planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number };
 
-/** Registre d'assets en arborescence par sujet (masters + dérivés), pas par
- * type — demande explicite de l'utilisateur (2026-09-27) : le type reste un
- * simple tag informatif, le regroupement se fait sur deriveDeId.
+/** Le registre d'assets d'un projet, À PLAT et trié par code (un asset est un asset ; `deriveDeId` n'est qu'une image de départ).
  *
- * `citations` détaille CHAQUE ligne de ref qui cite l'asset, pas juste les
- * numéros de plan — nécessaire pour pouvoir délier une citation précise sans
- * supprimer les autres (retour utilisateur 2026-09-28 : la suppression d'un
- * asset cité doit être bloquée tant qu'il n'a pas été délié explicitement de
- * chaque plan qui le cite). La voix d'un personnage est un champ de l'asset (`voixMaster`, ...) ; elle entre dans un plan comme référence audio
- * dont l'asset est le personnage : c'est une citation comme une autre. */
-export async function getAssetsTree(projectId?: number) {
+ * `statut` et `critique` sont CALCULÉS ici (lib/asset-etat.ts), jamais stockés : à produire sans fichier, en cours avec un fichier,
+ * validé quand `valide` ; critique selon la part des plans d'un épisode qui le citent.
+ *
+ * `citations` détaille CHAQUE ligne de ref qui cite l'asset, pas juste les numéros de plan — nécessaire pour pouvoir délier une
+ * citation précise sans supprimer les autres (la suppression d'un asset cité est bloquée tant qu'il n'a pas été délié de chaque plan).
+ * La voix d'un personnage est un champ de l'asset (`voixMaster`, ...) ; elle entre dans un plan comme référence audio dont l'asset est
+ * le personnage : c'est une citation comme une autre. */
+export async function getAssetsRegistre(projectId?: number) {
   const pid = projectId ?? (await getDefaultProjectId());
   const tousLesAssets = await db.select().from(assets).where(and(eq(assets.projectId, pid), horsAffiches)).orderBy(assets.code);
   const toutesLesRefs = await db
@@ -419,7 +419,7 @@ export async function getAssetsTree(projectId?: number) {
     .where(eq(plans.projectId, pid))
     .orderBy(plans.ordre, plans.id);
 
-  // Position réelle de chaque plan dans son épisode (1-based).
+  // Position réelle de chaque plan dans son épisode (1-based), et nombre de plans par épisode.
   const compteurParEpisode = new Map<number, number>();
   const positionParPlanId = new Map<number, number>();
   for (const p of tousLesPlans) {
@@ -439,33 +439,20 @@ export async function getAssetsTree(projectId?: number) {
     liste.push({ planId: plan.id, planUuid: plan.uuid, position: positionParPlanId.get(plan.id) ?? 0, episodeNumero: plan.episodeNumero, episodeId: plan.episodeId, refId: ref.id });
     citationsParAssetId.set(ref.assetId, liste);
   }
-  const enfantsParParentId = new Map<number, typeof tousLesAssets>();
-  for (const asset of tousLesAssets) {
-    if (asset.deriveDeId == null) continue;
-    const liste = enfantsParParentId.get(asset.deriveDeId) ?? [];
-    liste.push(asset);
-    enfantsParParentId.set(asset.deriveDeId, liste);
-  }
 
-  type AssetAvecDerives = (typeof tousLesAssets)[number] & {
-    citations: AssetCitation[];
-    plansCitants: number[];
-    derives: AssetAvecDerives[];
-  };
-
-  function construireNoeud(asset: (typeof tousLesAssets)[number]): AssetAvecDerives {
+  return tousLesAssets.map((asset) => {
     const citations = (citationsParAssetId.get(asset.id) ?? []).sort((a, b) => a.episodeNumero - b.episodeNumero || a.position - b.position);
+    const platesParEpisode = new Map<number, Set<number>>();
+    for (const c of citations) platesParEpisode.set(c.episodeId, (platesParEpisode.get(c.episodeId) ?? new Set()).add(c.planId));
     return {
       ...asset,
       citations,
-      plansCitants: [...new Set(citations.map((c) => c.position))].sort((a, b) => a - b),
-      derives: (enfantsParParentId.get(asset.id) ?? [])
-        .sort((a, b) => a.code.localeCompare(b.code))
-        .map(construireNoeud),
+      /** Nombre de plans distincts qui citent l'asset. */
+      nbPlans: new Set(citations.map((c) => c.planId)).size,
+      statut: statutAsset(asset),
+      critique: estCritique([...platesParEpisode].map(([episodeId, cites]) => ({ cites: cites.size, total: compteurParEpisode.get(episodeId) ?? 0 }))),
     };
-  }
-
-  return tousLesAssets.filter((a) => a.deriveDeId == null).map(construireNoeud);
+  });
 }
 
 /** Un plan de la frise de lecture d'un épisode : sa position, son rendu terminé le plus récent (null s'il n'en a pas) et

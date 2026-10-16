@@ -51,12 +51,6 @@ export const jobStatutEnum = pgEnum("job_statut", [
 
 export const refTypeEnum = pgEnum("ref_type", ["picture", "video", "audio"]);
 
-export const assetStatutEnum = pgEnum("asset_statut", [
-  "a_produire",
-  "en_cours",
-  "valide",
-]);
-
 // Racine d'un projet vidéo — OneShot ou Série (2026-09-28). 2026-10-02 : `clauseStyle` et
 // `notes` sont désormais des COPIES dénormalisées du BRIEF (source unique : `briefs.contenu`
 // style.clause / notes), écrites par le seul `synchroniserClauseStyle` (lib/agents/brief-db.ts) ;
@@ -250,9 +244,11 @@ export const assets = pgTable("assets", {
   projectId: integer("project_id")
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
-  code: varchar("code", { length: 100 }).notNull(), // CHAR_maya, DEC_auberge_salle...
+  code: varchar("code", { length: 100 }).notNull(), // CHAR_maya, DEC_auberge_salle... : l'IDENTIFIANT, immuable (nomme le fichier, cité tel quel par le backend)
+  // Le nom que l'utilisateur donne et peut changer : il prime dans l'interface, jamais côté backend. null = on affiche le code lisible
+  // (`libelleAsset`, lib/assetCode.ts).
+  label: varchar("label", { length: 120 }),
   type: varchar("type", { length: 30 }).notNull(), // personnage | decor | prop | vfx | sfx | keyframe | oth
-  statut: assetStatutEnum("statut").notNull().default("a_produire"),
   description: text("description"),
   // Prompt de génération (Krea 2 / Qwen Image Edit / Qwen3-TTS selon le
   // type) — distinct de la description canonique : l'un décrit le sujet
@@ -271,8 +267,9 @@ export const assets = pgTable("assets", {
   // Durée du son retenu, en secondes (type sfx : paramètre de la génération audio,
   // qui n'est pas dans le prompt). null pour les autres types.
   dureeSecondes: real("duree_secondes"),
-  critique: boolean("critique").notNull().default(false),
-  // Voix du PERSONNAGE (chantier voix/master, 2026-10-14) : une voix n'existe que portée par un personnage (la voix off en est un). Sans
+  // Validé à la main (ou par défaut à l'import d'un fichier). Le statut affiché et la criticité se CALCULENT (lib/asset-etat.ts) :
+  // plus de colonne `statut` ni `critique`. Un fichier remplacé par une génération adoptée repasse à false.
+  valide: boolean("valide").notNull().default(false),  // Voix du PERSONNAGE (chantier voix/master, 2026-10-14) : une voix n'existe que portée par un personnage (la voix off en est un). Sans
   // objet pour les autres types. `voixDescription` : la voix voulue, en texte libre (null = laissée au modèle) ; `voixRepliqueBase` : la
   // réplique que dit le test ; `voixMaster` : l'audio nettoyé retenu, `voixVideo` : la vidéo de test qui l'a produit (les deux sous
   // voix/<assetId>/). Le master sert de référence audio `<Audio N>` des plans du personnage, sans jamais bloquer.
@@ -304,6 +301,10 @@ export const assetGenerations = pgTable("asset_generations", {
   methode: varchar("methode", { length: 12 }).notNull().default("generation"),
   statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
   prompt: text("prompt").notNull(),
+  // La consigne en français que l'utilisateur a donnée sur la fiche (« les cheveux plus courts ») : un agent la traduit en prompt
+  // (Krea 2 ou Qwen Image Edit). null pour une génération lancée sans consigne (lot, affiche, ancien essai). Tant que la traduction
+  // n'est pas faite, le statut est « traduction » et `prompt` est vide.
+  consigne: text("consigne"),
   clauseStyle: text("clause_style").notNull().default(""),
   aspect: varchar("aspect", { length: 8 }).notNull().default("1:1"),
   megapixels: real("megapixels").notNull().default(1),
@@ -343,6 +344,8 @@ export const assetGenerations = pgTable("asset_generations", {
   vuAt: timestamp("vu_at"),
   // Retirée de la liste du panneau des générations (« vider la liste », ✕) : rien n'est supprimé.
   masqueAt: timestamp("masque_at"),
+  // Quand cet essai est devenu l'image de l'asset (même valeur que `assets.fichier_at` à cet instant) : sert à marquer l'essai retenu.
+  adopteAt: timestamp("adopte_at"),
   // Annulation d'une tâche EN COURS : l'interface pose le drapeau, le worker agit
   // (lib/annulation.ts). Une tâche en attente s'annule directement, sans drapeau.
   annulationDemandeeAt: timestamp("annulation_demandee_at"),

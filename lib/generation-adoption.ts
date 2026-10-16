@@ -31,16 +31,19 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
   if (asset.fichier && asset.fichier !== nom) {
     await unlink(join(mediaRoot, cheminAssetMedia(asset.fichier))).catch(() => undefined);
   }
+  const maintenant = new Date();
   await db
     .update(assets)
     .set({
       fichier: nom,
-      fichierAt: new Date(),
-      statut: "en_cours",
+      fichierAt: maintenant,
+      valide: false, // un nouveau fichier remplace celui qui était validé : à revalider
       promptGeneration: gen.prompt,
       ...(gen.methode === METHODE_AUDIO && gen.dureeSecondes != null ? { dureeSecondes: gen.dureeSecondes } : {}),
     })
     .where(eq(assets.id, asset.id));
+  // L'essai retenu : même instant que le fichier de l'asset (voir `assetGenerations.adopteAt`).
+  await db.update(assetGenerations).set({ adopteAt: maintenant }).where(eq(assetGenerations.id, gen.id));
   // Une affiche de présentation : l'image adoptée devient celle du projet ou de l'épisode (lib/affiches.ts).
   if (asset.type === TYPE_AFFICHE) {
     const appliquee = await appliquerAffiche(asset.code, nom, mediaRoot, titreDansPrompt(gen.prompt));

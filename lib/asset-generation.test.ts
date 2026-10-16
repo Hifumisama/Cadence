@@ -4,6 +4,8 @@ import {
   ASPECTS,
   ASPECTS_COMFYUI,
   estAspect,
+  methodeDEssai,
+  raisonConsigneInvalide,
   formatParDefaut,
   loraParDefaut,
   nomSourceDistante,
@@ -115,4 +117,18 @@ test("master de voix : paramètres, vidéo à côté de l'audio, un son pour tou
   assert.equal(g.videoDeMaster("abc-123.mp3"), "abc-123.mp4");
   assert.equal(g.videoDeMaster("sans-extension"), "sans-extension.mp4");
   assert.ok(g.estMethodeSon(g.METHODE_MASTER_VOIX));
+});
+
+test("méthode d'un essai : sans image de base Krea 2 (génération), avec image Qwen Image Edit (édition)", () => {
+  assert.equal(methodeDEssai(false), "generation");
+  assert.equal(methodeDEssai(true), "edition");
+});
+
+test("consigne d'un essai : une retouche exige une consigne, une création peut partir de la description", () => {
+  assert.equal(raisonConsigneInvalide("les cheveux plus courts", true, null), null);
+  assert.match(raisonConsigneInvalide("  ", true, "Une danseuse")!, /changer/);
+  assert.equal(raisonConsigneInvalide("", false, "Une danseuse"), null);
+  assert.match(raisonConsigneInvalide("", false, "  ")!, /Décris/);
+  assert.equal(raisonConsigneInvalide("une danseuse rousse", false, null), null);
+  assert.match(raisonConsigneInvalide("x".repeat(2001), false, "d")!, /trop longue/);
 });

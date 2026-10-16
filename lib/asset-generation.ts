@@ -2,10 +2,15 @@
  * par l'application et le worker. Voir docs/FRICTIONS.md (tâches ComfyUI) et
  * workflows/README.md (contrat des workflows d'images). */
 
-export const STATUTS_GENERATION = ["en_attente", "en_cours", "termine", "echoue", "annulee"] as const;
+export const STATUTS_GENERATION = ["traduction", "en_attente", "en_cours", "termine", "echoue", "annulee"] as const;
 export type StatutGeneration = (typeof STATUTS_GENERATION)[number];
 
+/** Un essai lancé depuis la fiche attend d'abord que sa consigne française soit traduite en prompt (tâche LLM, skill `prompt-asset`) :
+ * il n'entre dans la file d'images qu'ensuite. */
+export const STATUT_TRADUCTION = "traduction";
+
 export const LIBELLE_STATUT_GENERATION: Record<StatutGeneration, string> = {
+  traduction: "Traduction de la consigne",
   en_attente: "En attente",
   en_cours: "En cours",
   termine: "Terminée",
@@ -66,6 +71,27 @@ export type DemandeGeneration = {
   loraPersonnage: boolean;
   sources: SourceGeneration[];
 };
+
+/** La méthode d'un essai lancé depuis la fiche : **sans image de base, Krea 2** (on crée l'image) ; **avec une image de base, Qwen Image
+ * Edit** (on la retouche). Pour un résultat tout autre, on duplique l'asset ou on retire son image : on ne défigure pas l'image actuelle. */
+export const methodeDEssai = (aDesImages: boolean): "generation" | "edition" => (aDesImages ? "edition" : "generation");
+
+/** Les images qu'un essai peut porter (Qwen Image Edit en prend 3). Créer à partir d'images jointes : jusqu'à 3, la 1re « porte » les
+ * modifications des autres. Retoucher : l'image de base compte pour une, il reste de la place pour deux images jointes. */
+export const MAX_IMAGES_CREATION = 3;
+export const MAX_IMAGES_RETOUCHE = 3;
+/** Combien d'images jointes (en plus de la base, s'il y en a une) on peut ajouter. */
+export const maxImagesJointes = (aUneBase: boolean): number => (aUneBase ? MAX_IMAGES_RETOUCHE - 1 : MAX_IMAGES_CREATION);
+
+/** Pourquoi une consigne ne peut pas partir, ou null. Sans image de base elle peut être vide (l'agent écrit alors le prompt d'après la
+ * description de l'asset) ; sans description non plus, il n'y a rien à dessiner. Une retouche exige une consigne. */
+export function raisonConsigneInvalide(consigne: string, aUneBase: boolean, description: string | null): string | null {
+  if (consigne.trim().length > 2000) return "Consigne trop longue (2 000 caractères au plus).";
+  if (consigne.trim()) return null;
+  if (aUneBase) return "Dis ce que tu veux changer sur l'image.";
+  if (!(description ?? "").trim()) return "Décris l'image que tu veux (ou remplis la description de l'asset).";
+  return null;
+}
 
 /** Nombre de candidats gardés par asset : les plus anciens sont purgés. */
 export const CANDIDATS_GARDES = 8;
