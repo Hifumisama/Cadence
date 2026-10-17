@@ -1,0 +1,311 @@
+# llama-swap config.yaml — proposition d'optimisation (2026-10-17)
+#
+# Superset de la config actuelle : les modèles existants sont recopiés TELS QUELS (aucun risque de régression), les
+# nouvelles entrées sont suffixées « -v2 » ou « e4b ». Voir docs/OPTIMISATION_ETAT_DES_LIEUX.md.
+#
+# Budget VRAM visé : 16 Go - ~6 Go (ComfyUI) = ~10 Go pour le LLM, KV et tampons de calcul compris.
+#
+# Hypothèse à vérifier au premier chargement (log de llama-server) : gemma4-26b-A4B fait 30 couches, donc
+# `--n-cpu-moe 30` = TOUS les experts en RAM, d'où 22-36 tok/s (borné par la bande passante DDR5).
+# Les `-v2` remontent des experts sur la carte (n-cpu-moe plus bas) en réduisant le contexte (131072 -> 49152).
+# Mesures d'usage réelles (agent_traces) : entrée max typique 34 000 jetons (plan-h3), sortie < 8 000 hors boucles
+# folles ; 49152 couvre le cas courant. Les appels qui dépassent échouent tôt au lieu de tourner 32 768 jetons.
+#
+# `--ctx-size` est le TOTAL réparti entre les slots : avec --parallel N, chaque slot reçoit ctx/N.
+#
+# Les lignes `# À CALER` demandent un essai avec `llama-bench` (voir plus bas) avant d'être figées.
+
+healthCheckTimeout: 120
+
+groups:
+  "residents":
+    swap: false
+    exclusive: false
+    members:
+       - "gemma4-e2b"
+       - "qwen3.6-35b-A3B-lowvram"
+
+models:
+  # ---------------------------------------------------------------------------------------------------------------
+  # NOUVEAU — Gemma 4 26B A4B, experts partiellement sur la carte
+  # ---------------------------------------------------------------------------------------------------------------
+  "gemma4-26b-A4B-v2":
+    cmd: |
+      llama-server
+      --model          "D:\localAI\models\gemma-4-26B-A4B\gemma-4-26B-A4B.gguf"
+      --mmproj         "D:\localAI\models\mmproj\gemma-4-26B.gguf"
+      --no-mmproj-offload
+      --fit off
+      --n-cpu-moe 20
+      --n-gpu-layers -1
+      --ctx-size       49152
+      --parallel       1
+      --threads        6
+      --threads-batch  10
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --batch-size     2048
+      --ubatch-size    512
+      --cache-reuse    256
+      --cache-ram      16384
+      --mlock
+      --no-mmap
+      --temp           1.0
+      --top-p          0.95
+      --top-k          64
+      --min-p          0.0
+      --repeat-penalty 1.0
+      --presence-penalty 1.5
+      --jinja
+      --port           ${PORT}
+    # n-cpu-moe 20 = ~10 couches d'experts sur la carte (~0,4 Go chacune [S]). À CALER : descendre à 16-18 si la
+    # VRAM le permet pendant que ComfyUI tourne, remonter à 22-24 si ça sature.
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
+
+  "gemma4-26b-A4B-v2-nothink":
+    cmd: |
+      llama-server
+      --model          "D:\localAI\models\gemma-4-26B-A4B\gemma-4-26B-A4B.gguf"
+      --mmproj         "D:\localAI\models\mmproj\gemma-4-26B.gguf"
+      --no-mmproj-offload
+      --fit off
+      --n-cpu-moe 20
+      --n-gpu-layers -1
+      --ctx-size       49152
+      --parallel       1
+      --threads        6
+      --threads-batch  10
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --batch-size     2048
+      --ubatch-size    512
+      --cache-reuse    256
+      --cache-ram      16384
+      --reasoning off
+      --mlock
+      --no-mmap
+      --temp           1.0
+      --top-p          0.95
+      --top-k          64
+      --min-p          0.0
+      --repeat-penalty 1.0
+      --presence-penalty 1.5
+      --jinja
+      --port           ${PORT}
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # NOUVEAU — Gemma 4 E4B, tout en VRAM (~5-6 Go en Q4_K_M + KV) : candidat « petit modèle »
+  # ---------------------------------------------------------------------------------------------------------------
+  "gemma4-e4b":
+    cmd: |
+      llama-server
+      --model          "D:\localAI\models\gemma-4-E4B\gemma-4-E4B-it-Q4_K_M.gguf"
+      --fit off
+      --n-gpu-layers   -1
+      --ctx-size       49152
+      --parallel       1
+      --threads        6
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --batch-size     2048
+      --ubatch-size    512
+      --cache-reuse    256
+      --cache-ram      8192
+      --temp           1.0
+      --top-p          0.95
+      --top-k          64
+      --min-p          0.0
+      --jinja
+      --port           ${PORT}
+    # CHEMIN À ADAPTER : je ne connais pas l'emplacement du GGUF E4B (chemin supposé).
+    # Une fois la qualité validée : --parallel 2 et --ctx-size 98304 (2 slots de 49152) pour les prompt-asset en parallèle.
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
+
+  "gemma4-e4b-nothink":
+    cmd: |
+      llama-server
+      --model          "D:\localAI\models\gemma-4-E4B\gemma-4-E4B-it-Q4_K_M.gguf"
+      --fit off
+      --n-gpu-layers   -1
+      --ctx-size       49152
+      --parallel       1
+      --threads        6
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --batch-size     2048
+      --ubatch-size    512
+      --cache-reuse    256
+      --cache-ram      8192
+      --reasoning off
+      --temp           1.0
+      --top-p          0.95
+      --top-k          64
+      --min-p          0.0
+      --jinja
+      --port           ${PORT}
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # EXISTANT — recopié sans modification
+  # ---------------------------------------------------------------------------------------------------------------
+  "qwen3.6-35b-A3B":
+    cmd: |
+      llama-server
+      --model          "D:\localAI\models\Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF\Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf"
+      --mmproj         "D:\localAI\models\mmproj\mmproj-BF16.gguf"
+      --n-cpu-moe 25
+      --n-gpu-layers -1
+      --ctx-size       262144
+      --parallel       1
+      --threads        6
+      --threads-batch  10
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --reasoning on
+      --reasoning-budget -1
+      --batch-size     2048
+      --ubatch-size    512
+      --mlock
+      --no-mmap
+      --prio 2
+      --cpu-range-batch 0-11
+      --cache-ram      16384
+      --ctx-checkpoints 64
+      --jinja
+      --chat-template-kwargs "{\"enable_thinking\":true,\"preserve_thinking\":true}"
+      --port           ${PORT}
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
+
+  "qwen3.6-35b-A3B-lowvram":
+    cmd: |
+      llama-server
+      --model          "D:\localAI\models\Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF\Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf"
+      --mmproj         "D:\localAI\models\mmproj\mmproj-BF16.gguf"
+      --fit off
+      --n-cpu-moe 32
+      --n-gpu-layers -1
+      --no-mmproj-offload
+      --ctx-size       131072
+      --parallel       1
+      --threads        6
+      --threads-batch  10
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --reasoning off
+      --batch-size     1024
+      --ubatch-size    512
+      --mlock
+      --no-mmap
+      --prio 2
+      --cpu-range-batch 0-11
+      --cache-ram      6144
+      --ctx-checkpoints 16
+      --jinja
+      --port           ${PORT}
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
+
+  "gemma4-e2b":
+    cmd: |
+      llama-server
+      --model          "D:\Comfy-Desktop\ComfyUI-Installs\ComfyUI\ComfyUI\models\llm_gguf\gemma-4-E2B-it-Q4_K_M.gguf"
+      --fit off
+      --n-gpu-layers   0
+      --n-cpu-moe      99
+      --ctx-size       131072
+      --parallel       1
+      --threads        6
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --batch-size     1024
+      --ubatch-size    512
+      --cache-ram      4096
+      --ctx-checkpoints 16
+      --temp           1.0
+      --top-p          0.95
+      --top-k          64
+      --min-p          0.0
+      --jinja
+      --port           ${PORT}
+    ttl: 0
+    proxy: "http://127.0.0.1:${PORT}"
+
+  "gemma4-26b-A4B":
+    cmd: |
+      llama-server
+      --model          "D:\localAI\models\gemma-4-26B-A4B\gemma-4-26B-A4B.gguf"
+      --mmproj         "D:\localAI\models\mmproj\gemma-4-26B.gguf"
+      --n-cpu-moe 30
+      --n-gpu-layers -1
+      --ctx-size       131072
+      --parallel       1
+      --threads        6
+      --threads-batch  10
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --batch-size     2048
+      --ubatch-size    512
+      --cache-reuse    256
+      --cache-ram      16384
+      --mlock
+      --no-mmap
+      --temp           1.0
+      --top-p          0.95
+      --top-k          64
+      --min-p          0.0
+      --repeat-penalty 1.0
+      --presence-penalty 1.5
+      --jinja
+      --port           ${PORT}
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
+
+  "gemma4-26b-A4B-nothink":
+    cmd: |
+      llama-server
+      --model          "D:\localAI\models\gemma-4-26B-A4B\gemma-4-26B-A4B.gguf"
+      --mmproj         "D:\localAI\models\mmproj\gemma-4-26B.gguf"
+      --n-cpu-moe 30
+      --n-gpu-layers -1
+      --ctx-size       131072
+      --parallel       1
+      --threads        6
+      --threads-batch  10
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --batch-size     2048
+      --ubatch-size    512
+      --cache-reuse    256
+      --cache-ram      16384
+      --reasoning off
+      --mlock
+      --no-mmap
+      --temp           1.0
+      --top-p          0.95
+      --top-k          64
+      --min-p          0.0
+      --repeat-penalty 1.0
+      --presence-penalty 1.5
+      --jinja
+      --port           ${PORT}
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
+
+# Caler n-cpu-moe (à lancer HORS llama-swap, ComfyUI chargé comme en production, `nvidia-smi` ouvert) :
+#   llama-bench -m <gguf> -ngl 99 -fa 1 -ctk q8_0 -ctv q8_0 -p 4096 -n 128 --n-cpu-moe 30,24,20,16,12
+# Garder la plus petite valeur qui laisse >= 1,5 Go de marge VRAM quand ComfyUI charge Qwen Edit.

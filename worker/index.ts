@@ -440,29 +440,6 @@ async function boucle() {
         } catch (err) {
           console.error("[worker] Demandes :", err);
         }
-        await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
-      }
-    }),
-    (async () => {
-      while (true) {
-        if (Date.now() - dernierePurge >= INTERVALLE_PURGE_MS) await purger();
-        let fait = false;
-        // L'installateur : une transition au plus par création en cours (lancer une étape, appliquer, relancer les échecs).
-        try {
-          if (await piloterCreations()) fait = true;
-        } catch (err) {
-          console.error("[worker] Installateur :", err);
-        }
-        // Les demandes (itérer un plan…) : une transition au plus par demande en cours. Tant qu'il y en a, on repasse vite : chaque
-        // étape qui finit doit lancer la suivante sans attendre le grand intervalle (pas de trou visible entre deux étapes).
-        let demandesActives = 0;
-        try {
-          const r = await piloterDemandes();
-          demandesActives = r.actives;
-          if (r.touchees > 0) fait = true;
-        } catch (err) {
-          console.error("[worker] Demandes :", err);
-        }
         await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : demandesActives > 0 ? INTERVALLE_DEMANDES_MS : INTERVALLE_MS));
       }
     })(),
