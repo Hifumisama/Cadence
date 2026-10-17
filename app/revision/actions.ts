@@ -29,7 +29,7 @@ import {
 
 type Resultat<T = object> = ({ ok: true } & T) | { ok: false; erreur: string };
 
-/** Les écritures invalident le cache des pages (la pastille de l'onglet « Réalisateur », les rendus périmés après application). */
+/** Les écritures invalident le cache des pages (les rendus périmés après application). */
 async function rafraichir<T extends { ok: boolean }>(r: T): Promise<T> {
   if (r.ok) revalidatePath("/", "layout");
   return r;

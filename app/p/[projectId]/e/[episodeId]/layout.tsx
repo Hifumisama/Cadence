@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEpisodeWithSeason, getEtatPlans, getProject } from "@/lib/queries";
-import { nbDecisionsEnCours } from "@/lib/agents/revision/revision-db";
 import { posterSrc } from "@/lib/media";
 import { Topbar } from "@/components/ui/Topbar";
 import { ProchaineEtape } from "@/components/images/ProchaineEtape";
@@ -23,7 +22,7 @@ export default async function EpisodeLayout({
   const pid = Number(projectId);
   const eid = Number(episodeId);
 
-  const [projet, episodeInfo, etat, brouillon] = await Promise.all([getProject(pid), getEpisodeWithSeason(eid), getEtatPlans(eid), nbDecisionsEnCours(pid, eid)]);
+  const [projet, episodeInfo, etat] = await Promise.all([getProject(pid), getEpisodeWithSeason(eid), getEtatPlans(eid)]);
   if (!projet || !episodeInfo || episodeInfo.season.projectId !== pid) notFound();
   const { episode, season } = episodeInfo;
 
@@ -54,7 +53,7 @@ export default async function EpisodeLayout({
 
   return (
     <>
-      <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: base, brouillon }} />
+      <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: base }} />
       <main className="page">
         {/* Un film n'a pas de page d'accueil (son épisode unique s'ouvre directement) : le bandeau vit ici. Une série l'a sur /p/<id>. */}
         {projet.type === "oneshot" ? <ProchaineEtape projectId={pid} /> : null}

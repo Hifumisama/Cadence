@@ -81,7 +81,7 @@ Chaque cas repart d'un état propre : **« Abandonner le brouillon »** (sous la
 | ☐ | 5.1 Glissière | Applique un chantier simple | Le plan supprimé a disparu, les suivants montent d'un rang (aucun trou), les durées sont à jour, **durée au montage = durée de génération**. | |
 | ☐ | 5.2 Fermeture | (juste après) | La conversation se ferme (message de fin), la fiche devient un récapitulatif, le bouton « Nouvelle révision » apparaît. | |
 | ☐ | 5.3 Retour | (juste après) | Retour sur **le plan d'où tu venais** (page d'un plan → « Réviser avec le réalisateur ») ou **le scénario de l'épisode**. Si le plan d'origine a été supprimé : le scénario. | |
-| ☐ | 5.4 Quitter sans appliquer | Garde des décisions, va sur une autre page, reviens | La conversation et les décisions sont là ; la **pastille de l'onglet « Réalisateur »** compte les décisions. | |
+| ☐ | 5.4 Quitter sans appliquer | Garde des décisions, va sur une autre page, reviens | La conversation et les décisions sont là ; les décisions en cours sont toujours listées (la salle n'a plus d'onglet : on la rouvre depuis le scénario ou depuis un plan). | |
 | ☐ | 5.5 À revérifier | Garde une décision « supprime le plan 5 » ; supprime le plan 5 **à la main** ailleurs ; reviens | La décision est « en conflit » ou « à revérifier » ; la glissière est inerte. | |
 | ☐ | 5.6 Abandonner | « Abandonner le brouillon » | Les décisions disparaissent, la conversation se ferme. | |
 | ☐ | 5.7 Panne | Coupe le serveur LLM, envoie un message | Message d'échec et bouton « Réessayer » ; rien n'est perdu. | |

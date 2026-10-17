@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SalleRevision } from "@/components/revision/SalleRevision";
 import { Topbar } from "@/components/ui/Topbar";
-import { amorceDePlan, lireVueRevision, nbDecisionsEnCours, ouvrirRevision } from "@/lib/agents/revision/revision-db";
+import { amorceDePlan, lireVueRevision, ouvrirRevision } from "@/lib/agents/revision/revision-db";
 import { getEpisodeWithSeason, getProject } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export default async function RealisateurPage({
 
   const ouverture = await ouvrirRevision(pid, eid);
   if (!ouverture.ok) notFound();
-  const [vue, amorce, brouillon] = await Promise.all([lireVueRevision(ouverture.conversationUuid), amorceDePlan(eid, plan), nbDecisionsEnCours(pid, eid)]);
+  const [vue, amorce] = await Promise.all([lireVueRevision(ouverture.conversationUuid), amorceDePlan(eid, plan)]);
   if (!vue) notFound();
 
   const trail =
@@ -59,7 +59,7 @@ export default async function RealisateurPage({
 
   return (
     <>
-      <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: `/p/${pid}/e/${eid}`, brouillon }} />
+      <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: `/p/${pid}/e/${eid}` }} />
       <main>
         <SalleRevision projectId={pid} episodeId={eid} numeroEpisode={episode.numero} titreEpisode={episode.titre} initial={vue} amorce={amorce} planCible={amorce ? plan ?? null : null} />
       </main>

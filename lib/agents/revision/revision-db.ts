@@ -559,7 +559,7 @@ export async function lireVueRevision(conversationUuid: string): Promise<{ etat:
   return { etat, tache: await etatTache(run?.id ?? null) };
 }
 
-/** Combien de décisions en cours (non appliquées) a la révision ouverte de cet épisode : la pastille de l'onglet « Réalisateur ». */
+/** Combien de décisions en cours (non appliquées) a la révision ouverte de cet épisode : le compte affiché dans la salle. */
 export async function nbDecisionsEnCours(projectId: number, episodeId: number): Promise<number> {
   const [conv] = await db
     .select({ id: agentConversations.id })
