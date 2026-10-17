@@ -62,8 +62,13 @@ DDR5. ComfyUI occupe ~6 Go en parallèle du LLM, donc **~10 Go pour le LLM, KV e
 2. Récupérer le GGUF **Gemma 4 E4B** (Q4_K_M), corriger le chemin dans `llama-swap/config.yaml`, mesurer son débit en VRAM.
 3. **Banc de rejeu** (`scripts/`, pas encore écrit) : rejouer de vrais appels depuis `agent_traces` (messages, schéma) contre chaque
    modèle candidat via llama-swap ; mesurer tok/s, durée, JSON valide ; sauvegarder les sorties pour comparaison côte à côte. Sans
-   toucher à l'app ni à la base. **Si la base de l'autre machine est vide**, exporter quelques traces depuis l'ancienne base
-   (`\copy` de `agent_traces` : `skill`, `messages`, `json`) ou régénérer un projet de test.
+   toucher à l'app ni à la base. **Des traces d'exemple sont déjà exportées** dans `scripts/banc/traces-exemple.jsonl` (49
+   lignes, ~470 Ko, 14 skills, 2 à 4 par skill : les plus récentes et les plus grosses, statut `ok`, sortie < 8 000 jetons, entrée
+   < 40 000). Une ligne = `id, skill, modele, project_id, systeme_empreinte, systeme_caracteres, messages, sortie_json,
+   tokens_entree, tokens_sortie, duree_ms, created_at`. **Le prompt système n'y est pas** (seule son empreinte l'est) : le banc doit le
+   recharger depuis `agents/skills/` via `lib/llm/skills.ts`, et le schéma de sortie aussi ; `sortie_json` sert de référence de
+   comparaison, pas de vérité. Seulement 2 traces `conversation-agent` et 2 `notes-entretien` : en réexporter davantage si
+   nécessaire.
 4. Mesurer une itération de plan complète avec le `.env` actuel (durées `agent_traces` + `jobs`), puis avec un modèle nothink pour
    `iteration-plan` seulement.
 5. A/B qualité sur `scenario-episode` et `inventaire-assets` sans réflexion (aujourd'hui sans variable `LLM_CORPS_*`).
