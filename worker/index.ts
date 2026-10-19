@@ -26,6 +26,7 @@ import { decharger, llmJoignable } from "./llamaSwap";
 import { echouerAppelsEnAttente, prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
 import { attenteDepassee, effacerSonde, noterSonde } from "./disponibilite";
 import { piloterCreations } from "../lib/agents/creation-db";
+import { projetEnCreation } from "./creation";
 import { piloterDemandes } from "../lib/demandes-db";
 import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
 import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
@@ -281,6 +282,10 @@ async function gererEchecReel(job: typeof jobs.$inferSelect, message: string) {
  * premier changement de domaine décharge alors l'autre côté par prudence (worker/gpu.ts). */
 let dernierDomaine: DomaineGpu | null = null;
 
+/** ComfyUI a pu garder des modèles en mémoire depuis la dernière libération (vrai au démarrage : inconnu). Une tâche de
+ * création, qui prend la carte seule, ne le libère que dans ce cas. */
+let comfyuiPeutEtreCharge = true;
+
 const urlLlm = () => configLlm().url;
 
 /** `paralleles` (défaut) : une boucle par voie, ComfyUI et LLM travaillent en même temps (la VRAM de la carte les
@@ -347,17 +352,24 @@ async function traiterProchaineTache(voies: Voie[]): Promise<boolean> {
   if (!choix) return false;
   const domaine = domaineDe(choix.genre);
   const upscale = choix.genre === "video" && job!.activerUpscale;
+  // La création d'un projet (2026-10-19) : le gros modèle de l'installateur tient en VRAM, ComfyUI ne doit pas être chargé. Ses appels
+  // prennent la carte seule (les tâches en cours finissent, rien ne démarre à côté) et ComfyUI est libéré avant le premier.
+  const creation = choix.genre === "llm" && (await projetEnCreation(run!.projectId));
 
   noterEvenement("choix", { genre: choix.genre, id: choix.id, voies, dernierDomaine, enAttente: candidates.map((c) => `${c.genre}:${c.id}`) });
-  return await verrou.avec(MODE_SERIE || upscale, async () => {
+  return await verrou.avec(MODE_SERIE || upscale || creation, async () => {
     // Même GPU : en `serie` on décharge l'autre côté avant de commencer ; en `paralleles` seul l'upscale le fait
     // (il ne tient pas à côté du LLM). Au mieux, jamais bloquant.
     const debutLiberation = Date.now();
+    const liberateurs = { comfyui: () => client.libererMemoire(), llm: () => decharger(urlLlm()) };
     const liberee = MODE_SERIE
-      ? await libererAvant(dernierDomaine, domaine, { comfyui: () => client.libererMemoire(), llm: () => decharger(urlLlm()) }, journalLiberation)
+      ? await libererAvant(dernierDomaine, domaine, liberateurs, journalLiberation)
       : upscale
-        ? await libererAvant(null, "comfyui", { comfyui: () => client.libererMemoire(), llm: () => decharger(urlLlm()) }, journalLiberation)
-        : null;
+        ? await libererAvant(null, "comfyui", liberateurs, journalLiberation)
+        : creation && comfyuiPeutEtreCharge
+          ? await libererAvant(null, "llm", liberateurs, journalLiberation)
+          : null;
+    if (liberee === "comfyui") comfyuiPeutEtreCharge = false;
     if (liberee) noterEvenement("liberation_duree", { liberee, dureeMs: Date.now() - debutLiberation });
 
     const fait = await journaliserTache(choix.genre, choix.id, domaine, async () =>
@@ -368,6 +380,7 @@ async function traiterProchaineTache(voies: Voie[]): Promise<boolean> {
           : await traiterJob(job!),
     );
     if (fait) dernierDomaine = domaine;
+    if (domaine === "comfyui") comfyuiPeutEtreCharge = true;
     return fait;
   });
 }

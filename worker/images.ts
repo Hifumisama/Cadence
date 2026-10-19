@@ -1,8 +1,8 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { assetGenerationSources, assetGenerations, assets } from "../db/schema";
+import { assetGenerationSources, assetGenerations, assets, creationsProjet } from "../db/schema";
 import {
   CANDIDATS_GARDES,
   DUREE_TEST_VIDEO_SECONDES,
@@ -105,16 +105,29 @@ async function sourcesEdition(client: ComfyUIClient, gen: Generation, mediaRoot:
   return [distant, ...sources];
 }
 
+/** Les images d'un projet attendent la fin de sa création (2026-10-19) : pendant que le LLM écrit, les générer en même temps
+ * ralentit les deux (mesuré sur « Le dernier train » : un plan H3 à 2,4 jetons/s au lieu de ~60 pendant les premières images,
+ * environ 3 min perdues sur 25). `WORKER_IMAGES_PENDANT_CREATION=1` rétablit le recouvrement. */
+const IMAGES_PENDANT_CREATION = process.env.WORKER_IMAGES_PENDANT_CREATION === "1";
+
 /** La plus ancienne demande en attente (FIFO), ou null. Le worker la compare à la
  * prochaine vidéo (worker/ordonnanceur.ts) avant de choisir. */
 export async function prochaineGenerationEnAttente(): Promise<Generation | null> {
   const [gen] = await db
-    .select()
+    .select({ g: assetGenerations })
     .from(assetGenerations)
-    .where(eq(assetGenerations.statut, "en_attente"))
+    .innerJoin(assets, eq(assets.id, assetGenerations.assetId))
+    .where(
+      and(
+        eq(assetGenerations.statut, "en_attente"),
+        IMAGES_PENDANT_CREATION
+          ? undefined
+          : sql`not exists (select 1 from ${creationsProjet} where ${creationsProjet.projectId} = ${assets.projectId} and ${creationsProjet.statut} = 'en_cours')`,
+      ),
+    )
     .orderBy(assetGenerations.createdAt, assetGenerations.id)
     .limit(1);
-  return gen ?? null;
+  return gen?.g ?? null;
 }
 
 /** Traite une demande. Renvoie `true` si elle a été prise (réussie ou échouée),
