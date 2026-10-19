@@ -30,13 +30,19 @@ export type TraceAEnregistrer = {
 
 export type EnregistreurTrace = (trace: TraceAEnregistrer) => Promise<void>;
 
+/** Le nom du modèle tel que la colonne (80 caractères) le garde : llama-server renvoie parfois le CHEMIN du fichier GGUF (95 caractères
+ * pour Swift, 2026-10-19), ce qui faisait échouer l'insertion de toutes les traces sans bruit. On garde le nom du fichier. */
+export function nomModeleCourt(modele: string): string {
+  return (modele.split(/[\\/]/).pop() || modele).slice(0, 80);
+}
+
 /** Insère une trace dans `agent_traces` et renvoie son id (la tâche de la file,
  * agent_runs, s'y rattache : worker/llm.ts). */
 export async function insererTrace(t: TraceAEnregistrer): Promise<number> {
   const [ligne] = await db.insert(agentTraces).values({
     skill: t.skill,
     fournisseur: t.fournisseur,
-    modele: t.modele,
+    modele: nomModeleCourt(t.modele),
     statut: t.statut,
     projectId: t.projectId,
     messages: t.messages,
