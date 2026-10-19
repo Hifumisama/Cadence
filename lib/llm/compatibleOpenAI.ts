@@ -1,4 +1,4 @@
-import { ErreurLlm, type DemandeLlm, type FournisseurLlm, type ReponseLlm } from "./types";
+import { ErreurLlm, type DemandeLlm, type FournisseurLlm, type ReponseLlm, type TimingsServeur } from "./types";
 
 /** Fournisseur « compatible OpenAI » : un serveur qui parle `/v1/chat/completions`
  * (llama.cpp derrière llama-swap, Ollama, LM Studio, vLLM…). La sortie est
@@ -82,6 +82,7 @@ export class FournisseurCompatibleOpenAI implements FournisseurLlm {
         modele: lu.modele ?? modele,
         arret: lu.arret,
         brut: lu.brut,
+        timings: lu.timings,
       };
     } catch (e) {
       throw traduire(e, d.signal, delai, url, this.options.delaiMs, silence.signal, inactiviteMs);
@@ -102,7 +103,14 @@ function essayerJson(texte: string): unknown {
 /** Borne du raisonnement gardé pour la trace (caractères) : un modèle bavard peut en produire des centaines de milliers. */
 export const REFLEXION_MAX_CARACTERES = 100_000;
 
-type Lu = { texte: string; reflexion?: string; usage: Usage; modele?: string; arret?: string; brut: unknown };
+type Lu = { texte: string; reflexion?: string; usage: Usage; modele?: string; arret?: string; brut: unknown; timings?: TimingsServeur };
+
+/** Le bloc `timings` de llama-server (absent chez les autres serveurs) ; null s'il manque ou n'a pas la forme attendue. */
+function lireTimings(t: any): TimingsServeur | undefined {
+  if (!t || typeof t !== "object") return undefined;
+  const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return { cacheN: n(t.cache_n), promptN: n(t.prompt_n), promptMs: n(t.prompt_ms), predictedN: n(t.predicted_n), predictedMs: n(t.predicted_ms), draftN: n(t.draft_n), draftAcceptedN: n(t.draft_n_accepted) };
+}
 
 function lireJson(j: any): Lu {
   const choix = j?.choices?.[0];
@@ -113,6 +121,7 @@ function lireJson(j: any): Lu {
     modele: typeof j?.model === "string" ? j.model : undefined,
     arret: choix?.finish_reason ?? undefined,
     brut: j,
+    timings: lireTimings(j?.timings),
   };
 }
 
@@ -128,6 +137,7 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
   let arret: string | undefined;
   let usage: Usage = { entree: 0, sortie: 0 };
   let dernier: unknown = null;
+  let timings: TimingsServeur | undefined;
   let reflexion = 0;
   let reflexionTexte = "";
   let fini = false;
@@ -145,6 +155,7 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
       return;
     }
     dernier = j;
+    if (j?.timings) timings = lireTimings(j.timings) ?? timings;
     if (typeof j?.model === "string") modele = j.model;
     const choix = j?.choices?.[0];
     const morceau = choix?.delta?.content;
@@ -194,7 +205,7 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
   // Sans bloc d'usage (serveur qui n'envoie pas `include_usage`) : on retombe sur le
   // nombre de morceaux reçus, une approximation des jetons de sortie.
   if (usage.sortie === 0) usage = { ...usage, sortie: morceaux };
-  return { texte, reflexion: reflexionTexte ? reflexionTexte.slice(0, REFLEXION_MAX_CARACTERES) : undefined, usage, modele, arret, brut: { assemble: true, caracteresReflexion: reflexion, dernierMorceau: dernier } };
+  return { texte, reflexion: reflexionTexte ? reflexionTexte.slice(0, REFLEXION_MAX_CARACTERES) : undefined, usage, modele, arret, timings, brut: { assemble: true, caracteresReflexion: reflexion, dernierMorceau: dernier } };
 }
 
 function contientImage(d: DemandeLlm): boolean {

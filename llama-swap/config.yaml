@@ -27,6 +27,50 @@ groups:
 
 models:
   # ---------------------------------------------------------------------------------------------------------------
+  # CRÉATION DE PROJET (2026-10-19) — Swift 1.5 Qwen3.8 27B dense IQ3_S + tête MTP, TOUT en VRAM
+  # ---------------------------------------------------------------------------------------------------------------
+  # Le gros modèle des tâches lourdes (scénario, inventaire, fiches de plan, prompts d'assets). Il occupe ~12 Go + KV :
+  # ComfyUI ne doit PAS être chargé pendant qu'il travaille (le worker fait un /free avant la création et retient les
+  # images du projet jusqu'à sa fin, voir worker/index.ts). Les itérations et les petites tâches restent sur un petit
+  # modèle (gemma), qui cohabite avec ComfyUI.
+  #
+  # ATTENTION : cette entrée est reconstruite à partir du journal de llama-server (modèle, MTP n_max=3, 1 slot de 32768
+  # en f16 avant ce changement). Le reste (threads, batch, cache-reuse, mlock…) n'y figure pas : RECOPIER de l'entrée
+  # existante de la machine distante ce qui n'est pas ici, et ne pas écraser le fichier distant sans comparer.
+  #
+  # - 3 slots + KV unifié (-kvu) : les trois fiches de plan peuvent décoder ensemble (poids lus une fois pour les trois,
+  #   le décodage d'un modèle dense en VRAM est borné par la lecture des poids). Le total de contexte est PARTAGÉ :
+  #   65536 jetons pour les trois, un plan-h3 en pèse ~20 000 (entrée 18 000 + sortie 1 500).
+  # - KV en q8_0 : ~23 Ko/jeton au lieu de ~46 en f16, donc 65536 jetons coûtent ~1,5 Go, autant que les 32768 en f16
+  #   d'avant. À CALER : vérifier à l'oeil que la qualité tient (banc de rejeu), sinon revenir à f16 et 32768.
+  # - MTP à 3 brouillons : décision de l'utilisateur ; acceptation mesurée 0,51 à 0,68 (0,92 à 0,97 sur les renvois).
+  # - Réflexion : on ne met PAS de variante -nothink (chaque variante = un rechargement de 12 Go). Le niveau d'effort se
+  #   règle PAR REQUÊTE (champ `reasoning_effort` du corps, ou `chat_template_kwargs`), skill par skill, via LLM_CORPS_*
+  #   du .env. Côté serveur on pourra ajouter `--reasoning-budget N` (jetons de réflexion, -1 = illimité) une fois la
+  #   taille mesurée sur les traces ; sans effet tant qu'il vaut -1.
+  "qwen3.8-27b-swift1.5-mtp":
+    cmd: |
+      llama-server
+      --model          "D:\localAI\models\qwen3.8_27B_Dense_Swift1.5\Swift-1.5-Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf"
+      --fit off
+      --n-gpu-layers   -1
+      --ctx-size       65536
+      --parallel       3
+      --kv-unified
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --spec-type      draft-mtp
+      --spec-draft-n-max 3
+      --temp           1.0
+      --top-p          0.95
+      --top-k          20
+      --jinja
+      --port           ${PORT}
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
+
+  # ---------------------------------------------------------------------------------------------------------------
   # NOUVEAU — Gemma 4 26B A4B, experts partiellement sur la carte
   # ---------------------------------------------------------------------------------------------------------------
   "gemma4-26b-A4B-v2":

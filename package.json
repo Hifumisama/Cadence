@@ -18,6 +18,7 @@
     "agents:rejeu": "tsx scripts/rejeu-creation.ts",
     "llm:essai": "tsx scripts/llm-essai.ts",
     "llm:banc": "tsx scripts/banc-llm.ts",
+    "llm:banc:export": "tsx scripts/banc-export.ts",
     "llm:tache": "tsx scripts/llm-tache.ts",
     "styles:apercus": "tsx scripts/styles-apercus.ts",
     "plan-h3:essai": "tsx scripts/plan-h3-essai.ts",

@@ -88,6 +88,21 @@ export type ReponseLlm = {
   reflexion?: string;
   /** Réponse brute du serveur (dernier message ou assemblage du flux), pour la trace. */
   brut: unknown;
+  /** Mesures du serveur llama.cpp quand il les renvoie (bloc `timings`) : ce qui était en cache, ce qui a été préchargé,
+   * le débit de chaque phase et l'acceptation des brouillons (MTP). Sert au banc de rejeu. */
+  timings?: TimingsServeur;
+};
+
+export type TimingsServeur = {
+  /** Jetons d'entrée repris du cache / réellement préchargés. */
+  cacheN: number;
+  promptN: number;
+  promptMs: number;
+  predictedN: number;
+  predictedMs: number;
+  /** Brouillons proposés / acceptés (décodage spéculatif, MTP). */
+  draftN: number;
+  draftAcceptedN: number;
 };
 
 export interface FournisseurLlm {
