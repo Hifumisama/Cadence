@@ -17,6 +17,8 @@ type PourCochage = {
   avertissements: Avertissement[];
   ecrase: string | null;
   refuseRaison: string | null;
+  /** Le convertisseur a jugé le geste sans risque (voir `ChangementBrut.cocheOffice`). */
+  office?: boolean;
 };
 
 export function estBloque(avertissements: Avertissement[]): boolean {
@@ -26,8 +28,8 @@ export function estBloque(avertissements: Avertissement[]): boolean {
 export function cocheParDefaut(c: PourCochage): boolean {
   if (c.refuseRaison) return false;
   if (estBloque(c.avertissements)) return false;
-  if (c.operation === "supprimer") return false;
   if (c.ecrase || c.avertissements.some((a) => a.type === "ecrase_valide")) return false;
+  if (c.operation === "supprimer") return c.office === true;
   return true;
 }
 

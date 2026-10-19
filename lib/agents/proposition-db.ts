@@ -92,7 +92,7 @@ export async function enrichirChangements(
       position: (c.position ?? null) as Position | null,
       avertissements,
       ecrase: c.ecrase ?? null,
-      coche: cocheParDefaut({ operation: c.operation, avertissements, ecrase: c.ecrase ?? null, refuseRaison: c.refuseRaison ?? null }),
+      coche: cocheParDefaut({ operation: c.operation, avertissements, ecrase: c.ecrase ?? null, refuseRaison: c.refuseRaison ?? null, office: c.cocheOffice === true }),
       refuseRaison: c.refuseRaison ?? null,
     });
   }

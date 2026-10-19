@@ -1,4 +1,4 @@
-import { COUPE_RETIRABLE, MAX_AUDIOS, MAX_IMAGES, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
+import { COUPE_RETIRABLE, MAX_AUDIOS, MAX_IMAGES, MAX_IMAGES_AVEC_RACCORD, citeCode, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
 
 /** ASSEMBLAGE du prompt H3 à partir du brouillon de `plan-h3` (voir agents/skills/plan-h3/SKILL.md).
  * Pur, déterministe : le modèle écrit la prose, le code pose tout ce qui est mécanique :
@@ -141,6 +141,50 @@ export function nettoyerDefinition(definition: string): string {
   let t = definition;
   for (const re of CONSIGNES_DE_FEUILLE) t = t.replace(re, "");
   return espaces(t).replace(/\s+([,.])/g, "$1").replace(/^[\s,;]+/, "").replace(/[,;]\s*$/, "");
+}
+
+export type RetraitPourRaccord = {
+  asset: string;
+  nom: string;
+  /** Pourquoi cette image part : citée nulle part, citée hors des shots seulement (résumé, ouverture, ambiance), ou matière faible citée dans un shot. */
+  raison: "non-citee" | "hors-shots" | "faible";
+};
+
+/** Une image qui ne porte pas d'identité : un effet (`VFX_…`) ou une référence `weak_reference` (seul le look général est emprunté). Décrite en
+ * prose, elle se rend à peu près pareil ; c'est ce que le skill demande de sacrifier en premier (règle « Six images au plus »). */
+export const imageSacrifiable = (r: { retention?: string }, type?: string): boolean => type === "vfx" || r.retention === "weak_reference";
+
+/** Réserve l'emplacement du RACCORD (2026-10-19). Un plan en liaison « suite » reçoit la dernière image du précédent comme `<Picture N>` : il ne peut donc
+ * déclarer que `MAX_IMAGES_AVEC_RACCORD` (5) images, sinon `emplacementLibre` n'en trouve pas et le raccord est sauté. Ce qui se retire, dans cet ordre
+ * et seulement autant qu'il faut, la dernière déclarée d'abord dans chaque rang : (1) une image déclarée mais citée nulle part, (2) une image citée
+ * seulement hors des shots (elle devient de la prose), (3) une matière faible (effet, `weak_reference`) citée dans un shot (elle devient de la prose).
+ * Une image qui porte une identité et que les shots montrent ne se retire jamais ici : s'il en reste plus de 5, `restantes` le dit (le contrôle de code
+ * renvoie le modèle, puis l'alerte reste). Les labels et les rétentions se calculent à l'assemblage, depuis la liste restante : la renumérotation est
+ * donc propre d'office. `typeDe` : le type au registre de chaque code. Pur, testé. */
+export function retirerImagesPourRaccord(
+  references: SortiePlanH3["references"],
+  textes: { shots: string[]; autres: string[] },
+  typeDe: ReadonlyMap<string, string> = new Map(),
+  max = MAX_IMAGES_AVEC_RACCORD,
+): { references: SortiePlanH3["references"]; retirees: RetraitPourRaccord[]; restantes: number } {
+  const tousShots = textes.shots.join(" ");
+  const tousAutres = textes.autres.join(" ");
+  const images = references.filter((r) => r.nature === "image");
+  const retirees: RetraitPourRaccord[] = [];
+  const rang = (r: SortiePlanH3["references"][number]): { rang: number; raison: RetraitPourRaccord["raison"] } | null => {
+    if (!citeCode(r.asset, tousShots)) return citeCode(r.asset, tousAutres) ? { rang: 1, raison: "hors-shots" } : { rang: 0, raison: "non-citee" };
+    return imageSacrifiable(r, typeDe.get(r.asset)) ? { rang: 2, raison: "faible" } : null;
+  };
+  const candidates = [...images]
+    .reverse()
+    .flatMap((r) => {
+      const x = rang(r);
+      return x ? [{ r, ...x }] : [];
+    })
+    .sort((a, b) => a.rang - b.rang); // tri stable : dans un rang, la dernière déclarée d'abord
+  for (const x of candidates.slice(0, Math.max(0, images.length - max))) retirees.push({ asset: x.r.asset, nom: x.r.nom, raison: x.raison });
+  const sorties = new Set(retirees.map((x) => x.asset));
+  return { references: references.filter((r) => !sorties.has(r.asset)), retirees, restantes: images.length - retirees.length };
 }
 
 export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): PromptAssemble {

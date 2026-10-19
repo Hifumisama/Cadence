@@ -430,3 +430,74 @@ test("fiche qui cite un asset créé par la même proposition : acceptée en ape
   etat.registre.set("DEC_cercle", "oth");
   assert.equal(verifierFiche(avec, etat), null);
 });
+
+// --- raccord : l'emplacement de l'image du plan précédent reste libre (2026-10-19) ---------------------------------
+
+const ap = (b: ReturnType<typeof depuisFichePlan>) => {
+  const a = apresDe(b)!;
+  return { refs: a.refs ?? [], sections: (a.sections ?? {}) as Record<string, string | undefined> };
+};
+
+const six: SortiePlanH3 = {
+  ...base,
+  references: [
+    { asset: "CHAR_maya", nature: "image", role: "Maya", nom: "Maya", definition: "running" },
+    { asset: "CHAR_tenanciere", nature: "image", role: "La tenancière", nom: "the landlady", definition: "watching" },
+    { asset: "DEC_couloir", nature: "image", role: "Décor", nom: "the corridor", definition: "lit in indigo" },
+    { asset: "PROP_0", nature: "image", role: "Accessoire", nom: "a lamp", definition: "lit" },
+    { asset: "PROP_1", nature: "image", role: "Accessoire", nom: "a chair", definition: "wooden" },
+    { asset: "PROP_2", nature: "image", role: "Accessoire", nom: "dust", definition: "floating" },
+  ],
+  summary: "[[CHAR_maya]] runs through [[DEC_couloir]], past [[PROP_0]].",
+  shots: [
+    { debutSecondes: 0, texte: "A wide shot of [[CHAR_maya]] in [[DEC_couloir]], [[CHAR_tenanciere]] at the far end." },
+    { debutSecondes: 3, texte: "a low-angle shot of [[CHAR_maya]]'s feet near [[PROP_1]]." },
+    { debutSecondes: 6, texte: "a close-up of [[CHAR_maya]], breathing hard." },
+  ],
+};
+
+test("raccord : un plan en suite déclare 5 images au plus, la non citée part, tout est renuméroté sans trou", () => {
+  const sans = ap(depuisFichePlan(six, plan()));
+  assert.equal(sans.refs.filter((r) => r.type === "picture").length, 6, "sans réserve, les 6 images restent");
+  const avec = depuisFichePlan(six, plan({ reserveRaccord: true }));
+  const a = ap(avec);
+  const images = a.refs.filter((r) => r.type === "picture");
+  assert.deepEqual(images.map((r) => r.slot), [1, 2, 3, 4, 5]);
+  assert.ok(!images.some((r) => r.asset === "PROP_2"), "la poussière jamais citée est retirée");
+  const tout = Object.values(a.sections).join("\n");
+  assert.ok(!/<Picture 6>|<Subject 6>/.test(tout), "aucun label orphelin");
+  assert.ok(!/PROP_2|dust/.test(a.sections.retention_analysis ?? ""), "plus de rétention pour l'image retirée");
+  assert.ok((fiche(avec).avertissements ?? []).some((w) => /Raccord : PROP_2 retiré/.test(w.texte)));
+  assert.ok(!(fiche(avec).avertissements ?? []).some((w) => /Raccord impossible/.test(w.texte)));
+});
+
+test("raccord : à défaut d'image jamais citée, celle qui n'est citée que hors des shots part, et son marqueur devient de la prose", () => {
+  const horsShots: SortiePlanH3 = { ...six, shots: six.shots.map((sh) => ({ ...sh, texte: sh.texte.replace("[[PROP_1]]", "a chair") })), summary: `${six.summary} [[PROP_1]] and [[PROP_2]] hang in the air.` };
+  const a = ap(depuisFichePlan(horsShots, plan({ reserveRaccord: true })));
+  assert.deepEqual(a.refs.filter((r) => r.type === "picture").map((r) => r.asset), ["CHAR_maya", "CHAR_tenanciere", "DEC_couloir", "PROP_0", "PROP_1"], "la dernière déclarée part");
+  assert.ok(/dust hang in the air/.test(a.sections.summary ?? ""), "son marqueur est devenu son nom");
+  assert.ok(!/\[\[|<Picture 6>/.test(Object.values(a.sections).join(" ")));
+  // une image jamais citée passe avant une image citée hors des shots
+  const mixte: SortiePlanH3 = { ...horsShots, summary: `${six.summary} [[PROP_2]] hangs in the air.` };
+  const b = ap(depuisFichePlan(mixte, plan({ reserveRaccord: true })));
+  assert.deepEqual(b.refs.filter((r) => r.type === "picture").map((r) => r.asset), ["CHAR_maya", "CHAR_tenanciere", "DEC_couloir", "PROP_0", "PROP_2"]);
+});
+
+test("raccord : 6 images citées dans les shots, rien à retirer sans choisir à la place du modèle : alerte « Raccord impossible »", () => {
+  const s: SortiePlanH3 = { ...six, shots: [...six.shots.slice(0, 2), { debutSecondes: 6, texte: "a close-up of [[CHAR_maya]] and [[PROP_0]] and [[PROP_2]]." }] };
+  const avec = depuisFichePlan(s, plan({ reserveRaccord: true }));
+  assert.equal(ap(avec).refs.filter((r) => r.type === "picture").length, 6, "rien n'est retiré à l'aveugle");
+  assert.ok((fiche(avec).avertissements ?? []).some((w) => w.type === "alerte_controle" && /Raccord impossible : 6 images/.test(w.texte)));
+});
+
+test("raccord : une matière faible (effet) citée dans un shot est le dernier sacrifice du code ; une image d'identité ne l'est jamais", () => {
+  // PROP_2 devient un effet de poussière, cité dans un shot : 6 images citées, mais une est une matière
+  const reg = registre.map((a) => (a.code === "PROP_2" ? { ...a, type: "vfx" } : a));
+  const s: SortiePlanH3 = { ...six, shots: [...six.shots.slice(0, 2), { debutSecondes: 6, texte: "a close-up of [[CHAR_maya]] and [[PROP_0]], dust drifting around [[PROP_2]]." }] };
+  const bruts = depuisFichePlan(s, plan({ reserveRaccord: true, registre: reg }));
+  const a = ap(bruts);
+  assert.deepEqual(a.refs.filter((r) => r.type === "picture").map((r) => r.slot), [1, 2, 3, 4, 5]);
+  assert.ok(!a.refs.some((r) => r.asset === "PROP_2"));
+  assert.ok(/dust drifting around dust/.test(a.sections.detailed_description ?? ""), "le marqueur du shot devient le nom de la référence");
+  assert.ok((fiche(bruts).avertissements ?? []).some((w) => /PROP_2 retiré .*matière faible/.test(w.texte)));
+});

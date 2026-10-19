@@ -14,6 +14,7 @@ export const ETAPES_CREATION = [
   { cle: "registre", libelle: "Registre d'assets", detail: "Personnages et lieux du brief, avec leurs prompts d'image." },
   { cle: "inventaire", libelle: "Inventaire des assets", detail: "Accessoires, états de décor, effets que les plans réclament." },
   { cle: "prompts-inventaire", libelle: "Prompts des assets de l'inventaire", detail: "Un prompt d'image par asset ajouté." },
+  { cle: "relecture", libelle: "Relecture des scénarios", detail: "Cohérence, motifs, doublons, résolution : les plus petites corrections, avant d'écrire les fiches." },
   { cle: "fiches", libelle: "Fiches de plan", detail: "Le prompt vidéo de chaque plan, avec ses références." },
   { cle: "prompts-fiches", libelle: "Prompts des assets créés par les fiches", detail: "Ce que les fiches ont ajouté au registre." },
 ] as const;

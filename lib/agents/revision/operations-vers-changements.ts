@@ -59,7 +59,7 @@ function versChangements(op: Operation, vue: VueEpisode): ChangementBrut[] {
       cibleRef: p.uuid,
       libelle: `Modifier ${nom}`,
       operation: "modifier",
-      apres: { ...(op.titre !== undefined ? { titre: op.titre } : {}), ...(op.description !== undefined ? { description: op.description } : {}) },
+      apres: { ...(op.titre !== undefined ? { titre: op.titre } : {}), ...(op.description !== undefined ? { description: op.description } : {}), ...(op.liaison !== undefined ? { liaison: op.liaison } : {}) },
     },
   ];
 }

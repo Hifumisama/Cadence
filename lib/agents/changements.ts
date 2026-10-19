@@ -23,6 +23,9 @@ export type ChangementBrut = {
   refuseRaison?: string | null;
   /** Lot : titre de la scène sous laquelle la revue range ce plan ou cette réplique. */
   sousGroupe?: string | null;
+  /** Coché d'office MALGRÉ la règle (suppression décochée par défaut) : le convertisseur sait que le geste est sans risque (un plan sans fiche ni
+   * rendu que la relecture du scénario fusionne dans son voisin). N'enlève jamais un refus, un blocage ni un écrasement (cochage.ts). */
+  cocheOffice?: boolean;
 };
 
 /** Une ligne de proposition_changements, jsonb en `unknown`. */

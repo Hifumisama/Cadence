@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, projects, propositions } from "../../db/schema";
 import { horsAffiches } from "../../lib/assets-visibles";
@@ -38,6 +38,7 @@ import { codesEnVoixOff, depuisFichePlan, type OptionsFichePlan } from "../../li
 import { planUuidDeCle } from "../../lib/agents/fiches";
 import type { SortiePlanH3 } from "../../lib/agents/plan-h3-controles";
 import { corpusExemplesPlanH3 } from "../../lib/agents/plan-h3-corpus";
+import { depuisRelecture, type EntreeRelecture, type SortieRelecture } from "../../lib/agents/relecture";
 import { planPromptSections, planRefs, propositionChangements, scenes } from "../../db/schema";
 import { depuisInventaire, type SortieInventaire } from "../../lib/agents/inventaire";
 import { lireVueEpisode } from "../../lib/agents/revision/vue-episode";
@@ -188,6 +189,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
   if (prop.lot) {
     if (run.skill === "prompt-asset") return postSousTacheRegistre(tx, run, prop, scope, json as SortiePromptAsset);
     if (run.skill === "plan-h3") return postSousTacheFiche(tx, run, prop, scope, json as SortiePlanH3);
+    if (run.skill === "relecture-scenario") return postSousTacheRelecture(tx, run, prop, scope, json as SortieRelecture);
     return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
   }
 
@@ -310,6 +312,31 @@ async function postSousTacheLot(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
+/** Une sous-tâche du lot « relectures » (un épisode) : les corrections du scénario sont traduites en changements de plan (poignées → uuid, sur l'épisode
+ * tel qu'il est MAINTENANT) qui REMPLACENT ceux que la sous-tâche avait posés (relance). L'ordre des plans doit être celui que le modèle a lu : sinon une
+ * poignée viserait un autre plan, la sous-tâche échoue et se relance. Puis le lot décide de son statut. */
+async function postSousTacheRelecture(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "saison" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortieRelecture,
+) {
+  const cle = run.cleSousTache;
+  const episodeId = episodeIdDeCle(cle);
+  if (!cle || episodeId == null) throw new Error(`Sous-tâche de relecture inconnue (« ${cle ?? "?"} »).`);
+  const vue = await lireVueEpisode(tx, prop.projectId, episodeId);
+  if (!vue) throw new Error("L'épisode relu n'existe plus.");
+  const luParLeModele = (run.options as { planUuids?: string[] } | null)?.planUuids;
+  if (luParLeModele && (luParLeModele.length !== vue.plans.length || luParLeModele.some((u, i) => vue.plans[i]?.uuid !== u))) {
+    throw new Error("Les plans de l'épisode ont changé (ajoutés, supprimés ou déplacés) pendant la relecture : relance-la.");
+  }
+  const { bruts } = depuisRelecture(sortie, vue, run.entree as EntreeRelecture, { groupe: groupeEpisode(episodeId) });
+  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
+  await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
 /** Une sous-tâche du lot « registre » (un master) : l'asset est créé s'il n'existe pas (description du
  * brief + prompt), sinon son prompt est proposé. Même règle que pour un épisode : ses changements
  * REMPLACENT ceux qu'elle avait posés (relance), idempotent, puis le lot décide de son statut. */
@@ -346,8 +373,10 @@ async function postSousTacheRegistre(
 /** Les changements d'une fiche de plan (sortie de `plan-h3`), depuis l'état du plan MAINTENANT : le registre, la clause de style, les
  * personnages à voix fixée (le prompt fait foi pour les répliques : la voix se lit dans les `<d>`, décision 2026-10-14). */
 async function brutsFiche(tx: Tx, projectId: number, planUuid: string, sortie: SortiePlanH3, options: OptionsFichePlan = {}): Promise<ChangementBrut[]> {
-  const [plan] = await tx.select({ id: plans.id, titre: plans.titre }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
+  const [plan] = await tx.select({ id: plans.id, titre: plans.titre, episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!plan) throw new Error("Le plan visé n'existe plus.");
+  // Raccord : un plan « suite » qui a un plan avant lui reçoit la dernière image de celui-ci, un emplacement d'image doit rester libre.
+  const [avant] = plan.liaison === "suite" ? await tx.select({ id: plans.id }).from(plans).where(and(eq(plans.episodeId, plan.episodeId), lt(plans.ordre, plan.ordre))).limit(1) : [];
   const [projet] = await tx.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
   const [leBrief] = await tx.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
   const registre = await tx.select({ code: assets.code, type: assets.type, voixMaster: assets.voixMaster }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches));
@@ -355,7 +384,7 @@ async function brutsFiche(tx: Tx, projectId: number, planUuid: string, sortie: S
   const codesVoixOff = [...codesEnVoixOff(((leBrief?.contenu as { personnages?: { nom?: string; voix?: string }[] } | undefined)?.personnages ?? []), registre.filter((a) => a.type === "personnage").map((a) => a.code))];
   return depuisFichePlan(
     sortie,
-    { uuid: planUuid, titre: plan.titre, codesAvecMaster, codesVoixOff, registre: registre.map((a) => ({ code: a.code, type: a.type })), clauseStyle: projet?.clauseStyle ?? "" },
+    { uuid: planUuid, titre: plan.titre, codesAvecMaster, codesVoixOff, registre: registre.map((a) => ({ code: a.code, type: a.type })), clauseStyle: projet?.clauseStyle ?? "", reserveRaccord: !!avant },
     { corpusExemples: corpusExemplesPlanH3(), ...options },
   );
 }

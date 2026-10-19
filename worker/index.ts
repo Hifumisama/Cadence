@@ -10,7 +10,7 @@ import { domaineDe, type DomaineGpu } from "../lib/gpu";
 import { configLlm } from "../lib/llm/config";
 import { cheminAssetMedia, cheminVoixMedia } from "../lib/media";
 import { assemblerPrompt } from "../lib/prompt";
-import { sectionsAvecRaccord } from "../lib/plan-raccord";
+import { raccordSansPlace, sectionsAvecRaccord } from "../lib/plan-raccord";
 import { getAllParams } from "../lib/params";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import { creerClientComfyUI } from "./comfyui";
@@ -166,10 +166,22 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     verifierEntree(input); // durée hors 5-15 s, trop de références : échec franc (voir catch)
     // Ce qui est gardé sur le rendu : le prompt de la FICHE (de quoi comparer deux rendus et voir qu'une modification n'a pas bougé le prompt ;
     // « Repartir de là » le restaure) et, s'il y en a un, l'essai dont l'image de raccord vient.
-    const [lePlan] = await db.select({ description: plans.description }).from(plans).where(eq(plans.id, job.planId));
+    const [lePlan] = await db.select({ description: plans.description, liaison: plans.liaison }).from(plans).where(eq(plans.id, job.planId));
+    // Un plan « suite » sans image de raccord faute d'emplacement libre : rien ne bloque (la génération part comme avant), mais l'essai le dit.
+    const raccordSansPlaceLibre = lePlan?.liaison === "suite" && raccordJobId == null && raccordSansPlace(input.refsImage.length + input.refsVideo.length);
+    const alertes = raccordSansPlaceLibre
+      ? [...(job.alertesIteration ?? []), "Pas d'image de raccord : les références du plan occupent tous les emplacements. Retire une référence pour que la dernière image du plan précédent soit reprise."]
+      : undefined;
     await db
       .update(jobs)
-      .set({ promptUtilise: promptFiche, raccordJobId, dureeUtilisee: input.dureeSecondes, seedUtilisee: input.seed ?? null, descriptionUtilisee: lePlan?.description ?? null })
+      .set({
+        promptUtilise: promptFiche,
+        raccordJobId,
+        dureeUtilisee: input.dureeSecondes,
+        seedUtilisee: input.seed ?? null,
+        descriptionUtilisee: lePlan?.description ?? null,
+        ...(alertes ? { alertesIteration: alertes } : {}),
+      })
       .where(eq(jobs.id, job.id));
 
     for (const ref of [...input.refsImage, ...input.refsAudio, ...input.refsVideo]) {

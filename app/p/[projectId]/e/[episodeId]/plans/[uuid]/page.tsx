@@ -29,7 +29,7 @@ import { assemblerPrompt } from "@/lib/prompt";
 import { liaisonOuDefaut } from "@/lib/plan-liaison";
 import { libelleAsset } from "@/lib/assetCode";
 import { statutAsset } from "@/lib/asset-etat";
-import { etatRaccord } from "@/lib/plan-raccord";
+import { etatRaccord, raccordSansPlace } from "@/lib/plan-raccord";
 import { raccordActuel } from "@/lib/queries-raccord";
 import { choisirComparaison, choisirRendu, detailPerime, estLisible, promptDiffere, raisonNonRetenable, type RenduVue } from "@/lib/rendus";
 
@@ -122,6 +122,8 @@ export default async function PlanPage({
 
   // Raccord (lib/plan-raccord.ts) : l'essai du plan précédent dont l'image serait prise maintenant, comparé à celui dont l'essai affiché est parti.
   const raccordMaintenant = await raccordActuel(plan);
+  // Références visuelles que le worker compterait (images et vidéos qui ont leur fichier) : au plafond, un plan « suite » part SANS raccord.
+  const refsVisuelles = refs.filter((r) => (r.type === "picture" || r.type === "video") && r.asset != null && r.asset.fichier).length;
 
   const scenarioInitial = {
     titre: plan.titre,
@@ -263,6 +265,18 @@ export default async function PlanPage({
           ancre: "fp-refs",
         }),
       ),
+    // Un plan qui enchaîne sur le précédent reçoit sa dernière image comme référence : avec le plafond atteint, la génération part sans raccord.
+    ...(raccordMaintenant?.source && raccordSansPlace(refsVisuelles)
+      ? [
+          {
+            cle: "raccord-sans-place",
+            niveau: "warn" as const,
+            titre: "Pas de place pour le raccord",
+            detail: `Ce plan enchaîne sur « ${raccordMaintenant.precedent.titre} » mais ses ${refsVisuelles} références occupent tous les emplacements : il sera généré SANS la dernière image du plan précédent. Retire une référence (décris-la dans le prompt) pour la libérer.`,
+            ancre: "fp-refs",
+          },
+        ]
+      : []),
     ...structure.map(
       (p, i): AlerteControle => ({
         cle: `struct-${p.type}-${i}`,
@@ -356,7 +370,7 @@ export default async function PlanPage({
                 {principal && principalJob && (retenable || principalJob.promptUtilise || principalJob.descriptionUtilisee || principalJob.raccordJobId != null) ? (
                   <div className="tm-sous-legende">
                     {(() => {
-                      const r = etatRaccord({ liaison: plan.liaison, utilise: principalJob.raccordJobId, actuel: raccordMaintenant?.source ?? null, precedentTitre: raccordMaintenant?.precedent.titre ?? null });
+                      const r = etatRaccord({ liaison: plan.liaison, utilise: principalJob.raccordJobId, actuel: raccordMaintenant?.source ?? null, precedentTitre: raccordMaintenant?.precedent.titre ?? null, refsVisuelles });
                       return r ? <p className="tiny-note" style={{ margin: "0 0 4px", ...(r.perime ? { color: "var(--gold, #c9a227)" } : {}) }}>{r.texte}</p> : null;
                     })()}
                     {retenable ? (

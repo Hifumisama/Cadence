@@ -23,6 +23,8 @@ export const LIBELLE_SKILL: Record<string, string> = {
   fiches: "Fiches de plan",
   "prompts-assets": "Prompts des assets créés",
   "inventaire-assets": "Inventaire des assets",
+  "relecture-scenario": "Relecture du scénario",
+  relectures: "Relecture des scénarios",
 };
 
 export type Tache = {

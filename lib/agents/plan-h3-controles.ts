@@ -45,13 +45,23 @@ export type ContexteControleH3 = {
   slotsAudioPris?: number[];
   /** Textes des exemples du skill : une phrase de 10 mots ou plus recopiée d'un exemple donne une alerte. */
   corpusExemples?: string[];
+  /** Le plan reçoit l'image de raccord (liaison « suite » et un plan avant lui) : un emplacement d'image est réservé, 5 références d'image au plus. */
+  reserveRaccord?: boolean;
 };
 
 /** Seuil de l'alerte de longueur (norme du guide officiel : 350 à 500 mots ; on laisse de la marge avant d'alerter). */
 /** Budget du prompt assemblé (le plafond de l'API v2, retenu aussi en local : au-delà de ~12 000 caractères les rendus du banc étaient moins lisibles). */
 export const CARACTERES_MAX_PROMPT = 7000;
 export const MAX_IMAGES = 6;
+/** Un plan en liaison « suite » garde un emplacement pour l'image de raccord (lib/plan-raccord.ts) : 5 images de référence au plus. */
+export const MAX_IMAGES_AVEC_RACCORD = MAX_IMAGES - 1;
 export const MAX_AUDIOS = 3;
+
+/** Le marqueur `[[CODE]]` (ou `[CODE]`, tolérance de forme) est-il dans ce texte ? */
+export function citeCode(code: string, texte: string): boolean {
+  const c = code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(String.raw`\[\[\s*${c}\s*\]\]|(?<!\[)\[${c}\](?!\])`).test(texte);
+}
 
 /** « 00:04.500 » → 4,5 ; null si le format n'est pas celui du prompt H3. */
 export function secondesDeTimecode(tc: string): number | null {
@@ -122,6 +132,18 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
   if (images.length > MAX_IMAGES) ajouter("erreur", "references", `${images.length} images de référence : ${MAX_IMAGES} au plus.`);
   if (sons.length > Math.max(0, audiosLibres)) {
     ajouter("erreur", "references", `${sons.length} références sonores : ${Math.max(0, audiosLibres)} au plus (3 audio, dont ${MAX_AUDIOS - Math.max(0, audiosLibres)} pour les voix du plan ; la voix prime).`);
+  }
+  // Raccord : le code retire seul les images déclarées mais non citées dans un shot (conversion.ts). Le modèle n'est renvoyé que s'il
+  // en reste plus de 5 CITÉES dans un shot : le code ne choisit pas à sa place laquelle sacrifier.
+  if (ctx.reserveRaccord) {
+    const tousShots = (sortie.shots ?? []).map((sh) => sh.texte ?? "").join(" ");
+    // Le code sacrifie seul une matière faible (effet, weak_reference) : seules comptent les images qui portent une identité.
+    const utiles = images.filter((r) => citeCode(r.asset, tousShots) && r.retention !== "weak_reference" && typeDe.get(r.asset) !== "vfx");
+    if (utiles.length > MAX_IMAGES_AVEC_RACCORD) {
+      ajouter("erreur", "references-raccord", `Ce plan enchaîne sur le précédent (liaison suite) : l'application joint elle-même la dernière image du plan précédent, il reste ${MAX_IMAGES_AVEC_RACCORD} emplacements d'image, pas ${MAX_IMAGES}. ${utiles.length} images sont citées dans les shots : garde les ${MAX_IMAGES_AVEC_RACCORD} qui portent l'identité et le cadre, décris les autres en prose.`);
+    } else if (images.length > MAX_IMAGES_AVEC_RACCORD) {
+      ajouter("info", "references-raccord", `${images.length} images déclarées pour un plan en suite (${MAX_IMAGES_AVEC_RACCORD} au plus, un emplacement est pris par le raccord) : les images non citées dans un shot sont retirées par le code.`);
+    }
   }
   const codes = new Set<string>();
   for (const r of references) {

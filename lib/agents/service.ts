@@ -29,7 +29,7 @@ import { controleDuree } from "./applicateurs/plan";
 import { cocheParDefaut, groupeAffiche, raisonNonCochable } from "./cochage";
 import { TYPE_AFFICHE } from "../affiches";
 import { entreePromptAffiche } from "./affiche";
-import { entreeCorrectionPlan, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, lireBriefDuProjet, type EntreeSkill } from "./contexte";
+import { entreeCorrectionPlan, entreeRelecture, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, lireBriefDuProjet, type EntreeSkill } from "./contexte";
 import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registre";
 import { annulerLot, annulerRunsDePropositions, runsDuLot, type ResultatAnnulationLot } from "./lots";
 import { cleSousTacheEpisode, dernieresSousTaches, episodeIdDeCle, estRunActif } from "./lots-pur";
@@ -684,6 +684,53 @@ export async function genererScenarios(
   return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length };
 }
 
+const CONSIGNE_RELECTURE = "Relis le scénario de cet épisode et rends les plus petites corrections qui le rendent cohérent.";
+
+/** Relecture des scénarios (FRICTIONS 2026-10-19) : une passe du modèle qui réfléchit sur chaque épisode ÉCRIT, après les scénarios et l'inventaire, AVANT les
+ * fiches de plan. Un LOT comme les scénarios (une tâche `relecture-scenario` par épisode qui a des plans) : un échec isolé ne perd pas le reste. Les corrections
+ * sont des changements de plan (description, liaison, durée, suppression d'un doublon, plan de résolution ajouté) à relire et appliquer comme toute proposition. */
+export async function genererRelectures(
+  conversationUuid: string,
+  options: { episodeIds?: number[]; consigne?: string } = {},
+): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
+  const conv = await conversationParUuid(conversationUuid);
+  if (!conv) return ERR("Conversation introuvable.");
+  if (conv.portee !== "projet" && conv.portee !== "saison") return ERR("La relecture se demande depuis le projet ou une saison.");
+  { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
+  const dispo = (await episodesPourScenarios(conv.projectId, conv.portee === "saison" ? conv.cibleId : null)).filter((e) => e.nbPlans > 0);
+  if (dispo.length === 0) return ERR("Aucun épisode n'a de plan à relire : écris d'abord les scénarios.");
+  const choisis = options.episodeIds ? dispo.filter((e) => options.episodeIds!.includes(e.id)) : dispo;
+  if (choisis.length === 0) return ERR("Aucun des épisodes choisis n'a de plan à relire.");
+  const consigne = (options.consigne ?? "").trim() || CONSIGNE_RELECTURE;
+  const plusieursSaisons = new Set(choisis.map((e) => e.saisonNumero)).size > 1;
+  const sousTaches: { e: EpisodePourScenario; entree: NonNullable<Awaited<ReturnType<typeof entreeRelecture>>> }[] = [];
+  for (const e of choisis) {
+    const entree = await entreeRelecture(db, conv.projectId, e.id, consigne);
+    if (entree) sousTaches.push({ e, entree });
+  }
+  if (sousTaches.length === 0) return ERR("Aucun épisode lisible.");
+  const contexte = [
+    { type: "episode" as const, libelle: `${sousTaches.length} épisode${sousTaches.length > 1 ? "s" : ""} à relire, un par un` },
+    ...sousTaches[0]!.entree.contexte.filter((c) => c.type === "brief" || c.type === "registre"),
+  ];
+  const propId = await nouvelleProposition(conv, { skill: "relectures", consigne, contexte, lot: true });
+  for (const { e, entree } of sousTaches) {
+    await creerRun(db, {
+      skill: "relecture-scenario",
+      entree: entree.entree,
+      options: { planUuids: entree.planUuids },
+      but: "proposition",
+      projectId: conv.projectId,
+      conversationId: conv.id,
+      propositionId: propId,
+      cleSousTache: cleSousTacheEpisode(e.id),
+      libelleSousTache: `${plusieursSaisons ? `Saison ${e.saisonNumero} · ` : ""}Épisode ${e.numero} · ${e.titre}`,
+    });
+  }
+  const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
+  return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length };
+}
+
 const CONSIGNE_REGISTRE = "Écris le prompt de génération de ce master (image de référence) à partir de sa description canonique.";
 
 /** Les masters que le brief décrit (personnages, lieux), avec ce qui existe déjà dans le registre.
@@ -1071,7 +1118,7 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
   const sous = dernieresSousTaches(await runsDuLot(db, prop.id)).find((x) => x.run.cle === cle);
   if (!sous) return ERR("Sous-tâche introuvable.");
   if (estRunActif(sous.run)) return ERR("Cette sous-tâche est déjà en file ou en cours.");
-  let cible: { skill: string; entree: object; options: { variante?: string } | null };
+  let cible: { skill: string; entree: object; options: { variante?: string; [cle: string]: unknown } | null };
   const codeAsset = codeDeCleAsset(cle);
   const planUuid = planUuidDeCle(cle);
   if (planUuid) {
@@ -1094,9 +1141,16 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
   } else {
     const episodeId = episodeIdDeCle(cle);
     if (episodeId == null) return ERR("Sous-tâche non relançable.");
-    const entree = await entreeScenarioEpisode(db, prop.projectId, episodeId, prop.consigne || CONSIGNE_SCENARIO, { retour: retour?.trim() || undefined });
-    if (!entree) return ERR("L'épisode n'existe plus.");
-    cible = { skill: "scenario-episode", entree: entree.entree, options: null };
+    if (prop.skill === "relectures") {
+      // Relecture : l'épisode tel qu'il est maintenant (ses plans ont pu changer depuis), avec le retour libre.
+      const r = await entreeRelecture(db, prop.projectId, episodeId, prop.consigne || CONSIGNE_RELECTURE, { retour: retour?.trim() || undefined });
+      if (!r) return ERR("L'épisode n'existe plus ou n'a plus de plan.");
+      cible = { skill: "relecture-scenario", entree: r.entree, options: { planUuids: r.planUuids } };
+    } else {
+      const entree = await entreeScenarioEpisode(db, prop.projectId, episodeId, prop.consigne || CONSIGNE_SCENARIO, { retour: retour?.trim() || undefined });
+      if (!entree) return ERR("L'épisode n'existe plus.");
+      cible = { skill: "scenario-episode", entree: entree.entree, options: null };
+    }
   }
 
   const run = await creerRun(db, {

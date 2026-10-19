@@ -70,3 +70,14 @@ test("état du raccord affiché : utilisé et à jour, périmé, absent alors qu
   assert.equal(etatRaccord({ ...base, utilise: null, actuel: null }), null);
   assert.equal(etatRaccord({ liaison: "coupe", precedentTitre: null, utilise: null, actuel: null }), null);
 });
+
+test("raccord sans place : seulement quand les références visuelles sont au plafond", async () => {
+  const { raccordSansPlace } = await import("./plan-raccord");
+  assert.equal(raccordSansPlace(5), false);
+  assert.equal(raccordSansPlace(6), true);
+  const dit = etatRaccord({ liaison: "suite", utilise: null, actuel: { id: 9, numeroRendu: 2 }, precedentTitre: "Le quai", refsVisuelles: 6 });
+  assert.match(dit?.texte ?? "", /Pas d'image de raccord : le plan enchaîne sur « Le quai », mais ses 6 références/);
+  assert.equal(dit?.perime, true);
+  const normal = etatRaccord({ liaison: "suite", utilise: null, actuel: { id: 9, numeroRendu: 2 }, precedentTitre: "Le quai", refsVisuelles: 4 });
+  assert.match(normal?.texte ?? "", /nouvelle génération prendra la dernière image/);
+});

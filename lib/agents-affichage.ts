@@ -460,6 +460,8 @@ export function motsDuLot(skill: string): MotsLot {
   switch (skill) {
     case "scenarios":
       return { titre: "Épisodes", travail: "écrit les épisodes un par un", ceci: "cet épisode", dejaFaits: "Les épisodes déjà écrits" };
+    case "relectures":
+      return { titre: "Épisodes", travail: "relit les scénarios un par un", ceci: "cet épisode", dejaFaits: "Les épisodes déjà relus" };
     case "fiches":
       return { titre: "Plans", travail: "écrit les fiches de plan une par une", ceci: "cette fiche", dejaFaits: "Les fiches déjà écrites" };
     case "registre":

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the relecture-scenario agent: the smallest corrections to an episode's screenplay",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["constats", "corrections", "notes"],
+  "properties": {
+    "constats": {
+      "type": "array",
+      "maxItems": 14,
+      "description": "Every real fault found while reading, even one you decide not to fix. Empty if the screenplay holds.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["critere", "plans", "probleme"],
+        "properties": {
+          "critere": { "type": "string", "enum": ["physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "menace", "resolution", "dialogue"], "description": "Which check the fault breaks." },
+          "plans": { "type": "array", "items": { "type": "string" }, "description": "References of the plans concerned, exactly as in the input (P01, P02…). May be empty for a missing resolution." },
+          "probleme": { "type": "string", "description": "(French) The fault in one or two sentences, quoting the words that break it." }
+        }
+      }
+    },
+    "corrections": {
+      "type": "array",
+      "maxItems": 8,
+      "description": "The SMALLEST corrections that remove the faults. Empty if nothing is broken.",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "plan", "critere", "motif"],
+            "properties": {
+              "type": { "type": "string", "const": "modifier_plan" },
+              "plan": { "type": "string", "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)." },
+              "description": { "type": "string", "description": "(French) The COMPLETE new description of the plan: the original with only the broken sentence changed or one sentence added. Keep the rest word for word, the lines `NOM : « … »` and the final « État en fin de plan : … » sentence. No reference to another plan, no camera. Leave out if only `liaison` or `titre` changes." },
+              "titre": { "type": "string", "description": "(French) A new title, only if the old one is now false." },
+              "liaison": { "type": "string", "enum": ["suite", "coupe"], "description": "The new link with the PREVIOUS plan, only if it changes. The first plan is always a coupe." },
+              "critere": { "type": "string", "enum": ["physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "menace", "resolution", "dialogue"] },
+              "motif": { "type": "string", "description": "(French) One sentence: why, pointing at the broken words." }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "plan", "critere", "motif"],
+            "properties": {
+              "type": { "type": "string", "const": "couper_plan" },
+              "plan": { "type": "string", "description": "Reference of the plan to delete (a duplicated beat). Its lines must go to the plan that keeps the beat." },
+              "critere": { "type": "string", "enum": ["doublon", "motif", "entrees-sorties", "physique", "temps", "direction", "menace", "resolution", "dialogue"] },
+              "motif": { "type": "string", "description": "(French) One sentence: why, and which plan keeps the beat." }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "plan", "secondes", "critere", "motif"],
+            "properties": {
+              "type": { "type": "string", "const": "duree_plan" },
+              "plan": { "type": "string", "description": "Reference of the plan concerned." },
+              "secondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "The new generation duration, whole seconds." },
+              "critere": { "type": "string", "enum": ["doublon", "motif", "entrees-sorties", "physique", "temps", "direction", "menace", "resolution", "dialogue"] },
+              "motif": { "type": "string", "description": "(French) One sentence: why (usually to keep the total on target after a cut or an addition)." }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "apres", "titre", "description", "secondes", "critere", "motif"],
+            "properties": {
+              "type": { "type": "string", "const": "ajouter_plan" },
+              "apres": { "type": "string", "description": "Reference of the plan AFTER which the new plan comes (the last plan, for a resolution)." },
+              "titre": { "type": "string", "description": "(French) Short title of the new plan." },
+              "description": { "type": "string", "description": "(French) The new plan, in the screenplay's form: what happens and why, the lines if any (`NOM : « … »`), then « État en fin de plan : … ». With no camera and no reference to another plan." },
+              "secondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "Generation duration, whole seconds." },
+              "critere": { "type": "string", "enum": ["resolution", "menace", "physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "dialogue"] },
+              "motif": { "type": "string", "description": "(French) One sentence: why this plan is needed." }
+            }
+          }
+        ]
+      }
+    },
+    "notes": { "type": "string", "description": "(French) A short remark: a fault left alone and why, or « à réécrire plutôt qu'à relire » if the episode needs more than 8 corrections. Empty if nothing to report." }
+  }
+}

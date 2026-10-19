@@ -3,9 +3,9 @@ import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, slugifyCode } from "../a
 import type { ChangementBrut } from "./changements";
 import { cleNouvelAsset, type ApresFiche, type RefFiche } from "./fiches";
 import { corrigerCodesInconnus } from "./codes-proches";
-import { assemblerPlanH3 } from "./plan-h3-assemblage";
+import { assemblerPlanH3, retirerImagesPourRaccord, type RetraitPourRaccord } from "./plan-h3-assemblage";
 import { parolesDuPrompt, voixDuPrompt } from "./voix-du-prompt";
-import { controlerSortiePlanH3, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
+import { controlerSortiePlanH3, MAX_IMAGES_AVEC_RACCORD, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
 import { genreOuNull } from "../scene-genres";
 import { estLiaison } from "../plan-liaison";
 import type { Avertissement, Position } from "./types";
@@ -337,6 +337,9 @@ export type PlanPourFicheH3 = {
   /** Codes des personnages dont le brief dit que la voix est une voix off (pensées) : leurs paroles sont écrites à la forme H3
    * (« says in an off-screen voiceover », bouche close). */
   codesVoixOff?: string[];
+  /** Le plan enchaîne sur le précédent (liaison « suite », un plan avant lui) : l'application joint la dernière image de celui-ci comme `<Picture N>`.
+   * Un emplacement d'image reste donc libre (5 au plus ; lib/plan-raccord.ts, FRICTIONS 2026-10-19). */
+  reserveRaccord?: boolean;
 };
 
 /** Les codes des personnages dont le brief dit que la voix est une voix off (pensées, monologue intérieur) : leur `voix` le dit en clair. */
@@ -394,6 +397,11 @@ export type OptionsFichePlan = {
   corpusExemples?: string[];
 };
 
+const RAISON_RETRAIT: Record<RetraitPourRaccord["raison"], string> = {
+  "non-citee": "citée nulle part",
+  "hors-shots": "citée seulement hors des shots",
+  faible: "matière faible, décrite en prose",
+};
 const echapperRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** Types d'assets qu'une proposition peut créer. Un « keyframe » (pose composite : plusieurs éléments mêlés dans une même
  * image) en fait partie depuis le 2026-10-06 ; la voix n'est plus un asset (champ du personnage). */
@@ -508,7 +516,21 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
       });
     } else gardees.push(r);
   }
-  const nettoyee: SortiePlanH3 = { ...sortie, ...textes, references: gardees };
+  // Raccord : un plan « suite » garde un emplacement d'image libre. Les images déclarées mais non citées dans un shot partent d'abord (retirées du
+  // prompt sans trace : le modèle les avait déclarées pour rien) ; l'assemblage renumérote tout depuis la liste restante.
+  let referencesFinales = gardees;
+  if (plan.reserveRaccord) {
+    const r = retirerImagesPourRaccord(gardees, { shots: textes.shots.map((s) => s.texte), autres: [textes.summary, textes.ouverture, textes.overall_soundscape, textes.non_diegetic_music] }, typeDe);
+    for (const x of r.retirees) {
+      enProse(x.asset, x.nom);
+      ajouter({ type: "info", texte: `Raccord : ${x.asset} retiré des références (${RAISON_RETRAIT[x.raison]}) pour garder un emplacement à l'image du plan précédent.` });
+    }
+    if (r.restantes > MAX_IMAGES_AVEC_RACCORD) {
+      ajouter({ type: "alerte_controle", texte: `Raccord impossible : ${r.restantes} images de référence citées dans les shots, pour ${MAX_IMAGES_AVEC_RACCORD} emplacements possibles (le sixième est pris par la dernière image du plan précédent). À la génération, ce plan partira SANS raccord : retire une référence (la décrire en prose) avant de lancer.` });
+    }
+    referencesFinales = r.references;
+  }
+  const nettoyee: SortiePlanH3 = { ...sortie, ...textes, references: referencesFinales };
 
   // 2. assemblage (labels, timecodes, sections) avec les slots des voix
   // Les voix se lisent dans le prompt : un `<Audio N>` par personnage qui parle et a une voix fixée, posé AVANT les bruitages.

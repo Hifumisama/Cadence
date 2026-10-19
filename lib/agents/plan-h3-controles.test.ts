@@ -212,3 +212,30 @@ test("asset d'image manquant : cité comme une référence (déclaré dans asset
   const son = { ...avec, references: [...bonne.references, { asset: "SFX_gong", nature: "son" as const, role: "Gong", nom: "a gong", definition: "ringing" }], assetsManquants: [{ ...manquant, code: "SFX_gong", type: "sfx" }], summary: "[[CHAR_maya]] [[DEC_couloir]] [[SFX_gong]]" };
   assert.ok(erreurs(son).includes("nature"));
 });
+
+test("raccord : trop d'images CITÉES dans les shots = erreur de renvoi ; des images déclarées mais non citées = info (le code les retire)", async () => {
+  const { controlerSortiePlanH3: controler } = await import("./plan-h3-controles");
+  const registre = Array.from({ length: 6 }, (_, i) => ({ code: `PROP_${i}`, type: "prop" }));
+  const refs = registre.map((a) => ({ asset: a.code, nature: "image" as const, role: "r", nom: a.code, definition: "d" }));
+  const cites = (n: number) => registre.slice(0, n).map((a) => `[[${a.code}]]`).join(" ");
+  const sortie = (n: number) => ({
+    titre: "t", dureeSecondes: 8, references: refs, summary: cites(6), ouverture: "style.", shots: [{ debutSecondes: 0, texte: `a wide shot of ${cites(n)}.` }],
+    overall_soundscape: "wind.", non_diegetic_music: "N/A", assetsManquants: [], notes: "",
+  });
+  const sans = controler(sortie(6), { registre });
+  assert.ok(!sans.some((p) => p.regle === "references-raccord"), "sans réserve : 6 images permises");
+  const plein = controler(sortie(6), { registre, reserveRaccord: true });
+  assert.ok(plein.some((p) => p.regle === "references-raccord" && p.niveau === "erreur" && /6 images sont citées/.test(p.message)));
+  const cinq = controler(sortie(5), { registre, reserveRaccord: true });
+  assert.ok(!cinq.some((p) => p.regle === "references-raccord" && p.niveau === "erreur"));
+  assert.ok(cinq.some((p) => p.regle === "references-raccord" && p.niveau === "info"));
+});
+
+test("raccord : une matière faible (effet) citée dans un shot ne compte pas parmi les 5 images d'identité", async () => {
+  const { controlerSortiePlanH3: controler } = await import("./plan-h3-controles");
+  const registre = [...Array.from({ length: 5 }, (_, i) => ({ code: `CHAR_${i}`, type: "personnage" })), { code: "VFX_poussiere", type: "vfx" }];
+  const refs = registre.map((a) => ({ asset: a.code, nature: "image" as const, role: "r", nom: a.code, definition: "d" }));
+  const toutes = registre.map((a) => `[[${a.code}]]`).join(" ");
+  const sortie = { titre: "t", dureeSecondes: 8, references: refs, summary: toutes, ouverture: "style.", shots: [{ debutSecondes: 0, texte: `a wide shot of ${toutes}.` }], overall_soundscape: "wind.", non_diegetic_music: "N/A", assetsManquants: [], notes: "" };
+  assert.ok(!controler(sortie, { registre, reserveRaccord: true }).some((p) => p.niveau === "erreur" && p.regle === "references-raccord"));
+});

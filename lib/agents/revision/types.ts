@@ -1,3 +1,4 @@
+import type { Liaison } from "../../plan-liaison";
 import type { Position } from "../types";
 
 /** La révision d'un épisode (le réalisateur, docs/FRICTIONS.md 2026-10-09 « révision d'épisode »). Types partagés par le
@@ -20,6 +21,8 @@ export type OperationBrute = {
   position?: string | null;
   titre?: string | null;
   description?: string | null;
+  /** modifier_plan : la liaison avec le plan précédent (`suite` ou `coupe`, lib/plan-liaison.ts). */
+  liaison?: string | null;
   /** refondre_fiche : ce qu'il faut changer dans la fiche, dit simplement (facultatif). */
   consigne?: string | null;
 };
@@ -29,7 +32,7 @@ export type Operation =
   | { type: "couper_plan"; planUuid: string }
   | { type: "duree_plan"; planUuid: string; secondes: number }
   | { type: "deplacer_plan"; planUuid: string; position: Position }
-  | { type: "modifier_plan"; planUuid: string; titre?: string; description?: string }
+  | { type: "modifier_plan"; planUuid: string; titre?: string; description?: string; liaison?: Liaison }
   /** Réécrire la fiche du plan avec `plan-h3`. Jamais exécuté dans l'application du chantier (c'est un appel de modèle) : le code lance la
    * génération APRÈS, et le résultat arrive en proposition à relire. */
   | { type: "refondre_fiche"; planUuid: string; consigne: string }

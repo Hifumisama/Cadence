@@ -337,6 +337,59 @@ export async function entreeScenarioEpisode(
   };
 }
 
+/** L'entrée de `relecture-scenario` pour UN épisode (FRICTIONS 2026-10-19) : tout ce que le scénario a écrit — scènes (genre, ambiance), plans dans l'ordre
+ * avec leur liaison, leur durée et leur description COMPLÈTE (intention, répliques, « État en fin de plan »), le registre, les mots de l'auteur — pour que
+ * le modèle tienne le registre de l'état du monde d'un bout à l'autre. Les plans se citent par POIGNÉE (« P07 », le rang à cet instant, jamais stocké : F03) ;
+ * `planUuids` (dans l'ordre) est gardé dans les options de la tâche : le worker vérifie à la fin que l'épisode n'a pas bougé entre la lecture et la réponse.
+ * Null s'il n'y a rien à relire (aucun plan) ou si l'épisode n'est pas du projet. */
+export async function entreeRelecture(
+  db: Db,
+  projectId: number,
+  episodeId: number,
+  consigne: string,
+  options: { retour?: string } = {},
+): Promise<(EntreeSkill & { planUuids: string[] }) | null> {
+  const c = await contexteEpisode(db, projectId, episodeId);
+  if (!c || c.lesPlans.length === 0) return null;
+  const liaisons = new Map((await db.select({ uuid: plans.uuid, liaison: plans.liaison }).from(plans).where(eq(plans.episodeId, episodeId))).map((l) => [l.uuid, liaisonOuDefaut(l.liaison)]));
+  const paroles = await parolesDuProjet(db, projectId);
+  const poignee = (i: number) => `P${String(i + 1).padStart(2, "0")}`;
+  const titreScene = new Map(c.lesScenes.map((s) => [s.id, s.titre]));
+  const lesPlans = c.lesPlans.map((p, i) => ({
+    plan: poignee(i),
+    scene: p.sceneId != null ? (titreScene.get(p.sceneId) ?? "") : "",
+    titre: p.titre,
+    liaison: liaisons.get(p.uuid) ?? "suite",
+    dureeSecondes: p.dureeGenerationSecondes,
+    description: p.description,
+  }));
+  const contexte: ContexteUtilise[] = [
+    { type: "episode", libelle: `Épisode ${c.ep.numero} · ${c.ep.titre}`, ref: String(c.ep.id) },
+    { type: "plan", libelle: `${lesPlans.length} plan${lesPlans.length > 1 ? "s" : ""} relu${lesPlans.length > 1 ? "s" : ""} : intentions et « État en fin de plan »` },
+    { type: "registre", libelle: `Registre : ${c.registre.length} asset${c.registre.length > 1 ? "s" : ""} (noms existants)` },
+    ...c.contexteBrief,
+    ...(paroles.length ? [{ type: "brief" as const, libelle: `Paroles de l'auteur (${paroles.length} message${paroles.length > 1 ? "s" : ""} de sa conception)` }] : []),
+  ];
+  const duree = (c.extrait as { dureeEpisodeSecondes?: number } | null)?.dureeEpisodeSecondes;
+  return {
+    skill: "relecture-scenario",
+    contexte,
+    planUuids: c.lesPlans.map((p) => p.uuid),
+    entree: {
+      episode: { titre: c.ep.titre, resume: c.ep.resume },
+      briefEpisode: briefDeEpisode(c.brief, c.ep.titre, c.ep.numero),
+      briefExtrait: c.extrait,
+      ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),
+      scenes: c.lesScenes.map((s) => ({ titre: s.titre, fonction: s.fonction ?? "", ...(genreOuNull(s.genre) ? { genre: s.genre } : {}), ambiance: (s.ambiance ?? "").trim() })),
+      plans: lesPlans,
+      ...(typeof duree === "number" && duree > 0 ? { dureeCibleSecondes: duree } : {}),
+      registre: c.registre,
+      consigne,
+      ...(options.retour ? { retourUtilisateur: options.retour } : {}),
+    },
+  };
+}
+
 export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: string, consigne: string, retour?: string): Promise<(EntreeSkill & { plan: { uuid: string; titre: string; episodeId: number } }) | null> {
   const [p] = await db
     .select({ uuid: plans.uuid, titre: plans.titre, description: plans.description, duree: plans.dureeGenerationSecondes, episodeId: plans.episodeId })
@@ -450,6 +503,8 @@ export async function entreePlanH3(
         titre: p.titre,
         intention: options.intention ?? p.description ?? "",
         liaison: liaisonOuDefaut(p.liaison),
+        // L'application joint la dernière image du plan précédent (raccord) : un emplacement d'image reste libre, 5 références d'image au plus.
+        ...(liaisonOuDefaut(p.liaison) === "suite" && precedentLu ? { raccord: true } : {}),
         positionDansLaScene: dansLaScene.length > 0 ? `${rang + 1}/${dansLaScene.length}` : "",
         // Sans cette durée le modèle en invente une, et la fiche écrase celle du scénario (le total dérive : 125 s → 85 s).
         // `dureeVoulue` : la durée que la consigne demande (« Itérer » : « passe-le à 12 s »), écrite en base avec la fiche.

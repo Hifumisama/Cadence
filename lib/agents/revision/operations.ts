@@ -1,4 +1,5 @@
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
+import { estLiaison } from "../../plan-liaison";
 import type { Position } from "../types";
 import { planParPoignee, planParUuid, type VueEpisode } from "./vue-episode";
 import { TYPES_OPERATION, type Operation, type OperationBrute, type OperationRefusee } from "./types";
@@ -136,11 +137,17 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
     } else {
       const titre = texteNet(b.titre);
       const description = texteNet(b.description);
-      if (!titre && !description) {
-        refuse(b, `${p.handle} : ni nouveau titre ni nouvelle description.`);
+      // La liaison avec le plan précédent : « suite » ou « coupe » (le premier plan n'en a pas à changer : c'est toujours une coupe).
+      const liaison = estLiaison(b.liaison) ? b.liaison : undefined;
+      if (b.liaison && !liaison) {
+        refuse(b, `${p.handle} : liaison « ${b.liaison} » inconnue (suite ou coupe).`);
         continue;
       }
-      valides.push({ type: "modifier_plan", planUuid: p.uuid, ...(titre ? { titre } : {}), ...(description ? { description } : {}) });
+      if (!titre && !description && !liaison) {
+        refuse(b, `${p.handle} : ni nouveau titre, ni nouvelle description, ni nouvelle liaison.`);
+        continue;
+      }
+      valides.push({ type: "modifier_plan", planUuid: p.uuid, ...(titre ? { titre } : {}), ...(description ? { description } : {}), ...(liaison ? { liaison } : {}) });
     }
   }
   return { valides, refusees };
@@ -162,7 +169,7 @@ export function operationEnPoignees(op: Operation, vue: VueEpisode): OperationBr
         ...("apresPlanUuid" in op.position ? { apres: plan(op.position.apresPlanUuid) } : { position: "debut" in op.position ? "debut" : "fin" }),
       };
     case "modifier_plan":
-      return { type: op.type, plan: plan(op.planUuid), ...(op.titre !== undefined ? { titre: op.titre } : {}), ...(op.description !== undefined ? { description: op.description } : {}) };
+      return { type: op.type, plan: plan(op.planUuid), ...(op.titre !== undefined ? { titre: op.titre } : {}), ...(op.description !== undefined ? { description: op.description } : {}), ...(op.liaison !== undefined ? { liaison: op.liaison } : {}) };
     case "refondre_fiche":
       return { type: op.type, plan: plan(op.planUuid), ...(op.consigne ? { consigne: op.consigne } : {}) };
     case "ajouter_plan":

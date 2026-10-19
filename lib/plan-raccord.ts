@@ -8,6 +8,11 @@ import type { PromptSection } from "./plan-checks";
  * l'essai d'où l'image vient). Pur sauf `extraireDerniereImage`. */
 
 export const MAX_REFS_VISUELLES = 6;
+/** Références visuelles qu'un plan « suite » peut déclarer : un emplacement reste pour l'image de raccord (plan-h3 le réserve, 2026-10-19). */
+export const MAX_REFS_AVEC_RACCORD = MAX_REFS_VISUELLES - 1;
+
+/** Le plan ne peut pas recevoir son raccord faute de place : ses références visuelles (images + vidéos) sont déjà au plafond. */
+export const raccordSansPlace = (nbRefsVisuelles: number): boolean => nbRefsVisuelles >= MAX_REFS_VISUELLES;
 
 /** Le plus petit emplacement `<Picture N>` libre (1 à 6), ou null si les références visuelles (images + vidéos) sont déjà au plafond. */
 export function emplacementLibre(slotsImage: number[], nbVideos: number): number | null {
@@ -76,13 +81,21 @@ export function etatRaccord(args: {
   utilise: number | null;
   actuel: { id: number; numeroRendu: number } | null;
   precedentTitre: string | null;
+  /** Références visuelles (images + vidéos) que le plan déclare maintenant : au plafond, le raccord n'a pas d'emplacement. */
+  refsVisuelles?: number;
 }): { texte: string; perime: boolean } | null {
-  const { liaison, utilise, actuel, precedentTitre } = args;
+  const { liaison, utilise, actuel, precedentTitre, refsVisuelles } = args;
   const plan = precedentTitre ? `« ${precedentTitre} »` : "le plan précédent";
   if (utilise != null) {
     if (actuel && actuel.id === utilise) return { texte: `Raccord : cet essai part de la dernière image de l'essai n°${actuel.numeroRendu} de ${plan}.`, perime: false };
     return {
       texte: `Raccord périmé : cet essai part de la dernière image d'un ancien rendu de ${plan}${actuel ? ` (son rendu à prendre est maintenant l'essai n°${actuel.numeroRendu})` : ""}. Relance ce plan pour reprendre la dernière image actuelle.`,
+      perime: true,
+    };
+  }
+  if (liaison === "suite" && actuel && refsVisuelles != null && raccordSansPlace(refsVisuelles)) {
+    return {
+      texte: `Pas d'image de raccord : le plan enchaîne sur ${plan}, mais ses ${refsVisuelles} références occupent tous les emplacements. Retire une référence puis relance : la dernière image du précédent sera alors reprise.`,
       perime: true,
     };
   }
