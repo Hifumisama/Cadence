@@ -8,7 +8,7 @@ import { ORDRE_SECTIONS } from "../prompt";
 import type { Db } from "./applicateurs/commun";
 import { sansClesAbandonnees } from "./brief";
 import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-plan";
-import { liaisonOuDefaut } from "../plan-liaison";
+import { liaisonOuDefaut, type Liaison } from "../plan-liaison";
 import type { BriefContenu, ContexteUtilise, EtatIterationPlan, Position } from "./types";
 
 /** Ce que l'agent lit AUTOMATIQUEMENT pour une portée courte : des extraits du brief et de
@@ -154,15 +154,15 @@ export async function entreePromptAssetCandidat(
 
 // --- épisode, plan ----------------------------------------------------------
 
-type PlanLu = { uuid: string; titre: string; description: string; dureeGenerationSecondes: number; sceneId: number | null };
+type PlanLu = { uuid: string; titre: string; description: string; dureeGenerationSecondes: number; sceneId: number | null; liaison: Liaison };
 
 async function plansDe(db: Db, episodeId: number): Promise<PlanLu[]> {
   const l = await db
-    .select({ uuid: plans.uuid, titre: plans.titre, description: plans.description, duree: plans.dureeGenerationSecondes, sceneId: plans.sceneId })
+    .select({ uuid: plans.uuid, titre: plans.titre, description: plans.description, duree: plans.dureeGenerationSecondes, sceneId: plans.sceneId, liaison: plans.liaison })
     .from(plans)
     .where(eq(plans.episodeId, episodeId))
     .orderBy(asc(plans.ordre), asc(plans.id));
-  return l.map((p) => ({ uuid: p.uuid, titre: p.titre, description: p.description ?? "", dureeGenerationSecondes: p.duree, sceneId: p.sceneId }));
+  return l.map((p) => ({ uuid: p.uuid, titre: p.titre, description: p.description ?? "", dureeGenerationSecondes: p.duree, sceneId: p.sceneId, liaison: liaisonOuDefaut(p.liaison) }));
 }
 
 async function contexteEpisode(db: Db, projectId: number, episodeId: number) {
@@ -462,6 +462,8 @@ export async function entreePlanH3(
   // Les plans d'un lot s'écrivent l'un après l'autre : si le précédent a déjà sa fiche, son dernier shot dit où l'on en est.
   const precedentLu = c.lesPlans[i - 1];
   const dernierShotPrecedent = precedentLu ? await dernierShotDuPlan(db, precedentLu.uuid) : null;
+  // La liaison du SUIVANT : s'il enchaîne (« suite »), la dernière image de ce plan devient sa première (raccord) et doit donc être en mouvement.
+  const suivantLu = c.lesPlans[i + 1];
 
   const registre = await db
     .select({
@@ -527,7 +529,7 @@ export async function entreePlanH3(
           }
         : null,
       episode: { titre: c.ep.titre, resume: c.ep.resume },
-      plansVoisins: { precedent: precedentLu ? { ...voisin(precedentLu)!, ...(dernierShotPrecedent ? { dernierShot: dernierShotPrecedent } : {}) } : null, suivant: voisin(c.lesPlans[i + 1]) },
+      plansVoisins: { precedent: precedentLu ? { ...voisin(precedentLu)!, ...(dernierShotPrecedent ? { dernierShot: dernierShotPrecedent } : {}) } : null, suivant: suivantLu ? { ...voisin(suivantLu)!, liaison: suivantLu.liaison } : null },
       registre: candidats,
       clauseStyleDuProjet: projet?.clauseStyle ?? "",
       briefExtrait: c.extrait,
@@ -690,7 +692,7 @@ export async function entreeIterationPlan(
       historique,
       plansVoisins: {
         precedent: avant ? { titre: avant.titre, intention: avant.description.trim().slice(0, 300), ...(shotsAvant?.dernier ? { dernierShot: shotsAvant.dernier } : {}) } : null,
-        suivant: apres ? { titre: apres.titre, intention: apres.description.trim().slice(0, 300), ...(shotsApres?.premier ? { premierShot: shotsApres.premier } : {}) } : null,
+        suivant: apres ? { titre: apres.titre, liaison: apres.liaison, intention: apres.description.trim().slice(0, 300), ...(shotsApres?.premier ? { premierShot: shotsApres.premier } : {}) } : null,
       },
       ...(avecPlanche
         ? { planche: { jobId: rendu.id, cheminSortie: rendu.cheminSortie, maxVignettes: MAX_VIGNETTES_ITERATION, importe } }

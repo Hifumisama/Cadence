@@ -52,6 +52,7 @@ The **first plan of a place** also names its landmarks in its description ("un f
 2. **An event happens once.** Two plans may not accomplish the same thing (the fire put out twice, the door opened twice). A plan that only repeats a consequence already shown is merged into its neighbour or dropped.
 3. **The end state tells only what the description showed.** Never write a state the plan did not show (a fire "out" after a plan where it only flickered); if nothing changed for an element, say it stays as it was.
 4. **A state that exists only in one plan** (a ruined set, a transformed creature) is set up by the previous plan's end state and left by its own.
+5. **Before a `suite`, the end state is a movement in progress.** The last image of a rendered plan becomes the first image of the next one when that one is a `suite` (FRICTIONS 2026-10-14). So decide each plan's `liaison` first, then write the end of the plan before a `suite` **in the middle of a gesture**: a character mid-leap, a foot in mid-step, an arm swinging, a body sliding back, a dodge half-turned, a fist drawn back. Not at rest (« debout, immobile », « face à face », « reprend son souffle »): a plan that ends at rest gives the next one nothing to continue, and the duel plays flat (test « Duel dans les Ruines »: the plan ended with both fighters standing; the next could only start from nothing). Write the last beat of the description so that it leads to this moment and stops **before** the movement is resolved, then have `État en fin de plan :` name it (`Pika bondit en arrière, les deux pistolets balancés, à mi-saut ; Soom est lancé à sa poursuite, la jambe levée`). **One readable gesture, the body clear**: not a whirl, a blur or a flurry of blows, since the extracted image must be sharp. The next plan then opens by finishing the movement. The end holds still only before a `coupe`, for the last plan of the episode, or when the story needs a held ending (a victory, a silence).
 
 ### How a plan links to the one before: `liaison`
 
@@ -81,7 +82,11 @@ Where a first cut goes wrong:
 
 Each scene has a **genre** that sets the cutting here and the writing guides of its plans later:
 
-- **`action`**: a gesture or clash that must be readable; continuous action fits one plan, cut when place or stakes change. Write **what the body does** (the characters' gestures), not only the effect.
+- **`action`**: a gesture or clash that must be readable; continuous action fits one plan, cut when place or stakes change. Write **what the body does** (the characters' gestures), not only the effect. For each beat of a clash:
+  - **Every character present acts.** Nobody stays still while the other acts: each has a verb of action or a physical reaction that follows from what the other did (dodges, gives ground, parries, counters, braces). A calm character is calm in manner, not motionless; a movement never happens on the spot without purpose (nobody « tourne sur elle-même » for nothing: each turn dodges, aims or builds a strike).
+  - **Strong actions have a scale when the style is stylised.** If the brief's style clause is graphic (manga, cel, cartoon, comic, anime), the finisher is exaggerated and its scale is part of the story, so say it: how high a character leaps and that he hangs there, how wide the crater is, how far a body is thrown. A realistic style is not exaggerated.
+  - **Solid limits stop bodies.** A thrown or pushed character stops against the ropes, a wall, a post (the landmarks of the place); never write that they cross one, unless it breaks.
+  - **A beat is told once inside a plan** (a blow, a fall, a dodge); a second moment of the plan brings a new fact.
 - **`dialogue`**: see "The lines".
 - **`montage`**: a series of brief moments that answer each other under one idea. **Several places group into ONE plan**, one internal cut per moment (about 2 s each): four 2 s moments are one 8–10 s plan. Describe the moments in order and what links them.
 - **`contemplatif`**: one place, one state, left to breathe. Few, long plans.
@@ -118,6 +123,7 @@ The brief's style and notes apply: you do not redefine them. Stay faithful to th
 
 - Every beat of `parolesDeLAuteur` has its plan; their framing, sound and voice-over directions are in a `Consigne de l'auteur :` sentence; no line is invented that they did not ask for (or it is in `inventions`).
 - Every plan's description ends with `État en fin de plan :` (positions relative to landmarks, never to the camera); the first plan of a place names its landmarks; no event is done twice.
+- Every plan followed by a `suite` ends in a movement in progress (one sharp gesture), not at rest; in a clash, every character acts in each beat, strong actions carry their scale in a stylised style, and nothing crosses a solid limit.
 - Every plan has a description with an intention, an integer duration from 5 to 15 within the rhythm's range, and a `liaison` (`suite` or `coupe`).
 - The total is within ±20% of the target.
 - Every scene has a genre and a mood; montages are one plan; a tipping point is set up.

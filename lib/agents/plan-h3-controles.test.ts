@@ -239,3 +239,29 @@ test("raccord : une matière faible (effet) citée dans un shot ne compte pas pa
   const sortie = { titre: "t", dureeSecondes: 8, references: refs, summary: toutes, ouverture: "style.", shots: [{ debutSecondes: 0, texte: `a wide shot of ${toutes}.` }], overall_soundscape: "wind.", non_diegetic_music: "N/A", assetsManquants: [], notes: "" };
   assert.ok(!controler(sortie, { registre, reserveRaccord: true }).some((p) => p.niveau === "erreur" && p.regle === "references-raccord"));
 });
+
+test("action répétée : deux shots qui reprennent les mêmes verbes d'action = alerte (jamais une erreur) ; un rappel voulu ou un autre geste, non", async () => {
+  const { controlerSortiePlanH3: controler } = await import("./plan-h3-controles");
+  const avec = (textes: string[]): SortiePlanH3 => ({
+    ...bonne,
+    shots: textes.map((texte, i) => ({ debutSecondes: i * 3, texte })),
+    dureeSecondes: 3 * textes.length + 2,
+  });
+  const repete = avec([
+    "A wide shot of [[CHAR_maya]], her body tipping sideways as the dust wave keeps rolling across [[DEC_couloir]].",
+    "a low-angle shot of [[CHAR_maya]], tipping further sideways while the dust keeps rolling over her boots.",
+  ]);
+  const p = controler(repete, ctx).filter((x) => x.regle === "action-repetee");
+  assert.equal(p.length, 1);
+  assert.equal(p[0]!.niveau, "alerte");
+  assert.match(p[0]!.message, /tipping/);
+  // un rappel annoncé comme tel (ralenti, rediffusion) n'est pas une répétition
+  const rappel = avec([repete.shots[0]!.texte, "a close-up in slow motion of [[CHAR_maya]], tipping sideways, dust rolling past her cheek."]);
+  assert.equal(controler(rappel, ctx).filter((x) => x.regle === "action-repetee").length, 0);
+  // deux gestes différents : pas d'alerte
+  const different = avec([repete.shots[0]!.texte, "a high-angle shot of [[CHAR_maya]], leaping over a fallen beam, landing hard on both feet."]);
+  assert.equal(controler(different, ctx).filter((x) => x.regle === "action-repetee").length, 0);
+  // les verbes de caméra ou d'état (following, standing…) ne comptent pas
+  const camera = avec(["A shot following [[CHAR_maya]], standing near [[DEC_couloir]], the camera tracking left.", "a shot following [[CHAR_maya]], standing near the door, the camera tracking right."]);
+  assert.equal(controler(camera, ctx).filter((x) => x.regle === "action-repetee").length, 0);
+});

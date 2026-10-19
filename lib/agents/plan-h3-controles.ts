@@ -86,6 +86,37 @@ const TIMECODE_SEUL = /^\s*at\s+\d{1,2}:\d{2}/i;
 const RETENTIONS_IMAGE = ["fully_preserved", "partially_preserved", "attribute_transfer", "weak_reference"];
 const RETENTIONS_SON = ["fully_copy", "partially_copy", "reference", "weak_reference"];
 
+/** Verbes d'action au participe présent, hors ceux qui décrivent la caméra ou un état et reviennent d'un shot à l'autre sans répéter une action. */
+const GERONDIFS_NEUTRES = new Set([
+  "following", "tracking", "pushing", "pulling", "panning", "tilting", "keeping", "showing", "holding", "framing", "settling", "beginning", "starting",
+  "continuing", "remaining", "ending", "during", "looking", "facing", "standing", "leaning", "wearing", "lighting", "reading", "stretching", "hanging",
+  "something", "nothing", "morning", "evening", "ceiling", "building", "clothing", "feeling",
+]);
+/** Un rappel voulu (ralenti, rediffusion, autre angle dit comme tel) n'est pas une répétition. */
+const RAPPEL_VOULU = /\b(again|replay(?:s|ed)?|rewind(?:s)?|slow[- ]motion|slowed|second angle|other side|another angle|echo(?:es)?)\b/i;
+
+/** Les verbes d'action (participes présents d'au moins 7 lettres) d'un shot : « tipping », « rolling », « collapsing »… */
+export function gerondifsDAction(texte: string): Set<string> {
+  const sans = texte.replace(/\[\[[^\]]*\]\]/g, " ").replace(/<d>[\s\S]*?<\/d>/gi, " ");
+  return new Set((sans.toLowerCase().match(/\b[a-z]{2,}ing\b/g) ?? []).filter((w) => w.length >= 6 && !GERONDIFS_NEUTRES.has(w)));
+}
+
+/** Les paires de shots d'un même plan qui partagent au moins deux verbes d'action (proxy lexical d'« un même geste décrit deux fois »).
+ * Choisi au banc : sur 132 plans écrits, 3 alertes dont le cas réel (poussière qui « rolling » puis « tipping » dans deux shots), alors que le
+ * recouvrement de mots pleins ou de bigrammes en donne 17 à 19 presque toutes fausses (décor, lumière et noms propres se répètent légitimement). */
+export function shotsQuiRepetentUneAction(textes: string[]): { a: number; b: number; communs: string[] }[] {
+  const g = textes.map(gerondifsDAction);
+  const paires: { a: number; b: number; communs: string[] }[] = [];
+  for (let i = 0; i < g.length; i++) {
+    for (let j = i + 1; j < g.length; j++) {
+      if (RAPPEL_VOULU.test(textes[j]!)) continue;
+      const communs = [...g[i]!].filter((w) => g[j]!.has(w));
+      if (communs.length >= 2) paires.push({ a: i + 1, b: j + 1, communs });
+    }
+  }
+  return paires;
+}
+
 const mots = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}'’\s-]/gu, " ").split(/\s+/).filter(Boolean);
 const TAILLE_RECOPIE = 10;
 
@@ -206,6 +237,9 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     if (Number.isInteger(d)) {
       if (dernier >= d) ajouter("erreur", "shots", `Un shot commence à ${dernier.toFixed(2)} s, au-delà de la durée du plan (${d} s).`);
       else if (shots.length > 1 && d - dernier < SHOT_MIN_SECONDES) ajouter("alerte", "shot-court", `Le dernier shot ne dure que ${(d - dernier).toFixed(2)} s : sous ${SHOT_MIN_SECONDES} s, H3 rallonge ou lisse souvent.`);
+    }
+    for (const { a, b, communs } of shotsQuiRepetentUneAction(shots.map((s) => s.texte ?? ""))) {
+      ajouter("alerte", "action-repetee", `Les shots ${a} et ${b} reprennent les mêmes verbes d'action (${communs.join(", ")}) : le même geste ou impact est peut-être décrit deux fois. Un shot par information nouvelle : le second montre la conséquence ou un autre fait, ou ils fusionnent.`);
     }
     shots.forEach((s, i) => {
       const t = s.texte ?? "";
