@@ -13,6 +13,7 @@ import { ErreurLlm, type MessageLlm } from "../lib/llm/types";
  *                       [--par-skill 2] [--repetitions 1] [--traces fichier.jsonl] [--sans-contrainte]
  *                       [--renvois 0] [--max-tokens 16384] [--corps-defaut] [--sortie dossier]
  *                       [--controles N] [--concurrence N] [--racine dossier] [--sans-variante]
+ *                       [--corps JSON] [--etiquette texte]
  *
  * Les traces viennent de `npm run llm:banc:export -- --projet 220 --sortie essais/banc/p220.jsonl`.
  *
@@ -85,6 +86,19 @@ const sec = (ms: number) => (ms / 1000).toFixed(1);
 const moy = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
 const fmt = (x: number, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : "–");
 
+/** Les champs ajoutés au corps de la requête : `--corps '{"reasoning_effort":"medium"}'` (JSON, appliqué à tous les appels),
+ * sinon ceux de l'app avec `--corps-defaut`, sinon aucun. Pour comparer des réglages de réflexion, un lancement par réglage
+ * avec `--etiquette medium` (le libellé s'ajoute au nom du modèle dans le rapport) et son propre `--sortie`. */
+function corpsDemande(): Record<string, unknown> | undefined {
+  const brut = arg("--corps");
+  if (brut !== undefined) {
+    const v = JSON.parse(brut) as unknown;
+    if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error("--corps attend un objet JSON, ex. '{\"reasoning_effort\":\"medium\"}'");
+    return v as Record<string, unknown>;
+  }
+  return drapeau("--corps-defaut") ? undefined : {};
+}
+
 const varianteDe = (t: Trace) => (drapeau("--sans-variante") ? undefined : (t.variante ?? undefined));
 
 /** L'entrée structurée d'un appel, relue dans le dernier message utilisateur (les contrôles sémantiques la veulent en objet). */
@@ -134,8 +148,9 @@ async function rejouer(modele: string, t: Trace, repetition: number): Promise<{ 
   let premier: number | null = null;
   let reflexion = "";
   let texte = "";
+  const etiquette = arg("--etiquette");
   const base = {
-    modele, traceId: t.id, skill: t.skill, repetition,
+    modele: etiquette ? `${modele} [${etiquette}]` : modele, traceId: t.id, skill: t.skill, repetition,
     refDureeMs: t.duree_ms, refJetonsSortie: t.tokens_sortie, refModele: t.modele,
   };
   const controles = nombre("--controles", 0);
@@ -149,7 +164,7 @@ async function rejouer(modele: string, t: Trace, repetition: number): Promise<{ 
       maxRenvois: controles > 0 ? controles : nombre("--renvois", 0),
       maxTokens: nombre("--max-tokens", 16384),
       contrainte: !drapeau("--sans-contrainte"),
-      corps: drapeau("--corps-defaut") ? undefined : {},
+      corps: corpsDemande(),
       surFlux: (e) => {
         if (e.type === "debut") return;
         if (premier === null) premier = Date.now() - debut;
@@ -225,7 +240,7 @@ async function enParallele(taches: Array<() => Promise<void>>, n: number): Promi
 async function main(): Promise<number> {
   const modeles = liste("--modeles");
   if (!modeles?.length) {
-    console.error("Usage : npm run llm:banc -- --modeles a,b [--skills s1,s2] [--ids 1,2] [--par-skill N] [--repetitions N] [--traces f.jsonl] [--sans-contrainte] [--renvois N] [--max-tokens N] [--corps-defaut] [--sortie dossier] [--controles N] [--concurrence N] [--racine dossier] [--sans-variante]");
+    console.error("Usage : npm run llm:banc -- --modeles a,b [--skills s1,s2] [--ids 1,2] [--par-skill N] [--repetitions N] [--traces f.jsonl] [--sans-contrainte] [--renvois N] [--max-tokens N] [--corps-defaut] [--sortie dossier] [--controles N] [--concurrence N] [--racine dossier] [--sans-variante] [--corps JSON] [--etiquette texte]");
     return 2;
   }
   const traces = chargerTraces();
