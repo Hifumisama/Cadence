@@ -14,7 +14,6 @@ const ETAT_CARTE: Record<Phase, { label: string; classe: string }> = {
 };
 
 export function ProjectCard({ projet }: { projet: ProjectListItem }) {
-  const estSerie = projet.type === "serie";
   const total = totalBuckets(projet.buckets);
   const etat = ETAT_CARTE[phaseDe(projet.buckets)];
   // Des plans mais aucun asset : le projet ne peut pas avancer, on le fait remarquer.
@@ -25,22 +24,9 @@ export function ProjectCard({ projet }: { projet: ProjectListItem }) {
       <Poster src={projet.posterSrc} titre={projet.nom} cleRepli={`projet:${projet.id}`} taille="card" />
       <span className="proj-body">
         <span className="hd">
-          <span className="type-tag">{estSerie ? "Série" : "OneShot"}</span>
-          <span className={`etat ${projet.conceptionEnCours ? "is-ecriture" : etat.classe}`}>{projet.conceptionEnCours ? "Conception en cours" : etat.label}</span>
+                    <span className={`etat ${projet.conceptionEnCours ? "is-ecriture" : etat.classe}`}>{projet.conceptionEnCours ? "Conception en cours" : etat.label}</span>
         </span>
         <span className="stats">
-          {estSerie ? (
-            <>
-              <span>
-                <b>{projet.saisons.length}</b>
-                saison{projet.saisons.length > 1 ? "s" : ""}
-              </span>
-              <span>
-                <b>{projet.episodes.length}</b>
-                épisode{projet.episodes.length > 1 ? "s" : ""}
-              </span>
-            </>
-          ) : null}
           <span>
             <b>{total}</b>plan{total > 1 ? "s" : ""}
           </span>
@@ -49,7 +35,7 @@ export function ProjectCard({ projet }: { projet: ProjectListItem }) {
           </span>
         </span>
         <span className="ft">
-          {projet.conceptionEnCours ? "Reprendre la conception" : estSerie ? "Voir les saisons" : "Ouvrir"}
+          {projet.conceptionEnCours ? "Reprendre la conception" : "Ouvrir"}
           <span className="go">→</span>
         </span>
       </span>

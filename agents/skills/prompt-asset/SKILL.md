@@ -88,9 +88,9 @@ For an asset of type `sfx`, ignore everything about images (edit method, 4 views
 
 ## A poster (variant `affiche`)
 
-The input then holds `cible` (`projet`, `saison` or `episode`), `titre`, `resume`, `genreTon`, `clauseStyleDuProjet` (information only: ComfyUI adds it), `titreDansImage`, `promptActuel`, `personnagePrincipal` (`code`, `nom`, `description`, `imageDisponible`), `consigne` and `retourUtilisateur`. `titre` and `resume` are in French: sources, not texts to copy.
+The input then holds `cible` (`projet` or `episode`), `titre`, `resume`, `genreTon`, `clauseStyleDuProjet` (information only: ComfyUI adds it), `titreDansImage`, `promptActuel`, `personnagePrincipal` (`code`, `nom`, `description`, `imageDisponible`), `consigne` and `retourUtilisateur`. `titre` and `resume` are in French: sources, not texts to copy.
 
-You write the `promptGeneration` of a **presentation poster**: a vertical **2:3 portrait** image that represents the project, season or episode on cards and in headers. It is a single scene, with the character once in it: **ignore the "character sheet / 4 views" template of `guide-krea2.md`** and the sheet rules above. It is not a registry asset. `reflexion` says which one image you choose and what you keep from the character and the user's request.
+You write the `promptGeneration` of a **presentation poster**: a vertical **2:3 portrait** image that represents the project or episode on cards and in headers. It is a single scene, with the character once in it: **ignore the "character sheet / 4 views" template of `guide-krea2.md`** and the sheet rules above. It is not a registry asset. `reflexion` says which one image you choose and what you keep from the character and the user's request.
 
 1. **Choose ONE image** that tells the project: a strong subject, a moment or a situation. A poster shows an instant and a promise, never the whole story.
 2. **The main character first.** When `personnagePrincipal` exists, they are the subject: keep their identifying traits (their description, translated word for word) so the poster stays consistent with the registry. Other characters appear in the background, only if they serve the image.

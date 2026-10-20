@@ -12,7 +12,6 @@ import {
   propositionChangements,
   propositions,
   scenes,
-  seasons,
 } from "../../db/schema";
 import { valider } from "../llm/validation";
 import { VARIANTE_AFFICHE } from "../llm/variantes";
@@ -70,16 +69,11 @@ export async function resoudreCible(projectId: number, portee: Portee, cible: Ci
     return p ? { cibleId: null, libelle: `Projet · ${p.nom}` } : { erreur: "Projet introuvable." };
   }
   if (!cible) return { erreur: `La portée « ${portee} » demande une cible.` };
-  if (portee === "saison" && cible.id != null) {
-    const [s] = await db.select().from(seasons).where(and(eq(seasons.id, cible.id), eq(seasons.projectId, projectId)));
-    return s ? { cibleId: s.id, libelle: `Saison ${s.numero} · ${s.titre}` } : { erreur: "Saison introuvable dans ce projet." };
-  }
   if (portee === "episode" && cible.id != null) {
     const [e] = await db
       .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre })
       .from(episodes)
-      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-      .where(and(eq(episodes.id, cible.id), eq(seasons.projectId, projectId)));
+      .where(and(eq(episodes.id, cible.id), eq(episodes.projectId, projectId)));
     return e ? { cibleId: e.id, libelle: `Épisode ${e.numero} · ${e.titre}` } : { erreur: "Épisode introuvable dans ce projet." };
   }
   if (portee === "plan" && (cible.uuid || cible.id != null)) {
@@ -103,7 +97,6 @@ export async function resoudreCible(projectId: number, portee: Portee, cible: Ci
 export async function libelleCible(projectId: number, portee: Portee, cibleId: number | null): Promise<string> {
   const libelle = (r: CibleResolue | { erreur: string }, repli: string) => ("libelle" in r ? r.libelle : repli);
   if (portee === "projet" || cibleId == null) return libelle(await resoudreCible(projectId, "projet", null), "Projet");
-  if (portee === "saison") return libelle(await resoudreCible(projectId, "saison", { id: cibleId }), "Saison");
   if (portee === "episode") return libelle(await resoudreCible(projectId, "episode", { id: cibleId }), "Épisode");
   if (portee === "asset") return libelle(await resoudreCible(projectId, "asset", { id: cibleId }), "Asset");
   const [p] = await db.select({ titre: plans.titre }).from(plans).where(eq(plans.id, cibleId));
@@ -135,10 +128,8 @@ const profondeurParDefaut = (portee: Portee): Profondeur => (portee === "projet"
 
 type ConversationRow = typeof agentConversations.$inferSelect;
 
-/** La conversation du (projet, portée, cible). La RÉVISION d'un épisode (profondeur « revision ») est cherchée à part, et seulement
- * ouverte (une révision fermée garde son historique mais n'est plus « la » conversation) ; toutes les autres profondeurs l'ignorent,
- * donc la conversation « courte » d'un épisode et sa révision coexistent. */
-async function trouver(projectId: number, portee: Portee, cibleId: number | null, revision = false): Promise<ConversationRow | null> {
+/** La conversation du (projet, portée, cible). */
+async function trouver(projectId: number, portee: Portee, cibleId: number | null): Promise<ConversationRow | null> {
   const [c] = await db
     .select()
     .from(agentConversations)
@@ -147,7 +138,6 @@ async function trouver(projectId: number, portee: Portee, cibleId: number | null
         eq(agentConversations.projectId, projectId),
         eq(agentConversations.portee, portee),
         cibleId == null ? isNull(agentConversations.cibleId) : eq(agentConversations.cibleId, cibleId),
-        revision ? and(eq(agentConversations.profondeur, "revision"), isNull(agentConversations.fermeeAt)) : ne(agentConversations.profondeur, "revision"),
       ),
     );
   return c ?? null;
@@ -404,7 +394,7 @@ async function nouvelleProposition(conv: ConversationRow, p: { skill: string; co
 async function entreePourConversation(conv: ConversationRow, consigne: string, position?: Position, retour?: string): Promise<{ entree: EntreeSkill; options: Record<string, unknown> } | { erreur: string }> {
   const cibleId = conv.cibleId;
   if (conv.portee === "asset" && cibleId != null) {
-    // L'affiche d'un projet, d'une saison ou d'un épisode est un asset caché : le skill `prompt-asset`, variante `affiche`, même parcours de revue.
+    // L'affiche d'un projet ou d'un épisode est un asset caché : le skill `prompt-asset`, variante `affiche`, même parcours de revue.
     const [cibleAsset] = await db.select({ type: assets.type }).from(assets).where(and(eq(assets.id, cibleId), eq(assets.projectId, conv.projectId)));
     if (cibleAsset?.type === TYPE_AFFICHE) {
       const a = await entreePromptAffiche(db, conv.projectId, cibleId, consigne, retour);
@@ -430,8 +420,8 @@ export async function genererProposition(conversationUuid: string, options: { co
   if (!conv) return ERR("Conversation introuvable.");
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
 
-  // Écrire les scénarios depuis le projet ou une saison : un LOT (une sous-tâche par épisode).
-  if (conv.profondeur === "courte" && (conv.portee === "projet" || conv.portee === "saison")) {
+  // Écrire les scénarios depuis le projet : un LOT (une sous-tâche par épisode).
+  if (conv.profondeur === "courte" && (conv.portee === "projet")) {
     const r = await genererScenarios(conversationUuid, { consigne: options.consigne });
     return r.ok ? { ok: true, propositionUuid: r.propositionUuid, runUuid: null } : r;
   }
@@ -440,21 +430,17 @@ export async function genererProposition(conversationUuid: string, options: { co
   if (conv.profondeur === "complete") {
     const [brief] = await db.select().from(briefs).where(eq(briefs.projectId, conv.projectId));
     if (!brief || brief.statut === "partiel") return ERR("Génère d'abord le brief.");
-    const saisons = await db.select({ id: seasons.id, numero: seasons.numero, titre: seasons.titre }).from(seasons).where(eq(seasons.projectId, conv.projectId));
-    const lignesEps = saisons.length
-      ? await db
-          .select({ id: episodes.id, seasonId: episodes.seasonId, numero: episodes.numero, titre: episodes.titre, resume: episodes.resume })
-          .from(episodes)
-          .where(inArray(episodes.seasonId, saisons.map((s) => s.id)))
-      : [];
+    const lignesEps = await db
+      .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre, resume: episodes.resume })
+      .from(episodes)
+      .where(eq(episodes.projectId, conv.projectId));
     // Un épisode « vide » (ni plan, ni scène, ni résumé) est réutilisé par le squelette plutôt
-    // que doublé : un OneShot naît déjà avec sa saison et son épisode techniques.
+    // que doublé : un film naît déjà avec son épisode.
     const idsEps = lignesEps.map((e) => e.id);
     const avecPlans = new Set(idsEps.length ? (await db.select({ id: plans.episodeId }).from(plans).where(inArray(plans.episodeId, idsEps))).map((r) => r.id) : []);
     const avecScenes = new Set(idsEps.length ? (await db.select({ id: scenes.episodeId }).from(scenes).where(inArray(scenes.episodeId, idsEps))).map((r) => r.id) : []);
     const eps = lignesEps.map((e) => ({ ...e, vide: !e.resume.trim() && !avecPlans.has(e.id) && !avecScenes.has(e.id) }));
     const bruts = squeletteDepuisBrief(brief.contenu as BriefContenu, brief.statuts as Record<string, StatutChamp>, {
-      saisons,
       episodes: eps,
       briefValide: brief.statut === "valide" ? (brief.contenu as BriefContenu) : null,
     });
@@ -609,16 +595,15 @@ export async function affiner(propositionUuid: string, retour: string): Promise<
 
 const CONSIGNE_SCENARIO = "Écris le scénario complet de cet épisode.";
 
-/** Les épisodes d'un projet (ou d'une saison) proposables à l'écriture de leur scénario, dans
+/** Les épisodes d'un projet proposables à l'écriture de leur scénario, dans
  * l'ordre, avec ce qu'ils contiennent déjà : « vide » = ni plan ni scène (le squelette tout juste
  * appliqué). */
-export async function episodesPourScenarios(projectId: number, saisonId: number | null): Promise<EpisodePourScenario[]> {
+export async function episodesPourScenarios(projectId: number): Promise<EpisodePourScenario[]> {
   const lignes = await db
-    .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre, saisonNumero: seasons.numero })
+    .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre })
     .from(episodes)
-    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-    .where(and(eq(seasons.projectId, projectId), saisonId != null ? eq(seasons.id, saisonId) : undefined))
-    .orderBy(asc(seasons.numero), asc(episodes.numero));
+    .where(eq(episodes.projectId, projectId))
+    .orderBy(asc(episodes.numero));
   if (lignes.length === 0) return [];
   const ids = lignes.map((l) => l.id);
   const parPlans = new Map((await db.select({ id: plans.episodeId, n: count() }).from(plans).where(inArray(plans.episodeId, ids)).groupBy(plans.episodeId)).map((r) => [r.id, Number(r.n)]));
@@ -626,11 +611,11 @@ export async function episodesPourScenarios(projectId: number, saisonId: number 
   return lignes.map((l) => {
     const nbPlans = parPlans.get(l.id) ?? 0;
     const nbScenes = parScenes.get(l.id) ?? 0;
-    return { id: l.id, numero: l.numero, titre: l.titre, saisonNumero: l.saisonNumero, vide: nbPlans === 0 && nbScenes === 0, nbPlans, nbScenes };
+    return { id: l.id, numero: l.numero, titre: l.titre, vide: nbPlans === 0 && nbScenes === 0, nbPlans, nbScenes };
   });
 }
 
-/** « Écrire les scénarios » depuis le projet ou une saison : une proposition EN LOT, une sous-tâche
+/** « Écrire les scénarios » depuis le projet : une proposition EN LOT, une sous-tâche
  * (une tâche `scenario-episode`) par épisode choisi, exécutées l'une après l'autre dans la file. Par
  * défaut, les épisodes VIDES ; `episodeIds` choisit (et permet de réécrire un épisode qui a du
  * contenu : ses modifications vont alors en section d'écrasement, décochées). Un échec isolé ne
@@ -641,12 +626,12 @@ export async function genererScenarios(
 ): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
-  if (conv.portee !== "projet" && conv.portee !== "saison") return ERR("Écrire les scénarios se demande depuis le projet ou une saison ; pour un seul épisode, ouvre-le.");
+  if (conv.portee !== "projet") return ERR("Écrire les scénarios se demande depuis le projet ; pour un seul épisode, ouvre-le.");
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
   const brief = await lireBriefDuProjet(db, conv.projectId);
   if (!brief || brief.statut === "partiel") return ERR("Écris d'abord le brief du projet : l'agent s'appuie dessus pour chaque épisode.");
 
-  const dispo = await episodesPourScenarios(conv.projectId, conv.portee === "saison" ? conv.cibleId : null);
+  const dispo = await episodesPourScenarios(conv.projectId);
   if (dispo.length === 0) return ERR("Ce projet n'a pas encore d'épisode : applique d'abord le squelette.");
   const voulus = options.episodeIds ?? dispo.filter((e) => e.vide).map((e) => e.id);
   if (voulus.length === 0) return ERR("Tous les épisodes ont déjà du contenu : choisis ceux à (ré)écrire.");
@@ -654,7 +639,6 @@ export async function genererScenarios(
   if (choisis.length !== new Set(voulus).size) return ERR("Un des épisodes choisis n'est pas dans cette portée.");
 
   const consigne = (options.consigne ?? "").trim() || CONSIGNE_SCENARIO;
-  const plusieursSaisons = new Set(choisis.map((e) => e.saisonNumero)).size > 1;
   const sousTaches: { e: EpisodePourScenario; entree: NonNullable<Awaited<ReturnType<typeof entreeScenarioEpisode>>> }[] = [];
   for (const e of choisis) {
     const entree = await entreeScenarioEpisode(db, conv.projectId, e.id, consigne);
@@ -677,7 +661,7 @@ export async function genererScenarios(
       conversationId: conv.id,
       propositionId: propId,
       cleSousTache: cleSousTacheEpisode(e.id),
-      libelleSousTache: `${plusieursSaisons ? `Saison ${e.saisonNumero} · ` : ""}Épisode ${e.numero} · ${e.titre}`,
+      libelleSousTache: `Épisode ${e.numero} · ${e.titre}`,
     });
   }
   const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
@@ -695,14 +679,13 @@ export async function genererRelectures(
 ): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
-  if (conv.portee !== "projet" && conv.portee !== "saison") return ERR("La relecture se demande depuis le projet ou une saison.");
+  if (conv.portee !== "projet") return ERR("La relecture se demande depuis le projet.");
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
-  const dispo = (await episodesPourScenarios(conv.projectId, conv.portee === "saison" ? conv.cibleId : null)).filter((e) => e.nbPlans > 0);
+  const dispo = (await episodesPourScenarios(conv.projectId)).filter((e) => e.nbPlans > 0);
   if (dispo.length === 0) return ERR("Aucun épisode n'a de plan à relire : écris d'abord les scénarios.");
   const choisis = options.episodeIds ? dispo.filter((e) => options.episodeIds!.includes(e.id)) : dispo;
   if (choisis.length === 0) return ERR("Aucun des épisodes choisis n'a de plan à relire.");
   const consigne = (options.consigne ?? "").trim() || CONSIGNE_RELECTURE;
-  const plusieursSaisons = new Set(choisis.map((e) => e.saisonNumero)).size > 1;
   const sousTaches: { e: EpisodePourScenario; entree: NonNullable<Awaited<ReturnType<typeof entreeRelecture>>> }[] = [];
   for (const e of choisis) {
     const entree = await entreeRelecture(db, conv.projectId, e.id, consigne);
@@ -724,7 +707,7 @@ export async function genererRelectures(
       conversationId: conv.id,
       propositionId: propId,
       cleSousTache: cleSousTacheEpisode(e.id),
-      libelleSousTache: `${plusieursSaisons ? `Saison ${e.saisonNumero} · ` : ""}Épisode ${e.numero} · ${e.titre}`,
+      libelleSousTache: `Épisode ${e.numero} · ${e.titre}`,
     });
   }
   const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
@@ -837,7 +820,7 @@ const CONSIGNE_FICHE = "Écris la fiche de plan complète.";
 const CONSIGNE_PROMPTS_CREES =
   "Écris le prompt de génération de cet asset (image de référence) à partir de sa description canonique ; s'il dérive d'un parent, pars de lui quand c'est pertinent.";
 
-/** Les plans d'une portée (projet, saison, épisode ou un plan) proposables à l'écriture de leur fiche, dans
+/** Les plans d'une portée (projet, épisode ou un plan) proposables à l'écriture de leur fiche, dans
  * l'ordre de lecture, avec ce qu'ils ont déjà : sections remplies, références, rendu, répliques. Un plan
  * sans section remplie est « à écrire » (coché d'office) ; les autres, choisis, iront en écrasement. */
 export async function plansPourFiches(projectId: number, portee: Portee, cibleId: number | null): Promise<PlanPourFiche[]> {
@@ -852,16 +835,13 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
       statut: plans.statut,
       episodeId: plans.episodeId,
       sceneId: plans.sceneId,
-      seasonId: episodes.seasonId,
       epNumero: episodes.numero,
       epTitre: episodes.titre,
-      saisonNumero: seasons.numero,
     })
     .from(plans)
     .innerJoin(episodes, eq(episodes.id, plans.episodeId))
-    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
     .where(eq(plans.projectId, projectId))
-    .orderBy(asc(seasons.numero), asc(episodes.numero), asc(plans.ordre), asc(plans.id));
+    .orderBy(asc(episodes.numero), asc(plans.ordre), asc(plans.id));
   // Le rang affiché est celui du plan dans SON épisode (F03 : une position, jamais un identifiant).
   const rangs = new Map<number, number>();
   const parEpisode = new Map<number, number>();
@@ -871,7 +851,7 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
     rangs.set(p.id, n);
   }
   const lignes = tous.filter((p) =>
-    portee === "plan" ? p.id === cibleId : portee === "episode" ? p.episodeId === cibleId : portee === "saison" ? p.seasonId === cibleId : true,
+    portee === "plan" ? p.id === cibleId : portee === "episode" ? p.episodeId === cibleId : true,
   );
   if (lignes.length === 0) return [];
   const ids = lignes.map((p) => p.id);
@@ -885,13 +865,12 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
   const nbRefs = new Map(refs.map((r) => [r.planId, Number(r.n)]));
   const avecRendu = new Set(rendus.map((r) => r.planId));
   const titreScene = new Map(lesScenes.map((s) => [s.id, s.titre]));
-  const plusieursSaisons = new Set(lignes.map((p) => p.saisonNumero)).size > 1;
   return lignes.map((p) => ({
     uuid: p.uuid,
     titre: p.titre,
     rang: rangs.get(p.id) ?? 0,
     episodeId: p.episodeId,
-    episodeLibelle: `${plusieursSaisons ? `Saison ${p.saisonNumero} · ` : ""}Épisode ${p.epNumero} · ${p.epTitre}`,
+    episodeLibelle: `Épisode ${p.epNumero} · ${p.epTitre}`,
     sceneTitre: p.sceneId != null ? (titreScene.get(p.sceneId) ?? null) : null,
     dureeSecondes: p.duree,
     aDesSections: avecSections.has(p.id),
@@ -902,7 +881,7 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
 }
 
 /** Étape 3 : « écrire la fiche » d'un plan (portée `plan` : une proposition simple, affinable) ou les fiches
- * des plans d'un épisode, d'une saison ou du projet (un LOT : une sous-tâche `plan-h3` par plan, clé
+ * des plans d'un épisode ou du projet (un LOT : une sous-tâche `plan-h3` par plan, clé
  * `plan:<uuid>`, l'une après l'autre dans la file). Par défaut, les plans SANS fiche ; `planUuids` choisit
  * (et permet de réécrire une fiche : elle ira dans la section « risque d'écrasement », décochée). Écrire une
  * fiche remplace ensemble ses six sections ET ses références ; les répliques liées restent celles du plan. */
@@ -913,7 +892,7 @@ export async function genererFiches(
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   const portee = conv.portee as Portee;
-  if (portee === "asset") return ERR("Les fiches s'écrivent depuis un plan, un épisode, une saison ou le projet.");
+  if (portee === "asset") return ERR("Les fiches s'écrivent depuis un plan, un épisode ou le projet.");
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
 
   const dispo = await plansPourFiches(conv.projectId, portee, conv.cibleId);

@@ -4,10 +4,10 @@ import type { Avertissement, CibleType, Operation, Position } from "./types";
  * skills) AVANT enrichissement par l'applicateur de sa cible (état courant, écrasement,
  * contrôles). Pur : aucune lecture. */
 export type ChangementBrut = {
-  /** Groupe d'affichage stable : brief | projet | saison | episodes | scenes | plans | fiches | assets
+  /** Groupe d'affichage stable : brief | projet | episodes | scenes | plans | fiches | assets
    * (un lot : `ep-<id>`, un groupe par épisode). */
   groupe: string;
-  /** Clé symbolique d'une création (« saison-1 », « episode-2 ») citée par ses enfants. */
+  /** Clé symbolique d'une création (« episode-2 ») citée par ses enfants. */
   cle?: string | null;
   cibleType: CibleType;
   /** Référence stable de l'existant (id interne, uuid du plan, clé de section) ; null = création. */
@@ -53,7 +53,6 @@ export const TITRES_GROUPES: Record<string, string> = {
   ecrasement: "Risque d'écrasement",
   brief: "Brief",
   projet: "Projet",
-  saison: "Saison",
   episodes: "Épisodes",
   scenes: "Scènes",
   plans: "Plans",
@@ -62,10 +61,10 @@ export const TITRES_GROUPES: Record<string, string> = {
 };
 
 /** Ordre d'affichage des groupes ; l'écrasement vient toujours en tête. */
-export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "saison", "episodes", "scenes", "plans", "fiches", "assets"];
+export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "episodes", "scenes", "plans", "fiches", "assets"];
 
 /** Les clés symboliques des parents qu'un changement cite (créés par la même proposition). */
-export const CLES_PARENT = ["saisonCle", "episodeCle", "sceneCle", "deriveDeCle"] as const;
+export const CLES_PARENT = ["episodeCle", "sceneCle", "deriveDeCle"] as const;
 
 export function clesParent(apres: unknown): string[] {
   if (!apres || typeof apres !== "object") return [];

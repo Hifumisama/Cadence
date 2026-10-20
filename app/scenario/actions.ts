@@ -99,13 +99,6 @@ export async function deplacerPlan(planId: number, sceneId: number | null, avant
   revalidatePath("/", "layout");
 }
 
-/** Rattache un plan existant à une scène, ou le détache (`sceneId` null) —
- * sélecteur de la page d'un plan. Le plan se place à la fin de la scène. */
-export async function rattacherPlanAScene(planId: number, sceneId: number | null) {
-  await placerPlan(planId, sceneId, null);
-  revalidatePath("/", "layout");
-}
-
 /** Édition d'une scène : titre, fonction (description), genre (qui choisit les guides de rédaction de ses plans) et
  * ambiance (cadre visuel tenu sur toute la scène). */
 export async function modifierScene(sceneId: number, valeurs: { titre: string; fonction: string; genre?: string | null; ambiance?: string }) {

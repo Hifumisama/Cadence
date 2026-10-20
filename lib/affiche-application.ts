@@ -2,12 +2,12 @@ import { copyFile, mkdir, unlink } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { episodes, projects, seasons } from "../db/schema";
+import { episodes, projects } from "../db/schema";
 import { cibleDeCodeAffiche, type CibleAffiche } from "./affiches";
 import { SUFFIXE_TITRE } from "./poster";
 import { cheminAssetMedia, cheminPosterMedia } from "./media";
 
-const TABLES = { projects, seasons, episodes } as const;
+const TABLES = { projects, episodes } as const;
 
 /** Nom du fichier d'affiche actuel (null s'il n'y en a pas), ou undefined si la cible n'existe pas. */
 export async function lirePoster(cible: CibleAffiche, id: number): Promise<string | null | undefined> {
@@ -23,7 +23,6 @@ export async function ecrirePoster(cible: CibleAffiche, id: number, fichier: str
 
 const ABSENT: Record<CibleAffiche, string> = {
   projects: "Ce projet n'existe plus.",
-  seasons: "Cette saison n'existe plus.",
   episodes: "Cet épisode n'existe plus.",
 };
 
@@ -41,7 +40,7 @@ export async function appliquerAffiche(
   titreIncruste = false,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const cible = cibleDeCodeAffiche(codeAsset);
-  if (!cible) return { ok: false, erreur: "Ce code ne désigne ni un projet, ni une saison, ni un épisode." };
+  if (!cible) return { ok: false, erreur: "Ce code ne désigne ni un projet, ni un épisode." };
 
   const courant = await lirePoster(cible.cible, cible.id);
   if (courant === undefined) return { ok: false, erreur: ABSENT[cible.cible] };

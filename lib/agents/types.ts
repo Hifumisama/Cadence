@@ -9,15 +9,14 @@ import type { NoteAffichee } from "./fiche-affichage";
 // ---------------------------------------------------------------------------
 
 /** Ce que la demande vise. `projet` = tout ; `asset` = un seul asset (id interne). */
-export const PORTEES = ["projet", "saison", "episode", "plan", "asset"] as const;
+export const PORTEES = ["projet", "episode", "plan", "asset"] as const;
 export type Portee = (typeof PORTEES)[number];
 
 /** `courte` : Consigne → Proposition → Appliqué (itérations ciblées).
  * `complete` : Conversation → Brief → Proposition → Appliqué (création de projet,
  * gros éléments interconnectés). L'étape Brief n'existe qu'en profondeur complète.
- * `revision` : la conversation libre du réalisateur sur un épisode (Conversation → Appliqué), qui se ferme
- * à l'application (lib/agents/revision/, docs/FRICTIONS.md 2026-10-09). */
-export const PROFONDEURS = ["courte", "complete", "revision"] as const;
+ */
+export const PROFONDEURS = ["courte", "complete"] as const;
 export type Profondeur = (typeof PROFONDEURS)[number];
 
 /** Étape courante d'une conversation (le fil d'étapes de la popup). */
@@ -33,7 +32,7 @@ export type Operation = (typeof OPERATIONS)[number];
 /** Ce qu'un changement touche. Les applicateurs existent pour tous ces types. `fiche` (2026-10-02, étape 3 « fiches de plan ») :
  * le prompt H3 d'un plan (ses six sections), ses références picture/audio et sa durée de génération ;
  * écriture complète (plan-h3) ou partielle (seulement certaines sections, iteration-plan). */
-export const CIBLES = ["brief", "projet", "saison", "episode", "scene", "asset", "plan", "fiche"] as const;
+export const CIBLES = ["brief", "projet", "episode", "scene", "asset", "plan", "fiche"] as const;
 export type CibleType = (typeof CIBLES)[number];
 
 /** Qui a posé un champ du brief : `fourni` (l'utilisateur l'a dit ou corrigé),
@@ -59,7 +58,7 @@ export type Avertissement = { type: TypeAvertissement; texte: string };
 export type Position = { apresPlanUuid: string } | { debut: true } | { fin: true };
 
 /** Comment l'UI désigne une cible existante ; le serveur la résout en id interne.
- * Saison / épisode : `id` (les pages utilisent déjà ces ids) ; plan : `uuid` ; asset : `code`
+ * Épisode : `id` (les pages utilisent déjà ces ids) ; plan : `uuid` ; asset : `code`
  * (ou `id`). Null/absent pour la portée `projet`. */
 export type CibleDemandee = { id?: number; uuid?: string; code?: string };
 
@@ -193,7 +192,7 @@ export type VueConversation = {
   projectId: number;
   portee: Portee;
   cibleId: number | null;
-  /** La cible sous la forme que `ouvrirConversation` attend (saison/épisode : `{ id }`, plan :
+  /** La cible sous la forme que `ouvrirConversation` attend (épisode : `{ id }`, plan :
    * `{ uuid }`, asset : `{ code }`) : à réutiliser telle quelle pour rouvrir la conversation ;
    * null pour la portée `projet`. */
   cible: CibleDemandee | null;
@@ -222,7 +221,7 @@ export type VueConversation = {
 
 /** Ce que l'agent a lu automatiquement (la ligne « contexte utilisé » dépliable). */
 export type ContexteUtilise = {
-  type: "brief" | "projet" | "saison" | "episode" | "plan" | "asset" | "registre";
+  type: "brief" | "projet" | "episode" | "plan" | "asset" | "registre";
   libelle: string;
   ref?: string;
 };
@@ -237,7 +236,7 @@ export type VueChangement = {
   /** Lot : le titre de la scène sous laquelle ranger un plan ou une réplique (null sinon). */
   sousGroupe: string | null;
   /** Groupe d'affichage : `ecrasement` (risque d'écrasement, section spéciale), `brief`, puis
-   * un groupe par type/portée (« Saison », « Épisodes », « Plans de la scène X »…). */
+   * un groupe par type/portée (« Épisodes », « Plans de la scène X »…). */
   groupe: string;
   cle: string | null;
   cibleType: CibleType;
@@ -368,7 +367,6 @@ export type EpisodePourScenario = {
   id: number;
   numero: number;
   titre: string;
-  saisonNumero: number;
   /** Aucun plan ni scène : le cas normal d'un squelette tout juste appliqué. */
   vide: boolean;
   nbPlans: number;

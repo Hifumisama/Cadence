@@ -11,14 +11,12 @@ import {
   jobs,
   plans,
   projects,
-  seasons,
 } from "@/db/schema";
 import { MEDIA_ROOT, cheminAssetMedia, cheminPosterMedia } from "@/lib/media";
 
 /** Ce qu'emporte la suppression d'un projet — montré dans la confirmation. */
 export type InventaireSuppression = {
   nom: string;
-  saisons: number;
   episodes: number;
   plans: number;
   assets: number;
@@ -30,7 +28,6 @@ export type InventaireSuppression = {
 };
 
 type Identifiants = {
-  saisons: number[];
   episodes: number[];
   plans: number[];
   assets: number[];
@@ -42,7 +39,6 @@ type Identifiants = {
 export function dossiersDuProjet(projectId: number, ids: Identifiants): string[] {
   return [
     cheminPosterMedia("projects", projectId, "").replace(/\/$/, ""),
-    ...ids.saisons.map((id) => cheminPosterMedia("seasons", id, "").replace(/\/$/, "")),
     ...ids.episodes.map((id) => cheminPosterMedia("episodes", id, "").replace(/\/$/, "")),
     ...ids.plans.map((id) => `plans/${id}`),
     ...ids.assets.flatMap((id) => [`voix/${id}`, `generations/${id}`]),
@@ -50,17 +46,12 @@ export function dossiersDuProjet(projectId: number, ids: Identifiants): string[]
 }
 
 async function identifiants(projectId: number): Promise<Identifiants> {
-  const [saisons, plansProjet, assetsProjet] = await Promise.all([
-    db.select({ id: seasons.id }).from(seasons).where(eq(seasons.projectId, projectId)),
+  const [episodesProjet, plansProjet, assetsProjet] = await Promise.all([
+    db.select({ id: episodes.id }).from(episodes).where(eq(episodes.projectId, projectId)),
     db.select({ id: plans.id }).from(plans).where(eq(plans.projectId, projectId)),
     db.select({ id: assets.id }).from(assets).where(eq(assets.projectId, projectId)),
   ]);
-  const idsSaisons = saisons.map((s) => s.id);
-  const episodesProjet = idsSaisons.length
-    ? await db.select({ id: episodes.id }).from(episodes).where(inArray(episodes.seasonId, idsSaisons))
-    : [];
   return {
-    saisons: idsSaisons,
     episodes: episodesProjet.map((e) => e.id),
     plans: plansProjet.map((p) => p.id),
     assets: assetsProjet.map((a) => a.id),
@@ -90,7 +81,6 @@ export async function inventaireProjet(projectId: number): Promise<InventaireSup
 
   return {
     nom: projet.nom,
-    saisons: ids.saisons.length,
     episodes: ids.episodes.length,
     plans: ids.plans.length,
     assets: ids.assets.length,

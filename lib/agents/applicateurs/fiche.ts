@@ -24,7 +24,6 @@ async function planParUuid(db: Db, projectId: number, uuid: string | null) {
       titre: plans.titre,
       statut: plans.statut,
       episodeId: plans.episodeId,
-      seasonId: episodes.seasonId,
       duree: plans.dureeGenerationSecondes,
     })
     .from(plans)
@@ -65,7 +64,7 @@ export const applicateurFiche: Applicateur = {
   async cible(db, ctx, ch) {
     if (ch.operation !== "modifier") return "Une fiche s'écrit sur un plan existant.";
     const p = await planParUuid(db, ctx.projectId, ch.cibleRef);
-    return p ? { type: "fiche", operation: "modifier", planId: p.id, episodeId: p.episodeId, saisonId: p.seasonId } : "Plan introuvable dans ce projet.";
+    return p ? { type: "fiche", operation: "modifier", planId: p.id, episodeId: p.episodeId } : "Plan introuvable dans ce projet.";
   },
 
   async previsualiser(db, ctx, ch) {

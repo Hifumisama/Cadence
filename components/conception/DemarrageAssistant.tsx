@@ -25,7 +25,7 @@ const SCENARIO = 5;
 const CLAP = 6;
 
 function resumesFaits(c: Conception, nomStyle: string): string[] {
-  return [c.format === "serie" ? "Série" : "Film", `${c.genres.join("/")} · ${motDuTon(c.ton)}`, minutesSecondes(c.dureeSecondes), c.langue, nomStyle];
+  return ["Film", `${c.genres.join("/")} · ${motDuTon(c.ton)}`, minutesSecondes(c.dureeSecondes), c.langue, nomStyle];
 }
 
 export function DemarrageAssistant({

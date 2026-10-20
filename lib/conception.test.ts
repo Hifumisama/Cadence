@@ -35,7 +35,7 @@ const BIBLIO: StyleBibliotheque[] = [
   { id: "gouache", nom: "Gouache", descriptor: "A painterly gouache style…", categories: ["Painting"], filtres, clause: "A matte gouache look." },
   { id: "sans-clause", nom: "Sans clause", descriptor: "Long prompt", categories: ["Painting"], filtres },
 ];
-const base = { format: "film", genres: ["Drame", "Thriller"], style: { source: "bibliotheque", styleId: "gouache" } };
+const base = { genres: ["Drame", "Thriller"], style: { source: "bibliotheque", styleId: "gouache" } };
 
 function valide(extra: Record<string, unknown> = {}): Conception {
   const r = validerConception({ ...base, ...extra }, BIBLIO);
@@ -59,7 +59,6 @@ test("validerConception : les valeurs hors liste sont refusées, jamais corrigé
     assert.ok(!r.ok, JSON.stringify(extra));
     if (!r.ok) assert.match(r.erreurs.join(" "), motif);
   };
-  refuse({ format: "court-metrage" }, /Format/);
   refuse({ genres: [] }, /Genres/);
   refuse({ genres: ["Drame", "Thriller", "Action"] }, /Genres/);
   refuse({ genres: ["Drame", "Drame"] }, /Genres/);
@@ -70,7 +69,6 @@ test("validerConception : les valeurs hors liste sont refusées, jamais corrigé
   refuse({ dureeSecondes: 5401 }, /Durée/);
   refuse({ rythme: "frénétique" }, /Rythme/);
   refuse({ langue: "Klingon" }, /Langue/);
-  refuse({ format: "serie", episodesPrevus: 1 }, /Épisodes/);
   refuse({ style: { source: "bibliotheque", styleId: "inconnu" } }, /bibliothèque/);
   refuse({ style: undefined }, /Style/);
   refuse({ style: { source: "libre", nom: "Mon style", promptImage: "", clause: "x" } }, /prompt image/);
@@ -81,8 +79,6 @@ test("validerConception : les dix langues et « Sans dialogue » passent, un sty
   for (const l of [...LANGUES_DIALOGUES, SANS_DIALOGUE]) assert.equal(valide({ langue: l }).langue, l);
   const c = valide({ style: { source: "libre", nom: "  ", promptImage: " Long ", clause: " Courte ", image: "mon-style.webp" } });
   assert.deepEqual(c.style, { source: "libre", nom: "Style libre", promptImage: "Long", clause: "Courte", image: "mon-style.webp" });
-  assert.equal(valide({ format: "serie", episodesPrevus: 6 }).episodesPrevus, 6);
-  assert.equal(valide({ format: "film", episodesPrevus: 6 }).episodesPrevus, undefined, "un film n'a pas d'épisodes prévus");
 });
 
 test("ton : moyenne des genres, mot et texte du brief", () => {
@@ -127,10 +123,8 @@ test("ficheDepuisConception : tout est fourni, il ne reste à trancher que l'arc
   assert.equal(ficheComplete(fiche, 5), false, "la fiche n'est pas complète sans l'arc, la fin et le héros");
 });
 
-test("informationsFormat : film ou série, avec ou sans nombre d'épisodes", () => {
-  assert.match(informationsFormat({ format: "film" }), /un film/);
-  assert.match(informationsFormat({ format: "serie", episodesPrevus: 6 }), /6 épisodes prévus/);
-  assert.match(informationsFormat({ format: "serie" }), /à définir/);
+test("informationsFormat : un projet est un film", () => {
+  assert.match(informationsFormat(), /un film/);
 });
 
 test("styleDesImages : le prompt long quand le projet en a un, sinon la clause", () => {
@@ -181,20 +175,18 @@ test("entrée de l'accroche d'un projet conçu : les choix sont dits au modèle,
   assert.match(m, /Ton : sombre|Ton : grave/);
   assert.match(m, /Durée : 2 min 30/);
   assert.match(m, /Style visuel : « Film Noir 2 » : A moody noir look\./);
-  const serie = entreeAccroche({ ...c, format: "serie", episodesPrevus: 6 }, { nom: "", clause: "" });
-  assert.match(serie[0]!.content, /Format : série \(6 épisodes prévus\)/);
-  assert.match(serie[0]!.content, /par épisode/);
-  assert.match(serie[0]!.content, /style libre/);
+  const libre = entreeAccroche(c, { nom: "", clause: "" });
+  assert.match(libre[0]!.content, /style libre/);
 });
 
 test("entreeTour : le format du projet conçu est dit à l'agent, sans changer l'entrée des autres projets", () => {
   const conv = [{ role: "assistant" as const, content: "Bonjour" }, { role: "user" as const, content: "Un phare" }];
   const fiche = { contenu: {}, statuts: {} };
   const sans = entreeTour(conv, fiche, { manques: ["le héros"], complete: false });
-  const avec = entreeTour(conv, fiche, { manques: ["le héros"], complete: false }, informationsFormat({ format: "serie", episodesPrevus: 6 }));
+  const avec = entreeTour(conv, fiche, { manques: ["le héros"], complete: false }, informationsFormat());
   assert.ok(!sans.at(-1)!.content.includes("Format :"));
-  assert.match(avec.at(-1)!.content, /Format : une série, 6 épisodes prévus./);
-  const complet = entreeTour(conv, fiche, { manques: [], complete: true }, informationsFormat({ format: "film" }));
+  assert.match(avec.at(-1)!.content, /Format : un film/);
+  const complet = entreeTour(conv, fiche, { manques: [], complete: true }, informationsFormat());
   assert.match(complet.at(-1)!.content, /Format : un film/);
 });
 

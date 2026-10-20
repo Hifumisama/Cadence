@@ -42,7 +42,7 @@ export function demandeDepuisChemin(chemin: string): DemandePage | null {
   return { projectId, portee: "projet", cible: null };
 }
 
-const LIBELLE_PORTEE: Record<Portee, string> = { projet: "Tout le projet", saison: "Cette saison", episode: "Cet épisode", plan: "Ce plan", asset: "Cet asset" };
+const LIBELLE_PORTEE: Record<Portee, string> = { projet: "Tout le projet", episode: "Cet épisode", plan: "Ce plan", asset: "Cet asset" };
 
 /** Les portées proposées pour cette page, de la plus petite (par défaut) à la plus large : un plan s'élargit à son
  * épisode puis au projet, un épisode au projet, un asset au projet. */

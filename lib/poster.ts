@@ -1,4 +1,4 @@
-/** Repli visuel des posters (projet/saison/épisode) en l'absence de fichier
+/** Repli visuel des posters (projet/épisode) en l'absence de fichier
  * fourni — un dégradé de la famille de `.preview-frame`, choisi
  * déterministement à partir d'un hash du nom (même paramètre → même rendu
  * à chaque affichage, pas de flash au rechargement). Porté depuis la
@@ -34,7 +34,7 @@ const DUOS: [string, string][] = [
 ];
 
 /** CSS `background-image` (3 dégradés radiaux) pour la clé donnée — passer
- * un identifiant stable (ex. `"projet:12"`, `"saison:12:1"`), pas le nom
+ * un identifiant stable (ex. `"projet:12"`, `"episode:12"`), pas le nom
  * affiché (qui peut changer sans que le poster doive changer d'aspect). */
 export function posterBackgroundImage(key: string): string {
   const r = mulberry32(hashFnv1a(key));
@@ -56,7 +56,7 @@ export function posterBackgroundImage(key: string): string {
 
 /** Première lettre du titre, article initial ignoré ("La porte d'Anfa" ->
  * "P") — utilisée sur les posters trop petits pour un texte complet
- * (saison, épisode). "·" si le titre est vide ("Sans titre" par défaut). */
+ * (épisode). "·" si le titre est vide ("Sans titre" par défaut). */
 export function posterInitiale(titre: string): string {
   const sansArticle = titre.replace(/^(les|le|la|l'|une|un)\s+|^l'/i, "");
   const match = sansArticle.match(/[A-Za-zÀ-ÿ]/);

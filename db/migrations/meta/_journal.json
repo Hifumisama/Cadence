@@ -470,6 +470,27 @@
       "when": 1795194000000,
       "tag": "0066_demandes",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1795280400000,
+      "tag": "0067_fin_realisateur",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1795366800000,
+      "tag": "0068_styles",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1795453200000,
+      "tag": "0069_fin_series",
+      "breakpoints": true
     }
   ]
 }

@@ -8,7 +8,7 @@ const s = (n: number) => (n > 1 ? "s" : "");
 
 /** La barre du haut de la fiche : l'avancée vers l'upscale (« 3 / 6 prêts à upscaler »), « Lancer l'upscale » quand TOUS les plans sont
  * prêts (il reprend l'essai retenu de chaque plan, en rendu final) et « Générer les prévisualisations (N) » pour les plans sans rendu.
- * Le réalisateur n'a pas de bouton ici : il travaille sur tout l'épisode, son onglet est le seul accès. */
+ * */
 export function BarreFiche({
   episodeId,
   prets,

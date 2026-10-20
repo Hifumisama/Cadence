@@ -11,8 +11,8 @@ import type { EpisodePourScenario, EstimationGeneration } from "@/lib/agents/typ
  * après l'autre). Les épisodes VIDES (le squelette tout juste appliqué) sont cochés d'office ; on peut
  * en cocher d'autres, qui ont déjà du contenu : leurs modifications iront alors dans la section
  * « risque d'écrasement » de la revue, décochées. Sert à l'étape « Appliqué » d'une création de
- * projet (« Continuer ») et à l'étape « Consigne » d'une demande sur le projet ou une saison. */
-export function ChoixEpisodes({ ctx, titre, saisonId }: { ctx: ContexteEtape; titre?: string; saisonId: number | null }) {
+ * projet (« Continuer ») et à l'étape « Consigne » d'une demande sur le projet. */
+export function ChoixEpisodes({ ctx, titre }: { ctx: ContexteEtape; titre?: string }) {
   const { conv, occupe } = ctx;
   const [episodes, setEpisodes] = useState<EpisodePourScenario[] | null>(null);
   const [choisis, setChoisis] = useState<Set<number>>(new Set());
@@ -22,7 +22,7 @@ export function ChoixEpisodes({ ctx, titre, saisonId }: { ctx: ContexteEtape; ti
 
   useEffect(() => {
     let annule = false;
-    listerEpisodesPourScenariosVue(conv.projectId, saisonId)
+    listerEpisodesPourScenariosVue(conv.projectId)
       .then((l) => {
         if (annule) return;
         setEpisodes(l);
@@ -34,7 +34,7 @@ export function ChoixEpisodes({ ctx, titre, saisonId }: { ctx: ContexteEtape; ti
     return () => {
       annule = true;
     };
-  }, [conv.projectId, saisonId]);
+  }, [conv.projectId]);
 
   const ids = useMemo(() => (episodes ?? []).filter((e) => choisis.has(e.id)).map((e) => e.id), [episodes, choisis]);
   useEffect(() => {
@@ -90,7 +90,7 @@ export function ChoixEpisodes({ ctx, titre, saisonId }: { ctx: ContexteEtape; ti
                 <label className="ag-case">
                   <input type="checkbox" checked={choisis.has(e.id)} onChange={() => bascule(e.id)} disabled={occupe} />
                   <span className="ag-ep-nom">
-                    {episodes.some((x) => x.saisonNumero !== e.saisonNumero) ? `S${two(e.saisonNumero)} · ` : ""}Épisode {two(e.numero)} · {e.titre}
+                    Épisode {two(e.numero)} · {e.titre}
                   </span>
                 </label>
                 <span className={`ag-ep-etat tiny-note${e.vide ? "" : " ag-ep-rempli"}`}>

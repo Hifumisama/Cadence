@@ -3,14 +3,13 @@ import type { ChangementBrut } from "./changements";
 import type { BriefContenu, StatutChamp } from "./types";
 
 /** Le squelette d'un projet, construit EN CODE depuis le brief (aucun appel au modèle) :
- * saison, épisodes, et le brief lui-même (la clause de style du projet suit le brief : voir
+ * l'épisode du film, et le brief lui-même (la clause de style du projet suit le brief : voir
  * brief-db.ts, plus de changement « projet » séparé). Pur, testé. Idempotent : un
- * épisode du même titre dans la saison cible n'est pas recréé. */
+ * épisode du même titre n'est pas recréé. */
 
 export type EtatProjetPourSquelette = {
-  saisons: { id: number; numero: number; titre: string }[];
   /** `vide` : ni plan, ni scène, ni résumé : le squelette le réutilise au lieu d'en créer un de trop. */
-  episodes: { id: number; seasonId: number; numero: number; titre: string; resume: string; vide?: boolean }[];
+  episodes: { id: number; numero: number; titre: string; resume: string; vide?: boolean }[];
   /** Le brief VALIDE du projet, s'il existe (sinon null : le brief est créé). */
   briefValide: BriefContenu | null;
 };
@@ -46,26 +45,11 @@ export function squeletteDepuisBrief(
     }
   }
 
-  // 2. La saison : celle qui existe (la première), sinon une nouvelle.
-  const saison = [...etat.saisons].sort((a, b) => a.numero - b.numero)[0] ?? null;
-  const cleSaison = "saison-1";
-  if (!saison) {
-    changements.push({
-      groupe: "saison",
-      cle: cleSaison,
-      cibleType: "saison",
-      cibleRef: null,
-      libelle: `Saison 1 · ${brief.titre}`,
-      operation: "creer",
-      apres: { titre: brief.titre },
-    });
-  }
-
-  // 3. Les épisodes du brief, sauf ceux qui existent déjà (même titre) dans cette saison.
-  const existants = saison ? etat.episodes.filter((e) => e.seasonId === saison.id) : [];
+  // 2. Les épisodes du brief, sauf ceux qui existent déjà (même titre).
+  const existants = etat.episodes;
   const titresExistants = new Set(existants.map((e) => e.titre.trim().toLowerCase()));
   let numero = existants.reduce((m, e) => Math.max(m, e.numero), 0);
-  // Les épisodes vides déjà là (un OneShot naît avec le sien) reçoivent les premiers épisodes du brief.
+  // Les épisodes vides déjà là (un film naît avec le sien) reçoivent les premiers épisodes du brief.
   const videsAReutiliser = existants.filter((e) => e.vide).sort((a, b) => a.numero - b.numero);
   for (const [i, ep] of brief.episodes.entries()) {
     if (titresExistants.has(ep.titre.trim().toLowerCase())) continue;
@@ -90,11 +74,7 @@ export function squeletteDepuisBrief(
       cibleRef: null,
       libelle: `Épisode ${numero} · ${ep.titre}`,
       operation: "creer",
-      apres: {
-        titre: ep.titre,
-        resume: ep.resume,
-        ...(saison ? { saisonId: saison.id } : { saisonCle: cleSaison }),
-      },
+      apres: { titre: ep.titre, resume: ep.resume },
     });
   }
   return changements;

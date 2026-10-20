@@ -9,7 +9,6 @@ import {
   planRefs,
   plans,
   projects,
-  seasons,
 } from "../db/schema";
 import { and, desc, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
@@ -38,42 +37,16 @@ export async function getDefaultEpisodeId(): Promise<number> {
   return episode.id;
 }
 
-/** Ligne complète du projet par défaut. La clause de style et les notes qu'elle porte sont des
- * COPIES du brief (voir lib/agents/brief-db.ts) : on les lit, on ne les écrit jamais ici. */
-export async function getDefaultProject() {
-  const [projet] = await db.select().from(projects).orderBy(projects.id).limit(1);
-  if (!projet) throw new Error("Aucun projet en base — voir db/migrations pour le projet créé par la migration 0007.");
-  return projet;
-}
-
 export async function getProject(projectId: number) {
   const [projet] = await db.select().from(projects).where(eq(projects.id, projectId));
   return projet ?? null;
 }
 
-/** Premier épisode du projet (par numéro de saison puis d'épisode) — sert
- * d'ancrage aux onglets Scénario/Plans depuis Assets (lib/queries.ts,
- * Assets vit au niveau du projet, pas d'un épisode précis) quand il faut
- * bien pointer les autres onglets quelque part. */
+/** Premier épisode du projet (par numéro) — sert d'ancrage aux onglets Scénario/Plans depuis Assets (Assets vit au niveau du projet,
+ * pas d'un épisode précis) quand il faut bien pointer les autres onglets quelque part. Un projet est un film : il n'en a qu'un. */
 export async function getFirstEpisodeId(projectId: number): Promise<number | null> {
-  const [row] = await db
-    .select({ id: episodes.id })
-    .from(episodes)
-    .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
-    .where(eq(seasons.projectId, projectId))
-    .orderBy(seasons.numero, episodes.numero)
-    .limit(1);
+  const [row] = await db.select({ id: episodes.id }).from(episodes).where(eq(episodes.projectId, projectId)).orderBy(episodes.numero).limit(1);
   return row?.id ?? null;
-}
-
-/** Sa saison et son épisode uniques — sert de raccourci pour un OneShot
- * (toujours 1 saison + 1 épisode) sans passer par la vue Série. */
-export async function getEpisodeUnique(projectId: number) {
-  const [saison] = await db.select().from(seasons).where(eq(seasons.projectId, projectId)).orderBy(seasons.numero).limit(1);
-  if (!saison) return null;
-  const [episode] = await db.select().from(episodes).where(eq(episodes.seasonId, saison.id)).orderBy(episodes.numero).limit(1);
-  if (!episode) return null;
-  return { saison, episode };
 }
 
 export type ProjectListItem = Awaited<ReturnType<typeof getAllProjects>>[number];
@@ -87,13 +60,8 @@ export async function getAllProjects() {
   if (tousLesProjets.length === 0) return [];
   const idsProjets = tousLesProjets.map((p) => p.id);
 
-  const [toutesLesSaisons, tousLesEpisodesAvecSaison, tousLesPlans, tousLesAssets, conceptionsOuvertes] = await Promise.all([
-    db.select().from(seasons).where(inArray(seasons.projectId, idsProjets)),
-    db
-      .select({ episode: episodes, projectId: seasons.projectId })
-      .from(episodes)
-      .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
-      .where(inArray(seasons.projectId, idsProjets)),
+  const [tousLesEpisodes, tousLesPlans, tousLesAssets, conceptionsOuvertes] = await Promise.all([
+    db.select().from(episodes).where(inArray(episodes.projectId, idsProjets)),
     db.select({ projectId: plans.projectId, statut: plans.statut }).from(plans).where(inArray(plans.projectId, idsProjets)),
     db.select({ projectId: assets.projectId }).from(assets).where(and(inArray(assets.projectId, idsProjets), horsAffiches)),
     // Conception commencée mais préparation pas lancée : l'utilisateur est encore dans l'entretien (ou au clap) ; la carte le ramène à /demarrage.
@@ -104,12 +72,9 @@ export async function getAllProjects() {
   ]);
   const enConception = new Set(conceptionsOuvertes.map((c) => c.projectId));
 
-  const saisonsParProjet = new Map<number, typeof toutesLesSaisons>();
-  for (const s of toutesLesSaisons) saisonsParProjet.set(s.projectId, [...(saisonsParProjet.get(s.projectId) ?? []), s]);
-
-  const episodesParProjet = new Map<number, (typeof tousLesEpisodesAvecSaison)[number]["episode"][]>();
-  for (const { episode, projectId } of tousLesEpisodesAvecSaison) {
-    episodesParProjet.set(projectId, [...(episodesParProjet.get(projectId) ?? []), episode]);
+  const episodesParProjet = new Map<number, (typeof tousLesEpisodes)[number][]>();
+  for (const episode of tousLesEpisodes) {
+    episodesParProjet.set(episode.projectId, [...(episodesParProjet.get(episode.projectId) ?? []), episode]);
   }
 
   const bucketsParProjet = new Map<number, StatutBuckets>();
@@ -123,7 +88,6 @@ export async function getAllProjects() {
   return tousLesProjets.map((p) => ({
     ...p,
     posterSrc: posterSrc("projects", p.id, p.posterFichier),
-    saisons: saisonsParProjet.get(p.id) ?? [],
     episodes: episodesParProjet.get(p.id) ?? [],
     buckets: bucketsParProjet.get(p.id) ?? bucketsVides(),
     nbAssets: assetsParProjet.get(p.id) ?? 0,
@@ -322,72 +286,11 @@ export async function getScenesEpisode(episodeId: number) {
     .orderBy(scenes.ordre);
 }
 
-/** Épisode + sa saison — sert au bandeau (fil d'Ariane, numéro de saison)
- * et à vérifier qu'un épisode appartient bien au projet de l'URL avant
- * d'afficher quoi que ce soit (voir app/p/[projectId]/e/[episodeId]/layout.tsx). */
-export async function getEpisodeWithSeason(episodeId: number) {
-  const [row] = await db
-    .select({ episode: episodes, season: seasons })
-    .from(episodes)
-    .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
-    .where(eq(episodes.id, episodeId));
-  return row ?? null;
-}
-
-export type ProjectHierarchy = NonNullable<Awaited<ReturnType<typeof getProjectHierarchy>>>;
-
-/** Écran Vue série : projet + saisons + épisodes, chacun avec sa
- * répartition de statuts (pour le badge de statut ET la phase de
- * pipeline — voir lib/phase.ts) et sa plage de numéros de plan (continue
- * à l'échelle de l'épisode depuis F03, révision 2026-09-28). */
-export async function getProjectHierarchy(projectId: number) {
-  const projet = await getProject(projectId);
-  if (!projet) return null;
-
-  const [lesSaisons, lesEpisodesAvecSaison, lesPlans] = await Promise.all([
-    db.select().from(seasons).where(eq(seasons.projectId, projectId)).orderBy(seasons.numero),
-    db
-      .select({ episode: episodes, seasonId: episodes.seasonId })
-      .from(episodes)
-      .innerJoin(seasons, eq(episodes.seasonId, seasons.id))
-      .where(eq(seasons.projectId, projectId))
-      .orderBy(episodes.numero),
-    db.select({ episodeId: plans.episodeId, statut: plans.statut }).from(plans).where(eq(plans.projectId, projectId)),
-  ]);
-
-  const parEpisodeId = new Map<number, { statuts: (typeof lesPlans)[number]["statut"][] }>();
-  for (const p of lesPlans) {
-    const courant = parEpisodeId.get(p.episodeId) ?? { statuts: [] };
-    courant.statuts.push(p.statut);
-    parEpisodeId.set(p.episodeId, courant);
-  }
-
-  const episodesParSaison = new Map<number, typeof lesEpisodesAvecSaison>();
-  for (const row of lesEpisodesAvecSaison) episodesParSaison.set(row.seasonId, [...(episodesParSaison.get(row.seasonId) ?? []), row]);
-
-  const saisonsAvecEpisodes = lesSaisons.map((saison) => {
-    const episodesDeCetteSaison = (episodesParSaison.get(saison.id) ?? []).map(({ episode }) => {
-      const donnees = parEpisodeId.get(episode.id) ?? { statuts: [] };
-      return {
-        ...episode,
-        posterSrc: posterSrc("episodes", episode.id, episode.posterFichier),
-        buckets: bucketiserStatuts(donnees.statuts),
-        nbPlans: donnees.statuts.length,
-      };
-    });
-    const bucketsSaison = episodesDeCetteSaison.reduce((acc, e) => additionnerBuckets(acc, e.buckets), bucketsVides());
-    return {
-      ...saison,
-      posterSrc: posterSrc("seasons", saison.id, saison.posterFichier),
-      episodes: episodesDeCetteSaison,
-      buckets: bucketsSaison,
-    };
-  });
-
-  const bucketsProjet = saisonsAvecEpisodes.reduce((acc, s) => additionnerBuckets(acc, s.buckets), bucketsVides());
-  const nbEpisodes = saisonsAvecEpisodes.reduce((acc, s) => acc + s.episodes.length, 0);
-
-  return { projet, saisons: saisonsAvecEpisodes, buckets: bucketsProjet, nbEpisodes };
+/** L'épisode, pour le bandeau (fil d'Ariane) et pour vérifier qu'il appartient bien au projet de l'URL avant d'afficher quoi que ce soit
+ * (voir app/p/[projectId]/e/[episodeId]/layout.tsx). */
+export async function getEpisode(episodeId: number) {
+  const [episode] = await db.select().from(episodes).where(eq(episodes.id, episodeId));
+  return episode ?? null;
 }
 
 export type AssetRegistre = Awaited<ReturnType<typeof getAssetsRegistre>>[number];

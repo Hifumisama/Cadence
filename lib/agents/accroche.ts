@@ -49,15 +49,14 @@ export const MARQUE_PROJET_CONCU = "[Projet conçu par l'utilisateur]";
 
 const dureeEnTexte = (s: number): string => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${String(s % 60).padStart(2, "0")}` : ""}`);
 
-/** L'entrée du skill : un seul message, qui liste les choix déjà faits (format, genres, ton, durée, langue, style). Pur. */
+/** L'entrée du skill : un seul message, qui liste les choix déjà faits (genres, ton, durée, langue, style). Pur. */
 export function entreeAccroche(c: Conception, style: { nom: string; clause: string }): { role: "user"; content: string }[] {
-  const format = c.format === "serie" ? `série${c.episodesPrevus ? ` (${c.episodesPrevus} épisodes prévus)` : ""}` : "film";
   const lignes = [
     MARQUE_PROJET_CONCU,
-    `Format : ${format}`,
+    `Format : film`,
     `Genre : ${c.genres.length ? c.genres.join(", ") : "non arrêté"}`,
     `Ton : ${motDuTon(c.ton)}`,
-    `Durée : ${dureeEnTexte(c.dureeSecondes)}${c.format === "serie" ? " par épisode" : ""}`,
+    `Durée : ${dureeEnTexte(c.dureeSecondes)}`,
     `Langue des dialogues : ${c.langue}`,
     `Style visuel : « ${style.nom || "style libre"} »${style.clause.trim() ? ` : ${style.clause.trim()}` : ""}`,
   ];

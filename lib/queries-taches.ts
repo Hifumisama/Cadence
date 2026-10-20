@@ -125,7 +125,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
   // Où mène une tâche d'agent : la page où le travail se lit, plus l'ancienne popup d'agent (décision 2026-10-12). Un plan → sa fiche,
-  // une révision d'épisode → la salle du réalisateur, un épisode → son scénario, un asset → sa page. Sinon (projet, saison) la page
+  // un épisode → son scénario, un asset → sa page. Sinon (projet, saison) la page
   // du projet, et seulement alors la popup reste le repli (`conversationUuid`).
   const cibles = [...lignesLlm, ...runsDesLots].filter((l) => l.cibleId != null);
   const idsPlans = [...new Set(cibles.filter((l) => l.portee === "plan").map((l) => l.cibleId!))];
@@ -142,7 +142,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
       const x = planParId.get(l.cibleId);
       return x ? `/p/${projectId}/e/${x.episodeId}/plans/${x.uuid}` : null;
     }
-    if (l.portee === "episode") return l.profondeur === "revision" ? `/p/${projectId}/realisateur/${l.cibleId}` : `/p/${projectId}/e/${l.cibleId}/scenario`;
+    if (l.portee === "episode") return `/p/${projectId}/e/${l.cibleId}/scenario`;
     if (l.portee === "asset") {
       const x = assetParId.get(l.cibleId);
       return x ? `/p/${projectId}/assets/${x.code}` : null;
@@ -158,7 +158,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     genre: "image",
     statut: g.statut,
     // Un son se reconnaît dans le panneau : « Son · CODE », sans miniature d'aperçu.
-    libelle: g.methode === METHODE_MASTER_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : affiche.cible === "seasons" ? "saison" : "épisode"}` : code,
+    libelle: g.methode === METHODE_MASTER_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : "épisode"}` : code,
     detail:
       g.methode === METHODE_MASTER_VOIX
         ? "Master de voix"

@@ -12,12 +12,12 @@ import { ecrirePoster, lirePoster } from "@/lib/affiche-application";
 import { resoudreAffiche } from "@/lib/agents/affiche";
 import { MEDIA_ROOT, cheminPosterMedia } from "@/lib/media";
 
-/** Ouvre la page de génération de l'affiche d'un projet, d'une saison ou d'un épisode. L'asset d'affiche (invisible du registre) est
+/** Ouvre la page de génération de l'affiche d'un projet ou d'un épisode. L'asset d'affiche (invisible du registre) est
  * créé AU PREMIER CLIC, avec un prompt proposé à partir du titre et du résumé ; ensuite on le retrouve tel quel, prompt
  * modifié compris. Pour un meilleur prompt : « Demander à l'agent » sur la page (même parcours que pour un asset). */
 export async function ouvrirAffiche(cible: CibleAffiche, id: number): Promise<void> {
   const contexte = await resoudreAffiche(db, cible, id);
-  if (!contexte) throw new Error(cible === "projects" ? "Ce projet n'existe pas." : cible === "seasons" ? "Cette saison n'existe pas." : "Cet épisode n'existe pas.");
+  if (!contexte) throw new Error(cible === "projects" ? "Ce projet n'existe pas." : "Cet épisode n'existe pas.");
   const code = codeAffiche(cible, id);
 
   const [existant] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, contexte.projectId), eq(assets.code, code)));

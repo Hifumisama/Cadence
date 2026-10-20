@@ -50,18 +50,6 @@ export async function updatePromptSection(
   }
 }
 
-/** activerUpscale distingue la prévisualisation rapide (itération de
- * prompt) du rendu final. */
-export async function relancerPlan(
-  planId: number,
-  activerUpscale: boolean,
-  nouvelleVariante = false,
-): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  await creerJobRelance(planId, activerUpscale, nouvelleVariante);
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
 /** Reprend un rendu de l'historique comme référence du plan : sa seed et sa durée deviennent celles du plan, et, si on le
  * demande, son prompt est restauré. Même seed + même prompt + mêmes références + même durée = même résultat (F04) : c'est ce
  * qui permet d'upscaler EXACTEMENT la prévisualisation qu'on a choisie. */
@@ -316,27 +304,6 @@ export async function relancerPlansPerimes(episodeId: number): Promise<{ n: numb
 
   revalidatePath("/", "layout");
   return { n, dejaEnFile };
-}
-
-/** FPS et durée de génération, éditables depuis la Fiche de plan — le mode
- * reste toujours full-reference (CDC), pas d'édition prévue pour lui. La
- * durée de montage est toujours égale à la durée de génération (retour
- * utilisateur 2026-09-29) : on la resynchronise ici. */
-export async function updatePlanParametres(
-  planId: number,
-  valeurs: { fps: number; dureeGenerationSecondes: number },
-) {
-  await db
-    .update(plans)
-    .set({
-      fps: valeurs.fps,
-      dureeGenerationSecondes: valeurs.dureeGenerationSecondes,
-      dureeMontageSecondes: valeurs.dureeGenerationSecondes,
-      updatedAt: new Date(),
-    })
-    .where(eq(plans.id, planId));
-
-  revalidatePath("/", "layout");
 }
 
 /** Ajoute une référence (image/audio/vidéo) au prochain slot disponible, et la déclare dans le prompt

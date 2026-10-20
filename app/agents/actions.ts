@@ -70,7 +70,7 @@ async function rafraichir<T extends { ok: boolean }>(r: T): Promise<T> {
 // --- Conversation -----------------------------------------------------------
 
 /** Ouvre la conversation du (projet, portée, cible) : la reprend si elle existe, la crée
- * sinon. `cible` désigne l'existant visé (saison/épisode : `{ id }`, plan : `{ uuid }`, asset :
+ * sinon. `cible` désigne l'existant visé (épisode : `{ id }`, plan : `{ uuid }`, asset :
  * `{ code }` ou `{ id }`) ; null pour la portée `projet`. `profondeur` n'est prise en compte
  * qu'à la création (défaut : `complete` pour un projet, `courte` sinon). `reprise` dit si une
  * conversation existait déjà (l'UI affiche « conversation en cours reprise »). */
@@ -144,7 +144,7 @@ export async function modifierChampBrief(projectId: number, section: string, val
 // --- Proposition ------------------------------------------------------------
 
 /** Lance la génération d'une proposition pour la conversation.
- * - profondeur `complete` (création de projet) : le squelette (clause de style, saison,
+ * - profondeur `complete` (création de projet) : le squelette (clause de style,
  *   épisodes, brief) est construit EN CODE depuis le brief : immédiat, `runUuid` null ;
  * - profondeur `courte` : tâche `proposition` (skill selon la portée : `asset` →
  *   `prompt-asset`, `episode` / `plan` → `scenario-episode`). `consigne` = l'intention en une
@@ -178,7 +178,7 @@ export async function genererInventaire(
 }
 
 /** Étape 3 : écrire la FICHE d'un plan (conversation de portée `plan` : une proposition simple, affinable)
- * ou celles des plans d'un épisode, d'une saison ou du projet (un LOT, une sous-tâche `plan-h3` par plan,
+ * ou celles des plans d'un épisode ou du projet (un LOT, une sous-tâche `plan-h3` par plan,
  * clé `plan:<uuid>`). `planUuids` = les plans à traiter (par défaut : ceux qui n'ont pas de fiche). Une fiche
  * remplace ensemble les six sections et les références du plan ; un plan qui a déjà une fiche (ou un rendu)
  * apparaît en « risque d'écrasement », décoché. Les assets manquants sont proposés à la création. */

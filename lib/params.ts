@@ -20,18 +20,6 @@ const DEFAULTS: {
 
 export type Parametres = { [K in keyof typeof DEFAULTS]: string };
 
-export async function getParam(cle: keyof typeof DEFAULTS): Promise<string> {
-  const rows = await db.select().from(parametres).where(eq(parametres.cle, cle)).limit(1);
-  return rows[0]?.valeur ?? DEFAULTS[cle];
-}
-
-export async function setParam(cle: keyof typeof DEFAULTS, valeur: string): Promise<void> {
-  await db
-    .insert(parametres)
-    .values({ cle, valeur })
-    .onConflictDoUpdate({ target: parametres.cle, set: { valeur } });
-}
-
 export async function getAllParams(): Promise<Parametres> {
   const rows = await db.select().from(parametres);
   const map = new Map(rows.map((r) => [r.cle, r.valeur]));

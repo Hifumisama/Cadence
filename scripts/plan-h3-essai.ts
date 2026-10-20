@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { agentRuns, agentTraces, episodes, planPromptSections, plans, seasons } from "../db/schema";
+import { agentRuns, agentTraces, episodes, planPromptSections, plans } from "../db/schema";
 import { entreePlanH3 } from "../lib/agents/contexte";
 import { executerSkill } from "../lib/llm/executer";
 import { controleurPourSkill } from "../lib/llm/controles";
@@ -72,9 +72,8 @@ async function main(): Promise<number> {
       const [ep] = await db
         .select({ id: episodes.id })
         .from(episodes)
-        .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-        .where(eq(seasons.projectId, projectId))
-        .orderBy(asc(seasons.numero), asc(episodes.numero))
+        .where(eq(episodes.projectId, projectId))
+        .orderBy(asc(episodes.numero))
         .limit(1);
       episodeId = ep?.id ?? null;
     }

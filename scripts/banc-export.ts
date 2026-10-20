@@ -46,7 +46,7 @@ async function main(): Promise<number> {
     .orderBy(agentTraces.createdAt, agentTraces.id);
 
   // Les appels terminés SANS trace (la trace n'a pas pu s'écrire) se rejouent quand même : l'entrée de l'appel est ce que le worker
-  // envoie au skill (worker/agents/preparation.ts la prend telle quelle hors iteration-plan et réalisateur), et le résultat est gardé
+  // envoie au skill (worker/agents/preparation.ts la prend telle quelle hors iteration-plan), et le résultat est gardé
   // dans la tâche. Les jetons, la durée du serveur et la taille du prompt système d'origine sont alors inconnus.
   const sansTrace = await db
     .select()
@@ -54,7 +54,7 @@ async function main(): Promise<number> {
     .where(and(eq(agentRuns.projectId, projet), eq(agentRuns.statut, "termine"), isNull(agentRuns.traceId), skills?.length ? inArray(agentRuns.skill, skills) : undefined))
     .orderBy(agentRuns.id);
   const depuisRuns = sansTrace
-    .filter((r) => !["iteration-plan", "realisateur-analyse", "realisateur-reponse"].includes(r.skill))
+    .filter((r) => !["iteration-plan"].includes(r.skill))
     .map((r) => ({
       id: r.id, skill: r.skill, modele: "(sans trace)", projectId: r.projectId, systemeCaracteres: 0,
       messages: versMessages(r.entree as string | object), sortieJson: r.resultat, tokensEntree: 0, tokensSortie: 0,

@@ -2,13 +2,10 @@ import type { Fiche } from "./agents/fiche";
 import { RYTHMES_BRIEF, type RythmeBrief } from "./agents/types";
 import type { StyleBibliotheque } from "./styles/bibliotheque";
 
-/** La conception d'un projet : ce que l'utilisateur choisit AVANT l'entretien avec le scénariste (format, genre, ton,
+/** La conception d'un projet : ce que l'utilisateur choisit AVANT l'entretien avec le scénariste (genre, ton,
  * durée, rythme, langue, style). Tout est quasi déterministe : l'agent n'a plus à le demander. Pur : validation,
  * valeurs dérivées (texte du ton, nombre de plans, style résolu) et préremplissage de la fiche de l'entretien.
  * Stockée telle quelle dans `conceptions.contenu` ; le brief reçoit les valeurs dérivées (voir `ficheDepuisConception`). */
-
-export const FORMATS = ["film", "serie"] as const;
-export type FormatProjet = (typeof FORMATS)[number];
 
 /** Les dix langues que le modèle vidéo (H3) sait parler, et « sans dialogue ». */
 export const LANGUES_DIALOGUES = ["Français", "English", "日本語", "한국어", "中文", "Deutsch", "Русский", "Português", "Español", "Italiano"] as const;
@@ -66,8 +63,6 @@ export const DUREE_PAR_DEFAUT_SECONDES = 120;
 export const RYTHME_PAR_DEFAUT: RythmeBrief = "mesure";
 export const TON_PAR_DEFAUT = 50;
 export const GENRES_MAX = 2;
-export const EPISODES_MIN = 2;
-export const EPISODES_MAX = 40;
 
 /** Genres proposés, avec le ton de départ (0 = lumineux, 100 = sombre) que le curseur prend quand l'utilisateur ne l'a
  * pas ajusté. `teinte` et `poids` ne servent qu'à l'affichage. */
@@ -106,9 +101,6 @@ export type StyleConception =
   | { source: "libre"; nom: string; promptImage: string; clause: string; image?: string };
 
 export type Conception = {
-  format: FormatProjet;
-  /** Série seulement : nombre d'épisodes prévus. Une INFORMATION pour l'agent : le projet ne crée pas N épisodes. */
-  episodesPrevus?: number;
   genres: string[];
   /** 0 = lumineux, 100 = sombre. */
   ton: number;
@@ -162,16 +154,6 @@ export function validerConception(brut: unknown, bibliotheque: readonly Pick<Sty
   const o = objet(brut);
   const erreurs: string[] = [];
 
-  const format = o.format;
-  if (!(FORMATS as readonly unknown[]).includes(format)) erreurs.push("Format : « film » ou « serie ».");
-
-  let episodesPrevus: number | undefined;
-  if (format === "serie" && o.episodesPrevus != null) {
-    const n = o.episodesPrevus;
-    if (typeof n !== "number" || !Number.isInteger(n) || n < EPISODES_MIN || n > EPISODES_MAX) erreurs.push(`Épisodes prévus : un entier entre ${EPISODES_MIN} et ${EPISODES_MAX}.`);
-    else episodesPrevus = n;
-  }
-
   const genres = Array.isArray(o.genres) ? o.genres : [];
   const nomsGenres = GENRES.map((g) => g.nom);
   if (genres.length < 1 || genres.length > GENRES_MAX || genres.some((g) => typeof g !== "string" || !nomsGenres.includes(g)) || new Set(genres).size !== genres.length) {
@@ -214,8 +196,6 @@ export function validerConception(brut: unknown, bibliotheque: readonly Pick<Sty
   return {
     ok: true,
     valeur: {
-      format: format as FormatProjet,
-      ...(episodesPrevus != null ? { episodesPrevus } : {}),
       genres: genres as string[],
       ton: ton as number,
       tonAjuste,
@@ -263,10 +243,9 @@ export function valeursParDefaut(c: Conception): { ton: boolean; duree: boolean;
   return { ton: !c.tonAjuste, duree: !c.dureeChoisie, langue: !c.langueChoisie };
 }
 
-/** Ce que l'agent de conversation sait en plus du brief : le format et le nombre d'épisodes prévus (pas des sections du brief). */
-export function informationsFormat(c: Pick<Conception, "format" | "episodesPrevus">): string {
-  if (c.format === "film") return "Format : un film (un seul bloc, une seule histoire).";
-  return c.episodesPrevus ? `Format : une série, ${c.episodesPrevus} épisodes prévus.` : "Format : une série (nombre d'épisodes à définir).";
+/** Ce que l'agent de conversation sait en plus du brief : un projet est un film (pas une section du brief). */
+export function informationsFormat(): string {
+  return "Format : un film (un seul bloc, une seule histoire).";
 }
 
 /** Le style que reçoivent les générations d'IMAGES d'un projet : le prompt long du style quand le projet en a un (il vient de la

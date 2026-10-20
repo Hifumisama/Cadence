@@ -3,8 +3,6 @@
 import { useMemo, type ReactNode } from "react";
 import {
   DUREE_EXPERIMENTALE_SECONDES,
-  EPISODES_MAX,
-  EPISODES_MIN,
   GENRES,
   GENRES_MAX,
   LANGUES_DIALOGUES,
@@ -17,7 +15,7 @@ import {
   plansEstimes,
   positionDepuisDuree,
 } from "@/lib/conception";
-import { ajusterTon, basculerGenre, minutesSecondes, reinitialiserTon, SERIES_DISPONIBLES } from "@/lib/conception-ui";
+import { ajusterTon, basculerGenre, minutesSecondes, reinitialiserTon } from "@/lib/conception-ui";
 import { Curseur } from "./Curseur";
 import type { PropsScene } from "./types";
 
@@ -36,8 +34,7 @@ export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactN
 
 /* ---------------------------------------------------------------- 1. Accueil */
 
-/** Écran d'accueil : dit ce qu'on va faire. Le choix du format (film / série) n'y figure plus : les séries sont désactivées
- * (`SERIES_DISPONIBLES`), le format reste « film » dans l'état. `SceneFormat` est conservée pour la réouverture des séries. */
+/** Écran d'accueil : dit ce qu'on va faire. Un projet est un film : il n'y a pas de choix de format. */
 export function SceneAccueil() {
   return (
     <>
@@ -47,51 +44,6 @@ export function SceneAccueil() {
         <li><b>Tu rencontres le scénariste</b><span>un entretien pour transformer ton idée en scénario.</span></li>
         <li><b>L’IA fabrique le film</b><span>assets, voix, plans, jusqu’au montage.</span></li>
       </ol>
-    </>
-  );
-}
-
-/* ---------------------------------------------------------------- Format (désactivée) */
-
-const BANDE = "COMING SOON · COMING SOON · COMING SOON · COMING SOON · COMING SOON · COMING SOON · ";
-
-export function SceneFormat({ etat, maj }: PropsScene) {
-  return (
-    <>
-      <EnteteScene acte="Acte 01" titre={<>Qu’est-ce qu’on <em>tourne</em> ?</>} sous="Le plus simple d’abord. Le reste s’adaptera à ce choix." />
-      <div className="cn-duo">
-        <button type="button" className="cn-affiche" aria-pressed={etat.format === "film"} onClick={() => maj((e) => ({ ...e, format: "film" }))}>
-          <span className="cn-visuel" aria-hidden="true"><span className="cn-scope" /></span>
-          <span className="cn-gros">Film</span>
-          <p>Une histoire, un seul bloc, une fin.</p>
-        </button>
-        <button
-          type="button"
-          className={`cn-affiche${SERIES_DISPONIBLES ? "" : " is-bientot"}`}
-          aria-pressed={etat.format === "serie"}
-          disabled={!SERIES_DISPONIBLES}
-          onClick={() => maj((e) => ({ ...e, format: "serie" }))}
-        >
-          <span className="cn-visuel" aria-hidden="true">
-            <span className="cn-pile"><i /><i /><i /></span>
-          </span>
-          <span className="cn-gros">Série</span>
-          <p>Des épisodes qui se suivent, un fil qui court d’un épisode à l’autre.</p>
-          {SERIES_DISPONIBLES ? null : (
-            <>
-              <span className="cn-police" aria-hidden="true"><i>{BANDE}</i></span>
-              <span className="cn-police is-croise" aria-hidden="true"><i>{BANDE}</i></span>
-              <span className="cn-sr-seul">Bientôt disponible</span>
-            </>
-          )}
-        </button>
-      </div>
-      <div className={`cn-episodes${etat.format === "serie" ? " is-on" : ""}`} aria-hidden={etat.format !== "serie"}>
-        <button type="button" className="btn cn-pas" aria-label="Un épisode de moins" disabled={etat.format !== "serie"} onClick={() => maj((e) => ({ ...e, episodes: Math.max(EPISODES_MIN, e.episodes - 1) }))}>−</button>
-        <output>{etat.episodes}</output>
-        <button type="button" className="btn cn-pas" aria-label="Un épisode de plus" disabled={etat.format !== "serie"} onClick={() => maj((e) => ({ ...e, episodes: Math.min(EPISODES_MAX, e.episodes + 1) }))}>+</button>
-        <span>épisodes prévus (indicatif, modifiable plus tard)</span>
-      </div>
     </>
   );
 }
@@ -186,12 +138,11 @@ export function SceneDuree({ etat, maj }: PropsScene) {
     // Largeur de chaque case : la même partout, sauf au rythme « variable » où elle varie de façon stable (suite déterministe).
     return Array.from({ length: Math.ceil(plans.moyen / parCase) }, (_, k) => (etat.rythme === "variable" ? 5 + ((k * 7919) % 11) : (plage.min + plage.max) / 2) * parCase);
   }, [plans.moyen, parCase, etat.rythme, plage.min, plage.max]);
-  const film = etat.format === "film";
   const poser = (duree: number) => maj((e) => ({ ...e, duree, dureeChoisie: true }));
   return (
     <>
-      <EnteteScene acte="Acte 03" titre={<>Combien de <em>temps</em> ?</>} sous={film ? "La durée du film et le rythme fixent le nombre de plans que le scénario devra écrire." : "La durée d’un épisode et le rythme fixent le nombre de plans que le scénario devra écrire."} />
-      <p className="cn-grande-duree">{minutesSecondes(etat.duree)}{film ? null : <small>par épisode</small>}</p>
+      <EnteteScene acte="Acte 03" titre={<>Combien de <em>temps</em> ?</>} sous="La durée du film et le rythme fixent le nombre de plans que le scénario devra écrire." />
+      <p className="cn-grande-duree">{minutesSecondes(etat.duree)}</p>
       {etat.duree > DUREE_EXPERIMENTALE_SECONDES ? (
         <p className="cn-note-duree">Au-delà de 10 min, c’est <b>expérimental</b> : le scénario compte des centaines de plans, et le modèle local risque d’y perdre le fil.</p>
       ) : null}
@@ -202,7 +153,7 @@ export function SceneDuree({ etat, maj }: PropsScene) {
         max={POSITION_DUREE_MAX}
         pas={25}
         pasGrand={100}
-        etiquette={film ? "Durée du film" : "Durée de l’épisode"}
+        etiquette="Durée du film"
         texteValeur={minutesSecondes(etat.duree)}
         onChange={(position) => poser(dureeDepuisPosition(position))}
       >

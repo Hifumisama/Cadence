@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes, seasons } from "../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes } from "../db/schema";
 import { lireApresFiche } from "../lib/agents/fiches";
 import { controlerStructure, verifierCoherenceRefs } from "../lib/plan-checks";
 import { demanderAnnulation } from "../lib/annulation-db";
@@ -212,14 +212,14 @@ async function traiterTour(conversationUuid: string, runUuid: string | null) {
 async function traiter(runUuid: string | null) {
   if (!runUuid) throw new Error("Pas de tâche à traiter.");
   const [run] = await db.select().from(agentRuns).where(eq(agentRuns.uuid, runUuid));
-  await traiterTacheLlm(run!, { executer: faux, joignable: async () => true });
+  await traiterTacheLlm(run!, { executer: faux });
   const [apres] = await db.select().from(agentRuns).where(eq(agentRuns.uuid, runUuid));
   return apres!;
 }
 
 async function main() {
-  const [p1] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E", type: "serie" }).returning();
-  const [p2] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_2", type: "serie" }).returning();
+  const [p1] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E" }).returning();
+  const [p2] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_2" }).returning();
   const ids = [p1!.id, p2!.id];
   try {
     // ── A. Création de projet : conversation → brief → squelette → application ──
@@ -274,15 +274,13 @@ async function main() {
     const gp = await s.genererProposition(uuid);
     ok(gp.ok && gp.runUuid === null, "squelette construit en code (aucune tâche LLM)");
     let prop = gp.ok ? await lireProposition(gp.propositionUuid) : null;
-    ok(prop?.statut === "prete" && prop.compteurs.total === 4, "proposition prête : brief (qui porte la clause de style), saison, 2 épisodes");
-    ok(prop?.compteurs.selectionnes === 4 && prop.groupes.map((g) => g.id).join() === "brief,saison,episodes", "créations cochées, groupes dans l'ordre, plus de groupe « projet »");
+    ok(prop?.statut === "prete" && prop.compteurs.total === 3, "proposition prête : brief (qui porte la clause de style), 2 épisodes");
+    ok(prop?.compteurs.selectionnes === 3 && prop.groupes.map((g) => g.id).join() === "brief,episodes", "créations cochées, groupes dans l'ordre, plus de groupe « projet »");
     const nb2 = await s.cocherChangements(gp.ok ? gp.propositionUuid : "", { groupe: "episodes" }, false);
     ok(nb2.ok && nb2.modifies === 2, "décocher un groupe entier");
     const ap1 = await s.appliquerSelection(gp.ok ? gp.propositionUuid : "");
-    ok(ap1.ok && ap1.statut === "partielle" && ap1.appliques === 2, "application partielle (2 appliqués, 2 écartés)");
-    const sais = await db.select().from(seasons).where(eq(seasons.projectId, p1!.id));
-    ok(sais.length === 1 && sais[0]!.titre === BRIEF.titre, "la saison existe");
-    ok((await db.select().from(episodes).where(eq(episodes.seasonId, sais[0]!.id))).length === 0, "les épisodes écartés n'existent pas");
+    ok(ap1.ok && ap1.statut === "partielle" && ap1.appliques === 1, "application partielle (1 appliqué, 2 écartés)");
+    ok((await db.select().from(episodes).where(eq(episodes.projectId, p1!.id))).length === 0, "les épisodes écartés n'existent pas");
     const [pr] = await db.select().from(projects).where(eq(projects.id, p1!.id));
     ok(pr!.clauseStyle.startsWith("Cinematic live-action"), "la clause de style du projet suit le brief appliqué");
     brief = await lireBrief(p1!.id);
@@ -291,13 +289,13 @@ async function main() {
     ok(!(await s.rejeterBrief(uuid)).ok, "un brief validé ne se rejette pas");
     ok(!(await s.genererBrief(uuid)).ok, "…ni ne se régénère par-dessus");
 
-    // régénérer : la saison existe, les épisodes manquent → application complète
+    // régénérer : le brief existe, les épisodes manquent → application complète
     const gp2 = await s.genererProposition(uuid);
     prop = gp2.ok ? await lireProposition(gp2.propositionUuid) : null;
-    ok(prop?.compteurs.total === 2 && prop.groupes.map((g) => g.id).join() === "episodes", "régénéré : seuls les épisodes manquent (saison et brief réutilisés)");
+    ok(prop?.compteurs.total === 2 && prop.groupes.map((g) => g.id).join() === "episodes", "régénéré : seuls les épisodes manquent (brief réutilisé)");
     const ap2 = await s.appliquerSelection(gp2.ok ? gp2.propositionUuid : "");
     ok(ap2.ok && ap2.statut === "appliquee", "application complète");
-    const eps = await db.select().from(episodes).where(eq(episodes.seasonId, sais[0]!.id)).orderBy(asc(episodes.numero));
+    const eps = await db.select().from(episodes).where(eq(episodes.projectId, p1!.id)).orderBy(asc(episodes.numero));
     ok(eps.length === 2 && eps[0]!.titre === "Le sel" && eps[1]!.numero === 2, "les deux épisodes sont créés, numérotés");
     ok((await listerPropositions(p1!.id)).length === 2, "l'historique liste les propositions");
 
@@ -473,12 +471,11 @@ async function main() {
 
     // ── F. Écrire les scénarios : un LOT, une sous-tâche par épisode ──
     console.log("\nF. Lot de scénarios d'épisodes (projet 3)");
-    const [p3] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_3", type: "serie" }).returning();
+    const [p3] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_3" }).returning();
     ids.push(p3!.id);
-    const [saisonF] = await db.insert(seasons).values({ projectId: p3!.id, numero: 1, titre: "Saison 1" }).returning();
     const epsF = await db
       .insert(episodes)
-      .values([1, 2, 3].map((n) => ({ seasonId: saisonF!.id, numero: n, titre: `Ep${n}`, resume: `Résumé ${n}` })))
+      .values([1, 2, 3].map((n) => ({ projectId: p3!.id, numero: n, titre: `Ep${n}`, resume: `Résumé ${n}` })))
       .returning();
     await db.insert(briefs).values({ projectId: p3!.id, statut: "valide", source: "conversation", contenu: BRIEF, statuts: {} });
     await db.insert(assets).values([
@@ -497,7 +494,7 @@ async function main() {
     const traiterProchain = async () => {
       const r = await prochainRun();
       if (!r) throw new Error("Aucune sous-tâche en attente.");
-      await traiterTacheLlm(r, { executer: faux, joignable: async () => true });
+      await traiterTacheLlm(r, { executer: faux });
       return (await db.select().from(agentRuns).where(eq(agentRuns.id, r.id)))[0]!;
     };
 
@@ -658,22 +655,17 @@ async function main() {
     await purgerAppelsLlm(limite);
     ok((await db.select().from(agentRuns).where(and(eq(agentRuns.propositionId, ouvertId), eq(agentRuns.statut, "echoue")))).length === 0, "…purgé une fois le lot clos");
 
-    // verrou de portée : un lot de saison ne sort pas de sa saison
-    const [saisonG] = await db.insert(seasons).values({ projectId: p3!.id, numero: 2, titre: "Saison 2" }).returning();
-    const [epG] = await db.insert(episodes).values({ seasonId: saisonG!.id, numero: 1, titre: "Autre saison", resume: "r" }).returning();
-    const convS = await s.ouvrirConversation(p3!.id, "saison", { id: saisonF!.id }, "courte");
+    // verrou de portée : un lot de scénarios se demande depuis le projet, pas depuis un épisode
+    const convS = await s.ouvrirConversation(p3!.id, "episode", { id: idsEps[0]! }, "courte");
     if (!convS.ok) throw new Error(convS.erreur);
-    ok(!(await s.genererScenarios(convS.conversationUuid, { episodeIds: [epG!.id] })).ok, "portée saison : un épisode d'une autre saison est refusé");
-    const gS = await s.genererScenarios(convS.conversationUuid, { episodeIds: [idsEps[0]!] });
-    await suspendre();
-    ok(gS.ok && gS.nbSousTaches === 1, "…un épisode de la saison est accepté");
+    ok(!(await s.genererScenarios(convS.conversationUuid, { episodeIds: [idsEps[0]!] })).ok, "portée épisode : écrire un lot de scénarios est refusé");
     ok(!(await s.genererScenarios(convF.conversationUuid, { episodeIds: [] })).ok || true, "(liste vide : « choisis ceux à réécrire » côté défaut)");
 
     // --- étape 2 : le registre d'assets depuis le brief (un lot, un appel `prompt-asset` par master) ---
     const cands = await s.candidatsDuProjet(p3!.id);
     ok(cands.map((c) => c.code).join() === "CHAR_iris,DEC_le_phare", "registre : les masters du brief (personnage, lieu)");
     ok(cands[0]!.existantId != null && cands[1]!.existantId == null && cands.every((c) => c.aTraiter), "…l'un existe déjà, l'autre est à créer ; tous deux sans prompt");
-    ok(!(await s.genererRegistre(convS.conversationUuid)).ok, "le registre se crée depuis le projet, pas depuis une saison");
+    ok(!(await s.genererRegistre(convS.conversationUuid)).ok, "le registre se crée depuis le projet, pas depuis un épisode");
     await s.reinitialiser(convF.conversationUuid);
     ok(!(await s.genererRegistre(convF.conversationUuid, { codes: ["CHAR_inconnu"] })).ok, "un asset que le brief ne décrit pas est refusé");
     const gReg = await s.genererRegistre(convF.conversationUuid);
@@ -705,7 +697,7 @@ async function main() {
 
     // --- inventaire des assets : entre le registre et les fiches (un appel pour tout le projet) ---
     console.log("\nInventaire des assets (inventaire-assets)");
-    ok(!(await s.genererInventaire(convS.conversationUuid)).ok, "l'inventaire se demande depuis le projet, pas depuis une saison");
+    ok(!(await s.genererInventaire(convS.conversationUuid)).ok, "l'inventaire se demande depuis le projet, pas depuis un épisode");
     const gInv = await s.genererInventaire(convF.conversationUuid);
     ok(gInv.ok, "inventaire : une proposition simple, un seul appel");
     if (!gInv.ok) throw new Error(gInv.erreur);
@@ -732,7 +724,7 @@ async function main() {
       for (;;) {
         const [r] = await db.select().from(agentRuns).where(and(eq(agentRuns.propositionId, pr!.id), eq(agentRuns.statut, "en_attente"))).orderBy(asc(agentRuns.id)).limit(1);
         if (!r) break;
-        await traiterTacheLlm(r, { executer: faux, joignable: async () => true });
+        await traiterTacheLlm(r, { executer: faux });
       }
     };
     const convE = await s.ouvrirConversation(p3!.id, "episode", { id: idsEps[0]! }, "courte");
@@ -835,7 +827,7 @@ async function main() {
       await suspendre();
       const [pr] = await db.select({ id: propositions.id }).from(propositions).where(eq(propositions.uuid, propositionUuid));
       const [r] = await db.select().from(agentRuns).where(and(eq(agentRuns.propositionId, pr!.id), eq(agentRuns.statut, "en_attente"))).orderBy(asc(agentRuns.id)).limit(1);
-      await traiterTacheLlm(r!, { executer: faux, joignable: async () => true, planche });
+      await traiterTacheLlm(r!, { executer: faux, planche });
       return (await db.select().from(agentRuns).where(eq(agentRuns.id, r!.id)))[0]!;
     };
 
@@ -910,7 +902,7 @@ async function main() {
 
     // ── L'installateur : tout le pipeline, d'une seule demande, sans validation intermédiaire ──
     console.log("\nInstallateur (création de bout en bout)");
-    const [pInst] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_4", type: "serie" }).returning();
+    const [pInst] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_4" }).returning();
     ids.push(pInst!.id);
     const oInst = await s.ouvrirConversation(pInst!.id, "projet", null);
     if (!oInst.ok) throw new Error(oInst.erreur);
@@ -930,7 +922,7 @@ async function main() {
         await piloterCreations({ essais: true });
         await suspendre4();
         const [r] = await db.select().from(agentRuns).where(and(eq(agentRuns.projectId, pInst!.id), eq(agentRuns.statut, "en_attente"))).orderBy(asc(agentRuns.createdAt), asc(agentRuns.id)).limit(1);
-        if (r) await traiterTacheLlm(r, { executer: faux, joignable: async () => true });
+        if (r) await traiterTacheLlm(r, { executer: faux });
         const c = await lireCreation(pInst!.id);
         if (c && c.statut !== "en_cours") return c;
       }
@@ -942,7 +934,7 @@ async function main() {
     ok(etapes4.every((e) => e.endsWith(":fait") || e.endsWith(":passe")), "toutes les étapes sont faites ou passées");
     const [b4] = await db.select().from(briefs).where(eq(briefs.projectId, pInst!.id));
     ok(b4?.statut === "valide", "le brief est validé (par l'application du squelette)");
-    const eps4 = await db.select().from(episodes).innerJoin(seasons, eq(seasons.id, episodes.seasonId)).where(eq(seasons.projectId, pInst!.id));
+    const eps4 = await db.select().from(episodes).where(eq(episodes.projectId, pInst!.id));
     const plans4 = await db.select().from(plans).where(eq(plans.projectId, pInst!.id));
     const assets4 = await db.select().from(assets).where(eq(assets.projectId, pInst!.id));
     ok(eps4.length === 2 && plans4.length > 0, "épisodes et plans créés sans une seule revue");
@@ -953,7 +945,7 @@ async function main() {
     ok(attente4.length === 0, "aucune proposition ne reste en attente de revue");
 
     // reprise : une étape en échec puis relancée ; arrêt
-    const [pInst2] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_5", type: "serie" }).returning();
+    const [pInst2] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_5" }).returning();
     ids.push(pInst2!.id);
     const oInst2 = await s.ouvrirConversation(pInst2!.id, "projet", null);
     if (!oInst2.ok) throw new Error(oInst2.erreur);

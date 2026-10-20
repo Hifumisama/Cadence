@@ -8,7 +8,6 @@ import {
   CLE_SESSION,
   DERNIERE_ETAPE,
   ETAPES_CONCEPTION,
-  SERIES_DISPONIBLES,
   etapeMax,
   etapeValide,
   etatInitial,
@@ -50,8 +49,7 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
   useEffect(() => {
     try {
       const sauve = lireEtatSauvegarde(window.sessionStorage.getItem(CLE_SESSION));
-      // Une session sauvegardée avant la désactivation des séries ne doit pas rouvrir ce choix.
-      if (sauve) setEtat(SERIES_DISPONIBLES || sauve.format !== "serie" ? sauve : { ...sauve, format: "film" });
+      if (sauve) setEtat(sauve);
     } catch {
       /* stockage indisponible (navigation privée…) : on part de zéro */
     }

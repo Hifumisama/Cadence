@@ -13,7 +13,7 @@ import type { BriefContenu, VueChangement } from "./types";
 const c = (o: Partial<CibleChangement> & Pick<CibleChangement, "type" | "operation">): CibleChangement => o;
 
 test("portée projet : tout est autorisé", () => {
-  for (const type of ["saison", "episode", "scene", "plan", "asset", "projet"] as const) {
+  for (const type of ["episode", "scene", "plan", "asset", "projet"] as const) {
     assert.equal(verifierPortee({ type: "projet", cibleId: null }, c({ type, operation: "creer" })), null, type);
   }
 });
@@ -23,7 +23,7 @@ test("portée épisode : son plan oui, un plan d'un autre épisode non", () => {
   assert.equal(verifierPortee(scope, c({ type: "plan", operation: "creer", episodeId: 7 })), null);
   assert.equal(verifierPortee(scope, c({ type: "plan", operation: "modifier", episodeId: 7, planId: 3 })), null);
   assert.match(verifierPortee(scope, c({ type: "plan", operation: "modifier", episodeId: 8, planId: 9 })) ?? "", /Hors portée/);
-  assert.match(verifierPortee(scope, c({ type: "episode", operation: "creer", saisonId: 1 })) ?? "", /Hors portée/);
+  assert.match(verifierPortee(scope, c({ type: "episode", operation: "creer" })) ?? "", /Hors portée/);
   assert.match(verifierPortee(scope, c({ type: "projet", operation: "modifier" })) ?? "", /Hors portée/);
 });
 
@@ -41,14 +41,7 @@ test("portée plan : ce plan seulement ; asset : peut être créé, jamais modif
 
 test("le brief est autorisé à toute portée ; un enfant d'une création de la même proposition hérite du verdict", () => {
   assert.equal(verifierPortee({ type: "plan", cibleId: 1 }, c({ type: "brief", operation: "modifier" })), null);
-  assert.equal(verifierPortee({ type: "saison", cibleId: 1 }, c({ type: "plan", operation: "creer", parentNouveau: true })), null);
-});
-
-test("portée saison : ses épisodes oui, une autre saison non", () => {
-  const scope = { type: "saison" as const, cibleId: 2 };
-  assert.equal(verifierPortee(scope, c({ type: "episode", operation: "creer", saisonId: 2 })), null);
-  assert.match(verifierPortee(scope, c({ type: "episode", operation: "creer", saisonId: 3 })) ?? "", /Hors portée/);
-  assert.match(verifierPortee(scope, c({ type: "saison", operation: "creer" })) ?? "", /Hors portée/);
+  assert.equal(verifierPortee({ type: "episode", cibleId: 1 }, c({ type: "plan", operation: "creer", parentNouveau: true })), null);
 });
 
 // --- cochage ----------------------------------------------------------------
@@ -165,28 +158,25 @@ test("diff de brief : seules les sections modifiées, insensible à l'ordre des 
 
 // --- squelette --------------------------------------------------------------
 
-const etatVide = { saisons: [], episodes: [], briefValide: null };
+const etatVide = { episodes: [], briefValide: null };
 
-test("squelette d'un projet vide : brief (qui porte la clause de style), saison 1, un épisode par entrée du brief", () => {
+test("squelette d'un projet vide : brief (qui porte la clause de style), un épisode par entrée du brief", () => {
   const s = squeletteDepuisBrief(brief, { arc: "deduit" }, etatVide);
-  assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["brief:creer", "saison:creer", "episode:creer", "episode:creer"]);
+  assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["brief:creer", "episode:creer", "episode:creer"]);
   assert.ok(!s.some((x) => x.cibleType === "projet"), "plus de changement « projet » : la clause de style suit le brief");
   assert.equal(s[0]!.cibleRef, "*");
   const ep = s.filter((x) => x.cibleType === "episode");
   assert.deepEqual(ep.map((x) => x.cle), ["episode-1", "episode-2"]);
-  assert.equal((ep[0]!.apres as { saisonCle: string }).saisonCle, "saison-1");
   assert.match(ep[1]!.libelle, /Épisode 2/);
 });
 
-test("squelette idempotent : saison existante réutilisée, épisode du même titre non recréé, brief valide comparé", () => {
+test("squelette idempotent : épisode du même titre non recréé, brief valide comparé", () => {
   const etat = {
-    saisons: [{ id: 3, numero: 1, titre: "S1" }],
-    episodes: [{ id: 9, seasonId: 3, numero: 1, titre: "le sel", resume: "" }],
+    episodes: [{ id: 9, numero: 1, titre: "le sel", resume: "" }],
     briefValide: brief,
   };
   const s = squeletteDepuisBrief(brief, {}, etat);
   assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["episode:creer"], "rien d'autre : tout est déjà là");
-  assert.equal((s[0]!.apres as { saisonId: number }).saisonId, 3);
   assert.match(s[0]!.libelle, /Épisode 2/, "la numérotation continue après l'existant");
   const change = squeletteDepuisBrief(avecSection(brief, "dureeEpisodeSecondes", 120), {}, etat);
   assert.ok(change.some((x) => x.cibleType === "brief" && x.cibleRef === "dureeEpisodeSecondes" && x.operation === "modifier"));
@@ -244,10 +234,9 @@ test("plan à insérer et correction d'un plan : un seul changement, à la bonne
   assert.deepEqual(depuisPlanAInserer({ ...scenario, scenes: [] }, { episodeId: 1, position: { fin: true }, sceneId: null }), []);
 });
 
-test("squelette d'un OneShot : l'épisode technique vide est réutilisé, pas doublé", () => {
+test("squelette d'un film : l'épisode vide est réutilisé, pas doublé", () => {
   const etat = {
-    saisons: [{ id: 1, numero: 1, titre: "OneShot" }],
-    episodes: [{ id: 5, seasonId: 1, numero: 1, titre: "Sans titre", resume: "", vide: true }],
+    episodes: [{ id: 5, numero: 1, titre: "Sans titre", resume: "", vide: true }],
     briefValide: null,
   };
   const s = squeletteDepuisBrief({ ...brief, episodes: [brief.episodes[0]!] }, {}, etat);
@@ -255,7 +244,6 @@ test("squelette d'un OneShot : l'épisode technique vide est réutilisé, pas do
   assert.equal(eps.length, 1);
   assert.equal(eps[0]!.operation, "modifier");
   assert.equal(eps[0]!.cibleRef, "5");
-  assert.equal(s.some((x) => x.cibleType === "saison"), false, "la saison existante est réutilisée");
   // Deux épisodes au brief : le premier réutilise l'épisode vide, le second est créé.
   const deux = squeletteDepuisBrief(brief, {}, etat).filter((x) => x.cibleType === "episode");
   assert.deepEqual(deux.map((x) => x.operation), ["modifier", "creer"]);

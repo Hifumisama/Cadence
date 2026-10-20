@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { assets, episodes, projects, seasons } from "../../db/schema";
+import { assets, episodes, projects } from "../../db/schema";
 import { cibleDeCodeAffiche, personnagePrincipal, titreDansPrompt, type CibleAffiche } from "../affiches";
 import { horsAffiches } from "../assets-visibles";
 import { VARIANTE_AFFICHE } from "../llm/variantes";
@@ -8,7 +8,7 @@ import type { Db } from "./applicateurs/commun";
 import { extraitsBrief, lireBriefDuProjet, type EntreeSkill } from "./contexte";
 
 /** Ce qu'une affiche habille, résolu une fois : le projet concerné, le titre à citer et ce qui nourrit le prompt (résumé,
- * genre et ton). Le brief fait foi pour un projet ou une saison ; un épisode a son propre résumé. */
+ * genre et ton). Le brief fait foi pour un projet ; un épisode a son propre résumé. */
 export type ContexteAffiche = { projectId: number; titre: string; resume: string | null; genreTon: string | null };
 
 export async function resoudreAffiche(db: Db, cible: CibleAffiche, id: number): Promise<ContexteAffiche | null> {
@@ -17,35 +17,20 @@ export async function resoudreAffiche(db: Db, cible: CibleAffiche, id: number): 
     if (!projet) return null;
     const brief = await briefUtilisable(db, projet.id);
     let resume = brief?.arc || null;
-    // Un OneShot n'a que son épisode technique : son résumé vaut pour le film entier.
-    if (!resume && projet.type === "oneshot") {
-      const [ep] = await db
-        .select({ resume: episodes.resume })
-        .from(episodes)
-        .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-        .where(eq(seasons.projectId, projet.id))
-        .limit(1);
+    // Un film n'a que son épisode unique : son résumé vaut pour le film entier.
+    if (!resume) {
+      const [ep] = await db.select({ resume: episodes.resume }).from(episodes).where(eq(episodes.projectId, projet.id)).orderBy(episodes.numero).limit(1);
       resume = ep?.resume?.trim() || null;
     }
     return { projectId: projet.id, titre: projet.nom, resume, genreTon: brief?.genreTon ?? null };
   }
-  if (cible === "seasons") {
-    const [ligne] = await db.select({ titre: seasons.titre, projectId: seasons.projectId }).from(seasons).where(eq(seasons.id, id));
-    if (!ligne) return null;
-    const brief = await briefUtilisable(db, ligne.projectId);
-    return { projectId: ligne.projectId, titre: ligne.titre, resume: brief?.arc || null, genreTon: brief?.genreTon ?? null };
-  }
-  const [ligne] = await db
-    .select({ episode: episodes, projectId: seasons.projectId })
-    .from(episodes)
-    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-    .where(eq(episodes.id, id));
-  if (!ligne) return null;
-  const brief = await briefUtilisable(db, ligne.projectId);
+  const [episode] = await db.select().from(episodes).where(eq(episodes.id, id));
+  if (!episode) return null;
+  const brief = await briefUtilisable(db, episode.projectId);
   return {
-    projectId: ligne.projectId,
-    titre: ligne.episode.titre,
-    resume: ligne.episode.resume?.trim() || brief?.arc || null,
+    projectId: episode.projectId,
+    titre: episode.titre,
+    resume: episode.resume?.trim() || brief?.arc || null,
     genreTon: brief?.genreTon ?? null,
   };
 }
@@ -74,7 +59,7 @@ export async function lirePersonnagePrincipal(db: Db, projectId: number) {
   return choix ? { ...choix.asset, nom: choix.nom ?? choix.asset.code } : null;
 }
 
-/** L'entrée du skill `prompt-asset`, variante `affiche`, pour l'asset d'affiche d'un projet, d'une saison ou d'un épisode : titre,
+/** L'entrée du skill `prompt-asset`, variante `affiche`, pour l'asset d'affiche d'un projet ou d'un épisode : titre,
  * résumé, ton, personnage principal (et si son image existe : elle sert de première source), clause de style en information. */
 export async function entreePromptAffiche(db: Db, projectId: number, assetId: number, consigne: string, retour?: string): Promise<EntreeSkill | null> {
   const [asset] = await db.select().from(assets).where(and(eq(assets.id, assetId), eq(assets.projectId, projectId)));
@@ -97,7 +82,7 @@ export async function entreePromptAffiche(db: Db, projectId: number, assetId: nu
       ...contexte,
     ],
     entree: {
-      cible: cible.cible === "projects" ? "projet" : cible.cible === "seasons" ? "saison" : "episode",
+      cible: cible.cible === "projects" ? "projet" : "episode",
       titre: contexteAffiche.titre,
       resume: contexteAffiche.resume ?? "",
       genreTon: contexteAffiche.genreTon ?? "",

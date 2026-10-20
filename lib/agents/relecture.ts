@@ -3,17 +3,17 @@ import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
 import { estLiaison } from "../plan-liaison";
 import type { ChangementBrut } from "./changements";
 import { ECART_DUREE_TOLERE } from "./conversion";
-import { validerOperations } from "./revision/operations";
-import { operationsVersChangements } from "./revision/operations-vers-changements";
-import type { Operation, OperationBrute } from "./revision/types";
-import { numeroDePoignee, planParUuid, type VueEpisode } from "./revision/vue-episode";
+import { validerOperations } from "./vue-operations/operations";
+import { operationsVersChangements } from "./vue-operations/operations-vers-changements";
+import type { Operation, OperationBrute } from "./vue-operations/types";
+import { numeroDePoignee, planParUuid, type VueEpisode } from "./vue-operations/vue-episode";
 import type { Avertissement } from "./types";
 
 /** RELECTURE DU SCÉNARIO (skill `relecture-scenario`, FRICTIONS 2026-10-19) : une passe du modèle qui réfléchit sur le scénario d'un épisode
  * ÉCRIT (intentions et « État en fin de plan »), avant les fiches de plan. Elle ne réécrit pas l'épisode : elle rend les PLUS PETITES corrections
  * (modifier la description ou la liaison d'un plan, changer une durée, supprimer un doublon, ajouter une résolution), citées par poignée (« P07 »,
  * un rang à l'instant de la lecture, jamais stocké : F03), que le code traduit en uuid puis en changements pour les applicateurs existants du
- * plan (les mêmes que le réalisateur d'épisode). Tout ce qui se vérifie par code se vérifie ici ; le jugement (est-ce physiquement possible ?) est
+ * plan. Tout ce qui se vérifie par code se vérifie ici ; le jugement (est-ce physiquement possible ?) est
  * au modèle. Pur, testé. */
 
 export const CRITERES_RELECTURE = [

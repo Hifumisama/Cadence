@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-orm";
-import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes, seasons } from "../../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes } from "../../db/schema";
 import { horsAffiches } from "../assets-visibles";
 import { variantePromptAsset } from "../llm/variantes";
 import { genreOuNull, variantePlanH3 } from "../scene-genres";
@@ -167,20 +167,19 @@ async function plansDe(db: Db, episodeId: number): Promise<PlanLu[]> {
 
 async function contexteEpisode(db: Db, projectId: number, episodeId: number) {
   const [ep] = await db
-    .select({ id: episodes.id, titre: episodes.titre, resume: episodes.resume, numero: episodes.numero, seasonId: episodes.seasonId })
+    .select({ id: episodes.id, titre: episodes.titre, resume: episodes.resume, numero: episodes.numero })
     .from(episodes)
-    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-    .where(and(eq(episodes.id, episodeId), eq(seasons.projectId, projectId)));
+    .where(and(eq(episodes.id, episodeId), eq(episodes.projectId, projectId)));
   if (!ep) return null;
   const precedents = await db
     .select({ titre: episodes.titre, resume: episodes.resume })
     .from(episodes)
-    .where(and(eq(episodes.seasonId, ep.seasonId), lt(episodes.numero, ep.numero)))
+    .where(and(eq(episodes.projectId, projectId), lt(episodes.numero, ep.numero)))
     .orderBy(asc(episodes.numero));
   const suivants = await db
     .select({ titre: episodes.titre, resume: episodes.resume })
     .from(episodes)
-    .where(and(eq(episodes.seasonId, ep.seasonId), gt(episodes.numero, ep.numero)))
+    .where(and(eq(episodes.projectId, projectId), gt(episodes.numero, ep.numero)))
     .orderBy(asc(episodes.numero));
   const lesScenes = await db.select({ id: scenes.id, titre: scenes.titre, fonction: scenes.fonction, genre: scenes.genre, ambiance: scenes.ambiance }).from(scenes).where(eq(scenes.episodeId, ep.id)).orderBy(asc(scenes.ordre));
   const lesPlans = await plansDe(db, ep.id);
@@ -720,11 +719,10 @@ export async function apercuContexteDe(db: Db, projectId: number, portee: string
  * `null` si le projet n'a aucun plan écrit. */
 export async function entreeInventaire(db: Db, projectId: number, consigne: string, retour?: string): Promise<(EntreeSkill & { nbPlans: number }) | null> {
   const eps = await db
-    .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre, resume: episodes.resume, saison: seasons.numero })
+    .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre, resume: episodes.resume })
     .from(episodes)
-    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-    .where(eq(seasons.projectId, projectId))
-    .orderBy(asc(seasons.numero), asc(episodes.numero));
+    .where(eq(episodes.projectId, projectId))
+    .orderBy(asc(episodes.numero));
   if (eps.length === 0) return null;
   const ids = eps.map((e) => e.id);
   const lesScenes = await db.select({ id: scenes.id, episodeId: scenes.episodeId, titre: scenes.titre, fonction: scenes.fonction }).from(scenes).where(inArray(scenes.episodeId, ids)).orderBy(asc(scenes.ordre), asc(scenes.id));

@@ -41,14 +41,6 @@ export async function lireConversationVue(conversationUuid: string): Promise<Vue
   return lireConversation(conversationUuid);
 }
 
-export async function trouverConversationVue(
-  projectId: number,
-  portee: Portee,
-  cible: CibleDemandee | null,
-): Promise<VueConversation | null> {
-  return trouverConversation(projectId, portee, cible);
-}
-
 export async function lireBriefVue(projectId: number): Promise<VueBrief | null> {
   return lireBrief(projectId);
 }
@@ -74,9 +66,9 @@ export async function estimerGenerationVue(conversationUuid: string): Promise<Es
 }
 
 /** Les épisodes proposables à l'écriture de leur scénario (le sélecteur du lot) : tout le projet,
- * ou une saison. `vide` = rien d'écrit : ceux-là sont cochés d'office. */
-export async function listerEpisodesPourScenariosVue(projectId: number, saisonId: number | null): Promise<EpisodePourScenario[]> {
-  return episodesPourScenarios(projectId, saisonId);
+ * `vide` = rien d'écrit : ceux-là sont cochés d'office. */
+export async function listerEpisodesPourScenariosVue(projectId: number): Promise<EpisodePourScenario[]> {
+  return episodesPourScenarios(projectId);
 }
 
 /** Les masters que décrit le brief (personnages, lieux) avec ce qui existe déjà dans le registre :
@@ -104,7 +96,7 @@ export async function listerPlansEpisode(episodeId: number): Promise<{ uuid: str
   return lignes.map((p, i) => ({ uuid: p.uuid, titre: p.titre, rang: i + 1 }));
 }
 
-/** Les plans d'une portée (projet, saison, épisode, un plan) proposables à l'écriture de leur fiche : le
+/** Les plans d'une portée (projet, épisode, un plan) proposables à l'écriture de leur fiche : le
  * sélecteur du lot « fiches de plan ». `aDesSections` = déjà écrit : décoché d'office (écrasement). */
 export async function listerPlansPourFichesVue(projectId: number, portee: Portee, cibleId: number | null): Promise<PlanPourFiche[]> {
   return plansPourFiches(projectId, portee, cibleId);

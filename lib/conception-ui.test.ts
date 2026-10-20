@@ -23,7 +23,7 @@ const aucun = () => false;
 
 test("état de départ : film, français, 2 min, rythme mesuré, rien choisi", () => {
   const e = etatInitial();
-  assert.deepEqual([e.format, e.langue, e.duree, e.rythme, e.genres.length, e.style], ["film", "Français", 120, "mesure", 0, null]);
+  assert.deepEqual([e.langue, e.duree, e.rythme, e.genres.length, e.style], ["Français", 120, "mesure", 0, null]);
   assert.equal(e.ton, 50);
 });
 
@@ -75,7 +75,7 @@ test("résumés du ruban : vides tant que rien n'est choisi, sauf la durée et l
   let e = etatInitial();
   const nom = (id: string) => (id === "g" ? "Gouache" : null);
   assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Film IA", "", minutesSecondes(e.duree), "Français", ""]);
-  e = { ...basculerGenre(etatInitial(), "Drame"), format: "serie", dureeChoisie: true, duree: 150, langueChoisie: true, langue: SANS_DIALOGUE, style: { source: "bibliotheque", styleId: "g" } };
+  e = { ...basculerGenre(etatInitial(), "Drame"), dureeChoisie: true, duree: 150, langueChoisie: true, langue: SANS_DIALOGUE, style: { source: "bibliotheque", styleId: "g" } };
   assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Film IA", "Drame · grave", "2 min 30", SANS_DIALOGUE, "Gouache"]);
   assert.equal(resumeEtape(4, { ...e, style: { source: "libre", nom: " ", promptImage: "a", clause: "b" } }, nom), "Style libre");
   assert.equal(minutesSecondes(45), "45 s");
@@ -87,25 +87,22 @@ test("teinte d'ambiance : or par défaut, moyenne des genres sinon", () => {
   assert.equal(teinteAmbiance(["Comédie"]), GENRES.find((g) => g.nom === "Comédie")!.teinte);
 });
 
-test("charge utile : acceptée par la validation du serveur, film sans épisodes prévus, série avec", () => {
+test("charge utile : acceptée par la validation du serveur", () => {
   const base: EtatAssistant = { ...basculerGenre(etatInitial(), "Drame"), style: { source: "bibliotheque", styleId: "gouache" } };
   const biblio = [{ id: "gouache" }];
   const film = validerConception(versCharge(base), biblio);
   assert.ok(film.ok, film.ok ? "" : film.erreurs.join(" "));
-  assert.equal(film.ok && film.valeur.episodesPrevus, undefined);
-  const serie = validerConception(versCharge({ ...base, format: "serie", episodes: 8 }), biblio);
-  assert.ok(serie.ok && serie.valeur.episodesPrevus === 8);
   assert.ok(!validerConception(versCharge({ ...base, genres: [] }), biblio).ok);
 });
 
 test("sauvegarde en session : aller-retour, et toute valeur inattendue retombe sur le départ", () => {
-  const e: EtatAssistant = { ...basculerGenre(etatInitial(), "Horreur"), format: "serie", episodes: 12, dureeChoisie: true, duree: 300, rythme: "rapide", style: { source: "libre", nom: "Mien", promptImage: "p", clause: "c", image: "libres/x.webp" } };
+  const e: EtatAssistant = { ...basculerGenre(etatInitial(), "Horreur"), dureeChoisie: true, duree: 300, rythme: "rapide", style: { source: "libre", nom: "Mien", promptImage: "p", clause: "c", image: "libres/x.webp" } };
   assert.deepEqual(lireEtatSauvegarde(JSON.stringify(e)), e);
   assert.equal(lireEtatSauvegarde(null), null);
   assert.equal(lireEtatSauvegarde("pas du json"), null);
   assert.equal(lireEtatSauvegarde("[1]"), null);
-  const abime = lireEtatSauvegarde(JSON.stringify({ format: "court", episodes: 999, genres: ["Inconnu", "Drame", "Action", "Western"], duree: 5, rythme: "x", langue: "Klingon", ton: 12, tonAjuste: false, style: { source: "?" } }))!;
-  assert.deepEqual([abime.format, abime.episodes, abime.duree, abime.rythme, abime.langue, abime.style], ["film", 6, 120, "mesure", "Français", null]);
+  const abime = lireEtatSauvegarde(JSON.stringify({ genres: ["Inconnu", "Drame", "Action", "Western"], duree: 5, rythme: "x", langue: "Klingon", ton: 12, tonAjuste: false, style: { source: "?" } }))!;
+  assert.deepEqual([abime.duree, abime.rythme, abime.langue, abime.style], [120, "mesure", "Français", null]);
   assert.deepEqual(abime.genres, ["Drame", "Action"], "genres inconnus retirés, deux au maximum");
   assert.equal(abime.ton, 68, "ton non ajusté : recalculé depuis les genres");
 });

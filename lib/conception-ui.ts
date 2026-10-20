@@ -2,8 +2,6 @@ import {
   DUREE_MAX_SECONDES,
   DUREE_MIN_SECONDES,
   DUREE_PAR_DEFAUT_SECONDES,
-  EPISODES_MAX,
-  EPISODES_MIN,
   GENRES,
   GENRES_MAX,
   LANGUES_DIALOGUES,
@@ -13,7 +11,6 @@ import {
   TON_PAR_DEFAUT,
   motDuTon,
   tonDepuisGenres,
-  type FormatProjet,
 } from "./conception";
 import { RYTHMES_BRIEF, type RythmeBrief } from "./agents/types";
 
@@ -26,8 +23,6 @@ export type StyleChoisi =
   | { source: "libre"; nom: string; promptImage: string; clause: string; image?: string };
 
 export type EtatAssistant = {
-  format: FormatProjet;
-  episodes: number;
   genres: string[];
   /** Ton affiché : suit les genres tant que `tonAjuste` est faux. */
   ton: number;
@@ -42,17 +37,12 @@ export type EtatAssistant = {
 
 export const ETAPES_ASSISTANT = ["Accueil", "Genre & ton", "Durée", "Langue", "Style"] as const;
 export const DERNIERE_ETAPE = ETAPES_ASSISTANT.length - 1;
-/** Les séries sont désactivées pour l'instant (« coming soon ») : la fonctionnalité reste dans le code (format, épisodes prévus, création),
- * seul le choix est grisé à l'écran. Repasser à `true` pour la rouvrir. */
-export const SERIES_DISPONIBLES = false;
 /** La pellicule entière, visible dès la page de départ : les cinq choix, puis ce qui suit la création du projet. */
 export const ETAPES_CONCEPTION = [...ETAPES_ASSISTANT, "Scénario", "Clap", "Avancée"] as const;
 export const CLE_SESSION = "cadence.conception.v1";
 
 export function etatInitial(): EtatAssistant {
   return {
-    format: "film",
-    episodes: 6,
     genres: [],
     ton: TON_PAR_DEFAUT,
     tonAjuste: false,
@@ -135,8 +125,6 @@ export function teinteAmbiance(genres: readonly string[]): number {
 /** La charge utile envoyée à `creerProjetConcu` (le serveur la revalide entièrement). */
 export function versCharge(etat: EtatAssistant): Record<string, unknown> {
   return {
-    format: etat.format,
-    ...(etat.format === "serie" ? { episodesPrevus: etat.episodes } : {}),
     genres: etat.genres,
     ton: etat.ton,
     tonAjuste: etat.tonAjuste,
@@ -181,8 +169,6 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
   }
   const langue = typeof o.langue === "string" && (o.langue === SANS_DIALOGUE || (LANGUES_DIALOGUES as readonly string[]).includes(o.langue)) ? o.langue : depart.langue;
   return {
-    format: o.format === "serie" ? "serie" : "film",
-    episodes: entier(o.episodes, EPISODES_MIN, EPISODES_MAX, depart.episodes),
     genres,
     ton: tonAjuste ? entier(o.ton, 0, 100, depart.ton) : tonDepuisGenres(genres),
     tonAjuste,

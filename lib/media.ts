@@ -37,18 +37,6 @@ export function estVideo(chemin: string): boolean {
   return EXT_VIDEO.includes(extension(chemin));
 }
 
-/** Durée MESURÉE d'un fichier audio du stockage (chemin relatif à MEDIA_ROOT : WAV, FLAC, MP3), ou null s'il est illisible ou d'un
- * format non mesurable (jamais estimée). Côté serveur uniquement (accès disque). */
-export function dureeAudioMedia(relatif: string): number | null {
-  try {
-    const chemin = resolve(MEDIA_ROOT, relatif);
-    if (!chemin.startsWith(MEDIA_ROOT)) return null; // jamais hors du stockage
-    return mesurerDureeAudio(new Uint8Array(readFileSync(chemin)), relatif);
-  } catch {
-    return null;
-  }
-}
-
 /** Convention de rangement des fichiers d'assets sur le stockage média,
  * symétrique à `plans/<id>/...` pour les rendus vidéo — voir
  * app/api/media/[...path]/route.ts. Le registre ne stocke que le nom de
@@ -89,12 +77,12 @@ export function cheminPlanMedia(planId: number, fichier: string): string {
   return `plans/${planId}/${fichier}`;
 }
 
-export type PosterCible = "projects" | "seasons" | "episodes";
+export type PosterCible = "projects" | "episodes";
 
-/** Convention de rangement des posters (projet/saison/épisode) — même
+/** Convention de rangement des posters (projet/épisode) — même
  * logique que cheminAssetMedia, un dossier par type d'entité plutôt qu'un
  * seul fourre-tout, puisque l'id seul ne suffirait pas à distinguer un
- * poster de projet d'un poster de saison portant le même id. */
+ * poster de projet d'un poster d'épisode portant le même id. */
 export function cheminPosterMedia(cible: PosterCible, id: number, fichier: string): string {
   return `${cible}/${id}/${fichier}`;
 }

@@ -303,11 +303,10 @@ test("ordre d'application : un dérivé passe après son parent créé plus loin
   assert.deepEqual(ordonnerParDependances([{ cle: "x", apres: { deriveDeCle: "absent" } }]).map((x) => x.cle), ["x"], "parent hors proposition : ordre inchangé");
 });
 
-test("portée d'une fiche : son plan, son épisode, sa saison, le projet ; jamais une création", () => {
-  const c = { type: "fiche" as const, operation: "modifier" as const, planId: 5, episodeId: 7, saisonId: 2 };
+test("portée d'une fiche : son plan, son épisode, le projet ; jamais une création", () => {
+  const c = { type: "fiche" as const, operation: "modifier" as const, planId: 5, episodeId: 7 };
   assert.equal(verifierPortee({ type: "plan", cibleId: 5 }, c), null);
   assert.equal(verifierPortee({ type: "episode", cibleId: 7 }, c), null);
-  assert.equal(verifierPortee({ type: "saison", cibleId: 2 }, c), null);
   assert.equal(verifierPortee({ type: "projet", cibleId: null }, c), null);
   assert.match(verifierPortee({ type: "plan", cibleId: 6 }, c) ?? "", /Hors portée/);
   assert.match(verifierPortee({ type: "episode", cibleId: 8 }, c) ?? "", /Hors portée/);

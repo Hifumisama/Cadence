@@ -1,4 +1,4 @@
-import { getEpisodeWithSeason, getProject, getScenarioData } from "@/lib/queries";
+import { getEpisode, getProject, getScenarioData } from "@/lib/queries";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
@@ -23,12 +23,12 @@ export default async function ScenarioPage({
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, episodeInfo, { scenes, sansScene }] = await Promise.all([
+  const [projet, episode, { scenes, sansScene }] = await Promise.all([
     getProject(pid),
-    getEpisodeWithSeason(eid),
+    getEpisode(eid),
     getScenarioData(eid),
   ]);
-  if (!projet || !episodeInfo) notFound();
+  if (!projet || !episode || episode.projectId !== pid) notFound();
 
   const tousLesPlans = [...scenes.flatMap((sc) => sc.plans), ...sansScene];
 
@@ -60,13 +60,6 @@ export default async function ScenarioPage({
         />
         <NouveauSceneForm episodeId={eid} />
         {scenes.length > 0 ? <ControleAccordeon /> : null}
-        <Link
-          href={`/p/${pid}/realisateur/${eid}`}
-          className="btn btn-ghost"
-          title="Le réalisateur repasse sur tout l'épisode : couper, déplacer, réécrire une scène. Chaque décision est une itération."
-        >
-          Réalisateur
-        </Link>
       </div>
 
       {groupes.map((g, idx) => (

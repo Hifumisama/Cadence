@@ -1,5 +1,5 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
-import { episodes, jobs, planPromptSections, planRefs, plans, scenes, seasons } from "../../../db/schema";
+import { episodes, jobs, planPromptSections, planRefs, plans, scenes } from "../../../db/schema";
 import { recomposerOrdre } from "../../ordre-plans";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
 import { estLiaison, liaisonOuDefaut } from "../../plan-liaison";
@@ -35,10 +35,9 @@ export function controleDuree(duree: unknown): Avertissement | null {
 
 async function episodeDuProjet(db: Db, projectId: number, episodeId: number) {
   const [e] = await db
-    .select({ id: episodes.id, seasonId: episodes.seasonId })
+    .select({ id: episodes.id })
     .from(episodes)
-    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-    .where(and(eq(episodes.id, episodeId), eq(seasons.projectId, projectId)));
+    .where(and(eq(episodes.id, episodeId), eq(episodes.projectId, projectId)));
   return e ?? null;
 }
 
@@ -53,9 +52,8 @@ async function plansDeEpisode(db: Db, episodeId: number) {
 async function planParUuid(db: Db, projectId: number, uuid: string | null) {
   if (!uuid) return null;
   const [p] = await db
-    .select({ id: plans.id, episodeId: plans.episodeId, statut: plans.statut, titre: plans.titre, description: plans.description, liaison: plans.liaison, duree: plans.dureeGenerationSecondes, seasonId: episodes.seasonId })
+    .select({ id: plans.id, episodeId: plans.episodeId, statut: plans.statut, titre: plans.titre, description: plans.description, liaison: plans.liaison, duree: plans.dureeGenerationSecondes })
     .from(plans)
-    .innerJoin(episodes, eq(episodes.id, plans.episodeId))
     .where(and(eq(plans.uuid, uuid), eq(plans.projectId, projectId)));
   return p ?? null;
 }
@@ -86,10 +84,10 @@ export const applicateurPlan: Applicateur = {
       if (p.nouveau) return { type: "plan", operation: "creer", episodeId: p.id, parentNouveau: true };
       if (p.id == null) return "Épisode du plan inconnu.";
       const e = await episodeDuProjet(db, ctx.projectId, p.id);
-      return e ? { type: "plan", operation: "creer", episodeId: e.id, saisonId: e.seasonId } : "Épisode introuvable dans ce projet.";
+      return e ? { type: "plan", operation: "creer", episodeId: e.id } : "Épisode introuvable dans ce projet.";
     }
     const plan = await planParUuid(db, ctx.projectId, ch.cibleRef);
-    return plan ? { type: "plan", operation: ch.operation, planId: plan.id, episodeId: plan.episodeId, saisonId: plan.seasonId } : "Plan introuvable dans ce projet.";
+    return plan ? { type: "plan", operation: ch.operation, planId: plan.id, episodeId: plan.episodeId } : "Plan introuvable dans ce projet.";
   },
 
   async previsualiser(db, ctx, ch) {

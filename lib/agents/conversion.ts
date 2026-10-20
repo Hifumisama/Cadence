@@ -651,7 +651,7 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   ];
 }
 
-// --- prompt-asset, variante affiche (affiche de présentation d'un projet, d'une saison ou d'un épisode) ---------------
+// --- prompt-asset, variante affiche (affiche de présentation d'un projet ou d'un épisode) ---------------
 
 /** Même sortie que `SortiePromptAsset` (`remarques` en `{type, message}`) ; une remarque en simple chaîne (ancien format) reste lue. */
 export type SortiePromptAffiche = {

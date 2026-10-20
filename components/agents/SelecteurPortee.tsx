@@ -8,7 +8,7 @@ import { porteesDepuisChemin } from "@/lib/agents/page-agent";
 import type { Portee } from "@/lib/agents/types";
 import type { ResumeConversation } from "@/lib/queries-agents";
 
-const LIBELLE_PORTEE: Record<Portee, string> = { projet: "Projet", saison: "Saison", episode: "Épisode", plan: "Plan", asset: "Asset" };
+const LIBELLE_PORTEE: Record<Portee, string> = { projet: "Projet", episode: "Épisode", plan: "Plan", asset: "Asset" };
 
 /** Sous l'en-tête de la fenêtre de l'agent : la PORTÉE courante (déduite de la page : la plus petite), avec de quoi l'ÉLARGIR
  * d'un clic (le plan → son épisode → le projet), et la trace des AUTRES conversations du projet (ce qui a déjà été demandé),

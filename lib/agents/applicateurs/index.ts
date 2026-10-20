@@ -4,14 +4,13 @@ import { applicateurBrief } from "./brief";
 import { applicateurFiche } from "./fiche";
 import { applicateurPlan } from "./plan";
 import type { Applicateur } from "./commun";
-import { applicateurEpisode, applicateurProjet, applicateurSaison, applicateurScene } from "./structure";
+import { applicateurEpisode, applicateurProjet, applicateurScene } from "./structure";
 
 /** Registre des applicateurs par type de cible. Une cible sans applicateur n'est PAS
  * écrite en silence : `refusSansApplicateur` produit un refus explicite. */
 const REGISTRE: Partial<Record<CibleType, Applicateur>> = {
   brief: applicateurBrief,
   projet: applicateurProjet,
-  saison: applicateurSaison,
   episode: applicateurEpisode,
   scene: applicateurScene,
   asset: applicateurAsset,

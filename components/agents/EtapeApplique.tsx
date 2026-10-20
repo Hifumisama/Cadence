@@ -72,7 +72,7 @@ export function EtapeApplique({ ctx, onFermer }: { ctx: ContexteEtape; onFermer:
           ) : continuerRegistre ? (
             <ChoixAssets ctx={ctx} titre="Continuer : créer le registre d'assets" />
           ) : (
-            <ChoixEpisodes ctx={ctx} saisonId={null} titre="Continuer : écrire les scénarios des épisodes" />
+            <ChoixEpisodes ctx={ctx} titre="Continuer : écrire les scénarios des épisodes" />
           )}
         </div>
       ) : null}

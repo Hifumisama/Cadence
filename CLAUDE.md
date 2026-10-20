@@ -16,11 +16,10 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
   `workflows/README.md` avant d'en committer un nouveau.
 
 - `docs/00_BIBLE.md` — univers, personnages, style visuel, règles du monde
-- `docs/FRICTIONS.md` — **source de vérité de toutes les décisions
-  d'architecture déjà prises**. Avant de proposer une évolution structurelle
-  (schéma de données, convention de nommage, règle métier), vérifier qu'elle
-  n'a pas déjà été tranchée ici — et si elle contredit une décision actée,
-  le signaler explicitement plutôt que de trancher en silence.
+- **Décisions d'architecture** : `docs/FRICTIONS.md` (journal daté de toutes les décisions) a été retiré le 2026-10-20 ;
+  il reste dans l'historique git (`git log -- docs/FRICTIONS.md`). Les règles en vigueur sont résumées ci-dessous ; les
+  renvois « FRICTIONS, date » des commentaires et des docs sont des repères historiques. Avant une évolution structurelle
+  qui contredirait une règle ci-dessous, le signaler explicitement plutôt que de trancher en silence.
 - `docs/CAHIER_DES_CHARGES.md` — spec de l'interface (pages, modèle de
   données, phasage)
 - `docs/CONCEPTION_AGENTS.md` — conception des agents de
@@ -41,7 +40,7 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
   l'épisode 1
 - `docs/FICHE_DE_PLAN_UTILITAIRES.md` — plans hors récit (tests voix, etc.)
 
-## Règles non négociables (résumé — le détail est dans FRICTIONS.md)
+## Règles non négociables
 
 - **Plus de numéro de plan** (F03, révisions 2026-09-28 puis 2026-09-29) : un
   plan s'identifie par son `uuid` (identifiant public, utilisé dans les URL).
@@ -67,10 +66,10 @@ Les skills vivent dans `agents/skills/` (un dossier par skill, chargés par `lib
 - conception du projet : `accroche-scenariste`, `conversation-agent`, `notes-entretien` (le brief se remplit au
   fil de la conversation ; son schéma est `lib/agents/brief-schema.json`)
 - production : `scenario-episode`, `inventaire-assets`, `relecture-scenario` (relecture du scénario écrit, avant les fiches), `prompt-asset`, `prompt-affiche`, `plan-h3`
-- correction et révision : `iteration-plan`, `realisateur-analyse`, `realisateur-reponse`
+- correction : `iteration-plan`
 
 Les anciens skills de chat (`scenario`, `fiche-de-plan`, `assets-comfyui`, `voix-comfyui`) n'existent plus. Les
-règles de nommage et de versionnage ci-dessus et `docs/FRICTIONS.md` priment sur toute copie qui en traînerait
+règles de nommage et de versionnage ci-dessus priment sur toute copie qui en traînerait
 ailleurs (claude.ai, `~/.claude`).
 
 Le casting vocal (skill `prompt-voix`, assets `voix`, `voix_fiches`, prises, doublage) est retiré (FRICTIONS, 2026-10-14) : **la voix est un champ
@@ -79,13 +78,12 @@ du personnage** (`assets.voix_*`), créée depuis le bloc « Voix » de sa fiche
 ## État du projet
 
 L'application existe et tourne : pipeline de production (plans, assets, voix, fiches), système d'agents (conversation,
-brief, propositions, réalisateur d'épisode, affiches) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
-huit étapes, de « format » à « avancée de la préparation »). Les décisions sont dans `docs/FRICTIONS.md` ; le phasage
+brief, propositions, relecture du scénario, affiches) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
+huit étapes, de « format » à « avancée de la préparation »). Le phasage
 d'origine reste dans `docs/CAHIER_DES_CHARGES.md`.
 
 Pour la conception d'un projet : la bibliothèque de styles vit dans `lib/styles/` (`bibliotheque.json`, `clauses.json`,
-`sujets.ts` = les scènes communes des images de présentation) ; `npm run styles:apercus` génère ces images. Les séries
-sont désactivées à l'écran pour l'instant (`SERIES_DISPONIBLES` dans `lib/conception-ui.ts`).
+`sujets.ts` = les scènes communes des images de présentation) ; `npm run styles:apercus` génère ces images. L'application lit la table `styles`, semée depuis ces JSON par `db/seed-styles.ts` (à chaque `npm run db:migrate`) ; les images restent des fichiers sous `data/styles/`. Il n'y a plus de séries (retirées le 2026-10-20) : un projet est un film, avec un épisode unique ; la table `seasons` et le type de projet n'existent plus.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -8,9 +8,7 @@ import { usePathname } from "next/navigation";
  * (`/p/3/assets`), jamais sous un épisode précis — le registre est partagé
  * par toute la série (retour utilisateur 2026-09-28 : "super important que
  * l'on puisse accéder à assets depuis la vue projet"). Remplace l'ancien
- * TopbarNav.tsx, qui codait `/scenario` etc. en dur. L'onglet « Réalisateur »
- * a été retiré le 2026-10-18 (la salle s'ouvre depuis le scénario) : sur sa
- * page, aucun onglet n'est actif. */
+ * TopbarNav.tsx, qui codait `/scenario` etc. en dur. */
 export function TopbarTabs({ projectId, episodeBase }: { projectId: number; episodeBase: string }) {
   const pathname = usePathname();
   const assetsHref = `/p/${projectId}/assets`;

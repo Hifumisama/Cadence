@@ -41,9 +41,6 @@ export function SupprimerProjetBouton({ projectId, nom, compact = false }: { pro
 
   const lignes = inventaire
     ? [
-        inventaire.saisons > 0 || inventaire.episodes > 0
-          ? `${pluriel(inventaire.saisons, "saison")}, ${pluriel(inventaire.episodes, "épisode")}`
-          : null,
         pluriel(inventaire.plans, "plan"),
         pluriel(inventaire.assets, "asset") + " (images, voix, sons du registre)",
         `${pluriel(inventaire.rendus, "rendu")} vidéo et ${pluriel(inventaire.generations, "génération")} d'assets`,

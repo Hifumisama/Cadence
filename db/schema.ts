@@ -17,11 +17,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
-// Racine de toute hiérarchie : un OneShot est un projet à 1 saison + 1
-// épisode créés automatiquement (jamais montrés dans la nav) — un seul
-// schéma pour les deux types, décidé avec l'utilisateur le 2026-09-28 pour
-// éviter deux chemins de code différents dans les pages/requêtes.
-export const projectTypeEnum = pgEnum("project_type", ["oneshot", "serie"]);
+// Racine de toute hiérarchie : un projet est un film, avec son épisode unique (jamais montré dans la nav). Le concept de série
+// (saisons, type de projet) a été retiré le 2026-10-20 ; l'épisode reste l'unité à laquelle scènes et plans se rattachent.
 
 // "previsualise" distingue un plan dont la dernière génération réussie était
 // une prévisualisation (sans upscale) de "termine" (rendu final upscale) —
@@ -51,7 +48,7 @@ export const jobStatutEnum = pgEnum("job_statut", [
 
 export const refTypeEnum = pgEnum("ref_type", ["picture", "video", "audio"]);
 
-// Racine d'un projet vidéo — OneShot ou Série (2026-09-28). 2026-10-02 : `clauseStyle` et
+// Racine d'un projet vidéo : un film. 2026-10-02 : `clauseStyle` et
 // `notes` sont désormais des COPIES dénormalisées du BRIEF (source unique : `briefs.contenu`
 // style.clause / notes), écrites par le seul `synchroniserClauseStyle` (lib/agents/brief-db.ts) ;
 // ne JAMAIS les écrire ailleurs. Historique : clauseStyle
@@ -72,7 +69,6 @@ export const refTypeEnum = pgEnum("ref_type", ["picture", "video", "audio"]);
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   nom: varchar("nom", { length: 255 }).notNull(),
-  type: projectTypeEnum("type").notNull(),
   // Poster "affiche de film" (2026-09-28) — même convention que
   // assets.fichier : juste le nom de fichier, chemin de stockage résolu par
   // lib/media.ts. Repli en l'absence de fichier : géré côté rendu (pas de
@@ -86,21 +82,11 @@ export const projects = pgTable("projects", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const seasons = pgTable("seasons", {
+export const episodes = pgTable("episodes", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id")
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
-  numero: integer("numero").notNull(),
-  titre: varchar("titre", { length: 255 }).notNull(),
-  posterFichier: varchar("poster_fichier", { length: 255 }),
-});
-
-export const episodes = pgTable("episodes", {
-  id: serial("id").primaryKey(),
-  seasonId: integer("season_id")
-    .notNull()
-    .references(() => seasons.id, { onDelete: "cascade" }),
   numero: integer("numero").notNull(),
   titre: varchar("titre", { length: 255 }).notNull(),
   resume: text("resume").notNull().default(""),
@@ -238,8 +224,8 @@ export const planRefs = pgTable("plan_refs", {
 export const assets = pgTable("assets", {
   id: serial("id").primaryKey(),
   // Cascade (2026-09-28, règles de suppression) : le seul cas où un asset
-  // disparaît, c'est la suppression du projet entier — un plan/épisode/
-  // saison supprimé, lui, ne fait que détacher ses refs vers l'asset (voir
+  // disparaît, c'est la suppression du projet entier — un plan/
+  // épisode supprimé, lui, ne fait que détacher ses refs vers l'asset (voir
   // plan_refs, qui n'a pas de cascade vers assets).
   projectId: integer("project_id")
     .notNull()
@@ -452,18 +438,13 @@ export const scenesRelations = relations(scenes, ({ many, one }) => ({
 }));
 
 export const projectsRelations = relations(projects, ({ many }) => ({
-  seasons: many(seasons),
+  episodes: many(episodes),
   plans: many(plans),
   assets: many(assets),
 }));
 
-export const seasonsRelations = relations(seasons, ({ many, one }) => ({
-  project: one(projects, { fields: [seasons.projectId], references: [projects.id] }),
-  episodes: many(episodes),
-}));
-
 export const episodesRelations = relations(episodes, ({ many, one }) => ({
-  season: one(seasons, { fields: [episodes.seasonId], references: [seasons.id] }),
+  project: one(projects, { fields: [episodes.projectId], references: [projects.id] }),
   scenes: many(scenes),
   plans: many(plans),
 }));
@@ -581,8 +562,8 @@ export const agentRuns = pgTable("agent_runs", {
 
 // Une conversation par (projet, portée, cible) : rouvrir reprend, en démarrer une
 // « nouvelle » sur la même cible écrase la précédente (unicité ci-dessous).
-// `portee` : projet | saison | episode | plan | asset ; `cibleId` = id interne de la
-// saison / de l'épisode / du plan / de l'asset visé (null pour le projet). `etape` :
+// `portee` : projet | episode | plan | asset ; `cibleId` = id interne de
+// l'épisode / du plan / de l'asset visé (null pour le projet). `etape` :
 // consigne | conversation | brief | proposition | applique. `propositionId` = la
 // proposition courante (entier simple : les propositions pointent vers la conversation).
 export const agentConversations = pgTable("agent_conversations", {
@@ -604,43 +585,26 @@ export const agentConversations = pgTable("agent_conversations", {
   // La fiche de notes de l'entretien (lib/agents/fiche.ts) : le brief en train de se remplir, { contenu, statuts }, tenue par le code.
   fiche: jsonb("fiche"),
   propositionId: integer("proposition_id"),
-  // Révision d'épisode (profondeur « revision », docs/FRICTIONS.md 2026-10-09) : les PISTES proposées au dernier tour et pas encore
-  // choisies ([{ titre, resume, operations }]), remplacées à chaque tour d'analyse.
-  pistes: jsonb("pistes").notNull().default(sql`'[]'::jsonb`),
-  // Une révision appliquée (ou abandonnée) se FERME : elle garde son historique, une neuve peut s'ouvrir sur le même épisode.
-  fermeeAt: timestamp("fermee_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => [
-  // Une conversation OUVERTE par (projet, portée, profondeur, cible) : la révision d'un épisode coexiste avec sa conversation « courte ».
-  uniqueIndex("agent_conversations_cible_idx")
-    .on(table.projectId, table.portee, table.profondeur, sql`coalesce(${table.cibleId}, 0)`)
-    .where(sql`${table.fermeeAt} is null`),
+  // Une conversation par (projet, portée, profondeur, cible).
+  uniqueIndex("agent_conversations_cible_idx").on(table.projectId, table.portee, table.profondeur, sql`coalesce(${table.cibleId}, 0)`),
 ]);
 
-// Les DÉCISIONS d'une révision d'épisode : le brouillon, jamais une table métier. Chacune porte les opérations que le réalisateur a
-// proposées (validées par le code), les changements qu'elles produisent (aperçu des applicateurs : avant/après, écrasement) et les
-// constats (calculés par le code ; `source` dit si le jugement est celui du code ou du modèle). `statut` : discussion | retenue |
-// attention | conflit | appliquee. À l'application, les décisions retenues deviennent UNE proposition (`proposition_id`).
-export const revisionDecisions = pgTable("revision_decisions", {
-  id: serial("id").primaryKey(),
-  uuid: uuid("uuid").notNull().defaultRandom().unique(),
-  conversationId: integer("conversation_id").notNull().references(() => agentConversations.id, { onDelete: "cascade" }),
+// La bibliothèque de styles de la conception d'un projet. SEMÉE depuis lib/styles/bibliotheque.json + clauses.json (db/seed-styles.ts,
+// relancée à chaque `db:migrate`) : le JSON reste la source à trier à la main, la base est ce que l'application lit. `apercus` : les
+// sujets (lib/styles/sujets.ts) dont l'image existe sous `styles/<id>/<sujet>.webp` ; les images restent des fichiers (MEDIA_ROOT).
+export const styles = pgTable("styles", {
+  id: varchar("id", { length: 120 }).primaryKey(),
+  nom: varchar("nom", { length: 200 }).notNull(),
+  descriptor: text("descriptor").notNull(),
+  categories: jsonb("categories").notNull().default(sql`'[]'::jsonb`),
+  filtres: jsonb("filtres").notNull(),
+  clause: text("clause").notNull().default(""),
+  apercus: jsonb("apercus").notNull().default(sql`'[]'::jsonb`),
   ordre: integer("ordre").notNull().default(0),
-  titre: varchar("titre", { length: 200 }).notNull(),
-  raison: text("raison").notNull().default(""),
-  statut: varchar("statut", { length: 12 }).notNull().default("retenue"),
-  operations: jsonb("operations").notNull().default(sql`'[]'::jsonb`),
-  changements: jsonb("changements").notNull().default(sql`'[]'::jsonb`),
-  constats: jsonb("constats").notNull().default(sql`'[]'::jsonb`),
-  gainSecondes: integer("gain_secondes").notNull().default(0),
-  // Ce que la décision visait a changé depuis qu'elle a été prise (modifié à la main ailleurs) : à relire, jamais effacée en silence.
-  aReverifier: boolean("a_reverifier").notNull().default(false),
-  propositionId: integer("proposition_id"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  appliqueAt: timestamp("applique_at"),
-}, (table) => [index("revision_decisions_conversation_idx").on(table.conversationId, table.ordre)]);
+});
 
 // L'installateur (2026-10-03) : la création d'un projet de bout en bout, étape par étape et sans validation
 // intermédiaire. Une ligne par projet ; `statut` : en_cours | termine | echoue | arretee ; `etapes` : la liste ordonnée
@@ -740,10 +704,10 @@ export const propositions = pgTable("propositions", {
   appliedAt: timestamp("applied_at"),
 }, (table) => [index("propositions_projet_idx").on(table.projectId, table.createdAt)]);
 
-// Un changement de proposition. `cibleType` : brief | projet | saison | episode |
+// Un changement de proposition. `cibleType` : brief | projet | episode |
 // scene | asset | plan. `cibleRef` : référence STABLE de l'existant (id interne, uuid
 // du plan, clé de section du brief) ; null pour une création, qui porte une `cle`
-// symbolique (« saison-1 », « episode-2 ») que ses enfants citent dans `apres`.
+// symbolique (« episode-2 ») que ses enfants citent dans `apres`.
 // `avant`/`apres` : ce qui est lu / ce qui sera écrit (jsonb). `position` : où
 // insérer (plan : { apresPlanUuid } | { debut: true } | { fin: true }). `ecrase` : en
 // clair, ce qui sera perdu (null si rien). `coche` : retenu pour l'application ;

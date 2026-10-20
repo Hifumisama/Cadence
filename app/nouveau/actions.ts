@@ -12,7 +12,7 @@ import { resoudreStyle, validerConception } from "@/lib/conception";
 import { ecrireConception, poserStyleDuProjet } from "@/lib/conception-db";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET } from "@/lib/media";
 import { SUJET_AFFICHE_CLAP } from "@/lib/styles/sujets";
-import { bibliothequeStyles } from "@/lib/styles/bibliotheque";
+import { listerStyles } from "@/lib/styles/styles-db";
 
 /** Actions de la page de conception d'un projet (`/nouveau`). Chaque action rend `{ ok: true, … } | { ok: false, erreur }` : jamais
  * d'exception pour un cas métier. Plan : docs/PLAN_CONCEPTION_PROJET.md. */
@@ -53,9 +53,9 @@ export async function deposerImageStyleLibre(formData: FormData): Promise<{ ok: 
 /** Crée le projet à partir de la conception, au passage à l'entretien : projet (nom provisoire, le titre se règle au clap), conception,
  * style posé dans le brief partiel, puis conversation d'entrée avec la fiche préremplie et l'accroche du scénariste. Tout ou rien :
  * en cas d'échec le projet est supprimé (les autres tables suivent en cascade). Le premier épisode n'est pas créé ici : comme pour
- * « Créer avec l'agent », le squelette de la proposition le fait (sauf pour un film, qui a toujours sa saison et son épisode). */
+ * « Créer avec l'agent », le squelette de la proposition le fait (l'épisode du film existe dès la création du projet). */
 export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; projectId: number; conversationUuid: string } | Echec> {
-  const bibliotheque = bibliothequeStyles();
+  const bibliotheque = await listerStyles();
   const valide = validerConception(brut, bibliotheque);
   if (!valide.ok) return { ok: false, erreur: valide.erreurs.join(" ") };
   const conception = valide.valeur;
@@ -67,7 +67,7 @@ export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; proje
   // Pour un style de la bibliothèque, l'image est son aperçu (s'il a été généré) : le brief garde le chemin relatif au dossier `styles/`.
   const image = conception.style.source === "libre" ? conception.style.image : `${conception.style.styleId}/${SUJET_AFFICHE_CLAP}.webp`;
 
-  const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre", type: conception.format === "film" ? "oneshot" : "serie", avecPremierEpisode: false });
+  const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre" });
   try {
     await ecrireConception(db, projectId, conception);
     const pose = await poserStyleDuProjet(db, projectId, { ...style.style, ...(image ? { image } : {}) });

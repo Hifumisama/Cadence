@@ -207,8 +207,3 @@ export async function lireDemandeVue(demandeId: number): Promise<VueDemande | nu
   };
 }
 
-/** Le plan a-t-il une demande en cours ? (La page grise « Itérer » ; l'index unique l'impose de toute façon.) */
-export async function demandeEnCoursDuPlan(planId: number): Promise<number | null> {
-  const [d] = await db.select({ id: demandes.id }).from(demandes).where(and(eq(demandes.cibleType, "plan"), eq(demandes.cibleId, planId), eq(demandes.statut, "en_cours")));
-  return d?.id ?? null;
-}

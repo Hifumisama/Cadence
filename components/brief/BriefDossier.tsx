@@ -65,7 +65,6 @@ export function BriefDossier({
   nomProjet,
   brief,
   style,
-  serie = false,
   identiteFigee = false,
   registre = [],
 }: {
@@ -73,8 +72,6 @@ export function BriefDossier({
   nomProjet: string;
   brief: VueBrief;
   style: StyleBriefVue;
-  /** Série : le résumé se lit par épisode. Film : un résumé des scènes, sans vocabulaire d'épisode. */
-  serie?: boolean;
   identiteFigee?: boolean;
   registre?: EntreeRegistre[];
 }) {
@@ -157,14 +154,14 @@ export function BriefDossier({
 
   const faits: { cle: string; label: string; valeur: string }[] = [
     { cle: "langueDialogues", label: "Langue des dialogues", valeur: texte(c.langueDialogues) },
-    { cle: "dureeEpisodeSecondes", label: serie ? "Durée d'un épisode" : "Durée", valeur: c.dureeEpisodeSecondes ? `${c.dureeEpisodeSecondes} s` : "" },
+    { cle: "dureeEpisodeSecondes", label: "Durée", valeur: c.dureeEpisodeSecondes ? `${c.dureeEpisodeSecondes} s` : "" },
     { cle: "genreTon", label: "Genre et ton", valeur: texte(c.genreTon) },
   ];
 
   const entrees: EntreeSommaire[] = [
     { id: "bf-haut", label: "Vue d'ensemble" },
     { id: "bf-style", label: "Style" },
-    { id: "bf-resume", label: "Résumé des scènes", ...(serie ? { compte: episodes.length } : {}) },
+    { id: "bf-resume", label: "Résumé des scènes" },
     { id: "bf-personnages", label: "Personnages", compte: persosViaRegistre ? persosRegistre.length + personnages.filter((_, i) => !apparies.has(i)).length : personnages.length },
     { id: "bf-lieux", label: "Lieux", compte: lieuxViaRegistre ? decors.length : lieux.length },
     { id: "bf-notes", label: "Notes du projet" },
@@ -233,24 +230,13 @@ export function BriefDossier({
 
           <section id="bf-resume" className="bf-section" aria-labelledby="bf-t-resume">
             <TitreSection id="bf-t-resume" titre="Résumé des scènes" />
-            {resumes.length === 0 && (!serie || episodes.length === 0) ? <p className="bf-vide">Pas encore de résumé.</p> : null}
-            {serie ? (
-              <div className="bf-pile">
-                {episodes.map((e, i) => (
-                  <article key={i} className="bf-carte bf-reveal bf-resume">
-                    <span className="bf-etiquette">Épisode {i + 1}</span>
-                    {texte(e.titre).trim() ? <h3>{texte(e.titre)}</h3> : null}
-                    <p>{texte(e.resume).trim() || "Pas encore de résumé."}</p>
-                  </article>
-                ))}
-              </div>
-            ) : resumes.length > 0 ? (
+            {resumes.length === 0 ? <p className="bf-vide">Pas encore de résumé.</p> : (
               <article className="bf-carte bf-reveal bf-resume">
                 {resumes.map((r, i) => (
                   <p key={i}>{r}</p>
                 ))}
               </article>
-            ) : null}
+            )}
           </section>
 
           <section id="bf-personnages" className="bf-section" aria-labelledby="bf-t-personnages">

@@ -9,24 +9,24 @@
 
 export const TYPE_AFFICHE = "affiche";
 
-/** Ce qu'une affiche habille : le projet, une saison ou un épisode. */
-export type CibleAffiche = "projects" | "seasons" | "episodes";
+/** Ce qu'une affiche habille : le projet (le film) ou son épisode. */
+export type CibleAffiche = "projects" | "episodes";
 
-const LETTRE: Record<CibleAffiche, string> = { projects: "P", seasons: "S", episodes: "E" };
+const LETTRE: Record<CibleAffiche, string> = { projects: "P", episodes: "E" };
 
-/** Code de l'asset d'affiche : un par projet, par saison, par épisode. */
+/** Code de l'asset d'affiche : un par projet, par épisode. */
 export function codeAffiche(cible: CibleAffiche, id: number): string {
   return `AFFICHE_${LETTRE[cible]}${id}`;
 }
 
 /** Retrouve ce que désigne un code d'affiche, ou null si ce n'en est pas un. */
 export function cibleDeCodeAffiche(code: string): { cible: CibleAffiche; id: number } | null {
-  const m = /^AFFICHE_([PSE])(\d+)$/.exec(code);
+  const m = /^AFFICHE_([PE])(\d+)$/.exec(code);
   if (!m) return null;
-  return { cible: m[1] === "P" ? "projects" : m[1] === "S" ? "seasons" : "episodes", id: Number(m[2]) };
+  return { cible: m[1] === "P" ? "projects" : "episodes", id: Number(m[2]) };
 }
 
-/** Format et définition proposés d'entrée : toutes les affiches (projet, saison, épisode) sont en 2:3, comme les cartes.
+/** Format et définition proposés d'entrée : toutes les affiches (projet, épisode) sont en 2:3, comme les cartes.
  * Modifiables dans la fenêtre de génération. */
 export function formatAfficheParDefaut(): { aspect: "2:3"; megapixels: number } {
   return { aspect: "2:3", megapixels: 1.3 };

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { assets, episodes, projects, seasons } from "@/db/schema";
+import { assets, episodes, projects } from "@/db/schema";
 import { GenerationPanel } from "@/components/assets/GenerationPanel";
 import { AfficheZoom } from "@/components/affiches/AfficheZoom";
 import { ReglagesAffiche } from "@/components/affiches/ReglagesAffiche";
@@ -47,21 +47,11 @@ export default async function AffichePage({
     titre = projet.nom;
     posterFichier = projet.posterFichier;
     retour = `/p/${pid}`;
-  } else if (cible.cible === "seasons") {
-    const [ligne] = await db
-      .select({ titre: seasons.titre, poster: seasons.posterFichier })
-      .from(seasons)
-      .where(and(eq(seasons.id, cible.id), eq(seasons.projectId, pid)));
-    if (!ligne) notFound();
-    titre = ligne.titre;
-    posterFichier = ligne.poster;
-    retour = `/p/${pid}`;
   } else {
     const [ligne] = await db
       .select({ titre: episodes.titre, poster: episodes.posterFichier })
       .from(episodes)
-      .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-      .where(and(eq(episodes.id, cible.id), eq(seasons.projectId, pid)));
+      .where(and(eq(episodes.id, cible.id), eq(episodes.projectId, pid)));
     if (!ligne) notFound();
     titre = ligne.titre;
     posterFichier = ligne.poster;
@@ -77,8 +67,8 @@ export default async function AffichePage({
   const partDuPersonnage = asset.methodeGeneration === "edition" && principal?.aImage === true;
   const src = posterSrc(cible.cible, cible.id, posterFichier);
   const format = formatAfficheParDefaut();
-  const sujet = cible.cible === "projects" ? "du projet" : cible.cible === "seasons" ? "de la saison" : "de l'épisode";
-  const cleRepli = cible.cible === "projects" ? `projet:${pid}` : cible.cible === "seasons" ? `saison:${cible.id}` : `episode:${cible.id}`;
+  const sujet = cible.cible === "projects" ? "du projet" : "de l'épisode";
+  const cleRepli = cible.cible === "projects" ? `projet:${pid}` : `episode:${cible.id}`;
 
   return (
     <>

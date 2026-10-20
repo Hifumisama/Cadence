@@ -90,7 +90,7 @@ export function AvanceeScene({
     [conception],
   );
   const resumes = conception
-    ? [conception.format === "serie" ? "Série" : "Film", `${conception.genres.join("/")} · ${motDuTon(conception.ton)}`, minutesSecondes(conception.dureeSecondes), conception.langue, style.nom, "fait", "fait"]
+    ? ["Film", `${conception.genres.join("/")} · ${motDuTon(conception.ton)}`, minutesSecondes(conception.dureeSecondes), conception.langue, style.nom, "fait", "fait"]
     : [];
 
   const pct = vue && vue.total ? Math.round((vue.faites / vue.total) * 100) : 0;

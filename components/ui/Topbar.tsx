@@ -6,9 +6,9 @@ import { TopbarTabs } from "./TopbarTabs";
 
 /** Bandeau à deux niveaux (2026-10-18) : marque, fil d'Ariane (`trail`) et statuts (LLM, file
  * de générations) au-dessus ; les onglets en dessous, posés sur le filet or. Chaque écran
- * construit son fil d'Ariane selon sa profondeur dans Projet → Saison → Épisode. `tabs`, quand
+ * construit son fil d'Ariane selon sa profondeur dans Projet → Épisode. `tabs`, quand
  * fourni, affiche les onglets Brief/Scénario/Assets/Plans sous ce préfixe d'URL — absent sur
- * l'Accueil et la Vue série, qui ne sont "dans" aucun épisode. Le réalisateur n'a plus
+ * l'Accueil et la Vue série, qui ne sont "dans" aucun épisode.
  * d'onglet : on l'ouvre depuis le scénario (FRICTIONS, 2026-10-18). */
 export function Topbar({
   trail,

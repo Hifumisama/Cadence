@@ -10,7 +10,8 @@ import { getAllAssets, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { db } from "@/db";
 import { lireConception } from "@/lib/conception-db";
 import { MEDIA_ROOT, assetMediaSrc } from "@/lib/media";
-import { cheminApercuStyle, slugStyle } from "@/lib/styles/bibliotheque";
+import { slugStyle } from "@/lib/styles/bibliotheque";
+import { apercusDuStyle } from "@/lib/styles/styles-db";
 import { SUJETS_APERCU } from "@/lib/styles/sujets";
 import type { StyleBriefVue, VignetteStyle } from "@/components/brief/StyleBrief";
 
@@ -34,7 +35,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
     .map((a) => ({ code: a.code, type: a.type as "personnage" | "decor", description: a.description ?? "", src: assetMediaSrc(a.fichier) }));
   // « partiel » : pas de brief rédigé, seuls le style et les notes ont pu être posés à la main.
   const redige = brief.statut !== "partiel";
-  const styleVue = vueStyle(brief.contenu.style, conception?.style.source === "bibliotheque" ? conception.style.styleId : null);
+  const styleVue = await vueStyle(brief.contenu.style, conception?.style.source === "bibliotheque" ? conception.style.styleId : null);
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
 
   return (
@@ -44,7 +45,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
           <>
             <Link href="/">Projets</Link>
             <span className="sep">›</span>
-            {projet.type === "serie" ? <Link href={`/p/${pid}`}>{projet.nom}</Link> : <span className="here">{projet.nom}</span>}
+            <span className="here">{projet.nom}</span>
             <span className="sep">›</span>
             <span className="here">Brief</span>
           </>
@@ -52,7 +53,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
         tabs={{ projectId: pid, episodeBase }}
       />
       <main className="page">
-        {redige ? <BriefDossier projectId={pid} nomProjet={projet.nom} brief={brief} serie={projet.type === "serie"} style={styleVue} identiteFigee={identiteFigee} registre={registre} /> : <BriefVide projectId={pid} nomProjet={projet.nom} brief={brief} />}
+        {redige ? <BriefDossier projectId={pid} nomProjet={projet.nom} brief={brief} style={styleVue} identiteFigee={identiteFigee} registre={registre} /> : <BriefVide projectId={pid} nomProjet={projet.nom} brief={brief} />}
       </main>
     </>
   );
@@ -61,13 +62,14 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
 /** Le style du projet tel que la page le montre : son nom, ses deux clauses, et ses images — l'image de présentation posée à la création (style libre), puis les
  * aperçus des scènes communes (`lib/styles/sujets.ts`, générés par `npm run styles:apercus`) quand le style est un style de la bibliothèque (choisi à la conception, ou dont
  * le nom est celui d'une entrée de la bibliothèque). Un style libre sans image n'a pas de vignette. */
-function vueStyle(style: { nom?: string; clause?: string; promptImage?: string; image?: string } | undefined, styleId: string | null): StyleBriefVue {
+async function vueStyle(style: { nom?: string; clause?: string; promptImage?: string; image?: string } | undefined, styleId: string | null): Promise<StyleBriefVue> {
   const id = styleId ?? (style?.nom?.trim() ? slugStyle(style.nom) : null);
   const vignettes: VignetteStyle[] = [];
   if (style?.image && existsSync(join(MEDIA_ROOT, "styles", style.image))) vignettes.push({ id: "presentation", libelle: "Présentation", teste: "", aspect: "2:3", fichier: style.image });
   if (id) {
+    const apercus = await apercusDuStyle(id);
     for (const s of SUJETS_APERCU) {
-      if (existsSync(join(MEDIA_ROOT, cheminApercuStyle(id, s.id)))) vignettes.push({ id: s.id, libelle: s.libelle, teste: s.teste, aspect: s.aspect, fichier: `${id}/${s.id}.webp` });
+      if (apercus.includes(s.id)) vignettes.push({ id: s.id, libelle: s.libelle, teste: s.teste, aspect: s.aspect, fichier: `${id}/${s.id}.webp` });
     }
   }
   return { nom: style?.nom?.trim() ?? "", promptImage: style?.promptImage?.trim() ?? "", clause: style?.clause?.trim() ?? "", vignettes };

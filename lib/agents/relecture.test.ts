@@ -5,9 +5,9 @@ import { chargerSkill } from "../llm/skills";
 import { cocheParDefaut } from "./cochage";
 import { controleurPourSkill } from "../llm/controles";
 import { MAX_CORRECTIONS, depuisRelecture, partConservee, problemesDeRelecture, repliquesDe, type EntreeRelecture, type SortieRelecture } from "./relecture";
-import { validerOperations } from "./revision/operations";
-import { operationsVersChangements } from "./revision/operations-vers-changements";
-import { construireVue } from "./revision/vue-episode";
+import { validerOperations } from "./vue-operations/operations";
+import { operationsVersChangements } from "./vue-operations/operations-vers-changements";
+import { construireVue } from "./vue-operations/vue-episode";
 
 // Un petit épisode fabriqué : des cavaliers arrivent à cheval (P03), parlent « au bord de la rue » (P04), ne descendent qu'en P05 ; P06 et P07 racontent
 // le même départ du train ; le dernier plan ne résout rien.
@@ -186,7 +186,7 @@ test("cochage : une suppression « office » est cochée, jamais si elle écrase
   assert.equal(cocheParDefaut({ ...base, office: true, refuseRaison: "hors portée" }), false);
 });
 
-test("opérations du réalisateur : la liaison d'un modifier_plan est validée et écrite", () => {
+test("opérations d'épisode : la liaison d'un modifier_plan est validée et écrite", () => {
   const ok = validerOperations([{ type: "modifier_plan", plan: "P04", liaison: "coupe" }], vue);
   assert.deepEqual(ok.refusees, []);
   const ch = operationsVersChangements(ok.valides, vue);

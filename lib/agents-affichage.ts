@@ -29,8 +29,6 @@ import type {
 export const ETAPES_PAR_PROFONDEUR: Record<Profondeur, readonly Etape[]> = {
   courte: ["consigne", "proposition", "applique"],
   complete: ["conversation", "brief", "proposition", "applique"],
-  // Révision d'épisode : une discussion, pas un parcours ; elle se ferme à l'application (docs/FRICTIONS.md 2026-10-09).
-  revision: ["conversation", "applique"],
 };
 
 export const LIBELLE_ETAPE: Record<Etape, string> = {
@@ -247,7 +245,6 @@ export const LIBELLE_OPERATION = { creer: "Créer", modifier: "Modifier", suppri
 export const LIBELLE_CIBLE = {
   brief: "Brief",
   projet: "Projet",
-  saison: "Saison",
   episode: "Épisode",
   scene: "Scène",
   asset: "Asset",
@@ -267,9 +264,6 @@ export const AVERTISSEMENT: Record<TypeAvertissement, { libelle: string; gravite
   alerte_controle: { libelle: "Contrôle", gravite: "attention" },
   info: { libelle: "À noter", gravite: "info" },
 };
-
-export const avertissementsDe = (c: Pick<VueChangement, "avertissements">, type: TypeAvertissement): Avertissement[] =>
-  c.avertissements.filter((a) => a.type === type);
 
 export const GROUPE_ECRASEMENT = "ecrasement";
 export const GROUPE_BRIEF = "brief";

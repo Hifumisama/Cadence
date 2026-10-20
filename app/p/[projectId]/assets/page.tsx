@@ -78,13 +78,7 @@ export default async function AssetsPage({
           <>
             <Link href="/">Projets</Link>
             <span className="sep">›</span>
-            {projet.type === "serie" ? <Link href={`/p/${pid}`}>{projet.nom}</Link> : <span className="here">{projet.nom}</span>}
-            {projet.type === "serie" ? (
-              <>
-                <span className="sep">›</span>
-                <span className="here">Assets</span>
-              </>
-            ) : null}
+            <span className="here">{projet.nom}</span>
           </>
         }
         tabs={{ projectId: pid, episodeBase }}

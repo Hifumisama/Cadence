@@ -35,7 +35,7 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
     .filter((k) => ["style", "rythme", "genreTon", "dureeEpisodeSecondes", "langueDialogues"].includes(k))
     .map((k) => `${k === "style" ? "style visuel" : libelleSection(k)} : ${resume(fiche.contenu[k])}`);
   const dejaPropose = propose.length ? ` Déjà proposé dans la conversation et non contesté (ne le redemande pas : s'il y a lieu, fais-le confirmer d'un mot, en passant) : ${propose.join(" ; ")}.` : "";
-  // Projet conçu avant l'entretien : le format (film ou série, épisodes prévus) n'est pas une section du brief, on le dit à part.
+  // Projet conçu avant l'entretien : le format (un film) n'est pas une section du brief, on le dit à part.
   const formatDit = format ? ` ${format}` : "";
   const interdit = "Ne dis jamais que le briefing est prêt ni que l'entretien est fini, et ne propose jamais de passer à la suite : l'application l'annonce elle-même.";
   if (rappel.complete) {

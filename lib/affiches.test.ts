@@ -3,13 +3,12 @@ import { test } from "node:test";
 import { TYPE_AFFICHE, avecTitreDansImage, cibleDeCodeAffiche, codeAffiche, formatAfficheParDefaut, personnagePrincipal, promptAffiche, titreDansPrompt } from "./affiches";
 import { posterPorteLeTitre } from "./poster";
 
-test("code d'affiche : un par projet, par saison, par épisode, et on retrouve la cible", () => {
+test("code d'affiche : un par projet, par épisode, et on retrouve la cible", () => {
   assert.equal(codeAffiche("projects", 12), "AFFICHE_P12");
   assert.equal(codeAffiche("episodes", 7), "AFFICHE_E7");
-  assert.equal(codeAffiche("seasons", 3), "AFFICHE_S3");
   assert.deepEqual(cibleDeCodeAffiche("AFFICHE_P12"), { cible: "projects", id: 12 });
   assert.deepEqual(cibleDeCodeAffiche("AFFICHE_E7"), { cible: "episodes", id: 7 });
-  assert.deepEqual(cibleDeCodeAffiche("AFFICHE_S3"), { cible: "seasons", id: 3 });
+  assert.equal(cibleDeCodeAffiche("AFFICHE_S3"), null);
 });
 
 test("un code de registre ordinaire n'est jamais pris pour une affiche", () => {

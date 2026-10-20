@@ -13,7 +13,6 @@ import type { CibleDemandee, ContexteUtilise, Position } from "@/lib/agents/type
 const LIBELLE_CONTEXTE: Record<ContexteUtilise["type"], string> = {
   brief: "Brief",
   projet: "Projet",
-  saison: "Saison",
   episode: "Épisode",
   plan: "Plan",
   asset: "Asset",
@@ -88,11 +87,11 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
     void ctx.lancer(() => genererProposition(conv.uuid, { consigne: c || undefined, position }));
   };
 
-  // Depuis le projet ou une saison : écrire les scénarios de plusieurs épisodes d'un coup (un lot).
-  if (conv.portee === "projet" || conv.portee === "saison") {
+  // Depuis le projet : écrire les scénarios de plusieurs épisodes d'un coup (un lot).
+  if (conv.portee === "projet") {
     return (
       <>
-        <ChoixEpisodes ctx={ctx} saisonId={conv.portee === "saison" ? conv.cibleId : null} />
+        <ChoixEpisodes ctx={ctx} />
         <div className="ag-etape-corps">
           <EtatTacheAgent tache={conv.tache} />
         </div>

@@ -34,7 +34,7 @@ export default async function CreationPage({ params }: { params: Promise<{ proje
           <>
             <Link href="/">Projets</Link>
             <span className="sep">›</span>
-            {projet.type === "serie" ? <Link href={`/p/${pid}`}>{projet.nom}</Link> : <span className="here">{projet.nom}</span>}
+            <span className="here">{projet.nom}</span>
             <span className="sep">›</span>
             <span className="here">Création</span>
           </>

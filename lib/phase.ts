@@ -10,7 +10,7 @@ export type PlanStatut = (typeof plans.$inferSelect)["statut"];
 /** Regroupement des 7 statuts de plan en 4 buckets d'affichage — "actif"
  * couvre tout ce qui a dépassé le brouillon sans être fini (en_cours,
  * rejoue, echoue, previsualise) : le détail de ces 4 états compte pour la
- * frise des plans, pas pour cette vue d'ensemble par épisode/saison/projet. */
+ * frise des plans, pas pour cette vue d'ensemble par épisode/projet. */
 export type StatutBuckets = { termine: number; actif: number; attente: number; brouillon: number };
 
 export function bucketsVides(): StatutBuckets {
@@ -59,7 +59,7 @@ export function phaseDe(b: StatutBuckets): Phase {
   return "fiches";
 }
 
-/** Statut agrégé d'un épisode/saison, pour réutiliser tel quel StatusBadge
+/** Statut agrégé d'un épisode, pour réutiliser tel quel StatusBadge
  * et statusNodeClass (composants/ui/StatusBadge.tsx) plutôt que d'inventer
  * un système de badge parallèle — "en_attente" sert aussi de repli visuel
  * pour "vide" (anneau creux, sans couleur : sémantiquement proche). */
@@ -74,9 +74,9 @@ export function statutAgrege(b: StatutBuckets): PlanStatut {
 
 export type PhaseAgregee = { phase: Phase | "mixte"; detail: string | null; bornes: [number, number] };
 
-/** Agrège les phases de plusieurs épisodes (saison) : une seule phase si
+/** Agrège les phases de plusieurs épisodes : une seule phase si
  * elles sont toutes identiques, "mixte" sinon — jamais une phase choisie
- * arbitrairement qui mentirait sur l'état réel de la saison. */
+ * arbitrairement qui mentirait sur l'état réel du film. */
 export function agregerPhases(phases: Phase[]): PhaseAgregee {
   if (phases.length === 0) return { phase: "vide", detail: null, bornes: [0, 0] };
   const uniques = [...new Set(phases)];

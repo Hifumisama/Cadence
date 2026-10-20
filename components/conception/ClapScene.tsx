@@ -40,13 +40,12 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
       <div className="cn-poster-texte">
         <div className="cn-poster-tete">
           <p className="cn-poster-haut">CADENCE PRÉSENTE</p>
-          <p className="cn-poster-accroche">{conception.format === "serie" ? "Une série" : "Un film"} {genres}, {motDuTon(conception.ton)}</p>
+          <p className="cn-poster-accroche">Un film {genres}, {motDuTon(conception.ton)}</p>
         </div>
         <div className="cn-poster-pied">
           {titreDansImage ? null : <p className="cn-poster-titre">{titre.trim() || "Titre à venir"}</p>}
           <p className="cn-poster-style">Style · {style.nom}</p>
           <p className="cn-poster-bas">
-            {conception.format === "serie" && conception.episodesPrevus ? `${conception.episodesPrevus} épisodes · ` : ""}
             {minutesSecondes(conception.dureeSecondes)} · {conception.langue === "Sans dialogue" ? "sans dialogue" : conception.langue}
           </p>
         </div>
@@ -154,7 +153,7 @@ export function ClapScene({
           <div className={`cn-claps${frappe ? " is-frappe" : ""}`}>
             <div className="cn-claps-haut" />
             <dl className="cn-claps-grille">
-              <Cellule cle="Format" valeur={conception.format === "serie" ? `Série${conception.episodesPrevus ? ` · ${conception.episodesPrevus} ép.` : ""}` : "Film"} />
+              <Cellule cle="Format" valeur="Film" />
               <Cellule cle="Genre" valeur={conception.genres.join(" + ")} />
               <Cellule cle="Ton" valeur={`${motDuTon(conception.ton)} · ${conception.ton}`} defaut={defauts.ton} />
               <Cellule cle="Durée" valeur={minutesSecondes(conception.dureeSecondes)} defaut={defauts.duree} />
