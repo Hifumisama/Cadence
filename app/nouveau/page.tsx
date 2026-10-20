@@ -1,20 +1,17 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import Link from "next/link";
 import { ConceptionAssistant } from "@/components/conception/ConceptionAssistant";
 import type { StyleVue } from "@/components/conception/types";
 import { Topbar } from "@/components/ui/Topbar";
-import { MEDIA_ROOT } from "@/lib/media";
-import { bibliothequeStyles, cheminApercuStyle, styleUtilisable } from "@/lib/styles/bibliotheque";
-import { IDS_SUJETS } from "@/lib/styles/sujets";
+import { styleUtilisable } from "@/lib/styles/bibliotheque";
+import { listerStyles } from "@/lib/styles/styles-db";
 
 export const dynamic = "force-dynamic";
 
 /** La conception d'un projet : les choix qu'on fait avant de raconter l'histoire (format, genre, ton, durée, langue, style), puis la
  * rencontre avec le scénariste. Seuls les styles prêts à l'emploi (avec leur clause courte pour la vidéo) sont proposés ; les images de
- * présentation sont facultatives (`data/styles/<id>/<sujet>.webp`, générées par `npm run styles:apercus`). */
-export default function NouveauProjetPage() {
-  const styles: StyleVue[] = bibliothequeStyles()
+ * présentation sont facultatives (`data/styles/<id>/<sujet>.webp`, générées par `npm run styles:apercus`). Les styles viennent de la table `styles`. */
+export default async function NouveauProjetPage() {
+  const styles: StyleVue[] = (await listerStyles())
     .filter(styleUtilisable)
     .map((s) => ({
       id: s.id,
@@ -23,7 +20,7 @@ export default function NouveauProjetPage() {
       filtres: s.filtres,
       descriptor: s.descriptor,
       clause: s.clause ?? "",
-      images: IDS_SUJETS.filter((sujet) => existsSync(join(MEDIA_ROOT, cheminApercuStyle(s.id, sujet)))),
+      images: s.apercus,
     }));
 
   return (

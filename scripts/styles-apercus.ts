@@ -5,6 +5,8 @@ import { dirname, join, resolve } from "node:path";
 import { MEDIA_ROOT } from "../lib/media";
 import { bibliothequeStyles, cheminApercuStyle } from "../lib/styles/bibliotheque";
 import { IDS_SUJETS, SUJETS_APERCU } from "../lib/styles/sujets";
+import { db } from "../db";
+import { semerStyles } from "../db/seed-styles";
 import { HttpComfyUIClient } from "../worker/comfyui/httpClient";
 import { injecterGenerationImage, NODE_IDS_TEXTE_VERS_IMAGE, type WorkflowJson } from "../worker/comfyui/imageMapping";
 
@@ -139,6 +141,7 @@ async function main() {
     }
   }
 
+  await semerStyles(db, MEDIA_ROOT); // la base apprend les aperçus qui viennent d'exister
   console.log(`\nTerminé : ${faits} image(s) générée(s) en ${duree(Date.now() - debut)}, ${echecs.length} échec(s)${interrompu ? ", interrompu" : ""}.`);
   if (echecs.length) {
     console.log(`Relancer : npm run styles:apercus (les images déjà faites sont sautées). Échecs : ${echecs.map((e) => e.id).join(", ")}`);
