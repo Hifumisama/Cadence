@@ -1,6 +1,9 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { agentRuns, assetGenerations } from "../../db/schema";
 import { STATUT_TRADUCTION, methodeDEssai } from "../asset-generation";
+import { TYPE_AFFICHE } from "../affiches";
+import { assets } from "../../db/schema";
+import { entreePromptAffiche } from "./affiche";
 import { entreePromptAsset, type EntreeSkill } from "./contexte";
 import type { Db } from "./applicateurs/commun";
 
@@ -26,9 +29,24 @@ export async function entreeEssaiAsset(
     images: { rang: number; role: "base" | "jointe"; libelle: string }[];
   },
 ): Promise<EntreeSkill | null> {
+  const methode = methodeDEssai(p.images.length > 0);
+  // Une affiche de présentation : le skill `prompt-asset` en variante `affiche` (titre, résumé, ton, personnage principal), avec la méthode imposée.
+  const [asset] = await db.select({ type: assets.type }).from(assets).where(and(eq(assets.id, assetId), eq(assets.projectId, projectId)));
+  if (asset?.type === TYPE_AFFICHE) {
+    const affiche = await entreePromptAffiche(db, projectId, assetId, p.consigne);
+    if (!affiche) return null;
+    return {
+      ...affiche,
+      entree: {
+        ...affiche.entree,
+        promptActuel: p.promptBase,
+        methodeImposee: methode,
+        ...(p.images.length > 0 ? { imagesDeLEssai: p.images } : {}),
+      },
+    };
+  }
   const base = await entreePromptAsset(db, projectId, assetId, p.consigne);
   if (!base) return null;
-  const methode = methodeDEssai(p.images.length > 0);
   const e = base.entree as { asset: Record<string, unknown>; parent: unknown };
   return {
     ...base,

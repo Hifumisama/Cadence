@@ -92,7 +92,7 @@ async function envoyerSources(client: ComfyUIClient, gen: Generation, mediaRoot:
   return noms;
 }
 
-/** Sources d'une édition. Pour une affiche, un canevas vide 2:3 passe en image 1 : la sortie de Qwen suit le format de
+/** Sources d'une édition. Pour une affiche de l'ancien parcours (sans consigne ; un essai de la fiche pose lui-même son canevas), un canevas vide 2:3 passe en image 1 : la sortie de Qwen suit le format de
  * l'image 1, et sans lui une fiche personnage 16:9 donnerait une affiche 16:9. Le personnage (la source enregistrée)
  * devient l'image 2. */
 async function sourcesEdition(client: ComfyUIClient, gen: Generation, mediaRoot: string, affiche: boolean): Promise<string[]> {
@@ -230,7 +230,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         prompt: gen.prompt,
         seed: gen.seed,
         lightning: gen.lightning ?? true,
-        sourcesDistantes: await sourcesEdition(client, gen, mediaRoot, asset.type === TYPE_AFFICHE),
+        sourcesDistantes: await sourcesEdition(client, gen, mediaRoot, asset.type === TYPE_AFFICHE && gen.consigne == null),
         prefixeSortie: `cadence_${asset.code}`,
       });
     } else {

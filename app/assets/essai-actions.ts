@@ -20,9 +20,11 @@ import {
   raisonConsigneInvalide,
   raisonNonGenerable,
 } from "@/lib/asset-generation";
+import { TYPE_AFFICHE } from "@/lib/affiches";
 import { styleDesImages } from "@/lib/conception";
 import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "@/lib/media";
 import { nbImagesEnAttente } from "@/lib/queries-taches";
+import { cheminCanevasAffiche } from "@/worker/canevas-affiche";
 import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
 
 // La fiche d'un asset « comme la fiche de plan » : on écrit une consigne en français, un agent la traduit en prompt (Krea 2 sans image de
@@ -62,8 +64,11 @@ export async function lancerEssai(
     baseFichierRelatif = cheminGenerationMedia(assetId, essai.fichier);
     promptBase = essai.prompt;
   }
-  const aUneBase = baseFichierRelatif != null;
   const jointes = p.jointes ?? [];
+  // Une affiche créée à partir d'images (le personnage principal, par exemple) part d'un canevas vide 2:3 en image 1 : la sortie de Qwen suit le
+  // format de l'image 1, et sans lui une fiche personnage 16:9 donnerait une affiche 16:9. Le canevas compte comme l'image de base.
+  const canevas = asset.type === TYPE_AFFICHE && baseFichierRelatif == null && jointes.length > 0;
+  const aUneBase = baseFichierRelatif != null || canevas;
   if (jointes.length > maxImagesJointes(aUneBase)) {
     return { ok: false, erreur: aUneBase ? "Pour retoucher, une seule image peut s'ajouter à l'image de base." : "Trois images au plus." };
   }
@@ -82,7 +87,8 @@ export async function lancerEssai(
   }
   const aDesImages = aUneBase || sourcesJointes.length > 0;
   const consigne = p.consigne.trim();
-  const raison = raisonConsigneInvalide(consigne, aDesImages, asset.description);
+  // Une affiche se dessine d'après le titre et le résumé du projet : sa consigne peut rester vide, même avec des images (le canevas compte comme base).
+  const raison = raisonConsigneInvalide(consigne, aDesImages && !canevas, asset.description);
   if (raison) return { ok: false, erreur: raison };
   if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
     return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} images en attente) : laisse le worker en vider quelques-unes.` };
@@ -90,19 +96,21 @@ export async function lancerEssai(
 
   // La base est PHOTOGRAPHIÉE : l'essai garde l'image dont il est parti, même si l'asset change ensuite (comme les sources importées).
   let nomBase: string | null = null;
-  if (baseFichierRelatif) {
-    nomBase = `${randomUUID()}${extname(baseFichierRelatif).toLowerCase() || ".png"}`;
+  if (baseFichierRelatif || canevas) {
+    const origine = baseFichierRelatif ? join(MEDIA_ROOT, baseFichierRelatif) : await cheminCanevasAffiche(join(MEDIA_ROOT, "_canevas"));
+    nomBase = `${randomUUID()}${extname(origine).toLowerCase() || ".png"}`;
     const cible = join(MEDIA_ROOT, cheminSourceImportMedia(assetId, nomBase));
     try {
       await mkdir(dirname(cible), { recursive: true });
-      await copyFile(join(MEDIA_ROOT, baseFichierRelatif), cible);
+      await copyFile(origine, cible);
     } catch {
       return { ok: false, erreur: "L'image de base est introuvable sur le stockage." };
     }
   }
 
   const images = [
-    ...(aUneBase ? [{ rang: 1, role: "base" as const, libelle: `l'image actuelle de « ${libelleAsset(asset)} »` }] : []),
+    ...(canevas ? [{ rang: 1, role: "base" as const, libelle: "an empty vertical 2:3 canvas (the poster to paint)" }] : []),
+    ...(baseFichierRelatif ? [{ rang: 1, role: "base" as const, libelle: `l'image actuelle de « ${libelleAsset(asset)} »` }] : []),
     ...sourcesJointes.map((s, i) => ({ rang: (aUneBase ? 2 : 1) + i, role: "jointe" as const, libelle: s.libelle })),
   ];
   const entree = await entreeEssaiAsset(db, asset.projectId, assetId, { consigne, aUneBase, promptBase, images });

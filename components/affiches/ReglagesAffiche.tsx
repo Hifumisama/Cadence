@@ -3,26 +3,18 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { reglerTitreAffiche } from "@/app/affiches/actions";
-import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import type { CibleAffiche } from "@/lib/affiches";
 
-/** Les deux réglages de l'affiche, avant de lancer la génération : écrire le titre dans l'image (ligne de titre du prompt) et
- * demander le prompt à l'agent. L'agent suit le même parcours que pour un asset : une consigne, le contexte lu, une proposition
- * à relire et à accepter (elle remplace le prompt de l'affiche). */
+/** Le réglage de l'affiche avant de lancer un essai : écrire le titre dans l'image (ligne de titre du prompt). Le prompt lui-même est écrit par
+ * l'agent à partir de la consigne de l'atelier (components/assets/AtelierAsset.tsx). */
 export function ReglagesAffiche({
   cible,
   id,
-  projectId,
-  assetCode,
-  libelle,
   titreDansImage,
   personnage,
 }: {
   cible: CibleAffiche;
   id: number;
-  projectId: number;
-  assetCode: string;
-  libelle: string;
   titreDansImage: boolean;
   /** Le personnage principal retenu, et si son image sert de première source. */
   personnage: { nom: string; aImage: boolean } | null;
@@ -52,21 +44,13 @@ export function ReglagesAffiche({
         </span>
       </label>
 
-      <div className="aff-agent">
-        <BoutonAgent
-          className="btn btn-ghost"
-          libelle="Demander le prompt à l'agent"
-          titre="L'agent lit le titre, le résumé, le ton et le personnage principal, puis propose un prompt que tu relis avant de l'accepter"
-          demande={{ projectId, portee: "asset", cible: { code: assetCode }, profondeur: "courte", libelle }}
-        />
-        <small>
-          {personnage
-            ? personnage.aImage
-              ? `Le personnage principal (${personnage.nom}) sert de point de départ : son image est la source ; un canevas 2:3 vide est ajouté devant à la génération.`
-              : `Le personnage principal (${personnage.nom}) est décrit dans le prompt, mais il n'a pas encore d'image : la cohérence sera moindre.`
-            : "Aucun personnage principal repéré dans le registre : l'agent compose à partir du résumé."}
-        </small>
-      </div>
+      <p className="tiny-note">
+        {personnage
+          ? personnage.aImage
+            ? `Le personnage principal (${personnage.nom}) est joint d'office à la consigne : l'affiche part d'un canevas vide 2:3 et en reprend le visage et la tenue. Retire-le pour une création de zéro.`
+            : `Le personnage principal (${personnage.nom}) est décrit dans le prompt, mais il n'a pas encore d'image : la cohérence sera moindre.`
+          : "Aucun personnage principal repéré dans le registre : l'agent compose à partir du résumé."}
+      </p>
 
       {erreur ? (
         <p className="aff-retour is-erreur" role="status">

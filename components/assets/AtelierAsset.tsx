@@ -46,6 +46,8 @@ export function AtelierAsset({
   plansRendus,
   raisonBloquee,
   registre,
+  affiche = false,
+  jointesInitiales = [],
 }: {
   assetId: number;
   code: string;
@@ -66,11 +68,15 @@ export function AtelierAsset({
   raisonBloquee: string | null;
   /** Les images du registre qu'on peut joindre à une consigne. */
   registre: JointeDisponible[];
+  /** L'asset est une affiche de présentation (portrait 2:3) : l'image retenue devient celle du projet, pas d'import direct. */
+  affiche?: boolean;
+  /** Images jointes d'office à la première consigne (le personnage principal d'une affiche) ; on peut les retirer. */
+  jointesInitiales?: Jointe[];
 }) {
   const router = useRouter();
   const [selection, setSelection] = useState<Selection>(essaiInitial && essais.some((e) => e.uuid === essaiInitial) ? essaiInitial : imageSrc ? "actuelle" : null);
   const [consigne, setConsigne] = useState("");
-  const [jointes, setJointes] = useState<Jointe[]>([]);
+  const [jointes, setJointes] = useState<Jointe[]>(jointesInitiales);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
   const [aJeter, setAJeter] = useState<string | null>(null);
   const [secoue, setSecoue] = useState(false);
@@ -95,7 +101,8 @@ export function AtelierAsset({
   const retouche = base != null;
   const baseSrc = base === "actuelle" ? imageSrc : base ? (essai(base.essai)?.src ?? null) : null;
   // Qwen Image Edit prend 3 images : créer en jointe jusqu'à 3, retoucher n'en laisse qu'une de plus à côté de la base.
-  const maxJointes = maxImagesJointes(retouche);
+  // Une affiche créée à partir d'images part d'un canevas vide en image 1 (qui compte comme la base) : deux images jointes au plus.
+  const maxJointes = maxImagesJointes(retouche || affiche);
   const trop = jointes.length > maxJointes;
   const libelleBase = base === "actuelle" ? "l'image actuelle" : base ? `l'essai n°${numeros.get(base.essai)}` : null;
 
@@ -164,14 +171,14 @@ export function AtelierAsset({
   };
   const cleVue = regarde === "actuelle" ? "actuelle" : (regarde?.uuid ?? "");
   const dimsVue = dims[cleVue];
-  const ratio = (dims.actuelle ?? dimsVue) ? `${(dims.actuelle ?? dimsVue)!.l} / ${(dims.actuelle ?? dimsVue)!.h}` : "16 / 9";
+  const ratio = (dims.actuelle ?? dimsVue) ? `${(dims.actuelle ?? dimsVue)!.l} / ${(dims.actuelle ?? dimsVue)!.h}` : affiche ? "2 / 3" : "16 / 9";
 
   const lancer = (texte = consigne, depuis: BaseEssai = base) => {
     if (trop) {
       setRetour({ ok: false, texte: `Pour retoucher, une seule image peut s'ajouter à la base : retire-en ${jointes.length - maxJointes}.` });
       return;
     }
-    if ((retouche || jointes.length > 0) && !texte.trim()) {
+    if ((retouche || (jointes.length > 0 && !affiche)) && !texte.trim()) {
       setSecoue(true);
       window.setTimeout(() => setSecoue(false), 400);
       champ.current?.focus();
@@ -206,7 +213,7 @@ export function AtelierAsset({
         r.ok
           ? {
               ok: true,
-              texte: `Essai n°${numeros.get(e.uuid)} adopté : c'est maintenant l'image de l'asset (à revalider).${plansRendus ? ` ${plansRendus} plan${plansRendus > 1 ? "s" : ""} déjà rendu${plansRendus > 1 ? "s" : ""} ${plansRendus > 1 ? "sont périmés" : "est périmé"}.` : ""}`,
+              texte: `Essai n°${numeros.get(e.uuid)} adopté : c'est maintenant ${affiche ? "l'image de présentation." : "l'image de l'asset (à revalider)."}${plansRendus ? ` ${plansRendus} plan${plansRendus > 1 ? "s" : ""} déjà rendu${plansRendus > 1 ? "s" : ""} ${plansRendus > 1 ? "sont périmés" : "est périmé"}.` : ""}`,
             }
           : { ok: false, texte: r.erreur },
       );
@@ -240,7 +247,7 @@ export function AtelierAsset({
           <h2>
             Atelier <small>{imageSrc ? (nbEssais ? `${nbEssais} essai${nbEssais > 1 ? "s" : ""}` : "aucun essai") : "pas encore d'image"}</small>
           </h2>
-          <UploadFichierForm assetId={assetId} code={code} classe="btn btn-fant btn-sm" libelle="Importer une image" />
+          {affiche ? null : <UploadFichierForm assetId={assetId} code={code} classe="btn btn-fant btn-sm" libelle="Importer une image" />}
         </div>
 
         {/* ---- La scène ---- */}
@@ -327,7 +334,7 @@ export function AtelierAsset({
             )
           ) : (
             <div className="passe entre">
-              <div className="boite vierge" style={{ "--ar": "16 / 9" } as React.CSSProperties}>
+              <div className="boite vierge" style={{ "--ar": affiche ? "2 / 3" : "16 / 9" } as React.CSSProperties}>
                 <div>
                   <Icone nom="image" taille={42} />
                   <b>Pas encore d&rsquo;image</b>

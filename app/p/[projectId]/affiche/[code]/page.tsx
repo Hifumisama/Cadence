@@ -3,22 +3,22 @@ import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assets, episodes, projects } from "@/db/schema";
-import { GenerationPanel } from "@/components/assets/GenerationPanel";
+import { AtelierAsset } from "@/components/assets/AtelierAsset";
 import { AfficheZoom } from "@/components/affiches/AfficheZoom";
 import { ReglagesAffiche } from "@/components/affiches/ReglagesAffiche";
 import { RetirerAfficheButton } from "@/components/affiches/RetirerAfficheButton";
 import { Poster } from "@/components/ui/Poster";
 import { Topbar } from "@/components/ui/Topbar";
 import { lirePersonnagePrincipal } from "@/lib/agents/affiche";
-import { TYPE_AFFICHE, cibleDeCodeAffiche, formatAfficheParDefaut, titreDansPrompt } from "@/lib/affiches";
+import { TYPE_AFFICHE, cibleDeCodeAffiche, titreDansPrompt } from "@/lib/affiches";
 import { posterSrc } from "@/lib/media";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
 import "./affiche.css";
 
 export const dynamic = "force-dynamic";
 
-/** Génération de l'image de présentation d'un projet ou d'un épisode. Même fenêtre, mêmes candidats et même « Utiliser »
- * que pour un asset (l'affiche s'appuie sur un asset d'un type à part, invisible du registre — lib/affiches.ts). La page
+/** Génération de l'image de présentation d'un projet ou d'un épisode. Le même atelier que la fiche d'un asset (consigne en français,
+ * journal d'essais, « Utiliser cet essai » : l'affiche s'appuie sur un asset d'un type à part, invisible du registre — lib/affiches.ts). La page
  * n'existe que si l'asset a été créé par le bouton « Générer une image » : jamais d'écriture en simple lecture. */
 export default async function AffichePage({
   params,
@@ -63,10 +63,12 @@ export default async function AffichePage({
     getAssetsAvecImage(pid, asset.id),
     lirePersonnagePrincipal(db, pid),
   ]);
-  // Quand l'agent a recommandé de partir de l'image du personnage principal, la fenêtre s'ouvre en mode « images » avec lui en image 1.
-  const partDuPersonnage = asset.methodeGeneration === "edition" && principal?.aImage === true;
+  const essais = generations.filter((g) => g.methode === "generation" || g.methode === "edition");
+  const joignables = registre.map((a) => ({ id: a.id, libelle: a.code, src: a.src }));
+  // Le personnage principal (s'il a une image) est joint d'office à la première consigne : c'est ce qui garde l'affiche cohérente avec le registre.
+  const perso = principal?.aImage ? registre.find((r) => r.code === principal.code) : undefined;
+  const jointesInitiales = perso ? [{ origine: "asset" as const, assetId: perso.id, cle: `perso-${perso.id}`, src: perso.src, libelle: perso.code }] : [];
   const src = posterSrc(cible.cible, cible.id, posterFichier);
-  const format = formatAfficheParDefaut();
   const sujet = cible.cible === "projects" ? "du projet" : "de l'épisode";
   const cleRepli = cible.cible === "projects" ? `projet:${pid}` : `episode:${cible.id}`;
 
@@ -123,35 +125,33 @@ export default async function AffichePage({
               id={cible.id}
               titreDansImage={titreDansPrompt(asset.promptGeneration ?? "")}
               personnage={principal ? { nom: principal.nom, aImage: principal.aImage } : null}
-              projectId={pid}
-              assetCode={asset.code}
-              libelle={`Affiche · ${titre}`}
             />
-            <div className="aff-boutons">
-              <GenerationPanel
-                key={asset.promptGeneration ?? ""}
-                assetId={asset.id}
-                code={asset.code}
-                type={asset.type}
-                methodeGeneration={partDuPersonnage ? "edition" : "generation"}
-                parentCode={partDuPersonnage ? principal!.code : null}
-                promptInitial={asset.promptGeneration ?? ""}
-                raisonBloquee={null}
-                defauts={{ aspect: format.aspect, megapixels: format.megapixels, lora: false }}
-                registre={registre}
-                imageActuelle={imageActuelle(asset)}
-                dureeSecondes={null}
-                generations={generations}
-                generationInitiale={generation ?? null}
-                simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
-                libelleBouton="Générer une image"
-              />
-              {src ? <RetirerAfficheButton cible={cible.cible} id={cible.id} /> : null}
-            </div>
-            <p className="tiny-note">
-              Chaque génération donne un candidat : ouvre la fenêtre pour les comparer, puis « Utiliser » en fait l&rsquo;image de présentation.
-            </p>
+            {src ? (
+              <div className="aff-boutons">
+                <RetirerAfficheButton cible={cible.cible} id={cible.id} />
+              </div>
+            ) : null}
           </div>
+        </div>
+
+        <div className="fa">
+          <AtelierAsset
+            key={asset.promptGeneration ?? ""}
+            assetId={asset.id}
+            code={asset.code}
+            libelle={`Affiche · ${titre}`}
+            imageSrc={imageActuelle(asset)?.src ?? null}
+            fichierAt={asset.fichierAt ? asset.fichierAt.getTime() : null}
+            valide={false}
+            essais={essais}
+            essaiInitial={generation ?? null}
+            description={asset.description ?? ""}
+            plansRendus={0}
+            raisonBloquee={null}
+            registre={joignables}
+            affiche
+            jointesInitiales={jointesInitiales}
+          />
         </div>
       </main>
     </>
