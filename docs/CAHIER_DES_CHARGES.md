@@ -1,7 +1,7 @@
 # CADENCE — Cahier des charges
 
 > Interface de production pour Les Yeux de Rubis. Ce document exécute des
-> décisions déjà prises dans `FRICTIONS.md`. Il n'en invente aucune : chaque
+> décisions déjà prises (journal `FRICTIONS.md`, retiré le 2026-10-20, voir l'historique git). Il n'en invente aucune : chaque
 > page ci-dessous répond à une friction identifiée et tranchée (F01 à F06),
 > pas à une idée nouvelle non éprouvée.
 

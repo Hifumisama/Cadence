@@ -124,7 +124,7 @@ M ≈ 1 journée, L > 1 journée.
 
 ### Phase 0 — Bibliothèque de styles (en cours, hors code applicatif) — S
 - Agent en cours : références nommées remises dans les descriptions, `promptApercu` avec une femme dans une scène
-  commune à variantes (`varianteApercu`). Résultat : `docs/krea2-styles-guide.final.json`.
+  commune à variantes (`varianteApercu`). Résultat : `lib/styles/bibliotheque.json` (les fichiers intermédiaires `docs/krea2-styles-guide.*` ont été supprimés le 2026-10-20).
 - À faire par l'utilisateur : tri manuel des styles à supprimer.
 - Script `npm run styles:apercus` (`scripts/styles-apercus.ts`, décidé) : génère à la chaîne les images 2:3 via ComfyUI (workflow `IMG_01_TextToImage`, Krea 2 Turbo : la scène dans le nœud « prompt », le descripteur du style dans le nœud « style », exactement comme une vraie génération), seed stable par style, reprise (saute les images déjà faites), options `--only`, `--limite`, `--force`, sortie `data/styles/<id>.webp`. Sans image, l'app affiche un dégradé neutre (comportement de la maquette).
 

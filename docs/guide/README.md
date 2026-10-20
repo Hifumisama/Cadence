@@ -3,10 +3,10 @@
 **En une phrase** : ce dossier explique comment le code de Cadence fonctionne, pour toi (le directeur du projet) et pour un agent qui doit le modifier.
 
 **À retenir**
-- Les décisions vivent dans [`docs/FRICTIONS.md`](../FRICTIONS.md) ; ce guide les relie au code, il ne les remplace pas.
+- Les règles en vigueur sont résumées dans `CLAUDE.md` (le journal `FRICTIONS.md` a été retiré le 2026-10-20, il reste dans l'historique git).
 - Une page = un sujet. Chaque page commence par un résumé simple, puis une « Fiche technique » pour l'agent.
 - Les chemins cités entre accents graves existent dans le dépôt : un test le vérifie (`lib/docs-guide.test.ts`).
-- Si le code et ce guide divergent, c'est le code qui dit vrai ; corrige la page (et signale si FRICTIONS est en retard).
+- Si le code et ce guide divergent, c'est le code qui dit vrai ; corrige la page.
 
 ## Je veux… → je lis…
 
@@ -33,7 +33,6 @@
 
 ## Les autres documents (hors guide)
 
-- [`docs/FRICTIONS.md`](../FRICTIONS.md) : source de vérité des décisions (journal daté).
 - [`docs/CAHIER_DES_CHARGES.md`](../CAHIER_DES_CHARGES.md) : spécification de l'interface.
 - [`docs/CONCEPTION_AGENTS.md`](../CONCEPTION_AGENTS.md) : conception des agents (le §14 décrit ce qui est construit).
 - [`docs/00_BIBLE.md`](../00_BIBLE.md), [`docs/REGISTRE_ASSETS.md`](../REGISTRE_ASSETS.md), [`docs/S01_maya.md`](../S01_maya.md) : contenu de la série.
@@ -53,9 +52,7 @@
 - que chaque chemin `dossier/fichier.ext` cité entre accents graves (extensions ts, tsx, md, json, sql, yml) existe (racine du dépôt ou dossier de la page) ; les chemins avec `<…>` ou `*` sont ignorés ;
 - que chaque page de `docs/guide/` contient « En une phrase » et « Fiche technique ».
 
-**Invariant** : une page ne recopie pas une décision de FRICTIONS ; elle la résume en une ligne et pointe vers sa section.
-
-**Piège connu** : le dépôt contient des fichiers en fins de ligne CRLF (FRICTIONS, CLAUDE.md, `workflows/README.md`) ; les pages du guide sont en LF.
+**Piège connu** : le dépôt contient des fichiers en fins de ligne CRLF (CLAUDE.md, `workflows/README.md`) ; les pages du guide sont en LF.
 
 **Tester** : `npm test`.
 

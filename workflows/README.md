@@ -5,10 +5,8 @@ directement par le backend de Cadence — pas de la documentation, une
 dépendance d'exécution.
 
 - `video-generation/` — génération H3, 1er pass + upscale (F04)
-- `upscale/` — passe upscale isolée si distincte du workflow principal
-- `voice-clone/` — Qwen3-TTS (Voice Design) puis CosyVoice3 (répliques) (F06) ; **pas branché**, ancien casting vocal retiré (2026-10-14)
 - `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
-- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas ; les workflows `VOX_*` ne sont plus branchés (casting vocal retiré, 2026-10-14)
+- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas 
 
 ## Avant de committer un workflow
 
@@ -76,14 +74,6 @@ fabriquer une image à partir d'autres (plusieurs assets combinés). Le modèle 
 Krea 2 charge un autre encodeur (`qwen3vl_4b_fp8_scaled`), donc alterner les deux
 types de tâches recharge des modèles.
 
-### `voice-clone/` — pas branché
-
-`CharacterVoicesNode` lit un fichier de voix dans un dossier propre à ComfyUI et
-exige texte de référence et rognage saisis dans le graphe : la gestion de
-l'audio y est trop couplée à ComfyUI pour être pilotée par l'application (voir
-`docs/FRICTIONS.md`, F06). À reprendre quand le passage de la référence d'un
-moteur à l'autre ne dépendra plus de ce nœud.
-
 ## Contrat du workflow audio (`audio/`)
 
 ### `SFX_Generate_Sounds.json` — bruitages et ambiances (Stable Audio 3 Medium)
@@ -123,13 +113,6 @@ l'aperçu de la durée.
 soumission (recommandé par la doc de Stability, absent du gabarit du workflow,
 non testé sur ce graphe), et le rôle d'une mention « Length: X seconds » dans un
 prompt brut. Voir le guide.
-
-### Workflows de voix retirés (2026-10-14)
-
-`VOX_Generate_Replique_Simplified.json`, `VOX_Generate_Voice_Simplified.json`, `VOX_Get_Audio_and_ASR.json` et `VOX_Doublage_voix_API_Mode.json`
-(avec `voice-clone/`) ne sont **plus branchés** : le casting vocal (voix de référence, extraction d'une voix fournie, prises de réplique,
-doublage) a été retiré (docs/FRICTIONS.md, 2026-10-14). La voix d'un personnage est son **master**, produit par le workflow vidéo dédié
-(voir « Master de voix » en bas). Les fichiers restent dans le dépôt comme matière (par exemple pour le graphe de nettoyage vocal).
 
 ## Contrat du workflow vidéo (`video-generation/`)
 

@@ -1,8 +1,8 @@
 import type { Liaison } from "../../plan-liaison";
 import type { Position } from "../types";
 
-/** La révision d'un épisode (le réalisateur, docs/FRICTIONS.md 2026-10-09 « révision d'épisode »). Types partagés par le
- * serveur, le worker et l'interface : aucun accès base ni Next ici. */
+/** Les opérations sur un épisode (relecture du scénario). Types partagés par le
+ * serveur et le worker : aucun accès base ni Next ici. */
 
 export const TYPES_OPERATION = ["couper_plan", "duree_plan", "deplacer_plan", "modifier_plan", "refondre_fiche", "ajouter_plan"] as const;
 export type TypeOperation = (typeof TYPES_OPERATION)[number];

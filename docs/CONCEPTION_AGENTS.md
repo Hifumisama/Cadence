@@ -6,7 +6,7 @@
 > vocabulaire et le modèle de données avant d'écrire la moindre ligne. Il
 > prolonge « Direction retenue pour l'agent d'itération » (`FRICTIONS.md`, F03)
 > et « Agents — architecture commune » (`CAHIER_DES_CHARGES.md`). En cas de
-> conflit, `FRICTIONS.md` reste la source de vérité des décisions actées.
+> conflit, les règles de `CLAUDE.md` priment (`FRICTIONS.md`, retiré le 2026-10-20, reste dans l'historique git ; ses renvois ci-dessous sont historiques).
 
 ## 1. Objectif
 
@@ -224,10 +224,8 @@ que d'écraser).
 | Intake | `notes-entretien` | tenir la fiche de notes (le brief) au fil de la conversation ; plus de skill `brief-projet` (2026-10-12) |
 | Scénario | `scenario-episode` | lire le brief et le registre ; proposer saison/épisode/scènes/plans (dialogue compris) |
 | Assets | `prompt-asset` | lire le registre, un asset et son parent ; proposer un prompt et une méthode |
-| Voix | `prompt-voix` | lire un personnage et les voix au casting ; proposer une instruction et un texte de référence |
 | Plans | `plan-h3` | lire plans, scène et registre ; proposer des plans et leurs refs (voix comprises) ; lancer les contrôles |
-| Itération | `iteration-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt. Garde « Corriger après visionnage » (il lit les vignettes du rendu) ; son rôle dans la révision d'épisode est tenu par le réalisateur (§16, FRICTIONS 2026-10-09) |
-| Réalisateur | à créer (§16) | lire tout un épisode (scénario, fiches, rendus) et le brouillon ; proposer des décisions ; calculer les constats ; déléguer la réécriture à `scenario-episode` et `plan-h3` |
+| Itération | `iteration-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt. Garde « Corriger après visionnage » (il lit les vignettes du rendu) ;  |
 
 Tous les outils **de lecture** répondent directement. Tous les outils **d'écriture**
 créent des changements de proposition — aucun n'écrit sur les tables métier.
@@ -467,19 +465,6 @@ L'entretien d'entrée (§ 4 et 14) a deux ouvertures. Un projet **sans conceptio
 
 Décisions et raisons : `docs/FRICTIONS.md`, 2026-10-07 (conception) et 2026-10-08 (accroche par le modèle, qui remplace l'accroche en code).
 
-## 16. Le réalisateur d'un épisode (conçu, 2026-10-09)
+## 16. Le réalisateur d'un épisode (retiré, 2026-10-20)
 
-**Construit** (2026-10-09 ; skills `realisateur-analyse` et `realisateur-reponse`, voir FRICTIONS 2026-10-09). Un agent d'**orchestration** pour réviser un scénario existant, par la conversation : une conversation libre par épisode, des décisions retenues qui s'accumulent en brouillon, une application par glissière. Il ne remplace pas les assistants de création (projet, casting, registre, fiches manquantes) ; il remplace `iteration-plan` et les boutons « Demander à l'agent » des plans.
-
-- **Rôle.** Il lit l'épisode entier et le brouillon, propose des idées à partir d'un ressenti ou vérifie la cohérence d'une demande précise, puis appelle les skills existants pour réécrire (`scenario-episode` en retouche de scène ou de réplique, `plan-h3` en écriture partielle de fiche). Les constats mécaniques (durée contre objectif, protégés, périmés, verbatim, limites de 5 à 15 s) sont calculés par le **code** ; le modèle ne juge que le narratif.
-- **Cycle de vie.** Une conversation ouverte par épisode. Le brouillon de décisions reste attaché à l'épisode tant qu'il n'est ni appliqué ni abandonné (rien n'est réinitialisé en silence quand on quitte la page). **À l'application, la conversation se ferme** ; la révision suivante en ouvre une neuve.
-- **Portée.** `episode` du verrou de portée (`lib/agents/portee.ts`) : l'épisode, ses scènes et ses plans. Un asset manquant est signalé, sa création reste dans le flux des assets.
-- **Modèle.** Qwen3.6-35B-A3B par défaut (`LLM_MODELE_REALISATEUR_ANALYSE` et `_REPONSE`, `.env.example`).
-- **Écritures (faites, étape 1).** Supprimer un plan, déplacer un plan (`modifier` avec une position), applicateur `plan.ts` (les applicateurs et opérations de réplique ont été retirés le 2026-10-14). Le détail est dans `docs/FRICTIONS.md`, « Étape 1 construite ».
-- **Périmé et revue (faits, étape 2).** Un rendu est périmé aussi quand le prompt ou la durée du plan ne sont plus ceux du dernier rendu (comparés par valeur) ; la revue affiche les rangs qui bougent pour une suppression ou un déplacement. Voir `docs/FRICTIONS.md`, « Étape 2 construite ».
-- **Le moteur (fait, étape 3).** Deux skills, `realisateur-analyse` (opérations typées, jamais de prose) puis `realisateur-reponse` (formule les faits du code) ; une conversation de profondeur `revision` par épisode ; les décisions (`revision_decisions`) sont le brouillon, appliqué en UNE proposition ; constats mécaniques par le code, jugements narratifs par le modèle. Code dans `lib/agents/revision/`, détail dans `docs/FRICTIONS.md`, « Étape 3 construite ». Essai sur le modèle : `npm run revision:essai`.
-- **L'interface (faite, étape 4).** Page `/p/<projet>/realisateur/<épisode>` + onglet ; les anciens boutons y mènent ; voir FRICTIONS, « Étape 4 construite ».
-- **À construire.** Les suites déléguées (refondre une fiche avec `plan-h3` appliqué au brouillon, ajouter un plan avec `scenario-episode`) ; le nettoyage des fichiers après application.
-- **Pas de point de retour** : l'annulation d'une proposition appliquée reste écartée (voir 2026-10-02), les garde-fous sont avant l'application.
-
-Décisions, cascade et raisons : `docs/FRICTIONS.md`, 2026-10-09 (révision d'épisode). Maquettes : `docs/maquettes/revision-episode.html` (la conversation) et `docs/maquettes/cascade-chantier.html` (les conséquences de chaque changement).
+Le réalisateur (skills `realisateur-analyse` et `realisateur-reponse`, conversation de profondeur `revision`, table `revision_decisions`, page `/p/<projet>/realisateur/<épisode>`) a été **décommissionné** : jamais utilisé en réel, redondant avec le scénariste, la relecture du scénario et l'itération de plan. Décision et raisons : `docs/FRICTIONS.md`, 2026-10-20. Ce qui servait aussi à la relecture (vue d'épisode à poignées, opérations typées et leur conversion en changements) vit dans `lib/agents/vue-operations/`. Le texte d'origine reste dans l'historique git.

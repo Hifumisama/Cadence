@@ -1,9 +1,9 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { briefs, episodes, jobs, planPromptSections, plans, scenes, seasons } from "../../../db/schema";
+import { briefs, episodes, jobs, planPromptSections, plans, scenes } from "../../../db/schema";
 import { getPlansPerimes } from "../../plans-perimes";
 import type { Db } from "../applicateurs/commun";
 
-/** La vue d'un épisode que lit le réalisateur : ses plans, chacun avec une POIGNÉE (« P07 ») bâtie sur
+/** La vue d'un épisode que lit la relecture : ses plans, chacun avec une POIGNÉE (« P07 ») bâtie sur
  * l'ordre réel à cet instant. Le modèle cite les poignées ; le code les traduit en uuid (une poignée est un rang : elle n'est jamais
  * stockée, F03). `construireVue` est pur, `lireVueEpisode` lit la base. */
 
@@ -91,8 +91,7 @@ export async function lireVueEpisode(db: Db, projectId: number, episodeId: numbe
   const [ep] = await db
     .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre })
     .from(episodes)
-    .innerJoin(seasons, eq(seasons.id, episodes.seasonId))
-    .where(and(eq(episodes.id, episodeId), eq(seasons.projectId, projectId)));
+    .where(and(eq(episodes.id, episodeId), eq(episodes.projectId, projectId)));
   if (!ep) return null;
 
   const lesPlans = await db
