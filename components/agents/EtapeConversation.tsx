@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { envoyerMessage, genererBrief } from "@/app/agents/actions";
 import type { ContexteEtape } from "@/components/agents/contexte";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
 import { estTacheActive } from "@/lib/agents-affichage";
 import { Icone } from "@/components/ui/Icone";
+import { useDefilementBas } from "@/components/ui/useDefilementBas";
 
 /** Étape « Conversation » (profondeur complète). Un fil de messages ; chaque tour de l'agent
  * est une tâche de la file. AUCUN cadrage ici (portée, estimation) : il vit au niveau du
@@ -20,10 +21,8 @@ export function EtapeConversation({ ctx }: { ctx: ContexteEtape }) {
   const tourEnCours = actif && tache?.but === "tour";
   const briefEnCours = actif && tache?.but === "brief";
 
-  // Le fil défile vers le dernier message.
-  useEffect(() => {
-    fin.current?.scrollIntoView({ block: "end" });
-  }, [conv.messages.length, tourEnCours]);
+  // Le fil défile vers le dernier message, sans arracher l'ascenseur à qui est remonté lire.
+  useDefilementBas(fin, tourEnCours, conv.messages.length);
 
   const envoyer = () => {
     const t = texte.trim();
