@@ -62,19 +62,10 @@ export function nomVariableModele(skill: string): string {
 /** Clé de `parametres` où l'interface (pastille du header) range le modèle choisi. */
 export const CLE_MODELE_CHOISI = "llm_modele";
 
-/** Modèle propre à un skill quand rien d'autre n'est dit : le réalisateur d'un épisode (révision, docs/FRICTIONS.md 2026-10-09) tourne
- * sur Qwen3.6-35B-A3B. Ce n'est qu'un défaut : il passe APRÈS la surcharge `LLM_MODELE_<SKILL>` et le choix du header. Le nom doit exister
- * sur le serveur (llama-swap) ; sinon l'appel échoue franchement, et la surcharge par variable le corrige. */
-export const MODELES_PAR_DEFAUT_SKILL: Readonly<Record<string, string>> = {
-  "realisateur-analyse": "qwen3.6-35b-A3B",
-  "realisateur-reponse": "qwen3.6-35b-A3B",
-};
-
 /** Modèle d'un skill, par ordre de priorité : surcharge `LLM_MODELE_<SKILL>` (un choix de configuration délibéré, par
- * skill), puis le modèle choisi dans l'interface (`choisi`, lu en base par l'appelant), puis le défaut propre au skill
- * (`MODELES_PAR_DEFAUT_SKILL`), puis `LLM_LOCAL_MODELE`. */
+ * skill), puis le modèle choisi dans l'interface (`choisi`, lu en base par l'appelant), puis `LLM_LOCAL_MODELE`. */
 export function modelePourSkill(skill: string, env: Env = process.env, choisi?: string | null): string {
-  return env[nomVariableModele(skill)]?.trim() || choisi?.trim() || MODELES_PAR_DEFAUT_SKILL[skill] || configLlm(env).modeleParDefaut;
+  return env[nomVariableModele(skill)]?.trim() || choisi?.trim() || configLlm(env).modeleParDefaut;
 }
 
 function suffixeSkill(skill: string): string {
@@ -85,7 +76,7 @@ function suffixeSkill(skill: string): string {
  * traduire une description en prompt, la réflexion pesait ~90 % des jetons de sortie (1 500 jetons pour une réponse de 130,
  * 30 s au lieu de 1). Le drapeau est honoré par le serveur (`reasoning_budget`, lui, ne l'est pas). `conversation-agent` : un
  * tour de dialogue doit rester vif. À étendre skill par skill, après un essai de qualité. */
-export const SKILLS_SANS_REFLEXION: readonly string[] = ["prompt-asset", "conversation-agent", "notes-entretien", "accroche-scenariste", "realisateur-analyse", "realisateur-reponse"];
+export const SKILLS_SANS_REFLEXION: readonly string[] = ["prompt-asset", "conversation-agent", "notes-entretien", "accroche-scenariste"];
 export const CORPS_SANS_REFLEXION = { chat_template_kwargs: { enable_thinking: false } };
 
 /** Champs ajoutés au corps de la requête pour un skill : `LLM_CORPS_<SKILL>` sinon `LLM_CORPS`, en JSON (`{}` pour rétablir

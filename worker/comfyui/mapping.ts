@@ -230,8 +230,3 @@ export function injecterValeurs(
 
   return graphe;
 }
-
-export function nomFichierSortie(workflow: WorkflowJson): string | undefined {
-  const node = workflow[NODE_IDS.sortieFinale];
-  return node?.inputs.filename_prefix as string | undefined;
-}

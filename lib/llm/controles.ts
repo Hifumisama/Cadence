@@ -4,7 +4,6 @@ import { controlerSortiePlanH3, type SortiePlanH3 } from "../agents/plan-h3-cont
 import { controlerDureeScenario, controlerStructureScenario } from "../agents/scenario-controles";
 import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-plan";
 import { problemesDeRelecture, type EntreeRelecture, type SortieRelecture } from "../agents/relecture";
-import { controleurAnalyse, type ControleAnalyse } from "../agents/revision/entrees";
 
 /** Contrôles SÉMANTIQUES d'un skill, appliqués à une sortie qui respecte déjà le schéma : ce que le
  * schéma ne sait pas dire (un code d'asset recopié de travers, un timecode qui recule…). S'il en trouve,
@@ -34,10 +33,6 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
       controlerSortieIterationPlan(json as SortieIterationPlan, ctx)
         .filter((p) => p.niveau === "erreur")
         .map((p) => p.message);
-  }
-  if (skill === "realisateur-analyse") {
-    // L'épisode tel que le modèle l'a lu : une poignée inventée, une durée hors limites, un id inconnu sont renvoyés UNE fois.
-    return entree ? controleurAnalyse(entree as ControleAnalyse) : undefined;
   }
   if (skill === "relecture-scenario") {
     // Des corrections minimales, sans renvoi à un autre plan, qui gardent « État en fin de plan », les mots de l'auteur et la durée : un défaut = un renvoi.

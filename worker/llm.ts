@@ -9,7 +9,6 @@ import { AccumulateurFlux } from "../lib/llm/flux-partiel";
 import { insererTrace } from "../lib/llm/traces";
 import { surveillerAnnulation } from "./annulation";
 import { limiteur } from "./comfyui/limiteur";
-import { llmJoignable } from "./llamaSwap";
 import { postTraiterRun, surEchecRun } from "./agents/postTraitement";
 import { preparerEntree, type DepsPreparation } from "./agents/preparation";
 import { controleurPourSkill } from "../lib/llm/controles";
@@ -67,23 +66,11 @@ export async function echouerAppelsEnAttente(message: string): Promise<number> {
 /** Ce qu'on peut injecter pour tester sans serveur LLM (ni ffmpeg : `planche`, voir worker/agents/preparation.ts). */
 export type DepsLlm = {
   executer?: typeof executerSkill;
-  joignable?: () => Promise<boolean>;
 } & DepsPreparation;
 
-/** Traite un appel. Renvoie `true` s'il a été pris (réussi, échoué ou annulé),
- * `false` si le serveur LLM est injoignable : il reste alors en attente et le
- * worker patiente avant de réessayer. */
+/** Traite un appel (le serveur a été sondé juste avant par la boucle du worker). Renvoie `true` s'il a été pris (réussi, échoué ou annulé). */
 export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promise<boolean> {
   const executer = deps.executer ?? executerSkill;
-  const joignable = deps.joignable ?? (() => {
-    const c = configLlm();
-    return llmJoignable(c.url, fetch, c.routeSante);
-  });
-  if (!(await joignable())) {
-    console.log(`[worker] Serveur LLM injoignable — appel ${run.id} (${run.skill}) reste en_attente`);
-    return false;
-  }
-
   // Prise gardée par le statut : un appel annulé entre-temps (annulation directe
   // d'une tâche en attente) ne doit pas être ressuscité.
   const prise = await db

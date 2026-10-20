@@ -1,4 +1,4 @@
-/** Variante de `prompt-asset` pour l'affiche de présentation d'un projet, d'une saison ou d'un épisode (asset caché de type
+/** Variante de `prompt-asset` pour l'affiche de présentation d'un projet ou d'un épisode (asset caché de type
  * `affiche`) : mêmes guides d'image que `image`, et la section « A poster » du skill. */
 export const VARIANTE_AFFICHE = "affiche";
 

@@ -4,9 +4,15 @@ import { basename, join } from "node:path";
 import { MEDIA_ROOT } from "../../lib/media";
 import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
 import { etatDansLaFile, type EtatDansLaFile } from "../../lib/annulation";
-import { injecterValeurs, nomFichierSortie, NODE_IDS } from "./mapping";
-import { cheminSortieDistant, premierFichierSortie } from "./sortie";
+import { injecterValeurs, NODE_IDS } from "./mapping";
+import { cheminSortieDistant, premierFichierSortie, type FichierSortie } from "./sortie";
 import { ouvrirSuiviWs, type EtatHistorique } from "./wsSuivi";
+
+/** Ce que /history rend d'un prompt, réduit à ce que le client lit. */
+type HistoriqueEntree = {
+  status?: { status_str?: string; completed?: boolean; messages?: unknown[] };
+  outputs?: Record<string, { gifs?: FichierSortie[]; videos?: FichierSortie[] } | undefined>;
+};
 
 /**
  * Client HTTP réel vers l'API ComfyUI qui tourne sur le PC de bureau (déjà
@@ -89,72 +95,43 @@ export class HttpComfyUIClient implements ComfyUIClient {
     });
   }
 
-  private async etatHistorique(promptId: string): Promise<EtatHistorique> {
+  /** L'entrée de /history pour ce prompt : undefined tant que ComfyUI n'en a pas (ou répond autrement que 200). Les trois lectures de
+   * l'état d'un rendu (suivi WebSocket, image, vidéo) passent par ici, avec le même délai maximal. */
+  private async lireHistorique(promptId: string): Promise<HistoriqueEntree | undefined> {
     const res = await fetch(`${this.baseUrl}/history/${promptId}`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return "en_cours";
-    const entree = (await res.json())[promptId];
+    if (!res.ok) return undefined;
+    return (await res.json())[promptId] ?? undefined;
+  }
+
+  private async etatHistorique(promptId: string): Promise<EtatHistorique> {
+    const entree = await this.lireHistorique(promptId);
     if (!entree) return "en_cours";
     if (entree.status?.status_str === "error") return "erreur";
     if (entree.status?.completed === true) return "termine";
     return "en_cours";
   }
 
-  async pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult> {
-    const res = await fetch(`${this.baseUrl}/history/${promptId}`);
-    if (!res.ok) return { statut: "en_cours" };
-    const entree = (await res.json())[promptId];
+  /** Le résultat d'un prompt : en erreur, fini (le fichier que `fichierDe` trouve dans les sorties) ou encore en cours. */
+  private async lireResultat(promptId: string, fichierDe: (entree: HistoriqueEntree) => FichierSortie | null | undefined): Promise<PollResult> {
+    const entree = await this.lireHistorique(promptId);
     if (!entree) return { statut: "en_cours" };
     if (entree.status?.status_str === "error") {
       return { statut: "erreur", message: entree.status?.messages?.map(String).join(" | ") ?? "Erreur ComfyUI" };
     }
-    // Image (`images`), son (`audio`, à confirmer) ou autre : voir sortie.ts.
-    const fichier = premierFichierSortie(entree.outputs?.[nodeIdSortie]);
-    if (!fichier) return { statut: "en_cours" };
-    return { statut: "termine", cheminSortieDistant: cheminSortieDistant(fichier) };
+    const fichier = fichierDe(entree);
+    return fichier ? { statut: "termine", cheminSortieDistant: cheminSortieDistant(fichier) } : { statut: "en_cours" };
   }
 
-  async lireTexteSortie(promptId: string, nodeIdSortie: string): Promise<string | null> {
-    try {
-      const res = await fetch(`${this.baseUrl}/history/${promptId}`, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) return null;
-      const entree = (await res.json())[promptId];
-      // `ShowText|pysssss` range son texte sous `text` (une liste de chaînes) ; on prend la première non vide.
-      const liste: unknown = entree?.outputs?.[nodeIdSortie]?.text;
-      if (typeof liste === "string") return liste;
-      if (Array.isArray(liste)) return liste.find((x): x is string => typeof x === "string" && x.trim() !== "") ?? null;
-      return null;
-    } catch {
-      return null;
-    }
+  /** Image (`images`), son (`audio`, à confirmer) ou autre : voir sortie.ts. */
+  pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult> {
+    return this.lireResultat(promptId, (e) => premierFichierSortie(e.outputs?.[nodeIdSortie]));
   }
 
-  async poll(promptId: string): Promise<PollResult> {
-    const res = await fetch(`${this.baseUrl}/history/${promptId}`);
-    if (!res.ok) return { statut: "en_cours" };
-
-    const historique = await res.json();
-    const entree = historique[promptId];
-    if (!entree) return { statut: "en_cours" };
-
-    if (entree.status?.status_str === "error") {
-      return {
-        statut: "erreur",
-        message: entree.status?.messages?.map(String).join(" | ") ?? "Erreur ComfyUI",
-      };
-    }
-
-    const brut = JSON.parse(await readFile(this.workflowPath, "utf-8"));
-    const prefixeAttendu = nomFichierSortie(brut);
-    const sorties = entree.outputs?.[NODE_IDS.sortieFinale]?.gifs
-      ?? entree.outputs?.[NODE_IDS.sortieFinale]?.videos;
-
-    if (!sorties?.length) return { statut: "en_cours" };
-
-    const fichier = sorties[0];
-    return {
-      statut: "termine",
-      cheminSortieDistant: `${fichier.subfolder ?? ""}/${fichier.filename}`.replace(/^\//, ""),
-    };
+  poll(promptId: string): Promise<PollResult> {
+    return this.lireResultat(promptId, (e) => {
+      const sortie = e.outputs?.[NODE_IDS.sortieFinale];
+      return (sortie?.gifs ?? sortie?.videos)?.[0];
+    });
   }
 
   async etatDansLaFile(promptId: string): Promise<EtatDansLaFile> {

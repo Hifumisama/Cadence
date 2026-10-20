@@ -6,13 +6,14 @@ import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";
 import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/annulation-db";
-import { domaineDe, type DomaineGpu } from "../lib/gpu";
+import { domaineDe } from "../lib/gpu";
 import { configLlm } from "../lib/llm/config";
 import { cheminAssetMedia, cheminVoixMedia } from "../lib/media";
 import { assemblerPrompt } from "../lib/prompt";
 import { raccordSansPlace, sectionsAvecRaccord } from "../lib/plan-raccord";
 import { getAllParams } from "../lib/params";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
+import { attendreResultat } from "./attente";
 import { creerClientComfyUI } from "./comfyui";
 import { ErreurEntreeInvalide, nomDistantDepuisChemin, verifierEntree } from "./comfyui/mapping";
 import type { Suivi, SubmissionInput } from "./comfyui/types";
@@ -57,7 +58,7 @@ async function prochainJobEnAttente() {
 async function construireSubmissionInput(
   planId: number,
   activerUpscale: boolean,
-): Promise<{ input: SubmissionInput; promptFiche: string; raccordJobId: number | null }> {
+): Promise<{ input: SubmissionInput; promptFiche: string; raccordJobId: number | null; plan: typeof plans.$inferSelect }> {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
 
@@ -108,6 +109,7 @@ async function construireSubmissionInput(
 
   return {
     promptFiche,
+    plan,
     raccordJobId: raccord?.sourceJobId ?? null,
     input: {
       promptAssemble: raccord ? assemblerPrompt(sectionsAvecRaccord(sections, raccord.slot)) : promptFiche,
@@ -122,17 +124,19 @@ async function construireSubmissionInput(
   };
 }
 
+/** Le job et son plan changent d'état ENSEMBLE : jamais un job terminé dont le plan reste « en cours ». */
+async function cloreJob(job: typeof jobs.$inferSelect, jobSet: Partial<typeof jobs.$inferInsert>, statutPlan: typeof plans.$inferSelect["statut"]) {
+  await db.transaction(async (tx) => {
+    await tx.update(jobs).set(jobSet).where(eq(jobs.id, job.id));
+    await tx.update(plans).set({ statut: statutPlan }).where(eq(plans.id, job.planId));
+  });
+}
+
 /** Distinction stricte (F04) : une API ComfyUI injoignable ne consomme
  * jamais une tentative — seul un vrai échec de rendu compte. Renvoie `true` si
  * le job est allé au bout (rendu, échec de rendu, rejeu), `false` s'il est resté
  * ou reparti en attente faute de ComfyUI : le worker patiente alors. */
 async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
-  const disponible = await client.healthcheck();
-  if (!disponible) {
-    console.log(`[worker] ComfyUI injoignable — job ${job.id} reste en_attente`);
-    return false;
-  }
-
   // Prise gardée par le statut : un job annulé entre-temps (annulation directe d'une
   // vidéo en attente) ne doit pas être ressuscité.
   const prise = await db
@@ -160,15 +164,14 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
   };
 
   try {
-    const { input, promptFiche, raccordJobId } = await construireSubmissionInput(job.planId, job.activerUpscale);
+    const { input, promptFiche, raccordJobId, plan: lePlan } = await construireSubmissionInput(job.planId, job.activerUpscale);
     // Un préfixe de fichier propre à ce rendu : plus de collision de noms, ni de résultat en cache servi à un autre rendu.
     input.prefixeSortie = `cadence_p${job.planId}_r${job.numeroRendu}${job.tentative > 1 ? `_t${job.tentative}` : ""}`;
     verifierEntree(input); // durée hors 5-15 s, trop de références : échec franc (voir catch)
     // Ce qui est gardé sur le rendu : le prompt de la FICHE (de quoi comparer deux rendus et voir qu'une modification n'a pas bougé le prompt ;
     // « Repartir de là » le restaure) et, s'il y en a un, l'essai dont l'image de raccord vient.
-    const [lePlan] = await db.select({ description: plans.description, liaison: plans.liaison }).from(plans).where(eq(plans.id, job.planId));
     // Un plan « suite » sans image de raccord faute d'emplacement libre : rien ne bloque (la génération part comme avant), mais l'essai le dit.
-    const raccordSansPlaceLibre = lePlan?.liaison === "suite" && raccordJobId == null && raccordSansPlace(input.refsImage.length + input.refsVideo.length);
+    const raccordSansPlaceLibre = lePlan.liaison === "suite" && raccordJobId == null && raccordSansPlace(input.refsImage.length + input.refsVideo.length);
     const alertes = raccordSansPlaceLibre
       ? [...(job.alertesIteration ?? []), "Pas d'image de raccord : les références du plan occupent tous les emplacements. Retire une référence pour que la dernière image du plan précédent soit reprise."]
       : undefined;
@@ -179,7 +182,7 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
         raccordJobId,
         dureeUtilisee: input.dureeSecondes,
         seedUtilisee: input.seed ?? null,
-        descriptionUtilisee: lePlan?.description ?? null,
+        descriptionUtilisee: lePlan.description ?? null,
         ...(alertes ? { alertesIteration: alertes } : {}),
       })
       .where(eq(jobs.id, job.id));
@@ -201,52 +204,43 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     // La sonde du drapeau réveille l'attente entre deux interrogations de /history :
     // une annulation n'attend pas les 5 s du rythme normal.
     surveillance = surveillerAnnulation(() => annulationDemandeeVideo(job.id));
-    const debut = Date.now();
-    while (Date.now() - debut < DUREE_MAX_POLL_MS) {
-      if (await annulationDemandeeVideo(job.id)) return await annuler();
-      const resultat = await client.poll(promptId);
-
-      if (resultat.statut === "en_cours") {
-        await Promise.race([new Promise((r) => setTimeout(r, INTERVALLE_POLL_MS)), surveillance.promesse]);
-        continue;
-      }
-
-      if (resultat.statut === "erreur") {
-        await gererEchecReel(job, resultat.message);
-        return true;
-      }
-
-      // termine
-      const dossierPlan = join(MEDIA_ROOT, "plans", String(job.planId));
-      await mkdir(dossierPlan, { recursive: true });
-      const nomFichier = resultat.cheminSortieDistant.split("/").pop()!;
-      const cheminLocalCible = join(dossierPlan, nomFichier);
-      await client.fetchOutput(resultat.cheminSortieDistant, cheminLocalCible);
-
-      const cheminRelatif = `plans/${job.planId}/${nomFichier}`;
-      // "previsualise" vs "termine" : le statut du plan reflète si la
-      // dernière réussite était une prévisualisation (sans upscale) ou un
-      // rendu final — voir db/schema.ts, planStatutEnum.
-      const statutPlan = job.activerUpscale ? "termine" : "previsualise";
-      await db
-        .update(jobs)
-        .set({ statut: "termine", cheminSortie: cheminRelatif, finishedAt: new Date() })
-        .where(eq(jobs.id, job.id));
-      await db.update(plans).set({ statut: statutPlan }).where(eq(plans.id, job.planId));
-      console.log(`[worker] Job ${job.id} (plan ${job.planId}) -> ${statutPlan} (${cheminRelatif})`);
+    const idPrompt = promptId;
+    const resultat = await attendreResultat({
+      suivi,
+      promptId: idPrompt,
+      delaiMs: DUREE_MAX_POLL_MS,
+      intervalleMs: INTERVALLE_POLL_MS,
+      lire: () => client.poll(idPrompt),
+      surveillance,
+    });
+    if (resultat === "annulee") return await annuler();
+    if (resultat === "delai") {
+      await gererEchecReel(job, "Délai de génération dépassé (30 min)");
+      return true;
+    }
+    if (resultat.statut === "erreur") {
+      await gererEchecReel(job, resultat.message);
       return true;
     }
 
-    await gererEchecReel(job, "Délai de génération dépassé (30 min)");
+    const dossierPlan = join(MEDIA_ROOT, "plans", String(job.planId));
+    await mkdir(dossierPlan, { recursive: true });
+    const nomFichier = resultat.cheminSortieDistant.split("/").pop()!;
+    const cheminLocalCible = join(dossierPlan, nomFichier);
+    await client.fetchOutput(resultat.cheminSortieDistant, cheminLocalCible);
+
+    const cheminRelatif = `plans/${job.planId}/${nomFichier}`;
+    // "previsualise" vs "termine" : le statut du plan reflète si la
+    // dernière réussite était une prévisualisation (sans upscale) ou un
+    // rendu final — voir db/schema.ts, planStatutEnum.
+    const statutPlan = job.activerUpscale ? "termine" : "previsualise";
+    await cloreJob(job, { statut: "termine", cheminSortie: cheminRelatif, finishedAt: new Date() }, statutPlan);
+    console.log(`[worker] Job ${job.id} (plan ${job.planId}) -> ${statutPlan} (${cheminRelatif})`);
     return true;
   } catch (err) {
     // Entrée que rien ne rendra valable en réessayant : échec définitif, sans rejeu ni attente.
     if (err instanceof ErreurEntreeInvalide) {
-      await db
-        .update(jobs)
-        .set({ statut: "echoue", erreur: err.message, finishedAt: new Date() })
-        .where(eq(jobs.id, job.id));
-      await db.update(plans).set({ statut: "echoue" }).where(eq(plans.id, job.planId));
+      await cloreJob(job, { statut: "echoue", erreur: err.message, finishedAt: new Date() }, "echoue");
       console.error(`[worker] Job ${job.id} (plan ${job.planId}) refusé avant soumission : ${err.message}`);
       return true;
     }
@@ -273,37 +267,19 @@ async function gererEchecReel(job: typeof jobs.$inferSelect, message: string) {
   const tentativesMax = Number(params.tentatives_max);
 
   if (job.tentative < tentativesMax) {
-    await db
-      .update(jobs)
-      .set({ statut: "en_attente", tentative: job.tentative + 1, erreur: message, startedAt: null })
-      .where(eq(jobs.id, job.id));
-    await db.update(plans).set({ statut: "rejoue" }).where(eq(plans.id, job.planId));
+    await cloreJob(job, { statut: "en_attente", tentative: job.tentative + 1, erreur: message, startedAt: null }, "rejoue");
     console.log(`[worker] Job ${job.id} échoué (tentative ${job.tentative}/${tentativesMax}), rejeu : ${message}`);
   } else {
-    await db
-      .update(jobs)
-      .set({ statut: "echoue", erreur: message, finishedAt: new Date() })
-      .where(eq(jobs.id, job.id));
-    await db.update(plans).set({ statut: "echoue" }).where(eq(plans.id, job.planId));
+    await cloreJob(job, { statut: "echoue", erreur: message, finishedAt: new Date() }, "echoue");
     console.error(`[worker] Job ${job.id} signalé en échec après ${tentativesMax} tentatives : ${message}`);
   }
 }
-
-/** Domaine GPU de la dernière tâche menée au bout, mode `serie` seulement (en mode `paralleles` les deux domaines
- * cohabitent : rien à décharger entre eux). null tant que le worker n'en a fait aucune depuis son démarrage : le
- * premier changement de domaine décharge alors l'autre côté par prudence (worker/gpu.ts). */
-let dernierDomaine: DomaineGpu | null = null;
 
 /** ComfyUI a pu garder des modèles en mémoire depuis la dernière libération (vrai au démarrage : inconnu). Une tâche de
  * création, qui prend la carte seule, ne le libère que dans ce cas. */
 let comfyuiPeutEtreCharge = true;
 
 const urlLlm = () => configLlm().url;
-
-/** `paralleles` (défaut) : une boucle par voie, ComfyUI et LLM travaillent en même temps (la VRAM de la carte les
- * accueille ensemble, voir le journal du worker pour la tenue en charge). `serie` : l'ancien fonctionnement, une seule
- * tâche à la fois tous genres confondus, avec déchargement de l'autre domaine à chaque changement. */
-const MODE_SERIE = process.env.WORKER_VOIES === "serie";
 
 /** Les tâches qui ne tiennent pas à côté de l'autre voie (l'upscale monte à 13 Go) prennent le verrou exclusif. */
 const verrou = new VerrouGpu();
@@ -315,13 +291,13 @@ const journalLiberation = (message: string) => {
 
 export type Voie = "comfyui" | "llm";
 
-/** Une tâche par appel sur les voies données : en `paralleles` chaque boucle n'en a qu'une, en `serie` la boucle
- * unique les a toutes les deux. Le choix (image, puis LLM, puis vidéo ; FIFO ; sans préemption ; même domaine à
+/** Une tâche par appel sur la voie donnée : une boucle par voie, ComfyUI et LLM travaillent en même temps (la VRAM de la carte les
+ * accueille ensemble ; seules l'upscale et la création d'un projet prennent la carte seule). Le choix (image, puis LLM, puis vidéo ; FIFO ; sans préemption ; même domaine à
  * égalité) vit dans ordonnanceur.ts. Un domaine injoignable ne bloque pas l'autre : ses tâches restent en attente,
  * on prend ce qui peut tourner. Renvoie `true` si une tâche a été traitée. */
-async function traiterProchaineTache(voies: Voie[]): Promise<boolean> {
-  const avecComfyui = voies.includes("comfyui");
-  const avecLlm = voies.includes("llm");
+async function traiterProchaineTache(voie: Voie): Promise<boolean> {
+  const avecComfyui = voie === "comfyui";
+  const avecLlm = voie === "llm";
   const [gen, job, run] = await Promise.all([
     avecComfyui ? prochaineGenerationEnAttente() : null,
     avecComfyui ? prochainJobEnAttente() : null,
@@ -360,7 +336,7 @@ async function traiterProchaineTache(voies: Voie[]): Promise<boolean> {
     return false;
   }
 
-  const choix = choisirProchaineTache(candidates, MODE_SERIE ? dernierDomaine : null);
+  const choix = choisirProchaineTache(candidates);
   if (!choix) return false;
   const domaine = domaineDe(choix.genre);
   const upscale = choix.genre === "video" && job!.activerUpscale;
@@ -368,19 +344,16 @@ async function traiterProchaineTache(voies: Voie[]): Promise<boolean> {
   // prennent la carte seule (les tâches en cours finissent, rien ne démarre à côté) et ComfyUI est libéré avant le premier.
   const creation = choix.genre === "llm" && (await projetEnCreation(run!.projectId));
 
-  noterEvenement("choix", { genre: choix.genre, id: choix.id, voies, dernierDomaine, enAttente: candidates.map((c) => `${c.genre}:${c.id}`) });
-  return await verrou.avec(MODE_SERIE || upscale || creation, async () => {
-    // Même GPU : en `serie` on décharge l'autre côté avant de commencer ; en `paralleles` seul l'upscale le fait
-    // (il ne tient pas à côté du LLM). Au mieux, jamais bloquant.
+  noterEvenement("choix", { genre: choix.genre, id: choix.id, voie, enAttente: candidates.map((c) => `${c.genre}:${c.id}`) });
+  return await verrou.avec(upscale || creation, async () => {
+    // Même GPU : seul l'upscale décharge le LLM (il ne tient pas à côté), et la création décharge ComfyUI. Au mieux, jamais bloquant.
     const debutLiberation = Date.now();
     const liberateurs = { comfyui: () => client.libererMemoire(), llm: () => decharger(urlLlm()) };
-    const liberee = MODE_SERIE
-      ? await libererAvant(dernierDomaine, domaine, liberateurs, journalLiberation)
-      : upscale
-        ? await libererAvant(null, "comfyui", liberateurs, journalLiberation)
-        : creation && comfyuiPeutEtreCharge
-          ? await libererAvant(null, "llm", liberateurs, journalLiberation)
-          : null;
+    const liberee = upscale
+      ? await libererAvant(null, "comfyui", liberateurs, journalLiberation)
+      : creation && comfyuiPeutEtreCharge
+        ? await libererAvant(null, "llm", liberateurs, journalLiberation)
+        : null;
     if (liberee === "comfyui") comfyuiPeutEtreCharge = false;
     if (liberee) noterEvenement("liberation_duree", { liberee, dureeMs: Date.now() - debutLiberation });
 
@@ -391,7 +364,6 @@ async function traiterProchaineTache(voies: Voie[]): Promise<boolean> {
           ? await traiterTacheLlm(run!)
           : await traiterJob(job!),
     );
-    if (fait) dernierDomaine = domaine;
     if (domaine === "comfyui") comfyuiPeutEtreCharge = true;
     return fait;
   });
@@ -429,10 +401,9 @@ async function boucle() {
   };
   await purger();
 
-  // Les boucles : en `paralleles` une par voie (ComfyUI, LLM), en `serie` une seule pour les deux. L'installateur et la
-  // purge ne touchent jamais le GPU : ils ont leur propre boucle et ne retardent aucune tâche.
-  const voies: Voie[][] = MODE_SERIE ? [["comfyui", "llm"]] : [["comfyui"], ["llm"]];
-  console.log(`[worker] Voies : ${MODE_SERIE ? "série (une tâche à la fois)" : "parallèles (ComfyUI et LLM en même temps)"}`);
+  // Les boucles : une par voie (ComfyUI, LLM). L'installateur et la purge ne touchent jamais le GPU : ils ont leur propre boucle et ne
+  // retardent aucune tâche.
+  const voies: Voie[] = ["comfyui", "llm"];
   await Promise.all([
     ...voies.map(async (v) => {
       while (true) {
@@ -440,7 +411,7 @@ async function boucle() {
         try {
           fait = await traiterProchaineTache(v);
         } catch (err) {
-          console.error(`[worker] Erreur de boucle (${v.join("+")}) :`, err);
+          console.error(`[worker] Erreur de boucle (${v}) :`, err);
         }
         await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
       }

@@ -263,7 +263,7 @@ test("chargeur : nom invalide, skill absent, fichiers obligatoires", () => {
 
 test("chargeur : les skills réels s'assemblent et leur schéma se compile", () => {
   const noms = listerSkills();
-  assert.deepEqual(noms, ["accroche-scenariste", "conversation-agent", "inventaire-assets", "iteration-plan", "notes-entretien", "plan-h3", "prompt-asset", "realisateur-analyse", "realisateur-reponse", "relecture-scenario", "scenario-episode"]);
+  assert.deepEqual(noms, ["accroche-scenariste", "conversation-agent", "inventaire-assets", "iteration-plan", "notes-entretien", "plan-h3", "prompt-asset", "relecture-scenario", "scenario-episode"]);
   for (const nom of noms) {
     const s = chargerSkill(nom);
     assert.ok(s.caracteres > 2000, nom);
@@ -289,10 +289,6 @@ test("configuration : défauts, surcharge par skill, fournisseur inconnu refusé
   assert.equal(nomVariableModele("plan-h3"), "LLM_MODELE_PLAN_H3");
   assert.equal(modelePourSkill("plan-h3", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }), "qwen");
   assert.equal(modelePourSkill("brief-projet", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }), "m1");
-  // Le réalisateur a son modèle par défaut : la surcharge par variable, puis le choix du header, le priment.
-  assert.equal(modelePourSkill("realisateur-analyse", { LLM_LOCAL_MODELE: "m1" }), "qwen3.6-35b-A3B");
-  assert.equal(modelePourSkill("realisateur-reponse", { LLM_LOCAL_MODELE: "m1" }, "choisi"), "choisi");
-  assert.equal(modelePourSkill("realisateur-analyse", { LLM_LOCAL_MODELE: "m1", LLM_MODELE_REALISATEUR_ANALYSE: "autre" }, "choisi"), "autre");
   // Le modèle choisi dans l'interface prime sur LLM_LOCAL_MODELE, mais pas sur la surcharge d'un skill.
   assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, "choisi"), "choisi");
   assert.equal(modelePourSkill("plan-h3", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }, "choisi"), "qwen");

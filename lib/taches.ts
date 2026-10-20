@@ -11,8 +11,6 @@ export type { GenreTache };
 /** Nom lisible du travail d'un skill d'agent, pour le panneau. */
 export const LIBELLE_SKILL: Record<string, string> = {
   "brief-projet": "Brief du projet",
-  "realisateur-analyse": "Réalisateur · analyse",
-  "realisateur-reponse": "Réalisateur · réponse",
   "scenario-episode": "Scénario d'épisode",
   "prompt-asset": "Prompt d'asset",
   "prompt-affiche": "Prompt d'affiche",
@@ -179,9 +177,6 @@ export const cleCreation = (projectId: number) => `creation:${projectId}`;
 
 /** Une DEMANDE (lib/demandes.ts : itérer un plan…) : UNE entrée pour toutes ses étapes, identifiée par son id. */
 export const cleDemande = (id: number) => `demande:${id}`;
-
-/** Domaine GPU d'une tâche (voir lib/gpu.ts). */
-export const domaineDeTache = (t: Pick<Tache, "genre">) => domaineDe(t.genre);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

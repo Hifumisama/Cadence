@@ -53,11 +53,6 @@ export class StubComfyUIClient implements ComfyUIClient {
     return { statut: "termine", cheminSortieDistant: `stub/${promptId}.${promptId.startsWith("stub-aud-") ? "mp3" : promptId.startsWith("stub-vid-") ? "mp4" : "png"}` };
   }
 
-  /** Une transcription factice, au format de l'ASR (JSON texte + segments), pour tester l'extraction d'une voix sans ComfyUI. */
-  async lireTexteSortie(): Promise<string | null> {
-    return JSON.stringify({ text: "Bonjour, ceci est une transcription factice. Corrige-la au mot près avant de l'utiliser.", language: "French", segments: [] });
-  }
-
   /** Rejoue ~2 s de progression (8 étapes, un aperçu à mi-parcours) : de quoi
    * tester la barre et l'aperçu de l'interface sans ComfyUI. */
   async ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi> {

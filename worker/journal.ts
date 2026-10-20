@@ -12,8 +12,6 @@ const actif = process.env.JOURNAL_WORKER === "1";
 const FICHIER = resolve(process.env.JOURNAL_WORKER_FICHIER ?? "data/journal-worker.jsonl");
 const INTERVALLE_SONDE_MS = 2000;
 
-export const journalActif = () => actif;
-
 export function noterEvenement(type: string, champs: Record<string, unknown> = {}): void {
   if (!actif) return;
   try {

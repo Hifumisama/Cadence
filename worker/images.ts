@@ -34,13 +34,13 @@ import {
   type WorkflowJson,
 } from "./comfyui/imageMapping";
 import type { RefMedia, Suivi, SubmissionInput } from "./comfyui/types";
+import { attendreResultat } from "./attente";
 import { creerRelais } from "./progression";
 
 // Tâche de génération d'asset : text-to-image (Krea 2 Turbo, IMG_01_TextToImage,
 // méthode « generation »), à partir de 1 à 3 images (Qwen Image Edit 2511,
 // IMG_Simple_Edit, méthode « edition »), son (Stable Audio 3,
-// SFX_Generate_Sounds, méthode « audio ») ou voix de référence (Qwen3-TTS Voice Design,
-// VOX_Generate_Voice_Simplified, méthode « voix »). Une génération n'est
+// SFX_Generate_Sounds, méthode « audio »). Une génération n'est
 // pas rejouée automatiquement : un échec s'affiche avec son message et
 // l'utilisateur relance (contrairement aux plans H3, une image se refait en
 // quelques secondes). Une API ComfyUI injoignable ne consomme rien : la demande
@@ -134,11 +134,6 @@ export async function prochaineGenerationEnAttente(): Promise<Generation | null>
  * `false` si ComfyUI est injoignable : elle reste alors en attente et le worker
  * patiente avant de réessayer. */
 export async function traiterGenerationImage(client: ComfyUIClient, gen: Generation, mediaRoot: string): Promise<boolean> {
-  if (!(await client.healthcheck())) {
-    console.log(`[worker] ComfyUI injoignable — génération ${gen.id} reste en_attente`);
-    return false;
-  }
-
   const [asset] = await db.select().from(assets).where(eq(assets.id, gen.assetId));
   if (!asset) {
     // Ne devrait pas arriver (suppression en cascade) ; surtout ne pas la laisser
@@ -271,19 +266,20 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
     // L'attente du résultat et la sonde du drapeau d'annulation courent ensemble :
     // la plus rapide gagne.
     surveillance = surveillerAnnulation(() => annulationDemandeeImage(gen.id));
-    const delaiMax = masterVoix ? DUREE_MAX_POLL_VIDEO_MS : DUREE_MAX_POLL_MS;
-    const issue = await Promise.race([suivi.attendre(promptId, delaiMax), surveillance.promesse]);
-    if (issue === "annulee") return await annuler();
+    const idPrompt = promptId;
+    const r = await attendreResultat({
+      suivi,
+      promptId: idPrompt,
+      delaiMs: masterVoix ? DUREE_MAX_POLL_VIDEO_MS : DUREE_MAX_POLL_MS,
+      intervalleMs: INTERVALLE_POLL_MS,
+      lire: () => client.pollImage(idPrompt, noeudSortie),
+      surveillance,
+    });
+    if (r === "annulee") return await annuler();
+    if (r === "delai") throw new Error(`Délai de génération dépassé (${masterVoix ? 30 : 10} min)`);
+    if (r.statut === "erreur") throw new Error(r.message);
 
-    const debut = Date.now();
-    while (Date.now() - debut < delaiMax) {
-      if (await annulationDemandeeImage(gen.id)) return await annuler();
-      const r = await client.pollImage(promptId, noeudSortie);
-      if (r.statut === "en_cours") {
-        await new Promise((res) => setTimeout(res, INTERVALLE_POLL_MS));
-        continue;
-      }
-      if (r.statut === "erreur") throw new Error(r.message);
+    {
 
       const stub = (process.env.COMFYUI_MODE ?? "stub") !== "http";
       const extMaster = masterDedie && !stub ? extname(r.cheminSortieDistant).toLowerCase() || ".flac" : ".mp3";
@@ -317,7 +313,6 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       await purgerAnciens(gen.assetId, gen.methode, mediaRoot);
       return true;
     }
-    throw new Error(`Délai de génération dépassé (${masterVoix ? 30 : 10} min)`);
   } catch (err) {
     // Annulation demandée puis erreur (ComfyUI interrompu, réseau) : c'est une
     // annulation, pas un échec.
