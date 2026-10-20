@@ -51,7 +51,6 @@
 .cn-barre-texte { color: var(--ink-2); font-size: 15px; }
 .cn-barre-texte b.cn-fige { color: var(--ink); text-decoration: underline; text-decoration-color: var(--or-soft); text-underline-offset: 3px; }
 .cn-barre-texte b { color: var(--or-glow); font-weight: 500; }
-.cn-barre .cn-astuce { margin-left: auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); }
 .cn-clap { position: relative; font-size: 16px; padding-top: 14px; background-image: repeating-linear-gradient(-55deg, #0e0e13 0 12px, var(--or) 12px 24px); background-size: 100% 7px; background-repeat: no-repeat; background-position: top; }
 .cn-clap:not(:disabled) { animation: cn-pouls 2.4s ease-in-out infinite; }
 @keyframes cn-pouls { 0%, 100% { box-shadow: 0 0 0 0 rgba(201, 162, 75, 0); } 50% { box-shadow: 0 0 26px 2px rgba(201, 162, 75, 0.45); } }
@@ -86,46 +85,14 @@
 .cn-glisse.is-inerte .cn-glisse-texte i { animation: none; }
 
 /* Barre de navigation (collée en bas) */
-.cn-nav { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 14px var(--sp-5); border-top: 1px solid var(--line); background: rgba(14, 14, 19, 0.88); backdrop-filter: blur(8px); }
-.cn-nav .cn-astuce { margin-left: auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); }
 .cn-erreur { color: var(--ecarlate-glow); font-size: 13.5px; margin: 0; }
 .cn-lien { appearance: none; background: none; border: 0; padding: 0; color: var(--or); text-decoration: underline; text-underline-offset: 3px; }
 .cn-tag { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); border: 1px solid var(--line-strong); padding: 1px 7px; margin-left: 8px; }
 .cn-tag.is-or { color: var(--or); border-color: var(--or-soft); }
 
 /* Fonction désactivée : deux rubans de chantier en croix par-dessus la carte. */
-.cn-affiche.is-bientot { overflow: hidden; cursor: not-allowed; }
-.cn-affiche.is-bientot:hover { transform: none; border-color: var(--line-strong); }
-.cn-affiche.is-bientot > :not(.cn-police):not(.cn-sr-seul) { opacity: 0.38; filter: grayscale(0.6); }
-.cn-police { position: absolute; left: -10%; right: -10%; top: 50%; height: 34px; margin-top: -17px; transform: rotate(-11deg); background: var(--or); color: #0e0e13; overflow: hidden; display: flex; align-items: center; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); pointer-events: none; border-top: 3px solid #0e0e13; border-bottom: 3px solid #0e0e13; outline: 2px solid var(--or); }
-.cn-police.is-croise { transform: rotate(9deg); background: #0e0e13; color: var(--or); border-color: var(--or); outline-color: #0e0e13; }
-.cn-police i { font-style: normal; font-family: var(--font-mono); font-weight: 700; font-size: 13px; letter-spacing: 0.28em; white-space: nowrap; }
-.cn-sr-seul { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* 1. Format */
-.cn-duo { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(12px, 2vw, 28px); }
-.cn-affiche { position: relative; text-align: left; border: 1px solid var(--line-strong); background: linear-gradient(160deg, var(--surface-2), var(--surface)); padding: clamp(18px, 3vw, 36px); min-height: clamp(220px, 40vh, 380px); display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; transition: transform 0.45s var(--cn-ease), border-color 0.3s, box-shadow 0.45s; }
-.cn-affiche:hover { transform: translateY(-6px); border-color: var(--or-soft); }
-.cn-affiche[aria-pressed="true"] { border-color: var(--or); box-shadow: 0 0 0 1px var(--or), 0 24px 60px -24px rgba(201, 162, 75, 0.45); }
-.cn-affiche .cn-gros { font-family: var(--font-brand); font-size: clamp(34px, 5.5vw, 68px); letter-spacing: 0.04em; line-height: 1; }
-.cn-affiche[aria-pressed="true"] .cn-gros { color: var(--or-glow); }
-.cn-affiche p { margin: 6px 0 0; color: var(--ink-3); }
-.cn-visuel { position: absolute; top: 24px; right: 24px; left: 24px; height: 50%; display: grid; place-items: center; }
-.cn-pile { position: relative; width: 62%; aspect-ratio: 16 / 9; }
-.cn-pile i { position: absolute; inset: 0; border: 1px solid var(--line-strong); background: var(--surface-3); transition: transform 0.5s var(--cn-ease); }
-.cn-pile i:nth-child(1) { transform: translate(-22px, 16px); opacity: 0.45; }
-.cn-pile i:nth-child(2) { transform: translate(-11px, 8px); opacity: 0.7; }
-.cn-affiche:hover .cn-pile i:nth-child(1) { transform: translate(-34px, 24px); }
-.cn-affiche:hover .cn-pile i:nth-child(2) { transform: translate(-17px, 12px); }
-.cn-pile i:nth-child(3) { background: linear-gradient(135deg, #3a3a47, #1a1a21); }
-.cn-scope { width: 78%; aspect-ratio: 2.39 / 1; border: 1px solid var(--line-strong); background: linear-gradient(120deg, #3a3a47, #14141a); transition: transform 0.5s var(--cn-ease); }
-.cn-affiche:hover .cn-scope { transform: scale(1.06); }
-.cn-affiche[aria-pressed="true"] .cn-pile i:nth-child(3), .cn-affiche[aria-pressed="true"] .cn-scope { border-color: var(--or); }
-.cn-episodes { display: flex; align-items: center; gap: 14px; margin-top: 24px; opacity: 0; max-height: 0; overflow: hidden; transition: all 0.5s var(--cn-ease); }
-.cn-episodes.is-on { opacity: 1; max-height: 90px; }
-.cn-episodes .cn-pas { width: 40px; height: 40px; padding: 0; font-size: 22px; }
-.cn-episodes output { font-family: var(--font-brand); font-size: 34px; min-width: 2ch; text-align: center; color: var(--or-glow); }
-.cn-episodes span { color: var(--ink-3); }
 
 /* 2. Genres et ton */
 .cn-nuage { display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: center; }
@@ -246,10 +213,9 @@
   .cn-ruban { padding: 14px 12px 12px; }
   .cn-cadre { min-width: 104px; flex: 0 0 auto; }
   .cn-scene { padding: 20px 16px; }
-  .cn-nav { padding: 10px 16px; } .cn-nav .cn-astuce, .cn-barre .cn-astuce { display: none; }
   .cn-barre { padding: 10px 16px; gap: 10px; } .cn-barre-texte { order: 3; flex-basis: 100%; font-size: 13.5px; }
   .cn-glisse { flex-basis: 220px; height: 54px; } .cn-glisse-texte { font-size: 11px; letter-spacing: 0.08em; }
-  .cn-duo, .cn-detail { grid-template-columns: 1fr; }
+  .cn-detail { grid-template-columns: 1fr; }
   .cn-style-mise { grid-template-columns: 1fr; }
   .cn-style-droite { position: static; max-height: none; }
   .cn-galerie-panneau { max-height: 56dvh; }

@@ -39,7 +39,6 @@
 .fa .btn-danger:hover:not(:disabled){background:rgba(200,16,46,.10);border-color:var(--ecarlate);color:var(--ecarlate-glow)}
 .fa .btn-sm{padding:6px 11px;font-size:13px}
 .fa .btn-ico{padding:7px;width:34px;height:34px;justify-content:center}
-.fa .ripple{position:absolute;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(255,255,255,.55),rgba(255,255,255,0) 70%);transform:scale(0);animation:fa-ripple .65s var(--ease-out) forwards}
 @keyframes fa-ripple{to{transform:scale(1);opacity:0}}
 .fa .lien{background:none;border:0;padding:0;color:var(--or);text-decoration:underline;text-decoration-color:var(--or-soft);text-underline-offset:3px;font-size:13px}
 .fa .lien:hover{color:var(--or-glow);text-decoration-color:var(--or-glow)}
@@ -56,15 +55,6 @@
 .fa .nom-champ{font-family:var(--font-brand);font-size:clamp(30px,4vw,50px);line-height:1.1;background:var(--ground);border:1px solid var(--or-soft);border-radius:4px;padding:2px 10px;width:min(100%,560px);box-shadow:0 0 0 3px rgba(201,162,75,.12)}
 .fa .nom-champ:focus{outline:none}
 .fa .desc{margin-top:14px;max-width:68ch;position:relative}
-.fa .desc-lecture{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:6px;padding:10px 12px;margin-left:-12px;color:var(--ink-2);font-size:16px;line-height:1.65;transition:background .25s var(--ease),border-color .25s var(--ease)}
-.fa .desc-lecture:hover{background:var(--surface);border-color:var(--line)}
-.fa .desc-lecture .indice{display:block;margin-top:4px;font-size:12px;color:var(--ink-4);opacity:0;transition:opacity .25s}
-.fa .desc-lecture:hover .indice,.fa .desc-lecture:focus-visible .indice{opacity:1}
-.fa .desc-lecture.vide{color:var(--ink-4);font-style:italic}
-.fa .desc-edit{display:grid;gap:10px}
-.fa .desc-edit textarea{width:100%;min-height:110px;resize:vertical;background:var(--ground);border:1px solid var(--or-soft);border-radius:6px;padding:12px 14px;font-size:16px;line-height:1.6;box-shadow:0 0 0 3px rgba(201,162,75,.12)}
-.fa .desc-edit textarea:focus{outline:none}
-.fa .desc-edit .ligne{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .fa .aide{font-size:12.5px;color:var(--ink-4)}
 .fa .aide.droite{margin-left:auto}
 .fa .etat-zone{display:grid;justify-items:end;gap:12px}
