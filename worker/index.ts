@@ -27,7 +27,6 @@ import { decharger, llmJoignable } from "./llamaSwap";
 import { echouerAppelsEnAttente, prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
 import { attenteDepassee, effacerSonde, noterSonde } from "./disponibilite";
 import { piloterCreations } from "../lib/agents/creation-db";
-import { piloterFichesFond } from "../lib/agents/fiches-fond";
 import { projetEnCreation } from "./creation";
 import { piloterDemandes } from "../lib/demandes-db";
 import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
@@ -426,12 +425,6 @@ async function boucle() {
           if (await piloterCreations()) fait = true;
         } catch (err) {
           console.error("[worker] Installateur :", err);
-        }
-        // Les fiches de plan, scène par scène, une fois le projet « prêt » (lib/agents/fiches-fond.ts). Une transition au plus par projet.
-        try {
-          if (await piloterFichesFond()) fait = true;
-        } catch (err) {
-          console.error("[worker] Fiches en fond :", err);
         }
         // Les demandes (itérer un plan…) : une transition au plus par demande en cours. Tant qu'il y en a, on repasse vite : chaque
         // étape qui finit doit lancer la suivante sans attendre le grand intervalle (pas de trou visible entre deux étapes).

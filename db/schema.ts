@@ -79,9 +79,6 @@ export const projects = pgTable("projects", {
   // synchroniserClauseStyle) ; vide pour un projet sans conception : les images retombent alors sur la clause.
   stylePromptImage: text("style_prompt_image").notNull().default(""),
   notes: text("notes").notNull().default(""),
-  // Les fiches de plan s'écrivent toutes seules, scène par scène, une fois la création finie (lib/agents/fiches-fond.ts).
-  // Vrai d'office pour un nouveau projet ; faux pour ceux qui existaient avant (migration 0071), qu'on ne touche pas.
-  fichesAuto: boolean("fiches_auto").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -706,9 +703,6 @@ export const propositions = pgTable("propositions", {
   // Proposition « en lot » : sa génération est composée de plusieurs tâches `agent_runs`
   // (une par sous-tâche), elle reste `en_generation` tant qu'il en reste d'actives.
   lot: boolean("lot").notNull().default(false),
-  // Posée par le pilote d'arrière-plan (« fond:<id de scène> ») : cette proposition s'applique toute seule, sans revue.
-  // Null = demandée par l'utilisateur, qui la relit.
-  origine: varchar("origine", { length: 40 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   appliedAt: timestamp("applied_at"),
 }, (table) => [index("propositions_projet_idx").on(table.projectId, table.createdAt)]);
