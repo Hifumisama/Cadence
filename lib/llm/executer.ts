@@ -56,7 +56,7 @@ export type ResultatSkill = {
 export function versMessages(entree: string | object | MessageLlm[]): MessageLlm[] {
   if (typeof entree === "string") return [{ role: "user", content: entree }];
   if (Array.isArray(entree)) return entree as MessageLlm[];
-  return [{ role: "user", content: JSON.stringify(entree, null, 2) }];
+  return [{ role: "user", content: JSON.stringify(entree) }];
 }
 
 export function messageDeRenvoi(erreurs: string[]): string {
@@ -106,6 +106,8 @@ export async function executerSkill(
   let courants = messages;
   let renvois = 0;
   const usage = { entree: 0, sortie: 0 };
+  // Mesures du serveur (llama.cpp) cumulées sur les renvois : jetons repris du cache / préremplis ; null tant que le serveur n'en donne pas.
+  let cache = null as { repris: number; prefill: number } | null;
   let dureeMs = 0;
   let derniere: ReponseLlm | null = null;
   const reflexions: string[] = [];
@@ -133,6 +135,7 @@ export async function executerSkill(
       usage.entree += rep.usage.entree;
       usage.sortie += rep.usage.sortie;
       dureeMs += rep.dureeMs;
+      if (rep.timings) cache = { repris: (cache?.repris ?? 0) + rep.timings.cacheN, prefill: (cache?.prefill ?? 0) + rep.timings.promptN };
 
       const a = analyser(rep, skill.schema);
       // Sortie valide contre le schéma : un contrôle sémantique peut encore demander UN renvoi.
@@ -195,6 +198,8 @@ export async function executerSkill(
         renvois,
         tokensEntree: usage.entree,
         tokensSortie: usage.sortie,
+        tokensCache: cache?.repris ?? null,
+        tokensPrefill: cache?.prefill ?? null,
         dureeMs,
       };
       // Une trace qui ne s'écrit pas ne doit jamais masquer le résultat (ni l'erreur) du LLM.

@@ -72,22 +72,23 @@ function suffixeSkill(skill: string): string {
   return skill.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
 }
 
-/** Skills qui partent SANS réflexion tant qu'aucune variable ne dit le contraire. Mesuré sur gemma-4 (2026-10-07) : pour
+/** Tous les skills partent SANS réflexion tant qu'aucune variable ne dit le contraire. Mesuré sur gemma-4 (2026-10-07) : pour
  * traduire une description en prompt, la réflexion pesait ~90 % des jetons de sortie (1 500 jetons pour une réponse de 130,
- * 30 s au lieu de 1). Le drapeau est honoré par le serveur (`reasoning_budget`, lui, ne l'est pas). `conversation-agent` : un
- * tour de dialogue doit rester vif. À étendre skill par skill, après un essai de qualité. */
-export const SKILLS_SANS_REFLEXION: readonly string[] = ["prompt-asset", "conversation-agent", "notes-entretien", "accroche-scenariste"];
+ * 30 s au lieu de 1). Mesuré sur Swift (traces 2026-10-26) : plan-h3 produisait ~26 000 caractères de réflexion pour 4 500 de
+ * sortie (110 s par plan), scenario-episode 151 s, relecture-scenario 131 s, et un iteration-plan est allé au délai de 600 s
+ * sans rien rendre. Le drapeau est honoré par le serveur (`reasoning_budget`, lui, ne l'est pas). Rétablir la réflexion d'un
+ * skill : `LLM_CORPS_<SKILL>={}`. */
 export const CORPS_SANS_REFLEXION = { chat_template_kwargs: { enable_thinking: false } };
 
 /** Champs ajoutés au corps de la requête pour un skill : `LLM_CORPS_<SKILL>` sinon `LLM_CORPS`, en JSON (`{}` pour rétablir
- * la réflexion d'un skill de `SKILLS_SANS_REFLEXION`), sinon le défaut du skill.
+ * la réflexion d'un skill), sinon le défaut : réflexion coupée.
  * Sert surtout à régler la RÉFLEXION du modèle (ex. `{"chat_template_kwargs":{"enable_thinking":false}}`) :
  * ses jetons de réflexion comptent dans `max_tokens` et allongent beaucoup l'appel. Un JSON invalide
  * est une erreur franche (jamais ignoré en silence). */
 export function corpsPourSkill(skill: string, env: Env = process.env): Record<string, unknown> | undefined {
   const nom = `LLM_CORPS_${suffixeSkill(skill)}`;
   const brut = env[nom]?.trim() || env.LLM_CORPS?.trim();
-  if (!brut) return SKILLS_SANS_REFLEXION.includes(skill) ? CORPS_SANS_REFLEXION : undefined;
+  if (!brut) return CORPS_SANS_REFLEXION;
   try {
     const v = JSON.parse(brut) as unknown;
     if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error("un objet JSON est attendu");

@@ -497,6 +497,9 @@ export const agentTraces = pgTable("agent_traces", {
   renvois: integer("renvois").notNull().default(0),
   tokensEntree: integer("tokens_entree").notNull().default(0),
   tokensSortie: integer("tokens_sortie").notNull().default(0),
+  // Taux de cache du prompt (bloc `timings` de llama-server) : jetons repris du cache / préremplis. Null = non mesuré.
+  tokensCache: integer("tokens_cache"),
+  tokensPrefill: integer("tokens_prefill"),
   dureeMs: integer("duree_ms").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [index("agent_traces_skill_created_idx").on(table.skill, table.createdAt)]);

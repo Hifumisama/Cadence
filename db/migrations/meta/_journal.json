@@ -491,6 +491,13 @@
       "when": 1795453200000,
       "tag": "0069_fin_series",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1795539600000,
+      "tag": "0070_traces_cache",
+      "breakpoints": true
     }
   ]
 }

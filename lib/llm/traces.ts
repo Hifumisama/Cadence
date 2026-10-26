@@ -25,6 +25,9 @@ export type TraceAEnregistrer = {
   renvois: number;
   tokensEntree: number;
   tokensSortie: number;
+  /** Jetons du prompt repris du cache du serveur / préremplis pour cet appel (llama.cpp) ; null si le serveur ne le dit pas. */
+  tokensCache?: number | null;
+  tokensPrefill?: number | null;
   dureeMs: number;
 };
 
@@ -56,6 +59,8 @@ export async function insererTrace(t: TraceAEnregistrer): Promise<number> {
     renvois: t.renvois,
     tokensEntree: t.tokensEntree,
     tokensSortie: t.tokensSortie,
+    tokensCache: t.tokensCache ?? null,
+    tokensPrefill: t.tokensPrefill ?? null,
     dureeMs: t.dureeMs,
   }).returning({ id: agentTraces.id });
   return ligne!.id;

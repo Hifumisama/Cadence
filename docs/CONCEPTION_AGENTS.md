@@ -461,7 +461,7 @@ L'entretien d'entrée (§ 4 et 14) a deux ouvertures. Un projet **sans conceptio
   relance tant que la conversation est vide.
 - **Le reste de l'entretien** (`conversation-agent`, `notes-entretien`) est inchangé, sauf une consigne de voix : le ton choisi et,
   légèrement, le style visuel.
-- Sans réflexion longue (`SKILLS_SANS_REFLEXION`) : un message d'ouverture doit arriver en quelques secondes.
+- Sans réflexion (défaut de tous les skills, `CORPS_SANS_REFLEXION`) : un message d'ouverture doit arriver en quelques secondes.
 
 Décisions et raisons : `docs/FRICTIONS.md`, 2026-10-07 (conception) et 2026-10-08 (accroche par le modèle, qui remplace l'accroche en code).
 

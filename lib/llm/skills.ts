@@ -8,7 +8,9 @@ import { join, resolve } from "node:path";
  *   1. `SKILL.md`                   — la mission et les règles (obligatoire) ; son en-tête YAML
  *      (`name`, `description`) sert à la portabilité et n'entre PAS dans le prompt ;
  *   2. `references/guide-*.md`      — les guides, par ordre alphabétique, FILTRÉS par
- *      variante (voir plus bas) ;
+ *      variante (voir plus bas) ; ceux qui déclarent des variantes viennent APRÈS les exemples (3), pour que le
+ *      préfixe du prompt (règles, guides communs, exemples) reste identique d'une variante à l'autre et se
+ *      reprenne du cache du serveur ;
  *   3. `references/exemples/*.md`   — les exemples, par ordre alphabétique ;
  *   4. les fichiers PARTAGÉS déclarés ci-dessous (hors du dossier du skill) ;
  *   5. le contrat de sortie : `assets/sortie.schema.json` (obligatoire), en JSON compact.
@@ -119,18 +121,21 @@ export function chargerSkill(nom: string, racine: string = racineDepot(), option
 
   const refs = join(dossier, "references");
   const guidesIgnores: string[] = [];
-  const guides = md(refs, (n) => n.startsWith("guide-")).filter((n) => {
-    if (!variante) return true;
+  const communs: string[] = [];
+  const parVariante: string[] = [];
+  for (const n of md(refs, (n) => n.startsWith("guide-"))) {
     const declarees = variantesDuGuide(readFileSync(join(refs, n), "utf-8"));
-    const garde = declarees === null || declarees.includes(variante);
-    if (!garde) guidesIgnores.push(`agents/skills/${nom}/references/${n}`);
-    return garde;
-  });
+    if (declarees === null) communs.push(n);
+    else if (!variante || declarees.includes(variante)) parVariante.push(n);
+    else guidesIgnores.push(`agents/skills/${nom}/references/${n}`);
+  }
+  const guide = (n: string) => ({ titre: `guide: ${n}`, chemin: join(refs, n) });
 
   const morceaux: { titre: string; chemin: string }[] = [
     { titre: "rules", chemin: principal },
-    ...guides.map((n) => ({ titre: `guide: ${n}`, chemin: join(refs, n) })),
+    ...communs.map(guide),
     ...md(join(refs, "exemples"), () => true).map((n) => ({ titre: `example: ${n}`, chemin: join(refs, "exemples", n) })),
+    ...parVariante.map(guide),
     ...(FICHIERS_PARTAGES[nom] ?? []).map((rel) => ({ titre: `shared: ${rel.split("/").pop()}`, chemin: join(racine, rel) })),
   ];
 

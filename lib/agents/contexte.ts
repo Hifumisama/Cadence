@@ -500,6 +500,12 @@ export async function entreePlanH3(
     variante: variantePlanH3(scene?.genre),
     plan: { id: p.id, uuid: p.uuid, titre: p.titre, episodeId: p.episodeId },
     entree: {
+      // D'abord ce qui ne change pas d'un plan à l'autre du projet : le serveur reprend ce préfixe de son cache (le registre pèse
+      // le plus). Ce qui est propre au plan vient après.
+      registre: candidats,
+      clauseStyleDuProjet: projet?.clauseStyle ?? "",
+      briefExtrait: c.extrait,
+      episode: { titre: c.ep.titre, resume: c.ep.resume },
       plan: {
         titre: p.titre,
         intention: options.intention ?? p.description ?? "",
@@ -527,11 +533,7 @@ export async function entreePlanH3(
             })),
           }
         : null,
-      episode: { titre: c.ep.titre, resume: c.ep.resume },
       plansVoisins: { precedent: precedentLu ? { ...voisin(precedentLu)!, ...(dernierShotPrecedent ? { dernierShot: dernierShotPrecedent } : {}) } : null, suivant: suivantLu ? { ...voisin(suivantLu)!, liaison: suivantLu.liaison } : null },
-      registre: candidats,
-      clauseStyleDuProjet: projet?.clauseStyle ?? "",
-      briefExtrait: c.extrait,
       consigne,
       ...(retour ? { retourUtilisateur: retour } : {}),
     },

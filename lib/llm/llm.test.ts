@@ -313,7 +313,7 @@ test("executerSkill : succès, trace « ok », schéma envoyé au serveur", asyn
   assert.deepEqual(r.usage, { entree: 100, sortie: 8 });
   const c = s.requetes[0]!;
   assert.match(c.messages[0]!.content, /=== demo: rules ===/);
-  assert.match(c.messages[1]!.content, /"pitch": "x"/);
+  assert.match(c.messages[1]!.content, /"pitch":"x"/);
   assert.ok(c.response_format);
   assert.equal(traces.length, 1);
   assert.equal(traces[0]!.statut, "ok");
@@ -402,7 +402,7 @@ test("executerSkill : une trace qui ne s'écrit pas ne masque pas le résultat ;
 test("versMessages / messageDeRenvoi", () => {
   assert.deepEqual(versMessages("a"), [{ role: "user", content: "a" }]);
   assert.deepEqual(versMessages([{ role: "user", content: "b" }]), [{ role: "user", content: "b" }]);
-  assert.equal(versMessages({ x: 1 })[0]!.content, '{\n  "x": 1\n}');
+  assert.equal(versMessages({ x: 1 })[0]!.content, '{"x":1}');
   assert.match(messageDeRenvoi(["/n : requis"]), /- \/n : requis/);
 });
 
@@ -437,10 +437,10 @@ test("config : LLM_CORPS_<SKILL> prime sur LLM_CORPS, JSON invalide = erreur fra
   const thinking = '{"chat_template_kwargs":{"enable_thinking":false}}';
   assert.deepEqual(corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { chat_template_kwargs: { enable_thinking: false } });
   assert.deepEqual(corpsPourSkill("brief-projet", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { a: 1 });
-  assert.equal(corpsPourSkill("brief-projet", {}), undefined);
-  // Les skills de traduction partent sans réflexion ; une variable (même `{}`) reprend la main.
-  assert.deepEqual(corpsPourSkill("prompt-asset", {}), { chat_template_kwargs: { enable_thinking: false } });
-  assert.deepEqual(corpsPourSkill("prompt-asset", { LLM_CORPS_PROMPT_ASSET: "{}" }), {});
+  // Tous les skills partent sans réflexion ; une variable (même `{}`) reprend la main.
+  assert.deepEqual(corpsPourSkill("brief-projet", {}), { chat_template_kwargs: { enable_thinking: false } });
+  assert.deepEqual(corpsPourSkill("plan-h3", {}), { chat_template_kwargs: { enable_thinking: false } });
+  assert.deepEqual(corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: "{}" }), {});
   assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: "{pas du json" }), /LLM_CORPS_PLAN_H3/);
   assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS: "[1]" }), /LLM_CORPS/);
 });
