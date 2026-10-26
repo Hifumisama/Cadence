@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { BudgetContexte, contexteTotalDepuisEnv, estimerContexte } from "../lib/llm/budget-contexte";
+import { chargerSkill } from "../lib/llm/skills";
 import { join, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -36,6 +38,7 @@ import { reprendreOrphelines } from "./reprise";
 const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 const INTERVALLE_MS = Number(process.env.WORKER_INTERVAL_MS ?? 10_000);
 /** Appels LLM en même temps (défaut 1) : à régler sur le `--parallel` du serveur llama.cpp. */
+const budgetContexte = new BudgetContexte(contexteTotalDepuisEnv());
 const LLM_PARALLELE = Math.max(1, Math.floor(Number(process.env.LLM_PARALLELE ?? 1)) || 1);
 const PAUSE_ENTRE_TACHES_MS = 1_000; // une tâche vient de finir : on enchaîne vite sur la suivante
 const INTERVALLE_POLL_MS = 5_000;
@@ -300,11 +303,15 @@ export type Voie = "comfyui" | "llm";
 async function traiterProchaineTache(voie: Voie): Promise<boolean> {
   const avecComfyui = voie === "comfyui";
   const avecLlm = voie === "llm";
-  const [gen, job, run] = await Promise.all([
+  const [gen, job, runBrut] = await Promise.all([
     avecComfyui ? prochaineGenerationEnAttente() : null,
     avecComfyui ? prochainJobEnAttente() : null,
     avecLlm ? prochaineTacheLlmEnAttente() : null,
   ]);
+  // Les appels en parallèle se partagent le contexte du serveur : celui-ci n'est pris que s'il tient à côté de ceux en vol (lib/llm/budget-contexte.ts).
+  // La place est réservée tout de suite (aucun `await` entre le test et la réservation) et rendue à la fin du tour, quel qu'il soit.
+  const run = runBrut && budgetContexte.reserver(runBrut.id, estimerContexte(runBrut.skill, chargerSkill(runBrut.skill).jetonsEstimes, runBrut.entree)) ? runBrut : null;
+  try {
 
   const comfyuiAttend = gen != null || job != null;
   const [comfyuiOk, llmOk] = await Promise.all([
@@ -370,6 +377,9 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
     return fait;
     // Les appels d'une création se partagent les slots du serveur LLM : exclusifs face au reste, pas entre eux.
   }, creation && !upscale ? "creation" : null);
+  } finally {
+    if (runBrut) budgetContexte.liberer(runBrut.id);
+  }
 }
 
 async function boucle() {
