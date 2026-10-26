@@ -10,6 +10,7 @@ import {
   estFinale,
   etapeCourante,
   etapesNeuves,
+  normaliserEtapes,
   statutDepuisEtapes,
   type CleEtapeCreation,
   type EtapeCreation,
@@ -33,7 +34,7 @@ export async function lireCreation(projectId: number): Promise<LigneCreation | n
   return c ?? null;
 }
 
-const lireEtapes = (c: LigneCreation): EtapeCreation[] => (Array.isArray(c.etapes) ? (c.etapes as EtapeCreation[]) : etapesNeuves());
+const lireEtapes = (c: LigneCreation): EtapeCreation[] => (Array.isArray(c.etapes) ? normaliserEtapes(c.etapes as EtapeCreation[]) : etapesNeuves());
 
 async function ecrire(c: LigneCreation, etapes: EtapeCreation[], extra: { statut?: StatutCreation; erreur?: string | null } = {}): Promise<void> {
   const statut = extra.statut ?? statutDepuisEtapes(etapes, c.statut as StatutCreation);
@@ -261,15 +262,9 @@ async function lancerEtape(projectId: number, cle: CleEtapeCreation, convUuid: s
       return issue(await service.genererInventaire(convUuid));
     case "relecture":
       return issue(await service.genererRelectures(convUuid));
-    case "fiches":
-      return issue(await service.genererFiches(convUuid));
     case "prompts-inventaire": {
       const source = sourceDe("inventaire");
       return source ? issue(await service.genererPromptsAssetsCrees(source)) : passe("Aucun asset ajouté par l'inventaire.");
-    }
-    case "prompts-fiches": {
-      const source = sourceDe("fiches");
-      return source ? issue(await service.genererPromptsAssetsCrees(source)) : passe("Aucun asset créé par les fiches.");
     }
   }
 }
