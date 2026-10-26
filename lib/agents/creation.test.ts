@@ -7,7 +7,6 @@ import {
   estRienAFaire,
   etapeCourante,
   etapesNeuves,
-  normaliserEtapes,
   progression,
   statutDepuisEtapes,
   type EtapeCreation,
@@ -19,22 +18,8 @@ const obs = (over: Partial<ObservationEtape> = {}): ObservationEtape => ({ occup
 const prop = (over: Partial<NonNullable<ObservationEtape["proposition"]>> = {}) => ({ statut: "prete", lot: false, echecs: 0, bloques: 0, nbChangements: 3, erreur: null, ...over });
 
 test("étapes : l'ordre du pipeline, toutes à venir au départ", () => {
-  assert.deepEqual(ETAPES_CREATION.map((e) => e.cle), ["brief", "squelette", "scenarios", "registre", "inventaire", "prompts-inventaire", "relecture"]);
+  assert.deepEqual(ETAPES_CREATION.map((e) => e.cle), ["brief", "squelette", "scenarios", "registre", "inventaire", "prompts-inventaire", "relecture", "fiches", "prompts-fiches"]);
   assert.ok(etapesNeuves().every((e) => e.statut === "a_venir"));
-});
-
-test("étapes lues en base : une étape retirée est écartée, une étape nouvelle arrive à venir", () => {
-  const lues = [
-    ...etapesNeuves().map((e) => ({ ...e, statut: "fait" as const })),
-    { cle: "fiches", statut: "en_cours", propositionUuid: "x", essais: 0, detail: null, erreur: null },
-    { cle: "prompts-fiches", statut: "a_venir", propositionUuid: null, essais: 0, detail: null, erreur: null },
-  ] as unknown as EtapeCreation[];
-  const n = normaliserEtapes(lues);
-  assert.deepEqual(n.map((e) => e.cle), ETAPES_CREATION.map((e) => e.cle));
-  assert.equal(etapeCourante(n), null); // une création arrêtée devant les fiches se termine
-  const sansRelecture = normaliserEtapes(lues.filter((e) => e.cle !== "relecture"));
-  assert.equal(sansRelecture.find((e) => e.cle === "relecture")?.statut, "a_venir");
-  assert.equal(etapeCourante(sansRelecture)?.cle, "relecture");
 });
 
 test("étape courante : la première qui n'est ni faite ni passée", () => {
@@ -45,7 +30,7 @@ test("étape courante : la première qui n'est ni faite ni passée", () => {
   assert.equal(etapeCourante(e)?.cle, "scenarios");
   for (const x of e) x.statut = "fait";
   assert.equal(etapeCourante(e), null);
-  assert.deepEqual(progression(e), { faites: 7, total: 7 });
+  assert.deepEqual(progression(e), { faites: 9, total: 9 });
 });
 
 test("décision : une étape à venir se lance, sauf si la conversation est occupée", () => {
@@ -73,20 +58,20 @@ test("décision : un lot avec des échecs est relancé UNE fois, puis l'étape �
   assert.equal(d.type, "echouer");
   assert.match((d as { erreur: string }).erreur, /2 sous-tâches en échec/);
   // un lot entièrement échoué suit la même règle
-  assert.deepEqual(decider(etape("relecture", "en_cours"), obs({ proposition: prop({ statut: "echouee", lot: true }) })), { type: "relancer-echecs" });
-  assert.equal(decider(etape("relecture", "en_cours", { essais: 1 }), obs({ proposition: prop({ statut: "echouee", lot: true, erreur: "LLM en panne" }) })).type, "echouer");
+  assert.deepEqual(decider(etape("fiches", "en_cours"), obs({ proposition: prop({ statut: "echouee", lot: true }) })), { type: "relancer-echecs" });
+  assert.equal(decider(etape("fiches", "en_cours", { essais: 1 }), obs({ proposition: prop({ statut: "echouee", lot: true, erreur: "LLM en panne" }) })).type, "echouer");
 });
 
 test("décision : des changements bloqués par un contrôle sont relancés UNE fois, puis le reste s'applique", () => {
   const bloque = obs({ proposition: prop({ lot: true, bloques: 2 }) });
-  assert.deepEqual(decider(etape("scenarios", "en_cours", { essais: 0 }), bloque), { type: "relancer-echecs" });
-  assert.deepEqual(decider(etape("scenarios", "en_cours", { essais: 1 }), bloque), { type: "appliquer" });
+  assert.deepEqual(decider(etape("fiches", "en_cours", { essais: 0 }), bloque), { type: "relancer-echecs" });
+  assert.deepEqual(decider(etape("fiches", "en_cours", { essais: 1 }), bloque), { type: "appliquer" });
 });
 
 test("décision : proposition rejetée ou disparue = échec ; étape en échec = on attend la reprise", () => {
-  assert.equal(decider(etape("relecture", "en_cours"), obs({ proposition: prop({ statut: "rejetee" }) })).type, "echouer");
-  assert.equal(decider(etape("relecture", "en_cours"), obs()).type, "echouer");
-  assert.deepEqual(decider(etape("relecture", "echoue"), obs()), { type: "attendre" });
+  assert.equal(decider(etape("fiches", "en_cours"), obs({ proposition: prop({ statut: "rejetee" }) })).type, "echouer");
+  assert.equal(decider(etape("fiches", "en_cours"), obs()).type, "echouer");
+  assert.deepEqual(decider(etape("fiches", "echoue"), obs()), { type: "attendre" });
 });
 
 test("refus du service : « rien à faire » passe l'étape, « déjà en cours » attend", () => {

@@ -940,7 +940,7 @@ async function main() {
     ok(eps4.length === 2 && plans4.length > 0, "épisodes et plans créés sans une seule revue");
     ok(assets4.some((a) => a.code === "CHAR_iris") && assets4.some((a) => a.code === "PROP_clef"), "registre du brief ET inventaire des plans créés");
     const secs4 = await db.select({ planId: planPromptSections.planId }).from(planPromptSections).where(inArray(planPromptSections.planId, plans4.map((p) => p.id)));
-    ok(secs4.length === 0, "la création s'arrête à « prêt » : aucun plan n'a encore de fiche (elles s'écrivent ensuite, par scène)");
+    ok(new Set(secs4.map((x) => x.planId)).size === plans4.length, "chaque plan a sa fiche");
     const attente4 = await db.select().from(propositions).where(and(eq(propositions.projectId, pInst!.id), eq(propositions.statut, "prete")));
     ok(attente4.length === 0, "aucune proposition ne reste en attente de revue");
 

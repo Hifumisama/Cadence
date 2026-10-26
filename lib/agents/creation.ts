@@ -15,9 +15,9 @@ export const ETAPES_CREATION = [
   { cle: "inventaire", libelle: "Inventaire des assets", detail: "Accessoires, états de décor, effets que les plans réclament." },
   { cle: "prompts-inventaire", libelle: "Prompts des assets de l'inventaire", detail: "Un prompt d'image par asset ajouté." },
   { cle: "relecture", libelle: "Relecture des scénarios", detail: "Cohérence, motifs, doublons, résolution : les plus petites corrections, avant d'écrire les fiches." },
+  { cle: "fiches", libelle: "Fiches de plan", detail: "Le prompt vidéo de chaque plan, avec ses références." },
+  { cle: "prompts-fiches", libelle: "Prompts des assets créés par les fiches", detail: "Ce que les fiches ont ajouté au registre." },
 ] as const;
-// Les fiches de plan ne font plus partie de la création (2026-10-26) : 24 s par plan, soit ~48 min pour un film de 20 min.
-// Le projet est « prêt » sans fiches ; elles s'écrivent ensuite, scène par scène.
 
 export type CleEtapeCreation = (typeof ETAPES_CREATION)[number]["cle"];
 export type StatutEtapeCreation = "a_venir" | "en_cours" | "fait" | "passe" | "echoue";
@@ -36,14 +36,6 @@ export type EtapeCreation = {
 };
 
 export const etapesNeuves = (): EtapeCreation[] => ETAPES_CREATION.map((e) => ({ cle: e.cle, statut: "a_venir" as const, propositionUuid: null, essais: 0, detail: null, erreur: null }));
-
-/** Remet les étapes lues en base à la liste courante : une étape qui n'existe plus (ex. `fiches`, retirée le 2026-10-26)
- * est écartée, une étape nouvelle arrive « à venir ». Ainsi une création commencée avant un changement de pipeline
- * reprend sans planter, et ne fait jamais une étape retirée. L'ordre est celui de `ETAPES_CREATION`. */
-export function normaliserEtapes(lues: EtapeCreation[]): EtapeCreation[] {
-  const parCle = new Map(lues.map((e) => [e.cle as string, e]));
-  return etapesNeuves().map((neuve) => parCle.get(neuve.cle) ?? neuve);
-}
 
 const FINALES: StatutEtapeCreation[] = ["fait", "passe"];
 export const estFinale = (e: Pick<EtapeCreation, "statut">) => FINALES.includes(e.statut);
