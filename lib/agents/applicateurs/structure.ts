@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { episodes, scenes } from "../../../db/schema";
 import type { ChangementBrut } from "../changements";
 import { genreOuNull } from "../../scene-genres";
+import { traitementDeScene } from "../traitement";
 import { apres, entierRef, parentDe, REFUS_SUPPRESSION, texte, type Applicateur } from "./commun";
 
 /** Applicateurs de la structure : projet (clause de style), épisode, scène. */
@@ -139,7 +140,8 @@ export const applicateurScene: Applicateur = {
     const episodeId = parentDe(a, "episodeCle", "episodeId", _ctx.cles).id!;
     const existantes = await tx.select({ ordre: scenes.ordre }).from(scenes).where(eq(scenes.episodeId, episodeId));
     const ordre = existantes.reduce((m, s) => Math.max(m, s.ordre), -1) + 1;
-    const [cree] = await tx.insert(scenes).values({ episodeId, ordre, titre, fonction, genre: genre ?? null, ambiance: ambiance ?? null }).returning({ id: scenes.id });
+    const traitement = traitementDeScene(a.traitement);
+    const [cree] = await tx.insert(scenes).values({ episodeId, ordre, titre, fonction, genre: genre ?? null, ambiance: ambiance ?? null, ...(traitement ? { traitement } : {}) }).returning({ id: scenes.id });
     if (ch.cle) _ctx.cles.set(ch.cle, cree!.id);
   },
 };

@@ -12,6 +12,9 @@ export type { GenreTache };
 export const LIBELLE_SKILL: Record<string, string> = {
   "brief-projet": "Brief du projet",
   "scenario-episode": "Scénario d'épisode",
+  "scenario-scene": "Scénario d'une scène",
+  "traitement-episode": "Traitement de l'épisode",
+  traitements: "Traitement du film",
   "prompt-asset": "Prompt d'asset",
   "prompt-affiche": "Prompt d'affiche",
   "plan-h3": "Fiche de plan",

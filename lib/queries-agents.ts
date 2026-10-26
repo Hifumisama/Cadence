@@ -337,7 +337,7 @@ export async function apercuContexte(projectId: number, portee: Portee, cible: C
   return apercuContexteDe(db, projectId, portee, r.cibleId);
 }
 
-const SORTIE_ESTIMEE: Record<string, number> = { "scenario-episode": 1800, "prompt-asset": 500, "conversation-agent": 600, "plan-h3": 2500, "iteration-plan": 900 };
+const SORTIE_ESTIMEE: Record<string, number> = { "scenario-episode": 1800, "scenario-scene": 1500, "traitement-episode": 2500, "prompt-asset": 500, "conversation-agent": 600, "plan-h3": 2500, "iteration-plan": 900 };
 
 /** Estimation avant lancement : fournisseur, modèle, coût (null en local), durée, tâches
  * devant dans la file. Ordres de grandeur (≈ 30 jetons/s en sortie sur le serveur local,

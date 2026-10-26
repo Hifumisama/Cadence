@@ -65,7 +65,7 @@ Les skills vivent dans `agents/skills/` (un dossier par skill, chargés par `lib
 
 - conception du projet : `accroche-scenariste`, `conversation-agent`, `notes-entretien` (le brief se remplit au
   fil de la conversation ; son schéma est `lib/agents/brief-schema.json`)
-- production : `scenario-episode`, `inventaire-assets`, `relecture-scenario` (relecture du scénario écrit, avant les fiches), `prompt-asset`, `prompt-affiche`, `plan-h3`
+- production : `traitement-episode` + `scenario-scene` (scénario d'un long film, scène par scène : CONCEPTION_AGENTS § 17), `scenario-episode` (film court, plan à insérer ou à corriger), `inventaire-assets`, `relecture-scenario` (relecture du scénario écrit, avant les fiches), `prompt-asset`, `prompt-affiche`, `plan-h3`
 - correction : `iteration-plan`
 
 Les anciens skills de chat (`scenario`, `fiche-de-plan`, `assets-comfyui`, `voix-comfyui`) n'existent plus. Les

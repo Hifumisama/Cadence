@@ -498,6 +498,13 @@
       "when": 1795539600000,
       "tag": "0070_traces_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1795626000000,
+      "tag": "0071_traitement_scene",
+      "breakpoints": true
     }
   ]
 }

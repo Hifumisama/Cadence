@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the scenario-scene agent: the plans of ONE scene",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["plans", "inventions", "notes"],
+  "properties": {
+    "plans": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The scene's plans, in reading order. Order is that of the array: no plan number.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["titre", "description", "liaison", "dureeSecondes"],
+        "properties": {
+          "titre": { "type": "string", "maxLength": 200, "description": "(French) Distinct from every other plan's title." },
+          "description": { "type": "string", "minLength": 1, "description": "(French) What happens and why the plan exists, then the lines said (each `NAME : « exact text »`, in the dialogue language, before « État en fin de plan : »). Narrative, with no framing, light, sound or camera movement, and no reference to another plan." },
+          "liaison": { "type": "string", "enum": ["suite", "coupe"], "description": "How this plan links to the PREVIOUS one (for the first plan: to the previous scene's last plan). suite: it takes up where the previous plan ends (same place, same moment or seconds later, same people where the previous « État en fin de plan » left them). coupe: a clean cut (another place, another moment, another point of view). The first plan of the episode is a coupe. When unsure: suite." },
+          "dureeSecondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "Generation duration, whole seconds, from 5 to 15 (never less than 5). It follows the brief's rhythm and the scene's genre; group close moments into a single plan. A dialogue plan: generous duration, breathing margin of at least 2 s." }
+        }
+      }
+    },
+    "inventions": { "type": "array", "items": { "type": "string" }, "description": "(French) Everything that was not in the brief nor the treatment. To validate or throw out." },
+    "notes": { "type": "string", "description": "(French) Risky plans, a dialogue too long for the scene. Empty if nothing to report." }
+  }
+}

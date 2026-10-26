@@ -8,6 +8,7 @@ import { parolesDuPrompt, voixDuPrompt } from "./voix-du-prompt";
 import { controlerSortiePlanH3, MAX_IMAGES_AVEC_RACCORD, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
 import { genreOuNull } from "../scene-genres";
 import { estLiaison } from "../plan-liaison";
+import { ajusterDureesScene, repartirDureesScenes } from "./traitement";
 import type { Avertissement, Position } from "./types";
 
 /** Des sorties validées des skills aux changements d'une proposition — EN CODE, sans second
@@ -267,6 +268,99 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
     ];
   }
   return changements;
+}
+
+// --- traitement-episode et scenario-scene (étape E : le scénario d'un long film, scène par scène) ---------------------
+
+export type SortieTraitement = {
+  scenes: {
+    titre: string;
+    fonction: string;
+    genre?: string;
+    ambiance?: string;
+    intention: string;
+    etatEntree: string;
+    etatSortie: string;
+    poids: number;
+    momentsDeLAuteur?: string;
+  }[];
+  inventions: string[];
+  notes: string;
+};
+
+/** Le traitement d'un épisode devient des SCÈNES (créations, avec leur traitement) : les durées en secondes sont calculées ICI depuis les poids, pour que
+ * leur somme tombe exactement sur la durée visée. Une scène dont le titre existe déjà est laissée ; deux scènes de même titre sont distinguées (le scénario
+ * de chaque scène retrouve la sienne par son titre). Pur, testé. */
+export function depuisTraitement(
+  sortie: SortieTraitement,
+  ep: Pick<EpisodeCourant, "id" | "scenes">,
+  options: { dureeEpisodeSecondes: number; prefixeCle?: string; groupe?: string },
+): ChangementBrut[] {
+  const pref = options.prefixeCle ?? "";
+  const durees = repartirDureesScenes(sortie.scenes.map((s) => s.poids), options.dureeEpisodeSecondes);
+  const pris = new Set(ep.scenes.map((s) => norme(s.titre)));
+  const changements: ChangementBrut[] = [];
+  for (const [i, sc] of sortie.scenes.entries()) {
+    let titre = sc.titre.trim();
+    for (let n = 2; pris.has(norme(titre)); n++) titre = `${sc.titre.trim()} (${n})`;
+    pris.add(norme(titre));
+    changements.push({
+      groupe: options.groupe ?? "scenes",
+      cle: `${pref}scene-${i + 1}`,
+      cibleType: "scene",
+      cibleRef: null,
+      libelle: `Scène · ${titre}`,
+      operation: "creer",
+      sousGroupe: titre,
+      apres: {
+        titre,
+        fonction: sc.fonction,
+        episodeId: ep.id,
+        ...(genreOuNull(sc.genre) ? { genre: sc.genre } : {}),
+        ...(sc.ambiance?.trim() ? { ambiance: sc.ambiance.trim() } : {}),
+        traitement: {
+          intention: sc.intention,
+          etatEntree: sc.etatEntree,
+          etatSortie: sc.etatSortie,
+          dureeCibleSecondes: durees[i]!,
+          momentsDeLAuteur: sc.momentsDeLAuteur ?? "",
+        },
+      },
+      avertissements: i === 0 ? [...(sortie.inventions ?? []).map((t) => ({ type: "invention" as const, texte: t })), ...(sortie.notes?.trim() ? [{ type: "info" as const, texte: sortie.notes.trim() }] : [])] : [],
+    });
+  }
+  return changements;
+}
+
+export type SortieScenarioScene = {
+  plans: { titre: string; description: string; liaison?: string; dureeSecondes: number }[];
+  inventions: string[];
+  notes: string;
+};
+
+/** Les plans d'UNE scène (créée par le traitement) : mêmes changements qu'un scénario d'épisode restreint à cette scène, dont les durées sont ramenées à la
+ * durée visée de la scène (`ajusterDureesScene`). Les plans se comparent aux seuls plans de la scène : un titre repris ailleurs dans le film ne fait pas
+ * « modifier » un plan d'une autre scène. Pur, testé. */
+export function depuisScenarioScene(
+  sortie: SortieScenarioScene,
+  ep: EpisodeCourant,
+  scene: { id: number; titre: string; fonction: string; dureeCibleSecondes: number },
+  options: { prefixeCle?: string; groupe?: string } = {},
+): ChangementBrut[] {
+  const durees = ajusterDureesScene(
+    sortie.plans.map((p) => Number(p.dureeSecondes) || 0),
+    scene.dureeCibleSecondes,
+  );
+  return depuisScenarioEpisode(
+    {
+      episode: { titre: ep.titre, resume: ep.resume },
+      scenes: [{ titre: scene.titre, fonction: scene.fonction, plans: sortie.plans.map((p, i) => ({ ...p, dureeSecondes: durees[i]! })) }],
+      inventions: sortie.inventions,
+      notes: sortie.notes,
+    },
+    { ...ep, plans: ep.plans.filter((p) => p.sceneId === scene.id) },
+    { ...options, dureeCibleSecondes: scene.dureeCibleSecondes },
+  );
 }
 
 /** Un seul plan à insérer à une position (« un plan de coupe après le plan X ») : le premier

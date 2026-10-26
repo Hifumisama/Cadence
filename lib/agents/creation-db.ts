@@ -253,6 +253,8 @@ async function lancerEtape(projectId: number, cle: CleEtapeCreation, convUuid: s
     case "squelette":
       if (brief?.statut === "valide") return passe("Structure déjà appliquée.");
       return issue(await service.genererProposition(convUuid));
+    case "traitement":
+      return issue(await service.genererTraitements(convUuid));
     case "scenarios":
       return issue(await service.genererScenarios(convUuid));
     case "registre":

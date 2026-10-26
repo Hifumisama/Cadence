@@ -28,10 +28,11 @@ import { controleDuree } from "./applicateurs/plan";
 import { cocheParDefaut, groupeAffiche, raisonNonCochable } from "./cochage";
 import { TYPE_AFFICHE } from "../affiches";
 import { entreePromptAffiche } from "./affiche";
-import { entreeCorrectionPlan, entreeRelecture, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, lireBriefDuProjet, type EntreeSkill } from "./contexte";
+import { entreeCorrectionPlan, entreeRelecture, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, entreeScenarioScene, entreeTraitement, lireBriefDuProjet, type EntreeSkill } from "./contexte";
+import { SEUIL_TRAITEMENT_SECONDES } from "./traitement";
 import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registre";
 import { annulerLot, annulerRunsDePropositions, runsDuLot, type ResultatAnnulationLot } from "./lots";
-import { cleSousTacheEpisode, dernieresSousTaches, episodeIdDeCle, estRunActif } from "./lots-pur";
+import { cleSousTacheEpisode, cleSousTacheScene, dernieresSousTaches, episodeIdDeCle, estRunActif, sceneIdDeCle } from "./lots-pur";
 import { appliquerProposition, enregistrerChangements } from "./proposition-db";
 import { creerRun, tacheBloquante, type ButRun, type TacheBloquante } from "./runs";
 import { squeletteDepuisBrief } from "./squelette";
@@ -633,28 +634,99 @@ export async function genererScenarios(
 
   const dispo = await episodesPourScenarios(conv.projectId);
   if (dispo.length === 0) return ERR("Ce projet n'a pas encore d'épisode : applique d'abord le squelette.");
-  const voulus = options.episodeIds ?? dispo.filter((e) => e.vide).map((e) => e.id);
+  // Par défaut : les épisodes vides, et ceux dont le traitement attend ses scènes (créées par l'étape « traitement », sans plan).
+  const voulus = options.episodeIds ?? (await Promise.all(dispo.map(async (e) => (e.vide || (await scenesATraiter(e.id)).length > 0 ? e.id : null)))).filter((id): id is number => id != null);
   if (voulus.length === 0) return ERR("Tous les épisodes ont déjà du contenu : choisis ceux à (ré)écrire.");
   const choisis = dispo.filter((e) => voulus.includes(e.id));
   if (choisis.length !== new Set(voulus).size) return ERR("Un des épisodes choisis n'est pas dans cette portée.");
 
   const consigne = (options.consigne ?? "").trim() || CONSIGNE_SCENARIO;
-  const sousTaches: { e: EpisodePourScenario; entree: NonNullable<Awaited<ReturnType<typeof entreeScenarioEpisode>>> }[] = [];
+  // Un épisode dont le traitement est écrit (des scènes, chacune avec son traitement, sans plan) s'écrit SCÈNE PAR SCÈNE : une sous-tâche par scène,
+  // en parallèle. Les autres s'écrivent d'un seul tenant, comme avant.
+  type SousTache = { cle: string; libelle: string; skill: "scenario-episode" | "scenario-scene"; entree: object };
+  const sousTaches: SousTache[] = [];
   for (const e of choisis) {
+    const lesScenes = await scenesATraiter(e.id);
+    if (lesScenes.length > 0) {
+      for (const sc of lesScenes) {
+        const entree = await entreeScenarioScene(db, conv.projectId, sc.id, consigne);
+        if (entree) sousTaches.push({ cle: cleSousTacheScene(sc.id), libelle: `Scène ${sc.rang} · ${sc.titre}`, skill: "scenario-scene", entree: entree.entree });
+      }
+      continue;
+    }
     const entree = await entreeScenarioEpisode(db, conv.projectId, e.id, consigne);
-    if (entree) sousTaches.push({ e, entree });
+    if (entree) sousTaches.push({ cle: cleSousTacheEpisode(e.id), libelle: `Épisode ${e.numero} · ${e.titre}`, skill: "scenario-episode", entree: entree.entree });
   }
   if (sousTaches.length === 0) return ERR("Aucun épisode lisible.");
 
+  const nbScenes = sousTaches.filter((t) => t.skill === "scenario-scene").length;
   const contexte = [
     { type: "brief" as const, libelle: `Brief du projet (${brief.statut})`, ref: "*" },
-    { type: "episode" as const, libelle: `${sousTaches.length} épisode${sousTaches.length > 1 ? "s" : ""} à écrire, un par un` },
-    ...sousTaches[0]!.entree.contexte.filter((c) => c.type === "brief" || c.type === "registre"),
+    { type: "episode" as const, libelle: nbScenes > 0 ? `${nbScenes} scène${nbScenes > 1 ? "s" : ""} à écrire, en parallèle` : `${sousTaches.length} épisode${sousTaches.length > 1 ? "s" : ""} à écrire, un par un` },
   ];
   const propId = await nouvelleProposition(conv, { skill: "scenarios", consigne, contexte, lot: true });
+  for (const t of sousTaches) {
+    await creerRun(db, {
+      skill: t.skill,
+      entree: t.entree,
+      but: "proposition",
+      projectId: conv.projectId,
+      conversationId: conv.id,
+      propositionId: propId,
+      cleSousTache: t.cle,
+      libelleSousTache: t.libelle,
+    });
+  }
+  const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
+  return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length };
+}
+
+/** Les scènes d'un épisode qui ont leur traitement et pas encore de plan, dans l'ordre (rang 1, 2…) : à écrire scène par scène. Vide dès qu'une scène n'a pas de
+ * traitement ou qu'une a déjà des plans : l'épisode s'écrit alors d'un seul tenant (voir `genererScenarios`). */
+async function scenesATraiter(episodeId: number): Promise<{ id: number; titre: string; rang: number }[]> {
+  const lesScenes = await db
+    .select({ id: scenes.id, titre: scenes.titre, traitement: scenes.traitement })
+    .from(scenes)
+    .where(eq(scenes.episodeId, episodeId))
+    .orderBy(asc(scenes.ordre), asc(scenes.id));
+  if (lesScenes.length === 0 || lesScenes.some((s) => !s.traitement)) return [];
+  const avecPlans = new Set((await db.select({ id: plans.sceneId }).from(plans).where(eq(plans.episodeId, episodeId))).map((r) => r.id));
+  if (lesScenes.some((s) => avecPlans.has(s.id))) return [];
+  return lesScenes.map((s, i) => ({ id: s.id, titre: s.titre, rang: i + 1 }));
+}
+
+const CONSIGNE_TRAITEMENT = "Découpe cet épisode en scènes : ce que chacune raconte, d'où elle part, où elle arrive.";
+
+/** Étape E : le TRAITEMENT d'un épisode, avant ses plans. Un LOT d'une sous-tâche par épisode (un seul épisode pour un film), qui crée les scènes avec leur
+ * traitement. Ne concerne que les épisodes VIDES et assez longs pour valoir un découpage (`SEUIL_TRAITEMENT_SECONDES`) : un film court s'écrit d'un seul tenant. */
+export async function genererTraitements(
+  conversationUuid: string,
+  options: { consigne?: string } = {},
+): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
+  const conv = await conversationParUuid(conversationUuid);
+  if (!conv) return ERR("Conversation introuvable.");
+  if (conv.portee !== "projet") return ERR("Le traitement se demande depuis le projet.");
+  { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
+  const brief = await lireBriefDuProjet(db, conv.projectId);
+  if (!brief || brief.statut === "partiel") return ERR("Écris d'abord le brief du projet : le traitement s'appuie dessus.");
+  const vides = (await episodesPourScenarios(conv.projectId)).filter((e) => e.vide);
+  if (vides.length === 0) return ERR("Aucun épisode vide : le traitement ne s'écrit que pour un épisode sans scène ni plan.");
+  const consigne = (options.consigne ?? "").trim() || CONSIGNE_TRAITEMENT;
+  const sousTaches: { e: EpisodePourScenario; entree: NonNullable<Awaited<ReturnType<typeof entreeTraitement>>> }[] = [];
+  for (const e of vides) {
+    const entree = await entreeTraitement(db, conv.projectId, e.id, consigne);
+    const duree = (entree?.entree as { dureeCibleSecondes?: number } | undefined)?.dureeCibleSecondes ?? 0;
+    if (entree && duree >= SEUIL_TRAITEMENT_SECONDES) sousTaches.push({ e, entree });
+  }
+  if (sousTaches.length === 0) return ERR(`Aucun épisode n'a besoin d'un traitement : il vise moins de ${SEUIL_TRAITEMENT_SECONDES / 60} minutes, son scénario s'écrit d'un seul tenant.`);
+  const contexte = [
+    { type: "episode" as const, libelle: `${sousTaches.length} épisode${sousTaches.length > 1 ? "s" : ""} à découper en scènes` },
+    ...sousTaches[0]!.entree.contexte.filter((c) => c.type === "brief" || c.type === "registre"),
+  ];
+  const propId = await nouvelleProposition(conv, { skill: "traitements", consigne, contexte, lot: true });
   for (const { e, entree } of sousTaches) {
     await creerRun(db, {
-      skill: "scenario-episode",
+      skill: "traitement-episode",
       entree: entree.entree,
       but: "proposition",
       projectId: conv.projectId,
@@ -1118,9 +1190,20 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
     if (!e) return ERR("L'asset n'existe plus.");
     cible = { skill: "prompt-asset", entree: e.entree, options: e.variante ? { variante: e.variante } : null };
   } else {
+    const sceneId = sceneIdDeCle(cle);
     const episodeId = episodeIdDeCle(cle);
-    if (episodeId == null) return ERR("Sous-tâche non relançable.");
-    if (prop.skill === "relectures") {
+    if (sceneId != null) {
+      // Une scène du scénario : son traitement tel qu'il est maintenant, avec le retour libre.
+      const entree = await entreeScenarioScene(db, prop.projectId, sceneId, prop.consigne || CONSIGNE_SCENARIO, { retour: retour?.trim() || undefined });
+      if (!entree) return ERR("La scène n'existe plus ou n'a plus de traitement.");
+      cible = { skill: "scenario-scene", entree: entree.entree, options: null };
+    } else if (episodeId == null) {
+      return ERR("Sous-tâche non relançable.");
+    } else if (prop.skill === "traitements") {
+      const entree = await entreeTraitement(db, prop.projectId, episodeId, prop.consigne || CONSIGNE_TRAITEMENT, { retour: retour?.trim() || undefined });
+      if (!entree) return ERR("L'épisode n'existe plus.");
+      cible = { skill: "traitement-episode", entree: entree.entree, options: null };
+    } else if (prop.skill === "relectures") {
       // Relecture : l'épisode tel qu'il est maintenant (ses plans ont pu changer depuis), avec le retour libre.
       const r = await entreeRelecture(db, prop.projectId, episodeId, prop.consigne || CONSIGNE_RELECTURE, { retour: retour?.trim() || undefined });
       if (!r) return ERR("L'épisode n'existe plus ou n'a plus de plan.");

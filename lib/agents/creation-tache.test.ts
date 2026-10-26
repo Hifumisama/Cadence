@@ -46,7 +46,7 @@ test("création en cours : une ligne qui avance étape par étape", () => {
   assert.equal(x.statut, "en_cours");
   assert.equal(x.libelle, "Conception · Avatar");
   assert.equal(x.href, "/p/7/creation");
-  assert.deepEqual(x.progression, { valeur: 3, max: 9, etape: "Registre d'assets" });
+  assert.deepEqual(x.progression, { valeur: 3, max: 10, etape: "Scénarios des épisodes" });
   assert.equal(x.jetons, 120);
   assert.equal(x.conversationUuid, undefined, "un clic mène à la page, pas à la popup d'agent");
 });
@@ -59,7 +59,7 @@ test("création en cours dont les tâches attendent : la ligne attend, comme une
 });
 
 test("création terminée, échouée ou arrêtée", () => {
-  const fin = { createdAt: t0, updatedAt: t1, etapes: etapesFaites(9) };
+  const fin = { createdAt: t0, updatedAt: t1, etapes: etapesFaites(10) };
   const ok = tacheDeCreation(entree({ ...fin, statut: "termine" }))!;
   assert.equal(ok.statut, "termine");
   assert.equal(ok.finishedAt, t1.toISOString());

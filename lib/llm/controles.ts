@@ -2,6 +2,7 @@ import { corrigerCodesInconnus } from "../agents/codes-proches";
 import { corpusExemplesPlanH3 } from "../agents/plan-h3-corpus";
 import { controlerSortiePlanH3, type SortiePlanH3 } from "../agents/plan-h3-controles";
 import { controlerDureeScenario, controlerStructureScenario } from "../agents/scenario-controles";
+import { controlerTraitement } from "../agents/traitement";
 import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-plan";
 import { problemesDeRelecture, type EntreeRelecture, type SortieRelecture } from "../agents/relecture";
 
@@ -39,6 +40,15 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
     const e = (entree ?? {}) as EntreeRelecture;
     if (!Array.isArray(e.plans)) return undefined;
     return (json) => problemesDeRelecture(json as SortieRelecture, e).map((x) => x.message);
+  }
+  if (skill === "traitement-episode") {
+    const vise = ((entree ?? {}) as { nombreDeScenes?: { min: number; max: number } }).nombreDeScenes;
+    if (!vise) return undefined;
+    return (json) => controlerTraitement(json as Parameters<typeof controlerTraitement>[0], vise);
+  }
+  if (skill === "scenario-scene") {
+    // Les durées sont ramenées à la cible par le code (ajusterDureesScene) : seul « État en fin de plan » est exigé, comme pour un épisode.
+    return (json) => controlerStructureScenario({ scenes: [{ plans: (json as { plans?: { titre?: string; description?: string }[] }).plans }] });
   }
   if (skill === "scenario-episode") {
     // Seul un scénario d'épisode ENTIER se compare à la durée visée (un plan à insérer ou à corriger n'en est qu'un morceau).

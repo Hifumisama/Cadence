@@ -468,3 +468,27 @@ Décisions et raisons : `docs/FRICTIONS.md`, 2026-10-07 (conception) et 2026-10-
 ## 16. Le réalisateur d'un épisode (retiré, 2026-10-20)
 
 Le réalisateur (skills `realisateur-analyse` et `realisateur-reponse`, conversation de profondeur `revision`, table `revision_decisions`, page `/p/<projet>/realisateur/<épisode>`) a été **décommissionné** : jamais utilisé en réel, redondant avec le scénariste, la relecture du scénario et l'itération de plan. Décision et raisons : `docs/FRICTIONS.md`, 2026-10-20. Ce qui servait aussi à la relecture (vue d'épisode à poignées, opérations typées et leur conversion en changements) vit dans `lib/agents/vue-operations/`. Le texte d'origine reste dans l'historique git.
+
+## 17. Le scénario d'un long film : traitement, puis scène par scène (2026-10-26)
+
+Un scénario d'épisode écrit d'un seul appel plafonne autour de 24 plans (la sortie du modèle) : un film de 20 minutes en demande une
+centaine. Pour un projet qui vise au moins `SEUIL_TRAITEMENT_SECONDES` (4 minutes, `lib/agents/traitement.ts`), la création écrit donc
+le scénario en deux temps, deux étapes de l'installateur :
+
+1. **`traitement`** (skill `traitement-episode`, lot `traitements`) : l'épisode est découpé en scènes (une scène par minute et demie
+   environ, `nombreDeScenesVise`). Pour chacune : titre, fonction, genre, ambiance, **intention**, **état d'entrée**, **état de sortie**,
+   **poids** (1 à 5) et ce que l'auteur en a dit (`momentsDeLAuteur`). Le modèle ne donne jamais de secondes : le code les calcule
+   (`repartirDureesScenes`, la somme tombe exactement sur la durée visée). Appliqué d'office, il crée les scènes ; leur traitement vit dans
+   `scenes.traitement` (jsonb).
+2. **`scenarios`** (skill `scenario-scene`, lot `scenarios`) : une sous-tâche **par scène** (clé `scene:<id>`), exécutées **en parallèle**
+   (`LLM_PARALLELE` boucles LLM, voir `.env.example`). Chaque appel reçoit l'épisode, le brief, le registre et le traitement entier (début
+   d'entrée identique pour toutes les scènes : le préfixe part en cache), puis sa scène et ses deux voisines. Aucune scène ne lit le texte
+   d'une autre : le raccord passe par les états **prévus** (`etatSortie` de la précédente, `etatEntree` de la suivante) et par la liaison
+   `suite` / `coupe` du premier plan. Les durées des plans sont ramenées à la cible de la scène (`ajusterDureesScene`, sans effet dans les
+   ±15 %, pour que les dialogues gardent leur marge).
+
+Un film court (ou un épisode qui a déjà du contenu) garde le chemin d'avant : `scenario-episode`, un appel par épisode. Les appels d'une
+création partagent le GPU (`VerrouGpu`, groupe « creation ») : exclusifs face à ComfyUI, pas entre eux.
+
+À mesurer avant de s'y fier : la qualité des raccords entre scènes (la relecture, qui lit tout l'épisode, est le filet), la taille de la relecture et
+de l'inventaire sur ~120 plans, le taux de cache du préfixe `scenario-scene`.

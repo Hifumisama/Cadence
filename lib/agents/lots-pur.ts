@@ -19,6 +19,17 @@ export function episodeIdDeCle(cle: string | null | undefined): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+export const PREFIXE_CLE_SCENE = "scene:";
+
+/** Clé de sous-tâche d'une scène (étape E : le scénario d'un long film s'écrit scène par scène). */
+export const cleSousTacheScene = (sceneId: number): string => `${PREFIXE_CLE_SCENE}${sceneId}`;
+
+export function sceneIdDeCle(cle: string | null | undefined): number | null {
+  if (!cle || !cle.startsWith(PREFIXE_CLE_SCENE)) return null;
+  const n = Number(cle.slice(PREFIXE_CLE_SCENE.length));
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 /** Groupe d'affichage d'un épisode dans la revue d'un lot (`proposition_changements.groupe`). */
 export const groupeEpisode = (episodeId: number): string => `ep-${episodeId}`;
 

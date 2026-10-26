@@ -10,7 +10,8 @@
 export const ETAPES_CREATION = [
   { cle: "brief", libelle: "Brief du projet", detail: "Le briefing de la conversation, mis au propre." },
   { cle: "squelette", libelle: "Structure du projet", detail: "L'épisode du film, depuis le brief." },
-  { cle: "scenarios", libelle: "Scénarios des épisodes", detail: "Un épisode après l'autre : scènes, plans, répliques." },
+  { cle: "traitement", libelle: "Traitement du film", detail: "Le film découpé en scènes : ce que chacune raconte, d'où elle part, où elle arrive (films d'au moins 4 minutes)." },
+  { cle: "scenarios", libelle: "Scénarios des épisodes", detail: "Les plans et les répliques, scène par scène quand le film a un traitement, sinon un épisode d'un seul tenant." },
   { cle: "registre", libelle: "Registre d'assets", detail: "Personnages et lieux du brief, avec leurs prompts d'image." },
   { cle: "inventaire", libelle: "Inventaire des assets", detail: "Accessoires, états de décor, effets que les plans réclament." },
   { cle: "prompts-inventaire", libelle: "Prompts des assets de l'inventaire", detail: "Un prompt d'image par asset ajouté." },

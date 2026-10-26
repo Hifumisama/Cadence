@@ -114,6 +114,8 @@ export const scenes = pgTable("scenes", {
   genre: varchar("genre", { length: 20 }),
   // Cadre visuel tenu sur toute la scène (moment de la journée, météo, lumière générale) : la continuité entre plans.
   ambiance: text("ambiance"),
+  // Le traitement de la scène (lib/agents/traitement.ts) : ce qu'elle raconte, d'où elle part, où elle arrive, sa durée visée.
+  traitement: jsonb("traitement").$type<{ intention: string; etatEntree: string; etatSortie: string; dureeCibleSecondes: number; momentsDeLAuteur: string }>(),
 });
 
 // Le plan est la table pivot du système. Identification (révisé 2026-09-29,

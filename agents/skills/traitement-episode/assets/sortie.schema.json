@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the traitement-episode agent: an episode's treatment (its scenes)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scenes", "inventions", "notes"],
+  "properties": {
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "In episode order, within the requested range (`nombreDeScenes`).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["titre", "fonction", "genre", "ambiance", "intention", "etatEntree", "etatSortie", "poids", "momentsDeLAuteur"],
+        "properties": {
+          "titre": { "type": "string", "description": "(French) Distinct from every other scene's title." },
+          "fonction": { "type": "string", "description": "(French) What the scene accomplishes in the episode." },
+          "genre": { "type": "string", "enum": ["action", "dialogue", "montage", "contemplatif", "tension"], "description": "The scene's genre: it decides the cutting and the writing guides of its plans later. action: a physical gesture or a clash; dialogue: characters talking to each other; montage: a series of brief moments that answer each other; contemplatif: a place or a state left to breathe; tension: a build-up or a tipping point." },
+          "ambiance": { "type": "string", "description": "(French) The visual frame HELD over the whole scene, in one sentence: time of day, weather, general light." },
+          "intention": { "type": "string", "description": "(French) What the scene tells, in two or three narrative sentences: who does what, why, what changes. No framing, light, sound or camera movement." },
+          "etatEntree": { "type": "string", "description": "(French) Where the scene starts: where the characters who matter are and what they face, relative to fixed landmarks of the place. The previous scene's etatSortie when the story goes on without a break." },
+          "etatSortie": { "type": "string", "description": "(French) Where the scene ends, in the same terms. Only what the scene's story justifies." },
+          "poids": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Screen time relative to the other scenes (1 transition, 5 key scene). Never seconds." },
+          "momentsDeLAuteur": { "type": "string", "description": "(French) What the author said about THIS scene (gestures, framing, sounds, lines, ending), close to their words. Empty string if nothing." }
+        }
+      }
+    },
+    "inventions": { "type": "array", "items": { "type": "string" }, "description": "(French) Everything that was not in the brief. To validate or throw out." },
+    "notes": { "type": "string", "description": "(French) Risky choices, doubts about the cutting. Empty if nothing to report." }
+  }
+}

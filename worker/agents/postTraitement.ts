@@ -22,13 +22,18 @@ import {
   depuisPromptAsset,
   depuisRegistreAsset,
   depuisScenarioEpisode,
+  depuisScenarioScene,
+  depuisTraitement,
   type EpisodeCourant,
   type SortiePromptAffiche,
   type SortiePromptAsset,
   type SortieScenarioEpisode,
+  type SortieScenarioScene,
+  type SortieTraitement,
 } from "../../lib/agents/conversion";
 import { finaliserLot, runsDuLot } from "../../lib/agents/lots";
-import { PAS_ORDRE_SOUS_TACHE, episodeIdDeCle, groupeEpisode, rangSousTache } from "../../lib/agents/lots-pur";
+import { PAS_ORDRE_SOUS_TACHE, episodeIdDeCle, groupeEpisode, rangSousTache, sceneIdDeCle } from "../../lib/agents/lots-pur";
+import { traitementDeScene } from "../../lib/agents/traitement";
 import { entreeScenarioEpisode } from "../../lib/agents/contexte";
 import { codeDeCleAsset } from "../../lib/agents/registre";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
@@ -159,6 +164,8 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
     if (run.skill === "prompt-asset") return postSousTacheRegistre(tx, run, prop, scope, json as SortiePromptAsset);
     if (run.skill === "plan-h3") return postSousTacheFiche(tx, run, prop, scope, json as SortiePlanH3);
     if (run.skill === "relecture-scenario") return postSousTacheRelecture(tx, run, prop, scope, json as SortieRelecture);
+    if (run.skill === "traitement-episode") return postSousTacheTraitement(tx, run, prop, scope, json as SortieTraitement);
+    if (run.skill === "scenario-scene") return postSousTacheScene(tx, run, prop, scope, json as SortieScenarioScene);
     return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
   }
 
@@ -275,6 +282,54 @@ async function postSousTacheLot(
     groupe: groupeEpisode(episodeId),
     signalerEcrasement: true,
     dureeCibleSecondes: await dureeCibleDuProjet(tx, prop.projectId),
+  });
+  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
+  await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
+/** Une sous-tâche du lot « traitements » (un épisode) : le découpage en scènes devient des créations de scène, avec leur traitement. Les changements de la
+ * sous-tâche REMPLACENT ceux qu'elle avait posés (relance), puis le lot décide de son statut. */
+async function postSousTacheTraitement(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortieTraitement,
+) {
+  const cle = run.cleSousTache;
+  const episodeId = episodeIdDeCle(cle);
+  if (!cle || episodeId == null) throw new Error(`Sous-tâche de traitement inconnue (« ${cle ?? "?"} »).`);
+  const duree = await dureeCibleDuProjet(tx, prop.projectId);
+  if (duree == null) throw new Error("Le brief ne donne plus de durée d'épisode : le traitement ne peut pas répartir les scènes.");
+  const bruts = depuisTraitement(sortie, await episodeCourant(tx, prop.projectId, episodeId), {
+    dureeEpisodeSecondes: duree,
+    prefixeCle: `ep${episodeId}-`,
+    groupe: groupeEpisode(episodeId),
+  });
+  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
+  await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
+/** Une sous-tâche du lot « scénarios » écrite par scène (`scene:<id>`) : les plans de la scène, durées ramenées à sa cible, sur la scène telle qu'elle est maintenant.
+ * Remplace ce que la sous-tâche avait posé (relance), puis le lot décide de son statut. */
+async function postSousTacheScene(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortieScenarioScene,
+) {
+  const cle = run.cleSousTache;
+  const sceneId = sceneIdDeCle(cle);
+  if (!cle || sceneId == null) throw new Error(`Sous-tâche de scène inconnue (« ${cle ?? "?"} »).`);
+  const [sc] = await tx.select({ id: scenes.id, episodeId: scenes.episodeId, titre: scenes.titre, fonction: scenes.fonction, traitement: scenes.traitement }).from(scenes).where(eq(scenes.id, sceneId));
+  const t = sc ? traitementDeScene(sc.traitement) : null;
+  if (!sc || !t) throw new Error("La scène n'existe plus ou n'a plus de traitement.");
+  const bruts = depuisScenarioScene(sortie, await episodeCourant(tx, prop.projectId, sc.episodeId), { id: sc.id, titre: sc.titre, fonction: sc.fonction ?? "", dureeCibleSecondes: t.dureeCibleSecondes }, {
+    prefixeCle: `sc${sc.id}-`,
+    groupe: groupeEpisode(sc.episodeId),
   });
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });

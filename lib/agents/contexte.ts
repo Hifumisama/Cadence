@@ -9,6 +9,7 @@ import type { Db } from "./applicateurs/commun";
 import { sansClesAbandonnees } from "./brief";
 import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-plan";
 import { liaisonOuDefaut, type Liaison } from "../plan-liaison";
+import { nombreDeScenesVise, traitementDeScene } from "./traitement";
 import type { BriefContenu, ContexteUtilise, EtatIterationPlan, Position } from "./types";
 
 /** Ce que l'agent lit AUTOMATIQUEMENT pour une portée courte : des extraits du brief et de
@@ -330,6 +331,114 @@ export async function entreeScenarioEpisode(
       registre: c.registre,
       briefExtrait: c.extrait,
       ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),
+      consigne,
+      ...(options.retour ? { retourUtilisateur: options.retour } : {}),
+    },
+  };
+}
+
+/** L'entrée de `traitement-episode` (étape E) : l'épisode à découper en scènes. Les clés stables (épisode, brief, registre, mots de l'auteur) d'abord,
+ * ce qui varie (durée, consigne) à la fin : le préfixe du prompt reste le même d'un appel à l'autre, le serveur le garde en cache.
+ * Null si l'épisode n'est pas du projet ou si le brief ne donne pas de durée (rien à répartir). */
+export async function entreeTraitement(
+  db: Db,
+  projectId: number,
+  episodeId: number,
+  consigne: string,
+  options: { retour?: string } = {},
+): Promise<EntreeSkill | null> {
+  const c = await contexteEpisode(db, projectId, episodeId);
+  if (!c) return null;
+  const duree = (c.extrait as { dureeEpisodeSecondes?: number } | null)?.dureeEpisodeSecondes;
+  if (typeof duree !== "number" || duree <= 0) return null;
+  const paroles = await parolesDuProjet(db, projectId);
+  const contexte: ContexteUtilise[] = [
+    { type: "episode", libelle: `Épisode ${c.ep.numero} · ${c.ep.titre}`, ref: String(c.ep.id) },
+    ...(c.precedents.length ? [{ type: "episode" as const, libelle: `Résumé de ${c.precedents.length} épisode${c.precedents.length > 1 ? "s" : ""} précédent${c.precedents.length > 1 ? "s" : ""} (continuité narrative)` }] : []),
+    { type: "registre", libelle: `Registre : ${c.registre.length} asset${c.registre.length > 1 ? "s" : ""} (noms existants)` },
+    ...c.contexteBrief,
+    ...(paroles.length ? [{ type: "brief" as const, libelle: `Paroles de l'auteur (${paroles.length} message${paroles.length > 1 ? "s" : ""} de sa conception)` }] : []),
+  ];
+  return {
+    skill: "traitement-episode",
+    contexte,
+    entree: {
+      episode: { titre: c.ep.titre, resume: c.ep.resume },
+      briefEpisode: briefDeEpisode(c.brief, c.ep.titre, c.ep.numero),
+      resumesEpisodesPrecedents: c.precedents,
+      resumesEpisodesSuivants: c.suivants,
+      registre: c.registre,
+      briefExtrait: c.extrait,
+      ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),
+      dureeCibleSecondes: duree,
+      nombreDeScenes: nombreDeScenesVise(duree),
+      consigne,
+      ...(options.retour ? { retourUtilisateur: options.retour } : {}),
+    },
+  };
+}
+
+/** L'entrée de `scenario-scene` (étape E) : UNE scène d'un épisode, écrite depuis son traitement. Le début de l'entrée (épisode, brief, registre, mots de l'auteur,
+ * traitement de l'épisode) est le même pour toutes les scènes : il part en cache. La scène et ses voisines (états d'entrée et de sortie PRÉVUS : les scènes
+ * s'écrivent en parallèle, aucune ne lit le texte de l'autre) viennent après. Null si la scène n'est pas du projet ou n'a pas de traitement. */
+export async function entreeScenarioScene(
+  db: Db,
+  projectId: number,
+  sceneId: number,
+  consigne: string,
+  options: { retour?: string } = {},
+): Promise<(EntreeSkill & { episodeId: number }) | null> {
+  const [sc] = await db
+    .select({ id: scenes.id, episodeId: scenes.episodeId, titre: scenes.titre, fonction: scenes.fonction, genre: scenes.genre, ambiance: scenes.ambiance, traitement: scenes.traitement })
+    .from(scenes)
+    .innerJoin(episodes, eq(episodes.id, scenes.episodeId))
+    .where(and(eq(scenes.id, sceneId), eq(episodes.projectId, projectId)));
+  const t = sc ? traitementDeScene(sc.traitement) : null;
+  if (!sc || !t) return null;
+  const c = await contexteEpisode(db, projectId, sc.episodeId);
+  if (!c) return null;
+  const toutes = await db
+    .select({ id: scenes.id, titre: scenes.titre, genre: scenes.genre, traitement: scenes.traitement })
+    .from(scenes)
+    .where(eq(scenes.episodeId, sc.episodeId))
+    .orderBy(asc(scenes.ordre), asc(scenes.id));
+  const i = toutes.findIndex((x) => x.id === sc.id);
+  const voisine = (x: (typeof toutes)[number] | undefined) => (x ? { titre: x.titre, traitement: traitementDeScene(x.traitement) } : null);
+  const avant = voisine(toutes[i - 1]);
+  const apres = voisine(toutes[i + 1]);
+  const paroles = await parolesDuProjet(db, projectId);
+  const contexte: ContexteUtilise[] = [
+    { type: "episode", libelle: `Épisode ${c.ep.numero} · ${c.ep.titre}`, ref: String(c.ep.id) },
+    { type: "episode", libelle: `Traitement : ${toutes.length} scène${toutes.length > 1 ? "s" : ""} de l'épisode` },
+    { type: "registre", libelle: `Registre : ${c.registre.length} asset${c.registre.length > 1 ? "s" : ""} (noms existants)` },
+    ...c.contexteBrief,
+    ...(paroles.length ? [{ type: "brief" as const, libelle: `Paroles de l'auteur (${paroles.length} message${paroles.length > 1 ? "s" : ""} de sa conception)` }] : []),
+  ];
+  return {
+    skill: "scenario-scene",
+    contexte,
+    episodeId: sc.episodeId,
+    entree: {
+      episode: { titre: c.ep.titre, resume: c.ep.resume },
+      briefEpisode: briefDeEpisode(c.brief, c.ep.titre, c.ep.numero),
+      briefExtrait: c.extrait,
+      registre: c.registre,
+      ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),
+      traitementEpisode: toutes.map((x) => ({ titre: x.titre, ...(genreOuNull(x.genre) ? { genre: x.genre } : {}), intention: traitementDeScene(x.traitement)?.intention ?? "" })),
+      scene: {
+        titre: sc.titre,
+        fonction: sc.fonction ?? "",
+        ...(genreOuNull(sc.genre) ? { genre: sc.genre } : {}),
+        ambiance: (sc.ambiance ?? "").trim(),
+        intention: t.intention,
+        etatEntree: t.etatEntree,
+        etatSortie: t.etatSortie,
+        dureeCibleSecondes: t.dureeCibleSecondes,
+        ...(t.momentsDeLAuteur ? { momentsDeLAuteur: t.momentsDeLAuteur } : {}),
+        position: `${i + 1} sur ${toutes.length}`,
+      },
+      scenePrecedente: avant ? { titre: avant.titre, etatSortie: avant.traitement?.etatSortie ?? "" } : null,
+      sceneSuivante: apres ? { titre: apres.titre, etatEntree: apres.traitement?.etatEntree ?? "" } : null,
       consigne,
       ...(options.retour ? { retourUtilisateur: options.retour } : {}),
     },
