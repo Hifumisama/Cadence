@@ -38,8 +38,8 @@ import { reprendreOrphelines } from "./reprise";
 const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 const INTERVALLE_MS = Number(process.env.WORKER_INTERVAL_MS ?? 10_000);
 /** Appels LLM en même temps (défaut 1) : à régler sur le `--parallel` du serveur llama.cpp. */
-const budgetContexte = new BudgetContexte(contexteTotalDepuisEnv());
 const LLM_PARALLELE = Math.max(1, Math.floor(Number(process.env.LLM_PARALLELE ?? 1)) || 1);
+const budgetContexte = new BudgetContexte(contexteTotalDepuisEnv(), LLM_PARALLELE);
 const PAUSE_ENTRE_TACHES_MS = 1_000; // une tâche vient de finir : on enchaîne vite sur la suivante
 const INTERVALLE_POLL_MS = 5_000;
 const INTERVALLE_DEMANDES_MS = 2_000; // une demande est en cours : on regarde souvent si son étape a fini
@@ -311,6 +311,7 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
   // Les appels en parallèle se partagent le contexte du serveur : celui-ci n'est pris que s'il tient à côté de ceux en vol (lib/llm/budget-contexte.ts).
   // La place est réservée tout de suite (aucun `await` entre le test et la réservation) et rendue à la fin du tour, quel qu'il soit.
   const run = runBrut && budgetContexte.reserver(runBrut.id, estimerContexte(runBrut.skill, chargerSkill(runBrut.skill).jetonsEstimes, runBrut.entree)) ? runBrut : null;
+  let parti = false; // l'appel a réellement été envoyé : son contexte reste dans le cache du serveur
   try {
 
   const comfyuiAttend = gen != null || job != null;
@@ -370,7 +371,7 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
       choix.genre === "image"
         ? await traiterGenerationImage(client, gen!, MEDIA_ROOT)
         : choix.genre === "llm"
-          ? await traiterTacheLlm(run!)
+          ? ((parti = true), await traiterTacheLlm(run!))
           : await traiterJob(job!),
     );
     if (domaine === "comfyui") comfyuiPeutEtreCharge = true;
@@ -378,7 +379,7 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
     // Les appels d'une création se partagent les slots du serveur LLM : exclusifs face au reste, pas entre eux.
   }, creation && !upscale ? "creation" : null);
   } finally {
-    if (runBrut) budgetContexte.liberer(runBrut.id);
+    if (runBrut) budgetContexte.liberer(runBrut.id, parti);
   }
 }
 

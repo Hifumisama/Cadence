@@ -26,24 +26,37 @@ export function estimerContexte(skill: string, jetonsSkill: number, entree: unkn
 
 export class BudgetContexte {
   private enVol = new Map<number, number>();
+  /** Ce que les derniers appels finis laissent dans le cache : chaque slot garde le contexte de sa dernière requête (pour le réutiliser) tant qu'une autre ne
+   * le remplace pas. Les cases sont prises même quand le slot est au repos (constaté : 3 slots, 49 152 jetons, « failed to find a memory slot »). */
+  private retenus: number[] = [];
 
-  constructor(private readonly total: number | null) {}
+  /** `slots` : le `--parallel` du serveur ; un slot au repos retient la taille d'un appel fini. */
+  constructor(
+    private readonly total: number | null,
+    private readonly slots = 1,
+  ) {}
 
-  /** Réserve la place de l'appel `id` s'il tient (ou s'il est seul). Renvoie `false` sans rien réserver sinon. */
+  /** Réserve la place de l'appel `id` s'il tient à côté des appels en vol ET de ce que retiennent les slots au repos (ou s'il est seul : le serveur tranche).
+   * Renvoie `false` sans rien réserver sinon. */
   reserver(id: number, estimation: number): boolean {
     if (this.total != null && this.enVol.size > 0 && this.utilise() + estimation > this.total) return false;
     this.enVol.set(id, estimation);
     return true;
   }
 
-  liberer(id: number): void {
+  /** L'appel est fini (réussi, échoué ou jamais parti) : sa place devient du cache retenu, jusqu'à ce qu'un autre appel prenne le slot. */
+  liberer(id: number, retenir = true): void {
+    const e = this.enVol.get(id);
     this.enVol.delete(id);
+    if (e != null && retenir) this.retenus = [...this.retenus, e].slice(-this.slots);
   }
 
+  /** Cases occupées : les appels en vol, plus ce que gardent les slots que personne n'utilise (les plus gros retenus d'abord : prudence). */
   utilise(): number {
     let s = 0;
     for (const v of this.enVol.values()) s += v;
-    return s;
+    const libres = Math.max(0, this.slots - this.enVol.size);
+    return s + [...this.retenus].sort((x, y) => y - x).slice(0, libres).reduce((a, b) => a + b, 0);
   }
 }
 
