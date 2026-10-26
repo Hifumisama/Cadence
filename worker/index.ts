@@ -35,6 +35,8 @@ import { reprendreOrphelines } from "./reprise";
 
 const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 const INTERVALLE_MS = Number(process.env.WORKER_INTERVAL_MS ?? 10_000);
+/** Appels LLM en même temps (défaut 1) : à régler sur le `--parallel` du serveur llama.cpp. */
+const LLM_PARALLELE = Math.max(1, Math.floor(Number(process.env.LLM_PARALLELE ?? 1)) || 1);
 const PAUSE_ENTRE_TACHES_MS = 1_000; // une tâche vient de finir : on enchaîne vite sur la suivante
 const INTERVALLE_POLL_MS = 5_000;
 const INTERVALLE_DEMANDES_MS = 2_000; // une demande est en cours : on regarde souvent si son étape a fini
@@ -366,7 +368,8 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
     );
     if (domaine === "comfyui") comfyuiPeutEtreCharge = true;
     return fait;
-  });
+    // Les appels d'une création se partagent les slots du serveur LLM : exclusifs face au reste, pas entre eux.
+  }, creation && !upscale ? "creation" : null);
 }
 
 async function boucle() {
@@ -403,7 +406,8 @@ async function boucle() {
 
   // Les boucles : une par voie (ComfyUI, LLM). L'installateur et la purge ne touchent jamais le GPU : ils ont leur propre boucle et ne
   // retardent aucune tâche.
-  const voies: Voie[] = ["comfyui", "llm"];
+  // Plusieurs boucles LLM = plusieurs appels en même temps : autant que de slots (`--parallel`) du serveur llama.cpp.
+  const voies: Voie[] = ["comfyui", ...Array.from({ length: LLM_PARALLELE }, (): Voie => "llm")];
   await Promise.all([
     ...voies.map(async (v) => {
       while (true) {

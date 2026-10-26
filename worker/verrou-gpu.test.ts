@@ -61,3 +61,28 @@ test("deux exclusives se suivent, jamais ensemble", async () => {
   await Promise.all([tache(), tache(), tache()]);
   assert.equal(max, 1);
 });
+
+test("des exclusives du même groupe tournent ensemble, mais pas avec une partagée ni un autre groupe", async () => {
+  const v = new VerrouGpu();
+  const journal: string[] = [];
+  let dedans = 0;
+  let max = 0;
+  const creation = (nom: string) =>
+    v.avec(true, async () => {
+      dedans += 1;
+      max = Math.max(max, dedans);
+      journal.push(`${nom}+`);
+      await pause(20);
+      journal.push(`${nom}-`);
+      dedans -= 1;
+    }, "creation");
+  const c1 = creation("c1");
+  const c2 = creation("c2");
+  await pause(5);
+  const partagee = v.avec(false, async () => { journal.push("p"); });
+  const autre = v.avec(true, async () => { journal.push("upscale"); });
+  await Promise.all([c1, c2, partagee, autre]);
+  assert.equal(max, 2);
+  assert.deepEqual(journal.slice(0, 4), ["c1+", "c2+", "c1-", "c2-"]);
+  assert.deepEqual(journal.slice(4).sort(), ["p", "upscale"]);
+});
