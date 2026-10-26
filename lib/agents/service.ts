@@ -871,6 +871,7 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
     rang: rangs.get(p.id) ?? 0,
     episodeId: p.episodeId,
     episodeLibelle: `Épisode ${p.epNumero} · ${p.epTitre}`,
+    sceneId: p.sceneId,
     sceneTitre: p.sceneId != null ? (titreScene.get(p.sceneId) ?? null) : null,
     dureeSecondes: p.duree,
     aDesSections: avecSections.has(p.id),

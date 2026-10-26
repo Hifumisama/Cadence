@@ -381,6 +381,7 @@ export type PlanPourFiche = {
   rang: number;
   episodeId: number;
   episodeLibelle: string;
+  sceneId: number | null;
   sceneTitre: string | null;
   dureeSecondes: number;
   /** Au moins une section du prompt non vide : réécrire = risque d'écrasement (décoché d'office). */
