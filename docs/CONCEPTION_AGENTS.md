@@ -472,7 +472,7 @@ Le réalisateur (skills `realisateur-analyse` et `realisateur-reponse`, conversa
 ## 17. Le scénario d'un long film : traitement, puis scène par scène (2026-10-26)
 
 Un scénario d'épisode écrit d'un seul appel plafonne autour de 24 plans (la sortie du modèle) : un film de 20 minutes en demande une
-centaine. Pour un projet qui vise au moins `SEUIL_TRAITEMENT_SECONDES` (4 minutes, `lib/agents/traitement.ts`), la création écrit donc
+centaine. Pour un projet qui vise au moins `SEUIL_TRAITEMENT_SECONDES` (90 s, `lib/agents/traitement.ts`), la création écrit donc
 le scénario en deux temps, deux étapes de l'installateur :
 
 1. **`traitement`** (skill `traitement-episode`, lot `traitements`) : l'épisode est découpé en scènes (une scène par minute et demie
@@ -487,7 +487,7 @@ le scénario en deux temps, deux étapes de l'installateur :
    `suite` / `coupe` du premier plan. Les durées des plans sont ramenées à la cible de la scène (`ajusterDureesScene`, sans effet dans les
    ±15 %, pour que les dialogues gardent leur marge).
 
-Un film court (ou un épisode qui a déjà du contenu) garde le chemin d'avant : `scenario-episode`, un appel par épisode. Les appels d'une
+Un film de moins de 90 s (ou un épisode qui a déjà du contenu) garde le chemin d'avant : `scenario-episode`, un appel par épisode. Les appels d'une
 création partagent le GPU (`VerrouGpu`, groupe « creation ») : exclusifs face à ComfyUI, pas entre eux.
 
 À mesurer avant de s'y fier : la qualité des raccords entre scènes (la relecture, qui lit tout l'épisode, est le filet), la taille de la relecture et

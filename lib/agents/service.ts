@@ -718,7 +718,7 @@ export async function genererTraitements(
     const duree = (entree?.entree as { dureeCibleSecondes?: number } | undefined)?.dureeCibleSecondes ?? 0;
     if (entree && duree >= SEUIL_TRAITEMENT_SECONDES) sousTaches.push({ e, entree });
   }
-  if (sousTaches.length === 0) return ERR(`Aucun épisode n'a besoin d'un traitement : il vise moins de ${SEUIL_TRAITEMENT_SECONDES / 60} minutes, son scénario s'écrit d'un seul tenant.`);
+  if (sousTaches.length === 0) return ERR(`Aucun épisode n'a besoin d'un traitement : il vise moins de ${SEUIL_TRAITEMENT_SECONDES} secondes, son scénario s'écrit d'un seul tenant.`);
   const contexte = [
     { type: "episode" as const, libelle: `${sousTaches.length} épisode${sousTaches.length > 1 ? "s" : ""} à découper en scènes` },
     ...sousTaches[0]!.entree.contexte.filter((c) => c.type === "brief" || c.type === "registre"),

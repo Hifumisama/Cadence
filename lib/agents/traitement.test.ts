@@ -8,7 +8,7 @@ test("scènes : une vingtaine de minutes demande une dizaine de scènes", () => 
   const { min, max } = nombreDeScenesVise(1200);
   assert.ok(min >= 8 && min <= 12, String(min));
   assert.ok(max >= 14 && max <= 20, String(max));
-  assert.equal(nombreDeScenesVise(240).min, 3);
+  assert.equal(nombreDeScenesVise(120).min, 3);
 });
 
 test("durées des scènes : la somme tombe exactement sur la durée de l'épisode, au prorata des poids", () => {

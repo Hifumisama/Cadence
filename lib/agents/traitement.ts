@@ -5,8 +5,9 @@
 export const DUREE_PLAN_MIN = 5;
 export const DUREE_PLAN_MAX = 15;
 
-/** En dessous de cette durée visée, l'épisode s'écrit d'un seul tenant (skill `scenario-episode`) : un traitement n'apporte rien. */
-export const SEUIL_TRAITEMENT_SECONDES = 240;
+/** En dessous de cette durée visée, l'épisode s'écrit d'un seul tenant (skill `scenario-episode`) : une ou deux scènes, un traitement n'apporte rien.
+ * Au-dessus, même un film court se découpe : ses scènes (2 à 5 plans) s'écrivent en parallèle. */
+export const SEUIL_TRAITEMENT_SECONDES = 90;
 
 /** Durée visée d'une scène, en secondes, pour fixer le nombre de scènes (une scène par minute et demie environ). */
 const DUREE_SCENE_MOYENNE = 90;
