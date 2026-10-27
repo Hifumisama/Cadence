@@ -83,9 +83,19 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       refait ce recadre à 768×768 avec H3, recolle seulement le visage avec un contour adouci. Ce serait la réponse aux expressions lointaines **sans** monter
       toute l'image à 0,4 MP. Mais il vit dans le nœud Directeur : à essayer là-bas d'abord, avant de décider de le reproduire. Relevé : visage plus net ____ ;
       durée ajoutée ____ s.
-- [ ] **D5. « SelfLift » : première passe progressive** (étapes bruitées à basse résolution, agrandissement latent, dernières étapes en haute résolution).
-      Pourrait rendre 0,4 MP moins coûteux. Il n'accepte que l'échantillonneur Euler (nous : er_sde) et vit lui aussi dans le Directeur. Relevé : durée à 0,4 MP
-      ____ s contre ____ s ; qualité ____.
+- [ ] **D5. Échantillonneur Euler, puis « SelfLift » (première passe progressive).** Pack autonome : `facok/comfyui-SelfLift` (papier arXiv 2609.02036, validé
+      sur des modèles d'images ; son mode H3 est expérimental, non validé par le papier ; **aucune licence déclarée** : on l'installe, on n'en copie pas le code).
+      Il n'accepte que Euler. Trois essais dans l'ordre, même plan, même graine, à 0,4 MP :
+      **D5a. Euler seul** : remplacer `er_sde` par `euler` dans le nœud `22:6` (et `135:30` pour la passe d'upscale), sans rien d'autre. Ça isole l'effet de
+      l'échantillonneur. Relevé : netteté ____ ; mouvement ____ ; durée ____ s.
+      **D5b. SelfLift sur le chemin H3** : nœud « SelfLift Progressive Sampler (MiniMax H3) » à la place de l'échantillonneur, `transition_step` 3 (3 étapes
+      basses sur 4), `lowres_scale` 0,5, `rho` 0 avec l'agrandisseur latent H3 déjà chargé (`latent_upscale_models/`). Relevé : durée ____ s contre ____ s en D5a ;
+      qualité ____.
+      **D5c. Sans agrandisseur** (`upscaler_model` = none, `rho` 0,6, poids 1 / 1) : le réglage de départ conseillé par le pack pour H3. Relevé : artefacts ____.
+- [ ] **D9. TST (« Temporal State Transport », même pack, arXiv 2609.08505).** Retouche le modèle à l'inférence (1 à 2 % de temps, sans entraînement) pour
+      réduire les détails qui clignotent, la dérive de l'identité des personnages et des tenues, et les mouvements peu physiques. `tau` 0,2 (0,5 « visiblement
+      trop fort »). Se place entre le chargeur de modèle et le guideur ; marche avec tout échantillonneur. Essai : un plan à plusieurs personnages, tau 0 contre
+      0,2, même graine. Relevé : identité des personnages ____ ; clignotements ____. Incompatible avec le mode « highres_tiling » de SelfLift.
 - [ ] **D6. « Semantic Bridge » (adaptateur de conditionnement ~11 Mo, qui réécrit les jetons du conditionnement avec un petit réseau : `H + alpha·(S − H)`,
       alpha 0,10 à 0,15).** Deux versions : l'originale (speach1sdef178, composition, comptage, relations spatiales) et **BUNNY** (JOKER141, entraînée pour les
       combats et les scènes à plusieurs personnages : qui frappe qui, à qui est l'arme, état conservé après une occultation ; ses propres chiffres : environ 60 %
