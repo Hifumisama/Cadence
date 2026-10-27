@@ -16,6 +16,7 @@
     "llm:banc": "tsx scripts/banc-llm.ts",
     "llm:banc:export": "tsx scripts/banc-export.ts",
     "llm:tache": "tsx scripts/llm-tache.ts",
+    "banc:video": "tsx scripts/banc-video.ts",
     "styles:apercus": "tsx scripts/styles-apercus.ts",
     "plan-h3:essai": "tsx scripts/plan-h3-essai.ts",
     "plan-h3:reflexion": "tsx scripts/plan-h3-reflexion.ts",

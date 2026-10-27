@@ -104,6 +104,37 @@ export function verifierEntree(input: SubmissionInput): void {
   controlerSlots("audio", input.refsAudio.map((r) => r.slot), MAX_REFS_AUDIO);
 }
 
+/** Câble la sortie finale (nœud 34) selon le mode : upscale (final à la résolution de base), final natif (au-delà) ou aperçu. Modifie `graphe` en place ;
+ * exportée pour que le banc de mesure (scripts/banc-video.ts) branche ses variantes exactement comme le worker. */
+export function cablerSortie(graphe: WorkflowJson, activerUpscale: boolean, megapixels?: number): void {
+  // Toggle upscale (F04) : on rebranche la sortie finale sur la même
+  // branche basse-résolution que l'aperçu (nœud 18) plutôt que de bypasser
+  // un groupe — les nœuds d'upscale, non référencés, ne sont alors pas
+  // exécutés par ComfyUI (résolution de dépendances par les sorties
+  // demandées, pas de coût caché).
+  const nodeSortie = graphe[NODE_IDS.sortieFinale];
+  if (nodeSortie) {
+    if (avecUpscale(activerUpscale, megapixels)) {
+      nodeSortie.inputs.images = [NODE_IDS.upscaleImages, 0];
+      nodeSortie.inputs.audio = [NODE_IDS.upscaleAudio, 0];
+    } else if (estFinalNatif(activerUpscale, megapixels)) {
+      // Rendu final natif (au-delà de 0,2 MP) : pas d'upscale, mais la même interpolation que les rendus finals (RIFE, 24 → 48 i/s) : le
+      // nœud 165 lit la sortie de la première passe au lieu de celle de l'upscale, la cadence du nœud 34 reste celle du commutateur.
+      const rife = graphe[NODE_IDS.upscaleImages];
+      if (!rife) throw new Error(`Nœud ${NODE_IDS.upscaleImages} (RIFE) absent du workflow vidéo`);
+      rife.inputs.images = [NODE_IDS.basseResImages, 0];
+      nodeSortie.inputs.images = [NODE_IDS.upscaleImages, 0];
+      nodeSortie.inputs.audio = [NODE_IDS.basseResAudio, 0];
+    } else {
+      nodeSortie.inputs.images = [NODE_IDS.basseResImages, 0];
+      nodeSortie.inputs.audio = [NODE_IDS.basseResAudio, 0];
+      // Sans RIFE, les images sont encore à 24 i/s ; le nœud 34 lit sa cadence sur le commutateur
+      // « Target FPS » (170 -> 48) : la prévisualisation passerait à double vitesse, son décalé.
+      nodeSortie.inputs.frame_rate = FPS_GENERATION;
+    }
+  }
+}
+
 /**
  * Injecte les valeurs dynamiques du plan dans le graphe API avant
  * soumission. Les nœuds de référence sont créés à la volée — un plan qui
@@ -222,32 +253,7 @@ export function injecterValeurs(
     });
   }
 
-  // Toggle upscale (F04) : on rebranche la sortie finale sur la même
-  // branche basse-résolution que l'aperçu (nœud 18) plutôt que de bypasser
-  // un groupe — les nœuds d'upscale, non référencés, ne sont alors pas
-  // exécutés par ComfyUI (résolution de dépendances par les sorties
-  // demandées, pas de coût caché).
-  const nodeSortie = graphe[NODE_IDS.sortieFinale];
-  if (nodeSortie) {
-    if (avecUpscale(input.activerUpscale, input.megapixels)) {
-      nodeSortie.inputs.images = [NODE_IDS.upscaleImages, 0];
-      nodeSortie.inputs.audio = [NODE_IDS.upscaleAudio, 0];
-    } else if (estFinalNatif(input.activerUpscale, input.megapixels)) {
-      // Rendu final natif (au-delà de 0,2 MP) : pas d'upscale, mais la même interpolation que les rendus finals (RIFE, 24 → 48 i/s) : le
-      // nœud 165 lit la sortie de la première passe au lieu de celle de l'upscale, la cadence du nœud 34 reste celle du commutateur.
-      const rife = graphe[NODE_IDS.upscaleImages];
-      if (!rife) throw new Error(`Nœud ${NODE_IDS.upscaleImages} (RIFE) absent du workflow vidéo`);
-      rife.inputs.images = [NODE_IDS.basseResImages, 0];
-      nodeSortie.inputs.images = [NODE_IDS.upscaleImages, 0];
-      nodeSortie.inputs.audio = [NODE_IDS.basseResAudio, 0];
-    } else {
-      nodeSortie.inputs.images = [NODE_IDS.basseResImages, 0];
-      nodeSortie.inputs.audio = [NODE_IDS.basseResAudio, 0];
-      // Sans RIFE, les images sont encore à 24 i/s ; le nœud 34 lit sa cadence sur le commutateur
-      // « Target FPS » (170 -> 48) : la prévisualisation passerait à double vitesse, son décalé.
-      nodeSortie.inputs.frame_rate = FPS_GENERATION;
-    }
-  }
+  cablerSortie(graphe, input.activerUpscale, input.megapixels);
 
   return graphe;
 }
