@@ -71,10 +71,14 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       propre sur la seconde. Chez nous la passe d'upscale (nœuds `135:*`) réutilise le modèle turbo. Essai : même plan, passe d'upscale avec un chargeur
       de modèle sans LoRA. Effort : faible (workflow seul). Relevé : netteté ____ ; durée ____ s.
 - [ ] **D2. Décalage de sigma audio : 3 (leur défaut) contre 6 (le nôtre, nœud `195`).** Même plan à voix, écouter la voix. Effort : nul.
-- [ ] **D3. Continuité réelle d'un plan `suite` : pack `NikoDemon80/ComfyUI-H3-Motion-Context`** (installable seul, ComfyUI 0.34 ou plus). Il garde la fin du
-      clip précédent **dans l'espace latent** (pas de décodage, pas de dérive de couleur) et prolonge le **son** au lieu de le recommencer ; il rogne ensuite
-      le préfixe. Aujourd'hui `suite` ne reprend qu'une image fixe. Essai : deux clips chaînés à la main dans ComfyUI, regarder la vitesse du geste et la
-      continuité du son à la jonction. Effort si concluant : moyen à élevé (garder le latent de chaque rendu, le recharger pour le plan suivant).
+- [ ] **D3. Continuité réelle d'un plan `suite` : pack `NikoDemon80/ComfyUI-H3-Motion-Context`** (GPL-3.0 : on l'installe comme nœud externe, on n'en
+      copie pas le code ; ComfyUI 0.34 ou plus). Il garde la fin du clip précédent **dans l'espace latent** (22 images, sans décodage ni dérive de couleur)
+      et **prolonge le son** (18 images d'audio) au lieu de le recommencer ; un nœud « Trim » rogne ensuite ce préfixe (0,92 s). Aujourd'hui `suite` ne reprend
+      qu'une image fixe. Essai : charger `example_workflows/H3-Motion-Context-v0.7.json` du pack dans ComfyUI, chaîner deux clips (Save Latent du premier,
+      Load Latent du second), regarder la vitesse et la direction du geste, et écouter la voix ou la musique à la jonction.
+      Contraintes lues dans le README : même résolution dans toute la chaîne (le nœud refuse sinon) ; la qualité du son se dégrade au fil des liens (graves
+      conservés, aigus perdus) ; les LoRA turbo coûtent aussi du son ; le préfixe pesé dans le temps d'échantillonnage (+15 % de calcul sur un plan de 10 s).
+      Relevé : continuité du geste ____ ; son à la jonction ____ ; durée ____ s.
 - [ ] **D4. Visages lointains : « Face Refine » du Directeur.** Détecte et suit le visage (modèle YOLO `face_yolov8m.pt`), recadre autour (facteur 2,5),
       refait ce recadre à 768×768 avec H3, recolle seulement le visage avec un contour adouci. Ce serait la réponse aux expressions lointaines **sans** monter
       toute l'image à 0,4 MP. Mais il vit dans le nœud Directeur : à essayer là-bas d'abord, avant de décider de le reproduire. Relevé : visage plus net ____ ;
@@ -82,8 +86,14 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
 - [ ] **D5. « SelfLift » : première passe progressive** (étapes bruitées à basse résolution, agrandissement latent, dernières étapes en haute résolution).
       Pourrait rendre 0,4 MP moins coûteux. Il n'accepte que l'échantillonneur Euler (nous : er_sde) et vit lui aussi dans le Directeur. Relevé : durée à 0,4 MP
       ____ s contre ____ s ; qualité ____.
-- [ ] **D6. « Semantic Bridge » (adaptateurs de conditionnement, dont BUNNY pour l'attribution des actions entre personnages).** Pertinent pour les combats,
-      mais distillé sur un autre mode que le nôtre (r2v = « compatibilité forcée, à manier avec précaution »). Priorité basse.
+- [ ] **D6. « Semantic Bridge » (adaptateur de conditionnement ~11 Mo, qui réécrit les jetons du conditionnement avec un petit réseau : `H + alpha·(S − H)`,
+      alpha 0,10 à 0,15).** Deux versions : l'originale (speach1sdef178, composition, comptage, relations spatiales) et **BUNNY** (JOKER141, entraînée pour les
+      combats et les scènes à plusieurs personnages : qui frappe qui, à qui est l'arme, état conservé après une occultation ; ses propres chiffres : environ 60 %
+      d'amélioration, 20 % sans différence, 10 % de régressions, hors protocole). **Attention : toutes deux sont distillées sur le chemin FL2VA, pas sur
+      Ref2VA, qui est le nôtre.** L'auteur de la première a mesuré une articulation de voix et une synchro labiale dégradées en l'insérant en Ref2VA ; et le
+      nœud de BUNNY réécrit tout le tenseur de jetons sans épargner ceux des images de référence (risque pour la fidélité des personnages, non mesuré).
+      Essai (une insertion de nœud entre le nœud 5 et le guideur `125:14`) : 4 plans de combat **sans dialogue**, même seed, alpha 0 / 0,10 / 0,15 ; juger
+      l'attribution des actions ET l'identité des personnages. À ne pas utiliser sur un plan qui parle tant que ce n'est pas tranché. Relevé : ____
 
 ## Journal des résultats
 
