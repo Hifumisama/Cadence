@@ -32,4 +32,4 @@ Elles viennent de `skills/3d-animation-short-generator/references/` (tableau de 
 
 ## Décisions en attente
 
-Rien n'est modifié dans `agents/skills/plan-h3/`. Les skills de Cadence ont été comparés au banc (`docs/…`, mémoire « banc plan-h3 ») : un changement de skill se juge au rendu, pas à la lecture. L'ordre que je propose : E3 (formule de coupe) d'abord, parce que c'est un changement d'une ligne dans le code avec un essai de 5 minutes ; puis le vocabulaire de caméra et la manière de dire, qui demandent un essai de plans réels.
+Rien n'est modifié dans `agents/skills/plan-h3/`. Un banc à l'aveugle de 18 vidéos, fait le 20 octobre, a montré qu'un skill plus complet aide un modèle et en dessert un autre : un changement de skill se juge au rendu, pas à la lecture. L'ordre que je propose : E3 (formule de coupe) d'abord, parce que c'est un changement d'une ligne dans le code avec un essai de 5 minutes ; puis le vocabulaire de caméra et la manière de dire, qui demandent un essai de plans réels.
