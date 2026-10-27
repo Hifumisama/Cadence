@@ -5,7 +5,7 @@ la colonne « Relevé » (ou juste sous la case) et dire à Claude ce qui a cass
 
 Dernière mise à jour : 2026-10-27. Commits concernés : `ecc92e9` à `1d70b8b`.
 
-## Déjà vérifié sans GPU (tests automatiques, `npm test`, 693 verts)
+## Déjà vérifié sans GPU (tests automatiques, `npm test`, 702 verts)
 
 - Durées : plafond de 10 s partout où le code le contrôle ; répartition exacte des durées entre scènes ; ajustement des plans d'une scène.
 - Traitement et scénario par scène : conversion en changements de proposition, scènes de même titre distinguées, plans d'une scène sans effet sur
@@ -15,6 +15,8 @@ Dernière mise à jour : 2026-10-27. Commits concernés : `ecc92e9` à `1d70b8b`
 - Workflow ComfyUI : résolution injectée dans le nœud `22:9`, refus d'une résolution hors liste, **quels nœuds s'exécutent** pour chaque mode (l'upscale
   seulement en final à 0,2 MP ; le final natif exécute l'interpolation, aucun nœud d'upscale ; l'aperçu ni l'un ni l'autre), tous les liens du graphe
   pointent un nœud qui existe.
+- Banc de mesure vidéo : les neuf variantes produisent un graphe valide (liens, nœuds exécutés), et le script a tourné de bout en bout contre un faux serveur ComfyUI (soumission,
+  historique, mesure de la mémoire, téléchargement, clips à lettres aléatoires). Jamais contre un vrai ComfyUI.
 
 Ce qui n'est PAS couvert : tout ce qui a besoin d'un vrai modèle (LLM, ComfyUI) ou de la base.
 
@@ -28,7 +30,7 @@ Ce qui n'est PAS couvert : tout ce qui a besoin d'un vrai modèle (LLM, ComfyUI)
       de 10 s ; les plans de chaque scène suivent l'intention de la scène ; premier plan d'une scène suivant la précédente en `suite` seulement s'il continue
       la même action.
       Relevé : durée de l'étape traitement ____ s ; durée de l'étape scénarios ____ s ; nombre de scènes ____ ; nombre de plans ____ ; plans en `suite` ____ / ____.
-- [ ] **A4. Une création de film long (20 min visées).** Attendu : 10 à 15 scènes, environ 120 à 200 plans, aucun plafond de sortie atteint.
+- [ ] **A4. Une création de film long (10 min visées : déjà très long en contexte).** Attendu : 5 à 9 scènes, environ 60 à 100 plans, aucun plafond de sortie atteint.
       Relevé : durée totale de la création ____ ; étapes qui ont échoué ____ ; la relecture et l'inventaire tiennent dans le contexte : oui / non.
 - [ ] **A5. Fiches de plan en parallèle.** Attendu : jamais plus de 2 fiches lourdes en même temps, plus aucun `Context size has been exceeded` ni
       `failed to find a memory slot` dans llama-swap. Relevé : nombre d'échecs ____ ; si échec, valeur de `LLM_CONTEXTE_TOTAL` essayée ____.
@@ -36,31 +38,19 @@ Ce qui n'est PAS couvert : tout ce qui a besoin d'un vrai modèle (LLM, ComfyUI)
 - [ ] **A7. Lecture de quelques scènes (de l'œil).** Raccords entre scènes, états d'entrée et de sortie, dialogues. Relevé : jonctions qui sonnent faux ____.
 - [ ] **A8. Un plan existant de plus de 10 s.** Attendu : le rendu est refusé avec « un plan dure 5 à 10 s » ; le raccourcir puis relancer passe.
 
-## B. Sur RunPod (5090 : 32 Go, donc l'absence de plantage à 0,4 MP n'est PAS représentative de la carte de bureau)
-
-Avant tout : **B0. le pod répond** (ComfyUI joignable, workflow chargé). Le chantier RunPod est écrit mais n'avait jamais été testé : si B0 échoue, le reste attend.
-
-Pour lire ce qui est sorti : `ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,duration -of csv=p=0 <fichier>.mp4`
-
-- [ ] **B1. Aperçu à 0,2 MP, 10 s.** Attendu : environ 600×340, 24 i/s, 10 s. Relevé : durée du rendu ____ s (référence mesurée au bureau : 93 s).
-- [ ] **B2. Final à 0,2 MP (upscale).** Attendu : environ ×2 par côté (1200×680), 48 i/s. Relevé : durée ____ s (bureau : environ 450 s).
-- [ ] **B3. Final à 0,3 MP (natif).** Attendu : environ 730×410, **48 i/s** (interpolation conservée), pas d'étape d'upscale dans la progression.
-      Relevé : taille ____ ; i/s ____ ; durée ____ s.
-- [ ] **B4. Final à 0,4 MP (natif).** Mêmes attentes, environ 850×480. Relevé : taille ____ ; i/s ____ ; durée ____ s (bureau : environ 180 s).
-- [ ] **B5. Le geste survit-il ?** Même plan, même seed, aperçu à 0,2 puis final à 0,4. Attendu : mouvement très proche (déjà constaté au bureau). Relevé : ____
-- [ ] **B6. Comparaison de la voie « 0,4 natif » contre « 0,2 plus upscale ».** Même plan, même seed. Lequel est le plus net sur les gestes et les visages ? ____
-- [ ] **B7. Console de rendu.** À 0,3 ou 0,4 MP : le bouton « Figer et rendre » remplace « Figer et prévisualiser », « Rendu final » disparaît, l'historique
-      affiche « final · 0,4 MP ». À 0,2 MP : comme avant.
-- [ ] **B8. Raccord `suite` entre deux résolutions.** Plan A rendu à 0,2 MP, plan B en `suite` rendu à 0,4 MP. Attendu : B démarre sur la dernière image de A
-      (agrandie). Regarder si B part d'une image floue (hypothèse non vérifiée). Relevé : ____
-- [ ] **B9. Plusieurs rendus à la suite.** Dix plans à 0,4 MP d'affilée : pas de dérive de temps ni de mémoire. Relevé : durée moyenne ____ s.
+- [ ] **A9. Console de rendu.** À 0,3 ou 0,4 MP : le bouton « Figer et rendre » remplace « Figer et prévisualiser », « Rendu final » disparaît, l'historique affiche
+      « final · 0,4 MP ». À 0,2 MP : comme avant.
+- [ ] **A10. Raccord `suite` entre deux résolutions.** Plan A rendu à 0,2 MP, plan B en `suite` rendu à 0,4 MP. Attendu : B démarre sur la dernière image de A (agrandie).
+      Regarder si B part d'une image floue (hypothèse non vérifiée). Relevé : ____
 
 ## C. Plus tard, quand la 5070 Ti est de nouveau disponible
 
 - [ ] **C1. Rendu à 0,4 MP à côté du LLM chargé.** Attendu : pas de mémoire insuffisante. Sinon : Claude fait décharger le LLM avant les rendus natifs
       (une ligne dans `worker/index.ts`).
-- [ ] **C2. Temps d'un film de 20 min de bout en bout** (création plus rendus) à 0,2 MP puis à 0,4 MP. Relevé : ____ / ____.
-- [ ] **C3. Comparaison de qualité à l'aveugle** de la création (`npm run llm:banc`) : scénario en un appel contre scène par scène.
+- [ ] **C2. Temps d'un film de 10 min de bout en bout** (création plus rendus, 10 minutes déjà énormes en contexte) à 0,3 MP puis à 0,4 MP. Relevé : ____ / ____.
+- [ ] **C3. Lire deux scénarios du même brief sans savoir lequel est lequel.** Un scénario écrit à l'ancienne (un seul appel pour tout l'épisode) et un écrit scène par scène, mélangés et
+      sans étiquette : vous les lisez et dites lequel tient le mieux (cohérence, dialogues, rythme). Il faudra adapter le banc de skills existant (`npm run llm:banc`), qui compare
+      aujourd'hui d'autres choses : à préparer ensemble au retour du PC.
 
 ## D. Pistes tirées de `ComfyUI_MiniMaxH3_Director` (lues, jamais essayées)
 
@@ -70,7 +60,7 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
 - [ ] **D1. Passe d'upscale avec un modèle sans LoRA turbo.** Leur workflow « deuxième échantillonnage » met le LoRA turbo sur la première passe et un UNET
       propre sur la seconde. Chez nous la passe d'upscale (nœuds `135:*`) réutilise le modèle turbo. Essai : même plan, passe d'upscale avec un chargeur
       de modèle sans LoRA. Effort : faible (workflow seul). Relevé : netteté ____ ; durée ____ s.
-- [ ] **D2. Décalage de sigma audio : 3 (leur défaut) contre 6 (le nôtre, nœud `195`).** Même plan à voix, écouter la voix. Effort : nul.
+- [ ] **D2. Décalage de sigma audio : 3 (leur défaut) contre 6 (le nôtre, nœud `195`).** Variante `A1` du banc (bloc E) contre `V3` : même plan à voix, écouter la voix. Effort : nul.
 - [ ] **D3. Continuité réelle d'un plan `suite` : pack `NikoDemon80/ComfyUI-H3-Motion-Context`** (GPL-3.0 : on l'installe comme nœud externe, on n'en
       copie pas le code ; ComfyUI 0.34 ou plus). Il garde la fin du clip précédent **dans l'espace latent** (22 images, sans décodage ni dérive de couleur)
       et **prolonge le son** (18 images d'audio) au lieu de le recommencer ; un nœud « Trim » rogne ensuite ce préfixe (0,92 s). Aujourd'hui `suite` ne reprend
@@ -81,15 +71,11 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       Relevé : continuité du geste ____ ; son à la jonction ____ ; durée ____ s.
       À essayer aussi : le fork `seitanism/ComfyUI-H3-Motion-Context-MultiRef`, que le pack Context-Loop utilise comme « nœud Motion Context maintenu » (je n'ai pas
       comparé ses différences avec l'original).
-- [ ] **D4. Visages lointains : « Face Refine » du Directeur.** Détecte et suit le visage (modèle YOLO `face_yolov8m.pt`), recadre autour (facteur 2,5),
-      refait ce recadre à 768×768 avec H3, recolle seulement le visage avec un contour adouci. Ce serait la réponse aux expressions lointaines **sans** monter
-      toute l'image à 0,4 MP. Mais il vit dans le nœud Directeur : à essayer là-bas d'abord, avant de décider de le reproduire. Relevé : visage plus net ____ ;
-      durée ajoutée ____ s.
 - [ ] **D5. Échantillonneur Euler, puis « SelfLift » (première passe progressive).** Pack autonome : `facok/comfyui-SelfLift` (papier arXiv 2609.02036, validé
       sur des modèles d'images ; son mode H3 est expérimental, non validé par le papier ; **aucune licence déclarée** : on l'installe, on n'en copie pas le code).
       Il n'accepte que Euler. Trois essais dans l'ordre, même plan, même graine, à 0,4 MP :
-      **D5a. Euler seul** : remplacer `er_sde` par `euler` dans le nœud `22:6` (et `135:30` pour la passe d'upscale), sans rien d'autre. Ça isole l'effet de
-      l'échantillonneur. Relevé : netteté ____ ; mouvement ____ ; durée ____ s.
+      **D5a. L'échantillonneur seul** : variantes `S1` (euler), `S2` (`res_multistep` + `simple`, le réglage officiel) et `V3` (`er_sde`, le nôtre) du banc (bloc E), même plan, même graine. Ça isole
+      l'effet de l'échantillonneur ; euler est le seul que SelfLift accepte. Relevé : netteté ____ ; mouvement ____ ; durée ____ s.
       **D5b. SelfLift sur le chemin H3** : nœud « SelfLift Progressive Sampler (MiniMax H3) » à la place de l'échantillonneur, `transition_step` 3 (3 étapes
       basses sur 4), `lowres_scale` 0,5, `rho` 0 avec l'agrandisseur latent H3 déjà chargé (`latent_upscale_models/`). Relevé : durée ____ s contre ____ s en D5a ;
       qualité ____.
@@ -109,30 +95,11 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       **Décision de principe (2026-10-27, avec l'utilisateur) :** le pont n'est applicable que sur un plan **sans réplique** (aucun `<d>` dans la fiche, donc aucun
       audio de référence) ; le code pourra le vérifier seul. Nuance : un cri ou un kiai écrit en `<d>` compte comme une réplique. Un réglage « pont » par plan
       (désactivé par défaut) n'est envisagé qu'après cet essai.
+- [ ] **D8. À décider ensemble : une règle de scénario « dans une scène `action`, une réplique va dans son propre plan, en `coupe` ».** Pas codée. Pour : combat plus lisible, pont sémantique
+      applicable (D6). Contre : plus de plans par combat (chacun coûte un rendu), un cri ou une réplique glissés dans l'action seraient coupés du geste, plus de raccords. Le plus raisonnable est
+      d'attendre le résultat de D6 : sans gain démontré du pont, la règle coûte sans rapporter.
 
-- [ ] **D7. Piste musicale existante (clip de 2 min) : un segment de la piste par plan, en audio de référence.** D'après la doc du Directeur (`docs/r2v-source-audio.md`),
-      en r2v l'audio de référence passe par le VAE audio, entre dans le latent audio-vidéo et pilote le rythme et la bouche ; en mode « source » on pose le fichier
-      d'origine tel quel et l'image « colle » au son (prompt : audio `fully_copy`). Motion Context n'est PAS pour cela : il prolonge du son généré, qui se dégrade
-      au fil des liens. Essai : deux plans consécutifs de 8 à 10 s, chacun avec son segment de la piste en référence, limites de plans calées sur des temps forts ;
-      poser la piste d'origine au montage. À regarder : l'image suit-elle le tempo (avec une musique sans voix) ? Motion Context et audio de référence se gênent-ils
-      (le son épinglé est un repère de position, la référence une autre liste : effet combiné inconnu) ? Décalage à prévoir de 0,92 s avec Motion Context.
-      Précisions (doc de `ethanfel/ComfyUI-MiniMaxH3-Context-Loop`, `docs/AUDIO_AND_CONTINUITY.md`) : pour une chanson, la fenêtre exacte de la piste source
-      pilote la génération, **avec les voix seules comme cible** et le mix complet gardé comme bande-son finale ; les pistes (mix, voix, instrumental) doivent avoir
-      le même début et la même durée, alignées sur 24 i/s, sans recalage de tempo, et ce pack ne sépare pas les voix lui-même. Sans voix (musique instrumentale),
-      il n'offre qu'une référence lâche (« source guide ») ou la piste seule au montage : le suivi serré du tempo n'y est pas garanti.
-      Relevé : suivi du tempo ____ ; jonction ____.
-
-- [ ] **D8. Règle de scénario à écrire (décidée, pas encore codée) : dans une scène `action`, une réplique va dans son propre plan, en `coupe`.** Une phrase dans
-      `scenario-episode` et `scenario-scene`. Elle sert la lisibilité du combat et rend le pont applicable. À vérifier ensuite sur une création : les plans de combat
-      n'ont plus de `<d>`, les répliques tombent dans des plans de réaction séparés.
-
-- [ ] **D10. `ethanfel/ComfyUI-MiniMaxH3-Context-Loop` (GPL-3.0, 548 étoiles, version 0.7.3) comme outil de laboratoire, pas comme dépendance.** C'est un gestionnaire de
-      production complet dans ComfyUI (plan par scènes, relecture, nouvel essai, reprise, bibliothèque de références, chapitres à résolution propre, assemblage,
-      upscale différé) : il recoupe Cadence et n'a pas de raison d'y être branché. À essayer à la main pour ce que Cadence n'a pas : **édition par masque** (retoucher
-      une partie d'une vidéo, prolonger un clip, **générer le passage entre deux clips** : une alternative possible à `suite`) et **lip-sync sur piste source**.
-      Relevé : le pont entre deux clips raccorde-t-il mieux que `suite` ? ____ ; retouche locale d'un geste ____.
-
-## E. Résolution, étapes et agrandissement : la matrice qualité / temps (doc officielle ComfyUI lue le 2026-10-27)
+## E. Résolution, étapes et agrandissement : le banc (doc officielle ComfyUI lue le 2026-10-27)
 
 Ce que dit la doc officielle (docs.comfy.org, pages MiniMax H3) et qui cadre ces essais :
 - H3 est entraîné vers **1 MP** (arête courte 768, jusqu'à 1344×768 = 0,98 MP). 0,4 MP (864×480) est « rapide, correct pour des brouillons : montez les mégapixels
@@ -141,31 +108,27 @@ Ce que dit la doc officielle (docs.comfy.org, pages MiniMax H3) et qui cadre ces
   visage) ; pour un raccord serré, désactiver le turbo ou monter vers 25 ». Les schémas distillés lissent les détails fins (peau, tissu, cheveux). **La voix et le timbre
   demandent 12 étapes ou plus ; à 8 étapes l'audio est le maillon faible.** Compromis cité : fichier 4 étapes à 6 ou 8 étapes, force environ 0,8 (le temps suit le nombre
   d'étapes : le turbo raccourcit le calendrier, pas le coût d'une étape).
-- **L'agrandisseur latent économise du temps, pas du pic de mémoire** : la passe de raffinage tourne à la taille cible. Son facteur est libre (1,0 à 4,0, défaut 2,0), et le
-  raffinage devrait être une reprise partielle (denoise 0,1 à 0,5). Nous fixons ×2 et la passe démarre à sigma 0,9035 (reprise très forte).
-- Accélérations sur n'importe quel point de contrôle : **Sage Attention** (environ ×2, impact qualité faible, patch KJNodes) et **attention éparse `sol-attn`** (ComfyUI 0.35 ou plus,
-  expérimental ; gain surtout au-delà de 12 288 jetons, ce qui est notre cas). **FastH3 (8 étapes distillé) ne gère pas Ref2VA** : inutilisable pour nous.
-- Réglages officiels : échantillonneur `res_multistep` + planificateur `simple`, décalage vidéo 12 et audio 3 (nous : `er_sde`, planificateur `beta`, audio 6).
+- **L'agrandisseur latent économise du temps, pas du pic de mémoire** : la passe de raffinage tourne à la taille cible. Son facteur est libre (1,0 à 4,0, défaut 2,0).
+- Accélérations sur n'importe quel point de contrôle : **Sage Attention** (environ ×2) et **attention éparse `sol-attn`** (ComfyUI 0.35 ou plus, expérimental). **FastH3 (8 étapes
+  distillé) ne gère pas Ref2VA** : inutilisable pour nous.
 
-- [ ] **E1. La matrice (un plan à deux personnages dont un visage plutôt éloigné, une réplique, même graine, comparaison à l'aveugle).** Relever pour chaque variante : durée,
-      pic de mémoire, identité des personnages, précision du geste, voix, douceur de l'image.
-      V1 = 0,2 MP, 4 étapes, upscale latent ×2 (le « final » actuel) ; V2 = 0,3 MP natif ; V3 = 0,4 MP natif ; V4 = 0,3 MP, 8 étapes, force turbo 0,8 ;
-      V5 = 0,3 MP + upscale latent ×1,5 (environ 0,68 MP) ; V6 = 0,4 MP natif + RTX Video Super Resolution ×2.
-      Relevé : ____
-- [ ] **E2. Étapes contre résolution pour l'identité.** À 0,3 MP, 4 étapes contre 6 ou 8 étapes (force 0,8) : l'identité des personnages et la voix gagnent-elles plus que
-      par une montée de résolution ? C'est le levier que la doc désigne comme le plus probable pour Ref2VA. Relevé : ____
-- [ ] **E3. Facteur et force de la passe d'upscale latent.** `mode.scale` du nœud 243 à 1,5 au lieu de 2 ; séquence de sigmas de la passe (`222`) démarrant à 0,5 au lieu de 0,9035
-      (reprise plus douce, qui garde mieux le geste validé). Relevé : mémoire ____ ; durée ____ ; geste conservé ____.
-- [ ] **E4. Agrandissement par pixels : RTX Video Super Resolution** (Comfy-Org, Apache-2.0, `image/upscaling`, 1,0 à 4,0 ou dimensions cibles jusqu'à 8192 ; modes `HIGHBITRATE_*` pour
-      des sources propres). Il ne redessine pas : il agrandit les images décodées, donc il ne change ni le geste ni le nombre d'images. Il demande PyTorch cu130 ou plus et une carte RTX.
-      Essai : mêmes clips à 0,2, 0,3 et 0,4 MP, tous amenés à la **même taille cible** (par exemple 1920×1080) : la netteté se rapproche-t-elle d'un clip à l'autre ?
-      (réponse possible à la crainte de « résolutions mixtes » au montage). Relevé : ____
-- [ ] **E5. Accélérations.** (a) Sage Attention ; (b) `Model Sparse Attention` (méthode `sol-attn`, `verbose` activé pour vérifier qu'elle est active) ; (c) **notre nœud `196`
-      (backend « comfy kitchen attention ») avec le modèle `..._int8_convrot` : la doc dit que Comfy Kitchen ne gère pas ces points de contrôle (issue ComfyUI #15529) et signale des
-      déformations en fin de clip : lire les avertissements du journal de ComfyUI et regarder les dernières secondes d'un plan.** Relevé : gain de temps ____ ; défauts ____.
-- [ ] **E6. Échantillonneur et décalages officiels** (`res_multistep` + `simple`, audio 3) contre les nôtres (`er_sde` + `beta`, audio 6), même plan et même graine. Relevé : ____
-- [ ] **E7. Licence.** La doc officielle dit que l'usage commercial de sorties générées en local demande une **licence commerciale MiniMax, vendue par Comfy**. À vérifier avant toute
-      publication de la série.
+**Comment on mesure : le banc.** `npm run banc:video` soumet à un ComfyUI le même plan avec plusieurs variantes de réglages, **mesure le temps et le pic de mémoire GPU tout seul**, et
+enregistre les clips sous des lettres tirées au hasard (`clip-A.mp4`…) pour les comparer à l'aveugle. Vous ne faites que regarder et noter.
+- `npm run banc:video -- --liste` : les variantes (V1 à V6 : résolutions, étapes, upscale ; S1 et S2 : échantillonneur ; A1 : décalage audio).
+- `npm run banc:video -- --url http://127.0.0.1:8188 --variantes V1,V2,V3,V4,V5,V6 --duree 6` : lance la série (plusieurs minutes par variante ; un échauffement charge d'abord les modèles).
+- Il faut : ComfyUI démarré, le plan du fichier `workflows/video-generation/VID_REF2VA.json` utilisable (ses images et sa voix dans le dossier d'entrée de ComfyUI), le modèle d'upscale latent
+  pour V1 et V5, le pack Nvidia VFX pour V6.
+- Résultat dans `data/banc-video/<date>/` : les clips, `resultats.json` (temps, mémoire), `cle.json` (quelle lettre = quelle variante : **à ouvrir après avoir regardé**).
+
+- [ ] **E1. Lancer le banc et juger à l'aveugle.** Regarder les clips, puis noter pour chaque lettre (ligne « Clip A »… de la page) : identité des personnages, précision du geste, voix, douceur de
+      l'image, et un rang. Dire à Claude « j'ai rempli E1 » : il ouvre `cle.json` et `resultats.json` et fait le tableau (temps, pic de mémoire, notes) par variante. Ce que la série répond :
+      **V2 contre V4** = les étapes comptent-elles plus que la résolution pour l'identité et la voix ? **V2 contre V3** = 0,3 ou 0,4 MP ? **V1 contre V5** = l'upscale latent vaut-il son coût, à quel
+      facteur ? **V6** = l'agrandissement par pixels fait-il aussi bien ? Relevé : ____
+- [ ] **E2. Agrandissement par pixels, à la même taille cible (à la main, seulement si V6 convainc).** Les mêmes clips à 0,3 et 0,4 MP, tous amenés à la même taille (par exemple 1920×1080) avec
+      le nœud RTX Video Super Resolution (Comfy-Org, Apache-2.0, PyTorch cu130 ou plus, carte RTX) : la netteté se rapproche-t-elle d'un clip à l'autre ? Relevé : ____
+- [ ] **E3. Accélérations (à la main).** (a) Sage Attention ; (b) `Model Sparse Attention` (méthode `sol-attn`, `verbose` activé pour vérifier qu'elle est active) ; (c) notre nœud `196`
+      (backend « comfy kitchen attention ») avec le modèle `..._int8_convrot` : la doc dit que Comfy Kitchen ne gère pas ces points de contrôle (issue ComfyUI #15529) et signale des déformations
+      en fin de clip : lire les avertissements du journal de ComfyUI et regarder les dernières secondes d'un plan. Relevé : gain de temps ____ ; défauts ____.
 
 ## Journal des résultats
 
