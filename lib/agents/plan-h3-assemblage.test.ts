@@ -172,7 +172,7 @@ test("les voix du plan : ligne de définition et de rétention <Audio N>, préfi
   const texte = "Demain, au lever du soleil, si l'or n'est pas sur mon bureau, je ne perdrai plus mon temps avec tes danses.";
   const r = assemblerPlanH3(dialogue, { slotsAudioPris: [1], voix: [{ slot: 1, texte, locuteurCode: "CHAR_tenanciere" }] });
   assert.match(r.sections.subject_definitions, /\n<Audio 1> is the voice-timbre reference for <Subject 1> \(S1\)\.$/);
-  assert.match(r.sections.retention_analysis, /\n<Audio 1>: reference - <Subject 1> \(S1\) follows the voice timbre and measured delivery of <Audio 1> without copying the original signal\.$/);
+  assert.match(r.sections.retention_analysis, /\n<Audio 1>: reference - <Subject 1> follows the voice timbre and measured delivery of <Audio 1> without copying the original signal\.$/);
   assert.match(r.sections.summary, /^\[reference generation \+ audio reference\] /);
   assert.ok(!r.problemes.some((p) => p.regle === "label-residuel"));
 });

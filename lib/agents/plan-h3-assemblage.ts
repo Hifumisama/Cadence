@@ -263,7 +263,8 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
     return {
       slot: v.slot,
       definition: `<Audio ${v.slot}> is the voice-timbre reference${pour ? ` for ${pour}` : ""}.`,
-      retention: `<Audio ${v.slot}>: reference - ${pour ? `${pour} follows` : "the speaker follows"} the voice timbre and measured delivery of <Audio ${v.slot}> without copying the original signal.`,
+      // Le guide officiel n'écrit pas `(Sx)` dans retention_analysis : le locuteur y est nommé par son sujet.
+      retention: `<Audio ${v.slot}>: reference - ${sujet ?? "the speaker"} follows the voice timbre and measured delivery of <Audio ${v.slot}> without copying the original signal.`,
     };
   });
   const subject_definitions = [...ordre.map((x) => ligneDef(x.a, x.r)), ...lignesVoix.map((v) => v.definition)].join("\n");

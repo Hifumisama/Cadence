@@ -43,7 +43,7 @@ test("banc : V4 monte les étapes et baisse la force du turbo", () => {
   assert.equal(g["22:8"]!.inputs.value, 8);
   assert.equal((g["21"]!.inputs.lora_2 as { strength: number }).strength, 0.8);
   assert.equal((workflow["21"]!.inputs.lora_2 as { strength: number }).strength, 1, "le fichier source n'est pas modifié");
-  assert.equal(workflow["22:8"]!.inputs.value, 4);
+  assert.equal(workflow["22:8"]!.inputs.value, 6);
 });
 
 test("banc : les variantes d'échantillonneur et de décalage audio ne changent que cela", () => {

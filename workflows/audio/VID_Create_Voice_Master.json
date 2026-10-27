@@ -232,7 +232,7 @@
   "195": {
     "inputs": {
       "shift_video": 12,
-      "shift_audio": 6,
+      "shift_audio": 3,
       "model": [
         "196",
         0
@@ -417,7 +417,7 @@
   },
   "22:8": {
     "inputs": {
-      "value": 4
+      "value": 6
     },
     "class_type": "INTConstant",
     "_meta": {
@@ -467,7 +467,7 @@
   "22:9": {
     "inputs": {
       "aspect_ratio": "16:9 (Widescreen)",
-      "megapixels": 0.20000000000000004,
+      "megapixels": 0.3,
       "multiple": 32
     },
     "class_type": "ResolutionSelector",

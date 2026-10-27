@@ -65,3 +65,13 @@ Six lectures en parallèle, en lecture seule, de treize dépôts plus les skills
 ## Décisions en attente
 
 Rien n'est modifié dans `agents/skills/plan-h3/`. Un banc à l'aveugle de 18 vidéos, fait le 20 octobre, a montré qu'un skill plus complet aide un modèle et en dessert un autre : un changement de skill se juge au rendu, pas à la lecture. L'ordre que je propose : E3 (formule de coupe) d'abord, parce que c'est un changement d'une ligne dans le code avec un essai de 5 minutes ; puis le vocabulaire de caméra et la manière de dire, qui demandent un essai de plans réels.
+
+## Audit par le validateur d'OpenH3-IR (2026-10-28)
+
+Installé dans un dossier isolé (hors dépôt), sans serveur : `h3ir controls` (23 contrôles) passe, puis son validateur (`h3ir.validate`, mode `ref2va`) sur nos
+quatre fixtures `lib/agents/fixtures/plan-h3/*.txt` : 2 erreurs, 5 alertes, 3 infos. Ce sont des fixtures de test (courtes), pas des prompts réels : à refaire sur de vrais prompts de plan.
+- **P5 (erreur)** `intense`, `dialogue` : un cadrage est décrit sans mouvement du vocabulaire fermé (Zoom In, Push In, Pan Left, Truck…). Recoupe l'écart « vocabulaire de caméra ».
+- **P7 (alerte)** `intense`, `geste-continu` : l'ouverture d'une coupe n'emploie pas une formule de son ensemble fermé (`the camera cuts to`, `the shot cuts to`, `the shot transitions to`…). Recoupe l'écart « Hard cut to ».
+- **P2 (alerte)** toutes sauf `intense` : description de 82 à 231 mots contre 350 à 500 conseillés (336 dans l'exemple officiel).
+- **A5 / P5b (info)** : musique sans tempo ; mouvement sans « with small|large amplitude at slow|fast speed ».
+- Corrigé le même jour : `(Sx)` n'est plus écrit dans la ligne de rétention d'une voix (la définition le garde).

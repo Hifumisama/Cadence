@@ -138,7 +138,7 @@ enregistre les clips sous des lettres tirées au hasard (`clip-A.mp4`…) pour l
 - [ ] **E2. Quel LoRA d'accélération ? (banc : `V2`, `V4`, `L1`, `L2`, `H1`)** Votre liste : **HyperFlow** (Video Rebirth, 8 étapes, couvre t2va, fl2va et ref2va ; conversion ComfyUI de
       `drbaph/MiniMax-H3-Turbo-Lora-ComfyUI`, fichier `..._pruned_bf16` pour notre modèle élagué ; sa fiche donne une grille de sigmas fixe, que le banc applique, et l'auteur de la conversion note
       qu'elle n'est pas rigoureusement équivalente à l'original) et **LarryVRH v4 step600 EMA** (le défaut conseillé par l'index communautaire, mais **c'est un LoRA FL2V** : « chaque fichier turbo est
-      propre à un mode » selon la doc officielle, donc son effet sur notre modèle Ref2VA est à constater). Variantes : `V2` = notre LoRA ref2v v0.1, 4 étapes ; `V4` = le même à 8 étapes, force 0,8 ;
+      propre à un mode » selon la doc officielle, donc son effet sur notre modèle Ref2VA est à constater). Variantes : `V2` = notre LoRA ref2v v0.1, 6 étapes (le réglage du workflow depuis le 2026-10-28 : l'utilisateur a constaté que 6 étapes améliorent beaucoup la voix pour un temps à peine plus long) ; `V4` = le même à 8 étapes, force 0,8 ;
       `L1` = LarryVRH, 4 étapes ; `L2` = LarryVRH, 8 étapes, euler ; `H1` = HyperFlow, 8 étapes. Même notation que E1. Il faut les fichiers dans `models/loras` : le banc dit lesquels manquent et
       où les prendre. Relevé : ____
 - [ ] **E3. Deux formulations du même prompt (banc : `K1` et `K2`, avec `--prompt`).** Notre code écrit « Hard cut to » à chaque coupe ; le guide officiel de MiniMax n'emploie jamais cette formule : il
@@ -178,4 +178,6 @@ enregistre les clips sous des lettres tirées au hasard (`clip-A.mp4`…) pour l
 | 2026-10-27 | D1 | sans changement visible | Pas retenu pour l'instant. |
 | 2026-10-27 | D2 | décalage audio 3 meilleur : la voix fait moins « toc » | Appliqué le 2026-10-28 dans `VID_REF2VA.json` (nœud 195). `VID_Create_Voice_Master.json` reste à 6. |
 | 2026-10-27 | D5, D9 | non testés | Écartés par l'utilisateur. |
+| 2026-10-28 | Étapes | 6 étapes : voix bien meilleure, temps de génération à peine plus long | Appliqué à `VID_REF2VA.json` et `VID_Create_Voice_Master.json` (qui passe aussi à 0,3 MP et décalage audio 3). |
+| 2026-10-28 | E6 (audit gratuit) | validateur d'OpenH3-IR sur nos 4 fixtures : 2 erreurs, 5 alertes | Voir `docs/ECARTS_GUIDES_H3.md` : pas de type de mouvement de caméra du vocabulaire fermé, formule de coupe hors de son ensemble, descriptions courtes (82 à 231 mots contre 350 à 500 conseillés), musique sans tempo. Ses 23 contrôles passent chez nous. |
 | | | | |
