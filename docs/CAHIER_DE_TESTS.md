@@ -62,6 +62,29 @@ Pour lire ce qui est sorti : `ffprobe -v error -select_streams v:0 -show_entries
 - [ ] **C2. Temps d'un film de 20 min de bout en bout** (création plus rendus) à 0,2 MP puis à 0,4 MP. Relevé : ____ / ____.
 - [ ] **C3. Comparaison de qualité à l'aveugle** de la création (`npm run llm:banc`) : scénario en un appel contre scène par scène.
 
+## D. Pistes tirées de `ComfyUI_MiniMaxH3_Director` (lues, jamais essayées)
+
+Dépôt : github.com/AIMixer/ComfyUI_MiniMaxH3_Director (Apache-2.0). C'est un nœud « directeur » monolithique (timeline dans le nœud) : on ne l'adopte pas,
+Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite du README et des en-têtes de code, aucun nœud exécuté.
+
+- [ ] **D1. Passe d'upscale avec un modèle sans LoRA turbo.** Leur workflow « deuxième échantillonnage » met le LoRA turbo sur la première passe et un UNET
+      propre sur la seconde. Chez nous la passe d'upscale (nœuds `135:*`) réutilise le modèle turbo. Essai : même plan, passe d'upscale avec un chargeur
+      de modèle sans LoRA. Effort : faible (workflow seul). Relevé : netteté ____ ; durée ____ s.
+- [ ] **D2. Décalage de sigma audio : 3 (leur défaut) contre 6 (le nôtre, nœud `195`).** Même plan à voix, écouter la voix. Effort : nul.
+- [ ] **D3. Continuité réelle d'un plan `suite` : pack `NikoDemon80/ComfyUI-H3-Motion-Context`** (installable seul, ComfyUI 0.34 ou plus). Il garde la fin du
+      clip précédent **dans l'espace latent** (pas de décodage, pas de dérive de couleur) et prolonge le **son** au lieu de le recommencer ; il rogne ensuite
+      le préfixe. Aujourd'hui `suite` ne reprend qu'une image fixe. Essai : deux clips chaînés à la main dans ComfyUI, regarder la vitesse du geste et la
+      continuité du son à la jonction. Effort si concluant : moyen à élevé (garder le latent de chaque rendu, le recharger pour le plan suivant).
+- [ ] **D4. Visages lointains : « Face Refine » du Directeur.** Détecte et suit le visage (modèle YOLO `face_yolov8m.pt`), recadre autour (facteur 2,5),
+      refait ce recadre à 768×768 avec H3, recolle seulement le visage avec un contour adouci. Ce serait la réponse aux expressions lointaines **sans** monter
+      toute l'image à 0,4 MP. Mais il vit dans le nœud Directeur : à essayer là-bas d'abord, avant de décider de le reproduire. Relevé : visage plus net ____ ;
+      durée ajoutée ____ s.
+- [ ] **D5. « SelfLift » : première passe progressive** (étapes bruitées à basse résolution, agrandissement latent, dernières étapes en haute résolution).
+      Pourrait rendre 0,4 MP moins coûteux. Il n'accepte que l'échantillonneur Euler (nous : er_sde) et vit lui aussi dans le Directeur. Relevé : durée à 0,4 MP
+      ____ s contre ____ s ; qualité ____.
+- [ ] **D6. « Semantic Bridge » (adaptateurs de conditionnement, dont BUNNY pour l'attribution des actions entre personnages).** Pertinent pour les combats,
+      mais distillé sur un autre mode que le nôtre (r2v = « compatibilité forcée, à manier avec précaution »). Priorité basse.
+
 ## Journal des résultats
 
 (à remplir : date, test, résultat en une ligne, ce qui a cassé)
