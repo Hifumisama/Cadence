@@ -95,6 +95,14 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       Essai (une insertion de nœud entre le nœud 5 et le guideur `125:14`) : 4 plans de combat **sans dialogue**, même seed, alpha 0 / 0,10 / 0,15 ; juger
       l'attribution des actions ET l'identité des personnages. À ne pas utiliser sur un plan qui parle tant que ce n'est pas tranché. Relevé : ____
 
+- [ ] **D7. Piste musicale existante (clip de 2 min) : un segment de la piste par plan, en audio de référence.** D'après la doc du Directeur (`docs/r2v-source-audio.md`),
+      en r2v l'audio de référence passe par le VAE audio, entre dans le latent audio-vidéo et pilote le rythme et la bouche ; en mode « source » on pose le fichier
+      d'origine tel quel et l'image « colle » au son (prompt : audio `fully_copy`). Motion Context n'est PAS pour cela : il prolonge du son généré, qui se dégrade
+      au fil des liens. Essai : deux plans consécutifs de 8 à 10 s, chacun avec son segment de la piste en référence, limites de plans calées sur des temps forts ;
+      poser la piste d'origine au montage. À regarder : l'image suit-elle le tempo (avec une musique sans voix) ? Motion Context et audio de référence se gênent-ils
+      (le son épinglé est un repère de position, la référence une autre liste : effet combiné inconnu) ? Décalage à prévoir de 0,92 s avec Motion Context.
+      Relevé : suivi du tempo ____ ; jonction ____.
+
 ## Journal des résultats
 
 (à remplir : date, test, résultat en une ligne, ce qui a cassé)
