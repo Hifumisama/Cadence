@@ -4,6 +4,7 @@
  *
  *   npm run banc:video -- --liste
  *   npm run banc:video -- --url http://127.0.0.1:8188 --variantes V2,V3,V4 --duree 6
+ *   npm run banc:video -- --variantes K1,K2 --prompt prompt-d-un-plan.txt     (comparer deux formulations d'un même prompt)
  *
  * Le plan (prompt, personnages, décor, voix) est celui du fichier de workflow (par défaut workflows/video-generation/VID_REF2VA.json) : ses images et son audio doivent
  * exister dans le dossier d'entrée de ComfyUI. Le worker de Cadence n'a pas besoin de tourner. */
@@ -81,6 +82,17 @@ async function executer(
   }
 }
 
+/** Les LoRA que ComfyUI voit dans `models/loras`, ou null s'il ne les liste pas (on ne bloque alors rien : l'échec, s'il y en a un, vient de ComfyUI). */
+async function lorasInstallees(base: string): Promise<Set<string> | null> {
+  try {
+    const o = await json<{ LoraLoaderModelOnly?: { input?: { required?: { lora_name?: [string[]] } } } }>(`${base}/object_info/LoraLoaderModelOnly`);
+    const liste = o.LoraLoaderModelOnly?.input?.required?.lora_name?.[0];
+    return Array.isArray(liste) ? new Set(liste) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function telecharger(base: string, s: { filename: string; subfolder: string; type: string }, dest: string) {
   const q = new URLSearchParams({ filename: s.filename, subfolder: s.subfolder, type: s.type });
   const r = await fetch(`${base}/view?${q}`);
@@ -107,6 +119,10 @@ async function main() {
   });
   if (!Number.isInteger(duree) || duree < 5 || duree > 10) throw new Error("--duree : un entier de 5 à 10 secondes.");
   const workflow = JSON.parse(await readFile(fichier, "utf-8")) as Graphe;
+  // Un prompt à tester à la place de celui du fichier (copié depuis la page d'un plan de Cadence) : indispensable pour K1 et K2, qui comparent des formulations.
+  const fichierPrompt = argument("prompt");
+  const prompt = fichierPrompt ? (await readFile(fichierPrompt, "utf-8")).trim() : undefined;
+  const texteDuPrompt = prompt ?? String(workflow[NODE_IDS.prompt]?.inputs.value ?? "");
 
   const stats = await json<Stats>(`${base}/system_stats`).catch(() => null);
   if (!stats) throw new Error(`ComfyUI ne répond pas sur ${base} (--url).`);
@@ -125,10 +141,19 @@ async function main() {
     if (chauffe.erreur) console.log("  échauffement : " + chauffe.erreur);
   }
 
+  const installees = await lorasInstallees(base);
   const resultats: Resultat[] = [];
   for (const v of choisies) {
     process.stdout.write(`${v.id} · ${v.libelle} … `);
-    const g = preparerGrapheBanc(workflow, v, { dureeSecondes: duree, seed });
+    const manque = v.lora && installees && !installees.has(v.lora) ? `LoRA absent de ComfyUI : ${v.lora} (à télécharger : ${v.loraSource ?? "voir la fiche du cahier"}, puis à mettre dans models/loras)` : null;
+    const inutile = (v.remplacements ?? []).find((r) => !texteDuPrompt.includes(r.de));
+    if (manque || inutile) {
+      const erreur = manque ?? `le prompt ne contient pas « ${inutile!.de} » : cette variante serait identique à la base (donnez un prompt de Cadence avec --prompt fichier.txt)`;
+      resultats.push({ id: v.id, libelle: v.libelle, code: codes[v.id], secondes: null, picMemoireGo: null, memoireAvantGo: null, erreur });
+      console.log(`IGNORÉE (${erreur})`);
+      continue;
+    }
+    const g = preparerGrapheBanc(workflow, v, { dureeSecondes: duree, seed, prompt });
     const x = await executer(base, g, delaiMs);
     const res: Resultat = { id: v.id, libelle: v.libelle, code: codes[v.id], secondes: x.secondes, picMemoireGo: Math.round(x.picGo * 10) / 10, memoireAvantGo: Math.round(x.avantGo * 10) / 10, erreur: x.erreur };
     if (x.sortie) {

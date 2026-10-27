@@ -103,14 +103,11 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       l'index communautaire `MiniMax-AI/awesome-minimax-h3-integration` (chiffres rapportés par les auteurs, non vérifiés). Relevé : durée ____ s ; pic de mémoire ____ Go.
 - [ ] **D12. LoRA d'accélération « PDD » pour Ref2VA, 8 étapes (Alibaba PAI, `MiniMax-H3-Ref2VA-Acc-8Step`).** Comparée à notre LoRA turbo ref2v v0.1 à 4 étapes (que la doc officielle dit appliquer « à peine » les
       références). Les notes de la communauté : à 4 étapes, PDD aplatit les textures ; à 8 étapes, l'écart avec le turbo se referme. Un ComfyUI récent la charge en natif (« banque de LoRA » : un LoRA
-      de base plus 32 têtes de sortie). Licence MiniMax-H3 Community. Essai : même plan, même graine, turbo 4 étapes contre PDD 8 étapes (environ deux fois plus long). Relevé : identité ____ ; voix ____ ; durée ____ s.
+      de base plus 32 têtes de sortie). Licence MiniMax-H3 Community. Essai à la main (pas dans le banc : cette LoRA a un format particulier) : même plan, même graine, turbo 4 étapes contre PDD 8 étapes (environ deux fois plus long). Les autres LoRA
+      candidates (LarryVRH, HyperFlow) sont dans le banc : voir E2. Relevé : identité ____ ; voix ____ ; durée ____ s.
 - [ ] **D13. « Ref Patch » (148 Mo, Apache-2.0, `lihaoyun6/MiniMax-H3-Ref-Patch`, avec son nœud `ComfyUI-MiniMaxH3_Ref-Patch`).** L'index dit que FL2VA donne en général une meilleure qualité brute que
       Ref2VA, qui accepte plus de références mais a une qualité de base plus basse ; ce patch fait imiter Ref2VA par FL2VA, en partie. Si ce qui vous déçoit vient de Ref2VA lui-même, c'est une piste.
       Essai : même plan, Ref2VA contre FL2VA + Ref Patch. Relevé : identité ____ ; netteté ____ ; durée ____ s.
-- [ ] **D14. Planche de rotation d'un personnage (LoRA `matlod/minimax-h3-turnaround`, 60 Mo).** À partir d'une seule image de référence, cinq vues progressivement tournées du même sujet en une passe
-      (environ 10 s à 512²). Pourrait enrichir les références d'identité de Cadence (face, trois-quarts, profil, dos). Essai hors pipeline : un personnage du registre, cinq vues, puis les réutiliser comme
-      références d'un plan. Relevé : fidélité des vues ____ ; apport sur l'identité du plan ____.
-
 ## E. Résolution, étapes et agrandissement : le banc (doc officielle ComfyUI lue le 2026-10-27)
 
 Ce que dit la doc officielle (docs.comfy.org, pages MiniMax H3) et qui cadre ces essais :
@@ -126,7 +123,7 @@ Ce que dit la doc officielle (docs.comfy.org, pages MiniMax H3) et qui cadre ces
 
 **Comment on mesure : le banc.** `npm run banc:video` soumet à un ComfyUI le même plan avec plusieurs variantes de réglages, **mesure le temps et le pic de mémoire GPU tout seul**, et
 enregistre les clips sous des lettres tirées au hasard (`clip-A.mp4`…) pour les comparer à l'aveugle. Vous ne faites que regarder et noter.
-- `npm run banc:video -- --liste` : les variantes (V1 à V6 : résolutions, étapes, upscale ; S1 et S2 : échantillonneur ; A1 : décalage audio).
+- `npm run banc:video -- --liste` : les variantes (V1 à V6 : résolutions, étapes, upscale ; S1 et S2 : échantillonneur ; A1 : décalage audio ; L1, L2 et H1 : LoRA d'accélération ; K1 et K2 : formulation du prompt).
 - `npm run banc:video -- --url http://127.0.0.1:8188 --variantes V1,V2,V3,V4,V5,V6 --duree 6` : lance la série (plusieurs minutes par variante ; un échauffement charge d'abord les modèles).
 - Il faut : ComfyUI démarré, le plan du fichier `workflows/video-generation/VID_REF2VA.json` utilisable (ses images et sa voix dans le dossier d'entrée de ComfyUI), le modèle d'upscale latent
   pour V1 et V5, le pack Nvidia VFX pour V6.
@@ -138,11 +135,22 @@ enregistre les clips sous des lettres tirées au hasard (`clip-A.mp4`…) pour l
       2 pour le suivant, etc. Ce qui n'entre pas dans une note (défaut en fin de clip, artefact, impression) va dans la **remarque** libre sous le tableau. Dire à Claude « j'ai rempli E1 » : il ouvre
       `cle.json` et `resultats.json` et fait le tableau (temps, pic de mémoire, notes) par variante. Ce que la série répond : **V2 contre V4** = les étapes comptent-elles plus que la résolution pour
       l'identité et la voix ? **V2 contre V3** = 0,3 ou 0,4 MP ? **V1 contre V5** = l'upscale latent vaut-il son coût, à quel facteur ? **V6** = l'agrandissement par pixels fait-il aussi bien ? Relevé : ____
-- [ ] **E2. Agrandissement par pixels, à la même taille cible (à la main, seulement si V6 convainc).** Les mêmes clips à 0,3 et 0,4 MP, tous amenés à la même taille (par exemple 1920×1080) avec
+- [ ] **E2. Quel LoRA d'accélération ? (banc : `V2`, `V4`, `L1`, `L2`, `H1`)** Votre liste : **HyperFlow** (Video Rebirth, 8 étapes, couvre t2va, fl2va et ref2va ; conversion ComfyUI de
+      `drbaph/MiniMax-H3-Turbo-Lora-ComfyUI`, fichier `..._pruned_bf16` pour notre modèle élagué ; sa fiche donne une grille de sigmas fixe, que le banc applique, et l'auteur de la conversion note
+      qu'elle n'est pas rigoureusement équivalente à l'original) et **LarryVRH v4 step600 EMA** (le défaut conseillé par l'index communautaire, mais **c'est un LoRA FL2V** : « chaque fichier turbo est
+      propre à un mode » selon la doc officielle, donc son effet sur notre modèle Ref2VA est à constater). Variantes : `V2` = notre LoRA ref2v v0.1, 4 étapes ; `V4` = le même à 8 étapes, force 0,8 ;
+      `L1` = LarryVRH, 4 étapes ; `L2` = LarryVRH, 8 étapes, euler ; `H1` = HyperFlow, 8 étapes. Même notation que E1. Il faut les fichiers dans `models/loras` : le banc dit lesquels manquent et
+      où les prendre. Relevé : ____
+- [ ] **E3. Deux formulations du même prompt (banc : `K1` et `K2`, avec `--prompt`).** Notre code écrit « Hard cut to » à chaque coupe ; le guide officiel de MiniMax n'emploie jamais cette formule : il
+      écrit « the camera cuts to », « the shot cuts to », « transitions to »… Copier le prompt assemblé d'un plan de Cadence (page du plan) dans un fichier texte, puis
+      `npm run banc:video -- --variantes K1,K2 --prompt ce-fichier.txt`. `K1` = tel quel, `K2` = formule officielle. Même notation que E1. Relevé : ____
+- [ ] **E4. Agrandissement par pixels, à la même taille cible (à la main, seulement si V6 convainc).** Les mêmes clips à 0,3 et 0,4 MP, tous amenés à la même taille (par exemple 1920×1080) avec
       le nœud RTX Video Super Resolution (Comfy-Org, Apache-2.0, PyTorch cu130 ou plus, carte RTX) : la netteté se rapproche-t-elle d'un clip à l'autre ? Relevé : ____
-- [ ] **E3. Accélérations (à la main).** (a) Sage Attention ; (b) `Model Sparse Attention` (méthode `sol-attn`, `verbose` activé pour vérifier qu'elle est active) ; (c) notre nœud `196`
-      (backend « comfy kitchen attention ») avec le modèle `..._int8_convrot` : la doc dit que Comfy Kitchen ne gère pas ces points de contrôle (issue ComfyUI #15529) et signale des déformations
-      en fin de clip : lire les avertissements du journal de ComfyUI et regarder les dernières secondes d'un plan. Relevé : gain de temps ____ ; défauts ____.
+- [ ] **E5. Accélérations (à la main).** (a) Sage Attention ; (b) nœud du cœur de ComfyUI `Model Sparse Attention`, méthode `sol-attn` (la seule qui marche sur n'importe quel point de contrôle ; `verbose`
+      activé pour vérifier qu'elle est active) ; (c) notre nœud `196` (backend « comfy kitchen attention ») avec le modèle `..._int8_convrot` : la doc dit que Comfy Kitchen ne gère pas ces points de contrôle
+      (issue ComfyUI #15529) et signale des déformations en fin de clip : lire les avertissements du journal de ComfyUI et regarder les dernières secondes d'un plan. **À propos de « H3 SLA » :** les LoRA
+      `Turbo-SLA` (lightx2v) sont des LoRA FL2V à 4 étapes qui supposent le noyau d'attention éparse « SLA » (sparsité 0,85, environ 2,5 fois plus rapide sur une 5090 d'après leur fiche, hors ComfyUI) ;
+      aucun n'existe pour Ref2VA à ma connaissance. Relevé : gain de temps ____ ; défauts ____.
 
 ## Journal des résultats
 
