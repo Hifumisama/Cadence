@@ -239,3 +239,55 @@ test("final à 0,2 MP : upscale ; final à 0,3 ou 0,4 MP : natif, sans upscale m
   assert.equal(apercu[NODE_IDS.sortieFinale]!.inputs.frame_rate, FPS_GENERATION);
   assert.deepEqual(workflow["165"].inputs.images, ["189", 0], "le fichier source n'est pas modifié");
 });
+
+// --- Ce que ComfyUI exécuterait vraiment (sans GPU) ---
+
+type GrapheTest = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+
+/** Les nœuds que ComfyUI exécute : ceux dont dépend un nœud de sortie (ici les deux « Video Combine »), en suivant les liens `[idDuNœud, sortie]`. */
+function noeudsExecutes(g: GrapheTest): Set<string> {
+  const vus = new Set<string>();
+  const pile = Object.keys(g).filter((id) => g[id]!.class_type === "VHS_VideoCombine");
+  while (pile.length) {
+    const id = pile.pop()!;
+    if (vus.has(id)) continue;
+    vus.add(id);
+    for (const v of Object.values(g[id]!.inputs)) {
+      if (Array.isArray(v) && typeof v[0] === "string" && g[v[0]]) pile.push(v[0]);
+    }
+  }
+  return vus;
+}
+
+const UPSCALE_NOEUDS = ["243", "244", "135:26", "135:29", "135:27", "189"];
+
+test("graphe : chaque lien pointe un nœud qui existe, dans les trois modes et les trois résolutions", () => {
+  for (const activerUpscale of [false, true]) {
+    for (const megapixels of [0.2, 0.3, 0.4]) {
+      const g = injecterValeurs(workflow, { ...entree, activerUpscale, megapixels }) as GrapheTest;
+      for (const [id, n] of Object.entries(g)) {
+        for (const v of Object.values(n.inputs)) {
+          if (Array.isArray(v) && typeof v[0] === "string" && v.length === 2 && typeof v[1] === "number") {
+            assert.ok(g[v[0]], `nœud ${id} (${activerUpscale ? "final" : "aperçu"}, ${megapixels} MP) : lien vers ${v[0]} introuvable`);
+          }
+        }
+      }
+    }
+  }
+});
+
+test("graphe : l'upscale ne s'exécute qu'en final à 0,2 MP ; le final natif exécute l'interpolation mais aucun nœud d'upscale", () => {
+  const upscale = noeudsExecutes(injecterValeurs(workflow, { ...entree, activerUpscale: true, megapixels: 0.2 }) as GrapheTest);
+  for (const id of UPSCALE_NOEUDS) assert.ok(upscale.has(id), `final 0,2 MP : le nœud ${id} devrait s'exécuter`);
+
+  for (const mp of [0.3, 0.4]) {
+    const natif = noeudsExecutes(injecterValeurs(workflow, { ...entree, activerUpscale: true, megapixels: mp }) as GrapheTest);
+    for (const id of UPSCALE_NOEUDS) assert.ok(!natif.has(id), `final natif ${mp} MP : le nœud ${id} ne doit PAS s'exécuter`);
+    assert.ok(natif.has("165"), "l'interpolation (RIFE) s'exécute");
+    assert.ok(natif.has("176"), "la première passe est décodée");
+    assert.ok(natif.has("5") && natif.has("22:9"), "la première passe lit la résolution");
+  }
+
+  const apercu = noeudsExecutes(injecterValeurs(workflow, { ...entree, activerUpscale: false, megapixels: 0.2 }) as GrapheTest);
+  for (const id of [...UPSCALE_NOEUDS, "165"]) assert.ok(!apercu.has(id), `aperçu : le nœud ${id} ne doit pas s'exécuter`);
+});
