@@ -79,6 +79,8 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       Contraintes lues dans le README : même résolution dans toute la chaîne (le nœud refuse sinon) ; la qualité du son se dégrade au fil des liens (graves
       conservés, aigus perdus) ; les LoRA turbo coûtent aussi du son ; le préfixe pesé dans le temps d'échantillonnage (+15 % de calcul sur un plan de 10 s).
       Relevé : continuité du geste ____ ; son à la jonction ____ ; durée ____ s.
+      À essayer aussi : le fork `seitanism/ComfyUI-H3-Motion-Context-MultiRef`, que le pack Context-Loop utilise comme « nœud Motion Context maintenu » (je n'ai pas
+      comparé ses différences avec l'original).
 - [ ] **D4. Visages lointains : « Face Refine » du Directeur.** Détecte et suit le visage (modèle YOLO `face_yolov8m.pt`), recadre autour (facteur 2,5),
       refait ce recadre à 768×768 avec H3, recolle seulement le visage avec un contour adouci. Ce serait la réponse aux expressions lointaines **sans** monter
       toute l'image à 0,4 MP. Mais il vit dans le nœud Directeur : à essayer là-bas d'abord, avant de décider de le reproduire. Relevé : visage plus net ____ ;
@@ -114,11 +116,21 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       au fil des liens. Essai : deux plans consécutifs de 8 à 10 s, chacun avec son segment de la piste en référence, limites de plans calées sur des temps forts ;
       poser la piste d'origine au montage. À regarder : l'image suit-elle le tempo (avec une musique sans voix) ? Motion Context et audio de référence se gênent-ils
       (le son épinglé est un repère de position, la référence une autre liste : effet combiné inconnu) ? Décalage à prévoir de 0,92 s avec Motion Context.
+      Précisions (doc de `ethanfel/ComfyUI-MiniMaxH3-Context-Loop`, `docs/AUDIO_AND_CONTINUITY.md`) : pour une chanson, la fenêtre exacte de la piste source
+      pilote la génération, **avec les voix seules comme cible** et le mix complet gardé comme bande-son finale ; les pistes (mix, voix, instrumental) doivent avoir
+      le même début et la même durée, alignées sur 24 i/s, sans recalage de tempo, et ce pack ne sépare pas les voix lui-même. Sans voix (musique instrumentale),
+      il n'offre qu'une référence lâche (« source guide ») ou la piste seule au montage : le suivi serré du tempo n'y est pas garanti.
       Relevé : suivi du tempo ____ ; jonction ____.
 
 - [ ] **D8. Règle de scénario à écrire (décidée, pas encore codée) : dans une scène `action`, une réplique va dans son propre plan, en `coupe`.** Une phrase dans
       `scenario-episode` et `scenario-scene`. Elle sert la lisibilité du combat et rend le pont applicable. À vérifier ensuite sur une création : les plans de combat
       n'ont plus de `<d>`, les répliques tombent dans des plans de réaction séparés.
+
+- [ ] **D10. `ethanfel/ComfyUI-MiniMaxH3-Context-Loop` (GPL-3.0, 548 étoiles, version 0.7.3) comme outil de laboratoire, pas comme dépendance.** C'est un gestionnaire de
+      production complet dans ComfyUI (plan par scènes, relecture, nouvel essai, reprise, bibliothèque de références, chapitres à résolution propre, assemblage,
+      upscale différé) : il recoupe Cadence et n'a pas de raison d'y être branché. À essayer à la main pour ce que Cadence n'a pas : **édition par masque** (retoucher
+      une partie d'une vidéo, prolonger un clip, **générer le passage entre deux clips** : une alternative possible à `suite`) et **lip-sync sur piste source**.
+      Relevé : le pont entre deux clips raccorde-t-il mieux que `suite` ? ____ ; retouche locale d'un geste ____.
 
 ## Journal des résultats
 
