@@ -132,6 +132,41 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       une partie d'une vidéo, prolonger un clip, **générer le passage entre deux clips** : une alternative possible à `suite`) et **lip-sync sur piste source**.
       Relevé : le pont entre deux clips raccorde-t-il mieux que `suite` ? ____ ; retouche locale d'un geste ____.
 
+## E. Résolution, étapes et agrandissement : la matrice qualité / temps (doc officielle ComfyUI lue le 2026-10-27)
+
+Ce que dit la doc officielle (docs.comfy.org, pages MiniMax H3) et qui cadre ces essais :
+- H3 est entraîné vers **1 MP** (arête courte 768, jusqu'à 1344×768 = 0,98 MP). 0,4 MP (864×480) est « rapide, correct pour des brouillons : montez les mégapixels
+  avant un rendu final » ; « les images molles à la résolution native sont d'abord un problème de résolution, pas d'étapes ». Nous sommes à 20 / 30 / 40 % de la surface entraînée.
+- **Le LoRA turbo à 4 étapes en Ref2VA** : « les jetons de référence interviennent à chaque étape, donc 4 étapes appliquent à peine les références (dérive de pose et de
+  visage) ; pour un raccord serré, désactiver le turbo ou monter vers 25 ». Les schémas distillés lissent les détails fins (peau, tissu, cheveux). **La voix et le timbre
+  demandent 12 étapes ou plus ; à 8 étapes l'audio est le maillon faible.** Compromis cité : fichier 4 étapes à 6 ou 8 étapes, force environ 0,8 (le temps suit le nombre
+  d'étapes : le turbo raccourcit le calendrier, pas le coût d'une étape).
+- **L'agrandisseur latent économise du temps, pas du pic de mémoire** : la passe de raffinage tourne à la taille cible. Son facteur est libre (1,0 à 4,0, défaut 2,0), et le
+  raffinage devrait être une reprise partielle (denoise 0,1 à 0,5). Nous fixons ×2 et la passe démarre à sigma 0,9035 (reprise très forte).
+- Accélérations sur n'importe quel point de contrôle : **Sage Attention** (environ ×2, impact qualité faible, patch KJNodes) et **attention éparse `sol-attn`** (ComfyUI 0.35 ou plus,
+  expérimental ; gain surtout au-delà de 12 288 jetons, ce qui est notre cas). **FastH3 (8 étapes distillé) ne gère pas Ref2VA** : inutilisable pour nous.
+- Réglages officiels : échantillonneur `res_multistep` + planificateur `simple`, décalage vidéo 12 et audio 3 (nous : `er_sde`, planificateur `beta`, audio 6).
+
+- [ ] **E1. La matrice (un plan à deux personnages dont un visage plutôt éloigné, une réplique, même graine, comparaison à l'aveugle).** Relever pour chaque variante : durée,
+      pic de mémoire, identité des personnages, précision du geste, voix, douceur de l'image.
+      V1 = 0,2 MP, 4 étapes, upscale latent ×2 (le « final » actuel) ; V2 = 0,3 MP natif ; V3 = 0,4 MP natif ; V4 = 0,3 MP, 8 étapes, force turbo 0,8 ;
+      V5 = 0,3 MP + upscale latent ×1,5 (environ 0,68 MP) ; V6 = 0,4 MP natif + RTX Video Super Resolution ×2.
+      Relevé : ____
+- [ ] **E2. Étapes contre résolution pour l'identité.** À 0,3 MP, 4 étapes contre 6 ou 8 étapes (force 0,8) : l'identité des personnages et la voix gagnent-elles plus que
+      par une montée de résolution ? C'est le levier que la doc désigne comme le plus probable pour Ref2VA. Relevé : ____
+- [ ] **E3. Facteur et force de la passe d'upscale latent.** `mode.scale` du nœud 243 à 1,5 au lieu de 2 ; séquence de sigmas de la passe (`222`) démarrant à 0,5 au lieu de 0,9035
+      (reprise plus douce, qui garde mieux le geste validé). Relevé : mémoire ____ ; durée ____ ; geste conservé ____.
+- [ ] **E4. Agrandissement par pixels : RTX Video Super Resolution** (Comfy-Org, Apache-2.0, `image/upscaling`, 1,0 à 4,0 ou dimensions cibles jusqu'à 8192 ; modes `HIGHBITRATE_*` pour
+      des sources propres). Il ne redessine pas : il agrandit les images décodées, donc il ne change ni le geste ni le nombre d'images. Il demande PyTorch cu130 ou plus et une carte RTX.
+      Essai : mêmes clips à 0,2, 0,3 et 0,4 MP, tous amenés à la **même taille cible** (par exemple 1920×1080) : la netteté se rapproche-t-elle d'un clip à l'autre ?
+      (réponse possible à la crainte de « résolutions mixtes » au montage). Relevé : ____
+- [ ] **E5. Accélérations.** (a) Sage Attention ; (b) `Model Sparse Attention` (méthode `sol-attn`, `verbose` activé pour vérifier qu'elle est active) ; (c) **notre nœud `196`
+      (backend « comfy kitchen attention ») avec le modèle `..._int8_convrot` : la doc dit que Comfy Kitchen ne gère pas ces points de contrôle (issue ComfyUI #15529) et signale des
+      déformations en fin de clip : lire les avertissements du journal de ComfyUI et regarder les dernières secondes d'un plan.** Relevé : gain de temps ____ ; défauts ____.
+- [ ] **E6. Échantillonneur et décalages officiels** (`res_multistep` + `simple`, audio 3) contre les nôtres (`er_sde` + `beta`, audio 6), même plan et même graine. Relevé : ____
+- [ ] **E7. Licence.** La doc officielle dit que l'usage commercial de sorties générées en local demande une **licence commerciale MiniMax, vendue par Comfy**. À vérifier avant toute
+      publication de la série.
+
 ## Journal des résultats
 
 (à remplir : date, test, résultat en une ligne, ce qui a cassé)
