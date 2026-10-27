@@ -116,5 +116,5 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
 
 | Date | Test | Résultat | Remarque |
 |---|---|---|---|
-| 2026-10-27 | Directeur (ComfyUI_MiniMaxH3_Director) sur RunPod, 5090, 0,4 MP, clip de 26 s | environ 26 min au total, qualité jugée « pas ultra » | Réglages à préciser (workflow, nombre d'étapes, LoRA turbo, continuité de segments, temps de chargement des modèles). Comparaison indicative seulement : le Directeur propose 25 étapes par défaut, notre workflow en fait 4 avec le LoRA turbo. |
+| 2026-10-27 | Directeur (ComfyUI_MiniMaxH3_Director) sur RunPod, 5090, 0,4 MP, clip de 26 s, gabarits bruts de RunPod | environ 26 min, qualité moyenne | Essai exploratoire des gabarits fournis, pas une comparaison avec le workflow de Cadence : sans suite. |
 | | | | |
