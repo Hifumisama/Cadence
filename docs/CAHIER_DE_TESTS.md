@@ -152,6 +152,17 @@ enregistre les clips sous des lettres tirées au hasard (`clip-A.mp4`…) pour l
       `Turbo-SLA` (lightx2v) sont des LoRA FL2V à 4 étapes qui supposent le noyau d'attention éparse « SLA » (sparsité 0,85, environ 2,5 fois plus rapide sur une 5090 d'après leur fiche, hors ComfyUI) ;
       aucun n'existe pour Ref2VA à ma connaissance. Relevé : gain de temps ____ ; défauts ____.
 
+- [ ] **E6. Notre skill `plan-h3` contre le compilateur OpenH3-IR (`ruashots/open-h3-ir`, Apache-2.0), à l'aveugle.** Hypothèse de l'utilisateur : un compilateur de prompt dédié, alimenté par la
+      page du plan, donne des prompts plus pertinents et plus stables que notre skill, et simplifierait aussi l'itération (sa route `PATCH /v1/briefs/{id}` affine un brief « en langage courant »).
+      À mesurer, pas à supposer. Protocole : **huit vrais plans** (combat, dialogue, plans en `suite`). Pour chacun, trois prompts : (1) le nôtre ; (2) et (3) **deux compilations du même plan**
+      par OpenH3-IR, réglage `restrained`, nombre de plans imposé, pièces jointes avec leurs rôles (`frame_anchor_first` pour l'image de raccord, `subject`, `environment`, `voice_timbre`),
+      répliques en `--say`, et pour chaque voix une **description écrite de son timbre et de sa manière de dire** (son README : sans elle la référence audio « ne contribue à rien », et il n'invente
+      pas de timbre). Deux compilations parce que « un seul essai ne mesure rien » (il le dit lui-même) : on veut la variance. Rendu : `npm run banc:video -- --prompts nous.txt,compilo-a.txt,compilo-b.txt`
+      (un clip par fichier, même graine, même réglage, lettres aléatoires). Notation comme E1. À relever aussi : temps et nombre d'appels LLM par plan et par voie ; ce que dit son validateur de **nos**
+      prompts (gratuit, demande d'installer son paquet : à décider) ; pour l'itération, trois corrections demandées en clair sur un plan raté, par `PATCH` contre notre `iteration-plan`, avec le
+      diff des sections (ce qui a bougé sans qu'on l'ait demandé). Précautions si on l'installe : `h3ir serve --host 127.0.0.1` (il écoute sur toutes les interfaces par défaut) et
+      `H3IR_ALLOW_ASSET_PATHS=0` si les fichiers sont envoyés plutôt que lus par chemin. Relevé : ____
+
 ## Journal des résultats
 
 (à remplir : date, test, résultat en une ligne, ce qui a cassé)

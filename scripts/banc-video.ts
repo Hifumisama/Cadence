@@ -5,13 +5,14 @@
  *   npm run banc:video -- --liste
  *   npm run banc:video -- --url http://127.0.0.1:8188 --variantes V2,V3,V4 --duree 6
  *   npm run banc:video -- --variantes K1,K2 --prompt prompt-d-un-plan.txt     (comparer deux formulations d'un même prompt)
+ *   npm run banc:video -- --prompts nous.txt,compilateur-a.txt,compilateur-b.txt   (un clip par fichier, même réglage, à l'aveugle)
  *
  * Le plan (prompt, personnages, décor, voix) est celui du fichier de workflow (par défaut workflows/video-generation/VID_REF2VA.json) : ses images et son audio doivent
  * exister dans le dossier d'entrée de ComfyUI. Le worker de Cadence n'a pas besoin de tourner. */
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { VARIANTES_BANC, VARIANTES_PAR_DEFAUT, codesAveugles, preparerGrapheBanc, type Graphe, type VarianteBanc } from "../worker/comfyui/banc-variantes";
 import { NODE_IDS } from "../worker/comfyui/mapping";
 
@@ -111,12 +112,26 @@ async function main() {
   const duree = Number(argument("duree") ?? 6);
   const seed = argument("seed") ?? "123456789";
   const delaiMs = Number(argument("delai") ?? 60) * 60_000;
-  const ids = (argument("variantes") ?? VARIANTES_PAR_DEFAUT.join(",")).split(",").map((x) => x.trim()).filter(Boolean);
-  const choisies: VarianteBanc[] = ids.map((id) => {
-    const v = VARIANTES_BANC.find((x) => x.id === id);
-    if (!v) throw new Error(`Variante inconnue : ${id} (voir --liste)`);
-    return v;
-  });
+  // `--prompts a.txt,b.txt,c.txt` : une variante par fichier (P1, P2…), au même réglage (0,3 MP, ou `--megapixels`) : comparer plusieurs rédactions d'un même plan
+  // (la nôtre, celle d'un compilateur…). Les lettres aveugles disent seulement « un des fichiers » : cle.json garde la correspondance.
+  const fichiersPrompts = (argument("prompts") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const promptsParVariante = new Map<string, string>();
+  const choisies: VarianteBanc[] = [];
+  if (fichiersPrompts.length > 0) {
+    const mp = Number(argument("megapixels") ?? 0.3);
+    for (const [i, f] of fichiersPrompts.entries()) {
+      const id = `P${i + 1}`;
+      promptsParVariante.set(id, (await readFile(f, "utf-8")).trim());
+      choisies.push({ id, libelle: `${String(mp).replace(".", ",")} MP, prompt ${basename(f)}`, megapixels: mp });
+    }
+  } else {
+    for (const id of (argument("variantes") ?? VARIANTES_PAR_DEFAUT.join(",")).split(",").map((x) => x.trim()).filter(Boolean)) {
+      const v = VARIANTES_BANC.find((x) => x.id === id);
+      if (!v) throw new Error(`Variante inconnue : ${id} (voir --liste)`);
+      choisies.push(v);
+    }
+  }
+  const ids = choisies.map((v) => v.id);
   if (!Number.isInteger(duree) || duree < 5 || duree > 10) throw new Error("--duree : un entier de 5 à 10 secondes.");
   const workflow = JSON.parse(await readFile(fichier, "utf-8")) as Graphe;
   // Un prompt à tester à la place de celui du fichier (copié depuis la page d'un plan de Cadence) : indispensable pour K1 et K2, qui comparent des formulations.
@@ -153,7 +168,7 @@ async function main() {
       console.log(`IGNORÉE (${erreur})`);
       continue;
     }
-    const g = preparerGrapheBanc(workflow, v, { dureeSecondes: duree, seed, prompt });
+    const g = preparerGrapheBanc(workflow, v, { dureeSecondes: duree, seed, prompt: promptsParVariante.get(v.id) ?? prompt });
     const x = await executer(base, g, delaiMs);
     const res: Resultat = { id: v.id, libelle: v.libelle, code: codes[v.id], secondes: x.secondes, picMemoireGo: Math.round(x.picGo * 10) / 10, memoireAvantGo: Math.round(x.avantGo * 10) / 10, erreur: x.erreur };
     if (x.sortie) {
