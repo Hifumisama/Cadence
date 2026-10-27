@@ -98,6 +98,18 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
 - [ ] **D8. À décider ensemble : une règle de scénario « dans une scène `action`, une réplique va dans son propre plan, en `coupe` ».** Pas codée. Pour : combat plus lisible, pont sémantique
       applicable (D6). Contre : plus de plans par combat (chacun coûte un rendu), un cri ou une réplique glissés dans l'action seraient coupés du geste, plus de raccords. Le plus raisonnable est
       d'attendre le résultat de D6 : sans gain démontré du pont, la règle coûte sans rapporter.
+- [ ] **D11. Attention « Sol-Attn » de kijai (`ComfyUI-SolAttn_triton`).** Noyau d'attention pour les cartes Blackwell (SM89 à SM121, donc votre 5070 Ti). Mesures de son auteur sur une 5090 :
+      de 1,14 à 1,44 fois plus rapide que SageAttention, et 37 % de pic de mémoire en moins sur les couches MLP. À essayer avant tout autre accélérateur : un seul nœud, et il vise votre carte. Source :
+      l'index communautaire `MiniMax-AI/awesome-minimax-h3-integration` (chiffres rapportés par les auteurs, non vérifiés). Relevé : durée ____ s ; pic de mémoire ____ Go.
+- [ ] **D12. LoRA d'accélération « PDD » pour Ref2VA, 8 étapes (Alibaba PAI, `MiniMax-H3-Ref2VA-Acc-8Step`).** Comparée à notre LoRA turbo ref2v v0.1 à 4 étapes (que la doc officielle dit appliquer « à peine » les
+      références). Les notes de la communauté : à 4 étapes, PDD aplatit les textures ; à 8 étapes, l'écart avec le turbo se referme. Un ComfyUI récent la charge en natif (« banque de LoRA » : un LoRA
+      de base plus 32 têtes de sortie). Licence MiniMax-H3 Community. Essai : même plan, même graine, turbo 4 étapes contre PDD 8 étapes (environ deux fois plus long). Relevé : identité ____ ; voix ____ ; durée ____ s.
+- [ ] **D13. « Ref Patch » (148 Mo, Apache-2.0, `lihaoyun6/MiniMax-H3-Ref-Patch`, avec son nœud `ComfyUI-MiniMaxH3_Ref-Patch`).** L'index dit que FL2VA donne en général une meilleure qualité brute que
+      Ref2VA, qui accepte plus de références mais a une qualité de base plus basse ; ce patch fait imiter Ref2VA par FL2VA, en partie. Si ce qui vous déçoit vient de Ref2VA lui-même, c'est une piste.
+      Essai : même plan, Ref2VA contre FL2VA + Ref Patch. Relevé : identité ____ ; netteté ____ ; durée ____ s.
+- [ ] **D14. Planche de rotation d'un personnage (LoRA `matlod/minimax-h3-turnaround`, 60 Mo).** À partir d'une seule image de référence, cinq vues progressivement tournées du même sujet en une passe
+      (environ 10 s à 512²). Pourrait enrichir les références d'identité de Cadence (face, trois-quarts, profil, dos). Essai hors pipeline : un personnage du registre, cinq vues, puis les réutiliser comme
+      références d'un plan. Relevé : fidélité des vues ____ ; apport sur l'identité du plan ____.
 
 ## E. Résolution, étapes et agrandissement : le banc (doc officielle ComfyUI lue le 2026-10-27)
 
@@ -120,10 +132,12 @@ enregistre les clips sous des lettres tirées au hasard (`clip-A.mp4`…) pour l
   pour V1 et V5, le pack Nvidia VFX pour V6.
 - Résultat dans `data/banc-video/<date>/` : les clips, `resultats.json` (temps, mémoire), `cle.json` (quelle lettre = quelle variante : **à ouvrir après avoir regardé**).
 
-- [ ] **E1. Lancer le banc et juger à l'aveugle.** Regarder les clips, puis noter pour chaque lettre (ligne « Clip A »… de la page) : identité des personnages, précision du geste, voix, douceur de
-      l'image, et un rang. Dire à Claude « j'ai rempli E1 » : il ouvre `cle.json` et `resultats.json` et fait le tableau (temps, pic de mémoire, notes) par variante. Ce que la série répond :
-      **V2 contre V4** = les étapes comptent-elles plus que la résolution pour l'identité et la voix ? **V2 contre V3** = 0,3 ou 0,4 MP ? **V1 contre V5** = l'upscale latent vaut-il son coût, à quel
-      facteur ? **V6** = l'agrandissement par pixels fait-il aussi bien ? Relevé : ____
+- [ ] **E1. Lancer le banc et juger à l'aveugle.** Regarder les clips, puis remplir la ligne de chaque lettre dans le tableau de la page, avec **des notes de 1 à 5** (5 = très bien) :
+      **Identité** = les personnages ressemblent à leurs images de référence (visage, tenue) tout au long du clip ; **Geste** = le mouvement est précis et lisible (coups, mains, impacts) ;
+      **Voix** = timbre et clarté, bouche synchrone (si le plan parle) ; **Douceur** = netteté des détails (peau, tissu, cheveux ; 5 = très net) ; **Rang** = 1 pour le clip que vous garderiez,
+      2 pour le suivant, etc. Ce qui n'entre pas dans une note (défaut en fin de clip, artefact, impression) va dans la **remarque** libre sous le tableau. Dire à Claude « j'ai rempli E1 » : il ouvre
+      `cle.json` et `resultats.json` et fait le tableau (temps, pic de mémoire, notes) par variante. Ce que la série répond : **V2 contre V4** = les étapes comptent-elles plus que la résolution pour
+      l'identité et la voix ? **V2 contre V3** = 0,3 ou 0,4 MP ? **V1 contre V5** = l'upscale latent vaut-il son coût, à quel facteur ? **V6** = l'agrandissement par pixels fait-il aussi bien ? Relevé : ____
 - [ ] **E2. Agrandissement par pixels, à la même taille cible (à la main, seulement si V6 convainc).** Les mêmes clips à 0,3 et 0,4 MP, tous amenés à la même taille (par exemple 1920×1080) avec
       le nœud RTX Video Super Resolution (Comfy-Org, Apache-2.0, PyTorch cu130 ou plus, carte RTX) : la netteté se rapproche-t-elle d'un clip à l'autre ? Relevé : ____
 - [ ] **E3. Accélérations (à la main).** (a) Sage Attention ; (b) `Model Sparse Attention` (méthode `sol-attn`, `verbose` activé pour vérifier qu'elle est active) ; (c) notre nœud `196`
