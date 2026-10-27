@@ -94,6 +94,9 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       nœud de BUNNY réécrit tout le tenseur de jetons sans épargner ceux des images de référence (risque pour la fidélité des personnages, non mesuré).
       Essai (une insertion de nœud entre le nœud 5 et le guideur `125:14`) : 4 plans de combat **sans dialogue**, même seed, alpha 0 / 0,10 / 0,15 ; juger
       l'attribution des actions ET l'identité des personnages. À ne pas utiliser sur un plan qui parle tant que ce n'est pas tranché. Relevé : ____
+      **Décision de principe (2026-10-27, avec l'utilisateur) :** le pont n'est applicable que sur un plan **sans réplique** (aucun `<d>` dans la fiche, donc aucun
+      audio de référence) ; le code pourra le vérifier seul. Nuance : un cri ou un kiai écrit en `<d>` compte comme une réplique. Un réglage « pont » par plan
+      (désactivé par défaut) n'est envisagé qu'après cet essai.
 
 - [ ] **D7. Piste musicale existante (clip de 2 min) : un segment de la piste par plan, en audio de référence.** D'après la doc du Directeur (`docs/r2v-source-audio.md`),
       en r2v l'audio de référence passe par le VAE audio, entre dans le latent audio-vidéo et pilote le rythme et la bouche ; en mode « source » on pose le fichier
@@ -102,6 +105,10 @@ Cadence est déjà le directeur. On regarde ce qui s'en détache. Lecture faite 
       poser la piste d'origine au montage. À regarder : l'image suit-elle le tempo (avec une musique sans voix) ? Motion Context et audio de référence se gênent-ils
       (le son épinglé est un repère de position, la référence une autre liste : effet combiné inconnu) ? Décalage à prévoir de 0,92 s avec Motion Context.
       Relevé : suivi du tempo ____ ; jonction ____.
+
+- [ ] **D8. Règle de scénario à écrire (décidée, pas encore codée) : dans une scène `action`, une réplique va dans son propre plan, en `coupe`.** Une phrase dans
+      `scenario-episode` et `scenario-scene`. Elle sert la lisibilité du combat et rend le pont applicable. À vérifier ensuite sur une création : les plans de combat
+      n'ont plus de `<d>`, les répliques tombent dans des plans de réaction séparés.
 
 ## Journal des résultats
 
