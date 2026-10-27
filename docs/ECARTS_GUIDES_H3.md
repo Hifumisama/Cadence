@@ -78,9 +78,9 @@ quatre fixtures `lib/agents/fixtures/plan-h3/*.txt` : 2 erreurs, 5 alertes, 3 in
 
 ### Sur de vrais prompts : les 9 plans d'« Avatar: Intro version FF » (2026-10-28)
 
-Validateur d'OpenH3-IR sur les prompts assemblés des 9 plans (base : tables `plan_prompt_sections`) : 5 erreurs (R3 ×4 sur le plan 1165, ×2 sur le 1160, T2 sur le 1159 ; voir ci-dessous), de l'ordre de 8 alertes.
+Validateur d'OpenH3-IR sur les prompts assemblés des 9 plans (base : tables `plan_prompt_sections`) : 7 erreurs (R3 ×4 sur le plan 1165, ×2 sur le 1160 ; T2 sur le 1159).
 - **R3 « appears in » manquant (1160, 1165) :** le modèle a écrit « the Earth Master » dans les shots au lieu de `<Subject 1>` ; l'assemblage n'a alors trouvé aucune citation et a écrit « (not cited in a shot) » à la place de `appears in [Shot N]`. Le guide demande de citer les étiquettes dans la description.
 - **T2 (1159) :** `[Shot 1]` porte un timecode.
-- **P7 « Hard cut to » (7 plans sur 9), P2 descriptions trop courtes (7 sur 9, 111 à 283 mots), P5b amplitude/vitesse de caméra absente (7 sur 9).**
+- **P7 « Hard cut to » (6 plans sur 9), P2 descriptions trop courtes (6 sur 9, 111 à 283 mots), P5b amplitude/vitesse de caméra absente (8 sur 9).**
 - **R12 (1158)** pose de la planche de référence dans la définition (« in a sharp karate stance ») ; **R14 (1162)** interprétation (« proud ») dans une définition.
-- Même plan (1160) compilé par OpenH3-IR (`restrained`, images avec rôles, réplique en `--say`) : validateur sans erreur ni alerte ; 2 shots au lieu de 4 ; cite `<Subject N>` partout ; « the shot cuts to » ; décrit les images (tenue, sol) à la compilation ; musique `N/A` (la nôtre : 100 bpm). 1 min 58 s avec l'endpoint local, à condition de `H3IR_GUIDED_DECODING=1` (sans lui le modèle recopie le schéma au lieu de le remplir).
+- Même plan (1160) compilé par OpenH3-IR (`restrained`, images avec rôles, réplique en `--say`) : validateur sans erreur (reste : description de 252 mots, amplitude de caméra absente) ; 2 shots au lieu de 4 ; cite `<Subject N>` partout ; « the shot cuts to » ; décrit les images (tenue, sol) à la compilation ; musique `N/A` (la nôtre : 100 bpm). 1 min 58 s avec l'endpoint local, à condition de `H3IR_GUIDED_DECODING=1` (sans lui le modèle recopie le schéma au lieu de le remplir).
