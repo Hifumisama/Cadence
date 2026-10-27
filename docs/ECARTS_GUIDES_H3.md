@@ -30,6 +30,38 @@ Elles viennent de `skills/3d-animation-short-generator/references/` (tableau de 
 - **Un contrôle final par liste** : cohérence des personnages, continuité de scène par rapport aux ancrages, intelligibilité du dialogue, synchro des bruitages, équilibre de la musique, absence de traces de storyboard.
 - **Une seule musique pour tout le film**, posée à l'assemblage (« ne pas générer de musique par plan », la baisser sous les dialogues) : conforme à ce que nous avons décidé.
 
+## Revue des dépôts « Prompting » et « Agent skills » de l'index communautaire (2026-10-27)
+
+Six lectures en parallèle, en lecture seule, de treize dépôts plus les skills officiels de MiniMax. Ce que les dépôts **affirment** : aucun rendu n'a été vérifié. Licences : voir la dernière colonne ; « inspiration » = reprendre l'idée, jamais le texte.
+
+| Dépôt | Licence | Verdict | À en tirer |
+|---|---|---|---|
+| `ruashots/open-h3-ir` | Apache-2.0 | s'inspirer (les règles se reprennent avec attribution) | catalogue de plus de 100 règles de contrôle ; banc « l'exemple officiel doit passer + variantes défectueuses qui déclenchent chacune leur règle » ; confirme E3 |
+| `unknowlei/minimax-h3-opencode-skills` | MIT | reprendre la liste de contrôle ; s'inspirer du planificateur | checklist de relecture en 9 rubriques ; registre de continuité en cinq colonnes (identité, costume et accessoires, espace et lumière, état des objets, dialogue et audio) |
+| `SlavaSexton/ComfyUI-Agent-Kit` | Apache-2.0 | reprendre | tableau « symptôme → cause probable » pour `iteration-plan` ; méthode de validation d'un graphe ; faits d'exploitation H3 |
+| `T8mars/comfyui-minimax-h3-prompt-enhancer-T8` | tous droits réservés | inspiration seulement | correction déterministe du format `(Sx)` ; grille de mécanismes de caméra de combat (non officielle) |
+| `T8mars/minimax-h3-prompt-skill-T8` | MIT, contenus CC BY 4.0 | inspiration | format de règle « invariant / échec si on l'enlève » ; principes de combat |
+| `BeatAPI/awesome-minimax-h3-prompts` | prompts non relicenciés | inspiration | caméra du même côté de l'axe ; un accessoire « ONE » à dimensions mesurées ; réplique bornée en secondes puis bouche fermée |
+| `benjiyaya/Minimax-H3-Prompt-AgentSkill` | ambiguë (MIT annoncé, pas de fichier) | inspiration | verrou de couleur par personnage ; vecteurs d'action ; exemples de combat |
+| `1038lab/ComfyUI-MiniMax-H3-Promptor` | GPL-3.0 | inspiration | rappel explicite de placer chaque balise dans la phrase d'action ; garde-fous de post-traitement |
+| `ethanfel/ComfyUI-MiniMax-H3-Guide` | GPL-3.0 | inspiration | validation stricte avant génération ; rôles de référence explicites |
+| `okaypic/okaypic-video-skill` | MIT | inspiration | planche-contact 5×1 pour comparer deux prises ; `silencedetect` pour vérifier qu'une réplique est dite ; reprise idempotente, un seul réessai, jamais rejouer une erreur de contenu |
+| `lightx2v/…Prompt-Rewriter-LoRA` (27B, 8B) | non précisée | ignorer les LoRA | le prompt système de la version 8B comme texte de comparaison ; Ref2VA non pris en charge |
+| `princepainter/ComfyUI-PainterNodes` | MIT | ignorer pour le prompt | paramètres d'encodage des références (1 536 px au plus, multiples de 32) |
+| `joeVenner/awesome-minimax-h3`, `yangzhou-chaofan/minimax-h3-1000-prompts` | MIT / aucune | ignorer | l'« anatomie en trois champs » est le format de base, sans Ref2VA |
+
+**Écart vérifié dans notre code.** `lib/agents/plan-h3-assemblage.ts` (ligne 266) écrit l'identifiant de locuteur dans la ligne de rétention de la voix (`<Audio 1>: reference - the character (S1) follows …`). Le guide officiel Ref2VA (section 5.4) dit : « Do not write `(Sx)` in `retention_analysis` » ; son propre exemple écrit `<Audio 1>: reference - its vocal timbre guides the dialogue delivery of <Subject 3> without copying …`. Le `(Sx)` reste correct dans `subject_definitions`. Correction d'une ligne, à faire avec les fixtures et les tests.
+
+**Nuance sur « Hard cut to ».** Le corpus de BeatAPI (550 prompts) en contient 13, contre 79 « Cut to » et 11 « Match cut » : la formule est attestée dans des prompts publics, sans être la plus courante, et tous les dépôts d'outils qui recopient les guides écrivent « the camera cuts to ». E3 reste le bon moyen de trancher.
+
+**Point ouvert : où s'écrit `<scenetrans>`.** Trois conventions coexistent : à l'intérieur du `<d>` aux deux bouts (H3-Guide, T8), à l'extérieur, après le `</d>` de la première partie et avant le `<d>` de la seconde, la réplique étant coupée en deux `<d>` (OpenH3-IR, qui valide contre l'exemple officiel), et notre règle (la réplique entière dans un seul `<d>`, `<scenetrans>` à l'extérieur, une phrase de continuité). Le texte officiel dit seulement « aux points de raccord, dans les deux parties », et son seul exemple d'une réplique qui traverse une coupe n'utilise aucun `<scenetrans>`. Non tranché.
+
+**Pistes de contrôle de sortie à ajouter à `plan-h3-controles.ts`** (idées d'OpenH3-IR, d'unknowlei et de T8) : vêtements du sujet non répétés d'un plan à l'autre (dérive d'identité), coupe qui n'apporte rien de nouveau, « Subject 1 » écrit sans chevrons, mouvements de caméra contradictoires (`Push In` avec « moves backward »), `(S1)` en ASCII avant chaque `<d>`, réplique plus courte que les plans qui la portent.
+
+**Pistes de règles de combat à passer au banc** (idées de BeatAPI, T8 et Benji, aucune officielle) : la caméra reste du même côté de l'axe ; un accessoire unique à dimensions mesurées (« ONE plank, 1,6 m ») ; « un coup raté reste raté » et le contact ne projette pas automatiquement ; après un temps de récupération, les deux combattants repartent d'une position visible.
+
+**Détail technique à regarder dans notre workflow.** Le Kit et l'index décrivent un piège de l'upscale latent à deux passes : les références gardent leur taille de latent et se retrouvent à la mauvaise échelle quand la toile grandit (« identity warp »). L'un des agrandisseurs latents cité (`Tr1dae/ComfyUI-MiniMaxH3_LatentUpscaler`) annonce mettre à l'échelle aussi le conditionnement `minimax_refs`. Notre passe d'upscale réutilise le conditionnement de la première passe (nœud `135:29`, lien vers le nœud `5`) : à vérifier avec V1 et V5 du banc (identité).
+
 ## Décisions en attente
 
 Rien n'est modifié dans `agents/skills/plan-h3/`. Un banc à l'aveugle de 18 vidéos, fait le 20 octobre, a montré qu'un skill plus complet aide un modèle et en dessert un autre : un changement de skill se juge au rendu, pas à la lecture. L'ordre que je propose : E3 (formule de coupe) d'abord, parce que c'est un changement d'une ligne dans le code avec un essai de 5 minutes ; puis le vocabulaire de caméra et la manière de dire, qui demandent un essai de plans réels.
