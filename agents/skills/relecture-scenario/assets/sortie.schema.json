@@ -58,7 +58,7 @@
             "properties": {
               "type": { "type": "string", "const": "duree_plan" },
               "plan": { "type": "string", "description": "Reference of the plan concerned." },
-              "secondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "The new generation duration, whole seconds." },
+              "secondes": { "type": "integer", "minimum": 5, "maximum": 10, "description": "The new generation duration, whole seconds." },
               "critere": { "type": "string", "enum": ["doublon", "motif", "entrees-sorties", "physique", "temps", "direction", "menace", "resolution", "dialogue"] },
               "motif": { "type": "string", "description": "(French) One sentence: why (usually to keep the total on target after a cut or an addition)." }
             }
@@ -72,7 +72,7 @@
               "apres": { "type": "string", "description": "Reference of the plan AFTER which the new plan comes (the last plan, for a resolution)." },
               "titre": { "type": "string", "description": "(French) Short title of the new plan." },
               "description": { "type": "string", "description": "(French) The new plan, in the screenplay's form: what happens and why, the lines if any (`NOM : « … »`), then « État en fin de plan : … ». With no camera and no reference to another plan." },
-              "secondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "Generation duration, whole seconds." },
+              "secondes": { "type": "integer", "minimum": 5, "maximum": 10, "description": "Generation duration, whole seconds." },
               "critere": { "type": "string", "enum": ["resolution", "menace", "physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "dialogue"] },
               "motif": { "type": "string", "description": "(French) One sentence: why this plan is needed." }
             }

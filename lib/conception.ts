@@ -85,13 +85,13 @@ export const GENRES: readonly { nom: string; ton: number; /** Teinte HSL de la l
   { nom: "Slice of life", ton: 28, teinte: 80, poids: 2.2 },
 ];
 
-/** Durée d'un plan selon le rythme (secondes) : les mêmes plages que le skill `scenario-episode`. */
+/** Durée d'un plan selon le rythme (secondes) : les mêmes plages que les skills `scenario-episode` et `scenario-scene` (plafond dur de 10 s). */
 export const PLAGES_RYTHME: Record<RythmeBrief, { min: number; max: number }> = {
-  lent: { min: 10, max: 15 },
-  mesure: { min: 8, max: 12 },
-  soutenu: { min: 8, max: 12 },
-  rapide: { min: 5, max: 8 },
-  variable: { min: 5, max: 15 },
+  lent: { min: 8, max: 10 },
+  mesure: { min: 6, max: 9 },
+  soutenu: { min: 6, max: 9 },
+  rapide: { min: 5, max: 7 },
+  variable: { min: 5, max: 10 },
 };
 
 /** Le style choisi : une entrée de la bibliothèque (par identifiant), ou un style libre avec ses deux prompts et, si

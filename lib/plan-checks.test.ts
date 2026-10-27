@@ -31,11 +31,11 @@ test("structure : plan bien formé, aucun signalement", () => {
   assert.deepEqual(p, []);
 });
 
-test("structure : durée non entière ou hors 5-15", () => {
+test("structure : durée non entière ou hors 5-10", () => {
   assert.equal(controlerStructure([], 3)[0]?.type, "duree_invalide");
-  assert.equal(controlerStructure([], 16)[0]?.type, "duree_invalide");
+  assert.equal(controlerStructure([], 11)[0]?.type, "duree_invalide");
   assert.equal(controlerStructure([], 7.5)[0]?.type, "duree_invalide");
-  assert.deepEqual(controlerStructure([], 12), []);
+  assert.deepEqual(controlerStructure([], 10), []);
 });
 
 test("structure : shot 1 qui démarre tard, shot suivant sans timecode", () => {

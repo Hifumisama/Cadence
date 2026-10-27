@@ -16,8 +16,8 @@
         "properties": {
           "titre": { "type": "string", "maxLength": 200, "description": "(French) Distinct from every other plan's title." },
           "description": { "type": "string", "minLength": 1, "description": "(French) What happens and why the plan exists, then the lines said (each `NAME : « exact text »`, in the dialogue language, before « État en fin de plan : »). Narrative, with no framing, light, sound or camera movement, and no reference to another plan." },
-          "liaison": { "type": "string", "enum": ["suite", "coupe"], "description": "How this plan links to the PREVIOUS one (for the first plan: to the previous scene's last plan). suite: it takes up where the previous plan ends (same place, same moment or seconds later, same people where the previous « État en fin de plan » left them). coupe: a clean cut (another place, another moment, another point of view). The first plan of the episode is a coupe. When unsure: suite." },
-          "dureeSecondes": { "type": "integer", "minimum": 5, "maximum": 15, "description": "Generation duration, whole seconds, from 5 to 15 (never less than 5). It follows the brief's rhythm and the scene's genre; group close moments into a single plan. A dialogue plan: generous duration, breathing margin of at least 2 s." }
+          "liaison": { "type": "string", "enum": ["suite", "coupe"], "description": "How this plan links to the PREVIOUS one (for the first plan: to the previous scene's last plan). suite: it takes up where the previous plan ends (same place, same moment or seconds later, same people where the previous « État en fin de plan » left them). coupe: a clean cut (another place, another moment, another point of view). The first plan of the episode is a coupe. When unsure: coupe." },
+          "dureeSecondes": { "type": "integer", "minimum": 5, "maximum": 10, "description": "Generation duration, whole seconds, from 5 to 10 (never less than 5). It follows the brief's rhythm and the scene's genre; group close moments into a single plan. A dialogue plan: generous duration, breathing margin of at least 2 s." }
         }
       }
     },

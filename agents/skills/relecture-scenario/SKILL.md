@@ -56,7 +56,7 @@ Do **not** report: style, pacing preferences, framing, light or camera (decided 
 1. **The smallest correction that makes the fault disappear.** Change the broken sentence or add one; keep everything else of the description **word for word**, including the other lines and the `État en fin de plan :` sentence when it stays true. The code compares your text to the original and sends you back if you rewrite most of it.
 2. **A modified description keeps its form**: narrative, then the lines (`NOM : « … »`), then `État en fin de plan : …`, written in French, with no framing, light, sound or camera movement of your own, and no reference to another plan. Update the `État en fin de plan` if your correction changes it, and **check that the next plan still starts from it**: if not, correct the next plan too (one more correction) rather than leaving the seam.
 3. **`liaison`**: when you remove or add a plan, or move an event, check the `liaison` of the plan that follows (`suite` only if it really takes up where the previous plan ends; `coupe` for another place or moment). Change it with `modifier_plan`. The first plan is always a `coupe`.
-4. **Durations**: 5 to 15 s whole seconds. Cutting or adding a plan moves the total; the application checks it stays within ±20 % of the target. Compensate with `duree_plan` on a neighbour if needed.
+4. **Durations**: 5 to 10 s whole seconds. Cutting or adding a plan moves the total; the application checks it stays within ±20 % of the target. Compensate with `duree_plan` on a neighbour if needed.
 5. **Invent nothing**: no new character, object, place or story event beyond what the fix needs. If the fix would need something the brief and the registry do not have, choose another fix. A closing plan uses people and places the episode already has.
 6. **At most 8 corrections**, at most one added plan. If an episode needs more, say it in `notes` (it is to be rewritten, not proofread).
 7. **Every correction has a `critere` and a one-sentence `motif`** (French) that quotes or points at the broken words. A correction with no stated reason is dropped.
@@ -64,7 +64,7 @@ Do **not** report: style, pacing preferences, framing, light or camera (decided 
 
 ## Order of work
 
-1. Read the episode once for the story. 2. Read it again plan by plan with the ledger, noting every fault with its words. 3. Fill `constats` (every real fault you found, even one you decide not to fix, with its plans). 4. Fill `corrections` with the smallest fix for each fault that is worth fixing. 5. Recheck: each corrected plan still ends with `État en fin de plan :`, no handle appears in a text, durations are whole numbers from 5 to 15, no author's line was changed.
+1. Read the episode once for the story. 2. Read it again plan by plan with the ledger, noting every fault with its words. 3. Fill `constats` (every real fault you found, even one you decide not to fix, with its plans). 4. Fill `corrections` with the smallest fix for each fault that is worth fixing. 5. Recheck: each corrected plan still ends with `État en fin de plan :`, no handle appears in a text, durations are whole numbers from 5 to 10, no author's line was changed.
 
 ## Before you answer
 

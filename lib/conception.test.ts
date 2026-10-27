@@ -91,9 +91,9 @@ test("ton : moyenne des genres, mot et texte du brief", () => {
 });
 
 test("plansEstimes : mêmes plages que le skill scenario-episode", () => {
-  assert.deepEqual(plansEstimes(120, "mesure"), { min: 10, max: 15, moyen: 12 });
-  assert.deepEqual(plansEstimes(120, "rapide"), { min: 15, max: 24, moyen: 18 });
-  assert.deepEqual(plansEstimes(30, "lent"), { min: 2, max: 3, moyen: 2 });
+  assert.deepEqual(plansEstimes(120, "mesure"), { min: 13, max: 20, moyen: 16 });
+  assert.deepEqual(plansEstimes(120, "rapide"), { min: 17, max: 24, moyen: 20 });
+  assert.deepEqual(plansEstimes(30, "lent"), { min: 3, max: 4, moyen: 3 });
   assert.equal(plansEstimes(30, "lent").min >= 1, true);
 });
 

@@ -30,6 +30,7 @@ import { TYPE_AFFICHE } from "../affiches";
 import { entreePromptAffiche } from "./affiche";
 import { entreeCorrectionPlan, entreeRelecture, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, entreeScenarioScene, entreeTraitement, lireBriefDuProjet, type EntreeSkill } from "./contexte";
 import { SEUIL_TRAITEMENT_SECONDES } from "./traitement";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
 import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registre";
 import { annulerLot, annulerRunsDePropositions, runsDuLot, type ResultatAnnulationLot } from "./lots";
 import { cleSousTacheEpisode, cleSousTacheScene, dernieresSousTaches, episodeIdDeCle, estRunActif, sceneIdDeCle } from "./lots-pur";
@@ -1064,7 +1065,7 @@ export async function genererReecriturePlan(
   const [p] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, conv.cibleId));
   if (!p) return ERR("Plan introuvable.");
   const consigne = `Réécris la fiche de ce plan depuis sa nouvelle description (elle fait foi). Demande de l'utilisateur : « ${options.consigne.trim().slice(0, 600)} ». Garde la durée et les personnages sauf si la description les change ; le dialogue de la description fait foi (chaque réplique dans un <d> avec son locuteur) : reprends-le mot pour mot, sans rien chercher d'autre à lier.`;
-  const duree = Number.isInteger(options.dureeSecondes) && options.dureeSecondes! >= 5 && options.dureeSecondes! <= 15 ? options.dureeSecondes : undefined;
+  const duree = Number.isInteger(options.dureeSecondes) && options.dureeSecondes! >= DUREE_GENERATION_MIN && options.dureeSecondes! <= DUREE_GENERATION_MAX ? options.dureeSecondes : undefined;
   const e = await entreePlanH3(db, conv.projectId, p.uuid, consigne, undefined, { intention: description, ...(duree ? { dureeVoulue: duree } : {}) });
   if (!e) return ERR("Plan introuvable.");
   const propId = await nouvelleProposition(conv, { skill: "plan-h3", consigne: options.consigne.trim(), contexte: e.contexte });

@@ -504,11 +504,11 @@ test("durée demandée par la consigne : écrite avec la fiche, une demande seul
   assert.equal(a.dureeGenerationSecondes, 9, "la durée demandée part avec la fiche (rendu et montage la lisent)");
   assert.ok(depuisIterationPlan(avecDuree, plan())[0]!.avertissements!.some((x) => /6 s → 9 s/.test(x.texte ?? "")), "le changement de durée est annoncé");
 
-  const seule = sortie({ dureeSecondes: 12, changements: [], nouvelleDescription: undefined });
+  const seule = sortie({ dureeSecondes: 10, changements: [], nouvelleDescription: undefined });
   assert.equal(raisonSansEcriture(seule, plan()), null, "une demande de durée seule est une écriture, pas un refus");
-  assert.equal(lireApresFiche(depuisIterationPlan(seule, plan())[0]!.apres).dureeGenerationSecondes, 12);
+  assert.equal(lireApresFiche(depuisIterationPlan(seule, plan())[0]!.apres).dureeGenerationSecondes, 10);
 
-  for (const hors of [20, 4, 7.5]) {
+  for (const hors of [20, 12, 4, 7.5]) {
     const s = sortie({ dureeSecondes: hors });
     assert.equal(lireApresFiche(depuisIterationPlan(s, plan())[0]!.apres).dureeGenerationSecondes, undefined, `${hors} s est ignoré`);
   }

@@ -125,7 +125,7 @@ change après un ré-export. Les valeurs du fichier sont des **valeurs de test**
 | Donnée | Nœud | Champ | Note |
 |---|---|---|---|
 | Prompt assemblé | `22:11` (PrimitiveStringMultiline) | `value` | |
-| Durée du plan | `22:23` (PrimitiveFloat) | `value` | secondes, **5 à 15** (erreur franche sinon) ; `22:24` en tire le nombre d'images (24 i/s, forme 17k+5 : 5 s = 124, 8 s = 192, 12 s = 294, 15 s = 362) qui alimente `length` du nœud `5` |
+| Durée du plan | `22:23` (PrimitiveFloat) | `value` | secondes, **5 à 10** (erreur franche sinon) ; `22:24` en tire le nombre d'images (24 i/s, forme 17k+5 : 5 s = 124, 8 s = 192, 12 s = 294, 15 s = 362) qui alimente `length` du nœud `5` |
 | Seeds | `16`, `103` (easy seed) : `seed` ; `135:27` (RandomNoise) : `noise_seed` | | la seed du plan, si elle existe |
 | Images de référence | `5` : `ref_images.ref_image_<slot-1>` | | **6 au plus** (images + vidéos) ; le nœud en accepte 9 |
 | Audios de référence | `5` : `ref_audios.ref_audio_<slot-1>` | | **3 au plus** ; prises des répliques liées d'abord, bruitages sur les emplacements libres |

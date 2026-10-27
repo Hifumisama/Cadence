@@ -172,7 +172,7 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     const { input, promptFiche, raccordJobId, plan: lePlan } = await construireSubmissionInput(job.planId, job.activerUpscale);
     // Un préfixe de fichier propre à ce rendu : plus de collision de noms, ni de résultat en cache servi à un autre rendu.
     input.prefixeSortie = `cadence_p${job.planId}_r${job.numeroRendu}${job.tentative > 1 ? `_t${job.tentative}` : ""}`;
-    verifierEntree(input); // durée hors 5-15 s, trop de références : échec franc (voir catch)
+    verifierEntree(input); // durée hors 5-10 s, trop de références : échec franc (voir catch)
     // Ce qui est gardé sur le rendu : le prompt de la FICHE (de quoi comparer deux rendus et voir qu'une modification n'a pas bougé le prompt ;
     // « Repartir de là » le restaure) et, s'il y en a un, l'essai dont l'image de raccord vient.
     // Un plan « suite » sans image de raccord faute d'emplacement libre : rien ne bloque (la génération part comme avant), mais l'essai le dit.

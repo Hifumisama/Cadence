@@ -2,10 +2,11 @@
 
 import { useRef, useState } from "react";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/plan-checks";
 
 // Bornes imposées par H3 : pas de génération plus courte ni plus longue.
-const DUREE_MIN = 5;
-const DUREE_MAX = 15;
+const DUREE_MIN = DUREE_GENERATION_MIN;
+const DUREE_MAX = DUREE_GENERATION_MAX;
 
 function seedAuHasard(): string {
   let s = String(1 + Math.floor(Math.random() * 9));

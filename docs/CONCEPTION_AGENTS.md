@@ -45,7 +45,7 @@ une scène, un seul plan) sur un projet déjà créé.
    par l'utilisateur, touche l'existant.
 2. **Le format est structuré et validé avant écriture.** Le modèle rend du JSON
    contre un schéma ; on le valide avec les contrôles déterministes existants
-   (`lib/plan-checks.ts` : verbatim, 3 slots audio, plan ≤ 15 s), puis on
+   (`lib/plan-checks.ts` : verbatim, 3 slots audio, plan ≤ 10 s), puis on
    applique en **une transaction**. Une validation qui échoue n'écrit rien.
 3. **Le contrôle mécanique reste hors du modèle.** Verbatim, slots, durées :
    on ne fait pas confiance au LLM pour les respecter, on les vérifie.
@@ -162,7 +162,7 @@ Contexte assemblé :
   vers la gauche) ;
 - le registre d'assets, **d'abord ceux déjà cités dans la scène** ;
 - le dialogue de la scène (dans les descriptions de ses plans) ;
-- les contraintes techniques (15 s, 3 slots audio, verbatim, marge de
+- les contraintes techniques (10 s, 3 slots audio, verbatim, marge de
   respiration en plan dialogué).
 
 Sortie : une proposition qui contient
@@ -492,3 +492,16 @@ création partagent le GPU (`VerrouGpu`, groupe « creation ») : exclusifs face
 
 À mesurer avant de s'y fier : la qualité des raccords entre scènes (la relecture, qui lit tout l'épisode, est le filet), la taille de la relecture et
 de l'inventaire sur ~120 plans, le taux de cache du préfixe `scenario-scene`.
+
+## 18. Plafond dur de 10 s par plan et `coupe` par défaut (2026-10-27)
+
+Un plan dure de 5 à **10 s** (`DUREE_GENERATION_MAX`, `lib/plan-checks.ts`) : à 0,4 MP un plan de 10 s tient sur la carte (environ 3 min de rendu)
+et donne des gestes et des visages plus précis qu'un plan de 15 s à 0,2 MP. Les temps de rendu mesurés sont à peu près proportionnels à la durée
+(environ 9 s de calcul par seconde de vidéo à 0,2 MP) : le plafond n'économise pas de calcul, il force des gestes lisibles et des rendus faciles à refaire.
+Les plages de rythme (`PLAGES_RYTHME`) suivent : lent 8–10 s, mesuré et soutenu 6–9 s, rapide 5–7 s, variable 5–10 s. Les skills et leurs schémas JSON
+disent « 10 » en toutes lettres (texte statique) : les garder alignés avec la constante. Un plan existant de plus de 10 s doit être raccourci avant d'être
+rendu à nouveau (le worker refuse la durée).
+
+La liaison `suite` (dernière image rendue = première image du plan suivant) devient l'exception : le skill dit « `coupe` en cas de doute ».
+`suite` est réservé à une action continue dans le même cadre qui dépasse la limite d'un plan ; un champ/contrechamp, un changement d'angle ou un
+nouveau moment est une `coupe`. Raison : une chaîne de `suite` oblige à refaire tous les plans suivants quand l'un change.

@@ -1,3 +1,4 @@
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
 import { controlerStructure, extraireBalisesD, type PromptSection } from "../plan-checks";
 import type { ChangementBrut } from "./changements";
 import { MAX_REFS } from "../plan-checks";
@@ -52,7 +53,7 @@ export type SortieIterationPlan = {
   /** La NOUVELLE description (intention) du plan, en français, terminée par « État en fin de plan : … » : à fournir quand la correction change
    * ce qui se passe dans le plan, ou l'état (position, orientation, feu…) qu'il laisse au plan suivant. Écrite avec la fiche. */
   nouvelleDescription?: string;
-  /** La NOUVELLE durée de génération du plan (5 à 15 s), quand la consigne la demande : écrite avec la fiche, partout (rendu, montage). */
+  /** La NOUVELLE durée de génération du plan (5 à 10 s), quand la consigne la demande : écrite avec la fiche, partout (rendu, montage). */
   dureeSecondes?: number;
   /** La consigne change CE QUI SE PASSE dans le plan : ce n'est plus une retouche de passages mais une réécriture du plan. Les `changements`
    * sont ignorés ; la fiche est réécrite à part (`plan-h3`, depuis `nouvelleDescription`). */
@@ -103,10 +104,10 @@ export function etatEnFinDePlan(description: string | undefined | null): string 
 const norm = (t: string) => t.replace(/\s+/g, " ").trim();
 const descriptionChangee = (sortie: SortieIterationPlan, ctx: ContexteIteration): boolean =>
   !!sortie.nouvelleDescription?.trim() && norm(sortie.nouvelleDescription) !== norm(ctx.description ?? "");
-/** La durée demandée par la consigne, quand elle est valide (entière, 5 à 15 s) et change celle du plan ; sinon null. */
+/** La durée demandée par la consigne, quand elle est valide (entière, 5 à 10 s) et change celle du plan ; sinon null. */
 export const dureeDemandee = (sortie: Pick<SortieIterationPlan, "dureeSecondes">, ctx: Pick<ContexteIteration, "dureeGenerationSecondes">): number | null => {
   const d = sortie.dureeSecondes;
-  return typeof d === "number" && Number.isInteger(d) && d >= 5 && d <= 15 && d !== ctx.dureeGenerationSecondes ? d : null;
+  return typeof d === "number" && Number.isInteger(d) && d >= DUREE_GENERATION_MIN && d <= DUREE_GENERATION_MAX && d !== ctx.dureeGenerationSecondes ? d : null;
 };
 
 /** Les mots de la CONSIGNE qui se retrouvent tels quels dans les passages écrits (hors balise `<d>`, seule à garder le français) et qui n'étaient pas
@@ -521,7 +522,7 @@ export function diagnosticIteration(json: unknown): DiagnosticIteration | null {
     abandon: s.abandon && typeof s.abandon.propose === "boolean" ? { propose: s.abandon.propose, raison: s.abandon.raison ?? "" } : null,
     reecriture:
       s.reecriture === true && typeof s.nouvelleDescription === "string" && s.nouvelleDescription.trim()
-        ? { description: s.nouvelleDescription.trim(), ...(typeof s.dureeSecondes === "number" && Number.isInteger(s.dureeSecondes) && s.dureeSecondes >= 5 && s.dureeSecondes <= 15 ? { dureeSecondes: s.dureeSecondes } : {}) }
+        ? { description: s.nouvelleDescription.trim(), ...(typeof s.dureeSecondes === "number" && Number.isInteger(s.dureeSecondes) && s.dureeSecondes >= DUREE_GENERATION_MIN && s.dureeSecondes <= DUREE_GENERATION_MAX ? { dureeSecondes: s.dureeSecondes } : {}) }
         : null,
     assetsSuggeres: (Array.isArray(s.assetsManquants) ? s.assetsManquants : [])
       .filter((a): a is NonNullable<SortieIterationPlan["assetsManquants"]>[number] => !!a && typeof a.code === "string" && typeof a.type === "string")

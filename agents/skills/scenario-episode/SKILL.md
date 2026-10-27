@@ -29,11 +29,11 @@ Do not ask questions: write a **complete** cut with its durations, since a wrong
 
 ## What a plan is
 
-A plan is **one video generation call** of **5 to 15 seconds**, which may hold several internal cuts (their number follows action intensity; `plan-h3` writes them). **The goal is few plans to shoot**: each is a generation to produce, review and fix, so group rather than split.
+A plan is **one video generation call** of **5 to 10 seconds**, which may hold several internal cuts (their number follows action intensity; `plan-h3` writes them). **The goal is few plans to shoot**: each is a generation to produce, review and fix, so group rather than split.
 
-1. **One plan = one unit of action.** Past 15 seconds you must cut, and the cut is a staging decision. A plan drifting toward 18 seconds almost always holds two.
+1. **One plan = one unit of action.** Past 10 seconds you must cut, and the cut is a staging decision. A plan drifting toward 12 seconds almost always holds two.
 2. **Never under 5 seconds.** A 2 or 3 second moment is not a plan: it becomes an internal cut of a neighbouring plan, or it grows to 5 s if the story justifies it.
-3. **Duration follows `rythme`.** `lent`: **10–15 s**. `mesure` and `soutenu`: **8–12 s**. `rapide`: **5–8 s**, with brief moments arranged as a montage. `variable`: each scene's genre decides. No `rythme`: 8–15 s. A 5–6 s plan outside a fast rhythm is an exception (an isolated gesture, a reaction, an insert).
+3. **Duration follows `rythme`.** `lent`: **8–10 s**. `mesure` and `soutenu`: **6–9 s**. `rapide`: **5–7 s**, with brief moments arranged as a montage. `variable`: each scene's genre decides. No `rythme`: 6–10 s. A 5–6 s plan outside a fast rhythm is an exception (an isolated gesture, a reaction, an insert).
 4. **The total stays within ±20% of `dureeEpisodeSecondes`.** Add the durations before answering; the application recounts and sends the total back if it is off. The number of plans moves the total most.
 5. **Write the generated duration**, not the duration seen on screen.
 6. **The description** is one or two short paragraphs: what happens, **why the plan exists** and, if someone speaks, **the lines** (see "The lines"). The intention is the only thing that later lets the video prompt turn "the first decision we see her make" into observable events. A plan without intention is empty.
@@ -61,19 +61,19 @@ A description never refers to another plan, so **`liaison` is the plan's only li
 - **`suite`**: the plan takes up **where the previous one ends**: same place, same moment or a few seconds later, the same people where the previous `État en fin de plan` left them. The video prompt will open on that state.
 - **`coupe`**: a **clean cut**: another place, another moment, another point of view, a reaction elsewhere. Nothing of the previous plan's end has to be reproduced.
 
-Decide it from the story, not from the scene: a new scene is usually a `coupe`, but a scene can also cut inside itself (a cutaway, an insert) and a plan can follow another across two scenes of one action. The **first plan of the episode is a `coupe`**. When unsure, `suite`: a plan that follows on is the more common case.
+Decide it from the story, not from the scene: a new scene is usually a `coupe`, but a scene can also cut inside itself (a cutaway, an insert) and a plan can follow another across two scenes of one action. The **first plan of the episode is a `coupe`**. When unsure, `coupe`. `suite` is the exception and needs a reason: one continuous action in the same framing that runs past the 10-second limit of a plan (a movement, a fall, a long take cut for length). A shot/reverse shot, a change of angle, a cutaway or a new moment is a `coupe`, even inside one scene: the last image of a rendered plan only becomes the first image of the next one for a `suite`, and a chain of `suite` plans forces every following plan to be rendered again when one changes.
 
 ## Grouping, and cutting better
 
-**Group** several moments into one plan (the default) when they share place, time and characters and follow each other without a break, and their sum fits in 15 s with dialogue and margin. Variety of viewpoints is not a reason to split.
+**Group** several moments into one plan (the default) when they share place, time and characters and follow each other without a break, and their sum fits in 10 s with dialogue and margin. Variety of viewpoints is not a reason to split.
 
-**Separate** on a change of place or time; a dialogue exceeding 15 s (cut at a meaning boundary); a moment needing a very different set of reference images (a plan carries six at most); a deliberate break in tone.
+**Separate** on a change of place or time; a dialogue exceeding 10 s (cut at a meaning boundary); a moment needing a very different set of reference images (a plan carries six at most); a deliberate break in tone.
 
 Where a first cut goes wrong:
 
-1. **Over-cutting.** Consecutive 3–5 s plans in one place are almost always one 10–15 s plan. Reread each pair of consecutive plans: if they fit in 15 s without changing place or time, merge them.
+1. **Over-cutting.** Consecutive 3–5 s plans in one place are almost always one 8–10 s plan. Reread each pair of consecutive plans: if they fit in 10 s without changing place or time, merge them.
 2. **Static plan without intention.** If nothing changes in the image, give it an intention (a wait, a held tension: say so) or blend it into a neighbour.
-3. **Static dialogue.** Cover it with internal cuts (shot/reverse shot, the listener's reaction, what the speech provokes). An exchange that fits in 15 s is ONE plan, not one per line, and a single viewpoint lacks drama.
+3. **Static dialogue.** Cover it with internal cuts (shot/reverse shot, the listener's reaction, what the speech provokes). An exchange that fits in 10 s is ONE plan, not one per line, and a single viewpoint lacks drama.
 4. **Continuity.** Think of the physical sequence of plans (exits and entrances, light that changes for no reason) without storing it.
 5. **A populated place and the same place empty are two places for generation.** Say so in the description: it will be two assets.
 6. **Cadence tells a character's state by contrast.** Danger is cut dense, taking control is held long. The contrast plays **inside** plans (cut density), not by multiplying short plans.
@@ -100,9 +100,9 @@ A line lives **in the plan's description and nowhere else**: the video prompt st
 
 1. **Write each line as `NAME : « text »`**, one per line of the description, in speaking order, after the narrative and **before** `État en fin de plan :`. `NAME` is a registry character's name, or `voix off`. Never change a speaker "to make it fit".
 2. **Word for word**, in the dialogue language, punctuation included: the lines are reused verbatim in the video prompt, never rephrased.
-3. A line belongs to **one plan** only. A plan may carry several (shot/reverse shot); an exchange that fits in 15 s is one plan.
+3. A line belongs to **one plan** only. A plan may carry several (shot/reverse shot); an exchange that fits in 10 s is one plan.
 4. **Dialogue decides duration.** Pick a **generous** duration: the lines plus a margin of at least 2 s (settling the gaze before the first syllable and after the last). Do not compute it from word count.
-5. A line too long for 15 s: cut **at a meaning boundary**, between two lines, never mid-line; use the second plan to change angle.
+5. A line too long for 10 s: cut **at a meaning boundary**, between two lines, never mid-line; use the second plan to change angle.
 6. At most **three characters speak in one plan** (each needs a voice reference); split the plan at a meaning boundary beyond that.
 
 ## The author's words
@@ -124,9 +124,9 @@ The brief's style and notes apply: you do not redefine them. Stay faithful to th
 - Every beat of `parolesDeLAuteur` has its plan; their framing, sound and voice-over directions are in a `Consigne de l'auteur :` sentence; no line is invented that they did not ask for (or it is in `inventions`).
 - Every plan's description ends with `État en fin de plan :` (positions relative to landmarks, never to the camera); the first plan of a place names its landmarks; no event is done twice.
 - Every plan followed by a `suite` ends in a movement in progress (one sharp gesture), not at rest; in a clash, every character acts in each beat, strong actions carry their scale in a stylised style, and nothing crosses a solid limit.
-- Every plan has a description with an intention, an integer duration from 5 to 15 within the rhythm's range, and a `liaison` (`suite` or `coupe`).
+- Every plan has a description with an intention, an integer duration from 5 to 10 within the rhythm's range, and a `liaison` (`suite` or `coupe`).
 - The total is within ±20% of the target.
 - Every scene has a genre and a mood; montages are one plan; a tipping point is set up.
-- No consecutive plans could merge into 15 s; no plan refers to another; no description holds framing, light, sound or camera.
+- No consecutive plans could merge into 10 s; no plan refers to another; no description holds framing, light, sound or camera.
 - Every line is in its plan's description as `NAME : « text »`, exact, before `État en fin de plan :`, with at least 2 s of margin; at most three speakers per plan.
 - Your additions are in `inventions`.

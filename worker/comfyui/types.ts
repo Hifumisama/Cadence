@@ -11,7 +11,7 @@ export type SubmissionInput = {
   prefixeSortie?: string;
   dureeSecondes: number;
   fps: number;
-  /** `dureeSecondes` : 5 à 15 (nœud 22:23). `fps` : fps VISÉ du plan, informatif — le graphe génère à 24 i/s et
+  /** `dureeSecondes` : 5 à 10 (nœud 22:23). `fps` : fps VISÉ du plan, informatif — le graphe génère à 24 i/s et
    * règle la cadence finale lui-même (nœuds 168/169/170, voir workflows/README.md). */
   refsImage: RefMedia[]; // max 6 (images + vidéos), emplacement 1 à 6
   refsAudio: (RefMedia & { dureeSecondes?: number | null })[]; // max 3, emplacement 1 à 3 ; durée mesurée de la prise

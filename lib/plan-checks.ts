@@ -111,7 +111,9 @@ export function extraireLabels(texte: string): string[] {
 /** Plancher par shot : en dessous, H3 rallonge ou lisse le plan. */
 export const SHOT_MIN_SECONDES = 1.5;
 export const DUREE_GENERATION_MIN = 5;
-export const DUREE_GENERATION_MAX = 15;
+/** Plafond dur d'un plan (décision du 2026-10-27) : un plan de 10 s à 0,4 MP tient sur la carte et donne des gestes plus précis qu'un plan de 15 s
+ * à 0,2 MP ; au-delà, l'action se coupe. Source unique : les skills et leurs schémas disent « 10 » en toutes lettres (texte statique, à garder alignés). */
+export const DUREE_GENERATION_MAX = 10;
 
 export type ProblemeStructure = {
   type:

@@ -13,7 +13,7 @@ const DEFAULTS: {
   tentatives_max: string;
 } = {
   fps_defaut: "24",
-  duree_plafond_secondes: "15",
+  duree_plafond_secondes: "10",
   marge_respiration_secondes: "1",
   tentatives_max: "2",
 };

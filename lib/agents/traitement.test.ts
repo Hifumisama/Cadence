@@ -28,27 +28,27 @@ test("durées des scènes : aucune scène sous un plan minimal, même avec un po
 });
 
 test("ajustement d'une scène : dans la tolérance, les durées du modèle restent", () => {
-  assert.deepEqual(ajusterDureesScene([10, 12, 8], 32), [10, 12, 8]);
-  assert.deepEqual(ajusterDureesScene([10, 12, 8], 30), [10, 12, 8]);
+  assert.deepEqual(ajusterDureesScene([8, 10, 7], 26), [8, 10, 7]);
+  assert.deepEqual(ajusterDureesScene([8, 10, 7], 24), [8, 10, 7]);
 });
 
-test("ajustement d'une scène : trop long, on ramène à la cible, entiers de 5 à 15", () => {
-  const r = ajusterDureesScene([15, 15, 15, 15], 40);
-  assert.equal(somme(r), 40);
-  assert.ok(r.every((x) => Number.isInteger(x) && x >= 5 && x <= 15));
+test("ajustement d'une scène : trop long, on ramène à la cible, entiers de 5 à 10", () => {
+  const r = ajusterDureesScene([10, 10, 10, 10], 30);
+  assert.equal(somme(r), 30);
+  assert.ok(r.every((x) => Number.isInteger(x) && x >= 5 && x <= 10));
 });
 
-test("ajustement d'une scène : trop court, on allonge sans dépasser 15 s", () => {
-  const r = ajusterDureesScene([6, 6, 6], 45);
-  assert.equal(somme(r), 45);
-  assert.ok(r.every((x) => x <= 15));
+test("ajustement d'une scène : trop court, on allonge sans dépasser 10 s", () => {
+  const r = ajusterDureesScene([6, 6, 6], 27);
+  assert.equal(somme(r), 27);
+  assert.ok(r.every((x) => x <= 10));
   // Cible hors d'atteinte : on s'en approche autant que possible.
-  assert.equal(somme(ajusterDureesScene([10, 10], 60)), 30);
+  assert.equal(somme(ajusterDureesScene([8, 8], 60)), 20);
 });
 
 test("ajustement d'une scène : la forme se conserve, le plus long reste le plus long", () => {
-  const r = ajusterDureesScene([14, 6, 6], 40);
-  assert.equal(somme(r), 40);
+  const r = ajusterDureesScene([10, 6, 6], 30);
+  assert.equal(somme(r), 30);
   assert.ok(r[0]! >= r[1]!);
 });
 

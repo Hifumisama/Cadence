@@ -1,3 +1,4 @@
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
 import { MAX_REFS, verifierCoherenceRefs, type RefLabel } from "../plan-checks";
 import { ORDRE_SECTIONS, type NomSection } from "../prompt";
 import type { Avertissement } from "./types";
@@ -99,11 +100,11 @@ export type EtatPlanFiche = {
   dureeGenerationSecondes: number;
 };
 
-const DUREE_MIN = 5;
-const DUREE_MAX = 15;
+const DUREE_MIN = DUREE_GENERATION_MIN;
+const DUREE_MAX = DUREE_GENERATION_MAX;
 
 /** Raison d'un REFUS d'écrire cette fiche sur ce plan, ou null. Vérifie le contenu (sections connues,
- * durée entière 5–15, slots 1–6 images et 1–3 audio, uniques, assets
+ * durée entière 5–10, slots 1–6 images et 1–3 audio, uniques, assets
  * existants et de la bonne nature) ET l'état final : aucune écriture ne doit laisser un label
  * `<Picture N>` / `<Audio N>` sans la référence qu'il cite. */
 export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | null {

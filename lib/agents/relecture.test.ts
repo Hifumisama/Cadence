@@ -37,7 +37,7 @@ const bonne: SortieRelecture = sortie(
   [
     { type: "modifier_plan", plan: "P03", description: descP4, critere: "physique", motif: "Les cavaliers sont à cheval en P02 et le restent en P03." },
     { type: "couper_plan", plan: "P05", critere: "doublon", motif: "P04 montre déjà le train qui s'éloigne." },
-    { type: "duree_plan", plan: "P04", secondes: 15, critere: "doublon", motif: "Compense la durée du plan coupé." },
+    { type: "duree_plan", plan: "P04", secondes: 10, critere: "doublon", motif: "Compense la durée du plan coupé." },
   ],
   [{ critere: "doublon", plans: ["P04", "P05"], probleme: "Le départ du train est raconté deux fois." }],
 );
@@ -132,7 +132,7 @@ test("conversion : poignées → uuid, descriptions, suppression d'un plan sans 
   assert.equal(coupe.cibleRef, "u5");
   assert.equal(coupe.operation, "supprimer");
   assert.equal(coupe.cocheOffice, true);
-  assert.equal((duree.apres as { dureeGenerationSecondes: number }).dureeGenerationSecondes, 15);
+  assert.equal((duree.apres as { dureeGenerationSecondes: number }).dureeGenerationSecondes, 10);
   assert.ok(r.bruts.every((b) => !b.avertissements?.some((a) => a.type === "bloque_controle")));
   assert.match(r.constats[0]!, /doublon \(P04, P05\)/);
   // aucune trace d'un rang dans ce qui sera écrit
