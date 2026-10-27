@@ -408,7 +408,7 @@
   "195": {
     "inputs": {
       "shift_video": 12,
-      "shift_audio": 6,
+      "shift_audio": 3,
       "model": [
         "196",
         0

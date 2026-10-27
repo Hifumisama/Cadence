@@ -1,8 +1,12 @@
 import { and, eq, max } from "drizzle-orm";
 import { db } from "../db";
 import { jobs, plans } from "../db/schema";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "./plan-checks";
 import type { Tx } from "./ordre-plans";
 import { rendFinal, resolutionOuDefaut } from "./resolution-video";
+
+/** Le plan dépasse la durée qu'un rendu accepte : aucun essai n'est créé. */
+export class DureePlanInvalide extends Error {}
 
 /** Cœur du bouton relance (F03) et du passage nuit (CDC page 4, "queue
  * batch") : crée un NOUVEAU job en_attente plutôt que de réécrire le
@@ -20,6 +24,11 @@ export async function creerJobRelance(
 ) {
   const [plan] = await exec.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
+  // Le worker refuserait ce rendu ; autant ne pas le mettre en file (la console ne contrôle que la durée qu'elle envoie, pas celle déjà enregistrée).
+  const duree = plan.dureeGenerationSecondes;
+  if (duree != null && (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
+    throw new DureePlanInvalide(`Durée de génération ${duree} s : un plan dure ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s. Raccourcir le plan avant de relancer.`);
+  }
 
   // « Relancer » garde la seed du plan : même prompt + mêmes refs + même durée = même rendu (F04). Une
   // « nouvelle variante » en tire une autre, qui devient la seed du plan.

@@ -3,7 +3,7 @@
 import { db } from "@/db";
 import { jobs, planPromptSections, planRefs, plans } from "@/db/schema";
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
-import { creerJobRelance } from "@/lib/job-relance";
+import { creerJobRelance, DureePlanInvalide } from "@/lib/job-relance";
 import { RESOLUTIONS_VIDEO, libelleResolution, resolutionDepuis } from "@/lib/resolution-video";
 import { appliquerIterationEtGenererCore } from "@/lib/iteration-application";
 import { getPlansPerimes } from "@/lib/plans-perimes";
@@ -105,9 +105,25 @@ export async function rendreFinalAvecRendu(planId: number, jobId: number, restau
   const r = await appliquerRendu(planId, jobId, restaurerPrompt);
   if (!r.ok) return r;
   const [plan] = await db.select({ retenu: plans.renduRetenuId }).from(plans).where(eq(plans.id, planId));
-  await creerJobRelance(planId, true, false, { garderPret: plan?.retenu === jobId });
+  try {
+    await creerJobRelance(planId, true, false, { garderPret: plan?.retenu === jobId });
+  } catch (e) {
+    if (e instanceof DureePlanInvalide) return { ok: false, erreur: e.message };
+    throw e;
+  }
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/** Une relance en lot : un plan dont la durée dépasse le plafond est sauté (faux), les autres partent. */
+async function relancerSiPossible(...args: Parameters<typeof creerJobRelance>): Promise<boolean> {
+  try {
+    await creerJobRelance(...args);
+    return true;
+  } catch (e) {
+    if (e instanceof DureePlanInvalide) return false;
+    throw e;
+  }
 }
 
 export type BrouillonPlan = {
@@ -155,7 +171,12 @@ export async function figerEtLancer(
     })
     .where(eq(plans.id, planId));
 
-  await creerJobRelance(planId, mode === "final", mode === "variante", { consigne: essai.consigne, depuisNumero: essai.depuisNumero });
+  try {
+    await creerJobRelance(planId, mode === "final", mode === "variante", { consigne: essai.consigne, depuisNumero: essai.depuisNumero });
+  } catch (e) {
+    if (e instanceof DureePlanInvalide) return { ok: false, erreur: e.message };
+    throw e;
+  }
   const [dernier] = await db.select({ n: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, planId));
   revalidatePath("/", "layout");
   return { ok: true, numeroRendu: dernier?.n ?? 1 };
@@ -204,7 +225,7 @@ export async function lancerPassageNuit(episodeId: number): Promise<{ n: number 
 
   let n = 0;
   for (const p of aTraiter) {
-    await creerJobRelance(p.id, true, false, { garderPret: true });
+    if (!(await relancerSiPossible(p.id, true, false, { garderPret: true }))) continue;
     n++;
   }
 
@@ -280,7 +301,7 @@ export async function lancerPrevisualisations(
       dejaEnFile++;
       continue;
     }
-    await creerJobRelance(id, false);
+    if (!(await relancerSiPossible(id, false))) continue;
     n++;
   }
   revalidatePath("/", "layout");
@@ -303,7 +324,7 @@ export async function relancerPlansPerimes(episodeId: number): Promise<{ n: numb
       continue;
     }
     const [dernier] = await db.select({ upscale: jobs.activerUpscale }).from(jobs).where(eq(jobs.planId, p.id)).orderBy(desc(jobs.id)).limit(1);
-    await creerJobRelance(p.id, dernier?.upscale ?? true);
+    if (!(await relancerSiPossible(p.id, dernier?.upscale ?? true))) continue;
     n++;
   }
 
@@ -688,7 +709,10 @@ export async function lancerUpscaleEpisode(episodeId: number): Promise<{ n: numb
       res.bloques++;
       continue;
     }
-    await creerJobRelance(p.id, true, false, { depuisNumero: retenu.numeroRendu, garderPret: true });
+    if (!(await relancerSiPossible(p.id, true, false, { depuisNumero: retenu.numeroRendu, garderPret: true }))) {
+      res.bloques++;
+      continue;
+    }
     res.n++;
   }
   revalidatePath("/", "layout");

@@ -170,4 +170,12 @@ enregistre les clips sous des lettres tirées au hasard (`clip-A.mp4`…) pour l
 | Date | Test | Résultat | Remarque |
 |---|---|---|---|
 | 2026-10-27 | Directeur (ComfyUI_MiniMaxH3_Director) sur RunPod, 5090, 0,4 MP, clip de 26 s, gabarits bruts de RunPod | environ 26 min, qualité moyenne | Essai exploratoire des gabarits fournis, pas une comparaison avec le workflow de Cadence : sans suite. |
+| 2026-10-27 | A1, A2, A7, A9 | ok | |
+| 2026-10-27 | A3, A5, A6 | ok à l'œil ; mesures précises à prendre dans les traces du projet « Avatar: Intro version FF » | Sous très forte charge la carte arrête certains flux qui ne passent pas en parallèle, mais les contextes tiennent. |
+| 2026-10-27 | A8 | rendu détecté mais **mettable en file** | Corrigé le 2026-10-28 : `creerJobRelance` refuse un plan de plus de 10 s (aucun essai créé). |
+| 2026-10-27 | C1 | 0,3 MP : 3 min 04 s sous charge LLM ; 0,4 MP : environ 5 min ; aucun débordement mémoire | Le LLM ralentit pendant le rendu, sans planter. |
+| 2026-10-27 | C2 | écarté | Estimation : environ 2 min 30 par plan quand la carte est libre, soit environ 4 h 20 pour un film de 10 min. |
+| 2026-10-27 | D1 | sans changement visible | Pas retenu pour l'instant. |
+| 2026-10-27 | D2 | décalage audio 3 meilleur : la voix fait moins « toc » | Appliqué le 2026-10-28 dans `VID_REF2VA.json` (nœud 195). `VID_Create_Voice_Master.json` reste à 6. |
+| 2026-10-27 | D5, D9 | non testés | Écartés par l'utilisateur. |
 | | | | |
