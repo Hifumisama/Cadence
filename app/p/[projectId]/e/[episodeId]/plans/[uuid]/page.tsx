@@ -14,6 +14,7 @@ import { SuiviRendus } from "@/components/plan/SuiviRendus";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
 import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
 import { BrouillonProvider } from "@/components/plan/BrouillonPlan";
+import { estFinalNatif, libelleResolution, resolutionOuDefaut } from "@/lib/resolution-video";
 import { ConsoleRendu } from "@/components/plan/ConsoleRendu";
 import { PromptBloc } from "@/components/plan/PromptBloc";
 import { ControlesEntete, type AlerteControle } from "@/components/plan/ControlesEntete";
@@ -105,6 +106,7 @@ export default async function PlanPage({
     dureeUtilisee: j.dureeUtilisee,
     promptUtilise: j.promptUtilise,
     activerUpscale: j.activerUpscale,
+    megapixels: resolutionOuDefaut(j.megapixels),
     importe: j.workflowFichier === WORKFLOW_IMPORT_MANUEL,
   }));
   const principal = choisirRendu(rendusVus, Number(renduParam) || null);
@@ -173,7 +175,7 @@ export default async function PlanPage({
   const essaisTries = trierEssais(jobHistory);
   const lisibles = rendusVus.filter(estLisible);
   const numeroDernierLisible = lisibles.reduce((m, r) => Math.max(m, r.numeroRendu), 0);
-  const genreDe = (r: RenduVue) => (r.importe ? "import" : r.activerUpscale ? "final" : "aperçu");
+  const genreDe = (r: RenduVue) => (r.importe ? "import" : r.activerUpscale ? (estFinalNatif(true, r.megapixels) ? `final · ${libelleResolution(r.megapixels)}` : "final") : "aperçu");
   const autreB = (idA: number) => (comparaison && comparaison.id !== idA ? comparaison.id : null);
   const essais: EssaiCarte[] = essaisTries.map((j) => {
     const r = rendusVus.find((x) => x.id === j.id)!;
@@ -305,6 +307,7 @@ export default async function PlanPage({
     sections: Object.fromEntries(promptSections.map((s) => [s.section, s.contenu])),
     duree: plan.dureeGenerationSecondes,
     fps: plan.fps,
+    megapixels: resolutionOuDefaut(plan.megapixels),
     seed: plan.seed,
   };
 

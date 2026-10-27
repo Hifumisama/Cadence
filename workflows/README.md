@@ -126,6 +126,7 @@ change après un ré-export. Les valeurs du fichier sont des **valeurs de test**
 |---|---|---|---|
 | Prompt assemblé | `22:11` (PrimitiveStringMultiline) | `value` | |
 | Durée du plan | `22:23` (PrimitiveFloat) | `value` | secondes, **5 à 10** (erreur franche sinon) ; `22:24` en tire le nombre d'images (24 i/s, forme 17k+5 : 5 s = 124, 8 s = 192, 12 s = 294, 15 s = 362) qui alimente `length` du nœud `5` |
+| Résolution | `22:9` (ResolutionSelector, 16:9, multiple de 32) | `megapixels` | **0,2 / 0,3 / 0,4** (`lib/resolution-video.ts`), le réglage du plan copié sur le rendu. À 0,2 MP : aperçu ou final avec upscale (nœuds 243 à 135:26, ×2 par côté). Au-delà : rendu final natif, sans upscale, avec la même interpolation (le nœud 165 lit la sortie de la première passe `176`). |
 | Seeds | `16`, `103` (easy seed) : `seed` ; `135:27` (RandomNoise) : `noise_seed` | | la seed du plan, si elle existe |
 | Images de référence | `5` : `ref_images.ref_image_<slot-1>` | | **6 au plus** (images + vidéos) ; le nœud en accepte 9 |
 | Audios de référence | `5` : `ref_audios.ref_audio_<slot-1>` | | **3 au plus** ; prises des répliques liées d'abord, bruitages sur les emplacements libres |

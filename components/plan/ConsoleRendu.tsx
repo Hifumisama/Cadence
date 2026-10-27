@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/plan-checks";
+import { RESOLUTIONS_VIDEO, libelleResolution, rendFinal } from "@/lib/resolution-video";
 
 // Bornes imposées par H3 : pas de génération plus courte ni plus longue.
 const DUREE_MIN = DUREE_GENERATION_MIN;
@@ -23,6 +24,8 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
   const [defile, setDefile] = useState<string | null>(null);
   const iv = useRef<ReturnType<typeof setInterval> | null>(null);
   const modifie = b.modifications.length > 0;
+  // Au-delà de la résolution de base, pas de prévisualisation ni d'upscale : le rendu est le rendu final (lib/resolution-video.ts).
+  const natif = rendFinal(false, b.megapixels);
 
   const tirer = () => {
     setRotation((r) => r + 720);
@@ -80,6 +83,23 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
           </div>
         </div>
         <div className="fp-champ">
+          <label>Résolution</label>
+          <div className="fp-resolutions" role="radiogroup" aria-label="Résolution du rendu">
+            {RESOLUTIONS_VIDEO.map((r) => (
+              <button
+                key={r}
+                type="button"
+                role="radio"
+                aria-checked={b.megapixels === r}
+                className={`btn btn-sm ${b.megapixels === r ? "" : "btn-ghost"}`}
+                onClick={() => b.setMegapixels(r)}
+              >
+                {libelleResolution(r)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="fp-champ">
           <label htmlFor="fp-fps">FPS</label>
           <input
             id="fp-fps"
@@ -115,26 +135,28 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
           className="btn fp-go fp-go-principal"
           disabled={b.occupe}
           onClick={() => b.figer("previsualiser")}
-          title="Fige le prompt, les références et ces réglages, puis lance une prévisualisation basse résolution."
+          title={natif ? "Fige le prompt, les références et ces réglages, puis lance le rendu final, natif (sans upscale)." : "Fige le prompt, les références et ces réglages, puis lance une prévisualisation basse résolution."}
         >
-          <span>{b.occupe ? "Figé…" : "Figer et prévisualiser"}</span>
+          <span>{b.occupe ? "Figé…" : natif ? "Figer et rendre" : "Figer et prévisualiser"}</span>
           <small>rendu n°{b.prochainRendu}</small>
         </button>
-        <button
-          type="button"
-          className="btn fp-go fp-go-final"
-          disabled={b.occupe}
-          onClick={() => b.figer("final")}
-          title="Fige tout, puis rend avec upscale."
-        >
-          Rendu final
-        </button>
+        {natif ? null : (
+          <button
+            type="button"
+            className="btn fp-go fp-go-final"
+            disabled={b.occupe}
+            onClick={() => b.figer("final")}
+            title="Fige tout, puis rend avec upscale."
+          >
+            Rendu final
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-ghost btn-sm fp-variante"
           disabled={b.occupe}
           onClick={() => b.figer("variante")}
-          title="Tire une nouvelle seed (autre rendu, même prompt) puis prévisualise."
+          title={natif ? "Tire une nouvelle seed (autre rendu, même prompt) puis rend." : "Tire une nouvelle seed (autre rendu, même prompt) puis prévisualise."}
         >
           Nouvelle variante
         </button>
@@ -142,6 +164,12 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
       {b.erreur ? (
         <p className="tiny-note fp-erreur" role="alert">
           {b.erreur}
+        </p>
+      ) : null}
+      {natif ? (
+        <p className="fp-aide">
+          À {libelleResolution(b.megapixels)}, le rendu est directement le rendu final : natif, sans prévisualisation ni upscale (il ne tiendrait pas sur la carte).
+          La seed et le prompt d'une prévisualisation à 0,2 MP donnent un geste très proche, pas identique.
         </p>
       ) : null}
       <p className="fp-aide">

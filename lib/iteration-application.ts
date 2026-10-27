@@ -1,3 +1,4 @@
+import { resolutionDepuis } from "./resolution-video";
 import { and, eq, inArray, max } from "drizzle-orm";
 import { db } from "../db";
 import { jobs, plans } from "../db/schema";
@@ -7,7 +8,7 @@ import { creerJobRelance } from "./job-relance";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "./plan-checks";
 import { lireProposition } from "./queries-agents";
 
-export type Reglages = { dureeGenerationSecondes?: number; fps?: number; seed?: string };
+export type Reglages = { dureeGenerationSecondes?: number; fps?: number; megapixels?: number; seed?: string };
 
 /** Appliquer la correction d'« Itérer » ET créer l'essai (2026-10-17 : sorti de l'action de page pour que le pilote des demandes, côté
  * worker, l'appelle sans Next ; l'action `appliquerIterationEtGenerer` de app/plans/actions.ts l'enveloppe et revalide). */
@@ -21,7 +22,8 @@ export async function appliquerIterationEtGenererCore(
   /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits dans la même transaction que l'essai. */
   reglages: Reglages = {},
 ): Promise<{ ok: true; numeroRendu: number; jobId: number; notes: string[] } | { ok: false; erreur: string }> {
-  const { dureeGenerationSecondes: duree, fps, seed } = reglages;
+  const { dureeGenerationSecondes: duree, fps, seed, megapixels } = reglages;
+  if (megapixels != null && resolutionDepuis(megapixels) == null) return { ok: false, erreur: "Résolution : 0,2, 0,3 ou 0,4 MP." };
   if (duree != null && (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
     return { ok: false, erreur: `Durée de génération : entre ${DUREE_GENERATION_MIN} et ${DUREE_GENERATION_MAX} s.` };
   }
@@ -46,10 +48,10 @@ export async function appliquerIterationEtGenererCore(
       // Lancer « Itérer » consent à écraser le prompt actuel : il reste dans l'essai précédent.
       confirmeEcrasement: true,
       dansTransaction: async (tx) => {
-        if (fps != null || duree != null || seed != null) {
+        if (fps != null || duree != null || seed != null || megapixels != null) {
           await tx
             .update(plans)
-            .set({ ...(fps != null ? { fps } : {}), ...(duree != null ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}), ...(seed != null ? { seed } : {}), updatedAt: new Date() })
+            .set({ ...(fps != null ? { fps } : {}), ...(megapixels != null ? { megapixels: resolutionDepuis(megapixels)! } : {}), ...(duree != null ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}), ...(seed != null ? { seed } : {}), updatedAt: new Date() })
             .where(eq(plans.id, planId));
         }
         await creerJobRelance(planId, false, false, { consigne: essai.consigne, depuisNumero: essai.depuisNumero, alertesIteration: decision.notes, demandeId: essai.demandeId }, tx);

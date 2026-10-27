@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { avecUpscale, resolutionOuDefaut } from "../lib/resolution-video";
 import { BudgetContexte, contexteTotalDepuisEnv, estimerContexte } from "../lib/llm/budget-contexte";
 import { chargerSkill } from "../lib/llm/skills";
 import { join, resolve } from "node:path";
@@ -63,6 +64,7 @@ async function prochainJobEnAttente() {
 async function construireSubmissionInput(
   planId: number,
   activerUpscale: boolean,
+  megapixels: number,
 ): Promise<{ input: SubmissionInput; promptFiche: string; raccordJobId: number | null; plan: typeof plans.$inferSelect }> {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
@@ -125,6 +127,7 @@ async function construireSubmissionInput(
       refsAudio: [...audioVoix, ...audioBruitages],
       refsVideo,
       activerUpscale,
+      megapixels,
     },
   };
 }
@@ -169,7 +172,7 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
   };
 
   try {
-    const { input, promptFiche, raccordJobId, plan: lePlan } = await construireSubmissionInput(job.planId, job.activerUpscale);
+    const { input, promptFiche, raccordJobId, plan: lePlan } = await construireSubmissionInput(job.planId, job.activerUpscale, resolutionOuDefaut(job.megapixels));
     // Un préfixe de fichier propre à ce rendu : plus de collision de noms, ni de résultat en cache servi à un autre rendu.
     input.prefixeSortie = `cadence_p${job.planId}_r${job.numeroRendu}${job.tentative > 1 ? `_t${job.tentative}` : ""}`;
     verifierEntree(input); // durée hors 5-10 s, trop de références : échec franc (voir catch)
@@ -349,7 +352,7 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
   const choix = choisirProchaineTache(candidates);
   if (!choix) return false;
   const domaine = domaineDe(choix.genre);
-  const upscale = choix.genre === "video" && job!.activerUpscale;
+  const upscale = choix.genre === "video" && avecUpscale(job!.activerUpscale, job!.megapixels);
   // La création d'un projet (2026-10-19) : le gros modèle de l'installateur tient en VRAM, ComfyUI ne doit pas être chargé. Ses appels
   // prennent la carte seule (les tâches en cours finissent, rien ne démarre à côté) et ComfyUI est libéré avant le premier.
   const creation = choix.genre === "llm" && (await projetEnCreation(run!.projectId));

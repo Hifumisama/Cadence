@@ -505,6 +505,13 @@
       "when": 1795626000000,
       "tag": "0071_traitement_scene",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1795712400000,
+      "tag": "0072_resolution_video",
+      "breakpoints": true
     }
   ]
 }

@@ -202,3 +202,40 @@ test("préfixe de sortie : posé sur la sortie finale et sur l'aperçu, sinon le
   const sans = injecterValeurs(workflow, entree);
   assert.equal(sans[NODE_IDS.sortieFinale]!.inputs.filename_prefix, workflow[NODE_IDS.sortieFinale]!.inputs.filename_prefix);
 });
+
+// --- Résolution (0,2 / 0,3 / 0,4 MP) ---
+
+test("la résolution est injectée dans le nœud 22:9, le fichier source n'est pas modifié", () => {
+  for (const mp of [0.2, 0.3, 0.4]) {
+    const g = injecterValeurs(workflow, { ...entree, megapixels: mp });
+    assert.equal(g[NODE_IDS.resolution]!.inputs.megapixels, mp);
+  }
+  const sans = injecterValeurs(workflow, entree);
+  assert.equal(sans[NODE_IDS.resolution]!.inputs.megapixels, workflow[NODE_IDS.resolution].inputs.megapixels, "absente de l'entrée : celle du fichier");
+  assert.ok(Math.abs(workflow[NODE_IDS.resolution].inputs.megapixels - 0.2) < 0.001);
+});
+
+test("une résolution hors liste est refusée avant toute soumission", () => {
+  for (const mp of [0.1, 0.25, 0.5, 1, 0, -0.2, Number.NaN]) {
+    assert.throws(() => injecterValeurs(workflow, { ...entree, megapixels: mp }), ErreurEntreeInvalide, String(mp));
+  }
+});
+
+test("final à 0,2 MP : upscale ; final à 0,3 ou 0,4 MP : natif, sans upscale mais avec l'interpolation ; aperçu : branche basse", () => {
+  const upscale = injecterValeurs(workflow, { ...entree, activerUpscale: true, megapixels: 0.2 });
+  assert.deepEqual(upscale[NODE_IDS.sortieFinale]!.inputs.images, [NODE_IDS.upscaleImages, 0]);
+  assert.deepEqual(upscale[NODE_IDS.upscaleImages]!.inputs.images, ["189", 0], "RIFE lit la sortie de l'upscale");
+
+  for (const mp of [0.3, 0.4]) {
+    const natif = injecterValeurs(workflow, { ...entree, activerUpscale: true, megapixels: mp });
+    assert.deepEqual(natif[NODE_IDS.sortieFinale]!.inputs.images, [NODE_IDS.upscaleImages, 0]);
+    assert.deepEqual(natif[NODE_IDS.upscaleImages]!.inputs.images, [NODE_IDS.basseResImages, 0], "RIFE lit la première passe, pas l'upscale");
+    assert.deepEqual(natif[NODE_IDS.sortieFinale]!.inputs.audio, [NODE_IDS.basseResAudio, 0]);
+    assert.notEqual(natif[NODE_IDS.sortieFinale]!.inputs.frame_rate, FPS_GENERATION, "la cadence finale reste celle de l'interpolation");
+  }
+
+  const apercu = injecterValeurs(workflow, { ...entree, activerUpscale: false, megapixels: 0.2 });
+  assert.deepEqual(apercu[NODE_IDS.sortieFinale]!.inputs.images, [NODE_IDS.basseResImages, 0]);
+  assert.equal(apercu[NODE_IDS.sortieFinale]!.inputs.frame_rate, FPS_GENERATION);
+  assert.deepEqual(workflow["165"].inputs.images, ["189", 0], "le fichier source n'est pas modifié");
+});

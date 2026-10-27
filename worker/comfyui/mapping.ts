@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../lib/plan-checks";
+import { RESOLUTIONS_VIDEO, avecUpscale, estFinalNatif, resolutionDepuis } from "../../lib/resolution-video";
 import type { SubmissionInput } from "./types";
 
 /**
@@ -23,6 +24,8 @@ import type { SubmissionInput } from "./types";
  */
 export const NODE_IDS = {
   prompt: "22:11",
+  /** « Resolution Selector (Size) » : format 16:9 et mégapixels du rendu. */
+  resolution: "22:9",
   seedPremierPass: "16",
   seedUpscale: "103",
   seedSecondPass: "135:27",
@@ -80,6 +83,9 @@ export function verifierEntree(input: SubmissionInput): void {
       `Durée de génération ${String(input.dureeSecondes)} s : un plan dure ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s.`,
     );
   }
+  if (input.megapixels != null && resolutionDepuis(input.megapixels) == null) {
+    throw new ErreurEntreeInvalide(`Résolution ${String(input.megapixels)} MP : ${RESOLUTIONS_VIDEO.join(", ")} seulement.`);
+  }
   const visuelles = [...input.refsImage, ...input.refsVideo];
   if (visuelles.length > MAX_REFS_VISUELLES) {
     throw new ErreurEntreeInvalide(`${visuelles.length} références image/vidéo : ${MAX_REFS_VISUELLES} au plus.`);
@@ -116,6 +122,13 @@ export function injecterValeurs(
   const nodeDuree = graphe[NODE_IDS.dureeVideo];
   if (!nodeDuree) throw new Error(`Nœud ${NODE_IDS.dureeVideo} (durée) absent du workflow vidéo`);
   nodeDuree.inputs.value = input.dureeSecondes;
+
+  // Résolution : le fichier source fixe 0,2 MP ; absente de l'entrée, on la laisse telle quelle.
+  if (input.megapixels != null) {
+    const nodeResolution = graphe[NODE_IDS.resolution];
+    if (!nodeResolution) throw new Error(`Nœud ${NODE_IDS.resolution} (résolution) absent du workflow vidéo`);
+    nodeResolution.inputs.megapixels = resolutionDepuis(input.megapixels);
+  }
 
   if (input.prefixeSortie) {
     const finale = graphe[NODE_IDS.sortieFinale];
@@ -216,9 +229,17 @@ export function injecterValeurs(
   // demandées, pas de coût caché).
   const nodeSortie = graphe[NODE_IDS.sortieFinale];
   if (nodeSortie) {
-    if (input.activerUpscale) {
+    if (avecUpscale(input.activerUpscale, input.megapixels)) {
       nodeSortie.inputs.images = [NODE_IDS.upscaleImages, 0];
       nodeSortie.inputs.audio = [NODE_IDS.upscaleAudio, 0];
+    } else if (estFinalNatif(input.activerUpscale, input.megapixels)) {
+      // Rendu final natif (au-delà de 0,2 MP) : pas d'upscale, mais la même interpolation que les rendus finals (RIFE, 24 → 48 i/s) : le
+      // nœud 165 lit la sortie de la première passe au lieu de celle de l'upscale, la cadence du nœud 34 reste celle du commutateur.
+      const rife = graphe[NODE_IDS.upscaleImages];
+      if (!rife) throw new Error(`Nœud ${NODE_IDS.upscaleImages} (RIFE) absent du workflow vidéo`);
+      rife.inputs.images = [NODE_IDS.basseResImages, 0];
+      nodeSortie.inputs.images = [NODE_IDS.upscaleImages, 0];
+      nodeSortie.inputs.audio = [NODE_IDS.basseResAudio, 0];
     } else {
       nodeSortie.inputs.images = [NODE_IDS.basseResImages, 0];
       nodeSortie.inputs.audio = [NODE_IDS.basseResAudio, 0];

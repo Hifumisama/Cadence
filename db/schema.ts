@@ -169,6 +169,8 @@ export const plans = pgTable("plans", {
   dureeMontageSecondes: integer("duree_montage_secondes").notNull(),
   dureeGenerationSecondes: integer("duree_generation_secondes").notNull(),
   fps: integer("fps").notNull().default(24),
+  // Résolution des rendus (0,2 / 0,3 / 0,4 MP : lib/resolution-video.ts), nœud `22:9` du workflow vidéo.
+  megapixels: real("megapixels").notNull().default(0.2),
   mode: varchar("mode", { length: 20 }).notNull().default("full-reference"),
   timecodeMusique: varchar("timecode_musique", { length: 50 }),
   statut: planStatutEnum("statut").notNull().default("brouillon"),
@@ -385,6 +387,8 @@ export const jobs = pgTable("jobs", {
   // Sert à comparer deux rendus, et à expliquer pourquoi deux relances donnent le même plan.
   promptUtilise: text("prompt_utilise"),
   dureeUtilisee: integer("duree_utilisee"),
+  // La résolution de CE rendu, copiée du plan au lancement. Au-delà de 0,2 MP, `activer_upscale` (« rendu final ») est posé d'office et le rendu est natif, sans upscale.
+  megapixels: real("megapixels").notNull().default(0.2),
   // La description (intention) du plan au moment de la soumission : versionnée par essai comme le prompt (2026-10-14).
   descriptionUtilisee: text("description_utilisee"),
   // L'essai (d'un AUTRE plan : le précédent) dont la dernière image a servi de première image à celui-ci (lib/plan-raccord.ts, 2026-10-14) ; null

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { jobs, planPromptSections, planRefs, plans } from "@/db/schema";
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { creerJobRelance } from "@/lib/job-relance";
+import { RESOLUTIONS_VIDEO, libelleResolution, resolutionDepuis } from "@/lib/resolution-video";
 import { appliquerIterationEtGenererCore } from "@/lib/iteration-application";
 import { getPlansPerimes } from "@/lib/plans-perimes";
 import { classerPourPrevisualisation, consequencesSuppression, decisionIteration, essaiEnFile } from "@/lib/fiche-plan";
@@ -114,6 +115,8 @@ export type BrouillonPlan = {
   sections: Record<string, string>;
   dureeGenerationSecondes?: number;
   fps?: number;
+  /** Résolution choisie (0,2 / 0,3 / 0,4 MP) ; absente = celle du plan. */
+  megapixels?: number;
   /** Seed choisie à la main (dé de la console) ; absente = celle du plan. */
   seed?: string;
 };
@@ -129,7 +132,8 @@ export async function figerEtLancer(
   /** Fiche de plan : la consigne de l'utilisateur et le numéro de l'essai dont on part, gardés sur l'essai créé. */
   essai: { consigne?: string | null; depuisNumero?: number | null } = {},
 ): Promise<{ ok: true; numeroRendu: number } | { ok: false; erreur: string }> {
-  const { dureeGenerationSecondes: duree, fps, seed } = brouillon;
+  const { dureeGenerationSecondes: duree, fps, seed, megapixels } = brouillon;
+  if (megapixels != null && resolutionDepuis(megapixels) == null) return { ok: false, erreur: `Résolution : ${RESOLUTIONS_VIDEO.map(libelleResolution).join(", ")} seulement.` };
   if (duree != null && (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
     return { ok: false, erreur: `Durée de génération : entre ${DUREE_GENERATION_MIN} et ${DUREE_GENERATION_MAX} s.` };
   }
@@ -144,6 +148,7 @@ export async function figerEtLancer(
     .update(plans)
     .set({
       ...(fps != null ? { fps } : {}),
+      ...(megapixels != null ? { megapixels: resolutionDepuis(megapixels)! } : {}),
       ...(duree != null ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}),
       ...(seed != null ? { seed } : {}),
       updatedAt: new Date(),
@@ -168,7 +173,7 @@ export async function appliquerIterationEtGenerer(
   propositionUuid: string,
   essai: { consigne: string | null; depuisNumero: number | null },
   /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits dans la même transaction que l'essai. */
-  reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string } = {},
+  reglages: { dureeGenerationSecondes?: number; fps?: number; megapixels?: number; seed?: string } = {},
 ): Promise<{ ok: true; numeroRendu: number; notes: string[] } | { ok: false; erreur: string }> {
   const r = await appliquerIterationEtGenererCore(planId, propositionUuid, essai, reglages);
   revalidatePath("/", "layout");

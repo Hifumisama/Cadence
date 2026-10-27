@@ -505,3 +505,10 @@ rendu à nouveau (le worker refuse la durée).
 La liaison `suite` (dernière image rendue = première image du plan suivant) devient l'exception : le skill dit « `coupe` en cas de doute ».
 `suite` est réservé à une action continue dans le même cadre qui dépasse la limite d'un plan ; un champ/contrechamp, un changement d'angle ou un
 nouveau moment est une `coupe`. Raison : une chaîne de `suite` oblige à refaire tous les plans suivants quand l'un change.
+
+**Résolution des rendus** (`lib/resolution-video.ts`, nœud `22:9` du workflow) : 0,2 / 0,3 / 0,4 MP, un réglage du plan (`plans.megapixels`) copié sur chaque
+rendu (`jobs.megapixels`). À 0,2 MP (défaut), le parcours d'avant : prévisualisation, puis rendu final avec upscale (le « latent upscaler » de H3 redessine
+dans l'espace latent). Au-delà, **pas de prévisualisation ni d'upscale** (un upscale depuis 0,4 MP, soit 1,6 MP, ne tient pas sur la carte) : le rendu est
+directement le rendu final, natif ; `jobs.activer_upscale` se lit alors « rendu final », et le worker décide s'il y a réellement un upscale. À mesurer :
+un rendu à 0,3 ou 0,4 MP à côté du LLM chargé (le verrou GPU le traite comme un rendu ordinaire). Un plan en 0,2 MP dont on valide le geste peut être
+refait en 0,4 MP : le geste survit (constaté), le rendu n'est pas identique.

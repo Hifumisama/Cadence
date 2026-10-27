@@ -2,6 +2,7 @@ import { and, eq, max } from "drizzle-orm";
 import { db } from "../db";
 import { jobs, plans } from "../db/schema";
 import type { Tx } from "./ordre-plans";
+import { rendFinal, resolutionOuDefaut } from "./resolution-video";
 
 /** Cœur du bouton relance (F03) et du passage nuit (CDC page 4, "queue
  * batch") : crée un NOUVEAU job en_attente plutôt que de réécrire le
@@ -32,7 +33,9 @@ export async function creerJobRelance(
     numeroRendu: (rendus?.dernier ?? 0) + 1,
     workflowFichier: "video-generation/VID_REF2VA.json",
     seedUtilisee: seed,
-    activerUpscale,
+    // Au-delà de la résolution de base, le rendu est directement final (natif, sans prévisualisation ni upscale : lib/resolution-video.ts).
+    activerUpscale: rendFinal(activerUpscale, plan.megapixels),
+    megapixels: resolutionOuDefaut(plan.megapixels),
     consigne: options.consigne?.trim() || null,
     depuisNumeroRendu: options.depuisNumero ?? null,
     alertesIteration: options.alertesIteration?.length ? options.alertesIteration : null,

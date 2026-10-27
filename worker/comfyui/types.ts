@@ -17,6 +17,8 @@ export type SubmissionInput = {
   refsAudio: (RefMedia & { dureeSecondes?: number | null })[]; // max 3, emplacement 1 à 3 ; durée mesurée de la prise
   refsVideo: RefMedia[]; // emplacement 1 à 3
   activerUpscale: boolean;
+  /** Résolution (0,2 / 0,3 / 0,4 MP, nœud `22:9`) ; absente = celle du fichier. Au-delà de 0,2 MP, un rendu final est natif : sans upscale. */
+  megapixels?: number;
 };
 
 export type PollResult =
