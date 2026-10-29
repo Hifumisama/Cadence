@@ -45,6 +45,14 @@ export type AjoutEnCours = {
   consigne: string;
 };
 
+/** Une scène en cours d'écriture (« Nouvelle scène ») : la page lui garde sa place dans le bandeau, sous forme de carte fantôme. */
+export type AjoutSceneEnCours = {
+  /** La demande (clé de la tâche dans la file : `demande:<id>`). */
+  id: number;
+  place: { apresSceneId: number } | { debut: true };
+  consigne: string;
+};
+
 /** Clé d'une scène dans l'URL (`?scene=`) et dans l'état de la page. */
 export const cleScene = (id: number | null): string => (id == null ? "sans" : String(id));
 

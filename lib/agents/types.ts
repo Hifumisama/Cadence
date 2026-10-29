@@ -57,6 +57,9 @@ export type Avertissement = { type: TypeAvertissement; texte: string };
  * début/la fin de l'épisode. La revue affiche les rangs qui bougent (`rangsDeplaces`). */
 export type Position = { apresPlanUuid: string } | { debut: true } | { fin: true };
 
+/** Où insérer une SCÈNE : après une scène existante (id), ou au début du film. */
+export type PlaceScene = { apresSceneId: number } | { debut: true };
+
 /** Comment l'UI désigne une cible existante ; le serveur la résout en id interne.
  * Épisode : `id` (les pages utilisent déjà ces ids) ; plan : `uuid` ; asset : `code`
  * (ou `id`). Null/absent pour la portée `projet`. */

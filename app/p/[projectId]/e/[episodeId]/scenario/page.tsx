@@ -1,13 +1,13 @@
 import { getEpisode, getEtatPlans, getProject, getScenarioData } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { notFound } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { demandes } from "@/db/schema";
 import { VueScenario } from "@/components/scenario/VueScenario";
 import { srcRendu } from "@/components/plan/Vignette";
-import type { ContexteAjoutPlan } from "@/lib/demandes";
-import type { AjoutEnCours, PlanVue, SceneVue } from "@/lib/scenario-vue";
+import type { ContexteAjoutPlan, ContexteAjoutScene } from "@/lib/demandes";
+import type { AjoutEnCours, AjoutSceneEnCours, PlanVue, SceneVue } from "@/lib/scenario-vue";
 
 export const dynamic = "force-dynamic";
 
@@ -24,18 +24,22 @@ export default async function ScenarioPage({
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, episode, { scenes, sansScene }, pellicule, etat, [ajoutEnCours]] = await Promise.all([
+  const [projet, episode, { scenes, sansScene }, pellicule, etat, enCours] = await Promise.all([
     getProject(pid),
     getEpisode(eid),
     getScenarioData(eid),
     getPelliculePlans(eid),
     getEtatPlans(eid),
-    // Un plan en cours d'écriture (« Ajouter un plan ») : la page lui garde sa place, sous forme de carte fantôme.
-    db.select().from(demandes).where(and(eq(demandes.type, "ajout-plan"), eq(demandes.cibleType, "episode"), eq(demandes.cibleId, eid), eq(demandes.statut, "en_cours"))),
+    // Un plan ou une scène en cours d'écriture (« Ajouter un plan », « Nouvelle scène ») : la page lui garde sa place, sous forme de carte fantôme.
+    db.select().from(demandes).where(and(inArray(demandes.type, ["ajout-plan", "ajout-scene"]), eq(demandes.cibleType, "episode"), eq(demandes.cibleId, eid), eq(demandes.statut, "en_cours"))),
   ]);
   if (!projet || !episode || episode.projectId !== pid) notFound();
-  const ctxAjout = ajoutEnCours ? (ajoutEnCours.contexte as ContexteAjoutPlan) : null;
-  const ajout: AjoutEnCours | null = ajoutEnCours && ctxAjout ? { id: ajoutEnCours.id, sceneId: ctxAjout.sceneId, position: ctxAjout.position, consigne: ctxAjout.consigne } : null;
+  const ajoutPlanEnCours = enCours.find((d) => d.type === "ajout-plan");
+  const ajoutSceneEnCours = enCours.find((d) => d.type === "ajout-scene");
+  const ctxAjout = ajoutPlanEnCours ? (ajoutPlanEnCours.contexte as ContexteAjoutPlan) : null;
+  const ajout: AjoutEnCours | null = ajoutPlanEnCours && ctxAjout ? { id: ajoutPlanEnCours.id, sceneId: ctxAjout.sceneId, position: ctxAjout.position, consigne: ctxAjout.consigne } : null;
+  const ctxScene = ajoutSceneEnCours ? (ajoutSceneEnCours.contexte as ContexteAjoutScene) : null;
+  const ajoutScene: AjoutSceneEnCours | null = ajoutSceneEnCours && ctxScene ? { id: ajoutSceneEnCours.id, place: ctxScene.place, consigne: ctxScene.consigne } : null;
 
   // État dérivé et vignette de chaque plan (rendu retenu), par uuid.
   const parUuid = new Map(pellicule.map((p) => [p.uuid, p]));
@@ -65,8 +69,8 @@ export default async function ScenarioPage({
     const plans = sc.plans.map(versVue);
     return { id: sc.id, titre: sc.titre, fonction: sc.fonction, genre: sc.genre, ambiance: sc.ambiance, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans };
   });
-  // Présent dès qu'il existe une scène : c'est la zone où déposer un plan pour le détacher.
-  if (sansScene.length > 0 || scenes.length > 0) {
+  // Un plan appartient à une scène : « Sans scène » n'apparaît que s'il reste des plans orphelins (anciens films), pour ne pas les rendre invisibles.
+  if (sansScene.length > 0) {
     const plans = sansScene.map(versVue);
     groupes.push({ id: null, titre: "Sans scène", fonction: null, genre: null, ambiance: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
   }
@@ -78,5 +82,5 @@ export default async function ScenarioPage({
     demande: { projectId: pid, portee: "episode" as const, cible: { id: eid }, profondeur: "courte" as const, libelle: projet.nom, episodeId: eid, vue: "fiches" as const },
   };
 
-  return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} fiches={fiches} />;
+  return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} ajoutScene={ajoutScene} fiches={fiches} />;
 }

@@ -1,4 +1,5 @@
 import { ERREUR_ANNULEE } from "./annulation";
+import type { PlaceScene } from "./agents/types";
 import type { DecisionIteration } from "./fiche-plan";
 
 /** Les DEMANDES (2026-10-17) : un geste de l'utilisateur qui tient en plusieurs étapes est UNE ligne dans la file et le panneau, du clic
@@ -9,7 +10,7 @@ import type { DecisionIteration } from "./fiche-plan";
  * Une demande n'est QU'UN PILOTE : les tâches qu'elle pose (run d'agent, job vidéo, génération d'image) gardent leurs voies et le verrou
  * GPU (worker/index.ts). Elle ne tient ni voie ni verrou entre deux étapes. Une seule demande en cours par cible (plan, asset). */
 
-export type TypeDemande = "iteration-plan" | "ajout-plan";
+export type TypeDemande = "iteration-plan" | "ajout-plan" | "ajout-scene";
 export type StatutDemande = "en_cours" | "termine" | "echoue" | "annulee";
 export type StatutEtapeDemande = "a_venir" | "en_cours" | "fait" | "passe";
 
@@ -136,6 +137,53 @@ export function decisionAjoutPlan(prop: PropositionAjout | null): DecisionAjout 
   if (plan.bloque) return { action: "echec", erreur: plan.avertissements.find((w) => w.type === "bloque_controle")?.texte ?? "Un contrôle empêche d'ajouter ce plan." };
   const titre = typeof (plan.apres as { titre?: unknown } | null)?.titre === "string" ? ((plan.apres as { titre: string }).titre) : plan.libelle;
   return { action: "appliquer", planChangementId: plan.id, changementIds: tous.map((c) => c.id), titre };
+}
+
+// --- « Nouvelle scène » (page Scénario) --------------------------------------------------------------------------------------------------
+// Même mécanique que l'ajout d'un plan : l'agent écrit UNE scène (son titre, sa fonction, son genre, son ambiance et ses plans, en lisant les scènes
+// voisines), elle est ajoutée au film SANS relecture, et on la relit dans la page. Même cible (l'épisode) : une seule demande de ce genre à la fois
+// par film, plan ou scène (l'index unique partiel de `demandes`).
+
+export const ETAPES_AJOUT_SCENE = [
+  { cle: "agent", libelle: "L'agent écrit la scène" },
+  { cle: "ajout", libelle: "Ajout au film" },
+] as const;
+
+export const etapesAjoutScene = (): EtapeDemande[] => ETAPES_AJOUT_SCENE.map((e, i) => ({ cle: e.cle, libelle: e.libelle, statut: i === 0 ? ("en_cours" as const) : ("a_venir" as const) }));
+
+export type { PlaceScene };
+
+export type ContexteAjoutScene = {
+  /** Le briefing de l'auteur ; vide = l'agent propose la suite. */
+  consigne: string;
+  place: PlaceScene;
+  /** « Après III · La Fuite » ou « Au début du film » : pour la file. */
+  apres: string;
+  runUuid?: string;
+  /** La scène créée, une fois ajoutée (la file y mène). */
+  sceneId?: number;
+  titre?: string;
+};
+
+/** Ce que la proposition de l'agent permet de faire d'une scène neuve : elle doit créer UNE scène (et ses plans) ; tout le reste reste décoché. Pure. */
+export type DecisionAjoutScene = { action: "attendre" } | { action: "fait" } | { action: "echec"; erreur: string } | { action: "appliquer"; changementIds: number[]; tous: number[]; titre: string };
+
+export function decisionAjoutScene(prop: PropositionAjout | null): DecisionAjoutScene {
+  if (!prop || prop.statut === "en_generation") return { action: "attendre" };
+  if (prop.statut === "appliquee" || prop.statut === "partielle") return { action: "fait" };
+  if (prop.statut === "echouee") return { action: "echec", erreur: prop.erreur ?? "L'agent n'a pas réussi à écrire cette scène." };
+  if (prop.statut === "rejetee") return { action: "echec", erreur: "La proposition a été rejetée." };
+  const tous = prop.groupes.flatMap((g) => g.changements);
+  const scene = tous.find((c) => c.cibleType === "scene" && c.operation === "creer");
+  if (!scene) return { action: "echec", erreur: "L'agent n'a pas proposé de scène à ajouter." };
+  const retenus = tous.filter((c) => (c.cibleType === "scene" || c.cibleType === "plan") && c.operation === "creer");
+  const refus = retenus.find((c) => c.refuseRaison);
+  if (refus) return { action: "echec", erreur: refus.refuseRaison! };
+  const bloque = retenus.find((c) => c.bloque);
+  if (bloque) return { action: "echec", erreur: bloque.avertissements.find((w) => w.type === "bloque_controle")?.texte ?? "Un contrôle empêche d'ajouter cette scène." };
+  if (!retenus.some((c) => c.cibleType === "plan")) return { action: "echec", erreur: "L'agent a proposé une scène sans plan." };
+  const titre = typeof (scene.apres as { titre?: unknown } | null)?.titre === "string" ? (scene.apres as { titre: string }).titre : scene.libelle;
+  return { action: "appliquer", changementIds: retenus.map((c) => c.id), tous: tous.map((c) => c.id), titre };
 }
 
 /** Passe l'étape `cle` à `statut` et lance la suivante si on vient de la finir ; `sauter` les marque « passées » (ex. pas de réécriture). */

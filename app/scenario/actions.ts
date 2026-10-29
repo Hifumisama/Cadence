@@ -7,26 +7,6 @@ import { revalidatePath } from "next/cache";
 import { recomposerOrdre, type Tx } from "@/lib/ordre-plans";
 import { genreOuNull } from "@/lib/scene-genres";
 
-/** Une scène naît vide : ses plans s'y rattachent au fur et à mesure
- * (rattacherPlanAScene). Plage de numéros et durée se déduisent des plans. */
-export async function creerScene(episodeId: number, valeurs: { titre: string; fonction: string; genre?: string | null; ambiance?: string }) {
-  const existantes = await db.select().from(scenes).where(eq(scenes.episodeId, episodeId));
-  const ordre = existantes.reduce((acc, sc) => Math.max(acc, sc.ordre), -1) + 1;
-  const [creee] = await db
-    .insert(scenes)
-    .values({
-      episodeId,
-      ordre,
-      titre: valeurs.titre,
-      fonction: valeurs.fonction || null,
-      genre: genreOuNull(valeurs.genre),
-      ambiance: valeurs.ambiance?.trim() || null,
-    })
-    .returning({ id: scenes.id });
-  revalidatePath("/", "layout");
-  return creee?.id ?? null;
-}
-
 /** Place un plan dans une scène (ou « sans scène » si `sceneId` est null),
  * juste avant `avantPlanId` — ou, sans repère, à la fin des plans de la scène
  * cible. L'ordre de tout l'épisode est recomposé dans une transaction :

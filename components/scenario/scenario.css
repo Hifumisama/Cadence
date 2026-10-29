@@ -205,61 +205,63 @@
   outline: 0;
 }
 
-/* Le tiroir de création d'une scène : glisse depuis la droite, fond de page assombri. */
-.sc-tiroir-fond {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
+/* Un « + » dans chaque intervalle du bandeau : c'est là que la scène neuve s'insérera. Discret au repos, il s'allume au survol. */
+.sc-fente-scene {
+  flex: none;
+  align-self: center;
   display: flex;
-  justify-content: flex-end;
-  background: rgba(6, 6, 8, 0.66);
-  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 -4px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--film);
+  color: var(--ink-3);
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s, background 0.15s, transform 0.15s;
 }
-.sc-tiroir {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: min(480px, 100%);
-  height: 100%;
-  background: linear-gradient(180deg, var(--surface-2), var(--surface) 38%);
-  border-left: 1px solid var(--or-soft);
-  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.55);
+.sc-fente-scene:hover:not(:disabled),
+.sc-fente-scene:focus-visible {
+  opacity: 1;
+  transform: scale(1.18);
+  color: #0d0d11;
+  border-color: var(--or);
+  background: var(--or);
+  outline: 0;
 }
-.sc-tiroir::before {
-  /* Filet doré le long du bord. */
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 -1px;
-  width: 2px;
-  background: linear-gradient(180deg, var(--or) 0%, transparent 55%);
-  pointer-events: none;
+.sc-fente-scene:disabled,
+.sc-carte-plus:disabled {
+  cursor: not-allowed;
+  opacity: 0.25;
 }
-.sc-tiroir-hd {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding: var(--sp-6) var(--sp-5) var(--sp-4);
-  border-bottom: 1px solid var(--line);
+
+/* La scène en cours d'écriture : sa place est gardée dans le bandeau. */
+.sc-carte.is-fantome {
+  cursor: default;
+  opacity: 1;
+  filter: none;
+  border-style: dashed;
+  border-color: var(--or-soft);
+  background: var(--surface);
 }
+.sc-carte.is-fantome .sc-carte-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .sc-tiroir-etiquette {
   font-size: 11.5px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--or);
-}
-.sc-tiroir-hd h2 {
-  margin: 4px 0 0;
-  font-family: var(--font-brand), serif;
-  font-size: 28px;
-  font-weight: 400;
-  letter-spacing: 0.03em;
-  line-height: 1.1;
-  color: var(--ink);
-}
-.sc-tiroir-hd p {
-  margin: 8px 0 0;
-  font-size: 13.5px;
-  color: var(--ink-3);
 }
 .sc-tiroir-fermer {
   flex: none;
@@ -280,37 +282,6 @@
 .sc-tiroir-fermer:focus-visible {
   color: var(--or-glow);
   border-color: var(--or-soft);
-}
-.sc-tiroir-corps {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--sp-5);
-}
-.sc-tiroir-pied {
-  display: flex;
-  gap: var(--sp-2);
-  padding: var(--sp-4) var(--sp-5);
-  border-top: 1px solid var(--line);
-  background: var(--surface);
-}
-@keyframes sc-tiroir-entree {
-  from {
-    transform: translateX(48px);
-    opacity: 0;
-  }
-}
-@keyframes sc-tiroir-fond-entree {
-  from {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .sc-tiroir-fond {
-    animation: sc-tiroir-fond-entree 0.2s ease-out both;
-  }
-  .sc-tiroir {
-    animation: sc-tiroir-entree 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  }
 }
 
 /* ---- L'en-tête de la scène ouverte ---- */
@@ -721,16 +692,6 @@
 .sc-ordre {
   display: inline-flex;
   gap: var(--sp-1, 4px);
-}
-.sc-suite {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--line);
-}
-.sc-suite .btn:last-child {
-  margin-left: auto;
 }
 
 /* Une carte de scène qui vient de recevoir un plan pulse en or. */

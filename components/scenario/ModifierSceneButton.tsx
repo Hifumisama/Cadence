@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { modifierScene } from "@/app/scenario/actions";
+import { Icone } from "@/components/ui/Icone";
 import { ChampsGenreScene } from "./ChampsGenreScene";
 
-/** Bouton « Modifier » d'une scène : titre et fonction (description). Le
- * formulaire s'ouvre sous l'en-tête, sur toute la largeur. */
+/** Bouton « Modifier » d'une scène : titre, description, genre et ambiance, dans une popup (même écrin que « Ajouter un plan »). */
 export function ModifierSceneButton({
   sceneId,
   titre,
@@ -19,12 +21,14 @@ export function ModifierSceneButton({
   genre?: string;
   ambiance?: string;
 }) {
+  const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
   const [t, setT] = useState(titre);
   const [f, setF] = useState(fonction);
   const [g, setG] = useState(genre);
   const [a, setA] = useState(ambiance);
   const [pending, startTransition] = useTransition();
+  const champTitre = useRef<HTMLInputElement>(null);
 
   const ouvrir = () => {
     setT(titre);
@@ -33,47 +37,90 @@ export function ModifierSceneButton({
     setA(ambiance);
     setOuvert(true);
   };
+  const fermer = () => {
+    if (!pending) setOuvert(false);
+  };
+  const fermerRef = useRef(fermer);
+  fermerRef.current = fermer;
+
+  // Ouverte : Échap ferme, le focus passe au titre.
+  useEffect(() => {
+    if (!ouvert) return;
+    champTitre.current?.focus();
+    const echap = (e: KeyboardEvent) => e.key === "Escape" && fermerRef.current();
+    document.addEventListener("keydown", echap);
+    return () => document.removeEventListener("keydown", echap);
+  }, [ouvert]);
+
   const enregistrer = () => {
     if (!t.trim()) return;
     startTransition(async () => {
       await modifierScene(sceneId, { titre: t, fonction: f, genre: g || null, ambiance: a });
       setOuvert(false);
+      router.refresh();
     });
   };
 
   return (
     <>
-      {!genre && !ambiance && !ouvert ? (
+      {!genre && !ambiance ? (
         <button className="btn btn-ghost btn-sm" type="button" onClick={ouvrir} title="Le genre guide la rédaction des plans, l'ambiance tient le cadre visuel de la scène">
           + Genre et ambiance
         </button>
       ) : null}
-      <button className="btn btn-ghost btn-sm" type="button" onClick={() => (ouvert ? setOuvert(false) : ouvrir())}>
+      <button className="btn btn-ghost btn-sm" type="button" onClick={ouvrir}>
         Modifier
       </button>
-      {ouvert ? (
-        <section className="plan-form is-new" style={{ flexBasis: "100%", margin: "var(--sp-2) 0" }}>
-          <div className="form-grid">
-            <div className="field-group wide">
-              <label>Titre</label>
-              <input className="field" value={t} onChange={(e) => setT(e.target.value)} />
-            </div>
-            <div className="field-group wide">
-              <label>Description</label>
-              <textarea className="field" rows={3} value={f} onChange={(e) => setF(e.target.value)} />
-            </div>
-            <ChampsGenreScene genre={g} ambiance={a} onGenre={setG} onAmbiance={setA} />
-            <div className="form-actions wide">
-              <button className="btn btn-gold" type="button" onClick={enregistrer} disabled={pending || !t.trim()}>
-                {pending ? "..." : "Enregistrer"}
-              </button>
-              <button className="btn btn-ghost" type="button" onClick={() => setOuvert(false)}>
-                Annuler
-              </button>
-            </div>
-          </div>
-        </section>
-      ) : null}
+      {ouvert
+        ? createPortal(
+            <div className="sc-popup-fond" onClick={fermer}>
+              <div className="sc-popup" role="dialog" aria-modal="true" aria-labelledby="modif-scene-titre" onClick={(e) => e.stopPropagation()}>
+                <header className="sc-popup-hd">
+                  <div>
+                    <span className="sc-tiroir-etiquette">Scène</span>
+                    <h2 id="modif-scene-titre">Modifier la scène</h2>
+                  </div>
+                  <button type="button" className="sc-tiroir-fermer" onClick={fermer} disabled={pending} aria-label="Fermer">
+                    <Icone nom="fermer" taille={18} />
+                  </button>
+                </header>
+
+                <p className="tiny-note">
+                  Ces retouches ne changent que la fiche d&rsquo;identité de la scène : ses plans restent tels quels. Pour la réécrire, crée une nouvelle scène à côté, puis supprime celle-ci.
+                </p>
+
+                <div className="form-grid">
+                  <div className="field-group wide">
+                    <label htmlFor="modif-scene-champ-titre">Titre</label>
+                    <input
+                      id="modif-scene-champ-titre"
+                      ref={champTitre}
+                      className="field"
+                      value={t}
+                      onChange={(e) => setT(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && enregistrer()}
+                    />
+                  </div>
+                  <div className="field-group wide">
+                    <label htmlFor="modif-scene-champ-fonction">Ce que la scène fait dans le récit</label>
+                    <textarea id="modif-scene-champ-fonction" className="field" rows={4} value={f} onChange={(e) => setF(e.target.value)} />
+                  </div>
+                  <ChampsGenreScene genre={g} ambiance={a} onGenre={setG} onAmbiance={setA} />
+                </div>
+
+                <footer className="sc-popup-pied">
+                  <button className="btn btn-gold" type="button" onClick={enregistrer} disabled={pending || !t.trim()}>
+                    {pending ? "Enregistrement…" : "Enregistrer"}
+                  </button>
+                  <button className="btn btn-ghost" type="button" onClick={fermer} disabled={pending}>
+                    Annuler
+                  </button>
+                </footer>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

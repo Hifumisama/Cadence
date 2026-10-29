@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { avecSection, construireSections, diffSections, egal, sortieVersBrief, statutDeSection } from "./brief";
 import { cocheParDefaut, compter, ecrasementsAConfirmer, grouper, raisonNonCochable, resumerSelection } from "./cochage";
-import { depuisCorrectionPlan, depuisPlanAInserer, depuisPromptAsset, depuisScenarioEpisode, type SortieScenarioEpisode } from "./conversion";
+import { depuisCorrectionPlan, depuisPlanAInserer, depuisPromptAsset, depuisSceneAInserer, depuisScenarioEpisode, type SortieScenarioEpisode } from "./conversion";
+import { placeDeScene } from "./applicateurs/structure";
 import { verifierPortee, type CibleChangement } from "./portee";
 import { planifierInsertion } from "./rangs";
 import { squeletteDepuisBrief } from "./squelette";
@@ -232,6 +233,31 @@ test("plan à insérer et correction d'un plan : un seul changement, à la bonne
   assert.equal(cor!.cibleRef, "u-p");
   assert.equal(cor!.operation, "modifier");
   assert.deepEqual(depuisPlanAInserer({ ...scenario, scenes: [] }, { episodeId: 1, position: { fin: true }, sceneId: null }), []);
+});
+
+test("scène à insérer : la scène porte sa place, ses plans la rejoignent par clé, le premier est une coupe, un titre pris est distingué", () => {
+  const sortie = { ...scenario, scenes: [{ ...scenario.scenes[0]!, titre: "Le pont", plans: [{ titre: "A", description: "d", liaison: "suite", dureeSecondes: 6 }, { titre: "B", description: "d", liaison: "suite", dureeSecondes: 7 }] }] } as SortieScenarioEpisode;
+  const l = depuisSceneAInserer(sortie, { episodeId: 2, place: { apresSceneId: 8 }, titresPris: ["le pont"] });
+  assert.equal(l.length, 3);
+  const sc = l[0]!;
+  assert.equal(sc.cibleType, "scene");
+  assert.equal((sc.apres as { titre: string }).titre, "Le pont (2)");
+  assert.equal((sc.apres as { apresSceneId: number }).apresSceneId, 8);
+  const [p1, p2] = [l[1]!, l[2]!];
+  assert.equal((p1.apres as { sceneCle: string }).sceneCle, sc.cle);
+  assert.equal((p1.apres as { liaison: string }).liaison, "coupe");
+  assert.equal((p2.apres as { liaison: string }).liaison, "suite");
+  assert.deepEqual(depuisSceneAInserer({ ...scenario, scenes: [] }, { episodeId: 1, place: { debut: true } }), []);
+  assert.equal((depuisSceneAInserer(sortie, { episodeId: 2, place: { debut: true } })[0]!.apres as { debut?: boolean }).debut, true);
+});
+
+test("place d'une scène neuve : début, après une scène, repère disparu = fin", () => {
+  const ex = [{ id: 1 }, { id: 2 }, { id: 3 }];
+  assert.equal(placeDeScene({ debut: true }, ex), 0);
+  assert.equal(placeDeScene({ apresSceneId: 2 }, ex), 2);
+  assert.equal(placeDeScene({ apresSceneId: 3 }, ex), 3);
+  assert.equal(placeDeScene({ apresSceneId: 99 }, ex), null);
+  assert.equal(placeDeScene({}, ex), null);
 });
 
 test("squelette d'un film : l'épisode vide est réutilisé, pas doublé", () => {

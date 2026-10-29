@@ -12,12 +12,12 @@ import { Icone } from "@/components/ui/Icone";
 import { posterBackgroundImage } from "@/lib/poster";
 import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
 import { cleDemande } from "@/lib/taches";
-import { LIBELLE_ETAT, cleScene, minutage, romain, type AjoutEnCours, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
+import { LIBELLE_ETAT, cleScene, minutage, romain, type AjoutEnCours, type AjoutSceneEnCours, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
 import { AjouterPlan, type CibleAjoutPlan } from "./AjouterPlan";
 import { EtatFiches } from "./EtatFiches";
 import { ModifierSceneButton } from "./ModifierSceneButton";
-import { NouveauSceneForm } from "./NouveauSceneForm";
+import { AjouterScene, type CibleAjoutScene } from "./AjouterScene";
 import { SupprimerSceneButton } from "./SupprimerSceneButton";
 
 type Vue = "vignettes" | "liste";
@@ -44,6 +44,7 @@ export function VueScenario({
   groupes,
   sceneInitiale,
   ajout,
+  ajoutScene,
   fiches,
 }: {
   projectId: number;
@@ -52,6 +53,8 @@ export function VueScenario({
   sceneInitiale: string | null;
   /** Un plan en cours d'écriture (« Ajouter un plan »), ou null. */
   ajout: AjoutEnCours | null;
+  /** Une scène en cours d'écriture (« Nouvelle scène »), ou null. Un seul ajout à la fois par film : plan ou scène. */
+  ajoutScene: AjoutSceneEnCours | null;
   /** L'état des fiches de plan du film et la demande « Écrire les fiches ». */
   fiches: { nbPlans: number; nbDeveloppes: number; demande: DemandeAgent };
 }) {
@@ -64,7 +67,7 @@ export function VueScenario({
   const [vue, setVue] = useState<Vue>(aDesImages ? "vignettes" : "liste");
   const [descriptions, setDescriptions] = useState(false);
   const [signal, setSignal] = useState<Signal | null>(null);
-  const [nouvelleScene, setNouvelleScene] = useState(false);
+  const [cibleScene, setCibleScene] = useState<CibleAjoutScene | null>(null);
   const [cibleAjout, setCibleAjout] = useState<CibleAjoutPlan | null>(null);
   /** L'outil « Ajouter un plan » est actif : des « + » s'affichent entre les plans, on clique celui où le plan doit naître. */
   const [modeAjout, setModeAjout] = useState(false);
@@ -130,13 +133,14 @@ export function VueScenario({
 
   // Un plan en cours d'écriture : la page garde sa carte fantôme tant que la tâche est active. Quand la file ne l'a plus (finie, échouée,
   // annulée), on recharge la page : le plan est là, ou la carte disparaît. Même principe que le suivi des rendus de la fiche de plan.
+  const enEcriture = ajout ?? ajoutScene;
   useEffect(() => {
-    if (!ajout || !tachesPretes) return;
-    const active = taches.some((t) => t.cle === cleDemande(ajout.id) && (t.statut === "en_attente" || t.statut === "en_cours"));
+    if (!enEcriture || !tachesPretes) return;
+    const active = taches.some((t) => t.cle === cleDemande(enEcriture.id) && (t.statut === "en_attente" || t.statut === "en_cours"));
     if (active || Date.now() - dernierRefresh.current < 3000) return;
     dernierRefresh.current = Date.now();
     router.refresh();
-  }, [ajout, taches, tachesPretes, router]);
+  }, [enEcriture, taches, tachesPretes, router]);
 
   // La scène ouverte se recentre dans le bandeau ; le focus la suit quand on navigue au clavier dans le bandeau.
   useEffect(() => {
@@ -188,18 +192,11 @@ export function VueScenario({
           <button className="btn btn-gold" type="button" onClick={() => ouvrirAgent({ projectId, portee: "episode", cible: { id: episodeId }, profondeur: "courte", libelle: "Scénario", episodeId })}>
             Écrire le scénario
           </button>
-          <button className="btn btn-ghost" type="button" onClick={() => setNouvelleScene(true)}>
-            <Icone nom="ajouter" taille={15} /> Nouvelle scène
+          <button className="btn btn-ghost" type="button" disabled={ajoutScene != null} onClick={() => setCibleScene({ place: { debut: true }, apres: "Au début du film" })}>
+            <Icone nom="ajouter" taille={15} /> {ajoutScene ? "Scène en cours d'écriture…" : "Nouvelle scène"}
           </button>
         </div>
-        <NouveauSceneForm
-          episodeId={episodeId}
-          ouvert={nouvelleScene}
-          onFermer={() => setNouvelleScene(false)}
-          onCree={(id) => {
-            if (id != null) choisirScene(cleScene(id));
-          }}
-        />
+        <AjouterScene projectId={projectId} episodeId={episodeId} cible={cibleScene} onFermer={() => setCibleScene(null)} onLance={() => setSignal({ texte: "Scène en cours d'écriture : suivi dans la file des tâches." })} />
         <p className="tiny-note" style={{ marginTop: "var(--sp-6)" }}>
           Aucun plan en base. L&rsquo;agent peut écrire le scénario, ou lancer <code>npm run db:import</code> pour importer l&rsquo;épisode 1 depuis le markdown existant.
         </p>
@@ -216,6 +213,32 @@ export function VueScenario({
   const debuts = groupes.map((_, i) => groupes.slice(0, i).reduce((acc, g) => acc + g.duree, 0));
   const precedente = groupes[indexCourant - 1];
   const suivante = groupes[indexCourant + 1];
+
+  // « Nouvelle scène » : un « + » dans chaque intervalle du bandeau, la grande carte en fin de pellicule. Un seul ajout à la fois par film (plan ou scène).
+  const dernierReel = scenesReelles[scenesReelles.length - 1] ?? null;
+  const occupe = ajout != null || ajoutScene != null;
+  const fenteScene = (place: CibleAjoutScene["place"], apres: string) => (
+    <button
+      key={"debut" in place ? "fente-debut" : `fente-${place.apresSceneId}`}
+      type="button"
+      className="sc-fente-scene"
+      disabled={occupe}
+      aria-label={`Nouvelle scène : ${apres.toLowerCase()}`}
+      title={occupe ? "Un ajout est déjà en cours d'écriture" : `Nouvelle scène · ${apres}`}
+      onClick={() => setCibleScene({ place, apres })}
+    >
+      <Icone nom="ajouter" taille={14} />
+    </button>
+  );
+  const carteSceneFantome = (
+    <div className="sc-carte is-fantome" role="status" aria-label="Scène en cours d'écriture" key="scene-fantome">
+      <span className="sc-fantome-pouls" aria-hidden="true" />
+      <span className="sc-carte-bas">
+        <span className="sc-carte-titre">Scène en cours d&rsquo;écriture…</span>
+        <span className="sc-carte-meta">{ajoutScene?.consigne || "Proposition de l'agent"}</span>
+      </span>
+    </div>
+  );
 
   const ouvrir = (p: PlanVue) => router.push(p.href);
 
@@ -289,11 +312,6 @@ export function VueScenario({
   };
 
   // Aller à la scène d'à côté depuis le bas de la page : on remonte au bandeau.
-  const allerScene = (g: SceneVue) => {
-    choisirScene(cleScene(g.id));
-    document.querySelector(".sc-rail-zone")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   // Déposer un plan dans un espace vide de la scène ouverte : il passe en dernier.
   const deposerEnFin = (e: React.DragEvent) => {
     const c = lire<ChargePlan>(e, MIME_PLAN);
@@ -331,21 +349,33 @@ export function VueScenario({
         </button>
         <div className="sc-rail" ref={rail}>
           <div className="sc-rail-liste" role="tablist" aria-label="Scènes du film">
+            {ajoutScene && "debut" in ajoutScene.place ? carteSceneFantome : null}
+            {groupes.length > 0 && groupes[0]!.id != null ? fenteScene({ debut: true }, "Au début du film") : null}
             {groupes.map((g, i) => (
-              <CarteScene
-                key={cleScene(g.id)}
-                g={g}
-                numero={g.id != null ? romain(i + 1) : null}
-                debut={debuts[i] ?? 0}
-                actif={cleScene(g.id) === cleCourante}
-                suivantId={groupes[i + 1]?.id ?? null}
-                onChoisir={() => choisirScene(cleScene(g.id))}
-                onKeyDown={(e) => surClavierRail(e, i)}
-                onRecu={(planId) => signaler(planId, g)}
-              />
+              <Fragment key={cleScene(g.id)}>
+                <CarteScene
+                  g={g}
+                  numero={g.id != null ? romain(i + 1) : null}
+                  debut={debuts[i] ?? 0}
+                  actif={cleScene(g.id) === cleCourante}
+                  suivantId={groupes[i + 1]?.id ?? null}
+                  onChoisir={() => choisirScene(cleScene(g.id))}
+                  onKeyDown={(e) => surClavierRail(e, i)}
+                  onRecu={(planId) => signaler(planId, g)}
+                />
+                {ajoutScene && g.id != null && "apresSceneId" in ajoutScene.place && ajoutScene.place.apresSceneId === g.id ? carteSceneFantome : null}
+                {/* Entre deux scènes : un « + ». Après la dernière, la grande carte « Nouvelle scène » (plus bas) prend le relais. */}
+                {g.id != null && i < scenesReelles.length - 1 ? fenteScene({ apresSceneId: g.id }, `Après ${libelleScene(g)}`) : null}
+              </Fragment>
             ))}
           </div>
-          <button type="button" className="sc-carte-plus" onClick={() => setNouvelleScene(true)}>
+          <button
+            type="button"
+            className="sc-carte-plus"
+            disabled={occupe}
+            title={occupe ? "Un ajout est déjà en cours d'écriture" : "Ajouter une scène à la fin du film"}
+            onClick={() => setCibleScene(dernierReel ? { place: { apresSceneId: dernierReel.id! }, apres: `Après ${libelleScene(dernierReel)}` } : { place: { debut: true }, apres: "Au début du film" })}
+          >
             <Icone nom="ajouter" taille={22} />
             <span>Nouvelle scène</span>
           </button>
@@ -398,8 +428,8 @@ export function VueScenario({
             type="button"
             className={`btn btn-sm ${modeAjout ? "btn-gold" : "btn-ghost"}`}
             aria-pressed={modeAjout}
-            disabled={ajout != null}
-            title={ajout ? "Un plan est déjà en cours d'écriture" : undefined}
+            disabled={occupe}
+            title={occupe ? "Un ajout est déjà en cours d'écriture" : undefined}
             onClick={basculerAjout}
           >
             <Icone nom={modeAjout ? "fermer" : "ajouter"} taille={15} /> {modeAjout ? "Choisis la place du plan" : "Ajouter un plan"}
@@ -433,7 +463,7 @@ export function VueScenario({
             <div className="sc-vide">
               <p>{estSans ? "Aucun plan sans scène." : "Aucun plan dans cette scène : l'agent peut en écrire un, ou tu peux en glisser un depuis une autre scène sur sa carte."}</p>
               {!estSans ? (
-                <button type="button" className="btn btn-gold" onClick={() => choisirPlace(0)} disabled={ajout != null} title={ajout ? "Un plan est déjà en cours d'écriture" : undefined}>
+                <button type="button" className="btn btn-gold" onClick={() => choisirPlace(0)} disabled={occupe} title={occupe ? "Un ajout est déjà en cours d'écriture" : undefined}>
                   <Icone nom="ajouter" taille={15} /> Ajouter un plan
                 </button>
               ) : null}
@@ -525,32 +555,9 @@ export function VueScenario({
           {vue === "vignettes" && plan ? detail(plan, true) : null}
         </div>
 
-        {precedente || suivante ? (
-          <div className="sc-suite">
-            {precedente ? (
-              <button type="button" className="btn btn-ghost" onClick={() => allerScene(precedente)}>
-                ‹ {libelleScene(precedente)}
-              </button>
-            ) : (
-              <span />
-            )}
-            {suivante ? (
-              <button type="button" className="btn btn-ghost" onClick={() => allerScene(suivante)}>
-                {libelleScene(suivante)} ›
-              </button>
-            ) : null}
-          </div>
-        ) : null}
       </div>
 
-      <NouveauSceneForm
-        episodeId={episodeId}
-        ouvert={nouvelleScene}
-        onFermer={() => setNouvelleScene(false)}
-        onCree={(id) => {
-          if (id != null) choisirScene(cleScene(id));
-        }}
-      />
+      <AjouterScene projectId={projectId} episodeId={episodeId} cible={cibleScene} onFermer={() => setCibleScene(null)} onLance={() => setSignal({ texte: "Scène en cours d'écriture : suivi dans la file des tâches." })} />
 
       <AjouterPlan
         projectId={projectId}

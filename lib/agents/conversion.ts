@@ -9,7 +9,7 @@ import { controlerSortiePlanH3, MAX_IMAGES_AVEC_RACCORD, type ProblemeH3, type S
 import { genreOuNull } from "../scene-genres";
 import { estLiaison } from "../plan-liaison";
 import { ajusterDureesScene, repartirDureesScenes } from "./traitement";
-import type { Avertissement, Position } from "./types";
+import type { Avertissement, PlaceScene, Position } from "./types";
 
 /** Des sorties validées des skills aux changements d'une proposition — EN CODE, sans second
  * appel au modèle. Pur, testé. L'enrichissement (état courant, écrasement, portée) vient
@@ -394,6 +394,65 @@ export function depuisPlanAInserer(
       },
       avertissements: info,
     },
+  ];
+}
+
+/** Une seule SCÈNE à insérer (« Nouvelle scène » entre deux scènes) : la première scène de la sortie, avec ses plans. La scène porte sa place
+ * (`apresSceneId` ou `debut`) ; ses plans la rejoignent par leur clé et se rangent dans son bloc (l'ordre de l'épisode est regroupé par scène). Une
+ * scène neuve n'a pas de traitement : elle s'écrit ici d'un seul tenant, avec ses plans. Pur, testé. */
+export function depuisSceneAInserer(
+  sortie: SortieScenarioEpisode,
+  cible: { episodeId: number; place: PlaceScene; titresPris?: string[] },
+): ChangementBrut[] {
+  const sc = sortie.scenes[0];
+  if (!sc || sc.plans.length === 0) return [];
+  const pris = new Set((cible.titresPris ?? []).map(norme));
+  let titre = sc.titre.trim();
+  for (let n = 2; pris.has(norme(titre)); n++) titre = `${sc.titre.trim()} (${n})`;
+  const info: Avertissement[] = [
+    ...(sortie.inventions ?? []).map((t) => ({ type: "invention" as const, texte: t })),
+    ...(sortie.notes?.trim() ? [{ type: "info" as const, texte: sortie.notes.trim() }] : []),
+  ];
+  return [
+    {
+      groupe: "scenes",
+      cle: "scene-inseree",
+      cibleType: "scene",
+      cibleRef: null,
+      libelle: `Scène · ${titre}`,
+      operation: "creer",
+      sousGroupe: titre,
+      apres: {
+        titre,
+        fonction: sc.fonction,
+        episodeId: cible.episodeId,
+        ...cible.place,
+        ...(genreOuNull(sc.genre) ? { genre: sc.genre } : {}),
+        ...(sc.ambiance?.trim() ? { ambiance: sc.ambiance.trim() } : {}),
+      },
+      avertissements: info,
+    },
+    ...sc.plans.map(
+      (p, j): ChangementBrut => ({
+        groupe: "plans",
+        cle: `plan-insere-${j + 1}`,
+        cibleType: "plan",
+        cibleRef: null,
+        libelle: `Plan · ${p.titre}`,
+        operation: "creer",
+        position: { fin: true },
+        sousGroupe: titre,
+        apres: {
+          titre: p.titre,
+          description: p.description,
+          dureeGenerationSecondes: p.dureeSecondes,
+          // Le premier plan d'une scène neuve est une coupe : aucun état de fin à reprendre.
+          ...liaisonDe(j === 0 ? { ...p, liaison: "coupe" } : p),
+          episodeId: cible.episodeId,
+          sceneCle: "scene-inseree",
+        },
+      }),
+    ),
   ];
 }
 

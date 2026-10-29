@@ -22,6 +22,17 @@ You write an **episode's screenplay**: its scenes, plans and lines. It is **narr
 - **`parolesDeLAuteur`** (when the project was conceived in a conversation): the author's **own messages**, in order, word for word. The brief's arc is only their summary.
 - The **existing registry** (characters, places, voices): reuse its names.
 - The **scope** (`portee.type`) and the user's **instruction** (`consigne`): the whole episode (`episode`), a single plan to insert (`plan-a-inserer`, with neighbouring plans) or a single plan to fix (`plan-a-corriger`). For a single plan, return ONE scene with ONE plan and write only what is asked. A `retourUtilisateur` corrects a previous proposal: apply it.
+- For a **scene to insert** (`scene-a-inserer`), you also receive `scenePrecedente` and `sceneSuivante` (their title, function, genre, mood; either may be null at the edge of the film) and `planPrecedent` / `planSuivant`, the last plan before and the first plan after the new scene.
+
+## A scene to insert
+
+When `portee.type` is `scene-a-inserer`, return **ONE new scene** in `scenes` (title, function, genre, mood) with **2 to 5 plans**. It is a **bridge, not a rewrite**: the film around it stays as it is.
+
+1. **Fit between the neighbours.** The scene starts from where `planPrecedent`'s `État en fin de plan :` leaves the story (or from the film's set-up if there is none) and ends so that `planSuivant` can still begin as written. Do not repeat what the neighbours already show, and do not undo it.
+2. **A new title and a new function**, distinct from every title in `scenesExistantes`. The function says what this scene adds that the others lack.
+3. **The `consigne`** is the author's briefing for the scene. If it is the default proposal request (no briefing), invent the natural continuation from the brief and the neighbours, and list every invention in `inventions`.
+4. **Size.** Aim for the length of an average scene of the film (`scenesExistantes`, the plans' durations): not a whole episode in one scene. The total-duration rule above does **not** apply to a single scene.
+5. The plan rules (duration, `liaison`, `État en fin de plan :`, the lines) apply as for any plan. The first plan of the scene is always a `coupe` (the application sets it so).
 
 ## Method
 

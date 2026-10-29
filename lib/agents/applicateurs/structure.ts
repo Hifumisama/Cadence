@@ -84,6 +84,17 @@ export const applicateurEpisode: Applicateur = {
 
 // --- scène ------------------------------------------------------------------
 
+/** L'indice (0-based) où intercaler une scène neuve parmi les existantes (dans l'ordre), d'après la place que porte le changement : `debut`, ou `apresSceneId`.
+ * Null sans place ou si la scène de repère n'existe plus : la scène va à la fin. Pur. */
+export function placeDeScene(a: Record<string, unknown>, existantes: { id: number }[]): number | null {
+  if (a.debut === true) return 0;
+  if (typeof a.apresSceneId === "number") {
+    const i = existantes.findIndex((s) => s.id === a.apresSceneId);
+    return i === -1 ? null : i + 1;
+  }
+  return null;
+}
+
 export const applicateurScene: Applicateur = {
   cibleType: "scene",
 
@@ -138,10 +149,17 @@ export const applicateurScene: Applicateur = {
       return;
     }
     const episodeId = parentDe(a, "episodeCle", "episodeId", _ctx.cles).id!;
-    const existantes = await tx.select({ ordre: scenes.ordre }).from(scenes).where(eq(scenes.episodeId, episodeId));
-    const ordre = existantes.reduce((m, s) => Math.max(m, s.ordre), -1) + 1;
+    const existantes = await tx.select({ id: scenes.id, ordre: scenes.ordre }).from(scenes).where(eq(scenes.episodeId, episodeId)).orderBy(scenes.ordre, scenes.id);
     const traitement = traitementDeScene(a.traitement);
+    // Une scène sans place va à la fin ; avec une place (`apresSceneId`, ou `debut`), elle s'intercale et l'ordre des scènes est réécrit densément.
+    const place = placeDeScene(a, existantes);
+    const ordre = place === null ? existantes.reduce((m, s) => Math.max(m, s.ordre), -1) + 1 : place;
     const [cree] = await tx.insert(scenes).values({ episodeId, ordre, titre, fonction, genre: genre ?? null, ambiance: ambiance ?? null, ...(traitement ? { traitement } : {}) }).returning({ id: scenes.id });
+    if (place !== null) {
+      const sequence = [...existantes.map((s) => s.id)];
+      sequence.splice(place, 0, cree!.id);
+      for (const [i, id] of sequence.entries()) await tx.update(scenes).set({ ordre: i }).where(eq(scenes.id, id));
+    }
     if (ch.cle) _ctx.cles.set(ch.cle, cree!.id);
   },
 };

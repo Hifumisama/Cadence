@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeIteration, lireDemandeVue, type VueDemande } from "@/lib/demandes-db";
-import type { ContexteAjoutPlan, ContexteIteration } from "@/lib/demandes";
+import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeIteration, lireDemandeVue, type VueDemande } from "@/lib/demandes-db";
+import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@/lib/demandes";
 
 // Les DEMANDES (lib/demandes.ts) côté interface : « Itérer » en pose une, le worker l'enchaîne jusqu'au rendu (lib/demandes-db.ts), la page
 // ne fait que la suivre. Quitter la page ne coupe rien.
@@ -24,6 +24,18 @@ export async function demanderAjoutPlan(
   options: { consigne: string; position: ContexteAjoutPlan["position"]; sceneId: number | null; scene: string },
 ): Promise<{ ok: true; demandeId: number } | { ok: false; erreur: string }> {
   const r = await lancerDemandeAjoutPlan(projectId, episodeId, options);
+  revalidatePath("/", "layout");
+  return r;
+}
+
+/** « Nouvelle scène » (page Scénario) : pose la demande (l'agent écrit la scène et ses plans, ajoutés au film sans relecture). Une seule à la fois par film,
+ * plan ou scène. Une consigne vide laisse l'agent proposer la suite. */
+export async function demanderAjoutScene(
+  projectId: number,
+  episodeId: number,
+  options: { consigne: string; place: ContexteAjoutScene["place"]; apres: string },
+): Promise<{ ok: true; demandeId: number } | { ok: false; erreur: string }> {
+  const r = await lancerDemandeAjoutScene(projectId, episodeId, options);
   revalidatePath("/", "layout");
   return r;
 }

@@ -331,18 +331,21 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const lignesAjouts = await db
     .select({ d: demandes })
     .from(demandes)
-    .where(and(eq(demandes.type, "ajout-plan"), isNull(demandes.masqueAt), or(eq(demandes.statut, "en_cours"), isNull(demandes.vuAt), gte(demandes.createdAt, depuis))));
+    .where(and(inArray(demandes.type, ["ajout-plan", "ajout-scene"]), isNull(demandes.masqueAt), or(eq(demandes.statut, "en_cours"), isNull(demandes.vuAt), gte(demandes.createdAt, depuis))));
   const tachesAjouts: Tache[] = await Promise.all(
     lignesAjouts.map(async ({ d }) => {
       const etapes = (Array.isArray(d.etapes) ? d.etapes : []) as EtapeDemande[];
-      const ctx = d.contexte as { runUuid?: string; scene?: string; sceneId?: number | null; planUuid?: string; titre?: string };
+      const ctx = d.contexte as { runUuid?: string; scene?: string; sceneId?: number | null; planUuid?: string; titre?: string; apres?: string };
       const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
       const base = `/p/${d.projectId}/e/${d.cibleId}`;
+      const estScene = d.type === "ajout-scene";
       return tacheDeDemande({
         id: d.id,
         projectId: d.projectId,
-        libelle: `Nouveau plan · ${ctx.scene ?? "scénario"}`,
-        href: ctx.planUuid ? `${base}/plans/${ctx.planUuid}` : `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
+        libelle: estScene ? `Nouvelle scène · ${ctx.apres ?? "scénario"}` : `Nouveau plan · ${ctx.scene ?? "scénario"}`,
+        href: estScene
+          ? `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : ""}`
+          : ctx.planUuid ? `${base}/plans/${ctx.planUuid}` : `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
         statut: d.statut as StatutDemande,
         erreur: d.erreur,
         etapes,
@@ -357,7 +360,9 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         annulationDemandee: run?.annulationDemandeeAt != null,
         progressionRendu: null,
         rendu: false,
-        detailFin: { termine: ctx.titre ? `Plan ajouté · ${ctx.titre}` : "Plan ajouté", echoue: "Ajout d'un plan" },
+        detailFin: estScene
+          ? { termine: ctx.titre ? `Scène ajoutée · ${ctx.titre}` : "Scène ajoutée", echoue: "Ajout d'une scène" }
+          : { termine: ctx.titre ? `Plan ajouté · ${ctx.titre}` : "Plan ajouté", echoue: "Ajout d'un plan" },
       });
     }),
   );

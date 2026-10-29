@@ -10,7 +10,7 @@ import { sansClesAbandonnees } from "./brief";
 import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-plan";
 import { liaisonOuDefaut, type Liaison } from "../plan-liaison";
 import { nombreDeScenesVise, traitementDeScene } from "./traitement";
-import type { BriefContenu, ContexteUtilise, EtatIterationPlan, Position } from "./types";
+import type { BriefContenu, ContexteUtilise, EtatIterationPlan, PlaceScene, Position } from "./types";
 
 /** Ce que l'agent lit AUTOMATIQUEMENT pour une portée courte : des extraits du brief et de
  * l'état courant, jamais le brief entier d'office. Chaque fonction renvoie l'entrée du skill
@@ -290,7 +290,7 @@ export async function entreeScenarioEpisode(
   projectId: number,
   episodeId: number,
   consigne: string,
-  options: { position?: Position; retour?: string } = {},
+  options: { position?: Position; place?: PlaceScene; retour?: string } = {},
 ): Promise<(EntreeSkill & { sceneVoisineId: number | null }) | null> {
   const c = await contexteEpisode(db, projectId, episodeId);
   if (!c) return null;
@@ -298,7 +298,17 @@ export async function entreeScenarioEpisode(
   const insertion = options.position != null;
   let voisinAvant: PlanLu | null = null;
   let voisinApres: PlanLu | null = null;
-  if (options.position) {
+  // Une SCÈNE à insérer : ses voisines sont la scène qui la précède et celle qui la suit ; le dernier plan de l'une et le premier de l'autre
+  // sont les plans à raccorder (état de fin, état d'entrée).
+  let sceneAvant: (typeof c.lesScenes)[number] | null = null;
+  let sceneApres: (typeof c.lesScenes)[number] | null = null;
+  if (options.place) {
+    const i = "apresSceneId" in options.place ? c.lesScenes.findIndex((s) => s.id === (options.place as { apresSceneId: number }).apresSceneId) : -1;
+    sceneAvant = i >= 0 ? (c.lesScenes[i] ?? null) : null;
+    sceneApres = c.lesScenes[i + 1] ?? null;
+    voisinAvant = sceneAvant ? ([...c.lesPlans].reverse().find((p) => p.sceneId === sceneAvant!.id) ?? null) : null;
+    voisinApres = sceneApres ? (c.lesPlans.find((p) => p.sceneId === sceneApres!.id) ?? null) : null;
+  } else if (options.position) {
     const i = "apresPlanUuid" in options.position ? c.lesPlans.findIndex((p) => p.uuid === (options.position as { apresPlanUuid: string }).apresPlanUuid) : "debut" in options.position ? -1 : c.lesPlans.length - 1;
     voisinAvant = i >= 0 ? (c.lesPlans[i] ?? null) : null;
     voisinApres = c.lesPlans[i + 1] ?? null;
@@ -310,16 +320,23 @@ export async function entreeScenarioEpisode(
     ...(c.lesPlans.length ? [{ type: "plan" as const, libelle: `${c.lesPlans.length} plan${c.lesPlans.length > 1 ? "s" : ""} existant${c.lesPlans.length > 1 ? "s" : ""}` }] : []),
     ...(voisinAvant ? [{ type: "plan" as const, libelle: `Plan précédent · ${voisinAvant.titre}`, ref: voisinAvant.uuid }] : []),
     ...(voisinApres ? [{ type: "plan" as const, libelle: `Plan suivant · ${voisinApres.titre}`, ref: voisinApres.uuid }] : []),
+    ...(sceneAvant ? [{ type: "episode" as const, libelle: `Scène précédente · ${sceneAvant.titre}` }] : []),
+    ...(sceneApres ? [{ type: "episode" as const, libelle: `Scène suivante · ${sceneApres.titre}` }] : []),
     { type: "registre", libelle: `Registre : ${c.registre.length} asset${c.registre.length > 1 ? "s" : ""} (noms existants)` },
     ...c.contexteBrief,
     ...(paroles.length ? [{ type: "brief" as const, libelle: `Paroles de l'auteur (${paroles.length} message${paroles.length > 1 ? "s" : ""} de sa conception)` }] : []),
   ];
+  const sceneVue = (s: typeof sceneAvant) => (s ? { titre: s.titre, fonction: s.fonction ?? "", ...(genreOuNull(s.genre) ? { genre: s.genre } : {}), ambiance: (s.ambiance ?? "").trim() } : null);
   return {
     skill: "scenario-episode",
     contexte,
-    sceneVoisineId: voisinAvant?.sceneId ?? voisinApres?.sceneId ?? null,
+    sceneVoisineId: options.place ? null : (voisinAvant?.sceneId ?? voisinApres?.sceneId ?? null),
     entree: {
-      portee: insertion ? { type: "plan-a-inserer", instruction: "Ne propose QU'UN SEUL plan (une seule scène, un seul plan) : le plan à insérer." } : { type: "episode" },
+      portee: options.place
+        ? { type: "scene-a-inserer", instruction: "Ne propose QU'UNE SEULE scène neuve (une seule entrée dans `scenes`), de 2 à 5 plans : la scène à insérer entre `scenePrecedente` et `sceneSuivante`." }
+        : insertion
+          ? { type: "plan-a-inserer", instruction: "Ne propose QU'UN SEUL plan (une seule scène, un seul plan) : le plan à insérer." }
+          : { type: "episode" },
       episode: { titre: c.ep.titre, resume: c.ep.resume },
       // L'arc de CET épisode tel que le brief le pose (même titre, ou même rang à défaut).
       briefEpisode: briefDeEpisode(c.brief, c.ep.titre, c.ep.numero),
@@ -327,7 +344,8 @@ export async function entreeScenarioEpisode(
       resumesEpisodesSuivants: c.suivants,
       scenesExistantes: c.lesScenes,
       plansExistants: c.lesPlans.map((p) => ({ titre: p.titre, description: p.description, dureeSecondes: p.dureeGenerationSecondes })),
-      ...(insertion ? { planPrecedent: voisinAvant, planSuivant: voisinApres } : {}),
+      ...(insertion || options.place ? { planPrecedent: voisinAvant, planSuivant: voisinApres } : {}),
+      ...(options.place ? { scenePrecedente: sceneVue(sceneAvant), sceneSuivante: sceneVue(sceneApres) } : {}),
       registre: c.registre,
       briefExtrait: c.extrait,
       ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),

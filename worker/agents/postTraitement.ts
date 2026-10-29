@@ -22,6 +22,7 @@ import {
   depuisPromptAsset,
   depuisRegistreAsset,
   depuisScenarioEpisode,
+  depuisSceneAInserer,
   depuisScenarioScene,
   depuisTraitement,
   type EpisodeCourant,
@@ -37,7 +38,7 @@ import { traitementDeScene } from "../../lib/agents/traitement";
 import { entreeScenarioEpisode } from "../../lib/agents/contexte";
 import { codeDeCleAsset } from "../../lib/agents/registre";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
-import type { BriefContenu, Position, StatutChamp } from "../../lib/agents/types";
+import type { BriefContenu, PlaceScene, Position, StatutChamp } from "../../lib/agents/types";
 import type { Tx } from "../../lib/ordre-plans";
 import { codesEnVoixOff, depuisFichePlan, type OptionsFichePlan } from "../../lib/agents/conversion";
 import { planUuidDeCle } from "../../lib/agents/fiches";
@@ -61,7 +62,7 @@ import { normaliserChoix } from "../../lib/agents/choix";
  * - `affiche`     : l'affiche du clap (lib/agents/affiche-clap.ts) : le prompt écrit lance la génération de l'image. */
 
 type RunAgent = typeof agentRuns.$inferSelect;
-export type OptionsRunAgent = { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null };
+export type OptionsRunAgent = { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null; place?: PlaceScene };
 
 export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execution: InfosExecution = {}): Promise<void> {
   if (!run.but) return; // appel hors système d'agents (npm run llm:tache) : rien à faire
@@ -200,7 +201,10 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       if (!plan) throw new Error("Le plan visé n'existe plus.");
       bruts = depuisCorrectionPlan(sortie, plan);
     } else if (prop.portee === "episode" && prop.cibleId != null) {
-      if (options.position) {
+      if (options.place) {
+        const courant = await episodeCourant(tx, prop.projectId, prop.cibleId);
+        bruts = depuisSceneAInserer(sortie, { episodeId: prop.cibleId, place: options.place, titresPris: courant.scenes.map((s) => s.titre) });
+      } else if (options.position) {
         bruts = depuisPlanAInserer(sortie, { episodeId: prop.cibleId, position: options.position, sceneId: options.sceneVoisineId ?? null });
       } else {
         bruts = depuisScenarioEpisode(sortie, await episodeCourant(tx, prop.projectId, prop.cibleId), { dureeCibleSecondes: await dureeCibleDuProjet(tx, prop.projectId) });

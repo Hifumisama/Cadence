@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ERREUR_ANNULEE } from "./annulation";
-import { avancerEtapes, decisionAjoutPlan, deciderIteration, etapeCouranteDemande, etapesAjoutPlan, etapesIterationPlan, progressionDemande } from "./demandes";
+import { avancerEtapes, decisionAjoutPlan, decisionAjoutScene, etapesAjoutScene, deciderIteration, etapeCouranteDemande, etapesAjoutPlan, etapesIterationPlan, progressionDemande } from "./demandes";
 
 const run = (statut: string, erreur: string | null = null) => ({ genre: "run" as const, statut, erreur });
 const job = (statut: string, erreur: string | null = null) => ({ genre: "job" as const, statut, erreur });
@@ -92,4 +92,31 @@ test("ajout de plan : rien à ajouter, contrôle bloquant, refus ou échec de l'
 
 test("ajout de plan : une proposition déjà appliquée (reprise après un plantage) termine la demande", () => {
   assert.deepEqual(decisionAjoutPlan(proposition("appliquee")), { action: "fait" });
+});
+
+// --- Nouvelle scène ----------------------------------------------------------------------------------------------------------------------
+
+test("nouvelle scène : la scène et ses plans sont retenus, le reste (un asset) reste décoché", () => {
+  assert.deepEqual(decisionAjoutScene(null), { action: "attendre" });
+  const d = decisionAjoutScene(
+    proposition("prete", [
+      changement({ id: 1, cibleType: "scene", apres: { titre: "La Fuite" } }),
+      changement({ id: 2 }),
+      changement({ id: 3 }),
+      changement({ id: 4, cibleType: "asset" }),
+    ]),
+  );
+  assert.deepEqual(d, { action: "appliquer", changementIds: [1, 2, 3], tous: [1, 2, 3, 4], titre: "La Fuite" });
+});
+
+test("nouvelle scène : sans scène, sans plan, bloquée ou refusée, la demande échoue avec la raison", () => {
+  assert.deepEqual(decisionAjoutScene(proposition("prete", [changement()])), { action: "echec", erreur: "L'agent n'a pas proposé de scène à ajouter." });
+  assert.deepEqual(decisionAjoutScene(proposition("prete", [changement({ cibleType: "scene" })])), { action: "echec", erreur: "L'agent a proposé une scène sans plan." });
+  assert.deepEqual(
+    decisionAjoutScene(proposition("prete", [changement({ id: 1, cibleType: "scene" }), changement({ id: 2, bloque: true, avertissements: [{ type: "bloque_controle", texte: "Durée de plan invalide." }] })])),
+    { action: "echec", erreur: "Durée de plan invalide." },
+  );
+  assert.deepEqual(decisionAjoutScene(proposition("prete", [changement({ cibleType: "scene", refuseRaison: "Hors portée." }), changement()])), { action: "echec", erreur: "Hors portée." });
+  assert.deepEqual(decisionAjoutScene(proposition("appliquee")), { action: "fait" });
+  assert.deepEqual(etapesAjoutScene().map((x) => x.cle), ["agent", "ajout"]);
 });
