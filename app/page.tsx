@@ -24,27 +24,29 @@ export default async function AccueilPage() {
             <h1>Projets</h1>
             <p className="accueil-sous-titre">Un projet, un film : de l&rsquo;entretien à l&rsquo;image finale.</p>
           </div>
-          <dl className="accueil-chiffres">
-            <div>
-              <dd>{projets.length}</dd>
-              <dt>Projets</dt>
-            </div>
-            <div className={enProduction > 0 ? "is-encours" : undefined}>
-              <dd>{enProduction}</dd>
-              <dt>En production</dt>
-            </div>
-            <div>
-              <dd>{totalPlans}</dd>
-              <dt>Plans</dt>
-            </div>
-            <div>
-              <dd>{totalAssets}</dd>
-              <dt>Assets</dt>
-            </div>
-          </dl>
-          <Link className="btn btn-gold accueil-cta" href="/nouveau">
-            <Icone nom="ajouter" taille={15} /> Nouveau projet
-          </Link>
+          <div className="accueil-hero-droite">
+            <dl className="accueil-chiffres">
+              <div>
+                <dd>{projets.length}</dd>
+                <dt>Projets</dt>
+              </div>
+              <div className={enProduction > 0 ? "is-encours" : undefined}>
+                <dd>{enProduction}</dd>
+                <dt>En production</dt>
+              </div>
+              <div>
+                <dd>{totalPlans}</dd>
+                <dt>Plans</dt>
+              </div>
+              <div>
+                <dd>{totalAssets}</dd>
+                <dt>Assets</dt>
+              </div>
+            </dl>
+            <Link className="btn btn-gold accueil-cta" href="/nouveau">
+              <Icone nom="ajouter" taille={15} /> Nouveau projet
+            </Link>
+          </div>
         </section>
 
         <ListeProjets projets={projets} />

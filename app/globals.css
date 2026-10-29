@@ -7168,8 +7168,20 @@ button {
 .accueil-chiffres .is-encours dd {
   color: var(--ecarlate-glow);
 }
+/* Compteurs + bouton forment un seul bloc, calé à droite et sur la ligne de base du titre ; sur écran étroit il passe sous le titre, aligné à gauche. */
+.accueil-hero-droite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-4) var(--sp-5);
+  margin-left: auto;
+}
 .accueil-cta {
-  align-self: center;
+  align-self: flex-end;
+  height: 44px;
+  padding-inline: var(--sp-5);
+  margin-left: var(--sp-2);
+  white-space: nowrap;
 }
 
 .accueil-barre {
