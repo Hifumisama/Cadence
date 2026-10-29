@@ -591,7 +591,6 @@ function CarteScene({
   const [recu, setRecu] = useState(false);
   const [, startTransition] = useTransition();
   const { enDrag, debut: debutDrag, fin } = useEnGlissement();
-  const fondSrc = g.plans.find((p) => p.src)?.src ?? null;
   const genre = genreOuNull(g.genre);
   const reinit = () => {
     setRepere(null);
@@ -658,10 +657,8 @@ function CarteScene({
         }
       }}
     >
-      {/* Le fond : la première image de la scène quand un rendu existe, sinon un dégradé propre à la scène (comme les affiches de l'accueil). */}
-      <span className="sc-carte-fond" style={fondSrc ? undefined : { backgroundImage: posterBackgroundImage(`scene:${cleScene(g.id)}`) }} aria-hidden="true">
-        {fondSrc ? <Vignette src={fondSrc} /> : null}
-      </span>
+      {/* Jamais d'image de plan sur une carte de scène : on la confondrait avec les vignettes des plans juste en dessous. Un dégradé propre à la scène, rien de plus. */}
+      <span className="sc-carte-fond" style={{ backgroundImage: posterBackgroundImage(`scene:${cleScene(g.id)}`) }} aria-hidden="true" />
       <span className="sc-carte-voile" aria-hidden="true" />
       {numero ? <span className="sc-carte-n">{numero}</span> : null}
       <span className="sc-carte-bas">
