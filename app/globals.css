@@ -2723,10 +2723,6 @@ button {
   height: 36px;
   padding: 0;
 }
-/* Une carte dépliée ne tire pas ses voisines de la rangée en hauteur. */
-.proj-grid {
-  align-items: start;
-}
 .proj-toggle {
   appearance: none;
   display: flex;
@@ -2740,54 +2736,221 @@ button {
   text-align: left;
   cursor: pointer;
 }
-.proj-detail {
+.proj-card.is-ouverte {
+  border-color: var(--or);
+}
+
+/* Tiroir de détails d'un projet : glisse depuis la droite, fond de page assombri. Or en filets et en accents, jamais en aplat. */
+.tiroir-fond {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(6, 6, 8, 0.66);
+  backdrop-filter: blur(3px);
+}
+.tiroir {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--sp-4);
-  border-top: 1px solid var(--line);
+  width: min(460px, 100%);
+  height: 100%;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface) 38%);
+  border-left: 1px solid var(--or-soft);
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.55);
 }
-.proj-arc {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.5;
+.tiroir::before {
+  /* Filet doré le long du bord, comme une tranche de pellicule. */
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -1px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--or) 0%, transparent 55%);
+  pointer-events: none;
+}
+.tiroir-fermer {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: rgba(8, 8, 10, 0.6);
   color: var(--ink-2);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
 }
-.proj-arc.is-vide,
-.proj-infos dd.is-vide {
-  color: var(--ink-3);
-  font-style: italic;
+.tiroir-fermer:hover,
+.tiroir-fermer:focus-visible {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
 }
-.proj-infos {
+.tiroir-hd {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: flex-end;
+  padding: var(--sp-6) var(--sp-5) var(--sp-5);
+  padding-right: calc(var(--sp-5) + 44px);
+  border-bottom: 1px solid var(--line);
+}
+.tiroir-affiche {
+  flex: 0 0 132px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.tiroir-affiche .poster-card {
+  border-bottom: 0;
+}
+.tiroir-titre {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  margin: 0;
+  min-width: 0;
 }
-.proj-infos dt {
+.tiroir-titre h2 {
+  margin: 0;
+  font-family: var(--font-brand), serif;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.tiroir .etat,
+.tiroir .stats {
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
-.proj-infos dd {
+.tiroir .etat.is-prod {
+  color: var(--ecarlate-glow);
+}
+.tiroir .etat.is-fini {
+  color: var(--or-glow);
+}
+.tiroir .stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--sp-4);
+}
+.tiroir .stats b {
+  font-family: var(--font-mono), monospace;
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--ink);
+  margin-right: 5px;
+}
+.tiroir .stats .is-zero b {
+  color: var(--or);
+}
+.tiroir-corps {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+}
+.tiroir-etiquette,
+.tiroir-infos dt {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.tiroir-arc {
   margin: 0;
-  font-size: 13.5px;
+  padding-left: var(--sp-4);
+  border-left: 2px solid var(--or-soft);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre-line;
+}
+.tiroir-arc.is-vide,
+.tiroir-infos dd.is-vide {
+  color: var(--ink-3);
+  font-style: italic;
+}
+.tiroir-infos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin: 0;
+}
+.tiroir-infos > div {
+  padding: 10px 14px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.tiroir-infos > .is-large {
+  grid-column: 1 / -1;
+}
+.tiroir-infos dt {
+  margin-bottom: 4px;
+}
+.tiroir-infos dd {
+  margin: 0;
+  font-size: 14.5px;
   color: var(--ink);
 }
-.proj-ouvrir {
-  align-self: flex-start;
+.tiroir-pied {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.tiroir-pied .btn {
   text-decoration: none;
+  justify-content: center;
+}
+.tiroir-pied .btn-gold {
+  flex: 1;
+}
+@keyframes tiroir-entree {
+  from {
+    transform: translateX(48px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes tiroir-fond-entree {
+  from {
+    opacity: 0;
+  }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .proj-detail {
-    animation: bf-rise 0.25s ease-out both;
+  .tiroir-fond {
+    animation: tiroir-fond-entree 0.2s ease-out both;
   }
-}
-@media (hover: hover) {
-  .proj-card:has(.proj-toggle:hover) {
-    border-color: var(--or-soft);
+  .tiroir {
+    animation: tiroir-entree 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
+  .tiroir-infos > div {
+    animation: tiroir-entree 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .tiroir-infos > div:nth-child(2) { animation-delay: 0.04s; }
+  .tiroir-infos > div:nth-child(3) { animation-delay: 0.08s; }
+  .tiroir-infos > div:nth-child(4) { animation-delay: 0.12s; }
+  .tiroir-infos > div:nth-child(5) { animation-delay: 0.16s; }
 }
 .proj-card {
   display: flex;

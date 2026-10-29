@@ -2,7 +2,6 @@ import { getAllProjects } from "@/lib/queries";
 import { phaseDe, totalBuckets } from "@/lib/phase";
 import { Topbar } from "@/components/ui/Topbar";
 import { ProjectCard } from "@/components/projects/ProjectCard";
-import { GrilleProjets } from "@/components/projects/GrilleProjets";
 import { SupprimerProjetBouton } from "@/components/projects/SupprimerProjetBouton";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
@@ -49,14 +48,14 @@ export default async function AccueilPage() {
           </div>
         </div>
 
-        <GrilleProjets>
+        <div className="proj-grid">
           {projets.map((p) => (
             <div key={p.id} className="proj-cell">
               <ProjectCard projet={p} />
               <SupprimerProjetBouton projectId={p.id} nom={p.nom} compact />
             </div>
           ))}
-        </GrilleProjets>
+        </div>
 
         {projets.length === 0 ? (
           <p className="tiny-note" style={{ marginTop: "var(--sp-6)" }}>
