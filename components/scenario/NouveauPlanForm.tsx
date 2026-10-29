@@ -20,13 +20,16 @@ export function NouveauPlanForm({
   projectId,
   episodeId,
   scenesOptions,
+  sceneInitiale,
 }: {
   projectId: number;
   episodeId: number;
   scenesOptions: SceneOption[];
+  /** Scène proposée d'office (null = « Sans scène »). Absente : la dernière scène. */
+  sceneInitiale?: number | null;
 }) {
   const [ouvert, setOuvert] = useState(false);
-  const [sceneId, setSceneId] = useState<string>(scenesOptions[scenesOptions.length - 1]?.id.toString() ?? "");
+  const [sceneId, setSceneId] = useState<string>(sceneInitiale !== undefined ? (sceneInitiale?.toString() ?? "") : (scenesOptions[scenesOptions.length - 1]?.id.toString() ?? ""));
   const [champs, setChamps] = useState(VIDE);
   const [pending, startTransition] = useTransition();
 

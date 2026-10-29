@@ -1,133 +1,66 @@
 import { getEpisode, getProject, getScenarioData } from "@/lib/queries";
-import Link from "next/link";
+import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { notFound } from "next/navigation";
-import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
-import { NouveauPlanForm } from "@/components/scenario/NouveauPlanForm";
-import { NouveauSceneForm } from "@/components/scenario/NouveauSceneForm";
-import { SupprimerSceneButton } from "@/components/scenario/SupprimerSceneButton";
-import { BasculeScene, ControleAccordeon, CorpsScene, PlanShotLink, PoigneeScene, ZoneScene } from "@/components/scenario/GlisserDeposer";
-import { ModifierSceneButton } from "@/components/scenario/ModifierSceneButton";
-import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
+import { VueScenario } from "@/components/scenario/VueScenario";
+import { srcRendu } from "@/components/plan/Vignette";
+import type { PlanVue, SceneVue } from "@/lib/scenario-vue";
 
 export const dynamic = "force-dynamic";
 
-const ROMAINS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-
 export default async function ScenarioPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string; episodeId: string }>;
+  searchParams: Promise<{ scene?: string }>;
 }) {
   const { projectId, episodeId } = await params;
+  const { scene } = await searchParams;
   const pid = Number(projectId);
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, episode, { scenes, sansScene }] = await Promise.all([
+  const [projet, episode, { scenes, sansScene }, pellicule] = await Promise.all([
     getProject(pid),
     getEpisode(eid),
     getScenarioData(eid),
+    getPelliculePlans(eid),
   ]);
   if (!projet || !episode || episode.projectId !== pid) notFound();
 
-  const tousLesPlans = [...scenes.flatMap((sc) => sc.plans), ...sansScene];
+  // État dérivé et vignette de chaque plan (rendu retenu), par uuid.
+  const parUuid = new Map(pellicule.map((p) => [p.uuid, p]));
 
-  const groupes = [
-    ...scenes.map((sc) => ({
-      id: sc.id as number | null,
-      titre: sc.titre,
-      range: sc.plans.length > 0 ? `${sc.plans.length} plan${sc.plans.length > 1 ? "s" : ""}` : "",
-      fonction: sc.fonction,
-      genre: sc.genre as string | null,
-      ambiance: sc.ambiance as string | null,
-      duree: sc.dureeSecondes,
-      plans: sc.plans,
-    })),
-    // Toujours présent dès qu'il existe une scène : c'est la zone où déposer
-    // un plan pour le détacher.
-    ...(sansScene.length > 0 || scenes.length > 0
-      ? [{ id: null, titre: "Sans scène", range: "", fonction: null, genre: null, ambiance: null, duree: null, plans: sansScene }]
-      : []),
-  ];
+  // Les scènes dans l'ordre, puis les plans sans scène : le minutage de départ d'un plan est la somme des durées de ceux qui le précèdent.
+  let cumul = 0;
+  const versVue = (plan: (typeof sansScene)[number]): PlanVue => {
+    const debut = cumul;
+    cumul += plan.dureeMontageSecondes;
+    const p = parUuid.get(plan.uuid);
+    return {
+      id: plan.id,
+      uuid: plan.uuid,
+      position: plan.position,
+      titre: plan.titre,
+      description: plan.description,
+      statut: plan.statut,
+      duree: plan.dureeMontageSecondes,
+      debut,
+      etat: p?.etat ?? "brouillon",
+      src: srcRendu(p?.vignette),
+      href: `${base}/plans/${plan.uuid}`,
+    };
+  };
 
-  return (
-    <div>
-      <div className="queue">
-        <NouveauPlanForm
-          projectId={pid}
-          episodeId={eid}
-          scenesOptions={scenes.map((sc) => ({ id: sc.id, titre: sc.titre }))}
-        />
-        <NouveauSceneForm episodeId={eid} />
-        {scenes.length > 0 ? <ControleAccordeon /> : null}
-      </div>
+  const groupes: SceneVue[] = scenes.map((sc) => {
+    const plans = sc.plans.map(versVue);
+    return { id: sc.id, titre: sc.titre, fonction: sc.fonction, genre: sc.genre, ambiance: sc.ambiance, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans };
+  });
+  // Présent dès qu'il existe une scène : c'est la zone où déposer un plan pour le détacher.
+  if (sansScene.length > 0 || scenes.length > 0) {
+    const plans = sansScene.map(versVue);
+    groupes.push({ id: null, titre: "Sans scène", fonction: null, genre: null, ambiance: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
+  }
 
-      {groupes.map((g, idx) => (
-        <ZoneScene key={g.id ?? "sans"} sceneId={g.id} suivantSceneId={idx < scenes.length - 1 ? scenes[idx + 1]!.id : null}>
-          <div className="scene-top">
-            <BasculeScene titre={g.titre} />
-            {g.id != null ? <PoigneeScene sceneId={g.id} /> : null}
-            {idx < scenes.length ? <span className="scene-roman">{ROMAINS[idx] ?? idx + 1}</span> : null}
-            <span className="scene-title">{g.titre}</span>
-            <hr className="zellige-rule" />
-            {g.range ? (
-              <span className="scene-range">
-                {g.range}
-                {g.duree ? ` · ~${g.duree} s` : ""}
-              </span>
-            ) : null}
-            {g.id != null ? (
-              <ModifierSceneButton sceneId={g.id} titre={g.titre} fonction={g.fonction ?? ""} genre={g.genre ?? ""} ambiance={g.ambiance ?? ""} />
-            ) : null}
-            {g.id != null ? <SupprimerSceneButton sceneId={g.id} titre={g.titre} /> : null}
-          </div>
-          <CorpsScene>
-          {g.fonction ? <p className="scene-fn">{g.fonction}</p> : null}
-          {genreOuNull(g.genre) || g.ambiance ? (
-            <p className="tiny-note" style={{ margin: "0 0 var(--sp-2)" }}>
-              {[genreOuNull(g.genre) ? `Genre : ${LIBELLE_GENRE[genreOuNull(g.genre)!]}` : null, g.ambiance ? `Ambiance : ${g.ambiance}` : null].filter(Boolean).join(" · ")}
-            </p>
-          ) : null}
-          <div className="frise">
-            {g.plans.map((plan, i) => (
-              <PlanShotLink
-                key={plan.id}
-                planId={plan.id}
-                sceneId={g.id}
-                suivantId={g.plans[i + 1]?.id ?? null}
-                href={`${base}/plans/${plan.uuid}`}
-                className={`shot ${statusNodeClass(plan.statut)}`}
-              >
-                <span className="node" />
-                <span className="shot-no">{String(plan.position).padStart(2, "0")}</span>
-                <span className="shot-title">
-                  {plan.titre}
-                  {plan.description ? <span className="shot-desc">{plan.description}</span> : null}
-                </span>
-                <span className="shot-right">
-                  <span className="shot-duree num" title="Durée de montage">
-                    {plan.dureeMontageSecondes} s
-                  </span>
-                  {/* Brouillon = état par défaut d'un plan du scénario : on ne le répète pas 13 fois. */}
-                  {plan.statut !== "brouillon" ? <StatusBadge statut={plan.statut} /> : null}
-                </span>
-              </PlanShotLink>
-            ))}
-            {g.plans.length === 0 ? (
-              <p className="tiny-note">Aucun plan — glisse-en un ici.</p>
-            ) : null}
-          </div>
-          </CorpsScene>
-        </ZoneScene>
-      ))}
-
-      {tousLesPlans.length === 0 ? (
-        <p className="tiny-note" style={{ marginTop: "var(--sp-6)" }}>
-          Aucun plan en base. Lancer <code>npm run db:import</code> pour importer
-          l&rsquo;épisode 1 depuis le markdown existant, ou créer un plan à la main
-          ci-dessus.
-        </p>
-      ) : null}
-    </div>
-  );
+  return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} />;
 }
