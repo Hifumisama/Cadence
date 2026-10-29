@@ -12,6 +12,7 @@ import { posterBackgroundImage } from "@/lib/poster";
 import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
 import { LIBELLE_ETAT, cleScene, minutage, romain, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
+import { AjouterPlan, type CibleAjoutPlan } from "./AjouterPlan";
 import { ModifierSceneButton } from "./ModifierSceneButton";
 import { NouveauSceneForm } from "./NouveauSceneForm";
 import { SupprimerSceneButton } from "./SupprimerSceneButton";
@@ -53,6 +54,7 @@ export function VueScenario({
   const [descriptions, setDescriptions] = useState(false);
   const [signal, setSignal] = useState<Signal | null>(null);
   const [nouvelleScene, setNouvelleScene] = useState(false);
+  const [cibleAjout, setCibleAjout] = useState<CibleAjoutPlan | null>(null);
   const [, startTransition] = useTransition();
   const rail = useRef<HTMLDivElement>(null);
   const focusRail = useRef(false);
@@ -192,19 +194,15 @@ export function VueScenario({
 
   const ouvrir = (p: PlanVue) => router.push(p.href);
 
-  // « Ajouter un plan » : la popup de l'agent s'ouvre sur l'ajout, à la fin de la scène ouverte (après son dernier plan ; une scène vide se place
-  // après le dernier plan des scènes qui la précèdent, ou au début du film). C'est l'agent qui écrit le plan, tu relis avant que rien ne soit écrit.
+  // « Ajouter un plan » : le tiroir s'ouvre sur l'ajout, à la fin de la scène ouverte (après son dernier plan ; une scène vide se place après le
+  // dernier plan des scènes qui la précèdent, ou au début du film). C'est l'agent qui écrit le plan, tu relis avant que rien ne soit écrit.
   const ajouterPlan = () => {
     const avant = [...groupes.slice(0, indexCourant), courant].reverse().flatMap((g) => g.plans.slice(-1))[0];
-    ouvrirAgent({
-      projectId,
-      portee: "episode",
-      cible: { id: episodeId },
-      profondeur: "courte",
-      libelle: `Nouveau plan · ${courant.titre}`,
-      episodeId,
+    setCibleAjout({
       insertion: avant ? { apresPlanUuid: avant.uuid } : { debut: true },
-      ...(courant.id != null ? { sceneId: courant.id } : {}),
+      sceneId: courant.id,
+      scene: libelleScene(courant),
+      apres: avant ? `Après le plan ${pad(avant.position)} · ${avant.titre}` : "Au début du film",
     });
   };
   const surClavierPlan = (p: PlanVue) => (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -476,6 +474,8 @@ export function VueScenario({
           if (id != null) choisirScene(cleScene(id));
         }}
       />
+
+      <AjouterPlan projectId={projectId} episodeId={episodeId} ouvert={cibleAjout != null} cible={cibleAjout} onFermer={() => setCibleAjout(null)} onAjoute={() => undefined} />
 
       {signal ? (
         <div className="sc-toast" role="status">

@@ -34,21 +34,10 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
   const peutInserer = (conv.portee === "episode" || conv.portee === "plan") && episodeId != null;
   // Un épisode se demande de deux façons : écrire son scénario (rien d'autre à préciser) ou y AJOUTER
   // un plan à une position. Par défaut : le scénario d'un épisode encore vide, l'ajout sinon.
-  // Depuis la page Scénario (« + » d'une scène), la demande arrive déjà décidée : ajouter un plan, à cette position, dans cette scène.
-  const insertion = demande.insertion ?? null;
-  const [mode, setMode] = useState<"scenario" | "plan" | null>(insertion ? "plan" : null);
-  const choixDepuis = (p: Position | null, repli: ChoixPosition): ChoixPosition => (p ? ("debut" in p ? "debut" : "fin" in p ? "fin" : `apres:${p.apresPlanUuid}`) : repli);
+  const [mode, setMode] = useState<"scenario" | "plan" | null>(null)
   const [choix, setChoix] = useState<ChoixPosition>(
-    choixDepuis(insertion, conv.portee === "plan" && demande.planUuid ? `apres:${demande.planUuid}` : "fin"),
+    conv.portee === "plan" && demande.planUuid ? `apres:${demande.planUuid}` : "fin",
   );
-  // Une nouvelle demande d'ajout sur une popup déjà ouverte (autre scène) remplace la précédente.
-  const cleInsertion = insertion ? JSON.stringify(insertion) : null;
-  useEffect(() => {
-    if (!cleInsertion) return;
-    setMode("plan");
-    setChoix(choixDepuis(JSON.parse(cleInsertion) as Position, "fin"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cleInsertion]);
 
   const cible: CibleDemandee | null = demande.cible ?? (conv.cibleId != null ? { id: conv.cibleId } : null);
 
@@ -95,7 +84,7 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
   const generer = () => {
     const c = consigne.trim();
     if ((!c && !scenarioEpisode) || occupe || actif) return;
-    void ctx.lancer(() => genererProposition(conv.uuid, { consigne: c || undefined, position, ...(insertion && demande.sceneId != null ? { sceneId: demande.sceneId } : {}) }));
+    void ctx.lancer(() => genererProposition(conv.uuid, { consigne: c || undefined, position }));
   };
 
   // Depuis le projet : écrire les scénarios de plusieurs épisodes d'un coup (un lot).
@@ -112,10 +101,7 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
 
   return (
     <div className="ag-etape-corps">
-      {conv.portee === "episode" && insertion ? (
-        <p className="tiny-note">{demande.libelle ?? "Nouveau plan"} : le plan sera ajouté à la fin de la scène, l&rsquo;agent lit les plans voisins pour raccorder.</p>
-      ) : null}
-      {conv.portee === "episode" && !insertion ? (
+      {conv.portee === "episode" ? (
         <div className="gd-grp">
           <span className="gd-lbl">Que veux-tu ?</span>
           <div className="gd-seg" role="group" aria-label="Type de demande">
@@ -173,7 +159,7 @@ export function EtapeConsigne({ ctx }: { ctx: ContexteEtape }) {
         )}
       </details>
 
-      {peutInserer && modeEffectif === "plan" && !insertion ? (
+      {peutInserer && modeEffectif === "plan" ? (
         <div className="gd-grp">
           <label className="gd-lbl" htmlFor="ag-position">
             Position d&rsquo;un nouveau plan

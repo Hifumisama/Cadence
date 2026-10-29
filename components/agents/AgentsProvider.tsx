@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { AgentDialogue } from "@/components/agents/AgentDialogue";
-import type { CibleDemandee, Portee, Position, Profondeur } from "@/lib/agents/types";
+import type { CibleDemandee, Portee, Profondeur } from "@/lib/agents/types";
 
 /** Ce que l'on demande d'ouvrir. Soit une CIBLE (portée + cible : la conversation du
  * (projet, portée, cible) est reprise ou créée), soit une conversation EXISTANTE par son
@@ -19,10 +19,6 @@ export type DemandeAgent = {
   /** Plan courant (portée `plan`) : position par défaut = juste après lui. */
   planUuid?: string;
   conversationUuid?: string;
-  /** « Ajouter un plan » depuis la page Scénario : la demande s'ouvre déjà sur l'ajout, à cette position (un plan existant, le début ou la fin de l'épisode). */
-  insertion?: Position;
-  /** Avec `insertion` : la scène où le plan atterrit (une scène vide n'a pas de plan voisin pour la déduire). */
-  sceneId?: number;
   /** Vue directe : « registre » ouvre le sélecteur de la création du registre d'assets (depuis la
    * page des assets), sans passer par les étapes d'une conversation ; « fiches » celui des fiches de plan
    * (page d'un plan : sa fiche ; épisode : les fiches de ses plans, en lot) ; « iteration » la correction après
