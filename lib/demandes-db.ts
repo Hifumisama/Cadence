@@ -1,14 +1,18 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "../db";
-import { agentConversations, agentRuns, demandes, jobs, propositions } from "../db/schema";
-import { conversationParUuid, genererIteration, genererReecriturePlan } from "./agents/service";
+import { agentConversations, agentRuns, demandes, episodes, jobs, plans, propositions } from "../db/schema";
+import { appliquerSelection, cocherChangements, conversationParUuid, genererIteration, genererProposition, genererReecriturePlan, ouvrirConversation } from "./agents/service";
+import { ERREUR_ANNULEE } from "./annulation";
 import { demanderAnnulation } from "./annulation-db";
 import {
   avancerEtapes,
+  decisionAjoutPlan,
   deciderIteration,
   etapeCouranteDemande,
+  etapesAjoutPlan,
   etapesIterationPlan,
   type CleEtapeIteration,
+  type ContexteAjoutPlan,
   type ContexteIteration,
   type EtapeDemande,
   type ObservationIteration,
@@ -59,7 +63,38 @@ export async function lancerDemandeIteration(
   return { ok: true, demandeId: demande.id, demandeUuid: demande.uuid, runUuid: g.runUuid, propositionUuid: g.propositionUuid };
 }
 
-async function ecrire(d: LigneDemande, maj: { etapes?: EtapeDemande[]; contexte?: ContexteIteration; statut?: StatutDemande; erreur?: string | null }): Promise<void> {
+/** « Ajouter un plan » (page Scénario) : UNE demande (l'agent écrit le plan → il est ajouté à la scène, sans relecture : on le relit dans sa fiche).
+ * Une seule à la fois par film (la cible est l'épisode, l'index unique partiel fait le reste). */
+export async function lancerDemandeAjoutPlan(
+  projectId: number,
+  episodeId: number,
+  options: { consigne: string; position: ContexteAjoutPlan["position"]; sceneId: number | null; scene: string },
+): Promise<Resultat<{ demandeId: number }>> {
+  const consigne = options.consigne.trim();
+  if (!consigne) return ERR("Décris le plan à ajouter.");
+  const [ep] = await db.select({ id: episodes.id }).from(episodes).where(and(eq(episodes.id, episodeId), eq(episodes.projectId, projectId)));
+  if (!ep) return ERR("Épisode introuvable.");
+  const ouverte = await ouvrirConversation(projectId, "episode", { id: episodeId }, "courte");
+  if (!ouverte.ok) return ouverte;
+  const contexte: ContexteAjoutPlan = { consigne, sceneId: options.sceneId, scene: options.scene, position: options.position };
+  let demande: { id: number };
+  try {
+    const [d] = await db.insert(demandes).values({ projectId, type: "ajout-plan", cibleType: "episode", cibleId: episodeId, etapes: etapesAjoutPlan(), contexte }).returning({ id: demandes.id });
+    demande = d!;
+  } catch {
+    // L'index unique partiel : un plan est déjà en cours d'écriture pour ce film.
+    return ERR("Un plan est déjà en cours d'écriture : attends qu'il finisse (ou annule-le depuis le panneau des tâches).");
+  }
+  const g = await genererProposition(ouverte.conversationUuid, { consigne, position: options.position, ...(options.sceneId != null ? { sceneId: options.sceneId } : {}), demandeId: demande.id });
+  if (!g.ok) {
+    await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
+    return g;
+  }
+  await db.update(demandes).set({ contexte: { ...contexte, ...(g.runUuid ? { runUuid: g.runUuid } : {}) }, updatedAt: new Date() }).where(eq(demandes.id, demande.id));
+  return { ok: true, demandeId: demande.id };
+}
+
+async function ecrire(d: LigneDemande, maj: { etapes?: EtapeDemande[]; contexte?: ContexteIteration | ContexteAjoutPlan; statut?: StatutDemande; erreur?: string | null }): Promise<void> {
   const fin = maj.statut && maj.statut !== "en_cours";
   await db
     .update(demandes)
@@ -106,7 +141,70 @@ async function observer(d: LigneDemande, cle: CleEtapeIteration, ctx: ContexteIt
   return { obs: { tache, decision }, propositionUuid: prop?.uuid ?? null, conversationUuid: conv?.uuid ?? null };
 }
 
+/** Un tour d'un ajout de plan : tant que l'agent écrit, on attend ; sa proposition prête, on n'applique que le changement qui crée le plan. */
+async function avancerAjoutPlan(d: LigneDemande): Promise<boolean> {
+  const etapes = lireEtapes(d);
+  const ctx = d.contexte as ContexteAjoutPlan;
+  if (!etapeCouranteDemande(etapes)) {
+    await ecrire(d, { statut: "termine" });
+    return true;
+  }
+  const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
+  if (!run) {
+    await ecrire(d, { statut: "echoue", erreur: "La tâche de l'agent n'existe plus." });
+    return true;
+  }
+  if (run.statut === "en_attente" || run.statut === "en_cours") return false;
+  if (run.statut === "annulee" || (run.statut === "echoue" && run.erreur === ERREUR_ANNULEE)) {
+    await ecrire(d, { statut: "annulee", erreur: null });
+    return true;
+  }
+  if (run.statut !== "termine") {
+    await ecrire(d, { statut: "echoue", erreur: run.erreur ?? "L'agent a échoué." });
+    return true;
+  }
+  const [prop] = run.propositionId ? await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, run.propositionId)) : [];
+  if (!prop) {
+    await ecrire(d, { statut: "echoue", erreur: "La proposition de l'agent est introuvable." });
+    return true;
+  }
+  const decision = decisionAjoutPlan(await lireProposition(prop.uuid));
+  switch (decision.action) {
+    case "attendre":
+      return false;
+    case "echec":
+      await ecrire(d, { statut: "echoue", erreur: decision.erreur });
+      return true;
+    case "fait":
+      await ecrire(d, { statut: "termine", etapes: avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ajout", "fait") });
+      return true;
+    case "appliquer": {
+      // Seul le plan est ajouté : tout autre changement glissé dans la proposition (une scène, un asset) reste décoché.
+      const decoche = await cocherChangements(prop.uuid, { ids: decision.changementIds }, false);
+      const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: [decision.planChangementId] }, true) : decoche;
+      if (!coche.ok) {
+        await ecrire(d, { statut: "echoue", erreur: coche.erreur });
+        return true;
+      }
+      const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: false });
+      if (!a.ok) {
+        await ecrire(d, { statut: "echoue", erreur: a.erreur });
+        return true;
+      }
+      const [cree] = await db.select({ uuid: plans.uuid }).from(plans).where(and(eq(plans.episodeId, d.cibleId), eq(plans.titre, decision.titre))).orderBy(desc(plans.id)).limit(1);
+      await ecrire(d, {
+        statut: "termine",
+        etapes: avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ajout", "fait"),
+        contexte: { ...ctx, titre: decision.titre, ...(cree ? { planUuid: cree.uuid } : {}) },
+        erreur: null,
+      });
+      return true;
+    }
+  }
+}
+
 async function avancer(d: LigneDemande): Promise<boolean> {
+  if (d.type === "ajout-plan") return avancerAjoutPlan(d);
   if (d.type !== "iteration-plan") return false;
   const etapes = lireEtapes(d);
   const ctx = lireContexte(d);

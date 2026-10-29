@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ERREUR_ANNULEE } from "./annulation";
-import { avancerEtapes, deciderIteration, etapeCouranteDemande, etapesIterationPlan, progressionDemande } from "./demandes";
+import { avancerEtapes, decisionAjoutPlan, deciderIteration, etapeCouranteDemande, etapesAjoutPlan, etapesIterationPlan, progressionDemande } from "./demandes";
 
 const run = (statut: string, erreur: string | null = null) => ({ genre: "run" as const, statut, erreur });
 const job = (statut: string, erreur: string | null = null) => ({ genre: "job" as const, statut, erreur });
@@ -53,4 +53,43 @@ test("les étapes avancent, une étape peut être passée", () => {
 test("avec réécriture : l'étape suivante est la réécriture", () => {
   const e = avancerEtapes(etapesIterationPlan(), "agent", "fait");
   assert.deepEqual(e.map((x) => x.statut), ["fait", "en_cours", "a_venir"]);
+});
+
+// --- Ajouter un plan ---------------------------------------------------------------------------------------------------------------------
+
+const changement = (o: Partial<{ id: number; cibleType: string; operation: string; bloque: boolean; refuseRaison: string | null; avertissements: { type: string; texte: string }[]; libelle: string; apres: unknown }> = {}) => ({
+  id: 1,
+  cibleType: "plan",
+  operation: "creer",
+  bloque: false,
+  refuseRaison: null,
+  avertissements: [],
+  libelle: "Plan",
+  apres: { titre: "Le seuil" },
+  ...o,
+});
+const proposition = (statut: string, changements: ReturnType<typeof changement>[] = [], erreur: string | null = null) => ({ statut, erreur, groupes: [{ changements }] });
+
+test("ajout de plan : deux étapes, la première en cours", () => {
+  const e = etapesAjoutPlan();
+  assert.deepEqual(e.map((x) => x.statut), ["en_cours", "a_venir"]);
+  assert.equal(etapeCouranteDemande(e)?.cle, "agent");
+});
+
+test("ajout de plan : tant que l'agent écrit, on attend ; sa proposition prête, on n'ajoute que le plan", () => {
+  assert.deepEqual(decisionAjoutPlan(null), { action: "attendre" });
+  assert.deepEqual(decisionAjoutPlan(proposition("en_generation")), { action: "attendre" });
+  const d = decisionAjoutPlan(proposition("prete", [changement({ id: 7 }), changement({ id: 8, cibleType: "scene" })]));
+  assert.deepEqual(d, { action: "appliquer", planChangementId: 7, changementIds: [7, 8], titre: "Le seuil" });
+});
+
+test("ajout de plan : rien à ajouter, contrôle bloquant, refus ou échec de l'agent : la demande échoue avec la raison", () => {
+  assert.deepEqual(decisionAjoutPlan(proposition("prete", [changement({ cibleType: "scene" })])), { action: "echec", erreur: "L'agent n'a pas proposé de plan à ajouter." });
+  assert.deepEqual(decisionAjoutPlan(proposition("prete", [changement({ bloque: true, avertissements: [{ type: "bloque_controle", texte: "Durée de plan invalide." }] })])), { action: "echec", erreur: "Durée de plan invalide." });
+  assert.deepEqual(decisionAjoutPlan(proposition("prete", [changement({ refuseRaison: "Hors portée." })])), { action: "echec", erreur: "Hors portée." });
+  assert.deepEqual(decisionAjoutPlan(proposition("echouee", [], "Délai dépassé.")), { action: "echec", erreur: "Délai dépassé." });
+});
+
+test("ajout de plan : une proposition déjà appliquée (reprise après un plantage) termine la demande", () => {
+  assert.deepEqual(decisionAjoutPlan(proposition("appliquee")), { action: "fait" });
 });

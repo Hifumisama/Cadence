@@ -1,9 +1,13 @@
 import { getEpisode, getProject, getScenarioData } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { notFound } from "next/navigation";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { demandes } from "@/db/schema";
 import { VueScenario } from "@/components/scenario/VueScenario";
 import { srcRendu } from "@/components/plan/Vignette";
-import type { PlanVue, SceneVue } from "@/lib/scenario-vue";
+import type { ContexteAjoutPlan } from "@/lib/demandes";
+import type { AjoutEnCours, PlanVue, SceneVue } from "@/lib/scenario-vue";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +24,17 @@ export default async function ScenarioPage({
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, episode, { scenes, sansScene }, pellicule] = await Promise.all([
+  const [projet, episode, { scenes, sansScene }, pellicule, [ajoutEnCours]] = await Promise.all([
     getProject(pid),
     getEpisode(eid),
     getScenarioData(eid),
     getPelliculePlans(eid),
+    // Un plan en cours d'écriture (« Ajouter un plan ») : la page lui garde sa place, sous forme de carte fantôme.
+    db.select().from(demandes).where(and(eq(demandes.type, "ajout-plan"), eq(demandes.cibleType, "episode"), eq(demandes.cibleId, eid), eq(demandes.statut, "en_cours"))),
   ]);
   if (!projet || !episode || episode.projectId !== pid) notFound();
+  const ctxAjout = ajoutEnCours ? (ajoutEnCours.contexte as ContexteAjoutPlan) : null;
+  const ajout: AjoutEnCours | null = ajoutEnCours && ctxAjout ? { id: ajoutEnCours.id, sceneId: ctxAjout.sceneId, position: ctxAjout.position, consigne: ctxAjout.consigne } : null;
 
   // État dérivé et vignette de chaque plan (rendu retenu), par uuid.
   const parUuid = new Map(pellicule.map((p) => [p.uuid, p]));
@@ -62,5 +70,5 @@ export default async function ScenarioPage({
     groupes.push({ id: null, titre: "Sans scène", fonction: null, genre: null, ambiance: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
   }
 
-  return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} />;
+  return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} />;
 }

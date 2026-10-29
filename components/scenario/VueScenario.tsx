@@ -2,15 +2,17 @@
 
 import "./scenario.css";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
 import { useAgents } from "@/components/agents/AgentsProvider";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
+import { useTaches } from "@/components/taches/TachesProvider";
 import { Icone } from "@/components/ui/Icone";
 import { posterBackgroundImage } from "@/lib/poster";
 import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
-import { LIBELLE_ETAT, cleScene, minutage, romain, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
+import { cleDemande } from "@/lib/taches";
+import { LIBELLE_ETAT, cleScene, minutage, romain, type AjoutEnCours, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
 import { AjouterPlan, type CibleAjoutPlan } from "./AjouterPlan";
 import { ModifierSceneButton } from "./ModifierSceneButton";
@@ -29,7 +31,8 @@ const aplatir = (t: string) => t.replace(/\s*\n+\s*/g, " · ");
 const NOEUD = { brouillon: "st-brouillon", iteration: "st-encours", pret: "st-termine" } as const;
 const libellePlan = (p: PlanVue) => `Plan ${p.position}, ${p.titre}, ${LIBELLE_ETAT[p.etat].toLowerCase()}`;
 
-type Signal = { texte: string; cle: string; planId: number };
+/** Le message au bas de l'écran. Avec `cle` et `planId`, un lien « Voir » mène à ce plan (déplacement vers une autre scène). */
+type Signal = { texte: string; cle?: string; planId?: number };
 
 /** La page Scénario : un bandeau de scènes (une seule ouverte à la fois), l'en-tête de la scène ouverte, puis ses plans en vignettes ou en liste.
  * Un clic sélectionne un plan et en montre la description ; un double-clic ou Entrée ouvre sa fiche. Tout est côté client : changer de scène est
@@ -39,14 +42,18 @@ export function VueScenario({
   episodeId,
   groupes,
   sceneInitiale,
+  ajout,
 }: {
   projectId: number;
   episodeId: number;
   groupes: SceneVue[];
   sceneInitiale: string | null;
+  /** Un plan en cours d'écriture (« Ajouter un plan »), ou null. */
+  ajout: AjoutEnCours | null;
 }) {
   const router = useRouter();
   const { ouvrirAgent } = useAgents();
+  const { taches, pret: tachesPretes } = useTaches();
   const [cle, setCle] = useState<string>(() => (sceneInitiale && groupes.some((g) => cleScene(g.id) === sceneInitiale) ? sceneInitiale : cleScene(groupes[0]?.id ?? null)));
   const [planSel, setPlanSel] = useState<number | null>(null);
   const aDesImages = groupes.some((g) => g.plans.some((p) => p.src));
@@ -55,7 +62,10 @@ export function VueScenario({
   const [signal, setSignal] = useState<Signal | null>(null);
   const [nouvelleScene, setNouvelleScene] = useState(false);
   const [cibleAjout, setCibleAjout] = useState<CibleAjoutPlan | null>(null);
+  /** L'outil « Ajouter un plan » est actif : des « + » s'affichent entre les plans, on clique celui où le plan doit naître. */
+  const [modeAjout, setModeAjout] = useState(false);
   const [, startTransition] = useTransition();
+  const dernierRefresh = useRef(0);
   const rail = useRef<HTMLDivElement>(null);
   const focusRail = useRef(false);
 
@@ -114,6 +124,16 @@ export function VueScenario({
     return () => clearTimeout(t);
   }, [signal]);
 
+  // Un plan en cours d'écriture : la page garde sa carte fantôme tant que la tâche est active. Quand la file ne l'a plus (finie, échouée,
+  // annulée), on recharge la page : le plan est là, ou la carte disparaît. Même principe que le suivi des rendus de la fiche de plan.
+  useEffect(() => {
+    if (!ajout || !tachesPretes) return;
+    const active = taches.some((t) => t.cle === cleDemande(ajout.id) && (t.statut === "en_attente" || t.statut === "en_cours"));
+    if (active || Date.now() - dernierRefresh.current < 3000) return;
+    dernierRefresh.current = Date.now();
+    router.refresh();
+  }, [ajout, taches, tachesPretes, router]);
+
   // La scène ouverte se recentre dans le bandeau ; le focus la suit quand on navigue au clavier dans le bandeau.
   useEffect(() => {
     const onglet = rail.current?.querySelector<HTMLElement>('[aria-selected="true"]');
@@ -140,7 +160,8 @@ export function VueScenario({
       if (!courant || frappeEnCours(e)) return;
       if ((e.target as HTMLElement | null)?.closest?.('[role="tab"]')) return;
       if (e.key === "Escape") {
-        if (planSel != null) setPlanSel(null);
+        if (modeAjout) setModeAjout(false);
+        else if (planSel != null) setPlanSel(null);
         return;
       }
       if (courant.plans.length === 0) return;
@@ -154,7 +175,7 @@ export function VueScenario({
     };
     document.addEventListener("keydown", touche);
     return () => document.removeEventListener("keydown", touche);
-  }, [courant, planSel, vue]);
+  }, [courant, planSel, vue, modeAjout]);
 
   if (!courant) {
     return (
@@ -194,17 +215,56 @@ export function VueScenario({
 
   const ouvrir = (p: PlanVue) => router.push(p.href);
 
-  // « Ajouter un plan » : le tiroir s'ouvre sur l'ajout, à la fin de la scène ouverte (après son dernier plan ; une scène vide se place après le
-  // dernier plan des scènes qui la précèdent, ou au début du film). C'est l'agent qui écrit le plan, tu relis avant que rien ne soit écrit.
-  const ajouterPlan = () => {
-    const avant = [...groupes.slice(0, indexCourant), courant].reverse().flatMap((g) => g.plans.slice(-1))[0];
+  // « Ajouter un plan » est un OUTIL : le bouton fait apparaître des « + » entre les plans, on clique celui où le plan doit naître, et la popup s'ouvre
+  // sur cette place. Une scène vide n'a qu'une place possible : le bouton ouvre la popup directement. `i` = le plan AVANT lequel on insère (i = nombre de
+  // plans : à la fin). Au début d'une scène, la place est « après le dernier plan des scènes qui la précèdent » (ou au début du film).
+  const choisirPlace = (i: number) => {
+    const avant = i > 0 ? courant.plans[i - 1] : groupes.slice(0, indexCourant).reverse().flatMap((g) => g.plans.slice(-1))[0];
     setCibleAjout({
       insertion: avant ? { apresPlanUuid: avant.uuid } : { debut: true },
       sceneId: courant.id,
       scene: libelleScene(courant),
       apres: avant ? `Après le plan ${pad(avant.position)} · ${avant.titre}` : "Au début du film",
     });
+    setModeAjout(false);
   };
+  const basculerAjout = () => {
+    if (courant.plans.length === 0) choisirPlace(0);
+    else setModeAjout((m) => !m);
+  };
+
+  // Le plan en cours d'écriture garde sa place dans la scène : une carte fantôme, à l'endroit où il sera ajouté (-1 : pas dans cette scène).
+  const ancre = ajout && "apresPlanUuid" in ajout.position ? ajout.position.apresPlanUuid : null;
+  const fantome = ajout && ajout.sceneId === courant.id ? (ancre ? courant.plans.findIndex((p) => p.uuid === ancre) + 1 : 0) : -1;
+  const carteFantome = (
+    <div className="sc-cadre is-fantome" role="status" aria-label="Plan en cours d'écriture">
+      <span className="tm-cadre-img sc-img">
+        <span className="sc-fantome-pouls" aria-hidden="true" />
+        <span className="sc-extrait">{ajout?.consigne}</span>
+      </span>
+      <span className="sc-cadre-nom">Écriture du plan…</span>
+      <span className="sc-cadre-temps">suivi dans la file des tâches</span>
+    </div>
+  );
+  const ligneFantome = (
+    <div className="sc-ligne-fantome" role="status">
+      <span className="sc-fantome-pouls" aria-hidden="true" />
+      <span>Écriture du plan…</span>
+      <span className="sc-ligne-fantome-note">{ajout?.consigne}</span>
+    </div>
+  );
+  /** Un « + » entre deux vignettes (sur le bord gauche de la vignette i, ou à droite de la dernière). */
+  const fenteCadre = (i: number, cote: "gauche" | "droite") => (
+    <button key={`${cote}-${i}`} type="button" className={`sc-fente is-${cote}`} aria-label={i < courant.plans.length ? `Insérer un plan avant le plan ${pad(courant.plans[i]!.position)}` : "Insérer un plan à la fin de la scène"} onClick={() => choisirPlace(i)}>
+      <Icone nom="ajouter" taille={16} />
+    </button>
+  );
+  /** Un « + » entre deux lignes de la liste. */
+  const fenteLigne = (i: number) => (
+    <button key={`fente-${i}`} type="button" className="sc-fente-ligne" aria-label={i < courant.plans.length ? `Insérer un plan avant le plan ${pad(courant.plans[i]!.position)}` : "Insérer un plan à la fin de la scène"} onClick={() => choisirPlace(i)}>
+      <Icone nom="ajouter" taille={15} /> Insérer ici
+    </button>
+  );
   const surClavierPlan = (p: PlanVue) => (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "Enter") {
@@ -329,6 +389,16 @@ export function VueScenario({
         </section>
 
         <div className="queue sc-plans-barre">
+          <button
+            type="button"
+            className={`btn btn-sm ${modeAjout ? "btn-gold" : "btn-ghost"}`}
+            aria-pressed={modeAjout}
+            disabled={ajout != null}
+            title={ajout ? "Un plan est déjà en cours d'écriture" : undefined}
+            onClick={basculerAjout}
+          >
+            <Icone nom={modeAjout ? "fermer" : "ajouter"} taille={15} /> {modeAjout ? "Choisis la place du plan" : "Ajouter un plan"}
+          </button>
           <div className="sc-reglages">
             {vue === "liste" ? (
               <button type="button" className="btn btn-ghost btn-sm" aria-pressed={descriptions} onClick={basculerDescriptions}>
@@ -354,20 +424,24 @@ export function VueScenario({
           }}
           onDrop={deposerEnFin}
         >
-          {courant.plans.length === 0 ? (
+          {courant.plans.length === 0 && fantome < 0 ? (
             <div className="sc-vide">
               <p>{estSans ? "Aucun plan sans scène." : "Aucun plan dans cette scène : l'agent peut en écrire un, ou tu peux en glisser un depuis une autre scène sur sa carte."}</p>
               {!estSans ? (
-                <button type="button" className="btn btn-gold" onClick={ajouterPlan}>
+                <button type="button" className="btn btn-gold" onClick={() => choisirPlace(0)} disabled={ajout != null} title={ajout ? "Un plan est déjà en cours d'écriture" : undefined}>
                   <Icone nom="ajouter" taille={15} /> Ajouter un plan
                 </button>
               ) : null}
             </div>
           ) : vue === "vignettes" ? (
-            <div className="sc-grille" role="group" aria-label="Plans de la scène">
+            <div className={`sc-grille${modeAjout ? " is-ajout" : ""}`} role="group" aria-label="Plans de la scène">
               {courant.plans.map((p, i) => (
+                <Fragment key={p.id}>
+                  {fantome === i ? <div className="sc-case">{carteFantome}</div> : null}
+                  <div className="sc-case">
+                  {modeAjout ? fenteCadre(i, "gauche") : null}
+                  {modeAjout && i === courant.plans.length - 1 ? fenteCadre(i + 1, "droite") : null}
                 <PlanDeplacable
-                  key={p.id}
                   planId={p.id}
                   sceneId={courant.id}
                   suivantId={courant.plans[i + 1]?.id ?? null}
@@ -393,18 +467,17 @@ export function VueScenario({
                     {minutage(p.debut)} · {p.duree} s
                   </span>
                 </PlanDeplacable>
+                  </div>
+                </Fragment>
               ))}
-              <button type="button" className="sc-cadre-plus" onClick={ajouterPlan}>
-                <span className="sc-cadre-plus-img">
-                  <Icone nom="ajouter" taille={22} />
-                </span>
-                <span>Ajouter un plan</span>
-              </button>
+              {fantome === courant.plans.length ? <div className="sc-case">{carteFantome}</div> : null}
             </div>
           ) : (
             <div className="frise sc-liste" role="group" aria-label="Plans de la scène">
               {courant.plans.map((p, i) => (
                 <div key={p.id} className="sc-ligne">
+                  {modeAjout ? fenteLigne(i) : null}
+                  {fantome === i ? ligneFantome : null}
                   <PlanDeplacable
                     planId={p.id}
                     sceneId={courant.id}
@@ -437,9 +510,8 @@ export function VueScenario({
                   {p.id === planSel ? <div className="sc-ligne-detail">{detail(p, false)}</div> : null}
                 </div>
               ))}
-              <button type="button" className="sc-ligne-plus" onClick={ajouterPlan}>
-                <Icone nom="ajouter" taille={16} /> Ajouter un plan
-              </button>
+              {modeAjout ? fenteLigne(courant.plans.length) : null}
+              {fantome === courant.plans.length ? ligneFantome : null}
             </div>
           )}
         </div>
@@ -475,21 +547,29 @@ export function VueScenario({
         }}
       />
 
-      <AjouterPlan projectId={projectId} episodeId={episodeId} ouvert={cibleAjout != null} cible={cibleAjout} onFermer={() => setCibleAjout(null)} onAjoute={() => undefined} />
+      <AjouterPlan
+        projectId={projectId}
+        episodeId={episodeId}
+        cible={cibleAjout}
+        onFermer={() => setCibleAjout(null)}
+        onLance={() => setSignal({ texte: "Plan en cours d'écriture : suivi dans la file des tâches." })}
+      />
 
       {signal ? (
         <div className="sc-toast" role="status">
           <span>{signal.texte}</span>
-          <button
-            type="button"
-            onClick={() => {
-              choisirScene(signal.cle);
-              setPlanSel(signal.planId);
-              setSignal(null);
-            }}
-          >
-            Voir
-          </button>
+          {signal.cle != null && signal.planId != null ? (
+            <button
+              type="button"
+              onClick={() => {
+                choisirScene(signal.cle!);
+                setPlanSel(signal.planId!);
+                setSignal(null);
+              }}
+            >
+              Voir
+            </button>
+          ) : null}
           <button type="button" className="sc-toast-fermer" aria-label="Fermer" onClick={() => setSignal(null)}>
             <Icone nom="fermer" taille={14} />
           </button>

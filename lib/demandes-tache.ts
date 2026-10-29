@@ -26,6 +26,8 @@ export type EntreeTacheDemande = {
   progressionRendu: { valeur: number; max: number } | null;
   /** L'étape courante est le rendu vidéo (le genre de la ligne suit : agent ou vidéo). */
   rendu: boolean;
+  /** Les mots de la ligne une fois la demande finie, quand ce n'est pas une itération (« Plan ajouté »). */
+  detailFin?: { termine: string; echoue: string };
 };
 
 export function tacheDeDemande(e: EntreeTacheDemande): Tache {
@@ -38,10 +40,10 @@ export function tacheDeDemande(e: EntreeTacheDemande): Tache {
   // posée) elle reste « en cours » : jamais de trou.
   const detail = !enCours
     ? e.statut === "termine"
-      ? "Essai terminé"
+      ? (e.detailFin?.termine ?? "Essai terminé")
       : e.statut === "annulee"
         ? "Annulée"
-        : "Itération"
+        : (e.detailFin?.echoue ?? "Itération")
     : `${courante?.libelle ?? "En cours"} · ${p.faites + 1}/${p.total}`;
   return {
     cle: cleDemande(e.id),

@@ -418,7 +418,7 @@ async function entreePourConversation(conv: ConversationRow, consigne: string, p
   return { erreur: `La portée « ${conv.portee} » ne se génère pas en profondeur courte : ouvre une conversation complète.` };
 }
 
-export async function genererProposition(conversationUuid: string, options: { consigne?: string; position?: Position; sceneId?: number } = {}): Promise<Resultat<{ propositionUuid: string; runUuid: string | null }>> {
+export async function genererProposition(conversationUuid: string, options: { consigne?: string; position?: Position; sceneId?: number; demandeId?: number } = {}): Promise<Resultat<{ propositionUuid: string; runUuid: string | null }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
@@ -469,6 +469,7 @@ export async function genererProposition(conversationUuid: string, options: { co
     conversationId: conv.id,
     propositionId: propId,
     options: e.options,
+    demandeId: options.demandeId,
   });
   await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
   const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));

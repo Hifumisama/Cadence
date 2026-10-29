@@ -36,6 +36,15 @@ export type SceneVue = {
   plans: PlanVue[];
 };
 
+/** Un plan en cours d'écriture (« Ajouter un plan ») : la page lui garde sa place, sous forme de carte fantôme, jusqu'à ce qu'il soit ajouté. */
+export type AjoutEnCours = {
+  /** La demande (clé de la tâche dans la file : `demande:<id>`). */
+  id: number;
+  sceneId: number | null;
+  position: { apresPlanUuid: string } | { debut: true };
+  consigne: string;
+};
+
 /** Clé d'une scène dans l'URL (`?scene=`) et dans l'état de la page. */
 export const cleScene = (id: number | null): string => (id == null ? "sans" : String(id));
 

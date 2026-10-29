@@ -9,7 +9,7 @@ import type { DecisionIteration } from "./fiche-plan";
  * Une demande n'est QU'UN PILOTE : les tâches qu'elle pose (run d'agent, job vidéo, génération d'image) gardent leurs voies et le verrou
  * GPU (worker/index.ts). Elle ne tient ni voie ni verrou entre deux étapes. Une seule demande en cours par cible (plan, asset). */
 
-export type TypeDemande = "iteration-plan";
+export type TypeDemande = "iteration-plan" | "ajout-plan";
 export type StatutDemande = "en_cours" | "termine" | "echoue" | "annulee";
 export type StatutEtapeDemande = "a_venir" | "en_cours" | "fait" | "passe";
 
@@ -88,6 +88,54 @@ export function deciderIteration(etape: CleEtapeIteration, obs: ObservationItera
   // reecrire
   if (etape === "agent") return { type: "reecrire", description: d.description, ...(d.dureeSecondes ? { dureeSecondes: d.dureeSecondes } : {}) };
   return { type: "echouer", erreur: "La réécriture de la fiche demande encore d'être réécrite : relance « Itérer »." };
+}
+
+// --- « Ajouter un plan » (page Scénario) -------------------------------------------------------------------------------------------------
+// Une demande à deux étapes : l'agent écrit le plan, puis il est ajouté à la scène SANS relecture (on le relit dans sa fiche). Une seule à la fois
+// par film (la cible est l'épisode) : deux ajouts qui se lisent l'un l'autre sans se connaître donneraient des plans qui se répètent.
+
+export const ETAPES_AJOUT_PLAN = [
+  { cle: "agent", libelle: "L'agent écrit le plan" },
+  { cle: "ajout", libelle: "Ajout à la scène" },
+] as const;
+
+export const etapesAjoutPlan = (): EtapeDemande[] => ETAPES_AJOUT_PLAN.map((e, i) => ({ cle: e.cle, libelle: e.libelle, statut: i === 0 ? ("en_cours" as const) : ("a_venir" as const) }));
+
+/** Ce qu'il faut pour finir un ajout de plan : la consigne, où il va (scène + place), la tâche d'agent, puis le plan créé. */
+export type ContexteAjoutPlan = {
+  consigne: string;
+  sceneId: number | null;
+  /** « III · La Fuite » : pour la file et la page. */
+  scene: string;
+  /** La place dans l'épisode : après un plan, ou au début. */
+  position: { apresPlanUuid: string } | { debut: true };
+  runUuid?: string;
+  /** Le plan créé, une fois ajouté (la file y mène). */
+  planUuid?: string;
+  titre?: string;
+};
+
+/** Ce que la proposition de l'agent permet de faire d'un ajout de plan. Pure : ne regarde que le changement qui CRÉE le plan. */
+export type DecisionAjout = { action: "attendre" } | { action: "fait" } | { action: "echec"; erreur: string } | { action: "appliquer"; planChangementId: number; changementIds: number[]; titre: string };
+
+type PropositionAjout = {
+  statut: string;
+  erreur: string | null;
+  groupes: { changements: { id: number; cibleType: string; operation: string; bloque: boolean; refuseRaison: string | null; avertissements: { type: string; texte: string }[]; libelle: string; apres: unknown }[] }[];
+};
+
+export function decisionAjoutPlan(prop: PropositionAjout | null): DecisionAjout {
+  if (!prop || prop.statut === "en_generation") return { action: "attendre" };
+  if (prop.statut === "appliquee" || prop.statut === "partielle") return { action: "fait" };
+  if (prop.statut === "echouee") return { action: "echec", erreur: prop.erreur ?? "L'agent n'a pas réussi à écrire ce plan." };
+  if (prop.statut === "rejetee") return { action: "echec", erreur: "La proposition a été rejetée." };
+  const tous = prop.groupes.flatMap((g) => g.changements);
+  const plan = tous.find((c) => c.cibleType === "plan" && c.operation === "creer");
+  if (!plan) return { action: "echec", erreur: "L'agent n'a pas proposé de plan à ajouter." };
+  if (plan.refuseRaison) return { action: "echec", erreur: plan.refuseRaison };
+  if (plan.bloque) return { action: "echec", erreur: plan.avertissements.find((w) => w.type === "bloque_controle")?.texte ?? "Un contrôle empêche d'ajouter ce plan." };
+  const titre = typeof (plan.apres as { titre?: unknown } | null)?.titre === "string" ? ((plan.apres as { titre: string }).titre) : plan.libelle;
+  return { action: "appliquer", planChangementId: plan.id, changementIds: tous.map((c) => c.id), titre };
 }
 
 /** Passe l'étape `cle` à `statut` et lance la suivante si on vient de la finir ; `sauter` les marque « passées » (ex. pas de réécriture). */
