@@ -13,6 +13,11 @@
 .sc > .queue {
   margin: 0;
 }
+.sc-panneau {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
 
 .sc-total {
   margin-left: auto;
@@ -142,6 +147,11 @@
   line-height: 1.1;
   color: var(--ink);
 }
+.sc-entete-meta {
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
 .sc-entete-actions {
   display: inline-flex;
   align-items: center;
@@ -190,13 +200,6 @@
 }
 .sc-chip.is-genre > b {
   color: var(--or-glow);
-}
-.sc-chip.is-vide {
-  border-style: dashed;
-  background: none;
-  font-size: 13px;
-  font-style: italic;
-  color: var(--ink-3);
 }
 
 /* ---- Barre des plans ---- */
@@ -267,13 +270,14 @@
 .sc-grille {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--sp-4) var(--sp-4);
+  gap: 0;
 }
 .sc-cadre {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 5px;
+  padding: var(--sp-2);
   cursor: pointer;
   user-select: none;
   transition: transform 0.2s var(--ease, ease), opacity 0.16s;
@@ -315,14 +319,26 @@
 }
 .sc-extrait {
   position: absolute;
-  inset: 30px 10px 8px;
+  inset: 32px 10px auto;
+  max-height: calc(100% - 40px);
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-size: 12px;
   line-height: 1.4;
   color: var(--ink-2);
+}
+.sc-extrait.is-vide {
+  font-style: italic;
+  color: var(--ink-3);
+}
+/* Un extrait de texte se lit sur un fond uni, pas sur des hachures. */
+.sc-img.is-texte {
+  background: var(--surface);
+}
+.sc-img.is-texte .tm-vue-vide {
+  display: none;
 }
 .sc-cadre-nom {
   overflow: hidden;
@@ -351,21 +367,13 @@
   box-shadow: 0 0 12px rgba(201, 162, 75, 0.6);
 }
 .sc-cadre.drop-g::before {
-  left: calc(-1 * var(--sp-2) - 2px);
+  left: 0;
 }
 .sc-cadre.drop-d::before {
-  right: calc(-1 * var(--sp-2) - 2px);
+  right: 0;
 }
 
 /* ---- Vue liste (réutilise la frise et les lignes `.shot`) ---- */
-.sc-liste .shot {
-  align-items: start;
-}
-.sc-liste .shot-no,
-.sc-liste .shot-right {
-  align-self: start;
-  padding-top: 1px;
-}
 .sc-liste .shot.is-sel {
   background: var(--surface);
   border-color: var(--or-soft);
@@ -374,16 +382,37 @@
 .sc-liste .shot-desc {
   -webkit-line-clamp: 1;
 }
+/* Le détail d'une ligne se glisse sous elle, aligné sur son titre (numéro 74 px + écarts) ; ce n'est pas un enfant de l'élément cliquable. */
 .sc-ligne-detail {
+  margin: 0 0 var(--sp-2) calc(var(--sp-4) * 2 + 74px);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border-left: 2px solid var(--or);
+  border-radius: 2px;
+}
+.sc-detail-ligne {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  margin-top: var(--sp-2);
-  cursor: default;
+}
+.sc-etat {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.sc-etat.is-pret {
+  color: var(--or-glow);
+}
+.sc-etat.is-iteration {
+  color: var(--ecarlate-glow);
 }
 
 /* ---- Détail d'un plan ---- */
 .sc-detail {
+  max-height: 45vh;
+  overflow-y: auto;
+  box-shadow: 0 -10px 30px -12px rgba(0, 0, 0, 0.7);
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
@@ -459,6 +488,12 @@
   letter-spacing: 0;
   text-transform: none;
 }
+/* La zone du détail reste collée en bas de l'écran tant que la scène est visible : sur tablette, la description ne se perd pas sous la grille. */
+.sc-detail-zone {
+  position: sticky;
+  bottom: var(--sp-3);
+  z-index: 5;
+}
 .sc-astuce {
   margin: 0;
   font-size: 12.5px;
@@ -478,5 +513,91 @@
   }
   .sc-grille {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+.sc-astuce kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--surface);
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.sc-ordre {
+  display: inline-flex;
+  gap: var(--sp-1, 4px);
+}
+.sc-suite {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.sc-suite .btn:last-child {
+  margin-left: auto;
+}
+
+/* Une carte de scène qui vient de recevoir un plan pulse en or. */
+@keyframes sc-recu {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--or) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+.sc-carte.is-recu {
+  border-color: var(--or);
+  animation: sc-recu 1.1s ease-out 1;
+}
+
+/* Retour après un déplacement vers une autre scène : où le plan est parti, et comment y aller. */
+.sc-toast {
+  position: fixed;
+  left: 50%;
+  bottom: var(--sp-5);
+  z-index: 40;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  max-width: calc(100vw - 2 * var(--sp-4));
+  padding: 10px 12px 10px 16px;
+  background: var(--surface-3);
+  border: 1px solid var(--or-soft);
+  border-radius: 3px;
+  box-shadow: 0 14px 40px -10px rgba(0, 0, 0, 0.8);
+  font-size: 14px;
+  color: var(--ink);
+}
+.sc-toast button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--or-glow);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.sc-toast button:hover {
+  text-decoration: underline;
+}
+.sc-toast-fermer {
+  display: inline-flex;
+  padding: 4px;
+  color: var(--ink-3) !important;
+}
+@keyframes sc-toast-entree {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sc-toast {
+    animation: sc-toast-entree 0.25s ease-out both;
   }
 }

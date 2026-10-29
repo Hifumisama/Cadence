@@ -10,43 +10,55 @@ export const MIME_SCENE = "application/x-cadence-scene";
  * Après un dépôt, la page est re-rendue côté serveur et les éléments sautent à
  * leur nouvelle place. À chaque rendu on compare la position de l'élément à
  * celle du rendu précédent et on le fait glisser de l'ancienne vers la nouvelle
- * (technique « FLIP »). Les positions viennent de `offsetTop`, insensible aux
- * transformations en cours (et donc au défilement). Verticale seulement : la
- * liste s'anime, la grille de vignettes (qui revient à la ligne) non. */
+ * (technique « FLIP », sur les deux axes : la grille de vignettes revient à la
+ * ligne). Les positions viennent de `offsetTop` / `offsetLeft`, insensibles aux
+ * transformations en cours (et donc au défilement). On n'anime qu'après un
+ * dépôt : déplier le détail d'une ligne décale les suivantes, sans les animer. */
 
 const mouvementReduit = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const hautAbsolu = (el: HTMLElement) => {
+const positionAbsolue = (el: HTMLElement) => {
+  let x = 0;
   let y = 0;
-  for (let n: HTMLElement | null = el; n; n = n.offsetParent as HTMLElement | null) y += n.offsetTop;
-  return y;
+  for (let n: HTMLElement | null = el; n; n = n.offsetParent as HTMLElement | null) {
+    x += n.offsetLeft;
+    y += n.offsetTop;
+  }
+  return { x, y };
 };
 
-/** Dernier élément déposé : il reçoit un bref halo doré une fois arrivé à sa place. */
+/** Dernier élément déposé : il reçoit un bref halo doré une fois arrivé à sa place. Les deux repères retombent seuls, pour qu'un dépôt sans
+ * effet côté serveur n'arme pas un halo qui surgirait plus tard. */
 let dernierDepose: string | null = null;
+let depotRecent = false;
 export const marquerDepose = (cle: string) => {
   dernierDepose = cle;
+  depotRecent = true;
+  setTimeout(() => {
+    if (dernierDepose === cle) dernierDepose = null;
+    depotRecent = false;
+  }, 4000);
 };
 
-function useGlissement(ref: RefObject<HTMLElement | null>, cle: string, actif: boolean) {
-  const precedent = useRef<number | null>(null);
+function useGlissement(ref: RefObject<HTMLElement | null>, cle: string) {
+  const precedent = useRef<{ x: number; y: number } | null>(null);
   const premierRendu = useRef(true);
   useLayoutEffect(() => {
     const el = ref.current;
     const premier = premierRendu.current;
     premierRendu.current = false;
-    if (!el || !actif) return;
+    if (!el) return;
     if (el.offsetParent === null) {
       precedent.current = null;
       return;
     }
-    const y = hautAbsolu(el);
+    const pos = positionAbsolue(el);
     const avant = precedent.current;
-    precedent.current = y;
-    const deplace = avant !== null && Math.abs(avant - y) > 1;
-    if (mouvementReduit()) return;
+    precedent.current = pos;
+    if (!depotRecent || mouvementReduit()) return;
+    const deplace = avant !== null && (Math.abs(avant.x - pos.x) > 1 || Math.abs(avant.y - pos.y) > 1);
     if (deplace) {
-      el.animate([{ transform: `translateY(${avant - y}px)` }, { transform: "translateY(0)" }], {
+      el.animate([{ transform: `translate(${avant.x - pos.x}px, ${avant.y - pos.y}px)` }, { transform: "translate(0, 0)" }], {
         duration: 340,
         easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
       });
@@ -127,7 +139,9 @@ export function PlanDeplacable({
   suivantId,
   axe,
   className,
+  libelle,
   selectionne,
+  tabIndex,
   onClick,
   onDoubleClick,
   onKeyDown,
@@ -138,7 +152,11 @@ export function PlanDeplacable({
   suivantId: number | null;
   axe: "x" | "y";
   className: string;
+  /** Nom accessible du plan (position, titre, état). */
+  libelle: string;
   selectionne: boolean;
+  /** Tabulation itinérante : un seul plan de la scène est un arrêt de tabulation (le sélectionné, sinon le premier). */
+  tabIndex: 0 | -1;
   onClick: () => void;
   onDoubleClick?: () => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
@@ -148,7 +166,7 @@ export function PlanDeplacable({
   const [, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
   const { enDrag, debut, fin } = useEnGlissement();
-  useGlissement(ref, `plan:${planId}`, axe === "y");
+  useGlissement(ref, `plan:${planId}`);
 
   const cote = (e: React.DragEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -161,9 +179,10 @@ export function PlanDeplacable({
   return (
     <div
       ref={ref}
-      role="option"
-      aria-selected={selectionne}
-      tabIndex={0}
+      role="button"
+      aria-pressed={selectionne}
+      aria-label={libelle}
+      tabIndex={tabIndex}
       data-plan={planId}
       className={`${className}${selectionne ? " is-sel" : ""}${classeRepere}${enDrag ? " is-drag" : ""}`}
       draggable

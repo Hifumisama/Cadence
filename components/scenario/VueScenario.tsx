@@ -7,10 +7,8 @@ import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
 import { Icone } from "@/components/ui/Icone";
-import { StatusBadge, statusNodeClass } from "@/components/ui/StatusBadge";
-import { LIBELLE_ETAT_PLAN } from "@/lib/fiche-plan";
 import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
-import { cleScene, minutage, romain, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
+import { LIBELLE_ETAT, cleScene, minutage, romain, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
 import { ModifierSceneButton } from "./ModifierSceneButton";
 import { NouveauPlanForm } from "./NouveauPlanForm";
@@ -23,6 +21,13 @@ const CLE_DESCRIPTIONS = "cadence:scenario-descriptions";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
+/** Les retours à la ligne d'une description n'ont pas de place dans un extrait de vignette. */
+const aplatir = (t: string) => t.replace(/\s*\n+\s*/g, " · ");
+/** Le point de la frise d'une ligne suit l'état dérivé (le même que dans la grille), pas le statut de la fiche. */
+const NOEUD = { brouillon: "st-brouillon", iteration: "st-encours", pret: "st-termine" } as const;
+const libellePlan = (p: PlanVue) => `Plan ${p.position}, ${p.titre}, ${LIBELLE_ETAT[p.etat].toLowerCase()}`;
+
+type Signal = { texte: string; cle: string; planId: number };
 
 /** La page Scénario : un bandeau de scènes (une seule ouverte à la fois), l'en-tête de la scène ouverte, puis ses plans en vignettes ou en liste.
  * Un clic sélectionne un plan et en montre la description ; un double-clic ou Entrée ouvre sa fiche. Tout est côté client : changer de scène est
@@ -44,6 +49,7 @@ export function VueScenario({
   const aDesImages = groupes.some((g) => g.plans.some((p) => p.src));
   const [vue, setVue] = useState<Vue>(aDesImages ? "vignettes" : "liste");
   const [descriptions, setDescriptions] = useState(false);
+  const [signal, setSignal] = useState<Signal | null>(null);
   const [, startTransition] = useTransition();
   const rail = useRef<HTMLDivElement>(null);
   const focusRail = useRef(false);
@@ -81,6 +87,7 @@ export function VueScenario({
   const cleCourante = courant ? cleScene(courant.id) : null;
   const indexCourant = courant ? groupes.indexOf(courant) : -1;
   const plan = courant?.plans.find((p) => p.id === planSel) ?? null;
+  const idTabulation = plan?.id ?? courant?.plans[0]?.id ?? null;
 
   const choisirScene = (k: string) => {
     setCle(k);
@@ -92,6 +99,16 @@ export function VueScenario({
     }
   };
 
+  /** « III · La Fuite », ou « Sans scène ». */
+  const libelleScene = (g: SceneVue) => (g.id != null ? `${romain(groupes.indexOf(g) + 1)} · ${g.titre}` : g.titre);
+  /** Un plan vient de changer de scène : il disparaît de celle-ci, on dit où il est parti (et on y mène d'un clic). */
+  const signaler = (planId: number, cible: SceneVue) => setSignal({ texte: `Plan déplacé vers ${libelleScene(cible)}`, cle: cleScene(cible.id), planId });
+  useEffect(() => {
+    if (!signal) return;
+    const t = setTimeout(() => setSignal(null), 7000);
+    return () => clearTimeout(t);
+  }, [signal]);
+
   // La scène ouverte se recentre dans le bandeau ; le focus la suit quand on navigue au clavier dans le bandeau.
   useEffect(() => {
     const onglet = rail.current?.querySelector<HTMLElement>('[aria-selected="true"]');
@@ -102,17 +119,26 @@ export function VueScenario({
     }
   }, [cleCourante]);
 
-  // Le plan sélectionné reste visible quand on le change aux flèches.
+  // Le plan sélectionné reste visible quand on le change aux flèches, et le focus le suit (Entrée ouvre toujours le plan sélectionné).
   useEffect(() => {
     if (planSel == null) return;
-    document.querySelector<HTMLElement>(`[data-plan="${planSel}"]`)?.scrollIntoView({ block: "nearest" });
+    const el = document.querySelector<HTMLElement>(`[data-plan="${planSel}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest" });
+    const actif = document.activeElement;
+    if (actif instanceof HTMLElement && actif !== el && actif.matches("[data-plan]")) el.focus({ preventScroll: true });
   }, [planSel]);
 
-  // ← → (et ↑ ↓ en liste) passent d'un plan à l'autre.
+  // ← → (et ↑ ↓ en liste) passent d'un plan à l'autre ; Échap désélectionne.
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
-      if (!courant || courant.plans.length === 0 || frappeEnCours(e)) return;
+      if (!courant || frappeEnCours(e)) return;
       if ((e.target as HTMLElement | null)?.closest?.('[role="tab"]')) return;
+      if (e.key === "Escape") {
+        if (planSel != null) setPlanSel(null);
+        return;
+      }
+      if (courant.plans.length === 0) return;
       const i = courant.plans.findIndex((p) => p.id === planSel);
       const suivant = e.key === "ArrowRight" || (vue === "liste" && i !== -1 && e.key === "ArrowDown");
       const precedent = e.key === "ArrowLeft" || (vue === "liste" && i !== -1 && e.key === "ArrowUp");
@@ -144,6 +170,8 @@ export function VueScenario({
   const dureeTotale = groupes.reduce((acc, g) => acc + g.duree, 0);
   const genre = genreOuNull(courant.genre);
   const estSans = courant.id == null;
+  const precedente = groupes[indexCourant - 1];
+  const suivante = groupes[indexCourant + 1];
 
   const ouvrir = (p: PlanVue) => router.push(p.href);
   const surClavierPlan = (p: PlanVue) => (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -165,6 +193,12 @@ export function VueScenario({
     choisirScene(cleScene(cible.id));
   };
 
+  // Aller à la scène d'à côté depuis le bas de la page : on remonte au bandeau.
+  const allerScene = (g: SceneVue) => {
+    choisirScene(cleScene(g.id));
+    document.querySelector(".sc-rail-zone")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   // Déposer un plan dans un espace vide de la scène ouverte : il passe en dernier.
   const deposerEnFin = (e: React.DragEvent) => {
     const c = lire<ChargePlan>(e, MIME_PLAN);
@@ -173,6 +207,19 @@ export function VueScenario({
     marquerDepose(`plan:${c.planId}`);
     startTransition(() => deplacerPlan(c.planId, courant.id, null));
   };
+
+  const detail = (p: PlanVue, entete: boolean) => (
+    <DetailPlan
+      plan={p}
+      plans={courant.plans}
+      sceneId={courant.id}
+      groupes={groupes}
+      entete={entete}
+      libelleScene={libelleScene}
+      onOuvrir={() => ouvrir(p)}
+      onDeplace={(cible) => signaler(p.id, cible)}
+    />
+  );
 
   return (
     <div className="sc">
@@ -184,7 +231,7 @@ export function VueScenario({
       </div>
 
       <nav className="sc-rail-zone" aria-label="Scènes">
-        <button type="button" className="tm-reel-nav" aria-label="Scène précédente" disabled={indexCourant <= 0} onClick={() => choisirScene(cleScene(groupes[indexCourant - 1]!.id))}>
+        <button type="button" className="tm-reel-nav" aria-label="Scène précédente" disabled={!precedente} onClick={() => precedente && choisirScene(cleScene(precedente.id))}>
           ‹
         </button>
         <div className="sc-rail" role="tablist" aria-label="Scènes du film" ref={rail}>
@@ -197,196 +244,276 @@ export function VueScenario({
               suivantId={groupes[i + 1]?.id ?? null}
               onChoisir={() => choisirScene(cleScene(g.id))}
               onKeyDown={(e) => surClavierRail(e, i)}
+              onRecu={(planId) => signaler(planId, g)}
             />
           ))}
         </div>
-        <button type="button" className="tm-reel-nav" aria-label="Scène suivante" disabled={indexCourant >= groupes.length - 1} onClick={() => choisirScene(cleScene(groupes[indexCourant + 1]!.id))}>
+        <button type="button" className="tm-reel-nav" aria-label="Scène suivante" disabled={!suivante} onClick={() => suivante && choisirScene(cleScene(suivante.id))}>
           ›
         </button>
       </nav>
 
-      <section className="sc-entete" aria-label={`Scène : ${courant.titre}`}>
-        <div className="sc-entete-titre">
-          {!estSans ? <span className="sc-roman">{romain(indexCourant + 1)}</span> : null}
-          <h2>{courant.titre}</h2>
-          {courant.id != null ? (
-            <span className="sc-entete-actions">
-              <ModifierSceneButton key={courant.id} sceneId={courant.id} titre={courant.titre} fonction={courant.fonction ?? ""} genre={courant.genre ?? ""} ambiance={courant.ambiance ?? ""} />
-              <SupprimerSceneButton sceneId={courant.id} titre={courant.titre} />
+      <div id="sc-panneau" role="tabpanel" aria-label={`Scène : ${courant.titre}`} className="sc-panneau">
+        <section className="sc-entete">
+          <div className="sc-entete-titre">
+            {!estSans ? <span className="sc-roman">{romain(indexCourant + 1)}</span> : null}
+            <h2>{courant.titre}</h2>
+            <span className="sc-entete-meta num">
+              {pluriel(courant.plans.length, "plan")} · {minutage(courant.duree)}
             </span>
-          ) : null}
-        </div>
-        {estSans ? (
-          <p className="sc-fonction">Les plans qui ne sont dans aucune scène. Dépose un plan ici pour le détacher de sa scène.</p>
-        ) : courant.fonction ? (
-          <p className="sc-fonction">{courant.fonction}</p>
-        ) : null}
-        <ul className="sc-chips">
-          {genre ? (
-            <li className="sc-chip is-genre">
-              <span>Genre</span>
-              <b>{LIBELLE_GENRE[genre]}</b>
-            </li>
-          ) : null}
-          {courant.ambiance ? (
-            <li className="sc-chip is-ambiance">
-              <span>Ambiance</span>
-              <b>{courant.ambiance}</b>
-            </li>
-          ) : null}
-          {!estSans && !genre && !courant.ambiance ? <li className="sc-chip is-vide">Genre et ambiance non définis : « Modifier » pour les ajouter</li> : null}
-          <li className="sc-chip">
-            <span>Plans</span>
-            <b className="num">{courant.plans.length}</b>
-          </li>
-          <li className="sc-chip">
-            <span>Durée</span>
-            <b className="num">{minutage(courant.duree)}</b>
-          </li>
-        </ul>
-      </section>
-
-      <div className="queue sc-plans-barre">
-        <NouveauPlanForm
-          key={cleCourante}
-          projectId={projectId}
-          episodeId={episodeId}
-          scenesOptions={scenesReelles.map((g) => ({ id: g.id!, titre: g.titre }))}
-          sceneInitiale={courant.id}
-        />
-        <div className="sc-reglages">
-          {vue === "liste" ? (
-            <button type="button" className="btn btn-ghost btn-sm" aria-pressed={descriptions} onClick={basculerDescriptions}>
-              {descriptions ? "Masquer les descriptions" : "Afficher les descriptions"}
-            </button>
-          ) : null}
-          <div className="sc-bascule" role="group" aria-label="Affichage des plans">
-            <button type="button" aria-pressed={vue === "vignettes"} onClick={() => changerVue("vignettes")} title="Vignettes">
-              <Icone nom="grille" taille={16} /> <span>Vignettes</span>
-            </button>
-            <button type="button" aria-pressed={vue === "liste"} onClick={() => changerVue("liste")} title="Liste">
-              <Icone nom="liste" taille={16} /> <span>Liste</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div
-        key={`${cleCourante}-${vue}`}
-        className="sc-plans"
-        onDragOver={(e) => {
-          if (e.dataTransfer.types.includes(MIME_PLAN)) e.preventDefault();
-        }}
-        onDrop={deposerEnFin}
-      >
-        {courant.plans.length === 0 ? (
-          <p className="sc-vide">{estSans ? "Aucun plan sans scène." : "Aucun plan dans cette scène : crée-en un, ou glisses-en un depuis une autre scène sur sa carte."}</p>
-        ) : vue === "vignettes" ? (
-          <div className="sc-grille" role="listbox" aria-label="Plans de la scène">
-            {courant.plans.map((p, i) => (
-              <PlanDeplacable
-                key={p.id}
-                planId={p.id}
-                sceneId={courant.id}
-                suivantId={courant.plans[i + 1]?.id ?? null}
-                axe="x"
-                className={`sc-cadre etat-${p.etat}`}
-                selectionne={p.id === planSel}
-                onClick={() => setPlanSel(p.id)}
-                onDoubleClick={() => ouvrir(p)}
-                onKeyDown={surClavierPlan(p)}
-              >
-                <span className="tm-cadre-img sc-img">
-                  <Vignette src={p.src} />
-                  {!p.src && p.description ? <span className="sc-extrait">{p.description}</span> : null}
-                  <span className="sc-pos num">{pad(p.position)}</span>
-                  <span className={`tm-cadre-etat is-${p.etat}`} title={LIBELLE_ETAT_PLAN[p.etat]}>
-                    {p.etat === "pret" ? "✓" : ""}
-                  </span>
-                </span>
-                <span className="sc-cadre-nom">{p.titre}</span>
-                <span className="sc-cadre-temps num">
-                  {minutage(p.debut)} · {p.duree} s
-                </span>
-              </PlanDeplacable>
-            ))}
-          </div>
-        ) : (
-          <div className="frise sc-liste" role="listbox" aria-label="Plans de la scène">
-            {courant.plans.map((p, i) => (
-              <PlanDeplacable
-                key={p.id}
-                planId={p.id}
-                sceneId={courant.id}
-                suivantId={courant.plans[i + 1]?.id ?? null}
-                axe="y"
-                className={`shot ${statusNodeClass(p.statut)}`}
-                selectionne={p.id === planSel}
-                onClick={() => setPlanSel(p.id)}
-                onDoubleClick={() => ouvrir(p)}
-                onKeyDown={surClavierPlan(p)}
-              >
-                <span className="node" />
-                <span className="shot-no">{pad(p.position)}</span>
-                <span className="shot-title">
-                  {p.titre}
-                  {p.id === planSel ? (
-                    <span className="sc-ligne-detail" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                      <span className="sc-description">{p.description ?? "Pas encore de description."}</span>
-                      <span className="sc-actions">
-                        <button type="button" className="btn btn-gold btn-sm" onClick={() => ouvrir(p)}>
-                          Ouvrir la fiche →
-                        </button>
-                        <DeplacerVers planId={p.id} sceneId={courant.id} groupes={groupes} />
-                      </span>
-                    </span>
-                  ) : descriptions && p.description ? (
-                    <span className="shot-desc">{p.description}</span>
-                  ) : null}
-                </span>
-                <span className="shot-right">
-                  <span className="shot-duree num" title="Minutage de départ dans le film">
-                    {minutage(p.debut)}
-                  </span>
-                  <span className="shot-duree num" title="Durée de montage">
-                    {p.duree} s
-                  </span>
-                  {p.statut !== "brouillon" ? <StatusBadge statut={p.statut} /> : null}
-                </span>
-              </PlanDeplacable>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {vue === "vignettes" && courant.plans.length > 0 ? (
-        plan ? (
-          <aside className="sc-detail" aria-live="polite">
-            <div className="sc-detail-hd">
-              <span className="sc-detail-pos num">{pad(plan.position)}</span>
-              <h3>{plan.titre}</h3>
-              <span className="sc-detail-meta num">
-                {minutage(plan.debut)} · {plan.duree} s · {LIBELLE_ETAT_PLAN[plan.etat]}
+            {courant.id != null ? (
+              <span className="sc-entete-actions">
+                <ModifierSceneButton key={courant.id} sceneId={courant.id} titre={courant.titre} fonction={courant.fonction ?? ""} genre={courant.genre ?? ""} ambiance={courant.ambiance ?? ""} />
+                <SupprimerSceneButton sceneId={courant.id} titre={courant.titre} />
               </span>
-            </div>
-            <p className={`sc-description${plan.description ? "" : " is-vide"}`}>{plan.description ?? "Pas encore de description."}</p>
-            <div className="sc-actions">
-              <button type="button" className="btn btn-gold" onClick={() => ouvrir(plan)}>
-                Ouvrir la fiche →
+            ) : null}
+          </div>
+          {estSans ? (
+            <p className="sc-fonction">Les plans qui ne sont dans aucune scène. Dépose un plan ici pour le détacher de sa scène.</p>
+          ) : courant.fonction ? (
+            <p className="sc-fonction">{courant.fonction}</p>
+          ) : null}
+          {genre || courant.ambiance ? (
+            <ul className="sc-chips">
+              {genre ? (
+                <li className="sc-chip is-genre">
+                  <span>Genre</span>
+                  <b>{LIBELLE_GENRE[genre]}</b>
+                </li>
+              ) : null}
+              {courant.ambiance ? (
+                <li className="sc-chip is-ambiance">
+                  <span>Ambiance</span>
+                  <b>{courant.ambiance}</b>
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
+        </section>
+
+        <div className="queue sc-plans-barre">
+          <NouveauPlanForm projectId={projectId} episodeId={episodeId} scenesOptions={scenesReelles.map((g) => ({ id: g.id!, titre: g.titre }))} sceneInitiale={courant.id} />
+          <div className="sc-reglages">
+            {vue === "liste" ? (
+              <button type="button" className="btn btn-ghost btn-sm" aria-pressed={descriptions} onClick={basculerDescriptions}>
+                {descriptions ? "Masquer les descriptions" : "Afficher les descriptions"}
               </button>
-              <DeplacerVers planId={plan.id} sceneId={courant.id} groupes={groupes} />
+            ) : null}
+            <div className="sc-bascule" role="group" aria-label="Affichage des plans">
+              <button type="button" aria-pressed={vue === "vignettes"} onClick={() => changerVue("vignettes")} title="Vignettes">
+                <Icone nom="grille" taille={16} /> <span>Vignettes</span>
+              </button>
+              <button type="button" aria-pressed={vue === "liste"} onClick={() => changerVue("liste")} title="Liste">
+                <Icone nom="liste" taille={16} /> <span>Liste</span>
+              </button>
             </div>
-          </aside>
-        ) : (
-          <p className="sc-astuce">Clique sur un plan pour lire sa description · double-clic ou Entrée pour ouvrir sa fiche · ← → pour passer d&rsquo;un plan à l&rsquo;autre.</p>
-        )
+          </div>
+        </div>
+
+        <div
+          key={`${cleCourante}-${vue}`}
+          className="sc-plans"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes(MIME_PLAN)) e.preventDefault();
+          }}
+          onDrop={deposerEnFin}
+        >
+          {courant.plans.length === 0 ? (
+            <p className="sc-vide">{estSans ? "Aucun plan sans scène." : "Aucun plan dans cette scène : crée-en un, ou glisses-en un depuis une autre scène sur sa carte."}</p>
+          ) : vue === "vignettes" ? (
+            <div className="sc-grille" role="group" aria-label="Plans de la scène">
+              {courant.plans.map((p, i) => (
+                <PlanDeplacable
+                  key={p.id}
+                  planId={p.id}
+                  sceneId={courant.id}
+                  suivantId={courant.plans[i + 1]?.id ?? null}
+                  axe="x"
+                  className={`sc-cadre etat-${p.etat}`}
+                  libelle={libellePlan(p)}
+                  selectionne={p.id === planSel}
+                  tabIndex={p.id === idTabulation ? 0 : -1}
+                  onClick={() => setPlanSel(p.id)}
+                  onDoubleClick={() => ouvrir(p)}
+                  onKeyDown={surClavierPlan(p)}
+                >
+                  <span className={`tm-cadre-img sc-img${!p.src && p.description ? " is-texte" : ""}`}>
+                    <Vignette src={p.src} />
+                    {!p.src ? <span className={`sc-extrait${p.description ? "" : " is-vide"}`}>{p.description ? aplatir(p.description) : "Sans description"}</span> : null}
+                    <span className="sc-pos num">{pad(p.position)}</span>
+                    <span className={`tm-cadre-etat is-${p.etat}`} aria-hidden="true">
+                      {p.etat === "pret" ? "✓" : ""}
+                    </span>
+                  </span>
+                  <span className="sc-cadre-nom">{p.titre}</span>
+                  <span className="sc-cadre-temps num">
+                    {minutage(p.debut)} · {p.duree} s
+                  </span>
+                </PlanDeplacable>
+              ))}
+            </div>
+          ) : (
+            <div className="frise sc-liste" role="group" aria-label="Plans de la scène">
+              {courant.plans.map((p, i) => (
+                <div key={p.id} className="sc-ligne">
+                  <PlanDeplacable
+                    planId={p.id}
+                    sceneId={courant.id}
+                    suivantId={courant.plans[i + 1]?.id ?? null}
+                    axe="y"
+                    className={`shot ${NOEUD[p.etat]}`}
+                    libelle={libellePlan(p)}
+                    selectionne={p.id === planSel}
+                    tabIndex={p.id === idTabulation ? 0 : -1}
+                    onClick={() => setPlanSel(p.id)}
+                    onDoubleClick={() => ouvrir(p)}
+                    onKeyDown={surClavierPlan(p)}
+                  >
+                    <span className="node" />
+                    <span className="shot-no">{pad(p.position)}</span>
+                    <span className="shot-title">
+                      {p.titre}
+                      {descriptions && p.description && p.id !== planSel ? <span className="shot-desc">{aplatir(p.description)}</span> : null}
+                    </span>
+                    <span className="shot-right">
+                      <span className="shot-duree num" title="Minutage de départ dans le film">
+                        {minutage(p.debut)}
+                      </span>
+                      <span className="shot-duree num" title="Durée de montage">
+                        {p.duree} s
+                      </span>
+                      {p.etat !== "brouillon" ? <span className={`sc-etat is-${p.etat}`}>{p.etat === "pret" ? "✓ Prêt" : "En itération"}</span> : null}
+                    </span>
+                  </PlanDeplacable>
+                  {p.id === planSel ? <div className="sc-ligne-detail">{detail(p, false)}</div> : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="sc-detail-zone" aria-live="polite">
+          {courant.plans.length > 0 && !plan ? (
+            <p className="sc-astuce">
+              Clique sur un plan pour lire sa description · double-clic ou <kbd>Entrée</kbd> pour ouvrir sa fiche · <kbd>←</kbd> <kbd>→</kbd>
+              {vue === "liste" ? " ou ↑ ↓" : ""} pour passer d&rsquo;un plan à l&rsquo;autre · <kbd>Échap</kbd> pour désélectionner.
+            </p>
+          ) : null}
+          {vue === "vignettes" && plan ? detail(plan, true) : null}
+        </div>
+
+        {precedente || suivante ? (
+          <div className="sc-suite">
+            {precedente ? (
+              <button type="button" className="btn btn-ghost" onClick={() => allerScene(precedente)}>
+                ‹ {libelleScene(precedente)}
+              </button>
+            ) : (
+              <span />
+            )}
+            {suivante ? (
+              <button type="button" className="btn btn-ghost" onClick={() => allerScene(suivante)}>
+                {libelleScene(suivante)} ›
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {signal ? (
+        <div className="sc-toast" role="status">
+          <span>{signal.texte}</span>
+          <button
+            type="button"
+            onClick={() => {
+              choisirScene(signal.cle);
+              setPlanSel(signal.planId);
+              setSignal(null);
+            }}
+          >
+            Voir
+          </button>
+          <button type="button" className="sc-toast-fermer" aria-label="Fermer" onClick={() => setSignal(null)}>
+            <Icone nom="fermer" taille={14} />
+          </button>
+        </div>
       ) : null}
     </div>
   );
 }
 
+/** Ce que l'on fait d'un plan sélectionné : le lire, ouvrir sa fiche, le décaler d'un cran dans sa scène (sans glisser-déposer : tablette, clavier),
+ * le changer de scène. `entete` : le panneau sous la grille de vignettes reprend le titre ; en liste, la ligne le porte déjà. */
+function DetailPlan({
+  plan,
+  plans,
+  sceneId,
+  groupes,
+  entete,
+  libelleScene,
+  onOuvrir,
+  onDeplace,
+}: {
+  plan: PlanVue;
+  plans: PlanVue[];
+  sceneId: number | null;
+  groupes: SceneVue[];
+  entete: boolean;
+  libelleScene: (g: SceneVue) => string;
+  onOuvrir: () => void;
+  onDeplace: (cible: SceneVue) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const i = plans.findIndex((p) => p.id === plan.id);
+  const decaler = (avantId: number | null) => {
+    marquerDepose(`plan:${plan.id}`);
+    startTransition(() => deplacerPlan(plan.id, sceneId, avantId));
+  };
+
+  return (
+    <div className={entete ? "sc-detail" : "sc-detail-ligne"}>
+      {entete ? (
+        <div className="sc-detail-hd">
+          <span className="sc-detail-pos num">{pad(plan.position)}</span>
+          <h3>{plan.titre}</h3>
+          <span className="sc-detail-meta num">
+            {minutage(plan.debut)} · {plan.duree} s · {LIBELLE_ETAT[plan.etat]}
+          </span>
+        </div>
+      ) : null}
+      <p className={`sc-description${plan.description ? "" : " is-vide"}`}>{plan.description ?? "Pas encore de description."}</p>
+      <div className="sc-actions">
+        <button type="button" className="btn btn-gold btn-sm" onClick={onOuvrir}>
+          Ouvrir la fiche →
+        </button>
+        <span className="sc-ordre" role="group" aria-label="Changer la place du plan">
+          <button type="button" className="btn btn-ghost btn-sm" disabled={pending || i <= 0} onClick={() => decaler(plans[i - 1]!.id)}>
+            ‹ Avant
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={pending || i < 0 || i >= plans.length - 1} onClick={() => decaler(plans[i + 2]?.id ?? null)}>
+            Après ›
+          </button>
+        </span>
+        <DeplacerVers planId={plan.id} sceneId={sceneId} groupes={groupes} libelleScene={libelleScene} onDeplace={onDeplace} />
+      </div>
+    </div>
+  );
+}
+
 /** « Déplacer vers… » : le déplacement d'un plan vers une autre scène au clavier ou au doigt (le glisser-déposer sur la carte de la scène reste possible). */
-function DeplacerVers({ planId, sceneId, groupes }: { planId: number; sceneId: number | null; groupes: SceneVue[] }) {
+function DeplacerVers({
+  planId,
+  sceneId,
+  groupes,
+  libelleScene,
+  onDeplace,
+}: {
+  planId: number;
+  sceneId: number | null;
+  groupes: SceneVue[];
+  libelleScene: (g: SceneVue) => string;
+  onDeplace: (cible: SceneVue) => void;
+}) {
   const [pending, startTransition] = useTransition();
   const autres = groupes.filter((g) => g.id !== sceneId);
   if (autres.length === 0) return null;
@@ -397,15 +524,16 @@ function DeplacerVers({ planId, sceneId, groupes }: { planId: number; sceneId: n
         value=""
         disabled={pending}
         onChange={(e) => {
-          const v = e.target.value;
-          if (!v) return;
-          startTransition(() => deplacerPlan(planId, v === "sans" ? null : Number(v), null));
+          const cible = autres.find((g) => cleScene(g.id) === e.target.value);
+          if (!cible) return;
+          onDeplace(cible);
+          startTransition(() => deplacerPlan(planId, cible.id, null));
         }}
       >
         <option value="">Choisir une scène…</option>
         {autres.map((g) => (
           <option key={cleScene(g.id)} value={cleScene(g.id)}>
-            {g.titre}
+            {libelleScene(g)}
           </option>
         ))}
       </select>
@@ -421,6 +549,7 @@ function CarteScene({
   suivantId,
   onChoisir,
   onKeyDown,
+  onRecu,
 }: {
   g: SceneVue;
   numero: string | null;
@@ -428,9 +557,12 @@ function CarteScene({
   suivantId: number | null;
   onChoisir: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  /** Un plan vient d'être déposé sur cette carte. */
+  onRecu: (planId: number) => void;
 }) {
   const [repere, setRepere] = useState<"g" | "d" | null>(null);
   const [recoitPlan, setRecoitPlan] = useState(false);
+  const [recu, setRecu] = useState(false);
   const [, startTransition] = useTransition();
   const { enDrag, debut, fin } = useEnGlissement();
   const reinit = () => {
@@ -446,8 +578,9 @@ function CarteScene({
     <div
       role="tab"
       aria-selected={actif}
+      aria-controls="sc-panneau"
       tabIndex={actif ? 0 : -1}
-      className={`sc-carte${actif ? " is-on" : ""}${g.id == null ? " is-sans" : ""}${recoitPlan ? " is-drop" : ""}${repere ? ` drop-${repere}` : ""}${enDrag ? " is-drag" : ""}`}
+      className={`sc-carte${actif ? " is-on" : ""}${g.id == null ? " is-sans" : ""}${recoitPlan ? " is-drop" : ""}${recu ? " is-recu" : ""}${repere ? ` drop-${repere}` : ""}${enDrag ? " is-drag" : ""}`}
       onClick={onChoisir}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -490,7 +623,9 @@ function CarteScene({
           const c = lire<ChargePlan>(e, MIME_PLAN);
           reinit();
           if (!c || c.sceneId === g.id) return;
-          marquerDepose(`plan:${c.planId}`);
+          setRecu(true);
+          setTimeout(() => setRecu(false), 1400);
+          onRecu(c.planId);
           startTransition(() => deplacerPlan(c.planId, g.id, null));
         }
       }}

@@ -43,6 +43,11 @@ export function ModifierSceneButton({
 
   return (
     <>
+      {!genre && !ambiance && !ouvert ? (
+        <button className="btn btn-ghost btn-sm" type="button" onClick={ouvrir} title="Le genre guide la rédaction des plans, l'ambiance tient le cadre visuel de la scène">
+          + Genre et ambiance
+        </button>
+      ) : null}
       <button className="btn btn-ghost btn-sm" type="button" onClick={() => (ouvert ? setOuvert(false) : ouvrir())}>
         Modifier
       </button>

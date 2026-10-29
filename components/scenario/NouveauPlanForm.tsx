@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { creerPlanScenario } from "@/app/scenario/actions";
 import {
   ScenarioNarratifFields,
@@ -31,6 +31,11 @@ export function NouveauPlanForm({
   const [ouvert, setOuvert] = useState(false);
   const [sceneId, setSceneId] = useState<string>(sceneInitiale !== undefined ? (sceneInitiale?.toString() ?? "") : (scenesOptions[scenesOptions.length - 1]?.id.toString() ?? ""));
   const [champs, setChamps] = useState(VIDE);
+  // La scène proposée suit la scène ouverte de la page, tant que l'utilisateur n'a pas choisi la sienne (changer de scène ne perd pas la saisie).
+  const choixManuel = useRef(false);
+  useEffect(() => {
+    if (!choixManuel.current && sceneInitiale !== undefined) setSceneId(sceneInitiale?.toString() ?? "");
+  }, [sceneInitiale]);
   const [pending, startTransition] = useTransition();
 
   const majChamp = (cle: keyof typeof VIDE) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -48,6 +53,7 @@ export function NouveauPlanForm({
         description: champs.description,
       });
       setChamps(VIDE);
+      choixManuel.current = false;
       setOuvert(false);
     });
   };
@@ -66,7 +72,10 @@ export function NouveauPlanForm({
           <div className="form-grid">
             <div className="field-group">
               <label>Scène</label>
-              <select className="field" value={sceneId} onChange={(e) => setSceneId(e.target.value)}>
+              <select className="field" value={sceneId} onChange={(e) => {
+                  choixManuel.current = true;
+                  setSceneId(e.target.value);
+                }}>
                 <option value="">Sans scène</option>
                 {scenesOptions.map((sc) => (
                   <option key={sc.id} value={sc.id}>

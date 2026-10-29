@@ -1,5 +1,13 @@
 import type { EtatPlan } from "./fiche-plan";
 
+/** Les états d'un plan tels que la page Scénario les dit. « Brouillon » y serait trompeur : l'en-tête d'épisode appelle brouillon un plan dont la fiche
+ * n'est pas développée, alors que l'état dérivé ici dit seulement qu'aucun essai n'a été lancé. */
+export const LIBELLE_ETAT: Record<EtatPlan, string> = {
+  brouillon: "Pas encore tourné",
+  iteration: "En itération",
+  pret: "Prêt à upscaler",
+};
+
 /** Un plan tel que la page Scénario le montre. `position` est le rang dans l'épisode (ce qu'on affiche), jamais un identifiant ;
  * `debut` est le minutage de départ du plan dans le film (somme des durées des plans qui le précèdent, scènes dans l'ordre). */
 export type PlanVue = {
@@ -39,7 +47,7 @@ export function minutage(secondes: number): string {
 
 /** 1 → « I », 4 → « IV », 14 → « XIV » (numéro de scène). */
 export function romain(n: number): string {
-  const table: [number, string][] = [[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
+  const table: [number, string][] = [[100, "C"], [90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
   let reste = n;
   let sortie = "";
   for (const [valeur, signe] of table) {
