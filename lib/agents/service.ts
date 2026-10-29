@@ -393,7 +393,8 @@ async function nouvelleProposition(conv: ConversationRow, p: { skill: string; co
   return prop!.id;
 }
 
-async function entreePourConversation(conv: ConversationRow, consigne: string, position?: Position, retour?: string): Promise<{ entree: EntreeSkill; options: Record<string, unknown> } | { erreur: string }> {
+/** `sceneId` : la scène où atterrit le plan inséré, quand l'appelant la connaît (une scène vide n'a pas de plan voisin pour la déduire). */
+async function entreePourConversation(conv: ConversationRow, consigne: string, position?: Position, retour?: string, sceneId?: number): Promise<{ entree: EntreeSkill; options: Record<string, unknown> } | { erreur: string }> {
   const cibleId = conv.cibleId;
   if (conv.portee === "asset" && cibleId != null) {
     // L'affiche d'un projet ou d'un épisode est un asset caché : le skill `prompt-asset`, variante `affiche`, même parcours de revue.
@@ -407,7 +408,7 @@ async function entreePourConversation(conv: ConversationRow, consigne: string, p
   }
   if (conv.portee === "episode" && cibleId != null) {
     const e = await entreeScenarioEpisode(db, conv.projectId, cibleId, consigne, { position, retour });
-    return e ? { entree: e, options: { ...(position ? { position, sceneVoisineId: e.sceneVoisineId } : {}) } } : { erreur: "Épisode introuvable." };
+    return e ? { entree: e, options: { ...(position ? { position, sceneVoisineId: sceneId ?? e.sceneVoisineId } : {}) } } : { erreur: "Épisode introuvable." };
   }
   if (conv.portee === "plan" && cibleId != null) {
     const [p] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, cibleId));
@@ -417,7 +418,7 @@ async function entreePourConversation(conv: ConversationRow, consigne: string, p
   return { erreur: `La portée « ${conv.portee} » ne se génère pas en profondeur courte : ouvre une conversation complète.` };
 }
 
-export async function genererProposition(conversationUuid: string, options: { consigne?: string; position?: Position } = {}): Promise<Resultat<{ propositionUuid: string; runUuid: string | null }>> {
+export async function genererProposition(conversationUuid: string, options: { consigne?: string; position?: Position; sceneId?: number } = {}): Promise<Resultat<{ propositionUuid: string; runUuid: string | null }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
@@ -457,7 +458,7 @@ export async function genererProposition(conversationUuid: string, options: { co
   const consigne =
     (options.consigne ?? conv.consigne).trim() || (conv.portee === "episode" && !options.position ? "Écris le scénario complet de cet épisode." : "");
   if (!consigne) return ERR("Écris une consigne : l'intention en une ligne.");
-  const e = await entreePourConversation(conv, consigne, options.position);
+  const e = await entreePourConversation(conv, consigne, options.position, undefined, options.sceneId);
   if ("erreur" in e) return ERR(e.erreur);
   const propId = await nouvelleProposition(conv, { skill: e.entree.skill, consigne, contexte: e.entree.contexte });
   const run = await creerRun(db, {

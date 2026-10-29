@@ -452,13 +452,82 @@
   }
 }
 .sc-vide {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
   padding: var(--sp-6) var(--sp-4);
   border: 1px dashed var(--line-strong);
   border-radius: 3px;
   text-align: center;
   font-size: 14px;
   color: var(--ink-3);
+}
+.sc-vide p {
+  margin: 0;
+  max-width: 52ch;
+}
+
+/* « Ajouter un plan » : la dernière vignette de la grille / la dernière ligne de la liste, là où le prochain plan apparaîtra. */
+.sc-cadre-plus {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: var(--sp-2);
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.sc-cadre-plus-img {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border: 1px dashed var(--line-strong);
+  border-radius: 2px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.sc-cadre-plus:hover,
+.sc-cadre-plus:focus-visible {
+  color: var(--or-glow);
+  outline: 0;
+}
+.sc-cadre-plus:hover .sc-cadre-plus-img,
+.sc-cadre-plus:focus-visible .sc-cadre-plus-img {
+  border-color: var(--or-soft);
+  background: color-mix(in srgb, var(--or) 5%, transparent);
+}
+.sc-ligne-plus {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: var(--sp-2);
+  padding: 13px var(--sp-4);
+  border: 1px dashed var(--line-strong);
+  border-radius: 3px;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.sc-ligne-plus:hover,
+.sc-ligne-plus:focus-visible {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
+  background: color-mix(in srgb, var(--or) 5%, transparent);
+  outline: 0;
 }
 
 /* ---- Vue vignettes ---- */

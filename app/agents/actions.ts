@@ -153,7 +153,7 @@ export async function modifierChampBrief(projectId: number, section: string, val
  * La proposition naît `en_generation` puis `prete` (ou `echouee`). */
 export async function genererProposition(
   conversationUuid: string,
-  options?: { consigne?: string; position?: Position },
+  options?: { consigne?: string; position?: Position; sceneId?: number },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string | null }>> {
   return rafraichir(await service.genererProposition(conversationUuid, options));
 }

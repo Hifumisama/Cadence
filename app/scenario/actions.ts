@@ -2,45 +2,10 @@
 
 import { db } from "@/db";
 import { scenes, plans } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { recomposerOrdre, type Tx } from "@/lib/ordre-plans";
 import { genreOuNull } from "@/lib/scene-genres";
-
-/** Un plan naît toujours en brouillon (défaut du schéma) — il faudra le
- * "développer" explicitement en fiche de plan avant qu'il entre dans Plans.
- * Il reçoit un `uuid` (identifiant public) ; sa position dans l'épisode est
- * `ordre`, déplaçable ensuite. Aucun numéro de plan. */
-export async function creerPlanScenario(
-  projectId: number,
-  episodeId: number,
-  valeurs: {
-    titre: string;
-    sceneId: number | null;
-    dureeMontageSecondes: number;
-    description: string;
-  },
-) {
-  const [dernier] = await db
-    .select({ ordre: plans.ordre })
-    .from(plans)
-    .where(eq(plans.episodeId, episodeId))
-    .orderBy(desc(plans.ordre))
-    .limit(1);
-  const [cree] = await db.insert(plans).values({
-    projectId,
-    episodeId,
-    ordre: (dernier?.ordre ?? -1) + 1,
-    titre: valeurs.titre,
-    sceneId: valeurs.sceneId,
-    dureeMontageSecondes: valeurs.dureeMontageSecondes,
-    dureeGenerationSecondes: valeurs.dureeMontageSecondes,
-    description: valeurs.description || null,
-  }).returning({ id: plans.id });
-  // Né dans une scène : se place à la fin de celle-ci plutôt qu'à la fin de l'épisode.
-  if (cree && valeurs.sceneId != null) await placerPlan(cree.id, valeurs.sceneId, null);
-  revalidatePath("/", "layout");
-}
 
 /** Une scène naît vide : ses plans s'y rattachent au fur et à mesure
  * (rattacherPlanAScene). Plage de numéros et durée se déduisent des plans. */

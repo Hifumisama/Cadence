@@ -4,6 +4,7 @@ import "./scenario.css";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
+import { useAgents } from "@/components/agents/AgentsProvider";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
 import { Icone } from "@/components/ui/Icone";
@@ -12,7 +13,6 @@ import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
 import { LIBELLE_ETAT, cleScene, minutage, romain, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
 import { ModifierSceneButton } from "./ModifierSceneButton";
-import { NouveauPlanForm } from "./NouveauPlanForm";
 import { NouveauSceneForm } from "./NouveauSceneForm";
 import { SupprimerSceneButton } from "./SupprimerSceneButton";
 
@@ -45,6 +45,7 @@ export function VueScenario({
   sceneInitiale: string | null;
 }) {
   const router = useRouter();
+  const { ouvrirAgent } = useAgents();
   const [cle, setCle] = useState<string>(() => (sceneInitiale && groupes.some((g) => cleScene(g.id) === sceneInitiale) ? sceneInitiale : cleScene(groupes[0]?.id ?? null)));
   const [planSel, setPlanSel] = useState<number | null>(null);
   const aDesImages = groupes.some((g) => g.plans.some((p) => p.src));
@@ -157,7 +158,9 @@ export function VueScenario({
     return (
       <div className="sc">
         <div className="queue">
-          <NouveauPlanForm projectId={projectId} episodeId={episodeId} scenesOptions={[]} />
+          <button className="btn btn-gold" type="button" onClick={() => ouvrirAgent({ projectId, portee: "episode", cible: { id: episodeId }, profondeur: "courte", libelle: "Scénario", episodeId })}>
+            Écrire le scénario
+          </button>
           <button className="btn btn-ghost" type="button" onClick={() => setNouvelleScene(true)}>
             <Icone nom="ajouter" taille={15} /> Nouvelle scène
           </button>
@@ -171,7 +174,7 @@ export function VueScenario({
           }}
         />
         <p className="tiny-note" style={{ marginTop: "var(--sp-6)" }}>
-          Aucun plan en base. Lancer <code>npm run db:import</code> pour importer l&rsquo;épisode 1 depuis le markdown existant, ou créer un plan à la main ci-dessus.
+          Aucun plan en base. L&rsquo;agent peut écrire le scénario, ou lancer <code>npm run db:import</code> pour importer l&rsquo;épisode 1 depuis le markdown existant.
         </p>
       </div>
     );
@@ -188,6 +191,22 @@ export function VueScenario({
   const suivante = groupes[indexCourant + 1];
 
   const ouvrir = (p: PlanVue) => router.push(p.href);
+
+  // « Ajouter un plan » : la popup de l'agent s'ouvre sur l'ajout, à la fin de la scène ouverte (après son dernier plan ; une scène vide se place
+  // après le dernier plan des scènes qui la précèdent, ou au début du film). C'est l'agent qui écrit le plan, tu relis avant que rien ne soit écrit.
+  const ajouterPlan = () => {
+    const avant = [...groupes.slice(0, indexCourant), courant].reverse().flatMap((g) => g.plans.slice(-1))[0];
+    ouvrirAgent({
+      projectId,
+      portee: "episode",
+      cible: { id: episodeId },
+      profondeur: "courte",
+      libelle: `Nouveau plan · ${courant.titre}`,
+      episodeId,
+      insertion: avant ? { apresPlanUuid: avant.uuid } : { debut: true },
+      ...(courant.id != null ? { sceneId: courant.id } : {}),
+    });
+  };
   const surClavierPlan = (p: PlanVue) => (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "Enter") {
@@ -312,7 +331,6 @@ export function VueScenario({
         </section>
 
         <div className="queue sc-plans-barre">
-          <NouveauPlanForm projectId={projectId} episodeId={episodeId} scenesOptions={scenesReelles.map((g) => ({ id: g.id!, titre: g.titre }))} sceneInitiale={courant.id} />
           <div className="sc-reglages">
             {vue === "liste" ? (
               <button type="button" className="btn btn-ghost btn-sm" aria-pressed={descriptions} onClick={basculerDescriptions}>
@@ -339,7 +357,14 @@ export function VueScenario({
           onDrop={deposerEnFin}
         >
           {courant.plans.length === 0 ? (
-            <p className="sc-vide">{estSans ? "Aucun plan sans scène." : "Aucun plan dans cette scène : crée-en un, ou glisses-en un depuis une autre scène sur sa carte."}</p>
+            <div className="sc-vide">
+              <p>{estSans ? "Aucun plan sans scène." : "Aucun plan dans cette scène : l'agent peut en écrire un, ou tu peux en glisser un depuis une autre scène sur sa carte."}</p>
+              {!estSans ? (
+                <button type="button" className="btn btn-gold" onClick={ajouterPlan}>
+                  <Icone nom="ajouter" taille={15} /> Ajouter un plan
+                </button>
+              ) : null}
+            </div>
           ) : vue === "vignettes" ? (
             <div className="sc-grille" role="group" aria-label="Plans de la scène">
               {courant.plans.map((p, i) => (
@@ -371,6 +396,12 @@ export function VueScenario({
                   </span>
                 </PlanDeplacable>
               ))}
+              <button type="button" className="sc-cadre-plus" onClick={ajouterPlan}>
+                <span className="sc-cadre-plus-img">
+                  <Icone nom="ajouter" taille={22} />
+                </span>
+                <span>Ajouter un plan</span>
+              </button>
             </div>
           ) : (
             <div className="frise sc-liste" role="group" aria-label="Plans de la scène">
@@ -408,6 +439,9 @@ export function VueScenario({
                   {p.id === planSel ? <div className="sc-ligne-detail">{detail(p, false)}</div> : null}
                 </div>
               ))}
+              <button type="button" className="sc-ligne-plus" onClick={ajouterPlan}>
+                <Icone nom="ajouter" taille={16} /> Ajouter un plan
+              </button>
             </div>
           )}
         </div>
