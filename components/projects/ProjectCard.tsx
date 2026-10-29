@@ -61,6 +61,7 @@ export function ProjectCard({ projet }: { projet: ProjectListItem }) {
     { cle: "duree", label: "Durée", valeur: r?.dureeSecondes ? formaterDuree(r.dureeSecondes) : null },
     { cle: "langue", label: "Dialogues", valeur: r?.langue ?? null },
     { cle: "univers", label: "Univers", valeur: univers, large: true },
+    { cle: "cree", label: "Créé le", valeur: new Date(projet.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" }), large: true },
   ];
 
   return (

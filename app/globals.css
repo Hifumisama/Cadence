@@ -7076,3 +7076,267 @@ button {
     transition: none !important;
   }
 }
+
+/* ---------------------------------------------------------------
+   Accueil — bandeau d'en-tête, barre d'outils, tuile « Nouveau projet »
+   --------------------------------------------------------------- */
+
+.accueil-hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-5) var(--sp-7, 40px);
+  padding: var(--sp-5) 0 var(--sp-5);
+  margin-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--line);
+}
+/* Une lueur dorée très basse dans le coin, rien de plus. */
+.accueil-hero::before {
+  content: "";
+  position: absolute;
+  inset: -40px -48px 0 -48px;
+  z-index: -1;
+  background: radial-gradient(55% 140% at 0% 0%, color-mix(in srgb, var(--or) 11%, transparent), transparent 70%);
+  pointer-events: none;
+}
+/* Le filet doré qui pose le titre. */
+.accueil-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 84px;
+  height: 2px;
+  background: var(--or);
+}
+.accueil-hero-texte {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.accueil-etiquette {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--or);
+}
+.accueil-hero h1 {
+  margin: 0;
+  font-family: var(--font-brand), serif;
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.accueil-sous-titre {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.accueil-chiffres {
+  display: flex;
+  gap: 0;
+  margin: 0;
+}
+.accueil-chiffres > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: 0 var(--sp-4);
+  border-left: 1px solid var(--line);
+}
+.accueil-chiffres > div:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.accueil-chiffres dd {
+  margin: 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.accueil-chiffres dt {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.accueil-chiffres .is-encours dd {
+  color: var(--ecarlate-glow);
+}
+.accueil-cta {
+  align-self: center;
+}
+
+.accueil-barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.accueil-recherche {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 280px;
+  min-width: 200px;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink-3);
+  transition: border-color 0.15s;
+}
+.accueil-recherche:focus-within {
+  border-color: var(--or-soft);
+}
+.accueil-recherche input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+}
+.accueil-filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  flex: 1 1 auto;
+}
+.filtre-chip {
+  appearance: none;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.filtre-chip span {
+  margin-left: 6px;
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.filtre-chip:hover {
+  border-color: var(--line-strong);
+}
+.filtre-chip[aria-pressed="true"] {
+  border-color: var(--or);
+  color: var(--or-glow);
+}
+.filtre-chip[aria-pressed="true"] span {
+  color: var(--or);
+}
+.accueil-tri {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.accueil-tri select {
+  height: 36px;
+  padding: 0 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.accueil-tri select:focus-visible {
+  outline: 0;
+  border-color: var(--or-soft);
+}
+
+.proj-nouveau {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 220px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 3px;
+  color: var(--ink-3);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.proj-nouveau:hover,
+.proj-nouveau:focus-visible {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
+  background: color-mix(in srgb, var(--or) 4%, transparent);
+  outline: 0;
+}
+
+.accueil-vide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-8) var(--sp-4);
+  border: 1px dashed var(--line-strong);
+  border-radius: 3px;
+  text-align: center;
+}
+.accueil-vide h2 {
+  margin: 0;
+  font-family: var(--font-brand), serif;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+.accueil-vide p {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.accueil-vide.is-compact {
+  margin-top: var(--sp-4);
+  padding: var(--sp-6) var(--sp-4);
+}
+
+/* Les corbeilles se font discrètes là où il y a un survol ; au doigt elles restent visibles. */
+@media (hover: hover) {
+  .proj-cell .proj-suppr {
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .proj-cell:hover .proj-suppr,
+  .proj-cell:focus-within .proj-suppr {
+    opacity: 1;
+  }
+}
+@media (max-width: 720px) {
+  .accueil-hero h1 {
+    font-size: 36px;
+  }
+  .accueil-tri {
+    margin-left: 0;
+  }
+}
