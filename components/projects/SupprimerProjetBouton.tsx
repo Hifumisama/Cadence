@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { lireInventaireSuppression, supprimerProjet } from "@/app/projects/actions";
 import type { InventaireSuppression } from "@/lib/suppression-projet";
+import { Icone } from "@/components/ui/Icone";
 
 function pluriel(n: number, mot: string): string {
   return `${n} ${mot}${n > 1 ? "s" : ""}`;
@@ -52,13 +53,13 @@ export function SupprimerProjetBouton({ projectId, nom, compact = false }: { pro
   return (
     <>
       <button
-        className={compact ? "btn btn-danger btn-sm proj-suppr" : "btn btn-danger"}
+        className={compact ? "btn btn-danger btn-icone proj-suppr" : "btn btn-danger"}
         type="button"
         onClick={ouvrir}
         title="Supprimer le projet"
         aria-label={`Supprimer le projet ${nom}`}
       >
-        {compact ? "Supprimer" : "Supprimer le projet"}
+        {compact ? <Icone nom="supprimer" taille={16} /> : "Supprimer le projet"}
       </button>
       {ouvert ? (
         <div className="modal-overlay" onClick={pending ? undefined : fermer}>

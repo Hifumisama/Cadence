@@ -9,7 +9,7 @@ import { lireBriefOuVide } from "@/lib/queries-agents";
 import { getAllAssets, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { db } from "@/db";
 import { lireConception } from "@/lib/conception-db";
-import { MEDIA_ROOT, assetMediaSrc } from "@/lib/media";
+import { MEDIA_ROOT, assetMediaSrc, posterSrc } from "@/lib/media";
 import { slugStyle } from "@/lib/styles/bibliotheque";
 import { apercusDuStyle } from "@/lib/styles/styles-db";
 import { SUJETS_APERCU } from "@/lib/styles/sujets";
@@ -53,7 +53,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
         tabs={{ projectId: pid, episodeBase }}
       />
       <main className="page">
-        {redige ? <BriefDossier projectId={pid} nomProjet={projet.nom} brief={brief} style={styleVue} identiteFigee={identiteFigee} registre={registre} /> : <BriefVide projectId={pid} nomProjet={projet.nom} brief={brief} />}
+        {redige ? <BriefDossier projectId={pid} nomProjet={projet.nom} brief={brief} style={styleVue} identiteFigee={identiteFigee} registre={registre} affiche={posterSrc("projects", pid, projet.posterFichier)} /> :<BriefVide projectId={pid} nomProjet={projet.nom} brief={brief} />}
       </main>
     </>
   );

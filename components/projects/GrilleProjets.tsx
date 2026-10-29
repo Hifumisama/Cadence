@@ -7,7 +7,7 @@ import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
  * le tap, ce n'est pas une transition de page. Nulle si l'utilisateur réduit les animations. */
 const DELAI_MS = 240;
 
-/** Grille des cartes projet. Un tap (ou un clic) sur une carte la met en avant — halo doré, les
+/** Grille des cartes projet. Un tap (ou un clic) sur « Ouvrir », dans le volet déplié d'une carte, la met en avant — halo doré, les
  * autres s'estompent — puis ouvre le projet. Rien ne dépend du survol : ça doit marcher au
  * doigt sur tablette. Les cartes restent rendues côté serveur (`children`) ; on intercepte le
  * clic en phase de capture, avant celui de `Link`, pour retarder la navigation. Les clics qui
@@ -39,8 +39,9 @@ export function GrilleProjets({ children }: { children: ReactNode }) {
 
   const onClickCapture = (e: MouseEvent<HTMLDivElement>) => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    const carte = (e.target as HTMLElement).closest<HTMLAnchorElement>("a.proj-card");
-    const href = carte?.getAttribute("href");
+    const lien = (e.target as HTMLElement).closest<HTMLAnchorElement>("a.proj-ouvrir");
+    const carte = lien?.closest<HTMLElement>(".proj-card");
+    const href = lien?.getAttribute("href");
     if (!carte || !href || !grille.current) return;
     e.preventDefault();
     if (enCours.current) return;

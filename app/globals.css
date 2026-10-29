@@ -2714,6 +2714,81 @@ button {
   background: rgba(8, 8, 10, 0.72);
   color: var(--ink-3);
 }
+/* Version icône (corbeille) : carré, cible tactile suffisante. */
+.btn-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+/* Une carte dépliée ne tire pas ses voisines de la rangée en hauteur. */
+.proj-grid {
+  align-items: start;
+}
+.proj-toggle {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.proj-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.proj-arc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.proj-arc.is-vide,
+.proj-infos dd.is-vide {
+  color: var(--ink-3);
+  font-style: italic;
+}
+.proj-infos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+}
+.proj-infos dt {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.proj-infos dd {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.proj-ouvrir {
+  align-self: flex-start;
+  text-decoration: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .proj-detail {
+    animation: bf-rise 0.25s ease-out both;
+  }
+}
+@media (hover: hover) {
+  .proj-card:has(.proj-toggle:hover) {
+    border-color: var(--or-soft);
+  }
+}
 .proj-card {
   display: flex;
   flex-direction: column;

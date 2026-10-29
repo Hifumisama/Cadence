@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { supprimerPlan } from "@/app/plans/actions";
+import { Icone } from "@/components/ui/Icone";
 
 export function SupprimerPlanButton({
   planId,
@@ -31,8 +32,8 @@ export function SupprimerPlanButton({
 
   return (
     <span>
-      <button className="btn btn-danger" type="button" onClick={() => onSupprimer(false)} disabled={pending}>
-        {pending ? "..." : "Supprimer"}
+      <button className="btn btn-danger btn-icone" type="button" onClick={() => onSupprimer(false)} disabled={pending} title="Supprimer le plan" aria-label={`Supprimer le plan ${position}`}>
+        <Icone nom={pending ? "encours" : "supprimer"} taille={16} />
       </button>
       {erreur ? (
         <p className="tiny-note" style={{ color: "var(--ecarlate-glow)", marginTop: 6 }}>

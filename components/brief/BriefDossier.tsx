@@ -6,6 +6,8 @@ import { useState } from "react";
 import { modifierChampBrief } from "@/app/agents/actions";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
+import { Poster } from "@/components/ui/Poster";
+import { codeAffiche } from "@/lib/affiches";
 import { construireCode, slugifyCode } from "@/lib/assetCode";
 import { urlMiniature } from "@/lib/miniatures";
 import { SECTIONS_BRIEF, type VueBrief } from "@/lib/agents/types";
@@ -67,6 +69,7 @@ export function BriefDossier({
   style,
   identiteFigee = false,
   registre = [],
+  affiche = null,
 }: {
   projectId: number;
   nomProjet: string;
@@ -74,6 +77,8 @@ export function BriefDossier({
   style: StyleBriefVue;
   identiteFigee?: boolean;
   registre?: EntreeRegistre[];
+  /** URL de l'affiche du film (résolue côté serveur), ou null : dégradé de repli. */
+  affiche?: string | null;
 }) {
   const router = useRouter();
   const c = brief.contenu;
@@ -173,7 +178,7 @@ export function BriefDossier({
         <Sommaire entrees={entrees} />
 
         <div className="bf-contenu">
-          <section id="bf-haut" className="bf-hero">
+          <section id="bf-haut" className="bf-hero has-affiche">
             <div className="bf-hero-texte">
               <p className="bf-etiquette bf-in bf-d1">Brief du projet · {brief.statut === "brouillon" ? "brouillon" : `version ${brief.version}`}</p>
 
@@ -221,6 +226,9 @@ export function BriefDossier({
                 )}
               </div>
             </div>
+            <Link href={`/p/${projectId}/affiche/${codeAffiche("projects", projectId)}`} className="bf-affiche bf-in bf-d3" aria-label="Voir l'affiche du film">
+              <Poster src={affiche} titre={c.titre || nomProjet} cleRepli={`projet:${projectId}`} taille="card" />
+            </Link>
           </section>
 
           <section id="bf-style" className="bf-section" aria-labelledby="bf-t-style">

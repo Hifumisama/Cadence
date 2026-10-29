@@ -215,6 +215,30 @@
   gap: 40px;
   align-items: start;
 }
+/* Avec l'affiche : texte à gauche, affiche 2:3 à droite ; une seule colonne (affiche en tête) sur écran étroit. */
+.bf-hero.has-affiche {
+  grid-template-columns: minmax(0, 1fr) 240px;
+}
+.bf-affiche {
+  display: block;
+  width: 240px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+  text-decoration: none;
+}
+.bf-affiche .poster-card {
+  border-bottom: 0;
+}
+@media (max-width: 760px) {
+  .bf-hero.has-affiche {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bf-affiche {
+    order: -1;
+    width: min(200px, 60%);
+  }
+}
 .bf-hero-texte {
   display: flex;
   flex-direction: column;

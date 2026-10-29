@@ -1,6 +1,7 @@
 import { db } from "../db";
 import {
   assets,
+  briefs,
   conceptions,
   episodes,
   jobs,
@@ -60,7 +61,7 @@ export async function getAllProjects() {
   if (tousLesProjets.length === 0) return [];
   const idsProjets = tousLesProjets.map((p) => p.id);
 
-  const [tousLesEpisodes, tousLesPlans, tousLesAssets, conceptionsOuvertes] = await Promise.all([
+  const [tousLesEpisodes, tousLesPlans, tousLesAssets, conceptionsOuvertes, tousLesBriefs] = await Promise.all([
     db.select().from(episodes).where(inArray(episodes.projectId, idsProjets)),
     db.select({ projectId: plans.projectId, statut: plans.statut }).from(plans).where(inArray(plans.projectId, idsProjets)),
     db.select({ projectId: assets.projectId }).from(assets).where(and(inArray(assets.projectId, idsProjets), horsAffiches)),
@@ -69,7 +70,10 @@ export async function getAllProjects() {
       .select({ projectId: conceptions.projectId })
       .from(conceptions)
       .where(and(inArray(conceptions.projectId, idsProjets), sql`not exists (select 1 from creations_projet c where c.project_id = ${conceptions.projectId})`)),
+    // Le volet déplié de la carte : style, arc, durée, langue… lus dans le brief (un brief « partiel » porte déjà le style).
+    db.select({ projectId: briefs.projectId, contenu: briefs.contenu }).from(briefs).where(inArray(briefs.projectId, idsProjets)),
   ]);
+  const resumeParProjet = new Map(tousLesBriefs.map((b) => [b.projectId, resumeBrief(b.contenu)] as const));
   const enConception = new Set(conceptionsOuvertes.map((c) => c.projectId));
 
   const episodesParProjet = new Map<number, (typeof tousLesEpisodes)[number][]>();
@@ -92,7 +96,24 @@ export async function getAllProjects() {
     buckets: bucketsParProjet.get(p.id) ?? bucketsVides(),
     nbAssets: assetsParProjet.get(p.id) ?? 0,
     conceptionEnCours: enConception.has(p.id),
+    resume: resumeParProjet.get(p.id) ?? null,
   }));
+}
+
+/** Ce que la carte d'un projet montre en se dépliant, tiré du brief (chaque champ peut manquer : brief partiel ou pas encore écrit). */
+function resumeBrief(contenu: unknown) {
+  const c = (contenu ?? {}) as Record<string, unknown>;
+  const texte = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const style = c.style as { nom?: unknown } | undefined;
+  return {
+    style: texte(style?.nom),
+    arc: texte(c.arc),
+    genreTon: texte(c.genreTon),
+    langue: texte(c.langueDialogues),
+    dureeSecondes: typeof c.dureeEpisodeSecondes === "number" && c.dureeEpisodeSecondes > 0 ? c.dureeEpisodeSecondes : null,
+    nbPersonnages: Array.isArray(c.personnages) ? c.personnages.length : 0,
+    nbLieux: Array.isArray(c.lieux) ? c.lieux.length : 0,
+  };
 }
 
 export type PlanListItem = {
