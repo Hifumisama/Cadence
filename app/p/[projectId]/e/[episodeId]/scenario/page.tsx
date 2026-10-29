@@ -1,4 +1,4 @@
-import { getEpisode, getProject, getScenarioData } from "@/lib/queries";
+import { getEpisode, getEtatPlans, getProject, getScenarioData } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
@@ -24,11 +24,12 @@ export default async function ScenarioPage({
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, episode, { scenes, sansScene }, pellicule, [ajoutEnCours]] = await Promise.all([
+  const [projet, episode, { scenes, sansScene }, pellicule, etat, [ajoutEnCours]] = await Promise.all([
     getProject(pid),
     getEpisode(eid),
     getScenarioData(eid),
     getPelliculePlans(eid),
+    getEtatPlans(eid),
     // Un plan en cours d'écriture (« Ajouter un plan ») : la page lui garde sa place, sous forme de carte fantôme.
     db.select().from(demandes).where(and(eq(demandes.type, "ajout-plan"), eq(demandes.cibleType, "episode"), eq(demandes.cibleId, eid), eq(demandes.statut, "en_cours"))),
   ]);
@@ -70,5 +71,12 @@ export default async function ScenarioPage({
     groupes.push({ id: null, titre: "Sans scène", fonction: null, genre: null, ambiance: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
   }
 
-  return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} />;
+  // L'état des fiches de plan et son geste (« Écrire les N fiches ») : une ligne dans la barre du scénario.
+  const fiches = {
+    nbPlans: etat.nbPlans,
+    nbDeveloppes: etat.nbDeveloppes,
+    demande: { projectId: pid, portee: "episode" as const, cible: { id: eid }, profondeur: "courte" as const, libelle: projet.nom, episodeId: eid, vue: "fiches" as const },
+  };
+
+  return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} fiches={fiches} />;
 }

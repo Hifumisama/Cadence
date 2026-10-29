@@ -875,3 +875,29 @@ html:has(.bf-page) {
   color: var(--ink-2);
   line-height: 1.65;
 }
+
+/* L'affiche et ses actions (agrandir, générer, changer l'image) : une colonne à droite du titre, sous le texte sur écran étroit. */
+.bf-affiche-bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 240px;
+}
+.bf-affiche-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bf-affiche-actions .bf-btn {
+  flex: 1 1 auto;
+  cursor: pointer;
+}
+@media (max-width: 760px) {
+  .bf-affiche-bloc {
+    order: -1;
+    width: min(200px, 60%);
+  }
+  .bf-affiche-bloc .bf-affiche {
+    width: 100%;
+  }
+}

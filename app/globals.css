@@ -3160,60 +3160,6 @@ button {
   .form-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .info-panel {
-    flex-direction: column;
-  }
-  .info-panel .poster-apercu {
-    width: 110px;
-  }
-}
-
-/* ---------------------------------------------------------------
-   Encart d'info éditable (projet — screen-hd, épisode — layout)
-   --------------------------------------------------------------- */
-
-.info-panel {
-  display: flex;
-  gap: var(--sp-4);
-  padding: var(--sp-4);
-  margin: 0 0 var(--sp-5);
-  background: linear-gradient(180deg, var(--surface), rgba(26, 26, 33, 0.4));
-  border: 1px solid var(--line);
-  border-radius: 3px;
-}
-.info-panel .info-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-.info-panel .info-hd {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--sp-3);
-}
-.info-panel h1 {
-  font-size: 20px;
-  font-weight: 500;
-  margin: 0;
-}
-.info-panel .resume {
-  color: var(--ink-3);
-  font-size: 13.5px;
-  white-space: pre-wrap;
-  margin: 0;
-}
-.info-panel .resume:empty::before,
-.info-panel .resume.is-empty::before {
-  content: "Pas de résumé pour l'instant.";
-  color: var(--ink-4);
-  font-style: italic;
-}
-.info-panel .poster-apercu {
-  width: 150px;
-  flex: 0 0 auto;
 }
 
 /* Zone dangereuse (suppression) en bas d'un formulaire d'édition — séparée
@@ -4082,15 +4028,9 @@ button {
   width: 100%;
   height: 32px;
 }
-
 /* Popup d'agent (2026-10-02) : conversation → brief → proposition → revue. Réutilise
  * l'enveloppe .gd des popups de génération. Charte : or/écarlate en accents seulement,
  * jamais de fond rouge ; les états ne reposent jamais sur la couleur seule. */
-.info-hd-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-}
 .gd.ag {
   width: min(1040px, 96vw);
 }
@@ -4988,120 +4928,6 @@ button {
 @keyframes ag-clignote { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ag-curseur { animation: none; } }
 
-/* Installateur : le détail d'une étape (appel en cours, sous-tâches une à une). */
-
-
-/* ---------------------------------------------------------------
-   Scénario — état des plans, barre d'actions, lignes de plan
-   --------------------------------------------------------------- */
-
-.etat-plans {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-4) var(--sp-5);
-  margin: var(--sp-4) 0 var(--sp-5);
-  padding: var(--sp-4) var(--sp-5);
-  background: linear-gradient(180deg, var(--surface), rgba(26, 26, 33, 0.4));
-  border: 1px solid var(--line);
-  border-radius: 3px;
-}
-.etat-anneau {
-  width: 84px;
-  height: 84px;
-  flex: 0 0 auto;
-}
-.etat-anneau circle {
-  fill: none;
-  stroke-width: 6;
-}
-.etat-anneau .piste {
-  stroke: var(--surface-3);
-}
-.etat-anneau .avance {
-  stroke: var(--or);
-  stroke-linecap: round;
-}
-.etat-anneau .centre-v {
-  font-family: var(--font-mono), monospace;
-  font-size: 20px;
-  font-weight: 500;
-  fill: var(--ink);
-}
-.etat-anneau .centre-k {
-  font-size: 9.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  fill: var(--ink-3);
-}
-.etat-corps {
-  flex: 1 1 320px;
-  min-width: 0;
-}
-.etat-titre {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--ink);
-}
-.etat-aide {
-  margin: 2px 0 var(--sp-3);
-  font-size: 13px;
-  color: var(--ink-3);
-  max-width: 68ch;
-}
-.etat-puces {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-4);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 13px;
-  color: var(--ink-2);
-}
-.etat-puces li {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-}
-.etat-puces b {
-  font-family: var(--font-mono), monospace;
-  font-weight: 500;
-  font-size: 15px;
-  color: var(--ink);
-}
-.etat-puces .is-brouillon b {
-  color: var(--or);
-}
-.etat-puces .is-developpe b {
-  color: var(--or-glow);
-}
-.etat-action {
-  flex: 0 0 auto;
-}
-
-/* Intégré à l'en-tête de l'épisode : plus de cadre propre, seulement un filet qui le sépare du résumé. */
-.info-panel .etat-plans {
-  margin: var(--sp-2) 0 0;
-  padding: var(--sp-3) 0 0;
-  background: none;
-  border: 0;
-  border-top: 1px solid var(--line);
-  border-radius: 0;
-  gap: var(--sp-3) var(--sp-4);
-}
-.info-panel .etat-anneau {
-  width: 64px;
-  height: 64px;
-}
-.info-panel .etat-corps {
-  flex-basis: 260px;
-}
-.info-panel .etat-titre {
-  font-size: 14.5px;
-}
-
 .queue {
   display: flex;
   flex-wrap: wrap;
@@ -5173,39 +4999,6 @@ button {
   color: var(--ecarlate-glow);
 }
 
-/* Clause de style, sous le résumé de l'épisode (encart d'en-tête) */
-.info-panel .clause-style {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px var(--sp-3);
-  margin: 0;
-  font-size: 13px;
-}
-.info-panel .clause-style .k {
-  font-size: 11.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--or);
-}
-.info-panel .clause-style .v {
-  flex: 1 1 260px;
-  min-width: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  color: var(--ink-2);
-}
-.info-panel .clause-style a {
-  color: var(--or);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.info-panel .clause-style a:hover {
-  text-decoration: underline;
-}
-
 
 /* Icônes (components/ui/Icone.tsx) : alignées sur la ligne de texte, jamais écrasées dans un flex. */
 .icone {
@@ -5225,11 +5018,6 @@ button {
     stroke-dasharray: 0 188.5;
   }
 }
-@media (prefers-reduced-motion: no-preference) {
-  .etat-anneau .avance {
-    animation: anneau-remplit 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s backwards;
-  }
-}
 
 /* Une affiche cliquable (components/affiches/AfficheZoom.tsx) : le bouton ne change rien à la mise en page. */
 .aff-zoom {
@@ -5245,10 +5033,6 @@ button {
 .aff-zoom:focus-visible {
   outline: 2px solid var(--or);
   outline-offset: 3px;
-}
-.info-panel .aff-zoom {
-  flex: 0 0 auto;
-  align-self: flex-start;
 }
 
 /* Étape « Test vidéo » du casting : les essais (audio, vidéo) en file, en cours, prêts ou échoués. */

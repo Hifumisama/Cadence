@@ -1054,3 +1054,22 @@
     box-shadow: 0 0 0 12px transparent;
   }
 }
+
+/* L'état des fiches de plan, en tête de la barre du scénario. */
+.sc-fiches {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.sc-fiches-etat {
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.sc-fiches-etat b {
+  font-size: 15px;
+  color: var(--ink);
+}
+.sc-fiches-etat.is-complet b {
+  color: var(--or-glow);
+}

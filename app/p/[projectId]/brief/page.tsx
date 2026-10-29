@@ -6,7 +6,7 @@ import { BriefDossier } from "@/components/brief/BriefDossier";
 import { BriefVide } from "@/components/brief/BriefVide";
 import { Topbar } from "@/components/ui/Topbar";
 import { lireBriefOuVide } from "@/lib/queries-agents";
-import { getAllAssets, getFirstEpisodeId, getProject } from "@/lib/queries";
+import { getAllAssets, getEpisode, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { db } from "@/db";
 import { lireConception } from "@/lib/conception-db";
 import { MEDIA_ROOT, assetMediaSrc, posterSrc } from "@/lib/media";
@@ -25,7 +25,10 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
   const pid = Number(projectId);
   const [projet, premierEpisodeId] = await Promise.all([getProject(pid), getFirstEpisodeId(pid)]);
   if (!projet) notFound();
-  const brief = await lireBriefOuVide(pid, projet.nom);
+  const episode = premierEpisodeId ? await getEpisode(premierEpisodeId) : null;
+  const lu = await lireBriefOuVide(pid, projet.nom);
+  // Le titre du film est celui du projet : le brief l'affiche et le corrige tel quel (corriger le titre ici renomme le projet).
+  const brief = { ...lu, contenu: { ...lu.contenu, titre: projet.nom } };
   // Un projet conçu (page /nouveau) a fixé sa langue, sa durée, son genre et son ton : ils s'affichent, sans plus s'éditer ici.
   const conception = await lireConception(db, pid);
   const identiteFigee = conception !== null;
@@ -53,7 +56,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
         tabs={{ projectId: pid, episodeBase }}
       />
       <main className="page">
-        {redige ? <BriefDossier projectId={pid} nomProjet={projet.nom} brief={brief} style={styleVue} identiteFigee={identiteFigee} registre={registre} affiche={posterSrc("projects", pid, projet.posterFichier)} /> :<BriefVide projectId={pid} nomProjet={projet.nom} brief={brief} />}
+        {redige ? <BriefDossier projectId={pid} nomProjet={projet.nom} brief={brief} style={styleVue} identiteFigee={identiteFigee} registre={registre} affiche={posterSrc("projects", pid, projet.posterFichier)} episodeId={episode?.id ?? null} resume={episode?.resume ?? ""} /> :<BriefVide projectId={pid} nomProjet={projet.nom} brief={brief} />}
       </main>
     </>
   );

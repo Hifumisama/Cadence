@@ -356,6 +356,8 @@ export async function modifierChampBrief(projectId: number, section: string, val
       })
       .where(eq(briefs.id, b.id));
     await synchroniserClauseStyle(tx, projectId); // sans effet sur un brouillon : pas encore la référence
+    // Le titre du film est celui du PROJET : le corriger dans le brief renomme le projet (un seul nom, partout).
+    if (section === "titre" && typeof valeur === "string" && valeur.trim()) await tx.update(projects).set({ nom: valeur.trim() }).where(eq(projects.id, projectId));
   });
   return { ok: true };
 }

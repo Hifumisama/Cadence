@@ -4,7 +4,7 @@ import "./scenario.css";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
-import { useAgents } from "@/components/agents/AgentsProvider";
+import { useAgents, type DemandeAgent } from "@/components/agents/AgentsProvider";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
 import { useTaches } from "@/components/taches/TachesProvider";
@@ -15,6 +15,7 @@ import { cleDemande } from "@/lib/taches";
 import { LIBELLE_ETAT, cleScene, minutage, romain, type AjoutEnCours, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
 import { AjouterPlan, type CibleAjoutPlan } from "./AjouterPlan";
+import { EtatFiches } from "./EtatFiches";
 import { ModifierSceneButton } from "./ModifierSceneButton";
 import { NouveauSceneForm } from "./NouveauSceneForm";
 import { SupprimerSceneButton } from "./SupprimerSceneButton";
@@ -43,6 +44,7 @@ export function VueScenario({
   groupes,
   sceneInitiale,
   ajout,
+  fiches,
 }: {
   projectId: number;
   episodeId: number;
@@ -50,6 +52,8 @@ export function VueScenario({
   sceneInitiale: string | null;
   /** Un plan en cours d'écriture (« Ajouter un plan »), ou null. */
   ajout: AjoutEnCours | null;
+  /** L'état des fiches de plan du film et la demande « Écrire les fiches ». */
+  fiches: { nbPlans: number; nbDeveloppes: number; demande: DemandeAgent };
 }) {
   const router = useRouter();
   const { ouvrirAgent } = useAgents();
@@ -315,6 +319,7 @@ export function VueScenario({
   return (
     <div className="sc">
       <div className="queue sc-outils">
+        <EtatFiches nbPlans={fiches.nbPlans} nbDeveloppes={fiches.nbDeveloppes} demande={fiches.demande} />
         <span className="sc-total num">
           {pluriel(scenesReelles.length, "scène")} · {pluriel(nbPlans, "plan")} · {minutage(dureeTotale)}
         </span>

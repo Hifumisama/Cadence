@@ -6,8 +6,8 @@ import { useState } from "react";
 import { modifierChampBrief } from "@/app/agents/actions";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
-import { Poster } from "@/components/ui/Poster";
-import { codeAffiche } from "@/lib/affiches";
+import { AfficheFilm } from "./AfficheFilm";
+import { ResumeFilm } from "./ResumeFilm";
 import { construireCode, slugifyCode } from "@/lib/assetCode";
 import { urlMiniature } from "@/lib/miniatures";
 import { SECTIONS_BRIEF, type VueBrief } from "@/lib/agents/types";
@@ -70,6 +70,8 @@ export function BriefDossier({
   identiteFigee = false,
   registre = [],
   affiche = null,
+  episodeId = null,
+  resume = "",
 }: {
   projectId: number;
   nomProjet: string;
@@ -79,6 +81,9 @@ export function BriefDossier({
   registre?: EntreeRegistre[];
   /** URL de l'affiche du film (résolue côté serveur), ou null : dégradé de repli. */
   affiche?: string | null;
+  /** L'épisode du film et son résumé (`episodes.resume`) : le résumé se lit et se corrige ici. */
+  episodeId?: number | null;
+  resume?: string;
 }) {
   const router = useRouter();
   const c = brief.contenu;
@@ -92,8 +97,6 @@ export function BriefDossier({
 
   const personnages = liste("personnages");
   const lieux = liste("lieux");
-  const episodes = liste("episodes");
-  const resumes = episodes.map((e) => texte(e.resume).trim()).filter(Boolean);
   const notes = texte(donnees.notes);
 
   // Le registre fait foi dès qu'il existe : lieux = décors, personnages = personnages du registre (le brief ne garde que ce qu'il y ajoute : rôle, voix…).
@@ -166,7 +169,7 @@ export function BriefDossier({
   const entrees: EntreeSommaire[] = [
     { id: "bf-haut", label: "Vue d'ensemble" },
     { id: "bf-style", label: "Style" },
-    { id: "bf-resume", label: "Résumé des scènes" },
+    { id: "bf-resume", label: "Résumé" },
     { id: "bf-personnages", label: "Personnages", compte: persosViaRegistre ? persosRegistre.length + personnages.filter((_, i) => !apparies.has(i)).length : personnages.length },
     { id: "bf-lieux", label: "Lieux", compte: lieuxViaRegistre ? decors.length : lieux.length },
     { id: "bf-notes", label: "Notes du projet" },
@@ -226,9 +229,7 @@ export function BriefDossier({
                 )}
               </div>
             </div>
-            <Link href={`/p/${projectId}/affiche/${codeAffiche("projects", projectId)}`} className="bf-affiche bf-in bf-d3" aria-label="Voir l'affiche du film">
-              <Poster src={affiche} titre={c.titre || nomProjet} cleRepli={`projet:${projectId}`} taille="card" />
-            </Link>
+            <AfficheFilm projectId={projectId} titre={nomProjet} src={affiche} />
           </section>
 
           <section id="bf-style" className="bf-section" aria-labelledby="bf-t-style">
@@ -237,14 +238,8 @@ export function BriefDossier({
           </section>
 
           <section id="bf-resume" className="bf-section" aria-labelledby="bf-t-resume">
-            <TitreSection id="bf-t-resume" titre="Résumé des scènes" />
-            {resumes.length === 0 ? <p className="bf-vide">Pas encore de résumé.</p> : (
-              <article className="bf-carte bf-reveal bf-resume">
-                {resumes.map((r, i) => (
-                  <p key={i}>{r}</p>
-                ))}
-              </article>
-            )}
+            <TitreSection id="bf-t-resume" titre="Résumé" />
+            {episodeId != null ? <ResumeFilm episodeId={episodeId} resume={resume} disabled={verrou} /> : <p className="bf-vide">Ce projet n&rsquo;a pas encore d&rsquo;épisode : le résumé viendra avec lui.</p>}
           </section>
 
           <section id="bf-personnages" className="bf-section" aria-labelledby="bf-t-personnages">

@@ -1,11 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEpisode, getEtatPlans, getProject } from "@/lib/queries";
-import { posterSrc } from "@/lib/media";
+import { getEpisode, getProject } from "@/lib/queries";
 import { Topbar } from "@/components/ui/Topbar";
 import { ProchaineEtape } from "@/components/images/ProchaineEtape";
-import { EtatPlans } from "@/components/scenario/EtatPlans";
-import { EpisodeInfoPanel } from "@/components/projects/EpisodeInfoPanel";
 
 export default async function EpisodeLayout({
   children,
@@ -18,7 +15,7 @@ export default async function EpisodeLayout({
   const pid = Number(projectId);
   const eid = Number(episodeId);
 
-  const [projet, episode, etat] = await Promise.all([getProject(pid), getEpisode(eid), getEtatPlans(eid)]);
+  const [projet, episode] = await Promise.all([getProject(pid), getEpisode(eid)]);
   if (!projet || !episode || episode.projectId !== pid) notFound();
 
   const base = `/p/${pid}/e/${eid}`;
@@ -36,30 +33,8 @@ export default async function EpisodeLayout({
     <>
       <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: base }} />
       <main className="page">
-        {/* Un film n'a pas de page d'accueil (son épisode unique s'ouvre directement) : le bandeau vit ici. */}
+        {/* L'identité du film (titre, affiche, résumé, style) vit dans le brief ; les pages de travail ne gardent que la prochaine étape. */}
         <ProchaineEtape projectId={pid} />
-        <EpisodeInfoPanel
-          projectId={pid}
-          episodeId={episode.id}
-          nom={projet.nom}
-          resume={episode.resume}
-          etatPlans={
-            <EtatPlans
-              {...etat}
-              demandeFiches={{
-                projectId: pid,
-                portee: "episode",
-                cible: { id: eid },
-                profondeur: "courte",
-                libelle: projet.nom,
-                episodeId: eid,
-                vue: "fiches",
-              }}
-            />
-          }
-          clauseStyle={projet.clauseStyle}
-          posterSrc={posterSrc("projects", pid, projet.posterFichier)}
-        />
         {children}
       </main>
     </>
