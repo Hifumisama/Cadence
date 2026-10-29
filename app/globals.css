@@ -5022,6 +5022,7 @@ button {
 /* Une affiche cliquable (components/affiches/AfficheZoom.tsx) : le bouton ne change rien à la mise en page. */
 .aff-zoom {
   display: block;
+  width: 100%;
   padding: 0;
   border: 0;
   background: none;

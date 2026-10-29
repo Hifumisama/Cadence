@@ -7,7 +7,17 @@ import type { CibleAffiche } from "@/lib/affiches";
 
 /** « Générer une image » : ouvre la page de génération de l'affiche d'un projet ou d'un épisode (l'asset d'affiche, invisible
  * du registre, est créé au premier clic). */
-export function BoutonAffiche({ cible, id, className = "btn btn-ghost" }: { cible: CibleAffiche; id: number; className?: string }) {
+export function BoutonAffiche({
+  cible,
+  id,
+  className = "btn btn-ghost",
+  libelle = "Générer une image",
+}: {
+  cible: CibleAffiche;
+  id: number;
+  className?: string;
+  libelle?: string;
+}) {
   const [pending, startTransition] = useTransition();
   return (
     <button
@@ -21,7 +31,7 @@ export function BoutonAffiche({ cible, id, className = "btn btn-ghost" }: { cibl
         })
       }
     >
-      <Icone nom="image" taille={16} /> {pending ? "…" : "Générer une image"}
+      <Icone nom="image" taille={16} /> {pending ? "…" : libelle}
     </button>
   );
 }

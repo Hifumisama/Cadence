@@ -37,9 +37,9 @@ export function AfficheFilm({ projectId, titre, src }: { projectId: number; titr
         </AfficheZoom>
       </div>
       <div className="bf-affiche-actions">
-        <BoutonAffiche cible="projects" id={projectId} className="bf-btn bf-press" />
+        <BoutonAffiche cible="projects" id={projectId} className="bf-btn bf-press" libelle="Mettre à jour l'affiche" />
         <label className="bf-btn bf-press">
-          {envoi ? "Envoi…" : "Changer l'image"}
+          {envoi ? "Envoi…" : "Importer une affiche"}
           <input type="file" accept="image/*" style={{ display: "none" }} onChange={onChoisir} disabled={envoi} />
         </label>
       </div>
