@@ -1,0 +1,112 @@
+{
+  "171:1": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Charger VAE"
+    }
+  },
+  "171:2": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Charger VAE"
+    }
+  },
+  "34": {
+    "inputs": {
+      "frame_rate": 24,
+      "loop_count": 0,
+      "filename_prefix": "fin",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 16,
+      "save_metadata": false,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "311",
+        0
+      ],
+      "audio": [
+        "177",
+        0
+      ],
+      "vae": [
+        "171:2",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Final Video"
+    }
+  },
+  "310": {
+    "inputs": {
+      "latent_path": "h3_latents",
+      "clip_index": 1,
+      "stock_format": false,
+      "folder": "output"
+    },
+    "class_type": "MiniMaxH3MotionContextLoadLatent",
+    "_meta": {
+      "title": "Charger le latent"
+    }
+  },
+  "176": {
+    "inputs": {
+      "samples": [
+        "310",
+        0
+      ],
+      "vae": [
+        "171:2",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "177": {
+    "inputs": {
+      "samples": [
+        "310",
+        0
+      ],
+      "vae": [
+        "171:1",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAEDecodeAudio"
+    }
+  },
+  "311": {
+    "inputs": {
+      "images": [
+        "176",
+        0
+      ],
+      "resize_type": "target dimensions",
+      "resize_type.width": 1920,
+      "resize_type.height": 1080,
+      "quality": "HIGHBITRATE_ULTRA",
+      "strength": 1.0,
+      "image_encoding": "8-bit RGB"
+    },
+    "class_type": "RTXVideoSuperResolution",
+    "_meta": {
+      "title": "RTX Video Super Resolution 1080p"
+    }
+  }
+}

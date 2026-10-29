@@ -61,60 +61,18 @@
       "title": "Start New Gen! (Click Button)"
     }
   },
-  "18": {
-    "inputs": {
-      "frame_rate": 24,
-      "loop_count": 0,
-      "filename_prefix": "low_mm_20260926_001820",
-      "format": "video/h264-mp4",
-      "pix_fmt": "yuv420p",
-      "crf": 19,
-      "save_metadata": false,
-      "trim_to_audio": false,
-      "pingpong": false,
-      "save_output": false,
-      "images": [
-        "176",
-        0
-      ],
-      "audio": [
-        "177",
-        0
-      ],
-      "vae": [
-        "171:2",
-        0
-      ]
-    },
-    "class_type": "VHS_VideoCombine",
-    "_meta": {
-      "title": "Video Combine 🎥🅥🅗🅢"
-    }
-  },
   "21": {
     "inputs": {
-      "PowerLoraLoaderHeaderWidget": {
-        "type": "PowerLoraLoaderHeaderWidget"
-      },
-      "lora_1": {
-        "on": false,
-        "lora": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-        "strength": 1
-      },
-      "lora_2": {
-        "on": true,
-        "lora": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
-        "strength": 1
-      },
-      "➕ Add Lora": "",
+      "lora_name": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
+      "strength_model": 1,
       "model": [
         "195",
         0
       ]
     },
-    "class_type": "Power Lora Loader (rgthree)",
+    "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "Power Lora Loader (rgthree)"
+      "title": "Charger LoRA (modèle seul)"
     }
   },
   "34": {
@@ -150,15 +108,6 @@
       "title": "Final Video"
     }
   },
-  "103": {
-    "inputs": {
-      "seed": 576692826558885
-    },
-    "class_type": "easy seed",
-    "_meta": {
-      "title": "Reroll Upscale Pass"
-    }
-  },
   "106": {
     "inputs": {
       "max_resolution": 1024,
@@ -184,30 +133,9 @@
       "title": "Model Preview Override"
     }
   },
-  "122": {
-    "inputs": {
-      "select": [
-        "147",
-        0
-      ],
-      "sel_mode": false,
-      "input1": [
-        "125:12",
-        1
-      ],
-      "input2": [
-        "5",
-        1
-      ]
-    },
-    "class_type": "ImpactSwitch",
-    "_meta": {
-      "title": "Selected Latent"
-    }
-  },
   "123": {
     "inputs": {
-      "image": "CHAR_Beaufrere.png",
+      "image": "CHAR_Tifa.png",
       "crop": "",
       "max_megapixels": 1
     },
@@ -216,30 +144,9 @@
       "title": "Load Image & Crop"
     }
   },
-  "146": {
-    "inputs": {
-      "value": 1
-    },
-    "class_type": "INTConstant",
-    "_meta": {
-      "title": "INT Constant"
-    }
-  },
-  "147": {
-    "inputs": {
-      "any_01": [
-        "146",
-        0
-      ]
-    },
-    "class_type": "Any Switch (rgthree)",
-    "_meta": {
-      "title": "First Selection"
-    }
-  },
   "151": {
     "inputs": {
-      "image": "DEC_Crete_Brume.png",
+      "image": "DEC_Ruelle_Secteur7.png",
       "crop": "",
       "max_megapixels": 1
     },
@@ -250,7 +157,7 @@
   },
   "152": {
     "inputs": {
-      "image": "PROP_Coussins.png",
+      "image": "CHAR_Soldat_Shinra.png",
       "crop": "",
       "max_megapixels": 1
     },
@@ -284,7 +191,7 @@
       "batch_size": 8,
       "use_fp16": true,
       "images": [
-        "189",
+        "301",
         0
       ]
     },
@@ -359,38 +266,6 @@
       "title": "VAEDecodeAudio"
     }
   },
-  "189": {
-    "inputs": {
-      "samples": [
-        "135:26",
-        0
-      ],
-      "vae": [
-        "171:2",
-        0
-      ]
-    },
-    "class_type": "VAEDecode",
-    "_meta": {
-      "title": "Final Decode"
-    }
-  },
-  "190": {
-    "inputs": {
-      "samples": [
-        "135:26",
-        0
-      ],
-      "vae": [
-        "171:1",
-        0
-      ]
-    },
-    "class_type": "VAEDecodeAudio",
-    "_meta": {
-      "title": "Final Audio Decode"
-    }
-  },
   "193": {
     "inputs": {
       "chunks": 2,
@@ -432,78 +307,10 @@
       "title": "Backend d’attention du modèle"
     }
   },
-  "222": {
-    "inputs": {
-      "sigmas": "0.9035, 0.6316, 0.3158, 0.0000"
-    },
-    "class_type": "ManualSigmas",
-    "_meta": {
-      "title": "3 step Sigmas"
-    }
-  },
-  "224": {
-    "inputs": {
-      "any_01": [
-        "222",
-        0
-      ]
-    },
-    "class_type": "Any Switch (rgthree)",
-    "_meta": {
-      "title": "Upscale Steps"
-    }
-  },
-  "242": {
-    "inputs": {
-      "av_latent": [
-        "122",
-        0
-      ]
-    },
-    "class_type": "LTXVSeparateAVLatent",
-    "_meta": {
-      "title": "Séparer le latent AV"
-    }
-  },
-  "243": {
-    "inputs": {
-      "model_name": "minimax_h3_latent_upscaler_3d_bf16.safetensors",
-      "mode": "scale by multiplier",
-      "mode.scale": 2,
-      "align": 32,
-      "enable_chunking": true,
-      "device": "cuda",
-      "precision": "fp16",
-      "latent": [
-        "242",
-        0
-      ]
-    },
-    "class_type": "MinimaxH3LatentUpscaler3D",
-    "_meta": {
-      "title": "Minimax H3 Latent Upscaler (3D)"
-    }
-  },
-  "244": {
-    "inputs": {
-      "video_latent": [
-        "243",
-        0
-      ],
-      "audio_latent": [
-        "242",
-        1
-      ]
-    },
-    "class_type": "LTXVConcatAVLatent",
-    "_meta": {
-      "title": "Concaténer le latent AV"
-    }
-  },
   "261": {
     "inputs": {
       "any_01": [
-        "190",
+        "177",
         0
       ]
     },
@@ -611,7 +418,7 @@
   },
   "22:11": {
     "inputs": {
-      "value": "subject_definitions:\n<Subject 1> is the warrior in <Picture 1>, a stocky broad-shouldered fighter with a weathered face, short dark beard, and wind-tousled dark hair, wearing scuffed leather-and-bronze plate armor under a thick fur-trimmed cloak.\n<Subject 2> is the misty rocky ridge in <Picture 2>, with jagged grey stone outcrops, tattered cloth banners staked into the ground, and low fog drifting across the surface.\n<Subject 3> is the pair of bolster pillows in <Picture 3>, soft cylindrical shapes with a faded striped fabric pattern and visibly creased, worn seams, each with one end gathered like a blade's hilt, resting on the ground like legendary relic weapons.\n\nsummary:\n[reference generation] The target video shows <Subject 1> standing atop <Subject 2>, turning toward the horizon, then closing their grip on the hilt-end of <Subject 3> with the weight and reverence of drawing legendary blades and raising them overhead, while an off-screen narrator speaks.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - armor, cloak, beard, and build are retained throughout.\n<Subject 2> (appears in [Shot 1]): fully_preserved - rocky outcrops, banners, and drifting fog are retained.\n<Subject 3> (appears in [Shot 2]): fully_preserved - the soft striped fabric and rumpled seams are retained exactly as referenced, never rigid or metallic, gripped only by the gathered end.\n\ndetailed_description:\nThe target video is in a cinematic epic-fantasy game-trailer style, with dramatic warm backlighting, richly detailed textures, and a painterly amber color grade.\n[Shot 1] A wide low-angle static shot frames <Subject 2>, the misty rocky ridge, its jagged outcrops catching the low golden sun through drifting fog, tattered banners snapping in the wind. <Subject 1> stands center frame, back three-quarters to camera, then turns their profile toward the horizon, jaw set, eyes narrowed against the light, cloak pulled by the wind. An off-screen narrator (S1), in a deep, weathered bass-baritone voice, native French speaker, speaking at an extremely slow and deliberate pace with heavy pauses, entirely without warmth, says, <d>[French] Dans un monde où le sommeil est une arme.</d>\n[Shot 2] At 00:04.000, the camera pushes in from a low angle toward <Subject 1>, who crouches beside <Subject 3>, the two bolster pillows on the ground, and closes each hand tightly around the gathered hilt-end of one pillow, gripping it exactly as a warrior's hand would close around the hilt of a legendary blade, never touching the loose trailing length. They rise to full height and lift <Subject 3> together directly overhead by these hilt-ends, arms locked, cloak billowing outward, the loose fabric trailing down from each grip like the blunted length of a blade. Expression stays completely grave — no glance toward camera, no smile.\n\noverall_soundscape:\nA steady, gusting wind continues throughout, with the intermittent snap of loose banner fabric.\n\nnon_diegetic_music:\nA low sustained orchestral chord swells through Shot 1, joined by a sharp orchestral sting exactly as the grip closes at the start of Shot 2, building to a peak on the overhead raise."
+      "value": "subject_definitions:\n<Subject 1> is the young woman in <Picture 1>, Tifa Lockhart from Final Fantasy VII: slender athletic build, long dark brown hair falling past her waist and tied at the tips, red eyes, a short black crop top under a white tank top, black suspenders, a short black skirt, red-brown fingerless leather gloves with metal plates, and tall black boots.\n<Subject 2> is the rain-slicked slum alley in <Picture 2>, with rusted corrugated walls, stacked scrap crates, hanging cables and a flickering neon sign, lit by cold blue-green light with orange sparks.\n<Subject 3> is the Shinra soldier in <Picture 3>, a trooper in a full dark-blue armored uniform with a rounded helmet and a glowing green visor, carrying a heavy automatic rifle.\n\nsummary:\n[reference generation] The target video shows <Subject 1> fighting <Subject 3> inside <Subject 2> in a fast, heavily cut action sequence, dodging, striking and throwing him back, then facing the camera with a teasing smile while an off-screen voice, her own, taunts him.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2], [Shot 3], [Shot 4], [Shot 5]): fully_preserved - face, long dark hair, outfit, gloves and boots are retained in every shot, including in close-ups and in motion.\n<Subject 2> (appears in [Shot 1], [Shot 2], [Shot 4], [Shot 5]): fully_preserved - rusted walls, crates, cables and flickering neon are retained.\n<Subject 3> (appears in [Shot 1], [Shot 2], [Shot 3], [Shot 4]): fully_preserved - dark-blue armor, rounded helmet and green visor are retained.\n\ndetailed_description:\nThe target video is in a cinematic action-game cutscene style, with high-contrast cold blue-green lighting cut by orange sparks, shallow depth of field, crisp motion and a polished 3D-render look. The sequence is cut rapidly, each shot lasting about one to two seconds, with hard cuts that keep the fighters' positions and screen direction consistent.\n[Shot 1] A wide low-angle shot frames <Subject 2>, the wet slum alley. <Subject 3> charges from the left, rifle raised, as <Subject 1> slips sideways in a low fighting stance, fists up, her hair swinging behind her.\n[Shot 2] At 00:01.500, a tight medium shot from the side: <Subject 1> ducks under the swing of the rifle butt and drives a sharp rising punch into the armor of <Subject 3>, sparks bursting at the impact, her expression focused and fierce.\n[Shot 3] At 00:02.800, a close-up on the boots of <Subject 1> as she spins and lands a powerful roundhouse kick to the chest of <Subject 3>, whose body is thrown backward, the camera whipping to follow the motion.\n[Shot 4] At 00:04.000, a wide handheld shot: <Subject 3> crashes into the stacked crates of <Subject 2>, scattering them across the wet ground, while <Subject 1> lands lightly in the foreground with her back to the camera, then rolls her shoulders.\n[Shot 5] At 00:05.500, a medium close-up with a slow push-in: <Subject 1> turns toward the camera, hair settling, one gloved fist raised, a confident teasing smile on her face. An off-screen voice (S1), a young woman's voice, playful, bright and confident, native French speaker, speaking at a lively pace with a mocking lilt, says, <d>[French] Essaie encore, haha !</d>\n\noverall_soundscape:\nHeavy rain and the buzz of the flickering neon throughout, sharp impacts of punches and kicks synchronized with each cut, the clatter of crates falling in Shot 4, and a metallic ring of the rifle on stone.\n\nnon_diegetic_music:\nA driving, fast-paced orchestral-rock battle theme with pounding drums and electric guitar, cutting off abruptly on the final hit of Shot 4 and leaving a short silence before the line in Shot 5."
     },
     "class_type": "PrimitiveStringMultiline",
     "_meta": {
@@ -621,7 +428,7 @@
   "22:9": {
     "inputs": {
       "aspect_ratio": "16:9 (Widescreen)",
-      "megapixels": 0.20000000000000004,
+      "megapixels": 0.4,
       "multiple": 32
     },
     "class_type": "ResolutionSelector",
@@ -689,7 +496,7 @@
         0
       ],
       "conditioning": [
-        "301",
+        "5",
         0
       ]
     },
@@ -698,84 +505,70 @@
       "title": "GuideBasique"
     }
   },
-  "135:30": {
+  "302": {
     "inputs": {
-      "sampler_name": "er_sde"
+      "model": "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+      "device": "cuda:0",
+      "blocks_to_swap": 16,
+      "swap_io_components": false,
+      "offload_device": "cpu",
+      "cache_model": false,
+      "attention_mode": "sdpa"
     },
-    "class_type": "KSamplerSelect",
+    "class_type": "SeedVR2LoadDiTModel",
     "_meta": {
-      "title": "KSamplerSelect"
+      "title": "SeedVR2 DiT (3B fp8)"
     }
   },
-  "135:27": {
+  "303": {
     "inputs": {
-      "noise_seed": [
-        "103",
-        0
-      ]
+      "model": "ema_vae_fp16.safetensors",
+      "device": "cuda:0",
+      "encode_tiled": true,
+      "encode_tile_size": 1024,
+      "encode_tile_overlap": 128,
+      "decode_tiled": true,
+      "decode_tile_size": 768,
+      "decode_tile_overlap": 128,
+      "tile_debug": "false",
+      "offload_device": "cpu",
+      "cache_model": false
     },
-    "class_type": "RandomNoise",
+    "class_type": "SeedVR2LoadVAEModel",
     "_meta": {
-      "title": "BruitAléatoire"
-    }
-  },
-  "135:26": {
-    "inputs": {
-      "noise": [
-        "135:27",
-        0
-      ],
-      "guider": [
-        "135:29",
-        0
-      ],
-      "sampler": [
-        "135:30",
-        0
-      ],
-      "sigmas": [
-        "224",
-        0
-      ],
-      "latent_image": [
-        "244",
-        0
-      ]
-    },
-    "class_type": "SamplerCustomAdvanced",
-    "_meta": {
-      "title": "Upscale Pass"
-    }
-  },
-  "135:29": {
-    "inputs": {
-      "model": [
-        "106",
-        0
-      ],
-      "conditioning": [
-        "301",
-        0
-      ]
-    },
-    "class_type": "BasicGuider",
-    "_meta": {
-      "title": "GuideBasique"
+      "title": "SeedVR2 VAE"
     }
   },
   "301": {
     "inputs": {
-      "conditioning": [
-        "5",
+      "image": [
+        "176",
         0
       ],
-      "distilled_adapter": "MiniMaxH3_SemanticBridge_v1.safetensors",
-      "alpha": 0.1,
-      "magnitude_match": "per_token"
+      "dit": [
+        "302",
+        0
+      ],
+      "vae": [
+        "303",
+        0
+      ],
+      "seed": 42,
+      "resolution": 1080,
+      "max_resolution": 0,
+      "batch_size": 21,
+      "uniform_batch_size": true,
+      "color_correction": "lab",
+      "temporal_overlap": 3,
+      "prepend_frames": 0,
+      "input_noise_scale": 0.0,
+      "latent_noise_scale": 0.0,
+      "offload_device": "cpu",
+      "enable_debug": false
     },
-    "class_type": "SenseNovaH3DistilledBridge",
+    "class_type": "SeedVR2VideoUpscaler",
     "_meta": {
-      "title": "MiniMax H3 Semantic Bridge"
+      "title": "SeedVR2 Video Upscaler (1080p)"
     }
   }
 }

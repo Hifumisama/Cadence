@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Open H3 IR, banc d'essai</title>
+<style>
+/* Page d'essai d'Open H3 IR : un formulaire d'un côté, ce que le compilateur répond de l'autre. Identité Cadence : anthracite, écarlate et or en accents seulement. */
+:root { --bg:#1b1c1f; --surface:#232529; --surface-2:#2a2c31; --line:#34373d; --fg:#e8e6e1; --muted:#9a9ca3; --scarlet:#e0414f; --gold:#d6a84a; --ok:#6fb58a; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; padding:20px max(16px,env(safe-area-inset-left)) 60px; }
+h1 { font-size:1.5rem; margin:0 0 4px; } h2 { font-size:1rem; margin:0 0 10px; color:var(--gold); font-weight:600; }
+.muted { color:var(--muted); font-size:.85rem; }
+main { max-width:1500px; margin:0 auto; display:grid; gap:18px; grid-template-columns:minmax(320px,480px) minmax(0,1fr); align-items:start; }
+@media (max-width:980px){ main { grid-template-columns:1fr; } }
+section.carte { background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:14px; }
+label { display:block; font-size:.8rem; color:var(--muted); margin:10px 0 3px; }
+input[type=text], input[type=number], select, textarea { width:100%; background:var(--surface-2); color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:6px 8px; font:inherit; }
+textarea { resize:vertical; min-height:70px; } textarea.intent { min-height:110px; }
+.ligne { display:flex; gap:10px; flex-wrap:wrap; } .ligne > * { flex:1 1 90px; min-width:0; }
+.cases label { display:inline-flex; align-items:center; gap:6px; margin:6px 14px 0 0; color:var(--fg); font-size:.9rem; }
+button { background:var(--surface-2); color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:7px 14px; font:inherit; cursor:pointer; }
+button:hover { border-color:var(--gold); } button.principal { background:var(--scarlet); border-color:var(--scarlet); color:#fff; font-weight:600; } button:disabled { opacity:.5; cursor:wait; }
+.rangee { display:grid; gap:6px; background:var(--surface-2); border:1px solid var(--line); border-radius:4px; padding:8px; margin-top:6px; }
+.rangee .ligne { align-items:end; }
+pre { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font:12.5px/1.5 Consolas,"IBM Plex Mono",monospace; }
+.prompt { background:#16171a; border:1px solid var(--line); border-radius:4px; padding:12px; max-height:62vh; overflow:auto; }
+.badge { display:inline-block; border:1px solid currentColor; border-radius:3px; padding:0 8px; font-size:.75rem; letter-spacing:.06em; text-transform:uppercase; }
+.badge.ready { color:var(--ok); } .badge.degraded, .badge.needs_input { color:var(--gold); } .badge.erreur { color:var(--scarlet); }
+.severite-ERROR { color:var(--scarlet); font-weight:600; } .severite-WARN { color:var(--gold); } .severite-INFO { color:var(--muted); }
+table { border-collapse:collapse; width:100%; font-size:.85rem; } th,td { border-bottom:1px solid var(--line); padding:4px 6px; text-align:left; vertical-align:top; }
+th { color:var(--muted); font-weight:500; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; }
+details { margin-top:10px; } summary { cursor:pointer; color:var(--muted); }
+.colonnes { display:grid; grid-template-columns:1fr 1fr; gap:12px; } @media (max-width:760px){ .colonnes { grid-template-columns:1fr; } }
+.historique button { display:block; width:100%; text-align:left; margin-top:6px; font-size:.82rem; }
+#erreur { border-left:3px solid var(--scarlet); padding:8px 12px; background:var(--surface-2); margin-bottom:10px; }
+</style>
+</head>
+<body>
+<header style="max-width:1500px;margin:0 auto 16px">
+  <h1>Open H3 IR, banc d'essai</h1>
+  <div class="muted">Une intention en entrée, un prompt H3 en sortie. <span id="etat">Connexion au service…</span></div>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:8px;max-width:520px"><label for="modele" style="margin:0">Modèle</label><select id="modele" style="flex:1"></select><span class="muted" id="modele-etat"></span></div>
+</header>
+
+<main>
+<div style="display:grid;gap:18px">
+  <section class="carte">
+    <h2>Demande</h2>
+    <label for="intent">Intention (seul champ obligatoire)</label>
+    <textarea id="intent" class="intent" placeholder="Une guerrière se bat dans une ruelle sous la pluie, enchaîne trois coups puis sourit à la caméra…"></textarea>
+    <div class="ligne">
+      <div><label for="seconds">Durée (s)</label><input type="number" id="seconds" value="8" min="1" max="30" step="0.5"></div>
+      <div><label for="aspect">Format</label><select id="aspect"></select></div>
+      <div><label for="megapixels">Mégapixels (vide = natif)</label><input type="number" id="megapixels" step="0.1" min="0.1" placeholder="0.4"></div>
+      <div><label for="shots">Plans (vide = libre)</label><input type="number" id="shots" min="1" max="20"></div>
+    </div>
+    <label>Liberté créative</label>
+    <div class="cases" id="creativite"></div>
+    <div class="ligne">
+      <div><label for="effort">Effort</label><select id="effort"><option>fast</option><option selected>standard</option><option>max</option></select></div>
+      <div><label for="seed">Seed</label><input type="number" id="seed" value="7"></div>
+      <div class="cases" style="align-self:end"><label><input type="checkbox" id="silent"> sans son</label></div>
+    </div>
+    <label for="contraintes">Contraintes (une par ligne, par exemple « pas de dialogue »)</label>
+    <textarea id="contraintes" style="min-height:48px"></textarea>
+    <label for="texteecran">Texte à l'écran (une ligne par texte)</label>
+    <textarea id="texteecran" style="min-height:40px"></textarea>
+  </section>
+
+  <section class="carte">
+    <h2>Dialogue (mot pour mot, jamais réécrit)</h2>
+    <div id="dialogues"></div>
+    <button type="button" id="ajout-dialogue" style="margin-top:8px">+ réplique</button>
+  </section>
+
+  <section class="carte">
+    <h2>Réalisateur</h2>
+    <label for="director">Profil prêt à l'emploi</label>
+    <select id="director"><option value="">(aucun)</option></select>
+    <div id="director-prose" class="muted" style="margin-top:6px;white-space:pre-wrap"></div>
+    <details><summary>Ou écrire le sien</summary>
+      <label for="dp-name">Nom (n'est jamais envoyé au modèle)</label><input type="text" id="dp-name">
+      <label for="dp-notes">Notes, en langage courant (5 000 caractères max)</label><textarea id="dp-notes"></textarea>
+    </details>
+  </section>
+
+  <section class="carte">
+    <h2>Pièces jointes</h2>
+    <input type="file" id="fichiers" multiple accept="image/*,video/*,audio/*">
+    <div id="pieces"></div>
+    <div class="muted" style="margin-top:6px">Chaque fichier est envoyé au service (empreinte SHA-256), pas de chemin à fournir. Pour un audio : décrivez le timbre dans la note, sinon la référence ne sert à rien (le service n'invente jamais de timbre).</div>
+  </section>
+
+  <div class="ligne"><button class="principal" id="compiler" type="button">Compiler</button><button type="button" id="voir-requete">Voir la requête</button></div>
+</div>
+
+<div style="display:grid;gap:18px">
+  <section class="carte" id="resultat" hidden>
+    <div id="erreur" hidden></div>
+    <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
+      <h2 style="margin:0">Résultat</h2><span class="badge" id="statut"></span><span class="muted" id="meta"></span>
+    </div>
+    <div id="question" hidden style="margin:10px 0"></div>
+    <div class="ligne" style="margin:10px 0;align-items:center"><button type="button" id="copier">Copier le prompt</button><span class="muted" id="comptes"></span></div>
+    <pre class="prompt" id="prompt"></pre>
+
+    <div class="ligne" style="margin-top:12px;align-items:end">
+      <div style="flex:4 1 280px"><label for="changement">Affiner en langage courant</label><input type="text" id="changement" placeholder="plus sombre, un seul plan, plus lent…"></div>
+      <div style="flex:0 0 auto"><button type="button" id="affiner">Affiner</button></div>
+    </div>
+
+    <details open><summary>Diagnostics</summary><div id="diagnostics"></div></details>
+    <details><summary>Ce que le service a compris (présentation)</summary><pre id="presentation"></pre></details>
+    <details><summary>Références et câblage (manifeste)</summary><div id="manifeste"></div></details>
+    <details><summary>Sections du prompt</summary><pre id="sections"></pre></details>
+    <details><summary>Plan et réponse complète (JSON)</summary><pre id="brut"></pre></details>
+  </section>
+
+  <section class="carte" id="comparaison" hidden>
+    <h2>Comparer avec un autre prompt (par exemple celui de plan-h3)</h2>
+    <label for="autre">Collez l'autre prompt</label>
+    <textarea id="autre" style="min-height:90px"></textarea>
+    <div class="colonnes" style="margin-top:10px">
+      <div><div class="muted" id="c-gauche"></div><pre class="prompt" id="p-gauche"></pre></div>
+      <div><div class="muted" id="c-droite"></div><pre class="prompt" id="p-droite"></pre></div>
+    </div>
+  </section>
+
+  <section class="carte historique" id="histo-carte" hidden>
+    <h2>Historique de la session</h2><div id="historique"></div>
+  </section>
+</div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const API = "/api";
+let contrat = null, dernier = null, derniereRequete = null;
+const historique = [];
+const fichiers = []; // { file, sha, kind, role, note, transcript }
+
+async function appel(methode, chemin, corps, brut) {
+  const r = await fetch(API + chemin, { method: methode, headers: corps && !brut ? { "Content-Type": "application/json" } : {}, body: brut ? corps : corps ? JSON.stringify(corps) : undefined });
+  const texte = await r.text(); let json = null; try { json = JSON.parse(texte); } catch (e) { /* texte brut */ }
+  if (!r.ok) { const e = new Error("HTTP " + r.status); e.statut = r.status; e.detail = json?.detail ?? json ?? texte; throw e; }
+  return json ?? texte;
+}
+const sha256 = async (f) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", await f.arrayBuffer()))].map((b) => b.toString(16).padStart(2, "0")).join("");
+const lignes = (t) => t.split("\n").map((l) => l.trim()).filter(Boolean);
+
+// ---- modèle de langage : liste du llama-swap, relance du service au changement ----------------------------------------------------
+async function chargerModeles() {
+  try {
+    const m = await (await fetch("/lab/modeles")).json();
+    $("modele").innerHTML = (m.modeles.length ? m.modeles : [m.courant]).map((x) => `<option ${x === m.courant ? "selected" : ""}>${esc(x)}</option>`).join("");
+    $("modele-etat").textContent = m.erreur ? "liste indisponible : " + m.erreur : "";
+    $("modele").disabled = !m.pilote;
+    if (!m.pilote) $("modele-etat").textContent = "service lancé à la main : modèle fixe";
+  } catch (e) { $("modele-etat").textContent = "relais injoignable"; }
+}
+$("modele").addEventListener("change", async () => {
+  $("modele").disabled = true; $("modele-etat").textContent = "relance du service…";
+  try {
+    await fetch("/lab/modele", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: $("modele").value }) });
+    for (let i = 0; i < 40; i++) { await new Promise((r) => setTimeout(r, 750)); try { await appel("GET", "/health"); break; } catch (e) { /* démarre */ } }
+    $("modele-etat").textContent = "prêt";
+  } catch (e) { $("modele-etat").textContent = "échec : " + e.message; }
+  $("modele").disabled = false;
+});
+
+// ---- démarrage : capacités, contrat, réalisateurs ---------------------------------------------------------------------------------
+async function init() {
+  chargerModeles();
+  try {
+    await appel("GET", "/health");
+    const [cap, ct, dirs] = await Promise.all([appel("GET", "/v1/capabilities"), appel("GET", "/v1/contract"), appel("GET", "/v1/directors")]);
+    contrat = ct;
+    $("etat").textContent = `Service joignable · contrat v${ct.contract_version ?? "?"} · ${ct.package_version ?? ""}`;
+    const aspects = cap.aspects || cap.aspect_ratios || ["16:9", "21:9", "4:3", "1:1", "3:4", "9:16"];
+    $("aspect").innerHTML = aspects.map((a) => `<option ${a === "16:9" ? "selected" : ""}>${esc(a)}</option>`).join("");
+    $("director").innerHTML += (dirs.directors || []).map((d) => `<option value="${esc(d.id ?? d.name)}">${esc(d.name ?? d.id)}</option>`).join("");
+    $("director").addEventListener("change", () => { const d = (dirs.directors || []).find((x) => (x.id ?? x.name) === $("director").value); $("director-prose").textContent = d ? (d.notes ?? d.prose ?? JSON.stringify(d, null, 2)) : ""; });
+  } catch (e) {
+    $("etat").textContent = "Service injoignable : lancez `h3ir serve --host 127.0.0.1 --port 8420`, puis rechargez.";
+    $("aspect").innerHTML = ["16:9", "21:9", "4:3", "1:1", "3:4", "9:16"].map((a) => `<option ${a === "16:9" ? "selected" : ""}>${a}</option>`).join("");
+  }
+  const niveaux = (contrat?.limits && contrat.creativity) || ["restrained", "balanced", "bold", "extreme"];
+  $("creativite").innerHTML = ["restrained", "balanced", "bold", "extreme"].map((n) => `<label><input type="radio" name="crea" value="${n}" ${n === "balanced" ? "checked" : ""}> ${n}</label>`).join("");
+  ajouterDialogue();
+}
+
+// ---- dialogues ------------------------------------------------------------------------------------------------------------------
+const LANGUES = ["English", "French", "Arabic", "Chinese", "German", "Italian", "Japanese", "Korean", "Portuguese", "Russian", "Spanish"];
+function ajouterDialogue() {
+  const d = document.createElement("div"); d.className = "rangee";
+  d.innerHTML = `<label style="margin:0">Réplique</label><textarea class="d-texte" style="min-height:44px"></textarea>
+    <div class="ligne"><div><label>Langue</label><select class="d-langue">${LANGUES.map((l) => `<option ${l === "French" ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    <div><label>Qui parle (indice)</label><input type="text" class="d-qui" placeholder="la guerrière"></div>
+    <div class="cases" style="align-self:end"><label><input type="checkbox" class="d-voixoff"> voix off</label></div>
+    <button type="button" class="d-sup" style="flex:0 0 auto">Retirer</button></div>`;
+  d.querySelector(".d-sup").onclick = () => d.remove();
+  $("dialogues").append(d);
+}
+$("ajout-dialogue").onclick = ajouterDialogue;
+
+// ---- pièces jointes ------------------------------------------------------------------------------------------------------------
+$("fichiers").addEventListener("change", async (e) => {
+  for (const f of e.target.files) {
+    const kind = f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
+    fichiers.push({ file: f, sha: null, kind, role: "", note: "", transcript: "" });
+  }
+  e.target.value = ""; dessinerPieces();
+});
+function dessinerPieces() {
+  const roles = (k) => (contrat?.roles?.[k] || []);
+  $("pieces").innerHTML = "";
+  fichiers.forEach((p, i) => {
+    const d = document.createElement("div"); d.className = "rangee";
+    d.innerHTML = `<div><b>${esc(p.file.name)}</b> <span class="muted">${p.kind} · ${(p.file.size / 1024).toFixed(0)} Ko</span></div>
+      <div class="ligne"><div><label>Rôle (vide = déduit)</label><select class="p-role"><option value="">(déduit)</option>${roles(p.kind).map((r) => `<option ${r === p.role ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></div>
+      <div style="flex:3 1 200px"><label>Note ${p.kind === "audio" ? "(décrivez le timbre, le ton, le rythme)" : "(par exemple « la guerrière »)"}</label><input type="text" class="p-note" value="${esc(p.note)}"></div>
+      <button type="button" class="p-sup" style="flex:0 0 auto">Retirer</button></div>
+      ${p.kind === "audio" ? `<div><label>Transcription (le service ne transcrit jamais)</label><input type="text" class="p-trans" value="${esc(p.transcript)}"></div>` : ""}`;
+    d.querySelector(".p-role").onchange = (e) => { p.role = e.target.value; };
+    d.querySelector(".p-note").oninput = (e) => { p.note = e.target.value; };
+    d.querySelector(".p-trans")?.addEventListener("input", (e) => { p.transcript = e.target.value; });
+    d.querySelector(".p-sup").onclick = () => { fichiers.splice(i, 1); dessinerPieces(); };
+    $("pieces").append(d);
+  });
+}
+
+// ---- construction de la requête -----------------------------------------------------------------------------------------------
+async function construireRequete(reponse) {
+  const r = { intent: $("intent").value.trim(), seconds: Number($("seconds").value) || 5, aspect: $("aspect").value,
+    creativity: document.querySelector("input[name=crea]:checked").value, effort: $("effort").value, seed: Number($("seed").value) };
+  if ($("megapixels").value) r.megapixels = Number($("megapixels").value);
+  if ($("shots").value) r.shots = Number($("shots").value);
+  if ($("silent").checked) r.silent = true;
+  const c = lignes($("contraintes").value); if (c.length) r.constraints = c;
+  const t = lignes($("texteecran").value); if (t.length) r.onscreen_text = t;
+  const dial = [...document.querySelectorAll("#dialogues .rangee")].map((d) => ({ text: d.querySelector(".d-texte").value.trim(), language: d.querySelector(".d-langue").value, speaker: d.querySelector(".d-qui").value.trim() || undefined, voiceover: d.querySelector(".d-voixoff").checked })).filter((d) => d.text);
+  if (dial.length) r.dialogue = dial;
+  if ($("director").value) r.director = $("director").value;
+  else if ($("dp-notes").value.trim()) r.director_profile = { name: $("dp-name").value.trim() || "perso", notes: $("dp-notes").value.trim() };
+  if (fichiers.length) {
+    r.assets = []; r.transcripts = {};
+    for (const p of fichiers) {
+      if (!p.sha) { p.sha = await sha256(p.file); }
+      await appel("PUT", "/v1/assets/" + p.sha, p.file, true); // envoi des octets, nommés par leur empreinte
+      const a = { sha256: p.sha, kind: p.kind }; if (p.role) a.role = p.role; if (p.note.trim()) a.note = p.note.trim();
+      r.assets.push(a); if (p.transcript.trim()) r.transcripts[p.sha] = p.transcript.trim();
+    }
+    if (!Object.keys(r.transcripts).length) delete r.transcripts;
+  }
+  if (reponse) r.answer = reponse;
+  return r;
+}
+
+// ---- affichage du résultat ----------------------------------------------------------------------------------------------------
+function montrerErreur(e) {
+  $("resultat").hidden = false; $("erreur").hidden = false; $("statut").className = "badge erreur"; $("statut").textContent = "erreur";
+  const d = e.detail; const code = d?.code ? `<b>${esc(d.code)}</b> : ` : "";
+  $("erreur").innerHTML = `${esc(e.message)} ${code}${esc(d?.message ?? (typeof d === "string" ? d : ""))}<pre style="margin-top:6px">${esc(typeof d === "object" ? JSON.stringify(d, null, 2) : "")}</pre>`;
+}
+function montrer(env) {
+  dernier = env; $("resultat").hidden = false; $("comparaison").hidden = false; $("erreur").hidden = true;
+  $("statut").className = "badge " + (env.status || ""); $("statut").textContent = env.status || "?";
+  $("meta").textContent = `${env.source ?? ""}${env.fallback_reason ? " · repli : " + env.fallback_reason : ""} · ${env.id ?? ""} · mode ${env.ir?.mode ?? "?"}`;
+  const q = $("question"); q.hidden = !env.question;
+  if (env.question) { q.innerHTML = `<b>Le service pose une question :</b><pre>${esc(JSON.stringify(env.question, null, 2))}</pre><div class="ligne" style="margin-top:6px"><input type="text" id="rep" placeholder='réponse JSON, par exemple {"anchor_or_reference":"opening_frame"}'><button type="button" id="rep-ok" style="flex:0 0 auto">Répondre</button></div><div class="muted">Sans réponse : ${esc(JSON.stringify(env.default_if_unanswered ?? "défaut du service"))}</div>`; $("rep-ok").onclick = () => compiler($("rep").value ? JSON.parse($("rep").value) : null); }
+  const prompt = env.ir?.prompt ?? ""; $("prompt").textContent = prompt;
+  $("comptes").textContent = `${prompt.split(/\s+/).filter(Boolean).length} mots · ${prompt.length} caractères · ${env.ir?.prompt_tokens ?? "?"} jetons`;
+  const dg = env.ir?.diagnostics || [];
+  $("diagnostics").innerHTML = dg.length ? `<table><tr><th>Gravité</th><th>Règle</th><th>Message</th></tr>${dg.map((f) => `<tr><td class="severite-${esc(f.severity)}">${esc(f.severity)}</td><td>${esc(f.rule)}</td><td>${esc(f.message)}</td></tr>`).join("")}</table>` : `<span class="muted">Aucun.</span>`;
+  $("presentation").textContent = JSON.stringify(env.presentation, null, 2);
+  const m = env.ir?.manifest || [];
+  $("manifeste").innerHTML = m.length ? `<table><tr><th>#</th><th>Label</th><th>Genre</th><th>Rôle</th><th>Câblage</th></tr>${m.map((x) => `<tr><td>${esc(x.slot)}</td><td>${esc(x.label)}</td><td>${esc(x.kind)}</td><td>${esc(x.role)}</td><td>${esc(x.wiring)}</td></tr>`).join("")}</table>` : `<span class="muted">Aucun fichier joint.</span>`;
+  $("sections").textContent = JSON.stringify(env.ir?.sections, null, 2);
+  $("brut").textContent = JSON.stringify(env, null, 2);
+  comparer(); historiser(env);
+}
+function comparer() {
+  const a = $("prompt").textContent, b = $("autre").value;
+  const n = (t) => `${t.split(/\s+/).filter(Boolean).length} mots · ${t.length} caractères`;
+  $("c-gauche").textContent = "Open H3 IR · " + n(a); $("p-gauche").textContent = a;
+  $("c-droite").textContent = "Autre prompt · " + n(b); $("p-droite").textContent = b;
+}
+$("autre").addEventListener("input", comparer);
+function historiser(env) {
+  historique.unshift({ env, heure: new Date().toLocaleTimeString("fr-FR"), intent: derniereRequete?.intent?.slice(0, 70) ?? "" });
+  $("histo-carte").hidden = false;
+  $("historique").innerHTML = ""; historique.forEach((h) => { const b = document.createElement("button"); b.textContent = `${h.heure} · ${h.env.status} · ${h.env.id} · ${h.intent}`; b.onclick = () => montrer(h.env); $("historique").append(b); });
+}
+
+// ---- actions ---------------------------------------------------------------------------------------------------------------------------
+async function compiler(reponse) {
+  if (!$("intent").value.trim()) { montrerErreur({ message: "L'intention est vide.", detail: null }); return; }
+  $("compiler").disabled = true; $("compiler").textContent = "Compilation…";
+  try { derniereRequete = await construireRequete(reponse); montrer(await appel("POST", "/v1/briefs", derniereRequete)); }
+  catch (e) { montrerErreur(e); } finally { $("compiler").disabled = false; $("compiler").textContent = "Compiler"; }
+}
+$("compiler").onclick = () => compiler(null);
+$("voir-requete").onclick = async () => { try { alert(JSON.stringify(await construireRequete(null), null, 2)); } catch (e) { montrerErreur(e); } };
+$("affiner").onclick = async () => {
+  if (!dernier?.id || !$("changement").value.trim()) return;
+  $("affiner").disabled = true;
+  try { derniereRequete = { intent: "(affinage) " + $("changement").value.trim() }; montrer(await appel("PATCH", "/v1/briefs/" + dernier.id, { change: $("changement").value.trim() })); $("changement").value = ""; }
+  catch (e) { montrerErreur(e); } finally { $("affiner").disabled = false; }
+};
+$("copier").onclick = async () => { try { await navigator.clipboard.writeText($("prompt").textContent); $("copier").textContent = "Copié"; setTimeout(() => ($("copier").textContent = "Copier le prompt"), 1200); } catch (e) { /* presse-papiers indisponible */ } };
+init();
+</script>
+</body>
+</html>
