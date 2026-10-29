@@ -47,15 +47,19 @@ export async function creerPlanScenario(
 export async function creerScene(episodeId: number, valeurs: { titre: string; fonction: string; genre?: string | null; ambiance?: string }) {
   const existantes = await db.select().from(scenes).where(eq(scenes.episodeId, episodeId));
   const ordre = existantes.reduce((acc, sc) => Math.max(acc, sc.ordre), -1) + 1;
-  await db.insert(scenes).values({
-    episodeId,
-    ordre,
-    titre: valeurs.titre,
-    fonction: valeurs.fonction || null,
-    genre: genreOuNull(valeurs.genre),
-    ambiance: valeurs.ambiance?.trim() || null,
-  });
+  const [creee] = await db
+    .insert(scenes)
+    .values({
+      episodeId,
+      ordre,
+      titre: valeurs.titre,
+      fonction: valeurs.fonction || null,
+      genre: genreOuNull(valeurs.genre),
+      ambiance: valeurs.ambiance?.trim() || null,
+    })
+    .returning({ id: scenes.id });
   revalidatePath("/", "layout");
+  return creee?.id ?? null;
 }
 
 /** Place un plan dans une scène (ou « sans scène » si `sceneId` est null),

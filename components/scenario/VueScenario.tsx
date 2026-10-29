@@ -7,6 +7,7 @@ import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
 import { Icone } from "@/components/ui/Icone";
+import { posterBackgroundImage } from "@/lib/poster";
 import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
 import { LIBELLE_ETAT, cleScene, minutage, romain, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
@@ -50,6 +51,7 @@ export function VueScenario({
   const [vue, setVue] = useState<Vue>(aDesImages ? "vignettes" : "liste");
   const [descriptions, setDescriptions] = useState(false);
   const [signal, setSignal] = useState<Signal | null>(null);
+  const [nouvelleScene, setNouvelleScene] = useState(false);
   const [, startTransition] = useTransition();
   const rail = useRef<HTMLDivElement>(null);
   const focusRail = useRef(false);
@@ -156,8 +158,18 @@ export function VueScenario({
       <div className="sc">
         <div className="queue">
           <NouveauPlanForm projectId={projectId} episodeId={episodeId} scenesOptions={[]} />
-          <NouveauSceneForm episodeId={episodeId} />
+          <button className="btn btn-ghost" type="button" onClick={() => setNouvelleScene(true)}>
+            <Icone nom="ajouter" taille={15} /> Nouvelle scène
+          </button>
         </div>
+        <NouveauSceneForm
+          episodeId={episodeId}
+          ouvert={nouvelleScene}
+          onFermer={() => setNouvelleScene(false)}
+          onCree={(id) => {
+            if (id != null) choisirScene(cleScene(id));
+          }}
+        />
         <p className="tiny-note" style={{ marginTop: "var(--sp-6)" }}>
           Aucun plan en base. Lancer <code>npm run db:import</code> pour importer l&rsquo;épisode 1 depuis le markdown existant, ou créer un plan à la main ci-dessus.
         </p>
@@ -170,6 +182,8 @@ export function VueScenario({
   const dureeTotale = groupes.reduce((acc, g) => acc + g.duree, 0);
   const genre = genreOuNull(courant.genre);
   const estSans = courant.id == null;
+  // Minutage de départ de chaque scène dans le film (somme des durées des scènes qui précèdent).
+  const debuts = groupes.map((_, i) => groupes.slice(0, i).reduce((acc, g) => acc + g.duree, 0));
   const precedente = groupes[indexCourant - 1];
   const suivante = groupes[indexCourant + 1];
 
@@ -224,7 +238,6 @@ export function VueScenario({
   return (
     <div className="sc">
       <div className="queue sc-outils">
-        <NouveauSceneForm episodeId={episodeId} />
         <span className="sc-total num">
           {pluriel(scenesReelles.length, "scène")} · {pluriel(nbPlans, "plan")} · {minutage(dureeTotale)}
         </span>
@@ -234,19 +247,26 @@ export function VueScenario({
         <button type="button" className="tm-reel-nav" aria-label="Scène précédente" disabled={!precedente} onClick={() => precedente && choisirScene(cleScene(precedente.id))}>
           ‹
         </button>
-        <div className="sc-rail" role="tablist" aria-label="Scènes du film" ref={rail}>
-          {groupes.map((g, i) => (
-            <CarteScene
-              key={cleScene(g.id)}
-              g={g}
-              numero={g.id != null ? romain(i + 1) : null}
-              actif={cleScene(g.id) === cleCourante}
-              suivantId={groupes[i + 1]?.id ?? null}
-              onChoisir={() => choisirScene(cleScene(g.id))}
-              onKeyDown={(e) => surClavierRail(e, i)}
-              onRecu={(planId) => signaler(planId, g)}
-            />
-          ))}
+        <div className="sc-rail" ref={rail}>
+          <div className="sc-rail-liste" role="tablist" aria-label="Scènes du film">
+            {groupes.map((g, i) => (
+              <CarteScene
+                key={cleScene(g.id)}
+                g={g}
+                numero={g.id != null ? romain(i + 1) : null}
+                debut={debuts[i] ?? 0}
+                actif={cleScene(g.id) === cleCourante}
+                suivantId={groupes[i + 1]?.id ?? null}
+                onChoisir={() => choisirScene(cleScene(g.id))}
+                onKeyDown={(e) => surClavierRail(e, i)}
+                onRecu={(planId) => signaler(planId, g)}
+              />
+            ))}
+          </div>
+          <button type="button" className="sc-carte-plus" onClick={() => setNouvelleScene(true)}>
+            <Icone nom="ajouter" taille={22} />
+            <span>Nouvelle scène</span>
+          </button>
         </div>
         <button type="button" className="tm-reel-nav" aria-label="Scène suivante" disabled={!suivante} onClick={() => suivante && choisirScene(cleScene(suivante.id))}>
           ›
@@ -393,12 +413,6 @@ export function VueScenario({
         </div>
 
         <div className="sc-detail-zone" aria-live="polite">
-          {courant.plans.length > 0 && !plan ? (
-            <p className="sc-astuce">
-              Clique sur un plan pour lire sa description · double-clic ou <kbd>Entrée</kbd> pour ouvrir sa fiche · <kbd>←</kbd> <kbd>→</kbd>
-              {vue === "liste" ? " ou ↑ ↓" : ""} pour passer d&rsquo;un plan à l&rsquo;autre · <kbd>Échap</kbd> pour désélectionner.
-            </p>
-          ) : null}
           {vue === "vignettes" && plan ? detail(plan, true) : null}
         </div>
 
@@ -419,6 +433,15 @@ export function VueScenario({
           </div>
         ) : null}
       </div>
+
+      <NouveauSceneForm
+        episodeId={episodeId}
+        ouvert={nouvelleScene}
+        onFermer={() => setNouvelleScene(false)}
+        onCree={(id) => {
+          if (id != null) choisirScene(cleScene(id));
+        }}
+      />
 
       {signal ? (
         <div className="sc-toast" role="status">
@@ -545,6 +568,7 @@ function DeplacerVers({
 function CarteScene({
   g,
   numero,
+  debut,
   actif,
   suivantId,
   onChoisir,
@@ -553,6 +577,8 @@ function CarteScene({
 }: {
   g: SceneVue;
   numero: string | null;
+  /** Minutage de départ de la scène dans le film. */
+  debut: number;
   actif: boolean;
   suivantId: number | null;
   onChoisir: () => void;
@@ -564,7 +590,9 @@ function CarteScene({
   const [recoitPlan, setRecoitPlan] = useState(false);
   const [recu, setRecu] = useState(false);
   const [, startTransition] = useTransition();
-  const { enDrag, debut, fin } = useEnGlissement();
+  const { enDrag, debut: debutDrag, fin } = useEnGlissement();
+  const fondSrc = g.plans.find((p) => p.src)?.src ?? null;
+  const genre = genreOuNull(g.genre);
   const reinit = () => {
     setRepere(null);
     setRecoitPlan(false);
@@ -594,7 +622,7 @@ function CarteScene({
         e.dataTransfer.setData(MIME_SCENE, JSON.stringify({ sceneId: g.id }));
         e.dataTransfer.effectAllowed = "move";
         demarrerApercu(e, e.currentTarget);
-        debut();
+        debutDrag();
       }}
       onDragEnd={fin}
       onDragOver={(e) => {
@@ -630,10 +658,18 @@ function CarteScene({
         }
       }}
     >
-      {numero ? <span className="sc-carte-n">{numero}</span> : <Icone nom="autre" taille={16} />}
-      <span className="sc-carte-titre">{g.titre}</span>
-      <span className="sc-carte-meta num">
-        {pluriel(g.plans.length, "plan")} · {minutage(g.duree)}
+      {/* Le fond : la première image de la scène quand un rendu existe, sinon un dégradé propre à la scène (comme les affiches de l'accueil). */}
+      <span className="sc-carte-fond" style={fondSrc ? undefined : { backgroundImage: posterBackgroundImage(`scene:${cleScene(g.id)}`) }} aria-hidden="true">
+        {fondSrc ? <Vignette src={fondSrc} /> : null}
+      </span>
+      <span className="sc-carte-voile" aria-hidden="true" />
+      {numero ? <span className="sc-carte-n">{numero}</span> : null}
+      <span className="sc-carte-bas">
+        <span className="sc-carte-titre">{g.titre}</span>
+        <span className="sc-carte-meta num">
+          {minutage(debut)} · {pluriel(g.plans.length, "plan")}
+          {genre ? ` · ${LIBELLE_GENRE[genre]}` : ""}
+        </span>
       </span>
     </div>
   );

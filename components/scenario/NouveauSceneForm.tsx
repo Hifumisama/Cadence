@@ -1,62 +1,105 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { creerScene } from "@/app/scenario/actions";
 import { Icone } from "@/components/ui/Icone";
 import { ChampsGenreScene } from "./ChampsGenreScene";
 
-export function NouveauSceneForm({ episodeId }: { episodeId: number }) {
-  const [ouvert, setOuvert] = useState(false);
+/** Création d'une scène, dans un tiroir qui glisse depuis la droite. C'est la carte « + » en fin de bandeau qui l'ouvre (`ouvert`), la page décide de la
+ * suite (`onCree` : ouvrir la scène créée). */
+export function NouveauSceneForm({
+  episodeId,
+  ouvert,
+  onFermer,
+  onCree,
+}: {
+  episodeId: number;
+  ouvert: boolean;
+  onFermer: () => void;
+  onCree: (sceneId: number | null) => void;
+}) {
   const [titre, setTitre] = useState("");
   const [fonction, setFonction] = useState("");
   const [genre, setGenre] = useState("");
   const [ambiance, setAmbiance] = useState("");
   const [pending, startTransition] = useTransition();
+  const champTitre = useRef<HTMLInputElement>(null);
+
+  // Ouvert : Échap ferme, le fond de page ne défile plus, le focus passe au titre.
+  useEffect(() => {
+    if (!ouvert) return;
+    const echap = (e: KeyboardEvent) => e.key === "Escape" && !pending && onFermer();
+    const defilement = document.body.style.overflow;
+    document.addEventListener("keydown", echap);
+    document.body.style.overflow = "hidden";
+    champTitre.current?.focus();
+    return () => {
+      document.removeEventListener("keydown", echap);
+      document.body.style.overflow = defilement;
+    };
+  }, [ouvert, pending, onFermer]);
+
+  if (!ouvert) return null;
 
   const onCreer = () => {
     if (!titre.trim()) return;
     startTransition(async () => {
-      await creerScene(episodeId, { titre, fonction, genre: genre || null, ambiance });
+      const id = await creerScene(episodeId, { titre, fonction, genre: genre || null, ambiance });
       setTitre("");
       setFonction("");
       setGenre("");
       setAmbiance("");
-      setOuvert(false);
+      onFermer();
+      onCree(id);
     });
   };
 
-  return (
-    <>
-      <button className="btn btn-ghost" type="button" onClick={() => setOuvert((v) => !v)}>
-        <Icone nom="ajouter" taille={15} /> Nouvelle scène
-      </button>
-      {ouvert ? (
-        <section className="plan-form is-new" style={{ margin: "var(--sp-3) 0 var(--sp-5)" }}>
-          <div className="new-hd">
-            <span className="eyebrow">Création d&rsquo;une nouvelle scène</span>
-            <span className="t">Naîtra vide — les plans s&rsquo;y rattachent ensuite</span>
+  return createPortal(
+    <div className="sc-tiroir-fond" onClick={pending ? undefined : onFermer}>
+      <aside className="sc-tiroir" role="dialog" aria-modal="true" aria-label="Nouvelle scène" onClick={(e) => e.stopPropagation()}>
+        <header className="sc-tiroir-hd">
+          <div>
+            <span className="sc-tiroir-etiquette">Création</span>
+            <h2>Nouvelle scène</h2>
+            <p>Elle naît vide, à la suite des autres : les plans s&rsquo;y rattachent ensuite.</p>
           </div>
+          <button type="button" className="sc-tiroir-fermer" onClick={onFermer} disabled={pending} aria-label="Fermer">
+            <Icone nom="fermer" taille={18} />
+          </button>
+        </header>
+        <div className="sc-tiroir-corps">
           <div className="form-grid">
             <div className="field-group wide">
-              <label>Titre</label>
-              <input className="field" value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex. Le Labyrinthe" />
+              <label htmlFor="nouvelle-scene-titre">Titre</label>
+              <input
+                id="nouvelle-scene-titre"
+                ref={champTitre}
+                className="field"
+                value={titre}
+                onChange={(e) => setTitre(e.target.value)}
+                placeholder="Ex. Le Labyrinthe"
+                onKeyDown={(e) => e.key === "Enter" && onCreer()}
+              />
             </div>
             <div className="field-group wide">
-              <label>Fonction</label>
-              <textarea className="field" rows={2} value={fonction} onChange={(e) => setFonction(e.target.value)} />
+              <label htmlFor="nouvelle-scene-fonction">Fonction</label>
+              <textarea id="nouvelle-scene-fonction" className="field" rows={3} value={fonction} onChange={(e) => setFonction(e.target.value)} />
+              <span className="tiny-note">Ce que la scène fait dans le récit.</span>
             </div>
             <ChampsGenreScene genre={genre} ambiance={ambiance} onGenre={setGenre} onAmbiance={setAmbiance} />
-            <div className="form-actions wide">
-              <button className="btn btn-gold" onClick={onCreer} disabled={pending || !titre.trim()}>
-                {pending ? "..." : "Créer la scène"}
-              </button>
-              <button className="btn btn-ghost" type="button" onClick={() => setOuvert(false)}>
-                Annuler
-              </button>
-            </div>
           </div>
-        </section>
-      ) : null}
-    </>
+        </div>
+        <footer className="sc-tiroir-pied">
+          <button className="btn btn-gold" type="button" onClick={onCreer} disabled={pending || !titre.trim()}>
+            {pending ? "Création…" : "Créer la scène"}
+          </button>
+          <button className="btn btn-ghost" type="button" onClick={onFermer} disabled={pending}>
+            Annuler
+          </button>
+        </footer>
+      </aside>
+    </div>,
+    document.body,
   );
 }
