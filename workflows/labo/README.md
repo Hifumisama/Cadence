@@ -13,6 +13,13 @@ se retrouvent dans l'historique git (`git log -- workflows/labo/`, dernier état
   (la passe d'upscale le régénère et l'accélère). Le latent de la première passe est sauvegardé pour les raccords.
   Mesuré le 2026-10-29 : environ 7 min 13 pour 10 s.
 
+- **`LABO_GEN.json`** et **`LABO_GEN_suite.json`** : l'exemple de Motion Context (continuité d'un plan « suite »). `GEN`
+  génère le clip 1 et sauvegarde son latent (`h3_latents/clip`, `clip_index` 1). `GEN_suite` le recharge
+  (`MiniMaxH3MotionContextLoadLatent`, `stock_format: false`), le passe à `MiniMaxH3MotionContext` (22 images de contexte),
+  relie le **guider** à sa sortie de conditioning (`303`, sortie 0), sauvegarde le clip 2 (`clip_index` 2), puis
+  `MiniMaxH3MotionContextTrim` retire le préfixe de contexte de la vidéo et de l'audio. Le prompt de `GEN_suite` est
+  celui de la suite du combat.
+
 ## Conclusions (2026-10-29)
 
 - Retenus : Singularity, LoRA turbo de base, 6 étapes, 0,4 MP verrouillé, 24 ips, Motion Context, upscale latent ×1,5
