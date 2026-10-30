@@ -30,6 +30,13 @@ export const NODE_IDS_GENERATION = {
   latentSauve: "302",
 } as const;
 
+/** La génération « suite » (VID_Generation_suite.json) ajoute le chargement du latent de la première passe du plan précédent (Motion Context). */
+export const NODE_IDS_GENERATION_SUITE = {
+  ...NODE_IDS_GENERATION,
+  /** Chargeur du latent de contexte (`stock_format: false` : c'est le format de Motion Context, pas le format standard). */
+  latentContexte: "301",
+} as const;
+
 export const NODE_IDS_UPSCALE = {
   ...NOEUDS_ENTREE,
   seed: "103",
@@ -74,9 +81,15 @@ function injecterEntree(graphe: WorkflowJson, input: SubmissionInput, ids: typeo
 
 const numeroSeed = (seed: string | undefined): number | null => (seed ? Number(seed) : null);
 
-/** Étape 1 : prévisualisation (brouillon + latent de la première passe). */
-export function injecterGeneration(workflow: WorkflowJson, input: SubmissionInput, dossier: string): WorkflowJson {
+/** Étape 1 : prévisualisation (brouillon + latent de la première passe). `dossierContexte` : le dossier de latents du plan précédent, pour la variante
+ * « suite » (VID_Generation_suite.json), dont le brouillon est déjà rogné du préfixe de contexte. */
+export function injecterGeneration(workflow: WorkflowJson, input: SubmissionInput, dossier: string, dossierContexte?: string): WorkflowJson {
   const graphe = structuredClone(workflow);
+  if (dossierContexte) {
+    const contexte = noeud(graphe, NODE_IDS_GENERATION_SUITE.latentContexte, "latent de contexte (Motion Context)").inputs;
+    contexte.latent_path = cheminsLatents(dossierContexte).genDossier;
+    contexte.clip_index = 1;
+  }
   injecterEntree(graphe, input, NODE_IDS_GENERATION);
   const seed = numeroSeed(input.seed);
   if (seed != null) noeud(graphe, NODE_IDS_GENERATION.seed, "seed").inputs.seed = seed;

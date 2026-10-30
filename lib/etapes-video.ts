@@ -26,3 +26,16 @@ export const LIBELLE_SOURCE_INVALIDE: Record<RaisonSourceInvalide, string> = {
   pas_de_latent: "la prévisualisation n'a pas gardé son latent",
   fiche_modifiee: "la fiche a changé depuis la prévisualisation",
 };
+
+/** Comment un plan en suite prolonge le précédent : `latent` (Motion Context : les 22 dernières images et l'audio du plan précédent entrent dans la
+ * génération, la finition retire ce préfixe) ou `image` (la dernière image du précédent comme première image : le repli, sans latent à reprendre). */
+export type Continuite = "latent" | "image";
+
+/** Un rendu d'avant la colonne `continuite` qui a un raccord enregistré est un raccord par image. */
+export const continuiteEffective = (job: { continuite: string | null; raccordJobId: number | null }): Continuite | null =>
+  job.continuite === "latent" || job.continuite === "image" ? job.continuite : job.raccordJobId != null ? "image" : null;
+
+/** Le raccord par image à rejouer pour l'upscale d'une prévisualisation : `null` (aucun) quand elle prolongeait son précédent par le latent, car son
+ * conditioning ne contenait alors aucune image de raccord. */
+export const raccordImageARejouer = (job: { continuite: string | null; raccordJobId: number | null }): number | null =>
+  continuiteEffective(job) === "image" ? job.raccordJobId : null;

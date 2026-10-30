@@ -193,4 +193,8 @@ latent par dossier + `clip_index` ; `stock_format: true` pour le décoder ou le 
 - L'audio du rendu final vient du latent de la **première passe** : la passe d'upscale régénère et accélère l'audio.
 - `VID_UPSCALE` refait le conditioning (modèle, CLIP, références) : le worker refuse un rendu final dont l'entrée n'est plus celle de la
   prévisualisation (empreinte de l'entrée).
-- Le mode « suite » (Motion Context : latent du plan précédent, Trim de 22 images à la finition) viendra avec le worker ; sa référence est `labo/LABO_GEN_suite.json`.
+- **Plan en suite** (Motion Context, 2026-10-30, non testé en réel) : deux variantes, choisies par le worker quand le plan précédent a gardé le latent de sa première
+  passe. `VID_Generation_suite.json` ajoute `301` (chargeur du latent du plan précédent : `latent_path` = `h3_latents/<dossier du précédent>/gen`, `stock_format: false`),
+  `303` (Motion Context, 22 images de contexte) dont le conditioning alimente le guider `125:14`, et `305` (Trim) qui rogne le brouillon `18`. `VID_Finition_suite.json`
+  ajoute `312` (Trim de 22 images, image et audio) avant RIFE et RTX. `VID_UPSCALE.json` est le même ; le latent du clip contient le préfixe de contexte, retiré à la
+  finition. Sans latent du précédent, le plan retombe sur l'image de raccord (`jobs.continuite` = `image`).

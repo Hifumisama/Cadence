@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { etapesDuRendu, raisonSourceInvalide } from "./etapes-video";
+import { continuiteEffective, etapesDuRendu, raccordImageARejouer, raisonSourceInvalide } from "./etapes-video";
 
 test("une prévisualisation est la génération seule", () => {
   assert.deepEqual(etapesDuRendu(false, true), ["generation"]);
@@ -19,4 +19,17 @@ test("raisons pour lesquelles une prévisualisation ne sert pas de source", () =
   assert.equal(raisonSourceInvalide({ ...ok, statut: "en_cours" }, false), "pas_termine");
   assert.equal(raisonSourceInvalide({ ...ok, latentDossier: null }, false), "pas_de_latent");
   assert.equal(raisonSourceInvalide(ok, true), "fiche_modifiee");
+});
+
+test("continuité : une colonne vide avec un raccord enregistré est un raccord par image (rendus d'avant la colonne)", () => {
+  assert.equal(continuiteEffective({ continuite: "latent", raccordJobId: 9 }), "latent");
+  assert.equal(continuiteEffective({ continuite: "image", raccordJobId: 9 }), "image");
+  assert.equal(continuiteEffective({ continuite: null, raccordJobId: 9 }), "image");
+  assert.equal(continuiteEffective({ continuite: null, raccordJobId: null }), null);
+});
+
+test("l'upscale ne rejoue une image de raccord que si la prévisualisation en avait une", () => {
+  assert.equal(raccordImageARejouer({ continuite: "image", raccordJobId: 9 }), 9);
+  assert.equal(raccordImageARejouer({ continuite: "latent", raccordJobId: 9 }), null, "le contexte était un latent : pas d'image dans le conditioning");
+  assert.equal(raccordImageARejouer({ continuite: null, raccordJobId: null }), null);
 });

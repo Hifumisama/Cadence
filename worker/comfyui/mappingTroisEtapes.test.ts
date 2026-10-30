@@ -6,6 +6,7 @@ import {
   MEGAPIXELS_VIDEO,
   NODE_IDS_FINITION,
   NODE_IDS_GENERATION,
+  NODE_IDS_GENERATION_SUITE,
   NODE_IDS_UPSCALE,
   cheminsLatents,
   dossierLatents,
@@ -20,6 +21,8 @@ const lire = (fichier: string) => JSON.parse(readFileSync(`workflows/video-gener
 const generation = lire("VID_Generation.json");
 const upscale = lire("VID_UPSCALE.json");
 const finition = lire("VID_Finition.json");
+const generationSuite = lire("VID_Generation_suite.json");
+const finitionSuite = lire("VID_Finition_suite.json");
 
 const entree: SubmissionInput = {
   promptAssemble: "summary: test",
@@ -130,4 +133,41 @@ test("un nœud absent du fichier : erreur franche", () => {
   const casse = structuredClone(generation);
   delete casse[NODE_IDS_GENERATION.latentSauve];
   assert.throws(() => injecterGeneration(casse, entree, dossier), /302/);
+});
+
+// --- Plan en suite : Motion Context (latent du plan précédent) ---
+
+test("génération « suite » : mêmes nœuds de saisie que la génération, plus le chargeur du contexte", () => {
+  for (const [nom, id] of Object.entries(NODE_IDS_GENERATION_SUITE)) assert.ok(generationSuite[id], `nœud ${id} (${nom}) absent de VID_Generation_suite.json`);
+  assert.equal(generationSuite[NODE_IDS_GENERATION_SUITE.latentContexte].class_type, "MiniMaxH3MotionContextLoadLatent");
+  // Le contexte est lu dans le format de Motion Context ; le latent sauvegardé par la génération est celui du sampler, comme avant.
+  assert.equal(generationSuite[NODE_IDS_GENERATION_SUITE.latentContexte].inputs.stock_format, false);
+  assert.equal(generationSuite[NODE_IDS_GENERATION.latentSauve].inputs.latent[0], "125:12");
+});
+
+test("génération « suite » : le guider lit le conditioning de Motion Context et le brouillon est rogné du préfixe", () => {
+  assert.equal(generationSuite["303"].class_type, "MiniMaxH3MotionContext");
+  assert.deepEqual(generationSuite["125:14"].inputs.conditioning, ["303", 0]);
+  assert.deepEqual(generationSuite[NODE_IDS_GENERATION.apercu].inputs.images, ["305", 0]);
+  assert.deepEqual(generationSuite[NODE_IDS_GENERATION.apercu].inputs.audio, ["305", 1]);
+  assert.equal(generationSuite["305"].class_type, "MiniMaxH3MotionContextTrim");
+});
+
+test("génération « suite » : charge le latent du plan précédent et garde le reste de l'injection", () => {
+  const g = injecterGeneration(generationSuite, entree, dossier, "cadence_p3_r1");
+  assert.equal(g[NODE_IDS_GENERATION_SUITE.latentContexte]!.inputs.latent_path, "h3_latents/cadence_p3_r1/gen");
+  assert.equal(g[NODE_IDS_GENERATION_SUITE.latentContexte]!.inputs.clip_index, 1);
+  assert.equal(g[NODE_IDS_GENERATION.latentSauve]!.inputs.filename_prefix, "h3_latents/cadence_p4_r2/gen/clip");
+  assert.equal(g[NODE_IDS_GENERATION.prompt]!.inputs.value, entree.promptAssemble);
+  assert.throws(() => injecterGeneration(generation, entree, dossier, "cadence_p3_r1"), /301/, "le fichier sans Motion Context refuse un dossier de contexte");
+});
+
+test("finition « suite » : retire 22 images de contexte de l'image et de l'audio avant RIFE et RTX", () => {
+  assert.equal(finitionSuite["312"].class_type, "MiniMaxH3MotionContextTrim");
+  assert.equal(finitionSuite["312"].inputs.trim_frames, 22);
+  assert.equal(generationSuite["303"].inputs.context_length, "22", "le préfixe rogné est celui que la génération a reçu en contexte");
+  assert.deepEqual(finitionSuite["165"].inputs.images, ["312", 0]);
+  assert.deepEqual(finitionSuite[NODE_IDS_FINITION.sortie].inputs.audio, ["312", 1]);
+  const f = injecterFinition(finitionSuite, dossier, dossier, "cadence_p4_r2_final");
+  assert.equal(f[NODE_IDS_FINITION.latentImage]!.inputs.latent_path, cheminsLatents(dossier).upDossier);
 });

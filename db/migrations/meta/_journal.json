@@ -526,6 +526,13 @@
       "when": 1795885200000,
       "tag": "0074_video_sans_empreinte",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1795971600000,
+      "tag": "0075_continuite_rendu",
+      "breakpoints": true
     }
   ]
 }

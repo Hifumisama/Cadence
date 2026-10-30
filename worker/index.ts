@@ -1,5 +1,6 @@
 import "dotenv/config";
-import { LIBELLE_SOURCE_INVALIDE, MEGAPIXELS_VIDEO, etapesDuRendu, raisonSourceInvalide, type EtapeVideo } from "../lib/etapes-video";
+import { LIBELLE_SOURCE_INVALIDE, MEGAPIXELS_VIDEO, continuiteEffective, etapesDuRendu, raccordImageARejouer, raisonSourceInvalide, type Continuite, type EtapeVideo } from "../lib/etapes-video";
+import { essaiSourceDuLatent, planPrecedent } from "../lib/queries-raccord";
 import { ficheChangeeDepuis } from "../lib/plans-perimes";
 import { BudgetContexte, contexteTotalDepuisEnv, estimerContexte } from "../lib/llm/budget-contexte";
 import { chargerSkill } from "../lib/llm/skills";
@@ -58,12 +59,22 @@ const DUREE_MAX_POLL_MS = 30 * 60_000; // un plan H3 ne devrait jamais dépasser
 const client = creerClientComfyUI();
 
 /** Les trois workflows de la vidéo (contrat : workflows/README.md). Chemins surchargeables ; relus à chaque étape (un fichier ré-exporté est pris tout de suite). */
-const CHEMINS_WORKFLOWS: Record<EtapeVideo, string> = {
-  generation: process.env.COMFYUI_WORKFLOW_GENERATION_PATH ?? "./workflows/video-generation/VID_Generation.json",
-  upscale: process.env.COMFYUI_WORKFLOW_UPSCALE_PATH ?? "./workflows/video-generation/VID_UPSCALE.json",
-  finition: process.env.COMFYUI_WORKFLOW_FINITION_PATH ?? "./workflows/video-generation/VID_Finition.json",
+const CHEMINS_WORKFLOWS: Record<EtapeVideo, { normal: string; suite?: string }> = {
+  generation: {
+    normal: process.env.COMFYUI_WORKFLOW_GENERATION_PATH ?? "./workflows/video-generation/VID_Generation.json",
+    suite: process.env.COMFYUI_WORKFLOW_GENERATION_SUITE_PATH ?? "./workflows/video-generation/VID_Generation_suite.json",
+  },
+  upscale: { normal: process.env.COMFYUI_WORKFLOW_UPSCALE_PATH ?? "./workflows/video-generation/VID_UPSCALE.json" },
+  finition: {
+    normal: process.env.COMFYUI_WORKFLOW_FINITION_PATH ?? "./workflows/video-generation/VID_Finition.json",
+    suite: process.env.COMFYUI_WORKFLOW_FINITION_SUITE_PATH ?? "./workflows/video-generation/VID_Finition_suite.json",
+  },
 };
-const chargerWorkflow = async (etape: EtapeVideo): Promise<WorkflowJson> => JSON.parse(await readFile(resolve(CHEMINS_WORKFLOWS[etape]), "utf-8"));
+/** `suite` : le plan prolonge le précédent par le latent (Motion Context) : la génération charge son contexte, la finition retire le préfixe de contexte. */
+const chargerWorkflow = async (etape: EtapeVideo, suite: boolean): Promise<WorkflowJson> => {
+  const chemins = CHEMINS_WORKFLOWS[etape];
+  return JSON.parse(await readFile(resolve((suite ? chemins.suite : undefined) ?? chemins.normal), "utf-8"));
+};
 
 async function prochainJobEnAttente() {
   const [job] = await db
@@ -205,14 +216,25 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     const dossierPropre = dossierLatents(job.planId, job.numeroRendu, job.tentative);
     const dossierGen = depuisSource ? source!.latentDossier! : dossierPropre;
 
-    const { input, promptFiche, raccordJobId, plan: lePlan } = await construireSubmissionInput(job.planId, job.activerUpscale, depuisSource ? source!.raccordJobId : undefined);
+    // Plan en suite : si le plan précédent a gardé le latent de sa première passe, il alimente Motion Context (continuité par le latent) ; sinon l'image de
+    // raccord, comme avant. Un rendu qui reprend une prévisualisation garde sa continuité (le conditioning de l'upscale doit être le même).
+    const [planAvant] = await db.select().from(plans).where(eq(plans.id, job.planId));
+    const precedent = !depuisSource && planAvant?.liaison === "suite" ? await planPrecedent(planAvant) : null;
+    const contexte = precedent ? await essaiSourceDuLatent(precedent) : null;
+
+    const { input, promptFiche, raccordJobId, plan: lePlan } = await construireSubmissionInput(
+      job.planId,
+      job.activerUpscale,
+      depuisSource ? raccordImageARejouer(source!) : contexte ? null : undefined,
+    );
+    const continuite: Continuite | null = depuisSource ? continuiteEffective(source!) : contexte ? "latent" : raccordJobId != null ? "image" : null;
     // Un préfixe de fichier propre à ce rendu : plus de collision de noms, ni de résultat en cache servi à un autre rendu.
     input.prefixeSortie = `cadence_p${job.planId}_r${job.numeroRendu}${job.tentative > 1 ? `_t${job.tentative}` : ""}`;
     verifierEntree(input); // durée hors 5-10 s, trop de références : échec franc (voir catch)
     // Ce qui est gardé sur le rendu : le prompt de la FICHE (de quoi comparer deux rendus et voir qu'une modification n'a pas bougé le prompt ;
     // « Repartir de là » le restaure) et, s'il y en a un, l'essai dont l'image de raccord vient.
     // Un plan « suite » sans image de raccord faute d'emplacement libre : rien ne bloque (la génération part comme avant), mais l'essai le dit.
-    const raccordSansPlaceLibre = lePlan.liaison === "suite" && raccordJobId == null && raccordSansPlace(input.refsImage.length + input.refsVideo.length);
+    const raccordSansPlaceLibre = lePlan.liaison === "suite" && !depuisSource && continuite == null && raccordSansPlace(input.refsImage.length + input.refsVideo.length);
     const alertes = raccordSansPlaceLibre
       ? [...(job.alertesIteration ?? []), "Pas d'image de raccord : les références du plan occupent tous les emplacements. Retire une référence pour que la dernière image du plan précédent soit reprise."]
       : undefined;
@@ -220,7 +242,9 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
       .update(jobs)
       .set({
         promptUtilise: promptFiche,
-        raccordJobId,
+        // L'essai du plan précédent dont ce rendu prolonge l'image ou le latent (celui de la prévisualisation reprise, pour un rendu final qui en part).
+        raccordJobId: depuisSource ? source!.raccordJobId : contexte ? contexte.id : raccordJobId,
+        continuite,
         dureeUtilisee: input.dureeSecondes,
         seedUtilisee: input.seed ?? null,
         descriptionUtilisee: lePlan.description ?? null,
@@ -246,11 +270,11 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     // Un prompt par étape. Le dernier donne le fichier du rendu (le brouillon d'une prévisualisation, la vidéo finale d'un rendu final) ; les autres
     // n'ont pas de fichier à récupérer (latent sauvegardé sur ComfyUI) : leur fin se lit dans /history.
     const grapheDe = async (etape: EtapeVideo): Promise<WorkflowJson> => {
-      const workflow = await chargerWorkflow(etape);
+      const workflow = await chargerWorkflow(etape, continuite === "latent");
       if (etape === "generation") {
         // Dans un rendu final qui régénère, le brouillon n'est pas le résultat : son préfixe le distingue de la vidéo finale.
         const prefixe = job.activerUpscale ? `brouillon_${input.prefixeSortie}` : input.prefixeSortie;
-        return injecterGeneration(workflow, { ...input, prefixeSortie: prefixe }, dossierPropre);
+        return injecterGeneration(workflow, { ...input, prefixeSortie: prefixe }, dossierPropre, continuite === "latent" ? contexte?.latentDossier : undefined);
       }
       if (etape === "upscale") return injecterUpscale(workflow, input, dossierGen, dossierPropre);
       return injecterFinition(workflow, dossierGen, dossierPropre, input.prefixeSortie);
