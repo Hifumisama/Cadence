@@ -394,6 +394,14 @@ export const jobs = pgTable("jobs", {
   // L'essai (d'un AUTRE plan : le précédent) dont la dernière image a servi de première image à celui-ci (lib/plan-raccord.ts, 2026-10-14) ; null
   // sans raccord. Sert à voir qu'un plan suit un rendu qui a changé depuis. L'image n'est jamais gardée comme asset.
   raccordJobId: integer("raccord_job_id").references((): AnyPgColumn => jobs.id, { onDelete: "set null" }),
+  // Vidéo en trois étapes (2026-10-30, docs/PLAN_INTEGRATION_WORKER.md). Une prévisualisation (génération 0,4 MP) garde le dossier de ses latents sur
+  // ComfyUI (`output/h3_latents/<dossier>/gen` et `/up`) ; un rendu final (upscale puis finition) pointe la prévisualisation dont il part et n'est
+  // lancé que si la fiche n'a pas changé depuis elle (même comparaison que lib/plans-perimes.ts, contre cette prévisualisation).
+  latentDossier: varchar("latent_dossier", { length: 255 }),
+  jobSourceId: integer("job_source_id").references((): AnyPgColumn => jobs.id, { onDelete: "set null" }),
+  // Comment ce rendu prolonge le plan précédent (plan en suite) : « latent » (Motion Context, `raccord_job_id` = l'essai dont le latent sert de contexte) ou
+  // « image » (repli : la dernière image de `raccord_job_id`). Null hors suite, ou pour un rendu d'avant la colonne (lib/etapes-video.ts, `continuiteEffective`).
+  continuite: varchar("continuite", { length: 10 }),
   // Progression du rendu en cours (2026-10-03) : l'étape (génération H3, interpolation, encodage) et, si ComfyUI en
   // donne une, valeur / max. Remises à null en fin de rendu. Pas d'aperçu image (la génération H3 est un nœud d'API).
   progressionValeur: integer("progression_valeur"),

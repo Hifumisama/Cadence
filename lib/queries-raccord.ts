@@ -37,3 +37,22 @@ export async function raccordActuel(plan: { episodeId: number; ordre: number; li
   const source = await essaiSourceDuRaccord(precedent);
   return { precedent, source: source ? { id: source.id, numeroRendu: source.numeroRendu } : null };
 }
+
+/** Le latent de première passe du plan précédent, de quoi alimenter Motion Context (2026-10-30, docs/PLAN_INTEGRATION_WORKER.md) : celui de son rendu retenu s'il
+ * en a un, sinon de son dernier rendu terminé qui en a un. Un rendu final n'a pas de première passe à lui s'il est parti d'une prévisualisation : on prend celle de
+ * cette prévisualisation. `id` est l'essai du plan précédent qui sert de référence (comme pour le raccord par image) ; null si aucun latent n'est disponible,
+ * et le plan retombe alors sur l'image de raccord. */
+export async function essaiSourceDuLatent(precedent: { id: number; renduRetenuId: number | null }): Promise<{ id: number; numeroRendu: number; latentDossier: string } | null> {
+  const lignes = await db
+    .select({ id: jobs.id, numeroRendu: jobs.numeroRendu, final: jobs.activerUpscale, latentDossier: jobs.latentDossier, jobSourceId: jobs.jobSourceId })
+    .from(jobs)
+    .where(and(eq(jobs.planId, precedent.id), eq(jobs.statut, "termine"), isNotNull(jobs.latentDossier)))
+    .orderBy(desc(jobs.id));
+  const retenu = precedent.renduRetenuId != null ? lignes.filter((l) => l.id === precedent.renduRetenuId) : [];
+  for (const l of [...retenu, ...lignes.filter((l) => !retenu.includes(l))]) {
+    if (!l.final || l.jobSourceId == null) return { id: l.id, numeroRendu: l.numeroRendu, latentDossier: l.latentDossier! };
+    const [source] = await db.select({ latentDossier: jobs.latentDossier }).from(jobs).where(eq(jobs.id, l.jobSourceId));
+    if (source?.latentDossier) return { id: l.id, numeroRendu: l.numeroRendu, latentDossier: source.latentDossier };
+  }
+  return null;
+}

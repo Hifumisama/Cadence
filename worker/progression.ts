@@ -75,37 +75,49 @@ export function creerRelais(opts: {
   };
 }
 
-/** Les étapes d'un rendu vidéo que l'écran sait nommer (les identifiants de nœuds du graphe VID_REF2VA, voir
- * worker/comfyui/mapping.ts) ; les autres nœuds ne changent pas l'étape affichée. */
+/** Les étapes d'un rendu vidéo que l'écran sait nommer (les identifiants de nœuds des trois graphes, voir worker/comfyui/mappingTroisEtapes.ts) ;
+ * les autres nœuds ne changent pas l'étape affichée. */
 const ETAPES_VIDEO: Record<string, string> = {
-  "5": "Génération de la vidéo (MiniMax H3)",
-  "165": "Interpolation des images",
+  "5": "Lecture des références",
+  "125:12": "Génération de la vidéo (MiniMax H3)",
+  "243": "Agrandissement du latent",
+  "135:26": "Raffinement de l'upscale",
   "176": "Décodage de la vidéo",
-  "18": "Encodage de l'aperçu",
+  "18": "Encodage du brouillon",
+  "165": "Interpolation des images",
+  "311": "Super-résolution",
   "34": "Encodage de la vidéo finale",
 };
 export const libelleEtapeVideo = (noeud: string): string | null => ETAPES_VIDEO[noeud] ?? null;
 
-/** Relais de la progression d'un RENDU VIDÉO vers la base (la page et le header lisent ces colonnes). Pas d'aperçu : la
- * génération H3 est un nœud d'API distant, il n'y a pas de latent à montrer. Au plus une écriture par seconde. */
+/** Relais de la progression d'un RENDU VIDÉO vers la base (la page et le header lisent ces colonnes). Pas d'aperçu image. Au plus une écriture par
+ * seconde. Un rendu enchaîne plusieurs prompts (génération, upscale, finition) : `definirEtape` met « 2/3 · » devant le libellé de chacun. */
 export function creerRelaisJob(jobId: number) {
   const peutEcrire = limiteur(INTERVALLE_PROGRESSION_MS);
+  let prefixe = "";
   let etape: string | null = null;
   let file: Promise<unknown> = Promise.resolve();
   const enfiler = (tache: () => Promise<unknown>) => {
     file = file.then(tache).catch(() => undefined);
   };
+  const libelle = (l: string) => `${prefixe}${l}`.slice(0, 80);
   return {
+    /** Le prompt `rang` sur `total` commence : le libellé est vide jusqu'au premier nœud qui sait se nommer. */
+    definirEtape(rang: number, total: number) {
+      prefixe = total > 1 ? `${rang}/${total} · ` : "";
+      etape = null;
+    },
     surEvenement(e: EvenementSuivi) {
       if (e.type === "noeud") {
         const l = libelleEtapeVideo(e.noeud);
-        if (l && l !== etape) {
-          etape = l;
-          enfiler(() => db.update(jobs).set({ etapeLibelle: l, progressionValeur: null, progressionMax: null }).where(eq(jobs.id, jobId)));
+        if (l && libelle(l) !== etape) {
+          etape = libelle(l);
+          const libelleCourant = etape;
+          enfiler(() => db.update(jobs).set({ etapeLibelle: libelleCourant, progressionValeur: null, progressionMax: null }).where(eq(jobs.id, jobId)));
         }
       } else if (e.type === "progression") {
         const l = libelleEtapeVideo(e.noeud);
-        if (l) etape = l;
+        if (l) etape = libelle(l);
         if (!peutEcrire()) return;
         const patch = { progressionValeur: e.valeur, progressionMax: e.max, etapeLibelle: etape };
         enfiler(() => db.update(jobs).set(patch).where(eq(jobs.id, jobId)));

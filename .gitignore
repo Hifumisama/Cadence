@@ -6,3 +6,4 @@ data/*
 .env
 *.log
 *.tsbuildinfo
+workflows/labo/essais/

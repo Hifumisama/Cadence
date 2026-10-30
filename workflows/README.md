@@ -176,3 +176,25 @@ retombe sur `VID_REF2VA.json` (voix non nettoyée).
   vidéo de test (voix nettoyée incluse) sort du nœud `18` (VHS_VideoCombine, `save_output` forcé à true par le worker : il est à false dans le
   fichier). Les ids sont dans `NODE_IDS_MASTER` (`worker/comfyui/masterMapping.ts`). Sans le fichier : repli sur `VID_REF2VA` + extraction ffmpeg.
 - **Chemin** : `COMFYUI_WORKFLOW_MASTER_PATH` (défaut `./workflows/audio/VID_Create_Voice_Master.json`).
+
+## Contrat de la vidéo en trois étapes (`video-generation/`, 2026-10-30)
+
+Remplace `VID_REF2VA.json` (une seule passe) une fois le worker basculé (`docs/PLAN_INTEGRATION_WORKER.md`). Validé de bout en bout par
+un script de simulation du worker (retiré avec le dossier `workflows/labo/` le 2026-10-31 ; `git show be6083b:workflows/labo/simuler-prod.mjs`) (6 min 24 pour 10 s). Les trois étapes se partagent un dossier de latents propre au rendu, sous
+`output/h3_latents/<dossier>/` : `gen/clip_00001.safetensors` (première passe) et `up/clip_00001.safetensors` (upscalé). Le chargeur retrouve un
+latent par dossier + `clip_index` ; `stock_format: true` pour le décoder ou le séparer, `false` pour alimenter Motion Context.
+
+| Workflow | Champs injectés par le worker | Sortie lue |
+|---|---|---|
+| `VID_Generation.json` | prompt `22:11` ; durée `22:23` ; résolution `22:9` (0,4 MP, verrouillée) ; seed `16` ; références (recréées autour du nœud `5`, comme `VID_REF2VA`) ; dossier du latent `302.filename_prefix` (`h3_latents/<dossier>/gen/clip`) | brouillon mp4 24 ips + audio : nœud `18` ; latent : nœud `302` |
+| `VID_UPSCALE.json` | **mêmes** prompt, durée, résolution et références que `VID_Generation` ; latent à charger `310.latent_path` (`h3_latents/<dossier>/gen`) ; seed `103` ; sauvegarde `303.filename_prefix` (`h3_latents/<dossier>/up/clip`) | aucun fichier : la fin du prompt dans `/history` (nœud `303`) |
+| `VID_Finition.json` | audio : `310.latent_path` (`…/gen`) ; image : `320.latent_path` (`…/up`) ; `34.filename_prefix` | mp4 final 1080p, 48 ips : nœud `34` |
+
+- L'audio du rendu final vient du latent de la **première passe** : la passe d'upscale régénère et accélère l'audio.
+- `VID_UPSCALE` refait le conditioning (modèle, CLIP, références) : le worker refuse un rendu final dont l'entrée n'est plus celle de la
+  prévisualisation (empreinte de l'entrée).
+- **Plan en suite** (Motion Context, 2026-10-30, non testé en réel) : deux variantes, choisies par le worker quand le plan précédent a gardé le latent de sa première
+  passe. `VID_Generation_suite.json` ajoute `301` (chargeur du latent du plan précédent : `latent_path` = `h3_latents/<dossier du précédent>/gen`, `stock_format: false`),
+  `303` (Motion Context, 22 images de contexte) dont le conditioning alimente le guider `125:14`, et `305` (Trim) qui rogne le brouillon `18`. `VID_Finition_suite.json`
+  ajoute `312` (Trim de 22 images, image et audio) avant RIFE et RTX. `VID_UPSCALE.json` est le même ; le latent du clip contient le préfixe de contexte, retiré à la
+  finition. Sans latent du précédent, le plan retombe sur l'image de raccord (`jobs.continuite` = `image`).

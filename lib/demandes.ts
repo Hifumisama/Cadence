@@ -29,7 +29,7 @@ export type ContexteIteration = {
   consigne: string;
   depuisNumero: number | null;
   /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits avec l'essai. */
-  reglages: { dureeGenerationSecondes?: number; fps?: number; megapixels?: number; seed?: string };
+  reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string };
   /** La tâche d'agent de l'étape courante (agent, puis plan-h3 d'une réécriture). */
   runUuid?: string;
   /** Le rendu créé, une fois la correction appliquée. */
