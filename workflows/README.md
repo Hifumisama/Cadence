@@ -180,7 +180,7 @@ retombe sur `VID_REF2VA.json` (voix non nettoyée).
 ## Contrat de la vidéo en trois étapes (`video-generation/`, 2026-10-30)
 
 Remplace `VID_REF2VA.json` (une seule passe) une fois le worker basculé (`docs/PLAN_INTEGRATION_WORKER.md`). Validé de bout en bout par
-`workflows/labo/simuler-prod.mjs` (6 min 24 pour 10 s). Les trois étapes se partagent un dossier de latents propre au rendu, sous
+un script de simulation du worker (retiré avec le dossier `workflows/labo/` le 2026-10-31 ; `git show be6083b:workflows/labo/simuler-prod.mjs`) (6 min 24 pour 10 s). Les trois étapes se partagent un dossier de latents propre au rendu, sous
 `output/h3_latents/<dossier>/` : `gen/clip_00001.safetensors` (première passe) et `up/clip_00001.safetensors` (upscalé). Le chargeur retrouve un
 latent par dossier + `clip_index` ; `stock_format: true` pour le décoder ou le séparer, `false` pour alimenter Motion Context.
 

@@ -1,7 +1,7 @@
 # Plan : intégrer la vidéo en trois étapes au worker (2026-10-30)
 
 Chantier ouvert après le labo (`docs/CAHIER_DE_TESTS.md`, journal du 2026-10-30). Les trois workflows (`workflows/video-generation/VID_Generation.json`,
-`VID_UPSCALE.json`, `VID_Finition.json`) sont validés de bout en bout par `workflows/labo/simuler-prod.mjs` ; il reste à les brancher sur le worker.
+`VID_UPSCALE.json`, `VID_Finition.json`) sont validés de bout en bout par un script de simulation du worker (retiré avec le dossier `workflows/labo/` le 2026-10-31 ; `git show be6083b:workflows/labo/simuler-prod.mjs`) ; il reste à les brancher sur le worker.
 Contrat des nœuds : `workflows/README.md`, section « Contrat de la vidéo en trois étapes ».
 
 ## Décisions (utilisateur, 2026-10-30)
