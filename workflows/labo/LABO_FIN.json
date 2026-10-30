@@ -100,7 +100,7 @@
       "resize_type": "target dimensions",
       "resize_type.width": 1920,
       "resize_type.height": 1080,
-      "quality": "HIGHBITRATE_ULTRA",
+      "quality": "ULTRA",
       "strength": 1.0,
       "image_encoding": "8-bit RGB"
     },

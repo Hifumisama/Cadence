@@ -61,6 +61,36 @@
       "title": "Start New Gen! (Click Button)"
     }
   },
+  "18": {
+    "inputs": {
+      "frame_rate": 24,
+      "loop_count": 0,
+      "filename_prefix": "prod_test_apercu",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": false,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "176",
+        0
+      ],
+      "audio": [
+        "177",
+        0
+      ],
+      "vae": [
+        "171:2",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  },
   "21": {
     "inputs": {
       "lora_name": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
@@ -82,7 +112,7 @@
         0
       ],
       "loop_count": 0,
-      "filename_prefix": "mm_20260926_001820",
+      "filename_prefix": "prod_test",
       "format": "video/h264-mp4",
       "pix_fmt": "yuv420p",
       "crf": 16,
@@ -91,7 +121,7 @@
       "pingpong": false,
       "save_output": true,
       "images": [
-        "165",
+        "311",
         0
       ],
       "audio": [
@@ -106,6 +136,15 @@
     "class_type": "VHS_VideoCombine",
     "_meta": {
       "title": "Final Video"
+    }
+  },
+  "103": {
+    "inputs": {
+      "seed": 576692826558885
+    },
+    "class_type": "easy seed",
+    "_meta": {
+      "title": "Reroll Upscale Pass"
     }
   },
   "106": {
@@ -191,7 +230,7 @@
       "batch_size": 8,
       "use_fp16": true,
       "images": [
-        "301",
+        "189",
         0
       ]
     },
@@ -266,6 +305,22 @@
       "title": "VAEDecodeAudio"
     }
   },
+  "189": {
+    "inputs": {
+      "samples": [
+        "135:26",
+        0
+      ],
+      "vae": [
+        "171:2",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "Final Decode"
+    }
+  },
   "193": {
     "inputs": {
       "chunks": 2,
@@ -305,6 +360,74 @@
     "class_type": "ModelAttentionBackend",
     "_meta": {
       "title": "Backend d’attention du modèle"
+    }
+  },
+  "222": {
+    "inputs": {
+      "sigmas": "0.9035, 0.6316, 0.3158, 0.0000"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "3 step Sigmas"
+    }
+  },
+  "224": {
+    "inputs": {
+      "any_01": [
+        "222",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Upscale Steps"
+    }
+  },
+  "242": {
+    "inputs": {
+      "av_latent": [
+        "125:12",
+        1
+      ]
+    },
+    "class_type": "LTXVSeparateAVLatent",
+    "_meta": {
+      "title": "Séparer le latent AV"
+    }
+  },
+  "243": {
+    "inputs": {
+      "model_name": "minimax_h3_latent_upscaler_3d_bf16.safetensors",
+      "mode": "scale by multiplier",
+      "mode.scale": 1.5,
+      "align": 32,
+      "enable_chunking": true,
+      "device": "cuda",
+      "precision": "fp16",
+      "latent": [
+        "242",
+        0
+      ]
+    },
+    "class_type": "MinimaxH3LatentUpscaler3D",
+    "_meta": {
+      "title": "Minimax H3 Latent Upscaler (3D)"
+    }
+  },
+  "244": {
+    "inputs": {
+      "video_latent": [
+        "243",
+        0
+      ],
+      "audio_latent": [
+        "242",
+        1
+      ]
+    },
+    "class_type": "LTXVConcatAVLatent",
+    "_meta": {
+      "title": "Concaténer le latent AV"
     }
   },
   "261": {
@@ -350,7 +473,7 @@
   },
   "171:4": {
     "inputs": {
-      "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "unet_name": "Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -505,70 +628,101 @@
       "title": "GuideBasique"
     }
   },
+  "135:30": {
+    "inputs": {
+      "sampler_name": "er_sde"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "135:27": {
+    "inputs": {
+      "noise_seed": [
+        "103",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "BruitAléatoire"
+    }
+  },
+  "135:26": {
+    "inputs": {
+      "noise": [
+        "135:27",
+        0
+      ],
+      "guider": [
+        "135:29",
+        0
+      ],
+      "sampler": [
+        "135:30",
+        0
+      ],
+      "sigmas": [
+        "224",
+        0
+      ],
+      "latent_image": [
+        "244",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "Upscale Pass"
+    }
+  },
+  "135:29": {
+    "inputs": {
+      "model": [
+        "106",
+        0
+      ],
+      "conditioning": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "GuideBasique"
+    }
+  },
+  "311": {
+    "inputs": {
+      "images": [
+        "165",
+        0
+      ],
+      "resize_type": "target dimensions",
+      "resize_type.width": 1920,
+      "resize_type.height": 1080,
+      "quality": "ULTRA",
+      "strength": 1.0,
+      "image_encoding": "8-bit RGB"
+    },
+    "class_type": "RTXVideoSuperResolution",
+    "_meta": {
+      "title": "RTX Video Super Resolution 1080p"
+    }
+  },
   "302": {
     "inputs": {
-      "model": "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
-      "device": "cuda:0",
-      "blocks_to_swap": 16,
-      "swap_io_components": false,
-      "offload_device": "cpu",
-      "cache_model": false,
-      "attention_mode": "sdpa"
-    },
-    "class_type": "SeedVR2LoadDiTModel",
-    "_meta": {
-      "title": "SeedVR2 DiT (3B fp8)"
-    }
-  },
-  "303": {
-    "inputs": {
-      "model": "ema_vae_fp16.safetensors",
-      "device": "cuda:0",
-      "encode_tiled": true,
-      "encode_tile_size": 1024,
-      "encode_tile_overlap": 128,
-      "decode_tiled": true,
-      "decode_tile_size": 768,
-      "decode_tile_overlap": 128,
-      "tile_debug": "false",
-      "offload_device": "cpu",
-      "cache_model": false
-    },
-    "class_type": "SeedVR2LoadVAEModel",
-    "_meta": {
-      "title": "SeedVR2 VAE"
-    }
-  },
-  "301": {
-    "inputs": {
-      "image": [
-        "176",
+      "latent": [
+        "125:12",
         0
       ],
-      "dit": [
-        "302",
-        0
-      ],
-      "vae": [
-        "303",
-        0
-      ],
-      "seed": 42,
-      "resolution": 1080,
-      "max_resolution": 0,
-      "batch_size": 21,
-      "uniform_batch_size": true,
-      "color_correction": "lab",
-      "temporal_overlap": 3,
-      "prepend_frames": 0,
-      "input_noise_scale": 0.0,
-      "latent_noise_scale": 0.0,
-      "offload_device": "cpu",
-      "enable_debug": false
+      "filename_prefix": "h3_latents/clip",
+      "clip_index": 1
     },
-    "class_type": "SeedVR2VideoUpscaler",
+    "class_type": "MiniMaxH3MotionContextSaveLatent",
     "_meta": {
-      "title": "SeedVR2 Video Upscaler (1080p)"
+      "title": "Sauvegarde du latent (première passe)"
     }
   }
 }
