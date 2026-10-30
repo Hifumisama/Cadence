@@ -98,10 +98,20 @@ test("le dossier de sauvegarde d'une étape est celui que la suivante recharge",
   const c = cheminsLatents(dossier);
   assert.equal(c.genPrefixe, `${c.genDossier}/clip`);
   assert.equal(c.upPrefixe, `${c.upDossier}/clip`);
-  const f = injecterFinition(finition, dossier, "cadence_p4_r2_final");
+  const f = injecterFinition(finition, dossier, dossier, "cadence_p4_r2_final");
   assert.equal(f[NODE_IDS_FINITION.latentAudio]!.inputs.latent_path, c.genDossier, "l'audio vient de la première passe");
   assert.equal(f[NODE_IDS_FINITION.latentImage]!.inputs.latent_path, c.upDossier, "l'image vient du latent upscalé");
   assert.equal(f[NODE_IDS_FINITION.sortie]!.inputs.filename_prefix, "cadence_p4_r2_final");
+});
+
+test("un rendu final qui part d'une prévisualisation charge ses latents chez elle et range les siens chez lui", () => {
+  const final = dossierLatents(4, 3);
+  const u = injecterUpscale(upscale, entree, dossier, final);
+  assert.equal(u[NODE_IDS_UPSCALE.latentCharge]!.inputs.latent_path, cheminsLatents(dossier).genDossier);
+  assert.equal(u[NODE_IDS_UPSCALE.latentSauve]!.inputs.filename_prefix, cheminsLatents(final).upPrefixe);
+  const f = injecterFinition(finition, dossier, final);
+  assert.equal(f[NODE_IDS_FINITION.latentAudio]!.inputs.latent_path, cheminsLatents(dossier).genDossier);
+  assert.equal(f[NODE_IDS_FINITION.latentImage]!.inputs.latent_path, cheminsLatents(final).upDossier);
 });
 
 test("dossierLatents : unique par plan, rendu et nouvelle tentative", () => {

@@ -1,9 +1,10 @@
 import "dotenv/config";
-import { avecUpscale, resolutionOuDefaut } from "../lib/resolution-video";
+import { LIBELLE_SOURCE_INVALIDE, MEGAPIXELS_VIDEO, etapesDuRendu, raisonSourceInvalide, type EtapeVideo } from "../lib/etapes-video";
+import { ficheChangeeDepuis } from "../lib/plans-perimes";
 import { BudgetContexte, contexteTotalDepuisEnv, estimerContexte } from "../lib/llm/budget-contexte";
 import { chargerSkill } from "../lib/llm/skills";
 import { join, resolve } from "node:path";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
@@ -16,9 +17,17 @@ import { assemblerPrompt } from "../lib/prompt";
 import { raccordSansPlace, sectionsAvecRaccord } from "../lib/plan-raccord";
 import { getAllParams } from "../lib/params";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
-import { attendreResultat } from "./attente";
+import { attendreResultat, type IssueAttente } from "./attente";
 import { creerClientComfyUI } from "./comfyui";
-import { ErreurEntreeInvalide, nomDistantDepuisChemin, verifierEntree } from "./comfyui/mapping";
+import { ErreurEntreeInvalide, nomDistantDepuisChemin, verifierEntree, type WorkflowJson } from "./comfyui/mapping";
+import {
+  NODE_IDS_FINITION,
+  NODE_IDS_GENERATION,
+  dossierLatents,
+  injecterFinition,
+  injecterGeneration,
+  injecterUpscale,
+} from "./comfyui/mappingTroisEtapes";
 import type { Suivi, SubmissionInput } from "./comfyui/types";
 import { creerRelaisJob } from "./progression";
 import { libererAvant } from "./gpu";
@@ -48,6 +57,14 @@ const DUREE_MAX_POLL_MS = 30 * 60_000; // un plan H3 ne devrait jamais dépasser
 
 const client = creerClientComfyUI();
 
+/** Les trois workflows de la vidéo (contrat : workflows/README.md). Chemins surchargeables ; relus à chaque étape (un fichier ré-exporté est pris tout de suite). */
+const CHEMINS_WORKFLOWS: Record<EtapeVideo, string> = {
+  generation: process.env.COMFYUI_WORKFLOW_GENERATION_PATH ?? "./workflows/video-generation/VID_Generation.json",
+  upscale: process.env.COMFYUI_WORKFLOW_UPSCALE_PATH ?? "./workflows/video-generation/VID_UPSCALE.json",
+  finition: process.env.COMFYUI_WORKFLOW_FINITION_PATH ?? "./workflows/video-generation/VID_Finition.json",
+};
+const chargerWorkflow = async (etape: EtapeVideo): Promise<WorkflowJson> => JSON.parse(await readFile(resolve(CHEMINS_WORKFLOWS[etape]), "utf-8"));
+
 async function prochainJobEnAttente() {
   const [job] = await db
     .select()
@@ -64,7 +81,8 @@ async function prochainJobEnAttente() {
 async function construireSubmissionInput(
   planId: number,
   activerUpscale: boolean,
-  megapixels: number,
+  /** Un rendu final qui reprend le latent d'une prévisualisation rejoue le raccord de celle-ci (`undefined` : celui d'aujourd'hui ; `null` : aucun). */
+  raccordImpose?: number | null,
 ): Promise<{ input: SubmissionInput; promptFiche: string; raccordJobId: number | null; plan: typeof plans.$inferSelect }> {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) throw new Error(`Plan ${planId} introuvable`);
@@ -112,7 +130,7 @@ async function construireSubmissionInput(
     .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) }));
 
   // Liaison « suite » : la dernière image du rendu du plan précédent devient la première image du premier shot (éphémère, lib/plan-raccord.ts).
-  const raccord = await preparerRaccord(plan, refsImage.map((r) => r.slot), refsVideo.length);
+  const raccord = await preparerRaccord(plan, refsImage.map((r) => r.slot), refsVideo.length, raccordImpose);
 
   return {
     promptFiche,
@@ -127,7 +145,7 @@ async function construireSubmissionInput(
       refsAudio: [...audioVoix, ...audioBruitages],
       refsVideo,
       activerUpscale,
-      megapixels,
+      megapixels: MEGAPIXELS_VIDEO,
     },
   };
 }
@@ -172,7 +190,22 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
   };
 
   try {
-    const { input, promptFiche, raccordJobId, plan: lePlan } = await construireSubmissionInput(job.planId, job.activerUpscale, resolutionOuDefaut(job.megapixels));
+    // Les étapes de CE rendu (docs/PLAN_INTEGRATION_WORKER.md) : une prévisualisation est la génération ; un rendu final est l'upscale puis la finition, et
+    // repart du latent de la prévisualisation retenue tant que la fiche n'a pas changé depuis (sinon le plan est régénéré d'abord : c'est le choix de
+    // celui qui l'a mis dans le lot).
+    const [source] = job.activerUpscale && job.jobSourceId != null ? await db.select().from(jobs).where(eq(jobs.id, job.jobSourceId)) : [];
+    const ficheModifiee = source ? await ficheChangeeDepuis(job.planId, source) : false;
+    // Seule une prévisualisation a un latent de première passe à reprendre (les latents d'un rendu final sont ceux de l'upscale).
+    const raisonSource = raisonSourceInvalide(source ? { statut: source.statut, latentDossier: source.activerUpscale ? null : source.latentDossier } : null, ficheModifiee);
+    const etapes = etapesDuRendu(job.activerUpscale, raisonSource === null);
+    if (job.activerUpscale && raisonSource) {
+      console.log(`[worker] Job ${job.id} (plan ${job.planId}) : ${LIBELLE_SOURCE_INVALIDE[raisonSource]} : le plan est régénéré avant l'upscale`);
+    }
+    const depuisSource = etapes[0] !== "generation";
+    const dossierPropre = dossierLatents(job.planId, job.numeroRendu, job.tentative);
+    const dossierGen = depuisSource ? source!.latentDossier! : dossierPropre;
+
+    const { input, promptFiche, raccordJobId, plan: lePlan } = await construireSubmissionInput(job.planId, job.activerUpscale, depuisSource ? source!.raccordJobId : undefined);
     // Un préfixe de fichier propre à ce rendu : plus de collision de noms, ni de résultat en cache servi à un autre rendu.
     input.prefixeSortie = `cadence_p${job.planId}_r${job.numeroRendu}${job.tentative > 1 ? `_t${job.tentative}` : ""}`;
     verifierEntree(input); // durée hors 5-10 s, trop de références : échec franc (voir catch)
@@ -191,6 +224,9 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
         dureeUtilisee: input.dureeSecondes,
         seedUtilisee: input.seed ?? null,
         descriptionUtilisee: lePlan.description ?? null,
+        // Le dossier où ce rendu range ses latents (la première passe d'une prévisualisation, l'upscale d'un rendu final) ; la prévisualisation reprise, si elle l'est.
+        latentDossier: dossierPropre,
+        jobSourceId: depuisSource ? job.jobSourceId : null,
         ...(alertes ? { alertesIteration: alertes } : {}),
       })
       .where(eq(jobs.id, job.id));
@@ -201,35 +237,59 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
       }
     }
 
-    // Le WebSocket s'ouvre AVANT la soumission ; il ne décide de rien (le résultat vient de /history) : il ne sert qu'à
-    // montrer l'étape en cours. S'il tombe ou n'existe pas (stub), le rendu se déroule sans progression.
     relais = creerRelaisJob(job.id);
     const relaisActif = relais;
-    suivi = await client.ouvrirSuivi((e) => relaisActif.surEvenement(e)).catch(() => null);
-    promptId = await client.submit(input);
-    await db.update(jobs).set({ comfyuiPromptId: promptId }).where(eq(jobs.id, job.id));
-
     // La sonde du drapeau réveille l'attente entre deux interrogations de /history :
     // une annulation n'attend pas les 5 s du rythme normal.
     surveillance = surveillerAnnulation(() => annulationDemandeeVideo(job.id));
-    const idPrompt = promptId;
-    const resultat = await attendreResultat({
-      suivi,
-      promptId: idPrompt,
-      delaiMs: DUREE_MAX_POLL_MS,
-      intervalleMs: INTERVALLE_POLL_MS,
-      lire: () => client.poll(idPrompt),
-      surveillance,
-    });
-    if (resultat === "annulee") return await annuler();
-    if (resultat === "delai") {
-      await gererEchecReel(job, "Délai de génération dépassé (30 min)");
-      return true;
+
+    // Un prompt par étape. Le dernier donne le fichier du rendu (le brouillon d'une prévisualisation, la vidéo finale d'un rendu final) ; les autres
+    // n'ont pas de fichier à récupérer (latent sauvegardé sur ComfyUI) : leur fin se lit dans /history.
+    const grapheDe = async (etape: EtapeVideo): Promise<WorkflowJson> => {
+      const workflow = await chargerWorkflow(etape);
+      if (etape === "generation") {
+        // Dans un rendu final qui régénère, le brouillon n'est pas le résultat : son préfixe le distingue de la vidéo finale.
+        const prefixe = job.activerUpscale ? `brouillon_${input.prefixeSortie}` : input.prefixeSortie;
+        return injecterGeneration(workflow, { ...input, prefixeSortie: prefixe }, dossierPropre);
+      }
+      if (etape === "upscale") return injecterUpscale(workflow, input, dossierGen, dossierPropre);
+      return injecterFinition(workflow, dossierGen, dossierPropre, input.prefixeSortie);
+    };
+    const nodeSortie = job.activerUpscale ? NODE_IDS_FINITION.sortie : NODE_IDS_GENERATION.apercu;
+
+    let resultat: Extract<IssueAttente, { statut: "termine" }> | null = null;
+    for (const [i, etape] of etapes.entries()) {
+      const graphe = await grapheDe(etape);
+      relaisActif.definirEtape(i + 1, etapes.length);
+      // Le WebSocket s'ouvre AVANT la soumission ; il ne décide de rien (le résultat vient de /history) : il ne sert qu'à
+      // montrer l'étape en cours. S'il tombe ou n'existe pas (stub), le rendu se déroule sans progression.
+      suivi?.fermer();
+      suivi = await client.ouvrirSuivi((e) => relaisActif.surEvenement(e)).catch(() => null);
+      promptId = await client.submitGraph(graphe);
+      await db.update(jobs).set({ comfyuiPromptId: promptId }).where(eq(jobs.id, job.id));
+
+      const idPrompt = promptId;
+      const dernier = i === etapes.length - 1;
+      const issue = await attendreResultat({
+        suivi,
+        promptId: idPrompt,
+        delaiMs: DUREE_MAX_POLL_MS,
+        intervalleMs: INTERVALLE_POLL_MS,
+        lire: () => (dernier ? client.pollImage(idPrompt, nodeSortie) : client.pollFin(idPrompt)),
+        surveillance,
+      });
+      if (issue === "annulee") return await annuler();
+      if (issue === "delai") {
+        await gererEchecReel(job, `Délai de génération dépassé (30 min, étape ${etape})`);
+        return true;
+      }
+      if (issue.statut === "erreur") {
+        await gererEchecReel(job, `Étape ${etape} : ${issue.message}`);
+        return true;
+      }
+      resultat = issue;
     }
-    if (resultat.statut === "erreur") {
-      await gererEchecReel(job, resultat.message);
-      return true;
-    }
+    if (!resultat) throw new Error("Rendu sans étape");
 
     const dossierPlan = join(MEDIA_ROOT, "plans", String(job.planId));
     await mkdir(dossierPlan, { recursive: true });
@@ -352,7 +412,7 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
   const choix = choisirProchaineTache(candidates);
   if (!choix) return false;
   const domaine = domaineDe(choix.genre);
-  const upscale = choix.genre === "video" && avecUpscale(job!.activerUpscale, job!.megapixels);
+  const upscale = choix.genre === "video" && job!.activerUpscale;
   // La création d'un projet (2026-10-19) : le gros modèle de l'installateur tient en VRAM, ComfyUI ne doit pas être chargé. Ses appels
   // prennent la carte seule (les tâches en cours finissent, rien ne démarre à côté) et ComfyUI est libéré avant le premier.
   const creation = choix.genre === "llm" && (await projetEnCreation(run!.projectId));

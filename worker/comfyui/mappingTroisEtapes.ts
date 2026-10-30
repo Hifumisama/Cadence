@@ -1,3 +1,4 @@
+import { MEGAPIXELS_VIDEO } from "../../lib/etapes-video";
 import { injecterReferences, verifierEntree, type WorkflowJson } from "./mapping";
 import type { SubmissionInput } from "./types";
 
@@ -9,8 +10,7 @@ import type { SubmissionInput } from "./types";
  * (upscalé). La génération et l'upscale reçoivent la MÊME entrée (prompt, durée, références) : l'upscale refait le conditioning du modèle.
  */
 
-/** Résolution de la génération : verrouillée à 0,4 MP (décision du 2026-10-29). */
-export const MEGAPIXELS_VIDEO = 0.4;
+export { MEGAPIXELS_VIDEO };
 
 /** Les nœuds de saisie que la génération et l'upscale ont en commun (mêmes ids dans les deux fichiers). */
 const NOEUDS_ENTREE = {
@@ -87,28 +87,27 @@ export function injecterGeneration(workflow: WorkflowJson, input: SubmissionInpu
   return graphe;
 }
 
-/** Étape 2 : upscale ×1,5 du latent de la prévisualisation `dossier` ; sauvegarde le latent upscalé sous le même dossier. */
-export function injecterUpscale(workflow: WorkflowJson, input: SubmissionInput, dossier: string): WorkflowJson {
+/** Étape 2 : upscale ×1,5 du latent de la première passe rangé sous `dossierSource` ; le latent upscalé est sauvegardé sous `dossierSortie` (celui du rendu
+ * final : un rendu final qui part d'une prévisualisation ne réécrit jamais ses dossiers). */
+export function injecterUpscale(workflow: WorkflowJson, input: SubmissionInput, dossierSource: string, dossierSortie: string = dossierSource): WorkflowJson {
   const graphe = structuredClone(workflow);
   injecterEntree(graphe, input, NODE_IDS_UPSCALE);
   const seed = numeroSeed(input.seed);
   if (seed != null) noeud(graphe, NODE_IDS_UPSCALE.seed, "seed de l'upscale").inputs.seed = seed;
-  const chemins = cheminsLatents(dossier);
   const charge = noeud(graphe, NODE_IDS_UPSCALE.latentCharge, "chargement du latent").inputs;
-  charge.latent_path = chemins.genDossier;
+  charge.latent_path = cheminsLatents(dossierSource).genDossier;
   charge.clip_index = 1;
   const sauve = noeud(graphe, NODE_IDS_UPSCALE.latentSauve, "sauvegarde du latent upscalé").inputs;
-  sauve.filename_prefix = chemins.upPrefixe;
+  sauve.filename_prefix = cheminsLatents(dossierSortie).upPrefixe;
   sauve.clip_index = 1;
   return graphe;
 }
 
-/** Étape 3 : finition (RIFE, RTX 1080p) : l'image du latent upscalé, l'audio du latent de la première passe. */
-export function injecterFinition(workflow: WorkflowJson, dossier: string, prefixeSortie?: string): WorkflowJson {
+/** Étape 3 : finition (RIFE, RTX 1080p) : l'image du latent upscalé (rangé sous `dossierUp`), l'audio du latent de la première passe (sous `dossierGen`). */
+export function injecterFinition(workflow: WorkflowJson, dossierGen: string, dossierUp: string, prefixeSortie?: string): WorkflowJson {
   const graphe = structuredClone(workflow);
-  const chemins = cheminsLatents(dossier);
-  noeud(graphe, NODE_IDS_FINITION.latentAudio, "latent de l'audio").inputs.latent_path = chemins.genDossier;
-  noeud(graphe, NODE_IDS_FINITION.latentImage, "latent de l'image").inputs.latent_path = chemins.upDossier;
+  noeud(graphe, NODE_IDS_FINITION.latentAudio, "latent de l'audio").inputs.latent_path = cheminsLatents(dossierGen).genDossier;
+  noeud(graphe, NODE_IDS_FINITION.latentImage, "latent de l'image").inputs.latent_path = cheminsLatents(dossierUp).upDossier;
   if (prefixeSortie) noeud(graphe, NODE_IDS_FINITION.sortie, "sortie finale").inputs.filename_prefix = prefixeSortie;
   return graphe;
 }

@@ -1,9 +1,9 @@
-import { and, eq, max } from "drizzle-orm";
+import { and, desc, eq, isNotNull, max } from "drizzle-orm";
 import { db } from "../db";
 import { jobs, plans } from "../db/schema";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "./plan-checks";
 import type { Tx } from "./ordre-plans";
-import { rendFinal, resolutionOuDefaut } from "./resolution-video";
+import { MEGAPIXELS_VIDEO } from "./etapes-video";
 
 /** Le plan dépasse la durée qu'un rendu accepte : aucun essai n'est créé. */
 export class DureePlanInvalide extends Error {}
@@ -18,7 +18,7 @@ export async function creerJobRelance(
   planId: number,
   activerUpscale: boolean,
   nouvelleVariante = false,
-  options: { consigne?: string | null; depuisNumero?: number | null; garderPret?: boolean; alertesIteration?: string[]; demandeId?: number } = {},
+  options: { consigne?: string | null; depuisNumero?: number | null; garderPret?: boolean; alertesIteration?: string[]; demandeId?: number; sourceJobId?: number } = {},
   /** Une transaction en cours (« Itérer » : application de la correction + création de l'essai, tout ou rien). */
   exec: typeof db | Tx = db,
 ) {
@@ -35,16 +35,29 @@ export async function creerJobRelance(
   const seed = nouvelleVariante || !plan.seed ? tirerSeed() : plan.seed;
   const [rendus] = await exec.select({ dernier: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, plan.id));
 
+  // Un rendu final repart du latent d'une prévisualisation : celle qu'on a explicitement choisie, sinon la prévisualisation RETENUE du plan, sinon sa
+  // dernière prévisualisation terminée qui a gardé son latent. Le worker vérifie à l'exécution qu'elle est encore valable (la fiche n'a pas changé) ;
+  // sans source valable, il régénère le plan avant l'upscale.
+  let sourceJobId = options.sourceJobId ?? null;
+  if (activerUpscale && sourceJobId == null) {
+    const preview = and(eq(jobs.planId, plan.id), eq(jobs.statut, "termine"), eq(jobs.activerUpscale, false), isNotNull(jobs.latentDossier));
+    const [retenu] = plan.renduRetenuId != null ? await exec.select({ id: jobs.id }).from(jobs).where(and(preview, eq(jobs.id, plan.renduRetenuId))) : [];
+    const [dernier] = retenu ? [] : await exec.select({ id: jobs.id }).from(jobs).where(preview).orderBy(desc(jobs.id)).limit(1);
+    sourceJobId = (retenu ?? dernier)?.id ?? null;
+  }
+
   await exec.insert(jobs).values({
     planId: plan.id,
     statut: "en_attente",
     tentative: 1,
     numeroRendu: (rendus?.dernier ?? 0) + 1,
-    workflowFichier: "video-generation/VID_REF2VA.json",
+    // Vidéo en trois étapes (docs/PLAN_INTEGRATION_WORKER.md) : une prévisualisation est la génération à 0,4 MP ; un rendu final est l'upscale puis la
+    // finition, précédés de la génération si la prévisualisation retenue (`jobSourceId`) n'est plus valable (décidé par le worker à l'exécution).
+    workflowFichier: activerUpscale ? "video-generation/VID_UPSCALE.json + VID_Finition.json" : "video-generation/VID_Generation.json",
     seedUtilisee: seed,
-    // Au-delà de la résolution de base, le rendu est directement final (natif, sans prévisualisation ni upscale : lib/resolution-video.ts).
-    activerUpscale: rendFinal(activerUpscale, plan.megapixels),
-    megapixels: resolutionOuDefaut(plan.megapixels),
+    activerUpscale,
+    megapixels: MEGAPIXELS_VIDEO,
+    jobSourceId: activerUpscale ? sourceJobId : null,
     consigne: options.consigne?.trim() || null,
     depuisNumeroRendu: options.depuisNumero ?? null,
     alertesIteration: options.alertesIteration?.length ? options.alertesIteration : null,

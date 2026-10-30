@@ -106,7 +106,7 @@ export async function rendreFinalAvecRendu(planId: number, jobId: number, restau
   if (!r.ok) return r;
   const [plan] = await db.select({ retenu: plans.renduRetenuId }).from(plans).where(eq(plans.id, planId));
   try {
-    await creerJobRelance(planId, true, false, { garderPret: plan?.retenu === jobId });
+    await creerJobRelance(planId, true, false, { garderPret: plan?.retenu === jobId, sourceJobId: jobId });
   } catch (e) {
     if (e instanceof DureePlanInvalide) return { ok: false, erreur: e.message };
     throw e;
@@ -677,10 +677,10 @@ export async function supprimerEssai(planId: number, jobId: number): Promise<{ o
   return { ok: true, fichierSupprime };
 }
 
-/** « Lancer l'upscale » (tous les plans prêts) : pour chaque plan prêt, reprend la seed, la durée et le prompt de son essai RETENU
- * (même seed + même prompt + mêmes références + même durée = même résultat, F04) puis lance le rendu final. Le plan reste prêt.
- * Sont sautés : un plan déjà en file, dont l'essai retenu est déjà un rendu final ou une vidéo importée (sans seed), ou aux dialogues
- * désalignés. */
+/** « Lancer l'upscale » (tous les plans prêts) : pour chaque plan prêt, lance le rendu final à partir de son essai RETENU (le latent de cette
+ * prévisualisation : `sourceJobId`). Si la fiche a changé depuis, le worker régénère le plan avec sa fiche d'aujourd'hui avant l'upscale (choisir un
+ * plan dans le lot, c'est l'accepter). Le plan reste prêt. Sont sautés : un plan déjà en file, dont l'essai retenu est déjà un rendu final ou une
+ * vidéo importée (sans seed), ou aux dialogues désalignés. */
 export async function lancerUpscaleEpisode(episodeId: number): Promise<{ n: number; dejaFinal: number; dejaEnFile: number; bloques: number; nonPrets: number }> {
   const lignes = await db.select().from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id);
   const res = { n: 0, dejaFinal: 0, dejaEnFile: 0, bloques: 0, nonPrets: 0 };
@@ -704,12 +704,13 @@ export async function lancerUpscaleEpisode(episodeId: number): Promise<{ n: numb
       res.dejaFinal++;
       continue;
     }
-    const r = await appliquerRendu(p.id, retenu.id, !!retenu.promptUtilise);
-    if (!r.ok) {
+    // Pas de restauration du prompt du rendu retenu (2026-10-30) : un plan modifié depuis sa prévisualisation que l'on met dans le lot est régénéré avec sa
+    // fiche d'aujourd'hui (le worker le décide à l'exécution), il n'est plus remis dans l'état de la prévisualisation.
+    if (raisonNonRetenable({ id: retenu.id, numeroRendu: retenu.numeroRendu, statut: retenu.statut, cheminSortie: retenu.cheminSortie, seedUtilisee: retenu.seedUtilisee, dureeUtilisee: retenu.dureeUtilisee, promptUtilise: retenu.promptUtilise, activerUpscale: retenu.activerUpscale, importe: retenu.workflowFichier === WORKFLOW_IMPORT_MANUEL })) {
       res.bloques++;
       continue;
     }
-    if (!(await relancerSiPossible(p.id, true, false, { depuisNumero: retenu.numeroRendu, garderPret: true }))) {
+    if (!(await relancerSiPossible(p.id, true, false, { depuisNumero: retenu.numeroRendu, garderPret: true, sourceJobId: retenu.id }))) {
       res.bloques++;
       continue;
     }

@@ -96,3 +96,27 @@ export async function nbPlansRendusCitant(assetId: number): Promise<number> {
     .where(and(inArray(jobs.planId, ids), eq(jobs.statut, "termine")));
   return rendus.length;
 }
+
+/** La fiche du plan a-t-elle changé depuis CE rendu (la prévisualisation dont un rendu final voudrait reprendre le latent) ? Mêmes règles que `getPlansPerimes`
+ * (une référence remplacée depuis le début du rendu, le prompt ou la durée différents de ceux soumis), plus la seed : l'upscale refait le conditioning du modèle
+ * avec la fiche d'aujourd'hui, qui doit être celle de la prévisualisation. */
+export async function ficheChangeeDepuis(
+  planId: number,
+  rendu: { startedAt: Date | null; createdAt: Date; promptUtilise: string | null; dureeUtilisee: number | null; seedUtilisee: string | null },
+): Promise<boolean> {
+  const [plan] = await db.select({ duree: plans.dureeGenerationSecondes, seed: plans.seed }).from(plans).where(eq(plans.id, planId));
+  if (!plan) return true;
+  if (plan.seed != null && rendu.seedUtilisee != null && plan.seed !== rendu.seedUtilisee) return true;
+
+  const debut = rendu.startedAt ?? rendu.createdAt;
+  const refs = await db
+    .select({ fichierAt: assets.fichierAt })
+    .from(planRefs)
+    .innerJoin(assets, eq(planRefs.assetId, assets.id))
+    .where(and(eq(planRefs.planId, planId), isNotNull(assets.fichierAt)));
+  if (refs.some((r) => r.fichierAt != null && r.fichierAt > debut)) return true;
+
+  const sections = await db.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, planId));
+  const prompt = sections.some((s) => s.contenu.trim() !== "") ? assemblerPrompt(sections) : null;
+  return raisonsContenuPerime({ prompt, duree: plan.duree ?? null }, rendu).length > 0;
+}
