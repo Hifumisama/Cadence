@@ -5,7 +5,7 @@
 //
 // Sans --dossier, un dossier neuf est créé (output/h3_latents/<dossier>/gen et /up). Pour reprendre une étape seule
 // (par ex. relancer fin), repasser le même --dossier.
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -73,7 +73,27 @@ async function lancer(nom) {
   }
 }
 
+// Envoie dans le `input` de ComfyUI les fichiers de workflows/labo/essais/ qu'il n'a pas déjà (jamais d'écrasement).
+async function envoyerEssais() {
+  const noms = (await readdir(join(ici, "essais"))).filter((n) => !n.startsWith("."));
+  for (const nom of noms) {
+    const existe = await fetch(`${url}/view?${new URLSearchParams({ filename: nom, type: "input" })}`, { method: "HEAD" });
+    if (existe.ok) {
+      console.log(`essai    ${nom} : déjà présent`);
+      continue;
+    }
+    const form = new FormData();
+    form.append("image", new Blob([await readFile(join(ici, "essais", nom))]), nom);
+    form.append("type", "input");
+    form.append("overwrite", "false");
+    const res = await fetch(`${url}/upload/image`, { method: "POST", body: form });
+    if (!res.ok) throw new Error(`envoi de ${nom} refusé : ${res.status} ${(await res.text()).slice(0, 300)}`);
+    console.log(`essai    ${nom} : envoyé`);
+  }
+}
+
 console.log(`dossier ${dossier}, seed ${seed}, étapes ${etapes.join(" → ")}`);
+if (!process.argv.includes("--sans-envoi")) await envoyerEssais();
 let total = 0;
 for (const nom of etapes) total += await lancer(nom);
 console.log(`total    ${String(total).padStart(4)} s   (chaîne en une passe, mesurée : 433 s)`);

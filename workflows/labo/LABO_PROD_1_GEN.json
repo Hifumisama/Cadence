@@ -93,7 +93,7 @@
   },
   "123": {
     "inputs": {
-      "image": "CHAR_Tifa.png",
+      "image": "CHAR_tifa_lockhart.png",
       "crop": "",
       "max_megapixels": 1
     },
@@ -104,7 +104,7 @@
   },
   "151": {
     "inputs": {
-      "image": "DEC_Ruelle_Secteur7.png",
+      "image": "DEC_rues_de_midgar.png",
       "crop": "",
       "max_megapixels": 1
     },
@@ -115,7 +115,7 @@
   },
   "152": {
     "inputs": {
-      "image": "CHAR_Soldat_Shinra.png",
+      "image": "CHAR_soldat_de_shinra.png",
       "crop": "",
       "max_megapixels": 1
     },
