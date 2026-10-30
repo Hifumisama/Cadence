@@ -512,6 +512,13 @@
       "when": 1795712400000,
       "tag": "0072_resolution_video",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1795798800000,
+      "tag": "0073_video_trois_etapes",
+      "breakpoints": true
     }
   ]
 }

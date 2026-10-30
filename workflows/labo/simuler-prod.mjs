@@ -1,4 +1,4 @@
-// Simule le worker : enchaîne LABO_PROD_1_GEN, _2_UPSCALE et _3_FIN sur un ComfyUI, en injectant les champs du contrat
+// Simule le worker : enchaîne VID_Generation, VID_UPSCALE et VID_Finition sur un ComfyUI, en injectant les champs du contrat
 // (dossier des latents, graine) et en chronométrant chaque étape.
 //
 //   COMFYUI_URL=http://<hôte>:8188 node workflows/labo/simuler-prod.mjs [--seed 123] [--etapes gen,upscale,fin] [--dossier sim_xxx]
@@ -44,7 +44,7 @@ const injections = {
     g["34"].inputs.filename_prefix = `prod_fin_${dossier}`;
   },
 };
-const fichiers = { gen: "LABO_PROD_1_GEN.json", upscale: "LABO_PROD_2_UPSCALE.json", fin: "LABO_PROD_3_FIN.json" };
+const fichiers = { gen: "../video-generation/VID_Generation.json", upscale: "../video-generation/VID_UPSCALE.json", fin: "../video-generation/VID_Finition.json" };
 
 async function lancer(nom) {
   const graphe = await charger(fichiers[nom]);

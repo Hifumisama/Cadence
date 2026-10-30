@@ -20,13 +20,15 @@ se retrouvent dans l'historique git (`git log -- workflows/labo/`, dernier état
   `MiniMaxH3MotionContextTrim` retire le préfixe de contexte de la vidéo et de l'audio. Le prompt de `GEN_suite` est
   celui de la suite du combat.
 
-## Simulation de la prod (en cours, non lancée)
+## Simulation de la prod (validée le 2026-10-30)
+
+Les trois workflows ont été promus dans `workflows/video-generation/` (contrat dans `workflows/README.md`) ; le script les lit de là.
 
 La chaîne retenue découpée en trois étapes, comme le worker les lancera, pour valider le contrat avant de toucher à l'app.
 
-- **`LABO_PROD_1_GEN.json`** : prompt, références, seed → brouillon 0,4 MP + latent de la première passe (`302`, sous `h3_latents/<dossier>/gen`).
-- **`LABO_PROD_2_UPSCALE.json`** : recharge ce latent (`310`, `stock_format: true`), upscale ×1,5 (graine `103`), sauvegarde le latent upscalé (`303`, sous `h3_latents/<dossier>/up`). Il refait le conditioning (modèle, CLIP, références, prompt) : le prompt et les références doivent être identiques à ceux de GEN.
-- **`LABO_PROD_3_FIN.json`** : sans modèle de diffusion. L'image vient du latent upscalé (`320`), **l'audio du latent de la première passe** (`310`), puis RIFE 48 ips, RTX 1080p, vidéo finale.
+- **`VID_Generation.json`** (dans `../video-generation/`) : prompt, références, seed → brouillon 0,4 MP + latent de la première passe (`302`, sous `h3_latents/<dossier>/gen`).
+- **`VID_UPSCALE.json`** : recharge ce latent (`310`, `stock_format: true`), upscale ×1,5 (graine `103`), sauvegarde le latent upscalé (`303`, sous `h3_latents/<dossier>/up`). Il refait le conditioning (modèle, CLIP, références, prompt) : le prompt et les références doivent être identiques à ceux de GEN.
+- **`VID_Finition.json`** : sans modèle de diffusion. L'image vient du latent upscalé (`320`), **l'audio du latent de la première passe** (`310`), puis RIFE 48 ips, RTX 1080p, vidéo finale.
 - **`simuler-prod.mjs`** : joue le worker (`COMFYUI_URL=http://<hôte>:8188 node workflows/labo/simuler-prod.mjs`), injecte dossier et graine, enchaîne les étapes et les chronomètre ; `--etapes upscale,fin --dossier <nom>` reprend une étape seule.
 
 À vérifier au premier passage : que le chargeur retrouve bien `clip_00001` dans le dossier donné ; que le latent rechargé passe dans `LTXVSeparateAVLatent` ; que le résultat équivaut à la chaîne en une passe (`LABO_PROD_test`, même seed) ; la somme des temps (les rechargements de modèles comptent, `--cache-none`) face aux 7 min 13.
