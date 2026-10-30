@@ -7,7 +7,7 @@ import { appliquerIterationEtGenerer, ecrireSections, figerEtLancer } from "@/ap
 const PANNEAUX_GEL = ["fp-console", "fp-refs", "fp-prompt"];
 const DUREE_SCEAU_MS = 5000;
 
-type Serveur = { sections: Record<string, string>; duree: number; fps: number; megapixels: number; seed: string | null };
+type Serveur = { sections: Record<string, string>; duree: number; fps: number; seed: string | null };
 export type ModeRendu = "previsualiser" | "final" | "variante";
 export type EssaiLance = { consigne?: string | null; depuisNumero?: number | null };
 export type ResultatLancement = { ok: true; numeroRendu: number } | { ok: false; erreur: string };
@@ -24,11 +24,9 @@ type Ctx = {
   duree: number;
   fps: number;
   /** Résolution du prochain rendu (0,2 / 0,3 / 0,4 MP : lib/resolution-video.ts). */
-  megapixels: number;
   seed: string | null;
   setDuree: (v: number) => void;
   setFps: (v: number) => void;
-  setMegapixels: (v: number) => void;
   setSeed: (v: string) => void;
   /** Libellés de ce qui diffère du plan figé (« 2 sections », « durée »…) ; vide = tout est figé. */
   modifications: string[];
@@ -41,7 +39,7 @@ type Ctx = {
   /** Applique la correction de l'agent et crée l'essai en une transaction (« Itérer », « Appliquer et générer »). */
   lancerIteration: (propositionUuid: string, essai: { consigne: string | null; depuisNumero: number | null }) => Promise<ResultatIteration>;
   /** Les réglages retouchés à la main (durée, FPS, seed), que « Itérer » confie à sa demande (écrits avec l'essai). */
-  reglagesRetouches: () => { dureeGenerationSecondes?: number; fps?: number; megapixels?: number; seed?: string };
+  reglagesRetouches: () => { dureeGenerationSecondes?: number; fps?: number; seed?: string };
   /** L'essai d'une demande vient de partir (rendu créé) : même accusé qu'un lancement (balayage « gel », sceau, brouillon remis au serveur). */
   accuserLancement: (numeroRendu: number) => void;
   /** Écrit les sections modifiées, exécute `fn`, puis reprend le contenu du serveur : pour les gestes qui réécrivent le
@@ -79,7 +77,6 @@ export function BrouillonProvider({
   const [sections, setSections] = useState<Record<string, string>>({});
   const [duree, setDureeBrut] = useState<number | null>(null);
   const [fps, setFpsBrut] = useState<number | null>(null);
-  const [megapixels, setMegapixelsBrut] = useState<number | null>(null);
   const [seed, setSeedBrut] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [sceau, setSceau] = useState<number | null>(null);
@@ -88,7 +85,6 @@ export function BrouillonProvider({
 
   const dureeVue = duree ?? serveur.duree;
   const fpsVue = fps ?? serveur.fps;
-  const megapixelsVue = megapixels ?? serveur.megapixels;
   const seedVue = seed ?? serveur.seed;
 
   const sectionModifiee = useCallback(
@@ -104,7 +100,6 @@ export function BrouillonProvider({
   );
   const dureeModifiee = dureeVue !== serveur.duree;
   const fpsModifie = fpsVue !== serveur.fps;
-  const megapixelsModifie = megapixelsVue !== serveur.megapixels;
   const seedModifiee = seed != null && seed !== serveur.seed;
 
   const modifications = useMemo(() => {
@@ -112,16 +107,14 @@ export function BrouillonProvider({
     if (modifiees.length) m.push(`${modifiees.length} section${modifiees.length > 1 ? "s" : ""}`);
     if (dureeModifiee) m.push("durée");
     if (fpsModifie) m.push("FPS");
-    if (megapixelsModifie) m.push("résolution");
     if (seedModifiee) m.push("seed");
     return m;
-  }, [modifiees.length, dureeModifiee, fpsModifie, megapixelsModifie, seedModifiee]);
+  }, [modifiees.length, dureeModifiee, fpsModifie, seedModifiee]);
 
   const nettoyer = () => {
     setSections({});
     setDureeBrut(null);
     setFpsBrut(null);
-    setMegapixelsBrut(null);
     setSeedBrut(null);
   };
 
@@ -136,7 +129,6 @@ export function BrouillonProvider({
         sections: brouillonModifie(),
         ...(dureeModifiee ? { dureeGenerationSecondes: dureeVue } : {}),
         ...(fpsModifie ? { fps: fpsVue } : {}),
-        ...(megapixelsModifie ? { megapixels: megapixelsVue } : {}),
         ...(seedModifiee && seedVue ? { seed: seedVue } : {}),
       },
       mode,
@@ -173,7 +165,6 @@ export function BrouillonProvider({
     const r = await appliquerIterationEtGenerer(planId, propositionUuid, essai, {
       ...(dureeModifiee ? { dureeGenerationSecondes: dureeVue } : {}),
       ...(fpsModifie ? { fps: fpsVue } : {}),
-      ...(megapixelsModifie ? { megapixels: megapixelsVue } : {}),
       ...(seedModifiee && seedVue ? { seed: seedVue } : {}),
     });
     if (!r.ok) {
@@ -188,7 +179,6 @@ export function BrouillonProvider({
   const reglagesRetouches = () => ({
     ...(dureeModifiee ? { dureeGenerationSecondes: dureeVue } : {}),
     ...(fpsModifie ? { fps: fpsVue } : {}),
-    ...(megapixelsModifie ? { megapixels: megapixelsVue } : {}),
     ...(seedModifiee && seedVue ? { seed: seedVue } : {}),
   });
 
@@ -233,11 +223,9 @@ export function BrouillonProvider({
     nbSectionsModifiees: modifiees.length,
     duree: dureeVue,
     fps: fpsVue,
-    megapixels: megapixelsVue,
     seed: seedVue,
     setDuree: setDureeBrut,
     setFps: setFpsBrut,
-    setMegapixels: setMegapixelsBrut,
     setSeed: setSeedBrut,
     modifications,
     annuler: nettoyer,

@@ -5270,11 +5270,6 @@ button {
   gap: 6px;
   align-items: center;
 }
-.fp-resolutions {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
 .fp-seed-valeur {
   min-width: 150px;
   padding: 6px 9px;

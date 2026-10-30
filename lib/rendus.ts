@@ -12,8 +12,6 @@ export type RenduVue = {
   dureeUtilisee: number | null;
   promptUtilise: string | null;
   activerUpscale: boolean;
-  /** Résolution du rendu (0,2 / 0,3 / 0,4 MP) ; absente = la base. Au-delà, un rendu final est natif (sans upscale). */
-  megapixels?: number;
   /** Vidéo déjà tournée, déposée à la main : pas une génération (ni seed, ni prompt). */
   importe: boolean;
 };

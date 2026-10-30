@@ -34,8 +34,12 @@ Contrat des nœuds : `workflows/README.md`, section « Contrat de la vidéo en t
    latent du plan précédent, repli sur l'image ; rendu final = `VID_UPSCALE` puis `VID_Finition` à partir de la prévisualisation retenue si elle est à jour, sinon `VID_Generation` d'abord (le plan
    est régénéré, avec ses nouveaux latents) ; le plan passe
    `previsualise` puis `termine` comme aujourd'hui. Un lot enchaîne les upscales sans que le LLM se recharge entre deux.
-4. **Nettoyage** : retrait des résolutions 0,2 / 0,3 (`lib/resolution-video.ts`), de `cablerSortie` et de `VID_REF2VA.json` ; interface : le
-   rendu final (« Rendu final avec celui-ci », « Lancer l'upscale » en lot) exige une prévisualisation retenue, avec latent, et à jour.
+4. **Nettoyage** (interface faite le 2026-10-31, non testée dans le navigateur) : plus de sélecteur de résolution ni de « rendu final natif » dans la console de
+   rendu, la page du plan, la sauvegarde du brouillon et l'itération ; « Lancer l'upscale » ouvre une fenêtre pour composer le lot (`LotUpscaleButton`,
+   `listerUpscales`) : plans prêts cochés, plans à fiche modifiée décochés et régénérés si on les coche. **Reste volontairement en place** : `worker/comfyui/mapping.ts`
+   (ses ids sont ceux du master de voix), `lib/resolution-video.ts`, `scripts/banc-video.ts` + `banc-variantes*` et `VID_REF2VA.json` (le master de voix et le
+   banc de mesure en dépendent), la colonne `plans.megapixels`, et l'exigence de `COMFYUI_WORKFLOW_PATH` du client HTTP : à retirer quand le master et le banc auront
+   leurs propres graphes.
 5. **Tests** : tests de contrat qui lisent les trois JSON, stub étendu aux trois étapes, puis un test guidé avec l'utilisateur sur son ComfyUI.
 
 ## Ce que l'application fait déjà (lu le 2026-10-30)

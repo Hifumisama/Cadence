@@ -4,9 +4,8 @@ import { db } from "@/db";
 import { jobs, planPromptSections, planRefs, plans } from "@/db/schema";
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { creerJobRelance, DureePlanInvalide } from "@/lib/job-relance";
-import { RESOLUTIONS_VIDEO, libelleResolution, resolutionDepuis } from "@/lib/resolution-video";
 import { appliquerIterationEtGenererCore } from "@/lib/iteration-application";
-import { getPlansPerimes } from "@/lib/plans-perimes";
+import { ficheChangeeDepuis, getPlansPerimes } from "@/lib/plans-perimes";
 import { classerPourPrevisualisation, consequencesSuppression, decisionIteration, essaiEnFile } from "@/lib/fiche-plan";
 import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "@/lib/agents/service";
 import { lireProposition } from "@/lib/queries-agents";
@@ -131,8 +130,6 @@ export type BrouillonPlan = {
   sections: Record<string, string>;
   dureeGenerationSecondes?: number;
   fps?: number;
-  /** Résolution choisie (0,2 / 0,3 / 0,4 MP) ; absente = celle du plan. */
-  megapixels?: number;
   /** Seed choisie à la main (dé de la console) ; absente = celle du plan. */
   seed?: string;
 };
@@ -148,8 +145,7 @@ export async function figerEtLancer(
   /** Fiche de plan : la consigne de l'utilisateur et le numéro de l'essai dont on part, gardés sur l'essai créé. */
   essai: { consigne?: string | null; depuisNumero?: number | null } = {},
 ): Promise<{ ok: true; numeroRendu: number } | { ok: false; erreur: string }> {
-  const { dureeGenerationSecondes: duree, fps, seed, megapixels } = brouillon;
-  if (megapixels != null && resolutionDepuis(megapixels) == null) return { ok: false, erreur: `Résolution : ${RESOLUTIONS_VIDEO.map(libelleResolution).join(", ")} seulement.` };
+  const { dureeGenerationSecondes: duree, fps, seed } = brouillon;
   if (duree != null && (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
     return { ok: false, erreur: `Durée de génération : entre ${DUREE_GENERATION_MIN} et ${DUREE_GENERATION_MAX} s.` };
   }
@@ -164,7 +160,6 @@ export async function figerEtLancer(
     .update(plans)
     .set({
       ...(fps != null ? { fps } : {}),
-      ...(megapixels != null ? { megapixels: resolutionDepuis(megapixels)! } : {}),
       ...(duree != null ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}),
       ...(seed != null ? { seed } : {}),
       updatedAt: new Date(),
@@ -194,7 +189,7 @@ export async function appliquerIterationEtGenerer(
   propositionUuid: string,
   essai: { consigne: string | null; depuisNumero: number | null },
   /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits dans la même transaction que l'essai. */
-  reglages: { dureeGenerationSecondes?: number; fps?: number; megapixels?: number; seed?: string } = {},
+  reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string } = {},
 ): Promise<{ ok: true; numeroRendu: number; notes: string[] } | { ok: false; erreur: string }> {
   const r = await appliquerIterationEtGenererCore(planId, propositionUuid, essai, reglages);
   revalidatePath("/", "layout");
@@ -677,12 +672,59 @@ export async function supprimerEssai(planId: number, jobId: number): Promise<{ o
   return { ok: true, fichierSupprime };
 }
 
-/** « Lancer l'upscale » (tous les plans prêts) : pour chaque plan prêt, lance le rendu final à partir de son essai RETENU (le latent de cette
+export type PlanUpscalable = {
+  uuid: string;
+  /** Rang dans l'épisode (« 04 ») : ce qu'on affiche, jamais un identifiant. */
+  position: number;
+  titre: string;
+  /** `pret` : part du latent de sa prévisualisation retenue ; `modifie` : la fiche a changé depuis (ou le latent n'a pas été gardé), l'inclure le fait
+   * régénérer avant l'upscale ; `final` : son essai retenu est déjà un rendu final ; `en_file` : un rendu attend ou tourne ; `non_pret` : aucune prévisualisation retenue. */
+  etat: "pret" | "modifie" | "final" | "en_file" | "non_pret";
+  raison: string | null;
+};
+
+/** Les plans de l'épisode tels que la fenêtre « Lancer l'upscale » les liste. Les brouillons (fiche pas développée) n'y figurent pas. */
+export async function listerUpscales(episodeId: number): Promise<PlanUpscalable[]> {
+  const toutes = await db.select().from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id);
+  const lignes: PlanUpscalable[] = [];
+  for (const [i, p] of toutes.entries()) {
+    if (p.statut === "brouillon") continue;
+    const base = { uuid: p.uuid, position: i + 1, titre: p.titre };
+    const duPlan = await db.select().from(jobs).where(eq(jobs.planId, p.id));
+    if (duPlan.some((j) => essaiEnFile(j.statut))) {
+      lignes.push({ ...base, etat: "en_file", raison: "Un rendu attend ou tourne déjà" });
+      continue;
+    }
+    const retenu = p.pretUpscaleAt && p.renduRetenuId ? duPlan.find((j) => j.id === p.renduRetenuId) : undefined;
+    if (!retenu) {
+      lignes.push({ ...base, etat: "non_pret", raison: "Aucune prévisualisation retenue" });
+      continue;
+    }
+    if (retenu.activerUpscale) {
+      lignes.push({ ...base, etat: "final", raison: "Son essai retenu est déjà un rendu final" });
+      continue;
+    }
+    if (!retenu.latentDossier) {
+      lignes.push({ ...base, etat: "modifie", raison: "La prévisualisation n'a pas gardé son latent" });
+      continue;
+    }
+    lignes.push(
+      (await ficheChangeeDepuis(p.id, retenu))
+        ? { ...base, etat: "modifie", raison: "La fiche a changé depuis la prévisualisation" }
+        : { ...base, etat: "pret", raison: null },
+    );
+  }
+  return lignes;
+}
+
+/** « Lancer l'upscale » (le lot choisi dans la fenêtre) : pour chaque plan prêt, lance le rendu final à partir de son essai RETENU (le latent de cette
  * prévisualisation : `sourceJobId`). Si la fiche a changé depuis, le worker régénère le plan avec sa fiche d'aujourd'hui avant l'upscale (choisir un
  * plan dans le lot, c'est l'accepter). Le plan reste prêt. Sont sautés : un plan déjà en file, dont l'essai retenu est déjà un rendu final ou une
  * vidéo importée (sans seed), ou aux dialogues désalignés. */
-export async function lancerUpscaleEpisode(episodeId: number): Promise<{ n: number; dejaFinal: number; dejaEnFile: number; bloques: number; nonPrets: number }> {
-  const lignes = await db.select().from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id);
+export async function lancerUpscaleEpisode(episodeId: number, planUuids?: string[]): Promise<{ n: number; dejaFinal: number; dejaEnFile: number; bloques: number; nonPrets: number }> {
+  // `planUuids` : le lot choisi dans la fenêtre « Lancer l'upscale » ; absent, tous les plans de l'épisode.
+  const tous = await db.select().from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id);
+  const lignes = planUuids ? tous.filter((p) => planUuids.includes(p.uuid)) : tous;
   const res = { n: 0, dejaFinal: 0, dejaEnFile: 0, bloques: 0, nonPrets: 0 };
   for (const p of lignes) {
     if (!p.pretUpscaleAt || !p.renduRetenuId) {
