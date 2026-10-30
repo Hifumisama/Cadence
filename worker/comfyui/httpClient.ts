@@ -127,6 +127,15 @@ export class HttpComfyUIClient implements ComfyUIClient {
     return this.lireResultat(promptId, (e) => premierFichierSortie(e.outputs?.[nodeIdSortie]));
   }
 
+  async pollFin(promptId: string): Promise<PollResult> {
+    const entree = await this.lireHistorique(promptId);
+    if (!entree) return { statut: "en_cours" };
+    if (entree.status?.status_str === "error") {
+      return { statut: "erreur", message: entree.status?.messages?.map(String).join(" | ") ?? "Erreur ComfyUI" };
+    }
+    return entree.status?.completed === true ? { statut: "termine", cheminSortieDistant: "" } : { statut: "en_cours" };
+  }
+
   poll(promptId: string): Promise<PollResult> {
     return this.lireResultat(promptId, (e) => {
       const sortie = e.outputs?.[NODE_IDS.sortieFinale];

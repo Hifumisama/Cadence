@@ -44,7 +44,7 @@ export const NODE_IDS = {
 } as const;
 
 type NodeAPI = { class_type: string; inputs: Record<string, unknown>; _meta?: { title: string } };
-type WorkflowJson = Record<string, NodeAPI>;
+export type WorkflowJson = Record<string, NodeAPI>;
 
 /** Le modèle génère toujours à 24 i/s (infobulle de `length` sur le nœud 5 : « Frame count at 24 fps »). */
 export const FPS_GENERATION = 24;
@@ -135,56 +135,10 @@ export function cablerSortie(graphe: WorkflowJson, activerUpscale: boolean, mega
   }
 }
 
-/**
- * Injecte les valeurs dynamiques du plan dans le graphe API avant
- * soumission. Les nœuds de référence sont créés à la volée — un plan qui
- * n'utilise que 3 refs image n'en câble que 3, jamais 6 avec du
- * remplissage : voir la discussion "Slots vides" du 2026-09-26.
- */
-export function injecterValeurs(
-  workflow: WorkflowJson,
-  input: SubmissionInput,
-): WorkflowJson {
-  verifierEntree(input);
-  const graphe = structuredClone(workflow);
-
-  // Durée : sans cette injection, tous les plans sortent à la durée écrite dans le fichier. Absence du
-  // nœud = erreur franche (pas de silence), le graphe n'est plus celui que ce code connaît.
-  const nodeDuree = graphe[NODE_IDS.dureeVideo];
-  if (!nodeDuree) throw new Error(`Nœud ${NODE_IDS.dureeVideo} (durée) absent du workflow vidéo`);
-  nodeDuree.inputs.value = input.dureeSecondes;
-
-  // Résolution : le fichier source fixe 0,2 MP ; absente de l'entrée, on la laisse telle quelle.
-  if (input.megapixels != null) {
-    const nodeResolution = graphe[NODE_IDS.resolution];
-    if (!nodeResolution) throw new Error(`Nœud ${NODE_IDS.resolution} (résolution) absent du workflow vidéo`);
-    nodeResolution.inputs.megapixels = resolutionDepuis(input.megapixels);
-  }
-
-  if (input.prefixeSortie) {
-    const finale = graphe[NODE_IDS.sortieFinale];
-    if (finale) finale.inputs.filename_prefix = input.prefixeSortie;
-    const apercu = graphe[NODE_IDS.sortieApercu];
-    if (apercu) apercu.inputs.filename_prefix = `low_${input.prefixeSortie}`;
-  }
-
-  const nodePrompt = graphe[NODE_IDS.prompt];
-  if (nodePrompt) nodePrompt.inputs.value = input.promptAssemble;
-
-  if (input.seed) {
-    for (const nodeId of [
-      NODE_IDS.seedPremierPass,
-      NODE_IDS.seedUpscale,
-      NODE_IDS.seedSecondPass,
-    ]) {
-      const node = graphe[nodeId];
-      if (!node) continue;
-      const champ = "seed" in node.inputs ? "seed" : "noise_seed";
-      node.inputs[champ] = Number(input.seed);
-    }
-  }
-
-  const refNode = graphe[NODE_IDS.refNode];
+/** Recrée les nœuds de référence du plan (images, sons, vidéos) autour du nœud `MiniMaxH3ReferenceToVideo`, partagée par le mapping d'origine et
+ * celui des trois étapes (mappingTroisEtapes.ts) : une seule règle pour les emplacements et les noms de fichiers. Modifie `graphe` en place. */
+export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput, idNoeudRef: string = NODE_IDS.refNode): void {
+  const refNode = graphe[idNoeudRef];
   if (refNode) {
     // Repart d'un nœud de référence vierge : seuls les slots réellement
     // utilisés par CE plan seront recâblés ci-dessous.
@@ -252,6 +206,58 @@ export function injecterValeurs(
       refNode.inputs[`ref_videos.ref_video_${slot - 1}`] = [nodeId, 0];
     });
   }
+}
+
+/**
+ * Injecte les valeurs dynamiques du plan dans le graphe API avant
+ * soumission. Les nœuds de référence sont créés à la volée — un plan qui
+ * n'utilise que 3 refs image n'en câble que 3, jamais 6 avec du
+ * remplissage : voir la discussion "Slots vides" du 2026-09-26.
+ */
+export function injecterValeurs(
+  workflow: WorkflowJson,
+  input: SubmissionInput,
+): WorkflowJson {
+  verifierEntree(input);
+  const graphe = structuredClone(workflow);
+
+  // Durée : sans cette injection, tous les plans sortent à la durée écrite dans le fichier. Absence du
+  // nœud = erreur franche (pas de silence), le graphe n'est plus celui que ce code connaît.
+  const nodeDuree = graphe[NODE_IDS.dureeVideo];
+  if (!nodeDuree) throw new Error(`Nœud ${NODE_IDS.dureeVideo} (durée) absent du workflow vidéo`);
+  nodeDuree.inputs.value = input.dureeSecondes;
+
+  // Résolution : le fichier source fixe 0,2 MP ; absente de l'entrée, on la laisse telle quelle.
+  if (input.megapixels != null) {
+    const nodeResolution = graphe[NODE_IDS.resolution];
+    if (!nodeResolution) throw new Error(`Nœud ${NODE_IDS.resolution} (résolution) absent du workflow vidéo`);
+    nodeResolution.inputs.megapixels = resolutionDepuis(input.megapixels);
+  }
+
+  if (input.prefixeSortie) {
+    const finale = graphe[NODE_IDS.sortieFinale];
+    if (finale) finale.inputs.filename_prefix = input.prefixeSortie;
+    const apercu = graphe[NODE_IDS.sortieApercu];
+    if (apercu) apercu.inputs.filename_prefix = `low_${input.prefixeSortie}`;
+  }
+
+  const nodePrompt = graphe[NODE_IDS.prompt];
+  if (nodePrompt) nodePrompt.inputs.value = input.promptAssemble;
+
+  if (input.seed) {
+    for (const nodeId of [
+      NODE_IDS.seedPremierPass,
+      NODE_IDS.seedUpscale,
+      NODE_IDS.seedSecondPass,
+    ]) {
+      const node = graphe[nodeId];
+      if (!node) continue;
+      const champ = "seed" in node.inputs ? "seed" : "noise_seed";
+      node.inputs[champ] = Number(input.seed);
+    }
+  }
+
+  injecterReferences(graphe, input);
 
   cablerSortie(graphe, input.activerUpscale, input.megapixels);
 

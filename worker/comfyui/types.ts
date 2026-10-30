@@ -63,6 +63,9 @@ export interface ComfyUIClient {
    * l'appelant, le client ne fait que le soumettre puis lire une sortie. */
   submitGraph(graphe: Record<string, unknown>): Promise<string>;
   pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult>;
+  /** Fin d'un prompt qui ne produit aucun fichier lisible : l'upscale de la vidéo en trois étapes sauvegarde seulement un latent.
+   * « terminé » (avec un chemin vide) dès que /history le dit, « erreur » avec le message de ComfyUI sinon. */
+  pollFin(promptId: string): Promise<PollResult>;
   /** Ouvre le WebSocket de suivi AVANT la soumission (ComfyUI n'envoie les
    * événements qu'au clientId qui a soumis le prompt, et un prompt court peut
    * finir avant qu'on se connecte). Ne rejette jamais : une connexion

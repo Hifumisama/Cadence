@@ -53,6 +53,11 @@ export class StubComfyUIClient implements ComfyUIClient {
     return { statut: "termine", cheminSortieDistant: `stub/${promptId}.${promptId.startsWith("stub-aud-") ? "mp3" : promptId.startsWith("stub-vid-") ? "mp4" : "png"}` };
   }
 
+  async pollFin(promptId: string): Promise<PollResult> {
+    const debut = this.enCours.get(promptId) ?? 0;
+    return Date.now() - debut < 2000 ? { statut: "en_cours" } : { statut: "termine", cheminSortieDistant: "" };
+  }
+
   /** Rejoue ~2 s de progression (8 étapes, un aperçu à mi-parcours) : de quoi
    * tester la barre et l'aperçu de l'interface sans ComfyUI. */
   async ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi> {

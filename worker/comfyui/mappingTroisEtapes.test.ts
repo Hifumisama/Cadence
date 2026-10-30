@@ -1,0 +1,123 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+import { ErreurEntreeInvalide } from "./mapping";
+import {
+  MEGAPIXELS_VIDEO,
+  NODE_IDS_FINITION,
+  NODE_IDS_GENERATION,
+  NODE_IDS_UPSCALE,
+  cheminsLatents,
+  dossierLatents,
+  injecterFinition,
+  injecterGeneration,
+  injecterUpscale,
+} from "./mappingTroisEtapes";
+import type { SubmissionInput } from "./types";
+
+// Lit les VRAIS workflows : si un ré-export change un identifiant, ce test casse au lieu de laisser le worker soumettre un graphe faux.
+const lire = (fichier: string) => JSON.parse(readFileSync(`workflows/video-generation/${fichier}`, "utf-8"));
+const generation = lire("VID_Generation.json");
+const upscale = lire("VID_UPSCALE.json");
+const finition = lire("VID_Finition.json");
+
+const entree: SubmissionInput = {
+  promptAssemble: "summary: test",
+  seed: "123",
+  dureeSecondes: 8,
+  fps: 24,
+  refsImage: [{ slot: 1, cheminLocal: "C:/x/CHAR_maya.png", nomDistant: "cadence_assets_CHAR_maya.png" }],
+  refsAudio: [{ slot: 1, cheminLocal: "C:/x/voix.flac", nomDistant: "cadence_voix.flac", dureeSecondes: 6.05 }],
+  refsVideo: [],
+  activerUpscale: true,
+};
+const dossier = dossierLatents(4, 2);
+
+test("les nœuds cartographiés existent dans chacun des trois workflows", () => {
+  for (const [nom, id] of Object.entries(NODE_IDS_GENERATION)) assert.ok(generation[id], `nœud ${id} (${nom}) absent de VID_Generation.json`);
+  for (const [nom, id] of Object.entries(NODE_IDS_UPSCALE)) assert.ok(upscale[id], `nœud ${id} (${nom}) absent de VID_UPSCALE.json`);
+  for (const [nom, id] of Object.entries(NODE_IDS_FINITION)) assert.ok(finition[id], `nœud ${id} (${nom}) absent de VID_Finition.json`);
+});
+
+test("les nœuds de latent sont de la bonne classe", () => {
+  assert.equal(generation[NODE_IDS_GENERATION.latentSauve].class_type, "MiniMaxH3MotionContextSaveLatent");
+  assert.equal(upscale[NODE_IDS_UPSCALE.latentCharge].class_type, "MiniMaxH3MotionContextLoadLatent");
+  assert.equal(upscale[NODE_IDS_UPSCALE.latentSauve].class_type, "MiniMaxH3MotionContextSaveLatent");
+  assert.equal(finition[NODE_IDS_FINITION.latentAudio].class_type, "MiniMaxH3MotionContextLoadLatent");
+  assert.equal(finition[NODE_IDS_FINITION.latentImage].class_type, "MiniMaxH3MotionContextLoadLatent");
+  assert.equal(finition[NODE_IDS_FINITION.sortie].class_type, "VHS_VideoCombine");
+  assert.equal(generation[NODE_IDS_GENERATION.apercu].class_type, "VHS_VideoCombine");
+});
+
+test("le latent chargé pour l'upscale et la finition est lu en format standard (stock_format)", () => {
+  assert.equal(upscale[NODE_IDS_UPSCALE.latentCharge].inputs.stock_format, true);
+  assert.equal(finition[NODE_IDS_FINITION.latentAudio].inputs.stock_format, true);
+  assert.equal(finition[NODE_IDS_FINITION.latentImage].inputs.stock_format, true);
+});
+
+test("génération : prompt, durée, résolution verrouillée, seed, référence dynamique, latent sous le dossier du rendu", () => {
+  const g = injecterGeneration(generation, { ...entree, megapixels: 0.2 }, dossier);
+  assert.equal(g[NODE_IDS_GENERATION.prompt]!.inputs.value, entree.promptAssemble);
+  assert.equal(g[NODE_IDS_GENERATION.dureeVideo]!.inputs.value, 8);
+  assert.equal(g[NODE_IDS_GENERATION.resolution]!.inputs.megapixels, MEGAPIXELS_VIDEO, "la résolution est 0,4 MP quoi qu'on demande");
+  assert.equal(g[NODE_IDS_GENERATION.seed]!.inputs.seed, 123);
+  assert.deepEqual(g[NODE_IDS_GENERATION.refNode]!.inputs["ref_images.ref_image_0"], ["ref_img_1", 0]);
+  assert.equal(g.ref_img_1!.inputs.image, "cadence_assets_CHAR_maya.png");
+  assert.equal(g[NODE_IDS_GENERATION.latentSauve]!.inputs.filename_prefix, "h3_latents/cadence_p4_r2/gen/clip");
+  assert.equal(g[NODE_IDS_GENERATION.latentSauve]!.inputs.clip_index, 1);
+  assert.notEqual(generation[NODE_IDS_GENERATION.prompt].inputs.value, entree.promptAssemble, "le fichier source n'est pas modifié");
+});
+
+test("génération : le préfixe de sortie ne touche que le brouillon", () => {
+  const g = injecterGeneration(generation, { ...entree, prefixeSortie: "cadence_p4_r2" }, dossier);
+  assert.equal(g[NODE_IDS_GENERATION.apercu]!.inputs.filename_prefix, "cadence_p4_r2");
+  const sans = injecterGeneration(generation, entree, dossier);
+  assert.equal(sans[NODE_IDS_GENERATION.apercu]!.inputs.filename_prefix, generation[NODE_IDS_GENERATION.apercu].inputs.filename_prefix);
+});
+
+test("upscale : même conditioning que la génération (prompt, durée, résolution, références)", () => {
+  const g = injecterGeneration(generation, entree, dossier);
+  const u = injecterUpscale(upscale, entree, dossier);
+  for (const id of [NODE_IDS_GENERATION.prompt, NODE_IDS_GENERATION.resolution, NODE_IDS_GENERATION.dureeVideo, NODE_IDS_GENERATION.nombreImages, NODE_IDS_GENERATION.refNode]) {
+    assert.deepEqual(u[id]!.inputs, g[id]!.inputs, `le nœud ${id} diffère entre la génération et l'upscale`);
+  }
+  assert.deepEqual(u.ref_img_1, g.ref_img_1);
+  assert.deepEqual(u.ref_audio_1, g.ref_audio_1);
+});
+
+test("upscale : charge le latent de la génération, sauvegarde le sien, graine propre", () => {
+  const u = injecterUpscale(upscale, entree, dossier);
+  const chemins = cheminsLatents(dossier);
+  assert.equal(u[NODE_IDS_UPSCALE.latentCharge]!.inputs.latent_path, chemins.genDossier);
+  assert.equal(u[NODE_IDS_UPSCALE.latentCharge]!.inputs.clip_index, 1);
+  assert.equal(u[NODE_IDS_UPSCALE.latentSauve]!.inputs.filename_prefix, chemins.upPrefixe);
+  assert.equal(u[NODE_IDS_UPSCALE.seed]!.inputs.seed, 123);
+});
+
+test("le dossier de sauvegarde d'une étape est celui que la suivante recharge", () => {
+  const c = cheminsLatents(dossier);
+  assert.equal(c.genPrefixe, `${c.genDossier}/clip`);
+  assert.equal(c.upPrefixe, `${c.upDossier}/clip`);
+  const f = injecterFinition(finition, dossier, "cadence_p4_r2_final");
+  assert.equal(f[NODE_IDS_FINITION.latentAudio]!.inputs.latent_path, c.genDossier, "l'audio vient de la première passe");
+  assert.equal(f[NODE_IDS_FINITION.latentImage]!.inputs.latent_path, c.upDossier, "l'image vient du latent upscalé");
+  assert.equal(f[NODE_IDS_FINITION.sortie]!.inputs.filename_prefix, "cadence_p4_r2_final");
+});
+
+test("dossierLatents : unique par plan, rendu et nouvelle tentative", () => {
+  assert.equal(dossierLatents(4, 2), "cadence_p4_r2");
+  assert.equal(dossierLatents(4, 2, 2), "cadence_p4_r2_t2");
+  assert.notEqual(dossierLatents(4, 2), dossierLatents(4, 3));
+  assert.notEqual(dossierLatents(4, 2), dossierLatents(5, 2));
+});
+
+test("durée hors bornes ou trop de références : refus avant toute soumission", () => {
+  assert.throws(() => injecterGeneration(generation, { ...entree, dureeSecondes: 30 }, dossier), ErreurEntreeInvalide);
+  assert.throws(() => injecterUpscale(upscale, { ...entree, dureeSecondes: 1 }, dossier), ErreurEntreeInvalide);
+});
+
+test("un nœud absent du fichier : erreur franche", () => {
+  const casse = structuredClone(generation);
+  delete casse[NODE_IDS_GENERATION.latentSauve];
+  assert.throws(() => injecterGeneration(casse, entree, dossier), /302/);
+});
