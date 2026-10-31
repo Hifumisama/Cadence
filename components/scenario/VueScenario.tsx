@@ -4,6 +4,7 @@ import "./scenario.css";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
+import { retirerPlan } from "@/app/plans/actions";
 import { useAgents, type DemandeAgent } from "@/components/agents/AgentsProvider";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
@@ -175,6 +176,16 @@ export function VueScenario({
       }
       if (courant.plans.length === 0) return;
       const i = courant.plans.findIndex((p) => p.id === planSel);
+      // Alt + ← / → : le plan sélectionné passe avant ou après son voisin (comme « Avant / Après » du tiroir).
+      if (e.altKey && i !== -1 && (e.key === "ArrowLeft" || e.key === "ArrowRight" || (vue === "liste" && (e.key === "ArrowUp" || e.key === "ArrowDown")))) {
+        const avant = e.key === "ArrowLeft" || e.key === "ArrowUp";
+        if (avant ? i === 0 : i >= courant.plans.length - 1) return;
+        e.preventDefault();
+        marquerDepose(`plan:${planSel}`);
+        const avantId = avant ? courant.plans[i - 1]!.id : (courant.plans[i + 2]?.id ?? null);
+        startTransition(() => deplacerPlan(planSel!, courant.id, avantId));
+        return;
+      }
       const suivant = e.key === "ArrowRight" || (vue === "liste" && i !== -1 && e.key === "ArrowDown");
       const precedent = e.key === "ArrowLeft" || (vue === "liste" && i !== -1 && e.key === "ArrowUp");
       if (!suivant && !precedent) return;
@@ -322,22 +333,8 @@ export function VueScenario({
     startTransition(() => deplacerPlan(c.planId, courant.id, null));
   };
 
-  const detail = (p: PlanVue, entete: boolean) => (
-    <DetailPlan
-      projectId={projectId}
-      plan={p}
-      plans={courant.plans}
-      sceneId={courant.id}
-      groupes={groupes}
-      entete={entete}
-      libelleScene={libelleScene}
-      onOuvrir={() => ouvrir(p)}
-      onDeplace={(cible) => signaler(p.id, cible)}
-    />
-  );
-
   return (
-    <div className="sc">
+    <div className={`sc${plan ? " has-tiroir" : ""}`}>
       <div className="queue sc-outils">
         <EtatFiches nbPlans={fiches.nbPlans} nbDeveloppes={fiches.nbDeveloppes} demande={fiches.demande} />
         <span className="sc-total num">
@@ -544,7 +541,6 @@ export function VueScenario({
                       {p.etat !== "brouillon" ? <span className={`sc-etat is-${p.etat}`}>{p.etat === "pret" ? "✓ Prêt" : "En itération"}</span> : null}
                     </span>
                   </PlanDeplacable>
-                  {p.id === planSel ? <div className="sc-ligne-detail">{detail(p, false)}</div> : null}
                 </div>
               ))}
               {modeAjout ? fenteLigne(courant.plans.length) : null}
@@ -552,14 +548,11 @@ export function VueScenario({
             </div>
           )}
         </div>
-
-        <div className="sc-detail-zone" aria-live="polite">
-          {vue === "vignettes" && plan ? detail(plan, true) : null}
-        </div>
-
       </div>
 
       <AjouterScene projectId={projectId} episodeId={episodeId} cible={cibleScene} onFermer={() => setCibleScene(null)} onLance={() => setSignal({ texte: "Scène en cours d'écriture : suivi dans la file des tâches." })} />
+
+      {plan ? <TiroirPlan key={plan.id} projectId={projectId} plan={plan} plans={courant.plans} sceneId={courant.id} onFermer={() => setPlanSel(null)} onOuvrir={() => ouvrir(plan)} /> : null}
 
       <AjouterPlan
         projectId={projectId}
@@ -593,107 +586,87 @@ export function VueScenario({
   );
 }
 
-/** Ce que l'on fait d'un plan sélectionné : le lire, ouvrir sa fiche, le décaler d'un cran dans sa scène (sans glisser-déposer : tablette, clavier),
- * le changer de scène. `entete` : le panneau sous la grille de vignettes reprend le titre ; en liste, la ligne le porte déjà. */
-function DetailPlan({
+/** Le tiroir du plan sélectionné, à droite : sa description en entier, l'écriture ou l'ouverture de sa fiche, sa place dans la scène (avant / après) et sa
+ * suppression. Il ne bloque rien : la grille reste cliquable, un autre plan prend sa place, Échap le referme. Le déplacement vers une autre scène se
+ * fait en glissant le plan sur la carte de la scène. */
+function TiroirPlan({
   projectId,
   plan,
   plans,
   sceneId,
-  groupes,
-  entete,
-  libelleScene,
+  onFermer,
   onOuvrir,
-  onDeplace,
 }: {
   projectId: number;
   plan: PlanVue;
   plans: PlanVue[];
   sceneId: number | null;
-  groupes: SceneVue[];
-  entete: boolean;
-  libelleScene: (g: SceneVue) => string;
+  onFermer: () => void;
   onOuvrir: () => void;
-  onDeplace: (cible: SceneVue) => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [erreur, setErreur] = useState<string | null>(null);
   const i = plans.findIndex((p) => p.id === plan.id);
   /** Un plan naît en brouillon ; il n'a de fiche (prompt vidéo) qu'une fois écrite par l'agent. */
   const sansFiche = plan.statut === "brouillon";
-  const decaler =(avantId: number | null) => {
+  const decaler = (avantId: number | null) => {
     marquerDepose(`plan:${plan.id}`);
     startTransition(() => deplacerPlan(plan.id, sceneId, avantId));
   };
+  const supprimer = (force: boolean) => {
+    const question = force
+      ? `Forcer la suppression du plan ${pad(plan.position)} ? Ses références d'assets seront détachées (les assets eux-mêmes restent dans le registre). Irréversible.`
+      : `Supprimer définitivement le plan ${pad(plan.position)} · ${plan.titre} ?`;
+    if (!window.confirm(question)) return;
+    setErreur(null);
+    startTransition(async () => {
+      const r = await retirerPlan(plan.id, force);
+      if (!r.ok) setErreur(r.erreur);
+      else onFermer();
+    });
+  };
 
   return (
-    <div className={entete ? "sc-detail" : "sc-detail-ligne"}>
-      {entete ? (
-        <div className="sc-detail-hd">
-          <span className="sc-detail-pos num">{pad(plan.position)}</span>
-          <h3>{plan.titre}</h3>
-          <span className="sc-detail-meta num">
-            {minutage(plan.debut)} · {plan.duree} s · {LIBELLE_ETAT[plan.etat]}
-          </span>
-        </div>
-      ) : null}
+    <aside className="sc-tiroir-plan" aria-label={`Plan ${pad(plan.position)} : ${plan.titre}`}>
+      <div className="sc-tiroir-hd">
+        <span className="sc-tiroir-etiquette">Plan {pad(plan.position)}</span>
+        <button type="button" className="sc-tiroir-fermer" aria-label="Fermer le tiroir" onClick={onFermer}>
+          <Icone nom="fermer" taille={16} />
+        </button>
+      </div>
+      <h3>{plan.titre}</h3>
+      <span className="sc-detail-meta num">
+        {minutage(plan.debut)} · {plan.duree} s · {LIBELLE_ETAT[plan.etat]}
+      </span>
       <p className={`sc-description${plan.description ? "" : " is-vide"}`}>{plan.description ?? "Pas encore de description."}</p>
       <div className="sc-actions">
         {sansFiche ? <GenererFiche projectId={projectId} planUuid={plan.uuid} demandeEnCours={plan.ficheEnCours} /> : null}
         <button type="button" className={`btn ${sansFiche ? "btn-ghost" : "btn-gold"} btn-sm`} onClick={onOuvrir}>
           {sansFiche ? "Ouvrir le plan →" : "Ouvrir la fiche →"}
         </button>
-        <span className="sc-ordre" role="group" aria-label="Changer la place du plan">
-          <button type="button" className="btn btn-ghost btn-sm" disabled={pending || i <= 0} onClick={() => decaler(plans[i - 1]!.id)}>
+      </div>
+      <div className="sc-tiroir-pied">
+        <span className="sc-ordre" role="group" aria-label="Changer la place du plan dans la scène">
+          <button type="button" className="btn btn-ghost btn-sm" disabled={pending || i <= 0} onClick={() => decaler(plans[i - 1]!.id)} title="Avant (Alt + ←)">
             ‹ Avant
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={pending || i < 0 || i >= plans.length - 1} onClick={() => decaler(plans[i + 2]?.id ?? null)}>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={pending || i < 0 || i >= plans.length - 1} onClick={() => decaler(plans[i + 2]?.id ?? null)} title="Après (Alt + →)">
             Après ›
           </button>
         </span>
-        <DeplacerVers planId={plan.id} sceneId={sceneId} groupes={groupes} libelleScene={libelleScene} onDeplace={onDeplace} />
+        <button type="button" className="btn btn-danger btn-icone" onClick={() => supprimer(false)} disabled={pending} title="Supprimer le plan" aria-label={`Supprimer le plan ${pad(plan.position)}`}>
+          <Icone nom="supprimer" taille={16} />
+        </button>
       </div>
-    </div>
-  );
-}
-
-/** « Déplacer vers… » : le déplacement d'un plan vers une autre scène au clavier ou au doigt (le glisser-déposer sur la carte de la scène reste possible). */
-function DeplacerVers({
-  planId,
-  sceneId,
-  groupes,
-  libelleScene,
-  onDeplace,
-}: {
-  planId: number;
-  sceneId: number | null;
-  groupes: SceneVue[];
-  libelleScene: (g: SceneVue) => string;
-  onDeplace: (cible: SceneVue) => void;
-}) {
-  const [pending, startTransition] = useTransition();
-  const autres = groupes.filter((g) => g.id !== sceneId);
-  if (autres.length === 0) return null;
-  return (
-    <label className="sc-deplacer">
-      <span>Déplacer vers</span>
-      <select
-        value=""
-        disabled={pending}
-        onChange={(e) => {
-          const cible = autres.find((g) => cleScene(g.id) === e.target.value);
-          if (!cible) return;
-          onDeplace(cible);
-          startTransition(() => deplacerPlan(planId, cible.id, null));
-        }}
-      >
-        <option value="">Choisir une scène…</option>
-        {autres.map((g) => (
-          <option key={cleScene(g.id)} value={cleScene(g.id)}>
-            {libelleScene(g)}
-          </option>
-        ))}
-      </select>
-    </label>
+      {erreur ? (
+        <p className="tiny-note sc-tiroir-erreur" role="alert">
+          {erreur}{" "}
+          <button type="button" className="btn btn-danger btn-sm" onClick={() => supprimer(true)} disabled={pending}>
+            Forcer
+          </button>
+        </p>
+      ) : null}
+    </aside>
   );
 }
 

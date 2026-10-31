@@ -405,6 +405,13 @@ export async function supprimerPlan(
   plansHref: string,
   force = false,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const r = await retirerPlan(planId, force);
+  if (!r.ok) return r;
+  redirect(plansHref);
+}
+
+/** La même suppression, sans quitter la page (le tiroir de la page Scénario : le plan disparaît de la scène, on reste où l'on est). */
+export async function retirerPlan(planId: number, force = false): Promise<{ ok: true } | { ok: false; erreur: string }> {
   if (!force) {
     const [ref] = await db
       .select()
@@ -418,7 +425,7 @@ export async function supprimerPlan(
 
   await db.delete(plans).where(eq(plans.id, planId));
   revalidatePath("/", "layout");
-  redirect(plansHref);
+  return { ok: true };
 }
 
 type AnalysePromptColle =

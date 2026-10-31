@@ -556,19 +556,6 @@
 .sc-liste .shot-desc {
   -webkit-line-clamp: 1;
 }
-/* Le détail d'une ligne se glisse sous elle, aligné sur son titre (numéro 74 px + écarts) ; ce n'est pas un enfant de l'élément cliquable. */
-.sc-ligne-detail {
-  margin: 0 0 var(--sp-2) calc(var(--sp-4) * 2 + 74px);
-  padding: var(--sp-3) var(--sp-4);
-  background: var(--surface);
-  border-left: 2px solid var(--or);
-  border-radius: 2px;
-}
-.sc-detail-ligne {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
 .sc-etat {
   font-size: 11px;
   letter-spacing: 0.1em;
@@ -582,43 +569,7 @@
   color: var(--ecarlate-glow);
 }
 
-/* ---- Détail d'un plan ---- */
-.sc-detail {
-  max-height: 45vh;
-  overflow-y: auto;
-  box-shadow: 0 -10px 30px -12px rgba(0, 0, 0, 0.7);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-5);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--or);
-  border-radius: 3px;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .sc-detail {
-    animation: sc-entree 0.2s ease-out both;
-  }
-}
-.sc-detail-hd {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-3);
-}
-.sc-detail-hd h3 {
-  margin: 0;
-  font-size: 19px;
-  font-weight: 500;
-  color: var(--ink);
-}
-.sc-detail-pos {
-  font-size: 15px;
-  color: var(--or-glow);
-}
 .sc-detail-meta {
-  margin-left: auto;
   font-size: 12.5px;
   letter-spacing: 0.05em;
   color: var(--ink-3);
@@ -641,34 +592,6 @@
   align-items: center;
   gap: var(--sp-3);
 }
-.sc-deplacer {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.sc-deplacer select {
-  height: 34px;
-  padding: 0 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--ink);
-  font: inherit;
-  font-size: 13px;
-  letter-spacing: 0;
-  text-transform: none;
-}
-/* La zone du détail reste collée en bas de l'écran tant que la scène est visible : sur tablette, la description ne se perd pas sous la grille. */
-.sc-detail-zone {
-  position: sticky;
-  bottom: var(--sp-3);
-  z-index: 5;
-}
-
 @media (max-width: 720px) {
   .sc-carte {
     width: 176px;
@@ -1033,4 +956,67 @@
 }
 .sc-fiches-etat.is-complet b {
   color: var(--or-glow);
+}
+
+/* ---- Le tiroir du plan sélectionné (à droite, sans voile : la grille reste utilisable) ---- */
+.sc-tiroir-plan {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: min(400px, 100%);
+  overflow-y: auto;
+  padding: var(--sp-5);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface) 60%);
+  border-left: 1px solid var(--or-soft);
+  box-shadow: -24px 0 60px -24px rgba(0, 0, 0, 0.8);
+}
+.sc-tiroir-plan h3 {
+  margin: 0;
+  font-family: var(--font-brand), serif;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.sc-tiroir-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.sc-tiroir-pied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: auto;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.sc-tiroir-erreur {
+  margin: 0;
+  color: var(--ecarlate-glow);
+}
+@keyframes sc-tiroir-entree {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sc-tiroir-plan {
+    animation: sc-tiroir-entree 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+/* Large écran : la page laisse la place au tiroir au lieu de se faire recouvrir. */
+@media (min-width: 1280px) {
+  .sc.has-tiroir {
+    padding-right: 420px;
+  }
 }
