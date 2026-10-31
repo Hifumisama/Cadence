@@ -14,8 +14,9 @@ function seedAuHasard(): string {
   return s;
 }
 
-/** La console de rendu : durée, FPS, seed et les trois façons de lancer. Rien n'est enregistré avant le lancement, qui fige le
- * prompt et tous les réglages du plan d'un coup (BrouillonPlan). */
+/** Les réglages du rendu : durée, FPS, seed. Deux gestes seulement : relancer avec les réglages retouchés, ou tirer une nouvelle variante (autre
+ * seed). Les autres lancements passent par « Itérer » (consigne) ; l'upscale ne se lance qu'en lot, depuis la barre du haut. Rien n'est enregistré
+ * avant le lancement (BrouillonPlan). */
 export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | null }) {
   const b = useBrouillon();
   const dernierRendu = b.prochainRendu - 1;
@@ -43,18 +44,18 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
   return (
     <section className="panel fp-console" id="fp-console" aria-label="Rendu">
       <div className="panel-hd">
-        <h2>Rendu</h2>
+        <h2>Réglages</h2>
         <div className={`fp-etat${modifie ? " is-mod" : ""}`} role="status">
           <span className="fp-etat-point" aria-hidden="true" />
           {modifie ? (
             <span>
-              Non figé : {b.modifications.join(", ")}{" "}
+              Modifié : {b.modifications.join(", ")}{" "}
               <button type="button" className="fp-lien" onClick={b.annuler}>
                 tout annuler
               </button>
             </span>
           ) : (
-            <span>{dernierRendu > 0 ? `Figé : identique au rendu n°${dernierRendu}` : "Figé"}</span>
+            <span>{dernierRendu > 0 ? `Comme le rendu n°${dernierRendu}` : "Réglages du plan"}</span>
           )}
         </div>
       </div>
@@ -113,21 +114,12 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
         <button
           type="button"
           className="btn fp-go fp-go-principal"
-          disabled={b.occupe}
+          disabled={b.occupe || !modifie}
           onClick={() => b.figer("previsualiser")}
-          title="Fige le prompt, les références et ces réglages, puis lance la prévisualisation (génération à 0,4 MP, sans upscale)."
+          title={modifie ? "Lance une prévisualisation (0,4 MP, sans upscale) avec ces réglages." : "Change la durée, les FPS ou la seed pour relancer avec d'autres réglages."}
         >
-          <span>{b.occupe ? "Figé…" : "Figer et prévisualiser"}</span>
+          <span>{b.occupe ? "Lancement…" : "Prévisualiser avec ces réglages"}</span>
           <small>rendu n°{b.prochainRendu}</small>
-        </button>
-        <button
-          type="button"
-          className="btn fp-go fp-go-final"
-          disabled={b.occupe}
-          onClick={() => b.figer("final")}
-          title="Fige tout, puis lance le rendu final (upscale et finition) à partir de la prévisualisation retenue ; si la fiche a changé depuis, le plan est régénéré d'abord."
-        >
-          Rendu final
         </button>
         <button
           type="button"
@@ -144,10 +136,6 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
           {b.erreur}
         </p>
       ) : null}
-      <p className="fp-aide">
-        Rien n&rsquo;est enregistré avant de lancer : lancer fige le prompt et tous les réglages du plan, c&rsquo;est ce qui rend chaque
-        rendu reproductible.
-      </p>
     </section>
   );
 }

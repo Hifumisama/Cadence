@@ -20,7 +20,6 @@ import { BrouillonProvider } from "@/components/plan/BrouillonPlan";
 import { ConsoleRendu } from "@/components/plan/ConsoleRendu";
 import { PromptBloc } from "@/components/plan/PromptBloc";
 import { ControlesEntete, type AlerteControle } from "@/components/plan/ControlesEntete";
-import { ActionsRendu } from "@/components/plan/ActionsRendu";
 import { BarreFiche } from "@/components/plan/BarreFiche";
 import { PelliculePlans, type CadrePlan } from "@/components/plan/PelliculePlans";
 import { PlateauEssais, type EssaiCarte } from "@/components/plan/PlateauEssais";
@@ -366,24 +365,12 @@ export default async function PlanPage({
                 hrefQuitter={hrefQuitter}
                 enCours={enCours}
               >
-                {principal && principalJob && (retenable || principalJob.promptUtilise || principalJob.descriptionUtilisee || principalJob.raccordJobId != null) ? (
+                {principal && principalJob && (principalJob.promptUtilise || principalJob.descriptionUtilisee || principalJob.raccordJobId != null) ? (
                   <div className="tm-sous-legende">
                     {(() => {
                       const r = etatRaccord({ liaison: plan.liaison, utilise: principalJob.raccordJobId, actuel: raccordMaintenant?.source ?? null, precedentTitre: raccordMaintenant?.precedent.titre ?? null, refsVisuelles });
                       return r ? <p className="tiny-note" style={{ margin: "0 0 4px", ...(r.perime ? { color: "var(--gold, #c9a227)" } : {}) }}>{r.texte}</p> : null;
                     })()}
-                    {retenable ? (
-                      <details className="tm-details">
-                        <summary className="tm-lien">Actions sur l&rsquo;essai n°{principal.numeroRendu}</summary>
-                        <ActionsRendu
-                          planId={plan.id}
-                          jobId={principalJob.id}
-                          promptChange={promptDiffere(promptCourant, principalJob.promptUtilise)}
-                          aUnPrompt={!!principalJob.promptUtilise}
-                          estSeedDuPlan={!!principalJob.seedUtilisee && principalJob.seedUtilisee === plan.seed}
-                        />
-                      </details>
-                    ) : null}
                     {principalJob.descriptionUtilisee && principalJob.descriptionUtilisee.trim() !== (plan.description ?? "").trim() ? (
                       <details className="tm-details">
                         <summary className="tm-lien">Description du plan pour cet essai (différente de l&rsquo;actuelle)</summary>

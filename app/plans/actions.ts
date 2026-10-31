@@ -91,29 +91,6 @@ async function appliquerRendu(planId: number, jobId: number, restaurerPrompt: bo
   return { ok: true };
 }
 
-/** « Utiliser ce rendu » : le plan reprend sa seed (et sa durée, et son prompt si demandé) ; le prochain « Rendu final » ou
- * « Prévisualiser » le reproduira. */
-export async function retenirRendu(planId: number, jobId: number, restaurerPrompt = false): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  const r = await appliquerRendu(planId, jobId, restaurerPrompt);
-  if (r.ok) revalidatePath("/", "layout");
-  return r;
-}
-
-/** « Rendu final avec celui-ci » : reprend ce rendu (voir `retenirRendu`) puis lance l'upscale, en une seule action. */
-export async function rendreFinalAvecRendu(planId: number, jobId: number, restaurerPrompt = false): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  const r = await appliquerRendu(planId, jobId, restaurerPrompt);
-  if (!r.ok) return r;
-  const [plan] = await db.select({ retenu: plans.renduRetenuId }).from(plans).where(eq(plans.id, planId));
-  try {
-    await creerJobRelance(planId, true, false, { garderPret: plan?.retenu === jobId, sourceJobId: jobId });
-  } catch (e) {
-    if (e instanceof DureePlanInvalide) return { ok: false, erreur: e.message };
-    throw e;
-  }
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
 /** Une relance en lot : un plan dont la durée dépasse le plafond est sauté (faux), les autres partent. */
 async function relancerSiPossible(...args: Parameters<typeof creerJobRelance>): Promise<boolean> {
   try {
