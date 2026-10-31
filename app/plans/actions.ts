@@ -421,38 +421,6 @@ export async function supprimerPlan(
   redirect(plansHref);
 }
 
-/** Bascule un plan brouillon en fiche de plan développable : crée les 6
- * sections de prompt vides et passe le statut à en_attente — c'est ce qui
- * fait entrer le plan dans la queue Plans (F04), jamais avant. */
-export async function developperEnFichePlan(planId: number) {
-  const existantes = await db
-    .select()
-    .from(planPromptSections)
-    .where(eq(planPromptSections.planId, planId));
-
-  const SECTIONS = [
-    "subject_definitions",
-    "summary",
-    "retention_analysis",
-    "detailed_description",
-    "overall_soundscape",
-    "non_diegetic_music",
-  ] as const;
-
-  if (existantes.length === 0) {
-    for (const [ordre, section] of SECTIONS.entries()) {
-      await db.insert(planPromptSections).values({ planId, section, ordre, contenu: "" });
-    }
-  }
-
-  await db
-    .update(plans)
-    .set({ statut: "en_attente", updatedAt: new Date() })
-    .where(eq(plans.id, planId));
-
-  revalidatePath("/", "layout");
-}
-
 type AnalysePromptColle =
   | { ok: false; erreurs: string[] }
   | {

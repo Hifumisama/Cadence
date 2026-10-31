@@ -7,6 +7,7 @@ import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
 import { useAgents, type DemandeAgent } from "@/components/agents/AgentsProvider";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
+import { GenererFiche } from "@/components/plan/GenererFiche";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { Icone } from "@/components/ui/Icone";
 import { posterBackgroundImage } from "@/lib/poster";
@@ -323,6 +324,7 @@ export function VueScenario({
 
   const detail = (p: PlanVue, entete: boolean) => (
     <DetailPlan
+      projectId={projectId}
       plan={p}
       plans={courant.plans}
       sceneId={courant.id}
@@ -594,6 +596,7 @@ export function VueScenario({
 /** Ce que l'on fait d'un plan sélectionné : le lire, ouvrir sa fiche, le décaler d'un cran dans sa scène (sans glisser-déposer : tablette, clavier),
  * le changer de scène. `entete` : le panneau sous la grille de vignettes reprend le titre ; en liste, la ligne le porte déjà. */
 function DetailPlan({
+  projectId,
   plan,
   plans,
   sceneId,
@@ -603,6 +606,7 @@ function DetailPlan({
   onOuvrir,
   onDeplace,
 }: {
+  projectId: number;
   plan: PlanVue;
   plans: PlanVue[];
   sceneId: number | null;
@@ -614,7 +618,9 @@ function DetailPlan({
 }) {
   const [pending, startTransition] = useTransition();
   const i = plans.findIndex((p) => p.id === plan.id);
-  const decaler = (avantId: number | null) => {
+  /** Un plan naît en brouillon ; il n'a de fiche (prompt vidéo) qu'une fois écrite par l'agent. */
+  const sansFiche = plan.statut === "brouillon";
+  const decaler =(avantId: number | null) => {
     marquerDepose(`plan:${plan.id}`);
     startTransition(() => deplacerPlan(plan.id, sceneId, avantId));
   };
@@ -632,8 +638,9 @@ function DetailPlan({
       ) : null}
       <p className={`sc-description${plan.description ? "" : " is-vide"}`}>{plan.description ?? "Pas encore de description."}</p>
       <div className="sc-actions">
-        <button type="button" className="btn btn-gold btn-sm" onClick={onOuvrir}>
-          Ouvrir la fiche →
+        {sansFiche ? <GenererFiche projectId={projectId} planUuid={plan.uuid} demandeEnCours={plan.ficheEnCours} /> : null}
+        <button type="button" className={`btn ${sansFiche ? "btn-ghost" : "btn-gold"} btn-sm`} onClick={onOuvrir}>
+          {sansFiche ? "Ouvrir le plan →" : "Ouvrir la fiche →"}
         </button>
         <span className="sc-ordre" role="group" aria-label="Changer la place du plan">
           <button type="button" className="btn btn-ghost btn-sm" disabled={pending || i <= 0} onClick={() => decaler(plans[i - 1]!.id)}>

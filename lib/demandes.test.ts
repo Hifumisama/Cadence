@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ERREUR_ANNULEE } from "./annulation";
-import { avancerEtapes, decisionAjoutPlan, decisionAjoutScene, etapesAjoutScene, deciderIteration, etapeCouranteDemande, etapesAjoutPlan, etapesIterationPlan, progressionDemande } from "./demandes";
+import { avancerEtapes, decisionAjoutPlan, decisionAjoutScene, decisionFichePlan, etapesAjoutScene, etapesFichePlan, deciderIteration, etapeCouranteDemande, etapesAjoutPlan, etapesIterationPlan, progressionDemande } from "./demandes";
 
 const run = (statut: string, erreur: string | null = null) => ({ genre: "run" as const, statut, erreur });
 const job = (statut: string, erreur: string | null = null) => ({ genre: "job" as const, statut, erreur });
@@ -119,4 +119,31 @@ test("nouvelle scène : sans scène, sans plan, bloquée ou refusée, la demande
   assert.deepEqual(decisionAjoutScene(proposition("prete", [changement({ cibleType: "scene", refuseRaison: "Hors portée." }), changement()])), { action: "echec", erreur: "Hors portée." });
   assert.deepEqual(decisionAjoutScene(proposition("appliquee")), { action: "fait" });
   assert.deepEqual(etapesAjoutScene().map((x) => x.cle), ["agent", "ajout"]);
+});
+
+// --- Générer la fiche d'un plan ------------------------------------------------------------------------------------------------------------
+
+test("fiche de plan : la fiche et les assets qu'elle crée sont retenus, le reste (un plan) reste décoché", () => {
+  assert.deepEqual(etapesFichePlan().map((x) => x.cle), ["agent", "ecriture"]);
+  assert.deepEqual(decisionFichePlan(null), { action: "attendre" });
+  const d = decisionFichePlan(
+    proposition("prete", [
+      changement({ id: 1, cibleType: "fiche", operation: "modifier" }),
+      changement({ id: 2, cibleType: "asset" }),
+      changement({ id: 3, cibleType: "asset", bloque: true }),
+      changement({ id: 4, cibleType: "plan" }),
+    ]),
+  );
+  assert.deepEqual(d, { action: "appliquer", changementIds: [1, 2] });
+});
+
+test("fiche de plan : sans fiche, bloquée, refusée ou échouée, la demande échoue avec la raison", () => {
+  assert.deepEqual(decisionFichePlan(proposition("prete", [changement()])), { action: "echec", erreur: "L'agent n'a pas proposé de fiche." });
+  assert.deepEqual(decisionFichePlan(proposition("prete", [changement({ cibleType: "fiche", refuseRaison: "Plan déjà rendu." })])), { action: "echec", erreur: "Plan déjà rendu." });
+  assert.deepEqual(
+    decisionFichePlan(proposition("prete", [changement({ cibleType: "fiche", bloque: true, avertissements: [{ type: "bloque_controle", texte: "Marqueur non résolu." }] })])),
+    { action: "echec", erreur: "Marqueur non résolu." },
+  );
+  assert.deepEqual(decisionFichePlan(proposition("echouee", [], "Délai dépassé.")), { action: "echec", erreur: "Délai dépassé." });
+  assert.deepEqual(decisionFichePlan(proposition("appliquee")), { action: "fait" });
 });

@@ -3,7 +3,7 @@ import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { notFound } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { demandes } from "@/db/schema";
+import { demandes, plans } from "@/db/schema";
 import { VueScenario } from "@/components/scenario/VueScenario";
 import { srcRendu } from "@/components/plan/Vignette";
 import type { ContexteAjoutPlan, ContexteAjoutScene } from "@/lib/demandes";
@@ -24,7 +24,7 @@ export default async function ScenarioPage({
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, episode, { scenes, sansScene }, pellicule, etat, enCours] = await Promise.all([
+  const [projet, episode, { scenes, sansScene }, pellicule, etat, enCours, fichesEnCours] = await Promise.all([
     getProject(pid),
     getEpisode(eid),
     getScenarioData(eid),
@@ -32,7 +32,14 @@ export default async function ScenarioPage({
     getEtatPlans(eid),
     // Un plan ou une scène en cours d'écriture (« Ajouter un plan », « Nouvelle scène ») : la page lui garde sa place, sous forme de carte fantôme.
     db.select().from(demandes).where(and(inArray(demandes.type, ["ajout-plan", "ajout-scene"]), eq(demandes.cibleType, "episode"), eq(demandes.cibleId, eid), eq(demandes.statut, "en_cours"))),
+    // « Générer la fiche » en cours sur les plans du film : leur bouton la suit.
+    db
+      .select({ id: demandes.id, planUuid: plans.uuid })
+      .from(demandes)
+      .innerJoin(plans, and(eq(demandes.cibleType, "plan"), eq(plans.id, demandes.cibleId)))
+      .where(and(eq(demandes.type, "fiche-plan"), eq(demandes.statut, "en_cours"), eq(plans.episodeId, eid))),
   ]);
+  const ficheParPlan = new Map(fichesEnCours.map((f) => [f.planUuid, f.id]));
   if (!projet || !episode || episode.projectId !== pid) notFound();
   const ajoutPlanEnCours = enCours.find((d) => d.type === "ajout-plan");
   const ajoutSceneEnCours = enCours.find((d) => d.type === "ajout-scene");
@@ -62,6 +69,7 @@ export default async function ScenarioPage({
       etat: p?.etat ?? "brouillon",
       src: srcRendu(p?.vignette),
       href: `${base}/plans/${plan.uuid}`,
+      ficheEnCours: ficheParPlan.get(plan.uuid) ?? null,
     };
   };
 

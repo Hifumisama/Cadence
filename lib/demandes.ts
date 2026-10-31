@@ -10,7 +10,7 @@ import type { DecisionIteration } from "./fiche-plan";
  * Une demande n'est QU'UN PILOTE : les tâches qu'elle pose (run d'agent, job vidéo, génération d'image) gardent leurs voies et le verrou
  * GPU (worker/index.ts). Elle ne tient ni voie ni verrou entre deux étapes. Une seule demande en cours par cible (plan, asset). */
 
-export type TypeDemande = "iteration-plan" | "ajout-plan" | "ajout-scene";
+export type TypeDemande = "iteration-plan" | "ajout-plan" | "ajout-scene" | "fiche-plan";
 export type StatutDemande = "en_cours" | "termine" | "echoue" | "annulee";
 export type StatutEtapeDemande = "a_venir" | "en_cours" | "fait" | "passe";
 
@@ -184,6 +184,43 @@ export function decisionAjoutScene(prop: PropositionAjout | null): DecisionAjout
   if (!retenus.some((c) => c.cibleType === "plan")) return { action: "echec", erreur: "L'agent a proposé une scène sans plan." };
   const titre = typeof (scene.apres as { titre?: unknown } | null)?.titre === "string" ? (scene.apres as { titre: string }).titre : scene.libelle;
   return { action: "appliquer", changementIds: retenus.map((c) => c.id), tous: tous.map((c) => c.id), titre };
+}
+
+// --- « Générer la fiche » d'un plan (pages Scénario et Plan) -----------------------------------------------------------------------------
+// Une demande à deux étapes : l'agent `plan-h3` écrit la fiche (prompt vidéo, références), puis elle est enregistrée SANS relecture (on la relit dans la
+// page du plan). Cible = le plan : une seule à la fois par plan, et jamais en même temps qu'une itération de ce plan (même index unique partiel).
+
+export const ETAPES_FICHE_PLAN = [
+  { cle: "agent", libelle: "L'agent écrit la fiche" },
+  { cle: "ecriture", libelle: "Enregistrement de la fiche" },
+] as const;
+
+export const etapesFichePlan = (): EtapeDemande[] => ETAPES_FICHE_PLAN.map((e, i) => ({ cle: e.cle, libelle: e.libelle, statut: i === 0 ? ("en_cours" as const) : ("a_venir" as const) }));
+
+export type ContexteFichePlan = {
+  /** Le titre du plan : pour la file. */
+  titre: string;
+  planUuid: string;
+  runUuid?: string;
+};
+
+/** Ce que la proposition de l'agent permet de faire d'une fiche : elle doit écrire la fiche ; les assets manquants qu'elle cite sont créés avec (elle
+ * s'applique après eux). Pure. */
+export type DecisionFichePlan = { action: "attendre" } | { action: "fait" } | { action: "echec"; erreur: string } | { action: "appliquer"; changementIds: number[] };
+
+export function decisionFichePlan(prop: PropositionAjout | null): DecisionFichePlan {
+  if (!prop || prop.statut === "en_generation") return { action: "attendre" };
+  if (prop.statut === "appliquee" || prop.statut === "partielle") return { action: "fait" };
+  if (prop.statut === "echouee") return { action: "echec", erreur: prop.erreur ?? "L'agent n'a pas réussi à écrire cette fiche." };
+  if (prop.statut === "rejetee") return { action: "echec", erreur: "La proposition a été rejetée." };
+  const tous = prop.groupes.flatMap((g) => g.changements);
+  const fiche = tous.find((c) => c.cibleType === "fiche");
+  if (!fiche) return { action: "echec", erreur: "L'agent n'a pas proposé de fiche." };
+  if (fiche.refuseRaison) return { action: "echec", erreur: fiche.refuseRaison };
+  if (fiche.bloque) return { action: "echec", erreur: fiche.avertissements.find((w) => w.type === "bloque_controle")?.texte ?? "Un contrôle empêche d'enregistrer cette fiche." };
+  // Les créations d'assets refusées ou bloquées restent décochées ; la fiche, elle, ne dépend que de celles qu'elle cite.
+  const retenus = tous.filter((c) => c.id === fiche.id || (c.cibleType === "asset" && c.operation === "creer" && !c.refuseRaison && !c.bloque));
+  return { action: "appliquer", changementIds: retenus.map((c) => c.id) };
 }
 
 /** Passe l'étape `cle` à `statut` et lance la suivante si on vient de la finir ; `sauter` les marque « passées » (ex. pas de réécriture). */

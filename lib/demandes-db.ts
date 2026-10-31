@@ -1,21 +1,24 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, demandes, episodes, jobs, plans, propositions, scenes } from "../db/schema";
-import { appliquerSelection, cocherChangements, conversationParUuid, genererIteration, genererProposition, genererReecriturePlan, ouvrirConversation } from "./agents/service";
+import { appliquerSelection, cocherChangements, conversationParUuid, genererFiches, genererIteration, genererProposition, genererReecriturePlan, ouvrirConversation } from "./agents/service";
 import { ERREUR_ANNULEE } from "./annulation";
 import { demanderAnnulation } from "./annulation-db";
 import {
   avancerEtapes,
   decisionAjoutPlan,
   decisionAjoutScene,
+  decisionFichePlan,
   deciderIteration,
   etapeCouranteDemande,
   etapesAjoutPlan,
   etapesAjoutScene,
+  etapesFichePlan,
   etapesIterationPlan,
   type CleEtapeIteration,
   type ContexteAjoutPlan,
   type ContexteAjoutScene,
+  type ContexteFichePlan,
   type PlaceScene,
   type ContexteIteration,
   type EtapeDemande,
@@ -132,10 +135,36 @@ export async function lancerDemandeAjoutScene(
   return { ok: true, demandeId: demande.id };
 }
 
+/** « Générer la fiche » d'un plan (pages Scénario et Plan) : UNE demande (l'agent `plan-h3` écrit la fiche → elle est enregistrée sans relecture, on la
+ * relit dans la page du plan). Réservée aux plans sans fiche : réécrire une fiche existante passe par « Itérer ». */
+export async function lancerDemandeFichePlan(projectId: number, planUuid: string): Promise<Resultat<{ demandeId: number }>> {
+  const [plan] = await db.select({ id: plans.id, titre: plans.titre, statut: plans.statut }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
+  if (!plan) return ERR("Plan introuvable.");
+  if (plan.statut !== "brouillon") return ERR("Ce plan a déjà une fiche.");
+  const ouverte = await ouvrirConversation(projectId, "plan", { uuid: planUuid }, "courte");
+  if (!ouverte.ok) return ouverte;
+  const contexte: ContexteFichePlan = { titre: plan.titre, planUuid };
+  let demande: { id: number };
+  try {
+    const [d] = await db.insert(demandes).values({ projectId, type: "fiche-plan", cibleType: "plan", cibleId: plan.id, etapes: etapesFichePlan(), contexte }).returning({ id: demandes.id });
+    demande = d!;
+  } catch {
+    // L'index unique partiel : une demande est déjà en cours sur ce plan.
+    return ERR("Une demande est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).");
+  }
+  const g = await genererFiches(ouverte.conversationUuid, { planUuids: [planUuid], demandeId: demande.id });
+  if (!g.ok) {
+    await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
+    return g;
+  }
+  await db.update(demandes).set({ contexte: { ...contexte, ...(g.runUuid ? { runUuid: g.runUuid } : {}) }, updatedAt: new Date() }).where(eq(demandes.id, demande.id));
+  return { ok: true, demandeId: demande.id };
+}
+
 /** Le briefing quand l'auteur n'en a pas donné : l'agent propose lui-même la scène qui s'enchaîne. */
 const CONSIGNE_SCENE_LIBRE = "Propose la scène qui s'enchaîne naturellement entre les deux scènes voisines, à partir du brief.";
 
-async function ecrire(d: LigneDemande, maj: { etapes?: EtapeDemande[]; contexte?: ContexteIteration | ContexteAjoutPlan | ContexteAjoutScene; statut?: StatutDemande; erreur?: string | null }): Promise<void> {
+async function ecrire(d: LigneDemande, maj: { etapes?: EtapeDemande[]; contexte?: ContexteIteration | ContexteAjoutPlan | ContexteAjoutScene | ContexteFichePlan; statut?: StatutDemande; erreur?: string | null }): Promise<void> {
   const fin = maj.statut && maj.statut !== "en_cours";
   await db
     .update(demandes)
@@ -306,7 +335,67 @@ async function avancerAjoutScene(d: LigneDemande): Promise<boolean> {
   }
 }
 
+/** Un tour d'une fiche de plan : même attente que les ajouts ; la proposition prête, on enregistre la fiche et les assets manquants qu'elle cite. */
+async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
+  const etapes = lireEtapes(d);
+  const ctx = d.contexte as ContexteFichePlan;
+  if (!etapeCouranteDemande(etapes)) {
+    await ecrire(d, { statut: "termine" });
+    return true;
+  }
+  const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
+  if (!run) {
+    await ecrire(d, { statut: "echoue", erreur: "La tâche de l'agent n'existe plus." });
+    return true;
+  }
+  if (run.statut === "en_attente" || run.statut === "en_cours") return false;
+  if (run.statut === "annulee" || (run.statut === "echoue" && run.erreur === ERREUR_ANNULEE)) {
+    await ecrire(d, { statut: "annulee", erreur: null });
+    return true;
+  }
+  if (run.statut !== "termine") {
+    await ecrire(d, { statut: "echoue", erreur: run.erreur ?? "L'agent a échoué." });
+    return true;
+  }
+  const [prop] = run.propositionId ? await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, run.propositionId)) : [];
+  if (!prop) {
+    await ecrire(d, { statut: "echoue", erreur: "La proposition de l'agent est introuvable." });
+    return true;
+  }
+  const lue = await lireProposition(prop.uuid);
+  const decision = decisionFichePlan(lue);
+  const fini = avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ecriture", "fait");
+  switch (decision.action) {
+    case "attendre":
+      return false;
+    case "echec":
+      await ecrire(d, { statut: "echoue", erreur: decision.erreur });
+      return true;
+    case "fait":
+      await ecrire(d, { statut: "termine", etapes: fini });
+      return true;
+    case "appliquer": {
+      // La fiche et les assets qu'elle cite sont retenus ; tout autre changement glissé dans la proposition reste décoché.
+      const tous = (lue?.groupes ?? []).flatMap((g) => g.changements.map((c) => c.id));
+      const decoche = await cocherChangements(prop.uuid, { ids: tous }, false);
+      const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: decision.changementIds }, true) : decoche;
+      if (!coche.ok) {
+        await ecrire(d, { statut: "echoue", erreur: coche.erreur });
+        return true;
+      }
+      const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: false });
+      if (!a.ok) {
+        await ecrire(d, { statut: "echoue", erreur: a.erreur });
+        return true;
+      }
+      await ecrire(d, { statut: "termine", etapes: fini, erreur: null });
+      return true;
+    }
+  }
+}
+
 async function avancer(d: LigneDemande): Promise<boolean> {
+  if (d.type === "fiche-plan") return avancerFichePlan(d);
   if (d.type === "ajout-plan") return avancerAjoutPlan(d);
   if (d.type === "ajout-scene") return avancerAjoutScene(d);
   if (d.type !== "iteration-plan") return false;

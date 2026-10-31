@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeIteration, lireDemandeVue, type VueDemande } from "@/lib/demandes-db";
+import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandeIteration, lireDemandeVue, type VueDemande } from "@/lib/demandes-db";
 import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@/lib/demandes";
 
 // Les DEMANDES (lib/demandes.ts) côté interface : « Itérer » en pose une, le worker l'enchaîne jusqu'au rendu (lib/demandes-db.ts), la page
@@ -36,6 +36,13 @@ export async function demanderAjoutScene(
   options: { consigne: string; place: ContexteAjoutScene["place"]; apres: string },
 ): Promise<{ ok: true; demandeId: number } | { ok: false; erreur: string }> {
   const r = await lancerDemandeAjoutScene(projectId, episodeId, options);
+  revalidatePath("/", "layout");
+  return r;
+}
+
+/** « Générer la fiche » d'un plan sans fiche : pose la demande (l'agent écrit la fiche, elle est enregistrée sans relecture). Une seule à la fois par plan. */
+export async function demanderFichePlan(projectId: number, planUuid: string): Promise<{ ok: true; demandeId: number } | { ok: false; erreur: string }> {
+  const r = await lancerDemandeFichePlan(projectId, planUuid);
   revalidatePath("/", "layout");
   return r;
 }

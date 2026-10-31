@@ -23,6 +23,8 @@ export type PlanVue = {
   /** Vidéo dont on tire la vignette (rendu retenu, sinon dernier rendu terminé), null sans rendu. */
   src: string | null;
   href: string;
+  /** La demande « Générer la fiche » en cours sur ce plan, s'il y en a une. */
+  ficheEnCours: number | null;
 };
 
 /** Une scène (id null = « Sans scène », la zone où l'on dépose un plan pour le détacher). */

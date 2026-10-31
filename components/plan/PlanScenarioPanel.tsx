@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updatePlanScenario, developperEnFichePlan } from "@/app/plans/actions";
+import { updatePlanScenario } from "@/app/plans/actions";
+import { GenererFiche } from "@/components/plan/GenererFiche";
 import { LIAISONS, LIBELLE_LIAISON, type Liaison } from "@/lib/plan-liaison";
 import {
   ScenarioNarratifFields,
@@ -16,12 +17,19 @@ type Valeurs = ChampsNarratifs & {
 
 export function PlanScenarioPanel({
   planId,
+  projectId,
+  planUuid,
   brouillon,
   initial,
+  demandeEnCours = null,
 }: {
   planId: number;
+  projectId: number;
+  planUuid: string;
   brouillon: boolean;
   initial: Valeurs;
+  /** La demande « Générer la fiche » déjà en cours sur ce plan, s'il y en a une. */
+  demandeEnCours?: number | null;
 }) {
   const [champs, setChamps] = useState(initial);
   const [editionOuverte, setEditionOuverte] = useState(brouillon);
@@ -41,11 +49,10 @@ export function PlanScenarioPanel({
     });
   };
 
-  const onDevelopper = () => {
-    startTransition(async () => {
-      await updatePlanScenario(planId, champs);
-      await developperEnFichePlan(planId);
-    });
+  // « Développer » écrit réellement la fiche : le scénario du plan est enregistré, puis l'agent l'écrit en arrière-plan (même demande que « Générer la fiche »).
+  const enregistrerAvant = async () => {
+    await updatePlanScenario(planId, champs);
+    return true;
   };
 
   if (!brouillon && !editionOuverte) {
@@ -103,9 +110,7 @@ export function PlanScenarioPanel({
         <ScenarioNarratifFields valeurs={champs} onChange={majNarratif} />
         <div className="form-actions wide">
           {brouillon ? (
-            <button className="btn btn-gold" onClick={onDevelopper} disabled={pending}>
-              {pending ? "..." : "Développer en fiche de plan"}
-            </button>
+            <GenererFiche projectId={projectId} planUuid={planUuid} demandeEnCours={demandeEnCours} libelle="Développer en fiche de plan" className="btn btn-gold" avant={enregistrerAvant} />
           ) : null}
           <button className="btn btn-ghost" onClick={onSave} disabled={pending}>
             {pending ? "..." : saved ? "Enregistré" : "Enregistrer"}

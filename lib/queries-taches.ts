@@ -294,7 +294,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .select({ d: demandes, planUuid: plans.uuid, titre: plans.titre, episodeId: plans.episodeId })
     .from(demandes)
     .innerJoin(plans, and(eq(demandes.cibleType, "plan"), eq(plans.id, demandes.cibleId)))
-    .where(and(isNull(demandes.masqueAt), or(eq(demandes.statut, "en_cours"), isNull(demandes.vuAt), gte(demandes.createdAt, depuis))));
+    .where(and(eq(demandes.type, "iteration-plan"), isNull(demandes.masqueAt), or(eq(demandes.statut, "en_cours"), isNull(demandes.vuAt), gte(demandes.createdAt, depuis))));
   const tachesDemandes: Tache[] = await Promise.all(
     lignesDemandes.map(async ({ d, planUuid, titre, episodeId }) => {
       const etapes = (Array.isArray(d.etapes) ? d.etapes : []) as EtapeDemande[];
@@ -331,21 +331,26 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const lignesAjouts = await db
     .select({ d: demandes })
     .from(demandes)
-    .where(and(inArray(demandes.type, ["ajout-plan", "ajout-scene"]), isNull(demandes.masqueAt), or(eq(demandes.statut, "en_cours"), isNull(demandes.vuAt), gte(demandes.createdAt, depuis))));
+    .where(and(inArray(demandes.type, ["ajout-plan", "ajout-scene", "fiche-plan"]), isNull(demandes.masqueAt), or(eq(demandes.statut, "en_cours"), isNull(demandes.vuAt), gte(demandes.createdAt, depuis))));
   const tachesAjouts: Tache[] = await Promise.all(
     lignesAjouts.map(async ({ d }) => {
       const etapes = (Array.isArray(d.etapes) ? d.etapes : []) as EtapeDemande[];
       const ctx = d.contexte as { runUuid?: string; scene?: string; sceneId?: number | null; planUuid?: string; titre?: string; apres?: string };
       const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
-      const base = `/p/${d.projectId}/e/${d.cibleId}`;
       const estScene = d.type === "ajout-scene";
+      const estFiche = d.type === "fiche-plan";
+      // La cible d'une fiche est le plan (celle des autres ajouts, l'épisode) : on retrouve son épisode pour mener à sa page.
+      const [planFiche] = estFiche ? await db.select({ episodeId: plans.episodeId }).from(plans).where(eq(plans.id, d.cibleId)) : [];
+      const base = `/p/${d.projectId}/e/${estFiche ? (planFiche?.episodeId ?? 0) : d.cibleId}`;
       return tacheDeDemande({
         id: d.id,
         projectId: d.projectId,
-        libelle: estScene ? `Nouvelle scène · ${ctx.apres ?? "scénario"}` : `Nouveau plan · ${ctx.scene ?? "scénario"}`,
-        href: estScene
-          ? `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : ""}`
-          : ctx.planUuid ? `${base}/plans/${ctx.planUuid}` : `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
+        libelle: estFiche ? `Fiche · ${ctx.titre ?? "plan"}` : estScene ? `Nouvelle scène · ${ctx.apres ?? "scénario"}` : `Nouveau plan · ${ctx.scene ?? "scénario"}`,
+        href: estFiche
+          ? `${base}/plans/${ctx.planUuid ?? ""}`
+          : estScene
+            ? `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : ""}`
+            : ctx.planUuid ? `${base}/plans/${ctx.planUuid}` : `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
         statut: d.statut as StatutDemande,
         erreur: d.erreur,
         etapes,
@@ -360,9 +365,11 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         annulationDemandee: run?.annulationDemandeeAt != null,
         progressionRendu: null,
         rendu: false,
-        detailFin: estScene
-          ? { termine: ctx.titre ? `Scène ajoutée · ${ctx.titre}` : "Scène ajoutée", echoue: "Ajout d'une scène" }
-          : { termine: ctx.titre ? `Plan ajouté · ${ctx.titre}` : "Plan ajouté", echoue: "Ajout d'un plan" },
+        detailFin: estFiche
+          ? { termine: "Fiche écrite", echoue: "Écriture d'une fiche" }
+          : estScene
+            ? { termine: ctx.titre ? `Scène ajoutée · ${ctx.titre}` : "Scène ajoutée", echoue: "Ajout d'une scène" }
+            : { termine: ctx.titre ? `Plan ajouté · ${ctx.titre}` : "Plan ajouté", echoue: "Ajout d'un plan" },
       });
     }),
   );

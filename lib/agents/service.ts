@@ -964,8 +964,8 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
  * fiche remplace ensemble ses six sections ET ses références ; les répliques liées restent celles du plan. */
 export async function genererFiches(
   conversationUuid: string,
-  options: { planUuids?: string[]; consigne?: string; /** Une consigne PAR plan (le réalisateur : chaque refonte a la sienne) ; à défaut, `consigne`. */ consignes?: Record<string, string> } = {},
-): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
+  options: { planUuids?: string[]; consigne?: string; /** Une consigne PAR plan (le réalisateur : chaque refonte a la sienne) ; à défaut, `consigne`. */ consignes?: Record<string, string>; /** La demande « Générer la fiche » qui pose cette tâche (plan seul). */ demandeId?: number } = {},
+): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number; runUuid?: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   const portee = conv.portee as Portee;
@@ -985,10 +985,10 @@ export async function genererFiches(
     const e = await entreePlanH3(db, conv.projectId, choisis[0]!.uuid, consigne);
     if (!e) return ERR("Plan introuvable.");
     const propId = await nouvelleProposition(conv, { skill: "plan-h3", consigne, contexte: e.contexte });
-    const run = await creerRun(db, { skill: "plan-h3", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: e.variante ? { variante: e.variante } : null });
+    const run = await creerRun(db, { skill: "plan-h3", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: e.variante ? { variante: e.variante } : null, demandeId: options.demandeId });
     await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
     const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
-    return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: 1 };
+    return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: 1, runUuid: run.uuid };
   }
 
   const plusieursEpisodes = new Set(choisis.map((p) => p.episodeId)).size > 1;

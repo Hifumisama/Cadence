@@ -1,4 +1,7 @@
 import { notFound } from "next/navigation";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { demandes } from "@/db/schema";
 import { getPlansPerimes } from "@/lib/plans-perimes";
 import { getAssetsRegistre, getPlanDetail, getScenesEpisode, type AssetRegistre } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
@@ -79,6 +82,12 @@ export default async function PlanPage({
     getVoixDuPlan(plan.id),
     getPelliculePlans(eid),
   ]);
+
+  // « Générer la fiche » déjà lancée sur ce plan : le bouton la suit au lieu de proposer d'en lancer une autre.
+  const [ficheEnCours] = await db
+    .select({ id: demandes.id })
+    .from(demandes)
+    .where(and(eq(demandes.type, "fiche-plan"), eq(demandes.cibleType, "plan"), eq(demandes.cibleId, plan.id), eq(demandes.statut, "en_cours")));
 
   const sectionsPourControle = promptSections.map((s) => ({
     section: s.section,
@@ -339,8 +348,8 @@ export default async function PlanPage({
       {estBrouillon ? (
         <div className="tm-brouillon">
           {titre}
-          <p className="tiny-note">Cette fiche n&rsquo;est pas encore développée : complète le scénario du plan, puis développe-le en fiche de plan.</p>
-          <PlanScenarioPanel planId={plan.id} brouillon initial={scenarioInitial} />
+          <p className="tiny-note">Cette fiche n&rsquo;est pas encore développée : complète le scénario du plan, puis développe-le : l&rsquo;agent écrit la fiche (prompt vidéo, références) en arrière-plan.</p>
+          <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon initial={scenarioInitial} demandeEnCours={ficheEnCours?.id ?? null} />
         </div>
       ) : (
         <BrouillonProvider planId={plan.id} serveur={serveur} prochainRendu={jobHistory.reduce((m, j) => Math.max(m, j.numeroRendu), 0) + 1}>
@@ -426,7 +435,7 @@ export default async function PlanPage({
                 reglages: (
                   <>
                     <ConsoleRendu timecodeMusique={plan.timecodeMusique} />
-                    <PlanScenarioPanel planId={plan.id} brouillon={false} initial={scenarioInitial} />
+                    <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon={false} initial={scenarioInitial} />
                   </>
                 ),
                 journal: <JournalEssais planId={plan.id} lignes={journal} />,
