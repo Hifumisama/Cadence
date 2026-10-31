@@ -100,7 +100,11 @@ export function RefsPanel({ planId, refs, assets }: { planId: number; refs: RefV
     <section className="panel fp-refs" id="fp-refs" aria-label="Références">
       <div className="panel-hd">
         <h2>Références</h2>
-        <span className="eyebrow num">{ordre.map((t) => `${NOM_TYPE[t]} ${parType(t).length}/${MAX_REFS[t]}`).join(" · ")}</span>
+        <span className="eyebrow num fp-refs-compte">
+          {ordre.map((t) => (
+            <span key={t}>{`${NOM_TYPE[t]} ${parType(t).length}/${MAX_REFS[t]}`}</span>
+          ))}
+        </span>
         <div className="fp-menu fp-menu-droite" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setMenu(false); }}>
           <button type="button" className="btn btn-ghost btn-sm" aria-haspopup="true" aria-expanded={menu} onClick={() => setMenu((m) => !m)} disabled={pending}>
             <Icone nom="ajouter" taille={15} /> Référence

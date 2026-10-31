@@ -79,6 +79,11 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
             <span>{DUREE_MIN} s</span>
             <span>{DUREE_MAX} s</span>
           </div>
+          {b.duree < DUREE_MIN || b.duree > DUREE_MAX ? (
+            <p className="tiny-note fp-hors-bornes" role="status">
+              {b.duree} s est hors bornes : H3 génère de {DUREE_MIN} à {DUREE_MAX} s. Déplace le curseur pour corriger.
+            </p>
+          ) : null}
         </div>
         <div className="fp-champ">
           <label htmlFor="fp-fps">FPS</label>

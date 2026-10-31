@@ -157,7 +157,8 @@ export default async function PlanPage({
   }));
 
   const scene = scenesEpisode.find((sc) => sc.id === plan.sceneId);
-  const estBrouillon = plan.statut === "brouillon";
+  // Un plan est un brouillon tant qu'il n'a ni fiche écrite ni essai : un statut resté « brouillon » sur un plan qui a déjà un prompt ou des rendus ne les cache pas.
+  const estBrouillon = plan.statut === "brouillon" && !aUneFiche && jobHistory.length === 0;
   const plansHref = `/p/${pid}/e/${eid}/plans`;
   // --- l'état du plan et l'avancée de l'épisode -----------------------------------------------------------------------
   const etat = etatPlan({ nbEssais: jobHistory.length, pretUpscaleAt: plan.pretUpscaleAt });

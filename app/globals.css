@@ -4711,7 +4711,7 @@ button {
 }
 .fp-ref-statut {
   font-size: 11px;
-  color: var(--ecarlate-glow);
+  color: var(--ink-3);
 }
 .fp-ref .ref-suppr {
   top: 2px;
@@ -5279,15 +5279,15 @@ button {
 }
 .tm-ctrl-pastille {
   background: none;
-  border: 1px solid rgba(200, 16, 46, 0.45);
-  color: var(--ecarlate-glow);
+  border: 1px solid var(--or-soft);
+  color: var(--or-glow);
   border-radius: 20px;
   font-size: 12px;
   padding: 3px 10px;
   cursor: pointer;
 }
 .tm-ctrl-pastille:hover {
-  background: rgba(200, 16, 46, 0.08);
+  background: rgba(201, 162, 39, 0.1);
 }
 .tm-ctrl-pop {
   left: 0;
@@ -6408,4 +6408,16 @@ button {
   .accueil-tri {
     margin-left: 0;
   }
+}
+.fp-refs-compte {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+.fp-refs-compte span {
+  white-space: nowrap;
+}
+.fp-hors-bornes {
+  margin: 4px 0 0;
+  color: var(--or-glow);
 }

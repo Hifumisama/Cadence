@@ -12,7 +12,7 @@ export type AlerteControle = {
   ancre?: string;
 };
 
-/** Les contrôles automatiques, repliés dans le titre du plan : une pastille « 2 contrôles » qui ouvre la liste (rendu périmé, référence
+/** Les contrôles automatiques, repliés dans le titre du plan : une pastille « 2 points à revoir » qui ouvre la liste (rendu périmé, référence
  * citée mais non déclarée, structure des shots…). Quand tout est en règle, rien à lire : pas de pastille. */
 export function ControlesEntete({ alertes }: { alertes: AlerteControle[] }) {
   const [ouvert, setOuvert] = useState(false);
@@ -45,7 +45,7 @@ export function ControlesEntete({ alertes }: { alertes: AlerteControle[] }) {
   return (
     <div className="fp-ctrl" ref={racine}>
       <button type="button" className="tm-ctrl-pastille" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
-        {alertes.length} contrôle{alertes.length > 1 ? "s" : ""}
+        {alertes.length} point{alertes.length > 1 ? "s" : ""} à revoir
       </button>
       {ouvert ? (
         <div className="fp-alertes tm-ctrl-pop" role="status">
