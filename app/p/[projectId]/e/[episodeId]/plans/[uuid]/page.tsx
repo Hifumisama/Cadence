@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { demandes } from "@/db/schema";
+import { demandes, planPromptVersions } from "@/db/schema";
 import { getPlansPerimes } from "@/lib/plans-perimes";
 import { getAssetsRegistre, getPlanDetail, getScenesEpisode, type AssetRegistre } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
@@ -10,15 +10,14 @@ import { getAllParams } from "@/lib/params";
 import { controlerStructure, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { getVoixDuPlan } from "@/lib/queries-voix-plan";
 import { avanceeUpscale, essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/fiche-plan";
-import { ImporterVideoForm } from "@/components/plan/ImporterVideoForm";
-import { RefsPanel, type RefVue } from "@/components/plan/RefsPanel";
+import { ReferencesCases, type RefVue } from "@/components/plan/ReferencesCases";
 import type { NoeudPicker } from "@/components/plan/AssetPickerModal";
 import { SuiviRendus } from "@/components/plan/SuiviRendus";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
 import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
 import { BrouillonProvider } from "@/components/plan/BrouillonPlan";
 import { ConsoleRendu } from "@/components/plan/ConsoleRendu";
-import { PromptBloc } from "@/components/plan/PromptBloc";
+import { PromptBloc, type VersionPrompt } from "@/components/plan/PromptBloc";
 import { ControlesEntete, type AlerteControle } from "@/components/plan/ControlesEntete";
 import { BarreFiche } from "@/components/plan/BarreFiche";
 import { PelliculePlans, type CadrePlan } from "@/components/plan/PelliculePlans";
@@ -209,6 +208,9 @@ export default async function PlanPage({
       }
     : null;
 
+  const versionsPrompt = await db.select().from(planPromptVersions).where(eq(planPromptVersions.planId, plan.id)).orderBy(desc(planPromptVersions.id)).limit(30);
+  const historiquePrompt: VersionPrompt[] = versionsPrompt.map((v) => ({ id: v.id, texte: v.texte, source: v.source, quand: v.createdAt.toLocaleString("fr-FR") }));
+
   const perime = (await getPlansPerimes({ planIds: [plan.id] })).get(plan.id);
 
   // Contrôles repliés dans la pastille du titre : références, structure, dialogues.
@@ -277,10 +279,6 @@ export default async function PlanPage({
     ),
   ];
 
-  const declarees = [
-    ...refs.map((r) => `${r.type === "picture" ? "Picture" : r.type === "video" ? "Video" : "Audio"} ${r.slot}`),
-    ...audioRefs.map((r) => `Audio ${r.slot}`),
-  ];
   const serveur = {
     sections: Object.fromEntries(promptSections.map((s) => [s.section, s.contenu])),
     duree: plan.dureeGenerationSecondes,
@@ -298,15 +296,9 @@ export default async function PlanPage({
         {LIBELLE_ETAT_PLAN[etat]}
       </span>
       {!estBrouillon ? <ControlesEntete alertes={alertes} /> : null}
-      <details className="fp-plus tm-plus">
-        <summary className="btn btn-ghost btn-sm" aria-label="Autres actions sur ce plan">
-          Plus d&rsquo;actions
-        </summary>
-        <div className="fp-plus-pop">
-          {!estBrouillon ? <ImporterVideoForm planId={plan.id} /> : null}
-          <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} libelle="Supprimer le plan" />
-        </div>
-      </details>
+      <span className="tm-plus">
+        <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} />
+      </span>
       {plan.numerosSource && plan.numerosSource.length > 1 ? <span className="tm-sous">Fusion des plans {plan.numerosSource.join(" + ")}</span> : plan.acte ? <span className="tm-sous">{plan.acte}</span> : null}
     </header>
   );
@@ -328,15 +320,14 @@ export default async function PlanPage({
             <main className="tm-centre">
               {titre}
               <TiroirPlan
-                compteurs={{ refs: refsVue.length }}
+                compteurs={{}}
                 panneaux={{
                   scenario: <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon={false} initial={scenarioInitial} />,
-                  refs: <RefsPanel planId={plan.id} refs={refsVue} assets={assetsPicker} />,
                   prompt: (
                     <PromptBloc
                       planId={plan.id}
-                      declarees={declarees}
                       promptComplet={promptCourant}
+                      historique={historiquePrompt}
                       essai={
                         principal && principalJob
                           ? {
@@ -350,9 +341,11 @@ export default async function PlanPage({
                       }
                     />
                   ),
-                  reglages: <ConsoleRendu timecodeMusique={plan.timecodeMusique} />,
+                  reglages: <ConsoleRendu timecodeMusique={plan.timecodeMusique} valide={etat === "pret"} />,
                 }}
               />
+              <div className="tm-poste">
+                <div className="tm-poste-gauche">
               <PlateauEssais
                 planId={plan.id}
                 essais={essais}
@@ -387,6 +380,11 @@ export default async function PlanPage({
                   })()
                 ) : null}
               </PlateauEssais>
+                </div>
+                <aside className="tm-poste-droite" aria-label="Références">
+                  <ReferencesCases planId={plan.id} refs={refsVue} assets={assetsPicker} />
+                </aside>
+              </div>
 
               <IntentionPlan
                 projectId={pid}

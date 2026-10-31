@@ -202,6 +202,18 @@ export const planPromptSections = pgTable("plan_prompt_sections", {
   contenu: text("contenu").notNull().default(""),
 });
 
+// Historique du prompt d'un plan (2026-10-31) : chaque enregistrement du prompt en texte libre garde son texte entier, pour pouvoir y revenir.
+// La première fois, le prompt d'avant (source « avant ») est gardé aussi. Les prompts envoyés à chaque essai restent, eux, sur le job.
+export const planPromptVersions = pgTable("plan_prompt_versions", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id")
+    .notNull()
+    .references(() => plans.id, { onDelete: "cascade" }),
+  texte: text("texte").notNull(),
+  source: varchar("source", { length: 20 }).notNull(), // avant | enregistrement
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Références image/vidéo/audio d'un plan — max 6 picture+video, max 3 audio
 // (contraintes MiniMax H3, vérifiées côté application, pas en DB).
 export const planRefs = pgTable("plan_refs", {

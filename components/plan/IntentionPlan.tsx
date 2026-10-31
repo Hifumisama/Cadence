@@ -237,6 +237,32 @@ export function IntentionPlan({
       ? "Écris d'abord ce que tu veux changer."
       : undefined;
 
+  // Un plan validé n'itère plus : la consigne et « Itérer » n'ont pas de sens. « Rouvrir l'itération » les ramène.
+  if (etat === "pret") {
+    return (
+      <section className="tm-intention tm-pret" aria-label="Plan prêt à upscaler">
+        <p className="tm-pret-texte">
+          <b>Plan prêt à upscaler.</b> Il partira avec le prochain lot d&rsquo;upscale.
+        </p>
+        <div className="tm-actions">
+          <button type="button" className="btn tm-btn-ligne" disabled={pending} onClick={validerOuRouvrir}>
+            {libellePret}
+          </button>
+          {hrefSuivant ? (
+            <button type="button" className="btn tm-btn-ligne" onClick={() => router.push(hrefSuivant, { scroll: false })}>
+              Plan suivant →
+            </button>
+          ) : null}
+        </div>
+        {erreur ? (
+          <p className="tm-erreur" role="alert">
+            {erreur}
+          </p>
+        ) : null}
+      </section>
+    );
+  }
+
   return (
     <section className="tm-intention" aria-labelledby="tm-intention-titre">
       <label htmlFor="tm-consigne" id="tm-intention-titre" className="tm-intention-titre">
@@ -274,7 +300,7 @@ export function IntentionPlan({
         <button type="button" className="btn tm-btn-itere" disabled={occupe || enCours || consigneAbsente} onClick={() => void iterer()} title={titreIterer}>
           {libelleIterer}
         </button>
-        <button type="button" className="btn tm-btn-ligne" disabled={occupe || enCours || (etat !== "pret" && !base)} onClick={validerOuRouvrir}>
+        <button type="button" className="btn tm-btn-ligne" disabled={occupe || enCours || !base} onClick={validerOuRouvrir}>
           {libellePret}
         </button>
       </div>

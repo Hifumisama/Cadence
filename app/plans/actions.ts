@@ -1,27 +1,23 @@
 "use server";
 
 import { db } from "@/db";
-import { jobs, planPromptSections, planRefs, plans } from "@/db/schema";
+import { jobs, planPromptSections, planPromptVersions, planRefs, plans } from "@/db/schema";
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { creerJobRelance, DureePlanInvalide } from "@/lib/job-relance";
 import { appliquerIterationEtGenererCore } from "@/lib/iteration-application";
 import { ficheChangeeDepuis, getPlansPerimes } from "@/lib/plans-perimes";
 import { classerPourPrevisualisation, consequencesSuppression, decisionIteration, essaiEnFile } from "@/lib/fiche-plan";
-import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "@/lib/agents/service";
-import { lireProposition } from "@/lib/queries-agents";
-import type { Tx } from "@/lib/ordre-plans";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { extname, join, resolve } from "node:path";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL, verifierCoherenceRefs } from "@/lib/plan-checks";
-import { getVoixDuPlan } from "@/lib/queries-voix-plan";
+import { rm } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { estLiaison } from "@/lib/plan-liaison";
 import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
 import type { RefLabel } from "@/lib/plan-checks";
 import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
 import { promptDiffere, raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib/rendus";
-import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_VIDEO, cheminPlanMedia, estVideo } from "@/lib/media";
+import { MEDIA_ROOT } from "@/lib/media";
 import { assemblerPrompt } from "@/lib/prompt";
 
 export async function updatePromptSection(
@@ -405,121 +401,27 @@ export async function retirerPlan(planId: number, force = false): Promise<{ ok: 
   return { ok: true };
 }
 
-type AnalysePromptColle =
-  | { ok: false; erreurs: string[] }
-  | {
-      ok: true;
-      sections: Record<(typeof ORDRE_SECTIONS)[number], string>;
-      avertissements: {
-        labelsOrphelins: string[];
-        refsNonCitees: string[];
-      };
-    };
-
-/** Lit un prompt H3 collé en bloc sans rien écrire : sert d'aperçu avant
- * "Remplacer les 6 sections" (voir PromptImportColle). Les contrôles
- * mécaniques (F02/F03) tournent sur le texte collé mais ne bloquent jamais
- * l'import — on peut vouloir coller avant d'avoir fini le tableau de
- * dialogues. */
-export async function analyserPromptColle(
-  planId: number,
-  brut: string,
-): Promise<AnalysePromptColle> {
+/** Enregistre le prompt en TEXTE LIBRE (le panneau Prompt de la fiche). Le texte est lu comme un prompt complet — les six sections, chacune sous son nom —
+ * et remplace celles du plan ; s'il ne se lit pas, rien n'est écrit et les raisons sont rendues. Chaque enregistrement garde son texte dans
+ * l'historique ; la toute première fois, le prompt d'avant y est gardé aussi, pour qu'on puisse y revenir. */
+export async function enregistrerPrompt(planId: number, brut: string): Promise<{ ok: true } | { ok: false; erreurs: string[] }> {
   const texte = extraireBlocPrompt(brut);
   const { erreurs } = validerPromptColle(texte);
   if (erreurs.length > 0) return { ok: false, erreurs };
 
+  const avant = assemblerPrompt(await db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId)));
   const sections = decouperSections(texte);
-  const sectionsPourControle = ORDRE_SECTIONS.map((section) => ({
-    section,
-    contenu: sections[section],
-  }));
+  const apres = assemblerPrompt(ORDRE_SECTIONS.map((section) => ({ section, contenu: sections[section] })));
 
-  const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
-  if (!plan) return { ok: false, erreurs: ["plan introuvable"] };
-  const [refs, audioRefs] = await Promise.all([
-    db
-      .select({ type: planRefs.type, slot: planRefs.slot })
-      .from(planRefs)
-      .where(eq(planRefs.planId, planId)),
-    getVoixDuPlan(planId),
-  ]);
-
-  // Les voix (audioRefs) sont des refs dérivées : déclarées, jamais « non citées » (voir verifierCoherenceRefs).
-  const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(sectionsPourControle, refs, audioRefs);
-
-  return {
-    ok: true,
-    sections,
-    avertissements: { labelsOrphelins, refsNonCitees },
-  };
-}
-
-/** Écrase les 6 sections du plan avec le contenu d'un prompt H3 collé en
- * bloc — alternative à la saisie section par section (voir
- * PromptSectionEditor), pour ne pas retaper à la main un prompt déjà rédigé
- * ailleurs. Refuse tout ou rien : jamais d'écriture
- * partielle si une section manque ou est en double. */
-export async function importerPromptColle(
-  planId: number,
-  brut: string,
-): Promise<{ ok: true } | { ok: false; erreurs: string[] }> {
-  const texte = extraireBlocPrompt(brut);
-  const { erreurs } = validerPromptColle(texte);
-  if (erreurs.length > 0) return { ok: false, erreurs };
-
-  const sections = decouperSections(texte);
-  for (const section of ORDRE_SECTIONS) {
-    await updatePromptSection(planId, section, sections[section]);
+  const [derniere] = await db.select({ texte: planPromptVersions.texte }).from(planPromptVersions).where(eq(planPromptVersions.planId, planId)).orderBy(desc(planPromptVersions.id)).limit(1);
+  if (!derniere && avant.trim() && avant !== apres) await db.insert(planPromptVersions).values({ planId, texte: avant, source: "avant" });
+  if (avant !== apres) {
+    for (const section of ORDRE_SECTIONS) await updatePromptSection(planId, section, sections[section]);
   }
+  if (!derniere || derniere.texte !== apres) await db.insert(planPromptVersions).values({ planId, texte: apres, source: "enregistrement" });
 
   revalidatePath("/", "layout");
   return { ok: true };
-}
-
-/** Rattache une vidéo déjà tournée (hors pipeline ComfyUI) à un plan, pour
- * traçabilité — retour utilisateur 2026-09-30 : certains plans de l'épisode
- * sont déjà réalisés et doivent apparaître comme tels plutôt que rester
- * "à générer". Crée un job "termine" marqué WORKFLOW_IMPORT_MANUEL (pas de
- * seed, pas de comfyuiPromptId — ce n'est pas une génération) et fait
- * apparaître la vidéo dans l'aperçu et l'historique comme n'importe quel
- * rendu réussi. Le plan passe "termine", jamais "previsualise" : une vidéo
- * déjà tournée n'est par définition pas une prévisualisation. */
-export async function importerVideoExistante(planId: number, formData: FormData) {
-  const fichier = formData.get("fichier");
-  if (!(fichier instanceof File) || fichier.size === 0) {
-    throw new Error("Aucun fichier fourni.");
-  }
-  if (fichier.size > TAILLE_MAX_UPLOAD_VIDEO) {
-    throw new Error(
-      `Fichier trop volumineux (${(fichier.size / 1024 / 1024).toFixed(1)} Mo, max ${TAILLE_MAX_UPLOAD_VIDEO / 1024 / 1024} Mo).`,
-    );
-  }
-  const ext = extname(fichier.name) || ".mp4";
-  if (!estVideo(`x${ext}`)) {
-    throw new Error(`Format vidéo non reconnu (${ext}) — attendu .mp4, .webm ou .mov.`);
-  }
-
-  const [rendus] = await db.select({ dernier: max(jobs.numeroRendu) }).from(jobs).where(eq(jobs.planId, planId));
-
-  const nomFichier = `import-${Date.now()}${ext}`;
-  const cheminComplet = join(MEDIA_ROOT, cheminPlanMedia(planId, nomFichier));
-  await mkdir(join(MEDIA_ROOT, "plans", String(planId)), { recursive: true });
-  await writeFile(cheminComplet, Buffer.from(await fichier.arrayBuffer()));
-
-  await db.insert(jobs).values({
-    planId,
-    statut: "termine",
-    numeroRendu: (rendus?.dernier ?? 0) + 1,
-    activerUpscale: true,
-    workflowFichier: WORKFLOW_IMPORT_MANUEL,
-    cheminSortie: cheminPlanMedia(planId, nomFichier),
-    finishedAt: new Date(),
-  });
-
-  await db.update(plans).set({ statut: "termine", pretUpscaleAt: null, renduRetenuId: null, updatedAt: new Date() }).where(eq(plans.id, planId));
-
-  revalidatePath("/", "layout");
 }
 
 // --- fiche de plan « table de montage » (2026-10-12) --------------------------------------------------------------------

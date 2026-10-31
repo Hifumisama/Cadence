@@ -1,105 +1,51 @@
 "use client";
 
-import { useState } from "react";
-import { PromptImportColle } from "@/components/plan/PromptImportColle";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { enregistrerPrompt } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
-import { extraireLabels } from "@/lib/plan-checks";
 
-const SECTIONS_ORDRE = [
-  "subject_definitions",
-  "summary",
-  "retention_analysis",
-  "detailed_description",
-  "overall_soundscape",
-  "non_diegetic_music",
-];
+export type VersionPrompt = { id: number; texte: string; source: string; quand: string };
 
-/** Éclaire la carte de référence dont on survole la citation (`<Picture 2>`). */
-function eclairer(label: string | null) {
-  document.querySelectorAll(".fp-ref.is-eclairee").forEach((e) => e.classList.remove("is-eclairee"));
-  if (!label) return;
-  document.querySelector(`.fp-ref[data-ref="${label}"]`)?.classList.add("is-eclairee");
-}
-
-const NOM_SECTION: Record<string, string> = {
-  subject_definitions: "Sujets",
-  summary: "Résumé",
-  retention_analysis: "Références et fidélité",
-  detailed_description: "Description détaillée",
-  overall_soundscape: "Ambiance sonore",
-  non_diegetic_music: "Musique",
-};
-
-/** Une section du prompt, en lecture : le nom français, un extrait, et le texte entier quand on l'ouvre. Le prompt ne s'édite pas ici (c'est « Itérer »
- * qui le réécrit) ; pour le faire retoucher ailleurs, on le copie en entier ou on colle le prompt retouché. */
-function Section({ section, ouvert, onBascule, declarees }: { section: string; ouvert: boolean; onBascule: () => void; declarees: Set<string> }) {
-  const b = useBrouillon();
-  const contenu = b.sectionFigee(section);
-  const cites = extraireLabels(contenu);
-
-  return (
-    <div className={`fp-sec${ouvert ? " is-ouvert" : ""}`}>
-      <button type="button" className="fp-sec-hd" aria-expanded={ouvert} onClick={onBascule} title={section}>
-        <span className="fp-sec-car" aria-hidden="true">›</span>
-        <span className="fp-sec-nom">{NOM_SECTION[section] ?? section}</span>
-        <span className="fp-sec-apercu">{contenu}</span>
-      </button>
-      {ouvert ? (
-        <div className="fp-sec-bd">
-          <pre className="fp-sec-texte">{contenu || "(vide)"}</pre>
-          {cites.length > 0 ? (
-            <div className="fp-cites">
-              <span className="eyebrow">Cite</span>
-              {cites.map((c) => {
-                const orpheline = !declarees.has(c);
-                return (
-                  <span
-                    key={c}
-                    className={`fp-cite num${orpheline ? " is-orpheline" : ""}`}
-                    onMouseEnter={() => eclairer(c)}
-                    onMouseLeave={() => eclairer(null)}
-                  >
-                    &lt;{c}&gt;{orpheline ? " non déclarée" : ""}
-                  </span>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/** Le prompt H3 en six sections, toutes repliées au départ, en lecture : on le copie en entier, ou on colle un prompt retouché ailleurs (il remplace
- * les six sections). `declarees` : les labels des références du plan (« Picture 1 »). `essai` : ce qui avait été envoyé pour l'essai affiché. */
+/** Le prompt du plan, en texte brut : on le lit, on le copie, on le retouche comme un texte libre. « Enregistrer » le remplace (il doit rester lisible :
+ * les six sections, chacune sous son nom) et garde le texte dans l'historique, où l'on reprend n'importe quelle version. L'agent d'« Itérer » le réécrit
+ * de son côté ; chaque essai garde le prompt qu'il a reçu (« Envoyé pour l'essai n°X »). */
 export function PromptBloc({
   planId,
-  declarees,
   promptComplet,
+  historique,
   essai,
 }: {
   planId: number;
-  declarees: string[];
   promptComplet: string;
+  historique: VersionPrompt[];
+  /** Ce qui avait été envoyé pour l'essai affiché. */
   essai: { numero: number; prompt: string | null; promptChange: boolean; description: string | null } | null;
 }) {
-  const b = useBrouillon();
-  const [ouverts, setOuverts] = useState<Set<string>>(new Set());
+  const router = useRouter();
+  const [texte, setTexte] = useState(promptComplet);
+  const [erreurs, setErreurs] = useState<string[]>([]);
   const [copie, setCopie] = useState(false);
-  const decl = new Set(declarees);
-  const toutOuvert = ouverts.size === SECTIONS_ORDRE.length;
+  const [enregistre, setEnregistre] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const modifie = texte !== promptComplet;
 
-  const bascule = (s: string) =>
-    setOuverts((p) => {
-      const n = new Set(p);
-      if (n.has(s)) n.delete(s);
-      else n.add(s);
-      return n;
+  const enregistrer = () => {
+    setErreurs([]);
+    startTransition(async () => {
+      const r = await enregistrerPrompt(planId, texte);
+      if (!r.ok) {
+        setErreurs(r.erreurs);
+        return;
+      }
+      setEnregistre(true);
+      setTimeout(() => setEnregistre(false), 1800);
+      router.refresh();
     });
+  };
   const copier = async () => {
     try {
-      await navigator.clipboard.writeText(promptComplet);
+      await navigator.clipboard.writeText(texte);
       setCopie(true);
       setTimeout(() => setCopie(false), 1500);
     } catch {
@@ -109,19 +55,52 @@ export function PromptBloc({
 
   return (
     <section className="panel fp-prompt" id="fp-prompt" aria-label="Prompt">
-      <div className="fp-outils">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copier()} disabled={!promptComplet}>
-          {copie ? "Copié" : "Copier le prompt"}
+      <textarea
+        className="fp-prompt-texte"
+        value={texte}
+        spellCheck={false}
+        aria-label="Prompt du plan"
+        onChange={(e) => {
+          setTexte(e.target.value);
+          setErreurs([]);
+        }}
+      />
+      {erreurs.length > 0 ? (
+        <ul className="fp-prompt-erreurs" role="alert">
+          {erreurs.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="fp-prompt-actions">
+        <button type="button" className="btn btn-gold btn-sm" onClick={enregistrer} disabled={pending || !modifie}>
+          {pending ? "Enregistrement…" : enregistre ? "Enregistré" : "Enregistrer"}
         </button>
-        <button type="button" className="fp-lien" onClick={() => setOuverts(toutOuvert ? new Set() : new Set(SECTIONS_ORDRE))}>
-          {toutOuvert ? "Tout replier" : "Tout déplier"}
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTexte(promptComplet)} disabled={pending || !modifie}>
+          Annuler les changements
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copier()}>
+          {copie ? "Copié" : "Tout copier"}
         </button>
       </div>
-      <div className="fp-secs">
-        {SECTIONS_ORDRE.map((s) => (
-          <Section key={s} section={s} ouvert={ouverts.has(s)} onBascule={() => bascule(s)} declarees={decl} />
-        ))}
-      </div>
+
+      {historique.length > 0 ? (
+        <details className="fp-essai" open={historique.length <= 4}>
+          <summary>Historique · {historique.length} version{historique.length > 1 ? "s" : ""}</summary>
+          <ul className="fp-historique">
+            {historique.map((v) => (
+              <li key={v.id} className={v.texte === promptComplet ? "is-courante" : undefined}>
+                <span className="num">{v.quand}</span>
+                <span className="fp-historique-source">{v.source === "avant" ? "avant ta première retouche" : v.texte === promptComplet ? "version actuelle" : "enregistrement"}</span>
+                <button type="button" className="tm-lien" onClick={() => setTexte(v.texte)} disabled={v.texte === texte}>
+                  Reprendre
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
       {essai && (essai.prompt || essai.description) ? (
         <div className="fp-essai">
           <span className="eyebrow">Envoyé pour l&rsquo;essai n°{essai.numero}</span>
@@ -129,6 +108,11 @@ export function PromptBloc({
             <details>
               <summary>{essai.promptChange ? "Prompt envoyé (différent du prompt actuel)" : "Prompt envoyé (identique au prompt actuel)"}</summary>
               <pre className="fp-sec-texte">{essai.prompt}</pre>
+              {essai.promptChange ? (
+                <button type="button" className="tm-lien" onClick={() => setTexte(essai.prompt!)}>
+                  Reprendre ce prompt
+                </button>
+              ) : null}
             </details>
           ) : null}
           {essai.description ? (
@@ -139,9 +123,6 @@ export function PromptBloc({
           ) : null}
         </div>
       ) : null}
-      <div className="fp-import">
-        <PromptImportColle planId={planId} onImporte={b.abandonner} />
-      </div>
       <Sceau />
     </section>
   );

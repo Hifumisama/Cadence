@@ -17,7 +17,7 @@ function seedAuHasard(): string {
 /** Les réglages du rendu : durée, FPS, seed. Deux gestes seulement : relancer avec les réglages retouchés, ou tirer une nouvelle variante (autre
  * seed). Les autres lancements passent par « Itérer » (consigne) ; l'upscale ne se lance qu'en lot, depuis la barre du haut. Rien n'est enregistré
  * avant le lancement (BrouillonPlan). */
-export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | null }) {
+export function ConsoleRendu({ timecodeMusique, valide = false }: { timecodeMusique: string | null; /** Le plan est prêt à upscaler : aucun nouveau rendu ne part tant qu'on n'a pas rouvert l'itération. */ valide?: boolean }) {
   const b = useBrouillon();
   const dernierRendu = b.prochainRendu - 1;
   const [rotation, setRotation] = useState(0);
@@ -119,7 +119,7 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
         <button
           type="button"
           className="btn fp-go fp-go-principal"
-          disabled={b.occupe || !modifie}
+          disabled={b.occupe || !modifie || valide}
           onClick={() => b.figer("previsualiser")}
           title={modifie ? "Lance une prévisualisation (0,4 MP, sans upscale) avec ces réglages." : "Change la durée, les FPS ou la seed pour relancer avec d'autres réglages."}
         >
@@ -129,13 +129,14 @@ export function ConsoleRendu({ timecodeMusique }: { timecodeMusique: string | nu
         <button
           type="button"
           className="btn btn-ghost btn-sm fp-variante"
-          disabled={b.occupe}
+          disabled={b.occupe || valide}
           onClick={() => b.figer("variante")}
           title="Tire une nouvelle seed (autre rendu, même prompt) puis prévisualise."
         >
           Nouvelle variante
         </button>
       </div>
+      {valide ? <p className="tiny-note">Le plan est prêt à upscaler : rouvre l&rsquo;itération pour relancer un rendu.</p> : null}
       {b.erreur ? (
         <p className="tiny-note fp-erreur" role="alert">
           {b.erreur}

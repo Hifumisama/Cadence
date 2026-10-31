@@ -8,13 +8,10 @@ export function SupprimerPlanButton({
   planId,
   position,
   plansHref,
-  libelle,
 }: {
   planId: number;
   position: number;
   plansHref: string;
-  /** Un texte à côté de la poubelle (dans un menu) ; sans lui, l'icône seule. */
-  libelle?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -35,9 +32,8 @@ export function SupprimerPlanButton({
 
   return (
     <span>
-      <button className={libelle ? "btn btn-danger btn-sm" : "btn btn-danger btn-icone"} type="button" onClick={() => onSupprimer(false)} disabled={pending} title="Supprimer le plan" aria-label={`Supprimer le plan ${position}`}>
+      <button className="btn btn-danger btn-icone" type="button" onClick={() => onSupprimer(false)} disabled={pending} title="Supprimer le plan" aria-label={`Supprimer le plan ${position}`}>
         <Icone nom={pending ? "encours" : "supprimer"} taille={16} />
-        {libelle ? <span> {libelle}</span> : null}
       </button>
       {erreur ? (
         <p className="tiny-note" style={{ color: "var(--ecarlate-glow)", marginTop: 6 }}>

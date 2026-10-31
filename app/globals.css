@@ -4423,60 +4423,6 @@ button {
 }
 
 /* menu ⋯ de l'en-tête (details) et menus déroulants */
-.fp-plus {
-  position: relative;
-}
-.fp-plus summary {
-  list-style: none;
-  cursor: pointer;
-}
-.fp-plus summary::-webkit-details-marker {
-  display: none;
-}
-.fp-plus-pop,
-.fp-menu-pop {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 30;
-  min-width: 250px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: var(--sp-2);
-  background: var(--surface-2);
-  border: 1px solid var(--line-strong);
-  border-radius: 3px;
-  animation: fp-arrive 0.2s ease-out;
-}
-.fp-plus-pop {
-  padding: var(--sp-3);
-}
-.fp-menu {
-  position: relative;
-}
-.fp-menu-pop {
-  gap: 0;
-}
-.fp-menu-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: 0;
-  padding: 8px 10px;
-  font-size: 13px;
-  color: var(--ink-2);
-  cursor: pointer;
-}
-.fp-menu-item:hover:not(:disabled) {
-  background: var(--surface-3);
-  color: var(--ink);
-}
-.fp-menu-item:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
 
 /* contrôles repliés dans l'en-tête */
 .fp-ctrl {
@@ -4645,208 +4591,21 @@ button {
   position: relative;
   overflow: hidden;
 }
-.fp-refs-grille {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-4);
-}
-.fp-refs-vide {
-  margin: 0;
-  padding: var(--sp-3) var(--sp-4);
-}
-.fp-ref {
-  position: relative;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-  animation: fp-arrive 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-}
-.fp-ref:hover {
-  transform: translateY(-1px);
-}
-.fp-ref.is-eclairee {
-  border-color: var(--or);
-  box-shadow: 0 0 0 1px var(--or), 0 0 18px rgba(201, 162, 75, 0.25);
-}
-.fp-ref .ref-thumb {
-  width: 46px;
-  height: 46px;
-  flex: 0 0 auto;
-}
-.fp-ref figcaption {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding-right: 14px;
-}
+
 .fp-ref-label {
   font-size: 11px;
   color: var(--or);
 }
-.fp-ref .asset-code {
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+
 .fp-ref-statut {
   font-size: 11px;
   color: var(--ink-3);
-}
-.fp-ref .ref-suppr {
-  top: 2px;
-  right: 3px;
-}
-.fp-menu-droite .fp-menu-pop {
-  min-width: 220px;
-}
-.fp-refs .panel-hd .fp-menu {
-  margin-left: auto;
 }
 
 /* prompt : sections repliées, brouillon en braise */
 .fp-prompt {
   position: relative;
   overflow: hidden;
-}
-
-.fp-outils {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-4);
-  border-bottom: 1px solid var(--line);
-}
-.fp-import {
-  padding: 0 var(--sp-4);
-  border-bottom: 1px solid var(--line);
-}
-.fp-import .sec {
-  padding: var(--sp-2) 0;
-  border-bottom: 0;
-}
-.fp-secs {
-  display: flex;
-  flex-direction: column;
-}
-.fp-sec {
-  position: relative;
-  border-bottom: 1px solid var(--line);
-}
-.fp-sec:last-child {
-  border-bottom: 0;
-}
-.fp-sec::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 2px;
-  background: var(--terre);
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform 0.25s;
-}
-.fp-sec.is-mod::before {
-  transform: scaleY(1);
-}
-.fp-sec-hd {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px var(--sp-4);
-  background: none;
-  border: 0;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-}
-.fp-sec-hd:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-.fp-sec-car {
-  width: 12px;
-  color: var(--ink-4);
-  transition: transform 0.15s;
-}
-.fp-sec.is-ouvert .fp-sec-car {
-  transform: rotate(90deg);
-}
-.fp-sec-nom {
-  font-family: var(--font-mono), monospace;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--or);
-  white-space: nowrap;
-}
-.fp-sec.is-mod .fp-sec-nom::after {
-  content: " ●";
-  color: var(--terre);
-  font-size: 9px;
-  vertical-align: 2px;
-}
-.fp-sec-apercu {
-  flex: 1;
-  min-width: 0;
-  font-size: 12.5px;
-  color: var(--ink-4);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.fp-sec.is-ouvert .fp-sec-apercu {
-  visibility: hidden;
-}
-
-.fp-sec-bd {
-  padding: 0 var(--sp-4) var(--sp-3) 36px;
-  animation: fp-arrive 0.25s ease-out;
-}
-.fp-sec-bd textarea {
-  width: 100%;
-  min-height: 96px;
-  resize: none;
-  overflow: hidden;
-  background: var(--ground);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 10px 12px;
-  font: 14px/1.6 var(--font-data), sans-serif;
-  color: var(--ink);
-}
-.fp-sec-bd textarea:focus {
-  outline: none;
-  border-color: var(--or-soft);
-}
-.fp-cites {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  margin-top: 8px;
-}
-.fp-cite {
-  font-size: 12px;
-  color: var(--or);
-  border: 1px solid var(--or-soft);
-  padding: 1px 8px;
-  cursor: default;
-}
-.fp-cite:hover {
-  background: rgba(201, 162, 75, 0.12);
-}
-.fp-cite.is-orpheline {
-  color: var(--or-glow);
-  border-style: dashed;
-  border-color: var(--or);
 }
 
 /* gel : balayage rubis et or sur les panneaux, puis sceau pendant 5 s */
@@ -5105,14 +4864,7 @@ button {
   opacity: 0.4;
   cursor: default;
 }
-.tm-push {
-  margin-left: auto;
-}
-.tm-aide {
-  font-size: 13px;
-  color: var(--ink-3);
-  margin: 0;
-}
+
 .tm-btn-itere {
   background: linear-gradient(160deg, var(--or-glow), var(--or));
   border-color: var(--or-glow);
@@ -5272,10 +5024,9 @@ button {
 
 /* plateau : lecteur + colonne des essais */
 .tm-plateau {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 188px;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  align-items: start;
 }
 .tm-lecteur {
   position: relative;
@@ -5438,8 +5189,6 @@ button {
 /* colonne des essais */
 .tm-colonne {
   position: relative;
-  align-self: stretch;
-  min-height: 240px;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
@@ -5489,17 +5238,13 @@ button {
 }
 .tm-col-zone {
   position: relative;
-  flex: 1;
-  min-height: 0;
 }
 .tm-col-liste {
-  position: absolute;
-  inset: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  gap: 8px;
   padding: 8px;
   scrollbar-width: thin;
 }
@@ -5510,6 +5255,7 @@ button {
 .tm-essai {
   position: relative;
   flex: none;
+  width: 168px;
   background: var(--surface-2);
   border: 1px solid var(--line);
   padding: 5px;
@@ -5612,21 +5358,7 @@ button {
 }
 
 /* légende sous le lecteur */
-.tm-legende {
-  margin-top: 10px;
-  display: flex;
-  gap: 10px 18px;
-  align-items: baseline;
-  flex-wrap: wrap;
-  font-size: 14px;
-  color: var(--ink-2);
-  min-height: 30px;
-}
-.tm-legende q {
-  quotes: "« " " »";
-  color: var(--ink);
-  font-size: 15px;
-}
+
 .tm-qui {
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -5720,9 +5452,7 @@ button {
   font-size: 12px;
   color: var(--ink-3);
 }
-.tm-legende .tm-notes {
-  flex-basis: 100%;
-}
+
 .tm-notes::before {
   content: "À savoir : ";
   color: var(--or-glow);
@@ -5747,13 +5477,6 @@ button {
 .tm-erreur {
   margin: 10px 0 0;
   font-size: 13px;
-  color: var(--ecarlate-glow);
-}
-
-.tm-lien-suppr {
-  color: var(--ink-3);
-}
-.tm-lien-suppr.is-confirme {
   color: var(--ecarlate-glow);
 }
 
@@ -5882,16 +5605,6 @@ button {
 }
 
 @media (max-width: 980px) {
-  .tm-plateau {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .tm-colonne {
-    min-height: 0;
-  }
-  .tm-col-zone {
-    height: 240px;
-    flex: none;
-  }
   .tm-barre {
     width: 80px;
   }
@@ -6180,23 +5893,13 @@ button {
     margin-left: 0;
   }
 }
-.fp-refs-compte {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 2px 10px;
-}
-.fp-refs-compte span {
-  white-space: nowrap;
-}
+
 .fp-hors-bornes {
   margin: 4px 0 0;
   color: var(--or-glow);
 }
 
 /* ---- Fiche de plan : rangée d'outils et tiroir des détails (posé par-dessus la page, sans voile) ---- */
-.tm-plateau {
-  max-width: 1180px;
-}
 .tm-outils {
   display: flex;
   flex-wrap: wrap;
@@ -6372,12 +6075,208 @@ button {
 }
 
 /* Légende de l'essai affiché : sa consigne, puis les gestes qui le concernent */
-.tm-legende-actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin-left: auto;
-}
+
 .tm-raccord {
   margin: 4px 0 0;
+}
+
+/* ---- Le poste : lecteur et essais à gauche, références à droite (en dessous sur un écran étroit) ---- */
+.tm-poste {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--sp-5);
+  align-items: start;
+}
+.tm-poste-gauche {
+  min-width: 0;
+}
+.tm-poste-droite {
+  min-width: 0;
+}
+@media (max-width: 1100px) {
+  .tm-poste {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* La barre de l'essai affiché : collée sous le lecteur, dans le même cadre */
+.tm-barre-essai {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-top: 0;
+}
+.tm-barre-essai-texte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  min-width: 0;
+  flex: 1 1 240px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.tm-barre-essai-texte q {
+  quotes: "« " " »";
+  color: var(--ink);
+  font-size: 15px;
+}
+.tm-barre-essai .tm-notes {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.tm-barre-essai-gestes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tm-barre-essai-msg {
+  flex-basis: 100%;
+  margin: 0;
+}
+.tm-suppr.is-confirme {
+  color: var(--ecarlate-glow);
+  border-color: var(--ecarlate);
+}
+
+/* Les références : des cases, une par emplacement */
+.fp-refs-titre {
+  margin: 0 0 var(--sp-3);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--or);
+}
+.fp-refs-groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--sp-4);
+}
+.fp-cases {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.fp-case {
+  position: relative;
+  margin: 0;
+  min-width: 0;
+}
+.fp-case.is-pleine {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.fp-case.is-pleine .ref-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+}
+.fp-case.is-pleine figcaption {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fp-case .asset-code {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fp-case.is-vide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 1;
+  padding: 0;
+  background: none;
+  border: 1px dashed var(--line-strong);
+  border-radius: 2px;
+  color: var(--ink-3);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.fp-case.is-vide:hover:not(:disabled),
+.fp-case.is-vide:focus-visible {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
+}
+
+/* Le prompt en texte libre, et son historique */
+.tiroir-large,
+.tm-tiroir.is-large {
+  width: min(680px, 100%);
+}
+.fp-prompt-texte {
+  width: 100%;
+  min-height: 52vh;
+  resize: vertical;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink);
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.fp-prompt-texte:focus {
+  outline: none;
+  border-color: var(--or-soft);
+}
+.fp-prompt-erreurs {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  color: var(--ecarlate-glow);
+}
+.fp-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.fp-historique {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.fp-historique li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.fp-historique li.is-courante {
+  color: var(--or-glow);
+}
+.fp-historique li .tm-lien {
+  margin-left: auto;
+}
+
+/* Un plan validé : seulement l'état et de quoi rouvrir l'itération */
+.tm-pret-texte {
+  margin: 0 0 var(--sp-3);
+  color: var(--ink-2);
+}
+.tm-pret-texte b {
+  color: var(--or-glow);
+  font-weight: 500;
 }

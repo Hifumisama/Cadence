@@ -117,42 +117,84 @@ export function PlateauEssais({
     return () => document.removeEventListener("keydown", touche);
   }, [hrefPlusRecent, hrefPlusAncien, router]);
 
-  // L'essai courant au centre de la colonne : on défile la colonne, jamais la page.
+  // L'essai courant au centre de la bande : on défile la bande, jamais la page.
   useEffect(() => {
     const l = liste.current;
     const el = l?.querySelector<HTMLElement>("[data-courant='true']");
-    if (l && el) l.scrollTo({ top: el.offsetTop - l.clientHeight / 2 + el.offsetHeight / 2, behavior: "smooth" });
-    else l?.scrollTo({ top: 0 });
+    if (l && el) l.scrollTo({ left: el.offsetLeft - l.clientWidth / 2 + el.offsetWidth / 2, behavior: "smooth" });
+    else l?.scrollTo({ left: 0 });
   }, [courant, essais.length]);
 
   return (
     <>
       <div className="tm-plateau">
-        <div className={`tm-lecteur${enCours ? " is-travail" : ""}`}>
-          {principal?.src ? (
-            comparaison ? (
-              <ComparaisonRendus a={{ src: principal.src, numero: principal.numero }} b={comparaison} />
+        <div className="tm-lecteur-bloc">
+          <div className={`tm-lecteur${enCours ? " is-travail" : ""}`}>
+            {principal?.src ? (
+              comparaison ? (
+                <ComparaisonRendus a={{ src: principal.src, numero: principal.numero }} b={comparaison} />
+              ) : (
+                <video key={principal.src} controls src={principal.src} className="tm-video" />
+              )
             ) : (
-              <video key={principal.src} controls src={principal.src} className="tm-video" />
-            )
-          ) : (
-            <div className="tm-lecteur-vide">
-              <Braises />
-              <p className="tm-vide-titre">Pas encore de rendu</p>
-              <p className="tiny-note">Le premier essai part de la fiche telle qu&rsquo;elle est.</p>
-            </div>
-          )}
-          {enCours ? (
-            <div className="tm-travail" role="status">
-              <div>
-                <span className="tm-fil">
-                  <i />
-                </span>
-                <span>
-                  Essai n°{enCours.numero} en cours{enCours.etape ? ` · ${enCours.etape}` : ""}
-                  {enCours.pourcent != null ? ` · ${enCours.pourcent} %` : ""}
-                </span>
+              <div className="tm-lecteur-vide">
+                <Braises />
+                <p className="tm-vide-titre">Pas encore de rendu</p>
+                <p className="tiny-note">Le premier essai part de la fiche telle qu&rsquo;elle est.</p>
               </div>
+            )}
+            {enCours ? (
+              <div className="tm-travail" role="status">
+                <div>
+                  <span className="tm-fil">
+                    <i />
+                  </span>
+                  <span>
+                    Essai n°{enCours.numero} en cours{enCours.etape ? ` · ${enCours.etape}` : ""}
+                    {enCours.pourcent != null ? ` · ${enCours.pourcent} %` : ""}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {principal ? (
+            <div className="tm-barre-essai" aria-live="polite">
+              <div className="tm-barre-essai-texte">
+                <span className="tm-qui num">{principal.libelle}</span>
+                {principal.consigne ? <q>{principal.consigne}</q> : null}
+                {principal.notes.length > 0 ? <span className="tm-notes">{principal.notes.join(" ")}</span> : null}
+              </div>
+              <div className="tm-barre-essai-gestes">
+                {principal.src && !comparaison ? (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={repartir} title="Écrire une consigne à partir de cet essai">
+                    Repartir de cet essai
+                  </button>
+                ) : null}
+                {hrefQuitter ? (
+                  <Link href={hrefQuitter} scroll={false} className="btn btn-gold btn-sm">
+                    Quitter la comparaison
+                  </Link>
+                ) : hrefComparer ? (
+                  <Link href={hrefComparer} scroll={false} className="btn btn-ghost btn-sm">
+                    Comparer A / B
+                  </Link>
+                ) : null}
+                <button
+                  type="button"
+                  className={`btn btn-ghost btn-sm tm-suppr${aConfirmer ? " is-confirme" : ""}`}
+                  disabled={pending || principal.enFile}
+                  title={principal.enFile ? "Cet essai tourne encore : annule-le d'abord." : "Supprimer cet essai"}
+                  onClick={supprimer}
+                >
+                  {aConfirmer ? "Confirmer la suppression" : "Supprimer"}
+                </button>
+              </div>
+              {message ? (
+                <p className="tiny-note tm-barre-essai-msg" role={message.ok ? "status" : "alert"} style={{ color: message.ok ? "var(--or-glow)" : "var(--ecarlate-glow)" }}>
+                  {message.texte}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -163,10 +205,10 @@ export function PlateauEssais({
             <span className="num">{essais.length || ""}</span>
             <span className="tm-col-fl">
               <button type="button" aria-label="Essai plus récent" disabled={!hrefPlusRecent} onClick={() => hrefPlusRecent && router.push(hrefPlusRecent, { scroll: false })}>
-                ▲
+                ◀
               </button>
               <button type="button" aria-label="Essai plus ancien" disabled={!hrefPlusAncien} onClick={() => hrefPlusAncien && router.push(hrefPlusAncien, { scroll: false })}>
-                ▼
+                ▶
               </button>
             </span>
           </div>
@@ -201,44 +243,6 @@ export function PlateauEssais({
           </div>
         </div>
       </div>
-
-      {principal ? (
-        <div className="tm-legende" aria-live="polite">
-          <span className="tm-qui num">{principal.libelle}</span>
-          {principal.consigne ? <q>{principal.consigne}</q> : null}
-          <span className="tm-legende-actions">
-            {principal.src && !comparaison ? (
-              <button type="button" className="tm-lien" onClick={repartir}>
-                Repartir de cet essai
-              </button>
-            ) : null}
-            {hrefQuitter ? (
-              <Link href={hrefQuitter} scroll={false} className="tm-lien">
-                Quitter la comparaison
-              </Link>
-            ) : hrefComparer ? (
-              <Link href={hrefComparer} scroll={false} className="tm-lien">
-                Comparer A / B
-              </Link>
-            ) : null}
-            <button
-              type="button"
-              className={`tm-lien tm-lien-suppr${aConfirmer ? " is-confirme" : ""}`}
-              disabled={pending || principal.enFile}
-              title={principal.enFile ? "Cet essai tourne encore : annule-le d'abord." : undefined}
-              onClick={supprimer}
-            >
-              {aConfirmer ? "Confirmer la suppression" : "Supprimer"}
-            </button>
-          </span>
-          {principal.notes.length > 0 ? <p className="tm-notes">{principal.notes.join(" ")}</p> : null}
-          {message ? (
-            <p className="tiny-note" role={message.ok ? "status" : "alert"} style={{ color: message.ok ? "var(--or-glow)" : "var(--ecarlate-glow)" }}>
-              {message.texte}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
       {children}
     </>
   );

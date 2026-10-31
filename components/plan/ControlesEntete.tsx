@@ -37,6 +37,16 @@ export function ControlesEntete({ alertes }: { alertes: AlerteControle[] }) {
   if (alertes.length === 0) return null;
 
   const voir = (ancre: string) => {
+    if (ancre === "fp-refs") {
+      // Les références sont à côté du lecteur : on y mène et on les fait briller un instant.
+      const el = document.getElementById("fp-refs");
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+      el?.classList.remove("fp-gel");
+      void el?.offsetWidth;
+      el?.classList.add("fp-gel");
+      setOuvert(false);
+      return;
+    }
     const onglet = ONGLET_DE_ANCRE[ancre];
     if (onglet) window.dispatchEvent(new CustomEvent(EVENEMENT_ONGLET, { detail: onglet }));
     setOuvert(false);
@@ -54,7 +64,7 @@ export function ControlesEntete({ alertes }: { alertes: AlerteControle[] }) {
               <li key={a.cle} className={a.niveau === "info" ? "is-info" : undefined}>
                 <b>{a.titre}</b>
                 <span>{a.detail}</span>
-                {a.ancre && ONGLET_DE_ANCRE[a.ancre] ? (
+                {a.ancre && (a.ancre === "fp-refs" || ONGLET_DE_ANCRE[a.ancre]) ? (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => voir(a.ancre!)}>
                     Voir
                   </button>
