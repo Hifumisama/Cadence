@@ -618,6 +618,7 @@ function TiroirPlan({
       <span className="sc-detail-meta num">
         {minutage(plan.debut)} · {plan.duree} s · {LIBELLE_ETAT[plan.etat]}
       </span>
+      {plan.src ? <video className="sc-tiroir-video" src={`${plan.src}#t=0.1`} controls loop muted playsInline preload="metadata" aria-label={`Aperçu du plan ${pad(plan.position)}`} /> : null}
       <p className={`sc-description${plan.description ? "" : " is-vide"}`}>{plan.description ?? "Pas encore de description."}</p>
       <div className="sc-actions">
         {sansFiche ? <GenererFiche projectId={projectId} planUuid={plan.uuid} demandeEnCours={plan.ficheEnCours} /> : null}
