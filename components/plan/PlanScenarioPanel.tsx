@@ -94,7 +94,7 @@ export function PlanScenarioPanel({
                 {lu ? "Réduire" : "Tout lire"}
               </button>
             ) : null}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditionOuverte(true)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditionOuverte(true)} title="Titre, durée de montage, liaison">
               Modifier
             </button>
           </span>
@@ -106,7 +106,7 @@ export function PlanScenarioPanel({
   return (
     <section className="panel" id="fp-scenario">
       <div className="panel-hd">
-        <h2>{brouillon ? "Découpage scénario" : "Modifier le scénario"}</h2>
+        <h2>{brouillon ? "Découpage scénario" : "Titre, montage et liaison"}</h2>
         {brouillon ? <span className="eyebrow">Pas encore de fiche de plan</span> : null}
       </div>
       <div className="panel-bd form-grid">
@@ -134,7 +134,14 @@ export function PlanScenarioPanel({
             ))}
           </select>
         </div>
-        <ScenarioNarratifFields valeurs={champs} onChange={majNarratif} />
+        {brouillon ? (
+          <ScenarioNarratifFields valeurs={champs} onChange={majNarratif} />
+        ) : (
+          <p className="tiny-note wide">
+            Le titre, la durée de montage (la place du plan dans le minutage du film) et la liaison (comment il s&rsquo;enchaîne au plan précédent, au prochain rendu) se retouchent ici. Pour changer ce
+            qui se passe dans le plan, écris une consigne : l&rsquo;agent réécrit alors la description et le prompt ensemble.
+          </p>
+        )}
         <div className="form-actions wide">
           {brouillon ? (
             <GenererFiche projectId={projectId} planUuid={planUuid} demandeEnCours={demandeEnCours} libelle="Développer en fiche de plan" className="btn btn-gold" avant={enregistrerAvant} />

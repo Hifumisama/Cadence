@@ -22,6 +22,7 @@ import { BarreFiche } from "@/components/plan/BarreFiche";
 import { PelliculePlans, type CadrePlan } from "@/components/plan/PelliculePlans";
 import { PlateauEssais, type EssaiCarte } from "@/components/plan/PlateauEssais";
 import { IntentionPlan } from "@/components/plan/IntentionPlan";
+import { CartePrompt } from "@/components/plan/CartePrompt";
 import { TiroirPlan } from "@/components/plan/TiroirPlan";
 import { srcRendu } from "@/components/plan/Vignette";
 import { assemblerPrompt } from "@/lib/prompt";
@@ -210,6 +211,10 @@ export default async function PlanPage({
   const versionsPrompt = await db.select().from(planPromptVersions).where(eq(planPromptVersions.planId, plan.id)).orderBy(desc(planPromptVersions.id)).limit(30);
   const historiquePrompt: VersionPrompt[] = versionsPrompt.map((v) => ({ id: v.id, texte: v.texte, source: v.source, quand: v.createdAt.toLocaleString("fr-FR") }));
 
+  // L'extrait de la carte du prompt : le résumé de la fiche, à défaut la description détaillée.
+  const sectionTexte = (nom: string) => promptSections.find((x) => x.section === nom)?.contenu.trim() ?? "";
+  const extraitPrompt = (sectionTexte("summary") || sectionTexte("detailed_description")).slice(0, 320);
+
   const perime = (await getPlansPerimes({ planIds: [plan.id] })).get(plan.id);
 
   // Contrôles repliés dans la pastille du titre : références, structure, dialogues.
@@ -328,7 +333,6 @@ export default async function PlanPage({
                 musique={plan.timecodeMusique}
               />
               <TiroirPlan
-                compteurs={{}}
                 panneaux={{
                   prompt: (
                     <PromptBloc
@@ -390,6 +394,7 @@ export default async function PlanPage({
                 </div>
                 <aside className="tm-poste-droite" aria-label="Références">
                   <ReferencesCases planId={plan.id} refs={refsVue} assets={assetsPicker} />
+                  <CartePrompt extrait={extraitPrompt} nbMots={promptCourant.trim() ? promptCourant.trim().split(/\s+/).length : 0} nbVersions={historiquePrompt.length} />
                 </aside>
               </div>
 

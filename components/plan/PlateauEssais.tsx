@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { supprimerEssai } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
+import { Icone } from "@/components/ui/Icone";
 import { Braises } from "@/components/plan/Braises";
 import { ComparaisonRendus } from "@/components/plan/ComparaisonRendus";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
@@ -171,37 +172,41 @@ export function PlateauEssais({
                 {principal.notes.length > 0 ? <span className="tm-notes">{principal.notes.join(" ")}</span> : null}
               </div>
               <div className="tm-barre-essai-gestes">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={!peutVarier || b.occupe}
-                  onClick={() => b.figer("variante")}
-                  title={peutVarier ? "Même prompt, nouvelle seed : un autre rendu du même plan." : "Un essai tourne, ou le plan est validé : rouvre l'itération."}
-                >
-                  Nouvelle variante
-                </button>
-                {principal.src && !comparaison ? (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={repartir} title="Écrire une consigne à partir de cet essai">
-                    Repartir de cet essai
+                <div className="tm-gestes" role="group" aria-label="Gestes sur cet essai">
+                  {hrefQuitter ? (
+                    <Link href={hrefQuitter} scroll={false} className="tm-geste is-actif">
+                      Quitter la comparaison
+                    </Link>
+                  ) : hrefComparer ? (
+                    <Link href={hrefComparer} scroll={false} className="tm-geste">
+                      Comparer A / B
+                    </Link>
+                  ) : null}
+                  {principal.src && !comparaison ? (
+                    <button type="button" className="tm-geste" onClick={repartir} title="Écrire une consigne à partir de cet essai">
+                      Repartir de cet essai
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="tm-geste"
+                    disabled={!peutVarier || b.occupe}
+                    onClick={() => b.figer("variante")}
+                    title={peutVarier ? "Même prompt, nouvelle seed : un autre rendu du même plan." : "Un essai tourne, ou le plan est validé : rouvre l'itération."}
+                  >
+                    Nouvelle variante
                   </button>
-                ) : null}
-                {hrefQuitter ? (
-                  <Link href={hrefQuitter} scroll={false} className="btn btn-gold btn-sm">
-                    Quitter la comparaison
-                  </Link>
-                ) : hrefComparer ? (
-                  <Link href={hrefComparer} scroll={false} className="btn btn-ghost btn-sm">
-                    Comparer A / B
-                  </Link>
-                ) : null}
+                </div>
                 <button
                   type="button"
-                  className={`btn btn-ghost btn-sm tm-suppr${aConfirmer ? " is-confirme" : ""}`}
+                  className={`tm-suppr${aConfirmer ? " is-confirme" : ""}`}
                   disabled={pending || principal.enFile}
-                  title={principal.enFile ? "Cet essai tourne encore : annule-le d'abord." : "Supprimer cet essai"}
+                  title={principal.enFile ? "Cet essai tourne encore : annule-le d'abord." : aConfirmer ? "Cliquer encore pour confirmer" : "Supprimer cet essai"}
+                  aria-label={aConfirmer ? "Confirmer la suppression de l'essai" : "Supprimer cet essai"}
                   onClick={supprimer}
                 >
-                  {aConfirmer ? "Confirmer la suppression" : "Supprimer"}
+                  <Icone nom="supprimer" taille={15} />
+                  {aConfirmer ? <span>Confirmer</span> : null}
                 </button>
               </div>
               {b.erreur ? (

@@ -5,29 +5,23 @@ import { Icone } from "@/components/ui/Icone";
 
 export type CleOnglet = "prompt";
 
-const LIBELLES: Record<CleOnglet, string> = {
-  prompt: "Prompt",
-};
-const ORDRE: CleOnglet[] = ["prompt"];
-
-/** Un lien « Voir » d'un contrôle (ControlesEntete) ouvre le bon tiroir : l'ancre d'avant (« fp-refs »…) désignait un panneau. */
+/** Un lien « Voir » d'un contrôle (ControlesEntete) ou la carte du prompt (CartePrompt) ouvrent le tiroir par cet évènement : l'ancre « fp-prompt » désigne le panneau. */
 export const ONGLET_DE_ANCRE: Record<string, CleOnglet> = { "fp-prompt": "prompt" };
 export const EVENEMENT_ONGLET = "tm-onglet";
 
-/** Le tiroir du prompt (le scénario est sous le titre, les références à côté du lecteur, les gestes de rendu sous le lecteur) : une rangée de boutons sous le titre, et le panneau choisi dans un tiroir
- * à droite, posé par-dessus la page comme celui du Scénario (sans voile : le lecteur reste utilisable). Un seul tiroir ouvert à la fois, monté à
- * l'ouverture : chaque panneau repart d'un état propre (et relit les données du serveur). Échap ou la croix le ferment. */
-export function TiroirPlan({ panneaux, compteurs }: { panneaux: Record<CleOnglet, ReactNode>; compteurs: Partial<Record<CleOnglet, number>> }) {
+/** Le tiroir du prompt, à droite, posé par-dessus la page comme celui du Scénario (sans voile : le lecteur reste utilisable). Il s'ouvre depuis la carte du
+ * prompt, sous les références, et se monte à l'ouverture : le texte repart de ce que le serveur a. Échap ou la croix le ferment. */
+export function TiroirPlan({ panneaux }: { panneaux: Record<CleOnglet, ReactNode> }) {
   const [actif, setActif] = useState<CleOnglet | null>(null);
 
   useEffect(() => {
     const ouvrir = (e: Event) => {
       const cle = (e as CustomEvent<CleOnglet>).detail;
-      if (ORDRE.includes(cle)) setActif(cle);
+      if (cle in panneaux) setActif(cle);
     };
     window.addEventListener(EVENEMENT_ONGLET, ouvrir);
     return () => window.removeEventListener(EVENEMENT_ONGLET, ouvrir);
-  }, []);
+  }, [panneaux]);
 
   useEffect(() => {
     if (!actif) return;
@@ -36,29 +30,18 @@ export function TiroirPlan({ panneaux, compteurs }: { panneaux: Record<CleOnglet
     return () => document.removeEventListener("keydown", echap);
   }, [actif]);
 
+  if (!actif) return null;
   return (
-    <>
-      <div className="tm-outils" role="toolbar" aria-label="Détails du plan">
-        {ORDRE.map((cle) => (
-          <button key={cle} type="button" className="tm-outil" aria-pressed={actif === cle} aria-expanded={actif === cle} onClick={() => setActif((a) => (a === cle ? null : cle))}>
-            {LIBELLES[cle]}
-            {compteurs[cle] ? <span className="tm-outil-n num">{compteurs[cle]}</span> : null}
-          </button>
-        ))}
+    <aside className="tm-tiroir is-large" aria-label="Prompt">
+      <div className="tm-tiroir-hd">
+        <span className="tm-tiroir-etiquette">Prompt</span>
+        <button type="button" className="tm-tiroir-fermer" aria-label="Fermer le tiroir" onClick={() => setActif(null)}>
+          <Icone nom="fermer" taille={16} />
+        </button>
       </div>
-      {actif ? (
-        <aside className={`tm-tiroir${actif === "prompt" ? " is-large" : ""}`} aria-label={LIBELLES[actif]}>
-          <div className="tm-tiroir-hd">
-            <span className="tm-tiroir-etiquette">{LIBELLES[actif]}</span>
-            <button type="button" className="tm-tiroir-fermer" aria-label="Fermer le tiroir" onClick={() => setActif(null)}>
-              <Icone nom="fermer" taille={16} />
-            </button>
-          </div>
-          <div className="tm-tiroir-corps" key={actif}>
-            {panneaux[actif]}
-          </div>
-        </aside>
-      ) : null}
-    </>
+      <div className="tm-tiroir-corps" key={actif}>
+        {panneaux[actif]}
+      </div>
+    </aside>
   );
 }

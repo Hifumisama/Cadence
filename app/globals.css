@@ -5768,37 +5768,7 @@ button {
 }
 
 /* ---- Fiche de plan : rangée d'outils et tiroir des détails (posé par-dessus la page, sans voile) ---- */
-.tm-outils {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: var(--sp-3);
-}
-.tm-outil {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--ink-2);
-  font-size: 14px;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-.tm-outil:hover {
-  color: var(--ink);
-  border-color: var(--line-strong);
-}
-.tm-outil[aria-pressed="true"] {
-  color: var(--or-glow);
-  border-color: var(--or-soft);
-}
-.tm-outil-n {
-  font-size: 11px;
-  color: var(--ink-4);
-}
+
 .tm-tiroir {
   position: fixed;
   top: 0;
@@ -6165,4 +6135,111 @@ button {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-3);
+}
+
+/* ---- Barre de l'essai : un groupe de gestes uniforme, la poubelle à part ---- */
+.tm-barre-essai-gestes {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.tm-gestes {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.tm-geste {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  height: 34px;
+  background: var(--surface-2);
+  border: 0;
+  border-left: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 13.5px;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.tm-geste:first-child {
+  border-left: 0;
+}
+.tm-geste:hover:not(:disabled) {
+  color: var(--or-glow);
+  background: var(--surface);
+}
+.tm-geste:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tm-geste.is-actif {
+  color: #0e0e13;
+  background: var(--or);
+}
+.tm-suppr {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink-3);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tm-suppr:hover:not(:disabled) {
+  color: var(--ecarlate-glow);
+  border-color: var(--ecarlate);
+}
+.tm-suppr:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---- La carte du prompt, sous les références ---- */
+.fp-prompt-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fp-prompt-carte-corps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.fp-prompt-carte-corps:hover,
+.fp-prompt-carte-corps:focus-visible {
+  border-color: var(--or-soft);
+}
+.fp-prompt-extrait {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.fp-prompt-extrait.is-vide {
+  font-style: italic;
+  color: var(--ink-3);
+}
+.fp-prompt-carte-pied {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
 }
