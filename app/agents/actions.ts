@@ -51,14 +51,7 @@
 
 import { revalidatePath } from "next/cache";
 import * as service from "@/lib/agents/service";
-import type {
-  CibleDemandee,
-  Position,
-  Profondeur,
-  Portee,
-  Resultat,
-  ResultatApplication,
-} from "@/lib/agents/types";
+import type { CibleDemandee, Profondeur, Portee, Resultat } from "@/lib/agents/types";
 
 /** Les écritures invalident le cache des pages : la popup relit ensuite ses données par
  * les lectures de lib/queries-agents.ts. */
@@ -83,18 +76,6 @@ export async function ouvrirConversation(
   return rafraichir(await service.ouvrirConversation(projectId, portee, cible, profondeur));
 }
 
-/** Démarre une conversation NEUVE sur la même cible : écrase la précédente (messages,
- * consigne, proposition courante ; le brief VALIDE n'est jamais touché). Même signature que
- * `ouvrirConversation`. */
-export async function nouvelleConversation(
-  projectId: number,
-  portee: Portee,
-  cible: CibleDemandee | null,
-  profondeur?: Profondeur,
-): Promise<Resultat<{ conversationUuid: string }>> {
-  return rafraichir(await service.nouvelleConversation(projectId, portee, cible, profondeur));
-}
-
 /** Projet CONÇU dont l'accroche du scénariste a échoué : la relance (jamais une régénération d'une accroche réussie). */
 export async function relancerAccroche(conversationUuid: string): Promise<Resultat> {
   return rafraichir(await service.relancerAccroche(conversationUuid));
@@ -111,28 +92,7 @@ export async function repondreAuChoix(conversationUuid: string, libelles: string
   return rafraichir(await service.repondreAuChoix(conversationUuid, libelles));
 }
 
-/** Remet la conversation à zéro (messages, consigne, brouillon de brief, proposition
- * courante rejetée). Le brief VALIDE du projet n'est pas touché. L'UI demande une
- * confirmation qui liste ce qui est perdu. */
-export async function reinitialiser(conversationUuid: string): Promise<Resultat> {
-  return rafraichir(await service.reinitialiser(conversationUuid));
-}
-
 // --- Brief ------------------------------------------------------------------
-
-/** Profondeur complète : fige la fiche de notes de la conversation en BROUILLON de brief (immédiat, aucun appel au modèle :
- * la fiche se remplit déjà au fil de la conversation et devient seule le brouillon quand elle est complète) et passe l'étape de
- * la conversation à `brief`. Sert à passer au briefing avant que la fiche soit complète. Refusé si le projet a déjà un brief validé. */
-export async function genererBrief(conversationUuid: string): Promise<Resultat> {
-  return rafraichir(await service.genererBrief(conversationUuid));
-}
-
-/** « Rejeter » le brief en cours (BROUILLON) : il est abandonné et la conversation revient à
- * l'étape `conversation`, messages conservés ; une génération de brief ou de proposition en
- * cours est arrêtée. Refusé si le brief est déjà validé (on le modifie section par section). */
-export async function rejeterBrief(conversationUuid: string): Promise<Resultat> {
-  return rafraichir(await service.rejeterBrief(conversationUuid));
-}
 
 /** Corrige à la main une section du brief (clé de premier niveau : `arc`, `style`, `lieux`…).
  * La valeur est validée contre le schéma du brief ; la section passe au statut `fourni`.
@@ -142,52 +102,6 @@ export async function modifierChampBrief(projectId: number, section: string, val
 }
 
 // --- Proposition ------------------------------------------------------------
-
-/** Lance la génération d'une proposition pour la conversation.
- * - profondeur `complete` (création de projet) : le squelette (clause de style,
- *   épisodes, brief) est construit EN CODE depuis le brief : immédiat, `runUuid` null ;
- * - profondeur `courte` : tâche `proposition` (skill selon la portée : `asset` →
- *   `prompt-asset`, `episode` / `plan` → `scenario-episode`). `consigne` = l'intention en une
- *   ligne (obligatoire) ; `position` (insertion d'un plan dans un épisode) = après quel plan
- *   (uuid) ou début/fin.
- * La proposition naît `en_generation` puis `prete` (ou `echouee`). */
-export async function genererProposition(
-  conversationUuid: string,
-  options?: { consigne?: string; position?: Position; sceneId?: number },
-): Promise<Resultat<{ propositionUuid: string; runUuid: string | null }>> {
-  return rafraichir(await service.genererProposition(conversationUuid, options));
-}
-
-/** Étape 2 : crée le registre d'assets depuis le brief (un lot, une sous-tâche par master : personnage,
- * lieu). `codes` = les assets à traiter (par défaut : ceux qui manquent ou n'ont pas de prompt). Depuis
- * la conversation du PROJET. */
-export async function genererRegistre(
-  conversationUuid: string,
-  options: { codes?: string[]; consigne?: string } = {},
-) {
-  return rafraichir(await service.genererRegistre(conversationUuid, options));
-}
-
-/** Inventaire des assets (avant les fiches de plan) : un appel qui lit tous les plans et le registre et propose les
- * assets manquants en une liste consolidée (sans doublons). Depuis la conversation du PROJET. */
-export async function genererInventaire(
-  conversationUuid: string,
-  options: { consigne?: string } = {},
-): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
-  return rafraichir(await service.genererInventaire(conversationUuid, options));
-}
-
-/** Étape 3 : écrire la FICHE d'un plan (conversation de portée `plan` : une proposition simple, affinable)
- * ou celles des plans d'un épisode ou du projet (un LOT, une sous-tâche `plan-h3` par plan,
- * clé `plan:<uuid>`). `planUuids` = les plans à traiter (par défaut : ceux qui n'ont pas de fiche). Une fiche
- * remplace ensemble les six sections et les références du plan ; un plan qui a déjà une fiche (ou un rendu)
- * apparaît en « risque d'écrasement », décoché. Les assets manquants sont proposés à la création. */
-export async function genererFiches(
-  conversationUuid: string,
-  options: { planUuids?: string[]; consigne?: string } = {},
-): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
-  return rafraichir(await service.genererFiches(conversationUuid, options));
-}
 
 /** « Corriger après visionnage » (conversation de portée `plan`, plan qui a un RENDU terminé) : une tâche
  * `iteration-plan`, proposition simple et affinable. `retour` = ce que l'utilisateur a vu (obligatoire). Le worker
@@ -201,96 +115,9 @@ export async function genererIteration(
   return rafraichir(await service.genererIteration(conversationUuid, { retour: options.retour, renduId: options.renduId, planche: options.planche }));
 }
 
-/** Après l'application d'une fiche : écrire les prompts d'image des assets qu'elle a CRÉÉS (un lot
- * `prompt-asset`, dans la conversation du PROJET, seule portée où l'on modifie un asset existant). Renvoie la
- * conversation du projet, que l'interface ouvre pour suivre le lot. Jamais lancé tout seul. */
-export async function genererPromptsAssetsCrees(
-  propositionUuid: string,
-  options: { consigne?: string } = {},
-): Promise<Resultat<{ conversationUuid: string; propositionUuid: string; nbSousTaches: number }>> {
-  return rafraichir(await service.genererPromptsAssetsCrees(propositionUuid, options));
-}
-
-/** « Écrire les scénarios » (étape 1 du pipeline) depuis une conversation de portée PROJET ou
- * SAISON, par exemple depuis l'étape « Appliqué » du squelette : une proposition EN LOT, une
- * sous-tâche (une tâche `scenario-episode`) par épisode, exécutées l'une après l'autre dans la file.
- * Par défaut : les épisodes VIDES ; `episodeIds` en choisit d'autres (un épisode qui a déjà du
- * contenu voit ses modifications en section d'écrasement, décochées). La proposition reste
- * `en_generation` tant qu'une sous-tâche est active (`VueProposition.lot` donne l'avancement), puis
- * `prete` ; un échec isolé ne perd pas le reste. */
-export async function genererScenarios(
-  conversationUuid: string,
-  options?: { episodeIds?: number[]; consigne?: string },
-): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number }>> {
-  return rafraichir(await service.genererScenarios(conversationUuid, options));
-}
-
-/** Relance UNE sous-tâche d'un lot (échouée, annulée ou à refaire), avec un retour libre facultatif.
- * `cle` = `VueSousTache.cle`. Les autres sous-tâches ne bougent pas. */
-export async function relancerSousTache(
-  propositionUuid: string,
-  cle: string,
-  retour?: string,
-): Promise<Resultat<{ runUuid: string }>> {
-  return rafraichir(await service.relancerSousTache(propositionUuid, cle, retour));
-}
-
-/** Annule un lot : sous-tâches en attente annulées, celle qui tourne interrompue. Ce qui est déjà
- * terminé reste relisible. */
-export async function annulerLot(propositionUuid: string): Promise<Resultat<{ resultat: "annule" | "demande" | "rien" }>> {
-  return rafraichir(await service.annulerLotProposition(propositionUuid));
-}
-
-/** Coche/décoche un changement. Refusé pour un changement `bloque` (à corriger d'abord) ou
- * `refuseRaison` (hors portée, non pris en charge). */
-export async function cocherChangement(changementId: number, coche: boolean): Promise<Resultat> {
-  return rafraichir(await service.cocherChangement(changementId, coche));
-}
-
-/** Coche/décoche en lot : tout un groupe (`{ groupe: "episodes" }`, tel qu'affiché : l'id de
- * groupe de `VueGroupe`) ou une liste d'ids (`{ ids: [3, 4] }`). Les changements `bloque` ou
- * refusés sont ignorés (jamais cochés). */
-export async function cocherChangements(
-  propositionUuid: string,
-  selection: { groupe?: string; ids?: number[] },
-  coche: boolean,
-): Promise<Resultat<{ modifies: number }>> {
-  return rafraichir(await service.cocherChangements(propositionUuid, selection, coche));
-}
-
-/** Corrige sur place un changement bloqué par un contrôle (ex. durée d'un plan > 15 s) : le
- * contrôle est rejoué ; s'il passe, l'avertissement `bloque_controle` disparaît. */
-export async function corrigerChangement(
-  changementId: number,
-  valeurs: { dureeGenerationSecondes?: number },
-): Promise<Resultat> {
-  return rafraichir(await service.corrigerChangement(changementId, valeurs));
-}
-
 /** « Rejeter » : abandonne la proposition (statut `rejetee`) ; la conversation reste, on
  * repart de l'étape précédente (Consigne ou Brief). */
 export async function rejeter(propositionUuid: string): Promise<Resultat> {
   return rafraichir(await service.rejeter(propositionUuid));
 }
 
-/** « Affiner » : retour libre (« garde 1 et 3, change 2 »). Une NOUVELLE proposition naît,
- * dérivée de la précédente (`parentUuid`) : l'agent reçoit la précédente + le retour. La
- * précédente passe `rejetee`. Lance une tâche (`runUuid`). Pas pour un squelette (construit en
- * code) : corriger le brief puis régénérer. */
-export async function affiner(
-  propositionUuid: string,
-  retour: string,
-): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
-  return rafraichir(await service.affiner(propositionUuid, retour));
-}
-
-/** Applique la sélection (changements cochés) en UNE transaction. Écraser du validé exige
- * `confirmeEcrasement: true` ; sinon `{ ok: false, confirmationRequise: [...] }` liste ce qui
- * sera perdu. Refuse hors portée. Passe la proposition à `appliquee` (tous ses changements
- * appliqués) ou `partielle`. */
-export async function appliquerSelection(
-  propositionUuid: string,
-  options?: { confirmeEcrasement?: boolean },
-): Promise<ResultatApplication> {
-  return rafraichir(await service.appliquerSelection(propositionUuid, { confirmeEcrasement: options?.confirmeEcrasement === true }));
-}
