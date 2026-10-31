@@ -5916,23 +5916,27 @@ button {
   border: 1px solid var(--line-strong);
   border-top: 0;
 }
-.tm-barre-essai-texte {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 14px;
+.tm-barre-essai-nom {
+  flex: 1 1 auto;
   min-width: 0;
-  flex: 1 1 240px;
+}
+.tm-barre-essai-consigne {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
   font-size: 14px;
   color: var(--ink-2);
 }
-.tm-barre-essai-texte q {
+.tm-barre-essai-consigne q {
   quotes: "« " " »";
   color: var(--ink);
   font-size: 15px;
+  line-height: 1.55;
 }
 .tm-barre-essai .tm-notes {
-  flex-basis: 100%;
   font-size: 13px;
   color: var(--ink-3);
 }

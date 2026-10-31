@@ -166,11 +166,7 @@ export function PlateauEssais({
 
           {principal ? (
             <div className="tm-barre-essai" aria-live="polite">
-              <div className="tm-barre-essai-texte">
-                <span className="tm-qui num">{principal.libelle}</span>
-                {principal.consigne ? <q>{principal.consigne}</q> : null}
-                {principal.notes.length > 0 ? <span className="tm-notes">{principal.notes.join(" ")}</span> : null}
-              </div>
+              <span className="tm-qui num tm-barre-essai-nom">{principal.libelle}</span>
               <div className="tm-barre-essai-gestes">
                 <div className="tm-gestes" role="group" aria-label="Gestes sur cet essai">
                   {hrefQuitter ? (
@@ -209,6 +205,12 @@ export function PlateauEssais({
                   {aConfirmer ? <span>Confirmer</span> : null}
                 </button>
               </div>
+              {principal.consigne || principal.notes.length > 0 ? (
+                <div className="tm-barre-essai-consigne">
+                  {principal.consigne ? <q>{principal.consigne}</q> : null}
+                  {principal.notes.length > 0 ? <span className="tm-notes">{principal.notes.join(" ")}</span> : null}
+                </div>
+              ) : null}
               {b.erreur ? (
                 <p className="tiny-note tm-barre-essai-msg" role="alert" style={{ color: "var(--ecarlate-glow)" }}>
                   {b.erreur}
