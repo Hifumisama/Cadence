@@ -112,7 +112,7 @@ export function IntentionPlan({
   const preparerConversation = async (avecPlanche: boolean): Promise<string | null> => {
     if (!base) return null;
     if (!base.estDernier && retouches) {
-      setErreur("Tes retouches du prompt ne sont pas figées : lance-les d'abord (Réglages) ou annule-les, puis repars de cet essai.");
+      setErreur("Tes réglages retouchés (durée, FPS, seed) ne sont pas lancés : lance-les d'abord (Réglages) ou annule-les, puis repars de cet essai.");
       return null;
     }
     setVision(avecPlanche ? "planche" : "fiche");

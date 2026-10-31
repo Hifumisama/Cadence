@@ -1,21 +1,18 @@
 "use client";
 
 import { LotUpscaleButton } from "@/components/plan/LotUpscaleButton";
-import { ToutesPrevisualisationsButton } from "@/components/plan/ToutesPrevisualisationsButton";
 
-/** La barre du haut de la fiche : l'avancée vers l'upscale (« 3 / 6 prêts à upscaler »), « Lancer l'upscale » (une fenêtre pour composer le lot : les plans
- * prêts sont cochés, ceux dont la fiche a changé se régénèrent s'ils sont cochés) et « Générer les prévisualisations (N) » pour les plans sans rendu.
- * */
+/** La barre du haut de la fiche : l'avancée vers l'upscale (« 3 / 6 prêts à upscaler ») et « Lancer l'upscale » (une fenêtre pour composer le lot : les
+ * plans prêts sont cochés, ceux dont la fiche a changé se régénèrent s'ils sont cochés). C'est le seul endroit d'où l'upscale part. Générer les
+ * prévisualisations manquantes se fait depuis la page des plans. */
 export function BarreFiche({
   episodeId,
   prets,
   total,
-  nbManquants,
 }: {
   episodeId: number;
   prets: number;
   total: number;
-  nbManquants: number;
 }) {
   return (
     <div className="tm-top">
@@ -29,7 +26,6 @@ export function BarreFiche({
         </span>
       </div>
       <LotUpscaleButton episodeId={episodeId} prets={prets} />
-      <ToutesPrevisualisationsButton episodeId={episodeId} nbManquants={nbManquants} className="btn" />
     </div>
   );
 }

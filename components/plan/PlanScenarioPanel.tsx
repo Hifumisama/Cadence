@@ -57,27 +57,30 @@ export function PlanScenarioPanel({
 
   if (!brouillon && !editionOuverte) {
     return (
-      <div className="ctx">
-        <div className="ctx-hd">
-          <span className="eyebrow">Rappel scénario · lecture seule</span>
-          <a onClick={() => setEditionOuverte(true)} style={{ cursor: "pointer" }}>
+      <section className="sp-carte" id="fp-scenario" aria-label="Scénario du plan">
+        <header>
+          <span className="eyebrow">Ce qui se passe</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditionOuverte(true)}>
             Modifier
-          </a>
-        </div>
-        <dl>
-          <dt>Description</dt>
-          <dd style={{ whiteSpace: "pre-wrap" }}>{initial.description || "—"}</dd>
-          <dt>Durée au montage</dt>
-          <dd className="num">{initial.dureeMontageSecondes} s</dd>
-          <dt>Liaison</dt>
-          <dd>{LIBELLE_LIAISON[initial.liaison]}</dd>
+          </button>
+        </header>
+        <p className={`sp-description${initial.description ? "" : " is-vide"}`}>{initial.description || "Pas encore de description."}</p>
+        <dl className="sp-meta">
+          <div>
+            <dt>Durée au montage</dt>
+            <dd className="num">{initial.dureeMontageSecondes} s</dd>
+          </div>
+          <div>
+            <dt>Liaison avec le plan précédent</dt>
+            <dd>{LIBELLE_LIAISON[initial.liaison]}</dd>
+          </div>
         </dl>
-      </div>
+      </section>
     );
   }
 
   return (
-    <section className="panel">
+    <section className="panel" id="fp-scenario">
       <div className="panel-hd">
         <h2>{brouillon ? "Découpage scénario" : "Modifier le scénario"}</h2>
         {brouillon ? <span className="eyebrow">Pas encore de fiche de plan</span> : null}

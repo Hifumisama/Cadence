@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { EVENEMENT_ONGLET, ONGLET_DE_ANCRE } from "@/components/plan/OngletsPlan";
+import { EVENEMENT_ONGLET, ONGLET_DE_ANCRE } from "@/components/plan/TiroirPlan";
 
 export type AlerteControle = {
   cle: string;

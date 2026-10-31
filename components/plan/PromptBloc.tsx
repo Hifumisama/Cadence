@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { PromptImportColle } from "@/components/plan/PromptImportColle";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { extraireLabels } from "@/lib/plan-checks";
@@ -14,12 +14,6 @@ const SECTIONS_ORDRE = [
   "non_diegetic_music",
 ];
 
-function grandir(t: HTMLTextAreaElement | null) {
-  if (!t) return;
-  t.style.height = "auto";
-  t.style.height = `${Math.max(96, t.scrollHeight + 2)}px`;
-}
-
 /** Éclaire la carte de référence dont on survole la citation (`<Picture 2>`). */
 function eclairer(label: string | null) {
   document.querySelectorAll(".fp-ref.is-eclairee").forEach((e) => e.classList.remove("is-eclairee"));
@@ -27,36 +21,32 @@ function eclairer(label: string | null) {
   document.querySelector(`.fp-ref[data-ref="${label}"]`)?.classList.add("is-eclairee");
 }
 
+const NOM_SECTION: Record<string, string> = {
+  subject_definitions: "Sujets",
+  summary: "Résumé",
+  retention_analysis: "Références et fidélité",
+  detailed_description: "Description détaillée",
+  overall_soundscape: "Ambiance sonore",
+  non_diegetic_music: "Musique",
+};
+
+/** Une section du prompt, en lecture : le nom français, un extrait, et le texte entier quand on l'ouvre. Le prompt ne s'édite pas ici (c'est « Itérer »
+ * qui le réécrit) ; pour le faire retoucher ailleurs, on le copie en entier ou on colle le prompt retouché. */
 function Section({ section, ouvert, onBascule, declarees }: { section: string; ouvert: boolean; onBascule: () => void; declarees: Set<string> }) {
   const b = useBrouillon();
-  const ref = useRef<HTMLTextAreaElement>(null);
-  const contenu = b.sectionVue(section);
-  const modifiee = b.sectionModifiee(section);
+  const contenu = b.sectionFigee(section);
   const cites = extraireLabels(contenu);
 
-  useEffect(() => {
-    if (ouvert) grandir(ref.current);
-  }, [ouvert, contenu]);
-
   return (
-    <div className={`fp-sec${ouvert ? " is-ouvert" : ""}${modifiee ? " is-mod" : ""}`}>
-      <button type="button" className="fp-sec-hd" aria-expanded={ouvert} onClick={onBascule}>
+    <div className={`fp-sec${ouvert ? " is-ouvert" : ""}`}>
+      <button type="button" className="fp-sec-hd" aria-expanded={ouvert} onClick={onBascule} title={section}>
         <span className="fp-sec-car" aria-hidden="true">›</span>
-        <span className="fp-sec-nom">{section}</span>
+        <span className="fp-sec-nom">{NOM_SECTION[section] ?? section}</span>
         <span className="fp-sec-apercu">{contenu}</span>
-        <span className="fp-sec-n num">{contenu.length} c.</span>
       </button>
       {ouvert ? (
         <div className="fp-sec-bd">
-          <textarea
-            ref={ref}
-            value={contenu}
-            aria-label={section}
-            onChange={(e) => {
-              b.setSection(section, e.target.value);
-              grandir(e.target);
-            }}
-          />
+          <pre className="fp-sec-texte">{contenu || "(vide)"}</pre>
           {cites.length > 0 ? (
             <div className="fp-cites">
               <span className="eyebrow">Cite</span>
@@ -75,22 +65,28 @@ function Section({ section, ouvert, onBascule, declarees }: { section: string; o
               })}
             </div>
           ) : null}
-          {modifiee ? (
-            <button type="button" className="btn btn-ghost btn-sm fp-revenir" onClick={() => b.revenirSection(section)}>
-              Revenir au texte figé
-            </button>
-          ) : null}
         </div>
       ) : null}
     </div>
   );
 }
 
-/** Le prompt H3 en six sections, toutes repliées au départ. Les saisies vont dans le brouillon (BrouillonPlan), rien n'est écrit
- * avant le lancement d'un rendu. `declarees` : les labels des références du plan (« Picture 1 »). */
-export function PromptBloc({ planId, declarees }: { planId: number; declarees: string[] }) {
+/** Le prompt H3 en six sections, toutes repliées au départ, en lecture : on le copie en entier, ou on colle un prompt retouché ailleurs (il remplace
+ * les six sections). `declarees` : les labels des références du plan (« Picture 1 »). `essai` : ce qui avait été envoyé pour l'essai affiché. */
+export function PromptBloc({
+  planId,
+  declarees,
+  promptComplet,
+  essai,
+}: {
+  planId: number;
+  declarees: string[];
+  promptComplet: string;
+  essai: { numero: number; prompt: string | null; promptChange: boolean; description: string | null } | null;
+}) {
   const b = useBrouillon();
   const [ouverts, setOuverts] = useState<Set<string>>(new Set());
+  const [copie, setCopie] = useState(false);
   const decl = new Set(declarees);
   const toutOuvert = ouverts.size === SECTIONS_ORDRE.length;
 
@@ -101,30 +97,50 @@ export function PromptBloc({ planId, declarees }: { planId: number; declarees: s
       else n.add(s);
       return n;
     });
+  const copier = async () => {
+    try {
+      await navigator.clipboard.writeText(promptComplet);
+      setCopie(true);
+      setTimeout(() => setCopie(false), 1500);
+    } catch {
+      // presse-papiers indisponible
+    }
+  };
 
   return (
     <section className="panel fp-prompt" id="fp-prompt" aria-label="Prompt">
-      <div className="panel-hd">
-        <h2>Prompt</h2>
-        <span className="eyebrow">H3 · 6 sections</span>
-        {b.nbSectionsModifiees > 0 ? (
-          <span className="num fp-compte-mod">
-            {b.nbSectionsModifiees} modifiée{b.nbSectionsModifiees > 1 ? "s" : ""} ●
-          </span>
-        ) : null}
-      </div>
       <div className="fp-outils">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copier()} disabled={!promptComplet}>
+          {copie ? "Copié" : "Copier le prompt"}
+        </button>
         <button type="button" className="fp-lien" onClick={() => setOuverts(toutOuvert ? new Set() : new Set(SECTIONS_ORDRE))}>
           {toutOuvert ? "Tout replier" : "Tout déplier"}
         </button>
-      </div>
-      <div className="fp-import">
-        <PromptImportColle planId={planId} onImporte={b.abandonner} />
       </div>
       <div className="fp-secs">
         {SECTIONS_ORDRE.map((s) => (
           <Section key={s} section={s} ouvert={ouverts.has(s)} onBascule={() => bascule(s)} declarees={decl} />
         ))}
+      </div>
+      {essai && (essai.prompt || essai.description) ? (
+        <div className="fp-essai">
+          <span className="eyebrow">Envoyé pour l&rsquo;essai n°{essai.numero}</span>
+          {essai.prompt ? (
+            <details>
+              <summary>{essai.promptChange ? "Prompt envoyé (différent du prompt actuel)" : "Prompt envoyé (identique au prompt actuel)"}</summary>
+              <pre className="fp-sec-texte">{essai.prompt}</pre>
+            </details>
+          ) : null}
+          {essai.description ? (
+            <details>
+              <summary>Description du plan pour cet essai (différente de l&rsquo;actuelle)</summary>
+              <pre className="fp-sec-texte">{essai.description}</pre>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="fp-import">
+        <PromptImportColle planId={planId} onImporte={b.abandonner} />
       </div>
       <Sceau />
     </section>

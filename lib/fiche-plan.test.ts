@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  ajouterSuggestion,
   avanceeUpscale,
   classerPourPrevisualisation,
   compterAPrevisualiser,
@@ -55,11 +54,6 @@ test("libellés : essai, base et consigne des anciens rendus", () => {
   assert.equal(texteConsigne({ consigne: "  Plus serré ", importe: false }), "Plus serré");
   assert.equal(texteConsigne({ consigne: null, importe: false }), null);
   assert.equal(texteConsigne({ consigne: "", importe: true }), "Vidéo importée.");
-});
-
-test("ajouterSuggestion : les suggestions s'enchaînent au texte déjà écrit", () => {
-  assert.equal(ajouterSuggestion("", "Plus lent"), "Plus lent");
-  assert.equal(ajouterSuggestion("Plus dynamique.", "Plus serré"), "Plus dynamique, plus serré");
 });
 
 test("compterAPrevisualiser : seuls les plans à fiche développée, sans rendu et sans file", () => {
@@ -157,7 +151,7 @@ test("suppression : la projection plans.statut suit le dernier essai restant, ou
   assert.equal(enFile.statutPlan, "en_cours");
 });
 
-import { decisionIteration, passagesDeChangement, type PropositionIteration } from "./fiche-plan";
+import { decisionIteration, type PropositionIteration } from "./fiche-plan";
 
 const prop = (o: Partial<PropositionIteration> = {}): PropositionIteration => ({
   statut: "prete",
@@ -217,11 +211,6 @@ test("decisionIteration : on applique ce qui passe, on signale ce qui est refus�
     }),
   );
   assert.deepEqual(mixte, { action: "appliquer", ids: [2], notes: ["2 changements refusés par un contrôle."] });
-});
-
-test("passagesDeChangement : lit les passages avant / après, ignore le reste", () => {
-  assert.deepEqual(passagesDeChangement({ passages: [{ section: "summary", avant: "a", apres: "b" }, { section: 3 }] }), [{ section: "summary", avant: "a", apres: "b" }]);
-  assert.deepEqual(passagesDeChangement(null), []);
 });
 
 test("decisionIteration : un asset suggéré par l'agent devient une NOTE de l'essai (il n'est jamais créé par Itérer)", () => {

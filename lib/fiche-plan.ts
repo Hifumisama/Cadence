@@ -52,15 +52,6 @@ export function texteConsigne(e: { consigne: string | null; importe: boolean }):
   return e.importe ? "Vidéo importée." : null;
 }
 
-/** Ajoute une suggestion cliquable à la consigne en cours (« plus serré » après « Plus dynamique » → « Plus dynamique, plus serré »). */
-export function ajouterSuggestion(texte: string, suggestion: string): string {
-  const t = texte.trim();
-  if (!t) return suggestion;
-  return `${t.replace(/[.,;\s]+$/, "")}, ${suggestion.charAt(0).toLowerCase()}${suggestion.slice(1)}`;
-}
-
-export const SUGGESTIONS_CONSIGNE = ["Plus dynamique", "Plus serré", "Plus lent", "Lumière plus chaude", "Plus sombre"] as const;
-
 // --- le compte des prévisualisations à lancer -------------------------------------------------------------------------------
 
 export type PlanPourPrevisualisation = {
@@ -228,13 +219,3 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   return { action: "appliquer", ids: appliquables.map((c) => c.id), notes };
 }
 
-/** Les passages « avant → après » d'un changement de fiche (corrections partielles), pour la revue compacte. */
-export function passagesDeChangement(apres: unknown): { section: string; avant: string; apres: string }[] {
-  if (!apres || typeof apres !== "object") return [];
-  const brut = (apres as { passages?: unknown }).passages;
-  if (!Array.isArray(brut)) return [];
-  return brut.filter(
-    (p): p is { section: string; avant: string; apres: string } =>
-      !!p && typeof p === "object" && typeof (p as { section?: unknown }).section === "string" && typeof (p as { avant?: unknown }).avant === "string" && typeof (p as { apres?: unknown }).apres === "string",
-  );
-}

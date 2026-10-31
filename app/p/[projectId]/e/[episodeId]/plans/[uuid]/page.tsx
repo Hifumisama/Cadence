@@ -9,7 +9,7 @@ import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
 import { controlerStructure, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { getVoixDuPlan } from "@/lib/queries-voix-plan";
-import { avanceeUpscale, compterAPrevisualiser, essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/fiche-plan";
+import { avanceeUpscale, essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/fiche-plan";
 import { ImporterVideoForm } from "@/components/plan/ImporterVideoForm";
 import { RefsPanel, type RefVue } from "@/components/plan/RefsPanel";
 import type { NoeudPicker } from "@/components/plan/AssetPickerModal";
@@ -24,8 +24,7 @@ import { BarreFiche } from "@/components/plan/BarreFiche";
 import { PelliculePlans, type CadrePlan } from "@/components/plan/PelliculePlans";
 import { PlateauEssais, type EssaiCarte } from "@/components/plan/PlateauEssais";
 import { IntentionPlan } from "@/components/plan/IntentionPlan";
-import { OngletsPlan } from "@/components/plan/OngletsPlan";
-import { JournalEssais, type LigneJournal } from "@/components/plan/JournalEssais";
+import { TiroirPlan } from "@/components/plan/TiroirPlan";
 import { srcRendu } from "@/components/plan/Vignette";
 import { assemblerPrompt } from "@/lib/prompt";
 import { liaisonOuDefaut } from "@/lib/plan-liaison";
@@ -163,7 +162,6 @@ export default async function PlanPage({
   // --- l'état du plan et l'avancée de l'épisode -----------------------------------------------------------------------
   const etat = etatPlan({ nbEssais: jobHistory.length, pretUpscaleAt: plan.pretUpscaleAt });
   const avance = avanceeUpscale(pellicule.map((p) => p.etat));
-  const nbManquants = compterAPrevisualiser(pellicule.map((p) => ({ statut: p.statutFiche, nbTermines: p.nbTermines, nbEnFile: p.nbEnFile })));
   const lienPlan = (u: string) => `/p/${pid}/e/${eid}/plans/${u}`;
   const cadres: CadrePlan[] = pellicule.map((p) => ({ uuid: p.uuid, position: p.position, titre: p.titre, etat: p.etat, src: srcRendu(p.vignette), href: lienPlan(p.uuid) }));
   const suivant = planSuivant(pellicule, uuid);
@@ -192,6 +190,7 @@ export default async function PlanPage({
       estB: comparaison?.id === j.id,
       hrefA: hrefRendus(j.id, autreB(j.id)),
       hrefB: lisible && !estA && principal ? hrefRendus(principal.id, comparaison?.id === j.id ? null : j.id) : null,
+      consigne: texteConsigne({ consigne: j.consigne, importe: r.importe }),
     };
   });
   const voisinRecent = principal ? essaiVoisin(lisibles, principal.id, "plus-recent") : null;
@@ -209,24 +208,6 @@ export default async function PlanPage({
         pourcent: enFile.progressionValeur != null && enFile.progressionMax ? Math.round((100 * enFile.progressionValeur) / enFile.progressionMax) : null,
       }
     : null;
-
-  const journal: LigneJournal[] = essaisTries.map((j) => {
-    const r = rendusVus.find((x) => x.id === j.id)!;
-    return {
-      id: j.id,
-      numero: j.numeroRendu,
-      depuisNumero: j.depuisNumeroRendu,
-      consigne: texteConsigne({ consigne: j.consigne, importe: r.importe }),
-      notes: j.alertesIteration ?? [],
-      quand: (j.finishedAt ?? j.createdAt).toLocaleString("fr-FR"),
-      src: estLisible(r) ? srcRendu(j.cheminSortie) : null,
-      genre: genreDe(r),
-      retenu: etat === "pret" && plan.renduRetenuId === j.id,
-      enFile: essaiEnFile(j.statut),
-      echoue: j.statut === "echoue",
-      hrefVoir: hrefRendus(j.id, null),
-    };
-  });
 
   const perime = (await getPlansPerimes({ planIds: [plan.id] })).get(plan.id);
 
@@ -318,12 +299,12 @@ export default async function PlanPage({
       </span>
       {!estBrouillon ? <ControlesEntete alertes={alertes} /> : null}
       <details className="fp-plus tm-plus">
-        <summary className="btn btn-ghost btn-sm" aria-label="Autres actions">
-          ⋯
+        <summary className="btn btn-ghost btn-sm" aria-label="Autres actions sur ce plan">
+          Plus d&rsquo;actions
         </summary>
         <div className="fp-plus-pop">
           {!estBrouillon ? <ImporterVideoForm planId={plan.id} /> : null}
-          <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} />
+          <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} libelle="Supprimer le plan" />
         </div>
       </details>
       {plan.numerosSource && plan.numerosSource.length > 1 ? <span className="tm-sous">Fusion des plans {plan.numerosSource.join(" + ")}</span> : plan.acte ? <span className="tm-sous">{plan.acte}</span> : null}
@@ -333,7 +314,7 @@ export default async function PlanPage({
   return (
     <div className="tm">
       <SuiviRendus planUuid={plan.uuid} jobs={jobHistory.map((j) => ({ id: j.id, statut: j.statut }))} />
-      <BarreFiche episodeId={eid} prets={avance.prets} total={avance.total} nbManquants={nbManquants} />
+      <BarreFiche episodeId={eid} prets={avance.prets} total={avance.total} />
 
       {estBrouillon ? (
         <div className="tm-brouillon">
@@ -346,11 +327,40 @@ export default async function PlanPage({
           <div className="tm-scene">
             <main className="tm-centre">
               {titre}
+              <TiroirPlan
+                compteurs={{ refs: refsVue.length }}
+                panneaux={{
+                  scenario: <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon={false} initial={scenarioInitial} />,
+                  refs: <RefsPanel planId={plan.id} refs={refsVue} assets={assetsPicker} />,
+                  prompt: (
+                    <PromptBloc
+                      planId={plan.id}
+                      declarees={declarees}
+                      promptComplet={promptCourant}
+                      essai={
+                        principal && principalJob
+                          ? {
+                              numero: principal.numeroRendu,
+                              prompt: principalJob.promptUtilise,
+                              promptChange: promptDiffere(promptCourant, principalJob.promptUtilise),
+                              description:
+                                principalJob.descriptionUtilisee && principalJob.descriptionUtilisee.trim() !== (plan.description ?? "").trim() ? principalJob.descriptionUtilisee : null,
+                            }
+                          : null
+                      }
+                    />
+                  ),
+                  reglages: <ConsoleRendu timecodeMusique={plan.timecodeMusique} />,
+                }}
+              />
               <PlateauEssais
+                planId={plan.id}
                 essais={essais}
                 principal={
                   principal && principalJob
                     ? {
+                        id: principal.id,
+                        enFile: essaiEnFile(principalJob.statut),
                         libelle: libelleEssai(principal.numeroRendu, principalJob.depuisNumeroRendu),
                         consigne: texteConsigne({ consigne: principalJob.consigne, importe: principal.importe }),
                         notes: principalJob.alertesIteration ?? [],
@@ -366,29 +376,15 @@ export default async function PlanPage({
                 hrefQuitter={hrefQuitter}
                 enCours={enCours}
               >
-                {principal && principalJob && (principalJob.promptUtilise || principalJob.descriptionUtilisee || principalJob.raccordJobId != null) ? (
-                  <div className="tm-sous-legende">
-                    {(() => {
-                      const r = etatRaccord({ liaison: plan.liaison, utilise: principalJob.raccordJobId, actuel: raccordMaintenant?.source ?? null, precedentTitre: raccordMaintenant?.precedent.titre ?? null, refsVisuelles });
-                      return r ? <p className="tiny-note" style={{ margin: "0 0 4px", ...(r.perime ? { color: "var(--gold, #c9a227)" } : {}) }}>{r.texte}</p> : null;
-                    })()}
-                    {principalJob.descriptionUtilisee && principalJob.descriptionUtilisee.trim() !== (plan.description ?? "").trim() ? (
-                      <details className="tm-details">
-                        <summary className="tm-lien">Description du plan pour cet essai (différente de l&rsquo;actuelle)</summary>
-                        <pre className="tiny-note" style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
-                          {principalJob.descriptionUtilisee}
-                        </pre>
-                      </details>
-                    ) : null}
-                    {principalJob.promptUtilise ? (
-                      <details className="tm-details">
-                        <summary className="tm-lien">Prompt envoyé pour cet essai</summary>
-                        <pre className="tiny-note" style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
-                          {principalJob.promptUtilise}
-                        </pre>
-                      </details>
-                    ) : null}
-                  </div>
+                {principal && principalJob ? (
+                  (() => {
+                    const r = etatRaccord({ liaison: plan.liaison, utilise: principalJob.raccordJobId, actuel: raccordMaintenant?.source ?? null, precedentTitre: raccordMaintenant?.precedent.titre ?? null, refsVisuelles });
+                    return r ? (
+                      <p className="tiny-note tm-raccord" style={r.perime ? { color: "var(--gold, #c9a227)" } : undefined}>
+                        {r.texte}
+                      </p>
+                    ) : null;
+                  })()
                 ) : null}
               </PlateauEssais>
 
@@ -405,20 +401,6 @@ export default async function PlanPage({
               />
             </main>
 
-            <OngletsPlan
-              compteurs={{ refs: refsVue.length, journal: jobHistory.length }}
-              panneaux={{
-                refs: <RefsPanel planId={plan.id} refs={refsVue} assets={assetsPicker} />,
-                prompt: <PromptBloc planId={plan.id} declarees={declarees} />,
-                reglages: (
-                  <>
-                    <ConsoleRendu timecodeMusique={plan.timecodeMusique} />
-                    <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon={false} initial={scenarioInitial} />
-                  </>
-                ),
-                journal: <JournalEssais planId={plan.id} lignes={journal} />,
-              }}
-            />
           </div>
         </BrouillonProvider>
       )}

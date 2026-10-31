@@ -103,21 +103,3 @@ export async function modifierChampBrief(projectId: number, section: string, val
 
 // --- Proposition ------------------------------------------------------------
 
-/** « Corriger après visionnage » (conversation de portée `plan`, plan qui a un RENDU terminé) : une tâche
- * `iteration-plan`, proposition simple et affinable. `retour` = ce que l'utilisateur a vu (obligatoire). Le worker
- * extrait la planche de vignettes du dernier rendu et mesure sa durée réelle à l'exécution ; la proposition est
- * une écriture PARTIELLE de la fiche (seules les sections corrigées), ou un diagnostic sans écriture. Refusé sans
- * rendu (jamais de correction à l'aveugle) ou sans fiche. */
-export async function genererIteration(
-  conversationUuid: string,
-  options: { retour: string; renduId?: number | null; planche?: boolean },
-): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
-  return rafraichir(await service.genererIteration(conversationUuid, { retour: options.retour, renduId: options.renduId, planche: options.planche }));
-}
-
-/** « Rejeter » : abandonne la proposition (statut `rejetee`) ; la conversation reste, on
- * repart de l'étape précédente (Consigne ou Brief). */
-export async function rejeter(propositionUuid: string): Promise<Resultat> {
-  return rafraichir(await service.rejeter(propositionUuid));
-}
-

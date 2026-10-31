@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { supprimerEssai } from "@/app/plans/actions";
 import { Braises } from "@/components/plan/Braises";
 import { ComparaisonRendus } from "@/components/plan/ComparaisonRendus";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
@@ -25,9 +26,14 @@ export type EssaiCarte = {
   hrefA: string;
   /** Charge cet essai en B (comparaison) ; null quand il est A ou n'est pas lisible. */
   hrefB: string | null;
+  /** La consigne qui a produit l'essai (info-bulle de la vignette), null si aucune. */
+  consigne: string | null;
 };
 
 export type LegendeEssai = {
+  id: number;
+  /** L'essai est en file ou en cours : on ne le supprime pas. */
+  enFile: boolean;
   libelle: string;
   /** La consigne qui a produit l'essai ; null pour une première génération ou un rendu d'avant. */
   consigne: string | null;
@@ -42,6 +48,7 @@ export type LegendeEssai = {
  * regardé (A) et celui qu'on lui compare (B) vivent dans l'URL (?rendu=…&compare=…), comme avant : les liens sont calculés côté serveur.
  * Sous le lecteur : la légende (essai, base, consigne) ; `children` vient juste après (actions sur l'essai). */
 export function PlateauEssais({
+  planId,
   essais,
   principal,
   comparaison,
@@ -52,6 +59,7 @@ export function PlateauEssais({
   enCours,
   children,
 }: {
+  planId: number;
   essais: EssaiCarte[];
   principal: LegendeEssai | null;
   comparaison: { src: string; numero: number } | null;
@@ -65,6 +73,34 @@ export function PlateauEssais({
   const router = useRouter();
   const liste = useRef<HTMLDivElement>(null);
   const courant = essais.find((e) => e.estA)?.id ?? null;
+  const [pending, startTransition] = useTransition();
+  const [aConfirmer, setAConfirmer] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
+  const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => void (minuteur.current && clearTimeout(minuteur.current)), []);
+  // Un autre essai affiché : la confirmation en attente ne vaut plus.
+  useEffect(() => setAConfirmer(false), [courant]);
+
+  const repartir = () => {
+    const t = document.getElementById("tm-consigne");
+    t?.focus();
+    t?.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+  const supprimer = () => {
+    if (!principal) return;
+    if (!aConfirmer) {
+      setAConfirmer(true);
+      setMessage(null);
+      if (minuteur.current) clearTimeout(minuteur.current);
+      minuteur.current = setTimeout(() => setAConfirmer(false), 3500);
+      return;
+    }
+    setAConfirmer(false);
+    startTransition(async () => {
+      const r = await supprimerEssai(planId, principal.id);
+      setMessage(r.ok ? { ok: true, texte: `Essai n°${principal.numero} supprimé${r.fichierSupprime ? " (vidéo enlevée du stockage)" : ""}.` } : { ok: false, texte: r.erreur });
+    });
+  };
 
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
@@ -139,7 +175,7 @@ export function PlateauEssais({
               {essais.length === 0 ? <p className="tiny-note tm-col-vide">Aucun essai. Le premier apparaîtra ici.</p> : null}
               {essais.map((e) => (
                 <div key={e.id} role="listitem" data-courant={e.estA} className={`tm-essai${e.estA ? " is-a" : ""}${e.estB ? " is-b" : ""}${e.enCours ? " is-run" : ""}${e.echoue ? " is-echec" : ""}`}>
-                  <Link href={e.hrefA} scroll={false} className="tm-essai-lien" aria-label={`Voir l'essai n°${e.numero}`}>
+                  <Link href={e.hrefA} scroll={false} className="tm-essai-lien" aria-label={`Voir l'essai n°${e.numero}`} title={e.consigne ?? undefined}>
                     <span className="tm-essai-img">
                       <Vignette src={e.src} />
                       {e.retenu ? <span className="tm-drap">retenu</span> : e.enCours ? <span className="tm-drap is-rouge">en cours</span> : e.echoue ? <span className="tm-drap is-rouge">échoué</span> : null}
@@ -170,16 +206,37 @@ export function PlateauEssais({
         <div className="tm-legende" aria-live="polite">
           <span className="tm-qui num">{principal.libelle}</span>
           {principal.consigne ? <q>{principal.consigne}</q> : null}
-          {hrefQuitter ? (
-            <Link href={hrefQuitter} scroll={false} className="tm-lien tm-push">
-              Quitter la comparaison
-            </Link>
-          ) : hrefComparer ? (
-            <Link href={hrefComparer} scroll={false} className="tm-lien tm-push">
-              Comparer A / B
-            </Link>
-          ) : null}
+          <span className="tm-legende-actions">
+            {principal.src && !comparaison ? (
+              <button type="button" className="tm-lien" onClick={repartir}>
+                Repartir de cet essai
+              </button>
+            ) : null}
+            {hrefQuitter ? (
+              <Link href={hrefQuitter} scroll={false} className="tm-lien">
+                Quitter la comparaison
+              </Link>
+            ) : hrefComparer ? (
+              <Link href={hrefComparer} scroll={false} className="tm-lien">
+                Comparer A / B
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              className={`tm-lien tm-lien-suppr${aConfirmer ? " is-confirme" : ""}`}
+              disabled={pending || principal.enFile}
+              title={principal.enFile ? "Cet essai tourne encore : annule-le d'abord." : undefined}
+              onClick={supprimer}
+            >
+              {aConfirmer ? "Confirmer la suppression" : "Supprimer"}
+            </button>
+          </span>
           {principal.notes.length > 0 ? <p className="tm-notes">{principal.notes.join(" ")}</p> : null}
+          {message ? (
+            <p className="tiny-note" role={message.ok ? "status" : "alert"} style={{ color: message.ok ? "var(--or-glow)" : "var(--ecarlate-glow)" }}>
+              {message.texte}
+            </p>
+          ) : null}
         </div>
       ) : null}
       {children}

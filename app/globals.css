@@ -4630,14 +4630,7 @@ button {
 .fp-go-principal:hover:not(:disabled) {
   background: var(--or-glow);
 }
-.fp-go-final {
-  background: transparent;
-  color: var(--ecarlate-glow);
-  border-color: var(--ecarlate);
-}
-.fp-go-final:hover:not(:disabled) {
-  background: rgba(200, 16, 46, 0.12);
-}
+
 .fp-variante {
   grid-column: 1 / -1;
 }
@@ -4645,12 +4638,6 @@ button {
   margin: 0;
   padding: 0 var(--sp-4) var(--sp-2);
   color: var(--ecarlate-glow);
-}
-.fp-aide {
-  margin: 0;
-  padding: 0 var(--sp-4) var(--sp-3);
-  font-size: 12px;
-  color: var(--ink-4);
 }
 
 /* références */
@@ -4729,11 +4716,7 @@ button {
   position: relative;
   overflow: hidden;
 }
-.fp-compte-mod {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--terre);
-}
+
 .fp-outils {
   display: flex;
   align-items: center;
@@ -4822,10 +4805,7 @@ button {
 .fp-sec.is-ouvert .fp-sec-apercu {
   visibility: hidden;
 }
-.fp-sec-n {
-  font-size: 11px;
-  color: var(--ink-4);
-}
+
 .fp-sec-bd {
   padding: 0 var(--sp-4) var(--sp-3) 36px;
   animation: fp-arrive 0.25s ease-out;
@@ -4867,9 +4847,6 @@ button {
   color: var(--or-glow);
   border-style: dashed;
   border-color: var(--or);
-}
-.fp-revenir {
-  margin-top: 8px;
 }
 
 /* gel : balayage rubis et or sur les panneaux, puis sceau pendant 5 s */
@@ -5199,13 +5176,9 @@ button {
   margin: 0;
 }
 
-/* scène : centre + onglets */
+/* scène : le centre, pleine largeur (les détails du plan sont dans un tiroir) */
 .tm-scene {
-  display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
-  gap: var(--sp-5);
   margin-top: var(--sp-4);
-  align-items: start;
 }
 .tm-centre {
   min-width: 0;
@@ -5660,18 +5633,6 @@ button {
   text-transform: uppercase;
   color: var(--ink-4);
 }
-.tm-sous-legende {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 18px;
-  margin-top: 4px;
-}
-.tm-details summary {
-  cursor: pointer;
-}
-.tm-details[open] {
-  flex-basis: 100%;
-}
 
 /* intention */
 .tm-intention {
@@ -5725,25 +5686,7 @@ button {
 .tm-consigne:disabled {
   opacity: 0.6;
 }
-.tm-puces {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-.tm-puce {
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  color: var(--ink-2);
-  font-size: 13px;
-  padding: 3px 11px;
-  border-radius: 20px;
-  cursor: pointer;
-}
-.tm-puce:hover:not(:disabled) {
-  border-color: var(--or-soft);
-  color: var(--or-glow);
-}
+
 .tm-base {
   font-size: 13px;
   color: var(--ink-3);
@@ -5791,11 +5734,7 @@ button {
   flex-wrap: wrap;
   margin-top: 14px;
 }
-.tm-actions-aide {
-  margin-left: auto;
-  color: var(--ink-3);
-  font-size: 13px;
-}
+
 .tm-etat {
   margin: 12px 0 0;
   font-size: 13px;
@@ -5810,162 +5749,7 @@ button {
   font-size: 13px;
   color: var(--ecarlate-glow);
 }
-.tm-revue {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--or-soft);
-  background: rgba(201, 162, 75, 0.05);
-  display: grid;
-  gap: 8px;
-  font-size: 14px;
-}
-.tm-revue-titre {
-  margin: 0;
-  font-family: var(--font-brand), Georgia, serif;
-  font-size: 16px;
-  color: var(--or-glow);
-}
-.tm-revue-diag {
-  margin: 0;
-  color: var(--ink-2);
-}
-.tm-revue-diag b {
-  color: var(--ink);
-  font-weight: 500;
-}
-.tm-revue-passages {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-}
-.tm-revue-passages li {
-  display: grid;
-  gap: 3px;
-  font-size: 13px;
-}
-.tm-revue-section {
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-}
-.tm-revue-passages del {
-  color: var(--ink-3);
-  text-decoration-color: var(--ecarlate);
-}
-.tm-revue-passages ins {
-  background: rgba(201, 162, 75, 0.16);
-  color: var(--or-glow);
-  text-decoration: none;
-}
-.tm-revue-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 
-/* onglets */
-.tm-panneau {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  position: sticky;
-  top: 12px;
-  min-width: 0;
-}
-.tm-onglets {
-  display: flex;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--line);
-  scrollbar-width: none;
-}
-.tm-onglet {
-  flex: 1 0 auto;
-  background: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 12px 14px;
-  color: var(--ink-3);
-  font-size: 14px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.tm-onglet:hover {
-  color: var(--ink);
-}
-.tm-onglet[aria-selected="true"] {
-  color: var(--or-glow);
-  border-bottom-color: var(--or);
-}
-.tm-onglet-n {
-  font-size: 11px;
-  color: var(--ink-4);
-  margin-left: 5px;
-}
-.tm-contenu {
-  padding: 12px;
-  display: grid;
-  gap: 14px;
-  max-height: calc(100dvh - 170px);
-  overflow: auto;
-  align-content: start;
-}
-.tm-contenu[hidden] {
-  display: none;
-}
-.tm-contenu .panel {
-  margin: 0;
-}
-.tm-contenu h3 {
-  margin: 0;
-  font-family: var(--font-brand), Georgia, serif;
-  font-weight: 400;
-  font-size: 17px;
-}
-
-/* journal */
-.tm-journal {
-  display: grid;
-  gap: 10px;
-}
-.tm-j {
-  display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
-}
-.tm-j-img {
-  position: relative;
-  display: block;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  background: var(--film);
-}
-.tm-j-img video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
-}
-.tm-j p {
-  margin: 0;
-  font-size: 14px;
-  color: var(--ink);
-}
-.tm-j small {
-  display: block;
-  color: var(--ink-3);
-  font-size: 12px;
-  margin-top: 2px;
-}
-.tm-j-ac {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-top: 6px;
-}
 .tm-lien-suppr {
   color: var(--ink-3);
 }
@@ -5973,16 +5757,12 @@ button {
   color: var(--ecarlate-glow);
 }
 
-/* pellicule des plans, collée en bas */
+/* pellicule des plans, à la suite de la page */
 .tm-reel-zone {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 22px;
-  position: sticky;
-  bottom: 0;
-  z-index: 15;
-  background: var(--ground);
   padding-block: 10px 12px;
   border-top: 1px solid var(--line);
 }
@@ -6102,9 +5882,6 @@ button {
 }
 
 @media (max-width: 980px) {
-  .tm-scene {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .tm-plateau {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -6114,12 +5891,6 @@ button {
   .tm-col-zone {
     height: 240px;
     flex: none;
-  }
-  .tm-panneau {
-    position: static;
-  }
-  .tm-contenu {
-    max-height: none;
   }
   .tm-barre {
     width: 80px;
@@ -6420,4 +6191,193 @@ button {
 .fp-hors-bornes {
   margin: 4px 0 0;
   color: var(--or-glow);
+}
+
+/* ---- Fiche de plan : rangée d'outils et tiroir des détails (posé par-dessus la page, sans voile) ---- */
+.tm-plateau {
+  max-width: 1180px;
+}
+.tm-outils {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--sp-3);
+}
+.tm-outil {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink-2);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tm-outil:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.tm-outil[aria-pressed="true"] {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
+}
+.tm-outil-n {
+  font-size: 11px;
+  color: var(--ink-4);
+}
+.tm-tiroir {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: min(460px, 100%);
+  padding: var(--sp-5);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface) 60%);
+  border-left: 1px solid var(--or-soft);
+  box-shadow: -24px 0 60px -24px rgba(0, 0, 0, 0.8);
+}
+.tm-tiroir-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.tm-tiroir-etiquette {
+  font-size: 11.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--or);
+}
+.tm-tiroir-fermer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: rgba(8, 8, 10, 0.6);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.tm-tiroir-fermer:hover,
+.tm-tiroir-fermer:focus-visible {
+  color: var(--or-glow);
+  border-color: var(--or-soft);
+}
+.tm-tiroir-corps {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.tm-tiroir-corps .panel {
+  margin: 0;
+}
+@keyframes tm-tiroir-entree {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tm-tiroir {
+    animation: tm-tiroir-entree 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+
+/* Le scénario du plan : une carte lisible, pas un bloc de texte brut */
+.sp-carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--or);
+  border-radius: 3px;
+}
+.sp-carte > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.sp-description {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  white-space: pre-line;
+}
+.sp-description.is-vide {
+  font-style: italic;
+  color: var(--ink-3);
+}
+.sp-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-3);
+  margin: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.sp-meta dt {
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.sp-meta dd {
+  margin: 2px 0 0;
+  color: var(--ink);
+}
+
+/* Le prompt en lecture, et ce qui avait été envoyé pour l'essai affiché */
+.fp-sec-texte {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 40vh;
+  overflow: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+.fp-essai {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.fp-essai summary {
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+/* Légende de l'essai affiché : sa consigne, puis les gestes qui le concernent */
+.tm-legende-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-left: auto;
+}
+.tm-raccord {
+  margin: 4px 0 0;
 }
