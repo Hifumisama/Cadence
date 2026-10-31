@@ -4408,19 +4408,6 @@ button {
    Gauche : lecteur, pellicule des rendus, console de rendu. Droite : références, prompt, dialogues.
    On n'enregistre rien au fil de l'eau : lancer un rendu FIGE le prompt et les réglages (BrouillonPlan).
    --------------------------------------------------------------- */
-.fp-lien {
-  background: none;
-  border: 0;
-  padding: 0;
-  color: var(--ink-3);
-  font-size: 12px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-.fp-lien:hover {
-  color: var(--ink);
-}
 
 /* menu ⋯ de l'en-tête (details) et menus déroulants */
 
@@ -4481,110 +4468,6 @@ button {
 /* pellicule des rendus */
 
 /* console de rendu */
-.fp-etat {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--ink-3);
-  text-align: right;
-}
-.fp-etat-point {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--or);
-}
-.fp-etat.is-mod {
-  color: var(--terre);
-}
-.fp-etat.is-mod .fp-etat-point {
-  background: var(--terre);
-  animation: fp-braise 1.6s ease-in-out infinite;
-}
-.fp-reglages {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: var(--sp-4);
-  align-items: end;
-  padding: var(--sp-3) var(--sp-4);
-}
-.fp-champ label {
-  display: block;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  margin-bottom: 5px;
-}
-.fp-champ .fp-valeur {
-  color: var(--or);
-  margin-left: 6px;
-  letter-spacing: 0;
-}
-.fp-champ .field {
-  width: 78px;
-}
-.fp-seed {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.fp-seed-valeur {
-  min-width: 150px;
-  padding: 6px 9px;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-}
-.fp-de {
-  display: inline-block;
-  transition: transform 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
-}
-.fp-musique {
-  margin: 0;
-  padding: 0 var(--sp-4) var(--sp-2);
-  font-size: 12px;
-  color: var(--ink-3);
-}
-.fp-lancer {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--sp-2);
-  padding: 4px var(--sp-4) var(--sp-3);
-}
-.fp-go {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 11px 16px;
-  font-size: 14px;
-}
-.fp-go small {
-  font-weight: 400;
-  opacity: 0.75;
-}
-.fp-go-principal {
-  background: var(--or);
-  color: #17140c;
-  border-color: var(--or);
-  font-weight: 600;
-}
-.fp-go-principal:hover:not(:disabled) {
-  background: var(--or-glow);
-}
-
-.fp-variante {
-  grid-column: 1 / -1;
-}
-.fp-erreur {
-  margin: 0;
-  padding: 0 var(--sp-4) var(--sp-2);
-  color: var(--ecarlate-glow);
-}
 
 /* références */
 .fp-refs {
@@ -4699,17 +4582,7 @@ button {
     opacity: 0;
   }
 }
-@media (max-width: 560px) {
-  .fp-reglages {
-    grid-template-columns: 1fr 1fr;
-  }
-  .fp-champ-duree {
-    grid-column: 1 / -1;
-  }
-  .fp-lancer {
-    grid-template-columns: 1fr;
-  }
-}
+
 @media (prefers-reduced-motion: reduce) {
   .fp-gel::after {
     animation-duration: 0.01ms !important;
@@ -5894,11 +5767,6 @@ button {
   }
 }
 
-.fp-hors-bornes {
-  margin: 4px 0 0;
-  color: var(--or-glow);
-}
-
 /* ---- Fiche de plan : rangée d'outils et tiroir des détails (posé par-dessus la page, sans voile) ---- */
 .tm-outils {
   display: flex;
@@ -5999,22 +5867,7 @@ button {
 }
 
 /* Le scénario du plan : une carte lisible, pas un bloc de texte brut */
-.sp-carte {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--sp-4);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--or);
-  border-radius: 3px;
-}
-.sp-carte > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-}
+
 .sp-description {
   margin: 0;
   font-size: 15px;
@@ -6025,24 +5878,6 @@ button {
 .sp-description.is-vide {
   font-style: italic;
   color: var(--ink-3);
-}
-.sp-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--sp-3);
-  margin: 0;
-  padding-top: var(--sp-3);
-  border-top: 1px solid var(--line);
-}
-.sp-meta dt {
-  font-size: 11.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.sp-meta dd {
-  margin: 2px 0 0;
-  color: var(--ink);
 }
 
 /* Le prompt en lecture, et ce qui avait été envoyé pour l'essai affiché */
@@ -6281,3 +6116,53 @@ button {
   font-weight: 500;
 }
 .fp-prompt-change { margin: 0; color: var(--or-glow); }
+
+/* ---- Le scénario du plan, sous le titre : ce qui se passe, puis les durées et la liaison en puces ---- */
+.sp-entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  max-width: 900px;
+}
+.sp-entete .sp-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  max-width: none;
+}
+.sp-entete .sp-description.is-lu {
+  display: block;
+}
+.sp-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+}
+.sp-puces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.sp-puces b {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.sp-puces .is-alerte b,
+.sp-puces .is-alerte em {
+  color: var(--or-glow);
+  font-style: normal;
+}
+.sp-gestes {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}

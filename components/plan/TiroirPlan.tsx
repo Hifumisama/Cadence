@@ -3,20 +3,18 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Icone } from "@/components/ui/Icone";
 
-export type CleOnglet = "scenario" | "prompt" | "reglages";
+export type CleOnglet = "prompt";
 
 const LIBELLES: Record<CleOnglet, string> = {
-  scenario: "Scénario",
   prompt: "Prompt",
-  reglages: "Réglages",
 };
-const ORDRE: CleOnglet[] = ["scenario", "prompt", "reglages"];
+const ORDRE: CleOnglet[] = ["prompt"];
 
 /** Un lien « Voir » d'un contrôle (ControlesEntete) ouvre le bon tiroir : l'ancre d'avant (« fp-refs »…) désignait un panneau. */
-export const ONGLET_DE_ANCRE: Record<string, CleOnglet> = { "fp-prompt": "prompt", "fp-console": "reglages" };
+export const ONGLET_DE_ANCRE: Record<string, CleOnglet> = { "fp-prompt": "prompt" };
 export const EVENEMENT_ONGLET = "tm-onglet";
 
-/** Les panneaux de la fiche (scénario du plan, prompt, réglages ; les références, elles, sont à côté du lecteur) : une rangée de boutons sous le titre, et le panneau choisi dans un tiroir
+/** Le tiroir du prompt (le scénario est sous le titre, les références à côté du lecteur, les gestes de rendu sous le lecteur) : une rangée de boutons sous le titre, et le panneau choisi dans un tiroir
  * à droite, posé par-dessus la page comme celui du Scénario (sans voile : le lecteur reste utilisable). Un seul tiroir ouvert à la fois, monté à
  * l'ouverture : chaque panneau repart d'un état propre (et relit les données du serveur). Échap ou la croix le ferment. */
 export function TiroirPlan({ panneaux, compteurs }: { panneaux: Record<CleOnglet, ReactNode>; compteurs: Partial<Record<CleOnglet, number>> }) {

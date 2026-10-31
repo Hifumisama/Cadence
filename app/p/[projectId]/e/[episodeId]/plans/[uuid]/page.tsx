@@ -16,7 +16,6 @@ import { SuiviRendus } from "@/components/plan/SuiviRendus";
 import { PlanScenarioPanel } from "@/components/plan/PlanScenarioPanel";
 import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
 import { BrouillonProvider } from "@/components/plan/BrouillonPlan";
-import { ConsoleRendu } from "@/components/plan/ConsoleRendu";
 import { PromptBloc, type VersionPrompt } from "@/components/plan/PromptBloc";
 import { ControlesEntete, type AlerteControle } from "@/components/plan/ControlesEntete";
 import { BarreFiche } from "@/components/plan/BarreFiche";
@@ -222,7 +221,7 @@ export default async function PlanPage({
             niveau: "warn" as const,
             titre: "Rendu périmé",
             detail: detailPerime(perime),
-            ancre: perime.codes.length > 0 ? "fp-refs" : perime.raisons.includes("prompt") ? "fp-prompt" : "fp-console",
+            ancre: perime.codes.length > 0 ? "fp-refs" : "fp-prompt",
           },
         ]
       : []),
@@ -319,10 +318,18 @@ export default async function PlanPage({
           <div className="tm-scene">
             <main className="tm-centre">
               {titre}
+              <PlanScenarioPanel
+                planId={plan.id}
+                projectId={pid}
+                planUuid={plan.uuid}
+                brouillon={false}
+                initial={scenarioInitial}
+                dureeGeneration={plan.dureeGenerationSecondes}
+                musique={plan.timecodeMusique}
+              />
               <TiroirPlan
                 compteurs={{}}
                 panneaux={{
-                  scenario: <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon={false} initial={scenarioInitial} />,
                   prompt: (
                     <PromptBloc
                       planId={plan.id}
@@ -341,7 +348,6 @@ export default async function PlanPage({
                       }
                     />
                   ),
-                  reglages: <ConsoleRendu timecodeMusique={plan.timecodeMusique} valide={etat === "pret"} />,
                 }}
               />
               <div className="tm-poste">
@@ -368,6 +374,7 @@ export default async function PlanPage({
                 hrefComparer={hrefComparer}
                 hrefQuitter={hrefQuitter}
                 enCours={enCours}
+                peutVarier={etat !== "pret" && !enFile}
               >
                 {principal && principalJob ? (
                   (() => {

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { updatePlanScenario } from "@/app/plans/actions";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/plan-checks";
 import { GenererFiche } from "@/components/plan/GenererFiche";
 import { LIAISONS, LIBELLE_LIAISON, type Liaison } from "@/lib/plan-liaison";
 import {
@@ -22,6 +23,8 @@ export function PlanScenarioPanel({
   brouillon,
   initial,
   demandeEnCours = null,
+  dureeGeneration,
+  musique = null,
 }: {
   planId: number;
   projectId: number;
@@ -30,11 +33,16 @@ export function PlanScenarioPanel({
   initial: Valeurs;
   /** La demande « Générer la fiche » déjà en cours sur ce plan, s'il y en a une. */
   demandeEnCours?: number | null;
+  /** La durée de génération du plan (fixée par la fiche et par « Itérer », pas retouchée ici) : montrée à côté de la durée au montage. */
+  dureeGeneration?: number;
+  /** Le timecode de musique du plan, s'il y en a un. */
+  musique?: string | null;
 }) {
   const [champs, setChamps] = useState(initial);
   const [editionOuverte, setEditionOuverte] = useState(brouillon);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [lu, setLu] = useState(false);
 
   const majNarratifTitre = (titre: string) => setChamps((c) => ({ ...c, titre }));
   const majNarratif = (cle: keyof ChampsNarratifs, valeur: string) =>
@@ -56,25 +64,41 @@ export function PlanScenarioPanel({
   };
 
   if (!brouillon && !editionOuverte) {
+    const horsBornes = dureeGeneration != null && (dureeGeneration < DUREE_GENERATION_MIN || dureeGeneration > DUREE_GENERATION_MAX);
     return (
-      <section className="sp-carte" id="fp-scenario" aria-label="Scénario du plan">
-        <header>
-          <span className="eyebrow">Ce qui se passe</span>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditionOuverte(true)}>
-            Modifier
-          </button>
-        </header>
-        <p className={`sp-description${initial.description ? "" : " is-vide"}`}>{initial.description || "Pas encore de description."}</p>
-        <dl className="sp-meta">
-          <div>
-            <dt>Durée au montage</dt>
-            <dd className="num">{initial.dureeMontageSecondes} s</dd>
-          </div>
-          <div>
-            <dt>Liaison avec le plan précédent</dt>
-            <dd>{LIBELLE_LIAISON[initial.liaison]}</dd>
-          </div>
-        </dl>
+      <section className="sp-entete" id="fp-scenario" aria-label="Scénario du plan">
+        <p className={`sp-description${initial.description ? "" : " is-vide"}${lu ? " is-lu" : ""}`}>{initial.description || "Pas encore de description."}</p>
+        <div className="sp-ligne">
+          <ul className="sp-puces">
+            <li>
+              <span>Montage</span> <b className="num">{initial.dureeMontageSecondes} s</b>
+            </li>
+            {dureeGeneration != null ? (
+              <li className={horsBornes ? "is-alerte" : undefined} title={horsBornes ? `H3 génère de ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s : demande à l'agent de raccourcir ou d'allonger le plan dans ta consigne.` : "La durée change avec le contenu du plan : demande-la dans ta consigne."}>
+                <span>Génération</span> <b className="num">{dureeGeneration} s</b>
+                {horsBornes ? <em> hors bornes</em> : null}
+              </li>
+            ) : null}
+            <li>
+              <span>Liaison</span> <b>{LIBELLE_LIAISON[initial.liaison]}</b>
+            </li>
+            {musique ? (
+              <li>
+                <span>Musique</span> <b className="num">{musique}</b>
+              </li>
+            ) : null}
+          </ul>
+          <span className="sp-gestes">
+            {initial.description.length > 220 ? (
+              <button type="button" className="tm-lien" onClick={() => setLu((v) => !v)}>
+                {lu ? "Réduire" : "Tout lire"}
+              </button>
+            ) : null}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditionOuverte(true)}>
+              Modifier
+            </button>
+          </span>
+        </div>
       </section>
     );
   }

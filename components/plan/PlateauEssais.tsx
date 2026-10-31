@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { supprimerEssai } from "@/app/plans/actions";
+import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { Braises } from "@/components/plan/Braises";
 import { ComparaisonRendus } from "@/components/plan/ComparaisonRendus";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
@@ -57,6 +58,7 @@ export function PlateauEssais({
   hrefComparer,
   hrefQuitter,
   enCours,
+  peutVarier,
   children,
 }: {
   planId: number;
@@ -68,9 +70,12 @@ export function PlateauEssais({
   hrefComparer: string | null;
   hrefQuitter: string | null;
   enCours: { numero: number; etape: string | null; pourcent: number | null } | null;
+  /** « Nouvelle variante » est possible : le plan n'est pas validé et aucun essai n'est en file. */
+  peutVarier: boolean;
   children?: ReactNode;
 }) {
   const router = useRouter();
+  const b = useBrouillon();
   const liste = useRef<HTMLDivElement>(null);
   const courant = essais.find((e) => e.estA)?.id ?? null;
   const [pending, startTransition] = useTransition();
@@ -166,6 +171,15 @@ export function PlateauEssais({
                 {principal.notes.length > 0 ? <span className="tm-notes">{principal.notes.join(" ")}</span> : null}
               </div>
               <div className="tm-barre-essai-gestes">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={!peutVarier || b.occupe}
+                  onClick={() => b.figer("variante")}
+                  title={peutVarier ? "Même prompt, nouvelle seed : un autre rendu du même plan." : "Un essai tourne, ou le plan est validé : rouvre l'itération."}
+                >
+                  Nouvelle variante
+                </button>
                 {principal.src && !comparaison ? (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={repartir} title="Écrire une consigne à partir de cet essai">
                     Repartir de cet essai
@@ -190,6 +204,11 @@ export function PlateauEssais({
                   {aConfirmer ? "Confirmer la suppression" : "Supprimer"}
                 </button>
               </div>
+              {b.erreur ? (
+                <p className="tiny-note tm-barre-essai-msg" role="alert" style={{ color: "var(--ecarlate-glow)" }}>
+                  {b.erreur}
+                </p>
+              ) : null}
               {message ? (
                 <p className="tiny-note tm-barre-essai-msg" role={message.ok ? "status" : "alert"} style={{ color: message.ok ? "var(--or-glow)" : "var(--ecarlate-glow)" }}>
                   {message.texte}
