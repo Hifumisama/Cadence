@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useAgents } from "@/components/agents/AgentsProvider";
 import { BasculeNotifications } from "@/components/taches/BasculeNotifications";
 import { useTaches } from "@/components/taches/TachesProvider";
 import type { GenreTache, Tache } from "@/lib/taches";
@@ -304,7 +303,6 @@ function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler }: { x: Tache; rang: n
   // Une tâche en cours coûte du temps de GPU : on demande confirmation avant de la
   // couper. Une tâche en attente s'annule d'un clic (rien n'est perdu).
   const [confirmer, setConfirmer] = useState(false);
-  const { ouvrirAgent } = useAgents();
   // L'aperçu en direct est déjà léger (écrasé à chaque étape) ; la vignette d'un
   // résultat passe par la miniature.
   const image = x.apercuSrc ?? (x.vignetteSrc ? urlMiniature(x.vignetteSrc, 192) : null);
@@ -325,15 +323,7 @@ function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler }: { x: Tache; rang: n
       <Link
         href={x.href}
         className="tq-lien-entree"
-        onClick={(e) => {
-          // Une tâche d'agent rouvre la popup sur sa conversation (à la bonne étape : la
-          // popup suit l'étape du serveur), sans changer de page.
-          if (x.genre === "llm" && x.conversationUuid) {
-            e.preventDefault();
-            ouvrirAgent({ conversationUuid: x.conversationUuid, projectId: x.projectId || undefined });
-          }
-          onOuvrir();
-        }}
+        onClick={() => onOuvrir()}
       >
         {attente ? (
           <span className="tq-rang num" aria-label={`Position ${x.positionFile ?? "inconnue"} dans la file`}>

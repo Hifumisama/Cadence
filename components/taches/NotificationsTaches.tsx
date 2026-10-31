@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAgents } from "@/components/agents/AgentsProvider";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { etatNotifications, notifier, pageEnArriere } from "@/lib/notifications-navigateur";
 import type { Tache } from "@/lib/taches";
@@ -47,7 +46,6 @@ function texteFin(x: Tache): string {
 export function NotificationsTaches() {
   const router = useRouter();
   const { taches, pret, marquerVuLocal, setPanneauOuvert } = useTaches();
-  const { ouvrirAgent } = useAgents();
   const [toasts, setToasts] = useState<Toast[]>([]);
   // Tâches déjà annoncées (ou terminées avant l'ouverture de la page).
   const annoncees = useRef<Set<string> | null>(null);
@@ -74,10 +72,9 @@ export function NotificationsTaches() {
   const ouvrirTache = useCallback(
     (x: Tache) => {
       marquerVuLocal([x.cle]);
-      if (x.genre === "llm" && x.conversationUuid) ouvrirAgent({ conversationUuid: x.conversationUuid, projectId: x.projectId || undefined });
-      else router.push(x.href);
+      router.push(x.href);
     },
-    [marquerVuLocal, ouvrirAgent, router],
+    [marquerVuLocal, router],
   );
 
   useEffect(() => {
