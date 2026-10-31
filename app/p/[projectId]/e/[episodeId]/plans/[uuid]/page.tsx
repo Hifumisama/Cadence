@@ -9,7 +9,7 @@ import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
 import { controlerStructure, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { getVoixDuPlan } from "@/lib/queries-voix-plan";
-import { avanceeUpscale, essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/fiche-plan";
+import { essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/fiche-plan";
 import { ReferencesCases, type RefVue } from "@/components/plan/ReferencesCases";
 import type { NoeudPicker } from "@/components/plan/AssetPickerModal";
 import { SuiviRendus } from "@/components/plan/SuiviRendus";
@@ -18,7 +18,6 @@ import { SupprimerPlanButton } from "@/components/plan/SupprimerPlanButton";
 import { BrouillonProvider } from "@/components/plan/BrouillonPlan";
 import { PromptBloc, type VersionPrompt } from "@/components/plan/PromptBloc";
 import { ControlesEntete, type AlerteControle } from "@/components/plan/ControlesEntete";
-import { BarreFiche } from "@/components/plan/BarreFiche";
 import { PelliculePlans, type CadrePlan } from "@/components/plan/PelliculePlans";
 import { PlateauEssais, type EssaiCarte } from "@/components/plan/PlateauEssais";
 import { IntentionPlan } from "@/components/plan/IntentionPlan";
@@ -160,7 +159,6 @@ export default async function PlanPage({
   const plansHref = `/p/${pid}/e/${eid}/plans`;
   // --- l'état du plan et l'avancée de l'épisode -----------------------------------------------------------------------
   const etat = etatPlan({ nbEssais: jobHistory.length, pretUpscaleAt: plan.pretUpscaleAt });
-  const avance = avanceeUpscale(pellicule.map((p) => p.etat));
   const lienPlan = (u: string) => `/p/${pid}/e/${eid}/plans/${u}`;
   const cadres: CadrePlan[] = pellicule.map((p) => ({ uuid: p.uuid, position: p.position, titre: p.titre, etat: p.etat, src: srcRendu(p.vignette), href: lienPlan(p.uuid) }));
   const suivant = planSuivant(pellicule, uuid);
@@ -310,7 +308,6 @@ export default async function PlanPage({
   return (
     <div className="tm">
       <SuiviRendus planUuid={plan.uuid} jobs={jobHistory.map((j) => ({ id: j.id, statut: j.statut }))} />
-      <BarreFiche episodeId={eid} prets={avance.prets} total={avance.total} />
 
       {estBrouillon ? (
         <div className="tm-brouillon">
