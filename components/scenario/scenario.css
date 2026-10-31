@@ -954,7 +954,7 @@
   color: var(--or-glow);
 }
 
-/* ---- Le tiroir du plan sélectionné (à droite, sans voile : la grille reste utilisable) ---- */
+/* ---- Le tiroir du plan sélectionné : posé par-dessus la page, à droite, sans voile ni décalage (la grille reste utilisable) ---- */
 .sc-tiroir-plan {
   position: fixed;
   top: 0;
@@ -1008,12 +1008,6 @@
 @media (prefers-reduced-motion: no-preference) {
   .sc-tiroir-plan {
     animation: sc-tiroir-entree 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  }
-}
-/* Large écran : la page laisse la place au tiroir au lieu de se faire recouvrir. */
-@media (min-width: 1280px) {
-  .sc.has-tiroir {
-    padding-right: 420px;
   }
 }
 .sc-tiroir-video {

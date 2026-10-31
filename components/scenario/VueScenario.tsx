@@ -322,7 +322,7 @@ export function VueScenario({
   };
 
   return (
-    <div className={`sc${plan ? " has-tiroir" : ""}`}>
+    <div className="sc">
       <div className="queue sc-outils">
         <EtatFiches nbPlans={fiches.nbPlans} nbDeveloppes={fiches.nbDeveloppes} onEcrire={() => setFichesOuvert(true)} />
         <span className="sc-total num">

@@ -4365,46 +4365,6 @@ button {
   color: var(--ink-3);
 }
 
-.menu-plus {
-  position: relative;
-  display: inline-flex;
-}
-.menu-plus-btn {
-  letter-spacing: 0.1em;
-  font-weight: 700;
-}
-.menu-plus-liste {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 20;
-  min-width: 180px;
-  padding: 4px;
-  background: var(--surface-3);
-  border: 1px solid var(--line-strong);
-  border-radius: 3px;
-  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.7);
-}
-.menu-plus-item {
-  appearance: none;
-  display: block;
-  width: 100%;
-  padding: 9px 12px;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  border-radius: 2px;
-  color: var(--ink);
-  font-size: 13.5px;
-  cursor: pointer;
-}
-.menu-plus-item:hover {
-  background: var(--surface-2);
-}
-.menu-plus-item.is-danger {
-  color: var(--ecarlate-glow);
-}
-
 /* Icônes (components/ui/Icone.tsx) : alignées sur la ligne de texte, jamais écrasées dans un flex. */
 .icone {
   display: inline-block;
