@@ -176,16 +176,6 @@ export function VueScenario({
       }
       if (courant.plans.length === 0) return;
       const i = courant.plans.findIndex((p) => p.id === planSel);
-      // Alt + ← / → : le plan sélectionné passe avant ou après son voisin (comme « Avant / Après » du tiroir).
-      if (e.altKey && i !== -1 && (e.key === "ArrowLeft" || e.key === "ArrowRight" || (vue === "liste" && (e.key === "ArrowUp" || e.key === "ArrowDown")))) {
-        const avant = e.key === "ArrowLeft" || e.key === "ArrowUp";
-        if (avant ? i === 0 : i >= courant.plans.length - 1) return;
-        e.preventDefault();
-        marquerDepose(`plan:${planSel}`);
-        const avantId = avant ? courant.plans[i - 1]!.id : (courant.plans[i + 2]?.id ?? null);
-        startTransition(() => deplacerPlan(planSel!, courant.id, avantId));
-        return;
-      }
       const suivant = e.key === "ArrowRight" || (vue === "liste" && i !== -1 && e.key === "ArrowDown");
       const precedent = e.key === "ArrowLeft" || (vue === "liste" && i !== -1 && e.key === "ArrowUp");
       if (!suivant && !precedent) return;
@@ -552,7 +542,7 @@ export function VueScenario({
 
       <AjouterScene projectId={projectId} episodeId={episodeId} cible={cibleScene} onFermer={() => setCibleScene(null)} onLance={() => setSignal({ texte: "Scène en cours d'écriture : suivi dans la file des tâches." })} />
 
-      {plan ? <TiroirPlan key={plan.id} projectId={projectId} plan={plan} plans={courant.plans} sceneId={courant.id} onFermer={() => setPlanSel(null)} onOuvrir={() => ouvrir(plan)} /> : null}
+      {plan ? <TiroirPlan key={plan.id} projectId={projectId} plan={plan} onFermer={() => setPlanSel(null)} onOuvrir={() => ouvrir(plan)} /> : null}
 
       <AjouterPlan
         projectId={projectId}
@@ -586,33 +576,23 @@ export function VueScenario({
   );
 }
 
-/** Le tiroir du plan sélectionné, à droite : sa description en entier, l'écriture ou l'ouverture de sa fiche, sa place dans la scène (avant / après) et sa
- * suppression. Il ne bloque rien : la grille reste cliquable, un autre plan prend sa place, Échap le referme. Le déplacement vers une autre scène se
+/** Le tiroir du plan sélectionné, à droite : sa description en entier, l'écriture ou l'ouverture de sa fiche, sa suppression. Il ne bloque rien : la grille reste cliquable, un autre plan prend sa place, Échap le referme. Le déplacement vers une autre scène se
  * fait en glissant le plan sur la carte de la scène. */
 function TiroirPlan({
   projectId,
   plan,
-  plans,
-  sceneId,
   onFermer,
   onOuvrir,
 }: {
   projectId: number;
   plan: PlanVue;
-  plans: PlanVue[];
-  sceneId: number | null;
   onFermer: () => void;
   onOuvrir: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
-  const i = plans.findIndex((p) => p.id === plan.id);
   /** Un plan naît en brouillon ; il n'a de fiche (prompt vidéo) qu'une fois écrite par l'agent. */
   const sansFiche = plan.statut === "brouillon";
-  const decaler = (avantId: number | null) => {
-    marquerDepose(`plan:${plan.id}`);
-    startTransition(() => deplacerPlan(plan.id, sceneId, avantId));
-  };
   const supprimer = (force: boolean) => {
     const question = force
       ? `Forcer la suppression du plan ${pad(plan.position)} ? Ses références d'assets seront détachées (les assets eux-mêmes restent dans le registre). Irréversible.`
@@ -646,14 +626,6 @@ function TiroirPlan({
         </button>
       </div>
       <div className="sc-tiroir-pied">
-        <span className="sc-ordre" role="group" aria-label="Changer la place du plan dans la scène">
-          <button type="button" className="btn btn-ghost btn-sm" disabled={pending || i <= 0} onClick={() => decaler(plans[i - 1]!.id)} title="Avant (Alt + ←)">
-            ‹ Avant
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={pending || i < 0 || i >= plans.length - 1} onClick={() => decaler(plans[i + 2]?.id ?? null)} title="Après (Alt + →)">
-            Après ›
-          </button>
-        </span>
         <button type="button" className="btn btn-danger btn-icone" onClick={() => supprimer(false)} disabled={pending} title="Supprimer le plan" aria-label={`Supprimer le plan ${pad(plan.position)}`}>
           <Icone nom="supprimer" taille={16} />
         </button>

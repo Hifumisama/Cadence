@@ -612,10 +612,6 @@
   }
 }
 
-.sc-ordre {
-  display: inline-flex;
-  gap: var(--sp-1, 4px);
-}
 
 /* Une carte de scène qui vient de recevoir un plan pulse en or. */
 @keyframes sc-recu {
