@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { enregistrerPrompt } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 
@@ -30,8 +30,22 @@ export function PromptBloc({
   const [pending, startTransition] = useTransition();
   const modifie = texte !== promptComplet;
 
+  // Le prompt change côté serveur pendant que le tiroir est ouvert (une référence retirée ou ajoutée réécrit ses labels, un essai l'a réécrit) :
+  // si on n'y a pas touché, on le suit ; sinon on prévient, pour ne pas enregistrer par-dessus des labels à jour.
+  const vu = useRef(promptComplet);
+  const [change, setChange] = useState(false);
+  useEffect(() => {
+    if (promptComplet === vu.current) return;
+    const ancien = vu.current;
+    vu.current = promptComplet;
+    if (texte === ancien) setTexte(promptComplet);
+    else setChange(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promptComplet]);
+
   const enregistrer = () => {
     setErreurs([]);
+    setChange(false);
     startTransition(async () => {
       const r = await enregistrerPrompt(planId, texte);
       if (!r.ok) {
@@ -65,6 +79,21 @@ export function PromptBloc({
           setErreurs([]);
         }}
       />
+      {change ? (
+        <p className="tiny-note fp-prompt-change" role="status">
+          Le prompt a changé depuis que tu l&rsquo;as ouvert (références, rendu…).{" "}
+          <button
+            type="button"
+            className="tm-lien"
+            onClick={() => {
+              setTexte(promptComplet);
+              setChange(false);
+            }}
+          >
+            Charger la version à jour
+          </button>
+        </p>
+      ) : null}
       {erreurs.length > 0 ? (
         <ul className="fp-prompt-erreurs" role="alert">
           {erreurs.map((e) => (

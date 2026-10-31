@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ajouterReference, compacterImages, nomDepuisCode, retirerReference } from "./references";
+import { ajouterReference, compacterImages, emplacementLibre, nomDepuisCode, retirerReference } from "./references";
 
 const sections = {
   subject_definitions: "<Subject 1> is Iris from <Picture 1>, a girl.\n<Subject 2> is the lamp from <Picture 2>.\n<Subject 3> is the lighthouse from <Picture 3>.",
@@ -65,4 +65,13 @@ test("nomDepuisCode", () => {
 test("ajouterReference : un effet (vfx) est repris en weak_reference", () => {
   const s = ajouterReference({}, { type: "picture", slot: 2, nom: "energie doree", vfx: true });
   assert.match(s.retention_analysis!, /^<Subject 2> \(not cited in a shot\): weak_reference - /);
+});
+
+test("emplacementLibre : un trou laissé par un son est rebouché, un emplacement choisi est respecté, plein = null", () => {
+  assert.equal(emplacementLibre("audio", [1, 3], 3), 2);
+  assert.equal(emplacementLibre("audio", [1], 3, 3), 3);
+  assert.equal(emplacementLibre("video", [2], 2), 1);
+  // les images restent 1..n : l'emplacement choisi ne compte pas
+  assert.equal(emplacementLibre("picture", [1, 2], 6, 5), 3);
+  assert.equal(emplacementLibre("audio", [1, 2, 3], 3), null);
 });

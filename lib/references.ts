@@ -18,6 +18,14 @@ export function nomDepuisCode(code: string): string {
   return (reste.length ? reste : [code]).join(" ").trim();
 }
 
+/** L'emplacement d'une nouvelle référence : celui qu'on a choisi s'il est libre (vidéos et audios seulement : les images restent numérotées 1..n sans trou),
+ * sinon le premier libre. Retirer une vidéo ou un audio laisse un trou (leur numéro ne bouge pas, le prompt les cite) : on le rebouche d'abord. null = plein. */
+export function emplacementLibre(type: TypeRef, pris: number[], max: number, voulu?: number): number | null {
+  const libres = Array.from({ length: max }, (_, i) => i + 1).filter((n) => !pris.includes(n));
+  if (type !== "picture" && voulu != null && libres.includes(voulu)) return voulu;
+  return libres[0] ?? null;
+}
+
 /** Ancien slot → nouveau slot des images qui restent, compactés en 1..n dans l'ordre. */
 export function compacterImages(slotsRestants: number[]): Map<number, number> {
   const tries = [...slotsRestants].sort((a, b) => a - b);

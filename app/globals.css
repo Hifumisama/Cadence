@@ -6280,3 +6280,4 @@ button {
   color: var(--or-glow);
   font-weight: 500;
 }
+.fp-prompt-change { margin: 0; color: var(--or-glow); }

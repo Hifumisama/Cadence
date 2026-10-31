@@ -14,6 +14,7 @@ import { join, resolve } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { estLiaison } from "@/lib/plan-liaison";
 import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
+import { emplacementLibre } from "@/lib/references";
 import type { RefLabel } from "@/lib/plan-checks";
 import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
 import { promptDiffere, raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib/rendus";
@@ -307,6 +308,8 @@ export async function ajouterRef(
   planId: number,
   type: RefLabel["type"],
   assetId: number,
+  /** L'emplacement choisi (la case cliquée) ; les images restent numérotées 1..n sans trou, donc il ne compte que pour les vidéos et les audios. */
+  slotVoulu?: number,
 ) {
   const existantes = await db
     .select()
@@ -316,7 +319,8 @@ export async function ajouterRef(
   if (existantes.length >= MAX_REFS[type]) return;
   if (existantes.some((r) => r.assetId === assetId)) return;
 
-  const prochainSlot = existantes.map((r) => r.slot).reduce((acc, n) => Math.max(acc, n), 0) + 1;
+  const prochainSlot = emplacementLibre(type, existantes.map((r) => r.slot), MAX_REFS[type], slotVoulu);
+  if (prochainSlot == null) return;
 
   await db.transaction(async (tx) => {
     await tx.insert(planRefs).values({
