@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { deplacerPlan, deplacerScene } from "@/app/scenario/actions";
 import { retirerPlan } from "@/app/plans/actions";
-import { useAgents, type DemandeAgent } from "@/components/agents/AgentsProvider";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
 import { GenererFiche } from "@/components/plan/GenererFiche";
@@ -62,7 +61,6 @@ export function VueScenario({
   fiches: { nbPlans: number; nbDeveloppes: number };
 }) {
   const router = useRouter();
-  const { ouvrirAgent } = useAgents();
   const { taches, pret: tachesPretes } = useTaches();
   const [cle, setCle] = useState<string>(() => (sceneInitiale && groupes.some((g) => cleScene(g.id) === sceneInitiale) ? sceneInitiale : cleScene(groupes[0]?.id ?? null)));
   const [planSel, setPlanSel] = useState<number | null>(null);
@@ -194,16 +192,13 @@ export function VueScenario({
     return (
       <div className="sc">
         <div className="queue">
-          <button className="btn btn-gold" type="button" onClick={() => ouvrirAgent({ projectId, portee: "episode", cible: { id: episodeId }, profondeur: "courte", libelle: "Scénario", episodeId })}>
-            Écrire le scénario
-          </button>
-          <button className="btn btn-ghost" type="button" disabled={ajoutScene != null} onClick={() => setCibleScene({ place: { debut: true }, apres: "Au début du film" })}>
+          <button className="btn btn-gold" type="button" disabled={ajoutScene != null} onClick={() => setCibleScene({ place: { debut: true }, apres: "Au début du film" })}>
             <Icone nom="ajouter" taille={15} /> {ajoutScene ? "Scène en cours d'écriture…" : "Nouvelle scène"}
           </button>
         </div>
         <AjouterScene projectId={projectId} episodeId={episodeId} cible={cibleScene} onFermer={() => setCibleScene(null)} onLance={() => setSignal({ texte: "Scène en cours d'écriture : suivi dans la file des tâches." })} />
         <p className="tiny-note" style={{ marginTop: "var(--sp-6)" }}>
-          Aucun plan en base. L&rsquo;agent peut écrire le scénario, ou lancer <code>npm run db:import</code> pour importer l&rsquo;épisode 1 depuis le markdown existant.
+          Ce film n&rsquo;a encore aucune scène. Un projet créé depuis « Nouveau projet » arrive avec son scénario : si celui-ci est vide, la première scène peut s&rsquo;écrire d&rsquo;ici.
         </p>
       </div>
     );

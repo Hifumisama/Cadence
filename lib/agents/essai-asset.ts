@@ -27,6 +27,8 @@ export async function entreeEssaiAsset(
     promptBase: string;
     /** Les images de l'essai, dans l'ordre (l'image 1 est celle qui porte les modifications) : la base d'abord s'il y en a une, puis les jointes. */
     images: { rang: number; role: "base" | "jointe"; libelle: string }[];
+    /** Un son : la durée que l'utilisateur a fixée (le prompt doit lui convenir). */
+    dureeSecondes?: number;
   },
 ): Promise<EntreeSkill | null> {
   const methode = methodeDEssai(p.images.length > 0);
@@ -48,6 +50,13 @@ export async function entreeEssaiAsset(
   const base = await entreePromptAsset(db, projectId, assetId, p.consigne);
   if (!base) return null;
   const e = base.entree as { asset: Record<string, unknown>; parent: unknown };
+  // Un son : la variante `sfx` du skill (jamais d'image ni de méthode à imposer) ; la durée est celle de l'utilisateur.
+  if (asset?.type === "sfx") {
+    return {
+      ...base,
+      entree: { ...base.entree, asset: { ...e.asset, promptActuel: p.promptBase }, parent: null, ...(p.dureeSecondes != null ? { dureeDemandeeSecondes: p.dureeSecondes } : {}) },
+    };
+  }
   return {
     ...base,
     variante: methode,

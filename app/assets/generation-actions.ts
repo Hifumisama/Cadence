@@ -8,14 +8,9 @@ import { randomUUID } from "node:crypto";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import {
-  METHODE_AUDIO,
   STATUT_TRADUCTION,
-  nouvelleSeed,
-  raisonAudioNonGenerable,
-  raisonDemandeAudioInvalide,
   raisonDemandeInvalide,
   raisonNonGenerable,
-  type DemandeAudio,
   type DemandeGeneration,
   formatParDefaut,
   loraParDefaut,
@@ -28,7 +23,6 @@ import { poserGeneration, poserGenerationsLot, type ResultatLancement } from "@/
 import { idsSansImage } from "@/lib/images-projet";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "@/lib/generation-lot";
 import { supprimerGenerationEtFichiers } from "@/lib/generation-sources";
-import { nbImagesEnAttente, rangDansLaFile } from "@/lib/queries-taches";
 import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
 import {
   MEDIA_ROOT,
@@ -90,35 +84,6 @@ export async function genererImagesManquantes(
   const ids = idsSansImage(lignes);
   if (ids.length === 0) return { ok: false, erreur: "Toutes les images de référence sont déjà là." };
   return lancerGenerationsLot(projectId, ids);
-}
-
-/** Pose une demande de génération AUDIO (SFX, Stable Audio 3) dans la même file que
- * les images (table `asset_generations`, méthode « audio »). Réservée aux assets
- * de type `sfx` ; la durée est un paramètre séparé du prompt ; la seed est tirée
- * côté serveur. */
-export async function lancerGenerationAudio(assetId: number, demande: DemandeAudio): Promise<ResultatLancement> {
-  const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
-  if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
-  const raisonAsset = raisonAudioNonGenerable(asset.type);
-  if (raisonAsset) return { ok: false, erreur: raisonAsset };
-  const raison = raisonDemandeAudioInvalide(demande);
-  if (raison) return { ok: false, erreur: raison };
-  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
-    return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} générations en attente) : laisse le worker en vider quelques-unes.` };
-  }
-
-  const [gen] = await db
-    .insert(assetGenerations)
-    .values({
-      assetId,
-      methode: METHODE_AUDIO,
-      prompt: demande.prompt.trim(),
-      dureeSecondes: demande.dureeSecondes,
-      seed: nouvelleSeed(),
-    })
-    .returning({ id: assetGenerations.id });
-  revalidatePath("/", "layout");
-  return { ok: true, position: await rangDansLaFile(gen!.id) };
 }
 
 /** Dépose une image source jetable pour le mode « images » : rangée sous le

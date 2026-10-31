@@ -4,14 +4,14 @@ import { notFound } from "next/navigation";
 import { getAssetsRegistre, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { AssetPreview } from "@/components/assets/AssetPreview";
 import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
-import { GenerationPanel } from "@/components/assets/GenerationPanel";
+import { AtelierSon } from "@/components/assets/AtelierSon";
 import { AtelierAsset } from "@/components/assets/AtelierAsset";
-import { BlocTexte, BoutonCopier, EnteteAsset, FicheProvider, ReglagesAsset } from "@/components/assets/FicheAsset";
+import { EnteteAsset, FicheProvider } from "@/components/assets/FicheAsset";
 import { OngletsAsset, type OngletAsset } from "@/components/assets/OngletsAsset";
 import { BlocVoix } from "@/components/voix/BlocVoix";
 import { getVoixPersonnage } from "@/lib/queries-master-voix";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
-import { METHODE_MASTER_VOIX, formatParDefaut, raisonAudioNonGenerable, raisonNonGenerable } from "@/lib/asset-generation";
+import { METHODE_AUDIO, METHODE_MASTER_VOIX, raisonAudioNonGenerable, raisonNonGenerable } from "@/lib/asset-generation";
 import { Topbar } from "@/components/ui/Topbar";
 import { delierRef } from "@/app/assets/actions";
 import { libelleAsset } from "@/lib/assetCode";
@@ -20,8 +20,6 @@ import "@/components/assets/fiche-asset.css";
 import "@/components/assets/fiche-asset-mise-en-page.css";
 
 export const dynamic = "force-dynamic";
-
-const nbMots = (t: string) => (t.trim() ? t.trim().split(/\s+/).length : 0);
 
 /** La fiche d'un asset : l'en-tête (nom, type, état, description, apparitions) puis des ONGLETS, un par chose que l'asset sait faire — l'image
  * (l'atelier : image en grand, consigne en français, journal d'essais), la voix d'un personnage, le son d'un bruitage. Chaque texte se corrige au
@@ -57,7 +55,6 @@ export default async function AssetDetailPage({
   const suivant = rang < tous.length - 1 ? tous[rang + 1] : null;
   const libellesParId = new Map(tous.map((a) => [a.id, libelleAsset(a)]));
   const registreJoignable = (await getAssetsAvecImage(pid, noeud.id)).map((a) => ({ id: a.id, libelle: libellesParId.get(a.id) ?? a.code, src: a.src }));
-  const promptVide = !(noeud.promptGeneration ?? "").trim();
 
   // ---- Les onglets : un par chose que cet asset sait faire ----
   const onglets: OngletAsset[] = [];
@@ -82,40 +79,15 @@ export default async function AssetDetailPage({
             </div>
           </div>
           <div className="as-gen" style={{ marginTop: 20 }}>
-            <BlocTexte
+            <AtelierSon
               assetId={noeud.id}
-              champ="promptGeneration"
-              libelle="Description du son"
-              valeur={noeud.promptGeneration ?? ""}
-              vide="Aucun prompt. Clique pour l'écrire."
-              mono
-              meta={promptVide ? undefined : `${nbMots(noeud.promptGeneration ?? "")} mots`}
-            >
-              <BoutonCopier texte={noeud.promptGeneration ?? ""} libelle="Copier le prompt" />
-            </BlocTexte>
-
-            <div className="as-gen-deux">
-              <ReglagesAsset assetId={noeud.id} type={noeud.type} methodeGeneration={noeud.methodeGeneration} departCode={null} dureeSecondes={noeud.dureeSecondes ?? null} promptVide={promptVide}>
-                <GenerationPanel
-                  assetId={noeud.id}
-                  code={noeud.code}
-                  type={noeud.type}
-                  methodeGeneration={noeud.methodeGeneration}
-                  parentCode={null}
-                  promptInitial={noeud.promptGeneration ?? ""}
-                  raisonBloquee={raisonAudioNonGenerable(noeud.type)}
-                  defauts={{ aspect: formatParDefaut(noeud.type).aspect, megapixels: formatParDefaut(noeud.type).megapixels, lora: false }}
-                  registre={[]}
-                  imageActuelle={null}
-                  dureeSecondes={noeud.dureeSecondes ?? null}
-                  generations={generationsImages}
-                  generationInitiale={generationBrute ?? null}
-                  simule={(process.env.COMFYUI_MODE ?? "stub") !== "http"}
-                  libelleBouton={noeud.fichier ? "Régénérer le son…" : "Générer un son…"}
-                  classeBouton="btn btn-gold"
-                />
-              </ReglagesAsset>
-            </div>
+              fichierAt={noeud.fichierAt ? noeud.fichierAt.getTime() : null}
+              promptActuel={noeud.promptGeneration ?? ""}
+              dureeActuelle={noeud.dureeSecondes ?? null}
+              description={noeud.description ?? ""}
+              essais={generationsImages.filter((g) => g.methode === METHODE_AUDIO)}
+              raisonBloquee={raisonAudioNonGenerable(noeud.type)}
+            />
           </div>
         </div>
       ),
