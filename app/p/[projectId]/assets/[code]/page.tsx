@@ -8,7 +8,6 @@ import { GenerationPanel } from "@/components/assets/GenerationPanel";
 import { AtelierAsset } from "@/components/assets/AtelierAsset";
 import { BlocTexte, BoutonCopier, EnteteAsset, FicheProvider, ReglagesAsset } from "@/components/assets/FicheAsset";
 import { OngletsAsset, type OngletAsset } from "@/components/assets/OngletsAsset";
-import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import { BlocVoix } from "@/components/voix/BlocVoix";
 import { getVoixPersonnage } from "@/lib/queries-master-voix";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
@@ -88,16 +87,10 @@ export default async function AssetDetailPage({
               champ="promptGeneration"
               libelle="Description du son"
               valeur={noeud.promptGeneration ?? ""}
-              vide="Aucun prompt. Clique pour l'écrire, ou demande-le à l'agent."
+              vide="Aucun prompt. Clique pour l'écrire."
               mono
               meta={promptVide ? undefined : `${nbMots(noeud.promptGeneration ?? "")} mots`}
             >
-              <BoutonAgent
-                className="btn btn-ghost btn-sm"
-                libelle={promptVide ? "Écrire avec l'agent" : "Réécrire avec l'agent"}
-                demande={{ projectId: pid, portee: "asset", cible: { code: noeud.code }, profondeur: "courte", libelle: noeud.code }}
-                titre="Demander à l'agent d'écrire ou de réécrire le prompt de ce son"
-              />
               <BoutonCopier texte={noeud.promptGeneration ?? ""} libelle="Copier le prompt" />
             </BlocTexte>
 

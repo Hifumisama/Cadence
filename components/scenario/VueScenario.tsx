@@ -18,6 +18,7 @@ import { LIBELLE_ETAT, cleScene, minutage, romain, type AjoutEnCours, type Ajout
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
 import { AjouterPlan, type CibleAjoutPlan } from "./AjouterPlan";
 import { EtatFiches } from "./EtatFiches";
+import { EcrireFiches } from "./EcrireFiches";
 import { ModifierSceneButton } from "./ModifierSceneButton";
 import { AjouterScene, type CibleAjoutScene } from "./AjouterScene";
 import { SupprimerSceneButton } from "./SupprimerSceneButton";
@@ -57,8 +58,8 @@ export function VueScenario({
   ajout: AjoutEnCours | null;
   /** Une scène en cours d'écriture (« Nouvelle scène »), ou null. Un seul ajout à la fois par film : plan ou scène. */
   ajoutScene: AjoutSceneEnCours | null;
-  /** L'état des fiches de plan du film et la demande « Écrire les fiches ». */
-  fiches: { nbPlans: number; nbDeveloppes: number; demande: DemandeAgent };
+  /** L'état des fiches de plan du film (« Écrire les fiches » ouvre une popup). */
+  fiches: { nbPlans: number; nbDeveloppes: number };
 }) {
   const router = useRouter();
   const { ouvrirAgent } = useAgents();
@@ -73,6 +74,8 @@ export function VueScenario({
   const [cibleAjout, setCibleAjout] = useState<CibleAjoutPlan | null>(null);
   /** L'outil « Ajouter un plan » est actif : des « + » s'affichent entre les plans, on clique celui où le plan doit naître. */
   const [modeAjout, setModeAjout] = useState(false);
+  /** La popup « Écrire les fiches » est ouverte. */
+  const [fichesOuvert, setFichesOuvert] = useState(false);
   const [, startTransition] = useTransition();
   const dernierRefresh = useRef(0);
   const rail = useRef<HTMLDivElement>(null);
@@ -326,7 +329,7 @@ export function VueScenario({
   return (
     <div className={`sc${plan ? " has-tiroir" : ""}`}>
       <div className="queue sc-outils">
-        <EtatFiches nbPlans={fiches.nbPlans} nbDeveloppes={fiches.nbDeveloppes} demande={fiches.demande} />
+        <EtatFiches nbPlans={fiches.nbPlans} nbDeveloppes={fiches.nbDeveloppes} onEcrire={() => setFichesOuvert(true)} />
         <span className="sc-total num">
           {pluriel(scenesReelles.length, "scène")} · {pluriel(nbPlans, "plan")} · {minutage(dureeTotale)}
         </span>
@@ -543,6 +546,14 @@ export function VueScenario({
       <AjouterScene projectId={projectId} episodeId={episodeId} cible={cibleScene} onFermer={() => setCibleScene(null)} onLance={() => setSignal({ texte: "Scène en cours d'écriture : suivi dans la file des tâches." })} />
 
       {plan ? <TiroirPlan key={plan.id} projectId={projectId} plan={plan} onFermer={() => setPlanSel(null)} onOuvrir={() => ouvrir(plan)} /> : null}
+
+      <EcrireFiches
+        projectId={projectId}
+        groupes={groupes}
+        ouvert={fichesOuvert}
+        onFermer={() => setFichesOuvert(false)}
+        onLance={(n) => setSignal({ texte: `${n > 1 ? `${n} fiches en cours d'écriture` : "Fiche en cours d'écriture"} : suivi dans la file des tâches.` })}
+      />
 
       <AjouterPlan
         projectId={projectId}

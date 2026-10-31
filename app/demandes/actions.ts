@@ -47,6 +47,20 @@ export async function demanderFichePlan(projectId: number, planUuid: string): Pr
   return r;
 }
 
+/** « Écrire les fiches » (page Scénario) : une demande « Générer la fiche » par plan choisi, dans l'ordre donné (la file les écrit l'une après l'autre).
+ * Un plan refusé (déjà une fiche, demande en cours) n'arrête pas les autres : ses raisons sont rendues avec le nombre de fiches lancées. */
+export async function demanderFichesPlans(projectId: number, planUuids: string[]): Promise<{ lancees: number; erreurs: string[] }> {
+  let lancees = 0;
+  const erreurs: string[] = [];
+  for (const uuid of planUuids) {
+    const r = await lancerDemandeFichePlan(projectId, uuid);
+    if (r.ok) lancees += 1;
+    else erreurs.push(r.erreur);
+  }
+  revalidatePath("/", "layout");
+  return { lancees, erreurs: [...new Set(erreurs)] };
+}
+
 /** Où en est une demande (sondage de la page d'un plan). */
 export async function lireDemande(demandeId: number): Promise<VueDemande | null> {
   return lireDemandeVue(demandeId);

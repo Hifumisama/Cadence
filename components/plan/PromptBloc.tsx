@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BoutonAgent } from "@/components/agents/BoutonAgent";
-import type { DemandeAgent } from "@/components/agents/AgentsProvider";
 import { PromptImportColle } from "@/components/plan/PromptImportColle";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { extraireLabels } from "@/lib/plan-checks";
@@ -90,10 +88,9 @@ function Section({ section, ouvert, onBascule, declarees }: { section: string; o
 
 /** Le prompt H3 en six sections, toutes repliées au départ. Les saisies vont dans le brouillon (BrouillonPlan), rien n'est écrit
  * avant le lancement d'un rendu. `declarees` : les labels des références du plan (« Picture 1 »). */
-export function PromptBloc({ planId, declarees, demandeAgent, aUneFiche }: { planId: number; declarees: string[]; demandeAgent: DemandeAgent; aUneFiche: boolean }) {
+export function PromptBloc({ planId, declarees }: { planId: number; declarees: string[] }) {
   const b = useBrouillon();
   const [ouverts, setOuverts] = useState<Set<string>>(new Set());
-  const [menu, setMenu] = useState(false);
   const decl = new Set(declarees);
   const toutOuvert = ouverts.size === SECTIONS_ORDRE.length;
 
@@ -120,22 +117,6 @@ export function PromptBloc({ planId, declarees, demandeAgent, aUneFiche }: { pla
         <button type="button" className="fp-lien" onClick={() => setOuverts(toutOuvert ? new Set() : new Set(SECTIONS_ORDRE))}>
           {toutOuvert ? "Tout replier" : "Tout déplier"}
         </button>
-        <div className="fp-menu" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setMenu(false); }}>
-          <button type="button" className="btn btn-ghost btn-sm" aria-haspopup="true" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
-            Agent ✦
-          </button>
-          {menu ? (
-            <div className="fp-menu-pop" role="menu">
-              <BoutonAgent demande={demandeAgent} libelle="Demander à l'agent" className="fp-menu-item" titre="Modifier ce plan, ou en ajouter un après lui" />
-              <BoutonAgent
-                demande={{ ...demandeAgent, vue: "fiches" }}
-                libelle={aUneFiche ? "Réécrire la fiche" : "Écrire la fiche"}
-                className="fp-menu-item"
-                titre="Remplace toutes les sections et les références ; tu relis avant qu'il soit écrit"
-              />
-            </div>
-          ) : null}
-        </div>
       </div>
       <div className="fp-import">
         <PromptImportColle planId={planId} onImporte={b.abandonner} />

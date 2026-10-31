@@ -4,7 +4,6 @@ import "./brief.css";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { modifierChampBrief } from "@/app/agents/actions";
-import { BoutonAgent } from "@/components/agents/BoutonAgent";
 import type { VueBrief } from "@/lib/agents/types";
 
 const CONTENU = [
@@ -18,8 +17,8 @@ const CONTENU = [
 ];
 
 /** Le brief n'est pas encore rédigé (statut « partiel » : seuls le style et les notes ont pu être posés à la main).
- * Deux chemins : laisser l'agent le rédiger, ou poser l'essentiel soi-même. */
-export function BriefVide({ projectId, nomProjet, brief }: { projectId: number; nomProjet: string; brief: VueBrief }) {
+ * On y pose l'essentiel à la main (le brief rédigé par l'agent naît de la création du projet, pas d'ici). */
+export function BriefVide({ projectId, brief }: { projectId: number; nomProjet?: string; brief: VueBrief }) {
   const router = useRouter();
   const id = useId();
   const [nomStyle, setNomStyle] = useState(brief.contenu.style?.nom ?? "");
@@ -51,27 +50,14 @@ export function BriefVide({ projectId, nomProjet, brief }: { projectId: number; 
         <p className="bf-etiquette bf-in bf-d1">Brief du projet</p>
         <h1 className="bf-in bf-d2">Pas encore de brief</h1>
         <p className="bf-in bf-d3">
-          Le brief, c&rsquo;est ce que l&rsquo;agent sait de ton projet : le ton, le style, les personnages, les lieux, la durée. Il le relit avant chaque demande. Tu peux le laisser l&rsquo;écrire, ou
-          poser l&rsquo;essentiel toi-même.
+          Le brief, c&rsquo;est ce que l&rsquo;agent sait de ton projet : le ton, le style, les personnages, les lieux, la durée. Il le relit avant chaque demande. Pose ici l&rsquo;essentiel ; un projet
+          créé depuis « Nouveau projet » arrive avec son brief déjà rédigé.
         </p>
       </section>
 
       <section className="bf-deux-voies">
-        <article className="bf-carte bf-voie is-principale bf-in bf-d4">
-          <span className="bf-etiquette bf-or">Le plus rapide</span>
-          <h2>Laisse l&rsquo;agent le rédiger</h2>
-          <p>Raconte ton projet en quelques phrases. L&rsquo;agent propose chaque section ; tu relis, tu corriges, et rien n&rsquo;est écrit sans ton accord.</p>
-          <div className="bf-voie-action">
-            <BoutonAgent
-              className="bf-btn bf-btn-or bf-btn-grand bf-press"
-              libelle="Rédiger le brief avec l'agent"
-              demande={{ projectId, portee: "projet", cible: null, profondeur: "complete", libelle: nomProjet }}
-            />
-          </div>
-        </article>
-
         <article className="bf-carte bf-voie bf-in bf-d5">
-          <span className="bf-etiquette">Ou à la main</span>
+          <span className="bf-etiquette">À la main</span>
           <h2>Poser l&rsquo;essentiel</h2>
           <div className="bf-champ">
             <label htmlFor={`${id}-nom`}>Style nommé</label>

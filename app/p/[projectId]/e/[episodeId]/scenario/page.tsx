@@ -83,11 +83,10 @@ export default async function ScenarioPage({
     groupes.push({ id: null, titre: "Sans scène", fonction: null, genre: null, ambiance: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
   }
 
-  // L'état des fiches de plan et son geste (« Écrire les N fiches ») : une ligne dans la barre du scénario.
+  // L'état des fiches de plan : une ligne dans la barre du scénario (son geste, « Écrire les N fiches », ouvre une popup).
   const fiches = {
     nbPlans: etat.nbPlans,
     nbDeveloppes: etat.nbDeveloppes,
-    demande: { projectId: pid, portee: "episode" as const, cible: { id: eid }, profondeur: "courte" as const, libelle: projet.nom, episodeId: eid, vue: "fiches" as const },
   };
 
   return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} ajoutScene={ajoutScene} fiches={fiches} />;

@@ -160,16 +160,6 @@ export default async function PlanPage({
   const scene = scenesEpisode.find((sc) => sc.id === plan.sceneId);
   const estBrouillon = plan.statut === "brouillon";
   const plansHref = `/p/${pid}/e/${eid}/plans`;
-  const demandeAgent = {
-    projectId: pid,
-    portee: "plan" as const,
-    cible: { uuid },
-    profondeur: "courte" as const,
-    libelle: `Plan ${String(position).padStart(2, "0")} · ${plan.titre}`,
-    episodeId: eid,
-    planUuid: uuid,
-  };
-
   // --- l'état du plan et l'avancée de l'épisode -----------------------------------------------------------------------
   const etat = etatPlan({ nbEssais: jobHistory.length, pretUpscaleAt: plan.pretUpscaleAt });
   const avance = avanceeUpscale(pellicule.map((p) => p.etat));
@@ -431,7 +421,7 @@ export default async function PlanPage({
               compteurs={{ refs: refsVue.length, journal: jobHistory.length }}
               panneaux={{
                 refs: <RefsPanel planId={plan.id} refs={refsVue} assets={assetsPicker} />,
-                prompt: <PromptBloc planId={plan.id} declarees={declarees} demandeAgent={demandeAgent} aUneFiche={aUneFiche} />,
+                prompt: <PromptBloc planId={plan.id} declarees={declarees} />,
                 reglages: (
                   <>
                     <ConsoleRendu timecodeMusique={plan.timecodeMusique} />

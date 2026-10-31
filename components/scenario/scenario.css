@@ -1025,3 +1025,38 @@
   border-radius: 2px;
   object-fit: contain;
 }
+
+/* ---- Popup « Écrire les fiches » : les plans sans fiche, par scène ---- */
+.sc-fiches-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 46vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.sc-fiches-scene {
+  display: block;
+  margin: var(--sp-3) 0 4px;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--or);
+}
+.sc-fiches-ligne {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 6px 8px;
+  border-radius: 2px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.sc-fiches-ligne:hover {
+  background: var(--surface-2);
+}
+.sc-fiches-ligne .num {
+  color: var(--ink-3);
+}
