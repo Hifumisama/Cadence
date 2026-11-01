@@ -29,12 +29,12 @@ Contrat des nœuds : `workflows/README.md`, section « Contrat de la vidéo en t
    0074 retire `empreinte_entree`, devenue inutile (voir « Ce que l'application fait déjà »). Aucune valeur d'enum ajoutée.
 2. **Mapping et client** (fait : `worker/comfyui/mappingTroisEtapes.ts`, `injecterReferences` partagée avec l'ancien mapping, `pollFin`, 11 tests) : un jeu d'ids de nœuds par étape, l'injection des références réutilisée ; `poll` accepte une fin sans fichier (l'upscale ne produit qu'un latent) ; récupération du brouillon
    et du mp4 final.
-3. **Worker** (3a faite et testée en réel le 2026-10-30 ; 3b écrite le 2026-10-30, **non testée en réel** : le latent du plan précédent par Motion Context, variantes
+3. **Worker** (3a faite et testée en réel le 2026-10-30 ; 3b écrite le 2026-10-30, testée en réel le 2026-10-31 (deux rendus avec continuité terminés) : le latent du plan précédent par Motion Context, variantes
    `VID_Generation_suite.json` / `VID_Finition_suite.json`, colonne `jobs.continuite` (migration 0075) ; sans latent du précédent, l'image de raccord) : prévisualisation = `VID_Generation` (brouillon dans `plans/<id>/`, latent sous un dossier propre au rendu) ; plan en suite = chargement du
    latent du plan précédent, repli sur l'image ; rendu final = `VID_UPSCALE` puis `VID_Finition` à partir de la prévisualisation retenue si elle est à jour, sinon `VID_Generation` d'abord (le plan
    est régénéré, avec ses nouveaux latents) ; le plan passe
    `previsualise` puis `termine` comme aujourd'hui. Un lot enchaîne les upscales sans que le LLM se recharge entre deux.
-4. **Nettoyage** (interface faite le 2026-10-31, non testée dans le navigateur) : plus de sélecteur de résolution ni de « rendu final natif » dans la console de
+4. **Nettoyage** (interface faite le 2026-10-31, validée par l'utilisateur) : plus de sélecteur de résolution ni de « rendu final natif » dans la console de
    rendu, la page du plan, la sauvegarde du brouillon et l'itération ; « Lancer l'upscale » ouvre une fenêtre pour composer le lot (`LotUpscaleButton`,
    `listerUpscales`) : plans prêts cochés, plans à fiche modifiée décochés et régénérés si on les coche. **Reste volontairement en place** : `worker/comfyui/mapping.ts`
    (ses ids sont ceux du master de voix), `lib/resolution-video.ts`, `scripts/banc-video.ts` + `banc-variantes*` et `VID_REF2VA.json` (le master de voix et le
