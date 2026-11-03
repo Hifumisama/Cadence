@@ -65,7 +65,7 @@ Les skills vivent dans `agents/skills/` (un dossier par skill, chargés par `lib
 
 - conception du projet : `accroche-scenariste`, `conversation-agent`, `notes-entretien` (le brief se remplit au
   fil de la conversation ; son schéma est `lib/agents/brief-schema.json`)
-- production : `traitement-episode` + `scenario-scene` (scénario d'un long film, scène par scène : CONCEPTION_AGENTS § 17), `scenario-episode` (film court, plan à insérer ou à corriger), `inventaire-assets`, `relecture-scenario` (relecture du scénario écrit, avant les fiches), `prompt-asset`, `prompt-affiche`, `plan-h3`
+- production : `traitement-episode` + `scenario-scene` (scénario d'un long film, scène par scène : CONCEPTION_AGENTS § 17), `scenario-episode` (film court, plan à insérer ou à corriger), `inventaire-assets`, `relecture-scenario` (relecture du scénario écrit, avant les fiches), `prompt-asset`, `prompt-affiche`, `plan-h3` (et `traduction-intent`, qui traduit en anglais l'intent d'un plan avant le compilateur Open H3 IR : « Générer la fiche avec Open H3 IR », `docs/PLAN_INTEGRATION_OPEN_H3_IR.md` ; `plan-h3ir` n'est pas un dossier de skill mais le nom de cette tâche du worker)
 - correction : `iteration-plan`
 
 Les anciens skills de chat (`scenario`, `fiche-de-plan`, `assets-comfyui`, `voix-comfyui`) n'existent plus. Les
@@ -79,11 +79,11 @@ du personnage** (`assets.voix_*`), créée depuis le bloc « Voix » de sa fiche
 
 L'application existe et tourne : pipeline de production (plans, assets, voix, fiches), système d'agents (conversation,
 brief, propositions, relecture du scénario, affiches) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
-huit étapes, de « format » à « avancée de la préparation »). Le phasage
+neuf étapes, de « format » à « avancée de la préparation », dont « mise en scène » : créativité et style de mise en scène d'Open H3 IR). Le phasage
 d'origine reste dans `docs/CAHIER_DES_CHARGES.md`.
 
 Pour la conception d'un projet : la bibliothèque de styles vit dans `lib/styles/` (`bibliotheque.json`, `clauses.json`,
-`sujets.ts` = les scènes communes des images de présentation) ; `npm run styles:apercus` génère ces images. L'application lit la table `styles`, semée depuis ces JSON par `db/seed-styles.ts` (à chaque `npm run db:migrate`) ; les images restent des fichiers sous `data/styles/`. Il n'y a plus de séries (retirées le 2026-10-20) : un projet est un film, avec un épisode unique ; la table `seasons` et le type de projet n'existent plus.
+`sujets.ts` = les scènes communes des images de présentation) ; `npm run styles:apercus` génère ces images. L'application lit la table `styles`, semée depuis ces JSON par `db/seed-styles.ts` (à chaque `npm run db:migrate`) ; les images restent des fichiers sous `data/styles/`. L'écran « Mise en scène » de la conception montre des vidéos de démo (`data/mises-en-scene/`, produites dans un projet spécial par `npm run mises-en-scene -- preparer | fiches | etat | publier`, voir `docs/PLAN_INTEGRATION_OPEN_H3_IR.md` décision 21). Il n'y a plus de séries (retirées le 2026-10-20) : un projet est un film, avec un épisode unique ; la table `seasons` et le type de projet n'existent plus.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

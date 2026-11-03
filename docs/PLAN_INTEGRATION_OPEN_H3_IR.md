@@ -15,8 +15,9 @@ Open H3 IR = paquet Python `open-h3-ir` 0.4.1 (Apache-2.0), un compilateur « in
 2. **Créativité** (`restrained | balanced | bold | extreme`) **héritée** : réglage du projet, surchargeable par scène, puis par plan (colonnes nullables,
    la plus précise gagne). **La musique n'est pas traitée ici** : on laisse `bold` et `extreme` générer leur musique ; la question « une musique par film »
    se règle plus tard, à part.
-3. **Style de caméra** (les 7 profils `director` du paquet : Cameron, Tarantino, Anderson, Villeneuve, Bigelow, Wong, Spielberg ; ils ne régissent que
-   caméra et cadrage) : choisi au niveau du projet, **avec le même héritage** projet → scène → plan. À nommer « style de caméra » dans l'interface
+3. **Style de caméra** (les 7 profils `director` du paquet : Cameron, Tarantino, Anderson, Villeneuve, Bigelow, Wong, Spielberg ; **correction du 2026-11-02 : ce ne sont pas
+   que la caméra** — chaque profil est un goût complet (caméra, cadrage, lumière, palette, jeu, sons, musique) qui ne remplit que ce que la demande et les images ne tranchent pas ; l'interface
+   les présente par un résumé en quelques mots suivi du réalisateur, « Immense et silencieux — style de Denis Villeneuve ») : choisi au niveau du projet, **avec le même héritage** projet → scène → plan. Nommé **« style de mise en scène »** dans l'interface (renommé le 2026-11-02 : ce n'est pas que la caméra) et choisi aussi à la création du projet (étape 6 de `/nouveau`, `docs/PLAN_CONCEPTION_PROJET.md`)
    (ce n'est pas le « réalisateur » retiré le 2026-10-20). Valeur par défaut : aucun.
 4. **Références : option B** (une étape choisit les références d'un plan à partir du registre), parce que des plans seront écrits avant que leurs
    références existent (création de projet). Voir « Questions ouvertes » 1 et 2.
@@ -26,6 +27,55 @@ Open H3 IR = paquet Python `open-h3-ir` 0.4.1 (Apache-2.0), un compilateur « in
    (deux fois au plus, ~2 min chacune), puis message clair « réessayez ou changez votre demande ». Jamais le brouillon vide, jamais le texte rejeté proposé.
 7. **Au moins une référence par plan** : toujours vrai pour l'utilisateur. Garde-fou quand même : un brief sans aucune image bascule Open H3 IR en mode
    texte seul (3 sections, `mode.py`), incompatible avec notre workflow Ref2VA et avec `validerPromptColle` (`lib/prompt.ts:39`) → refuser avec un message.
+
+## Décisions complémentaires (utilisateur, 2026-11-02)
+
+8. **Intent traduit en anglais par le LLM**, à l'étape 3 (dans la tâche du worker, avant la compilation) ; les répliques ne sont jamais traduites. Raison : le
+   paquet ne repère lumière, cadrage, palette, vêtements, action et interdits que sur des mots anglais (`h3ir/licence.py:209-230`, `creativity.py`). L'étape 1
+   (sans LLM) affiche l'intent en français ; on compare au labo avec une traduction à la main.
+9. **Contenu de l'intent** : la description du plan sans ses répliques **et sans « État en fin de plan »**, l'ambiance de la scène et le titre de la
+   scène (**pas sa « fonction »** : c'est une phrase entière qui répète la narration, retirée le 2026-11-02 sur un vrai plan). Plus de fin du plan précédent dans l'intent : **Motion Context** (latent sauvegardé) porte la continuité des plans « suite ».
+10. **Répliques** envoyées normalisées avec leur locuteur ; la réplique d'origine n'est **plus restaurée** après compilation (la décision 5 est allégée).
+11. **Une seule limite : 6 références visuelles.** Plus d'image de raccord, donc plus de limite à 5 en liaison « suite » (le tableau et `sectionsAvecRaccord`
+    ne servent plus qu'au moteur `plan-h3`).
+12. **`megapixels` fixé à 0,4** ; **`shots` et `director` facultatifs**, laissés à l'utilisateur (réglages éphémères sur la fiche pour l'étape 1, héritage à l'étape 7).
+13. **Rôles toujours déclarés**, déduits du type d'asset (constante `ROLE_PAR_TYPE`, `lib/h3ir/brief.ts`) : personnage/prop/vfx/oth → `subject`, décor →
+    `environment`, keyframe → `storyboard` (à valider au labo), voix → `voice_timbre`. Un rôle omis n'est pas « choisi par le modèle » : une image sans rôle
+    laisse le paquet deviner le mode (risque I2VA/FL2VA), un audio sans rôle devient `bgm` (`service.py:265-300`, `mode.py`).
+14. **Voix dérivées des locuteurs** : un audio `voice_timbre` par personnage qui parle dans la description et dont le master existe (3 au plus), sans dépendre
+    des `plan_refs` audio.
+
+Décisions du 2026-11-02 (suite) :
+
+15. **Verdict de l'utilisateur après comparaison de vidéos : les prompts d'Open H3 IR sont meilleurs que ceux de `plan-h3`.** Le banc de rendu à l'aveugle (étape 9) reste à faire
+    pour trancher proprement ; `plan-h3` n'est pas retiré avant.
+16. **L'intent est traduit en anglais par un skill dédié, `traduction-intent`**, appelé une fois dans la tâche du worker avant les relances de compilation (pas de ligne `agent_runs`
+    à part : l'intent français et sa traduction sont gardés dans le résultat de la tâche).
+17. **« Générer la fiche avec Open H3 IR » remplace la fiche existante** (le clic vaut confirmation) ; l'ancien prompt est mis dans l'historique du prompt (source `avant`), le nouveau
+    y est inscrit en `compilation`. Une fiche d'Open H3 IR n'écrit ni la durée ni la description du plan, et ne crée aucun asset.
+18. **Python dans Docker maintenant** (`Dockerfile.worker` : `python3`, `py3-pip`, `open-h3-ir==0.4.1` épinglé dans `scripts/h3ir/requirements.txt`) — **non testé** : à construire
+    une fois sur le mini PC avant de s'y fier. En dev : `H3IR_PYTHON`, à défaut le venv de `h3ir-lab`.
+
+Réalisé le 2026-11-02 (étapes 2, 3, 4 et 6, **non commité, non essayé avec un vrai LLM**) : `scripts/h3ir/compiler.py` (pont Python, `TestClient` en mémoire, 1,3 s de démarrage mesuré),
+`lib/h3ir/compilateur.ts` (lanceur de processus avec délai et annulation qui tue l'arbre de processus, jugement des réponses, relances seed+1 deux fois), `worker/h3ir.ts` (brief →
+traduction → compilation, branché dans `traiterTacheLlm` pour le skill virtuel `plan-h3ir`), `lib/h3ir/conversion.ts` (`depuisCompilationH3ir`), `agents/skills/traduction-intent/`,
+bouton « Générer la fiche avec Open H3 IR » dans l'onglet « Brief Open H3 IR » de la fiche, `docs/RAPPORT_AMONT_OPEN_H3_IR.md` (brouillon, rien d'envoyé).
+**Reste à vérifier avec un vrai calcul** : que le manifeste donne bien des labels `<Picture N>` / `<Audio N>` lisibles, que `verifierFiche` accepte la fiche produite, la qualité de la
+traduction, la durée d'un essai, l'annulation en plein calcul, et le dernier mot sur `keyframe → storyboard`.
+
+Décisions du 2026-11-02 (étapes 7 et 8) :
+
+19. **Créativité et style de caméra hérités** projet → scène → plan, le plus précis gagne ; `null` hérite ; le style **« aucun »** est une valeur (force l'absence de style). Défauts : créativité équilibrée, aucun style.
+    Ils ne concernent que les fiches d'Open H3 IR. Les valeurs choisies dans le tiroir « Brief Open H3 IR » ne valent que pour un lancement (rien n'est enregistré par le tiroir).
+20. **Plancher d'un shot à 1,2 s pour toutes les fiches** (alerte de la page du plan), et les shots se jugent contre la **durée effective** du rendu. `plan-h3` garde 1,5 s pour son propre brouillon.
+    **Correction** : la durée effective de 8 s est 8,000 s (et non ~8,1 s) ; seuls 5, 6, 7, 9 et 10 s s'allongent un peu.
+
+21. **Cartes de mise en scène avec vidéos de démo** (écran « Mise en scène » de `/nouveau`) : chaque choix de style et de créativité a un « ? » qui ouvre un tiroir avec un **rendu vidéo réel**
+    (`components/conception/CarteMiseEnScene.tsx`). Les vidéos se fabriquent dans un **projet spécial « Démos · mise en scène »** avec le pipeline normal (références, fiche Open H3 IR, rendus du
+    worker) : `npm run mises-en-scene -- preparer | fiches | etat | publier` (`scripts/mises-en-scene.ts`, `lib/h3ir/demos.ts`). Scène choisie : « La poursuite sur le toit », 10 s, même seed ;
+    **12 démos** : 8 de style (avec deux répliques, créativité équilibrée) et 4 de créativité (même action sans réplique, sans style). Références **neutres** : Open H3 IR laisse lumière et couleurs
+    aux images de référence, donc le style ne se voit vraiment que sur caméra, cadrage, jeu, sons et musique (la carte le dit). Fichiers sous `data/mises-en-scene/` (versionnés comme `data/styles/` ; en
+    production, à copier sur le partage NFS).
 
 ## Architecture retenue
 
@@ -49,7 +99,7 @@ Précautions : figer `open-h3-ir==0.4.1` (`requirements.txt`), vérifier le cond
 | Image de raccord (liaison `suite`) | **jamais envoyée** | Avec `frame_anchor_first`, le mode bascule en I2VA/FL2VA (autre checkpoint). On garde `sectionsAvecRaccord` (`lib/plan-raccord.ts:41`) appliqué au moment de soumettre ; il réserve une case. |
 | Lignes `NOM : « texte »` de la description | `dialogue[]` (`text`, `language`, `speaker`, `voiceover`) | Langue du brief (`lib/langue-dialogues.ts`), « Auto » à traiter ; voix off : `NOM = voix off`. Normalisation puis restauration (décision 5). |
 | Voix du personnage (`voix_master`, `voix_description`, `voix_replique_base`) | asset `kind: audio, role: voice_timbre`, `note`, `transcripts[sha]` | Le service ne transcrit jamais. **Une seule voix est liée correctement** (`plan.py:478-498` : `voice_ref = voice_refs[0]` pour tous les locuteurs) ; ordonner les images pour que les locuteurs viennent en tête, réécrire les lignes `<Audio N>` après coup. Bug à signaler. Chemin rédigé non vérifié. |
-| `dureeGenerationSecondes` (5 à 10) | `seconds` | Grille 17k+5 : 10 s → 243 images, 10,125 s effectives. |
+| `dureeGenerationSecondes` (5 à 10) | `seconds` | Grille 17k+5 (`lib/grille-images.ts`) : 5 s → 5,167 s, 6 s → 6,583 s, 7 s → 7,292 s, **8 s → 8,000 s**, 9 s → 9,417 s, 10 s → 10,125 s. Le paquet refuse `shots` sur la durée NOMINALE (`compile.py:116`). |
 | rythme | `shots` | **Non imposé par défaut** (les échecs T12/T6 viennent d'un nombre imposé trop haut). Si imposé : ≤ ⌊durée effective / 2,5⌋. |
 | (héritage projet/scène/plan) | `creativity`, `director` | Décisions 2 et 3. |
 | `plans.seed` | `seed` | Déterministe ; relance d'échec = seed+1. |
@@ -67,7 +117,7 @@ perd seed et transcriptions, stockage volatil). Affiner = renvoyer le brief modi
 - Lancement d'une fiche : `lib/agents/service.ts:983-1012`, `:1075` ; contexte : `lib/agents/contexte.ts:562-679` (`entreePlanH3`) → nouveau constructeur de brief.
 - Exécution : `worker/llm.ts:85-110` → branche « moteur h3ir ».
 - Conversion vers la fiche : `worker/agents/postTraitement.ts:215-225` (et `:166`) → `lib/agents/conversion.ts:596` (`depuisFichePlan`) ; nouveau `depuisCompilationH3ir`.
-- Voix : `lib/agents/voix-du-prompt.ts:44`. Contrôles : `lib/plan-checks.ts` à aligner (plancher 1,2 s du paquet contre 1,5 s chez nous ; durée effective contre nominale).
+- Voix : `lib/agents/voix-du-prompt.ts:44`. Contrôles : `lib/plan-checks.ts` (aligné le 2026-11-02 : plancher 1,2 s, durée effective).
 - Schéma : `db/schema.ts:195` (sections), `:207` (versions) ; migration à venir (0077) pour `creativite` et `style_camera` nullables sur projet, scène, plan.
 
 ## Ce qu'Open H3 IR ne fait pas : choisir les références (option B)
@@ -91,18 +141,19 @@ travaille **au niveau du projet**, avant les fiches : il lit tous les plans et l
 
 ## Étapes (effort S / M / L)
 
-1. **(S) Brief sans LLM ni rendu.** Fonction pure `briefDepuisPlan(plan)` → `BriefIn` (répliques extraites et normalisées, rôles, seed, durée, garde-fous 6/5 images,
+1. **(S) FAIT le 2026-11-02, à tester avec de vrais plans** (`lib/h3ir/brief.ts` + tests, `brief-plan.ts`, onglet « Brief Open H3 IR » de la fiche, zone
+   « Coller un brief JSON » dans `h3ir-lab`). Brief sans LLM ni rendu. Fonction pure `briefDepuisPlan(plan)` → `BriefIn` (répliques extraites et normalisées, rôles, seed, durée, garde-fous 6/5 images,
    aucune image → refus), avec tests unitaires. Bouton « Voir le brief Open H3 IR » sur la fiche (affiche le JSON, à coller dans `h3ir-lab`).
    L'utilisateur juge la correspondance sur ses vrais plans.
-2. **(S) Rapport d'amont** chez `ruashots/open-h3-ir` : `render.py:407` (espace avant `!?;:`) et liaison des voix (`plan.py:482-498`).
-3. **(M) Script Python « un appel » + branche du worker** derrière une option par plan ; résultat dans `agent_runs`. Mesurer le démarrage, vérifier `TestClient`,
+2. **(S) FAIT en brouillon (`docs/RAPPORT_AMONT_OPEN_H3_IR.md`, à poster par l'utilisateur)** — rapport d'amont chez `ruashots/open-h3-ir` : `render.py:407` (espace avant `!?;:`) et liaison des voix (`plan.py:482-498`).
+3. **(M) FAIT le 2026-11-02, à essayer avec un vrai calcul** — script Python « un appel » + branche du worker derrière une option par plan ; résultat dans `agent_runs`. Mesurer le démarrage, vérifier `TestClient`,
    l'annulation, le verrou GPU. Sans rendu.
-4. **(M) `depuisCompilationH3ir`** : sections, `plan_refs` depuis le manifeste, voix réécrites, typographie restaurée, diagnostics en avertissements, version
+4. **(M) FAIT le 2026-11-02 (typographie non restaurée : décision 10)** — `depuisCompilationH3ir` : sections, `plan_refs` depuis le manifeste, voix réécrites, typographie restaurée, diagnostics en avertissements, version
    d'historique. Comparer à plan-h3 dans la fiche, sans rendu.
 5. **(M) Étape « choix des références »** (voir plus haut) + câblage avec `inventaire-assets`.
-6. **(S) Relances d'échec** (seed+1, deux fois) et messages (décision 6).
-7. **(M) Héritage créativité / style de caméra** : migration, réglages projet, scène, plan, passage au brief.
-8. **(S) Alignements** : `plan-checks.ts` (1,2 s, durée effective), règle de coupe d'`iteration-plan`.
+6. **(S) FAIT le 2026-11-02** — relances d'échec (seed+1, deux fois) et messages (décision 6), dans `compilerAvecRelances`.
+7. **(M) FAIT le 2026-11-02, à essayer dans l'interface** — héritage créativité / style de caméra : migration 0077, réglages du projet (page Brief), de la scène (« Modifier »), du plan (panneau du scénario), tiroir « Brief Open H3 IR » prérempli (`lib/h3ir/reglages.ts`, `chargerBriefPlan`). La valeur « aucun » force l'absence de style par-dessus un niveau supérieur.
+8. **(S) FAIT le 2026-11-02** — alignements : `controlerStructure` juge les shots contre la durée effective avec un plancher de 1,2 s (`SHOT_MIN_FICHE_SECONDES` ; `plan-h3` garde 1,5 s pour son brouillon) ; `iteration-plan` : la règle de coupe garde « la forme du prompt », `dureesCoherentes` accepte la durée effective, `dernierShotLisible` retire aussi « the shot cuts to ».
 9. **(L) Banc de rendu à l'aveugle** (cahier E6) : quelques plans par genre, `plan-h3` contre Open H3 IR, raccord et dialogue compris. Décide le moteur par défaut.
 10. **(M) Retrait de `plan-h3`** et nettoyage (code, skill, docs, `CLAUDE.md`).
 
@@ -118,6 +169,6 @@ travaille **au niveau du projet**, avant les fiches : il lit tous les plans et l
 2. Nouveau skill pour le choix des références, ou règles déterministes ? Qui crée les assets manquants quand un plan en révèle un après `inventaire-assets` ?
 3. Ratio : aucun champ en base trouvé (probablement 16:9 du workflow) → à confirmer avant d'envoyer `aspect`.
 4. Bruitages `SFX_` : aucun rôle évident dans le paquet, comportement non étudié.
-5. Langue de l'`intent` (français ou anglais) : qualité non vérifiée, à essayer avec `h3ir-lab`.
+5. Langue de l'`intent` : décidé (8) anglais par traduction LLM à l'étape 3 ; reste à **mesurer** au labo (français contre traduction à la main) avant de bâtir la traduction.
 6. Liaison des voix sur le chemin rédigé (pas seulement le brouillon) : non vérifiée.
 7. Cas `suite` : la continuité (fin du plan précédent) passe par l'`intent` seulement ; vérifier sur un vrai enchaînement.
