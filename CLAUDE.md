@@ -15,6 +15,10 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
   référence). Dépendance d'exécution, pas de la doc — voir
   `workflows/README.md` avant d'en committer un nouveau.
 
+- `deploy/gpu/` — image Docker GPU (ComfyUI + llama-swap + Tailscale, Blackwell) pour la démo sur RunPod : le
+  GPU seul est loué, web/worker/base restent sur la machine de l'utilisateur. Mode d'emploi dans son `README.md` ;
+  `npm run gpu:verifier` contrôle une machine GPU contre `workflows/`
+
 - `docs/00_BIBLE.md` — univers, personnages, style visuel, règles du monde
 - **Décisions d'architecture** : `docs/FRICTIONS.md` (journal daté de toutes les décisions) a été retiré le 2026-10-20 ;
   il reste dans l'historique git (`git log -- docs/FRICTIONS.md`). Les règles en vigueur sont résumées ci-dessous ; les

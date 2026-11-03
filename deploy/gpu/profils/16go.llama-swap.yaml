@@ -1,0 +1,38 @@
+# Profil 16 Go : repris du config.yaml du PC distant (modèle « lowvram »), adapté à Linux.
+# ${CADENCE_LLM_DIR} est remplacé au démarrage par le dossier des modèles de langage du volume
+# (/workspace/llm) : y recopier l'arborescence de D:\localAI\models telle quelle.
+# ${PORT} est laissé à llama-swap.
+#
+# Retiré par rapport au PC distant (propres à cette machine Windows) : --prio, --cpu-range-batch,
+# --threads / --threads-batch (llama.cpp prend les cœurs physiques), --mlock (demande un droit que le conteneur n'a pas).
+# Gardé : --no-mmap (charge en RAM d'un coup ; mmap sur un volume réseau est très lent).
+
+healthCheckTimeout: 600   # charger ~21 Go depuis le volume réseau prend du temps au premier appel
+
+models:
+  "qwen3.6-35b-A3B-lowvram":
+    # Même nom que dans .env.example (LLM_MODELE_PLAN_H3) : pas besoin de le changer côté Cadence.
+    aliases: ["qwen3.6-35b-A3B"]
+    cmd: |
+      llama-server
+      --model          "${CADENCE_LLM_DIR}/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf"
+      --mmproj         "${CADENCE_LLM_DIR}/mmproj/mmproj-BF16.gguf"
+      --fit off
+      --n-cpu-moe 32
+      --n-gpu-layers -1
+      --no-mmproj-offload
+      --ctx-size       131072
+      --parallel       1
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --reasoning off
+      --batch-size     1024
+      --ubatch-size    512
+      --no-mmap
+      --cache-ram      6144
+      --ctx-checkpoints 16
+      --jinja
+      --port           ${PORT}
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"

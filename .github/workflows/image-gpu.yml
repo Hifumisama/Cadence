@@ -1,0 +1,54 @@
+# Construit l'image GPU (deploy/gpu) chez GitHub et la publie sur ghcr.io/<compte>/cadence-gpu.
+# Déclenchement : à la main (onglet Actions → « Image GPU » → Run workflow) ou en poussant un tag « gpu-* ».
+# Aucun jeton à créer pour pousser : le GITHUB_TOKEN du workflow suffit. La construction contrôle aussi, à la
+# fin du Dockerfile, que ComfyUI connaît toutes les options de run-comfyui.sh.
+name: Image GPU
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["gpu-*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  construire:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      # Le runner n'a qu'une quinzaine de Go libres, l'image CUDA + PyTorch en demande davantage.
+      - name: Libérer de la place
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Étiquettes
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/cadence-gpu
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest
+            type=raw,value={{date 'YYYY-MM-DD'}}
+
+      - name: Construire et publier
+        uses: docker/build-push-action@v6
+        with:
+          context: deploy/gpu
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

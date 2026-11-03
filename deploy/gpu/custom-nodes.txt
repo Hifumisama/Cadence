@@ -1,0 +1,21 @@
+# Nodes custom installés dans l'image : <dépôt> <commit complet> # ce qu'il fournit
+#
+# Liste déduite des workflows/ (table de ComfyUI-Manager, 2026-11-03), puis corrigée par l'utilisateur
+# (H3-Motion-Context, LoadImageCrop, RTX confirmés ; RIFE et le latent upscaler sont dans le noyau).
+# Contrôle décisif : `npm run gpu:verifier` contre un ComfyUI qui tourne liste les nodes qui manquent.
+# Pour changer de version : remplacer le commit, reconstruire.
+# Pour retirer un pack : supprimer sa ligne (ou la commenter).
+
+https://github.com/rgthree/rgthree-comfy bc48c6aaeca87bedbc14245d89f9bc6be37a630e # Any Switch, Power Lora Loader
+https://github.com/kijai/ComfyUI-KJNodes ab72eda7ffad6280422d71ab7d54d3fb87c0ba18 # ModelPreviewOverrideKJ, SimpleCalculatorKJ, INTConstant, MiniMaxChunkFeedForward
+https://github.com/yolain/ComfyUI-Easy-Use b0b47ca1372117fce575d9e744655344ebff6bef # easy seed, easy cleanGpuUsed
+https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite 4d907bee61e92c2e65af3bd6383a4e4d356126d1 # VHS_VideoCombine
+https://github.com/NikoDemon80/ComfyUI-H3-Motion-Context 518c083d11d80fa5920222ad89889924ee4401c9 # MiniMaxH3MotionContext, ...LoadLatent, ...SaveLatent, ...Trim (plans en chaîne)
+https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI 38d790ded00650681fa3645362efe28c8560cf40 # RTXVideoSuperResolution (finition) : pack confirmé, fonctionnement sous Linux à vérifier
+https://github.com/diodiogod/TTS-Audio-Suite 27eef5b85db27ede27d04a44a39e0cfb262bf9a4 # VocalRemovalNode, VoiceFixerNode (master de voix) : pack lourd
+https://github.com/domg73/ComfyUI-LoadImageCrop 99e121e64d374344d0dd2e173ab052ebb737c4b1 # LoadImageCrop
+
+# RIFEInterpolation et MinimaxH3LatentUpscaler3D sont dans le noyau de ComfyUI (confirmé) : aucun pack à installer.
+#
+# Absents volontairement : ComfyUI-Impact-Pack ne sert qu'à VID_REF2VA.json (ImpactSwitch), l'ancien workflow
+# remplacé par les trois étapes. Le rajouter pour exécuter ce workflow.

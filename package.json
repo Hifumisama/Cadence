@@ -29,7 +29,8 @@
     "dev:db:down": "docker compose -f docker-compose.dev.yml down",
     "dev:setup": "npm run dev:db && npm run db:migrate",
     "dev:all": "concurrently -n web,worker -c blue,green \"npm:dev\" \"npm:worker\"",
-    "mises-en-scene": "tsx scripts/mises-en-scene.ts"
+    "mises-en-scene": "tsx scripts/mises-en-scene.ts",
+    "gpu:verifier": "tsx scripts/gpu-verifier.ts"
   },
   "dependencies": {
     "ajv": "^8.20.0",

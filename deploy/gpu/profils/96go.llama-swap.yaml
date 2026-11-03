@@ -1,0 +1,30 @@
+# Profil 96 Go : le même modèle que le profil 16 Go, mais entièrement sur le GPU (plus d'experts renvoyés
+# en RAM, projecteur d'images sur le GPU). Même arborescence de modèles : voir 16go.llama-swap.yaml.
+
+healthCheckTimeout: 600
+
+models:
+  "qwen3.6-35b-A3B":
+    # Le nom du profil 16 Go reste valable : le .env de Cadence est le même quel que soit le profil.
+    aliases: ["qwen3.6-35b-A3B-lowvram"]
+    cmd: |
+      llama-server
+      --model          "${CADENCE_LLM_DIR}/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf"
+      --mmproj         "${CADENCE_LLM_DIR}/mmproj/mmproj-BF16.gguf"
+      --fit off
+      --n-gpu-layers -1
+      --ctx-size       131072
+      --parallel       1
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --reasoning off
+      --batch-size     2048
+      --ubatch-size    1024
+      --no-mmap
+      --cache-ram      6144
+      --ctx-checkpoints 16
+      --jinja
+      --port           ${PORT}
+    ttl: 900
+    proxy: "http://127.0.0.1:${PORT}"

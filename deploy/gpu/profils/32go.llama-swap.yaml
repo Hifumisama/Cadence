@@ -1,0 +1,36 @@
+# Profil 32 Go (RTX 5090) : entre le profil 16 Go (32 couches d'experts en RAM) et le 96 Go (tout sur le GPU).
+# Même modèle, même arborescence : voir 16go.llama-swap.yaml.
+#
+# ESTIMATION, non mesurée : --n-cpu-moe 16 renvoie la moitié des couches d'experts en RAM, soit environ 6 à 7 Go
+# de VRAM de plus que sur 16 Go pour le LLM (de l'ordre de 18 Go au total avec son contexte de 131072 en q8_0).
+# D'où COMFY_VRAM_HEADROOM=18 dans 32go.env. Après la première séance : relever la VRAM réellement prise par le LLM
+# et ajuster les deux valeurs ensemble (descendre --n-cpu-moe accélère le LLM mais laisse moins de place à ComfyUI).
+# Le projecteur d'images (mmproj) est sur le GPU, contrairement au profil 16 Go.
+
+healthCheckTimeout: 600
+
+models:
+  "qwen3.6-35b-A3B":
+    aliases: ["qwen3.6-35b-A3B-lowvram"]
+    cmd: |
+      llama-server
+      --model          "${CADENCE_LLM_DIR}/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf"
+      --mmproj         "${CADENCE_LLM_DIR}/mmproj/mmproj-BF16.gguf"
+      --fit off
+      --n-cpu-moe 16
+      --n-gpu-layers -1
+      --ctx-size       131072
+      --parallel       1
+      --cache-type-k   q8_0
+      --cache-type-v   q8_0
+      --flash-attn     on
+      --reasoning off
+      --batch-size     1024
+      --ubatch-size    512
+      --no-mmap
+      --cache-ram      6144
+      --ctx-checkpoints 16
+      --jinja
+      --port           ${PORT}
+    ttl: 300
+    proxy: "http://127.0.0.1:${PORT}"
