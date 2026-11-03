@@ -20,12 +20,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Le runner n'a qu'une quinzaine de Go libres, l'image CUDA + PyTorch en demande davantage.
-      - name: Libérer de la place
+      # Le disque système du runner n'a qu'une quinzaine de Go libres : l'image CUDA + PyTorch (et ses couches de
+      # construction) y tient pas (« no space left on device » à l'export). Le second disque, /mnt, en a une soixantaine :
+      # on y déplace tout le stockage de Docker (et donc de BuildKit) avant de construire.
+      - name: Libérer de la place et déplacer Docker sur /mnt
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force
-          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift
+          echo "Avant :"; df -h / /mnt
+          sudo systemctl stop docker docker.socket
+          sudo mkdir -p /mnt/docker
+          if [ -f /etc/docker/daemon.json ]; then
+            sudo jq '. + {"data-root": "/mnt/docker"}' /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.new > /dev/null
+            sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json
+          else
+            echo '{"data-root": "/mnt/docker"}' | sudo tee /etc/docker/daemon.json > /dev/null
+          fi
+          sudo systemctl start docker
+          docker info --format 'Docker Root Dir : {{.DockerRootDir}}'
+          echo "Après :"; df -h / /mnt
 
       - uses: docker/setup-buildx-action@v3
 
