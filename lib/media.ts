@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { mesurerDureeAudio } from "./audio-duree";
+import { CLES_DEMOS, cheminDemo, type DemoDispo } from "./h3ir/demos";
 
 export const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 
@@ -175,4 +176,25 @@ export function sourceImportMediaSrc(assetId: number, fichier: string | null): s
   } catch {
     return null;
   }
+}
+
+/** Les vidéos de démo de l'écran « Mise en scène » (lib/h3ir/demos.ts) présentes sur le stockage : pour chaque clé, l'URL de la vidéo et de son affiche (s'il y en a une). Une démo
+ * absente n'est pas dans le résultat : l'écran retombe sur le texte d'exemple. Le `?v=` (date du fichier) permet de mettre en cache sans rater une démo refaite. Côté serveur uniquement
+ * (accès disque). */
+export function demosMiseEnScene(): Record<string, DemoDispo> {
+  const demos: Record<string, DemoDispo> = {};
+  for (const cle of CLES_DEMOS) {
+    try {
+      const video = resolve(MEDIA_ROOT, cheminDemo(cle, "mp4"));
+      if (!existsSync(video)) continue;
+      const affiche = resolve(MEDIA_ROOT, cheminDemo(cle, "webp"));
+      demos[cle] = {
+        video: `/api/media/${cheminDemo(cle, "mp4")}?v=${Math.floor(statSync(video).mtimeMs)}`,
+        affiche: existsSync(affiche) ? `/api/media/${cheminDemo(cle, "webp")}?v=${Math.floor(statSync(affiche).mtimeMs)}` : null,
+      };
+    } catch {
+      /* fichier illisible : comme absent */
+    }
+  }
+  return demos;
 }

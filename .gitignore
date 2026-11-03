@@ -3,6 +3,8 @@ node_modules/
 data/*
 # Les aperçus des styles (images de présentation de la bibliothèque) se versionnent : ~20 Mo, regénérés rarement.
 !data/styles/
+# Les vidéos de démo de l'écran « Mise en scène » (npm run mises-en-scene -- publier) se versionnent aussi : quelques Mo. Le dossier _sources/ éventuel reste ignoré.
+!data/mises-en-scene/
 .env
 *.log
 *.tsbuildinfo
