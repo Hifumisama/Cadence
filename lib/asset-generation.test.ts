@@ -7,7 +7,6 @@ import {
   methodeDEssai,
   raisonConsigneInvalide,
   formatParDefaut,
-  loraParDefaut,
   nomSourceDistante,
   nouvelleSeed,
   DUREE_AUDIO_DEFAUT,
@@ -27,11 +26,6 @@ test("format par défaut : décor en 16:9, le reste en carré", () => {
   assert.ok(!estAspect("5:4"));
 });
 
-test("LoRA de fiche personnage : personnages seulement", () => {
-  assert.equal(loraParDefaut("personnage"), true);
-  assert.equal(loraParDefaut("decor"), false);
-});
-
 test("génération impossible au niveau asset : le son seulement", () => {
   const ok = { type: "decor", promptGeneration: "A hall", methodeGeneration: null };
   assert.equal(raisonNonGenerable(ok), null);
@@ -46,7 +40,6 @@ const demande: DemandeGeneration = {
   prompt: "A hall",
   aspect: "16:9",
   megapixels: 1.3,
-  loraPersonnage: false,
   sources: [],
 };
 

@@ -167,7 +167,6 @@ export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: 
     clauseStyle: styleDesImages(projet),
     aspect: format.aspect,
     megapixels: format.megapixels,
-    loraPersonnage: false,
     lightning: null,
     seed: nouvelleSeed(),
     adoptionAuto: true,

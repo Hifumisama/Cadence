@@ -83,7 +83,7 @@
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "30:22",
+        "30:10",
         0
       ],
       "positive": [
@@ -162,35 +162,6 @@
       "title": "ConditioningZeroOut"
     }
   },
-  "30:22": {
-    "inputs": {
-      "switch": [
-        "30:23",
-        0
-      ],
-      "on_false": [
-        "30:10",
-        0
-      ],
-      "on_true": [
-        "30:15",
-        0
-      ]
-    },
-    "class_type": "ComfySwitchNode",
-    "_meta": {
-      "title": "Switch (Model)"
-    }
-  },
-  "30:23": {
-    "inputs": {
-      "value": false
-    },
-    "class_type": "PrimitiveBoolean",
-    "_meta": {
-      "title": "Boolean (Enable LoRA?)"
-    }
-  },
   "30:53": {
     "inputs": {
       "anything": [
@@ -201,20 +172,6 @@
     "class_type": "easy cleanGpuUsed",
     "_meta": {
       "title": "Clean VRAM Used"
-    }
-  },
-  "30:15": {
-    "inputs": {
-      "lora_name": "CharacterDesign-KREA2_v1.safetensors",
-      "strength_model": 1,
-      "model": [
-        "30:10",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoraLoaderModelOnly"
     }
   },
   "30:19": {

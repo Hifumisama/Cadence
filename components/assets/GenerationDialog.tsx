@@ -82,7 +82,7 @@ export function GenerationDialog({
   methodeGeneration: string | null;
   parentCode: string | null;
   promptInitial: string;
-  defauts: { aspect: Aspect; megapixels: number; lora: boolean };
+  defauts: { aspect: Aspect; megapixels: number };
   registre: SourceDisponible[];
   /** L'image de l'asset lui-même, présélectionnée en source 1 du mode images. */
   imageActuelle: SourceDisponible | null;
@@ -116,7 +116,6 @@ export function GenerationDialog({
   const [prompt, setPrompt] = useState(promptInitial);
   const [aspect, setAspect] = useState<Aspect>(defauts.aspect);
   const [mp, setMp] = useState(defauts.megapixels);
-  const [lora, setLora] = useState(defauts.lora);
   const [picker, setPicker] = useState<"registre" | "import" | null>(null);
   const [vu, setVu] = useState<number | null>(candidatInitialId);
   const [lancee, setLancee] = useState<string | null>(null);
@@ -186,7 +185,6 @@ export function GenerationDialog({
     prompt,
     aspect,
     megapixels: mp,
-    loraPersonnage: lora,
     sources: sources.map((s) => (s.origine === "asset" ? { origine: "asset", assetId: s.assetId } : { origine: "import", fichier: s.fichier })),
   });
 
@@ -460,12 +458,6 @@ export function GenerationDialog({
                     </option>
                   ))}
                 </select>
-                {type === "personnage" ? (
-                  <label className="chk" title="LoRA CharacterDesign : fiche personnage à 4 vues">
-                    <input type="checkbox" checked={lora} onChange={(e) => setLora(e.target.checked)} />
-                    Fiche 4 vues
-                  </label>
-                ) : null}
               </div>
             ) : (
               <p className="tiny-note">Le format suit l&rsquo;image 1 : le graphe d&rsquo;édition n&rsquo;a pas de réglage de taille.</p>

@@ -11,7 +11,6 @@ export const NODE_IDS_TEXTE_VERS_IMAGE = {
   style: "60", // PrimitiveStringMultiline : la clause de style du projet
   format: "49", // ResolutionSelector : aspect_ratio + megapixels
   seed: "30:3", // KSampler
-  lora: "30:23", // PrimitiveBoolean : LoRA « CharacterDesign » (fiche personnage)
   sortie: "29", // SaveImage
 } as const;
 
@@ -24,7 +23,6 @@ export type EntreeTexteVersImage = {
   aspect: Aspect;
   megapixels: number;
   seed: string;
-  loraPersonnage: boolean;
   /** Préfixe des fichiers de sortie côté ComfyUI. */
   prefixeSortie: string;
 };
@@ -46,7 +44,6 @@ export function injecterGenerationImage(workflow: WorkflowJson, entree: EntreeTe
   noeud(ids.format).inputs.aspect_ratio = ASPECTS_COMFYUI[entree.aspect];
   noeud(ids.format).inputs.megapixels = entree.megapixels;
   noeud(ids.seed).inputs.seed = Number(entree.seed);
-  noeud(ids.lora).inputs.value = entree.loraPersonnage;
   noeud(ids.sortie).inputs.filename_prefix = entree.prefixeSortie;
   return graphe;
 }

@@ -547,6 +547,13 @@
       "when": 1796144400000,
       "tag": "0077_reglages_camera",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1796230800000,
+      "tag": "0078_retrait_lora_personnage",
+      "breakpoints": true
     }
   ]
 }

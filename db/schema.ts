@@ -320,7 +320,6 @@ export const assetGenerations = pgTable("asset_generations", {
   clauseStyle: text("clause_style").notNull().default(""),
   aspect: varchar("aspect", { length: 8 }).notNull().default("1:1"),
   megapixels: real("megapixels").notNull().default(1),
-  loraPersonnage: boolean("lora_personnage").notNull().default(false),
   // Mode « à partir d'images » (méthode edition) : true = Lightning 4 étapes,
   // false = « Qualité » (40 étapes CFG 4). null pour le mode texte.
   lightning: boolean("lightning"),

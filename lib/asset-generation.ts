@@ -68,7 +68,6 @@ export type DemandeGeneration = {
   prompt: string;
   aspect: Aspect;
   megapixels: number;
-  loraPersonnage: boolean;
   sources: SourceGeneration[];
 };
 
@@ -106,12 +105,6 @@ export function formatParDefaut(type: string): { aspect: Aspect; megapixels: num
   // format des plans vidéo. Réglable à la main en régénérant l'image.
   if (type === "decor" || type === "personnage") return { aspect: "16:9", megapixels: 1.3 };
   return { aspect: "1:1", megapixels: 1 };
-}
-
-/** Le LoRA « CharacterDesign » (fiche personnage à 4 vues) n'a de sens que pour
- * un personnage en génération. */
-export function loraParDefaut(type: string): boolean {
-  return type === "personnage";
 }
 
 /** Ce qu'on sait d'un asset pour décider s'il est générable. Les champs de

@@ -13,7 +13,6 @@ import {
   raisonNonGenerable,
   type DemandeGeneration,
   formatParDefaut,
-  loraParDefaut,
 } from "@/lib/asset-generation";
 import { annulerTraductionEssai } from "@/lib/agents/essai-asset";
 import { styleDesImages } from "@/lib/conception";

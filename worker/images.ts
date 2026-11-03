@@ -242,7 +242,6 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         aspect: gen.aspect,
         megapixels: gen.megapixels,
         seed: gen.seed,
-        loraPersonnage: gen.loraPersonnage,
         prefixeSortie: `cadence_${asset.code}`,
       });
     }

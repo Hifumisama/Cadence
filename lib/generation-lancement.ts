@@ -3,7 +3,7 @@ import { assetGenerationSources, assetGenerations, assets, projects } from "@/db
 import { and, eq, inArray } from "drizzle-orm";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
-import { formatParDefaut, loraParDefaut, nouvelleSeed, raisonDemandeInvalide, raisonNonGenerable, type DemandeGeneration } from "./asset-generation";
+import { formatParDefaut, nouvelleSeed, raisonDemandeInvalide, raisonNonGenerable, type DemandeGeneration } from "./asset-generation";
 import { styleDesImages } from "./conception";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "./generation-lot";
 import { MEDIA_ROOT, cheminAssetMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "./media";
@@ -84,7 +84,6 @@ export async function poserGeneration(assetId: number, demande: DemandeGeneratio
         // Les images reçoivent le prompt LONG du style quand le projet en a un (conception), sinon la clause courte.
         clauseStyle: texte ? styleDesImages(projet) : "",
         ...(texte ? { aspect: demande.aspect, megapixels: demande.megapixels } : {}),
-        loraPersonnage: texte ? demande.loraPersonnage : false,
         lightning: texte ? null : true,
         seed: nouvelleSeed(),
         adoptionAuto,
@@ -131,7 +130,6 @@ export async function poserGenerationsLot(
         prompt: a.promptGeneration ?? "",
         aspect: format.aspect,
         megapixels: format.megapixels,
-        loraPersonnage: l.mode === "texte" && loraParDefaut(a.type),
         sources: l.sourceAssetId != null ? [{ origine: "asset", assetId: l.sourceAssetId }] : [],
       },
       PLAFOND_LOT_IMAGES,

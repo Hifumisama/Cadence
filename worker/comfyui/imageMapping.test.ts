@@ -20,7 +20,6 @@ const entree = {
   aspect: "16:9" as const,
   megapixels: 1.3,
   seed: "12345",
-  loraPersonnage: true,
   prefixeSortie: "cadence_DEC_x",
 };
 
@@ -33,7 +32,14 @@ test("les nœuds du contrat existent dans IMG_01_TextToImage.json", () => {
   assert.equal(workflow[NODE_IDS_TEXTE_VERS_IMAGE.sortie]!.class_type, "SaveImage");
 });
 
-test("injection : prompt, style, format, seed, LoRA et préfixe", () => {
+test("le workflow d'images n'a plus de LoRA (la fiche à 4 vues se demande dans le prompt) ni d'interrupteur", () => {
+  const classes = Object.values(workflow).map((n) => n.class_type);
+  assert.ok(!classes.includes("LoraLoaderModelOnly"), "un LoRA est revenu dans IMG_01_TextToImage.json");
+  assert.ok(!classes.includes("ComfySwitchNode"), "l'interrupteur du LoRA est revenu");
+  assert.ok(!JSON.stringify(workflow).includes("CharacterDesign"));
+});
+
+test("injection : prompt, style, format, seed et préfixe", () => {
   const g = injecterGenerationImage(workflow, entree);
   const ids = NODE_IDS_TEXTE_VERS_IMAGE;
   assert.equal(g[ids.prompt]!.inputs.value, entree.prompt);
@@ -41,7 +47,6 @@ test("injection : prompt, style, format, seed, LoRA et préfixe", () => {
   assert.equal(g[ids.format]!.inputs.aspect_ratio, "16:9 (Widescreen)");
   assert.equal(g[ids.format]!.inputs.megapixels, 1.3);
   assert.equal(g[ids.seed]!.inputs.seed, 12345);
-  assert.equal(g[ids.lora]!.inputs.value, true);
   assert.equal(g[ids.sortie]!.inputs.filename_prefix, "cadence_DEC_x");
   // le graphe d'origine n'est pas modifié
   assert.notEqual(workflow[ids.prompt]!.inputs.value, entree.prompt);

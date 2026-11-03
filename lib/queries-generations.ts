@@ -85,7 +85,6 @@ export async function getGenerationsAsset(assetId: number) {
     methode: g.methode,
     aspect: g.aspect,
     megapixels: g.megapixels,
-    loraPersonnage: g.loraPersonnage,
     /** Durée demandée (génération audio), null pour une image. */
     dureeSecondes: g.dureeSecondes,
     /** Master de voix : la réplique du test, null sinon. */

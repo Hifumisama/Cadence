@@ -109,7 +109,6 @@ async function main() {
         aspect: sujet.aspect,
         megapixels: MEGAPIXELS,
         seed: String(seedPourStyle(`${s.id}/${sujet.id}`)),
-        loraPersonnage: false,
         prefixeSortie: `cadence_style_${s.id}_${sujet.id}`,
       });
       const promptId = await client.submitGraph(graphe);

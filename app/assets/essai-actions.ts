@@ -18,7 +18,6 @@ import {
   DUREE_AUDIO_MIN,
   raisonAudioNonGenerable,
   formatParDefaut,
-  loraParDefaut,
   maxImagesJointes,
   methodeDEssai,
   nouvelleSeed,
@@ -139,7 +138,6 @@ export async function lancerEssai(
         consigne: consigne || null,
         clauseStyle: texte ? styleDesImages(projet) : "",
         ...(texte ? { aspect: format.aspect, megapixels: format.megapixels } : {}),
-        loraPersonnage: texte && loraParDefaut(asset.type),
         lightning: texte ? null : true,
         seed: nouvelleSeed(),
       })

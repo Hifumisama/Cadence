@@ -9,7 +9,7 @@
 - **No negative prompt.** The negative is zeroed: "no X" cannot be obtained. Describe what you want to see. `[project]`, consistent with the community guide ("negations do not work reliably").
 - **Qwen3-VL 4B text encoder**: it reads sentences, not labels. `[official]`
 - **Resolution**: up to 2K. `[official]` The workflow chooses the format (`ResolutionSelector`: aspect ratio and megapixels): 16:9 by default for a set, a plate or a character sheet, square for an effect or a detail. `[project]` The prompt never sets dimensions.
-- **"CharacterDesign" LoRA**: the workflow can enable it for a character sheet (4 views). `[project]`
+- **No LoRA.** The "CharacterDesign" LoRA was removed from the workflow (2026-11-03): a turnaround (several views of the same subject) is asked for in the prompt itself, see "Project templates" below. `[project]`
 - The workflow exposes a **prompt_enhance** mode (an LLM expands the prompt). We do not use it: the prompt comes from the agent, to stay reproducible. `[project]`
 
 ## Writing the prompt
@@ -29,7 +29,7 @@
 - **Character sheet** (a single description block, then the layout instruction) `[project]`:
 
   ```text
-  [character description], neutral standing pose, plain light background, character has 4 views : front full-body view, body side view, body back view, detailed single headshot view in foreground.
+  [character description], neutral standing pose, plain light background, character has 4 views : front full-body view, body side view, body back view, detailed single headshot portrait on the right side of the image, in the foreground.
   ```
 
   The sheet shows the character **alone**, **empty hands**, with no effect, set or action pose: it serves as an identity reference, not as a scene illustration.

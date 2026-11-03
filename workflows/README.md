@@ -31,7 +31,6 @@ test**, toujours remplacées à la soumission.
 | Clause de style | `60` (PrimitiveStringMultiline) | `value` | `projects.clauseStyle`, concaténée au prompt dans le graphe (`30:58`) |
 | Format | `49` (ResolutionSelector) | `aspect_ratio`, `megapixels` | 16:9 par défaut pour un décor et une fiche personnage (meilleurs résultats, recette 2026-10-05) ; 1:1 pour un effet ou un détail |
 | Seed | `30:3` (KSampler) | `seed` | |
-| LoRA « CharacterDesign » | `30:23` (PrimitiveBoolean) | `value` | à `true` pour une fiche personnage (4 vues) ; `false` sinon |
 | Sortie | `29` (SaveImage) | `filename_prefix` | |
 
 8 étapes, CFG 1, `euler` / `simple`, négatif remis à zéro (`ConditioningZeroOut`).
