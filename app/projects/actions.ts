@@ -9,10 +9,15 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminPosterMedia, type PosterCible } from "@/lib/media";
 import { inventaireProjet, supprimerProjetComplet } from "@/lib/suppression-projet";
+import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
 
 /** Crée le projet (un film) et son épisode unique SANS rediriger : « Créer avec l'agent » ouvre ensuite la popup d'agent sur le projet vide. */
-export async function creerProjetSansRedirection(valeurs: { nom: string }): Promise<{ projectId: number }> {
-  const [projet] = await db.insert(projects).values({ nom: valeurs.nom }).returning();
+export async function creerProjetSansRedirection(valeurs: { nom: string; creativite?: string | null; styleCamera?: string | null }): Promise<{ projectId: number }> {
+  // Créativité et style de mise en scène (Open H3 IR) : choisis à l'étape « Mise en scène » de la conception ; absents, le projet hérite des défauts.
+  const [projet] = await db
+    .insert(projects)
+    .values({ nom: valeurs.nom, creativite: creativiteOuNull(valeurs.creativite), styleCamera: styleCameraOuNull(valeurs.styleCamera) })
+    .returning();
   if (!projet) throw new Error("Échec de création du projet.");
   await db.insert(episodes).values({ projectId: projet.id, numero: 1, titre: "" });
 
@@ -64,6 +69,16 @@ export async function supprimerProjet(projectId: number) {
 
 export async function modifierNomProjet(projectId: number, nom: string) {
   await db.update(projects).set({ nom }).where(eq(projects.id, projectId));
+  revalidatePath("/", "layout");
+}
+
+/** Créativité et style de mise en scène du projet (Open H3 IR) : le niveau le plus général, que les scènes puis les plans peuvent surcharger (lib/h3ir/reglages.ts).
+ * Vide ou valeur inconnue = réglage par défaut ; le style « aucun » est une valeur (aucun style de mise en scène). */
+export async function modifierReglagesCameraProjet(projectId: number, valeurs: { creativite: string | null; styleCamera: string | null }) {
+  await db
+    .update(projects)
+    .set({ creativite: creativiteOuNull(valeurs.creativite), styleCamera: styleCameraOuNull(valeurs.styleCamera) })
+    .where(eq(projects.id, projectId));
   revalidatePath("/", "layout");
 }
 

@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { recomposerOrdre, type Tx } from "@/lib/ordre-plans";
 import { genreOuNull } from "@/lib/scene-genres";
+import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
 
 /** Place un plan dans une scène (ou « sans scène » si `sceneId` est null),
  * juste avant `avantPlanId` — ou, sans repère, à la fin des plans de la scène
@@ -50,12 +51,23 @@ export async function deplacerPlan(planId: number, sceneId: number | null, avant
 
 /** Édition d'une scène : titre, fonction (description), genre (qui choisit les guides de rédaction de ses plans) et
  * ambiance (cadre visuel tenu sur toute la scène). */
-export async function modifierScene(sceneId: number, valeurs: { titre: string; fonction: string; genre?: string | null; ambiance?: string }) {
+/** `creativite` et `styleCamera` (Open H3 IR, lib/h3ir/reglages.ts) : absents = on n'y touche pas ; `null` ou vide = la scène hérite du projet ; `aucun` (style) = pas de style malgré celui du projet. */
+export async function modifierScene(
+  sceneId: number,
+  valeurs: { titre: string; fonction: string; genre?: string | null; ambiance?: string; creativite?: string | null; styleCamera?: string | null },
+) {
   const titre = valeurs.titre.trim();
   if (!titre) return;
   await db
     .update(scenes)
-    .set({ titre, fonction: valeurs.fonction.trim() || null, genre: genreOuNull(valeurs.genre), ambiance: valeurs.ambiance?.trim() || null })
+    .set({
+      titre,
+      fonction: valeurs.fonction.trim() || null,
+      genre: genreOuNull(valeurs.genre),
+      ambiance: valeurs.ambiance?.trim() || null,
+      ...(valeurs.creativite !== undefined ? { creativite: creativiteOuNull(valeurs.creativite) } : {}),
+      ...(valeurs.styleCamera !== undefined ? { styleCamera: styleCameraOuNull(valeurs.styleCamera) } : {}),
+    })
     .where(eq(scenes.id, sceneId));
   revalidatePath("/", "layout");
 }

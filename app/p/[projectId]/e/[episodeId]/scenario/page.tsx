@@ -75,12 +75,12 @@ export default async function ScenarioPage({
 
   const groupes: SceneVue[] = scenes.map((sc) => {
     const plans = sc.plans.map(versVue);
-    return { id: sc.id, titre: sc.titre, fonction: sc.fonction, genre: sc.genre, ambiance: sc.ambiance, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans };
+    return { id: sc.id, titre: sc.titre, fonction: sc.fonction, genre: sc.genre, ambiance: sc.ambiance, creativite: sc.creativite, styleCamera: sc.styleCamera, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans };
   });
   // Un plan appartient à une scène : « Sans scène » n'apparaît que s'il reste des plans orphelins (anciens films), pour ne pas les rendre invisibles.
   if (sansScene.length > 0) {
     const plans = sansScene.map(versVue);
-    groupes.push({ id: null, titre: "Sans scène", fonction: null, genre: null, ambiance: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
+    groupes.push({ id: null, titre: "Sans scène", fonction: null, genre: null, ambiance: null, creativite: null, styleCamera: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
   }
 
   // L'état des fiches de plan : une ligne dans la barre du scénario (son geste, « Écrire les N fiches », ouvre une popup).
@@ -89,5 +89,5 @@ export default async function ScenarioPage({
     nbDeveloppes: etat.nbDeveloppes,
   };
 
-  return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} ajoutScene={ajoutScene} fiches={fiches} />;
+  return <VueScenario projectId={pid} episodeId={eid} reglagesProjet={{ creativite: projet?.creativite ?? null, styleCamera: projet?.styleCamera ?? null }} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} ajoutScene={ajoutScene} fiches={fiches} />;
 }

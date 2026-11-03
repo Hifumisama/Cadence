@@ -5,6 +5,8 @@ import { updatePlanScenario } from "@/app/plans/actions";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/plan-checks";
 import { GenererFiche } from "@/components/plan/GenererFiche";
 import { LIAISONS, LIBELLE_LIAISON, type Liaison } from "@/lib/plan-liaison";
+import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
+import { DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_NIVEAU, LIBELLE_STYLE_CAMERA, RESUME_STYLE_CAMERA, resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/reglages";
 import {
   ScenarioNarratifFields,
   type ChampsNarratifs,
@@ -14,6 +16,9 @@ type Valeurs = ChampsNarratifs & {
   titre: string;
   dureeMontageSecondes: number;
   liaison: Liaison;
+  /** Open H3 IR : vide = le plan hérite de sa scène, puis du projet (lib/h3ir/reglages.ts). Doivent faire partie de `initial`, sinon chaque enregistrement les remettrait à zéro. */
+  creativite: string;
+  styleCamera: string;
 };
 
 export function PlanScenarioPanel({
@@ -25,12 +30,17 @@ export function PlanScenarioPanel({
   demandeEnCours = null,
   dureeGeneration,
   musique = null,
+  reglagesProjet,
+  reglagesScene = null,
 }: {
   planId: number;
   projectId: number;
   planUuid: string;
   brouillon: boolean;
   initial: Valeurs;
+  /** Créativité et style de mise en scène du projet et de la scène du plan : ce que le plan hérite quand il ne règle rien. */
+  reglagesProjet: ReglagesBruts;
+  reglagesScene?: ReglagesBruts | null;
   /** La demande « Générer la fiche » déjà en cours sur ce plan, s'il y en a une. */
   demandeEnCours?: number | null;
   /** La durée de génération du plan (fixée par la fiche et par « Itérer », pas retouchée ici) : montrée à côté de la durée au montage. */
@@ -63,7 +73,10 @@ export function PlanScenarioPanel({
     return true;
   };
 
+  const heritage = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene });
+
   if (!brouillon && !editionOuverte) {
+    const reglages = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene, plan: { creativite: initial.creativite, styleCamera: initial.styleCamera } });
     const horsBornes = dureeGeneration != null && (dureeGeneration < DUREE_GENERATION_MIN || dureeGeneration > DUREE_GENERATION_MAX);
     return (
       <section className="sp-entete" id="fp-scenario" aria-label="Scénario du plan">
@@ -82,6 +95,18 @@ export function PlanScenarioPanel({
             <li>
               <span>Liaison</span> <b>{LIBELLE_LIAISON[initial.liaison]}</b>
             </li>
+            {reglages.origine.styleCamera !== "defaut" ? (
+              <li title="Style de mise en scène d'Open H3 IR pour ce plan. Se règle ici (Modifier), sur la scène ou sur le projet.">
+                <span>Mise en scène</span> <b title={reglages.styleCamera ? `${LIBELLE_STYLE_CAMERA[reglages.styleCamera]} — ${DETAIL_STYLE_CAMERA[reglages.styleCamera]}` : undefined}>{reglages.styleCamera ? RESUME_STYLE_CAMERA[reglages.styleCamera] : "aucun style"}</b>
+                {reglages.origine.styleCamera !== "plan" ? <em> · {LIBELLE_NIVEAU[reglages.origine.styleCamera]}</em> : null}
+              </li>
+            ) : null}
+            {reglages.origine.creativite !== "defaut" ? (
+              <li title="Créativité d'Open H3 IR pour ce plan. Se règle ici (Modifier), sur la scène ou sur le projet.">
+                <span>Créativité</span> <b>{LIBELLE_CREATIVITE[reglages.creativite]}</b>
+                {reglages.origine.creativite !== "plan" ? <em> · {LIBELLE_NIVEAU[reglages.origine.creativite]}</em> : null}
+              </li>
+            ) : null}
             {musique ? (
               <li>
                 <span>Musique</span> <b className="num">{musique}</b>
@@ -134,6 +159,14 @@ export function PlanScenarioPanel({
             ))}
           </select>
         </div>
+        <ChampsReglagesCamera
+          creativite={champs.creativite}
+          styleCamera={champs.styleCamera}
+          onCreativite={(creativite) => setChamps((c) => ({ ...c, creativite }))}
+          onStyleCamera={(styleCamera) => setChamps((c) => ({ ...c, styleCamera }))}
+          heritage={heritage}
+          idPrefixe="plan"
+        />
         {brouillon ? (
           <ScenarioNarratifFields valeurs={champs} onChange={majNarratif} />
         ) : (

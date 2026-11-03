@@ -34,6 +34,9 @@ export type SceneVue = {
   fonction: string | null;
   genre: string | null;
   ambiance: string | null;
+  /** Open H3 IR (lib/h3ir/reglages.ts) : null = la scène hérite du projet ; style « aucun » = pas de style malgré celui du projet. */
+  creativite: string | null;
+  styleCamera: string | null;
   duree: number;
   plans: PlanVue[];
 };

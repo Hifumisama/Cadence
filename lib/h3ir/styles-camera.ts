@@ -1,0 +1,3 @@
+/** Les 7 profils de « style de mise en scène » d'Open H3 IR (`director`, h3ir/director.py) : chacun est un « goût » de mise en scène complet (caméra, cadrage, lumière, palette, jeu, sons, musique) qui ne remplit que ce que la demande et les images de référence ne tranchent pas (h3ir/director.py). Le nom du réalisateur n'est jamais envoyé au modèle, seulement les traits.
+ * Fichier sans aucun import, exprès : l'interface (composant client) le lit, et lib/h3ir/brief.ts tire du code serveur (node:child_process). */
+export const STYLES_CAMERA = ["cameron", "tarantino", "anderson", "villeneuve", "bigelow", "wong", "spielberg"] as const;

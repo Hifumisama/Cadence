@@ -79,6 +79,10 @@ export const projects = pgTable("projects", {
   // synchroniserClauseStyle) ; vide pour un projet sans conception : les images retombent alors sur la clause.
   stylePromptImage: text("style_prompt_image").notNull().default(""),
   notes: text("notes").notNull().default(""),
+  // Open H3 IR (lib/h3ir/reglages.ts) : créativité et style de mise en scène du projet, hérités par ses scènes puis ses plans. Null = réglage par défaut.
+  // Varchar contrôlé par l'application (pas d'enum Postgres) ; le style vaut un des 7 profils ou « aucun ».
+  creativite: varchar("creativite", { length: 12 }),
+  styleCamera: varchar("style_camera", { length: 20 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -114,6 +118,9 @@ export const scenes = pgTable("scenes", {
   genre: varchar("genre", { length: 20 }),
   // Cadre visuel tenu sur toute la scène (moment de la journée, météo, lumière générale) : la continuité entre plans.
   ambiance: text("ambiance"),
+  // Open H3 IR : créativité et style de mise en scène de la scène (null = hérite du projet ; style « aucun » = force l'absence de style). lib/h3ir/reglages.ts.
+  creativite: varchar("creativite", { length: 12 }),
+  styleCamera: varchar("style_camera", { length: 20 }),
   // Le traitement de la scène (lib/agents/traitement.ts) : ce qu'elle raconte, d'où elle part, où elle arrive, sa durée visée.
   traitement: jsonb("traitement").$type<{ intention: string; etatEntree: string; etatSortie: string; dureeCibleSecondes: number; momentsDeLAuteur: string }>(),
 });
@@ -166,6 +173,9 @@ export const plans = pgTable("plans", {
   // Liaison avec le plan PRÉCÉDENT de l'épisode (2026-10-14, lib/plan-liaison.ts) : « suite » = le plan reprend là où l'autre finit (même lieu, même
   // instant à peu près) ; « coupe » = rupture franche (autre lieu, autre moment, autre angle libre). Posée par le scénario, modifiable à la main.
   liaison: varchar("liaison", { length: 10 }).notNull().default("suite"),
+  // Open H3 IR : créativité et style de mise en scène de CE plan (null = hérite de la scène, puis du projet ; style « aucun » = force l'absence de style). lib/h3ir/reglages.ts.
+  creativite: varchar("creativite", { length: 12 }),
+  styleCamera: varchar("style_camera", { length: 20 }),
   dureeMontageSecondes: integer("duree_montage_secondes").notNull(),
   dureeGenerationSecondes: integer("duree_generation_secondes").notNull(),
   fps: integer("fps").notNull().default(24),
@@ -210,7 +220,7 @@ export const planPromptVersions = pgTable("plan_prompt_versions", {
     .notNull()
     .references(() => plans.id, { onDelete: "cascade" }),
   texte: text("texte").notNull(),
-  source: varchar("source", { length: 20 }).notNull(), // avant | enregistrement
+  source: varchar("source", { length: 20 }).notNull(), // avant | enregistrement | compilation (fiche d'Open H3 IR)
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

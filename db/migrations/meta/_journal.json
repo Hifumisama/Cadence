@@ -540,6 +540,13 @@
       "when": 1796058000000,
       "tag": "0076_historique_prompt",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1796144400000,
+      "tag": "0077_reglages_camera",
+      "breakpoints": true
     }
   ]
 }

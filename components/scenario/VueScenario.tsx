@@ -12,6 +12,7 @@ import { useTaches } from "@/components/taches/TachesProvider";
 import { Icone } from "@/components/ui/Icone";
 import { posterBackgroundImage } from "@/lib/poster";
 import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
+import { DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, RESUME_STYLE_CAMERA, STYLE_AUCUN, creativiteOuNull, styleCameraOuNull, type ReglagesBruts } from "@/lib/h3ir/reglages";
 import { cleDemande } from "@/lib/taches";
 import { LIBELLE_ETAT, cleScene, minutage, romain, type AjoutEnCours, type AjoutSceneEnCours, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
@@ -43,6 +44,7 @@ type Signal = { texte: string; cle?: string; planId?: number };
 export function VueScenario({
   projectId,
   episodeId,
+  reglagesProjet,
   groupes,
   sceneInitiale,
   ajout,
@@ -51,6 +53,8 @@ export function VueScenario({
 }: {
   projectId: number;
   episodeId: number;
+  /** Créativité et style de mise en scène du projet (Open H3 IR) : ce qu'une scène hérite quand elle ne règle rien. */
+  reglagesProjet: ReglagesBruts;
   groupes: SceneVue[];
   sceneInitiale: string | null;
   /** Un plan en cours d'écriture (« Ajouter un plan »), ou null. */
@@ -208,6 +212,8 @@ export function VueScenario({
   const nbPlans = groupes.reduce((acc, g) => acc + g.plans.length, 0);
   const dureeTotale = groupes.reduce((acc, g) => acc + g.duree, 0);
   const genre = genreOuNull(courant.genre);
+  const creativiteScene = creativiteOuNull(courant.creativite);
+  const styleScene = styleCameraOuNull(courant.styleCamera);
   const estSans = courant.id == null;
   // Minutage de départ de chaque scène dans le film (somme des durées des scènes qui précèdent).
   const debuts = groupes.map((_, i) => groupes.slice(0, i).reduce((acc, g) => acc + g.duree, 0));
@@ -382,7 +388,17 @@ export function VueScenario({
             </span>
             {courant.id != null ? (
               <span className="sc-entete-actions">
-                <ModifierSceneButton key={courant.id} sceneId={courant.id} titre={courant.titre} fonction={courant.fonction ?? ""} genre={courant.genre ?? ""} ambiance={courant.ambiance ?? ""} />
+                <ModifierSceneButton
+                  key={courant.id}
+                  sceneId={courant.id}
+                  titre={courant.titre}
+                  fonction={courant.fonction ?? ""}
+                  genre={courant.genre ?? ""}
+                  ambiance={courant.ambiance ?? ""}
+                  creativite={courant.creativite ?? ""}
+                  styleCamera={courant.styleCamera ?? ""}
+                  reglagesProjet={reglagesProjet}
+                />
                 <SupprimerSceneButton sceneId={courant.id} titre={courant.titre} />
               </span>
             ) : null}
@@ -392,12 +408,24 @@ export function VueScenario({
           ) : courant.fonction ? (
             <p className="sc-fonction">{courant.fonction}</p>
           ) : null}
-          {genre || courant.ambiance ? (
+          {genre || courant.ambiance || creativiteScene || styleScene ? (
             <ul className="sc-chips">
               {genre ? (
                 <li className="sc-chip is-genre">
                   <span>Genre</span>
                   <b>{LIBELLE_GENRE[genre]}</b>
+                </li>
+              ) : null}
+              {creativiteScene ? (
+                <li className="sc-chip" title="Créativité propre à cette scène (Open H3 IR) ; sinon elle hérite du projet">
+                  <span>Créativité</span>
+                  <b>{LIBELLE_CREATIVITE[creativiteScene]}</b>
+                </li>
+              ) : null}
+              {styleScene ? (
+                <li className="sc-chip" title="Style de mise en scène propre à cette scène (Open H3 IR) ; sinon elle hérite du projet">
+                  <span>Mise en scène</span>
+                  <b title={styleScene === STYLE_AUCUN ? undefined : `${LIBELLE_STYLE_CAMERA[styleScene]} — ${DETAIL_STYLE_CAMERA[styleScene]}`}>{styleScene === STYLE_AUCUN ? "Aucun style" : RESUME_STYLE_CAMERA[styleScene]}</b>
                 </li>
               ) : null}
               {courant.ambiance ? (
