@@ -68,6 +68,9 @@ export function depuisInventaire(sortie: SortieInventaire, registre: AssetRegist
   const sorties: ChangementBrut[] = [];
   for (const { m, suffixe, code } of declares) {
     if (!code || existants.has(code) || vus.has(code)) continue; // inutilisable, déjà au registre, ou déjà proposé
+    // Jamais de VFX proposé automatiquement (décision du 2026-11-02) : une image d'effet est suivie trop à la lettre (Open H3 IR la prend pour un sujet à préserver).
+    // L'effet se décrit dans le texte du plan ; l'utilisateur peut toujours créer un asset VFX à la main.
+    if (m.type === "vfx") continue;
     vus.add(code);
     const avert: Avertissement[] = [];
     const info = [(m.raison ?? "").trim(), m.plans?.length ? `plans : ${m.plans.join(", ")}` : ""].filter(Boolean).join(" · ");
@@ -99,10 +102,6 @@ export function depuisInventaire(sortie: SortieInventaire, registre: AssetRegist
       } else if (cites.length > 0) {
         avert.push({ type: "alerte_controle", texte: `Cite ${cites.join(", ")} (un autre type) sans parent : si c'est un ÉTAT de ce sujet (forme, stade, éclairage), propose-le du même type avec ce parent ; un VFX est de la matière générique, pas un état.` });
       }
-    }
-    const typeParent = apres.deriveDeCode ? typeDeCode.get(String(apres.deriveDeCode)) : undefined;
-    if (m.type === "vfx" && typeParent && typeParent !== "vfx") {
-      avert.push({ type: "alerte_controle", texte: `Un VFX n'est jamais un état d'un sujet : ${code} a pour parent ${apres.deriveDeCode} (${typeParent}). Si c'est une forme ou un état de ce sujet, il doit être du même type que lui.` });
     }
     sorties.push({
       groupe: "assets",

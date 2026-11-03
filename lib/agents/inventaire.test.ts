@@ -78,9 +78,7 @@ test("depuisInventaire : parent créé dans la même sortie, et un parent déjà
   assert.equal((r.find((c) => c.cle === "nouvel-asset-DEC_phare_nuit")!.apres as Record<string, unknown>).deriveDeCode, "DEC_phare");
 });
 
-test("depuisInventaire : un VFX qui cite un personnage d'un autre type, sans parent, est signalé (état ≠ effet)", () => {
-  const r = depuisInventaire(sortie([a("VFX_iris_emergence", "vfx", { raison: "le registre contient CHAR_iris mais pas son émergence" })]), registre);
-  const v = r[0]!;
-  assert.equal((v.apres as Record<string, unknown>).deriveDeCode, undefined);
-  assert.ok(v.avertissements!.some((x) => x.type === "alerte_controle" && /CHAR_iris/.test(x.texte) && /ÉTAT/.test(x.texte)));
+test("depuisInventaire : un VFX n'est jamais proposé (l'effet va en texte dans le plan), le reste de la sortie passe", () => {
+  const r = depuisInventaire(sortie([a("VFX_energie_doree", "vfx"), a("VFX_iris_emergence", "vfx", { raison: "cite CHAR_iris" }), a("PROP_clef", "prop")]), registre);
+  assert.deepEqual(r.map((c) => c.cle), ["nouvel-asset-PROP_clef"]);
 });

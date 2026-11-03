@@ -34,7 +34,17 @@
 
   The sheet shows the character **alone**, **empty hands**, with no effect, set or action pose: it serves as an identity reference, not as a scene illustration.
 
-- **Set, prop, effect**: descriptive prose alone, with no sheet instruction.
+- **Set sheet** (one image, three views of the SAME deserted place; to test on Krea 2, which has no dedicated LoRA for it) `[project, untested]`:
+
+  ```text
+  [set description], deserted and still, even daylight [the set's fixed light sentence], the place has 3 views : wide establishing view at eye level, reverse view from the opposite side, close-up detail of [one landmark of the place].
+  ```
+
+  Why: a reference-to-video model can only reproduce a place's layout if it has seen it; one view says nothing about what is behind the camera. The sheet shows **the place alone** (no character, no action, no top-down map or floor plan: the video model would copy the bird's-eye view). The light sentence is the same in every prompt of the set and its states (the reference image governs the light of the video). If the three views do not look like one place, fall back to a single view and make the reverse view as a **state** (`parent` = this set) by an edit (Qwen Image Edit: "the same place seen from the opposite side").
+
+- **Prop**: by default descriptive prose alone, one image: a clear 3/4 view, plain background, **nothing held in a hand**, one object. A **prop mini-sheet** is for an object that carries the story AND whose shape changes with the angle, or that has an inscription or a distinctive side: `[prop description], plain light background, the object has 3 views : three-quarter view, side view, close-up detail of [the distinctive part].` Never put a prop in a character's sheet or a set's sheet: crowded references drop details.
+
+- **Effect**: descriptive prose alone, with no sheet instruction. Effects are no longer proposed by the inventory (the video model copies an effect image too literally); this stays for those a user creates by hand.
 
 ## Variants and seed
 
