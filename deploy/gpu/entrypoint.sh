@@ -40,6 +40,7 @@ else
 fi
 
 if [ -n "${TS_AUTHKEY:-}" ]; then export CADENCE_TS_AUTOSTART=true; else export CADENCE_TS_AUTOSTART=false; fi
+if [ "${CADENCE_TELECHARGER:-1}" = "1" ]; then export CADENCE_DL_AUTOSTART=true; else export CADENCE_DL_AUTOSTART=false; fi
 
 echo "──────────────────────────────────────────────"
 echo " Cadence GPU · profil $CADENCE_PROFIL"
@@ -47,6 +48,7 @@ echo " Volume         $V"
 echo " Modèles LLM    $CADENCE_LLM_DIR"
 echo " llama-swap     $SOURCE_LLM"
 echo " Tailscale      $CADENCE_TS_AUTOSTART (nom : ${TS_HOSTNAME:-cadence-gpu})"
+echo " Modèles        téléchargement des manquants : $CADENCE_DL_AUTOSTART"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader 2>/dev/null | sed 's/^/ GPU            /' \
   || echo " GPU            nvidia-smi indisponible (pas de GPU visible ?)"
 echo "──────────────────────────────────────────────"

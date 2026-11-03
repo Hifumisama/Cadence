@@ -14,8 +14,10 @@ Elle n'est pas faite pour tourner seule : les workflows, les modèles et les don
 | llama.cpp `b12068` compilé pour Blackwell (`sm_120`), llama-swap `v269` | `llm/` : les modèles de langage (copie de `D:\localAI\models`) |
 | Les nodes custom de `custom-nodes.txt`, épinglés sur un commit | `comfyui/input`, `output`, `user`, `temp` : y compris les latents des plans en chaîne (`output/h3_latents/`) |
 | Tailscale (mode userspace), supervisord | `llama-swap.yaml` (facultatif, voir plus bas) |
+| `models.manifest` et `telecharger-modeles.sh` : la liste des modèles et le script qui les télécharge | |
 
-Les modèles ne sont pas dans l'image : elle reste légère et un changement de modèle ne la reconstruit pas.
+Les modèles ne sont pas dans l'image (132 Go : elle serait impubliable) : elle contient seulement la liste et le
+script, qui remplissent le volume au premier démarrage.
 
 ## Construire
 
@@ -47,11 +49,16 @@ Un registre privé demande d'ajouter les identifiants dans « Container Registry
    le Pod ni s'il offre l'API S3 : s'il n'est pas sur `/workspace`, régler la variable `CADENCE_VOLUME` sur son point
    de montage, le reste de l'image suit. Taille : la somme de `ComfyUI\models` et
    de `D:\localAI\models` sur le PC distant, plus une marge de 20 % pour les rendus.
-2. **Le remplir sans démarrer de Pod** avec l'API S3 de RunPod (si le datacenter la propose : voir
-   `docs.runpod.io/storage/s3-api`), par exemple avec `rclone` ou l'AWS CLI :
-   - `ComfyUI/models/` → `models/`
-   - `D:\localAI\models/` → `llm/` (mêmes sous-dossiers : `llm/mmproj/…`, `llm/Qwen3.6-…-GGUF/…`)
-   Sinon, démarrer un petit Pod avec un modèle RunPod standard (accès SSH) sur ce volume et copier depuis là.
+2. **Rien à copier à la main.** Au premier démarrage, le Pod télécharge lui-même les modèles qui manquent
+   (`models.manifest`, 19 fichiers, ~132 Go, depuis Hugging Face) : compter 10 à 30 minutes, GPU facturé pendant ce
+   temps. Les démarrages suivants trouvent tout en place et ne téléchargent rien. Le téléchargement se fait en parallèle
+   du reste : ComfyUI et Tailscale démarrent sans l'attendre, la progression est dans les journaux du Pod.
+   - Volume de **160 Go au minimum** (les modèles + les rendus qui s'accumulent dans `comfyui/output`).
+   - Pour voir l'état à tout moment : `telecharger-modeles.sh --lister` dans le Pod.
+   - Une interruption n'est pas grave : le script reprend où il s'est arrêté. Il suffit de le relancer.
+   - Autre voie, si tu préfères remplir le volume avant de louer un GPU : le même script marche sur un petit Pod CPU
+     branché au volume (démarrer l'image avec la commande `/opt/cadence/telecharger-modeles.sh`).
+   - Un modèle à toi, absent du manifeste : le déposer dans le bon sous-dossier de `models/` (ou l'ajouter au manifeste).
 3. Facultatif : déposer le `config.yaml` de llama-swap du PC distant en **`/workspace/llama-swap.yaml`**. S'il
    existe, il remplace celui du profil (adapter les chemins `D:\…` en `/workspace/llm/…`).
 
@@ -68,7 +75,8 @@ Un registre privé demande d'ajouter les identifiants dans « Container Registry
 | Variable `TS_AUTHKEY` | une clé Tailscale **réutilisable et éphémère** (console Tailscale → Settings → Keys) |
 | Variable `TS_HOSTNAME` | `cadence-gpu` (le nom sous lequel le Pod apparaît) |
 
-Facultatives : `COMFY_EXTRA_ARGS` (options ComfyUI en plus), `COMFY_VRAM_HEADROOM` (remplace la valeur du profil),
+Facultatives : `HF_TOKEN` (jeton Hugging Face en lecture, si un téléchargement est refusé ou limité),
+`CADENCE_TELECHARGER=0` (ne rien télécharger au démarrage), `COMFY_EXTRA_ARGS` (options ComfyUI en plus), `COMFY_VRAM_HEADROOM` (remplace la valeur du profil),
 `CADENCE_LLM_DIR` (autre dossier de modèles de langage).
 
 ## Brancher Cadence
@@ -108,6 +116,14 @@ copier les deux fichiers et passer le nom dans `CADENCE_PROFIL`.
 | `96go` | tout sur le GPU | 32 (**estimation**, à mesurer avec `nvidia-smi`) |
 
 ## Ce qui n'est pas vérifié
+
+- **Le master de voix sur Singularity** : `VID_Create_Voice_Master.json` utilisait l'autre modèle H3 (celui qui n'est
+  plus téléchargé, 20 Go de moins) ; il charge maintenant Singularity, comme les trois autres workflows vidéo. Changement
+  de nom de fichier seulement (aucun nœud touché, les tests passent), mais **jamais lancé en réel** : à valider au premier master de voix.
+- **L'emplacement de MelBand** : le pack de voix le range sous `models/TTS/MELBAND/` d'après son code ; confirmé par `gpu:verifier`.
+- **Les adresses du manifeste** répondent toutes (vérifié le 2026-11-03), mais certaines pointent des dépôts de
+  tiers (Singularity, MelBand, LoRA Lightning, upscaler, TAE) : un dépôt retiré ou renommé fera échouer le
+  téléchargement de ce fichier.
 
 - **Les nodes custom** : la liste (`custom-nodes.txt`) a été confirmée dépôt par dépôt, mais pas relevée sur le PC
   distant. `npm run gpu:verifier` dit lesquels manqueraient encore ; ajouter une ligne et reconstruire.

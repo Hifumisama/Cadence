@@ -1,0 +1,40 @@
+# Modèles à avoir sur le volume : <chemin sous le volume> | <adresse de téléchargement>
+# Lu par telecharger-modeles.sh, qui ne télécharge que ce qui manque. Les noms de fichiers sont ceux des workflows/
+# (npm run gpu:verifier dit lesquels manquent). Adresses trouvées sur Hugging Face le 2026-11-03.
+# Un fichier privé ou protégé demande la variable HF_TOKEN (jeton Hugging Face en lecture).
+#
+# Taille totale : ~132 Go. Prévoir un volume de 160 Go au minimum.
+
+# ── Vidéo MiniMax H3 (trois étapes + master de voix, qui passe aussi sur Singularity) ─────────────────────
+models/diffusion_models/Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors | https://huggingface.co/WarmBloodAban/Minimax-h3_Singularity/resolve/main/Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors
+models/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors
+models/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors
+models/vae/minimax_h3_video_vae_fp16.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors
+models/vae/minimax_h3_audio_vae_fp32.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors
+models/latent_upscale_models/minimax_h3_latent_upscaler_3d_bf16.safetensors | https://huggingface.co/DeepBeepMeep/MiniMax-H3/resolve/main/minimax_h3/minimax_h3_latent_upscaler_3d_bf16.safetensors
+# taeh3 : décodeur d'aperçu des rendus vidéo. Cadence ne montre pas ces aperçus (seule la progression est relayée), mais
+# les workflows vidéo gardent un nœud ModelPreviewOverrideKJ qui le référence : sans ce fichier de 22 Mo, ComfyUI refuse le graphe.
+models/vae_approx/taeh3.safetensors |https://huggingface.co/t8star/Taeh3-Comfy/resolve/main/models/vae_approx/taeh3.safetensors
+
+# ── Images de référence : Krea 2 Turbo ───────────────────────────────────────────────────────────────────
+models/diffusion_models/krea2_turbo_int8_convrot.safetensors | https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_int8_convrot.safetensors
+models/text_encoders/qwen3vl_4b_fp8_scaled.safetensors | https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors
+models/vae/qwen_image_vae.safetensors | https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors
+
+# ── Images de référence : édition Qwen Image Edit 2511 ───────────────────────────────────────────────────
+models/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors | https://huggingface.co/Comfy-Org/Qwen-Image-Edit/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors
+models/loras/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors | https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors | https://huggingface.co/Comfy-Org/Qwen-Image/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
+
+# ── Bruitages : Stable Audio 3 ───────────────────────────────────────────────────────────────────────────
+models/checkpoints/stable_audio_3_medium.safetensors | https://huggingface.co/Comfy-Org/stable-audio-3/resolve/main/checkpoints/stable_audio_3_medium.safetensors
+models/text_encoders/t5gemma_b_b_ul2.safetensors | https://huggingface.co/Comfy-Org/stable-audio-3/resolve/main/text_encoders/t5gemma_b_b_ul2.safetensors
+# Le workflow garde un chargeur pour la branche « réécriture de prompt », coupée mais validée par ComfyUI.
+models/text_encoders/qwen3.5_2b_bf16.safetensors | https://huggingface.co/Comfy-Org/Qwen3.5/resolve/main/text_encoders/qwen3.5_2b_bf16.safetensors
+
+# ── Master de voix : séparation de la voix (pack TTS-Audio-Suite, rangée sous models/TTS/MELBAND/) ─────────
+models/TTS/MELBAND/MelBandRoformer_fp16.safetensors | https://huggingface.co/Kijai/MelBandRoFormer_comfy/resolve/main/MelBandRoformer_fp16.safetensors
+
+# ── Modèle de langage (dossier llm/, même arborescence que D:\localAI\models) ─────────────────────────────
+llm/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf | https://huggingface.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF/resolve/main/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf
+llm/mmproj/mmproj-BF16.gguf | https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/mmproj-BF16.gguf
