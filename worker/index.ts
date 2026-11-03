@@ -38,6 +38,8 @@ import { prochaineGenerationEnAttente, traiterGenerationImage } from "./images";
 import { preparerRaccord } from "./raccord";
 import { decharger, llmJoignable } from "./llamaSwap";
 import { echouerAppelsEnAttente, prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
+import { SKILL_H3IR, SKILL_TRADUCTION } from "./h3ir";
+import { JETONS_COMPILATEUR_H3IR } from "../lib/llm/budget-contexte";
 import { attenteDepassee, effacerSonde, noterSonde } from "./disponibilite";
 import { piloterCreations } from "../lib/agents/creation-db";
 import { projetEnCreation } from "./creation";
@@ -397,7 +399,8 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
   ]);
   // Les appels en parallèle se partagent le contexte du serveur : celui-ci n'est pris que s'il tient à côté de ceux en vol (lib/llm/budget-contexte.ts).
   // La place est réservée tout de suite (aucun `await` entre le test et la réservation) et rendue à la fin du tour, quel qu'il soit.
-  const run = runBrut && budgetContexte.reserver(runBrut.id, estimerContexte(runBrut.skill, chargerSkill(runBrut.skill).jetonsEstimes, runBrut.entree)) ? runBrut : null;
+  // `plan-h3ir` (Open H3 IR) n'a pas de dossier de skill : on compte celui de sa traduction (le compilateur Python ajoute ses propres appels, voir JETONS_COMPILATEUR_H3IR).
+  const run = runBrut && budgetContexte.reserver(runBrut.id, estimerContexte(runBrut.skill, chargerSkill(runBrut.skill === SKILL_H3IR ? SKILL_TRADUCTION : runBrut.skill).jetonsEstimes + (runBrut.skill === SKILL_H3IR ? JETONS_COMPILATEUR_H3IR : 0), runBrut.entree)) ? runBrut : null;
   let parti = false; // l'appel a réellement été envoyé : son contexte reste dans le cache du serveur
   try {
 

@@ -15,10 +15,13 @@ export function PromptBloc({
   promptComplet,
   historique,
   essai,
+  peutLancer,
 }: {
   planId: number;
   promptComplet: string;
   historique: VersionPrompt[];
+  /** Un essai peut partir : le plan n'est pas validé et aucun essai n'est en file (comme « Nouvelle variante »). */
+  peutLancer: boolean;
   /** Ce qui avait été envoyé pour l'essai affiché. */
   essai: { numero: number; prompt: string | null; promptChange: boolean; description: string | null } | null;
 }) {
@@ -28,6 +31,8 @@ export function PromptBloc({
   const [copie, setCopie] = useState(false);
   const [enregistre, setEnregistre] = useState(false);
   const [pending, startTransition] = useTransition();
+  const b = useBrouillon();
+  const [note, setNote] = useState("");
   const modifie = texte !== promptComplet;
 
   // Le prompt change côté serveur pendant que le tiroir est ouvert (une référence retirée ou ajoutée réécrit ses labels, un essai l'a réécrit) :
@@ -54,6 +59,25 @@ export function PromptBloc({
       }
       setEnregistre(true);
       setTimeout(() => setEnregistre(false), 1800);
+      router.refresh();
+    });
+  };
+  /** Enregistre le prompt (s'il se lit) puis lance un essai AVEC la seed du plan : même seed, prompt différent = comparaison à armes égales. */
+  const enregistrerEtGenerer = () => {
+    setErreurs([]);
+    setChange(false);
+    startTransition(async () => {
+      const r = await enregistrerPrompt(planId, texte);
+      if (!r.ok) {
+        setErreurs(r.erreurs);
+        return;
+      }
+      const l = await b.lancer("previsualiser", { consigne: note.trim() || null });
+      if (!l.ok) {
+        setErreurs([l.erreur]);
+        return;
+      }
+      setNote("");
       router.refresh();
     });
   };
@@ -101,9 +125,22 @@ export function PromptBloc({
           ))}
         </ul>
       ) : null}
+      <label className="tiny-note" style={{ display: "block", margin: "6px 0" }}>
+        Note de l&rsquo;essai (facultatif){" "}
+        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="par exemple : Open H3 IR, intent en anglais" style={{ width: "100%" }} />
+      </label>
       <div className="fp-prompt-actions">
         <button type="button" className="btn btn-gold btn-sm" onClick={enregistrer} disabled={pending || !modifie}>
           {pending ? "Enregistrement…" : enregistre ? "Enregistré" : "Enregistrer"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-gold btn-sm"
+          onClick={enregistrerEtGenerer}
+          disabled={pending || b.occupe || !peutLancer}
+          title={peutLancer ? "Enregistre ce prompt puis lance un essai, avec la seed du plan." : "Un essai tourne, ou le plan est validé : rouvre l'itération."}
+        >
+          Enregistrer et générer
         </button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTexte(promptComplet)} disabled={pending || !modifie}>
           Annuler les changements
@@ -120,7 +157,7 @@ export function PromptBloc({
             {historique.map((v) => (
               <li key={v.id} className={v.texte === promptComplet ? "is-courante" : undefined}>
                 <span className="num">{v.quand}</span>
-                <span className="fp-historique-source">{v.source === "avant" ? "avant ta première retouche" : v.texte === promptComplet ? "version actuelle" : "enregistrement"}</span>
+                <span className="fp-historique-source">{v.source === "avant" ? "prompt remplacé" : v.texte === promptComplet ? "version actuelle" : v.source === "compilation" ? "compilation Open H3 IR" : "enregistrement"}</span>
                 <button type="button" className="tm-lien" onClick={() => setTexte(v.texte)} disabled={v.texte === texte}>
                   Reprendre
                 </button>

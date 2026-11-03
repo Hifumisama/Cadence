@@ -50,6 +50,8 @@ import { depuisInventaire, type SortieInventaire } from "../../lib/agents/invent
 import { lireVueEpisode } from "../../lib/agents/vue-operations/vue-episode";
 import { depuisIterationPlan, raisonSansEcriture, type PlanPourIteration, type SortieIterationPlan } from "../../lib/agents/iteration-plan";
 import type { InfosExecution } from "./preparation";
+import { depuisCompilationH3ir } from "../../lib/h3ir/conversion";
+import { SKILL_H3IR, type ResultatH3ir } from "../../lib/h3ir/resultat";
 import type { MessageConversation } from "../../lib/agents/types";
 import { normaliserChoix } from "../../lib/agents/choix";
 
@@ -223,6 +225,12 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
     if (typeof nouvelle === "string" && nouvelle.trim()) {
       for (const b of bruts) if (b.cibleType === "fiche") b.apres = { ...(b.apres as object), description: nouvelle.trim() };
     }
+  } else if (run.skill === SKILL_H3IR) {
+    // La fiche d'UN plan compilée par Open H3 IR (worker/h3ir.ts) : une fiche seule, sans asset à créer ; elle s'écrit sans relecture (lib/demandes-db.ts).
+    if (prop.cibleId == null) throw new Error("Proposition de fiche sans plan.");
+    const [plan] = await tx.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.id, prop.cibleId));
+    if (!plan) throw new Error("Le plan visé n'existe plus.");
+    bruts = depuisCompilationH3ir(json as ResultatH3ir, plan);
   } else if (run.skill === "inventaire-assets") {
     // Les assets que les plans réclament et que le registre n'a pas : des créations sans prompt (il s'écrit ensuite).
     const sortie = json as SortieInventaire;

@@ -57,6 +57,9 @@ export type ApresFiche = {
   /** Les répliques ne sont plus liées au plan (décision 2026-10-14) : la fiche porte ses voix elle-même, en références audio dont l'asset est
    * le PERSONNAGE qui parle dans le prompt. Les anciennes liaisons (`plan_dialogues`) du plan sont détachées à l'écriture et ne comptent plus. */
   voixDuPrompt?: boolean;
+  /** La fiche vient du compilateur Open H3 IR (lib/h3ir/conversion.ts) : l'applicateur garde alors le prompt remplacé dans l'historique du prompt
+   * (source « avant ») et y inscrit le nouveau (source « compilation »). Absent = fiche de `plan-h3`, qui n'écrit pas l'historique. */
+  moteur?: "h3ir";
 };
 
 export function estSectionFiche(s: string): s is NomSection {
@@ -76,6 +79,7 @@ export function lireApresFiche(apres: unknown): ApresFiche {
   if (a.dureeGenerationSecondes !== undefined) sortie.dureeGenerationSecondes = a.dureeGenerationSecondes as number;
   if (typeof a.description === "string" && a.description.trim()) sortie.description = a.description.trim();
   if (a.voixDuPrompt === true) sortie.voixDuPrompt = true;
+  if (a.moteur === "h3ir") sortie.moteur = "h3ir";
   if (Array.isArray(a.dependDeCles)) sortie.dependDeCles = a.dependDeCles.filter((c): c is string => typeof c === "string");
   if (Array.isArray(a.passages)) {
     sortie.passages = (a.passages as unknown[]).filter(

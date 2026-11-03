@@ -212,7 +212,8 @@ test("après écriture : cohérence des refs, structure et dialogues s'allument 
 });
 
 test("après écriture : un shot court reste signalé par les contrôles de structure de la page", () => {
-  const sortie: SortiePlanH3 = { ...base, shots: [base.shots[0]!, { debutSecondes: 1.2, texte: "a close-up of [[CHAR_maya]]." }] };
+  const sortie: SortiePlanH3 = { ...base, shots: [base.shots[0]!, { debutSecondes: 1.0, texte: "a close-up of [[CHAR_maya]]." }] };
+  // Plancher des contrôles de la page : 1,2 s (celui du paquet Open H3 IR) ; 1,0 s reste « trop court ».
   const a = apresDe(depuisFichePlan(sortie, plan()));
   const sections = Object.entries(a.sections!).map(([section, contenu]) => ({ section, contenu }));
   assert.ok(controlerStructure(sections, 9).some((p) => p.type === "shot_trop_court"));

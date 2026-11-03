@@ -40,7 +40,8 @@ import { squeletteDepuisBrief } from "./squelette";
 import type { Avertissement, ResultatApplication } from "./types";
 import { entreeIterationPlan, entreeInventaire, entreePlanH3, etatIterationPlan } from "./contexte";
 import { cleSousTachePlan, planUuidDeCle } from "./fiches";
-import type { EtatIterationPlan, PlanPourFiche } from "./types";
+import type { ContexteUtilise, EtatIterationPlan, PlanPourFiche } from "./types";
+import { SKILL_H3IR, type EntreeH3ir } from "../h3ir/resultat";
 import { jobs, planPromptSections, planRefs } from "../../db/schema";
 import { isNotNull, sql } from "drizzle-orm";
 
@@ -964,7 +965,9 @@ export async function plansPourFiches(projectId: number, portee: Portee, cibleId
  * fiche remplace ensemble ses six sections ET ses références ; les répliques liées restent celles du plan. */
 export async function genererFiches(
   conversationUuid: string,
-  options: { planUuids?: string[]; consigne?: string; /** Une consigne PAR plan (le réalisateur : chaque refonte a la sienne) ; à défaut, `consigne`. */ consignes?: Record<string, string>; /** La demande « Générer la fiche » qui pose cette tâche (plan seul). */ demandeId?: number } = {},
+  options: { planUuids?: string[]; consigne?: string; /** Une consigne PAR plan (le réalisateur : chaque refonte a la sienne) ; à défaut, `consigne`. */ consignes?: Record<string, string>; /** La demande « Générer la fiche » qui pose cette tâche (plan seul). */ demandeId?: number;
+    /** `h3ir` : la fiche d'UN plan est compilée par Open H3 IR (skill virtuel `plan-h3ir`, worker/h3ir.ts) au lieu d'être écrite par `plan-h3`. `reglagesH3ir` : nombre de shots et style de mise en scène facultatifs. */
+    moteur?: "h3ir"; reglagesH3ir?: { shots?: number | null; director?: string | null; creativity?: string | null } } = {},
 ): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number; runUuid?: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
@@ -979,6 +982,18 @@ export async function genererFiches(
   const choisis = dispo.filter((p) => voulus.includes(p.uuid));
   if (choisis.length !== new Set(voulus).size) return ERR("Un des plans choisis n'est pas dans cette portée.");
   const consigne = (options.consigne ?? "").trim() || CONSIGNE_FICHE;
+
+  if (options.moteur === "h3ir") {
+    if (portee !== "plan") return ERR("Open H3 IR écrit la fiche d'un plan à la fois.");
+    const plan = choisis[0]!;
+    const contexte: ContexteUtilise[] = [{ type: "plan", libelle: `Plan · ${plan.titre} (Open H3 IR)`, ref: plan.uuid }];
+    const propId = await nouvelleProposition(conv, { skill: SKILL_H3IR, consigne: "Fiche de plan compilée par Open H3 IR.", contexte });
+    const entree: EntreeH3ir = { planUuid: plan.uuid, shots: options.reglagesH3ir?.shots ?? null, director: options.reglagesH3ir?.director ?? null, creativity: options.reglagesH3ir?.creativity ?? null };
+    const run = await creerRun(db, { skill: SKILL_H3IR, entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: null, demandeId: options.demandeId });
+    await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
+    const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
+    return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: 1, runUuid: run.uuid };
+  }
 
   if (portee === "plan") {
     // Un seul plan : une proposition simple (« affiner » rejoue le skill avec le retour).

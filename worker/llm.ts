@@ -12,6 +12,7 @@ import { limiteur } from "./comfyui/limiteur";
 import { postTraiterRun, surEchecRun } from "./agents/postTraitement";
 import { preparerEntree, type DepsPreparation } from "./agents/preparation";
 import { controleurPourSkill } from "../lib/llm/controles";
+import { executerH3ir, SKILL_H3IR, SKILL_TRADUCTION, type DepsH3ir } from "./h3ir";
 
 // Tâche LLM : un appel à un skill d'agent posé dans `agent_runs` (genre « llm »
 // du worker). Même contrat que les images : une demande n'est jamais rejouée toute
@@ -66,6 +67,9 @@ export async function echouerAppelsEnAttente(message: string): Promise<number> {
 /** Ce qu'on peut injecter pour tester sans serveur LLM (ni ffmpeg : `planche`, voir worker/agents/preparation.ts). */
 export type DepsLlm = {
   executer?: typeof executerSkill;
+  /** Open H3 IR (worker/h3ir.ts) : l'exécuteur lui-même, et ses dépendances (brief, lanceur Python…). */
+  executerH3ir?: typeof executerH3ir;
+  depsH3ir?: DepsH3ir;
 } & DepsPreparation;
 
 /** Traite un appel (le serveur a été sondé juste avant par la boucle du worker). Renvoie `true` s'il a été pris (réussi, échoué ou annulé). */
@@ -101,7 +105,22 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
     // Entrée propre au skill, construite À L'EXÉCUTION (iteration-plan : planche de vignettes du rendu, durée
     // réelle mesurée) ; un échec ici (rendu disparu, ffmpeg absent) fait échouer la tâche avec son message.
     const prep = await preparerEntree(run, { planche: deps.planche });
-    const res = await executer(run.skill, prep.entree, {
+    // Open H3 IR (skill virtuel `plan-h3ir`) : brief → traduction de l'intent → compilation Python, au lieu d'un appel de skill (worker/h3ir.ts).
+    // L'étape en cours s'écrit à la place du flux de texte, que le panneau des tâches affiche.
+    const res = run.skill === SKILL_H3IR
+      ? await (deps.executerH3ir ?? executerH3ir)(
+          run,
+          {
+            modele: options.modele ?? (await modeleEffectifPourSkill(SKILL_TRADUCTION)),
+            signal: abandon.signal,
+            enregistrer: async (trace) => {
+              traceId = await insererTrace(trace);
+            },
+            surEtape: (texte) => enfiler(() => db.update(agentRuns).set({ fluxTexte: texte }).where(eq(agentRuns.id, run.id))),
+          },
+          deps.depsH3ir,
+        )
+      : await executer(run.skill, prep.entree, {
       projectId: run.projectId,
       // Le modèle choisi dans le header est lu ICI, au démarrage de l'appel : un changement vaut pour les appels
       // suivants, y compris ceux déjà en file. Une surcharge de la tâche prime (relance d'une proposition).

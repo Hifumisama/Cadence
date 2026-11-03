@@ -3,7 +3,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Icone } from "@/components/ui/Icone";
 
-export type CleOnglet = "prompt";
+export type CleOnglet = "prompt" | "brief";
+
+const ETIQUETTE: Record<CleOnglet, string> = { prompt: "Prompt", brief: "Brief Open H3 IR" };
 
 /** Un lien « Voir » d'un contrôle (ControlesEntete) ou la carte du prompt (CartePrompt) ouvrent le tiroir par cet évènement : l'ancre « fp-prompt » désigne le panneau. */
 export const ONGLET_DE_ANCRE: Record<string, CleOnglet> = { "fp-prompt": "prompt" };
@@ -32,9 +34,9 @@ export function TiroirPlan({ panneaux }: { panneaux: Record<CleOnglet, ReactNode
 
   if (!actif) return null;
   return (
-    <aside className="tm-tiroir is-large" aria-label="Prompt">
+    <aside className="tm-tiroir is-large" aria-label={ETIQUETTE[actif]}>
       <div className="tm-tiroir-hd">
-        <span className="tm-tiroir-etiquette">Prompt</span>
+        <span className="tm-tiroir-etiquette">{ETIQUETTE[actif]}</span>
         <button type="button" className="tm-tiroir-fermer" aria-label="Fermer le tiroir" onClick={() => setActif(null)}>
           <Icone nom="fermer" taille={16} />
         </button>

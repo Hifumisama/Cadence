@@ -1,6 +1,7 @@
-import { and, eq, inArray } from "drizzle-orm";
-import { assets, episodes, jobs, planPromptSections, planRefs, plans } from "../../../db/schema";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { assets, episodes, jobs, planPromptSections, planPromptVersions, planRefs, plans } from "../../../db/schema";
 import { horsAffiches } from "../../assets-visibles";
+import { assemblerPrompt } from "../../prompt";
 import type { Tx } from "../../ordre-plans";
 import { SECTIONS_FICHE, cleNouvelAsset, estSectionFiche, evaluerEcrasementFiche, lireApresFiche, verifierFiche, type EtatPlanFiche } from "../fiches";
 import { REFUS_SUPPRESSION, type Applicateur, type Db } from "./commun";
@@ -103,6 +104,13 @@ export const applicateurFiche: Applicateur = {
 /** L'écriture elle-même, dans la transaction de l'application. Seul ce que porte `apres` change. */
 async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: string }, apres: ReturnType<typeof lireApresFiche>): Promise<void> {
   const sections = Object.entries(apres.sections ?? {}).filter(([k]) => estSectionFiche(k)) as [string, string][];
+  // Fiche d'Open H3 IR : le prompt qu'elle remplace reste dans l'historique du prompt (on peut y revenir depuis le tiroir « Prompt »).
+  const [derniere] = apres.moteur === "h3ir" ? await tx.select({ texte: planPromptVersions.texte }).from(planPromptVersions).where(eq(planPromptVersions.planId, p.id)).orderBy(desc(planPromptVersions.id)).limit(1) : [];
+  if (apres.moteur === "h3ir") {
+    const lignes = await tx.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, p.id));
+    const avant = assemblerPrompt(lignes);
+    if (lignes.some((l) => l.contenu.trim()) && avant !== derniere?.texte) await tx.insert(planPromptVersions).values({ planId: p.id, texte: avant, source: "avant" });
+  }
   if (sections.length) {
     await tx.delete(planPromptSections).where(and(eq(planPromptSections.planId, p.id), inArray(planPromptSections.section, sections.map(([k]) => k))));
     await tx.insert(planPromptSections).values(sections.map(([section, contenu]) => ({ planId: p.id, section, ordre: SECTIONS_FICHE.indexOf(section as never), contenu })));
@@ -111,6 +119,11 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
   const presentes = new Set((await tx.select({ section: planPromptSections.section }).from(planPromptSections).where(eq(planPromptSections.planId, p.id))).map((l) => l.section));
   const manquantes = SECTIONS_FICHE.filter((s) => !presentes.has(s));
   if (manquantes.length) await tx.insert(planPromptSections).values(manquantes.map((section) => ({ planId: p.id, section, ordre: SECTIONS_FICHE.indexOf(section), contenu: "" })));
+  if (apres.moteur === "h3ir") {
+    const texte = assemblerPrompt(await tx.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, p.id)));
+    const [derniereVersion] = await tx.select({ texte: planPromptVersions.texte }).from(planPromptVersions).where(eq(planPromptVersions.planId, p.id)).orderBy(desc(planPromptVersions.id)).limit(1);
+    if (derniereVersion?.texte !== texte) await tx.insert(planPromptVersions).values({ planId: p.id, texte, source: "compilation" });
+  }
 
   if (apres.refs) {
     await tx.delete(planRefs).where(and(eq(planRefs.planId, p.id), inArray(planRefs.type, ["picture", "audio"])));

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { demanderFichePlan } from "@/app/demandes/actions";
+import { demanderFichePlan, demanderFicheH3ir } from "@/app/demandes/actions";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { cleDemande } from "@/lib/taches";
 
@@ -20,12 +20,15 @@ export function GenererFiche({
   className = "btn btn-gold btn-sm",
   avant,
   onErreur,
+  h3ir,
 }: {
   projectId: number;
   planUuid: string;
   demandeEnCours?: number | null;
   libelle?: string;
   className?: string;
+  /** Présent : la fiche est compilée par Open H3 IR (et remplace la fiche existante) avec ces réglages facultatifs, au lieu d'être écrite par `plan-h3`. */
+  h3ir?: { shots: number | null; director: string | null; creativity: string | null };
   /** Appelé avant le lancement (ex. enregistrer le scénario du plan) ; renvoie false pour renoncer. */
   avant?: () => Promise<boolean>;
   onErreur?: (message: string | null) => void;
@@ -70,7 +73,7 @@ export function GenererFiche({
     setEnvoi(true);
     try {
       if (avant && !(await avant())) return;
-      const r = await demanderFichePlan(projectId, planUuid);
+      const r = h3ir ? await demanderFicheH3ir(projectId, planUuid, h3ir) : await demanderFichePlan(projectId, planUuid);
       if (!r.ok) {
         signaler(r.erreur);
         return;
@@ -96,7 +99,11 @@ export function GenererFiche({
           void lancer();
         }}
         disabled={envoi || enCours}
-        title="L'agent écrit la fiche (prompt vidéo, références) en arrière-plan ; tu la relis ensuite dans la page du plan"
+        title={
+          h3ir
+            ? "Open H3 IR compile la fiche en arrière-plan (traduction de l'intent, une à deux minutes par essai) ; elle remplace la fiche actuelle, dont le prompt reste dans l'historique"
+            : "L'agent écrit la fiche (prompt vidéo, références) en arrière-plan ; tu la relis ensuite dans la page du plan"
+        }
       >
         {envoi ? "…" : enCours ? "Fiche en cours d'écriture…" : libelle}
       </button>

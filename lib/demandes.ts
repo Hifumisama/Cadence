@@ -202,6 +202,8 @@ export type ContexteFichePlan = {
   titre: string;
   planUuid: string;
   runUuid?: string;
+  /** `h3ir` : la fiche est compilée par Open H3 IR. Elle peut REMPLACER une fiche existante (le clic vaut confirmation ; l'ancien prompt reste dans l'historique). */
+  moteur?: "h3ir";
 };
 
 /** Ce que la proposition de l'agent permet de faire d'une fiche : elle doit écrire la fiche ; les assets manquants qu'elle cite sont créés avec (elle

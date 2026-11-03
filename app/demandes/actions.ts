@@ -47,6 +47,18 @@ export async function demanderFichePlan(projectId: number, planUuid: string): Pr
   return r;
 }
 
+/** « Générer la fiche avec Open H3 IR » : la fiche du plan est compilée par Open H3 IR (traduction de l'intent, compilation Python) et REMPLACE la fiche existante ;
+ * l'ancien prompt reste dans l'historique du prompt. `shots`, `director` (style de mise en scène) et `creativity` sont facultatifs : absents, ils sont résolus en base (plan > scène > projet, lib/h3ir/reglages.ts). */
+export async function demanderFicheH3ir(
+  projectId: number,
+  planUuid: string,
+  reglages: { shots?: number | null; director?: string | null; creativity?: string | null } = {},
+): Promise<{ ok: true; demandeId: number } | { ok: false; erreur: string }> {
+  const r = await lancerDemandeFichePlan(projectId, planUuid, { moteur: "h3ir", shots: reglages.shots ?? null, director: reglages.director ?? null, creativity: reglages.creativity ?? null });
+  revalidatePath("/", "layout");
+  return r;
+}
+
 /** « Écrire les fiches » (page Scénario) : une demande « Générer la fiche » par plan choisi, dans l'ordre donné (la file les écrit l'une après l'autre).
  * Un plan refusé (déjà une fiche, demande en cours) n'arrête pas les autres : ses raisons sont rendues avec le nombre de fiches lancées. */
 export async function demanderFichesPlans(projectId: number, planUuids: string[]): Promise<{ lancees: number; erreurs: string[] }> {

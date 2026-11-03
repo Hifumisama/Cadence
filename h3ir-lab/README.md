@@ -23,6 +23,14 @@ autrement ne pourrait pas l'appeler. Ctrl+C arrête les deux.
   par requête, le choisir relance donc `h3ir serve` avec l'autre modèle (quelques secondes ; llama-swap charge le modèle à la première compilation).
 - `H3IR_LAB_PORT` (8421), `H3IR_PORT` (8420), `H3IR_LLM_API_KEY` (inutile avec llama-swap).
 
+## Coller un brief de Cadence
+
+Sur la fiche d'un plan de Cadence, « Voir le brief Open H3 IR » (sous les références) affiche le brief que Cadence enverrait pour ce plan, avec ses
+avertissements ; « Copier le JSON » le met dans le presse-papiers. La carte « Coller un brief JSON » de cette page l'envoie tel quel à `POST /v1/briefs`
+(le formulaire est ignoré). Les images et les voix y sont désignées par **chemin absolu** : le service doit tourner sur la machine qui a les fichiers de
+Cadence. L'intent est en français ; pour comparer avec l'anglais, traduisez-le à la main dans le JSON avant de compiler (le paquet ne repère lumière,
+cadrage, palette, vêtements, action et interdits que sur des mots anglais). Le plan : `docs/PLAN_INTEGRATION_OPEN_H3_IR.md`, étape 1.
+
 ## Installation (déjà faite ici)
 
 ```powershell

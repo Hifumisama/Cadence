@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of traduction-intent: the English version of a plan description",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["intent"],
+  "properties": {
+    "intent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "(English) The whole input translated into English scene prose, same order and same paragraphs: narration, then the `Mood:` line. Nothing added, nothing dropped, no comment, no straight double quotes."
+    }
+  }
+}

@@ -137,13 +137,18 @@ export async function lancerDemandeAjoutScene(
 
 /** « Générer la fiche » d'un plan (pages Scénario et Plan) : UNE demande (l'agent `plan-h3` écrit la fiche → elle est enregistrée sans relecture, on la
  * relit dans la page du plan). Réservée aux plans sans fiche : réécrire une fiche existante passe par « Itérer ». */
-export async function lancerDemandeFichePlan(projectId: number, planUuid: string): Promise<Resultat<{ demandeId: number }>> {
+export async function lancerDemandeFichePlan(
+  projectId: number,
+  planUuid: string,
+  /** `moteur: "h3ir"` : la fiche est compilée par Open H3 IR (worker/h3ir.ts) et peut remplacer une fiche existante ; `shots` / `director` sont facultatifs. */
+  options: { moteur?: "h3ir"; shots?: number | null; director?: string | null; creativity?: string | null } = {},
+): Promise<Resultat<{ demandeId: number }>> {
   const [plan] = await db.select({ id: plans.id, titre: plans.titre, statut: plans.statut }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!plan) return ERR("Plan introuvable.");
-  if (plan.statut !== "brouillon") return ERR("Ce plan a déjà une fiche.");
+  if (plan.statut !== "brouillon" && options.moteur !== "h3ir") return ERR("Ce plan a déjà une fiche.");
   const ouverte = await ouvrirConversation(projectId, "plan", { uuid: planUuid }, "courte");
   if (!ouverte.ok) return ouverte;
-  const contexte: ContexteFichePlan = { titre: plan.titre, planUuid };
+  const contexte: ContexteFichePlan = { titre: plan.titre, planUuid, ...(options.moteur ? { moteur: options.moteur } : {}) };
   let demande: { id: number };
   try {
     const [d] = await db.insert(demandes).values({ projectId, type: "fiche-plan", cibleType: "plan", cibleId: plan.id, etapes: etapesFichePlan(), contexte }).returning({ id: demandes.id });
@@ -152,7 +157,11 @@ export async function lancerDemandeFichePlan(projectId: number, planUuid: string
     // L'index unique partiel : une demande est déjà en cours sur ce plan.
     return ERR("Une demande est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).");
   }
-  const g = await genererFiches(ouverte.conversationUuid, { planUuids: [planUuid], demandeId: demande.id });
+  const g = await genererFiches(ouverte.conversationUuid, {
+    planUuids: [planUuid],
+    demandeId: demande.id,
+    ...(options.moteur ? { moteur: options.moteur, reglagesH3ir: { shots: options.shots ?? null, director: options.director ?? null, creativity: options.creativity ?? null } } : {}),
+  });
   if (!g.ok) {
     await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
     return g;
@@ -383,7 +392,8 @@ async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
         await ecrire(d, { statut: "echoue", erreur: coche.erreur });
         return true;
       }
-      const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: false });
+      // Open H3 IR remplace la fiche existante sans redemander : le clic de l'utilisateur vaut confirmation, et l'ancien prompt est gardé dans l'historique.
+      const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: ctx.moteur === "h3ir" });
       if (!a.ok) {
         await ecrire(d, { statut: "echoue", erreur: a.erreur });
         return true;

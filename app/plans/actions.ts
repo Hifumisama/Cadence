@@ -13,6 +13,7 @@ import { rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { estLiaison } from "@/lib/plan-liaison";
+import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
 import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
 import { emplacementLibre } from "@/lib/references";
 import type { RefLabel } from "@/lib/plan-checks";
@@ -348,6 +349,9 @@ type ValeursScenario = {
   dureeMontageSecondes: number;
   /** Liaison avec le plan précédent (lib/plan-liaison.ts) ; une valeur inconnue n'écrit rien. */
   liaison?: string;
+  /** Open H3 IR (lib/h3ir/reglages.ts) : absents = on n'y touche pas ; `null` ou vide = le plan hérite de sa scène, puis du projet ; style « aucun » = pas de style. */
+  creativite?: string | null;
+  styleCamera?: string | null;
 };
 
 /** Édition des champs scénario — reste ouverte même après développement en
@@ -361,6 +365,8 @@ export async function updatePlanScenario(planId: number, valeurs: ValeursScenari
       description: valeurs.description || null,
       dureeMontageSecondes: valeurs.dureeMontageSecondes,
       ...(estLiaison(valeurs.liaison) ? { liaison: valeurs.liaison } : {}),
+      ...(valeurs.creativite !== undefined ? { creativite: creativiteOuNull(valeurs.creativite) } : {}),
+      ...(valeurs.styleCamera !== undefined ? { styleCamera: styleCameraOuNull(valeurs.styleCamera) } : {}),
       updatedAt: new Date(),
     })
     .where(eq(plans.id, planId));
@@ -618,4 +624,14 @@ export async function lancerUpscaleEpisode(episodeId: number, planUuids?: string
   }
   revalidatePath("/", "layout");
   return res;
+}
+
+/** Le brief Open H3 IR d'un plan (étape 1 du chantier, docs/PLAN_INTEGRATION_OPEN_H3_IR.md) : ce qu'on enverrait à `POST /v1/briefs`, rien n'est
+ * lancé ni enregistré. `shots`, `director` (style de mise en scène) et `creativity` sont facultatifs : absents (ou `null`), ils sont résolus en base, plan > scène > projet
+ * (lib/h3ir/reglages.ts) ; les `reglages` rendus disent ce qui a été retenu et d'où cela vient. */
+export async function voirBriefH3ir(projectId: number, planUuid: string, options: { shots?: number | null; director?: string | null; creativity?: string | null }) {
+  const { chargerBriefPlan } = await import("@/lib/h3ir/brief-plan");
+  const r = await chargerBriefPlan(projectId, planUuid, options);
+  if (!r) return { brief: null, refus: "Plan introuvable.", avertissements: [] as string[], reglages: null };
+  return { brief: r.brief, refus: r.refus, avertissements: r.avertissements, reglages: r.reglages };
 }

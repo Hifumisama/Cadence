@@ -3,7 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { demandes, planPromptVersions } from "@/db/schema";
 import { getPlansPerimes } from "@/lib/plans-perimes";
-import { getAssetsRegistre, getPlanDetail, getScenesEpisode, type AssetRegistre } from "@/lib/queries";
+import { getAssetsRegistre, getPlanDetail, getProject, getScenesEpisode, type AssetRegistre } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
@@ -23,6 +23,8 @@ import { PlateauEssais, type EssaiCarte } from "@/components/plan/PlateauEssais"
 import { IntentionPlan } from "@/components/plan/IntentionPlan";
 import { CartePrompt } from "@/components/plan/CartePrompt";
 import { TiroirPlan } from "@/components/plan/TiroirPlan";
+import { BriefH3irBloc } from "@/components/plan/BriefH3irBloc";
+import { resoudreReglages } from "@/lib/h3ir/reglages";
 import { srcRendu } from "@/components/plan/Vignette";
 import { assemblerPrompt } from "@/lib/prompt";
 import { liaisonOuDefaut } from "@/lib/plan-liaison";
@@ -71,12 +73,13 @@ export default async function PlanPage({
 
   const { plan, position, promptSections, refs, jobHistory } = detail;
 
-  const [parametresGlobaux, assetsRegistre, scenesEpisode, audioRefs, pellicule] = await Promise.all([
+  const [parametresGlobaux, assetsRegistre, scenesEpisode, audioRefs, pellicule, projet] = await Promise.all([
     getAllParams(),
     getAssetsRegistre(pid),
     getScenesEpisode(eid),
     getVoixDuPlan(plan.id),
     getPelliculePlans(eid),
+    getProject(pid),
   ]);
 
   // « Générer la fiche » déjà lancée sur ce plan : le bouton la suit au lieu de proposer d'en lancer une autre.
@@ -135,6 +138,8 @@ export default async function PlanPage({
     description: plan.description ?? "",
     dureeMontageSecondes: plan.dureeMontageSecondes,
     liaison: liaisonOuDefaut(plan.liaison),
+    creativite: plan.creativite ?? "",
+    styleCamera: plan.styleCamera ?? "",
   };
 
   const assetsPicker = assetsRegistre.map(versNoeudPicker);
@@ -154,6 +159,10 @@ export default async function PlanPage({
   }));
 
   const scene = scenesEpisode.find((sc) => sc.id === plan.sceneId);
+  // Créativité et style de mise en scène d'Open H3 IR : ceux du plan, sinon de sa scène, sinon du projet (lib/h3ir/reglages.ts).
+  const reglagesProjet = { creativite: projet?.creativite ?? null, styleCamera: projet?.styleCamera ?? null };
+  const reglagesScene = scene ? { creativite: scene.creativite, styleCamera: scene.styleCamera } : null;
+  const reglagesResolus = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene, plan });
   // Un plan est un brouillon tant qu'il n'a ni fiche écrite ni essai : un statut resté « brouillon » sur un plan qui a déjà un prompt ou des rendus ne les cache pas.
   const estBrouillon = plan.statut === "brouillon" && !aUneFiche && jobHistory.length === 0;
   const plansHref = `/p/${pid}/e/${eid}/plans`;
@@ -313,7 +322,7 @@ export default async function PlanPage({
         <div className="tm-brouillon">
           {titre}
           <p className="tiny-note">Cette fiche n&rsquo;est pas encore développée : complète le scénario du plan, puis développe-le : l&rsquo;agent écrit la fiche (prompt vidéo, références) en arrière-plan.</p>
-          <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon initial={scenarioInitial} demandeEnCours={ficheEnCours?.id ?? null} />
+          <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon initial={scenarioInitial} demandeEnCours={ficheEnCours?.id ?? null} reglagesProjet={reglagesProjet} reglagesScene={reglagesScene} />
         </div>
       ) : (
         <BrouillonProvider planId={plan.id} serveur={serveur} prochainRendu={jobHistory.reduce((m, j) => Math.max(m, j.numeroRendu), 0) + 1}>
@@ -328,6 +337,8 @@ export default async function PlanPage({
                 initial={scenarioInitial}
                 dureeGeneration={plan.dureeGenerationSecondes}
                 musique={plan.timecodeMusique}
+                reglagesProjet={reglagesProjet}
+                reglagesScene={reglagesScene}
               />
               <TiroirPlan
                 panneaux={{
@@ -336,6 +347,7 @@ export default async function PlanPage({
                       planId={plan.id}
                       promptComplet={promptCourant}
                       historique={historiquePrompt}
+                      peutLancer={etat !== "pret" && !enFile}
                       essai={
                         principal && principalJob
                           ? {
@@ -349,6 +361,7 @@ export default async function PlanPage({
                       }
                     />
                   ),
+                  brief: <BriefH3irBloc projectId={pid} planUuid={plan.uuid} demandeEnCours={ficheEnCours?.id ?? null} reglagesInitiaux={reglagesResolus} />,
                 }}
               />
               <div className="tm-poste">

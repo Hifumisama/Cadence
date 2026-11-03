@@ -92,6 +92,13 @@ details { margin-top:10px; } summary { cursor:pointer; color:var(--muted); }
     <div class="muted" style="margin-top:6px">Chaque fichier est envoyé au service (empreinte SHA-256), pas de chemin à fournir. Pour un audio : décrivez le timbre dans la note, sinon la référence ne sert à rien (le service n'invente jamais de timbre).</div>
   </section>
 
+  <section class="carte">
+    <h2>Coller un brief JSON</h2>
+    <textarea id="coller" rows="6" spellcheck="false" placeholder='Le JSON copié depuis Cadence (fiche d&#39;un plan, « Voir le brief Open H3 IR »). Envoyé tel quel à POST /v1/briefs : le formulaire ci-dessus est ignoré.'></textarea>
+    <div class="ligne" style="margin-top:6px"><button class="principal" id="coller-ok" type="button" style="flex:0 0 auto">Compiler ce brief</button></div>
+    <div class="muted" style="margin-top:6px">Les images et les voix y sont désignées par chemin : il faut que le service tourne sur la même machine que les fichiers de Cadence (<code>H3IR_ALLOW_ASSET_PATHS</code> est actif par défaut).</div>
+  </section>
+
   <div class="ligne"><button class="principal" id="compiler" type="button">Compiler</button><button type="button" id="voir-requete">Voir la requête</button></div>
 </div>
 
@@ -302,6 +309,13 @@ async function compiler(reponse) {
   catch (e) { montrerErreur(e); } finally { $("compiler").disabled = false; $("compiler").textContent = "Compiler"; }
 }
 $("compiler").onclick = () => compiler(null);
+$("coller-ok").onclick = async () => {
+  let brief;
+  try { brief = JSON.parse($("coller").value); } catch (e) { montrerErreur({ message: "JSON invalide : " + e.message, detail: null }); return; }
+  $("coller-ok").disabled = true; $("coller-ok").textContent = "Compilation…";
+  try { derniereRequete = brief; montrer(await appel("POST", "/v1/briefs", brief)); }
+  catch (e) { montrerErreur(e); } finally { $("coller-ok").disabled = false; $("coller-ok").textContent = "Compiler ce brief"; }
+};
 $("voir-requete").onclick = async () => { try { alert(JSON.stringify(await construireRequete(null), null, 2)); } catch (e) { montrerErreur(e); } };
 $("affiner").onclick = async () => {
   if (!dernier?.id || !$("changement").value.trim()) return;

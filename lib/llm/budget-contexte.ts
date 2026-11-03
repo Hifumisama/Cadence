@@ -15,7 +15,11 @@ const SORTIE_ATTENDUE: Record<string, number> = {
   "inventaire-assets": 4000,
   "prompt-asset": 800,
   "iteration-plan": 2000,
+  "plan-h3ir": 1500, // la traduction de l'intent ; le compilateur, lui, est compté à part (JETONS_COMPILATEUR_H3IR)
 };
+/** Open H3 IR (`plan-h3ir`) : le compilateur Python fait ses propres appels au serveur (analyse des images, plan des plans, prose), que le skill de traduction ne
+ * compte pas. Estimation à affiner sur les traces ; ajoutée à celle de la traduction pour réserver la place d'une tâche entière. */
+export const JETONS_COMPILATEUR_H3IR = 12_000;
 const SORTIE_PAR_DEFAUT = 2000;
 
 /** Jetons qu'un appel occupera dans le contexte : le skill (instructions, exemples), l'entrée, la sortie attendue. */

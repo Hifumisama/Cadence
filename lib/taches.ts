@@ -18,6 +18,8 @@ export const LIBELLE_SKILL: Record<string, string> = {
   "prompt-asset": "Prompt d'asset",
   "prompt-affiche": "Prompt d'affiche",
   "plan-h3": "Fiche de plan",
+  "plan-h3ir": "Fiche de plan (Open H3 IR)",
+  "traduction-intent": "Traduction de l'intent",
   "iteration-plan": "Correction après visionnage",
   scenarios: "Scénarios des épisodes",
   registre: "Registre d'assets",

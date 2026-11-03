@@ -338,3 +338,10 @@ test("premierShotLisible : le premier shot seul, sans préambule d'ouverture ni 
   assert.equal(premierShotLisible("[Shot 1] only one shot here.", {}), "only one shot here.");
   assert.equal(premierShotLisible("rien", {}), null);
 });
+
+test("dernierShotLisible : la coupe d'ouverture d'Open H3 IR (« the shot cuts to », « the camera transitions to ») est retirée comme « Hard cut to »", async () => {
+  const { dernierShotLisible } = await import("./contexte");
+  assert.equal(dernierShotLisible("[Shot 1] A wide. [Shot 2] At 00:04.000, the shot cuts to a close-up of <Subject 1> by the fire.", { 1: "CHAR_mai" }), "a close-up of CHAR_mai by the fire.");
+  assert.equal(dernierShotLisible("[Shot 1] A. [Shot 2] At 00:03.500, The camera transitions to a low angle of <Subject 1>.", { 1: "CHAR_mai" }), "a low angle of CHAR_mai.");
+  assert.equal(dernierShotLisible("[Shot 1] A. [Shot 2] At 00:03.500, <Subject 1> strides forward.", { 1: "CHAR_mai" }), "CHAR_mai strides forward.", "un shot sans phrase de coupe reste intact");
+});
