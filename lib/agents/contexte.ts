@@ -227,7 +227,8 @@ export function dernierShotLisible(detailed: string, codes: Record<number, strin
   const dernier = reperes[reperes.length - 1]!;
   const corps = detailed
     .slice((dernier.index ?? 0) + dernier[0].length)
-    .replace(/^\s*At\s+\d{1,2}:\d{2}(?:\.\d{1,3})?\s*,?\s*(?:Hard cut to\s*)?/i, "")
+    // La coupe d'ouverture du shot : « Hard cut to » (plan-h3) ou « the shot cuts to », « the camera transitions to »… (Open H3 IR, h3ir/prompts/base-en.txt §4.2).
+    .replace(/^\s*At\s+\d{1,2}:\d{2}(?:\.\d{1,3})?\s*,?\s*(?:Hard cut to\s*|the\s+(?:shot|camera)\s+(?:cuts|transitions|changes|switches)\s+to\s*)?/i, "")
     .replace(/<\s*(?:Subject|Picture)\s*(\d+)\s*>/g, (_m, n: string) => codes[Number(n)] ?? "the subject")
     .replace(/\s+/g, " ")
     .trim();

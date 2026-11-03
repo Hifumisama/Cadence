@@ -100,3 +100,43 @@ test("extraireLabels : labels cités, dans l'ordre, sans doublon", () => {
   ]);
   assert.deepEqual(extraireLabels("aucun label"), []);
 });
+
+// --- Fiches d'Open H3 IR : durée effective (grille d'images) et plancher de 1,2 s --------------------------------------
+
+const types = (contenu: string, duree: number) => controlerStructure(desc(contenu), duree).map((x) => x.type);
+
+test("structure : un shot de 1,3 s est accepté (plancher des fiches : 1,2 s, celui du paquet)", () => {
+  assert.deepEqual(types("[Shot 1] A. [Shot 2] At 00:01.300, the shot cuts to B. [Shot 3] At 00:05.000, the shot cuts to C.", 8), []);
+  // Sous 1,2 s, toujours signalé.
+  assert.ok(types("[Shot 1] A. [Shot 2] At 00:01.100, the shot cuts to B.", 8).includes("shot_trop_court"));
+});
+
+test("structure : le dernier shot se juge contre la durée effective (6 s → 6,583 s), pas la nominale", () => {
+  // 6,583 − 5,383 = 1,2 s : légal pour le paquet. Contre la nominale (6 − 5,383 = 0,62 s) il alertait à tort.
+  assert.deepEqual(types("[Shot 1] A. [Shot 2] At 00:05.383, the shot cuts to B.", 6), []);
+  // 6,583 − 5,6 = 0,98 s : vraiment trop court.
+  assert.ok(types("[Shot 1] A. [Shot 2] At 00:05.600, the shot cuts to B.", 6).includes("shot_trop_court"));
+  // 5 s → 5,167 s : un dernier shot à 3,9 s dure 1,27 s.
+  assert.deepEqual(types("[Shot 1] A. [Shot 2] At 00:03.900, the shot cuts to B.", 5), []);
+  // 8 s reste 8,000 s : pas de changement.
+  assert.ok(types("[Shot 1] A. [Shot 2] At 00:07.000, the shot cuts to B.", 8).includes("shot_trop_court"));
+  assert.deepEqual(types("[Shot 1] A. [Shot 2] At 00:06.800, the shot cuts to B.", 8), []);
+});
+
+test("structure : « hors durée » se mesure aussi à la durée effective", () => {
+  // 10 s → 10,125 s : un shot à 10,1 s démarre dans le plan (mais trop près de la fin).
+  const dedans = types("[Shot 1] A. [Shot 2] At 00:05.000, the shot cuts to B. [Shot 3] At 00:10.100, the shot cuts to C.", 10);
+  assert.ok(!dedans.includes("shot_hors_duree"));
+  assert.ok(dedans.includes("shot_trop_court"));
+  assert.ok(types("[Shot 1] A. [Shot 2] At 00:10.200, the shot cuts to B.", 10).includes("shot_hors_duree"));
+});
+
+test("structure : le format d'Open H3 IR (« [Shot 1] » sans timecode, puis « [Shot N] At MM:SS.mmm, the shot cuts to ») passe sans signalement", () => {
+  const prompt = [
+    "Cinematic live action, wet night street, blue neon.",
+    "[Shot 1] The scene opens on a wide view of <Picture 1> on a motorcycle. The camera is Static.",
+    "[Shot 2] At 00:02.500, the shot cuts to a close-up of <Picture 1> (S1). The camera is Handheld.",
+    "[Shot 3] At 00:05.292, the camera cuts to a low angle of <Picture 3>.",
+  ].join("\n");
+  assert.deepEqual(types(prompt, 8), []);
+});

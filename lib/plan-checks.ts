@@ -2,6 +2,8 @@
 // et agents/skills/plan-h3/SKILL.md. Aucun n'a besoin d'IA : c'est la
 // vérification qui remplace la relecture manuelle avant validation.
 
+import { dureeEffectiveSecondes } from "./grille-images";
+
 export type PromptSection = {
   section: string;
   contenu: string;
@@ -108,8 +110,11 @@ export function extraireLabels(texte: string): string[] {
 // données comme le verbatim.
 // ---------------------------------------------------------------------
 
-/** Plancher par shot : en dessous, H3 rallonge ou lisse le plan. */
+/** Plancher par shot que `plan-h3` s'impose à son propre brouillon (lib/agents/plan-h3-controles.ts) : en dessous, H3 rallonge ou lisse le plan. */
 export const SHOT_MIN_SECONDES = 1.5;
+/** Plancher par shot des CONTRÔLES DE LA FICHE (`controlerStructure`, en-tête de la page du plan), pour toutes les fiches : celui du modèle et d'Open H3 IR
+ * (`MIN_SHOT_MS` = 1200, h3ir/shots.py:42). Une fiche d'Open H3 IR peut avoir un shot de 1,2 à 1,5 s sans que ce soit une faute (décision du 2026-11-02). */
+export const SHOT_MIN_FICHE_SECONDES = 1.2;
 export const DUREE_GENERATION_MIN = 5;
 /** Plafond dur d'un plan (décision du 2026-10-27) : un plan de 10 s à 0,4 MP tient sur la carte et donne des gestes plus précis qu'un plan de 15 s
  * à 0,2 MP ; au-delà, l'action se coupe. Source unique : les skills et leurs schémas disent « 10 » en toutes lettres (texte statique, à garder alignés). */
@@ -156,22 +161,25 @@ function formaterTimecode(s: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${(s % 60).toFixed(3).padStart(6, "0")}`;
 }
 
+/** Contrôles de structure de la fiche. `dureeGenerationSecondes` est la durée NOMINALE du plan (entier de 5 à 10) ; les shots se jugent contre la durée EFFECTIVE du rendu,
+ * celle de la grille d'images (lib/grille-images.ts : 6 s → 6,583 s, 8 s → 8,000 s), que le rendu produit et qu'Open H3 IR utilise pour placer ses coupes. */
 export function controlerStructure(
   sections: PromptSection[],
   dureeGenerationSecondes: number,
 ): ProblemeStructure[] {
   const problemes: ProblemeStructure[] = [];
 
-  if (
-    !Number.isInteger(dureeGenerationSecondes) ||
-    dureeGenerationSecondes < DUREE_GENERATION_MIN ||
-    dureeGenerationSecondes > DUREE_GENERATION_MAX
-  ) {
+  const dureeValide =
+    Number.isInteger(dureeGenerationSecondes) && dureeGenerationSecondes >= DUREE_GENERATION_MIN && dureeGenerationSecondes <= DUREE_GENERATION_MAX;
+  if (!dureeValide) {
     problemes.push({
       type: "duree_invalide",
       message: `La durée de génération doit être un entier de ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s (actuellement ${dureeGenerationSecondes}).`,
     });
   }
+  // Une durée invalide n'a pas de grille : on juge alors contre la valeur donnée.
+  const fin = dureeValide ? dureeEffectiveSecondes(dureeGenerationSecondes) : dureeGenerationSecondes;
+  const plancher = SHOT_MIN_FICHE_SECONDES - 1e-9;
 
   const contenu = sections.find((s) => s.section === "detailed_description")?.contenu ?? "";
   if (!contenu.trim()) return problemes;
@@ -204,24 +212,24 @@ export function controlerStructure(
       problemes.push({ type: "shot_hors_ordre", message: `[Shot ${s.numero}] démarre à ${formaterTimecode(s.timecode)}, pas après le shot précédent.` });
       continue;
     }
-    if (s.timecode >= dureeGenerationSecondes) {
-      problemes.push({ type: "shot_hors_duree", message: `[Shot ${s.numero}] démarre à ${formaterTimecode(s.timecode)}, au-delà des ${dureeGenerationSecondes} s du plan.` });
+    if (s.timecode >= fin) {
+      problemes.push({ type: "shot_hors_duree", message: `[Shot ${s.numero}] démarre à ${formaterTimecode(s.timecode)}, au-delà des ${fin.toFixed(3)} s du plan.` });
       continue;
     }
-    if (s.timecode - precedent < SHOT_MIN_SECONDES) {
+    if (s.timecode - precedent < plancher) {
       problemes.push({
         type: "shot_trop_court",
-        message: `Le shot précédent [Shot ${s.numero - 1}] ne dure que ${(s.timecode - precedent).toFixed(2)} s : sous ${SHOT_MIN_SECONDES} s, H3 rallonge ou lisse le plan.`,
+        message: `Le shot précédent [Shot ${s.numero - 1}] ne dure que ${(s.timecode - precedent).toFixed(2)} s : sous ${SHOT_MIN_FICHE_SECONDES} s, H3 rallonge ou lisse le plan.`,
       });
     }
     debuts.push(s.timecode);
   }
 
   const dernier = debuts[debuts.length - 1]!;
-  if (debuts.length > 1 && dureeGenerationSecondes - dernier < SHOT_MIN_SECONDES && dernier < dureeGenerationSecondes) {
+  if (debuts.length > 1 && fin - dernier < plancher && dernier < fin) {
     problemes.push({
       type: "shot_trop_court",
-      message: `Le dernier shot ne dure que ${(dureeGenerationSecondes - dernier).toFixed(2)} s : sous ${SHOT_MIN_SECONDES} s, H3 rallonge ou lisse le plan.`,
+      message: `Le dernier shot ne dure que ${(fin - dernier).toFixed(2)} s : sous ${SHOT_MIN_FICHE_SECONDES} s, H3 rallonge ou lisse le plan.`,
     });
   }
 

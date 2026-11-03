@@ -2,6 +2,7 @@ import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
 import { controlerStructure, extraireBalisesD, type PromptSection } from "../plan-checks";
 import type { ChangementBrut } from "./changements";
 import { MAX_REFS } from "../plan-checks";
+import { dureeEffectiveSecondes } from "../grille-images";
 import { ajouterReference, compacterImages, nomDepuisCode, retirerReference } from "../references";
 import { SECTIONS_FICHE, estSectionFiche, type ApresFiche, type PassageFiche, type RefFiche, type SectionsFiche } from "./fiches";
 import type { Avertissement, DiagnosticIteration } from "./types";
@@ -147,8 +148,13 @@ export function motsNonTraduits(sections: Record<string, string>, consignes: str
   return [...trouves].sort();
 }
 
+/** La durée réelle du fichier correspond à la durée voulue : à la nominale, OU à la durée EFFECTIVE de la grille d'images (lib/grille-images.ts : 6 s → 6,583 s, 10 s →
+ * 10,125 s). Sans cela, un plan de 6 s correctement rendu (écart de 0,58 s à la nominale) ferait refuser toute correction. */
 export function dureesCoherentes(voulueSecondes: number, reelleSecondes: number): boolean {
-  return Math.abs(reelleSecondes - voulueSecondes) <= TOLERANCE_DUREE_SECONDES;
+  return (
+    Math.abs(reelleSecondes - voulueSecondes) <= TOLERANCE_DUREE_SECONDES ||
+    Math.abs(reelleSecondes - dureeEffectiveSecondes(voulueSecondes)) <= TOLERANCE_DUREE_SECONDES
+  );
 }
 
 /** Les labels qu'un passage corrigé a le droit de citer : `Picture:1`, `Audio:2` (plan_refs, voix comprises), `Subject:3`

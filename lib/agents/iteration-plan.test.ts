@@ -514,3 +514,16 @@ test("durée demandée par la consigne : écrite avec la fiche, une demande seul
   }
   assert.equal(lireApresFiche(depuisIterationPlan(sortie({ dureeSecondes: 6 }), plan())[0]!.apres).dureeGenerationSecondes, undefined, "la même durée ne change rien");
 });
+
+test("durée : un rendu de 6 s dure 6,583 s sur la grille d'images, ce qui reste cohérent (sinon toute correction serait refusée)", async () => {
+  const { dureesCoherentes } = await import("./iteration-plan");
+  assert.equal(dureesCoherentes(6, 6.583), true, "durée effective de 6 s");
+  assert.equal(dureesCoherentes(6, 6.04), true, "proche de la nominale");
+  assert.equal(dureesCoherentes(8, 8), true);
+  assert.equal(dureesCoherentes(10, 10.125), true);
+  assert.equal(dureesCoherentes(5, 5.167), true);
+  assert.equal(dureesCoherentes(6, 7.4), false, "ni l'une ni l'autre");
+  assert.equal(dureesCoherentes(6, 3.02), false);
+  const rendu6s = plan({ dureeReelleSecondes: 6.583 });
+  assert.equal(raisonSansEcriture(sortie(), rendu6s), null);
+});
