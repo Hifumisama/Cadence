@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { GENRES, SANS_DIALOGUE, validerConception } from "./conception";
 import {
   DERNIERE_ETAPE,
+  ETAPES_ASSISTANT,
+  ETAPES_CONCEPTION,
   ajusterTon,
   basculerGenre,
   etapeMax,
@@ -105,4 +107,49 @@ test("sauvegarde en session : aller-retour, et toute valeur inattendue retombe s
   assert.deepEqual([abime.duree, abime.rythme, abime.langue, abime.style], [120, "mesure", "Français", null]);
   assert.deepEqual(abime.genres, ["Drame", "Action"], "genres inconnus retirés, deux au maximum");
   assert.equal(abime.ton, 68, "ton non ajusté : recalculé depuis les genres");
+});
+
+// --- Étape « Mise en scène » (créativité et style de mise en scène d'Open H3 IR, étape 6 de /nouveau) ---------------------------
+
+test("mise en scène : sixième étape, départ coché (équilibrée, aucun style), toujours franchissable", () => {
+  assert.equal(DERNIERE_ETAPE, 5);
+  assert.equal(ETAPES_ASSISTANT[5], "Mise en scène");
+  assert.equal(ETAPES_CONCEPTION.length, 9);
+  const e = etatInitial();
+  assert.deepEqual([e.creativite, e.styleCamera], ["balanced", "aucun"]);
+  assert.equal(etapeValide(5, e, tout), true, "rien à remplir : on peut continuer sans toucher à rien");
+  // etapeMax atteint l'étape de mise en scène dès que genre et style sont posés.
+  const pret: EtatAssistant = { ...basculerGenre(etatInitial(), "Drame"), style: { source: "bibliotheque", styleId: "x" } };
+  assert.equal(etapeMax(pret, tout), 5);
+});
+
+test("mise en scène : résumé du ruban (créativité · style) et charge utile", () => {
+  const nom = () => null;
+  assert.equal(resumeEtape(5, etatInitial(), nom), "Équilibrée · aucun style");
+  assert.equal(resumeEtape(5, { ...etatInitial(), creativite: "bold", styleCamera: "villeneuve" }, nom), "Audacieuse · Immense et silencieux");
+  const charge = versCharge({ ...etatInitial(), creativite: "extreme", styleCamera: "wong" });
+  assert.equal(charge.creativite, "extreme");
+  assert.equal(charge.styleCamera, "wong");
+  // La validation du serveur ignore ces clés : elle reste stricte sur la conception, qui ne les porte pas.
+  const base: EtatAssistant = { ...basculerGenre(etatInitial(), "Drame"), style: { source: "bibliotheque", styleId: "gouache" }, creativite: "bold", styleCamera: "wong" };
+  assert.ok(validerConception(versCharge(base), [{ id: "gouache" }]).ok);
+});
+
+test("mise en scène : une session plus ancienne (sans ces champs) ou abîmée retombe sur le départ ; un aller-retour garde le choix", () => {
+  const ancien = lireEtatSauvegarde(JSON.stringify({ genres: ["Drame"], duree: 120, rythme: "mesure", langue: "Français", style: null }))!;
+  assert.deepEqual([ancien.creativite, ancien.styleCamera], ["balanced", "aucun"]);
+  const abime = lireEtatSauvegarde(JSON.stringify({ genres: [], creativite: "folle", styleCamera: "kubrick" }))!;
+  assert.deepEqual([abime.creativite, abime.styleCamera], ["balanced", "aucun"]);
+  const choisi: EtatAssistant = { ...etatInitial(), creativite: "restrained", styleCamera: "anderson" };
+  assert.deepEqual(lireEtatSauvegarde(JSON.stringify(choisi)), choisi);
+});
+
+test("reglagesDepuisCharge : valeurs validées, repli sur le départ (jamais null), « aucun » accepté", async () => {
+  const { reglagesDepuisCharge } = await import("./h3ir/reglages");
+  assert.deepEqual(reglagesDepuisCharge({ creativite: "bold", styleCamera: "tarantino" }), { creativite: "bold", styleCamera: "tarantino" });
+  assert.deepEqual(reglagesDepuisCharge({ creativite: "bold", styleCamera: "aucun" }), { creativite: "bold", styleCamera: "aucun" });
+  assert.deepEqual(reglagesDepuisCharge({ creativite: "folle", styleCamera: "kubrick" }), { creativite: "balanced", styleCamera: "aucun" });
+  assert.deepEqual(reglagesDepuisCharge({}), { creativite: "balanced", styleCamera: "aucun" });
+  assert.deepEqual(reglagesDepuisCharge(null), { creativite: "balanced", styleCamera: "aucun" });
+  assert.deepEqual(reglagesDepuisCharge("texte"), { creativite: "balanced", styleCamera: "aucun" });
 });

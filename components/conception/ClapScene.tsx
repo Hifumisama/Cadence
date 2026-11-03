@@ -78,11 +78,14 @@ export function ClapScene({
   affiche,
   reessayer,
   apresTitre,
+  miseEnScene,
 }: {
   projectId: number;
   nomProjet: string;
   conception: Conception;
   style: StyleAffiche;
+  /** La mise en scène du projet en quelques mots (lib/h3ir/reglages.ts, `resumeMiseEnScene`), affichée sur la planche ; elle reste modifiable dans le Brief. */
+  miseEnScene?: string;
   notes: NoteAffichee[];
   /** L'entretien a de quoi lancer la préparation (le scénariste a l'essentiel, ou l'utilisateur a parlé). */
   pret: boolean;
@@ -142,7 +145,7 @@ export function ClapScene({
 
   return (
     <>
-      <EnteteScene acte="Acte 07" titre={<>Clap, on <em>tourne</em>.</>} sous="Tout ce que nous avons récolté, sur une seule planche. Relis, donne un titre, et on lance la préparation." />
+      <EnteteScene acte="Acte 08" titre={<>Clap, on <em>tourne</em>.</>} sous="Tout ce que nous avons récolté, sur une seule planche. Relis, donne un titre, et on lance la préparation." />
       <div className="cn-clap-layout">
         <AfficheProjet conception={conception} style={style} titre={titre} affiche={affiche} reessayer={reessayer} />
         <div style={{ minWidth: 0 }}>
@@ -159,6 +162,7 @@ export function ClapScene({
               <Cellule cle="Durée" valeur={minutesSecondes(conception.dureeSecondes)} defaut={defauts.duree} />
               <Cellule cle="Rythme" valeur={`${conception.rythme} · ≈ ${plans.moyen} plans`} defaut={defauts.duree} />
               <Cellule cle="Dialogues" valeur={conception.langue} defaut={defauts.langue} />
+              {miseEnScene ? <Cellule cle="Mise en scène" valeur={miseEnScene} /> : null}
               <Cellule cle="L’arc" valeur={note("arc")} large />
               <Cellule cle="La fin" valeur={note("fin")} large />
               <Cellule cle="Le héros et les personnages" valeur={note("personnages")} large />

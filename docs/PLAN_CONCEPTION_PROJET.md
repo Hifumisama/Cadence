@@ -7,13 +7,13 @@ vérifié est marqué **à vérifier**.
 > **État au 2026-10-08 : phases 0 à 6 faites.** Écarts avec ce qui suit, décidés depuis (détail dans `docs/FRICTIONS.md`, 2026-10-08) :
 > la bibliothèque est passée de 245 à **55 styles**, en **6 familles** ; les images de présentation ne sont plus 1 par style mais **6 scènes
 > communes** (`lib/styles/sujets.ts`, `styles/<style>/<sujet>.webp`) ; l'accroche (D11) est **écrite par le modèle** (skill
-> `accroche-scenariste`), pas en code, une seule fois, sans « une autre accroche » ; la **pellicule des 8 étapes** est visible dès `/nouveau`,
+> `accroche-scenariste`), pas en code, une seule fois, sans « une autre accroche » ; la **pellicule des 9 étapes** est visible dès `/nouveau`,
 > avec une barre d'action sous le ruban à la place du pied de page ; les **séries sont désactivées** à l'écran (`SERIES_DISPONIBLES`).
 > Les champs `promptApercu` / `varianteApercu` n'existent plus.
 
 ## 1. Ce qu'on construit
 
-Une page de création de projet en 8 scènes, avant et autour de l'entretien :
+Une page de création de projet en 9 scènes, avant et autour de l'entretien (la scène 6, « Mise en scène », a été ajoutée le 2026-11-02 ; les suivantes ont été décalées d'un cran) :
 
 | # | Scène | Contenu | Où ça va |
 |---|---|---|---|
@@ -22,9 +22,10 @@ Une page de création de projet en 8 scènes, avant et autour de l'entretien :
 | 3 | Durée et rythme | Durée par épisode, rythme, estimation du nombre de plans | `brief.dureeEpisodeSecondes`, `brief.rythme` |
 | 4 | Langue | Les 10 langues de H3 + « Sans dialogue », français par défaut | `brief.langueDialogues` |
 | 5 | Style | Bibliothèque filtrable (galerie / liste) ou style libre : prompt image + clause courte + image 2:3 facultative | `brief.style` |
-| 6 | Scénario | Entretien avec « le scénariste » (accroche variable selon ton et genre), fiche de notes dépliable | `agent_conversations` |
-| 7 | Clap | Récapitulatif complet, titre, affiche-aperçu | `projects.nom` |
-| 8 | Avancée | Progression de la préparation | installateur existant (`creations_projet`) |
+| 6 | Mise en scène | Créativité (4 niveaux, « Équilibrée » cochée) et style de mise en scène d'Open H3 IR (« Aucun style » coché, ou l'un des 7 profils, résumé en quelques mots puis nommé par son réalisateur). Pour se projeter : chaque choix a un « ? » qui ouvre une **carte de mise en scène** (tiroir avec un rendu vidéo réel de la même scène, ce que ça change, les films à connaître, quand le choisir ; `CarteMiseEnScene.tsx`, vidéos de `data/mises-en-scene/`, voir `npm run mises-en-scene`) et un court rappel sous chaque bloc (pastilles de ce que la créativité ajoute, films ; `lib/h3ir/exemples.ts`). Pas dit au scénariste, pas figé : modifiable ensuite dans le Brief, sur une scène ou sur un plan | `projects.creativite`, `projects.style_camera` (explicites ; pas dans `conceptions.contenu`) |
+| 7 | Scénario | Entretien avec « le scénariste » (accroche variable selon ton et genre), fiche de notes dépliable | `agent_conversations` |
+| 8 | Clap | Récapitulatif complet (avec la mise en scène), titre, affiche-aperçu | `projects.nom` |
+| 9 | Avancée | Progression de la préparation | installateur existant (`creations_projet`) |
 
 Principe : tout ce qui est quasi déterministe se choisit avant, l'agent ne parle plus que de ce qui demande une vraie
 conversation (arc, fin, personnages).

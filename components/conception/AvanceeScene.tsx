@@ -24,7 +24,7 @@ const LIBELLES: Record<VueCreation["etapes"][number]["statut"], string> = {
   echoue: "en échec",
 };
 
-const NOMS_ETAPES = ["Format", "Genre & ton", "Durée", "Langue", "Style", "Scénario", "Clap", "Avancée"];
+const NOMS_ETAPES = ["Format", "Genre & ton", "Durée", "Langue", "Style", "Mise en scène", "Scénario", "Clap", "Avancée"];
 
 /** Scène 8 de la conception : l'avancée de la préparation, étape par étape (l'installateur, lib/agents/creation.ts). Même données et même
  * sondage que l'ancienne page ; seule la présentation change : le ruban de la conception, l'affiche du projet, le pourcentage sur une
@@ -37,9 +37,12 @@ export function AvanceeScene({
   imagesInitial,
   conception,
   style,
+  miseEnScene,
 }: {
   projectId: number;
   nomProjet: string;
+  /** La mise en scène du projet en quelques mots (`resumeMiseEnScene`), pour le ruban. */
+  miseEnScene: string;
   initial: VueCreation | null;
   /** Où en sont les images de référence (lib/images-projet.ts) : le clap final dit ce qui est vraiment fait. */
   imagesInitial: EtatImages;
@@ -90,7 +93,7 @@ export function AvanceeScene({
     [conception],
   );
   const resumes = conception
-    ? ["Film", `${conception.genres.join("/")} · ${motDuTon(conception.ton)}`, minutesSecondes(conception.dureeSecondes), conception.langue, style.nom, "fait", "fait"]
+    ? ["Film", `${conception.genres.join("/")} · ${motDuTon(conception.ton)}`, minutesSecondes(conception.dureeSecondes), conception.langue, style.nom, miseEnScene, "fait", "fait"]
     : [];
 
   const pct = vue && vue.total ? Math.round((vue.faites / vue.total) * 100) : 0;
@@ -105,12 +108,12 @@ export function AvanceeScene({
     <div className="cn-salle" style={ambiance}>
       <div className="cn-ambiance" aria-hidden="true"><i /><i /></div>
       {conception ? (
-        <RubanConception cadres={NOMS_ETAPES.map((nom, i) => ({ nom, resume: i === 7 ? (vue ? `${vue.faites}/${vue.total}` : "") : (resumes[i] ?? ""), etat: i === 7 ? "courant" : "fait" }))} />
+        <RubanConception cadres={NOMS_ETAPES.map((nom, i) => ({ nom, resume: i === 8 ? (vue ? `${vue.faites}/${vue.total}` : "") : (resumes[i] ?? ""), etat: i === 8 ? "courant" : "fait" }))} />
       ) : null}
 
       <div className="cn-scene">
         <EnteteScene
-          acte={conception ? "Acte 08" : "Installateur"}
+          acte={conception ? "Acte 09" : "Installateur"}
           titre={titre}
           sous="Chaque étape est écrite puis appliquée toute seule. Tu relis ensuite le résultat là où il se trouve (épisodes, registre, plans) et tu retouches ce qui doit l’être."
         />

@@ -83,7 +83,7 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
 
   return (
     <>
-      <EnteteScene acte="Acte 06" titre={<>Raconte-moi l’<em>histoire</em>.</>} sous="Le cadre est posé. Reste l’essentiel : ce que tu veux raconter. Réponds comme tu le sens, même en vrac : le scénariste s’occupe du reste." />
+      <EnteteScene acte="Acte 07" titre={<>Raconte-moi l’<em>histoire</em>.</>} sous="Le cadre est posé. Reste l’essentiel : ce que tu veux raconter. Réponds comme tu le sens, même en vrac : le scénariste s’occupe du reste." />
       <div className="cn-entretien">
         <div className="cn-chat">
           <div className="cn-agent-tete">

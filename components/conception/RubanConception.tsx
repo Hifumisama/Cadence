@@ -1,6 +1,6 @@
 "use client";
 
-/** Le ruban de pellicule des huit étapes de la conception. Les étapes passées s'affichent en résumé ; `onClick` n'est donné que pour
+/** Le ruban de pellicule des neuf étapes de la conception. Les étapes passées s'affichent en résumé ; `onClick` n'est donné que pour
  * celles qu'on peut rejoindre. Partagé par la page de départ, l'entretien et l'avancée de la préparation. */
 export type CadreRuban = {
   nom: string;

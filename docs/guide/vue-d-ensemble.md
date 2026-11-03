@@ -55,7 +55,7 @@ Chaque flèche pleine entre deux étapes passe par une **revue** : tu relis les 
 - Squelette en code : `lib/agents/squelette.ts` (`squeletteDepuisBrief`).
 
 **Où sont les boutons** (vérifié dans le code)
-- Nouveau projet : la page `/nouveau` (`components/conception/ConceptionAssistant.tsx`, cinq choix : format, genre et ton, durée, langue, style), puis `/p/<id>/demarrage` (`components/conception/DemarrageAssistant.tsx`) : l'entretien avec le scénariste, le clap, et le lancement de la préparation. L'ancienne modale `NouveauProjetModal` a disparu.
+- Nouveau projet : la page `/nouveau` (`components/conception/ConceptionAssistant.tsx`, six choix : format, genre et ton, durée, langue, style, mise en scène), puis `/p/<id>/demarrage` (`components/conception/DemarrageAssistant.tsx`) : l'entretien avec le scénariste, le clap, et le lancement de la préparation. L'ancienne modale `NouveauProjetModal` a disparu.
 - « Écrire les scénarios » : `components/projects/SaisonSection.tsx`.
 - « Créer le registre depuis le brief » : `app/p/[projectId]/assets/page.tsx`.
 - La voix d'un personnage : le bloc « Voix » de sa fiche (`components/voix/BlocVoix.tsx`), plus de page de casting.

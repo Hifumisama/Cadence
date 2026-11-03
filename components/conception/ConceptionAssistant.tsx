@@ -20,16 +20,18 @@ import {
 import { SceneAccueil, SceneDuree, SceneGenreTon, SceneLangue } from "./Scenes";
 import { Glissiere } from "./Glissiere";
 import { SceneStyle } from "./SceneStyle";
+import { SceneMiseEnScene } from "./SceneMiseEnScene";
+import type { DemoDispo } from "@/lib/h3ir/demos";
 import type { MajEtat, StyleVue } from "./types";
 
 /** Ce qu'il manque pour avancer, par étape (affiché dans la barre d'action tant que « Continuer » est grisé). */
-const INVITES = ["", "Choisis au moins un genre (deux au plus).", "Règle la durée pour continuer.", "Choisis la langue des dialogues.", "Choisis un style, ou écris le tien."];
+const INVITES = ["", "Choisis au moins un genre (deux au plus).", "Règle la durée pour continuer.", "Choisis la langue des dialogues.", "Choisis un style, ou écris le tien.", ""];
 
-/** La page de conception d'un projet : cinq scènes (format, genre et ton, durée, langue, style), un ruban de pellicule des huit étapes pour naviguer,
+/** La page de conception d'un projet : six scènes (format, genre et ton, durée, langue, style, mise en scène), un ruban de pellicule des neuf étapes pour naviguer,
  * une lumière d'ambiance qui suit les choix. L'état vit ici et dans la session du navigateur (rien n'est créé tant qu'on n'a pas
  * rencontré le scénariste : abandonner ne laisse aucun projet). Au dernier pas, le projet est créé côté serveur (app/nouveau/actions.ts)
  * avec sa fiche d'entretien préremplie, puis l'entretien s'ouvre. Plan : docs/PLAN_CONCEPTION_PROJET.md. */
-export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
+export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]; /** Les vidéos de démo de la mise en scène présentes sur le stockage (lib/media.ts, `demosMiseEnScene`). */ demos?: Record<string, DemoDispo> }) {
   const router = useRouter();
   const [etat, setEtat] = useState<EtatAssistant>(etatInitial);
   const [etape, setEtape] = useState(0);
@@ -159,6 +161,7 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
         {etape === 2 ? <SceneDuree etat={etat} maj={maj} /> : null}
         {etape === 3 ? <SceneLangue etat={etat} maj={maj} /> : null}
         {etape === 4 ? <SceneStyle etat={etat} maj={maj} styles={styles} /> : null}
+        {etape === 5 ? <SceneMiseEnScene etat={etat} maj={maj} demos={demos} /> : null}
       </div>
 
       <div className="cn-barre" role="group" aria-label="Avancer dans la conception">
@@ -180,7 +183,7 @@ export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
         <div className="cn-lightbox" role="dialog" aria-modal="true" aria-label="Avant de rencontrer le scénariste" onClick={() => setConfirmer(false)} onKeyDown={(e) => e.key === "Escape" && setConfirmer(false)}>
           <div className="cn-confirmation" onClick={(e) => e.stopPropagation()}>
             <b>Avant de rencontrer le scénariste</b>
-            <p>Une fois l’entretien commencé, <b className="cn-fige">ces choix sont figés</b> : genre, ton, durée, langue et style ne se modifient plus. Relis-les si tu as un doute.</p>
+            <p>Une fois l’entretien commencé, <b className="cn-fige">ces choix sont figés</b> : genre, ton, durée, langue et style ne se modifient plus. Relis-les si tu as un doute. La mise en scène, elle, se règle encore plus tard (Brief, scène ou plan).</p>
             <div className="cn-confirmation-actions">
               <button type="button" className="btn" autoFocus onClick={() => setConfirmer(false)}>Revenir aux choix</button>
               <button type="button" className="btn btn-gold" onClick={() => void rencontrer()}>Rencontrer le scénariste</button>

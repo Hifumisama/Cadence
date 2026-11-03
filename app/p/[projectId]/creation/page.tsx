@@ -7,6 +7,7 @@ import { Topbar } from "@/components/ui/Topbar";
 import { db } from "@/db";
 import { lireVueCreation } from "@/lib/agents/creation-vue";
 import { lireConception } from "@/lib/conception-db";
+import { resumeMiseEnScene } from "@/lib/h3ir/reglages";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
 import { lireBrief } from "@/lib/queries-agents";
@@ -14,7 +15,7 @@ import { lireEtatImages } from "@/lib/queries-images";
 
 export const dynamic = "force-dynamic";
 
-/** La huitième étape de la conception : l'avancée de la préparation (l'installateur : brief, structure, scénarios, registre, inventaire,
+/** La neuvième étape de la conception : l'avancée de la préparation (l'installateur : brief, structure, scénarios, registre, inventaire,
  * voix, fiches), sans validation intermédiaire. Ici on suit l'avancement ; le worker fait le travail. Un projet créé avant la
  * conception s'affiche sans le ruban ni l'affiche. */
 export default async function CreationPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -42,7 +43,7 @@ export default async function CreationPage({ params }: { params: Promise<{ proje
         tabs={{ projectId: pid, episodeBase }}
       />
       <main>
-        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} imagesInitial={images} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} />
+        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} imagesInitial={images} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} miseEnScene={resumeMiseEnScene(projet.creativite, projet.styleCamera)} />
       </main>
     </>
   );

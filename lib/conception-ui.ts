@@ -13,6 +13,7 @@ import {
   tonDepuisGenres,
 } from "./conception";
 import { RYTHMES_BRIEF, type RythmeBrief } from "./agents/types";
+import { CREATIVITE_PAR_DEFAUT, STYLE_AUCUN, creativiteOuNull, resumeMiseEnScene, styleCameraOuNull, type Creativite } from "./h3ir/reglages";
 
 /** L'état de l'assistant de conception (page `/nouveau`) côté navigateur : valeurs de départ, passage d'une étape à l'autre, résumé de
  * chaque étape, sauvegarde en session, et charge utile envoyée au serveur (qui la revalide : lib/conception.ts). Pur et sans React,
@@ -33,11 +34,14 @@ export type EtatAssistant = {
   langue: string;
   langueChoisie: boolean;
   style: StyleChoisi | null;
+  /** Mise en scène (Open H3 IR, lib/h3ir/reglages.ts) : la créativité, et le style de mise en scène (un des 7 profils, ou « aucun »). Valeurs de départ cochées à l'écran. */
+  creativite: Creativite;
+  styleCamera: string;
 };
 
-export const ETAPES_ASSISTANT = ["Accueil", "Genre & ton", "Durée", "Langue", "Style"] as const;
+export const ETAPES_ASSISTANT = ["Accueil", "Genre & ton", "Durée", "Langue", "Style", "Mise en scène"] as const;
 export const DERNIERE_ETAPE = ETAPES_ASSISTANT.length - 1;
-/** La pellicule entière, visible dès la page de départ : les cinq choix, puis ce qui suit la création du projet. */
+/** La pellicule entière, visible dès la page de départ : les six choix, puis ce qui suit la création du projet. */
 export const ETAPES_CONCEPTION = [...ETAPES_ASSISTANT, "Scénario", "Clap", "Avancée"] as const;
 export const CLE_SESSION = "cadence.conception.v1";
 
@@ -52,6 +56,8 @@ export function etatInitial(): EtatAssistant {
     langue: LANGUE_PAR_DEFAUT,
     langueChoisie: false,
     style: null,
+    creativite: CREATIVITE_PAR_DEFAUT,
+    styleCamera: STYLE_AUCUN,
   };
 }
 
@@ -111,6 +117,9 @@ export function resumeEtape(i: number, etat: EtatAssistant, nomStyle: (id: strin
     case 4:
       if (!etat.style) return "";
       return etat.style.source === "libre" ? etat.style.nom.trim() || "Style libre" : (nomStyle(etat.style.styleId) ?? "");
+    case 5:
+      // Les valeurs de départ sont cochées à l'écran : le ruban les montre aussi.
+      return resumeMiseEnScene(etat.creativite, etat.styleCamera);
     default:
       return "";
   }
@@ -134,6 +143,8 @@ export function versCharge(etat: EtatAssistant): Record<string, unknown> {
     langue: etat.langue,
     langueChoisie: etat.langueChoisie,
     style: etat.style ?? undefined,
+    creativite: etat.creativite,
+    styleCamera: etat.styleCamera,
   };
 }
 
@@ -178,5 +189,8 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
     langue,
     langueChoisie: o.langueChoisie === true,
     style,
+    // Une session plus ancienne n'a pas ces champs : valeurs de départ.
+    creativite: creativiteOuNull(o.creativite) ?? depart.creativite,
+    styleCamera: styleCameraOuNull(o.styleCamera) ?? depart.styleCamera,
   };
 }

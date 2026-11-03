@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ConceptionAssistant } from "@/components/conception/ConceptionAssistant";
 import type { StyleVue } from "@/components/conception/types";
 import { Topbar } from "@/components/ui/Topbar";
+import { demosMiseEnScene } from "@/lib/media";
 import { styleUtilisable } from "@/lib/styles/bibliotheque";
 import { listerStyles } from "@/lib/styles/styles-db";
 
@@ -35,7 +36,7 @@ export default async function NouveauProjetPage() {
         }
       />
       <main>
-        <ConceptionAssistant styles={styles} />
+        <ConceptionAssistant styles={styles} demos={demosMiseEnScene()} />
       </main>
     </>
   );

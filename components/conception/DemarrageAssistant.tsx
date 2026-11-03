@@ -16,16 +16,16 @@ import { RubanConception } from "./RubanConception";
 import { ScenarioScene } from "./ScenarioScene";
 
 /** La suite de la conception, une fois le projet créé : le scénario (entretien avec le scénariste) puis le clap, dans le même ruban de
- * pellicule que les cinq choix (qui sont faits : ils s'affichent en résumé, sans pouvoir être rejoués ici ; le brief reste modifiable
- * depuis la page du projet). La huitième étape, l'avancée de la préparation, est la page de l'installateur. Plan :
+ * pellicule que les six choix (qui sont faits : ils s'affichent en résumé, sans pouvoir être rejoués ici ; le brief reste modifiable
+ * depuis la page du projet). La neuvième étape, l'avancée de la préparation, est la page de l'installateur. Plan :
  * docs/PLAN_CONCEPTION_PROJET.md. */
 
 const ETAPES = ETAPES_CONCEPTION;
-const SCENARIO = 5;
-const CLAP = 6;
+const SCENARIO = 6;
+const CLAP = 7;
 
-function resumesFaits(c: Conception, nomStyle: string): string[] {
-  return ["Film", `${c.genres.join("/")} · ${motDuTon(c.ton)}`, minutesSecondes(c.dureeSecondes), c.langue, nomStyle];
+function resumesFaits(c: Conception, nomStyle: string, miseEnScene: string): string[] {
+  return ["Film", `${c.genres.join("/")} · ${motDuTon(c.ton)}`, minutesSecondes(c.dureeSecondes), c.langue, nomStyle, miseEnScene];
 }
 
 export function DemarrageAssistant({
@@ -34,12 +34,15 @@ export function DemarrageAssistant({
   convInitiale,
   conception,
   style,
+  miseEnScene,
 }: {
   projectId: number;
   nomProjet: string;
   convInitiale: VueConversation;
   conception: Conception;
   style: StyleAffiche;
+  /** La mise en scène du projet en quelques mots (`resumeMiseEnScene`) : lue dans le projet, pas dans la conception (elle se règle ensuite dans le Brief). */
+  miseEnScene: string;
 }) {
   const [conv, setConv] = useState(convInitiale);
   const [etape, setEtape] = useState(SCENARIO);
@@ -97,7 +100,7 @@ export function DemarrageAssistant({
     return () => clearInterval(t);
   }, [afficheEnCours, projectId]);
 
-  const resumes = useMemo(() => resumesFaits(conception, style.nom), [conception, style.nom]);
+  const resumes = useMemo(() => resumesFaits(conception, style.nom, miseEnScene), [conception, style.nom, miseEnScene]);
   const ambiance = useMemo(
     () => ({ "--cn-hue": teinteAmbiance(conception.genres), "--cn-lum": (1 - conception.ton / 100).toFixed(2) }) as CSSProperties,
     [conception.genres, conception.ton],
@@ -117,7 +120,7 @@ export function DemarrageAssistant({
 
       <div className={`cn-scene${recule ? " is-recule" : ""}`} key={etape}>
         {etape === SCENARIO ? <ScenarioScene conv={conv} rafraichir={rafraichir} /> : null}
-        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} style={style} notes={conv.notes} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
+        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} style={style} miseEnScene={miseEnScene} notes={conv.notes} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
       </div>
 
       <div className="cn-barre" role="group" aria-label="Avancer dans la conception">

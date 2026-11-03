@@ -10,6 +10,7 @@ import { creerProjetSansRedirection } from "@/app/projects/actions";
 import { ouvrirConversation } from "@/lib/agents/service";
 import { resoudreStyle, validerConception } from "@/lib/conception";
 import { ecrireConception, poserStyleDuProjet } from "@/lib/conception-db";
+import { reglagesDepuisCharge } from "@/lib/h3ir/reglages";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET } from "@/lib/media";
 import { SUJET_AFFICHE_CLAP } from "@/lib/styles/sujets";
 import { listerStyles } from "@/lib/styles/styles-db";
@@ -67,7 +68,8 @@ export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; proje
   // Pour un style de la bibliothèque, l'image est son aperçu (s'il a été généré) : le brief garde le chemin relatif au dossier `styles/`.
   const image = conception.style.source === "libre" ? conception.style.image : `${conception.style.styleId}/${SUJET_AFFICHE_CLAP}.webp`;
 
-  const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre" });
+  // La mise en scène (créativité, style) n'est pas dans la conception : elle vit dans le projet, où le Brief la modifie ensuite (lib/h3ir/reglages.ts).
+  const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre", ...reglagesDepuisCharge(brut) });
   try {
     await ecrireConception(db, projectId, conception);
     const pose = await poserStyleDuProjet(db, projectId, { ...style.style, ...(image ? { image } : {}) });

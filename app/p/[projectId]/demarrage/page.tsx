@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { lireVueCreation } from "@/lib/agents/creation-vue";
 import { ouvrirConversation } from "@/lib/agents/service";
 import { lireConception } from "@/lib/conception-db";
+import { resumeMiseEnScene } from "@/lib/h3ir/reglages";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getProject } from "@/lib/queries";
 import { lireBrief, lireConversation, trouverConversation } from "@/lib/queries-agents";
@@ -51,7 +52,7 @@ export default async function DemarragePage({ params }: { params: Promise<{ proj
         }
       />
       <main>
-        <DemarrageAssistant projectId={pid} nomProjet={projet.nom} convInitiale={conv} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} />
+        <DemarrageAssistant projectId={pid} nomProjet={projet.nom} convInitiale={conv} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} miseEnScene={resumeMiseEnScene(projet.creativite, projet.styleCamera)} />
       </main>
     </>
   );
