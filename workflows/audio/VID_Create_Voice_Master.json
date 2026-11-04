@@ -33,14 +33,6 @@
       "ref_images.ref_image_0": [
         "123",
         0
-      ],
-      "ref_audios.ref_audio_0": [
-        "309",
-        0
-      ],
-      "ref_audios.ref_audio_1": [
-        "311",
-        0
       ]
     },
     "class_type": "MiniMaxH3ReferenceToVideo",
@@ -170,19 +162,6 @@
       "title": "First Selection"
     }
   },
-  "157": {
-    "inputs": {
-      "audio": "VOICE_maya_P230.flac",
-      "start_time": 0,
-      "end_time": 6.05,
-      "duration": 6.05,
-      "audio_ui": ""
-    },
-    "class_type": "LoadAudioUI",
-    "_meta": {
-      "title": "Load Audio UI"
-    }
-  },
   "176": {
     "inputs": {
       "samples": [
@@ -256,32 +235,6 @@
       "title": "Backend d’attention du modèle"
     }
   },
-  "251": {
-    "inputs": {
-      "video": "MildSkeletalAnemone-mobile.mp4",
-      "start_time": 0,
-      "end_time": 2,
-      "duration": 2,
-      "start_frame": 0,
-      "end_frame": 48,
-      "duration_frames": 48,
-      "resize_method": "maintain aspect ratio",
-      "custom_width": 0,
-      "custom_height": 0,
-      "frame_rate": 24,
-      "display_mode": "seconds",
-      "crop_x": 0,
-      "crop_y": 0,
-      "crop_w": 1,
-      "crop_h": 1,
-      "choose file to upload": null,
-      "VideoUI": ""
-    },
-    "class_type": "LoadVideoUI",
-    "_meta": {
-      "title": "Load Video UI"
-    }
-  },
   "306": {
     "inputs": {
       "restoration_mode": "0 - Original (Default)",
@@ -305,38 +258,6 @@
       "audio": [
         "177",
         0
-      ]
-    },
-    "class_type": "VocalRemovalNode",
-    "_meta": {
-      "title": "🤐 Noise or Vocal Removal"
-    }
-  },
-  "309": {
-    "inputs": {
-      "model": "MELBAND/MelBandRoformer_fp16.safetensors",
-      "use_cache": true,
-      "aggressiveness": 10,
-      "format": "flac",
-      "audio": [
-        "157",
-        0
-      ]
-    },
-    "class_type": "VocalRemovalNode",
-    "_meta": {
-      "title": "🤐 Noise or Vocal Removal"
-    }
-  },
-  "311": {
-    "inputs": {
-      "model": "MELBAND/MelBandRoformer_fp16.safetensors",
-      "use_cache": true,
-      "aggressiveness": 10,
-      "format": "flac",
-      "audio": [
-        "251",
-        1
       ]
     },
     "class_type": "VocalRemovalNode",
