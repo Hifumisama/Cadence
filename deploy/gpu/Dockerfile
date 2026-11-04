@@ -33,7 +33,7 @@ ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-venv python3-dev build-essential git curl ca-certificates ffmpeg \
-        libgl1 libglib2.0-0 libgomp1 supervisor gettext-base iproute2 \
+        libgl1 libglib2.0-0 libgomp1 supervisor gettext-base iproute2 procps \
     && curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
     && curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list \
     && apt-get update && apt-get install -y --no-install-recommends tailscale \
@@ -71,7 +71,7 @@ RUN grep -vE '^\s*(#|$)' /tmp/custom-nodes.txt | while read -r url sha _; do \
     && rm /tmp/custom-nodes.txt
 
 # Ce qui change souvent vient en dernier.
-COPY entrypoint.sh run-comfyui.sh tailscale-up.sh telecharger-modeles.sh supervisord.conf models.manifest /opt/cadence/
+COPY entrypoint.sh run-comfyui.sh tailscale-up.sh telecharger-modeles.sh veille.sh supervisord.conf models.manifest /opt/cadence/
 COPY profils/ /opt/cadence/profils/
 RUN chmod +x /opt/cadence/*.sh && cp -r /opt/ComfyUI/models /opt/ComfyUI/models.dist
 

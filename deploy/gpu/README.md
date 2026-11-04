@@ -79,6 +79,15 @@ Facultatives : `HF_TOKEN` (jeton Hugging Face en lecture, si un téléchargement
 `CADENCE_TELECHARGER=0` (ne rien télécharger au démarrage), `COMFY_EXTRA_ARGS` (options ComfyUI en plus), `COMFY_VRAM_HEADROOM` (remplace la valeur du profil),
 `CADENCE_LLM_DIR` (autre dossier de modèles de langage).
 
+**Coupe-circuit** (`veille.sh`) : le Pod s'arrête seul après une période d'inactivité totale, pour ne pas facturer à vide.
+Est « actif » : le GPU travaille, ComfyUI a un travail en cours ou en attente, ou les modèles se téléchargent.
+`CADENCE_INACTIVITE_MIN` (défaut **15** ; `0` = jamais), `CADENCE_INACTIVITE_ACTION` (`stop` par défaut, ou `terminate` ;
+si `stop` est refusé, le script retente avec `terminate`, le volume réseau n'est jamais supprimé), `CADENCE_INACTIVITE_GPU_PCT`
+(seuil d'utilisation du GPU, défaut 5). Il utilise `RUNPOD_POD_ID` et `RUNPOD_API_KEY`, que RunPod injecte dans le Pod (clé
+limitée au Pod ; si l'arrêt est refusé en 403, le journal l'indique et le Pod continue : l'arrêter à la main). Un worker
+qui laisse le GPU et ComfyUI au repos plus de 15 minutes entre deux tâches verra donc le Pod s'éteindre : augmenter la valeur.
+**À vérifier au premier essai** : tester avec `CADENCE_INACTIVITE_MIN=2`, ne rien lancer, et regarder si le Pod s'arrête.
+
 ## Brancher Cadence
 
 Dans le `.env` de la machine qui porte web et worker :
@@ -139,3 +148,5 @@ copier les deux fichiers et passer le nom dans `CADENCE_PROFIL`.
 - `Profil inconnu` : `CADENCE_PROFIL` ne correspond à aucun `profils/*.env`.
 - llama-swap répond mais le premier appel est très long : il charge ~21 Go depuis le volume réseau (`healthCheckTimeout` : 10 minutes).
 - Pod démarré mais introuvable : voir la ligne « Tailscale connecté » dans les journaux ; sinon la clé est invalide ou n'est pas réutilisable.
+  Le journal affiche « clé lue = tskey-auth-… (N caractères) » : comparer avec la clé de la console. `invalid key: unable to
+  validate API key` = Tailscale ne reconnaît pas cette clé (expirée, révoquée, d'un autre compte, ou pas une « Auth key »).

@@ -41,10 +41,6 @@
       "ref_images.ref_image_2": [
         "152",
         0
-      ],
-      "ref_audios.ref_audio_0": [
-        "157",
-        0
       ]
     },
     "class_type": "MiniMaxH3ReferenceToVideo",
@@ -122,19 +118,6 @@
     "class_type": "LoadImageCrop",
     "_meta": {
       "title": "Load Image & Crop"
-    }
-  },
-  "157": {
-    "inputs": {
-      "audio": "VOICE_maya_P230.flac",
-      "start_time": 0,
-      "end_time": 6.05,
-      "duration": 6.05,
-      "audio_ui": ""
-    },
-    "class_type": "LoadAudioUI",
-    "_meta": {
-      "title": "Load Audio UI"
     }
   },
   "193": {

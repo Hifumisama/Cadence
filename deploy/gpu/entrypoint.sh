@@ -49,6 +49,7 @@ echo " Modèles LLM    $CADENCE_LLM_DIR"
 echo " llama-swap     $SOURCE_LLM"
 echo " Tailscale      $CADENCE_TS_AUTOSTART (nom : ${TS_HOSTNAME:-cadence-gpu})"
 echo " Modèles        téléchargement des manquants : $CADENCE_DL_AUTOSTART"
+echo " Coupe-circuit  arrêt après ${CADENCE_INACTIVITE_MIN:-15} min d'inactivité (0 = désactivé)"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader 2>/dev/null | sed 's/^/ GPU            /' \
   || echo " GPU            nvidia-smi indisponible (pas de GPU visible ?)"
 echo "──────────────────────────────────────────────"
