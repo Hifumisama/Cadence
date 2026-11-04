@@ -162,13 +162,10 @@ export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput,
     input.refsAudio.forEach((ref) => {
       const { slot } = ref;
       const nodeId = `ref_audio_${slot}`;
-      // Même forme que le nœud 157 du fichier (end_time = duration = durée de la prise). Durée inconnue :
-      // 0 / 0 / 0, les défauts de LoadAudioUI (object_info) — « tout le fichier » est ce qu'on suppose,
-      // non vérifié (le code du nœud est un module externe).
-      const d = ref.dureeSecondes && ref.dureeSecondes > 0 ? Math.ceil(ref.dureeSecondes * 100) / 100 : 0;
+      // LoadAudio, nœud du NOYAU de ComfyUI (plus de pack tiers) : charge le fichier entier, sans découpe.
       graphe[nodeId] = {
-        class_type: "LoadAudioUI",
-        inputs: { audio: nomDistant(ref), start_time: 0, end_time: d, duration: d, audio_ui: "" },
+        class_type: "LoadAudio",
+        inputs: { audio: nomDistant(ref) },
         _meta: { title: `Ref audio ${slot} (générée par Cadence)` },
       };
       refNode.inputs[`ref_audios.ref_audio_${slot - 1}`] = [nodeId, 0];
@@ -177,33 +174,22 @@ export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput,
     input.refsVideo.forEach((ref) => {
       const { slot } = ref;
       const nodeId = `ref_video_${slot}`;
-      // LoadVideoUI (object_info, 2026-10-02) : TOUS ses champs sont obligatoires, sans quoi ComfyUI
-      // refuse le graphe. Valeurs = les défauts du nœud (vidéo entière, 24 i/s, taille d'origine) ; la
-      // sortie 0 (images) alimente `ref_videos` ; la sortie 1 (audio) n'est PAS câblée sur
-      // `ref_video_audios`.
+      // Deux nœuds du NOYAU de ComfyUI (plus de pack tiers) : LoadVideo charge le fichier, GetVideoComponents
+      // en sort les images (sortie 0), qui alimentent `ref_videos`. Son audio (sortie 1) n'est PAS câblé sur
+      // `ref_video_audios`. Vidéo entière, à sa cadence et à sa taille d'origine (l'ancien nœud la
+      // rééchantillonnait à 24 i/s : à revoir si une référence vidéo rend mal).
+      const idComposants = `ref_video_${slot}_images`;
       graphe[nodeId] = {
-        class_type: "LoadVideoUI",
-        inputs: {
-          video: nomDistant(ref),
-          start_time: 0,
-          end_time: 0,
-          duration: 0,
-          start_frame: 0,
-          end_frame: 0,
-          duration_frames: 0,
-          resize_method: "maintain aspect ratio",
-          custom_width: 0,
-          custom_height: 0,
-          frame_rate: FPS_GENERATION,
-          display_mode: "seconds",
-          crop_x: 0,
-          crop_y: 0,
-          crop_w: 1,
-          crop_h: 1,
-        },
+        class_type: "LoadVideo",
+        inputs: { file: nomDistant(ref) },
         _meta: { title: `Ref vidéo ${slot} (générée par Cadence)` },
       };
-      refNode.inputs[`ref_videos.ref_video_${slot - 1}`] = [nodeId, 0];
+      graphe[idComposants] = {
+        class_type: "GetVideoComponents",
+        inputs: { video: [nodeId, 0] },
+        _meta: { title: `Ref vidéo ${slot} : images (générée par Cadence)` },
+      };
+      refNode.inputs[`ref_videos.ref_video_${slot - 1}`] = [idComposants, 0];
     });
   }
 }

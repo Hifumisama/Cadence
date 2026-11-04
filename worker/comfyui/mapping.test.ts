@@ -111,18 +111,13 @@ test("six images : ref_image_0 à ref_image_5 câblés sur 6 LoadImageCrop", () 
   }
 });
 
-test("trois audios : ref_audio_0 à ref_audio_2, durée de la prise dans start/end/duration", () => {
+test("trois audios : ref_audio_0 à ref_audio_2, sur le nœud LoadAudio du noyau", () => {
   const g = injecterValeurs(workflow, { ...entree, refsAudio: [aud(1, 6.05), aud(2, 2.504), aud(3, null)] });
   for (let i = 0; i < 3; i++) {
     assert.deepEqual(g[NODE_IDS.refNode]!.inputs[`ref_audios.ref_audio_${i}`], [`ref_audio_${i + 1}`, 0]);
-    assert.equal(g[`ref_audio_${i + 1}`]!.class_type, "LoadAudioUI");
+    assert.equal(g[`ref_audio_${i + 1}`]!.class_type, "LoadAudio");
+    assert.deepEqual(Object.keys(g[`ref_audio_${i + 1}`]!.inputs), ["audio"]);
   }
-  assert.deepEqual(
-    [g.ref_audio_1!.inputs.start_time, g.ref_audio_1!.inputs.end_time, g.ref_audio_1!.inputs.duration],
-    [0, 6.05, 6.05],
-  );
-  assert.equal(g.ref_audio_2!.inputs.end_time, 2.51, "arrondi par excès au centième : jamais de queue coupée");
-  assert.equal(g.ref_audio_3!.inputs.end_time, 0, "durée inconnue : défaut du nœud");
   assert.equal(g.ref_audio_1!.inputs.audio, "prise_1.wav", "à défaut de nom distant, le nom du fichier");
 });
 
@@ -132,14 +127,13 @@ test("emplacement non contigu : le lien suit l'emplacement (<Audio 2> du prompt 
   assert.equal("ref_audios.ref_audio_0" in g[NODE_IDS.refNode]!.inputs, false);
 });
 
-test("vidéo de référence : LoadVideoUI avec tous ses champs obligatoires (object_info 2026-10-02)", () => {
+test("vidéo de référence : LoadVideo puis GetVideoComponents (noyau), les images alimentent ref_videos", () => {
   const g = injecterValeurs(workflow, { ...entree, refsVideo: [vid(1)] });
-  assert.deepEqual(g[NODE_IDS.refNode]!.inputs["ref_videos.ref_video_0"], ["ref_video_1", 0]);
-  assert.deepEqual(Object.keys(g.ref_video_1!.inputs), [
-    "video", "start_time", "end_time", "duration", "start_frame", "end_frame", "duration_frames",
-    "resize_method", "custom_width", "custom_height", "frame_rate", "display_mode",
-    "crop_x", "crop_y", "crop_w", "crop_h",
-  ]);
+  assert.deepEqual(g[NODE_IDS.refNode]!.inputs["ref_videos.ref_video_0"], ["ref_video_1_images", 0]);
+  assert.equal(g.ref_video_1!.class_type, "LoadVideo");
+  assert.deepEqual(Object.keys(g.ref_video_1!.inputs), ["file"]);
+  assert.equal(g.ref_video_1_images!.class_type, "GetVideoComponents");
+  assert.deepEqual(g.ref_video_1_images!.inputs.video, ["ref_video_1", 0]);
 });
 
 test("limites : 7 références visuelles, 4 audios, emplacements hors plage ou en double", () => {

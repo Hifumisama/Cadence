@@ -15,7 +15,12 @@ https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI 38d790ded00650681fa3645362
 https://github.com/diodiogod/TTS-Audio-Suite 27eef5b85db27ede27d04a44a39e0cfb262bf9a4 # VocalRemovalNode, VoiceFixerNode (master de voix) : pack lourd
 https://github.com/domg73/ComfyUI-LoadImageCrop 99e121e64d374344d0dd2e173ab052ebb737c4b1 # LoadImageCrop
 
-# RIFEInterpolation et MinimaxH3LatentUpscaler3D sont dans le noyau de ComfyUI (confirmé) : aucun pack à installer.
+https://github.com/GACLove/ComfyUI-VFI 6176a430f12cd16003f4664c1e3c6af8e96cc3c6 # RIFEInterpolation (interpolation d'images)
+https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler 40316cf008b2fd8663263270669eb4da23f89d2c # MinimaxH3LatentUpscaler3D
+
+# RIFEInterpolation et MinimaxH3LatentUpscaler3D NE SONT PAS dans le noyau (erreur corrigée le 2026-11-04) : packs ci-dessus.
+# LoadAudioUI / LoadVideoUI : plus utilisés par le worker (il emploie LoadAudio / LoadVideo du noyau) ; ils ne restent que
+# dans le master de voix (VID_Create_Voice_Master.json) et dans des nœuds morts des workflows de génération.
 #
 # Absents volontairement : ComfyUI-Impact-Pack ne sert qu'à VID_REF2VA.json (ImpactSwitch), l'ancien workflow
 # remplacé par les trois étapes. Le rajouter pour exécuter ce workflow.
