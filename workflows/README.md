@@ -134,9 +134,9 @@ change après un ré-export. Les valeurs du fichier sont des **valeurs de test**
 | Sortie | `34` | `filename_prefix` | |
 
 **Créés à la volée** (ids `ref_img_N`, `ref_audio_N`, `ref_video_N`, absents du fichier ; les références du fichier sont
-purgées) : `LoadImageCrop` (`image`, `crop`, `max_megapixels` 1) ; `LoadAudioUI` (`start_time` 0, `end_time` =
-`duration` = durée mesurée de la prise, arrondie au centième par excès ; 0 si inconnue = défauts du nœud, « tout le
-fichier » **supposé, non vérifié**) ; `LoadVideoUI` (tous ses champs, obligatoires : défauts du nœud, 24 i/s). Les
+purgées) : `LoadImageCrop` (`image`, `crop`, `max_megapixels` 1) ; `LoadAudio` (nœud du noyau, `audio` seul :
+le fichier entier) ; `LoadVideo` (noyau, `file`) suivi de `GetVideoComponents` (noyau), dont les images alimentent `ref_videos`. Plus de
+découpe côté ComfyUI (anciens `LoadAudioUI` / `LoadVideoUI`, remplacés le 2026-11-04) : pour un extrait, couper le fichier avant l'envoi. Les
 fichiers sont envoyés par `/upload/image` sous `cadence_<chemin relatif aplati>`.
 
 **Fixe, laissé au fichier** : résolution du 1er pass (`22:9`, 16:9, 0,2 Mpx, multiple de 32 : aucune donnée de
@@ -169,8 +169,8 @@ retombe sur `VID_REF2VA.json` (voix non nettoyée).
 
 - **Entrées** : celles de `VID_REF2VA` (injectées par `injecterValeurs`, `worker/comfyui/mapping.ts`) — prompt (`22:11`), seed (`16`), durée
   (`22:23`), image du personnage en `<Picture 1>` (aucune pour une voix off), **aucun audio de référence** (H3 invente la voix). Les nœuds
-  `LoadImageCrop` (123), `LoadVideoUI` (251) et `LoadAudioUI` (157) du fichier sont des restes d'essai : les références sont recréées à chaque
-  soumission, ces nœuds ne sont plus reliés au nœud 5 et ne s'exécutent pas.
+  `LoadImageCrop` (123) du fichier est un reste d'essai : les références sont recréées à chaque soumission, ce nœud n'est plus relié au
+  nœud 5 et ne s'exécute pas. Les anciens essais audio/vidéo (`LoadAudioUI`, `LoadVideoUI` et leurs deux `VocalRemovalNode`) ont été retirés du fichier.
 - **Sorties** : la voix nettoyée est enregistrée par le nœud `313` (SaveAudioAdvanced, flac, préfixe imposé par le worker) = le master ; la
   vidéo de test (voix nettoyée incluse) sort du nœud `18` (VHS_VideoCombine, `save_output` forcé à true par le worker : il est à false dans le
   fichier). Les ids sont dans `NODE_IDS_MASTER` (`worker/comfyui/masterMapping.ts`). Sans le fichier : repli sur `VID_REF2VA` + extraction ffmpeg.
