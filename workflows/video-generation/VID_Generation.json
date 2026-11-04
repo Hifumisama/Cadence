@@ -87,37 +87,76 @@
       "title": "Model Preview Override"
     }
   },
+  "123_charge": {
+    "inputs": {
+      "image": "CHAR_tifa_lockhart.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
   "123": {
     "inputs": {
-      "image": "CHAR_tifa_lockhart.png",
-      "crop": "",
-      "max_megapixels": 1
+      "image": [
+        "123_charge",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 1
     },
-    "class_type": "LoadImageCrop",
+    "class_type": "ImageScaleToTotalPixels",
     "_meta": {
-      "title": "Load Image & Crop"
+      "title": "Image de référence (1 Mpx)"
+    }
+  },
+  "151_charge": {
+    "inputs": {
+      "image": "DEC_rues_de_midgar.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
     }
   },
   "151": {
     "inputs": {
-      "image": "DEC_rues_de_midgar.png",
-      "crop": "",
-      "max_megapixels": 1
+      "image": [
+        "151_charge",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 1
     },
-    "class_type": "LoadImageCrop",
+    "class_type": "ImageScaleToTotalPixels",
     "_meta": {
-      "title": "Load Image & Crop"
+      "title": "Image de référence (1 Mpx)"
+    }
+  },
+  "152_charge": {
+    "inputs": {
+      "image": "CHAR_soldat_de_shinra.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
     }
   },
   "152": {
     "inputs": {
-      "image": "CHAR_soldat_de_shinra.png",
-      "crop": "",
-      "max_megapixels": 1
+      "image": [
+        "152_charge",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 1
     },
-    "class_type": "LoadImageCrop",
+    "class_type": "ImageScaleToTotalPixels",
     "_meta": {
-      "title": "Load Image & Crop"
+      "title": "Image de référence (1 Mpx)"
     }
   },
   "193": {

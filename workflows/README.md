@@ -134,7 +134,7 @@ change après un ré-export. Les valeurs du fichier sont des **valeurs de test**
 | Sortie | `34` | `filename_prefix` | |
 
 **Créés à la volée** (ids `ref_img_N`, `ref_audio_N`, `ref_video_N`, absents du fichier ; les références du fichier sont
-purgées) : `LoadImageCrop` (`image`, `crop`, `max_megapixels` 1) ; `LoadAudio` (nœud du noyau, `audio` seul :
+purgées) : `LoadImage` + `ImageScaleToTotalPixels` (noyau ; 1 Mpx, lanczos, id `ref_img_N_charge` pour le chargement : plus de pack tiers, remplace `LoadImageCrop` le 2026-11-04) ; `LoadAudio` (nœud du noyau, `audio` seul :
 le fichier entier) ; `LoadVideo` (noyau, `file`) suivi de `GetVideoComponents` (noyau), dont les images alimentent `ref_videos`. Plus de
 découpe côté ComfyUI (anciens `LoadAudioUI` / `LoadVideoUI`, remplacés le 2026-11-04) : pour un extrait, couper le fichier avant l'envoi. Les
 fichiers sont envoyés par `/upload/image` sous `cadence_<chemin relatif aplati>`.
@@ -168,8 +168,8 @@ Branché côté worker (`worker/images.ts`, méthode `master_voix`). En l'absenc
 retombe sur `VID_REF2VA.json` (voix non nettoyée).
 
 - **Entrées** : celles de `VID_REF2VA` (injectées par `injecterValeurs`, `worker/comfyui/mapping.ts`) — prompt (`22:11`), seed (`16`), durée
-  (`22:23`), image du personnage en `<Picture 1>` (aucune pour une voix off), **aucun audio de référence** (H3 invente la voix). Les nœuds
-  `LoadImageCrop` (123) du fichier est un reste d'essai : les références sont recréées à chaque soumission, ce nœud n'est plus relié au
+  (`22:23`), image du personnage en `<Picture 1>` (aucune pour une voix off), **aucun audio de référence** (H3 invente la voix). Le nœud
+  `ImageScaleToTotalPixels` (123, avec son `LoadImage` 123_charge) du fichier est un reste d'essai : les références sont recréées à chaque soumission, ce nœud n'est plus relié au
   nœud 5 et ne s'exécute pas. Les anciens essais audio/vidéo (`LoadAudioUI`, `LoadVideoUI` et leurs deux `VocalRemovalNode`) ont été retirés du fichier.
 - **Sorties** : la voix nettoyée est enregistrée par le nœud `313` (SaveAudioAdvanced, flac, préfixe imposé par le worker) = le master ; la
   vidéo de test (voix nettoyée incluse) sort du nœud `18` (VHS_VideoCombine, `save_output` forcé à true par le worker : il est à false dans le

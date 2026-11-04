@@ -32,7 +32,8 @@ test("injection : prompt, seeds, référence dynamique, sortie basse résolution
   assert.equal(g[NODE_IDS.seedPremierPass]!.inputs.seed, 123);
   assert.equal(g[NODE_IDS.seedSecondPass]!.inputs.noise_seed, 123);
   assert.deepEqual(g[NODE_IDS.refNode]!.inputs["ref_images.ref_image_0"], ["ref_img_1", 0]);
-  assert.equal(g.ref_img_1!.inputs.image, "CHAR_maya.png");
+  assert.deepEqual(g.ref_img_1!.inputs.image, ["ref_img_1_charge", 0]);
+  assert.equal(g.ref_img_1_charge!.inputs.image, "CHAR_maya.png");
   assert.deepEqual(g[NODE_IDS.sortieFinale]!.inputs.images, [NODE_IDS.basseResImages, 0]);
 });
 
@@ -99,15 +100,18 @@ test("plan sans audio : aucun lien audio, les références de l'export sont purg
   assert.deepEqual(cles.filter((c) => c.startsWith("ref_audios.")), []);
   assert.deepEqual(cles.filter((c) => c.startsWith("ref_images.")), ["ref_images.ref_image_0"]);
   assert.deepEqual(g[NODE_IDS.refNode]!.inputs["ref_images.ref_image_0"], ["ref_img_1", 0]);
-  assert.equal(g.ref_img_1!.inputs.image, "cadence_assets_IMG_1.png", "nom distant imposé");
+  assert.equal(g.ref_img_1_charge!.inputs.image, "cadence_assets_IMG_1.png", "nom distant imposé");
 });
 
-test("six images : ref_image_0 à ref_image_5 câblés sur 6 LoadImageCrop", () => {
+test("six images : ref_image_0 à ref_image_5 câblés sur 6 couples LoadImage + ImageScaleToTotalPixels (noyau)", () => {
   const g = injecterValeurs(workflow, { ...entree, refsImage: [1, 2, 3, 4, 5, 6].map(img) });
   for (let i = 0; i < 6; i++) {
     assert.deepEqual(g[NODE_IDS.refNode]!.inputs[`ref_images.ref_image_${i}`], [`ref_img_${i + 1}`, 0]);
-    assert.equal(g[`ref_img_${i + 1}`]!.class_type, "LoadImageCrop");
-    assert.deepEqual(Object.keys(g[`ref_img_${i + 1}`]!.inputs), ["image", "crop", "max_megapixels"]);
+    assert.equal(g[`ref_img_${i + 1}`]!.class_type, "ImageScaleToTotalPixels");
+    assert.deepEqual(g[`ref_img_${i + 1}`]!.inputs.image, [`ref_img_${i + 1}_charge`, 0]);
+    assert.equal(g[`ref_img_${i + 1}`]!.inputs.megapixels, 1);
+    assert.equal(g[`ref_img_${i + 1}_charge`]!.class_type, "LoadImage");
+    assert.deepEqual(Object.keys(g[`ref_img_${i + 1}_charge`]!.inputs), ["image"]);
   }
 });
 
@@ -186,7 +190,7 @@ test("fps du plan : sans effet sur le graphe (cadence réglée par les nœuds 16
 });
 
 test("les nœuds de référence créés à la volée n'existent pas dans le fichier (ids sans collision)", () => {
-  for (const id of ["ref_img_1", "ref_audio_1", "ref_video_1"]) assert.equal(workflow[id], undefined);
+  for (const id of ["ref_img_1", "ref_img_1_charge", "ref_audio_1", "ref_video_1"]) assert.equal(workflow[id], undefined);
 });
 
 test("préfixe de sortie : posé sur la sortie finale et sur l'aperçu, sinon le fichier est laissé tel quel", () => {

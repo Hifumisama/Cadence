@@ -65,7 +65,7 @@ test("génération : prompt, durée, résolution verrouillée, seed, référence
   assert.equal(g[NODE_IDS_GENERATION.resolution]!.inputs.megapixels, MEGAPIXELS_VIDEO, "la résolution est 0,4 MP quoi qu'on demande");
   assert.equal(g[NODE_IDS_GENERATION.seed]!.inputs.seed, 123);
   assert.deepEqual(g[NODE_IDS_GENERATION.refNode]!.inputs["ref_images.ref_image_0"], ["ref_img_1", 0]);
-  assert.equal(g.ref_img_1!.inputs.image, "cadence_assets_CHAR_maya.png");
+  assert.equal(g.ref_img_1_charge!.inputs.image, "cadence_assets_CHAR_maya.png");
   assert.equal(g[NODE_IDS_GENERATION.latentSauve]!.inputs.filename_prefix, "h3_latents/cadence_p4_r2/gen/clip");
   assert.equal(g[NODE_IDS_GENERATION.latentSauve]!.inputs.clip_index, 1);
   assert.notEqual(generation[NODE_IDS_GENERATION.prompt].inputs.value, entree.promptAssemble, "le fichier source n'est pas modifié");
@@ -85,6 +85,7 @@ test("upscale : même conditioning que la génération (prompt, durée, résolut
     assert.deepEqual(u[id]!.inputs, g[id]!.inputs, `le nœud ${id} diffère entre la génération et l'upscale`);
   }
   assert.deepEqual(u.ref_img_1, g.ref_img_1);
+  assert.deepEqual(u.ref_img_1_charge, g.ref_img_1_charge);
   assert.deepEqual(u.ref_audio_1, g.ref_audio_1);
 });
 

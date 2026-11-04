@@ -130,15 +130,28 @@
       "title": "Model Preview Override"
     }
   },
+  "123_charge": {
+    "inputs": {
+      "image": "Krea2_turbo_00432_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
   "123": {
     "inputs": {
-      "image": "Krea2_turbo_00432_.png",
-      "crop": "",
-      "max_megapixels": 1
+      "image": [
+        "123_charge",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 1
     },
-    "class_type": "LoadImageCrop",
+    "class_type": "ImageScaleToTotalPixels",
     "_meta": {
-      "title": "Load Image & Crop"
+      "title": "Image de référence (1 Mpx)"
     }
   },
   "146": {

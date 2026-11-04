@@ -151,9 +151,17 @@ export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput,
     input.refsImage.forEach((ref) => {
       const { slot } = ref;
       const nodeId = `ref_img_${slot}`;
+      // Deux nœuds du NOYAU (plus de pack tiers) : LoadImage charge le fichier, ImageScaleToTotalPixels le ramène à
+      // 1 Mpx (l'ancien LoadImageCrop faisait « crop vide + max_megapixels 1 »). `nodeId` est le nœud de sortie.
+      const idChargement = `${nodeId}_charge`;
+      graphe[idChargement] = {
+        class_type: "LoadImage",
+        inputs: { image: nomDistant(ref) },
+        _meta: { title: `Ref image ${slot} : fichier (générée par Cadence)` },
+      };
       graphe[nodeId] = {
-        class_type: "LoadImageCrop",
-        inputs: { image: nomDistant(ref), crop: "", max_megapixels: 1 },
+        class_type: "ImageScaleToTotalPixels",
+        inputs: { image: [idChargement, 0], upscale_method: "lanczos", megapixels: 1, resolution_steps: 1 },
         _meta: { title: `Ref image ${slot} (générée par Cadence)` },
       };
       refNode.inputs[`ref_images.ref_image_${slot - 1}`] = [nodeId, 0];
