@@ -1,0 +1,68 @@
+# Production sur le mini PC : images construites par GitHub (.github/workflows/images-app.yml), tirées de ghcr.io,
+# et tenues à jour toutes seules par Watchtower. Sur le mini PC il suffit de CE fichier et d'un .env (modèle :
+# .env.prod.example) dans le même dossier — pas besoin de cloner le dépôt :
+#   docker compose -f docker-compose.prod.yml up -d
+# (le docker-compose.yml de la racine, lui, construit les images sur place.)
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cadence}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans le .env}
+      POSTGRES_DB: ${POSTGRES_DB:-cadence}
+    volumes:
+      - cadence_postgres_data:/var/lib/postgresql/data
+    # Aucun port publié : seuls web et worker, sur le réseau Docker, parlent à la base.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cadence}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    image: ghcr.io/hifumisama/cadence-web:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      MEDIA_ROOT: /data
+    volumes:
+      - ${NFS_MEDIA_PATH:?NFS_MEDIA_PATH manquant dans le .env}:/data
+    ports:
+      # Pas de 6666 (ni 6665-6669) : Chrome et Firefox bloquent ces ports (ERR_UNSAFE_PORT).
+      - "${WEB_PORT:-3666}:3000"
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  # Applique aussi les migrations au démarrage (scripts/docker/worker-entrypoint.sh).
+  worker:
+    image: ghcr.io/hifumisama/cadence-worker:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      MEDIA_ROOT: /data
+    volumes:
+      - ${NFS_MEDIA_PATH:?NFS_MEDIA_PATH manquant dans le .env}:/data
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  # Tire les nouvelles images web/worker et redémarre ces deux conteneurs (et eux seuls : label « enable »).
+  watchtower:
+    image: nickfedor/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_POLL_INTERVAL: "300"
+      WATCHTOWER_CLEANUP: "true"
+      TZ: Europe/Paris
+
+volumes:
+  cadence_postgres_data:

@@ -1,3 +1,5 @@
 # Les fichiers copiés dans l'image GPU (scripts shell, profils, configs) doivent rester en LF :
 # un retour chariot Windows casse « #!/bin/bash » et les fichiers .env sourcés par le shell.
 deploy/gpu/** text eol=lf
+# Idem pour le script de démarrage du worker (image Alpine).
+scripts/docker/*.sh text eol=lf

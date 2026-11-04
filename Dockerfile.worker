@@ -13,4 +13,5 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .
-CMD ["npx", "tsx", "worker/index.ts"]
+# Migrations + dossier média + worker (scripts/docker/worker-entrypoint.sh).
+CMD ["sh", "scripts/docker/worker-entrypoint.sh"]

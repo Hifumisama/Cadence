@@ -1,0 +1,21 @@
+# Contexte de construction des images web et worker.
+# Surtout : jamais de .env (secrets) dans une image publiée, ni de node_modules/.next de la machine de dev.
+.git
+node_modules
+.next
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+
+# Banc d'essai Python et image GPU : sans objet pour web/worker.
+h3ir-lab
+deploy
+.claude
+
+# Données de travail : seuls les aperçus des styles et les vidéos de démo (versionnés) partent dans l'image ;
+# le worker les copie vers le dossier média au démarrage (scripts/docker/worker-entrypoint.sh).
+data/*
+!data/styles
+!data/mises-en-scene

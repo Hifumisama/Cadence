@@ -23,9 +23,18 @@ pipeline sans matériel de génération disponible.
 
 ### Pourquoi Docker seulement pour Postgres ?
 
-`docker-compose.yml` (racine) décrit le déploiement de **production** sur le
-mini PC — web + worker + Postgres en conteneurs, avec le stockage média
-monté depuis le partage NFS. En dev, reconstruire une image à chaque
+`docker-compose.prod.yml` décrit le déploiement de **production** sur le mini PC
+— web + worker + Postgres + Watchtower, avec le stockage média monté depuis le
+NAS ; modèle de configuration : `.env.prod.example`. Chaque push sur `main`
+construit les images (`.github/workflows/images-app.yml`, publiées sur
+ghcr.io/hifumisama/cadence-web et cadence-worker) et Watchtower, sur le mini
+PC, les tire et redémarre web et worker (vérification toutes les 5 min). Le
+worker applique les migrations à chaque démarrage. Mise en route : copier
+`docker-compose.prod.yml` et `.env.prod.example` (renommé `.env`, rempli) dans
+un dossier du mini PC, puis `docker compose -f docker-compose.prod.yml up -d`.
+Le `docker-compose.yml` (racine) construit, lui, les images sur place. Cadence
+n'a pas d'authentification : ne jamais l'exposer sur internet (Tailscale ou
+réseau local seulement). En dev, reconstruire une image à chaque
 modification de code serait plus lent que le hot-reload de `next dev` : web
 et worker tournent donc directement sur la machine, contre un Postgres
 dockerisé isolé de la prod (`docker-compose.dev.yml`, volume
