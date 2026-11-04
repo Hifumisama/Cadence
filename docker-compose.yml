@@ -45,7 +45,6 @@ services:
       MEDIA_ROOT: /data
       COMFYUI_MODE: ${COMFYUI_MODE:-stub}
       COMFYUI_URL: ${COMFYUI_URL}
-      COMFYUI_WORKFLOW_PATH: /app/workflows/video-generation/VID_REF2VA.json
       WORKER_INTERVAL_MS: ${WORKER_INTERVAL_MS:-10000}
     volumes:
       - ${NFS_MEDIA_PATH}:/data
