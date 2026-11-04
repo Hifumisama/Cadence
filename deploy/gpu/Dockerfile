@@ -71,7 +71,7 @@ RUN grep -vE '^\s*(#|$)' /tmp/custom-nodes.txt | while read -r url sha _; do \
     && rm /tmp/custom-nodes.txt
 
 # Ce qui change souvent vient en dernier.
-COPY entrypoint.sh run-comfyui.sh tailscale-up.sh telecharger-modeles.sh veille.sh supervisord.conf models.manifest /opt/cadence/
+COPY entrypoint.sh run-comfyui.sh tailscale-up.sh tailscaled-run.sh telecharger-modeles.sh veille.sh supervisord.conf models.manifest /opt/cadence/
 COPY profils/ /opt/cadence/profils/
 RUN chmod +x /opt/cadence/*.sh && cp -r /opt/ComfyUI/models /opt/ComfyUI/models.dist
 

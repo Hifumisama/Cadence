@@ -86,7 +86,7 @@ si `stop` est refusé, le script retente avec `terminate`, le volume réseau n'e
 (seuil d'utilisation du GPU, défaut 5). Il utilise `RUNPOD_POD_ID` et `RUNPOD_API_KEY`, que RunPod injecte dans le Pod (clé
 limitée au Pod ; si l'arrêt est refusé en 403, le journal l'indique et le Pod continue : l'arrêter à la main). Un worker
 qui laisse le GPU et ComfyUI au repos plus de 15 minutes entre deux tâches verra donc le Pod s'éteindre : augmenter la valeur.
-**À vérifier au premier essai** : tester avec `CADENCE_INACTIVITE_MIN=2`, ne rien lancer, et regarder si le Pod s'arrête.
+Vérifié sur un vrai Pod (2026-11-04) : l'arrêt automatique fonctionne avec la clé injectée par RunPod. Pour retester : `CADENCE_INACTIVITE_MIN=2`, ne rien lancer, regarder si le Pod s'arrête.
 
 ## Brancher Cadence
 
@@ -99,6 +99,8 @@ LLM_FOURNISSEUR=local
 LLM_LOCAL_URL=http://cadence-gpu:8080
 LLM_LOCAL_MODELE=qwen3.6-35b-A3B
 ```
+
+(Avec le profil `16go`, le modèle ne porte que le nom `qwen3.6-35b-A3B-lowvram` : mettre celui-là.)
 
 (`http://` convient : Tailscale chiffre déjà le lien.) Le modèle par défaut de `.env.example`, `gemma4-26b-A4B`,
 n'est pas dans les profils fournis : mets-le dans `llama-swap.yaml` (volume) si tu en as besoin, ou change
@@ -147,6 +149,9 @@ copier les deux fichiers et passer le nom dans `CADENCE_PROFIL`.
 - Le journal de tout (ComfyUI, llama-swap, Tailscale) est dans la console du Pod.
 - `Profil inconnu` : `CADENCE_PROFIL` ne correspond à aucun `profils/*.env`.
 - llama-swap répond mais le premier appel est très long : il charge ~21 Go depuis le volume réseau (`healthCheckTimeout` : 10 minutes).
+- Le Pod s'appelle `cadence-gpu-1`, `-2`… : l'ancien nœud était encore listé quand le nouveau est arrivé. L'image quitte maintenant
+  le tailnet à l'arrêt du Pod (`tailscale logout`, à l'arrêt normal ou par le coupe-circuit). Un Pod tué brutalement, ou lancé avec
+  une ancienne image, laisse son nœud : le supprimer dans la console Tailscale (Machines → … → Delete) pour libérer le nom.
 - Pod démarré mais introuvable : voir la ligne « Tailscale connecté » dans les journaux ; sinon la clé est invalide ou n'est pas réutilisable.
   Le journal affiche « clé lue = tskey-auth-… (N caractères) » : comparer avec la clé de la console. `invalid key: unable to
   validate API key` = Tailscale ne reconnaît pas cette clé (expirée, révoquée, d'un autre compte, ou pas une « Auth key »).

@@ -1,7 +1,7 @@
 # Nodes custom installés dans l'image : <dépôt> <commit complet> # ce qu'il fournit
 #
 # Liste déduite des workflows/ (table de ComfyUI-Manager, 2026-11-03), puis corrigée par l'utilisateur
-# (H3-Motion-Context, LoadImageCrop, RTX confirmés ; RIFE et le latent upscaler sont dans le noyau).
+# (H3-Motion-Context, LoadImageCrop, RTX confirmés ; RIFE et le latent upscaler viennent des deux packs en bas de liste).
 # Contrôle décisif : `npm run gpu:verifier` contre un ComfyUI qui tourne liste les nodes qui manquent.
 # Pour changer de version : remplacer le commit, reconstruire.
 # Pour retirer un pack : supprimer sa ligne (ou la commenter).

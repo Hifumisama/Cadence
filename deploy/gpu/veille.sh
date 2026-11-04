@@ -77,6 +77,8 @@ while true; do
     fi
     if [ "${code:0:1}" = "2" ]; then
       echo "[veille] demande acceptée (HTTP $code). Le Pod va s'éteindre."
+      # Libère le nom Tailscale tout de suite (sinon le Pod suivant devient « cadence-gpu-1 »).
+      timeout 10 tailscale logout >/dev/null 2>&1 || true
       sleep 600
     else
       echo "[veille] ÉCHEC de l'arrêt (HTTP $code) : le Pod continue de facturer. Arrête-le à la main dans RunPod. Nouvel essai dans 5 min." >&2
