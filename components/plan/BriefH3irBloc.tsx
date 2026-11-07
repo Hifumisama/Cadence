@@ -3,8 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { voirBriefH3ir } from "@/app/plans/actions";
 import { GenererFiche } from "@/components/plan/GenererFiche";
-import { CREATIVITES, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, STYLE_AUCUN, estStyleCamera, libelleStyleComplet, type ReglagesResolus } from "@/lib/h3ir/reglages";
-import { STYLES_CAMERA } from "@/lib/h3ir/styles-camera";
+import { CREATIVITES, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, STYLE_AUCUN, estMiseEnScene, type ReglagesResolus } from "@/lib/h3ir/reglages";
+import { OptionsMiseEnScene } from "@/components/h3ir/OptionsMiseEnScene";
 
 type Resultat = Awaited<ReturnType<typeof voirBriefH3ir>>;
 
@@ -75,15 +75,11 @@ export function BriefH3irBloc({
           Style de mise en scène{" "}
           <select value={style} onChange={(e) => setStyle(e.target.value)}>
             <option value={STYLE_AUCUN}>Aucun style</option>
-            {STYLES_CAMERA.map((s) => (
-              <option key={s} value={s}>
-                {libelleStyleComplet(s)}
-              </option>
-            ))}
+            <OptionsMiseEnScene />
           </select>
         </label>
       </div>
-      {estStyleCamera(style) ? <p className="tiny-note">{DETAIL_STYLE_CAMERA[style]}</p> : null}
+      {estMiseEnScene(style) ? <p className="tiny-note">{DETAIL_STYLE_CAMERA[style]}</p> : null}
       <p className="tiny-note">
         Réglages enregistrés : créativité <b>{LIBELLE_CREATIVITE[reglagesInitiaux.creativite]}</b> ({LIBELLE_NIVEAU[o.creativite]}), mise en scène{" "}
         <b>{reglagesInitiaux.styleCamera ? RESUME_STYLE_CAMERA[reglagesInitiaux.styleCamera] : "aucun style"}</b> ({LIBELLE_NIVEAU[o.styleCamera]}).

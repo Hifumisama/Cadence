@@ -13,6 +13,7 @@ import {
   etatInitial,
   lireEtatSauvegarde,
   resumeEtape,
+  suivreRecommandation,
   teinteAmbiance,
   versCharge,
   type EtatAssistant,
@@ -66,7 +67,8 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
     }
   }, [etat, restaure]);
 
-  const maj: MajEtat = useCallback((f) => setEtat((e) => f(e)), []);
+  // Après chaque changement : tant que la mise en scène n'a pas été choisie à la main, elle suit la recommandation du style (lib/conception-ui.ts, `suivreRecommandation`).
+  const maj: MajEtat = useCallback((f) => setEtat((e) => suivreRecommandation(f(e))), []);
 
   const aller = useCallback(
     (i: number) => {

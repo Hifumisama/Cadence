@@ -172,3 +172,17 @@ test("briefDepuisPlan : le plafond de shots suit la durée nominale (le paquet r
   assert.equal(briefDepuisPlan(entree({ plan: { description: DESCRIPTION, dureeSecondes: 6, seed: "1" } }), { shots: 5 }).brief!.shots, 5);
   assert.match(briefDepuisPlan(entree({ plan: { description: DESCRIPTION, dureeSecondes: 6, seed: "1" } }), { shots: 6 }).refus ?? "", /1 à 5/);
 });
+
+test("briefDepuisPlan : un profil perso part en director_profile (jamais en director), un réalisateur en director, « aucun » rien ; un inconnu est refusé", async () => {
+  const { PROFILS_PERSO } = await import("./profils-perso");
+  const perso = briefDepuisPlan(entree(), { director: "claymation" });
+  assert.equal(perso.refus, null);
+  assert.deepEqual(perso.brief?.director_profile, PROFILS_PERSO.claymation);
+  assert.equal(perso.brief?.director, undefined);
+  const livre = briefDepuisPlan(entree(), { director: "wong" });
+  assert.equal(livre.brief?.director, "wong");
+  assert.equal(livre.brief?.director_profile, undefined);
+  const aucun = briefDepuisPlan(entree(), { director: "aucun" });
+  assert.deepEqual([aucun.brief?.director, aucun.brief?.director_profile], [undefined, undefined]);
+  assert.match(briefDepuisPlan(entree(), { director: "kubrick" }).refus ?? "", /inconnu/);
+});

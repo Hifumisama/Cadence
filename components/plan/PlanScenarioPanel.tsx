@@ -6,7 +6,7 @@ import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/plan-checks";
 import { GenererFiche } from "@/components/plan/GenererFiche";
 import { LIAISONS, LIBELLE_LIAISON, type Liaison } from "@/lib/plan-liaison";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
-import { DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_NIVEAU, LIBELLE_STYLE_CAMERA, RESUME_STYLE_CAMERA, resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/reglages";
+import { LIBELLE_CREATIVITE, LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, infobulleChoix, resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/reglages";
 import {
   ScenarioNarratifFields,
   type ChampsNarratifs,
@@ -97,7 +97,7 @@ export function PlanScenarioPanel({
             </li>
             {reglages.origine.styleCamera !== "defaut" ? (
               <li title="Style de mise en scène d'Open H3 IR pour ce plan. Se règle ici (Modifier), sur la scène ou sur le projet.">
-                <span>Mise en scène</span> <b title={reglages.styleCamera ? `${LIBELLE_STYLE_CAMERA[reglages.styleCamera]} — ${DETAIL_STYLE_CAMERA[reglages.styleCamera]}` : undefined}>{reglages.styleCamera ? RESUME_STYLE_CAMERA[reglages.styleCamera] : "aucun style"}</b>
+                <span>Mise en scène</span> <b title={reglages.styleCamera ? infobulleChoix(reglages.styleCamera) : undefined}>{reglages.styleCamera ? RESUME_STYLE_CAMERA[reglages.styleCamera] : "aucun style"}</b>
                 {reglages.origine.styleCamera !== "plan" ? <em> · {LIBELLE_NIVEAU[reglages.origine.styleCamera]}</em> : null}
               </li>
             ) : null}

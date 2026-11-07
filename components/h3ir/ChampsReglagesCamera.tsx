@@ -7,11 +7,11 @@ import {
   LIBELLE_CREATIVITE,
   LIBELLE_NIVEAU,
   STYLE_AUCUN,
-  estStyleCamera,
+  estMiseEnScene,
   libelleStyleComplet,
   type ReglagesResolus,
 } from "@/lib/h3ir/reglages";
-import { STYLES_CAMERA } from "@/lib/h3ir/styles-camera";
+import { OptionsMiseEnScene } from "./OptionsMiseEnScene";
 
 /** Les deux réglages d'Open H3 IR d'un niveau (projet, scène ou plan) : la créativité et le style de mise en scène. Vide = hérite du niveau au-dessus ; l'option vide dit ce qu'il
  * donnerait (`heritage` : ce que ce niveau recevrait s'il ne réglait rien, avec le niveau d'où cela vient). Pour le style, « Aucun style » est un choix à part entière :
@@ -34,9 +34,9 @@ export function ChampsReglagesCamera({
   const heriteCreativite = `Hérite : ${LIBELLE_CREATIVITE[heritage.creativite]} (${LIBELLE_NIVEAU[heritage.origine.creativite]})`;
   const heriteStyle = `Hérite : ${heritage.styleCamera ? libelleStyleComplet(heritage.styleCamera) : "aucun style"} (${LIBELLE_NIVEAU[heritage.origine.styleCamera]})`;
   const creativiteChoisie = (CREATIVITES as readonly string[]).includes(creativite) ? creativite : "";
-  const styleChoisi = (STYLES_CAMERA as readonly string[]).includes(styleCamera) || styleCamera === STYLE_AUCUN ? styleCamera : "";
+  const styleChoisi = estMiseEnScene(styleCamera) || styleCamera === STYLE_AUCUN ? styleCamera : "";
   // Ce que le style affiché fait : celui qu'on choisit, ou celui dont on hérite quand le menu est vide.
-  const styleVu = estStyleCamera(styleChoisi) ? styleChoisi : styleChoisi === "" ? heritage.styleCamera : null;
+  const styleVu = estMiseEnScene(styleChoisi) ? styleChoisi : styleChoisi === "" ? heritage.styleCamera : null;
   return (
     <>
       <div className="field-group">
@@ -56,11 +56,7 @@ export function ChampsReglagesCamera({
         <select id={`${idPrefixe}-style-camera`} className="field" value={styleChoisi} onChange={(e) => onStyleCamera(e.target.value)}>
           <option value="">{heriteStyle}</option>
           <option value={STYLE_AUCUN}>Aucun style</option>
-          {STYLES_CAMERA.map((s) => (
-            <option key={s} value={s}>
-              {libelleStyleComplet(s)}
-            </option>
-          ))}
+          <OptionsMiseEnScene />
         </select>
         <span className="tiny-note">
           {styleVu

@@ -7,14 +7,17 @@ import {
   ETAPES_CONCEPTION,
   ajusterTon,
   basculerGenre,
+  choisirMiseEnScene,
   etapeMax,
   etapeValide,
   etatInitial,
   lireEtatSauvegarde,
   minutesSecondes,
+  miseEnSceneDuStyle,
   reinitialiserTon,
   resumeEtape,
   styleComplet,
+  suivreRecommandation,
   teinteAmbiance,
   versCharge,
   type EtatAssistant,
@@ -140,8 +143,11 @@ test("mise en scène : une session plus ancienne (sans ces champs) ou abîmée r
   assert.deepEqual([ancien.creativite, ancien.styleCamera], ["balanced", "aucun"]);
   const abime = lireEtatSauvegarde(JSON.stringify({ genres: [], creativite: "folle", styleCamera: "kubrick" }))!;
   assert.deepEqual([abime.creativite, abime.styleCamera], ["balanced", "aucun"]);
-  const choisi: EtatAssistant = { ...etatInitial(), creativite: "restrained", styleCamera: "anderson" };
+  const choisi: EtatAssistant = choisirMiseEnScene({ ...etatInitial(), creativite: "restrained" }, "anderson");
   assert.deepEqual(lireEtatSauvegarde(JSON.stringify(choisi)), choisi);
+  // Une session d'avant le champ `miseEnSceneChoisie` : un style autre que « aucun » ne peut venir que d'un choix manuel, il est gardé.
+  const vieux = lireEtatSauvegarde(JSON.stringify({ genres: ["Drame"], style: { source: "bibliotheque", styleId: "claymation" }, styleCamera: "wong" }))!;
+  assert.deepEqual([vieux.styleCamera, vieux.miseEnSceneChoisie], ["wong", true]);
 });
 
 test("reglagesDepuisCharge : valeurs validées, repli sur le départ (jamais null), « aucun » accepté", async () => {
@@ -152,4 +158,30 @@ test("reglagesDepuisCharge : valeurs validées, repli sur le départ (jamais nul
   assert.deepEqual(reglagesDepuisCharge({}), { creativite: "balanced", styleCamera: "aucun" });
   assert.deepEqual(reglagesDepuisCharge(null), { creativite: "balanced", styleCamera: "aucun" });
   assert.deepEqual(reglagesDepuisCharge("texte"), { creativite: "balanced", styleCamera: "aucun" });
+});
+
+// --- Recommandation : le style du projet suggère une façon de filmer ----------------------------------------------------------
+
+test("recommandation : la mise en scène suit le style tant qu'elle n'a pas été choisie à la main, puis n'est plus jamais écrasée", () => {
+  const avecStyle = (styleId: string, e: EtatAssistant = etatInitial()): EtatAssistant => ({ ...e, style: { source: "bibliotheque", styleId } });
+  // Un style recommandé : la suggestion est cochée toute seule.
+  const clay = suivreRecommandation(avecStyle("claymation"));
+  assert.deepEqual([clay.styleCamera, clay.miseEnSceneChoisie], ["claymation", false]);
+  assert.equal(miseEnSceneDuStyle(clay.style), "claymation");
+  // Le style change : la suggestion suit (autre recommandation, puis aucune).
+  assert.equal(suivreRecommandation(avecStyle("ghibli-style", clay)).styleCamera, "anime-contemplatif");
+  assert.equal(suivreRecommandation(avecStyle("van-gogh-style", clay)).styleCamera, "aucun");
+  // Un style libre n'a aucune recommandation.
+  assert.equal(suivreRecommandation({ ...clay, style: { source: "libre", nom: "x", promptImage: "p", clause: "c" } }).styleCamera, "aucun");
+  // Un choix manuel (même « aucun ») n'est jamais écrasé par un changement de style.
+  const manuel = choisirMiseEnScene(clay, "wong");
+  assert.equal(suivreRecommandation(avecStyle("ghibli-style", manuel)).styleCamera, "wong");
+  const sans = choisirMiseEnScene(clay, "aucun");
+  assert.equal(suivreRecommandation(avecStyle("ghibli-style", sans)).styleCamera, "aucun");
+  // Un profil perso est envoyé au serveur comme n'importe quel choix, et le ruban le résume.
+  assert.equal(versCharge(clay).styleCamera, "claymation");
+  assert.equal(resumeEtape(5, clay, () => null), "Équilibrée · Stop-motion en pâte à modeler");
+  // Le drapeau reste côté navigateur.
+  assert.equal("miseEnSceneChoisie" in versCharge(clay), false);
+  assert.ok(validerConception(versCharge({ ...clay, genres: ["Drame"] }), [{ id: "claymation" }]).ok);
 });

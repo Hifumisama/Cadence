@@ -1,11 +1,12 @@
+import { FICHES_PERSO, IDS_PROFILS_PERSO, type ProfilPersoId } from "./profils-perso";
 import { STYLES_CAMERA } from "./styles-camera";
 
 /** Créativité et style de mise en scène d'Open H3 IR, réglés au niveau du PROJET, surchargeables par SCÈNE puis par PLAN : le plus précis gagne (étape 7 du chantier,
  * docs/PLAN_INTEGRATION_OPEN_H3_IR.md). Pur et sans accès base : importable côté client comme côté serveur et worker.
  *
  * Chaque niveau stocke `null` (= hérite), ou une valeur. Pour le style, `"aucun"` est une valeur : elle force l'absence de style par-dessus un style défini plus haut.
- * Défauts quand rien n'est réglé : créativité « équilibrée » (celle du paquet), aucun style. Le « style de mise en scène » est l'un des profils `director` du paquet : un goût
- * complet (caméra, cadrage, lumière, jeu, sons, musique) qui ne remplit que ce que la demande et les images ne tranchent pas. Ce n'est pas le « réalisateur » retiré le 2026-10-20. */
+ * Défauts quand rien n'est réglé : créativité « équilibrée » (celle du paquet), aucun style. Le « style de mise en scène » est l'un des profils `director` du paquet (7 réalisateurs) ou l'un de nos six profils
+ * personnalisés (`director_profile`, profils-perso.ts) : un goût complet (caméra, cadrage, lumière, jeu, sons, musique) qui ne remplit que ce que la demande et les images ne tranchent pas. Ce n'est pas le « réalisateur » retiré le 2026-10-20. */
 
 export const CREATIVITES = ["restrained", "balanced", "bold", "extreme"] as const;
 export type Creativite = (typeof CREATIVITES)[number];
@@ -26,7 +27,13 @@ export const AIDE_CREATIVITE: Record<Creativite, string> = {
   extreme: "Pousse chaque choix au maximum : caméra ample et rapide, contrastes durs.",
 };
 
+/** Un des 7 profils `director` livrés (réalisateurs). */
 export type StyleCamera = (typeof STYLES_CAMERA)[number];
+/** Un choix de « style de mise en scène » : un des 7 réalisateurs (`director`) OU un profil personnalisé (`director_profile`, profils-perso.ts). C'est ce que stockent les colonnes
+ * `style_camera` du projet, de la scène et du plan, et ce que résout `resoudreReglages`. */
+export type ChoixMiseEnScene = StyleCamera | ProfilPersoId;
+/** Tous les choix, dans l'ordre des menus : les réalisateurs puis les profils perso. */
+export const MISES_EN_SCENE: readonly ChoixMiseEnScene[] = [...STYLES_CAMERA, ...IDS_PROFILS_PERSO];
 /** Valeur d'un niveau qui force « aucun style » malgré un style défini plus haut. */
 export const STYLE_AUCUN = "aucun";
 
@@ -42,7 +49,7 @@ export const LIBELLE_STYLE_CAMERA: Record<StyleCamera, string> = {
 };
 
 /** Le style en quelques mots, pour qui ne connaît pas le réalisateur. Écrit d'après les profils du paquet (h3ir/director.py). */
-export const RESUME_STYLE_CAMERA: Record<StyleCamera, string> = {
+const RESUME_REALISATEURS: Record<StyleCamera, string> = {
   cameron: "Action ample et mécanique",
   tarantino: "Dialogues posés, inserts francs",
   anderson: "Symétrie et ordre",
@@ -53,7 +60,7 @@ export const RESUME_STYLE_CAMERA: Record<StyleCamera, string> = {
 };
 
 /** Ce que le profil fait, en une phrase : caméra, lumière, jeu, sons. */
-export const DETAIL_STYLE_CAMERA: Record<StyleCamera, string> = {
+const DETAIL_REALISATEURS: Record<StyleCamera, string> = {
   cameron:
     "Caméra qui voyage avec les corps et les machines, grands espaces et contre-plongées, lumière dure et froide avec une source ambre, bruits de mécanique, orchestre qui monte lentement.",
   tarantino:
@@ -70,16 +77,29 @@ export const DETAIL_STYLE_CAMERA: Record<StyleCamera, string> = {
     "Caméra qui avance doucement vers un visage, contre-jour chaud et haze, la réaction plutôt que sa cause, jeu sincère, grand orchestre à mélodie claire.",
 };
 
+const parProfilPerso = (cle: "libelle" | "resume"): Record<ProfilPersoId, string> =>
+  Object.fromEntries(IDS_PROFILS_PERSO.map((id) => [id, FICHES_PERSO[id][cle]])) as Record<ProfilPersoId, string>;
+/** Le choix en quelques mots (titre d'une carte) : pour un profil perso, son libellé. */
+export const RESUME_STYLE_CAMERA: Record<ChoixMiseEnScene, string> = { ...RESUME_REALISATEURS, ...parProfilPerso("libelle") };
+/** Ce que le choix fait, en une phrase : pour un profil perso, son résumé. */
+export const DETAIL_STYLE_CAMERA: Record<ChoixMiseEnScene, string> = { ...DETAIL_REALISATEURS, ...parProfilPerso("resume") };
+
 /** « Immense et silencieux — style de Denis Villeneuve » : ce que les menus affichent. */
-export const libelleStyleComplet = (s: StyleCamera): string => `${RESUME_STYLE_CAMERA[s]} — style de ${LIBELLE_STYLE_CAMERA[s]}`;
+export const libelleStyleComplet = (s: ChoixMiseEnScene): string => (estStyleCamera(s) ? `${RESUME_STYLE_CAMERA[s]} — style de ${LIBELLE_STYLE_CAMERA[s]}` : RESUME_STYLE_CAMERA[s]);
+/** « style de Denis Villeneuve » pour un réalisateur ; vide pour un profil perso (aucun nom de studio ni d'auteur n'est montré). */
+/** L'infobulle d'un choix : « James Cameron — caméra qui voyage… » pour un réalisateur, « Anime d'action — poses extrêmes… » pour un profil perso. */
+export const infobulleChoix = (s: ChoixMiseEnScene): string => `${estStyleCamera(s) ? LIBELLE_STYLE_CAMERA[s] : RESUME_STYLE_CAMERA[s]} — ${DETAIL_STYLE_CAMERA[s]}`;
+export const signatureChoix = (s: ChoixMiseEnScene): string => (estStyleCamera(s) ? `style de ${LIBELLE_STYLE_CAMERA[s]}` : "");
 
 export const estCreativite = (v: unknown): v is Creativite => typeof v === "string" && (CREATIVITES as readonly string[]).includes(v);
+export const estProfilPerso = (v: unknown): v is ProfilPersoId => typeof v === "string" && (IDS_PROFILS_PERSO as readonly string[]).includes(v);
+export const estMiseEnScene = (v: unknown): v is ChoixMiseEnScene => estStyleCamera(v) || estProfilPerso(v);
 export const estStyleCamera = (v: unknown): v is StyleCamera => typeof v === "string" && (STYLES_CAMERA as readonly string[]).includes(v);
 
 /** Une créativité valide, ou `null` (= hérite). */
 export const creativiteOuNull = (v: unknown): Creativite | null => (estCreativite(v) ? v : null);
-/** Un style valide ou `"aucun"`, ou `null` (= hérite). */
-export const styleCameraOuNull = (v: unknown): StyleCamera | typeof STYLE_AUCUN | null => (estStyleCamera(v) || v === STYLE_AUCUN ? (v as StyleCamera | typeof STYLE_AUCUN) : null);
+/** Un choix de mise en scène valide (réalisateur ou profil perso) ou `"aucun"`, ou `null` (= hérite). */
+export const styleCameraOuNull = (v: unknown): ChoixMiseEnScene | typeof STYLE_AUCUN | null => (estMiseEnScene(v) || v === STYLE_AUCUN ? (v as ChoixMiseEnScene | typeof STYLE_AUCUN) : null);
 
 export type NiveauReglage = "plan" | "scene" | "projet" | "defaut";
 export const LIBELLE_NIVEAU: Record<NiveauReglage, string> = { plan: "ce plan", scene: "la scène", projet: "le projet", defaut: "le réglage par défaut" };
@@ -90,7 +110,7 @@ export type ReglagesBruts = { creativite?: string | null; styleCamera?: string |
 export type ReglagesResolus = {
   creativite: Creativite;
   /** `null` : aucun style (réglé « aucun » quelque part, ou jamais réglé). */
-  styleCamera: StyleCamera | null;
+  styleCamera: ChoixMiseEnScene | null;
   /** Le niveau d'où vient chaque valeur. */
   origine: { creativite: NiveauReglage; styleCamera: NiveauReglage };
 };
@@ -104,7 +124,7 @@ export function resoudreReglages(niveaux: { projet?: ReglagesBruts | null; scene
   ];
   let creativite: Creativite = CREATIVITE_PAR_DEFAUT;
   let origineCreativite: NiveauReglage = "defaut";
-  let style: StyleCamera | null = null;
+  let style: ChoixMiseEnScene | null = null;
   let origineStyle: NiveauReglage = "defaut";
   for (const [niveau, r] of ordre) {
     const c = creativiteOuNull(r?.creativite);
@@ -127,7 +147,7 @@ export function resoudreReglages(niveaux: { projet?: ReglagesBruts | null; scene
 
 /** Ce que l'assistant de création (`/nouveau`) envoie pour la mise en scène : créativité et style, validés. Une valeur absente ou inconnue retombe sur le départ de l'écran
  * (créativité « équilibrée », « aucun style »), jamais sur `null` : un projet créé par l'assistant porte ses valeurs EXPLICITES, que la page Brief affiche comme venant du projet. */
-export function reglagesDepuisCharge(brut: unknown): { creativite: Creativite; styleCamera: StyleCamera | typeof STYLE_AUCUN } {
+export function reglagesDepuisCharge(brut: unknown): { creativite: Creativite; styleCamera: ChoixMiseEnScene | typeof STYLE_AUCUN } {
   const b = (brut && typeof brut === "object" ? brut : {}) as Record<string, unknown>;
   return { creativite: creativiteOuNull(b.creativite) ?? CREATIVITE_PAR_DEFAUT, styleCamera: styleCameraOuNull(b.styleCamera) ?? STYLE_AUCUN };
 }

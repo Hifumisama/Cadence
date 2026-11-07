@@ -10,7 +10,7 @@ import {
   QUAND_STYLE,
   SCENE_EXEMPLE,
 } from "./exemples";
-import { AIDE_CREATIVITE, CREATIVITES } from "./reglages";
+import { AIDE_CREATIVITE, CREATIVITES, MISES_EN_SCENE } from "./reglages";
 import { STYLES_CAMERA } from "./styles-camera";
 
 test("chaque niveau de créativité a son exemple, son « quand », ses ajouts ; chaque style son exemple, ses films et son « quand »", () => {
@@ -20,11 +20,12 @@ test("chaque niveau de créativité a son exemple, son « quand », ses ajouts ;
     assert.ok(AIDE_CREATIVITE[c].length > 20, c);
     assert.deepEqual(Object.keys(AJOUTS_CREATIVITE[c]).sort(), PASTILLES_CREATIVITE.map((p) => p.cle).sort(), c);
   }
-  for (const s of STYLES_CAMERA) {
+  // Tous les choix (réalisateurs et profils perso) ont leur exemple et leur « quand » ; seuls les réalisateurs ont des films (aucun titre n'est cité pour un profil perso).
+  for (const s of MISES_EN_SCENE) {
     assert.ok(EXEMPLE_STYLE[s].length > 60, s);
     assert.ok(QUAND_STYLE[s].length > 40, s);
-    assert.ok(FILMS_STYLE[s].length >= 3, `${s} : au moins 3 films`);
   }
+  for (const s of STYLES_CAMERA) assert.ok(FILMS_STYLE[s].length >= 3, `${s} : au moins 3 films`);
   assert.ok(SCENE_EXEMPLE.length > 0);
 });
 

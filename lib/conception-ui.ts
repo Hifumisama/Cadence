@@ -13,6 +13,8 @@ import {
   tonDepuisGenres,
 } from "./conception";
 import { RYTHMES_BRIEF, type RythmeBrief } from "./agents/types";
+import type { ProfilPersoId } from "./h3ir/profils-perso";
+import { miseEnSceneRecommandee } from "./styles/mise-en-scene-recommandee";
 import { CREATIVITE_PAR_DEFAUT, STYLE_AUCUN, creativiteOuNull, resumeMiseEnScene, styleCameraOuNull, type Creativite } from "./h3ir/reglages";
 
 /** L'état de l'assistant de conception (page `/nouveau`) côté navigateur : valeurs de départ, passage d'une étape à l'autre, résumé de
@@ -37,6 +39,9 @@ export type EtatAssistant = {
   /** Mise en scène (Open H3 IR, lib/h3ir/reglages.ts) : la créativité, et le style de mise en scène (un des 7 profils, ou « aucun »). Valeurs de départ cochées à l'écran. */
   creativite: Creativite;
   styleCamera: string;
+  /** Vrai dès que l'utilisateur a choisi lui-même le style de mise en scène. Tant qu'il est faux, `styleCamera` SUIT la recommandation du style du projet (`suivreRecommandation`) ;
+   * vrai, un changement de style ne l'écrase jamais. Sauvegardé en session, pas envoyé au serveur. */
+  miseEnSceneChoisie: boolean;
 };
 
 export const ETAPES_ASSISTANT = ["Accueil", "Genre & ton", "Durée", "Langue", "Style", "Mise en scène"] as const;
@@ -58,8 +63,25 @@ export function etatInitial(): EtatAssistant {
     style: null,
     creativite: CREATIVITE_PAR_DEFAUT,
     styleCamera: STYLE_AUCUN,
+    miseEnSceneChoisie: false,
   };
 }
+
+/** Le profil de mise en scène recommandé par le style choisi (bibliothèque), ou null (style libre, ou sans recommandation). */
+export function miseEnSceneDuStyle(style: StyleChoisi | null): ProfilPersoId | null {
+  return style?.source === "bibliotheque" ? miseEnSceneRecommandee(style.styleId) : null;
+}
+
+/** Tant que l'utilisateur n'a pas choisi la mise en scène à la main, elle suit la recommandation du style (sinon « aucun style ») ; une fois choisie, elle n'est jamais touchée.
+ * À appliquer après chaque changement d'état (`ConceptionAssistant`) et à la relecture de la session. */
+export function suivreRecommandation(etat: EtatAssistant): EtatAssistant {
+  if (etat.miseEnSceneChoisie) return etat;
+  const voulu = miseEnSceneDuStyle(etat.style) ?? STYLE_AUCUN;
+  return voulu === etat.styleCamera ? etat : { ...etat, styleCamera: voulu };
+}
+
+/** Un choix MANUEL de mise en scène (carte cliquée, « aucun » compris) : il est retenu et ne suit plus la recommandation. */
+export const choisirMiseEnScene = (etat: EtatAssistant, styleCamera: string): EtatAssistant => ({ ...etat, styleCamera, miseEnSceneChoisie: true });
 
 /** Coche ou décoche un genre ; au-delà de `GENRES_MAX`, le plus ancien est remplacé. Le ton suit les genres tant qu'il n'a pas été ajusté. */
 export function basculerGenre(etat: EtatAssistant, nom: string): EtatAssistant {
@@ -179,7 +201,8 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
     };
   }
   const langue = typeof o.langue === "string" && (o.langue === SANS_DIALOGUE || (LANGUES_DIALOGUES as readonly string[]).includes(o.langue)) ? o.langue : depart.langue;
-  return {
+  const styleCamera = styleCameraOuNull(o.styleCamera) ?? depart.styleCamera;
+  return suivreRecommandation({
     genres,
     ton: tonAjuste ? entier(o.ton, 0, 100, depart.ton) : tonDepuisGenres(genres),
     tonAjuste,
@@ -191,6 +214,8 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
     style,
     // Une session plus ancienne n'a pas ces champs : valeurs de départ.
     creativite: creativiteOuNull(o.creativite) ?? depart.creativite,
-    styleCamera: styleCameraOuNull(o.styleCamera) ?? depart.styleCamera,
-  };
+    styleCamera,
+    // Une session d'avant ce champ : un style autre que « aucun » ne peut venir que d'un choix manuel, on le garde.
+    miseEnSceneChoisie: typeof o.miseEnSceneChoisie === "boolean" ? o.miseEnSceneChoisie : styleCamera !== STYLE_AUCUN,
+  });
 }

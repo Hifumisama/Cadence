@@ -257,6 +257,8 @@
 .cn-mise span { color: var(--ink-3); font-size: 12.5px; }
 .cn-mise:hover { transform: translateY(-2px); border-color: var(--or-soft); }
 .cn-mise[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); box-shadow: 0 0 30px -8px rgba(201, 162, 75, 0.5); }
+.cn-mise-tag { font-style: normal; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--or-glow); }
+.cn-choix.is-suggere > .cn-mise { border-color: var(--or-soft); }
 
 /* 6. Mise en scène : l'encadré d'aide sous chaque bloc (exemple, pastilles, films) et la fenêtre « ? » qui compare tous les choix. */
 .cn-aide-boite { margin-top: 12px; padding: 12px 16px; border: 1px solid var(--line); background: rgba(14, 14, 19, 0.35); display: grid; gap: 8px; max-width: 900px; }

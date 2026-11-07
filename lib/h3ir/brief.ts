@@ -3,7 +3,8 @@ import { LANGUE_AUTO } from "../langues-tts";
 import { MAX_AUDIOS } from "../agents/plan-h3-controles";
 import { MAX_REFS_VISUELLES } from "../plan-raccord";
 import { SHOT_MIN_FICHE_SECONDES } from "../plan-checks";
-import { estCreativite, STYLE_AUCUN, type Creativite } from "./reglages";
+import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./reglages";
+import { PROFILS_PERSO } from "./profils-perso";
 import { STYLES_CAMERA } from "./styles-camera";
 
 /** Le brief Open H3 IR d'un plan (étape 1 du plan d'intégration, docs/PLAN_INTEGRATION_OPEN_H3_IR.md) : la correspondance Cadence → `BriefIn`, le
@@ -46,6 +47,8 @@ export type BriefH3ir = {
   /** Absent = « balanced », le défaut du paquet. */
   creativity?: Creativite;
   director?: string;
+  /** Un profil personnalisé (profils-perso.ts) : à la place de `director`, jamais avec. */
+  director_profile?: { name: string; notes: string };
   effort: "standard";
   seed?: number;
   transcripts?: Record<string, string>;
@@ -228,7 +231,9 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
     if (creativite !== "balanced") brief.creativity = creativite;
   }
   const camera = options.director?.trim();
-  if (camera && camera !== STYLE_AUCUN) {
+  if (camera && camera !== STYLE_AUCUN && estProfilPerso(camera)) {
+    brief.director_profile = PROFILS_PERSO[camera];
+  } else if (camera && camera !== STYLE_AUCUN) {
     if (!(STYLES_CAMERA as readonly string[]).includes(camera)) return refuser(`Style de mise en scène inconnu : « ${camera} ».`);
     brief.director = camera;
   }

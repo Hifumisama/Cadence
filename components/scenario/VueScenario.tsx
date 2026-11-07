@@ -12,7 +12,7 @@ import { useTaches } from "@/components/taches/TachesProvider";
 import { Icone } from "@/components/ui/Icone";
 import { posterBackgroundImage } from "@/lib/poster";
 import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
-import { DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, RESUME_STYLE_CAMERA, STYLE_AUCUN, creativiteOuNull, styleCameraOuNull, type ReglagesBruts } from "@/lib/h3ir/reglages";
+import { LIBELLE_CREATIVITE, RESUME_STYLE_CAMERA, STYLE_AUCUN, infobulleChoix, creativiteOuNull, styleCameraOuNull, type ReglagesBruts } from "@/lib/h3ir/reglages";
 import { cleDemande } from "@/lib/taches";
 import { LIBELLE_ETAT, cleScene, minutage, romain, type AjoutEnCours, type AjoutSceneEnCours, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
@@ -425,7 +425,7 @@ export function VueScenario({
               {styleScene ? (
                 <li className="sc-chip" title="Style de mise en scène propre à cette scène (Open H3 IR) ; sinon elle hérite du projet">
                   <span>Mise en scène</span>
-                  <b title={styleScene === STYLE_AUCUN ? undefined : `${LIBELLE_STYLE_CAMERA[styleScene]} — ${DETAIL_STYLE_CAMERA[styleScene]}`}>{styleScene === STYLE_AUCUN ? "Aucun style" : RESUME_STYLE_CAMERA[styleScene]}</b>
+                  <b title={styleScene === STYLE_AUCUN ? undefined : infobulleChoix(styleScene)}>{styleScene === STYLE_AUCUN ? "Aucun style" : RESUME_STYLE_CAMERA[styleScene]}</b>
                 </li>
               ) : null}
               {courant.ambiance ? (

@@ -13,9 +13,9 @@ import {
   QUAND_CREATIVITE,
   QUAND_STYLE,
 } from "@/lib/h3ir/exemples";
-import { AIDE_CREATIVITE, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, RESUME_STYLE_CAMERA, STYLE_AUCUN, estStyleCamera, type Creativite } from "@/lib/h3ir/reglages";
+import { AIDE_CREATIVITE, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, RESUME_STYLE_CAMERA, STYLE_AUCUN, estMiseEnScene, estProfilPerso, estStyleCamera, signatureChoix, type Creativite } from "@/lib/h3ir/reglages";
 
-/** Ce que la carte montre : un style (« aucun » ou l'un des 7 profils) ou un niveau de créativité. */
+/** Ce que la carte montre : un style de mise en scène (« aucun », l'un des 7 réalisateurs ou un profil perso) ou un niveau de créativité. */
 export type CarteChoisie = { genre: "style"; id: string } | { genre: "creativite"; id: Creativite };
 
 /** Ce que ce niveau de créativité peut ajouter, d'un coup d'œil : une pastille par ajout, allumée ou non (✓ / ✕ : jamais la couleur seule). */
@@ -59,10 +59,10 @@ export function CarteMiseEnScene({
     return () => document.removeEventListener("keydown", echap);
   }, [onFermer]);
 
-  const style = carte.genre === "style" && estStyleCamera(carte.id) ? carte.id : null;
+  const style = carte.genre === "style" && estMiseEnScene(carte.id) ? carte.id : null;
   const creativite = carte.genre === "creativite" ? carte.id : null;
   const titre = creativite ? LIBELLE_CREATIVITE[creativite] : style ? RESUME_STYLE_CAMERA[style] : "Aucun style";
-  const sousTitre = creativite ? AIDE_CREATIVITE[creativite] : style ? `style de ${LIBELLE_STYLE_CAMERA[style]}` : "l'IA décide";
+  const sousTitre = creativite ? AIDE_CREATIVITE[creativite] : style ? signatureChoix(style) || "façon de filmer" : "l'IA décide";
   const exemple = creativite ? EXEMPLE_CREATIVITE[creativite] : style ? EXEMPLE_STYLE[style] : EXEMPLE_AUCUN_STYLE;
   const quand = creativite ? QUAND_CREATIVITE[creativite] : style ? QUAND_STYLE[style] : QUAND_AUCUN_STYLE;
   const etiquette = creativite ? "Carte de créativité" : "Carte de mise en scène";
@@ -111,18 +111,24 @@ export function CarteMiseEnScene({
             <>
               <h3 className="cn-carte-mini">Ce que tu remarqueras</h3>
               <p className="cn-carte-texte">{DETAIL_STYLE_CAMERA[style]}</p>
-              <h3 className="cn-carte-mini">Pense à</h3>
-              <p className="cn-carte-texte cn-carte-films">{FILMS_STYLE[style].join(" · ")}</p>
+              {estStyleCamera(style) ? (
+                <>
+                  <h3 className="cn-carte-mini">Pense à</h3>
+                  <p className="cn-carte-texte cn-carte-films">{FILMS_STYLE[style].join(" · ")}</p>
+                </>
+              ) : null}
             </>
           ) : null}
           <h3 className="cn-carte-mini">Quand le choisir</h3>
           <p className="cn-carte-texte">{quand}</p>
 
           <p className="cn-carte-note">
-            Rendu réel d&rsquo;Open H3 IR, sur des images de référence neutres.{" "}
+            {demo ? "Rendu réel d’Open H3 IR, sur des images de référence neutres. " : ""}
             {creativite
               ? "La créativité règle ce que l'IA a le droit d'ajouter et à quel point elle pousse la caméra."
-              : "Avec tes propres images, la lumière et les couleurs suivront surtout tes références : le style joue sur la caméra, le cadrage, le jeu, les sons et la musique."}
+              : style && estProfilPerso(style)
+                ? "Cette façon de filmer règle surtout le mouvement, le rythme, la caméra et les sons. L'apparence (matière, dessin, couleurs) vient du style de ton projet et de tes images de référence : choisis-les dans le même esprit."
+                : "Avec tes propres images, la lumière et les couleurs suivront surtout tes références : le style joue sur la caméra, le cadrage, le jeu, les sons et la musique."}
           </p>
         </div>
         <footer className="cn-tiroir-pied">

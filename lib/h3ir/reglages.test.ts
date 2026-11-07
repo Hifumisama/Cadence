@@ -61,3 +61,29 @@ test("chaque style de caméra a un résumé court, une phrase de détail et un l
   // Les résumés se distinguent : deux styles ne partagent pas le même.
   assert.equal(new Set(STYLES_CAMERA.map((s) => RESUME_STYLE_CAMERA[s])).size, STYLES_CAMERA.length);
 });
+
+test("profils perso : ce sont de vrais choix de mise en scène (validation, héritage plan > scène > projet), distincts des 7 réalisateurs, sans nom de réalisateur à montrer", async () => {
+  const { IDS_PROFILS_PERSO } = await import("./profils-perso");
+  const { MISES_EN_SCENE, RESUME_STYLE_CAMERA, DETAIL_STYLE_CAMERA, estMiseEnScene, estProfilPerso, libelleStyleComplet, signatureChoix, infobulleChoix } = await import("./reglages");
+  assert.equal(MISES_EN_SCENE.length, STYLES_CAMERA.length + IDS_PROFILS_PERSO.length);
+  assert.equal(new Set(MISES_EN_SCENE).size, MISES_EN_SCENE.length, "aucun identifiant en double entre réalisateurs et profils perso");
+  for (const id of IDS_PROFILS_PERSO) {
+    assert.ok(id.length <= 20, `${id} tient dans style_camera (varchar(20))`);
+    assert.equal(styleCameraOuNull(id), id);
+    assert.equal(estProfilPerso(id), true);
+    assert.equal(estStyleCamera(id), false, "ce n'est pas un des 7 profils `director`");
+    assert.equal(signatureChoix(id), "", "pas de nom propre à montrer");
+    assert.equal(libelleStyleComplet(id), RESUME_STYLE_CAMERA[id]);
+    assert.ok(DETAIL_STYLE_CAMERA[id].length > 30 && infobulleChoix(id).startsWith(RESUME_STYLE_CAMERA[id]), id);
+  }
+  assert.equal(estMiseEnScene("claymation"), true);
+  assert.equal(estMiseEnScene("villeneuve"), true);
+  assert.equal(estMiseEnScene("aucun"), false);
+  assert.equal(styleCameraOuNull("kubrick"), null);
+  assert.equal(signatureChoix("villeneuve"), "style de Denis Villeneuve");
+  const r = resoudreReglages({ projet: { styleCamera: "claymation" }, scene: { styleCamera: null }, plan: { styleCamera: null } });
+  assert.deepEqual([r.styleCamera, r.origine.styleCamera], ["claymation", "projet"]);
+  const p = resoudreReglages({ projet: { styleCamera: "claymation" }, scene: { styleCamera: "horreur" }, plan: { styleCamera: "wong" } });
+  assert.deepEqual([p.styleCamera, p.origine.styleCamera], ["wong", "plan"]);
+  assert.equal(resoudreReglages({ projet: { styleCamera: "claymation" }, scene: { styleCamera: "aucun" } }).styleCamera, null);
+});
