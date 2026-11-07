@@ -31,7 +31,8 @@ export const LIBELLE_SKILL: Record<string, string> = {
 };
 
 export type Tache = {
-  /** Identifiant stable côté client : « image:<uuid> », « video:<id du job> » ou « llm:<uuid> ». */
+  /** Identifiant stable côté client : « image:<uuid> », « video:<id du job> », « llm:<uuid> », « lot: », « creation: », « demande: »
+   * ou « montage:<id de l'export> » (voir analyserCle). */
   cle: string;
   genre: GenreTache;
   /** en_attente | en_cours | termine | echoue | annulee (une vidéo annulée est
@@ -114,15 +115,19 @@ export function estAffichable(tache: Pick<Tache, "statut" | "vuAt" | "finishedAt
 export function ordonnerTaches(entrees: Tache[], maintenant: Date): Tache[] {
   const gardees = entrees.filter((x) => estAffichable(x, maintenant));
   const enCours = gardees.filter((x) => x.statut === "en_cours").sort((a, b) => t(a.startedAt ?? a.createdAt) - t(b.startedAt ?? b.createdAt));
-  const attente = gardees.filter((x) => x.statut === "en_attente");
+  const attente = gardees.filter((x) => x.statut === "en_attente" && !estHorsFileGpu(x));
   const parAnciennete = (a: Tache, b: Tache) => t(a.createdAt) - t(b.createdAt);
   // L'ordre du worker (worker/ordonnanceur.ts) : image, puis llm, puis vidéo.
   // Une demande (itération) passe avant le travail de fond, comme dans le worker.
   const deDemande = (x: Tache) => (x.cle.startsWith("demande:") ? 0 : 1);
   const file = [...attente].sort((a, b) => deDemande(a) - deDemande(b) || PRIORITE_GENRE[a.genre] - PRIORITE_GENRE[b.genre] || parAnciennete(a, b));
-  const videoEnCours = enCours.some((x) => x.genre === "video");
+  // Les tâches hors GPU (export du montage) ont leur propre boucle dans le worker : elles ne prennent pas de rang dans la file GPU et
+  // n'y retardent personne ; leur rang est celui de leur propre file (FIFO).
+  const fileHorsGpu = gardees.filter((x) => x.statut === "en_attente" && estHorsFileGpu(x)).sort(parAnciennete);
+  const enCoursGpu = enCours.filter((x) => !estHorsFileGpu(x));
+  const videoEnCours = enCoursGpu.some((x) => x.genre === "video");
   // La tâche qui tient le GPU : une tâche d'un autre genre patiente derrière elle.
-  const genreEnCours = enCours[0]?.genre ?? null;
+  const genreEnCours = enCoursGpu[0]?.genre ?? null;
   const finies = gardees
     .filter((x) => !estActive(x))
     .sort((a, b) => (t(b.finishedAt) || t(b.createdAt)) - (t(a.finishedAt) || t(a.createdAt)))
@@ -138,6 +143,7 @@ export function ordonnerTaches(entrees: Tache[], maintenant: Date): Tache[] {
       // autre genre (pour un même genre, le rang suffit : « n°2 »).
       derriere: genreEnCours != null && genreEnCours !== x.genre ? genreEnCours : null,
     })),
+    ...fileHorsGpu.map((x, i) => ({ ...x, positionFile: i + 1, derriereVideo: false, derriere: null })),
     ...finies.map((x) => ({ ...x, positionFile: null, derriereVideo: false, derriere: null })),
   ];
 }
@@ -183,17 +189,28 @@ export const cleCreation = (projectId: number) => `creation:${projectId}`;
 /** Une DEMANDE (lib/demandes.ts : itérer un plan…) : UNE entrée pour toutes ses étapes, identifiée par son id. */
 export const cleDemande = (id: number) => `demande:${id}`;
 
+/** Un EXPORT de l'épisode (page Montage, table `montage_exports`), identifié par son id. Tâche HORS GPU (ffmpeg, boucle à part du
+ * worker) : affichée avec le genre « video », mais hors de la file GPU (`estHorsFileGpu`) et sans annulation. */
+export const cleMontage = (exportId: number) => `montage:${exportId}`;
+
+/** Tâche qui ne passe pas par la file du GPU (export du montage) : pas de rang dans cette file, ne retarde ni n'attend personne. */
+export const estHorsFileGpu = (x: Pick<Tache, "cle">) => x.cle.startsWith("montage:");
+
+/** Le panneau propose-t-il d'annuler cette tâche (active) ? Pas un export du montage : il dure quelques secondes. */
+export const estAnnulable = (x: Pick<Tache, "cle">) => !x.cle.startsWith("montage:");
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function analyserCle(cle: string): { genre: GenreTache | "lot" | "creation" | "demande"; ref: string } | null {
+export function analyserCle(cle: string): { genre: GenreTache | "lot" | "creation" | "demande" | "montage"; ref: string } | null {
   const i = cle.indexOf(":");
   if (i < 0) return null;
   const genre = cle.slice(0, i);
   const ref = cle.slice(i + 1);
-  if ((genre !== "image" && genre !== "video" && genre !== "llm" && genre !== "lot" && genre !== "creation" && genre !== "demande") || !ref) return null;
+  if ((genre !== "image" && genre !== "video" && genre !== "llm" && genre !== "lot" && genre !== "creation" && genre !== "demande" && genre !== "montage") || !ref)
+    return null;
   // Une clé vient du navigateur : un uuid ou un id mal formé ne doit jamais
   // atteindre la base (Postgres lèverait une erreur de syntaxe au lieu de l'ignorer).
   if ((genre === "image" || genre === "llm" || genre === "lot") && !UUID.test(ref)) return null;
-  if ((genre === "video" || genre === "creation" || genre === "demande") && !/^\d+$/.test(ref)) return null;
+  if ((genre === "video" || genre === "creation" || genre === "demande" || genre === "montage") && !/^\d+$/.test(ref)) return null;
   return { genre, ref };
 }

@@ -59,6 +59,8 @@ export async function demanderAnnulation(cle: string): Promise<ResultatAnnulatio
 
   // La création d'un projet s'arrête par l'installateur (app/taches/actions.ts : annulerTache), jamais ici.
   if (a.genre === "creation" || a.genre === "demande") return "rien"; // la demande s'annule par `annulerDemande` (app/taches/actions.ts)
+  // Un export du montage ne s'annule pas (quelques secondes de ffmpeg) ; surtout, son id n'est PAS un id de job vidéo.
+  if (a.genre === "montage") return "rien";
 
   // Un lot d'agent : toutes ses sous-tâches en attente sont annulées, celle qui tourne est interrompue.
   if (a.genre === "lot") {

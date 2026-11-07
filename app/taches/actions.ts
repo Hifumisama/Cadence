@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { agentRuns, assetGenerations, creationsProjet, demandes, jobs, propositions } from "@/db/schema";
+import { agentRuns, assetGenerations, creationsProjet, demandes, jobs, montageExports, propositions } from "@/db/schema";
 import { annulerDemande } from "@/lib/demandes-db";
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { arreterCreation, idsRunsDeCreation } from "@/lib/agents/creation-db";
@@ -22,6 +22,7 @@ export async function marquerVu(cles: string[]): Promise<{ ok: true }> {
   const uuidsLots: string[] = [];
   const idsRuns: number[] = [];
   const idsDemandes: number[] = [];
+  const idsExports: number[] = [];
   const ids: number[] = [];
   for (const cle of cles.slice(0, 100)) {
     const a = analyserCle(cle);
@@ -31,9 +32,11 @@ export async function marquerVu(cles: string[]): Promise<{ ok: true }> {
     else if (a.genre === "lot") uuidsLots.push(a.ref);
     else if (a.genre === "creation") idsRuns.push(...(await idsRunsDeCreation(Number(a.ref))));
     else if (a.genre === "demande") idsDemandes.push(Number(a.ref));
+    else if (a.genre === "montage") idsExports.push(Number(a.ref));
     else if (Number.isInteger(Number(a.ref))) ids.push(Number(a.ref));
   }
   if (idsDemandes.length > 0) await db.update(demandes).set({ vuAt: maintenant }).where(and(inArray(demandes.id, idsDemandes), isNull(demandes.vuAt)));
+  if (idsExports.length > 0) await db.update(montageExports).set({ vuAt: maintenant }).where(and(inArray(montageExports.id, idsExports), isNull(montageExports.vuAt)));
   if (idsRuns.length > 0) {
     // La création d'un projet est « vue » quand toutes ses tâches d'agent le sont.
     await db.update(agentRuns).set({ vuAt: maintenant }).where(and(inArray(agentRuns.id, idsRuns), isNull(agentRuns.vuAt)));
@@ -80,6 +83,7 @@ export async function marquerToutVu(): Promise<{ ok: true }> {
     .set({ vuAt: maintenant })
     .where(and(isNull(agentRuns.vuAt), notInArray(agentRuns.statut, ["en_attente", "en_cours"])));
   await db.update(demandes).set({ vuAt: maintenant }).where(and(isNull(demandes.vuAt), notInArray(demandes.statut, ["en_cours"])));
+  await db.update(montageExports).set({ vuAt: maintenant }).where(and(isNull(montageExports.vuAt), notInArray(montageExports.statut, ["en_attente", "en_cours"])));
   return { ok: true };
 }
 
@@ -126,6 +130,7 @@ export async function retirerTaches(cles: string[]): Promise<{ ok: true }> {
   const uuidsLots: string[] = [];
   const idsRuns: number[] = [];
   const idsDemandes: number[] = [];
+  const idsExports: number[] = [];
   const ids: number[] = [];
   for (const cle of cles.slice(0, 100)) {
     const a = analyserCle(cle);
@@ -135,10 +140,12 @@ export async function retirerTaches(cles: string[]): Promise<{ ok: true }> {
     else if (a.genre === "lot") uuidsLots.push(a.ref);
     else if (a.genre === "creation") idsRuns.push(...(await idsRunsDeCreation(Number(a.ref))));
     else if (a.genre === "demande") idsDemandes.push(Number(a.ref));
+    else if (a.genre === "montage") idsExports.push(Number(a.ref));
     else if (Number.isInteger(Number(a.ref))) ids.push(Number(a.ref));
   }
   const marque = { masqueAt: maintenant, vuAt: sql`coalesce(vu_at, ${maintenant.toISOString()}::timestamp)` };
   if (idsDemandes.length > 0) await db.update(demandes).set(marque).where(and(inArray(demandes.id, idsDemandes), notInArray(demandes.statut, ["en_cours"])));
+  if (idsExports.length > 0) await db.update(montageExports).set(marque).where(and(inArray(montageExports.id, idsExports), notInArray(montageExports.statut, [...ACTIFS])));
   if (idsRuns.length > 0) {
     // Les tâches de la création : masquées, comme celles d'un lot (rien n'est supprimé, la page d'avancée reste).
     await db.update(agentRuns).set(marque).where(and(inArray(agentRuns.id, idsRuns), notInArray(agentRuns.statut, [...ACTIFS])));
@@ -183,5 +190,6 @@ export async function viderListe(categorie: "terminees" | "echecs"): Promise<{ o
   if (idsRuns.length > 0) await db.update(agentRuns).set(marque).where(and(inArray(agentRuns.id, idsRuns), notInArray(agentRuns.statut, [...ACTIFS])));
   await db.update(jobs).set(marque).where(and(isNull(jobs.masqueAt), inArray(jobs.statut, [...statutsJob])));
   await db.update(demandes).set(marque).where(and(isNull(demandes.masqueAt), inArray(demandes.statut, statutsGen)));
+  await db.update(montageExports).set(marque).where(and(isNull(montageExports.masqueAt), inArray(montageExports.statut, statutsGen)));
   return { ok: true };
 }

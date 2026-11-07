@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BasculeNotifications } from "@/components/taches/BasculeNotifications";
 import { useTaches } from "@/components/taches/TachesProvider";
-import type { GenreTache, Tache } from "@/lib/taches";
+import { estAnnulable, type GenreTache, type Tache } from "@/lib/taches";
 import { urlMiniature } from "@/lib/miniatures";
 import { LIBELLE_SERVEUR, type ServeursInjoignables } from "@/lib/serveurs-injoignables-types";
 import { Icone } from "@/components/ui/Icone";
@@ -39,6 +39,8 @@ export function IndicateurTaches() {
 
   const enCours = taches.filter((x) => x.statut === "en_cours");
   const enFile = taches.filter((x) => x.statut === "en_attente");
+  // « Vider la file » ne retire que ce qui s'annule (pas un export du montage en attente).
+  const aVider = enFile.filter(estAnnulable).length;
   // Les annulations se rangent avec les échecs (même durée de vie : une journée),
   // mais sobrement : ce n'est pas une erreur.
   const echecs = taches.filter((x) => x.statut === "echoue" || x.statut === "annulee");
@@ -167,7 +169,7 @@ export function IndicateurTaches() {
                   </div>
                   <ul className="tq-liste">
                     {enCours.map((x, i) => (
-                      <Entree key={x.cle} x={x} rang={i} onOuvrir={() => ouvrir(x)} onAnnuler={() => annuler(x.cle)} />
+                      <Entree key={x.cle} x={x} rang={i} onOuvrir={() => ouvrir(x)} onAnnuler={estAnnulable(x) ? () => annuler(x.cle) : undefined} />
                     ))}
                   </ul>
                 </section>
@@ -187,21 +189,21 @@ export function IndicateurTaches() {
                             viderFile();
                           }}
                         >
-                          Oui, retirer {resume.enFile}
+                          Oui, retirer {aVider}
                         </button>
                         <button type="button" className="tq-btn-non" onClick={() => setConfirmerVidage(false)}>
                           Non
                         </button>
                       </span>
-                    ) : (
+                    ) : aVider > 0 ? (
                       <button type="button" className="tq-lien tq-lien-discret" onClick={() => setConfirmerVidage(true)} title="Retirer tout ce qui attend ; ce qui tourne continue">
-                        Vider la file ({resume.enFile})
+                        Vider la file ({aVider})
                       </button>
-                    )}
+                    ) : null}
                   </div>
                   <ul className="tq-liste">
                     {enFile.map((x, i) => (
-                      <Entree key={x.cle} x={x} rang={enCours.length + i} onOuvrir={() => ouvrir(x)} onAnnuler={() => annuler(x.cle)} />
+                      <Entree key={x.cle} x={x} rang={enCours.length + i} onOuvrir={() => ouvrir(x)} onAnnuler={estAnnulable(x) ? () => annuler(x.cle) : undefined} />
                     ))}
                   </ul>
                 </section>

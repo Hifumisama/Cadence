@@ -38,7 +38,10 @@
    dans `montage_exports` ; une boucle à part du worker (`worker/montage-export.ts`, ffmpeg, jamais le GPU) les met au même format
    (taille la plus grande, bandes noires, cadence la plus haute), ajoute un silence pour un rendu muet, concatène (H.264/AAC) et écrit
    `montage/<épisode>/episode.mp4`, **remplacé** à chaque export (pas de versionnage). La page interroge tant que l'export tourne, puis
-   propose « Regarder » et « Télécharger ».
+   propose « Regarder » et « Télécharger ». L'export est aussi une **tâche du panneau du bandeau** (« Export du montage · <projet> »,
+   segments et durée, notification de fin, « vu » / retirer comme les autres) : clé `montage:<id>` (`lib/montage-tache.ts`), affichée
+   avec le genre « vidéo » mais **hors de la file GPU** (`estHorsFileGpu` : pas de rang parmi les tâches GPU, ne fait attendre
+   personne « derrière une vidéo ») et sans bouton d'annulation (`estAnnulable`).
 10. **Pistes voix / bruitages / musique** : emplacements grisés « à venir », aucune donnée inventée.
 
 ## Modèle
@@ -47,7 +50,7 @@
   `debut_secondes`, `fin_secondes`, `created_at`. `rang` est réécrit densément (0..n), jamais une clé (F03). L'id d'une entrée ne sert
   qu'aux actions, jamais dans une URL ni à l'écran.
 - `montage_exports` : `episode_id`, `statut` (en_attente | en_cours | termine | echoue, varchar), `segments` (jsonb, l'instantané),
-  `nb_ignores`, `fichier`, `duree_secondes`, `erreur`, dates.
+  `nb_ignores`, `fichier`, `duree_secondes`, `erreur`, dates, `vu_at` / `masque_at` (panneau des tâches, migration 0080).
 
 ## Code
 
@@ -63,5 +66,6 @@
 - Tests fonctionnels avec l'utilisateur : glisser-déposer à la souris réelle (vérifié par événements synthétiques), plein écran réel
   (le repli plein cadre est vérifié), export sur un épisode aux résolutions mélangées.
 - Pistes audio séparées (voix, bruitages, musique d'épisode) quand ces données existeront.
-- L'export n'apparaît pas dans le panneau des tâches du bandeau (il a son propre état sur la page).
+- L'export n'a pas de progression mesurée (barre indéterminée « Encodage (ffmpeg) ») ni d'annulation ; les lignes de
+  `montage_exports` ne sont pas purgées (une par export ; le worker ne purge que les tâches GPU).
 - Durée réelle des fichiers (ffprobe) si l'écart avec la durée nominale devient gênant.

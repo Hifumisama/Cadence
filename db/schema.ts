@@ -497,6 +497,9 @@ export const montageExports = pgTable("montage_exports", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
+  // Panneau des tâches du bandeau (clé `montage:<id>`, lib/montage-tache.ts) : « vu » et « retiré de la liste », comme jobs.vuAt/masqueAt.
+  vuAt: timestamp("vu_at"),
+  masqueAt: timestamp("masque_at"),
 });
 
 // Réglages globaux clé/valeur, techniques et indépendants du récit : plafond

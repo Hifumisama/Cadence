@@ -1,6 +1,7 @@
 import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, demandes, jobs, plans, projects, propositions } from "../db/schema";
+import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, demandes, episodes, jobs, montageExports, plans, projects, propositions } from "../db/schema";
 import { tacheDeDemande } from "./demandes-tache";
+import { tacheDExport } from "./montage-tache";
 import type { EtapeDemande, StatutDemande } from "./demandes";
 import type { EtapeCreation, StatutCreation } from "./agents/creation";
 import { estDeLaCreation, fenetreDeCreation, tacheDeCreation } from "./agents/creation-tache";
@@ -18,6 +19,7 @@ import {
   cleLlm,
   cleLot,
   cleVideo,
+  estHorsFileGpu,
   ordonnerTaches,
   resumerTaches,
   type ResumeTaches,
@@ -374,7 +376,16 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     }),
   );
 
-  const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots, ...tachesCreations, ...tachesDemandes, ...tachesAjouts], maintenant);
+  // Les EXPORTS de l'épisode (page Montage) : hors GPU, mais suivis ici comme les autres (clé `montage:<id>`, lib/montage-tache.ts).
+  const lignesExports = await db
+    .select({ x: montageExports, projectId: episodes.projectId, projetNom: projects.nom })
+    .from(montageExports)
+    .innerJoin(episodes, eq(episodes.id, montageExports.episodeId))
+    .leftJoin(projects, eq(projects.id, episodes.projectId))
+    .where(and(isNull(montageExports.masqueAt), or(inArray(montageExports.statut, ["en_attente", "en_cours"]), isNull(montageExports.vuAt), gte(montageExports.createdAt, depuis))));
+  const exportsMontage: Tache[] = lignesExports.map(({ x, projectId, projetNom }) => tacheDExport({ ...x, projectId, projetNom }));
+
+  const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots, ...tachesCreations, ...tachesDemandes, ...tachesAjouts, ...exportsMontage], maintenant);
 
   // Disque : seulement pour les tâches d'images gardées.
   const parCle = new Map(lignesImages.map((l) => [cleImage(l.g.uuid), l.g]));
@@ -398,7 +409,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
  * et les images arrivées avant elle). */
 export async function rangDansLaFile(generationId: number): Promise<number> {
   const { taches } = await listerTaches();
-  const devant = taches.filter((x) => x.statut === "en_cours").length;
+  const devant = taches.filter((x) => x.statut === "en_cours" && !estHorsFileGpu(x)).length;
   const [g] = await db.select({ uuid: assetGenerations.uuid }).from(assetGenerations).where(eq(assetGenerations.id, generationId));
   const moi = g ? taches.find((x) => x.cle === cleImage(g.uuid)) : null;
   if (!moi) return devant + 1;

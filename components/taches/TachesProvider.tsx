@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { annulerTache, marquerToutVu, marquerVu, retirerTaches, viderFile as viderFileServeur, viderListe as viderListeServeur } from "@/app/taches/actions";
 import { etatNotifications } from "@/lib/notifications-navigateur";
-import type { ResumeTaches, Tache } from "@/lib/taches";
+import { estAnnulable, type ResumeTaches, type Tache } from "@/lib/taches";
 import { SERVEURS_OK, type ServeursInjoignables } from "@/lib/serveurs-injoignables-types";
 
 /** Un seul sondage de `/api/taches` pour toute l'application, placé dans le
@@ -216,7 +216,7 @@ export function TachesProvider({ children }: { children: ReactNode }) {
     // le reste est retiré tout de suite à l'écran.
     appliquerVu(
       tachesRef.current.map((x) =>
-        x.statut === "en_attente" && !x.cle.startsWith("lot:") && !x.cle.startsWith("creation:") && !x.cle.startsWith("demande:") ? { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null } : x,
+        x.statut === "en_attente" && estAnnulable(x) && !x.cle.startsWith("lot:") && !x.cle.startsWith("creation:") && !x.cle.startsWith("demande:") ? { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null } : x,
       ),
     );
     void viderFileServeur().then(charger);

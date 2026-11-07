@@ -561,6 +561,13 @@
       "when": 1796317200000,
       "tag": "0079_montage",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1796403600000,
+      "tag": "0080_montage_exports_panneau",
+      "breakpoints": true
     }
   ]
 }
