@@ -11,14 +11,11 @@ import {
   plans,
   projects,
 } from "../db/schema";
-import { and, desc, eq, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
 import { posterSrc } from "./media";
-import { construireMatrice } from "./matrice-assets";
 import { estCritique, statutAsset } from "./asset-etat";
 import { horsAffiches } from "./assets-visibles";
-import { getPlansPerimes } from "./plans-perimes";
-import type { RaisonPerime } from "./rendus";
 
 /** Pas encore de sélecteur de projet dans l'UI (2026-09-28) — toutes les
  * pages opèrent sur le premier projet créé. Le schéma est prêt pour
@@ -114,63 +111,6 @@ function resumeBrief(contenu: unknown) {
     nbPersonnages: Array.isArray(c.personnages) ? c.personnages.length : 0,
     nbLieux: Array.isArray(c.lieux) ? c.lieux.length : 0,
   };
-}
-
-export type PlanListItem = {
-  uuid: string; // identifiant public (URL) — la position est ce qu'on affiche
-  position: number; // rang réel dans l'épisode, brouillons compris (1-based)
-  titre: string;
-  statut: string;
-  dernierJob: { numeroRendu: number; erreur: string | null } | null;
-  /** Codes des références changées depuis le dernier rendu (lib/plans-perimes) ; vide = rendu à jour ou jamais rendu. */
-  codesPerimes: string[];
-  /** Ce qui a changé dans le contenu (prompt, durée) depuis le dernier rendu ; vide = contenu à jour. */
-  raisonsPerime: RaisonPerime[];
-};
-
-/** Frise des plans : tous les plans d'un ÉPISODE, dans l'ordre `ordre` (montage,
- * réordonnable) ; les plans s'identifient par `uuid`, sans numéro (F03).
- * Scope épisode, pas projet : la position affichée est un rang à l'échelle
- * de l'épisode, une frise multi-épisodes mélangerait des rangs qui se
- * chevauchent sans rien pour les distinguer visuellement. */
-export async function getPlansList(episodeId?: number): Promise<PlanListItem[]> {
-  const eid = episodeId ?? (await getDefaultEpisodeId());
-  // Un plan brouillon n'a pas encore de fiche de plan (pas de prompt, pas de
-  // durée de génération) : il vit dans Scénario, pas dans la queue Plans.
-  const toutes = await db
-    .select({ id: plans.id })
-    .from(plans)
-    .where(eq(plans.episodeId, eid))
-    .orderBy(plans.ordre, plans.id);
-  const positionParId = new Map(toutes.map((p, i) => [p.id, i + 1]));
-  const rows = await db
-    .select()
-    .from(plans)
-    .where(and(eq(plans.episodeId, eid), ne(plans.statut, "brouillon")))
-    .orderBy(plans.ordre, plans.id);
-  const allJobs = await db.select().from(jobs).orderBy(desc(jobs.createdAt));
-
-  const dernierJobParPlan = new Map<number, (typeof allJobs)[number]>();
-  for (const job of allJobs) {
-    if (!dernierJobParPlan.has(job.planId)) dernierJobParPlan.set(job.planId, job);
-  }
-
-  const perimes = await getPlansPerimes({ planIds: rows.map((p) => p.id) });
-
-  return rows.map((p) => ({
-    uuid: p.uuid,
-    position: positionParId.get(p.id) ?? 0,
-    codesPerimes: perimes.get(p.id)?.codes ?? [],
-    raisonsPerime: perimes.get(p.id)?.raisons ?? [],
-    titre: p.titre,
-    statut: p.statut,
-    dernierJob: dernierJobParPlan.has(p.id)
-      ? {
-          numeroRendu: dernierJobParPlan.get(p.id)!.numeroRendu,
-          erreur: dernierJobParPlan.get(p.id)!.erreur,
-        }
-      : null,
-  }));
 }
 
 /** Fiche de plan complète : plan + prompt sectionné + refs (avec l'asset
@@ -377,44 +317,4 @@ export async function getAssetsRegistre(projectId?: number) {
       critique: estCritique([...platesParEpisode].map(([episodeId, cites]) => ({ cites: cites.size, total: compteurParEpisode.get(episodeId) ?? 0 }))),
     };
   });
-}
-
-/** Un plan de la frise de lecture d'un épisode : sa position, son rendu terminé le plus récent (null s'il n'en a pas) et
- * sa durée. Dans l'ordre de montage (`ordre`) ; les positions s'affichent, jamais un identifiant (F03). */
-export type SegmentLecture = { uuid: string; position: number; titre: string; dureeSecondes: number; src: string | null };
-
-export async function getSegmentsLecture(episodeId: number): Promise<SegmentLecture[]> {
-  const lesPlans = await db.select().from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id);
-  if (lesPlans.length === 0) return [];
-  const rendus = await db
-    .select({ planId: jobs.planId, chemin: jobs.cheminSortie, createdAt: jobs.createdAt })
-    .from(jobs)
-    .where(and(inArray(jobs.planId, lesPlans.map((p) => p.id)), eq(jobs.statut, "termine"), isNotNull(jobs.cheminSortie)))
-    .orderBy(desc(jobs.createdAt), desc(jobs.id));
-  const dernier = new Map<number, string>();
-  for (const r of rendus) if (r.chemin && !dernier.has(r.planId)) dernier.set(r.planId, r.chemin);
-  return lesPlans.map((p, i) => ({
-    uuid: p.uuid,
-    position: i + 1,
-    titre: p.titre,
-    dureeSecondes: p.dureeGenerationSecondes > 0 ? p.dureeGenerationSecondes : p.dureeMontageSecondes,
-    src: dernier.has(p.id) ? `/api/media/${dernier.get(p.id)}` : null,
-  }));
-}
-
-/** Qui sert dans quel plan, pour le tableau de cohérence d'un épisode (lib/matrice-assets.ts). */
-export async function getMatriceAssets(episodeId: number) {
-  const lesPlans = await db.select({ id: plans.id, uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id);
-  if (lesPlans.length === 0) return { plans: [], lignes: [] };
-  const refs = await db
-    .select({ planId: planRefs.planId, code: assets.code, type: assets.type })
-    .from(planRefs)
-    .innerJoin(assets, eq(assets.id, planRefs.assetId))
-    .where(inArray(planRefs.planId, lesPlans.map((p) => p.id)));
-  const uuidParId = new Map(lesPlans.map((p) => [p.id, p.uuid]));
-  const planMatrice = lesPlans.map((p, i) => ({ uuid: p.uuid, position: i + 1, titre: p.titre }));
-  return {
-    plans: planMatrice,
-    lignes: construireMatrice(planMatrice, refs.map((r) => ({ assetCode: r.code, assetType: r.type, planUuid: uuidParId.get(r.planId)! }))),
-  };
 }
