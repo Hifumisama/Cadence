@@ -255,7 +255,7 @@ export function rangNouveauPlan(entrees: readonly Pick<EntreeMontage, "planId">[
 
 // --- Export ---------------------------------------------------------------------------------------------------------------------------
 
-/** Un morceau de l'export : le fichier du rendu retenu et son rognage (fin null = jusqu'au bout du fichier). */
+/** Un morceau de l'export : le fichier du rendu retenu et son rognage (fin null = jusqu'au bout du fichier ; l'interface la donne toujours). */
 export type SegmentExport = { chemin: string; debut: number; fin: number | null; titre: string };
 
 /** Ce que l'export met bout à bout : les entrées qui ont un rendu lisible, dans l'ordre, rognage appliqué. Les autres (sans rendu, rendu en
@@ -269,7 +269,9 @@ export function segmentsExport(clips: readonly Clip[]): { segments: SegmentExpor
       ignores++;
       continue;
     }
-    segments.push({ chemin: c.rendu.chemin, debut: c.debut, fin: c.entree.fin == null ? null : c.fin, titre: c.plan.titre });
+    // La fin est toujours explicite (fin nominale du rendu pour un plan entier) : l'export sort exactement ce que la table et le lecteur
+    // montrent, même si le fichier dure quelques images de plus que sa durée nominale (10,13 s pour un rendu de 10 s).
+    segments.push({ chemin: c.rendu.chemin, debut: c.debut, fin: c.fin, titre: c.plan.titre });
     dureeSecondes += c.duree;
   }
   return { segments, ignores, dureeSecondes };

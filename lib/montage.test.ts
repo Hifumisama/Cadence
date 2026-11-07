@@ -122,7 +122,7 @@ test("segments d'export : rognage appliqué, entrées sans rendu ignorées", () 
   assert.equal(r.ignores, 1);
   assert.deepEqual(r.segments, [
     { chemin: "plans/1/r1.mp4", debut: 1, fin: 4, titre: "Plan 1" },
-    { chemin: "plans/1/r3.mp4", debut: 2, fin: null, titre: "Plan 3" },
+    { chemin: "plans/1/r3.mp4", debut: 2, fin: 8, titre: "Plan 3" },
   ]);
   assert.equal(r.dureeSecondes, 9);
   assert.equal(dureeSegment({ debut: 2, fin: null }, 7.9), 5.9);

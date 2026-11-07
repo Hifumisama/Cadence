@@ -46,6 +46,7 @@ import { projetEnCreation } from "./creation";
 import { piloterDemandes } from "../lib/demandes-db";
 import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
 import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
+import { reprendreExports, traiterProchainExport } from "./montage-export";
 import { reprendreOrphelines } from "./reprise";
 
 const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
@@ -488,6 +489,8 @@ async function boucle() {
     // (prête avec un échec à relancer, ou échouée) est rattrapé ici.
     const lots = await finaliserLotsOrphelins();
     if (lots) console.log(`[worker] Reprise : ${lots} lot(s) d'agent rattrapé(s)`);
+    const exports = await reprendreExports();
+    if (exports) console.log(`[worker] Reprise : ${exports} export(s) d'épisode remis en file`);
   } catch (err) {
     console.error("[worker] Reprise des tâches interrompues impossible :", err);
   }
@@ -542,6 +545,19 @@ async function boucle() {
           console.error("[worker] Demandes :", err);
         }
         await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : demandesActives > 0 ? INTERVALLE_DEMANDES_MS : INTERVALLE_MS));
+      }
+    })(),
+    // Les exports d'épisode (page Montage) : ffmpeg sur le processeur, jamais le GPU. Leur propre boucle : un long encodage ne retarde
+    // ni l'installateur ni les demandes (worker/montage-export.ts).
+    (async () => {
+      while (true) {
+        let fait = false;
+        try {
+          fait = await traiterProchainExport(MEDIA_ROOT);
+        } catch (err) {
+          console.error("[worker] Export d'épisode :", err);
+        }
+        await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : INTERVALLE_MS));
       }
     })(),
   ]);
