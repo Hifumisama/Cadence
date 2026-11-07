@@ -140,7 +140,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     if (projectId == null || l.cibleId == null) return null;
     if (l.portee === "plan") {
       const x = planParId.get(l.cibleId);
-      return x ? `/p/${projectId}/e/${x.episodeId}/plans/${x.uuid}` : null;
+      return x ? `/p/${projectId}/e/${x.episodeId}/montage/${x.uuid}` : null;
     }
     if (l.portee === "episode") return `/p/${projectId}/e/${l.cibleId}/scenario`;
     if (l.portee === "asset") {
@@ -202,7 +202,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     // L'étape en cours (génération H3, interpolation, encodage) quand le worker la connaît ; sinon le rejeu éventuel.
     detail: j.statut === "en_cours" && j.etapeLibelle ? `Vidéo · ${j.etapeLibelle}` : j.tentative > 1 ? `Vidéo · rejeu ${j.tentative}` : "Vidéo",
     // F03 : le plan se désigne par son uuid public, jamais par sa position.
-    href: `/p/${projectId}/e/${episodeId}/plans/${planUuid}`,
+    href: `/p/${projectId}/e/${episodeId}/montage/${planUuid}`,
     projectId,
     assetId: null,
     progression: j.statut === "en_cours" && j.progressionValeur != null && j.progressionMax ? { valeur: j.progressionValeur, max: j.progressionMax, etape: j.etapeLibelle } : null,
@@ -308,7 +308,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         id: d.id,
         projectId: d.projectId,
         libelle: `Itérer · ${titre}`,
-        href: `/p/${d.projectId}/e/${episodeId}/plans/${planUuid}`,
+        href: `/p/${d.projectId}/e/${episodeId}/montage/${planUuid}`,
         statut: d.statut as StatutDemande,
         erreur: d.erreur,
         etapes,
@@ -347,10 +347,10 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         projectId: d.projectId,
         libelle: estFiche ? `Fiche · ${ctx.titre ?? "plan"}` : estScene ? `Nouvelle scène · ${ctx.apres ?? "scénario"}` : `Nouveau plan · ${ctx.scene ?? "scénario"}`,
         href: estFiche
-          ? `${base}/plans/${ctx.planUuid ?? ""}`
+          ? `${base}/montage/${ctx.planUuid ?? ""}`
           : estScene
             ? `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : ""}`
-            : ctx.planUuid ? `${base}/plans/${ctx.planUuid}` : `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
+            : ctx.planUuid ? `${base}/montage/${ctx.planUuid}` : `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
         statut: d.statut as StatutDemande,
         erreur: d.erreur,
         etapes,

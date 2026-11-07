@@ -34,7 +34,7 @@ export function demandeDepuisChemin(chemin: string): DemandePage | null {
   if (seg[2] === "e") {
     const episodeId = entier(seg[3]);
     if (episodeId == null) return { projectId, portee: "projet", cible: null };
-    if (seg[4] === "plans" && seg[5] && /^[0-9a-f-]{36}$/i.test(seg[5])) {
+    if (seg[4] === "montage" && seg[5] && /^[0-9a-f-]{36}$/i.test(seg[5])) {
       return { projectId, portee: "plan", cible: { uuid: seg[5] }, episodeId, planUuid: seg[5] };
     }
     return { projectId, portee: "episode", cible: { id: episodeId }, episodeId };

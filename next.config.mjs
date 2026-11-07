@@ -10,6 +10,14 @@ const nextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  // La page « Plans » est devenue « Montage » (2026-11-07, docs/PLAN_MONTAGE.md) : les anciens liens (favoris, notifications
+  // gardées par le navigateur) mènent à la nouvelle adresse, atelier d'un plan compris.
+  async redirects() {
+    return [
+      { source: "/p/:projectId/e/:episodeId/plans", destination: "/p/:projectId/e/:episodeId/montage", permanent: true },
+      { source: "/p/:projectId/e/:episodeId/plans/:uuid", destination: "/p/:projectId/e/:episodeId/montage/:uuid", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

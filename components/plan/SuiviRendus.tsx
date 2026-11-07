@@ -14,7 +14,7 @@ export function SuiviRendus({ planUuid, jobs }: { planUuid: string; jobs: { id: 
   const dernier = useRef(0);
 
   const perimee = useMemo(() => {
-    const duPlan = taches.filter((x) => x.genre === "video" && x.href.endsWith(`/plans/${planUuid}`));
+    const duPlan = taches.filter((x) => x.genre === "video" && x.href.endsWith(`/montage/${planUuid}`));
     return duPlan.some((x) => {
       const job = jobs.find((j) => cleVideo(j.id) === x.cle);
       // Une vidéo annulée est `echoue` en base, `annulee` dans la liste des tâches.

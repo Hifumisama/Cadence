@@ -118,7 +118,7 @@ export default async function PlanPage({
   const principal = choisirRendu(rendusVus, Number(renduParam) || null);
   const comparaison = choisirComparaison(rendusVus, Number(compareParam) || null, principal);
   const promptCourant = assemblerPrompt(promptSections);
-  const baseHref = `/p/${pid}/e/${eid}/plans/${uuid}`;
+  const baseHref = `/p/${pid}/e/${eid}/montage/${uuid}`;
   const hrefRendus = (rendu: number | null, compare: number | null) => {
     const q = new URLSearchParams();
     if (rendu != null) q.set("rendu", String(rendu));
@@ -165,10 +165,10 @@ export default async function PlanPage({
   const reglagesResolus = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene, plan });
   // Un plan est un brouillon tant qu'il n'a ni fiche écrite ni essai : un statut resté « brouillon » sur un plan qui a déjà un prompt ou des rendus ne les cache pas.
   const estBrouillon = plan.statut === "brouillon" && !aUneFiche && jobHistory.length === 0;
-  const plansHref = `/p/${pid}/e/${eid}/plans`;
+  const plansHref = `/p/${pid}/e/${eid}/montage`;
   // --- l'état du plan et l'avancée de l'épisode -----------------------------------------------------------------------
   const etat = etatPlan({ nbEssais: jobHistory.length, pretUpscaleAt: plan.pretUpscaleAt });
-  const lienPlan = (u: string) => `/p/${pid}/e/${eid}/plans/${u}`;
+  const lienPlan = (u: string) => `/p/${pid}/e/${eid}/montage/${u}`;
   const cadres: CadrePlan[] = pellicule.map((p) => ({ uuid: p.uuid, position: p.position, titre: p.titre, etat: p.etat, src: srcRendu(p.vignette), href: lienPlan(p.uuid) }));
   const suivant = planSuivant(pellicule, uuid);
 
