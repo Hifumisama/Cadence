@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/** Onglets Brief/Scénario/Assets/Plans. Scénario et Plans vivent sous l'épisode
+/** Onglets Brief/Scénario/Assets/Montage. Scénario et Montage vivent sous l'épisode
  * courant (`episodeBase`, ex. `/p/3/e/9`) ; Assets vit au niveau du PROJET
  * (`/p/3/assets`), jamais sous un épisode précis — le registre est partagé
  * par toute la série (retour utilisateur 2026-09-28 : "super important que
@@ -24,7 +24,7 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
     { seg: "brief", label: "Brief", href: briefHref },
     { seg: "scenario", label: "Scénario", href: `${episodeBase}/scenario` },
     { seg: "assets", label: "Assets", href: assetsHref },
-    { seg: "plans", label: "Plans", href: `${episodeBase}/plans` },
+    { seg: "montage", label: "Montage", href: `${episodeBase}/montage` },
   ];
 
   return (

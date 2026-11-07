@@ -18,20 +18,6 @@ const LABELS: Record<string, string> = {
   termine: "Terminé",
 };
 
-const NODE_CLASSES: Record<string, string> = {
-  brouillon: "st-brouillon",
-  en_attente: "st-attente",
-  en_cours: "st-encours",
-  echoue: "st-echoue",
-  rejoue: "st-rejoue",
-  previsualise: "st-previsualise",
-  termine: "st-termine",
-};
-
-export function statusNodeClass(statut: string): string {
-  return NODE_CLASSES[statut] ?? "st-attente";
-}
-
 export function StatusBadge({ statut }: { statut: string }) {
   return (
     <span className={`badge ${CLASSES[statut] ?? CLASSES.en_attente}`}>

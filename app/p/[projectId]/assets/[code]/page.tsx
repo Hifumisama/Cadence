@@ -199,7 +199,7 @@ export default async function AssetDetailPage({
                       style={{ "--i": i } as React.CSSProperties}
                       title={perimes.has(c.planId) ? "Périmé : l'image a changé depuis le dernier rendu de ce plan" : undefined}
                     >
-                      <Link href={`/p/${pid}/e/${c.episodeId}/plans/${c.planUuid}`} className="num">
+                      <Link href={`/p/${pid}/e/${c.episodeId}/montage/${c.planUuid}`} className="num">
                         E{String(c.episodeNumero).padStart(2, "0")} · {String(c.position).padStart(2, "0")}
                       </Link>
                       <form

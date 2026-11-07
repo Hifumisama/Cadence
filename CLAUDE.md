@@ -34,6 +34,8 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
   supprimés (FRICTIONS, 2026-10-12). Format standard Agent Skills (`SKILL.md`, `references/`, `assets/`), instructions en
   anglais (lues par un petit modèle local), langue de sortie fixée champ par champ
   (voir FRICTIONS.md, 2026-10-07)
+- `docs/PLAN_MONTAGE.md` — page Montage (`/p/<id>/e/<id>/montage`, ex-« Plans ») : deux ordres, entrées de
+  montage, rognage, export ffmpeg ; maquette `docs/maquettes/montage.html`
 - `docs/PLAN_CONCEPTION_PROJET.md` — page de conception d'un projet (choix avant l'entretien, bibliothèque
   de styles `lib/styles/`, scénariste, avancée) : plan par phases et décisions, toutes phases faites (voir
   FRICTIONS.md, 2026-10-07 et 2026-10-08)
@@ -54,6 +56,12 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
   qu'on affiche est la **position** (rang dans l'épisode, « 04 »), qui change
   quand on réordonne. Ne jamais citer une position comme identifiant, ni
   trier par autre chose que `ordre`. Un plan supprimé ne laisse aucun trou.
+- **Deux ordres** (2026-11-07, `docs/PLAN_MONTAGE.md`) : `plans.ordre` (+ la
+  scène du plan) est l'ordre du **scénario**, inchangé — positions, fiches,
+  raccords, agents. L'ordre du **montage final** (lecture, export) est porté
+  par les entrées de `montage_entrees` (plan, rendu retenu, début/fin non
+  destructifs, `rang`), ajoutées à côté : un plan y a 0, 1 ou plusieurs
+  entrées ; retirer du montage supprime l'entrée, jamais le plan ni ses rendus.
 - **Pas de versionnage d'assets.** Une retouche remplace le nœud (F01,
   tranché 2026-09-25). Pas de suffixe `_v2`.
 - **1er pass ComfyUI déterministe** : même seed + même prompt + mêmes refs
@@ -81,7 +89,9 @@ du personnage** (`assets.voix_*`), créée depuis le bloc « Voix » de sa fiche
 
 ## État du projet
 
-L'application existe et tourne : pipeline de production (plans, assets, voix, fiches), système d'agents (conversation,
+L'application existe et tourne : pipeline de production (plans, assets, voix, fiches, et depuis novembre 2026 le **Montage**
+de l'épisode, qui remplace la page « Plans » : lecteur continu, table de montage, export ; l'atelier d'un plan est sous
+`/montage/<uuid>`), système d'agents (conversation,
 brief, propositions, relecture du scénario, affiches) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
 neuf étapes, de « format » à « avancée de la préparation », dont « mise en scène » : créativité et style de mise en scène d'Open H3 IR). Le phasage
 d'origine reste dans `docs/CAHIER_DES_CHARGES.md`.

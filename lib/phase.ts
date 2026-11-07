@@ -60,7 +60,7 @@ export function phaseDe(b: StatutBuckets): Phase {
 }
 
 /** Statut agrégé d'un épisode, pour réutiliser tel quel StatusBadge
- * et statusNodeClass (composants/ui/StatusBadge.tsx) plutôt que d'inventer
+ * (composants/ui/StatusBadge.tsx) plutôt que d'inventer
  * un système de badge parallèle — "en_attente" sert aussi de repli visuel
  * pour "vide" (anneau creux, sans couleur : sémantiquement proche). */
 export function statutAgrege(b: StatutBuckets): PlanStatut {

@@ -68,7 +68,7 @@ export default async function ScenarioPage({
       debut,
       etat: p?.etat ?? "brouillon",
       src: srcRendu(p?.vignette),
-      href: `${base}/plans/${plan.uuid}`,
+      href: `${base}/montage/${plan.uuid}`,
       ficheEnCours: ficheParPlan.get(plan.uuid) ?? null,
     };
   };

@@ -1,0 +1,770 @@
+<title>Cadence Montage</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Jost:wght@400;500;600&family=Marcellus&display=swap">
+<style>
+/* Layout : en-tête + (lecteur | inspecteur) + table de montage pleine largeur + manuel. Identité Cadence : anthracite, or = validé, écarlate = échec. */
+:root {
+  --bg: #121217;
+  --surface: #1a1a21;
+  --surface-2: #212129;
+  --surface-3: #282833;
+  --line: #2c2c36;
+  --line-strong: #3a3a47;
+  --ink: #e9e6e0;
+  --ink-2: #c4c0cc;
+  --ink-3: #9d98a8;
+  --ink-4: #8a8595;
+  --ecarlate: #c8102e;
+  --ecarlate-glow: #ff4f6d;
+  --or: #c9a24b;
+  --or-soft: #8a7136;
+  --or-glow: #f0d089;
+  --display: "Marcellus", Georgia, serif;
+  --body: "Jost", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1440px; margin: 0 auto; padding-block: 24px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 20px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, .clip:focus-visible, input:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 2px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* En-tête */
+.hd { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; }
+.hd-title { min-width: 0; }
+.eyebrow { margin: 0 0 4px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-4); }
+h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 40px; line-height: 1.05; text-wrap: balance; }
+.hd-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.total { display: flex; flex-direction: column; padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); }
+.total b { font-family: var(--mono); font-weight: 500; font-size: 20px; letter-spacing: .02em; }
+.total span { font-size: 12px; color: var(--ink-3); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); font-size: 13px; color: var(--ink-2); }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--ink-4)); }
+.pill b { font-family: var(--mono); font-weight: 500; }
+.tools { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--surface-2); font-size: 14px; }
+.btn:hover { background: var(--surface-3); }
+.btn.gold { border-color: var(--or); color: var(--or-glow); background: #241f12; }
+.btn.gold:hover { background: #30291a; }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn[aria-pressed="true"] { border-color: var(--or-soft); color: var(--or-glow); }
+
+/* Lecteur + inspecteur */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; }
+@media (max-width: 960px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.player { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.screen { position: relative; aspect-ratio: 16 / 9; max-height: 52vh; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--line-strong); background: #0c0c10; margin-inline: auto; }
+.frame { position: absolute; inset: 0; background-size: 200% 200%; }
+.frame::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 120%, rgba(0,0,0,.55), transparent 60%), linear-gradient(transparent 60%, rgba(0,0,0,.55)); }
+.slate { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 6px; padding: 24px; color: var(--ink-2); background: repeating-linear-gradient(135deg, #17171d 0 10px, #1c1c24 10px 20px); }
+.slate b { font-family: var(--display); font-weight: 400; font-size: 22px; }
+.slate.err b { color: var(--ecarlate-glow); }
+.slate span { font-size: 14px; color: var(--ink-3); }
+.hud { position: absolute; left: 14px; right: 14px; bottom: 12px; z-index: 2; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; pointer-events: none; }
+.hud .t { font-family: var(--display); font-size: 22px; text-shadow: 0 1px 8px rgba(0,0,0,.7); }
+.hud .p { font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
+.transport { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.transport .btn { min-width: 44px; }
+.timecode { font-family: var(--mono); font-size: 18px; margin-left: 8px; letter-spacing: .02em; }
+.timecode small { color: var(--ink-4); font-size: 14px; }
+.transport .grow { flex: 1; }
+
+/* Inspecteur */
+.insp { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); display: flex; flex-direction: column; gap: 14px; }
+.insp h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.15; text-wrap: balance; }
+.insp .no { font-family: var(--mono); font-size: 13px; color: var(--ink-4); }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 4px; font-size: 13px; border: 1px solid var(--c); color: var(--c); }
+.badge.hatch { background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(255,255,255,.05) 5px 10px); }
+.warn { padding: 8px 10px; border-left: 3px solid var(--or); background: #211c10; font-size: 13px; color: var(--or-glow); }
+.warn.err { border-color: var(--ecarlate); background: #26121a; color: var(--ecarlate-glow); }
+.sec { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-4); margin: 0 0 6px; }
+.rendus { display: flex; flex-direction: column; gap: 6px; }
+.rendu { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); text-align: left; }
+.rendu:hover { border-color: var(--line-strong); }
+.rendu .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink-4); }
+.rendu[aria-checked="true"] { border-color: var(--or); }
+.rendu[aria-checked="true"] .dot { border-color: var(--or); background: var(--or); box-shadow: inset 0 0 0 3px var(--surface-2); }
+.rendu small { display: block; color: var(--ink-4); font-size: 12px; }
+.rendu .d { font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
+.inout { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.inout div { padding: 8px 10px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); }
+.inout small { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-4); }
+.inout b { font-family: var(--mono); font-weight: 500; font-size: 15px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.path { font-family: var(--mono); font-size: 12px; color: var(--ink-4); overflow-wrap: anywhere; }
+
+/* Table de montage */
+.table { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: 0; }
+.tbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.tbar label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); }
+.tbar input[type=range] { width: 130px; accent-color: var(--or); }
+.tbar .sp { flex: 1; }
+.tbar .hint { font-size: 13px; color: var(--ink-4); }
+.tl { display: grid; grid-template-columns: 112px minmax(0, 1fr); }
+.labels { border-right: 1px solid var(--line); background: var(--surface); }
+.labels div { display: flex; align-items: center; padding-inline: 12px; font-size: 13px; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+.labels div:last-child, .lane-row:last-child { border-bottom: 0; }
+.labels .l-ruler { height: 30px; }
+.labels .l-v { height: 92px; font-weight: 500; }
+.labels .l-a { height: 36px; color: var(--ink-4); }
+.scroller { overflow-x: auto; position: relative; min-width: 0; }
+.inner { position: relative; }
+.ruler { position: relative; height: 30px; border-bottom: 1px solid var(--line); cursor: ew-resize; background: var(--surface); }
+.tick { position: absolute; bottom: 0; width: 1px; background: var(--line-strong); height: 8px; }
+.tick.big { height: 14px; background: var(--ink-4); }
+.tick-l { position: absolute; top: 4px; font-family: var(--mono); font-size: 11px; color: var(--ink-4); transform: translateX(4px); }
+.lane-row { position: relative; border-bottom: 1px solid var(--line); }
+.lane-row.v { height: 92px; background: repeating-linear-gradient(90deg, transparent 0 calc(var(--pps) * 1px - 1px), rgba(255,255,255,.03) calc(var(--pps) * 1px - 1px) calc(var(--pps) * 1px)); }
+.lane-row.a { height: 36px; background: repeating-linear-gradient(135deg, transparent 0 8px, rgba(255,255,255,.025) 8px 16px); }
+.lane-row.a span { position: sticky; left: 12px; display: inline-block; padding: 8px 0 0 12px; font-size: 12px; color: var(--ink-4); }
+.clip { position: absolute; top: 8px; height: 76px; border-radius: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,.14); background: linear-gradient(160deg, hsl(var(--h) 26% 26%), hsl(var(--h) 28% 15%)); cursor: grab; user-select: none; touch-action: none; transition: box-shadow .1s; }
+.clip.nr { background: repeating-linear-gradient(135deg, #1b1b22 0 9px, #23232c 9px 18px); border-style: dashed; border-color: var(--line-strong); }
+.clip.sel { outline: 2px solid var(--ink); outline-offset: 1px; z-index: 3; }
+.clip.live { box-shadow: 0 0 0 1px var(--or-soft); }
+.clip.drag { cursor: grabbing; z-index: 9; opacity: .92; box-shadow: 0 8px 24px rgba(0,0,0,.6); transition: none; }
+.clip .in { position: absolute; inset: 6px 16px 10px 8px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; min-width: 0; }
+.clip .n { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+.clip .ti { font-size: 13px; font-weight: 500; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.clip .du { margin-top: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-2); display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+.clip .st { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--c); }
+.clip.s-attente .st { background: repeating-linear-gradient(90deg, var(--ink-4) 0 4px, transparent 4px 8px); }
+.clip.s-encours .st { background: repeating-linear-gradient(90deg, var(--or) 0 8px, var(--or-soft) 8px 16px); background-size: 32px 4px; animation: slide 1s linear infinite; }
+@keyframes slide { to { background-position: 32px 0; } }
+.tag { padding: 0 5px; border-radius: 3px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; border: 1px solid var(--or); color: var(--or-glow); background: rgba(0,0,0,.35); }
+.tag.err { border-color: var(--ecarlate-glow); color: var(--ecarlate-glow); }
+.handle { position: absolute; top: 0; bottom: 4px; width: 9px; cursor: col-resize; z-index: 2; background: rgba(233,230,224,0); }
+.handle::after { content: ""; position: absolute; top: 50%; width: 3px; height: 22px; margin-top: -11px; border-radius: 2px; background: var(--ink); opacity: 0; }
+.handle.l { left: 0; } .handle.l::after { left: 2px; }
+.handle.r { right: 0; } .handle.r::after { right: 2px; }
+.clip:hover .handle::after, .clip.sel .handle::after { opacity: .75; }
+.handle:hover { background: rgba(233,230,224,.16); }
+.trimmed { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--or-glow); }
+.drop { position: absolute; top: 2px; bottom: 2px; width: 3px; border-radius: 2px; background: var(--or-glow); z-index: 8; pointer-events: none; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 0; z-index: 7; pointer-events: none; border-left: 2px solid var(--ink); }
+.playhead::before { content: ""; position: absolute; top: 0; left: -7px; border: 6px solid transparent; border-top: 9px solid var(--ink); border-bottom: 0; }
+
+/* Mode cinéma */
+.ctrl { display: flex; flex-direction: column; gap: 10px; }
+.prog { display: none; position: relative; height: 18px; cursor: pointer; }
+.prog::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.2); }
+.prog > div { position: absolute; left: 0; top: 7px; height: 4px; border-radius: 2px; background: var(--ink); width: 0; }
+.player.cinema { position: fixed; inset: 0; z-index: 50; background: #000; justify-content: center; align-items: center; gap: 0; }
+.player.cinema .screen { width: min(100vw, calc(100vh * 16 / 9)); max-height: 100vh; margin: 0; border: 0; border-radius: 0; }
+.player.cinema .ctrl { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px max(20px, env(safe-area-inset-left, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(transparent, rgba(0,0,0,.85)); transition: opacity .3s; }
+.player.cinema .prog { display: block; }
+.player.cinema .mock { display: none; }
+.player.cinema.idle .ctrl { opacity: 0; pointer-events: none; }
+.player.cinema.idle { cursor: none; }
+.player.cinema .hud .t { font-size: 28px; }
+.player .only-cine { display: none; }
+.player.cinema .only-cine { display: inline-flex; }
+
+/* Deux ordres */
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 12px; font-size: 13px; color: var(--ink-3); }
+.seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--ink); }
+.table.mode-sc .only-mt, .table.mode-mt .only-sc { display: none; }
+.table.mode-sc .playhead { display: none; }
+.labels .l-sc { height: 28px; color: var(--ink-4); }
+.labels .l-s { height: 92px; font-weight: 500; }
+.lane-row.sc { height: 28px; background: var(--surface); }
+.band { position: absolute; top: 3px; bottom: 3px; padding: 3px 8px; border-left: 2px solid var(--ink-4); background: rgba(255,255,255,.035); font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clip.out { opacity: .5; border-style: dashed; }
+.ghost { position: fixed; z-index: 60; pointer-events: none; padding: 6px 10px; border: 1px solid var(--or); border-radius: 6px; background: #241f12; color: var(--or-glow); font-size: 13px; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scroller.over { outline: 2px dashed var(--or-glow); outline-offset: -2px; }
+.bin.over { border-color: var(--or-glow); background: rgba(240,208,137,.06); }
+.bin-item { cursor: grab; touch-action: none; user-select: none; }
+.bin-item:hover { border-color: var(--line-strong); }
+
+/* Hors montage */
+.bin { border: 1px dashed var(--line-strong); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.bin h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 20px; }
+.bin p { margin: 0; font-size: 13px; color: var(--ink-4); max-width: 70ch; }
+.bin-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.bin-item { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); min-width: 0; }
+.bin-item i { width: 10px; height: 28px; border-radius: 2px; background: hsl(var(--h) 28% 30%); flex: none; }
+.bin-item .tx { min-width: 0; }
+.bin-item b { display: block; font-weight: 500; font-size: 14px; }
+.bin-item small { color: var(--ink-4); font-family: var(--mono); font-size: 12px; }
+
+/* Manuel */
+.manuel { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.manuel summary { padding: 12px 16px; cursor: pointer; font-family: var(--display); font-size: 18px; }
+.manuel .body { padding: 4px 16px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px 32px; }
+.manuel h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
+.keys { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
+.keys li { display: flex; align-items: baseline; gap: 10px; }
+kbd { flex: none; min-width: 26px; padding: 1px 7px; text-align: center; font-family: var(--mono); font-size: 12px; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; background: var(--surface-3); color: var(--ink); }
+.note { grid-column: 1 / -1; font-size: 13px; color: var(--ink-4); }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 30; max-width: min(520px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 6px; border: 1px solid var(--or); background: #241f12; color: var(--or-glow); transition: .2s; font-size: 14px; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.mock { font-size: 12px; color: var(--ink-4); border: 1px dashed var(--line-strong); border-radius: 4px; padding: 3px 8px; }
+@media (prefers-reduced-motion: reduce) { .clip.s-encours .st, .frame { animation: none !important; } }
+@media (max-width: 600px) { h1 { font-size: 32px; } .tools { margin-left: 0; } .tl { grid-template-columns: 76px minmax(0, 1fr); } .labels div { padding-inline: 8px; font-size: 12px; } }
+</style>
+
+<div class="wrap">
+  <header class="hd">
+    <div class="hd-title">
+      <p class="eyebrow">Épisode 1 · Les Yeux de Rubis</p>
+      <h1>Montage</h1>
+    </div>
+    <div class="hd-meta">
+      <div class="total" title="Somme des durées retenues (in/out appliqués). Les plans sans rendu comptent pour leur durée prévue."><b id="total">0:00.0</b><span id="totalSub"></span></div>
+      <div class="hd-meta" id="tally"></div>
+    </div>
+    <div class="tools">
+      <button class="btn" data-toast="Lancement de toutes les prévisualisations manquantes : 4 plans en file.">Toutes les prévisualisations</button>
+      <button class="btn" id="btnPerimes">Relancer les périmés</button>
+      <button class="btn" data-toast="Passage de nuit programmé : les prévisualisations deviennent des rendus finaux.">Passage de nuit</button>
+      <button class="btn gold" id="btnExport">Exporter l’épisode</button>
+    </div>
+  </header>
+
+  <section class="stage">
+    <div class="player">
+      <div class="screen" id="screen" aria-label="Lecteur de l’épisode"></div>
+      <div class="ctrl">
+      <div class="prog" id="prog" aria-label="Progression de l’épisode"><div id="progFill"></div></div>
+      <div class="transport">
+        <button class="btn" id="bPrev" title="Plan précédent (←)" aria-label="Plan précédent">⏮</button>
+        <button class="btn" id="bPlay" title="Lecture / pause (Espace)" aria-label="Lecture">▶</button>
+        <button class="btn" id="bNext" title="Plan suivant (→)" aria-label="Plan suivant">⏭</button>
+        <span class="timecode" id="tc"></span>
+        <span class="grow"></span>
+        <span class="mock">Maquette : les images sont simulées</span>
+        <button class="btn" id="bCine" title="Mode cinéma (F)">Cinéma <kbd>F</kbd></button>
+      </div>
+      </div>
+    </div>
+    <aside class="insp" id="insp" aria-live="polite"></aside>
+  </section>
+
+  <section class="table mode-mt" id="table" aria-label="Table de montage">
+    <div class="tbar">
+      <div class="seg" role="group" aria-label="Ordre affiché">
+        <button id="bModeMt" aria-pressed="true">Montage final</button>
+        <button id="bModeSc" aria-pressed="false">Ordre des scènes</button>
+      </div>
+      <label class="only-mt" for="zoom">Zoom <input type="range" id="zoom" min="16" max="120" step="2" value="44"></label>
+      <button class="btn small only-mt" id="bSnap" aria-pressed="true" title="Aimantation (S)">Aimantation : oui</button>
+      <span class="pill only-mt" id="diffPill" style="--c:var(--or-glow)"><i></i>Montage différent du scénario</span>
+      <button class="btn small only-mt" id="bSync" title="Remet les plans du montage dans l’ordre des scènes">Recaler sur l’ordre des scènes</button>
+      <span class="sp"></span>
+      <span class="hint" id="hint"></span>
+    </div>
+    <div class="tl">
+      <div class="labels">
+        <div class="l-ruler only-mt"></div>
+        <div class="l-sc only-sc">Scènes</div>
+        <div class="l-s only-sc">Scénario</div>
+        <div class="l-v only-mt">Montage</div>
+        <div class="l-a only-mt">Voix</div>
+        <div class="l-a only-mt">Bruitages</div>
+        <div class="l-a only-mt">Musique</div>
+      </div>
+      <div class="scroller" id="scroller">
+        <div class="inner" id="inner">
+          <div class="ruler only-mt" id="ruler"></div>
+          <div class="lane-row sc only-sc" id="laneSc"></div>
+          <div class="lane-row v only-sc" id="laneS"></div>
+          <div class="lane-row v only-mt" id="laneV"></div>
+          <div class="lane-row a only-mt"><span>À venir · pas encore de fichier voix séparé</span></div>
+          <div class="lane-row a only-mt"><span>À venir · bruitages</span></div>
+          <div class="lane-row a only-mt"><span>À venir · musique d’épisode</span></div>
+          <div class="playhead" id="ph"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bin" id="bin" aria-label="Plans hors montage"></section>
+
+  <details class="manuel" id="manuel" open>
+    <summary>Manuel du Montage <span class="mono" style="font-size:13px;color:var(--ink-4)">touche ?</span></summary>
+    <div class="body">
+      <div>
+        <h3>Lecture</h3>
+        <ul class="keys">
+          <li><kbd>Espace</kbd> lecture / pause</li>
+          <li><kbd>K</kbd> pause</li>
+          <li><kbd>J</kbd> <kbd>L</kbd> reculer / avancer d’une seconde (<kbd>Maj</kbd> : cinq)</li>
+          <li><kbd>←</kbd> <kbd>→</kbd> plan précédent / suivant</li>
+          <li><kbd>Début</kbd> retour au début de l’épisode</li>
+          <li><kbd>F</kbd> mode cinéma plein écran (<kbd>Échap</kbd> pour quitter)</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Rognage</h3>
+        <ul class="keys">
+          <li><kbd>I</kbd> poser le début du plan sous la tête de lecture</li>
+          <li><kbd>O</kbd> poser la fin du plan sous la tête de lecture</li>
+          <li><kbd>R</kbd> remettre le plan entier</li>
+          <li><kbd>S</kbd> aimantation (demi-seconde et tête de lecture)</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Table</h3>
+        <ul class="keys">
+          <li><kbd>M</kbd> basculer entre Montage final et Ordre des scènes</li>
+          <li><kbd>D</kbd> dupliquer le plan sélectionné</li>
+          <li><kbd>Suppr</kbd> retirer du montage (le plan et ses rendus restent en base)</li>
+          <li><kbd>+</kbd> <kbd>-</kbd> zoom de la table</li>
+          <li><kbd>?</kbd> afficher / masquer ce manuel</li>
+        </ul>
+      </div>
+      <p class="note">Le rognage est non destructif : le rendu reste entier, seuls le début et la fin sont mémorisés, et ils s’appliquent à la lecture et à l’export. Les plans sans rendu apparaissent hachurés avec leur durée prévue. Deux ordres coexistent : « Ordre des scènes » suit le scénario, « Montage final » est le rendu réel, que l’on réordonne, rogne et complète librement. Pour retirer un plan du montage, glissez-le jusqu’au bandeau « Hors montage » ; pour l’y remettre, glissez-le sur la table.</p>
+    </div>
+  </details>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var ST = {
+    termine: { label: "Terminé", c: "var(--or)", cls: "s-termine" },
+    encours: { label: "En cours", c: "var(--or-glow)", cls: "s-encours" },
+    echoue: { label: "Échoué", c: "var(--ecarlate-glow)", cls: "s-echoue" },
+    attente: { label: "En attente", c: "var(--ink-4)", cls: "s-attente" }
+  };
+  function R(kind, dur, when) { return { kind: kind, dur: dur, when: when }; }
+  var uid = 0;
+  function C(titre, dur, statut, h, o) {
+    o = o || {};
+    var rendus = o.rendus || [];
+    return { id: ++uid, uuid: "7c2e" + (1000 + uid) + "-b1f4", titre: titre, dur: dur, statut: statut, h: h, perime: !!o.perime, err: o.err || null, rendus: rendus, retenu: rendus.length ? (o.retenu == null ? rendus.length - 1 : o.retenu) : -1, i: 0, o: dur };
+  }
+  var clips = [
+    C("Le port au petit matin", 8, "termine", 205, { rendus: [R("Prévisualisation", 8, "hier 21:40"), R("Upscale", 8, "hier 23:05")] }),
+    C("Maya sur le quai", 10, "termine", 200, { rendus: [R("Prévisualisation", 10, "hier 21:52"), R("Prévisualisation", 10, "hier 22:30"), R("Upscale", 10, "hier 23:20")], retenu: 2 }),
+    C("Le colis rouge", 6, "termine", 350, { perime: true, rendus: [R("Prévisualisation", 6, "avant-hier 18:12")] }),
+    C("Regard dans la vitrine", 5, "termine", 30, { rendus: [R("Prévisualisation", 5, "hier 22:10")] }),
+    C("Course dans la ruelle", 10, "encours", 15, { rendus: [R("Prévisualisation", 10, "il y a 4 min")] }),
+    C("Plongée sur les toits", 8, "echoue", 260, { err: "Rendu n°2 : mémoire GPU insuffisante au chargement des références.", rendus: [R("Prévisualisation", 8, "hier 20:05")] , retenu: 0 }),
+    C("Le passeur au comptoir", 10, "termine", 45, { rendus: [R("Prévisualisation", 10, "hier 22:48"), R("Upscale", 10, "hier 23:41")] }),
+    C("Dialogue : la dette", 10, "termine", 330, { perime: true, rendus: [R("Prévisualisation", 10, "avant-hier 19:30"), R("Prévisualisation", 10, "avant-hier 20:02")] }),
+    C("Contre-champ de Maya", 4, "termine", 215, { rendus: [R("Prévisualisation", 4, "hier 22:55")] }),
+    C("L’ombre au balcon", 7, "attente", 280),
+    C("Poursuite au marché couvert", 10, "attente", 20),
+    C("Le rubis s’éveille", 6, "attente", 355),
+    C("Dernier regard", 5, "attente", 220)
+  ];
+  var bin = [
+    C("Le port de nuit (variante)", 8, "termine", 235, { rendus: [R("Prévisualisation", 8, "avant-hier 17:20"), R("Upscale", 8, "avant-hier 18:02")] }),
+    C("Générique de fin", 12, "attente", 40)
+  ];
+  var scenes = ["Le port", "Vitrine et ruelle", "Chez le passeur", "Le balcon", "Le rubis"];
+  /* Ordre du scénario : tous les plans, groupés par scène (plans.ordre). */
+  var plansOrder = clips.slice(); plansOrder.splice(3, 0, bin[0]); plansOrder.push(bin[1]);
+  [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 4].forEach(function (s, i) { plansOrder[i].sc = s; });
+  /* Montage final : au départ, le colis rouge passe après la vitrine. */
+  var tmp = clips[2]; clips[2] = clips[3]; clips[3] = tmp;
+  var S = { sel: 1, t: 0, playing: false, pps: 44, snap: true, drag: null, cine: false, mode: "mt" };
+
+  var $ = function (id) { return document.getElementById(id); };
+  function len(c) { return c.o - c.i; }
+  function starts() { var a = [], s = 0; clips.forEach(function (c) { a.push(s); s += len(c); }); return a; }
+  function total() { return clips.reduce(function (s, c) { return s + len(c); }, 0); }
+  function fmt(t) { t = Math.max(0, t); var m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(1); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function idxAt(t) { var st = starts(); for (var k = clips.length - 1; k >= 0; k--) if (t >= st[k] - 1e-6) return k; return 0; }
+  function rendered(c) { return c.rendus.length > 0; }
+  function perimes() { return clips.filter(function (c) { return c.perime; }).length; }
+
+  var toastT;
+  function toast(msg) { var el = $("toast"); el.textContent = msg; el.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(function () { el.classList.remove("on"); }, 3600); }
+
+  /* En-tête */
+  function renderHead() {
+    $("total").textContent = fmt(total());
+    var sans = clips.filter(function (c) { return !rendered(c); }).length;
+    $("totalSub").textContent = clips.length + " plans" + (sans ? " · " + sans + " sans rendu (durée prévue)" : "");
+    var cnt = {};
+    clips.forEach(function (c) { cnt[c.statut] = (cnt[c.statut] || 0) + 1; });
+    $("tally").innerHTML = ["termine", "encours", "echoue", "attente"].filter(function (k) { return cnt[k]; }).map(function (k) {
+      return '<span class="pill" style="--c:' + ST[k].c + '"><i></i><b>' + cnt[k] + '</b> ' + ST[k].label + '</span>';
+    }).join("") + (perimes() ? '<span class="pill" style="--c:var(--or-glow)"><i></i><b>' + perimes() + '</b> périmés</span>' : "");
+    $("btnPerimes").textContent = "Relancer les périmés" + (perimes() ? " (" + perimes() + ")" : "");
+  }
+
+  /* Table */
+  function renderRuler() {
+    var planTotal = plansOrder.reduce(function (s, p) { return s + p.dur; }, 0);
+    var T = Math.ceil(Math.max(total(), planTotal)) + 6, h = "", step = S.pps < 28 ? 10 : S.pps < 60 ? 5 : 1;
+    for (var s = 0; s <= T; s++) {
+      if (s % step) continue;
+      var big = s % (step * 2) === 0 || step === 1 && s % 5 === 0;
+      h += '<span class="tick' + (big ? " big" : "") + '" style="left:' + s * S.pps + 'px"></span>';
+      if (big) h += '<span class="tick-l" style="left:' + s * S.pps + 'px">' + fmt(s).replace(".0", "") + '</span>';
+    }
+    $("ruler").innerHTML = h;
+    $("inner").style.width = (T * S.pps + 40) + "px";
+    $("inner").style.setProperty("--pps", S.pps);
+  }
+  function renderClips() {
+    var st = starts(), h = "", mo = moOrder(), so = soOrder();
+    clips.forEach(function (c, k) {
+      var scTag = "";
+      if (!c.dupOf) { var ri = mo.indexOf(c.uuid); if (so[ri] !== c.uuid) scTag = ' <span style="color:var(--ink-4)">· sc. ' + String(plansOrder.findIndex(function (p) { return p.uuid === c.uuid; }) + 1).padStart(2, "0") + '</span>'; }
+      var s = ST[c.statut], nr = !rendered(c), w = len(c) * S.pps;
+      h += '<div class="clip ' + s.cls + (nr ? " nr" : "") + (k === S.sel ? " sel" : "") + '" tabindex="0" data-k="' + k + '" style="--h:' + c.h + ';--c:' + s.c + ';left:' + st[k] * S.pps + 'px;width:' + w + 'px" aria-label="Plan ' + (k + 1) + ', ' + esc(c.titre) + ', ' + s.label + '">' +
+        (nr ? "" : '<span class="handle l" data-h="l"></span><span class="handle r" data-h="r"></span>') +
+        '<span class="in"><span class="n">' + String(k + 1).padStart(2, "0") + scTag + '</span><span class="ti">' + esc(c.titre) + '</span>' +
+        '<span class="du">' + len(c).toFixed(1) + ' s' + (nr ? " prévu" : "") + (c.dupOf ? ' <span class="tag" style="border-color:var(--ink-3);color:var(--ink-2)">copie</span>' : "") + (c.perime ? ' <span class="tag">périmé</span>' : "") + (c.statut === "echoue" ? ' <span class="tag err">échec</span>' : "") + '</span></span>' +
+        '<span class="st"></span></div>';
+    });
+    $("laneV").innerHTML = h;
+  }
+  function renderAll() { renderHead(); renderRuler(); renderClips(); renderScenes(); renderInsp(); renderBin(); renderSync(); updateT(); }
+
+  /* Deux ordres : scénario (plans.ordre) et montage final (entrées de montage) */
+  function moOrder() { var s = {}; return clips.filter(function (c) { return s[c.uuid] ? false : (s[c.uuid] = 1); }).map(function (c) { return c.uuid; }); }
+  function soOrder() { var m = {}; clips.forEach(function (c) { m[c.uuid] = 1; }); return plansOrder.filter(function (p) { return m[p.uuid]; }).map(function (p) { return p.uuid; }); }
+  function differs() { var a = moOrder(), b = soOrder(); return a.some(function (u, i) { return b[i] !== u; }); }
+  function inMont(p) { return clips.filter(function (c) { return c.uuid === p.uuid; }).length; }
+  function renderSync() { var d = differs(); $("diffPill").hidden = !d; $("bSync").disabled = !d; }
+  function renderScenes() {
+    var x = 0, hs = "", band = null, bands = [];
+    plansOrder.forEach(function (p, k) {
+      var w = p.dur * S.pps, s = ST[p.statut], n = inMont(p);
+      if (!band || band.sc !== p.sc) { band = { sc: p.sc, x: x, w: 0 }; bands.push(band); }
+      band.w += w;
+      hs += '<div class="clip ' + s.cls + (rendered(p) ? "" : " nr") + (n ? "" : " out") + '" data-p="' + k + '" style="--h:' + p.h + ';--c:' + s.c + ';left:' + x + 'px;width:' + w + 'px"><span class="in"><span class="n">' + String(k + 1).padStart(2, "0") + '</span><span class="ti">' + esc(p.titre) + '</span><span class="du">' + p.dur.toFixed(1) + ' s ' +
+        (n ? '<span class="tag" style="border-color:var(--ink-3);color:var(--ink-2)">au montage' + (n > 1 ? " ×" + n : "") + '</span>' : '<span class="tag" style="border-color:var(--ink-4);color:var(--ink-4)">hors montage</span>') + '</span></span><span class="st"></span></div>';
+      x += w;
+    });
+    $("laneSc").innerHTML = bands.map(function (b) { return '<div class="band" style="left:' + b.x + 'px;width:' + b.w + 'px">Scène ' + (b.sc + 1) + ' · ' + esc(scenes[b.sc]) + '</div>'; }).join("");
+    $("laneS").innerHTML = hs;
+  }
+  function setMode(m) {
+    S.mode = m; play(false);
+    $("table").className = "table mode-" + m;
+    $("bModeMt").setAttribute("aria-pressed", m === "mt"); $("bModeSc").setAttribute("aria-pressed", m === "sc");
+    $("bin").hidden = m === "sc";
+    $("hint").textContent = m === "mt" ? "Glisser un plan pour le déplacer · tirer ses bords pour rogner · cliquer la règle pour se placer" : "Ordre du scénario : glisser un plan pour le changer de place ou de scène. Le montage final n’est pas touché.";
+    renderAll();
+  }
+  $("bModeMt").addEventListener("click", function () { setMode("mt"); });
+  $("bModeSc").addEventListener("click", function () { setMode("sc"); });
+  $("bSync").addEventListener("click", function () {
+    var sel = clips[S.sel];
+    clips = clips.map(function (c, i) { return { c: c, i: i }; }).sort(function (a, b) {
+      var ia = plansOrder.findIndex(function (p) { return p.uuid === a.c.uuid; }), ib = plansOrder.findIndex(function (p) { return p.uuid === b.c.uuid; });
+      return ia - ib || a.i - b.i;
+    }).map(function (x) { return x.c; });
+    S.sel = clips.indexOf(sel); S.t = starts()[S.sel]; renderAll();
+    toast("Montage recalé sur l’ordre des scènes. Les rognages et les rendus retenus sont conservés.");
+  });
+  var scrollerEl = null;
+  $("laneS").addEventListener("pointerdown", function (e) {
+    var el = e.target.closest(".clip"); if (!el) return;
+    var k = +el.dataset.p, p = plansOrder[k], x0 = e.clientX, moved = false, target = k, startLeft = el.offsetLeft;
+    var drop = document.createElement("div"); drop.className = "drop";
+    function mv(ev) {
+      var dx = ev.clientX - x0;
+      if (!moved && Math.abs(dx) < 5) return;
+      if (!moved) { moved = true; el.classList.add("drag"); $("laneS").appendChild(drop); }
+      el.style.transform = "translateX(" + dx + "px)";
+      var centre = (startLeft + dx) / S.pps + p.dur / 2, order = plansOrder.filter(function (_, j) { return j !== k; }), at = 0;
+      target = 0;
+      for (var q = 0; q < order.length; q++) { var mid = at + order[q].dur / 2; if (centre > mid) { target = q + 1; at += order[q].dur; } else break; }
+      drop.style.left = (at * S.pps - 2) + "px";
+    }
+    function up() {
+      document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up);
+      if (!moved) return;
+      var it = plansOrder.splice(k, 1)[0]; plansOrder.splice(target, 0, it);
+      var nb = plansOrder[target - 1] || plansOrder[target + 1]; if (nb) it.sc = nb.sc;
+      renderAll(); toast("Ordre des scènes mis à jour : « " + it.titre + " » est maintenant en scène " + (it.sc + 1) + ". Le montage final n’est pas modifié.");
+    }
+    document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+  });
+
+  /* Hors montage : retirer, ajouter, dupliquer. Rien n'est supprimé en base. */
+  function renderBin() {
+    var h = '<h2>Hors montage <span class="mono" style="font-size:14px;color:var(--ink-4)">' + bin.length + '</span></h2>' +
+      '<p>Glissez un plan sur la table pour l’ajouter au montage, ou un clip de la table jusqu’ici pour le retirer. Ces plans existent toujours avec tous leurs rendus ; ils n’apparaissent ni dans le lecteur ni à l’export.</p>';
+    if (!bin.length) h += '<p>Aucun plan hors montage pour l’instant. Déposez ici un clip de la table : son rendu n’est jamais supprimé.</p>';
+    else h += '<div class="bin-list">' + bin.map(function (c, n) {
+      return '<div class="bin-item" data-n="' + n + '" style="--h:' + c.h + '"><i></i><span class="tx"><b>' + esc(c.titre) + '</b><small>' + ST[c.statut].label + ' · ' + c.dur.toFixed(1) + ' s' + (rendered(c) ? " · " + c.rendus.length + " rendu" + (c.rendus.length > 1 ? "s" : "") : "") + '</small></span>' +
+        '</div>';
+    }).join("") + '</div>';
+    $("bin").innerHTML = h;
+  }
+  function dupClip() {
+    if (S.mode === "sc") return toast("Repassez en « Montage final » pour modifier le montage.");
+    var c = clips[S.sel], d = Object.assign({}, c, { id: ++uid, dupOf: c.id });
+    clips.splice(S.sel + 1, 0, d); S.sel++; S.t = starts()[S.sel]; renderAll();
+    toast("Plan dupliqué : même plan, même rendu, avec son propre rognage. Rien n’est copié sur disque. Vous pouvez retenir un autre rendu sur la copie.");
+  }
+  function removeClip() {
+    if (S.mode === "sc") return toast("Repassez en « Montage final » pour modifier le montage.");
+    if (clips.length <= 1) return toast("Gardez au moins un plan dans le montage.");
+    var c = clips[S.sel]; clips.splice(S.sel, 1);
+    var reste = clips.some(function (x) { return x.uuid === c.uuid; });
+    if (!reste) bin.push(c);
+    S.sel = Math.min(S.sel, clips.length - 1); S.t = starts()[S.sel]; play(false); renderAll();
+    toast(reste ? "Copie retirée du montage." : "« " + c.titre + " » retiré du montage. Le plan et ses rendus sont conservés dans « Hors montage ».");
+  }
+  function addClipAt(n, at) {
+    var c = bin.splice(n, 1)[0];
+    clips.splice(at, 0, c); S.sel = at; S.t = starts()[at]; renderAll();
+    toast("« " + c.titre + " » ajouté au montage en position " + String(at + 1).padStart(2, "0") + ".");
+  }
+  function ghost(txt) { var g = document.createElement("div"); g.className = "ghost"; g.textContent = txt; document.body.appendChild(g); return g; }
+  function place(g, ev) { g.style.left = ev.clientX + 12 + "px"; g.style.top = ev.clientY + 12 + "px"; }
+  function insertIndexAt(sec) { var acc = 0; for (var j = 0; j < clips.length; j++) { if (sec < acc + len(clips[j]) / 2) return j; acc += len(clips[j]); } return clips.length; }
+  function startOf(idx) { var a = 0; for (var j = 0; j < idx; j++) a += len(clips[j]); return a; }
+  /* Glisser un plan de « Hors montage » vers la table */
+  $("bin").addEventListener("pointerdown", function (e) {
+    var it = e.target.closest(".bin-item"); if (!it || S.mode !== "mt") return;
+    var n = +it.dataset.n, c = bin[n], x0 = e.clientX, y0 = e.clientY, moved = false, g = null, target = null;
+    var drop = document.createElement("div"); drop.className = "drop";
+    function mv(ev) {
+      if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+      if (!moved) { moved = true; play(false); g = ghost(c.titre); }
+      place(g, ev);
+      var r = scroller.getBoundingClientRect(), over = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+      scroller.classList.toggle("over", over);
+      if (over) { target = insertIndexAt(xOf(ev) / S.pps); drop.style.left = (startOf(target) * S.pps - 2) + "px"; $("laneV").appendChild(drop); }
+      else { target = null; drop.remove(); }
+    }
+    function up() {
+      document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up);
+      scroller.classList.remove("over"); drop.remove(); if (g) g.remove();
+      if (moved && target != null) addClipAt(n, target);
+    }
+    document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+    e.preventDefault();
+  });
+
+  /* Mode cinéma */
+  var idleT;
+  function wake() { var p = document.querySelector(".player"); p.classList.remove("idle"); clearTimeout(idleT); if (S.cine) idleT = setTimeout(function () { p.classList.add("idle"); }, 2500); }
+  function setCine(on) {
+    var p = document.querySelector(".player"); S.cine = on; p.classList.toggle("cinema", on); document.body.style.overflow = on ? "hidden" : "";
+    if (on) { try { var r = p.requestFullscreen && p.requestFullscreen(); if (r && r.catch) r.catch(function () {}); } catch (_) {} }
+    else if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (_) {} }
+    $("bCine").innerHTML = on ? 'Quitter <kbd>Échap</kbd>' : 'Cinéma <kbd>F</kbd>';
+    wake();
+  }
+  document.addEventListener("fullscreenchange", function () { if (!document.fullscreenElement && S.cine) setCine(false); });
+  document.addEventListener("mousemove", function () { if (S.cine) wake(); });
+  $("bCine").addEventListener("click", function () { setCine(!S.cine); });
+  $("prog").addEventListener("pointerdown", function (e) {
+    var r = $("prog").getBoundingClientRect();
+    function mv(ev) { S.t = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) * total(); sync(); }
+    mv(e); function up() { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); }
+    document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+  });
+
+  /* Inspecteur */
+  function renderInsp() {
+    var c = clips[S.sel], k = S.sel, s = ST[c.statut];
+    var h = '<div><span class="no">Plan ' + String(k + 1).padStart(2, "0") + ' sur ' + clips.length + '</span><h2>' + esc(c.titre) + '</h2></div>';
+    h += '<div class="row"><span class="badge' + (c.statut === "attente" ? " hatch" : "") + '" style="--c:' + s.c + '">' + s.label + '</span></div>';
+    if (c.perime) h += '<div class="warn">Rendu périmé : une référence ou le contenu du plan a changé depuis le dernier rendu. Relancer pour en tenir compte.</div>';
+    if (c.err) h += '<div class="warn err">' + esc(c.err) + '</div>';
+    if (rendered(c)) {
+      h += '<div><p class="sec">Rendu retenu</p><div class="rendus" role="radiogroup">';
+      c.rendus.forEach(function (r, n) {
+        h += '<button class="rendu" role="radio" aria-checked="' + (n === c.retenu) + '" data-r="' + n + '"><span class="dot"></span><span>n°' + (n + 1) + ' · ' + r.kind + '<small>' + r.when + '</small></span><span class="d">' + r.dur.toFixed(1) + ' s</span></button>';
+      });
+      h += '</div></div>';
+      h += '<div><p class="sec">Rognage</p><div class="inout"><div><small>Début</small><b>' + c.i.toFixed(1) + ' s</b></div><div><small>Fin</small><b>' + c.o.toFixed(1) + ' s</b></div><div><small>Durée</small><b>' + len(c).toFixed(1) + ' s</b></div></div>' +
+        '<div class="row" style="margin-top:8px"><button class="btn small" id="bReset"' + (c.i === 0 && c.o === c.dur ? " disabled" : "") + '>Remettre le plan entier</button></div></div>';
+    } else {
+      h += '<div class="warn" style="border-color:var(--ink-4);background:var(--surface-2);color:var(--ink-3)">Pas encore de rendu. Le plan occupe sa durée prévue (' + c.dur.toFixed(1) + ' s) pour que la table reflète tout l’épisode ; il sera ignoré à l’export.</div>';
+    }
+    h += '<div><p class="sec">Dans le montage</p><div class="row"><button class="btn small" id="bDup">Dupliquer <kbd>D</kbd></button><button class="btn small" id="bDel">Retirer du montage <kbd>Suppr</kbd></button></div><p class="path" style="margin:8px 0 0;font-family:var(--body);font-size:12px">Retirer ou dupliquer n’efface aucun rendu : seule l’entrée du montage change.</p></div>';
+    h += '<div><p class="sec">Atelier du plan</p><div class="row"><button class="btn" data-toast="Maquette : ouvre la page du plan, aujourd’hui /plans/[uuid], demain /montage/[uuid].">Ouvrir l’atelier du plan →</button></div><p class="path" style="margin:8px 0 0">/montage/' + c.uuid + '</p></div>';
+    $("insp").innerHTML = h;
+  }
+
+  /* Lecteur */
+  function updateT() {
+    var T = total(); S.t = Math.min(Math.max(0, S.t), T);
+    var k = idxAt(S.t), c = clips[k], st = starts()[k], local = S.t - st + c.i;
+    var sc = $("screen"), key = k + ":" + c.statut + ":" + c.retenu;
+    if (sc.dataset.key !== key) {
+      sc.dataset.key = key;
+      var inner;
+      if (!rendered(c)) inner = '<div class="slate"><b>Pas encore de rendu</b><span>Durée prévue ' + c.dur.toFixed(1) + ' s</span></div>';
+      else if (c.statut === "echoue") inner = '<div class="slate err"><b>Rendu en échec</b><span>' + esc(c.err || "") + '</span></div>';
+      else inner = '<div class="frame" id="frame" style="background-image:linear-gradient(120deg,hsl(' + c.h + ' 30% 30%),hsl(' + ((c.h + 40) % 360) + ' 30% 16%) 55%,hsl(' + c.h + ' 24% 10%))"></div>';
+      sc.innerHTML = inner + '<div class="hud"><span class="t">' + esc(c.titre) + '</span><span class="p" id="hudp"></span></div>';
+    }
+    var f = $("frame"); if (f) f.style.backgroundPosition = (local * 9) % 100 + "% " + (50 + Math.sin(local) * 30) + "%";
+    $("hudp").textContent = "Plan " + String(k + 1).padStart(2, "0") + (c.retenu >= 0 ? " · rendu n°" + (c.retenu + 1) : "") + " · " + local.toFixed(1) + " s";
+    $("tc").innerHTML = fmt(S.t) + ' <small>/ ' + fmt(T) + '</small>';
+    $("ph").style.left = S.t * S.pps + "px";
+    document.querySelectorAll(".clip").forEach(function (el) { el.classList.toggle("live", +el.dataset.k === k); });
+    $("bPlay").textContent = S.playing ? "⏸" : "▶";
+    $("progFill").style.width = (T ? S.t / T * 100 : 0) + "%";
+  }
+  var last = 0;
+  function tick(ts) {
+    if (!S.playing) return;
+    S.t += (ts - last) / 1000; last = ts;
+    if (S.t >= total()) { S.t = total(); S.playing = false; }
+    updateT(); follow();
+    if (S.playing) requestAnimationFrame(tick);
+  }
+  function follow() {
+    var sc = $("scroller"), x = S.t * S.pps;
+    if (x > sc.scrollLeft + sc.clientWidth - 40 || x < sc.scrollLeft) sc.scrollLeft = Math.max(0, x - 80);
+  }
+  function play(on) { S.playing = on; if (on) { if (S.t >= total() - 0.05) S.t = 0; last = performance.now(); requestAnimationFrame(tick); } updateT(); }
+  function select(k, seek) {
+    S.sel = Math.min(Math.max(0, k), clips.length - 1);
+    if (seek) S.t = starts()[S.sel];
+    renderClips(); renderInsp(); updateT();
+    if (seek) follow();
+  }
+
+  /* Interactions de la table */
+  var scroller = $("scroller");
+  function xOf(e) { return e.clientX - scroller.getBoundingClientRect().left + scroller.scrollLeft; }
+  $("ruler").addEventListener("pointerdown", function (e) {
+    play(false);
+    function mv(ev) { S.t = xOf(ev) / S.pps; var k = idxAt(S.t); if (k !== S.sel) { S.sel = k; renderClips(); renderInsp(); } updateT(); }
+    mv(e);
+    function up() { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); }
+    document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+  });
+
+  $("laneV").addEventListener("pointerdown", function (e) {
+    var el = e.target.closest(".clip"); if (!el) return;
+    var k = +el.dataset.k, c = clips[k], hd = e.target.dataset && e.target.dataset.h;
+    if (k !== S.sel) { S.sel = k; renderClips(); renderInsp(); el = $("laneV").children[k]; }
+    var x0 = e.clientX;
+    if (hd) { trim(e, k, hd); e.preventDefault(); return; }
+    var moved = false, st = starts(), startLeft = st[k] * S.pps, target = k, out = false, overBin = false, gh = null;
+    var drop = document.createElement("div"); drop.className = "drop";
+    function mv(ev) {
+      var dx = ev.clientX - x0;
+      if (!moved && Math.abs(dx) < 5) return;
+      if (!moved) { moved = true; play(false); el.classList.add("drag"); $("laneV").appendChild(drop); }
+      el.style.transform = "translateX(" + dx + "px)";
+      var sr = scroller.getBoundingClientRect(), br = $("bin").getBoundingClientRect();
+      out = ev.clientY > sr.bottom + 6 || ev.clientY < sr.top - 30;
+      overBin = ev.clientX >= br.left && ev.clientX <= br.right && ev.clientY >= br.top && ev.clientY <= br.bottom;
+      if (out && !gh) gh = ghost(c.titre);
+      if (gh) { gh.style.display = out ? "" : "none"; place(gh, ev); }
+      el.style.opacity = out ? ".25" : ""; drop.style.display = out ? "none" : "";
+      $("bin").classList.toggle("over", overBin);
+      var centre = (startLeft + dx) / S.pps + len(c) / 2;
+      var order = clips.filter(function (_, j) { return j !== k; }), at = 0;
+      target = 0;
+      for (var q = 0; q < order.length; q++) { var mid = at + len(order[q]) / 2; if (centre > mid) { target = q + 1; at += len(order[q]); } else break; }
+      drop.style.left = (at * S.pps - 2) + "px";
+    }
+    function up(ev) {
+      document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up);
+      $("bin").classList.remove("over"); if (gh) gh.remove();
+      if (moved && out) {
+        if (overBin) { S.sel = k; removeClip(); } else renderClips();
+      } else if (moved) {
+        var item = clips.splice(k, 1)[0]; clips.splice(target, 0, item); S.sel = target; S.t = starts()[target];
+        renderAll(); toast("Plan déplacé en position " + String(target + 1).padStart(2, "0") + ". Les positions se recalculent, les plans gardent leur identité.");
+      } else {
+        S.t = xOf(ev) / S.pps; renderInsp(); updateT();
+      }
+    }
+    document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+  });
+
+  function snapv(v, c, k) {
+    if (!S.snap) return v;
+    var ph = S.t - starts()[k] + c.i;
+    v = Math.round(v * 2) / 2;
+    return v;
+  }
+  function trim(e, k, side) {
+    var c = clips[k], x0 = e.clientX, i0 = c.i, o0 = c.o;
+    play(false);
+    function mv(ev) {
+      var d = (ev.clientX - x0) / S.pps;
+      if (side === "l") c.i = Math.min(Math.max(0, snapv(i0 + d, c, k)), c.o - 0.5);
+      else c.o = Math.max(Math.min(c.dur, snapv(o0 + d, c, k)), c.i + 0.5);
+      if (S.snap) {
+        var ph = S.t - starts()[k] + c.i;
+        if (side === "r" && Math.abs((o0 + d) - (S.t - starts()[k] + c.i)) < 0.2) c.o = Math.max(c.i + .5, Math.min(c.dur, S.t - starts()[k] + c.i));
+      }
+      renderHead(); renderRuler(); renderClips(); renderInsp(); updateT();
+    }
+    function up() { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); }
+    document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+  }
+  $("laneV").addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("clip")) { e.preventDefault(); select(+e.target.dataset.k, true); } });
+
+  /* Inspecteur : rendu retenu, remise à zéro */
+  $("insp").addEventListener("click", function (e) {
+    var r = e.target.closest("[data-r]"), t = e.target.closest("[data-toast]");
+    if (r) { var c = clips[S.sel]; c.retenu = +r.dataset.r; c.dur = c.rendus[c.retenu].dur; c.o = Math.min(c.o, c.dur); renderClips(); renderInsp(); S.sel === idxAt(S.t) && (($("screen").dataset.key = "")); updateT(); toast("Rendu n°" + (c.retenu + 1) + " retenu pour ce plan. Même seed, même prompt : à l’export, c’est celui-ci."); }
+    if (e.target.id === "bReset") resetClip();
+    if (e.target.closest("#bDup")) dupClip();
+    if (e.target.closest("#bDel")) removeClip();
+    if (t) toast(t.dataset.toast);
+  });
+  function resetClip() { var c = clips[S.sel]; if (!rendered(c)) return; c.i = 0; c.o = c.dur; renderAll(); }
+
+  /* Barre et en-tête */
+  $("zoom").addEventListener("input", function (e) { S.pps = +e.target.value; renderRuler(); renderClips(); updateT(); });
+  function setSnap(v) { S.snap = v; var b = $("bSnap"); b.setAttribute("aria-pressed", v); b.textContent = "Aimantation : " + (v ? "oui" : "non"); }
+  $("bSnap").addEventListener("click", function () { setSnap(!S.snap); });
+  $("bPlay").addEventListener("click", function () { play(!S.playing); });
+  $("bPrev").addEventListener("click", function () { select(S.sel - 1, true); });
+  $("bNext").addEventListener("click", function () { select(S.sel + 1, true); });
+  document.querySelectorAll("[data-toast]").forEach(function (b) { b.addEventListener("click", function () { toast(b.dataset.toast); }); });
+  $("btnPerimes").addEventListener("click", function () {
+    var n = perimes(); if (!n) return toast("Aucun plan périmé.");
+    clips.forEach(function (c) { if (c.perime) { c.perime = false; c.statut = "encours"; } });
+    renderAll(); toast(n + " plan" + (n > 1 ? "s" : "") + " remis en file pour un nouveau rendu.");
+  });
+  $("btnExport").addEventListener("click", function () {
+    var ok = clips.filter(function (c) { return rendered(c) && c.statut !== "echoue"; });
+    var dur = ok.reduce(function (s, c) { return s + len(c); }, 0), skip = clips.length - ok.length;
+    toast("Export de l’épisode : " + ok.length + " rendus retenus mis bout à bout, " + fmt(dur) + (skip ? ". " + skip + " plans ignorés (sans rendu ou en échec)." : "."));
+  });
+
+  /* Clavier */
+  document.addEventListener("keydown", function (e) {
+    if (e.target.matches("input, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = e.key, c = clips[S.sel], big = e.shiftKey ? 5 : 1, used = true;
+    if (e.target.classList && e.target.classList.contains("clip") && (k === " " || k === "Enter")) return;
+    if (k === " ") play(!S.playing);
+    else if (k === "k" || k === "K") play(false);
+    else if (k === "j" || k === "J") { S.t -= big; sync(); }
+    else if (k === "l" || k === "L") { S.t += big; sync(); }
+    else if (k === "ArrowLeft") select(S.sel - 1, true);
+    else if (k === "ArrowRight") select(S.sel + 1, true);
+    else if (k === "Home") { S.t = 0; sync(); }
+    else if (k === "i" || k === "I" || k === "o" || k === "O") {
+      var ki = idxAt(S.t), cc = clips[ki], loc = S.t - starts()[ki] + cc.i;
+      if (!rendered(cc)) toast("Ce plan n’a pas de rendu à rogner.");
+      else { if (k.toLowerCase() === "i") cc.i = Math.min(loc, cc.o - 0.5); else cc.o = Math.max(loc, cc.i + 0.5); S.sel = ki; renderAll(); }
+    }
+    else if (k === "r" || k === "R") resetClip();
+    else if (k === "s" || k === "S") setSnap(!S.snap);
+    else if (k === "+" || k === "=") zoom(8);
+    else if (k === "-") zoom(-8);
+    else if (k === "?") $("manuel").open = !$("manuel").open;
+    else if (k === "f" || k === "F") setCine(!S.cine);
+    else if (k === "m" || k === "M") setMode(S.mode === "mt" ? "sc" : "mt");
+    else if (k === "Escape" && S.cine) setCine(false);
+    else if (k === "d" || k === "D") dupClip();
+    else if (k === "Delete" || k === "Backspace") removeClip();
+    else used = false;
+    if (used) e.preventDefault();
+  });
+  function sync() { var k = idxAt(S.t); if (k !== S.sel) { S.sel = k; renderClips(); renderInsp(); } updateT(); follow(); }
+  function zoom(d) { S.pps = Math.min(120, Math.max(16, S.pps + d)); $("zoom").value = S.pps; renderRuler(); renderClips(); updateT(); }
+
+  S.t = starts()[S.sel] + 2;
+  setMode("mt");
+})();
+</script>

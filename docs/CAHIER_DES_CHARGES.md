@@ -94,15 +94,25 @@ Même structure que Personnages. Les branches représentent les **états**
 d'un décor (jour/nuit, intact/détruit...) plutôt que des dérivés d'apparence.
 Agent décor sur le même principe.
 
-### 4. Shots — frise de production
+### 4. Montage — table de montage de l'épisode (2026-11-07, remplace « Shots » puis « Plans »)
 
-- Liste ordonnée de tous les plans de la série (les trous laissés par les
-  plans supprimés restent visibles, jamais renumérotés — F03).
-- Statut par plan : `en attente` / `en cours` / `échoué` / `rejoué` /
-  `terminé` (F04).
-- Contrôle de la queue batch : déclenchement du passage nuit (upscale en
-  masse), rejeu automatique (2 tentatives avant signalement, à confirmer).
-- Clic sur un plan → ouvre sa Fiche de plan.
+Route `/p/<projet>/e/<épisode>/montage` ; décisions, modèle et reste à faire dans `docs/PLAN_MONTAGE.md`, maquette de référence
+`docs/maquettes/montage.html`.
+
+- **Lecteur continu** des rendus retenus, dans l'ordre du montage, avec tête de lecture, timecode et mode cinéma plein écran (touche F).
+  Un plan sans rendu tient sa place (carton, durée prévue) sans couper la lecture.
+- **Table de montage** : réordonner par glisser-déposer, rognage début/fin **non destructif** (le rendu reste entier), zoom,
+  aimantation (demi-seconde et tête de lecture), plans sans rendu hachurés, statut et « périmé » sur chaque clip, durée totale en
+  direct. Pistes voix / bruitages / musique en emplacements « à venir ».
+- **Deux ordres** : « Ordre des scènes » (le scénario : `plans.ordre` et la scène de chaque plan, réordonnable) et « Montage final »
+  (le film réel : les entrées de `montage_entrees`, ordre indépendant). Dupliquer un plan = une entrée de plus ; retirer du montage =
+  supprimer l'entrée, jamais le plan ni ses rendus (bandeau « Hors montage »). « Recaler sur l'ordre des scènes » remet le montage dans
+  l'ordre du scénario.
+- **Inspecteur** du clip : rendu retenu pour cette entrée, rognage, duplication / retrait, lien vers l'atelier du plan
+  (`/montage/<uuid>`, ex-Fiche de plan).
+- Actions de lot dans la barre d'outils : toutes les prévisualisations, relancer les périmés, passage de nuit (upscale en masse) ;
+  **Exporter l'épisode** (concaténation ffmpeg par le worker, résultat lisible et téléchargeable depuis la page).
+- Manuel des raccourcis sur la page (touche « ? »).
 
 ### 5. Fiche de plan — édition détaillée
 
@@ -117,7 +127,7 @@ Le cœur de la friction la plus fréquente (F03, 2 à 30 itérations/plan).
   agent d'itération dédié par plan, qui écrirait dans ce même point d'entrée,
   est la direction retenue pour l'après-V1 — voir "Points ouverts".
 - Slots dédiés : dialogue, bruitage, durée voix mesurée (F02).
-- Bouton relance → repart dans la queue Shots.
+- Bouton relance → repart dans la file des rendus (page Montage).
 
 ### 6. Casting vocal — catalogue
 

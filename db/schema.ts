@@ -162,8 +162,9 @@ export const plans = pgTable("plans", {
     .references(() => episodes.id, { onDelete: "cascade" }),
   uuid: uuid("uuid").notNull().defaultRandom().unique(),
   // Position du plan dans l'épisode (2026-09-29) : c'est elle, et non un numéro,
-  // qui donne l'ordre de lecture/montage. Réordonnable par glisser-déposer ;
-  // réécrite densément (0..n) à chaque déplacement, jamais une clé.
+  // qui donne l'ordre du SCÉNARIO. Réordonnable par glisser-déposer ;
+  // réécrite densément (0..n) à chaque déplacement, jamais une clé. L'ordre du
+  // montage final (ce qu'on regarde et exporte) est à part : `montage_entrees`.
   ordre: integer("ordre").notNull().default(0),
   numerosSource: integer("numeros_source").array(),
   titre: varchar("titre", { length: 255 }).notNull(),
@@ -446,6 +447,59 @@ export const jobs = pgTable("jobs", {
   // Annulation : voir asset_generations.annulationDemandeeAt. Une vidéo annulée finit
   // `echoue` avec l'erreur « Annulée » (pas de statut d'enum de plus).
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
+});
+
+// ---------------------------------------------------------------------
+// Montage (2026-11-07, docs/PLAN_MONTAGE.md). DEUX ORDRES coexistent, sans que l'un remplace l'autre :
+// - l'ordre du SCÉNARIO reste `plans.ordre` (+ `plans.scene_id`) : inchangé, c'est toujours lui qui donne la position d'un plan
+//   (« 04 »), l'ordre des fiches, des raccords (plan précédent) et des agents ;
+// - l'ordre du MONTAGE FINAL (le film tel qu'on le regarde et l'exporte) est porté par les ENTRÉES ci-dessous, AJOUTÉES à côté.
+// Une entrée pointe un plan (0, 1 ou plusieurs entrées par plan : dupliquer = une entrée de plus sur le même plan, aucun fichier
+// copié), le rendu retenu pour CETTE entrée et un rognage non destructif (le rendu reste entier). Retirer un plan du montage
+// supprime son entrée, jamais le plan ni ses rendus. `rang` est une position réécrite densément (0..n), jamais une clé (F03).
+export const montageEntrees = pgTable(
+  "montage_entrees",
+  {
+    id: serial("id").primaryKey(),
+    episodeId: integer("episode_id")
+      .notNull()
+      .references(() => episodes.id, { onDelete: "cascade" }),
+    planId: integer("plan_id")
+      .notNull()
+      .references(() => plans.id, { onDelete: "cascade" }),
+    // Le rendu (job) retenu pour cette entrée. null = rendu par défaut du plan : son essai retenu (`plans.rendu_retenu_id`), sinon le plus
+    // récent lisible ; un rendu supprimé repasse donc tout seul au défaut (`set null`).
+    renduRetenuId: integer("rendu_retenu_id").references(() => jobs.id, { onDelete: "set null" }),
+    rang: integer("rang").notNull(),
+    // Rognage en secondes, relatif au début du rendu. `fin` null = jusqu'au bout du rendu (le plan entier, quelle que soit sa durée).
+    debutSecondes: real("debut_secondes").notNull().default(0),
+    finSecondes: real("fin_secondes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [index("montage_entrees_episode_idx").on(table.episodeId, table.rang)],
+);
+
+// Exports de l'épisode (bouton « Exporter l'épisode ») : une demande posée par l'interface, traitée par le worker (ffmpeg, sans GPU).
+// `segments` est l'instantané pris au clic (fichier, début, fin de chaque entrée exportable, dans l'ordre du montage) : le montage peut
+// bouger pendant l'encodage sans changer ce qui sort. `statut` : en_attente | en_cours | termine | echoue (varchar, pas d'enum pg).
+// Le fichier produit est UNIQUE par épisode (`montage/<episodeId>/episode.mp4`), remplacé à chaque export (pas de versionnage, F01).
+export const montageExports = pgTable("montage_exports", {
+  id: serial("id").primaryKey(),
+  episodeId: integer("episode_id")
+    .notNull()
+    .references(() => episodes.id, { onDelete: "cascade" }),
+  statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
+  segments: jsonb("segments").notNull(),
+  nbIgnores: integer("nb_ignores").notNull().default(0),
+  fichier: varchar("fichier", { length: 255 }),
+  dureeSecondes: real("duree_secondes"),
+  erreur: text("erreur"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  // Panneau des tâches du bandeau (clé `montage:<id>`, lib/montage-tache.ts) : « vu » et « retiré de la liste », comme jobs.vuAt/masqueAt.
+  vuAt: timestamp("vu_at"),
+  masqueAt: timestamp("masque_at"),
 });
 
 // Réglages globaux clé/valeur, techniques et indépendants du récit : plafond

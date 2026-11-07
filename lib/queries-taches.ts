@@ -1,6 +1,7 @@
 import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, demandes, jobs, plans, projects, propositions } from "../db/schema";
+import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, demandes, episodes, jobs, montageExports, plans, projects, propositions } from "../db/schema";
 import { tacheDeDemande } from "./demandes-tache";
+import { tacheDExport } from "./montage-tache";
 import type { EtapeDemande, StatutDemande } from "./demandes";
 import type { EtapeCreation, StatutCreation } from "./agents/creation";
 import { estDeLaCreation, fenetreDeCreation, tacheDeCreation } from "./agents/creation-tache";
@@ -18,6 +19,7 @@ import {
   cleLlm,
   cleLot,
   cleVideo,
+  estHorsFileGpu,
   ordonnerTaches,
   resumerTaches,
   type ResumeTaches,
@@ -140,7 +142,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     if (projectId == null || l.cibleId == null) return null;
     if (l.portee === "plan") {
       const x = planParId.get(l.cibleId);
-      return x ? `/p/${projectId}/e/${x.episodeId}/plans/${x.uuid}` : null;
+      return x ? `/p/${projectId}/e/${x.episodeId}/montage/${x.uuid}` : null;
     }
     if (l.portee === "episode") return `/p/${projectId}/e/${l.cibleId}/scenario`;
     if (l.portee === "asset") {
@@ -202,7 +204,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     // L'étape en cours (génération H3, interpolation, encodage) quand le worker la connaît ; sinon le rejeu éventuel.
     detail: j.statut === "en_cours" && j.etapeLibelle ? `Vidéo · ${j.etapeLibelle}` : j.tentative > 1 ? `Vidéo · rejeu ${j.tentative}` : "Vidéo",
     // F03 : le plan se désigne par son uuid public, jamais par sa position.
-    href: `/p/${projectId}/e/${episodeId}/plans/${planUuid}`,
+    href: `/p/${projectId}/e/${episodeId}/montage/${planUuid}`,
     projectId,
     assetId: null,
     progression: j.statut === "en_cours" && j.progressionValeur != null && j.progressionMax ? { valeur: j.progressionValeur, max: j.progressionMax, etape: j.etapeLibelle } : null,
@@ -308,7 +310,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         id: d.id,
         projectId: d.projectId,
         libelle: `Itérer · ${titre}`,
-        href: `/p/${d.projectId}/e/${episodeId}/plans/${planUuid}`,
+        href: `/p/${d.projectId}/e/${episodeId}/montage/${planUuid}`,
         statut: d.statut as StatutDemande,
         erreur: d.erreur,
         etapes,
@@ -347,10 +349,10 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         projectId: d.projectId,
         libelle: estFiche ? `Fiche · ${ctx.titre ?? "plan"}` : estScene ? `Nouvelle scène · ${ctx.apres ?? "scénario"}` : `Nouveau plan · ${ctx.scene ?? "scénario"}`,
         href: estFiche
-          ? `${base}/plans/${ctx.planUuid ?? ""}`
+          ? `${base}/montage/${ctx.planUuid ?? ""}`
           : estScene
             ? `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : ""}`
-            : ctx.planUuid ? `${base}/plans/${ctx.planUuid}` : `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
+            : ctx.planUuid ? `${base}/montage/${ctx.planUuid}` : `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
         statut: d.statut as StatutDemande,
         erreur: d.erreur,
         etapes,
@@ -374,7 +376,16 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     }),
   );
 
-  const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots, ...tachesCreations, ...tachesDemandes, ...tachesAjouts], maintenant);
+  // Les EXPORTS de l'épisode (page Montage) : hors GPU, mais suivis ici comme les autres (clé `montage:<id>`, lib/montage-tache.ts).
+  const lignesExports = await db
+    .select({ x: montageExports, projectId: episodes.projectId, projetNom: projects.nom })
+    .from(montageExports)
+    .innerJoin(episodes, eq(episodes.id, montageExports.episodeId))
+    .leftJoin(projects, eq(projects.id, episodes.projectId))
+    .where(and(isNull(montageExports.masqueAt), or(inArray(montageExports.statut, ["en_attente", "en_cours"]), isNull(montageExports.vuAt), gte(montageExports.createdAt, depuis))));
+  const exportsMontage: Tache[] = lignesExports.map(({ x, projectId, projetNom }) => tacheDExport({ ...x, projectId, projetNom }));
+
+  const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots, ...tachesCreations, ...tachesDemandes, ...tachesAjouts, ...exportsMontage], maintenant);
 
   // Disque : seulement pour les tâches d'images gardées.
   const parCle = new Map(lignesImages.map((l) => [cleImage(l.g.uuid), l.g]));
@@ -398,7 +409,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
  * et les images arrivées avant elle). */
 export async function rangDansLaFile(generationId: number): Promise<number> {
   const { taches } = await listerTaches();
-  const devant = taches.filter((x) => x.statut === "en_cours").length;
+  const devant = taches.filter((x) => x.statut === "en_cours" && !estHorsFileGpu(x)).length;
   const [g] = await db.select({ uuid: assetGenerations.uuid }).from(assetGenerations).where(eq(assetGenerations.id, generationId));
   const moi = g ? taches.find((x) => x.cle === cleImage(g.uuid)) : null;
   if (!moi) return devant + 1;

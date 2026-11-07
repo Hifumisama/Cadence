@@ -1,6 +1,7 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { episodes, jobs, planPromptSections, planRefs, plans, scenes } from "../../../db/schema";
 import { recomposerOrdre } from "../../ordre-plans";
+import { ajouterPlanNeAuMontage } from "../../montage-db";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
 import { estLiaison, liaisonOuDefaut } from "../../plan-liaison";
 import type { ChangementBrut } from "../changements";
@@ -224,6 +225,8 @@ export const applicateurPlan: Applicateur = {
     const sequence = existants.map((p) => ({ id: p.id, sceneId: p.sceneId }));
     sequence.splice(insertion.index, 0, { id: cree!.id, sceneId });
     await recomposerOrdre(tx, episodeId, sequence);
+    // Le montage final (docs/PLAN_MONTAGE.md) le reçoit aussi, à la place que lui donne le scénario.
+    await ajouterPlanNeAuMontage(tx, episodeId, cree!.id);
     // Les répliques de la même proposition se rattachent à ce plan par sa clé.
     if (ch.cle) ctx.cles.set(ch.cle, cree!.id);
   },

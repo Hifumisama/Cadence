@@ -38,6 +38,7 @@ function estFinie(x: Tache): boolean {
 
 function texteFin(x: Tache): string {
   if (x.statut === "echoue") return x.erreur ? x.erreur.slice(0, 120) : "La tâche a échoué.";
+  if (x.cle.startsWith("montage:")) return "Épisode exporté.";
   if (x.genre === "llm") return "Terminé : à relire.";
   if (x.genre === "video") return "Vidéo prête.";
   return "Résultat prêt.";
