@@ -1,0 +1,98 @@
+{
+  "style-aucun": {
+    "plan": "03b9c910-6730-46d9-8478-ddcad4a0d472",
+    "titre": "Style · aucun style",
+    "essai": 1,
+    "job": 358,
+    "seed": "424242424242",
+    "publieLe": "2026-11-06T15:35:49.729Z"
+  },
+  "style-cameron": {
+    "plan": "654d0728-fc48-4069-b362-6c286f6231c6",
+    "titre": "Style · James Cameron",
+    "essai": 6,
+    "job": 379,
+    "seed": "61895072681425",
+    "publieLe": "2026-11-06T15:35:49.921Z"
+  },
+  "style-tarantino": {
+    "plan": "77eda794-596f-44a4-9ece-3031657b5746",
+    "titre": "Style · Quentin Tarantino",
+    "essai": 3,
+    "job": 373,
+    "seed": "499698085949467",
+    "publieLe": "2026-11-06T15:35:50.105Z"
+  },
+  "style-anderson": {
+    "plan": "3eb95110-0bb6-47a4-bf72-033a65c88c7d",
+    "titre": "Style · Wes Anderson",
+    "essai": 1,
+    "job": 361,
+    "seed": "424242424242",
+    "publieLe": "2026-11-06T15:35:50.299Z"
+  },
+  "style-villeneuve": {
+    "plan": "f82079b1-4cc6-4ede-886f-b5cd81a2b8be",
+    "titre": "Style · Denis Villeneuve",
+    "essai": 1,
+    "job": 362,
+    "seed": "424242424242",
+    "publieLe": "2026-11-06T15:35:50.486Z"
+  },
+  "style-bigelow": {
+    "plan": "ff449acd-4d69-4898-8ad0-dcc7e888a861",
+    "titre": "Style · Kathryn Bigelow",
+    "essai": 1,
+    "job": 363,
+    "seed": "424242424242",
+    "publieLe": "2026-11-06T15:35:50.669Z"
+  },
+  "style-wong": {
+    "plan": "b365bd40-432b-45fd-9379-b94dfa8f0111",
+    "titre": "Style · Wong Kar-wai",
+    "essai": 3,
+    "job": 376,
+    "seed": "786992174108024",
+    "publieLe": "2026-11-06T15:35:50.868Z"
+  },
+  "style-spielberg": {
+    "plan": "28e64a62-bad8-4913-95df-fd6bdbeb0a23",
+    "titre": "Style · Steven Spielberg",
+    "essai": 1,
+    "job": 365,
+    "seed": "424242424242",
+    "publieLe": "2026-11-06T15:35:51.060Z"
+  },
+  "creativite-restrained": {
+    "plan": "7e1728a0-8cd6-4c0a-9704-ce0eab125d1d",
+    "titre": "Créativité · Sobre",
+    "essai": 3,
+    "job": 387,
+    "seed": "629538295462026",
+    "publieLe": "2026-11-06T15:35:51.263Z"
+  },
+  "creativite-balanced": {
+    "plan": "46a262c5-e581-471b-8eb3-3ce2253c0eb3",
+    "titre": "Créativité · Équilibrée",
+    "essai": 4,
+    "job": 388,
+    "seed": "773240241123396",
+    "publieLe": "2026-11-06T15:35:51.452Z"
+  },
+  "creativite-bold": {
+    "plan": "62124d70-892d-463a-94d2-52e4d6cb48ee",
+    "titre": "Créativité · Audacieuse",
+    "essai": 3,
+    "job": 389,
+    "seed": "532649865610373",
+    "publieLe": "2026-11-06T15:35:51.641Z"
+  },
+  "creativite-extreme": {
+    "plan": "f2fa7008-1c4f-4b36-9604-57060cbf594e",
+    "titre": "Créativité · Extrême",
+    "essai": 2,
+    "job": 390,
+    "seed": "144746709918020",
+    "publieLe": "2026-11-06T15:35:51.827Z"
+  }
+}
