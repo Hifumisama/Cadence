@@ -35,6 +35,8 @@ export type DonneesAffiche = {
   clauseStyle: string;
 };
 
+const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);
+
 const net = (s: unknown): string => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
 
 /** Empreinte de ce qui nourrit l'affiche : quand elle change, l'affiche se refait ; sinon non. Le ton compte par son MOT (un curseur
@@ -87,8 +89,12 @@ export async function donneesAffiche(db: Db, projectId: number): Promise<Donnees
   const lieux = (Array.isArray(c.lieux) ? c.lieux : []).map((l) => net((l as { nom?: unknown }).nom)).filter(Boolean).join(", ");
   const [b] = await db.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
   const style = (b?.contenu as BriefContenu | undefined)?.style;
+  // Le nom du projet est provisoire (« Sans titre ») tant que l'entretien n'a pas fixé le titre : on lit alors celui de la fiche.
+  const titreFiche = net((fiche.contenu as { titre?: unknown }).titre);
+  const nom = net(projet.nom);
+  const titre = nom && !TITRES_PROVISOIRES.has(nom.toLowerCase()) ? nom : TITRES_PROVISOIRES.has(titreFiche.toLowerCase()) ? "" : titreFiche;
   return {
-    titre: projet.nom === "Sans titre" ? "" : projet.nom,
+    titre,
     arc,
     personnages,
     lieux,
@@ -156,9 +162,11 @@ export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: 
   if (!asset) throw new Error("L'asset d'affiche du projet n'existe pas.");
   const [projet] = await db.select({ nom: projects.nom, clauseStyle: projects.clauseStyle, stylePromptImage: projects.stylePromptImage }).from(projects).where(eq(projects.id, projectId));
   const format = formatAfficheParDefaut();
-  // Le titre est posé par le code, mot pour mot : le modèle ne le réécrit ni ne le traduit (voir `avecTitreDansImage`).
-  const titre = projet && projet.nom !== "Sans titre" ? projet.nom.trim() : "";
-  const prompt = titre ? avecTitreDansImage(promptModele, titre, true) : promptModele;
+  // Le titre est posé par le code, mot pour mot : le modèle ne le réécrit ni ne le traduit (voir `avecTitreDansImage`). On lit le même que celui
+  // qui a nourri l'affiche (le titre de la fiche quand le nom du projet est encore provisoire).
+  const nom = net(projet?.nom);
+  const titre = (await donneesAffiche(db, projectId))?.titre ?? (TITRES_PROVISOIRES.has(nom.toLowerCase()) ? "" : nom);
+  const prompt = titre ? avecTitreDansImage(promptModele, titre, true) : avecTitreDansImage(promptModele, "", false);
   await db.update(assets).set({ promptGeneration: prompt }).where(eq(assets.id, asset.id));
   await db.insert(assetGenerations).values({
     assetId: asset.id,
