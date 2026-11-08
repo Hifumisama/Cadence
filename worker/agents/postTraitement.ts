@@ -6,7 +6,7 @@ import { methodeApplicable } from "../../lib/assetCode";
 import { sortieVersBrief } from "../../lib/agents/brief";
 import { ecrireBrouillon } from "../../lib/agents/brief-db";
 import { entreeTour, messageBriefPret } from "../../lib/agents/brief-entree";
-import { appliquerNotes, ficheComplete, manquesFiche } from "../../lib/agents/fiche";
+import { appliquerNotes, detailsAPreciser, ficheComplete, manquesEssentiels, manquesFiche } from "../../lib/agents/fiche";
 import { ficheCourante, enregistrerFiche } from "../../lib/agents/fiche-db";
 import { informationsFormat } from "../../lib/conception";
 import { lireConception } from "../../lib/conception-db";
@@ -101,9 +101,10 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   const messages = ((conv.messages as { role: "user" | "assistant"; content: string }[]) ?? []).map((m) => ({ role: m.role, content: m.content }));
   const utilisateur = messages.filter((m) => m.role === "user").map((m) => m.content);
   const avant = await ficheCourante(tx, conv);
-  const fiche = appliquerNotes(avant, sortie, utilisateur);
-  const complete = await enregistrerFiche(tx, conv, fiche, utilisateur.length);
-  if (complete && !ficheComplete(avant, utilisateur.length - 1)) {
+  // La conversation entière (questions de l'agent comprises) borne les délégations : « je te laisse décider » ne vaut que pour la question posée.
+  const fiche = appliquerNotes(avant, sortie, utilisateur, messages);
+  const complete = await enregistrerFiche(tx, conv, fiche, utilisateur);
+  if (complete && !ficheComplete(avant, utilisateur.slice(0, -1))) {
     // La fiche vient de devenir complète : c'est le CODE qui l'annonce (résumé, suppositions, bouton « étape suivante »), sans tour
     // de l'agent. Si l'utilisateur continue, l'agent reprend pour affiner (note « complète » de entreeTour).
     const messagesStockes = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: messageBriefPret(fiche), at: new Date().toISOString() }];
@@ -112,7 +113,7 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   }
   await creerRun(tx, {
     skill: "conversation-agent",
-    entree: entreeTour(messages, fiche, { manques: manquesFiche(fiche), complete }, await formatDuProjet(tx, conv.projectId)),
+    entree: entreeTour(messages, fiche, { manques: manquesEssentiels(fiche), details: detailsAPreciser(fiche).map((d) => d.libelle), complete }, await formatDuProjet(tx, conv.projectId)),
     but: "tour",
     projectId: conv.projectId,
     conversationId: conv.id,
@@ -135,10 +136,13 @@ async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteA
   const choix = normaliserChoix(sortie.choix);
   const message: MessageConversation = { role: "assistant", content: sortie.reponse, at: new Date().toISOString(), ...(choix ? { choix } : {}) };
   const messages = [...((conv.messages as unknown[]) ?? []), message];
-  const nbUtilisateur = messages.filter((m) => (m as { role?: string }).role === "user").length;
-  // « Prêt » est décidé EN CODE, depuis la fiche de notes (postNotes) : l'essentiel dit par l'utilisateur, après un échange au moins.
+  const utilisateur = messages
+    .filter((m) => (m as { role?: string }).role === "user")
+    .map((m) => (m as { content?: unknown }).content)
+    .map((c) => (typeof c === "string" ? c : ""));
+  // « Prêt » est décidé EN CODE, depuis la fiche de notes (postNotes) : l'essentiel et les détails tranchés, après assez d'échanges.
   const fiche = await ficheCourante(tx, conv);
-  const pret = ficheComplete(fiche, nbUtilisateur);
+  const pret = ficheComplete(fiche, utilisateur);
   // La liste affichée : ce que le code constate non dit, puis les nuances que l'agent a notées.
   const reste = [...manquesFiche(fiche).map(majuscule), ...resteADefinirDe(sortie)].filter((x, i, l) => l.indexOf(x) === i);
   await tx

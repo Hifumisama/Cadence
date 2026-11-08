@@ -22,6 +22,7 @@ const LIBELLES: Record<string, string> = {
   personnages: "Le héros et les personnages",
   univers: "L’univers",
   lieux: "Les lieux",
+  elements: "Effets visuels et objets",
   episodes: "Épisodes",
   titre: "Titre",
 };
@@ -44,10 +45,19 @@ export function resumerSection(cle: string, valeur: unknown): string {
     switch (cle) {
       case "personnages": {
         const detail = [chaine(o.role), chaine(o.age), chaine(o.apparence)].filter(Boolean).join(", ");
-        return `${chaine(o.nom) || "Sans nom"}${detail ? ` : ${detail}` : ""}`;
+        const t = objet(o.tenue);
+        const tenue = [chaine(t.coupe), chaine(t.couleurs), chaine(t.matieres)].filter(Boolean).join(", ");
+        return `${chaine(o.nom) || "Sans nom"}${detail ? ` : ${detail}` : ""}${tenue ? ` · tenue : ${tenue}` : ""}`;
       }
-      case "lieux":
-        return `${chaine(o.nom)}${chaine(o.description) ? ` : ${chaine(o.description)}` : ""}`;
+      case "lieux": {
+        const a = objet(o.aspect);
+        const aspect = [chaine(a.lumiere), chaine(a.matieres), chaine(a.palette)].filter(Boolean).join(", ");
+        return `${chaine(o.nom)}${chaine(o.description) ? ` : ${chaine(o.description)}` : ""}${aspect ? ` · ${aspect}` : ""}`;
+      }
+      case "elements": {
+        const detail = [chaine(o.description), chaine(o.couleur), chaine(o.ampleur)].filter(Boolean).join(", ");
+        return `${chaine(o.nom)}${detail ? ` : ${detail}` : ""}`;
+      }
       case "episodes":
         return `${chaine(o.titre)}${chaine(o.resume) ? ` : ${chaine(o.resume)}` : ""}`;
       default:

@@ -40,6 +40,20 @@ test("brief : le rythme est obligatoire et borné", () => {
   assert.ok(erreurs({ ...brief, rythme: "frénétique" }).length > 0);
 });
 
+test("brief : tenue, aspect des lieux et éléments sont facultatifs, stricts, et portent le statut posé par le code", () => {
+  const riche = {
+    ...brief,
+    personnages: [{ ...brief.personnages[0]!, tenue: { coupe: "manteau long", couleurs: "vert sapin", matieres: "laine bouillie", accessoires: "un collier", signeDistinctif: "un col déchiré", evolution: "identique", statut: "incertain" } }],
+    lieux: [{ nom: "Le phare", description: "Tour blanche", aspect: { lumiere: "aube grise", matieres: "pierre", palette: "blanc, gris", ambiance: "vent", statut: "delegue" } }],
+    elements: [{ nom: "La lanterne", nature: "prop", description: "Une lanterne", couleur: "cuivre", ampleur: "tient dans la main", comportement: "vacille", statut: "fourni" }],
+  };
+  assert.deepEqual(erreurs(riche), []);
+  assert.deepEqual(erreurs(brief), [], "un brief sans ces champs (écrit avant) reste valide");
+  assert.ok(erreurs({ ...riche, personnages: [{ ...riche.personnages[0]!, tenue: { couleur: "vert" } }] }).length > 0, "une sous-clé inconnue est refusée");
+  assert.ok(erreurs({ ...riche, elements: [{ nom: "x", nature: "son", description: "d" }] }).length > 0, "nature : vfx ou prop");
+  assert.ok(erreurs({ ...riche, lieux: [{ ...riche.lieux[0]!, aspect: { statut: "a_valider" } }] }).length > 0, "statut borné");
+});
+
 test("brief : l'univers est facultatif", () => {
   assert.deepEqual(erreurs({ ...brief, univers: "Une œuvre existante : on garde les noms et les apparences." }), []);
 });

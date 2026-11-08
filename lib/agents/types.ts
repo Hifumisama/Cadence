@@ -114,7 +114,43 @@ export type PersonnageBrief = {
   /** Comment il bouge ou agit quand c'est ce qui le définit (combat, métier, démarche). */
   gestuelle?: string;
   voix?: string;
+  /** La tenue, assez précise pour dessiner la fiche du personnage (facultative ; `statut` posé par le code depuis les citations). */
+  tenue?: TenueBrief;
   statut?: string;
+};
+
+/** Statut d'un détail du brief (tenue, aspect d'un lieu, élément), posé par le CODE depuis les citations (lib/agents/fiche.ts) : `incertain` =
+ * dit, mais en termes vagues (« inspirée de… » sans couleur ni matière). */
+export type StatutDetailBrief = "fourni" | "deduit" | "delegue" | "incertain";
+
+export type TenueBrief = {
+  coupe?: string;
+  couleurs?: string;
+  matieres?: string;
+  accessoires?: string;
+  signeDistinctif?: string;
+  /** Raccord de tenue : change-t-elle au fil du film, et quand. */
+  evolution?: string;
+  statut?: StatutDetailBrief;
+};
+
+export type LieuBrief = {
+  nom: string;
+  description: string;
+  /** L'aspect du lieu (facultatif) : lumière et heure, matières, palette, ambiance. */
+  aspect?: { lumiere?: string; matieres?: string; palette?: string; ambiance?: string; statut?: StatutDetailBrief };
+  statut?: string;
+};
+
+/** Un effet visuel (`vfx`) ou un objet qui compte à l'écran (`prop`), comme les types d'asset du même nom. */
+export type ElementBrief = {
+  nom: string;
+  nature: "vfx" | "prop";
+  description: string;
+  couleur?: string;
+  ampleur?: string;
+  comportement?: string;
+  statut?: StatutDetailBrief;
 };
 
 /** Le brief stocké (`lib/agents/brief-schema.json` ; ses sections se remplissent via `notes-entretien`). Les clés de premier niveau sont les « sections » du brief.
@@ -137,7 +173,9 @@ export type BriefContenu = {
   univers?: string;
   episodes: { titre: string; resume: string; portee?: string }[];
   personnages: PersonnageBrief[];
-  lieux: { nom: string; description: string; statut?: string }[];
+  lieux: LieuBrief[];
+  /** Effets visuels et objets qui comptent (facultatif : absent des briefs écrits avant le 2026-11-08). */
+  elements?: ElementBrief[];
   inventions: string[];
   questionsOuvertes: string[];
   /** Notes libres du projet (ex-« globaux du scénario ») ; texte de l'utilisateur, jamais inventé. */
@@ -158,6 +196,7 @@ export const SECTIONS_BRIEF = [
   { cle: "episodes", libelle: "Épisodes", groupe: "Épisodes" },
   { cle: "personnages", libelle: "Personnages", groupe: "Personnages" },
   { cle: "lieux", libelle: "Lieux", groupe: "Lieux" },
+  { cle: "elements", libelle: "Effets visuels et objets", groupe: "Lieux" },
   { cle: "inventions", libelle: "Inventions de l'agent", groupe: "Notes de l'agent" },
   { cle: "questionsOuvertes", libelle: "Questions encore ouvertes", groupe: "Notes de l'agent" },
   { cle: "notes", libelle: "Notes du projet", groupe: "Notes" },

@@ -67,6 +67,23 @@ test("tour : ce que l'agent a proposé et que l'utilisateur n'a pas contesté ne
   assert.match(e[2]!.content, /Déjà proposé dans la conversation et non contesté.*style visuel : 2D façon série ; rythme : variable/);
 });
 
+test("tour : l'essentiel noté, l'agent passe aux détails, un par un et dans l'ordre", () => {
+  const e = entreeTour(conv, fiche, { manques: [], details: ["la tenue de Théo (coupe, couleurs, matières)", "le décor « La rue » (lumière, matières, palette)"], complete: false });
+  assert.match(e[2]!.content, /Détails à préciser, dans cet ordre : la tenue de Théo/);
+  assert.match(e[2]!.content, /UNE question ciblée sur le premier détail/);
+  assert.match(e[2]!.content, /Ne dis jamais que le briefing est prêt/);
+  // Tout est noté mais l'entretien est jeune (gros premier bloc) : jamais une liste vide de manques.
+  const jeune = entreeTour(conv, fiche, { manques: [], details: [], complete: false });
+  assert.ok(!/pas encore dit : \./.test(jeune[2]!.content));
+  assert.match(jeune[2]!.content, /encore jeune/);
+});
+
+test("tour : un gros premier message se déplie en plusieurs échanges", () => {
+  const bloc = [{ role: "assistant" as const, content: "Raconte-moi." }, { role: "user" as const, content: "Une très longue histoire. ".repeat(40) }];
+  assert.match(entreeTour(bloc, fiche, { manques: ["la fin"], complete: false }).at(-1)!.content, /premier message est un gros bloc/);
+  assert.ok(!/gros bloc/.test(entreeTour(conv, fiche, { manques: ["la fin"], complete: false })[2]!.content));
+});
+
 test("tour : si le dernier message n'est pas de l'utilisateur, rien n'est ajouté", () => {
   const fin = [...conv, { role: "assistant" as const, content: "ok" }];
   assert.deepEqual(entreeTour(fin, fiche, { manques: [], complete: false }), fin);

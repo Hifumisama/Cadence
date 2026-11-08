@@ -465,7 +465,24 @@ L'entretien d'entrée (§ 4 et 14) a deux ouvertures. Un projet **sans conceptio
 
 Décisions et raisons : `docs/FRICTIONS.md`, 2026-10-07 (conception) et 2026-10-08 (accroche par le modèle, qui remplace l'accroche en code).
 
-## 16. Le réalisateur d'un épisode (retiré, 2026-10-20)
+### Entretien enrichi (2026-11-08, retours du projet 236)
+
+Un gros premier message remplissait toute la fiche, un « Je te laisse décider » (réponse à UNE question sur la musique) valait
+délégation globale, et les tenues restaient « inspirées de… ». Désormais (`lib/agents/fiche.ts`) :
+
+- **Deux niveaux de complétude** : l'essentiel (`REQUIS`, inchangé, `manquesEssentiels`), puis des **détails à préciser** générés
+  depuis la fiche (`detailsAPreciser`) : la tenue de chaque personnage (3 au plus), l'aspect de chaque lieu (2), la couleur et l'ampleur
+  de chaque effet ou objet (`elements`, 2), les raccords de tenue. `manquesFiche` liste les deux ; `ficheComplete` exige l'essentiel ET
+  les détails tranchés (dits précisément, ou délégués), sauf au-delà de `PLAFOND_MESSAGES_DETAILS` (10) messages de l'utilisateur : les
+  détails ne retiennent plus, l'entretien ne s'éternise pas. Le statut d'un détail vit dans `fiche.details` (fourni, délégué, déduit,
+  **incertain** = dit en termes vagues, `formuleVague`) et est recopié dans le `statut` du sous-objet du brief (`tenue`, `aspect`, élément).
+- **Gros premier bloc** (≥ `SEUIL_GROS_BLOC`, 500 caractères) : trois messages au moins (`MIN_MESSAGES_GROS_BLOC`) ; l'agent réagit,
+  résume en une phrase, puis une question ciblée par message (tenues, décors, effets, raccords).
+- **Délégations bornées** (`delegationsBornees`) : une même citation non globale qui délègue plusieurs sujets ne vaut que pour ceux que
+  la réponse ou la question de l'agent juste avant nomme ; seule une formule « le reste / tout » (« carte blanche pour le reste ») est
+  globale. Une délégation sur `questionsOuvertes` ou `inventions` ne tranche rien.
+- Brief : sous-champs facultatifs `personnages[].tenue`, `lieux[].aspect`, section `elements` (`vfx` | `prop`). Ils rejoignent
+  `briefExtrait` et la description canonique des masters (`registre.ts`). Le réalisateur d'un épisode (retiré, 2026-10-20)
 
 Le réalisateur (skills `realisateur-analyse` et `realisateur-reponse`, conversation de profondeur `revision`, table `revision_decisions`, page `/p/<projet>/realisateur/<épisode>`) a été **décommissionné** : jamais utilisé en réel, redondant avec le scénariste, la relecture du scénario et l'itération de plan. Décision et raisons : `docs/FRICTIONS.md`, 2026-10-20. Ce qui servait aussi à la relecture (vue d'épisode à poignées, opérations typées et leur conversion en changements) vit dans `lib/agents/vue-operations/`. Le texte d'origine reste dans l'historique git.
 
@@ -495,7 +512,7 @@ de l'inventaire sur ~120 plans, le taux de cache du préfixe `scenario-scene`.
 
 ## 18. Plafond dur de 10 s par plan et `coupe` par défaut (2026-10-27)
 
-Un plan dure de 5 à **10 s** (`DUREE_GENERATION_MAX`, `lib/plan-checks.ts`) : à 0,4 MP un plan de 10 s tient sur la carte (environ 3 min de rendu)
+Un plan dure de 4 à **10 s** (`DUREE_GENERATION_MAX`, `lib/plan-checks.ts`) : à 0,4 MP un plan de 10 s tient sur la carte (environ 3 min de rendu)
 et donne des gestes et des visages plus précis qu'un plan de 15 s à 0,2 MP. Les temps de rendu mesurés sont à peu près proportionnels à la durée
 (environ 9 s de calcul par seconde de vidéo à 0,2 MP) : le plafond n'économise pas de calcul, il force des gestes lisibles et des rendus faciles à refaire.
 Les plages de rythme (`PLAGES_RYTHME`) suivent : lent 8–10 s, mesuré et soutenu 6–9 s, rapide 5–7 s, variable 5–10 s. Les skills et leurs schémas JSON

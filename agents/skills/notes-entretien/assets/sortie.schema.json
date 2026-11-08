@@ -7,7 +7,8 @@
     "analyse",
     "fin",
     "modifications",
-    "sources"
+    "sources",
+    "details"
   ],
   "properties": {
     "analyse": {
@@ -174,6 +175,47 @@
                 "type": "string",
                 "description": "(French) Expected vocal impression, if they speak: consistent with age. Empty otherwise."
               },
+              "tenue": {
+                "type": "object",
+                "additionalProperties": false,
+                "description": "(French) The outfit, precise enough to draw a character sheet. Never « inspirée de… » or « style de… » alone: name colours and materials. Optional: fill only what the conversation gives or what you propose.",
+                "properties": {
+                  "coupe": {
+                    "type": "string",
+                    "description": "(French) Cut and shape of the garments: « tunique longue fendue sur les côtés, pantalon ample serré aux chevilles »."
+                  },
+                  "couleurs": {
+                    "type": "string",
+                    "description": "(French) Named colours: « safran et ocre, liseré bleu nuit ». Never « les couleurs de X »."
+                  },
+                  "matieres": {
+                    "type": "string",
+                    "description": "(French) Materials and textures: « coton épais, ceinture de cuir patiné »."
+                  },
+                  "accessoires": {
+                    "type": "string",
+                    "description": "(French) What they wear or carry that is seen (bâton, sacoche, collier). Empty if none."
+                  },
+                  "signeDistinctif": {
+                    "type": "string",
+                    "description": "(French) The mark that sets the outfit or the body apart (emblème brodé, déchirure, tatouage visible). Empty if none."
+                  },
+                  "evolution": {
+                    "type": "string",
+                    "description": "(French) Whether the outfit changes during the film, and when: « identique du début à la fin », « manteau perdu après la chute »."
+                  },
+                  "statut": {
+                    "type": "string",
+                    "enum": [
+                      "fourni",
+                      "deduit",
+                      "delegue",
+                      "incertain"
+                    ],
+                    "description": "Set by the application from the quotations, never by you: leave it out."
+                  }
+                }
+              },
               "statut": {
                 "type": "string",
                 "enum": [
@@ -203,6 +245,39 @@
                 "type": "string",
                 "description": "(French)"
               },
+              "aspect": {
+                "type": "object",
+                "additionalProperties": false,
+                "description": "(French) How the place looks, precise enough to draw a set. Optional: fill only what the conversation gives or what you propose.",
+                "properties": {
+                  "lumiere": {
+                    "type": "string",
+                    "description": "(French) Light and time of day: « fin d'après-midi, soleil rasant orangé, longues ombres »."
+                  },
+                  "matieres": {
+                    "type": "string",
+                    "description": "(French) Materials and textures: « pierre claire usée, boiseries rouges, tuiles vertes »."
+                  },
+                  "palette": {
+                    "type": "string",
+                    "description": "(French) Dominant named colours: « ocre, blanc cassé, touches de turquoise »."
+                  },
+                  "ambiance": {
+                    "type": "string",
+                    "description": "(French) Atmosphere in a few words (vent, poussière, silence, foule)."
+                  },
+                  "statut": {
+                    "type": "string",
+                    "enum": [
+                      "fourni",
+                      "deduit",
+                      "delegue",
+                      "incertain"
+                    ],
+                    "description": "Set by the application from the quotations, never by you: leave it out."
+                  }
+                }
+              },
               "statut": {
                 "type": "string",
                 "enum": [
@@ -210,6 +285,59 @@
                   "deduit",
                   "incertain"
                 ]
+              }
+            }
+          }
+        },
+        "elements": {
+          "type": "array",
+          "description": "(French) Visual effects (a power, a magic, fire, smoke) and story objects that matter on screen. Only what the story calls for; empty if none.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "nom",
+              "nature",
+              "description"
+            ],
+            "properties": {
+              "nom": {
+                "type": "string",
+                "description": "(French) Short name: « Le souffle de vent de Lina », « La lanterne de cuivre »."
+              },
+              "nature": {
+                "type": "string",
+                "enum": [
+                  "vfx",
+                  "prop"
+                ],
+                "description": "vfx: a visual effect (power, magic, fire, smoke, light); prop: an object handled or seen."
+              },
+              "description": {
+                "type": "string",
+                "description": "(French) What it is, in one sentence."
+              },
+              "couleur": {
+                "type": "string",
+                "description": "(French) Named colours: « bleu pâle translucide, cœur blanc »."
+              },
+              "ampleur": {
+                "type": "string",
+                "description": "(French) Size or extent: « tient dans la main », « remplit la cour »."
+              },
+              "comportement": {
+                "type": "string",
+                "description": "(French) How it moves or behaves: « tourbillonne en spirale puis se dissipe », « s'ouvre d'un coup sec »."
+              },
+              "statut": {
+                "type": "string",
+                "enum": [
+                  "fourni",
+                  "deduit",
+                  "delegue",
+                  "incertain"
+                ],
+                "description": "Set by the application from the quotations, never by you: leave it out."
               }
             }
           }
@@ -256,6 +384,7 @@
               "episodes",
               "personnages",
               "lieux",
+              "elements",
               "inventions",
               "questionsOuvertes"
             ],
@@ -272,6 +401,37 @@
           "citation": {
             "type": "string",
             "description": "Passage copied word for word from a message of the USER (the shortest that suffices), in the user's language; \"\" if origine = invente."
+          }
+        }
+      }
+    },
+    "details": {
+      "type": "array",
+      "description": "For each detail you write or the user confirms (an outfit, the look of a place, an effect or object, the outfit changes), where it comes from. Keys: `tenue:<character name>`, `lieu:<place name>`, `element:<element name>`, `raccords` (outfit changes over the film). Same rules as `sources`: « dit » or « delegue » with the user's verbatim quotation, « invente » with \"\". Empty list if no detail moved.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "detail",
+          "origine",
+          "citation"
+        ],
+        "properties": {
+          "detail": {
+            "type": "string",
+            "description": "`tenue:<name>`, `lieu:<name>`, `element:<name>` or `raccords`, the name as written in the sheet."
+          },
+          "origine": {
+            "type": "string",
+            "enum": [
+              "dit",
+              "delegue",
+              "invente"
+            ]
+          },
+          "citation": {
+            "type": "string",
+            "description": "Passage copied word for word from a message of the USER, in the user's language; \"\" if origine = invente."
           }
         }
       }

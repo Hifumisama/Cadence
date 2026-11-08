@@ -57,12 +57,32 @@ export function descriptionPersonnage(p: BriefContenu["personnages"][number]): s
   const age = (p.age ?? "").trim();
   const apparence = (p.apparence ?? "").trim();
   const trait = (p.reconnaissable ?? "").trim();
+  const tenue = descriptionTenue(p.tenue);
   if (apparence) {
     const tete = [age, apparence].filter(Boolean).map((s) => s.replace(/[.\s]+$/, "")).join(". ");
-    return trait ? `${tete}. ${trait}` : tete;
+    return [trait ? `${tete}. ${trait}` : tete, tenue].filter(Boolean).join(". ");
   }
   const role = (p.role ?? "").trim();
-  return [age, [role, trait].filter(Boolean).join(" : ")].filter(Boolean).join(". ");
+  return [age, [role, trait].filter(Boolean).join(" : "), tenue].filter(Boolean).join(". ");
+}
+
+const net = (s: string | undefined): string => (s ?? "").trim().replace(/[.\s]+$/, "");
+
+/** La tenue du brief (entretien enrichi, 2026-11-08) en une phrase de description canonique ; "" sans tenue. L'évolution (raccords) n'y est
+ * pas : la fiche du personnage montre sa tenue de référence. */
+export function descriptionTenue(t: BriefContenu["personnages"][number]["tenue"]): string {
+  if (!t) return "";
+  const corps = [net(t.coupe), net(t.couleurs), net(t.matieres)].filter(Boolean).join(", ");
+  const parties = [corps ? `Tenue : ${corps}` : "", net(t.accessoires) ? `accessoires : ${net(t.accessoires)}` : "", net(t.signeDistinctif) ? `signe distinctif : ${net(t.signeDistinctif)}` : ""];
+  return parties.filter(Boolean).join(" ; ");
+}
+
+/** La description canonique d'un lieu : sa description, puis son aspect (lumière, matières, palette, ambiance) quand l'entretien l'a noté. */
+export function descriptionLieu(l: BriefContenu["lieux"][number]): string {
+  const a = l.aspect;
+  const aspect = a ? [net(a.lumiere), net(a.matieres), net(a.palette), net(a.ambiance)].filter(Boolean).join(", ") : "";
+  if (!aspect) return l.description ?? "";
+  return [net(l.description), aspect].filter(Boolean).join(". ");
 }
 
 /** Les candidats du registre pour un brief, dans l'ordre du brief (personnages puis lieux). Un nom
@@ -94,7 +114,7 @@ export function candidatsRegistre(brief: Pick<BriefContenu, "personnages" | "lie
     });
   };
   for (const p of brief.personnages ?? []) ajouter("personnage", p.nom ?? "", descriptionPersonnage(p));
-  for (const l of brief.lieux ?? []) ajouter("decor", l.nom ?? "", l.description ?? "");
+  for (const l of brief.lieux ?? []) ajouter("decor", l.nom ?? "", descriptionLieu(l));
   return sortie;
 }
 

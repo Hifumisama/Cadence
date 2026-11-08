@@ -2,7 +2,7 @@
  * l'agent la lit pour creuser ce qui manque ; le brief de l'utilisateur en sort, sans appel de rédaction. Pur (utilisé par le
  * service et par le worker). */
 
-import { REQUIS, fichePourAgent, suppositions, type Fiche } from "./fiche";
+import { REQUIS, fichePourAgent, premierMessageGrosBloc, suppositions, type Fiche } from "./fiche";
 import { SECTIONS_BRIEF } from "./types";
 
 export type MessageLlm = { role: "user" | "assistant"; content: string };
@@ -18,8 +18,9 @@ export function messagesPourLlm(messages: MessageLlm[]): MessageLlm[] {
 /** Sérialisation compacte de la fiche (JSON sur une ligne : le modèle la relit, il ne la recopie pas mot pour mot). */
 const brouillonEnTexte = (o: unknown): string => JSON.stringify(o);
 
-/** Ce que le code dit à l'agent après avoir appliqué le dernier message à la fiche : ce qui reste à demander, ou « c'est complet ». */
-export type RappelFiche = { manques: string[]; complete: boolean };
+/** Ce que le code dit à l'agent après avoir appliqué le dernier message à la fiche : l'essentiel qui reste à demander (`manques`), les
+ * détails à préciser ensuite (`details`, dans l'ordre : tenues, décors, effets et objets, raccords), ou « c'est complet ». */
+export type RappelFiche = { manques: string[]; details?: string[]; complete: boolean };
 
 /** Messages d'un tour de `conversation-agent` : la conversation, avec, jointes au DERNIER message de l'utilisateur, les notes du
  * code (la fiche telle qu'elle est après ce message, ce qui reste à demander). La conversation stockée n'est jamais modifiée :
@@ -38,15 +39,30 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
   // Projet conçu avant l'entretien : le format (un film) n'est pas une section du brief, on le dit à part.
   const formatDit = format ? ` ${format}` : "";
   const interdit = "Ne dis jamais que le briefing est prêt ni que l'entretien est fini, et ne propose jamais de passer à la suite : l'application l'annonce elle-même.";
+  // Un gros premier message (tout d'un bloc) : on ne le laisse pas clore l'entretien, on le déplie en plusieurs échanges.
+  const utilisateur = messages.filter((m) => m.role === "user").map((m) => m.content);
+  const premierBloc =
+    utilisateur.length === 1 && premierMessageGrosBloc(utilisateur)
+      ? " Son premier message est un gros bloc : réagis à un détail, résume en UNE phrase ce qui est acquis, puis pose UNE seule question ciblée."
+      : "";
+  const details = rappel.details ?? [];
   if (rappel.complete) {
     const supposees = suppositions(fiche).map(libelleSection);
     contenu += `
 
 [État de l'entretien : la fiche est complète et l'utilisateur continue à l'affiner.${supposees.length ? ` Ce qui reste supposé : ${supposees.join(", ")}.` : ""} Creuse un point mince ou supposé avec une question de fond, ou prends en compte ce qu'il vient de préciser.${formatDit} ${interdit}]`;
+  } else if (rappel.manques.length > 0) {
+    contenu += `
+
+[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Une seule question de fond par message ; les points pratiques se regroupent.${premierBloc}${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
+  } else if (details.length > 0) {
+    contenu += `
+
+[État de l'entretien : l'essentiel est noté. Détails à préciser, dans cet ordre : ${details.join(" ; ")}. Réagis d'abord à ce qu'il vient de dire, puis pose UNE question ciblée sur le premier détail de la liste (des cartes \`choix\` sur des formes ou des palettes aident ici). S'il l'a déjà dit précisément, passe au suivant ; s'il te le laisse, propose-le en une phrase concrète (couleurs et matières nommées) sans reposer la question. Une référence (« inspiré de… ») ne suffit pas : demande ce qu'on en garde, en couleurs, formes et matières.${premierBloc}${dejaDit}${formatDit} ${interdit}]`;
   } else {
     contenu += `
 
-[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Une seule question de fond par message ; les points pratiques se regroupent.${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
+[État de l'entretien : tout ce qui se demande est noté, mais l'entretien est encore jeune. Réagis à ce qu'il vient de dire et creuse un point mince ou supposé avec une question de fond (un moment clé, ce qu'on doit ressentir), une seule.${premierBloc}${dejaDit}${formatDit} ${interdit}]`;
   }
   return [...tous.slice(0, -1), { role: "user", content: contenu }];
 }

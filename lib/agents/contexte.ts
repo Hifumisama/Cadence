@@ -40,8 +40,11 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
     dureeEpisodeSecondes: brief.dureeEpisodeSecondes,
     ...(brief.rythme ? { rythme: brief.rythme } : {}),
     ...(brief.univers?.trim() ? { univers: brief.univers.trim() } : {}),
+    // Personnages et lieux avec leurs détails (tenue, aspect du lieu : facultatifs, avec leur `statut` ; « incertain » = encore vague).
     personnages: brief.personnages,
     lieux: brief.lieux,
+    // Effets visuels et objets qui comptent (couleur, ampleur, comportement), quand l'entretien en a noté.
+    ...(brief.elements?.length ? { elements: brief.elements } : {}),
     // Les notes libres du projet (ex-« globaux du scénario ») : ce que l'utilisateur veut qu'on garde en tête.
     ...(brief.notes?.trim() ? { notes: brief.notes.trim() } : {}),
   };

@@ -105,3 +105,15 @@ test("candidatsRegistre : la description d'un personnage vient de son apparence"
   const c = candidatsRegistre({ personnages: [{ nom: "Iris", role: "narratrice", age: "15 ans", apparence: "cheveux tressés", reconnaissable: "un collier" }], lieux: [] }, []);
   assert.equal(c[0]!.description, "15 ans. cheveux tressés. un collier");
 });
+
+test("candidatsRegistre : la tenue et l'aspect des lieux notés à l'entretien rejoignent la description canonique (sans le raccord)", () => {
+  const c = candidatsRegistre(
+    {
+      personnages: [{ nom: "Iris", role: "narratrice", age: "15 ans", apparence: "cheveux tressés", reconnaissable: "un collier", tenue: { coupe: "tunique longue", couleurs: "safran et ocre", matieres: "coton épais.", accessoires: "un bâton", evolution: "déchirée à la fin", statut: "fourni" } }],
+      lieux: [{ nom: "Le temple", description: "Un temple perché.", aspect: { lumiere: "aube rose", matieres: "pierre claire", statut: "deduit" } }],
+    },
+    [],
+  );
+  assert.equal(c[0]!.description, "15 ans. cheveux tressés. un collier. Tenue : tunique longue, safran et ocre, coton épais ; accessoires : un bâton");
+  assert.equal(c[1]!.description, "Un temple perché. aube rose, pierre claire");
+});

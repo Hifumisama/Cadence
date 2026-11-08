@@ -73,9 +73,22 @@ const faux = (async (skill: string, entree: unknown, options?: { controler?: (js
     const patch: Record<number, unknown> = {
       1: { analyse: "Un phare couvert de sel.", modifications: { arc: BRIEF.arc, titre: BRIEF.titre, episodes: BRIEF.episodes, lieux: BRIEF.lieux, langueDialogues: BRIEF.langueDialogues, personnages: BRIEF.personnages }, sources: [{ section: "arc", origine: "dit", citation: "phare où le sel recouvre tout" }, { section: "titre", origine: "invente", citation: "" }, { section: "personnages", origine: "invente", citation: "" }] },
       2: { analyse: "Style et héroïne.", modifications: { style: BRIEF.style, personnages: BRIEF.personnages }, sources: [{ section: "style", origine: "dit", citation: "live-action" }, { section: "personnages", origine: "dit", citation: "une gardienne de trente ans" }] },
-      3: { analyse: "Ton, durée, rythme, fin.", modifications: { genreTon: BRIEF.genreTon, dureeEpisodeSecondes: 90, rythme: "soutenu" }, sources: [{ section: "genreTon", origine: "dit", citation: "Ton mystérieux" }, { section: "dureeEpisodeSecondes", origine: "dit", citation: "90 secondes" }, { section: "rythme", origine: "dit", citation: "rythme soutenu" }, { section: "fin", origine: "dit", citation: "Ça finit en silence" }] },
+      // Message 3 finit par « Carte blanche pour le reste » : les détails (tenue d'Iris, décor du phare, raccords) sont délégués, la fiche est complète.
+      3: {
+        analyse: "Ton, durée, rythme, fin ; le reste délégué.",
+        modifications: {
+          genreTon: BRIEF.genreTon,
+          dureeEpisodeSecondes: 90,
+          rythme: "soutenu",
+          personnages: BRIEF.personnages.map((p) => ({ ...p, tenue: { coupe: "ciré long", couleurs: "jaune moutarde", matieres: "toile cirée", evolution: "identique du début à la fin" } })),
+          lieux: BRIEF.lieux.map((l) => ({ ...l, aspect: { lumiere: "aube grise", matieres: "pierre blanchie de sel", palette: "blanc, gris bleu" } })),
+        },
+        sources: [{ section: "genreTon", origine: "dit", citation: "Ton mystérieux" }, { section: "dureeEpisodeSecondes", origine: "dit", citation: "90 secondes" }, { section: "rythme", origine: "dit", citation: "rythme soutenu" }, { section: "fin", origine: "dit", citation: "Ça finit en silence" }],
+        details: ["tenue:Iris", "lieu:Le phare", "raccords"].map((detail) => ({ detail, origine: "delegue", citation: "Carte blanche pour le reste" })),
+      },
     };
-    json = patch[n] ?? { analyse: "Rien de nouveau.", modifications: {}, sources: [] };
+    json = patch[n] ?? { analyse: "Rien de nouveau.", modifications: {}, sources: [], details: [] };
+    if (json && typeof json === "object" && !("details" in json)) json = { ...json, details: [] };
   } else if (skill === "conversation-agent") {
     tours += 1;
     json = {
@@ -243,7 +256,7 @@ async function main() {
     conv = await lireConversation(uuid);
     ok(conv?.briefPret === false && conv.messages.length === 5, "deuxième tour : ton et durée pas dits : le code ne déclare pas le briefing prêt");
     ok(conv?.resteADefinir.some((x) => /ton et le genre/.test(x)) === true && conv.resteADefinir.some((x) => /durée/.test(x)), "…et la liste « reste à définir » dit ce qui manque");
-    const m3 = await s.envoyerMessage(uuid, "Ton mystérieux, 90 secondes, rythme soutenu. Ça finit en silence.");
+    const m3 = await s.envoyerMessage(uuid, "Ton mystérieux, 90 secondes, rythme soutenu. Ça finit en silence. Carte blanche pour le reste.");
     await traiterTour(uuid, m3.ok ? m3.runUuid : null);
     conv = await lireConversation(uuid);
     ok(conv?.briefPret === true && conv.messages.length === 7, "troisième tour : l'essentiel est dit, la fiche est complète : le brief est prêt");

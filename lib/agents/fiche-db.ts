@@ -20,8 +20,8 @@ export async function ficheCourante(db: Db, conv: Conv): Promise<Fiche> {
 
 /** Mémorise la fiche et, si elle est complète (ou si un brouillon existe déjà), la recopie dans le brouillon du brief. Rend vrai
  * quand la fiche est complète. Un brief validé n'est jamais touché. */
-export async function enregistrerFiche(db: Db, conv: Conv, fiche: Fiche, nbMessagesUtilisateur: number): Promise<boolean> {
-  const complete = ficheComplete(fiche, nbMessagesUtilisateur);
+export async function enregistrerFiche(db: Db, conv: Conv, fiche: Fiche, messagesUtilisateur: number | readonly string[]): Promise<boolean> {
+  const complete = ficheComplete(fiche, messagesUtilisateur);
   const ancienne = lireFiche(conv.fiche);
   await db.update(agentConversations).set({ fiche, updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
   // Le titre dit ou proposé pendant l'entretien devient le nom du projet (tant qu'on ne l'a pas corrigé à la main) : il sert dès le brief.

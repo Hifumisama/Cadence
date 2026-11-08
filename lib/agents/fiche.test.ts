@@ -6,15 +6,24 @@ import { SCHEMA_BRIEF } from "./brief";
 import { accrocheEntretien, PISTES, tirerPistes } from "./accroche";
 import {
   FICHE_VIDE,
+  MIN_MESSAGES_FICHE,
+  MIN_MESSAGES_GROS_BLOC,
+  PLAFOND_MESSAGES_DETAILS,
   REQUIS,
   SECTIONS_PATCHABLES,
+  SEUIL_GROS_BLOC,
   appliquerNotes,
   briefVersFiche,
+  delegationGlobale,
+  detailsAPreciser,
   entreeNotes,
   ficheComplete,
   ficheVersBrief,
+  formuleVague,
   lireFiche,
+  manquesEssentiels,
   manquesFiche,
+  minMessagesFiche,
   suppositions,
   titreAAdopter,
   type Fiche,
@@ -105,10 +114,13 @@ test("une délégation citée (« je te laisse choisir ») tranche la question s
   assert.equal(briefVersFiche({ contenu: { rythme: "soutenu" }, statuts: { rythme: "deduit" } }, f).statuts.rythme, "delegue", "relire le brouillon n'efface pas la délégation");
 });
 
+const tenueTheo = { coupe: "parka longue, jean droit", couleurs: "gris anthracite, écharpe rouge", matieres: "nylon mat, laine", evolution: "identique du début à la fin" };
+
 function ficheDite(): Fiche {
   return {
-    contenu: { arc: "A", genreTon: "T", style, rythme: "soutenu", dureeEpisodeSecondes: 180, personnages: [heros] },
+    contenu: { arc: "A", genreTon: "T", style, rythme: "soutenu", dureeEpisodeSecondes: 180, personnages: [{ ...heros, tenue: tenueTheo }] },
     statuts: { arc: "fourni", fin: "fourni", genreTon: "fourni", style: "fourni", rythme: "fourni", dureeEpisodeSecondes: "fourni", personnages: "fourni" },
+    details: { "tenue:theo": "fourni", raccords: "fourni" },
   };
 }
 
@@ -125,6 +137,138 @@ test("complète : l'essentiel dit ET au moins deux messages de l'utilisateur ; s
   assert.equal(ficheComplete(sansFin, 5), false);
   assert.deepEqual(manquesFiche(sansFin), [REQUIS[1]!.libelle]);
   assert.equal(ficheComplete({ ...f, contenu: { ...f.contenu, personnages: [] } }, 5), false, "présent ET dit");
+});
+
+// --- Entretien enrichi (2026-11-08) : détails à préciser, délégations bornées, gros premier bloc --------------------------------------
+
+/** L'essentiel tranché, un héros sans tenue, un lieu sans aspect, un effet sans couleur : il reste des détails. */
+function ficheEssentielle(): Fiche {
+  const f = ficheDite();
+  return {
+    contenu: {
+      ...f.contenu,
+      personnages: [heros, { nom: "Mamie", role: "grand-mère", age: "70 ans", apparence: "petite, cheveux blancs", reconnaissable: "ses lunettes" }],
+      lieux: [{ nom: "La rue", description: "Une rue pavée" }],
+      elements: [{ nom: "Le souffle", nature: "vfx", description: "Un coup de vent" }],
+    },
+    statuts: f.statuts,
+  };
+}
+
+test("détails : générés depuis la fiche, dans l'ordre tenues, décors, effets, raccords ; ils retiennent l'entretien", () => {
+  const f = ficheEssentielle();
+  assert.deepEqual(detailsAPreciser(f).map((d) => d.cle), ["tenue:theo", "tenue:mamie", "lieu:la rue", "element:le souffle", "raccords"]);
+  assert.deepEqual(manquesEssentiels(f), []);
+  assert.deepEqual(manquesFiche(f), detailsAPreciser(f).map((d) => d.libelle), "manquesFiche liste les détails après l'essentiel");
+  assert.match(manquesFiche(f)[0]!, /tenue de Théo/);
+  assert.equal(ficheComplete(f, 5), false, "l'essentiel ne suffit plus");
+  assert.equal(ficheComplete(f, PLAFOND_MESSAGES_DETAILS), true, "au plafond, les détails ne retiennent plus : l'entretien ne s'éternise pas");
+  assert.deepEqual(entreeNotes([], f).detailsATrancher.map((d) => d.cle), detailsAPreciser(f).map((d) => d.cle));
+  assert.deepEqual(entreeNotes([], f).aTrancher, [], "aTrancher reste l'essentiel");
+});
+
+test("détails : une tenue dite précisément est tranchée, une formule vague reste « incertain »", () => {
+  const msg = "Théo porte une parka longue grise en nylon mat, avec une écharpe rouge.";
+  const precis = appliquerNotes(
+    ficheEssentielle(),
+    { modifications: { personnages: [{ ...heros, tenue: { coupe: "parka longue", couleurs: "gris, écharpe rouge", matieres: "nylon mat" } }] }, sources: [], details: [{ detail: "tenue:Théo", origine: "dit", citation: "une parka longue grise en nylon mat" }] },
+    [msg],
+  );
+  assert.equal(precis.details?.["tenue:theo"], "fourni");
+  assert.ok(!detailsAPreciser(precis).some((d) => d.cle === "tenue:theo"));
+  assert.equal((precis.contenu.personnages as { tenue?: { statut?: string } }[])[0]!.tenue!.statut, "fourni", "le statut est recopié dans le brief");
+
+  const vague = "Sa tenue est inspirée du dessin animé, cheveux longs.";
+  const flou = appliquerNotes(
+    ficheEssentielle(),
+    { modifications: { personnages: [{ ...heros, tenue: { coupe: "inspirée du dessin animé", couleurs: "les couleurs du dessin animé" } }] }, sources: [], details: [{ detail: "tenue:theo", origine: "dit", citation: "inspirée du dessin animé" }] },
+    [vague],
+  );
+  assert.equal(flou.details?.["tenue:theo"], "incertain");
+  assert.ok(detailsAPreciser(flou).some((d) => d.cle === "tenue:theo"), "une référence sans couleur ni matière se redemande");
+  assert.equal(formuleVague("style manga"), true);
+  assert.equal(formuleVague("inspirée des moines, safran et ocre"), false, "une couleur nommée : ce n'est plus vague");
+  assert.equal(formuleVague("tunique de lin"), false);
+});
+
+test("délégations bornées : « je te laisse décider » répondant à UNE question ne vaut que pour elle", () => {
+  const conversation = [
+    { role: "user", content: "Un garçon qui maîtrise l'air." },
+    { role: "assistant", content: "Et pour la musique, tu entends quoi ?" },
+    { role: "user", content: "Je te laisse décider." },
+  ];
+  const utilisateur = conversation.filter((m) => m.role === "user").map((m) => m.content);
+  const sortie = {
+    modifications: { genreTon: "Aventure", rythme: "soutenu", dureeEpisodeSecondes: 120 },
+    sources: ["genreTon", "rythme", "dureeEpisodeSecondes"].map((section) => ({ section, origine: "delegue", citation: "Je te laisse décider" })),
+    fin: { origine: "delegue", citation: "Je te laisse décider" },
+  };
+  const f = appliquerNotes(FICHE_VIDE, sortie, utilisateur, conversation);
+  assert.deepEqual([f.statuts.genreTon, f.statuts.rythme, f.statuts.dureeEpisodeSecondes, f.statuts.fin], ["deduit", "deduit", "deduit", undefined], "une réponse à la question sur la musique ne délègue ni le ton, ni le rythme, ni la durée, ni la fin");
+
+  // La question nommait le rythme : seul le rythme est délégué.
+  const surLeRythme = [...conversation.slice(0, 1), { role: "assistant", content: "Côté rythme, plutôt lent ou nerveux ?" }, conversation[2]!];
+  const g = appliquerNotes(FICHE_VIDE, sortie, utilisateur, surLeRythme);
+  assert.deepEqual([g.statuts.rythme, g.statuts.genreTon], ["delegue", "deduit"]);
+
+  // Une délégation globale (« carte blanche pour le reste ») vaut pour tout ce qu'elle couvre, détails compris.
+  const globale = [...conversation.slice(0, 2), { role: "user", content: "Carte blanche pour le reste !" }];
+  const h = appliquerNotes(
+    FICHE_VIDE,
+    {
+      ...sortie,
+      sources: sortie.sources.map((s) => ({ ...s, citation: "Carte blanche pour le reste" })),
+      fin: { origine: "delegue", citation: "Carte blanche pour le reste" },
+      modifications: { ...sortie.modifications, personnages: [{ ...heros, tenue: tenueTheo }] },
+      details: [{ detail: "tenue:theo", origine: "delegue", citation: "Carte blanche pour le reste" }, { detail: "raccords", origine: "delegue", citation: "Carte blanche pour le reste" }],
+    },
+    globale.filter((m) => m.role === "user").map((m) => m.content),
+    globale,
+  );
+  assert.deepEqual([h.statuts.genreTon, h.statuts.rythme, h.statuts.fin, h.details?.["tenue:theo"], h.details?.raccords], ["delegue", "delegue", "delegue", "delegue", "delegue"]);
+  assert.equal(delegationGlobale("je te laisse décider"), false);
+  assert.equal(delegationGlobale("imagine le reste"), true);
+});
+
+test("délégations : un détail délégué par son nom est tranché ; une délégation sur les questions ouvertes ne tranche rien", () => {
+  const conversation = [
+    { role: "user", content: "Théo a trente ans." },
+    { role: "assistant", content: "Comment est habillé Théo ?" },
+    { role: "user", content: "Comme tu veux pour lui." },
+  ];
+  const f = appliquerNotes(
+    ficheEssentielle(),
+    {
+      modifications: { personnages: [{ ...heros, tenue: tenueTheo }], questionsOuvertes: ["La musique ?"] },
+      sources: [{ section: "questionsOuvertes", origine: "delegue", citation: "Comme tu veux pour lui" }],
+      details: [{ detail: "tenue:theo", origine: "delegue", citation: "Comme tu veux pour lui" }],
+    },
+    conversation.filter((m) => m.role === "user").map((m) => m.content),
+    conversation,
+  );
+  assert.equal(f.details?.["tenue:theo"], "delegue");
+  assert.equal(f.statuts.questionsOuvertes, "deduit", "une délégation sur les questions ouvertes reste une supposition");
+  assert.ok(!detailsAPreciser(f).some((d) => d.cle === "tenue:theo"));
+});
+
+test("gros premier bloc : trois messages au moins avant la complétude", () => {
+  const bloc = "x".repeat(SEUIL_GROS_BLOC);
+  assert.equal(minMessagesFiche([bloc]), MIN_MESSAGES_GROS_BLOC);
+  assert.equal(minMessagesFiche(["Un phare."]), MIN_MESSAGES_FICHE);
+  const f = ficheDite();
+  assert.equal(ficheComplete(f, [bloc, "ok"]), false, "un gros bloc et une réponse : trop tôt");
+  assert.equal(ficheComplete(f, [bloc, "ok", "oui"]), true);
+  assert.equal(ficheComplete(f, ["Un phare.", "ok"]), true);
+});
+
+test("détails : lus depuis la base, gardés à la relecture du brouillon, et jamais recopiés comme section du brief", () => {
+  const lue = lireFiche({ contenu: {}, statuts: {}, details: { "tenue:theo": "incertain", raccords: "n'importe quoi" } });
+  assert.deepEqual(lue.details, { "tenue:theo": "incertain" });
+  const relue = briefVersFiche({ contenu: { arc: "A" }, statuts: { arc: "fourni" } }, ficheDite());
+  assert.deepEqual(relue.details, ficheDite().details);
+  const { contenu, statuts } = ficheVersBrief(ficheDite(), "T");
+  assert.ok(!("details" in contenu) && !("details" in statuts));
+  assert.ok(compilerSchema(SCHEMA_BRIEF)({ ...contenu }), "un brief avec tenue reste valide");
 });
 
 test("suppositions : ce que l'agent a posé sans que l'utilisateur le dise", () => {
