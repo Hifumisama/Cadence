@@ -4,7 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { formatParDefaut, nouvelleSeed, raisonDemandeInvalide, raisonNonGenerable, type DemandeGeneration } from "./asset-generation";
-import { styleDesImages } from "./conception";
+import { styleDesEditions, styleDesImages } from "./conception";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "./generation-lot";
 import { MEDIA_ROOT, cheminAssetMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "./media";
 import { nbImagesEnAttente, rangDansLaFile } from "./queries-taches";
@@ -79,10 +79,10 @@ export async function poserGeneration(assetId: number, demande: DemandeGeneratio
         assetId,
         methode: texte ? "generation" : "edition",
         prompt,
-        // Instantané de ce qui est soumis : la clause de style et le format ne
-        // concernent que le mode texte (l'édition suit l'image 1, sans style).
-        // Les images reçoivent le prompt LONG du style quand le projet en a un (conception), sinon la clause courte.
-        clauseStyle: texte ? styleDesImages(projet) : "",
+        // Instantané de ce qui est soumis. Texte : le prompt LONG du style quand le projet en a un (conception), sinon la clause
+        // courte. Édition : la clause courte, que le worker rappelle en dernière ligne des instructions (styleDesEditions).
+        // Le format ne concerne que le mode texte (l'édition suit l'image 1).
+        clauseStyle: texte ? styleDesImages(projet) : styleDesEditions(projet),
         ...(texte ? { aspect: demande.aspect, megapixels: demande.megapixels } : {}),
         lightning: texte ? null : true,
         seed: nouvelleSeed(),

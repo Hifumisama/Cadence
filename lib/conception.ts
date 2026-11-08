@@ -255,6 +255,13 @@ export function styleDesImages(projet: { clauseStyle: string; stylePromptImage: 
   return projet?.stylePromptImage?.trim() || projet?.clauseStyle || "";
 }
 
+/** Le style rappelé aux ÉDITIONS d'image (Qwen) : la clause COURTE, jamais le prompt long. Le worker l'ajoute en dernière ligne des
+ * instructions (worker/comfyui/imageMapping.ts) : une ligne d'instruction de plus, pas une description qui noierait les
+ * changements demandés. Sans elle, une retouche (ou une image jointe d'un autre style) sortait du style du projet. */
+export function styleDesEditions(projet: { clauseStyle: string } | null | undefined): string {
+  return projet?.clauseStyle?.trim() || "";
+}
+
 /** Noms d'auteurs, de studios ou d'œuvres qu'un style libre ne devrait pas contenir (liste volontairement courte, à étoffer) : un
  * avertissement, jamais un refus. */
 export const REFERENCES_NOMMEES = ["pixar", "disney", "ghibli", "miyazaki", "marvel", "dreamworks", "wes anderson", "tim burton", "laika", "akira", "van gogh", "picasso", "tarantino", "kubrick"];

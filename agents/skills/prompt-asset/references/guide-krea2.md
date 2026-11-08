@@ -15,7 +15,7 @@
 ## Writing the prompt
 
 1. **Natural language, continuous prose, in English.** Not a list of tags. `[official]`
-2. **Long and detailed gives the best results**, but the model already holds a correct image with little. `[official]` Aim for 40 to 100 words for a simple asset, more for a rich character. `[project]`
+2. **Long and detailed gives the best results**, but the model already holds a correct image with little. `[official]` Aim for 40 to 100 words for a simple asset, 150 to 220 for a character. `[project]`
 3. **Text in the image**: wrap the words to display in quotes `"…"`. `[official]` (the "Le Voile Écarlate" sign from the registry)
 4. **Subject only, no style.** The project's style is added by ComfyUI from the style clause: do not repeat it in an asset prompt. `[project]`
 5. **Suggested order**: framing and light first, subject (the longest block) next, set. `[community]` Each block on its own line improves coherence. `[community]` Our registry writes from subject to framing: both produced validated images, so do not rewrite a prompt that worked to respect this order. `[project]`
@@ -32,7 +32,13 @@
   [character description], neutral standing pose, plain light background, character has 4 views : front full-body view, body side view, body back view, detailed single headshot portrait on the right side of the image, in the foreground.
   ```
 
-  The sheet shows the character **alone**, **empty hands**, with no effect, set or action pose: it serves as an identity reference, not as a scene illustration.
+  The sheet shows the character **alone**, **empty hands**, with no effect, set or action pose: it serves as an identity reference, not as a scene illustration. A place, a pose, an action or a line of dialogue found in the canonical description is **left out** (the turnaround on a plain background wins over the description). `[project]`
+
+  The description block is **one paragraph of 150 to 220 words**, in this order: identity (age, build, face), hair, the outfit in three layers (under layer, main garment, outer layer: cut, material, dominant and secondary colour, patterns, ornaments, wear), footwear and worn accessories, one silhouette signature; then the fixed sentence above. A short character prompt gives a plain, interchangeable costume that the video model then simplifies further. `[project]` Example of the outfit part, to show the density expected, not to copy:
+
+  ```text
+  ... She wears a fitted sleeveless under-tunic of soft undyed wool, a knee-length wrap dress of deep indigo waxed cotton crossed over the chest and closed by three bone toggles, its hem trimmed with a white zigzag wave band, and over it a short sealskin cape lined with pale grey fur, its edge frayed and salt-stained. Fur-lined leather boots laced with blue cord, a braided leather belt with a small walrus-ivory pendant, a carved bead holding her front hair loops. Her silhouette: the two long looped strands framing her face and the wide fur collar. ...
+  ```
 
 - **Set sheet** (one image, three views of the SAME deserted place; to test on Krea 2, which has no dedicated LoRA for it) `[project, untested]`:
 
@@ -40,11 +46,17 @@
   [set description], deserted and still, even daylight [the set's fixed light sentence], the place has 3 views : wide establishing view at eye level, reverse view from the opposite side, close-up detail of [one landmark of the place].
   ```
 
-  Why: a reference-to-video model can only reproduce a place's layout if it has seen it; one view says nothing about what is behind the camera. The sheet shows **the place alone** (no character, no action, no top-down map or floor plan: the video model would copy the bird's-eye view). The light sentence is the same in every prompt of the set and its states (the reference image governs the light of the video). If the three views do not look like one place, fall back to a single view and make the reverse view as a **state** (`parent` = this set) by an edit (Qwen Image Edit: "the same place seen from the opposite side").
+  Why: a reference-to-video model can only reproduce a place's layout if it has seen it; one view says nothing about what is behind the camera. The sheet shows **the place alone** (no character, no action, no top-down map or floor plan: the video model would copy the bird's-eye view). **No props or loose objects** either, even when the description lists them: only the architecture or terrain and what is the place's centrepiece (a flying whale above a village: yes; an ice board on a wave: no); an object in the set image is copied into every shot. The **landmark of the close-up view** is architectural or natural (a carved lintel, a cracked ice wall, a gnarled root, a stone stair), never a prop. `[project]` The light sentence is the same in every prompt of the set and its states (the reference image governs the light of the video). If the three views do not look like one place, fall back to a single view and make the reverse view as a **state** (`parent` = this set) by an edit (Qwen Image Edit: "the same place seen from the opposite side").
 
 - **Prop**: by default descriptive prose alone, one image: a clear 3/4 view, plain background, **nothing held in a hand**, one object. A **prop mini-sheet** is for an object that carries the story AND whose shape changes with the angle, or that has an inscription or a distinctive side: `[prop description], plain light background, the object has 3 views : three-quarter view, side view, close-up detail of [the distinctive part].` Never put a prop in a character's sheet or a set's sheet: crowded references drop details.
 
-- **Effect**: descriptive prose alone, with no sheet instruction. Effects are no longer proposed by the inventory (the video model copies an effect image too literally); this stays for those a user creates by hand.
+- **Effect**: descriptive prose alone, with no sheet instruction. Effects are no longer proposed by the inventory (the video model copies an effect image too literally); this stays for those a user creates by hand. **Never a hand, fist, finger, arm or any body part** in the image, even when the effect comes from one in the story: the video model copies the limb into the shot. The source becomes an **abstract emission point** ("the flames burst outward from a small white-hot point at the centre of the frame"). `[project]`
+
+- **Map of an invented world**: the only top-down image, and **not** a sheet. One flat fantasy map illustration seen straight from above, filling the frame, regions told apart by colours, symbols and relief (mountains, forests, ice, seas, rivers, islands, small pictograms for cities). **No text**: the model writes garbled letters; describe it as "an unlabelled illustrated map" and put no name in quotes. `[project, untested]`
+
+  ```text
+  An unlabelled illustrated fantasy map of [the world], seen straight from above and filling the frame, [regions and their position, each with its colour, symbol and relief], painted on [aged parchment / a painted surface].
+  ```
 
 ## Variants and seed
 

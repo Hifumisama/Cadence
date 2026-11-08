@@ -7,6 +7,7 @@ import {
   NODE_IDS_TEXTE_VERS_IMAGE,
   injecterEditionImages,
   injecterGenerationImage,
+  instructionsAvecStyle,
   type WorkflowJson,
 } from "./imageMapping";
 
@@ -104,6 +105,19 @@ test("édition, 1 image : prompt, seed, Lightning, préfixe ; pas de nœud en pl
   assert.ok(!("image2" in g[ids.encodeurPositif]!.inputs));
   // le graphe d'origine n'est pas modifié
   assert.notEqual(workflowEdition[ids.encodeurPositif]!.inputs.prompt, edition.prompt);
+});
+
+test("édition : le style du projet est rappelé en dernière ligne, les instructions restent intactes", () => {
+  const ids = NODE_IDS_EDITION;
+  const consigne = "Make her look sixty years old.\nPreserve her exact facial identity and outfit.";
+  const clause = "A pre-rendered JRPG cutscene look: near-photoreal 3D modelling.";
+  const g = injecterEditionImages(workflowEdition, { ...edition, prompt: consigne, clauseStyle: clause });
+  assert.equal(g[ids.encodeurPositif]!.inputs.prompt, `${consigne}\nKeep the result in this art style: ${clause}`);
+  assert.equal(g[ids.encodeurNegatif]!.inputs.prompt, "", "le négatif reste vide");
+  // sans clause (anciennes demandes) ou déjà présente : rien n'est ajouté
+  assert.equal(instructionsAvecStyle(consigne, ""), consigne);
+  assert.equal(instructionsAvecStyle(consigne, undefined), consigne);
+  assert.equal(instructionsAvecStyle(`${consigne}\n${clause}`, ` ${clause} `), `${consigne}\n${clause}`);
 });
 
 test("édition, Qualité : Lightning désactivé", () => {

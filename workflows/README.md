@@ -47,7 +47,7 @@ dans `lib/asset-generation.ts`).
 |---|---|---|---|
 | Image 1 : la cible de la modification | `41` (LoadImage) | `image` | nom du fichier dans le dossier d'entrée de ComfyUI ; le parent par défaut |
 | Images 2 et 3 : références (optionnelles) | à créer à la soumission (LoadImage → `FluxKontextImageScale`) | `image2`, `image3` de `170:149` et `170:151` | jusqu'à **3 images** au total ; les nœuds ne sont créés que pour les images fournies, comme pour les références du workflow vidéo |
-| Instructions d'édition | `170:151` (TextEncodeQwenImageEditPlus, positif) | `prompt` | les images se citent par leur rang : « image 1 », « image 2 » |
+| Instructions d'édition | `170:151` (TextEncodeQwenImageEditPlus, positif) | `prompt` | les images se citent par leur rang : « image 1 », « image 2 » ; le worker ajoute une dernière ligne `Keep the result in this art style: <clause>` (clause **courte** du projet, instantané `asset_generations.clause_style`) : le graphe n'a pas de nœud de style |
 | Négatif | `170:149` | `prompt` | laissé **vide** |
 | Seed | `170:169` (KSampler) | `seed` | |
 | LoRA Lightning 4 étapes | `170:168` (PrimitiveBoolean) | `value` | `true` : 4 étapes CFG 1 (toujours utilisé par l'application) ; `false` : 40 étapes CFG 4, sans LoRA (sans effet visible au test) |

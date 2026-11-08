@@ -11,6 +11,8 @@
 2. **Name what must not move** when it is structural: "Preserve her exact facial identity, ruby-red eye color, tan skin tone".
 3. **Several passes rather than all at once**, each starting from the previous output. One instruction per line.
 4. English, like everything else.
+5. **No style line.** The code appends the project's style clause as the last instruction line (`Keep the result in this art style: …`): never write the style yourself, never describe the rendering.
+6. **An edit adds no place, pose or effect to a character sheet**, and no prop to a set, unless the consigne asks for it: the result stays a reference image (turnaround on a plain background, or the place alone).
 
 With several images, say what role each plays: "Change the leather of the sofa in image 1 to the fur material shown in image 2." (example from the official workflow template). A reference image gives a material, a style or a subject; it does not move the camera.
 

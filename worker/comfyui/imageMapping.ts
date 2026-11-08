@@ -66,12 +66,23 @@ export const NODE_IDS_EDITION = {
 
 export type EntreeEdition = {
   prompt: string;
+  /** La clause de style COURTE du projet (instantané de la demande), "" ou absente = aucun rappel. Voir `instructionsAvecStyle`. */
+  clauseStyle?: string;
   seed: string;
   lightning: boolean;
   /** Noms des sources déjà envoyées à ComfyUI, dans l'ordre (1 à 3, la 1re = cible). */
   sourcesDistantes: string[];
   prefixeSortie: string;
 };
+
+/** Le graphe d'édition n'a pas de nœud de style (contrairement au texte vers image) : le style du projet est rappelé par une
+ * DERNIÈRE ligne d'instruction, ajoutée aux instructions de l'agent sans les toucher (ses lignes « Preserve… » restent
+ * telles quelles, et en tête). Rien n'est ajouté sans clause, ni quand les instructions la contiennent déjà. Pur. */
+export function instructionsAvecStyle(prompt: string, clauseStyle: string | undefined): string {
+  const clause = (clauseStyle ?? "").trim();
+  if (!clause || prompt.toLowerCase().includes(clause.toLowerCase())) return prompt;
+  return `${prompt.trimEnd()}\nKeep the result in this art style: ${clause}`;
+}
 
 /** Même règle que `injecterGenerationImage` : un nœud absent est une erreur
  * franche, pas une image générée à côté de ce qu'on a demandé. */
@@ -88,7 +99,7 @@ export function injecterEditionImages(workflow: WorkflowJson, entree: EntreeEdit
   const ids = NODE_IDS_EDITION;
 
   noeud(ids.image1).inputs.image = entree.sourcesDistantes[0]!;
-  noeud(ids.encodeurPositif).inputs.prompt = entree.prompt;
+  noeud(ids.encodeurPositif).inputs.prompt = instructionsAvecStyle(entree.prompt, entree.clauseStyle);
   noeud(ids.encodeurNegatif).inputs.prompt = "";
   noeud(ids.seed).inputs.seed = Number(entree.seed);
   noeud(ids.lightning).inputs.value = entree.lightning;

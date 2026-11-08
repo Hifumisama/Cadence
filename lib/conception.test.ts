@@ -21,6 +21,7 @@ import {
   motDuTon,
   plansEstimes,
   resoudreStyle,
+  styleDesEditions,
   styleDesImages,
   tonDepuisGenres,
   validerConception,
@@ -131,6 +132,12 @@ test("styleDesImages : le prompt long quand le projet en a un, sinon la clause",
   assert.equal(styleDesImages({ clauseStyle: "Courte", stylePromptImage: " Longue " }), "Longue");
   assert.equal(styleDesImages({ clauseStyle: "Courte", stylePromptImage: "" }), "Courte");
   assert.equal(styleDesImages(null), "");
+});
+
+test("styleDesEditions : toujours la clause courte, jamais le prompt long", () => {
+  assert.equal(styleDesEditions({ clauseStyle: " Courte ", stylePromptImage: "Longue" } as { clauseStyle: string }), "Courte");
+  assert.equal(styleDesEditions({ clauseStyle: "" }), "");
+  assert.equal(styleDesEditions(null), "");
 });
 
 test("brief : le prompt long et l'image du style suivent la clause, et restent hors de la vue du modèle", () => {

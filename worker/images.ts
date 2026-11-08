@@ -228,6 +228,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_EDITION(), "utf-8")) as WorkflowJson;
       graphe = injecterEditionImages(brut, {
         prompt: gen.prompt,
+        clauseStyle: gen.clauseStyle, // la clause courte, posée à la demande (styleDesEditions) ; "" pour les anciennes demandes
         seed: gen.seed,
         lightning: gen.lightning ?? true,
         sourcesDistantes: await sourcesEdition(client, gen, mediaRoot, asset.type === TYPE_AFFICHE && gen.consigne == null),

@@ -25,7 +25,7 @@ import {
   raisonNonGenerable,
 } from "@/lib/asset-generation";
 import { TYPE_AFFICHE } from "@/lib/affiches";
-import { styleDesImages } from "@/lib/conception";
+import { styleDesEditions, styleDesImages } from "@/lib/conception";
 import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "@/lib/media";
 import { nbImagesEnAttente } from "@/lib/queries-taches";
 import { cheminCanevasAffiche } from "@/worker/canevas-affiche";
@@ -136,7 +136,8 @@ export async function lancerEssai(
         statut: STATUT_TRADUCTION,
         prompt: "",
         consigne: consigne || null,
-        clauseStyle: texte ? styleDesImages(projet) : "",
+        // Édition : la clause courte, rappelée par le worker en dernière ligne des instructions (voir lib/generation-lancement.ts).
+        clauseStyle: texte ? styleDesImages(projet) : styleDesEditions(projet),
         ...(texte ? { aspect: format.aspect, megapixels: format.megapixels } : {}),
         lightning: texte ? null : true,
         seed: nouvelleSeed(),

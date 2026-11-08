@@ -34,7 +34,7 @@
       "additionalProperties": false,
       "required": ["reflexion", "methode", "raisonMethode", "promptGeneration", "remarques"],
       "properties": {
-        "reflexion": { "type": "string", "minLength": 1, "description": "(French) Your draft, NEVER shown to the user, in two to four short lines, BEFORE writing the prompt: (1) what the canonical description and the brief say, to be kept word for word (for a poster: the one image you choose and the character's traits); (2) what is missing or hesitant (an \"or\", an absent trait) and the precise choice you make; (3) the details you add to reach the length the guide asks (40 to 100 words, more for a character)." },
+        "reflexion": { "type": "string", "minLength": 1, "description": "(French) Your draft, NEVER shown to the user, in two to four short lines, BEFORE writing the prompt: (1) what the canonical description and the brief say, to be kept word for word (for a poster: the one image you choose and the character's traits); (2) what is missing or hesitant (an \"or\", an absent trait) and the precise choice you make; (3) what you leave out (a character's place, pose, action or dialogue; a set's props; an effect's hands or body) and the details you add to reach the length the guide asks (40 to 100 words; 150 to 220 for a character)." },
         "methode": { "type": "string", "enum": ["generation", "edition"], "description": "Recommended method. `edition` has an image 1, the target of the modification (usually the asset's starting image; for a poster, the main character's image)." },
         "raisonMethode": { "type": "string", "description": "(French) One sentence justifying the method." },
         "sources": {
