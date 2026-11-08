@@ -13,7 +13,19 @@ import {
   QUAND_CREATIVITE,
   QUAND_STYLE,
 } from "@/lib/h3ir/exemples";
-import { AIDE_CREATIVITE, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, RESUME_STYLE_CAMERA, STYLE_AUCUN, estMiseEnScene, estProfilPerso, estStyleCamera, signatureChoix, type Creativite } from "@/lib/h3ir/reglages";
+import {
+  AIDE_CREATIVITE,
+  DETAIL_STYLE_CAMERA,
+  LIBELLE_CREATIVITE,
+  RESUME_STYLE_CAMERA,
+  STYLE_AUCUN,
+  estMiseEnScene,
+  estProfilPerso,
+  estStyleCamera,
+  signatureChoix,
+  type ChoixMiseEnScene,
+  type Creativite,
+} from "@/lib/h3ir/reglages";
 
 /** Ce que la carte montre : un style de mise en scène (« aucun », l'un des 7 réalisateurs ou un profil perso) ou un niveau de créativité. */
 export type CarteChoisie = { genre: "style"; id: string } | { genre: "creativite"; id: Creativite };
@@ -31,6 +43,76 @@ export function Pastilles({ creativite }: { creativite: Creativite }) {
         );
       })}
     </ul>
+  );
+}
+
+/** Un bouton de choix de mise en scène (titre, sous-titre, étiquette éventuelle) et son « ? » qui ouvre la carte : le rendu commun de l'écran « Mise en scène » de la
+ * conception (SceneMiseEnScene) et de la fenêtre de choix du style d'un projet, d'une scène ou d'un plan (components/h3ir/FenetreStyleMiseEnScene.tsx). Sans `aide`, pas de « ? ». */
+export function ChoixMise({
+  titre,
+  sous,
+  tag,
+  presse,
+  onChoisir,
+  aide,
+  suggere = false,
+  className,
+}: {
+  titre: string;
+  sous: string;
+  /** Petite étiquette au-dessus du titre (« Suggéré par ton style », « Hérité »…). */
+  tag?: string;
+  presse: boolean;
+  onChoisir: () => void;
+  aide?: { label: string; onOuvrir: (e: React.MouseEvent<HTMLButtonElement>) => void };
+  suggere?: boolean;
+  /** Classe de plus sur l'enveloppe (la fenêtre de choix y met la sienne, indépendante des feuilles de la conception). */
+  className?: string;
+}) {
+  return (
+    <div className={`cn-choix${suggere ? " is-suggere" : ""}${className ? ` ${className}` : ""}`}>
+      <button type="button" className="cn-mise" aria-pressed={presse} onClick={onChoisir}>
+        {tag ? <em className="cn-mise-tag">{tag}</em> : null}
+        <b>{titre}</b>
+        <span>{sous}</span>
+      </button>
+      {aide ? (
+        <button type="button" className="cn-choix-aide" aria-label={aide.label} aria-haspopup="dialog" onClick={aide.onOuvrir}>
+          ?
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Le choix d'un style de mise en scène (un réalisateur ou un profil perso) : titre = son résumé, sous-titre = « style de … » ou, pour un profil perso, ce qu'il fait. */
+export function ChoixStyleMise({
+  id,
+  presse,
+  onChoisir,
+  onAide,
+  suggere = false,
+  className,
+}: {
+  id: ChoixMiseEnScene;
+  presse: boolean;
+  onChoisir: () => void;
+  onAide: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  suggere?: boolean;
+  className?: string;
+}) {
+  const signature = signatureChoix(id);
+  return (
+    <ChoixMise
+      titre={RESUME_STYLE_CAMERA[id]}
+      sous={signature || DETAIL_STYLE_CAMERA[id]}
+      tag={suggere ? "Suggéré par ton style" : undefined}
+      presse={presse}
+      onChoisir={onChoisir}
+      aide={{ label: `Voir un exemple : ${RESUME_STYLE_CAMERA[id]}${signature ? `, ${signature}` : ""}`, onOuvrir: onAide }}
+      suggere={suggere}
+      className={className}
+    />
   );
 }
 

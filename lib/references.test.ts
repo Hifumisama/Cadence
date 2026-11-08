@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ajouterReference, compacterImages, emplacementLibre, nomDepuisCode, retirerReference } from "./references";
+import { ajouterReference, compacterImages, emplacementLibre, nomDepuisCode, retablirCitations, retirerReference, roleParDefaut } from "./references";
 
 const sections = {
   subject_definitions: "<Subject 1> is Iris from <Picture 1>, a girl.\n<Subject 2> is the lamp from <Picture 2>.\n<Subject 3> is the lighthouse from <Picture 3>.",
@@ -74,4 +74,36 @@ test("emplacementLibre : un trou laissé par un son est rebouché, un emplacemen
   // les images restent 1..n : l'emplacement choisi ne compte pas
   assert.equal(emplacementLibre("picture", [1, 2], 6, 5), 3);
   assert.equal(emplacementLibre("audio", [1, 2, 3], 3), null);
+});
+
+test("retirer puis remettre une image : la citation revient dans la prose, la rétention dit où elle apparaît", () => {
+  // Retrait de <Picture 2> (« the lamp ») : sa citation devient son nom, le phare passe en 2.
+  const retire = retirerReference(sections, { type: "picture", slot: 2, nom: "the lamp" }, compacterImages([1, 3]));
+  assert.equal(retire.detailed_description, "[Shot 1] <Subject 1> raises the lamp. [Shot 2] At 00:04.000, Hard cut to <Subject 2>.");
+  // Remise à la main : elle prend le slot 3, ses mentions redeviennent son label.
+  const remis = ajouterReference(retire, { type: "picture", slot: 3, nom: "the lamp" }, { retablir: true });
+  assert.equal(remis.detailed_description, "[Shot 1] <Subject 1> raises <Subject 3>. [Shot 2] At 00:04.000, Hard cut to <Subject 2>.");
+  assert.equal(remis.summary, "[reference generation] <Subject 1> holds <Subject 3> near <Subject 2>.");
+  assert.ok(remis.subject_definitions!.endsWith("<Subject 3> is the lamp from <Picture 3>."));
+  assert.ok(remis.retention_analysis!.endsWith("<Subject 3> (appears in [Shot 1]): fully_preserved - the appearance of the lamp is retained."));
+  // Sans `retablir` (ajout par l'agent d'itération, qui place ses propres marqueurs) : la prose ne bouge pas.
+  const brut = ajouterReference(retire, { type: "picture", slot: 3, nom: "the lamp" });
+  assert.equal(brut.detailed_description, retire.detailed_description);
+});
+
+test("retablirCitations : mot entier et même casse seulement, nom trop court ignoré, son et vidéo par leur label", () => {
+  const s = { detailed_description: "[Shot 1] iris phare walks; the iris pharently. Iris phare waves.", subject_definitions: "<Subject 9> is iris phare." };
+  const r = retablirCitations(s, { type: "picture", slot: 2, nom: "iris phare" });
+  assert.equal(r.sections.detailed_description, "[Shot 1] <Subject 2> walks; the iris pharently. Iris phare waves.");
+  assert.equal(r.sections.subject_definitions, s.subject_definitions);
+  assert.deepEqual(r.shots, ["[Shot 1]"]);
+  assert.deepEqual(retablirCitations(s, { type: "picture", slot: 2, nom: "ir" }).sections, s);
+  assert.equal(retablirCitations({ overall_soundscape: "a gull cries" }, { type: "audio", slot: 2, nom: "gull" }).sections.overall_soundscape, "a <Audio 2> cries");
+});
+
+test("roleParDefaut : voix d'un personnage, sinon type puis nom ; rétention « reference » pour un son", () => {
+  assert.deepEqual(roleParDefaut("picture", { typeAsset: "decor", libelleType: "Décor", libelle: "Couloir bleu" }), { role: "Décor, Couloir bleu", retention: null });
+  assert.deepEqual(roleParDefaut("audio", { typeAsset: "personnage", libelleType: "Personnage", libelle: "Maya" }), { role: "Voix du personnage", retention: "reference" });
+  assert.deepEqual(roleParDefaut("audio", { typeAsset: "sfx", libelleType: "SFX", libelle: "Porte" }), { role: "SFX, Porte", retention: "reference" });
+  assert.deepEqual(roleParDefaut("picture", { typeAsset: null, libelleType: null, libelle: "x" }), { role: "Référence, x", retention: null });
 });

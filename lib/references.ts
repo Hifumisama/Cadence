@@ -59,18 +59,52 @@ export function retirerReference(sections: SectionsTexte, ref: RefTexte, renum: 
 const finir = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
 const ajouterLigne = (contenu: string, ligne: string) => (contenu.trim() ? `${contenu.replace(/\s+$/, "")}\n${ligne}` : ligne);
 
+const echapperRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Les citations que `retirerReference` a remplacées par le nom de l'asset reviennent : dans la PROSE (pas dans les listes de définition et de rétention), chaque
+ * occurrence exacte du nom (mot entier, même casse : celui de `nomDepuisCode`, en minuscules, qu'un texte écrit à la main contient rarement) redevient le label
+ * `<Subject N>` (image), `<Audio N>` ou `<Video N>`. Un nom de moins de 3 lettres n'est jamais remplacé (trop de faux positifs). Pur. */
+export function retablirCitations(sections: SectionsTexte, ref: RefTexte): { sections: SectionsTexte; shots: string[] } {
+  const nom = ref.nom.trim();
+  if (nom.length < 3) return { sections, shots: [] };
+  const label = ref.type === "picture" ? `<Subject ${ref.slot}>` : `<${NOM_LABEL[ref.type]} ${ref.slot}>`;
+  const motif = new RegExp(`(?<![\\p{L}\\p{N}_])${echapperRegex(nom)}(?![\\p{L}\\p{N}_])`, "gu");
+  const sortie: SectionsTexte = {};
+  for (const [section, contenu] of Object.entries(sections)) sortie[section] = SECTIONS_DE_LISTE.includes(section) ? contenu : contenu.replace(motif, label);
+  // Les shots qui le citent maintenant (pour la ligne de rétention, comme à l'assemblage : « appears in [Shot 1], [Shot 3] »).
+  const description = sortie.detailed_description ?? "";
+  const shots: string[] = [];
+  const decoupe = description.split(/(\[Shot \d+\])/);
+  for (let i = 1; i < decoupe.length; i += 2) {
+    const corps = decoupe[i + 1] ?? "";
+    const cite = ref.type === "picture" ? new RegExp(`<\\s*(Subject|Picture)\\s*${ref.slot}\\s*>`, "i").test(corps) : corps.includes(label);
+    if (cite && !shots.includes(decoupe[i]!)) shots.push(decoupe[i]!);
+  }
+  return { sections: sortie, shots };
+}
+
+/** Le rôle d'une référence posée à la main (colonne `plan_refs.role`, lue par les agents) : la voix d'un personnage, sinon « Décor, couloir bleu » (type puis nom),
+ * comme ceux qu'écrit plan-h3. `retention` (audio seulement) : « reference », celui de la ligne de rétention ajoutée au prompt. Pur. */
+export function roleParDefaut(type: TypeRef, asset: { typeAsset: string | null; libelleType: string | null; libelle: string }): { role: string; retention: string | null } {
+  if (type === "audio") return { role: asset.typeAsset === "personnage" ? "Voix du personnage" : `${asset.libelleType ?? "Son"}, ${asset.libelle}`, retention: "reference" };
+  return { role: `${asset.libelleType ?? "Référence"}, ${asset.libelle}`, retention: null };
+}
+
 /** Ajoute une référence aux sections : une ligne de définition et une ligne de rétention (par défaut, comme
- * l'assemblage : image « fully_preserved », son « reference »). Rien n'est ajouté à la prose : tant qu'aucun
- * shot ne la cite, le contrôle de cohérence la signale « non citée », à l'auteur de la placer. */
-export function ajouterReference(sections: SectionsTexte, ref: RefTexte): SectionsTexte {
-  const sortie = { ...sections };
+ * l'assemblage : image « fully_preserved », son « reference »). Avec `retablir` (ajout à la main, nom tiré du code),
+ * les citations du nom laissées par un retrait reviennent dans la prose (`retablirCitations`) ; sinon rien n'est
+ * ajouté à la prose : tant qu'aucun shot ne la cite, le contrôle de cohérence la signale « non citée ». */
+export function ajouterReference(sections: SectionsTexte, ref: RefTexte, options: { retablir?: boolean } = {}): SectionsTexte {
+  const { sections: retablies, shots } = options.retablir ? retablirCitations(sections, ref) : { sections, shots: [] as string[] };
+  const sortie = { ...retablies };
+  const ou = shots.length ? `appears in ${shots.join(", ")}` : "not cited in a shot";
   if (ref.type === "picture") {
     sortie.subject_definitions = ajouterLigne(sections.subject_definitions ?? "", finir(`<Subject ${ref.slot}> is ${ref.nom} from <Picture ${ref.slot}>`));
     sortie.retention_analysis = ajouterLigne(
       sections.retention_analysis ?? "",
       ref.vfx
-        ? `<Subject ${ref.slot}> (not cited in a shot): weak_reference - ${finir(`only the colour, texture and motion of ${ref.nom} are kept; it never appears as a standalone image`)}`
-        : `<Subject ${ref.slot}> (not cited in a shot): fully_preserved - ${finir(`the appearance of ${ref.nom} is retained`)}`,
+        ? `<Subject ${ref.slot}> (${ou}): weak_reference - ${finir(`only the colour, texture and motion of ${ref.nom} are kept; it never appears as a standalone image`)}`
+        : `<Subject ${ref.slot}> (${ou}): fully_preserved - ${finir(`the appearance of ${ref.nom} is retained`)}`,
     );
   } else if (ref.type === "audio") {
     sortie.subject_definitions = ajouterLigne(sections.subject_definitions ?? "", finir(`<Audio ${ref.slot}> is ${ref.nom}`));

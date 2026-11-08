@@ -14,7 +14,7 @@ import { join, resolve } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { estLiaison } from "@/lib/plan-liaison";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
-import { declarerRefDansLePrompt, retirerRefDuPlan } from "@/lib/plan-references";
+import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "@/lib/plan-references";
 import { emplacementLibre } from "@/lib/references";
 import type { RefLabel } from "@/lib/plan-checks";
 import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
@@ -324,11 +324,15 @@ export async function ajouterRef(
   if (prochainSlot == null) return;
 
   await db.transaction(async (tx) => {
+    // Rôle et rétention par défaut (ceux qu'écrirait la fiche) : une référence posée à la main, ou retirée puis remise, n'arrive plus sans eux.
+    const { role, retention } = await roleDeLaRef(tx, type, assetId);
     await tx.insert(planRefs).values({
       planId,
       type,
       slot: prochainSlot,
       assetId,
+      role,
+      retention,
     });
     await declarerRefDansLePrompt(tx, planId, type, prochainSlot, assetId);
   });
@@ -346,7 +350,9 @@ export async function supprimerRef(refId: number) {
 type ValeursScenario = {
   titre: string;
   description: string;
-  dureeMontageSecondes: number;
+  /** La durée de RENDU du plan, entier de DUREE_GENERATION_MIN à DUREE_GENERATION_MAX (4 à 10 s) : écrite comme durée de génération ET de montage (le montage suit le rendu,
+   * comme partout ailleurs). Absente = on n'y touche pas (une durée d'avant, hors bornes, reste telle quelle). */
+  dureeSecondes?: number;
   /** Liaison avec le plan précédent (lib/plan-liaison.ts) ; une valeur inconnue n'écrit rien. */
   liaison?: string;
   /** Open H3 IR (lib/h3ir/reglages.ts) : absents = on n'y touche pas ; `null` ou vide = le plan hérite de sa scène, puis du projet ; style « aucun » = pas de style. */
@@ -357,13 +363,17 @@ type ValeursScenario = {
 /** Édition des champs scénario — reste ouverte même après développement en
  * fiche de plan (retour utilisateur 2026-09-27) : rien n'empêche de revenir
  * corriger la description après coup. */
-export async function updatePlanScenario(planId: number, valeurs: ValeursScenario) {
+export async function updatePlanScenario(planId: number, valeurs: ValeursScenario): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const duree = valeurs.dureeSecondes;
+  if (duree !== undefined && (typeof duree !== "number" || !Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
+    return { ok: false, erreur: `Durée de rendu : un entier de ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s.` };
+  }
   await db
     .update(plans)
     .set({
       titre: valeurs.titre,
       description: valeurs.description || null,
-      dureeMontageSecondes: valeurs.dureeMontageSecondes,
+      ...(duree !== undefined ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}),
       ...(estLiaison(valeurs.liaison) ? { liaison: valeurs.liaison } : {}),
       ...(valeurs.creativite !== undefined ? { creativite: creativiteOuNull(valeurs.creativite) } : {}),
       ...(valeurs.styleCamera !== undefined ? { styleCamera: styleCameraOuNull(valeurs.styleCamera) } : {}),
@@ -372,6 +382,7 @@ export async function updatePlanScenario(planId: number, valeurs: ValeursScenari
     .where(eq(plans.id, planId));
 
   revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 /** Suppression protégée (révisé 2026-09-28 — remplace la "suppression

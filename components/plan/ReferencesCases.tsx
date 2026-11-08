@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition, type MouseEvent } from "react";
 import { ajouterRef, supprimerRef } from "@/app/plans/actions";
 import { MAX_REFS, type RefLabel } from "@/lib/plan-checks";
 import type { MediaKind } from "@/components/assets/AssetCard";
@@ -8,6 +10,10 @@ import { MediaZoom } from "@/components/assets/MediaZoom";
 import { urlMiniature } from "@/lib/miniatures";
 import { AssetPickerModal, type NoeudPicker } from "@/components/plan/AssetPickerModal";
 import { Icone } from "@/components/ui/Icone";
+import "./atelier.css";
+
+/** Délai d'un double-clic : le clic simple sur une image (zoom) attend ce délai pour laisser passer un éventuel second clic. */
+const DELAI_DOUBLE_CLIC_MS = 260;
 
 export type RefVue = {
   id: number;
@@ -71,8 +77,46 @@ function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
 /** Les références du plan, à côté du lecteur : des CASES, une par emplacement que H3 accepte (6 images, 2 vidéos, 3 audios). Une case pleine montre
  * l'image, la vidéo (agrandissable) ou la note de l'audio, avec son label `<Picture 1>` tel qu'il est cité dans le prompt ; une case vide propose
  * d'y mettre un asset du registre. Ajouter ou retirer une référence réécrit le prompt côté serveur (déclaration, renumérotation). */
-export function ReferencesCases({ planId, refs, assets }: { planId: number; refs: RefVue[]; assets: NoeudPicker[] }) {
+export function ReferencesCases({ planId, projectId, refs, assets }: { planId: number; projectId: number; refs: RefVue[]; assets: NoeudPicker[] }) {
+  const router = useRouter();
   const [choix, setChoix] = useState<Type | null>(null);
+  const hrefAsset = (code: string) => `/p/${projectId}/assets/${code}`;
+
+  // Double-clic sur une case pleine : la fiche de l'asset. Le clic simple sur une image ouvre le zoom (MediaZoom) : il est retenu un instant (capture) pour
+  // qu'un second clic l'annule, puis rejoué tel quel. Les clics dans la fenêtre de zoom, sur une vidéo (ses contrôles) ou un bouton ne sont pas concernés.
+  const minuteurZoom = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rejoue = useRef(false);
+  useEffect(() => () => void (minuteurZoom.current && clearTimeout(minuteurZoom.current)), []);
+  const retenirZoom = (e: MouseEvent<HTMLElement>) => {
+    if (rejoue.current) {
+      rejoue.current = false;
+      return;
+    }
+    const cible = e.target as HTMLElement;
+    if (!cible.classList.contains("zoom-trigger") || cible.closest("dialog")) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (minuteurZoom.current) {
+      // Second clic : c'est un double-clic, le zoom n'aura pas lieu.
+      clearTimeout(minuteurZoom.current);
+      minuteurZoom.current = null;
+      return;
+    }
+    minuteurZoom.current = setTimeout(() => {
+      minuteurZoom.current = null;
+      rejoue.current = true;
+      cible.click();
+    }, DELAI_DOUBLE_CLIC_MS);
+  };
+  const ouvrirAsset = (e: MouseEvent<HTMLElement>, code: string) => {
+    const cible = e.target as HTMLElement;
+    if (cible.closest("dialog, video, button, a")) return;
+    if (minuteurZoom.current) {
+      clearTimeout(minuteurZoom.current);
+      minuteurZoom.current = null;
+    }
+    router.push(hrefAsset(code));
+  };
   const [slotChoisi, setSlotChoisi] = useState<number | undefined>(undefined);
   const [pending, startTransition] = useTransition();
 
@@ -130,15 +174,26 @@ export function ReferencesCases({ planId, refs, assets }: { planId: number; refs
                   );
                 }
                 return (
-                  <figure key={r.id} className="fp-case is-pleine" data-ref={`${LABEL_TYPE[r.type]} ${r.slot}`}>
+                  <figure
+                    key={r.id}
+                    className="fp-case is-pleine"
+                    data-ref={`${LABEL_TYPE[r.type]} ${r.slot}`}
+                    title={r.asset ? "Double-clic : ouvrir la fiche de l'asset" : undefined}
+                    onClickCapture={r.asset ? retenirZoom : undefined}
+                    onDoubleClick={r.asset ? (e) => ouvrirAsset(e, r.asset!.code) : undefined}
+                  >
                     {r.asset ? <Miniature asset={r.asset} /> : <div className="ref-thumb is-vide" />}
                     <figcaption>
                       <span className="num fp-ref-label">
                         &lt;{LABEL_TYPE[r.type]} {r.slot}&gt;
                       </span>
-                      <span className="asset-code" title={r.asset?.code}>
-                        {r.asset?.libelle ?? "—"}
-                      </span>
+                      {r.asset ? (
+                        <Link href={hrefAsset(r.asset.code)} className="asset-code pl-asset-lien" title={`Ouvrir la fiche de ${r.asset.code}`}>
+                          {r.asset.libelle}
+                        </Link>
+                      ) : (
+                        <span className="asset-code">—</span>
+                      )}
                       {r.asset && r.asset.statut !== "valide" ? <span className="fp-ref-statut">{r.asset.statut === "en_cours" ? "à valider" : "à produire"}</span> : null}
                     </figcaption>
                     <button type="button" className="ref-suppr" onClick={() => onSupprimer(r.id)} disabled={pending} aria-label={`Retirer <${LABEL_TYPE[r.type]} ${r.slot}>`}>

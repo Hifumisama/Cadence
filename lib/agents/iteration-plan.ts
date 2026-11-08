@@ -54,7 +54,7 @@ export type SortieIterationPlan = {
   /** La NOUVELLE description (intention) du plan, en français, terminée par « État en fin de plan : … » : à fournir quand la correction change
    * ce qui se passe dans le plan, ou l'état (position, orientation, feu…) qu'il laisse au plan suivant. Écrite avec la fiche. */
   nouvelleDescription?: string;
-  /** La NOUVELLE durée de génération du plan (5 à 10 s), quand la consigne la demande : écrite avec la fiche, partout (rendu, montage). */
+  /** La NOUVELLE durée de génération du plan (4 à 10 s), quand la consigne la demande : écrite avec la fiche, partout (rendu, montage). */
   dureeSecondes?: number;
   /** La consigne change CE QUI SE PASSE dans le plan : ce n'est plus une retouche de passages mais une réécriture du plan. Les `changements`
    * sont ignorés ; la fiche est réécrite à part (`plan-h3`, depuis `nouvelleDescription`). */
@@ -105,7 +105,7 @@ export function etatEnFinDePlan(description: string | undefined | null): string 
 const norm = (t: string) => t.replace(/\s+/g, " ").trim();
 const descriptionChangee = (sortie: SortieIterationPlan, ctx: ContexteIteration): boolean =>
   !!sortie.nouvelleDescription?.trim() && norm(sortie.nouvelleDescription) !== norm(ctx.description ?? "");
-/** La durée demandée par la consigne, quand elle est valide (entière, 5 à 10 s) et change celle du plan ; sinon null. */
+/** La durée demandée par la consigne, quand elle est valide (entière, 4 à 10 s) et change celle du plan ; sinon null. */
 export const dureeDemandee = (sortie: Pick<SortieIterationPlan, "dureeSecondes">, ctx: Pick<ContexteIteration, "dureeGenerationSecondes">): number | null => {
   const d = sortie.dureeSecondes;
   return typeof d === "number" && Number.isInteger(d) && d >= DUREE_GENERATION_MIN && d <= DUREE_GENERATION_MAX && d !== ctx.dureeGenerationSecondes ? d : null;

@@ -8,7 +8,7 @@
     "titre": { "type": "string", "minLength": 1, "maxLength": 200, "description": "(French) Short title of the plan." },
     "dureeSecondes": {
       "type": "integer",
-      "minimum": 5,
+      "minimum": 4,
       "maximum": 10,
       "description": "Generation duration, whole seconds. Repeat the plan's wanted duration (`plan.dureeVoulueSecondes`) unless the shots or the dialogue need another one (explain it in notes). Dialogue plan: expected duration of the lines plus a breathing margin of at least 2 s, rounded up. It is extended later if the real voice requires it."
     },

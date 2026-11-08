@@ -1,0 +1,42 @@
+/* Atelier d'un plan (/montage/<uuid>) : progression mesurée de l'essai en cours, roulette de durée de rendu, interrupteur de liaison, lien vers l'asset d'une référence.
+   Anthracite + or en accent. Classes `pl-` (et une variante de `.tm-fil`) : la feuille est globale, rien ici ne doit toucher au reste. */
+
+/* Essai en cours : barre MESURÉE quand la progression est connue (sinon la barre animée de .tm-fil). */
+.tm-fil.is-mesure i { animation: none; transition: width 0.6s ease; }
+@media (prefers-reduced-motion: reduce) { .tm-fil.is-mesure i { transition: none; } }
+
+.pl-etiquette { font-size: 13px; color: var(--ink-2); }
+
+/* Roulette de durée (RoueDuree.tsx) : trois crans visibles, celui du centre est la valeur. */
+.pl-roue { display: inline-flex; align-items: center; gap: 8px; }
+.pl-roue-pas { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink-2); font-size: 18px; line-height: 1; cursor: pointer; }
+.pl-roue-pas:hover:not(:disabled) { border-color: var(--or-soft); color: var(--or-glow); }
+.pl-roue-pas:disabled { opacity: 0.4; cursor: not-allowed; }
+.pl-roue-cadre { position: relative; width: 92px; height: 108px; border: 1px solid var(--line-strong); background: var(--film, #0b0b0f); }
+.pl-roue-cadre:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 2px; }
+/* La fenêtre du cran choisi, au centre. */
+.pl-roue-cadre::before { content: ""; position: absolute; left: 0; right: 0; top: 36px; height: 36px; border-top: 1px solid var(--or-soft); border-bottom: 1px solid var(--or-soft); pointer-events: none; z-index: 1; }
+/* Fondu haut et bas, comme une roue qui tourne. */
+.pl-roue-cadre::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2; background: linear-gradient(to bottom, rgba(11, 11, 15, 0.85), transparent 34%, transparent 66%, rgba(11, 11, 15, 0.85)); }
+.pl-roue-colonne { height: 100%; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; overscroll-behavior: contain; }
+.pl-roue-colonne::-webkit-scrollbar { display: none; }
+.pl-roue-marge { height: 36px; }
+.pl-roue-cran { height: 36px; display: grid; place-items: center; scroll-snap-align: center; font-family: var(--font-mono), monospace; font-size: 17px; color: var(--ink-3); cursor: pointer; user-select: none; }
+.pl-roue-cran.is-choisi { color: var(--or-glow); font-size: 22px; }
+.pl-roue-unite { position: absolute; right: 12px; top: 36px; height: 36px; display: grid; place-items: center; font-family: var(--font-mono), monospace; font-size: 12px; color: var(--ink-3); pointer-events: none; z-index: 3; }
+.pl-roue.is-off { opacity: 0.5; }
+
+/* Interrupteur « Lié au plan précédent ? » (role="switch") */
+.pl-interrupteur { display: inline-flex; align-items: center; gap: 10px; justify-self: start; padding: 4px 0; border: 0; background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
+.pl-interrupteur:disabled { cursor: not-allowed; color: var(--ink-3); }
+.pl-interrupteur:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 3px; }
+.pl-interrupteur-piste { position: relative; width: 42px; height: 22px; border: 1px solid var(--line-strong); border-radius: 11px; background: var(--surface-3); transition: background 0.2s ease, border-color 0.2s ease; }
+.pl-interrupteur-piste i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink-3); transition: transform 0.2s ease, background 0.2s ease; }
+.pl-interrupteur[aria-checked="true"] .pl-interrupteur-piste { background: rgba(201, 162, 75, 0.18); border-color: var(--or); }
+.pl-interrupteur[aria-checked="true"] .pl-interrupteur-piste i { transform: translateX(20px); background: var(--or-glow); }
+.pl-interrupteur:disabled .pl-interrupteur-piste { opacity: 0.45; }
+@media (prefers-reduced-motion: reduce) { .pl-interrupteur-piste, .pl-interrupteur-piste i { transition: none; } }
+
+/* Case de référence : le nom de l'asset est un lien vers sa fiche (le double-clic sur la case y mène aussi). */
+.fp-case .pl-asset-lien { color: inherit; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 2px; }
+.fp-case .pl-asset-lien:hover, .fp-case .pl-asset-lien:focus-visible { color: var(--or-glow); text-decoration-color: var(--or-soft); }

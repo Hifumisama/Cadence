@@ -82,8 +82,8 @@ test("la durée du plan est injectée dans le nœud 22:23", () => {
   assert.equal(workflow[NODE_IDS.dureeVideo].inputs.value, 8, "le fichier source n'est pas modifié");
 });
 
-test("durée hors 5-10 s : erreur franche, jamais de repli sur la durée du fichier", () => {
-  for (const s of [0, 4, 4.99, 10.01, 16, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+test("durée hors 4-10 s : erreur franche, jamais de repli sur la durée du fichier", () => {
+  for (const s of [0, 3, 3.99, 10.01, 16, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
     assert.throws(() => injecterValeurs(workflow, { ...entree, dureeSecondes: s }), ErreurEntreeInvalide, String(s));
   }
 });

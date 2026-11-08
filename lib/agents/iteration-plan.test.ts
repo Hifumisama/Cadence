@@ -508,7 +508,7 @@ test("durée demandée par la consigne : écrite avec la fiche, une demande seul
   assert.equal(raisonSansEcriture(seule, plan()), null, "une demande de durée seule est une écriture, pas un refus");
   assert.equal(lireApresFiche(depuisIterationPlan(seule, plan())[0]!.apres).dureeGenerationSecondes, 10);
 
-  for (const hors of [20, 12, 4, 7.5]) {
+  for (const hors of [20, 12, 3, 7.5]) {
     const s = sortie({ dureeSecondes: hors });
     assert.equal(lireApresFiche(depuisIterationPlan(s, plan())[0]!.apres).dureeGenerationSecondes, undefined, `${hors} s est ignoré`);
   }

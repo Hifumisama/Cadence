@@ -62,7 +62,7 @@ export function repartirDureesScenes(poids: number[], dureeEpisodeSecondes: numb
  * restent : elles portent le jeu (un dialogue garde sa marge). */
 export const ECART_SCENE_TOLERE = 0.15;
 
-/** Ajuste les durées des plans d'une scène à sa durée visée : proportionnellement, en entiers de 5 à 10 s, puis au plus près de la cible seconde par
+/** Ajuste les durées des plans d'une scène à sa durée visée : proportionnellement, en entiers de 4 à 10 s, puis au plus près de la cible seconde par
  * seconde. Sans effet si l'écart est dans la tolérance. Si la cible est hors d'atteinte (trop peu ou trop de plans), on s'en approche autant que possible :
  * l'avertissement de durée de la revue dit le reste. */
 export function ajusterDureesScene(durees: number[], cibleSecondes: number): number[] {

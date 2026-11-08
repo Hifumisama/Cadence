@@ -10,6 +10,9 @@ import { Braises } from "@/components/plan/Braises";
 import { ComparaisonRendus } from "@/components/plan/ComparaisonRendus";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
+import { useTaches } from "@/components/taches/TachesProvider";
+import { cleVideo } from "@/lib/taches";
+import "./atelier.css";
 
 export type EssaiCarte = {
   id: number;
@@ -31,6 +34,35 @@ export type EssaiCarte = {
   /** La consigne qui a produit l'essai (info-bulle de la vignette), null si aucune. */
   consigne: string | null;
 };
+
+/** L'essai en file ou en cours, tel que le serveur le connaît au chargement de la page. Sa progression se relit EN DIRECT dans les tâches (useTaches). */
+export type EssaiEnCours = {
+  jobId: number;
+  numero: number;
+  statut: string;
+  etape: string | null;
+  pourcent: number | null;
+  /** Le lecteur montre cet essai (voile « en cours ») ; sinon on regarde un autre essai, sans voile. */
+  affiche: boolean;
+  /** Le lien qui l'affiche dans le lecteur. */
+  href: string;
+};
+
+/** La progression d'un essai en cours, relue à chaque sondage des tâches (3 s tant qu'une tâche est active) : sans cela la fenêtre restait figée sur l'étape du
+ * chargement de la page (SuiviRendus ne recharge qu'aux changements de statut). Repli sur les valeurs du serveur avant la première réponse. */
+function useProgressionEnDirect(enCours: EssaiEnCours | null): { statut: string; etape: string | null; pourcent: number | null } | null {
+  const { taches, pret } = useTaches();
+  if (!enCours) return null;
+  const t = pret ? taches.find((x) => x.cle === cleVideo(enCours.jobId)) : undefined;
+  if (!t) return { statut: enCours.statut, etape: enCours.etape, pourcent: enCours.pourcent };
+  if (t.statut === "en_attente") return { statut: t.statut, etape: t.positionFile ? `en file, n°${t.positionFile}` : "en file", pourcent: null };
+  const p = t.progression;
+  return {
+    statut: t.statut,
+    etape: p?.etape?.trim() ? p.etape : t.statut === "en_cours" ? null : t.statut === "termine" ? "terminé, chargement du rendu" : t.statut === "annulee" ? "annulé" : t.statut === "echoue" ? "échoué" : null,
+    pourcent: p && p.max > 0 ? Math.max(0, Math.min(100, Math.round((100 * p.valeur) / p.max))) : null,
+  };
+}
 
 export type LegendeEssai = {
   id: number;
@@ -70,13 +102,15 @@ export function PlateauEssais({
   hrefPlusAncien: string | null;
   hrefComparer: string | null;
   hrefQuitter: string | null;
-  enCours: { numero: number; etape: string | null; pourcent: number | null } | null;
+  enCours: EssaiEnCours | null;
   /** « Nouvelle variante » est possible : le plan n'est pas validé et aucun essai n'est en file. */
   peutVarier: boolean;
   children?: ReactNode;
 }) {
   const router = useRouter();
   const b = useBrouillon();
+  const progression = useProgressionEnDirect(enCours);
+  const vueTravail = enCours?.affiche ? enCours : null;
   const liste = useRef<HTMLDivElement>(null);
   const courant = essais.find((e) => e.estA)?.id ?? null;
   const [pending, startTransition] = useTransition();
@@ -135,8 +169,12 @@ export function PlateauEssais({
     <>
       <div className="tm-plateau">
         <div className="tm-lecteur-bloc">
-          <div className={`tm-lecteur${enCours ? " is-travail" : ""}`}>
-            {principal?.src ? (
+          <div className={`tm-lecteur${vueTravail ? " is-travail" : ""}`}>
+            {vueTravail ? (
+              <div className="tm-lecteur-vide">
+                <Braises />
+              </div>
+            ) : principal?.src ? (
               comparaison ? (
                 <ComparaisonRendus a={{ src: principal.src, numero: principal.numero }} b={comparaison} />
               ) : (
@@ -149,26 +187,37 @@ export function PlateauEssais({
                 <p className="tiny-note">Le premier essai part de la fiche telle qu&rsquo;elle est.</p>
               </div>
             )}
-            {enCours ? (
-              <div className="tm-travail" role="status">
+            {vueTravail && progression ? (
+              <div className="tm-travail" role="status" aria-live="polite">
                 <div>
-                  <span className="tm-fil">
-                    <i />
+                  <span className={`tm-fil${progression.pourcent != null ? " is-mesure" : ""}`}>
+                    <i style={progression.pourcent != null ? { width: `${progression.pourcent}%` } : undefined} />
                   </span>
                   <span>
-                    Essai n°{enCours.numero} en cours{enCours.etape ? ` · ${enCours.etape}` : ""}
-                    {enCours.pourcent != null ? ` · ${enCours.pourcent} %` : ""}
+                    Essai n°{vueTravail.numero} {progression.statut === "en_attente" ? "en attente" : "en cours"}
+                    {progression.etape ? ` · ${progression.etape}` : ""}
+                    {progression.pourcent != null ? ` · ${progression.pourcent} %` : ""}
                   </span>
                 </div>
               </div>
             ) : null}
           </div>
 
-          {principal ? (
+          {vueTravail ? (
+            <div className="tm-barre-essai">
+              <span className="tm-qui num tm-barre-essai-nom">Essai n°{vueTravail.numero} · en cours</span>
+              <p className="tiny-note tm-barre-essai-msg">Les autres essais restent consultables pendant ce temps : choisis-en un dans la colonne. Pour l&rsquo;annuler, passe par le panneau des tâches.</p>
+            </div>
+          ) : principal ? (
             <div className="tm-barre-essai" aria-live="polite">
               <span className="tm-qui num tm-barre-essai-nom">{principal.libelle}</span>
               <div className="tm-barre-essai-gestes">
                 <div className="tm-gestes" role="group" aria-label="Gestes sur cet essai">
+                  {enCours && !enCours.affiche ? (
+                    <Link href={enCours.href} scroll={false} className="tm-geste" title="Voir sa progression dans le lecteur">
+                      Essai n°{enCours.numero} en cours{progression?.pourcent != null ? ` · ${progression.pourcent} %` : ""}
+                    </Link>
+                  ) : null}
                   {hrefQuitter ? (
                     <Link href={hrefQuitter} scroll={false} className="tm-geste is-actif">
                       Quitter la comparaison

@@ -1,7 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import { assets, planPromptSections, planRefs } from "../db/schema";
 import type { Db } from "./agents/applicateurs/commun";
-import { ajouterReference, compacterImages, nomDepuisCode, retirerReference, type SectionsTexte, type TypeRef } from "./references";
+import { libelleAsset } from "./assetCode";
+import { LIBELLE_TYPE_ASSET } from "./registre-types";
+import { ajouterReference, compacterImages, nomDepuisCode, retirerReference, roleParDefaut, type SectionsTexte, type TypeRef } from "./references";
 
 /** Retrait / ajout d'une référence sur un plan DÉJÀ ÉCRIT, avec le prompt tenu à jour (règles pures dans
  * lib/references.ts). À appeler dans une transaction : slots, sections et lien tombent ensemble. */
@@ -43,10 +45,19 @@ export async function retirerRefDuPlan(db: Db, refId: number): Promise<void> {
   await ecrireSections(db, ref.planId, avant, apres);
 }
 
-/** Une référence vient d'être posée sur `slot` : ses lignes de définition et de rétention rejoignent le prompt. */
+/** Une référence vient d'être posée sur `slot` : ses lignes de définition et de rétention rejoignent le prompt, et les mentions de son nom laissées par
+ * un retrait redeviennent son label (lib/references.ts, `retablirCitations`). */
 export async function declarerRefDansLePrompt(db: Db, planId: number, type: TypeRef, slot: number, assetId: number): Promise<void> {
   const [a] = await db.select({ code: assets.code }).from(assets).where(eq(assets.id, assetId));
   const avant = await lireSections(db, planId);
-  const apres = ajouterReference(avant, { type, slot, nom: nomDepuisCode(a?.code ?? "référence"), vfx: a?.code?.startsWith("VFX_") });
+  const apres = ajouterReference(avant, { type, slot, nom: nomDepuisCode(a?.code ?? "référence"), vfx: a?.code?.startsWith("VFX_") }, { retablir: true });
   await ecrireSections(db, planId, avant, apres);
+}
+
+/** Le rôle et la rétention d'une référence posée à la main (`plan_refs.role` / `retention`) : ceux que la fiche aurait écrits par défaut. Le rôle précis d'avant un
+ * retrait n'est pas gardé (il faudrait une colonne ou une table de plus) : on repart de ce défaut. */
+export async function roleDeLaRef(db: Db, type: TypeRef, assetId: number): Promise<{ role: string; retention: string | null }> {
+  const [a] = await db.select({ code: assets.code, label: assets.label, type: assets.type }).from(assets).where(eq(assets.id, assetId));
+  if (!a) return roleParDefaut(type, { typeAsset: null, libelleType: null, libelle: "référence" });
+  return roleParDefaut(type, { typeAsset: a.type, libelleType: LIBELLE_TYPE_ASSET[a.type] ?? null, libelle: libelleAsset(a) });
 }

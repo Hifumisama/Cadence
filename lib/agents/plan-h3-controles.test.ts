@@ -53,7 +53,7 @@ test("un brouillon conforme ne produit aucune erreur", () => {
 test("durée, asset inventé, label écrit à la main, jeton {picture}", () => {
   const mauvaise: SortiePlanH3 = {
     ...bonne,
-    dureeSecondes: 4,
+    dureeSecondes: 3,
     references: [{ asset: "PROP_lettre", nature: "image", role: "x", nom: "a letter", definition: "lying <Picture 1> {picture}" }],
     summary: "[[PROP_lettre]] and <Subject 1>",
   };

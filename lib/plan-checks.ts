@@ -115,7 +115,8 @@ export const SHOT_MIN_SECONDES = 1.5;
 /** Plancher par shot des CONTRÔLES DE LA FICHE (`controlerStructure`, en-tête de la page du plan), pour toutes les fiches : celui du modèle et d'Open H3 IR
  * (`MIN_SHOT_MS` = 1200, h3ir/shots.py:42). Une fiche d'Open H3 IR peut avoir un shot de 1,2 à 1,5 s sans que ce soit une faute (décision du 2026-11-02). */
 export const SHOT_MIN_FICHE_SECONDES = 1.2;
-export const DUREE_GENERATION_MIN = 5;
+/** Plancher d'un plan : 4 s (décision de l'utilisateur, 2026-11-08 ; c'était 5). Les schémas des skills le disent en toutes lettres (« minimum » : à garder alignés). */
+export const DUREE_GENERATION_MIN = 4;
 /** Plafond dur d'un plan (décision du 2026-10-27) : un plan de 10 s à 0,4 MP tient sur la carte et donne des gestes plus précis qu'un plan de 15 s
  * à 0,2 MP ; au-delà, l'action se coupe. Source unique : les skills et leurs schémas disent « 10 » en toutes lettres (texte statique, à garder alignés). */
 export const DUREE_GENERATION_MAX = 10;
@@ -161,7 +162,7 @@ function formaterTimecode(s: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${(s % 60).toFixed(3).padStart(6, "0")}`;
 }
 
-/** Contrôles de structure de la fiche. `dureeGenerationSecondes` est la durée NOMINALE du plan (entier de 5 à 10) ; les shots se jugent contre la durée EFFECTIVE du rendu,
+/** Contrôles de structure de la fiche. `dureeGenerationSecondes` est la durée NOMINALE du plan (entier de 4 à 10) ; les shots se jugent contre la durée EFFECTIVE du rendu,
  * celle de la grille d'images (lib/grille-images.ts : 6 s → 6,583 s, 8 s → 8,000 s), que le rendu produit et qu'Open H3 IR utilise pour placer ses coupes. */
 export function controlerStructure(
   sections: PromptSection[],

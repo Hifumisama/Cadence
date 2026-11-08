@@ -108,7 +108,7 @@ const DUREE_MIN = DUREE_GENERATION_MIN;
 const DUREE_MAX = DUREE_GENERATION_MAX;
 
 /** Raison d'un REFUS d'écrire cette fiche sur ce plan, ou null. Vérifie le contenu (sections connues,
- * durée entière 5–10, slots 1–6 images et 1–3 audio, uniques, assets
+ * durée entière 4–10, slots 1–6 images et 1–3 audio, uniques, assets
  * existants et de la bonne nature) ET l'état final : aucune écriture ne doit laisser un label
  * `<Picture N>` / `<Audio N>` sans la référence qu'il cite. */
 export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | null {

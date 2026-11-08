@@ -21,10 +21,10 @@ test("durées des scènes : la somme tombe exactement sur la durée de l'épisod
 test("durées des scènes : aucune scène sous un plan minimal, même avec un poids minuscule", () => {
   const d = repartirDureesScenes([1, 5, 5, 5], 40);
   assert.equal(somme(d), 40);
-  assert.ok(d.every((x) => x >= 5));
+  assert.ok(d.every((x) => x >= 4));
   assert.deepEqual(repartirDureesScenes([], 100), []);
   // Une cible impossible (3 scènes, 9 s) est relevée au minimum.
-  assert.equal(somme(repartirDureesScenes([1, 1, 1], 9)), 15);
+  assert.equal(somme(repartirDureesScenes([1, 1, 1], 9)), 12);
 });
 
 test("ajustement d'une scène : dans la tolérance, les durées du modèle restent", () => {
@@ -32,10 +32,10 @@ test("ajustement d'une scène : dans la tolérance, les durées du modèle reste
   assert.deepEqual(ajusterDureesScene([8, 10, 7], 24), [8, 10, 7]);
 });
 
-test("ajustement d'une scène : trop long, on ramène à la cible, entiers de 5 à 10", () => {
+test("ajustement d'une scène : trop long, on ramène à la cible, entiers de 4 à 10", () => {
   const r = ajusterDureesScene([10, 10, 10, 10], 30);
   assert.equal(somme(r), 30);
-  assert.ok(r.every((x) => Number.isInteger(x) && x >= 5 && x <= 10));
+  assert.ok(r.every((x) => Number.isInteger(x) && x >= 4 && x <= 10));
 });
 
 test("ajustement d'une scène : trop court, on allonge sans dépasser 10 s", () => {

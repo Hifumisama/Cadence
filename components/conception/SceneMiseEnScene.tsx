@@ -5,9 +5,9 @@ import { cleDemoCreativite, cleDemoStyle, type DemoDispo } from "@/lib/h3ir/demo
 import { choisirMiseEnScene, miseEnSceneDuStyle } from "@/lib/conception-ui";
 import { EXEMPLE_AUCUN_STYLE, EXEMPLE_CREATIVITE, EXEMPLE_STYLE, FILMS_STYLE, SCENE_EXEMPLE } from "@/lib/h3ir/exemples";
 import { IDS_PROFILS_PERSO } from "@/lib/h3ir/profils-perso";
-import { AIDE_CREATIVITE, CREATIVITES, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, RESUME_STYLE_CAMERA, STYLE_AUCUN, estMiseEnScene, estStyleCamera, signatureChoix, type ChoixMiseEnScene } from "@/lib/h3ir/reglages";
+import { AIDE_CREATIVITE, CREATIVITES, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, STYLE_AUCUN, estMiseEnScene, estStyleCamera, type ChoixMiseEnScene } from "@/lib/h3ir/reglages";
 import { STYLES_CAMERA } from "@/lib/h3ir/styles-camera";
-import { CarteMiseEnScene, Pastilles, type CarteChoisie } from "./CarteMiseEnScene";
+import { CarteMiseEnScene, ChoixMise, ChoixStyleMise, Pastilles, type CarteChoisie } from "./CarteMiseEnScene";
 import { EnteteScene } from "./Scenes";
 import type { PropsScene } from "./types";
 
@@ -74,15 +74,13 @@ export function SceneMiseEnScene({ etat, maj, demos = {} }: PropsScene & { demos
 
       <p className="cn-mini">Style de mise en scène</p>
       <div className="cn-mises" role="group" aria-label="Style de mise en scène">
-        <div className="cn-choix">
-          <button type="button" className="cn-mise" aria-pressed={etat.styleCamera === STYLE_AUCUN} onClick={() => maj((e) => choisirMiseEnScene(e, STYLE_AUCUN))}>
-            <b>Aucun style</b>
-            <span>l&rsquo;IA décide</span>
-          </button>
-          <button type="button" className="cn-choix-aide" aria-label="Voir un exemple : aucun style" aria-haspopup="dialog" onClick={(e) => ouvrir({ genre: "style", id: STYLE_AUCUN }, e)}>
-            ?
-          </button>
-        </div>
+        <ChoixMise
+          titre="Aucun style"
+          sous="l’IA décide"
+          presse={etat.styleCamera === STYLE_AUCUN}
+          onChoisir={() => maj((e) => choisirMiseEnScene(e, STYLE_AUCUN))}
+          aide={{ label: "Voir un exemple : aucun style", onOuvrir: (e) => ouvrir({ genre: "style", id: STYLE_AUCUN }, e) }}
+        />
         {recommande ? <CarteChoix id={recommande} etat={etat} maj={maj} ouvrir={ouvrir} suggere /> : null}
       </div>
       {recommande ? (
@@ -116,7 +114,7 @@ export function SceneMiseEnScene({ etat, maj, demos = {} }: PropsScene & { demos
   );
 }
 
-/** Une carte de style de mise en scène : le bouton (titre, nom du réalisateur le cas échéant) et son « ? ». `suggere` : la recommandation du style du projet, marquée comme telle. */
+/** Une carte de style de mise en scène (rendu commun : ChoixStyleMise) branchée sur l'état de la conception. `suggere` : la recommandation du style du projet, marquée comme telle. */
 function CarteChoix({
   id,
   etat,
@@ -130,23 +128,5 @@ function CarteChoix({
   ouvrir: (c: CarteChoisie, e: React.MouseEvent<HTMLButtonElement>) => void;
   suggere?: boolean;
 }) {
-  const signature = signatureChoix(id);
-  return (
-    <div className={`cn-choix${suggere ? " is-suggere" : ""}`}>
-      <button type="button" className="cn-mise" aria-pressed={etat.styleCamera === id} onClick={() => maj((e) => choisirMiseEnScene(e, id))}>
-        {suggere ? <em className="cn-mise-tag">Suggéré par ton style</em> : null}
-        <b>{RESUME_STYLE_CAMERA[id]}</b>
-        <span>{signature || DETAIL_STYLE_CAMERA[id]}</span>
-      </button>
-      <button
-        type="button"
-        className="cn-choix-aide"
-        aria-label={`Voir un exemple : ${RESUME_STYLE_CAMERA[id]}${signature ? `, ${signature}` : ""}`}
-        aria-haspopup="dialog"
-        onClick={(e) => ouvrir({ genre: "style", id }, e)}
-      >
-        ?
-      </button>
-    </div>
-  );
+  return <ChoixStyleMise id={id} presse={etat.styleCamera === id} onChoisir={() => maj((e) => choisirMiseEnScene(e, id))} onAide={(e) => ouvrir({ genre: "style", id }, e)} suggere={suggere} />;
 }

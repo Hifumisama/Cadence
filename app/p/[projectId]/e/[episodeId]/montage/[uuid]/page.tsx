@@ -7,7 +7,8 @@ import { getAssetsRegistre, getPlanDetail, getProject, getScenesEpisode, type As
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { infosMedia } from "@/lib/assetMedia";
 import { getAllParams } from "@/lib/params";
-import { controlerStructure, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
+import { controlerStructure, DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
+import { demosMiseEnScene } from "@/lib/media";
 import { getVoixDuPlan } from "@/lib/queries-voix-plan";
 import { essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/fiche-plan";
 import { ReferencesCases, type RefVue } from "@/components/plan/ReferencesCases";
@@ -136,12 +137,14 @@ export default async function PlanPage({
   const scenarioInitial = {
     titre: plan.titre,
     description: plan.description ?? "",
-    dureeMontageSecondes: plan.dureeMontageSecondes,
+    dureeSecondes: plan.dureeGenerationSecondes >= DUREE_GENERATION_MIN && plan.dureeGenerationSecondes <= DUREE_GENERATION_MAX ? plan.dureeGenerationSecondes : null,
     liaison: liaisonOuDefaut(plan.liaison),
     creativite: plan.creativite ?? "",
     styleCamera: plan.styleCamera ?? "",
   };
 
+  // Les vidéos de démo de la mise en scène (fenêtre de choix du style) : lues sur le disque, côté serveur.
+  const demos = demosMiseEnScene();
   const assetsPicker = assetsRegistre.map(versNoeudPicker);
   const refsVue: RefVue[] = refs.map((r) => ({
     id: r.id,
@@ -177,11 +180,18 @@ export default async function PlanPage({
   const lisibles = rendusVus.filter(estLisible);
   const numeroDernierLisible = lisibles.reduce((m, r) => Math.max(m, r.numeroRendu), 0);
   const genreDe = (r: RenduVue) => (r.importe ? "import" : r.activerUpscale ? "final" : "aperçu");
+  const enFile = jobHistory.filter((j) => essaiEnFile(j.statut)).sort((a, b) => b.numeroRendu - a.numeroRendu)[0];
+  // L'essai EN COURS a sa propre vue dans le lecteur (le voile « en cours » et sa progression) : quand on le choisit dans la colonne (?rendu=<son id>), ou par défaut
+  // (aucun essai demandé) tant qu'un essai tourne. Un autre essai demandé se regarde normalement, sans voile (retour utilisateur, lot E du 2026-11-08).
+  const idDemande = Number(renduParam) || null;
+  const jobDemande = idDemande != null ? jobHistory.find((j) => j.id === idDemande) : undefined;
+  const vueEnCours = jobDemande && essaiEnFile(jobDemande.statut) ? jobDemande : idDemande == null ? enFile : undefined;
   const autreB = (idA: number) => (comparaison && comparaison.id !== idA ? comparaison.id : null);
   const essais: EssaiCarte[] = essaisTries.map((j) => {
     const r = rendusVus.find((x) => x.id === j.id)!;
     const lisible = estLisible(r);
-    const estA = principal?.id === j.id;
+    const estA = vueEnCours ? vueEnCours.id === j.id : principal?.id === j.id;
+    const tourne = essaiEnFile(j.statut);
     return {
       id: j.id,
       numero: j.numeroRendu,
@@ -190,12 +200,12 @@ export default async function PlanPage({
       genre: genreDe(r),
       seedCourte: j.seedUtilisee ? j.seedUtilisee.slice(0, 4) : null,
       retenu: etat === "pret" && plan.renduRetenuId === j.id,
-      enCours: essaiEnFile(j.statut),
+      enCours: tourne,
       echoue: j.statut === "echoue",
       estA,
-      estB: comparaison?.id === j.id,
-      hrefA: hrefRendus(j.id, autreB(j.id)),
-      hrefB: lisible && !estA && principal ? hrefRendus(principal.id, comparaison?.id === j.id ? null : j.id) : null,
+      estB: !vueEnCours && comparaison?.id === j.id,
+      hrefA: tourne ? hrefRendus(j.id, null) : hrefRendus(j.id, autreB(j.id)),
+      hrefB: lisible && !estA && principal && !vueEnCours ? hrefRendus(principal.id, comparaison?.id === j.id ? null : j.id) : null,
       consigne: texteConsigne({ consigne: j.consigne, importe: r.importe }),
     };
   });
@@ -206,14 +216,29 @@ export default async function PlanPage({
   const hrefQuitter = comparaison && principal ? hrefRendus(principal.id, null) : null;
   const principalJob = principal ? jobHistory.find((j) => j.id === principal.id) : undefined;
   const retenable = principal ? raisonNonRetenable(principal) == null : false;
-  const enFile = jobHistory.filter((j) => essaiEnFile(j.statut)).sort((a, b) => b.numeroRendu - a.numeroRendu)[0];
-  const enCours = enFile
+  // Ce que le serveur sait de l'essai en cours ; le plateau lit ensuite sa progression EN DIRECT dans les tâches (useTaches), sans recharger la page.
+  const suiviEnCours = vueEnCours ?? enFile;
+  const enCours = suiviEnCours
     ? {
-        numero: enFile.numeroRendu,
-        etape: enFile.statut === "en_attente" ? "en file" : (enFile.etapeLibelle ?? null),
-        pourcent: enFile.progressionValeur != null && enFile.progressionMax ? Math.round((100 * enFile.progressionValeur) / enFile.progressionMax) : null,
+        jobId: suiviEnCours.id,
+        numero: suiviEnCours.numeroRendu,
+        statut: suiviEnCours.statut,
+        etape: suiviEnCours.statut === "en_attente" ? "en file" : (suiviEnCours.etapeLibelle ?? null),
+        pourcent: suiviEnCours.progressionValeur != null && suiviEnCours.progressionMax ? Math.round((100 * suiviEnCours.progressionValeur) / suiviEnCours.progressionMax) : null,
+        affiche: vueEnCours != null,
+        href: hrefRendus(suiviEnCours.id, null),
       }
     : null;
+  // Flèches ▲ ▼ : l'essai en cours se place au-dessus du plus récent des essais lisibles.
+  const plusRecentLisible = trierEssais(lisibles)[0];
+  const hrefPlusRecent = vueEnCours
+    ? null
+    : voisinRecent
+      ? hrefRendus(voisinRecent.id, autreB(voisinRecent.id))
+      : enFile && principal && principal.id === plusRecentLisible?.id
+        ? hrefRendus(enFile.id, null)
+        : null;
+  const hrefPlusAncien = vueEnCours ? (plusRecentLisible ? hrefRendus(plusRecentLisible.id, null) : null) : voisinAncien ? hrefRendus(voisinAncien.id, autreB(voisinAncien.id)) : null;
 
   const versionsPrompt = await db.select().from(planPromptVersions).where(eq(planPromptVersions.planId, plan.id)).orderBy(desc(planPromptVersions.id)).limit(30);
   const historiquePrompt: VersionPrompt[] = versionsPrompt.map((v) => ({ id: v.id, texte: v.texte, source: v.source, quand: v.createdAt.toLocaleString("fr-FR") }));
@@ -274,7 +299,7 @@ export default async function PlanPage({
       (p, i): AlerteControle => ({
         cle: `struct-${p.type}-${i}`,
         niveau: "warn",
-        titre: p.type === "duree_invalide" ? "Durée de génération" : "Découpage en shots",
+        titre: p.type === "duree_invalide" ? "Durée de rendu" : "Découpage en shots",
         detail: p.message,
         ancre: "fp-prompt",
       }),
@@ -322,7 +347,7 @@ export default async function PlanPage({
         <div className="tm-brouillon">
           {titre}
           <p className="tiny-note">Cette fiche n&rsquo;est pas encore développée : complète le scénario du plan, puis développe-le : l&rsquo;agent écrit la fiche (prompt vidéo, références) en arrière-plan.</p>
-          <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon initial={scenarioInitial} demandeEnCours={ficheEnCours?.id ?? null} reglagesProjet={reglagesProjet} reglagesScene={reglagesScene} />
+          <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon initial={scenarioInitial} demandeEnCours={ficheEnCours?.id ?? null} reglagesProjet={reglagesProjet} reglagesScene={reglagesScene} dureeGeneration={plan.dureeGenerationSecondes} premierPlan={position === 1} demos={demos} />
         </div>
       ) : (
         <BrouillonProvider planId={plan.id} serveur={serveur} prochainRendu={jobHistory.reduce((m, j) => Math.max(m, j.numeroRendu), 0) + 1}>
@@ -339,6 +364,8 @@ export default async function PlanPage({
                 musique={plan.timecodeMusique}
                 reglagesProjet={reglagesProjet}
                 reglagesScene={reglagesScene}
+                premierPlan={position === 1}
+                demos={demos}
               />
               <TiroirPlan
                 panneaux={{
@@ -370,7 +397,7 @@ export default async function PlanPage({
                 planId={plan.id}
                 essais={essais}
                 principal={
-                  principal && principalJob
+                  principal && principalJob && !vueEnCours
                     ? {
                         id: principal.id,
                         enFile: essaiEnFile(principalJob.statut),
@@ -382,15 +409,15 @@ export default async function PlanPage({
                       }
                     : null
                 }
-                comparaison={comparaison?.cheminSortie ? { src: srcRendu(comparaison.cheminSortie)!, numero: comparaison.numeroRendu } : null}
-                hrefPlusRecent={voisinRecent ? hrefRendus(voisinRecent.id, autreB(voisinRecent.id)) : null}
-                hrefPlusAncien={voisinAncien ? hrefRendus(voisinAncien.id, autreB(voisinAncien.id)) : null}
-                hrefComparer={hrefComparer}
-                hrefQuitter={hrefQuitter}
+                comparaison={comparaison?.cheminSortie && !vueEnCours ? { src: srcRendu(comparaison.cheminSortie)!, numero: comparaison.numeroRendu } : null}
+                hrefPlusRecent={hrefPlusRecent}
+                hrefPlusAncien={hrefPlusAncien}
+                hrefComparer={vueEnCours ? null : hrefComparer}
+                hrefQuitter={vueEnCours ? null : hrefQuitter}
                 enCours={enCours}
                 peutVarier={etat !== "pret" && !enFile}
               >
-                {principal && principalJob ? (
+                {principal && principalJob && !vueEnCours ? (
                   (() => {
                     const r = etatRaccord({ liaison: plan.liaison, utilise: principalJob.raccordJobId, actuel: raccordMaintenant?.source ?? null, precedentTitre: raccordMaintenant?.precedent.titre ?? null, refsVisuelles });
                     return r ? (
@@ -403,7 +430,7 @@ export default async function PlanPage({
               </PlateauEssais>
                 </div>
                 <aside className="tm-poste-droite" aria-label="Références">
-                  <ReferencesCases planId={plan.id} refs={refsVue} assets={assetsPicker} />
+                  <ReferencesCases planId={plan.id} projectId={pid} refs={refsVue} assets={assetsPicker} />
                   <CartePrompt extrait={extraitPrompt} nbMots={promptCourant.trim() ? promptCourant.trim().split(/\s+/).length : 0} nbVersions={historiquePrompt.length} />
                 </aside>
               </div>

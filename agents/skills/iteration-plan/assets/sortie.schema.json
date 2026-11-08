@@ -119,9 +119,9 @@
     },
     "dureeSecondes": {
       "type": "integer",
-      "minimum": 5,
+      "minimum": 4,
       "maximum": 10,
-      "description": "Optional. The plan's NEW generation duration, whole seconds from 5 to 10, ONLY when the user's instruction asks for another duration (« passe-le à 12 secondes », « allonge-le »). Omit it otherwise: the plan keeps its duration. When you give it, re-time the shots' `At MM:SS.mmm` markers in `changements` so they spread over the new duration (or, on a rewrite, the whole sheet is rewritten for it)."
+      "description": "Optional. The plan's NEW generation duration, whole seconds from 4 to 10, ONLY when the user's instruction asks for another duration (« passe-le à 12 secondes », « allonge-le »). Omit it otherwise: the plan keeps its duration. When you give it, re-time the shots' `At MM:SS.mmm` markers in `changements` so they spread over the new duration (or, on a rewrite, the whole sheet is rewritten for it)."
     },
     "nouvelleDescription": {
       "type": "string",

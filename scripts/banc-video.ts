@@ -15,6 +15,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { VARIANTES_BANC, VARIANTES_PAR_DEFAUT, codesAveugles, preparerGrapheBanc, type Graphe, type VarianteBanc } from "../worker/comfyui/banc-variantes";
 import { NODE_IDS } from "../worker/comfyui/mapping";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../lib/plan-checks";
 
 function argument(nom: string): string | undefined {
   const i = process.argv.indexOf(`--${nom}`);
@@ -132,7 +133,7 @@ async function main() {
     }
   }
   const ids = choisies.map((v) => v.id);
-  if (!Number.isInteger(duree) || duree < 5 || duree > 10) throw new Error("--duree : un entier de 5 à 10 secondes.");
+  if (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX) throw new Error(`--duree : un entier de ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} secondes.`);
   const workflow = JSON.parse(await readFile(fichier, "utf-8")) as Graphe;
   // Un prompt à tester à la place de celui du fichier (copié depuis la page d'un plan de Cadence) : indispensable pour K1 et K2, qui comparent des formulations.
   const fichierPrompt = argument("prompt");
