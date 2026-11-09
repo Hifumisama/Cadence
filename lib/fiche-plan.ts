@@ -5,7 +5,7 @@
  * Vocabulaire : un ESSAI est une ligne de `jobs` (un rendu), numéroté par `numeroRendu` ; le plan n'a pas de numéro (F03), sa
  * position (rang dans l'épisode) ne sert qu'à l'affichage. */
 
-import { notesDecisions, PREFIXE_SANS_ECRITURE } from "./agents/iteration-plan";
+import { notesDecisions, PREFIXE_SANS_ECRITURE } from "./agents/iteration-notes";
 import type { DecisionsAffichees, DecisionsIteration } from "./agents/types";
 
 /** L'état affiché d'un plan, DÉRIVÉ (jamais stocké) : sans essai = brouillon ; `plans.pret_upscale_at` posé = prêt à upscaler ; sinon en

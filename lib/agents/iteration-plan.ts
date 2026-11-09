@@ -27,8 +27,8 @@ export const MAX_VIGNETTES_ITERATION = 15;
 /** Au plus deux assets manquants suggérés par itération (décision 2026-11-09). */
 export const MAX_MANQUANTS_ITERATION = 2;
 
-/** Début du résumé d'une proposition qui ne recompile rien (postTraitement) : la décision d'« Itérer » s'arrête là (lib/fiche-plan.ts). */
-export const PREFIXE_SANS_ECRITURE = "Diagnostic sans écriture.";
+// `PREFIXE_SANS_ECRITURE` et `notesDecisions` vivent dans iteration-notes.ts (sans dépendance serveur, lu par les composants client).
+export { PREFIXE_SANS_ECRITURE, notesDecisions } from "./iteration-notes";
 
 export type AssetManquant = { code: string; type: string; parent?: string; description: string; raison: string };
 
@@ -262,20 +262,6 @@ export function decisionsAffichees(dec: DecisionsIteration | null, ctx: Contexte
     ],
     manquants: manquants.map((m) => ({ code: m.code, raison: m.raison })),
   };
-}
-
-/** Les décisions en phrases courtes, gardées sur l'essai qu'elles produisent (`jobs.alertes_iteration`). */
-export function notesDecisions(a: DecisionsAffichees | null): string[] {
-  if (!a) return [];
-  const notes: string[] = [];
-  if (a.intent) notes.push("Intent du plan réécrit par l'agent (l'ancien reste dans l'essai précédent).");
-  if (a.duree) notes.push(`Durée : ${a.duree.avant} s → ${a.duree.apres} s.`);
-  if (a.referencesAjoutees.length || a.referencesRetirees.length) {
-    notes.push(`Références : ${[...a.referencesAjoutees.map((c) => `+ ${c}`), ...a.referencesRetirees.map((c) => `− ${c}`)].join(", ")}.`);
-  }
-  for (const r of a.reglages) notes.push(`${r.libelle} du plan : ${r.avant} → ${r.apres}.`);
-  if (a.manquants.length) notes.push(`${a.manquants.map((m) => m.code).join(", ")} créé${a.manquants.length > 1 ? "s" : ""} par l'itération, image générée et ajouté${a.manquants.length > 1 ? "s" : ""} aux références avant la recompilation.`);
-  return notes;
 }
 
 /** Le diagnostic à afficher, depuis le JSON validé du skill (agent_runs.resultat) ; null s'il n'en a pas la forme. `entree` (agent_runs.entree) : le plan
