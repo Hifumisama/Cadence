@@ -1,15 +1,18 @@
 ---
 name: inventaire-assets
-description: Read all of a project's plans and the current registry, and propose which assets are missing so every plan sheet can rely on references that exist.
+description: Read all of a project's plans and the current registry, propose which assets are missing, and choose the reference images of every plan, so every plan sheet can rely on references that exist.
 metadata:
   language: instructions in English; output text in French
 ---
 
-# inventaire-assets — complete the registry before writing the plan sheets
+# inventaire-assets — complete the registry and pick each plan's references before writing the plan sheets
 
-You read **all the project's plans** (already written as a screenplay) and the **current registry**, and say **which assets are missing** so each plan sheet can rely on references that exist. The sheets are written afterwards, one by one: without an inventory, each one invents its own props and the registry fills with duplicates (the lantern, the oil lamp, the lamp).
+You read **all the project's plans** (already written as a screenplay) and the **current registry**, and you do two things in one answer:
 
-You create nothing yourself: you **propose** a list; the user reviews it, then the image prompts are written one by one.
+1. say **which assets are missing** so each plan sheet can rely on references that exist. The sheets are written afterwards, one by one: without an inventory, each one invents its own props and the registry fills with duplicates (the lantern, the oil lamp, the lamp);
+2. for **every plan**, list the assets whose images the video model will receive (`references`): existing assets or the ones you propose in this same answer. They are ready before the sheets are written, and the user reviews them together with the plans' intentions.
+
+You create nothing yourself: you **propose**; the user reviews, then the image prompts are written one by one.
 
 ## Output language
 
@@ -26,8 +29,9 @@ You create nothing yourself: you **propose** a list; the user reviews it, then t
   - `lieux[].aspect`: the place's look (`lumiere`, `matieres`, `palette`, `ambiance`);
   - `elements`: the visual effects (`nature: "vfx"`) and story objects (`nature: "prop"`) the user described, with `description`, `couleur`, `ampleur` (size or extent), `comportement` (how it moves).
   Each carries a `statut`: `fourni` (the user said it), `delegue` (the user let the agent choose: decided), `deduit` (assumed by the agent, nobody confirmed), `incertain` (said in vague terms). `deduit` and `incertain` are leads, not facts: use them, and say in `notes` what stays to confirm.
-- `episodes`: for each episode, its scenes and plans in order, with each plan's title and **intention** (what happens).
+- `episodes`: for each episode, its scenes and plans in order, with each plan's `id` (P01, P02…: the handle you copy into `references`), title and **intention** (what happens).
 - `consigne`: what the user wants more or less of.
+- For a long film only, you see **one part** of it (`partie`: "2/3", consecutive scenes) and `assetsDejaProposes`: the assets the previous parts already propose. They are not in the registry yet, but treat them as if they were: **never propose them again** (rule 1), and use their codes in `references` like registry codes.
 
 ## Rules
 
@@ -69,13 +73,29 @@ The description **shows the asset alone**: no character in a set or a prop ("the
 - **A character's description is their appearance and nothing else**: age, build, face, hair, outfit, distinguishing marks. **No place, no pose, no action, no line of dialogue, no mood of a scene** ("assise sur un talus", "regarde la mer", "dit : …"): the image is a turnaround sheet on a plain background, and any place or pose written here is drawn into it (seen in testing: a heroine "sitting on a bank" came out sitting in a landscape instead of standing alone). Where the character is and what they do belongs to the plans. For a new character (an extra, a guard) or a character state, reuse what `tenue` gives when it applies (cut, colours, materials, worn accessories, distinctive mark); a state after a time jump takes the outfit `evolution` describes. A held object stays out (it is a prop).
 - **A set's description is the place itself**: architecture or terrain, materials, vegetation, scale, layout. **Do not list the props** that sit in it (a lantern, a board, a chest): each prop is its own asset or prose in the plans, and a set image crowded with objects freezes them into every shot. Name an object only when it is a fixed, central part of the place (the giant whale skeleton the village is built in). For a state or another area of a brief place, keep its `aspect` (materials, palette) and change only what the state changes (the light of a night state, for instance).
 
+## The references of each plan
+
+`references` has **one entry per plan of the input**, in the input's order: `{ "plan": "<id>", "codes": [...] }`. The codes are the images the video model receives for that plan; what is not in them is drawn from the plan's text alone.
+
+- **Codes that exist**: from `registre`, `assetsDejaProposes`, or the `assets` of your own answer (copy your proposed code exactly). Never a code you did not see. An asset you propose appears in the `references` of the plans that show it (its `plans` list), or it serves nothing.
+- **Who and what is seen.** Every character seen in the plan (a speaker, a listener, an extra with its own sheet), the props that matter in the action, then the set. A character only heard (voice-over, narrator) has no image.
+- **Order**: the characters who **speak** in the plan first (in the order they speak), then the other characters, the props, the effects, and the **set last**.
+- **One sheet per character.** A character has one face in a plan: choose the state that fits the moment (the same character at sixty in the last scene), never two states of the same character together.
+- **One set**: the set or set state that matches the plan's place, time of day and area (rule 12): a night plan gets the night state, not the day set.
+- **6 images at most**, usually 2 to 5. When a plan shows more, keep the characters and the set, and drop the least important props and effects.
+- **A `vfx`** (only one that exists or comes from `brief.elements`) may be listed when the plan shows that effect: the video model takes it as a weak style reference (its matter, colour and motion), never as a subject.
+- **A `keyframe`** only when the plan's intention names it. Otherwise the identities come from the individual sheets (rule 11).
+- **Never a voice or a sound** (`sfx`): voices are set on the character, sounds are written in the sheet.
+- A plan with nothing to show (black screen, title card) gets an empty list; keep its entry.
+
 ## What you return
 
-`assets` (may be empty) and `notes`. Nothing else.
+`assets` (may be empty), `references` (one entry per plan) and `notes`. Nothing else.
 
 ## Before you answer
 
-- Nothing proposed already exists in the registry (even under another name).
+- Every plan of the input has exactly one entry in `references`, with its `id` copied; every code there exists (registry, `assetsDejaProposes`, or your `assets`); at most 6 codes, characters who speak first and the set last; one sheet per character, one set, no voice, no sound, a keyframe only if the intention names it.
+- Nothing proposed already exists in the registry or in `assetsDejaProposes` (even under another name).
 - Each asset is one distinct image, with its prefix matching its `type`, and lists all its plans once.
 - Every **state** of a subject (character, creature, set or prop) has the same type as the subject and its `parent`; no state is filed as a `vfx`, and the only `vfx` listed come from `brief.elements` (rules 13 and 14).
 - Every entry of `brief.elements` the registry lacks is proposed once, with its type from `nature` and its `nom` copied into `element`; every other asset has `element: null`.

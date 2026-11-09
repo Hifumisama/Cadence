@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Output of the inventaire-assets agent: the assets to add to the registry before writing the plan sheets",
+  "title": "Output of the inventaire-assets agent: the assets to add to the registry before writing the plan sheets, and the reference images of every plan",
   "type": "object",
   "additionalProperties": false,
-  "required": ["assets", "notes"],
+  "required": ["assets", "references", "notes"],
   "properties": {
     "assets": {
       "type": "array",
@@ -20,6 +20,24 @@
           "description": { "type": "string", "minLength": 1, "description": "(French) What it is, as in the registry: what is seen, with no framing or plan light. A character: appearance only (no place, pose, action or dialogue). A set: the place only (no list of props). An asset from `brief.elements`: built from its description, colour, size and behaviour." },
           "plans": { "type": "array", "items": { "type": "string" }, "description": "The titles of the plans (as given in the input) where the asset appears." },
           "raison": { "type": "string", "description": "(French) Why no registry asset fits: what must really differ in the image." }
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "description": "ONE entry per plan of the input, in the input's order: the assets whose images the video model receives for that plan. Checked by the code: every code exists (registry, `assetsDejaProposes`, or `assets` above), no sound, 6 images at most.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["plan", "codes"],
+        "properties": {
+          "plan": { "type": "string", "description": "The plan's `id` from the input (P01, P02...), copied exactly." },
+          "codes": {
+            "type": "array",
+            "maxItems": 6,
+            "items": { "type": "string" },
+            "description": "Asset codes in this order: the characters who speak in the plan, the other characters seen, props, effects, then the ONE set last. One sheet per character (never two states of the same character), one set, a keyframe only if the plan's intention names it, never a voice or a sound. Usually 2 to 5 codes; empty only for a plan with nothing to show (black screen)."
+          }
         }
       }
     },
