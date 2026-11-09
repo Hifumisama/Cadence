@@ -41,14 +41,20 @@ d'arrivée de deux voisines en attente (`deplacerIterationEnAttente`), sans colo
 Même principe pour les autres demandes (fiche de plan, ajout de plan…) : une tâche en file reste modifiable tant que le worker ne l'a pas prise.
 Seule l'itération de plan le fait pour l'instant.
 
-## Phase 3 — à faire : la file connaît les chaînes
+## Phase 3 — faite : la file connaît les chaînes
 
 - **Chaîne** = suite de plans consécutifs (`plans.ordre`) dont chacun, sauf le premier, est en `liaison = 'suite'` (pur, `lib/chaines.ts`).
-- Le choix de la prochaine itération à démarrer tient compte des chaînes (un plan en `suite` ne rend qu'après son précédent, si celui-ci a une
-  itération en file), pour ne rendre chaque plan qu'une fois.
-- **« À refaire »** (raccord périmé), dérivé et jamais relancé automatiquement : un plan en `suite` dont le dernier rendu a été calculé sur
-  `jobs.raccord_job_id = X` est à refaire quand le rendu retenu du précédent n'est plus `X`. S'ajoute comme `RaisonPerime` (`lib/rendus.ts`,
-  `lib/plans-perimes.ts`) ; le lot « relancer les périmés » existe déjà.
+- **Ordre de départ** : `demarrerProchaineIteration` prend la première itération en file qui n'a, EN FILE derrière elle, aucun plan qui la précède dans
+  sa chaîne (transitif) : un plan en `suite` repart du rendu du précédent, donc passe après lui s'ils sont tous deux en file. Sans lien, ordre
+  d'arrivée ; une coupe ne fait attendre personne. Le panneau montre l'ordre d'arrivée : l'ordre de départ peut s'en écarter pour un plan en `suite`.
+- **« Raccord à refaire »**, dérivé et jamais relancé tout seul : un plan en `suite` dont le dernier rendu est parti de l'essai X du précédent
+  (`jobs.raccord_job_id`) est marqué quand l'essai que le worker prendrait aujourd'hui est un autre (celui du latent pour un raccord par latent,
+  celui de la dernière image sinon : `continuiteEffective`). C'est une `RaisonPerime` de plus (`raccord`, `lib/plans-perimes.ts`) : pastille « périmé »
+  du Montage, alerte de la fiche, et le lot « relancer les périmés » (déjà là) le reprend, plan après plan dans l'ordre.
+- **Base périmée** : sur la page d'un plan en `suite`, une note dit que le précédent est périmé ou a une itération en file, donc qu'un rendu
+  maintenant serait provisoire. Rien ne bloque.
+- Limite : « relancer les périmés » ne relance pas, dans le même clic, les plans dont le précédent vient seulement d'être relancé (leur raccord ne devient
+  périmé qu'une fois le nouveau rendu du précédent terminé) : un second clic les prend.
 
 ## Rendre sur un précédent périmé (arbitrage 2026-11-09)
 

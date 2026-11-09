@@ -50,7 +50,7 @@ export function Inspecteur({
       <div className="mt-row">
         <StatusBadge statut={plan.statut} />
       </div>
-      {plan.perime ? <div className="mt-warn">Rendu périmé ({plan.perime}) : une référence ou le contenu du plan a changé depuis le dernier rendu. Relancer pour en tenir compte.</div> : null}
+      {plan.perime ? <div className="mt-warn">Rendu périmé ({plan.perime}) : une référence, le contenu du plan ou le rendu du plan précédent a changé depuis le dernier rendu. Relancer pour en tenir compte.</div> : null}
       {plan.erreur ? <div className="mt-warn is-err">{plan.erreur}</div> : null}
       {rendu ? (
         <>

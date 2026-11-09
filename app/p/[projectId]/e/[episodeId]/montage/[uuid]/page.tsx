@@ -132,6 +132,10 @@ export default async function PlanPage({
 
   // Raccord (lib/plan-raccord.ts) : l'essai du plan précédent dont l'image serait prise maintenant, comparé à celui dont l'essai affiché est parti.
   const raccordMaintenant = await raccordActuel(plan);
+  // Un plan en « suite » repart du rendu du précédent : si celui-ci est périmé ou a une itération en file, un rendu d'aujourd'hui sera provisoire.
+  const precedentChange = raccordMaintenant
+    ? (await getPlansPerimes({ planIds: [raccordMaintenant.precedent.id] })).has(raccordMaintenant.precedent.id) || (await iterationEnAttenteDuPlan(raccordMaintenant.precedent.id)) != null
+    : false;
   // Références visuelles que le worker compterait (images et vidéos qui ont leur fichier) : au plafond, un plan « suite » part SANS raccord.
   const refsVisuelles = refs.filter((r) => (r.type === "picture" || r.type === "video") && r.asset != null && r.asset.fichier).length;
 
@@ -429,6 +433,12 @@ export default async function PlanPage({
                   })()
                 ) : null}
               </PlateauEssais>
+              {raccordMaintenant && precedentChange ? (
+                <p className="tiny-note tm-raccord" style={{ color: "var(--gold, #c9a227)" }}>
+                  « {raccordMaintenant.precedent.titre} », le plan qui précède, est périmé ou a une itération en file : un rendu de ce plan partirait de son rendu actuel et serait
+                  provisoire. Il sera marqué « raccord à refaire » dès que le précédent aura un nouveau rendu.
+                </p>
+              ) : null}
                 </div>
                 <aside className="tm-poste-droite" aria-label="Références">
                   <ReferencesCases planId={plan.id} projectId={pid} refs={refsVue} assets={assetsPicker} />

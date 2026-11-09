@@ -3,6 +3,9 @@ import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
 import { assemblerPrompt } from "./prompt";
 import type { PromptSection } from "./plan-checks";
+import { raccordPerime } from "./chaines";
+import { continuiteEffective } from "./etapes-video";
+import { essaiSourceDuLatent, essaiSourceDuRaccord, planPrecedent } from "./queries-raccord";
 import { raisonsContenuPerime, type RaisonPerime } from "./rendus";
 
 /** Un plan est « périmé » quand son DERNIER rendu terminé est dépassé :
@@ -37,16 +40,16 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
 
   // Début du dernier rendu terminé de chaque plan : c'est à ce moment que le worker a lu les références.
   const rendus = await db
-    .select({ planId: jobs.planId, debut: jobs.startedAt, cree: jobs.createdAt, promptUtilise: jobs.promptUtilise, dureeUtilisee: jobs.dureeUtilisee })
+    .select({ planId: jobs.planId, debut: jobs.startedAt, cree: jobs.createdAt, promptUtilise: jobs.promptUtilise, dureeUtilisee: jobs.dureeUtilisee, raccordJobId: jobs.raccordJobId, continuite: jobs.continuite })
     .from(jobs)
     .where(and(inArray(jobs.planId, planIds), eq(jobs.statut, "termine")))
     .orderBy(desc(jobs.finishedAt), desc(jobs.id));
   const dernierRendu = new Map<number, Date>();
-  const dernierJob = new Map<number, { promptUtilise: string | null; dureeUtilisee: number | null }>();
+  const dernierJob = new Map<number, { promptUtilise: string | null; dureeUtilisee: number | null; raccordJobId: number | null; continuite: string | null }>();
   for (const r of rendus) {
     if (dernierRendu.has(r.planId)) continue;
     dernierRendu.set(r.planId, r.debut ?? r.cree);
-    dernierJob.set(r.planId, { promptUtilise: r.promptUtilise, dureeUtilisee: r.dureeUtilisee });
+    dernierJob.set(r.planId, { promptUtilise: r.promptUtilise, dureeUtilisee: r.dureeUtilisee, raccordJobId: r.raccordJobId, continuite: r.continuite });
   }
   if (dernierRendu.size === 0) return resultat;
 
@@ -67,16 +70,27 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
     const ids = [...dernierRendu.keys()];
     const [lignes, durees] = await Promise.all([
       db.select({ planId: planPromptSections.planId, section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(inArray(planPromptSections.planId, ids)),
-      db.select({ id: plans.id, duree: plans.dureeGenerationSecondes }).from(plans).where(inArray(plans.id, ids)),
+      db.select({ id: plans.id, duree: plans.dureeGenerationSecondes, episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(inArray(plans.id, ids)),
     ]);
     const sectionsParPlan = new Map<number, PromptSection[]>();
     for (const l of lignes) sectionsParPlan.set(l.planId, [...(sectionsParPlan.get(l.planId) ?? []), { section: l.section, contenu: l.contenu }]);
     const dureeParPlan = new Map(durees.map((d) => [d.id, d.duree]));
+    const lienParPlan = new Map(durees.map((d) => [d.id, d]));
     for (const id of ids) {
       const sections = sectionsParPlan.get(id);
       // Sans fiche (aucune section remplie), il n'y a pas de prompt à comparer.
       const prompt = sections?.some((s) => s.contenu.trim() !== "") ? assemblerPrompt(sections) : null;
-      const raisons = raisonsContenuPerime({ prompt, duree: dureeParPlan.get(id) ?? null }, dernierJob.get(id)!);
+      const rendu = dernierJob.get(id)!;
+      const raisons = raisonsContenuPerime({ prompt, duree: dureeParPlan.get(id) ?? null }, rendu);
+      // Raccord : un plan en « suite » est parti de l'essai X du précédent ; si le précédent a un autre rendu à prendre aujourd'hui, celui-ci est à refaire
+      // (jamais relancé tout seul : il est seulement marqué, docs/PLAN_FILE_CONSIGNES.md).
+      const lien = lienParPlan.get(id);
+      if (lien && lien.liaison === "suite" && rendu.raccordJobId != null) {
+        const precedent = await planPrecedent({ episodeId: lien.episodeId, ordre: lien.ordre });
+        // Le même essai que celui que le worker prendrait : celui du latent pour un raccord par latent, celui de la dernière image sinon.
+        const source = precedent ? await (continuiteEffective(rendu) === "latent" ? essaiSourceDuLatent(precedent) : essaiSourceDuRaccord(precedent)) : null;
+        if (raccordPerime(rendu.raccordJobId, source?.id ?? null)) raisons.push("raccord");
+      }
       if (raisons.length === 0) continue;
       const p = resultat.get(id) ?? { planId: id, codes: [], raisons: [] };
       p.raisons = raisons;

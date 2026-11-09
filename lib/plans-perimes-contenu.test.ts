@@ -28,5 +28,8 @@ test("périmé : références OU contenu, résumé et phrase d'alerte", () => {
   assert.equal(resumerPerime({ codes: ["CHAR_maya"], raisons: ["prompt", "duree"] }), "CHAR_maya, prompt modifié, durée modifiée");
   assert.equal(detailPerime({ codes: ["CHAR_maya"], raisons: [] }), "CHAR_maya a changé depuis le dernier rendu : relance pour en tenir compte.");
   assert.equal(detailPerime({ codes: ["A", "B"], raisons: ["prompt"] }), "A, B ont changé ; le prompt a changé depuis le dernier rendu : relance pour en tenir compte.");
+  assert.equal(resumerPerime({ codes: [], raisons: ["raccord"] }), "raccord à refaire");
+  assert.equal(estPerime({ codes: [], raisons: ["raccord"] }), true);
+  assert.equal(detailPerime({ codes: [], raisons: ["raccord"] }), "le rendu du plan précédent a changé depuis le dernier rendu : relance pour en tenir compte.");
   assert.equal(detailPerime({ codes: [], raisons: ["duree"] }), "la durée a changé depuis le dernier rendu : relance pour en tenir compte.");
 });

@@ -43,7 +43,7 @@ export function promptDiffere(promptCourant: string, promptUtilise: string | nul
 /** Ce qui, dans le CONTENU du plan, a changé depuis son dernier rendu terminé : le prompt assemblé, la durée de génération.
  * Comparé par VALEUR (ce que le worker a réellement soumis, `promptUtilise` / `dureeUtilisee`), pas par date : aucun
  * horodatage de plus à tenir. Sans valeur enregistrée (anciens rendus, vidéo importée), on ne sait pas : rien. */
-export type RaisonPerime = "prompt" | "duree";
+export type RaisonPerime = "prompt" | "duree" | "raccord";
 
 export function raisonsContenuPerime(
   courant: { prompt: string | null; duree: number | null },
@@ -55,7 +55,7 @@ export function raisonsContenuPerime(
   return raisons;
 }
 
-export const LIBELLE_RAISON_PERIME: Record<RaisonPerime, string> = { prompt: "prompt modifié", duree: "durée modifiée" };
+export const LIBELLE_RAISON_PERIME: Record<RaisonPerime, string> = { prompt: "prompt modifié", duree: "durée modifiée", raccord: "raccord à refaire" };
 
 /** Un plan est périmé s'il a une référence changée OU un contenu changé. */
 export const estPerime = (p: { codes: string[]; raisons: RaisonPerime[] }): boolean => p.codes.length > 0 || p.raisons.length > 0;
@@ -69,6 +69,7 @@ export function detailPerime(p: { codes: string[]; raisons: RaisonPerime[] }): s
   if (p.codes.length > 0) parts.push(`${p.codes.join(", ")} ${p.codes.length > 1 ? "ont changé" : "a changé"}`);
   if (p.raisons.includes("prompt")) parts.push("le prompt a changé");
   if (p.raisons.includes("duree")) parts.push("la durée a changé");
+  if (p.raisons.includes("raccord")) parts.push("le rendu du plan précédent a changé");
   return `${parts.join(" ; ")} depuis le dernier rendu : relance pour en tenir compte.`;
 }
 
