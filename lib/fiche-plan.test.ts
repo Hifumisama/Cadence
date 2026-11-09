@@ -231,7 +231,7 @@ test("decisionIteration : une réécriture (plan-h3) applique la fiche ET crée 
     prop({
       diagnostic: null,
       groupes: [
-        { changements: [{ id: 1, bloque: false, refuseRaison: null, cibleType: "fiche", avertissements: [{ type: "info", texte: "L'état de fin du plan a changé : le plan suivant n'a pas été revérifié." }] }] },
+        { changements: [{ id: 1, bloque: false, refuseRaison: null, cibleType: "fiche", avertissements: [] }] },
         { changements: [{ id: 2, bloque: false, refuseRaison: null, cibleType: "asset", avertissements: [] }] },
       ],
     }),
@@ -240,7 +240,6 @@ test("decisionIteration : une réécriture (plan-h3) applique la fiche ET crée 
   if (d.action === "appliquer") {
     assert.deepEqual(d.ids, [1, 2]);
     assert.ok(d.notes.some((n) => /1 asset créé avec la correction .* pas encore d'image/.test(n)));
-    assert.ok(d.notes.some((n) => /état de fin du plan a changé/i.test(n)));
   }
   const sansFiche = decisionIteration(
     prop({

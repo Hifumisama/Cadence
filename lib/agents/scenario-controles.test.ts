@@ -31,13 +31,13 @@ test("durée : pas de cible ou pas de plan, rien à contrôler", () => {
   assert.deepEqual(controlerDureeScenario({ scenes: [] }, 60), []);
 });
 
-test("controlerStructureScenario : l'état en fin de plan est exigé (renvoi au modèle sinon), aucune règle de disposition", async () => {
+test("controlerStructureScenario : un récit est exigé, l'ancien « État en fin de plan » est refusé (renvoi au modèle), aucune règle de disposition", async () => {
   const { controlerStructureScenario } = await import("./scenario-controles");
-  const bon = { scenes: [{ titre: "S1", plans: [{ titre: "P1", description: "Elle attend.\n\nÉtat en fin de plan : Mai assise à gauche du feu, tournée vers lui ; feu allumé." }] }] };
+  const bon = { scenes: [{ titre: "S1", plans: [{ titre: "P1", description: "Mai, assise à gauche du feu, attend, puis se lève et recule d'un pas.\nMai : « Il viendra. »" }] }] };
   assert.deepEqual(controlerStructureScenario(bon), []);
-  const mal = { scenes: [{ titre: "S1", plans: [{ titre: "P1", description: "Elle attend." }, { titre: "P2", description: "Elle part.\nEtat en fin de plan : seule." }] }] };
+  const mal = { scenes: [{ titre: "S1", plans: [{ titre: "P1", description: "Elle attend.\n\nÉtat en fin de plan : Mai assise." }, { titre: "P2", description: "Mai : « Je pars. »" }, { titre: "P3", description: "Elle part." }] }] };
   const e = controlerStructureScenario(mal);
-  assert.equal(e.length, 1);
-  assert.match(e[0]!, /P1/);
-  assert.match(e[0]!, /repères fixes/);
+  assert.equal(e.length, 2);
+  assert.match(e[0]!, /P1.*État en fin de plan/);
+  assert.match(e[1]!, /P2.*pas de récit/);
 });

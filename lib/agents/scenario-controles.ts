@@ -1,4 +1,5 @@
 import { ECART_DUREE_TOLERE } from "./conversion";
+import { aUnEtatDeFin, recitDe } from "../intent";
 
 /** Contrôle de la durée totale d'un scénario d'épisode (skill `scenario-episode`). Le modèle n'additionne pas fiablement
  * (écarts de ×2 constatés en recette) : c'est le code qui compte, et qui lui renvoie le total exact. Un seul renvoi
@@ -36,14 +37,20 @@ export function controlerDureeScenario(sortie: SortieScenario, cibleSecondes: nu
   ];
 }
 
-/** Structure exigée par le skill (état en fin de plan) : un manque est une ERREUR, donc un renvoi au modèle. Sans elle, le modèle l'oublie
- * (le suivi d'état est ce qui porte la continuité d'un plan à l'autre). Aucune règle de disposition : elle varie avec chaque scène. Pur. */
+/** Structure exigée par le skill : chaque description a un RÉCIT (pas seulement des répliques) et n'a plus de ligne « État en fin de plan »
+ * (retirée le 2026-11-08 : une `suite` prolonge le rendu précédent par son latent ; la fin du plan se lit dans son dernier temps). Un manque est
+ * une ERREUR, donc un renvoi au modèle. Aucune règle de disposition : elle varie avec chaque scène. Pur. */
 export function controlerStructureScenario(sortie: { scenes?: { titre?: string; plans?: { titre?: string; description?: string }[] }[] }): string[] {
   const erreurs: string[] = [];
   for (const scene of sortie.scenes ?? []) {
     for (const plan of scene.plans ?? []) {
-      if (!/[ée]tat en fin de plan\s*:/i.test(plan.description ?? "")) {
-        erreurs.push(`Le plan « ${plan.titre ?? "?"} » : sa description doit se terminer par « État en fin de plan : … » (où se tiennent les personnages qui comptent et vers quoi ils sont tournés, par rapport aux repères fixes du lieu et non à la caméra ; l'état de ce qui a changé : feu allumé ou éteint, créature présente ou non). N'y écris que ce que la description a montré.`);
+      const description = plan.description ?? "";
+      const nom = `Le plan « ${plan.titre ?? "?"} »`;
+      if (aUnEtatDeFin(description)) {
+        erreurs.push(`${nom} : n'écris pas de ligne « État en fin de plan : … ». Raconte plutôt la fin du plan dans son dernier temps (qui est où, en train de faire quoi, par rapport aux repères du lieu), dans le récit.`);
+      }
+      if (!recitDe(description)) {
+        erreurs.push(`${nom} : sa description n'a pas de récit. Dis ce qui se passe, dans l'ordre (le début, les gestes, ce qui change, la fin), puis les répliques.`);
       }
     }
   }

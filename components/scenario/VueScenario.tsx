@@ -12,8 +12,10 @@ import { useTaches } from "@/components/taches/TachesProvider";
 import { Icone } from "@/components/ui/Icone";
 import { posterBackgroundImage } from "@/lib/poster";
 import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
+import type { DemoDispo } from "@/lib/h3ir/demos";
 import { LIBELLE_CREATIVITE, RESUME_STYLE_CAMERA, STYLE_AUCUN, infobulleChoix, creativiteOuNull, styleCameraOuNull, type ReglagesBruts } from "@/lib/h3ir/reglages";
 import { cleDemande } from "@/lib/taches";
+import { intentAffichee } from "@/lib/intent";
 import { LIBELLE_ETAT, cleScene, minutage, romain, type AjoutEnCours, type AjoutSceneEnCours, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
 import { AjouterPlan, type CibleAjoutPlan } from "./AjouterPlan";
@@ -29,8 +31,9 @@ const CLE_DESCRIPTIONS = "cadence:scenario-descriptions";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
-/** Les retours à la ligne d'une description n'ont pas de place dans un extrait de vignette. */
-const aplatir = (t: string) => t.replace(/\s*\n+\s*/g, " · ");
+/** Les retours à la ligne d'une description n'ont pas de place dans un extrait de vignette. L'intent affiché masque la « Consigne de l'auteur » et
+ * l'ancien « État en fin de plan » (lib/intent.ts). */
+const aplatir = (t: string) => intentAffichee(t).replace(/\s*\n+\s*/g, " · ");
 /** Le point de la frise d'une ligne suit l'état dérivé (le même que dans la grille), pas le statut de la fiche. */
 const NOEUD = { brouillon: "st-brouillon", iteration: "st-encours", pret: "st-termine" } as const;
 const libellePlan = (p: PlanVue) => `Plan ${p.position}, ${p.titre}, ${LIBELLE_ETAT[p.etat].toLowerCase()}`;
@@ -45,6 +48,7 @@ export function VueScenario({
   projectId,
   episodeId,
   reglagesProjet,
+  demos,
   groupes,
   sceneInitiale,
   ajout,
@@ -55,6 +59,8 @@ export function VueScenario({
   episodeId: number;
   /** Créativité et style de mise en scène du projet (Open H3 IR) : ce qu'une scène hérite quand elle ne règle rien. */
   reglagesProjet: ReglagesBruts;
+  /** Les vidéos de démo de la mise en scène (lib/media.ts, `demosMiseEnScene`), pour la fenêtre de style des scènes. */
+  demos?: Record<string, DemoDispo>;
   groupes: SceneVue[];
   sceneInitiale: string | null;
   /** Un plan en cours d'écriture (« Ajouter un plan »), ou null. */
@@ -398,6 +404,7 @@ export function VueScenario({
                   creativite={courant.creativite ?? ""}
                   styleCamera={courant.styleCamera ?? ""}
                   reglagesProjet={reglagesProjet}
+                  demos={demos}
                 />
                 <SupprimerSceneButton sceneId={courant.id} titre={courant.titre} />
               </span>
@@ -653,7 +660,7 @@ function TiroirPlan({
         {minutage(plan.debut)} · {plan.duree} s · {LIBELLE_ETAT[plan.etat]}
       </span>
       {plan.src ? <video className="sc-tiroir-video" src={`${plan.src}#t=0.1`} controls loop muted playsInline preload="metadata" aria-label={`Aperçu du plan ${pad(plan.position)}`} /> : null}
-      <p className={`sc-description${plan.description ? "" : " is-vide"}`}>{plan.description ?? "Pas encore de description."}</p>
+      <p className={`sc-description${intentAffichee(plan.description) ? "" : " is-vide"}`}>{intentAffichee(plan.description) || "Pas encore de description."}</p>
       <div className="sc-actions">
         {sansFiche ? <GenererFiche projectId={projectId} planUuid={plan.uuid} demandeEnCours={plan.ficheEnCours} /> : null}
         <button type="button" className={`btn ${sansFiche ? "btn-ghost" : "btn-gold"} btn-sm`} onClick={onOuvrir}>

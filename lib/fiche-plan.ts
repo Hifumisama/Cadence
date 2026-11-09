@@ -210,7 +210,6 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   if (suggeres.length > 0) notes.push(`L'agent suggère de créer ${suggeres.map((a) => a.code).join(", ")} (non créé${suggeres.length > 1 ? "s" : ""}) : crée-le, génère son image, puis itère de nouveau.`);
   if (creations.length > 0) notes.push(`${creations.length} asset${creations.length > 1 ? "s" : ""} créé${creations.length > 1 ? "s" : ""} avec la correction et cité${creations.length > 1 ? "s" : ""} par la fiche : ${creations.length > 1 ? "ils n'ont" : "il n'a"} pas encore d'image (à générer avant un rendu qui l${creations.length > 1 ? "es" : "'"}utilise).`);
   if (creationsLaissees > 0) notes.push(`${creationsLaissees} création${creationsLaissees > 1 ? "s" : ""} d'asset suggérée${creationsLaissees > 1 ? "s" : ""} par la réécriture, non créée${creationsLaissees > 1 ? "s" : ""} : crée-${creationsLaissees > 1 ? "les" : "le"} depuis le registre.`);
-  if (appliquables.some((c) => c.avertissements.some((a) => a.type === "info" && /l'état de fin du plan a changé/i.test(a.texte ?? "")))) notes.push("L'état de fin du plan a changé : le plan suivant n'a pas été revérifié.");
   const recopies = appliquables.flatMap((c) => c.avertissements.filter((a) => a.type === "info" && /^Mots de ta consigne recopiés/.test(a.texte ?? "")).map((a) => a.texte as string));
   if (recopies.length > 0) notes.push(recopies[0]!);
   const ecartes = tous.length - appliquables.length - creationsLaissees;

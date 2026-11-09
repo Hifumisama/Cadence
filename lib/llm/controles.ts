@@ -36,7 +36,7 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
         .map((p) => p.message);
   }
   if (skill === "relecture-scenario") {
-    // Des corrections minimales, sans renvoi à un autre plan, qui gardent « État en fin de plan », les mots de l'auteur et la durée : un défaut = un renvoi.
+    // Des corrections minimales, sans renvoi à un autre plan, qui gardent le récit, les mots de l'auteur et la durée : un défaut = un renvoi.
     const e = (entree ?? {}) as EntreeRelecture;
     if (!Array.isArray(e.plans)) return undefined;
     return (json) => problemesDeRelecture(json as SortieRelecture, e).map((x) => x.message);
@@ -47,7 +47,7 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
     return (json) => controlerTraitement(json as Parameters<typeof controlerTraitement>[0], vise);
   }
   if (skill === "scenario-scene") {
-    // Les durées sont ramenées à la cible par le code (ajusterDureesScene) : seul « État en fin de plan » est exigé, comme pour un épisode.
+    // Les durées sont ramenées à la cible par le code (ajusterDureesScene) : seule la structure des descriptions est contrôlée, comme pour un épisode.
     return (json) => controlerStructureScenario({ scenes: [{ plans: (json as { plans?: { titre?: string; description?: string }[] }).plans }] });
   }
   if (skill === "scenario-episode") {

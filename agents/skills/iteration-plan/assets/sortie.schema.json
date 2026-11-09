@@ -125,7 +125,7 @@
     },
     "nouvelleDescription": {
       "type": "string",
-      "description": "(French) The plan's NEW description (its intention), complete, ending with « État en fin de plan : … » (where the characters who matter stand and what they face, relative to fixed landmarks of the place, never to the camera; the state of what changed). REQUIRED when `reecriture` is true: write it right here, it is the whole point of a rewrite (an answer with `reecriture` true and an empty description is refused). Also give it when a retouch changes the state it leaves to the next plan. Empty string when the description stays as it is."
+      "description": "(French) The plan's NEW description (its intention), COMPLETE: it replaces the current one entirely, so copy `plan.intention` and change only what the instruction changes (the whole narrative, then the lines `NAME : « text »`, the `Consigne de l'auteur :` sentence if any). Never only the changed sentence; no `État en fin de plan :` line. REQUIRED when `reecriture` is true: write it right here, it is the whole point of a rewrite (an answer with `reecriture` true and an empty description is refused). Also give it when a retouch makes a sentence of the description false. Empty string when the description stays as it is."
     },
     "assetsManquants": {
       "type": "array",

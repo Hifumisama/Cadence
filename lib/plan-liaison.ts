@@ -1,5 +1,5 @@
 /** Liaison d'un plan avec le PRÉCÉDENT de l'épisode (2026-10-14). Deux valeurs seulement :
- *  - « suite » : le plan reprend là où l'autre finit (même lieu, même instant à peu près) : son ouverture raccorde sur l'état de fin du précédent ;
+ *  - « suite » : le plan reprend là où l'autre finit (même lieu, même instant à peu près) : son rendu prolonge celui du précédent (lib/etapes-video.ts) ;
  *  - « coupe » : rupture franche (autre lieu, autre moment) : il s'ouvre librement, sans raccord à reproduire.
  * Le scénario la pose pour chaque plan (un plan ne se décrit pas par rapport à un autre : la liaison est son seul lien) ; l'utilisateur la change
  * à la main. Aucune règle de disposition ici : c'est le plan qui dit s'il enchaîne ou s'il coupe. */

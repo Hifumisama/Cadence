@@ -6,6 +6,7 @@ import { dureeEffectiveSecondes } from "../grille-images";
 import { ajouterReference, compacterImages, nomDepuisCode, retirerReference } from "../references";
 import { SECTIONS_FICHE, estSectionFiche, type ApresFiche, type PassageFiche, type RefFiche, type SectionsFiche } from "./fiches";
 import type { Avertissement, DiagnosticIteration } from "./types";
+import { raisonDescriptionIncomplete, repliquesPerdues, sansEtatDeFin } from "../intent";
 
 /** `iteration-plan` : corriger un plan APRÈS visionnage de son rendu (agents/skills/iteration-plan/SKILL.md).
  * Règles PURES (sans base, disque ni Next), partagées par le contrôleur sémantique (lib/llm/controles.ts), la
@@ -51,8 +52,9 @@ export type SortieIterationPlan = {
   /** Assets que l'agent SUGGÈRE de créer (aucun n'existe au registre pour ce rôle) : jamais créés par l'itération ; l'utilisateur les crée,
    * génère leur image, puis itère de nouveau pour les ajouter en référence. */
   assetsManquants?: { code: string; type: string; parent?: string; description: string; raison: string }[];
-  /** La NOUVELLE description (intention) du plan, en français, terminée par « État en fin de plan : … » : à fournir quand la correction change
-   * ce qui se passe dans le plan, ou l'état (position, orientation, feu…) qu'il laisse au plan suivant. Écrite avec la fiche. */
+  /** La NOUVELLE description (intention) du plan, en français, COMPLÈTE (tout le récit, puis les répliques) : à fournir quand la correction change
+   * ce qui se passe dans le plan (une action, une position, l'état d'un objet, la fin du plan). Écrite avec la fiche. Un fragment est refusé
+   * (lib/intent.ts, `raisonDescriptionIncomplete`) : il effacerait le récit. */
   nouvelleDescription?: string;
   /** La NOUVELLE durée de génération du plan (4 à 10 s), quand la consigne la demande : écrite avec la fiche, partout (rendu, montage). */
   dureeSecondes?: number;
@@ -69,7 +71,7 @@ export type ContexteIteration = {
   motsAnglais?: string[];
   /** La consigne de l'utilisateur (ses mots, en français) : de quoi repérer un mot recopié tel quel dans le prompt anglais. */
   consigne?: string;
-  /** La description (intention) actuelle du plan, avec son « État en fin de plan » : de quoi voir si la correction la change. */
+  /** La description (intention) actuelle du plan (sans l'ancien « État en fin de plan », lib/intent.ts) : de quoi voir si la correction la change. */
   description?: string;
   /** Contenu actuel par section (absente = vide). */
   sections: Partial<Record<string, string>>;
@@ -96,15 +98,15 @@ const extrait = (s: string, max = 70) => {
 const arrondi = (n: number) => Math.round(n * 100) / 100;
 const secondes = (n: number) => `${String(arrondi(n)).replace(".", ",")} s`;
 
-/** Ce que le plan laisse au suivant : la phrase après « État en fin de plan : » (vide si elle manque). */
-export function etatEnFinDePlan(description: string | undefined | null): string {
-  const m = /[ée]tat en fin de plan\s*:([\s\S]*)$/i.exec(description ?? "");
-  return (m?.[1] ?? "").replace(/\s+/g, " ").trim();
-}
-
 const norm = (t: string) => t.replace(/\s+/g, " ").trim();
-const descriptionChangee = (sortie: SortieIterationPlan, ctx: ContexteIteration): boolean =>
-  !!sortie.nouvelleDescription?.trim() && norm(sortie.nouvelleDescription) !== norm(ctx.description ?? "");
+/** La nouvelle description, telle qu'elle sera ÉCRITE : sans l'ancien « État en fin de plan » (2026-11-08 : il n'est plus produit ; un modèle qui le
+ * recopie depuis un plan d'avant ne le réintroduit pas). */
+const nouvelleDescriptionPropre = (sortie: Pick<SortieIterationPlan, "nouvelleDescription">): string => sansEtatDeFin(sortie.nouvelleDescription);
+/** La description change, et la nouvelle est COMPLÈTE : un fragment (le récit perdu) n'écrit rien (`raisonDescriptionIncomplete`, erreur de contrôle). */
+const descriptionChangee = (sortie: SortieIterationPlan, ctx: ContexteIteration): boolean => {
+  const nouvelle = nouvelleDescriptionPropre(sortie);
+  return !!nouvelle && norm(nouvelle) !== norm(sansEtatDeFin(ctx.description)) && raisonDescriptionIncomplete(nouvelle, ctx.description, { reecriture: !!sortie.reecriture }) == null;
+};
 /** La durée demandée par la consigne, quand elle est valide (entière, 4 à 10 s) et change celle du plan ; sinon null. */
 export const dureeDemandee = (sortie: Pick<SortieIterationPlan, "dureeSecondes">, ctx: Pick<ContexteIteration, "dureeGenerationSecondes">): number | null => {
   const d = sortie.dureeSecondes;
@@ -254,6 +256,8 @@ export function raisonSansEcriture(sortie: SortieIterationPlan, ctx: ContexteIte
   const avecRefs = aDesOpsReferences(sortie);
   // Réécriture : la consigne change ce qui se passe dans le plan, la fiche est réécrite à part (aucune retouche de passages).
   if (sortie.reecriture) {
+    const incomplete = sortie.nouvelleDescription?.trim() ? raisonDescriptionIncomplete(nouvelleDescriptionPropre(sortie), ctx.description, { reecriture: true }) : null;
+    if (incomplete) return `L'agent a compris qu'il faut réécrire le plan mais sa nouvelle description est incomplète (${incomplete}) : rien n'est écrit, la description du plan reste telle quelle. Relance la correction.`;
     return sortie.nouvelleDescription?.trim()
       ? "Le plan est à réécrire : la consigne change ce qui s'y passe. Sa fiche est réécrite à partir de la nouvelle description de l'agent."
       : "L'agent a bien compris qu'il faut réécrire le plan mais n'a pas écrit la nouvelle description (un défaut du modèle, pas de la consigne) : rien n'est écrit. Relance la correction ; si cela se répète, découpe la consigne en deux étapes.";
@@ -263,6 +267,8 @@ export function raisonSansEcriture(sortie: SortieIterationPlan, ctx: ContexteIte
   if (sortie.categorie === "decoupage-scenario" && (sortie.changements ?? []).length === 0 && !avecRefs) return "La cause n'est pas dans le prompt (découpage ou scénario) : rien n'est écrit. Revois le découpage du plan, puis réécris sa fiche.";
   if ((sortie.changements ?? []).length === 0 && !avecRefs && !descriptionChangee(sortie, ctx) && dureeDemandee(sortie, ctx) == null) {
     const manquants = (sortie.assetsManquants ?? []).map((a) => a.code).filter(Boolean);
+    const incomplete = sortie.nouvelleDescription?.trim() ? raisonDescriptionIncomplete(nouvelleDescriptionPropre(sortie), ctx.description) : null;
+    if (incomplete) return `La nouvelle description de l'agent est incomplète (${incomplete}) : rien n'est écrit, la description du plan reste telle quelle. Relance la correction.`;
     if (manquants.length > 0) return `Aucune modification du prompt : l'agent suggère de créer ${manquants.join(", ")} (aucun asset du registre ne convient). Crée-le, génère son image, puis itère de nouveau pour l'ajouter en référence.`;
     return "L'agent ne propose aucune modification du prompt.";
   }
@@ -293,10 +299,16 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
       problemes.push({ niveau: "alerte", regle: "duree", message: `L'agent juge la durée incohérente alors que le fichier dure ${secondes(reelle)} pour ${secondes(ctx.dureeGenerationSecondes)} voulues.` });
     }
   }
-  // La nouvelle description doit finir par l'état laissé au plan suivant (le suivi d'état est ce qui porte la continuité) ; une réécriture
-  // sans nouvelle description n'a rien à réécrire. Erreurs : renvoi au modèle.
-  if (sortie.nouvelleDescription?.trim() && !/[ée]tat en fin de plan\s*:/i.test(sortie.nouvelleDescription)) {
-    problemes.push({ niveau: "erreur", regle: "description-etat", message: "nouvelleDescription doit se terminer par « État en fin de plan : … » (où se tiennent les personnages qui comptent et vers quoi ils sont tournés, par rapport aux repères fixes du lieu et non à la caméra ; l'état de ce qui a changé)." });
+  // La nouvelle description REMPLACE l'actuelle : elle doit être complète (un fragment effacerait le récit, et la correction suivante ne verrait plus
+  // rien) ; une réécriture sans nouvelle description n'a rien à réécrire. Erreurs : renvoi au modèle. Une réplique perdue : alerte (la consigne peut
+  // la retirer).
+  if (sortie.nouvelleDescription?.trim()) {
+    const incomplete = raisonDescriptionIncomplete(nouvelleDescriptionPropre(sortie), ctx.description, { reecriture: !!sortie.reecriture });
+    if (incomplete) problemes.push({ niveau: "erreur", regle: "description-incomplete", message: `nouvelleDescription : ${incomplete}. Recopie la description actuelle (plan.intention) et n'y change que ce que la consigne demande.` });
+    const perdues = repliquesPerdues(sortie.nouvelleDescription, ctx.description);
+    if (!incomplete && perdues.length > 0) {
+      problemes.push({ niveau: "alerte", regle: "description-repliques", message: `La nouvelle description ne reprend plus ${perdues.length > 1 ? "les répliques" : "la réplique"} ${perdues.map((r) => `« ${extrait(r, 40)} »`).join(", ")} : à vérifier, sauf si ta consigne demandait de ${perdues.length > 1 ? "les" : "la"} retirer.` });
+    }
   }
   if (sortie.reecriture && !sortie.nouvelleDescription?.trim()) {
     problemes.push({ niveau: "erreur", regle: "reecriture-sans-description", message: "reecriture est vrai mais nouvelleDescription est absente : donne la nouvelle description complète du plan (en français)." });
@@ -396,13 +408,14 @@ export function depuisIterationPlan(sortie: SortieIterationPlan, plan: PlanPourI
   if (sortie.confiance === "faible") {
     ajouter({ type: "alerte_controle", texte: `Confiance faible de l'agent dans ce diagnostic${sortie.verification?.trim() ? ` ; à vérifier : ${sortie.verification.trim()}` : ""}.` });
   }
-  for (const p of controlerSortieIterationPlan(sortie, plan)) ajouter(versAvertissement(p));
+  for (const p of controlerSortieIterationPlan(sortie, plan)) {
+    // Une nouvelle description incomplète (un fragment) n'est pas écrite (`descriptionChangee`) : la retouche du prompt, elle, reste valable.
+    if (p.regle === "description-incomplete") ajouter({ type: "alerte_controle", texte: `Nouvelle description ignorée, celle du plan ne change pas : ${p.message.replace(/^nouvelleDescription : /, "").replace(/\. Recopie[\s\S]*$/, "")}.` });
+    else ajouter(versAvertissement(p));
+  }
   const recopies = motsRecopiesDeLaConsigne(plan.consigne, a.passages.map((p) => p.apres), Object.values(plan.sections).join(" "));
   if (recopies.length > 0) ajouter({ type: "info", texte: `Mots de ta consigne recopiés tels quels dans le prompt anglais : ${recopies.join(", ")} (à vérifier : ils doivent être traduits).` });
-  const description = descriptionChangee(sortie, plan) ? { description: sortie.nouvelleDescription!.trim() } : {};
-  if (description.description && etatEnFinDePlan(description.description) !== etatEnFinDePlan(plan.description)) {
-    ajouter({ type: "info", texte: "L'état de fin du plan a changé : le plan suivant n'a pas été revérifié." });
-  }
+  const description = descriptionChangee(sortie, plan) ? { description: nouvelleDescriptionPropre(sortie) } : {};
   const duree = dureeDemandee(sortie, plan);
   if (duree != null) ajouter({ type: "info", texte: `Durée du plan : ${plan.dureeGenerationSecondes} s → ${duree} s (demandée dans ta consigne), appliquée au rendu et au montage.` });
   const nouvelleDuree = duree != null ? { dureeGenerationSecondes: duree } : {};
@@ -509,8 +522,9 @@ export function appliquerOpsReferences(
   return { sections: courant, refs, problemes, resume };
 }
 
-/** Le diagnostic à afficher, depuis le JSON validé du skill (agent_runs.resultat) ; null s'il n'en a pas la forme. */
-export function diagnosticIteration(json: unknown): DiagnosticIteration | null {
+/** Le diagnostic à afficher, depuis le JSON validé du skill (agent_runs.resultat) ; null s'il n'en a pas la forme. `entree` (agent_runs.entree), si on
+ * l'a : la description du plan au moment de la correction, pour écarter une réécriture dont la nouvelle description est un fragment. */
+export function diagnosticIteration(json: unknown, entree?: unknown): DiagnosticIteration | null {
   if (!json || typeof json !== "object") return null;
   const s = json as Partial<SortieIterationPlan>;
   if (typeof s.symptome !== "string" || typeof s.cause !== "string" || typeof s.dureeCoherente !== "boolean") return null;
@@ -527,8 +541,8 @@ export function diagnosticIteration(json: unknown): DiagnosticIteration | null {
     entreeLexique: l && typeof l.symptome === "string" && typeof l.cause === "string" && typeof l.formulationQuiTient === "string" ? l : null,
     abandon: s.abandon && typeof s.abandon.propose === "boolean" ? { propose: s.abandon.propose, raison: s.abandon.raison ?? "" } : null,
     reecriture:
-      s.reecriture === true && typeof s.nouvelleDescription === "string" && s.nouvelleDescription.trim()
-        ? { description: s.nouvelleDescription.trim(), ...(typeof s.dureeSecondes === "number" && Number.isInteger(s.dureeSecondes) && s.dureeSecondes >= DUREE_GENERATION_MIN && s.dureeSecondes <= DUREE_GENERATION_MAX ? { dureeSecondes: s.dureeSecondes } : {}) }
+      s.reecriture === true && typeof s.nouvelleDescription === "string" && s.nouvelleDescription.trim() && raisonDescriptionIncomplete(s.nouvelleDescription, entree !== undefined ? contexteDepuisEntree(entree).description : null, { reecriture: true }) == null
+        ? { description: sansEtatDeFin(s.nouvelleDescription), ...(typeof s.dureeSecondes === "number" && Number.isInteger(s.dureeSecondes) && s.dureeSecondes >= DUREE_GENERATION_MIN && s.dureeSecondes <= DUREE_GENERATION_MAX ? { dureeSecondes: s.dureeSecondes } : {}) }
         : null,
     assetsSuggeres: (Array.isArray(s.assetsManquants) ? s.assetsManquants : [])
       .filter((a): a is NonNullable<SortieIterationPlan["assetsManquants"]>[number] => !!a && typeof a.code === "string" && typeof a.type === "string")

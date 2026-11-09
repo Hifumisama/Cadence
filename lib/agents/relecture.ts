@@ -8,9 +8,10 @@ import { operationsVersChangements } from "./vue-operations/operations-vers-chan
 import type { Operation, OperationBrute } from "./vue-operations/types";
 import { numeroDePoignee, planParUuid, type VueEpisode } from "./vue-operations/vue-episode";
 import type { Avertissement } from "./types";
+import { aUnEtatDeFin, recitDe } from "../intent";
 
 /** RELECTURE DU SCÉNARIO (skill `relecture-scenario`, FRICTIONS 2026-10-19) : une passe du modèle qui réfléchit sur le scénario d'un épisode
- * ÉCRIT (intentions et « État en fin de plan »), avant les fiches de plan. Elle ne réécrit pas l'épisode : elle rend les PLUS PETITES corrections
+ * ÉCRIT (intentions et répliques), avant les fiches de plan. Elle ne réécrit pas l'épisode : elle rend les PLUS PETITES corrections
  * (modifier la description ou la liaison d'un plan, changer une durée, supprimer un doublon, ajouter une résolution), citées par poignée (« P07 »,
  * un rang à l'instant de la lecture, jamais stocké : F03), que le code traduit en uuid puis en changements pour les applicateurs existants du
  * plan. Tout ce qui se vérifie par code se vérifie ici ; le jugement (est-ce physiquement possible ?) est
@@ -62,7 +63,6 @@ export type EntreeRelecture = {
 
 // --- contrôles de code ----------------------------------------------------------------------------------------------------------------
 
-const ETAT_FIN = /[ée]tat en fin de plan\s*:/i;
 /** Une description ne renvoie jamais à un autre plan (FRICTIONS 2026-09-28/29 et 2026-10-14) : ni poignée, ni « plan précédent », ni numéro. */
 const RENVOI_A_UN_PLAN = /\bP\s?\d{1,3}\b|\bplans?\s+(?:pr[ée]c[ée]dents?|suivants?|d'avant|d'apr[èe]s|n°?\s*\d+|\d+)\b|\b(?:comme|ainsi qu')\s+(?:au|dans le|dans les)\s+plans?\b/i;
 const norme = (s: string) => s.toLowerCase().replace(/\s+/g, " ").replace(/[«»"“”]/g, "").trim();
@@ -110,7 +110,8 @@ export function problemesDeRelecture(sortie: SortieRelecture, entree: EntreeRele
       if (c.type === "modifier_plan" && !texte && !c.liaison && !c.titre) dit(i, `${nom} : ni nouvelle description, ni liaison, ni titre : rien à modifier.`);
       if (c.type === "ajouter_plan" && !texte) dit(i, `${nom} : un plan ajouté a une description.`);
       if (texte) {
-        if (!ETAT_FIN.test(texte)) dit(i, `${nom} : la description doit se terminer par « État en fin de plan : … » (où sont les personnages qui comptent, vers quoi ils sont tournés, par rapport aux repères fixes du lieu ; l'état de ce qui a changé).`);
+        if (aUnEtatDeFin(texte)) dit(i, `${nom} : n'écris pas de ligne « État en fin de plan : … » (elle n'existe plus) ; la fin du plan se raconte dans son dernier temps, dans le récit.`);
+        if (!recitDe(texte)) dit(i, `${nom} : la description n'a pas de récit (ce qui se passe dans le plan) ; donne la description COMPLÈTE, pas seulement la phrase changée.`);
         if (RENVOI_A_UN_PLAN.test(texte)) dit(i, `${nom} : la description ne renvoie à aucun autre plan (ni poignée « P07 », ni « plan précédent » ou « suivant ») : elle se désynchroniserait au réordonnancement. Dis le fait, pas le plan.`);
         if (/\b(?:cam[ée]ra|travelling|gros plan|plan large|contre-plong[ée]e|panoramique)\b/i.test(texte) && !/consigne de l'auteur/i.test(texte)) {
           dit(i, `${nom} : pas de cadrage ni de caméra dans une description de scénario (c'est l'affaire de la fiche de plan).`);
@@ -121,7 +122,7 @@ export function problemesDeRelecture(sortie: SortieRelecture, entree: EntreeRele
     if (c.type === "modifier_plan" && avant && texte) {
       if (norme(texte) === norme(avant.description)) dit(i, `${nom} : la description est identique à l'actuelle.`);
       else if (partConservee(avant.description, texte) < PART_CONSERVEE_MIN) {
-        dit(i, `${nom} : tu réécris ${c.plan} presque en entier. La plus petite correction change la phrase fautive (ou en ajoute une) et garde le reste mot pour mot, y compris les répliques et l'« État en fin de plan » quand ils restent vrais.`);
+        dit(i, `${nom} : tu réécris ${c.plan} presque en entier. La plus petite correction change la phrase fautive (ou en ajoute une) et garde le reste mot pour mot, y compris les répliques quand elles restent vraies.`);
       }
       // Les mots de l'auteur ne se touchent pas : une réplique qu'il a écrite reste mot pour mot.
       for (const r of repliquesDe(avant.description)) {

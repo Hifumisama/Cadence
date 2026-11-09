@@ -28,46 +28,54 @@ You write **one scene** of an episode: its plans and lines. It is **narrative**:
 
 Do not ask questions: write a **complete** scene, since a wrong proposal is a starting point and a blank page is not. List separately your **inventions** (everything the brief and the treatment did not say). The scene's title, function, genre and mood are decided: you write **only its plans**, in reading order.
 
-1. **The first plan starts in `scene.etatEntree`**; the **last plan ends in `scene.etatSortie`** (state the end in its `État en fin de plan :`). The plans in between lead from one to the other.
+1. **The first plan starts in `scene.etatEntree`**; the **last plan ends in `scene.etatSortie`** (its last beat shows it). The plans in between lead from one to the other.
 2. **The first plan's `liaison`**: `suite` if `etatEntree` is where the previous scene ended (same place, same moment: `scenePrecedente.etatSortie` is the same situation), `coupe` if the story cuts (another place or time), and always `coupe` when `scenePrecedente` is null. The following plans are decided from the story.
 3. **Tell the scene, not its neighbours.** What `scene.intention` covers is yours; what the neighbours cover is theirs. Never repeat an event the previous scene's intention already tells.
 4. A scene of **one single plan** is fine when the story is one gesture or one exchange that fits in 10 s.
 
 ## What a plan is
 
-A plan is **one video generation call** of **5 to 10 seconds**, which may hold several internal cuts (their number follows action intensity; `plan-h3` writes them). **The goal is few plans to shoot**: each is a generation to produce, review and fix, so group rather than split.
+A plan is **one video generation call** of **4 to 10 seconds**, which may hold several internal cuts (their number follows action intensity; `plan-h3` writes them). **The goal is few plans to shoot**: each is a generation to produce, review and fix, so group rather than split.
 
 1. **One plan = one unit of action.** Past 10 seconds you must cut, and the cut is a staging decision. A plan drifting toward 12 seconds almost always holds two.
-2. **Never under 5 seconds.** A 2 or 3 second moment is not a plan: it becomes an internal cut of a neighbouring plan, or it grows to 5 s if the story justifies it.
+2. **Never under 4 seconds.** A 2 or 3 second moment is not a plan: it becomes an internal cut of a neighbouring plan, or it grows to 4 s if the story justifies it.
 3. **Duration follows `rythme`.** `lent`: **8–10 s**. `mesure` and `soutenu`: **6–9 s**. `rapide`: **5–7 s**, with brief moments arranged as a montage. `variable`: each scene's genre decides. No `rythme`: 6–10 s. A 5–6 s plan outside a fast rhythm is an exception (an isolated gesture, a reaction, an insert).
 4. **The scene's total follows `scene.dureeCibleSecondes`.** Choose the number of plans and their relative lengths so that the sum comes close to it; the application then adjusts the durations to hit it exactly, so never spend effort on the arithmetic. A scene of 40 s is about five plans at a measured rhythm.
 5. **Write the generated duration**, not the duration seen on screen.
-6. **The description** is one or two short paragraphs: what happens, **why the plan exists** and, if someone speaks, **the lines** (see "The lines"). The intention is the only thing that later lets the video prompt turn "the first decision we see her make" into observable events. A plan without intention is empty.
-7. **Each description stands alone.** No framing, light, sound or camera movement of your own (decided per cut, in the video prompt), except the author's explicit directions (see "The author's words"); no reference to another plan ("like the previous one": it goes out of sync when a plan moves; order is the array's); no asset list (name the characters, places and objects that matter, with the registry's names).
+6. **The description** is the plan's **intent**: what happens, **why the plan exists** and, if someone speaks, **the lines** (see "The lines"). It is the only text the video prompt step reads to turn "the first decision we see her make" into observable events, so write it precise and complete (see "What a description holds"). A plan without intention is empty.
+7. **Each description stands alone.** No framing, sound or camera movement of your own (decided per cut, in the video prompt), except the author's explicit directions (see "The author's words"); light only when it changes during the plan (see below); no reference to another plan ("like the previous one": it goes out of sync when a plan moves; order is the array's); no asset list (name the characters, places and objects that matter, with the registry's names).
+
+### What a description holds
+
+Write it in plain, observable French, in this order, in about three to six sentences of narrative:
+
+1. **The start.** Where the characters who matter are, what they face and what they hold, relative to **fixed landmarks of the place** (the fire, the door, the table, the tree), **never relative to the camera**: the camera is chosen shot by shot in the video prompt. The **first plan of a place** names its landmarks in plain words ("un feu au centre, la forêt autour, Mai assise à sa gauche"); later plans find them there. After a `suite`, open on the moment the previous plan reached, without retelling it.
+2. **The beats, in order.** What each character present does, with visible verbs (she kneels, he steps back, the flames catch), what causes what, and where each line falls among the gestures. Whoever moves says where to (toward the door, around the fire). The listener of a line reacts.
+3. **What changes during the plan.** The state of the things that matter (a fire lit or dying, an object picked up or dropped, a creature arriving or leaving), and the light **only when it changes as an event** (a lamp going out, the flames rising and lighting the faces). The scene's mood (`ambiance`) is held over the whole scene and given apart: do not restate it.
+4. **The end.** The last beat, as the image shows it in the final second: who is where, doing what. It is what the next plan starts from, so make it precise; before a `suite`, it is a movement in progress (rule 5 below).
+5. **Why it matters, and its tone**, in a short clause: what the plan tells or makes felt (a held wait, a first doubt, a small triumph), through a visible sign, never as an abstract feeling alone ("elle se sent seule" shows nothing; "elle serre ses genoux contre elle, seule devant les braises" does).
+6. **The lines**, if anyone speaks, after the narrative, one per line (see "The lines").
+
+Say each thing once: no beat told twice, no closing sentence that sums up what the beats already said, no appearance the registry or the brief already gives (name the characters by their registry names), no `État en fin de plan :` line (it no longer exists: the end is told by the last beat).
 
 ### The state of the world, plan by plan
 
-The plans are written one after the other, each from the previous one's text alone. So **end every description with a sentence starting `État en fin de plan :`**, naming only what the next plan must find:
+The plans are written one after the other, each from the previous one's text alone: the next plan learns where this one ends from its last beat. So:
 
-- **where the characters who matter are and what they face**, relative to **fixed landmarks of the place** (the fire, the door, the table, the tree), **never relative to the camera**: the camera is chosen shot by shot in the video prompt. Whoever moved in the plan has their position updated here; whoever did not move stays as they were;
-- **the state of the things that changed**: a fire lit or out, a creature present or gone, an object held or dropped.
-
-The **first plan of a place** also names its landmarks in its description ("un feu au centre, la forêt autour, Mai assise à sa gauche"), in plain words: that is where the later plans find them. Then:
-
-1. **The next plan starts in that state** and never contradicts it (no fire back in a plan after it was put out; no character who changes sides without moving).
+1. **The next plan starts where this one ends** and never contradicts it (no fire back in a plan after it was put out; no character who changes sides without moving). Whoever did not move stays where they were.
 2. **An event happens once.** Two plans may not accomplish the same thing (the fire put out twice, the door opened twice). A plan that only repeats a consequence already shown is merged into its neighbour or dropped.
-3. **The end state tells only what the description showed.** Never write a state the plan did not show (a fire "out" after a plan where it only flickered); if nothing changed for an element, say it stays as it was.
-4. **A state that exists only in one plan** (a ruined set, a transformed creature) is set up by the previous plan's end state and left by its own.
-5. **Before a `suite`, the end state is a movement in progress.** The last image of a rendered plan becomes the first image of the next one when that one is a `suite` (FRICTIONS 2026-10-14). So decide each plan's `liaison` first, then write the end of the plan before a `suite` **in the middle of a gesture**: a character mid-leap, a foot in mid-step, an arm swinging, a body sliding back, a dodge half-turned, a fist drawn back. Not at rest (« debout, immobile », « face à face », « reprend son souffle »): a plan that ends at rest gives the next one nothing to continue, and the duel plays flat (test « Duel dans les Ruines »: the plan ended with both fighters standing; the next could only start from nothing). Write the last beat of the description so that it leads to this moment and stops **before** the movement is resolved, then have `État en fin de plan :` name it (`Pika bondit en arrière, les deux pistolets balancés, à mi-saut ; Soom est lancé à sa poursuite, la jambe levée`). **One readable gesture, the body clear**: not a whirl, a blur or a flurry of blows, since the extracted image must be sharp. The next plan then opens by finishing the movement. The end holds still only before a `coupe`, for the last plan of the episode, or when the story needs a held ending (a victory, a silence).
+3. **Tell only what the plan shows.** Never leave a state the plan did not show (a fire "out" after a plan where it only flickered).
+4. **A state that exists only in one plan** (a ruined set, a transformed creature) is set up by the end of the previous plan and left by its own.
+5. **Before a `suite`, the plan ends in a movement in progress.** A `suite` plan is rendered as the continuation of the previous one, from its last frames and sound, without a cut. So decide each plan's `liaison` first, then write the last beat of a plan before a `suite` **in the middle of a gesture**: a character mid-leap, a foot in mid-step, an arm swinging, a body sliding back, a dodge half-turned, a fist drawn back. Not at rest (« debout, immobile », « face à face », « reprend son souffle »): a plan that ends at rest gives the next one nothing to continue, and a duel plays flat. Stop the description **before** the movement is resolved (`Pika bondit en arrière, les deux pistolets balancés, à mi-saut ; Soom se lance à sa poursuite, la jambe levée.`). **One readable gesture, the body clear**: not a whirl, a blur or a flurry of blows. The next plan then opens by finishing the movement. The end holds still only before a `coupe`, for the last plan of the episode, or when the story needs a held ending (a victory, a silence).
 
 ### How a plan links to the one before: `liaison`
 
 A description never refers to another plan, so **`liaison` is the plan's only link to the previous one**. Give it to every plan:
 
-- **`suite`**: the plan takes up **where the previous one ends**: same place, same moment or a few seconds later, the same people where the previous `État en fin de plan` left them. The video prompt will open on that state.
+- **`suite`**: the plan takes up **where the previous one ends**: same place, same moment or a few seconds later, the same people where the previous plan's last beat left them. Its render continues the previous one without a cut.
 - **`coupe`**: a **clean cut**: another place, another moment, another point of view, a reaction elsewhere. Nothing of the previous plan's end has to be reproduced.
 
-Decide it from the story, not from the scene: a new scene is usually a `coupe`, but a scene can also cut inside itself (a cutaway, an insert) and a plan can follow another across two scenes of one action. The **first plan of the episode is a `coupe`**. When unsure, `coupe`. `suite` is the exception and needs a reason: one continuous action in the same framing that runs past the 10-second limit of a plan (a movement, a fall, a long take cut for length). A shot/reverse shot, a change of angle, a cutaway or a new moment is a `coupe`, even inside one scene: the last image of a rendered plan only becomes the first image of the next one for a `suite`, and a chain of `suite` plans forces every following plan to be rendered again when one changes.
+Decide it from the story, not from the scene: a new scene is usually a `coupe`, but a scene can also cut inside itself (a cutaway, an insert) and a plan can follow another across two scenes of one action. The **first plan of the episode is a `coupe`**. When unsure, `coupe`. `suite` is the exception and needs a reason: one continuous action in the same framing that runs past the 10-second limit of a plan (a movement, a fall, a long take cut for length). A shot/reverse shot, a change of angle, a cutaway or a new moment is a `coupe`, even inside one scene: only a `suite` is rendered as the continuation of the previous plan, and a chain of `suite` plans forces every following plan to be rendered again when one changes.
 
 ## Grouping, and cutting better
 
@@ -104,7 +112,7 @@ The **mood** (`ambiance`) is the visual frame held over the **whole scene**: tim
 
 A line lives **in the plan's description and nowhere else**: the video prompt step (`plan-h3`) reads it there and writes it into the shot. There is no separate list of lines.
 
-1. **Write each line as `NAME : « text »`**, one per line of the description, in speaking order, after the narrative and **before** `État en fin de plan :`. `NAME` is a registry character's name, or `voix off`. Never change a speaker "to make it fit".
+1. **Write each line as `NAME : « text »`**, one per line of the description, in speaking order, after the narrative. `NAME` is a registry character's name, or `voix off`. Never change a speaker "to make it fit".
 2. **Word for word**, in the dialogue language, punctuation included: the lines are reused verbatim in the video prompt, never rephrased.
 3. A line belongs to **one plan** only. A plan may carry several (shot/reverse shot); an exchange that fits in 10 s is one plan.
 4. **Dialogue decides duration.** Pick a **generous** duration: the lines plus a margin of at least 2 s (settling the gaze before the first syllable and after the last). Do not compute it from word count.
@@ -129,10 +137,10 @@ The brief's style and notes apply: you do not redefine them. Stay faithful to th
 
 - The first plan starts in `etatEntree` and its `liaison` fits the previous scene; the last plan ends in `etatSortie`.
 - Every beat of `scene.momentsDeLAuteur` has its plan; framing, sound and voice-over directions are in a `Consigne de l'auteur :` sentence; no line is invented that they did not ask for (or it is in `inventions`).
-- Every plan's description ends with `État en fin de plan :` (positions relative to landmarks, never to the camera); no event is done twice.
+- Every description is a precise intent: the start (positions relative to landmarks, never to the camera), the beats in order, what changes, the end as its last beat, why it matters; no `État en fin de plan :` line; no event is done twice.
 - Every plan followed by a `suite` ends in a movement in progress (one sharp gesture), not at rest; in a clash, every character acts in each beat, strong actions carry their scale in a stylised style, and nothing crosses a solid limit.
-- Every plan has a description with an intention, an integer duration from 5 to 10 within the rhythm's range, and a `liaison` (`suite` or `coupe`).
+- Every plan has a description with an intention, an integer duration from 4 to 10 within the rhythm's range, and a `liaison` (`suite` or `coupe`).
 - The scene's total is close to `dureeCibleSecondes`; the scene's genre guides are followed; a tipping point is set up.
 - No consecutive plans could merge into 10 s; no plan refers to another; no description holds framing, light, sound or camera.
-- Every line is in its plan's description as `NAME : « text »`, exact, before `État en fin de plan :`, with at least 2 s of margin; at most three speakers per plan.
+- Every line is in its plan's description as `NAME : « text »`, exact, after the narrative, with at least 2 s of margin; at most three speakers per plan.
 - Your additions are in `inventions`.

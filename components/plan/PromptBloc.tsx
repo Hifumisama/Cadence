@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { enregistrerPrompt } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
+import { intentAffichee } from "@/lib/intent";
 
 export type VersionPrompt = { id: number; texte: string; source: string; quand: string };
 
@@ -184,7 +185,7 @@ export function PromptBloc({
           {essai.description ? (
             <details>
               <summary>Description du plan pour cet essai (différente de l&rsquo;actuelle)</summary>
-              <pre className="fp-sec-texte">{essai.description}</pre>
+              <pre className="fp-sec-texte">{intentAffichee(essai.description)}</pre>
             </details>
           ) : null}
         </div>

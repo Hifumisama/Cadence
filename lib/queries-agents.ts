@@ -278,8 +278,8 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
   // Correction après visionnage : le diagnostic vit dans le résultat de la tâche (il existe même sans écriture).
   let diagnostic: VueProposition["diagnostic"] = null;
   if (p.skill === "iteration-plan" && p.runId != null) {
-    const [run] = await db.select({ resultat: agentRuns.resultat }).from(agentRuns).where(eq(agentRuns.id, p.runId));
-    diagnostic = diagnosticIteration(run?.resultat ?? null);
+    const [run] = await db.select({ resultat: agentRuns.resultat, entree: agentRuns.entree }).from(agentRuns).where(eq(agentRuns.id, p.runId));
+    diagnostic = diagnosticIteration(run?.resultat ?? null, run?.entree);
   }
   let parentUuid: string | null = null;
   if (p.parentId != null) {

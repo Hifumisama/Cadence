@@ -33,7 +33,7 @@
             "properties": {
               "type": { "type": "string", "const": "modifier_plan" },
               "plan": { "type": "string", "description": "Reference of the plan concerned, exactly as in the input (P01, P02…)." },
-              "description": { "type": "string", "description": "(French) The COMPLETE new description of the plan: the original with only the broken sentence changed or one sentence added. Keep the rest word for word, the lines `NOM : « … »` and the final « État en fin de plan : … » sentence. No reference to another plan, no camera. Leave out if only `liaison` or `titre` changes." },
+              "description": { "type": "string", "description": "(French) The COMPLETE new description of the plan: the original with only the broken sentence changed or one sentence added. Keep the rest word for word, including the lines `NOM : « … »`; never only the changed sentence, no « État en fin de plan » line. No reference to another plan, no camera. Leave out if only `liaison` or `titre` changes." },
               "titre": { "type": "string", "description": "(French) A new title, only if the old one is now false." },
               "liaison": { "type": "string", "enum": ["suite", "coupe"], "description": "The new link with the PREVIOUS plan, only if it changes. The first plan is always a coupe." },
               "critere": { "type": "string", "enum": ["physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "menace", "resolution", "dialogue"] },
@@ -71,7 +71,7 @@
               "type": { "type": "string", "const": "ajouter_plan" },
               "apres": { "type": "string", "description": "Reference of the plan AFTER which the new plan comes (the last plan, for a resolution)." },
               "titre": { "type": "string", "description": "(French) Short title of the new plan." },
-              "description": { "type": "string", "description": "(French) The new plan, in the screenplay's form: what happens and why, the lines if any (`NOM : « … »`), then « État en fin de plan : … ». With no camera and no reference to another plan." },
+              "description": { "type": "string", "description": "(French) The new plan, in the screenplay's form: what happens and why (the start relative to the place's landmarks, the beats in order, what changes, the end as its last beat), then the lines if any (`NOM : « … »`), no « État en fin de plan » line. With no camera and no reference to another plan." },
               "secondes": { "type": "integer", "minimum": 4, "maximum": 10, "description": "Generation duration, whole seconds." },
               "critere": { "type": "string", "enum": ["resolution", "menace", "physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "dialogue"] },
               "motif": { "type": "string", "description": "(French) One sentence: why this plan is needed." }

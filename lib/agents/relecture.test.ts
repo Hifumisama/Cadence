@@ -11,7 +11,8 @@ import { construireVue } from "./vue-operations/vue-episode";
 
 // Un petit épisode fabriqué : des cavaliers arrivent à cheval (P03), parlent « au bord de la rue » (P04), ne descendent qu'en P05 ; P06 et P07 racontent
 // le même départ du train ; le dernier plan ne résout rien.
-const D = (corps: string, etat: string) => `${corps}\nÉtat en fin de plan : ${etat}`;
+// Les descriptions n'ont plus de ligne « État en fin de plan » (2026-11-08) : le second argument ne sert qu'à dire, à la lecture du test, où le plan finit.
+const D = (corps: string, _fin: string) => corps;
 const plansDonnes = [
   { uuid: "u1", titre: "La shérif devant le train", description: D("Elias se tient sur le quai.", "Elias est debout sur le quai."), duree: 8, sceneId: 1, statut: "brouillon", liaison: "coupe" },
   { uuid: "u2", titre: "La bande arrive", description: D("Cinq cavaliers entrent dans la rue.", "Les cavaliers sont à cheval au début de la rue."), duree: 8, sceneId: 1, statut: "brouillon", liaison: "suite" },
@@ -57,11 +58,12 @@ test("une relecture minimale ne soulève aucun défaut", () => {
   assert.deepEqual(problemesDeRelecture(sortie([]), entree), []);
 });
 
-test("défauts : renvoi à un autre plan, état de fin absent, réécriture trop large, poignée inconnue, motif absent", () => {
+test("défauts : renvoi à un autre plan, ancien état de fin réécrit, récit absent, réécriture trop large, poignée inconnue, motif absent", () => {
   const messages = (c: SortieRelecture["corrections"]) => problemesDeRelecture(sortie(c), entree).map((p) => p.message);
   assert.match(messages([{ type: "modifier_plan", plan: "P03", description: D("Red Jack parle comme au plan précédent.", "Red Jack est au bord de la rue."), critere: "physique", motif: "m" }]).join("|"), /ne renvoie à aucun autre plan/);
   assert.match(messages([{ type: "modifier_plan", plan: "P03", description: D("Red Jack parle, voir P02.", "Red Jack est au bord de la rue."), critere: "physique", motif: "m" }]).join("|"), /ne renvoie à aucun autre plan/);
-  assert.match(messages([{ type: "modifier_plan", plan: "P03", description: "Red Jack parle à Elias depuis le bord de la rue, toujours à cheval.\nRed Jack : « Le train s'arrête, shérif. »", critere: "physique", motif: "m" }]).join("|"), /État en fin de plan/);
+  assert.match(messages([{ type: "modifier_plan", plan: "P03", description: `${descP4}\nÉtat en fin de plan : Red Jack est au bord de la rue.`, critere: "physique", motif: "m" }]).join("|"), /n'écris pas de ligne « État en fin de plan/);
+  assert.match(messages([{ type: "modifier_plan", plan: "P03", description: "Red Jack : « Le train s'arrête, shérif. »\nElias : « Il part. »", critere: "physique", motif: "m" }]).join("|"), /n'a pas de récit/);
   assert.match(messages([{ type: "modifier_plan", plan: "P03", description: D("Une toute autre histoire commence ici sur une plage lointaine sans aucun rapport.", "Personne n'est nulle part."), critere: "physique", motif: "m" }]).join("|"), /presque en entier/);
   assert.match(messages([{ type: "couper_plan", plan: "P42", critere: "doublon", motif: "m" }]).join("|"), /« P42 » n'est pas un plan/);
   assert.match(messages([{ type: "couper_plan", plan: "P05", critere: "doublon", motif: " " }]).join("|"), /POURQUOI/);

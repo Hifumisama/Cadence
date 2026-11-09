@@ -404,26 +404,31 @@ test("assetsManquants : le schéma l'accepte ; sans modification du prompt, la r
   assert.deepEqual(diagnosticIteration(sortie())!.assetsSuggeres, []);
 });
 
-// --- description du plan : mise à jour de l'état de fin, et réécriture du plan (2026-10-14) ---
+// --- description du plan : écrite avec la fiche quand la correction la change, réécriture du plan (2026-10-14), plus d'état de fin (2026-11-08) ---
 
-const DESC_AVANT = "Mai attend devant le feu.\n\nÉtat en fin de plan : Mai assise à gauche du feu, tournée vers lui ; feu allumé.";
-const DESC_APRES = "Mai attend devant le feu, puis se lève.\n\nÉtat en fin de plan : Mai debout à gauche du feu, tournée vers lui ; feu allumé.";
+const DESC_AVANT = "Mai attend devant le feu, les mains tendues vers les flammes.\nMai : « Il viendra. »";
+const DESC_APRES = "Mai attend devant le feu, les mains tendues vers les flammes, puis se lève et recule d'un pas.\nMai : « Il viendra. »";
 
-test("etatEnFinDePlan : ce que le plan laisse au suivant, vide s'il manque", async () => {
-  const { etatEnFinDePlan } = await import("./iteration-plan");
-  assert.equal(etatEnFinDePlan(DESC_AVANT), "Mai assise à gauche du feu, tournée vers lui ; feu allumé.");
-  assert.equal(etatEnFinDePlan("Rien d'autre."), "");
-  assert.equal(etatEnFinDePlan(undefined), "");
-});
+// Le plan « Le feu » (projet 236, run 3906) : une description complète, écrite avec l'ancien « État en fin de plan ».
+const DESC_FEU =
+  "Un feu au centre de la clairière, la forêt autour. Mai, assise à gauche du feu, frotte deux pierres au-dessus d'un tas de brindilles ; une étincelle jaillit, " +
+  "les brindilles fument puis s'embrasent. Elle se penche, souffle doucement, et les flammes montent en éclairant son visage. Elle sourit, soulagée, les mains tendues vers la chaleur.\n" +
+  "Mai : « Enfin. »\n\n" +
+  "État en fin de plan : Mai assise à gauche du feu, tournée vers lui, les mains tendues ; le feu bien pris, haut et clair, éclaire la clairière.";
+// Ce que l'agent a rendu (reecriture=false) : SEULEMENT une phrase d'état, 222 caractères.
+const FRAGMENT_FEU =
+  "État en fin de plan : Mai est assise à gauche du feu, de profil, tournée vers les flammes, les deux mains tendues au-dessus des braises ; le feu brûle haut et clair au centre de la clairière, la forêt sombre autour.";
 
-test("nouvelleDescription : écrite avec la fiche (apres.description), avec la note « le plan suivant n'a pas été revérifié » si l'état de fin change", () => {
+test("nouvelleDescription : écrite avec la fiche (apres.description), sans note d'état de fin", () => {
   const ch = depuisIterationPlan(sortie({ nouvelleDescription: DESC_APRES }), plan({ description: DESC_AVANT }));
   const a = lireApresFiche(ch[0]!.apres);
   assert.equal(a.description, DESC_APRES);
-  assert.ok(ch[0]!.avertissements!.some((v) => /l'état de fin du plan a changé/i.test(v.texte)));
-  // même état de fin : pas de note
-  const meme = depuisIterationPlan(sortie({ nouvelleDescription: DESC_AVANT.replace("attend", "patiente") }), plan({ description: DESC_AVANT }));
-  assert.ok(!meme[0]!.avertissements!.some((v) => /état de fin/i.test(v.texte)));
+  assert.ok(!ch[0]!.avertissements!.some((v) => /état de fin/i.test(v.texte)));
+});
+
+test("nouvelleDescription : un ancien « État en fin de plan » recopié par le modèle n'est pas réécrit en base", () => {
+  const ch = depuisIterationPlan(sortie({ nouvelleDescription: `${DESC_APRES}\n\nÉtat en fin de plan : Mai debout.` }), plan({ description: DESC_AVANT }));
+  assert.equal(lireApresFiche(ch[0]!.apres).description, DESC_APRES);
 });
 
 test("nouvelleDescription seule (sans passage) est une écriture ; identique à l'actuelle, ce n'est rien", () => {
@@ -431,13 +436,49 @@ test("nouvelleDescription seule (sans passage) est une écriture ; identique à 
   assert.equal(raisonSansEcriture(seule, plan({ description: DESC_AVANT })), null);
   assert.equal(depuisIterationPlan(seule, plan({ description: DESC_AVANT })).length, 1);
   assert.match(raisonSansEcriture(sortie({ changements: [], nouvelleDescription: DESC_AVANT }), plan({ description: DESC_AVANT })) ?? "", /aucune modification/i);
+  // l'actuelle porte encore l'ancien état de fin : la même description sans lui n'est pas un changement
+  assert.match(raisonSansEcriture(sortie({ changements: [], nouvelleDescription: DESC_AVANT }), plan({ description: `${DESC_AVANT}\n\nÉtat en fin de plan : Mai assise.` })) ?? "", /aucune modification/i);
 });
 
-test("contrôles : la nouvelle description doit finir par l'état de fin ; une réécriture exige une description", () => {
-  const sansEtat = erreurs(sortie({ nouvelleDescription: "Mai se lève." }), plan({ description: DESC_AVANT }));
-  assert.ok(sansEtat.includes("description-etat"));
-  assert.ok(erreurs(sortie({ reecriture: true, changements: [] }), plan({ description: DESC_AVANT })).includes("reecriture-sans-description"));
+test("contrôles : plus d'état de fin exigé ; une réécriture exige une description", () => {
   assert.deepEqual(erreurs(sortie({ nouvelleDescription: DESC_APRES }), plan({ description: DESC_AVANT })), []);
+  assert.ok(erreurs(sortie({ reecriture: true, changements: [] }), plan({ description: DESC_AVANT })).includes("reecriture-sans-description"));
+});
+
+test("bug du plan « Le feu » : une nouvelleDescription réduite à la phrase d'état n'écrase pas le récit", () => {
+  const p = plan({ description: DESC_FEU });
+  // contrôle : erreur, donc renvoi au modèle
+  assert.ok(erreurs(sortie({ changements: [], nouvelleDescription: FRAGMENT_FEU }), p).includes("description-incomplete"));
+  // sans autre changement : rien n'est écrit, la raison le dit
+  assert.match(raisonSansEcriture(sortie({ changements: [], nouvelleDescription: FRAGMENT_FEU }), p) ?? "", /incomplète/);
+  assert.deepEqual(depuisIterationPlan(sortie({ changements: [], nouvelleDescription: FRAGMENT_FEU }), p), []);
+  // avec une retouche du prompt : la retouche passe, la description ne change pas (alerte, pas de blocage)
+  const ch = depuisIterationPlan(sortie({ nouvelleDescription: FRAGMENT_FEU }), p);
+  assert.equal(ch.length, 1);
+  const a = lireApresFiche(ch[0]!.apres);
+  assert.equal(a.description, undefined);
+  assert.ok(a.sections?.detailed_description);
+  assert.ok(ch[0]!.avertissements!.some((v) => v.type === "alerte_controle" && /Nouvelle description ignorée/.test(v.texte)));
+  assert.ok(!ch[0]!.avertissements!.some((v) => v.type === "bloque_controle"));
+  // un fragment de récit (la seule phrase changée) est refusé de même
+  assert.ok(erreurs(sortie({ changements: [], nouvelleDescription: "Mai se retourne vers la forêt." }), p).includes("description-incomplete"));
+  // la description complète, retouchée, passe
+  const complete = DESC_FEU.replace("Elle sourit, soulagée", "Elle sourit, puis se retourne vers la forêt").replace(/\n\nÉtat en fin de plan[\s\S]*$/, "");
+  assert.deepEqual(erreurs(sortie({ changements: [], nouvelleDescription: complete }), p), []);
+  assert.equal(lireApresFiche(depuisIterationPlan(sortie({ changements: [], nouvelleDescription: complete }), p)[0]!.apres).description, complete);
+});
+
+test("réécriture : une nouvelle description incomplète n'est pas reprise dans le diagnostic (rien n'est réécrit)", () => {
+  const s = sortie({ reecriture: true, changements: [], nouvelleDescription: FRAGMENT_FEU });
+  assert.match(raisonSansEcriture(s, plan({ description: DESC_FEU })) ?? "", /incomplète/);
+  assert.equal(diagnosticIteration(s, { plan: { intention: DESC_FEU } })!.reecriture, null);
+});
+
+test("nouvelleDescription : une réplique perdue est une alerte (la consigne peut la retirer), pas un renvoi", () => {
+  const p = plan({ description: DESC_AVANT });
+  const sansReplique = "Mai attend devant le feu, les mains tendues vers les flammes, puis se lève sans un mot.";
+  assert.deepEqual(erreurs(sortie({ nouvelleDescription: sansReplique }), p), []);
+  assert.ok(controlerSortieIterationPlan(sortie({ nouvelleDescription: sansReplique }), p).some((x) => x.regle === "description-repliques" && x.niveau === "alerte"));
 });
 
 test("réécriture : aucune retouche de passages, le diagnostic porte la nouvelle description, la raison dit qu'elle est réécrite à part", () => {
@@ -445,6 +486,7 @@ test("réécriture : aucune retouche de passages, le diagnostic porte la nouvell
   assert.match(raisonSansEcriture(s, plan({ description: DESC_AVANT })) ?? "", /réécrire/i);
   assert.deepEqual(depuisIterationPlan(s, plan({ description: DESC_AVANT })), []);
   assert.deepEqual(diagnosticIteration(s)!.reecriture, { description: DESC_APRES });
+  assert.deepEqual(diagnosticIteration(s, { plan: { intention: DESC_AVANT } })!.reecriture, { description: DESC_APRES });
   assert.equal(diagnosticIteration(sortie())!.reecriture, null);
   assert.equal(diagnosticIteration(sortie({ reecriture: true }))!.reecriture, null);
   const v = valider(chargerSkill("iteration-plan").schema, s);

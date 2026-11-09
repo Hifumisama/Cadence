@@ -5,6 +5,7 @@ import { updatePlanScenario } from "@/app/plans/actions";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/plan-checks";
 import { GenererFiche } from "@/components/plan/GenererFiche";
 import type { Liaison } from "@/lib/plan-liaison";
+import { intentAffichee } from "@/lib/intent";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
 import { RoueDuree } from "@/components/plan/RoueDuree";
 import type { DemoDispo } from "@/lib/h3ir/demos";
@@ -100,10 +101,12 @@ export function PlanScenarioPanel({
 
   if (!brouillon && !editionOuverte) {
     const reglages = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene, plan: { creativite: initial.creativite, styleCamera: initial.styleCamera } });
+    // L'intent affiché : sans la « Consigne de l'auteur » (elle double le récit quand il la respecte ; plan-h3 la lit toujours en base) ni l'ancien « État en fin de plan ».
+    const intent = intentAffichee(initial.description);
     const horsBornes = dureeGeneration != null && (dureeGeneration < DUREE_GENERATION_MIN || dureeGeneration > DUREE_GENERATION_MAX);
     return (
       <section className="sp-entete" id="fp-scenario" aria-label="Scénario du plan">
-        <p className={`sp-description${initial.description ? "" : " is-vide"}${lu ? " is-lu" : ""}`}>{initial.description || "Pas encore de description."}</p>
+        <p className={`sp-description${intent ? "" : " is-vide"}${lu ? " is-lu" : ""}`}>{intent || "Pas encore de description."}</p>
         <div className="sp-ligne">
           <ul className="sp-puces">
             {dureeGeneration != null ? (
@@ -137,7 +140,7 @@ export function PlanScenarioPanel({
             ) : null}
           </ul>
           <span className="sp-gestes">
-            {initial.description.length > 220 ? (
+            {intent.length > 220 ? (
               <button type="button" className="tm-lien" onClick={() => setLu((v) => !v)}>
                 {lu ? "Réduire" : "Tout lire"}
               </button>
