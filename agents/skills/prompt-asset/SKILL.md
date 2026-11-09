@@ -29,6 +29,7 @@ You do not write the asset's "role" in the video plans: it changes from plan to 
 - The project's **style clause**, for information: ComfyUI adds it, you never repeat it.
 - The other assets of the same family, to stay consistent.
 - `asset.promptActuel`, when it is filled: the current prompt. **Polish it** (guide rule 8) and keep what already holds.
+- `detailsDuBrief`, when the asset comes from the brief: the brief entry itself (`section` says which: `personnages`, `lieux` or `elements`; `entree` is the entry). `briefExtrait` holds the whole brief (characters, places, `elements`) for the family's consistency. See "The brief's details" below.
 - `consigne` and `retourUtilisateur` (when present): the user's request. **It outranks your own choices.**
 
 ## A try from the asset's page (`methodeImposee`)
@@ -54,6 +55,18 @@ Drop them silently from the prompt (no negation: describe what is shown instead)
 Start with `reflexion`: a short draft, never shown, where you list what is said (kept as is), what is missing (and your choice), and what you add to reach the length. Then write the prompt from it.
 
 For an **edit**, the prompt is not a description: it is a transformation to apply to image 1 (by default the asset's starting image).
+
+## The brief's details (`detailsDuBrief`)
+
+The interview may have noted how things look, in French, in optional sub-fields. The canonical description often repeats them; the brief entry says **how sure** they are.
+
+- **A character: `tenue`** feeds the outfit part of the paragraph (Writing, rule 3): `coupe` gives the cut of each of the three layers, `matieres` their materials, `couleurs` the dominant and secondary colours, `accessoires` the footwear and **worn** accessories (a carried object, a staff, a bag held in hand, stays out: it is a prop), `signeDistinctif` the silhouette signature or a mark. `evolution` is not drawn: the sheet shows the outfit at the start, unless this asset is the later state it describes. Fill the layers `tenue` leaves out yourself.
+- **A set: `aspect`** feeds the set sheet: `lumiere` becomes the set's fixed light sentence, `matieres` and `palette` the surfaces and colours. `ambiance` is kept only as what can be seen in an empty place (drifting dust, wind-bent grass, still water); a crowd or a sound is left out (Writing, rule 9).
+- **A prop or an effect: the `elements` entry** gives `couleur`, `ampleur` (the object's size, the effect's extent) and `comportement`. For an effect, turn the behaviour into a visible shape and texture (a spiral of thin strands, a burst of sparks, a slow rising column), still from an abstract emission point (Writing, rule 11): who casts it is never shown.
+- **The `statut` of each sub-field decides how much you trust it.**
+  - `fourni` (the user said it) and `delegue` (the user let the agent choose): settled. Keep it word for word, translated.
+  - `deduit` (the agent assumed it, nobody confirmed) and `incertain` (said in vague terms, such as "inspirée de…" without a colour or a material): a **lead, never a certainty**. Keep its direction, but decide each detail precisely yourself (name the colours, the materials, the cut), and flag it in `remarques` with type `description-vague`, saying what you decided ("tenue incertaine : j'ai choisi une tunique de lin ocre…") so the user can correct it.
+  - No `statut`: treat it like the canonical description.
 
 ## Choosing the method
 
@@ -86,7 +99,7 @@ For an asset of type `sfx`, ignore everything about images (edit method, 4 views
 3. **A character's identity lives in the prompt, and it is rich.** One single paragraph of **150 to 220 words** in English, in this order, then the template sentence at the very end:
    1. **identity**: age, gender, build and height, skin, face (shape, eyes, brows, nose, mouth, a mark), expression at rest;
    2. **hair**: length, cut, texture, colour, how it is tied or held (a ribbon, a braid, beads);
-   3. **the outfit in three layers**: the **under layer** (shirt, tunic, bodysuit), the **main garment** (robe, coat, dress, armour, trousers and top), the **outer layer** (cloak, cape, shawl, fur mantle, sash); for each, the **cut**, the **material** (wool, quilted leather, raw silk, waxed cotton, sealskin), a **dominant and a secondary colour**, **patterns or embroidery** (wave motifs, geometric trims), **ornaments** (toggles, clasps, studs, piping) and **wear** (frayed hem, faded dye, salt stains, mended patch);
+   3. **the outfit in three layers** (from `tenue` when the brief has it, see "The brief's details"): the **under layer** (shirt, tunic, bodysuit), the **main garment** (robe, coat, dress, armour, trousers and top), the **outer layer** (cloak, cape, shawl, jacket, sash); for each, the **cut**, the **material** (wool, quilted leather, raw silk, waxed cotton, brushed suede, ribbed knit), a **dominant and a secondary colour**, **patterns or embroidery** (chevrons, geometric trims, floral borders), **ornaments** (toggles, clasps, studs, piping) and **wear** (frayed hem, faded dye, ink stains, mended patch);
    4. **footwear and worn accessories**: boots, sandals or wraps; belt, pouch, bracelets, necklace, headband, gloves (worn, never held);
    5. **one silhouette signature**: the trait that makes the character recognisable from far away (a high collar, a long trailing scarf, an asymmetric pauldron, a wide-brimmed hat).
    **Enjoy designing the outfit**: give it a strong, specific identity that fits the character's culture, role and world (a tribe's fabrics, a guild's colours, a soldier's insignia), never a generic "simple clothes". What the description gives is kept word for word; everything it leaves out, **you decide**, precisely, and consistently with the story and the family's other assets. When a basic trait was missing (age, gender, outfit), flag `description-vague` in `remarques` saying **what you chose** ("genre non précisé : j'ai choisi une femme d'une trentaine d'années") so the user can correct it. **Never an "or"** in the prompt ("male or female", "tabby or bicolor"): pick one. A description that talks about voice, role or action instead of appearance is vague: same treatment.
@@ -132,7 +145,7 @@ Raising it early avoids discovering the problem after twenty images:
 - the asset needs **several really different variants**: write distinct prompts (a seed sweep will not be enough);
 - the requested edit is actually an **absence** or a **change of viewpoint**;
 - the asset **depends** on a starting image that is not produced yet (edit);
-- the canonical description is **too vague**: say what you decided to fill in, so the user can correct it;
+- the canonical description is **too vague**, or a brief detail is `deduit` or `incertain`: say what you decided to fill in, so the user can correct it (`description-vague`);
 - two assets of the family **should have been one**, or a description contradicts the starting asset's;
 - an `sfx` asks for a **voice, words or music** (type `voix-ou-musique`), or a **duration above 15 s**, or a **loop** (nothing guarantees it): for the last two, type `autre`.
 
@@ -150,6 +163,7 @@ Raising it early avoids discovering the problem after twenty images:
 - An edit prompt does not describe the image: it states a transformation, one intention per line.
 - The canonical description's identifying traits are in the prompt, without contradiction.
 - A character: turnaround sheet alone on a plain background, empty hands, no effect, no set, no place, no pose, no action, no dialogue (even if the description has them); one paragraph of 150 to 220 words covering identity, hair, the three outfit layers (cut, material, two colours, patterns, ornaments, wear), footwear and worn accessories, a silhouette signature, then the 4-view template; age, gender and outfit decided, and anything you chose flagged `description-vague`.
+- The brief's details (`tenue`, `aspect`, the `elements` entry) are used; every `deduit` or `incertain` one is decided precisely and flagged `description-vague`; the outfit is built from them and the description, never copied from the guide's examples.
 - A set, prop or effect: no character in it (except a `keyframe`). A set: no props except its centrepiece, and the close-up view is an architectural or natural detail. An effect: no hand, arm or body part, only an abstract emission point.
 - A map: one flat illustrated map from above, regions told apart by colours, symbols and relief, no text, no 3-view sheet.
 - The recommended method is justified, and an edit has an image 1 (the target of the modification).

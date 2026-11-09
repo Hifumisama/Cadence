@@ -6,9 +6,13 @@ import type { Avertissement } from "./types";
 
 /** Sortie du skill `inventaire-assets` : les assets que les plans réclament et que le registre n'a pas. */
 export type SortieInventaire = {
-  assets: { code: string; type: string; parent?: string | null; description: string; plans: string[]; raison: string }[];
+  /** `element` : le nom de l'élément du brief (`brief.elements[].nom`) dont l'asset est tiré, recopié tel quel ; null sinon. */
+  assets: { code: string; type: string; parent?: string | null; element?: string | null; description: string; plans: string[]; raison: string }[];
   notes: string;
 };
+
+/** Un nom d'élément comparable (casse, accents, espaces). */
+const nomComparable = (s: string): string => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 export type AssetRegistre = { code: string; type: string; description?: string };
 
@@ -54,8 +58,10 @@ function codesCites(texte: string, codes: Iterable<string>, sauf: string): strin
 /** La sortie d'`inventaire-assets` → des changements « créer un asset » (sans prompt : il s'écrit ensuite,
  * un asset à la fois). Écarte ce qui existe déjà et les doublons de la sortie ; signale ce qui ressemble à un asset
  * existant sans le refuser. Le parent est un asset existant (`deriveDeCode`) ou créé ici (`deriveDeCle`) ; le
- * registre n'a qu'un niveau, l'application rattache toujours au master. Pur, testé. */
-export function depuisInventaire(sortie: SortieInventaire, registre: AssetRegistre[]): ChangementBrut[] {
+ * registre n'a qu'un niveau, l'application rattache toujours au master. Pur, testé.
+ * `elements` : les effets et objets du brief (`brief.elements`, entretien du 2026-11-08). Un VFX n'est accepté que s'il en est tiré. */
+export function depuisInventaire(sortie: SortieInventaire, registre: AssetRegistre[], options: { elements?: { nom: string; nature: string }[] } = {}): ChangementBrut[] {
+  const elementsDuBrief = new Map((options.elements ?? []).filter((e) => nomComparable(e.nom ?? "")).map((e) => [nomComparable(e.nom), e]));
   const existants = new Set(registre.map((a) => a.code));
   const declares = (sortie.assets ?? []).map((m) => ({
     m,
@@ -68,11 +74,17 @@ export function depuisInventaire(sortie: SortieInventaire, registre: AssetRegist
   const sorties: ChangementBrut[] = [];
   for (const { m, suffixe, code } of declares) {
     if (!code || existants.has(code) || vus.has(code)) continue; // inutilisable, déjà au registre, ou déjà proposé
-    // Jamais de VFX proposé automatiquement (décision du 2026-11-02) : une image d'effet est suivie trop à la lettre (Open H3 IR la prend pour un sujet à préserver).
-    // L'effet se décrit dans le texte du plan ; l'utilisateur peut toujours créer un asset VFX à la main.
-    if (m.type === "vfx") continue;
+    // Jamais de VFX DEVINÉ par l'inventaire (décision du 2026-11-02) : une image d'effet est suivie trop à la lettre (Open H3 IR la prend pour un sujet à
+    // préserver), l'effet se décrit dans le texte du plan. Exception (2026-11-08) : un effet que l'utilisateur a décrit à l'entretien (`brief.elements`,
+    // nature vfx) devient son asset ; le plan le reprend en `weak_reference` (lib/agents/conversion.ts). L'utilisateur peut toujours en créer un à la main.
+    const element = m.element?.trim() ? elementsDuBrief.get(nomComparable(m.element)) : undefined;
+    if (m.type === "vfx" && element?.nature !== "vfx") continue;
     vus.add(code);
     const avert: Avertissement[] = [];
+    if (element) {
+      avert.push({ type: "info", texte: `Tiré de l'élément du brief « ${element.nom} ».` });
+      if (element.nature !== m.type) avert.push({ type: "alerte_controle", texte: `L'élément du brief « ${element.nom} » est un ${element.nature}, l'asset proposé un ${m.type} : vérifie le type avant d'appliquer.` });
+    }
     const info = [(m.raison ?? "").trim(), m.plans?.length ? `plans : ${m.plans.join(", ")}` : ""].filter(Boolean).join(" · ");
     if (info) avert.push({ type: "info", texte: info });
     if (code !== m.code) avert.push({ type: "info", texte: `Code proposé « ${m.code} », construit selon la convention du registre : ${code}.` });

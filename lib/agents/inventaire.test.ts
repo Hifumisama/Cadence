@@ -82,3 +82,36 @@ test("depuisInventaire : un VFX n'est jamais proposé (l'effet va en texte dans 
   const r = depuisInventaire(sortie([a("VFX_energie_doree", "vfx"), a("VFX_iris_emergence", "vfx", { raison: "cite CHAR_iris" }), a("PROP_clef", "prop")]), registre);
   assert.deepEqual(r.map((c) => c.cle), ["nouvel-asset-PROP_clef"]);
 });
+
+// --- éléments du brief (entretien du 2026-11-08) ---
+
+const elements = [
+  { nom: "Le souffle de vent", nature: "vfx" },
+  { nom: "La lanterne de cuivre", nature: "prop" },
+];
+
+test("depuisInventaire : un VFX tiré d'un élément vfx du brief est accepté, avec son origine ; un VFX deviné reste écarté", () => {
+  const r = depuisInventaire(
+    sortie([a("VFX_souffle_vent", "vfx", { element: "le souffle de VENT" }), a("VFX_poussiere", "vfx", { element: null }), a("VFX_faux", "vfx", { element: "Un effet inconnu" })]),
+    registre,
+    { elements },
+  );
+  assert.deepEqual(r.map((c) => c.cle), ["nouvel-asset-VFX_souffle_vent"]);
+  assert.ok(r[0]!.avertissements!.some((v) => v.type === "info" && /élément du brief « Le souffle de vent »/.test(v.texte)));
+});
+
+test("depuisInventaire : un VFX qui cite un élément prop est écarté ; un prop tiré d'un élément est signalé, un type contraire alerte", () => {
+  const r = depuisInventaire(
+    sortie([a("VFX_lanterne", "vfx", { element: "La lanterne de cuivre" }), a("PROP_lanterne_cuivre", "prop", { element: "La lanterne de cuivre" }), a("PROP_souffle", "prop", { element: "Le souffle de vent" })]),
+    [],
+    { elements },
+  );
+  assert.deepEqual(r.map((c) => c.cle), ["nouvel-asset-PROP_lanterne_cuivre", "nouvel-asset-PROP_souffle"]);
+  assert.ok(r[0]!.avertissements!.some((v) => /Tiré de l'élément/.test(v.texte)));
+  assert.ok(r[1]!.avertissements!.some((v) => v.type === "alerte_controle" && /vfx/.test(v.texte)));
+});
+
+test("depuisInventaire : sans éléments du brief (ancien brief), aucun VFX ne passe", () => {
+  const r = depuisInventaire(sortie([a("VFX_souffle_vent", "vfx", { element: "Le souffle de vent" })]), registre);
+  assert.equal(r.length, 0);
+});

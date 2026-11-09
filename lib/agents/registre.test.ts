@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { depuisRegistreAsset } from "./conversion";
-import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, descriptionPersonnage, resumeCandidats, type AssetExistant } from "./registre";
+import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, descriptionPersonnage, detailsDuBrief, libelleDetailsDuBrief, resumeCandidats, type AssetExistant } from "./registre";
 
 const brief = {
   personnages: [
@@ -116,4 +116,41 @@ test("candidatsRegistre : la tenue et l'aspect des lieux notés à l'entretien r
   );
   assert.equal(c[0]!.description, "15 ans. cheveux tressés. un collier. Tenue : tunique longue, safran et ocre, coton épais ; accessoires : un bâton");
   assert.equal(c[1]!.description, "Un temple perché. aube rose, pierre claire");
+});
+
+// --- détails du brief transmis à prompt-asset (2026-11-08) ---
+
+const briefDetaille = {
+  personnages: [{ nom: "Iris", role: "narratrice", reconnaissable: "un collier", tenue: { coupe: "tunique longue", statut: "incertain" as const } }],
+  lieux: [{ nom: "Le temple", description: "Un temple perché.", aspect: { lumiere: "aube rose", statut: "deduit" as const } }],
+  elements: [
+    { nom: "Le souffle de vent d'Iris", nature: "vfx" as const, description: "Un tourbillon d'air", couleur: "bleu pâle", statut: "fourni" as const },
+    { nom: "La lanterne de cuivre", nature: "prop" as const, description: "Une lanterne", ampleur: "tient dans la main" },
+  ],
+};
+
+test("detailsDuBrief : le personnage et le lieu de même code, avec leur tenue / aspect et leur statut", () => {
+  const p = detailsDuBrief(briefDetaille, { code: "CHAR_iris", type: "personnage" });
+  assert.equal(p?.section, "personnages");
+  assert.equal(p?.section === "personnages" ? p.entree.tenue?.statut : null, "incertain");
+  assert.equal(libelleDetailsDuBrief(p!), "Brief · Iris : tenue (incertain)");
+  const l = detailsDuBrief(briefDetaille, { code: "DEC_le_temple", type: "decor" });
+  assert.equal(l?.section, "lieux");
+  assert.equal(libelleDetailsDuBrief(l!), "Brief · Le temple : aspect (déduit)");
+});
+
+test("detailsDuBrief : un état (autre code) n'est pas son sujet ; un autre type ne correspond pas", () => {
+  assert.equal(detailsDuBrief(briefDetaille, { code: "CHAR_iris_agee", type: "personnage" }), null);
+  assert.equal(detailsDuBrief(briefDetaille, { code: "DEC_iris", type: "decor" }), null);
+  assert.equal(detailsDuBrief(null, { code: "CHAR_iris", type: "personnage" }), null);
+});
+
+test("detailsDuBrief : un prop ou un VFX retrouve son élément par les mots du code, de même nature seulement", () => {
+  const v = detailsDuBrief(briefDetaille, { code: "VFX_souffle_vent", type: "vfx" });
+  assert.equal(v?.section === "elements" ? v.entree.nom : null, "Le souffle de vent d'Iris");
+  assert.equal(libelleDetailsDuBrief(v!), "Brief · Le souffle de vent d'Iris : élément");
+  const p = detailsDuBrief(briefDetaille, { code: "PROP_lanterne", type: "prop" });
+  assert.equal(p?.section === "elements" ? p.entree.nom : null, "La lanterne de cuivre");
+  assert.equal(detailsDuBrief(briefDetaille, { code: "VFX_lanterne", type: "vfx" }), null);
+  assert.equal(detailsDuBrief(briefDetaille, { code: "PROP_epee", type: "prop" }), null);
 });

@@ -34,10 +34,20 @@
 
   The sheet shows the character **alone**, **empty hands**, with no effect, set or action pose: it serves as an identity reference, not as a scene illustration. A place, a pose, an action or a line of dialogue found in the canonical description is **left out** (the turnaround on a plain background wins over the description). `[project]`
 
-  The description block is **one paragraph of 150 to 220 words**, in this order: identity (age, build, face), hair, the outfit in three layers (under layer, main garment, outer layer: cut, material, dominant and secondary colour, patterns, ornaments, wear), footwear and worn accessories, one silhouette signature; then the fixed sentence above. A short character prompt gives a plain, interchangeable costume that the video model then simplifies further. `[project]` Example of the outfit part, to show the density expected, not to copy:
+  The description block is **one paragraph of 150 to 220 words**, in this order: identity (age, build, face), hair, the outfit in three layers (under layer, main garment, outer layer: cut, material, dominant and secondary colour, patterns, ornaments, wear), footwear and worn accessories, one silhouette signature; then the fixed sentence above. A short character prompt gives a plain, interchangeable costume that the video model then simplifies further. `[project]`
+
+  The outfit part follows this pattern, every bracket filled with a precise choice taken from the brief's `tenue` and the description (what they leave out, you decide):
 
   ```text
-  ... She wears a fitted sleeveless under-tunic of soft undyed wool, a knee-length wrap dress of deep indigo waxed cotton crossed over the chest and closed by three bone toggles, its hem trimmed with a white zigzag wave band, and over it a short sealskin cape lined with pale grey fur, its edge frayed and salt-stained. Fur-lined leather boots laced with blue cord, a braided leather belt with a small walrus-ivory pendant, a carved bead holding her front hair loops. Her silhouette: the two long looped strands framing her face and the wide fur collar. ...
+  ... [under layer: cut, material, colour], [main garment: cut, material, dominant colour and secondary colour, closed by an ornament, a pattern on an edge], [outer layer: cut, material, lining or trim, one sign of wear]. [footwear], [belt and worn accessories]. [Her / His] silhouette: [one trait seen from far away]. ...
+  ```
+
+  Three short examples from three unrelated worlds, only to show the density expected. **Never reuse their garments, materials or colours**: they belong to no project.
+
+  ```text
+  City courier: a ribbed charcoal knit undershirt, a hip-length mustard canvas work jacket with brass snaps and reflective grey piping, a cropped oxblood rain cape whose seams are peeling; scuffed high-top boots, a cross-body webbing strap with a flat pouch. His silhouette: the cape's stiff pointed hood.
+  Court elder: a high-necked under-robe of pale raw silk, an ankle-length ochre brocade robe with cinnabar cloud borders fastened by green stone toggles, a heavy black felt mantle with a frayed hem; soft felt slippers, a string of amber beads at the wrist. Her silhouette: the mantle's wide square shoulders.
+  Station mechanic: a fitted slate-blue thermal bodysuit, olive quilted coveralls with orange hazard stitching and a dented steel chest plate, a sleeveless padded vest with one mismatched patch; magnetic-soled boots, a worn leather tool belt, fingerless gloves. Her silhouette: the oversized ribbed collar ring.
   ```
 
 - **Set sheet** (one image, three views of the SAME deserted place; to test on Krea 2, which has no dedicated LoRA for it) `[project, untested]`:
@@ -50,7 +60,7 @@
 
 - **Prop**: by default descriptive prose alone, one image: a clear 3/4 view, plain background, **nothing held in a hand**, one object. A **prop mini-sheet** is for an object that carries the story AND whose shape changes with the angle, or that has an inscription or a distinctive side: `[prop description], plain light background, the object has 3 views : three-quarter view, side view, close-up detail of [the distinctive part].` Never put a prop in a character's sheet or a set's sheet: crowded references drop details.
 
-- **Effect**: descriptive prose alone, with no sheet instruction. Effects are no longer proposed by the inventory (the video model copies an effect image too literally); this stays for those a user creates by hand. **Never a hand, fist, finger, arm or any body part** in the image, even when the effect comes from one in the story: the video model copies the limb into the shot. The source becomes an **abstract emission point** ("the flames burst outward from a small white-hot point at the centre of the frame"). `[project]`
+- **Effect**: descriptive prose alone, with no sheet instruction. The inventory proposes an effect only when the user described it at the interview (the brief's `elements`: its colour, extent and behaviour feed the prose), or the user creates one by hand: the video model copies an effect image too literally, so it stays a material swatch. **Never a hand, fist, finger, arm or any body part** in the image, even when the effect comes from one in the story: the video model copies the limb into the shot. The source becomes an **abstract emission point** ("the flames burst outward from a small white-hot point at the centre of the frame"). `[project]`
 
 - **Map of an invented world**: the only top-down image, and **not** a sheet. One flat fantasy map illustration seen straight from above, filling the frame, regions told apart by colours, symbols and relief (mountains, forests, ice, seas, rivers, islands, small pictograms for cities). **No text**: the model writes garbled letters; describe it as "an unlabelled illustrated map" and put no name in quotes. `[project, untested]`
 

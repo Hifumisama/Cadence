@@ -13,7 +13,10 @@ const SORTIE_ATTENDUE: Record<string, number> = {
   "scenario-episode": 8000,
   "relecture-scenario": 5000,
   "inventaire-assets": 4000,
-  "prompt-asset": 800,
+  // 800 → 1000 (2026-11-08) : un personnage, c'est 150-220 mots + la phrase des 4 vues (~35 mots), ≈ 260-370 jetons ; `reflexion` (2-4 lignes de
+  // français, ≈ 100-200), `raisonMethode` (≈ 30), les clés JSON (≈ 40), et des `remarques` plus fréquentes depuis les détails « incertain » / « déduit »
+  // du brief (2-3 × ≈ 50) : ≈ 530-790 jetons, 800 n'avait plus de marge.
+  "prompt-asset": 1000,
   "iteration-plan": 2000,
   "plan-h3ir": 1500, // la traduction de l'intent ; le compilateur, lui, est compté à part (JETONS_COMPILATEUR_H3IR)
 };

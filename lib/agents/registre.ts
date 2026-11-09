@@ -1,4 +1,5 @@
 import { construireCode, slugifyCode } from "../assetCode";
+import { ressemblant } from "./inventaire";
 import type { BriefContenu } from "./types";
 
 /** Étape 2 du pipeline : le REGISTRE d'assets à partir du brief. Pur (aucune lecture) : des
@@ -83,6 +84,49 @@ export function descriptionLieu(l: BriefContenu["lieux"][number]): string {
   const aspect = a ? [net(a.lumiere), net(a.matieres), net(a.palette), net(a.ambiance)].filter(Boolean).join(", ") : "";
   if (!aspect) return l.description ?? "";
   return [net(l.description), aspect].filter(Boolean).join(". ");
+}
+
+/** L'entrée du brief dont un asset est tiré, telle quelle (avec ses sous-champs `tenue`, `aspect` et leur `statut`), pour `prompt-asset` :
+ * la description canonique recopie la tenue et l'aspect, mais perd leur statut (« incertain », « déduit ») ; le skill le lit ici. Un personnage
+ * ou un lieu : même code que celui que le registre construit depuis son nom (un état, `CHAR_x_agee`, n'est pas son sujet : rien). Un prop ou
+ * un VFX : l'élément du brief de même nature dont le nom recouvre le code (« La lanterne de cuivre » ↔ `PROP_lanterne`), le code venant de
+ * l'inventaire. Null sans correspondance. Pur. */
+export type DetailsDuBrief =
+  | { section: "personnages"; entree: BriefContenu["personnages"][number] }
+  | { section: "lieux"; entree: BriefContenu["lieux"][number] }
+  | { section: "elements"; entree: NonNullable<BriefContenu["elements"]>[number] };
+
+export function detailsDuBrief(brief: Pick<BriefContenu, "personnages" | "lieux" | "elements"> | null | undefined, asset: { code: string; type: string }): DetailsDuBrief | null {
+  if (!brief) return null;
+  const memeCode = (type: string, nom: string | undefined) => !!slugifyCode(nom ?? "") && construireCode(type, nom ?? "") === asset.code;
+  if (asset.type === "personnage") {
+    const p = (brief.personnages ?? []).find((x) => memeCode("personnage", x.nom));
+    return p ? { section: "personnages", entree: p } : null;
+  }
+  if (asset.type === "decor") {
+    const l = (brief.lieux ?? []).find((x) => memeCode("decor", x.nom));
+    return l ? { section: "lieux", entree: l } : null;
+  }
+  if (asset.type === "prop" || asset.type === "vfx") {
+    const elements = (brief.elements ?? []).filter((e) => e.nature === asset.type && slugifyCode(e.nom ?? ""));
+    const exact = elements.find((e) => memeCode(asset.type, e.nom));
+    if (exact) return { section: "elements", entree: exact };
+    const suffixe = asset.code.includes("_") ? asset.code.slice(asset.code.indexOf("_") + 1) : asset.code;
+    const codes = elements.map((e) => ({ code: construireCode(asset.type, e.nom), type: asset.type, e }));
+    const proche = ressemblant(asset.type, suffixe, codes);
+    const e = proche ? codes.find((c) => c.code === proche)?.e : undefined;
+    return e ? { section: "elements", entree: e } : null;
+  }
+  return null;
+}
+
+/** Le libellé « contexte utilisé » de l'entrée du brief lue par `prompt-asset` (avec le statut du détail quand il est encore à confirmer). */
+export function libelleDetailsDuBrief(d: DetailsDuBrief): string {
+  const nom = d.entree.nom?.trim() || "?";
+  const [quoi, statut] =
+    d.section === "personnages" ? ["tenue", d.entree.tenue?.statut] : d.section === "lieux" ? ["aspect", d.entree.aspect?.statut] : ["élément", d.entree.statut];
+  const douteux = statut === "incertain" || statut === "deduit" ? ` (${statut === "incertain" ? "incertain" : "déduit"})` : "";
+  return `Brief · ${nom} : ${quoi}${douteux}`;
 }
 
 /** Les candidats du registre pour un brief, dans l'ordre du brief (personnages puis lieux). Un nom

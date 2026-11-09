@@ -8,7 +8,9 @@ import { ORDRE_SECTIONS } from "../prompt";
 import type { Db } from "./applicateurs/commun";
 import { sansClesAbandonnees } from "./brief";
 import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-plan";
+import { detailsDuBrief, libelleDetailsDuBrief } from "./registre";
 import { liaisonOuDefaut, type Liaison } from "../plan-liaison";
+import { sansEtatDeFin } from "../intent";
 import { nombreDeScenesVise, traitementDeScene } from "./traitement";
 import type { BriefContenu, ContexteUtilise, EtatIterationPlan, PlaceScene, Position } from "./types";
 
@@ -52,6 +54,7 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
     { type: "brief", libelle: "Brief · style et clause de style", ref: "style" },
     { type: "brief", libelle: "Brief · arc et ton", ref: "arc" },
     { type: "brief", libelle: `Brief · ${brief.personnages.length} personnage${brief.personnages.length > 1 ? "s" : ""}, ${brief.lieux.length} lieu${brief.lieux.length > 1 ? "x" : ""}`, ref: "personnages" },
+    ...(brief.elements?.length ? [{ type: "brief" as const, libelle: `Brief · ${brief.elements.length} effet${brief.elements.length > 1 ? "s" : ""} ou objet${brief.elements.length > 1 ? "s" : ""}`, ref: "elements" }] : []),
     ...(brief.notes?.trim() ? [{ type: "brief" as const, libelle: "Brief · notes du projet", ref: "notes" }] : []),
   ];
   return { extrait, contexte };
@@ -88,9 +91,12 @@ export async function entreePromptAsset(db: Db, projectId: number, assetId: numb
     .innerJoin(plans, eq(plans.id, planRefs.planId))
     .where(eq(planRefs.assetId, asset.id))
     .limit(8);
+  // L'entrée du brief dont l'asset est tiré (tenue, aspect, élément, avec leur statut : « incertain » et « déduit » ne sont pas des certitudes).
+  const details = detailsDuBrief(brief?.contenu ?? null, asset);
 
   const ctx: ContexteUtilise[] = [
     { type: "asset", libelle: `${asset.code} · description canonique`, ref: asset.code },
+    ...(details ? [{ type: "brief" as const, libelle: libelleDetailsDuBrief(details), ref: details.section }] : []),
     ...(parent ? [{ type: "asset" as const, libelle: `Parent ${parent.code} · description et prompt`, ref: parent.code }] : []),
     ...(famille.length ? [{ type: "registre" as const, libelle: `${famille.length} asset${famille.length > 1 ? "s" : ""} de la même famille` }] : []),
     ...(citations.length ? [{ type: "plan" as const, libelle: `${citations.length} plan${citations.length > 1 ? "s" : ""} qui le citent` }] : []),
@@ -107,6 +113,7 @@ export async function entreePromptAsset(db: Db, projectId: number, assetId: numb
       plansQuiLeCitent: citations.map((c) => ({ titre: c.titre, role: c.role ?? "", description: c.description ?? "" })),
       clauseStyleDuProjet: projet?.clauseStyle ?? "",
       memeFamille: famille.map((f) => ({ code: f.code, description: f.description ?? "" })),
+      ...(details ? { detailsDuBrief: details } : {}),
       briefExtrait: extrait,
       consigne,
       ...(retour ? { retourUtilisateur: retour } : {}),
@@ -135,11 +142,13 @@ export async function entreePromptAssetCandidat(
   const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
   const brief = await lireBriefDuProjet(db, projectId);
   const { extrait, contexte } = extraitsBrief(brief?.contenu ?? null);
+  const details = detailsDuBrief(brief?.contenu ?? null, cand);
   return {
     skill: "prompt-asset",
     variante: "generation",
     contexte: [
       { type: "asset", libelle: `${cand.code} · description issue du brief`, ref: cand.code },
+      ...(details ? [{ type: "brief" as const, libelle: libelleDetailsDuBrief(details), ref: details.section }] : []),
       ...(projet?.clauseStyle ? [{ type: "projet" as const, libelle: "Clause de style du projet (information)" }] : []),
       ...contexte,
     ],
@@ -149,6 +158,7 @@ export async function entreePromptAssetCandidat(
       plansQuiLeCitent: [],
       clauseStyleDuProjet: projet?.clauseStyle ?? "",
       memeFamille: [],
+      ...(details ? { detailsDuBrief: details } : {}),
       briefExtrait: extrait,
       consigne,
       ...(retour ? { retourUtilisateur: retour } : {}),
@@ -158,6 +168,8 @@ export async function entreePromptAssetCandidat(
 
 // --- épisode, plan ----------------------------------------------------------
 
+/** `description` : l'intent du plan SANS l'ancien « État en fin de plan » (plans écrits avant le 2026-11-08, lib/intent.ts) : les skills ne le voient
+ * plus, et ne le recopient donc pas. */
 type PlanLu = { uuid: string; titre: string; description: string; dureeGenerationSecondes: number; sceneId: number | null; liaison: Liaison };
 
 async function plansDe(db: Db, episodeId: number): Promise<PlanLu[]> {
@@ -166,7 +178,7 @@ async function plansDe(db: Db, episodeId: number): Promise<PlanLu[]> {
     .from(plans)
     .where(eq(plans.episodeId, episodeId))
     .orderBy(asc(plans.ordre), asc(plans.id));
-  return l.map((p) => ({ uuid: p.uuid, titre: p.titre, description: p.description ?? "", dureeGenerationSecondes: p.duree, sceneId: p.sceneId, liaison: liaisonOuDefaut(p.liaison) }));
+  return l.map((p) => ({ uuid: p.uuid, titre: p.titre, description: sansEtatDeFin(p.description), dureeGenerationSecondes: p.duree, sceneId: p.sceneId, liaison: liaisonOuDefaut(p.liaison) }));
 }
 
 async function contexteEpisode(db: Db, projectId: number, episodeId: number) {
@@ -303,7 +315,7 @@ export async function entreeScenarioEpisode(
   let voisinAvant: PlanLu | null = null;
   let voisinApres: PlanLu | null = null;
   // Une SCÈNE à insérer : ses voisines sont la scène qui la précède et celle qui la suit ; le dernier plan de l'une et le premier de l'autre
-  // sont les plans à raccorder (état de fin, état d'entrée).
+  // sont les plans à raccorder (la fin de l'un, le début de l'autre).
   let sceneAvant: (typeof c.lesScenes)[number] | null = null;
   let sceneApres: (typeof c.lesScenes)[number] | null = null;
   if (options.place) {
@@ -468,7 +480,7 @@ export async function entreeScenarioScene(
 }
 
 /** L'entrée de `relecture-scenario` pour UN épisode (FRICTIONS 2026-10-19) : tout ce que le scénario a écrit — scènes (genre, ambiance), plans dans l'ordre
- * avec leur liaison, leur durée et leur description COMPLÈTE (intention, répliques, « État en fin de plan »), le registre, les mots de l'auteur — pour que
+ * avec leur liaison, leur durée et leur description COMPLÈTE (intention, répliques ; l'ancien « État en fin de plan » retiré), le registre, les mots de l'auteur — pour que
  * le modèle tienne le registre de l'état du monde d'un bout à l'autre. Les plans se citent par POIGNÉE (« P07 », le rang à cet instant, jamais stocké : F03) ;
  * `planUuids` (dans l'ordre) est gardé dans les options de la tâche : le worker vérifie à la fin que l'épisode n'a pas bougé entre la lecture et la réponse.
  * Null s'il n'y a rien à relire (aucun plan) ou si l'épisode n'est pas du projet. */
@@ -495,7 +507,7 @@ export async function entreeRelecture(
   }));
   const contexte: ContexteUtilise[] = [
     { type: "episode", libelle: `Épisode ${c.ep.numero} · ${c.ep.titre}`, ref: String(c.ep.id) },
-    { type: "plan", libelle: `${lesPlans.length} plan${lesPlans.length > 1 ? "s" : ""} relu${lesPlans.length > 1 ? "s" : ""} : intentions et « État en fin de plan »` },
+    { type: "plan", libelle: `${lesPlans.length} plan${lesPlans.length > 1 ? "s" : ""} relu${lesPlans.length > 1 ? "s" : ""} : intentions et répliques` },
     { type: "registre", libelle: `Registre : ${c.registre.length} asset${c.registre.length > 1 ? "s" : ""} (noms existants)` },
     ...c.contexteBrief,
     ...(paroles.length ? [{ type: "brief" as const, libelle: `Paroles de l'auteur (${paroles.length} message${paroles.length > 1 ? "s" : ""} de sa conception)` }] : []),
@@ -541,7 +553,7 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
     entree: {
       portee: { type: "plan-a-corriger", instruction: "Ne propose QU'UN SEUL plan (une seule scène, un seul plan) : le plan corrigé." },
       episode: { titre: c.ep.titre, resume: c.ep.resume },
-      planACorriger: { titre: p.titre, description: p.description ?? "", dureeSecondes: p.duree },
+      planACorriger: { titre: p.titre, description: sansEtatDeFin(p.description), dureeSecondes: p.duree },
       plansVoisins: c.lesPlans.filter((x) => x.uuid !== p.uuid).map((x) => ({ titre: x.titre, description: x.description })),
       registre: c.registre,
       briefExtrait: c.extrait,
@@ -639,7 +651,7 @@ export async function entreePlanH3(
       episode: { titre: c.ep.titre, resume: c.ep.resume },
       plan: {
         titre: p.titre,
-        intention: options.intention ?? p.description ?? "",
+        intention: sansEtatDeFin(options.intention ?? p.description),
         liaison: liaisonOuDefaut(p.liaison),
         // L'application joint la dernière image du plan précédent (raccord) : un emplacement d'image reste libre, 5 références d'image au plus.
         ...(liaisonOuDefaut(p.liaison) === "suite" && precedentLu ? { raccord: true } : {}),
@@ -659,7 +671,7 @@ export async function entreePlanH3(
             plans: dansLaScene.map((x, k) => ({
               position: k + 1,
               titre: x.titre,
-              intention: (x.uuid === p.uuid ? (options.intention ?? x.description ?? "") : (x.description ?? "")).trim().slice(0, 800),
+              intention: sansEtatDeFin(x.uuid === p.uuid ? (options.intention ?? x.description) : x.description).slice(0, 800),
               ...(x.uuid === p.uuid ? { cePlan: true } : {}),
             })),
           }
@@ -766,8 +778,8 @@ export async function entreeIterationPlan(
   for (const l of lignes) sections[l.section] = sections[l.section] ? `${sections[l.section]}\n${l.contenu}` : l.contenu;
   if (!Object.values(sections).some((s) => s.trim())) return { erreur: "Ce plan n'a pas de fiche (prompt vide) : écris-la d'abord (« Écrire la fiche »)." };
 
-  // Les voisins, pour le RACCORD (lecture seule) : intention et fin du précédent, intention et début du suivant. Contexte léger : 300 caractères
-  // d'intention et 450 de shot au plus par voisin.
+  // Les voisins, pour le RACCORD (lecture seule) : intention et fin du précédent, intention et début du suivant. Contexte léger : 400 caractères
+  // d'intention (la FIN de celle du précédent, le DÉBUT de celle du suivant : c'est là que les plans se touchent) et 450 de shot au plus par voisin.
   const lesPlans = await plansDe(db, p.episodeId);
   const rangPlan = lesPlans.findIndex((x) => x.uuid === p.uuid);
   const avant = rangPlan > 0 ? lesPlans[rangPlan - 1]! : null;
@@ -816,15 +828,15 @@ export async function entreeIterationPlan(
     contexte,
     plan: { id: p.id, uuid: p.uuid, titre: p.titre },
     entree: {
-      plan: { titre: p.titre, intention: p.description ?? "", liaison: liaisonOuDefaut(p.liaison), dureeVoulueSecondes: p.dureeGenerationSecondes, fps: p.fps },
+      plan: { titre: p.titre, intention: sansEtatDeFin(p.description), liaison: liaisonOuDefaut(p.liaison), dureeVoulueSecondes: p.dureeGenerationSecondes, fps: p.fps },
       promptActuel: Object.fromEntries(ORDRE_SECTIONS.map((s) => [s, sections[s] ?? ""])),
       references,
       registre,
       retourVisionnage,
       historique,
       plansVoisins: {
-        precedent: avant ? { titre: avant.titre, intention: avant.description.trim().slice(0, 300), ...(shotsAvant?.dernier ? { dernierShot: shotsAvant.dernier } : {}) } : null,
-        suivant: apres ? { titre: apres.titre, liaison: apres.liaison, intention: apres.description.trim().slice(0, 300), ...(shotsApres?.premier ? { premierShot: shotsApres.premier } : {}) } : null,
+        precedent: avant ? { titre: avant.titre, intention: avant.description.length > 400 ? `…${avant.description.slice(-399)}` : avant.description, ...(shotsAvant?.dernier ? { dernierShot: shotsAvant.dernier } : {}) } : null,
+        suivant: apres ? { titre: apres.titre, liaison: apres.liaison, intention: apres.description.length > 400 ? `${apres.description.slice(0, 399)}…` : apres.description, ...(shotsApres?.premier ? { premierShot: shotsApres.premier } : {}) } : null,
       },
       ...(avecPlanche
         ? { planche: { jobId: rendu.id, cheminSortie: rendu.cheminSortie, maxVignettes: MAX_VIGNETTES_ITERATION, importe } }
@@ -874,7 +886,7 @@ export async function entreeInventaire(db: Db, projectId: number, consigne: stri
   const episodesEntree = eps.map((e) => {
     const sc = lesScenes.filter((s) => s.episodeId === e.id);
     const duPlan = lesPlans.filter((p) => p.episodeId === e.id);
-    const plansDe = (sceneId: number | null) => duPlan.filter((p) => p.sceneId === sceneId).map((p) => ({ titre: p.titre, intention: (p.description ?? "").trim().slice(0, 400) }));
+    const plansDe = (sceneId: number | null) => duPlan.filter((p) => p.sceneId === sceneId).map((p) => ({ titre: p.titre, intention: sansEtatDeFin(p.description).slice(0, 400) }));
     const orphelins = plansDe(null);
     return {
       episode: `Épisode ${e.numero} · ${e.titre}`,

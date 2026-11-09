@@ -27,6 +27,27 @@ test("controlerClause : longueur, phrases, nom propre, sujet et cadrage sont ref
   assert.match(controlerClause(BONNE.replace("swirling", "sweeping camera movement"), style).join(" "), /cadrage|mouvement/);
 });
 
+// Un rendu riche (2026-11-08) : jusqu'à 60 mots, et les cheveux comme MATIÈRE rendue sont permis.
+const RICHE =
+  "A pre-rendered 3D cutscene look: near-photoreal modelling, layered ornate costumes with embroidered trims, stitched leather and polished metal clasps, glossy strand-by-strand hair, luminous subsurface-scattered skin. Dramatic film-grade lighting with soft volumetric haze, deep saturated jewel tones, crisp specular highlights and a glossy blockbuster finish on every material.";
+
+test("controlerClause : une clause riche de rendu matière jusqu'à 60 mots passe", () => {
+  const n = RICHE.split(/\s+/).length;
+  assert.ok(n > 40 && n <= 60, `${n} mots`);
+  assert.deepEqual(controlerClause(RICHE, style), []);
+});
+
+test("controlerClause : au-delà de 60 mots, ou sous 15, la longueur est refusée", () => {
+  const longue = `${RICHE.replace(/\.$/, "")}, ${Array.from({ length: 25 }, () => "rich").join(" ")}.`;
+  assert.match(controlerClause(longue, style).join(" "), /entre 15 et 60/);
+  assert.match(controlerClause("A soft painterly look with warm light.", style).join(" "), /entre 15 et 60/);
+});
+
+test("controlerClause : des cheveux décrits par leur couleur ou leur coiffure restent un trait de sujet", () => {
+  assert.match(controlerClause(RICHE.replace("glossy strand-by-strand hair", "long silver hair"), style).join(" "), /Cheveux d'un sujet.*silver hair/);
+  assert.match(controlerClause(RICHE.replace("glossy strand-by-strand hair", "red-haired heroes"), style).join(" "), /Cheveux d'un sujet/);
+});
+
 test("controlerClause : un mouvement artistique à majuscule initiale n'est pas un nom propre de la liste", () => {
   assert.deepEqual(controlerClause(BONNE.replace("A post-impressionist", "An Art Nouveau-inspired"), { nom: "X", descriptor: "A style. Influenced by: Alphonse Mucha." }), []);
 });

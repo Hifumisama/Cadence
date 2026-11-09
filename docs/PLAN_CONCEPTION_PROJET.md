@@ -147,8 +147,10 @@ M ≈ 1 journée, L > 1 journée.
 - Images de présentation servies par `app/api/media` depuis `data/styles/` (miniatures existantes réutilisables) ;
   repli dégradé si absente.
 - Clauses courtes : écrites une fois pour les 245 styles dans `lib/styles/clauses.json` (pas de skill dans l'app : la
-  bibliothèque est figée, un style libre se saisit à la main), contrôle automatique en test (longueur, pas de nom propre,
-  pas de cadrage/mouvement) ; à relire à la main.
+  bibliothèque est figée, un style libre se saisit à la main), contrôle automatique en test (`lib/styles/clause.ts` :
+  15 à 60 mots en une ou deux phrases — 40 au plus jusqu'au 2026-11-08, trop court pour un rendu riche —, pas de nom
+  propre, pas de sujet ni de cadrage/mouvement ; les cheveux comme matière rendue sont permis, pas leur couleur ni leur
+  coiffure) ; à relire à la main.
 - Tests : chargeur, filtres, validation des clauses.
 
 ### Phase 3 — Page `/nouveau` (scènes 1 à 5) — L

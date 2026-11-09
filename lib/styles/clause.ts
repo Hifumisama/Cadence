@@ -5,15 +5,24 @@ import brutes from "./clauses.json";
 
 export const clausesProduites = brutes as Record<string, string>;
 
+/** Longueur d'une clause, en mots. 40 au plus jusqu'au 2026-11-08 : trop court pour un rendu riche (un rendu 3D de jeu vidéo a
+ * besoin de dire ses matières : costumes ornés en couches, cheveux brillants mèche à mèche, peau translucide), la clause tombait
+ * sur un « look » générique. 60 au plus depuis (une ou deux phrases, toujours) ; 15 au moins, pour qu'elle dise vraiment un rendu. */
 export const MOTS_MIN = 15;
-export const MOTS_MAX = 40;
+export const MOTS_MAX = 60;
 
-/** Mots qui trahissent un sujet, un cadrage ou un mouvement : la clause ne décrit que le rendu. */
+/** Mots qui trahissent un sujet, un cadrage ou un mouvement : la clause ne décrit que le rendu. « hair » n'en fait plus partie
+ * (2026-11-08) : « glossy strand-by-strand hair » est un marqueur de rendu matière ; une couleur ou une coiffe de cheveux, elle,
+ * reste un trait de sujet (voir `CHEVEUX_DE_SUJET`). */
 const MOTS_INTERDITS = [
   "character", "characters", "person", "people", "man", "men", "woman", "women", "girl", "boy", "face", "faces", "portrait", "portraits", "figure", "figures",
-  "body", "eyes", "hair", "pose", "poses", "camera", "shot", "shots", "framing", "close-up", "zoom", "pan", "dolly", "sweeping", "dynamic", "landscape",
+  "body", "eyes", "pose", "poses", "camera", "shot", "shots", "framing", "close-up", "zoom", "pan", "dolly", "sweeping", "dynamic", "landscape",
   "landscapes", "scene", "scenes", "cinematic",
 ];
+
+/** Des cheveux décrits par leur couleur, leur longueur ou leur coiffure : un personnage précis, pas un rendu. */
+const CHEVEUX_DE_SUJET =
+  /\b(?:red|ginger|blonde?|black|brown|brunette|white|grey|gray|silver|blue|pink|green|purple|golden|long|short|curly|wavy|straight|braided|spiky|messy|ponytail)[\s-]+hair(?:ed)?\b/;
 
 const mots = (t: string): string[] => t.trim().split(/\s+/).filter(Boolean);
 
@@ -49,5 +58,7 @@ export function controlerClause(clause: string, style: { nom: string; descriptor
   const bas = ` ${t.toLowerCase().replace(/[^a-z0-9'’-]+/g, " ")} `;
   const interdits = MOTS_INTERDITS.filter((w) => bas.includes(` ${w} `));
   if (interdits.length) erreurs.push(`Mots de sujet, de cadrage ou de mouvement : ${interdits.join(", ")}. La clause ne décrit que le rendu (médium, trait, couleur, lumière, texture).`);
+  const cheveux = bas.match(CHEVEUX_DE_SUJET);
+  if (cheveux) erreurs.push(`Cheveux d'un sujet : « ${cheveux[0].trim()} ». La clause peut dire comment les cheveux sont RENDUS (mèche à mèche, brillants), jamais leur couleur, longueur ou coiffure.`);
   return erreurs;
 }
