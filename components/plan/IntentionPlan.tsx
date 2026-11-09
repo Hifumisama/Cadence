@@ -59,9 +59,12 @@ export function IntentionPlan({
   hrefSuivant,
   hrefApresLancement,
   enAttente,
+  iterationEnCours,
 }: {
   /** L'itération de ce plan qui attend son tour dans la file : sa consigne se corrige ici jusqu'à son départ. */
   enAttente: { demandeId: number; consigne: string } | null;
+  /** L'itération de ce plan en cours de route (agent, recompilation, rendu) : sa consigne reste affichée jusqu'à la fin, même après avoir quitté la page. */
+  iterationEnCours: { consigne: string; etape: string | null } | null;
   projectId: number;
   planId: number;
   planUuid: string;
@@ -323,7 +326,7 @@ export function IntentionPlan({
         rows={3}
         value={consigne}
         placeholder={placeholder}
-        disabled={!aUnRendu || phase === "agent"}
+        disabled={!aUnRendu || phase === "agent" || iterationEnCours != null}
         onChange={(e) => setConsigne(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -332,6 +335,17 @@ export function IntentionPlan({
           }
         }}
       />
+      {iterationEnCours ? (
+        <div className="tm-iteration-en-cours" role="status">
+          <p className="tm-base">
+            <b>Itération en cours</b>
+            {iterationEnCours.etape ? ` · ${iterationEnCours.etape}` : ""}
+          </p>
+          <div className="tm-barre-essai-consigne">
+            <q>{iterationEnCours.consigne}</q>
+          </div>
+        </div>
+      ) : null}
       {base && !base.estDernier ? (
         <p className="tm-base">
           Base : <b>essai n°{base.numero}</b>. Le plan reprendra son prompt, sa seed et sa durée.

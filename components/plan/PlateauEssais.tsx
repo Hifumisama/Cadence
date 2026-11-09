@@ -46,6 +46,8 @@ export type EssaiEnCours = {
   affiche: boolean;
   /** Le lien qui l'affiche dans le lecteur. */
   href: string;
+  /** La consigne qui l'a demandé (itération), null pour une première génération. */
+  consigne: string | null;
 };
 
 /** La progression d'un essai en cours, relue à chaque sondage des tâches (3 s tant qu'une tâche est active) : sans cela la fenêtre restait figée sur l'étape du
@@ -206,6 +208,11 @@ export function PlateauEssais({
           {vueTravail ? (
             <div className="tm-barre-essai">
               <span className="tm-qui num tm-barre-essai-nom">Essai n°{vueTravail.numero} · en cours</span>
+              {vueTravail.consigne ? (
+                <div className="tm-barre-essai-consigne">
+                  <q>{vueTravail.consigne}</q>
+                </div>
+              ) : null}
               <p className="tiny-note tm-barre-essai-msg">Les autres essais restent consultables pendant ce temps : choisis-en un dans la colonne. Pour l&rsquo;annuler, passe par le panneau des tâches.</p>
             </div>
           ) : principal ? (

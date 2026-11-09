@@ -138,6 +138,19 @@ export async function modifierConsigneIteration(demandeId: number, texte: string
   return r.length ? { ok: true } : ERR("Cette itération vient de démarrer : sa consigne n'est plus modifiable.");
 }
 
+/** L'itération active de ce plan (en cours ou en attente), s'il y en a une : sa consigne et son étape. La page du plan les montre EN TOUTES CIRCONSTANCES, de la
+ * validation de « Itérer » à la fin du rendu (l'essai n'existe pas encore pendant l'agent et la recompilation, seule la demande porte la consigne). */
+export async function iterationDuPlan(planId: number): Promise<{ demandeId: number; statut: "en_cours" | "en_attente"; consigne: string; etape: string | null } | null> {
+  const [d] = await db
+    .select()
+    .from(demandes)
+    .where(and(eq(demandes.type, "iteration-plan"), eq(demandes.cibleType, "plan"), eq(demandes.cibleId, planId), inArray(demandes.statut, ["en_cours", "en_attente"])))
+    .orderBy(asc(demandes.statut), desc(demandes.id)) // « en_attente » avant « en_cours » alphabétiquement : une seule peut être en cours, on préfère celle-là si les deux existent
+    .limit(2);
+  if (!d) return null;
+  return { demandeId: d.id, statut: d.statut as "en_cours" | "en_attente", consigne: lireContexte(d).consigne, etape: d.statut === "en_cours" ? (etapeCouranteDemande(lireEtapes(d))?.libelle ?? null) : null };
+}
+
 /** L'itération de ce plan qui attend son tour, s'il y en a une : la page du plan y ramène (la consigne se corrige là, jusqu'au départ). */
 export async function iterationEnAttenteDuPlan(planId: number): Promise<{ demandeId: number; consigne: string } | null> {
   const [d] = await db

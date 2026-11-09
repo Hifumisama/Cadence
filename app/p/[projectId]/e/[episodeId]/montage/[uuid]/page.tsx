@@ -22,7 +22,7 @@ import { ControlesEntete, type AlerteControle } from "@/components/plan/Controle
 import { PelliculePlans, type CadrePlan } from "@/components/plan/PelliculePlans";
 import { PlateauEssais, type EssaiCarte } from "@/components/plan/PlateauEssais";
 import { IntentionPlan } from "@/components/plan/IntentionPlan";
-import { iterationEnAttenteDuPlan } from "@/lib/demandes-db";
+import { iterationDuPlan, iterationEnAttenteDuPlan } from "@/lib/demandes-db";
 import { CartePrompt } from "@/components/plan/CartePrompt";
 import { TiroirPlan } from "@/components/plan/TiroirPlan";
 import { BriefH3irBloc } from "@/components/plan/BriefH3irBloc";
@@ -223,6 +223,8 @@ export default async function PlanPage({
   const retenable = principal ? raisonNonRetenable(principal) == null : false;
   // Ce que le serveur sait de l'essai en cours ; le plateau lit ensuite sa progression EN DIRECT dans les tâches (useTaches), sans recharger la page.
   const suiviEnCours = vueEnCours ?? enFile;
+  // L'itération du plan (en cours ou en file) : sa consigne se voit dès le départ, avant même que l'essai existe.
+  const iteration = await iterationDuPlan(plan.id);
   const enCours = suiviEnCours
     ? {
         jobId: suiviEnCours.id,
@@ -232,6 +234,7 @@ export default async function PlanPage({
         pourcent: suiviEnCours.progressionValeur != null && suiviEnCours.progressionMax ? Math.round((100 * suiviEnCours.progressionValeur) / suiviEnCours.progressionMax) : null,
         affiche: vueEnCours != null,
         href: hrefRendus(suiviEnCours.id, null),
+        consigne: suiviEnCours.consigne?.trim() || (iteration?.statut === "en_cours" ? iteration.consigne : null),
       }
     : null;
   // Flèches ▲ ▼ : l'essai en cours se place au-dessus du plus récent des essais lisibles.
@@ -456,7 +459,8 @@ export default async function PlanPage({
                 nbEssais={jobHistory.length}
                 hrefSuivant={suivant ? lienPlan(suivant.uuid) : null}
                 hrefApresLancement={baseHref}
-                enAttente={await iterationEnAttenteDuPlan(plan.id)}
+                enAttente={iteration?.statut === "en_attente" ? { demandeId: iteration.demandeId, consigne: iteration.consigne } : null}
+                iterationEnCours={iteration?.statut === "en_cours" ? { consigne: iteration.consigne, etape: iteration.etape } : null}
               />
             </main>
 
