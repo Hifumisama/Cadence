@@ -373,6 +373,16 @@ function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler }: { x: Tache; rang: n
           ) : null}
         </span>
       </Link>
+      {x.consignes?.length ? (
+        <details className="tq-consignes">
+          <summary>{x.consignes.length > 1 ? `${x.consignes.length} consignes` : "Consigne"}</summary>
+          <ol>
+            {x.consignes.map((c, i) => (
+              <li key={i}>{c}</li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
       <span className="tq-actions">
         {onRetirer ? (
           <button type="button" className="tq-x" onClick={onRetirer} aria-label={`Retirer ${x.libelle} de la liste`} title="Retirer de la liste">

@@ -28,6 +28,8 @@ export type EntreeTacheDemande = {
   rendu: boolean;
   /** Les mots de la ligne une fois la demande finie, quand ce n'est pas une itération (« Plan ajouté »). */
   detailFin?: { termine: string; echoue: string };
+  /** Les consignes de l'itération, chacune telle que donnée (dépliable dans la ligne). */
+  consignes?: string[];
 };
 
 export function tacheDeDemande(e: EntreeTacheDemande): Tache {
@@ -67,5 +69,6 @@ export function tacheDeDemande(e: EntreeTacheDemande): Tache {
     derriere: null,
     jetons: e.jetons,
     annulationDemandee: enCours && e.annulationDemandee,
+    ...(e.consignes?.length ? { consignes: e.consignes } : {}),
   };
 }

@@ -300,7 +300,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const tachesDemandes: Tache[] = await Promise.all(
     lignesDemandes.map(async ({ d, planUuid, titre, episodeId }) => {
       const etapes = (Array.isArray(d.etapes) ? d.etapes : []) as EtapeDemande[];
-      const ctx = d.contexte as { runUuid?: string; jobId?: number };
+      const ctx = d.contexte as { runUuid?: string; jobId?: number; consigne?: string; consignes?: string[] };
       const courante = etapes.find((x) => x.statut === "en_cours");
       const rendu = courante?.cle === "rendu";
       const [run] = !rendu && ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
@@ -325,6 +325,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         annulationDemandee: feuille?.annulationDemandeeAt != null,
         progressionRendu: job && job.statut === "en_cours" && job.progressionValeur != null && job.progressionMax ? { valeur: job.progressionValeur, max: job.progressionMax } : null,
         rendu,
+        consignes: ctx.consignes?.length ? ctx.consignes : ctx.consigne ? [ctx.consigne] : undefined,
       });
     }),
   );

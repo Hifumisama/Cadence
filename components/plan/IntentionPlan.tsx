@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ouvrirConversation } from "@/app/agents/actions";
+import { empilerConsigne } from "@/app/consignes/actions";
 import { annulerLaDemande, demanderIteration, lireDemande } from "@/app/demandes/actions";
+import { FileConsignes } from "@/components/plan/FileConsignes";
+import type { ConsigneEnAttente } from "@/lib/consignes";
 import { preparerBaseIteration, rouvrirIteration, validerPretUpscale } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { DecisionsIteration } from "@/components/plan/DecisionsIteration";
@@ -58,7 +61,10 @@ export function IntentionPlan({
   nbEssais,
   hrefSuivant,
   hrefApresLancement,
+  consignesInitiales,
 }: {
+  /** Les consignes déjà en attente sur ce plan (file, docs/PLAN_FILE_CONSIGNES.md). */
+  consignesInitiales: ConsigneEnAttente[];
   projectId: number;
   planId: number;
   planUuid: string;
@@ -86,6 +92,7 @@ export function IntentionPlan({
   /** Les décisions de l'agent (avant → après), dès qu'il a répondu : gardées jusqu'à la prochaine consigne. */
   const [decisions, setDecisions] = useState<DecisionsAffichees | null>(null);
   const [pending, startTransition] = useTransition();
+  const [file, setFile] = useState<ConsigneEnAttente[]>(consignesInitiales);
   const champ = useRef<HTMLTextAreaElement>(null);
   const demonte = useRef(false);
   const annule = useRef(false);
@@ -221,6 +228,24 @@ export function IntentionPlan({
     }
   };
 
+  /** « Mettre en file » : la consigne s'empile (avec les réglages retouchés) sans rien lancer. Elle part avec les autres au « Lancer », en un seul rendu.
+   * Toujours depuis le dernier essai (la file n'a pas de base choisie), sans planche (l'agent travaille depuis les consignes et la fiche). */
+  const mettreEnFile = () => {
+    if (!texte || occupe) return;
+    setErreur(null);
+    setInfo(null);
+    startTransition(async () => {
+      const r = await empilerConsigne(planId, texte, b.reglagesRetouches());
+      if (!r.ok) {
+        setErreur(r.erreur);
+        return;
+      }
+      setFile((f) => [...f, r.consigne]);
+      setConsigne("");
+      champ.current?.focus();
+    });
+  };
+
   const validerOuRouvrir = () => {
     if (!base && etat !== "pret") return;
     setErreur(null);
@@ -312,10 +337,26 @@ export function IntentionPlan({
         <button type="button" className="btn tm-btn-itere" disabled={occupe || enCours || consigneAbsente} onClick={() => void iterer()} title={titreIterer}>
           {libelleIterer}
         </button>
+        {aUnRendu ? (
+          <button
+            type="button"
+            className="btn tm-btn-ligne"
+            disabled={occupe || consigneAbsente || !base?.estDernier}
+            onClick={mettreEnFile}
+            title={
+              !base?.estDernier
+                ? "La file repart toujours du dernier essai : affiche-le pour y empiler une consigne."
+                : "Garde cette consigne pour plus tard, sans attendre : elle part avec les autres en un seul rendu."
+            }
+          >
+            Mettre en file
+          </button>
+        ) : null}
         <button type="button" className="btn tm-btn-ligne" disabled={occupe || enCours || !base} onClick={validerOuRouvrir}>
           {libellePret}
         </button>
       </div>
+      <FileConsignes planId={planId} file={file} onChange={setFile} bloque={enCours || occupe} />
 
       {phase !== "repos" ? (
         <p className="tm-etat" role="status">

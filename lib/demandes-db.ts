@@ -56,12 +56,13 @@ const lireContexte = (d: LigneDemande): ContexteIteration => d.contexte as Conte
 /** « Itérer » un plan : UNE demande (consigne → agent → réécriture si besoin → rendu). Refusée si le plan en a déjà une en cours. */
 export async function lancerDemandeIteration(
   conversationUuid: string,
-  options: { retour: string; renduId?: number | null; planche?: boolean; depuisNumero: number | null; reglages?: ContexteIteration["reglages"] },
+  options: { retour: string; renduId?: number | null; planche?: boolean; depuisNumero: number | null; reglages?: ContexteIteration["reglages"]; consignes?: string[] },
 ): Promise<Resultat<{ demandeId: number; demandeUuid: string; runUuid: string; propositionUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   if (conv.portee !== "plan" || conv.cibleId == null) return ERR("« Itérer » se demande depuis la page d'un plan.");
   const contexte: ContexteIteration = { consigne: options.retour.trim(), depuisNumero: options.depuisNumero, reglages: options.reglages ?? {} };
+  if (options.consignes && options.consignes.length > 1) contexte.consignes = options.consignes;
   let demande: { id: number; uuid: string };
   try {
     const [d] = await db

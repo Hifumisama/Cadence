@@ -22,6 +22,7 @@ import { ControlesEntete, type AlerteControle } from "@/components/plan/Controle
 import { PelliculePlans, type CadrePlan } from "@/components/plan/PelliculePlans";
 import { PlateauEssais, type EssaiCarte } from "@/components/plan/PlateauEssais";
 import { IntentionPlan } from "@/components/plan/IntentionPlan";
+import { consignesDuPlan } from "@/lib/consignes-db";
 import { CartePrompt } from "@/components/plan/CartePrompt";
 import { TiroirPlan } from "@/components/plan/TiroirPlan";
 import { BriefH3irBloc } from "@/components/plan/BriefH3irBloc";
@@ -445,6 +446,7 @@ export default async function PlanPage({
                 nbEssais={jobHistory.length}
                 hrefSuivant={suivant ? lienPlan(suivant.uuid) : null}
                 hrefApresLancement={baseHref}
+                consignesInitiales={await consignesDuPlan(plan.id)}
               />
             </main>
 

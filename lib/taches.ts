@@ -70,6 +70,8 @@ export type Tache = {
   /** Appel LLM d'une conversation d'agent : un clic sur la tâche rouvre la popup d'agent
    * sur cette conversation (au lieu de la page du projet). Absent pour les autres genres. */
   conversationUuid?: string | null;
+  /** Les consignes données à une itération (une par entrée) : un détail dépliable de sa ligne, pour ne pas alourdir la file. */
+  consignes?: string[];
 };
 
 export type ResumeTaches = {

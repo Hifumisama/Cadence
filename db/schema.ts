@@ -739,6 +739,21 @@ export const demandes = pgTable(
   (table) => [uniqueIndex("demandes_une_en_cours_par_cible").on(table.cibleType, table.cibleId).where(sql`${table.statut} = 'en_cours'`)],
 );
 
+// Les CONSIGNES EN ATTENTE d'un plan (docs/PLAN_FILE_CONSIGNES.md, 2026-11-09) : des brouillons d'itération, empilés sans attendre le rendu précédent,
+// modifiables tant qu'ils ne sont pas lancés. Ce ne sont pas des demandes : elles ne posent aucune tâche. « Lancer » fusionne celles d'un plan en UNE
+// demande d'itération (un passage de l'agent, un rendu) et les efface ; elles restent lisibles dans le contexte de la demande (`consignes`).
+// `reglages` : durée / FPS / seed retouchés avec cette consigne (la dernière valeur demandée gagne à la fusion).
+export const consignes = pgTable("consignes", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id")
+    .notNull()
+    .references(() => plans.id, { onDelete: "cascade" }),
+  texte: text("texte").notNull(),
+  reglages: jsonb("reglages").notNull().default(sql`'{}'::jsonb`),
+  rang: integer("rang").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Le brief : document de RÉFÉRENCE du projet (un seul par projet), modifiable après
 // coup. `contenu` suit le schéma de lib/agents/brief-schema.json ;
 // `statuts` dit, section par section (clé de premier niveau), qui l'a posée :

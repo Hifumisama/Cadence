@@ -42,6 +42,8 @@ export function insererEtapesImagesIteration(etapes: EtapeDemande[], assetsCrees
 /** Ce qu'il faut pour finir une itération de plan, écrit à la demande puis complété à chaque étape. */
 export type ContexteIteration = {
   consigne: string;
+  /** Les consignes de la file fusionnées dans `consigne` (lib/consignes.ts), chacune telle que donnée : l'itération les montre une à une. Absent pour une consigne seule. */
+  consignes?: string[];
   depuisNumero: number | null;
   /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits avec l'essai. */
   reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string };

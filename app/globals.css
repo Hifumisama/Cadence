@@ -6404,3 +6404,55 @@ button {
 
 @media (prefers-reduced-motion: reduce) { .mt-clip.f-encours .mt-clip-st { animation: none; } }
 @media (max-width: 600px) { .mt-hd h1 { font-size: 32px; } .mt-outils { margin-left: 0; } .mt-tl { grid-template-columns: 76px minmax(0, 1fr); } .mt-labels div { padding-inline: 8px; font-size: 12px; } .mt-export { text-align: left; } }
+
+/* La file de consignes d'un plan (components/plan/FileConsignes.tsx) : brouillons empilés, modifiables jusqu'au lancement. */
+.tm-file {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.tm-file-titre {
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.tm-file-titre small {
+  color: var(--ink-3);
+}
+.tm-file-liste {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.tm-file-texte {
+  white-space: pre-wrap;
+}
+.tm-file-reglages {
+  display: block;
+  color: var(--ink-3);
+}
+.tm-file-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+/* Les consignes d'une itération, dépliables dans sa ligne du panneau des tâches (une ligne par plan, jamais une par consigne). */
+.tq-consignes {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 0 12px 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.tq-consignes summary {
+  cursor: pointer;
+}
+.tq-consignes ol {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  white-space: pre-wrap;
+}
