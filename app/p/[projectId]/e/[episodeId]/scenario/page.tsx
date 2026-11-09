@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { demandes, plans } from "@/db/schema";
+import { demosMiseEnScene } from "@/lib/media";
 import { VueScenario } from "@/components/scenario/VueScenario";
 import { srcRendu } from "@/components/plan/Vignette";
 import type { ContexteAjoutPlan, ContexteAjoutScene } from "@/lib/demandes";
@@ -89,5 +90,5 @@ export default async function ScenarioPage({
     nbDeveloppes: etat.nbDeveloppes,
   };
 
-  return <VueScenario projectId={pid} episodeId={eid} reglagesProjet={{ creativite: projet?.creativite ?? null, styleCamera: projet?.styleCamera ?? null }} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} ajoutScene={ajoutScene} fiches={fiches} />;
+  return <VueScenario projectId={pid} episodeId={eid} reglagesProjet={{ creativite: projet?.creativite ?? null, styleCamera: projet?.styleCamera ?? null }} demos={demosMiseEnScene()} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} ajoutScene={ajoutScene} fiches={fiches} />;
 }

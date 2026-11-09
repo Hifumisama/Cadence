@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { rappelleDe } from "@/lib/h3ir/apercu-style";
 import { NARRATION_DEMOS, REPLIQUES_DEMOS, type DemoDispo } from "@/lib/h3ir/demos";
 import {
   AJOUTS_CREATIVITE,
@@ -26,6 +27,7 @@ import {
   type ChoixMiseEnScene,
   type Creativite,
 } from "@/lib/h3ir/reglages";
+import { MotsMise, VisuelMise } from "./VisuelMise";
 
 /** Ce que la carte montre : un style de mise en scène (« aucun », l'un des 7 réalisateurs ou un profil perso) ou un niveau de créativité. */
 export type CarteChoisie = { genre: "style"; id: string } | { genre: "creativite"; id: Creativite };
@@ -57,9 +59,15 @@ export function ChoixMise({
   aide,
   suggere = false,
   className,
+  visuel,
+  detail,
 }: {
   titre: string;
   sous: string;
+  /** Un visuel en tête de carte (VisuelMise) : image fixe de la démo ou pictogramme. */
+  visuel?: React.ReactNode;
+  /** Sous le sous-titre : mots-clés, « Rappelle… ». */
+  detail?: React.ReactNode;
   /** Petite étiquette au-dessus du titre (« Suggéré par ton style », « Hérité »…). */
   tag?: string;
   presse: boolean;
@@ -72,9 +80,11 @@ export function ChoixMise({
   return (
     <div className={`cn-choix${suggere ? " is-suggere" : ""}${className ? ` ${className}` : ""}`}>
       <button type="button" className="cn-mise" aria-pressed={presse} onClick={onChoisir}>
+        {visuel}
         {tag ? <em className="cn-mise-tag">{tag}</em> : null}
         <b>{titre}</b>
         <span>{sous}</span>
+        {detail}
       </button>
       {aide ? (
         <button type="button" className="cn-choix-aide" aria-label={aide.label} aria-haspopup="dialog" onClick={aide.onOuvrir}>
@@ -93,8 +103,14 @@ export function ChoixStyleMise({
   onAide,
   suggere = false,
   className,
+  affiche,
+  avecVisuel = false,
 }: {
   id: ChoixMiseEnScene;
+  /** Avec `avecVisuel` : l'image fixe de la démo (`DemoDispo.affiche`), ou null pour le pictogramme. */
+  affiche?: string | null;
+  /** Montre le visuel, les trois mots-clés et la ligne « Rappelle » (la fenêtre de choix) ; sans, la carte reste en texte (écran de conception). */
+  avecVisuel?: boolean;
   presse: boolean;
   onChoisir: () => void;
   onAide: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -102,8 +118,18 @@ export function ChoixStyleMise({
   className?: string;
 }) {
   const signature = signatureChoix(id);
+  const rappelle = rappelleDe(id);
   return (
     <ChoixMise
+      visuel={avecVisuel ? <VisuelMise id={id} affiche={affiche} /> : undefined}
+      detail={
+        avecVisuel ? (
+          <>
+            <MotsMise id={id} />
+            {rappelle ? <small className="cn-rappelle">{estStyleCamera(id) ? "Pense à" : "Rappelle"} : {rappelle}</small> : null}
+          </>
+        ) : undefined
+      }
       titre={RESUME_STYLE_CAMERA[id]}
       sous={signature || DETAIL_STYLE_CAMERA[id]}
       tag={suggere ? "Suggéré par ton style" : undefined}

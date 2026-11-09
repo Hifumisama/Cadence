@@ -7,6 +7,7 @@ import { modifierScene } from "@/app/scenario/actions";
 import { Icone } from "@/components/ui/Icone";
 import { ChampsGenreScene } from "./ChampsGenreScene";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
+import type { DemoDispo } from "@/lib/h3ir/demos";
 import { resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/reglages";
 
 /** Bouton « Modifier » d'une scène : titre, description, genre et ambiance, dans une popup (même écrin que « Ajouter un plan »). */
@@ -19,6 +20,7 @@ export function ModifierSceneButton({
   creativite = "",
   styleCamera = "",
   reglagesProjet,
+  demos,
 }: {
   sceneId: number;
   titre: string;
@@ -30,6 +32,8 @@ export function ModifierSceneButton({
   styleCamera?: string;
   /** Les réglages du projet : ce que la scène hérite si elle ne règle rien. */
   reglagesProjet: ReglagesBruts;
+  /** Les vidéos de démo de la mise en scène (lib/media.ts, `demosMiseEnScene`). */
+  demos?: Record<string, DemoDispo>;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -120,7 +124,7 @@ export function ModifierSceneButton({
                     <textarea id="modif-scene-champ-fonction" className="field" rows={4} value={f} onChange={(e) => setF(e.target.value)} />
                   </div>
                   <ChampsGenreScene genre={g} ambiance={a} onGenre={setG} onAmbiance={setA} />
-                  <ChampsReglagesCamera creativite={cr} styleCamera={sc} onCreativite={setCr} onStyleCamera={setSc} heritage={resoudreReglages({ projet: reglagesProjet })} idPrefixe="scene" />
+                  <ChampsReglagesCamera creativite={cr} styleCamera={sc} onCreativite={setCr} onStyleCamera={setSc} heritage={resoudreReglages({ projet: reglagesProjet })} idPrefixe="scene" demos={demos} />
                 </div>
 
                 <footer className="sc-popup-pied">

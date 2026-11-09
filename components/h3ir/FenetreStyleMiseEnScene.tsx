@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CarteMiseEnScene, ChoixMise, ChoixStyleMise, type CarteChoisie } from "@/components/conception/CarteMiseEnScene";
 import { cleDemoStyle, type DemoDispo } from "@/lib/h3ir/demos";
+import { VisuelMise } from "@/components/conception/VisuelMise";
 import { IDS_PROFILS_PERSO } from "@/lib/h3ir/profils-perso";
 import { LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, STYLE_AUCUN, type ReglagesResolus } from "@/lib/h3ir/reglages";
 import { STYLES_CAMERA } from "@/lib/h3ir/styles-camera";
@@ -12,8 +13,8 @@ const FOCUSABLES = 'button:not([disabled]), [href], input:not([disabled]), selec
 
 /** La fenêtre de choix du style de mise en scène d'un niveau (projet, scène, plan) : une grille de cartes, « Hériter » (valeur vide), « Aucun style », les six façons de filmer
  * d'animation et de genre, puis les sept réalisateurs. Le rendu des cartes est celui de l'écran « Mise en scène » de la conception (ChoixMise, ChoixStyleMise) et leur « ? »
- * ouvre la même carte (CarteMiseEnScene), avec la vidéo de démo quand elle existe (`demos`, lue côté serveur par `demosMiseEnScene`) ; les profils perso n'en ont pas : la carte
- * garde alors son texte d'exemple. Un choix ferme la fenêtre. Échap ferme la carte ouverte, sinon la fenêtre, sans fermer une fenêtre parente (popup de la scène). */
+ * ouvre la même carte (CarteMiseEnScene), avec la vidéo de démo quand elle existe (`demos`, lue côté serveur par `demosMiseEnScene`) ; sans elle, la carte garde son texte d'exemple. Chaque carte a un visuel : l'image fixe de la démo (`affiche`) ou, à défaut (profils perso), un pictogramme, avec trois mots-clés
+ * et une ligne « Rappelle ». Un choix ferme la fenêtre. Échap ferme la carte ouverte, sinon la fenêtre, sans fermer une fenêtre parente (popup de la scène). */
 export function FenetreStyleMiseEnScene({
   valeur,
   heritage,
@@ -87,6 +88,7 @@ export function FenetreStyleMiseEnScene({
     onFermer();
   };
   const demoDe = (c: CarteChoisie): DemoDispo | null => (c.genre === "style" ? (demos[cleDemoStyle(c.id)] ?? null) : null);
+  const afficheDe = (id: string): string | null => demos[cleDemoStyle(id)]?.affiche ?? null;
   const herite = heritage.styleCamera ? RESUME_STYLE_CAMERA[heritage.styleCamera] : "Aucun style";
 
   return createPortal(
@@ -110,6 +112,7 @@ export function FenetreStyleMiseEnScene({
             <ChoixMise
               className="h3-choix"
               tag="Hériter"
+              visuel={<VisuelMise id={heritage.styleCamera ?? STYLE_AUCUN} affiche={afficheDe(heritage.styleCamera ?? STYLE_AUCUN)} />}
               titre={herite}
               sous={`vient de ${LIBELLE_NIVEAU[heritage.origine.styleCamera]}`}
               presse={valeur === ""}
@@ -117,6 +120,7 @@ export function FenetreStyleMiseEnScene({
             />
             <ChoixMise
               className="h3-choix"
+              visuel={<VisuelMise id={STYLE_AUCUN} affiche={afficheDe(STYLE_AUCUN)} />}
               titre="Aucun style"
               sous="l’IA décide"
               presse={valeur === STYLE_AUCUN}
@@ -127,13 +131,13 @@ export function FenetreStyleMiseEnScene({
           <p className="cn-mini">Animation et genres</p>
           <div className="cn-mises h3-mises" role="group" aria-label="Façons de filmer d'animation et de genre">
             {IDS_PROFILS_PERSO.map((p) => (
-              <ChoixStyleMise key={p} className="h3-choix" id={p} presse={valeur === p} onChoisir={() => choisir(p)} onAide={(e) => ouvrir({ genre: "style", id: p }, e)} />
+              <ChoixStyleMise key={p} className="h3-choix" avecVisuel affiche={afficheDe(p)} id={p} presse={valeur === p} onChoisir={() => choisir(p)} onAide={(e) => ouvrir({ genre: "style", id: p }, e)} />
             ))}
           </div>
           <p className="cn-mini">Dans le style d&rsquo;un réalisateur</p>
           <div className="cn-mises h3-mises" role="group" aria-label="Style d'un réalisateur">
             {STYLES_CAMERA.map((s) => (
-              <ChoixStyleMise key={s} className="h3-choix" id={s} presse={valeur === s} onChoisir={() => choisir(s)} onAide={(e) => ouvrir({ genre: "style", id: s }, e)} />
+              <ChoixStyleMise key={s} className="h3-choix" avecVisuel affiche={afficheDe(s)} id={s} presse={valeur === s} onChoisir={() => choisir(s)} onAide={(e) => ouvrir({ genre: "style", id: s }, e)} />
             ))}
           </div>
         </div>

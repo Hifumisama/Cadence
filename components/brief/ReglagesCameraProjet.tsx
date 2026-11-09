@@ -4,11 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierReglagesCameraProjet } from "@/app/projects/actions";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
+import type { DemoDispo } from "@/lib/h3ir/demos";
 import { resoudreReglages } from "@/lib/h3ir/reglages";
 
 /** Mise en scène et créativité du PROJET : le réglage le plus général d'Open H3 IR, pour toutes les fiches qu'il compile. Chaque scène, puis chaque plan, peut le surcharger
  * (« Modifier » sur la scène, « Modifier » sur le plan). Vide = le réglage par défaut (créativité équilibrée, aucun style de mise en scène). */
-export function ReglagesCameraProjet({ projectId, creativite, styleCamera }: { projectId: number; creativite: string | null; styleCamera: string | null }) {
+export function ReglagesCameraProjet({ projectId, creativite, styleCamera, demos }: { projectId: number; creativite: string | null; styleCamera: string | null; /** Les vidéos de démo de la mise en scène (lib/media.ts, `demosMiseEnScene`). */ demos?: Record<string, DemoDispo> }) {
   const router = useRouter();
   const [c, setC] = useState(creativite ?? "");
   const [s, setS] = useState(styleCamera ?? "");
@@ -31,7 +32,7 @@ export function ReglagesCameraProjet({ projectId, creativite, styleCamera }: { p
         <span className="eyebrow">Fiches compilées par Open H3 IR</span>
       </div>
       <div className="panel-bd form-grid">
-        <ChampsReglagesCamera creativite={c} styleCamera={s} onCreativite={setC} onStyleCamera={setS} heritage={resoudreReglages({})} idPrefixe="projet" />
+        <ChampsReglagesCamera creativite={c} styleCamera={s} onCreativite={setC} onStyleCamera={setS} heritage={resoudreReglages({})} idPrefixe="projet" demos={demos} />
         <p className="tiny-note wide">
           Valables pour tout le film. Une scène (« Modifier ») ou un plan (« Modifier » sur sa page) peut régler autre chose, ou choisir « Aucun style ». Sans effet sur les fiches écrites par l&rsquo;ancien moteur.
         </p>

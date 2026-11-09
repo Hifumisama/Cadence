@@ -31,6 +31,7 @@ import { binaires, executerProcessus } from "../lib/planche-vignettes";
  *   npm run mises-en-scene -- rendus [--seulement a,b] [--variante [--fois N]]   met en file un aperçu (0,4 MP, même seed) pour chaque plan dont la fiche est faite
  *   npm run mises-en-scene -- etat                     où en est chaque démo : références, fiche, rendu, fichier publié
  *   npm run mises-en-scene -- publier [--seulement a,b]  copie le rendu RETENU de chaque plan (sinon le dernier terminé) en data/mises-en-scene/<démo>.mp4 + affiche .webp
+ *   npm run mises-en-scene -- vignettes [--forcer]       (re)fait l'affiche .webp (image fixe à 1 s, 768 px) de chaque vidéo déjà publiée ; sans --forcer, seulement celles qui manquent. Sans base ni GPU.
  *
  * Étapes à la main entre les commandes : générer et valider les 3 images de référence (page des assets du projet), puis rendre les plans (page du plan ou aperçus du film), et
  * retenir le meilleur essai de chaque plan. `preparer` ne réécrit pas ce qui existe, sauf avec --forcer (description, durée, seed, réglages). Ne pas lancer `fiches` ni les rendus
@@ -262,13 +263,30 @@ async function publier(): Promise<void> {
   console.log(`\nFichiers sous ${dossier}. En production, les copier sur le partage NFS (comme data/styles).`);
 }
 
+/** Les affiches des cartes de mise en scène : une image fixe extraite de chaque démo .mp4 publiée, sans toucher à la base. */
+async function vignettes(): Promise<void> {
+  const { ffmpeg } = binaires();
+  const faites: string[] = [];
+  for (const cle of CLES_DEMOS) {
+    const source = join(MEDIA_ROOT, cheminDemo(cle, "mp4"));
+    const cible = join(MEDIA_ROOT, cheminDemo(cle, "webp"));
+    if (!existsSync(source) || (existsSync(cible) && !drapeau("--forcer"))) continue;
+    const png = await executerProcessus(ffmpeg, ["-v", "error", "-ss", "1", "-i", source, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "pipe:1"]);
+    await sharp(png).resize({ width: 768 }).webp({ quality: 82 }).toFile(`${cible}.partiel`);
+    await rename(`${cible}.partiel`, cible);
+    faites.push(cle);
+  }
+  console.log(`Affiches faites (${faites.length}) : ${faites.join(", ") || "aucune (toutes présentes)"}`);
+}
+
 async function main() {
-  if (COMMANDE === "preparer") await preparer();
+  if (COMMANDE === "vignettes") await vignettes();
+  else if (COMMANDE === "preparer") await preparer();
   else if (COMMANDE === "fiches") await fiches();
   else if (COMMANDE === "publier") await publier();
   else if (COMMANDE === "etat") await etat();
   else if (COMMANDE === "rendus") await rendus();
-  else console.log("Commandes : preparer [--forcer] | fiches [--seulement a,b] | rendus [--seulement a,b] | etat | publier [--seulement a,b]");
+  else console.log("Commandes : preparer [--forcer] | fiches [--seulement a,b] | rendus [--seulement a,b] | etat | publier [--seulement a,b] | vignettes [--forcer]");
 }
 
 main().then(
