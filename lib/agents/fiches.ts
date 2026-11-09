@@ -47,8 +47,8 @@ export type ApresFiche = {
   refs?: RefFiche[];
   dureeGenerationSecondes?: number;
   passages?: PassageFiche[];
-  /** La NOUVELLE description (intention) du plan, avec son « État en fin de plan : … » : écrite avec la fiche quand la correction change ce
-   * qui se passe dans le plan ou l'état qu'il laisse au suivant (« Itérer » : lib/agents/iteration-plan.ts). L'ancienne reste dans l'essai
+  /** La NOUVELLE description (intention) du plan, complète : écrite avec la fiche quand la correction change ce qui se passe dans le plan
+   * (« Itérer » : lib/agents/iteration-plan.ts). L'ancienne reste dans l'essai
    * précédent (`jobs.description_utilisee`), comme le prompt. */
   description?: string;
   /** Clés (`cleNouvelAsset`) des assets que la MÊME proposition crée et que `refs` cite : la fiche s'applique après eux (leur image n'existe

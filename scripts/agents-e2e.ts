@@ -15,7 +15,7 @@ import type { executerSkill } from "../lib/llm/executer";
 import type { MessageLlm, PartieContenu } from "../lib/llm/types";
 import type { Planche } from "../lib/planche-vignettes";
 import { traiterTacheLlm } from "../worker/llm";
-import { arreterCreation, lancerCreation, lireCreation, piloterCreations, reprendreCreation } from "../lib/agents/creation-db";
+import { arreterCreation, lancerCreation, lancerFichesProjet, lireCreation, piloterCreations, reprendreCreation } from "../lib/agents/creation-db";
 
 /**
  * Essai de bout en bout du système d'agents, SANS interface et SANS modèle : un FAUX
@@ -941,6 +941,13 @@ async function main() {
       }
       return await lireCreation(pInst!.id);
     };
+    // Phase 1 (jusqu'à la relecture) : la création s'arrête avant les fiches, qui attendent une demande.
+    const mi4 = await faireTourner();
+    const etapesMi4 = ((mi4?.etapes ?? []) as { cle: string; statut: string; erreur?: string | null }[]).map((e) => `${e.cle}:${e.statut}${e.erreur ? ` « ${e.erreur} »` : ""}`);
+    ok(mi4?.statut === "termine", `phase 1 terminée (${etapesMi4.join(" ")})`);
+    ok(etapesMi4.filter((e) => /^(fiches|prompts-fiches|compilation):/.test(e)).every((e) => e.endsWith(":a_demander")), "…les fiches attendent qu'on les demande");
+    // Phase 2 : « Écrire les fiches ».
+    ok((await lancerFichesProjet(pInst!.id)).ok, "phase 2 demandée (« Écrire les fiches »)");
     const fin4 = await faireTourner();
     const etapes4 = ((fin4?.etapes ?? []) as { cle: string; statut: string; erreur?: string | null }[]).map((e) => `${e.cle}:${e.statut}${e.erreur ? ` « ${e.erreur} »` : ""}`);
     ok(fin4?.statut === "termine", `installateur terminé (${etapes4.join(" ")})`);

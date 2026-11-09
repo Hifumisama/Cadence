@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { AvanceeScene } from "@/components/conception/AvanceeScene";
 import { Topbar } from "@/components/ui/Topbar";
 import { db } from "@/db";
-import { lireVueCreation } from "@/lib/agents/creation-vue";
+import { lirePlansIntents, lireVueCreation } from "@/lib/agents/creation-vue";
 import { lireConception } from "@/lib/conception-db";
 import { resumeMiseEnScene } from "@/lib/h3ir/reglages";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
@@ -23,7 +23,7 @@ export default async function CreationPage({ params }: { params: Promise<{ proje
   const pid = Number(projectId);
   const [projet, premierEpisodeId] = await Promise.all([getProject(pid), getFirstEpisodeId(pid)]);
   if (!projet) notFound();
-  const [creation, conception, brief, images] = await Promise.all([lireVueCreation(pid), lireConception(db, pid), lireBrief(pid), lireEtatImages(pid)]);
+  const [creation, conception, brief, images, plansIntents] = await Promise.all([lireVueCreation(pid), lireConception(db, pid), lireBrief(pid), lireEtatImages(pid), lirePlansIntents(pid)]);
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
   const styleBrief = brief?.contenu.style;
   const image = styleBrief?.image && existsSync(join(MEDIA_ROOT, "styles", styleBrief.image)) ? styleBrief.image : null;
@@ -43,7 +43,7 @@ export default async function CreationPage({ params }: { params: Promise<{ proje
         tabs={{ projectId: pid, episodeBase }}
       />
       <main>
-        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} imagesInitial={images} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} miseEnScene={resumeMiseEnScene(projet.creativite, projet.styleCamera)} />
+        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} imagesInitial={images} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} miseEnScene={resumeMiseEnScene(projet.creativite, projet.styleCamera)} plansInitial={plansIntents} />
       </main>
     </>
   );

@@ -170,6 +170,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
   if (prop.lot) {
     if (run.skill === "prompt-asset") return postSousTacheRegistre(tx, run, prop, scope, json as SortiePromptAsset);
     if (run.skill === "plan-h3") return postSousTacheFiche(tx, run, prop, scope, json as SortiePlanH3);
+    if (run.skill === SKILL_H3IR) return postSousTacheFicheH3ir(tx, run, prop, scope, json as ResultatH3ir);
     if (run.skill === "relecture-scenario") return postSousTacheRelecture(tx, run, prop, scope, json as SortieRelecture);
     if (run.skill === "traitement-episode") return postSousTacheTraitement(tx, run, prop, scope, json as SortieTraitement);
     if (run.skill === "scenario-scene") return postSousTacheScene(tx, run, prop, scope, json as SortieScenarioScene);
@@ -235,11 +236,20 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
     const [plan] = await tx.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.id, prop.cibleId));
     if (!plan) throw new Error("Le plan visé n'existe plus.");
     bruts = depuisCompilationH3ir(json as ResultatH3ir, plan);
+    // Réécriture depuis « Itérer » (lib/agents/service.ts, genererReecriturePlan) : la nouvelle description compilée s'écrit avec la fiche, et la durée voulue avec.
+    const o = (run.options ?? {}) as { descriptionNouvelle?: unknown; dureeNouvelle?: unknown };
+    const nouvelle = typeof o.descriptionNouvelle === "string" ? o.descriptionNouvelle.trim() : "";
+    const duree = typeof o.dureeNouvelle === "number" && Number.isInteger(o.dureeNouvelle) ? o.dureeNouvelle : null;
+    if (nouvelle || duree != null) {
+      for (const b of bruts) if (b.cibleType === "fiche") b.apres = { ...(b.apres as object), ...(nouvelle ? { description: nouvelle } : {}), ...(duree != null ? { dureeGenerationSecondes: duree } : {}) };
+    }
   } else if (run.skill === "inventaire-assets") {
     // Les assets que les plans réclament et que le registre n'a pas : des créations sans prompt (il s'écrit ensuite).
     const sortie = json as SortieInventaire;
     const registre = await tx.select({ code: assets.code, type: assets.type, description: assets.description }).from(assets).where(and(eq(assets.projectId, prop.projectId), horsAffiches));
-    bruts = depuisInventaire(sortie, registre.map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" })));
+    // Les effets et objets du brief que l'agent a lus (entrée du run) : un VFX n'est accepté que s'il en est tiré.
+    const elements = (run.entree as { brief?: { elements?: { nom: string; nature: string }[] } | null } | null)?.brief?.elements;
+    bruts = depuisInventaire(sortie, registre.map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" })), { elements: Array.isArray(elements) ? elements : [] });
     await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts);
     // Rien à ajouter : la proposition le dit (avec les notes du modèle) plutôt que d'afficher une liste vide.
     if (bruts.length === 0) {
@@ -454,6 +464,27 @@ async function postSousTacheFiche(
     autres.filter((a) => a.sousTache !== cle && !a.refuse).map((a) => (a.apres as { code?: unknown } | null)?.code).filter((c): c is string => typeof c === "string"),
   );
   const bruts = await brutsFiche(tx, prop.projectId, planUuid, sortie, { groupe: groupeEpisode(plan.episodeId), sousGroupe: scene?.titre ?? null, codesDejaProposes });
+  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
+  await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
+/** Une sous-tâche Open H3 IR d'un lot de fiches (un plan compilable, lib/h3ir/moteur.ts) : sa fiche compilée, rangée sous son épisode et sa scène,
+ * sans asset à créer. Même règle que les autres lots : ses changements REMPLACENT ceux qu'elle avait posés (relance), puis le lot décide de son statut. */
+async function postSousTacheFicheH3ir(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "episode" | "plan" | "asset"; cibleId: number | null },
+  res: ResultatH3ir,
+) {
+  const cle = run.cleSousTache;
+  const planUuid = planUuidDeCle(cle);
+  if (!cle || !planUuid) throw new Error(`Sous-tâche de fiche inconnue (« ${cle ?? "?"} »).`);
+  const [plan] = await tx.select({ uuid: plans.uuid, titre: plans.titre, episodeId: plans.episodeId, sceneId: plans.sceneId }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, prop.projectId)));
+  if (!plan) throw new Error("Le plan visé n'existe plus.");
+  const [scene] = plan.sceneId != null ? await tx.select({ titre: scenes.titre }).from(scenes).where(eq(scenes.id, plan.sceneId)) : [];
+  const bruts = depuisCompilationH3ir(res, plan, { groupe: groupeEpisode(plan.episodeId), sousGroupe: scene?.titre ?? null });
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
   await finaliserLot(tx, prop.id, { runTermineId: run.id });

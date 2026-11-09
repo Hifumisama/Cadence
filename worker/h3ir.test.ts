@@ -66,6 +66,22 @@ test("lireEntreeH3ir : le plan est obligatoire, shots et style facultatifs", () 
   assert.deepEqual(lireEntreeH3ir({ planUuid: "u", shots: 3, director: "wong", creativity: "bold" }), { planUuid: "u", shots: 3, director: "wong", creativity: "bold" });
   assert.deepEqual(lireEntreeH3ir({ planUuid: "u" }), { planUuid: "u", shots: null, director: null, creativity: null });
   assert.throws(() => lireEntreeH3ir({}), /sans plan/);
+  // Réécriture d'« Itérer » : la nouvelle description (et sa durée) remplacent celles du plan.
+  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "Mai court.", dureeSecondes: 6 }), { planUuid: "u", shots: null, director: null, creativity: null, description: "Mai court.", dureeSecondes: 6 });
+  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "  ", dureeSecondes: 6.5 }), { planUuid: "u", shots: null, director: null, creativity: null });
+});
+
+test("executerH3ir : la description de remplacement va au chargement du brief ; sans elle, rien n'est surchargé", async () => {
+  const vus: unknown[] = [];
+  const { d } = deps({
+    charger: async (_p, _u, _o, surcharge) => {
+      vus.push(surcharge);
+      return BRIEF_OK;
+    },
+  });
+  await executerH3ir({ projectId: 7, entree: { planUuid: "u1", description: "Mai court.", dureeSecondes: 6 } }, OPTIONS(), d);
+  await executerH3ir({ projectId: 7, entree: { planUuid: "u1" } }, OPTIONS(), deps({ charger: async (_p, _u, _o, s) => (vus.push(s), BRIEF_OK) }).d);
+  assert.deepEqual(vus, [{ description: "Mai court.", dureeSecondes: 6 }, undefined]);
 });
 
 test("executerH3ir : brief → traduction (une fois, intent français) → compilation avec l'intent anglais", async () => {

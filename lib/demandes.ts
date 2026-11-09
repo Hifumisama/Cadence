@@ -187,23 +187,44 @@ export function decisionAjoutScene(prop: PropositionAjout | null): DecisionAjout
 }
 
 // --- « Générer la fiche » d'un plan (pages Scénario et Plan) -----------------------------------------------------------------------------
-// Une demande à deux étapes : l'agent `plan-h3` écrit la fiche (prompt vidéo, références), puis elle est enregistrée SANS relecture (on la relit dans la
+// Une demande à deux étapes : la fiche est écrite (prompt vidéo, références), puis elle est enregistrée SANS relecture (on la relit dans la
 // page du plan). Cible = le plan : une seule à la fois par plan, et jamais en même temps qu'une itération de ce plan (même index unique partiel).
+// Moteur (2026-11-08, lib/h3ir/moteur.ts) : Open H3 IR compile la fiche quand les références d'image du plan existent toutes. Sinon `plan-h3` l'écrit
+// en REPLI (il choisit les références, crée les assets manquants) et, si toutes les références retenues ont leur image, une troisième étape
+// RECOMPILE aussitôt la fiche avec Open H3 IR (créativité et style de mise en scène compris) ; sinon la fiche plan-h3 reste, et la demande le dit.
 
 export const ETAPES_FICHE_PLAN = [
   { cle: "agent", libelle: "L'agent écrit la fiche" },
   { cle: "ecriture", libelle: "Enregistrement de la fiche" },
 ] as const;
 
-export const etapesFichePlan = (): EtapeDemande[] => ETAPES_FICHE_PLAN.map((e, i) => ({ cle: e.cle, libelle: e.libelle, statut: i === 0 ? ("en_cours" as const) : ("a_venir" as const) }));
+/** `h3ir` : Open H3 IR compile directement ; `plan-h3` : plan-h3 seul (imposé) ; `plan-h3-puis-h3ir` : repli plan-h3, puis compilation Open H3 IR. */
+export type ParcoursFichePlan = "h3ir" | "plan-h3" | "plan-h3-puis-h3ir";
+
+export const etapesFichePlan = (parcours: ParcoursFichePlan = "plan-h3"): EtapeDemande[] => {
+  const liste =
+    parcours === "h3ir"
+      ? [{ cle: "agent", libelle: "Open H3 IR compile la fiche" }, ETAPES_FICHE_PLAN[1]]
+      : parcours === "plan-h3-puis-h3ir"
+        ? [{ cle: "agent", libelle: "plan-h3 choisit les références et écrit la fiche" }, ETAPES_FICHE_PLAN[1], { cle: "compilation", libelle: "Compilation Open H3 IR" }]
+        : [...ETAPES_FICHE_PLAN];
+  return liste.map((e, i) => ({ cle: e.cle, libelle: e.libelle, statut: i === 0 ? ("en_cours" as const) : ("a_venir" as const) }));
+};
 
 export type ContexteFichePlan = {
   /** Le titre du plan : pour la file. */
   titre: string;
   planUuid: string;
   runUuid?: string;
-  /** `h3ir` : la fiche est compilée par Open H3 IR. Elle peut REMPLACER une fiche existante (le clic vaut confirmation ; l'ancien prompt reste dans l'historique). */
-  moteur?: "h3ir";
+  /** Le moteur de la tâche EN COURS (`runUuid`). `h3ir` : la fiche est compilée par Open H3 IR ; elle peut REMPLACER une fiche existante (le clic vaut
+   * confirmation ; l'ancien prompt reste dans l'historique). Absent (demandes d'avant 2026-11-08) ou `plan-h3` : plan-h3. */
+  moteur?: "h3ir" | "plan-h3";
+  /** Repli plan-h3 : recompiler avec Open H3 IR une fois sa fiche enregistrée (étape `compilation`). */
+  enchainerH3ir?: boolean;
+  /** Réglages Open H3 IR choisis au lancement (absents : ceux du plan, de sa scène ou du projet). */
+  reglagesH3ir?: { shots?: number | null; director?: string | null; creativity?: string | null };
+  /** Ce que la demande a à dire à la fin (repli plan-h3 gardé, et pourquoi). */
+  notes?: string[];
 };
 
 /** Ce que la proposition de l'agent permet de faire d'une fiche : elle doit écrire la fiche ; les assets manquants qu'elle cite sont créés avec (elle

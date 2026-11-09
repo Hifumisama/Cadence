@@ -123,6 +123,18 @@ test("nouvelle scène : sans scène, sans plan, bloquée ou refusée, la demande
 
 // --- Générer la fiche d'un plan ------------------------------------------------------------------------------------------------------------
 
+test("fiche de plan : les étapes suivent le parcours (Open H3 IR direct, plan-h3 imposé, repli plan-h3 puis compilation)", () => {
+  assert.deepEqual(etapesFichePlan("h3ir").map((x) => x.cle), ["agent", "ecriture"]);
+  assert.match(etapesFichePlan("h3ir")[0]!.libelle, /Open H3 IR/);
+  assert.deepEqual(etapesFichePlan("plan-h3").map((x) => x.cle), ["agent", "ecriture"]);
+  const repli = etapesFichePlan("plan-h3-puis-h3ir");
+  assert.deepEqual(repli.map((x) => [x.cle, x.statut]), [["agent", "en_cours"], ["ecriture", "a_venir"], ["compilation", "a_venir"]]);
+  // La fiche plan-h3 enregistrée, la compilation devient l'étape en cours ; passée, la demande est finie.
+  const apres = avancerEtapes(avancerEtapes(repli, "agent", "fait"), "ecriture", "fait");
+  assert.equal(etapeCouranteDemande(apres)?.cle, "compilation");
+  assert.equal(etapeCouranteDemande(avancerEtapes(apres, "compilation", "passe")), null);
+});
+
 test("fiche de plan : la fiche et les assets qu'elle crée sont retenus, le reste (un plan) reste décoché", () => {
   assert.deepEqual(etapesFichePlan().map((x) => x.cle), ["agent", "ecriture"]);
   assert.deepEqual(decisionFichePlan(null), { action: "attendre" });

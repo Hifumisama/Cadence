@@ -21,8 +21,14 @@ export type ResultatChargement = ResultatBrief & { reglages: ReglagesResolus };
 
 /** Charge ce qu'il faut à un plan (références, scène, voix des personnages, langue, voix off) puis en fait le brief Open H3 IR (lib/h3ir/brief.ts).
  * Créativité et style de mise en scène : ceux de `options` s'ils sont donnés (`null`/absent = hérite), sinon ceux du plan, de sa scène ou du projet (lib/h3ir/reglages.ts).
- * `null` si le plan n'est pas de ce projet. */
-export async function chargerBriefPlan(projectId: number, planUuid: string, options: OptionsBrief = {}): Promise<ResultatChargement | null> {
+ * `null` si le plan n'est pas de ce projet. `surcharge` : la description (et la durée) à compiler À LA PLACE de celles en base — la réécriture
+ * d'« Itérer » compile la nouvelle description, qui ne s'écrit sur le plan qu'avec la fiche. */
+export async function chargerBriefPlan(
+  projectId: number,
+  planUuid: string,
+  options: OptionsBrief = {},
+  surcharge: { description?: string | null; dureeSecondes?: number | null } = {},
+): Promise<ResultatChargement | null> {
   const [plan] = await db
     .select({
       id: plans.id,
@@ -92,7 +98,7 @@ export async function chargerBriefPlan(projectId: number, planUuid: string, opti
 
   const resultat = briefDepuisPlan(
     {
-      plan: { description: plan.description ?? "", dureeSecondes: plan.duree, seed: plan.seed },
+      plan: { description: surcharge.description?.trim() || (plan.description ?? ""), dureeSecondes: surcharge.dureeSecondes ?? plan.duree, seed: plan.seed },
       scene: scene ? { titre: scene.titre, ambiance: scene.ambiance } : null,
       langueDialogues: await langueDesDialogues(projectId),
       codesVoixOff: [...voixOff],

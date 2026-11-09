@@ -17,7 +17,12 @@ export type { CompilationReduite, EntreeH3ir, ResultatH3ir };
 
 export type DepsH3ir = {
   executer?: typeof executerSkill;
-  charger?: (projectId: number, planUuid: string, options: { shots?: number | null; director?: string | null; creativity?: string | null }) => Promise<ResultatBrief | null>;
+  charger?: (
+    projectId: number,
+    planUuid: string,
+    options: { shots?: number | null; director?: string | null; creativity?: string | null },
+    surcharge?: { description?: string | null; dureeSecondes?: number | null },
+  ) => Promise<ResultatBrief | null>;
   lancer?: LanceurPython;
   env?: Record<string, string | undefined>;
 };
@@ -33,7 +38,17 @@ export type OptionsH3ir = {
 export function lireEntreeH3ir(entree: unknown): EntreeH3ir {
   const e = entree as Partial<EntreeH3ir> | null;
   if (!e || typeof e.planUuid !== "string") throw new Error("Tâche Open H3 IR sans plan.");
-  return { planUuid: e.planUuid, shots: e.shots ?? null, director: e.director ?? null, creativity: e.creativity ?? null };
+  // Description et durée de remplacement (réécriture d'« Itérer ») : seulement quand la tâche en porte.
+  const description = typeof e.description === "string" && e.description.trim() ? e.description : null;
+  const duree = typeof e.dureeSecondes === "number" && Number.isInteger(e.dureeSecondes) ? e.dureeSecondes : null;
+  return {
+    planUuid: e.planUuid,
+    shots: e.shots ?? null,
+    director: e.director ?? null,
+    creativity: e.creativity ?? null,
+    ...(description ? { description } : {}),
+    ...(duree != null ? { dureeSecondes: duree } : {}),
+  };
 }
 
 /** Réduit l'enveloppe : le prompt entier est redondant (les sections le recomposent), le reste sert à la fiche et à comprendre un échec. */
@@ -61,7 +76,8 @@ export async function executerH3ir(
   const charger = deps.charger ?? chargerBriefPlan;
 
   options.surEtape?.("Préparation du brief…");
-  const r = await charger(run.projectId, entree.planUuid, { shots: entree.shots, director: entree.director, creativity: entree.creativity });
+  const surcharge = entree.description || entree.dureeSecondes != null ? { description: entree.description ?? null, dureeSecondes: entree.dureeSecondes ?? null } : undefined;
+  const r = await charger(run.projectId, entree.planUuid, { shots: entree.shots, director: entree.director, creativity: entree.creativity }, surcharge);
   if (!r) throw new Error("Plan introuvable.");
   if (!r.brief) throw new Error(r.refus ?? "Le brief Open H3 IR est refusé.");
   const brief = r.brief;

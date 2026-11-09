@@ -3,6 +3,7 @@ import { db } from "../db";
 import { jobs, plans } from "../db/schema";
 import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "./agents/service";
 import { decisionIteration } from "./fiche-plan";
+import { SKILL_H3IR } from "./h3ir/resultat";
 import { creerJobRelance } from "./job-relance";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "./plan-checks";
 import { lireProposition } from "./queries-agents";
@@ -28,7 +29,8 @@ export async function appliquerIterationEtGenererCore(
   if (fps != null && (!Number.isInteger(fps) || fps < 1)) return { ok: false, erreur: "FPS invalide." };
   if (seed != null && !/^\d{1,15}$/.test(seed)) return { ok: false, erreur: "Seed invalide : 15 chiffres au plus." };
   const prop = await propositionParUuid(propositionUuid);
-  if (!prop || (prop.skill !== "iteration-plan" && prop.skill !== "plan-h3") || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
+  // `iteration-plan` : la retouche ; la réécriture (description changée) : Open H3 IR par défaut (`plan-h3ir`), `plan-h3` en repli (lib/agents/service.ts, genererReecriturePlan).
+  if (!prop || (prop.skill !== "iteration-plan" && prop.skill !== "plan-h3" && prop.skill !== SKILL_H3IR) || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
   const vue = await lireProposition(propositionUuid);
   const decision = decisionIteration(vue);
   if (decision.action === "attendre") return { ok: false, erreur: "L'agent n'a pas encore fini de répondre." };

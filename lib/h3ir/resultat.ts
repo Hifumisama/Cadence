@@ -8,8 +8,15 @@ import type { EnveloppeH3ir, Tentative } from "./compilateur";
 export const SKILL_H3IR = "plan-h3ir";
 export const SKILL_TRADUCTION = "traduction-intent";
 
-/** L'entrée de la tâche (`agent_runs.entree`). */
-export type EntreeH3ir = { planUuid: string; shots?: number | null; director?: string | null; creativity?: string | null };
+/** L'entrée de la tâche (`agent_runs.entree`). `description` / `dureeSecondes` : à compiler à la place de celles du plan (réécriture d'« Itérer »). */
+export type EntreeH3ir = {
+  planUuid: string;
+  shots?: number | null;
+  director?: string | null;
+  creativity?: string | null;
+  description?: string | null;
+  dureeSecondes?: number | null;
+};
 
 /** L'enveloppe du compilateur réduite à ce que la fiche et le suivi utilisent. */
 export type CompilationReduite = {

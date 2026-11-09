@@ -8,7 +8,8 @@ import { OptionsMiseEnScene } from "@/components/h3ir/OptionsMiseEnScene";
 
 type Resultat = Awaited<ReturnType<typeof voirBriefH3ir>>;
 
-/** Le brief Open H3 IR du plan : ce qu'on enverrait à `POST /v1/briefs`. Rien n'est lancé tant qu'on ne clique pas « Générer la fiche avec Open H3 IR ». Le JSON
+/** Le brief Open H3 IR du plan : ce qu'on enverrait à `POST /v1/briefs`. Rien n'est lancé tant qu'on ne clique pas « Générer la fiche avec ces réglages » (Open H3 IR imposé,
+ * même moteur que le « Générer la fiche » par défaut quand le plan a ses images ; c'est ici qu'on recompile une fiche déjà écrite, par plan-h3 par exemple). Le JSON
  * se copie pour le coller dans la zone « Coller un brief JSON » de `h3ir-lab`.
  *
  * Créativité et style de mise en scène : les menus partent des valeurs ENREGISTRÉES (le plan, sinon sa scène, sinon le projet : `reglagesInitiaux`) ; en changer ici ne vaut que pour ce
@@ -103,7 +104,7 @@ export function BriefH3irBloc({
             projectId={projectId}
             planUuid={planUuid}
             demandeEnCours={demandeEnCours}
-            libelle="Générer la fiche avec Open H3 IR"
+            libelle="Générer la fiche avec ces réglages"
             h3ir={{ shots: nShots, director: style, creativity: creativite }}
           />
           <p className="tiny-note" style={{ marginTop: 6 }}>

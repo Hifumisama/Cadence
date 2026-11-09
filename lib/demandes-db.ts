@@ -19,6 +19,7 @@ import {
   type ContexteAjoutPlan,
   type ContexteAjoutScene,
   type ContexteFichePlan,
+  type ParcoursFichePlan,
   type PlaceScene,
   type ContexteIteration,
   type EtapeDemande,
@@ -26,6 +27,8 @@ import {
   type StatutDemande,
 } from "./demandes";
 import { decisionIteration } from "./fiche-plan";
+import { moteurParDefaut, type DemandeMoteur } from "./h3ir/moteur";
+import { resoudreMoteurFiche } from "./h3ir/moteur-db";
 import { appliquerIterationEtGenererCore } from "./iteration-application";
 import { lireProposition } from "./queries-agents";
 import { cleLlm, cleVideo } from "./taches";
@@ -135,33 +138,38 @@ export async function lancerDemandeAjoutScene(
   return { ok: true, demandeId: demande.id };
 }
 
-/** « Générer la fiche » d'un plan (pages Scénario et Plan) : UNE demande (l'agent `plan-h3` écrit la fiche → elle est enregistrée sans relecture, on la
- * relit dans la page du plan). Réservée aux plans sans fiche : réécrire une fiche existante passe par « Itérer ». */
+/** « Générer la fiche » d'un plan (pages Scénario et Plan) : UNE demande (la fiche est écrite → elle est enregistrée sans relecture, on la relit dans
+ * la page du plan). Moteur (lib/h3ir/moteur.ts) : par défaut Open H3 IR quand les références d'image du plan existent toutes — il peut alors
+ * remplacer une fiche existante (le clic vaut confirmation) ; sinon plan-h3 en repli, suivi d'une compilation Open H3 IR si ses références ont
+ * leurs images (lib/demandes.ts). Le repli plan-h3 est réservé aux plans sans fiche : réécrire une fiche existante passe alors par « Itérer ».
+ * `moteur: "plan-h3"` impose l'ancien chemin (option interne, aucun bouton) ; `"h3ir"` impose Open H3 IR (le tiroir « Brief Open H3 IR »). */
 export async function lancerDemandeFichePlan(
   projectId: number,
   planUuid: string,
-  /** `moteur: "h3ir"` : la fiche est compilée par Open H3 IR (worker/h3ir.ts) et peut remplacer une fiche existante ; `shots` / `director` sont facultatifs. */
-  options: { moteur?: "h3ir"; shots?: number | null; director?: string | null; creativity?: string | null } = {},
+  /** `shots` / `director` / `creativity` : réglages Open H3 IR facultatifs (absents : ceux du plan, de sa scène ou du projet). */
+  options: { moteur?: DemandeMoteur; shots?: number | null; director?: string | null; creativity?: string | null } = {},
 ): Promise<Resultat<{ demandeId: number }>> {
   const [plan] = await db.select({ id: plans.id, titre: plans.titre, statut: plans.statut }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!plan) return ERR("Plan introuvable.");
-  if (plan.statut !== "brouillon" && options.moteur !== "h3ir") return ERR("Ce plan a déjà une fiche.");
+  const voulu = options.moteur ?? moteurParDefaut();
+  const choix = await resoudreMoteurFiche(projectId, planUuid, voulu);
+  if (plan.statut !== "brouillon" && choix.moteur !== "h3ir") {
+    return ERR(voulu === "auto" && choix.repli ? `Ce plan a déjà une fiche, et Open H3 IR ne peut pas la recompiler. ${choix.repli}` : "Ce plan a déjà une fiche.");
+  }
+  const parcours: ParcoursFichePlan = choix.moteur === "h3ir" ? "h3ir" : voulu === "plan-h3" ? "plan-h3" : "plan-h3-puis-h3ir";
+  const reglagesH3ir = { shots: options.shots ?? null, director: options.director ?? null, creativity: options.creativity ?? null };
   const ouverte = await ouvrirConversation(projectId, "plan", { uuid: planUuid }, "courte");
   if (!ouverte.ok) return ouverte;
-  const contexte: ContexteFichePlan = { titre: plan.titre, planUuid, ...(options.moteur ? { moteur: options.moteur } : {}) };
+  const contexte: ContexteFichePlan = { titre: plan.titre, planUuid, moteur: choix.moteur, reglagesH3ir, ...(parcours === "plan-h3-puis-h3ir" ? { enchainerH3ir: true } : {}) };
   let demande: { id: number };
   try {
-    const [d] = await db.insert(demandes).values({ projectId, type: "fiche-plan", cibleType: "plan", cibleId: plan.id, etapes: etapesFichePlan(), contexte }).returning({ id: demandes.id });
+    const [d] = await db.insert(demandes).values({ projectId, type: "fiche-plan", cibleType: "plan", cibleId: plan.id, etapes: etapesFichePlan(parcours), contexte }).returning({ id: demandes.id });
     demande = d!;
   } catch {
     // L'index unique partiel : une demande est déjà en cours sur ce plan.
     return ERR("Une demande est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).");
   }
-  const g = await genererFiches(ouverte.conversationUuid, {
-    planUuids: [planUuid],
-    demandeId: demande.id,
-    ...(options.moteur ? { moteur: options.moteur, reglagesH3ir: { shots: options.shots ?? null, director: options.director ?? null, creativity: options.creativity ?? null } } : {}),
-  });
+  const g = await genererFiches(ouverte.conversationUuid, { planUuids: [planUuid], demandeId: demande.id, moteur: choix.moteur, reglagesH3ir });
   if (!g.ok) {
     await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
     return g;
@@ -344,14 +352,37 @@ async function avancerAjoutScene(d: LigneDemande): Promise<boolean> {
   }
 }
 
-/** Un tour d'une fiche de plan : même attente que les ajouts ; la proposition prête, on enregistre la fiche et les assets manquants qu'elle cite. */
+/** Après l'enregistrement d'une fiche plan-h3 écrite en REPLI : la compilation Open H3 IR part si toutes les références qu'elle a retenues ont leur
+ * image (créativité et style de mise en scène compris) ; sinon la fiche plan-h3 reste, et la demande dit pourquoi. */
+async function enchainerCompilation(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[], conversationId: number | null): Promise<boolean> {
+  const choix = await resoudreMoteurFiche(d.projectId, ctx.planUuid, "auto");
+  const passer = async (note: string) => {
+    await ecrire(d, { statut: "termine", etapes: avancerEtapes(etapes, "compilation", "passe"), contexte: { ...ctx, enchainerH3ir: false, notes: [...(ctx.notes ?? []), note] }, erreur: null });
+    return true;
+  };
+  if (choix.moteur !== "h3ir") return passer(`Fiche écrite par plan-h3. ${choix.repli ?? ""} « Générer la fiche » (onglet Brief Open H3 IR) la recompilera quand les images existeront.`.trim());
+  const [conv] = conversationId != null ? await db.select({ uuid: agentConversations.uuid }).from(agentConversations).where(eq(agentConversations.id, conversationId)) : [];
+  if (!conv) return passer("Fiche écrite par plan-h3 ; la compilation Open H3 IR n'a pas pu partir (conversation du plan introuvable).");
+  const g = await genererFiches(conv.uuid, { planUuids: [ctx.planUuid], demandeId: d.id, moteur: "h3ir", reglagesH3ir: ctx.reglagesH3ir ?? {} });
+  if (!g.ok) {
+    if (/déjà en cours/i.test(g.erreur)) return false; // la conversation est prise : au prochain tour
+    return passer(`Fiche écrite par plan-h3 ; la compilation Open H3 IR n'a pas pu partir : ${g.erreur}`);
+  }
+  await ecrire(d, { etapes, contexte: { ...ctx, moteur: "h3ir", enchainerH3ir: false, ...(g.runUuid ? { runUuid: g.runUuid } : {}) } });
+  return true;
+}
+
+/** Un tour d'une fiche de plan : même attente que les ajouts ; la proposition prête, on enregistre la fiche et les assets manquants qu'elle cite.
+ * Repli plan-h3 (`enchainerH3ir`) : la fiche enregistrée, l'étape `compilation` recompile avec Open H3 IR (même attente, même enregistrement). */
 async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
   const etapes = lireEtapes(d);
   const ctx = d.contexte as ContexteFichePlan;
-  if (!etapeCouranteDemande(etapes)) {
+  const courante = etapeCouranteDemande(etapes);
+  if (!courante) {
     await ecrire(d, { statut: "termine" });
     return true;
   }
+  const enCompilation = courante.cle === "compilation";
   const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
   if (!run) {
     await ecrire(d, { statut: "echoue", erreur: "La tâche de l'agent n'existe plus." });
@@ -362,44 +393,45 @@ async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
     await ecrire(d, { statut: "annulee", erreur: null });
     return true;
   }
+  const prefixe = enCompilation ? "La fiche plan-h3 est enregistrée, mais la compilation Open H3 IR a échoué : " : "";
   if (run.statut !== "termine") {
-    await ecrire(d, { statut: "echoue", erreur: run.erreur ?? "L'agent a échoué." });
+    await ecrire(d, { statut: "echoue", erreur: `${prefixe}${run.erreur ?? "L'agent a échoué."}` });
     return true;
   }
   const [prop] = run.propositionId ? await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, run.propositionId)) : [];
   if (!prop) {
-    await ecrire(d, { statut: "echoue", erreur: "La proposition de l'agent est introuvable." });
+    await ecrire(d, { statut: "echoue", erreur: `${prefixe}La proposition de l'agent est introuvable.` });
     return true;
   }
   const lue = await lireProposition(prop.uuid);
   const decision = decisionFichePlan(lue);
-  const fini = avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ecriture", "fait");
+  const fini = enCompilation ? avancerEtapes(etapes, "compilation", "fait") : avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ecriture", "fait");
+  // Repli plan-h3 enregistré : on enchaîne la compilation (ou on la passe) au lieu de finir.
+  const suite = async () => (!enCompilation && ctx.enchainerH3ir ? enchainerCompilation(d, ctx, fini, run.conversationId) : (await ecrire(d, { statut: "termine", etapes: fini, erreur: null }), true));
   switch (decision.action) {
     case "attendre":
       return false;
     case "echec":
-      await ecrire(d, { statut: "echoue", erreur: decision.erreur });
+      await ecrire(d, { statut: "echoue", erreur: `${prefixe}${decision.erreur}` });
       return true;
     case "fait":
-      await ecrire(d, { statut: "termine", etapes: fini });
-      return true;
+      return suite();
     case "appliquer": {
       // La fiche et les assets qu'elle cite sont retenus ; tout autre changement glissé dans la proposition reste décoché.
       const tous = (lue?.groupes ?? []).flatMap((g) => g.changements.map((c) => c.id));
       const decoche = await cocherChangements(prop.uuid, { ids: tous }, false);
       const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: decision.changementIds }, true) : decoche;
       if (!coche.ok) {
-        await ecrire(d, { statut: "echoue", erreur: coche.erreur });
+        await ecrire(d, { statut: "echoue", erreur: `${prefixe}${coche.erreur}` });
         return true;
       }
       // Open H3 IR remplace la fiche existante sans redemander : le clic de l'utilisateur vaut confirmation, et l'ancien prompt est gardé dans l'historique.
       const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: ctx.moteur === "h3ir" });
       if (!a.ok) {
-        await ecrire(d, { statut: "echoue", erreur: a.erreur });
+        await ecrire(d, { statut: "echoue", erreur: `${prefixe}${a.erreur}` });
         return true;
       }
-      await ecrire(d, { statut: "termine", etapes: fini, erreur: null });
-      return true;
+      return suite();
     }
   }
 }

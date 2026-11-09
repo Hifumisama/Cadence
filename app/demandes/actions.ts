@@ -40,14 +40,15 @@ export async function demanderAjoutScene(
   return r;
 }
 
-/** « Générer la fiche » d'un plan sans fiche : pose la demande (l'agent écrit la fiche, elle est enregistrée sans relecture). Une seule à la fois par plan. */
+/** « Générer la fiche » d'un plan : pose la demande (la fiche est écrite puis enregistrée sans relecture). Une seule à la fois par plan. Moteur par défaut
+ * (lib/h3ir/moteur.ts) : Open H3 IR quand les références d'image du plan existent toutes, sinon plan-h3 en repli puis compilation Open H3 IR si possible. */
 export async function demanderFichePlan(projectId: number, planUuid: string): Promise<{ ok: true; demandeId: number } | { ok: false; erreur: string }> {
   const r = await lancerDemandeFichePlan(projectId, planUuid);
   revalidatePath("/", "layout");
   return r;
 }
 
-/** « Générer la fiche avec Open H3 IR » : la fiche du plan est compilée par Open H3 IR (traduction de l'intent, compilation Python) et REMPLACE la fiche existante ;
+/** « Générer la fiche » du tiroir « Brief Open H3 IR », avec ses réglages : Open H3 IR IMPOSÉ (pas de repli) ; la fiche du plan est compilée (traduction de l'intent, compilation Python) et REMPLACE la fiche existante ;
  * l'ancien prompt reste dans l'historique du prompt. `shots`, `director` (style de mise en scène) et `creativity` sont facultatifs : absents, ils sont résolus en base (plan > scène > projet, lib/h3ir/reglages.ts). */
 export async function demanderFicheH3ir(
   projectId: number,
@@ -59,7 +60,7 @@ export async function demanderFicheH3ir(
   return r;
 }
 
-/** « Écrire les fiches » (page Scénario) : une demande « Générer la fiche » par plan choisi, dans l'ordre donné (la file les écrit l'une après l'autre).
+/** « Écrire les fiches » (page Scénario) : une demande « Générer la fiche » par plan choisi (même moteur par défaut), dans l'ordre donné (la file les écrit l'une après l'autre).
  * Un plan refusé (déjà une fiche, demande en cours) n'arrête pas les autres : ses raisons sont rendues avec le nombre de fiches lancées. */
 export async function demanderFichesPlans(projectId: number, planUuids: string[]): Promise<{ lancees: number; erreurs: string[] }> {
   let lancees = 0;

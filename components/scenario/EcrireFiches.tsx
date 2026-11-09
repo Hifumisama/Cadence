@@ -91,7 +91,10 @@ export function EcrireFiches({
           <p className="tiny-note">Tous les plans ont déjà leur fiche, ou elle s&rsquo;écrit déjà.</p>
         ) : (
           <>
-            <p className="tiny-note">L&rsquo;agent écrit la fiche de chaque plan coché (prompt vidéo, références), l&rsquo;une après l&rsquo;autre, en arrière-plan. Tu les relis ensuite dans la page de chaque plan.</p>
+            <p className="tiny-note">
+              La fiche de chaque plan coché (prompt vidéo, références) s&rsquo;écrit l&rsquo;une après l&rsquo;autre, en arrière-plan : Open H3 IR la compile quand le plan a ses images de référence ; sinon plan-h3
+              les choisit d&rsquo;abord, puis Open H3 IR recompile si leurs images existent. Tu les relis ensuite dans la page de chaque plan.
+            </p>
             <ul className="sc-fiches-liste">
               {lignes.map(({ plan, scene }) => {
                 const entete = scene !== sceneAffichee;
