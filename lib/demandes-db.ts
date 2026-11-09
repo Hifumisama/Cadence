@@ -137,6 +137,38 @@ export async function modifierConsigneIteration(demandeId: number, texte: string
   return r.length ? { ok: true } : ERR("Cette itération vient de démarrer : sa consigne n'est plus modifiable.");
 }
 
+/** L'itération de ce plan qui attend son tour, s'il y en a une : la page du plan y ramène (la consigne se corrige là, jusqu'au départ). */
+export async function iterationEnAttenteDuPlan(planId: number): Promise<{ demandeId: number; consigne: string } | null> {
+  const [d] = await db
+    .select()
+    .from(demandes)
+    .where(and(eq(demandes.type, "iteration-plan"), eq(demandes.cibleType, "plan"), eq(demandes.cibleId, planId), eq(demandes.statut, "en_attente")))
+    .limit(1);
+  return d ? { demandeId: d.id, consigne: lireContexte(d).consigne } : null;
+}
+
+/** Monte (−1) ou descend (+1) une itération en attente dans la file en échangeant sa date d'arrivée avec sa voisine : l'ordre de la file (le
+ * pilote du worker comme le panneau) est celui de `created_at`, donc rien d'autre à stocker. Sans effet en bout de file ou si l'une des deux a démarré. */
+export async function deplacerIterationEnAttente(demandeId: number, sens: -1 | 1): Promise<Resultat<object>> {
+  return db.transaction(async (tx) => {
+    const file = await tx
+      .select({ id: demandes.id, createdAt: demandes.createdAt })
+      .from(demandes)
+      .where(and(eq(demandes.type, "iteration-plan"), eq(demandes.statut, "en_attente")))
+      .orderBy(asc(demandes.createdAt), asc(demandes.id));
+    const i = file.findIndex((x) => x.id === demandeId);
+    if (i < 0) return ERR("Cette itération a déjà démarré ou n'est plus en file.");
+    const voisine = file[i + sens];
+    if (!voisine) return { ok: true as const };
+    const moi = file[i]!;
+    // Dates identiques (même instant) : on écarte d'une milliseconde pour que l'échange change vraiment l'ordre.
+    const dateMoi = moi.createdAt.getTime() === voisine.createdAt.getTime() ? new Date(voisine.createdAt.getTime() + sens) : voisine.createdAt;
+    await tx.update(demandes).set({ createdAt: dateMoi }).where(and(eq(demandes.id, moi.id), eq(demandes.statut, "en_attente")));
+    await tx.update(demandes).set({ createdAt: moi.createdAt }).where(and(eq(demandes.id, voisine.id), eq(demandes.statut, "en_attente")));
+    return { ok: true as const };
+  });
+}
+
 /** Fait démarrer la plus ancienne itération en attente quand plus aucune n'est en cours : c'est là que la tâche de l'agent est posée, avec la
  * consigne telle qu'elle est À CE MOMENT (modifiable jusque-là). Un échec (plan sans rendu…) la termine en erreur sans bloquer les suivantes. */
 async function demarrerProchaineIteration(): Promise<boolean> {

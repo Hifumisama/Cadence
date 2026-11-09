@@ -28,9 +28,18 @@ attendre avant de passer au plan suivant. On veut itérer le plan 1, puis le pla
   le dit et on passe au plan suivant.
 - Limite connue : l'essai de base choisi et les retouches du prompt sont appliqués au plan au moment de « Itérer », pas au départ de l'itération.
 
-## Phase 2 — à faire : réordonner la file
+- **La consigne se corrige sur la page du plan** : un clic sur la ligne de la file y mène, et l'atelier montre la consigne en attente (modifiable,
+  « Enregistrer la consigne » / « Retirer de la file ») à la place d'« Itérer ». Le panneau n'édite rien lui-même.
 
-Monter / descendre une itération en attente (aujourd'hui : ordre d'arrivée). Ajouter un champ d'ordre au contexte ou une colonne `rang`.
+## Phase 2 — faite : réordonner la file
+
+↑ ↓ dans la ligne d'une itération en attente. L'ordre de la file est `created_at` (pilote du worker comme panneau) : déplacer = échanger les dates
+d'arrivée de deux voisines en attente (`deplacerIterationEnAttente`), sans colonne ni migration.
+
+## Plus tard — toute tâche pourrait attendre ainsi
+
+Même principe pour les autres demandes (fiche de plan, ajout de plan…) : une tâche en file reste modifiable tant que le worker ne l'a pas prise.
+Seule l'itération de plan le fait pour l'instant.
 
 ## Phase 3 — à faire : la file connaît les chaînes
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandesFiches, lancerDemandeIteration, lireDemandeVue, modifierConsigneIteration, type VueDemande } from "@/lib/demandes-db";
+import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandesFiches, lancerDemandeIteration, deplacerIterationEnAttente, lireDemandeVue, modifierConsigneIteration, type VueDemande } from "@/lib/demandes-db";
 import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@/lib/demandes";
 
 // Les DEMANDES (lib/demandes.ts) côté interface : « Itérer » en pose une, le worker l'enchaîne jusqu'au rendu (lib/demandes-db.ts), la page
@@ -20,6 +20,13 @@ export async function demanderIteration(
 /** Corrige la consigne d'une itération qui attend son tour (panneau des tâches). Refusée une fois l'itération démarrée. */
 export async function corrigerConsigneIteration(demandeId: number, texte: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const r = await modifierConsigneIteration(demandeId, texte);
+  revalidatePath("/", "layout");
+  return r.ok ? { ok: true } : r;
+}
+
+/** Monte ou descend une itération en attente dans la file (panneau des tâches). */
+export async function deplacerIteration(demandeId: number, sens: -1 | 1): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const r = await deplacerIterationEnAttente(demandeId, sens);
   revalidatePath("/", "layout");
   return r.ok ? { ok: true } : r;
 }

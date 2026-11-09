@@ -72,7 +72,7 @@ export type Tache = {
   conversationUuid?: string | null;
   /** Les consignes données à une itération (une par entrée) : un détail dépliable de sa ligne, pour ne pas alourdir la file. */
   consignes?: string[];
-  /** Itération en attente de son tour : sa consigne (la seule de `consignes`) se corrige dans la ligne, jusqu'à son départ. */
+  /** Itération en attente de son tour : la ligne mène à la page du plan, où sa consigne se corrige jusqu'à son départ ; ↑ ↓ la réordonnent dans la file. */
   consigneModifiable?: boolean;
 };
 

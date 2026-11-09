@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { corrigerConsigneIteration } from "@/app/demandes/actions";
+import { deplacerIteration } from "@/app/demandes/actions";
 import { BasculeNotifications } from "@/components/taches/BasculeNotifications";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { estAnnulable, type GenreTache, type Tache } from "@/lib/taches";
@@ -203,9 +203,21 @@ export function IndicateurTaches() {
                     ) : null}
                   </div>
                   <ul className="tq-liste">
-                    {enFile.map((x, i) => (
-                      <Entree key={x.cle} x={x} rang={enCours.length + i} onOuvrir={() => ouvrir(x)} onAnnuler={estAnnulable(x) ? () => annuler(x.cle) : undefined} />
-                    ))}
+                    {enFile.map((x, i) => {
+                      // Les itérations en attente se réordonnent entre elles (↑ ↓ dans leur ligne).
+                      const iterations = enFile.filter((y) => y.consigneModifiable);
+                      const k = iterations.indexOf(x);
+                      return (
+                        <Entree
+                          key={x.cle}
+                          x={x}
+                          rang={enCours.length + i}
+                          onOuvrir={() => ouvrir(x)}
+                          onAnnuler={estAnnulable(x) ? () => annuler(x.cle) : undefined}
+                          ordre={k >= 0 ? { premiere: k === 0, derniere: k === iterations.length - 1 } : undefined}
+                        />
+                      );
+                    })}
                   </ul>
                 </section>
               ) : null}
@@ -302,41 +314,24 @@ function Avancement({ x }: { x: Tache }) {
   );
 }
 
-/** La consigne d'une itération en attente de son tour : modifiable dans la ligne jusqu'à son départ (après, elle est partie à l'agent). */
-function ConsigneModifiable({ cle, consigne }: { cle: string; consigne: string }) {
-  const [texte, setTexte] = useState(consigne);
-  const [message, setMessage] = useState<string | null>(null);
-  const [enregistre, setEnregistre] = useState(true);
+/** Monter / descendre une itération en attente dans la file (la consigne, elle, se corrige sur la page du plan : un clic sur la ligne y mène). */
+function OrdreIteration({ cle, premiere, derniere }: { cle: string; premiere: boolean; derniere: boolean }) {
+  const { rafraichir } = useTaches();
   const demandeId = Number(cle.slice("demande:".length));
-  const enregistrer = async () => {
-    const r = await corrigerConsigneIteration(demandeId, texte);
-    setMessage(r.ok ? null : r.erreur);
-    setEnregistre(r.ok);
-  };
+  const bouger = (sens: -1 | 1) => void deplacerIteration(demandeId, sens).then(() => rafraichir());
   return (
-    <div className="tq-consignes tq-consigne-edition">
-      <textarea
-        rows={2}
-        value={texte}
-        aria-label="Consigne de cette itération"
-        onChange={(e) => {
-          setTexte(e.target.value);
-          setEnregistre(false);
-        }}
-      />
-      <button type="button" className="tm-lien" disabled={enregistre || !texte.trim()} onClick={() => void enregistrer()}>
-        {enregistre ? "Enregistrée" : "Enregistrer"}
+    <>
+      <button type="button" className="tq-x" disabled={premiere} onClick={() => bouger(-1)} aria-label="Passer devant" title="Passer devant">
+        ↑
       </button>
-      {message ? (
-        <span className="tq-etat tq-erreur" role="alert">
-          {message}
-        </span>
-      ) : null}
-    </div>
+      <button type="button" className="tq-x" disabled={derniere} onClick={() => bouger(1)} aria-label="Passer derrière" title="Passer derrière">
+        ↓
+      </button>
+    </>
   );
 }
 
-function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler }: { x: Tache; rang: number; onOuvrir: () => void; onRetirer?: () => void; onAnnuler?: () => void }) {
+function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler, ordre }: { x: Tache; rang: number; onOuvrir: () => void; onRetirer?: () => void; onAnnuler?: () => void; ordre?: { premiere: boolean; derniere: boolean } }) {
   // Une tâche en cours coûte du temps de GPU : on demande confirmation avant de la
   // couper. Une tâche en attente s'annule d'un clic (rien n'est perdu).
   const [confirmer, setConfirmer] = useState(false);
@@ -408,9 +403,7 @@ function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler }: { x: Tache; rang: n
           ) : null}
         </span>
       </Link>
-      {x.consigneModifiable && x.consignes?.[0] != null ? (
-        <ConsigneModifiable cle={x.cle} consigne={x.consignes[0]} />
-      ) : x.consignes?.length ? (
+      {x.consignes?.length ? (
         <details className="tq-consignes">
           <summary>{x.consignes.length > 1 ? `${x.consignes.length} consignes` : "Consigne"}</summary>
           <ol>
@@ -421,6 +414,7 @@ function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler }: { x: Tache; rang: n
         </details>
       ) : null}
       <span className="tq-actions">
+        {ordre ? <OrdreIteration cle={x.cle} premiere={ordre.premiere} derniere={ordre.derniere} /> : null}
         {onRetirer ? (
           <button type="button" className="tq-x" onClick={onRetirer} aria-label={`Retirer ${x.libelle} de la liste`} title="Retirer de la liste">
             <Icone nom="fermer" taille={14} />

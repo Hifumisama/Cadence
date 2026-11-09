@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ouvrirConversation } from "@/app/agents/actions";
-import { annulerLaDemande, demanderIteration, lireDemande } from "@/app/demandes/actions";
+import { annulerLaDemande, corrigerConsigneIteration, demanderIteration, lireDemande } from "@/app/demandes/actions";
 import { preparerBaseIteration, rouvrirIteration, validerPretUpscale } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { DecisionsIteration } from "@/components/plan/DecisionsIteration";
@@ -58,7 +58,10 @@ export function IntentionPlan({
   nbEssais,
   hrefSuivant,
   hrefApresLancement,
+  enAttente,
 }: {
+  /** L'itération de ce plan qui attend son tour dans la file : sa consigne se corrige ici jusqu'à son départ. */
+  enAttente: { demandeId: number; consigne: string } | null;
   projectId: number;
   planId: number;
   planUuid: string;
@@ -75,7 +78,7 @@ export function IntentionPlan({
 }) {
   const router = useRouter();
   const b = useBrouillon();
-  const [consigne, setConsigne] = useState("");
+  const [consigne, setConsigne] = useState(enAttente?.consigne ?? "");
   const [montrer, setMontrer] = useState(false);
   const [phase, setPhase] = useState<Phase>("repos");
   const [vision, setVision] = useState<Vision>("fiche");
@@ -229,6 +232,31 @@ export function IntentionPlan({
     }
   };
 
+  /** Corrige la consigne de l'itération en file. Si elle vient de démarrer entre-temps, la page se recharge : elle est partie à l'agent. */
+  const corrigerEnAttente = () => {
+    if (!enAttente || !texte) return;
+    setErreur(null);
+    setInfo(null);
+    startTransition(async () => {
+      const r = await corrigerConsigneIteration(enAttente.demandeId, texte);
+      if (r.ok) setInfo("Consigne enregistrée : elle partira telle quelle avec l'itération.");
+      else {
+        setErreur(r.erreur);
+        router.refresh();
+      }
+    });
+  };
+
+  const retirerDeLaFile = () => {
+    if (!enAttente) return;
+    setErreur(null);
+    startTransition(async () => {
+      await annulerLaDemande(enAttente.demandeId);
+      setConsigne("");
+      router.refresh();
+    });
+  };
+
   const validerOuRouvrir = () => {
     if (!base && etat !== "pret") return;
     setErreur(null);
@@ -316,6 +344,21 @@ export function IntentionPlan({
         </label>
       ) : null}
 
+      {enAttente ? (
+        <>
+          <p className="tm-base">
+            <b>Cette itération attend son tour</b> dans la file : tu peux encore corriger sa consigne, elle partira telle qu&rsquo;elle est à ce moment-là.
+          </p>
+          <div className="tm-actions">
+            <button type="button" className="btn tm-btn-itere" disabled={pending || !texte || texte === enAttente.consigne} onClick={corrigerEnAttente}>
+              Enregistrer la consigne
+            </button>
+            <button type="button" className="btn tm-btn-ligne" disabled={pending} onClick={retirerDeLaFile}>
+              Retirer de la file
+            </button>
+          </div>
+        </>
+      ) : (
       <div className="tm-actions">
         <button type="button" className="btn tm-btn-itere" disabled={occupe || enCours || consigneAbsente} onClick={() => void iterer()} title={titreIterer}>
           {libelleIterer}
@@ -324,6 +367,7 @@ export function IntentionPlan({
           {libellePret}
         </button>
       </div>
+      )}
 
       {phase !== "repos" ? (
         <p className="tm-etat" role="status">
