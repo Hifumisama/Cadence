@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of references-plan: the reference images of ONE video plan, and at most two missing assets",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["references", "manquants", "notes"],
+  "properties": {
+    "references": {
+      "type": "array",
+      "maxItems": 6,
+      "description": "The full, final list of reference images for the plan, in order: speakers first, then other characters, props, effects, keyframes, the set last. Start from `dejaChoisis`, keep what is right, add what is missing, remove what is wrong. Codes copied EXACTLY from `candidats` or `assetsProposesParLeLot`. One face per character. At most `limiteImages` together with `manquants`.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "pourquoi"],
+        "properties": {
+          "code": { "type": "string", "minLength": 1, "description": "An existing code, copied exactly." },
+          "pourquoi": { "type": "string", "maxLength": 120, "description": "(French) A few words: why this image is in the plan." }
+        }
+      }
+    },
+    "manquants": {
+      "type": "array",
+      "maxItems": 2,
+      "description": "Assets the plan really needs and that NO candidate or proposed asset can play. Usually empty. Never a sound, a voice or an effect.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "type", "parent", "description", "raison"],
+        "properties": {
+          "code": { "type": "string", "minLength": 3, "description": "Proposed code: the prefix of its type (CHAR_, DEC_, PROP_, KEY_, OTH_), then lowercase words joined by _. Must not exist yet." },
+          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "keyframe", "oth"] },
+          "parent": { "type": ["string", "null"], "description": "For a STATE of an existing subject (the same set at night, the same prop broken): the code of that subject, same type. Otherwise null." },
+          "description": { "type": "string", "minLength": 1, "maxLength": 300, "description": "(French) What is seen, as in the registry: appearance only, no framing, no action." },
+          "raison": { "type": "string", "maxLength": 160, "description": "(French) Why no candidate fits." }
+        }
+      }
+    },
+    "notes": { "type": "string", "maxLength": 300, "description": "(French) One or two short sentences on the doubts you settled. Empty if nothing to say." }
+  }
+}
