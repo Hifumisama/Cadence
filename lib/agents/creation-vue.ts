@@ -1,9 +1,10 @@
 import { and, asc, count, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { agentConversations, episodes, plans, scenes } from "../../db/schema";
+import { agentConversations, demandes, episodes, plans, scenes } from "../../db/schema";
+import { etatDemandesFiches } from "../demandes-db";
 import { libelleEtatSousTache, libelleTache } from "../agents-affichage";
 import { lireConversation, lireProposition } from "../queries-agents";
-import { ETAPES_CREATION, etatPhase2, normaliserEtapes, progression, type EtapeCreation, type StatutCreation } from "./creation";
+import { ETAPES_CREATION, dernieresDemandesParPlan, libelleSuiviFiche, normaliserEtapes, progression, statutEffectif, type EtapeCreation, type EtatDemandeFiche, type StatutCreation } from "./creation";
 import { lireCreation } from "./creation-db";
 import type { VueSousTache } from "./types";
 
@@ -16,10 +17,8 @@ export type VueCreation = {
   erreur: string | null;
   faites: number;
   total: number;
-  /** La phase 2 (fiches) : `a_demander` tant que l'utilisateur ne l'a pas lancée (lib/agents/creation.ts). */
-  phase2: ReturnType<typeof etatPhase2>;
-  /** Les plans du projet qui n'ont pas encore de fiche (statut brouillon) : ce que « Écrire les fiches » écrirait. Décidé par les plans eux-mêmes, pas par
-   * le statut de la création (une création d'avant les deux phases a pu tout écrire, ou rien). */
+  /** Les plans du projet qui n'ont pas encore de fiche (statut brouillon) : ce que « Écrire les fiches » écrirait (des demandes par plan, hors
+   * création). Décidé par les plans eux-mêmes, pas par la création (une création ancienne a pu tout écrire, ou rien). */
   plansSansFiche: number;
   etapes: {
     cle: string;
@@ -38,12 +37,13 @@ export type VueCreation = {
 export async function lireVueCreation(projectId: number): Promise<VueCreation | null> {
   const c = await lireCreation(projectId);
   if (!c) return null;
-  const etapes = normaliserEtapes((Array.isArray(c.etapes) ? c.etapes : []) as EtapeCreation[]);
+  const etapes = normaliserEtapes(c.etapes);
   const p = progression(etapes);
   const [conv] = await db.select({ uuid: agentConversations.uuid }).from(agentConversations).where(eq(agentConversations.projectId, projectId));
 
   const detailees = await Promise.all(
-    // Une création ancienne n'a pas les étapes ajoutées depuis (ex. « compilation ») : on ne les lui montre pas.
+    // Une création ancienne n'a pas les étapes ajoutées depuis (ex. « traitement ») : on ne les lui montre pas ; celles retirées depuis (les fiches
+    // de l'ancienne phase 2) sont ignorées par `normaliserEtapes`.
     ETAPES_CREATION.filter((def) => etapes.length === 0 || etapes.some((x) => x.cle === def.cle)).map(async (def) => {
       const e = etapes.find((x) => x.cle === def.cle);
       let activite: string | null = null;
@@ -73,15 +73,23 @@ export async function lireVueCreation(projectId: number): Promise<VueCreation | 
 
   const [sansFiche] = await db.select({ n: count() }).from(plans).where(and(eq(plans.projectId, projectId), eq(plans.statut, "brouillon")));
   return {
-    statut: c.statut as StatutCreation,
-    erreur: c.erreur,
+    statut: statutEffectif(etapes, c.statut as StatutCreation),
+    erreur: statutEffectif(etapes, c.statut as StatutCreation) === "termine" ? null : c.erreur,
     faites: p.faites,
     total: p.total,
-    phase2: etatPhase2(etapes),
     plansSansFiche: Number(sansFiche?.n ?? 0),
     etapes: detailees,
     misAJour: c.updatedAt.toISOString(),
   };
+}
+
+/** Combien de plans attendent leur fiche APRÈS une création finie (0 sans création, ou tant qu'elle tourne) : la page Brief en fait un lien vers
+ * l'écran des intents. Léger : deux requêtes. */
+export async function plansSansFicheApresCreation(projectId: number): Promise<number> {
+  const c = await lireCreation(projectId);
+  if (!c || statutEffectif(normaliserEtapes(c.etapes), c.statut as StatutCreation) !== "termine") return 0;
+  const [n] = await db.select({ n: count() }).from(plans).where(and(eq(plans.projectId, projectId), eq(plans.statut, "brouillon")));
+  return Number(n?.n ?? 0);
 }
 
 /** Un plan tel que l'écran de fin de la préparation le montre : son intent (la description), à relire avant d'écrire sa fiche. */
@@ -110,4 +118,15 @@ export async function lirePlansIntents(projectId: number): Promise<PlanIntent[]>
       atelierHref: `/p/${projectId}/e/${l.episodeId}/montage/${l.uuid}`,
     };
   });
+}
+
+/** Le suivi d'un plan après « Écrire les fiches » : sa dernière demande de fiche, et la phrase qui la dit (`libelleSuiviFiche`). */
+export type SuiviFichePlan = EtatDemandeFiche & { libelle: string };
+
+/** Les dernières demandes de fiche des plans du projet, lues par `etatDemandesFiches` (une par plan : la plus récente). Relu par l'écran des intents
+ * (app/api/creation/[projectId]/fiches) : il survit à un rechargement de la page, sans garder les ids côté client. */
+export async function lireSuiviFiches(projectId: number): Promise<SuiviFichePlan[]> {
+  const lignes = await db.select({ id: demandes.id, planId: demandes.cibleId }).from(demandes).where(and(eq(demandes.projectId, projectId), eq(demandes.type, "fiche-plan")));
+  const ids = dernieresDemandesParPlan(lignes).map((d) => d.id);
+  return (await etatDemandesFiches(ids)).map((e) => ({ ...e, libelle: libelleSuiviFiche(e) }));
 }

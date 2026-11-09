@@ -7,33 +7,26 @@
  * Le seul retour en arrière d'une création est de supprimer le projet : on n'applique donc que ce qui est coché
  * d'office (les créations ; un écrasement est décoché par défaut, il n'est jamais confirmé ici).
  *
- * DEUX PHASES (2026-11-08) : la phase 1 va du brief à la relecture des scénarios, puis la création S'ARRÊTE (statut `termine`) : on relit
+ * UNE SEULE PHASE (2026-11-09, vague 4b) : la création va du brief à la relecture des scénarios, puis S'ARRÊTE (statut `termine`) : on relit
  * les intents des plans (une fiche écrite sur un intent faux coûte un rendu et une itération pour rien) pendant que les images de référence
- * se fabriquent. La phase 2 (fiches, prompts des assets qu'elles créent, compilation Open H3 IR) ne part que sur demande explicite
- * (`lancerFichesProjet`, lib/agents/creation-db.ts) ; ses étapes attendent en statut `a_demander` jusque-là. */
+ * se fabriquent. Les fiches ne sont PLUS des étapes de la création : « Écrire les fiches » pose une demande `fiche-plan` par plan
+ * (`lancerDemandesFiches`, lib/demandes-db.ts), indépendante de la création. Raison : pendant qu'une création est en cours, worker/images.ts
+ * retient les images du projet ; des fiches gardées comme étapes de la création attendraient leurs propres images indéfiniment. */
 
 export const ETAPES_CREATION = [
-  { cle: "brief", phase: 1, libelle: "Brief du projet", detail: "Le briefing de la conversation, mis au propre." },
-  { cle: "squelette", phase: 1, libelle: "Structure du projet", detail: "L'épisode du film, depuis le brief." },
-  { cle: "traitement", phase: 1, libelle: "Traitement du film", detail: "Le film découpé en scènes : ce que chacune raconte, d'où elle part, où elle arrive (dès 1 min 30 de film)." },
-  { cle: "scenarios", phase: 1, libelle: "Scénarios des épisodes", detail: "Les plans et les répliques, scène par scène quand le film a un traitement, sinon un épisode d'un seul tenant." },
-  { cle: "registre", phase: 1, libelle: "Registre d'assets", detail: "Personnages et lieux du brief, avec leurs prompts d'image." },
-  { cle: "inventaire", phase: 1, libelle: "Inventaire des assets", detail: "Accessoires, états de décor, effets que les plans réclament." },
-  { cle: "prompts-inventaire", phase: 1, libelle: "Prompts des assets de l'inventaire", detail: "Un prompt d'image par asset ajouté." },
-  { cle: "relecture", phase: 1, libelle: "Relecture des scénarios", detail: "Cohérence, motifs, doublons, résolution : les plus petites corrections, avant d'écrire les fiches." },
-  { cle: "fiches", phase: 2, libelle: "Fiches de plan", detail: "Le prompt vidéo de chaque plan, avec ses références (Open H3 IR quand ses images existent, sinon plan-h3 choisit les références)." },
-  { cle: "prompts-fiches", phase: 2, libelle: "Prompts des assets créés par les fiches", detail: "Ce que les fiches ont ajouté au registre." },
-  { cle: "compilation", phase: 2, libelle: "Compilation Open H3 IR", detail: "Les fiches écrites par plan-h3 dont toutes les images de référence existent sont recompilées par Open H3 IR (créativité, style de mise en scène)." },
+  { cle: "brief", libelle: "Brief du projet", detail: "Le briefing de la conversation, mis au propre." },
+  { cle: "squelette", libelle: "Structure du projet", detail: "L'épisode du film, depuis le brief." },
+  { cle: "traitement", libelle: "Traitement du film", detail: "Le film découpé en scènes : ce que chacune raconte, d'où elle part, où elle arrive (dès 1 min 30 de film)." },
+  { cle: "scenarios", libelle: "Scénarios des épisodes", detail: "Les plans et les répliques, scène par scène quand le film a un traitement, sinon un épisode d'un seul tenant." },
+  { cle: "registre", libelle: "Registre d'assets", detail: "Personnages et lieux du brief, avec leurs prompts d'image." },
+  { cle: "inventaire", libelle: "Inventaire des assets", detail: "Accessoires, états de décor, effets que les plans réclament." },
+  { cle: "prompts-inventaire", libelle: "Prompts des assets de l'inventaire", detail: "Un prompt d'image par asset ajouté." },
+  { cle: "relecture", libelle: "Relecture des scénarios", detail: "Cohérence, motifs, doublons, résolution : les plus petites corrections, avant d'écrire les fiches." },
 ] as const;
 
 export type CleEtapeCreation = (typeof ETAPES_CREATION)[number]["cle"];
-/** `a_demander` : étape de la phase 2 qui attend que l'utilisateur la demande (« Écrire les fiches ») ; le pilote ne la lance jamais seul. */
-export type StatutEtapeCreation = "a_venir" | "en_cours" | "fait" | "passe" | "echoue" | "a_demander";
+export type StatutEtapeCreation = "a_venir" | "en_cours" | "fait" | "passe" | "echoue";
 export type StatutCreation = "en_cours" | "termine" | "echoue" | "arretee";
-
-/** Les étapes de la phase 2 (déclenchée à la demande). */
-export const CLES_PHASE_2: CleEtapeCreation[] = ETAPES_CREATION.filter((e) => e.phase === 2).map((e) => e.cle);
-const estPhase2 = (cle: string) => (CLES_PHASE_2 as string[]).includes(cle);
 
 export type EtapeCreation = {
   cle: CleEtapeCreation;
@@ -47,46 +40,29 @@ export type EtapeCreation = {
   erreur: string | null;
 };
 
-const etapeNeuve = (cle: CleEtapeCreation, statut: StatutEtapeCreation): EtapeCreation => ({ cle, statut, propositionUuid: null, essais: 0, detail: null, erreur: null });
-
-/** Une création neuve : la phase 1 à venir, la phase 2 en attente d'une demande. */
-export const etapesNeuves = (): EtapeCreation[] => ETAPES_CREATION.map((e) => etapeNeuve(e.cle, e.phase === 2 ? "a_demander" : "a_venir"));
+/** Une création neuve : toutes ses étapes à venir. */
+export const etapesNeuves = (): EtapeCreation[] => ETAPES_CREATION.map((e) => ({ cle: e.cle, statut: "a_venir", propositionUuid: null, essais: 0, detail: null, erreur: null }));
 
 const FINALES: StatutEtapeCreation[] = ["fait", "passe"];
 export const estFinale = (e: Pick<EtapeCreation, "statut">) => FINALES.includes(e.statut);
 
-/** La phase 1 est-elle finie (toutes ses étapes faites ou passées) ? */
-export const phase1Finie = (etapes: EtapeCreation[]): boolean => etapes.filter((e) => !estPhase2(e.cle)).every(estFinale);
+const CLES_CONNUES = new Set<string>(ETAPES_CREATION.map((e) => e.cle));
 
-/** Les étapes telles que le pilote les lit. Une création lancée AVANT les deux phases a sa phase 2 « à venir » : tant que sa phase 1 n'est
- * pas finie, elle passe « à demander » (elle aussi s'arrêtera avant les fiches). Une phase 2 « à venir » APRÈS une phase 1 finie est une
- * phase 2 demandée : elle reste telle quelle. Pure. */
-export function normaliserEtapes(etapes: EtapeCreation[]): EtapeCreation[] {
-  if (phase1Finie(etapes)) return etapes;
-  return etapes.map((e) => (estPhase2(e.cle) && e.statut === "a_venir" ? { ...e, statut: "a_demander" as const } : e));
+/** Les étapes telles que le pilote et les écrans les lisent. Les enregistrements anciens gardent des étapes qui n'existent plus (`voix`, puis les
+ * fiches de la création en deux phases : `fiches`, `prompts-fiches`, `compilation`, au statut `a_demander` ou autre) : elles sont IGNORÉES. Une
+ * création terminée le reste (son statut stocké ne bouge pas) ; une création en cours dont l'étape courante était une de celles-là n'a plus rien
+ * à faire et se termine au tour suivant du pilote (la proposition des fiches qui tournait reste dans l'historique, non appliquée). Ordre gardé ;
+ * les étapes ajoutées depuis (ex. `traitement`) ne sont pas ajoutées à une création ancienne. Pure. */
+export function normaliserEtapes(etapes: unknown): EtapeCreation[] {
+  if (!Array.isArray(etapes)) return [];
+  return (etapes as { cle?: unknown; statut?: unknown }[])
+    .filter((e): e is EtapeCreation => e != null && typeof e.cle === "string" && CLES_CONNUES.has(e.cle))
+    .map((e) => ((e.statut as string) === "a_demander" ? { ...e, statut: "a_venir" as const } : e));
 }
 
-/** La phase 2 demandée (« Écrire les fiches ») : ses étapes repartent de zéro (celles qui manquent à une création ancienne sont ajoutées), la
- * phase 1 ne bouge pas. Pure. */
-export function demanderPhase2(etapes: EtapeCreation[]): EtapeCreation[] {
-  const phase1 = etapes.filter((e) => !estPhase2(e.cle));
-  return [...phase1, ...CLES_PHASE_2.map((cle) => etapeNeuve(cle, "a_venir"))];
-}
-
-/** Où en est la phase 2 : `a_demander` (pas encore demandée), `en_cours`, `faite` (toutes ses étapes finies), `echoue`. Une création
- * d'avant les deux phases qui a fait ses fiches est `faite`. */
-export function etatPhase2(etapes: EtapeCreation[]): "a_demander" | "en_cours" | "faite" | "echoue" {
-  const p2 = etapes.filter((e) => estPhase2(e.cle));
-  if (p2.some((e) => e.statut === "echoue")) return "echoue";
-  if (p2.some((e) => e.statut === "a_demander")) return "a_demander";
-  return p2.every(estFinale) ? "faite" : "en_cours";
-}
-
-/** La prochaine étape à traiter : la première qui n'est ni faite ni passée ; null quand tout est fini OU quand la suite attend une demande
- * (`a_demander` : la phase 2 ne part jamais seule). */
+/** La prochaine étape à traiter : la première qui n'est ni faite ni passée ; null quand tout est fini. */
 export function etapeCourante(etapes: EtapeCreation[]): EtapeCreation | null {
-  const e = etapes.find((x) => !estFinale(x)) ?? null;
-  return e && e.statut === "a_demander" ? null : e;
+  return etapes.find((x) => !estFinale(x)) ?? null;
 }
 
 /** Ce que le pilote observe pour l'étape courante. */
@@ -111,7 +87,7 @@ export type Decision =
 /** La suite à donner à l'étape courante. Pure : toute la logique de l'enchaînement est ici (testée), le pilote ne fait
  * qu'exécuter la décision. */
 export function decider(etape: EtapeCreation, obs: ObservationEtape): Decision {
-  if (etape.statut === "echoue" || etape.statut === "a_demander") return { type: "attendre" }; // en attente d'une reprise manuelle, ou d'une demande
+  if (etape.statut === "echoue") return { type: "attendre" }; // en attente d'une reprise manuelle
   if (etape.statut === "a_venir") return obs.occupe ? { type: "attendre" } : { type: "lancer" };
 
   // en_cours
@@ -128,15 +104,13 @@ export function decider(etape: EtapeCreation, obs: ObservationEtape): Decision {
       return { type: "attendre" };
     case "prete":
       if (p.lot && p.echecs + p.bloques > 0 && etape.essais < 1) return { type: "relancer-echecs" }; // échecs ET fiches bloquées : une relance
-      // La compilation Open H3 IR n'est qu'une amélioration : une compilation en échec laisse la fiche plan-h3 du plan, la création continue.
-      if (p.lot && p.echecs > 0 && etape.cle !== "compilation") {
+      if (p.lot && p.echecs > 0) {
         return { type: "echouer", erreur: `${p.echecs} sous-tâche${p.echecs > 1 ? "s" : ""} en échec, même après une relance : relance l'étape quand le serveur répond.` };
       }
       // Des changements encore bloqués après la relance ne bloquent pas la création : le reste s'applique, et l'étape le dit.
       return p.nbChangements === 0 ? { type: "fait", detail: "Rien à ajouter." } : { type: "appliquer" };
     case "echouee":
       if (p.lot && etape.essais < 1) return { type: "relancer-echecs" };
-      if (etape.cle === "compilation") return { type: "fait", detail: `Compilation Open H3 IR impossible (${p.erreur ?? "échec"}) : les fiches plan-h3 restent.` };
       return { type: "echouer", erreur: p.erreur ?? "La génération a échoué." };
     case "appliquee":
     case "partielle":
@@ -153,16 +127,59 @@ export const estRienAFaire = (erreur: string): boolean => RIEN_A_FAIRE.test(erre
 /** Le refus « une tâche est déjà en cours » : l'étape attend son tour, ce n'est pas un échec. */
 export const estOccupe = (erreur: string): boolean => /déjà en cours|déjà en train de répondre/i.test(erreur);
 
-/** Progression globale : nombre d'étapes terminées sur le total (étapes passées comprises). Les étapes qui attendent une demande ne comptent
- * pas : une phase 1 finie fait 100 %. */
+/** Progression globale : nombre d'étapes terminées sur le total (étapes passées comprises). */
 export function progression(etapes: EtapeCreation[]): { faites: number; total: number } {
-  const comptees = etapes.filter((e) => e.statut !== "a_demander");
-  return { faites: comptees.filter(estFinale).length, total: comptees.length };
+  return { faites: etapes.filter(estFinale).length, total: etapes.length };
 }
 
-/** Statut de la création d'après ses étapes. `termine` : plus rien à faire sans l'utilisateur (tout fini, ou la phase 2 attend sa demande). */
+/** Statut de la création d'après ses étapes. `termine` : toutes ses étapes sont finies (la relecture est la dernière ; les fiches se demandent
+ * ensuite, hors création). */
 export function statutDepuisEtapes(etapes: EtapeCreation[], actuel: StatutCreation): StatutCreation {
   if (actuel === "arretee") return "arretee";
   if (etapes.some((e) => e.statut === "echoue")) return "echoue";
-  return etapes.every((e) => estFinale(e) || e.statut === "a_demander") ? "termine" : "en_cours";
+  return etapes.every(estFinale) ? "termine" : "en_cours";
+}
+
+/** Le statut à AFFICHER d'une création lue en base (étapes normalisées) : une création ancienne en échec ou en cours SEULEMENT à cause d'une étape
+ * de fiches (retirée de la création) n'a plus rien à faire : elle se lit « terminée » (le pilote la terminera au prochain tour si elle est en cours).
+ * Une création arrêtée, ou sans étape lisible, garde son statut. Pure. */
+export function statutEffectif(etapes: EtapeCreation[], stocke: StatutCreation): StatutCreation {
+  if (stocke === "arretee" || stocke === "termine" || etapes.length === 0) return stocke;
+  return etapes.every(estFinale) ? "termine" : stocke;
+}
+
+// --- après la création : « Écrire les fiches » (une demande `fiche-plan` par plan, hors création) -------------------------------------------
+
+/** Les plans que « Écrire les fiches » lance : ceux sans fiche (ou tous si l'auteur le demande), jamais un plan dont une demande tourne déjà
+ * (elle serait refusée). L'ordre du scénario est rétabli par `lancerDemandesFiches`. Pure. */
+export function plansAEcrire(plans: { uuid: string; aUneFiche: boolean; demandeEnCours: boolean }[], tous = false): string[] {
+  return plans.filter((p) => !p.demandeEnCours && (tous || !p.aUneFiche)).map((p) => p.uuid);
+}
+
+/** L'état d'une demande de fiche (`etatDemandesFiches`, lib/demandes-db.ts), tel que l'écran des intents le montre. */
+export type EtatDemandeFiche = { id: number; planUuid: string; statut: "en_cours" | "termine" | "echoue" | "annulee"; etape: string | null; erreur: string | null };
+
+/** Une ligne de suivi : l'étape en cours (« Choix des références », « Création d'assets (2) », « Images (1/3) », « Compilation Open H3 IR »),
+ * « Fiche écrite », ou l'échec avec sa raison (l'asset en cause y est nommé par la demande). Pure. */
+export function libelleSuiviFiche(e: Pick<EtatDemandeFiche, "statut" | "etape" | "erreur">): string {
+  switch (e.statut) {
+    case "en_cours":
+      return e.etape ?? "En file";
+    case "termine":
+      return "Fiche écrite";
+    case "annulee":
+      return "Annulée";
+    case "echoue":
+      return `Échec${e.etape ? ` (${e.etape})` : ""} : ${e.erreur ?? "raison inconnue"}`;
+  }
+}
+
+/** La DERNIÈRE demande de fiche de chaque plan (plus grand id). Pure. */
+export function dernieresDemandesParPlan<T extends { id: number; planId: number }>(demandes: T[]): T[] {
+  const parPlan = new Map<number, T>();
+  for (const d of demandes) {
+    const deja = parPlan.get(d.planId);
+    if (!deja || d.id > deja.id) parPlan.set(d.planId, d);
+  }
+  return [...parPlan.values()];
 }

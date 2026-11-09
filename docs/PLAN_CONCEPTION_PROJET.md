@@ -106,6 +106,15 @@ courte ne contient pas de noms d'auteurs ni de studios (H3 : décrire le rendu),
 
 **D9 — Avancée (décidé).** La page `/p/[id]/creation` existante devient la scène 8 (une seule page d'avancée, pas de doublon). Réutiliser l'installateur : les 8 étapes de la maquette sont fictives, il faut les aligner sur `ETAPES_CREATION` (9 étapes réelles) et sur `progression()`.
 
+> **Note 2026-11-09 (vague 4b).** La création s'arrête et se termine après la relecture : `ETAPES_CREATION` = brief, squelette,
+> traitement, scenarios, registre, inventaire, prompts-inventaire, relecture. Les fiches ne sont plus des étapes de la création
+> (l'ancienne « phase 2 » `fiches` / `prompts-fiches` / `compilation` du 2026-11-08 est retirée) : pendant une création en cours,
+> `worker/images.ts` retient les images du projet, et des fiches gardées dans la création attendraient leurs propres images. L'écran
+> des intents (fin de la page d'avancée, et lien depuis la page Brief tant que des plans n'ont pas de fiche) lance « Écrire les
+> fiches » : une demande `fiche-plan` par plan (`lancerDemandesFiches`, lib/demandes-db.ts), suivie plan par plan
+> (`etatDemandesFiches`, route `app/api/creation/[projectId]/fiches`). Les anciens enregistrements ignorent les étapes retirées
+> (`normaliserEtapes`).
+
 **D10 — Fin de la modale (décidé).** Le bouton « Nouveau projet » mène à `/nouveau`. La modale `NouveauProjetModal` et le bouton « Créer » (projet vide) disparaissent : il n'y a pas encore de production en cours, et un futur « Importer un projet » (par exemple Les Yeux de Rubis, déjà en partie tourné) les remplacera. Les actions serveur `creerProjet` / `creerProjetSansRedirection` restent (scripts, tests, futur import).
 
 **D11 — Accroche.** `accroche.ts` (pistes de genres tirées au hasard) est remplacé par des accroches choisies selon le

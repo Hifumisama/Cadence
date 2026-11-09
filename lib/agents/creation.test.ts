@@ -1,19 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  CLES_PHASE_2,
   ETAPES_CREATION,
   decider,
-  demanderPhase2,
+  dernieresDemandesParPlan,
   estOccupe,
   estRienAFaire,
   etapeCourante,
   etapesNeuves,
-  etatPhase2,
+  libelleSuiviFiche,
   normaliserEtapes,
-  phase1Finie,
+  plansAEcrire,
   progression,
   statutDepuisEtapes,
+  statutEffectif,
   type EtapeCreation,
   type ObservationEtape,
 } from "./creation";
@@ -22,69 +22,107 @@ const etape = (cle: EtapeCreation["cle"], statut: EtapeCreation["statut"], over:
 const obs = (over: Partial<ObservationEtape> = {}): ObservationEtape => ({ occupe: false, brief: "valide", proposition: null, ...over });
 const prop = (over: Partial<NonNullable<ObservationEtape["proposition"]>> = {}) => ({ statut: "prete", lot: false, echecs: 0, bloques: 0, nbChangements: 3, erreur: null, ...over });
 
-const PHASE_2 = ["fiches", "prompts-fiches", "compilation"];
+const ORDRE = ["brief", "squelette", "traitement", "scenarios", "registre", "inventaire", "prompts-inventaire", "relecture"];
+/** Une étape telle qu'un enregistrement ANCIEN la stocke (clés et statuts retirés depuis). */
+const ancienne = (cle: string, statut: string) => ({ cle, statut, propositionUuid: null as string | null, essais: 0, detail: null, erreur: null as string | null });
 
-test("étapes : l'ordre du pipeline ; la phase 1 à venir, la phase 2 sur demande", () => {
-  assert.deepEqual(ETAPES_CREATION.map((e) => e.cle), ["brief", "squelette", "traitement", "scenarios", "registre", "inventaire", "prompts-inventaire", "relecture", "fiches", "prompts-fiches", "compilation"]);
-  assert.deepEqual(CLES_PHASE_2, PHASE_2);
-  const e = etapesNeuves();
-  assert.ok(e.filter((x) => !PHASE_2.includes(x.cle)).every((x) => x.statut === "a_venir"));
-  assert.ok(e.filter((x) => PHASE_2.includes(x.cle)).every((x) => x.statut === "a_demander"));
+test("étapes : une seule phase, de brief à la relecture ; plus d'étape de fiches", () => {
+  assert.deepEqual(ETAPES_CREATION.map((e) => e.cle), ORDRE);
+  assert.ok(etapesNeuves().every((x) => x.statut === "a_venir"));
+  assert.deepEqual(etapesNeuves().map((x) => x.cle), ORDRE);
 });
 
-test("étape courante : la première qui n'est ni faite ni passée ; la phase 2 ne part jamais seule", () => {
+test("étape courante : la première qui n'est ni faite ni passée ; la relecture finie, la création est terminée", () => {
   const e = etapesNeuves();
   assert.equal(etapeCourante(e)?.cle, "brief");
   e[0]!.statut = "fait";
   e[1]!.statut = "passe";
   assert.equal(etapeCourante(e)?.cle, "traitement");
-  for (const x of e) if (!PHASE_2.includes(x.cle)) x.statut = "fait";
-  assert.equal(etapeCourante(e), null, "phase 1 finie : rien à faire sans demande");
-  assert.deepEqual(progression(e), { faites: 8, total: 8 }, "les étapes sur demande ne comptent pas");
-  assert.equal(statutDepuisEtapes(e, "en_cours"), "termine", "phase 1 finie = préparation terminée (en attente des fiches)");
-  assert.equal(etatPhase2(e), "a_demander");
-  assert.equal(phase1Finie(e), true);
-  assert.deepEqual(decider(etape("fiches", "a_demander"), obs()), { type: "attendre" });
-
-  const demandee = demanderPhase2(e);
-  assert.equal(etapeCourante(demandee)?.cle, "fiches");
-  assert.equal(etatPhase2(demandee), "en_cours");
-  assert.equal(statutDepuisEtapes(demandee, "termine"), "en_cours");
-  assert.deepEqual(progression(demandee), { faites: 8, total: 11 });
-  for (const x of demandee) x.statut = "fait";
-  assert.equal(etapeCourante(demandee), null);
-  assert.equal(etatPhase2(demandee), "faite");
+  for (const x of e) x.statut = "fait";
+  assert.equal(etapeCourante(e), null, "relecture faite : plus rien à faire");
+  assert.deepEqual(progression(e), { faites: 8, total: 8 });
+  assert.equal(statutDepuisEtapes(e, "en_cours"), "termine", "fin de la création = « terminé » (les fiches se demandent ensuite, hors création)");
 });
 
-test("phase 2 demandée : repart de zéro, ajoute les étapes qu'une création ancienne n'avait pas", () => {
-  const ancienne = etapesNeuves().filter((x) => x.cle !== "compilation").map((x) => ({ ...x, statut: "fait" as const, propositionUuid: "p" }));
-  const d = demanderPhase2(ancienne);
-  assert.deepEqual(d.map((x) => x.cle), ETAPES_CREATION.map((x) => x.cle));
-  assert.ok(d.filter((x) => PHASE_2.includes(x.cle)).every((x) => x.statut === "a_venir" && x.propositionUuid === null));
-  assert.ok(d.filter((x) => !PHASE_2.includes(x.cle)).every((x) => x.statut === "fait" && x.propositionUuid === "p"), "la phase 1 ne bouge pas");
+test("anciens enregistrements : les étapes de fiches (et voix) sont ignorées ; une création terminée reste terminée", () => {
+  // Projet 237 : phase 1 finie, phase 2 « à demander ».
+  const p237 = [...ORDRE.map((c) => ancienne(c, c === "brief" ? "passe" : "fait")), ancienne("fiches", "a_demander"), ancienne("prompts-fiches", "a_demander"), ancienne("compilation", "a_demander")];
+  const n237 = normaliserEtapes(p237);
+  assert.deepEqual(n237.map((x) => x.cle), ORDRE);
+  assert.deepEqual(progression(n237), { faites: 8, total: 8 });
+  assert.equal(etapeCourante(n237), null);
+  assert.equal(statutEffectif(n237, "termine"), "termine");
+  // Création d'avant les deux phases (fiches écrites par l'installateur), d'avant le traitement et la relecture, avec une étape « voix ».
+  const vieille = ["brief", "squelette", "scenarios", "registre", "inventaire", "prompts-inventaire", "voix", "fiches", "prompts-fiches"].map((c) => ancienne(c, "fait"));
+  const nv = normaliserEtapes(vieille);
+  assert.deepEqual(nv.map((x) => x.cle), ["brief", "squelette", "scenarios", "registre", "inventaire", "prompts-inventaire"], "ordre gardé, rien d'ajouté");
+  assert.equal(statutEffectif(nv, "termine"), "termine");
+  // Entrées illisibles : ignorées, sans planter.
+  assert.deepEqual(normaliserEtapes(null), []);
+  assert.deepEqual(normaliserEtapes([null, 3, { statut: "fait" }, ancienne("brief", "fait")]).map((x) => x.cle), ["brief"]);
 });
 
-test("création d'avant les deux phases : en cours, elle s'arrêtera avant les fiches ; finie, elle reste finie", () => {
-  // Lancée avant le 2026-11-08 : la phase 2 était « à venir ».
-  const enCours = etapesNeuves().map((x, i) => ({ ...x, statut: (i < 3 ? "fait" : "a_venir") as EtapeCreation["statut"] }));
-  const n = normaliserEtapes(enCours);
-  assert.ok(n.filter((x) => PHASE_2.includes(x.cle)).every((x) => x.statut === "a_demander"));
-  assert.equal(etapeCourante(n)?.cle, "scenarios");
-  const finie = etapesNeuves().map((x) => ({ ...x, statut: "fait" as const }));
-  assert.deepEqual(normaliserEtapes(finie), finie);
-  assert.equal(etatPhase2(finie), "faite");
-  // Phase 2 demandée (phase 1 finie) : « à venir » veut dire demandée, on n'y touche pas.
-  const demandee = demanderPhase2(finie);
-  assert.deepEqual(normaliserEtapes(demandee), demandee);
+test("anciens enregistrements : une création EN COURS sur une étape de fiches se termine, sans planter", () => {
+  const enFiches = [...ORDRE.map((c) => ancienne(c, "fait")), { ...ancienne("fiches", "en_cours"), propositionUuid: "p" }, ancienne("prompts-fiches", "a_venir"), ancienne("compilation", "a_venir")];
+  const n = normaliserEtapes(enFiches);
+  assert.equal(etapeCourante(n), null, "plus d'étape courante : le pilote écrit l'état et la création se termine");
+  assert.equal(statutDepuisEtapes(n, "en_cours"), "termine");
+  assert.equal(statutEffectif(n, "en_cours"), "termine", "l'écran la lit déjà terminée");
+  // En échec SUR une étape de fiches : l'échec ne compte plus.
+  const echec = [...ORDRE.map((c) => ancienne(c, "fait")), { ...ancienne("fiches", "echoue"), erreur: "LLM en panne" }];
+  assert.equal(statutEffectif(normaliserEtapes(echec), "echoue"), "termine");
+  // Une création ancienne en cours AVANT les fiches continue normalement : sa phase 2 « à demander » est ignorée.
+  const debut = [...ORDRE.map((c, i) => ancienne(c, i < 3 ? "fait" : "a_venir")), ancienne("fiches", "a_demander"), ancienne("compilation", "a_demander")];
+  const nd = normaliserEtapes(debut);
+  assert.equal(etapeCourante(nd)?.cle, "scenarios");
+  assert.equal(statutEffectif(nd, "en_cours"), "en_cours");
+  assert.deepEqual(progression(nd), { faites: 3, total: 8 });
+  // Une étape CONNUE au statut retiré `a_demander` (jamais écrit, mais toléré) redevient « à venir ».
+  assert.equal(normaliserEtapes([ancienne("relecture", "a_demander")])[0]!.statut, "a_venir");
+  // Arrêtée : reste arrêtée.
+  assert.equal(statutEffectif(nd, "arretee"), "arretee");
 });
 
-test("compilation Open H3 IR : un échec n'arrête pas la création (les fiches plan-h3 restent)", () => {
-  assert.deepEqual(decider(etape("compilation", "en_cours", { essais: 0 }), obs({ proposition: prop({ lot: true, echecs: 1 }) })), { type: "relancer-echecs" });
-  assert.deepEqual(decider(etape("compilation", "en_cours", { essais: 1 }), obs({ proposition: prop({ lot: true, echecs: 1, nbChangements: 2 }) })), { type: "appliquer" });
-  assert.equal(decider(etape("compilation", "en_cours", { essais: 1 }), obs({ proposition: prop({ lot: true, echecs: 2, nbChangements: 0 }) })).type, "fait");
-  const d = decider(etape("compilation", "en_cours", { essais: 1 }), obs({ proposition: prop({ statut: "echouee", lot: true, erreur: "Python absent" }) }));
-  assert.equal(d.type, "fait");
-  assert.match((d as { detail: string }).detail, /Python absent.*fiches plan-h3 restent/);
+test("garde-fou images (worker/images.ts retient les images d'un projet dont la création est « en_cours ») : jamais en cours une fois la relecture finie", () => {
+  // Les fiches posent leurs images APRÈS la création : celle-ci doit donc sortir d'« en_cours » dès sa dernière étape, quelle que soit son histoire.
+  const neuve = etapesNeuves().map((x) => ({ ...x, statut: "fait" as const }));
+  assert.equal(statutDepuisEtapes(neuve, "en_cours"), "termine");
+  const relecturePassee = etapesNeuves().map((x) => ({ ...x, statut: x.cle === "relecture" ? ("passe" as const) : ("fait" as const) }));
+  assert.equal(statutDepuisEtapes(relecturePassee, "en_cours"), "termine");
+  for (const statut of ["a_demander", "a_venir", "en_cours", "echoue"]) {
+    const ancienneCreation = normaliserEtapes([...ORDRE.map((c) => ancienne(c, "fait")), ancienne("fiches", statut), ancienne("compilation", "a_venir")]);
+    assert.equal(statutDepuisEtapes(ancienneCreation, "en_cours"), "termine", `ancienne étape « fiches » ${statut} : ne retient pas les images`);
+  }
+});
+
+test("après la création : les plans à écrire, sans fiche par défaut, jamais un plan dont une demande tourne", () => {
+  const plans = [
+    { uuid: "a", aUneFiche: false, demandeEnCours: false },
+    { uuid: "b", aUneFiche: true, demandeEnCours: false },
+    { uuid: "c", aUneFiche: false, demandeEnCours: true },
+    { uuid: "d", aUneFiche: true, demandeEnCours: true },
+  ];
+  assert.deepEqual(plansAEcrire(plans), ["a"]);
+  assert.deepEqual(plansAEcrire(plans, true), ["a", "b"]);
+  assert.deepEqual(plansAEcrire([]), []);
+});
+
+test("suivi des fiches : l'étape en cours, « Fiche écrite », l'échec avec sa raison ; la dernière demande de chaque plan", () => {
+  assert.equal(libelleSuiviFiche({ statut: "en_cours", etape: "Images (1/3)", erreur: null }), "Images (1/3)");
+  assert.equal(libelleSuiviFiche({ statut: "en_cours", etape: null, erreur: null }), "En file");
+  assert.equal(libelleSuiviFiche({ statut: "termine", etape: null, erreur: null }), "Fiche écrite");
+  assert.equal(libelleSuiviFiche({ statut: "annulee", etape: "Choix des références", erreur: null }), "Annulée");
+  assert.equal(
+    libelleSuiviFiche({ statut: "echoue", etape: "Images", erreur: "Pas de prompt d'image pour PROP_lanterne" }),
+    "Échec (Images) : Pas de prompt d'image pour PROP_lanterne",
+  );
+  const d = dernieresDemandesParPlan([
+    { id: 3, planId: 1 },
+    { id: 9, planId: 2 },
+    { id: 7, planId: 1 },
+    { id: 5, planId: 2 },
+  ]);
+  assert.deepEqual(d.map((x) => x.id).sort((a, b) => a - b), [7, 9]);
 });
 
 test("décision : une étape à venir se lance, sauf si la conversation est occupée", () => {
@@ -112,20 +150,20 @@ test("décision : un lot avec des échecs est relancé UNE fois, puis l'étape �
   assert.equal(d.type, "echouer");
   assert.match((d as { erreur: string }).erreur, /2 sous-tâches en échec/);
   // un lot entièrement échoué suit la même règle
-  assert.deepEqual(decider(etape("fiches", "en_cours"), obs({ proposition: prop({ statut: "echouee", lot: true }) })), { type: "relancer-echecs" });
-  assert.equal(decider(etape("fiches", "en_cours", { essais: 1 }), obs({ proposition: prop({ statut: "echouee", lot: true, erreur: "LLM en panne" }) })).type, "echouer");
+  assert.deepEqual(decider(etape("scenarios", "en_cours"), obs({ proposition: prop({ statut: "echouee", lot: true }) })), { type: "relancer-echecs" });
+  assert.equal(decider(etape("scenarios", "en_cours", { essais: 1 }), obs({ proposition: prop({ statut: "echouee", lot: true, erreur: "LLM en panne" }) })).type, "echouer");
 });
 
 test("décision : des changements bloqués par un contrôle sont relancés UNE fois, puis le reste s'applique", () => {
   const bloque = obs({ proposition: prop({ lot: true, bloques: 2 }) });
-  assert.deepEqual(decider(etape("fiches", "en_cours", { essais: 0 }), bloque), { type: "relancer-echecs" });
-  assert.deepEqual(decider(etape("fiches", "en_cours", { essais: 1 }), bloque), { type: "appliquer" });
+  assert.deepEqual(decider(etape("inventaire", "en_cours", { essais: 0 }), bloque), { type: "relancer-echecs" });
+  assert.deepEqual(decider(etape("inventaire", "en_cours", { essais: 1 }), bloque), { type: "appliquer" });
 });
 
 test("décision : proposition rejetée ou disparue = échec ; étape en échec = on attend la reprise", () => {
-  assert.equal(decider(etape("fiches", "en_cours"), obs({ proposition: prop({ statut: "rejetee" }) })).type, "echouer");
-  assert.equal(decider(etape("fiches", "en_cours"), obs()).type, "echouer");
-  assert.deepEqual(decider(etape("fiches", "echoue"), obs()), { type: "attendre" });
+  assert.equal(decider(etape("registre", "en_cours"), obs({ proposition: prop({ statut: "rejetee" }) })).type, "echouer");
+  assert.equal(decider(etape("registre", "en_cours"), obs()).type, "echouer");
+  assert.deepEqual(decider(etape("registre", "echoue"), obs()), { type: "attendre" });
 });
 
 test("refus du service : « rien à faire » passe l'étape, « déjà en cours » attend", () => {

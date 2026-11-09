@@ -1,5 +1,5 @@
 import { cleCreation, type Tache } from "../taches";
-import { ETAPES_CREATION, etapeCourante, progression, type EtapeCreation, type StatutCreation } from "./creation";
+import { ETAPES_CREATION, etapeCourante, normaliserEtapes, progression, statutEffectif, type EtapeCreation, type StatutCreation } from "./creation";
 
 /** La création d'un projet (l'installateur) vue comme UNE tâche du header — règles pures, sans base. L'installateur
  * lance ses étapes dans la conversation du projet (lots, appels seuls) : on les regroupe en une ligne, qui mène à la page
@@ -44,7 +44,10 @@ const actif = (statut: string) => statut === "en_attente" || statut === "en_cour
 
 /** La ligne du header, ou null quand il n'y a plus rien à montrer (création terminée, échouée ou arrêtée dont les
  * tâches ont toutes été retirées de la liste : le ✕ du panneau masque les tâches, ici celles de la création). */
-export function tacheDeCreation(e: EntreeTacheCreation): Tache | null {
+export function tacheDeCreation(entree: EntreeTacheCreation): Tache | null {
+  // Les étapes lues en base peuvent porter des étapes retirées depuis (les fiches de l'ancienne phase 2) : ignorées (voir `normaliserEtapes`).
+  const etapes = normaliserEtapes(entree.etapes);
+  const e = { ...entree, etapes, statut: statutEffectif(etapes, entree.statut) };
   const enCours = e.statut === "en_cours";
   if (!enCours && e.runs.length === 0) return null;
 

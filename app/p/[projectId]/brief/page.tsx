@@ -9,6 +9,7 @@ import { lireBriefOuVide } from "@/lib/queries-agents";
 import { getAllAssets, getEpisode, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { db } from "@/db";
 import { lireConception } from "@/lib/conception-db";
+import { plansSansFicheApresCreation } from "@/lib/agents/creation-vue";
 import { MEDIA_ROOT, assetMediaSrc, posterSrc } from "@/lib/media";
 import { slugStyle } from "@/lib/styles/bibliotheque";
 import { apercusDuStyle } from "@/lib/styles/styles-db";
@@ -42,6 +43,8 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
   const redige = brief.statut !== "partiel";
   const styleVue = await vueStyle(brief.contenu.style, conception?.style.source === "bibliotheque" ? conception.style.styleId : null);
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
+  // Après la création : tant que des plans n'ont pas de fiche, un lien ramène à l'écran des intents (« Écrire les fiches », suivi par plan).
+  const sansFiche = await plansSansFicheApresCreation(pid);
 
   return (
     <>
@@ -58,6 +61,16 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
         tabs={{ projectId: pid, episodeBase }}
       />
       <main className="page">
+        {sansFiche > 0 ? (
+          <p style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", margin: "0 0 16px" }}>
+            <span>
+              {sansFiche} plan{sansFiche > 1 ? "s" : ""} sans fiche.
+            </span>
+            <Link href={`/p/${pid}/creation`} className="btn btn-gold">
+              Relire les intents et écrire les fiches
+            </Link>
+          </p>
+        ) : null}
         {redige ? <BriefDossier projectId={pid} nomProjet={projet.nom} brief={brief} style={styleVue} identiteFigee={identiteFigee} registre={registre} affiche={posterSrc("projects", pid, projet.posterFichier)} episodeId={episode?.id ?? null} resume={episode?.resume ?? ""} /> :<BriefVide projectId={pid} nomProjet={projet.nom} brief={brief} />}
         <ReglagesCameraProjet projectId={pid} creativite={projet.creativite} styleCamera={projet.styleCamera} demos={demosMiseEnScene()} />
       </main>

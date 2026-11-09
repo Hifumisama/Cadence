@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { plans } from "@/db/schema";
-import { arreterCreation, lancerCreation, lancerFichesProjet, reprendreCreation } from "@/lib/agents/creation-db";
+import { arreterCreation, lancerCreation, lancerFichesApresCreation, reprendreCreation } from "@/lib/agents/creation-db";
 import { lirePlansIntents, type PlanIntent } from "@/lib/agents/creation-vue";
 import type { Resultat } from "@/lib/agents/types";
 
@@ -29,11 +29,12 @@ export async function arreterCreationProjet(projectId: number): Promise<Resultat
   return r;
 }
 
-/** « Écrire les fiches » de l'écran de fin : la phase 2 de la préparation (fiches, prompts des assets qu'elles créent, compilation Open H3 IR). */
-export async function ecrireFichesProjet(projectId: number): Promise<Resultat> {
-  const r = await lancerFichesProjet(projectId);
+/** « Écrire les fiches » de l'écran des intents : une demande de fiche par plan (sans fiche par défaut, tous si `tous`), dans l'ordre du scénario,
+ * hors création (lib/agents/creation-db.ts, `lancerFichesApresCreation`). Le suivi se lit ensuite par app/api/creation/[projectId]/fiches. */
+export async function ecrireFichesProjet(projectId: number, options: { tous?: boolean } = {}): Promise<Resultat<{ lancees: number; erreurs: string[] }>> {
+  const r = await lancerFichesApresCreation(projectId, { tous: options.tous === true });
   revalidatePath("/", "layout");
-  return r;
+  return r.ok ? { ok: true, lancees: r.lancees, erreurs: r.erreurs } : r;
 }
 
 /** Les plans et leurs intents, pour l'écran de fin (relus après une modification). */

@@ -71,3 +71,13 @@
 .cn-intent textarea { width: 100%; min-height: 72px; resize: vertical; font: inherit; font-size: 13.5px; color: var(--ink); background: var(--ground); border: 1px solid var(--line-strong); padding: 8px; }
 .cn-intent p { margin: 0; color: var(--ink-2); font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cn-intent-pied { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-3); }
+/* Suivi des fiches (une demande par plan) : l'étape en cours, « Fiche écrite » ou l'échec. Jamais la couleur seule : le libellé dit l'état. */
+.cn-intent-suivi { display: inline-flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); border: 1px solid var(--line-strong); padding: 1px 8px; overflow-wrap: anywhere; }
+.cn-intent.f-en_cours .cn-intent-suivi { color: var(--ink); border-color: var(--or); }
+.cn-intent.f-termine .cn-intent-suivi { color: var(--or); border-color: var(--or-soft); }
+.cn-intent.f-echoue { border-color: var(--ecarlate-glow); }
+.cn-intent.f-echoue .cn-intent-suivi { color: var(--ecarlate-glow); border-color: var(--ecarlate-glow); }
+.cn-intent-pouls { width: 7px; height: 7px; border-radius: 50%; background: var(--or-glow); animation: cn-pouls-suivi 1.2s infinite; }
+@keyframes cn-pouls-suivi { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .cn-intent-pouls { animation: none; } }
+.cn-intent-tous { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--ink-3); }

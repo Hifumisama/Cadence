@@ -5,9 +5,9 @@ import "./demarrage.css";
 import "./avancee.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
-import { arreterCreationProjet, ecrireFichesProjet, reprendreCreationProjet } from "@/app/creation/actions";
+import { arreterCreationProjet, reprendreCreationProjet } from "@/app/creation/actions";
 import { SYMBOLE_SOUS_TACHE } from "@/lib/agents-affichage";
-import type { PlanIntent, VueCreation } from "@/lib/agents/creation-vue";
+import type { PlanIntent, SuiviFichePlan, VueCreation } from "@/lib/agents/creation-vue";
 import { IntentsAvantFiches } from "./IntentsAvantFiches";
 import { motDuTon, type Conception } from "@/lib/conception";
 import { minutesSecondes, teinteAmbiance } from "@/lib/conception-ui";
@@ -23,7 +23,6 @@ const LIBELLES: Record<VueCreation["etapes"][number]["statut"], string> = {
   fait: "terminé",
   passe: "rien à faire",
   echoue: "en échec",
-  a_demander: "sur demande",
 };
 
 const NOMS_ETAPES = ["Format", "Genre & ton", "Durée", "Langue", "Style", "Mise en scène", "Scénario", "Clap", "Avancée"];
@@ -41,11 +40,14 @@ export function AvanceeScene({
   style,
   miseEnScene,
   plansInitial,
+  suiviInitial,
 }: {
   projectId: number;
   nomProjet: string;
   /** Les plans et leurs intents (lib/agents/creation-vue.ts) : l'écran de fin de la phase 1 les fait relire avant d'écrire les fiches. */
   plansInitial: PlanIntent[];
+  /** La dernière demande de fiche de chaque plan (`lireSuiviFiches`) : l'écran des intents suit « Écrire les fiches » plan par plan. */
+  suiviInitial: SuiviFichePlan[];
   /** La mise en scène du projet en quelques mots (`resumeMiseEnScene`), pour le ruban. */
   miseEnScene: string;
   initial: VueCreation | null;
@@ -60,7 +62,7 @@ export function AvanceeScene({
   // Détail d'une étape : replié quand tout va bien, ouvert d'office tant qu'elle travaille ou qu'elle a échoué (sauf choix contraire).
   const [depliees, setDepliees] = useState<Record<string, boolean>>({});
   // Une fois la préparation terminée : le grand clap (« Voir le projet ») remplace la liste, qu'un petit bouton ramène. Tant que des plans n'ont pas
-  // de fiche (phase 2 pas encore demandée), l'écran des intents passe d'abord (« Plus tard » mène au clap).
+  // de fiche, l'écran des intents passe d'abord (« Plus tard » mène au clap) ; un bouton y ramène toujours.
   const [affichage, setAffichage] = useState<"clap" | "etapes" | "intents" | null>(null);
   const enVol = useRef(false);
   const { etat: images, recharger: rechargerImages } = useEtatImages(projectId, imagesInitial);
@@ -105,13 +107,13 @@ export function AvanceeScene({
   const pct = vue && vue.total ? Math.round((vue.faites / vue.total) * 100) : 0;
   const etapeCourante = vue?.etapes.find((e) => e.statut === "en_cours" || e.statut === "echoue");
   const termine = vue?.statut === "termine";
-  // Des fiches à écrire : décidé par les plans (des plans sans fiche) ou par une phase 2 jamais demandée, pas par le seul statut « terminé ».
-  const fichesAEcrire = termine && vue != null && (vue.phase2 === "a_demander" || vue.plansSansFiche > 0);
+  // Des fiches à écrire : décidé par les plans (des plans sans fiche), pas par la création (les fiches sont des demandes par plan, hors création).
+  const fichesAEcrire = termine && vue != null && vue.plansSansFiche > 0;
   const titre = !vue
     ? <>Pas encore de <em>préparation</em>.</>
     : { en_cours: <>La préparation <em>avance</em>.</>, termine: fichesAEcrire ? <>Le scénario est <em>prêt</em>.</> : <>Le projet est <em>prêt</em>.</>, echoue: <>La préparation est <em>interrompue</em>.</>, arretee: <>La préparation est <em>arrêtée</em>.</> }[vue.statut];
   const affichageEffectif = affichage ?? (fichesAEcrire ? "intents" : "clap");
-  const vueIntents = termine && fichesAEcrire && affichageEffectif === "intents";
+  const vueIntents = termine && affichageEffectif === "intents";
   const vueClap = termine && affichageEffectif === "clap";
   const nomAffiche = nomProjet === "Sans titre" ? "Ton projet" : nomProjet;
   const faits = vue?.etapes.filter((e) => e.statut === "fait" && e.resultat).map((e) => e.resultat as string) ?? [];
@@ -144,10 +146,10 @@ export function AvanceeScene({
               <IntentsAvantFiches
                 projectId={projectId}
                 initial={plansInitial}
-                enCours={pending}
-                onEcrire={() => {
-                  setAffichage("etapes");
-                  agir(() => ecrireFichesProjet(projectId));
+                suiviInitial={suiviInitial}
+                onLancees={() => {
+                  setAffichage("intents"); // reste sur le suivi, même quand toutes les fiches sont lancées
+                  void charger();
                 }}
                 onPlusTard={() => setAffichage("clap")}
               />
@@ -228,9 +230,9 @@ export function AvanceeScene({
                   {vue.statut === "echoue" ? "Reprendre depuis l’étape en échec" : "Reprendre"}
                 </button>
               ) : null}
-              {termine && fichesAEcrire && !vueIntents ? (
-                <button type="button" className="btn btn-gold" onClick={() => setAffichage("intents")}>
-                  Relire les intents et écrire les fiches
+              {termine && !vueIntents ? (
+                <button type="button" className={fichesAEcrire ? "btn btn-gold" : "btn"} onClick={() => setAffichage("intents")}>
+                  {fichesAEcrire ? "Relire les intents et écrire les fiches" : "Intents et fiches des plans"}
                 </button>
               ) : null}
               {termine ? (

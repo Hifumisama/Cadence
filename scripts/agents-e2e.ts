@@ -15,7 +15,8 @@ import type { executerSkill } from "../lib/llm/executer";
 import type { MessageLlm, PartieContenu } from "../lib/llm/types";
 import type { Planche } from "../lib/planche-vignettes";
 import { traiterTacheLlm } from "../worker/llm";
-import { arreterCreation, lancerCreation, lancerFichesProjet, lireCreation, piloterCreations, reprendreCreation } from "../lib/agents/creation-db";
+import { arreterCreation, lancerCreation, lancerFichesApresCreation, lireCreation, piloterCreations, reprendreCreation } from "../lib/agents/creation-db";
+import { annulerDemande, etatDemandesFiches } from "../lib/demandes-db";
 
 /**
  * Essai de bout en bout du système d'agents, SANS interface et SANS modèle : un FAUX
@@ -942,17 +943,12 @@ async function main() {
       }
       return await lireCreation(pInst!.id);
     };
-    // Phase 1 (jusqu'à la relecture) : la création s'arrête avant les fiches, qui attendent une demande.
-    const mi4 = await faireTourner();
-    const etapesMi4 = ((mi4?.etapes ?? []) as { cle: string; statut: string; erreur?: string | null }[]).map((e) => `${e.cle}:${e.statut}${e.erreur ? ` « ${e.erreur} »` : ""}`);
-    ok(mi4?.statut === "termine", `phase 1 terminée (${etapesMi4.join(" ")})`);
-    ok(etapesMi4.filter((e) => /^(fiches|prompts-fiches|compilation):/.test(e)).every((e) => e.endsWith(":a_demander")), "…les fiches attendent qu'on les demande");
-    // Phase 2 : « Écrire les fiches ».
-    ok((await lancerFichesProjet(pInst!.id)).ok, "phase 2 demandée (« Écrire les fiches »)");
+    // Une seule phase (vague 4b) : du brief à la relecture, puis la création se termine ; les fiches n'en sont plus des étapes.
     const fin4 = await faireTourner();
     const etapes4 = ((fin4?.etapes ?? []) as { cle: string; statut: string; erreur?: string | null }[]).map((e) => `${e.cle}:${e.statut}${e.erreur ? ` « ${e.erreur} »` : ""}`);
-    ok(fin4?.statut === "termine", `installateur terminé (${etapes4.join(" ")})`);
+    ok(fin4?.statut === "termine", `installateur terminé après la relecture (${etapes4.join(" ")})`);
     ok(etapes4.every((e) => e.endsWith(":fait") || e.endsWith(":passe")), "toutes les étapes sont faites ou passées");
+    ok(etapes4.map((e) => e.split(":")[0]).join() === "brief,squelette,traitement,scenarios,registre,inventaire,prompts-inventaire,relecture", "…et ce sont les huit étapes, de brief à relecture (pas de fiches)");
     const [b4] = await db.select().from(briefs).where(eq(briefs.projectId, pInst!.id));
     ok(b4?.statut === "valide", "le brief est validé (par l'application du squelette)");
     const eps4 = await db.select().from(episodes).where(eq(episodes.projectId, pInst!.id));
@@ -961,9 +957,24 @@ async function main() {
     ok(eps4.length === 2 && plans4.length > 0, "épisodes et plans créés sans une seule revue");
     ok(assets4.some((a) => a.code === "CHAR_iris") && assets4.some((a) => a.code === "PROP_clef"), "registre du brief ET inventaire des plans créés");
     const secs4 = await db.select({ planId: planPromptSections.planId }).from(planPromptSections).where(inArray(planPromptSections.planId, plans4.map((p) => p.id)));
-    ok(new Set(secs4.map((x) => x.planId)).size === plans4.length, "chaque plan a sa fiche");
+    ok(secs4.length === 0 && plans4.every((p) => p.statut === "brouillon"), "aucune fiche écrite par la création : les plans attendent « Écrire les fiches »");
     const attente4 = await db.select().from(propositions).where(and(eq(propositions.projectId, pInst!.id), eq(propositions.statut, "prete")));
     ok(attente4.length === 0, "aucune proposition ne reste en attente de revue");
+
+    // « Écrire les fiches » (écran des intents) : une demande `fiche-plan` par plan, dans l'ordre du scénario, hors création. On ne mène PAS les
+    // demandes ici (elles attendraient des images ComfyUI) : on vérifie qu'elles sont posées et lisibles, puis on les annule.
+    const ef4 = await lancerFichesApresCreation(pInst!.id);
+    ok(ef4.ok && ef4.lancees === plans4.length && ef4.erreurs.length === 0, `« Écrire les fiches » : une demande par plan sans fiche${ef4.ok ? ` (${ef4.lancees}/${plans4.length})` : ` — ${ef4.erreur}`}`);
+    if (ef4.ok) {
+      const etat4 = await etatDemandesFiches(ef4.demandeIds);
+      const parId = new Map(etat4.map((x) => [x.id, x]));
+      const ordre4 = [...plans4].sort((a, b) => (eps4.find((e) => e.id === a.episodeId)?.numero ?? 0) - (eps4.find((e) => e.id === b.episodeId)?.numero ?? 0) || a.ordre - b.ordre || a.id - b.id).map((p) => p.uuid);
+      ok(ef4.demandeIds.map((id) => parId.get(id)?.planUuid).join() === ordre4.join(), "…posées dans l'ordre du scénario");
+      ok(etat4.every((x) => x.statut === "en_cours" && x.etape != null), "…chacune suivie (statut, étape en cours)");
+      const bis = await lancerFichesApresCreation(pInst!.id);
+      ok(!bis.ok, "…relancer pendant qu'elles tournent : aucun plan à écrire (les plans en cours sont sautés)");
+      for (const id of ef4.demandeIds) await annulerDemande(id);
+    }
 
     // reprise : une étape en échec puis relancée ; arrêt
     const [pInst2] = await db.insert(projects).values({ nom: "TEST_AGENTS_E2E_5" }).returning();

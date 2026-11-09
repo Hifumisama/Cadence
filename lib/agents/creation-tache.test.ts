@@ -46,7 +46,7 @@ test("création en cours : une ligne qui avance étape par étape", () => {
   assert.equal(x.statut, "en_cours");
   assert.equal(x.libelle, "Conception · Avatar");
   assert.equal(x.href, "/p/7/creation");
-  // Phase 1 : les étapes des fiches (sur demande) ne comptent pas dans le total.
+  // Huit étapes, du brief à la relecture : les fiches ne sont plus des étapes de la création.
   assert.deepEqual(x.progression, { valeur: 3, max: 8, etape: "Scénarios des épisodes" });
   assert.equal(x.jetons, 120);
   assert.equal(x.conversationUuid, undefined, "un clic mène à la page, pas à la popup d'agent");
@@ -76,6 +76,18 @@ test("création terminée, échouée ou arrêtée", () => {
   assert.equal(ko.erreur, "Modèle muet");
 
   assert.equal(tacheDeCreation(entree({ statut: "arretee" }))!.statut, "annulee");
+});
+
+test("ancien enregistrement : les étapes de fiches sont ignorées (total, étape courante, statut)", () => {
+  const vieille = (statut: string) => ({ cle: "fiches", statut, propositionUuid: null, essais: 0, detail: null, erreur: "LLM en panne" }) as unknown as EtapeCreation;
+  // En cours, phase 1 pas finie, phase 2 « à demander » : 8 étapes, la courante est celle de la phase 1.
+  const enCours = tacheDeCreation(entree({ etapes: [...etapesFaites(3), vieille("a_demander")] }))!;
+  assert.deepEqual(enCours.progression, { valeur: 3, max: 8, etape: "Scénarios des épisodes" });
+  // En cours (ou en échec) SUR l'étape de fiches, tout le reste fini : la ligne se lit terminée.
+  const finie = tacheDeCreation(entree({ etapes: [...etapesFaites(8), vieille("en_cours")] }))!;
+  assert.equal(finie.statut, "termine");
+  assert.equal(finie.progression, null);
+  assert.equal(tacheDeCreation(entree({ statut: "echoue", etapes: [...etapesFaites(8), vieille("echoue")] }))!.statut, "termine");
 });
 
 test("plus de tâche à montrer : une création finie dont les tâches sont retirées disparaît, une création en cours reste", () => {
