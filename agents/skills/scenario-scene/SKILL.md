@@ -18,15 +18,15 @@ You write **one scene** of an episode: its plans and lines. It is **narrative**:
 ## What you receive
 
 - The **brief** (`briefExtrait`): style, characters (age, appearance, gestures), places, dialogue language, **rhythm** (`rythme`). `briefExtrait.notes` apply like the rest. The **episode** (title, summary, `briefEpisode`) and the **registry**: reuse its names.
-- **`traitementEpisode`**: every scene of the episode, in order (title, genre, intention). It tells you where your scene stands in the story; it is **not yours to write**.
+- **`traitementEpisode`**: every scene of the episode, in order (title, intention). It tells you where your scene stands in the story; it is **not yours to write**.
 - **`parolesDeLAuteur`**, the author's own messages word for word, and `scene.momentsDeLAuteur`, what they said about **your** scene.
-- **`scene`**: your scene. `titre`, `fonction`, `genre`, `ambiance` (held over the whole scene), `intention` (what it tells), `etatEntree` (where it starts), `etatSortie` (where it must end), `dureeCibleSecondes` (the screen time it has), `position` in the episode.
+- **`scene`**: your scene. `titre`, `fonction`, `ambiance` (held over the whole scene), `intention` (what it tells), `etatEntree` (where it starts), `etatSortie` (where it must end), `dureeCibleSecondes` (the screen time it has), `position` in the episode.
 - **`scenePrecedente`** (title and `etatSortie`) and **`sceneSuivante`** (title and `etatEntree`), or null. Another call is writing them: trust these states.
 - A `consigne` and possibly a `retourUtilisateur` that corrects a previous proposal: apply it.
 
 ## Method
 
-Do not ask questions: write a **complete** scene, since a wrong proposal is a starting point and a blank page is not. List separately your **inventions** (everything the brief and the treatment did not say). The scene's title, function, genre and mood are decided: you write **only its plans**, in reading order.
+Do not ask questions: write a **complete** scene, since a wrong proposal is a starting point and a blank page is not. List separately your **inventions** (everything the brief and the treatment did not say). The scene's title, function and mood are decided: you write **only its plans**, in reading order.
 
 1. **The first plan starts in `scene.etatEntree`**; the **last plan ends in `scene.etatSortie`** (its last beat shows it). The plans in between lead from one to the other.
 2. **The first plan's `liaison`**: `suite` if `etatEntree` is where the previous scene ended (same place, same moment: `scenePrecedente.etatSortie` is the same situation), `coupe` if the story cuts (another place or time), and always `coupe` when `scenePrecedente` is null. The following plans are decided from the story.
@@ -39,7 +39,7 @@ A plan is **one video generation call** of **4 to 10 seconds**, which may hold s
 
 1. **One plan = one unit of action.** Past 10 seconds you must cut, and the cut is a staging decision. A plan drifting toward 12 seconds almost always holds two.
 2. **Never under 4 seconds.** A 2 or 3 second moment is not a plan: it becomes an internal cut of a neighbouring plan, or it grows to 4 s if the story justifies it.
-3. **Duration follows `rythme`.** `lent`: **8–10 s**. `mesure` and `soutenu`: **6–9 s**. `rapide`: **5–7 s**, with brief moments arranged as a montage. `variable`: each scene's genre decides. No `rythme`: 6–10 s. A 5–6 s plan outside a fast rhythm is an exception (an isolated gesture, a reaction, an insert).
+3. **Duration follows `rythme`.** `lent`: **8–10 s**. `mesure` and `soutenu`: **6–9 s**. `rapide`: **5–7 s**, with brief moments arranged as a montage. `variable`: what each moment holds decides (a held, calm moment long; a clash or a montage shorter). No `rythme`: 6–10 s. A 5–6 s plan outside a fast rhythm is an exception (an isolated gesture, a reaction, an insert).
 4. **The scene's total follows `scene.dureeCibleSecondes`.** Choose the number of plans and their relative lengths so that the sum comes close to it; the application then adjusts the durations to hit it exactly, so never spend effort on the arithmetic. A scene of 40 s is about five plans at a measured rhythm.
 5. **Write the generated duration**, not the duration seen on screen.
 6. **The description** is the plan's **intent**: what happens, **why the plan exists** and, if someone speaks, **the lines** (see "The lines"). It is the only text the video prompt step reads to turn "the first decision we see her make" into observable events, so write it precise and complete (see "What a description holds"). A plan without intention is empty.
@@ -92,19 +92,19 @@ Where a first cut goes wrong:
 5. **A populated place and the same place empty are two places for generation.** Say so in the description: it will be two assets.
 6. **Cadence tells a character's state by contrast.** Danger is cut dense, taking control is held long. The contrast plays **inside** plans (cut density), not by multiplying short plans.
 
-## A scene's genre, and its mood
+## Kinds of moments, and the scene's mood
 
-Each scene has a **genre** that sets the cutting here and the writing guides of its plans later:
+How a moment is cut follows what it holds; a scene may hold several kinds:
 
-- **`action`**: a gesture or clash that must be readable; continuous action fits one plan, cut when place or stakes change. Write **what the body does** (the characters' gestures), not only the effect. For each beat of a clash:
+- **A clash or a physical action**: a gesture or clash that must be readable; continuous action fits one plan, cut when place or stakes change. Write **what the body does** (the characters' gestures), not only the effect. For each beat of a clash:
   - **Every character present acts.** Nobody stays still while the other acts: each has a verb of action or a physical reaction that follows from what the other did (dodges, gives ground, parries, counters, braces). A calm character is calm in manner, not motionless; a movement never happens on the spot without purpose (nobody « tourne sur elle-même » for nothing: each turn dodges, aims or builds a strike).
   - **Strong actions have a scale when the style is stylised.** If the brief's style clause is graphic (manga, cel, cartoon, comic, anime), the finisher is exaggerated and its scale is part of the story, so say it: how high a character leaps and that he hangs there, how wide the crater is, how far a body is thrown. A realistic style is not exaggerated.
   - **Solid limits stop bodies.** A thrown or pushed character stops against the ropes, a wall, a post (the landmarks of the place); never write that they cross one, unless it breaks.
   - **A beat is told once inside a plan** (a blow, a fall, a dodge); a second moment of the plan brings a new fact.
-- **`dialogue`**: see "The lines".
-- **`montage`**: a series of brief moments that answer each other under one idea. **Several places group into ONE plan**, one internal cut per moment (about 2 s each): four 2 s moments are one 8–10 s plan. Describe the moments in order and what links them.
-- **`contemplatif`**: one place, one state, left to breathe. Few, long plans.
-- **`tension`**: a build-up or tipping point. **Set it up**: an abrupt change is preceded, in the previous plan, by its first visible sign.
+- **Characters talking**: see "The lines".
+- **A series of brief moments** that answer each other under one idea (a montage). **Several places group into ONE plan**, one internal cut per moment (about 2 s each): four 2 s moments are one 8–10 s plan. Describe the moments in order and what links them.
+- **A place left to breathe**: one place, one state. Few, long plans.
+- **A build-up or a tipping point**. **Set it up**: an abrupt change is preceded, in the previous plan, by its first visible sign.
 
 The **mood** (`ambiance`) is the visual frame held over the **whole scene**: time of day, weather, general light. All plans of a scene share it; it changes from one scene to the next. A change inside a scene (the sky clouding over) is an event: write it in the description of the plan where it happens.
 
@@ -140,7 +140,7 @@ The brief's style and notes apply: you do not redefine them. Stay faithful to th
 - Every description is a precise intent: the start (positions relative to landmarks, never to the camera), the beats in order, what changes, the end as its last beat, why it matters; no `État en fin de plan :` line; no event is done twice.
 - Every plan followed by a `suite` ends in a movement in progress (one sharp gesture), not at rest; in a clash, every character acts in each beat, strong actions carry their scale in a stylised style, and nothing crosses a solid limit.
 - Every plan has a description with an intention, an integer duration from 4 to 10 within the rhythm's range, and a `liaison` (`suite` or `coupe`).
-- The scene's total is close to `dureeCibleSecondes`; the scene's genre guides are followed; a tipping point is set up.
+- The scene's total is close to `dureeCibleSecondes`; montages are one plan; a tipping point is set up.
 - No consecutive plans could merge into 10 s; no plan refers to another; no description holds framing, light, sound or camera.
 - Every line is in its plan's description as `NAME : « text »`, exact, after the narrative, with at least 2 s of margin; at most three speakers per plan.
 - Your additions are in `inventions`.

@@ -6,7 +6,6 @@ import { corrigerCodesInconnus } from "./codes-proches";
 import { assemblerPlanH3, retirerImagesPourRaccord, type RetraitPourRaccord } from "./plan-h3-assemblage";
 import { parolesDuPrompt, voixDuPrompt } from "./voix-du-prompt";
 import { controlerSortiePlanH3, MAX_IMAGES_AVEC_RACCORD, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
-import { genreOuNull } from "../scene-genres";
 import { estLiaison } from "../plan-liaison";
 import { ajusterDureesScene, repartirDureesScenes } from "./traitement";
 import type { Avertissement, PlaceScene, Position } from "./types";
@@ -113,8 +112,8 @@ export type SortieScenarioEpisode = {
   scenes: {
     titre: string;
     fonction: string;
-    /** Genre de la scène (lib/scene-genres.ts) et cadre visuel tenu sur toute la scène. */
-    genre?: string;
+    /** Cadre visuel tenu sur toute la scène. (Le genre de scène est retiré le 2026-11-09 : une ancienne sortie qui en
+     * porte encore un est lue, son genre ignoré.) */
     ambiance?: string;
     plans: {
       titre: string;
@@ -207,7 +206,6 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
           titre: sc.titre,
           fonction: sc.fonction,
           episodeId: ep.id,
-          ...(genreOuNull(sc.genre) ? { genre: sc.genre } : {}),
           ...(sc.ambiance?.trim() ? { ambiance: sc.ambiance.trim() } : {}),
         },
       });
@@ -276,7 +274,6 @@ export type SortieTraitement = {
   scenes: {
     titre: string;
     fonction: string;
-    genre?: string;
     ambiance?: string;
     intention: string;
     etatEntree: string;
@@ -316,7 +313,6 @@ export function depuisTraitement(
         titre,
         fonction: sc.fonction,
         episodeId: ep.id,
-        ...(genreOuNull(sc.genre) ? { genre: sc.genre } : {}),
         ...(sc.ambiance?.trim() ? { ambiance: sc.ambiance.trim() } : {}),
         traitement: {
           intention: sc.intention,
@@ -427,7 +423,6 @@ export function depuisSceneAInserer(
         fonction: sc.fonction,
         episodeId: cible.episodeId,
         ...cible.place,
-        ...(genreOuNull(sc.genre) ? { genre: sc.genre } : {}),
         ...(sc.ambiance?.trim() ? { ambiance: sc.ambiance.trim() } : {}),
       },
       avertissements: info,

@@ -11,7 +11,6 @@ import { GenererFiche } from "@/components/plan/GenererFiche";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { Icone } from "@/components/ui/Icone";
 import { posterBackgroundImage } from "@/lib/poster";
-import { LIBELLE_GENRE, genreOuNull } from "@/lib/scene-genres";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import { LIBELLE_CREATIVITE, RESUME_STYLE_CAMERA, STYLE_AUCUN, infobulleChoix, creativiteOuNull, styleCameraOuNull, type ReglagesBruts } from "@/lib/h3ir/reglages";
 import { cleDemande } from "@/lib/taches";
@@ -217,7 +216,6 @@ export function VueScenario({
   const scenesReelles = groupes.filter((g) => g.id != null);
   const nbPlans = groupes.reduce((acc, g) => acc + g.plans.length, 0);
   const dureeTotale = groupes.reduce((acc, g) => acc + g.duree, 0);
-  const genre = genreOuNull(courant.genre);
   const creativiteScene = creativiteOuNull(courant.creativite);
   const styleScene = styleCameraOuNull(courant.styleCamera);
   const estSans = courant.id == null;
@@ -399,7 +397,6 @@ export function VueScenario({
                   sceneId={courant.id}
                   titre={courant.titre}
                   fonction={courant.fonction ?? ""}
-                  genre={courant.genre ?? ""}
                   ambiance={courant.ambiance ?? ""}
                   creativite={courant.creativite ?? ""}
                   styleCamera={courant.styleCamera ?? ""}
@@ -415,14 +412,8 @@ export function VueScenario({
           ) : courant.fonction ? (
             <p className="sc-fonction">{courant.fonction}</p>
           ) : null}
-          {genre || courant.ambiance || creativiteScene || styleScene ? (
+          {courant.ambiance || creativiteScene || styleScene ? (
             <ul className="sc-chips">
-              {genre ? (
-                <li className="sc-chip is-genre">
-                  <span>Genre</span>
-                  <b>{LIBELLE_GENRE[genre]}</b>
-                </li>
-              ) : null}
               {creativiteScene ? (
                 <li className="sc-chip" title="Créativité propre à cette scène (Open H3 IR) ; sinon elle hérite du projet">
                   <span>Créativité</span>
@@ -711,7 +702,6 @@ function CarteScene({
   const [recu, setRecu] = useState(false);
   const [, startTransition] = useTransition();
   const { enDrag, debut: debutDrag, fin } = useEnGlissement();
-  const genre = genreOuNull(g.genre);
   const reinit = () => {
     setRepere(null);
     setRecoitPlan(false);
@@ -785,7 +775,6 @@ function CarteScene({
         <span className="sc-carte-titre">{g.titre}</span>
         <span className="sc-carte-meta num">
           {minutage(debut)} · {pluriel(g.plans.length, "plan")}
-          {genre ? ` · ${LIBELLE_GENRE[genre]}` : ""}
         </span>
       </span>
     </div>

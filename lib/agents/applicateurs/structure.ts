@@ -1,7 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { episodes, scenes } from "../../../db/schema";
 import type { ChangementBrut } from "../changements";
-import { genreOuNull } from "../../scene-genres";
 import { traitementDeScene } from "../traitement";
 import { apres, entierRef, parentDe, REFUS_SUPPRESSION, texte, type Applicateur } from "./commun";
 
@@ -122,7 +121,7 @@ export const applicateurScene: Applicateur = {
     const id = entierRef(ch.cibleRef);
     const [s] = id == null ? [] : await db.select().from(scenes).where(eq(scenes.id, id));
     if (!s) return { ...ch, refuseRaison: "Scène introuvable." };
-    return { ...ch, avant: { titre: s.titre, fonction: s.fonction, genre: s.genre, ambiance: s.ambiance } };
+    return { ...ch, avant: { titre: s.titre, fonction: s.fonction, ambiance: s.ambiance } };
   },
 
   async verifier(tx, _ctx, ch) {
@@ -141,11 +140,11 @@ export const applicateurScene: Applicateur = {
     const a = apres(ch);
     const titre = texte(a.titre)!.trim();
     const fonction = texte(a.fonction)?.trim() || null;
-    // Genre et ambiance : posés seulement quand la proposition les porte (une modification qui ne les cite pas les laisse).
-    const genre = "genre" in a ? genreOuNull(a.genre) : undefined;
+    // Ambiance : posée seulement quand la proposition la porte (une modification qui ne la cite pas la laisse). Le genre de
+    // scène est retiré (2026-11-09) : celui d'une ancienne proposition est ignoré.
     const ambiance = "ambiance" in a ? texte(a.ambiance)?.trim() || null : undefined;
     if (ch.operation === "modifier") {
-      await tx.update(scenes).set({ titre, fonction, ...(genre !== undefined ? { genre } : {}), ...(ambiance !== undefined ? { ambiance } : {}) }).where(eq(scenes.id, entierRef(ch.cibleRef)!));
+      await tx.update(scenes).set({ titre, fonction, ...(ambiance !== undefined ? { ambiance } : {}) }).where(eq(scenes.id, entierRef(ch.cibleRef)!));
       return;
     }
     const episodeId = parentDe(a, "episodeCle", "episodeId", _ctx.cles).id!;
@@ -154,7 +153,7 @@ export const applicateurScene: Applicateur = {
     // Une scène sans place va à la fin ; avec une place (`apresSceneId`, ou `debut`), elle s'intercale et l'ordre des scènes est réécrit densément.
     const place = placeDeScene(a, existantes);
     const ordre = place === null ? existantes.reduce((m, s) => Math.max(m, s.ordre), -1) + 1 : place;
-    const [cree] = await tx.insert(scenes).values({ episodeId, ordre, titre, fonction, genre: genre ?? null, ambiance: ambiance ?? null, ...(traitement ? { traitement } : {}) }).returning({ id: scenes.id });
+    const [cree] = await tx.insert(scenes).values({ episodeId, ordre, titre, fonction, ambiance: ambiance ?? null, ...(traitement ? { traitement } : {}) }).returning({ id: scenes.id });
     if (place !== null) {
       const sequence = [...existantes.map((s) => s.id)];
       sequence.splice(place, 0, cree!.id);

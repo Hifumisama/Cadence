@@ -5,17 +5,15 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { modifierScene } from "@/app/scenario/actions";
 import { Icone } from "@/components/ui/Icone";
-import { ChampsGenreScene } from "./ChampsGenreScene";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import { resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/reglages";
 
-/** Bouton « Modifier » d'une scène : titre, description, genre et ambiance, dans une popup (même écrin que « Ajouter un plan »). */
+/** Bouton « Modifier » d'une scène : titre, description et ambiance, dans une popup (même écrin que « Ajouter un plan »). */
 export function ModifierSceneButton({
   sceneId,
   titre,
   fonction,
-  genre = "",
   ambiance = "",
   creativite = "",
   styleCamera = "",
@@ -25,7 +23,6 @@ export function ModifierSceneButton({
   sceneId: number;
   titre: string;
   fonction: string;
-  genre?: string;
   ambiance?: string;
   /** Open H3 IR : vide = la scène hérite du projet. */
   creativite?: string;
@@ -39,7 +36,6 @@ export function ModifierSceneButton({
   const [ouvert, setOuvert] = useState(false);
   const [t, setT] = useState(titre);
   const [f, setF] = useState(fonction);
-  const [g, setG] = useState(genre);
   const [a, setA] = useState(ambiance);
   const [cr, setCr] = useState(creativite);
   const [sc, setSc] = useState(styleCamera);
@@ -49,7 +45,6 @@ export function ModifierSceneButton({
   const ouvrir = () => {
     setT(titre);
     setF(fonction);
-    setG(genre);
     setA(ambiance);
     setCr(creativite);
     setSc(styleCamera);
@@ -73,7 +68,7 @@ export function ModifierSceneButton({
   const enregistrer = () => {
     if (!t.trim()) return;
     startTransition(async () => {
-      await modifierScene(sceneId, { titre: t, fonction: f, genre: g || null, ambiance: a, creativite: cr || null, styleCamera: sc || null });
+      await modifierScene(sceneId, { titre: t, fonction: f, ambiance: a, creativite: cr || null, styleCamera: sc || null });
       setOuvert(false);
       router.refresh();
     });
@@ -81,9 +76,9 @@ export function ModifierSceneButton({
 
   return (
     <>
-      {!genre && !ambiance ? (
-        <button className="btn btn-ghost btn-sm" type="button" onClick={ouvrir} title="Le genre guide la rédaction des plans, l'ambiance tient le cadre visuel de la scène">
-          + Genre et ambiance
+      {!ambiance ? (
+        <button className="btn btn-ghost btn-sm" type="button" onClick={ouvrir} title="L'ambiance tient le cadre visuel de la scène">
+          + Ambiance
         </button>
       ) : null}
       <button className="btn btn-ghost btn-sm" type="button" onClick={ouvrir}>
@@ -123,7 +118,16 @@ export function ModifierSceneButton({
                     <label htmlFor="modif-scene-champ-fonction">Ce que la scène fait dans le récit</label>
                     <textarea id="modif-scene-champ-fonction" className="field" rows={4} value={f} onChange={(e) => setF(e.target.value)} />
                   </div>
-                  <ChampsGenreScene genre={g} ambiance={a} onGenre={setG} onAmbiance={setA} />
+                  <div className="field-group wide">
+                    <label htmlFor="scene-ambiance">Ambiance</label>
+                    <input
+                      id="scene-ambiance"
+                      className="field"
+                      value={a}
+                      onChange={(e) => setA(e.target.value)}
+                      placeholder="Ex. plein jour, ciel dégagé — tenue sur toute la scène"
+                    />
+                  </div>
                   <ChampsReglagesCamera creativite={cr} styleCamera={sc} onCreativite={setCr} onStyleCamera={setSc} heritage={resoudreReglages({ projet: reglagesProjet })} idPrefixe="scene" demos={demos} />
                 </div>
 

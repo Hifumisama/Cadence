@@ -56,7 +56,9 @@ Le service refuse toute clé inconnue (422 `unknown-field`) : le contrat est fer
 | vidéo | `edit_source`, `continuation_source`, `subject`, `environment`, `style`, `storyboard`, `structure` (prête seulement le mouvement de caméra et le rythme de coupe) |
 | audio | `voice_timbre`, `bgm`, `music_style`, `beat_reference`, `sfx` |
 
-Cadence n'utilise aujourd'hui que `subject` (personnage, prop, vfx, oth), `environment` (décor) et `storyboard` (keyframe), via `ROLE_PAR_TYPE`.
+Cadence n'utilise aujourd'hui que `subject` (personnage, prop, oth), `environment` (décor), `storyboard` (keyframe) et `style` (vfx, depuis le
+2026-11-09 : un effet n'est jamais repris tel quel), via `ROLE_PAR_TYPE` ; en audio, `voice_timbre` (voix fixée d'un personnage qui parle) puis
+`sfx` (bruitages du plan, dans les emplacements que les voix laissent libres : la voix prime). VFX en `style` et bruitages en `sfx` : à valider au banc de rendu.
 
 ## Le mode de génération
 

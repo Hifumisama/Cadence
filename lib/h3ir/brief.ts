@@ -23,11 +23,17 @@ export const MEGAPIXELS_H3IR = 0.4;
 const SHOTS_MAX = 10;
 
 /** Le rôle déclaré d'une image selon le type de l'asset. Toujours déclaré : un rôle omis laisse le paquet deviner le mode (il peut basculer en
- * première image du clip, I2VA/FL2VA) et fait d'un audio une musique de fond. Une seule constante, à ajuster après le banc. */
-export const ROLE_PAR_TYPE: Record<string, "subject" | "environment" | "storyboard"> = {
+ * première image du clip, I2VA/FL2VA) et fait d'un audio une musique de fond. Une seule constante, à ajuster après le banc.
+ *
+ * Un effet visuel (`vfx`) part en `style` (2026-11-09) : référence FAIBLE (`weak_reference`, sans `<Subject N>`), car un effet n'est jamais
+ * repris tel quel, seuls sa couleur, sa matière et son mouvement passent sur les sujets du plan. À VALIDER AU BANC DE RENDU. Un effet à
+ * reprendre tel quel (une attaque célèbre) n'a pas encore de réglage propre : `plan_refs.retention` n'est tenue que pour l'audio (toujours
+ * null pour une image, ni écrite par la fiche ni éditable) et `plan_refs.role` est un libellé libre. En attendant, typer l'asset en `prop`
+ * (un objet visible, donc `subject`) le fait passer tel quel. */
+export const ROLE_PAR_TYPE: Record<string, "subject" | "environment" | "storyboard" | "style"> = {
   personnage: "subject",
   prop: "subject",
-  vfx: "subject",
+  vfx: "style",
   oth: "subject",
   decor: "environment",
   keyframe: "storyboard",
@@ -119,9 +125,10 @@ export function separerDescription(description: string): { narration: string; re
 /** Un texte entre guillemets droits « "…" » serait pris pour du texte à afficher à l'écran (creativity.build) : on met des chevrons. */
 const sansGuillemetsDroits = (texte: string): string => texte.replace(/"([^"]*)"/g, "«$1»").replace(/"/g, "'");
 
-const estVoixOff = (nom: string) => slugifyCode(nom) === "voix_off";
+export const estVoixOff = (nom: string) => slugifyCode(nom) === "voix_off";
 
-function trouverPersonnage(nom: string, personnages: PersonnageEntree[]): PersonnageEntree | undefined {
+/** Le personnage du registre qui porte ce nom de locuteur (libellé, sinon code sans préfixe), ou rien. Partagé avec le choix des références (references-plan.ts). */
+export function trouverPersonnage<T extends { code: string; label?: string | null }>(nom: string, personnages: T[]): T | undefined {
   const cle = slugifyCode(nom);
   if (!cle) return undefined;
   return (
@@ -143,9 +150,6 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
   }
   if (visuelles.length > MAX_REFS_VISUELLES) {
     return refuser(`Le plan a ${visuelles.length} références visuelles, ${MAX_REFS_VISUELLES} au plus : retires-en ${visuelles.length - MAX_REFS_VISUELLES}.`);
-  }
-  for (const r of entree.references.filter((x) => x.type === "audio" && x.typeAsset === "sfx")) {
-    avertissements.push(`Bruitage « ${r.label?.trim() || r.code} » non transmis : Open H3 IR n'a pas de rôle prévu pour un bruitage de ce plan.`);
   }
 
   // --- Description : narration et répliques ---
@@ -206,6 +210,26 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
     const note = p.voix.description?.trim();
     assets.push({ path: p.voix.chemin, kind: "audio", role: "voice_timbre", ...(note ? { note: `${libelleAsset(p)} : ${note}` } : { note: libelleAsset(p) }) });
     if (p.voix.repliqueBase?.trim()) transcripts[p.voix.sha256] = p.voix.repliqueBase.trim();
+  }
+
+  // --- Bruitages : rôle `sfx` (texture sonore, `reference` : jamais copié tel quel), dans les emplacements audio que les voix laissent libres.
+  // La voix prime sur les bruitages (CLAUDE.md) : ils passent APRÈS elles, dans l'ordre des emplacements. À VALIDER AU BANC DE RENDU.
+  let nbAudios = nbVoix;
+  const bruitages = entree.references.filter((x) => x.type === "audio" && x.typeAsset === "sfx").sort((a, b) => a.slot - b.slot);
+  for (const r of bruitages) {
+    const nom = r.label?.trim() || libelleAsset(r);
+    if (!r.chemin) {
+      avertissements.push(`Bruitage « ${nom} » non transmis : il n'a pas encore de fichier.`);
+      continue;
+    }
+    if (nbAudios >= MAX_AUDIOS) {
+      avertissements.push(`Bruitage « ${nom} » non transmis : les ${MAX_AUDIOS} emplacements audio sont pris (la voix prime sur les bruitages).`);
+      continue;
+    }
+    nbAudios++;
+    liens.push({ path: r.chemin, code: r.code, type: "audio" });
+    const note = [nom, r.description?.trim()].filter(Boolean).join(" — ");
+    assets.push({ path: r.chemin, kind: "audio", role: "sfx", ...(note ? { note } : {}) });
   }
 
   // --- Intent : narration, ambiance de la scène (en français à cette étape) ---

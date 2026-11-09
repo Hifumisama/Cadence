@@ -18,7 +18,7 @@ An episode's screenplay has just been written, plan by plan, each plan from the 
 
 - **`episode`** (title, summary), **`briefEpisode`** (the arc the brief gives this episode) and **`briefExtrait`** (arc, characters, places, rhythm, target duration).
 - **`parolesDeLAuteur`** (sometimes): the author's own messages, word for word. What they wrote **outranks** the screenplay.
-- **`scenes`**: in order, each with its `genre`, its `ambiance` (time of day, weather, light: **held over the whole scene**) and its function.
+- **`scenes`**: in order, each with its `ambiance` (time of day, weather, light: **held over the whole scene**) and its function.
 - **`plans`**: in reading order. Each has a reference **`plan`** (`P01`, `P02`…), its scene, title, `liaison` (`suite`: takes up where the previous plan ends; `coupe`: a clean cut), duration and **`description`**: what happens and why (where the people who matter start, relative to fixed landmarks of the place, the beats in order, what changes, how the plan ends), then the lines (`NOM : « … »`). The end of a plan is its **last beat**.
 - **`registre`**: the names of the project's characters, places and objects.
 

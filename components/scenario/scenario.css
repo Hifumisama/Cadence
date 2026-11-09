@@ -361,12 +361,6 @@
 .sc-chip > b {
   font-weight: 500;
 }
-.sc-chip.is-genre {
-  border-color: var(--or-soft);
-}
-.sc-chip.is-genre > b {
-  color: var(--or-glow);
-}
 
 /* ---- Barre des plans ---- */
 .sc-plans-barre {
