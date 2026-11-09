@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandeIteration, lireDemandeVue, type VueDemande } from "@/lib/demandes-db";
+import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandesFiches, lancerDemandeIteration, lireDemandeVue, type VueDemande } from "@/lib/demandes-db";
 import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@/lib/demandes";
 
 // Les DEMANDES (lib/demandes.ts) côté interface : « Itérer » en pose une, le worker l'enchaîne jusqu'au rendu (lib/demandes-db.ts), la page
@@ -40,16 +40,17 @@ export async function demanderAjoutScene(
   return r;
 }
 
-/** « Générer la fiche » d'un plan : pose la demande (la fiche est écrite puis enregistrée sans relecture). Une seule à la fois par plan. Moteur par défaut
- * (lib/h3ir/moteur.ts) : Open H3 IR quand les références d'image du plan existent toutes, sinon plan-h3 en repli puis compilation Open H3 IR si possible. */
+/** « Générer la fiche » d'un plan : pose la demande (le plan est préparé si besoin : références, assets manquants, prompts, images ; puis Open H3 IR compile
+ * la fiche, enregistrée sans relecture). Une seule à la fois par plan. Open H3 IR seul (lib/h3ir/preparation.ts). */
 export async function demanderFichePlan(projectId: number, planUuid: string): Promise<{ ok: true; demandeId: number } | { ok: false; erreur: string }> {
   const r = await lancerDemandeFichePlan(projectId, planUuid);
   revalidatePath("/", "layout");
   return r;
 }
 
-/** « Générer la fiche » du tiroir « Brief Open H3 IR », avec ses réglages : Open H3 IR IMPOSÉ (pas de repli) ; la fiche du plan est compilée (traduction de l'intent, compilation Python) et REMPLACE la fiche existante ;
- * l'ancien prompt reste dans l'historique du prompt. `shots`, `director` (style de mise en scène) et `creativity` sont facultatifs : absents, ils sont résolus en base (plan > scène > projet, lib/h3ir/reglages.ts). */
+/** « Générer la fiche avec ces réglages » (onglet « Brief Open H3 IR ») : la même demande, avec les réglages du tiroir ; la fiche compilée REMPLACE la
+ * fiche existante (l'ancien prompt reste dans l'historique du prompt). `shots`, `director` (style de mise en scène) et `creativity` sont facultatifs :
+ * absents, ils sont résolus en base (plan > scène > projet, lib/h3ir/reglages.ts). */
 export async function demanderFicheH3ir(
   projectId: number,
   planUuid: string,
@@ -60,18 +61,12 @@ export async function demanderFicheH3ir(
   return r;
 }
 
-/** « Écrire les fiches » (page Scénario) : une demande « Générer la fiche » par plan choisi (même moteur par défaut), dans l'ordre donné (la file les écrit l'une après l'autre).
- * Un plan refusé (déjà une fiche, demande en cours) n'arrête pas les autres : ses raisons sont rendues avec le nombre de fiches lancées. */
+/** « Écrire les fiches » (page Scénario) : une demande « Générer la fiche » par plan choisi, posées dans l'ordre du scénario (lib/demandes-db.ts,
+ * `lancerDemandesFiches`). Un plan refusé (demande en cours) n'arrête pas les autres : ses raisons sont rendues avec le nombre de fiches lancées. */
 export async function demanderFichesPlans(projectId: number, planUuids: string[]): Promise<{ lancees: number; erreurs: string[] }> {
-  let lancees = 0;
-  const erreurs: string[] = [];
-  for (const uuid of planUuids) {
-    const r = await lancerDemandeFichePlan(projectId, uuid);
-    if (r.ok) lancees += 1;
-    else erreurs.push(r.erreur);
-  }
+  const r = await lancerDemandesFiches(projectId, planUuids);
   revalidatePath("/", "layout");
-  return { lancees, erreurs: [...new Set(erreurs)] };
+  return { lancees: r.lancees, erreurs: r.erreurs };
 }
 
 /** Où en est une demande (sondage de la page d'un plan). */

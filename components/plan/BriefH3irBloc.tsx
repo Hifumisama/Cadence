@@ -8,9 +8,10 @@ import { OptionsMiseEnScene } from "@/components/h3ir/OptionsMiseEnScene";
 
 type Resultat = Awaited<ReturnType<typeof voirBriefH3ir>>;
 
-/** Le brief Open H3 IR du plan : ce qu'on enverrait à `POST /v1/briefs`. Rien n'est lancé tant qu'on ne clique pas « Générer la fiche avec ces réglages » (Open H3 IR imposé,
- * même moteur que le « Générer la fiche » par défaut quand le plan a ses images ; c'est ici qu'on recompile une fiche déjà écrite, par plan-h3 par exemple). Le JSON
- * se copie pour le coller dans la zone « Coller un brief JSON » de `h3ir-lab`.
+/** Le brief Open H3 IR du plan : ce qu'on enverrait à `POST /v1/briefs`. Rien n'est lancé tant qu'on ne clique pas « Générer la fiche avec ces réglages » (la même demande
+ * que « Générer la fiche » : références et images préparées s'il en manque, puis compilation ; c'est ici qu'on recompile une fiche déjà écrite avec d'autres réglages).
+ * Le JSON se copie pour le coller dans la zone « Coller un brief JSON » de `h3ir-lab`. Un plan sans références n'a pas encore de brief, mais le bouton reste là :
+ * la demande les choisit d'abord.
  *
  * Créativité et style de mise en scène : les menus partent des valeurs ENREGISTRÉES (le plan, sinon sa scène, sinon le projet : `reglagesInitiaux`) ; en changer ici ne vaut que pour ce
  * lancement et n'enregistre rien. Pour les garder, on les règle sur le plan (« Modifier »), sur la scène ou sur le projet (page Brief). « Nombre de shots » reste libre. */
@@ -98,7 +99,7 @@ export function BriefH3irBloc({
           ))}
         </ul>
       ) : null}
-      {resultat?.brief ? (
+      {resultat ? (
         <div style={{ margin: "10px 0" }}>
           <GenererFiche
             projectId={projectId}
@@ -108,6 +109,7 @@ export function BriefH3irBloc({
             h3ir={{ shots: nShots, director: style, creativity: creativite }}
           />
           <p className="tiny-note" style={{ marginTop: 6 }}>
+            {resultat.brief ? null : "Le plan n'a pas encore ses références ou leurs images : elles seront choisies et générées d'abord. "}
             Traduit l&rsquo;intent en anglais, compile, puis <b>remplace la fiche</b> du plan (prompt et références). L&rsquo;ancien prompt reste dans l&rsquo;historique du prompt.
           </p>
         </div>

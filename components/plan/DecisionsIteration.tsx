@@ -1,8 +1,8 @@
 import type { DecisionsAffichees } from "@/lib/agents/types";
 
 /** Ce que l'agent d'« Itérer » a décidé de changer sur le plan (2026-11-09) : intent avant → après, durée, références ajoutées / retirées, réglages
- * Open H3 IR, assets à créer. Montré pendant la recompilation et après (aussi quand elle est refusée, « images manquantes » : on sait ce qui attend).
- * Lecture seule : les décisions ne s'écrivent qu'avec la fiche compilée. */
+ * Open H3 IR, assets créés (vague 4a : créés d'office, leur image générée avant la recompilation). Montré pendant l'attente des images, la recompilation
+ * et après (aussi quand elle échoue : on sait ce qui était décidé). Lecture seule : les décisions ne s'écrivent sur le plan qu'avec la fiche compilée. */
 export function DecisionsIteration({ d }: { d: DecisionsAffichees }) {
   const refs = [...d.referencesAjoutees.map((c) => `+ ${c}`), ...d.referencesRetirees.map((c) => `− ${c}`)];
   return (
@@ -39,8 +39,8 @@ export function DecisionsIteration({ d }: { d: DecisionsAffichees }) {
         ) : null}
         {d.manquants.map((m) => (
           <li key={m.code}>
-            À créer : <b>{m.code}</b>
-            {m.raison ? ` (${m.raison})` : ""}, non créé : crée-le, génère son image, puis itère de nouveau.
+            Asset créé : <b>{m.code}</b>
+            {m.raison ? ` (${m.raison})` : ""} : son image est générée, puis il rejoint les références à la recompilation.
           </li>
         ))}
       </ul>

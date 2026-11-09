@@ -55,6 +55,10 @@ import { depuisCompilationH3ir } from "../../lib/h3ir/conversion";
 import { SKILL_H3IR, type ResultatH3ir } from "../../lib/h3ir/resultat";
 import type { MessageConversation } from "../../lib/agents/types";
 import { normaliserChoix } from "../../lib/agents/choix";
+import { SKILL_REFERENCES_PLAN, type SortieReferencesPlan } from "../../lib/agents/references-plan";
+import { brutsManquants, decisionSortieReferencesPlan } from "../../lib/h3ir/preparation";
+import { registreCodesTypes } from "../../lib/h3ir/preparation-db";
+import { ecrireReferencesPlan } from "../../lib/h3ir/references-ecriture";
 
 /** Ce que devient le résultat validé d'une tâche du système d'agents, DANS la transaction qui
  * l'écrit (worker/llm.ts) : un échec ici annule tout et la tâche est marquée échouée.
@@ -255,6 +259,9 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
   } else if (run.skill === "inventaire-assets") {
     // Les assets que les plans réclament et que le registre n'a pas (des créations sans prompt, il s'écrit ensuite), et les références de chaque plan.
     return postInventaire(tx, run, prop, scope, json as SortieInventaire);
+  } else if (run.skill === SKILL_REFERENCES_PLAN) {
+    // Le choix des références d'un plan (préparation, vague 4a) : références écrites tout de suite, ou créations d'assets manquants à appliquer d'abord.
+    return postReferencesPlan(tx, run, prop, scope, json as SortieReferencesPlan);
   } else if (run.skill === "iteration-plan") {
     // Correction après visionnage : des DÉCISIONS (aucun changement ici), recompilées ensuite par Open H3 IR ; ou rien (le diagnostic seul) avec la raison.
     if (prop.cibleId == null) throw new Error("Correction de plan sans plan.");
@@ -547,6 +554,43 @@ async function postSousTacheFicheH3ir(
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
+}
+
+/** Le choix des références d'un plan par le petit skill `references-plan` (appelé seulement quand le code doutait, lib/h3ir/preparation.ts). Sans asset à
+ * créer, les références s'écrivent TOUT DE SUITE sur le plan (jamais par-dessus des références posées entre-temps, sauf `rechoisir`) et la proposition est
+ * close (« appliquée ») ; avec des manquants (deux au plus, code et parent valides), ce sont des créations d'assets que la demande applique, et les
+ * références (manquants compris) s'écrivent dans la même transaction (lib/agents/service.ts, `appliquerSelection`). */
+async function postReferencesPlan(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortieReferencesPlan,
+) {
+  if (prop.cibleId == null) throw new Error("Choix des références sans plan.");
+  const d = decisionSortieReferencesPlan(sortie, await registreCodesTypes(tx, prop.projectId));
+  const rechoisir = (run.options as { rechoisir?: boolean } | null)?.rechoisir === true;
+  const ecartes = d.ecartes.length ? ` Écarté${d.ecartes.length > 1 ? "s" : ""} : ${d.ecartes.map((e) => `${e.code} (${e.raison})`).join(", ")}.` : "";
+  const notes = (sortie.notes ?? "").trim();
+  if (d.manquants.length === 0) {
+    await enregistrerChangements(tx, prop.id, prop.projectId, scope, []);
+    const e = d.references.length ? await ecrireReferencesPlan(tx, prop.cibleId, d.references, { remplacer: rechoisir }) : null;
+    const resume = e?.ok
+      ? `Références écrites : ${d.references.join(", ")}.`
+      : e && e.raison === "deja-des-references"
+        ? "Le plan a reçu des références entre-temps : elles sont gardées."
+        : "Aucune référence retenue par l'agent.";
+    await tx.update(propositions).set({ statut: "appliquee", appliedAt: new Date(), resume: [resume, ecartes.trim(), notes].filter(Boolean).join(" ") }).where(eq(propositions.id, prop.id));
+    if (prop.conversationId != null) await tx.update(agentConversations).set({ etape: "applique", updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
+    return;
+  } else {
+    await enregistrerChangements(tx, prop.id, prop.projectId, scope, brutsManquants(d.manquants));
+    const resume = `${d.manquants.length} asset${d.manquants.length > 1 ? "s" : ""} à créer (${d.manquants.map((m) => m.code).join(", ")}) ; références : ${[...d.references, ...d.manquants.map((m) => m.code)].join(", ")}.`;
+    await tx.update(propositions).set({ resume: [resume, ecartes.trim(), notes].filter(Boolean).join(" ") }).where(eq(propositions.id, prop.id));
+  }
+  if (prop.conversationId != null) {
+    await tx.update(agentConversations).set({ etape: "proposition", updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
+  }
 }
 
 /** Une correction après visionnage (`iteration-plan`, 2026-11-09) : l'agent ne fait que DÉCIDER (intent, durée, références, réglages) ; la proposition ne porte

@@ -6,8 +6,8 @@ import { assets, planRefs, plans } from "../../db/schema";
 import { cheminAssetMedia, MEDIA_ROOT } from "../media";
 import { choisirMoteurFiche, moteurParDefaut, type ChoixMoteur, type DemandeMoteur, type EtatRefsVisuelles } from "./moteur";
 
-/** Le choix du moteur de fiche (lib/h3ir/moteur.ts) avec l'état réel des plans : leurs références visuelles et la présence de leurs fichiers
- * (les mêmes que celles que lirait le brief, lib/h3ir/brief-plan.ts, sans charger les voix). */
+/** Le moteur de fiche (lib/h3ir/moteur.ts) avec l'état réel des plans : leurs références visuelles et la présence de leurs fichiers (les mêmes que celles
+ * que lirait le brief, lib/h3ir/brief-plan.ts, sans charger les voix). */
 
 /** L'état des références visuelles de chaque plan demandé (uuid → état ; un plan sans référence a `total: 0`). */
 export async function etatsRefsVisuelles(projectId: number, planUuids: string[]): Promise<Map<string, EtatRefsVisuelles>> {
@@ -28,10 +28,10 @@ export async function etatsRefsVisuelles(projectId: number, planUuids: string[])
   return etats;
 }
 
-/** Le moteur de chaque plan. `demande` absente : le défaut de l'application (`auto`, ou `plan-h3` par `CADENCE_MOTEUR_FICHE`). */
+/** Le moteur de chaque plan (Open H3 IR, avec ce qui l'attend ; plan-h3 seulement s'il est imposé). `demande` absente : le moteur de l'application. */
 export async function resoudreMoteursFiches(projectId: number, planUuids: string[], demande?: DemandeMoteur): Promise<Map<string, ChoixMoteur>> {
   const voulu = demande ?? moteurParDefaut();
-  const etats = voulu === "auto" ? await etatsRefsVisuelles(projectId, planUuids) : new Map<string, EtatRefsVisuelles>();
+  const etats = voulu === "plan-h3" ? new Map<string, EtatRefsVisuelles>() : await etatsRefsVisuelles(projectId, planUuids);
   return new Map(planUuids.map((u) => [u, choisirMoteurFiche(voulu, etats.get(u) ?? { total: 0, sansFichier: [] })]));
 }
 

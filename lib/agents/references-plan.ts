@@ -5,12 +5,12 @@ import { suffixeDeCode } from "./conversion";
 import { ressemblant } from "./inventaire";
 
 /** Le petit skill `references-plan` (agents/skills/references-plan/) : appelé SEULEMENT quand la règle du code (lib/h3ir/references-plan.ts) a un doute,
- * il complète ou corrige la liste des références d'un plan et signale au plus deux assets manquants. Il ne réécrit jamais l'intent et ne crée rien :
- * la création des manquants et l'écriture des `plan_refs` seront câblées plus tard. Ici : la forme de l'entrée, la correction des codes mal recopiés
- * et les contrôles qui renvoient le modèle (lib/llm/controles.ts). Pur, testé. */
+ * il complète ou corrige la liste des références d'un plan et signale au plus deux assets manquants. Il ne réécrit jamais l'intent. Câblé par la
+ * préparation d'un plan (lib/h3ir/preparation.ts) : sa sortie écrit les `plan_refs` et crée les manquants (worker/agents/postTraitement.ts). Ici : la forme
+ * de l'entrée, la correction des codes mal recopiés et les contrôles qui renvoient le modèle (lib/llm/controles.ts). Pur, testé. */
 
 export const SKILL_REFERENCES_PLAN = "references-plan";
-/** Classer et citer : peu d'aléa (même réglage que notes-entretien et traduction-intent). À passer à l'appel quand le skill sera branché. */
+/** Classer et citer : peu d'aléa (même réglage que notes-entretien et traduction-intent), passé à l'appel par worker/llm.ts. */
 export const TEMPERATURE_REFERENCES_PLAN = 0.1;
 export const MAX_MANQUANTS_PLAN = 2;
 /** La description d'un candidat dans l'entrée, coupée : le skill doit reconnaître l'asset, pas le redessiner. */

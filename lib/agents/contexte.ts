@@ -692,7 +692,7 @@ export async function entreePlanH3(
 // --- références d'un plan (Open H3 IR, étape 5) -----------------------------------
 
 /** L'entrée du petit skill `references-plan` pour un plan, avec le choix du code (`choix`) : l'appelant ne pose la tâche QUE si `choix.suffit` est faux
- * (sinon les références du code suffisent). Pas encore branché à un flux (fiche Open H3 IR, création de projet : câblage à venir). `assetsProposesParLeLot` :
+ * (sinon les références du code suffisent). Posée par la préparation d'un plan (lib/agents/service.ts, `genererReferencesPlan`). `assetsProposesParLeLot` :
  * les assets qu'un inventaire en cours va créer (le skill peut les citer, jamais les reproposer). `null` si le plan n'est pas de ce projet. */
 export async function entreeReferencesPlan(
   db: Db,

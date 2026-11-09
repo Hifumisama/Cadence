@@ -66,7 +66,7 @@ Keep the joins. When `plan.liaison` is `suite`, the plan opens where the previou
 
 ## Missing assets
 
-When the cause is a missing image and **no** registry asset fits, suggest it in `manquants` (**two at most**): proposed code, type, French description, reason; `parent` = the base subject's code when it is a state of an existing character, creature, set or prop (same type as the subject). You create nothing and you do not put it in `references.ajouter`: the user creates it, generates its image, then iterates again.
+When the cause is a missing image and **no** registry asset fits, suggest it in `manquants` (**two at most**): proposed code, type, French description, reason; `parent` = the base subject's code when it is a state of an existing character, creature, set or prop (same type as the subject). Do not put it in `references.ajouter`: the application creates it, generates its image and adds it to the plan's references before recompiling. Its type is one of `personnage`, `decor`, `prop`, `keyframe`, `oth` (never a sound, a voice or an effect), its code is the type prefix (`CHAR_`, `DEC_`, `PROP_`, `KEY_`, `OTH_`) + lowercase words joined by `_`, and every image counts toward the six images of the plan.
 
 ## Method and stop
 

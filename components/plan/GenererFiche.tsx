@@ -10,9 +10,10 @@ import { cleDemande } from "@/lib/taches";
 const ATTENTE_MAX_MS = 20000;
 
 /** « Générer la fiche » d'un plan : la fiche (prompt vidéo, références) s'écrit en arrière-plan et elle est enregistrée sans relecture ; on la relit dans
- * la page du plan. Moteur par défaut (lib/h3ir/moteur.ts) : Open H3 IR quand les références d'image du plan existent toutes ; sinon plan-h3 choisit les
- * références et écrit la fiche, puis Open H3 IR la recompile si leurs images existent. Le bouton reste actif ailleurs : l'application se parcourt pendant
- * l'écriture, une ligne de la file des tâches la suit. `demandeEnCours` : la demande déjà posée (page rechargée en cours de route). */
+ * la page du plan. Open H3 IR seul (lib/h3ir/preparation.ts) : si le plan n'a pas encore ses références ou leurs images, la demande les prépare d'abord
+ * (choix des références, création d'assets, prompts, images), puis compile. L'étape en cours s'affiche à côté du bouton (« Images (1/3) »). Le bouton
+ * reste actif ailleurs : l'application se parcourt pendant l'écriture, une ligne de la file des tâches la suit. `demandeEnCours` : la demande déjà posée
+ * (page rechargée en cours de route). */
 export function GenererFiche({
   projectId,
   planUuid,
@@ -28,7 +29,7 @@ export function GenererFiche({
   demandeEnCours?: number | null;
   libelle?: string;
   className?: string;
-  /** Présent : Open H3 IR est IMPOSÉ (pas de repli plan-h3), avec ces réglages facultatifs ; la fiche compilée remplace la fiche existante. */
+  /** Présent : les réglages Open H3 IR de ce lancement (facultatifs) ; la fiche compilée remplace la fiche existante. */
   h3ir?: { shots: number | null; director: string | null; creativity: string | null };
   /** Appelé avant le lancement (ex. enregistrer le scénario du plan) ; renvoie false pour renoncer. */
   avant?: () => Promise<boolean>;
@@ -90,6 +91,8 @@ export function GenererFiche({
   };
 
   const enCours = demandeId != null;
+  // L'étape en cours, lue sur la ligne de la demande dans le panneau des tâches (« Choix des références · 1/5 », « Images (1/3) · 4/5 »).
+  const etape = demandeId != null ? (taches.find((x) => x.cle === cleDemande(demandeId))?.detail ?? null) : null;
   return (
     <>
       <button
@@ -102,12 +105,13 @@ export function GenererFiche({
         disabled={envoi || enCours}
         title={
           h3ir
-            ? "Open H3 IR compile la fiche en arrière-plan (traduction de l'intent, une à deux minutes par essai) ; elle remplace la fiche actuelle, dont le prompt reste dans l'historique"
-            : "Open H3 IR compile la fiche en arrière-plan (créativité et style de mise en scène compris) ; si le plan n'a pas encore ses références d'image, plan-h3 les choisit d'abord. Tu la relis ensuite dans la page du plan"
+            ? "Open H3 IR compile la fiche en arrière-plan avec ces réglages (après avoir préparé les références et leurs images s'il en manque) ; elle remplace la fiche actuelle, dont le prompt reste dans l'historique"
+            : "Open H3 IR compile la fiche en arrière-plan. S'il manque des références ou leurs images, elles sont d'abord choisies et générées (deux assets au plus sont créés). Tu la relis ensuite dans la page du plan"
         }
       >
         {envoi ? "…" : enCours ? "Fiche en cours d'écriture…" : libelle}
       </button>
+      {etape ? <span className="tiny-note" role="status">{etape}</span> : null}
       {erreur && !onErreur ? <span className="tiny-note" role="alert">{erreur}</span> : null}
     </>
   );

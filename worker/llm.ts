@@ -12,6 +12,7 @@ import { limiteur } from "./comfyui/limiteur";
 import { postTraiterRun, surEchecRun } from "./agents/postTraitement";
 import { preparerEntree, type DepsPreparation } from "./agents/preparation";
 import { controleurPourSkill } from "../lib/llm/controles";
+import { SKILL_REFERENCES_PLAN, TEMPERATURE_REFERENCES_PLAN } from "../lib/agents/references-plan";
 import { executerH3ir, SKILL_H3IR, SKILL_TRADUCTION, type DepsH3ir } from "./h3ir";
 
 // Tâche LLM : un appel à un skill d'agent posé dans `agent_runs` (genre « llm »
@@ -126,7 +127,8 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
       // suivants, y compris ceux déjà en file. Une surcharge de la tâche prime (relance d'une proposition).
       modele: options.modele ?? (await modeleEffectifPourSkill(run.skill)),
       // Les notes de l'entretien classent et citent : peu d'aléa, pour qu'un même message donne la même fiche.
-      temperature: run.skill === "notes-entretien" ? 0.1 : undefined,
+      // Le choix des références d'un plan classe et cite aussi (lib/agents/references-plan.ts).
+      temperature: run.skill === "notes-entretien" ? 0.1 : run.skill === SKILL_REFERENCES_PLAN ? TEMPERATURE_REFERENCES_PLAN : undefined,
       variante: options.variante,
       // Une mise à jour d'un brief repart d'un brouillon : la réflexion n'a servi qu'à la première version.
       corps: options.sansReflexion ? CORPS_SANS_REFLEXION : undefined,

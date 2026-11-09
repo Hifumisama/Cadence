@@ -3,6 +3,7 @@ import { dureeEffectiveSecondes } from "../grille-images";
 import { CREATIVITES, LIBELLE_CREATIVITE, MISES_EN_SCENE, RESUME_STYLE_CAMERA, STYLE_AUCUN, estCreativite, estMiseEnScene, type ChoixMiseEnScene } from "../h3ir/reglages";
 import type { DecisionsAffichees, DecisionsIteration, DiagnosticIteration } from "./types";
 import { raisonDescriptionIncomplete, repliquesPerdues, sansEtatDeFin } from "../intent";
+import { retenirManquants } from "../h3ir/preparation";
 
 /** `iteration-plan` : ANALYSER la consigne d'un plan après visionnage (agents/skills/iteration-plan/SKILL.md). Règles PURES (sans base, disque ni
  * Next), partagées par le contrôleur sémantique (lib/llm/controles.ts), le post-traitement (worker/agents/postTraitement.ts), la vue de la
@@ -126,6 +127,13 @@ export function decisionsEffectives(sortie: Pick<SortieIterationPlan, "decisions
     const r = retirer.filter((c) => !neutres.has(c));
     if (a.length + r.length > 0) out.references = { ajouter: a, retirer: r };
   }
+  // Les assets manquants (deux au plus) : créés d'office avant la recompilation, puis ajoutés aux références (vague 4a). Un code déjà au registre est
+  // une simple référence de plus ; un code invalide ou en trop est écarté.
+  if (d.manquants.length) {
+    const images = ctx.refs.filter((r) => r.type === "picture").length - (out.references?.retirer.length ?? 0) + (out.references?.ajouter.length ?? 0);
+    const m = retenirManquants(d.manquants, ctx.registre ?? [], { max: MAX_MANQUANTS_ITERATION, place: Math.max(0, MAX_REFS.picture - images) });
+    if (m.retenus.length) out.manquants = m.retenus;
+  }
   const reglages: NonNullable<DecisionsIteration["reglages"]> = {};
   const c = d.reglages.creativite;
   if (c && estCreativite(c) && c !== ctx.reglages?.creativite) reglages.creativite = c;
@@ -175,7 +183,7 @@ export function raisonSansEcriture(sortie: SortieIterationPlan, ctx: ContexteIte
   const incomplete = d.nouvelleDescription.trim() ? raisonDescriptionIncomplete(descriptionPropre(d), ctx.description) : null;
   if (incomplete) return `La nouvelle description de l'agent est incomplète (${incomplete}) : rien n'est écrit, la description du plan reste telle quelle. Relance la correction.`;
   const manquants = d.manquants.map((a) => a.code).filter(Boolean);
-  if (manquants.length > 0) return `Aucune décision applicable : l'agent suggère de créer ${manquants.join(", ")} (aucun asset du registre ne convient). Crée-le, génère son image, puis itère de nouveau pour l'ajouter en référence.`;
+  if (manquants.length > 0) return `Aucune décision applicable : les assets que l'agent veut créer (${manquants.join(", ")}) ne sont pas valides (type ou code) ou ne tiennent pas dans les six images. Crée-les à la main, puis itère de nouveau.`;
   if (sortie.categorie === "decoupage-scenario") return "La cause n'est pas dans ce plan (découpage ou scénario) : rien n'est écrit. Revois le découpage, puis réécris le plan.";
   return "L'agent ne propose aucune décision (ni intent, ni durée, ni références, ni réglages).";
 }
@@ -239,7 +247,9 @@ const libelleCreativite = (v: string | null | undefined): string => (v && estCre
 const libelleStyle = (v: string | null | undefined): string => (v && estMiseEnScene(v) ? RESUME_STYLE_CAMERA[v as ChoixMiseEnScene] : "aucun style");
 
 /** Les décisions telles que la page du plan les affiche (avant → après). */
-export function decisionsAffichees(dec: DecisionsIteration | null, ctx: ContexteIteration, manquants: AssetManquant[] = []): DecisionsAffichees | null {
+export function decisionsAffichees(dec: DecisionsIteration | null, ctx: ContexteIteration, suggeres: AssetManquant[] = []): DecisionsAffichees | null {
+  // Les manquants retenus (créés d'office) quand il y a des décisions ; sinon ce que l'agent suggérait (rien ne sera créé).
+  const manquants = dec?.manquants ?? (dec ? [] : suggeres);
   if (!dec && manquants.length === 0) return null;
   return {
     intent: dec?.description ? { avant: sansEtatDeFin(ctx.description).trim(), apres: dec.description } : null,
@@ -264,7 +274,7 @@ export function notesDecisions(a: DecisionsAffichees | null): string[] {
     notes.push(`Références : ${[...a.referencesAjoutees.map((c) => `+ ${c}`), ...a.referencesRetirees.map((c) => `− ${c}`)].join(", ")}.`);
   }
   for (const r of a.reglages) notes.push(`${r.libelle} du plan : ${r.avant} → ${r.apres}.`);
-  if (a.manquants.length) notes.push(`L'agent suggère de créer ${a.manquants.map((m) => m.code).join(", ")} (non créé${a.manquants.length > 1 ? "s" : ""}) : crée-le, génère son image, puis itère de nouveau.`);
+  if (a.manquants.length) notes.push(`${a.manquants.map((m) => m.code).join(", ")} créé${a.manquants.length > 1 ? "s" : ""} par l'itération, image générée et ajouté${a.manquants.length > 1 ? "s" : ""} aux références avant la recompilation.`);
   return notes;
 }
 

@@ -1,7 +1,14 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { agentConversations, agentRuns, demandes, episodes, jobs, plans, propositions, scenes } from "../db/schema";
-import { appliquerSelection, cocherChangements, conversationParUuid, genererFiches, genererIteration, genererProposition, genererReecriturePlan, ouvrirConversation } from "./agents/service";
+import { agentConversations, agentRuns, assets, demandes, episodes, jobs, plans, propositions, scenes } from "../db/schema";
+import { appliquerSelection, cocherChangements, conversationParUuid, creerAssetsManquants, genererFiches, genererIteration, genererPromptsAssets, genererProposition, genererReecriturePlan, genererReferencesPlan, ouvrirConversation } from "./agents/service";
+import { annulerLot } from "./agents/lots";
+import { cleNouvelAsset } from "./agents/fiches";
+import { referencesApresDecisions } from "./h3ir/brief-plan";
+import { choisirReferencesPlan } from "./h3ir/references-plan-db";
+import { ecrireReferencesPlan } from "./h3ir/references-ecriture";
+import { deciderImages, deciderReferences, libelleAssets, libelleImages, libellePrompts } from "./h3ir/preparation";
+import { assetsCreesParLeLot, attendUnPlanPrecedent, codesRefsVisuelles, ecrireReferencesDuSkill, etatImagesAssets, lancerImagesAssets } from "./h3ir/preparation-db";
 import { ERREUR_ANNULEE } from "./annulation";
 import { demanderAnnulation } from "./annulation-db";
 import {
@@ -15,6 +22,8 @@ import {
   etapesAjoutScene,
   etapesFichePlan,
   etapesIterationPlan,
+  insererEtapesImagesIteration,
+  renommerEtape,
   type CleEtapeIteration,
   type ContexteAjoutPlan,
   type ContexteAjoutScene,
@@ -27,12 +36,12 @@ import {
   type StatutDemande,
 } from "./demandes";
 import { decisionIteration } from "./fiche-plan";
-import { moteurParDefaut, type DemandeMoteur } from "./h3ir/moteur";
-import { resoudreMoteurFiche } from "./h3ir/moteur-db";
+import { moteurParDefaut, refusReferences, type DemandeMoteur, type MoteurFiche } from "./h3ir/moteur";
+import { etatsRefsVisuelles } from "./h3ir/moteur-db";
 import { appliquerIterationEtGenererCore } from "./iteration-application";
 import { lireProposition } from "./queries-agents";
 import { cleLlm, cleVideo } from "./taches";
-import type { DecisionsAffichees, Resultat } from "./agents/types";
+import type { DecisionsAffichees, DecisionsIteration, Resultat } from "./agents/types";
 
 /** Le PILOTE des demandes (règles dans lib/demandes.ts). `piloterDemandes` est appelé à chaque tour de la boucle « installateur » du
  * worker : une transition au plus par demande en cours, état dans `demandes` (reprise sur redémarrage, rien en mémoire). Une seule
@@ -138,29 +147,33 @@ export async function lancerDemandeAjoutScene(
   return { ok: true, demandeId: demande.id };
 }
 
-/** « Générer la fiche » d'un plan (pages Scénario et Plan) : UNE demande (la fiche est écrite → elle est enregistrée sans relecture, on la relit dans
- * la page du plan). Moteur (lib/h3ir/moteur.ts) : par défaut Open H3 IR quand les références d'image du plan existent toutes — il peut alors
- * remplacer une fiche existante (le clic vaut confirmation) ; sinon plan-h3 en repli, suivi d'une compilation Open H3 IR si ses références ont
- * leurs images (lib/demandes.ts). Le repli plan-h3 est réservé aux plans sans fiche : réécrire une fiche existante passe alors par « Itérer ».
- * `moteur: "plan-h3"` impose l'ancien chemin (option interne, aucun bouton) ; `"h3ir"` impose Open H3 IR (le tiroir « Brief Open H3 IR »). */
-export async function lancerDemandeFichePlan(
-  projectId: number,
-  planUuid: string,
-  /** `shots` / `director` / `creativity` : réglages Open H3 IR facultatifs (absents : ceux du plan, de sa scène ou du projet). */
-  options: { moteur?: DemandeMoteur; shots?: number | null; director?: string | null; creativity?: string | null } = {},
-): Promise<Resultat<{ demandeId: number }>> {
+/** « Générer la fiche » d'un plan (pages Scénario et Plan, onglet « Brief Open H3 IR ») : UNE demande, enregistrée sans relecture (on la relit dans la
+ * page du plan). Open H3 IR SEUL (vague 4a, lib/h3ir/preparation.ts) : un plan dont les références ont toutes leur image part tout de suite en
+ * compilation (chemin rapide) ; sinon le pilote le PRÉPARE d'abord (références, assets manquants, prompts, images), tour après tour. La fiche compilée
+ * peut remplacer une fiche existante (le clic vaut confirmation ; l'ancien prompt reste dans l'historique).
+ * Options : `rechoisir` (rechoisir les références même si le plan en a déjà ; jamais par défaut), réglages Open H3 IR facultatifs (`shots`, `director`,
+ * `creativity` : absents, ceux du plan, de sa scène ou du projet). `moteur: "plan-h3"` : retour arrière d'urgence (option interne, aucun bouton ; aussi
+ * pour toute l'application par `CADENCE_MOTEUR_FICHE=plan-h3`), réservé aux plans sans fiche. */
+export async function lancerDemandeFichePlan(projectId: number, planUuid: string, options: OptionsDemandeFiche = {}): Promise<Resultat<{ demandeId: number }>> {
   const [plan] = await db.select({ id: plans.id, titre: plans.titre, statut: plans.statut }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!plan) return ERR("Plan introuvable.");
-  const voulu = options.moteur ?? moteurParDefaut();
-  const choix = await resoudreMoteurFiche(projectId, planUuid, voulu);
-  if (plan.statut !== "brouillon" && choix.moteur !== "h3ir") {
-    return ERR(voulu === "auto" && choix.repli ? `Ce plan a déjà une fiche, et Open H3 IR ne peut pas la recompiler. ${choix.repli}` : "Ce plan a déjà une fiche.");
+  const moteur: MoteurFiche = options.moteur === "plan-h3" ? "plan-h3" : options.moteur ? "h3ir" : moteurParDefaut();
+  if (moteur === "plan-h3" && plan.statut !== "brouillon") return ERR("Ce plan a déjà une fiche (plan-h3 imposé n'écrit que les plans sans fiche).");
+  let parcours: ParcoursFichePlan = "plan-h3";
+  if (moteur === "h3ir") {
+    const etat = (await etatsRefsVisuelles(projectId, [planUuid])).get(planUuid) ?? { total: 0, sansFichier: [] };
+    parcours = !options.rechoisir && refusReferences(etat) == null ? "rapide" : "preparation";
   }
-  const parcours: ParcoursFichePlan = choix.moteur === "h3ir" ? "h3ir" : voulu === "plan-h3" ? "plan-h3" : "plan-h3-puis-h3ir";
   const reglagesH3ir = { shots: options.shots ?? null, director: options.director ?? null, creativity: options.creativity ?? null };
   const ouverte = await ouvrirConversation(projectId, "plan", { uuid: planUuid }, "courte");
   if (!ouverte.ok) return ouverte;
-  const contexte: ContexteFichePlan = { titre: plan.titre, planUuid, moteur: choix.moteur, reglagesH3ir, ...(parcours === "plan-h3-puis-h3ir" ? { enchainerH3ir: true } : {}) };
+  const contexte: ContexteFichePlan = {
+    titre: plan.titre,
+    planUuid,
+    moteur,
+    reglagesH3ir,
+    ...(parcours === "preparation" ? { preparation: options.rechoisir ? { rechoisir: true } : {} } : {}),
+  };
   let demande: { id: number };
   try {
     const [d] = await db.insert(demandes).values({ projectId, type: "fiche-plan", cibleType: "plan", cibleId: plan.id, etapes: etapesFichePlan(parcours), contexte }).returning({ id: demandes.id });
@@ -169,13 +182,64 @@ export async function lancerDemandeFichePlan(
     // L'index unique partiel : une demande est déjà en cours sur ce plan.
     return ERR("Une demande est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).");
   }
-  const g = await genererFiches(ouverte.conversationUuid, { planUuids: [planUuid], demandeId: demande.id, moteur: choix.moteur, reglagesH3ir });
+  // Préparation : le pilote la mène (rien à poser maintenant). Chemin rapide ou plan-h3 : la tâche part tout de suite.
+  if (parcours === "preparation") return { ok: true, demandeId: demande.id };
+  const g = await genererFiches(ouverte.conversationUuid, { planUuids: [planUuid], demandeId: demande.id, moteur, reglagesH3ir });
   if (!g.ok) {
     await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
     return g;
   }
   await db.update(demandes).set({ contexte: { ...contexte, ...(g.runUuid ? { runUuid: g.runUuid } : {}) }, updatedAt: new Date() }).where(eq(demandes.id, demande.id));
   return { ok: true, demandeId: demande.id };
+}
+
+export type OptionsDemandeFiche = {
+  moteur?: DemandeMoteur;
+  rechoisir?: boolean;
+  shots?: number | null;
+  director?: string | null;
+  creativity?: string | null;
+};
+
+/** Les fiches de PLUSIEURS plans (« Écrire les fiches », et la création d'un projet) : une demande par plan, posées dans l'ORDRE DU SCÉNARIO (épisode,
+ * puis `plans.ordre`) quel que soit l'ordre donné. Chaque plan est préparé puis compilé ; le choix des références suit l'ordre du scénario (un plan
+ * attend que les plans d'avant aient leurs références : reprise du décor, assets créés par un plan visibles du suivant). Un plan refusé (demande déjà en
+ * cours…) n'arrête pas les autres : ses raisons sont rendues. */
+export async function lancerDemandesFiches(
+  projectId: number,
+  planUuids: string[],
+  options: Omit<OptionsDemandeFiche, "moteur"> = {},
+): Promise<{ lancees: number; demandeIds: number[]; erreurs: string[] }> {
+  const voulus = [...new Set(planUuids)];
+  const lus = voulus.length
+    ? await db
+        .select({ uuid: plans.uuid, numero: episodes.numero, ordre: plans.ordre, id: plans.id })
+        .from(plans)
+        .innerJoin(episodes, eq(episodes.id, plans.episodeId))
+        .where(and(eq(plans.projectId, projectId), inArray(plans.uuid, voulus)))
+    : [];
+  const ordonnes = [...lus].sort((a, b) => a.numero - b.numero || a.ordre - b.ordre || a.id - b.id).map((p) => p.uuid);
+  const erreurs: string[] = voulus.filter((u) => !ordonnes.includes(u)).map(() => "Plan introuvable.");
+  const demandeIds: number[] = [];
+  for (const uuid of ordonnes) {
+    const r = await lancerDemandeFichePlan(projectId, uuid, options);
+    if (r.ok) demandeIds.push(r.demandeId);
+    else erreurs.push(r.erreur);
+  }
+  return { lancees: demandeIds.length, demandeIds, erreurs: [...new Set(erreurs)] };
+}
+
+/** Où en sont des demandes de fiche (la création d'un projet suit ainsi son lot) : statut, étape en cours, erreur, par demande. */
+export async function etatDemandesFiches(demandeIds: number[]): Promise<{ id: number; planUuid: string; statut: StatutDemande; etape: string | null; erreur: string | null }[]> {
+  if (demandeIds.length === 0) return [];
+  const lignes = await db.select().from(demandes).where(inArray(demandes.id, demandeIds));
+  return lignes.map((d) => ({
+    id: d.id,
+    planUuid: (d.contexte as ContexteFichePlan).planUuid,
+    statut: d.statut as StatutDemande,
+    etape: etapeCouranteDemande(lireEtapes(d))?.libelle ?? null,
+    erreur: d.erreur,
+  }));
 }
 
 /** Le briefing quand l'auteur n'en a pas donné : l'agent propose lui-même la scène qui s'enchaîne. */
@@ -352,28 +416,182 @@ async function avancerAjoutScene(d: LigneDemande): Promise<boolean> {
   }
 }
 
-/** Après l'enregistrement d'une fiche plan-h3 écrite en REPLI : la compilation Open H3 IR part si toutes les références qu'elle a retenues ont leur
- * image (créativité et style de mise en scène compris) ; sinon la fiche plan-h3 reste, et la demande dit pourquoi. */
-async function enchainerCompilation(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[], conversationId: number | null): Promise<boolean> {
-  const choix = await resoudreMoteurFiche(d.projectId, ctx.planUuid, "auto");
-  const passer = async (note: string) => {
-    await ecrire(d, { statut: "termine", etapes: avancerEtapes(etapes, "compilation", "passe"), contexte: { ...ctx, enchainerH3ir: false, notes: [...(ctx.notes ?? []), note] }, erreur: null });
+// --- la fiche d'un plan : préparation puis compilation (vague 4a) -------------------------------------------------------------------------
+
+type CtxPrep = NonNullable<ContexteFichePlan["preparation"]>;
+const occupe = (erreur: string) => /déjà en cours/i.test(erreur);
+
+/** Les codes des assets CRÉÉS par une proposition appliquée (ses créations, par leur clé `nouvel-asset-<code>`), qui existent au registre. */
+async function codesCreesPar(projectId: number, propositionUuid: string): Promise<string[]> {
+  const lue = await lireProposition(propositionUuid);
+  const codes = (lue?.groupes ?? []).flatMap((g) => g.changements).filter((c) => c.cibleType === "asset" && c.operation === "creer").map((c) => (c.cle ?? "").replace(PREFIXE_NOUVEL_ASSET, "")).filter(Boolean);
+  if (codes.length === 0) return [];
+  return (await db.select({ code: assets.code }).from(assets).where(and(eq(assets.projectId, projectId), inArray(assets.code, codes)))).map((a) => a.code);
+}
+const PREFIXE_NOUVEL_ASSET = cleNouvelAsset("");
+
+/** Coche tout ce qui passe (ni bloqué ni refusé) d'une proposition et l'applique sans relecture. */
+async function appliquerToutCeQuiPasse(propositionUuid: string, confirmeEcrasement: boolean): Promise<Resultat> {
+  const lue = await lireProposition(propositionUuid);
+  const ids = (lue?.groupes ?? []).flatMap((g) => g.changements).filter((c) => !c.bloque && !c.refuseRaison).map((c) => c.id);
+  if (ids.length) {
+    const coche = await cocherChangements(propositionUuid, { ids }, true);
+    if (!coche.ok) return coche;
+  }
+  const a = await appliquerSelection(propositionUuid, { confirmeEcrasement });
+  return a.ok ? { ok: true } : ERR(a.erreur);
+}
+
+/** Étape `references` : garder celles du plan, écrire celles du code, ou attendre / appliquer la tâche `references-plan` (doute). */
+async function avancerReferences(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[]): Promise<boolean> {
+  const prep: CtxPrep = ctx.preparation ?? {};
+  const finir = async (crees: string[], note: string | null) => {
+    let e = avancerEtapes(renommerEtape(etapes, "references", "Choix des références"), "references", "fait");
+    e = crees.length ? avancerEtapes(renommerEtape(e, "assets", libelleAssets(crees.length)), "assets", "fait") : avancerEtapes(e, "assets", "passe");
+    await ecrire(d, { etapes: e, contexte: { ...ctx, preparation: { ...prep, assetsCrees: crees }, ...(note ? { notes: [...(ctx.notes ?? []), note] } : {}) } });
     return true;
   };
-  if (choix.moteur !== "h3ir") return passer(`Fiche écrite par plan-h3. ${choix.repli ?? ""} « Générer la fiche » (onglet Brief Open H3 IR) la recompilera quand les images existeront.`.trim());
-  const [conv] = conversationId != null ? await db.select({ uuid: agentConversations.uuid }).from(agentConversations).where(eq(agentConversations.id, conversationId)) : [];
-  if (!conv) return passer("Fiche écrite par plan-h3 ; la compilation Open H3 IR n'a pas pu partir (conversation du plan introuvable).");
-  const g = await genererFiches(conv.uuid, { planUuids: [ctx.planUuid], demandeId: d.id, moteur: "h3ir", reglagesH3ir: ctx.reglagesH3ir ?? {} });
-  if (!g.ok) {
-    if (/déjà en cours/i.test(g.erreur)) return false; // la conversation est prise : au prochain tour
-    return passer(`Fiche écrite par plan-h3 ; la compilation Open H3 IR n'a pas pu partir : ${g.erreur}`);
+
+  if (prep.referencesRunUuid) {
+    const [run] = await db.select().from(agentRuns).where(eq(agentRuns.uuid, prep.referencesRunUuid));
+    if (!run) return echouer(d, "La tâche de choix des références n'existe plus.");
+    if (run.statut === "en_attente" || run.statut === "en_cours") return false;
+    if (run.statut === "annulee" || (run.statut === "echoue" && run.erreur === ERREUR_ANNULEE)) return annuler(d);
+    if (run.statut !== "termine") return echouer(d, `Le choix des références a échoué : ${run.erreur ?? "erreur inconnue"}`);
+    const [prop] = run.propositionId ? await db.select({ id: propositions.id, uuid: propositions.uuid, statut: propositions.statut, resume: propositions.resume }).from(propositions).where(eq(propositions.id, run.propositionId)) : [];
+    if (!prop) return echouer(d, "La proposition du choix des références est introuvable.");
+    if (prop.statut === "en_generation") return false;
+    if (prop.statut === "appliquee" || prop.statut === "partielle") return finir(await codesCreesPar(d.projectId, prop.uuid), prop.resume || null);
+    if (prop.statut !== "prete") return echouer(d, "Le choix des références a été abandonné (proposition rejetée).");
+    // Toutes les créations refusées ou bloquées par un contrôle : les références du skill (sans ces assets) s'écrivent quand même.
+    const passables = ((await lireProposition(prop.uuid))?.groupes ?? []).flatMap((g) => g.changements).filter((c) => !c.bloque && !c.refuseRaison);
+    if (passables.length === 0) {
+      await ecrireReferencesDuSkill(db, prop.id, run.id);
+      return finir([], `${prop.resume ? `${prop.resume} ` : ""}Les assets manquants proposés ont été refusés par un contrôle : à créer à la main si besoin.`);
+    }
+    const a = await appliquerToutCeQuiPasse(prop.uuid, false);
+    if (!a.ok) return echouer(d, `Les assets manquants n'ont pas pu être créés : ${a.erreur}`);
+    return finir(await codesCreesPar(d.projectId, prop.uuid), prop.resume || null);
   }
-  await ecrire(d, { etapes, contexte: { ...ctx, moteur: "h3ir", enchainerH3ir: false, ...(g.runUuid ? { runUuid: g.runUuid } : {}) } });
+
+  const existantes = (await etatsRefsVisuelles(d.projectId, [ctx.planUuid])).get(ctx.planUuid)?.total ?? 0;
+  const rechoisir = prep.rechoisir === true;
+  const garde = existantes > 0 && !rechoisir;
+  const attente = garde ? false : await attendUnPlanPrecedent(d.cibleId);
+  const choix = garde || attente ? null : await choisirReferencesPlan(db, d.cibleId);
+  const decision = deciderReferences({ existantes, rechoisir, precedentEnAttente: attente, choix: choix ? { suffit: choix.suffit, references: choix.references.map((r) => r.code) } : null });
+  switch (decision.action) {
+    case "attendre": {
+      const libelle = "Choix des références (après le plan précédent)";
+      if (etapes.find((e) => e.cle === "references")?.libelle === libelle) return false;
+      await ecrire(d, { etapes: renommerEtape(etapes, "references", libelle) });
+      return true;
+    }
+    case "garder": {
+      const e = avancerEtapes(avancerEtapes(renommerEtape(etapes, "references", "Références déjà posées"), "references", "passe"), "assets", "passe");
+      await ecrire(d, { etapes: e });
+      return true;
+    }
+    case "ecrire": {
+      const r = await ecrireReferencesPlan(db, d.cibleId, decision.codes, { remplacer: rechoisir });
+      if (!r.ok && r.raison !== "deja-des-references") return echouer(d, "Aucune référence d'image n'a pu être écrite pour ce plan.");
+      return finir([], r.ok ? `Références choisies par le code : ${decision.codes.join(", ")}.` : null);
+    }
+    case "skill": {
+      const conv = await ouvrirConversation(d.projectId, "plan", { uuid: ctx.planUuid }, "courte");
+      if (!conv.ok) return echouer(d, conv.erreur);
+      const g = await genererReferencesPlan(conv.conversationUuid, { demandeId: d.id, rechoisir, assetsProposesParLeLot: await assetsCreesParLeLot(d.projectId, d.id) });
+      if (!g.ok) return occupe(g.erreur) ? false : echouer(d, g.erreur);
+      await ecrire(d, { contexte: { ...ctx, runUuid: g.runUuid, preparation: { ...prep, referencesRunUuid: g.runUuid } } });
+      return true;
+    }
+    case "echec":
+      return echouer(d, decision.erreur);
+  }
+}
+
+/** Les étapes `prompts` et `images`, communes à la fiche d'un plan et à « Itérer » : `codes` = les références attendues (celles du plan, ou celles
+ * qu'auront les décisions) ; `prep` / `ecrirePrep` : l'état gardé dans la demande ; `lancerSuite` : la compilation, quand toutes les images sont là
+ * (rend false si sa conversation est occupée : on réessaie au tour suivant). */
+async function avancerPromptsImages(
+  d: LigneDemande,
+  etapes: EtapeDemande[],
+  cle: "prompts" | "images",
+  codes: string[],
+  prep: { promptsPropositionUuid?: string; imagesLancees?: string[] },
+  ecrirePrep: (maj: { etapes?: EtapeDemande[]; prep?: { promptsPropositionUuid?: string; imagesLancees?: string[] } }) => Promise<void>,
+  lancerSuite: (etapes: EtapeDemande[]) => Promise<boolean>,
+): Promise<boolean> {
+  if (cle === "prompts") {
+    if (prep.promptsPropositionUuid) {
+      const lue = await lireProposition(prep.promptsPropositionUuid);
+      if (!lue) return echouer(d, "Le lot des prompts d'assets est introuvable.");
+      if (lue.statut === "en_generation") return false;
+      if (lue.statut === "prete") {
+        const a = await appliquerToutCeQuiPasse(prep.promptsPropositionUuid, true);
+        if (!a.ok) return echouer(d, `Les prompts d'assets n'ont pas pu être écrits : ${a.erreur}`);
+      } else if (lue.statut !== "appliquee" && lue.statut !== "partielle") {
+        return echouer(d, `Les prompts d'assets n'ont pas pu être écrits : ${lue.erreur ?? "le lot a échoué"}.`);
+      }
+      await ecrirePrep({ etapes: avancerEtapes(etapes, "prompts", "fait") });
+      return true;
+    }
+    const dec = deciderImages(await etatImagesAssets(d.projectId, codes, d.createdAt));
+    if (dec.action === "echec") return echouer(d, dec.erreur);
+    if (dec.action !== "prompts") {
+      await ecrirePrep({ etapes: avancerEtapes(etapes, "prompts", "passe") });
+      return true;
+    }
+    const ids = (await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, d.projectId), inArray(assets.code, dec.codes)))).map((a) => a.id);
+    const g = await genererPromptsAssets(d.projectId, ids, { demandeId: d.id });
+    if (!g.ok) return echouer(d, g.erreur);
+    await ecrirePrep({ etapes: renommerEtape(etapes, "prompts", libellePrompts(g.nbSousTaches)), prep: { ...prep, promptsPropositionUuid: g.propositionUuid } });
+    return true;
+  }
+
+  // images
+  const dec = deciderImages(await etatImagesAssets(d.projectId, codes, d.createdAt));
+  switch (dec.action) {
+    case "echec":
+      return echouer(d, dec.erreur);
+    case "prompts":
+      return echouer(d, `Pas de prompt d'image pour ${dec.codes.join(", ")} : écris-le dans sa fiche d'asset (ou importe son image), puis relance.`);
+    case "pret":
+      return lancerSuite(avancerEtapes(renommerEtape(etapes, "images", libelleImages(dec.total, dec.total)), "images", "fait"));
+    case "attendre": {
+      const lancees = dec.aLancer.length ? await lancerImagesAssets(d.projectId, dec.aLancer) : { lancees: 0, ecartes: [] };
+      const libelle = libelleImages(dec.faites, dec.total);
+      const changeLibelle = etapes.find((e) => e.cle === "images")?.libelle !== libelle;
+      if (lancees.lancees === 0 && !changeLibelle) return false;
+      const deja = prep.imagesLancees ?? [];
+      const nouvelles = dec.aLancer.filter((c) => !lancees.ecartes.some((e) => e.code === c) && !deja.includes(c));
+      await ecrirePrep({ etapes: renommerEtape(etapes, "images", libelle), prep: { ...prep, imagesLancees: [...deja, ...nouvelles] } });
+      return true;
+    }
+  }
+}
+
+const echouer = async (d: LigneDemande, erreur: string): Promise<boolean> => {
+  await ecrire(d, { statut: "echoue", erreur: erreur.slice(0, 500) });
+  return true;
+};
+const annuler = async (d: LigneDemande): Promise<boolean> => {
+  await ecrire(d, { statut: "annulee", erreur: null });
+  return true;
+};
+
+/** La compilation Open H3 IR de la fiche d'un plan préparé : la tâche part, l'étape `compilation` devient l'étape en cours. */
+async function poserCompilation(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[]): Promise<boolean> {
+  const conv = await ouvrirConversation(d.projectId, "plan", { uuid: ctx.planUuid }, "courte");
+  if (!conv.ok) return echouer(d, conv.erreur);
+  const g = await genererFiches(conv.conversationUuid, { planUuids: [ctx.planUuid], demandeId: d.id, moteur: "h3ir", reglagesH3ir: ctx.reglagesH3ir ?? {} });
+  if (!g.ok) return occupe(g.erreur) ? false : echouer(d, g.erreur);
+  await ecrire(d, { etapes, contexte: { ...ctx, moteur: "h3ir", ...(g.runUuid ? { runUuid: g.runUuid } : {}) } });
   return true;
 }
 
-/** Un tour d'une fiche de plan : même attente que les ajouts ; la proposition prête, on enregistre la fiche et les assets manquants qu'elle cite.
- * Repli plan-h3 (`enchainerH3ir`) : la fiche enregistrée, l'étape `compilation` recompile avec Open H3 IR (même attente, même enregistrement). */
+/** Un tour d'une fiche de plan. Préparation (Open H3 IR) : références → assets → prompts → images → compilation ; plan-h3 (retour arrière d'urgence) et
+ * demandes d'avant la vague 4a : l'agent écrit la fiche, elle est enregistrée. */
 async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
   const etapes = lireEtapes(d);
   const ctx = d.contexte as ContexteFichePlan;
@@ -382,38 +600,63 @@ async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
     await ecrire(d, { statut: "termine" });
     return true;
   }
-  const enCompilation = courante.cle === "compilation";
+  switch (courante.cle) {
+    case "references":
+      return avancerReferences(d, ctx, etapes);
+    case "assets":
+      await ecrire(d, { etapes: avancerEtapes(etapes, "assets", "passe") });
+      return true;
+    case "prompts":
+    case "images": {
+      const codes = await codesRefsVisuelles(d.cibleId);
+      if (codes.length === 0) return echouer(d, "Ce plan n'a aucune image de référence, et aucune n'a pu être choisie : nomme dans sa description qui ou quoi est à l'image (ou ajoute une référence à la main), puis relance « Générer la fiche ».");
+      const prep: CtxPrep = ctx.preparation ?? {};
+      return avancerPromptsImages(
+        d,
+        etapes,
+        courante.cle,
+        codes,
+        prep,
+        (maj) => ecrire(d, { ...(maj.etapes ? { etapes: maj.etapes } : {}), ...(maj.prep ? { contexte: { ...ctx, preparation: { ...prep, ...maj.prep } } } : {}) }),
+        (suite) => poserCompilation(d, { ...ctx, preparation: prep }, suite),
+      );
+    }
+    default:
+      return avancerTacheFiche(d, ctx, etapes, courante.cle);
+  }
+}
+
+/** La tâche qui écrit la fiche : compilation Open H3 IR (`compilation`), ou plan-h3 et anciennes demandes (`agent` puis `ecriture`). Même attente que les
+ * ajouts ; la proposition prête, on enregistre la fiche (et, pour plan-h3, les assets manquants qu'elle cite). */
+async function avancerTacheFiche(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[], cle: string): Promise<boolean> {
+  const enCompilation = cle === "compilation";
   const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
-  if (!run) {
-    await ecrire(d, { statut: "echoue", erreur: "La tâche de l'agent n'existe plus." });
-    return true;
-  }
+  if (!run) return echouer(d, "La tâche de l'agent n'existe plus.");
   if (run.statut === "en_attente" || run.statut === "en_cours") return false;
-  if (run.statut === "annulee" || (run.statut === "echoue" && run.erreur === ERREUR_ANNULEE)) {
-    await ecrire(d, { statut: "annulee", erreur: null });
-    return true;
-  }
-  const prefixe = enCompilation ? "La fiche plan-h3 est enregistrée, mais la compilation Open H3 IR a échoué : " : "";
-  if (run.statut !== "termine") {
-    await ecrire(d, { statut: "echoue", erreur: `${prefixe}${run.erreur ?? "L'agent a échoué."}` });
-    return true;
-  }
+  if (run.statut === "annulee" || (run.statut === "echoue" && run.erreur === ERREUR_ANNULEE)) return annuler(d);
+  const prefixe = enCompilation ? "La compilation Open H3 IR a échoué : " : "";
+  if (run.statut !== "termine") return echouer(d, `${prefixe}${run.erreur ?? "L'agent a échoué."}`);
   const [prop] = run.propositionId ? await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, run.propositionId)) : [];
-  if (!prop) {
-    await ecrire(d, { statut: "echoue", erreur: `${prefixe}La proposition de l'agent est introuvable.` });
-    return true;
-  }
+  if (!prop) return echouer(d, `${prefixe}La proposition de l'agent est introuvable.`);
   const lue = await lireProposition(prop.uuid);
   const decision = decisionFichePlan(lue);
   const fini = enCompilation ? avancerEtapes(etapes, "compilation", "fait") : avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ecriture", "fait");
-  // Repli plan-h3 enregistré : on enchaîne la compilation (ou on la passe) au lieu de finir.
-  const suite = async () => (!enCompilation && ctx.enchainerH3ir ? enchainerCompilation(d, ctx, fini, run.conversationId) : (await ecrire(d, { statut: "termine", etapes: fini, erreur: null }), true));
+  // Demandes d'avant la vague 4a (repli plan-h3 puis compilation) : la compilation n'est plus enchaînée ; « Générer la fiche » la refera.
+  const suite = async () => {
+    const legacy = !enCompilation && ctx.enchainerH3ir;
+    await ecrire(d, {
+      statut: "termine",
+      etapes: legacy ? avancerEtapes(fini, "compilation", "passe") : fini,
+      erreur: null,
+      ...(legacy ? { contexte: { ...ctx, enchainerH3ir: false, notes: [...(ctx.notes ?? []), "Fiche écrite par plan-h3 ; « Générer la fiche » la recompilera avec Open H3 IR."] } } : {}),
+    });
+    return true;
+  };
   switch (decision.action) {
     case "attendre":
       return false;
     case "echec":
-      await ecrire(d, { statut: "echoue", erreur: `${prefixe}${decision.erreur}` });
-      return true;
+      return echouer(d, `${prefixe}${decision.erreur}`);
     case "fait":
       return suite();
     case "appliquer": {
@@ -421,16 +664,10 @@ async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
       const tous = (lue?.groupes ?? []).flatMap((g) => g.changements.map((c) => c.id));
       const decoche = await cocherChangements(prop.uuid, { ids: tous }, false);
       const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: decision.changementIds }, true) : decoche;
-      if (!coche.ok) {
-        await ecrire(d, { statut: "echoue", erreur: `${prefixe}${coche.erreur}` });
-        return true;
-      }
+      if (!coche.ok) return echouer(d, `${prefixe}${coche.erreur}`);
       // Open H3 IR remplace la fiche existante sans redemander : le clic de l'utilisateur vaut confirmation, et l'ancien prompt est gardé dans l'historique.
       const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: ctx.moteur === "h3ir" });
-      if (!a.ok) {
-        await ecrire(d, { statut: "echoue", erreur: `${prefixe}${a.erreur}` });
-        return true;
-      }
+      if (!a.ok) return echouer(d, `${prefixe}${a.erreur}`);
       return suite();
     }
   }
@@ -448,6 +685,12 @@ async function avancer(d: LigneDemande): Promise<boolean> {
     await ecrire(d, { statut: "termine" });
     return true;
   }
+  // Assets créés, prompts et images attendus avant la recompilation (vague 4a) : même mécanique que la fiche d'un plan.
+  if (cur.cle === "assets") {
+    await ecrire(d, { etapes: avancerEtapes(etapes, "assets", "passe") });
+    return true;
+  }
+  if (cur.cle === "prompts" || cur.cle === "images") return avancerImagesIteration(d, ctx, etapes, cur.cle);
   const cle = cur.cle as CleEtapeIteration;
   const { obs, propositionUuid, conversationUuid } = await observer(d, cle, ctx);
   const decision = deciderIteration(cle, obs);
@@ -484,17 +727,67 @@ async function avancer(d: LigneDemande): Promise<boolean> {
         return true;
       }
       // Toujours recompiler (2026-11-09) : les décisions de l'agent (intent, durée, références, réglages) partent en surcharge d'Open H3 IR et ne
-      // s'écrivent qu'avec la fiche compilée. Un refus (images manquantes…) laisse le plan tel quel ; les décisions restent visibles.
-      const g = await genererReecriturePlan(conversationUuid, { consigne: ctx.consigne, decisions: decision.decisions, demandeId: d.id });
-      if (!g.ok) {
-        if (/déjà en cours/i.test(g.erreur)) return false; // la conversation est prise par autre chose : au prochain tour
-        await ecrire(d, { statut: "echoue", erreur: g.erreur, contexte: { ...ctx, decisions: decision.affichage, notesAgent: decision.notes } });
+      // s'écrivent qu'avec la fiche compilée. Vague 4a : les assets manquants décidés (deux au plus) sont créés tout de suite et ajoutés aux
+      // références ; si une référence finale n'a pas d'image, ses prompts et ses images passent d'abord (étapes insérées), la recompilation suit seule.
+      const vus = { ...ctx, decisions: decision.affichage, notesAgent: decision.notes };
+      const { manquants, ...base } = decision.decisions;
+      let crees: string[] = [];
+      if (manquants?.length) {
+        const c = await creerAssetsManquants(conversationUuid, manquants);
+        if (!c.ok) {
+          await ecrire(d, { statut: "echoue", erreur: c.erreur, contexte: vus });
+          return true;
+        }
+        crees = c.crees;
+      }
+      const ajouter = [...new Set([...(base.references?.ajouter ?? []), ...crees])];
+      const aRecompiler: DecisionsIteration = ajouter.length || base.references?.retirer.length ? { ...base, references: { ajouter, retirer: base.references?.retirer ?? [] } } : base;
+      const [plan] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, d.cibleId));
+      const finales = plan ? await referencesApresDecisions(d.projectId, plan.uuid, aRecompiler.references ?? {}) : null;
+      if (finales && finales.inconnus.length === 0 && finales.sansImage.length > 0) {
+        const e = avancerEtapes(insererEtapesImagesIteration(etapes, crees.length), "agent", "fait");
+        await ecrire(d, { etapes: e, contexte: { ...vus, decisionsARecompiler: aRecompiler, preparation: { assetsCrees: crees } } });
         return true;
       }
-      await ecrire(d, { etapes: avancerEtapes(etapes, "agent", "fait"), contexte: { ...ctx, runUuid: g.runUuid, decisions: decision.affichage, notesAgent: decision.notes } });
+      const g = await genererReecriturePlan(conversationUuid, { consigne: ctx.consigne, decisions: aRecompiler, demandeId: d.id });
+      if (!g.ok) {
+        if (/déjà en cours/i.test(g.erreur)) return false; // la conversation est prise par autre chose : au prochain tour
+        await ecrire(d, { statut: "echoue", erreur: g.erreur, contexte: vus });
+        return true;
+      }
+      await ecrire(d, { etapes: avancerEtapes(etapes, "agent", "fait"), contexte: { ...vus, runUuid: g.runUuid } });
       return true;
     }
   }
+}
+
+/** « Itérer » en attente d'images (vague 4a) : prompts puis images des références que les décisions donneront au plan ; quand elles sont là, la
+ * recompilation part avec les décisions gardées (`decisionsARecompiler`). Une image en échec arrête l'itération en nommant l'asset ; le plan reste
+ * inchangé, les décisions restent visibles. */
+async function avancerImagesIteration(d: LigneDemande, ctx: ContexteIteration, etapes: EtapeDemande[], cle: "prompts" | "images"): Promise<boolean> {
+  const dec = ctx.decisionsARecompiler;
+  if (!dec) return echouer(d, "Les décisions de l'agent sont introuvables : relance « Itérer ».");
+  const [plan] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, d.cibleId));
+  if (!plan) return echouer(d, "Plan introuvable.");
+  const finales = await referencesApresDecisions(d.projectId, plan.uuid, dec.references ?? {});
+  if (!finales) return echouer(d, "Plan introuvable.");
+  const prep = ctx.preparation ?? {};
+  return avancerPromptsImages(
+    d,
+    etapes,
+    cle,
+    finales.codes,
+    prep,
+    (maj) => ecrire(d, { ...(maj.etapes ? { etapes: maj.etapes } : {}), ...(maj.prep ? { contexte: { ...ctx, preparation: { ...prep, ...maj.prep } } } : {}) }),
+    async (suite) => {
+      const conv = await ouvrirConversation(d.projectId, "plan", { uuid: plan.uuid }, "courte");
+      if (!conv.ok) return echouer(d, conv.erreur);
+      const g = await genererReecriturePlan(conv.conversationUuid, { consigne: ctx.consigne, decisions: dec, demandeId: d.id });
+      if (!g.ok) return /déjà en cours/i.test(g.erreur) ? false : echouer(d, g.erreur);
+      await ecrire(d, { etapes: suite, contexte: { ...ctx, runUuid: g.runUuid } });
+      return true;
+    },
+  );
 }
 
 /** Annule la demande : elle passe à « annulée » tout de suite (le pilote ne la touche plus) et la tâche en cours est annulée avec elle
@@ -505,7 +798,9 @@ export async function annulerDemande(demandeId: number): Promise<"annulee" | "ri
   await ecrire(d, { statut: "annulee", erreur: null });
   const ctx = lireContexte(d);
   const cur = etapeCouranteDemande(lireEtapes(d));
+  const lotPrompts = (d.contexte as { preparation?: { promptsPropositionUuid?: string } }).preparation?.promptsPropositionUuid;
   if (cur?.cle === "rendu" && ctx.jobId != null) await demanderAnnulation(cleVideo(ctx.jobId));
+  else if (cur?.cle === "prompts" && lotPrompts) await annulerLot(lotPrompts);
   else if (ctx.runUuid) await demanderAnnulation(cleLlm(ctx.runUuid));
   return "annulee";
 }

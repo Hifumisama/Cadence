@@ -388,6 +388,9 @@ export type DecisionsIteration = {
   references?: { ajouter: string[]; retirer: string[] };
   /** Réglages Open H3 IR du PLAN (`plans.creativite`, `plans.style_camera` ; `"aucun"` = pas de style). */
   reglages?: { creativite?: string; styleCamera?: string };
+  /** Assets à CRÉER (deux au plus, code et parent valides) : créés d'office, leur image générée, puis ajoutés aux références avant la recompilation
+   * (vague 4a, 2026-11-09). */
+  manquants?: { code: string; type: string; parent: string | null; description: string; raison: string }[];
 };
 
 /** Les décisions telles que la page d'un plan les montre (« Itérer »). */

@@ -153,7 +153,15 @@ travaille **au niveau du projet**, avant les fiches : il lit tous les plans et l
    l'annulation, le verrou GPU. Sans rendu.
 4. **(M) FAIT le 2026-11-02 (typographie non restaurée : décision 10)** — `depuisCompilationH3ir` : sections, `plan_refs` depuis le manifeste, voix réécrites, typographie restaurée, diagnostics en avertissements, version
    d'historique. Comparer à plan-h3 dans la fiche, sans rendu.
-5. **(M) Étape « choix des références »** (voir plus haut) + câblage avec `inventaire-assets`.
+5. **(M) FAIT le 2026-11-09 (vague 4a), à tester en réel** — « choix des références » et câblage. Open H3 IR est le seul producteur des prompts vidéo,
+   plan neuf compris : chaque demande « Générer la fiche » (et « Écrire les fiches », « Générer la fiche avec ces réglages ») PRÉPARE puis COMPILE
+   (`lib/h3ir/preparation.ts` règles pures, `preparation-db.ts`, pilote `lib/demandes-db.ts`) : références (gardées si l'inventaire ou l'utilisateur les a
+   posées ; sinon choisies par le code, `lib/h3ir/references-plan.ts` ; petit skill `references-plan` seulement en cas de doute, une tâche par plan, dans
+   l'ordre du scénario) → assets manquants (deux au plus, créés d'office) → prompts (`prompt-asset`) → images (adoption automatique ; la demande reste « en
+   attente d'images », une image en échec l'arrête en nommant l'asset) → compilation. Chemin rapide : références prêtes = compilation directe. « Itérer »
+   suit la même mécanique (assets décidés créés, images attendues, recompilation automatique ; rien n'est écrit sur le plan tant qu'elle n'a pas réussi).
+   Plus aucun repli automatique sur `plan-h3` : retour arrière d'urgence seulement, par `CADENCE_MOTEUR_FICHE=plan-h3` (web et worker) ou l'option
+   interne `moteur: "plan-h3"`.
 6. **(S) FAIT le 2026-11-02** — relances d'échec (seed+1, deux fois) et messages (décision 6), dans `compilerAvecRelances`.
 7. **(M) FAIT le 2026-11-02, à essayer dans l'interface** — héritage créativité / style de caméra : migration 0077, réglages du projet (page Brief), de la scène (« Modifier »), du plan (panneau du scénario), tiroir « Brief Open H3 IR » prérempli (`lib/h3ir/reglages.ts`, `chargerBriefPlan`). La valeur « aucun » force l'absence de style par-dessus un niveau supérieur.
 8. **(S) FAIT le 2026-11-02** — alignements : `controlerStructure` juge les shots contre la durée effective avec un plancher de 1,2 s (`SHOT_MIN_FICHE_SECONDES` ; `plan-h3` garde 1,5 s pour son brouillon) ; `iteration-plan` : la règle de coupe garde « la forme du prompt », `dureesCoherentes` accepte la durée effective, `dernierShotLisible` retire aussi « the shot cuts to ».

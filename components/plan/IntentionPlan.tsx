@@ -24,11 +24,13 @@ type Phase = "repos" | "preparation" | "agent" | "lancement";
  * et la fiche actuelle (par défaut : la planche n'est jamais automatique). */
 type Vision = "planche" | "fiche";
 
-const message = (phase: Exclude<Phase, "repos">, vision: Vision): string =>
+const message = (phase: Exclude<Phase, "repos">, vision: Vision, etape: string | null): string =>
   phase === "preparation"
     ? "Je prépare l'essai de départ…"
     : phase === "agent"
-      ? `${vision === "planche" ? "L'agent regarde le rendu et décide quoi changer" : "L'agent lit ta consigne et décide quoi changer"}, puis la fiche est recompilée. Compte une à quelques minutes ; tu peux quitter la page, la demande continue dans le panneau des tâches.`
+      ? etape && /^(Création d'assets|Prompts d'assets|Images)/.test(etape)
+        ? `En attente d'images : ${etape}. Les assets décidés par l'agent sont générés, puis la fiche est recompilée ; tu peux quitter la page, la demande continue dans le panneau des tâches.`
+        : `${vision === "planche" ? "L'agent regarde le rendu et décide quoi changer" : "L'agent lit ta consigne et décide quoi changer"}, puis la fiche est recompilée. Compte une à quelques minutes ; tu peux quitter la page, la demande continue dans le panneau des tâches.`
       : "Mise en file de la prévisualisation…";
 
 /** Le bloc « Qu'est-ce qu'on change ? » : la consigne en langage naturel est la boucle d'itération.
@@ -77,6 +79,8 @@ export function IntentionPlan({
   const [montrer, setMontrer] = useState(false);
   const [phase, setPhase] = useState<Phase>("repos");
   const [vision, setVision] = useState<Vision>("fiche");
+  /** L'étape en cours de la demande (« Images (1/2) ») : dite quand l'itération attend des images. */
+  const [etape, setEtape] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   /** Les décisions de l'agent (avant → après), dès qu'il a répondu : gardées jusqu'à la prochaine consigne. */
@@ -154,6 +158,7 @@ export function IntentionPlan({
       if (v.decisions) setDecisions(v.decisions);
       if (v.etapeLibelle && v.etapeLibelle !== dernier) {
         dernier = v.etapeLibelle;
+        setEtape(v.etapeLibelle);
         if (v.etapes.find((e) => e.cle === "reecriture")?.statut === "en_cours") setVision("fiche");
         setPhase("agent");
       }
@@ -317,7 +322,7 @@ export function IntentionPlan({
           <span className="tm-fil tm-fil-petit">
             <i />
           </span>
-          {message(phase, vision)}
+          {message(phase, vision, etape)}
           {phase === "agent" ? (
             <button
               type="button"

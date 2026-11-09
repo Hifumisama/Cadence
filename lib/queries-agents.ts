@@ -413,23 +413,24 @@ export async function estimerRegistre(nbAssets: number): Promise<EstimationGener
   };
 }
 
-/** Estimation des fiches de plan : un appel `plan-h3` par plan, l'un après l'autre (≈ 3 500 jetons d'entrée
- * propres au plan en plus du prompt système, mesuré sur le projet 1). */
+/** Estimation des fiches de plan (Open H3 IR, vague 4a) : par plan, la traduction de l'intent (`traduction-intent`, ≈ 1 000 jetons d'entrée propres au
+ * plan) avant le compilateur, plus, en cas de doute du choix automatique seulement, un petit appel `references-plan` (non compté : il est rare). Les
+ * prompts et les images des assets manquants s'ajoutent à la file. Ordre de grandeur. */
 export async function estimerFiches(nbPlans: number): Promise<EstimationGeneration> {
   const conf = configLlm();
   const n = Math.max(1, nbPlans);
-  const entree = chargerSkill("plan-h3").jetonsEstimes + 3500;
-  const sortie = SORTIE_ESTIMEE["plan-h3"] ?? 2500;
+  const entree = chargerSkill("traduction-intent").jetonsEstimes + 1000;
+  const sortie = SORTIE_ESTIMEE["traduction-intent"] ?? 500;
   const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
   const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
   return {
     fournisseur: conf.fournisseur,
-    modele: await modeleEffectifPourSkill("plan-h3"),
+    modele: await modeleEffectifPourSkill("traduction-intent"),
     coutEstimeUsd: null,
     jetonsEntreeEstimes: entree * n,
     dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
     tachesDevant: images + appels,
-    skill: "plan-h3",
+    skill: "traduction-intent",
   };
 }
 

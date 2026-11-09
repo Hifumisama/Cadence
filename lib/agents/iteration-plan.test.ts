@@ -210,17 +210,22 @@ test("références : une image ajoutée sans fichier est une ALERTE (la recompil
   assert.deepEqual(decisionsEffectives(s, ctx()), { references: { ajouter: ["PROP_torche"], retirer: [] } });
 });
 
-test("manquants : deux au plus, jamais un code du registre ; seuls, rien n'est recompilé et la raison les nomme", () => {
+test("manquants : deux au plus, jamais un code du registre ; seuls, ils suffisent à recompiler (créés d'office, vague 4a)", () => {
   const m = (code: string) => ({ code, type: "prop", description: "x", raison: "aucune image" });
   assert.ok(erreurs(sortie({}, { manquants: [m("PROP_a"), m("PROP_b"), m("PROP_c")] })).includes("trop-de-manquants"));
   assert.ok(erreurs(sortie({}, { manquants: [m("PROP_lampe")] })).includes("manquant-existe"));
   const seuls = sortie({}, { manquants: [{ code: "CHAR_mai_blessee", type: "personnage", parent: "CHAR_mai", description: "Mai blessée.", raison: "Aucune image de cet état." }], reglages: { creativite: null, styleMiseEnScene: null } });
-  assert.equal(decisionsEffectives(seuls, ctx()), null);
-  assert.match(raisonSansEcriture(seuls, ctx()) ?? "", /suggère de créer CHAR_mai_blessee/);
+  const dec = decisionsEffectives(seuls, ctx());
+  assert.deepEqual(dec?.manquants?.map((x) => [x.code, x.type]), [["CHAR_mai_blessee", "personnage"]]);
+  assert.equal(raisonSansEcriture(seuls, ctx()), null);
   const d = diagnosticIteration(seuls, { plan: { intention: DESC_AVANT, dureeVoulueSecondes: 6 } })!;
   assert.deepEqual(d.assetsSuggeres, [{ code: "CHAR_mai_blessee", type: "personnage", parent: "CHAR_mai", raison: "Aucune image de cet état." }]);
-  assert.equal(d.decisions, null);
+  assert.equal(d.decisions?.manquants?.[0]?.code, "CHAR_mai_blessee");
   assert.deepEqual(d.affichage!.manquants, [{ code: "CHAR_mai_blessee", raison: "Aucune image de cet état." }]);
+  // Un manquant d'un type non créé d'office (un effet) ne fait pas de décision : la raison le dit.
+  const effet = sortie({}, { manquants: [{ code: "VFX_brume", type: "vfx", description: "Brume.", raison: "x" }], reglages: { creativite: null, styleMiseEnScene: null } });
+  assert.equal(decisionsEffectives(effet, ctx()), null);
+  assert.match(raisonSansEcriture(effet, ctx()) ?? "", /VFX_brume.*pas valides/);
 });
 
 test("durée incohérente (mesurée ou jugée) et abandon : aucune décision retenue, alertes sans renvoi", () => {

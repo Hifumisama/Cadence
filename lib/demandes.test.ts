@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ERREUR_ANNULEE } from "./annulation";
-import { avancerEtapes, decisionAjoutPlan, decisionAjoutScene, decisionFichePlan, etapesAjoutScene, etapesFichePlan, deciderIteration, etapeCouranteDemande, etapesAjoutPlan, etapesIterationPlan, progressionDemande } from "./demandes";
+import { avancerEtapes, decisionAjoutPlan, decisionAjoutScene, decisionFichePlan, etapesAjoutScene, etapesFichePlan, deciderIteration, etapeCouranteDemande, etapesAjoutPlan, etapesIterationPlan, insererEtapesImagesIteration, progressionDemande, renommerEtape } from "./demandes";
 
 const run = (statut: string, erreur: string | null = null) => ({ genre: "run" as const, statut, erreur });
 const job = (statut: string, erreur: string | null = null) => ({ genre: "job" as const, statut, erreur });
@@ -124,20 +124,36 @@ test("nouvelle scène : sans scène, sans plan, bloquée ou refusée, la demande
 
 // --- Générer la fiche d'un plan ------------------------------------------------------------------------------------------------------------
 
-test("fiche de plan : les étapes suivent le parcours (Open H3 IR direct, plan-h3 imposé, repli plan-h3 puis compilation)", () => {
-  assert.deepEqual(etapesFichePlan("h3ir").map((x) => x.cle), ["agent", "ecriture"]);
-  assert.match(etapesFichePlan("h3ir")[0]!.libelle, /Open H3 IR/);
+test("fiche de plan : préparation (références → assets → prompts → images → compilation), chemin rapide, plan-h3 imposé", () => {
+  const prep = etapesFichePlan("preparation");
+  assert.deepEqual(prep.map((x) => [x.cle, x.statut]), [["references", "en_cours"], ["assets", "a_venir"], ["prompts", "a_venir"], ["images", "a_venir"], ["compilation", "a_venir"]]);
+  assert.deepEqual(etapesFichePlan().map((x) => x.cle), prep.map((x) => x.cle), "le parcours par défaut est la préparation Open H3 IR");
+  // Chemin rapide : les références ont toutes leur image, la compilation part tout de suite (la préparation est « passée »).
+  const rapide = etapesFichePlan("rapide");
+  assert.equal(etapeCouranteDemande(rapide)?.cle, "compilation");
+  assert.deepEqual(progressionDemande(rapide), { faites: 4, total: 5 });
+  // Références faites sans asset créé : assets passée, les prompts deviennent l'étape en cours ; les compteurs se lisent dans les libellés.
+  let e = avancerEtapes(avancerEtapes(prep, "references", "fait"), "assets", "passe");
+  assert.equal(etapeCouranteDemande(e)?.cle, "prompts");
+  e = renommerEtape(avancerEtapes(e, "prompts", "passe"), "images", "Images (1/3)");
+  assert.equal(etapeCouranteDemande(e)?.libelle, "Images (1/3)");
+  assert.equal(etapeCouranteDemande(avancerEtapes(avancerEtapes(e, "images", "fait"), "compilation", "fait")), null);
+  // Retour arrière d'urgence : l'agent plan-h3 écrit, la fiche est enregistrée.
   assert.deepEqual(etapesFichePlan("plan-h3").map((x) => x.cle), ["agent", "ecriture"]);
-  const repli = etapesFichePlan("plan-h3-puis-h3ir");
-  assert.deepEqual(repli.map((x) => [x.cle, x.statut]), [["agent", "en_cours"], ["ecriture", "a_venir"], ["compilation", "a_venir"]]);
-  // La fiche plan-h3 enregistrée, la compilation devient l'étape en cours ; passée, la demande est finie.
-  const apres = avancerEtapes(avancerEtapes(repli, "agent", "fait"), "ecriture", "fait");
-  assert.equal(etapeCouranteDemande(apres)?.cle, "compilation");
-  assert.equal(etapeCouranteDemande(avancerEtapes(apres, "compilation", "passe")), null);
+});
+
+test("itérer : des images à attendre insèrent assets, prompts et images avant la recompilation", () => {
+  const e = insererEtapesImagesIteration(etapesIterationPlan(), 2);
+  assert.deepEqual(e.map((x) => x.cle), ["agent", "assets", "prompts", "images", "reecriture", "rendu"]);
+  assert.equal(e[1]!.libelle, "Création d'assets (2)");
+  assert.equal(e[1]!.statut, "fait");
+  const apres = avancerEtapes(e, "agent", "fait");
+  assert.equal(etapeCouranteDemande(apres)?.cle, "prompts");
+  assert.equal(insererEtapesImagesIteration(e, 1), e, "déjà insérées : rien ne change");
+  assert.equal(insererEtapesImagesIteration(etapesIterationPlan(), 0)[1]!.statut, "passe");
 });
 
 test("fiche de plan : la fiche et les assets qu'elle crée sont retenus, le reste (un plan) reste décoché", () => {
-  assert.deepEqual(etapesFichePlan().map((x) => x.cle), ["agent", "ecriture"]);
   assert.deepEqual(decisionFichePlan(null), { action: "attendre" });
   const d = decisionFichePlan(
     proposition("prete", [
