@@ -69,6 +69,12 @@ test("lireEntreeH3ir : le plan est obligatoire, shots et style facultatifs", () 
   // Réécriture d'« Itérer » : la nouvelle description (et sa durée) remplacent celles du plan.
   assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "Mai court.", dureeSecondes: 6 }), { planUuid: "u", shots: null, director: null, creativity: null, description: "Mai court.", dureeSecondes: 6 });
   assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "  ", dureeSecondes: 6.5 }), { planUuid: "u", shots: null, director: null, creativity: null });
+  // Décisions d'« Itérer » (2026-11-09) : références ajoutées / retirées et réglages du plan, gardés seulement quand ils portent quelque chose.
+  assert.deepEqual(
+    lireEntreeH3ir({ planUuid: "u", references: { ajouter: ["PROP_lampe", 3], retirer: [] }, reglagesPlan: { creativite: "bold", styleCamera: null } }),
+    { planUuid: "u", shots: null, director: null, creativity: null, references: { ajouter: ["PROP_lampe"], retirer: [] }, reglagesPlan: { creativite: "bold", styleCamera: null } },
+  );
+  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", references: { ajouter: [], retirer: [] }, reglagesPlan: {} }), { planUuid: "u", shots: null, director: null, creativity: null });
 });
 
 test("executerH3ir : la description de remplacement va au chargement du brief ; sans elle, rien n'est surchargé", async () => {
@@ -81,7 +87,12 @@ test("executerH3ir : la description de remplacement va au chargement du brief ; 
   });
   await executerH3ir({ projectId: 7, entree: { planUuid: "u1", description: "Mai court.", dureeSecondes: 6 } }, OPTIONS(), d);
   await executerH3ir({ projectId: 7, entree: { planUuid: "u1" } }, OPTIONS(), deps({ charger: async (_p, _u, _o, s) => (vus.push(s), BRIEF_OK) }).d);
-  assert.deepEqual(vus, [{ description: "Mai court.", dureeSecondes: 6 }, undefined]);
+  await executerH3ir({ projectId: 7, entree: { planUuid: "u1", references: { ajouter: ["PROP_lampe"], retirer: ["DEC_x"] }, reglagesPlan: { creativite: "restrained" } } }, OPTIONS(), deps({ charger: async (_p, _u, _o, s) => (vus.push(s), BRIEF_OK) }).d);
+  assert.deepEqual(vus, [
+    { description: "Mai court.", dureeSecondes: 6 },
+    undefined,
+    { description: null, dureeSecondes: null, references: { ajouter: ["PROP_lampe"], retirer: ["DEC_x"] }, reglages: { creativite: "restrained", styleCamera: null } },
+  ]);
 });
 
 test("executerH3ir : brief → traduction (une fois, intent français) → compilation avec l'intent anglais", async () => {

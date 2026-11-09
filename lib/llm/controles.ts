@@ -5,6 +5,8 @@ import { controlerDureeScenario, controlerStructureScenario } from "../agents/sc
 import { controlerTraitement } from "../agents/traitement";
 import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-plan";
 import { problemesDeRelecture, type EntreeRelecture, type SortieRelecture } from "../agents/relecture";
+import { contexteReferencesDepuisEntree, controlerReferences, type SortieInventaire } from "../agents/inventaire";
+import { corrigerCodesReferencesPlan, problemesReferencesPlan, SKILL_REFERENCES_PLAN, type EntreeSkillReferencesPlan, type SortieReferencesPlan } from "../agents/references-plan";
 
 /** Contrôles SÉMANTIQUES d'un skill, appliqués à une sortie qui respecte déjà le schéma : ce que le
  * schéma ne sait pas dire (un code d'asset recopié de travers, un timecode qui recule…). S'il en trouve,
@@ -14,6 +16,14 @@ import { problemesDeRelecture, type EntreeRelecture, type SortieRelecture } from
 export type Controleur = (json: unknown) => string[];
 
 export function controleurPourSkill(skill: string, entree: unknown): Controleur | undefined {
+  if (skill === SKILL_REFERENCES_PLAN) {
+    // Des codes connus (un mot de liaison mal recopié est rapproché d'abord), ni son ni voix, 6 images et 2 manquants au plus, un manquant qui ne double pas l'existant.
+    const e = (entree ?? {}) as EntreeSkillReferencesPlan;
+    if (!Array.isArray(e.candidats)) return undefined;
+    const ctx: EntreeSkillReferencesPlan = { ...e, assetsProposesParLeLot: e.assetsProposesParLeLot ?? [] };
+    const codes = [...ctx.candidats.map((c) => c.code), ...ctx.assetsProposesParLeLot.map((a) => a.code)];
+    return (json) => problemesReferencesPlan(corrigerCodesReferencesPlan(json as SortieReferencesPlan, codes).sortie, ctx);
+  }
   if (skill === "plan-h3") {
     const e = (entree ?? {}) as { registre?: { code: string; type: string }[]; plan?: { raccord?: boolean } };
     const ctx = {
@@ -40,6 +50,16 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
     const e = (entree ?? {}) as EntreeRelecture;
     if (!Array.isArray(e.plans)) return undefined;
     return (json) => problemesDeRelecture(json as SortieRelecture, e).map((x) => x.message);
+  }
+  if (skill === "inventaire-assets") {
+    // Les références de chaque plan (2026-11-09) : codes connus (registre, assets déjà proposés, assets de la réponse), aucun son, 6 images au plus,
+    // une entrée par plan. Ce que le code corrige seul (doublon, second décor, second visage, keyframe non citée) n'est qu'une alerte.
+    return (json) => {
+      const sortie = json as SortieInventaire;
+      return controlerReferences(sortie, contexteReferencesDepuisEntree(entree, sortie))
+        .problemes.filter((p) => p.niveau === "erreur")
+        .map((p) => p.message);
+    };
   }
   if (skill === "traitement-episode") {
     const vise = ((entree ?? {}) as { nombreDeScenes?: { min: number; max: number } }).nombreDeScenes;

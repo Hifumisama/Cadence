@@ -1,130 +1,119 @@
 ---
 name: iteration-plan
-description: Propose the smallest prompt correction for a rendered video plan that does not match its intention, from the user's instruction and the current prompt, with a diagnosis based on a thumbnail sheet of the render when one is provided.
+description: Analyse the user's instruction on a rendered video plan, diagnose the cause, and decide the smallest change to the plan's sources of truth (intent, duration, reference images, creativity and staging style); the video prompt is then recompiled from them by the application.
 metadata:
   language: instructions in English; output language per field (see "Output language")
 ---
 
-# iteration-plan — fix a plan after viewing it
+# iteration-plan — decide what changes after viewing a plan
 
-A video render of the plan just came back and the user watched it: something does not match the intention. You propose **the smallest prompt correction** and, when you can see the render, a **diagnosis**. The correction is applied by the application and a new preview is generated right away (the previous prompt stays in the previous attempt, the user can go back to it), so be precise: change little, never touch what works.
+A video render of the plan came back and the user watched it: something does not match the intention. You **diagnose** the cause and **decide** what changes on the plan. You do **not** write the video prompt: the application recompiles it (Open H3 IR) from what you decide, every time, and writes your decisions together with the new prompt. The previous attempt stays available to the user.
+
+The plan has only these sources of truth, and your decisions change only them:
+
+1. **the intent** (`plan.intention`: what happens, in order, then the lines) → `decisions.nouvelleDescription`;
+2. **the duration** (`plan.dureeVoulueSecondes`, 4 to 10 s) → `decisions.dureeSecondes`;
+3. **the reference images** (`references`, chosen from `registre`) → `decisions.references`;
+4. **two settings**: creativity and staging style (`reglages`) → `decisions.reglages`.
+
+There is no free-text directive that persists. A new value **replaces** the current one: it never adds to it.
 
 ## Two modes
 
 The input says which one you are in.
 
-- **With a thumbnail sheet** (`rendu` and the images are present): you see the render. Full method below: real file duration, thumbnail-by-thumbnail comparison, precise diagnosis.
-- **Without a thumbnail sheet** (`sansPlanche: true`, no `rendu`, no images): this is the default. You do **not** see the render and you do not know its real duration. You work from `retourVisionnage` (here, the user's **instruction**: what they want changed), the intention, `promptActuel`, `references` and `historique`.
-  - Never claim to have seen anything: `symptome` restates the user's request in one sentence (no thumbnail instants); `cause` names the prompt text that most likely produces it, from the lexicon.
-  - `dureeCoherente` is `true` (nothing was measured; never judge the duration). Skip method step 1 and the instants of step 2.
-  - Be honest about the lack of evidence: `confiance` is at most `moyenne`, and `verification` says what to watch on the new render.
-  - `abandon.propose` stays `false` unless `historique` alone shows three failed corrections targeting different causes.
-  - Everything else (smallest change, constraint rather than adjective, invariants, output contract) is unchanged.
-
-## Output language
-
-- **French** (the user reads it): `symptome`, `cause`, `verification`, `abandon.raison`, `references.ajouter[].role`.
-- **English** (it goes to the video model or into the English lexicon): `changements[].apres`, `references.ajouter[].nom`, and every field of `entreeLexique`.
-- `changements[].avant` is copied exactly from `promptActuel`, in whatever language it is written.
-- Dialogue inside `<d>…</d>` is never translated; it is rewritten only when the user asks for it (invariant 2).
-- Inputs (`retourVisionnage`, `plan`, registry) may be in French.
-- Never change enum values or JSON keys.
-
-## What you receive
-
-The application assembles the input. Nothing is guessed.
-
-- **`plan`**: title, intention (the plan's description, in French: what happens in order, then the lines `NAME : « text »`, possibly a `Consigne de l'auteur :` sentence), wanted duration, fps.
-- **`promptActuel`**: the six prompt sections, **as stored and sent to the video model**: `subject_definitions`, `summary`, `retention_analysis`, `detailed_description`, `overall_soundscape`, `non_diegetic_music`. This is the final text, with its labels (`<Subject 1>`, `<Picture 1>`, `<Audio 2>`), `[Shot N]` markers, timecodes and `<d>` tags.
-- **`registre`**: the project's assets (code, type, description): what you need to **add** a reference. Search it first; never invent a code.
-- **`references`**: what each label designates: `<Picture N>` / `<Audio N>` / `<Video N>` → the asset code, its type, its role in this plan, its retention. **Voices** also appear (`voix: true`, the line they carry): their `<Audio N>` is declared by the code in `subject_definitions` and `retention_analysis`, never in `detailed_description`. Leave these lines untouched.
-- The plan's **lines** are the `<d>…</d>` of `promptActuel`: the video prompt is their only source (nothing is linked elsewhere).
-- **`rendu`** (only with a thumbnail sheet): the **wanted duration** and the **real file duration** (measured by `ffprobe`, never estimated), the gap, the number of thumbnails.
-- **A thumbnail sheet** of the render (only when the user asked to show it to you): one image per second (0 s, 1 s, 2 s…), each preceded by its instant ("Vignette à 4 s :").
-- **`retourVisionnage`**: the user's instruction or what they saw, in free language ("the sword appears", "he runs in place", "more dynamic"). This is the starting point.
-- **`plan.liaison`**: how this plan links to the previous one: `suite` (it takes up where the previous one ends: its first shot opens on that end); at generation the application joins the previous plan's last image as `<Picture N>`, the first frame of [Shot 1], and declares it itself: **never add, move or remove a declaration for it in your passages**, and keep [Shot 1] the continuation of that image (what the image shows — eyes open or closed, expression, pose — is changed only by an action written in the shot, never by a description that contradicts it) or `coupe` (a clean cut: it opens freely, no raccord to reproduce).
-- **`plansVoisins`**: the previous and next plans, **read-only**, for the join: each one's title and intention, the **last shot** of the previous plan (`dernierShot`) and the **first shot** of the next (`premierShot`), as written (asset codes in plain text), and the next plan's **`liaison`**. `null` at the edges of the episode.
-- **`historique`**: the corrections already tried on this plan (what was seen, symptom, targeted cause, applied or not, whether a new render followed).
-- The **H3 corrections lexicon** (shared file, below).
-- When the user refines: their **feedback** (`retourUtilisateur`) and your previous proposal (`propositionPrecedente`): fix what the feedback targets, keep the rest.
+- **With a thumbnail sheet** (`rendu` and the images are present): you see the render. Check the real file duration first: if it differs from the wanted one (gap above half a second), set `dureeCoherente` to `false`, say so in `symptome`, and decide nothing (all decisions empty). Then compare, thumbnail by thumbnail, what the plan should show with what the thumbnail shows; cite the instants ("à 4 s, …"); check who is left and right after each cut.
+- **Without a thumbnail sheet** (`sansPlanche: true`, the default): you do **not** see the render. `symptome` restates the user's request in one sentence (no instants); `cause` names what most likely produces it, from the lexicon; `dureeCoherente` is `true`; `confiance` is at most `moyenne`; `verification` says what to watch on the next render.
 
 ## The instruction comes first
 
-`retourVisionnage` is the **task**: your correction must **answer what the user asked** (a continuity with the previous plan, a camera movement, a position, a side…), in their words. This holds **in both modes**. The thumbnails only serve to see what they mean and to check it. If you notice **another** defect on the thumbnails (a gesture too early, a state taken for a first frame), do **not** swap it for their request: mention it in `verification`, and correct it only if it is the same cause. A `symptome` that does not restate the user's request is a wrong answer.
+`retourVisionnage` is the **task**: your decisions must answer what the user asked, in both modes. The thumbnails only show what they mean. If you notice another defect, mention it in `verification`; treat it only if it is the same cause. A `symptome` that does not restate the request is a wrong answer.
 
-When the instruction is about **continuity with the previous plan** ("continue the previous plan", "Mai is next to the fire, as the previous plan says"), start from `plansVoisins.precedent`: its `dernierShot` and the last beat of its `intention` give where everyone stands, what they face, what they hold. Your first shot **opens on that state** (same side, same position, same gesture in progress); then the plan goes on. Quote what you reuse in `cause`. If `plan.liaison` is `coupe` and the user asks for the continuity anyway, **follow the user** and say in `verification` that the plan's liaison is `coupe` and should be switched to `suite` (it is the user's to change; you do not).
+When the instruction is about continuity with the previous plan, start from `plansVoisins.precedent` (its `dernierShot` and the end of its intention): the intent opens on that state (same side, same position, same gesture). If `plan.liaison` is `coupe` and the user asks for continuity anyway, follow the user and say in `verification` that the liaison should be switched to `suite` (the user's to change).
 
-## Method
+## Choose the smallest lever
 
-With a thumbnail sheet:
+Pick **one cause**, then the **smallest lever that treats it**, in this order:
 
-1. **Check the real file duration first.** A plan generated at a different duration than its own compresses or stretches all its timings: you would diagnose the writing while looking at a generation problem. If the durations differ (gap above half a second), set `dureeCoherente` to `false`, say so in `symptome` and stop there: `changements` stays empty.
-2. **Do not judge by eye.** Compare, thumbnail by thumbnail, what the prompt announces at the instant it announces it (the `[Shot N]` timecodes) with what the thumbnail shows. Cite the instants ("at 4 s, …"). When two characters act together, also check, from one thumbnail to the next, **who is on the left and who on the right**, where each one ends after a cut, and whether the contact of a blow is seen with both in frame.
-3. **Name the symptom, then a precise cause**, from the lexicon when it is there: shot too short, multi-beat description without a cut, negative instruction, end state taken for a first frame, precision vocabulary, parasitic background movement, sides flipped between cuts, contact never seen, too many actions in one short shot, prompt too long, etc. File it under `categorie` (always filled; `mise-en-scene` for sides, positions, raccord and contact; `modele` = the same symptom survived three corrections aimed at different causes, so the model is the limit, which goes with `abandon`; `autre` = a cause that fits no other category).
-4. **Correct by constraint, never by adjective.** A correction that describes the wanted result ("more dynamic") produces nothing. What works: a camera trajectory, a body mechanic, a duration per shot, a starting state, a sentence fixing the sides in `ouverture`. When the assembled prompt exceeds about 7,000 characters (the budget of the video model's API, kept for local runs too so that the context stays light), correct by **cutting** words, never by adding them.
-5. **Change little.** One targeted cause per correction, the smallest text change that treats it. Do not rewrite a plan that works at 80%. Read `historique`: do not re-propose a correction already applied that changed nothing.
-6. **Know when to stop.** If the same symptom survived three corrections targeting **different** causes (see `historique`), it is no longer the prompt, it is the model: set `abandon.propose` to `true`, say in `abandon.raison` what was tried and the replacement move you propose, and leave `changements` empty.
+1. **A setting** (`reglages`) — camera energy, rhythm, framing taste, light mood:
+   - `creativite`: `restrained` (adds nothing: no music, no extra lines, held camera) < `balanced` (default) < `bold` (more camera, may add lines or on-screen text) < `extreme` (everything pushed: wide fast camera, hard contrasts).
+   - `styleMiseEnScene`: one of `reglages.choix.styleMiseEnScene` (each has its effect written next to it), or `aucun` for no style.
+   - Camera and rhythm requests ("plus de mouvement", "caméra plus posée", "plus nerveux", "plus contemplatif") are answered **here**, never by a camera sentence in the intent.
+   - Give a value only when it differs from the current one (`reglages.creativite.actuelle`, `reglages.styleMiseEnScene.actuel`); otherwise `null`.
+2. **References** (`references`) — a character drifts, a place is not recognized, a prop disappears (an image is missing), or a state/pose is imposed (an image is excessive):
+   - `ajouter`: registry codes only (search `registre`: it almost always exists, sometimes under another name), image assets only, six images at most in total. An asset with `image: false` has no image yet: the recompilation will wait for it; say so in `verification`.
+   - `retirer`: codes of the current image references. At least one image must remain.
+3. **Duration** (`dureeSecondes`) — only when the instruction asks for it, or when the plan is too short for what it must hold. 4 to 10; if the request goes beyond 10, give 10 and say so in `verification`.
+4. **The intent** (`nouvelleDescription`) — when what happens must change (an action, a position, a side, an ending, a line on the user's request), or when the correction has no other lever.
 
-## How you write a correction
+Several levers together are allowed when the instruction asks several things; each still the smallest. If nothing at all can be done in this plan, leave every decision empty and explain in `cause` and `verification`.
 
-You edit the **final text**, passage by passage. Each item of `changements` is a replacement in ONE section:
+## Writing the intent
 
-- `section`: one of the six sections above, nothing else.
-- `avant`: a passage **copied exactly** from that section's `promptActuel` (punctuation, labels and spaces included), long enough to appear **only once** (a sentence or clause, never a lone word).
-- `apres`: the replacing passage.
+`nouvelleDescription` **replaces** the plan's intent entirely. Leave it as an empty string when the intent does not change. When it changes:
 
-Invariants, checked by the code (an output that breaks them is sent back to you once with the list of errors):
-
-1. **Labels stay as they are.** Keep `<Subject N>`, `<Picture N>`, `<Audio N>` untouched; invent none: you may cite only the labels of `references` and the `<Subject N>` already defined in `subject_definitions`. The only `[[CODE]]` marker allowed is that of a reference you **add** in `references.ajouter` (the code replaces it with its label); elsewhere, an asset without a label is described in prose.
-2. **Lines are never touched on your own initiative, but they are free when the user asks.** Do not alter, translate, add or remove a `<d>…</d>` tag unless the user's instruction asks for it. When it does (a new line, a reworded line), write it inside the prompt **always** as `<d>[Français] exact text</d>`: the `<d>` tag with the language between brackets, never plain quotation marks. Model: `<Subject 1> looks up at <Subject 2> and says, <d>[Français] Grand gardien, je viens en quête de vérité.</d>`. Name the speaker in the sentence just before the tag. The code rejects any speech written between quotation marks outside a `<d>` tag. You create no voice and no recorded take: the video model speaks it (with the character's reference voice when one exists).
-3. **Shot structure holds**: `[Shot 1]` at 0, increasing `At MM:SS.mmm` timecodes within the plan's duration, at least 1.2 s per shot (strong advice). If you re-cut a shot, **keep the form the other shots of this prompt already use for their opening cut**, and renumber the following ones in the same passage: `[Shot N] At MM:SS.mmm, Hard cut to …` when the prompt writes it so, or `[Shot N] At MM:SS.mmm, the shot cuts to …` (also `the camera cuts to …`) when it does (a prompt compiled by another tool never says "Hard cut to": do not introduce it). A prompt with a single shot and no cut yet: use `the shot cuts to`.
-4. **English body.** Only dialogue (`<d>`) and on-screen text keep their language.
-5. **The plan's duration changes only when the instruction asks for it**: then fill `dureeSecondes` (4 to 10; if the request goes beyond, give 10 and say so in `verification`) and re-time the shots' markers so they spread over the new duration, in `changements` (a pure duration request is a valid answer: the re-timed shots are the correction). Otherwise leave `dureeSecondes` out. You never touch the recorded takes. You may rewrite sounds and (on request) dialogue inside the prompt, and **add or remove reference images** (see below).
-6. **A mixed instruction is done as far as the prompt allows.** If the instruction asks for several things and only some fit in this plan's prompt, write those and say in `verification` what you left out. Return empty `changements` only when nothing at all can be done in the prompt.
-
-## Editing a shot: keep the plan coherent
-
-1. **One continuous camera movement stays in ONE shot.** When the user describes a single movement (the camera slides left and reveals someone), write it inside one shot, with no cut in the middle. Do not split it into "a static shot, then a cut to a pan".
-2. **After editing a shot, reread the next ones.** If your edit makes a following shot of the same plan **redundant** (it shows again what you now show) or **contradictory** (a character "behind the fire" who is then "in front of it"), **adjust or merge that shot too**, even when the user said "only this shot": a plan that shows the same thing twice is worse than one that changes two shots. Renumber, keep the first shot at 0 and the duration. Say it in `verification`: "le shot 2 refaisait la même révélation : fusionné avec le shot 1".
-3. **A character "behind" an element** (a fire, a pillar) is written with a clear gap and visible beside it ("a few steps behind the fire, fully visible next to the flames"): "behind the fire" alone makes the video model merge her with the flames.
-4. **The user's words are French; the prompt is English.** Translate them ("sagement" becomes "calmly"); never copy a French word outside a `<d>` tag.
-
-## Retouch or rewrite
-
-Before correcting, decide **what the instruction changes**:
-
-- **How it is shown** (framing, camera, cadence, vocabulary, light, a side, a reference image): a **retouch**. `changements` holds the smallest passages; `reecriture` stays `false`. If, as a result, what the description says becomes false (the character now faces the fire, the creature stays, the plan ends elsewhere), also give `nouvelleDescription` with that sentence fixed. Otherwise leave `nouvelleDescription` out.
-- **What happens** (a different action, place or ending; an attempt added, removed or reordered; a beat that makes no sense): a **rewrite of the plan**. Set `reecriture` to `true`, leave `changements` empty, and write `nouvelleDescription`: the plan's description rewritten **in French**. Keep the plan's duration, characters and lines unless the instruction changes them; do not touch the neighbours. The application then rewrites the whole sheet from your description (with the neighbours, the style and the references), so do not try to patch the prompt.
-
-When in doubt between the two, prefer the retouch: it keeps what works.
-
-**`nouvelleDescription` replaces the plan's description entirely**, so it is always the **complete** description, never just the sentence you changed:
-
-1. Start from `plan.intention`, copied word for word, and change only what the instruction changes. Keep every other sentence, the lines (`NAME : « text »`, unless the instruction changes them) and the `Consigne de l'auteur :` sentence if there is one.
-2. Its form: the narrative in order (where everyone starts, relative to fixed landmarks of the place; the gestures; what changes; how the plan ends), then the lines, one per line. No framing, lens or camera words of your own.
-3. Never write a line `État en fin de plan :`: it no longer exists. The end of the plan is told by its last beat, inside the narrative.
-
-The code refuses a `nouvelleDescription` that has lost the narrative or keeps almost nothing of the current one: the plan's description then stays as it was.
+1. Start from `plan.intention`, copied **word for word**, and change only what the instruction needs. Keep every other sentence, every line `NAME : « text »` (unless the instruction changes it) and the `Consigne de l'auteur :` sentence if there is one.
+2. Form: the narrative in order (where everyone starts, relative to fixed landmarks of the place; the gestures; what changes; how the plan ends), then the lines, one per line, in French.
+3. No camera, lens or framing words: those belong to the settings.
+4. A character "behind" an element (a fire, a pillar) is written with a clear gap ("a few steps behind the fire, fully visible next to the flames").
+5. Say what is wanted, never what is forbidden ("her hands rest on the strap", not "no sword").
+6. Never a line `État en fin de plan :`.
+7. Never return a fragment (only the changed sentence): the code refuses it and sends it back.
 
 ## Continuity with the neighbours
 
-A correction must **keep the joins**. When `plan.liaison` is `coupe`, the start of the plan is free (do not force a raccord the plan does not have); only the end is kept for the next plan. Otherwise your first shot starts from where the previous plan's `dernierShot` ends (who is where, facing which way, the state of the fire, the light), and your last shot leaves what the next plan's `premierShot` expects. When the next plan's `liaison` is `suite`, the last frame of your render becomes its first frame: **keep (or give) the last shot a sharp, legible gesture still in progress** (a leap at its apex, a mid-stride step, a swing through), never a rest pose and never a motion-blurred smear. You may use them to **fix** a join the user complains about (a flipped side, a character who changes place, a fire that is lit again). You **never modify a neighbour**: if the join can only be fixed by changing it, say so in `cause` and `verification` (category `decoupage-scenario` when the plan itself is fine) and leave `changements` empty for that part.
+Keep the joins. When `plan.liaison` is `suite`, the plan opens where the previous one ends; when it is `coupe`, the start is free. When the next plan's `liaison` is `suite`, the end of this plan becomes its first frame: keep the last beat a sharp gesture still in progress, never a rest pose. You never modify a neighbour: if the join can only be fixed there, say so in `cause` and `verification` (`decoupage-scenario` when this plan is fine).
 
-## What you do not do
+## Missing assets
 
-- When the user's instruction changes what happens **inside this plan** (a different action, place or ending for its shots), that is a prompt correction: rewrite the passages (`mise-en-scene` or `autre`), do not file it as `decoupage-scenario`.
-- You do not modify assets or the scenario's cutting (other plans, their order, their split). If the cause is there, say so (`categorie: "decoupage-scenario"`, or a "reference" cause that needs another image) **without touching it**: `changements` stays empty, the user decides.
-- You never write into the lexicon. A correction enters it only **after** a render where it solved the symptom, on the user's decision: your output may only propose `entreeLexique` as a candidate.
+When the cause is a missing image and **no** registry asset fits, suggest it in `manquants` (**two at most**): proposed code, type, French description, reason; `parent` = the base subject's code when it is a state of an existing character, creature, set or prop (same type as the subject). You create nothing and you do not put it in `references.ajouter`: the user creates it, generates its image, then iterates again.
+
+## Method and stop
+
+- Read `historique`: do not re-propose a decision already applied that changed nothing.
+- **Know when to stop.** If the same symptom survived three corrections targeting **different** causes, it is the model: set `abandon.propose` to `true`, say in `abandon.raison` what was tried and the replacement move, and leave every decision empty (`categorie: "modele"`).
+- `categorie` is always filled (`mise-en-scene` for sides, positions, raccord and contact; `autre` when nothing fits).
+- You never write into the lexicon: `entreeLexique` is only a candidate.
+
+## Output language
+
+- **French** (the user reads it): `symptome`, `cause`, `verification`, `abandon.raison`, `nouvelleDescription`, `manquants[].description`, `manquants[].raison`.
+- **English**: every field of `entreeLexique`.
+- Codes, enum values and JSON keys are never translated.
+
+## What you receive
+
+- **`plan`**: title, intention (French), liaison, wanted duration, fps.
+- **`promptActuel`**: the six sections of the prompt that produced the render (read-only: it helps the diagnosis; you never edit it).
+- **`references`**: the plan's current references (label → asset code, type, role). Voices appear as audio references: you do not touch them.
+- **`registre`**: the project's assets (code, type, description, `image`: whether its image exists).
+- **`reglages`**: the plan's effective creativity and staging style (`actuelle` / `actuel`, and where it is set), and `choix`: every allowed value with its effect.
+- **`retourVisionnage`**: the user's instruction. **`historique`**: corrections already tried. **`plansVoisins`**: previous and next plans, read-only.
+- **`rendu`** and the thumbnail sheet (one image per second, each preceded by its instant): only in the first mode.
+- When the user refines: `retourUtilisateur` and `propositionPrecedente`: fix what the feedback targets, keep the rest.
+- The **diagnosis lexicon** (below): symptom → cause → lever.
 
 ## Output
 
-The contract is `assets/sortie.schema.json`, the same in both modes. An honest diagnosis beats a weak correction: if you do not know, `confiance` is `faible` and you propose in `verification` what to look at ("watch the plan at 0.5x", "generate with the next seed"). `verification` and `categorie` are always filled: `verification` says what the user should watch on the next render to know whether the correction worked.
+The contract is `assets/sortie.schema.json`. `verification` and `categorie` are always filled. An honest diagnosis beats a weak decision: if you do not know, `confiance` is `faible` and `verification` says what to look at.
 
-## Adding or removing a reference image
+Example (no thumbnail sheet; the user asked « la caméra suit le personnage, plus de mouvement »):
 
-When what you see is explained by an image that is **missing** (the character drifts, a place is badly recognized, a prop disappears) or **excessive** (a reference imposing an unwanted state or pose), fill `references`:
-
-- **`ajouter`**: the **code of a registry asset** (search it first: it almost always exists, sometimes under another name), its English name, its role. Then cite it in your passages as `[[CODE]]`. Six images at most: if you exceed it, remove one.
-- **`retirer`**: the code of a current image reference.
-
-The code assigns the label, renumbers the remaining images (`<Picture 1>`, `<Picture 2>`…, no gap) and updates `subject_definitions` / `retention_analysis`: do not write those two sections for this. If the asset you would need **does not exist** in the registry, do not invent it and do not cite it: say so in `cause` and `verification`, leave `references` empty, and **suggest it in `assetsManquants`** (proposed code, type, French description, reason; `parent` = the base subject's code when it is a **state** of an existing character, creature, set or prop, same type as that subject). You create nothing: the user creates the asset, generates its image, then iterates again. Search the registry first; suggest one only when nothing fits.
+```json
+{
+  "dureeCoherente": true,
+  "symptome": "L'utilisateur veut une caméra qui suive le personnage, plus de mouvement.",
+  "cause": "Créativité sobre : la caméra reste posée (lexique, caméra trop statique).",
+  "categorie": "camera",
+  "confiance": "moyenne",
+  "verification": "La caméra accompagne la marche du personnage du début à la fin.",
+  "abandon": { "propose": false, "raison": "" },
+  "decisions": {
+    "nouvelleDescription": "",
+    "dureeSecondes": null,
+    "references": { "ajouter": [], "retirer": [] },
+    "manquants": [],
+    "reglages": { "creativite": "bold", "styleMiseEnScene": null }
+  }
+}
+```

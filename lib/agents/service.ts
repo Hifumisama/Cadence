@@ -15,6 +15,10 @@ import {
 } from "../../db/schema";
 import { valider } from "../llm/validation";
 import { VARIANTE_AFFICHE } from "../llm/variantes";
+import { contexteTotalDepuisEnv } from "../llm/budget-contexte";
+import { chargerSkill } from "../llm/skills";
+import { budgetInventaire, cleSousTacheInventaire, decouperInventaire, groupeInventaireDeCle, type OptionsRunInventaire } from "./inventaire";
+import { assetsACreer, ecrireReferencesApresApplication } from "./inventaire-db";
 import { SCHEMA_BRIEF, SECTIONS_FIGEES_PAR_LA_CONCEPTION, estCleSection, sousSchemaSection } from "./brief";
 import { abandonnerBrouillon, creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
 import { accrocheEntretien } from "./accroche";
@@ -42,8 +46,11 @@ import { entreeIterationPlan, entreeInventaire, entreePlanH3, etatIterationPlan 
 import { cleSousTachePlan, planUuidDeCle } from "./fiches";
 import type { ContexteUtilise, EtatIterationPlan, PlanPourFiche } from "./types";
 import { SKILL_H3IR, type EntreeH3ir } from "../h3ir/resultat";
+import { referencesApresDecisions } from "../h3ir/brief-plan";
+import { estCreativite, styleCameraOuNull } from "../h3ir/reglages";
+import type { DecisionsIteration } from "./types";
 import type { ChoixMoteur, DemandeMoteur } from "../h3ir/moteur";
-import { resoudreMoteurFiche, resoudreMoteursFiches } from "../h3ir/moteur-db";
+import { resoudreMoteursFiches } from "../h3ir/moteur-db";
 import { jobs, planPromptSections, planRefs } from "../../db/schema";
 import { isNotNull, sql } from "drizzle-orm";
 
@@ -880,16 +887,30 @@ export async function genererInventaire(
   const consigne = (options.consigne ?? "").trim() || CONSIGNE_INVENTAIRE;
   const e = await entreeInventaire(db, conv.projectId, consigne);
   if (!e) return ERR("Aucun plan écrit pour l'instant : écris d'abord les scénarios des épisodes.");
-  const propId = await nouvelleProposition(conv, { skill: "inventaire-assets", consigne, contexte: e.contexte });
+  // L'inventaire rend aussi les références de chaque plan (2026-11-09). Un seul appel quand tout tient dans le budget (cas courant) ; un long film
+  // est découpé en groupes de scènes consécutives (lib/agents/inventaire.ts, `decouperInventaire`), posés l'un après l'autre (chaque groupe voit
+  // les assets que les précédents proposent : worker/agents/postTraitement.ts).
+  const groupes = decouperInventaire(e.entree, { budgetJetons: budgetInventaire(contexteTotalDepuisEnv()), jetonsSkill: chargerSkill("inventaire-assets").jetonsEstimes });
+  const plansDuGroupe = (ids: string[]) => Object.fromEntries(ids.map((id) => [id, e.planUuids[id]!]));
+  const lot = groupes.length > 1;
+  const contexte = lot ? [...e.contexte, { type: "projet" as const, libelle: `Film découpé en ${groupes.length} groupes de scènes, lus l'un après l'autre` }] : e.contexte;
+  const propId = await nouvelleProposition(conv, { skill: "inventaire-assets", consigne, contexte, lot });
+  const [premier, ...suite] = groupes;
+  const optionsRun: OptionsRunInventaire = {
+    plans: plansDuGroupe(premier!.planIds),
+    ...(lot ? { suite: suite.map((g) => ({ cle: cleSousTacheInventaire(g.numero), libelle: g.libelle, entree: g.entree, plans: plansDuGroupe(g.planIds) })) } : {}),
+  };
   const run = await creerRun(db, {
     skill: "inventaire-assets",
-    entree: e.entree,
+    entree: premier!.entree,
+    options: optionsRun,
     but: "proposition",
     projectId: conv.projectId,
     conversationId: conv.id,
     propositionId: propId,
+    ...(lot ? { cleSousTache: cleSousTacheInventaire(1), libelleSousTache: premier!.libelle } : {}),
   });
-  await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
+  if (!lot) await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
   const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
 }
@@ -1090,39 +1111,58 @@ export async function genererIteration(
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
 }
 
-/** « Itérer » quand la consigne change ce qui se passe dans le plan : la fiche est RÉÉCRITE (Open H3 IR par défaut, `plan-h3` en repli ; une proposition simple) depuis la nouvelle
- * description que l'agent d'itération a écrite. Cette description n'est écrite en base qu'à l'application, avec la fiche (`apres.description`) ;
- * l'ancienne reste dans l'essai précédent. Comme toute fiche de plan, elle voit les voisins, le style, le registre et la voix off du brief. */
+/** « Itérer » : la fiche est TOUJOURS recompilée par Open H3 IR (2026-11-09) avec les DÉCISIONS de l'agent d'itération (intent complet, durée,
+ * références ajoutées / retirées, créativité et style de mise en scène du plan). Rien n'est écrit ici : les décisions partent en surcharge du brief
+ * (lib/h3ir/brief-plan.ts) et ne s'écrivent sur le plan qu'avec la fiche compilée, à l'application (postTraitement : `apres.description`,
+ * `dureeGenerationSecondes`, `refs` du manifeste, `reglages`) ; si la compilation échoue, rien n'est écrit. Les références finales doivent toutes avoir
+ * leur image : sinon refus clair (« Images manquantes »), sans tâche lancée (l'attente automatique des images viendra plus tard). */
 export async function genererReecriturePlan(
   conversationUuid: string,
-  options: { consigne: string; description: string; dureeSecondes?: number; demandeId?: number },
+  options: { consigne: string; decisions: DecisionsIteration; demandeId?: number },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
-  if (conv.portee !== "plan" || conv.cibleId == null) return ERR("La réécriture d'un plan se demande depuis la page d'un plan.");
-  const description = (options.description ?? "").trim();
-  if (!description) return ERR("Pas de nouvelle description à écrire.");
+  if (conv.portee !== "plan" || conv.cibleId == null) return ERR("La recompilation d'un plan se demande depuis la page d'un plan.");
+  const dec = options.decisions ?? {};
+  const description = (dec.description ?? "").trim() || null;
+  const duree = Number.isInteger(dec.dureeSecondes) && dec.dureeSecondes! >= DUREE_GENERATION_MIN && dec.dureeSecondes! <= DUREE_GENERATION_MAX ? dec.dureeSecondes! : null;
+  const references = dec.references && dec.references.ajouter.length + dec.references.retirer.length > 0 ? { ajouter: [...dec.references.ajouter], retirer: [...dec.references.retirer] } : null;
+  const creativite = dec.reglages?.creativite && estCreativite(dec.reglages.creativite) ? dec.reglages.creativite : null;
+  const styleCamera = dec.reglages?.styleCamera && styleCameraOuNull(dec.reglages.styleCamera) ? dec.reglages.styleCamera : null;
+  const reglagesPlan = creativite || styleCamera ? { creativite, styleCamera } : null;
+  if (!description && duree == null && !references && !reglagesPlan) return ERR("L'agent n'a rien décidé de changer : rien à recompiler.");
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur ce plan."); if (refus) return refus; }
   const [p] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, conv.cibleId));
   if (!p) return ERR("Plan introuvable.");
-  const consigne = `Réécris la fiche de ce plan depuis sa nouvelle description (elle fait foi). Demande de l'utilisateur : « ${options.consigne.trim().slice(0, 600)} ». Garde la durée et les personnages sauf si la description les change ; le dialogue de la description fait foi (chaque réplique dans un <d> avec son locuteur) : reprends-le mot pour mot, sans rien chercher d'autre à lier.`;
-  const duree = Number.isInteger(options.dureeSecondes) && options.dureeSecondes! >= DUREE_GENERATION_MIN && options.dureeSecondes! <= DUREE_GENERATION_MAX ? options.dureeSecondes : undefined;
-  // Moteur (lib/h3ir/moteur.ts) : Open H3 IR recompile la NOUVELLE description avec les références actuelles du plan quand elles ont toutes leur
-  // image ; sinon (ou `CADENCE_MOTEUR_FICHE=plan-h3`), plan-h3 réécrit la fiche et peut changer les références.
-  const choix = await resoudreMoteurFiche(conv.projectId, p.uuid);
-  if (choix.moteur === "h3ir") {
-    const entree: EntreeH3ir = { planUuid: p.uuid, shots: null, director: null, creativity: null, description, ...(duree ? { dureeSecondes: duree } : {}) };
-    const contexte: ContexteUtilise[] = [{ type: "plan", libelle: "Nouvelle description du plan, recompilée par Open H3 IR (références actuelles du plan)", ref: p.uuid }];
-    const propId = await nouvelleProposition(conv, { skill: SKILL_H3IR, consigne: options.consigne.trim(), contexte });
-    const run = await creerRun(db, { skill: SKILL_H3IR, entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: { descriptionNouvelle: description, ...(duree ? { dureeNouvelle: duree } : {}) }, demandeId: options.demandeId });
-    await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
-    const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
-    return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
-  }
-  const e = await entreePlanH3(db, conv.projectId, p.uuid, consigne, undefined, { intention: description, ...(duree ? { dureeVoulue: duree } : {}) });
-  if (!e) return ERR("Plan introuvable.");
-  const propId = await nouvelleProposition(conv, { skill: "plan-h3", consigne: options.consigne.trim(), contexte: choix.repli ? [...e.contexte, { type: "plan" as const, libelle: choix.repli }] : e.contexte });
-  const run = await creerRun(db, { skill: "plan-h3", entree: e.entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: { ...(e.variante ? { variante: e.variante } : {}), descriptionNouvelle: description }, demandeId: options.demandeId });
+  const finales = await referencesApresDecisions(conv.projectId, p.uuid, references ?? {});
+  if (!finales) return ERR("Plan introuvable.");
+  if (finales.inconnus.length) return ERR(`Références inconnues du registre : ${finales.inconnus.join(", ")}. Rien n'a été écrit.`);
+  if (finales.pasDesImages.length) return ERR(`Ces assets ne sont pas des images : ${finales.pasDesImages.join(", ")}. Rien n'a été écrit.`);
+  if (finales.codes.length === 0) return ERR("Le plan n'aurait plus aucune image de référence : Open H3 IR ne peut pas le compiler. Rien n'a été écrit.");
+  if (finales.sansImage.length) return ERR(`Images manquantes : ${finales.sansImage.join(", ")}. Génère ${finales.sansImage.length > 1 ? "leurs images" : "son image"}, puis relance « Itérer » : rien n'a été écrit.`);
+
+  const entree: EntreeH3ir = {
+    planUuid: p.uuid,
+    shots: null,
+    director: null,
+    creativity: null,
+    ...(description ? { description } : {}),
+    ...(duree != null ? { dureeSecondes: duree } : {}),
+    ...(references ? { references } : {}),
+    ...(reglagesPlan ? { reglagesPlan } : {}),
+  };
+  const contexte: ContexteUtilise[] = [{ type: "plan", libelle: "Décisions de l'agent d'itération, recompilées par Open H3 IR (écrites avec la fiche)", ref: p.uuid }];
+  const propId = await nouvelleProposition(conv, { skill: SKILL_H3IR, consigne: options.consigne.trim(), contexte });
+  const run = await creerRun(db, {
+    skill: SKILL_H3IR,
+    entree,
+    but: "proposition",
+    projectId: conv.projectId,
+    conversationId: conv.id,
+    propositionId: propId,
+    options: { ...(description ? { descriptionNouvelle: description } : {}), ...(duree != null ? { dureeNouvelle: duree } : {}), ...(reglagesPlan ? { reglagesNouveaux: reglagesPlan } : {}) },
+    demandeId: options.demandeId,
+  });
   await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
   const [prop] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
@@ -1249,6 +1289,13 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
     const e = await entreePromptAssetCandidat(db, prop.projectId, cand, prop.consigne || CONSIGNE_REGISTRE, retour?.trim() || undefined);
     if (!e) return ERR("L'asset n'existe plus.");
     cible = { skill: "prompt-asset", entree: e.entree, options: e.variante ? { variante: e.variante } : null };
+  } else if (groupeInventaireDeCle(cle) != null && prop.skill === "inventaire-assets") {
+    // Un groupe de scènes d'un inventaire découpé : la même entrée et les mêmes options (poignées des plans, groupes suivants), avec les assets que
+    // les AUTRES groupes proposent maintenant.
+    const [ancien] = await db.select({ entree: agentRuns.entree, options: agentRuns.options }).from(agentRuns).where(eq(agentRuns.id, sous.run.id));
+    const autres = (await assetsACreer(db, prop.id, { saufSousTache: cle })).map((a) => ({ code: a.code, type: a.type, description: a.description }));
+    const entree = { ...((ancien?.entree as object | null) ?? {}), assetsDejaProposes: autres, ...(retour?.trim() ? { retourUtilisateur: retour.trim() } : {}) };
+    cible = { skill: "inventaire-assets", entree, options: (ancien?.options as { [cle: string]: unknown } | null) ?? null };
   } else {
     const sceneId = sceneIdDeCle(cle);
     const episodeId = episodeIdDeCle(cle);
@@ -1304,6 +1351,18 @@ export async function annulerLotProposition(propositionUuid: string): Promise<Re
 export async function appliquerSelection(propositionUuid: string, options: Parameters<typeof appliquerProposition>[1] = {}): Promise<ResultatApplication> {
   const prop = await propositionParUuid(propositionUuid);
   if (!prop) return { ok: false, erreur: "Proposition introuvable." };
+  // Inventaire des assets : les références de plan qui citent un asset créé par la proposition s'écrivent dans la même transaction, APRÈS les
+  // créations (lib/agents/inventaire-db.ts). Celles qui ne citaient que des assets existants sont déjà posées depuis le post-traitement.
+  if (prop.skill === "inventaire-assets") {
+    const suite = options.dansTransaction;
+    return appliquerProposition(prop.id, {
+      ...options,
+      dansTransaction: async (tx) => {
+        await ecrireReferencesApresApplication(tx, prop.id);
+        if (suite) await suite(tx);
+      },
+    });
+  }
   return appliquerProposition(prop.id, options);
 }
 

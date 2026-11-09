@@ -29,14 +29,10 @@ import { join, resolve } from "node:path";
  * `edition` (Qwen), `image` (les deux guides d'image : la méthode reste à recommander),
  * `affiche` (l'affiche de présentation : les deux guides d'image aussi). */
 
-/** Le seul fichier lu hors du dossier d'un skill : le lexique de corrections H3 (qui vit dans
- * `plan-h3`), partagé avec `iteration-plan` (source unique). L'affiche n'est plus un skill : c'est la variante
- * `affiche` de `prompt-asset`, qui charge ses guides d'image par la déclaration `variantes` (voir plus haut). */
-const LEXIQUE_H3 = "agents/skills/plan-h3/references/h3-lexique-corrections.md";
-export const FICHIERS_PARTAGES: Record<string, string[]> = {
-  // Le lexique ne sert qu'à iteration-plan (symptôme → cause) : plan-h3 en porte les leçons sous forme de règles dans son SKILL.
-  "iteration-plan": [LEXIQUE_H3],
-};
+/** Fichiers lus hors du dossier d'un skill. Aucun depuis 2026-11-09 : `iteration-plan` lit sa propre copie du lexique, orientée diagnostic
+ * (agents/skills/iteration-plan/references/guide-lexique-diagnostic.md) ; l'original reste dans `plan-h3` (references/h3-lexique-corrections.md).
+ * L'affiche n'est plus un skill : c'est la variante `affiche` de `prompt-asset`, qui charge ses guides d'image par la déclaration `variantes`. */
+export const FICHIERS_PARTAGES: Record<string, string[]> = {};
 
 export type OptionsChargement = {
   /** Cas d'usage qui restreint les guides chargés (voir plus haut). */

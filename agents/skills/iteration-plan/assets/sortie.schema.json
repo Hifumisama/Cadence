@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Output of the iteration-plan agent: a diagnosis and a proposed correction",
+  "title": "Output of the iteration-plan agent: a diagnosis and the decisions on the plan's sources of truth (the video prompt is recompiled from them)",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -9,16 +9,14 @@
     "cause",
     "categorie",
     "confiance",
-    "changements",
     "verification",
     "abandon",
-    "reecriture",
-    "nouvelleDescription"
+    "decisions"
   ],
   "properties": {
     "dureeCoherente": {
       "type": "boolean",
-      "description": "Does the real file duration match the wanted duration (gap of half a second at most)? If false, no writing diagnosis: `changements` stays empty. Always true without a thumbnail sheet (no real duration was measured)."
+      "description": "Does the real file duration match the wanted duration (gap of half a second at most)? If false, no decision is applied. Always true without a thumbnail sheet (no real duration was measured)."
     },
     "symptome": {
       "type": "string",
@@ -26,7 +24,7 @@
     },
     "cause": {
       "type": "string",
-      "description": "(French) The precise cause targeted by this correction, only one. Points to a lexicon entry when one exists."
+      "description": "(French) The precise cause targeted, only one. Points to a lexicon entry when one exists."
     },
     "categorie": {
       "type": "string",
@@ -44,7 +42,7 @@
         "modele",
         "autre"
       ],
-      "description": "`decoupage-scenario` = the cause is not in the prompt (to be handled separately): `changements` stays empty. `modele` = the same symptom survived three corrections aimed at different causes (goes with `abandon.propose`). `autre` = a cause that fits no other category."
+      "description": "`decoupage-scenario` = the cause is outside this plan (other plans, their order). `modele` = the same symptom survived three corrections aimed at different causes (goes with `abandon.propose`). `autre` = a cause that fits no other category."
     },
     "confiance": {
       "type": "string",
@@ -54,43 +52,9 @@
         "faible"
       ]
     },
-    "changements": {
-      "type": "array",
-      "description": "The smallest text change that treats the cause: replacements of passages in the FINAL prompt (labels <Subject N>/<Picture N>/<Audio N> kept as they are, <d> tags intact). Empty if the cause is not in the prompt, if the duration is inconsistent, or on abandon.",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "section",
-          "avant",
-          "apres"
-        ],
-        "properties": {
-          "section": {
-            "type": "string",
-            "enum": [
-              "subject_definitions",
-              "summary",
-              "retention_analysis",
-              "detailed_description",
-              "overall_soundscape",
-              "non_diegetic_music"
-            ]
-          },
-          "avant": {
-            "type": "string",
-            "description": "Exact passage replaced, copied as is from promptActuel (a single occurrence in the section)."
-          },
-          "apres": {
-            "type": "string",
-            "description": "(English) Replacing passage, with the same labels and the same <d> tags."
-          }
-        }
-      }
-    },
     "verification": {
       "type": "string",
-      "description": "(French) What to look at on the next render to know whether the correction worked."
+      "description": "(French) What to look at on the next render to know whether the decisions worked."
     },
     "entreeLexique": {
       "type": "object",
@@ -109,62 +73,8 @@
           "type": "string"
         },
         "formulationQuiTient": {
-          "type": "string"
-        }
-      }
-    },
-    "reecriture": {
-      "type": "boolean",
-      "description": "Required. false for a retouch of passages (default). true when the instruction changes WHAT HAPPENS in the plan (a different action, place, ending, an attempt, an element added or removed, a new shot sequence): it is no longer a retouch of passages but a rewrite of the plan. Then `changements` stays empty and the NEXT field, `nouvelleDescription`, is the plan rewritten, complete; the application rewrites the whole sheet from it."
-    },
-    "dureeSecondes": {
-      "type": "integer",
-      "minimum": 4,
-      "maximum": 10,
-      "description": "Optional. The plan's NEW generation duration, whole seconds from 4 to 10, ONLY when the user's instruction asks for another duration (« passe-le à 12 secondes », « allonge-le »). Omit it otherwise: the plan keeps its duration. When you give it, re-time the shots' `At MM:SS.mmm` markers in `changements` so they spread over the new duration (or, on a rewrite, the whole sheet is rewritten for it)."
-    },
-    "nouvelleDescription": {
-      "type": "string",
-      "description": "(French) The plan's NEW description (its intention), COMPLETE: it replaces the current one entirely, so copy `plan.intention` and change only what the instruction changes (the whole narrative, then the lines `NAME : « text »`, the `Consigne de l'auteur :` sentence if any). Never only the changed sentence; no `État en fin de plan :` line. REQUIRED when `reecriture` is true: write it right here, it is the whole point of a rewrite (an answer with `reecriture` true and an empty description is refused). Also give it when a retouch makes a sentence of the description false. Empty string when the description stays as it is."
-    },
-    "assetsManquants": {
-      "type": "array",
-      "description": "Optional. Assets you SUGGEST to create because the cause is a missing image and NO registry asset fits (search the registry first). You create nothing and cite none in your passages: the user creates it, generates its image, then iterates again. A STATE of a subject (character, creature, set, prop) has the same type as the subject and its `parent`.",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "code",
-          "type",
-          "description",
-          "raison"
-        ],
-        "properties": {
-          "code": {
-            "type": "string",
-            "description": "Proposed code, type prefix + short lowercase name (CHAR_, DEC_, PROP_, VFX_)."
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "personnage",
-              "decor",
-              "prop",
-              "vfx"
-            ]
-          },
-          "parent": {
-            "type": "string",
-            "description": "Code of the base subject (registry) when the asset is a state of it."
-          },
-          "description": {
-            "type": "string",
-            "description": "(French) What is seen, as in the registry."
-          },
-          "raison": {
-            "type": "string",
-            "description": "(French) Why no registry asset fits."
-          }
+          "type": "string",
+          "description": "The lever that held (a setting, a reference, a duration, or the intent sentence)."
         }
       }
     },
@@ -186,42 +96,144 @@
         }
       }
     },
-    "references": {
+    "decisions": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Optional. When the cause is a missing or excessive reference image (a registry asset that should have been cited, or that disturbs the render): the references to add (by registry CODE) and to remove. The code assigns the labels, renumbers the remaining images and updates subject_definitions and retention_analysis: you touch neither the numbers nor those two sections for this. An added reference is cited in your passages as `[[CODE]]`.",
+      "description": "What changes on the plan. Each field REPLACES the plan's current value; empty / null = unchanged. The application recompiles the video prompt from these values and writes everything together.",
+      "required": [
+        "nouvelleDescription",
+        "dureeSecondes",
+        "references",
+        "manquants",
+        "reglages"
+      ],
       "properties": {
-        "ajouter": {
+        "nouvelleDescription": {
+          "type": "string",
+          "description": "(French) Empty string = the intent stays. Otherwise the plan's NEW intent, COMPLETE: copy `plan.intention` word for word and change only what the instruction needs (the whole narrative in order, then the lines `NAME : « text »`, the `Consigne de l'auteur :` sentence if any). Never a fragment, never only the changed sentence; no camera words; no `État en fin de plan :` line."
+        },
+        "dureeSecondes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 4,
+          "maximum": 10,
+          "description": "null = the duration stays. Otherwise the new generation duration, whole seconds from 4 to 10."
+        },
+        "references": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ajouter",
+            "retirer"
+          ],
+          "properties": {
+            "ajouter": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Registry codes of IMAGE assets to add as references (never invented, not already a reference). Six images at most in total."
+            },
+            "retirer": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Codes of the plan's current image references to remove (at least one image must remain)."
+            }
+          }
+        },
+        "manquants": {
           "type": "array",
+          "maxItems": 2,
+          "description": "At most 2 assets you SUGGEST to create because the cause is a missing image and NO registry asset fits (search first). Nothing is created: the user creates it, then iterates again. A STATE of a subject has the same type as the subject and its `parent`.",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "asset",
-              "nom"
+              "code",
+              "type",
+              "description",
+              "raison"
             ],
             "properties": {
-              "asset": {
+              "code": {
                 "type": "string",
-                "description": "Code of a registry asset (never invented), not yet a reference of this plan."
+                "description": "Proposed code, type prefix + short lowercase name (CHAR_, DEC_, PROP_, VFX_)."
               },
-              "nom": {
+              "type": {
                 "type": "string",
-                "description": "(English) Its name, as it will be written in subject_definitions."
+                "enum": [
+                  "personnage",
+                  "decor",
+                  "prop",
+                  "vfx"
+                ]
               },
-              "role": {
+              "parent": {
                 "type": "string",
-                "description": "(French) Optional. Its role in this plan."
+                "description": "Code of the base subject (registry) when the asset is a state of it."
+              },
+              "description": {
+                "type": "string",
+                "description": "(French) What is seen, as in the registry."
+              },
+              "raison": {
+                "type": "string",
+                "description": "(French) Why no registry asset fits."
               }
             }
           }
         },
-        "retirer": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Codes of the plan's current image references to remove."
+        "reglages": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "creativite",
+            "styleMiseEnScene"
+          ],
+          "properties": {
+            "creativite": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "restrained",
+                "balanced",
+                "bold",
+                "extreme",
+                null
+              ],
+              "description": "null = unchanged. Otherwise the plan's new creativity (one of `reglages.choix.creativite`)."
+            },
+            "styleMiseEnScene": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "aucun",
+                "cameron",
+                "tarantino",
+                "anderson",
+                "villeneuve",
+                "bigelow",
+                "wong",
+                "spielberg",
+                "claymation",
+                "anime-nerveux",
+                "anime-contemplatif",
+                "3d-cinema",
+                "sitcom",
+                "horreur",
+                null
+              ],
+              "description": "null = unchanged. Otherwise the plan's new staging style (one of `reglages.choix.styleMiseEnScene`; `aucun` = no style)."
+            }
+          }
         }
       }
     }

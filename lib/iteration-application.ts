@@ -18,7 +18,8 @@ export type Reglages = { dureeGenerationSecondes?: number; fps?: number; seed?: 
 export async function appliquerIterationEtGenererCore(
   planId: number,
   propositionUuid: string,
-  essai: { consigne: string | null; depuisNumero: number | null; demandeId?: number },
+  /** `notes` : ce que l'agent d'itération a signalé (ses décisions), gardé sur l'essai avant celles de l'application. */
+  essai: { consigne: string | null; depuisNumero: number | null; demandeId?: number; notes?: string[] },
   /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits dans la même transaction que l'essai. */
   reglages: Reglages = {},
 ): Promise<{ ok: true; numeroRendu: number; jobId: number; notes: string[] } | { ok: false; erreur: string }> {
@@ -29,18 +30,20 @@ export async function appliquerIterationEtGenererCore(
   if (fps != null && (!Number.isInteger(fps) || fps < 1)) return { ok: false, erreur: "FPS invalide." };
   if (seed != null && !/^\d{1,15}$/.test(seed)) return { ok: false, erreur: "Seed invalide : 15 chiffres au plus." };
   const prop = await propositionParUuid(propositionUuid);
-  // `iteration-plan` : la retouche ; la réécriture (description changée) : Open H3 IR par défaut (`plan-h3ir`), `plan-h3` en repli (lib/agents/service.ts, genererReecriturePlan).
+  // Depuis 2026-11-09, « Itérer » applique la fiche RECOMPILÉE par Open H3 IR (`plan-h3ir`, lib/agents/service.ts, genererReecriturePlan) avec les décisions de
+  // l'agent ; une proposition `iteration-plan` ne porte plus de changement (elle donne « reecrire »). `plan-h3` : anciennes propositions seulement.
   if (!prop || (prop.skill !== "iteration-plan" && prop.skill !== "plan-h3" && prop.skill !== SKILL_H3IR) || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
   const vue = await lireProposition(propositionUuid);
   const decision = decisionIteration(vue);
   if (decision.action === "attendre") return { ok: false, erreur: "L'agent n'a pas encore fini de répondre." };
   if (decision.action === "echec") return { ok: false, erreur: decision.erreur };
   if (decision.action === "rien") return { ok: false, erreur: decision.message };
-  if (decision.action === "reecrire") return { ok: false, erreur: "Cette correction change ce qui se passe dans le plan : sa fiche doit être réécrite, depuis « Itérer »." };
+  if (decision.action === "reecrire") return { ok: false, erreur: "Cette correction se recompile par Open H3 IR : relance-la depuis « Itérer »." };
 
   const enFile = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.planId, planId), inArray(jobs.statut, ["en_attente", "en_cours"]))).limit(1);
   if (enFile.length > 0) return { ok: false, erreur: "Un essai est déjà en file ou en cours sur ce plan : rien n'a été appliqué." };
 
+  const notesEssai = [...(essai.notes ?? []), ...decision.notes.filter((n) => !(essai.notes ?? []).includes(n))];
   const c = await cocherChangements(propositionUuid, { ids: decision.ids }, true);
   if (!c.ok) return { ok: false, erreur: c.erreur };
   try {
@@ -54,14 +57,14 @@ export async function appliquerIterationEtGenererCore(
             .set({ ...(fps != null ? { fps } : {}), ...(duree != null ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}), ...(seed != null ? { seed } : {}), updatedAt: new Date() })
             .where(eq(plans.id, planId));
         }
-        await creerJobRelance(planId, false, false, { consigne: essai.consigne, depuisNumero: essai.depuisNumero, alertesIteration: decision.notes, demandeId: essai.demandeId }, tx);
+        await creerJobRelance(planId, false, false, { consigne: essai.consigne, depuisNumero: essai.depuisNumero, alertesIteration: notesEssai, demandeId: essai.demandeId }, tx);
       },
     });
     if (!r.ok) return { ok: false, erreur: r.erreur };
   } catch (e) {
     return { ok: false, erreur: `Rien n'a été appliqué ni généré : ${e instanceof Error ? e.message : "erreur inattendue"}.` };
   }
-  const notes = [...decision.notes];
+  const notes = [...notesEssai];
   // Les assets créés avec la correction n'ont ni prompt ni image : leurs prompts s'écrivent à part (une proposition à relire dans la conversation du
   // projet), sans retarder l'essai déjà en file. Un échec n'annule rien : le bouton « écrire les prompts » reste sur la proposition.
   const idsCreations = new Set(vue!.groupes.flatMap((g) => g.changements).filter((x) => x.cibleType === "asset").map((x) => x.id));

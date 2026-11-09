@@ -45,10 +45,11 @@ import { planUuidDeCle } from "../../lib/agents/fiches";
 import type { SortiePlanH3 } from "../../lib/agents/plan-h3-controles";
 import { corpusExemplesPlanH3 } from "../../lib/agents/plan-h3-corpus";
 import { depuisRelecture, type EntreeRelecture, type SortieRelecture } from "../../lib/agents/relecture";
-import { planPromptSections, planRefs, propositionChangements, scenes } from "../../db/schema";
-import { depuisInventaire, type SortieInventaire } from "../../lib/agents/inventaire";
+import { propositionChangements, scenes } from "../../db/schema";
+import { depuisInventaire, type OptionsRunInventaire, type SortieInventaire } from "../../lib/agents/inventaire";
+import { assetsACreer, ecrireReferencesDesTaches, phraseBilan } from "../../lib/agents/inventaire-db";
 import { lireVueEpisode } from "../../lib/agents/vue-operations/vue-episode";
-import { depuisIterationPlan, raisonSansEcriture, type PlanPourIteration, type SortieIterationPlan } from "../../lib/agents/iteration-plan";
+import { PREFIXE_SANS_ECRITURE, contexteDepuisEntree, decisionsEffectives, raisonSansEcriture, type SortieIterationPlan } from "../../lib/agents/iteration-plan";
 import type { InfosExecution } from "./preparation";
 import { depuisCompilationH3ir } from "../../lib/h3ir/conversion";
 import { SKILL_H3IR, type ResultatH3ir } from "../../lib/h3ir/resultat";
@@ -174,6 +175,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
     if (run.skill === "relecture-scenario") return postSousTacheRelecture(tx, run, prop, scope, json as SortieRelecture);
     if (run.skill === "traitement-episode") return postSousTacheTraitement(tx, run, prop, scope, json as SortieTraitement);
     if (run.skill === "scenario-scene") return postSousTacheScene(tx, run, prop, scope, json as SortieScenarioScene);
+    if (run.skill === "inventaire-assets") return postInventaire(tx, run, prop, scope, json as SortieInventaire); // un groupe de scènes d'un long film
     return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
   }
 
@@ -236,32 +238,25 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
     const [plan] = await tx.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.id, prop.cibleId));
     if (!plan) throw new Error("Le plan visé n'existe plus.");
     bruts = depuisCompilationH3ir(json as ResultatH3ir, plan);
-    // Réécriture depuis « Itérer » (lib/agents/service.ts, genererReecriturePlan) : la nouvelle description compilée s'écrit avec la fiche, et la durée voulue avec.
-    const o = (run.options ?? {}) as { descriptionNouvelle?: unknown; dureeNouvelle?: unknown };
+    // Recompilation depuis « Itérer » (lib/agents/service.ts, genererReecriturePlan) : les décisions compilées (description, durée, réglages du plan) s'écrivent
+    // avec la fiche, dans la même application ; les références suivent le manifeste de la compilation.
+    const o = (run.options ?? {}) as { descriptionNouvelle?: unknown; dureeNouvelle?: unknown; reglagesNouveaux?: { creativite?: unknown; styleCamera?: unknown } | null };
     const nouvelle = typeof o.descriptionNouvelle === "string" ? o.descriptionNouvelle.trim() : "";
     const duree = typeof o.dureeNouvelle === "number" && Number.isInteger(o.dureeNouvelle) ? o.dureeNouvelle : null;
-    if (nouvelle || duree != null) {
-      for (const b of bruts) if (b.cibleType === "fiche") b.apres = { ...(b.apres as object), ...(nouvelle ? { description: nouvelle } : {}), ...(duree != null ? { dureeGenerationSecondes: duree } : {}) };
+    const rg = o.reglagesNouveaux ?? null;
+    const reglages = rg ? { ...(typeof rg.creativite === "string" ? { creativite: rg.creativite } : {}), ...(typeof rg.styleCamera === "string" ? { styleCamera: rg.styleCamera } : {}) } : {};
+    if (nouvelle || duree != null || Object.keys(reglages).length) {
+      for (const b of bruts) {
+        if (b.cibleType === "fiche") {
+          b.apres = { ...(b.apres as object), ...(nouvelle ? { description: nouvelle } : {}), ...(duree != null ? { dureeGenerationSecondes: duree } : {}), ...(Object.keys(reglages).length ? { reglages } : {}) };
+        }
+      }
     }
   } else if (run.skill === "inventaire-assets") {
-    // Les assets que les plans réclament et que le registre n'a pas : des créations sans prompt (il s'écrit ensuite).
-    const sortie = json as SortieInventaire;
-    const registre = await tx.select({ code: assets.code, type: assets.type, description: assets.description }).from(assets).where(and(eq(assets.projectId, prop.projectId), horsAffiches));
-    // Les effets et objets du brief que l'agent a lus (entrée du run) : un VFX n'est accepté que s'il en est tiré.
-    const elements = (run.entree as { brief?: { elements?: { nom: string; nature: string }[] } | null } | null)?.brief?.elements;
-    bruts = depuisInventaire(sortie, registre.map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" })), { elements: Array.isArray(elements) ? elements : [] });
-    await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts);
-    // Rien à ajouter : la proposition le dit (avec les notes du modèle) plutôt que d'afficher une liste vide.
-    if (bruts.length === 0) {
-      const notes = (sortie.notes ?? "").trim();
-      await tx.update(propositions).set({ resume: `Le registre suffit : aucun asset à ajouter.${notes ? ` ${notes}` : ""}` }).where(eq(propositions.id, prop.id));
-    }
-    if (prop.conversationId != null) {
-      await tx.update(agentConversations).set({ etape: "proposition", updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
-    }
-    return;
+    // Les assets que les plans réclament et que le registre n'a pas (des créations sans prompt, il s'écrit ensuite), et les références de chaque plan.
+    return postInventaire(tx, run, prop, scope, json as SortieInventaire);
   } else if (run.skill === "iteration-plan") {
-    // Correction après visionnage : une écriture PARTIELLE de la fiche, ou rien (le diagnostic seul) avec la raison.
+    // Correction après visionnage : des DÉCISIONS (aucun changement ici), recompilées ensuite par Open H3 IR ; ou rien (le diagnostic seul) avec la raison.
     if (prop.cibleId == null) throw new Error("Correction de plan sans plan.");
     return postIteration(tx, run, prop, scope, json as SortieIterationPlan, execution);
   } else {
@@ -269,6 +264,70 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
   }
 
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts);
+  if (prop.conversationId != null) {
+    await tx.update(agentConversations).set({ etape: "proposition", updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
+  }
+}
+
+/** Inventaire des assets (un seul appel, ou un groupe de scènes d'un long film) : les créations d'assets deviennent des changements ; les références des
+ * plans qui ne citent que des assets existants s'écrivent TOUT DE SUITE (lib/agents/inventaire-db.ts), les autres à l'application, après les créations.
+ * Groupe d'un lot : ses lignes remplacent celles qu'il avait posées (relance), ce que les autres groupes proposent n'est pas reproposé, puis le groupe
+ * suivant est posé (une seule fois), avec les assets déjà proposés ; enfin le lot décide de son statut. */
+async function postInventaire(
+  tx: Tx,
+  run: RunAgent,
+  prop: typeof propositions.$inferSelect,
+  scope: { type: "projet" | "episode" | "plan" | "asset"; cibleId: number | null },
+  sortie: SortieInventaire,
+) {
+  const cle = prop.lot ? run.cleSousTache : null;
+  if (prop.lot && !cle) throw new Error("Groupe d'inventaire sans clé de sous-tâche.");
+  const registre = await tx.select({ code: assets.code, type: assets.type, description: assets.description }).from(assets).where(and(eq(assets.projectId, prop.projectId), horsAffiches));
+  // Les effets et objets du brief que l'agent a lus (entrée du run) : un VFX n'est accepté que s'il en est tiré.
+  const elements = (run.entree as { brief?: { elements?: { nom: string; nature: string }[] } | null } | null)?.brief?.elements;
+  const autres = cle ? await assetsACreer(tx, prop.id, { saufSousTache: cle }) : [];
+  const bruts = depuisInventaire(sortie, registre.map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" })), {
+    elements: Array.isArray(elements) ? elements : [],
+    proposes: autres,
+  });
+  if (cle) {
+    const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
+    await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
+  } else {
+    await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts);
+  }
+  // Les références : écrites maintenant si elles ne citent que des assets existants ; un asset proposé (non refusé) les fait attendre l'application.
+  const bilan = await ecrireReferencesDesTaches(tx, prop.projectId, [{ entree: run.entree, options: run.options, resultat: sortie }], await assetsACreer(tx, prop.id));
+
+  if (cle) {
+    const options = (run.options ?? {}) as OptionsRunInventaire;
+    const [suivant, ...reste] = options.suite ?? [];
+    const dejaPose = suivant ? (await runsDuLot(tx, prop.id)).some((r) => r.cle === suivant.cle) : true;
+    if (suivant && !dejaPose) {
+      const proposes = (await assetsACreer(tx, prop.id)).map((a) => ({ code: a.code, type: a.type, description: a.description }));
+      await creerRun(tx, {
+        skill: "inventaire-assets",
+        entree: { ...suivant.entree, ...(proposes.length ? { assetsDejaProposes: proposes } : {}) },
+        options: { plans: suivant.plans, suite: reste } satisfies OptionsRunInventaire,
+        but: "proposition",
+        projectId: prop.projectId,
+        conversationId: prop.conversationId,
+        propositionId: prop.id,
+        cleSousTache: suivant.cle,
+        libelleSousTache: suivant.libelle,
+      });
+    }
+    await finaliserLot(tx, prop.id, { runTermineId: run.id });
+    return;
+  }
+  // Rien à ajouter : la proposition le dit (avec les notes du modèle) plutôt que d'afficher une liste vide.
+  const phrase = phraseBilan(bilan);
+  if (bruts.length === 0 || phrase) {
+    const notes = (sortie.notes ?? "").trim();
+    const [p] = await tx.select({ resume: propositions.resume }).from(propositions).where(eq(propositions.id, prop.id));
+    const resume = bruts.length === 0 ? `Le registre suffit : aucun asset à ajouter.${notes ? ` ${notes}` : ""}` : (p?.resume ?? "");
+    await tx.update(propositions).set({ resume: [resume, phrase].filter(Boolean).join(" ") }).where(eq(propositions.id, prop.id));
+  }
   if (prop.conversationId != null) {
     await tx.update(agentConversations).set({ etape: "proposition", updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
   }
@@ -490,11 +549,10 @@ async function postSousTacheFicheH3ir(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
-/** Une correction après visionnage (`iteration-plan`) : le plan tel qu'il est MAINTENANT (le prompt a pu changer
- * pendant la génération : un passage introuvable sera alors bloqué, jamais appliqué à l'aveugle), la conversion
- * pure, puis la proposition. Sans écriture (durée incohérente, abandon, cause hors du prompt…), la proposition est
- * prête SANS changement et son résumé dit pourquoi ; la revue affiche le diagnostic. Le « contexte utilisé » gagne
- * la mesure du rendu (durée réelle, nombre de vignettes). */
+/** Une correction après visionnage (`iteration-plan`, 2026-11-09) : l'agent ne fait que DÉCIDER (intent, durée, références, réglages) ; la proposition ne porte
+ * AUCUN changement, ses décisions se lisent dans le diagnostic (lib/queries-agents.ts) et partent en recompilation Open H3 IR (lib/demandes-db.ts). Sans
+ * décision applicable (durée incohérente, abandon, cause hors du plan…), le résumé commence par `PREFIXE_SANS_ECRITURE` et dit pourquoi : rien n'est
+ * recompilé. Le « contexte utilisé » gagne la mesure du rendu (durée réelle, nombre de vignettes). */
 async function postIteration(
   tx: Tx,
   run: RunAgent,
@@ -503,42 +561,18 @@ async function postIteration(
   sortie: SortieIterationPlan,
   execution: InfosExecution,
 ) {
-  const [plan] = await tx.select({ id: plans.id, uuid: plans.uuid, titre: plans.titre, duree: plans.dureeGenerationSecondes, description: plans.description }).from(plans).where(eq(plans.id, prop.cibleId!));
-  if (!plan) throw new Error("Le plan visé n'existe plus.");
-  const [lignes, refs, registre] = await Promise.all([
-    tx.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, plan.id)),
-    tx
-      .select({ type: planRefs.type, slot: planRefs.slot, role: planRefs.role, retention: planRefs.retention, asset: assets.code })
-      .from(planRefs)
-      .leftJoin(assets, eq(assets.id, planRefs.assetId))
-      .where(eq(planRefs.planId, plan.id)),
-    tx.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, prop.projectId), horsAffiches)),
-  ]);
-  const sections: Record<string, string> = {};
-  for (const l of lignes) sections[l.section] = sections[l.section] ? `${sections[l.section]}\n${l.contenu}` : l.contenu;
-  // La durée voulue est celle qu'a vue le modèle (celle de l'entrée), même si le plan a changé depuis.
-  const voulue = (run.entree as { plan?: { dureeVoulueSecondes?: number } } | null)?.plan?.dureeVoulueSecondes ?? plan.duree;
-  const courant: PlanPourIteration = {
-    uuid: plan.uuid,
-    titre: plan.titre,
-    description: plan.description ?? "",
-    consigne: (run.entree as { retourVisionnage?: string } | null)?.retourVisionnage,
-    sections,
-    refs,
-    registre,
-    dureeGenerationSecondes: voulue,
-    dureeReelleSecondes: execution.dureeReelleSecondes ?? null,
-  };
-  const bruts = depuisIterationPlan(sortie, courant);
-  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts);
-  const raison = raisonSansEcriture(sortie, courant);
+  // Le contexte est celui qu'a vu le modèle (son entrée), la durée réelle celle que le worker a mesurée.
+  const ctx = { ...contexteDepuisEntree(run.entree), dureeReelleSecondes: execution.dureeReelleSecondes ?? null };
+  await enregistrerChangements(tx, prop.id, prop.projectId, scope, []);
+  const raison = raisonSansEcriture(sortie, ctx);
+  const voulue = ctx.dureeGenerationSecondes;
   const mesure =
     execution.dureeReelleSecondes != null
       ? [{ type: "plan" as const, libelle: `Rendu mesuré : ${String(execution.dureeReelleSecondes).replace(".", ",")} s pour ${voulue} s voulues · ${execution.nbVignettes ?? "?"} vignettes regardées` }]
       : [];
-  // Sans planche (« Itérer » par défaut) il n'y a pas de mesure ; avec une écriture, pas de raison : rien à mettre à jour (un `set` vide fait échouer Drizzle).
+  const resume = raison ? `${PREFIXE_SANS_ECRITURE} ${raison}` : decisionsEffectives(sortie, ctx) ? "Décisions de l'agent : la fiche est recompilée par Open H3 IR avec elles, puis tout s'écrit ensemble." : "";
   const maj = {
-    ...(raison ? { resume: `Diagnostic sans écriture. ${raison}` } : {}),
+    ...(resume ? { resume } : {}),
     ...(mesure.length ? { contexte: [...((prop.contexte as unknown[]) ?? []), ...mesure] } : {}),
   };
   if (Object.keys(maj).length) await tx.update(propositions).set(maj).where(eq(propositions.id, prop.id));

@@ -153,6 +153,9 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
   }
   // La nouvelle intention du plan (correction qui change ce qui s'y passe) : l'ancienne reste dans l'essai précédent.
   if (apres.description) valeurs.description = apres.description;
+  // Les réglages Open H3 IR décidés par « Itérer » : la nouvelle valeur du PLAN remplace l'ancienne (pas de directive qui s'accumule).
+  if (apres.reglages?.creativite) valeurs.creativite = apres.reglages.creativite;
+  if (apres.reglages?.styleCamera) valeurs.styleCamera = apres.reglages.styleCamera;
   if (p.statut === "brouillon") valeurs.statut = "en_attente"; // développé en fiche de plan (developperEnFichePlan)
   await tx.update(plans).set(valeurs).where(eq(plans.id, p.id));
 }

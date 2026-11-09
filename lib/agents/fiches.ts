@@ -2,6 +2,7 @@ import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
 import { MAX_REFS, verifierCoherenceRefs, type RefLabel } from "../plan-checks";
 import { ORDRE_SECTIONS, type NomSection } from "../prompt";
 import type { Avertissement } from "./types";
+import { estCreativite, estMiseEnScene, STYLE_AUCUN } from "../h3ir/reglages";
 
 /** Étape 3 du pipeline : la FICHE d'un plan (prompt H3 en six sections, références picture/audio, durée
  * de génération). Règles PURES (sans base ni Next), partagées par la conversion, l'applicateur `fiche`,
@@ -60,6 +61,9 @@ export type ApresFiche = {
   /** La fiche vient du compilateur Open H3 IR (lib/h3ir/conversion.ts) : l'applicateur garde alors le prompt remplacé dans l'historique du prompt
    * (source « avant ») et y inscrit le nouveau (source « compilation »). Absent = fiche de `plan-h3`, qui n'écrit pas l'historique. */
   moteur?: "h3ir";
+  /** Réglages Open H3 IR du PLAN décidés par « Itérer » (2026-11-09) : la valeur REMPLACE `plans.creativite` / `plans.style_camera` (`"aucun"` = pas de
+   * style). Absent = on n'y touche pas. Écrits avec la fiche compilée qui les a utilisés. */
+  reglages?: { creativite?: string; styleCamera?: string };
 };
 
 export function estSectionFiche(s: string): s is NomSection {
@@ -80,6 +84,11 @@ export function lireApresFiche(apres: unknown): ApresFiche {
   if (typeof a.description === "string" && a.description.trim()) sortie.description = a.description.trim();
   if (a.voixDuPrompt === true) sortie.voixDuPrompt = true;
   if (a.moteur === "h3ir") sortie.moteur = "h3ir";
+  if (a.reglages && typeof a.reglages === "object") {
+    const r = a.reglages as Record<string, unknown>;
+    const reglages = { ...(typeof r.creativite === "string" ? { creativite: r.creativite } : {}), ...(typeof r.styleCamera === "string" ? { styleCamera: r.styleCamera } : {}) };
+    if (Object.keys(reglages).length) sortie.reglages = reglages;
+  }
   if (Array.isArray(a.dependDeCles)) sortie.dependDeCles = a.dependDeCles.filter((c): c is string => typeof c === "string");
   if (Array.isArray(a.passages)) {
     sortie.passages = (a.passages as unknown[]).filter(
@@ -114,7 +123,10 @@ const DUREE_MAX = DUREE_GENERATION_MAX;
 export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | null {
   const sections = apres.sections ?? {};
   const cles = Object.keys(sections);
-  if (cles.length === 0 && apres.refs === undefined && apres.dureeGenerationSecondes === undefined && apres.description === undefined) return "Rien à écrire dans la fiche.";
+  if (cles.length === 0 && apres.refs === undefined && apres.dureeGenerationSecondes === undefined && apres.description === undefined && apres.reglages === undefined) return "Rien à écrire dans la fiche.";
+  const rg = apres.reglages;
+  if (rg?.creativite !== undefined && !estCreativite(rg.creativite)) return `Créativité inconnue : « ${rg.creativite} ».`;
+  if (rg?.styleCamera !== undefined && !estMiseEnScene(rg.styleCamera) && rg.styleCamera !== STYLE_AUCUN) return `Style de mise en scène inconnu : « ${rg.styleCamera} ».`;
   const inconnue = cles.find((k) => !estSectionFiche(k));
   if (inconnue) return `Section de prompt inconnue : « ${inconnue} ».`;
   const d = apres.dureeGenerationSecondes;

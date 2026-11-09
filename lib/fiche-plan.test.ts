@@ -219,11 +219,20 @@ test("decisionIteration : un asset suggéré par l'agent devient une NOTE de l'e
   assert.deepEqual(d.action === "appliquer" ? d.notes : [], ["L'agent suggère de créer CHAR_dragon_ombre, DEC_cave_nuit (non créés) : crée-le, génère son image, puis itère de nouveau."]);
 });
 
-test("decisionIteration : une réécriture (diagnostic) sans rien d'applicable devient « reecrire », avec la nouvelle description", () => {
-  const d = decisionIteration(prop({ groupes: [], diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, reecriture: { description: "Mai réessaie.\n\nÉtat en fin de plan : feu allumé." } } }));
-  assert.deepEqual(d, { action: "reecrire", description: "Mai réessaie.\n\nÉtat en fin de plan : feu allumé." });
-  // une retouche applicable reste une retouche
-  assert.equal(decisionIteration(prop({ diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, reecriture: null } })).action, "appliquer");
+test("decisionIteration : une proposition iteration-plan (aucun changement) avec des DÉCISIONS devient « reecrire » (recompilation), avec leurs notes", () => {
+  const decisions = { description: "Mai réessaie, puis le feu prend.", reglages: { creativite: "bold" } };
+  const affichage = { intent: { avant: "Mai essaie.", apres: "Mai réessaie, puis le feu prend." }, duree: null, referencesAjoutees: [], referencesRetirees: [], reglages: [{ libelle: "Créativité", avant: "Équilibrée", apres: "Audacieuse" }], manquants: [] };
+  const d = decisionIteration(prop({ groupes: [], resume: "Décisions de l'agent : la fiche est recompilée.", diagnostic: { confiance: "faible", dureeCoherente: true, abandon: null, decisions, affichage } }));
+  assert.equal(d.action, "reecrire");
+  if (d.action === "reecrire") {
+    assert.deepEqual(d.decisions, decisions);
+    assert.deepEqual(d.notes, ["L'agent doutait de son diagnostic.", "Intent du plan réécrit par l'agent (l'ancien reste dans l'essai précédent).", "Créativité du plan : Équilibrée → Audacieuse."]);
+  }
+  // le post-traitement a dit « sans écriture » (durée réelle incohérente mesurée) : rien, même si le diagnostic porte des décisions
+  const sans = decisionIteration(prop({ groupes: [], resume: "Diagnostic sans écriture. La durée réelle du fichier (3 s) ne correspond pas.", diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, decisions } }));
+  assert.equal(sans.action, "rien");
+  // une fiche applicable (la recompilation) reste une application
+  assert.equal(decisionIteration(prop({ diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, decisions: null } })).action, "appliquer");
 });
 
 test("decisionIteration : une réécriture (plan-h3) applique la fiche ET crée les assets qu'elle déclare manquants (note : pas encore d'image) ; sans fiche appliquable, rien n'est créé", () => {

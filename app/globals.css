@@ -5278,6 +5278,51 @@ button {
   font-size: 13px;
   color: var(--ecarlate-glow);
 }
+/* « Itérer » : ce que l'agent décide de changer (réglages, références, durée, intent avant → après). */
+.tm-decisions {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.tm-decisions-titre {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--or-glow);
+}
+.tm-decisions ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+.tm-decisions s {
+  color: var(--ink-3);
+}
+.tm-decisions b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.tm-decisions summary {
+  cursor: pointer;
+}
+.tm-decisions-intent {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.tm-decisions-intent p {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.tm-decisions-intent small {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-3);
+}
 
 /* pellicule des plans, à la suite de la page */
 .tm-reel-zone {

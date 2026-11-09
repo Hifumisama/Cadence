@@ -2,16 +2,23 @@ import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-o
 import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes } from "../../db/schema";
 import { horsAffiches } from "../assets-visibles";
 import { variantePromptAsset } from "../llm/variantes";
-import { genreOuNull, variantePlanH3 } from "../scene-genres";
 import { WORKFLOW_IMPORT_MANUEL } from "../plan-checks";
 import { ORDRE_SECTIONS } from "../prompt";
 import type { Db } from "./applicateurs/commun";
 import { sansClesAbandonnees } from "./brief";
 import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-plan";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { cheminAssetMedia, MEDIA_ROOT } from "../media";
+import { AIDE_CREATIVITE, CREATIVITES, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_NIVEAU, MISES_EN_SCENE, RESUME_STYLE_CAMERA, STYLE_AUCUN, resoudreReglages } from "../h3ir/reglages";
+import { SKILL_H3IR } from "../h3ir/resultat";
 import { detailsDuBrief, libelleDetailsDuBrief } from "./registre";
+import { poigneePlan, type EntreeInventaire } from "./inventaire";
 import { liaisonOuDefaut, type Liaison } from "../plan-liaison";
 import { sansEtatDeFin } from "../intent";
 import { nombreDeScenesVise, traitementDeScene } from "./traitement";
+import { choisirReferencesPlan, type ChoixReferencesPlan } from "../h3ir/references-plan-db";
+import { construireEntreeReferencesPlan, SKILL_REFERENCES_PLAN } from "./references-plan";
 import type { BriefContenu, ContexteUtilise, EtatIterationPlan, PlaceScene, Position } from "./types";
 
 /** Ce que l'agent lit AUTOMATIQUEMENT pour une portée courte : des extraits du brief et de
@@ -197,7 +204,7 @@ async function contexteEpisode(db: Db, projectId: number, episodeId: number) {
     .from(episodes)
     .where(and(eq(episodes.projectId, projectId), gt(episodes.numero, ep.numero)))
     .orderBy(asc(episodes.numero));
-  const lesScenes = await db.select({ id: scenes.id, titre: scenes.titre, fonction: scenes.fonction, genre: scenes.genre, ambiance: scenes.ambiance }).from(scenes).where(eq(scenes.episodeId, ep.id)).orderBy(asc(scenes.ordre));
+  const lesScenes = await db.select({ id: scenes.id, titre: scenes.titre, fonction: scenes.fonction, ambiance: scenes.ambiance }).from(scenes).where(eq(scenes.episodeId, ep.id)).orderBy(asc(scenes.ordre));
   const lesPlans = await plansDe(db, ep.id);
   const brief = await lireBriefDuProjet(db, projectId);
   const { extrait, contexte } = extraitsBrief(brief?.contenu ?? null);
@@ -342,7 +349,7 @@ export async function entreeScenarioEpisode(
     ...c.contexteBrief,
     ...(paroles.length ? [{ type: "brief" as const, libelle: `Paroles de l'auteur (${paroles.length} message${paroles.length > 1 ? "s" : ""} de sa conception)` }] : []),
   ];
-  const sceneVue = (s: typeof sceneAvant) => (s ? { titre: s.titre, fonction: s.fonction ?? "", ...(genreOuNull(s.genre) ? { genre: s.genre } : {}), ambiance: (s.ambiance ?? "").trim() } : null);
+  const sceneVue = (s: typeof sceneAvant) => (s ? { titre: s.titre, fonction: s.fonction ?? "", ambiance: (s.ambiance ?? "").trim() } : null);
   return {
     skill: "scenario-episode",
     contexte,
@@ -423,7 +430,7 @@ export async function entreeScenarioScene(
   options: { retour?: string } = {},
 ): Promise<(EntreeSkill & { episodeId: number }) | null> {
   const [sc] = await db
-    .select({ id: scenes.id, episodeId: scenes.episodeId, titre: scenes.titre, fonction: scenes.fonction, genre: scenes.genre, ambiance: scenes.ambiance, traitement: scenes.traitement })
+    .select({ id: scenes.id, episodeId: scenes.episodeId, titre: scenes.titre, fonction: scenes.fonction, ambiance: scenes.ambiance, traitement: scenes.traitement })
     .from(scenes)
     .innerJoin(episodes, eq(episodes.id, scenes.episodeId))
     .where(and(eq(scenes.id, sceneId), eq(episodes.projectId, projectId)));
@@ -432,7 +439,7 @@ export async function entreeScenarioScene(
   const c = await contexteEpisode(db, projectId, sc.episodeId);
   if (!c) return null;
   const toutes = await db
-    .select({ id: scenes.id, titre: scenes.titre, genre: scenes.genre, traitement: scenes.traitement })
+    .select({ id: scenes.id, titre: scenes.titre, traitement: scenes.traitement })
     .from(scenes)
     .where(eq(scenes.episodeId, sc.episodeId))
     .orderBy(asc(scenes.ordre), asc(scenes.id));
@@ -458,11 +465,10 @@ export async function entreeScenarioScene(
       briefExtrait: c.extrait,
       registre: c.registre,
       ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),
-      traitementEpisode: toutes.map((x) => ({ titre: x.titre, ...(genreOuNull(x.genre) ? { genre: x.genre } : {}), intention: traitementDeScene(x.traitement)?.intention ?? "" })),
+      traitementEpisode: toutes.map((x) => ({ titre: x.titre, intention: traitementDeScene(x.traitement)?.intention ?? "" })),
       scene: {
         titre: sc.titre,
         fonction: sc.fonction ?? "",
-        ...(genreOuNull(sc.genre) ? { genre: sc.genre } : {}),
         ambiance: (sc.ambiance ?? "").trim(),
         intention: t.intention,
         etatEntree: t.etatEntree,
@@ -479,7 +485,7 @@ export async function entreeScenarioScene(
   };
 }
 
-/** L'entrée de `relecture-scenario` pour UN épisode (FRICTIONS 2026-10-19) : tout ce que le scénario a écrit — scènes (genre, ambiance), plans dans l'ordre
+/** L'entrée de `relecture-scenario` pour UN épisode (FRICTIONS 2026-10-19) : tout ce que le scénario a écrit — scènes (ambiance), plans dans l'ordre
  * avec leur liaison, leur durée et leur description COMPLÈTE (intention, répliques ; l'ancien « État en fin de plan » retiré), le registre, les mots de l'auteur — pour que
  * le modèle tienne le registre de l'état du monde d'un bout à l'autre. Les plans se citent par POIGNÉE (« P07 », le rang à cet instant, jamais stocké : F03) ;
  * `planUuids` (dans l'ordre) est gardé dans les options de la tâche : le worker vérifie à la fin que l'épisode n'a pas bougé entre la lecture et la réponse.
@@ -522,7 +528,7 @@ export async function entreeRelecture(
       briefEpisode: briefDeEpisode(c.brief, c.ep.titre, c.ep.numero),
       briefExtrait: c.extrait,
       ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),
-      scenes: c.lesScenes.map((s) => ({ titre: s.titre, fonction: s.fonction ?? "", ...(genreOuNull(s.genre) ? { genre: s.genre } : {}), ambiance: (s.ambiance ?? "").trim() })),
+      scenes: c.lesScenes.map((s) => ({ titre: s.titre, fonction: s.fonction ?? "", ambiance: (s.ambiance ?? "").trim() })),
       plans: lesPlans,
       ...(typeof duree === "number" && duree > 0 ? { dureeCibleSecondes: duree } : {}),
       registre: c.registre,
@@ -592,7 +598,7 @@ export async function entreePlanH3(
   if (!p) return null;
   const c = await contexteEpisode(db, projectId, p.episodeId);
   if (!c) return null;
-  const [scene] = p.sceneId == null ? [] : await db.select({ titre: scenes.titre, fonction: scenes.fonction, genre: scenes.genre, ambiance: scenes.ambiance }).from(scenes).where(eq(scenes.id, p.sceneId));
+  const [scene] = p.sceneId == null ? [] : await db.select({ titre: scenes.titre, fonction: scenes.fonction, ambiance: scenes.ambiance }).from(scenes).where(eq(scenes.id, p.sceneId));
   const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
 
   const dansLaScene = c.lesPlans.filter((x) => x.sceneId === p.sceneId);
@@ -639,8 +645,9 @@ export async function entreePlanH3(
   return {
     skill: "plan-h3",
     contexte,
-    // Le genre de la scène choisit les guides de rédaction chargés (agents/skills/plan-h3/guide-genre-*.md).
-    variante: variantePlanH3(scene?.genre),
+    // Variante « standard » : aucun guide de genre (le genre de scène est retiré le 2026-11-09). Sans variante, le chargeur
+    // enverrait TOUS les guides `guide-genre-*.md` ; ils partiront avec `plan-h3`.
+    variante: "standard",
     plan: { id: p.id, uuid: p.uuid, titre: p.titre, episodeId: p.episodeId },
     entree: {
       // D'abord ce qui ne change pas d'un plan à l'autre du projet : le serveur reprend ce préfixe de son cache (le registre pèse
@@ -666,7 +673,6 @@ export async function entreePlanH3(
         ? {
             titre: scene.titre,
             fonction: scene.fonction ?? "",
-            ...(genreOuNull(scene.genre) ? { genre: scene.genre } : {}),
             ...(scene.ambiance?.trim() ? { ambiance: scene.ambiance.trim() } : {}),
             plans: dansLaScene.map((x, k) => ({
               position: k + 1,
@@ -680,6 +686,43 @@ export async function entreePlanH3(
       consigne,
       ...(retour ? { retourUtilisateur: retour } : {}),
     },
+  };
+}
+
+// --- références d'un plan (Open H3 IR, étape 5) -----------------------------------
+
+/** L'entrée du petit skill `references-plan` pour un plan, avec le choix du code (`choix`) : l'appelant ne pose la tâche QUE si `choix.suffit` est faux
+ * (sinon les références du code suffisent). Pas encore branché à un flux (fiche Open H3 IR, création de projet : câblage à venir). `assetsProposesParLeLot` :
+ * les assets qu'un inventaire en cours va créer (le skill peut les citer, jamais les reproposer). `null` si le plan n'est pas de ce projet. */
+export async function entreeReferencesPlan(
+  db: Db,
+  projectId: number,
+  planUuid: string,
+  options: { assetsProposesParLeLot?: { code: string; type: string }[] } = {},
+): Promise<(EntreeSkill & { choix: ChoixReferencesPlan }) | null> {
+  const [p] = await db.select({ id: plans.id }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
+  if (!p) return null;
+  const choix = await choisirReferencesPlan(db, p.id);
+  if (!choix) return null;
+  const entree = construireEntreeReferencesPlan({
+    narration: choix.narration,
+    locuteurs: choix.locuteurs,
+    dureeSecondes: choix.plan.dureeSecondes,
+    scene: choix.scene,
+    references: choix.references,
+    doutes: choix.doutes,
+    decorPrecedent: choix.decorPrecedent,
+    candidats: choix.candidats,
+    assetsProposesParLeLot: options.assetsProposesParLeLot,
+  });
+  return {
+    skill: SKILL_REFERENCES_PLAN,
+    choix,
+    contexte: [
+      { type: "plan", libelle: `Plan · ${choix.plan.titre}`, ref: choix.plan.uuid },
+      { type: "registre", libelle: `Registre : ${entree.candidats.length} asset${entree.candidats.length > 1 ? "s" : ""} candidat${entree.candidats.length > 1 ? "s" : ""}` },
+    ],
+    entree,
   };
 }
 
@@ -704,13 +747,27 @@ async function renduDuPlan(db: Db, planId: number, jobId: number) {
   return j ?? null;
 }
 
-/** L'historique des corrections après visionnage déjà tentées sur ce plan (voir `historiqueIteration`). */
+/** L'historique des corrections après visionnage déjà tentées sur ce plan (voir `historiqueIteration`). Depuis 2026-11-09, les décisions d'une itération
+ * s'écrivent avec la fiche RECOMPILÉE (une proposition `plan-h3ir` de la même demande) : c'est son application qui fait « appliquée ». */
 async function historiqueDuPlan(db: Db, projectId: number, planId: number) {
-  const props = await db
-    .select({ id: propositions.id, createdAt: propositions.createdAt, appliedAt: propositions.appliedAt, statut: propositions.statut, consigne: propositions.consigne, resultat: agentRuns.resultat })
+  const lues = await db
+    .select({ id: propositions.id, createdAt: propositions.createdAt, appliedAt: propositions.appliedAt, statut: propositions.statut, consigne: propositions.consigne, resultat: agentRuns.resultat, entree: agentRuns.entree, demandeId: agentRuns.demandeId })
     .from(propositions)
     .leftJoin(agentRuns, eq(agentRuns.id, propositions.runId))
     .where(and(eq(propositions.projectId, projectId), eq(propositions.skill, "iteration-plan"), eq(propositions.portee, "plan"), eq(propositions.cibleId, planId)));
+  const demandesIds = [...new Set(lues.map((p) => p.demandeId).filter((d): d is number => d != null))];
+  const recompilees = demandesIds.length
+    ? await db
+        .select({ demandeId: agentRuns.demandeId, statut: propositions.statut, appliedAt: propositions.appliedAt })
+        .from(agentRuns)
+        .innerJoin(propositions, eq(propositions.id, agentRuns.propositionId))
+        .where(and(eq(agentRuns.skill, SKILL_H3IR), inArray(agentRuns.demandeId, demandesIds), eq(propositions.statut, "appliquee")))
+    : [];
+  const appliqueeLe = new Map(recompilees.filter((r) => r.demandeId != null && r.appliedAt != null).map((r) => [r.demandeId!, r.appliedAt!]));
+  const props = lues.map((p) => {
+    const le = p.demandeId != null ? appliqueeLe.get(p.demandeId) : undefined;
+    return le ? { ...p, statut: "appliquee", appliedAt: le } : p;
+  });
   const ids = props.map((p) => p.id);
   const comptes = ids.length
     ? await db.select({ id: propositionChangements.propositionId, n: count() }).from(propositionChangements).where(inArray(propositionChangements.propositionId, ids)).groupBy(propositionChangements.propositionId)
@@ -808,7 +865,23 @@ export async function entreeIterationPlan(
   ];
   const importe = rendu.workflowFichier === WORKFLOW_IMPORT_MANUEL;
   // Le registre : de quoi AJOUTER une référence (codes existants, jamais inventés) ; sans les voix (les poses composites « keyframe » se citent comme les autres images).
-  const registre = (await registreResume(db, projectId));
+  // `image` : le fichier de l'asset existe (une référence ajoutée sans image ne se compile pas encore).
+  const fichiers = new Map(
+    (await db.select({ code: assets.code, fichier: assets.fichier }).from(assets).where(eq(assets.projectId, projectId))).map((a) => [a.code, !!a.fichier && existsSync(join(MEDIA_ROOT, cheminAssetMedia(a.fichier)))]),
+  );
+  const registre = (await registreResume(db, projectId)).map((a) => ({ ...a, image: fichiers.get(a.code) ?? false }));
+  // Les réglages Open H3 IR effectifs du plan (plan > scène > projet) et les valeurs permises : l'agent règle la caméra et le rythme par eux, pas par du texte.
+  const [sceneR] = p.sceneId != null ? await db.select({ creativite: scenes.creativite, styleCamera: scenes.styleCamera }).from(scenes).where(eq(scenes.id, p.sceneId)) : [];
+  const [projetR] = await db.select({ creativite: projects.creativite, styleCamera: projects.styleCamera }).from(projects).where(eq(projects.id, projectId));
+  const resolus = resoudreReglages({ projet: projetR, scene: sceneR, plan: { creativite: p.creativite, styleCamera: p.styleCamera } });
+  const reglages = {
+    creativite: { actuelle: resolus.creativite, regleSur: LIBELLE_NIVEAU[resolus.origine.creativite] },
+    styleMiseEnScene: { actuel: resolus.styleCamera ?? STYLE_AUCUN, regleSur: LIBELLE_NIVEAU[resolus.origine.styleCamera] },
+    choix: {
+      creativite: CREATIVITES.map((v) => ({ valeur: v, nom: LIBELLE_CREATIVITE[v], effet: AIDE_CREATIVITE[v] })),
+      styleMiseEnScene: [{ valeur: STYLE_AUCUN, nom: "Aucun style", effet: "Aucun goût de mise en scène imposé : seuls l'intent et les images décident." }, ...MISES_EN_SCENE.map((v) => ({ valeur: v, nom: RESUME_STYLE_CAMERA[v], effet: DETAIL_STYLE_CAMERA[v] }))],
+    },
+  };
   const contexte: ContexteUtilise[] = [
     { type: "plan", libelle: `Plan · ${p.titre} · prompt actuel (six sections)`, ref: p.uuid },
     { type: "registre", libelle: `Registre : ${registre.length} asset${registre.length > 1 ? "s" : ""} à citer en référence` },
@@ -832,6 +905,7 @@ export async function entreeIterationPlan(
       promptActuel: Object.fromEntries(ORDRE_SECTIONS.map((s) => [s, sections[s] ?? ""])),
       references,
       registre,
+      reglages,
       retourVisionnage,
       historique,
       plansVoisins: {
@@ -862,7 +936,7 @@ export async function apercuContexteDe(db: Db, projectId: number, portee: string
 /** Entrée d'`inventaire-assets` : TOUS les plans du projet (titre et intention, par scène et par épisode), le registre
  * actuel et le brief. Un seul appel pour le projet : c'est la vue d'ensemble qui évite les doublons entre plans.
  * `null` si le projet n'a aucun plan écrit. */
-export async function entreeInventaire(db: Db, projectId: number, consigne: string, retour?: string): Promise<(EntreeSkill & { nbPlans: number }) | null> {
+export async function entreeInventaire(db: Db, projectId: number, consigne: string, retour?: string): Promise<(EntreeSkill & { nbPlans: number; planUuids: Record<string, string>; entree: EntreeInventaire }) | null> {
   const eps = await db
     .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre, resume: episodes.resume })
     .from(episodes)
@@ -872,11 +946,14 @@ export async function entreeInventaire(db: Db, projectId: number, consigne: stri
   const ids = eps.map((e) => e.id);
   const lesScenes = await db.select({ id: scenes.id, episodeId: scenes.episodeId, titre: scenes.titre, fonction: scenes.fonction }).from(scenes).where(inArray(scenes.episodeId, ids)).orderBy(asc(scenes.ordre), asc(scenes.id));
   const lesPlans = await db
-    .select({ episodeId: plans.episodeId, sceneId: plans.sceneId, titre: plans.titre, description: plans.description })
+    .select({ uuid: plans.uuid, episodeId: plans.episodeId, sceneId: plans.sceneId, titre: plans.titre, description: plans.description })
     .from(plans)
     .where(inArray(plans.episodeId, ids))
     .orderBy(asc(plans.ordre), asc(plans.id));
   if (lesPlans.length === 0) return null;
+  // Chaque plan reçoit une poignée (« P07 », dans l'ordre de lecture de l'entrée) que le modèle cite dans `references` ; la poignée → uuid reste
+  // dans les options de la tâche (`planUuids`), jamais montrée (lib/agents/inventaire.ts).
+  const planUuids: Record<string, string> = {};
 
   const registre = (await registreResume(db, projectId));
   const lireBrief = await lireBriefDuProjet(db, projectId);
@@ -886,15 +963,20 @@ export async function entreeInventaire(db: Db, projectId: number, consigne: stri
   const episodesEntree = eps.map((e) => {
     const sc = lesScenes.filter((s) => s.episodeId === e.id);
     const duPlan = lesPlans.filter((p) => p.episodeId === e.id);
-    const plansDe = (sceneId: number | null) => duPlan.filter((p) => p.sceneId === sceneId).map((p) => ({ titre: p.titre, intention: sansEtatDeFin(p.description).slice(0, 400) }));
+    const plansDe = (sceneId: number | null) =>
+      duPlan
+        .filter((p) => p.sceneId === sceneId)
+        .map((p) => {
+          const id = poigneePlan(Object.keys(planUuids).length + 1);
+          planUuids[id] = p.uuid;
+          return { id, titre: p.titre, intention: sansEtatDeFin(p.description).slice(0, 400) };
+        });
+    const desScenes = sc.map((s) => ({ titre: s.titre, fonction: s.fonction ?? "", plans: plansDe(s.id) }));
     const orphelins = plansDe(null);
     return {
       episode: `Épisode ${e.numero} · ${e.titre}`,
       resume: e.resume,
-      scenes: [
-        ...sc.map((s) => ({ titre: s.titre, fonction: s.fonction ?? "", plans: plansDe(s.id) })),
-        ...(orphelins.length ? [{ titre: "(hors scène)", fonction: "", plans: orphelins }] : []),
-      ],
+      scenes: [...desScenes, ...(orphelins.length ? [{ titre: "(hors scène)", fonction: "", plans: orphelins }] : [])],
     };
   });
   const contexte: ContexteUtilise[] = [
@@ -907,6 +989,7 @@ export async function entreeInventaire(db: Db, projectId: number, consigne: stri
     skill: "inventaire-assets",
     contexte,
     nbPlans: lesPlans.length,
+    planUuids,
     entree: {
       registre,
       brief: extrait,

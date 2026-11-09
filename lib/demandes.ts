@@ -1,5 +1,5 @@
 import { ERREUR_ANNULEE } from "./annulation";
-import type { PlaceScene } from "./agents/types";
+import type { DecisionsAffichees, DecisionsIteration, PlaceScene } from "./agents/types";
 import type { DecisionIteration } from "./fiche-plan";
 
 /** Les DEMANDES (2026-10-17) : un geste de l'utilisateur qui tient en plusieurs étapes est UNE ligne dans la file et le panneau, du clic
@@ -16,7 +16,7 @@ export type StatutEtapeDemande = "a_venir" | "en_cours" | "fait" | "passe";
 
 export const ETAPES_ITERATION_PLAN = [
   { cle: "agent", libelle: "L'agent lit la consigne" },
-  { cle: "reecriture", libelle: "Réécriture de la fiche" },
+  { cle: "reecriture", libelle: "Recompilation de la fiche (Open H3 IR)" },
   { cle: "rendu", libelle: "Rendu de l'essai" },
 ] as const;
 export type CleEtapeIteration = (typeof ETAPES_ITERATION_PLAN)[number]["cle"];
@@ -31,8 +31,12 @@ export type ContexteIteration = {
   depuisNumero: number | null;
   /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits avec l'essai. */
   reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string };
-  /** La tâche d'agent de l'étape courante (agent, puis plan-h3 d'une réécriture). */
+  /** La tâche d'agent de l'étape courante (agent, puis la recompilation Open H3 IR). */
   runUuid?: string;
+  /** Les décisions de l'agent (avant → après), montrées par la page pendant la recompilation et après. */
+  decisions?: DecisionsAffichees | null;
+  /** Ce que l'agent a signalé (décisions, confiance faible) : gardé sur l'essai avec les notes de l'application. */
+  notesAgent?: string[];
   /** Le rendu créé, une fois la correction appliquée. */
   jobId?: number;
   numeroRendu?: number;
@@ -59,7 +63,7 @@ export type ObservationIteration = {
 export type DecisionDemande =
   | { type: "attendre" }
   | { type: "appliquer" }
-  | { type: "reecrire"; description: string; dureeSecondes?: number }
+  | { type: "reecrire"; decisions: DecisionsIteration; affichage: DecisionsAffichees | null; notes: string[] }
   | { type: "terminer" }
   | { type: "annuler" }
   | { type: "echouer"; erreur: string };
@@ -87,8 +91,8 @@ export function deciderIteration(etape: CleEtapeIteration, obs: ObservationItera
   if (d.action === "rien") return { type: "echouer", erreur: d.message };
   if (d.action === "appliquer") return { type: "appliquer" };
   // reecrire
-  if (etape === "agent") return { type: "reecrire", description: d.description, ...(d.dureeSecondes ? { dureeSecondes: d.dureeSecondes } : {}) };
-  return { type: "echouer", erreur: "La réécriture de la fiche demande encore d'être réécrite : relance « Itérer »." };
+  if (etape === "agent") return { type: "reecrire", decisions: d.decisions, affichage: d.affichage, notes: d.notes };
+  return { type: "echouer", erreur: "La recompilation de la fiche demande encore d'être recompilée : relance « Itérer »." };
 }
 
 // --- « Ajouter un plan » (page Scénario) -------------------------------------------------------------------------------------------------

@@ -32,7 +32,7 @@ import { resoudreMoteurFiche } from "./h3ir/moteur-db";
 import { appliquerIterationEtGenererCore } from "./iteration-application";
 import { lireProposition } from "./queries-agents";
 import { cleLlm, cleVideo } from "./taches";
-import type { Resultat } from "./agents/types";
+import type { DecisionsAffichees, Resultat } from "./agents/types";
 
 /** Le PILOTE des demandes (règles dans lib/demandes.ts). `piloterDemandes` est appelé à chaque tour de la boucle « installateur » du
  * worker : une transition au plus par demande en cours, état dans `demandes` (reprise sur redémarrage, rien en mémoire). Une seule
@@ -469,7 +469,7 @@ async function avancer(d: LigneDemande): Promise<boolean> {
         await ecrire(d, { statut: "echoue", erreur: "La proposition de cette étape est introuvable." });
         return true;
       }
-      const r = await appliquerIterationEtGenererCore(d.cibleId, propositionUuid, { consigne: ctx.consigne, depuisNumero: ctx.depuisNumero, demandeId: d.id }, ctx.reglages ?? {});
+      const r = await appliquerIterationEtGenererCore(d.cibleId, propositionUuid, { consigne: ctx.consigne, depuisNumero: ctx.depuisNumero, demandeId: d.id, notes: ctx.notesAgent ?? [] }, ctx.reglages ?? {});
       if (!r.ok) {
         await ecrire(d, { statut: "echoue", erreur: r.erreur });
         return true;
@@ -483,18 +483,15 @@ async function avancer(d: LigneDemande): Promise<boolean> {
         await ecrire(d, { statut: "echoue", erreur: "Conversation introuvable." });
         return true;
       }
-      const g = await genererReecriturePlan(conversationUuid, {
-        consigne: ctx.consigne,
-        description: decision.description,
-        ...(decision.dureeSecondes ? { dureeSecondes: decision.dureeSecondes } : {}),
-        demandeId: d.id,
-      });
+      // Toujours recompiler (2026-11-09) : les décisions de l'agent (intent, durée, références, réglages) partent en surcharge d'Open H3 IR et ne
+      // s'écrivent qu'avec la fiche compilée. Un refus (images manquantes…) laisse le plan tel quel ; les décisions restent visibles.
+      const g = await genererReecriturePlan(conversationUuid, { consigne: ctx.consigne, decisions: decision.decisions, demandeId: d.id });
       if (!g.ok) {
         if (/déjà en cours/i.test(g.erreur)) return false; // la conversation est prise par autre chose : au prochain tour
-        await ecrire(d, { statut: "echoue", erreur: g.erreur });
+        await ecrire(d, { statut: "echoue", erreur: g.erreur, contexte: { ...ctx, decisions: decision.affichage, notesAgent: decision.notes } });
         return true;
       }
-      await ecrire(d, { etapes: avancerEtapes(etapes, "agent", "fait"), contexte: { ...ctx, runUuid: g.runUuid } });
+      await ecrire(d, { etapes: avancerEtapes(etapes, "agent", "fait"), contexte: { ...ctx, runUuid: g.runUuid, decisions: decision.affichage, notesAgent: decision.notes } });
       return true;
     }
   }
@@ -523,6 +520,8 @@ export type VueDemande = {
   /** Le rendu créé (étape « rendu » atteinte) : la page peut accuser le lancement. */
   numeroRendu: number | null;
   notes: string[];
+  /** « Itérer » : ce que l'agent a décidé de changer (avant → après), dès qu'il a répondu. */
+  decisions: DecisionsAffichees | null;
 };
 
 export async function lireDemandeVue(demandeId: number): Promise<VueDemande | null> {
@@ -537,6 +536,7 @@ export async function lireDemandeVue(demandeId: number): Promise<VueDemande | nu
     erreur: d.erreur,
     numeroRendu: ctx.jobId != null ? (ctx.numeroRendu ?? null) : null,
     notes: ctx.notes ?? [],
+    decisions: d.type === "iteration-plan" ? (ctx.decisions ?? null) : null,
   };
 }
 

@@ -13,14 +13,15 @@ test("une tâche en file ou en cours : on attend", () => {
 
 test("l'agent a fini : la décision de la proposition commande la suite", () => {
   assert.deepEqual(deciderIteration("agent", { tache: run("termine"), decision: { action: "appliquer", ids: [1], notes: [] } }), { type: "appliquer" });
-  assert.deepEqual(deciderIteration("agent", { tache: run("termine"), decision: { action: "reecrire", description: "d", dureeSecondes: 8 } }), { type: "reecrire", description: "d", dureeSecondes: 8 });
+  const decisions = { description: "d", dureeSecondes: 8, reglages: { creativite: "bold" } };
+  assert.deepEqual(deciderIteration("agent", { tache: run("termine"), decision: { action: "reecrire", decisions, affichage: null, notes: ["n"] } }), { type: "reecrire", decisions, affichage: null, notes: ["n"] });
   assert.deepEqual(deciderIteration("agent", { tache: run("termine"), decision: { action: "rien", message: "Rien n'a été appliqué." } }), { type: "echouer", erreur: "Rien n'a été appliqué." });
   // la proposition n'est pas encore lisible : on attend
   assert.deepEqual(deciderIteration("agent", { tache: run("termine"), decision: { action: "attendre" } }), { type: "attendre" });
 });
 
 test("une réécriture ne peut pas en demander une autre", () => {
-  const r = deciderIteration("reecriture", { tache: run("termine"), decision: { action: "reecrire", description: "d" } });
+  const r = deciderIteration("reecriture", { tache: run("termine"), decision: { action: "reecrire", decisions: { description: "d" }, affichage: null, notes: [] } });
   assert.equal(r.type, "echouer");
   assert.deepEqual(deciderIteration("reecriture", { tache: run("termine"), decision: { action: "appliquer", ids: [1], notes: [] } }), { type: "appliquer" });
 });

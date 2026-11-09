@@ -225,7 +225,7 @@ que d'écraser).
 | Scénario | `scenario-episode` | lire le brief et le registre ; proposer saison/épisode/scènes/plans (dialogue compris) |
 | Assets | `prompt-asset` | lire le registre, un asset et son parent ; proposer un prompt et une méthode |
 | Plans | `plan-h3` | lire plans, scène et registre ; proposer des plans et leurs refs (voix comprises) ; lancer les contrôles |
-| Itération | `iteration-plan` | lire un plan et son dernier rendu ; proposer une correction de prompt. Garde « Corriger après visionnage » (il lit les vignettes du rendu) ;  |
+| Itération | `iteration-plan` | lire un plan et la consigne (et, sur demande, les vignettes du rendu) ; diagnostiquer et DÉCIDER sur l'intent, la durée, les références et les réglages Open H3 IR (créativité, style de mise en scène) ; le prompt est toujours recompilé par Open H3 IR et les décisions s'écrivent avec la fiche (2026-11-09) |
 
 Tous les outils **de lecture** répondent directement. Tous les outils **d'écriture**
 créent des changements de proposition — aucun n'écrit sur les tables métier.
@@ -256,7 +256,7 @@ l'aveugle (F03).
 - **Convention du chargeur** (`chargerSkill`) : le prompt système = `SKILL.md` (sans son en-tête
   YAML), puis les `references/guide-*.md` (ordre alphabétique), puis
   `references/exemples/*.md` (ordre alphabétique), puis les fichiers partagés déclarés dans
-  le code (le lexique H3 pour `plan-h3` et `iteration-plan`), puis le contrat de sortie
+  le code (aucun depuis 2026-11-09 : `iteration-plan` a sa copie du lexique en `references/guide-lexique-diagnostic.md`), puis le contrat de sortie
   (`assets/sortie.schema.json` en JSON compact). Chaque fichier a un titre
   `=== type: nom ===` (en anglais). L'en-tête (`name` = nom du dossier, `description`) est
   obligatoire et vérifié, mais ne pilote aucun chargement.
@@ -493,7 +493,9 @@ centaine. Pour un projet qui vise au moins `SEUIL_TRAITEMENT_SECONDES` (90 s, `l
 le scénario en deux temps, deux étapes de l'installateur :
 
 1. **`traitement`** (skill `traitement-episode`, lot `traitements`) : l'épisode est découpé en scènes (une scène par minute et demie
-   environ, `nombreDeScenesVise`). Pour chacune : titre, fonction, genre, ambiance, **intention**, **état d'entrée**, **état de sortie**,
+   environ, `nombreDeScenesVise`). Pour chacune : titre, fonction, ambiance (le genre de scène, qui choisissait
+   les guides de `plan-h3` et le découpage, est **retiré le 2026-11-09** : trop de cas ambigus ; la colonne `scenes.genre` reste en base,
+   non lue, et `plan-h3` charge sa variante « standard » jusqu'à son retrait), **intention**, **état d'entrée**, **état de sortie**,
    **poids** (1 à 5) et ce que l'auteur en a dit (`momentsDeLAuteur`). Le modèle ne donne jamais de secondes : le code les calcule
    (`repartirDureesScenes`, la somme tombe exactement sur la durée visée). Appliqué d'office, il crée les scènes ; leur traitement vit dans
    `scenes.traitement` (jsonb).
@@ -529,3 +531,24 @@ dans l'espace latent). Au-delà, **pas de prévisualisation ni d'upscale** (un u
 directement le rendu final, natif ; `jobs.activer_upscale` se lit alors « rendu final », et le worker décide s'il y a réellement un upscale. À mesurer :
 un rendu à 0,3 ou 0,4 MP à côté du LLM chargé (le verrou GPU le traite comme un rendu ordinaire). Un plan en 0,2 MP dont on valide le geste peut être
 refait en 0,4 MP : le geste survit (constaté), le rendu n'est pas identique.
+
+## 19. L'inventaire choisit aussi les références de chaque plan (2026-11-09)
+
+Le skill `inventaire-assets` rend, en plus des assets manquants, `references` : pour CHAQUE plan de l'entrée (poignée `P07`, résolue en uuid par
+les options de la tâche, jamais montrée), les codes de ses images de référence. Les références sont donc prêtes avant les fiches (relues avec les
+intents) et aucun passage du modèle par plan n'est nécessaire pour les choisir ; le petit skill `references-plan` ne sert qu'en cas de doute ou
+pour un plan ajouté plus tard.
+
+- **Contrôles en code** (`lib/agents/inventaire.ts`, `controlerReferences`) : codes du registre, des assets déjà proposés ou de la réponse (un
+  code à un mot de liaison près est corrigé, `codes-proches.ts`) ; jamais de son ; un seul visage par personnage (deux états du même sujet), un
+  seul décor, une keyframe seulement si l'intention la cite ; 6 images au plus (on garde personnages et décor, les effets partent d'abord) ;
+  ordre personnages (locuteurs d'abord), objets, effets, décor en dernier. Code inconnu, plan oublié, son ou plus de 6 images : renvoi du modèle
+  une fois (`lib/llm/controles.ts`).
+- **Écriture** (`lib/h3ir/references-ecriture.ts`, `ecrireReferencesPlan`) : `plan_refs` en `picture`, rôle « Type, Nom », rétention
+  `weak_reference` pour un VFX ; le statut du plan ne change pas (un brouillon reste brouillon) et rien n'est écrit sur un plan qui a déjà une
+  image de référence. Les plans qui ne citent que des assets existants sont écrits au post-traitement ; les autres à l'application de la
+  proposition, dans sa transaction, après la création des assets (`lib/agents/inventaire-db.ts`). Un asset décoché ou refusé est omis.
+- **Découpage** : un seul appel tant que l'estimation (skill + entrée + 2 500 jetons + 30 par plan) tient dans le budget, `LLM_CONTEXTE_TOTAL`
+  plafonné à 32 000 (`budgetInventaire`). Au-delà (film de 20-30 min), groupes de scènes consécutives (une scène trop longue est coupée entre ses
+  plans), en lot (`inv:1`, `inv:2`…) posés l'un après l'autre : chaque groupe reçoit `assetsDejaProposes` (ce que les précédents proposent) et
+  garde 3 000 jetons pour eux. Repère : 5 min ≈ 17 000 jetons, 10 min ≈ 25 000.

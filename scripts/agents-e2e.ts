@@ -2,7 +2,7 @@ import "dotenv/config";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes } from "../db/schema";
-import { lireApresFiche } from "../lib/agents/fiches";
+import { decisionIteration } from "../lib/fiche-plan";
 import { controlerStructure, verifierCoherenceRefs } from "../lib/plan-checks";
 import { demanderAnnulation } from "../lib/annulation-db";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";
@@ -140,6 +140,10 @@ const faux = (async (skill: string, entree: unknown, options?: { controler?: (js
         { code: "DEC_le_phare", type: "decor", description: "Déjà au registre", plans: ["Plan A"], raison: "x" },
         { code: "prop_clef", type: "prop", description: "Doublon", plans: ["Plan C"], raison: "x" },
       ],
+      // Les références de chaque plan (2026-11-09) : la clef proposée ici et les décors du registre.
+      references: ((entree as { episodes?: { scenes?: { plans?: { id: string }[] }[] }[] }).episodes ?? [])
+        .flatMap((ep) => (ep.scenes ?? []).flatMap((s) => s.plans ?? []))
+        .map((p) => ({ plan: p.id, codes: ["PROP_clef", ...((entree as { registre?: { code: string; type: string }[] }).registre ?? []).filter((a) => a.type === "decor").slice(0, 1).map((a) => a.code)] })),
       notes: "",
     };
   } else if (skill === "plan-h3") {
@@ -174,21 +178,21 @@ const faux = (async (skill: string, entree: unknown, options?: { controler?: (js
     imagesVuesIteration = parties.filter((p) => p.type === "image_url").length;
     const texte = JSON.parse((parties[0] as { text?: string } | undefined)?.text ?? "{}") as { promptActuel?: Record<string, string>; historique?: unknown[] };
     derniereEntreeIteration = texte;
-    const desc = texte.promptActuel?.detailed_description ?? "";
-    const avant = "a close-up of the salt on the railing.";
+    // Le contrat de 2026-11-09 : un diagnostic et des DÉCISIONS (ici : la créativité du plan), jamais de passages du prompt.
+    const rien = { nouvelleDescription: "", dureeSecondes: null, references: { ajouter: [], retirer: [] }, manquants: [], reglages: { creativite: null, styleMiseEnScene: null } };
     json =
       modeIteration === "duree"
-        ? { dureeCoherente: false, symptome: "Le rendu dure 3 s au lieu de 8.", cause: "Génération à la mauvaise durée.", categorie: "duree", confiance: "haute", changements: [], abandon: { propose: false, raison: "" } }
+        ? { dureeCoherente: false, symptome: "Le rendu dure 3 s au lieu de 8.", cause: "Génération à la mauvaise durée.", categorie: "duree", confiance: "haute", verification: "Relancer la génération.", abandon: { propose: false, raison: "" }, decisions: rien }
         : {
             dureeCoherente: true,
             symptome: "À 5 s, le sel défile derrière la rambarde.",
-            cause: "Gros plan sans caméra verrouillée : le fond bouge (lexique §4).",
+            cause: "Gros plan avec une caméra trop libre : le fond bouge (lexique, caméra et gros plans).",
             categorie: "camera",
             confiance: "moyenne",
-            changements: desc.includes(avant) ? [{ section: "detailed_description", avant, apres: "a static close-up of the salt on the railing, the camera locked, the background still." }] : [],
             verification: "Entre 4 et 8 s, le fond ne bouge plus.",
-            entreeLexique: { symptome: "fond qui défile en gros plan", cause: "caméra non verrouillée", formulationQuiTient: "the camera locked, the background still" },
+            entreeLexique: { symptome: "fond qui défile en gros plan", cause: "caméra trop libre", formulationQuiTient: "creativity restrained" },
             abandon: { propose: false, raison: "" },
+            decisions: { ...rien, reglages: { creativite: "restrained", styleMiseEnScene: null } },
           };
     erreursControleIteration = options?.controler ? options.controler(json) : null;
   } else throw new Error(`Skill inattendu : ${skill}`);
@@ -855,28 +859,25 @@ async function main() {
     ok(rI.statut === "termine" && imagesVuesIteration === 8, `le worker reconstruit la planche à l'exécution (${imagesVuesIteration} vignettes vues par le modèle)`);
     ok(erreursControleIteration !== null && erreursControleIteration.length === 0, `le contrôleur sémantique du worker accepte la correction${erreursControleIteration?.length ? ` — ${erreursControleIteration.join(" ; ")}` : ""}`);
     let pI = await lireProposition(gI.propositionUuid);
-    const chI2 = pI!.groupes.flatMap((g) => g.changements);
-    const ficheI = chI2.find((c) => c.cibleType === "fiche");
-    ok(pI?.statut === "prete" && chI2.length === 1 && !!ficheI, "proposition prête : une écriture de fiche");
+    ok(pI?.statut === "prete" && pI.compteurs.total === 0, "proposition prête, SANS changement : l'agent ne fait que décider (2026-11-09)");
     ok(pI?.diagnostic?.symptome.startsWith("À 5 s") === true && pI.diagnostic.verification !== null && pI.diagnostic.entreeLexique !== null, "la revue a le diagnostic (symptôme, vérification, candidate au lexique)");
-    const apI = lireApresFiche(ficheI?.apres);
-    ok(Object.keys(apI.sections ?? {}).join() === "detailed_description" && apI.refs === undefined && apI.dureeGenerationSecondes === undefined && apI.passages?.length === 1, "écriture PARTIELLE : une section, ni références ni durée, le passage pour la revue");
-    ok(ficheI?.coche === false && !!ficheI.ecrase && ficheI.avertissements.some((a) => a.type === "ecrase_valide"), "le plan a un rendu : écrasement, décoché par défaut");
+    ok(pI?.diagnostic?.decisions?.reglages?.creativite === "restrained" && pI.diagnostic.affichage?.reglages.length === 1, "les décisions : la créativité du plan passe à « restrained » (avant → après pour la page)");
     ok(pI!.contexte.some((c) => /Rendu mesuré : 8,02 s pour 8 s/.test(c.libelle)), "le contexte utilisé dit la durée mesurée et les vignettes regardées");
-    await s.cocherChangement(ficheI!.id, true);
-    const apIt = await s.appliquerSelection(gI.propositionUuid, { confirmeEcrasement: true });
-    ok(apIt.ok, `appliquer la correction${apIt.ok ? "" : ` — ${apIt.erreur}`}`);
+    const decI = decisionIteration(pI);
+    ok(decI.action === "reecrire", "« Itérer » : les décisions partent en recompilation Open H3 IR");
+    // La recompilation exige les images de TOUTES les références finales : sans fichier (cas de ce projet de test), refus clair, aucune tâche, rien d'écrit.
+    if (decI.action === "reecrire") {
+      const rc = await s.genererReecriturePlan(convI.conversationUuid, { consigne: "À 5 s, le sel défile.", decisions: decI.decisions });
+      ok(!rc.ok && /Images manquantes/.test(rc.erreur), `sans images : « Images manquantes » et rien n'est lancé${rc.ok ? "" : ` (${rc.erreur})`}`);
+    }
     const secsApresI = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, p1F.id));
-    const desc = (l: typeof secsApresI) => l.find((x) => x.section === "detailed_description")?.contenu ?? "";
-    ok(desc(secsApresI).includes("the camera locked, the background still") && !desc(secsApresI).includes("a close-up of the salt on the railing."), "la section corrigée est écrite");
-    ok(
-      secsApresI.length === secsAvantI.length && secsApresI.filter((x) => x.section !== "detailed_description").every((x) => secsAvantI.find((y) => y.section === x.section)?.contenu === x.contenu),
-      "les autres sections n'ont pas bougé",
-    );
+    ok(secsApresI.length === secsAvantI.length && secsApresI.every((x) => secsAvantI.find((y) => y.section === x.section)?.contenu === x.contenu), "le prompt n'a pas bougé (rien n'est écrit avant la fiche compilée)");
     ok((await db.select().from(planRefs).where(eq(planRefs.planId, p1F.id))).length === refsAvantI.length, "les références non plus");
+    const [planI] = await db.select({ creativite: plans.creativite }).from(plans).where(eq(plans.id, p1F.id));
+    ok(planI?.creativite == null, "ni la créativité du plan");
     const secC = secsApresI.map((x) => ({ section: x.section, contenu: x.contenu }));
     const cohI = verifierCoherenceRefs(secC, (await db.select().from(planRefs).where(eq(planRefs.planId, p1F.id))).map((r) => ({ type: r.type, slot: r.slot })));
-    ok(cohI.labelsOrphelins.length === 0 && controlerStructure(secC, p1F.dureeGenerationSecondes).length === 0, "page du plan : contrôles toujours verts après la correction");
+    ok(cohI.labelsOrphelins.length === 0 && controlerStructure(secC, p1F.dureeGenerationSecondes).length === 0, "page du plan : contrôles toujours verts");
 
     // durée incohérente : diagnostic sans écriture ; l'historique remonte la correction appliquée
     modeIteration = "duree";
@@ -884,7 +885,7 @@ async function main() {
     if (!gI2.ok) throw new Error(gI2.erreur);
     await traiterIteration(gI2.propositionUuid, faussePlanche(3));
     const hist = (derniereEntreeIteration?.historique ?? []) as { issue?: string }[];
-    ok(hist.length === 1 && hist[0]!.issue === "appliquee", "l'agent reçoit l'historique : la correction précédente, appliquée");
+    ok(hist.length === 1 && hist[0]!.issue === "non_appliquee", "l'agent reçoit l'historique : la correction précédente, décidée mais pas encore recompilée");
     pI = await lireProposition(gI2.propositionUuid);
     ok(pI?.statut === "prete" && pI.compteurs.total === 0 && /Diagnostic sans écriture.*3 s.*8 s/.test(pI.resume) && pI.diagnostic?.dureeCoherente === false, "durée réelle 3 s pour 8 voulues : aucune écriture, la raison est dans le résumé");
     modeIteration = "correction";

@@ -8,7 +8,8 @@ import type { EnveloppeH3ir, Tentative } from "./compilateur";
 export const SKILL_H3IR = "plan-h3ir";
 export const SKILL_TRADUCTION = "traduction-intent";
 
-/** L'entrée de la tâche (`agent_runs.entree`). `description` / `dureeSecondes` : à compiler à la place de celles du plan (réécriture d'« Itérer »). */
+/** L'entrée de la tâche (`agent_runs.entree`). `description` / `dureeSecondes` / `references` / `reglagesPlan` : à compiler à la place de ce qui est en base
+ * (décisions d'« Itérer », lib/h3ir/brief-plan.ts `SurchargeBrief`) ; elles ne s'écrivent sur le plan qu'avec la fiche compilée. */
 export type EntreeH3ir = {
   planUuid: string;
   shots?: number | null;
@@ -16,6 +17,8 @@ export type EntreeH3ir = {
   creativity?: string | null;
   description?: string | null;
   dureeSecondes?: number | null;
+  references?: { ajouter: string[]; retirer: string[] } | null;
+  reglagesPlan?: { creativite?: string | null; styleCamera?: string | null } | null;
 };
 
 /** L'enveloppe du compilateur réduite à ce que la fiche et le suivi utilisent. */

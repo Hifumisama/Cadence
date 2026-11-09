@@ -12,12 +12,17 @@ const SORTIE_ATTENDUE: Record<string, number> = {
   "traitement-episode": 3000,
   "scenario-episode": 8000,
   "relecture-scenario": 5000,
-  "inventaire-assets": 4000,
+  // 4000 → 6000 (2026-11-09) : l'inventaire rend aussi une ligne de références par plan (≈ 30 jetons), soit ≈ 3000 de plus pour 100 plans. Le
+  // découpage d'un long film en groupes de scènes a sa propre estimation (lib/agents/inventaire.ts, `estimerInventaire`).
+  "inventaire-assets": 6000,
   // 800 → 1000 (2026-11-08) : un personnage, c'est 150-220 mots + la phrase des 4 vues (~35 mots), ≈ 260-370 jetons ; `reflexion` (2-4 lignes de
   // français, ≈ 100-200), `raisonMethode` (≈ 30), les clés JSON (≈ 40), et des `remarques` plus fréquentes depuis les détails « incertain » / « déduit »
   // du brief (2-3 × ≈ 50) : ≈ 530-790 jetons, 800 n'avait plus de marge.
   "prompt-asset": 1000,
   "iteration-plan": 2000,
+  // Le choix des références d'un plan en cas de doute : 6 références et 2 manquants au plus, ≤ 300 jetons visés ; l'entrée (registre résumé, descriptions
+  // coupées à 160 caractères) est comptée par sa taille JSON comme les autres.
+  "references-plan": 400,
   "plan-h3ir": 1500, // la traduction de l'intent ; le compilateur, lui, est compté à part (JETONS_COMPILATEUR_H3IR)
 };
 /** Open H3 IR (`plan-h3ir`) : le compilateur Python fait ses propres appels au serveur (analyse des images, plan des plans, prose), que le skill de traduction ne

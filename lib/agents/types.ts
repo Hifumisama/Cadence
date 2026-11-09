@@ -366,14 +366,38 @@ export type DiagnosticIteration = {
   confiance: "haute" | "moyenne" | "faible";
   verification: string | null;
   dureeCoherente: boolean;
-  /** Nombre de passages proposés par l'agent (avant contrôle). */
-  nbPassages: number;
   entreeLexique: { symptome: string; cause: string; formulationQuiTient: string } | null;
   abandon: { propose: boolean; raison: string } | null;
-  /** La consigne change ce qui se passe dans le plan : sa fiche est réécrite à part, depuis cette nouvelle description. Null sinon. */
-  reecriture: { description: string; dureeSecondes?: number } | null;
-  /** Assets que l'agent suggère de créer (jamais créés par l'itération). */
+  /** Ce que l'agent décide de changer (validé, seulement ce qui change) : la fiche est alors recompilée par Open H3 IR avec ces valeurs, écrites
+   * avec elle. Null : rien à recompiler (diagnostic seul, durée incohérente, abandon, ancien contrat). */
+  decisions: DecisionsIteration | null;
+  /** Les décisions avant → après, pour la page du plan. */
+  affichage: DecisionsAffichees | null;
+  /** Assets que l'agent suggère de créer (jamais créés par l'itération, deux au plus). */
   assetsSuggeres: { code: string; type: string; parent?: string; raison: string }[];
+};
+
+/** Les décisions EFFECTIVES d'une itération (lib/agents/iteration-plan.ts, `decisionsEffectives`) : absent = ne change pas. La nouvelle valeur
+ * REMPLACE celle du plan (pas de directive qui s'accumule). */
+export type DecisionsIteration = {
+  /** Le nouvel intent COMPLET (remplace `plans.description`). */
+  description?: string;
+  /** La nouvelle durée de génération (4 à 10 s). */
+  dureeSecondes?: number;
+  /** Codes du registre à ajouter / retirer des références d'image du plan. */
+  references?: { ajouter: string[]; retirer: string[] };
+  /** Réglages Open H3 IR du PLAN (`plans.creativite`, `plans.style_camera` ; `"aucun"` = pas de style). */
+  reglages?: { creativite?: string; styleCamera?: string };
+};
+
+/** Les décisions telles que la page d'un plan les montre (« Itérer »). */
+export type DecisionsAffichees = {
+  intent: { avant: string; apres: string } | null;
+  duree: { avant: number; apres: number } | null;
+  referencesAjoutees: string[];
+  referencesRetirees: string[];
+  reglages: { libelle: string; avant: string; apres: string }[];
+  manquants: { code: string; raison: string }[];
 };
 
 export type VueProposition = {

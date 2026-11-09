@@ -5,6 +5,9 @@
  * Vocabulaire : un ESSAI est une ligne de `jobs` (un rendu), numéroté par `numeroRendu` ; le plan n'a pas de numéro (F03), sa
  * position (rang dans l'épisode) ne sert qu'à l'affichage. */
 
+import { notesDecisions, PREFIXE_SANS_ECRITURE } from "./agents/iteration-plan";
+import type { DecisionsAffichees, DecisionsIteration } from "./agents/types";
+
 /** L'état affiché d'un plan, DÉRIVÉ (jamais stocké) : sans essai = brouillon ; `plans.pret_upscale_at` posé = prêt à upscaler ; sinon en
  * itération. Un nouvel essai lancé sur un plan prêt le remet en itération (le marqueur est effacé à la création du job). */
 export type EtatPlan = "brouillon" | "iteration" | "pret";
@@ -161,7 +164,14 @@ export type PropositionIteration = {
   erreur: string | null;
   /** Le résumé de la proposition : dit pourquoi rien n'est écrit quand l'agent ne propose aucun changement. */
   resume?: string | null;
-  diagnostic: { confiance: string; dureeCoherente: boolean; abandon: { propose: boolean } | null; assetsSuggeres?: { code: string }[]; reecriture?: { description: string; dureeSecondes?: number } | null } | null;
+  diagnostic: {
+    confiance: string;
+    dureeCoherente: boolean;
+    abandon: { propose: boolean } | null;
+    assetsSuggeres?: { code: string }[];
+    decisions?: DecisionsIteration | null;
+    affichage?: DecisionsAffichees | null;
+  } | null;
   /** `cibleType` : une proposition `plan-h3` (réécriture du plan) porte aussi des créations d'assets, que « Itérer » n'applique jamais. */
   groupes: { changements: { id: number; bloque: boolean; refuseRaison: string | null; cibleType?: string; avertissements: { type: string; texte?: string }[] }[] }[];
 };
@@ -172,8 +182,9 @@ export type DecisionIteration =
   | { action: "echec"; erreur: string }
   /** Aucune écriture appliquable (diagnostic seul, tout bloqué ou refusé) : message clair, aucun essai n'est créé. */
   | { action: "rien"; message: string }
-  /** La consigne change ce qui se passe dans le plan : on ne retouche pas des passages, la fiche est RÉÉCRITE (plan-h3, depuis cette nouvelle description). */
-  | { action: "reecrire"; description: string; dureeSecondes?: number }
+  /** L'agent d'itération a DÉCIDÉ (intent, durée, références, réglages) : la fiche est recompilée par Open H3 IR avec ces décisions, écrites avec
+   * elle (2026-11-09 : toujours recompiler, plus de retouche de passages). `notes` : ce que l'agent a signalé, gardé sur l'essai. */
+  | { action: "reecrire"; decisions: DecisionsIteration; affichage: DecisionsAffichees | null; notes: string[] }
   /** On applique ce qui passe, puis on génère, sans confirmation. `notes` = ce que l'agent ou les contrôles ont signalé : gardé sur l'essai
    * créé (le prompt d'avant reste dans l'essai précédent, « Repartir de là »), jamais un blocage. */
   | { action: "appliquer"; ids: number[]; notes: string[] };
@@ -195,7 +206,15 @@ export function decisionIteration(p: PropositionIteration | null): DecisionItera
   const creations = fiches.length > 0 ? tous.filter((c) => passe(c) && c.cibleType === "asset") : [];
   const appliquables = [...fiches, ...creations];
   const creationsLaissees = tous.filter((c) => passe(c) && !cestLaFiche(c) && c.cibleType !== "asset").length;
-  if (appliquables.length === 0 && p.diagnostic?.reecriture?.description) return { action: "reecrire", description: p.diagnostic.reecriture.description, ...(p.diagnostic.reecriture.dureeSecondes ? { dureeSecondes: p.diagnostic.reecriture.dureeSecondes } : {}) };
+  // Une proposition `iteration-plan` ne porte aucun changement (2026-11-09) : ses DÉCISIONS (diagnostic) se recompilent par Open H3 IR, sauf quand
+  // le post-traitement a dit pourquoi rien n'est écrit (durée réelle incohérente mesurée, abandon…).
+  const sansEcriture = (p.resume ?? "").startsWith(PREFIXE_SANS_ECRITURE);
+  if (tous.length === 0 && p.diagnostic?.decisions && !sansEcriture) {
+    const notes: string[] = [];
+    if (p.diagnostic.confiance === "faible") notes.push("L'agent doutait de son diagnostic.");
+    notes.push(...notesDecisions(p.diagnostic.affichage ?? null));
+    return { action: "reecrire", decisions: p.diagnostic.decisions, affichage: p.diagnostic.affichage ?? null, notes };
+  }
   if (appliquables.length === 0) {
     const refus = [...new Set(tous.map((c) => c.refuseRaison).filter((r): r is string => !!r))];
     const raison = refus.length > 0 ? `${refus.join(" ")} (refusé par un contrôle)` : p.resume?.trim() || (tous.length > 0 ? "tous les changements proposés ont été refusés par un contrôle." : "l'agent ne propose aucun changement du prompt.");

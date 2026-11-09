@@ -6,6 +6,8 @@ import { ouvrirConversation } from "@/app/agents/actions";
 import { annulerLaDemande, demanderIteration, lireDemande } from "@/app/demandes/actions";
 import { preparerBaseIteration, rouvrirIteration, validerPretUpscale } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
+import { DecisionsIteration } from "@/components/plan/DecisionsIteration";
+import type { DecisionsAffichees } from "@/lib/agents/types";
 import type { EtatPlan } from "@/lib/fiche-plan";
 
 const EXEMPLES = [
@@ -26,13 +28,14 @@ const message = (phase: Exclude<Phase, "repos">, vision: Vision): string =>
   phase === "preparation"
     ? "Je prépare l'essai de départ…"
     : phase === "agent"
-      ? `${vision === "planche" ? "L'agent regarde le rendu et réécrit la fiche" : "L'agent réécrit la fiche depuis ta consigne"}. Compte une à quelques minutes ; tu peux quitter la page, la proposition t'attendra dans le panneau des tâches.`
+      ? `${vision === "planche" ? "L'agent regarde le rendu et décide quoi changer" : "L'agent lit ta consigne et décide quoi changer"}, puis la fiche est recompilée. Compte une à quelques minutes ; tu peux quitter la page, la demande continue dans le panneau des tâches.`
       : "Mise en file de la prévisualisation…";
 
 /** Le bloc « Qu'est-ce qu'on change ? » : la consigne en langage naturel est la boucle d'itération.
  *
- * « Itérer » est UNE transaction indissociable, sans aucune confirmation (docs/FRICTIONS.md, 2026-10-12) : (1) la réécriture de la fiche par
- * l'agent `iteration-plan` depuis la consigne et la fiche actuelle, (2) l'application de sa proposition, (3) une prévisualisation avec le
+ * « Itérer » est UNE transaction indissociable, sans aucune confirmation (docs/FRICTIONS.md, 2026-10-12) : (1) l'agent `iteration-plan` analyse la
+ * consigne et DÉCIDE (intent, durée, références, réglages : `DecisionsIteration`, affichées ici), puis la fiche est recompilée par Open H3 IR avec ces
+ * décisions (2026-11-09), (2) l'application de la fiche compilée, qui écrit les décisions avec elle, (3) une prévisualisation avec le
  * prompt obtenu, qui garde la consigne, l'essai de base et ce que l'agent ou les contrôles ont signalé (`decisionIteration` : des notes, jamais
  * un arrêt). Les étapes 2 et 3 s'écrivent en une seule transaction côté serveur (`appliquerIterationEtGenerer`). Le prompt remplacé reste dans
  * l'essai précédent (« Repartir de là »). Les seuls arrêts : l'agent échoue, ou rien n'est appliquable (message, aucun essai créé). La
@@ -76,6 +79,8 @@ export function IntentionPlan({
   const [vision, setVision] = useState<Vision>("fiche");
   const [erreur, setErreur] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  /** Les décisions de l'agent (avant → après), dès qu'il a répondu : gardées jusqu'à la prochaine consigne. */
+  const [decisions, setDecisions] = useState<DecisionsAffichees | null>(null);
   const [pending, startTransition] = useTransition();
   const champ = useRef<HTMLTextAreaElement>(null);
   const demonte = useRef(false);
@@ -146,6 +151,7 @@ export function IntentionPlan({
     while (!demonte.current && !annule.current) {
       const v = await lireDemande(demandeId);
       if (!v) break;
+      if (v.decisions) setDecisions(v.decisions);
       if (v.etapeLibelle && v.etapeLibelle !== dernier) {
         dernier = v.etapeLibelle;
         if (v.etapes.find((e) => e.cle === "reecriture")?.statut === "en_cours") setVision("fiche");
@@ -177,6 +183,7 @@ export function IntentionPlan({
     if (occupe || enCours) return;
     setErreur(null);
     setInfo(null);
+    setDecisions(null);
     annule.current = false;
 
     // Sans rendu : la première prévisualisation de la fiche telle qu'elle est.
@@ -324,6 +331,7 @@ export function IntentionPlan({
           ) : null}
         </p>
       ) : null}
+      {decisions ? <DecisionsIteration d={decisions} /> : null}
       {info ? (
         <p className="tiny-note" role="status">
           {info}

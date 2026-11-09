@@ -100,7 +100,11 @@ export function corpsPourSkill(skill: string, env: Env = process.env): Record<st
 
 /** Plafond de sortie propre à un skill quand aucune variable ne le fixe. Un tour de conversation tient en ~600 jetons : au-delà,
  * c'est une boucle de répétition (observé 2026-10-10, trace 755 : 2 × 16 384 jetons, 10 minutes). Un plafond bas la coupe vite. */
-export const MAX_TOKENS_PAR_DEFAUT_SKILL: Readonly<Record<string, number>> = { "conversation-agent": 3000 };
+export const MAX_TOKENS_PAR_DEFAUT_SKILL: Readonly<Record<string, number>> = {
+  "conversation-agent": 3000,
+  // ≤ 300 jetons attendus (6 références, 2 manquants) : au-delà de 800, le petit skill boucle.
+  "references-plan": 800,
+};
 
 /** Limite de jetons de sortie d'un skill : `LLM_MAX_TOKENS_<SKILL>` sinon `LLM_MAX_TOKENS`, sinon le défaut du skill
  * (`MAX_TOKENS_PAR_DEFAUT_SKILL`), sinon null (le défaut de l'exécuteur s'applique). */

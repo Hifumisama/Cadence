@@ -1,4 +1,4 @@
-import { chargerBriefPlan } from "../lib/h3ir/brief-plan";
+import { chargerBriefPlan, type SurchargeBrief } from "../lib/h3ir/brief-plan";
 import type { ResultatBrief } from "../lib/h3ir/brief";
 import { compilerAvecRelances, ErreurCompilation, reglagesH3ir, type EnveloppeH3ir, type LanceurPython, type ResultatCompilation } from "../lib/h3ir/compilateur";
 import { SKILL_H3IR, SKILL_TRADUCTION, type CompilationReduite, type EntreeH3ir, type ResultatH3ir } from "../lib/h3ir/resultat";
@@ -21,7 +21,7 @@ export type DepsH3ir = {
     projectId: number,
     planUuid: string,
     options: { shots?: number | null; director?: string | null; creativity?: string | null },
-    surcharge?: { description?: string | null; dureeSecondes?: number | null },
+    surcharge?: SurchargeBrief,
   ) => Promise<ResultatBrief | null>;
   lancer?: LanceurPython;
   env?: Record<string, string | undefined>;
@@ -38,9 +38,13 @@ export type OptionsH3ir = {
 export function lireEntreeH3ir(entree: unknown): EntreeH3ir {
   const e = entree as Partial<EntreeH3ir> | null;
   if (!e || typeof e.planUuid !== "string") throw new Error("Tâche Open H3 IR sans plan.");
-  // Description et durée de remplacement (réécriture d'« Itérer ») : seulement quand la tâche en porte.
+  // Décisions d'« Itérer » à compiler à la place de ce qui est en base (description, durée, références, réglages du plan) : seulement quand la tâche en porte.
   const description = typeof e.description === "string" && e.description.trim() ? e.description : null;
   const duree = typeof e.dureeSecondes === "number" && Number.isInteger(e.dureeSecondes) ? e.dureeSecondes : null;
+  const codes = (v: unknown): string[] => (Array.isArray(v) ? v.filter((c): c is string => typeof c === "string" && !!c.trim()) : []);
+  const references = e.references ? { ajouter: codes(e.references.ajouter), retirer: codes(e.references.retirer) } : null;
+  const r = e.reglagesPlan;
+  const reglagesPlan = r && (typeof r.creativite === "string" || typeof r.styleCamera === "string") ? { creativite: typeof r.creativite === "string" ? r.creativite : null, styleCamera: typeof r.styleCamera === "string" ? r.styleCamera : null } : null;
   return {
     planUuid: e.planUuid,
     shots: e.shots ?? null,
@@ -48,6 +52,8 @@ export function lireEntreeH3ir(entree: unknown): EntreeH3ir {
     creativity: e.creativity ?? null,
     ...(description ? { description } : {}),
     ...(duree != null ? { dureeSecondes: duree } : {}),
+    ...(references && references.ajouter.length + references.retirer.length > 0 ? { references } : {}),
+    ...(reglagesPlan ? { reglagesPlan } : {}),
   };
 }
 
@@ -76,7 +82,15 @@ export async function executerH3ir(
   const charger = deps.charger ?? chargerBriefPlan;
 
   options.surEtape?.("Préparation du brief…");
-  const surcharge = entree.description || entree.dureeSecondes != null ? { description: entree.description ?? null, dureeSecondes: entree.dureeSecondes ?? null } : undefined;
+  const surcharge: SurchargeBrief | undefined =
+    entree.description || entree.dureeSecondes != null || entree.references || entree.reglagesPlan
+      ? {
+          description: entree.description ?? null,
+          dureeSecondes: entree.dureeSecondes ?? null,
+          ...(entree.references ? { references: entree.references } : {}),
+          ...(entree.reglagesPlan ? { reglages: entree.reglagesPlan } : {}),
+        }
+      : undefined;
   const r = await charger(run.projectId, entree.planUuid, { shots: entree.shots, director: entree.director, creativity: entree.creativity }, surcharge);
   if (!r) throw new Error("Plan introuvable.");
   if (!r.brief) throw new Error(r.refus ?? "Le brief Open H3 IR est refusé.");

@@ -380,6 +380,17 @@ test("ApresFiche.description : lue, et suffisante pour une écriture (la nouvell
   assert.equal(verifierFiche({}, etat), "Rien à écrire dans la fiche.");
 });
 
+test("ApresFiche.reglages (« Itérer ») : lus, suffisants pour une écriture, valeurs inconnues refusées", async () => {
+  const { lireApresFiche, verifierFiche } = await import("./fiches");
+  assert.deepEqual(lireApresFiche({ reglages: { creativite: "bold", styleCamera: 3 } }).reglages, { creativite: "bold" });
+  assert.equal(lireApresFiche({ reglages: {} }).reglages, undefined);
+  const etat = { titre: "t", sections: {}, refs: [], registre: new Map(), aUnRendu: false, generationEnCours: false, dureeGenerationSecondes: 8 };
+  assert.equal(verifierFiche({ reglages: { creativite: "restrained", styleCamera: "aucun" } }, etat), null);
+  assert.equal(verifierFiche({ reglages: { styleCamera: "sitcom" } }, etat), null);
+  assert.match(verifierFiche({ reglages: { creativite: "folle" } }, etat) ?? "", /Créativité inconnue/);
+  assert.match(verifierFiche({ reglages: { styleCamera: "kubrick" } }, etat) ?? "", /Style de mise en scène inconnu/);
+});
+
 // --- une incohérence DÉJÀ là (réplique déliée, lignes <Audio 1> restées) ne bloque plus une correction sans rapport (2026-10-14) ---
 
 test("verifierFiche : un label orphelin déjà présent n'empêche pas une écriture qui ne l'aggrave pas ; un nouveau orphelin refuse toujours", async () => {
