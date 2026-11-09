@@ -94,6 +94,7 @@ export function PlateauEssais({
   hrefQuitter,
   enCours,
   peutVarier,
+  relancePerime,
   children,
 }: {
   planId: number;
@@ -107,6 +108,8 @@ export function PlateauEssais({
   enCours: EssaiEnCours | null;
   /** « Nouvelle variante » est possible : le plan n'est pas validé et aucun essai n'est en file. */
   peutVarier: boolean;
+  /** Le plan est périmé (référence, contenu ou rendu du plan précédent changé) : « Relancer » refait l'essai, même seed, avec l'état d'aujourd'hui. */
+  relancePerime: { libelle: string; detail: string; mode: "previsualiser" | "final" } | null;
   children?: ReactNode;
 }) {
   const router = useRouter();
@@ -248,6 +251,17 @@ export function PlateauEssais({
                   >
                     Nouvelle variante
                   </button>
+                  {relancePerime ? (
+                    <button
+                      type="button"
+                      className="tm-geste is-actif"
+                      disabled={!peutVarier || b.occupe}
+                      onClick={() => b.figer(relancePerime.mode)}
+                      title={peutVarier ? relancePerime.detail : "Un essai tourne, ou le plan est validé : rouvre l'itération."}
+                    >
+                      {relancePerime.libelle}
+                    </button>
+                  ) : null}
                 </div>
                 <button
                   type="button"

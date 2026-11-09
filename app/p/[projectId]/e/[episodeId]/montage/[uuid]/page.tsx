@@ -34,7 +34,7 @@ import { libelleAsset } from "@/lib/assetCode";
 import { statutAsset } from "@/lib/asset-etat";
 import { etatRaccord, raccordSansPlace } from "@/lib/plan-raccord";
 import { raccordActuel } from "@/lib/queries-raccord";
-import { choisirComparaison, choisirRendu, detailPerime, estLisible, promptDiffere, raisonNonRetenable, type RenduVue } from "@/lib/rendus";
+import { choisirComparaison, choisirRendu, detailPerime, estLisible, estPerime, promptDiffere, raisonNonRetenable, type RenduVue } from "@/lib/rendus";
 
 export const dynamic = "force-dynamic";
 
@@ -256,6 +256,17 @@ export default async function PlanPage({
   const extraitPrompt = (sectionTexte("summary") || sectionTexte("detailed_description")).slice(0, 320);
 
   const perime = (await getPlansPerimes({ planIds: [plan.id] })).get(plan.id);
+  // Plan périmé : « Relancer » refait l'essai avec la fiche, les références et le raccord d'aujourd'hui, même seed (donc rien d'autre ne change que ce qui a bougé), dans le
+  // mode de son dernier rendu terminé (un final reste final).
+  const dernierTermine = jobHistory.filter((j) => j.statut === "termine").sort((a, b) => b.numeroRendu - a.numeroRendu)[0];
+  const relancePerime =
+    perime && estPerime(perime)
+      ? {
+          libelle: perime.codes.length === 0 && perime.raisons.length === 1 && perime.raisons[0] === "raccord" ? "Rattacher au plan précédent" : "Relancer (plan périmé)",
+          detail: `${detailPerime(perime)} Même seed, ${dernierTermine?.activerUpscale ? "rendu final" : "prévisualisation"}.`,
+          mode: (dernierTermine?.activerUpscale ? "final" : "previsualiser") as "final" | "previsualiser",
+        }
+      : null;
 
   // Contrôles repliés dans la pastille du titre : références, structure, dialogues.
   const alertes: AlerteControle[] = [
@@ -424,6 +435,7 @@ export default async function PlanPage({
                 hrefQuitter={vueEnCours ? null : hrefQuitter}
                 enCours={enCours}
                 peutVarier={etat !== "pret" && !enFile}
+                relancePerime={relancePerime}
               >
                 {principal && principalJob && !vueEnCours ? (
                   (() => {
