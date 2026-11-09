@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandesFiches, lancerDemandeIteration, lireDemandeVue, type VueDemande } from "@/lib/demandes-db";
+import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandesFiches, lancerDemandeIteration, lireDemandeVue, modifierConsigneIteration, type VueDemande } from "@/lib/demandes-db";
 import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@/lib/demandes";
 
 // Les DEMANDES (lib/demandes.ts) côté interface : « Itérer » en pose une, le worker l'enchaîne jusqu'au rendu (lib/demandes-db.ts), la page
@@ -11,10 +11,17 @@ import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@
 export async function demanderIteration(
   conversationUuid: string,
   options: { retour: string; renduId?: number | null; planche?: boolean; depuisNumero: number | null; reglages?: ContexteIteration["reglages"] },
-): Promise<{ ok: true; demandeId: number } | { ok: false; erreur: string }> {
+): Promise<{ ok: true; demandeId: number; enAttente: boolean } | { ok: false; erreur: string }> {
   const r = await lancerDemandeIteration(conversationUuid, options);
   revalidatePath("/", "layout");
-  return r.ok ? { ok: true, demandeId: r.demandeId } : r;
+  return r.ok ? { ok: true, demandeId: r.demandeId, enAttente: r.enAttente } : r;
+}
+
+/** Corrige la consigne d'une itération qui attend son tour (panneau des tâches). Refusée une fois l'itération démarrée. */
+export async function corrigerConsigneIteration(demandeId: number, texte: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const r = await modifierConsigneIteration(demandeId, texte);
+  revalidatePath("/", "layout");
+  return r.ok ? { ok: true } : r;
 }
 
 /** « Ajouter un plan » (page Scénario) : pose la demande (l'agent écrit le plan, il est ajouté à la scène sans relecture). Une seule à la fois par film. */

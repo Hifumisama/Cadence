@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { corrigerConsigneIteration } from "@/app/demandes/actions";
 import { BasculeNotifications } from "@/components/taches/BasculeNotifications";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { estAnnulable, type GenreTache, type Tache } from "@/lib/taches";
@@ -301,6 +302,40 @@ function Avancement({ x }: { x: Tache }) {
   );
 }
 
+/** La consigne d'une itération en attente de son tour : modifiable dans la ligne jusqu'à son départ (après, elle est partie à l'agent). */
+function ConsigneModifiable({ cle, consigne }: { cle: string; consigne: string }) {
+  const [texte, setTexte] = useState(consigne);
+  const [message, setMessage] = useState<string | null>(null);
+  const [enregistre, setEnregistre] = useState(true);
+  const demandeId = Number(cle.slice("demande:".length));
+  const enregistrer = async () => {
+    const r = await corrigerConsigneIteration(demandeId, texte);
+    setMessage(r.ok ? null : r.erreur);
+    setEnregistre(r.ok);
+  };
+  return (
+    <div className="tq-consignes tq-consigne-edition">
+      <textarea
+        rows={2}
+        value={texte}
+        aria-label="Consigne de cette itération"
+        onChange={(e) => {
+          setTexte(e.target.value);
+          setEnregistre(false);
+        }}
+      />
+      <button type="button" className="tm-lien" disabled={enregistre || !texte.trim()} onClick={() => void enregistrer()}>
+        {enregistre ? "Enregistrée" : "Enregistrer"}
+      </button>
+      {message ? (
+        <span className="tq-etat tq-erreur" role="alert">
+          {message}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler }: { x: Tache; rang: number; onOuvrir: () => void; onRetirer?: () => void; onAnnuler?: () => void }) {
   // Une tâche en cours coûte du temps de GPU : on demande confirmation avant de la
   // couper. Une tâche en attente s'annule d'un clic (rien n'est perdu).
@@ -373,7 +408,9 @@ function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler }: { x: Tache; rang: n
           ) : null}
         </span>
       </Link>
-      {x.consignes?.length ? (
+      {x.consigneModifiable && x.consignes?.[0] != null ? (
+        <ConsigneModifiable cle={x.cle} consigne={x.consignes[0]} />
+      ) : x.consignes?.length ? (
         <details className="tq-consignes">
           <summary>{x.consignes.length > 1 ? `${x.consignes.length} consignes` : "Consigne"}</summary>
           <ol>

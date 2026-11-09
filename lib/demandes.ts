@@ -11,7 +11,9 @@ import type { DecisionIteration } from "./fiche-plan";
  * GPU (worker/index.ts). Elle ne tient ni voie ni verrou entre deux étapes. Une seule demande en cours par cible (plan, asset). */
 
 export type TypeDemande = "iteration-plan" | "ajout-plan" | "ajout-scene" | "fiche-plan";
-export type StatutDemande = "en_cours" | "termine" | "echoue" | "annulee";
+/** `en_attente` (2026-11-09, docs/PLAN_FILE_CONSIGNES.md) : une itération posée alors qu'une autre tient la place. Elle ne pose encore aucune tâche, sa consigne
+ * reste modifiable ; le pilote la fait passer `en_cours` quand plus aucune itération n'est en cours (la plus ancienne d'abord). */
+export type StatutDemande = "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
 export type StatutEtapeDemande = "a_venir" | "en_cours" | "fait" | "passe";
 
 export const ETAPES_ITERATION_PLAN = [
@@ -24,6 +26,8 @@ export type CleEtapeIteration = (typeof ETAPES_ITERATION_PLAN)[number]["cle"];
 export type EtapeDemande = { cle: string; libelle: string; statut: StatutEtapeDemande };
 
 export const etapesIterationPlan = (): EtapeDemande[] => ETAPES_ITERATION_PLAN.map((e, i) => ({ cle: e.cle, libelle: e.libelle, statut: i === 0 ? ("en_cours" as const) : ("a_venir" as const) }));
+/** Les étapes d'une itération en attente : aucune n'a commencé. */
+export const etapesIterationEnAttente = (): EtapeDemande[] => ETAPES_ITERATION_PLAN.map((e) => ({ cle: e.cle, libelle: e.libelle, statut: "a_venir" as const }));
 
 /** « Itérer » qui ajoute des références sans image ou crée des assets manquants (vague 4a) : les étapes `assets`, `prompts` et `images` s'insèrent entre
  * l'agent et la recompilation, qui ne part qu'une fois toutes les images là. `assetsCrees` : le nombre d'assets créés (0 : l'étape est passée). Pur ;
@@ -42,8 +46,10 @@ export function insererEtapesImagesIteration(etapes: EtapeDemande[], assetsCrees
 /** Ce qu'il faut pour finir une itération de plan, écrit à la demande puis complété à chaque étape. */
 export type ContexteIteration = {
   consigne: string;
-  /** Les consignes de la file fusionnées dans `consigne` (lib/consignes.ts), chacune telle que donnée : l'itération les montre une à une. Absent pour une consigne seule. */
-  consignes?: string[];
+  /** Ce qu'il faut pour démarrer une itération restée en attente (le pilote crée alors la tâche de l'agent) : la conversation du plan, l'essai de base, la planche. */
+  conversationUuid?: string;
+  renduId?: number | null;
+  planche?: boolean;
   depuisNumero: number | null;
   /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits avec l'essai. */
   reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string };

@@ -296,7 +296,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .select({ d: demandes, planUuid: plans.uuid, titre: plans.titre, episodeId: plans.episodeId })
     .from(demandes)
     .innerJoin(plans, and(eq(demandes.cibleType, "plan"), eq(plans.id, demandes.cibleId)))
-    .where(and(eq(demandes.type, "iteration-plan"), isNull(demandes.masqueAt), or(eq(demandes.statut, "en_cours"), isNull(demandes.vuAt), gte(demandes.createdAt, depuis))));
+    .where(and(eq(demandes.type, "iteration-plan"), isNull(demandes.masqueAt), or(inArray(demandes.statut, ["en_cours", "en_attente"]), isNull(demandes.vuAt), gte(demandes.createdAt, depuis))));
   const tachesDemandes: Tache[] = await Promise.all(
     lignesDemandes.map(async ({ d, planUuid, titre, episodeId }) => {
       const etapes = (Array.isArray(d.etapes) ? d.etapes : []) as EtapeDemande[];

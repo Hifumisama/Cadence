@@ -40,7 +40,10 @@ export function tacheDeDemande(e: EntreeTacheDemande): Tache {
   // Une demande en cours est « en cours » dans le panneau, sauf quand la tâche de son étape attend son tour dans la file : elle prend alors
   // le rang de cette tâche (« n°2 », « derrière une vidéo »), comme n'importe quelle autre. Entre deux étapes (la suivante n'est pas encore
   // posée) elle reste « en cours » : jamais de trou.
-  const detail = !enCours
+  const enAttente = e.statut === "en_attente";
+  const detail = enAttente
+    ? "En file · consigne modifiable jusqu'au départ"
+    : !enCours
     ? e.statut === "termine"
       ? (e.detailFin?.termine ?? "Essai terminé")
       : e.statut === "annulee"
@@ -70,5 +73,6 @@ export function tacheDeDemande(e: EntreeTacheDemande): Tache {
     jetons: e.jetons,
     annulationDemandee: enCours && e.annulationDemandee,
     ...(e.consignes?.length ? { consignes: e.consignes } : {}),
+    ...(enAttente ? { consigneModifiable: true } : {}),
   };
 }

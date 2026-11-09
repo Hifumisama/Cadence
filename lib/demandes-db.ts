@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assets, demandes, episodes, jobs, plans, propositions, scenes } from "../db/schema";
 import { appliquerSelection, cocherChangements, conversationParUuid, creerAssetsManquants, genererFiches, genererIteration, genererPromptsAssets, genererProposition, genererReecriturePlan, genererReferencesPlan, ouvrirConversation } from "./agents/service";
@@ -21,6 +21,7 @@ import {
   etapesAjoutPlan,
   etapesAjoutScene,
   etapesFichePlan,
+  etapesIterationEnAttente,
   etapesIterationPlan,
   insererEtapesImagesIteration,
   renommerEtape,
@@ -53,16 +54,52 @@ const ERR = (erreur: string) => ({ ok: false as const, erreur });
 const lireEtapes = (d: LigneDemande): EtapeDemande[] => (Array.isArray(d.etapes) ? (d.etapes as EtapeDemande[]) : []);
 const lireContexte = (d: LigneDemande): ContexteIteration => d.contexte as ContexteIteration;
 
-/** « Itérer » un plan : UNE demande (consigne → agent → réécriture si besoin → rendu). Refusée si le plan en a déjà une en cours. */
+const MAX_CONSIGNE = 4000;
+
+/** « Itérer » un plan : UNE demande (consigne → agent → réécriture si besoin → rendu). Une seule itération tient la place à la fois (le GPU est partagé) :
+ * si aucune n'est en cours elle part tout de suite, sinon elle attend (`en_attente`) dans l'ordre d'arrivée, sa consigne modifiable jusqu'à son départ
+ * (`modifierConsigneIteration`). Refusée si le plan a déjà une itération en cours ou en attente. */
 export async function lancerDemandeIteration(
   conversationUuid: string,
-  options: { retour: string; renduId?: number | null; planche?: boolean; depuisNumero: number | null; reglages?: ContexteIteration["reglages"]; consignes?: string[] },
-): Promise<Resultat<{ demandeId: number; demandeUuid: string; runUuid: string; propositionUuid: string }>> {
+  options: { retour: string; renduId?: number | null; planche?: boolean; depuisNumero: number | null; reglages?: ContexteIteration["reglages"] },
+): Promise<Resultat<{ demandeId: number; demandeUuid: string; runUuid: string | null; propositionUuid: string | null; enAttente: boolean }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   if (conv.portee !== "plan" || conv.cibleId == null) return ERR("« Itérer » se demande depuis la page d'un plan.");
-  const contexte: ContexteIteration = { consigne: options.retour.trim(), depuisNumero: options.depuisNumero, reglages: options.reglages ?? {} };
-  if (options.consignes && options.consignes.length > 1) contexte.consignes = options.consignes;
+  const consigne = options.retour.trim();
+  if (consigne.length > MAX_CONSIGNE) return ERR(`Ta consigne est trop longue (${MAX_CONSIGNE} caractères au plus).`);
+  const contexte: ContexteIteration = { consigne, depuisNumero: options.depuisNumero, reglages: options.reglages ?? {} };
+
+  const iterations = await db
+    .select({ id: demandes.id, statut: demandes.statut, cibleId: demandes.cibleId })
+    .from(demandes)
+    .where(and(eq(demandes.type, "iteration-plan"), inArray(demandes.statut, ["en_cours", "en_attente"])));
+  const dejaSurCePlan = iterations.find((d) => d.cibleId === conv.cibleId);
+  if (dejaSurCePlan) {
+    return ERR(
+      dejaSurCePlan.statut === "en_attente"
+        ? "Une itération de ce plan attend déjà son tour : modifie sa consigne depuis le panneau des tâches, ou annule-la."
+        : "Une itération est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).",
+    );
+  }
+
+  // Quelqu'un tient déjà la place : la demande attend, sans aucune tâche posée. Tout ce qu'il faut pour la démarrer est gardé dans son contexte.
+  if (iterations.length > 0) {
+    const [d] = await db
+      .insert(demandes)
+      .values({
+        projectId: conv.projectId,
+        type: "iteration-plan",
+        cibleType: "plan",
+        cibleId: conv.cibleId,
+        statut: "en_attente",
+        etapes: etapesIterationEnAttente(),
+        contexte: { ...contexte, conversationUuid, renduId: options.renduId ?? null, planche: options.planche === true },
+      })
+      .returning({ id: demandes.id, uuid: demandes.uuid });
+    return { ok: true, demandeId: d!.id, demandeUuid: d!.uuid, runUuid: null, propositionUuid: null, enAttente: true };
+  }
+
   let demande: { id: number; uuid: string };
   try {
     const [d] = await db
@@ -71,8 +108,8 @@ export async function lancerDemandeIteration(
       .returning({ id: demandes.id, uuid: demandes.uuid });
     demande = d!;
   } catch {
-    // L'index unique partiel : une demande est déjà en cours sur ce plan.
-    return ERR("Une itération est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).");
+    // L'index unique partiel : une demande (d'un autre type) est déjà en cours sur ce plan.
+    return ERR("Une demande est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).");
   }
   const g = await genererIteration(conversationUuid, { retour: options.retour, renduId: options.renduId, planche: options.planche, demandeId: demande.id });
   if (!g.ok) {
@@ -80,7 +117,55 @@ export async function lancerDemandeIteration(
     return g;
   }
   await db.update(demandes).set({ contexte: { ...contexte, runUuid: g.runUuid }, updatedAt: new Date() }).where(eq(demandes.id, demande.id));
-  return { ok: true, demandeId: demande.id, demandeUuid: demande.uuid, runUuid: g.runUuid, propositionUuid: g.propositionUuid };
+  return { ok: true, demandeId: demande.id, demandeUuid: demande.uuid, runUuid: g.runUuid, propositionUuid: g.propositionUuid, enAttente: false };
+}
+
+/** Change la consigne d'une itération qui attend son tour (une fois démarrée, la consigne est partie à l'agent : plus modifiable). */
+export async function modifierConsigneIteration(demandeId: number, texte: string): Promise<Resultat<object>> {
+  const t = texte.trim();
+  if (!t) return ERR("Écris d'abord ce que tu veux changer.");
+  if (t.length > MAX_CONSIGNE) return ERR(`Ta consigne est trop longue (${MAX_CONSIGNE} caractères au plus).`);
+  const [d] = await db.select().from(demandes).where(eq(demandes.id, demandeId));
+  if (!d || d.type !== "iteration-plan") return ERR("Cette itération n'existe plus.");
+  if (d.statut !== "en_attente") return ERR("Cette itération a déjà démarré : sa consigne est partie à l'agent, elle n'est plus modifiable.");
+  // La condition sur le statut referme la fenêtre où le pilote la démarre entre la lecture et l'écriture.
+  const r = await db
+    .update(demandes)
+    .set({ contexte: { ...lireContexte(d), consigne: t }, updatedAt: new Date() })
+    .where(and(eq(demandes.id, demandeId), eq(demandes.statut, "en_attente")))
+    .returning({ id: demandes.id });
+  return r.length ? { ok: true } : ERR("Cette itération vient de démarrer : sa consigne n'est plus modifiable.");
+}
+
+/** Fait démarrer la plus ancienne itération en attente quand plus aucune n'est en cours : c'est là que la tâche de l'agent est posée, avec la
+ * consigne telle qu'elle est À CE MOMENT (modifiable jusque-là). Un échec (plan sans rendu…) la termine en erreur sans bloquer les suivantes. */
+async function demarrerProchaineIteration(): Promise<boolean> {
+  const [enCours] = await db.select({ id: demandes.id }).from(demandes).where(and(eq(demandes.type, "iteration-plan"), eq(demandes.statut, "en_cours"))).limit(1);
+  if (enCours) return false;
+  const [d] = await db.select().from(demandes).where(and(eq(demandes.type, "iteration-plan"), eq(demandes.statut, "en_attente"))).orderBy(asc(demandes.createdAt), asc(demandes.id)).limit(1);
+  if (!d) return false;
+  const ctx = lireContexte(d);
+  // Prise de la place d'abord (condition sur le statut : une annulation entre-temps l'emporte) ; l'index unique partiel dit si le plan est pris par une autre demande.
+  let pris: { id: number }[];
+  try {
+    pris = await db
+      .update(demandes)
+      .set({ statut: "en_cours", etapes: etapesIterationPlan(), updatedAt: new Date() })
+      .where(and(eq(demandes.id, d.id), eq(demandes.statut, "en_attente")))
+      .returning({ id: demandes.id });
+  } catch {
+    return false; // le plan a une autre demande en cours : on réessaie au prochain tour
+  }
+  if (pris.length === 0) return false;
+  const echec = async (erreur: string) => {
+    await db.update(demandes).set({ statut: "echoue", erreur: erreur.slice(0, 500), finishedAt: new Date(), updatedAt: new Date() }).where(eq(demandes.id, d.id));
+    return true;
+  };
+  if (!ctx.conversationUuid) return echec("Cette itération n'a pas gardé sa conversation : relance « Itérer ».");
+  const g = await genererIteration(ctx.conversationUuid, { retour: ctx.consigne, renduId: ctx.renduId, planche: ctx.planche, demandeId: d.id });
+  if (!g.ok) return echec(g.erreur);
+  await db.update(demandes).set({ contexte: { ...ctx, runUuid: g.runUuid }, updatedAt: new Date() }).where(eq(demandes.id, d.id));
+  return true;
 }
 
 /** « Ajouter un plan » (page Scénario) : UNE demande (l'agent écrit le plan → il est ajouté à la scène, sans relecture : on le relit dans sa fiche).
@@ -231,13 +316,13 @@ export async function lancerDemandesFiches(
 }
 
 /** Où en sont des demandes de fiche (la création d'un projet suit ainsi son lot) : statut, étape en cours, erreur, par demande. */
-export async function etatDemandesFiches(demandeIds: number[]): Promise<{ id: number; planUuid: string; statut: StatutDemande; etape: string | null; erreur: string | null }[]> {
+export async function etatDemandesFiches(demandeIds: number[]): Promise<{ id: number; planUuid: string; statut: Exclude<StatutDemande, "en_attente">; etape: string | null; erreur: string | null }[]> {
   if (demandeIds.length === 0) return [];
   const lignes = await db.select().from(demandes).where(inArray(demandes.id, demandeIds));
   return lignes.map((d) => ({
     id: d.id,
     planUuid: (d.contexte as ContexteFichePlan).planUuid,
-    statut: d.statut as StatutDemande,
+    statut: d.statut as Exclude<StatutDemande, "en_attente">,
     etape: etapeCouranteDemande(lireEtapes(d))?.libelle ?? null,
     erreur: d.erreur,
   }));
@@ -264,8 +349,13 @@ async function ecrire(d: LigneDemande, maj: { etapes?: EtapeDemande[]; contexte?
 /** Un tour du pilote : fait avancer chaque demande en cours d'une transition. Ne rejette jamais (une demande qui plante passe en échec
  * avec son message, les autres continuent). Renvoie combien de demandes sont en cours et combien ont bougé. */
 export async function piloterDemandes(): Promise<{ actives: number; touchees: number }> {
-  const lignes = await db.select().from(demandes).where(eq(demandes.statut, "en_cours"));
   let touchees = 0;
+  try {
+    if (await demarrerProchaineIteration()) touchees += 1;
+  } catch (err) {
+    console.error(`[worker] Démarrage d'une itération en attente : ${err instanceof Error ? err.message : String(err)}`);
+  }
+  const lignes = await db.select().from(demandes).where(eq(demandes.statut, "en_cours"));
   for (const d of lignes) {
     try {
       if (await avancer(d)) touchees += 1;
@@ -795,6 +885,11 @@ async function avancerImagesIteration(d: LigneDemande, ctx: ContexteIteration, e
  * (en file : retirée ; en cours : le worker l'interrompt). Ce qui est déjà écrit n'est pas défait. */
 export async function annulerDemande(demandeId: number): Promise<"annulee" | "rien"> {
   const [d] = await db.select().from(demandes).where(eq(demandes.id, demandeId));
+  if (d?.statut === "en_attente") {
+    // Elle n'a posé aucune tâche : il n'y a rien à interrompre.
+    await db.update(demandes).set({ statut: "annulee", erreur: null, finishedAt: new Date(), updatedAt: new Date() }).where(and(eq(demandes.id, d.id), eq(demandes.statut, "en_attente")));
+    return "annulee";
+  }
   if (!d || d.statut !== "en_cours") return "rien";
   await ecrire(d, { statut: "annulee", erreur: null });
   const ctx = lireContexte(d);
