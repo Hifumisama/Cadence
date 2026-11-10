@@ -7,12 +7,15 @@ import { demandes, plans } from "@/db/schema";
 import { demosMiseEnScene } from "@/lib/media";
 import { VueScenario } from "@/components/scenario/VueScenario";
 import { srcRendu } from "@/components/plan/Vignette";
+import { intentionsPerimees } from "@/lib/intention-perimee";
 import type { ContexteAjoutPlan, ContexteAjoutScene } from "@/lib/demandes";
 import type { AjoutEnCours, AjoutSceneEnCours, PlanVue, SceneVue } from "@/lib/scenario-vue";
 
 export const dynamic = "force-dynamic";
 
-export default async function ScenarioPage({
+/** Le tournage : la frise de travail (scènes, plans en vignettes, états de fiche et de rendu, ajouts et déplacements). C'était la page « Scénario » avant que
+ * celle-ci devienne le texte à lire (`../scenario`, 2026-11-10). */
+export default async function TournagePage({
   params,
   searchParams,
 }: {
@@ -25,12 +28,14 @@ export default async function ScenarioPage({
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, episode, { scenes, sansScene }, pellicule, etat, enCours, fichesEnCours] = await Promise.all([
+  const [projet, episode, { scenes, sansScene }, pellicule, etat, intentions, enCours, fichesEnCours] = await Promise.all([
     getProject(pid),
     getEpisode(eid),
     getScenarioData(eid),
     getPelliculePlans(eid),
     getEtatPlans(eid),
+    // Les plans dont le texte a changé depuis leur fiche ou leur dernier rendu (repère « texte modifié »).
+    intentionsPerimees(eid),
     // Un plan ou une scène en cours d'écriture (« Ajouter un plan », « Nouvelle scène ») : la page lui garde sa place, sous forme de carte fantôme.
     db.select().from(demandes).where(and(inArray(demandes.type, ["ajout-plan", "ajout-scene"]), eq(demandes.cibleType, "episode"), eq(demandes.cibleId, eid), eq(demandes.statut, "en_cours"))),
     // « Générer la fiche » en cours sur les plans du film : leur bouton la suit.
@@ -71,6 +76,7 @@ export default async function ScenarioPage({
       src: srcRendu(p?.vignette),
       href: `${base}/montage/${plan.uuid}`,
       ficheEnCours: ficheParPlan.get(plan.uuid) ?? null,
+      intentionChangee: intentions.get(plan.uuid) ?? null,
     };
   };
 

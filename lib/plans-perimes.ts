@@ -40,16 +40,16 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
 
   // Début du dernier rendu terminé de chaque plan : c'est à ce moment que le worker a lu les références.
   const rendus = await db
-    .select({ planId: jobs.planId, debut: jobs.startedAt, cree: jobs.createdAt, promptUtilise: jobs.promptUtilise, dureeUtilisee: jobs.dureeUtilisee, raccordJobId: jobs.raccordJobId, continuite: jobs.continuite })
+    .select({ planId: jobs.planId, debut: jobs.startedAt, cree: jobs.createdAt, promptUtilise: jobs.promptUtilise, dureeUtilisee: jobs.dureeUtilisee, descriptionUtilisee: jobs.descriptionUtilisee, raccordJobId: jobs.raccordJobId, continuite: jobs.continuite })
     .from(jobs)
     .where(and(inArray(jobs.planId, planIds), eq(jobs.statut, "termine")))
     .orderBy(desc(jobs.finishedAt), desc(jobs.id));
   const dernierRendu = new Map<number, Date>();
-  const dernierJob = new Map<number, { promptUtilise: string | null; dureeUtilisee: number | null; raccordJobId: number | null; continuite: string | null }>();
+  const dernierJob = new Map<number, { promptUtilise: string | null; dureeUtilisee: number | null; descriptionUtilisee: string | null; raccordJobId: number | null; continuite: string | null }>();
   for (const r of rendus) {
     if (dernierRendu.has(r.planId)) continue;
     dernierRendu.set(r.planId, r.debut ?? r.cree);
-    dernierJob.set(r.planId, { promptUtilise: r.promptUtilise, dureeUtilisee: r.dureeUtilisee, raccordJobId: r.raccordJobId, continuite: r.continuite });
+    dernierJob.set(r.planId, { promptUtilise: r.promptUtilise, dureeUtilisee: r.dureeUtilisee, descriptionUtilisee: r.descriptionUtilisee, raccordJobId: r.raccordJobId, continuite: r.continuite });
   }
   if (dernierRendu.size === 0) return resultat;
 
@@ -70,7 +70,7 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
     const ids = [...dernierRendu.keys()];
     const [lignes, durees] = await Promise.all([
       db.select({ planId: planPromptSections.planId, section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(inArray(planPromptSections.planId, ids)),
-      db.select({ id: plans.id, duree: plans.dureeGenerationSecondes, episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(inArray(plans.id, ids)),
+      db.select({ id: plans.id, duree: plans.dureeGenerationSecondes, description: plans.description, episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(inArray(plans.id, ids)),
     ]);
     const sectionsParPlan = new Map<number, PromptSection[]>();
     for (const l of lignes) sectionsParPlan.set(l.planId, [...(sectionsParPlan.get(l.planId) ?? []), { section: l.section, contenu: l.contenu }]);
@@ -81,7 +81,7 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
       // Sans fiche (aucune section remplie), il n'y a pas de prompt à comparer.
       const prompt = sections?.some((s) => s.contenu.trim() !== "") ? assemblerPrompt(sections) : null;
       const rendu = dernierJob.get(id)!;
-      const raisons = raisonsContenuPerime({ prompt, duree: dureeParPlan.get(id) ?? null }, rendu);
+      const raisons = raisonsContenuPerime({ prompt, duree: dureeParPlan.get(id) ?? null, description: lienParPlan.get(id)?.description ?? null }, rendu);
       // Raccord : un plan en « suite » est parti de l'essai X du précédent ; si le précédent a un autre rendu à prendre aujourd'hui, celui-ci est à refaire
       // (jamais relancé tout seul : il est seulement marqué, docs/PLAN_FILE_CONSIGNES.md).
       const lien = lienParPlan.get(id);

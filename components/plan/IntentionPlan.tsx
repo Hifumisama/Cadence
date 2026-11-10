@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ouvrirConversation } from "@/app/agents/actions";
 import { annulerLaDemande, corrigerConsigneIteration, demanderIteration, lireDemande } from "@/app/demandes/actions";
-import { preparerBaseIteration, rouvrirIteration, validerPretUpscale } from "@/app/plans/actions";
+import { preparerBaseIteration, rouvrirIteration, validerPretUpscale, type ConflitDescription } from "@/app/plans/actions";
+import { intentAffichee } from "@/lib/intent";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { DecisionsIteration } from "@/components/plan/DecisionsIteration";
 import type { DecisionsAffichees } from "@/lib/agents/types";
@@ -91,6 +92,8 @@ export function IntentionPlan({
   const [info, setInfo] = useState<string | null>(null);
   /** Les décisions de l'agent (avant → après), dès qu'il a répondu : gardées jusqu'à la prochaine consigne. */
   const [decisions, setDecisions] = useState<DecisionsAffichees | null>(null);
+  /** Repartir de l'essai remplacerait un texte de plan modifié depuis : les deux versions, en attendant l'accord de l'utilisateur. */
+  const [conflit, setConflit] = useState<ConflitDescription | null>(null);
   const [pending, startTransition] = useTransition();
   const champ = useRef<HTMLTextAreaElement>(null);
   const demonte = useRef(false);
@@ -136,7 +139,9 @@ export function IntentionPlan({
     if (!base.estDernier) {
       const p = await preparerBaseIteration(planId, base.id);
       if (!p.ok) {
-        setErreur(p.erreur);
+        // Le texte du plan a été modifié à la main depuis cet essai : on ne l'écrase pas sans le dire (les deux versions s'affichent plus bas).
+        if (p.conflit) setConflit(p.conflit);
+        else setErreur(p.erreur);
         setPhase("repos");
         return null;
       }
@@ -256,6 +261,22 @@ export function IntentionPlan({
     startTransition(async () => {
       await annulerLaDemande(enAttente.demandeId);
       setConsigne("");
+      router.refresh();
+    });
+  };
+
+  /** L'utilisateur a vu les deux versions : le plan reprend le texte de l'essai (le sien est remplacé), puis il relance « Itérer ». */
+  const remplacerLeTexte = () => {
+    if (!base) return;
+    setErreur(null);
+    startTransition(async () => {
+      const p = await preparerBaseIteration(planId, base.id, true);
+      if (!p.ok) {
+        setErreur(p.erreur);
+        return;
+      }
+      setConflit(null);
+      setInfo(`Le texte du plan est celui de l'essai n°${base.numero}. Relance « Itérer » pour appliquer ta consigne.`);
       router.refresh();
     });
   };
@@ -401,6 +422,31 @@ export function IntentionPlan({
             </button>
           ) : null}
         </p>
+      ) : null}
+      {conflit ? (
+        <div className="tm-conflit" role="alertdialog" aria-labelledby="tm-conflit-titre">
+          <p id="tm-conflit-titre">
+            <b>Le texte du plan a changé depuis l&rsquo;essai n°{conflit.numeroRendu}.</b> Repartir de cet essai le remplacerait par celui de l&rsquo;essai.
+          </p>
+          <div className="tm-conflit-versions">
+            <section>
+              <h4>Texte actuel</h4>
+              <pre>{intentAffichee(conflit.actuelle) || "(vide)"}</pre>
+            </section>
+            <section>
+              <h4>Texte de l&rsquo;essai n°{conflit.numeroRendu}</h4>
+              <pre>{intentAffichee(conflit.essai) || "(vide)"}</pre>
+            </section>
+          </div>
+          <div className="tm-actions">
+            <button type="button" className="btn tm-btn-ligne" disabled={pending} onClick={remplacerLeTexte}>
+              Remplacer par le texte de l&rsquo;essai
+            </button>
+            <button type="button" className="btn tm-btn-ligne" disabled={pending} onClick={() => setConflit(null)}>
+              Garder mon texte
+            </button>
+          </div>
+        </div>
       ) : null}
       {decisions ? <DecisionsIteration d={decisions} /> : null}
       {info ? (

@@ -13,6 +13,7 @@ import { rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { estLiaison } from "@/lib/plan-liaison";
+import { descriptionSeraitPerdue, intentionChangee } from "@/lib/intent";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
 import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "@/lib/plan-references";
 import { emplacementLibre } from "@/lib/references";
@@ -52,6 +53,8 @@ export async function updatePromptSection(
  * demande, son prompt est restauré. Même seed + même prompt + mêmes références + même durée = même résultat (F04) : c'est ce
  * qui permet d'upscaler EXACTEMENT la prévisualisation qu'on a choisie. */
 async function appliquerRendu(planId: number, jobId: number, restaurerPrompt: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  // Garde-fou : restaurer remplace aussi le texte du plan par celui de l'essai. Si le texte actuel n'est celui d'aucun essai (modifié à la main depuis), il serait perdu :
+  // les appelants passent par `preparerBaseIteration`, qui le dit avant et ne restaure qu'avec l'accord de l'utilisateur.
   const [job] = await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.planId, planId)));
   if (!job) return { ok: false, erreur: "Rendu introuvable pour ce plan." };
   const raison = raisonNonRetenable({
@@ -471,7 +474,15 @@ export async function rouvrirIteration(planId: number): Promise<Resume> {
  * la consigne s'applique à son prompt (et que l'agent regarde son rendu). Ne fait rien pour le plus récent essai, pour un import (ni
  * seed ni prompt) ni quand le prompt est déjà le bon ; le prompt de l'essai qu'on quitte reste retrouvable dans son propre essai
  * (`promptUtilise`), « Repartir de là » le rend. `restaure` dit si le prompt a été réécrit. */
-export async function preparerBaseIteration(planId: number, jobId: number): Promise<{ ok: true; restaure: boolean } | { ok: false; erreur: string }> {
+export type ConflitDescription = { actuelle: string; essai: string; numeroRendu: number };
+
+/** `confirmerDescription` : l'utilisateur a vu que le texte actuel du plan (modifié à la main, il n'est celui d'aucun essai) sera remplacé par celui de l'essai. Sans lui,
+ * la préparation s'arrête avec `conflit` plutôt que d'écraser en silence. */
+export async function preparerBaseIteration(
+  planId: number,
+  jobId: number,
+  confirmerDescription = false,
+): Promise<{ ok: true; restaure: boolean } | { ok: false; erreur: string; conflit?: ConflitDescription }> {
   const lignes = await db.select().from(jobs).where(eq(jobs.planId, planId));
   const base = lignes.find((j) => j.id === jobId);
   if (!base) return { ok: false, erreur: "Essai de départ introuvable pour ce plan." };
@@ -492,8 +503,15 @@ export async function preparerBaseIteration(planId: number, jobId: number): Prom
   if (raison) return { ok: true, restaure: false };
   const sections = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId));
   const [lePlan] = await db.select({ description: plans.description }).from(plans).where(eq(plans.id, planId));
-  const descriptionDiffere = base.descriptionUtilisee != null && base.descriptionUtilisee.replace(/\s+/g, " ").trim() !== (lePlan?.description ?? "").replace(/\s+/g, " ").trim();
+  const descriptionDiffere = intentionChangee(lePlan?.description, base.descriptionUtilisee);
   const restaurer = !!base.promptUtilise && (promptDiffere(assemblerPrompt(sections), base.promptUtilise) || descriptionDiffere);
+  if (restaurer && !confirmerDescription && descriptionSeraitPerdue(lePlan?.description, base.descriptionUtilisee, lignes.map((j) => j.descriptionUtilisee))) {
+    return {
+      ok: false,
+      erreur: "Le texte du plan a été modifié depuis cet essai : repartir de l'essai le remplacerait.",
+      conflit: { actuelle: lePlan?.description ?? "", essai: base.descriptionUtilisee ?? "", numeroRendu: base.numeroRendu },
+    };
+  }
   const r = await appliquerRendu(planId, jobId, restaurer);
   if (!r.ok) return r;
   revalidatePath("/", "layout");

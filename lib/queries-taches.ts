@@ -347,8 +347,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         href: estFiche
           ? `${base}/montage/${ctx.planUuid ?? ""}`
           : estScene
-            ? `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : ""}`
-            : ctx.planUuid ? `${base}/montage/${ctx.planUuid}` : `${base}/scenario${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
+            ? `${base}/tournage${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : ""}`
+            : ctx.planUuid ? `${base}/montage/${ctx.planUuid}` : `${base}/tournage${ctx.sceneId != null ? `?scene=${ctx.sceneId}` : "?scene=sans"}`,
         statut: d.statut as StatutDemande,
         erreur: d.erreur,
         etapes,

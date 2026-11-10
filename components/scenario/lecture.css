@@ -1,0 +1,349 @@
+/* ---------------------------------------------------------------
+   Page Scénario — le scénario à lire, une scène à la fois, au format de script
+   Préfixe .sl- ; rien ici ne touche aux autres écrans. Le texte est en chasse fixe (c'est la convention d'un script) ;
+   les repères de plan (image du rendu, position, durée, minutage) sont rangés dans la marge de droite.
+   Or = ce qui a changé ou ce qui est ouvert (accents seulement, jamais d'aplat).
+   --------------------------------------------------------------- */
+.sl {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: var(--sp-6);
+  align-items: start;
+  padding-bottom: var(--sp-8);
+}
+
+/* ---- Le sommaire des scènes ---- */
+.sl-sommaire {
+  position: sticky;
+  /* Sous l'en-tête collant de l'application : sa hauteur est mesurée par VueLecture (`--sl-haut`). */
+  top: var(--sl-haut, 132px);
+  max-height: calc(100vh - var(--sl-haut, 132px) - var(--sp-4));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sl-sommaire-titre {
+  margin: 0;
+  font-size: 12.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.sl-sommaire-total {
+  margin: 0 0 var(--sp-3);
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.sl-sommaire-lien {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.35;
+  color: var(--ink-2);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sl-sommaire-lien:hover {
+  background: var(--surface);
+}
+.sl-sommaire-lien[aria-current="true"] {
+  color: var(--ink);
+  background: var(--surface-2);
+  box-shadow: inset 2px 0 0 var(--or);
+}
+.sl-sommaire-lien small {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.sl-sommaire-refaire {
+  font-style: normal;
+  color: var(--or-glow);
+}
+.sl-option {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-top: var(--sp-3);
+  padding: 0 12px;
+  font-size: 13.5px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+/* ---- Le script ---- */
+.sl-script {
+  min-width: 0;
+  max-width: 980px;
+  padding: var(--sp-6) clamp(16px, 4vw, 48px) var(--sp-7);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--ink);
+  /* Changer de scène remonte au début du script : sous l'en-tête collant de l'application, pas derrière lui (`--sl-haut`, mesuré par VueLecture). */
+  scroll-margin-top: var(--sl-haut, 132px);
+}
+.sl-scene[hidden] {
+  display: none;
+}
+
+/* L'en-tête d'une scène : son numéro, son titre, ce qu'elle fait dans le récit, puis ses repères. */
+.sl-entete {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+  margin-bottom: var(--sp-6);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--line-strong);
+  font-family: var(--font-data), system-ui, sans-serif;
+}
+.sl-numero {
+  min-width: 1.4em;
+  font-family: var(--font-brand), serif;
+  font-size: 54px;
+  line-height: 1;
+  text-align: center;
+  color: var(--or-soft);
+}
+.sl-entete-texte {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.sl-entete h2 {
+  margin: 0;
+  font-family: var(--font-brand), serif;
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.sl-fonction {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.sl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.sl-meta b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.sl-meta span {
+  letter-spacing: 0.02em;
+}
+
+/* Un plan : son texte, et dans la marge son image (quand un rendu existe), sa position, sa durée. */
+.sl-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 216px;
+  gap: var(--sp-2) var(--sp-5);
+  margin: 0;
+  padding: var(--sp-5) 0;
+}
+.sl-plan + .sl-plan {
+  border-top: 1px dashed var(--line);
+}
+.sl-corps {
+  min-width: 0;
+}
+.sl-lisible {
+  margin-inline: -8px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: text;
+}
+.sl-lisible:hover {
+  background: var(--surface-2);
+}
+.sl-lisible:focus-visible {
+  outline: 2px solid var(--or);
+  outline-offset: 2px;
+}
+.sl-action {
+  margin: 0 0 var(--sp-3);
+  overflow-wrap: anywhere;
+}
+.sl-vide {
+  color: var(--ink-3);
+}
+.sl-replique {
+  width: min(100%, 38ch);
+  margin: var(--sp-4) auto var(--sp-3);
+}
+.sl-perso {
+  margin: 0;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sl-parole {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.sl-edition {
+  display: grid;
+  gap: var(--sp-2);
+}
+.sl-champ {
+  width: 100%;
+  min-height: 6em;
+  padding: 8px;
+  resize: none;
+  font: inherit;
+  line-height: inherit;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--or-soft);
+  border-radius: 3px;
+}
+.sl-champ:focus {
+  outline: 1px solid var(--or);
+}
+.sl-edition-pied {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  font-family: var(--font-data), system-ui, sans-serif;
+}
+.sl-edition-pied small {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.sl-erreur {
+  margin: 0;
+  font-family: var(--font-data), system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--ecarlate-glow);
+}
+
+/* La marge d'un plan */
+.sl-repere {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+  font-family: var(--font-data), system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+.sl-image {
+  display: block;
+  aspect-ratio: 16 / 9;
+  margin-bottom: var(--sp-1);
+  overflow: hidden;
+  background: var(--film, #000);
+  border: 1px solid var(--line);
+}
+.sl-image:hover {
+  border-color: var(--or-soft);
+}
+.sl-image video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sl-repere-pos {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+.sl-repere-pos:hover {
+  color: var(--or-glow);
+}
+.sl-repere-titre {
+  font-size: 14px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+/* Le texte du plan a changé depuis sa fiche ou son dernier rendu : l'or dit « à regarder », sans aplat. */
+.sl-intention {
+  display: inline-block;
+  width: fit-content;
+  padding: 1px 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--or-glow);
+  border: 1px solid var(--or-soft);
+  border-radius: 999px;
+}
+.sl-script.sans-reperes .sl-repere {
+  display: none;
+}
+.sl-script.sans-reperes .sl-plan {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 860px) {
+  .sl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-3);
+  }
+  .sl-sommaire {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .sl-sommaire-titre,
+  .sl-sommaire-total {
+    display: none;
+  }
+  .sl-sommaire-lien {
+    border: 1px solid var(--line);
+  }
+  .sl-script {
+    font-size: 15.5px;
+  }
+  .sl-entete {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-2);
+  }
+  .sl-numero {
+    text-align: left;
+    font-size: 36px;
+  }
+  .sl-entete h2 {
+    font-size: 24px;
+  }
+  .sl-plan {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sl-repere {
+    order: -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px var(--sp-3);
+    align-items: center;
+  }
+  .sl-image {
+    flex-basis: 100%;
+    max-width: 320px;
+  }
+}

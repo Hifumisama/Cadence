@@ -575,6 +575,13 @@
       "when": 1796490000000,
       "tag": "0081_retrait_bruitages",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1796576400000,
+      "tag": "0082_intention_fiche",
+      "breakpoints": true
     }
   ]
 }

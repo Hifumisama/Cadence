@@ -171,6 +171,9 @@ export const plans = pgTable("plans", {
   acte: varchar("acte", { length: 100 }),
   sceneId: integer("scene_id").references(() => scenes.id),
   description: text("description"),
+  // Le texte du plan (`description`) tel qu'il était quand la fiche a été écrite (agent ou Open H3 IR) : si la description n'est plus la même, la fiche est à
+  // régénérer (lib/intent.ts, `intentionChangee`). Comparé par valeur, jamais réécrit seul ; null = fiche écrite avant ce suivi, on ne sait pas.
+  ficheDescription: text("fiche_description"),
   // Liaison avec le plan PRÉCÉDENT de l'épisode (2026-10-14, lib/plan-liaison.ts) : « suite » = le plan reprend là où l'autre finit (même lieu, même
   // instant à peu près) ; « coupe » = rupture franche (autre lieu, autre moment, autre angle libre). Posée par le scénario, modifiable à la main.
   liaison: varchar("liaison", { length: 10 }).notNull().default("suite"),

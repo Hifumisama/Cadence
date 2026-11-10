@@ -61,6 +61,41 @@ export function sansConsigneAuteur(description: string | null | undefined): stri
 /** L'intent tel qu'on l'AFFICHE : sans l'ancien « État en fin de plan », sans la « Consigne de l'auteur ». */
 export const intentAffichee = (description: string | null | undefined): string => sansConsigneAuteur(sansEtatDeFin(description));
 
+/** La phrase « Consigne de l'auteur : … » stockée dans la description (du marqueur à la fin de sa ligne), ou null. */
+export function consigneAuteur(description: string | null | undefined): string | null {
+  for (const ligne of (description ?? "").replace(/\r\n?/g, "\n").split("\n")) {
+    const m = CONSIGNE.exec(ligne);
+    if (m) return ligne.slice(m.index).trim();
+  }
+  return null;
+}
+
+/** Un texte réécrit (relu à la main dans la vue Lecture, ou rendu par un agent) garde la « Consigne de l'auteur » de la description actuelle quand il n'en porte
+ * pas lui-même : elle est masquée à l'affichage (`intentAffichee`), donc absente de ce que l'on édite, et ne doit pas disparaître en silence. Un texte qui a
+ * sa propre consigne la garde (c'est la nouvelle). */
+export function conserverConsigneAuteur(nouvelle: string, actuelle: string | null | undefined): string {
+  if (CONSIGNE.test(nouvelle)) return nouvelle;
+  const consigne = consigneAuteur(actuelle);
+  return consigne ? `${nouvelle.trimEnd()}\n\n${consigne}` : nouvelle;
+}
+
+/** Les deux descriptions disent-elles la même chose ? Les blancs ne comptent pas (retours chariot, espaces de fin de ligne, retours à la ligne). */
+export const memeDescription = (a: string | null | undefined, b: string | null | undefined): boolean =>
+  (a ?? "").replace(/\s+/g, " ").trim() === (b ?? "").replace(/\s+/g, " ").trim();
+
+/** Remplacer la description actuelle par celle d'un ancien essai la PERDRAIT-elle ? Oui quand elle diffère de celle de l'essai ET qu'aucun essai ne la porte
+ * (une modification à la main depuis) : sinon elle reste retrouvable dans son propre essai. */
+export function descriptionSeraitPerdue(actuelle: string | null | undefined, descriptionEssai: string | null | undefined, descriptionsDesEssais: (string | null | undefined)[]): boolean {
+  if (descriptionEssai == null || memeDescription(actuelle, descriptionEssai)) return false;
+  if (!(actuelle ?? "").trim()) return false;
+  return !descriptionsDesEssais.some((d) => d != null && memeDescription(actuelle, d));
+}
+
+/** Ce qu'un texte (une fiche, un rendu) ne dit plus de l'intention du plan : la description d'aujourd'hui n'est plus celle dont il est parti. Sans valeur
+ * enregistrée (plan écrit avant ce suivi), on ne sait pas : faux. */
+export const intentionChangee = (description: string | null | undefined, descriptionDepart: string | null | undefined): boolean =>
+  descriptionDepart != null && !memeDescription(description, descriptionDepart);
+
 /** Les répliques `« … »` d'une description. */
 export const repliquesIntent = (description: string): string[] => [...description.matchAll(/«\s*([\s\S]*?)\s*»/g)].map((m) => m[1]!.trim()).filter(Boolean);
 

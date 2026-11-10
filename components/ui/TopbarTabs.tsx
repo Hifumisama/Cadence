@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/** Onglets Brief/Scénario/Assets/Montage. Scénario et Montage vivent sous l'épisode
+/** Onglets Brief/Scénario/Tournage/Assets/Montage. Scénario, Tournage et Montage vivent sous l'épisode
  * courant (`episodeBase`, ex. `/p/3/e/9`) ; Assets vit au niveau du PROJET
  * (`/p/3/assets`), jamais sous un épisode précis — le registre est partagé
  * par toute la série (retour utilisateur 2026-09-28 : "super important que
@@ -23,6 +23,8 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
   const onglets = [
     { seg: "brief", label: "Brief", href: briefHref },
     { seg: "scenario", label: "Scénario", href: `${episodeBase}/scenario` },
+    // Depuis le 2026-11-10 : Scénario = le texte à lire (format de script), Tournage = la frise de travail (fiches, rendus) qui était l'ancienne page Scénario.
+    { seg: "tournage", label: "Tournage", href: `${episodeBase}/tournage` },
     { seg: "assets", label: "Assets", href: assetsHref },
     { seg: "montage", label: "Montage", href: `${episodeBase}/montage` },
   ];

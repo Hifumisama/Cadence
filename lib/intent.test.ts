@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { aUnEtatDeFin, intentAffichee, raisonDescriptionIncomplete, recitDe, repliquesPerdues, sansConsigneAuteur, sansEtatDeFin } from "./intent";
+import { aUnEtatDeFin, conserverConsigneAuteur, consigneAuteur, descriptionSeraitPerdue, intentAffichee, intentionChangee, memeDescription, raisonDescriptionIncomplete, recitDe, repliquesPerdues, sansConsigneAuteur, sansEtatDeFin } from "./intent";
 
 // Un plan écrit avant le 2026-11-08 : récit, répliques, consigne de l'auteur, puis l'ancien « État en fin de plan ».
 const ANCIEN = [
@@ -60,4 +60,44 @@ test("raisonDescriptionIncomplete : un fragment ou une phrase d'état seule est 
 test("repliquesPerdues : les répliques de l'actuelle absentes de la nouvelle", () => {
   assert.deepEqual(repliquesPerdues("Elle part.\nMai : « Adieu ! »", "Elle part.\nMai : « Adieu ! »\nGarde : « Reviens. »"), ["Reviens."]);
   assert.deepEqual(repliquesPerdues("Elle part.\nMai :  « adieu ! »", "Mai : « Adieu ! »"), []);
+});
+
+// --- Consigne de l'auteur conservée, texte modifié depuis (2026-11-10) ---
+
+test("consigneAuteur : la phrase stockée, jusqu'à la fin de sa ligne ; null sans consigne", () => {
+  assert.equal(consigneAuteur(ANCIEN), "Consigne de l'auteur : plan large d'abord.");
+  assert.equal(consigneAuteur("Il frappe. Consigne de l'auteur : caméra basse."), "Consigne de l'auteur : caméra basse.");
+  assert.equal(consigneAuteur("Mai entre."), null);
+  assert.equal(consigneAuteur(null), null);
+});
+
+test("conserverConsigneAuteur : un texte réécrit sans consigne garde celle du plan ; avec la sienne, il la garde", () => {
+  const actuelle = "Mai entre.\n\nConsigne de l'auteur : plan large d'abord.";
+  assert.equal(conserverConsigneAuteur("Mai entre en courant.", actuelle), "Mai entre en courant.\n\nConsigne de l'auteur : plan large d'abord.");
+  assert.equal(conserverConsigneAuteur("Mai entre.\nConsigne de l'auteur : caméra basse.", actuelle), "Mai entre.\nConsigne de l'auteur : caméra basse.");
+  assert.equal(conserverConsigneAuteur("Mai entre en courant.", "Mai entre."), "Mai entre en courant.");
+  assert.equal(conserverConsigneAuteur("Mai entre en courant.", null), "Mai entre en courant.");
+});
+
+test("memeDescription / intentionChangee : les blancs ne comptent pas ; sans valeur de départ, on ne sait pas", () => {
+  assert.equal(memeDescription("Mai  entre.\r\n", "Mai entre."), true);
+  assert.equal(memeDescription("Mai entre.", "Mai sort."), false);
+  assert.equal(memeDescription(null, ""), true);
+  assert.equal(intentionChangee("Mai sort.", "Mai entre."), true);
+  assert.equal(intentionChangee("Mai entre.", "Mai  entre.\n"), false);
+  assert.equal(intentionChangee("Mai sort.", null), false);
+  assert.equal(intentionChangee("Mai sort.", undefined), false);
+  assert.equal(intentionChangee(null, "Mai entre."), true);
+});
+
+test("descriptionSeraitPerdue : seulement quand le texte actuel n'est celui d'aucun essai", () => {
+  // Le texte actuel est celui d'un autre essai : restaurer un ancien essai ne perd rien.
+  assert.equal(descriptionSeraitPerdue("B", "A", ["A", "B"]), false);
+  // Modifié à la main depuis : aucun essai ne le porte, il serait perdu.
+  assert.equal(descriptionSeraitPerdue("B retouché", "A", ["A", "B"]), true);
+  // Le même texte que l'essai, un essai sans description enregistrée, ou un plan vide : rien à perdre.
+  assert.equal(descriptionSeraitPerdue("A", "A", ["A"]), false);
+  assert.equal(descriptionSeraitPerdue("B", null, ["A"]), false);
+  assert.equal(descriptionSeraitPerdue("", "A", ["A"]), false);
+  assert.equal(descriptionSeraitPerdue(null, "A", ["A"]), false);
 });

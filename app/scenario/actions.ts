@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { recomposerOrdre, type Tx } from "@/lib/ordre-plans";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
+import { conserverConsigneAuteur, intentAffichee, memeDescription } from "@/lib/intent";
 
 /** Place un plan dans une scène (ou « sans scène » si `sceneId` est null),
  * juste avant `avantPlanId` — ou, sans repère, à la fin des plans de la scène
@@ -117,4 +118,24 @@ export async function supprimerScene(sceneId: number) {
     await recomposerOrdre(tx, scene.episodeId, sequence);
   });
   revalidatePath("/", "layout");
+}
+
+const MAX_TEXTE_PLAN = 4000;
+
+/** Réécrit le texte d'un plan depuis la vue Lecture. Le texte reçu est celui qu'on AFFICHE (`intentAffichee` : sans « Consigne de l'auteur » ni ancien « État en
+ * fin de plan ») : la consigne de l'auteur, masquée donc absente de ce qu'on édite, est conservée ; l'ancien état de fin, abandonné depuis le 2026-11-08, part. Un
+ * texte inchangé n'écrit rien (la fiche et les rendus ne sont donc pas signalés « à refaire » pour rien). */
+export async function modifierTextePlan(planUuid: string, texte: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const propre = texte.trim();
+  if (!propre) return { ok: false, erreur: "Le texte d'un plan ne peut pas être vide : c'est ce que la fiche met en images." };
+  if (propre.length > MAX_TEXTE_PLAN) return { ok: false, erreur: `Le texte est trop long (${MAX_TEXTE_PLAN} caractères au plus).` };
+  const [plan] = await db.select({ id: plans.id, description: plans.description }).from(plans).where(eq(plans.uuid, planUuid));
+  if (!plan) return { ok: false, erreur: "Plan introuvable." };
+  if (memeDescription(propre, intentAffichee(plan.description))) return { ok: true };
+  await db
+    .update(plans)
+    .set({ description: conserverConsigneAuteur(propre, plan.description), updatedAt: new Date() })
+    .where(eq(plans.id, plan.id));
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

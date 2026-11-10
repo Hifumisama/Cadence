@@ -5226,6 +5226,44 @@ button {
   font-size: 13px;
   color: var(--ecarlate-glow);
 }
+/* Repartir d'un ancien essai alors que le texte du plan a été modifié depuis : les deux versions, avant d'écraser. L'or marque ce qui demande un choix. */
+.tm-conflit {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--or-soft);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.tm-conflit p {
+  margin: 0 0 8px;
+}
+.tm-conflit-versions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.tm-conflit-versions section {
+  min-width: 0;
+}
+.tm-conflit-versions h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.tm-conflit-versions pre {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 8px;
+  background: var(--surface-2);
+  font: inherit;
+  color: var(--ink);
+}
 /* « Itérer » : ce que l'agent décide de changer (réglages, références, durée, intent avant → après). */
 .tm-decisions {
   margin: 12px 0 0;

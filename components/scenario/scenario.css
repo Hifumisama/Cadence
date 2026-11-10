@@ -1048,3 +1048,18 @@
 .sc-fiches-ligne .num {
   color: var(--ink-3);
 }
+
+/* ---------------------------------------------------------------
+   Repère « texte modifié » (le texte du plan a changé depuis sa fiche ou son dernier rendu)
+   --------------------------------------------------------------- */
+/* Le texte du plan a changé depuis sa fiche ou son dernier rendu : l'or dit « à regarder », sans aplat. */
+.sc-intention {
+  display: inline-block;
+  width: fit-content;
+  padding: 0 7px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--or-glow);
+  border: 1px solid var(--or-soft);
+  border-radius: 999px;
+}

@@ -1,3 +1,4 @@
+import { intentionChangee } from "./intent";
 import { decouperSections, validerPromptColle } from "./prompt";
 
 /** Historique des rendus d'un plan : choisir ce qu'on regarde, comparer, et décider ce qui part en rendu final. Pur
@@ -43,19 +44,22 @@ export function promptDiffere(promptCourant: string, promptUtilise: string | nul
 /** Ce qui, dans le CONTENU du plan, a changé depuis son dernier rendu terminé : le prompt assemblé, la durée de génération.
  * Comparé par VALEUR (ce que le worker a réellement soumis, `promptUtilise` / `dureeUtilisee`), pas par date : aucun
  * horodatage de plus à tenir. Sans valeur enregistrée (anciens rendus, vidéo importée), on ne sait pas : rien. */
-export type RaisonPerime = "prompt" | "duree" | "raccord";
+export type RaisonPerime = "prompt" | "duree" | "intention" | "raccord";
 
+/** `description` / `descriptionUtilisee` (facultatives) : le texte du plan aujourd'hui et celui dont le rendu est parti. Omises, l'intention n'est pas jugée
+ * (l'upscale d'un rendu, `ficheChangeeDepuis`, ne regarde que la fiche). */
 export function raisonsContenuPerime(
-  courant: { prompt: string | null; duree: number | null },
-  rendu: { promptUtilise: string | null; dureeUtilisee: number | null },
+  courant: { prompt: string | null; duree: number | null; description?: string | null },
+  rendu: { promptUtilise: string | null; dureeUtilisee: number | null; descriptionUtilisee?: string | null },
 ): RaisonPerime[] {
   const raisons: RaisonPerime[] = [];
   if (courant.prompt != null && promptDiffere(courant.prompt, rendu.promptUtilise)) raisons.push("prompt");
   if (courant.duree != null && rendu.dureeUtilisee != null && courant.duree !== rendu.dureeUtilisee) raisons.push("duree");
+  if (courant.description !== undefined && intentionChangee(courant.description, rendu.descriptionUtilisee)) raisons.push("intention");
   return raisons;
 }
 
-export const LIBELLE_RAISON_PERIME: Record<RaisonPerime, string> = { prompt: "prompt modifié", duree: "durée modifiée", raccord: "raccord à refaire" };
+export const LIBELLE_RAISON_PERIME: Record<RaisonPerime, string> = { prompt: "prompt modifié", duree: "durée modifiée", intention: "intention modifiée", raccord: "raccord à refaire" };
 
 /** Un plan est périmé s'il a une référence changée OU un contenu changé. */
 export const estPerime = (p: { codes: string[]; raisons: RaisonPerime[] }): boolean => p.codes.length > 0 || p.raisons.length > 0;
@@ -69,6 +73,7 @@ export function detailPerime(p: { codes: string[]; raisons: RaisonPerime[] }): s
   if (p.codes.length > 0) parts.push(`${p.codes.join(", ")} ${p.codes.length > 1 ? "ont changé" : "a changé"}`);
   if (p.raisons.includes("prompt")) parts.push("le prompt a changé");
   if (p.raisons.includes("duree")) parts.push("la durée a changé");
+  if (p.raisons.includes("intention")) parts.push("le texte du plan a changé");
   if (p.raisons.includes("raccord")) parts.push("le rendu du plan précédent a changé");
   return `${parts.join(" ; ")} depuis le dernier rendu : relance pour en tenir compte.`;
 }

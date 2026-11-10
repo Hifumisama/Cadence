@@ -33,3 +33,15 @@ test("périmé : références OU contenu, résumé et phrase d'alerte", () => {
   assert.equal(detailPerime({ codes: [], raisons: ["raccord"] }), "le rendu du plan précédent a changé depuis le dernier rendu : relance pour en tenir compte.");
   assert.equal(detailPerime({ codes: [], raisons: ["duree"] }), "la durée a changé depuis le dernier rendu : relance pour en tenir compte.");
 });
+
+test("périmé par le texte du plan : la description d'aujourd'hui n'est plus celle du rendu", () => {
+  const avecTexte = { promptUtilise: "summary:\nMaya ouvre la lettre.", dureeUtilisee: 12, descriptionUtilisee: "Maya ouvre la lettre." };
+  assert.deepEqual(raisonsContenuPerime({ prompt: "summary:\nMaya ouvre la lettre.", duree: 12, description: "Maya ouvre la lettre." }, avecTexte), []);
+  assert.deepEqual(raisonsContenuPerime({ prompt: "summary:\nMaya ouvre la lettre.", duree: 12, description: "Maya déchire la lettre." }, avecTexte), ["intention"]);
+  assert.deepEqual(raisonsContenuPerime({ prompt: "autre", duree: 9, description: "Maya déchire la lettre." }, avecTexte), ["prompt", "duree", "intention"]);
+  // Sans texte enregistré sur le rendu (écrit avant ce suivi) ou sans `description` demandée (upscale) : l'intention n'est pas jugée.
+  assert.deepEqual(raisonsContenuPerime({ prompt: "summary:\nMaya ouvre la lettre.", duree: 12, description: "Autre." }, { ...avecTexte, descriptionUtilisee: null }), []);
+  assert.deepEqual(raisonsContenuPerime({ prompt: "summary:\nMaya ouvre la lettre.", duree: 12 }, avecTexte), []);
+  assert.equal(resumerPerime({ codes: [], raisons: ["intention"] }), "intention modifiée");
+  assert.equal(detailPerime({ codes: [], raisons: ["intention"] }), "le texte du plan a changé depuis le dernier rendu : relance pour en tenir compte.");
+});
