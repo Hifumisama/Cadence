@@ -1,8 +1,0 @@
-[
-  { "id": "i01_plan_fixe", "duree": 5, "texte": "Plan en pied, fixe. Maya se tient immobile au centre de la salle, face à nous. La caméra ne bouge pas." },
-  { "id": "i02_push_in", "duree": 8, "texte": "Maya et la Tenancière se font face, de profil pour nous, Maya à gauche et la Tenancière au centre. La caméra s'approche lentement d'elles, du plan en pied au plan moyen." },
-  { "id": "i03_arc", "duree": 7, "texte": "Plan moyen sur Maya, immobile au centre de la salle, face caméra. La caméra tourne lentement autour d'elle vers la droite. Une estrade massive reste au fond à gauche." },
-  { "id": "i04_tracking", "duree": 6, "texte": "Plan moyen. La Tenancière marche de gauche à droite d'un pas égal ; la caméra la suit en travelling latéral et la garde au centre du cadre. Une caisse reste immobile au fond." },
-  { "id": "i05_extreme", "duree": 10, "texte": "Plan large de la salle. Maya avance lentement du fond vers le centre pendant tout le plan. Dans la première moitié, la Tenancière traverse devant elle de gauche à droite pendant que la caméra s'approche lentement jusqu'au plan en pied. À mi-plan la caméra cesse d'avancer et tourne autour d'elles vers la gauche, pendant qu'un garde entre par la droite et traverse le fond de la salle derrière Maya." },
-  { "id": "i06_invente", "duree": 6, "texte": "Contre-plongée, plan en pied. Un enfant court du fond de la cour vers nous pendant que la caméra recule vite. Sa mère, immobile à droite, le regarde passer. Un ballon est posé à gauche au premier plan." }
-]
