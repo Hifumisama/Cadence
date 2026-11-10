@@ -42,7 +42,7 @@ const KIND_PAR_TYPE: Record<Type, MediaKind> = { picture: "image", video: "video
 const TITRE_GALERIE: Record<Type, string> = {
   picture: "Choisir une image de référence",
   video: "Choisir une vidéo de référence",
-  audio: "Choisir un audio de référence (voix, bruitage)",
+  audio: "Choisir un audio de référence (voix)",
 };
 
 function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {

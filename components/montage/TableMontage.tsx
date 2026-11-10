@@ -261,7 +261,6 @@ export function TableMontage(props: {
               <div className="l-regle" />
               <div className="l-v">Montage</div>
               <div className="l-a">Voix</div>
-              <div className="l-a">Bruitages</div>
               <div className="l-a">Musique</div>
             </>
           ) : (
@@ -334,9 +333,6 @@ export function TableMontage(props: {
                 </div>
                 <div className="mt-lane is-a">
                   <span>À venir · pas encore de fichier voix séparé</span>
-                </div>
-                <div className="mt-lane is-a">
-                  <span>À venir · bruitages</span>
                 </div>
                 <div className="mt-lane is-a">
                   <span>À venir · musique d’épisode</span>

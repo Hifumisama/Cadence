@@ -11,12 +11,7 @@ import { creerRun } from "@/lib/agents/runs";
 import { BUT_ESSAI, entreeEssaiAsset } from "@/lib/agents/essai-asset";
 import { libelleAsset } from "@/lib/assetCode";
 import {
-  METHODE_AUDIO,
   STATUT_TRADUCTION,
-  dureeAudioValide,
-  DUREE_AUDIO_MAX,
-  DUREE_AUDIO_MIN,
-  raisonAudioNonGenerable,
   formatParDefaut,
   maxImagesJointes,
   methodeDEssai,
@@ -150,42 +145,6 @@ export async function lancerEssai(
     if (lignes.length > 0) {
       await tx.insert(assetGenerationSources).values(lignes.map((l, i) => ({ generationId: gen!.id, position: i + 1, ...l })));
     }
-    await creerRun(tx, {
-      skill: entree.skill,
-      entree: entree.entree,
-      but: BUT_ESSAI,
-      projectId: asset.projectId,
-      conversationId: null,
-      options: { generationId: gen!.id, variante: entree.variante },
-    });
-    return gen!.uuid;
-  });
-  revalidatePath("/", "layout");
-  return { ok: true, uuid };
-}
-
-/** Lance un essai de SON (bruitage) : l'utilisateur écrit une consigne en français et fixe la durée ; le skill `prompt-asset` (variante `sfx`) la traduit
- * en prompt pour Stable Audio, puis l'essai entre dans la file comme n'importe quelle génération audio. Pas de base : chaque essai repart de la consigne
- * (on l'itère en la reprenant et en la modifiant). Le résultat est un essai du journal, adopté quand il convient. */
-export async function lancerEssaiSon(assetId: number, p: { consigne: string; dureeSecondes: number }): Promise<Resultat & { uuid?: string }> {
-  const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
-  if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
-  const raisonAsset = raisonAudioNonGenerable(asset.type);
-  if (raisonAsset) return { ok: false, erreur: raisonAsset };
-  if (!dureeAudioValide(p.dureeSecondes)) return { ok: false, erreur: `Durée hors limites (${DUREE_AUDIO_MIN} à ${DUREE_AUDIO_MAX} secondes).` };
-  const consigne = p.consigne.trim();
-  const raison = raisonConsigneInvalide(consigne, false, asset.description);
-  if (raison) return { ok: false, erreur: raison.replace("l'image", "le son") };
-  if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
-    return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} générations en attente) : laisse le worker en vider quelques-unes.` };
-  }
-  const entree = await entreeEssaiAsset(db, asset.projectId, assetId, { consigne, aUneBase: false, promptBase: asset.promptGeneration ?? "", images: [], dureeSecondes: p.dureeSecondes });
-  if (!entree) return { ok: false, erreur: "Cet asset n'existe pas dans ce projet." };
-  const uuid = await db.transaction(async (tx) => {
-    const [gen] = await tx
-      .insert(assetGenerations)
-      .values({ assetId, methode: METHODE_AUDIO, statut: STATUT_TRADUCTION, prompt: "", consigne: consigne || null, dureeSecondes: p.dureeSecondes, seed: nouvelleSeed() })
-      .returning({ id: assetGenerations.id, uuid: assetGenerations.uuid });
     await creerRun(tx, {
       skill: entree.skill,
       entree: entree.entree,

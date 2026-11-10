@@ -8,7 +8,6 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, methodeApplicable, type TypeAsset } from "@/lib/assetCode";
-import { DUREE_AUDIO_MAX, DUREE_AUDIO_MIN, dureeAudioValide } from "@/lib/asset-generation";
 
 async function enregistrerFichierAsset(code: string, fichier: File): Promise<string> {
   if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
@@ -146,8 +145,6 @@ export async function modifierChampAsset(
     description?: string;
     promptGeneration?: string;
     methodeGeneration?: string | null;
-    /** Durée du son en secondes (type sfx seulement ; null = non renseignée). */
-    dureeSecondes?: number | null;
   },
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
@@ -162,12 +159,6 @@ export async function modifierChampAsset(
       if (!methodeApplicable(asset.type)) return { ok: false, erreur: "Un son se génère par la génération audio : pas de méthode d'image." };
     }
     valeurs.methodeGeneration = methode;
-  }
-  // La durée n'existe que pour un son ; vide = non renseignée.
-  if (asset.type === "sfx" && champs.dureeSecondes !== undefined) {
-    const duree = champs.dureeSecondes ?? null;
-    if (duree != null && !dureeAudioValide(duree)) return { ok: false, erreur: `Durée hors limites (${DUREE_AUDIO_MIN} à ${DUREE_AUDIO_MAX} secondes).` };
-    valeurs.dureeSecondes = duree;
   }
   if (Object.keys(valeurs).length) await db.update(assets).set(valeurs).where(eq(assets.id, assetId));
   revalidatePath("/", "layout");

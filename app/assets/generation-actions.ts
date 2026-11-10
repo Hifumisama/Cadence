@@ -114,10 +114,9 @@ export async function deposerSourceImport(
   return { ok: true, fichier, src };
 }
 
-/** Adopte un candidat : son image (ou son son) devient celle de l'asset (elle
- * remplace la précédente, F01) et son prompt devient celui de l'asset : la fiche
- * garde ce qui a produit le résultat retenu. Pour un son, la durée demandée
- * devient aussi celle de l'asset. L'asset repasse « en cours » : un résultat
+/** Adopte un candidat : son image devient celle de l'asset (elle remplace la
+ * précédente, F01) et son prompt devient celui de l'asset : la fiche garde ce
+ * qui a produit le résultat retenu. L'asset repasse « en cours » : un résultat
  * nouveau est à revalider. */
 export async function adopterGeneration(generationId: number): Promise<Resultat> {
   const r = await adopterCandidat(generationId, MEDIA_ROOT);

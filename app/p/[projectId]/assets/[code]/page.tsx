@@ -2,16 +2,13 @@ import { getPlansPerimes, nbPlansRendusCitant } from "@/lib/plans-perimes";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsRegistre, getFirstEpisodeId, getProject } from "@/lib/queries";
-import { AssetPreview } from "@/components/assets/AssetPreview";
-import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
-import { AtelierSon } from "@/components/assets/AtelierSon";
 import { AtelierAsset } from "@/components/assets/AtelierAsset";
 import { EnteteAsset, FicheProvider } from "@/components/assets/FicheAsset";
 import { OngletsAsset, type OngletAsset } from "@/components/assets/OngletsAsset";
 import { BlocVoix } from "@/components/voix/BlocVoix";
 import { getVoixPersonnage } from "@/lib/queries-master-voix";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
-import { METHODE_AUDIO, METHODE_MASTER_VOIX, raisonAudioNonGenerable, raisonNonGenerable } from "@/lib/asset-generation";
+import { METHODE_MASTER_VOIX, raisonNonGenerable } from "@/lib/asset-generation";
 import { Topbar } from "@/components/ui/Topbar";
 import { delierRef } from "@/app/assets/actions";
 import { libelleAsset } from "@/lib/assetCode";
@@ -22,7 +19,7 @@ import "@/components/assets/fiche-asset-mise-en-page.css";
 export const dynamic = "force-dynamic";
 
 /** La fiche d'un asset : l'en-tête (nom, type, état, description, apparitions) puis des ONGLETS, un par chose que l'asset sait faire — l'image
- * (l'atelier : image en grand, consigne en français, journal d'essais), la voix d'un personnage, le son d'un bruitage. Chaque texte se corrige au
+ * (l'atelier : image en grand, consigne en français, journal d'essais), la voix d'un personnage. Chaque texte se corrige au
  * clic, sur place. Maquette : docs/maquettes/fiche-asset.html. */
 export default async function AssetDetailPage({
   params,
@@ -38,8 +35,6 @@ export default async function AssetDetailPage({
   if (!projet) notFound();
   const noeud = tous.find((a) => a.code === code);
   if (!noeud) notFound();
-
-  const sonOuVoix = noeud.type === "sfx";
 
   const generations = await getGenerationsAsset(noeud.id);
   // Les essais de voix (vidéos de test) ont leur onglet : ils ne se mêlent pas aux essais d'image.
@@ -58,65 +53,30 @@ export default async function AssetDetailPage({
 
   // ---- Les onglets : un par chose que cet asset sait faire ----
   const onglets: OngletAsset[] = [];
-  if (sonOuVoix) {
-    onglets.push({
-      id: "son",
-      libelle: "Son",
-      icone: "son",
-      point: noeud.fichier != null,
-      contenu: (
-        <div className="carte-onglet">
-          <div className="as-media">
-            <AssetPreview type={noeud.type} fichier={noeud.fichier} taille="lg" />
-            <div className="as-cote">
-              <div className="as-actions">
-                <UploadFichierForm assetId={noeud.id} code={noeud.code} />
-              </div>
-              <dl className="as-infos">
-                <dt>Fichier</dt>
-                <dd>{noeud.fichier ?? "aucun"}</dd>
-              </dl>
-            </div>
-          </div>
-          <div className="as-gen" style={{ marginTop: 20 }}>
-            <AtelierSon
-              assetId={noeud.id}
-              fichierAt={noeud.fichierAt ? noeud.fichierAt.getTime() : null}
-              promptActuel={noeud.promptGeneration ?? ""}
-              dureeActuelle={noeud.dureeSecondes ?? null}
-              description={noeud.description ?? ""}
-              essais={generationsImages.filter((g) => g.methode === METHODE_AUDIO)}
-              raisonBloquee={raisonAudioNonGenerable(noeud.type)}
-            />
-          </div>
-        </div>
-      ),
-    });
-  } else {
-    const essaisImages = generationsImages.filter((g) => g.methode === "generation" || g.methode === "edition");
-    onglets.push({
-      id: "image",
-      libelle: "Image",
-      icone: "image",
-      compte: essaisImages.length || undefined,
-      contenu: (
-        <AtelierAsset
-          assetId={noeud.id}
-          code={noeud.code}
-          libelle={libelleAsset(noeud)}
-          imageSrc={imageActuelle(noeud)?.src ?? null}
-          fichierAt={noeud.fichierAt ? noeud.fichierAt.getTime() : null}
-          valide={noeud.statut === "valide"}
-          essais={essaisImages}
-          essaiInitial={generationBrute ?? null}
-          description={noeud.description ?? ""}
-          plansRendus={noeud.fichier ? plansRendus : 0}
-          raisonBloquee={raisonNonGenerable(noeud)}
-          registre={registreJoignable}
-        />
-      ),
-    });
-  }
+  const essaisImages = generationsImages.filter((g) => g.methode === "generation" || g.methode === "edition");
+  onglets.push({
+    id: "image",
+    libelle: "Image",
+    icone: "image",
+    compte: essaisImages.length || undefined,
+    contenu: (
+      <AtelierAsset
+        assetId={noeud.id}
+        code={noeud.code}
+        libelle={libelleAsset(noeud)}
+        imageSrc={imageActuelle(noeud)?.src ?? null}
+        fichierAt={noeud.fichierAt ? noeud.fichierAt.getTime() : null}
+        valide={noeud.statut === "valide"}
+        essais={essaisImages}
+        essaiInitial={generationBrute ?? null}
+        description={noeud.description ?? ""}
+        plansRendus={noeud.fichier ? plansRendus : 0}
+        raisonBloquee={raisonNonGenerable(noeud)}
+        registre={registreJoignable}
+      />
+    ),
+  });
+
   if (noeud.type === "personnage" && voixPerso) {
     onglets.push({
       id: "voix",
