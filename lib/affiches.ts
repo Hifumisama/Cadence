@@ -53,17 +53,23 @@ export function promptAffiche(entree: { cible: CibleAffiche; titre: string; resu
 /** Le titre est-il demandé dans l'image ? Vrai quand le prompt porte la ligne `Title lettering: …`. C'est le prompt qui fait
  * foi (celui du candidat à l'adoption) : pas de réglage à stocker à part. */
 export function titreDansPrompt(prompt: string): boolean {
-  return prompt.split("\n").some((l) => l.trimStart().startsWith(DEBUT_LIGNE_TITRE));
+  return prompt.includes(DEBUT_LIGNE_TITRE);
 }
 
 /** Met ou retire la ligne de titre d'un prompt (modifié à la main ou écrit par l'agent compris) : actif → la ligne « sans
  * texte » est remplacée par la ligne de titre ; inactif → l'inverse. Le reste du prompt n'est pas touché. */
 export function avecTitreDansImage(prompt: string, titre: string, actif: boolean): string {
   const nom = titre.trim() || "Untitled";
+  // La phrase du titre est ôtée où qu'elle soit : seule sur sa ligne, ou collée à la fin d'un paragraphe (le modèle l'écrit parfois sans retour à la ligne ; l'ancienne
+  // version la laissait alors en place avant d'ajouter la sienne, et le titre était demandé deux fois : AF-03).
   const lignes = prompt
     .split("\n")
-    .filter((l) => !l.trimStart().startsWith(DEBUT_LIGNE_TITRE) && !/^\s*No text/i.test(l))
-    .map((l) => l.trimEnd());
+    .map((l) => {
+      const i = l.indexOf(DEBUT_LIGNE_TITRE);
+      return { texte: i >= 0 ? l.slice(0, i) : l, coupee: i >= 0 };
+    })
+    .filter((l) => !(l.coupee && l.texte.trim() === "") && !/^\s*No text/i.test(l.texte))
+    .map((l) => l.texte.trimEnd());
   while (lignes.length > 0 && lignes[lignes.length - 1] === "") lignes.pop();
   lignes.push(
     actif

@@ -91,3 +91,18 @@ test("la ligne du titre ne demande pas d'éviter le texte (AF-03 : elle contredi
   assert.doesNotMatch(ligne, /no other text/i);
   assert.match(ligne, /No logo, no watermark\.$/);
 });
+
+test("la phrase du titre collée à la fin d'un paragraphe n'est pas demandée deux fois (AF-03, affiche du projet 237)", () => {
+  const colle = 'A rooftop at dusk, calm sky. Title lettering: "Le tir", written once in large elegant lettering integrated into the composition. No logo, no watermark.';
+  const sortie = avecTitreDansImage(colle, "Le tir", true);
+  assert.equal(sortie.split("Title lettering:").length - 1, 1);
+  assert.match(sortie, /^A rooftop at dusk, calm sky\.\nTitle lettering: "Le tir"/);
+  // Déjà doublée (prompt déjà enregistré) : une seule reste.
+  const doublee = `${colle}\nTitle lettering: "Le tir", written once. No logo, no watermark.`;
+  assert.equal(avecTitreDansImage(doublee, "Le tir", true).split("Title lettering:").length - 1, 1);
+  // Titre retiré : la phrase collée disparaît aussi.
+  const sans = avecTitreDansImage(colle, "Le tir", false);
+  assert.doesNotMatch(sans, /Title lettering/);
+  assert.match(sans, /No text, no lettering/);
+  assert.equal(titreDansPrompt(colle), true);
+});
