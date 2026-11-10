@@ -20,6 +20,7 @@ export const LIBELLE_SKILL: Record<string, string> = {
   "plan-h3": "Fiche de plan",
   "plan-h3ir": "Fiche de plan (Open H3 IR)",
   "traduction-intent": "Traduction de l'intent",
+  "retouche-prompt": "Retouche du prompt",
   "references-plan": "Choix des références d'un plan",
   "assets-manquants": "Assets manquants d'un plan",
   "iteration-plan": "Correction après visionnage",

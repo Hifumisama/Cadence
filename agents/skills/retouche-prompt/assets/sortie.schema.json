@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of retouche-prompt: the same video prompt, edited minimally",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["refonte", "raison", "sections", "modifications"],
+  "properties": {
+    "refonte": {
+      "type": "boolean",
+      "description": "false when a local edit carries out the instruction (the normal case). true only when the instruction asks to rebuild the plan, so that no local edit would honour it."
+    },
+    "raison": {
+      "type": "string",
+      "description": "(French) Why a local edit is not enough: one short sentence when refonte is true, an empty string otherwise."
+    },
+    "sections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_definitions", "summary", "retention_analysis", "detailed_description", "overall_soundscape", "non_diegetic_music"],
+      "description": "The six sections of the prompt, complete. A section that needed no change is copied exactly as given. All empty strings when refonte is true.",
+      "properties": {
+        "subject_definitions": { "type": "string" },
+        "summary": { "type": "string" },
+        "retention_analysis": { "type": "string" },
+        "detailed_description": { "type": "string" },
+        "overall_soundscape": { "type": "string" },
+        "non_diegetic_music": { "type": "string" }
+      }
+    },
+    "modifications": {
+      "type": "array",
+      "maxItems": 8,
+      "items": { "type": "string" },
+      "description": "(French) One short sentence per edit made: what changed and in which section. Empty when refonte is true."
+    }
+  }
+}

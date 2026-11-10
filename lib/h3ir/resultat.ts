@@ -1,5 +1,6 @@
 import type { BriefH3ir, LienFichier } from "./brief";
 import type { EnveloppeH3ir, Tentative } from "./compilateur";
+import type { EntreeRetouche } from "./retouche";
 
 /** Ce que la tâche « fiche de plan » avec Open H3 IR range dans `agent_runs.resultat` (worker/h3ir.ts l'écrit, lib/h3ir/conversion.ts le lit). */
 
@@ -19,6 +20,9 @@ export type EntreeH3ir = {
   dureeSecondes?: number | null;
   references?: { ajouter: string[]; retirer: string[] } | null;
   reglagesPlan?: { creativite?: string | null; styleCamera?: string | null } | null;
+  /** « Partir de cet essai » : retoucher le prompt de cet essai (skill `retouche-prompt`) au lieu de recompiler ; si le skill répond « refonte », la compilation
+   * ci-dessus (description, durée, références, réglages) prend le relais. */
+  retouche?: EntreeRetouche | null;
 };
 
 /** L'enveloppe du compilateur réduite à ce que la fiche et le suivi utilisent. */

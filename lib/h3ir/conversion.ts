@@ -3,6 +3,7 @@ import type { ApresFiche, RefFiche } from "../agents/fiches";
 import type { Avertissement } from "../agents/types";
 import { ORDRE_SECTIONS } from "../prompt";
 import type { ResultatH3ir } from "./resultat";
+import type { ResultatRetouche } from "./retouche";
 
 /** Du résultat de la tâche Open H3 IR (`agent_runs.resultat`) au changement `fiche` d'une proposition (même forme que `depuisFichePlan`,
  * lib/agents/conversion.ts). Pur, testé. Étape 4 du chantier (docs/PLAN_INTEGRATION_OPEN_H3_IR.md).
@@ -78,6 +79,35 @@ export function depuisCompilationH3ir(
       cibleType: "fiche",
       cibleRef: plan.uuid,
       libelle: `Fiche de plan · ${plan.titre} (Open H3 IR)`,
+      operation: "modifier",
+      sousGroupe: options.sousGroupe ?? null,
+      apres: fiche,
+      avertissements,
+    },
+  ];
+}
+
+/** Du résultat d'une RETOUCHE de prompt (« partir de cet essai », skill `retouche-prompt`) au changement `fiche` : les six sections de l'essai retouché, rien
+ * d'autre. Les références du plan ne bougent pas (aucune `refs` : « champ absent = on n'y touche pas »), le contrôle de la fiche vérifie à l'application que
+ * le prompt cite bien des images qui existent. `moteur: "h3ir"` : l'ancien prompt reste dans l'historique et le nouveau y entre. */
+export function depuisRetouche(res: ResultatRetouche, plan: { uuid: string; titre: string }, options: { groupe?: string; sousGroupe?: string | null } = {}): ChangementBrut[] {
+  const avertissements: Avertissement[] = [];
+  avertissements.push({
+    type: "info",
+    texte: `Prompt de l'essai n°${res.depuisNumero} retouché, sans recompilation${res.modifications.length ? ` : ${res.modifications.join(" ; ")}` : ""}. L'ancien prompt reste dans l'historique du prompt.`,
+  });
+  const sections: Record<string, string> = {};
+  for (const nom of ORDRE_SECTIONS) sections[nom] = (res.sections[nom] ?? "").trim();
+  for (const nom of SECTIONS_OBLIGATOIRES) {
+    if (!sections[nom]) avertissements.push({ type: "bloque_controle", texte: `Le prompt retouché n'a pas de section « ${nom} » : la fiche n'est pas écrite.` });
+  }
+  const fiche: ApresFiche = { sections, passages: res.passages, voixDuPrompt: true, moteur: "h3ir" };
+  return [
+    {
+      groupe: options.groupe ?? "fiches",
+      cibleType: "fiche",
+      cibleRef: plan.uuid,
+      libelle: `Fiche de plan · ${plan.titre} (prompt de l'essai n°${res.depuisNumero} retouché)`,
       operation: "modifier",
       sousGroupe: options.sousGroupe ?? null,
       apres: fiche,

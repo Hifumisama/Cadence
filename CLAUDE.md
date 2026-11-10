@@ -76,7 +76,7 @@ Les skills vivent dans `agents/skills/` (un dossier par skill, chargés par `lib
 - conception du projet : `accroche-scenariste`, `conversation-agent`, `notes-entretien` (le brief se remplit au
   fil de la conversation ; son schéma est `lib/agents/brief-schema.json`)
 - production : `traitement-episode` + `scenario-scene` (scénario d'un long film, scène par scène : CONCEPTION_AGENTS § 17), `scenario-episode` (film court, plan à insérer ou à corriger), `inventaire-assets`, `relecture-scenario` (relecture du scénario écrit, avant les fiches), `prompt-asset`, `prompt-affiche`, `plan-h3` (et `traduction-intent`, qui traduit en anglais l'intent d'un plan avant le compilateur Open H3 IR : « Générer la fiche avec Open H3 IR », `docs/PLAN_INTEGRATION_OPEN_H3_IR.md` ; `plan-h3ir` n'est pas un dossier de skill mais le nom de cette tâche du worker)
-- correction : `iteration-plan`
+- correction : `iteration-plan` ; `retouche-prompt` (quand on part d'un essai, la consigne se joue sur le prompt de cet essai, a minima, sans recompiler : `lib/h3ir/retouche.ts`, `worker/h3ir.ts`)
 
 Les anciens skills de chat (`scenario`, `fiche-de-plan`, `assets-comfyui`, `voix-comfyui`) n'existent plus. Les
 règles de nommage et de versionnage ci-dessus priment sur toute copie qui en traînerait

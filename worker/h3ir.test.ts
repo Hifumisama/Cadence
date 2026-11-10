@@ -3,6 +3,8 @@ import { test } from "node:test";
 import type { BriefH3ir, ResultatBrief } from "../lib/h3ir/brief";
 import type { LanceurPython, ReponsePython } from "../lib/h3ir/compilateur";
 import type { executerSkill } from "../lib/llm/executer";
+import type { ResultatH3ir } from "../lib/h3ir/resultat";
+import { SKILL_RETOUCHE, type ResultatRetouche, type SortieRetouche } from "../lib/h3ir/retouche";
 import { executerH3ir, lireEntreeH3ir, nettoyerIntent, reduireEnveloppe, SKILL_TRADUCTION, type DepsH3ir } from "./h3ir";
 
 const BRIEF: BriefH3ir = {
@@ -109,17 +111,17 @@ test("executerH3ir : brief → traduction (une fois, intent français) → compi
   assert.equal(appels.envoyes[0]!.intent, "Mai enters the room. 'Mood': night", "les guillemets droits sont retirés avant l'envoi");
   assert.equal(appels.envoyes[0]!.seed, 50);
 
-  assert.equal(r.json.moteur, "h3ir");
-  assert.equal(r.json.intentFrancais, BRIEF.intent);
-  assert.equal(r.json.intentAnglais, "Mai enters the room. 'Mood': night");
-  assert.deepEqual(r.json.liens, BRIEF_OK.liens);
-  assert.deepEqual(r.json.avertissements, ["un avertissement"]);
-  assert.equal(r.json.compilation.mode, "ref2va");
-  assert.equal(r.json.compilation.promptTokens, 321);
-  assert.deepEqual(r.json.compilation.sections, { summary: "s" });
-  assert.equal(r.json.compilation.dureeEffectiveSecondes, 8);
-  assert.deepEqual(r.json.fichiers, { abc: "/m/mai.png" });
-  assert.equal(r.json.seedUtilisee, 50);
+  assert.equal((r.json as ResultatH3ir).moteur, "h3ir");
+  assert.equal((r.json as ResultatH3ir).intentFrancais, BRIEF.intent);
+  assert.equal((r.json as ResultatH3ir).intentAnglais, "Mai enters the room. 'Mood': night");
+  assert.deepEqual((r.json as ResultatH3ir).liens, BRIEF_OK.liens);
+  assert.deepEqual((r.json as ResultatH3ir).avertissements, ["un avertissement"]);
+  assert.equal((r.json as ResultatH3ir).compilation.mode, "ref2va");
+  assert.equal((r.json as ResultatH3ir).compilation.promptTokens, 321);
+  assert.deepEqual((r.json as ResultatH3ir).compilation.sections, { summary: "s" });
+  assert.equal((r.json as ResultatH3ir).compilation.dureeEffectiveSecondes, 8);
+  assert.deepEqual((r.json as ResultatH3ir).fichiers, { abc: "/m/mai.png" });
+  assert.equal((r.json as ResultatH3ir).seedUtilisee, 50);
   assert.equal(r.modele, "gemma");
   assert.deepEqual(etapes, ["Préparation du brief…", "Traduction de l'intent en anglais…", "Compilation Open H3 IR (essai 1/3)… une à deux minutes par essai."]);
 });
@@ -130,9 +132,9 @@ test("executerH3ir : une relance ne retraduit pas et change de seed", async () =
   const r = await executerH3ir({ projectId: 7, entree: { planUuid: "u1" } }, OPTIONS(), d);
   assert.equal(appels.traduction.length, 1, "traduit une seule fois");
   assert.deepEqual(appels.envoyes.map((b) => b.seed), [50, 51]);
-  assert.equal(r.json.seedUtilisee, 51);
-  assert.equal(r.json.brief.seed, 51);
-  assert.deepEqual(r.json.tentatives.map((t) => t.issue), ["relance", "ok"]);
+  assert.equal((r.json as ResultatH3ir).seedUtilisee, 51);
+  assert.equal((r.json as ResultatH3ir).brief.seed, 51);
+  assert.deepEqual((r.json as ResultatH3ir).tentatives.map((t) => t.issue), ["relance", "ok"]);
 });
 
 test("executerH3ir : un brief refusé échoue avec la raison, sans traduire ni compiler", async () => {
@@ -168,4 +170,82 @@ test("nettoyerIntent / reduireEnveloppe", () => {
   assert.equal(nettoyerIntent(42), "");
   const r = reduireEnveloppe({});
   assert.deepEqual(r, { status: null, source: null, mode: null, promptTokens: null, sections: {}, manifest: [], diagnostics: [], dureeEffectiveSecondes: null });
+});
+
+// --- « Partir de cet essai » : retouche du prompt ---
+
+const SECTIONS_ESSAI = {
+  subject_definitions: "<Subject 1> is the young woman in <Picture 1>.",
+  summary: "<Subject 1> moves.",
+  retention_analysis: "<Subject 1> fully_preserved.",
+  detailed_description: "[Shot 1] A wide shot of <Subject 1>. [Shot 2] The shot cuts to a close-up of <Subject 1>.",
+  overall_soundscape: "Wind.",
+  non_diegetic_music: "Orchestra.",
+};
+const RETOUCHE = { numeroRendu: 7, consigne: "Ajoute la réplique.", sections: SECTIONS_ESSAI, repliques: [{ nom: "Katara", texte: "l'Air" }], descriptionApres: "Elle bouge.\nKatara : « l'Air »" };
+const BONNE_RETOUCHE: SortieRetouche = {
+  refonte: false,
+  raison: "",
+  modifications: ["Réplique ajoutée."],
+  sections: { ...SECTIONS_ESSAI, detailed_description: `${SECTIONS_ESSAI.detailed_description} Katara's voice is heard, <d>[French] l'Air</d>` },
+};
+
+function depsRetouche(sorties: SortieRetouche[]) {
+  const appels: { skill: string; entree: string }[] = [];
+  const executer = (async (skill: string, entree: string) => {
+    appels.push({ skill, entree });
+    if (skill === SKILL_RETOUCHE) return { json: sorties.shift()!, modele: "gemma", usage: { entree: 100, sortie: 50 } };
+    return { json: { intent: "Mai enters." }, modele: "gemma", usage: { entree: 10, sortie: 5 } };
+  }) as unknown as typeof executerSkill;
+  return { executer, appels };
+}
+
+test("executerH3ir : partir d'un essai retouche son prompt, sans compiler ni traduire", async () => {
+  const { d } = deps();
+  const { executer, appels } = depsRetouche([BONNE_RETOUCHE]);
+  const r = await executerH3ir({ projectId: 7, entree: { planUuid: "u1", retouche: RETOUCHE } }, OPTIONS(), { ...d, executer, lancer: async () => assert.fail("pas de compilation") });
+  const json = r.json as ResultatRetouche;
+  assert.equal(json.moteur, "retouche");
+  assert.equal(json.depuisNumero, 7);
+  assert.deepEqual(json.passages.map((p) => p.section), ["detailed_description"]);
+  assert.deepEqual(appels.map((a) => a.skill), [SKILL_RETOUCHE]);
+  assert.ok(appels[0]!.entree.includes("Katara | l'Air"));
+});
+
+test("executerH3ir : une retouche invalide est rejouée une fois avec ses défauts, puis échoue sans recompiler", async () => {
+  const { d } = deps();
+  const mauvaise: SortieRetouche = { ...BONNE_RETOUCHE, sections: SECTIONS_ESSAI };
+  const un = depsRetouche([mauvaise, BONNE_RETOUCHE]);
+  const r = await executerH3ir({ projectId: 7, entree: { planUuid: "u1", retouche: RETOUCHE } }, OPTIONS(), { ...d, executer: un.executer, lancer: async () => assert.fail("pas de compilation") });
+  assert.equal((r.json as ResultatRetouche).moteur, "retouche");
+  assert.equal(un.appels.length, 2);
+  assert.ok(un.appels[1]!.entree.includes("PROBLEMS TO FIX"));
+  const deux = depsRetouche([mauvaise, mauvaise]);
+  await assert.rejects(
+    () => executerH3ir({ projectId: 7, entree: { planUuid: "u1", retouche: RETOUCHE } }, OPTIONS(), { ...d, executer: deux.executer, lancer: async () => assert.fail("pas de compilation") }),
+    /n'est pas valable.*Rien n'a été écrit/,
+  );
+});
+
+test("executerH3ir : si le skill répond « refonte », la compilation prend le relais", async () => {
+  const { d, appels } = deps();
+  const sorties = [{ ...BONNE_RETOUCHE, refonte: true, raison: "nouveau lieu", sections: SECTIONS_ESSAI }];
+  const executerMixte = (async (skill: string, entree: unknown, options: Record<string, unknown>) => {
+    if (skill === SKILL_RETOUCHE) return { json: sorties.shift()!, modele: "gemma", usage: { entree: 100, sortie: 50 } };
+    appels.traduction.push({ skill, entree, options });
+    return { json: { intent: "Mai enters." }, modele: "gemma", usage: { entree: 10, sortie: 5 } };
+  }) as unknown as typeof executerSkill;
+  const etapes: string[] = [];
+  const r = await executerH3ir({ projectId: 7, entree: { planUuid: "u1", retouche: RETOUCHE } }, { ...OPTIONS(), surEtape: (t) => etapes.push(t) }, { ...d, executer: executerMixte });
+  assert.equal((r.json as ResultatH3ir).moteur, "h3ir");
+  assert.ok(etapes.some((e) => e.includes("nouveau lieu")));
+  assert.equal(appels.traduction[0]!.skill, SKILL_TRADUCTION);
+  assert.equal(r.usage.entree, 110, "l'usage de la retouche est compté avec celui de la traduction");
+});
+
+test("lireEntreeH3ir : la retouche est gardée si elle est complète, ignorée sinon", () => {
+  const e = lireEntreeH3ir({ planUuid: "u", retouche: RETOUCHE });
+  assert.equal(e.retouche?.numeroRendu, 7);
+  assert.equal(e.retouche?.repliques.length, 1);
+  assert.equal(lireEntreeH3ir({ planUuid: "u", retouche: { numeroRendu: 7 } }).retouche, undefined);
 });

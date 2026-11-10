@@ -50,7 +50,8 @@ import { assetsACreer, ecrireReferencesDesTaches, phraseBilan } from "../../lib/
 import { lireVueEpisode } from "../../lib/agents/vue-operations/vue-episode";
 import { PREFIXE_SANS_ECRITURE, contexteDepuisEntree, decisionsEffectives, raisonSansEcriture, type SortieIterationPlan } from "../../lib/agents/iteration-plan";
 import type { InfosExecution } from "./preparation";
-import { depuisCompilationH3ir } from "../../lib/h3ir/conversion";
+import { depuisCompilationH3ir, depuisRetouche } from "../../lib/h3ir/conversion";
+import { estResultatRetouche } from "../../lib/h3ir/retouche";
 import { SKILL_H3IR, type ResultatH3ir } from "../../lib/h3ir/resultat";
 import type { MessageConversation } from "../../lib/agents/types";
 import { normaliserChoix } from "../../lib/agents/choix";
@@ -239,7 +240,8 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
     if (prop.cibleId == null) throw new Error("Proposition de fiche sans plan.");
     const [plan] = await tx.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.id, prop.cibleId));
     if (!plan) throw new Error("Le plan visé n'existe plus.");
-    bruts = depuisCompilationH3ir(json as ResultatH3ir, plan);
+    // « Partir de cet essai » : le prompt de l'essai a été retouché (worker/h3ir.ts) au lieu d'être recompilé ; la suite est la même (description, durée écrites avec la fiche).
+    bruts = estResultatRetouche(json) ? depuisRetouche(json, plan) : depuisCompilationH3ir(json as ResultatH3ir, plan);
     // Recompilation depuis « Itérer » (lib/agents/service.ts, genererReecriturePlan) : les décisions compilées (description, durée, réglages du plan) s'écrivent
     // avec la fiche, dans la même application ; les références suivent le manifeste de la compilation.
     const o = (run.options ?? {}) as { descriptionNouvelle?: unknown; dureeNouvelle?: unknown; reglagesNouveaux?: { creativite?: unknown; styleCamera?: unknown } | null };
