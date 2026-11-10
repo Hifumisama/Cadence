@@ -256,13 +256,21 @@ export default async function PlanPage({
   // Plan périmé : « Relancer » refait l'essai avec la fiche, les références et le raccord d'aujourd'hui, même seed (donc rien d'autre ne change que ce qui a bougé), dans le
   // mode de son dernier rendu terminé (un final reste final).
   const dernierTermine = jobHistory.filter((j) => j.statut === "termine").sort((a, b) => b.numeroRendu - a.numeroRendu)[0];
+  // Seul le texte du plan a changé : relancer redonnerait le même rendu (le prompt n'est pas réécrit). On propose d'itérer à partir de l'essai, ce qui retouche son prompt.
+  const seulementTexte = !!perime && perime.codes.length === 0 && perime.raisons.length === 1 && perime.raisons[0] === "intention";
   const relancePerime =
     perime && estPerime(perime)
-      ? {
-          libelle: perime.raisons.includes("raccord") ? "Raccrocher au plan précédent" : "Relancer (plan périmé)",
-          detail: `${detailPerime(perime)} Même seed, ${dernierTermine?.activerUpscale ? "rendu final" : "prévisualisation"}.`,
-          mode: (dernierTermine?.activerUpscale ? "final" : "previsualiser") as "final" | "previsualiser",
-        }
+      ? seulementTexte
+        ? {
+            libelle: "Itérer à partir de cet essai",
+            detail: "Le texte du plan a changé mais pas son prompt : relancer redonnerait le même rendu. Écris la consigne : le prompt de l'essai est retouché en conséquence.",
+            mode: "iterer" as const,
+          }
+        : {
+            libelle: perime.raisons.includes("raccord") ? "Raccrocher au plan précédent" : "Relancer (plan périmé)",
+            detail: `${detailPerime(perime)} Même seed, ${dernierTermine?.activerUpscale ? "rendu final" : "prévisualisation"}. Le prompt n'est pas réécrit.`,
+            mode: (dernierTermine?.activerUpscale ? "final" : "previsualiser") as "final" | "previsualiser",
+          }
       : null;
 
   // Contrôles repliés dans la pastille du titre : références, structure, dialogues.

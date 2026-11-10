@@ -109,7 +109,7 @@ export function PlateauEssais({
   /** « Nouvelle variante » est possible : le plan n'est pas validé et aucun essai n'est en file. */
   peutVarier: boolean;
   /** Le plan est périmé (référence, contenu ou rendu du plan précédent changé) : « Relancer » refait l'essai, même seed, avec l'état d'aujourd'hui. */
-  relancePerime: { libelle: string; detail: string; mode: "previsualiser" | "final" } | null;
+  relancePerime: { libelle: string; detail: string; mode: "previsualiser" | "final" | "iterer" } | null;
   children?: ReactNode;
 }) {
   const router = useRouter();
@@ -255,9 +255,9 @@ export function PlateauEssais({
                     <button
                       type="button"
                       className="tm-geste is-actif"
-                      disabled={!peutVarier || b.occupe}
-                      onClick={() => b.figer(relancePerime.mode)}
-                      title={peutVarier ? relancePerime.detail : "Un essai tourne, ou le plan est validé : rouvre l'itération."}
+                      disabled={relancePerime.mode !== "iterer" && (!peutVarier || b.occupe)}
+                      onClick={() => (relancePerime.mode === "iterer" ? repartir() : b.figer(relancePerime.mode))}
+                      title={peutVarier || relancePerime.mode === "iterer" ? relancePerime.detail : "Un essai tourne, ou le plan est validé : rouvre l'itération."}
                     >
                       {relancePerime.libelle}
                     </button>
