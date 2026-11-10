@@ -7,7 +7,7 @@ import { GenererFiche } from "@/components/plan/GenererFiche";
 import type { Liaison } from "@/lib/plan-liaison";
 import { intentAffichee } from "@/lib/intent";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
-import { RoueDuree } from "@/components/plan/RoueDuree";
+import { CurseurDuree } from "@/components/plan/CurseurDuree";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import "./atelier.css";
 import { LIBELLE_CREATIVITE, LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, infobulleChoix, resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/reglages";
@@ -169,7 +169,7 @@ export function PlanScenarioPanel({
           <span className="pl-etiquette" id={`duree-rendu-${planId}`}>
             Durée de rendu
           </span>
-          <RoueDuree valeur={champs.dureeSecondes} min={DUREE_GENERATION_MIN} max={DUREE_GENERATION_MAX} onChange={(v) => setChamps((c) => ({ ...c, dureeSecondes: v }))} idEtiquette={`duree-rendu-${planId}`} />
+          <CurseurDuree valeur={champs.dureeSecondes} min={DUREE_GENERATION_MIN} max={DUREE_GENERATION_MAX} onChange={(v) => setChamps((c) => ({ ...c, dureeSecondes: v }))} idEtiquette={`duree-rendu-${planId}`} />
           <span className="tiny-note">
             {champs.dureeSecondes == null && dureeGeneration != null
               ? `Actuellement ${dureeGeneration} s, hors des bornes : choisis de ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s.`

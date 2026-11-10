@@ -7,24 +7,16 @@
 
 .pl-etiquette { font-size: 13px; color: var(--ink-2); }
 
-/* Roulette de durée (RoueDuree.tsx) : trois crans visibles, celui du centre est la valeur. */
-.pl-roue { display: inline-flex; align-items: center; gap: 8px; }
-.pl-roue-pas { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink-2); font-size: 18px; line-height: 1; cursor: pointer; }
-.pl-roue-pas:hover:not(:disabled) { border-color: var(--or-soft); color: var(--or-glow); }
-.pl-roue-pas:disabled { opacity: 0.4; cursor: not-allowed; }
-.pl-roue-cadre { position: relative; width: 92px; height: 108px; border: 1px solid var(--line-strong); background: var(--film, #0b0b0f); }
-.pl-roue-cadre:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 2px; }
-/* La fenêtre du cran choisi, au centre. */
-.pl-roue-cadre::before { content: ""; position: absolute; left: 0; right: 0; top: 36px; height: 36px; border-top: 1px solid var(--or-soft); border-bottom: 1px solid var(--or-soft); pointer-events: none; z-index: 1; }
-/* Fondu haut et bas, comme une roue qui tourne. */
-.pl-roue-cadre::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2; background: linear-gradient(to bottom, rgba(11, 11, 15, 0.85), transparent 34%, transparent 66%, rgba(11, 11, 15, 0.85)); }
-.pl-roue-colonne { height: 100%; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; overscroll-behavior: contain; }
-.pl-roue-colonne::-webkit-scrollbar { display: none; }
-.pl-roue-marge { height: 36px; }
-.pl-roue-cran { height: 36px; display: grid; place-items: center; scroll-snap-align: center; font-family: var(--font-mono), monospace; font-size: 17px; color: var(--ink-3); cursor: pointer; user-select: none; }
-.pl-roue-cran.is-choisi { color: var(--or-glow); font-size: 22px; }
-.pl-roue-unite { position: absolute; right: 12px; top: 36px; height: 36px; display: grid; place-items: center; font-family: var(--font-mono), monospace; font-size: 12px; color: var(--ink-3); pointer-events: none; z-index: 3; }
-.pl-roue.is-off { opacity: 0.5; }
+/* Curseur de durée (CurseurDuree.tsx) : des secondes entières, la valeur choisie à droite. */
+.pl-curseur { display: grid; grid-template-columns: minmax(160px, 260px) auto; grid-template-areas: "piste valeur" "crans ."; align-items: center; gap: 2px 14px; }
+.pl-curseur-piste { grid-area: piste; width: 100%; margin: 0; accent-color: var(--or-glow, #d9a93c); cursor: pointer; }
+.pl-curseur-piste:disabled { cursor: not-allowed; }
+.pl-curseur-crans { grid-area: crans; display: flex; justify-content: space-between; padding: 0 6px; font-size: 11px; color: var(--ink-3); }
+.pl-curseur-crans .is-choisi { color: var(--or-glow); }
+.pl-curseur-valeur { grid-area: valeur; min-width: 3ch; font-size: 18px; color: var(--or-glow); }
+.pl-curseur.is-vide .pl-curseur-piste { opacity: 0.55; }
+.pl-curseur.is-vide .pl-curseur-valeur { color: var(--ink-3); }
+.pl-curseur.is-off { opacity: 0.5; }
 
 /* Interrupteur « Lié au plan précédent ? » (role="switch") */
 .pl-interrupteur { display: inline-flex; align-items: center; gap: 10px; justify-self: start; padding: 4px 0; border: 0; background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
