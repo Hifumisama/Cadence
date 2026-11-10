@@ -58,7 +58,7 @@ test("manquants : deux au plus, code reconstruit, type permis, parent valide ; u
       { code: "DEC_gare_nuit", type: "decor", parent: "DEC_gare", description: "La gare la nuit." },
       { code: "CHAR_controleur", type: "personnage", parent: "DEC_gare", description: "Un contrôleur." },
       { code: "VFX_fumee", type: "vfx", description: "Fumée." },
-      { code: "SFX_sifflet", type: "sfx", description: "Sifflet." },
+      { code: "VOICE_sifflet", type: "voix", description: "Sifflet." },
       { code: "CHAR_marc", type: "personnage", description: "déjà là" },
     ],
     codesTypes,
@@ -67,7 +67,7 @@ test("manquants : deux au plus, code reconstruit, type permis, parent valide ; u
   assert.deepEqual(r.existants, ["CHAR_marc"]);
   assert.ok(r.ecartes.some((e) => e.code === "CHAR_controleur" && /au plus 2/.test(e.raison)), "le troisième est écarté (à créer à la main)");
   assert.ok(r.ecartes.some((e) => e.code === "VFX_fumee"));
-  assert.ok(r.ecartes.some((e) => e.code === "SFX_sifflet"));
+  assert.ok(r.ecartes.some((e) => e.code === "VOICE_sifflet"));
   // La place sur le plan limite aussi : 6 images au plus, références comprises.
   assert.equal(retenirManquants([{ code: "PROP_a", type: "prop" }, { code: "PROP_b", type: "prop" }], codesTypes, { place: 1 }).retenus.length, 1);
   // Un parent d'un autre type n'est pas gardé.
@@ -84,7 +84,7 @@ test("manquants → créations d'assets cochables (clé de nouvel asset, parent 
 
 test("sortie du skill : codes rapprochés, sons écartés, manquants plafonnés ; rejouée après création, les manquants deviennent des références", () => {
   const sortie = {
-    references: [{ code: "CHAR_ines" }, { code: "SFX_x" }, { code: "DEC_gare" }, { code: "CHAR_ines" }],
+    references: [{ code: "CHAR_ines" }, { code: "VOICE_x" }, { code: "DEC_gare" }, { code: "CHAR_ines" }],
     manquants: [
       { code: "PROP_lanterne", type: "prop", description: "Lanterne." },
       { code: "PROP_billet", type: "prop", description: "Billet." },

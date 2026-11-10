@@ -9,8 +9,8 @@ test("images : la clé de SaveImage", () => {
 });
 
 test("audio : la clé d'un SaveAudio, avec sous-dossier", () => {
-  const f = premierFichierSortie({ audio: [{ filename: "cadence_SFX_porte_00001_.mp3", subfolder: "audio", type: "output" }] });
-  assert.equal(cheminSortieDistant(f!), "audio/cadence_SFX_porte_00001_.mp3");
+  const f = premierFichierSortie({ audio: [{ filename: "cadence_VOIX_porte_00001_.mp3", subfolder: "audio", type: "output" }] });
+  assert.equal(cheminSortieDistant(f!), "audio/cadence_VOIX_porte_00001_.mp3");
 });
 
 test("vidéo : gifs puis videos", () => {

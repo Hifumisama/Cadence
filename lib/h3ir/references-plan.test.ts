@@ -20,7 +20,7 @@ const REGISTRE: CandidatReference[] = [
   c("DEC_falaise_de_nuit", "decor"),
   c("DEC_fortifications_de_la_nation_de_la_terre", "decor"),
   c("DEC_temple_secret_du_feu", "decor"),
-  c("SFX_vague", "sfx"),
+  c("VOICE_vague", "voix"),
   c("AFFICHE_P1", "affiche"),
 ];
 
@@ -103,8 +103,8 @@ test("plan sans récit (seulement l'ancien état de fin) : doute", () => {
   assert.equal(r.suffit, false);
 });
 
-test("codes cités : pris d'office, mal recopiés rapprochés, inconnus en doute ; SFX ignoré", () => {
-  const r = choisirReferences(entree("Dans DEC_temple_secret_feu, CHAR_maitresse_du_feu lance VFX_gerbe_flamme_feu sur PROP_inexistant. SFX_vague."));
+test("codes cités : pris d'office, mal recopiés rapprochés, inconnus en doute ; voix ignorée", () => {
+  const r = choisirReferences(entree("Dans DEC_temple_secret_feu, CHAR_maitresse_du_feu lance VFX_gerbe_flamme_feu sur PROP_inexistant. VOICE_vague."));
   assert.deepEqual(codes(r), ["CHAR_maitresse_du_feu", "VFX_gerbe_flamme_feu", "DEC_temple_secret_du_feu"]);
   assert.equal(r.references[1]!.role, "style");
   assert.match(r.references[2]!.pourquoi, /DEC_temple_secret_feu/);
@@ -145,7 +145,7 @@ test("élément du brief évoqué : son asset s'il est seul à le porter, sinon 
   assert.deepEqual(types(sans), ["element_sans_asset"]);
 });
 
-test("jamais de bruitage ni d'affiche parmi les références", () => {
+test("jamais de voix ni d affiche parmi les références", () => {
   const r = choisirReferences(entree("Océan, une vague. AFFICHE_P1."));
-  assert.ok(!codes(r).some((x) => x.startsWith("SFX_") || x.startsWith("AFFICHE_")));
+  assert.ok(!codes(r).some((x) => x.startsWith("VOICE_") || x.startsWith("AFFICHE_")));
 });

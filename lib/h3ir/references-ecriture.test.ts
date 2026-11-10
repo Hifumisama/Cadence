@@ -8,7 +8,7 @@ const assets = new Map([
   ["CHAR_heroine", { id: 1, type: "personnage" }],
   ["DEC_port", { id: 2, type: "decor" }],
   ["VFX_brume", { id: 3, type: "vfx" }],
-  ["SFX_cloche", { id: 4, type: "sfx" }],
+  ["VOICE_cloche", { id: 4, type: "voix" }],
   ["PROP_carte", { id: 5, type: "prop" }],
   ["PROP_boussole", { id: 6, type: "prop" }],
   ["PROP_corde", { id: 7, type: "prop" }],
@@ -27,10 +27,10 @@ test("planifierReferences : emplacements 1..n dans l'ordre, VFX en rétention fa
 });
 
 test("planifierReferences : code inconnu, son, doublon et 7e image ignorés", () => {
-  const p = planifierReferences(["CHAR_heroine", "SFX_cloche", "CHAR_heroine", "PROP_inconnu", "PROP_carte", "PROP_boussole", "PROP_corde", "PROP_rame", "DEC_port"], assets, 0);
+  const p = planifierReferences(["CHAR_heroine", "VOICE_cloche", "CHAR_heroine", "PROP_inconnu", "PROP_carte", "PROP_boussole", "PROP_corde", "PROP_rame", "DEC_port"], assets, 0);
   assert.ok(p.ok);
   assert.equal(p.lignes.length, 6);
-  assert.deepEqual(p.ignores, ["SFX_cloche", "CHAR_heroine", "PROP_inconnu"]);
+  assert.deepEqual(p.ignores, ["VOICE_cloche", "CHAR_heroine", "PROP_inconnu"]);
 });
 
 test("planifierReferences : jamais par-dessus des images déjà posées, sauf remplacement explicite", () => {
@@ -38,7 +38,7 @@ test("planifierReferences : jamais par-dessus des images déjà posées, sauf re
   assert.deepEqual(refus, { ok: false, raison: "deja-des-references", ignores: [] });
   const remplace = planifierReferences(["CHAR_heroine"], assets, 2, { remplacer: true });
   assert.ok(remplace.ok && remplace.retirerExistantes);
-  assert.deepEqual(planifierReferences(["SFX_cloche"], assets, 0), { ok: false, raison: "aucune-reference", ignores: ["SFX_cloche"] });
+  assert.deepEqual(planifierReferences(["VOICE_cloche"], assets, 0), { ok: false, raison: "aucune-reference", ignores: ["VOICE_cloche"] });
 });
 
 test("ecrireReferencesPlan : n'écrit jamais la table des plans (un brouillon reste brouillon, contrairement à l'écriture d'une fiche)", () => {

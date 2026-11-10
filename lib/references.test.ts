@@ -104,6 +104,5 @@ test("retablirCitations : mot entier et même casse seulement, nom trop court ig
 test("roleParDefaut : voix d'un personnage, sinon type puis nom ; rétention « reference » pour un son", () => {
   assert.deepEqual(roleParDefaut("picture", { typeAsset: "decor", libelleType: "Décor", libelle: "Couloir bleu" }), { role: "Décor, Couloir bleu", retention: null });
   assert.deepEqual(roleParDefaut("audio", { typeAsset: "personnage", libelleType: "Personnage", libelle: "Maya" }), { role: "Voix du personnage", retention: "reference" });
-  assert.deepEqual(roleParDefaut("audio", { typeAsset: "sfx", libelleType: "SFX", libelle: "Porte" }), { role: "SFX, Porte", retention: "reference" });
   assert.deepEqual(roleParDefaut("picture", { typeAsset: null, libelleType: null, libelle: "x" }), { role: "Référence, x", retention: null });
 });

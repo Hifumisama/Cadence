@@ -132,7 +132,7 @@ test("skill : se charge, schéma conforme (6 références, 2 manquants), budget 
   assert.equal(valider(s.schema, { ...BONNE, references: Array.from({ length: 7 }, () => ({ code: "CHAR_lina", pourquoi: "" })) }).ok, false);
   const m = { code: "DEC_x", type: "decor", parent: null, description: "x", raison: "y" };
   assert.equal(valider(s.schema, { ...BONNE, manquants: [m, m, m] }).ok, false);
-  assert.equal(valider(s.schema, { ...BONNE, manquants: [{ ...m, type: "sfx" }] }).ok, false);
+  assert.equal(valider(s.schema, { ...BONNE, manquants: [{ ...m, type: "voix" }] }).ok, false);
   assert.equal(maxTokensPourSkill(SKILL_REFERENCES_PLAN, {}), 800);
   assert.equal(estimerContexte(SKILL_REFERENCES_PLAN, 0, {}), 401); // 400 de sortie attendue + « {} »
 });

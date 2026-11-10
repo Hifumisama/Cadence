@@ -82,7 +82,7 @@ test("cohérence des refs : la voix d'une réplique (ref dérivée) n'a pas à �
   ];
   // La prise de la réplique (slot 1) : déclarée, jamais « non citée ».
   assert.deepEqual(verifierCoherenceRefs(sections, refs, [{ type: "audio", slot: 1 }]), { labelsOrphelins: [], refsNonCitees: [] });
-  // Un bruitage de plan_refs non cité reste signalé, même avec des voix dérivées.
+  // Une ref de plan_refs non cité reste signalé, même avec des voix dérivées.
   const sansPorte = [sections[0]!, { section: "detailed_description", contenu: "[Shot 1] <Subject 1> says <d>[Français] Pas un bruit.</d>" }];
   assert.deepEqual(verifierCoherenceRefs(sansPorte, refs, [{ type: "audio", slot: 1 }]).refsNonCitees, ["Audio:2"]);
   // Citer la voix reste possible (déclarée par dérivation : pas d'orphelin)…

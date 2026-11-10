@@ -155,7 +155,7 @@ const connus: AssetConnu[] = [
   { code: "PROP_boussole", type: "prop" },
   { code: "VFX_brume", type: "vfx" },
   { code: "KEY_depart", type: "keyframe" },
-  { code: "SFX_cloche", type: "sfx" },
+  { code: "VOICE_cloche", type: "voix" },
   { code: "DEC_le_marche_de_la_ville", type: "decor" },
 ];
 const plansRef = [
@@ -192,12 +192,12 @@ test("controlerReferences : code inconnu = erreur (renvoi), code à un mot de li
 
 test("controlerReferences : jamais de son ; un seul visage par personnage, un seul décor, keyframe seulement si l'intention la cite", () => {
   const r = refs([
-    { plan: "P01", codes: ["CHAR_heroine", "CHAR_heroine_agee", "SFX_cloche", "DEC_port", "DEC_port_nuit", "KEY_depart", "CHAR_heroine"] },
+    { plan: "P01", codes: ["CHAR_heroine", "CHAR_heroine_agee", "VOICE_cloche", "DEC_port", "DEC_port_nuit", "KEY_depart", "CHAR_heroine"] },
     { plan: "P02", codes: ["KEY_depart", "DEC_port"] },
   ]);
   assert.deepEqual(r.plans[0]!.codes, ["CHAR_heroine", "DEC_port"]);
   assert.deepEqual(r.plans[1]!.codes, ["KEY_depart", "DEC_port"], "« la pose de départ » cite KEY_depart");
-  assert.ok(r.problemes.some((p) => p.niveau === "erreur" && /SFX_cloche/.test(p.message)));
+  assert.ok(r.problemes.some((p) => p.niveau === "erreur" && /VOICE_cloche/.test(p.message)));
   for (const motif of [/CHAR_heroine_agee/, /DEC_port_nuit/, /keyframe KEY_depart/]) assert.ok(r.problemes.some((p) => p.niveau === "alerte" && motif.test(p.message)), String(motif));
 });
 
