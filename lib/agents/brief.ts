@@ -122,6 +122,23 @@ export function promptImageDuBrief(contenu: BriefContenu | null | undefined): st
   return typeof p === "string" ? p.trim() : "";
 }
 
+/** Le prompt long (images) et l'aperçu du style appartiennent au CODE (posés à la création du projet) : le modèle de l'entretien ne les voit pas, donc le brief qu'il
+ * renvoie ne les porte pas. À l'écriture du brief entier, on les remet depuis `precedent` (le brief déjà en base, ou ce que la conception donne) quand la clause est
+ * la même : même clause, même style. Sans effet si le nouveau style a déjà les siens, ou si le style a vraiment changé. */
+export function retablirStyleDuCode(contenu: BriefContenu, precedent: { clause?: string; promptImage?: string; image?: string } | null | undefined): BriefContenu {
+  const c = contenu as unknown as { style?: { clause?: unknown; promptImage?: unknown; image?: unknown } };
+  const style = c.style;
+  if (!style || !precedent) return contenu;
+  const memeClause = typeof style.clause === "string" && style.clause.trim() !== "" && style.clause.trim() === (precedent.clause ?? "").trim();
+  if (!memeClause) return contenu;
+  const aPrompt = typeof style.promptImage === "string" && style.promptImage.trim() !== "";
+  const aImage = typeof style.image === "string" && style.image.trim() !== "";
+  const prompt = precedent.promptImage?.trim();
+  const image = precedent.image?.trim();
+  if ((aPrompt || !prompt) && (aImage || !image)) return contenu;
+  return { ...contenu, style: { ...style, ...(!aPrompt && prompt ? { promptImage: prompt } : {}), ...(!aImage && image ? { image } : {}) } } as unknown as BriefContenu;
+}
+
 /** Les notes libres d'un brief (trim), ou "". */
 export function notesDuBrief(contenu: BriefContenu | null | undefined): string {
   const n = (contenu as unknown as { notes?: unknown } | null | undefined)?.notes;

@@ -108,3 +108,31 @@ test("clause de style et notes du projet : le SEUL écrivain est brief-db.ts (sy
   }
   assert.deepEqual(fautifs, [], "écriture directe de projects.clause_style / notes hors de brief-db.ts");
 });
+
+import { retablirStyleDuCode } from "./brief";
+
+const briefAvecStyle = (style: Record<string, unknown>) => ({ ...briefVide("Test"), style }) as unknown as BriefContenu;
+const styleDe = (c: BriefContenu) => (c as unknown as { style: Record<string, unknown> }).style;
+
+test("retablirStyleDuCode : le prompt long et l'aperçu reviennent quand la clause est la même", () => {
+  const nouveau = briefAvecStyle({ nom: "Bruce Timm Noir", clause: "A noir look." });
+  const r = retablirStyleDuCode(nouveau, { clause: "A noir look. ", promptImage: "long prompt", image: "bruce-timm-noir/affiche.webp" });
+  assert.equal(styleDe(r).promptImage, "long prompt");
+  assert.equal(styleDe(r).image, "bruce-timm-noir/affiche.webp");
+  assert.equal(styleDe(r).nom, "Bruce Timm Noir");
+});
+
+test("retablirStyleDuCode : un style vraiment changé ne reprend rien", () => {
+  const nouveau = briefAvecStyle({ nom: "Autre", clause: "Another look." });
+  assert.equal(retablirStyleDuCode(nouveau, { clause: "A noir look.", promptImage: "long prompt" }), nouveau);
+});
+
+test("retablirStyleDuCode : ce que le nouveau style porte déjà n'est pas écrasé", () => {
+  const nouveau = briefAvecStyle({ nom: "X", clause: "Same.", promptImage: "mon prompt", image: "a.webp" });
+  assert.equal(retablirStyleDuCode(nouveau, { clause: "Same.", promptImage: "autre", image: "b.webp" }), nouveau);
+});
+
+test("retablirStyleDuCode : sans précédent, rien ne bouge", () => {
+  const nouveau = briefAvecStyle({ nom: "X", clause: "Same." });
+  assert.equal(retablirStyleDuCode(nouveau, null), nouveau);
+});

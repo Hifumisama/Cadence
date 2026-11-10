@@ -1,6 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 import { briefs } from "../../../db/schema";
-import { estCleSection, sansClesAbandonnees } from "../brief";
+import { estCleSection, retablirStyleDuCode, sansClesAbandonnees } from "../brief";
+import { lireConception } from "../../conception-db";
+import { resoudreStyle } from "../../conception";
+import { listerStyles } from "../../styles/styles-db";
 import type { ChangementBrut } from "../changements";
 import type { BriefContenu, StatutChamp } from "../types";
 import { synchroniserClauseStyle } from "../brief-db";
@@ -54,7 +57,15 @@ export const applicateurBrief: Applicateur = {
     const a = apres(ch);
     const maintenant = new Date();
     if (ch.cibleRef === "*") {
-      const contenu = sansClesAbandonnees(a.contenu as BriefContenu);
+      const [precedent] = await tx.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, ctx.projectId));
+      let contenu = sansClesAbandonnees(a.contenu as BriefContenu);
+      // Le prompt long et l'aperçu du style sont au code, pas au modèle : ils reviennent du brief précédent, ou à défaut du style choisi à la conception.
+      contenu = retablirStyleDuCode(contenu, (precedent?.contenu as { style?: { clause?: string; promptImage?: string; image?: string } } | undefined)?.style);
+      const conception = await lireConception(tx, ctx.projectId);
+      if (conception) {
+        const choisi = resoudreStyle(conception, await listerStyles());
+        if (choisi.ok) contenu = retablirStyleDuCode(contenu, { clause: choisi.style.clause, promptImage: choisi.style.promptImage });
+      }
       const statuts = (a.statuts ?? {}) as Record<string, StatutChamp>;
       await tx
         .insert(briefs)
