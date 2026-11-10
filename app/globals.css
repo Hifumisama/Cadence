@@ -6250,7 +6250,9 @@ button {
 .mt-lecteur { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .mt-ecran { position: relative; aspect-ratio: 16 / 9; max-height: 52vh; width: 100%; border-radius: 3px; overflow: hidden; border: 1px solid var(--line-strong); background: #0c0c10; margin-inline: auto; cursor: pointer; }
 .mt-ecran video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; visibility: hidden; }
-.mt-ecran video.is-visible { visibility: visible; }
+.mt-ecran video.is-visible { visibility: visible; z-index: 1; }
+/* L'autre balise (le clip suivant, déjà chargé) reste peinte sous la courante : au raccord la nouvelle image est déjà là, l'ancienne n'est jamais masquée avant (MO-01 : image noire entre deux plans). */
+.mt-ecran video.is-dessous { visibility: visible; z-index: 0; }
 .mt-carton { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 6px; padding: 24px; color: var(--ink-2); background: repeating-linear-gradient(135deg, #17171d 0 10px, #1c1c24 10px 20px); }
 .mt-carton b { font-family: var(--font-brand), Georgia, serif; font-weight: 400; font-size: 22px; }
 .mt-carton.is-err b { color: var(--ecarlate-glow); }

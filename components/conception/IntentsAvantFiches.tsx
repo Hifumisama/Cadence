@@ -1,12 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { ecrireFichesProjet, modifierIntentPlan } from "@/app/creation/actions";
 import type { PlanIntent, SuiviFichePlan } from "@/lib/agents/creation-vue";
 import { plansAEcrire } from "@/lib/agents/creation";
 
 const pad = (n: number) => String(n).padStart(2, "0");
+
+/** Un champ d'intent qui s'agrandit avec son texte : l'intent se relit en entier, sans défiler dans un petit bloc (CR-01 du cahier de tests). */
+function ChampIntent({ valeur, onChange, etiquette }: { valeur: string; onChange: (v: string) => void; etiquette: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [valeur]);
+  return <textarea ref={ref} aria-label={etiquette} value={valeur} onChange={(e) => onChange(e.target.value)} />;
+}
 /** Sondage du suivi tant qu'une fiche s'écrit (une route, pas une action serveur : voir app/api/creation/[projectId]/fiches). */
 const SONDAGE_MS = 3000;
 
@@ -151,10 +163,10 @@ export function IntentsAvantFiches({
                   </>
                 ) : (
                   <>
-                    <textarea
-                      aria-label={`Intent du plan ${pad(p.position)} · ${p.titre}`}
-                      value={valeur}
-                      onChange={(e) => setBrouillons((b) => ({ ...b, [p.uuid]: e.target.value }))}
+                    <ChampIntent
+                      etiquette={`Intent du plan ${pad(p.position)} · ${p.titre}`}
+                      valeur={valeur}
+                      onChange={(v) => setBrouillons((b) => ({ ...b, [p.uuid]: v }))}
                     />
                     <div className="cn-intent-pied">
                       {change ? (

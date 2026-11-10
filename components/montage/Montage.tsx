@@ -496,7 +496,7 @@ export function Montage(props: {
               <video
                 key={i}
                 ref={ref}
-                className={L.courantLisible && L.actif === i ? "is-visible" : undefined}
+                className={L.courantLisible ? (L.actif === i ? "is-visible" : "is-dessous") : undefined}
                 playsInline
                 preload="auto"
                 onError={(e) => L.signalerIllisible(e.currentTarget)}

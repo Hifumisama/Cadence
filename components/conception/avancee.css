@@ -57,19 +57,19 @@
 .cn-clap-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; margin-top: 6px; }
 
 /* Fin de la phase 1 : les intents des plans, à relire (et corriger) avant d'écrire les fiches. */
-.cn-intents { display: grid; gap: 14px; max-width: 760px; }
+.cn-intents { display: grid; gap: 14px; max-width: 900px; }
 .cn-intents-tete { display: grid; gap: 6px; }
 .cn-intents-tete b { font-family: var(--font-brand); font-weight: 400; font-size: clamp(24px, 3vw, 32px); }
 .cn-intents-tete span { color: var(--ink-2); }
-.cn-intents-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-height: 62vh; overflow: auto; padding-right: 4px; }
+.cn-intents-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .cn-intents-scene { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--or); margin-top: 6px; }
 .cn-intent { display: grid; gap: 6px; border: 1px solid var(--line-strong); padding: 10px 12px; background: rgba(26, 26, 33, 0.6); }
 .cn-intent-hd { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .cn-intent-hd .num { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-3); }
 .cn-intent-hd b { font-weight: 500; }
 .cn-intent-hd .cn-lien { margin-left: auto; font-size: 12.5px; }
-.cn-intent textarea { width: 100%; min-height: 72px; resize: vertical; font: inherit; font-size: 13.5px; color: var(--ink); background: var(--ground); border: 1px solid var(--line-strong); padding: 8px; }
-.cn-intent p { margin: 0; color: var(--ink-2); font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cn-intent textarea { width: 100%; min-height: 72px; resize: none; overflow: hidden; line-height: 1.5; font: inherit; font-size: 13.5px; color: var(--ink); background: var(--ground); border: 1px solid var(--line-strong); padding: 8px; }
+.cn-intent p { margin: 0; color: var(--ink-2); font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cn-intent-pied { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-3); }
 /* Suivi des fiches (une demande par plan) : l'étape en cours, « Fiche écrite » ou l'échec. Jamais la couleur seule : le libellé dit l'état. */
 .cn-intent-suivi { display: inline-flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); border: 1px solid var(--line-strong); padding: 1px 8px; overflow-wrap: anywhere; }
