@@ -347,3 +347,95 @@
     max-width: 320px;
   }
 }
+
+/* ---- Ajouter et supprimer des plans (comme sur le Tournage) ---- */
+.sl-insere {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  margin: 0;
+  padding: 4px 0;
+  font-family: var(--font-data), system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  border-top: 1px dashed transparent;
+  cursor: pointer;
+  opacity: 0.35;
+}
+.sl-insere:hover:not(:disabled),
+.sl-insere:focus-visible {
+  opacity: 1;
+  color: var(--or-glow);
+  border-top-color: var(--or-soft);
+}
+.sl-insere:disabled {
+  cursor: not-allowed;
+  opacity: 0.2;
+}
+.sl-scene-vide {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0;
+}
+.sl-fantome {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  margin: var(--sp-2) 0;
+  padding: var(--sp-4);
+  font-family: var(--font-data), system-ui, sans-serif;
+  font-size: 14.5px;
+  color: var(--ink-2);
+  border: 1px dashed var(--or-soft);
+  border-radius: 3px;
+}
+.sl-fantome p {
+  margin: 2px 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.sl-fantome small {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.sl-pouls {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--or);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sl-pouls {
+    animation: sc-pouls 1.4s ease-out infinite;
+  }
+}
+.sl-supprimer {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  width: fit-content;
+  margin-top: var(--sp-2);
+  padding: 2px 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.sl-supprimer:hover:not(:disabled) {
+  color: var(--ecarlate-glow);
+}
+.sl-forcer {
+  font: inherit;
+  color: var(--ecarlate-glow);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}

@@ -8,8 +8,8 @@ import { demosMiseEnScene } from "@/lib/media";
 import { VueScenario } from "@/components/scenario/VueScenario";
 import { srcRendu } from "@/components/plan/Vignette";
 import { intentionsPerimees } from "@/lib/intention-perimee";
-import type { ContexteAjoutPlan, ContexteAjoutScene } from "@/lib/demandes";
-import type { AjoutEnCours, AjoutSceneEnCours, PlanVue, SceneVue } from "@/lib/scenario-vue";
+import { ajoutsEnCours } from "@/lib/ajouts-en-cours";
+import type { PlanVue, SceneVue } from "@/lib/scenario-vue";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,7 @@ export default async function TournagePage({
   const eid = Number(episodeId);
   const base = `/p/${pid}/e/${eid}`;
 
-  const [projet, episode, { scenes, sansScene }, pellicule, etat, intentions, enCours, fichesEnCours] = await Promise.all([
+  const [projet, episode, { scenes, sansScene }, pellicule, etat, intentions, { ajout, ajoutScene }, fichesEnCours] = await Promise.all([
     getProject(pid),
     getEpisode(eid),
     getScenarioData(eid),
@@ -37,7 +37,7 @@ export default async function TournagePage({
     // Les plans dont le texte a changé depuis leur fiche ou leur dernier rendu (repère « texte modifié »).
     intentionsPerimees(eid),
     // Un plan ou une scène en cours d'écriture (« Ajouter un plan », « Nouvelle scène ») : la page lui garde sa place, sous forme de carte fantôme.
-    db.select().from(demandes).where(and(inArray(demandes.type, ["ajout-plan", "ajout-scene"]), eq(demandes.cibleType, "episode"), eq(demandes.cibleId, eid), eq(demandes.statut, "en_cours"))),
+    ajoutsEnCours(eid),
     // « Générer la fiche » en cours sur les plans du film : leur bouton la suit.
     db
       .select({ id: demandes.id, planUuid: plans.uuid })
@@ -47,12 +47,6 @@ export default async function TournagePage({
   ]);
   const ficheParPlan = new Map(fichesEnCours.map((f) => [f.planUuid, f.id]));
   if (!projet || !episode || episode.projectId !== pid) notFound();
-  const ajoutPlanEnCours = enCours.find((d) => d.type === "ajout-plan");
-  const ajoutSceneEnCours = enCours.find((d) => d.type === "ajout-scene");
-  const ctxAjout = ajoutPlanEnCours ? (ajoutPlanEnCours.contexte as ContexteAjoutPlan) : null;
-  const ajout: AjoutEnCours | null = ajoutPlanEnCours && ctxAjout ? { id: ajoutPlanEnCours.id, sceneId: ctxAjout.sceneId, position: ctxAjout.position, consigne: ctxAjout.consigne } : null;
-  const ctxScene = ajoutSceneEnCours ? (ajoutSceneEnCours.contexte as ContexteAjoutScene) : null;
-  const ajoutScene: AjoutSceneEnCours | null = ajoutSceneEnCours && ctxScene ? { id: ajoutSceneEnCours.id, place: ctxScene.place, consigne: ctxScene.consigne } : null;
 
   // État dérivé et vignette de chaque plan (rendu retenu), par uuid.
   const parUuid = new Map(pellicule.map((p) => [p.uuid, p]));
