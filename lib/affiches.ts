@@ -67,7 +67,7 @@ export function avecTitreDansImage(prompt: string, titre: string, actif: boolean
   while (lignes.length > 0 && lignes[lignes.length - 1] === "") lignes.pop();
   lignes.push(
     actif
-      ? `${DEBUT_LIGNE_TITRE} "${nom.replace(/"/g, "'")}", written once in large elegant lettering integrated into the composition. No other text, no logo, no watermark.`
+      ? `${DEBUT_LIGNE_TITRE} "${nom.replace(/"/g, "'")}", written once in large elegant lettering integrated into the composition. No logo, no watermark.`
       : LIGNE_SANS_TEXTE,
   );
   return lignes.join("\n");

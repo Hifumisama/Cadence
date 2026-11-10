@@ -84,3 +84,10 @@ test("une affiche dont le modèle a écrit le titre est reconnue à son nom de f
   assert.equal(posterPorteLeTitre("/api/media/projects/1/poster-abc.png"), false);
   assert.equal(posterPorteLeTitre(null), false);
 });
+
+test("la ligne du titre ne demande pas d'éviter le texte (AF-03 : elle contredisait la demande du titre)", () => {
+  const ligne = avecTitreDansImage("A.", "Rubis", true).split("\n").pop() ?? "";
+  assert.match(ligne, /^Title lettering: "Rubis"/);
+  assert.doesNotMatch(ligne, /no other text/i);
+  assert.match(ligne, /No logo, no watermark\.$/);
+});

@@ -133,7 +133,7 @@ You write the `promptGeneration` of a **presentation poster**: a vertical **2:3 
 
 **The last line**, alone on its line, depends on `titreDansImage`. **Sole exception to the no-negation rule: the fixed final line `No text, no lettering, no logo, no watermark.`, copied exactly.**
 - `false`: the title is overlaid at display time. The scene holds no letter, readable sign or panel with text. Final line: `No text, no lettering, no logo, no watermark.`
-- `true`: the model writes the title. Final line: `Title lettering: "<title>", written once in large elegant lettering integrated into the composition. No other text, no logo, no watermark.` with the title in quotes, **as given**, neither modified nor translated. The title appears nowhere else in the prompt.
+- `true`: the model writes the title. Final line: `Title lettering: "<title>", written once in large elegant lettering integrated into the composition. No logo, no watermark.` with the title in quotes, **as given**, neither modified nor translated. The title appears nowhere else in the prompt.
 - In an edit, this line is added to the instructions, on its own line.
 
 **In `remarques`**, one sentence each, when useful: `resume` too vague for a strong image or no identifiable main character (`description-vague`); the character's image missing, so the poster is text only and consistency is weaker (`dependance-parent`); the title and the tone pull apart (`autre`).
