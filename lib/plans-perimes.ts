@@ -72,6 +72,9 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
       db.select({ planId: planPromptSections.planId, section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(inArray(planPromptSections.planId, ids)),
       db.select({ id: plans.id, duree: plans.dureeGenerationSecondes, description: plans.description, episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(inArray(plans.id, ids)),
     ]);
+    // Le texte du plan se compare à celui de l'essai RETENU quand il y en a un (valider « prêt à upscaler » met le texte du plan à celui de l'essai), sinon au dernier rendu.
+    const retenus = await db.select({ planId: plans.id, description: jobs.descriptionUtilisee }).from(plans).innerJoin(jobs, eq(jobs.id, plans.renduRetenuId)).where(inArray(plans.id, ids));
+    const descriptionRetenue = new Map(retenus.map((r) => [r.planId, r.description]));
     const sectionsParPlan = new Map<number, PromptSection[]>();
     for (const l of lignes) sectionsParPlan.set(l.planId, [...(sectionsParPlan.get(l.planId) ?? []), { section: l.section, contenu: l.contenu }]);
     const dureeParPlan = new Map(durees.map((d) => [d.id, d.duree]));
@@ -81,7 +84,10 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
       // Sans fiche (aucune section remplie), il n'y a pas de prompt à comparer.
       const prompt = sections?.some((s) => s.contenu.trim() !== "") ? assemblerPrompt(sections) : null;
       const rendu = dernierJob.get(id)!;
-      const raisons = raisonsContenuPerime({ prompt, duree: dureeParPlan.get(id) ?? null, description: lienParPlan.get(id)?.description ?? null }, rendu);
+      const raisons = raisonsContenuPerime(
+        { prompt, duree: dureeParPlan.get(id) ?? null, description: lienParPlan.get(id)?.description ?? null },
+        { ...rendu, descriptionUtilisee: descriptionRetenue.has(id) ? descriptionRetenue.get(id) : rendu.descriptionUtilisee },
+      );
       // Raccord : un plan en « suite » est parti de l'essai X du précédent ; si le précédent a un autre rendu à prendre aujourd'hui, celui-ci est à refaire
       // (jamais relancé tout seul : il est seulement marqué, docs/PLAN_FILE_CONSIGNES.md).
       const lien = lienParPlan.get(id);

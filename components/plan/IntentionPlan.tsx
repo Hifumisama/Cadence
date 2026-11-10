@@ -93,7 +93,7 @@ export function IntentionPlan({
   /** Les décisions de l'agent (avant → après), dès qu'il a répondu : gardées jusqu'à la prochaine consigne. */
   const [decisions, setDecisions] = useState<DecisionsAffichees | null>(null);
   /** Repartir de l'essai remplacerait un texte de plan modifié depuis : les deux versions, en attendant l'accord de l'utilisateur. */
-  const [conflit, setConflit] = useState<ConflitDescription | null>(null);
+  const [conflit, setConflit] = useState<(ConflitDescription & { pour: "iterer" | "valider" }) | null>(null);
   const [pending, startTransition] = useTransition();
   const champ = useRef<HTMLTextAreaElement>(null);
   const demonte = useRef(false);
@@ -140,7 +140,7 @@ export function IntentionPlan({
       const p = await preparerBaseIteration(planId, base.id);
       if (!p.ok) {
         // Le texte du plan a été modifié à la main depuis cet essai : on ne l'écrase pas sans le dire (les deux versions s'affichent plus bas).
-        if (p.conflit) setConflit(p.conflit);
+        if (p.conflit) setConflit({ ...p.conflit, pour: "iterer" });
         else setErreur(p.erreur);
         setPhase("repos");
         return null;
@@ -290,12 +290,30 @@ export function IntentionPlan({
         if (!r.ok) setErreur(r.erreur);
         return;
       }
+      // Valider un essai met le texte du plan à celui de l'essai : le scénario dit ce qu'on retient pour le film. Un texte retouché à la main depuis demande d'abord l'accord.
       const r = await validerPretUpscale(planId, base!.id);
+      if (!r.ok) {
+        if (r.conflit) setConflit({ ...r.conflit, pour: "valider" });
+        else setErreur(r.erreur);
+        return;
+      }
+      if (hrefSuivant) router.push(hrefSuivant, { scroll: false });
+    });
+  };
+
+  /** Le texte du plan est modifié à la main : l'utilisateur choisit s'il prend celui de l'essai retenu ou garde le sien, et la validation se termine. */
+  const validerAvecTexte = (reponse: "remplacer" | "garder") => {
+    if (!base) return;
+    setErreur(null);
+    startTransition(async () => {
+      const r = await validerPretUpscale(planId, base.id, reponse);
       if (!r.ok) {
         setErreur(r.erreur);
         return;
       }
+      setConflit(null);
       if (hrefSuivant) router.push(hrefSuivant, { scroll: false });
+      else router.refresh();
     });
   };
 
@@ -426,7 +444,10 @@ export function IntentionPlan({
       {conflit ? (
         <div className="tm-conflit" role="alertdialog" aria-labelledby="tm-conflit-titre">
           <p id="tm-conflit-titre">
-            <b>Le texte du plan a changé depuis l&rsquo;essai n°{conflit.numeroRendu}.</b> Repartir de cet essai le remplacerait par celui de l&rsquo;essai.
+            <b>Le texte du plan a changé depuis l&rsquo;essai n°{conflit.numeroRendu}.</b>{" "}
+            {conflit.pour === "valider"
+              ? "Le valider pour le film remplacerait le texte du plan par celui de l'essai, pour que le scénario soit celui que tu retiens."
+              : "Repartir de cet essai le remplacerait par celui de l'essai."}
           </p>
           <div className="tm-conflit-versions">
             <section>
@@ -439,11 +460,16 @@ export function IntentionPlan({
             </section>
           </div>
           <div className="tm-actions">
-            <button type="button" className="btn tm-btn-ligne" disabled={pending} onClick={remplacerLeTexte}>
-              Remplacer par le texte de l&rsquo;essai
+            <button type="button" className="btn tm-btn-ligne" disabled={pending} onClick={conflit.pour === "valider" ? () => validerAvecTexte("remplacer") : remplacerLeTexte}>
+              {conflit.pour === "valider" ? "Valider et remplacer le texte" : "Remplacer par le texte de l’essai"}
             </button>
+            {conflit.pour === "valider" ? (
+              <button type="button" className="btn tm-btn-ligne" disabled={pending} onClick={() => validerAvecTexte("garder")} title="Le plan est validé, son texte reste le tien ; le repère « texte modifié » reste affiché.">
+                Valider en gardant mon texte
+              </button>
+            ) : null}
             <button type="button" className="btn tm-btn-ligne" disabled={pending} onClick={() => setConflit(null)}>
-              Garder mon texte
+              {conflit.pour === "valider" ? "Annuler" : "Garder mon texte"}
             </button>
           </div>
         </div>

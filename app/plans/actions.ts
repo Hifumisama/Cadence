@@ -53,8 +53,8 @@ export async function updatePromptSection(
  * demande, son prompt est restauré. Même seed + même prompt + mêmes références + même durée = même résultat (F04) : c'est ce
  * qui permet d'upscaler EXACTEMENT la prévisualisation qu'on a choisie. */
 async function appliquerRendu(planId: number, jobId: number, restaurerPrompt: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  // Garde-fou : restaurer remplace aussi le texte du plan par celui de l'essai. Si le texte actuel n'est celui d'aucun essai (modifié à la main depuis), il serait perdu :
-  // les appelants passent par `preparerBaseIteration`, qui le dit avant et ne restaure qu'avec l'accord de l'utilisateur.
+  // Restaurer remplace aussi le texte du plan par celui de l'essai : si le texte actuel n'est celui d'aucun essai (modifié à la main depuis), il serait perdu.
+  // L'appelant (`preparerBaseIteration`) le dit avant et ne restaure qu'avec l'accord de l'utilisateur.
   const [job] = await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.planId, planId)));
   if (!job) return { ok: false, erreur: "Rendu introuvable pour ce plan." };
   const raison = raisonNonRetenable({
@@ -76,7 +76,8 @@ async function appliquerRendu(planId: number, jobId: number, restaurerPrompt: bo
     if (!r.ok) return { ok: false, erreur: `Prompt de ce rendu illisible : ${r.erreurs.join(", ")}.` };
     for (const section of ORDRE_SECTIONS) await updatePromptSection(planId, section, r.sections[section] ?? "");
     // La description du plan suit son prompt (elle est versionnée par essai) ; un essai d'avant ne l'a pas gardée : on n'y touche pas.
-    if (job.descriptionUtilisee != null) await db.update(plans).set({ description: job.descriptionUtilisee, updatedAt: new Date() }).where(eq(plans.id, planId));
+    // Le prompt restauré est celui qui a été compilé depuis ce texte : la fiche et le texte vont de nouveau ensemble (`ficheDescription`).
+    if (job.descriptionUtilisee != null) await db.update(plans).set({ description: job.descriptionUtilisee, ficheDescription: job.descriptionUtilisee, updatedAt: new Date() }).where(eq(plans.id, planId));
   }
 
   const duree = job.dureeUtilisee;
@@ -454,11 +455,37 @@ type Resume = { ok: true } | { ok: false; erreur: string };
 
 /** « Prêt à upscaler » : l'essai affiché (A) devient l'essai retenu du plan. Il faut un essai terminé avec son fichier ; une vidéo
  * importée peut être validée (elle n'aura simplement pas d'upscale : pas de seed, voir `lancerUpscaleEpisode`). */
-export async function validerPretUpscale(planId: number, jobId: number): Promise<Resume> {
+export async function validerPretUpscale(
+  planId: number,
+  jobId: number,
+  /** Le texte actuel du plan n'est celui d'aucun essai (modifié à la main) : `remplacer` le met à celui de l'essai retenu, `garder` valide sans y toucher. Sans réponse, la validation s'arrête avec `conflit`. */
+  texte?: "remplacer" | "garder",
+): Promise<{ ok: true } | { ok: false; erreur: string; conflit?: ConflitDescription }> {
   const [job] = await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.planId, planId)));
   if (!job) return { ok: false, erreur: "Essai introuvable pour ce plan." };
   if (job.statut !== "termine" || !job.cheminSortie) return { ok: false, erreur: "Cet essai n'est pas terminé : on ne valide qu'un essai qu'on peut regarder." };
-  await db.update(plans).set({ pretUpscaleAt: new Date(), renduRetenuId: job.id, updatedAt: new Date() }).where(eq(plans.id, planId));
+
+  // Le scénario dit ce qu'on retient pour le film : le texte du plan devient celui de l'essai validé (le texte dont il est parti), et l'alerte « texte modifié » tombe.
+  // Un texte retouché à la main depuis, qu'aucun essai ne porte, ne s'écrase pas sans l'accord de l'utilisateur.
+  const [lePlan] = await db.select({ description: plans.description }).from(plans).where(eq(plans.id, planId));
+  const valeurs: Partial<typeof plans.$inferInsert> = { pretUpscaleAt: new Date(), renduRetenuId: job.id, updatedAt: new Date() };
+  if (texte !== "garder" && job.descriptionUtilisee != null && intentionChangee(lePlan?.description, job.descriptionUtilisee)) {
+    if (texte !== "remplacer") {
+      const essais = await db.select({ description: jobs.descriptionUtilisee }).from(jobs).where(eq(jobs.planId, planId));
+      if (descriptionSeraitPerdue(lePlan?.description, job.descriptionUtilisee, essais.map((e) => e.description))) {
+        return {
+          ok: false,
+          erreur: "Le texte du plan a été modifié depuis cet essai : le valider pour le film le remplacerait.",
+          conflit: { actuelle: lePlan?.description ?? "", essai: job.descriptionUtilisee, numeroRendu: job.numeroRendu },
+        };
+      }
+    }
+    valeurs.description = job.descriptionUtilisee;
+    // La fiche ne suit le texte que si elle est celle de cet essai ; sinon elle reste signalée « à régénérer ».
+    const sections = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId));
+    if (job.promptUtilise && !promptDiffere(assemblerPrompt(sections), job.promptUtilise)) valeurs.ficheDescription = job.descriptionUtilisee;
+  }
+  await db.update(plans).set(valeurs).where(eq(plans.id, planId));
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -470,14 +497,14 @@ export async function rouvrirIteration(planId: number): Promise<Resume> {
   return { ok: true };
 }
 
+/** Le texte actuel du plan et celui d'un essai, quand reprendre l'essai écraserait un texte modifié à la main (lib/intent.ts, `descriptionSeraitPerdue`). */
+export type ConflitDescription = { actuelle: string; essai: string; numeroRendu: number };
+
 /** Avant « Itérer » depuis un essai qui n'est pas le plus récent : le plan reprend le prompt, la seed et la durée de CET essai, pour que
  * la consigne s'applique à son prompt (et que l'agent regarde son rendu). Ne fait rien pour le plus récent essai, pour un import (ni
  * seed ni prompt) ni quand le prompt est déjà le bon ; le prompt de l'essai qu'on quitte reste retrouvable dans son propre essai
- * (`promptUtilise`), « Repartir de là » le rend. `restaure` dit si le prompt a été réécrit. */
-export type ConflitDescription = { actuelle: string; essai: string; numeroRendu: number };
-
-/** `confirmerDescription` : l'utilisateur a vu que le texte actuel du plan (modifié à la main, il n'est celui d'aucun essai) sera remplacé par celui de l'essai. Sans lui,
- * la préparation s'arrête avec `conflit` plutôt que d'écraser en silence. */
+ * (`promptUtilise`), « Repartir de là » le rend. `restaure` dit si le prompt a été réécrit. `confirmerDescription` : l'utilisateur a vu que le texte actuel du plan
+ * (modifié à la main, il n'est celui d'aucun essai) sera remplacé par celui de l'essai ; sans lui, la préparation s'arrête avec `conflit` plutôt que d'écraser en silence. */
 export async function preparerBaseIteration(
   planId: number,
   jobId: number,
