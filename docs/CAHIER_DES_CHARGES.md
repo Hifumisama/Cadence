@@ -103,7 +103,7 @@ Route `/p/<projet>/e/<épisode>/montage` ; décisions, modèle et reste à faire
   Un plan sans rendu tient sa place (carton, durée prévue) sans couper la lecture.
 - **Table de montage** : réordonner par glisser-déposer, rognage début/fin **non destructif** (le rendu reste entier), zoom,
   aimantation (demi-seconde et tête de lecture), plans sans rendu hachurés, statut et « périmé » sur chaque clip, durée totale en
-  direct. Pistes voix / bruitages / musique en emplacements « à venir ».
+  direct. Pistes voix / musique en emplacements « à venir ».
 - **Deux ordres** : « Ordre des scènes » (le scénario : `plans.ordre` et la scène de chaque plan, réordonnable) et « Montage final »
   (le film réel : les entrées de `montage_entrees`, ordre indépendant). Dupliquer un plan = une entrée de plus ; retirer du montage =
   supprimer l'entrée, jamais le plan ni ses rendus (bandeau « Hors montage »). « Recaler sur l'ordre des scènes » remet le montage dans
@@ -126,7 +126,7 @@ Le cœur de la friction la plus fréquente (F03, 2 à 30 itérations/plan).
   H3 déjà rédigé (2026-09-30) — reste la seule voie en V1 (sans agent). Un
   agent d'itération dédié par plan, qui écrirait dans ce même point d'entrée,
   est la direction retenue pour l'après-V1 — voir "Points ouverts".
-- Slots dédiés : dialogue, bruitage, durée voix mesurée (F02).
+- Slots dédiés : dialogue, durée voix mesurée (F02). (Les bruitages ont été retirés le 2026-11-10.)
 - Bouton relance → repart dans la file des rendus (page Montage).
 
 ### 6. Casting vocal — catalogue

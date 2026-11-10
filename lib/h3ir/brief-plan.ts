@@ -29,7 +29,7 @@ export type SurchargeBrief = {
   reglages?: { creativite?: string | null; styleCamera?: string | null } | null;
 };
 
-/** Les références d'image d'un plan APRÈS des ajouts / retraits (par code) : `inconnus` (pas au registre du projet), `pasDesImages` (voix, bruitage),
+/** Les références d'image d'un plan APRÈS des ajouts / retraits (par code) : `inconnus` (pas au registre du projet), `pasDesImages` (voix),
  * `sansImage` (fichier absent : la compilation serait refusée). Lu par le service AVANT de lancer la recompilation, pour une erreur claire. */
 export async function referencesApresDecisions(
   projectId: number,
@@ -48,7 +48,7 @@ export async function referencesApresDecisions(
   const voulus = [...new Set(ops.ajouter ?? [])].filter((c) => !gardees.some((g) => g.code === c));
   const ajoutes = voulus.length ? await db.select({ code: assets.code, type: assets.type, fichier: assets.fichier }).from(assets).where(and(eq(assets.projectId, projectId), inArray(assets.code, voulus))) : [];
   const inconnus = voulus.filter((c) => !ajoutes.some((a) => a.code === c));
-  const pasDesImages = ajoutes.filter((a) => a.type === "voix" || a.type === "sfx").map((a) => a.code);
+  const pasDesImages = ajoutes.filter((a) => a.type === "voix").map((a) => a.code);
   const finales = [...gardees, ...ajoutes.filter((a) => !pasDesImages.includes(a.code))];
   const sansImage = finales.filter((r) => !r.fichier || !cheminSiExiste(cheminAssetMedia(r.fichier))).map((r) => r.code);
   return { codes: finales.map((r) => r.code), inconnus, pasDesImages, sansImage };

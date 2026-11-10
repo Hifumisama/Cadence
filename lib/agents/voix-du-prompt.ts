@@ -39,7 +39,7 @@ export function parolesDuPrompt(shots: { texte: string }[]): ParoleDuPrompt[] {
 }
 
 /** Les voix du plan : un `<Audio N>` par personnage QUI PARLE dans le prompt et qui a une voix fixée (`assets.voix_master`), dans l'ordre
- * de parole (la voix prime sur les bruitages ; trois audios au plus). Un personnage sans master n'a pas de référence : le modèle vidéo
+ * de parole (trois audios au plus). Un personnage sans master n'a pas de référence : le modèle vidéo
  * invente sa voix. `texte` est sa première parole (l'assemblage s'en sert pour retrouver son `(Sx)`). */
 export function voixDuPrompt(shots: { texte: string }[], codesAvecMaster: Set<string>): { slot: number; texte: string; locuteurCode: string }[] {
   const vus = new Set<string>();

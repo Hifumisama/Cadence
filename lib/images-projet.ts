@@ -1,12 +1,10 @@
-import { raisonNonGenerable } from "./asset-generation";
 import { preparerLot, type AssetPourLot } from "./generation-lot";
 
 /** Où en sont les IMAGES de référence d'un projet (2026-10-12). Définition UNIQUE, partagée par le clap final de la préparation,
  * le bandeau « Prochaine étape » et le registre d'assets. Règles pures (sans base ni disque) ; la lecture en base est dans
  * lib/queries-images.ts.
  *
- * Un asset « à illustrer » est un asset dont l'image de référence se génère : tout sauf un son
- * (génération audio), c'est-à-dire exactement ce que `raisonNonGenerable` accepte. Il « a une image » quand `fichier` est
+ * Tout asset est « à illustrer » (son image de référence se génère). Il « a une image » quand `fichier` est
  * renseigné ; sans image sinon. Rien n'est versionné (F01) : un asset a une image ou n'en a pas. */
 
 export type EtatImages = {
@@ -24,18 +22,15 @@ export type EtatImages = {
   sansPrompt: number;
 };
 
-/** Un asset compte-t-il parmi ceux qu'on illustre ? */
-export const estAIllustrer = (a: { type: string }): boolean => raisonNonGenerable(a) === null;
-
 /** Ids des assets à illustrer qui n'ont pas d'image (ce que « tout générer » propose au lot). */
 export function idsSansImage(assets: Pick<AssetPourLot, "id" | "type" | "fichier">[]): number[] {
-  return assets.filter((a) => estAIllustrer(a) && !a.fichier).map((a) => a.id);
+  return assets.filter((a) => !a.fichier).map((a) => a.id);
 }
 
 /** `enFile` : assets du projet qui ont une génération en attente ou en cours. `placesLibres` : ce que la file peut encore accepter
  * (PLAFOND_LOT_IMAGES moins les images déjà en attente). */
 export function etatImages(assets: AssetPourLot[], enFile: Set<number>, placesLibres: number): EtatImages {
-  const aIllustrer = assets.filter(estAIllustrer);
+  const aIllustrer = assets;
   const sans = aIllustrer.filter((a) => !a.fichier);
   const parId = new Map(assets.map((a) => [a.id, a]));
   const candidats = sans.filter((a) => !enFile.has(a.id));

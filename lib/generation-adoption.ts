@@ -5,7 +5,7 @@ import { db } from "../db";
 import { assetGenerations, assets } from "../db/schema";
 import { appliquerAffiche } from "./affiche-application";
 import { TYPE_AFFICHE, titreDansPrompt } from "./affiches";
-import { METHODE_AUDIO, METHODE_MASTER_VOIX, videoDeMaster } from "./asset-generation";
+import { METHODE_MASTER_VOIX, videoDeMaster } from "./asset-generation";
 import { cheminAssetMedia, cheminGenerationMedia, cheminVoixMedia } from "./media";
 
 /** Adopter un candidat : son fichier devient l'image (ou le son) de l'asset, et son prompt celui de l'asset. Partagé par
@@ -39,7 +39,6 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
       fichierAt: maintenant,
       valide: false, // un nouveau fichier remplace celui qui était validé : à revalider
       promptGeneration: gen.prompt,
-      ...(gen.methode === METHODE_AUDIO && gen.dureeSecondes != null ? { dureeSecondes: gen.dureeSecondes } : {}),
     })
     .where(eq(assets.id, asset.id));
   // L'essai retenu : même instant que le fichier de l'asset (voir `assetGenerations.adopteAt`).

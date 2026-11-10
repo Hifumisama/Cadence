@@ -147,7 +147,6 @@ export default async function AffichePage({
             essaiInitial={generation ?? null}
             description={asset.description ?? ""}
             plansRendus={0}
-            raisonBloquee={null}
             registre={joignables}
             affiche
             jointesInitiales={jointesInitiales}

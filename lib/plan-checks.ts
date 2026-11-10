@@ -63,7 +63,7 @@ export function extraireBalisesD(sections: PromptSection[]): BaliseD[] {
  * déclarées (un prompt qui les cite n'a pas de label orphelin) mais ne sont
  * jamais « non citées » : le contrat de plan-h3 et les fiches validées de
  * l'épisode 1 ne citent pas les voix (docs/FRICTIONS.md, « iteration-plan
- * branché », 2026-10-02). Une ref de plan_refs (bruitage, image) non citée
+ * branché », 2026-10-02). Une ref de plan_refs (image) non citée
  * reste signalée. */
 export function verifierCoherenceRefs(
   sections: PromptSection[],

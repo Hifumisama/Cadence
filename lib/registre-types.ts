@@ -38,7 +38,6 @@ export const LIBELLE_TYPE_ASSET: Record<string, string> = {
   decor: "Décor",
   prop: "Prop",
   vfx: "VFX",
-  sfx: "SFX",
   keyframe: "Keyframe",
   oth: "Autre",
 };

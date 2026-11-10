@@ -19,7 +19,7 @@ test("un code de registre ordinaire n'est jamais pris pour une affiche", () => {
 
 test("le type d'asset d'affiche ne collisionne avec aucun type du registre", () => {
   assert.equal(TYPE_AFFICHE, "affiche");
-  assert.ok(!["personnage", "decor", "voix", "prop", "vfx", "sfx", "keyframe", "oth"].includes(TYPE_AFFICHE));
+  assert.ok(!["personnage", "decor", "voix", "prop", "vfx", "keyframe", "oth"].includes(TYPE_AFFICHE));
 });
 
 test("format par défaut : 2:3 pour toutes les affiches", () => {

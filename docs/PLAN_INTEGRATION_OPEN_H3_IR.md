@@ -179,7 +179,7 @@ travaille **au niveau du projet**, avant les fiches : il lit tous les plans et l
    À trancher, c'est la conséquence la plus lourde de l'option B.
 2. Nouveau skill pour le choix des références, ou règles déterministes ? Qui crée les assets manquants quand un plan en révèle un après `inventaire-assets` ?
 3. Ratio : aucun champ en base trouvé (probablement 16:9 du workflow) → à confirmer avant d'envoyer `aspect`.
-4. Bruitages `SFX_` : aucun rôle évident dans le paquet, comportement non étudié.
+4. Bruitages `SFX_` : retirés de Cadence (2026-11-10).
 5. Langue de l'`intent` : décidé (8) anglais par traduction LLM à l'étape 3 ; reste à **mesurer** au labo (français contre traduction à la main) avant de bâtir la traduction.
 6. Liaison des voix sur le chemin rédigé (pas seulement le brouillon) : non vérifiée.
 7. Cas `suite` : la continuité (fin du plan précédent) passe par l'`intent` seulement ; vérifier sur un vrai enchaînement.

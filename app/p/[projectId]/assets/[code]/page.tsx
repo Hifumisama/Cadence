@@ -8,7 +8,7 @@ import { OngletsAsset, type OngletAsset } from "@/components/assets/OngletsAsset
 import { BlocVoix } from "@/components/voix/BlocVoix";
 import { getVoixPersonnage } from "@/lib/queries-master-voix";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
-import { METHODE_MASTER_VOIX, raisonNonGenerable } from "@/lib/asset-generation";
+import { METHODE_MASTER_VOIX } from "@/lib/asset-generation";
 import { Topbar } from "@/components/ui/Topbar";
 import { delierRef } from "@/app/assets/actions";
 import { libelleAsset } from "@/lib/assetCode";
@@ -71,7 +71,6 @@ export default async function AssetDetailPage({
         essaiInitial={generationBrute ?? null}
         description={noeud.description ?? ""}
         plansRendus={noeud.fichier ? plansRendus : 0}
-        raisonBloquee={raisonNonGenerable(noeud)}
         registre={registreJoignable}
       />
     ),

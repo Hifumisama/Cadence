@@ -8,7 +8,6 @@ import {
   DUREE_TEST_VIDEO_SECONDES,
   METHODE_MASTER_VOIX,
   estAspect,
-  estMethodeSon,
   nomSourceDistante,
   videoDeMaster,
   parametresMasterVoix,
@@ -22,7 +21,6 @@ import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import { cheminCanevasAffiche } from "./canevas-affiche";
 import type { ComfyUIClient } from "./comfyui";
-import { NODE_IDS_AUDIO, injecterGenerationAudio } from "./comfyui/audioMapping";
 import { ErreurEntreeInvalide, injecterValeurs, nomDistantDepuisChemin, verifierEntree } from "./comfyui/mapping";
 import { NODE_IDS_MASTER } from "./comfyui/masterMapping";
 import { mp3Factice } from "./comfyui/stubAudio";
@@ -39,8 +37,7 @@ import { creerRelais } from "./progression";
 
 // Tâche de génération d'asset : text-to-image (Krea 2 Turbo, IMG_01_TextToImage,
 // méthode « generation »), à partir de 1 à 3 images (Qwen Image Edit 2511,
-// IMG_Simple_Edit, méthode « edition »), son (Stable Audio 3,
-// SFX_Generate_Sounds, méthode « audio »). Une génération n'est
+// IMG_Simple_Edit, méthode « edition »), et le test vidéo d'un master de voix. Une génération n'est
 // pas rejouée automatiquement : un échec s'affiche avec son message et
 // l'utilisateur relance (contrairement aux plans H3, une image se refait en
 // quelques secondes). Une API ComfyUI injoignable ne consomme rien : la demande
@@ -52,8 +49,6 @@ const CHEMIN_WORKFLOW = () =>
   resolve(process.env.COMFYUI_WORKFLOW_IMAGE_PATH ?? "./workflows/image-refs/IMG_01_TextToImage.json");
 const CHEMIN_WORKFLOW_EDITION = () =>
   resolve(process.env.COMFYUI_WORKFLOW_EDITION_PATH ?? "./workflows/image-refs/IMG_Simple_Edit.json");
-const CHEMIN_WORKFLOW_AUDIO = () =>
-  resolve(process.env.COMFYUI_WORKFLOW_AUDIO_PATH ?? "./workflows/audio/SFX_Generate_Sounds.json");
 // Le test vidéo d'une voix passe par le même graphe que les plans (VID_REF2VA) : même variable que la tâche vidéo.
 const CHEMIN_WORKFLOW_VIDEO = () =>
   resolve(process.env.COMFYUI_WORKFLOW_PATH ?? "./workflows/video-generation/VID_REF2VA.json");
@@ -172,8 +167,6 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
   try {
     const edition = gen.methode === "edition";
     const masterVoix = gen.methode === METHODE_MASTER_VOIX;
-    // Une voix, une prise de réplique ou l'audio d'un test est un son pour tout ce qui suit (pas d'aperçu, fichier audio, pas de vignette).
-    const audio = estMethodeSon(gen.methode);
     // Master de voix SANS workflow dédié (VID_Create_Voice_Master.json absent) : on soumet le graphe vidéo des plans et l'audio est extrait du mp4.
     let masterDedie = false;
     let graphe: WorkflowJson;
@@ -215,15 +208,6 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         brut[NODE_IDS_MASTER.sortieAudio]!.inputs.filename_prefix = `audio/${entree.prefixeSortie}`;
       }
       graphe = injecterValeurs(brut, entree) as WorkflowJson;
-    } else if (audio) {
-      if (gen.dureeSecondes == null) throw new Error("Durée absente de la génération audio");
-      const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_AUDIO(), "utf-8")) as WorkflowJson;
-      graphe = injecterGenerationAudio(brut, {
-        prompt: gen.prompt,
-        dureeSecondes: gen.dureeSecondes,
-        seed: gen.seed,
-        prefixeSortie: `audio/cadence_${asset.code}`,
-      });
     } else if (edition) {
       const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_EDITION(), "utf-8")) as WorkflowJson;
       graphe = injecterEditionImages(brut, {
@@ -246,17 +230,17 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         prefixeSortie: `cadence_${asset.code}`,
       });
     }
-    const noeudSortie = masterVoix ? (masterDedie ? NODE_IDS_MASTER.sortieAudio : NODE_IDS_MASTER.sortieRepli) : audio ? NODE_IDS_AUDIO.sortie : edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
+    const noeudSortie = masterVoix ? (masterDedie ? NODE_IDS_MASTER.sortieAudio : NODE_IDS_MASTER.sortieRepli) : edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
 
     // Le WebSocket s'ouvre AVANT la soumission (sinon un prompt court finit avant
     // qu'on l'écoute). Il ne décide de rien : le résultat vient de /history, la
     // boucle ci-dessous, et si le WebSocket tombe on y retombe sans progression.
     relais = creerRelais({ genId: gen.id, genUuid: gen.uuid, assetId: gen.assetId, mediaRoot, graphe });
-    // Un son n'a pas d'aperçu : les images de latent que le sampler pourrait
+    // Un master de voix n'a pas d'aperçu : les images de latent que le sampler pourrait
     // envoyer ne montreraient rien d'utile, on ne garde que la progression.
     const relaisActif = relais;
     suivi = await client.ouvrirSuivi((e) => {
-      if (audio && e.type === "apercu") return;
+      if (masterVoix && e.type === "apercu") return;
       relaisActif.surEvenement(e);
     });
 
@@ -283,7 +267,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
 
       const stub = (process.env.COMFYUI_MODE ?? "stub") !== "http";
       const extMaster = masterDedie && !stub ? extname(r.cheminSortieDistant).toLowerCase() || ".flac" : ".mp3";
-      const nom = `${gen.uuid}${masterVoix ? extMaster : audio ? extname(r.cheminSortieDistant).toLowerCase() || ".mp3" : ".png"}`;
+      const nom = `${gen.uuid}${masterVoix ? extMaster : ".png"}`;
       const cible = join(mediaRoot, cheminGenerationMedia(gen.assetId, nom));
       await mkdir(join(mediaRoot, "generations", String(gen.assetId)), { recursive: true });
       if (masterVoix) {
@@ -304,7 +288,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         .update(assetGenerations)
         .set({ statut: "termine", fichier: nom, finishedAt: new Date() })
         .where(eq(assetGenerations.id, gen.id));
-      console.log(`[worker] Génération ${gen.id} (${asset.code}${masterVoix ? ", master de voix" : audio ? ", son" : ""}) terminée : ${nom}`);
+      console.log(`[worker] Génération ${gen.id} (${asset.code}${masterVoix ? ", master de voix" : ""}) terminée : ${nom}`);
       // Générée par un lot : le résultat est adopté tout seul (il devient l'image de l'asset).
       if (gen.adoptionAuto) {
         const r = await adopterCandidat(gen.id, mediaRoot);

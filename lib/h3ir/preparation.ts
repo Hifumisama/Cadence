@@ -158,8 +158,6 @@ export type EtatImageAsset = {
   enFile: boolean;
   /** L'erreur de sa dernière génération en échec DEPUIS le début de la demande (null : aucune). */
   echec: string | null;
-  /** Pourquoi l'asset ne se génère pas par image (un son…), ou null. */
-  nonGenerable: string | null;
 };
 
 export type DecisionImages =
@@ -170,15 +168,13 @@ export type DecisionImages =
 
 /** La suite des étapes prompts / images. Pur.
  * - tout a son fichier → prêt (compilation) ;
- * - un asset non générable par image, ou une génération en échec depuis le début de la demande → échec, en nommant l'asset ;
+ * - une génération en échec depuis le début de la demande → échec, en nommant l'asset ;
  * - des assets sans fichier ni prompt (et sans génération en file) → leurs prompts d'abord ;
  * - sinon on attend, en lançant ceux qui ont un prompt et pas encore de génération en file. */
 export function deciderImages(etats: EtatImageAsset[]): DecisionImages {
   const total = etats.length;
   const manquent = etats.filter((e) => !e.aFichier);
   if (manquent.length === 0) return { action: "pret", total };
-  const nonGen = manquent.find((e) => e.nonGenerable);
-  if (nonGen) return { action: "echec", erreur: `« ${nonGen.nom} » n'a pas de fichier et ne se génère pas par image (${nonGen.nonGenerable}) : importe-le, ou retire cette référence.` };
   const echoue = manquent.find((e) => e.echec && !e.enFile);
   if (echoue) return { action: "echec", erreur: `L'image de « ${echoue.nom} » a échoué : ${echoue.echec}. Relance sa génération depuis sa fiche d'asset, puis relance la fiche.` };
   const sansPrompt = manquent.filter((e) => !e.aPrompt && !e.enFile).map((e) => e.code);

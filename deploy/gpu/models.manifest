@@ -26,12 +26,6 @@ models/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors | https://
 models/loras/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors | https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
 models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors | https://huggingface.co/Comfy-Org/Qwen-Image/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
 
-# ── Bruitages : Stable Audio 3 ───────────────────────────────────────────────────────────────────────────
-models/checkpoints/stable_audio_3_medium.safetensors | https://huggingface.co/Comfy-Org/stable-audio-3/resolve/main/checkpoints/stable_audio_3_medium.safetensors
-models/text_encoders/t5gemma_b_b_ul2.safetensors | https://huggingface.co/Comfy-Org/stable-audio-3/resolve/main/text_encoders/t5gemma_b_b_ul2.safetensors
-# Le workflow garde un chargeur pour la branche « réécriture de prompt », coupée mais validée par ComfyUI.
-models/text_encoders/qwen3.5_2b_bf16.safetensors | https://huggingface.co/Comfy-Org/Qwen3.5/resolve/main/text_encoders/qwen3.5_2b_bf16.safetensors
-
 # ── Master de voix : séparation de la voix (pack TTS-Audio-Suite, rangée sous models/TTS/MELBAND/) ─────────
 models/TTS/MELBAND/MelBandRoformer_fp16.safetensors | https://huggingface.co/Kijai/MelBandRoFormer_comfy/resolve/main/MelBandRoformer_fp16.safetensors
 

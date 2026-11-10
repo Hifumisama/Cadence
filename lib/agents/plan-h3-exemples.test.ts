@@ -23,7 +23,7 @@ function brouillon(nom: string): SortiePlanH3 {
   return JSON.parse(m![1]!) as SortiePlanH3;
 }
 
-const typeParPrefixe = (code: string) => (code.startsWith("SFX_") ? "sfx" : code.startsWith("CHAR_") ? "personnage" : "decor");
+const typeParPrefixe = (code: string) => (code.startsWith("CHAR_") ? "personnage" : "decor");
 
 // Les exemples sont recopiés par le petit modèle : ils passent les mêmes contrôles que sa sortie (audit des skills, 2026-10-12).
 const ACTION = /\b(run(ning)?|lung(e|ing)|advanc(e|ing)|walk(ing)?|stopp?(ing)|catch(ing)|reel(ing)|strik(e|ing)|stagger(ing)?|turn(ing)?|drift(ing)?|leap(ing)?|jump(ing)?|fall(ing)?|flee(ing)?|until|then)\b/i;
@@ -66,10 +66,10 @@ for (const nom of readdirSync(DOSSIER).filter((n) => n.endsWith(".md"))) {
     assert.ok(v.ok, v.ok ? "" : v.erreurs.join(" ; "));
 
     const repliques = repliquesDe(b);
-    const problemes = controlerSortiePlanH3(b, { registre: b.references.map((r) => ({ code: r.asset, type: typeParPrefixe(r.asset) })), slotsAudioPris: repliques.map((_, i) => i + 1) });
+    const problemes = controlerSortiePlanH3(b, { registre: b.references.map((r) => ({ code: r.asset, type: typeParPrefixe(r.asset) })) });
     assert.deepEqual(problemes.filter((p) => p.niveau === "erreur" || p.niveau === "alerte"), []);
 
-    const a = assemblerPlanH3(b, { slotsAudioPris: repliques.map((_, i) => i + 1) });
+    const a = assemblerPlanH3(b, {});
     assert.deepEqual(a.problemes, []);
     const fichier = join(FIXTURES, nom.replace(/\.md$/, ".txt"));
     if (process.env.REGENERER_FIXTURES) {

@@ -57,8 +57,7 @@ Le service refuse toute clé inconnue (422 `unknown-field`) : le contrat est fer
 | audio | `voice_timbre`, `bgm`, `music_style`, `beat_reference`, `sfx` |
 
 Cadence n'utilise aujourd'hui que `subject` (personnage, prop, oth), `environment` (décor), `storyboard` (keyframe) et `style` (vfx, depuis le
-2026-11-09 : un effet n'est jamais repris tel quel), via `ROLE_PAR_TYPE` ; en audio, `voice_timbre` (voix fixée d'un personnage qui parle) puis
-`sfx` (bruitages du plan, dans les emplacements que les voix laissent libres : la voix prime). VFX en `style` et bruitages en `sfx` : à valider au banc de rendu.
+2026-11-09 : un effet n'est jamais repris tel quel), via `ROLE_PAR_TYPE` ; en audio, `voice_timbre` (voix fixée d'un personnage qui parle) (le rôle `sfx` du paquet n'est plus envoyé : les bruitages ont été retirés de Cadence, 2026-11-10). VFX en `style` : à valider au banc de rendu.
 
 ## Le mode de génération
 

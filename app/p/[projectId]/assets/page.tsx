@@ -65,7 +65,7 @@ export default async function AssetsPage({
         src,
         fichier: a.fichier,
         blocageSuppression: a.citations.length > 0 ? "cité dans une fiche de plan" : null,
-        raisonLot: a.type === "sfx" ? "un son se génère depuis sa fiche" : (raisonPar.get(a.id) ?? null),
+        raisonLot: raisonPar.get(a.id) ?? null,
       };
     });
 

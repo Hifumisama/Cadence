@@ -128,21 +128,12 @@ async function construireSubmissionInput(
   });
   const refAsset = (fichier: string | null) => ref(cheminAssetMedia(fichier ?? ""));
 
-  // Audio : les voix d'abord (la voix prime sur les bruitages), puis les bruitages sur les emplacements restants. Le prompt est la source
+  // Audio : les voix des personnages. Le prompt est la source
   // des répliques (2026-10-14) : la voix d'un personnage qui parle est une référence audio de la fiche dont l'asset est le PERSONNAGE
   // (son master) ; sans master, le modèle vidéo invente la voix (jamais bloquant).
   const audioVoix = refs
     .filter((r) => r.type === "audio" && r.assetType === "personnage")
     .flatMap((r) => (r.voixMaster && r.assetId != null ? [{ slot: r.slot, ...ref(cheminVoixMedia(r.assetId, r.voixMaster)), dureeSecondes: null as number | null }] : []));
-  const emplacementsVoix = new Set(audioVoix.map((a) => a.slot));
-  const audioBruitages = refs
-    .filter((r) => r.type === "audio" && r.assetType !== "personnage" && r.fichier)
-    .filter((r) => {
-      if (!emplacementsVoix.has(r.slot)) return true;
-      console.warn(`[worker] Plan ${planId} : l'emplacement <Audio ${r.slot}> est pris par une voix, le bruitage est ignoré`);
-      return false;
-    })
-    .map((r) => ({ slot: r.slot, ...refAsset(r.fichier), dureeSecondes: null as number | null }));
 
   const refsImage = refs
     .filter((r) => r.type === "picture" && r.fichier)
@@ -164,7 +155,7 @@ async function construireSubmissionInput(
       dureeSecondes: plan.dureeGenerationSecondes,
       fps: plan.fps,
       refsImage: raccord ? [...refsImage, raccord.ref] : refsImage,
-      refsAudio: [...audioVoix, ...audioBruitages],
+      refsAudio: audioVoix,
       refsVideo,
       activerUpscale,
       megapixels: MEGAPIXELS_VIDEO,

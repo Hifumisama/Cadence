@@ -15,7 +15,7 @@ export const TEMPERATURE_REFERENCES_PLAN = 0.1;
 export const MAX_MANQUANTS_PLAN = 2;
 /** La description d'un candidat dans l'entrée, coupée : le skill doit reconnaître l'asset, pas le redessiner. */
 export const MAX_DESCRIPTION_CANDIDAT = 160;
-/** Types qu'un manquant peut avoir : ni bruitage, ni voix (champ du personnage), ni effet (un effet deviné reste de la prose, décision du 2026-11-02). */
+/** Types qu'un manquant peut avoir : pas de voix (champ du personnage), ni effet (un effet deviné reste de la prose, décision du 2026-11-02). */
 export const TYPES_MANQUANT_PLAN = ["personnage", "decor", "prop", "keyframe", "oth"] as const;
 
 export type EntreeSkillReferencesPlan = {
@@ -60,7 +60,6 @@ export function construireEntreeReferencesPlan(d: {
     doutes: d.doutes,
     decorPrecedent: d.decorPrecedent,
     candidats: d.candidats
-      .filter((c) => c.type !== "sfx")
       .map((c) => ({ code: c.code, type: c.type, nom: libelleAsset(c), description: couper(c.description ?? "", MAX_DESCRIPTION_CANDIDAT), parent: c.parent ?? null, aUneImage: !!c.aUneImage })),
     assetsProposesParLeLot: d.assetsProposesParLeLot ?? [],
     limiteImages: LIMITE_IMAGES_PLAN,
@@ -96,16 +95,11 @@ export function problemesReferencesPlan(sortie: SortieReferencesPlan, entree: En
   const vus = new Set<string>();
   const visages = new Map<string, string>();
   for (const r of refs) {
-    if (/^SFX_/i.test(r.code)) {
-      p.push(`references: ${r.code} is a sound effect; sounds are never image references, remove it.`);
-      continue;
-    }
     const c = connus.get(r.code);
     if (!c) {
       p.push(`references: ${r.code} is not a candidate code; copy a code from \`candidats\` or \`assetsProposesParLeLot\` exactly, or declare a missing asset in \`manquants\`.`);
       continue;
     }
-    if (c.type === "sfx") p.push(`references: ${r.code} is a sound effect, not an image; remove it.`);
     if (vus.has(r.code)) p.push(`references: ${r.code} appears twice; list each asset once.`);
     vus.add(r.code);
     if (c.type === "personnage") {

@@ -90,7 +90,6 @@ export const ICONE_TYPE_ASSET: Record<string, NomIcone> = {
   decor: "decor",
   prop: "prop",
   vfx: "effet",
-  sfx: "son",
   keyframe: "keyframe",
   oth: "autre",
 };

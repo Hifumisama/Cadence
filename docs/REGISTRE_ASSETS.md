@@ -6,7 +6,7 @@
 
 ## Types et préfixes de code
 
-Le type d'un asset fixe le préfixe de son code : `CHAR_` (personnage), `DEC_` (décor), `VOICE_` (voix), `PROP_` (prop), `VFX_` (effets visuels), `SFX_` (effets sonores), `KEY_` (keyframe), `OTH_` (autre). Ancien `FX_` devenu `VFX_`, ancien type « autre » devenu `OTH_` (2026-09-29).
+Le type d'un asset fixe le préfixe de son code : `CHAR_` (personnage), `DEC_` (décor), `VOICE_` (voix), `PROP_` (prop), `VFX_` (effets visuels), `KEY_` (keyframe), `OTH_` (autre). Ancien `FX_` devenu `VFX_`, ancien type « autre » devenu `OTH_` (2026-09-29).
 
 ## Note sur le style
 

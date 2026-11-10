@@ -25,7 +25,7 @@ export type ChoixReferencesPlan = ResultatReferencesPlan &
     identiqueAuxExistantes: boolean;
     /** Les références choisies dont l'asset n'a pas encore d'image : le plan ne se compile pas avant (images d'abord, décision du 2026-11-01). */
     sansImage: string[];
-    /** Le registre lu (sans affiches ni bruitages), pour l'entrée du skill. */
+    /** Le registre lu (sans affiches), pour l'entrée du skill. */
     candidats: CandidatReference[];
   };
 
@@ -56,7 +56,6 @@ export async function chargerDonneesReferencesPlan(db: Db, planId: number): Prom
     .orderBy(asc(assets.code));
   const codeParId = new Map(registre.map((a) => [a.id, a.code]));
   const candidats: CandidatReference[] = registre
-    .filter((a) => a.type !== "sfx")
     .map((a) => ({
       code: a.code,
       type: a.type,

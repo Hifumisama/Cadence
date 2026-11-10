@@ -185,15 +185,13 @@ test("squelette idempotent : épisode du même titre non recréé, brief valide 
 
 // --- conversion des sorties de skills ---------------------------------------
 
-test("prompt-asset → un changement d'asset : prompt, méthode si elle diffère, durée pour un son, remarques en info", () => {
+test("prompt-asset → un changement d'asset : prompt, méthode si elle diffère, remarques en info", () => {
   const sortie = { methode: "edition" as const, raisonMethode: "Même sujet, autre cadrage.", promptGeneration: "Crop tighter.", remarques: [{ type: "dependance-parent", message: "Le parent n'a pas d'image." }] };
-  const [ch] = depuisPromptAsset(sortie, { id: 4, code: "CHAR_maya_gp", type: "personnage", methodeGeneration: "generation", methodeApplicable: true });
+  const [ch] = depuisPromptAsset(sortie, { id: 4, code: "CHAR_maya_gp", type: "personnage", methodeGeneration: "generation" });
   assert.equal(ch!.cibleType, "asset");
   assert.equal(ch!.cibleRef, "4");
   assert.deepEqual(ch!.apres, { promptGeneration: "Crop tighter.", methodeGeneration: "edition" });
   assert.ok(ch!.avertissements!.some((w) => w.texte.includes("dependance-parent")));
-  const [son] = depuisPromptAsset({ ...sortie, methode: "generation", dureeSecondes: 4 }, { id: 5, code: "SFX_porte", type: "sfx", methodeGeneration: null, methodeApplicable: false });
-  assert.deepEqual(son!.apres, { promptGeneration: "Crop tighter.", dureeSecondes: 4 }, "pas de méthode d'image pour un son");
 });
 
 const scenario: SortieScenarioEpisode = {

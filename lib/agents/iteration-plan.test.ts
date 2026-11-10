@@ -34,7 +34,7 @@ const ctx = (over: Partial<ContexteIteration> = {}): ContexteIteration => ({
     { code: "DEC_clairiere", type: "decor", image: true },
     { code: "PROP_lampe", type: "prop", image: true },
     { code: "PROP_torche", type: "prop", image: false },
-    { code: "SFX_feu", type: "sfx" },
+    { code: "VOIX_off", type: "voix" },
     { code: "VOICE_mai", type: "voix" },
   ],
   dureeGenerationSecondes: 6,
@@ -190,7 +190,7 @@ test("références : ajouter / retirer par code du registre ; les erreurs de con
   const r = (ajouter: string[], retirer: string[] = []) => erreurs(sortie({}, { references: { ajouter, retirer }, reglages: { creativite: null, styleMiseEnScene: null } }));
   assert.deepEqual(r(["PROP_inventee"]), ["ajout-inconnu"]);
   assert.deepEqual(r(["VOICE_mai"]), ["ajout-nature"]);
-  assert.deepEqual(r(["SFX_feu"]), ["ajout-nature"]);
+  assert.deepEqual(r(["VOIX_off"]), ["ajout-nature"]);
   assert.deepEqual(r(["CHAR_mai"]), ["ajout-doublon"]);
   assert.deepEqual(r(["PROP_lampe", "PROP_lampe"]), ["ajout-doublon"]);
   assert.deepEqual(r([], ["PROP_lampe"]), ["retrait-inconnu"]);

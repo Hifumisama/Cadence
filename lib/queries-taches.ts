@@ -9,7 +9,7 @@ import { and, eq, gte, isNotNull, isNull, ne, or, inArray } from "drizzle-orm";
 import { versRunLot } from "./agents/lots";
 import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
-import { METHODE_AUDIO, METHODE_MASTER_VOIX, estMethodeSon, formaterDuree } from "./asset-generation";
+import { METHODE_MASTER_VOIX, formaterDuree } from "./asset-generation";
 import { generationMediaSrc } from "./media";
 import { cibleDeCodeAffiche } from "./affiches";
 import {
@@ -159,18 +159,13 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     cle: cleImage(g.uuid),
     genre: "image",
     statut: g.statut,
-    // Un son se reconnaît dans le panneau : « Son · CODE », sans miniature d'aperçu.
-    libelle: g.methode === METHODE_MASTER_VOIX ? `Voix · ${code}` : g.methode === METHODE_AUDIO ? `Son · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : "épisode"}` : code,
+    libelle: g.methode === METHODE_MASTER_VOIX ? `Voix · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : "épisode"}` : code,
     detail:
       g.methode === METHODE_MASTER_VOIX
         ? "Master de voix"
-        : g.methode === METHODE_AUDIO
-          ? g.dureeSecondes != null
-            ? `Génération audio · ${formaterDuree(g.dureeSecondes)}`
-            : "Génération audio"
-          : g.methode === "edition"
-            ? "À partir d'images"
-            : "À partir du texte",
+        : g.methode === "edition"
+          ? "À partir d'images"
+          : "À partir du texte",
     // Le master d'une voix se retrouve dans le bloc « Voix » de la fiche du personnage.
     href: g.methode === METHODE_MASTER_VOIX ? `/p/${projectId}/assets/${code}?generation=${g.uuid}#as-voix` : affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
     projectId,
@@ -393,7 +388,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const taches = gardees.map((x) => {
     const g = parCle.get(x.cle);
     if (!g) return x;
-    if (estMethodeSon(g.methode)) return x; // un son, une voix ou une vidéo n'a ni vignette ni aperçu
+    if (g.methode === METHODE_MASTER_VOIX) return x; // une voix (et sa vidéo de test) n'a ni vignette ni aperçu
     if (g.statut === "termine") return { ...x, vignetteSrc: generationMediaSrc(g.assetId, g.fichier) };
     if (g.statut === "en_cours" && g.apercuAt) {
       const url = generationMediaSrc(g.assetId, g.apercuFichier);

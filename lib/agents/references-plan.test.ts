@@ -23,7 +23,6 @@ const CANDIDATS: CandidatReference[] = [
   { code: "PROP_lampe_huile", type: "prop", label: null, description: "Lampe à huile en cuivre", parent: null, aUneImage: true },
   { code: "DEC_port_de_jour", type: "decor", label: null, description: "Port de pêche en plein jour", parent: null, aUneImage: true },
   { code: "DEC_port_nuit", type: "decor", label: null, description: "Le même port la nuit", parent: "DEC_port_de_jour", aUneImage: true },
-  { code: "SFX_ressac", type: "sfx", label: null, description: "Ressac", parent: null, aUneImage: true },
 ];
 
 const choix = choisirReferences({
@@ -60,8 +59,7 @@ test("le cas qui appelle le skill : le code a des doutes (décor, nom), l'entré
   assert.deepEqual(ENTREE.plan.repliques, [{ nom: "Lina" }]);
   assert.equal(ENTREE.plan.intention, "Sur la jetée au crépuscule, Lina tend la lanterne au vieux pêcheur.");
   assert.equal(ENTREE.limiteImages, 6);
-  // Ni bruitage dans les candidats, des descriptions coupées, le nom lisible.
-  assert.ok(!ENTREE.candidats.some((c) => c.type === "sfx"));
+  // Des descriptions coupées, le nom lisible.
   assert.ok(ENTREE.candidats.every((c) => c.description.length <= MAX_DESCRIPTION_CANDIDAT));
   assert.equal(ENTREE.candidats.find((c) => c.code === "CHAR_vieil_homme")!.nom, "Vieil homme");
   assert.equal(ENTREE.candidats.find((c) => c.code === "DEC_port_nuit")!.parent, "DEC_port_de_jour");
@@ -72,15 +70,15 @@ test("contrôles : une sortie juste ne déclenche rien ; un code du lot est acce
   assert.deepEqual(problemesReferencesPlan({ ...BONNE, references: [...BONNE.references, { code: "PROP_filet_de_peche", pourquoi: "" }] }, ENTREE), []);
 });
 
-test("contrôles : code inconnu, bruitage, doublon, deux visages, trop d'images", () => {
+test("contrôles : code inconnu, doublon, deux visages, trop d'images", () => {
   const p = problemesReferencesPlan(
     {
       references: [
         { code: "CHAR_lina", pourquoi: "" },
         { code: "CHAR_lina_blessee", pourquoi: "" },
         { code: "CHAR_lina", pourquoi: "" },
-        { code: "SFX_ressac", pourquoi: "" },
         { code: "PROP_lanterne", pourquoi: "" },
+        { code: "PROP_lampe_huile", pourquoi: "" },
         { code: "CHAR_vieil_homme", pourquoi: "" },
         { code: "DEC_port_nuit", pourquoi: "" },
       ],
@@ -92,7 +90,6 @@ test("contrôles : code inconnu, bruitage, doublon, deux visages, trop d'images"
   const tout = p.join("\n");
   assert.match(tout, /same character/);
   assert.match(tout, /appears twice/);
-  assert.match(tout, /SFX_ressac is a sound effect/);
   assert.match(tout, /PROP_lanterne is not a candidate code/);
   assert.match(tout, /7 images, 6 at most/);
 });

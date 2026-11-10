@@ -44,7 +44,6 @@ export function AtelierAsset({
   essaiInitial,
   description,
   plansRendus,
-  raisonBloquee,
   registre,
   affiche = false,
   jointesInitiales = [],
@@ -65,7 +64,6 @@ export function AtelierAsset({
   description: string;
   /** Plans déjà rendus avec cette image : remplacer l'image les périme. */
   plansRendus: number;
-  raisonBloquee: string | null;
   /** Les images du registre qu'on peut joindre à une consigne. */
   registre: JointeDisponible[];
   /** L'asset est une affiche de présentation (portrait 2:3) : l'image retenue devient celle du projet, pas d'import direct. */
@@ -231,7 +229,7 @@ export function AtelierAsset({
     });
 
   const surClavier = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !pending && !raisonBloquee) {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !pending) {
       e.preventDefault();
       lancer();
     }
@@ -294,7 +292,7 @@ export function AtelierAsset({
                       <p>{regarde.erreur ?? "La génération s'est arrêtée."}</p>
                       <div className="ligne">
                         {regarde.consigne || !retouche ? (
-                          <button type="button" className="btn btn-or btn-sm" onClick={() => lancer(regarde.consigne ?? "")} disabled={pending || raisonBloquee != null}>
+                          <button type="button" className="btn btn-or btn-sm" onClick={() => lancer(regarde.consigne ?? "")} disabled={pending}>
                             Relancer la même consigne
                           </button>
                         ) : null}
@@ -530,7 +528,7 @@ export function AtelierAsset({
             </p>
           ) : null}
           <div className="envoi">
-            <button type="button" className="btn btn-or" onClick={() => lancer()} disabled={pending || raisonBloquee != null} title={raisonBloquee ?? undefined}>
+            <button type="button" className="btn btn-or" onClick={() => lancer()} disabled={pending}>
               <Icone nom="agent" taille={15} /> {pending ? "Envoi…" : retouche ? "Retoucher l'image" : "Créer l'image"}
             </button>
             <span className="aide">

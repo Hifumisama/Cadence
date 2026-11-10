@@ -12,7 +12,7 @@ import { MAX_REFS } from "../plan-checks";
  * - rôle et rétention par défaut, comme une référence posée à la main (`roleDeLaRef` : « Type, Nom ») ; un effet (VFX) est en rétention faible
  *   (`weak_reference` : sa matière et son mouvement, jamais montré tel quel ; rôle `style` côté Open H3 IR) ;
  * - si le plan a déjà une fiche, chaque référence y est déclarée (`subject_definitions`, `retention_analysis`), comme un ajout à la main.
- * Les codes inconnus du projet, les sons (sfx), les doublons et ce qui dépasse 6 images sont ignorés, et rendus dans `ignores`.
+ * Les codes inconnus du projet, les doublons et ce qui dépasse 6 images sont ignorés, et rendus dans `ignores`.
  * À appeler dans une transaction (tout tombe ensemble). La décision est pure (`planifierReferences`, testée). */
 
 export type ReferenceAEcrire = string | { code: string; role?: string | null };

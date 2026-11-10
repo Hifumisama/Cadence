@@ -178,7 +178,7 @@ async function main(): Promise<number> {
     if (fin.statut === "termine") {
       const s = fin.resultat as SortiePlanH3;
       // les voix occupent les premiers slots audio (comme à l'application d'une fiche, sans les lire en base ici)
-      const a = assemblerPlanH3(s, { slotsAudioPris: repliques.map((_, k) => k + 1) });
+      const a = assemblerPlanH3(s, {});
       lignes.push(`### Sortie du modèle (${s.dureeSecondes} s, ${s.references.length} références, ${s.shots.length} shots)`, "");
       lignes.push("Références : " + s.references.map((x) => `${x.asset} (${x.nature}) — ${x.nom}, ${x.definition}`).join(" | "), "");
       lignes.push("**Prompt assemblé**", "", "```text", a.texte, "```", "");

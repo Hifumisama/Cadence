@@ -73,7 +73,7 @@ async function registreResume(db: Db, projectId: number) {
     .from(assets)
     .where(and(eq(assets.projectId, projectId), horsAffiches))
     .orderBy(asc(assets.code));
-  return lignes.filter((a) => a.type !== "sfx").map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" }));
+  return lignes.map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" }));
 }
 
 // --- asset ------------------------------------------------------------------
@@ -112,7 +112,7 @@ export async function entreePromptAsset(db: Db, projectId: number, assetId: numb
   ];
   return {
     skill: "prompt-asset",
-    variante: variantePromptAsset({ type: asset.type, methodeGeneration: asset.methodeGeneration }),
+    variante: variantePromptAsset({ methodeGeneration: asset.methodeGeneration }),
     contexte: ctx,
     entree: {
       asset: { code: asset.code, type: asset.type, descriptionCanonique: asset.description ?? "", methodeGeneration: asset.methodeGeneration, promptActuel: asset.promptGeneration ?? "" },
@@ -213,7 +213,7 @@ async function contexteEpisode(db: Db, projectId: number, episodeId: number) {
 }
 
 /** Ce que l'AUTEUR a lui-même écrit pendant la conception du projet (ses messages, dans l'ordre), pour que le scénario parte de ses mots et
- * non du seul arc résumé du brief : un pitch précis (plan large d'ouverture, geste, bruitage, réplique, voix off) se perdait dans le résumé.
+ * non du seul arc résumé du brief : un pitch précis (plan large d'ouverture, geste, réplique, voix off) se perdait dans le résumé.
  * Plafonné (contexte léger) : les derniers messages l'emportent, chacun est coupé net au-delà de `MAX_MESSAGE`. */
 export const MAX_PAROLES_AUTEUR = 6000;
 const MAX_MESSAGE = 3000;
@@ -578,7 +578,7 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
  * - `plansVoisins` : le précédent et le suivant (pour le raccord), titre et description ;
  * - `registre` : pour chaque asset candidat son code, sa description
  *   canonique (français), sa méthode, son prompt de génération (anglais) et s'il a déjà son fichier
- *   (image, ou son pour un bruitage) ; 
+ *   (l'image) ; 
  * (aucune réplique en entrée : le dialogue est dans l'intention et la consigne, le prompt vidéo est sa seule source, 2026-10-14) ;
  * - `clauseStyleDuProjet`, `briefExtrait` : le style visuel, l'arc, les personnages et les lieux du brief. */
 export async function entreePlanH3(

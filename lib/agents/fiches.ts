@@ -139,7 +139,7 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
     const sons = apres.refs.filter((r) => r.type === "audio");
     if (apres.refs.some((r) => r.type !== "picture" && r.type !== "audio")) return "Une fiche n'écrit que des références d'image ou de son.";
     if (images.length > MAX_REFS.picture) return `${images.length} images de référence : ${MAX_REFS.picture} au plus.`;
-    if (sons.length > MAX_REFS.audio) return `${sons.length} références audio : ${MAX_REFS.audio} au plus (la voix prime sur les bruitages).`;
+    if (sons.length > MAX_REFS.audio) return `${sons.length} références audio : ${MAX_REFS.audio} au plus (les voix des personnages).`;
     const vus = new Set<string>();
     for (const r of apres.refs) {
       const max = r.type === "picture" ? MAX_REFS.picture : MAX_REFS.audio;
@@ -149,9 +149,9 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
       vus.add(cle);
       const type = etat.registre.get(r.asset);
       if (type == null) return `L'asset ${r.asset} n'existe pas dans ce projet.`;
-      if (r.type === "picture" && (type === "voix" || type === "sfx")) return `${r.asset} (${type}) n'a pas d'image : il ne peut pas être une référence d'image.`;
-      // Un son de la fiche est un bruitage (sfx) ; la voix d'un personnage est une référence audio vers le personnage (son master).
-      if (r.type === "audio" && type !== "sfx" && !(apres.voixDuPrompt && type === "personnage")) return `${r.asset} (${type}) n'est pas un bruitage : seule une référence sfx est un son de la fiche.`;
+      if (r.type === "picture" && type === "voix") return `${r.asset} (${type}) n'a pas d'image : il ne peut pas être une référence d'image.`;
+      // La voix d'un personnage est une référence audio vers le personnage (son master) : la seule référence audio d'une fiche.
+      if (r.type === "audio" && !(apres.voixDuPrompt && type === "personnage")) return `${r.asset} (${type}) n'est pas un personnage avec une voix : seule la voix d'un personnage est une référence audio de la fiche.`;
     }
   }
 

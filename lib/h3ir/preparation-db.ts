@@ -5,7 +5,6 @@ import { db } from "../../db";
 import { agentRuns, assetGenerations, assets, demandes, planRefs, plans } from "../../db/schema";
 import type { Db } from "../agents/applicateurs/commun";
 import { horsAffiches } from "../assets-visibles";
-import { raisonNonGenerable } from "../asset-generation";
 import { poserGenerationsLot } from "../generation-lancement";
 import { cheminAssetMedia, MEDIA_ROOT } from "../media";
 import { estEtapeFinale, type ContexteFichePlan, type EtapeDemande } from "../demandes";
@@ -67,7 +66,6 @@ export async function etatImagesAssets(projectId: number, codes: string[], depui
       aPrompt: !!(a.prompt ?? "").trim(),
       enFile,
       echec,
-      nonGenerable: raisonNonGenerable(a),
     };
   });
 }

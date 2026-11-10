@@ -4,7 +4,7 @@ import { assets, planRefs } from "../db/schema";
 import type { RefLabel } from "./plan-checks";
 
 /** Les références audio d'un plan qui sont la VOIX d'un personnage (son master, chantier voix/master 2026-10-14) : des refs « dérivées » du
- * dialogue, déclarées sans avoir à être citées une à une (`verifierCoherenceRefs`). Un bruitage (asset `sfx`) n'en fait pas partie. */
+ * dialogue, déclarées sans avoir à être citées une à une (`verifierCoherenceRefs`). */
 export async function getVoixDuPlan(planId: number): Promise<RefLabel[]> {
   const lignes = await db
     .select({ slot: planRefs.slot })

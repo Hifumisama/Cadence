@@ -38,7 +38,7 @@ The application assembles the context. Nothing is guessed.
 - It assigns **all labels** and numbers. You never write a numbered label, shot number, timecode or "Hard cut".
 - It replaces each `[[CODE]]` with the reference's label, writes the definition and retention lines (with the shots where each reference appears), and adds the `summary` prefix, `[Shot N]`, `At MM:SS.mmm,` and `Hard cut to`.
 - It puts the **project's style clause** first in `ouverture` (you never write the visual style).
-- It reads who speaks in your `<d>` (the `[[CODE]] (Sx)` before each one) and gives a character that has a fixed voice its **voice audio reference**; it enforces the limits: 6 images, 3 audio, **voice wins over sound effects**.
+- It reads who speaks in your `<d>` (the `[[CODE]] (Sx)` before each one) and gives a character that has a fixed voice its **voice audio reference**; it enforces the limits: 6 images, 3 audio, voices are never image references.
 - It checks durations and shot structure.
 
 ## What you write
@@ -47,7 +47,6 @@ The output contract is `assets/sortie.schema.json`. Each example is a complete d
 
 - **`references`**: the plan's assets, in the order you want: characters, extras, props and effects, then set. Per item: `asset` (registry code), `nature`, `role` (French), `nom` and `definition` (English). Your order is the label order.
   - `nature: "image"`: the asset is cited by its image (character, extra, prop, effect, set).
-  - `nature: "son"`: a registry sound effect (`SFX_…`), cited as an audio reference.
   - **A voice is never a reference**: the code derives it from who speaks in your `<d>` (the speaker is `[[CHAR_x]] (Sx)` just before the tag).
   - **Anything that needs no reference goes in prose** in the shots, without a marker: the video model interprets it (texture and atmosphere of what is declared, never a story element of your own: rule 3.13). An **image** asset missing from the registry is declared in `assetsManquants` **and cited as a reference like any other** (same code, `nature: "image"`, `[[CODE]]` in the shots): it is created with this plan and its image comes later. A missing sound is never a reference: describe it in prose.
 - **One marker only** to point at a reference: its code in double brackets, `[[CHAR_maya]]`. Never write `<Subject 1>`, `<Picture 1>` or `{picture}`.
@@ -117,7 +116,7 @@ Shot count follows **action intensity, not plan duration**. The cadences below a
     - Sound **tied to an action** (impact, contact, footsteps, an object falling, a door) is written in the text of the shot where it happens, at that very moment.
     - **Background sound** (distant metallic noise, crowd murmur, wind, room tone) goes in `overall_soundscape`.
     - Music only the audience hears goes in `non_diegetic_music`, by instrumentation, tempo and dynamics.
-    - A registry sound effect is added as a `son` reference; otherwise describe it in prose.
+    - A sound effect is described in prose in the shot.
 15. **In a stylised style, strong actions are exaggerated, and you write their scale.** Read the project's style clause (`clauseStyleDuProjet`, which also heads `ouverture`). When it is stylised or graphic (adventure manga, bright retro manga cel, cartoon, comic book, anime, stylised 3D), the strong actions are drawn **bigger than life**: how **high** a leap goes and how long it **hangs** at the top, how **wide and deep** a crater is, a **shock wave** rippling outward, a body **launched** across the set, **elastic deformation** at impact (squash and stretch, the ground bouncing). Write the **scale and the sequence**, not just the blow: `the monk leaps high above the ring, hangs against the sunset for a heartbeat, then crashes down fist-first into a wide crater, the packed dirt bursting outward in a ring and the ropes whipping`. Compare with things of the set (`higher than the ropes`, `twice his own height`, `a crater as wide as the ring's centre`), and give the effect time: a leap with its apex and fall, or a crater with its shock wave, takes a shot of about 2.5 s or more, or one shot where the camera follows it (rule 2.4); `strikes the ground` is too small for this style. The strong action is the one the intention builds towards (the finisher, the decisive hit), not every gesture. **In a realistic, photographic or documentary style, do not exaggerate**: keep real physics and proportions. If the style is unclear, stay physical.
 16. **Solid limits stop things.** The set's solid limits (ropes, walls, posts, railings, a window, the edge of a platform, a closed door) are **obstacles**. A character thrown or pushed, an object hurled, a fast run or slide that reaches one: it **hits and stops**, and the sentence says how it reacts (`slams against the ropes, which stretch taut and fling her back`, `bounces off the stone wall and slides down it`, `the dagger thunks into the post`). Never write that it `passes through`, `crosses`, `flies past` or `exits` a limit, unless the intention says the limit breaks (then show it breaking first: the ropes snap, the planks splinter). Know where the limits are before you place a projection: they come from the set description, the `ouverture`, the previous end state and the landmarks (a ring has ropes on every side; a courtyard has walls). A body sent « toward the edge » ends **against** it. Each launched body or object ends **somewhere visible** (rule 5.9), and the limit stays solid for every camera, including a high-angle shot over the ropes.
 
@@ -171,7 +170,7 @@ The assembled prompt (definitions, summary, retention, shots, sound, music) stay
 - The assembled prompt stays under 7,000 characters; each blow is described concretely (who, which limb or weapon, what it touches, what moves).
 - Never copy the sheet instructions of an asset's generation prompt into a `definition` ("4 views", "neutral pose", "plain background", "detailed close-up"): they describe the reference image, not the plan.
 - Each `definition` reads "visible traits from the registry, then a static state" (`in her deep-red costume, ruby eyes, breathless`): the action verbs (`lunging`, `advancing`, `running`) go in the shots.
-- `nature: "son"` only for a sound effect (`SFX_…`); a voice is not a reference.
+- `nature` is always `"image"`; a voice is not a reference.
 - Every behaviour is phrased as the wanted state; precision vocabulary only on a character who stays still.
 - English body, dialogues in their own language; French only in `titre`, `role`, `description`, `raison`, `notes`.
 - `dureeSecondes` is an integer from **5** to 10 and **repeats `plan.dureeVoulueSecondes`** (the duration set by the screenplay, which sizes the whole episode). Change it only when the dialogue needs more room (lines plus a 2 s margin), the author's instruction asks for it, or the shots cannot fit; then say why in `notes`. Never shorten it to match the number of shots.

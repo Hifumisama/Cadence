@@ -101,7 +101,7 @@ test("sortie du skill : codes rapprochés, sons écartés, manquants plafonnés 
 
 // --- 3-4. prompts et images ----------------------------------------------------------------------------------------------------------------
 
-const asset = (code: string, o: Partial<EtatImageAsset> = {}): EtatImageAsset => ({ code, nom: code, aFichier: false, aPrompt: true, enFile: false, echec: null, nonGenerable: null, ...o });
+const asset = (code: string, o: Partial<EtatImageAsset> = {}): EtatImageAsset => ({ code, nom: code, aFichier: false, aPrompt: true, enFile: false, echec: null, ...o });
 
 test("images : prêt quand tout a son fichier ; sinon prompts d'abord, puis lancement et attente ; un échec nomme l'asset", () => {
   assert.deepEqual(deciderImages([asset("A", { aFichier: true })]), { action: "pret", total: 1 });
@@ -112,7 +112,6 @@ test("images : prêt quand tout a son fichier ; sinon prompts d'abord, puis lanc
   assert.match((e as { erreur: string }).erreur, /« Valise » a échoué : ComfyUI injoignable/);
   // Une génération en échec mais relancée (en file) n'arrête rien.
   assert.equal(deciderImages([asset("B", { echec: "x", enFile: true })]).action, "attendre");
-  assert.equal(deciderImages([asset("S", { nonGenerable: "un son" })]).action, "echec");
 });
 
 // --- itération : les manquants décidés -------------------------------------------------------------------------------------------------------

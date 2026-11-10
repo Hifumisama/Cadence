@@ -56,8 +56,8 @@ export function depuisCompilationH3ir(
       ajouter("alerte_controle", `${lien.code} est une vidéo de référence : une fiche n'écrit que des images et des voix, elle n'est pas reportée (les vidéos déjà liées au plan restent).`);
       continue;
     }
-    // Un audio est une voix (`voice_timbre`, l'asset est le personnage) ou un bruitage (`sfx`, l'asset est le son).
-    if (m.kind === "audio") refs.push({ type: "audio", slot, asset: lien.code, role: m.role === "sfx" ? "Bruitage" : "Voix du personnage", retention: "reference" });
+    // Un audio est une voix (`voice_timbre`, l'asset est le personnage).
+    if (m.kind === "audio") refs.push({ type: "audio", slot, asset: lien.code, role: "Voix du personnage", retention: "reference" });
     else refs.push({ type: "picture", slot, asset: lien.code, role: m.role ?? null, retention: null });
   }
   refs.sort((a, b) => (a.type === b.type ? a.slot - b.slot : a.type === "picture" ? -1 : 1));

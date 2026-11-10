@@ -14,7 +14,7 @@ const registre = [
   { code: "CHAR_maya", type: "personnage" },
   { code: "CHAR_tenanciere", type: "personnage" },
   { code: "DEC_couloir", type: "decor" },
-  { code: "SFX_porte", type: "sfx" },
+  { code: "VOIX_off", type: "voix" },
   { code: "VFX_energie", type: "vfx" },
   { code: "VOICE_maya", type: "voix" },
   ...Array.from({ length: 7 }, (_, i) => ({ code: `PROP_${i}`, type: "prop" })),
@@ -73,16 +73,14 @@ test("fiche d'un plan vide : six sections assemblées, références picture 1..n
   assert.ok(!(f.avertissements ?? []).some((x) => x.type === "bloque_controle"));
 });
 
-test("les voix gardent leurs slots : le bruitage prend le premier slot audio libre, jamais une ligne de voix", () => {
+test("les voix se lisent dans le prompt : un slot audio par personnage qui parle et a une voix fixée", () => {
   const sortie: SortiePlanH3 = {
     ...base,
-    references: [...base.references, { asset: "SFX_porte", nature: "son", role: "Porte", nom: "a door slam", definition: "one hard impact" }],
-    overall_soundscape: "Wind, then [[SFX_porte]].",
     shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] (S1) in [[DEC_couloir]] says <d>[Français] Vite.</d> [[CHAR_tenanciere]] (S2) answers <d>[Français] Trop tard.</d>" }],
   };
   const a = apresDe(depuisFichePlan(sortie, plan({ codesAvecMaster: ["CHAR_maya", "CHAR_tenanciere"] })));
-  // Les voix se lisent dans le prompt : une référence audio vers CHAR_maya (slot 1) puis CHAR_tenanciere (slot 2), avant le bruitage.
-  assert.deepEqual(a.refs?.filter((r) => r.type === "audio").map((r) => [r.slot, r.asset]), [[3, "SFX_porte"], [1, "CHAR_maya"], [2, "CHAR_tenanciere"]]);
+  // Les voix se lisent dans le prompt : une référence audio vers CHAR_maya (slot 1) puis CHAR_tenanciere (slot 2), 
+  assert.deepEqual(a.refs?.filter((r) => r.type === "audio").map((r) => [r.slot, r.asset]), [[1, "CHAR_maya"], [2, "CHAR_tenanciere"]]);
   assert.equal(a.voixDuPrompt, true);
 });
 
@@ -90,21 +88,6 @@ test("une parole dont le locuteur n'a pas de voix fixée ne crée aucune référ
   const sortie: SortiePlanH3 = { ...base, shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] (S1) in [[DEC_couloir]] says <d>[Français] Vite.</d>" }] };
   const a = apresDe(depuisFichePlan(sortie, plan({ codesAvecMaster: ["CHAR_tenanciere"] })));
   assert.equal(a.refs?.filter((r) => r.type === "audio").length, 0);
-});
-
-test("sons sans slot libre (3 voix) : le son est décrit en prose, aucune référence audio de bruitage, alerte", () => {
-  const trois = registre.concat([{ code: "CHAR_garde", type: "personnage" }]);
-  const sortie: SortiePlanH3 = {
-    ...base,
-    references: [...base.references, { asset: "SFX_porte", nature: "son", role: "Porte", nom: "a door slam", definition: "" }],
-    overall_soundscape: "Then [[SFX_porte]].",
-    shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] (S1) says <d>[Français] Un.</d> [[CHAR_tenanciere]] (S2) says <d>[Français] Deux.</d> [[CHAR_garde]] (S3) says <d>[Français] Trois.</d> in [[DEC_couloir]]" }],
-  };
-  const b = depuisFichePlan(sortie, plan({ registre: trois, codesAvecMaster: ["CHAR_maya", "CHAR_tenanciere", "CHAR_garde"] }));
-  const a = apresDe(b);
-  assert.equal(a.refs?.filter((r) => r.type === "audio" && r.asset === "SFX_porte").length, 0);
-  assert.equal(a.sections!.overall_soundscape, "Then a door slam.");
-  assert.ok((fiche(b).avertissements ?? []).some((x) => x.type === "alerte_controle" && /slot audio/.test(x.texte)));
 });
 
 test("7 images : 6 références posées, la 7e en prose, avec une alerte", () => {
@@ -121,7 +104,7 @@ test("7 images : 6 références posées, la 7e en prose, avec une alerte", () =>
 test("une référence hors registre (ou une voix) est retirée et décrite en prose par son nom", () => {
   const sortie: SortiePlanH3 = {
     ...base,
-    references: [...base.references, { asset: "PROP_inconnu", nature: "image", role: "Lettre", nom: "a sealed letter", definition: "" }, { asset: "VOICE_maya", nature: "son", role: "voix", nom: "Maya's voice", definition: "" }],
+    references: [...base.references, { asset: "PROP_inconnu", nature: "image", role: "Lettre", nom: "a sealed letter", definition: "" }, { asset: "VOICE_maya", nature: "image", role: "voix", nom: "Maya's voice", definition: "" }],
     shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] holds [[PROP_inconnu]] in [[DEC_couloir]]." }],
   };
   const b = depuisFichePlan(sortie, plan());
@@ -191,8 +174,6 @@ test("shot sous 1,5 s : la fiche passe, avec une alerte (pas un blocage)", () =>
 test("après écriture : cohérence des refs, structure et dialogues s'allument correctement", () => {
   const sortie: SortiePlanH3 = {
     ...base,
-    references: [...base.references, { asset: "SFX_porte", nature: "son", role: "Porte", nom: "a door slam", definition: "" }],
-    overall_soundscape: "Wind, then [[SFX_porte]].",
     shots: [
       { debutSecondes: 0, texte: "A wide shot of [[CHAR_maya]] in [[DEC_couloir]]. [[CHAR_maya]] (S1) whispers: <d>[Français] Pas un bruit.</d>" },
       { debutSecondes: 4, texte: "a close-up of [[CHAR_maya]]." },
@@ -207,8 +188,7 @@ test("après écriture : cohérence des refs, structure et dialogues s'allument 
   // Locuteur AVEC master : la page déclare <Audio 1> pour la voix comme ref DÉRIVÉE, que le prompt (comme les
   // fiches validées) ne cite pas : plus d'alerte « référence non citée » (point ouvert tranché le 2026-10-02).
   assert.deepEqual(verifierCoherenceRefs(sections, refs, [{ type: "audio", slot: 1 }]), { labelsOrphelins: [], refsNonCitees: [] });
-  // Le slot du bruitage n'est pas celui de la voix.
-  assert.deepEqual(a.refs!.filter((r) => r.type === "audio").map((r) => [r.slot, r.asset]), [[2, "SFX_porte"], [1, "CHAR_maya"]]);
+  assert.deepEqual(a.refs!.filter((r) => r.type === "audio").map((r) => [r.slot, r.asset]), [[1, "CHAR_maya"]]);
 });
 
 test("après écriture : un shot court reste signalé par les contrôles de structure de la page", () => {
@@ -235,10 +215,10 @@ test("verifierFiche : refus clairs (rien à écrire, durée, slots, voix, assets
   const sept = Array.from({ length: 7 }, (_, i) => ({ type: "picture" as const, slot: i + 1, asset: `PROP_${i}` }));
   assert.match(verifierFiche({ refs: sept }, etatVide()) ?? "", /6 au plus/);
   assert.match(verifierFiche({ refs: [{ type: "picture", slot: 7, asset: "PROP_0" }] }, etatVide()) ?? "", /Slot 7/);
-  assert.match(verifierFiche({ refs: [1, 2, 3, 4].map((slot) => ({ type: "audio" as const, slot, asset: "SFX_porte" })) }, etatVide()) ?? "", /3 au plus/);
+  assert.match(verifierFiche({ refs: [1, 2, 3, 4].map((slot) => ({ type: "audio" as const, slot, asset: "CHAR_maya" })) }, etatVide()) ?? "", /3 au plus/);
   assert.match(verifierFiche({ refs: [{ type: "picture", slot: 1, asset: "PROP_x" }] }, etatVide()) ?? "", /n'existe pas/);
-  assert.match(verifierFiche({ refs: [{ type: "picture", slot: 1, asset: "SFX_porte" }] }, etatVide()) ?? "", /pas d'image/);
-  assert.match(verifierFiche({ refs: [{ type: "audio", slot: 2, asset: "CHAR_maya" }] }, etatVide()) ?? "", /pas un bruitage/);
+  assert.match(verifierFiche({ refs: [{ type: "picture", slot: 1, asset: "VOIX_off" }] }, etatVide()) ?? "", /pas d'image/);
+  assert.match(verifierFiche({ refs: [{ type: "audio", slot: 2, asset: "CHAR_maya" }] }, etatVide()) ?? "", /pas un personnage avec une voix/);
   assert.match(verifierFiche({ sections: { autre: "x" } as never }, etatVide()) ?? "", /Section de prompt inconnue/);
   assert.match(
     verifierFiche({ refs: [{ type: "picture", slot: 1, asset: "CHAR_maya" }, { type: "picture", slot: 1, asset: "DEC_couloir" }] }, etatVide()) ?? "",

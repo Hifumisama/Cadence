@@ -14,7 +14,6 @@ const TYPES: Record<TypeAsset, { icone: NomIcone; indice: string; exemple: strin
   decor: { icone: "decor", indice: "Un lieu, une ambiance", exemple: "Le phare de sel" },
   prop: { icone: "prop", indice: "Un objet que l'on voit à l'écran", exemple: "La clef de bronze" },
   vfx: { icone: "effet", indice: "Feu, fumée, magie, lumière", exemple: "Éclairs rouges" },
-  sfx: { icone: "son", indice: "Un bruitage, une ambiance sonore", exemple: "Pas sur le gravier" },
   keyframe: { icone: "keyframe", indice: "Une image clé, un cadrage précis", exemple: "Plan d'ouverture" },
   oth: { icone: "autre", indice: "Tout ce qui ne rentre pas ailleurs", exemple: "Affiche du festival" },
 };

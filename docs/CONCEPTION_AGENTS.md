@@ -266,7 +266,7 @@ l'aveugle (F03).
   `options.variante` d'une tâche `agent_runs`, ou `--variante` aux scripts), seuls
   les guides sans déclaration et ceux qui la nomment sont chargés ; sans variante,
   tout est chargé. Pour `prompt-asset`, `variantePromptAsset(asset)`
-  (`lib/llm/variantes.ts`) donne `sfx`, `generation` (Krea 2), `edition` (Qwen) ou
+  (`lib/llm/variantes.ts`) donne `generation` (Krea 2), `edition` (Qwen) ou
   `image` (les deux, quand la méthode reste à recommander) : le prompt passe de
   ≈ 7 100 à ≈ 3 700-5 000 jetons estimés, ce qui compte pour un modèle local.
 - **VRAM partagée — construit (chantier 2)** : le serveur LLM local et ComfyUI

@@ -51,7 +51,7 @@ non_diegetic_music:
 A single low, sustained cello note begins to hold unresolved beneath the threat, barely swelling.`;
 
 test("référence : le brouillon de l'exemple dialogue redonne exactement le prompt validé", () => {
-  const r = assemblerPlanH3(dialogue, { slotsAudioPris: [1] });
+  const r = assemblerPlanH3(dialogue, { });
   assert.equal(r.texte, ATTENDU_DIALOGUE);
   assert.deepEqual(r.problemes, []);
   assert.deepEqual(r.refs.map((x) => [x.asset, x.slot, x.label]), [["CHAR_tenanciere", 1, "<Subject 1>"], ["CHAR_maya", 2, "<Subject 2>"], ["DEC_couloir_bois", 3, "<Subject 3>"]]);
@@ -79,7 +79,7 @@ const multi: SortiePlanH3 = {
 };
 
 test("shots : numéros, timecodes et « Hard cut to » posés par le code ; ce que le modèle écrit en double est retiré", () => {
-  const r = assemblerPlanH3(multi, { slotsAudioPris: [] });
+  const r = assemblerPlanH3(multi, { });
   const d = r.sections.detailed_description;
   assert.match(d, /\[Shot 1\] A wide shot of <Subject 1> in <Subject 2>\./);
   assert.match(d, /\[Shot 2\] At 00:03\.000, Hard cut to a low-angle shot of her feet\./);
@@ -88,47 +88,23 @@ test("shots : numéros, timecodes et « Hard cut to » posés par le code ; ce q
 });
 
 test("summary : le préfixe écrit par le modèle est remplacé ; définition vide et point final", () => {
-  const r = assemblerPlanH3(multi, { slotsAudioPris: [] });
+  const r = assemblerPlanH3(multi, { });
   assert.equal(r.sections.summary, "[reference generation] <Subject 1> runs through <Subject 2>.");
   assert.equal(r.sections.subject_definitions, "<Subject 1> is Maya from <Picture 1>, running.\n<Subject 2> is the corridor from <Picture 2>.");
 });
 
 test("retention : « appears in » calculé par shot ; note par défaut", () => {
-  const r = assemblerPlanH3(multi, { slotsAudioPris: [] });
+  const r = assemblerPlanH3(multi, { });
   assert.equal(
     r.sections.retention_analysis,
     "<Subject 1> (appears in [Shot 1], [Shot 3]): fully_preserved - the appearance of Maya is retained.\n<Subject 2> (appears in [Shot 1]): fully_preserved - the appearance of the corridor is retained.",
   );
 });
 
-const avecSon: SortiePlanH3 = {
-  ...multi,
-  references: [...multi.references, { asset: "SFX_porte", nature: "son", role: "Porte qui claque", nom: "a heavy door slam", definition: "a single hard impact" }],
-  overall_soundscape: "overall_soundscape: Wind, then [[SFX_porte]] at the end.",
-};
-
-test("son : <Audio k> sur un slot que les voix n'occupent pas, préfixe « + audio reference », ligne de rétention", () => {
-  const r = assemblerPlanH3(avecSon, { slotsAudioPris: [1] });
-  assert.equal(r.refs[2]!.label, "<Audio 2>");
-  assert.match(r.sections.subject_definitions, /<Audio 2> is a heavy door slam, a single hard impact\.$/);
-  assert.match(r.sections.summary, /^\[reference generation \+ audio reference\]/);
-  assert.match(r.sections.retention_analysis, /<Audio 2>: reference - the character of a heavy door slam is referenced without copying the signal\.$/);
-  assert.equal(r.sections.overall_soundscape, "Wind, then <Audio 2> at the end.");
-});
-
-test("dégradation : plus de slot audio libre → le son est décrit en prose, avec une alerte", () => {
-  const r = assemblerPlanH3(avecSon, { slotsAudioPris: [1, 2, 3] });
-  assert.equal(r.refs[2]!.label, null);
-  assert.equal(r.sections.overall_soundscape, "Wind, then a heavy door slam at the end.");
-  assert.doesNotMatch(r.sections.subject_definitions, /Audio/);
-  assert.match(r.sections.summary, /^\[reference generation\] /);
-  assert.ok(r.problemes.some((p) => p.regle === "degradation"));
-});
-
 test("marqueurs : espaces tolérés, [CODE] simple accepté pour un code connu, code inconnu signalé", () => {
   const r = assemblerPlanH3(
     { ...multi, shots: [{ debutSecondes: 0, texte: "[[ CHAR_maya ]] and [DEC_couloir_bois] and [[PROP_x]]." }, ...multi.shots.slice(1)] },
-    { slotsAudioPris: [] },
+    { },
   );
   assert.match(r.sections.detailed_description, /\[Shot 1\] <Subject 1> and <Subject 2> and \[\[PROP_x\]\]\./);
   assert.ok(r.problemes.some((p) => p.regle === "placeholder" && p.niveau === "erreur" && p.message.includes("PROP_x")));
@@ -138,7 +114,7 @@ test("plus de 6 images : les suivantes sont décrites en prose, avec une alerte"
   const refs = Array.from({ length: 7 }, (_, i) => ({ asset: `PROP_${i}`, nature: "image" as const, role: "r", nom: `item ${i}`, definition: "" }));
   const r = assemblerPlanH3(
     { ...multi, references: refs, summary: "[[PROP_6]]", shots: [{ debutSecondes: 0, texte: "[[PROP_0]] and [[PROP_6]]." }] },
-    { slotsAudioPris: [] },
+    { },
   );
   assert.equal(r.refs.filter((x) => x.label).length, 6);
   assert.match(r.sections.detailed_description, /<Subject 1> and item 6\./);
@@ -146,12 +122,12 @@ test("plus de 6 images : les suivantes sont décrites en prose, avec une alerte"
 });
 
 test("un label écrit à la main qui ne correspond à rien remonte en alerte", () => {
-  const r = assemblerPlanH3({ ...multi, summary: "[[CHAR_maya]] and <Subject 5>" }, { slotsAudioPris: [] });
+  const r = assemblerPlanH3({ ...multi, summary: "[[CHAR_maya]] and <Subject 5>" }, { });
   assert.ok(r.problemes.some((p) => p.regle === "label-residuel" && p.message.includes("<Subject 5>")));
 });
 
 test("coupe écrite par le modèle : retirée quand elle se retire proprement, article mis en minuscule", () => {
-  const avec = (texte: string) => assemblerPlanH3({ ...multi, shots: [multi.shots[0]!, { debutSecondes: 3, texte }] }, { slotsAudioPris: [] }).sections.detailed_description;
+  const avec = (texte: string) => assemblerPlanH3({ ...multi, shots: [multi.shots[0]!, { debutSecondes: 3, texte }] }, { }).sections.detailed_description;
   assert.match(avec("a sudden cut to an extreme close-up of her feet."), /\[Shot 2\] At 00:03\.000, Hard cut to an extreme close-up of her feet\./);
   assert.match(avec("A hard cut to a wide shot."), /Hard cut to a wide shot\./);
   assert.match(avec("The shot cuts to a close-up."), /Hard cut to a close-up\./);
@@ -162,7 +138,7 @@ test("coupe écrite par le modèle : retirée quand elle se retire proprement, a
 test("rétention sans note : la note par défaut suit le niveau choisi", () => {
   const r = assemblerPlanH3(
     { ...multi, references: [{ ...multi.references[0]!, retention: "partially_preserved" }, { ...multi.references[1]!, retention: "weak_reference" }] },
-    { slotsAudioPris: [] },
+    { },
   );
   assert.match(r.sections.retention_analysis, /partially_preserved - Maya is used with some of its traits changed in this shot\./);
   assert.match(r.sections.retention_analysis, /weak_reference - only a general resemblance to the corridor is kept\./);
@@ -170,7 +146,7 @@ test("rétention sans note : la note par défaut suit le niveau choisi", () => {
 
 test("les voix du plan : ligne de définition et de rétention <Audio N>, préfixe « audio reference »", () => {
   const texte = "Demain, au lever du soleil, si l'or n'est pas sur mon bureau, je ne perdrai plus mon temps avec tes danses.";
-  const r = assemblerPlanH3(dialogue, { slotsAudioPris: [1], voix: [{ slot: 1, texte, locuteurCode: "CHAR_tenanciere" }] });
+  const r = assemblerPlanH3(dialogue, { voix: [{ slot: 1, texte, locuteurCode: "CHAR_tenanciere" }] });
   assert.match(r.sections.subject_definitions, /\n<Audio 1> is the voice-timbre reference for <Subject 1> \(S1\)\.$/);
   assert.match(r.sections.retention_analysis, /\n<Audio 1>: reference - <Subject 1> follows the voice timbre and measured delivery of <Audio 1> without copying the original signal\.$/);
   assert.match(r.sections.summary, /^\[reference generation \+ audio reference\] /);
@@ -179,7 +155,7 @@ test("les voix du plan : ligne de définition et de rétention <Audio N>, préfi
 
 test("une voix dont le locuteur n'est pas une référence : « the speaker (Sx) »", () => {
   const texte = "Demain, au lever du soleil, si l'or n'est pas sur mon bureau, je ne perdrai plus mon temps avec tes danses.";
-  const r = assemblerPlanH3(dialogue, { slotsAudioPris: [1], voix: [{ slot: 1, texte, locuteurCode: null }] });
+  const r = assemblerPlanH3(dialogue, { voix: [{ slot: 1, texte, locuteurCode: null }] });
   assert.match(r.sections.subject_definitions, /<Audio 1> is the voice-timbre reference for the speaker \(S1\)\./);
 });
 
@@ -188,17 +164,17 @@ test("une voix dont le locuteur n'est pas une référence : « the speaker (Sx) 
 const CLAUSE = "A pre-rendered JRPG cutscene look: near-photoreal 3D modelling, dramatic film-grade lighting, luminous subsurface-scattered surfaces and glossy reflective detail with a blockbuster CGI polish.";
 
 test("clause de style : posée en tête de l'ouverture, le style des exemples est retiré", () => {
-  const r = assemblerPlanH3({ ...dialogue, ouverture: "Cinematic anime style, refined linework, the corridor's light sharpened into hard contrast." }, { slotsAudioPris: [1], clauseStyle: CLAUSE });
+  const r = assemblerPlanH3({ ...dialogue, ouverture: "Cinematic anime style, refined linework, the corridor's light sharpened into hard contrast." }, { clauseStyle: CLAUSE });
   assert.ok(r.sections.detailed_description.startsWith(`${CLAUSE} the corridor's light sharpened into hard contrast. [Shot 1]`));
   assert.ok(!/anime/i.test(r.sections.detailed_description));
   assert.ok(r.problemes.some((p) => p.regle === "style"));
 });
 
 test("clause de style : déjà écrite par le modèle, elle n'est pas doublée ; sans clause connue, l'ouverture est intacte", () => {
-  const deja = assemblerPlanH3({ ...dialogue, ouverture: `${CLAUSE} The forest is dark.` }, { slotsAudioPris: [1], clauseStyle: CLAUSE });
+  const deja = assemblerPlanH3({ ...dialogue, ouverture: `${CLAUSE} The forest is dark.` }, { clauseStyle: CLAUSE });
   assert.equal(deja.sections.detailed_description.split("pre-rendered JRPG").length - 1, 1);
   assert.ok(!deja.problemes.some((p) => p.regle === "style"));
-  const sans = assemblerPlanH3(dialogue, { slotsAudioPris: [1] });
+  const sans = assemblerPlanH3(dialogue, { });
   assert.ok(sans.sections.detailed_description.startsWith("Cinematic anime style, refined linework,"));
 });
 
@@ -211,7 +187,7 @@ test("définition : les consignes de feuille d'asset (vues, pose neutre, fond un
       dialogue.references[2]!,
     ],
   };
-  const r = assemblerPlanH3(sale, { slotsAudioPris: [1] });
+  const r = assemblerPlanH3(sale, { });
   const defs = r.sections.subject_definitions;
   assert.ok(defs.includes("<Subject 1> is the Tenancière from <Picture 1>, a young woman in a black robe, holding a wand."), defs);
   assert.ok(!/4 views|plain background|neutral pose|close-up shot of the magical/i.test(defs), defs);

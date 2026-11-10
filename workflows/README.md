@@ -6,7 +6,7 @@ dépendance d'exécution.
 
 - `video-generation/` — génération H3, 1er pass + upscale (F04)
 - `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
-- `audio/` — Stable Audio 3 : bruitages et ambiances (`SFX_Generate_Sounds.json`) ; branché (asset `sfx`), voir plus bas 
+- `audio/` — master de voix (`VID_Create_Voice_Master.json`)
 
 ## Avant de committer un workflow
 
@@ -73,46 +73,6 @@ fabriquer une image à partir d'autres (plusieurs assets combinés). Le modèle 
 Krea 2 charge un autre encodeur (`qwen3vl_4b_fp8_scaled`), donc alterner les deux
 types de tâches recharge des modèles.
 
-## Contrat du workflow audio (`audio/`)
-
-### `SFX_Generate_Sounds.json` — bruitages et ambiances (Stable Audio 3 Medium)
-
-Branché (2026-10-01) : `worker/comfyui/audioMapping.ts` (injection) et
-`worker/images.ts` (tâche, méthode `audio` de `asset_generations`) ; popup
-`GenerationAudioDialog` sur la fiche d'un asset `sfx`. `audioMapping.test.ts` lit ce
-fichier et casse si un des nœuds ci-dessous disparaît après un ré-export. Guide de
-prompts : `agents/skills/prompt-asset/guide-stable-audio-sfx.md`. Ce que le code
-injecte (les valeurs du fichier sont des **valeurs de test**, remplacées à la
-soumission) :
-
-| Donnée | Nœud | Champ | Note |
-|---|---|---|---|
-| Prompt du son | `52:31` (PrimitiveStringMultiline) | `value` | une ou deux phrases en anglais, sans durée ; part tel quel dans le modèle tant que la réécriture est coupée |
-| Durée | `52:36` (PrimitiveFloat) | `value` | secondes, **paramètre séparé du texte** ; alimente `EmptyLatentAudio` (`52:11`, champ `seconds`) |
-| Seed | `52:3` (KSampler) | `seed` | |
-| Réécriture | `52:35` (PrimitiveBoolean) | `value` | **forcé à `false`** à chaque soumission (voir plus bas) |
-| Sortie | `19` (SaveAudioMP3) | `filename_prefix`, `quality` | **MP3** (qualité `V0`), préfixe `audio/cadence_<CODE>` (le sous-dossier `audio/` est conservé) ; résultat vérifié sur un vrai run : `/history` → `outputs["19"].audio = [{filename, subfolder: "audio", type: "output"}]` |
-
-Fixe, à ne pas toucher : checkpoint `stable_audio_3_medium` (`52:25`), encodeur
-`t5gemma_b_b_ul2` (`52:26`), 8 étapes, CFG 1, `lcm` / `simple` (`52:3`), négatif
-vide (`52:7`) : à CFG 1 il est sans effet.
-
-**Réécriture de prompt (ignorée).** `52:35` (« Enable_Reprompt », PrimitiveBoolean
-`value`) est à `false` : le commutateur `52:34` passe le texte de `52:31`
-directement à l'encodeur. À `true`, un petit LLM Qwen (`52:28` TextGenerate,
-`52:29` CLIP `qwen3.5_2b_bf16`) réécrit l'idée d'après un gabarit par catégorie
-(`52:49` JsonExtractString, `52:43` CustomCombo Music / Instrument / SFX /
-One-shot ; `52:38` à `52:40` assemblent le gabarit avec le texte et la durée).
-Cette branche reste coupée : c'est l'agent `prompt-asset` qui tient ce rôle, de
-façon reproductible (comme pour `prompt_enhance` de Krea 2). `52:41` / `52:42`
-(`ComfyMathExpression`, `PreviewAny`) ne servent qu'à cette branche et à
-l'aperçu de la durée.
-
-**Pas encore tranché :** ajouter ou non `TrackType: SFX, ` en tête du texte à la
-soumission (recommandé par la doc de Stability, absent du gabarit du workflow,
-non testé sur ce graphe), et le rôle d'une mention « Length: X seconds » dans un
-prompt brut. Voir le guide.
-
 ## Contrat du workflow vidéo (`video-generation/`)
 
 ### `VID_REF2VA.json` — MiniMax H3 référence vers vidéo avec audio
@@ -128,7 +88,7 @@ change après un ré-export. Les valeurs du fichier sont des **valeurs de test**
 | Résolution | `22:9` (ResolutionSelector, 16:9, multiple de 32) | `megapixels` | **0,2 / 0,3 / 0,4** (`lib/resolution-video.ts`), le réglage du plan copié sur le rendu. À 0,2 MP : aperçu ou final avec upscale (nœuds 243 à 135:26, ×2 par côté). Au-delà : rendu final natif, sans upscale, avec la même interpolation (le nœud 165 lit la sortie de la première passe `176`). |
 | Seeds | `16`, `103` (easy seed) : `seed` ; `135:27` (RandomNoise) : `noise_seed` | | la seed du plan, si elle existe |
 | Images de référence | `5` : `ref_images.ref_image_<slot-1>` | | **6 au plus** (images + vidéos) ; le nœud en accepte 9 |
-| Audios de référence | `5` : `ref_audios.ref_audio_<slot-1>` | | **3 au plus** ; prises des répliques liées d'abord, bruitages sur les emplacements libres |
+| Audios de référence | `5` : `ref_audios.ref_audio_<slot-1>` | | **3 au plus** ; la voix des personnages qui parlent |
 | Vidéos de référence | `5` : `ref_videos.ref_video_<slot-1>` | | 3 au plus ; sortie 0 (images) seulement |
 | Upscale | `34` (VHS_VideoCombine) | `images`, `audio` | oui : `165` / `261` (RIFE) ; non : `176` / `177` et `frame_rate` = 24 |
 | Sortie | `34` | `filename_prefix` | |

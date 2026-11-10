@@ -21,7 +21,6 @@ export type SortiePromptAsset = {
   raisonMethode: string;
   sources?: string[];
   promptGeneration: string;
-  dureeSecondes?: number;
   remarques: { type: string; message: string }[];
 };
 
@@ -30,8 +29,6 @@ export type AssetCourant = {
   code: string;
   type: string;
   methodeGeneration: string | null;
-  /** Une méthode d'image n'a pas de sens pour un son. */
-  methodeApplicable: boolean;
 };
 
 const TYPES_REMARQUE_SOUCIS = new Set(["voix-ou-musique", "description-vague", "incoherence-famille", "dependance-parent", "absence-ou-point-de-vue"]);
@@ -40,14 +37,13 @@ export function avertissementsRemarques(remarques: { type: string; message: stri
   return remarques.map((r) => ({ type: "info" as const, texte: TYPES_REMARQUE_SOUCIS.has(r.type) ? `${r.type} : ${r.message}` : r.message }));
 }
 
-/** Un asset à modifier : son prompt (et, si l'agent la recommande autrement, sa méthode ; pour
- * un son, sa durée). La description canonique n'est jamais réécrite par ce skill. */
+/** Un asset à modifier : son prompt (et, si l'agent la recommande autrement, sa méthode).
+ * La description canonique n'est jamais réécrite par ce skill. */
 export function depuisPromptAsset(sortie: SortiePromptAsset, asset: AssetCourant): ChangementBrut[] {
   const apres: Record<string, unknown> = { promptGeneration: sortie.promptGeneration };
-  if (asset.methodeApplicable && sortie.methode !== (asset.methodeGeneration ?? "generation")) apres.methodeGeneration = sortie.methode;
-  if (asset.type === "sfx" && typeof sortie.dureeSecondes === "number") apres.dureeSecondes = sortie.dureeSecondes;
+  if (sortie.methode !== (asset.methodeGeneration ?? "generation")) apres.methodeGeneration = sortie.methode;
   const avertissements = avertissementsRemarques(sortie.remarques ?? []);
-  if (asset.methodeApplicable && apres.methodeGeneration) {
+  if (apres.methodeGeneration) {
     avertissements.unshift({ type: "info", texte: `Méthode recommandée : ${sortie.methode}. ${sortie.raisonMethode}` });
   }
   return [
@@ -609,12 +605,12 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   const sortie: SortiePlanH3 = { ...sortieCorrigee, shots: shotsFinaux };
   const typeDe = new Map(plan.registre.map((a) => [a.code, a.type]));
   // Un asset d'IMAGE qui manque et qu'on crée avec ce plan (son code est celui du modèle, déjà conforme) se cite comme une référence : la
-  // fiche le référence, son image viendra après (le contrôle de la page dit « pas encore d'image »). Un son manquant, un code reconstruit ou
+  // fiche le référence, son image viendra après (le contrôle de la page dit « pas encore d'image »). Un code reconstruit ou
   // un asset déjà proposé par un autre plan du lot restent décrits en prose.
   const aCreer = new Map<string, string>();
   for (const m of sortie.assetsManquants ?? []) {
     const suffixe = TYPES_MANQUANTS.has(m.type) ? suffixeDeCode(m.code) : "";
-    if (!suffixe || m.type === "sfx" || construireCode(m.type, suffixe) !== m.code) continue;
+    if (!suffixe || construireCode(m.type, suffixe) !== m.code) continue;
     if (typeDe.has(m.code) || options.codesDejaProposes?.has(m.code)) continue;
     aCreer.set(m.code, m.type);
   }
@@ -649,12 +645,11 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
     const type = typeDe.get(r.asset) ?? aCreer.get(r.asset);
     let raison: string | null = null;
     if (type == null) raison = `${r.asset} n'est pas au registre`;
-    else if (r.nature === "son" && type !== "sfx") raison = `${r.asset} (${type}) n'est pas un bruitage`;
-    else if (r.nature === "image" && type === "sfx") raison = `${r.asset} est un bruitage, sans image`;
+    else if (type === "voix") raison = `${r.asset} est une voix, sans image`;
     if (raison) {
       ajouter({ type: "alerte_controle", texte: `${raison} : la référence est retirée et décrite en prose (« ${r.nom} »).` });
       enProse(r.asset, r.nom);
-    } else if (type === "vfx" && r.nature === "image" && (r.retention == null || r.retention === "fully_preserved")) {
+    } else if (type === "vfx" && (r.retention == null || r.retention === "fully_preserved")) {
       // Un effet est un matériau, pas un sujet : « conservé tel quel », H3 le montre comme un plan à part (guide H3,
       // retention_analysis). Le code pose le niveau léger ; le modèle peut choisir attribute_transfer.
       gardees.push({
@@ -681,20 +676,20 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   const nettoyee: SortiePlanH3 = { ...sortie, ...textes, references: referencesFinales };
 
   // 2. assemblage (labels, timecodes, sections) avec les slots des voix
-  // Les voix se lisent dans le prompt : un `<Audio N>` par personnage qui parle et a une voix fixée, posé AVANT les bruitages.
+  // Les voix se lisent dans le prompt : un `<Audio N>` par personnage qui parle et a une voix fixée, 
   const voix = voixDuPrompt(sortie.shots ?? [], new Set(plan.codesAvecMaster));
-  const assemble = assemblerPlanH3(nettoyee, { slotsAudioPris: voix.map((v) => v.slot), voix, clauseStyle: plan.clauseStyle });
+  const assemble = assemblerPlanH3(nettoyee, { voix, clauseStyle: plan.clauseStyle });
   const refs: RefFiche[] = [
     ...assemble.refs
       .filter((r) => r.slot != null)
       .map((r) => {
         const ref = gardees.find((g) => g.asset === r.asset);
         return {
-          type: r.nature === "image" ? ("picture" as const) : ("audio" as const),
+          type: "picture" as const,
           slot: r.slot!,
           asset: r.asset,
           role: ref?.role ?? null,
-          retention: r.nature === "son" ? r.retention : null,
+          retention: null,
         };
       }),
     // La voix d'un personnage : une référence audio dont l'asset est le PERSONNAGE (le worker lit son master).
@@ -705,7 +700,6 @@ export function depuisFichePlan(sortieBrute: SortiePlanH3, plan: PlanPourFicheH3
   const problemes = [
     ...controlerSortiePlanH3(sortie, {
       registre: plan.registre,
-      slotsAudioPris: voix.map((v) => v.slot),
       corpusExemples: options.corpusExemples,
     }),
     ...assemble.problemes,

@@ -22,8 +22,8 @@
         "additionalProperties": false,
         "required": ["asset", "nature", "role", "nom", "definition"],
         "properties": {
-          "asset": { "type": "string", "description": "Code of an existing registry asset (CHAR_maya, DEC_couloir_bois, SFX_porte…). Never an invented code, except a missing IMAGE asset that is also declared in `assetsManquants` with this exact same code." },
-          "nature": { "type": "string", "enum": ["image", "son"], "description": "image: the asset is cited by its image (character, set, prop, effect). son: sound effect (SFX_… code) cited as an audio reference." },
+          "asset": { "type": "string", "description": "Code of an existing registry asset (CHAR_maya, DEC_couloir_bois…). Never an invented code, except a missing IMAGE asset that is also declared in `assetsManquants` with this exact same code." },
+          "nature": { "type": "string", "enum": ["image"], "description": "image: the asset is cited by its image (character, set, prop, effect)." },
           "role": { "type": "string", "description": "(French) Role in the plan, for the sheet (« Décor, couloir bleu nuit »)." },
           "nom": { "type": "string", "description": "(English) How the sheet names the asset, no mandatory definite article: « Maya », « the Tenancière », « the narrow wooden corridor »." },
           "definition": { "type": "string", "description": "(English) The visible traits to follow (registry description: clothes, colours, materials, marks) then a static state in THIS plan (no action verb: the action goes in the shots), without « is » and without a label: « in her deep-red dancer's costume with a gilded corset, ruby eyes, breathless and dishevelled »." },
@@ -49,7 +49,7 @@
         }
       }
     },
-    "overall_soundscape": { "type": "string", "description": "(English) The background sound over the whole video (ambience, distant noises, crowd), without the heading « overall_soundscape: ». Sounds tied to an action are written in the shot text. May cite a sound effect as [[SFX_…]]." },
+    "overall_soundscape": { "type": "string", "description": "(English) The background sound over the whole video (ambience, distant noises, crowd), without the heading « overall_soundscape: ». Sounds tied to an action are written in the shot text." },
     "non_diegetic_music": { "type": "string", "description": "(English) The music only the audience hears, by instrumentation, tempo and dynamics, without the heading « non_diegetic_music: ». Exactly « N/A » when there is none." },
     "assetsManquants": {
       "type": "array",
@@ -60,7 +60,7 @@
         "required": ["code", "type", "parent", "description", "raison"],
         "properties": {
           "code": { "type": "string", "description": "Proposed code, prefixed by the type (PROP_lettre, DEC_ruelle_nuit)." },
-          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "sfx", "keyframe", "oth"] },
+          "type": { "type": "string", "enum": ["personnage", "decor", "prop", "vfx", "keyframe", "oth"] },
           "parent": { "type": ["string", "null"], "description": "ALWAYS answer: the code of the BASE subject (from the registry) when this missing asset is a STATE of it (the same set with the fire out or at night, the same character wounded or transformed, the same prop broken): same type as that subject. `null` only for an independent asset. A state of a state also points to the base subject. For a `keyframe`, `null` and list the elements to combine in `raison`." },
           "description": { "type": "string", "description": "(French) What it is, as in the registry." },
           "raison": { "type": "string", "description": "(French) Why an existing reference is not enough." }

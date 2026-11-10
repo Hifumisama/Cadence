@@ -25,7 +25,7 @@ import { join, resolve } from "node:path";
  * Quand l'appelant fournit une `variante`, seuls sont chargés les guides SANS
  * déclaration et ceux qui la nomment ; sans `variante`, tous les guides sont chargés.
  * Cela évite d'envoyer au modèle (surtout un petit modèle local) un guide audio pour
- * écrire un prompt d'image. Exemple prompt-asset : `sfx`, `generation` (Krea 2),
+ * écrire un prompt d'image. Exemple prompt-asset : `generation` (Krea 2),
  * `edition` (Qwen), `image` (les deux guides d'image : la méthode reste à recommander),
  * `affiche` (l'affiche de présentation : les deux guides d'image aussi). */
 

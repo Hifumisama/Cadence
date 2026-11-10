@@ -37,6 +37,6 @@ One object per shot: `debutSecondes` and `texte`.
 
 ## `overall_soundscape` and `non_diegetic_music`
 
-1. `overall_soundscape`: **one to four sentences**, one paragraph: the background sound over the whole video (ambience, room tone, distant noises, crowd) and non-verbal human sounds. `N/A` only if complete silence is requested. Dialogue, singing and every sound tied to an action (impact, contact, footsteps, an object) stay in the `shots`. A sound reference may be cited here as `[[SFX_…]]`.
+1. `overall_soundscape`: **one to four sentences**, one paragraph: the background sound over the whole video (ambience, room tone, distant noises, crowd) and non-verbal human sounds. `N/A` only if complete silence is requested. Dialogue, singing and every sound tied to an action (impact, contact, footsteps, an object) stay in the `shots`.
 2. `non_diegetic_music`: **one to three sentences**; music only the audience hears, described by instrumentation, tempo and dynamic evolution (a low sustained cello, 60 bpm, rising slowly). `N/A` alone when there is none.
 3. Both fields hold their own content: dialogue stays in the shots, and the field name is not copied into them.

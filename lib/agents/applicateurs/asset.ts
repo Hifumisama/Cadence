@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { assets } from "../../../db/schema";
-import { TYPES_ASSET, construireCode, estMethodeAsset, methodeApplicable, slugifyCode } from "../../assetCode";
+import { TYPES_ASSET, construireCode, estMethodeAsset, slugifyCode } from "../../assetCode";
 import { TYPE_AFFICHE } from "../../affiches";
 import { statutAsset } from "../../asset-etat";
 import { masterDe } from "../../registre-assets";
@@ -13,7 +13,7 @@ import { apres, entierRef, REFUS_SUPPRESSION, texte, type Applicateur, type Db }
  * `apres` (création) = { type, suffixe, description?, promptGeneration?, methodeGeneration?,
  * deriveDeCode? | deriveDeCle?, dureeSecondes? } ; (modification) = les seuls champs changés. */
 
-const CHAMPS_MODIFIABLES = ["description", "promptGeneration", "methodeGeneration", "dureeSecondes"] as const;
+const CHAMPS_MODIFIABLES = ["description", "promptGeneration", "methodeGeneration"] as const;
 
 /** Registre à un niveau : le parent retenu est toujours un master (un dérivé de dérivé se rattache au master). */
 const masterDuParent = (db: Db, id: number) =>
@@ -60,9 +60,6 @@ async function verifierCreation(
     if (!estMethodeAsset(methode)) return { erreur: `Méthode inconnue : « ${methode} ».` };
     if (methode === "edition" && deriveDeId == null && !cleParent) return { erreur: "Une édition exige un parent." };
   }
-  if (type === "sfx" && a.dureeSecondes != null && !(typeof a.dureeSecondes === "number" && a.dureeSecondes >= 1 && a.dureeSecondes <= 60)) {
-    return { erreur: "Durée du son hors limites (1 à 60 s)." };
-  }
   return { code, deriveDeId };
 }
 
@@ -93,7 +90,6 @@ export const applicateurAsset: Applicateur = {
     const garde: Record<string, unknown> = {};
     for (const champ of CHAMPS_MODIFIABLES) {
       if (a[champ] === undefined) continue;
-      if (champ === "methodeGeneration" && !methodeApplicable(courant.type)) continue;
       avant[champ] = courant[champ] ?? null;
       garde[champ] = a[champ];
     }
@@ -130,8 +126,7 @@ export const applicateurAsset: Applicateur = {
         type,
         description: texte(a.description) ?? null,
         promptGeneration: texte(a.promptGeneration) ?? null,
-        methodeGeneration: methodeApplicable(type) ? (methode ?? (v.deriveDeId ? null : "generation")) : null,
-        dureeSecondes: type === "sfx" && typeof a.dureeSecondes === "number" ? a.dureeSecondes : null,
+        methodeGeneration: methode ?? (v.deriveDeId ? null : "generation"),
         deriveDeId: v.deriveDeId,
       }).returning({ id: assets.id });
       // Un dérivé créé par la même proposition s'y rattache par cette clé (`deriveDeCle`).
@@ -142,11 +137,10 @@ export const applicateurAsset: Applicateur = {
     const valeurs: Partial<typeof assets.$inferInsert> = {};
     if (texte(a.description) !== undefined) valeurs.description = texte(a.description);
     if (texte(a.promptGeneration) !== undefined) valeurs.promptGeneration = texte(a.promptGeneration);
-    if (typeof a.dureeSecondes === "number") valeurs.dureeSecondes = a.dureeSecondes;
     const methode = texte(a.methodeGeneration);
     if (methode && estMethodeAsset(methode)) {
       const [courant] = await tx.select().from(assets).where(eq(assets.id, id));
-      if (courant && methodeApplicable(courant.type) && (methode !== "edition" || courant.deriveDeId != null || courant.type === TYPE_AFFICHE)) valeurs.methodeGeneration = methode;
+      if (courant && (methode !== "edition" || courant.deriveDeId != null || courant.type === TYPE_AFFICHE)) valeurs.methodeGeneration = methode;
     }
     if (Object.keys(valeurs).length) await tx.update(assets).set(valeurs).where(eq(assets.id, id));
   },

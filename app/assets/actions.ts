@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
-import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, methodeApplicable, type TypeAsset } from "@/lib/assetCode";
+import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, type TypeAsset } from "@/lib/assetCode";
 
 async function enregistrerFichierAsset(code: string, fichier: File): Promise<string> {
   if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
@@ -37,7 +37,7 @@ export async function creerAssetRapide(
   if (!label || code === (PREFIXE_PAR_TYPE[type as TypeAsset] ?? "")) return { ok: false, erreur: "Donne un nom à l'asset." };
   const [existant] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, code)));
   if (existant) return { ok: false, erreur: `Un asset ${code} existe déjà dans ce projet.` };
-  await db.insert(assets).values({ projectId, code, type, label, methodeGeneration: methodeApplicable(type) ? "generation" : null });
+  await db.insert(assets).values({ projectId, code, type, label, methodeGeneration: "generation" });
   revalidatePath("/", "layout");
   return { ok: true, code };
 }
@@ -156,7 +156,6 @@ export async function modifierChampAsset(
     const methode = champs.methodeGeneration || null;
     if (methode != null) {
       if (!estMethodeAsset(methode)) return { ok: false, erreur: "Méthode inconnue." };
-      if (!methodeApplicable(asset.type)) return { ok: false, erreur: "Un son se génère par la génération audio : pas de méthode d'image." };
     }
     valeurs.methodeGeneration = methode;
   }

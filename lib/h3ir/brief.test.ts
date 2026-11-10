@@ -134,52 +134,6 @@ test("briefDepuisPlan : un effet visuel part en style (référence faible), un p
   );
 });
 
-test("briefDepuisPlan : un bruitage part en sfx après les voix, avec son lien ; sans fichier il est signalé", () => {
-  const description = "La pluie tombe sur Mai.";
-  const { brief, avertissements, liens } = briefDepuisPlan(
-    entree({
-      plan: { description, dureeSecondes: 5, seed: "1" },
-      references: [ref("CHAR_mai", "personnage", 1), ref("SFX_tonnerre", "sfx", 2, null, "audio"), ref("SFX_pluie", "sfx", 1, "/m/pluie.wav", "audio")],
-    }),
-  );
-  assert.ok(brief);
-  assert.deepEqual(
-    brief.assets.map((a) => [a.kind, a.role, a.path]),
-    [
-      ["image", "subject", "/m/CHAR_mai.png"],
-      ["audio", "sfx", "/m/pluie.wav"],
-    ],
-  );
-  assert.equal(brief.assets[1]!.note, "Pluie — desc SFX_pluie");
-  assert.ok(liens.some((l) => l.path === "/m/pluie.wav" && l.code === "SFX_pluie" && l.type === "audio"));
-  assert.ok(avertissements.some((a) => a.includes("Tonnerre") && a.includes("pas encore de fichier")));
-  assert.ok(!avertissements.some((a) => a.includes("Pluie")));
-});
-
-test("briefDepuisPlan : la voix prime, les bruitages prennent les emplacements audio restants (3 au plus)", () => {
-  const voix = (code: string, label: string, n: number): PersonnageEntree => ({ code, label, voix: { chemin: `/m/voix/${n}.wav`, sha256: String(n).repeat(64), description: null, repliqueBase: null } });
-  const A = voix("CHAR_a", "Ana", 1);
-  const B = voix("CHAR_b", "Bob", 2);
-  const description = "Ana et Bob parlent sous l'orage.\nAna : « Viens. »\nBob : « J'arrive. »";
-  const { brief, avertissements } = briefDepuisPlan(
-    entree({
-      plan: { description, dureeSecondes: 8, seed: "1" },
-      personnages: [A, B],
-      references: [ref("CHAR_a", "personnage", 1), ref("CHAR_b", "personnage", 2), ref("SFX_orage", "sfx", 1, "/m/orage.wav", "audio"), ref("SFX_vent", "sfx", 2, "/m/vent.wav", "audio")],
-    }),
-  );
-  assert.ok(brief);
-  assert.deepEqual(
-    brief.assets.filter((a) => a.kind === "audio").map((a) => [a.role, a.path]),
-    [
-      ["voice_timbre", "/m/voix/1.wav"],
-      ["voice_timbre", "/m/voix/2.wav"],
-      ["sfx", "/m/orage.wav"],
-    ],
-  );
-  assert.ok(avertissements.some((a) => a.includes("Vent") && a.includes("emplacements audio sont pris")));
-});
-
 test("briefDepuisPlan : shots et style de caméra sont facultatifs, bornés et contrôlés", () => {
   assert.equal("shots" in briefDepuisPlan(entree()).brief!, false);
   assert.equal("director" in briefDepuisPlan(entree()).brief!, false);

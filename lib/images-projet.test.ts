@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { AssetPourLot } from "./generation-lot";
-import { estAIllustrer, etapesSuivantes, etatImages, idsSansImage, libelleGenererImages, phraseCompteImages, prochaineEtape } from "./images-projet";
+import { etapesSuivantes, etatImages, idsSansImage, libelleGenererImages, phraseCompteImages, prochaineEtape } from "./images-projet";
 
 const a = (id: number, code: string, over: Partial<AssetPourLot> = {}): AssetPourLot => ({
   id,
@@ -14,20 +14,15 @@ const a = (id: number, code: string, over: Partial<AssetPourLot> = {}): AssetPou
   ...over,
 });
 
-test("estAIllustrer : les sons sont hors compte, le reste compte", () => {
-  for (const t of ["personnage", "decor", "prop", "vfx", "keyframe", "oth"]) assert.equal(estAIllustrer({ type: t }), true, t);
-  assert.equal(estAIllustrer({ type: "sfx" }), false);
-});
-
-test("etatImages : compte les images, ignore les sons", () => {
-  const tous = [a(1, "MAYA", { fichier: "x.png" }), a(2, "CAFE", { type: "decor" }), a(3, "BIP", { type: "sfx" })];
+test("etatImages : compte les images", () => {
+  const tous = [a(1, "MAYA", { fichier: "x.png" }), a(2, "CAFE", { type: "decor" })];
   const e = etatImages(tous, new Set(), 10);
   assert.deepEqual(e, { total: 2, avecImage: 1, sansImage: 1, enFile: 0, aLancer: 1, attendentMaitre: 0, sansPrompt: 0 });
   assert.deepEqual(idsSansImage(tous), [2]);
 });
 
 test("etatImages : aucun asset à illustrer", () => {
-  const e = etatImages([a(1, "BIP", { type: "sfx" })], new Set(), 10);
+  const e = etatImages([], new Set(), 10);
   assert.equal(e.total, 0);
   assert.equal(e.sansImage, 0);
 });

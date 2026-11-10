@@ -10,7 +10,6 @@ import { dirname, extname, join } from "node:path";
 import {
   STATUT_TRADUCTION,
   raisonDemandeInvalide,
-  raisonNonGenerable,
   type DemandeGeneration,
   formatParDefaut,
 } from "@/lib/asset-generation";

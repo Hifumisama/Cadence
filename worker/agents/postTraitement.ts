@@ -2,7 +2,6 @@ import { and, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, projects, propositions } from "../../db/schema";
 import { horsAffiches } from "../../lib/assets-visibles";
-import { methodeApplicable } from "../../lib/assetCode";
 import { sortieVersBrief } from "../../lib/agents/brief";
 import { ecrireBrouillon } from "../../lib/agents/brief-db";
 import { entreeTour, messageBriefPret } from "../../lib/agents/brief-entree";
@@ -195,7 +194,6 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       code: asset.code,
       type: asset.type,
       methodeGeneration: asset.methodeGeneration,
-      methodeApplicable: methodeApplicable(asset.type),
     });
   } else if (estAffiche) {
     if (prop.cibleId == null) throw new Error("Proposition d'affiche sans cible.");
@@ -478,7 +476,7 @@ async function postSousTacheRegistre(
     description: entree.asset?.descriptionCanonique ?? "",
     descriptionVide: existant ? !(existant.description ?? "").trim() : false,
     existant: existant
-      ? { id: existant.id, code: existant.code, type: existant.type, methodeGeneration: existant.methodeGeneration, methodeApplicable: methodeApplicable(existant.type) }
+      ? { id: existant.id, code: existant.code, type: existant.type, methodeGeneration: existant.methodeGeneration }
       : null,
   });
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;

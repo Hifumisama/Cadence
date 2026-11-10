@@ -95,22 +95,6 @@ test("depuisCompilationH3ir : le manifeste devient les références (images par 
   ]);
 });
 
-test("depuisCompilationH3ir : un bruitage (rôle sfx) revient en référence audio de son asset, pas en voix", () => {
-  const SHA_SFX = "d".repeat(64);
-  const base = resultat();
-  const r = resultat(
-    { liens: [...base.liens, { path: "/m/pluie.wav", code: "SFX_pluie", type: "audio" }], fichiers: { ...base.fichiers, [SHA_SFX]: "/m/pluie.wav" } },
-    { manifest: [...base.compilation.manifest, { slot: 2, label: "<Audio 2>", kind: "audio", sha256: SHA_SFX, role: "sfx" }] },
-  );
-  assert.deepEqual(
-    apresDe(r).refs!.filter((x) => x.type === "audio"),
-    [
-      { type: "audio", slot: 1, asset: "CHAR_mai", role: "Voix du personnage", retention: "reference" },
-      { type: "audio", slot: 2, asset: "SFX_pluie", role: "Bruitage", retention: "reference" },
-    ],
-  );
-});
-
 test("depuisCompilationH3ir : les avertissements disent le moteur, l'essai, la seed, les diagnostics et ceux du brief", () => {
   const c = fiche(resultat({ avertissements: ["Le garde parle mais n'a pas de voix fixée."] }));
   const textes = c.avertissements!.map((w) => `${w.type}|${w.texte}`);

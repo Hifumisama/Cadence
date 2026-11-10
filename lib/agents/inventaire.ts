@@ -169,7 +169,7 @@ export type ReferencesPlan = { id: string; uuid: string; codes: string[] };
 /** `erreur` : un défaut du contrat (code inconnu, plan oublié…), renvoyé une fois au modèle ; `alerte` : corrigé par le code, pour la revue. */
 export type ProblemeReferences = { plan: string | null; niveau: "erreur" | "alerte"; message: string };
 
-/** Les types d'asset qui peuvent être une IMAGE de référence (jamais un son : `sfx`, ni une voix, qui est un champ du personnage). */
+/** Les types d'asset qui peuvent être une IMAGE de référence (jamais une voix, qui est un champ du personnage). */
 export const TYPES_REFERENCE_IMAGE = new Set(["personnage", "decor", "prop", "vfx", "keyframe", "oth"]);
 export const MAX_REFERENCES_PLAN = MAX_IMAGES;
 /** Ordre des références d'un plan : les personnages (les locuteurs d'abord, dans l'ordre du modèle), les objets, les effets, le décor en dernier. */
@@ -225,7 +225,7 @@ export function controlerReferences(
         continue;
       }
       if (!TYPES_REFERENCE_IMAGE.has(a.type)) {
-        dit(plan.id, "erreur", `${plan.id} : ${a.code} est un son (${a.type}) ; jamais de voix ni de bruitage en référence d'un plan.`);
+        dit(plan.id, "erreur", `${plan.id} : ${a.code} (${a.type}) ne peut pas être une référence d'image d'un plan.`);
         continue;
       }
       if (gardes.some((g) => g.code === a.code)) continue; // doublon : sans conséquence

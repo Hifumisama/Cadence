@@ -212,26 +212,6 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
     if (p.voix.repliqueBase?.trim()) transcripts[p.voix.sha256] = p.voix.repliqueBase.trim();
   }
 
-  // --- Bruitages : rôle `sfx` (texture sonore, `reference` : jamais copié tel quel), dans les emplacements audio que les voix laissent libres.
-  // La voix prime sur les bruitages (CLAUDE.md) : ils passent APRÈS elles, dans l'ordre des emplacements. À VALIDER AU BANC DE RENDU.
-  let nbAudios = nbVoix;
-  const bruitages = entree.references.filter((x) => x.type === "audio" && x.typeAsset === "sfx").sort((a, b) => a.slot - b.slot);
-  for (const r of bruitages) {
-    const nom = r.label?.trim() || libelleAsset(r);
-    if (!r.chemin) {
-      avertissements.push(`Bruitage « ${nom} » non transmis : il n'a pas encore de fichier.`);
-      continue;
-    }
-    if (nbAudios >= MAX_AUDIOS) {
-      avertissements.push(`Bruitage « ${nom} » non transmis : les ${MAX_AUDIOS} emplacements audio sont pris (la voix prime sur les bruitages).`);
-      continue;
-    }
-    nbAudios++;
-    liens.push({ path: r.chemin, code: r.code, type: "audio" });
-    const note = [nom, r.description?.trim()].filter(Boolean).join(" — ");
-    assets.push({ path: r.chemin, kind: "audio", role: "sfx", ...(note ? { note } : {}) });
-  }
-
   // --- Intent : narration, ambiance de la scène (en français à cette étape) ---
   const morceaux = [narration];
   if (entree.scene?.ambiance?.trim()) morceaux.push(`Ambiance : ${entree.scene.ambiance.trim()}`);

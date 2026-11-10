@@ -107,59 +107,6 @@ export function formatParDefaut(type: string): { aspect: Aspect; megapixels: num
   return { aspect: "1:1", megapixels: 1 };
 }
 
-/** Ce qu'on sait d'un asset pour décider s'il est générable. Les champs de
- * prompt et de méthode ne servent plus : le prompt se vérifie sur la demande
- * (la popup propose celui de l'asset, mais l'utilisateur peut l'écrire). */
-export type AssetGenerable = {
-  type: string;
-  promptGeneration?: string | null;
-  methodeGeneration?: string | null;
-};
-
-/** Pourquoi on ne peut pas générer d'IMAGE pour cet asset, ou null. La voix est
- * refusée (casting vocal) ; un son (sfx) aussi : il se génère par la popup audio
- * (raisonAudioNonGenerable). */
-export function raisonNonGenerable(a: AssetGenerable): string | null {
-  if (a.type === "sfx") return "Un son se génère avec la génération audio, pas par image.";
-  return null;
-}
-
-// ---------------------------------------------------------------------------
-// Génération audio (SFX, Stable Audio 3 — workflows/audio/SFX_Generate_Sounds.json).
-// Même table que les images (`asset_generations`, méthode « audio ») : la file,
-// l'annulation, la reprise et le header en profitent sans duplication. La durée
-// est un paramètre du workflow, séparé du prompt.
-// ---------------------------------------------------------------------------
-
-export const METHODE_AUDIO = "audio";
-export const DUREE_AUDIO_MIN = 1;
-export const DUREE_AUDIO_MAX = 60;
-export const DUREE_AUDIO_DEFAUT = 4;
-
-/** Ce que la popup audio envoie à `lancerGenerationAudio`. La seed est tirée côté
- * serveur. */
-export type DemandeAudio = {
-  prompt: string;
-  dureeSecondes: number;
-};
-
-/** Seuls les assets `sfx` se génèrent en audio (la voix d'un personnage passe par son master). */
-export function raisonAudioNonGenerable(type: string): string | null {
-  if (type === "sfx") return null;
-  return "La génération audio ne concerne que les sons (type sfx).";
-}
-
-export function dureeAudioValide(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v) && v >= DUREE_AUDIO_MIN && v <= DUREE_AUDIO_MAX;
-}
-
-/** Validation de la structure d'une demande audio (sans base ni disque). */
-export function raisonDemandeAudioInvalide(d: DemandeAudio): string | null {
-  if (!d.prompt?.trim()) return "Écris le prompt du son.";
-  if (!dureeAudioValide(d.dureeSecondes)) return `Durée hors limites (${DUREE_AUDIO_MIN} à ${DUREE_AUDIO_MAX} secondes).`;
-  return null;
-}
-
 // ---------------------------------------------------------------------------
 // Master de voix d'un personnage (chantier voix/master, 2026-10-14) : une vidéo de test H3, dont on garde la voix. Méthode de plus
 // pour `asset_generations`, sur l'asset personnage ; le résultat est un candidat, « Utiliser comme master » l'adopte.
@@ -170,8 +117,6 @@ export function raisonDemandeAudioInvalide(d: DemandeAudio): string | null {
  * `assetId` est le personnage. */
 export const METHODE_MASTER_VOIX = "master_voix";
 
-/** Un son pour tout ce qui suit (pas de vignette ni d'aperçu, fichier audio) : un bruitage, ou la voix d'un master. */
-export const estMethodeSon = (m: string): boolean => m === METHODE_AUDIO || m === METHODE_MASTER_VOIX;
 
 /** Durée de la vidéo de test d'un master : une réplique face caméra tient en huit secondes (prompt T1, lib/voix.ts:promptMasterVoix). */
 export const DUREE_TEST_VIDEO_SECONDES = 8;

@@ -17,7 +17,6 @@ import {
   methodeDEssai,
   nouvelleSeed,
   raisonConsigneInvalide,
-  raisonNonGenerable,
 } from "@/lib/asset-generation";
 import { TYPE_AFFICHE } from "@/lib/affiches";
 import { styleDesEditions, styleDesImages } from "@/lib/conception";
@@ -45,8 +44,6 @@ export async function lancerEssai(
 ): Promise<Resultat & { uuid?: string }> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
-  const raisonAsset = raisonNonGenerable(asset);
-  if (raisonAsset) return { ok: false, erreur: raisonAsset };
 
   // L'image de base, et le prompt qui l'a produite.
   let baseFichierRelatif: string | null = null;
@@ -198,7 +195,6 @@ export async function dupliquerAsset(assetId: number): Promise<{ ok: true; code:
     description: asset.description,
     promptGeneration: asset.promptGeneration,
     methodeGeneration: asset.methodeGeneration,
-    dureeSecondes: asset.dureeSecondes,
     fichier,
     fichierAt: fichier ? new Date() : null,
   });

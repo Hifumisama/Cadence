@@ -15,7 +15,7 @@ import { AssetCard, LigneAsset } from "./AssetCard";
 /** Durée d'appui qui déclenche la sélection (clic long). */
 const DUREE_APPUI = 450;
 const CLE_VUE = "cadence:registre-vue";
-const ORDRE_TYPES = ["personnage", "decor", "prop", "vfx", "sfx", "keyframe", "oth"];
+const ORDRE_TYPES = ["personnage", "decor", "prop", "vfx", "keyframe", "oth"];
 
 /** Pourquoi un asset ne partira pas dans un lot, ou null. Un asset qui a déjà une image n'est jamais renvoyé dans un lot :
  * le résultat d'un lot s'adopte tout seul et remplacerait l'image — on la régénère depuis sa fiche. */

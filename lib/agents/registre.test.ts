@@ -74,7 +74,7 @@ test("depuisRegistreAsset : un asset absent donne UNE création portant descript
 });
 
 test("depuisRegistreAsset : un asset existant ne reçoit que son prompt ; la description du brief seulement s'il n'en a pas", () => {
-  const courant = { id: 1, code: "CHAR_maya", type: "personnage", methodeGeneration: "generation", methodeApplicable: true };
+  const courant = { id: 1, code: "CHAR_maya", type: "personnage", methodeGeneration: "generation" };
   const [a] = depuisRegistreAsset(sortie, { code: "CHAR_maya", type: "personnage", suffixe: "maya", description: "du brief", existant: courant });
   assert.equal(a!.operation, "modifier");
   assert.equal(a!.cibleRef, "1");

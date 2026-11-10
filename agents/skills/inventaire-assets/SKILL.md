@@ -60,7 +60,6 @@ You create nothing yourself: you **propose**; the user reviews, then the image p
 | `decor` | `DEC_` |
 | `prop` | `PROP_` |
 | `vfx` | `VFX_` |
-| `sfx` | `SFX_` |
 | `keyframe` | `KEY_` |
 | `oth` | `OTH_` |
 
@@ -85,7 +84,7 @@ The description **shows the asset alone**: no character in a set or a prop ("the
 - **6 images at most**, usually 2 to 5. When a plan shows more, keep the characters and the set, and drop the least important props and effects.
 - **A `vfx`** (only one that exists or comes from `brief.elements`) may be listed when the plan shows that effect: the video model takes it as a weak style reference (its matter, colour and motion), never as a subject.
 - **A `keyframe`** only when the plan's intention names it. Otherwise the identities come from the individual sheets (rule 11).
-- **Never a voice or a sound** (`sfx`): voices are set on the character, sounds are written in the sheet.
+- **Never a voice**: voices are set on the character; sounds are written in the sheet.
 - A plan with nothing to show (black screen, title card) gets an empty list; keep its entry.
 
 ## What you return

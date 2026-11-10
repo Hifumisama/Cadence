@@ -17,7 +17,7 @@ import { ROLE_PAR_TYPE, estVoixOff, separerDescription, trouverPersonnage } from
  *  4. décor : un seul décor nommé (les mots du décor, même dispersés) => pris ; sinon, plan « suite » dans la même scène => décor du plan précédent ;
  *     sinon doute ;
  *  5. 6 images au plus (`MAX_REFS_VISUELLES`), un seul visage par personnage, dans l'ordre : locuteurs, autres personnages, objets, effets, keyframes, décor ;
- *  6. le rôle vient du type (`ROLE_PAR_TYPE`). Les bruitages (`sfx`), les voix (champ du personnage) et les affiches ne sont jamais candidats. */
+ *  6. le rôle vient du type (`ROLE_PAR_TYPE`). Les voix (champ du personnage) et les affiches ne sont jamais candidats. */
 
 export type CandidatReference = {
   code: string;
@@ -35,7 +35,7 @@ export type EntreeReferencesPlan = {
   /** `suite` + `precedent.memeScene` : le décor du plan précédent sert quand la description n'en nomme pas un seul. */
   liaison: string;
   precedent: { memeScene: boolean; decor: string | null } | null;
-  /** Le registre du projet (les affiches, `sfx` et types inconnus sont écartés ici). */
+  /** Le registre du projet (les affiches et types inconnus sont écartés ici). */
   candidats: CandidatReference[];
   /** Les effets et objets du brief (`brief.elements`) : un élément évoqué sans asset correspondant est un doute. */
   elements?: { nom: string; nature: string }[];
@@ -106,7 +106,7 @@ function tousLesMots(mots: string[], cle: string[]): number {
 }
 
 const RANG_TYPE: Record<string, number> = { personnage: 1, prop: 2, oth: 2, vfx: 3, keyframe: 4, decor: 5 };
-const CODE_CITE = /\b(?:CHAR|DEC|PROP|VFX|SFX|KEY|OTH)_[A-Za-z0-9_]+/g;
+const CODE_CITE = /\b(?:CHAR|DEC|PROP|VFX|KEY|OTH)_[A-Za-z0-9_]+/g;
 
 /** Les mots en capitale initiale hors début de phrase (noms propres probables) qu'aucun nom de candidat retenu n'explique. */
 function nomsPropresInconnus(texte: string, expliques: Set<string>): string[] {
@@ -146,7 +146,7 @@ export function choisirReferences(entree: EntreeReferencesPlan): ResultatReferen
   const groupeDe = (c: CandidatReference) => RANG_TYPE[c.type] ?? 4;
 
   // --- 1. Codes cités tels quels (y compris dans la consigne de l'auteur : c'est la demande la plus explicite) ---
-  const cites = [...new Set([...sansEtat.matchAll(CODE_CITE)].map((m) => m[0]))].filter((c) => !c.startsWith("SFX_"));
+  const cites = [...new Set([...sansEtat.matchAll(CODE_CITE)].map((m) => m[0]))];
   const proches = correspondances(cites, candidats.map((c) => c.code));
   cites.forEach((brut, i) => {
     const code = parCode.has(brut) ? brut : proches.get(brut);

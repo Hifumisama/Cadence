@@ -8,7 +8,7 @@ import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, SHOT_MIN_SECONDES } from ".
 
 export type ReferenceH3 = {
   asset: string;
-  nature: "image" | "son";
+  nature: "image";
   role: string;
   nom: string;
   definition: string;
@@ -41,8 +41,6 @@ export type ProblemeH3 = {
 export type ContexteControleH3 = {
   /** Les assets du registre qu'on a donnés au skill (code et type). */
   registre: { code: string; type: string }[];
-  /** Slots `<Audio N>` pris par les voix du plan (un par personnage qui parle et a une voix fixée, lus dans le prompt). */
-  slotsAudioPris?: number[];
   /** Textes des exemples du skill : une phrase de 10 mots ou plus recopiée d'un exemple donne une alerte. */
   corpusExemples?: string[];
   /** Le plan reçoit l'image de raccord (liaison « suite » et un plan avant lui) : un emplacement d'image est réservé, 5 références d'image au plus. */
@@ -84,7 +82,6 @@ export const COUPE_RETIRABLE = new RegExp(`^\\s*${TIMECODE_EN_TETE}${COUPE}\\s+(
 const TIMECODE_SEUL = /^\s*at\s+\d{1,2}:\d{2}/i;
 
 const RETENTIONS_IMAGE = ["fully_preserved", "partially_preserved", "attribute_transfer", "weak_reference"];
-const RETENTIONS_SON = ["fully_copy", "partially_copy", "reference", "weak_reference"];
 
 /** Verbes d'action au participe présent, hors ceux qui décrivent la caméra ou un état et reviennent d'un shot à l'autre sans répéter une action. */
 const GERONDIFS_NEUTRES = new Set([
@@ -156,14 +153,9 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
   // Un asset manquant se CITE comme une référence d'image : il est créé avec la correction, sa fiche le référence (son image viendra après).
   const manquants = new Set((sortie.assetsManquants ?? []).map((a) => a.code));
   for (const a of sortie.assetsManquants ?? []) if (!typeDe.has(a.code)) typeDe.set(a.code, a.type);
-  const images = references.filter((r) => r.nature === "image");
-  const sons = references.filter((r) => r.nature === "son");
-  const audiosLibres = MAX_AUDIOS - (ctx.slotsAudioPris?.length ?? 0);
+  const images = references;
   if (references.length === 0) ajouter("alerte", "references", "Aucune référence : un plan en full-reference porte au moins une image de référence.");
   if (images.length > MAX_IMAGES) ajouter("erreur", "references", `${images.length} images de référence : ${MAX_IMAGES} au plus.`);
-  if (sons.length > Math.max(0, audiosLibres)) {
-    ajouter("erreur", "references", `${sons.length} références sonores : ${Math.max(0, audiosLibres)} au plus (3 audio, dont ${MAX_AUDIOS - Math.max(0, audiosLibres)} pour les voix du plan ; la voix prime).`);
-  }
   // Raccord : le code retire seul les images déclarées mais non citées dans un shot (conversion.ts). Le modèle n'est renvoyé que s'il
   // en reste plus de 5 CITÉES dans un shot : le code ne choisit pas à sa place laquelle sacrifier.
   if (ctx.reserveRaccord) {
@@ -182,11 +174,9 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
     codes.add(r.asset);
     const type = typeDe.get(r.asset);
     if (type == null) ajouter("erreur", "asset-inconnu", `La référence « ${r.asset} » n'est pas dans le registre (un asset manquant se déclare dans assetsManquants, il ne s'invente pas).`);
-    else if (r.nature === "son" && manquants.has(r.asset) && !ctx.registre.some((a) => a.code === r.asset)) ajouter("erreur", "nature", `${r.asset} n'existe pas encore : seul un asset d'image qui manque se cite comme référence, un son qui manque se décrit en prose.`);
-    else if (r.nature === "son" && type !== "sfx") ajouter("erreur", "nature", `${r.asset} est de type ${type} : seule une référence de type sfx a la nature « son ».`);
-    else if (r.nature === "image" && (type === "sfx" || type === "voix")) ajouter("erreur", "nature", `${r.asset} est de type ${type} : il n'a pas d'image, sa nature est « son » (ou ce n'est pas une référence).`);
-    if (r.retention && !(r.nature === "image" ? RETENTIONS_IMAGE : RETENTIONS_SON).includes(r.retention)) {
-      ajouter("erreur", "retention", `${r.asset} : « ${r.retention} » ne va pas à une référence de nature ${r.nature} (${(r.nature === "image" ? RETENTIONS_IMAGE : RETENTIONS_SON).join(", ")}).`);
+    else if (type === "voix") ajouter("erreur", "nature", `${r.asset} est de type voix : il n'a pas d'image, ce n'est pas une référence.`);
+    if (r.retention && !RETENTIONS_IMAGE.includes(r.retention)) {
+      ajouter("erreur", "retention", `${r.asset} : « ${r.retention} » ne va pas à une référence d'image (${RETENTIONS_IMAGE.join(", ")}).`);
     }
     if (/^\s*(is|are)\b/i.test(r.definition ?? "")) ajouter("erreur", "definition", `La définition de ${r.asset} commence par « is » : la fiche l'écrit déjà, donne directement ce que fait l'asset.`);
     for (const [champ, t] of [["nom", r.nom], ["definition", r.definition]] as const) {

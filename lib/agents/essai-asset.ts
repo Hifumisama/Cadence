@@ -50,13 +50,6 @@ export async function entreeEssaiAsset(
   const base = await entreePromptAsset(db, projectId, assetId, p.consigne);
   if (!base) return null;
   const e = base.entree as { asset: Record<string, unknown>; parent: unknown };
-  // Un son : la variante `sfx` du skill (jamais d'image ni de méthode à imposer) ; la durée est celle de l'utilisateur.
-  if (asset?.type === "sfx") {
-    return {
-      ...base,
-      entree: { ...base.entree, asset: { ...e.asset, promptActuel: p.promptBase }, parent: null, ...(p.dureeSecondes != null ? { dureeDemandeeSecondes: p.dureeSecondes } : {}) },
-    };
-  }
   return {
     ...base,
     variante: methode,

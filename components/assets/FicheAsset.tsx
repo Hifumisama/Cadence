@@ -7,7 +7,6 @@ import { createContext, useCallback, useContext, useEffect, useState, useTransit
 import { definirValidation, modifierChampAsset, renommerAsset, supprimerAsset } from "@/app/assets/actions";
 import { dupliquerAsset, retirerImageAsset } from "@/app/assets/essai-actions";
 import { ICONE_TYPE_ASSET, Icone } from "@/components/ui/Icone";
-import { LIBELLE_METHODE, methodeApplicable } from "@/lib/assetCode";
 import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/registre-types";
 
 /* ---------------------------------------------------------------------------------------------------------------

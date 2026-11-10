@@ -6,7 +6,6 @@ const ctx = {
   registre: [
     { code: "CHAR_maya", type: "personnage" },
     { code: "DEC_couloir", type: "decor" },
-    { code: "SFX_porte", type: "sfx" },
     { code: "VOX_maya", type: "voix" },
   ],
 };
@@ -72,15 +71,9 @@ test("marqueur hors références, asset manquant cité, référence non citée, 
   assert.ok(erreurs(trop).includes("references"));
 });
 
-test("natures : un son est un sfx ; un sfx ou une voix n'a pas d'image ; les slots audio suivent les voix", () => {
-  const son = { asset: "SFX_porte", nature: "son" as const, role: "Porte", nom: "a door slam", definition: "" };
-  const avec = (references: SortiePlanH3["references"], c = ctx) => erreurs({ ...bonne, references, summary: "[[CHAR_maya]] [[SFX_porte]]" }, c);
-  assert.deepEqual(avec([...bonne.references, son]), []);
-  assert.ok(avec([{ ...son, asset: "CHAR_maya" }]).includes("nature"), "personnage en nature son");
-  assert.ok(avec([{ ...son, nature: "image" }]).includes("nature"), "sfx en nature image");
-  assert.ok(avec([{ ...son, asset: "VOX_maya", nature: "image" }]).includes("nature"), "voix en référence");
-  const troisVoix = { ...ctx, slotsAudioPris: [1, 2, 3] };
-  assert.ok(erreurs({ ...bonne, references: [bonne.references[0]!, son], summary: "[[CHAR_maya]] [[SFX_porte]]", shots: [{ debutSecondes: 0, texte: "a <d>a</d> b c [[CHAR_maya]] [[SFX_porte]]" }] }, troisVoix).includes("references"), "la voix prime");
+test("natures : une voix n'a pas d'image, elle n'est pas une référence", () => {
+  const avec = (references: SortiePlanH3["references"]) => erreurs({ ...bonne, references, summary: "[[CHAR_maya]] [[VOX_maya]]" });
+  assert.deepEqual(avec([...bonne.references, { asset: "VOX_maya", nature: "image", role: "Voix", nom: "the voice", definition: "" }]).filter((r) => r === "nature"), ["nature"], "voix en référence");
 });
 
 test("shots : début non nul, non croissant, au-delà de la durée, vide (erreurs)", () => {
@@ -145,10 +138,8 @@ test("balisage : coupe ou timecode écrits par le modèle ; [Shot N] et titres d
   assert.ok(p("a close-up.\noverall_soundscape: rain").some((x) => x.regle === "fuite" && x.niveau === "erreur"));
 });
 
-test("rétention : un niveau d'image ne va pas à un son, et inversement", () => {
-  const son = { asset: "SFX_porte", nature: "son" as const, role: "Porte", nom: "a door slam", definition: "", retention: "fully_preserved" };
-  const r = (references: SortiePlanH3["references"]) => erreurs({ ...bonne, references, summary: "[[CHAR_maya]] [[DEC_couloir]] [[SFX_porte]]" });
-  assert.ok(r([...bonne.references, son]).includes("retention"));
+test("rétention : seuls les niveaux d'une référence d'image sont admis", () => {
+  const r = (references: SortiePlanH3["references"]) => erreurs({ ...bonne, references, summary: "[[CHAR_maya]] [[DEC_couloir]]" });
   assert.ok(r([{ ...bonne.references[0]!, retention: "fully_copy" }, bonne.references[1]!]).includes("retention"));
   assert.ok(!r([{ ...bonne.references[0]!, retention: "weak_reference" }, bonne.references[1]!]).includes("retention"));
 });
@@ -209,8 +200,6 @@ test("asset d'image manquant : cité comme une référence (déclaré dans asset
   };
   assert.deepEqual(erreurs(avec), []);
   assert.ok(erreurs({ ...avec, assetsManquants: [] }).includes("asset-inconnu"), "sans déclaration, le code reste inventé");
-  const son = { ...avec, references: [...bonne.references, { asset: "SFX_gong", nature: "son" as const, role: "Gong", nom: "a gong", definition: "ringing" }], assetsManquants: [{ ...manquant, code: "SFX_gong", type: "sfx" }], summary: "[[CHAR_maya]] [[DEC_couloir]] [[SFX_gong]]" };
-  assert.ok(erreurs(son).includes("nature"));
 });
 
 test("raccord : trop d'images CITÉES dans les shots = erreur de renvoi ; des images déclarées mais non citées = info (le code les retire)", async () => {

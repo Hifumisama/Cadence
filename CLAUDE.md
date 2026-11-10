@@ -67,8 +67,6 @@ Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
 - **1er pass ComfyUI déterministe** : même seed + même prompt + mêmes refs
   → même résultat. La seed se fixe dans le JSON en appel API — pas besoin
   des nœuds `easy seed` (confort interactif uniquement).
-- **La voix prime sur les bruitages** en cas de concurrence de slots audio
-  dans une fiche de plan.
 - Mono-utilisateur pour l'instant — pas d'authentification à prévoir.
 
 ## Skills disponibles

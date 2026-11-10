@@ -1,9 +1,9 @@
-import { COUPE_RETIRABLE, MAX_AUDIOS, MAX_IMAGES, MAX_IMAGES_AVEC_RACCORD, citeCode, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
+import { COUPE_RETIRABLE, MAX_IMAGES, MAX_IMAGES_AVEC_RACCORD, citeCode, type ProblemeH3, type SortiePlanH3 } from "./plan-h3-controles";
 
 /** ASSEMBLAGE du prompt H3 à partir du brouillon de `plan-h3` (voir agents/skills/plan-h3/SKILL.md).
  * Pur, déterministe : le modèle écrit la prose, le code pose tout ce qui est mécanique :
  * - les labels : `<Subject i>` et `<Picture i>` (images, dans l'ordre de `references`, de 1 à n sans trou),
- *   `<Audio k>` (bruitages, sur les slots que les voix du plan n'occupent pas) ;
+ *   (les `<Audio N>` des voix sont posés ailleurs : ce sont les slots que le code reçoit en entrée) ;
  * - `[[CODE]]` → label, `[Shot N]`, timecodes `At MM:SS.mmm` et « Hard cut to » ;
  * - `subject_definitions`, `retention_analysis` (avec « appears in » calculé par shot) et le préfixe du summary.
  * Les voix ne sont jamais des références : elles gardent leurs slots, que le code reçoit en entrée.
@@ -11,8 +11,6 @@ import { COUPE_RETIRABLE, MAX_AUDIOS, MAX_IMAGES, MAX_IMAGES_AVEC_RACCORD, citeC
  * code pose lui-même) ; ce que le code ne peut pas résoudre remonte dans `problemes`. */
 
 export type ContexteAssemblage = {
-  /** Slots `<Audio N>` déjà pris par les voix du plan (plan_dialogues.slot). */
-  slotsAudioPris: number[];
   /** Les voix du plan, avec leur texte exact et, si connu, le code du personnage qui parle : le code écrit leur ligne
    * de définition (`<Audio N> is the voice-timbre reference for <Subject k> (Sx)`) et de rétention. */
   voix?: { slot: number; texte: string; locuteurCode?: string | null }[];
@@ -21,11 +19,11 @@ export type ContexteAssemblage = {
 };
 
 export type RefAssemblee = {
-  nature: "image" | "son";
+  nature: "image";
   asset: string;
-  /** N de `<Picture N>` ou `<Audio N>`, null si la référence n'a pas pu être posée (dégradée en prose). */
+  /** N de `<Picture N>`, null si la référence n'a pas pu être posée (dégradée en prose). */
   slot: number | null;
-  /** `<Subject i>` / `<Audio k>`, null si dégradée. */
+  /** `<Subject i>`, null si dégradée. */
   label: string | null;
   role: string;
   retention: string;
@@ -169,7 +167,7 @@ export function retirerImagesPourRaccord(
 ): { references: SortiePlanH3["references"]; retirees: RetraitPourRaccord[]; restantes: number } {
   const tousShots = textes.shots.join(" ");
   const tousAutres = textes.autres.join(" ");
-  const images = references.filter((r) => r.nature === "image");
+  const images = references;
   const retirees: RetraitPourRaccord[] = [];
   const rang = (r: SortiePlanH3["references"][number]): { rang: number; raison: RetraitPourRaccord["raison"] } | null => {
     if (!citeCode(r.asset, tousShots)) return citeCode(r.asset, tousAutres) ? { rang: 1, raison: "hors-shots" } : { rang: 0, raison: "non-citee" };
@@ -191,25 +189,19 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
   const problemes: ProblemeH3[] = [];
   const signaler = (niveau: ProblemeH3["niveau"], regle: string, message: string) => problemes.push({ niveau, regle, message });
 
-  // 1. labels : images dans l'ordre, sons sur les slots libres
-  const libres = Array.from({ length: MAX_AUDIOS }, (_, i) => i + 1).filter((n) => !ctx.slotsAudioPris.includes(n));
+  // 1. labels : images dans l'ordre
   let imagesPosees = 0;
   const refs: RefAssemblee[] = (sortie.references ?? []).map((r) => {
     let slot: number | null = null;
-    if (r.nature === "image") {
-      if (imagesPosees < MAX_IMAGES) slot = ++imagesPosees;
-      else signaler("alerte", "degradation", `${r.asset} : plus de ${MAX_IMAGES} images, la référence est décrite en prose.`);
-    } else {
-      slot = libres.shift() ?? null;
-      if (slot == null) signaler("alerte", "degradation", `${r.asset} : plus de slot audio libre (la voix prime), le son est décrit en prose.`);
-    }
+    if (imagesPosees < MAX_IMAGES) slot = ++imagesPosees;
+    else signaler("alerte", "degradation", `${r.asset} : plus de ${MAX_IMAGES} images, la référence est décrite en prose.`);
     return {
       nature: r.nature,
       asset: r.asset,
       slot,
-      label: slot == null ? null : r.nature === "image" ? `<Subject ${slot}>` : `<Audio ${slot}>`,
+      label: slot == null ? null : `<Subject ${slot}>`,
       role: r.role,
-      retention: r.retention ?? (r.nature === "image" ? "fully_preserved" : "reference"),
+      retention: r.retention ?? "fully_preserved",
     };
   });
   const parCode = new Map(sortie.references.map((r, i) => [r.asset, { r, a: refs[i]! }]));
@@ -248,12 +240,10 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
     const def = nettoyerDefinition(brute);
     if (def !== brute) signaler("info", "definition-feuille", `${a.asset} : consignes de feuille d'asset (vues, pose neutre, fond uni) retirées de sa définition.`);
     const nom = espaces(r.nom);
-    return a.nature === "image"
-      ? `${a.label} is ${nom} from <Picture ${a.slot}>${def ? `, ${def}` : ""}`.replace(/\.$/, "") + "."
-      : `${a.label} is ${nom}${def ? `, ${def}` : ""}`.replace(/\.$/, "") + ".";
+    return `${a.label} is ${nom} from <Picture ${a.slot}>${def ? `, ${def}` : ""}`.replace(/\.$/, "") + ".";
   };
   const posees = [...parCode.values()].filter((x) => x.a.label != null);
-  const ordre = [...posees.filter((x) => x.a.nature === "image"), ...posees.filter((x) => x.a.nature === "son")];
+  const ordre = posees;
 
   // 4b. les voix du plan : jamais des références du modèle, mais H3 doit savoir ce que chaque `<Audio N>` désigne
   const lignesVoix = (ctx.voix ?? []).map((v) => {
@@ -274,7 +264,6 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
     .map(({ r, a }) => {
       const nom = espaces(r.nom);
       const note = espaces(r.retentionNote ?? "") || noteParDefaut(nom, a.retention);
-      if (a.nature === "son") return `${a.label}: ${a.retention} - ${finir(note)}`;
       const dans = shots.map((_, i) => i).filter((i) => citeDans(r.asset, corps[i]!)).map((i) => `[Shot ${i + 1}]`);
       return `${a.label} (${dans.length ? `appears in ${dans.join(", ")}` : "not cited in a shot"}): ${a.retention} - ${finir(note)}`;
     })
@@ -283,7 +272,7 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
 
   // 6. summary et ambiance
   const tout = (texte: string, titre: string) => marqueurs(espaces(texte)).replace(new RegExp(`^${titre}\\s*:\\s*`, "i"), "");
-  const prefixe = posees.some((x) => x.a.nature === "son") || lignesVoix.length > 0 ? "[reference generation + audio reference]" : "[reference generation]";
+  const prefixe = lignesVoix.length > 0 ? "[reference generation + audio reference]" : "[reference generation]";
   const resume = marqueurs(espaces(sortie.summary ?? "")).replace(/^\s*\[(?!\[)[^\]]*\]\s*/, "");
   const summary = `${prefixe} ${resume}`;
   const overall_soundscape = tout(sortie.overall_soundscape ?? "", "overall_soundscape");
@@ -292,7 +281,7 @@ export function assemblerPlanH3(sortie: SortiePlanH3, ctx: ContexteAssemblage): 
   // 7. ce qui doit rester après assemblage : aucun marqueur, aucun label hors des nôtres
   const sections = { subject_definitions, summary, retention_analysis, detailed_description, overall_soundscape, non_diegetic_music };
   const texte = (Object.entries(sections) as [string, string][]).map(([nom, v]) => `${nom}:\n${v}`).join("\n\n");
-  const posesLabels = new Set(ordre.flatMap((x) => (x.a.nature === "image" ? [x.a.label, `<Picture ${x.a.slot}>`] : [x.a.label])));
+  const posesLabels = new Set(ordre.flatMap((x) => [x.a.label, `<Picture ${x.a.slot}>`]));
   for (const v of lignesVoix) posesLabels.add(`<Audio ${v.slot}>`);
   for (const m of texte.matchAll(/<\s*(Subject|Picture|Audio|Video)\s*(\d+)\s*>/gi)) {
     const l = `<${m[1]![0]!.toUpperCase()}${m[1]!.slice(1).toLowerCase()} ${m[2]}>`;

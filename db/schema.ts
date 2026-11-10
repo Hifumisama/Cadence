@@ -261,7 +261,7 @@ export const assets = pgTable("assets", {
   // Le nom que l'utilisateur donne et peut changer : il prime dans l'interface, jamais côté backend. null = on affiche le code lisible
   // (`libelleAsset`, lib/assetCode.ts).
   label: varchar("label", { length: 120 }),
-  type: varchar("type", { length: 30 }).notNull(), // personnage | decor | prop | vfx | sfx | keyframe | oth
+  type: varchar("type", { length: 30 }).notNull(), // personnage | decor | prop | vfx | keyframe | oth
   description: text("description"),
   // Prompt de génération (Krea 2 / Qwen Image Edit / Qwen3-TTS selon le
   // type) — distinct de la description canonique : l'un décrit le sujet
@@ -277,9 +277,6 @@ export const assets = pgTable("assets", {
   // Quand le fichier a été posé ou remplacé (adoption, import, prise de voix) : un plan dont le dernier rendu est
   // antérieur est « périmé » (lib/plans-perimes.ts). null = jamais posé.
   fichierAt: timestamp("fichier_at"),
-  // Durée du son retenu, en secondes (type sfx : paramètre de la génération audio,
-  // qui n'est pas dans le prompt). null pour les autres types.
-  dureeSecondes: real("duree_secondes"),
   // Validé à la main (ou par défaut à l'import d'un fichier). Le statut affiché et la criticité se CALCULENT (lib/asset-etat.ts) :
   // plus de colonne `statut` ni `critique`. Un fichier remplacé par une génération adoptée repasse à false.
   valide: boolean("valide").notNull().default(false),  // Voix du PERSONNAGE (chantier voix/master, 2026-10-14) : une voix n'existe que portée par un personnage (la voix off en est un). Sans
@@ -324,12 +321,9 @@ export const assetGenerations = pgTable("asset_generations", {
   // Mode « à partir d'images » (méthode edition) : true = Lightning 4 étapes,
   // false = « Qualité » (40 étapes CFG 4). null pour le mode texte.
   lightning: boolean("lightning"),
-  // Génération audio (méthode « audio », Stable Audio 3) : durée demandée en
-  // secondes, paramètre séparé du prompt. null pour les images. aspect/megapixels
-  // gardent leurs valeurs par défaut pour l'audio : l'affichage se règle sur la
-  // méthode, jamais sur ces deux colonnes.
+  // Vidéo de test d'un master de voix : durée demandée en secondes. null pour les images.
   dureeSecondes: real("duree_secondes"),
-  // Master de voix (méthode « master_voix ») : la réplique du test. null pour les images et les sons.
+  // Master de voix (méthode « master_voix ») : la réplique du test. null pour les images.
   texteReference: text("texte_reference"),
   seed: text("seed").notNull(),
   comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),

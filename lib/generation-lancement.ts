@@ -3,7 +3,7 @@ import { assetGenerationSources, assetGenerations, assets, projects } from "@/db
 import { and, eq, inArray } from "drizzle-orm";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
-import { formatParDefaut, nouvelleSeed, raisonDemandeInvalide, raisonNonGenerable, type DemandeGeneration } from "./asset-generation";
+import { formatParDefaut, nouvelleSeed, raisonDemandeInvalide, type DemandeGeneration } from "./asset-generation";
 import { styleDesEditions, styleDesImages } from "./conception";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "./generation-lot";
 import { MEDIA_ROOT, cheminAssetMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "./media";
@@ -35,8 +35,6 @@ type SourceResolue = { origine: "asset" | "import"; assetId: number | null; fich
 export async function poserGeneration(assetId: number, demande: DemandeGeneration, plafond: number = PLAFOND_FILE_IMAGES, adoptionAuto = false): Promise<ResultatLancement> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
-  const raisonAsset = raisonNonGenerable(asset);
-  if (raisonAsset) return { ok: false, erreur: raisonAsset };
   const raison = raisonDemandeInvalide(demande);
   if (raison) return { ok: false, erreur: raison };
   if ((await nbImagesEnAttente()) >= plafond) {

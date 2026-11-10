@@ -157,7 +157,7 @@ function controlerReferences(ops: DecisionsSortie["references"], ctx: ContexteIt
   for (const code of ops.ajouter) {
     const type = registre.get(code);
     if (type == null) problemes.push({ niveau: "erreur", regle: "ajout-inconnu", message: `decisions.references.ajouter : ${code} n'existe pas au registre ; n'utilise que des codes du registre (un asset à créer va dans decisions.manquants).` });
-    else if (type === "voix" || type === "sfx") problemes.push({ niveau: "erreur", regle: "ajout-nature", message: `decisions.references.ajouter : ${code} (${type}) n'est pas une référence d'image.` });
+    else if (type === "voix") problemes.push({ niveau: "erreur", regle: "ajout-nature", message: `decisions.references.ajouter : ${code} (${type}) n'est pas une référence d'image.` });
     else if (codesImages.has(code) && !retires.has(code)) problemes.push({ niveau: "erreur", regle: "ajout-doublon", message: `decisions.references.ajouter : ${code} est déjà une référence de ce plan.` });
     else if (ajoutes.has(code)) problemes.push({ niveau: "erreur", regle: "ajout-doublon", message: `decisions.references.ajouter : ${code} est cité deux fois.` });
     ajoutes.add(code);

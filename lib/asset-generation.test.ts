@@ -9,13 +9,8 @@ import {
   formatParDefaut,
   nomSourceDistante,
   nouvelleSeed,
-  DUREE_AUDIO_DEFAUT,
-  dureeAudioValide,
   formaterDuree,
-  raisonAudioNonGenerable,
-  raisonDemandeAudioInvalide,
   raisonDemandeInvalide,
-  raisonNonGenerable,
   type DemandeGeneration,
 } from "./asset-generation";
 
@@ -24,15 +19,6 @@ test("format par défaut : décor en 16:9, le reste en carré", () => {
   assert.deepEqual(formatParDefaut("personnage"), { aspect: "16:9", megapixels: 1.3 });
   assert.ok(ASPECTS.every((a) => estAspect(a) && ASPECTS_COMFYUI[a].startsWith(a)));
   assert.ok(!estAspect("5:4"));
-});
-
-test("génération impossible au niveau asset : le son seulement", () => {
-  const ok = { type: "decor", promptGeneration: "A hall", methodeGeneration: null };
-  assert.equal(raisonNonGenerable(ok), null);
-  assert.equal(raisonNonGenerable({ type: "decor" }), null);
-  // l'édition et le prompt vide ne bloquent plus l'asset : la popup les vérifie
-  assert.equal(raisonNonGenerable({ ...ok, methodeGeneration: "edition" }), null);
-  assert.equal(raisonNonGenerable({ ...ok, promptGeneration: "  " }), null);
 });
 
 const demande: DemandeGeneration = {
@@ -67,25 +53,6 @@ test("demande : mode images, de 1 à 3 sources sans doublon", () => {
   assert.match(raisonDemandeInvalide({ ...images, sources: [{ origine: "web" } as never] }) ?? "", /inconnue/);
 });
 
-test("un son (sfx) ne se génère pas par image, une image pas par audio", () => {
-  assert.match(raisonNonGenerable({ type: "sfx" }) ?? "", /audio/);
-  assert.equal(raisonAudioNonGenerable("sfx"), null);
-  assert.match(raisonAudioNonGenerable("decor") ?? "", /sons/);
-});
-
-test("demande audio : prompt non vide, durée entre 1 et 60 s", () => {
-  const ok = { prompt: "Heavy oak door creaking open slowly.", dureeSecondes: DUREE_AUDIO_DEFAUT };
-  assert.equal(raisonDemandeAudioInvalide(ok), null);
-  assert.equal(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 2.5 }), null);
-  assert.equal(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 1 }), null);
-  assert.equal(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 60 }), null);
-  assert.match(raisonDemandeAudioInvalide({ ...ok, prompt: "  " }) ?? "", /prompt/);
-  assert.match(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 0.5 }) ?? "", /Durée/);
-  assert.match(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: 61 }) ?? "", /Durée/);
-  assert.match(raisonDemandeAudioInvalide({ ...ok, dureeSecondes: Number.NaN }) ?? "", /Durée/);
-  assert.equal(dureeAudioValide("4"), false);
-});
-
 test("durée affichée : décimale à la française", () => {
   assert.equal(formaterDuree(4), "4 s");
   assert.equal(formaterDuree(2.5), "2,5 s");
@@ -102,14 +69,13 @@ test("seed : entier positif sûr", () => {
   assert.ok(Number.isSafeInteger(s) && s >= 0);
 });
 
-test("master de voix : paramètres, vidéo à côté de l'audio, un son pour tout le reste", async () => {
+test("master de voix : paramètres, vidéo à côté de l'audio", async () => {
   const g = await import("./asset-generation");
   assert.deepEqual(g.parametresMasterVoix({ personnage: "assets/CHAR_maya.png" }), { personnage: "assets/CHAR_maya.png" });
   assert.deepEqual(g.parametresMasterVoix({ personnage: " " }), { personnage: null });
   assert.equal(g.parametresMasterVoix(null), null);
   assert.equal(g.videoDeMaster("abc-123.mp3"), "abc-123.mp4");
   assert.equal(g.videoDeMaster("sans-extension"), "sans-extension.mp4");
-  assert.ok(g.estMethodeSon(g.METHODE_MASTER_VOIX));
 });
 
 test("méthode d'un essai : sans image de base Krea 2 (génération), avec image Qwen Image Edit (édition)", () => {

@@ -1,4 +1,3 @@
-import { raisonNonGenerable } from "./asset-generation";
 
 /** Génération d'images EN LOT (registre d'assets, 2026-10-03) : on coche plusieurs assets et chacun part dans la file
  * avec son propre prompt. Règles pures ; l'action serveur (app/assets/generation-actions.ts) les applique.
@@ -39,11 +38,6 @@ export function preparerLot(selection: AssetPourLot[], tous: AssetPourLot[], dej
   // Masters d'abord : un dérivé peut ainsi se juger sur l'état du master tel qu'il est maintenant.
   const ordonnee = [...selection].sort((a, b) => Number(a.deriveDeId != null) - Number(b.deriveDeId != null));
   for (const a of ordonnee) {
-    const raisonType = raisonNonGenerable(a);
-    if (raisonType) {
-      ecarte(a, raisonType);
-      continue;
-    }
     if (!(a.promptGeneration ?? "").trim()) {
       ecarte(a, "pas de prompt : écris-le (ou demande-le à l'agent) avant de générer.");
       continue;

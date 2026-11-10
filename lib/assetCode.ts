@@ -3,7 +3,7 @@
  * L'utilisateur ne saisit que le suffixe (ex. "maya"), le préfixe et
  * l'assemblage sont automatiques (retour utilisateur 2026-09-28 : pas de
  * raison de redemander en texte libre ce que le type dit déjà). */
-export const TYPES_ASSET = ["personnage", "decor", "prop", "vfx", "sfx", "keyframe", "oth"] as const;
+export const TYPES_ASSET = ["personnage", "decor", "prop", "vfx", "keyframe", "oth"] as const;
 
 export type TypeAsset = (typeof TYPES_ASSET)[number];
 
@@ -15,7 +15,6 @@ export const PREFIXE_PAR_TYPE: Record<TypeAsset, string> = {
   decor: "DEC_",
   prop: "PROP_",
   vfx: "VFX_",
-  sfx: "SFX_",
   keyframe: "KEY_",
   oth: "OTH_",
 };
@@ -57,9 +56,4 @@ export const LIBELLE_METHODE: Record<MethodeAsset, string> = {
 
 export function estMethodeAsset(v: string): v is MethodeAsset {
   return (METHODES_ASSET as readonly string[]).includes(v);
-}
-
-/** Les sons se fabriquent par la génération audio : la méthode d'image (génération / édition) n'a pas de sens pour eux. */
-export function methodeApplicable(type: string): boolean {
-  return type !== "sfx";
 }
