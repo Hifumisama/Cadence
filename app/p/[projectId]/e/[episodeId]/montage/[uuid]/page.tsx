@@ -262,7 +262,7 @@ export default async function PlanPage({
   const relancePerime =
     perime && estPerime(perime)
       ? {
-          libelle: perime.codes.length === 0 && perime.raisons.length === 1 && perime.raisons[0] === "raccord" ? "Rattacher au plan précédent" : "Relancer (plan périmé)",
+          libelle: perime.raisons.includes("raccord") ? "Raccrocher au plan précédent" : "Relancer (plan périmé)",
           detail: `${detailPerime(perime)} Même seed, ${dernierTermine?.activerUpscale ? "rendu final" : "prévisualisation"}.`,
           mode: (dernierTermine?.activerUpscale ? "final" : "previsualiser") as "final" | "previsualiser",
         }

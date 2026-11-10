@@ -63,3 +63,12 @@ Cas A → B → C, B « périmé », itération sur C. **On rend C quand même**
 - Le rendu de C est un essai ordinaire (supprimable) : le « plan jetable » existe déjà.
 - Marquage **transitif**, dérivé : C est « sur base périmée » si le rendu dont il part est lui-même périmé, « à refaire » dès que ce rendu a changé.
 - Précédent annulé ou échoué : ne bloque pas, C part sur l'ancien rendu retenu, marqué provisoire.
+
+## Suite (2026-11-10)
+
+- **Bouton « Raccrocher au plan précédent »** (barre d'action de l'essai) : visible quand le plan est lié (`suite`) et marqué « raccord à refaire » ; sinon « Relancer (plan périmé) ». Même seed.
+- **Le premier plan de l'épisode n'affiche pas** « Lié au plan précédent » (ni l'interrupteur, ni la puce).
+- **Un plan lié attend le rendu de son précédent** (`prochainJobEnAttente`, worker) : tant que le précédent a un rendu en file ou en cours, il n'est pas pris, même mis en file avant lui. Le mettre en file reste toujours possible. Complète l'ordre de départ des itérations (phase 3), qui ne regardait que les demandes.
+- **Plus d'état de départ pour un plan en `suite`** dans les descriptions (skills `scenario-scene`, `scenario-episode`, `iteration-plan`) : le rendu du plan précédent se prolonge dans le sien (latent). Le premier plan d'une scène et les plans en coupe gardent leur état de départ.
+- **Titre de l'affiche** : le nom du projet s'il est fixé, sinon le titre du brief (même non validé), sinon celui de la fiche (`titreDeLAffiche`).
+

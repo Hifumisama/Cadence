@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { db } from "../db";
 import { jobs, plans } from "../db/schema";
 
@@ -55,4 +55,13 @@ export async function essaiSourceDuLatent(precedent: { id: number; renduRetenuId
     if (source?.latentDossier) return { id: l.id, numeroRendu: l.numeroRendu, latentDossier: source.latentDossier };
   }
   return null;
+}
+
+/** Le plan précédent (par `ordre`, même épisode) a-t-il un rendu en file ou en cours ? Sert au worker : un plan en « suite » n'est pas pris tant que c'est le cas
+ * (voir `doitAttendreLePrecedent`, lib/chaines.ts). */
+export async function precedentEnRendu(plan: { episodeId: number; ordre: number }): Promise<boolean> {
+  const precedent = await planPrecedent(plan);
+  if (!precedent) return false;
+  const [actif] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.planId, precedent.id), inArray(jobs.statut, ["en_attente", "en_cours"]))).limit(1);
+  return actif != null;
 }

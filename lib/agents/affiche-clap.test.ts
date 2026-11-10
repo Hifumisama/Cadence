@@ -46,3 +46,16 @@ test("entrée du skill prompt-affiche pour le clap : texte seul, héros décrit,
   assert.match(String(e.genreTon), /Aventure \+ Thriller, ton grave|Aventure \+ Thriller, ton sombre/);
   assert.equal(entreeAfficheClap({ ...base, personnages: [] }).personnagePrincipal, null);
 });
+
+import { titreDeLAffiche } from "./affiche-clap";
+
+test("titre de l'affiche : le nom fixé gagne, puis le titre du brief (même non validé), puis celui de la fiche", () => {
+  assert.equal(titreDeLAffiche({ nom: "Les Yeux de Rubis", titreBrief: "Autre", titreFiche: "Encore" }), "Les Yeux de Rubis");
+  assert.equal(titreDeLAffiche({ nom: "Sans titre", titreBrief: "  Le Feu   d'Iris ", titreFiche: "" }), "Le Feu d'Iris");
+  assert.equal(titreDeLAffiche({ nom: "Sans titre", titreBrief: "", titreFiche: "Titre de la fiche" }), "Titre de la fiche");
+});
+
+test("titre de l'affiche : un titre provisoire ne compte pas, et rien ne s'invente", () => {
+  assert.equal(titreDeLAffiche({ nom: "Sans titre", titreBrief: "untitled", titreFiche: "Projet" }), "");
+  assert.equal(titreDeLAffiche({ nom: undefined, titreBrief: null, titreFiche: 3 }), "");
+});

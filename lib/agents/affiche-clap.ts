@@ -75,6 +75,16 @@ export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
   };
 }
 
+/** Le titre écrit sur l'affiche. Le nom du projet fait foi quand l'utilisateur l'a fixé ; sinon (« Sans titre » tant que l'entretien n'a pas conclu), le titre que l'IA a
+ * proposé : celui du brief (même non validé, l'affiche est provisoire), à défaut celui de la fiche de l'entretien. Un titre provisoire (« Sans titre »…) ne compte pas. Pur. */
+export function titreDeLAffiche(sources: { nom: unknown; titreBrief: unknown; titreFiche: unknown }): string {
+  for (const brut of [sources.nom, sources.titreBrief, sources.titreFiche]) {
+    const t = net(brut);
+    if (t && !TITRES_PROVISOIRES.has(t.toLowerCase())) return t;
+  }
+  return "";
+}
+
 /** Lit ce qui nourrit l'affiche : la conception, le style du brief et la fiche de l'entretien. Null tant que l'histoire n'est pas dite. */
 export async function donneesAffiche(db: Db, projectId: number): Promise<DonneesAffiche | null> {
   const conception = await lireConception(db, projectId);
@@ -89,10 +99,7 @@ export async function donneesAffiche(db: Db, projectId: number): Promise<Donnees
   const lieux = (Array.isArray(c.lieux) ? c.lieux : []).map((l) => net((l as { nom?: unknown }).nom)).filter(Boolean).join(", ");
   const [b] = await db.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
   const style = (b?.contenu as BriefContenu | undefined)?.style;
-  // Le nom du projet est provisoire (« Sans titre ») tant que l'entretien n'a pas fixé le titre : on lit alors celui de la fiche.
-  const titreFiche = net((fiche.contenu as { titre?: unknown }).titre);
-  const nom = net(projet.nom);
-  const titre = nom && !TITRES_PROVISOIRES.has(nom.toLowerCase()) ? nom : TITRES_PROVISOIRES.has(titreFiche.toLowerCase()) ? "" : titreFiche;
+  const titre = titreDeLAffiche({ nom: projet.nom, titreBrief: (b?.contenu as { titre?: unknown } | undefined)?.titre, titreFiche: (fiche.contenu as { titre?: unknown }).titre });
   return {
     titre,
     arc,

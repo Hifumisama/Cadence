@@ -29,6 +29,10 @@ export function choisirProchaineIteration<T extends IterationEnAttente>(file: T[
   return file.find((f) => !precedentsDe(f.planId).some((p) => p !== f.planId && enFile.has(p))) ?? file[0]!;
 }
 
+/** Un rendu en file doit-il attendre ? Un plan en « suite » repart du rendu de son précédent : tant que celui-ci a un rendu en file ou en cours, il patiente (le mettre en
+ * file reste toujours possible). Un plan en coupe, ou sans précédent, ne patiente jamais. */
+export const doitAttendreLePrecedent = (liaison: string, precedentEnRendu: boolean): boolean => liaison === "suite" && precedentEnRendu;
+
 /** Le rendu d'un plan en « suite » est-il périmé par rapport à son précédent ? `utilise` : l'essai du précédent dont il est parti (`jobs.raccord_job_id`) ;
  * `actuelId` : l'essai du précédent qui serait pris maintenant. Faux quand l'un des deux manque (rien à comparer, ou rien à reprendre). */
 export const raccordPerime = (utilise: number | null, actuelId: number | null): boolean => utilise != null && actuelId != null && utilise !== actuelId;

@@ -76,3 +76,11 @@ test("raccord périmé : seulement si les deux essais sont connus et différents
   assert.equal(raccordPerime(null, 9), false);
   assert.equal(raccordPerime(5, null), false);
 });
+
+import { doitAttendreLePrecedent } from "./chaines";
+
+test("un plan en suite attend le rendu de son précédent, jamais un plan en coupe", () => {
+  assert.equal(doitAttendreLePrecedent("suite", true), true);
+  assert.equal(doitAttendreLePrecedent("suite", false), false);
+  assert.equal(doitAttendreLePrecedent("coupe", true), false);
+});

@@ -118,9 +118,11 @@ export function PlanScenarioPanel({
                 {horsBornes ? <em> hors bornes</em> : null}
               </li>
             ) : null}
-            <li title={premierPlan ? "Premier plan de l'épisode : rien avant lui." : undefined}>
-              <span>Lié au plan précédent</span> <b>{premierPlan ? "—" : initial.liaison === "suite" ? "Oui" : "Non"}</b>
-            </li>
+            {premierPlan ? null : (
+              <li>
+                <span>Lié au plan précédent</span> <b>{initial.liaison === "suite" ? "Oui" : "Non"}</b>
+              </li>
+            )}
             {reglages.origine.styleCamera !== "defaut" ? (
               <li title="Style de mise en scène d'Open H3 IR pour ce plan. Se règle ici (Modifier), sur la scène ou sur le projet.">
                 <span>Mise en scène</span> <b title={reglages.styleCamera ? infobulleChoix(reglages.styleCamera) : undefined}>{reglages.styleCamera ? RESUME_STYLE_CAMERA[reglages.styleCamera] : "aucun style"}</b>
@@ -176,32 +178,31 @@ export function PlanScenarioPanel({
               : `De ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s entières ; le montage suit. Les repères de temps des shots du prompt ne sont pas recalés : vérifie les contrôles avant de relancer.`}
           </span>
         </div>
-        <div className="field-group">
-          <span className="pl-etiquette" id={`liaison-${planId}`}>
-            Lié au plan précédent ?
-          </span>
-          <button
-            type="button"
-            role="switch"
-            className="pl-interrupteur"
-            aria-checked={!premierPlan && lie}
-            aria-labelledby={`liaison-${planId}`}
-            disabled={premierPlan}
-            onClick={() => setChamps((c) => ({ ...c, liaison: c.liaison === "suite" ? "coupe" : "suite" }))}
-          >
-            <span className="pl-interrupteur-piste" aria-hidden="true">
-              <i />
+        {premierPlan ? null : (
+          <div className="field-group">
+            <span className="pl-etiquette" id={`liaison-${planId}`}>
+              Lié au plan précédent ?
             </span>
-            <span>{premierPlan ? "Premier plan" : lie ? "Oui" : "Non"}</span>
-          </button>
-          <span className="tiny-note">
-            {premierPlan
-              ? "Premier plan de l'épisode : rien avant lui."
-              : lie
-                ? "Il reprend là où le précédent finit : sa dernière image sert de raccord au prochain rendu."
+            <button
+              type="button"
+              role="switch"
+              className="pl-interrupteur"
+              aria-checked={lie}
+              aria-labelledby={`liaison-${planId}`}
+              onClick={() => setChamps((c) => ({ ...c, liaison: c.liaison === "suite" ? "coupe" : "suite" }))}
+            >
+              <span className="pl-interrupteur-piste" aria-hidden="true">
+                <i />
+              </span>
+              <span>{lie ? "Oui" : "Non"}</span>
+            </button>
+            <span className="tiny-note">
+              {lie
+                ? "Il reprend là où le précédent finit : son rendu prolonge celui du précédent. S'il est périmé, « Raccrocher au plan précédent » le refait."
                 : "Coupe franche : il s'ouvre librement, sans raccord."}
-          </span>
-        </div>
+            </span>
+          </div>
+        )}
         <ChampsReglagesCamera
           creativite={champs.creativite}
           styleCamera={champs.styleCamera}

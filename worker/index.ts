@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { LIBELLE_SOURCE_INVALIDE, MEGAPIXELS_VIDEO, continuiteEffective, etapesDuRendu, raccordImageARejouer, raisonSourceInvalide, type Continuite, type EtapeVideo } from "../lib/etapes-video";
-import { essaiSourceDuLatent, planPrecedent } from "../lib/queries-raccord";
+import { essaiSourceDuLatent, planPrecedent, precedentEnRendu } from "../lib/queries-raccord";
+import { doitAttendreLePrecedent } from "../lib/chaines";
 import { ficheChangeeDepuis } from "../lib/plans-perimes";
 import { BudgetContexte, contexteTotalDepuisEnv, estimerContexte } from "../lib/llm/budget-contexte";
 import { chargerSkill } from "../lib/llm/skills";
@@ -80,14 +81,21 @@ const chargerWorkflow = async (etape: EtapeVideo, suite: boolean): Promise<Workf
 };
 
 async function prochainJobEnAttente() {
-  const [job] = await db
+  const enAttente = await db
     .select()
     .from(jobs)
     .where(eq(jobs.statut, "en_attente"))
     // Le rendu d'une demande (itération) passe avant les autres vidéos : voir worker/ordonnanceur.ts.
     .orderBy(sql`(${jobs.demandeId} is null)`, jobs.createdAt)
-    .limit(1);
-  return job ?? null;
+    .limit(50);
+  // Un plan en « suite » repart du rendu de son précédent : tant que celui-ci a un rendu en file ou en cours, il patiente (même mis en file avant lui). Le plus
+  // ancien rendu qui n'attend personne passe. Jamais d'interblocage : on remonte `ordre` de plan en plan, la chaîne est finie.
+  for (const job of enAttente) {
+    const [plan] = await db.select({ episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(eq(plans.id, job.planId));
+    if (plan && doitAttendreLePrecedent(plan.liaison, await precedentEnRendu(plan))) continue;
+    return job;
+  }
+  return null;
 }
 
 /** Ce que le worker soumet, et ce qu'il garde de l'essai : `promptFiche` est le prompt de la FICHE (sans la déclaration de l'image de raccord, que le

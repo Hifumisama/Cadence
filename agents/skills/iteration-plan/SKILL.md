@@ -53,7 +53,7 @@ Several levers together are allowed when the instruction asks several things; ea
 `nouvelleDescription` **replaces** the plan's intent entirely. Leave it as an empty string when the intent does not change. When it changes:
 
 1. Start from `plan.intention`, copied **word for word**, and change only what the instruction needs. Keep every other sentence, every line `NAME : « text »` (unless the instruction changes it) and the `Consigne de l'auteur :` sentence if there is one.
-2. Form: the narrative in order (where everyone starts, relative to fixed landmarks of the place; the gestures; what changes; how the plan ends), then the lines, one per line, in French.
+2. Form: the narrative in order (where everyone starts, relative to fixed landmarks of the place, **only when the plan is the first of its scene or its `liaison` is `coupe`; a `suite` plan has no start paragraph, the previous video carries over**; the gestures; what changes; how the plan ends), then the lines, one per line, in French.
 3. No camera, lens or framing words: those belong to the settings.
 4. A character "behind" an element (a fire, a pillar) is written with a clear gap ("a few steps behind the fire, fully visible next to the flames").
 5. Say what is wanted, never what is forbidden ("her hands rest on the strap", not "no sword").
