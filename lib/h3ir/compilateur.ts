@@ -66,15 +66,15 @@ export type ReglagesH3ir = {
 const DELAI_PAR_DEFAUT_MS = 20 * 60 * 1000;
 export const MAX_TENTATIVES = 3;
 
-/** Le Python où `open-h3-ir` est installé : `H3IR_PYTHON`, sinon le venv du banc d'essai (`h3ir-lab`) s'il existe. */
+/** Le Python où `open-h3-ir` est installé : `H3IR_PYTHON`, sinon l'environnement `.venv-h3ir` de la racine (`requirements-h3ir.txt`) s'il existe. */
 export function pythonH3ir(env: Env = process.env, existe: (chemin: string) => boolean = existsSync): string {
   const voulu = env.H3IR_PYTHON?.trim();
   if (voulu) return voulu;
-  for (const rel of ["h3ir-lab/.venv/Scripts/python.exe", "h3ir-lab/.venv/bin/python"]) {
+  for (const rel of [".venv-h3ir/Scripts/python.exe", ".venv-h3ir/bin/python"]) {
     const chemin = resolve(rel);
     if (existe(chemin)) return chemin;
   }
-  throw new ErreurCompilation("Open H3 IR : renseigne H3IR_PYTHON (le Python où le paquet open-h3-ir est installé, par exemple h3ir-lab\\.venv\\Scripts\\python.exe).");
+  throw new ErreurCompilation("Open H3 IR : renseigne H3IR_PYTHON (le Python où le paquet open-h3-ir est installé, ou crée .venv-h3ir à la racine avec requirements-h3ir.txt).");
 }
 
 /** Réglages du processus Python. `modele` : celui de la traduction (le même modèle, pour ne pas faire décharger llama-swap en plein calcul ; il doit voir les images). */

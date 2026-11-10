@@ -1,6 +1,6 @@
 # Open H3 IR — les entrées de `POST /v1/briefs`
 
-Mini-doc de référence, tirée du paquet installé (`h3ir-lab/.venv/.../h3ir/` : `service.py`, `contract.py`, `models.py`, `director.py`) et de `lib/h3ir/brief.ts`.
+Mini-doc de référence, tirée du paquet installé (`.venv-h3ir/.../h3ir/` : `service.py`, `contract.py`, `models.py`, `director.py`) et de `lib/h3ir/brief.ts`.
 Le service refuse toute clé inconnue (422 `unknown-field`) : le contrat est fermé. Seule `intent` est obligatoire.
 
 ## Le brief (`BriefIn`)

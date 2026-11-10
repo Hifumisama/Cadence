@@ -1,7 +1,7 @@
 # Rapport d'amont pour `ruashots/open-h3-ir` (brouillon, version 0.4.1)
 
 **Brouillon seulement : rien n'a été envoyé.** À relire et à poster par l'utilisateur, s'il le veut, sur le dépôt du paquet. Les références `fichier:ligne` sont celles du
-paquet installé (`h3ir-lab/.venv/Lib/site-packages/h3ir/`). Contexte : Cadence compile le brief d'un plan (une intention, des images de référence, des répliques) en
+paquet installé (`.venv-h3ir/Lib/site-packages/h3ir/`). Contexte : Cadence compile le brief d'un plan (une intention, des images de référence, des répliques) en
 prompt H3 par `POST /v1/briefs`, appelé en mémoire (`TestClient`).
 
 ## 1. Espace avant `! ? ; :` dans une réplique (typographie française)

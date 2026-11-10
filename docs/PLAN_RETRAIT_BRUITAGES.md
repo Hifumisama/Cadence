@@ -7,7 +7,7 @@ de l'app »). **Approuvé le 2026-11-10, fait sur la branche `retrait-bruitages`
 
 - **Les voix** : le champ voix du personnage (`assets.voix_*`, master), les références audio de voix (`<Audio N>`, rôle `voice_timbre`) et leur plafond de 3 audios. La voix
   n'a plus à « primer sur les bruitages » : la règle disparaît, la contrainte reste le plafond.
-- **Open H3 IR** (paquet `h3ir-lab`) : le rôle `sfx` y existe, mais l'application cesse simplement de l'envoyer. Aucun changement côté paquet.
+- **Open H3 IR** (paquet `open-h3-ir`) : le rôle `sfx` y existe, mais l'application cesse simplement de l'envoyer. Aucun changement côté paquet.
 - **Les autres types d'assets** (personnage, décor, prop, vfx, keyframe, oth) et leur génération d'image.
 
 ## Données (petit)

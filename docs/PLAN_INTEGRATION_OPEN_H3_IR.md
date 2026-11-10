@@ -2,7 +2,7 @@
 
 Remplace à terme le skill `plan-h3` et l'assemblage de `lib/agents/plan-h3-assemblage.ts` pour écrire le prompt vidéo d'un plan.
 Open H3 IR = paquet Python `open-h3-ir` 0.4.1 (Apache-2.0), un compilateur « intention + références + répliques → prompt H3 »
-(séquence `[Shot N]`, soundscape, musique, diagnostics). Banc d'essai : `h3ir-lab/` (README). Essais et bugs : journal de `docs/CAHIER_DE_TESTS.md`
+(séquence `[Shot N]`, soundscape, musique, diagnostics). Banc d'essai `h3ir-lab/` retiré le 2026-11-10 (environnement Python : `.venv-h3ir`, `requirements-h3ir.txt`). Essais et bugs : journal de `docs/CAHIER_DE_TESTS.md`
 (F7, G, E6). Étude de code faite le 2026-11-01 par un agent Opus (lecture seule) ; les références `fichier:ligne` ci-dessous viennent de cette étude.
 
 **Un plan Cadence = un brief Open H3 IR = un clip H3 à plusieurs shots.** Aucun écart de modèle à résoudre.
@@ -54,7 +54,7 @@ Décisions du 2026-11-02 (suite) :
 17. **« Générer la fiche avec Open H3 IR » remplace la fiche existante** (le clic vaut confirmation) ; l'ancien prompt est mis dans l'historique du prompt (source `avant`), le nouveau
     y est inscrit en `compilation`. Une fiche d'Open H3 IR n'écrit ni la durée ni la description du plan, et ne crée aucun asset.
 18. **Python dans Docker maintenant** (`Dockerfile.worker` : `python3`, `py3-pip`, `open-h3-ir==0.4.1` épinglé dans `scripts/h3ir/requirements.txt`) — **non testé** : à construire
-    une fois sur le mini PC avant de s'y fier. En dev : `H3IR_PYTHON`, à défaut le venv de `h3ir-lab`.
+    une fois sur le mini PC avant de s'y fier. En dev : `H3IR_PYTHON`, à défaut `.venv-h3ir` à la racine.
 
 Réalisé le 2026-11-02 (étapes 2, 3, 4 et 6, **non commité, non essayé avec un vrai LLM**) : `scripts/h3ir/compiler.py` (pont Python, `TestClient` en mémoire, 1,3 s de démarrage mesuré),
 `lib/h3ir/compilateur.ts` (lanceur de processus avec délai et annulation qui tue l'arbre de processus, jugement des réponses, relances seed+1 deux fois), `worker/h3ir.ts` (brief →

@@ -9,3 +9,6 @@ data/*
 *.log
 *.tsbuildinfo
 workflows/labo/essais/
+
+# Python d'Open H3 IR (voir requirements-h3ir.txt)
+.venv-h3ir/

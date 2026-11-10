@@ -111,7 +111,7 @@ test("compilerAvecRelances : une sortie qui n'est pas du JSON est une erreur dit
 
 test("pythonH3ir / reglagesH3ir : H3IR_PYTHON prime, le venv du labo sert de repli, sinon message qui dit quoi régler", () => {
   assert.equal(pythonH3ir({ H3IR_PYTHON: "/opt/h3ir/bin/python" }, () => false), "/opt/h3ir/bin/python");
-  assert.match(pythonH3ir({}, (c) => c.endsWith("python.exe")), /h3ir-lab/);
+  assert.match(pythonH3ir({}, (c) => c.endsWith("python.exe")), /venv-h3ir/);
   assert.throws(() => pythonH3ir({}, () => false), /renseigne H3IR_PYTHON/);
 
   const r = reglagesH3ir("gemma", { H3IR_PYTHON: "py", LLM_LOCAL_URL: "http://llm:8080/", H3IR_STATE_DIR: "/tmp/h3ir" });
