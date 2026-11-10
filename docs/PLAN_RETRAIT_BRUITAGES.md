@@ -1,7 +1,7 @@
 # Retrait des bruitages (assets `sfx`) — inventaire
 
 2026-11-10. Origine : note de l'utilisateur au test FI-12 du cahier (« c'est tellement peu voire pas utilisé que l'on peut faire sauter complètement le système de bruitages
-de l'app »). **Inventaire seulement, rien n'est modifié.** À approuver avant tout retrait.
+de l'app »). **Approuvé le 2026-11-10, fait sur la branche `retrait-bruitages`** (voir « Fait » en bas). Décisions : colonne `assets.duree_secondes` retirée, lecteur audio de `AssetPreview` gardé (voix), workflow et modèles Stable Audio 3 retirés (workflow et manifeste GPU).
 
 ## Ce qui reste, et ce qui n'est PAS touché
 
@@ -69,3 +69,11 @@ de l'app »). **Inventaire seulement, rien n'est modifié.** À approuver avant 
 - **Worker** : les fichiers de `lib/` partagés avec le worker redémarrent le worker (`tsx watch`) : à faire quand aucun rendu ne tourne.
 - **Aucun risque de données** : pas de référence de plan vers un bruitage, 2 assets isolés.
 - **Rien à migrer côté Open H3 IR** : le rôle `sfx` reste disponible, simplement inutilisé.
+
+## Fait (2026-11-10)
+
+- **Interface** (commit `7b45c6d`, sur `retours-projet-236`) : atelier son, onglet « Son », voie « Bruitages » du Montage, popup de génération audio, option « bruitage » de l'ajout d'asset.
+- **Code partagé avec le worker** (commit `558b7ff`, branche `retrait-bruitages`, à fusionner quand le worker peut redémarrer) : génération audio (workflow, mapping, branche de `worker/images.ts`, constantes `lib/asset-generation.ts`), type `sfx` du registre, nature « son » du chemin plan-h3, bloc « Bruitages » et rôle `sfx` d'Open H3 IR, emplacements audio du worker (seules les voix), variante `sfx` du skill `prompt-asset` (schéma à une seule forme), `methodeApplicable` et `raisonNonGenerable` (devenus sans objet).
+- **Déploiement GPU** : modèles Stable Audio 3 et encodeur Qwen 3.5 2B retirés de `deploy/gpu/models.manifest` ; `workflows/audio/SFX_Generate_Sounds.json` supprimé.
+- **Doc** : règle « la voix prime sur les bruitages » retirée de `CLAUDE.md`.
+- **Migration `0081_retrait_bruitages`** : supprime les 2 assets `sfx` (et leurs essais), retire `assets.duree_secondes`. À lancer APRÈS la fusion et le redémarrage du worker (l'ancien code lit cette colonne). Les 3 fichiers audio sous `data/` sont à supprimer à la main.
