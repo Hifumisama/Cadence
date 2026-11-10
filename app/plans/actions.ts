@@ -13,7 +13,7 @@ import { rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { estLiaison } from "@/lib/plan-liaison";
-import { descriptionSeraitPerdue, intentionChangee } from "@/lib/intent";
+import { descriptionSeraitPerdue, intentionChangee, memeDescription } from "@/lib/intent";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
 import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "@/lib/plan-references";
 import { emplacementLibre } from "@/lib/references";
@@ -481,9 +481,12 @@ export async function validerPretUpscale(
       }
     }
     valeurs.description = job.descriptionUtilisee;
-    // La fiche ne suit le texte que si elle est celle de cet essai ; sinon elle reste signalée « à régénérer ».
+  }
+  // La fiche suit le texte quand elle est celle de l'essai retenu ET que le texte du plan est le sien (qu'on vienne de l'y mettre ou qu'il y fût déjà : une fiche écrite par un
+  // chemin qui n'a pas noté son texte, `ficheDescription` en retard, est ainsi remise d'accord). Sinon elle reste signalée « à régénérer ».
+  if (job.descriptionUtilisee != null && job.promptUtilise && memeDescription(valeurs.description ?? lePlan?.description, job.descriptionUtilisee)) {
     const sections = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId));
-    if (job.promptUtilise && !promptDiffere(assemblerPrompt(sections), job.promptUtilise)) valeurs.ficheDescription = job.descriptionUtilisee;
+    if (!promptDiffere(assemblerPrompt(sections), job.promptUtilise)) valeurs.ficheDescription = job.descriptionUtilisee;
   }
   await db.update(plans).set(valeurs).where(eq(plans.id, planId));
   revalidatePath("/", "layout");
