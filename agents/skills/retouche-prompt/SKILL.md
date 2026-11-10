@@ -14,6 +14,7 @@ The author watched a render, liked it, and wants **one thing changed** (add a sp
 One message with these parts:
 
 - `INSTRUCTION`: what the author asks, in French.
+- `PLAN DESCRIPTION BEFORE` (optional): the French description of the plan when the render of the prompt was made. When it is present, the author edited the plan text since then: **the difference between BEFORE and NOW is what to carry into the prompt** (the INSTRUCTION may only say that the text changed).
 - `PLAN DESCRIPTION NOW`: the French description of the plan after the instruction (a reference for what should be seen and heard; spoken lines appear as `Name : « text »`).
 - `SPOKEN LINES REQUIRED`: the exact lines that must be spoken in the final prompt, verbatim, one per line as `Name | text` (may be empty: then no line is spoken).
 - `PROMPT`: the current prompt, six sections, each introduced by its name and a colon: `subject_definitions`, `summary`, `retention_analysis`, `detailed_description`, `overall_soundscape`, `non_diegetic_music`.
@@ -33,7 +34,8 @@ One message with these parts:
 5. **Do not spend time you do not have.** A short line fits a short moment; do not lengthen the plan or add a shot. If a required line cannot be placed without rebuilding the shots, answer `refonte: true`.
 6. **Sound sections.** `overall_soundscape` and `non_diegetic_music` change only when the instruction is about sound or music.
 7. **English prose, no commentary.** Edits you write are in English (the language of the prompt), apart from spoken lines, which keep their own language. No straight double quote `"` in the prose (it would be read as text to show on screen); use none.
-8. **No invention.** Do not add actions, objects, effects or camera moves that the instruction does not ask for.
+8. **Text changed since the render.** With a BEFORE description, find what differs from NOW (an action, a gesture, a detail, a spoken line, a camera idea) and edit only the matching passages of the prompt. If the difference is deep (a different action, place or story beat, most of the text rewritten), answer `refonte: true`.
+9. **No invention.** Do not add actions, objects, effects or camera moves that neither the instruction nor the text difference asks for.
 
 ## Before you answer
 
