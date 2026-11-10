@@ -894,7 +894,7 @@ async function avancer(d: LigneDemande): Promise<boolean> {
         await ecrire(d, { etapes: e, contexte: { ...vus, decisionsARecompiler: aRecompiler, preparation: { assetsCrees: crees } } });
         return true;
       }
-      const g = await genererReecriturePlan(conversationUuid, { consigne: ctx.consigne, decisions: aRecompiler, demandeId: d.id });
+      const g = await genererReecriturePlan(conversationUuid, { consigne: ctx.consigne, decisions: aRecompiler, demandeId: d.id, depuisNumero: ctx.depuisNumero });
       if (!g.ok) {
         if (/déjà en cours/i.test(g.erreur)) return false; // la conversation est prise par autre chose : au prochain tour
         await ecrire(d, { statut: "echoue", erreur: g.erreur, contexte: vus });
@@ -927,7 +927,7 @@ async function avancerImagesIteration(d: LigneDemande, ctx: ContexteIteration, e
     async (suite) => {
       const conv = await ouvrirConversation(d.projectId, "plan", { uuid: plan.uuid }, "courte");
       if (!conv.ok) return echouer(d, conv.erreur);
-      const g = await genererReecriturePlan(conv.conversationUuid, { consigne: ctx.consigne, decisions: dec, demandeId: d.id });
+      const g = await genererReecriturePlan(conv.conversationUuid, { consigne: ctx.consigne, decisions: dec, demandeId: d.id, depuisNumero: ctx.depuisNumero });
       if (!g.ok) return /déjà en cours/i.test(g.erreur) ? false : echouer(d, g.erreur);
       await ecrire(d, { etapes: suite, contexte: { ...ctx, runUuid: g.runUuid } });
       return true;

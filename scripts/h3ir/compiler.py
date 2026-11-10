@@ -13,6 +13,7 @@ import contextlib
 import json
 import os
 import sys
+import traceback
 import warnings
 
 
@@ -38,10 +39,15 @@ def main() -> int:
                 chemin = asset.get("path")
                 if chemin and os.path.exists(chemin):
                     fichiers[sha256_file(chemin)] = chemin
-            reponse = TestClient(app, raise_server_exceptions=False).post("/v1/briefs", json=brief)
+            # Le paquet n'intercepte pas ses erreurs internes : en mode « sans exception » FastAPI répond « Internal Server Error » en texte,
+            # et on ne voyait plus que « JSONDecodeError » sans la cause. On laisse donc l'exception remonter pour en rendre la trace.
+            reponse = TestClient(app, raise_server_exceptions=True).post("/v1/briefs", json=brief)
             resultat = {"http": reponse.status_code, "enveloppe": reponse.json(), "fichiers": fichiers}
         except Exception as erreur:  # noqa: BLE001 - tout échec est rendu au worker, qui le dit à l'utilisateur
-            resultat = {"http": 0, "erreur": f"{type(erreur).__name__}: {erreur}"}
+            trace = traceback.format_exc()
+            print(trace, file=sys.stderr)
+            lieux = [ligne.strip() for ligne in trace.splitlines() if ligne.lstrip().startswith("File ")][-2:]
+            resultat = {"http": 0, "erreur": f"{type(erreur).__name__}: {erreur}" + (f" ({' ; '.join(lieux)})" if lieux else "")}
     sortie.write(json.dumps(resultat, ensure_ascii=False))
     sortie.flush()
     return 0

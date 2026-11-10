@@ -47,6 +47,17 @@ test("separerDescription : répliques extraites dans l'ordre, « État en fin de
   assert.ok(!narration.includes("Tu es sûr"));
 });
 
+test("separerDescription : un point après le guillemet fermant n'empêche pas la réplique", () => {
+  const r = separerDescription("Texte.\nKatara : « l'Air ».");
+  assert.deepEqual(r.repliques, [{ nom: "Katara", texte: "l'Air" }]);
+  assert.equal(r.narration, "Texte.");
+});
+
+test("normaliserReplique : trois points deviennent « … » (le paquet rejetait « harmonie... »)", () => {
+  assert.equal(normaliserReplique("Ces 4 peuples vivaient en harmonie... Puis ....."), "Ces 4 peuples vivaient en harmonie… Puis …");
+  assert.equal(normaliserReplique("Fin."), "Fin.");
+});
+
 test("normaliserReplique : plus d'espace (même insécable) devant ! ? ; :", () => {
   assert.equal(normaliserReplique("Tu es sûr ? Oui ! Voilà : bien ;"), "Tu es sûr? Oui! Voilà: bien;");
 });

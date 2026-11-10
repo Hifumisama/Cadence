@@ -23,6 +23,7 @@ const SORTIE_ATTENDUE: Record<string, number> = {
   // Le choix des références d'un plan en cas de doute : 6 références et 2 manquants au plus, ≤ 300 jetons visés ; l'entrée (registre résumé, descriptions
   // coupées à 160 caractères) est comptée par sa taille JSON comme les autres.
   "references-plan": 400,
+  "retouche-prompt": 3000, // les six sections du prompt, recopiées (ce qui ne change pas est rendu à l'identique)
   "plan-h3ir": 1500, // la traduction de l'intent ; le compilateur, lui, est compté à part (JETONS_COMPILATEUR_H3IR)
 };
 /** Open H3 IR (`plan-h3ir`) : le compilateur Python fait ses propres appels au serveur (analyse des images, plan des plans, prose), que le skill de traduction ne

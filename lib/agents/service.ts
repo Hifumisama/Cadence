@@ -49,6 +49,7 @@ import { ecrireReferencesDuSkill } from "../h3ir/preparation-db";
 import { cleSousTachePlan, planUuidDeCle } from "./fiches";
 import type { ContexteUtilise, EtatIterationPlan, PlanPourFiche } from "./types";
 import { SKILL_H3IR, type EntreeH3ir } from "../h3ir/resultat";
+import { preparerDepart } from "../h3ir/retouche";
 import { referencesApresDecisions } from "../h3ir/brief-plan";
 import { estCreativite, styleCameraOuNull } from "../h3ir/reglages";
 import type { DecisionsIteration } from "./types";
@@ -1188,7 +1189,9 @@ export async function genererIteration(
  * la recompilation est refusée sans tâche lancée. */
 export async function genererReecriturePlan(
   conversationUuid: string,
-  options: { consigne: string; decisions: DecisionsIteration; demandeId?: number },
+  /** `depuisNumero` : l'essai dont l'utilisateur est parti. Quand les décisions ne touchent que la description, la consigne se joue sur le PROMPT de cet essai
+   * (skill `retouche-prompt`, worker/h3ir.ts) au lieu d'une recompilation ; le skill peut répondre « refonte », la compilation prend alors le relais. */
+  options: { consigne: string; decisions: DecisionsIteration; demandeId?: number; depuisNumero?: number | null },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
@@ -1211,15 +1214,36 @@ export async function genererReecriturePlan(
   if (finales.codes.length === 0) return ERR("Le plan n'aurait plus aucune image de référence : Open H3 IR ne peut pas le compiler. Rien n'a été écrit.");
   if (finales.sansImage.length) return ERR(`En attente d'images : ${finales.sansImage.join(", ")} (la recompilation part quand elles existent) ; rien n'a été écrit.`);
 
+  // Partir d'un essai : retouche de son prompt quand les décisions ne touchent que la description (lib/h3ir/retouche.ts, `preparerDepart`).
+  const [essai] =
+    options.depuisNumero != null && !references && !reglagesPlan && duree == null
+      ? await db
+          .select({ prompt: jobs.promptUtilise, description: jobs.descriptionUtilisee, duree: jobs.dureeUtilisee })
+          .from(jobs)
+          .where(and(eq(jobs.planId, conv.cibleId), eq(jobs.numeroRendu, options.depuisNumero)))
+          .limit(1)
+      : [];
+  const depart = preparerDepart(
+    { description, duree, references: !!references, reglages: !!reglagesPlan },
+    options.depuisNumero,
+    essai,
+    options.consigne,
+    (n) => n >= DUREE_GENERATION_MIN && n <= DUREE_GENERATION_MAX,
+  );
+  const retouche = depart.retouche;
+  const descriptionVoulue = depart.description;
+  const dureeVoulue = depart.duree;
+
   const entree: EntreeH3ir = {
     planUuid: p.uuid,
     shots: null,
     director: null,
     creativity: null,
-    ...(description ? { description } : {}),
-    ...(duree != null ? { dureeSecondes: duree } : {}),
+    ...(descriptionVoulue ? { description: descriptionVoulue } : {}),
+    ...(dureeVoulue != null ? { dureeSecondes: dureeVoulue } : {}),
     ...(references ? { references } : {}),
     ...(reglagesPlan ? { reglagesPlan } : {}),
+    ...(retouche ? { retouche } : {}),
   };
   const contexte: ContexteUtilise[] = [{ type: "plan", libelle: "Décisions de l'agent d'itération, recompilées par Open H3 IR (écrites avec la fiche)", ref: p.uuid }];
   const propId = await nouvelleProposition(conv, { skill: SKILL_H3IR, consigne: options.consigne.trim(), contexte });
@@ -1230,7 +1254,7 @@ export async function genererReecriturePlan(
     projectId: conv.projectId,
     conversationId: conv.id,
     propositionId: propId,
-    options: { ...(description ? { descriptionNouvelle: description } : {}), ...(duree != null ? { dureeNouvelle: duree } : {}), ...(reglagesPlan ? { reglagesNouveaux: reglagesPlan } : {}) },
+    options: { ...(descriptionVoulue ? { descriptionNouvelle: descriptionVoulue } : {}), ...(dureeVoulue != null ? { dureeNouvelle: dureeVoulue } : {}), ...(reglagesPlan ? { reglagesNouveaux: reglagesPlan } : {}) },
     demandeId: options.demandeId,
   });
   await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
