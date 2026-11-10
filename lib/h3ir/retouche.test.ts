@@ -108,3 +108,17 @@ test("preparerDepart : sans description décidée, celle de l'essai sert ; sans 
   assert.equal(preparerDepart(base, 7, { ...ESSAI, duree: null }, "c", ok).retouche, null);
   assert.deepEqual(preparerDepart({ ...base, duree: 6 }, 7, ESSAI, "c", ok), { retouche: null, description: "x", duree: 6 }, "rien ne change sur le chemin de recompilation");
 });
+
+test("messageRetouche : la description d'avant n'est donnée que si elle diffère de celle d'après", () => {
+  const base = { numeroRendu: 7, consigne: "c", sections: SECTIONS, repliques: [], descriptionApres: "Elle lève les mains." };
+  assert.ok(!messageRetouche(base).includes("BEFORE"));
+  assert.ok(!messageRetouche({ ...base, descriptionAvant: "Elle lève les mains." }).includes("BEFORE"));
+  const m = messageRetouche({ ...base, descriptionAvant: "Elle baisse les mains." });
+  assert.ok(m.indexOf("PLAN DESCRIPTION BEFORE") < m.indexOf("PLAN DESCRIPTION NOW") && m.includes("Elle baisse les mains."));
+});
+
+test("preparerDepart : le texte de l'essai devient la description d'avant quand les décisions en donnent une autre", () => {
+  const d = preparerDepart({ description: "Elle ouvre les mains.", duree: null, references: false, reglages: false }, 7, ESSAI, "c", ok);
+  assert.equal(d.retouche?.descriptionAvant, "Elle lève les mains.");
+  assert.equal(preparerDepart({ description: null, duree: null, references: false, reglages: false }, 7, ESSAI, "c", ok).retouche?.descriptionAvant, undefined);
+});

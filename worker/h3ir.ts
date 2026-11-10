@@ -66,7 +66,7 @@ function lireRetouche(v: unknown): EntreeRetouche | null {
   if (!r || typeof r !== "object" || typeof r.consigne !== "string" || typeof r.numeroRendu !== "number" || !r.sections || typeof r.descriptionApres !== "string") return null;
   const sections = Object.fromEntries(ORDRE_SECTIONS.map((nom) => [nom, typeof r.sections![nom] === "string" ? r.sections![nom] : ""])) as EntreeRetouche["sections"];
   const repliques = Array.isArray(r.repliques) ? r.repliques.filter((x): x is { nom: string; texte: string } => !!x && typeof x.nom === "string" && typeof x.texte === "string") : [];
-  return { numeroRendu: r.numeroRendu, consigne: r.consigne, sections, repliques, descriptionApres: r.descriptionApres };
+  return { numeroRendu: r.numeroRendu, consigne: r.consigne, sections, repliques, descriptionApres: r.descriptionApres, ...(typeof r.descriptionAvant === "string" && r.descriptionAvant.trim() ? { descriptionAvant: r.descriptionAvant } : {}) };
 }
 
 /** « Partir de cet essai » : la consigne se joue sur le prompt de l'essai (skill `retouche-prompt`). Deux tentatives (la seconde reçoit les défauts de la première) ;

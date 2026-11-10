@@ -263,7 +263,7 @@ export default async function PlanPage({
       ? seulementTexte
         ? {
             libelle: "Itérer à partir de cet essai",
-            detail: "Le texte du plan a changé mais pas son prompt : relancer redonnerait le même rendu. Écris la consigne : le prompt de l'essai est retouché en conséquence.",
+            detail: "Le texte du plan a changé mais pas son prompt : relancer redonnerait le même rendu. Un clic reporte la différence de texte dans le prompt de l'essai, sans rien changer d'autre.",
             mode: "iterer" as const,
           }
         : {

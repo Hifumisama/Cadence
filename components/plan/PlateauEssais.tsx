@@ -1,5 +1,6 @@
 "use client";
 
+import { EVENEMENT_ITERER_TEXTE } from "@/lib/iteration-texte";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
@@ -255,9 +256,9 @@ export function PlateauEssais({
                     <button
                       type="button"
                       className="tm-geste is-actif"
-                      disabled={relancePerime.mode !== "iterer" && (!peutVarier || b.occupe)}
-                      onClick={() => (relancePerime.mode === "iterer" ? repartir() : b.figer(relancePerime.mode))}
-                      title={peutVarier || relancePerime.mode === "iterer" ? relancePerime.detail : "Un essai tourne, ou le plan est validé : rouvre l'itération."}
+                      disabled={!peutVarier || b.occupe}
+                      onClick={() => (relancePerime.mode === "iterer" ? window.dispatchEvent(new Event(EVENEMENT_ITERER_TEXTE)) : b.figer(relancePerime.mode))}
+                      title={peutVarier ? relancePerime.detail : "Un essai tourne, ou le plan est validé : rouvre l'itération."}
                     >
                       {relancePerime.libelle}
                     </button>

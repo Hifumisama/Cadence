@@ -6,6 +6,7 @@ import { ouvrirConversation } from "@/app/agents/actions";
 import { annulerLaDemande, corrigerConsigneIteration, demanderIteration, lireDemande } from "@/app/demandes/actions";
 import { preparerBaseIteration, rouvrirIteration, validerPretUpscale, type ConflitDescription } from "@/app/plans/actions";
 import { intentAffichee } from "@/lib/intent";
+import { CONSIGNE_TEXTE_MODIFIE, EVENEMENT_ITERER_TEXTE } from "@/lib/iteration-texte";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { DecisionsIteration } from "@/components/plan/DecisionsIteration";
 import type { DecisionsAffichees } from "@/lib/agents/types";
@@ -106,6 +107,14 @@ export function IntentionPlan({
     };
   }, []);
 
+  /** « Itérer à partir de cet essai » (plan périmé pour son seul texte, PlateauEssais) : la consigne est toujours la même, l'agent et la retouche voient la différence. */
+  const itererRef = useRef<(c?: string) => Promise<void>>(async () => undefined);
+  useEffect(() => {
+    const surDemande = () => void itererRef.current(CONSIGNE_TEXTE_MODIFIE);
+    window.addEventListener(EVENEMENT_ITERER_TEXTE, surDemande);
+    return () => window.removeEventListener(EVENEMENT_ITERER_TEXTE, surDemande);
+  }, []);
+
   const occupe = phase !== "repos" || pending;
   const aUnRendu = base != null;
   const retouches = b.modifications.length > 0;
@@ -195,8 +204,9 @@ export function IntentionPlan({
     }
   };
 
-  const iterer = async () => {
+  const iterer = async (consigneAuto?: string) => {
     if (occupe || enCours) return;
+    const texte = consigneAuto ?? consigne.trim();
     setErreur(null);
     setInfo(null);
     setDecisions(null);
@@ -239,6 +249,8 @@ export function IntentionPlan({
       setPhase("repos");
     }
   };
+
+  itererRef.current = iterer;
 
   /** Corrige la consigne de l'itération en file. Si elle vient de démarrer entre-temps, la page se recharge : elle est partie à l'agent. */
   const corrigerEnAttente = () => {

@@ -20,6 +20,8 @@ export type EntreeRetouche = {
   repliques: { nom: string; texte: string }[];
   /** La description du plan telle qu'elle sera après la retouche (français), donnée au skill comme référence. */
   descriptionApres: string;
+  /** La description du plan telle qu'elle était à l'essai dont on part, quand elle diffère de celle d'après : c'est la différence entre les deux qui dit quoi reporter. */
+  descriptionAvant?: string;
 };
 
 export type SortieRetouche = {
@@ -63,6 +65,9 @@ export function messageRetouche(e: EntreeRetouche): string {
   const prompt = ORDRE_SECTIONS.map((nom) => `${nom}:\n${e.sections[nom] ?? ""}`).join("\n\n");
   return [
     `INSTRUCTION:\n${e.consigne.trim()}`,
+    ...(e.descriptionAvant?.trim() && e.descriptionAvant.trim() !== e.descriptionApres.trim()
+      ? [`PLAN DESCRIPTION BEFORE (the render the prompt comes from):\n${e.descriptionAvant.trim()}`]
+      : []),
     `PLAN DESCRIPTION NOW:\n${e.descriptionApres.trim()}`,
     `SPOKEN LINES REQUIRED:\n${e.repliques.length ? e.repliques.map((r) => `${r.nom} | ${r.texte}`).join("\n") : "(none)"}`,
     `PROMPT:\n${prompt}`,
@@ -153,5 +158,5 @@ export function preparerDepart(
   const duree = essai.duree != null && Number.isInteger(essai.duree) && dureeValide(essai.duree) ? essai.duree : null;
   const description = decisions.description ?? ((essai.description ?? "").trim() || null);
   if (!sections || duree == null || !description) return inchange;
-  return { retouche: { numeroRendu: depuisNumero, consigne: consigne.trim(), sections, repliques: repliquesDeDescription(description), descriptionApres: description }, description, duree };
+  return { retouche: { numeroRendu: depuisNumero, consigne: consigne.trim(), sections, repliques: repliquesDeDescription(description), descriptionApres: description, ...((essai.description ?? "").trim() && (essai.description ?? "").trim() !== description.trim() ? { descriptionAvant: essai.description!.trim() } : {}) }, description, duree };
 }
