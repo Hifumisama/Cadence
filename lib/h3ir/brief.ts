@@ -99,12 +99,17 @@ export type LienFichier = { path: string; code: string; type: "picture" | "video
 
 export type ResultatBrief = { brief: BriefH3ir | null; refus: string | null; avertissements: string[]; liens: LienFichier[] };
 
-/** Une ligne de réplique de la description : « NOM : « texte » ». */
-const LIGNE_REPLIQUE = /^[\s  ]*([^:«»\n]{1,60}?)[\s  ]*:[\s  ]*«[\s  ]*([\s\S]*?)[\s  ]*»[\s  ]*$/;
+/** Une ligne de réplique de la description : « NOM : « texte » ». Un point après le guillemet fermant est toléré (« Katara : « l'Air ». » : sans cela la réplique restait
+ * dans la narration et n'était jamais jouée, plan 03 du projet 236). */
+const LIGNE_REPLIQUE = /^[\s  ]*([^:«»\n]{1,60}?)[\s  ]*:[\s  ]*«[\s  ]*([\s\S]*?)[\s  ]*»[\s  .]*$/;
 const ETAT_DE_FIN = /^[\s  ]*État en fin de plan/i;
 
 /** La typographie française met une espace (souvent insécable) devant `! ? ; :` : le paquet en fait une rupture de son brouillon (h3ir/render.py:407). */
-export const normaliserReplique = (texte: string): string => texte.replace(/[\s  ]+([!?;:])/g, "$1").trim();
+export const normaliserReplique = (texte: string): string =>
+  texte
+    .replace(/[\s  ]+([!?;:])/g, "$1")
+    .replace(/\.{3,}/g, "…")
+    .trim();
 
 /** Sépare la description d'un plan en narration (sans « État en fin de plan ») et répliques `{ nom, texte }` dans l'ordre. */
 export function separerDescription(description: string): { narration: string; repliques: { nom: string; texte: string }[] } {
