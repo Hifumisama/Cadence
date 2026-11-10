@@ -25,8 +25,6 @@ import { IntentionPlan } from "@/components/plan/IntentionPlan";
 import { iterationDuPlan, iterationEnAttenteDuPlan } from "@/lib/demandes-db";
 import { CartePrompt } from "@/components/plan/CartePrompt";
 import { TiroirPlan } from "@/components/plan/TiroirPlan";
-import { BriefH3irBloc } from "@/components/plan/BriefH3irBloc";
-import { resoudreReglages } from "@/lib/h3ir/reglages";
 import { srcRendu } from "@/components/plan/Vignette";
 import { assemblerPrompt } from "@/lib/prompt";
 import { liaisonOuDefaut } from "@/lib/plan-liaison";
@@ -170,7 +168,6 @@ export default async function PlanPage({
   // Créativité et style de mise en scène d'Open H3 IR : ceux du plan, sinon de sa scène, sinon du projet (lib/h3ir/reglages.ts).
   const reglagesProjet = { creativite: projet?.creativite ?? null, styleCamera: projet?.styleCamera ?? null };
   const reglagesScene = scene ? { creativite: scene.creativite, styleCamera: scene.styleCamera } : null;
-  const reglagesResolus = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene, plan });
   // Un plan est un brouillon tant qu'il n'a ni fiche écrite ni essai : un statut resté « brouillon » sur un plan qui a déjà un prompt ou des rendus ne les cache pas.
   const estBrouillon = plan.statut === "brouillon" && !aUneFiche && jobHistory.length === 0;
   const plansHref = `/p/${pid}/e/${eid}/montage`;
@@ -407,7 +404,6 @@ export default async function PlanPage({
                       }
                     />
                   ),
-                  brief: <BriefH3irBloc projectId={pid} planUuid={plan.uuid} demandeEnCours={ficheEnCours?.id ?? null} reglagesInitiaux={reglagesResolus} />,
                 }}
               />
               <div className="tm-poste">

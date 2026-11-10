@@ -1,0 +1,3 @@
+node_modules/
+# Les rendus se refont à l'identique avec `npm run rendre`.
+sortie/

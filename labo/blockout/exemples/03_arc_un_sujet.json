@@ -1,0 +1,14 @@
+{
+  "id": "03_arc_un_sujet",
+  "titre": "Maya au centre de la salle (arc shot)",
+  "note": "Arc lent de 60° vers la droite autour de Maya, en plan moyen. L'estrade au fond et le damier du sol donnent la parallaxe.",
+  "duree": 7,
+  "cadence": 24,
+  "resolution": "864x480",
+  "cadre": { "taille": "medium", "angle": "eye_level", "axe": "face", "cible": "maya" },
+  "camera": { "mouvement": "arc_right", "amplitude": "medium", "vitesse": "slow" },
+  "sujets": [
+    { "id": "maya", "etiquette": "MAYA", "forme": "capsule", "placement": { "colonne": "centre", "profondeur": "milieu" }, "orientation": "vers_avant" },
+    { "id": "estrade", "etiquette": "ESTRADE", "forme": "boite", "gabarit": "grand", "placement": { "colonne": "gauche", "profondeur": "fond" } }
+  ]
+}

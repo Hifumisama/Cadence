@@ -1,0 +1,21 @@
+{
+  "id": "05_extreme_croisements",
+  "titre": "Trois trajectoires croisées, push in puis arc (plan extrême)",
+  "note": "Plan volontairement difficile : trois sujets en mouvement dont une entrée de champ, des trajectoires qui se croisent à deux profondeurs, et une caméra qui change de mouvement à mi-plan (push in du plan large au plan en pied, puis arc de 60° vers la gauche).",
+  "intention": "Plan large de la salle. Maya avance lentement du fond vers le centre pendant tout le plan. Dans la première moitié, la Tenancière traverse devant elle de gauche à droite pendant que la caméra s'approche lentement jusqu'au plan en pied. À mi-plan la caméra cesse d'avancer et tourne autour d'elles vers la gauche, pendant qu'un garde entre par la droite et traverse le fond de la salle derrière Maya.",
+  "duree": 10,
+  "cadence": 24,
+  "resolution": "864x480",
+  "cadre": { "taille": "wide", "angle": "eye_level", "axe": "face", "cible": "groupe" },
+  "camera": {
+    "mouvement": "push_in",
+    "vitesse": "slow",
+    "arrivee": { "taille": "full" },
+    "puis": [{ "mouvement": "arc_left", "amplitude": "medium", "vitesse": "slow" }]
+  },
+  "sujets": [
+    { "id": "maya", "etiquette": "MAYA", "forme": "capsule", "placement": { "colonne": "centre", "profondeur": "fond" }, "deplacement": { "vers": { "colonne": "centre", "profondeur": "milieu" } } },
+    { "id": "tenanciere", "etiquette": "TENANCIERE", "forme": "capsule", "placement": { "colonne": "gauche", "profondeur": "milieu" }, "deplacement": { "vers": { "colonne": "droite", "profondeur": "milieu" }, "moment": "premiere_moitie" } },
+    { "id": "garde", "etiquette": "GARDE", "forme": "capsule", "placement": { "colonne": "hors_droite", "profondeur": "fond" }, "deplacement": { "vers": { "colonne": "gauche", "profondeur": "fond" }, "moment": "seconde_moitie" } }
+  ]
+}

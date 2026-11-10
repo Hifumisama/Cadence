@@ -15,9 +15,6 @@ export function CartePrompt({ extrait, nbMots, nbVersions }: { extrait: string; 
           {nbMots} mots{nbVersions > 0 ? ` · ${nbVersions} version${nbVersions > 1 ? "s" : ""}` : ""} · ouvrir
         </span>
       </button>
-      <button type="button" className="tm-lien" onClick={() => window.dispatchEvent(new CustomEvent(EVENEMENT_ONGLET, { detail: "brief" }))}>
-        Voir le brief Open H3 IR
-      </button>
     </section>
   );
 }

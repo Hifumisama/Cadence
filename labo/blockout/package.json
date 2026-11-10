@@ -1,0 +1,16 @@
+{
+  "name": "cadence-labo-blockout",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Labo jetable : pré-rendu 3D géométrique d'un plan, à passer en <Video 1> à MiniMax H3 pour ne transmettre que la caméra, le cadrage et le timing.",
+  "type": "module",
+  "scripts": {
+    "rendre": "node rendre.mjs",
+    "verifier": "node verifier.mjs",
+    "valider": "node schema.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0",
+    "three": "^0.170.0"
+  }
+}

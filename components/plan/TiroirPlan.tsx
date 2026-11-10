@@ -3,9 +3,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Icone } from "@/components/ui/Icone";
 
-export type CleOnglet = "prompt" | "brief";
+export type CleOnglet = "prompt";
 
-const ETIQUETTE: Record<CleOnglet, string> = { prompt: "Prompt", brief: "Brief Open H3 IR" };
+const ETIQUETTE: Record<CleOnglet, string> = { prompt: "Prompt" };
 
 /** Un lien « Voir » d'un contrôle (ControlesEntete) ou la carte du prompt (CartePrompt) ouvrent le tiroir par cet évènement : l'ancre « fp-prompt » désigne le panneau. */
 export const ONGLET_DE_ANCRE: Record<string, CleOnglet> = { "fp-prompt": "prompt" };

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { demanderFichePlan, demanderFicheH3ir } from "@/app/demandes/actions";
+import { demanderFichePlan } from "@/app/demandes/actions";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { cleDemande } from "@/lib/taches";
 
@@ -22,7 +22,6 @@ export function GenererFiche({
   className = "btn btn-gold btn-sm",
   avant,
   onErreur,
-  h3ir,
 }: {
   projectId: number;
   planUuid: string;
@@ -30,7 +29,6 @@ export function GenererFiche({
   libelle?: string;
   className?: string;
   /** Présent : les réglages Open H3 IR de ce lancement (facultatifs) ; la fiche compilée remplace la fiche existante. */
-  h3ir?: { shots: number | null; director: string | null; creativity: string | null };
   /** Appelé avant le lancement (ex. enregistrer le scénario du plan) ; renvoie false pour renoncer. */
   avant?: () => Promise<boolean>;
   onErreur?: (message: string | null) => void;
@@ -75,7 +73,7 @@ export function GenererFiche({
     setEnvoi(true);
     try {
       if (avant && !(await avant())) return;
-      const r = h3ir ? await demanderFicheH3ir(projectId, planUuid, h3ir) : await demanderFichePlan(projectId, planUuid);
+      const r = await demanderFichePlan(projectId, planUuid);
       if (!r.ok) {
         signaler(r.erreur);
         return;
@@ -103,11 +101,7 @@ export function GenererFiche({
           void lancer();
         }}
         disabled={envoi || enCours}
-        title={
-          h3ir
-            ? "Open H3 IR compile la fiche en arrière-plan avec ces réglages (après avoir préparé les références et leurs images s'il en manque) ; elle remplace la fiche actuelle, dont le prompt reste dans l'historique"
-            : "Open H3 IR compile la fiche en arrière-plan. S'il manque des références ou leurs images, elles sont d'abord choisies et générées (deux assets au plus sont créés). Tu la relis ensuite dans la page du plan"
-        }
+        title="Open H3 IR compile la fiche en arrière-plan. S'il manque des références ou leurs images, elles sont d'abord choisies et générées (deux assets au plus sont créés). Tu la relis ensuite dans la page du plan"
       >
         {envoi ? "…" : enCours ? "Fiche en cours d'écriture…" : libelle}
       </button>
