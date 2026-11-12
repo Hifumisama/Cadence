@@ -1,101 +1,66 @@
-# Cadence — Interface de production Les Yeux de Rubis
+# Cadence
 
-Série vidéo IA. Ce dépôt contient à la fois la documentation de la série
-(`docs/`) et, à terme, Cadence, l'interface web qui pilote son pipeline de
-production. Identité visuelle : fond anthracite, écarlate/or en accents
-uniquement (statuts, validation), pas de fond rouge — détails dans
-`docs/CAHIER_DES_CHARGES.md`.
+Interface web de production de vidéos via IA :  
+(conception d'un projet, scénario, plans, assets, voix, montage, export) avec des agents LLM et ComfyUI.  
+Mono-utilisateur, pas d'authentification. Identité visuelle : fond anthracite, écarlate/or en accents  
+uniquement (statuts, validation).
 
-## Documents à lire selon la tâche
+## Architecture en bref
 
-Ne pas tout charger d'un coup — lire à la demande selon ce qui est en cours :
+- `app/`, `components/` : front Next.js. `lib/` : logique métier. `db/` : schéma Drizzle + migrations.
+- `worker/` : processus séparé qui exécute les tâches longues (GPU, ComfyUI, LLM, export ffmpeg).
+- `agents/skills/` : prompts d'exécution des agents de l'application (format Agent Skills).
+  Ce ne sont PAS des skills de développement.
+- `workflows/` : graphes ComfyUI (format API). `deploy/gpu/` : image Docker GPU (RunPod).
+- `docs/` : documentation de l'application.
 
-- `workflows/` — graphes ComfyUI (format API) consommés par le backend,
-  organisés par type (génération vidéo, upscale, voix, images de
-  référence). Dépendance d'exécution, pas de la doc — voir
-  `workflows/README.md` avant d'en committer un nouveau.
+## Commandes
 
-- `deploy/gpu/` — image Docker GPU (ComfyUI + llama-swap + Tailscale, Blackwell) pour la démo sur RunPod : le
-  GPU seul est loué, web/worker/base restent sur la machine de l'utilisateur. Mode d'emploi dans son `README.md` ;
-  `npm run gpu:verifier` contrôle une machine GPU contre `workflows/`
-
-- `docs/00_BIBLE.md` — univers, personnages, style visuel, règles du monde
-- **Décisions d'architecture** : `docs/FRICTIONS.md` (journal daté de toutes les décisions) a été retiré le 2026-10-20 ;
-  il reste dans l'historique git (`git log -- docs/FRICTIONS.md`). Les règles en vigueur sont résumées ci-dessous ; les
-  renvois « FRICTIONS, date » des commentaires et des docs sont des repères historiques. Avant une évolution structurelle
-  qui contredirait une règle ci-dessous, le signaler explicitement plutôt que de trancher en silence.
-- `docs/CAHIER_DES_CHARGES.md` — spec de l'interface (pages, modèle de
-  données, phasage)
-- `docs/CONCEPTION_AGENTS.md` — conception des agents de
-  génération : brief, propositions, portée × mode, fournisseur LLM
-- `agents/skills/` — prompts d'exécution des agents de l'app (`plan-h3`,
-  `iteration-plan`, `scenario-episode`, `prompt-asset`, `notes-entretien`…). Ce sont
-  les seuls skills du dépôt : les skills de chat de `.claude/skills/` ont été
-  supprimés (FRICTIONS, 2026-10-12). Format standard Agent Skills (`SKILL.md`, `references/`, `assets/`), instructions en
-  anglais (lues par un petit modèle local), langue de sortie fixée champ par champ
-  (voir FRICTIONS.md, 2026-10-07)
-- `docs/PLAN_MONTAGE.md` — page Montage (`/p/<id>/e/<id>/montage`, ex-« Plans ») : deux ordres, entrées de
-  montage, rognage, export ffmpeg ; maquette `docs/maquettes/montage.html`
-- `docs/PLAN_CONCEPTION_PROJET.md` — page de conception d'un projet (choix avant l'entretien, bibliothèque
-  de styles `lib/styles/`, scénariste, avancée) : plan par phases et décisions, toutes phases faites (voir
-  FRICTIONS.md, 2026-10-07 et 2026-10-08)
-- `docs/references/` — guide officiel MiniMax H3 (`h3-guide-fullref.md`, `h3-guide-base.md`), référence de lecture pour `plan-h3` et `lib/prompt.ts` (aucun code ne les lit)
-- `docs/guide/` — guide de développement (cycle d'un skill, vue d'ensemble)
-- `docs/REGISTRE_ASSETS.md` — état des assets de l'épisode 1
-- `docs/FICHE_DE_PLAN_S01_maya.md`, `docs/S01_maya.md` — contenu de
-  l'épisode 1
-- `docs/FICHE_DE_PLAN_UTILITAIRES.md` — plans hors récit (tests voix, etc.)
+- `npm run dev:setup` (Postgres Docker + migrations), puis `npm run dev:all` (web + worker sur l'hôte).
+- `npm run typecheck`, `npm test`, `npm run lint`.
+- `npm run db:generate` / `npm run db:migrate`.
 
 ## Règles non négociables
 
-- **Plus de numéro de plan** (F03, révisions 2026-09-28 puis 2026-09-29) : un
-  plan s'identifie par son `uuid` (identifiant public, utilisé dans les URL).
-  `plans.id` (serial) reste la clé technique interne (FK, dossiers de rendu
-  `plans/<id>/`), jamais exposée. **L'ordre** des plans est `plans.ordre`,
-  réordonnable par glisser-déposer, comme dans un logiciel de montage ; ce
-  qu'on affiche est la **position** (rang dans l'épisode, « 04 »), qui change
-  quand on réordonne. Ne jamais citer une position comme identifiant, ni
-  trier par autre chose que `ordre`. Un plan supprimé ne laisse aucun trou.
-- **Deux ordres** (2026-11-07, `docs/PLAN_MONTAGE.md`) : `plans.ordre` (+ la
-  scène du plan) est l'ordre du **scénario**, inchangé — positions, fiches,
-  raccords, agents. L'ordre du **montage final** (lecture, export) est porté
-  par les entrées de `montage_entrees` (plan, rendu retenu, début/fin non
-  destructifs, `rang`), ajoutées à côté : un plan y a 0, 1 ou plusieurs
-  entrées ; retirer du montage supprime l'entrée, jamais le plan ni ses rendus.
-- **Pas de versionnage d'assets.** Une retouche remplace le nœud (F01,
-  tranché 2026-09-25). Pas de suffixe `_v2`.
-- **1er pass ComfyUI déterministe** : même seed + même prompt + mêmes refs
-  → même résultat. La seed se fixe dans le JSON en appel API — pas besoin
-  des nœuds `easy seed` (confort interactif uniquement).
-- Mono-utilisateur pour l'instant — pas d'authentification à prévoir.
+- **Deux ordres.** `plans.ordre` = ordre du scénario. L'ordre du montage final vit dans `montage_entrees`
+  (un plan y a 0, 1 ou plusieurs entrées). Retirer du montage ne supprime ni le plan ni ses rendus.
+- **Pas de versionnage d'assets.** Une retouche remplace le nœud. Pas de suffixe `_v2`.
+- **ComfyUI déterministe au 1er pass** : même seed + prompt + refs = même résultat. La seed se fixe dans le
+  JSON d'appel API.
+- **Migrations** : ne jamais ajouter puis utiliser une valeur d'enum Postgres dans des migrations qui peuvent
+  être jouées en un seul lot sur une base neuve.
 
-## Skills disponibles
+## Façon de travailler
 
-Les skills vivent dans `agents/skills/` (un dossier par skill, chargés par `lib/llm/skills.ts`) :
+- **Ton** : amical, succinct, sauf demande explicite de détail.
+- **Fichiers** : écrire avec Write/Edit, jamais avec de gros heredocs Bash (ils échouent ici).
+- **Tests** : je lance seul ce qui est simple et mesurable (typecheck, tests unitaires, plafonds, comptages).
+  Tout ce qui consomme du GPU : demander d'abord, en disant quels tests et pourquoi (le GPU n'est pas toujours
+  accessible). Ce qui demande du jugement (qualité d'un rendu, d'une consigne) : c'est à l'utilisateur de juger,
+  le guider plutôt que lancer des agents ou des vérifications navigateur coûteuses.
+- **Commits** : en français, au style du dépôt. Le hook `.claude/hooks/avant-commit.mjs` lance typecheck + tests.
+- **Chantiers « futurs »** (storyboard, musique, latents/chaîne, banc de skills) : ne pas lancer sans demande.
+- **Décisions d'architecture** : si un changement contredit une règle ci-dessus, le signaler au lieu de trancher.
 
-- conception du projet : `accroche-scenariste`, `conversation-agent`, `notes-entretien` (le brief se remplit au
-  fil de la conversation ; son schéma est `lib/agents/brief-schema.json`)
-- production : `traitement-episode` + `scenario-scene` (scénario d'un long film, scène par scène : CONCEPTION_AGENTS § 17), `scenario-episode` (film court, plan à insérer ou à corriger), `inventaire-assets`, `relecture-scenario` (relecture du scénario écrit, avant les fiches), `prompt-asset`, `prompt-affiche`, `plan-h3` (et `traduction-intent`, qui traduit en anglais l'intent d'un plan avant le compilateur Open H3 IR : « Générer la fiche avec Open H3 IR », `docs/PLAN_INTEGRATION_OPEN_H3_IR.md` ; `plan-h3ir` n'est pas un dossier de skill mais le nom de cette tâche du worker)
-- correction : `iteration-plan` ; `retouche-prompt` (quand on part d'un essai, la consigne se joue sur le prompt de cet essai, a minima, sans recompiler : `lib/h3ir/retouche.ts`, `worker/h3ir.ts`)
+### Évolutions demandées : j'ai le droit de refuser, et le devoir de motiver
 
-Les anciens skills de chat (`scenario`, `fiche-de-plan`, `assets-comfyui`, `voix-comfyui`) n'existent plus. Les
-règles de nommage et de versionnage ci-dessus priment sur toute copie qui en traînerait
-ailleurs (claude.ai, `~/.claude`).
+Classer toute évolution proposée :
+- **Sans risque** : je demande, l'utilisateur approuve.
+- **Risque moyen** : j'exige d'approfondir pourquoi la fonctionnalité est voulue avant de coder.
+- **Haut risque** : je challenge. Sans argumentaire sérieux et preuves du besoin (mesurables si possible),
+  on ne code pas. Dans tous les cas, un refus s'accompagne de sa raison.
 
-Le casting vocal (skill `prompt-voix`, assets `voix`, `voix_fiches`, prises, doublage) est retiré (FRICTIONS, 2026-10-14) : **la voix est un champ
-du personnage** (`assets.voix_*`), créée depuis le bloc « Voix » de sa fiche (`/p/<id>/assets/<code>`) ; il n'y a plus d'entité « réplique » : le dialogue vit dans la description du plan puis dans le prompt (`<d>`), voir FRICTIONS 2026-10-14.
+### Bibliothèque ou code maison
 
-## État du projet
+Avant d'ajouter une dépendance, présenter : la bibliothèque, pourquoi elle, un indice de confiance,
+et la fonctionnalité qu'elle apporte. Aucune dépendance ajoutée sans accord.
 
-L'application existe et tourne : pipeline de production (plans, assets, voix, fiches, et depuis novembre 2026 le **Montage**
-de l'épisode, qui remplace la page « Plans » : lecteur continu, table de montage, export ; l'atelier d'un plan est sous
-`/montage/<uuid>`), système d'agents (conversation,
-brief, propositions, relecture du scénario, affiches) et, depuis octobre 2026, la **conception d'un projet** (`/nouveau` puis `/p/<id>/demarrage` :
-neuf étapes, de « format » à « avancée de la préparation », dont « mise en scène » : créativité et style de mise en scène d'Open H3 IR). Le phasage
-d'origine reste dans `docs/CAHIER_DES_CHARGES.md`.
+### Langue
 
-Pour la conception d'un projet : la bibliothèque de styles vit dans `lib/styles/` (`bibliotheque.json`, `clauses.json`,
-`sujets.ts` = les scènes communes des images de présentation) ; `npm run styles:apercus` génère ces images. L'application lit la table `styles`, semée depuis ces JSON par `db/seed-styles.ts` (à chaque `npm run db:migrate`) ; les images restent des fichiers sous `data/styles/`. L'écran « Mise en scène » de la conception montre des vidéos de démo (`data/mises-en-scene/`, produites dans un projet spécial par `npm run mises-en-scene -- preparer | fiches | etat | publier`, voir `docs/PLAN_INTEGRATION_OPEN_H3_IR.md` décision 21). Il n'y a plus de séries (retirées le 2026-10-20) : un projet est un film, avec un épisode unique ; la table `seasons` et le type de projet n'existent plus.
+Cible : commentaires, noms de variables/fonctions et noms de dossiers/fichiers en **anglais** ;
+textes de l'interface en français. Les tables, colonnes et URL **restent en français** (pas de
+migration de renommage : risque élevé, gain faible). Migration du code à faire en dernier, avec la
+réorganisation de `lib/` ; d'ici là, suivre la langue du fichier édité.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
