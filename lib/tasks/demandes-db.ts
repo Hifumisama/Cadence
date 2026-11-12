@@ -41,7 +41,7 @@ import { decisionIteration } from "../plans/fiche-plan";
 import { refusReferences } from "../h3ir/moteur";
 import { etatsRefsVisuelles } from "../h3ir/moteur-db";
 import { appliquerIterationEtGenererCore } from "../plans/iteration-application";
-import { lireProposition } from "../queries-agents";
+import { lireProposition } from "../agents/queries-agents";
 import { cleLlm, cleVideo } from "./taches";
 import type { DecisionsAffichees, DecisionsIteration, Resultat } from "../agents/types";
 

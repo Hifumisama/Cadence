@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { BriefDossier } from "@/components/brief/BriefDossier";
 import { BriefVide } from "@/components/brief/BriefVide";
 import { Topbar } from "@/components/ui/Topbar";
-import { lireBriefOuVide } from "@/lib/queries-agents";
+import { lireBriefOuVide } from "@/lib/agents/queries-agents";
 import { getAllAssets, getEpisode, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { db } from "@/db";
 import { lireConception } from "@/lib/projects/conception-db";

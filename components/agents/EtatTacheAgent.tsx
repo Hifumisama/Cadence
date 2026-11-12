@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMachineAEcrire } from "@/components/agents/useMachineAEcrire";
 import { useTaches } from "@/components/taches/TachesProvider";
-import { estTacheActive, libelleTache } from "@/lib/agents-affichage";
+import { estTacheActive, libelleTache } from "@/lib/agents/agents-affichage";
 import { extraireChainePartielle, fin } from "@/lib/llm/flux-partiel";
 import type { EtatTache } from "@/lib/agents/types";
 import { cleLlm } from "@/lib/tasks/taches";

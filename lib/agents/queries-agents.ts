@@ -16,18 +16,18 @@
  */
 
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { db } from "../db";
-import { agentConversations, agentRuns, assets, briefs, episodes, plans, propositionChangements, propositions } from "../db/schema";
-import { briefVide, construireSections, sansClesAbandonnees } from "./agents/brief";
-import { notesPourAffichage } from "./agents/fiche-affichage";
-import { ficheCourante } from "./agents/fiche-db";
-import { diagnosticIteration } from "./agents/iteration-plan";
-import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./agents/cochage";
-import { planifierDeplacement, planifierInsertion, planifierSuppression } from "./agents/rangs";
-import { vueLot } from "./agents/lots";
-import { episodeIdDeGroupe } from "./agents/lots-pur";
-import { etatTache, positionsFile } from "./agents/runs";
-import { conversationParUuid, libelleCible, rafraichirStatut, resoudreCible, propositionParUuid } from "./agents/service";
+import { db } from "../../db";
+import { agentConversations, agentRuns, assets, briefs, episodes, plans, propositionChangements, propositions } from "../../db/schema";
+import { briefVide, construireSections, sansClesAbandonnees } from "./brief";
+import { notesPourAffichage } from "./fiche-affichage";
+import { ficheCourante } from "./fiche-db";
+import { diagnosticIteration } from "./iteration-plan";
+import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./cochage";
+import { planifierDeplacement, planifierInsertion, planifierSuppression } from "./rangs";
+import { vueLot } from "./lots";
+import { episodeIdDeGroupe } from "./lots-pur";
+import { etatTache, positionsFile } from "./runs";
+import { conversationParUuid, libelleCible, rafraichirStatut, resoudreCible, propositionParUuid } from "./service";
 import type {
   Avertissement,
   BriefContenu,
@@ -46,7 +46,7 @@ import type {
   VueConversation,
   VueGroupe,
   VueProposition,
-} from "./agents/types";
+} from "./types";
 
 // --- conversation -----------------------------------------------------------
 

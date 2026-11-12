@@ -530,7 +530,7 @@ async function postReferencesPlan(
 }
 
 /** Une correction après visionnage (`iteration-plan`, 2026-11-09) : l'agent ne fait que DÉCIDER (intent, durée, références, réglages) ; la proposition ne porte
- * AUCUN changement, ses décisions se lisent dans le diagnostic (lib/queries-agents.ts) et partent en recompilation Open H3 IR (lib/tasks/demandes-db.ts). Sans
+ * AUCUN changement, ses décisions se lisent dans le diagnostic (lib/agents/queries-agents.ts) et partent en recompilation Open H3 IR (lib/tasks/demandes-db.ts). Sans
  * décision applicable (durée incohérente, abandon, cause hors du plan…), le résumé commence par `PREFIXE_SANS_ECRITURE` et dit pourquoi : rien n'est
  * recompilé. Le « contexte utilisé » gagne la mesure du rendu (durée réelle, nombre de vignettes). */
 async function postIteration(

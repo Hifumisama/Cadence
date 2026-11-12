@@ -6,7 +6,7 @@ import "./avancee.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { arreterCreationProjet, reprendreCreationProjet } from "@/app/creation/actions";
-import { SYMBOLE_SOUS_TACHE } from "@/lib/agents-affichage";
+import { SYMBOLE_SOUS_TACHE } from "@/lib/agents/agents-affichage";
 import type { PlanIntent, SuiviFichePlan, VueCreation } from "@/lib/agents/creation-vue";
 import { IntentsAvantFiches } from "./IntentsAvantFiches";
 import { motDuTon, type Conception } from "@/lib/projects/conception";

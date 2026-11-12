@@ -3,7 +3,7 @@
 import { Fragment, useId, useRef, useState } from "react";
 import { envoyerMessage, relancerAccroche, repondreAuChoix } from "@/app/agents/actions";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
-import { estTacheActive } from "@/lib/agents-affichage";
+import { estTacheActive } from "@/lib/agents/agents-affichage";
 import { estDecider } from "@/lib/agents/choix";
 import type { NoteAffichee } from "@/lib/agents/fiche-affichage";
 import type { Choix, VueConversation } from "@/lib/agents/types";

@@ -5,7 +5,7 @@ import "./demarrage.css";
 import { Glissiere } from "./Glissiere";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { lireConversationVue } from "@/app/agents/lecture";
-import { estTacheActive } from "@/lib/agents-affichage";
+import { estTacheActive } from "@/lib/agents/agents-affichage";
 import type { VueConversation } from "@/lib/agents/types";
 import type { Conception } from "@/lib/projects/conception";
 import { ETAPES_CONCEPTION, minutesSecondes, teinteAmbiance } from "@/lib/projects/conception-ui";

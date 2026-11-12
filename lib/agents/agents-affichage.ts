@@ -13,11 +13,11 @@ import type {
   VueGroupe,
   VueLot,
   VueSousTache,
-} from "./agents/types";
+} from "./types";
 
 /** Aides d'AFFICHAGE du système d'agents (popup à étapes, revue, brief) : libellés,
  * regroupements, diff lisible. Pures, sans base ni Next : testées dans
- * lib/agents-affichage.test.ts, importables par les composants client. Le serveur fait
+ * lib/agents/agents-affichage.test.ts, importables par les composants client. Le serveur fait
  * foi pour les données (compteurs, cochage, avertissements) ; on ne les recalcule pas. */
 
 // ---------------------------------------------------------------------------

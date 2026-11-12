@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { FORMULAIRES_LISTE } from "@/components/agents/BriefSections";
-import { depuisSaisie, typeEdition, versSaisie } from "@/lib/agents-affichage";
+import { depuisSaisie, typeEdition, versSaisie } from "@/lib/agents/agents-affichage";
 import type { BriefContenu } from "@/lib/agents/types";
 import type { Edition } from "./types";
 

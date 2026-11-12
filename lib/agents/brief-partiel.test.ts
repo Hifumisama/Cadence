@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { avecSection, briefVide, clauseDuBrief, construireSections, fusionnerPartielDansBrouillon, notesDuBrief, residuPartiel } from "./brief";
 import { SECTIONS_BRIEF, type BriefContenu, type StatutChamp } from "./types";
-import { depuisSaisie, typeEdition, versSaisie } from "../agents-affichage";
+import { depuisSaisie, typeEdition, versSaisie } from "./agents-affichage";
 
 // Le brief est la source unique de la clause de style et des notes (2026-10-02) :
 // un brief « partiel » (posé à la main) porte le style et les notes sans brief rédigé.

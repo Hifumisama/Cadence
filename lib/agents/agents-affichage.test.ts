@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { EstimationGeneration, SectionBrief, VueChangement, VueGroupe, VueLot, VueSousTache } from "./agents/types";
+import type { EstimationGeneration, SectionBrief, VueChangement, VueGroupe, VueLot, VueSousTache } from "./types";
 import {
   avancementLot,
   estGroupeEpisode,

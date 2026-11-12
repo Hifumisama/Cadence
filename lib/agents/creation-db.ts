@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { agentConversations, agentRuns, briefs, creationsProjet, demandes, plans, projects, propositionChangements } from "../../db/schema";
 import { lancerDemandesFiches } from "../tasks/demandes-db";
 import { estDeLaCreation, fenetreDeCreation } from "./creation-tache";
-import { lireProposition } from "../queries-agents";
+import { lireProposition } from "./queries-agents";
 import {
   decider,
   estOccupe,

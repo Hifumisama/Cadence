@@ -2,7 +2,7 @@
 
 /**
  * API SERVEUR DU SYSTÈME D'AGENTS — ce que l'interface (popup à étapes) appelle.
- * Types : lib/agents/types.ts. Lectures : lib/queries-agents.ts. Conception :
+ * Types : lib/agents/types.ts. Lectures : lib/agents/queries-agents.ts. Conception :
  * docs/CONCEPTION_AGENTS.md §14.
  *
  * Principes (décisions du 2026-10-02) :
@@ -54,7 +54,7 @@ import * as service from "@/lib/agents/service";
 import type { CibleDemandee, Profondeur, Portee, Resultat } from "@/lib/agents/types";
 
 /** Les écritures invalident le cache des pages : la popup relit ensuite ses données par
- * les lectures de lib/queries-agents.ts. */
+ * les lectures de lib/agents/queries-agents.ts. */
 async function rafraichir<T extends { ok: boolean }>(r: T): Promise<T> {
   if (r.ok) revalidatePath("/", "layout");
   return r;

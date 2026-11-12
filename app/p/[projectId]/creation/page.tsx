@@ -10,7 +10,7 @@ import { lireConception } from "@/lib/projects/conception-db";
 import { resumeMiseEnScene } from "@/lib/h3ir/reglages";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
-import { lireBrief } from "@/lib/queries-agents";
+import { lireBrief } from "@/lib/agents/queries-agents";
 import { lireEtatImages } from "@/lib/assets/queries-images";
 
 export const dynamic = "force-dynamic";

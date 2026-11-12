@@ -11,7 +11,7 @@ import { lireConception } from "@/lib/projects/conception-db";
 import { resumeMiseEnScene } from "@/lib/h3ir/reglages";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getProject } from "@/lib/queries";
-import { lireBrief, lireConversation, trouverConversation } from "@/lib/queries-agents";
+import { lireBrief, lireConversation, trouverConversation } from "@/lib/agents/queries-agents";
 
 export const dynamic = "force-dynamic";
 
