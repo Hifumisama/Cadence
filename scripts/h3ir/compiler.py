@@ -1,6 +1,6 @@
 """Pont Cadence -> Open H3 IR : compile UN brief, puis s'arrête (pas de service permanent).
 
-Lancé par le worker (lib/h3ir/compilateur.ts). Entrée sur stdin, en JSON UTF-8 : {"brief": <BriefIn>, "env": {"H3IR_...": "..."}}.
+Lancé par le worker (lib/h3ir/compiler.ts). Entrée sur stdin, en JSON UTF-8 : {"brief": <BriefIn>, "env": {"H3IR_...": "..."}}.
 Sortie sur stdout, en JSON UTF-8 : {"http": 201, "enveloppe": {...}, "fichiers": {"<sha256>": "<chemin>"}}.
 `fichiers` relie chaque entrée du manifeste (qui ne connaît que des empreintes) au chemin du fichier envoyé, donc à l'asset de Cadence.
 

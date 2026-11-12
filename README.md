@@ -94,9 +94,9 @@ Essai d'un skill (un vrai appel : il occupe le GPU du serveur LLM, donc pas pend
 une génération ComfyUI) :
 
 ```
-npm run llm:essai -- --skills                # skills et taille de leur prompt
-npm run llm:essai -- conversation-agent --entree entree.json
-npm run llm:essai -- prompt-asset --entree plan.json [--modele qwen3.6-35b-A3B] [--sans-trace]
+npm run llm:try -- --skills                # skills et taille de leur prompt
+npm run llm:try -- conversation-agent --entree entree.json
+npm run llm:try -- prompt-asset --entree plan.json [--modele qwen3.6-35b-A3B] [--sans-trace]
 ```
 
 Chaque exécution laisse une ligne dans `agent_traces` (statut, jetons, durée, sortie
@@ -109,8 +109,8 @@ il change de domaine). Pour en poser un sans interface (le worker doit tourner,
 `npm run dev:all`) :
 
 ```
-npm run llm:tache -- iteration-plan --entree entree.json --projet 5 --suivre   # suit jusqu'à la fin
-npm run llm:tache -- prompt-asset --entree plan.json --modele qwen3.6-35b-A3B
+npm run llm:task -- iteration-plan --entree entree.json --projet 5 --suivre   # suit jusqu'à la fin
+npm run llm:task -- prompt-asset --entree plan.json --modele qwen3.6-35b-A3B
 ```
 
 La tâche apparaît dans le panneau du header (jetons reçus, annulation) ; son résultat

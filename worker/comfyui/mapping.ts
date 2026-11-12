@@ -105,7 +105,7 @@ export function verifierEntree(input: SubmissionInput): void {
 }
 
 /** Câble la sortie finale (nœud 34) selon le mode : upscale (final à la résolution de base), final natif (au-delà) ou aperçu. Modifie `graphe` en place ;
- * exportée pour que le banc de mesure (scripts/banc-video.ts) branche ses variantes exactement comme le worker. */
+ * exportée pour que un banc de mesure branche ses variantes exactement comme le worker. */
 function cablerSortie(graphe: WorkflowJson, activerUpscale: boolean, megapixels?: number): void {
   // Toggle upscale (F04) : on rebranche la sortie finale sur la même
   // branche basse-résolution que l'aperçu (nœud 18) plutôt que de bypasser

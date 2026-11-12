@@ -6,7 +6,7 @@ import { agentRuns } from "../db/schema";
 import { listerSkills } from "../lib/llm/skills";
 
 /** Pose un appel LLM dans la file du worker (table `agent_runs`), sans interface :
- *   npm run llm:tache -- <skill> [--entree fichier.json|.txt] [--projet <id>]
+ *   npm run llm:task -- <skill> [--entree fichier.json|.txt] [--projet <id>]
  *                                      [--modele X] [--variante V] [--suivre]
  * Le worker (`npm run dev:all`) doit tourner : il prend la tâche quand le GPU est
  * libre (image, puis LLM, puis vidéo), décharge ComfyUI si besoin, appelle le
@@ -22,7 +22,7 @@ async function main(): Promise<number> {
   const valeurs = new Set(["--entree", "--projet", "--modele", "--variante"].map((n) => arg(n)).filter(Boolean));
   const skill = process.argv.slice(2).find((a) => !a.startsWith("--") && !valeurs.has(a));
   if (!skill) {
-    console.error("Usage : npm run llm:tache -- <skill> [--entree fichier] [--projet id] [--modele X] [--suivre]");
+    console.error("Usage : npm run llm:task -- <skill> [--entree fichier] [--projet id] [--modele X] [--suivre]");
     console.error(`Skills : ${listerSkills().join(", ")}`);
     return 2;
   }

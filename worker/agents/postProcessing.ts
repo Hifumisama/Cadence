@@ -69,7 +69,7 @@ type RunAgent = typeof agentRuns.$inferSelect;
 type OptionsRunAgent = { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null; place?: PlaceScene };
 
 export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execution: InfosExecution = {}): Promise<void> {
-  if (!run.but) return; // appel hors système d'agents (npm run llm:tache) : rien à faire
+  if (!run.but) return; // appel hors système d'agents (npm run llm:task) : rien à faire
   if (run.but === "tour") {
     if (run.skill === "notes-entretien") return postNotes(tx, run, json);
     // L'accroche du scénariste (premier message d'un projet conçu) se range comme un tour de l'agent : elle ouvre la conversation.

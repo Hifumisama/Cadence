@@ -6,9 +6,9 @@ import { configLlm, modelePourSkill } from "../lib/llm/config";
 import { chargerSkill, listerSkills } from "../lib/llm/skills";
 
 /** Essai d'un skill d'agent sur le fournisseur configuré (.env) :
- *   npm run llm:essai -- <skill> [--modele gemma4-26b-A4B] [--sans-contrainte]
+ *   npm run llm:try -- <skill> [--modele gemma4-26b-A4B] [--sans-contrainte]
  *                                     [--entree fichier.json|.txt] [--sans-trace]
- *   npm run llm:essai -- --skills         (liste les skills et la taille de leur prompt)
+ *   npm run llm:try -- --skills         (liste les skills et la taille de leur prompt)
  * Pas d'entrée fictive intégrée : chaque skill demande --entree.
  * Un vrai appel : il occupe le GPU du serveur LLM le temps de la génération. */
 
@@ -29,7 +29,7 @@ async function main() {
 
   const nom = process.argv.slice(2).find((a) => !a.startsWith("--") && a !== arg("--modele") && a !== arg("--entree") && a !== arg("--variante"));
   if (!nom) {
-    console.error("Usage : npm run llm:essai -- <skill> [--modele X] [--variante V] [--sans-contrainte] [--entree fichier] [--sans-trace] | --skills");
+    console.error("Usage : npm run llm:try -- <skill> [--modele X] [--variante V] [--sans-contrainte] [--entree fichier] [--sans-trace] | --skills");
     return 2;
   }
   const fichierEntree = arg("--entree");

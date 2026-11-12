@@ -263,7 +263,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     libelle: `${LIBELLE_SKILL[r.skill] ?? r.skill}${projetNom ? ` · ${projetNom}` : ""}`,
     detail: "Agent",
     // Une tâche liée à une conversation rouvre la popup d'agent (le panneau du header
-    // intercepte le clic, voir IndicateurTaches) ; sans conversation (script llm:tache),
+    // intercepte le clic, voir IndicateurTaches) ; sans conversation (script llm:task),
     // elle mène à la page du projet (ou à l'accueil sans projet).
     href: page ?? (r.projectId != null ? `/p/${r.projectId}` : "/"),
     conversationUuid: page ? null : (conversationUuid ?? null),

@@ -134,7 +134,7 @@ export async function piloterCreations(options: { essais?: boolean } = {}): Prom
     .where(eq(creationsProjet.statut, "en_cours"));
   // Les projets des essais bout en bout (essais bout en bout) sont pilotés par leur script, avec son faux modèle :
   // le worker de dev ne les prend pas (il appellerait le vrai serveur LLM).
-  // Idem pour les rejeux (scripts/rejeu-creation.ts, projets « REJEU … ») : le script les pilote lui-même.
+  // Idem pour les rejeux : le script les pilote lui-même.
   const enCours = lignes.filter((l) => options.essais || !(l.nom.startsWith("TEST_AGENTS_E2E") || l.nom.startsWith("REJEU "))).map((l) => l.c);
   let touchees = 0;
   for (const c of enCours) {
