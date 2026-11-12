@@ -1,17 +1,8 @@
 import type {
   CleSectionBrief,
-  CompteursProposition,
-  EstimationGeneration,
   EtatTache,
   Etape,
-  Position,
   Profondeur,
-  RangDeplace,
-  SectionBrief,
-  StatutChamp,
-  VueChangement,
-  VueGroupe,
-  VueLot,
   VueSousTache,
 } from "./types";
 
@@ -29,17 +20,6 @@ const ETAPES_PAR_PROFONDEUR: Record<Profondeur, readonly Etape[]> = {
   complete: ["conversation", "brief", "proposition", "applique"],
 };
 
-const LIBELLE_ETAPE: Record<Etape, string> = {
-  consigne: "Consigne",
-  conversation: "Conversation",
-  brief: "Brief",
-  proposition: "Proposition",
-  applique: "Appliqué",
-};
-
-type EtatEtape = "faite" | "courante" | "a_venir";
-export type EtapeFil = { etape: Etape; libelle: string; etat: EtatEtape; cliquable: boolean };
-
 /** Ramène une étape du serveur à celle que la profondeur connaît (une conversation
  * courte n'a ni conversation ni brief ; une complète n'a pas de consigne). */
 export function etapeValide(profondeur: Profondeur, etape: Etape): Etape {
@@ -48,20 +28,6 @@ export function etapeValide(profondeur: Profondeur, etape: Etape): Etape {
   if (etape === "consigne") return etapes[0]!;
   if (etape === "conversation" || etape === "brief") return profondeur === "courte" ? "consigne" : etape;
   return etapes[0]!;
-}
-
-/** Le fil : chaque étape est « faite » (avant l'atteinte), « courante » (la vue affichée)
- * ou « à venir ». On peut revenir sur toute étape déjà atteinte ; jamais sauter en avant. */
-export function filEtapes(profondeur: Profondeur, atteinte: Etape, affichee: Etape): EtapeFil[] {
-  const etapes = ETAPES_PAR_PROFONDEUR[profondeur];
-  const iAtteinte = Math.max(0, etapes.indexOf(etapeValide(profondeur, atteinte)));
-  const iAffichee = Math.max(0, etapes.indexOf(etapeValide(profondeur, affichee)));
-  return etapes.map((etape, i) => ({
-    etape,
-    libelle: LIBELLE_ETAPE[etape],
-    etat: i === iAffichee ? "courante" : i < iAffichee ? "faite" : "a_venir",
-    cliquable: i <= iAtteinte && i !== iAffichee,
-  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -91,44 +57,6 @@ export function libelleTache(t: EtatTache | null | undefined): string | null {
   if (t.statut === "echoue") return t.erreur ? `Échec : ${t.erreur}` : "Échec";
   if (t.statut === "annulee") return "Annulée";
   return null;
-}
-
-// ---------------------------------------------------------------------------
-// Estimation (cadrage au niveau du bouton « Générer la proposition »)
-// ---------------------------------------------------------------------------
-
-export function formaterDureeEstimee(secondes: number): string {
-  if (!Number.isFinite(secondes) || secondes <= 0) return "quelques secondes";
-  if (secondes < 90) return `~${Math.max(1, Math.round(secondes))} s`;
-  return `~${Math.round(secondes / 60)} min`;
-}
-
-export function libelleEstimation(e: EstimationGeneration): string {
-  const cout = e.coutEstimeUsd == null ? "local : gratuit" : `≈ ${e.coutEstimeUsd.toFixed(2).replace(".", ",")} $`;
-  const parts = [
-    e.skill ? formaterDureeEstimee(e.dureeEstimeeSecondes) : "construite tout de suite, sans modèle",
-    e.skill && e.jetonsEntreeEstimes > 0 ? `${String(Math.round(e.jetonsEntreeEstimes / 100) / 10).replace(".", ",")} k jetons` : null,
-    e.skill ? cout : "gratuit",
-    e.tachesDevant > 0 ? `${e.tachesDevant} tâche${e.tachesDevant > 1 ? "s" : ""} devant` : e.skill ? "part tout de suite" : null,
-  ].filter(Boolean);
-  return parts.join(" · ");
-}
-
-/** Les sections rangées par groupe, dans l'ordre d'apparition (Univers, Style, …). */
-export function groupesBrief(sections: SectionBrief[]): { groupe: string; sections: SectionBrief[] }[] {
-  const groupes: { groupe: string; sections: SectionBrief[] }[] = [];
-  for (const s of sections) {
-    const g = groupes.find((x) => x.groupe === s.groupe);
-    if (g) g.sections.push(s);
-    else groupes.push({ groupe: s.groupe, sections: [s] });
-  }
-  return groupes;
-}
-
-export function decompterStatuts(sections: SectionBrief[]): Record<StatutChamp, number> {
-  const n: Record<StatutChamp, number> = { fourni: 0, deduit: 0, a_valider: 0 };
-  for (const s of sections) n[s.statut] += 1;
-  return n;
 }
 
 const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -224,138 +152,6 @@ export function depuisSaisie(cle: string, saisie: string): ResultatSaisie {
   }
 }
 
-
-
-const GROUPE_ECRASEMENT = "ecrasement";
-const GROUPE_BRIEF = "brief";
-
-/** Les groupes dans l'ordre de lecture : le risque d'écrasement EN TÊTE, puis les
- * mises à jour du brief, puis le reste dans l'ordre du serveur. */
-export function ordonnerGroupes(groupes: VueGroupe[]): VueGroupe[] {
-  const rang = (g: VueGroupe) => (g.id === GROUPE_ECRASEMENT ? 0 : g.id === GROUPE_BRIEF ? 1 : 2);
-  return groupes
-    .map((g, i) => ({ g, i }))
-    .sort((a, b) => rang(a.g) - rang(b.g) || a.i - b.i)
-    .map((x) => x.g);
-}
-
-const cochable = (c: VueChangement) => !c.bloque && c.refuseRaison == null;
-
-export type EtatCochage = "tous" | "aucun" | "partiel" | "indisponible";
-
-/** L'état de la case d'un groupe : sur les seuls changements cochables. */
-export function etatCochage(g: Pick<VueGroupe, "changements">): EtatCochage {
-  const cochables = g.changements.filter(cochable);
-  if (cochables.length === 0) return "indisponible";
-  const n = cochables.filter((c) => c.coche).length;
-  return n === 0 ? "aucun" : n === cochables.length ? "tous" : "partiel";
-}
-
-
-/** « 12 sélectionnés · 3 écartés · 1 bloqué · 1 refusé » (les zéros, sauf le premier, sont omis). */
-export function resumeCompteurs(c: CompteursProposition): string {
-  const pl = (n: number, s: string, p = `${s}s`) => `${n} ${n > 1 ? p : s}`;
-  return [
-    pl(c.selectionnes, "sélectionné"),
-    c.ecartes > 0 ? pl(c.ecartes, "écarté") : null,
-    c.bloques > 0 ? pl(c.bloques, "bloqué") : null,
-    c.refuses > 0 ? pl(c.refuses, "refusé") : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-const two = (n: number): string => String(n).padStart(2, "0");
-
-/** Où un plan est inséré. Le rang affiché (jamais un identifiant, F03) vient de `rangDe`
- * quand l'appelant connaît les plans de l'épisode. */
-export function libellePosition(position: Position | null, rangDe?: (planUuid: string) => number | null): string | null {
-  if (!position) return null;
-  if ("debut" in position) return "Au début de l'épisode";
-  if ("fin" in position) return "À la fin de l'épisode";
-  const rang = rangDe?.(position.apresPlanUuid) ?? null;
-  return rang != null ? `Après le plan ${two(rang)}` : "Après un plan existant";
-}
-
-/** « Les plans suivants bougent : 05 → 06, 06 → 07 » ; null s'il n'y en a pas. */
-export function libelleRangs(rangs: RangDeplace[], max = 4): string | null {
-  if (rangs.length === 0) return null;
-  const vus = rangs.slice(0, max).map((r) => `${two(r.rangAvant)} → ${two(r.rangApres)}`);
-  return `${rangs.length === 1 ? "Le plan suivant bouge" : "Les plans suivants bougent"} : ${vus.join(", ")}${rangs.length > max ? ", …" : ""}`;
-}
-
-// ---------------------------------------------------------------------------
-// Diff avant / après
-// ---------------------------------------------------------------------------
-
-export type LigneDiff = { cle: string | null; avant: string | null; apres: string | null; etat: "ajoute" | "retire" | "modifie" };
-
-const stable = (v: unknown): string => JSON.stringify(v ?? null);
-
-/** Un avant/après lisible : champ par champ pour deux objets, sinon une seule ligne.
- * Ne garde que ce qui change ; `identiques` compte ce qui reste pareil. */
-export function lignesDiff(avant: unknown, apres: unknown): { lignes: LigneDiff[]; identiques: number } {
-  const lignes: LigneDiff[] = [];
-  let identiques = 0;
-  const vide = (v: unknown) => v === null || v === undefined;
-
-  if (vide(avant) && vide(apres)) return { lignes, identiques };
-
-  if (vide(avant)) {
-    if (estObjet(apres)) {
-      for (const [k, v] of Object.entries(apres)) lignes.push({ cle: k, avant: null, apres: valeurEnTexte(v), etat: "ajoute" });
-    } else lignes.push({ cle: null, avant: null, apres: valeurEnTexte(apres), etat: "ajoute" });
-    return { lignes, identiques };
-  }
-  if (vide(apres)) {
-    if (estObjet(avant)) {
-      for (const [k, v] of Object.entries(avant)) lignes.push({ cle: k, avant: valeurEnTexte(v), apres: null, etat: "retire" });
-    } else lignes.push({ cle: null, avant: valeurEnTexte(avant), apres: null, etat: "retire" });
-    return { lignes, identiques };
-  }
-
-  if (estObjet(avant) && estObjet(apres)) {
-    const cles = [...new Set([...Object.keys(avant), ...Object.keys(apres)])];
-    for (const k of cles) {
-      const a = avant[k];
-      const b = apres[k];
-      if (stable(a) === stable(b)) {
-        identiques += 1;
-        continue;
-      }
-      lignes.push({
-        cle: k,
-        avant: vide(a) ? null : valeurEnTexte(a),
-        apres: vide(b) ? null : valeurEnTexte(b),
-        etat: vide(a) ? "ajoute" : vide(b) ? "retire" : "modifie",
-      });
-    }
-    return { lignes, identiques };
-  }
-
-  if (stable(avant) === stable(apres)) return { lignes, identiques: 1 };
-  lignes.push({ cle: null, avant: valeurEnTexte(avant), apres: valeurEnTexte(apres), etat: "modifie" });
-  return { lignes, identiques };
-}
-
-// ---------------------------------------------------------------------------
-// Lots (plusieurs sous-tâches, ex. un épisode chacune) et revue par épisode
-// ---------------------------------------------------------------------------
-
-export const estLotActif = (lot: VueLot | null | undefined): boolean => lot != null && lot.actives > 0;
-
-/** Un groupe de la revue d'un lot : un épisode (`ep-<id>`). */
-export const estGroupeEpisode = (id: string): boolean => /^ep-\d+$/.test(id);
-
-/** L'avancement d'un lot : sous-tâches closes (réussies, échouées ou annulées) / total. */
-export function avancementLot(lot: VueLot): { valeur: number; max: number; texte: string } {
-  const valeur = lot.terminees + lot.echecs + lot.annulees;
-  const morceaux = [`${valeur}/${lot.total}`];
-  if (lot.echecs > 0) morceaux.push(`${lot.echecs} échec${lot.echecs > 1 ? "s" : ""}`);
-  if (lot.annulees > 0) morceaux.push(`${lot.annulees} annulée${lot.annulees > 1 ? "s" : ""}`);
-  return { valeur, max: lot.total, texte: morceaux.join(" · ") };
-}
-
 export const SYMBOLE_SOUS_TACHE: Record<VueSousTache["statut"], string> = {
   en_attente: "…",
   en_cours: "▶",
@@ -378,29 +174,6 @@ export function libelleEtatSousTache(s: VueSousTache): string {
     default:
       return "Annulée";
   }
-}
-
-/** Une sous-tâche se relance quand elle est close (échouée, annulée) ou réussie à refaire. */
-export const sousTacheRelancable = (s: Pick<VueSousTache, "statut">): boolean => s.statut !== "en_attente" && s.statut !== "en_cours";
-
-/** Les changements d'un groupe rangés par scène (`sousGroupe`), dans l'ordre où ils apparaissent ;
- * ceux qui n'ont pas de scène (l'épisode lui-même) forment un premier bloc sans titre. */
-export function parSousGroupe(changements: VueChangement[]): { titre: string | null; changements: VueChangement[] }[] {
-  const blocs: { titre: string | null; changements: VueChangement[] }[] = [];
-  for (const c of changements) {
-    const titre = c.sousGroupe ?? null;
-    const bloc = blocs.find((b) => b.titre === titre);
-    if (bloc) bloc.changements.push(c);
-    else blocs.push({ titre, changements: [c] });
-  }
-  return blocs.sort((a, b) => (a.titre === null ? -1 : b.titre === null ? 1 : 0));
-}
-
-/** « 3 épisodes · 2 vides : cochés d'office » — la ligne d'aide du sélecteur d'épisodes. */
-export function libelleChoixEpisodes(total: number, selectionnes: number, vides: number): string {
-  if (total === 0) return "Aucun épisode.";
-  const pl = (n: number, s: string) => `${n} ${s}${n > 1 ? "s" : ""}`;
-  return `${pl(selectionnes, "épisode")} sur ${total} sélectionné${selectionnes > 1 ? "s" : ""} · ${pl(vides, "vide")} (cochés d'office)`;
 }
 
 

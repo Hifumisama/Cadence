@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { depuisRegistreAsset } from "./conversion";
-import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, descriptionPersonnage, detailsDuBrief, libelleDetailsDuBrief, resumeCandidats, type AssetExistant } from "./registre";
+import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, descriptionPersonnage, detailsDuBrief, libelleDetailsDuBrief, type AssetExistant } from "./registre";
 
 const brief = {
   personnages: [
@@ -45,12 +45,6 @@ test("candidatsRegistre : un asset existant avec un prompt n'est pas coché d'of
   assert.equal(c[1]!.aPrompt, false);
   assert.equal(c[1]!.aDescription, false);
   assert.equal(c[1]!.aTraiter, true);
-});
-
-test("résumé d'une sélection : nouveaux, existants, prompts écrasés", () => {
-  const c = candidatsRegistre(brief, [existant({ code: "CHAR_maya", id: 1, promptGeneration: "x" })]);
-  const r = resumeCandidats(c, new Set(["CHAR_maya", "DEC_le_phare_de_sel"]));
-  assert.deepEqual(r, { total: 3, choisis: 2, nouveaux: 1, existants: 1, ecrases: 1 });
 });
 
 test("clé de sous-tâche : aller-retour, et refus des autres clés", () => {

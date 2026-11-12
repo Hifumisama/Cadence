@@ -1,23 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { controlerStructure, extraireBalisesD, extraireLabels, verifierCoherenceRefs } from "./plan-checks";
-
-const prompt = (contenu: string) => [{ section: "detailed_description", contenu }];
-
-test("balises <d> : langue, texte et emplacement exact", () => {
-  const contenu = "She says, <d>[Français] Magnifique, n'est-ce pas ?</d> and smiles.";
-  const [b] = extraireBalisesD(prompt(contenu));
-  assert.ok(b);
-  assert.equal(b.langue, "Français");
-  assert.equal(b.texte, "Magnifique, n'est-ce pas ?");
-  assert.equal(contenu.slice(b.debut, b.fin), b.texte);
-});
-
-test("balise sans langue, espaces autour du texte ignorés", () => {
-  const [b] = extraireBalisesD(prompt("<d>  Bonjour  </d>"));
-  assert.equal(b?.langue, null);
-  assert.equal(b?.texte, "Bonjour");
-});
+import { controlerStructure, verifierCoherenceRefs } from "./plan-checks";
 
 // --- Structure des shots -------------------------------------------------
 
@@ -90,16 +73,6 @@ test("cohérence des refs : la voix d'une réplique (ref dérivée) n'a pas à �
   assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, [{ type: "audio", slot: 1 }]).labelsOrphelins, []);
   // … mais un label qui ne correspond à rien reste orphelin.
   assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, []).labelsOrphelins, ["Audio:1"]);
-});
-
-test("extraireLabels : labels cités, dans l'ordre, sans doublon", () => {
-  assert.deepEqual(extraireLabels("<Subject 1> from <Picture 1> and <Picture  2>, <Picture 1> again, <Audio 3> <Video 1>"), [
-    "Picture 1",
-    "Picture 2",
-    "Audio 3",
-    "Video 1",
-  ]);
-  assert.deepEqual(extraireLabels("aucun label"), []);
 });
 
 // --- Fiches d'Open H3 IR : durée effective (grille d'images) et plancher de 1,2 s --------------------------------------

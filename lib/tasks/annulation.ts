@@ -68,20 +68,6 @@ export function statutPlanApresAnnulation(
   return dernier.activerUpscale ? "termine" : "previsualise";
 }
 
-/** Vue d'une tâche pour la décision d'annuler. */
-export type AnnulableVue = { statut: string; annulationDemandeeAt: Date | string | null };
-
-/** Ce que fait une demande d'annulation :
- * - `directe` : en attente, on l'annule tout de suite ;
- * - `drapeau` : en cours, on pose le drapeau (le worker agit) ;
- * - `deja` : drapeau déjà posé (idempotent) ;
- * - `rien` : déjà finie, échouée ou annulée. */
-export function actionAnnulation(t: AnnulableVue): "directe" | "drapeau" | "deja" | "rien" {
-  if (t.statut === "en_attente") return "directe";
-  if (t.statut === "en_cours") return t.annulationDemandeeAt ? "deja" : "drapeau";
-  return "rien";
-}
-
 /** Une tâche à purger : échouée ou annulée depuis plus de `seuilMs`. Jamais une
  * tâche terminée (les candidats suivent la règle des 8 par asset) ni une active. */
 export const SEUIL_PURGE_ECHECS_MS = 24 * 3600 * 1000;

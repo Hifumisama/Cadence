@@ -93,12 +93,3 @@ export function grouper(changements: VueChangement[]): VueGroupe[] {
     };
   });
 }
-
-/** Résumé en une phrase de la sélection (« 12 changements : 9 retenus, 3 écartés… »). */
-export function resumerSelection(c: CompteursProposition): string {
-  const morceaux = [`${c.selectionnes} retenu${c.selectionnes > 1 ? "s" : ""}`];
-  if (c.ecartes) morceaux.push(`${c.ecartes} écarté${c.ecartes > 1 ? "s" : ""}`);
-  if (c.bloques) morceaux.push(`${c.bloques} bloqué${c.bloques > 1 ? "s" : ""}`);
-  if (c.refuses) morceaux.push(`${c.refuses} refusé${c.refuses > 1 ? "s" : ""}`);
-  return `${c.total} changement${c.total > 1 ? "s" : ""} : ${morceaux.join(", ")}.`;
-}

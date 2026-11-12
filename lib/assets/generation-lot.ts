@@ -71,9 +71,3 @@ export function preparerLot(selection: AssetPourLot[], tous: AssetPourLot[], dej
   }
   return { aLancer, ecartes };
 }
-
-/** Ce que l'écran propose de cocher d'office : les assets qui n'ont pas encore d'image et qui peuvent partir. */
-export function selectionParDefaut(plan: PlanLot, tous: AssetPourLot[]): number[] {
-  const sansImage = new Set(tous.filter((a) => !a.fichier).map((a) => a.id));
-  return plan.aLancer.filter((l) => sansImage.has(l.assetId)).map((l) => l.assetId);
-}

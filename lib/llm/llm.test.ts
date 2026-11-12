@@ -10,7 +10,7 @@ import { configLlm, corpsPourSkill, maxTokensPourSkill, modelePourSkill, nomVari
 import { executerSkill, messageDeRenvoi, versMessages } from "./executer";
 import { chargerSkill, listerSkills } from "./skills";
 import type { TraceAEnregistrer } from "./traces";
-import { ErreurLlm, messagesSansImages, partieImageJpeg, texteDuContenu, type MessageLlm } from "./types";
+import { ErreurLlm, partieImageJpeg, type MessageLlm } from "./types";
 import { compilerSchema, valider } from "./validation";
 
 // ── faux serveur compatible OpenAI ────────────────────────────────────────────
@@ -509,18 +509,5 @@ test("contenu mixte : les images ne vont jamais dans la trace (marqueur « [imag
     { type: "text", text: "[image 1 : 1 Ko]" },
     { type: "text", text: "Vignette à 1 s :" },
     { type: "text", text: "[image 2 : 41 Ko]" },
-  ]);
-});
-
-test("messagesSansImages / texteDuContenu : rétro-compatibles avec le contenu texte", () => {
-  const texte: MessageLlm[] = [{ role: "user", content: "a" }, { role: "assistant", content: "b" }];
-  assert.deepEqual(messagesSansImages(texte), texte);
-  const m = [messageMixte()];
-  messagesSansImages(m);
-  assert.equal((m[0]!.content as { type: string }[])[1]!.type, "image_url", "l'original n'est pas modifié");
-  assert.equal(texteDuContenu("x"), "x");
-  assert.equal(texteDuContenu(messageMixte().content), "Vignette à 0 s :\nVignette à 1 s :");
-  assert.deepEqual(messagesSansImages([{ role: "user", content: [{ type: "image_url", image_url: { url: "https://x/y.jpg" } }] }])[0]!.content, [
-    { type: "text", text: "[image 1 : https://x/y.jpg]" },
   ]);
 });

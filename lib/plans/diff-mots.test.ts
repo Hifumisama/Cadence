@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { differenceMots, memeTexte } from "./diff-mots";
+import { differenceMots } from "./diff-mots";
 
 test("textes identiques : un seul bloc, rien de retiré ni d'ajouté", () => {
   assert.deepEqual(differenceMots("a warm voice", "a warm voice"), [{ type: "meme", texte: "a warm voice" }]);
@@ -33,9 +33,4 @@ test("recomposer : les segments « meme » et « ajoute » redonnent le nouveau 
   const d = differenceMots(avant, apres);
   assert.equal(d.filter((s) => s.type !== "retire").map((s) => s.texte).join(" "), apres);
   assert.equal(d.filter((s) => s.type !== "ajoute").map((s) => s.texte).join(" "), avant);
-});
-
-test("même texte aux espaces près", () => {
-  assert.ok(memeTexte("a  b\nc", "a b c"));
-  assert.ok(!memeTexte("a b", "a c"));
 });

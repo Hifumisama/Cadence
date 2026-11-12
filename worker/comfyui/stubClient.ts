@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import type { EtatDansLaFile } from "../../lib/tasks/annulation";
-import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
+import type { ComfyUIClient, EvenementSuivi, PollResult, Suivi } from "./types";
 import { mp3Factice } from "./stubAudio";
 import { pngFactice } from "./stubPng";
 
@@ -22,18 +22,6 @@ export class StubComfyUIClient implements ComfyUIClient {
 
   async uploadRef(): Promise<void> {
     // no-op
-  }
-
-  async submit(_input: SubmissionInput): Promise<string> {
-    const promptId = `stub-${Date.now()}`;
-    this.enCours.set(promptId, Date.now());
-    return promptId;
-  }
-
-  async poll(promptId: string): Promise<PollResult> {
-    const debut = this.enCours.get(promptId) ?? 0;
-    if (Date.now() - debut < 3000) return { statut: "en_cours" };
-    return { statut: "termine", cheminSortieDistant: `stub/${promptId}.mp4` };
   }
 
   async submitGraph(graphe?: Record<string, unknown>): Promise<string> {

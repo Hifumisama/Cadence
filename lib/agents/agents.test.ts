@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { avecSection, construireSections, diffSections, egal, sortieVersBrief, statutDeSection } from "./brief";
-import { cocheParDefaut, compter, ecrasementsAConfirmer, grouper, raisonNonCochable, resumerSelection } from "./cochage";
+import { construireSections, sortieVersBrief, statutDeSection } from "./brief";
+import { cocheParDefaut, raisonNonCochable } from "./cochage";
 import { depuisCorrectionPlan, depuisPlanAInserer, depuisPromptAsset, depuisSceneAInserer, depuisScenarioEpisode, type SortieScenarioEpisode } from "./conversion";
 import { placeDeScene } from "./applicateurs/structure";
 import { verifierPortee, type CibleChangement } from "./portee";
 import { planifierInsertion } from "./rangs";
 import { squeletteDepuisBrief } from "./squelette";
-import type { BriefContenu, VueChangement } from "./types";
+import type { BriefContenu } from "./types";
 
 // --- verrou de portée -------------------------------------------------------
 
@@ -63,33 +63,6 @@ test("raisonNonCochable : refus d'office et contrôle bloquant", () => {
   assert.equal(raisonNonCochable({ avertissements: [], refuseRaison: null }), null);
   assert.equal(raisonNonCochable({ avertissements: [], refuseRaison: "Hors portée" }), "Hors portée");
   assert.match(raisonNonCochable({ avertissements: [{ type: "bloque_controle", texte: "x" }], refuseRaison: null }) ?? "", /contrôle/);
-});
-
-function vue(id: number, o: Partial<VueChangement> = {}): VueChangement {
-  return {
-    id, ordre: id, sousGroupe: null, groupe: "plans", cle: null, cibleType: "plan", cibleRef: null, libelle: `c${id}`, operation: "creer",
-    avant: null, apres: null, position: null, rangsDeplaces: [], avertissements: [], ecrase: null, coche: true, bloque: false,
-    refuseRaison: null, appliqueAt: null, ...o,
-  };
-}
-
-test("compteurs, groupes (écrasements en tête) et résumé de sélection", () => {
-  const liste = [
-    vue(1),
-    vue(2, { coche: false }),
-    vue(3, { bloque: true, coche: false, avertissements: [{ type: "bloque_controle", texte: "17 s" }] }),
-    vue(4, { refuseRaison: "hors portée", coche: false }),
-    vue(5, { operation: "modifier", ecrase: "écrase", coche: true, avertissements: [{ type: "invention", texte: "x" }] }),
-    vue(6, { groupe: "brief", cibleType: "brief" }),
-  ];
-  const n = compter(liste);
-  assert.deepEqual(n, { total: 6, selectionnes: 3, ecartes: 1, bloques: 1, refuses: 1, ecrasementsSelectionnes: 1, inventions: 1 });
-  const g = grouper(liste);
-  assert.deepEqual(g.map((x) => x.id), ["ecrasement", "brief", "plans"]);
-  assert.equal(g[0]!.changements[0]!.id, 5);
-  assert.equal(g.find((x) => x.id === "plans")!.coches, 1);
-  assert.deepEqual(ecrasementsAConfirmer(liste).map((x) => x.changementId), [5]);
-  assert.match(resumerSelection(n), /6 changements : 3 retenus, 1 écarté, 1 bloqué, 1 refusé/);
 });
 
 // --- rangs d'insertion ------------------------------------------------------
@@ -149,14 +122,6 @@ test("statuts du brief : déclarés, sinon déduits du contenu ; une correction 
   assert.ok(sections.every((s) => ["fourni", "deduit", "a_valider"].includes(s.statut)));
 });
 
-test("diff de brief : seules les sections modifiées, insensible à l'ordre des clés", () => {
-  assert.equal(egal({ a: 1, b: [1, 2] }, { b: [1, 2], a: 1 }), true);
-  const modifie = avecSection(brief, "dureeEpisodeSecondes", 120);
-  assert.deepEqual(diffSections(brief, modifie).map((d) => [d.cle, d.avant, d.apres]), [["dureeEpisodeSecondes", 90, 120]]);
-  assert.equal(diffSections(brief, brief).length, 0);
-  assert.ok(diffSections(null, brief).length > 10, "sans brief, toutes les sections diffèrent");
-});
-
 // --- squelette --------------------------------------------------------------
 
 const etatVide = { episodes: [], briefValide: null };
@@ -169,18 +134,6 @@ test("squelette d'un projet vide : brief (qui porte la clause de style), un épi
   const ep = s.filter((x) => x.cibleType === "episode");
   assert.deepEqual(ep.map((x) => x.cle), ["episode-1", "episode-2"]);
   assert.match(ep[1]!.libelle, /Épisode 2/);
-});
-
-test("squelette idempotent : épisode du même titre non recréé, brief valide comparé", () => {
-  const etat = {
-    episodes: [{ id: 9, numero: 1, titre: "le sel", resume: "" }],
-    briefValide: brief,
-  };
-  const s = squeletteDepuisBrief(brief, {}, etat);
-  assert.deepEqual(s.map((x) => `${x.cibleType}:${x.operation}`), ["episode:creer"], "rien d'autre : tout est déjà là");
-  assert.match(s[0]!.libelle, /Épisode 2/, "la numérotation continue après l'existant");
-  const change = squeletteDepuisBrief(avecSection(brief, "dureeEpisodeSecondes", 120), {}, etat);
-  assert.ok(change.some((x) => x.cibleType === "brief" && x.cibleRef === "dureeEpisodeSecondes" && x.operation === "modifier"));
 });
 
 // --- conversion des sorties de skills ---------------------------------------

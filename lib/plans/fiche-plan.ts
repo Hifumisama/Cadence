@@ -81,19 +81,6 @@ export function classerPourPrevisualisation<T extends PlanPourPrevisualisation &
   return { neufs, avecRendu, dejaEnFile, brouillons };
 }
 
-/** Le « N » du bouton « Générer les prévisualisations (N) » : les plans qui n'ont aucun rendu et qui peuvent en recevoir un. */
-export function compterAPrevisualiser(plans: readonly PlanPourPrevisualisation[]): number {
-  return classerPourPrevisualisation(plans.map((p, id) => ({ ...p, id }))).neufs.length;
-}
-
-// --- l'avancée vers l'upscale -------------------------------------------------------------------------------------------------
-
-export function avanceeUpscale(etats: readonly EtatPlan[]): { prets: number; total: number; pourcent: number; tousPrets: boolean } {
-  const total = etats.length;
-  const prets = etats.filter((e) => e === "pret").length;
-  return { prets, total, pourcent: total ? Math.round((100 * prets) / total) : 0, tousPrets: total > 0 && prets === total };
-}
-
 /** Le plan qui suit celui-ci dans l'épisode, par l'ORDRE (`plans.ordre`, jamais autre chose) ; `null` pour le dernier. Les plans arrivent
  * déjà triés par `ordre`. */
 export function planSuivant<T extends { uuid: string }>(plansOrdonnes: readonly T[], uuid: string): T | null {

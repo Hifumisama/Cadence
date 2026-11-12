@@ -55,8 +55,6 @@ export interface Suivi {
 export interface ComfyUIClient {
   healthcheck(): Promise<boolean>;
   uploadRef(cheminLocal: string, nomDistant: string): Promise<void>;
-  submit(input: SubmissionInput): Promise<string>; // renvoie le prompt_id ComfyUI
-  poll(promptId: string): Promise<PollResult>;
   fetchOutput(cheminSortieDistant: string, cheminLocalCible: string): Promise<void>;
 
   /** Tâches d'images (workflows image-refs/) : le graphe est déjà assemblé par

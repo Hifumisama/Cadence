@@ -2,9 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chargerSkill } from "../llm/skills";
 import { compilerSchema } from "../llm/validation";
-import { briefVersFiche, entreeNotes, lireFiche, manquesFiche, ficheComplete } from "../agents/fiche";
-import { SCHEMA_BRIEF, briefVide, fusionnerPartielDansBrouillon, promptImageDuBrief, residuPartiel } from "../agents/brief";
-import type { BriefContenu } from "../agents/types";
+import { entreeNotes, manquesFiche, ficheComplete } from "../agents/fiche";
+import { SCHEMA_BRIEF, briefVide } from "../agents/brief";
+
 import { entreeAccroche, MARQUE_PROJET_CONCU } from "../agents/accroche";
 import {
   DUREE_MAX_SECONDES,
@@ -138,28 +138,6 @@ test("styleDesEditions : toujours la clause courte, jamais le prompt long", () =
   assert.equal(styleDesEditions({ clauseStyle: " Courte ", stylePromptImage: "Longue" } as { clauseStyle: string }), "Courte");
   assert.equal(styleDesEditions({ clauseStyle: "" }), "");
   assert.equal(styleDesEditions(null), "");
-});
-
-test("brief : le prompt long et l'image du style suivent la clause, et restent hors de la vue du modèle", () => {
-  const styleCode = { nom: "Gouache", clause: "A matte gouache look.", promptImage: "Long", image: "gouache.webp" };
-  const partiel = { contenu: { ...briefVide("Projet"), style: styleCode } as BriefContenu, statuts: { style: "fourni" as const } };
-  assert.equal(promptImageDuBrief(partiel.contenu), "Long");
-  assert.equal(promptImageDuBrief(briefVide("x")), "");
-
-  // Le brouillon que l'agent rédige ne perd pas ce que l'utilisateur a posé.
-  const brouillon = { contenu: { ...briefVide("Projet"), style: { nom: "autre", clause: "autre" } } as BriefContenu, statuts: {} };
-  assert.deepEqual(fusionnerPartielDansBrouillon(brouillon, partiel).contenu.style, styleCode);
-
-  // Abandon du brouillon : même clause → même style, prompt long conservé ; clause changée → rien de périmé.
-  const projet = { titre: "Projet", clauseStyle: "A matte gouache look.", notes: "" };
-  const reste = residuPartiel({ contenu: partiel.contenu, statuts: partiel.statuts }, projet);
-  assert.deepEqual(reste?.contenu.style, styleCode);
-  const change = residuPartiel({ contenu: partiel.contenu, statuts: partiel.statuts }, { ...projet, clauseStyle: "Une autre clause." });
-  assert.deepEqual(change?.contenu.style, { nom: "", clause: "Une autre clause." });
-
-  // Le modèle de l'entretien ne voit pas le prompt long.
-  const fiche = briefVersFiche({ contenu: partiel.contenu, statuts: { style: "fourni" } }, lireFiche(null));
-  assert.deepEqual(fiche.contenu.style, { nom: "Gouache", clause: "A matte gouache look." });
 });
 
 test("les schémas du brief et de l'entretien acceptent le prompt long et l'image du style (posés par le code)", () => {

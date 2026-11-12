@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  actionAnnulation,
   estPurgeable,
   etatDansLaFile,
   gestePourAnnuler,
@@ -51,15 +50,6 @@ test("statut du plan après annulation : dernière réussite, sinon brouillon", 
   assert.equal(statutPlanApresAnnulation([{ statut: "echoue", activerUpscale: true }, { statut: "termine", activerUpscale: true }]), "termine");
   // du plus récent au plus ancien : la prévisualisation la plus récente l'emporte
   assert.equal(statutPlanApresAnnulation([{ statut: "termine", activerUpscale: false }, { statut: "termine", activerUpscale: true }]), "previsualise");
-});
-
-test("demande d'annulation : directe, drapeau, idempotente, sans effet", () => {
-  assert.equal(actionAnnulation({ statut: "en_attente", annulationDemandeeAt: null }), "directe");
-  assert.equal(actionAnnulation({ statut: "en_cours", annulationDemandeeAt: null }), "drapeau");
-  assert.equal(actionAnnulation({ statut: "en_cours", annulationDemandeeAt: new Date() }), "deja");
-  for (const s of ["termine", "echoue", "annulee"]) {
-    assert.equal(actionAnnulation({ statut: s, annulationDemandeeAt: null }), "rien");
-  }
 });
 
 const H = 3600 * 1000;

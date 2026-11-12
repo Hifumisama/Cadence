@@ -2,9 +2,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { basename, join } from "node:path";
 import { MEDIA_ROOT } from "../../lib/media";
-import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
+import type { ComfyUIClient, EvenementSuivi, PollResult, Suivi } from "./types";
 import { etatDansLaFile, type EtatDansLaFile } from "../../lib/tasks/annulation";
-import { injecterValeurs, NODE_IDS } from "./mapping";
+
 import { cheminSortieDistant, premierFichierSortie, type FichierSortie } from "./sortie";
 import { ouvrirSuiviWs, type EtatHistorique } from "./wsSuivi";
 
@@ -16,19 +16,14 @@ type HistoriqueEntree = {
 
 /**
  * Client HTTP réel vers l'API ComfyUI qui tourne sur le PC de bureau (déjà
- * exposée via NPM — voir plan d'implémentation, "Topologie"). N'utilisable
- * qu'une fois workflows/video-generation/VID_REF2VA.json ré-exporté en
- * "Save (API Format)" : le graphe actuel n'est pas soumettable en l'état.
+ * exposée via NPM). Le graphe est assemblé par l'appelant (`submitGraph`).
  */
 export class HttpComfyUIClient implements ComfyUIClient {
   /** Identité de ce worker auprès de ComfyUI : passée à /prompt ET au WebSocket,
    * car ComfyUI ne renvoie la progression qu'au client qui a soumis. */
   private readonly clientId = randomUUID();
 
-  constructor(
-    private readonly baseUrl: string,
-    private readonly workflowPath: string,
-  ) {}
+  constructor(private readonly baseUrl: string) {}
 
   async healthcheck(): Promise<boolean> {
     try {
@@ -53,22 +48,6 @@ export class HttpComfyUIClient implements ComfyUIClient {
     if (!res.ok) {
       throw new Error(`Upload de ${nomDistant} refusé (${res.status})`);
     }
-  }
-
-  async submit(input: SubmissionInput): Promise<string> {
-    const brut = JSON.parse(await readFile(this.workflowPath, "utf-8"));
-    const graphe = injecterValeurs(brut, input);
-
-    const res = await fetch(`${this.baseUrl}/prompt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: graphe, client_id: this.clientId }),
-    });
-    if (!res.ok) {
-      throw new Error(`Soumission ComfyUI refusée (${res.status})`);
-    }
-    const { prompt_id } = (await res.json()) as { prompt_id: string };
-    return prompt_id;
   }
 
   async submitGraph(graphe: Record<string, unknown>): Promise<string> {
@@ -134,13 +113,6 @@ export class HttpComfyUIClient implements ComfyUIClient {
       return { statut: "erreur", message: entree.status?.messages?.map(String).join(" | ") ?? "Erreur ComfyUI" };
     }
     return entree.status?.completed === true ? { statut: "termine", cheminSortieDistant: "" } : { statut: "en_cours" };
-  }
-
-  poll(promptId: string): Promise<PollResult> {
-    return this.lireResultat(promptId, (e) => {
-      const sortie = e.outputs?.[NODE_IDS.sortieFinale];
-      return (sortie?.gifs ?? sortie?.videos)?.[0];
-    });
   }
 
   async etatDansLaFile(promptId: string): Promise<EtatDansLaFile> {

@@ -9,12 +9,10 @@ import {
   argsVignette,
   binaires,
   contenuPlanche,
-  etiquetteInstant,
   executerProcessus,
   extrairePlanche,
   instantsVignettes,
   mesurerDuree,
-  nomVignette,
   type Executeur,
 } from "./planche-vignettes";
 
@@ -36,13 +34,6 @@ test("instants : plafond pour un plan long, répartis sur la durée", () => {
   assert.equal(i.at(-1), 28);
   const j = instantsVignettes(20, 8);
   assert.deepEqual(j, [0, 2.5, 5, 7.5, 10, 12.5, 15, 17.5]);
-});
-
-test("étiquettes et noms de fichiers", () => {
-  assert.equal(etiquetteInstant(4), "4 s");
-  assert.equal(etiquetteInstant(7.5), "7,5 s");
-  assert.equal(nomVignette(3, 3), "vignette_03_3-00s.jpg");
-  assert.equal(nomVignette(12, 17.5), "vignette_12_17-50s.jpg");
 });
 
 test("binaires : PATH par défaut, FFMPEG_PATH, FFPROBE_PATH prioritaire", () => {

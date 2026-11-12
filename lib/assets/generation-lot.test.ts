@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { preparerLot, selectionParDefaut, type AssetPourLot } from "./generation-lot";
+import { preparerLot, type AssetPourLot } from "./generation-lot";
 
 const a = (id: number, code: string, over: Partial<AssetPourLot> = {}): AssetPourLot => ({
   id,
@@ -39,9 +39,4 @@ test("preparerLot : la file pleine tronque le lot, avec la raison", () => {
   const r = preparerLot(tous, tous, new Set(), 2);
   assert.equal(r.aLancer.length, 2);
   assert.match(r.ecartes[0]!.raison, /file est pleine/);
-});
-
-test("selectionParDefaut : ce qui n'a pas encore d'image et peut partir", () => {
-  const tous = [a(1, "CHAR_a", { fichier: "x.png" }), a(2, "CHAR_b"), a(3, "CHAR_c", { promptGeneration: null })];
-  assert.deepEqual(selectionParDefaut(preparerLot(tous, tous, new Set(), 10), tous), [2]);
 });

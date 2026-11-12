@@ -5,11 +5,7 @@ import {
   CLES_DEMOS,
   DESCRIPTION_DEMOS_AVEC_REPLIQUES,
   NARRATION_CREATIVITE_DEMOS,
-  SCENE_CREATIVITE,
-  SCENE_STYLES,
   cheminDemo,
-  cleDemoDuPlan,
-  planifierDemos,
 } from "./demos";
 import { briefDepuisPlan } from "./brief";
 import { slugifyCode, libelleAsset } from "../assets/assetCode";
@@ -20,29 +16,6 @@ test("12 démos : 8 de style puis 4 de créativité, noms de fichiers distincts"
   assert.deepEqual(CLES_DEMOS.slice(0, 2), ["style-aucun", "style-cameron"]);
   assert.deepEqual(CLES_DEMOS.slice(8), ["creativite-restrained", "creativite-balanced", "creativite-bold", "creativite-extreme"]);
   assert.equal(cheminDemo("style-wong", "mp4"), "mises-en-scene/style-wong.mp4");
-});
-
-test("les 12 plans : la clé de chaque plan est retrouvée depuis sa scène et ses réglages, sans doublon", () => {
-  const plans = planifierDemos();
-  assert.equal(plans.length, 12);
-  assert.deepEqual(plans.map((p) => p.cle), [...CLES_DEMOS]);
-  for (const p of plans) assert.equal(cleDemoDuPlan({ scene: p.scene, creativite: p.creativite, styleCamera: p.styleCamera }), p.cle, p.titre);
-  assert.equal(plans.filter((p) => p.scene === SCENE_STYLES).length, 8);
-  assert.equal(plans.filter((p) => p.scene === SCENE_CREATIVITE).length, 4);
-  // Les séries ont la bonne description : répliques pour les styles, aucune pour la créativité.
-  assert.ok(plans.filter((p) => p.scene === SCENE_STYLES).every((p) => p.description === DESCRIPTION_DEMOS_AVEC_REPLIQUES));
-  assert.ok(plans.filter((p) => p.scene === SCENE_CREATIVITE).every((p) => p.description === NARRATION_CREATIVITE_DEMOS));
-});
-
-test("cleDemoDuPlan : réglages vides = défauts ; réglages qui ne vont pas avec la série, ou plan hors série = null", () => {
-  assert.equal(cleDemoDuPlan({ scene: SCENE_STYLES, creativite: null, styleCamera: null }), "style-aucun");
-  assert.equal(cleDemoDuPlan({ scene: SCENE_STYLES, creativite: "balanced", styleCamera: "villeneuve" }), "style-villeneuve");
-  assert.equal(cleDemoDuPlan({ scene: SCENE_STYLES, creativite: "bold", styleCamera: "villeneuve" }), null, "un plan de style reste à créativité équilibrée");
-  assert.equal(cleDemoDuPlan({ scene: SCENE_CREATIVITE, creativite: null, styleCamera: null }), "creativite-balanced");
-  assert.equal(cleDemoDuPlan({ scene: SCENE_CREATIVITE, creativite: "extreme", styleCamera: "aucun" }), "creativite-extreme");
-  assert.equal(cleDemoDuPlan({ scene: SCENE_CREATIVITE, creativite: "bold", styleCamera: "wong" }), null, "un plan de créativité n'a pas de style");
-  assert.equal(cleDemoDuPlan({ scene: "Autre", creativite: null, styleCamera: null }), null);
-  assert.equal(cleDemoDuPlan({ scene: null, creativite: null, styleCamera: null }), null);
 });
 
 test("la description ne donne aucune consigne de lumière, de couleur, de cadrage ni de caméra (le style doit rester libre)", () => {

@@ -33,9 +33,3 @@ export const avecUpscale = (final: boolean, resolution: unknown): boolean => fin
 
 /** Un rendu final natif : final, sans upscale (résolution au-dessus de la base). */
 export const estFinalNatif = (final: boolean, resolution: unknown): boolean => final && resolutionOuDefaut(resolution) > RESOLUTION_UPSCALE_MAX;
-
-/** Au-delà de la base, tout rendu est un rendu final : pas de prévisualisation (voir l'en-tête). */
-export const rendFinal = (finalDemande: boolean, resolution: unknown): boolean => finalDemande || resolutionOuDefaut(resolution) > RESOLUTION_UPSCALE_MAX;
-
-/** « 0,4 MP » */
-export const libelleResolution = (resolution: unknown): string => `${String(resolutionOuDefaut(resolution)).replace(".", ",")} MP`;

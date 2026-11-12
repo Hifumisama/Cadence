@@ -158,15 +158,3 @@ export function candidatsRegistre(brief: Pick<BriefContenu, "personnages" | "lie
   for (const l of brief.lieux ?? []) ajouter("decor", l.nom ?? "", descriptionLieu(l));
   return sortie;
 }
-
-/** Résumé d'une sélection, pour l'interface et les messages. */
-export function resumeCandidats(candidats: CandidatRegistre[], choisis: Set<string>): { total: number; choisis: number; nouveaux: number; existants: number; ecrases: number } {
-  const c = candidats.filter((x) => choisis.has(x.code));
-  return {
-    total: candidats.length,
-    choisis: c.length,
-    nouveaux: c.filter((x) => x.existantId == null).length,
-    existants: c.filter((x) => x.existantId != null).length,
-    ecrases: c.filter((x) => x.existantId != null && x.aPrompt).length,
-  };
-}

@@ -11,7 +11,7 @@ type PartieTexte = { type: "text"; text: string };
 export type PartieImage = { type: "image_url"; image_url: { url: string } };
 export type PartieContenu = PartieTexte | PartieImage;
 /** Une chaîne (cas courant, inchangé) ou une liste de parties texte/image. */
-export type ContenuLlm = string | PartieContenu[];
+type ContenuLlm = string | PartieContenu[];
 export type MessageLlm = { role: Exclude<RoleLlm, "system">; content: ContenuLlm };
 
 /** Partie image JPEG à partir de son base64 brut (sans préfixe `data:`). */
@@ -45,12 +45,6 @@ export function messagesSansImages(messages: MessageLlm[]): MessageLlm[] {
     });
     return { ...m, content };
   });
-}
-
-/** Le texte seul d'un contenu (les images sont ignorées). */
-export function texteDuContenu(contenu: ContenuLlm): string {
-  if (typeof contenu === "string") return contenu;
-  return contenu.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
 }
 
 export type DemandeLlm = {

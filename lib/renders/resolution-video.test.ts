@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { avecUpscale, estFinalNatif, libelleResolution, rendFinal, resolutionDepuis, resolutionOuDefaut } from "./resolution-video";
+import { avecUpscale, estFinalNatif, resolutionDepuis, resolutionOuDefaut } from "./resolution-video";
 
 test("résolution : les trois valeurs proposées, tolérant le flottant de la base", () => {
   assert.equal(resolutionDepuis(0.2), 0.2);
@@ -19,16 +19,4 @@ test("résolution : l'upscale n'existe qu'à la base, au-delà le rendu final es
   assert.equal(estFinalNatif(true, 0.4), true);
   assert.equal(estFinalNatif(true, 0.2), false);
   assert.equal(estFinalNatif(false, 0.4), false);
-});
-
-test("résolution : au-delà de la base, tout rendu est final (pas de prévisualisation)", () => {
-  assert.equal(rendFinal(false, 0.2), false);
-  assert.equal(rendFinal(true, 0.2), true);
-  assert.equal(rendFinal(false, 0.3), true);
-  assert.equal(rendFinal(false, 0.4), true);
-});
-
-test("résolution : libellé en français", () => {
-  assert.equal(libelleResolution(0.4), "0,4 MP");
-  assert.equal(libelleResolution(0.20000000298), "0,2 MP");
 });

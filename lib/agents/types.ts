@@ -462,20 +462,6 @@ export type PlanPourFiche = {
   sansIntention: boolean;
 };
 
-/** Estimation affichée avant de lancer une génération (au niveau du bouton). */
-export type EstimationGeneration = {
-  fournisseur: string;
-  modele: string;
-  /** Local = gratuit ; `null` tant qu'aucun fournisseur payant n'existe. */
-  coutEstimeUsd: number | null;
-  jetonsEntreeEstimes: number;
-  dureeEstimeeSecondes: number;
-  /** Tâches GPU en attente devant celle-ci (0 = elle passe tout de suite). */
-  tachesDevant: number;
-  /** Nom du skill qui sera exécuté (null si la proposition se construit en code, sans LLM). */
-  skill: string | null;
-};
-
 // ---------------------------------------------------------------------------
 // Résultats d'actions
 // ---------------------------------------------------------------------------

@@ -1,8 +1,5 @@
-import { CREATIVITES, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, STYLE_AUCUN, creativiteOuNull, styleCameraOuNull, type Creativite } from "./reglages";
+import { CREATIVITES, STYLE_AUCUN } from "./reglages";
 import { STYLES_CAMERA } from "./styles-camera";
-
-export const SCENE_STYLES = "Styles";
-export const SCENE_CREATIVITE = "Créativité";
 
 // --- Identifiants des démos (noms de fichiers sous data/mises-en-scene/) --------------------------------------------------------------------------
 
@@ -19,17 +16,6 @@ export const cheminDemo = (cle: string, ext: "mp4" | "webp"): string => `mises-e
 
 /** Ce que l'écran sait d'une démo produite. */
 export type DemoDispo = { video: string; affiche: string | null };
-
-/** La démo à laquelle correspond un plan du projet de démos, ou null (plan hors série, ou réglages qui ne vont pas avec sa série).
- * - scène « Styles » : l'identifiant est le style du plan (« aucun » s'il n'en a pas) ; la créativité doit être équilibrée (vide ou « balanced »).
- * - scène « Créativité » : l'identifiant est le niveau du plan (vide = équilibrée) ; il ne doit pas avoir de style. */
-export function cleDemoDuPlan(plan: { scene: string | null; creativite: string | null; styleCamera: string | null }): string | null {
-  const creativite = creativiteOuNull(plan.creativite) ?? "balanced";
-  const style = styleCameraOuNull(plan.styleCamera) ?? STYLE_AUCUN;
-  if (plan.scene === SCENE_STYLES) return creativite === "balanced" ? cleDemoStyle(style) : null;
-  if (plan.scene === SCENE_CREATIVITE) return style === STYLE_AUCUN ? cleDemoCreativite(creativite) : null;
-  return null;
-}
 
 // --- La scène : « La poursuite sur le toit » ----------------------------------------------------------------------------------------------------
 
@@ -79,28 +65,3 @@ export const ASSETS_DEMOS: readonly AssetDemo[] = [
       "Two flat rooftops of neighbouring city apartment buildings separated by a gap of about three metres, low parapet walls, bare concrete surfaces with a water tank, ventilation ducts and a few antennas, seen from roof level at an oblique angle, uniform overcast sky, soft even diffuse lighting without strong shadows, neutral natural colours, photorealistic, wide 16:9 composition",
   },
 ] as const;
-
-// --- Les 12 plans du projet de démos -----------------------------------------------------------------------------------------------------------
-
-export type PlanDemo = { titre: string; scene: string; description: string; creativite: Creativite | null; styleCamera: string | null; cle: string };
-
-/** Les 12 plans, dans l'ordre : 8 de style (avec répliques, créativité équilibrée), puis 4 de créativité (sans réplique, sans style). Le réglage est écrit EXPLICITEMENT sur chaque plan. */
-export function planifierDemos(): PlanDemo[] {
-  const styles: PlanDemo[] = [STYLE_AUCUN, ...STYLES_CAMERA].map((s) => ({
-    titre: `Style · ${s === STYLE_AUCUN ? "aucun style" : LIBELLE_STYLE_CAMERA[s as keyof typeof LIBELLE_STYLE_CAMERA]}`,
-    scene: SCENE_STYLES,
-    description: DESCRIPTION_DEMOS_AVEC_REPLIQUES,
-    creativite: "balanced",
-    styleCamera: s,
-    cle: cleDemoStyle(s),
-  }));
-  const creativite: PlanDemo[] = CREATIVITES.map((c) => ({
-    titre: `Créativité · ${LIBELLE_CREATIVITE[c]}`,
-    scene: SCENE_CREATIVITE,
-    description: NARRATION_CREATIVITE_DEMOS,
-    creativite: c,
-    styleCamera: STYLE_AUCUN,
-    cle: cleDemoCreativite(c),
-  }));
-  return [...styles, ...creativite];
-}

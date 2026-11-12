@@ -32,7 +32,7 @@ export function estCleSection(cle: string): cle is CleSectionBrief {
 }
 
 /** Égalité structurelle indifférente à l'ordre des clés. */
-export function egal(a: unknown, b: unknown): boolean {
+function egal(a: unknown, b: unknown): boolean {
   return stable(a) === stable(b);
 }
 
@@ -179,36 +179,6 @@ export function fusionnerPartielDansBrouillon(
   return { contenu: contenu as unknown as BriefContenu, statuts };
 }
 
-/** Ce qu'il reste d'un brouillon abandonné : le brief PARTIEL qui porte la clause de style et les
- * notes du projet — null s'il n'y en a aucune (le brouillon se supprime). Les valeurs viennent des
- * COPIES du projet (`projects.clause_style` / `notes`), qui reflètent par invariant le brief de
- * référence (brief-db.ts) : on ne devine pas, dans un brouillon, ce qui a été posé à la main. Le nom
- * du style est gardé si la clause du brouillon est la même. Tout le reste du brouillon disparaît. */
-export function residuPartiel(
-  brouillon: { contenu: BriefContenu; statuts: Record<string, StatutChamp> },
-  projet: { titre: string; clauseStyle: string; notes: string },
-): { contenu: BriefContenu; statuts: Record<string, StatutChamp> } | null {
-  const clause = projet.clauseStyle.trim();
-  const notes = projet.notes.trim();
-  if (!clause && !notes) return null;
-  const contenu = briefVide(projet.titre) as unknown as Record<string, unknown>;
-  const statuts: Record<string, StatutChamp> = {};
-  if (clause) {
-    const style = (brouillon.contenu as unknown as { style?: { nom?: unknown; clause?: unknown; promptImage?: unknown; image?: unknown } }).style;
-    const memeClause = typeof style?.clause === "string" && style.clause.trim() === clause;
-    contenu.style = { nom: memeClause && typeof style?.nom === "string" ? style.nom : "", clause };
-    // Le prompt long et l'image du style (posés par le code à la création) suivent la clause : même clause, même style.
-    if (memeClause && typeof style?.promptImage === "string" && style.promptImage.trim()) (contenu.style as Record<string, unknown>).promptImage = style.promptImage;
-    if (memeClause && typeof style?.image === "string" && style.image.trim()) (contenu.style as Record<string, unknown>).image = style.image;
-    statuts.style = "fourni";
-  }
-  if (notes) {
-    contenu.notes = notes;
-    statuts.notes = "fourni";
-  }
-  return { contenu: contenu as unknown as BriefContenu, statuts };
-}
-
 export type DifferenceSection = { cle: CleSectionBrief; avant: unknown; apres: unknown };
 
 /** Les sections qui diffèrent entre deux briefs (`avant` null = pas de brief). */
@@ -220,11 +190,6 @@ export function diffSections(avant: BriefContenu | null, apres: BriefContenu): D
     avant: a[s.cle] ?? null,
     apres: b[s.cle],
   }));
-}
-
-/** Contenu avec une section remplacée (copie). */
-export function avecSection(contenu: BriefContenu, cle: CleSectionBrief, valeur: unknown): BriefContenu {
-  return { ...(contenu as unknown as Record<string, unknown>), [cle]: valeur } as unknown as BriefContenu;
 }
 
 /** Sous-schéma d'une section, extrait du schéma complet du brief (pour valider une correction à la main). */

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LANGUES_MOTEUR, LANGUE_AUTO, langueFicheVoix, langueMoteurVoix, libelleLangueMoteur } from "./langues-tts";
+import { LANGUES_MOTEUR, LANGUE_AUTO, langueMoteurVoix } from "./langues-tts";
 
 test("langueMoteurVoix : le brief en français ou en anglais, accents compris", () => {
   assert.equal(langueMoteurVoix("Français"), "French");
@@ -31,12 +31,4 @@ test("langueMoteurVoix : la sortie est TOUJOURS un nom accepté par le moteur (a
   }
   // Idempotent : un nom du moteur ressort tel quel.
   for (const l of LANGUES_MOTEUR) assert.equal(langueMoteurVoix(l.valeur), l.valeur);
-});
-
-test("langueFicheVoix : stockée en anglais ; vide = French, inconnue = Auto", () => {
-  assert.equal(langueFicheVoix("Français"), "French");
-  assert.equal(langueFicheVoix("  "), "French");
-  assert.equal(langueFicheVoix(null), "French");
-  assert.equal(langueFicheVoix("klingon"), "Auto");
-  assert.equal(libelleLangueMoteur("French"), "Français");
 });

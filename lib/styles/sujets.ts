@@ -76,14 +76,5 @@ export const SUJETS_APERCU: readonly SujetApercu[] = [
 
 export const IDS_SUJETS = SUJETS_APERCU.map((s) => s.id);
 
-export function sujetParId(id: string): SujetApercu | null {
-  return SUJETS_APERCU.find((s) => s.id === id) ?? null;
-}
-
-/** Le prompt complet d'une image de présentation (ce que voit l'utilisateur) : la scène, puis le style. */
-export function promptApercu(sujet: Pick<SujetApercu, "scene">, descriptor: string): string {
-  return `${sujet.scene} ${descriptor}`;
-}
-
 /** L'aperçu qui sert de toile de fond à l'affiche du clap (recadrée en 3:2) : un décor neutre, sans personnage. */
 export const SUJET_AFFICHE_CLAP = "rue-de-nuit";

@@ -44,8 +44,3 @@ export function langueMoteurVoix(langue: string | null | undefined): string {
 export function langueFicheVoix(langue: string | null | undefined): string {
   return (langue ?? "").trim() ? langueMoteurVoix(langue) : "French";
 }
-
-/** Le libellé français d'une langue du moteur (« French » → « Français »), pour l'interface ; « Auto » reste « Auto ». */
-export function libelleLangueMoteur(valeur: string): string {
-  return LANGUES_MOTEUR.find((l) => l.valeur === valeur)?.libelle ?? valeur;
-}

@@ -66,8 +66,3 @@ export function differenceMots(avant: string, apres: string): SegmentDiff[] {
   vider();
   return segments;
 }
-
-/** Vrai si les deux textes ne diffèrent qu'par les espaces. */
-export function memeTexte(avant: string, apres: string): boolean {
-  return mots(avant).join(" ") === mots(apres).join(" ");
-}

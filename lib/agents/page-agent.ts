@@ -16,8 +16,6 @@ export type DemandePage = {
   planUuid?: string;
 };
 
-export type PorteePage = { cle: string; libelle: string; demande: DemandePage };
-
 const entier = (s: string | undefined): number | null => (s && /^\d+$/.test(s) ? Number(s) : null);
 
 /** La demande la plus précise pour cette page, ou null hors d'un projet (accueil, listes). */
@@ -40,23 +38,4 @@ export function demandeDepuisChemin(chemin: string): DemandePage | null {
     return { projectId, portee: "episode", cible: { id: episodeId }, episodeId };
   }
   return { projectId, portee: "projet", cible: null };
-}
-
-const LIBELLE_PORTEE: Record<Portee, string> = { projet: "Tout le projet", episode: "Cet épisode", plan: "Ce plan", asset: "Cet asset" };
-
-/** Les portées proposées pour cette page, de la plus petite (par défaut) à la plus large : un plan s'élargit à son
- * épisode puis au projet, un épisode au projet, un asset au projet. */
-export function porteesDepuisChemin(chemin: string): PorteePage[] {
-  const d = demandeDepuisChemin(chemin);
-  if (!d) return [];
-  const liste: PorteePage[] = [{ cle: `${d.portee}:${JSON.stringify(d.cible)}`, libelle: LIBELLE_PORTEE[d.portee], demande: d }];
-  if (d.portee === "plan" && d.episodeId != null) {
-    const ep: DemandePage = { projectId: d.projectId, portee: "episode", cible: { id: d.episodeId }, episodeId: d.episodeId };
-    liste.push({ cle: `episode:${d.episodeId}`, libelle: LIBELLE_PORTEE.episode, demande: ep });
-  }
-  if (d.portee !== "projet") {
-    const p: DemandePage = { projectId: d.projectId, portee: "projet", cible: null };
-    liste.push({ cle: "projet", libelle: LIBELLE_PORTEE.projet, demande: p });
-  }
-  return liste;
 }

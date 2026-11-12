@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  avanceeUpscale,
-  classerPourPrevisualisation,
-  compterAPrevisualiser,
   consequencesSuppression,
   essaiVoisin,
   etatPlan,
@@ -54,30 +51,6 @@ test("libellés : essai, base et consigne des anciens rendus", () => {
   assert.equal(texteConsigne({ consigne: "  Plus serré ", importe: false }), "Plus serré");
   assert.equal(texteConsigne({ consigne: null, importe: false }), null);
   assert.equal(texteConsigne({ consigne: "", importe: true }), "Vidéo importée.");
-});
-
-test("compterAPrevisualiser : seuls les plans à fiche développée, sans rendu et sans file", () => {
-  const plans = [
-    { statut: "brouillon", nbTermines: 0, nbEnFile: 0 },
-    { statut: "en_attente", nbTermines: 0, nbEnFile: 0 },
-    { statut: "en_attente", nbTermines: 0, nbEnFile: 1 },
-    { statut: "previsualise", nbTermines: 2, nbEnFile: 0 },
-    { statut: "echoue", nbTermines: 0, nbEnFile: 0 },
-    { statut: "en_cours", nbTermines: 0, nbEnFile: 0 },
-  ];
-  assert.equal(compterAPrevisualiser(plans), 2);
-  const c = classerPourPrevisualisation(plans.map((p, id) => ({ ...p, id })));
-  assert.deepEqual(c.neufs, [1, 4]);
-  assert.deepEqual(c.avecRendu, [3]);
-  assert.equal(c.dejaEnFile, 2);
-  assert.equal(c.brouillons, 1);
-  assert.equal(compterAPrevisualiser([]), 0);
-});
-
-test("avanceeUpscale : le bouton d'upscale n'apparaît que quand tous les plans sont prêts", () => {
-  assert.deepEqual(avanceeUpscale(["pret", "iteration", "brouillon"]), { prets: 1, total: 3, pourcent: 33, tousPrets: false });
-  assert.equal(avanceeUpscale(["pret", "pret"]).tousPrets, true);
-  assert.equal(avanceeUpscale([]).tousPrets, false);
 });
 
 test("planSuivant : le suivant dans l'ordre, rien après le dernier", () => {

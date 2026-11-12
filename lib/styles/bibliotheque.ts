@@ -51,10 +51,6 @@ export function bibliothequeStyles(): StyleBibliotheque[] {
   return construireBibliotheque(brut as unknown as EntreeBrute[]).map((s) => (s.clause ? s : clausesProduites[s.id] ? { ...s, clause: clausesProduites[s.id] } : s));
 }
 
-export function styleParId(id: string): StyleBibliotheque | null {
-  return bibliothequeStyles().find((s) => s.id === id) ?? null;
-}
-
 /** Chemin relatif à MEDIA_ROOT de l'image de présentation d'un style pour un sujet (`sujets.ts`). */
 export function cheminApercuStyle(id: string, sujet: string): string {
   return `styles/${id}/${sujet}.webp`;

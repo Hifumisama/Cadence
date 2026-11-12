@@ -30,30 +30,6 @@ export const MAX_REFS: Record<RefLabel["type"], number> = {
   audio: 3,
 };
 
-/** Une balise `<d>[Langue] …</d>` du prompt, avec l'emplacement exact de son
- * texte (`debut`/`fin` dans le contenu de sa section) — c'est ce qui permet de
- * la corriger sans toucher au reste de la phrase. */
-export type BaliseD = {
-  section: string;
-  debut: number;
-  fin: number;
-  langue: string | null;
-  texte: string;
-};
-
-export function extraireBalisesD(sections: PromptSection[]): BaliseD[] {
-  const balises: BaliseD[] = [];
-  for (const { section, contenu } of sections) {
-    for (const m of contenu.matchAll(/<d>(\s*\[([^\]]*)\])?(\s*)([\s\S]*?)(\s*)<\/d>/g)) {
-      const decalage = 3 + (m[1]?.length ?? 0) + (m[3]?.length ?? 0);
-      const debut = (m.index ?? 0) + decalage;
-      const texte = m[4] ?? "";
-      balises.push({ section, debut, fin: debut + texte.length, langue: m[2] ?? null, texte });
-    }
-  }
-  return balises;
-}
-
 /** Cohérence des refs : chaque label <Picture N>/<Audio N>/<Video N> cité
  * dans le prompt doit exister dans la table de refs du plan, et
  * inversement.
@@ -93,13 +69,6 @@ export function verifierCoherenceRefs(
   const refsNonCitees = [...labelsDeclares].filter((l) => !labelsCites.has(l));
 
   return { labelsOrphelins, refsNonCitees };
-}
-
-/** Les labels de références cités dans un texte de prompt, dans l'ordre d'apparition, sans doublon (« Picture 1 », « Audio 2 »). */
-export function extraireLabels(texte: string): string[] {
-  const vus = new Set<string>();
-  for (const m of texte.matchAll(/<(Picture|Video|Audio)\s+(\d+)>/g)) vus.add(`${m[1]} ${m[2]}`);
-  return [...vus];
 }
 /** Plancher par shot des CONTRÔLES DE LA FICHE (`controlerStructure`, en-tête de la page du plan), pour toutes les fiches : celui du modèle et d'Open H3 IR
  * (`MIN_SHOT_MS` = 1200, h3ir/shots.py:42). Une fiche d'Open H3 IR peut avoir un shot de 1,2 à 1,5 s sans que ce soit une faute (décision du 2026-11-02). */

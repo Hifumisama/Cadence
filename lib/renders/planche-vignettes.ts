@@ -63,13 +63,8 @@ export function instantsVignettes(dureeSecondes: number, max = MAX_VIGNETTES): n
 }
 
 /** Étiquette lisible d'un instant, telle qu'on la cite au modèle : « 4 s », « 7,5 s ». */
-export function etiquetteInstant(instantSecondes: number): string {
+function etiquetteInstant(instantSecondes: number): string {
   return `${String(arrondi(instantSecondes)).replace(".", ",")} s`;
-}
-
-/** Nom de fichier d'une vignette, si on choisit de l'écrire sur disque (tri lexical = ordre). */
-export function nomVignette(index: number, instantSecondes: number): string {
-  return `vignette_${String(index).padStart(2, "0")}_${arrondi(instantSecondes).toFixed(2).replace(".", "-")}s.jpg`;
 }
 
 export function binaires(env: Record<string, string | undefined> = process.env): { ffmpeg: string; ffprobe: string } {
