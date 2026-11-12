@@ -7,7 +7,7 @@ import { Topbar } from "@/components/ui/Topbar";
 import { db } from "@/db";
 import { lireVueCreation } from "@/lib/agents/creation-vue";
 import { ouvrirConversation } from "@/lib/agents/service";
-import { lireConception } from "@/lib/conception-db";
+import { lireConception } from "@/lib/projects/conception-db";
 import { resumeMiseEnScene } from "@/lib/h3ir/reglages";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getProject } from "@/lib/queries";

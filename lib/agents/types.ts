@@ -162,7 +162,7 @@ export type BriefContenu = {
   arc: string;
   genreTon?: string;
   /** `promptImage` (anglais, long : génère les images) et `image` (2:3, présentation) sont posés par le CODE à la création du projet
-   * (conception, lib/conception.ts), jamais par un agent ; `clause` (courte) part vers la vidéo. */
+   * (conception, lib/projects/conception.ts), jamais par un agent ; `clause` (courte) part vers la vidéo. */
   style: { nom: string; clause: string; promptImage?: string; image?: string };
   langueDialogues: string;
   /** Absente dans un brief « partiel » (posé à la main : style, notes). */

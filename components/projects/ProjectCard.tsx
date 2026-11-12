@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import type { ProjectListItem } from "@/lib/queries";
 import { Icone } from "@/components/ui/Icone";
 import { Poster } from "@/components/ui/Poster";
-import { PHASES, phaseDe, totalBuckets, type Phase } from "@/lib/phase";
+import { PHASES, phaseDe, totalBuckets, type Phase } from "@/lib/projects/phase";
 
 /** État affiché sur la carte, dérivé des statuts de plans (jamais saisi). « Vide » parle au
  * système, pas à l'utilisateur : sur la carte, un projet sans plan est « À démarrer ». */

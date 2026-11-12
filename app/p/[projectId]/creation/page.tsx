@@ -6,7 +6,7 @@ import { AvanceeScene } from "@/components/conception/AvanceeScene";
 import { Topbar } from "@/components/ui/Topbar";
 import { db } from "@/db";
 import { lirePlansIntents, lireSuiviFiches, lireVueCreation } from "@/lib/agents/creation-vue";
-import { lireConception } from "@/lib/conception-db";
+import { lireConception } from "@/lib/projects/conception-db";
 import { resumeMiseEnScene } from "@/lib/h3ir/reglages";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";

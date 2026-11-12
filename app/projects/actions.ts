@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminPosterMedia, type PosterCible } from "@/lib/media";
-import { inventaireProjet, supprimerProjetComplet } from "@/lib/suppression-projet";
+import { inventaireProjet, supprimerProjetComplet } from "@/lib/projects/suppression-projet";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
 
 /** Crée le projet (un film) et son épisode unique SANS rediriger : « Créer avec l'agent » ouvre ensuite la popup d'agent sur le projet vide. */
@@ -48,7 +48,7 @@ export async function uploaderPosterProjet(projectId: number, formData: FormData
   revalidatePath("/", "layout");
 }
 
-/** Ce que la suppression emportera — pour la confirmation (lib/suppression-projet.ts). */
+/** Ce que la suppression emportera — pour la confirmation (lib/projects/suppression-projet.ts). */
 export async function lireInventaireSuppression(projectId: number) {
   return inventaireProjet(projectId);
 }

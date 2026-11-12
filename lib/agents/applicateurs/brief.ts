@@ -1,8 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 import { briefs } from "../../../db/schema";
 import { estCleSection, retablirStyleDuCode, sansClesAbandonnees } from "../brief";
-import { lireConception } from "../../conception-db";
-import { resoudreStyle } from "../../conception";
+import { lireConception } from "../../projects/conception-db";
+import { resoudreStyle } from "../../projects/conception";
 import { listerStyles } from "../../styles/styles-db";
 import type { ChangementBrut } from "../changements";
 import type { BriefContenu, StatutChamp } from "../types";

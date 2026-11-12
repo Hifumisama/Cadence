@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { cleDemoCreativite, cleDemoStyle, type DemoDispo } from "@/lib/h3ir/demos";
-import { choisirMiseEnScene, miseEnSceneDuStyle } from "@/lib/conception-ui";
+import { choisirMiseEnScene, miseEnSceneDuStyle } from "@/lib/projects/conception-ui";
 import { EXEMPLE_AUCUN_STYLE, EXEMPLE_CREATIVITE, EXEMPLE_STYLE, FILMS_STYLE, SCENE_EXEMPLE } from "@/lib/h3ir/exemples";
 import { IDS_PROFILS_PERSO } from "@/lib/h3ir/profils-perso";
 import { AIDE_CREATIVITE, CREATIVITES, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, STYLE_AUCUN, estMiseEnScene, estStyleCamera, type ChoixMiseEnScene } from "@/lib/h3ir/reglages";

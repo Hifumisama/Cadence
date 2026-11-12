@@ -755,7 +755,7 @@ export const briefs = pgTable("briefs", {
 });
 
 // La conception du projet (2026-10-07) : les choix faits AVANT l'entretien (format, genres, ton, durée, rythme, langue, style),
-// tels que l'utilisateur les a faits (lib/conception.ts). Le brief reçoit les valeurs dérivées ; cette ligne garde les choix
+// tels que l'utilisateur les a faits (lib/projects/conception.ts). Le brief reçoit les valeurs dérivées ; cette ligne garde les choix
 // bruts (ton ajusté ou non, valeurs par défaut non visitées, nombre d'épisodes prévus) pour les réafficher.
 export const conceptions = pgTable("conceptions", {
   id: serial("id").primaryKey(),

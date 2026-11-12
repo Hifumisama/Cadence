@@ -151,7 +151,7 @@ test("mise en scène : une session plus ancienne (sans ces champs) ou abîmée r
 });
 
 test("reglagesDepuisCharge : valeurs validées, repli sur le départ (jamais null), « aucun » accepté", async () => {
-  const { reglagesDepuisCharge } = await import("./h3ir/reglages");
+  const { reglagesDepuisCharge } = await import("../h3ir/reglages");
   assert.deepEqual(reglagesDepuisCharge({ creativite: "bold", styleCamera: "tarantino" }), { creativite: "bold", styleCamera: "tarantino" });
   assert.deepEqual(reglagesDepuisCharge({ creativite: "bold", styleCamera: "aucun" }), { creativite: "bold", styleCamera: "aucun" });
   assert.deepEqual(reglagesDepuisCharge({ creativite: "folle", styleCamera: "kubrick" }), { creativite: "balanced", styleCamera: "aucun" });

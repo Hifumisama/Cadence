@@ -2,7 +2,7 @@
  * différentes (à prendre, à mélanger ou à jeter) pour qui n'a pas d'idée, sans rien imposer à qui en a une. Écrit en code, sans
  * appel LLM : il est là dès l'ouverture, et le tirage au sort garantit trois genres distincts. Pur (le tirage est injectable). */
 
-import { motDuTon, type Conception } from "../conception";
+import { motDuTon, type Conception } from "../projects/conception";
 
 type Piste = { genre: string; idee: string };
 

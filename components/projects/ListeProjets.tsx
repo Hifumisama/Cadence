@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { ProjectListItem } from "@/lib/queries";
 import { Icone } from "@/components/ui/Icone";
-import { phaseDe, totalBuckets } from "@/lib/phase";
+import { phaseDe, totalBuckets } from "@/lib/projects/phase";
 import { ProjectCard } from "./ProjectCard";
 import { SupprimerProjetBouton } from "./SupprimerProjetBouton";
 

@@ -1,14 +1,14 @@
 import { eq, sql } from "drizzle-orm";
-import { briefs, conceptions, projects } from "../db/schema";
-import type { Db } from "./agents/applicateurs/commun";
-import { briefVide } from "./agents/brief";
-import { synchroniserClauseStyle } from "./agents/brief-db";
-import type { BriefContenu } from "./agents/types";
-import { entreeAccroche } from "./agents/accroche";
-import type { Fiche } from "./agents/fiche";
+import { briefs, conceptions, projects } from "../../db/schema";
+import type { Db } from "../agents/applicateurs/commun";
+import { briefVide } from "../agents/brief";
+import { synchroniserClauseStyle } from "../agents/brief-db";
+import type { BriefContenu } from "../agents/types";
+import { entreeAccroche } from "../agents/accroche";
+import type { Fiche } from "../agents/fiche";
 import { ficheDepuisConception, validerConception, type Conception, type StyleResolu } from "./conception";
 
-/** Accès base de la conception d'un projet (voir lib/conception.ts pour le contenu et les règles). */
+/** Accès base de la conception d'un projet (voir lib/projects/conception.ts pour le contenu et les règles). */
 
 /** La conception d'un projet, ou null s'il n'en a pas (projet créé avant la conception) ou si la ligne est illisible. L'identifiant d'un
  * style de la bibliothèque n'est PAS revérifié contre la bibliothèque : l'utilisateur peut avoir retiré ce style depuis, le projet garde

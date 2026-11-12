@@ -12,7 +12,7 @@ import {
   projects,
 } from "../db/schema";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
+import { bucketiserStatuts, bucketsVides, type StatutBuckets } from "./projects/phase";
 import { posterSrc } from "./media";
 import { estCritique, statutAsset } from "./asset-etat";
 import { horsAffiches } from "./assets-visibles";

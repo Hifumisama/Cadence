@@ -1,6 +1,6 @@
-import type { Fiche } from "./agents/fiche";
-import { RYTHMES_BRIEF, type RythmeBrief } from "./agents/types";
-import type { StyleBibliotheque } from "./styles/bibliotheque";
+import type { Fiche } from "../agents/fiche";
+import { RYTHMES_BRIEF, type RythmeBrief } from "../agents/types";
+import type { StyleBibliotheque } from "../styles/bibliotheque";
 
 /** La conception d'un projet : ce que l'utilisateur choisit AVANT l'entretien avec le scénariste (genre, ton,
  * durée, rythme, langue, style). Tout est quasi déterministe : l'agent n'a plus à le demander. Pur : validation,

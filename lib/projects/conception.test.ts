@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chargerSkill } from "./llm/skills";
-import { compilerSchema } from "./llm/validation";
-import { briefVersFiche, entreeNotes, lireFiche, manquesFiche, ficheComplete } from "./agents/fiche";
-import { SCHEMA_BRIEF, briefVide, fusionnerPartielDansBrouillon, promptImageDuBrief, residuPartiel } from "./agents/brief";
-import type { BriefContenu } from "./agents/types";
-import { entreeAccroche, MARQUE_PROJET_CONCU } from "./agents/accroche";
+import { chargerSkill } from "../llm/skills";
+import { compilerSchema } from "../llm/validation";
+import { briefVersFiche, entreeNotes, lireFiche, manquesFiche, ficheComplete } from "../agents/fiche";
+import { SCHEMA_BRIEF, briefVide, fusionnerPartielDansBrouillon, promptImageDuBrief, residuPartiel } from "../agents/brief";
+import type { BriefContenu } from "../agents/types";
+import { entreeAccroche, MARQUE_PROJET_CONCU } from "../agents/accroche";
 import {
   DUREE_MAX_SECONDES,
   DUREE_MIN_SECONDES,
@@ -28,8 +28,8 @@ import {
   valeursParDefaut,
   type Conception,
 } from "./conception";
-import { entreeTour } from "./agents/brief-entree";
-import type { StyleBibliotheque } from "./styles/bibliotheque";
+import { entreeTour } from "../agents/brief-entree";
+import type { StyleBibliotheque } from "../styles/bibliotheque";
 
 const filtres = { medium: "peinture", rendu: ["aplats"], palette: ["pastel"], epoque: "intemporel", ambiance: ["doux"] };
 const BIBLIO: StyleBibliotheque[] = [

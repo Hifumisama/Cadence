@@ -8,7 +8,7 @@ import { Topbar } from "@/components/ui/Topbar";
 import { lireBriefOuVide } from "@/lib/queries-agents";
 import { getAllAssets, getEpisode, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { db } from "@/db";
-import { lireConception } from "@/lib/conception-db";
+import { lireConception } from "@/lib/projects/conception-db";
 import { plansSansFicheApresCreation } from "@/lib/agents/creation-vue";
 import { MEDIA_ROOT, assetMediaSrc, posterSrc } from "@/lib/media";
 import { slugStyle } from "@/lib/styles/bibliotheque";

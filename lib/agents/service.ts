@@ -24,7 +24,7 @@ import { creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./b
 import { accrocheEntretien } from "./accroche";
 import { choixActif, formulerReponse, selectionValide } from "./choix";
 import { entreeNotes, ficheVersBrief, type Fiche } from "./fiche";
-import { lireConception, ouvertureConcue } from "../conception-db";
+import { lireConception, ouvertureConcue } from "../projects/conception-db";
 import { ficheCourante } from "./fiche-db";
 import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversation, PlaceScene, Portee, Position, Profondeur, Resultat, StatutChamp } from "./types";
 import { PORTEES } from "./types";

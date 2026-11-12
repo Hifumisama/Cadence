@@ -4,7 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { formatParDefaut, nouvelleSeed, raisonDemandeInvalide, type DemandeGeneration } from "./asset-generation";
-import { styleDesEditions, styleDesImages } from "./conception";
+import { styleDesEditions, styleDesImages } from "./projects/conception";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "./generation-lot";
 import { MEDIA_ROOT, cheminAssetMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "./media";
 import { nbImagesEnAttente, rangDansLaFile } from "./tasks/queries-taches";

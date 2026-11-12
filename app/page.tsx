@@ -1,5 +1,5 @@
 import { getAllProjects } from "@/lib/queries";
-import { phaseDe, totalBuckets } from "@/lib/phase";
+import { phaseDe, totalBuckets } from "@/lib/projects/phase";
 import { Topbar } from "@/components/ui/Topbar";
 import { ListeProjets } from "@/components/projects/ListeProjets";
 import Link from "next/link";

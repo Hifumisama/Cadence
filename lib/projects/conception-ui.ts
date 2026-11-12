@@ -12,13 +12,13 @@ import {
   motDuTon,
   tonDepuisGenres,
 } from "./conception";
-import { RYTHMES_BRIEF, type RythmeBrief } from "./agents/types";
-import type { ProfilPersoId } from "./h3ir/profils-perso";
-import { miseEnSceneRecommandee } from "./styles/mise-en-scene-recommandee";
-import { CREATIVITE_PAR_DEFAUT, STYLE_AUCUN, creativiteOuNull, resumeMiseEnScene, styleCameraOuNull, type Creativite } from "./h3ir/reglages";
+import { RYTHMES_BRIEF, type RythmeBrief } from "../agents/types";
+import type { ProfilPersoId } from "../h3ir/profils-perso";
+import { miseEnSceneRecommandee } from "../styles/mise-en-scene-recommandee";
+import { CREATIVITE_PAR_DEFAUT, STYLE_AUCUN, creativiteOuNull, resumeMiseEnScene, styleCameraOuNull, type Creativite } from "../h3ir/reglages";
 
 /** L'état de l'assistant de conception (page `/nouveau`) côté navigateur : valeurs de départ, passage d'une étape à l'autre, résumé de
- * chaque étape, sauvegarde en session, et charge utile envoyée au serveur (qui la revalide : lib/conception.ts). Pur et sans React,
+ * chaque étape, sauvegarde en session, et charge utile envoyée au serveur (qui la revalide : lib/projects/conception.ts). Pur et sans React,
  * pour que les règles se testent. */
 
 export type StyleChoisi =

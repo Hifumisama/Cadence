@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { REFERENCES_NOMMEES } from "../conception";
+import { REFERENCES_NOMMEES } from "../projects/conception";
 import { FICHES_PERSO, IDS_PROFILS_PERSO, PROFILS_PERSO, type ProfilPersoId } from "./profils-perso";
 
 const CLES = ["claymation", "anime-nerveux", "anime-contemplatif", "3d-cinema", "sitcom", "horreur"];

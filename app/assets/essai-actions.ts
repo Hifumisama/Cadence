@@ -19,7 +19,7 @@ import {
   raisonConsigneInvalide,
 } from "@/lib/asset-generation";
 import { TYPE_AFFICHE } from "@/lib/posters/affiches";
-import { styleDesEditions, styleDesImages } from "@/lib/conception";
+import { styleDesEditions, styleDesImages } from "@/lib/projects/conception";
 import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "@/lib/media";
 import { nbImagesEnAttente } from "@/lib/tasks/queries-taches";
 import { cheminCanevasAffiche } from "@/worker/canevas-affiche";

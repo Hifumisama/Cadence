@@ -7,9 +7,9 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "r
 import { lireConversationVue } from "@/app/agents/lecture";
 import { estTacheActive } from "@/lib/agents-affichage";
 import type { VueConversation } from "@/lib/agents/types";
-import type { Conception } from "@/lib/conception";
-import { ETAPES_CONCEPTION, minutesSecondes, teinteAmbiance } from "@/lib/conception-ui";
-import { motDuTon } from "@/lib/conception";
+import type { Conception } from "@/lib/projects/conception";
+import { ETAPES_CONCEPTION, minutesSecondes, teinteAmbiance } from "@/lib/projects/conception-ui";
+import { motDuTon } from "@/lib/projects/conception";
 import { lireAfficheClap, preparerAfficheClap } from "@/app/affiches/clap-actions";
 import { ClapScene, type AfficheEtat, type StyleAffiche } from "./ClapScene";
 import { RubanConception } from "./RubanConception";

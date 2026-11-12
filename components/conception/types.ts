@@ -1,5 +1,5 @@
 import type { FiltresStyle } from "@/lib/styles/filtres";
-import type { EtatAssistant } from "@/lib/conception-ui";
+import type { EtatAssistant } from "@/lib/projects/conception-ui";
 
 /** Un style de la bibliothèque tel que la page le montre : seulement les styles prêts à l'emploi (avec leur clause courte). */
 export type StyleVue = {

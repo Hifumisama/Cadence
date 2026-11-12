@@ -4,8 +4,8 @@ import { agentConversations, agentRuns, assetGenerations, assets, briefs, projec
 import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../posters/affiches";
 import { nouvelleSeed } from "../asset-generation";
 import { VARIANTE_AFFICHE } from "../llm/variantes";
-import { motDuTon, styleDesImages } from "../conception";
-import { lireConception } from "../conception-db";
+import { motDuTon, styleDesImages } from "../projects/conception";
+import { lireConception } from "../projects/conception-db";
 import type { Db } from "./applicateurs/commun";
 import { ficheCourante } from "./fiche-db";
 import { creerRun } from "./runs";

@@ -17,7 +17,7 @@ import {
   teinteAmbiance,
   versCharge,
   type EtatAssistant,
-} from "@/lib/conception-ui";
+} from "@/lib/projects/conception-ui";
 import { SceneAccueil, SceneDuree, SceneGenreTon, SceneLangue } from "./Scenes";
 import { Glissiere } from "./Glissiere";
 import { SceneStyle } from "./SceneStyle";
@@ -67,7 +67,7 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
     }
   }, [etat, restaure]);
 
-  // Après chaque changement : tant que la mise en scène n'a pas été choisie à la main, elle suit la recommandation du style (lib/conception-ui.ts, `suivreRecommandation`).
+  // Après chaque changement : tant que la mise en scène n'a pas été choisie à la main, elle suit la recommandation du style (lib/projects/conception-ui.ts, `suivreRecommandation`).
   const maj: MajEtat = useCallback((f) => setEtat((e) => suivreRecommandation(f(e))), []);
 
   const aller = useCallback(

@@ -9,8 +9,8 @@ import { arreterCreationProjet, reprendreCreationProjet } from "@/app/creation/a
 import { SYMBOLE_SOUS_TACHE } from "@/lib/agents-affichage";
 import type { PlanIntent, SuiviFichePlan, VueCreation } from "@/lib/agents/creation-vue";
 import { IntentsAvantFiches } from "./IntentsAvantFiches";
-import { motDuTon, type Conception } from "@/lib/conception";
-import { minutesSecondes, teinteAmbiance } from "@/lib/conception-ui";
+import { motDuTon, type Conception } from "@/lib/projects/conception";
+import { minutesSecondes, teinteAmbiance } from "@/lib/projects/conception-ui";
 import { BoutonGenererImages, useEtatImages } from "@/components/images/ImagesProjet";
 import { phraseCompteImages, type EtatImages } from "@/lib/images-projet";
 import { AfficheProjet, type StyleAffiche } from "./ClapScene";
