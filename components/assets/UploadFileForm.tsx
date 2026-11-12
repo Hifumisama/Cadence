@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { uploaderFichierAsset } from "@/app/assets/actions";
 
-export function UploadFichierForm({ assetId, code, classe = "btn btn-ghost btn-sm", libelle = "Choisir un fichier" }: { assetId: number; code: string; classe?: string; libelle?: string }) {
+export function UploadFichierForm({ assetId, classe = "btn btn-ghost btn-sm", libelle = "Choisir un fichier" }: { assetId: number; classe?: string; libelle?: string }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
   const [nomChoisi, setNomChoisi] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export function UploadFichierForm({ assetId, code, classe = "btn btn-ghost btn-s
     setErreur(null);
     startTransition(async () => {
       try {
-        await uploaderFichierAsset(assetId, code, formData);
+        await uploaderFichierAsset(assetId, formData);
         formRef.current?.reset();
         setNomChoisi(null);
       } catch (e) {

@@ -165,7 +165,6 @@ export const plans = pgTable("plans", {
   ordre: integer("ordre").notNull().default(0),
   numerosSource: integer("numeros_source").array(),
   titre: varchar("titre", { length: 255 }).notNull(),
-  acte: varchar("acte", { length: 100 }),
   sceneId: integer("scene_id").references(() => scenes.id),
   description: text("description"),
   // The clip text (`description`) as it was when the sheet was written (agent or Open H3 IR): if the description is no longer the same, the sheet must be
@@ -182,14 +181,12 @@ export const plans = pgTable("plans", {
   fps: integer("fps").notNull().default(24),
   // Render resolution (0,2 / 0,3 / 0,4 MP: lib/renders/resolution-video.ts), node `22:9` of the video workflow.
   megapixels: real("megapixels").notNull().default(0.2),
-  mode: varchar("mode", { length: 20 }).notNull().default("full-reference"),
   timecodeMusique: varchar("timecode_musique", { length: 50 }),
   statut: planStatutEnum("statut").notNull().default("brouillon"),
   // One seed PER CLIP, drawn at creation (2026-10-03, F04): without it all clips and all reruns
   // shared the seed written in the workflow file. « Relancer » (rerun) keeps it (same result if nothing
   // changed); « Nouvelle variante » (new variant) draws another one.
   seed: text("seed").default(sql`floor(random() * 1000000000000000)::bigint::text`),
-  notes: text("notes"),
   // Clip sheet « table de montage » (edit table) (2026-10-12): the displayed state of a clip is DERIVED (lib/clips/clip-sheet.ts, etatPlan): without an attempt =
   // draft, pret_upscale_at set = ready to upscale, otherwise in iteration. No additional enum value. A new attempt clears both.
   pretUpscaleAt: timestamp("pret_upscale_at"),

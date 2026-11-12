@@ -243,7 +243,7 @@ export function AtelierAsset({
           <h2>
             Atelier <small>{imageSrc ? (nbEssais ? `${nbEssais} essai${nbEssais > 1 ? "s" : ""}` : "aucun essai") : "pas encore d'image"}</small>
           </h2>
-          {affiche ? null : <UploadFichierForm assetId={assetId} code={code} classe="btn btn-fant btn-sm" libelle="Importer une image" />}
+          {affiche ? null : <UploadFichierForm assetId={assetId} classe="btn btn-fant btn-sm" libelle="Importer une image" />}
         </div>
 
         {/* ---- The scene ---- */}

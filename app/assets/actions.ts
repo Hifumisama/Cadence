@@ -5,9 +5,9 @@ import { assets, planRefs } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, extname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
-import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, type TypeAsset } from "@/lib/assets/assetCode";
+import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, nomFichierAsset, type TypeAsset } from "@/lib/assets/assetCode";
 
 async function enregistrerFichierAsset(code: string, fichier: File): Promise<string> {
   if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
@@ -15,8 +15,7 @@ async function enregistrerFichierAsset(code: string, fichier: File): Promise<str
       `Fichier trop volumineux (${(fichier.size / 1024 / 1024).toFixed(1)} Mo, max ${TAILLE_MAX_UPLOAD_ASSET / 1024 / 1024} Mo).`,
     );
   }
-  const ext = extname(fichier.name) || "";
-  const nomFichier = `${code}${ext}`;
+  const nomFichier = nomFichierAsset(code, fichier.name);
   const cheminComplet = join(MEDIA_ROOT, cheminAssetMedia(nomFichier));
   await mkdir(dirname(cheminComplet), { recursive: true });
   const octets = Buffer.from(await fichier.arrayBuffer());
@@ -76,16 +75,18 @@ export async function validerAssets(ids: number[]): Promise<{ valides: number; s
 /** Direct upload of the media file (image/audio/video) of an already created asset.
  * The file is named after the asset's code (symmetric convention to
  * clips/<id>/... for clip videos, see lib/media.ts): a new version
- * simply overwrites the old one, consistent with "no asset versioning" (F01). */
+ * simply overwrites the old one, consistent with "no asset versioning" (F01).
+ * The code comes from the database (by asset id), never from the client. */
 export async function uploaderFichierAsset(
   assetId: number,
-  code: string,
   formData: FormData,
 ) {
   const fichier = formData.get("fichier");
   if (!(fichier instanceof File) || fichier.size === 0) return;
 
-  const nomFichier = await enregistrerFichierAsset(code, fichier);
+  const [asset] = await db.select({ code: assets.code }).from(assets).where(eq(assets.id, assetId));
+  if (!asset) throw new Error("Asset introuvable.");
+  const nomFichier = await enregistrerFichierAsset(asset.code, fichier);
 
   // An imported file is work already done elsewhere: validated by default (only an adopted generation goes back to « en cours »).
   await db.update(assets).set({ fichier: nomFichier, fichierAt: new Date(), valide: true }).where(eq(assets.id, assetId));

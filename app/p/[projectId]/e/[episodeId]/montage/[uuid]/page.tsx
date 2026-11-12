@@ -356,7 +356,7 @@ export default async function PlanPage({
       <span className="tm-plus">
         <SupprimerPlanButton planId={plan.id} position={position} plansHref={plansHref} />
       </span>
-      {plan.numerosSource && plan.numerosSource.length > 1 ? <span className="tm-sous">Fusion des plans {plan.numerosSource.join(" + ")}</span> : plan.acte ? <span className="tm-sous">{plan.acte}</span> : null}
+      {plan.numerosSource && plan.numerosSource.length > 1 ? <span className="tm-sous">Fusion des plans {plan.numerosSource.join(" + ")}</span> : null}
     </header>
   );
 

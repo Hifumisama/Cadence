@@ -8,6 +8,11 @@ import { etatDansLaFile, type EtatDansLaFile } from "../../lib/tasks/cancellatio
 import { cheminSortieDistant, premierFichierSortie, type FichierSortie } from "./output";
 import { ouvrirSuiviWs, type EtatHistorique } from "./wsTracking";
 
+/** Maximum delays of the calls that move data: a frozen ComfyUI must not block the worker forever. */
+const DELAI_ENVOI_MS = 120_000;
+const DELAI_SOUMISSION_MS = 60_000;
+const DELAI_TELECHARGEMENT_MS = 15 * 60_000;
+
 /** What /history returns for a prompt, reduced to what the client reads. */
 type HistoriqueEntree = {
   status?: { status_str?: string; completed?: boolean; messages?: unknown[] };
@@ -44,6 +49,7 @@ export class HttpComfyUIClient implements ComfyUIClient {
     const res = await fetch(`${this.baseUrl}/upload/image`, {
       method: "POST",
       body: form,
+      signal: AbortSignal.timeout(DELAI_ENVOI_MS),
     });
     if (!res.ok) {
       throw new Error(`Upload de ${nomDistant} refusé (${res.status})`);
@@ -55,6 +61,7 @@ export class HttpComfyUIClient implements ComfyUIClient {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: graphe, client_id: this.clientId }),
+      signal: AbortSignal.timeout(DELAI_SOUMISSION_MS),
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
@@ -177,7 +184,7 @@ export class HttpComfyUIClient implements ComfyUIClient {
     if (subfolder) url.searchParams.set("subfolder", subfolder);
     url.searchParams.set("type", "output");
 
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(DELAI_TELECHARGEMENT_MS) });
     if (!res.ok) throw new Error(`Récupération de ${filename} refusée (${res.status})`);
     const buffer = Buffer.from(await res.arrayBuffer());
     await writeFile(cheminLocalCible, buffer);

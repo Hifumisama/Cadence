@@ -343,6 +343,14 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     // a render failure: the job goes back to en_attente without consuming an attempt.
     // A cancellation requested takes precedence: it is not an unavailability to replay.
     if (await annulationDemandeeVideo(job.id).catch(() => false)) return await annuler();
+    // ComfyUI still answers: this is not an unavailability but a real error (rejected graph, missing asset file, unreadable workflow…).
+    // Replaying it forever would block every later job (the queue always takes the oldest first): it goes through the bounded failure path.
+    if (await client.healthcheck().catch(() => false)) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[worker] Job ${job.id} en erreur alors que ComfyUI répond :`, err);
+      await gererEchecReel(job, message);
+      return true;
+    }
     console.warn(`[worker] Job ${job.id} interrompu (probable indisponibilité) :`, err);
     await db
       .update(jobs)
