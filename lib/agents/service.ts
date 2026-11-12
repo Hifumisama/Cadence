@@ -246,7 +246,7 @@ export async function envoyerMessage(conversationUuid: string, texte: string, ch
   const run = await db.transaction(async (tx) => {
     await tx.update(agentConversations).set({ messages, briefPret: false, etape: "conversation", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
     // D'abord les notes (un appel court qui rend un patch de la fiche) : à son retour, le worker applique le patch et pose le tour
-    // de l'agent, avec la fiche à jour et ce qui reste à demander (worker/agents/postTraitement.ts, postNotes).
+    // de l'agent, avec la fiche à jour et ce qui reste à demander (worker/agents/postProcessing.ts, postNotes).
     return creerRun(tx, {
       skill: "notes-entretien",
       entree: entreeNotes(messages.map((m) => ({ role: m.role, content: m.content })), await ficheCourante(tx, conv)),
@@ -744,7 +744,7 @@ export async function genererInventaire(
   if (!e) return ERR("Aucun plan écrit pour l'instant : écris d'abord les scénarios des épisodes.");
   // L'inventaire rend aussi les références de chaque plan (2026-11-09). Un seul appel quand tout tient dans le budget (cas courant) ; un long film
   // est découpé en groupes de scènes consécutives (lib/agents/inventory.ts, `decouperInventaire`), posés l'un après l'autre (chaque groupe voit
-  // les assets que les précédents proposent : worker/agents/postTraitement.ts).
+  // les assets que les précédents proposent : worker/agents/postProcessing.ts).
   const groupes = decouperInventaire(e.entree, { budgetJetons: budgetInventaire(contexteTotalDepuisEnv()), jetonsSkill: chargerSkill("inventaire-assets").jetonsEstimes });
   const plansDuGroupe = (ids: string[]) => Object.fromEntries(ids.map((id) => [id, e.planUuids[id]!]));
   const lot = groupes.length > 1;
@@ -917,7 +917,7 @@ export async function genererFiches(
 const CONSIGNE_REFERENCES = "Choisis les images de référence de ce plan (doute du choix automatique).";
 
 /** Pose la tâche `references-plan` d'un plan (UNE par plan, seulement quand le choix du code a un doute : l'appelant l'a vérifié), dans la conversation
- * du PLAN. Sa sortie (worker/agents/postTraitement.ts) écrit les références tout de suite, ou, s'il faut créer des assets manquants, en fait des créations
+ * du PLAN. Sa sortie (worker/agents/postProcessing.ts) écrit les références tout de suite, ou, s'il faut créer des assets manquants, en fait des créations
  * que la demande applique (les références s'écrivent alors dans la même transaction). `rechoisir` : remplacer des références déjà posées. */
 export async function genererReferencesPlan(
   conversationUuid: string,

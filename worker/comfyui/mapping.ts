@@ -136,7 +136,7 @@ function cablerSortie(graphe: WorkflowJson, activerUpscale: boolean, megapixels?
 }
 
 /** Recrée les nœuds de référence du plan (images, sons, vidéos) autour du nœud `MiniMaxH3ReferenceToVideo`, partagée par le mapping d'origine et
- * celui des trois étapes (mappingTroisEtapes.ts) : une seule règle pour les emplacements et les noms de fichiers. Modifie `graphe` en place. */
+ * celui des trois étapes (mappingThreeSteps.ts) : une seule règle pour les emplacements et les noms de fichiers. Modifie `graphe` en place. */
 export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput, idNoeudRef: string = NODE_IDS.refNode): void {
   const refNode = graphe[idNoeudRef];
   if (refNode) {

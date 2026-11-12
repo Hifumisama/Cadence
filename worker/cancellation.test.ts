@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { EtatDansLaFile } from "../lib/tasks/cancellation";
-import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
+import { annulerCoteComfyUI, surveillerAnnulation } from "./cancellation";
 import type { ComfyUIClient } from "./comfyui/types";
 
 /** Faux ComfyUI : `etats` est la suite d'états que renverra /queue (le dernier se

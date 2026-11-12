@@ -123,7 +123,7 @@ export function ordonnerTaches(entrees: Tache[], maintenant: Date): Tache[] {
   const enCours = gardees.filter((x) => x.statut === "en_cours").sort((a, b) => t(a.startedAt ?? a.createdAt) - t(b.startedAt ?? b.createdAt));
   const attente = gardees.filter((x) => x.statut === "en_attente" && !estHorsFileGpu(x));
   const parAnciennete = (a: Tache, b: Tache) => t(a.createdAt) - t(b.createdAt);
-  // L'ordre du worker (worker/ordonnanceur.ts) : image, puis llm, puis vidéo.
+  // L'ordre du worker (worker/scheduler.ts) : image, puis llm, puis vidéo.
   // Une demande (itération) passe avant le travail de fond, comme dans le worker.
   const deDemande = (x: Tache) => (x.cle.startsWith("demande:") ? 0 : 1);
   const file = [...attente].sort((a, b) => deDemande(a) - deDemande(b) || PRIORITE_GENRE[a.genre] - PRIORITE_GENRE[b.genre] || parAnciennete(a, b));

@@ -17,7 +17,7 @@ import type { BriefContenu, PersonnageBrief } from "./types";
  * est ÉCRIT dans l'image, en lettrage intégré à la composition : un titre corrigé au clap refait donc l'affiche).
  *
  * Deux temps, portés par le worker : (1) une tâche du skill `prompt-asset`, variante `affiche` (but « affiche ») écrit le prompt à partir de la fiche de
- * l'entretien ; (2) à son retour (`ecrireAfficheEtGenerer`, appelée par worker/agents/postTraitement.ts), la génération part dans la file
+ * l'entretien ; (2) à son retour (`ecrireAfficheEtGenerer`, appelée par worker/agents/postProcessing.ts), la génération part dans la file
  * des images avec adoption automatique, et son résultat devient l'affiche du projet (lib/assets/generation-adoption.ts). */
 
 /** Ce qui nourrit l'affiche, lu dans la fiche de l'entretien, la conception et le style du projet. */

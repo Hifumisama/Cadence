@@ -1,5 +1,5 @@
 /** Serveurs que le worker a trouvés injoignables alors que des tâches les attendaient (écrit par
- * worker/disponibilite.ts ; `null` = joignable ou rien en attente). Valeur = instant ISO du début.
+ * worker/availability.ts ; `null` = joignable ou rien en attente). Valeur = instant ISO du début.
  * Sans dépendance serveur : le header (client) l'importe. */
 export type ServeursInjoignables = { llm: string | null; comfyui: string | null };
 

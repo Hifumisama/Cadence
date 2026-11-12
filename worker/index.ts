@@ -18,8 +18,8 @@ import { cheminAssetMedia, cheminVoixMedia } from "../lib/media";
 import { assemblerPrompt } from "../lib/clips/prompt";
 import { raccordSansPlace, sectionsAvecRaccord } from "../lib/clips/clip-continuity";
 import { getAllParams } from "../lib/params";
-import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
-import { attendreResultat, type IssueAttente } from "./attente";
+import { annulerCoteComfyUI, surveillerAnnulation } from "./cancellation";
+import { attendreResultat, type IssueAttente } from "./waiting";
 import { creerClientComfyUI } from "./comfyui";
 import { ErreurEntreeInvalide, nomDistantDepuisChemin, verifierEntree, type WorkflowJson } from "./comfyui/mapping";
 import {
@@ -29,26 +29,26 @@ import {
   injecterFinition,
   injecterGeneration,
   injecterUpscale,
-} from "./comfyui/mappingTroisEtapes";
+} from "./comfyui/mappingThreeSteps";
 import type { Suivi, SubmissionInput } from "./comfyui/types";
-import { creerRelaisJob } from "./progression";
+import { creerRelaisJob } from "./progress";
 import { libererAvant } from "./gpu";
-import { VerrouGpu } from "./verrou-gpu";
-import { demarrerSondeVram, journaliserTache, noterEvenement } from "./journal";
+import { VerrouGpu } from "./gpu-lock";
+import { demarrerSondeVram, journaliserTache, noterEvenement } from "./log";
 import { prochaineGenerationEnAttente, traiterGenerationImage } from "./images";
-import { preparerRaccord } from "./raccord";
+import { preparerRaccord } from "./continuity";
 import { decharger, llmJoignable } from "./llamaSwap";
 import { echouerAppelsEnAttente, prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
 import { SKILL_H3IR, SKILL_TRADUCTION } from "./h3ir";
 import { JETONS_COMPILATEUR_H3IR } from "../lib/llm/budget-context";
-import { attenteDepassee, effacerSonde, noterSonde } from "./disponibilite";
+import { attenteDepassee, effacerSonde, noterSonde } from "./availability";
 import { piloterCreations } from "../lib/agents/creation-db";
 import { projetEnCreation } from "./creation";
 import { piloterDemandes } from "../lib/tasks/requests-db";
-import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
+import { choisirProchaineTache, type TacheEnAttente } from "./scheduler";
 import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
 import { reprendreExports, traiterProchainExport } from "./montage-export";
-import { reprendreOrphelines } from "./reprise";
+import { reprendreOrphelines } from "./resume";
 
 const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 const INTERVALLE_MS = Number(process.env.WORKER_INTERVAL_MS ?? 10_000);
@@ -85,7 +85,7 @@ async function prochainJobEnAttente() {
     .select()
     .from(jobs)
     .where(eq(jobs.statut, "en_attente"))
-    // Le rendu d'une demande (itération) passe avant les autres vidéos : voir worker/ordonnanceur.ts.
+    // Le rendu d'une demande (itération) passe avant les autres vidéos : voir worker/scheduler.ts.
     .orderBy(sql`(${jobs.demandeId} is null)`, jobs.createdAt)
     .limit(50);
   // Un plan en « suite » repart du rendu de son précédent : tant que celui-ci a un rendu en file ou en cours, il patiente (même mis en file avant lui). Le plus
@@ -387,7 +387,7 @@ export type Voie = "comfyui" | "llm";
 
 /** Une tâche par appel sur la voie donnée : une boucle par voie, ComfyUI et LLM travaillent en même temps (la VRAM de la carte les
  * accueille ensemble ; seules l'upscale et la création d'un projet prennent la carte seule). Le choix (image, puis LLM, puis vidéo ; FIFO ; sans préemption ; même domaine à
- * égalité) vit dans ordonnanceur.ts. Un domaine injoignable ne bloque pas l'autre : ses tâches restent en attente,
+ * égalité) vit dans scheduler.ts. Un domaine injoignable ne bloque pas l'autre : ses tâches restent en attente,
  * on prend ce qui peut tourner. Renvoie `true` si une tâche a été traitée. */
 async function traiterProchaineTache(voie: Voie): Promise<boolean> {
   const avecComfyui = voie === "comfyui";
@@ -478,7 +478,7 @@ async function boucle() {
   demarrerSondeVram(process.env.COMFYUI_URL, urlLlm());
   noterEvenement("demarrage");
   // Une seule fois, avant la première prise : ce qui était « en cours » appartenait
-  // à un worker mort (voir worker/reprise.ts).
+  // à un worker mort (voir worker/resume.ts).
   try {
     const { images, videos, llm, annulees } = await reprendreOrphelines(MEDIA_ROOT);
     if (images || videos || llm || annulees) {

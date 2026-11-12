@@ -1,7 +1,7 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { EvenementSuivi, IssueSuivi, Suivi } from "./types";
-import { decoderBinaire, decoderTexte } from "./wsDecodage";
+import { decoderBinaire, decoderTexte } from "./wsDecoding";
 
 // Suivi d'un prompt par le WebSocket de ComfyUI (`/ws?clientId=…`). Il s'ajoute
 // au client HTTP, il ne le remplace pas : /history reste la source de vérité

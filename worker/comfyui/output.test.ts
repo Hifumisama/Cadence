@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cheminSortieDistant, premierFichierSortie } from "./sortie";
+import { cheminSortieDistant, premierFichierSortie } from "./output";
 
 test("images : la clé de SaveImage", () => {
   const f = premierFichierSortie({ images: [{ filename: "a.png", subfolder: "", type: "output" }] });

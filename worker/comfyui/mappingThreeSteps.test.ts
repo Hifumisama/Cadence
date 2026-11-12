@@ -13,7 +13,7 @@ import {
   injecterFinition,
   injecterGeneration,
   injecterUpscale,
-} from "./mappingTroisEtapes";
+} from "./mappingThreeSteps";
 import type { SubmissionInput } from "./types";
 
 // Lit les VRAIS workflows : si un ré-export change un identifiant, ce test casse au lieu de laisser le worker soumettre un graphe faux.

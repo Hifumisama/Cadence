@@ -418,7 +418,7 @@ export function groupeInventaireDeCle(cle: string | null | undefined): number | 
 }
 
 /** Ce que porte une tâche d'inventaire (`agent_runs.options`) : la poignée → uuid de ses plans et, pour un film découpé, les groupes qui la suivent
- * (le groupe suivant est posé quand celui-ci finit, avec les assets déjà proposés : worker/agents/postTraitement.ts). */
+ * (le groupe suivant est posé quand celui-ci finit, avec les assets déjà proposés : worker/agents/postProcessing.ts). */
 export type OptionsRunInventaire = {
   plans?: Record<string, string>;
   suite?: { cle: string; libelle: string; entree: EntreeInventaire; plans: Record<string, string> }[];

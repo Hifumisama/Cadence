@@ -5,8 +5,8 @@ import { MEDIA_ROOT } from "../../lib/media";
 import type { ComfyUIClient, EvenementSuivi, PollResult, Suivi } from "./types";
 import { etatDansLaFile, type EtatDansLaFile } from "../../lib/tasks/cancellation";
 
-import { cheminSortieDistant, premierFichierSortie, type FichierSortie } from "./sortie";
-import { ouvrirSuiviWs, type EtatHistorique } from "./wsSuivi";
+import { cheminSortieDistant, premierFichierSortie, type FichierSortie } from "./output";
+import { ouvrirSuiviWs, type EtatHistorique } from "./wsTracking";
 
 /** Ce que /history rend d'un prompt, réduit à ce que le client lit. */
 type HistoriqueEntree = {
@@ -101,7 +101,7 @@ export class HttpComfyUIClient implements ComfyUIClient {
     return fichier ? { statut: "termine", cheminSortieDistant: cheminSortieDistant(fichier) } : { statut: "en_cours" };
   }
 
-  /** Image (`images`), son (`audio`, à confirmer) ou autre : voir sortie.ts. */
+  /** Image (`images`), son (`audio`, à confirmer) ou autre : voir output.ts. */
   pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult> {
     return this.lireResultat(promptId, (e) => premierFichierSortie(e.outputs?.[nodeIdSortie]));
   }

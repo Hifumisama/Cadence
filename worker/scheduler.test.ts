@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
-import { ERREUR_INTERROMPUE, fichiersOrphelins } from "./reprise";
+import { choisirProchaineTache, type TacheEnAttente } from "./scheduler";
+import { ERREUR_INTERROMPUE, fichiersOrphelins } from "./resume";
 import type { GenreTache } from "../lib/renders/gpu";
 
 const t = (genre: GenreTache, id: number, minute: number): TacheEnAttente => ({

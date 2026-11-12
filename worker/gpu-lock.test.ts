@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { VerrouGpu } from "./verrou-gpu";
+import { VerrouGpu } from "./gpu-lock";
 
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

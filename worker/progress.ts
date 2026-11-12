@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { assetGenerations, jobs } from "../db/schema";
 import { cheminGenerationMedia } from "../lib/media";
-import { limiteur } from "./comfyui/limiteur";
+import { limiteur } from "./comfyui/limiter";
 import type { EvenementSuivi } from "./comfyui/types";
 
 // Relais de la progression d'une génération d'images vers la base : le
@@ -75,7 +75,7 @@ export function creerRelais(opts: {
   };
 }
 
-/** Les étapes d'un rendu vidéo que l'écran sait nommer (les identifiants de nœuds des trois graphes, voir worker/comfyui/mappingTroisEtapes.ts) ;
+/** Les étapes d'un rendu vidéo que l'écran sait nommer (les identifiants de nœuds des trois graphes, voir worker/comfyui/mappingThreeSteps.ts) ;
  * les autres nœuds ne changent pas l'étape affichée. */
 const ETAPES_VIDEO: Record<string, string> = {
   "5": "Lecture des références",

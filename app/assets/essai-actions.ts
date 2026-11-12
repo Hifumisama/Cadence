@@ -22,7 +22,7 @@ import { TYPE_AFFICHE } from "@/lib/posters/posters";
 import { styleDesEditions, styleDesImages } from "@/lib/projects/design";
 import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "@/lib/media";
 import { nbImagesEnAttente } from "@/lib/tasks/queries-tasks";
-import { cheminCanevasAffiche } from "@/worker/canevas-affiche";
+import { cheminCanevasAffiche } from "@/worker/canvas-poster";
 import { PLAFOND_FILE_IMAGES } from "@/lib/tasks/tasks";
 
 // La fiche d'un asset « comme la fiche de plan » : on écrit une consigne en français, un agent la traduit en prompt (Krea 2 sans image de

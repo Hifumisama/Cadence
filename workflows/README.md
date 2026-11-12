@@ -113,7 +113,7 @@ Vérifié par `GET /object_info` le 2026-10-02 : `MiniMaxH3ReferenceToVideo` (im
 ## Suivi en direct (WebSocket)
 
 Le worker écoute `ws(s)://<COMFYUI_URL>/ws?clientId=…` pendant un prompt
-(`worker/comfyui/wsSuivi.ts`, décodage dans `wsDecodage.ts`) : `execution_start`,
+(`worker/comfyui/wsTracking.ts`, décodage dans `wsDecoding.ts`) : `execution_start`,
 `executing`, `progress` (valeur/max), aperçus binaires du sampler (le serveur
 doit être lancé avec `--preview-method auto`) et `execution_success` /
 `execution_error`. Rien dans les workflows n'est à adapter pour cela. Pour

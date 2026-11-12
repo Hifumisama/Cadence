@@ -82,7 +82,7 @@ test("les autres skills : l'entrée stockée part telle quelle", async () => {
 
 // ── conversation d'entrée : la liste « reste à définir » ───────────────────────────────
 
-import { resteADefinirDe } from "./agents/postTraitement";
+import { resteADefinirDe } from "./agents/postProcessing";
 
 test("resteADefinirDe : phrases courtes, sans vide ni doublon, plafonnées", () => {
   assert.deepEqual(resteADefinirDe({ resteADefinir: ["  Choisir le style ", "", "Choisir le style", 3, "Durée"] }), ["Choisir le style", "Durée"]);

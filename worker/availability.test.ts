@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { attenteDepassee, cleInjoignable, suivreInjoignable } from "./disponibilite";
+import { attenteDepassee, cleInjoignable, suivreInjoignable } from "./availability";
 
 test("suivreInjoignable : garde le premier instant d'indisponibilité, s'efface au retour", () => {
   assert.equal(suivreInjoignable(null, false, 1000), 1000);

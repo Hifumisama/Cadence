@@ -593,7 +593,7 @@ export const agentTraces = pgTable("agent_traces", {
 // File des appels LLM (genre « llm » du worker, voir worker/llm.ts) : un appel à
 // un skill d'agent posé en base, pris par le worker comme une génération d'image.
 // Le GPU est une ressource unique partagée avec ComfyUI : l'ordonnanceur
-// (worker/ordonnanceur.ts) range ces tâches entre les images et les vidéos.
+// (worker/scheduler.ts) range ces tâches entre les images et les vidéos.
 // `statut` : en_attente | en_cours | termine | echoue | annulee (varchar contrôlé
 // par l'application, pas d'enum pg). `entree` est ce que `executerSkill` reçoit
 // (texte, objet ou conversation) ; `resultat` le JSON validé contre le schéma du

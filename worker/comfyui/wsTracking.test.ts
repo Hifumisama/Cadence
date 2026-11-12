@@ -3,10 +3,10 @@ import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { test } from "node:test";
-import { limiteur } from "./limiteur";
+import { limiteur } from "./limiter";
 import type { EvenementSuivi } from "./types";
-import { decoderBinaire, decoderTexte } from "./wsDecodage";
-import { ouvrirSuiviWs, type EtatHistorique } from "./wsSuivi";
+import { decoderBinaire, decoderTexte } from "./wsDecoding";
+import { ouvrirSuiviWs, type EtatHistorique } from "./wsTracking";
 
 // Faux serveur WebSocket minimal (poignée de main + trames serveur → client) :
 // pas de dépendance, et on contrôle exactement ce qui part, y compris les

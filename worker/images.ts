@@ -18,8 +18,8 @@ import { adopterCandidat } from "../lib/assets/generation-adoption";
 import { extraireAudioDeVideo } from "../lib/voice/extraction-audio";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/assets/generation-sources";
 import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from "../lib/media";
-import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
-import { cheminCanevasAffiche } from "./canevas-affiche";
+import { annulerCoteComfyUI, surveillerAnnulation } from "./cancellation";
+import { cheminCanevasAffiche } from "./canvas-poster";
 import type { ComfyUIClient } from "./comfyui";
 import { ErreurEntreeInvalide, injecterValeurs, nomDistantDepuisChemin, verifierEntree } from "./comfyui/mapping";
 import { NODE_IDS_MASTER } from "./comfyui/masterMapping";
@@ -32,8 +32,8 @@ import {
   type WorkflowJson,
 } from "./comfyui/imageMapping";
 import type { RefMedia, Suivi, SubmissionInput } from "./comfyui/types";
-import { attendreResultat } from "./attente";
-import { creerRelais } from "./progression";
+import { attendreResultat } from "./waiting";
+import { creerRelais } from "./progress";
 
 // Tâche de génération d'asset : text-to-image (Krea 2 Turbo, IMG_01_TextToImage,
 // méthode « generation »), à partir de 1 à 3 images (Qwen Image Edit 2511,
@@ -106,7 +106,7 @@ async function sourcesEdition(client: ComfyUIClient, gen: Generation, mediaRoot:
 const IMAGES_PENDANT_CREATION = process.env.WORKER_IMAGES_PENDANT_CREATION === "1";
 
 /** La plus ancienne demande en attente (FIFO), ou null. Le worker la compare à la
- * prochaine vidéo (worker/ordonnanceur.ts) avant de choisir. */
+ * prochaine vidéo (worker/scheduler.ts) avant de choisir. */
 export async function prochaineGenerationEnAttente(): Promise<Generation | null> {
   const [gen] = await db
     .select({ g: assetGenerations })

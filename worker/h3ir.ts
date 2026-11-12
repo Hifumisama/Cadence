@@ -12,7 +12,7 @@ import { ORDRE_SECTIONS } from "../lib/clips/prompt";
  *  2. l'intent est traduit en anglais par le skill `traduction-intent` (une seule fois, pas à chaque relance) ;
  *  3. la compilation, avec relances de seed (lib/h3ir/compiler.ts).
  * Le résultat est ce qui est stocké dans `agent_runs.resultat` (BriefIn envoyé, intent d'origine et traduit, enveloppe réduite, tentatives) ; la conversion en
- * fiche est faite à part (worker/agents/postTraitement.ts, lib/h3ir/conversion.ts). */
+ * fiche est faite à part (worker/agents/postProcessing.ts, lib/h3ir/conversion.ts). */
 
 export { SKILL_H3IR, SKILL_TRADUCTION };
 export type { CompilationReduite, EntreeH3ir, ResultatH3ir };

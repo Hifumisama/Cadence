@@ -1,5 +1,5 @@
 /** Annulation des tâches ComfyUI — règles pures, sans base ni réseau, partagées par
- * l'action serveur (app/taches/actions.ts), le worker (worker/annulation.ts) et le
+ * l'action serveur (app/taches/actions.ts), le worker (worker/cancellation.ts) et le
  * panneau. Une tâche EN ATTENTE s'annule directement ; une tâche EN COURS reçoit un
  * drapeau (`annulation_demandee_at`) et c'est le worker qui interrompt ComfyUI. */
 

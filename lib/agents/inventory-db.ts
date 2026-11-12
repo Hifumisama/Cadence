@@ -7,7 +7,7 @@ import { cleNouvelAsset } from "./sheets";
 import { codeFinal, controlerReferences, plansDeLEntree, type AssetConnu, type EntreeInventaire, type OptionsRunInventaire, type SortieInventaire } from "./inventory";
 
 /** Les références de chaque plan rendues par l'inventaire des assets (lib/agents/inventory.ts), écrites en base. Deux moments :
- * - au POST-TRAITEMENT de la tâche (worker/agents/postTraitement.ts) : les plans dont toutes les références existent déjà au registre les
+ * - au POST-TRAITEMENT de la tâche (worker/agents/postProcessing.ts) : les plans dont toutes les références existent déjà au registre les
  *   reçoivent tout de suite (rien à créer, elles sont relisibles avec les intents) ; ceux qui citent un asset que l'inventaire propose de créer
  *   attendent ;
  * - à l'APPLICATION de la proposition (lib/agents/service.ts, `appliquerSelection`), dans la même transaction, APRÈS la création des assets :

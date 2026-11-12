@@ -7,9 +7,9 @@ import { modeleEffectifPourSkill } from "../lib/llm/model-chosen";
 import { executerSkill } from "../lib/llm/execute";
 import { AccumulateurFlux } from "../lib/llm/stream-partial";
 import { insererTrace } from "../lib/llm/traces";
-import { surveillerAnnulation } from "./annulation";
-import { limiteur } from "./comfyui/limiteur";
-import { postTraiterRun, surEchecRun } from "./agents/postTraitement";
+import { surveillerAnnulation } from "./cancellation";
+import { limiteur } from "./comfyui/limiter";
+import { postTraiterRun, surEchecRun } from "./agents/postProcessing";
 import { preparerEntree, type DepsPreparation } from "./agents/preparation";
 import { controleurPourSkill } from "../lib/llm/checks";
 import { SKILL_REFERENCES_PLAN, TEMPERATURE_REFERENCES_PLAN } from "../lib/agents/references-clip";
@@ -28,7 +28,7 @@ const INTERVALLE_PROGRESSION_MS = 1_000;
 export type AgentRun = typeof agentRuns.$inferSelect;
 
 /** Le plus ancien appel en attente (FIFO), ou null. Le worker le compare aux
- * images et aux vidéos (worker/ordonnanceur.ts) avant de choisir. Un appel dont les options portent
+ * images et aux vidéos (worker/scheduler.ts) avant de choisir. Un appel dont les options portent
  * `suspendu: true` n'est jamais pris tout seul : les essais bout en bout
  * le traitent eux-mêmes avec un faux modèle, sans courir contre le worker de dev. */
 export async function prochaineTacheLlmEnAttente(): Promise<AgentRun | null> {
@@ -36,7 +36,7 @@ export async function prochaineTacheLlmEnAttente(): Promise<AgentRun | null> {
     .select()
     .from(agentRuns)
     .where(and(eq(agentRuns.statut, "en_attente"), sql`coalesce(${agentRuns.options}->>'suspendu', 'false') <> 'true'`))
-    // Les étapes d'une demande (itération) d'abord : voir worker/ordonnanceur.ts.
+    // Les étapes d'une demande (itération) d'abord : voir worker/scheduler.ts.
     .orderBy(sql`(${agentRuns.demandeId} is null)`, agentRuns.createdAt, agentRuns.id)
     .limit(1);
   return run ?? null;

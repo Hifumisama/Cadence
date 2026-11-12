@@ -5,7 +5,7 @@ export type IssueAttente = Exclude<PollResult, { statut: "en_cours" }> | "annule
 
 /** L'attente d'un prompt ComfyUI, la même pour une image, un son et une vidéo : d'abord le WebSocket (il ne décide de rien, il réveille dès
  * que le prompt a fini ou que la connexion tombe), puis /history lu à intervalle régulier. La sonde du drapeau d'annulation (`surveillance`,
- * worker/annulation.ts) court en parallèle de l'attente comme du sommeil entre deux lectures : une annulation ne coûte aucune lecture de
+ * worker/cancellation.ts) court en parallèle de l'attente comme du sommeil entre deux lectures : une annulation ne coûte aucune lecture de
  * base supplémentaire et n'attend pas le rythme normal. L'appelant arrête la surveillance. */
 export async function attendreResultat(opts: {
   suivi: Suivi | null;

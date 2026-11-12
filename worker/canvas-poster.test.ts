@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { HAUTEUR_CANEVAS, LARGEUR_CANEVAS, cheminCanevasAffiche } from "./canevas-affiche";
+import { HAUTEUR_CANEVAS, LARGEUR_CANEVAS, cheminCanevasAffiche } from "./canvas-poster";
 
 test("canevas d'affiche : gris neutre 2:3 écrit dans le dossier donné", async () => {
   const dossier = await mkdtemp(join(tmpdir(), "canevas-"));

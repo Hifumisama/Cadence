@@ -6,7 +6,7 @@ import { ressemblant } from "./inventory";
 
 /** Le petit skill `references-plan` (agents/skills/references-plan/) : appelé SEULEMENT quand la règle du code (lib/h3ir/references-clip.ts) a un doute,
  * il complète ou corrige la liste des références d'un plan et signale au plus deux assets manquants. Il ne réécrit jamais l'intent. Câblé par la
- * préparation d'un plan (lib/h3ir/preparation.ts) : sa sortie écrit les `plan_refs` et crée les manquants (worker/agents/postTraitement.ts). Ici : la forme
+ * préparation d'un plan (lib/h3ir/preparation.ts) : sa sortie écrit les `plan_refs` et crée les manquants (worker/agents/postProcessing.ts). Ici : la forme
  * de l'entrée, la correction des codes mal recopiés et les contrôles qui renvoient le modèle (lib/llm/checks.ts). Pur, testé. */
 
 export const SKILL_REFERENCES_PLAN = "references-plan";
