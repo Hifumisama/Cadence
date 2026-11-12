@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, type CSSProperties, type PointerEvent as PE, type RefObject } from "react";
-import { aimanter, cibleGlisser, debuts, DUREE_MIN_CLIP, familleStatut, formatTemps, pad2, type Clip, type PlanMontage, type SceneMontage } from "@/lib/montage";
+import { aimanter, cibleGlisser, debuts, DUREE_MIN_CLIP, familleStatut, formatTemps, pad2, type Clip, type PlanMontage, type SceneMontage } from "@/lib/montage/montage";
 
 export type ModeTable = "mt" | "sc";
 

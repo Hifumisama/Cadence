@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ilYa } from "@/lib/temps-relatif";
-import { pad2, type Clip, type GenreRendu } from "@/lib/montage";
+import { pad2, type Clip, type GenreRendu } from "@/lib/montage/montage";
 
 const GENRE: Record<GenreRendu, string> = { "aperçu": "Prévisualisation", final: "Rendu final", import: "Vidéo importée" };
 

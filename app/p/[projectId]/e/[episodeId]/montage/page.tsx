@@ -1,5 +1,5 @@
 import { getProject } from "@/lib/queries";
-import { getMontage } from "@/lib/queries-montage";
+import { getMontage } from "@/lib/montage/queries-montage";
 import { Montage } from "@/components/montage/Montage";
 import { PassageNuitButton } from "@/components/plan/PassageNuitButton";
 import { RelancePerimesButton } from "@/components/plan/RelancePerimesButton";

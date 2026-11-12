@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { debuts, dureeTotale, indexA, type Clip } from "@/lib/montage";
+import { debuts, dureeTotale, indexA, type Clip } from "@/lib/montage/montage";
 
 /** Clé de ce qu'un lecteur vidéo a chargé : l'entrée et son fichier (deux copies d'un plan sont deux clés). */
 const cleDe = (c: Clip) => (c.rendu ? `${c.entree.id}|${c.rendu.src}` : null);

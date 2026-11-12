@@ -1,7 +1,7 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { episodes, jobs, planPromptSections, planRefs, plans, scenes } from "../../../db/schema";
 import { recomposerOrdre } from "../../ordre-plans";
-import { ajouterPlanNeAuMontage } from "../../montage-db";
+import { ajouterPlanNeAuMontage } from "../../montage/montage-db";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
 import { estLiaison, liaisonOuDefaut } from "../../plan-liaison";
 import type { ChangementBrut } from "../changements";

@@ -31,8 +31,8 @@ import {
   type FamilleStatut,
   type PlanMontage,
   type SceneMontage,
-} from "@/lib/montage";
-import type { ExportMontage } from "@/lib/queries-montage";
+} from "@/lib/montage/montage";
+import type { ExportMontage } from "@/lib/montage/queries-montage";
 import { useLecture } from "./useLecture";
 import { TableMontage, teinte, type ModeTable } from "./TableMontage";
 import { Inspecteur } from "./Inspecteur";

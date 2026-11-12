@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, demandes, episodes, jobs, montageExports, plans, projects, propositions } from "../db/schema";
 import { tacheDeDemande } from "./demandes-tache";
-import { tacheDExport } from "./montage-tache";
+import { tacheDExport } from "./montage/montage-tache";
 import type { EtapeDemande, StatutDemande } from "./demandes";
 import type { EtapeCreation, StatutCreation } from "./agents/creation";
 import { estDeLaCreation, fenetreDeCreation, tacheDeCreation } from "./agents/creation-tache";
@@ -372,7 +372,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     }),
   );
 
-  // Les EXPORTS de l'épisode (page Montage) : hors GPU, mais suivis ici comme les autres (clé `montage:<id>`, lib/montage-tache.ts).
+  // Les EXPORTS de l'épisode (page Montage) : hors GPU, mais suivis ici comme les autres (clé `montage:<id>`, lib/montage/montage-tache.ts).
   const lignesExports = await db
     .select({ x: montageExports, projectId: episodes.projectId, projetNom: projects.nom })
     .from(montageExports)

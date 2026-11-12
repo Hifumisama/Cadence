@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { montageExports } from "../db/schema";
-import { argsExport, dureeSegment, formatSortie, type SegmentExport, type SondeVideo } from "../lib/montage";
+import { argsExport, dureeSegment, formatSortie, type SegmentExport, type SondeVideo } from "../lib/montage/montage";
 import { binaires, executerProcessus } from "../lib/planche-vignettes";
 
 /** Export d'un épisode (bouton « Exporter l'épisode », app/montage/actions.ts) : le worker met bout à bout, avec ffmpeg, les segments que

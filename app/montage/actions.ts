@@ -4,9 +4,9 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { jobs, montageEntrees, montageExports, plans } from "@/db/schema";
-import { entreesEpisode, reecrireRangs } from "@/lib/montage-db";
-import { construireClips, recaler, segmentsExport, DUREE_MIN_CLIP } from "@/lib/montage";
-import { getMontage } from "@/lib/queries-montage";
+import { entreesEpisode, reecrireRangs } from "@/lib/montage/montage-db";
+import { construireClips, recaler, segmentsExport, DUREE_MIN_CLIP } from "@/lib/montage/montage";
+import { getMontage } from "@/lib/montage/queries-montage";
 
 /** Actions de la page Montage (docs/PLAN_MONTAGE.md). Elles ne touchent qu'aux ENTRÉES du montage (`montage_entrees`) : jamais à un plan,
  * à son ordre dans le scénario ni à ses rendus. L'ordre du scénario, lui, se change avec `deplacerPlan` (app/scenario/actions.ts). La
