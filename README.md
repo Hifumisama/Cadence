@@ -101,7 +101,7 @@ npm run agents:e2e                             # systeme d agents de bout en bou
 ```
 
 Chaque exécution laisse une ligne dans `agent_traces` (statut, jetons, durée, sortie
-brute, erreurs de validation). Convention du chargeur : `docs/CONCEPTION_AGENTS.md` §9.
+brute, erreurs de validation).
 
 **Dans la file du worker.** Le serveur LLM et ComfyUI partagent le même GPU : un appel
 LLM est une tâche de la file, au même titre qu'une image ou une vidéo (ordre : image,

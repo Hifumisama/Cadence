@@ -12,7 +12,7 @@ uniquement (statuts, validation).
 - `agents/skills/` : prompts d'exécution des agents de l'application (format Agent Skills).
   Ce ne sont PAS des skills de développement.
 - `workflows/` : graphes ComfyUI (format API). `deploy/gpu/` : image Docker GPU (RunPod).
-- `docs/` : documentation de l'application.
+- Pas de dossier `docs/` pour l'instant : l'ancienne documentation est dans l'historique git (`git log -- docs/`), sa recréation est prévue plus tard. Les renvois à `docs/…` ou « FRICTIONS » dans les commentaires sont des repères historiques.
 
 ## Commandes
 
