@@ -17,7 +17,7 @@ export function langueBalise(langue: string | null | undefined): string {
   return LANGUES_BALISE[l.toLowerCase()] ?? (l || "Français");
 }
 
-/** Texte de référence anglais de repli (rédacteur de la réplique du test, `lib/replique-ecoute.ts`) quand le modèle ne répond pas. */
+/** Texte de référence anglais de repli (rédacteur de la réplique du test, `lib/voice/replique-ecoute.ts`) quand le modèle ne répond pas. */
 export const TEXTE_REFERENCE_DEFAUT =
   "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !";
 

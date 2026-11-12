@@ -6,12 +6,12 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { unlink } from "node:fs/promises";
 import { DUREE_TEST_VIDEO_SECONDES, METHODE_MASTER_VOIX, nouvelleSeed } from "@/lib/asset-generation";
-import { langueDesDialogues } from "@/lib/langue-dialogues";
+import { langueDesDialogues } from "@/lib/voice/langue-dialogues";
 import { MEDIA_ROOT, cheminAssetMedia, cheminVoixMedia, estImage, fichierMediaExiste } from "@/lib/media";
 import { nbImagesEnAttente, rangDansLaFile } from "@/lib/queries-taches";
 import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
-import { promptMasterVoix } from "@/lib/voix";
-import { ecrireRepliqueEcoute } from "@/lib/replique-ecoute";
+import { promptMasterVoix } from "@/lib/voice/voix";
+import { ecrireRepliqueEcoute } from "@/lib/voice/replique-ecoute";
 import { modeleParDefautEffectif } from "@/lib/llm/modele-choisi";
 
 // Master de voix d'un PERSONNAGE (chantier voix/master, 2026-10-14). La voix est un champ du personnage : une description libre (le

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { SYSTEME_REPLIQUE_ECOUTE, ecrireRepliqueEcoute, messageRepliqueEcoute, nettoyerRepliqueEcoute, nombrePhrases, repliqueDeRepli } from "./replique-ecoute";
-import type { DemandeLlm, FournisseurLlm, ReponseLlm } from "./llm/types";
+import type { DemandeLlm, FournisseurLlm, ReponseLlm } from "../llm/types";
 
 function faux(reponses: (string | Error)[]): FournisseurLlm & { demandes: DemandeLlm[] } {
   const demandes: DemandeLlm[] = [];

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { db } from "../db";
-import { briefs } from "../db/schema";
+import { db } from "../../db";
+import { briefs } from "../../db/schema";
 import { langueMoteurVoix } from "./langues-tts";
 
 /** Langue des dialogues du projet, au sens du moteur (« French »…) : celle du brief, « Auto » à défaut. Un personnage n'a qu'une voix, dans

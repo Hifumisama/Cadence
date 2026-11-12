@@ -1,13 +1,13 @@
 /** La RÉPLIQUE D'ÉCOUTE d'une voix : le texte que la voix de référence lit à la génération (Qwen3-TTS Voice Design), celui qu'on réécoute
  * pour juger le timbre. Écrite à la demande, SANS skill d'agent : un prompt simple, intégré ici, envoyé au fournisseur LLM déjà
  * configuré (lib/llm/). Elle tient au caractère du personnage, fait au moins deux phrases et est écrite dans la langue de la voix
- * (la langue de la fiche de voix, nom anglais du moteur : lib/langues-tts.ts).
+ * (la langue de la fiche de voix, nom anglais du moteur : lib/voice/langues-tts.ts).
  *
  * Pas d'accès à la base ni au disque : les parties pures (prompt, nettoyage, repli) sont testables ; l'appel au modèle prend son
  * fournisseur en paramètre. */
 
-import { CORPS_SANS_REFLEXION, creerFournisseur } from "./llm/config";
-import type { FournisseurLlm } from "./llm/types";
+import { CORPS_SANS_REFLEXION, creerFournisseur } from "../llm/config";
+import type { FournisseurLlm } from "../llm/types";
 import { langueFicheVoix } from "./langues-tts";
 import { TEXTE_REFERENCE_DEFAUT } from "./voix";
 

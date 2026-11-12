@@ -115,7 +115,7 @@ function resumeBrief(contenu: unknown) {
 
 /** Fiche de plan complète : plan + prompt sectionné + refs (avec l'asset
  * associé) + historique des jobs. Le dialogue vit dans le prompt (`<d>`) ; les voix sont des refs audio, lues par
- * lib/queries-voix-plan.ts pour les voix. Retrouvée par `uuid` (identifiant
+ * lib/voice/queries-voix-plan.ts pour les voix. Retrouvée par `uuid` (identifiant
  * public, voir docs/FRICTIONS.md F03) ; le filtre episodeId garde l'URL
  * cohérente avec l'épisode affiché. */
 export async function getPlanDetail(uuid: string, episodeId?: number) {

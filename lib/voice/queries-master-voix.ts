@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "../db";
-import { assets } from "../db/schema";
-import { assetMediaSrc, voixMediaSrc } from "./media";
+import { db } from "../../db";
+import { assets } from "../../db/schema";
+import { assetMediaSrc, voixMediaSrc } from "../media";
 
 /** La voix d'un personnage (chantier voix/master) : ce qu'on a voulu (description, réplique du test) et le master retenu, avec les URL de
  * son audio et de sa vidéo de test. Côté serveur uniquement (accès disque). null si l'asset n'est pas un personnage du projet. */

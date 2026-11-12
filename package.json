@@ -11,7 +11,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "knip": "knip",
-    "test": "tsx --test lib/*.test.ts lib/llm/*.test.ts lib/styles/*.test.ts lib/agents/*.test.ts lib/h3ir/*.test.ts worker/*.test.ts worker/comfyui/*.test.ts",
+    "test": "tsx --test \"lib/**/*.test.ts\" worker/*.test.ts worker/comfyui/*.test.ts",
     "llm:essai": "tsx scripts/llm-essai.ts",
     "llm:tache": "tsx scripts/llm-tache.ts",
     "worker": "tsx watch worker/index.ts",

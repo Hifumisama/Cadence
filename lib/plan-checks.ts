@@ -59,7 +59,7 @@ export function extraireBalisesD(sections: PromptSection[]): BaliseD[] {
  * inversement.
  *
  * `derivees` : les refs audio qui sont la VOIX d'un personnage (son master,
- * `lib/queries-voix-plan.ts`). Elles comptent comme
+ * `lib/voice/queries-voix-plan.ts`). Elles comptent comme
  * déclarées (un prompt qui les cite n'a pas de label orphelin) mais ne sont
  * jamais « non citées » : les fiches compilées et les fiches validées de
  * l'épisode 1 ne citent pas les voix (docs/FRICTIONS.md, « iteration-plan

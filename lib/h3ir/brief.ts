@@ -1,5 +1,5 @@
 import { libelleAsset, slugifyCode } from "../assetCode";
-import { LANGUE_AUTO } from "../langues-tts";
+import { LANGUE_AUTO } from "../voice/langues-tts";
 import { MAX_REFS_AUDIO, MAX_REFS_VISUELLES } from "../plan-raccord";
 import { SHOT_MIN_FICHE_SECONDES } from "../plan-checks";
 import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./reglages";
@@ -80,7 +80,7 @@ export type ReferenceEntree = {
 export type EntreeBrief = {
   plan: { description: string; dureeSecondes: number; seed: string | null };
   scene: { titre: string; ambiance: string | null } | null;
-  /** Langue des dialogues au sens du moteur (« French »…, « Auto »), voir lib/langue-dialogues.ts. */
+  /** Langue des dialogues au sens du moteur (« French »…, « Auto »), voir lib/voice/langue-dialogues.ts. */
   langueDialogues: string;
   /** Codes des personnages dont le brief dit « voix off » (pensées) : `codesEnVoixOff`, lib/agents/conversion.ts. */
   codesVoixOff: string[];

@@ -102,7 +102,7 @@ export function formatParDefaut(type: string): { aspect: Aspect; megapixels: num
 export const METHODE_MASTER_VOIX = "master_voix";
 
 
-/** Durée de la vidéo de test d'un master : une réplique face caméra tient en huit secondes (prompt T1, lib/voix.ts:promptMasterVoix). */
+/** Durée de la vidéo de test d'un master : une réplique face caméra tient en huit secondes (prompt T1, lib/voice/voix.ts:promptMasterVoix). */
 export const DUREE_TEST_VIDEO_SECONDES = 8;
 
 /** Ce que la génération d'un master fige au lancement : l'image du personnage (chemin relatif à MEDIA_ROOT, null pour une voix off sans

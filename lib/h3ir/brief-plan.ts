@@ -5,7 +5,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { assets, briefs, planRefs, plans, projects, scenes } from "../../db/schema";
 import { codesEnVoixOff } from "../agents/conversion";
-import { langueDesDialogues } from "../langue-dialogues";
+import { langueDesDialogues } from "../voice/langue-dialogues";
 import { cheminAssetMedia, cheminVoixMedia, MEDIA_ROOT } from "../media";
 import { briefDepuisPlan, type OptionsBrief, type PersonnageEntree, type ReferenceEntree, type ResultatBrief } from "./brief";
 import { resoudreReglages, STYLE_AUCUN, type ReglagesResolus } from "./reglages";

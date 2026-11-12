@@ -8,7 +8,7 @@ import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { infosMedia } from "@/lib/assetMedia";
 import { controlerStructure, DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { demosMiseEnScene } from "@/lib/media";
-import { getVoixDuPlan } from "@/lib/queries-voix-plan";
+import { getVoixDuPlan } from "@/lib/voice/queries-voix-plan";
 import { essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/fiche-plan";
 import { ReferencesCases, type RefVue } from "@/components/plan/ReferencesCases";
 import type { NoeudPicker } from "@/components/plan/AssetPickerModal";

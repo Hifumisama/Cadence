@@ -15,7 +15,7 @@ import {
 import { TYPE_AFFICHE } from "../lib/affiches";
 import { annulationDemandeeImage, finirAnnulationImage } from "../lib/annulation-db";
 import { adopterCandidat } from "../lib/generation-adoption";
-import { extraireAudioDeVideo } from "../lib/extraction-audio";
+import { extraireAudioDeVideo } from "../lib/voice/extraction-audio";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";
 import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from "../lib/media";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
