@@ -96,7 +96,7 @@ une génération ComfyUI) :
 ```
 npm run llm:essai -- --skills                # skills et taille de leur prompt
 npm run llm:essai -- conversation-agent --entree entree.json
-npm run llm:essai -- plan-h3 --entree plan.json [--modele qwen3.6-35b-A3B] [--sans-trace]
+npm run llm:essai -- prompt-asset --entree plan.json [--modele qwen3.6-35b-A3B] [--sans-trace]
 npm run agents:e2e                             # systeme d agents de bout en bout (faux modele, base de dev, nettoyage complet)
 ```
 
@@ -111,7 +111,7 @@ il change de domaine). Pour en poser un sans interface (le worker doit tourner,
 
 ```
 npm run llm:tache -- iteration-plan --entree entree.json --projet 5 --suivre   # suit jusqu'à la fin
-npm run llm:tache -- plan-h3 --entree plan.json --modele qwen3.6-35b-A3B
+npm run llm:tache -- prompt-asset --entree plan.json --modele qwen3.6-35b-A3B
 ```
 
 La tâche apparaît dans le panneau du header (jetons reçus, annulation) ; son résultat

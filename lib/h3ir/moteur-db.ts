@@ -4,9 +4,9 @@ import { and, eq, inArray, ne } from "drizzle-orm";
 import { db } from "../../db";
 import { assets, planRefs, plans } from "../../db/schema";
 import { cheminAssetMedia, MEDIA_ROOT } from "../media";
-import { choisirMoteurFiche, moteurParDefaut, type ChoixMoteur, type DemandeMoteur, type EtatRefsVisuelles } from "./moteur";
+import { refusReferences, type EtatRefsVisuelles } from "./moteur";
 
-/** Le moteur de fiche (lib/h3ir/moteur.ts) avec l'état réel des plans : leurs références visuelles et la présence de leurs fichiers (les mêmes que celles
+/** L'état réel des plans pour Open H3 IR (lib/h3ir/moteur.ts) : leurs références visuelles et la présence de leurs fichiers (les mêmes que celles
  * que lirait le brief, lib/h3ir/brief-plan.ts, sans charger les voix). */
 
 /** L'état des références visuelles de chaque plan demandé (uuid → état ; un plan sans référence a `total: 0`). */
@@ -28,9 +28,8 @@ export async function etatsRefsVisuelles(projectId: number, planUuids: string[])
   return etats;
 }
 
-/** Le moteur de chaque plan (Open H3 IR, avec ce qui l'attend ; plan-h3 seulement s'il est imposé). `demande` absente : le moteur de l'application. */
-export async function resoudreMoteursFiches(projectId: number, planUuids: string[], demande?: DemandeMoteur): Promise<Map<string, ChoixMoteur>> {
-  const voulu = demande ?? moteurParDefaut();
-  const etats = voulu === "plan-h3" ? new Map<string, EtatRefsVisuelles>() : await etatsRefsVisuelles(projectId, planUuids);
-  return new Map(planUuids.map((u) => [u, choisirMoteurFiche(voulu, etats.get(u) ?? { total: 0, sansFichier: [] })]));
+/** Pourquoi chaque plan n'est pas encore compilable par Open H3 IR (uuid → raison, ou null s'il est prêt : références posées et images présentes). */
+export async function attentesFiches(projectId: number, planUuids: string[]): Promise<Map<string, string | null>> {
+  const etats = await etatsRefsVisuelles(projectId, planUuids);
+  return new Map(planUuids.map((u) => [u, refusReferences(etats.get(u) ?? { total: 0, sansFichier: [] })]));
 }

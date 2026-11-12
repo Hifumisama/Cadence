@@ -263,7 +263,7 @@ test("chargeur : nom invalide, skill absent, fichiers obligatoires", () => {
 
 test("chargeur : les skills réels s'assemblent et leur schéma se compile", () => {
   const noms = listerSkills();
-  assert.deepEqual(noms, ["accroche-scenariste", "conversation-agent", "inventaire-assets", "iteration-plan", "notes-entretien", "plan-h3", "prompt-asset", "references-plan", "relecture-scenario", "retouche-prompt", "scenario-episode", "scenario-scene", "traduction-intent", "traitement-episode"]);
+  assert.deepEqual(noms, ["accroche-scenariste", "conversation-agent", "inventaire-assets", "iteration-plan", "notes-entretien", "prompt-asset", "references-plan", "relecture-scenario", "retouche-prompt", "scenario-episode", "scenario-scene", "traduction-intent", "traitement-episode"]);
   for (const nom of noms) {
     const s = chargerSkill(nom);
     assert.ok(s.caracteres > 2000, nom);
@@ -271,10 +271,7 @@ test("chargeur : les skills réels s'assemblent et leur schéma se compile", () 
     assert.ok(compilerSchema(s.schema), nom);
     assert.equal(s.jetonsEstimes, Math.ceil(s.caracteres / 4));
   }
-  const h3 = chargerSkill("plan-h3");
   assert.ok(chargerSkill("iteration-plan").fichiers.some((f) => f.endsWith("guide-lexique-diagnostic.md")), "iteration-plan lit sa copie du lexique, orientée diagnostic");
-  assert.ok(!h3.fichiers.some((f) => f.endsWith("h3-lexique-corrections.md")), "plan-h3 porte ces règles dans son SKILL");
-  assert.ok(h3.fichiers.filter((f) => f.includes("/exemples/")).length === 4);
 });
 
 // ── configuration ─────────────────────────────────────────────────────────────
@@ -286,12 +283,12 @@ test("configuration : défauts, surcharge par skill, fournisseur inconnu refusé
   assert.equal(configLlm({ LLM_INACTIVITE_MS: "0" }).inactiviteMs, 0);
   assert.equal(configLlm({}).modeleParDefaut, "gemma4-26b-A4B");
   assert.equal(configLlm({ LLM_FLUX: "0" }).flux, false);
-  assert.equal(nomVariableModele("plan-h3"), "LLM_MODELE_PLAN_H3");
-  assert.equal(modelePourSkill("plan-h3", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }), "qwen");
-  assert.equal(modelePourSkill("brief-projet", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }), "m1");
+  assert.equal(nomVariableModele("prompt-asset"), "LLM_MODELE_PROMPT_ASSET");
+  assert.equal(modelePourSkill("prompt-asset", { LLM_MODELE_PROMPT_ASSET: "qwen", LLM_LOCAL_MODELE: "m1" }), "qwen");
+  assert.equal(modelePourSkill("brief-projet", { LLM_MODELE_PROMPT_ASSET: "qwen", LLM_LOCAL_MODELE: "m1" }), "m1");
   // Le modèle choisi dans l'interface prime sur LLM_LOCAL_MODELE, mais pas sur la surcharge d'un skill.
   assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, "choisi"), "choisi");
-  assert.equal(modelePourSkill("plan-h3", { LLM_MODELE_PLAN_H3: "qwen", LLM_LOCAL_MODELE: "m1" }, "choisi"), "qwen");
+  assert.equal(modelePourSkill("prompt-asset", { LLM_MODELE_PROMPT_ASSET: "qwen", LLM_LOCAL_MODELE: "m1" }, "choisi"), "qwen");
   assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, null), "m1");
   assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, "  "), "m1");
   assert.throws(() => configLlm({ LLM_FOURNISSEUR: "dev" }), /inconnu/);
@@ -435,24 +432,24 @@ test("executerSkill : sans renvois autorisés, le contrôle ne relance pas", asy
 
 test("config : LLM_CORPS_<SKILL> prime sur LLM_CORPS, JSON invalide = erreur franche", () => {
   const thinking = '{"chat_template_kwargs":{"enable_thinking":false}}';
-  assert.deepEqual(corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { chat_template_kwargs: { enable_thinking: false } });
-  assert.deepEqual(corpsPourSkill("brief-projet", { LLM_CORPS_PLAN_H3: thinking, LLM_CORPS: '{"a":1}' }), { a: 1 });
+  assert.deepEqual(corpsPourSkill("prompt-asset", { LLM_CORPS_PROMPT_ASSET: thinking, LLM_CORPS: '{"a":1}' }), { chat_template_kwargs: { enable_thinking: false } });
+  assert.deepEqual(corpsPourSkill("brief-projet", { LLM_CORPS_PROMPT_ASSET: thinking, LLM_CORPS: '{"a":1}' }), { a: 1 });
   // Tous les skills partent sans réflexion ; une variable (même `{}`) reprend la main.
   assert.deepEqual(corpsPourSkill("brief-projet", {}), { chat_template_kwargs: { enable_thinking: false } });
-  assert.deepEqual(corpsPourSkill("plan-h3", {}), { chat_template_kwargs: { enable_thinking: false } });
-  assert.deepEqual(corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: "{}" }), {});
-  assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS_PLAN_H3: "{pas du json" }), /LLM_CORPS_PLAN_H3/);
-  assert.throws(() => corpsPourSkill("plan-h3", { LLM_CORPS: "[1]" }), /LLM_CORPS/);
+  assert.deepEqual(corpsPourSkill("prompt-asset", {}), { chat_template_kwargs: { enable_thinking: false } });
+  assert.deepEqual(corpsPourSkill("prompt-asset", { LLM_CORPS_PROMPT_ASSET: "{}" }), {});
+  assert.throws(() => corpsPourSkill("prompt-asset", { LLM_CORPS_PROMPT_ASSET: "{pas du json" }), /LLM_CORPS_PROMPT_ASSET/);
+  assert.throws(() => corpsPourSkill("prompt-asset", { LLM_CORPS: "[1]" }), /LLM_CORPS/);
 });
 
 test("config : LLM_MAX_TOKENS_<SKILL> prime sur LLM_MAX_TOKENS, valeurs absurdes refusées", () => {
-  assert.equal(maxTokensPourSkill("plan-h3", { LLM_MAX_TOKENS_PLAN_H3: "32768", LLM_MAX_TOKENS: "8000" }), 32768);
-  assert.equal(maxTokensPourSkill("brief-projet", { LLM_MAX_TOKENS_PLAN_H3: "32768", LLM_MAX_TOKENS: "8000" }), 8000);
+  assert.equal(maxTokensPourSkill("prompt-asset", { LLM_MAX_TOKENS_PROMPT_ASSET: "32768", LLM_MAX_TOKENS: "8000" }), 32768);
+  assert.equal(maxTokensPourSkill("brief-projet", { LLM_MAX_TOKENS_PROMPT_ASSET: "32768", LLM_MAX_TOKENS: "8000" }), 8000);
   assert.equal(maxTokensPourSkill("brief-projet", {}), null);
   // Un tour de conversation a un plafond bas par défaut (une boucle de répétition échoue vite), une variable le dépasse.
   assert.equal(maxTokensPourSkill("conversation-agent", {}), 3000);
   assert.equal(maxTokensPourSkill("conversation-agent", { LLM_MAX_TOKENS: "8000" }), 8000);
-  assert.throws(() => maxTokensPourSkill("plan-h3", { LLM_MAX_TOKENS: "12" }), /au moins 256/);
+  assert.throws(() => maxTokensPourSkill("prompt-asset", { LLM_MAX_TOKENS: "12" }), /au moins 256/);
 });
 
 test("fournisseur : le corps d'un appel s'ajoute à la requête", async () => {

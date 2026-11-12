@@ -1,6 +1,3 @@
-import { corrigerCodesInconnus } from "../agents/codes-proches";
-import { corpusExemplesPlanH3 } from "../agents/plan-h3-corpus";
-import { controlerSortiePlanH3, type SortiePlanH3 } from "../agents/plan-h3-controles";
 import { controlerDureeScenario, controlerStructureScenario } from "../agents/scenario-controles";
 import { controlerTraitement } from "../agents/traitement";
 import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-plan";
@@ -23,19 +20,6 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
     const ctx: EntreeSkillReferencesPlan = { ...e, assetsProposesParLeLot: e.assetsProposesParLeLot ?? [] };
     const codes = [...ctx.candidats.map((c) => c.code), ...ctx.assetsProposesParLeLot.map((a) => a.code)];
     return (json) => problemesReferencesPlan(corrigerCodesReferencesPlan(json as SortieReferencesPlan, codes).sortie, ctx);
-  }
-  if (skill === "plan-h3") {
-    const e = (entree ?? {}) as { registre?: { code: string; type: string }[]; plan?: { raccord?: boolean } };
-    const ctx = {
-      registre: (e.registre ?? []).map((a) => ({ code: a.code, type: a.type })),
-      corpusExemples: corpusExemplesPlanH3(),
-      // Un plan « suite » garde un emplacement d'image pour le raccord (2026-10-19) : trop d'images citées dans les shots = renvoi du modèle.
-      reserveRaccord: e.plan?.raccord === true,
-    };
-    return (json) =>
-      controlerSortiePlanH3(corrigerCodesInconnus(json as SortiePlanH3, ctx.registre.map((a) => a.code)).sortie, ctx)
-        .filter((p) => p.niveau === "erreur")
-        .map((p) => p.message);
   }
   if (skill === "iteration-plan") {
     // L'entrée est celle que le worker envoie (texte, durée réelle comprise), jamais la planche d'images.

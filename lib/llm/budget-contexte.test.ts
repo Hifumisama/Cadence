@@ -31,7 +31,7 @@ test("budget : de petits appels se cumulent jusqu'au total", () => {
 });
 
 test("estimation : skill + entrée (4 caractères par jeton) + sortie attendue du skill", () => {
-  assert.equal(estimerContexte("plan-h3", 8000, "x".repeat(4000)), 8000 + 1000 + 3500);
+  assert.equal(estimerContexte("scenario-scene", 8000, "x".repeat(4000)), 8000 + 1000 + 2500);
   assert.equal(estimerContexte("inconnu", 100, {}), 100 + 1 + 2000);
 });
 

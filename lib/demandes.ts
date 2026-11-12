@@ -212,13 +212,7 @@ export function decisionAjoutScene(prop: PropositionAjout | null): DecisionAjout
 // Depuis la vague 4a (2026-11-09, lib/h3ir/preparation.ts), Open H3 IR est le SEUL moteur : la demande PRÉPARE le plan (références, assets manquants,
 // prompts, images) puis le COMPILE ; la fiche est enregistrée SANS relecture (on la relit dans la page du plan) et peut remplacer une fiche existante
 // (le clic vaut confirmation ; l'ancien prompt reste dans l'historique). Chemin rapide : un plan dont les références ont toutes leur image va droit à
-// la compilation (les étapes de préparation sont « passées »). `plan-h3` ne reste qu'en retour arrière d'urgence (lib/h3ir/moteur.ts) : deux étapes,
-// l'agent écrit la fiche, elle est enregistrée.
-
-const ETAPES_FICHE_PLAN = [
-  { cle: "agent", libelle: "L'agent écrit la fiche" },
-  { cle: "ecriture", libelle: "Enregistrement de la fiche" },
-] as const;
+// la compilation (les étapes de préparation sont « passées »).
 
 /** Les étapes d'une fiche Open H3 IR (préparation puis compilation). Les libellés des étapes assets / prompts / images se complètent en cours de route
  * (« Création d'assets (2) », « Images (1/3) »). */
@@ -230,11 +224,10 @@ const ETAPES_PREPARATION_FICHE = [
   { cle: "compilation", libelle: "Compilation Open H3 IR" },
 ] as const;
 
-/** `preparation` : Open H3 IR, plan à préparer ; `rapide` : Open H3 IR, références prêtes (compilation directe) ; `plan-h3` : retour arrière d'urgence. */
-export type ParcoursFichePlan = "preparation" | "rapide" | "plan-h3";
+/** `preparation` : plan à préparer ; `rapide` : références prêtes (compilation directe). */
+export type ParcoursFichePlan = "preparation" | "rapide";
 
 export const etapesFichePlan = (parcours: ParcoursFichePlan = "preparation"): EtapeDemande[] => {
-  if (parcours === "plan-h3") return ETAPES_FICHE_PLAN.map((e, i) => ({ cle: e.cle, libelle: e.libelle, statut: i === 0 ? ("en_cours" as const) : ("a_venir" as const) }));
   return ETAPES_PREPARATION_FICHE.map((e, i) => ({
     cle: e.cle,
     libelle: e.libelle,
@@ -265,10 +258,6 @@ export type ContexteFichePlan = {
   planUuid: string;
   /** La dernière tâche d'agent posée (choix des références, prompts, compilation) : la ligne du panneau suit son état. */
   runUuid?: string;
-  /** Le moteur : `h3ir` (préparation puis compilation) ou `plan-h3` (retour arrière d'urgence). Absent (demandes d'avant 2026-11-08) : plan-h3. */
-  moteur?: "h3ir" | "plan-h3";
-  /** Demandes d'avant la vague 4a (repli plan-h3 puis compilation) : la compilation n'est plus enchaînée, l'étape est passée. */
-  enchainerH3ir?: boolean;
   /** Réglages Open H3 IR choisis au lancement (absents : ceux du plan, de sa scène ou du projet). */
   reglagesH3ir?: { shots?: number | null; director?: string | null; creativity?: string | null };
   preparation?: ContextePreparation;

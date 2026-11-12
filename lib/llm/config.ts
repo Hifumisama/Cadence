@@ -54,7 +54,7 @@ export function configLlm(env: Env = process.env): ConfigLlm {
   };
 }
 
-/** `plan-h3` → `LLM_MODELE_PLAN_H3`. */
+/** `prompt-asset` → `LLM_MODELE_PROMPT_ASSET`. */
 export function nomVariableModele(skill: string): string {
   return `LLM_MODELE_${skill.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`;
 }

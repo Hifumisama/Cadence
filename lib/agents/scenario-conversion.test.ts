@@ -3,13 +3,6 @@ import { test } from "node:test";
 import { chargerSkill, listerSkills } from "../llm/skills";
 import { avertissementDuree, depuisScenarioEpisode, type EpisodeCourant, type SortieScenarioEpisode } from "./conversion";
 
-// Le genre de scène est retiré (2026-11-09). `plan-h3`, en attendant son propre retrait, est toujours appelé avec la
-// variante « standard » (lib/agents/contexte.ts) : aucun de ses guides `guide-genre-*.md` n'est chargé.
-test("plan-h3 : la variante « standard » ne charge aucun guide de genre", () => {
-  const s = chargerSkill("plan-h3", undefined, { variante: "standard" });
-  assert.deepEqual(s.fichiers.filter((f) => f.includes("guide-genre-")), []);
-});
-
 test("les skills restent génériques : aucun nom du projet de test", () => {
   for (const nom of listerSkills()) {
     const s = chargerSkill(nom).systeme;

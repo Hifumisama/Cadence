@@ -11,7 +11,7 @@ healthCheckTimeout: 600   # charger ~21 Go depuis le volume réseau prend du tem
 
 models:
   "qwen3.6-35b-A3B-lowvram":
-    # Même nom que dans .env.example (LLM_MODELE_PLAN_H3) : pas besoin de le changer côté Cadence.
+    # Même nom que dans .env.example (LLM_MODELE_PROMPT_ASSET) : pas besoin de le changer côté Cadence.
     aliases: ["qwen3.6-35b-A3B"]
     cmd: |
       llama-server

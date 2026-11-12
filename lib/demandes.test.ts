@@ -124,7 +124,7 @@ test("nouvelle scène : sans scène, sans plan, bloquée ou refusée, la demande
 
 // --- Générer la fiche d'un plan ------------------------------------------------------------------------------------------------------------
 
-test("fiche de plan : préparation (références → assets → prompts → images → compilation), chemin rapide, plan-h3 imposé", () => {
+test("fiche de plan : préparation (références → assets → prompts → images → compilation), chemin rapide", () => {
   const prep = etapesFichePlan("preparation");
   assert.deepEqual(prep.map((x) => [x.cle, x.statut]), [["references", "en_cours"], ["assets", "a_venir"], ["prompts", "a_venir"], ["images", "a_venir"], ["compilation", "a_venir"]]);
   assert.deepEqual(etapesFichePlan().map((x) => x.cle), prep.map((x) => x.cle), "le parcours par défaut est la préparation Open H3 IR");
@@ -138,8 +138,6 @@ test("fiche de plan : préparation (références → assets → prompts → imag
   e = renommerEtape(avancerEtapes(e, "prompts", "passe"), "images", "Images (1/3)");
   assert.equal(etapeCouranteDemande(e)?.libelle, "Images (1/3)");
   assert.equal(etapeCouranteDemande(avancerEtapes(avancerEtapes(e, "images", "fait"), "compilation", "fait")), null);
-  // Retour arrière d'urgence : l'agent plan-h3 écrit, la fiche est enregistrée.
-  assert.deepEqual(etapesFichePlan("plan-h3").map((x) => x.cle), ["agent", "ecriture"]);
 });
 
 test("itérer : des images à attendre insèrent assets, prompts et images avant la recompilation", () => {

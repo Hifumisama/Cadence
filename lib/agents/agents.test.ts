@@ -322,13 +322,6 @@ test("dernierShotLisible : dernier shot sans timecode ni coupe, labels remplacé
   assert.equal(dernierShotLisible("[Shot 1] <Subject 9> walks.", {}), "the subject walks.");
 });
 
-test("dernierShotDuBrouillon : le dernier shot du brouillon, marqueurs [[CODE]] remplacés par le code", async () => {
-  const { dernierShotDuBrouillon } = await import("./contexte");
-  assert.equal(dernierShotDuBrouillon([{ debutSecondes: 0, texte: "a" }, { debutSecondes: 3, texte: "a close-up of [[CHAR_mai]],  Mai, by [[ DEC_x ]]." }]), "a close-up of CHAR_mai, Mai, by DEC_x.");
-  assert.equal(dernierShotDuBrouillon([]), null);
-  assert.equal(dernierShotDuBrouillon(undefined), null);
-});
-
 test("premierShotLisible : le premier shot seul, sans préambule d'ouverture ni coupe, labels remplacés", async () => {
   const { premierShotLisible } = await import("./contexte");
   const d = "A JRPG look. [Shot 1] A wide shot of <Subject 2>, <Subject 1> waiting. [Shot 2] At 00:04.000, Hard cut to a close-up.";

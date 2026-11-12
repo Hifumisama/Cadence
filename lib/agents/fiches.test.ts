@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { controlerStructure, verifierCoherenceRefs } from "../plan-checks";
 import { ordonnerParDependances } from "./changements";
 import { cocheParDefaut } from "./cochage";
-import { depuisFichePlan, type PlanPourFicheH3 } from "./conversion";
-import { cleNouvelAsset, cleSousTachePlan, evaluerEcrasementFiche, lireApresFiche, planUuidDeCle, verifierFiche, type ApresFiche, type EtatPlanFiche } from "./fiches";
-import type { SortiePlanH3 } from "./plan-h3-controles";
+
+import { cleNouvelAsset, cleSousTachePlan, evaluerEcrasementFiche, planUuidDeCle, verifierFiche, type ApresFiche, type EtatPlanFiche } from "./fiches";
 import { verifierPortee } from "./portee";
+
+
 
 const UUID = "0b0e5a8e-1c4f-4e7e-9a63-3f1d2c4b5a69";
 
@@ -20,30 +20,6 @@ const registre = [
   ...Array.from({ length: 7 }, (_, i) => ({ code: `PROP_${i}`, type: "prop" })),
 ];
 
-const plan = (o: Partial<PlanPourFicheH3> = {}): PlanPourFicheH3 => ({ uuid: UUID, titre: "La fuite", codesAvecMaster: [], registre, ...o });
-
-const base: SortiePlanH3 = {
-  titre: "La fuite",
-  dureeSecondes: 9,
-  references: [
-    { asset: "CHAR_maya", nature: "image", role: "Maya qui court", nom: "Maya", definition: "running" },
-    { asset: "DEC_couloir", nature: "image", role: "Décor", nom: "the corridor", definition: "lit in indigo" },
-  ],
-  summary: "[[CHAR_maya]] runs through [[DEC_couloir]].",
-  ouverture: "Cinematic live-action, indigo light.",
-  shots: [
-    { debutSecondes: 0, texte: "A wide shot of [[CHAR_maya]] in [[DEC_couloir]]." },
-    { debutSecondes: 3, texte: "a low-angle shot of her feet." },
-    { debutSecondes: 6, texte: "a close-up of [[CHAR_maya]], breathing hard." },
-  ],
-  overall_soundscape: "Footsteps on wood.",
-  non_diegetic_music: "N/A",
-  assetsManquants: [],
-  notes: "",
-};
-
-const fiche = (bruts: ReturnType<typeof depuisFichePlan>) => bruts.find((b) => b.cibleType === "fiche")!;
-const apresDe = (bruts: ReturnType<typeof depuisFichePlan>) => lireApresFiche(fiche(bruts).apres);
 
 const etatVide = (o: Partial<EtatPlanFiche> = {}): EtatPlanFiche => ({
   titre: "La fuite",
@@ -55,153 +31,23 @@ const etatVide = (o: Partial<EtatPlanFiche> = {}): EtatPlanFiche => ({
   ...o,
 });
 
-// --- conversion ---------------------------------------------------------------------
 
-test("fiche d'un plan vide : six sections assemblées, références picture 1..n, durée", () => {
-  const b = depuisFichePlan(base, plan());
-  assert.equal(b.length, 1);
-  const f = fiche(b);
-  assert.equal(f.cibleType, "fiche");
-  assert.equal(f.cibleRef, UUID);
-  assert.equal(f.operation, "modifier");
-  assert.equal(f.groupe, "fiches");
-  const a = apresDe(b);
-  assert.deepEqual(Object.keys(a.sections ?? {}), ["subject_definitions", "summary", "retention_analysis", "detailed_description", "overall_soundscape", "non_diegetic_music"]);
-  assert.deepEqual(a.refs?.map((r) => [r.type, r.slot, r.asset, r.role]), [["picture", 1, "CHAR_maya", "Maya qui court"], ["picture", 2, "DEC_couloir", "Décor"]]);
-  assert.equal(a.dureeGenerationSecondes, 9);
-  assert.match(a.sections!.summary!, /^\[reference generation\] <Subject 1> runs through <Subject 2>\.$/);
-  assert.ok(!(f.avertissements ?? []).some((x) => x.type === "bloque_controle"));
-});
-
-test("les voix se lisent dans le prompt : un slot audio par personnage qui parle et a une voix fixée", () => {
-  const sortie: SortiePlanH3 = {
-    ...base,
-    shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] (S1) in [[DEC_couloir]] says <d>[Français] Vite.</d> [[CHAR_tenanciere]] (S2) answers <d>[Français] Trop tard.</d>" }],
-  };
-  const a = apresDe(depuisFichePlan(sortie, plan({ codesAvecMaster: ["CHAR_maya", "CHAR_tenanciere"] })));
-  // Les voix se lisent dans le prompt : une référence audio vers CHAR_maya (slot 1) puis CHAR_tenanciere (slot 2), 
-  assert.deepEqual(a.refs?.filter((r) => r.type === "audio").map((r) => [r.slot, r.asset]), [[1, "CHAR_maya"], [2, "CHAR_tenanciere"]]);
-  assert.equal(a.voixDuPrompt, true);
-});
-
-test("une parole dont le locuteur n'a pas de voix fixée ne crée aucune référence audio (le modèle invente la voix)", () => {
-  const sortie: SortiePlanH3 = { ...base, shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] (S1) in [[DEC_couloir]] says <d>[Français] Vite.</d>" }] };
-  const a = apresDe(depuisFichePlan(sortie, plan({ codesAvecMaster: ["CHAR_tenanciere"] })));
-  assert.equal(a.refs?.filter((r) => r.type === "audio").length, 0);
-});
-
-test("7 images : 6 références posées, la 7e en prose, avec une alerte", () => {
-  const refs = Array.from({ length: 7 }, (_, i) => ({ asset: `PROP_${i}`, nature: "image" as const, role: "r", nom: `item ${i}`, definition: "" }));
-  const sortie: SortiePlanH3 = { ...base, references: refs, summary: "[[PROP_0]] [[PROP_6]]", shots: [{ debutSecondes: 0, texte: refs.map((r) => `[[${r.asset}]]`).join(" ") }] };
-  const b = depuisFichePlan(sortie, plan());
-  const a = apresDe(b);
-  assert.equal(a.refs?.length, 6);
-  assert.match(a.sections!.detailed_description!, /item 6/);
-  assert.ok((fiche(b).avertissements ?? []).some((x) => /Contrat non tenu.*7 images/.test(x.texte)), "l'erreur de contrat persistante remonte");
-  assert.equal(verifierFiche(a, etatVide()), null, "…et la fiche reste écrivable");
-});
-
-test("une référence hors registre (ou une voix) est retirée et décrite en prose par son nom", () => {
-  const sortie: SortiePlanH3 = {
-    ...base,
-    references: [...base.references, { asset: "PROP_inconnu", nature: "image", role: "Lettre", nom: "a sealed letter", definition: "" }, { asset: "VOICE_maya", nature: "image", role: "voix", nom: "Maya's voice", definition: "" }],
-    shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] holds [[PROP_inconnu]] in [[DEC_couloir]]." }],
-  };
-  const b = depuisFichePlan(sortie, plan());
-  const a = apresDe(b);
-  assert.deepEqual(a.refs?.map((r) => r.asset), ["CHAR_maya", "DEC_couloir"]);
-  assert.match(a.sections!.detailed_description!, /holds a sealed letter in <Subject 2>/);
-  assert.ok((fiche(b).avertissements ?? []).filter((x) => x.type === "alerte_controle" && /retirée/.test(x.texte)).length === 2);
-  assert.ok(!(fiche(b).avertissements ?? []).some((x) => x.type === "bloque_controle"));
-});
-
-test("un marqueur que le code ne sait pas résoudre (asset manquant cité) bloque la fiche", () => {
-  const sortie: SortiePlanH3 = {
-    ...base,
-    shots: [{ debutSecondes: 0, texte: "[[CHAR_maya]] picks up [[PROP_lettre]] in [[DEC_couloir]]." }],
-    assetsManquants: [{ code: "PROP_lettre", type: "prop", description: "Une lettre", raison: "absente" }],
-  };
-  const f = fiche(depuisFichePlan(sortie, plan()));
-  assert.ok((f.avertissements ?? []).some((x) => x.type === "bloque_controle" && /PROP_lettre/.test(x.texte)));
-  assert.equal(cocheParDefaut({ operation: "modifier", avertissements: f.avertissements ?? [], ecrase: null, refuseRaison: null }), false);
-});
-
-test("assets manquants : créés dans la même proposition, parent existant (deriveDeCode) ou créé ici (deriveDeCle) ; un existant est ignoré", () => {
-  const sortie: SortiePlanH3 = {
-    ...base,
-    assetsManquants: [
-      { code: "PROP_sceau", type: "prop", parent: "PROP_lettre", description: "Le sceau de la lettre", raison: "gros plan" },
-      { code: "PROP_lettre", type: "prop", parent: "CHAR_maya", description: "La lettre de Maya", raison: "tenue en main" },
-      { code: "DEC_couloir", type: "decor", description: "déjà là", raison: "?" },
-      { code: "ACC_bougie", type: "prop", description: "Une bougie", raison: "lumière" },
-    ],
-  };
-  const b = depuisFichePlan(sortie, plan());
-  const assets = b.filter((x) => x.cibleType === "asset");
-  assert.deepEqual(assets.map((x) => x.cle), [cleNouvelAsset("PROP_lettre"), cleNouvelAsset("PROP_bougie"), cleNouvelAsset("PROP_sceau")], "le dérivé d'un asset créé ici vient après lui");
-  const ap = (code: string) => assets.find((x) => x.cle === cleNouvelAsset(code))!.apres as Record<string, unknown>;
-  assert.equal(ap("PROP_lettre").deriveDeCode, "CHAR_maya");
-  assert.equal(ap("PROP_sceau").deriveDeCle, cleNouvelAsset("PROP_lettre"));
-  assert.equal(ap("PROP_bougie").suffixe, "bougie", "le code se reconstruit selon la convention du registre");
-  assert.ok(assets.every((x) => x.operation === "creer" && x.groupe === "assets"));
-  assert.ok((fiche(b).avertissements ?? []).some((x) => /DEC_couloir est déclaré manquant mais existe/.test(x.texte)));
-  assert.ok(!apresDe(b).refs?.some((r) => r.asset.startsWith("PROP_")), "une référence ne vise jamais un asset manquant");
-});
-
-test("lot : un asset déjà proposé par un autre plan n'est pas recréé ; groupe et scène imposés", () => {
-  const sortie: SortiePlanH3 = {
-    ...base,
-    assetsManquants: [
-      { code: "PROP_lettre", type: "prop", description: "La lettre", raison: "r" },
-      { code: "PROP_sceau", type: "prop", parent: "PROP_lettre", description: "Le sceau", raison: "r" },
-    ],
-  };
-  const b = depuisFichePlan(sortie, plan(), { groupe: "ep-4", sousGroupe: "La poursuite", codesDejaProposes: new Set(["PROP_lettre"]) });
-  assert.deepEqual(b.filter((x) => x.cibleType === "asset").map((x) => x.cle), [cleNouvelAsset("PROP_sceau")]);
-  assert.equal((b.find((x) => x.cle === cleNouvelAsset("PROP_sceau"))!.apres as Record<string, unknown>).deriveDeCle, cleNouvelAsset("PROP_lettre"));
-  assert.ok(b.every((x) => x.groupe === "ep-4" && x.sousGroupe === "La poursuite"));
-});
-
-test("shot sous 1,5 s : la fiche passe, avec une alerte (pas un blocage)", () => {
-  const sortie: SortiePlanH3 = { ...base, shots: [base.shots[0]!, { debutSecondes: 1, texte: "a close-up of [[CHAR_maya]]." }] };
-  const f = fiche(depuisFichePlan(sortie, plan()));
-  assert.ok((f.avertissements ?? []).some((x) => x.type === "alerte_controle" && /1\.5 s/.test(x.texte)));
-  assert.ok(!(f.avertissements ?? []).some((x) => x.type === "bloque_controle"));
-});
-
-// --- contrôles de la page du plan sur une fiche écrite par ce chemin ------------------
-
-test("après écriture : cohérence des refs, structure et dialogues s'allument correctement", () => {
-  const sortie: SortiePlanH3 = {
-    ...base,
-    shots: [
-      { debutSecondes: 0, texte: "A wide shot of [[CHAR_maya]] in [[DEC_couloir]]. [[CHAR_maya]] (S1) whispers: <d>[Français] Pas un bruit.</d>" },
-      { debutSecondes: 4, texte: "a close-up of [[CHAR_maya]]." },
-    ],
-  };
-  const a = apresDe(depuisFichePlan(sortie, plan({ codesAvecMaster: ["CHAR_maya"] })));
-  const sections = Object.entries(a.sections!).map(([section, contenu]) => ({ section, contenu }));
-  const refs = a.refs!.map((r) => ({ type: r.type, slot: r.slot }));
-  // Le locuteur a un master : sa voix est une référence audio de la fiche (slot 1), déclarée dans le prompt.
-  assert.deepEqual(verifierCoherenceRefs(sections, refs), { labelsOrphelins: [], refsNonCitees: [] });
-  assert.deepEqual(controlerStructure(sections, a.dureeGenerationSecondes!), []);
-  // Locuteur AVEC master : la page déclare <Audio 1> pour la voix comme ref DÉRIVÉE, que le prompt (comme les
-  // fiches validées) ne cite pas : plus d'alerte « référence non citée » (point ouvert tranché le 2026-10-02).
-  assert.deepEqual(verifierCoherenceRefs(sections, refs, [{ type: "audio", slot: 1 }]), { labelsOrphelins: [], refsNonCitees: [] });
-  assert.deepEqual(a.refs!.filter((r) => r.type === "audio").map((r) => [r.slot, r.asset]), [[1, "CHAR_maya"]]);
-});
-
-test("après écriture : un shot court reste signalé par les contrôles de structure de la page", () => {
-  const sortie: SortiePlanH3 = { ...base, shots: [base.shots[0]!, { debutSecondes: 1.0, texte: "a close-up of [[CHAR_maya]]." }] };
-  // Plancher des contrôles de la page : 1,2 s (celui du paquet Open H3 IR) ; 1,0 s reste « trop court ».
-  const a = apresDe(depuisFichePlan(sortie, plan()));
-  const sections = Object.entries(a.sections!).map(([section, contenu]) => ({ section, contenu }));
-  assert.ok(controlerStructure(sections, 9).some((p) => p.type === "shot_trop_court"));
+/** Une fiche écrite complète pour un plan vide (comme la compile Open H3 IR) : six sections, deux références image, une durée. */
+const complete = (): ApresFiche => ({
+  sections: {
+    summary: "Maya crosses the corridor.",
+    subject_definitions: "<Subject 1> is Maya from <Picture 1>.",
+    detailed_description: "[Shot 1] <Subject 1> walks through <Picture 2>.",
+  },
+  refs: [
+    { type: "picture", slot: 1, asset: "CHAR_maya" },
+    { type: "picture", slot: 2, asset: "DEC_couloir" },
+  ],
+  dureeGenerationSecondes: 8,
+  moteur: "h3ir",
 });
 
 // --- vérification de l'écriture (applicateur) ----------------------------------------
-
-const complete = (): ApresFiche => apresDe(depuisFichePlan(base, plan()));
 
 test("verifierFiche : écriture complète sur un plan vide acceptée", () => {
   assert.equal(verifierFiche(complete(), etatVide()), null);
@@ -294,61 +140,10 @@ test("portée d'une fiche : son plan, son épisode, le projet ; jamais une créa
   assert.match(verifierPortee({ type: "episode", cibleId: 7 }, { ...c, operation: "creer" }) ?? "", /Hors portée/);
 });
 
-test("un effet (vfx) cité en image passe en weak_reference, jamais fully_preserved", () => {
-  const sortie: SortiePlanH3 = {
-    ...base,
-    references: [...base.references, { asset: "VFX_energie", nature: "image", role: "Énergie", nom: "the golden energy", definition: "wrapping her forearms" }],
-    summary: "[[CHAR_maya]] runs through [[DEC_couloir]], [[VFX_energie]] around her arms.",
-  };
-  const a = apresDe(depuisFichePlan(sortie, plan()));
-  const retention = a.sections!.retention_analysis!;
-  assert.match(retention, /<Subject 3>.*weak_reference/);
-  assert.match(retention, /never appears as a standalone image/);
-  assert.doesNotMatch(retention, /fully_preserved.*golden energy|<Subject 3>.*fully_preserved/);
-});
-
-// --- voix off d'un personnage à l'écran (brief : « voix off ») : la forme H3 est écrite par le code (2026-10-14) ---
-
-test("mettreEnVoixOff : la phrase de parole devient la forme H3, bouche close après chaque <d>", async () => {
-  const { mettreEnVoixOff } = await import("./conversion");
-  const r = mettreEnVoixOff("A close-up holds on [[CHAR_mai]], Mai. She closes her eyes, takes a deep breath, and murmurs to herself: <d>[Français] Ok... Mai, concentre-toi.</d> Her shoulders relax.", { code: "CHAR_mai", numero: "S1" });
-  assert.equal(r.change, true);
-  assert.equal(
-    r.texte,
-    "A close-up holds on [[CHAR_mai]], Mai. She closes her eyes, takes a deep breath. [[CHAR_mai]] (S1) says in an off-screen voiceover: <d>[Français] Ok... Mai, concentre-toi.</d> while the character's lips remain completely closed. Her shoulders relax.",
-  );
-});
-
-test("mettreEnVoixOff : déjà en voix off avec la bouche close = intact ; sans verbe de parole ; plusieurs <d>", async () => {
-  const { mettreEnVoixOff } = await import("./conversion");
-  const deja = "[[CHAR_mai]] (S1) says in an off-screen voiceover: <d>[Français] Plus fort.</d> while her lips remain completely closed.";
-  assert.deepEqual(mettreEnVoixOff(deja, { code: "CHAR_mai", numero: "S1" }), { texte: deja, change: false });
-  const sans = mettreEnVoixOff("Mai lowers the wand. <d>[Français] Plus fort.</d>.", { code: null, numero: "S2" });
-  assert.equal(sans.texte, "Mai lowers the wand. The character (S2) says in an off-screen voiceover: <d>[Français] Plus fort.</d> while the character's lips remain completely closed.");
-  const deux = mettreEnVoixOff("She whispers: <d>[Français] Un.</d> Then, she says <d>[Français] Deux.</d>", { code: "CHAR_mai", numero: "S1" });
-  assert.equal((deux.texte.match(/off-screen voiceover/g) ?? []).length, 2);
-  assert.equal((deux.texte.match(/lips remain completely closed/g) ?? []).length, 2);
-});
-
 test("codesEnVoixOff : un personnage dont le brief dit « voix off » ; les autres non", async () => {
   const { codesEnVoixOff } = await import("./conversion");
   const persos = [{ nom: "Mai", voix: "Voix off lors de ses auto-instructions." }, { nom: "Le Garde", voix: "grave, posée" }];
   assert.deepEqual([...codesEnVoixOff(persos, ["CHAR_mai", "CHAR_le_garde", "VOICE_off"])], ["CHAR_mai"]);
-});
-
-test("depuisFichePlan : voixOff réécrit la parole d'un plan dont le brief met le personnage en voix off", () => {
-  const sortie = {
-    titre: "t", dureeSecondes: 8, summary: "s", ouverture: "Dark.", overall_soundscape: "x", non_diegetic_music: "N/A", assetsManquants: [], notes: "",
-    references: [{ asset: "CHAR_mai", nature: "image" as const, role: "Mai", nom: "Mai", definition: "in her robe." }],
-    shots: [{ debutSecondes: 0, texte: "a close-up of [[CHAR_mai]], eyes closed, and whispers: <d>[Français] Plus fort.</d>" }],
-  };
-  const plan = { uuid: "p", titre: "Plan", codesAvecMaster: [] as string[], registre: [{ code: "CHAR_mai", type: "personnage" }], codesVoixOff: ["CHAR_mai"] };
-  const r = depuisFichePlan(sortie, plan);
-  const prompt = (r[0]!.apres as { sections: { detailed_description: string } }).sections.detailed_description;
-  assert.match(prompt, /<Subject 1> \(S1\) says in an off-screen voiceover: <d>\[Français\] Plus fort\.<\/d> while the character's lips remain completely closed\./);
-  assert.ok(r[0]!.avertissements!.some((a) => /Voix off/.test(a.texte)));
-  const sans = depuisFichePlan(sortie, { ...plan, codesVoixOff: [] });
-  assert.ok(!/off-screen/.test((sans[0]!.apres as { sections: { detailed_description: string } }).sections.detailed_description));
 });
 
 test("ApresFiche.description : lue, et suffisante pour une écriture (la nouvelle intention du plan)", async () => {
@@ -392,28 +187,6 @@ test("verifierFiche : un label orphelin déjà présent n'empêche pas une écri
   assert.ok(ev.avertissements.some((a) => /citait déjà <Audio 1> sans référence/.test(a.texte)));
 });
 
-test("asset d'image manquant CITÉ en référence : la fiche le référence (<Picture N>), dépend de sa création, et un son ou un code reconstruit reste en prose", () => {
-  const cercle = { code: "DEC_cercle", type: "decor", description: "Un cercle de runes", raison: "absent" };
-  const sortie: SortiePlanH3 = {
-    ...base,
-    references: [...base.references, { asset: "DEC_cercle", nature: "image", role: "Cercle", nom: "the rune circle", definition: "glowing on the floor" }],
-    summary: "[[CHAR_maya]] runs through [[DEC_couloir]] past [[DEC_cercle]].",
-    assetsManquants: [cercle],
-  };
-  const b = depuisFichePlan(sortie, plan());
-  const a = apresDe(b);
-  assert.deepEqual(a.refs?.map((r) => [r.slot, r.asset]), [[1, "CHAR_maya"], [2, "DEC_couloir"], [3, "DEC_cercle"]]);
-  assert.match(a.sections!.summary!, /<Subject 3>/);
-  assert.deepEqual(a.dependDeCles, [cleNouvelAsset("DEC_cercle")]);
-  assert.deepEqual(b.filter((x) => x.cibleType === "asset").map((x) => x.cle), [cleNouvelAsset("DEC_cercle")]);
-  assert.deepEqual(ordonnerParDependances(b.map((x) => ({ ...x, cle: x.cle ?? null, apres: x.apres }))).map((x) => x.cibleType), ["asset", "fiche"], "la création passe avant la fiche qui la cite");
-  // déjà proposé par un autre plan du lot, ou code que le modèle a mal écrit : prose, aucune référence
-  const lot = depuisFichePlan(sortie, plan(), { codesDejaProposes: new Set(["DEC_cercle"]) });
-  assert.ok(!apresDe(lot).refs?.some((r) => r.asset === "DEC_cercle") && apresDe(lot).dependDeCles === undefined);
-  const mal = depuisFichePlan({ ...sortie, references: [...base.references, { ...sortie.references[2]!, asset: "cercle" }], assetsManquants: [{ ...cercle, code: "cercle" }] }, plan());
-  assert.ok(!apresDe(mal).refs?.some((r) => r.asset === "cercle"));
-});
-
 test("fiche qui cite un asset créé par la même proposition : acceptée en aperçu (la clé existe), refusée sans elle", () => {
   const avec = { refs: [{ type: "picture" as const, slot: 1, asset: "DEC_cercle" }], sections: { summary: "[reference generation] <Subject 1>" }, dependDeCles: [cleNouvelAsset("DEC_cercle")] };
   assert.ok(verifierFiche(avec, etatVide())?.includes("DEC_cercle"), "l'état réel ne connaît pas l'asset");
@@ -423,72 +196,3 @@ test("fiche qui cite un asset créé par la même proposition : acceptée en ape
 });
 
 // --- raccord : l'emplacement de l'image du plan précédent reste libre (2026-10-19) ---------------------------------
-
-const ap = (b: ReturnType<typeof depuisFichePlan>) => {
-  const a = apresDe(b)!;
-  return { refs: a.refs ?? [], sections: (a.sections ?? {}) as Record<string, string | undefined> };
-};
-
-const six: SortiePlanH3 = {
-  ...base,
-  references: [
-    { asset: "CHAR_maya", nature: "image", role: "Maya", nom: "Maya", definition: "running" },
-    { asset: "CHAR_tenanciere", nature: "image", role: "La tenancière", nom: "the landlady", definition: "watching" },
-    { asset: "DEC_couloir", nature: "image", role: "Décor", nom: "the corridor", definition: "lit in indigo" },
-    { asset: "PROP_0", nature: "image", role: "Accessoire", nom: "a lamp", definition: "lit" },
-    { asset: "PROP_1", nature: "image", role: "Accessoire", nom: "a chair", definition: "wooden" },
-    { asset: "PROP_2", nature: "image", role: "Accessoire", nom: "dust", definition: "floating" },
-  ],
-  summary: "[[CHAR_maya]] runs through [[DEC_couloir]], past [[PROP_0]].",
-  shots: [
-    { debutSecondes: 0, texte: "A wide shot of [[CHAR_maya]] in [[DEC_couloir]], [[CHAR_tenanciere]] at the far end." },
-    { debutSecondes: 3, texte: "a low-angle shot of [[CHAR_maya]]'s feet near [[PROP_1]]." },
-    { debutSecondes: 6, texte: "a close-up of [[CHAR_maya]], breathing hard." },
-  ],
-};
-
-test("raccord : un plan en suite déclare 5 images au plus, la non citée part, tout est renuméroté sans trou", () => {
-  const sans = ap(depuisFichePlan(six, plan()));
-  assert.equal(sans.refs.filter((r) => r.type === "picture").length, 6, "sans réserve, les 6 images restent");
-  const avec = depuisFichePlan(six, plan({ reserveRaccord: true }));
-  const a = ap(avec);
-  const images = a.refs.filter((r) => r.type === "picture");
-  assert.deepEqual(images.map((r) => r.slot), [1, 2, 3, 4, 5]);
-  assert.ok(!images.some((r) => r.asset === "PROP_2"), "la poussière jamais citée est retirée");
-  const tout = Object.values(a.sections).join("\n");
-  assert.ok(!/<Picture 6>|<Subject 6>/.test(tout), "aucun label orphelin");
-  assert.ok(!/PROP_2|dust/.test(a.sections.retention_analysis ?? ""), "plus de rétention pour l'image retirée");
-  assert.ok((fiche(avec).avertissements ?? []).some((w) => /Raccord : PROP_2 retiré/.test(w.texte)));
-  assert.ok(!(fiche(avec).avertissements ?? []).some((w) => /Raccord impossible/.test(w.texte)));
-});
-
-test("raccord : à défaut d'image jamais citée, celle qui n'est citée que hors des shots part, et son marqueur devient de la prose", () => {
-  const horsShots: SortiePlanH3 = { ...six, shots: six.shots.map((sh) => ({ ...sh, texte: sh.texte.replace("[[PROP_1]]", "a chair") })), summary: `${six.summary} [[PROP_1]] and [[PROP_2]] hang in the air.` };
-  const a = ap(depuisFichePlan(horsShots, plan({ reserveRaccord: true })));
-  assert.deepEqual(a.refs.filter((r) => r.type === "picture").map((r) => r.asset), ["CHAR_maya", "CHAR_tenanciere", "DEC_couloir", "PROP_0", "PROP_1"], "la dernière déclarée part");
-  assert.ok(/dust hang in the air/.test(a.sections.summary ?? ""), "son marqueur est devenu son nom");
-  assert.ok(!/\[\[|<Picture 6>/.test(Object.values(a.sections).join(" ")));
-  // une image jamais citée passe avant une image citée hors des shots
-  const mixte: SortiePlanH3 = { ...horsShots, summary: `${six.summary} [[PROP_2]] hangs in the air.` };
-  const b = ap(depuisFichePlan(mixte, plan({ reserveRaccord: true })));
-  assert.deepEqual(b.refs.filter((r) => r.type === "picture").map((r) => r.asset), ["CHAR_maya", "CHAR_tenanciere", "DEC_couloir", "PROP_0", "PROP_2"]);
-});
-
-test("raccord : 6 images citées dans les shots, rien à retirer sans choisir à la place du modèle : alerte « Raccord impossible »", () => {
-  const s: SortiePlanH3 = { ...six, shots: [...six.shots.slice(0, 2), { debutSecondes: 6, texte: "a close-up of [[CHAR_maya]] and [[PROP_0]] and [[PROP_2]]." }] };
-  const avec = depuisFichePlan(s, plan({ reserveRaccord: true }));
-  assert.equal(ap(avec).refs.filter((r) => r.type === "picture").length, 6, "rien n'est retiré à l'aveugle");
-  assert.ok((fiche(avec).avertissements ?? []).some((w) => w.type === "alerte_controle" && /Raccord impossible : 6 images/.test(w.texte)));
-});
-
-test("raccord : une matière faible (effet) citée dans un shot est le dernier sacrifice du code ; une image d'identité ne l'est jamais", () => {
-  // PROP_2 devient un effet de poussière, cité dans un shot : 6 images citées, mais une est une matière
-  const reg = registre.map((a) => (a.code === "PROP_2" ? { ...a, type: "vfx" } : a));
-  const s: SortiePlanH3 = { ...six, shots: [...six.shots.slice(0, 2), { debutSecondes: 6, texte: "a close-up of [[CHAR_maya]] and [[PROP_0]], dust drifting around [[PROP_2]]." }] };
-  const bruts = depuisFichePlan(s, plan({ reserveRaccord: true, registre: reg }));
-  const a = ap(bruts);
-  assert.deepEqual(a.refs.filter((r) => r.type === "picture").map((r) => r.slot), [1, 2, 3, 4, 5]);
-  assert.ok(!a.refs.some((r) => r.asset === "PROP_2"));
-  assert.ok(/dust drifting around dust/.test(a.sections.detailed_description ?? ""), "le marqueur du shot devient le nom de la référence");
-  assert.ok((fiche(bruts).avertissements ?? []).some((w) => /PROP_2 retiré .*matière faible/.test(w.texte)));
-});

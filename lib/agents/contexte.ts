@@ -258,17 +258,6 @@ export function dernierShotLisible(detailed: string, codes: Record<number, strin
   return corps.length > MAX_DERNIER_SHOT ? `…${corps.slice(corps.length - MAX_DERNIER_SHOT + 1)}` : corps;
 }
 
-/** Le dernier shot d'un BROUILLON de `plan-h3` (sortie du modèle, avant assemblage) : les marqueurs `[[CODE]]` deviennent le code. Sert au plan
- * suivant d'un lot, dont la fiche n'est pas encore écrite en base quand il s'exécute (les plans d'un lot passent l'un après l'autre). */
-export function dernierShotDuBrouillon(shots: unknown): string | null {
-  const l = Array.isArray(shots) ? shots : [];
-  const t = (l[l.length - 1] as { texte?: unknown } | undefined)?.texte;
-  if (typeof t !== "string") return null;
-  const corps = t.replace(/\[\[\s*([^\]]+?)\s*\]\]/g, "$1").replace(/\s+/g, " ").trim();
-  if (!corps) return null;
-  return corps.length > MAX_DERNIER_SHOT ? `…${corps.slice(corps.length - MAX_DERNIER_SHOT + 1)}` : corps;
-}
-
 /** Le PREMIER shot d'un prompt assemblé, lisible hors de son plan (même traitement que `dernierShotLisible`) : le plan d'avant doit
  * finir là où celui-ci commence (itération : raccord vers l'aval). Le préambule d'ouverture (style, lumière) est écarté. */
 export function premierShotLisible(detailed: string, codes: Record<number, string>): string | null {
@@ -295,10 +284,6 @@ async function shotsExtremesDuPlan(db: Db, planUuid: string): Promise<{ premier:
   if (!sec?.contenu) return { premier: null, dernier: null };
   const codes = Object.fromEntries(refs.map((r) => [r.slot, r.code]));
   return { premier: premierShotLisible(sec.contenu, codes), dernier: dernierShotLisible(sec.contenu, codes) };
-}
-
-async function dernierShotDuPlan(db: Db, planUuid: string): Promise<string | null> {
-  return (await shotsExtremesDuPlan(db, planUuid)).dernier;
 }
 
 /** L'entrée du brief qui correspond à cet épisode : même titre (insensible à la casse), sinon même rang. */
@@ -568,128 +553,6 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
     },
   };
 }
-
-/** L'entrée de `plan-h3` pour UN plan (étape 3 : la fiche de plan). Assemblée par l'application, jamais
- * devinée (voir agents/skills/plan-h3/SKILL.md, « Ce que tu reçois ») :
- * - `plan` : titre, intention (la description narrative, une ou deux phrases), position dans la scène,
- *   durée visée et fps ;
- * - `scene` (titre, fonction, et les intentions de TOUS ses plans dans l'ordre, `cePlan` marquant celui qu'on
- *   écrit : c'est le seul « texte » de la scène), `episode` : de quoi situer le plan ;
- * - `plansVoisins` : le précédent et le suivant (pour le raccord), titre et description ;
- * - `registre` : pour chaque asset candidat son code, sa description
- *   canonique (français), sa méthode, son prompt de génération (anglais) et s'il a déjà son fichier
- *   (l'image) ; 
- * (aucune réplique en entrée : le dialogue est dans l'intention et la consigne, le prompt vidéo est sa seule source, 2026-10-14) ;
- * - `clauseStyleDuProjet`, `briefExtrait` : le style visuel, l'arc, les personnages et les lieux du brief. */
-export async function entreePlanH3(
-  db: Db,
-  projectId: number,
-  planUuid: string,
-  consigne: string,
-  retour?: string,
-  /** `intention` : une description du plan qui REMPLACE celle de la base pour cette écriture (réécriture d'un plan depuis « Itérer » : elle n'est
-   * écrite en base qu'avec la fiche, à l'application). */
-  options: { intention?: string; dureeVoulue?: number } = {},
-): Promise<(EntreeSkill & { plan: { id: number; uuid: string; titre: string; episodeId: number } }) | null> {
-  const [p] = await db
-    .select()
-    .from(plans)
-    .where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
-  if (!p) return null;
-  const c = await contexteEpisode(db, projectId, p.episodeId);
-  if (!c) return null;
-  const [scene] = p.sceneId == null ? [] : await db.select({ titre: scenes.titre, fonction: scenes.fonction, ambiance: scenes.ambiance }).from(scenes).where(eq(scenes.id, p.sceneId));
-  const [projet] = await db.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
-
-  const dansLaScene = c.lesPlans.filter((x) => x.sceneId === p.sceneId);
-  const rang = Math.max(0, dansLaScene.findIndex((x) => x.uuid === p.uuid));
-  const i = c.lesPlans.findIndex((x) => x.uuid === p.uuid);
-  // Un voisin DE LA MÊME SCÈNE est déjà dans `scene.plans` avec son intention : on ne la répète pas (contexte léger).
-  const voisin = (x: { uuid: string; sceneId: number | null; titre: string; description: string; dureeGenerationSecondes: number | null } | undefined) =>
-    x ? { titre: x.titre, ...(x.sceneId === p.sceneId && p.sceneId != null ? { memeScene: true } : { description: x.description }), dureeSecondes: x.dureeGenerationSecondes } : null;
-  // Les plans d'un lot s'écrivent l'un après l'autre : si le précédent a déjà sa fiche, son dernier shot dit où l'on en est.
-  const precedentLu = c.lesPlans[i - 1];
-  const dernierShotPrecedent = precedentLu ? await dernierShotDuPlan(db, precedentLu.uuid) : null;
-  // La liaison du SUIVANT : s'il enchaîne (« suite »), la dernière image de ce plan devient sa première (raccord) et doit donc être en mouvement.
-  const suivantLu = c.lesPlans[i + 1];
-
-  const registre = await db
-    .select({
-      code: assets.code,
-      type: assets.type,
-      description: assets.description,
-      methode: assets.methodeGeneration,
-      prompt: assets.promptGeneration,
-      fichier: assets.fichier,
-    })
-    .from(assets)
-    .where(and(eq(assets.projectId, projectId), horsAffiches))
-    .orderBy(asc(assets.code));
-  const candidats = registre
-    .map((a) => ({
-      code: a.code,
-      type: a.type,
-      descriptionCanonique: a.description ?? "",
-      methode: a.methode ?? "generation",
-      promptGeneration: a.prompt ?? "",
-      aUnFichier: !!a.fichier,
-    }));
-
-  const contexte: ContexteUtilise[] = [
-    { type: "plan", libelle: `Plan · ${p.titre}`, ref: p.uuid },
-    { type: "episode", libelle: `Épisode ${c.ep.numero} · ${c.ep.titre}`, ref: String(c.ep.id) },
-    { type: "registre", libelle: `Registre : ${candidats.length} asset${candidats.length > 1 ? "s" : ""} candidat${candidats.length > 1 ? "s" : ""}` },
-    ...(projet?.clauseStyle ? [{ type: "projet" as const, libelle: "Clause de style du projet" }] : []),
-    ...c.contexteBrief,
-  ];
-  return {
-    skill: "plan-h3",
-    contexte,
-    // Variante « standard » : aucun guide de genre (le genre de scène est retiré le 2026-11-09). Sans variante, le chargeur
-    // enverrait TOUS les guides `guide-genre-*.md` ; ils partiront avec `plan-h3`.
-    variante: "standard",
-    plan: { id: p.id, uuid: p.uuid, titre: p.titre, episodeId: p.episodeId },
-    entree: {
-      // D'abord ce qui ne change pas d'un plan à l'autre du projet : le serveur reprend ce préfixe de son cache (le registre pèse
-      // le plus). Ce qui est propre au plan vient après.
-      registre: candidats,
-      clauseStyleDuProjet: projet?.clauseStyle ?? "",
-      briefExtrait: c.extrait,
-      episode: { titre: c.ep.titre, resume: c.ep.resume },
-      plan: {
-        titre: p.titre,
-        intention: sansEtatDeFin(options.intention ?? p.description),
-        liaison: liaisonOuDefaut(p.liaison),
-        // L'application joint la dernière image du plan précédent (raccord) : un emplacement d'image reste libre, 5 références d'image au plus.
-        ...(liaisonOuDefaut(p.liaison) === "suite" && precedentLu ? { raccord: true } : {}),
-        positionDansLaScene: dansLaScene.length > 0 ? `${rang + 1}/${dansLaScene.length}` : "",
-        // Sans cette durée le modèle en invente une, et la fiche écrase celle du scénario (le total dérive : 125 s → 85 s).
-        // `dureeVoulue` : la durée que la consigne demande (« Itérer » : « passe-le à 12 s »), écrite en base avec la fiche.
-        dureeVoulueSecondes: options.dureeVoulue ?? p.dureeGenerationSecondes,
-        fps: p.fps,
-      },
-      // La scène n'a pas de texte narratif en base : son contenu, ce sont les intentions de ses plans, dans l'ordre.
-      scene: scene
-        ? {
-            titre: scene.titre,
-            fonction: scene.fonction ?? "",
-            ...(scene.ambiance?.trim() ? { ambiance: scene.ambiance.trim() } : {}),
-            plans: dansLaScene.map((x, k) => ({
-              position: k + 1,
-              titre: x.titre,
-              intention: sansEtatDeFin(x.uuid === p.uuid ? (options.intention ?? x.description) : x.description).slice(0, 800),
-              ...(x.uuid === p.uuid ? { cePlan: true } : {}),
-            })),
-          }
-        : null,
-      plansVoisins: { precedent: precedentLu ? { ...voisin(precedentLu)!, ...(dernierShotPrecedent ? { dernierShot: dernierShotPrecedent } : {}) } : null, suivant: suivantLu ? { ...voisin(suivantLu)!, liaison: suivantLu.liaison } : null },
-      consigne,
-      ...(retour ? { retourUtilisateur: retour } : {}),
-    },
-  };
-}
-
-// --- références d'un plan (Open H3 IR, étape 5) -----------------------------------
 
 /** L'entrée du petit skill `references-plan` pour un plan, avec le choix du code (`choix`) : l'appelant ne pose la tâche QUE si `choix.suffit` est faux
  * (sinon les références du code suffisent). Posée par la préparation d'un plan (lib/agents/service.ts, `genererReferencesPlan`). `assetsProposesParLeLot` :

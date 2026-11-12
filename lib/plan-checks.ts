@@ -101,17 +101,6 @@ export function extraireLabels(texte: string): string[] {
   for (const m of texte.matchAll(/<(Picture|Video|Audio)\s+(\d+)>/g)) vus.add(`${m[1]} ${m[2]}`);
   return [...vus];
 }
-
-// ---------------------------------------------------------------------
-// Structure des shots et durée de génération — règles de agents/skills/
-// plan-h3/SKILL.md (cadence de coupe, plancher). Pas de contrôle du « Hard cut » :
-// les plans validés en production ne l'écrivent pas toujours littéralement. Signalements,
-// pas de blocage : c'est de la vigilance d'écriture, pas un invariant de
-// données comme le verbatim.
-// ---------------------------------------------------------------------
-
-/** Plancher par shot que `plan-h3` s'impose à son propre brouillon (lib/agents/plan-h3-controles.ts) : en dessous, H3 rallonge ou lisse le plan. */
-export const SHOT_MIN_SECONDES = 1.5;
 /** Plancher par shot des CONTRÔLES DE LA FICHE (`controlerStructure`, en-tête de la page du plan), pour toutes les fiches : celui du modèle et d'Open H3 IR
  * (`MIN_SHOT_MS` = 1200, h3ir/shots.py:42). Une fiche d'Open H3 IR peut avoir un shot de 1,2 à 1,5 s sans que ce soit une faute (décision du 2026-11-02). */
 export const SHOT_MIN_FICHE_SECONDES = 1.2;

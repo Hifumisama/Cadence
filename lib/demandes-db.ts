@@ -38,7 +38,7 @@ import {
   type StatutDemande,
 } from "./demandes";
 import { decisionIteration } from "./fiche-plan";
-import { moteurParDefaut, refusReferences, type DemandeMoteur, type MoteurFiche } from "./h3ir/moteur";
+import { refusReferences } from "./h3ir/moteur";
 import { etatsRefsVisuelles } from "./h3ir/moteur-db";
 import { appliquerIterationEtGenererCore } from "./iteration-application";
 import { lireProposition } from "./queries-agents";
@@ -292,25 +292,18 @@ export async function lancerDemandeAjoutScene(
  * compilation (chemin rapide) ; sinon le pilote le PRÉPARE d'abord (références, assets manquants, prompts, images), tour après tour. La fiche compilée
  * peut remplacer une fiche existante (le clic vaut confirmation ; l'ancien prompt reste dans l'historique).
  * Options : `rechoisir` (rechoisir les références même si le plan en a déjà ; jamais par défaut), réglages Open H3 IR facultatifs (`shots`, `director`,
- * `creativity` : absents, ceux du plan, de sa scène ou du projet). `moteur: "plan-h3"` : retour arrière d'urgence (option interne, aucun bouton ; aussi
- * pour toute l'application par `CADENCE_MOTEUR_FICHE=plan-h3`), réservé aux plans sans fiche. */
+ * `creativity` : absents, ceux du plan, de sa scène ou du projet). */
 export async function lancerDemandeFichePlan(projectId: number, planUuid: string, options: OptionsDemandeFiche = {}): Promise<Resultat<{ demandeId: number }>> {
   const [plan] = await db.select({ id: plans.id, titre: plans.titre, statut: plans.statut }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!plan) return ERR("Plan introuvable.");
-  const moteur: MoteurFiche = options.moteur === "plan-h3" ? "plan-h3" : options.moteur ? "h3ir" : moteurParDefaut();
-  if (moteur === "plan-h3" && plan.statut !== "brouillon") return ERR("Ce plan a déjà une fiche (plan-h3 imposé n'écrit que les plans sans fiche).");
-  let parcours: ParcoursFichePlan = "plan-h3";
-  if (moteur === "h3ir") {
-    const etat = (await etatsRefsVisuelles(projectId, [planUuid])).get(planUuid) ?? { total: 0, sansFichier: [] };
-    parcours = !options.rechoisir && refusReferences(etat) == null ? "rapide" : "preparation";
-  }
+  const etat = (await etatsRefsVisuelles(projectId, [planUuid])).get(planUuid) ?? { total: 0, sansFichier: [] };
+  const parcours: ParcoursFichePlan = !options.rechoisir && refusReferences(etat) == null ? "rapide" : "preparation";
   const reglagesH3ir = { shots: options.shots ?? null, director: options.director ?? null, creativity: options.creativity ?? null };
   const ouverte = await ouvrirConversation(projectId, "plan", { uuid: planUuid }, "courte");
   if (!ouverte.ok) return ouverte;
   const contexte: ContexteFichePlan = {
     titre: plan.titre,
     planUuid,
-    moteur,
     reglagesH3ir,
     ...(parcours === "preparation" ? { preparation: options.rechoisir ? { rechoisir: true } : {} } : {}),
   };
@@ -322,9 +315,9 @@ export async function lancerDemandeFichePlan(projectId: number, planUuid: string
     // L'index unique partiel : une demande est déjà en cours sur ce plan.
     return ERR("Une demande est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).");
   }
-  // Préparation : le pilote la mène (rien à poser maintenant). Chemin rapide ou plan-h3 : la tâche part tout de suite.
+  // Préparation : le pilote la mène (rien à poser maintenant). Chemin rapide : la tâche part tout de suite.
   if (parcours === "preparation") return { ok: true, demandeId: demande.id };
-  const g = await genererFiches(ouverte.conversationUuid, { planUuids: [planUuid], demandeId: demande.id, moteur, reglagesH3ir });
+  const g = await genererFiches(ouverte.conversationUuid, { planUuids: [planUuid], demandeId: demande.id, reglagesH3ir });
   if (!g.ok) {
     await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
     return g;
@@ -334,7 +327,6 @@ export async function lancerDemandeFichePlan(projectId: number, planUuid: string
 }
 
 export type OptionsDemandeFiche = {
-  moteur?: DemandeMoteur;
   rechoisir?: boolean;
   shots?: number | null;
   director?: string | null;
@@ -729,14 +721,13 @@ const annuler = async (d: LigneDemande): Promise<boolean> => {
 async function poserCompilation(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[]): Promise<boolean> {
   const conv = await ouvrirConversation(d.projectId, "plan", { uuid: ctx.planUuid }, "courte");
   if (!conv.ok) return echouer(d, conv.erreur);
-  const g = await genererFiches(conv.conversationUuid, { planUuids: [ctx.planUuid], demandeId: d.id, moteur: "h3ir", reglagesH3ir: ctx.reglagesH3ir ?? {} });
+  const g = await genererFiches(conv.conversationUuid, { planUuids: [ctx.planUuid], demandeId: d.id, reglagesH3ir: ctx.reglagesH3ir ?? {} });
   if (!g.ok) return occupe(g.erreur) ? false : echouer(d, g.erreur);
-  await ecrire(d, { etapes, contexte: { ...ctx, moteur: "h3ir", ...(g.runUuid ? { runUuid: g.runUuid } : {}) } });
+  await ecrire(d, { etapes, contexte: { ...ctx, ...(g.runUuid ? { runUuid: g.runUuid } : {}) } });
   return true;
 }
 
-/** Un tour d'une fiche de plan. Préparation (Open H3 IR) : références → assets → prompts → images → compilation ; plan-h3 (retour arrière d'urgence) et
- * demandes d'avant la vague 4a : l'agent écrit la fiche, elle est enregistrée. */
+/** Un tour d'une fiche de plan : références → assets → prompts → images → compilation Open H3 IR. */
 async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
   const etapes = lireEtapes(d);
   const ctx = d.contexte as ContexteFichePlan;
@@ -767,34 +758,25 @@ async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
       );
     }
     default:
-      return avancerTacheFiche(d, ctx, etapes, courante.cle);
+      return avancerTacheFiche(d, ctx, etapes);
   }
 }
 
-/** La tâche qui écrit la fiche : compilation Open H3 IR (`compilation`), ou plan-h3 et anciennes demandes (`agent` puis `ecriture`). Même attente que les
- * ajouts ; la proposition prête, on enregistre la fiche (et, pour plan-h3, les assets manquants qu'elle cite). */
-async function avancerTacheFiche(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[], cle: string): Promise<boolean> {
-  const enCompilation = cle === "compilation";
+/** La tâche qui compile la fiche (étape `compilation`). Même attente que les ajouts ; la proposition prête, on enregistre la fiche. */
+async function avancerTacheFiche(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[]): Promise<boolean> {
   const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
   if (!run) return echouer(d, "La tâche de l'agent n'existe plus.");
   if (run.statut === "en_attente" || run.statut === "en_cours") return false;
   if (run.statut === "annulee" || (run.statut === "echoue" && run.erreur === ERREUR_ANNULEE)) return annuler(d);
-  const prefixe = enCompilation ? "La compilation Open H3 IR a échoué : " : "";
+  const prefixe = "La compilation Open H3 IR a échoué : ";
   if (run.statut !== "termine") return echouer(d, `${prefixe}${run.erreur ?? "L'agent a échoué."}`);
   const [prop] = run.propositionId ? await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, run.propositionId)) : [];
   if (!prop) return echouer(d, `${prefixe}La proposition de l'agent est introuvable.`);
   const lue = await lireProposition(prop.uuid);
   const decision = decisionFichePlan(lue);
-  const fini = enCompilation ? avancerEtapes(etapes, "compilation", "fait") : avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ecriture", "fait");
-  // Demandes d'avant la vague 4a (repli plan-h3 puis compilation) : la compilation n'est plus enchaînée ; « Générer la fiche » la refera.
+  const fini = avancerEtapes(etapes, "compilation", "fait");
   const suite = async () => {
-    const legacy = !enCompilation && ctx.enchainerH3ir;
-    await ecrire(d, {
-      statut: "termine",
-      etapes: legacy ? avancerEtapes(fini, "compilation", "passe") : fini,
-      erreur: null,
-      ...(legacy ? { contexte: { ...ctx, enchainerH3ir: false, notes: [...(ctx.notes ?? []), "Fiche écrite par plan-h3 ; « Générer la fiche » la recompilera avec Open H3 IR."] } } : {}),
-    });
+    await ecrire(d, { statut: "termine", etapes: fini, erreur: null });
     return true;
   };
   switch (decision.action) {
@@ -811,7 +793,7 @@ async function avancerTacheFiche(d: LigneDemande, ctx: ContexteFichePlan, etapes
       const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: decision.changementIds }, true) : decoche;
       if (!coche.ok) return echouer(d, `${prefixe}${coche.erreur}`);
       // Open H3 IR remplace la fiche existante sans redemander : le clic de l'utilisateur vaut confirmation, et l'ancien prompt est gardé dans l'historique.
-      const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: ctx.moteur === "h3ir" });
+      const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: true });
       if (!a.ok) return echouer(d, `${prefixe}${a.erreur}`);
       return suite();
     }

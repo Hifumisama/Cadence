@@ -30,7 +30,7 @@ import { join, resolve } from "node:path";
  * `affiche` (l'affiche de présentation : les deux guides d'image aussi). */
 
 /** Fichiers lus hors du dossier d'un skill. Aucun depuis 2026-11-09 : `iteration-plan` lit sa propre copie du lexique, orientée diagnostic
- * (agents/skills/iteration-plan/references/guide-lexique-diagnostic.md) ; l'original reste dans `plan-h3` (references/h3-lexique-corrections.md).
+ * (agents/skills/iteration-plan/references/guide-lexique-diagnostic.md).
  * L'affiche n'est plus un skill : c'est la variante `affiche` de `prompt-asset`, qui charge ses guides d'image par la déclaration `variantes`. */
 const FICHIERS_PARTAGES: Record<string, string[]> = {};
 

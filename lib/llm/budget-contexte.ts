@@ -1,13 +1,12 @@
 /** Budget de contexte du serveur LLM, pour les appels en parallèle.
  *
- * Avec un cache KV unifié (llama.cpp `--parallel N`), les N appels se partagent UN contexte (`--ctx-size`). Trois `plan-h3` de 15 000 jetons plus leur
+ * Avec un cache KV unifié (llama.cpp `--parallel N`), les N appels se partagent UN contexte (`--ctx-size`). Trois appels de 15 000 jetons plus leur
  * sortie débordent : le serveur répond « Context size has been exceeded » et coupe les flux des autres appels. Le worker n'envoie donc un appel que si la somme
  * estimée (entrée + sortie attendue) des appels en vol tient dans `LLM_CONTEXTE_TOTAL`. Un appel seul passe toujours (même démesuré : le serveur tranche).
  * Sans `LLM_CONTEXTE_TOTAL`, aucune limite. Pur, testé. */
 
 /** Sortie attendue par skill (jetons), un peu au-dessus de ce qu'on a mesuré en moyenne. */
 const SORTIE_ATTENDUE: Record<string, number> = {
-  "plan-h3": 3500,
   "scenario-scene": 2500,
   "traitement-episode": 3000,
   "scenario-episode": 8000,

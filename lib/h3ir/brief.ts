@@ -1,7 +1,6 @@
 import { libelleAsset, slugifyCode } from "../assetCode";
 import { LANGUE_AUTO } from "../langues-tts";
-import { MAX_AUDIOS } from "../agents/plan-h3-controles";
-import { MAX_REFS_VISUELLES } from "../plan-raccord";
+import { MAX_REFS_AUDIO, MAX_REFS_VISUELLES } from "../plan-raccord";
 import { SHOT_MIN_FICHE_SECONDES } from "../plan-checks";
 import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./reglages";
 import { PROFILS_PERSO } from "./profils-perso";
@@ -206,8 +205,8 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
       avertissements.push(`${libelleAsset(p)} parle mais n'a pas de voix fixée : le modèle inventera sa voix.`);
       continue;
     }
-    if (nbVoix >= MAX_AUDIOS) {
-      avertissements.push(`Plus de ${MAX_AUDIOS} personnages parlent : la voix de ${libelleAsset(p)} n'est pas transmise.`);
+    if (nbVoix >= MAX_REFS_AUDIO) {
+      avertissements.push(`Plus de ${MAX_REFS_AUDIO} personnages parlent : la voix de ${libelleAsset(p)} n'est pas transmise.`);
       continue;
     }
     nbVoix++;

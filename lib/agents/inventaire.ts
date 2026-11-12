@@ -1,7 +1,7 @@
 import { construireCode } from "../assetCode";
 import type { ChangementBrut } from "./changements";
 import { correspondances } from "./codes-proches";
-import { MAX_IMAGES } from "./plan-h3-controles";
+import { MAX_REFS_VISUELLES } from "../plan-raccord";
 import { TYPES_MANQUANTS, suffixeDeCode } from "./conversion";
 import { cleNouvelAsset } from "./fiches";
 import type { Avertissement } from "./types";
@@ -171,7 +171,7 @@ export type ProblemeReferences = { plan: string | null; niveau: "erreur" | "aler
 
 /** Les types d'asset qui peuvent être une IMAGE de référence (jamais une voix, qui est un champ du personnage). */
 const TYPES_REFERENCE_IMAGE = new Set(["personnage", "decor", "prop", "vfx", "keyframe", "oth"]);
-export const MAX_REFERENCES_PLAN = MAX_IMAGES;
+export const MAX_REFERENCES_PLAN = MAX_REFS_VISUELLES;
 /** Ordre des références d'un plan : les personnages (les locuteurs d'abord, dans l'ordre du modèle), les objets, les effets, le décor en dernier. */
 const RANG_AFFICHAGE: Record<string, number> = { personnage: 0, prop: 1, oth: 2, keyframe: 3, vfx: 4, decor: 5 };
 /** Au-delà de 6 images, ce qu'on garde d'abord : les personnages, le décor, puis les objets ; les effets partent les premiers. */

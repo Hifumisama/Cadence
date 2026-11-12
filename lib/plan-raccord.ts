@@ -8,6 +8,8 @@ import type { PromptSection } from "./plan-checks";
  * l'essai d'où l'image vient). Pur sauf `extraireDerniereImage`. */
 
 export const MAX_REFS_VISUELLES = 6;
+/** Nombre maximal de références audio (voix) d'un plan. */
+export const MAX_REFS_AUDIO = 3;
 
 /** Le plan ne peut pas recevoir son raccord faute de place : ses références visuelles (images + vidéos) sont déjà au plafond. */
 export const raccordSansPlace = (nbRefsVisuelles: number): boolean => nbRefsVisuelles >= MAX_REFS_VISUELLES;

@@ -1,6 +1,6 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { agentConversations, agentRuns, assets, briefs, plans, projects, propositions } from "../../db/schema";
+import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
 import { horsAffiches } from "../../lib/assets-visibles";
 import { sortieVersBrief } from "../../lib/agents/brief";
 import { ecrireBrouillon } from "../../lib/agents/brief-db";
@@ -39,12 +39,9 @@ import { codeDeCleAsset } from "../../lib/agents/registre";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
 import type { PlaceScene, Position } from "../../lib/agents/types";
 import type { Tx } from "../../lib/ordre-plans";
-import { codesEnVoixOff, depuisFichePlan, type OptionsFichePlan } from "../../lib/agents/conversion";
 import { planUuidDeCle } from "../../lib/agents/fiches";
-import type { SortiePlanH3 } from "../../lib/agents/plan-h3-controles";
-import { corpusExemplesPlanH3 } from "../../lib/agents/plan-h3-corpus";
 import { depuisRelecture, type EntreeRelecture, type SortieRelecture } from "../../lib/agents/relecture";
-import { propositionChangements, scenes } from "../../db/schema";
+import { scenes } from "../../db/schema";
 import { depuisInventaire, type OptionsRunInventaire, type SortieInventaire } from "../../lib/agents/inventaire";
 import { assetsACreer, ecrireReferencesDesTaches, phraseBilan } from "../../lib/agents/inventaire-db";
 import { lireVueEpisode } from "../../lib/agents/vue-operations/vue-episode";
@@ -174,7 +171,6 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
   // Lot : cette tâche n'est qu'une SOUS-TÂCHE (un épisode) d'une proposition plus grande.
   if (prop.lot) {
     if (run.skill === "prompt-asset") return postSousTacheRegistre(tx, run, prop, scope, json as SortiePromptAsset);
-    if (run.skill === "plan-h3") return postSousTacheFiche(tx, run, prop, scope, json as SortiePlanH3);
     if (run.skill === SKILL_H3IR) return postSousTacheFicheH3ir(tx, run, prop, scope, json as ResultatH3ir);
     if (run.skill === "relecture-scenario") return postSousTacheRelecture(tx, run, prop, scope, json as SortieRelecture);
     if (run.skill === "traitement-episode") return postSousTacheTraitement(tx, run, prop, scope, json as SortieTraitement);
@@ -223,17 +219,6 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       }
     } else {
       throw new Error(`Portée « ${prop.portee} » non prise en charge pour le skill scenario-episode.`);
-    }
-  } else if (run.skill === "plan-h3") {
-    // La fiche d'UN plan (portée plan) : la fiche et ses assets manquants, dans les groupes communs.
-    if (prop.cibleId == null) throw new Error("Proposition de fiche sans plan.");
-    const [plan] = await tx.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, prop.cibleId));
-    if (!plan) throw new Error("Le plan visé n'existe plus.");
-    bruts = await brutsFiche(tx, prop.projectId, plan.uuid, json as SortiePlanH3);
-    // Réécriture depuis « Itérer » : la nouvelle description du plan s'écrit avec la fiche (l'ancienne reste dans l'essai précédent).
-    const nouvelle = (run.options as { descriptionNouvelle?: unknown } | null)?.descriptionNouvelle;
-    if (typeof nouvelle === "string" && nouvelle.trim()) {
-      for (const b of bruts) if (b.cibleType === "fiche") b.apres = { ...(b.apres as object), description: nouvelle.trim() };
     }
   } else if (run.skill === SKILL_H3IR) {
     // La fiche d'UN plan compilée par Open H3 IR (worker/h3ir.ts) : une fiche seule, sans asset à créer ; elle s'écrit sans relecture (lib/demandes-db.ts).
@@ -481,55 +466,6 @@ async function postSousTacheRegistre(
       ? { id: existant.id, code: existant.code, type: existant.type, methodeGeneration: existant.methodeGeneration }
       : null,
   });
-  const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
-  await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
-  await finaliserLot(tx, prop.id, { runTermineId: run.id });
-}
-
-/** Les changements d'une fiche de plan (sortie de `plan-h3`), depuis l'état du plan MAINTENANT : le registre, la clause de style, les
- * personnages à voix fixée (le prompt fait foi pour les répliques : la voix se lit dans les `<d>`, décision 2026-10-14). */
-async function brutsFiche(tx: Tx, projectId: number, planUuid: string, sortie: SortiePlanH3, options: OptionsFichePlan = {}): Promise<ChangementBrut[]> {
-  const [plan] = await tx.select({ id: plans.id, titre: plans.titre, episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
-  if (!plan) throw new Error("Le plan visé n'existe plus.");
-  // Raccord : un plan « suite » qui a un plan avant lui reçoit la dernière image de celui-ci, un emplacement d'image doit rester libre.
-  const [avant] = plan.liaison === "suite" ? await tx.select({ id: plans.id }).from(plans).where(and(eq(plans.episodeId, plan.episodeId), lt(plans.ordre, plan.ordre))).limit(1) : [];
-  const [projet] = await tx.select({ clauseStyle: projects.clauseStyle }).from(projects).where(eq(projects.id, projectId));
-  const [leBrief] = await tx.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
-  const registre = await tx.select({ code: assets.code, type: assets.type, voixMaster: assets.voixMaster }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches));
-  const codesAvecMaster = registre.filter((a) => a.type === "personnage" && a.voixMaster).map((a) => a.code);
-  const codesVoixOff = [...codesEnVoixOff(((leBrief?.contenu as { personnages?: { nom?: string; voix?: string }[] } | undefined)?.personnages ?? []), registre.filter((a) => a.type === "personnage").map((a) => a.code))];
-  return depuisFichePlan(
-    sortie,
-    { uuid: planUuid, titre: plan.titre, codesAvecMaster, codesVoixOff, registre: registre.map((a) => ({ code: a.code, type: a.type })), clauseStyle: projet?.clauseStyle ?? "", reserveRaccord: !!avant },
-    { corpusExemples: corpusExemplesPlanH3(), ...options },
-  );
-}
-
-/** Une sous-tâche du lot « fiches de plan » (un plan) : sa fiche et ses assets manquants, rangés sous son
- * épisode et sa scène. Même règle que les autres lots : ses changements REMPLACENT ceux qu'elle avait posés
- * (relance), idempotent ; un asset manquant dont un autre plan du lot propose déjà la création n'est pas
- * proposé deux fois ; puis le lot décide de son statut. */
-async function postSousTacheFiche(
-  tx: Tx,
-  run: RunAgent,
-  prop: typeof propositions.$inferSelect,
-  scope: { type: "projet" | "episode" | "plan" | "asset"; cibleId: number | null },
-  sortie: SortiePlanH3,
-) {
-  const cle = run.cleSousTache;
-  const planUuid = planUuidDeCle(cle);
-  if (!cle || !planUuid) throw new Error(`Sous-tâche de fiche inconnue (« ${cle ?? "?"} »).`);
-  const [plan] = await tx.select({ episodeId: plans.episodeId, sceneId: plans.sceneId }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, prop.projectId)));
-  if (!plan) throw new Error("Le plan visé n'existe plus.");
-  const [scene] = plan.sceneId != null ? await tx.select({ titre: scenes.titre }).from(scenes).where(eq(scenes.id, plan.sceneId)) : [];
-  const autres = await tx
-    .select({ apres: propositionChangements.apres, sousTache: propositionChangements.sousTache, refuse: propositionChangements.refuseRaison })
-    .from(propositionChangements)
-    .where(and(eq(propositionChangements.propositionId, prop.id), eq(propositionChangements.cibleType, "asset"), eq(propositionChangements.operation, "creer")));
-  const codesDejaProposes = new Set(
-    autres.filter((a) => a.sousTache !== cle && !a.refuse).map((a) => (a.apres as { code?: unknown } | null)?.code).filter((c): c is string => typeof c === "string"),
-  );
-  const bruts = await brutsFiche(tx, prop.projectId, planUuid, sortie, { groupe: groupeEpisode(plan.episodeId), sousGroupe: scene?.titre ?? null, codesDejaProposes });
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts, { sousTache: cle, baseOrdre: base });
   await finaliserLot(tx, prop.id, { runTermineId: run.id });

@@ -4,11 +4,11 @@ import { dureesCoherentes } from "../../lib/agents/iteration-plan";
 import { MEDIA_ROOT } from "../../lib/media";
 import { contenuPlanche, ErreurPlanche, extrairePlanche, type Planche } from "../../lib/planche-vignettes";
 import type { MessageLlm } from "../../lib/llm/types";
-import { and, desc, eq, lt } from "drizzle-orm";
-import { db } from "../../db";
-import { agentRuns, plans, propositionChangements } from "../../db/schema";
-import { dernierShotDuBrouillon } from "../../lib/agents/contexte";
-import { cleSousTachePlan, planUuidDeCle } from "../../lib/agents/fiches";
+
+
+import { agentRuns } from "../../db/schema";
+
+
 
 /** « Préparer l'entrée » d'une tâche LLM, AU MOMENT de l'exécution (worker/llm.ts), propre à chaque skill. Par
  * défaut l'entrée stockée (agent_runs.entree) part telle quelle. Pour `iteration-plan`, l'entrée stockée ne porte
@@ -48,52 +48,7 @@ const arrondi = (n: number) => Math.round(n * 100) / 100;
 
 export async function preparerEntree(run: RunAgent, deps: DepsPreparation = {}): Promise<EntreePreparee> {
   if (run.skill === "iteration-plan") return preparerIteration(run, deps);
-  if (run.skill === "plan-h3" && run.propositionId != null && run.cleSousTache) return preparerFiche(run);
   return { entree: run.entree as string | object, controle: run.entree };
-}
-
-/** Une fiche d'un LOT : l'entrée stockée a été construite quand le lot est parti, avant que les autres fiches proposent
- * leurs assets. À l'exécution, on ajoute ce que les AUTRES sous-tâches du lot proposent déjà de créer
- * (`assetsProposesParLeLot`) : la fiche sait que « la lampe » est déjà prévue sous un autre nom et ne la redéclare pas.
- * Ces assets n'existent pas encore : ils ne sont jamais des références (le contrôle garde l'entrée stockée). */
-async function preparerFiche(run: RunAgent): Promise<EntreePreparee> {
-  const lignes = await db
-    .select({ apres: propositionChangements.apres, sousTache: propositionChangements.sousTache, refuse: propositionChangements.refuseRaison })
-    .from(propositionChangements)
-    .where(and(eq(propositionChangements.propositionId, run.propositionId!), eq(propositionChangements.cibleType, "asset"), eq(propositionChangements.operation, "creer")));
-  const proposes = lignes
-    .filter((l) => l.sousTache !== run.cleSousTache && !l.refuse)
-    .map((l) => l.apres as { code?: unknown; type?: unknown; description?: unknown } | null)
-    .filter((a): a is { code: string; type?: unknown; description?: unknown } => typeof a?.code === "string")
-    .map((a) => ({ code: a.code, type: String(a.type ?? ""), description: String(a.description ?? "") }));
-  const dernierShot = await dernierShotDuPrecedent(run);
-  const stockee = run.entree as { plansVoisins?: { precedent?: object | null } } & Record<string, unknown>;
-  const precedent = dernierShot && stockee.plansVoisins?.precedent ? { ...stockee.plansVoisins.precedent, dernierShot } : null;
-  if (proposes.length === 0 && !precedent) return { entree: run.entree as string | object, controle: run.entree };
-  const entree = {
-    ...stockee,
-    ...(precedent ? { plansVoisins: { ...stockee.plansVoisins, precedent } } : {}),
-    ...(proposes.length ? { assetsProposesParLeLot: proposes } : {}),
-  };
-  return { entree, controle: run.entree };
-}
-
-/** Le dernier shot que le plan PRÉCÉDENT du lot vient d'écrire (sa sortie, pas encore en base) : le premier shot de ce plan reprend là
- * où il finit (qui est où, tourné vers quoi, état du feu). Null si le précédent n'est pas du lot, n'a pas fini, ou n'a pas de shot. */
-async function dernierShotDuPrecedent(run: RunAgent): Promise<string | null> {
-  const planUuid = planUuidDeCle(run.cleSousTache);
-  if (!planUuid || run.propositionId == null) return null;
-  const [ce] = await db.select({ episodeId: plans.episodeId, ordre: plans.ordre }).from(plans).where(eq(plans.uuid, planUuid));
-  if (!ce) return null;
-  const [prec] = await db.select({ uuid: plans.uuid }).from(plans).where(and(eq(plans.episodeId, ce.episodeId), lt(plans.ordre, ce.ordre))).orderBy(desc(plans.ordre)).limit(1);
-  if (!prec) return null;
-  const [fini] = await db
-    .select({ resultat: agentRuns.resultat })
-    .from(agentRuns)
-    .where(and(eq(agentRuns.propositionId, run.propositionId), eq(agentRuns.cleSousTache, cleSousTachePlan(prec.uuid)), eq(agentRuns.statut, "termine")))
-    .orderBy(desc(agentRuns.id))
-    .limit(1);
-  return dernierShotDuBrouillon((fini?.resultat as { shots?: unknown } | null)?.shots);
 }
 
 async function preparerIteration(run: RunAgent, deps: DepsPreparation): Promise<EntreePreparee> {
