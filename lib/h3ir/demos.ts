@@ -2,8 +2,8 @@ import { CREATIVITES, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, STYLE_AUCUN, cre
 import { STYLES_CAMERA } from "./styles-camera";
 
 /** Les VIDÉOS DE DÉMO de l'écran « Mise en scène » de `/nouveau` : une même scène rendue selon chaque style de mise en scène, puis selon chaque niveau de créativité.
- * Elles se fabriquent dans un projet spécial (`NOM_PROJET_DEMOS`) avec le pipeline normal de Cadence (références, fiche Open H3 IR, rendus du worker) ; `scripts/mises-en-scene.ts`
- * prépare ce projet puis publie les rendus retenus sous `data/mises-en-scene/`. Ce module est PUR (aucun accès base ni disque) : les identifiants, la scène, les références, le plan des
+ * Elles se fabriquent dans un projet spécial (`NOM_PROJET_DEMOS`) avec le pipeline normal de Cadence (références, fiche Open H3 IR, rendus du worker). Les rendus retenus sont publiés sous `data/mises-en-scene/` ;
+ * le script qui les fabriquait a été retiré (historique git). Ce module est PUR (aucun accès base ni disque) : les identifiants, la scène, les références, le plan des
  * 12 plans et la correspondance plan → démo se testent et se lisent côté client comme serveur. */
 
 export const NOM_PROJET_DEMOS = "Démos · mise en scène";

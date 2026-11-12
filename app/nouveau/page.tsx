@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /** La conception d'un projet : les choix qu'on fait avant de raconter l'histoire (format, genre, ton, durée, langue, style), puis la
  * rencontre avec le scénariste. Seuls les styles prêts à l'emploi (avec leur clause courte pour la vidéo) sont proposés ; les images de
- * présentation sont facultatives (`data/styles/<id>/<sujet>.webp`, générées par `npm run styles:apercus`). Les styles viennent de la table `styles`. */
+ * présentation sont facultatives (`data/styles/<id>/<sujet>.webp`, générées une fois pour toutes). Les styles viennent de la table `styles`. */
 export default async function NouveauProjetPage() {
   const styles: StyleVue[] = (await listerStyles())
     .filter(styleUtilisable)

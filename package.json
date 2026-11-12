@@ -13,12 +13,7 @@
     "test": "tsx --test lib/*.test.ts lib/llm/*.test.ts lib/styles/*.test.ts lib/agents/*.test.ts lib/h3ir/*.test.ts worker/*.test.ts worker/comfyui/*.test.ts",
     "agents:e2e": "tsx scripts/agents-e2e.ts",
     "llm:essai": "tsx scripts/llm-essai.ts",
-    "llm:banc": "tsx scripts/banc-llm.ts",
-    "llm:banc:export": "tsx scripts/banc-export.ts",
     "llm:tache": "tsx scripts/llm-tache.ts",
-    "banc:video": "tsx scripts/banc-video.ts",
-    "styles:apercus": "tsx scripts/styles-apercus.ts",
-    "plan-h3:essai": "tsx scripts/plan-h3-essai.ts",
     "worker": "tsx watch worker/index.ts",
     "worker:start": "tsx worker/index.ts",
     "db:generate": "drizzle-kit generate",
@@ -27,7 +22,6 @@
     "dev:db:down": "docker compose -f docker-compose.dev.yml down",
     "dev:setup": "npm run dev:db && npm run db:migrate",
     "dev:all": "concurrently -n web,worker -c blue,green \"npm:dev\" \"npm:worker\"",
-    "mises-en-scene": "tsx scripts/mises-en-scene.ts",
     "gpu:verifier": "tsx scripts/gpu-verifier.ts"
   },
   "dependencies": {

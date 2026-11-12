@@ -19,7 +19,7 @@ export type StyleBriefVue = {
 };
 
 /** Le style du projet, FIXE (lecture seule), présenté comme dans l'assistant de création (/nouveau, scène « style ») : l'image et le nom,
- * puis la clause d'image et la clause vidéo en entier. Si le style a plusieurs images (aperçus générés par `npm run styles:apercus`), de
+ * puis la clause d'image et la clause vidéo en entier. Si le style a plusieurs images (aperçus déjà générés), de
  * petites vignettes permettent de voir les autres scènes ; sans image, ou avec une seule, il n'y a pas de sélecteur. Les classes `cn-*`
  * sont celles de la conception (conception.css). */
 export function StyleBrief({ style }: { style: StyleBriefVue }) {

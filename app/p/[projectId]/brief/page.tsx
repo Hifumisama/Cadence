@@ -79,7 +79,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
 }
 
 /** Le style du projet tel que la page le montre : son nom, ses deux clauses, et ses images — l'image de présentation posée à la création (style libre), puis les
- * aperçus des scènes communes (`lib/styles/sujets.ts`, générés par `npm run styles:apercus`) quand le style est un style de la bibliothèque (choisi à la conception, ou dont
+ * aperçus des scènes communes (`lib/styles/sujets.ts`, déjà générés) quand le style est un style de la bibliothèque (choisi à la conception, ou dont
  * le nom est celui d'une entrée de la bibliothèque). Un style libre sans image n'a pas de vignette. */
 async function vueStyle(style: { nom?: string; clause?: string; promptImage?: string; image?: string } | undefined, styleId: string | null): Promise<StyleBriefVue> {
   const id = styleId ?? (style?.nom?.trim() ? slugStyle(style.nom) : null);
