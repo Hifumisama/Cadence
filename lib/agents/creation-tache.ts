@@ -1,4 +1,4 @@
-import { cleCreation, type Tache } from "../taches";
+import { cleCreation, type Tache } from "../tasks/taches";
 import { ETAPES_CREATION, etapeCourante, normaliserEtapes, progression, statutEffectif, type EtapeCreation, type StatutCreation } from "./creation";
 
 /** La création d'un projet (l'installateur) vue comme UNE tâche du header — règles pures, sans base. L'installateur

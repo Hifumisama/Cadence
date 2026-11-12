@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns, assetGenerations, jobs } from "../db/schema";
-import { finirAnnulationImage, finirAnnulationLlm, finirAnnulationVideo } from "../lib/annulation-db";
+import { finirAnnulationImage, finirAnnulationLlm, finirAnnulationVideo } from "../lib/tasks/annulation-db";
 import { cheminGenerationMedia } from "../lib/media";
 
 // Reprise au démarrage du worker : ce qui était « en cours » appartenait à un

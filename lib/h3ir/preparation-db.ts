@@ -7,11 +7,11 @@ import type { Db } from "../agents/applicateurs/commun";
 import { horsAffiches } from "../assets-visibles";
 import { poserGenerationsLot } from "../generation-lancement";
 import { cheminAssetMedia, MEDIA_ROOT } from "../media";
-import { estEtapeFinale, type ContexteFichePlan, type EtapeDemande } from "../demandes";
+import { estEtapeFinale, type ContexteFichePlan, type EtapeDemande } from "../tasks/demandes";
 import { ecrireReferencesPlan } from "./references-ecriture";
 import { decisionSortieReferencesPlan, precedentEnAttente, type EtatImageAsset } from "./preparation";
 
-/** Les lectures et écritures de la PRÉPARATION d'un plan (règles pures : lib/h3ir/preparation.ts ; pilote : lib/demandes-db.ts). */
+/** Les lectures et écritures de la PRÉPARATION d'un plan (règles pures : lib/h3ir/preparation.ts ; pilote : lib/tasks/demandes-db.ts). */
 
 const fichierPresent = (f: string | null): boolean => !!f && existsSync(join(MEDIA_ROOT, cheminAssetMedia(f)));
 

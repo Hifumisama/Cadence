@@ -22,7 +22,7 @@ export async function creerRun(
     /** Lot : la sous-tâche (« ep:12 ») et ce que la revue en dit (« Épisode 1 · Le sel »). */
     cleSousTache?: string | null;
     libelleSousTache?: string | null;
-    /** La demande (itération…) dont cette tâche est une étape : lib/demandes.ts. */
+    /** La demande (itération…) dont cette tâche est une étape : lib/tasks/demandes.ts. */
     demandeId?: number | null;
   },
 ): Promise<{ id: number; uuid: string }> {

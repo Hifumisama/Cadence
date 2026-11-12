@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { analyserCle, cleCreation } from "../taches";
+import { analyserCle, cleCreation } from "../tasks/taches";
 import { etapesNeuves, type EtapeCreation } from "./creation";
 import { estDeLaCreation, fenetreDeCreation, tacheDeCreation, type RunDeCreation } from "./creation-tache";
 

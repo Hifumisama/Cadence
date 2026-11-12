@@ -1,8 +1,8 @@
-import { gestePourAnnuler } from "../lib/annulation";
+import { gestePourAnnuler } from "../lib/tasks/annulation";
 import type { ComfyUIClient } from "./comfyui/types";
 
 // Annulation d'une tâche EN COURS (le drapeau est posé par l'interface, voir
-// lib/annulation-db.ts). Le worker décide, côté ComfyUI, selon ce que /queue dit du
+// lib/tasks/annulation-db.ts). Le worker décide, côté ComfyUI, selon ce que /queue dit du
 // prompt — jamais à l'aveugle : `POST /interrupt` arrête ce qui tourne sur TOUT le
 // serveur, y compris un job lancé à la main par l'utilisateur.
 

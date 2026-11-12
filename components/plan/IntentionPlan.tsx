@@ -167,7 +167,7 @@ export function IntentionPlan({
     return conv.conversationUuid;
   };
 
-  /** « Itérer » = UNE demande (lib/demandes.ts) que le worker mène de la consigne au rendu (agent, réécriture de la fiche si la consigne change
+  /** « Itérer » = UNE demande (lib/tasks/demandes.ts) que le worker mène de la consigne au rendu (agent, réécriture de la fiche si la consigne change
    * le plan, application, essai). La page ne fait que la suivre : on affiche l'étape en cours, et quand le rendu part, le même accusé qu'un
    * lancement. Quitter la page ne coupe rien (la ligne du panneau des tâches reste). */
   const suivreDemande = async (demandeId: number): Promise<void> => {

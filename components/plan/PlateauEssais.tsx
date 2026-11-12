@@ -12,7 +12,7 @@ import { ComparaisonRendus } from "@/components/plan/ComparaisonRendus";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
 import { useTaches } from "@/components/taches/TachesProvider";
-import { cleVideo } from "@/lib/taches";
+import { cleVideo } from "@/lib/tasks/taches";
 import "./atelier.css";
 
 export type EssaiCarte = {

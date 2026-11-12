@@ -13,7 +13,7 @@ import { Icone } from "@/components/ui/Icone";
 import { posterBackgroundImage } from "@/lib/posters/poster";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import { LIBELLE_CREATIVITE, RESUME_STYLE_CAMERA, STYLE_AUCUN, infobulleChoix, creativiteOuNull, styleCameraOuNull, type ReglagesBruts } from "@/lib/h3ir/reglages";
-import { cleDemande } from "@/lib/taches";
+import { cleDemande } from "@/lib/tasks/taches";
 import { intentAffichee } from "@/lib/intent";
 import { LIBELLE_ETAT, LIBELLE_INTENTION_CHANGEE, cleScene, minutage, romain, type AjoutEnCours, type AjoutSceneEnCours, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";

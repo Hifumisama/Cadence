@@ -21,9 +21,9 @@ import {
 import { TYPE_AFFICHE } from "@/lib/posters/affiches";
 import { styleDesEditions, styleDesImages } from "@/lib/conception";
 import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "@/lib/media";
-import { nbImagesEnAttente } from "@/lib/queries-taches";
+import { nbImagesEnAttente } from "@/lib/tasks/queries-taches";
 import { cheminCanevasAffiche } from "@/worker/canevas-affiche";
-import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
+import { PLAFOND_FILE_IMAGES } from "@/lib/tasks/taches";
 
 // La fiche d'un asset « comme la fiche de plan » : on écrit une consigne en français, un agent la traduit en prompt (Krea 2 sans image de
 // base, Qwen Image Edit avec), l'essai part dans la file d'images, et le journal des essais garde consigne, base et prompt de chacun.

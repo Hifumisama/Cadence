@@ -356,7 +356,7 @@ export const assetGenerations = pgTable("asset_generations", {
   // Quand cet essai est devenu l'image de l'asset (même valeur que `assets.fichier_at` à cet instant) : sert à marquer l'essai retenu.
   adopteAt: timestamp("adopte_at"),
   // Annulation d'une tâche EN COURS : l'interface pose le drapeau, le worker agit
-  // (lib/annulation.ts). Une tâche en attente s'annule directement, sans drapeau.
+  // (lib/tasks/annulation.ts). Une tâche en attente s'annule directement, sans drapeau.
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
 });
 
@@ -711,7 +711,7 @@ export const creationsProjet = pgTable("creations_projet", {
 // Une DEMANDE (2026-10-17) : un geste de l'utilisateur qui tient en plusieurs étapes (itérer un plan : l'agent lit la consigne, la
 // fiche est réécrite si besoin, le rendu part). UNE ligne dans la file et le panneau, du clic au résultat, au lieu d'une suite de
 // tâches qui se relaient avec des trous entre elles. Ce n'est qu'un pilote : les tâches (runs d'agent, jobs vidéo, générations
-// d'images) gardent leurs voies et leur verrou GPU (voir lib/demandes.ts). `type` : iteration-plan | (à venir) iteration-asset ;
+// d'images) gardent leurs voies et leur verrou GPU (voir lib/tasks/demandes.ts). `type` : iteration-plan | (à venir) iteration-asset ;
 // `statut` : en_cours | termine | echoue | annulee ; une seule demande en cours par cible (index unique partiel).
 export const demandes = pgTable(
   "demandes",
@@ -724,7 +724,7 @@ export const demandes = pgTable(
     cibleId: integer("cible_id").notNull(),
     statut: varchar("statut", { length: 10 }).notNull().default("en_cours"),
     etapes: jsonb("etapes").notNull().default(sql`'[]'::jsonb`),
-    // Ce qu'il faut pour finir : consigne, essai de départ, réglages, tâche courante, rendu créé (lib/demandes.ts).
+    // Ce qu'il faut pour finir : consigne, essai de départ, réglages, tâche courante, rendu créé (lib/tasks/demandes.ts).
     contexte: jsonb("contexte").notNull().default(sql`'{}'::jsonb`),
     erreur: text("erreur"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

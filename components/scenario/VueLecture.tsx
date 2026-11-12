@@ -10,7 +10,7 @@ import { Vignette } from "@/components/plan/Vignette";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { Icone } from "@/components/ui/Icone";
 import { blocsDeLecture } from "@/lib/intent-lecture";
-import { cleDemande } from "@/lib/taches";
+import { cleDemande } from "@/lib/tasks/taches";
 import { LIBELLE_INTENTION_CHANGEE, minutage, type AjoutEnCours, type AjoutSceneEnCours } from "@/lib/scenario-vue";
 import { AjouterPlan, type CibleAjoutPlan } from "./AjouterPlan";
 

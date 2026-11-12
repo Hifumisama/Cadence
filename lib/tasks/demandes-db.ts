@@ -1,15 +1,15 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { db } from "../db";
-import { agentConversations, agentRuns, assets, demandes, episodes, jobs, plans, propositions, scenes } from "../db/schema";
-import { appliquerSelection, cocherChangements, conversationParUuid, creerAssetsManquants, genererFiches, genererIteration, genererPromptsAssets, genererProposition, genererReecriturePlan, genererReferencesPlan, ouvrirConversation } from "./agents/service";
-import { annulerLot } from "./agents/lots";
-import { choisirProchaineIteration, precedentsDansLaChaine } from "./chaines";
-import { cleNouvelAsset } from "./agents/fiches";
-import { referencesApresDecisions } from "./h3ir/brief-plan";
-import { choisirReferencesPlan } from "./h3ir/references-plan-db";
-import { ecrireReferencesPlan } from "./h3ir/references-ecriture";
-import { deciderImages, deciderReferences, libelleAssets, libelleImages, libellePrompts } from "./h3ir/preparation";
-import { assetsCreesParLeLot, attendUnPlanPrecedent, codesRefsVisuelles, ecrireReferencesDuSkill, etatImagesAssets, lancerImagesAssets } from "./h3ir/preparation-db";
+import { db } from "../../db";
+import { agentConversations, agentRuns, assets, demandes, episodes, jobs, plans, propositions, scenes } from "../../db/schema";
+import { appliquerSelection, cocherChangements, conversationParUuid, creerAssetsManquants, genererFiches, genererIteration, genererPromptsAssets, genererProposition, genererReecriturePlan, genererReferencesPlan, ouvrirConversation } from "../agents/service";
+import { annulerLot } from "../agents/lots";
+import { choisirProchaineIteration, precedentsDansLaChaine } from "../chaines";
+import { cleNouvelAsset } from "../agents/fiches";
+import { referencesApresDecisions } from "../h3ir/brief-plan";
+import { choisirReferencesPlan } from "../h3ir/references-plan-db";
+import { ecrireReferencesPlan } from "../h3ir/references-ecriture";
+import { deciderImages, deciderReferences, libelleAssets, libelleImages, libellePrompts } from "../h3ir/preparation";
+import { assetsCreesParLeLot, attendUnPlanPrecedent, codesRefsVisuelles, ecrireReferencesDuSkill, etatImagesAssets, lancerImagesAssets } from "../h3ir/preparation-db";
 import { ERREUR_ANNULEE } from "./annulation";
 import { demanderAnnulation } from "./annulation-db";
 import {
@@ -37,15 +37,15 @@ import {
   type ObservationIteration,
   type StatutDemande,
 } from "./demandes";
-import { decisionIteration } from "./fiche-plan";
-import { refusReferences } from "./h3ir/moteur";
-import { etatsRefsVisuelles } from "./h3ir/moteur-db";
-import { appliquerIterationEtGenererCore } from "./iteration-application";
-import { lireProposition } from "./queries-agents";
+import { decisionIteration } from "../fiche-plan";
+import { refusReferences } from "../h3ir/moteur";
+import { etatsRefsVisuelles } from "../h3ir/moteur-db";
+import { appliquerIterationEtGenererCore } from "../iteration-application";
+import { lireProposition } from "../queries-agents";
 import { cleLlm, cleVideo } from "./taches";
-import type { DecisionsAffichees, DecisionsIteration, Resultat } from "./agents/types";
+import type { DecisionsAffichees, DecisionsIteration, Resultat } from "../agents/types";
 
-/** Le PILOTE des demandes (règles dans lib/demandes.ts). `piloterDemandes` est appelé à chaque tour de la boucle « installateur » du
+/** Le PILOTE des demandes (règles dans lib/tasks/demandes.ts). `piloterDemandes` est appelé à chaque tour de la boucle « installateur » du
  * worker : une transition au plus par demande en cours, état dans `demandes` (reprise sur redémarrage, rien en mémoire). Une seule
  * boucle le fait tourner, donc pas de course entre deux pilotes. Ne touche jamais au GPU : il pose des tâches, les voies les prennent. */
 

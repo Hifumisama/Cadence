@@ -1,17 +1,17 @@
-import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, demandes, episodes, jobs, montageExports, plans, projects, propositions } from "../db/schema";
+import { db } from "../../db";
+import { agentConversations, agentRuns, assetGenerations, assets, creationsProjet, demandes, episodes, jobs, montageExports, plans, projects, propositions } from "../../db/schema";
 import { tacheDeDemande } from "./demandes-tache";
-import { tacheDExport } from "./montage/montage-tache";
+import { tacheDExport } from "../montage/montage-tache";
 import type { EtapeDemande, StatutDemande } from "./demandes";
-import type { EtapeCreation, StatutCreation } from "./agents/creation";
-import { estDeLaCreation, fenetreDeCreation, tacheDeCreation } from "./agents/creation-tache";
+import type { EtapeCreation, StatutCreation } from "../agents/creation";
+import { estDeLaCreation, fenetreDeCreation, tacheDeCreation } from "../agents/creation-tache";
 import { and, eq, gte, isNotNull, isNull, ne, or, inArray } from "drizzle-orm";
-import { versRunLot } from "./agents/lots";
-import { etatLotPourHeader } from "./agents/lots-pur";
+import { versRunLot } from "../agents/lots";
+import { etatLotPourHeader } from "../agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
-import { METHODE_MASTER_VOIX } from "./asset-generation";
-import { generationMediaSrc } from "./media";
-import { cibleDeCodeAffiche } from "./posters/affiches";
+import { METHODE_MASTER_VOIX } from "../asset-generation";
+import { generationMediaSrc } from "../media";
+import { cibleDeCodeAffiche } from "../posters/affiches";
 import {
   LIBELLE_SKILL,
   RETENTION_TERMINEES_JOURS,
@@ -285,7 +285,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     };
   });
 
-  // Les DEMANDES (lib/demandes.ts) : UNE entrée chacune ; l'état de la tâche de l'étape courante (en file, en cours, jetons, progression du rendu)
+  // Les DEMANDES (lib/tasks/demandes.ts) : UNE entrée chacune ; l'état de la tâche de l'étape courante (en file, en cours, jetons, progression du rendu)
   // se lit sur le run ou le job qu'elle a posé.
   const lignesDemandes = await db
     .select({ d: demandes, planUuid: plans.uuid, titre: plans.titre, episodeId: plans.episodeId })

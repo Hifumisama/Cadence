@@ -6,7 +6,7 @@
 
 
 import type { GenerationVue } from "@/lib/queries-generations";
-import type { GenreTache } from "@/lib/taches";
+import type { GenreTache } from "@/lib/tasks/taches";
 
 
 /** Une génération avec son rang dans la file et, si elle attend, le genre de la

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsRegistre, getFirstEpisodeId, getProject } from "@/lib/queries";
-import { assetsEnFile, nbImagesEnAttente } from "@/lib/queries-taches";
+import { assetsEnFile, nbImagesEnAttente } from "@/lib/tasks/queries-taches";
 import { lireEtatImages } from "@/lib/queries-images";
 import { PLAFOND_LOT_IMAGES, preparerLot, type AssetPourLot } from "@/lib/generation-lot";
 import { AjouterAssetForm } from "@/components/assets/AjouterAssetForm";

@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, briefs, creationsProjet, demandes, plans, projects, propositionChangements } from "../../db/schema";
-import { lancerDemandesFiches } from "../demandes-db";
+import { lancerDemandesFiches } from "../tasks/demandes-db";
 import { estDeLaCreation, fenetreDeCreation } from "./creation-tache";
 import { lireProposition } from "../queries-agents";
 import {
@@ -95,7 +95,7 @@ export async function reprendreCreation(projectId: number): Promise<Resultat> {
   return { ok: true };
 }
 
-/** « Écrire les fiches » (écran des intents, après la création) : UNE DEMANDE `fiche-plan` PAR PLAN (lib/demandes-db.ts : références, assets manquants,
+/** « Écrire les fiches » (écran des intents, après la création) : UNE DEMANDE `fiche-plan` PAR PLAN (lib/tasks/demandes-db.ts : références, assets manquants,
  * prompts, images, compilation Open H3 IR), posées dans l'ordre du scénario, INDÉPENDANTES de la création (2026-11-09, vague 4b). Par défaut les plans
  * sans fiche ; `tous` : aussi ceux qui en ont une (recompilés, l'ancien prompt reste dans l'historique). Un plan dont une demande tourne déjà est sauté.
  * Refusé pendant qu'une création tourne : worker/images.ts retient alors les images du projet, les fiches attendraient. */

@@ -1,13 +1,13 @@
 import { and, desc, eq, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
-import { db } from "../db";
-import { agentRuns, assetGenerations, jobs, plans, propositions } from "../db/schema";
+import { db } from "../../db";
+import { agentRuns, assetGenerations, jobs, plans, propositions } from "../../db/schema";
 import { ERREUR_ANNULEE, statutPlanApresAnnulation } from "./annulation";
-import { annulerEnAttenteDesLots, annulerLot } from "./agents/lots";
-import { balayerEssaisSansTache } from "./agents/essai-asset";
+import { annulerEnAttenteDesLots, annulerLot } from "../agents/lots";
+import { balayerEssaisSansTache } from "../agents/essai-asset";
 import { analyserCle } from "./taches";
 
 // Accès base de l'annulation, partagé par l'action serveur (app/taches/actions.ts)
-// et le worker. Les règles pures vivent dans lib/annulation.ts. Chaque UPDATE est
+// et le worker. Les règles pures vivent dans lib/tasks/annulation.ts. Chaque UPDATE est
 // gardé par le statut attendu : une tâche que le worker vient de prendre (ou de
 // finir) ne se laisse pas écraser par une annulation arrivée trop tard.
 

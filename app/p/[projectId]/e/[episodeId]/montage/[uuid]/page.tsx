@@ -21,7 +21,7 @@ import { ControlesEntete, type AlerteControle } from "@/components/plan/Controle
 import { PelliculePlans, type CadrePlan } from "@/components/plan/PelliculePlans";
 import { PlateauEssais, type EssaiCarte } from "@/components/plan/PlateauEssais";
 import { IntentionPlan } from "@/components/plan/IntentionPlan";
-import { iterationDuPlan, iterationEnAttenteDuPlan } from "@/lib/demandes-db";
+import { iterationDuPlan, iterationEnAttenteDuPlan } from "@/lib/tasks/demandes-db";
 import { CartePrompt } from "@/components/plan/CartePrompt";
 import { TiroirPlan } from "@/components/plan/TiroirPlan";
 import { srcRendu } from "@/components/plan/Vignette";

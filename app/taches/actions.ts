@@ -3,11 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { agentRuns, assetGenerations, creationsProjet, demandes, jobs, montageExports, propositions } from "@/db/schema";
-import { annulerDemande } from "@/lib/demandes-db";
+import { annulerDemande } from "@/lib/tasks/demandes-db";
 import { and, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { arreterCreation, idsRunsDeCreation } from "@/lib/agents/creation-db";
-import { demanderAnnulation, viderFile as viderFileDb, type ResultatAnnulation } from "@/lib/annulation-db";
-import { analyserCle } from "@/lib/taches";
+import { demanderAnnulation, viderFile as viderFileDb, type ResultatAnnulation } from "@/lib/tasks/annulation-db";
+import { analyserCle } from "@/lib/tasks/taches";
 
 // « Vu » : l'utilisateur a pris connaissance d'une tâche terminée ou échouée
 // (indicateur du header). Ces actions ne rechargent aucune page : l'indicateur se

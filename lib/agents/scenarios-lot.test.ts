@@ -16,7 +16,7 @@ import {
   type RunLot,
 } from "./lots-pur";
 
-import { analyserCle, cleLot } from "../taches";
+import { analyserCle, cleLot } from "../tasks/taches";
 
 // --- lots : états agrégés ------------------------------------------------------
 

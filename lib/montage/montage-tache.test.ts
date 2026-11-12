@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { dureeAttendue, tacheDExport, type EntreeTacheExport } from "./montage-tache";
-import { analyserCle, cleMontage, estAffichable, estAnnulable, estHorsFileGpu, ordonnerTaches, resumerTaches, type Tache } from "../taches";
+import { analyserCle, cleMontage, estAffichable, estAnnulable, estHorsFileGpu, ordonnerTaches, resumerTaches, type Tache } from "../tasks/taches";
 
 const MAINTENANT = new Date("2026-11-07T12:00:00Z");
 const il_y_a = (minutes: number) => new Date(MAINTENANT.getTime() - minutes * 60_000);

@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns } from "../db/schema";
-import { annulationDemandeeLlm, finirAnnulationLlm } from "../lib/annulation-db";
+import { annulationDemandeeLlm, finirAnnulationLlm } from "../lib/tasks/annulation-db";
 import { CORPS_SANS_REFLEXION } from "../lib/llm/config";
 import { modeleEffectifPourSkill } from "../lib/llm/modele-choisi";
 import { executerSkill } from "../lib/llm/executer";

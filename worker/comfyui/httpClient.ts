@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { basename, join } from "node:path";
 import { MEDIA_ROOT } from "../../lib/media";
 import type { ComfyUIClient, EvenementSuivi, PollResult, SubmissionInput, Suivi } from "./types";
-import { etatDansLaFile, type EtatDansLaFile } from "../../lib/annulation";
+import { etatDansLaFile, type EtatDansLaFile } from "../../lib/tasks/annulation";
 import { injecterValeurs, NODE_IDS } from "./mapping";
 import { cheminSortieDistant, premierFichierSortie, type FichierSortie } from "./sortie";
 import { ouvrirSuiviWs, type EtatHistorique } from "./wsSuivi";

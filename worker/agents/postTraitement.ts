@@ -221,7 +221,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       throw new Error(`Portée « ${prop.portee} » non prise en charge pour le skill scenario-episode.`);
     }
   } else if (run.skill === SKILL_H3IR) {
-    // La fiche d'UN plan compilée par Open H3 IR (worker/h3ir.ts) : une fiche seule, sans asset à créer ; elle s'écrit sans relecture (lib/demandes-db.ts).
+    // La fiche d'UN plan compilée par Open H3 IR (worker/h3ir.ts) : une fiche seule, sans asset à créer ; elle s'écrit sans relecture (lib/tasks/demandes-db.ts).
     if (prop.cibleId == null) throw new Error("Proposition de fiche sans plan.");
     const [plan] = await tx.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.id, prop.cibleId));
     if (!plan) throw new Error("Le plan visé n'existe plus.");
@@ -530,7 +530,7 @@ async function postReferencesPlan(
 }
 
 /** Une correction après visionnage (`iteration-plan`, 2026-11-09) : l'agent ne fait que DÉCIDER (intent, durée, références, réglages) ; la proposition ne porte
- * AUCUN changement, ses décisions se lisent dans le diagnostic (lib/queries-agents.ts) et partent en recompilation Open H3 IR (lib/demandes-db.ts). Sans
+ * AUCUN changement, ses décisions se lisent dans le diagnostic (lib/queries-agents.ts) et partent en recompilation Open H3 IR (lib/tasks/demandes-db.ts). Sans
  * décision applicable (durée incohérente, abandon, cause hors du plan…), le résumé commence par `PREFIXE_SANS_ECRITURE` et dit pourquoi : rien n'est
  * recompilé. Le « contexte utilisé » gagne la mesure du rendu (durée réelle, nombre de vignettes). */
 async function postIteration(

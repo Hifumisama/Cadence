@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listerTaches } from "@/lib/queries-taches";
+import { listerTaches } from "@/lib/tasks/queries-taches";
 import { lireServeursInjoignables } from "@/lib/renders/serveurs-injoignables";
 
 // Sondé par le TachesProvider (components/taches) : jamais mis en cache.

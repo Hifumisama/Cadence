@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandesFiches, lancerDemandeIteration, deplacerIterationEnAttente, lireDemandeVue, modifierConsigneIteration, type VueDemande } from "@/lib/demandes-db";
-import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@/lib/demandes";
+import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandesFiches, lancerDemandeIteration, deplacerIterationEnAttente, lireDemandeVue, modifierConsigneIteration, type VueDemande } from "@/lib/tasks/demandes-db";
+import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@/lib/tasks/demandes";
 
-// Les DEMANDES (lib/demandes.ts) côté interface : « Itérer » en pose une, le worker l'enchaîne jusqu'au rendu (lib/demandes-db.ts), la page
+// Les DEMANDES (lib/tasks/demandes.ts) côté interface : « Itérer » en pose une, le worker l'enchaîne jusqu'au rendu (lib/tasks/demandes-db.ts), la page
 // ne fait que la suivre. Quitter la page ne coupe rien.
 
 /** « Itérer » un plan : pose la demande (consigne → agent → réécriture si besoin → rendu). Refusée si le plan en a déjà une en cours. */
@@ -62,7 +62,7 @@ export async function demanderFichePlan(projectId: number, planUuid: string): Pr
   return r;
 }
 
-/** « Écrire les fiches » (page Scénario) : une demande « Générer la fiche » par plan choisi, posées dans l'ordre du scénario (lib/demandes-db.ts,
+/** « Écrire les fiches » (page Scénario) : une demande « Générer la fiche » par plan choisi, posées dans l'ordre du scénario (lib/tasks/demandes-db.ts,
  * `lancerDemandesFiches`). Un plan refusé (demande en cours) n'arrête pas les autres : ses raisons sont rendues avec le nombre de fiches lancées. */
 export async function demanderFichesPlans(projectId: number, planUuids: string[]): Promise<{ lancees: number; erreurs: string[] }> {
   const r = await lancerDemandesFiches(projectId, planUuids);

@@ -6,7 +6,7 @@ import { useTaches } from "@/components/taches/TachesProvider";
 import { estTacheActive, libelleTache } from "@/lib/agents-affichage";
 import { extraireChainePartielle, fin } from "@/lib/llm/flux-partiel";
 import type { EtatTache } from "@/lib/agents/types";
-import { cleLlm } from "@/lib/taches";
+import { cleLlm } from "@/lib/tasks/taches";
 
 /** L'état d'une tâche d'agent (un tour, le brief, une proposition) : file, travail en cours
  * avec le compteur de jetons (pas de pourcentage : le maximum est inconnu), échec, annulation.

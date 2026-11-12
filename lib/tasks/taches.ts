@@ -1,7 +1,7 @@
-import { PRIORITE_GENRE, type GenreTache } from "./renders/gpu";
+import { PRIORITE_GENRE, type GenreTache } from "../renders/gpu";
 
 /** Tâches du GPU vues par l'utilisateur (indicateur du header) — règles pures,
- * sans base ni disque, partagées par la requête serveur (lib/queries-taches.ts),
+ * sans base ni disque, partagées par la requête serveur (lib/tasks/queries-taches.ts),
  * l'API (app/api/taches) et le panneau client. Une table par type de tâche
  * (asset_generations, jobs, agent_runs) ; ceci n'est que la couche de lecture
  * commune. */
@@ -192,7 +192,7 @@ export const cleLot = (propositionUuid: string) => `lot:${propositionUuid}`;
  * étapes, identifiée par le projet. Un clic mène à la page d'avancée (`/p/<id>/creation`). */
 export const cleCreation = (projectId: number) => `creation:${projectId}`;
 
-/** Une DEMANDE (lib/demandes.ts : itérer un plan…) : UNE entrée pour toutes ses étapes, identifiée par son id. */
+/** Une DEMANDE (lib/tasks/demandes.ts : itérer un plan…) : UNE entrée pour toutes ses étapes, identifiée par son id. */
 export const cleDemande = (id: number) => `demande:${id}`;
 
 /** Un EXPORT de l'épisode (page Montage, table `montage_exports`), identifié par son id. Tâche HORS GPU (ffmpeg, boucle à part du

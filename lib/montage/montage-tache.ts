@@ -1,9 +1,9 @@
 import { formatTemps, type SegmentExport } from "./montage";
-import { cleMontage, type Tache } from "../taches";
+import { cleMontage, type Tache } from "../tasks/taches";
 
 /** Un export de l'épisode (table `montage_exports`, worker/montage-export.ts) vu comme UNE tâche du panneau du bandeau — règle pure,
  * sans base. Ce n'est pas une tâche GPU : elle s'affiche avec le genre « video » (icône, « Prête »), mais sa clé `montage:<id>` la tient
- * hors de la file GPU (`estHorsFileGpu`, lib/taches.ts) et sans bouton d'annulation (`estAnnulable`). */
+ * hors de la file GPU (`estHorsFileGpu`, lib/tasks/taches.ts) et sans bouton d'annulation (`estAnnulable`). */
 
 export type EntreeTacheExport = {
   id: number;

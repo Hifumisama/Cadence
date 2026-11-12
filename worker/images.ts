@@ -13,7 +13,7 @@ import {
   parametresMasterVoix,
 } from "../lib/asset-generation";
 import { TYPE_AFFICHE } from "../lib/posters/affiches";
-import { annulationDemandeeImage, finirAnnulationImage } from "../lib/annulation-db";
+import { annulationDemandeeImage, finirAnnulationImage } from "../lib/tasks/annulation-db";
 import { adopterCandidat } from "../lib/generation-adoption";
 import { extraireAudioDeVideo } from "../lib/voice/extraction-audio";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";

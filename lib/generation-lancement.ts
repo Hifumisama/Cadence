@@ -7,8 +7,8 @@ import { formatParDefaut, nouvelleSeed, raisonDemandeInvalide, type DemandeGener
 import { styleDesEditions, styleDesImages } from "./conception";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "./generation-lot";
 import { MEDIA_ROOT, cheminAssetMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "./media";
-import { nbImagesEnAttente, rangDansLaFile } from "./queries-taches";
-import { PLAFOND_FILE_IMAGES } from "./taches";
+import { nbImagesEnAttente, rangDansLaFile } from "./tasks/queries-taches";
+import { PLAFOND_FILE_IMAGES } from "./tasks/taches";
 
 // Mise en file des générations d'images, SANS Next (ni revalidatePath) : le worker l'appelle aussi (images lancées
 // toutes seules pendant la création d'un projet, voir lib/images-auto.ts). Les actions serveur de

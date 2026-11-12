@@ -1,7 +1,7 @@
 import { and, asc, count, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, demandes, episodes, plans, scenes } from "../../db/schema";
-import { etatDemandesFiches } from "../demandes-db";
+import { etatDemandesFiches } from "../tasks/demandes-db";
 import { libelleEtatSousTache, libelleTache } from "../agents-affichage";
 import { lireConversation, lireProposition } from "../queries-agents";
 import { ETAPES_CREATION, dernieresDemandesParPlan, libelleSuiviFiche, normaliserEtapes, progression, statutEffectif, type EtapeCreation, type EtatDemandeFiche, type StatutCreation } from "./creation";

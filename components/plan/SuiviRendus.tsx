@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 import { useTaches } from "@/components/taches/TachesProvider";
-import { cleVideo } from "@/lib/taches";
+import { cleVideo } from "@/lib/tasks/taches";
 
 /** Recharge la page du plan quand un de ses rendus change d'état (démarre, finit, échoue, annulé), vu par
  * l'indicateur du header : sans cela la vidéo et l'historique restaient ceux du chargement. Même principe que

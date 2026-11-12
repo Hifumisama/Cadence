@@ -7,7 +7,7 @@ import { choisirReferences, type CandidatReference, type EntreeReferencesPlan, t
 
 /** Le choix des références d'un plan, lu en base (étape 5 d'Open H3 IR) : charge le plan, sa scène, sa liaison, le décor du plan précédent, le registre
  * et les `plan_refs` actuelles, puis appelle la règle pure (lib/h3ir/references-plan.ts). Lecture seule : rien n'est écrit (la préparation d'un plan,
- * lib/demandes-db.ts, écrit le choix ou pose le skill en cas de doute). */
+ * lib/tasks/demandes-db.ts, écrit le choix ou pose le skill en cas de doute). */
 
 type DonneesReferencesPlan = {
   plan: { id: number; uuid: string; projectId: number; titre: string; dureeSecondes: number; liaison: string };

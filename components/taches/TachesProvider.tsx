@@ -2,8 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { annulerTache, marquerToutVu, marquerVu, retirerTaches, viderFile as viderFileServeur, viderListe as viderListeServeur } from "@/app/taches/actions";
-import { etatNotifications } from "@/lib/notifications-navigateur";
-import { estAnnulable, type ResumeTaches, type Tache } from "@/lib/taches";
+import { etatNotifications } from "@/lib/tasks/notifications-navigateur";
+import { estAnnulable, type ResumeTaches, type Tache } from "@/lib/tasks/taches";
 import { SERVEURS_OK, type ServeursInjoignables } from "@/lib/renders/serveurs-injoignables-types";
 
 /** Un seul sondage de `/api/taches` pour toute l'application, placé dans le

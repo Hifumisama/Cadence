@@ -1,7 +1,7 @@
 import { progressionDemande, type EtapeDemande, type StatutDemande } from "./demandes";
 import { cleDemande, type Tache } from "./taches";
 
-/** Une demande (lib/demandes.ts) vue comme UNE tâche du panneau — règles pures, sans base. Les tâches qui en sont des étapes (run d'agent,
+/** Une demande (lib/tasks/demandes.ts) vue comme UNE tâche du panneau — règles pures, sans base. Les tâches qui en sont des étapes (run d'agent,
  * job vidéo) ne sont plus listées à part : cette ligne les remplace, du clic au résultat, sans trou entre deux étapes. */
 
 export type EntreeTacheDemande = {

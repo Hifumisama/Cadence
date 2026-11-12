@@ -1,7 +1,7 @@
 import { and, eq, inArray, lt, notExists, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns, assetGenerations, jobs, propositions } from "../db/schema";
-import { ERREUR_ANNULEE, SEUIL_PURGE_ECHECS_MS, estPurgeable } from "../lib/annulation";
+import { ERREUR_ANNULEE, SEUIL_PURGE_ECHECS_MS, estPurgeable } from "../lib/tasks/annulation";
 import { supprimerGenerationEtFichiers } from "../lib/generation-sources";
 
 // Purge des échecs « à l'échelle de la journée » : une demande d'image échouée ou
@@ -15,7 +15,7 @@ import { supprimerGenerationEtFichiers } from "../lib/generation-sources";
 //   dire « sous-tâche en échec — relancer » ;
 // - un job vidéo ÉCHOUÉ pour de vrai : c'est la mémoire de la boucle d'itération
 //   (F03, historique des tentatives d'un plan), il se garde. Il disparaît juste du
-//   panneau du header au bout d'une journée (lib/taches.ts, estAffichable).
+//   panneau du header au bout d'une journée (lib/tasks/taches.ts, estAffichable).
 //
 // Appelée une fois au démarrage du worker puis toutes les heures (worker/index.ts).
 

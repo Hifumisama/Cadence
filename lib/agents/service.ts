@@ -842,7 +842,7 @@ async function plansPourFiches(projectId: number, portee: Portee, cibleId: numbe
  *
  * Moteur : Open H3 IR (skill virtuel `plan-h3ir`, worker/h3ir.ts). Il compile depuis les références posées sur le plan : un plan qui n'a pas encore ses
  * références, ou dont une image manque, n'est PAS compilé ici (il doit d'abord être préparé : lib/h3ir/preparation.ts, que les demandes « Générer la
- * fiche » mènent, lib/demandes-db.ts). En lot, ces plans sont laissés de côté et nommés dans le contexte ; seuls, ils sont refusés avec la raison. */
+ * fiche » mènent, lib/tasks/demandes-db.ts). En lot, ces plans sont laissés de côté et nommés dans le contexte ; seuls, ils sont refusés avec la raison. */
 export async function genererFiches(
   conversationUuid: string,
   options: {
@@ -1007,7 +1007,7 @@ export async function genererIteration(
  * références ajoutées / retirées, créativité et style de mise en scène du plan). Rien n'est écrit ici : les décisions partent en surcharge du brief
  * (lib/h3ir/brief-plan.ts) et ne s'écrivent sur le plan qu'avec la fiche compilée, à l'application (postTraitement : `apres.description`,
  * `dureeGenerationSecondes`, `refs` du manifeste, `reglages`) ; si la compilation échoue, rien n'est écrit. Les références finales doivent toutes avoir
- * leur image : la demande « Itérer » (lib/demandes-db.ts) crée d'abord les assets manquants décidés et attend leurs images (vague 4a) ; appelée trop tôt,
+ * leur image : la demande « Itérer » (lib/tasks/demandes-db.ts) crée d'abord les assets manquants décidés et attend leurs images (vague 4a) ; appelée trop tôt,
  * la recompilation est refusée sans tâche lancée. */
 export async function genererReecriturePlan(
   conversationUuid: string,

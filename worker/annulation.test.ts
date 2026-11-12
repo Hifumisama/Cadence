@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { EtatDansLaFile } from "../lib/annulation";
+import type { EtatDansLaFile } from "../lib/tasks/annulation";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import type { ComfyUIClient } from "./comfyui/types";
 

@@ -20,7 +20,7 @@ import { LIMITE_IMAGES_PLAN } from "./references-plan";
  * Chemin rapide : des références qui ont toutes leur image → compilation directe, sans appel de choix.
  * Aucun nouvel état de plan : « en attente d'images » se calcule depuis les références sans fichier ; un brouillon ne passe « en attente » qu'avec la fiche.
  *
- * Ici : les règles PURES (testées, preparation.test.ts). Les lectures et écritures : lib/h3ir/preparation-db.ts ; le pilote : lib/demandes-db.ts. */
+ * Ici : les règles PURES (testées, preparation.test.ts). Les lectures et écritures : lib/h3ir/preparation-db.ts ; le pilote : lib/tasks/demandes-db.ts. */
 
 /** La proposition qui crée les assets manquants décidés par « Itérer » (lib/agents/service.ts, `creerAssetsManquants`). */
 export const SKILL_ASSETS_MANQUANTS = "assets-manquants";
