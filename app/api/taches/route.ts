@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { listerTaches } from "@/lib/tasks/queries-tasks";
 import { lireServeursInjoignables } from "@/lib/renders/unreachable-servers";
 
-// Sondé par le TachesProvider (components/taches) : jamais mis en cache.
+// Sondé par le TachesProvider (components/tasks) : jamais mis en cache.
 export const dynamic = "force-dynamic";
 
 export async function GET() {

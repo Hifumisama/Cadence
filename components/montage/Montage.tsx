@@ -33,10 +33,10 @@ import {
   type SceneMontage,
 } from "@/lib/montage/montage";
 import type { ExportMontage } from "@/lib/montage/queries-montage";
-import { useLecture } from "./useLecture";
+import { useLecture } from "./usePlayback";
 import { TableMontage, teinte, type ModeTable } from "./TableMontage";
-import { Inspecteur } from "./Inspecteur";
-import { Manuel } from "./Manuel";
+import { Inspecteur } from "./Inspector";
+import { Manuel } from "./Manual";
 
 const FAMILLES: { cle: FamilleStatut; libelle: string; couleur: string }[] = [
   { cle: "termine", libelle: "Terminé", couleur: "var(--or)" },

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AvanceeScene } from "@/components/conception/AvanceeScene";
+import { AvanceeScene } from "@/components/design/ProgressScene";
 import { Topbar } from "@/components/ui/Topbar";
 import { db } from "@/db";
 import { lirePlansIntents, lireSuiviFiches, lireVueCreation } from "@/lib/agents/creation-view";

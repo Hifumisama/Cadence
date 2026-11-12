@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { PastilleLlm } from "@/components/llm/PastilleLlm";
-import { IndicateurTaches } from "@/components/taches/IndicateurTaches";
+import { PastilleLlm } from "@/components/llm/LlmBadge";
+import { IndicateurTaches } from "@/components/tasks/TasksIndicator";
 import { TopbarTabs } from "./TopbarTabs";
 
 /** Bandeau à deux niveaux (2026-10-18) : marque, fil d'Ariane (`trail`) et statuts (LLM, file

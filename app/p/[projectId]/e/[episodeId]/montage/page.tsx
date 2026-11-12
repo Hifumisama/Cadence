@@ -1,9 +1,9 @@
 import { getProject } from "@/lib/queries";
 import { getMontage } from "@/lib/montage/queries-montage";
 import { Montage } from "@/components/montage/Montage";
-import { PassageNuitButton } from "@/components/plan/PassageNuitButton";
-import { RelancePerimesButton } from "@/components/plan/RelancePerimesButton";
-import { ToutesPrevisualisationsButton } from "@/components/plan/ToutesPrevisualisationsButton";
+import { PassageNuitButton } from "@/components/clip/NightPassageButton";
+import { RelancePerimesButton } from "@/components/clip/RetryStaleButton";
+import { ToutesPrevisualisationsButton } from "@/components/clip/AllPreviewsButton";
 
 export const dynamic = "force-dynamic";
 

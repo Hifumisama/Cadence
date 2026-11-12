@@ -4064,7 +4064,7 @@ button {
   cursor: pointer;
 }
 
-/* Notifications de fin de tâche (components/taches/NotificationsTaches.tsx) */
+/* Notifications de fin de tâche (components/tasks/TasksNotifications.tsx) */
 .nt {
   position: fixed;
   right: var(--sp-4);
@@ -4239,7 +4239,7 @@ button {
   color: var(--ink-3);
 }
 
-/* Icônes (components/ui/Icone.tsx) : alignées sur la ligne de texte, jamais écrasées dans un flex. */
+/* Icônes (components/ui/Icon.tsx) : alignées sur la ligne de texte, jamais écrasées dans un flex. */
 .icone {
   display: inline-block;
   flex: 0 0 auto;
@@ -4258,7 +4258,7 @@ button {
   }
 }
 
-/* Une affiche cliquable (components/affiches/AfficheZoom.tsx) : le bouton ne change rien à la mise en page. */
+/* Une affiche cliquable (components/posters/PosterZoom.tsx) : le bouton ne change rien à la mise en page. */
 .aff-zoom {
   display: block;
   width: 100%;

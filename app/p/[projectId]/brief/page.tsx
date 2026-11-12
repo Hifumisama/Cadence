@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BriefDossier } from "@/components/brief/BriefDossier";
-import { BriefVide } from "@/components/brief/BriefVide";
+import { BriefDossier } from "@/components/brief/BriefFolder";
+import { BriefVide } from "@/components/brief/EmptyBrief";
 import { Topbar } from "@/components/ui/Topbar";
 import { lireBriefOuVide } from "@/lib/agents/queries-agents";
 import { getAllAssets, getEpisode, getFirstEpisodeId, getProject } from "@/lib/queries";
@@ -16,7 +16,7 @@ import { apercusDuStyle } from "@/lib/styles/styles-db";
 import { SUJETS_APERCU } from "@/lib/styles/subjects";
 import type { StyleBriefVue, VignetteStyle } from "@/components/brief/StyleBrief";
 import { demosMiseEnScene } from "@/lib/media";
-import { ReglagesCameraProjet } from "@/components/brief/ReglagesCameraProjet";
+import { ReglagesCameraProjet } from "@/components/brief/ProjectCameraSettings";
 
 export const dynamic = "force-dynamic";
 

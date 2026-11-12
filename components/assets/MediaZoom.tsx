@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Icone } from "@/components/ui/Icone";
+import { Icone } from "@/components/ui/Icon";
 
 /** Aperçu cliquable : ouvre l'asset en taille réelle dans une fenêtre modale
  * (<dialog> natif : Échap et clic sur le fond ferment). Image : clic sur

@@ -6,7 +6,7 @@ import { STYLES_CAMERA } from "./styles-camera";
  * Module PUR (aucun accès disque) : l'interface l'utilise quand la démo n'a pas d'image fixe, et dans tous les cas pour les mots-clés. Les réalisateurs citent leurs films
  * (FILMS_STYLE, lib/h3ir/examples.ts) ; les profils perso ne citent aucun titre (décision de la carte) mais un genre de film. */
 
-/** Les pictogrammes dessinés par components/conception/VisuelMise.tsx (un SVG simple par clé). */
+/** Les pictogrammes dessinés par components/design/StagingVisual.tsx (un SVG simple par clé). */
 export const PICTOS = ["aucun", "pas", "eclair", "vent", "orbite", "fixe", "ombre", "travelling", "symetrie", "echelle", "manuel", "flou", "rayons"] as const;
 export type Picto = (typeof PICTOS)[number];
 

@@ -4,7 +4,7 @@ import "./assets.css";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { urlMiniature } from "@/lib/thumbnails";
-import { Icone } from "@/components/ui/Icone";
+import { Icone } from "@/components/ui/Icon";
 import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/assets/registry-types";
 
 export type { FichierEtat, MediaKind } from "@/lib/assets/registry-types";

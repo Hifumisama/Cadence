@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEpisode, getProject } from "@/lib/queries";
 import { Topbar } from "@/components/ui/Topbar";
-import { ProchaineEtape } from "@/components/images/ProchaineEtape";
+import { ProchaineEtape } from "@/components/images/NextStep";
 
 export default async function EpisodeLayout({
   children,

@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import { getEpisode, getProject, getScenarioData } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/clips/queries-clip-sheet";
-import { srcRendu } from "@/components/plan/Vignette";
+import { srcRendu } from "@/components/clip/Thumbnail";
 import { intentAffichee } from "@/lib/clips/intent";
 import { intentionsPerimees } from "@/lib/clips/stale-intention";
 import { ajoutsEnCours } from "@/lib/clips/additions-in-progress";
-import { VueLecture, type PlanLecture, type SceneLecture } from "@/components/scenario/VueLecture";
+import { VueLecture, type PlanLecture, type SceneLecture } from "@/components/screenplay/ReadingView";
 import { romain } from "@/lib/clips/screenplay-view";
 
 export const dynamic = "force-dynamic";

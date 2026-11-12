@@ -7,7 +7,7 @@
 
 .pl-etiquette { font-size: 13px; color: var(--ink-2); }
 
-/* Curseur de durée (CurseurDuree.tsx) : des secondes entières, la valeur choisie à droite. */
+/* Curseur de durée (DurationCursor.tsx) : des secondes entières, la valeur choisie à droite. */
 .pl-curseur { display: grid; grid-template-columns: minmax(160px, 260px) auto; grid-template-areas: "piste valeur" "crans ."; align-items: center; gap: 2px 14px; }
 .pl-curseur-piste { grid-area: piste; width: 100%; margin: 0; accent-color: var(--or-glow, #d9a93c); cursor: pointer; }
 .pl-curseur-piste:disabled { cursor: not-allowed; }

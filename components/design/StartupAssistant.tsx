@@ -1,0 +1,146 @@
+"use client";
+
+import "../conception/conception.css";
+import "../conception/demarrage.css";
+import { Glissiere } from "./Slider";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { lireConversationVue } from "@/app/agents/lecture";
+import { estTacheActive } from "@/lib/agents/agents-display";
+import type { VueConversation } from "@/lib/agents/types";
+import type { Conception } from "@/lib/projects/design";
+import { ETAPES_CONCEPTION, minutesSecondes, teinteAmbiance } from "@/lib/projects/design-ui";
+import { motDuTon } from "@/lib/projects/design";
+import { lireAfficheClap, preparerAfficheClap } from "@/app/affiches/clap-actions";
+import { ClapScene, type AfficheEtat, type StyleAffiche } from "./ClapScene";
+import { RubanConception } from "./DesignRibbon";
+import { ScenarioScene } from "./ScreenplayScene";
+
+/** La suite de la conception, une fois le projet créé : le scénario (entretien avec le scénariste) puis le clap, dans le même ruban de
+ * pellicule que les six choix (qui sont faits : ils s'affichent en résumé, sans pouvoir être rejoués ici ; le brief reste modifiable
+ * depuis la page du projet). La neuvième étape, l'avancée de la préparation, est la page de l'installateur. Plan :
+ * docs/PLAN_CONCEPTION_PROJET.md. */
+
+const ETAPES = ETAPES_CONCEPTION;
+const SCENARIO = 6;
+const CLAP = 7;
+
+function resumesFaits(c: Conception, nomStyle: string, miseEnScene: string): string[] {
+  return ["Film", `${c.genres.join("/")} · ${motDuTon(c.ton)}`, minutesSecondes(c.dureeSecondes), c.langue, nomStyle, miseEnScene];
+}
+
+export function DemarrageAssistant({
+  projectId,
+  nomProjet,
+  convInitiale,
+  conception,
+  style,
+  miseEnScene,
+}: {
+  projectId: number;
+  nomProjet: string;
+  convInitiale: VueConversation;
+  conception: Conception;
+  style: StyleAffiche;
+  /** La mise en scène du projet en quelques mots (`resumeMiseEnScene`) : lue dans le projet, pas dans la conception (elle se règle ensuite dans le Brief). */
+  miseEnScene: string;
+}) {
+  const [conv, setConv] = useState(convInitiale);
+  const [etape, setEtape] = useState(SCENARIO);
+  const [recule, setRecule] = useState(false);
+  const [affiche, setAffiche] = useState<AfficheEtat | null>(null);
+
+  const rafraichir = useCallback(async () => {
+    try {
+      const c = await lireConversationVue(convInitiale.uuid);
+      if (c) setConv(c);
+    } catch {
+      /* le serveur redémarre : au prochain tour */
+    }
+  }, [convInitiale.uuid]);
+
+  // Tant qu'un tour du scénariste tourne, on relit l'état ; sinon on se repose.
+  const actif = estTacheActive(conv.tache);
+  useEffect(() => {
+    if (!actif) return;
+    const t = setInterval(() => void rafraichir(), 2000);
+    return () => clearInterval(t);
+  }, [actif, rafraichir]);
+
+  // Le clap lit la fiche à jour : au retour sur l'onglet, une relecture.
+  useEffect(() => {
+    const focus = () => void rafraichir();
+    window.addEventListener("focus", focus);
+    return () => window.removeEventListener("focus", focus);
+  }, [rafraichir]);
+
+  const parle = conv.messages.some((m) => m.role === "user");
+  const pret = parle && conv.briefPret;
+  const peutClap = parle && !actif && conv.briefPret; // le clap ne s'ouvre que quand le scénariste a l'essentiel
+  const aller = (i: number) => {
+    if (i < SCENARIO || i > CLAP || i === etape || (i === CLAP && !peutClap)) return;
+    setRecule(i < etape);
+    setEtape(i);
+  };
+
+  // L'affiche : préparée à l'ARRIVÉE sur le clap (pas avant), et refaite seulement si ce qui la nourrit a changé depuis la dernière fois
+  // (le serveur compare l'empreinte). Un aller-retour sans rien changer ne relance rien.
+  const preparer = useCallback(
+    (force: boolean) => {
+      preparerAfficheClap(projectId, force).then(setAffiche).catch(() => setAffiche({ etat: "echec", src: null }));
+    },
+    [projectId],
+  );
+  useEffect(() => {
+    if (etape === CLAP) preparer(false);
+  }, [etape, preparer]);
+  const afficheEnCours = affiche?.etat === "en_cours";
+  useEffect(() => {
+    if (!afficheEnCours) return;
+    const t = setInterval(() => lireAfficheClap(projectId).then(setAffiche).catch(() => undefined), 2500);
+    return () => clearInterval(t);
+  }, [afficheEnCours, projectId]);
+
+  const resumes = useMemo(() => resumesFaits(conception, style.nom, miseEnScene), [conception, style.nom, miseEnScene]);
+  const ambiance = useMemo(
+    () => ({ "--cn-hue": teinteAmbiance(conception.genres), "--cn-lum": (1 - conception.ton / 100).toFixed(2) }) as CSSProperties,
+    [conception.genres, conception.ton],
+  );
+
+  return (
+    <div className="cn-salle" style={ambiance}>
+      <div className="cn-ambiance" aria-hidden="true"><i /><i /></div>
+      <RubanConception
+        cadres={ETAPES.map((nom, i) => ({
+          nom,
+          resume: i < SCENARIO ? (resumes[i] ?? "") : i === SCENARIO && parle ? "en cours" : "",
+          etat: i < SCENARIO ? "fait" : i === etape ? "courant" : i > CLAP ? "futur" : "actif",
+          onClick: i === SCENARIO || (i === CLAP && peutClap) ? () => aller(i) : undefined,
+        }))}
+      />
+
+      <div className={`cn-scene${recule ? " is-recule" : ""}`} key={etape}>
+        {etape === SCENARIO ? <ScenarioScene conv={conv} rafraichir={rafraichir} /> : null}
+        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} style={style} miseEnScene={miseEnScene} notes={conv.notes} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
+      </div>
+
+      <div className="cn-barre" role="group" aria-label="Avancer dans la conception">
+        {etape === CLAP ? <button type="button" className="btn" onClick={() => aller(SCENARIO)}>← Retour à l’entretien</button> : null}
+        <span className="cn-barre-texte" aria-live="polite">
+          {etape === CLAP ? (
+            <>Relis la planche, donne un titre, puis <b>lance la préparation</b> en bas de page.</>
+          ) : !parle ? (
+            <>Raconte ton histoire au scénariste : <b>le clap s’ouvrira ensuite</b>.</>
+          ) : actif ? (
+            <>Le scénariste écrit… <b>le clap t’attend juste après</b>.</>
+          ) : conv.briefPret ? (
+            <><b>Le scénariste a l’essentiel</b> : le clap t’attend.</>
+          ) : (
+            <>Le briefing n’est pas encore prêt : <b>continue l’entretien</b>, le clap s’ouvrira ensuite.</>
+          )}
+        </span>
+        {etape === SCENARIO ? <Glissiere libelle="Glisse : voir le clap" action desactive={!peutClap} onValider={() => aller(CLAP)} /> : null}
+      </div>
+
+    </div>
+  );
+}

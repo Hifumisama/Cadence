@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { DemarrageAssistant } from "@/components/conception/DemarrageAssistant";
+import { DemarrageAssistant } from "@/components/design/StartupAssistant";
 import { Topbar } from "@/components/ui/Topbar";
 import { db } from "@/db";
 import { lireVueCreation } from "@/lib/agents/creation-view";

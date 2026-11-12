@@ -4,8 +4,8 @@ import { getAssetsRegistre, getFirstEpisodeId, getProject } from "@/lib/queries"
 import { assetsEnFile, nbImagesEnAttente } from "@/lib/tasks/queries-tasks";
 import { lireEtatImages } from "@/lib/assets/queries-images";
 import { PLAFOND_LOT_IMAGES, preparerLot, type AssetPourLot } from "@/lib/assets/generation-batch";
-import { AjouterAssetForm } from "@/components/assets/AjouterAssetForm";
-import { RegistreAssets } from "@/components/assets/RegistreAssets";
+import { AjouterAssetForm } from "@/components/assets/AddAssetForm";
+import { RegistreAssets } from "@/components/assets/AssetsRegistry";
 import { TYPES_ASSET, libelleAsset } from "@/lib/assets/assetCode";
 import { infosMedia } from "@/lib/assets/assetMedia";
 import type { LigneRegistre } from "@/lib/assets/registry-types";

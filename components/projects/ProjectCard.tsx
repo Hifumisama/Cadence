@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ProjectListItem } from "@/lib/queries";
-import { Icone } from "@/components/ui/Icone";
+import { Icone } from "@/components/ui/Icon";
 import { Poster } from "@/components/ui/Poster";
 import { PHASES, phaseDe, totalBuckets, type Phase } from "@/lib/projects/phase";
 

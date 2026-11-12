@@ -1,9 +1,9 @@
 import { getAllProjects } from "@/lib/queries";
 import { phaseDe, totalBuckets } from "@/lib/projects/phase";
 import { Topbar } from "@/components/ui/Topbar";
-import { ListeProjets } from "@/components/projects/ListeProjets";
+import { ListeProjets } from "@/components/projects/ProjectsList";
 import Link from "next/link";
-import { Icone } from "@/components/ui/Icone";
+import { Icone } from "@/components/ui/Icon";
 
 export const dynamic = "force-dynamic";
 

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Marcellus, Jost, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { TachesProvider } from "@/components/taches/TachesProvider";
-import { NotificationsTaches } from "@/components/taches/NotificationsTaches";
+import { TachesProvider } from "@/components/tasks/TasksProvider";
+import { NotificationsTaches } from "@/components/tasks/TasksNotifications";
 
 const marcellus = Marcellus({
   subsets: ["latin"],

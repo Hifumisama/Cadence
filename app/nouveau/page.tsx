@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { ConceptionAssistant } from "@/components/conception/ConceptionAssistant";
-import type { StyleVue } from "@/components/conception/types";
+import { ConceptionAssistant } from "@/components/design/DesignAssistant";
+import type { StyleVue } from "@/components/design/types";
 import { Topbar } from "@/components/ui/Topbar";
 import { demosMiseEnScene } from "@/lib/media";
 import { styleUtilisable } from "@/lib/styles/library";

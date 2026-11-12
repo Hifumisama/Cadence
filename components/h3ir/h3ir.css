@@ -3,7 +3,7 @@
 
 .h3-label { font-size: 13px; color: var(--ink-2); }
 
-/* Curseur à crans (components/conception/Curseur.tsx : rôle slider, clavier ← → Début Fin) */
+/* Curseur à crans (components/design/Cursor.tsx : rôle slider, clavier ← → Début Fin) */
 .h3-crans { position: relative; display: grid; gap: 8px; padding: 10px 10px 2px; cursor: pointer; touch-action: none; user-select: none; }
 .h3-crans:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 3px; }
 .h3-crans-rail { position: relative; height: 4px; margin: 6px 8px; background: var(--surface-3); }
