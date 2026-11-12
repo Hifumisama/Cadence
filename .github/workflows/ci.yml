@@ -1,0 +1,33 @@
+# Vérifications du code : types, tests unitaires, code mort (knip).
+# Déclenchement : chaque push (toutes branches) et chaque pull request.
+# Aucune base ni GPU nécessaires : les tests sont purs.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Types
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+      - name: Code mort
+        run: npm run knip
