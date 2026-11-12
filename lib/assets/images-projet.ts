@@ -2,7 +2,7 @@ import { preparerLot, type AssetPourLot } from "./generation-lot";
 
 /** Où en sont les IMAGES de référence d'un projet (2026-10-12). Définition UNIQUE, partagée par le clap final de la préparation,
  * le bandeau « Prochaine étape » et le registre d'assets. Règles pures (sans base ni disque) ; la lecture en base est dans
- * lib/queries-images.ts.
+ * lib/assets/queries-images.ts.
  *
  * Tout asset est « à illustrer » (son image de référence se génère). Il « a une image » quand `fichier` est
  * renseigné ; sans image sinon. Rien n'est versionné (F01) : un asset a une image ou n'en a pas. */

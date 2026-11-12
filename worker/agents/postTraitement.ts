@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
-import { horsAffiches } from "../../lib/assets-visibles";
+import { horsAffiches } from "../../lib/assets/assets-visibles";
 import { sortieVersBrief } from "../../lib/agents/brief";
 import { ecrireBrouillon } from "../../lib/agents/brief-db";
 import { entreeTour, messageBriefPret } from "../../lib/agents/brief-entree";

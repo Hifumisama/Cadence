@@ -12,7 +12,7 @@ import { IntentsAvantFiches } from "./IntentsAvantFiches";
 import { motDuTon, type Conception } from "@/lib/projects/conception";
 import { minutesSecondes, teinteAmbiance } from "@/lib/projects/conception-ui";
 import { BoutonGenererImages, useEtatImages } from "@/components/images/ImagesProjet";
-import { phraseCompteImages, type EtatImages } from "@/lib/images-projet";
+import { phraseCompteImages, type EtatImages } from "@/lib/assets/images-projet";
 import { AfficheProjet, type StyleAffiche } from "./ClapScene";
 import { RubanConception } from "./RubanConception";
 import { EnteteScene } from "./Scenes";
@@ -51,7 +51,7 @@ export function AvanceeScene({
   /** La mise en scène du projet en quelques mots (`resumeMiseEnScene`), pour le ruban. */
   miseEnScene: string;
   initial: VueCreation | null;
-  /** Où en sont les images de référence (lib/images-projet.ts) : le clap final dit ce qui est vraiment fait. */
+  /** Où en sont les images de référence (lib/assets/images-projet.ts) : le clap final dit ce qui est vraiment fait. */
   imagesInitial: EtatImages;
   conception: Conception | null;
   style: StyleAffiche;

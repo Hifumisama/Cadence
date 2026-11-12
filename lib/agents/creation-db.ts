@@ -19,7 +19,7 @@ import {
   type ObservationEtape,
   type StatutCreation,
 } from "./creation";
-import { lancerImagesPretes } from "../images-auto";
+import { lancerImagesPretes } from "../assets/images-auto";
 import { tacheActive } from "./runs";
 import * as service from "./service";
 import type { Resultat } from "./types";

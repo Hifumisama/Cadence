@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { agentRuns, assets, plans, propositionChangements, propositions } from "../../db/schema";
-import { horsAffiches } from "../assets-visibles";
+import { horsAffiches } from "../assets/assets-visibles";
 import { ecrireReferencesPlan } from "../h3ir/references-ecriture";
 import type { Db } from "./applicateurs/commun";
 import { cleNouvelAsset } from "./fiches";

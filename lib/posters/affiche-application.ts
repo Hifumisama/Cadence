@@ -28,7 +28,7 @@ const ABSENT: Record<CibleAffiche, string> = {
 
 /** Fait de l'image d'un asset d'affiche l'affiche du projet ou de l'épisode qu'elle habille : le fichier est copié dans le
  * rangement des posters et `posterFichier` pointe dessus. Sans dépendance à Next : appelée à l'adoption d'un candidat
- * (lib/generation-adoption.ts).
+ * (lib/assets/generation-adoption.ts).
  *
  * Le nom de fichier est UNIQUE à chaque application (jamais `poster.png` réécrit sur place) : l'adresse change, donc le
  * navigateur ne montre jamais l'ancienne image en cache. L'affiche précédente est supprimée du stockage. */

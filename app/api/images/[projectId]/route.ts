@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { lireEtatImages } from "@/lib/queries-images";
+import { lireEtatImages } from "@/lib/assets/queries-images";
 
 // Sondé par le clap de la préparation, le bandeau « Prochaine étape » et le registre : jamais mis en cache.
 export const dynamic = "force-dynamic";

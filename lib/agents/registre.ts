@@ -1,4 +1,4 @@
-import { construireCode, slugifyCode } from "../assetCode";
+import { construireCode, slugifyCode } from "../assets/assetCode";
 import { ressemblant } from "./inventaire";
 import type { BriefContenu } from "./types";
 

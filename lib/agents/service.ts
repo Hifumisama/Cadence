@@ -1,5 +1,5 @@
 import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
-import { horsAffiches } from "../assets-visibles";
+import { horsAffiches } from "../assets/assets-visibles";
 import { db } from "../../db";
 import {
   agentConversations,

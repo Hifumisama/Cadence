@@ -1,10 +1,10 @@
 import { readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { and, eq, inArray } from "drizzle-orm";
-import { db } from "../db";
-import { assetGenerationSources, assetGenerations } from "../db/schema";
+import { db } from "../../db";
+import { assetGenerationSources, assetGenerations } from "../../db/schema";
 import { videoDeMaster } from "./asset-generation";
-import { cheminGenerationMedia, cheminSourceImportMedia } from "./media";
+import { cheminGenerationMedia, cheminSourceImportMedia } from "../media";
 
 // Nettoyage des générations d'images et de leurs fichiers, partagé entre l'app
 // (supprimer un candidat) et le worker (purge des plus anciens). Les sources

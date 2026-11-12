@@ -9,7 +9,7 @@ import {
   styleParId,
   valeursFiltre,
 } from "./bibliotheque";
-import { estAspect } from "../asset-generation";
+import { estAspect } from "../assets/asset-generation";
 import { IDS_SUJETS, promptApercu, sujetParId, SUJETS_APERCU } from "./sujets";
 
 test("slugStyle : accents retirés, séparateurs en tirets", () => {

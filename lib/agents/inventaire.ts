@@ -1,4 +1,4 @@
-import { construireCode } from "../assetCode";
+import { construireCode } from "../assets/assetCode";
 import type { ChangementBrut } from "./changements";
 import { correspondances } from "./codes-proches";
 import { MAX_REFS_VISUELLES } from "../plan-raccord";

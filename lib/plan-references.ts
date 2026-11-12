@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { assets, planPromptSections, planRefs } from "../db/schema";
 import type { Db } from "./agents/applicateurs/commun";
-import { libelleAsset } from "./assetCode";
-import { LIBELLE_TYPE_ASSET } from "./registre-types";
+import { libelleAsset } from "./assets/assetCode";
+import { LIBELLE_TYPE_ASSET } from "./assets/registre-types";
 import { ajouterReference, compacterImages, nomDepuisCode, retirerReference, roleParDefaut, type SectionsTexte, type TypeRef } from "./references";
 
 /** Retrait / ajout d'une référence sur un plan DÉJÀ ÉCRIT, avec le prompt tenu à jour (règles pures dans

@@ -9,7 +9,7 @@ import { and, eq, gte, isNotNull, isNull, ne, or, inArray } from "drizzle-orm";
 import { versRunLot } from "../agents/lots";
 import { etatLotPourHeader } from "../agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
-import { METHODE_MASTER_VOIX } from "../asset-generation";
+import { METHODE_MASTER_VOIX } from "../assets/asset-generation";
 import { generationMediaSrc } from "../media";
 import { cibleDeCodeAffiche } from "../posters/affiches";
 import {

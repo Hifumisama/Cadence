@@ -7,7 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useState, useTransit
 import { definirValidation, modifierChampAsset, renommerAsset, supprimerAsset } from "@/app/assets/actions";
 import { dupliquerAsset, retirerImageAsset } from "@/app/assets/essai-actions";
 import { ICONE_TYPE_ASSET, Icone } from "@/components/ui/Icone";
-import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/registre-types";
+import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/assets/registre-types";
 
 /* ---------------------------------------------------------------------------------------------------------------
    La fiche d'un asset est une pile de blocs, comme le brief : un bloc de lecture devient un éditeur sur place quand on

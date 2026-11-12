@@ -7,9 +7,9 @@ import { lancerGenerationsLot } from "@/app/assets/generation-actions";
 import { useRouter } from "next/navigation";
 import { BoutonGenererImages, useEtatImages } from "@/components/images/ImagesProjet";
 import { Icone } from "@/components/ui/Icone";
-import type { EtatImages } from "@/lib/images-projet";
-import { filtresUtiles, plageDeCodes } from "@/lib/registre-filtres";
-import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/registre-types";
+import type { EtatImages } from "@/lib/assets/images-projet";
+import { filtresUtiles, plageDeCodes } from "@/lib/assets/registre-filtres";
+import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/assets/registre-types";
 import { AssetCard, LigneAsset } from "./AssetCard";
 
 /** Durée d'appui qui déclenche la sélection (clic long). */
@@ -36,7 +36,7 @@ export function RegistreAssets({
   lignes: LigneRegistre[];
   /** Voix du casting : hors de la grille, un lien les ramène à leur module. */
   typeInitial: string | null;
-  /** Où en sont les images du projet (lib/images-projet.ts) : alimente la ligne « Il reste N images à générer ». */
+  /** Où en sont les images du projet (lib/assets/images-projet.ts) : alimente la ligne « Il reste N images à générer ». */
   imagesInitial: EtatImages;
 }) {
   const router = useRouter();
@@ -92,7 +92,7 @@ export function RegistreAssets({
   const nbAProduire = useMemo(() => lignes.filter((l) => l.statut === "a_produire").length, [lignes]);
   const compteStatut = (s: string) => lignes.filter((l) => l.statut === s).length;
 
-  // Quels filtres ont un sens selon le nombre d'assets (lib/registre-filtres.ts) ; un filtre que le registre ne propose plus ne s'applique plus :
+  // Quels filtres ont un sens selon le nombre d'assets (lib/assets/registre-filtres.ts) ; un filtre que le registre ne propose plus ne s'applique plus :
   // on ne filtre jamais en cachette.
   const utiles = useMemo(() => filtresUtiles(lignes), [lignes]);
   const typeActif = utiles.types ? type : null;

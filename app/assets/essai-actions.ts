@@ -9,7 +9,7 @@ import { copyFile, mkdir, unlink } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { creerRun } from "@/lib/agents/runs";
 import { BUT_ESSAI, entreeEssaiAsset } from "@/lib/agents/essai-asset";
-import { libelleAsset } from "@/lib/assetCode";
+import { libelleAsset } from "@/lib/assets/assetCode";
 import {
   STATUT_TRADUCTION,
   formatParDefaut,
@@ -17,7 +17,7 @@ import {
   methodeDEssai,
   nouvelleSeed,
   raisonConsigneInvalide,
-} from "@/lib/asset-generation";
+} from "@/lib/assets/asset-generation";
 import { TYPE_AFFICHE } from "@/lib/posters/affiches";
 import { styleDesEditions, styleDesImages } from "@/lib/projects/conception";
 import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "@/lib/media";
@@ -128,7 +128,7 @@ export async function lancerEssai(
         statut: STATUT_TRADUCTION,
         prompt: "",
         consigne: consigne || null,
-        // Édition : la clause courte, rappelée par le worker en dernière ligne des instructions (voir lib/generation-lancement.ts).
+        // Édition : la clause courte, rappelée par le worker en dernière ligne des instructions (voir lib/assets/generation-lancement.ts).
         clauseStyle: texte ? styleDesImages(projet) : styleDesEditions(projet),
         ...(texte ? { aspect: format.aspect, megapixels: format.megapixels } : {}),
         lightning: texte ? null : true,

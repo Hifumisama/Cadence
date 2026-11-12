@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { assets, episodes, jobs, planPromptSections, planPromptVersions, planRefs, plans } from "../../../db/schema";
-import { horsAffiches } from "../../assets-visibles";
+import { horsAffiches } from "../../assets/assets-visibles";
 import { conserverConsigneAuteur } from "../../intent";
 import { assemblerPrompt } from "../../prompt";
 import type { Tx } from "../../ordre-plans";

@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import { assets } from "../../../db/schema";
-import { TYPES_ASSET, construireCode, estMethodeAsset, slugifyCode } from "../../assetCode";
+import { TYPES_ASSET, construireCode, estMethodeAsset, slugifyCode } from "../../assets/assetCode";
 import { TYPE_AFFICHE } from "../../posters/affiches";
-import { statutAsset } from "../../asset-etat";
-import { masterDe } from "../../registre-assets";
+import { statutAsset } from "../../assets/asset-etat";
+import { masterDe } from "../../assets/registre-assets";
 import type { ChangementBrut } from "../changements";
 import { apres, entierRef, REFUS_SUPPRESSION, texte, type Applicateur, type Db } from "./commun";
 

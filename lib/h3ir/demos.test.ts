@@ -12,7 +12,7 @@ import {
   planifierDemos,
 } from "./demos";
 import { briefDepuisPlan } from "./brief";
-import { slugifyCode, libelleAsset } from "../assetCode";
+import { slugifyCode, libelleAsset } from "../assets/assetCode";
 
 test("12 démos : 8 de style puis 4 de créativité, noms de fichiers distincts", () => {
   assert.equal(CLES_DEMOS.length, 12);

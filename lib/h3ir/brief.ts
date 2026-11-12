@@ -1,4 +1,4 @@
-import { libelleAsset, slugifyCode } from "../assetCode";
+import { libelleAsset, slugifyCode } from "../assets/assetCode";
 import { LANGUE_AUTO } from "../voice/langues-tts";
 import { MAX_REFS_AUDIO, MAX_REFS_VISUELLES } from "../plan-raccord";
 import { SHOT_MIN_FICHE_SECONDES } from "../plan-checks";

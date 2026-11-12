@@ -1,4 +1,4 @@
-import { construireCode } from "../assetCode";
+import { construireCode } from "../assets/assetCode";
 import type { ChangementBrut } from "../agents/changements";
 import { suffixeDeCode } from "../agents/conversion";
 import { correspondances } from "../agents/codes-proches";

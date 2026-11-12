@@ -1,4 +1,4 @@
-import type { Aspect } from "../asset-generation";
+import type { Aspect } from "../assets/asset-generation";
 
 /** Les scènes de présentation d'un style : les mêmes pour tous les styles, pour que la seule différence entre deux images
  * soit le style. Chaque scène teste autre chose (personnage, matières, effet lumineux, anatomie non humaine, décor et

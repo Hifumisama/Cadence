@@ -11,12 +11,12 @@ import {
   nomSourceDistante,
   videoDeMaster,
   parametresMasterVoix,
-} from "../lib/asset-generation";
+} from "../lib/assets/asset-generation";
 import { TYPE_AFFICHE } from "../lib/posters/affiches";
 import { annulationDemandeeImage, finirAnnulationImage } from "../lib/tasks/annulation-db";
-import { adopterCandidat } from "../lib/generation-adoption";
+import { adopterCandidat } from "../lib/assets/generation-adoption";
 import { extraireAudioDeVideo } from "../lib/voice/extraction-audio";
-import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/generation-sources";
+import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/assets/generation-sources";
 import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from "../lib/media";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import { cheminCanevasAffiche } from "./canevas-affiche";

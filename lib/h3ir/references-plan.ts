@@ -1,4 +1,4 @@
-import { libelleAsset } from "../assetCode";
+import { libelleAsset } from "../assets/assetCode";
 import { correspondances } from "../agents/codes-proches";
 import { sansConsigneAuteur, sansEtatDeFin } from "../intent";
 import { MAX_REFS_VISUELLES } from "../plan-raccord";

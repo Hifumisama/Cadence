@@ -2,7 +2,7 @@
  *
  * Une affiche se génère avec la MÊME mécanique qu'une image d'asset (file ComfyUI, candidats, « Utiliser »), donc elle
  * s'appuie sur un asset d'un type à part, `affiche`. Cet asset est un détail d'implémentation : il n'apparaît jamais dans
- * le registre, ne compte pas dans les totaux et n'est jamais montré à l'agent (voir `horsAffiches`, lib/assets-visibles.ts).
+ * le registre, ne compte pas dans les totaux et n'est jamais montré à l'agent (voir `horsAffiches`, lib/assets/assets-visibles.ts).
  * Quand un candidat est adopté, son image devient l'affiche du projet ou de l'épisode (`posterFichier`). Par défaut le titre
  * n'est pas dans l'image : il se superpose à l'affichage (components/ui/Poster.tsx) ; il peut aussi être écrit par le modèle
  * (ligne `Title lettering:` du prompt) et le fichier d'affiche porte alors le suffixe `-titre` (lib/posters/poster.ts). */

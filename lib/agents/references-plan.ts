@@ -1,4 +1,4 @@
-import { construireCode, libelleAsset, TYPES_ASSET } from "../assetCode";
+import { construireCode, libelleAsset, TYPES_ASSET } from "../assets/assetCode";
 import { LIMITE_IMAGES_PLAN, type CandidatReference, type Doute, type ReferenceChoisie } from "../h3ir/references-plan";
 import { correspondances } from "./codes-proches";
 import { suffixeDeCode } from "./conversion";

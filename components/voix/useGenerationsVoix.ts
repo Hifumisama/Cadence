@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 import type { GenerationVivante } from "@/components/assets/GenerationDialog";
 import { useTaches } from "@/components/taches/TachesProvider";
-import type { GenerationVue } from "@/lib/queries-generations";
+import type { GenerationVue } from "@/lib/assets/queries-generations";
 import { cleImage, estActive, pageEstPerimee, tachesDeAsset } from "@/lib/tasks/taches";
 
 /** Le suivi en direct des essais de voix du personnage : la progression, le rang

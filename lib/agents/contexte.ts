@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-orm";
 import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes } from "../../db/schema";
-import { horsAffiches } from "../assets-visibles";
+import { horsAffiches } from "../assets/assets-visibles";
 import { variantePromptAsset } from "../llm/variantes";
 import { WORKFLOW_IMPORT_MANUEL } from "../plan-checks";
 import { ORDRE_SECTIONS } from "../prompt";

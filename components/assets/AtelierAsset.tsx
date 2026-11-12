@@ -9,9 +9,9 @@ import { adopterGeneration, supprimerGeneration } from "@/app/assets/generation-
 import { ImagesJointes, type Jointe, type JointeDisponible } from "@/components/assets/ImagesJointes";
 import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
 import { Icone } from "@/components/ui/Icone";
-import { CANDIDATS_GARDES, STATUT_TRADUCTION, maxImagesJointes } from "@/lib/asset-generation";
+import { CANDIDATS_GARDES, STATUT_TRADUCTION, maxImagesJointes } from "@/lib/assets/asset-generation";
 import { urlMiniature } from "@/lib/miniatures";
-import type { GenerationVue } from "@/lib/queries-generations";
+import type { GenerationVue } from "@/lib/assets/queries-generations";
 import { ilYa } from "@/lib/temps-relatif";
 
 /** L'atelier d'une fiche d'asset (images), « comme la fiche de plan » : à gauche l'image dans son passe-partout et sa légende ; à droite, sous les

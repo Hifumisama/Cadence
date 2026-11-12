@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
-import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, type TypeAsset } from "@/lib/assetCode";
+import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, type TypeAsset } from "@/lib/assets/assetCode";
 
 async function enregistrerFichierAsset(code: string, fichier: File): Promise<string> {
   if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
@@ -53,7 +53,7 @@ export async function renommerAsset(assetId: number, label: string): Promise<{ o
   return { ok: true };
 }
 
-/** Valide (ou dévalide) un asset : la seule décision de statut qui se saisit (le reste se calcule, lib/asset-etat.ts). Sans fichier,
+/** Valide (ou dévalide) un asset : la seule décision de statut qui se saisit (le reste se calcule, lib/assets/asset-etat.ts). Sans fichier,
  * il n'y a rien à valider. */
 export async function definirValidation(assetId: number, valide: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const [asset] = await db.select({ fichier: assets.fichier }).from(assets).where(eq(assets.id, assetId));

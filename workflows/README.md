@@ -39,7 +39,7 @@ Branché côté worker : `worker/comfyui/imageMapping.ts` (injection) et
 `worker/images.ts` (tâche). `imageMapping.test.ts` lit ce fichier et casse si un
 des nœuds ci-dessus disparaît après un ré-export. Formats acceptés par
 `ResolutionSelector` : 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9 (chaînes exactes
-dans `lib/asset-generation.ts`).
+dans `lib/assets/asset-generation.ts`).
 
 ### `IMG_Simple_Edit.json` — édition (Qwen Image Edit 2511)
 

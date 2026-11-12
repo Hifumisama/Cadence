@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { agentConversations, agentRuns, assetGenerations, assets, briefs, projects } from "../../db/schema";
 import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../posters/affiches";
-import { nouvelleSeed } from "../asset-generation";
+import { nouvelleSeed } from "../assets/asset-generation";
 import { VARIANTE_AFFICHE } from "../llm/variantes";
 import { motDuTon, styleDesImages } from "../projects/conception";
 import { lireConception } from "../projects/conception-db";
@@ -18,7 +18,7 @@ import type { BriefContenu, PersonnageBrief } from "./types";
  *
  * Deux temps, portés par le worker : (1) une tâche du skill `prompt-asset`, variante `affiche` (but « affiche ») écrit le prompt à partir de la fiche de
  * l'entretien ; (2) à son retour (`ecrireAfficheEtGenerer`, appelée par worker/agents/postTraitement.ts), la génération part dans la file
- * des images avec adoption automatique, et son résultat devient l'affiche du projet (lib/generation-adoption.ts). */
+ * des images avec adoption automatique, et son résultat devient l'affiche du projet (lib/assets/generation-adoption.ts). */
 
 /** Ce qui nourrit l'affiche, lu dans la fiche de l'entretien, la conception et le style du projet. */
 export type DonneesAffiche = {

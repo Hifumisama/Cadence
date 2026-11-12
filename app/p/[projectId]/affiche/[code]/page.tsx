@@ -12,7 +12,7 @@ import { Topbar } from "@/components/ui/Topbar";
 import { lirePersonnagePrincipal } from "@/lib/agents/affiche";
 import { TYPE_AFFICHE, cibleDeCodeAffiche, titreDansPrompt } from "@/lib/posters/affiches";
 import { posterSrc } from "@/lib/media";
-import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
+import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/assets/queries-generations";
 import "./affiche.css";
 
 export const dynamic = "force-dynamic";

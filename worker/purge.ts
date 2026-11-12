@@ -2,7 +2,7 @@ import { and, eq, inArray, lt, notExists, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns, assetGenerations, jobs, propositions } from "../db/schema";
 import { ERREUR_ANNULEE, SEUIL_PURGE_ECHECS_MS, estPurgeable } from "../lib/tasks/annulation";
-import { supprimerGenerationEtFichiers } from "../lib/generation-sources";
+import { supprimerGenerationEtFichiers } from "../lib/assets/generation-sources";
 
 // Purge des échecs « à l'échelle de la journée » : une demande d'image échouée ou
 // annulée depuis plus de 24 h disparaît (ligne, fichiers d'import devenus

@@ -4,8 +4,8 @@ import { and, asc, desc, eq, inArray, lt, ne } from "drizzle-orm";
 import { db } from "../../db";
 import { agentRuns, assetGenerations, assets, demandes, planRefs, plans } from "../../db/schema";
 import type { Db } from "../agents/applicateurs/commun";
-import { horsAffiches } from "../assets-visibles";
-import { poserGenerationsLot } from "../generation-lancement";
+import { horsAffiches } from "../assets/assets-visibles";
+import { poserGenerationsLot } from "../assets/generation-lancement";
 import { cheminAssetMedia, MEDIA_ROOT } from "../media";
 import { estEtapeFinale, type ContexteFichePlan, type EtapeDemande } from "../tasks/demandes";
 import { ecrireReferencesPlan } from "./references-ecriture";
@@ -70,7 +70,7 @@ export async function etatImagesAssets(projectId: number, codes: string[], depui
   });
 }
 
-/** Met en file les images de ces assets (prompt et format par défaut de leur type, ADOPTION AUTOMATIQUE : lib/generation-lancement.ts). Les écartés
+/** Met en file les images de ces assets (prompt et format par défaut de leur type, ADOPTION AUTOMATIQUE : lib/assets/generation-lancement.ts). Les écartés
  * (déjà en file, master sans image…) se relancent au tour suivant. */
 export async function lancerImagesAssets(projectId: number, codes: string[]): Promise<{ lancees: number; ecartes: { code: string; raison: string }[] }> {
   if (codes.length === 0) return { lancees: 0, ecartes: [] };

@@ -5,7 +5,7 @@
 
 
 
-import type { GenerationVue } from "@/lib/queries-generations";
+import type { GenerationVue } from "@/lib/assets/queries-generations";
 import type { GenreTache } from "@/lib/tasks/taches";
 
 

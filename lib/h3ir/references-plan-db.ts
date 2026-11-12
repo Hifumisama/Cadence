@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, lt } from "drizzle-orm";
 import { assets, briefs, planRefs, plans, scenes } from "../../db/schema";
 import type { Db } from "../agents/applicateurs/commun";
-import { horsAffiches } from "../assets-visibles";
+import { horsAffiches } from "../assets/assets-visibles";
 import { liaisonOuDefaut } from "../plan-liaison";
 import { choisirReferences, type CandidatReference, type EntreeReferencesPlan, type ResultatReferencesPlan } from "./references-plan";
 

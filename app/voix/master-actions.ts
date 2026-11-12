@@ -5,7 +5,7 @@ import { assetGenerations, assets } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { unlink } from "node:fs/promises";
-import { DUREE_TEST_VIDEO_SECONDES, METHODE_MASTER_VOIX, nouvelleSeed } from "@/lib/asset-generation";
+import { DUREE_TEST_VIDEO_SECONDES, METHODE_MASTER_VOIX, nouvelleSeed } from "@/lib/assets/asset-generation";
 import { langueDesDialogues } from "@/lib/voice/langue-dialogues";
 import { MEDIA_ROOT, cheminAssetMedia, cheminVoixMedia, estImage, fichierMediaExiste } from "@/lib/media";
 import { nbImagesEnAttente, rangDansLaFile } from "@/lib/tasks/queries-taches";

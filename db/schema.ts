@@ -262,7 +262,7 @@ export const assets = pgTable("assets", {
     .references(() => projects.id, { onDelete: "cascade" }),
   code: varchar("code", { length: 100 }).notNull(), // CHAR_maya, DEC_auberge_salle... : l'IDENTIFIANT, immuable (nomme le fichier, cité tel quel par le backend)
   // Le nom que l'utilisateur donne et peut changer : il prime dans l'interface, jamais côté backend. null = on affiche le code lisible
-  // (`libelleAsset`, lib/assetCode.ts).
+  // (`libelleAsset`, lib/assets/assetCode.ts).
   label: varchar("label", { length: 120 }),
   type: varchar("type", { length: 30 }).notNull(), // personnage | decor | prop | vfx | keyframe | oth
   description: text("description"),
@@ -280,7 +280,7 @@ export const assets = pgTable("assets", {
   // Quand le fichier a été posé ou remplacé (adoption, import, prise de voix) : un plan dont le dernier rendu est
   // antérieur est « périmé » (lib/plans-perimes.ts). null = jamais posé.
   fichierAt: timestamp("fichier_at"),
-  // Validé à la main (ou par défaut à l'import d'un fichier). Le statut affiché et la criticité se CALCULENT (lib/asset-etat.ts) :
+  // Validé à la main (ou par défaut à l'import d'un fichier). Le statut affiché et la criticité se CALCULENT (lib/assets/asset-etat.ts) :
   // plus de colonne `statut` ni `critique`. Un fichier remplacé par une génération adoptée repasse à false.
   valide: boolean("valide").notNull().default(false),  // Voix du PERSONNAGE (chantier voix/master, 2026-10-14) : une voix n'existe que portée par un personnage (la voix off en est un). Sans
   // objet pour les autres types. `voixDescription` : la voix voulue, en texte libre (null = laissée au modèle) ; `voixRepliqueBase` : la
@@ -340,7 +340,7 @@ export const assetGenerations = pgTable("asset_generations", {
   etapeLibelle: varchar("etape_libelle", { length: 80 }),
   // Génération lancée par un LOT : le worker l'adopte toute seule à sa fin (elle devient l'image de l'asset).
   adoptionAuto: boolean("adoption_auto").notNull().default(false),
-  // Ce que la méthode fige au lancement quand les colonnes ci-dessus ne suffisent pas (voir lib/asset-generation.ts,
+  // Ce que la méthode fige au lancement quand les colonnes ci-dessus ne suffisent pas (voir lib/assets/asset-generation.ts,
   // `ParametresMasterVoix`) : l'image du personnage d'un master de voix. null pour les images et les sons.
   parametres: jsonb("parametres"),
   apercuFichier: varchar("apercu_fichier", { length: 255 }),

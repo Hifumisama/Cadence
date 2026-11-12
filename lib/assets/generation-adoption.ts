@@ -1,12 +1,12 @@
 import { copyFile, mkdir, unlink } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { eq } from "drizzle-orm";
-import { db } from "../db";
-import { assetGenerations, assets } from "../db/schema";
-import { appliquerAffiche } from "./posters/affiche-application";
-import { TYPE_AFFICHE, titreDansPrompt } from "./posters/affiches";
+import { db } from "../../db";
+import { assetGenerations, assets } from "../../db/schema";
+import { appliquerAffiche } from "../posters/affiche-application";
+import { TYPE_AFFICHE, titreDansPrompt } from "../posters/affiches";
 import { METHODE_MASTER_VOIX, videoDeMaster } from "./asset-generation";
-import { cheminAssetMedia, cheminGenerationMedia, cheminVoixMedia } from "./media";
+import { cheminAssetMedia, cheminGenerationMedia, cheminVoixMedia } from "../media";
 
 /** Adopter un candidat : son fichier devient l'image (ou le son) de l'asset, et son prompt celui de l'asset. Partagé par
  * l'action « Adopter » de l'interface (app/assets/generation-actions.ts) et par le worker, qui adopte tout seul les générations d'un

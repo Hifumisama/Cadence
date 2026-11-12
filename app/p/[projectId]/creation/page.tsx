@@ -11,7 +11,7 @@ import { resumeMiseEnScene } from "@/lib/h3ir/reglages";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getFirstEpisodeId, getProject } from "@/lib/queries";
 import { lireBrief } from "@/lib/queries-agents";
-import { lireEtatImages } from "@/lib/queries-images";
+import { lireEtatImages } from "@/lib/assets/queries-images";
 
 export const dynamic = "force-dynamic";
 

@@ -1,4 +1,4 @@
-import { ASPECTS_COMFYUI, type Aspect } from "../../lib/asset-generation";
+import { ASPECTS_COMFYUI, type Aspect } from "../../lib/assets/asset-generation";
 
 /**
  * Nœuds du graphe IMG_01_TextToImage.json (format API, Krea 2 Turbo). Le

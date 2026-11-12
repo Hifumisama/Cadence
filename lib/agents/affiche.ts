@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import { assets, episodes, projects } from "../../db/schema";
 import { cibleDeCodeAffiche, personnagePrincipal, titreDansPrompt, type CibleAffiche } from "../posters/affiches";
-import { horsAffiches } from "../assets-visibles";
+import { horsAffiches } from "../assets/assets-visibles";
 import { VARIANTE_AFFICHE } from "../llm/variantes";
-import { imageActuelle } from "../queries-generations";
+import { imageActuelle } from "../assets/queries-generations";
 import type { Db } from "./applicateurs/commun";
 import { extraitsBrief, lireBriefDuProjet, type EntreeSkill } from "./contexte";
 

@@ -4,14 +4,14 @@ import { and, eq, inArray } from "drizzle-orm";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { formatParDefaut, nouvelleSeed, raisonDemandeInvalide, type DemandeGeneration } from "./asset-generation";
-import { styleDesEditions, styleDesImages } from "./projects/conception";
+import { styleDesEditions, styleDesImages } from "../projects/conception";
 import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "./generation-lot";
-import { MEDIA_ROOT, cheminAssetMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "./media";
-import { nbImagesEnAttente, rangDansLaFile } from "./tasks/queries-taches";
-import { PLAFOND_FILE_IMAGES } from "./tasks/taches";
+import { MEDIA_ROOT, cheminAssetMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "../media";
+import { nbImagesEnAttente, rangDansLaFile } from "../tasks/queries-taches";
+import { PLAFOND_FILE_IMAGES } from "../tasks/taches";
 
 // Mise en file des générations d'images, SANS Next (ni revalidatePath) : le worker l'appelle aussi (images lancées
-// toutes seules pendant la création d'un projet, voir lib/images-auto.ts). Les actions serveur de
+// toutes seules pendant la création d'un projet, voir lib/assets/images-auto.ts). Les actions serveur de
 // app/assets/generation-actions.ts l'enveloppent et rafraîchissent l'écran.
 
 /** `position` : 1 = la génération part tout de suite ; n = n-1 tâches passent devant. */
@@ -100,7 +100,7 @@ async function poserGeneration(assetId: number, demande: DemandeGeneration, plaf
 /** Génération EN LOT (registre d'assets) : chaque asset coché part dans la file avec SON prompt, au format par défaut
  * de son type (texte), ou en édition à partir de l'image de son master (dérivé). Les assets qui ne peuvent pas partir
  * (voix, son, sans prompt, déjà en file, dérivé dont le master n'a pas d'image) sont rendus avec leur raison : rien
- * n'est silencieusement ignoré. Règles dans lib/generation-lot.ts. */
+ * n'est silencieusement ignoré. Règles dans lib/assets/generation-lot.ts. */
 export async function poserGenerationsLot(
   projectId: number,
   assetIds: number[],
