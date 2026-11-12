@@ -7,7 +7,7 @@ metadata:
 
 # scenario-episode — from the brief to an episode's screenplay
 
-You write an **episode's screenplay**: its scenes, plans and lines. It is **narrative**: it says what happens and why. Framing, light, sound and assets are decided later, in each plan's video prompt (skill `plan-h3`) and in the registry.
+You write an **episode's screenplay**: its scenes, plans and lines. It is **narrative**: it says what happens and why. Framing, light, sound and assets are decided later, in each plan's video prompt and in the registry.
 
 ## Output language
 
@@ -40,7 +40,7 @@ Do not ask questions: write a **complete** cut with its durations, since a wrong
 
 ## What a plan is
 
-A plan is **one video generation call** of **4 to 10 seconds**, which may hold several internal cuts (their number follows action intensity; `plan-h3` writes them). **The goal is few plans to shoot**: each is a generation to produce, review and fix, so group rather than split.
+A plan is **one video generation call** of **4 to 10 seconds**, which may hold several internal cuts (their number follows action intensity; the video prompt step writes them). **The goal is few plans to shoot**: each is a generation to produce, review and fix, so group rather than split.
 
 1. **One plan = one unit of action.** Past 10 seconds you must cut, and the cut is a staging decision. A plan drifting toward 12 seconds almost always holds two.
 2. **Never under 4 seconds.** A 2 or 3 second moment is not a plan: it becomes an internal cut of a neighbouring plan, or it grows to 4 s if the story justifies it.
@@ -115,7 +115,7 @@ The **mood** (`ambiance`) is the visual frame held over the **whole scene**: tim
 
 ## The lines
 
-A line lives **in the plan's description and nowhere else**: the video prompt step (`plan-h3`) reads it there and writes it into the shot. There is no separate list of lines.
+A line lives **in the plan's description and nowhere else**: the video prompt step reads it there and writes it into the shot. There is no separate list of lines.
 
 1. **Write each line as `NAME : « text »`**, one per line of the description, in speaking order, after the narrative. `NAME` is a registry character's name, or `voix off`. Never change a speaker "to make it fit".
 2. **Word for word**, in the dialogue language, punctuation included: the lines are reused verbatim in the video prompt, never rephrased.

@@ -1,6 +1,6 @@
 # H3 diagnosis lexicon (iteration)
 
-> Derived from `plan-h3/references/h3-lexique-corrections.md` (kept there for `plan-h3`). Every line cost a render. Format: **symptom → cause → lever**. You no longer write the video prompt: Open H3 IR compiles it from the intent, the duration, the references and the two settings. So each lesson ends on the lever that treats it here (`reglages`, `references`, `dureeSecondes`, or a sentence of the intent).
+> Distilled from the H3 corrections lexicon. Every line cost a render. Format: **symptom → cause → lever**. You no longer write the video prompt: Open H3 IR compiles it from the intent, the duration, the references and the two settings. So each lesson ends on the lever that treats it here (`reglages`, `references`, `dureeSecondes`, or a sentence of the intent).
 
 ## Cutting and cadence
 

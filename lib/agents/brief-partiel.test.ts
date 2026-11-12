@@ -97,7 +97,7 @@ test("clause de style et notes du projet : le SEUL écrivain est brief-db.ts (sy
   for (const dossier of ["app", "lib", "worker", "components", "scripts"]) {
     for (const f of sources(dossier)) {
       const chemin = f.split("\\").join("/");
-      if (chemin === "lib/agents/brief-db.ts" || chemin.startsWith("scripts/agents-e2e")) continue;
+      if (chemin === "lib/agents/brief-db.ts") continue;
       const code = readFileSync(f, "utf-8");
       // `.update(projects).set({ … clauseStyle | notes … })` : un écrivain direct.
       for (const m of code.matchAll(/\.update\(\s*projects\s*\)\s*\.set\(\s*\{([^}]*)\}/g)) {

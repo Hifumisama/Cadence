@@ -101,7 +101,7 @@ export function PlanScenarioPanel({
 
   if (!brouillon && !editionOuverte) {
     const reglages = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene, plan: { creativite: initial.creativite, styleCamera: initial.styleCamera } });
-    // L'intent affiché : sans la « Consigne de l'auteur » (elle double le récit quand il la respecte ; plan-h3 la lit toujours en base) ni l'ancien « État en fin de plan ».
+    // L'intent affiché : sans la « Consigne de l'auteur » (elle double le récit quand il la respecte ; traduction-intent la lit toujours en base) ni l'ancien « État en fin de plan ».
     const intent = intentAffichee(initial.description);
     const horsBornes = dureeGeneration != null && (dureeGeneration < DUREE_GENERATION_MIN || dureeGeneration > DUREE_GENERATION_MAX);
     return (

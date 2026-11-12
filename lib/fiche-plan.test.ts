@@ -235,7 +235,7 @@ test("decisionIteration : une proposition iteration-plan (aucun changement) avec
   assert.equal(decisionIteration(prop({ diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, decisions: null } })).action, "appliquer");
 });
 
-test("decisionIteration : une réécriture (plan-h3) applique la fiche ET crée les assets qu'elle déclare manquants (note : pas encore d'image) ; sans fiche appliquable, rien n'est créé", () => {
+test("decisionIteration : une proposition avec créations d'assets applique la fiche ET crée les assets qu'elle déclare manquants (note : pas encore d'image) ; sans fiche appliquable, rien n'est créé", () => {
   const d = decisionIteration(
     prop({
       diagnostic: null,

@@ -15,7 +15,7 @@
  *   const est = await estimerGeneration(conv.uuid);                  // « ~80 s, local : gratuit »
  */
 
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentConversations, agentRuns, assets, briefs, episodes, plans, propositionChangements, propositions } from "../db/schema";
 import { briefVide, construireSections, sansClesAbandonnees } from "./agents/brief";
@@ -39,7 +39,6 @@ import type {
   Portee,
   Position,
   RangDeplace,
-  ResumeProposition,
   StatutChamp,
   StatutProposition,
   VueBrief,
@@ -311,44 +310,6 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
 export async function lireProposition(propositionUuid: string): Promise<VueProposition | null> {
   const p = await propositionParUuid(propositionUuid);
   return p ? versVueProposition(p) : null;
-}
-
-
-// --- contexte, estimation, historique ----------------------------------------
-
-
-
-
-
-
-
-
-/** Historique des propositions d'un projet (pour la page Monitoring ; la popup ne l'affiche pas). */
-export async function listerPropositions(projectId: number, limite = 50): Promise<ResumeProposition[]> {
-  const lignes = await db.select().from(propositions).where(eq(propositions.projectId, projectId)).orderBy(desc(propositions.createdAt)).limit(limite);
-  if (lignes.length === 0) return [];
-  const comptes = await db
-    .select({
-      id: propositionChangements.propositionId,
-      total: count(),
-      appliques: sql<number>`count(${propositionChangements.appliqueAt})`,
-    })
-    .from(propositionChangements)
-    .where(inArray(propositionChangements.propositionId, lignes.map((l) => l.id)))
-    .groupBy(propositionChangements.propositionId);
-  const parId = new Map(comptes.map((c) => [c.id, c]));
-  return lignes.map((l) => ({
-    uuid: l.uuid,
-    statut: l.statut as StatutProposition,
-    skill: l.skill,
-    portee: l.portee as Portee,
-    consigne: l.consigne,
-    resume: l.resume,
-    nbChangements: Number(parId.get(l.id)?.total ?? 0),
-    nbAppliques: Number(parId.get(l.id)?.appliques ?? 0),
-    createdAt: l.createdAt.toISOString(),
-    appliedAt: l.appliedAt?.toISOString() ?? null,
-  }));
 }
 
 

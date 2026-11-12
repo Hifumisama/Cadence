@@ -74,7 +74,7 @@ function suffixeSkill(skill: string): string {
 
 /** Tous les skills partent SANS réflexion tant qu'aucune variable ne dit le contraire. Mesuré sur gemma-4 (2026-10-07) : pour
  * traduire une description en prompt, la réflexion pesait ~90 % des jetons de sortie (1 500 jetons pour une réponse de 130,
- * 30 s au lieu de 1). Mesuré sur Swift (traces 2026-10-26) : plan-h3 produisait ~26 000 caractères de réflexion pour 4 500 de
+ * 30 s au lieu de 1). Mesuré sur Swift (traces 2026-10-26) : un skill produisait ~26 000 caractères de réflexion pour 4 500 de
  * sortie (110 s par plan), scenario-episode 151 s, relecture-scenario 131 s, et un iteration-plan est allé au délai de 600 s
  * sans rien rendre. Le drapeau est honoré par le serveur (`reasoning_budget`, lui, ne l'est pas). Rétablir la réflexion d'un
  * skill : `LLM_CORPS_<SKILL>={}`. */

@@ -1,5 +1,5 @@
 // Contrôles mécaniques de la Fiche de plan — voir docs/FRICTIONS.md F02/F03
-// et agents/skills/plan-h3/SKILL.md. Aucun n'a besoin d'IA : c'est la
+// et la compilation Open H3 IR. Aucun n'a besoin d'IA : c'est la
 // vérification qui remplace la relecture manuelle avant validation.
 
 import { dureeEffectiveSecondes } from "./grille-images";
@@ -61,7 +61,7 @@ export function extraireBalisesD(sections: PromptSection[]): BaliseD[] {
  * `derivees` : les refs audio qui sont la VOIX d'un personnage (son master,
  * `lib/queries-voix-plan.ts`). Elles comptent comme
  * déclarées (un prompt qui les cite n'a pas de label orphelin) mais ne sont
- * jamais « non citées » : le contrat de plan-h3 et les fiches validées de
+ * jamais « non citées » : les fiches compilées et les fiches validées de
  * l'épisode 1 ne citent pas les voix (docs/FRICTIONS.md, « iteration-plan
  * branché », 2026-10-02). Une ref de plan_refs (image) non citée
  * reste signalée. */

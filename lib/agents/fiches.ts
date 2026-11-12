@@ -8,7 +8,7 @@ import { estCreativite, estMiseEnScene, STYLE_AUCUN } from "../h3ir/reglages";
  * de génération). Règles PURES (sans base ni Next), partagées par la conversion, l'applicateur `fiche`,
  * le service et les tests. Voir docs/FRICTIONS.md, « Étape 3 branchée » (2026-10-02).
  *
- * Une fiche s'écrit en entier (plan-h3 : les six sections ET les références, « régénérer = tout
+ * Une fiche s'écrit en entier (Open H3 IR : les six sections ET les références, « régénérer = tout
  * régénérer ») ou en partie (iteration-plan, lib/agents/iteration-plan.ts : seulement les sections corrigées,
  * sans toucher aux autres ni aux références). Les voix ne sont JAMAIS des lignes de `plan_refs` : leurs slots `<Audio N>`
  * viennent de `plan_dialogues` et restent ceux de la base. */
@@ -59,7 +59,7 @@ export type ApresFiche = {
    * le PERSONNAGE qui parle dans le prompt. Les anciennes liaisons (`plan_dialogues`) du plan sont détachées à l'écriture et ne comptent plus. */
   voixDuPrompt?: boolean;
   /** La fiche vient du compilateur Open H3 IR (lib/h3ir/conversion.ts) : l'applicateur garde alors le prompt remplacé dans l'historique du prompt
-   * (source « avant ») et y inscrit le nouveau (source « compilation »). Absent = fiche de `plan-h3`, qui n'écrit pas l'historique. */
+   * (source « avant ») et y inscrit le nouveau (source « compilation »). */
   moteur?: "h3ir";
   /** Réglages Open H3 IR du PLAN décidés par « Itérer » (2026-11-09) : la valeur REMPLACE `plans.creativite` / `plans.style_camera` (`"aucun"` = pas de
    * style). Absent = on n'y touche pas. Écrits avec la fiche compilée qui les a utilisés. */

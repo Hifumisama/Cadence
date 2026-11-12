@@ -54,7 +54,7 @@ export async function purgerEchecs(
 
 /** Les appels LLM échoués ou annulés avant `limite`, sauf les sous-tâches d'un lot dont la proposition
  * est encore ouverte (la revue en a besoin). Exportée pour être testée seule. */
-export async function purgerAppelsLlm(limite: Date): Promise<number> {
+async function purgerAppelsLlm(limite: Date): Promise<number> {
   const supprimes = await db
     .delete(agentRuns)
     .where(

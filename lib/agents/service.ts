@@ -14,13 +14,13 @@ import {
   scenes,
 } from "../../db/schema";
 import { valider } from "../llm/validation";
-import { VARIANTE_AFFICHE } from "../llm/variantes";
+
 import { contexteTotalDepuisEnv } from "../llm/budget-contexte";
 import { chargerSkill } from "../llm/skills";
 import { budgetInventaire, cleSousTacheInventaire, decouperInventaire, groupeInventaireDeCle, type OptionsRunInventaire } from "./inventaire";
 import { assetsACreer, ecrireReferencesApresApplication } from "./inventaire-db";
 import { SCHEMA_BRIEF, SECTIONS_FIGEES_PAR_LA_CONCEPTION, estCleSection, sousSchemaSection } from "./brief";
-import { abandonnerBrouillon, creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
+import { creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
 import { accrocheEntretien } from "./accroche";
 import { choixActif, formulerReponse, selectionValide } from "./choix";
 import { entreeNotes, ficheVersBrief, type Fiche } from "./fiche";
@@ -28,26 +28,26 @@ import { lireConception, ouvertureConcue } from "../conception-db";
 import { ficheCourante } from "./fiche-db";
 import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversation, PlaceScene, Portee, Position, Profondeur, Resultat, StatutChamp } from "./types";
 import { PORTEES } from "./types";
-import { controleDuree } from "./applicateurs/plan";
-import { cocheParDefaut, groupeAffiche, raisonNonCochable } from "./cochage";
+
+import { groupeAffiche, raisonNonCochable } from "./cochage";
 import { TYPE_AFFICHE } from "../affiches";
 import { entreePromptAffiche } from "./affiche";
 import { entreeCorrectionPlan, entreeRelecture, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, entreeScenarioScene, entreeTraitement, lireBriefDuProjet, type EntreeSkill } from "./contexte";
 import { SEUIL_TRAITEMENT_SECONDES } from "./traitement";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
 import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registre";
-import { annulerLot, annulerRunsDePropositions, runsDuLot, type ResultatAnnulationLot } from "./lots";
+import { annulerRunsDePropositions, runsDuLot } from "./lots";
 import { cleSousTacheEpisode, cleSousTacheScene, dernieresSousTaches, episodeIdDeCle, estRunActif, sceneIdDeCle } from "./lots-pur";
 import { appliquerProposition, enregistrerChangements } from "./proposition-db";
 import { creerRun, tacheBloquante, type ButRun, type TacheBloquante } from "./runs";
 import { squeletteDepuisBrief } from "./squelette";
 import type { Avertissement, ResultatApplication } from "./types";
-import { entreeIterationPlan, entreeInventaire, entreeReferencesPlan, etatIterationPlan } from "./contexte";
+import { entreeIterationPlan, entreeInventaire, entreeReferencesPlan } from "./contexte";
 import { SKILL_REFERENCES_PLAN } from "./references-plan";
 import { SKILL_ASSETS_MANQUANTS, brutsManquants, type ManquantRetenu } from "../h3ir/preparation";
 import { ecrireReferencesDuSkill } from "../h3ir/preparation-db";
 import { cleSousTachePlan, planUuidDeCle } from "./fiches";
-import type { ContexteUtilise, EtatIterationPlan, PlanPourFiche } from "./types";
+import type { ContexteUtilise, PlanPourFiche } from "./types";
 import { SKILL_H3IR, type EntreeH3ir } from "../h3ir/resultat";
 import { preparerDepart } from "../h3ir/retouche";
 import { referencesApresDecisions } from "../h3ir/brief-plan";
@@ -203,25 +203,6 @@ export async function ouvrirConversation(projectId: number, portee: Portee, cibl
   return apres ? { ok: true, conversationUuid: apres.uuid, reprise: true } : ERR("Conversation non créée.");
 }
 
-export async function nouvelleConversation(projectId: number, portee: Portee, cible: CibleDemandee | null, profondeur?: Profondeur): Promise<Resultat<{ conversationUuid: string }>> {
-  const r = await resoudreCible(projectId, portee, cible);
-  if ("erreur" in r) return ERR(r.erreur);
-  const existante = await trouver(projectId, portee, r.cibleId);
-  if (existante) {
-    await arreterTravaux(existante.id);
-    if (portee === "projet") await abandonnerBrouillon(db, projectId);
-    await db.delete(agentConversations).where(eq(agentConversations.id, existante.id)); // propositions : conversation_id → null
-  }
-  const p = profondeur ?? existante?.profondeur ?? profondeurParDefaut(portee);
-  const ouv = await ouverture(projectId, portee, p as Profondeur);
-  const [c] = await db
-    .insert(agentConversations)
-    .values({ projectId, portee, cibleId: r.cibleId, profondeur: p, etape: etapeInitiale(p as Profondeur), messages: ouv.messages, fiche: ouv.fiche })
-    .returning({ uuid: agentConversations.uuid });
-  await lancerAccrocheSiConcu(c!.uuid, projectId, ouv.entreeAccroche);
-  return { ok: true, conversationUuid: c!.uuid };
-}
-
 async function lancerAccrocheSiConcu(conversationUuid: string, projectId: number, entree: object | null) {
   if (!entree) return;
   const conv = await conversationParUuid(conversationUuid);
@@ -238,20 +219,6 @@ export async function relancerAccroche(conversationUuid: string): Promise<Result
   const o = await ouvertureConcue(db, conv.projectId);
   if (!o) return ERR("Ce projet n'a pas de conception : pas d'accroche à écrire.");
   await lancerAccroche(conv.id, conv.projectId, o.entreeAccroche);
-  return { ok: true };
-}
-
-export async function reinitialiser(conversationUuid: string): Promise<Resultat> {
-  const conv = await conversationParUuid(conversationUuid);
-  if (!conv) return ERR("Conversation introuvable.");
-  await arreterTravaux(conv.id);
-  if (conv.portee === "projet") await db.delete(briefs).where(and(eq(briefs.projectId, conv.projectId), eq(briefs.statut, "brouillon")));
-  const ouv = await ouverture(conv.projectId, conv.portee as Portee, conv.profondeur as Profondeur);
-  await db
-    .update(agentConversations)
-    .set({ messages: ouv.messages, consigne: "", briefPret: false, resteADefinir: [], fiche: ouv.fiche, propositionId: null, etape: etapeInitiale(conv.profondeur as Profondeur), updatedAt: new Date() })
-    .where(eq(agentConversations.id, conv.id));
-  if (ouv.entreeAccroche) await lancerAccroche(conv.id, conv.projectId, ouv.entreeAccroche);
   return { ok: true };
 }
 
@@ -311,35 +278,6 @@ export async function genererBrief(conversationUuid: string): Promise<Resultat> 
     await ecrireBrouillon(tx, conv.projectId, { contenu: genere.contenu, statuts: genere.statuts as Record<string, StatutChamp> });
     await tx.update(agentConversations).set({ etape: "brief", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
   });
-  return { ok: true };
-}
-
-/** Abandonne le brouillon de brief et revient à l'étape conversation (conversation conservée). Un
- * brief VALIDÉ ne se rejette pas : on le modifie section par section. */
-export async function rejeterBrief(conversationUuid: string): Promise<Resultat> {
-  const conv = await conversationParUuid(conversationUuid);
-  if (!conv) return ERR("Conversation introuvable.");
-  if (conv.profondeur !== "complete") return ERR("Il n'y a pas de brief dans une conversation courte.");
-  const [b] = await db.select({ id: briefs.id, statut: briefs.statut }).from(briefs).where(eq(briefs.projectId, conv.projectId));
-  if (b?.statut === "valide") return ERR("Le brief est validé : modifie-le section par section.");
-  // Une génération de brief ou de proposition en cours n'a plus d'objet : on l'arrête.
-  await db
-    .update(agentRuns)
-    .set({ statut: "annulee", finishedAt: new Date() })
-    .where(and(eq(agentRuns.conversationId, conv.id), eq(agentRuns.statut, "en_attente"), inArray(agentRuns.but, ["brief", "proposition"])));
-  await db
-    .update(agentRuns)
-    .set({ annulationDemandeeAt: new Date() })
-    .where(and(eq(agentRuns.conversationId, conv.id), eq(agentRuns.statut, "en_cours"), inArray(agentRuns.but, ["brief", "proposition"])));
-  await db
-    .update(propositions)
-    .set({ statut: "rejetee" })
-    .where(and(eq(propositions.conversationId, conv.id), inArray(propositions.statut, ["en_generation", "prete"])));
-  if (b) await abandonnerBrouillon(db, conv.projectId); // le brief partiel (style, notes) n'est jamais touché
-  await db
-    .update(agentConversations)
-    .set({ etape: "conversation", briefPret: false, propositionId: null, updatedAt: new Date() })
-    .where(eq(agentConversations.id, conv.id));
   return { ok: true };
 }
 
@@ -510,19 +448,6 @@ export async function rafraichirStatut<T extends typeof propositions.$inferSelec
   return p;
 }
 
-export async function cocherChangement(changementId: number, coche: boolean): Promise<Resultat> {
-  const [c] = await db.select().from(propositionChangements).where(eq(propositionChangements.id, changementId));
-  if (!c) return ERR("Changement introuvable.");
-  const [prop] = await db.select({ statut: propositions.statut }).from(propositions).where(eq(propositions.id, c.propositionId));
-  if (prop?.statut !== "prete") return ERR("Cette proposition n'est plus modifiable.");
-  if (coche) {
-    const raison = raisonNonCochable({ avertissements: (c.avertissements ?? []) as Avertissement[], refuseRaison: c.refuseRaison });
-    if (raison) return ERR(raison);
-  }
-  await db.update(propositionChangements).set({ coche }).where(eq(propositionChangements.id, changementId));
-  return { ok: true };
-}
-
 export async function cocherChangements(propositionUuid: string, selection: { groupe?: string; ids?: number[] }, coche: boolean): Promise<Resultat<{ modifies: number }>> {
   const prop = await propositionParUuid(propositionUuid);
   if (!prop) return ERR("Proposition introuvable.");
@@ -535,57 +460,6 @@ export async function cocherChangements(propositionUuid: string, selection: { gr
   });
   if (cibles.length) await db.update(propositionChangements).set({ coche }).where(inArray(propositionChangements.id, cibles.map((c) => c.id)));
   return { ok: true, modifies: cibles.length };
-}
-
-export async function corrigerChangement(changementId: number, valeurs: { dureeGenerationSecondes?: number }): Promise<Resultat> {
-  const [c] = await db.select().from(propositionChangements).where(eq(propositionChangements.id, changementId));
-  if (!c) return ERR("Changement introuvable.");
-  if (c.cibleType !== "plan") return ERR("Seul un plan se corrige sur place.");
-  if (valeurs.dureeGenerationSecondes === undefined) return ERR("Rien à corriger.");
-  const w = controleDuree(valeurs.dureeGenerationSecondes);
-  if (w) return ERR(w.texte);
-  const apres = { ...((c.apres ?? {}) as Record<string, unknown>), dureeGenerationSecondes: valeurs.dureeGenerationSecondes };
-  const avertissements = ((c.avertissements ?? []) as Avertissement[]).filter((a) => a.type !== "bloque_controle");
-  await db
-    .update(propositionChangements)
-    .set({
-      apres,
-      avertissements,
-      coche: cocheParDefaut({ operation: c.operation as "creer" | "modifier" | "supprimer", avertissements, ecrase: c.ecrase, refuseRaison: c.refuseRaison }),
-    })
-    .where(eq(propositionChangements.id, changementId));
-  return { ok: true };
-}
-
-export async function affiner(propositionUuid: string, retour: string): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
-  const parent = await propositionParUuid(propositionUuid);
-  if (!parent) return ERR("Proposition introuvable.");
-  const texte = retour.trim();
-  if (!texte) return ERR("Dis ce qu'il faut changer.");
-  if (parent.skill === "squelette") return ERR("Le squelette se construit depuis le brief : corrige le brief, puis régénère la proposition.");
-  if (parent.lot) return ERR("Un lot ne s'affine pas en bloc : relance la sous-tâche qui ne convient pas, avec ton retour.");
-  if (parent.conversationId == null) return ERR("La conversation de cette proposition n'existe plus.");
-  const [conv] = await db.select().from(agentConversations).where(eq(agentConversations.id, parent.conversationId));
-  if (!conv) return ERR("La conversation de cette proposition n'existe plus.");
-  if (parent.runId == null) return ERR("Cette proposition n'a pas de tâche à rejouer.");
-  const [runParent] = await db.select().from(agentRuns).where(eq(agentRuns.id, parent.runId));
-  if (!runParent) return ERR("La tâche d'origine est introuvable.");
-  { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
-
-  const optionsParent = (runParent.options ?? null) as { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null; place?: PlaceScene } | null;
-  const entree = {
-    ...(runParent.entree as Record<string, unknown>),
-    retourUtilisateur: texte,
-    propositionPrecedente: runParent.resultat ?? null,
-  };
-  // Une proposition d'affiche écrite avant la fusion porte encore l'ancien skill `prompt-affiche` : elle se rejoue en variante `affiche` de `prompt-asset`.
-  const ancienneAffiche = parent.skill === "prompt-affiche";
-  const skillRejoue = ancienneAffiche ? "prompt-asset" : parent.skill;
-  const propId = await nouvelleProposition(conv, { skill: skillRejoue, consigne: parent.consigne, contexte: (parent.contexte as unknown[]) ?? [], parentId: parent.id, retour: texte });
-  const run = await creerRun(db, { skill: skillRejoue, entree, but: "proposition", projectId: conv.projectId, conversationId: conv.id, propositionId: propId, options: ancienneAffiche ? { ...optionsParent, variante: VARIANTE_AFFICHE } : optionsParent });
-  await db.update(propositions).set({ runId: run.id }).where(eq(propositions.id, propId));
-  const [nouvelle] = await db.select({ uuid: propositions.uuid }).from(propositions).where(eq(propositions.id, propId));
-  return { ok: true, propositionUuid: nouvelle!.uuid, runUuid: run.uuid };
 }
 
 // --- scénarios d'épisodes : un LOT (une sous-tâche par épisode) -------------------
@@ -786,7 +660,7 @@ const CONSIGNE_REGISTRE = "Écris le prompt de génération de ce master (image 
 
 /** Les masters que le brief décrit (personnages, lieux), avec ce qui existe déjà dans le registre.
  * Vide tant que le projet n'a pas de brief rédigé. */
-export async function candidatsDuProjet(projectId: number): Promise<CandidatRegistre[]> {
+async function candidatsDuProjet(projectId: number): Promise<CandidatRegistre[]> {
   const brief = await lireBriefDuProjet(db, projectId);
   if (!brief || brief.statut === "partiel") return [];
   const existants = await db
@@ -1210,14 +1084,8 @@ export async function genererReecriturePlan(
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
 }
 
-/** Ce que la fenêtre de correction montre avant de lancer (rendu, fiche, corrections déjà tentées). */
-export async function lireEtatIteration(projectId: number, planUuid: string): Promise<EtatIterationPlan | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(planUuid)) return null;
-  return etatIterationPlan(db, projectId, planUuid);
-}
-
 /** Les assets CRÉÉS par une proposition de fiches (assets manquants) qui n'ont pas encore de prompt d'image. */
-export async function assetsCreesSansPrompt(propositionId: number): Promise<{ id: number; code: string; type: string }[]> {
+async function assetsCreesSansPrompt(propositionId: number): Promise<{ id: number; code: string; type: string }[]> {
   const lignes = await db
     .select({ apres: propositionChangements.apres })
     .from(propositionChangements)
@@ -1412,14 +1280,6 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
     await db.update(agentConversations).set({ etape: "proposition", propositionId: prop.id, updatedAt: new Date() }).where(eq(agentConversations.id, prop.conversationId));
   }
   return { ok: true, runUuid: run.uuid };
-}
-
-/** Annule un lot : les sous-tâches en attente sont annulées, celle qui tourne est interrompue ; les
- * résultats déjà écrits restent relisibles. */
-export async function annulerLotProposition(propositionUuid: string): Promise<Resultat<{ resultat: ResultatAnnulationLot }>> {
-  const prop = await propositionParUuid(propositionUuid);
-  if (!prop || !prop.lot) return ERR("Lot introuvable.");
-  return { ok: true, resultat: await annulerLot(propositionUuid) };
 }
 
 export async function appliquerSelection(propositionUuid: string, options: Parameters<typeof appliquerProposition>[1] = {}): Promise<ResultatApplication> {

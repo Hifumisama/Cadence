@@ -17,7 +17,6 @@ export const LIBELLE_SKILL: Record<string, string> = {
   traitements: "Traitement du film",
   "prompt-asset": "Prompt d'asset",
   "prompt-affiche": "Prompt d'affiche",
-  "plan-h3": "Fiche de plan",
   "plan-h3ir": "Fiche de plan (Open H3 IR)",
   "traduction-intent": "Traduction de l'intent",
   "retouche-prompt": "Retouche du prompt",

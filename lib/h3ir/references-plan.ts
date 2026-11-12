@@ -5,7 +5,7 @@ import { MAX_REFS_VISUELLES } from "../plan-raccord";
 import { ROLE_PAR_TYPE, estVoixOff, separerDescription, trouverPersonnage } from "./brief";
 
 /** Le choix des références d'un plan (étape 5 d'Open H3 IR, docs/PLAN_INTEGRATION_OPEN_H3_IR.md) : quels assets du registre un plan neuf envoie au
- * compilateur, sans `plan-h3`. Le code décide seul quand la description est explicite ; sinon il rend ses DOUTES, et seul ce cas appelle le petit skill
+ * compilateur. Le code décide seul quand la description est explicite ; sinon il rend ses DOUTES, et seul ce cas appelle le petit skill
  * `references-plan` (lib/agents/references-plan.ts), qui complète ou corrige la liste. Pur : aucun accès base ni disque (lib/h3ir/references-plan-db.ts charge).
  *
  * Règles, dans l'ordre :

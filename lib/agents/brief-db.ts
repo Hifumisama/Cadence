@@ -1,6 +1,6 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { briefs, projects } from "../../db/schema";
-import { briefVide, clauseDuBrief, fusionnerPartielDansBrouillon, notesDuBrief, promptImageDuBrief, residuPartiel } from "./brief";
+import { briefVide, clauseDuBrief, fusionnerPartielDansBrouillon, notesDuBrief, promptImageDuBrief } from "./brief";
 import type { Db } from "./applicateurs/commun";
 import type { BriefContenu, StatutChamp } from "./types";
 
@@ -18,27 +18,6 @@ export async function synchroniserClauseStyle(db: Db, projectId: number): Promis
     .update(projects)
     .set({ clauseStyle: clauseDuBrief(contenu), stylePromptImage: promptImageDuBrief(contenu), notes: notesDuBrief(contenu) })
     .where(eq(projects.id, projectId));
-}
-
-/** Abandonne le brouillon d'un projet (nouvelle conversation, rejet, réinitialisation) SANS perdre la
- * clause de style ni les notes du projet : elles reviennent en brief partiel (voir `residuPartiel`) ;
- * s'il n'y a rien à garder, le brouillon est supprimé. Sans effet sur un brief valide ou partiel. */
-export async function abandonnerBrouillon(db: Db, projectId: number): Promise<void> {
-  const [b] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
-  if (!b || b.statut !== "brouillon") return;
-  const [projet] = await db.select({ nom: projects.nom, clauseStyle: projects.clauseStyle, notes: projects.notes }).from(projects).where(eq(projects.id, projectId));
-  const reste = residuPartiel(
-    { contenu: b.contenu as BriefContenu, statuts: b.statuts as Record<string, StatutChamp> },
-    { titre: projet?.nom ?? "", clauseStyle: projet?.clauseStyle ?? "", notes: projet?.notes ?? "" },
-  );
-  if (!reste) {
-    await db.delete(briefs).where(eq(briefs.id, b.id));
-    return;
-  }
-  await db
-    .update(briefs)
-    .set({ statut: "partiel", source: "reconstitue", contenu: reste.contenu, statuts: reste.statuts, version: sql`${briefs.version} + 1`, updatedAt: new Date() })
-    .where(eq(briefs.id, b.id));
 }
 
 /** Crée le brief partiel d'un projet qui n'en a pas (première édition à la main). */

@@ -32,7 +32,7 @@ export type Operation =
   | { type: "duree_plan"; planUuid: string; secondes: number }
   | { type: "deplacer_plan"; planUuid: string; position: Position }
   | { type: "modifier_plan"; planUuid: string; titre?: string; description?: string; liaison?: Liaison }
-  /** Réécrire la fiche du plan avec `plan-h3`. Jamais exécuté dans l'application du chantier (c'est un appel de modèle) : le code lance la
+  /** Réécrire la fiche du plan (recompilation Open H3 IR). Jamais exécuté dans l'application du chantier (c'est un appel de modèle) : le code lance la
    * génération APRÈS, et le résultat arrive en proposition à relire. */
   | { type: "refondre_fiche"; planUuid: string; consigne: string }
   /** Ajouter un plan SANS fiche (sa fiche s'écrit ensuite, comme une refonte). `ref` est un uuid tiré à la validation : l'identifiant du plan

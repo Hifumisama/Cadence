@@ -31,7 +31,7 @@ export type Operation = (typeof OPERATIONS)[number];
 
 /** Ce qu'un changement touche. Les applicateurs existent pour tous ces types. `fiche` (2026-10-02, étape 3 « fiches de plan ») :
  * le prompt H3 d'un plan (ses six sections), ses références picture/audio et sa durée de génération ;
- * écriture complète (plan-h3) ou partielle (seulement certaines sections, iteration-plan). */
+ * écriture complète (Open H3 IR) ou partielle (seulement certaines sections, iteration-plan). */
 const CIBLES = ["brief", "projet", "episode", "scene", "asset", "plan", "fiche"] as const;
 export type CibleType = (typeof CIBLES)[number];
 
@@ -460,32 +460,6 @@ export type PlanPourFiche = {
   aUnRendu: boolean;
   /** Plan sans intention (description) : l'agent n'aura que son titre. */
   sansIntention: boolean;
-};
-
-/** Ce que la fenêtre « Corriger après visionnage » montre avant de lancer : le rendu qui sera regardé et ce
- * qui a déjà été tenté sur ce plan. Routage par état du plan (2026-10-02) : sans rendu, pas d'iteration-plan. */
-export type EtatIterationPlan = {
-  titre: string;
-  aUneFiche: boolean;
-  /** Le dernier rendu terminé (généré ou importé) ; null : pas de correction possible. */
-  rendu: { termineLe: string | null; importe: boolean; dureeVoulueSecondes: number } | null;
-  /** Corrections après visionnage déjà proposées sur ce plan (toutes, appliquées ou non). */
-  nbCorrections: number;
-  nbCorrectionsAppliquees: number;
-};
-
-/** Ligne d'historique (Monitoring — hors de la popup). */
-export type ResumeProposition = {
-  uuid: string;
-  statut: StatutProposition;
-  skill: string;
-  portee: Portee;
-  consigne: string;
-  resume: string;
-  nbChangements: number;
-  nbAppliques: number;
-  createdAt: string;
-  appliedAt: string | null;
 };
 
 /** Estimation affichée avant de lancer une génération (au niveau du bouton). */

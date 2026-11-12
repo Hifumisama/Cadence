@@ -11,7 +11,7 @@ For **one registry asset**, you write the **generation prompt** (`promptGenerati
 
 The input tells which case you are in: an `asset`, or a poster (`cible`, `titre`, `resume`: see "A poster").
 
-You do not write the asset's "role" in the video plans: it changes from plan to plan and is said in each plan's video prompt (skill `plan-h3`).
+You do not write the asset's "role" in the video plans: it changes from plan to plan and is said in each plan's video prompt.
 
 ## Output language
 

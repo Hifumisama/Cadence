@@ -93,7 +93,7 @@ export default async function PlanPage({
 
   // L'audio de chaque réplique liée EST la ref <Audio N> du plan : elle compte
   // comme déclarée sans être dans plan_refs, et n'a pas à être citée (les
-  // fiches validées et le contrat de plan-h3 ne citent jamais les voix).
+  // fiches validées et le contrat des fiches ne citent jamais les voix).
   const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(
     sectionsPourControle,
     refs.map((r) => ({ type: r.type, slot: r.slot })),

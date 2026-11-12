@@ -29,7 +29,7 @@ export type AgentRun = typeof agentRuns.$inferSelect;
 
 /** Le plus ancien appel en attente (FIFO), ou null. Le worker le compare aux
  * images et aux vidéos (worker/ordonnanceur.ts) avant de choisir. Un appel dont les options portent
- * `suspendu: true` n'est jamais pris tout seul : les essais bout en bout (scripts/agents-e2e.ts)
+ * `suspendu: true` n'est jamais pris tout seul : les essais bout en bout
  * le traitent eux-mêmes avec un faux modèle, sans courir contre le worker de dev. */
 export async function prochaineTacheLlmEnAttente(): Promise<AgentRun | null> {
   const [run] = await db

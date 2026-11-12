@@ -19,7 +19,7 @@ import { sansEtatDeFin } from "../intent";
 import { nombreDeScenesVise, traitementDeScene } from "./traitement";
 import { choisirReferencesPlan, type ChoixReferencesPlan } from "../h3ir/references-plan-db";
 import { construireEntreeReferencesPlan, SKILL_REFERENCES_PLAN } from "./references-plan";
-import type { BriefContenu, ContexteUtilise, EtatIterationPlan, PlaceScene, Position } from "./types";
+import type { BriefContenu, ContexteUtilise, PlaceScene, Position } from "./types";
 
 /** Ce que l'agent lit AUTOMATIQUEMENT pour une portée courte : des extraits du brief et de
  * l'état courant, jamais le brief entier d'office. Chaque fonction renvoie l'entrée du skill
@@ -249,7 +249,7 @@ export function dernierShotLisible(detailed: string, codes: Record<number, strin
   const dernier = reperes[reperes.length - 1]!;
   const corps = detailed
     .slice((dernier.index ?? 0) + dernier[0].length)
-    // La coupe d'ouverture du shot : « Hard cut to » (plan-h3) ou « the shot cuts to », « the camera transitions to »… (Open H3 IR, h3ir/prompts/base-en.txt §4.2).
+    // La coupe d'ouverture du shot : « Hard cut to » ou « the shot cuts to », « the camera transitions to »… (Open H3 IR, h3ir/prompts/base-en.txt §4.2).
     .replace(/^\s*At\s+\d{1,2}:\d{2}(?:\.\d{1,3})?\s*,?\s*(?:Hard cut to\s*|the\s+(?:shot|camera)\s+(?:cuts|transitions|changes|switches)\s+to\s*)?/i, "")
     .replace(/<\s*(?:Subject|Picture)\s*(\d+)\s*>/g, (_m, n: string) => codes[Number(n)] ?? "the subject")
     .replace(/\s+/g, " ")
@@ -644,29 +644,6 @@ async function historiqueDuPlan(db: Db, projectId: number, planId: number) {
     props.map((p) => ({ ...p, nbChangements: nb.get(p.id) ?? 0 })),
     rendus.map((r) => r.fin).filter((d): d is Date => d != null),
   );
-}
-
-/** Ce que la fenêtre « Corriger après visionnage » montre avant de lancer. */
-export async function etatIterationPlan(db: Db, projectId: number, planUuid: string): Promise<EtatIterationPlan | null> {
-  const [p] = await db
-    .select({ id: plans.id, titre: plans.titre, duree: plans.dureeGenerationSecondes })
-    .from(plans)
-    .where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
-  if (!p) return null;
-  const [remplies, rendu, historique] = await Promise.all([
-    db.select({ contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, p.id)),
-    dernierRendu(db, p.id),
-    historiqueDuPlan(db, projectId, p.id),
-  ]);
-  return {
-    titre: p.titre,
-    aUneFiche: remplies.some((s) => s.contenu.trim().length > 0),
-    rendu: rendu
-      ? { termineLe: (rendu.finishedAt ?? rendu.createdAt)?.toISOString() ?? null, importe: rendu.workflowFichier === WORKFLOW_IMPORT_MANUEL, dureeVoulueSecondes: p.duree }
-      : null,
-    nbCorrections: historique.length,
-    nbCorrectionsAppliquees: historique.filter((h) => h.issue === "appliquee").length,
-  };
 }
 
 /** L'entrée d'`iteration-plan` pour UN plan qui a un rendu (routage par état du plan, 2026-10-02 : sans rendu, pas

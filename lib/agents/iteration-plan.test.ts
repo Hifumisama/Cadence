@@ -99,7 +99,7 @@ test("le schéma liste exactement les valeurs de réglage de lib/h3ir/reglages.t
 test("le skill est générique (aucun nom de projet) et lit sa propre copie du lexique", () => {
   const s = chargerSkill("iteration-plan");
   assert.ok(s.fichiers.some((f) => f.endsWith("iteration-plan/references/guide-lexique-diagnostic.md")));
-  assert.ok(!s.fichiers.some((f) => f.endsWith("h3-lexique-corrections.md")), "l'original reste à plan-h3");
+  assert.ok(!s.fichiers.some((f) => f.endsWith("h3-lexique-corrections.md")), "iteration-plan lit sa copie du lexique, pas l'original");
   assert.ok(!/avatar|katara|aang/i.test(s.systeme));
 });
 

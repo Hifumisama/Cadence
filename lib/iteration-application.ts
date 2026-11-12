@@ -31,8 +31,8 @@ export async function appliquerIterationEtGenererCore(
   if (seed != null && !/^\d{1,15}$/.test(seed)) return { ok: false, erreur: "Seed invalide : 15 chiffres au plus." };
   const prop = await propositionParUuid(propositionUuid);
   // Depuis 2026-11-09, « Itérer » applique la fiche RECOMPILÉE par Open H3 IR (`plan-h3ir`, lib/agents/service.ts, genererReecriturePlan) avec les décisions de
-  // l'agent ; une proposition `iteration-plan` ne porte plus de changement (elle donne « reecrire »). `plan-h3` : anciennes propositions seulement.
-  if (!prop || (prop.skill !== "iteration-plan" && prop.skill !== "plan-h3" && prop.skill !== SKILL_H3IR) || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
+  // l'agent ; une proposition `iteration-plan` ne porte plus de changement (elle donne « reecrire »).
+  if (!prop || (prop.skill !== "iteration-plan" && prop.skill !== SKILL_H3IR) || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
   const vue = await lireProposition(propositionUuid);
   const decision = decisionIteration(vue);
   if (decision.action === "attendre") return { ok: false, erreur: "L'agent n'a pas encore fini de répondre." };

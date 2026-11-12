@@ -75,7 +75,7 @@ test("iteration-plan : sans planche demandée, l'entrée part telle quelle, sans
 
 test("les autres skills : l'entrée stockée part telle quelle", async () => {
   const e = { plan: { titre: "x" } };
-  const p = await preparerEntree({ skill: "plan-h3", entree: e } as never);
+  const p = await preparerEntree({ skill: "prompt-asset", entree: e } as never);
   assert.equal(p.entree, e);
   assert.equal(p.controle, e);
 });

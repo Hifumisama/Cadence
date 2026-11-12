@@ -11,7 +11,7 @@ import { REFUS_SUPPRESSION, type Applicateur, type Db } from "./commun";
  * (`plan_prompt_sections`), les références picture/audio (`plan_refs`) et la durée de génération.
  * `cibleRef` = uuid du plan ; opération `modifier` seulement (un plan existant).
  * `apres` = { sections?, refs?, dureeGenerationSecondes? } (lib/agents/fiches.ts, `ApresFiche`) :
- * - écriture COMPLÈTE (plan-h3) : les six sections ET les références, qui remplacent celles du plan ;
+ * - écriture COMPLÈTE (Open H3 IR) : les six sections ET les références, qui remplacent celles du plan ;
  * - écriture PARTIELLE (iteration-plan, à venir) : seulement certaines sections, sans `refs` : les autres
  *   sections et les références ne bougent pas.
  * Les voix (plan_dialogues) ne sont jamais touchées : leurs slots `<Audio N>` sont pris tels quels.

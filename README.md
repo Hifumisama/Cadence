@@ -87,7 +87,7 @@ OpenAI (llama.cpp derrière llama-swap, Ollama, LM Studio…). Aucune clé API.
 
 Variables (voir `.env.example`) : `LLM_FOURNISSEUR=local`, `LLM_LOCAL_URL` (URL du
 serveur), `LLM_LOCAL_MODELE` (défaut `gemma4-26b-A4B`), `LLM_MODELE_<SKILL>` pour un
-modèle propre à un skill (ex. `LLM_MODELE_PLAN_H3`), `LLM_TIMEOUT_MS` (défaut 10 min),
+modèle propre à un skill (ex. `LLM_MODELE_PROMPT_ASSET`), `LLM_TIMEOUT_MS` (défaut 10 min),
 `LLM_FLUX=0` pour désactiver le flux SSE.
 
 Essai d'un skill (un vrai appel : il occupe le GPU du serveur LLM, donc pas pendant
@@ -97,7 +97,6 @@ une génération ComfyUI) :
 npm run llm:essai -- --skills                # skills et taille de leur prompt
 npm run llm:essai -- conversation-agent --entree entree.json
 npm run llm:essai -- prompt-asset --entree plan.json [--modele qwen3.6-35b-A3B] [--sans-trace]
-npm run agents:e2e                             # systeme d agents de bout en bout (faux modele, base de dev, nettoyage complet)
 ```
 
 Chaque exécution laisse une ligne dans `agent_traces` (statut, jetons, durée, sortie

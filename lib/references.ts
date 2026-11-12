@@ -1,7 +1,6 @@
 /** Références d'un plan sur un prompt DÉJÀ ASSEMBLÉ (2026-10-03) : retirer ou ajouter une référence garde les
  * labels sans trou (`<Picture 1>`, `<Picture 2>`, `<Picture 3>`…) et les sections `subject_definitions` /
- * `retention_analysis` à jour. C'est le CODE qui numérote, jamais un modèle (comme à l'assemblage, voir
- * lib/agents/plan-h3-assemblage.ts). Pur : les lectures et écritures en base sont dans lib/plan-references.ts.
+ * `retention_analysis` à jour. C'est le CODE qui numérote, jamais un modèle (comme à l'assemblage). Pur : les lectures et écritures en base sont dans lib/plan-references.ts.
  *
  * - images : `<Subject N>` et `<Picture N>` partagent le même N ; un retrait compacte tous les slots restants
  *   en 1..n (et rattrape d'anciens trous) ;
@@ -84,7 +83,7 @@ export function retablirCitations(sections: SectionsTexte, ref: RefTexte): { sec
 }
 
 /** Le rôle d'une référence posée à la main (colonne `plan_refs.role`, lue par les agents) : la voix d'un personnage, sinon « Décor, couloir bleu » (type puis nom),
- * comme ceux qu'écrit plan-h3. `retention` (audio seulement) : « reference », celui de la ligne de rétention ajoutée au prompt. Pur. */
+ * comme ceux qu'écrit la compilation. `retention` (audio seulement) : « reference », celui de la ligne de rétention ajoutée au prompt. Pur. */
 export function roleParDefaut(type: TypeRef, asset: { typeAsset: string | null; libelleType: string | null; libelle: string }): { role: string; retention: string | null } {
   if (type === "audio") return { role: asset.typeAsset === "personnage" ? "Voix du personnage" : `${asset.libelleType ?? "Son"}, ${asset.libelle}`, retention: "reference" };
   return { role: `${asset.libelleType ?? "Référence"}, ${asset.libelle}`, retention: null };

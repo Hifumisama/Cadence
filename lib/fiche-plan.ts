@@ -172,7 +172,7 @@ export type PropositionIteration = {
     decisions?: DecisionsIteration | null;
     affichage?: DecisionsAffichees | null;
   } | null;
-  /** `cibleType` : une proposition `plan-h3` (réécriture du plan) porte aussi des créations d'assets, que « Itérer » n'applique jamais. */
+  /** `cibleType` : une proposition peut porter aussi des créations d'assets, que « Itérer » n'applique jamais. */
   groupes: { changements: { id: number; bloque: boolean; refuseRaison: string | null; cibleType?: string; avertissements: { type: string; texte?: string }[] }[] }[];
 };
 

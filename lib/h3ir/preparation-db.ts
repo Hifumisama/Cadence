@@ -80,7 +80,7 @@ export async function lancerImagesAssets(projectId: number, codes: string[]): Pr
   return r.ok ? { lancees: r.lancees, ecartes: r.ecartes.map((e) => ({ code: e.code, raison: e.raison })) } : { lancees: 0, ecartes: [] };
 }
 
-/** Les références de ce plan sont-elles finies dans sa demande (étape `references` faite ou passée) ? Une demande sans cette étape (plan-h3) compte comme finie. */
+/** Les références de ce plan sont-elles finies dans sa demande (étape `references` faite ou passée) ? Une demande sans cette étape compte comme finie. */
 const referencesFinies = (etapes: EtapeDemande[]): boolean => {
   const e = etapes.find((x) => x.cle === "references");
   return !e || estEtapeFinale(e);

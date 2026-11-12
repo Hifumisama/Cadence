@@ -42,7 +42,7 @@ function versChangements(op: Operation, vue: VueEpisode): ChangementBrut[] {
   }
   const p = planParUuid(vue, op.planUuid);
   if (!p) return [];
-  // Une refonte de fiche n'écrit rien dans la transaction : le code lance `plan-h3` après l'application.
+  // Une refonte de fiche n'écrit rien dans la transaction : le code recompile la fiche avec Open H3 IR après l'application.
   if (op.type === "refondre_fiche") return [];
   const nom = `${p.handle} · ${p.titre}`;
   if (op.type === "couper_plan") return [{ groupe: "plans", cibleType: "plan", cibleRef: p.uuid, libelle: `Supprimer ${nom}`, operation: "supprimer" }];

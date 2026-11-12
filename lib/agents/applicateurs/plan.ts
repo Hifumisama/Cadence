@@ -24,7 +24,7 @@ import { apres, parentDe, texte, type Applicateur, type Db } from "./commun";
  * ASSETS restent (une réplique existe par elle-même, F02). Un rendu réussi demande confirmation (`ecrase`) ; un
  * rendu en file ou en cours bloque. Les fichiers de rendu ne sont pas touchés ici. */
 
-export function controleDuree(duree: unknown): Avertissement | null {
+function controleDuree(duree: unknown): Avertissement | null {
   if (typeof duree !== "number" || !Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX) {
     return {
       type: "bloque_controle",

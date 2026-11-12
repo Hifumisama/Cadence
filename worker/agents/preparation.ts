@@ -20,7 +20,7 @@ import { agentRuns } from "../../db/schema";
 
 type RunAgent = typeof agentRuns.$inferSelect;
 
-/** Ce que la planche d'un rendu coûte à obtenir : injectable (essais sans ffmpeg, scripts/agents-e2e.ts). */
+/** Ce que la planche d'un rendu coûte à obtenir : injectable (essais sans ffmpeg). */
 type LecteurPlanche = (cheminAbsolu: string, maxVignettes: number) => Promise<Planche>;
 
 export type DepsPreparation = { planche?: LecteurPlanche };
