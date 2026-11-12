@@ -31,7 +31,7 @@ import { libelleAsset } from "@/lib/assetCode";
 import { statutAsset } from "@/lib/asset-etat";
 import { etatRaccord, raccordSansPlace } from "@/lib/plan-raccord";
 import { raccordActuel } from "@/lib/queries-raccord";
-import { choisirComparaison, choisirRendu, detailPerime, estLisible, estPerime, promptDiffere, type RenduVue } from "@/lib/rendus";
+import { choisirComparaison, choisirRendu, detailPerime, estLisible, estPerime, promptDiffere, type RenduVue } from "@/lib/renders/rendus";
 
 export const dynamic = "force-dynamic";
 

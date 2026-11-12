@@ -1,8 +1,8 @@
 import { and, desc, eq, isNotNull, max } from "drizzle-orm";
-import { db } from "../db";
-import { jobs, plans } from "../db/schema";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "./plan-checks";
-import type { Tx } from "./ordre-plans";
+import { db } from "../../db";
+import { jobs, plans } from "../../db/schema";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
+import type { Tx } from "../ordre-plans";
 import { MEGAPIXELS_VIDEO } from "./etapes-video";
 
 /** Le plan dépasse la durée qu'un rendu accepte : aucun essai n'est créé. */

@@ -1,4 +1,4 @@
-import { binaires, executerProcessus, type Executeur } from "../planche-vignettes";
+import { binaires, executerProcessus, type Executeur } from "../renders/planche-vignettes";
 
 /** Arguments ffmpeg : la piste audio d'une vidéo en MP3 (qualité V2), sur stdout. */
 export function argsExtractionAudio(video: string): string[] {

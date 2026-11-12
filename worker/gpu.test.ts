@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DOMAINE_GENRE, domaineAliberer, domaineDe } from "../lib/gpu";
+import { DOMAINE_GENRE, domaineAliberer, domaineDe } from "../lib/renders/gpu";
 import { libererAvant, type Liberateurs } from "./gpu";
 import { decharger, decoderListeModeles, decoderModelesCharges, listerModeles, llmJoignable, modelesCharges } from "./llamaSwap";
 

@@ -1,6 +1,6 @@
-import { domaineAliberer, type DomaineGpu } from "../lib/gpu";
+import { domaineAliberer, type DomaineGpu } from "../lib/renders/gpu";
 
-/** Libération de la VRAM au changement de domaine (voir lib/gpu.ts) : avant une
+/** Libération de la VRAM au changement de domaine (voir lib/renders/gpu.ts) : avant une
  * tâche LLM on demande à ComfyUI de décharger ses modèles ; avant une tâche
  * ComfyUI, à llama-swap de décharger les siens.
  *

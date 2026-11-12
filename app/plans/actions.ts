@@ -3,7 +3,7 @@
 import { db } from "@/db";
 import { jobs, planPromptSections, planPromptVersions, planRefs, plans } from "@/db/schema";
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
-import { creerJobRelance, DureePlanInvalide } from "@/lib/job-relance";
+import { creerJobRelance, DureePlanInvalide } from "@/lib/renders/job-relance";
 import { appliquerIterationEtGenererCore } from "@/lib/iteration-application";
 import { getPlansPerimes } from "@/lib/plans-perimes";
 import { classerPourPrevisualisation, consequencesSuppression } from "@/lib/fiche-plan";
@@ -19,7 +19,7 @@ import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "@/lib/pl
 import { emplacementLibre } from "@/lib/references";
 import type { RefLabel } from "@/lib/plan-checks";
 import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
-import { promptDiffere, raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib/rendus";
+import { promptDiffere, raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib/renders/rendus";
 import { MEDIA_ROOT } from "@/lib/media";
 import { assemblerPrompt } from "@/lib/prompt";
 

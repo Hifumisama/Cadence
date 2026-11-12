@@ -1,5 +1,5 @@
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS } from "../plan-checks";
-import { dureeEffectiveSecondes } from "../grille-images";
+import { dureeEffectiveSecondes } from "../renders/grille-images";
 import { CREATIVITES, LIBELLE_CREATIVITE, MISES_EN_SCENE, RESUME_STYLE_CAMERA, STYLE_AUCUN, estCreativite, estMiseEnScene, type ChoixMiseEnScene } from "../h3ir/reglages";
 import type { DecisionsAffichees, DecisionsIteration, DiagnosticIteration } from "./types";
 import { raisonDescriptionIncomplete, repliquesPerdues, sansEtatDeFin } from "../intent";
@@ -87,7 +87,7 @@ function lireDecisions(brut: unknown): DecisionsSortie {
 /** La nouvelle description, telle qu'elle serait ÉCRITE : sans l'ancien « État en fin de plan » (il n'est plus produit). */
 const descriptionPropre = (d: DecisionsSortie): string => sansEtatDeFin(d.nouvelleDescription).trim();
 
-/** La durée réelle du fichier correspond à la durée voulue : à la nominale, OU à la durée EFFECTIVE de la grille d'images (lib/grille-images.ts : 6 s → 6,583 s, 10 s →
+/** La durée réelle du fichier correspond à la durée voulue : à la nominale, OU à la durée EFFECTIVE de la grille d'images (lib/renders/grille-images.ts : 6 s → 6,583 s, 10 s →
  * 10,125 s). Sans cela, un plan de 6 s correctement rendu (écart de 0,58 s à la nominale) ferait refuser toute correction. */
 export function dureesCoherentes(voulueSecondes: number, reelleSecondes: number): boolean {
   return (

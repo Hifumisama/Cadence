@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { LIBELLE_SOURCE_INVALIDE, MEGAPIXELS_VIDEO, continuiteEffective, etapesDuRendu, raccordImageARejouer, raisonSourceInvalide, type Continuite, type EtapeVideo } from "../lib/etapes-video";
+import { LIBELLE_SOURCE_INVALIDE, MEGAPIXELS_VIDEO, continuiteEffective, etapesDuRendu, raccordImageARejouer, raisonSourceInvalide, type Continuite, type EtapeVideo } from "../lib/renders/etapes-video";
 import { essaiSourceDuLatent, planPrecedent, precedentEnRendu } from "../lib/queries-raccord";
 import { doitAttendreLePrecedent } from "../lib/chaines";
 import { ficheChangeeDepuis } from "../lib/plans-perimes";
@@ -12,7 +12,7 @@ import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";
 import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/annulation-db";
-import { domaineDe } from "../lib/gpu";
+import { domaineDe } from "../lib/renders/gpu";
 import { configLlm } from "../lib/llm/config";
 import { cheminAssetMedia, cheminVoixMedia } from "../lib/media";
 import { assemblerPrompt } from "../lib/prompt";

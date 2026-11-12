@@ -1,7 +1,7 @@
 /** L'INTENT d'un plan (`plans.description`) : le récit, les répliques (`NOM : « … »`), éventuellement une phrase « Consigne de l'auteur : … ». Pur, testé.
  *
  * - « État en fin de plan : … » n'est plus écrit (2026-11-08) : c'était le raccord entre plans de l'ancienne liaison ; une `suite` prolonge désormais le
- *   rendu précédent par son latent (Motion Context, lib/etapes-video.ts). Les plans écrits avant gardent cette ligne en base : `sansEtatDeFin` la retire
+ *   rendu précédent par son latent (Motion Context, lib/renders/etapes-video.ts). Les plans écrits avant gardent cette ligne en base : `sansEtatDeFin` la retire
  *   à la lecture (affichage, entrées des skills). Aucune migration n'est nécessaire.
  * - « Consigne de l'auteur : … » reste STOCKÉE (traduction-intent la lit) mais ne s'affiche pas : quand le récit la respecte, elle le double.
  *   `intentAffichee` la masque. */

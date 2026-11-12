@@ -2,7 +2,7 @@
  * llama.cpp à la demande (voir docs/CONCEPTION_AGENTS.md). Le worker s'en sert pour
  * deux choses que le fournisseur LLM (lib/llm/) ignore : savoir si le serveur est là
  * avant de prendre une tâche, et décharger les modèles de la VRAM avant que ComfyUI
- * reprenne le GPU (lib/gpu.ts).
+ * reprenne le GPU (lib/renders/gpu.ts).
  *
  * Tout est « au mieux » et ne rejette jamais : un échec se lit dans le résultat.
  * Les routes `/health`, `/running` et `/unload` sont celles de llama-swap

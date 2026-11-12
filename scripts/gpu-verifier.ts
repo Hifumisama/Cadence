@@ -2,7 +2,7 @@ import "dotenv/config";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { decoderListeModeles, llmJoignable } from "../worker/llamaSwap";
-import { analyserWorkflow, type Graphe, type ObjectInfo } from "../lib/gpu-verification";
+import { analyserWorkflow, type Graphe, type ObjectInfo } from "../lib/renders/gpu-verification";
 
 /** Contrôle une machine GPU avant une séance (PC distant, Pod RunPod) :
  *   npm run gpu:verifier                  (utilise COMFYUI_URL et LLM_LOCAL_URL du .env)

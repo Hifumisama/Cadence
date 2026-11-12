@@ -7,7 +7,7 @@ import { BasculeNotifications } from "@/components/taches/BasculeNotifications";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { estAnnulable, type GenreTache, type Tache } from "@/lib/taches";
 import { urlMiniature } from "@/lib/miniatures";
-import { LIBELLE_SERVEUR, type ServeursInjoignables } from "@/lib/serveurs-injoignables-types";
+import { LIBELLE_SERVEUR, type ServeursInjoignables } from "@/lib/renders/serveurs-injoignables-types";
 import { Icone } from "@/components/ui/Icone";
 
 const pluriel = (n: number, un: string, plusieurs: string) => (n > 1 ? plusieurs : un);

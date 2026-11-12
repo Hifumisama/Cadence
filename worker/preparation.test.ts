@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { messagesSansImages, type MessageLlm, type PartieContenu } from "../lib/llm/types";
-import { ErreurPlanche, type Planche } from "../lib/planche-vignettes";
+import { ErreurPlanche, type Planche } from "../lib/renders/planche-vignettes";
 import { preparerEntree } from "./agents/preparation";
 
 // La préparation de l'entrée d'iteration-plan À L'EXÉCUTION : la planche est reconstruite depuis le descripteur

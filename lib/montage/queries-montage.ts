@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { jobs, montageExports, plans, scenes } from "../../db/schema";
 import { WORKFLOW_IMPORT_MANUEL } from "../plan-checks";
 import { getPlansPerimes } from "../plans-perimes";
-import { estPerime, resumerPerime } from "../rendus";
+import { estPerime, resumerPerime } from "../renders/rendus";
 import { assurerMontage, entreesEpisode } from "./montage-db";
 import type { EntreeMontage, GenreRendu, PlanMontage, RenduMontage, SceneMontage } from "./montage";
 

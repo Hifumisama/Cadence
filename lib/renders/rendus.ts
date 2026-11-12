@@ -1,5 +1,5 @@
-import { intentionChangee } from "./intent";
-import { decouperSections, validerPromptColle } from "./prompt";
+import { intentionChangee } from "../intent";
+import { decouperSections, validerPromptColle } from "../prompt";
 
 /** Historique des rendus d'un plan : choisir ce qu'on regarde, comparer, et décider ce qui part en rendu final. Pur
  * (aucun accès base ni disque) — importable côté client. */

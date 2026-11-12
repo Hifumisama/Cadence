@@ -1,4 +1,4 @@
-import { binaires, executerProcessus, mesurerDuree, type OptionsPlanche } from "./planche-vignettes";
+import { binaires, executerProcessus, mesurerDuree, type OptionsPlanche } from "./renders/planche-vignettes";
 import type { PromptSection } from "./plan-checks";
 
 /** Image de raccord (2026-10-14) : quand un plan est en liaison « suite » (lib/plan-liaison.ts), la DERNIÈRE image du rendu du plan précédent est jointe

@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../lib/plan-checks";
-import { RESOLUTIONS_VIDEO, avecUpscale, estFinalNatif, resolutionDepuis } from "../../lib/resolution-video";
+import { RESOLUTIONS_VIDEO, avecUpscale, estFinalNatif, resolutionDepuis } from "../../lib/renders/resolution-video";
 import type { SubmissionInput } from "./types";
 
 /**

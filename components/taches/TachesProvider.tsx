@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { annulerTache, marquerToutVu, marquerVu, retirerTaches, viderFile as viderFileServeur, viderListe as viderListeServeur } from "@/app/taches/actions";
 import { etatNotifications } from "@/lib/notifications-navigateur";
 import { estAnnulable, type ResumeTaches, type Tache } from "@/lib/taches";
-import { SERVEURS_OK, type ServeursInjoignables } from "@/lib/serveurs-injoignables-types";
+import { SERVEURS_OK, type ServeursInjoignables } from "@/lib/renders/serveurs-injoignables-types";
 
 /** Un seul sondage de `/api/taches` pour toute l'application, placé dans le
  * layout racine : il survit aux navigations (le Topbar, lui, se remonte à chaque

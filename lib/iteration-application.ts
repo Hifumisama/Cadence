@@ -4,7 +4,7 @@ import { jobs, plans } from "../db/schema";
 import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "./agents/service";
 import { decisionIteration } from "./fiche-plan";
 import { SKILL_H3IR } from "./h3ir/resultat";
-import { creerJobRelance } from "./job-relance";
+import { creerJobRelance } from "./renders/job-relance";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "./plan-checks";
 import { lireProposition } from "./queries-agents";
 

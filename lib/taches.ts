@@ -1,4 +1,4 @@
-import { PRIORITE_GENRE, type GenreTache } from "./gpu";
+import { PRIORITE_GENRE, type GenreTache } from "./renders/gpu";
 
 /** Tâches du GPU vues par l'utilisateur (indicateur du header) — règles pures,
  * sans base ni disque, partagées par la requête serveur (lib/queries-taches.ts),

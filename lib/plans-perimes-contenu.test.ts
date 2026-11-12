@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { detailPerime, estPerime, raisonsContenuPerime, resumerPerime } from "./rendus";
+import { detailPerime, estPerime, raisonsContenuPerime, resumerPerime } from "./renders/rendus";
 
 const rendu = { promptUtilise: "summary:\nMaya ouvre la lettre.", dureeUtilisee: 12 };
 

@@ -2,7 +2,7 @@
 // et la compilation Open H3 IR. Aucun n'a besoin d'IA : c'est la
 // vérification qui remplace la relecture manuelle avant validation.
 
-import { dureeEffectiveSecondes } from "./grille-images";
+import { dureeEffectiveSecondes } from "./renders/grille-images";
 
 export type PromptSection = {
   section: string;
@@ -152,7 +152,7 @@ function formaterTimecode(s: number): string {
 }
 
 /** Contrôles de structure de la fiche. `dureeGenerationSecondes` est la durée NOMINALE du plan (entier de 4 à 10) ; les shots se jugent contre la durée EFFECTIVE du rendu,
- * celle de la grille d'images (lib/grille-images.ts : 6 s → 6,583 s, 8 s → 8,000 s), que le rendu produit et qu'Open H3 IR utilise pour placer ses coupes. */
+ * celle de la grille d'images (lib/renders/grille-images.ts : 6 s → 6,583 s, 8 s → 8,000 s), que le rendu produit et qu'Open H3 IR utilise pour placer ses coupes. */
 export function controlerStructure(
   sections: PromptSection[],
   dureeGenerationSecondes: number,

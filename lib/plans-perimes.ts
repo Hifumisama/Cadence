@@ -4,9 +4,9 @@ import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema"
 import { assemblerPrompt } from "./prompt";
 import type { PromptSection } from "./plan-checks";
 import { raccordPerime } from "./chaines";
-import { continuiteEffective } from "./etapes-video";
+import { continuiteEffective } from "./renders/etapes-video";
 import { essaiSourceDuLatent, essaiSourceDuRaccord, planPrecedent } from "./queries-raccord";
-import { raisonsContenuPerime, type RaisonPerime } from "./rendus";
+import { raisonsContenuPerime, type RaisonPerime } from "./renders/rendus";
 
 /** Un plan est « périmé » quand son DERNIER rendu terminé est dépassé :
  * - une de ses références (image ou son) est postérieure au rendu : il a été rendu avec une version de l'asset qui n'existe

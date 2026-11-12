@@ -1,4 +1,4 @@
-import { DOMAINE_GENRE, PRIORITE_GENRE, type DomaineGpu, type GenreTache } from "../lib/gpu";
+import { DOMAINE_GENRE, PRIORITE_GENRE, type DomaineGpu, type GenreTache } from "../lib/renders/gpu";
 
 /** Ordre de prise des tâches du worker. Une seule carte graphique partagée entre
  * ComfyUI et le LLM local : le worker ne fait qu'une chose à la fois, il choisit

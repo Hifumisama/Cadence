@@ -3,7 +3,7 @@ import { db } from "../db";
 import { jobs, planPromptSections, plans } from "../db/schema";
 import { intentionChangee } from "./intent";
 import { assemblerPrompt } from "./prompt";
-import { promptDiffere } from "./rendus";
+import { promptDiffere } from "./renders/rendus";
 
 /** Ce que le texte d'un plan a laissé derrière lui depuis qu'il a changé (lib/intent.ts, `intentionChangee`) :
  * - `fiche` : la fiche a été écrite à partir d'un autre texte (`plans.ficheDescription`) : elle est à régénérer ;

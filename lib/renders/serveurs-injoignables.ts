@@ -1,6 +1,6 @@
 import { inArray } from "drizzle-orm";
-import { db } from "../db";
-import { parametres } from "../db/schema";
+import { db } from "../../db";
+import { parametres } from "../../db/schema";
 import type { ServeursInjoignables } from "./serveurs-injoignables-types";
 
 /** Lecture de l'état noté par le worker (voir worker/disponibilite.ts). */

@@ -162,7 +162,7 @@ test("une annulation n'est pas un échec : pas de point écarlate", () => {
   assert.equal(r.actives, 0);
 });
 
-// --- genre « llm » : le GPU est partagé avec ComfyUI (lib/gpu.ts)
+// --- genre « llm » : le GPU est partagé avec ComfyUI (lib/renders/gpu.ts)
 
 test("ordre de la file : image, puis llm, puis vidéo ; chacun en FIFO", () => {
   const video = tache({ statut: "en_attente", genre: "video", cle: "video:1", createdAt: il_y_a(90) });

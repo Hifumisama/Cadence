@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { dirname, join } from "node:path";
-import { partieImageJpeg, type PartieContenu } from "./llm/types";
+import { partieImageJpeg, type PartieContenu } from "../llm/types";
 
 /** Planche de vignettes d'un rendu vidéo, pour l'agent `iteration-plan`
  * (agents/skills/iteration-plan/SKILL.md) : la durée RÉELLE du fichier, mesurée

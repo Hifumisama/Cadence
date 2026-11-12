@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { dureesCoherentes } from "../../lib/agents/iteration-plan";
 import { MEDIA_ROOT } from "../../lib/media";
-import { contenuPlanche, ErreurPlanche, extrairePlanche, type Planche } from "../../lib/planche-vignettes";
+import { contenuPlanche, ErreurPlanche, extrairePlanche, type Planche } from "../../lib/renders/planche-vignettes";
 import type { MessageLlm } from "../../lib/llm/types";
 
 

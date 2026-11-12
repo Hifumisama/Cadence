@@ -1,4 +1,4 @@
-import { MEGAPIXELS_VIDEO } from "../../lib/etapes-video";
+import { MEGAPIXELS_VIDEO } from "../../lib/renders/etapes-video";
 import { injecterReferences, verifierEntree, type WorkflowJson } from "./mapping";
 import type { SubmissionInput } from "./types";
 

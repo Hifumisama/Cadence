@@ -142,7 +142,7 @@ copier les deux fichiers et passer le nom dans `CADENCE_PROFIL`.
   fonctionnement sous Linux est à confirmer.
 - **Tailscale en mode userspace** : l'accès entrant vers un Pod doit marcher sans interface réseau ; à confirmer au premier démarrage.
 - **Les options de ComfyUI** (`--vram-headroom`, `--fast-disk`…) sont celles du PC distant ; l'image refuse de démarrer ComfyUI si une option n'existe pas dans la version épinglée (voir les journaux du Pod).
-- **L'exclusivité GPU** du worker garde son comportement actuel (`lib/gpu.ts`) : sur 96 Go elle décharge encore plus que nécessaire. Un réglage par profil serait un changement de code à part.
+- **L'exclusivité GPU** du worker garde son comportement actuel (`lib/renders/gpu.ts`) : sur 96 Go elle décharge encore plus que nécessaire. Un réglage par profil serait un changement de code à part.
 
 ## Dépannage
 

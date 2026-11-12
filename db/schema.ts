@@ -183,7 +183,7 @@ export const plans = pgTable("plans", {
   dureeMontageSecondes: integer("duree_montage_secondes").notNull(),
   dureeGenerationSecondes: integer("duree_generation_secondes").notNull(),
   fps: integer("fps").notNull().default(24),
-  // Résolution des rendus (0,2 / 0,3 / 0,4 MP : lib/resolution-video.ts), nœud `22:9` du workflow vidéo.
+  // Résolution des rendus (0,2 / 0,3 / 0,4 MP : lib/renders/resolution-video.ts), nœud `22:9` du workflow vidéo.
   megapixels: real("megapixels").notNull().default(0.2),
   mode: varchar("mode", { length: 20 }).notNull().default("full-reference"),
   timecodeMusique: varchar("timecode_musique", { length: 50 }),
@@ -419,7 +419,7 @@ export const jobs = pgTable("jobs", {
   latentDossier: varchar("latent_dossier", { length: 255 }),
   jobSourceId: integer("job_source_id").references((): AnyPgColumn => jobs.id, { onDelete: "set null" }),
   // Comment ce rendu prolonge le plan précédent (plan en suite) : « latent » (Motion Context, `raccord_job_id` = l'essai dont le latent sert de contexte) ou
-  // « image » (repli : la dernière image de `raccord_job_id`). Null hors suite, ou pour un rendu d'avant la colonne (lib/etapes-video.ts, `continuiteEffective`).
+  // « image » (repli : la dernière image de `raccord_job_id`). Null hors suite, ou pour un rendu d'avant la colonne (lib/renders/etapes-video.ts, `continuiteEffective`).
   continuite: varchar("continuite", { length: 10 }),
   // Progression du rendu en cours (2026-10-03) : l'étape (génération H3, interpolation, encodage) et, si ComfyUI en
   // donne une, valeur / max. Remises à null en fin de rendu. Pas d'aperçu image (la génération H3 est un nœud d'API).

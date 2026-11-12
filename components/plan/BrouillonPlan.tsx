@@ -23,7 +23,7 @@ type Ctx = {
   nbSectionsModifiees: number;
   duree: number;
   fps: number;
-  /** Résolution du prochain rendu (0,2 / 0,3 / 0,4 MP : lib/resolution-video.ts). */
+  /** Résolution du prochain rendu (0,2 / 0,3 / 0,4 MP : lib/renders/resolution-video.ts). */
   seed: string | null;
   setDuree: (v: number) => void;
   setFps: (v: number) => void;
