@@ -1,11 +1,11 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { db } from "../db";
-import { jobs, planPromptSections, plans } from "../db/schema";
+import { db } from "../../db";
+import { jobs, planPromptSections, plans } from "../../db/schema";
 import { intentionChangee } from "./intent";
 import { assemblerPrompt } from "./prompt";
-import { promptDiffere } from "./renders/rendus";
+import { promptDiffere } from "../renders/rendus";
 
-/** Ce que le texte d'un plan a laissé derrière lui depuis qu'il a changé (lib/intent.ts, `intentionChangee`) :
+/** Ce que le texte d'un plan a laissé derrière lui depuis qu'il a changé (lib/plans/intent.ts, `intentionChangee`) :
  * - `fiche` : la fiche a été écrite à partir d'un autre texte (`plans.ficheDescription`) : elle est à régénérer ;
  * - `rendu` : le rendu de référence est parti d'un autre texte (`jobs.descriptionUtilisee`) : il est à refaire. Le rendu de référence est l'essai RETENU quand le plan
  *   est « prêt à upscaler » (valider un essai met le texte du plan à celui de l'essai), sinon le dernier rendu terminé.

@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { ouvrirConversation } from "@/app/agents/actions";
 import { annulerLaDemande, corrigerConsigneIteration, demanderIteration, lireDemande } from "@/app/demandes/actions";
 import { preparerBaseIteration, rouvrirIteration, validerPretUpscale, type ConflitDescription } from "@/app/plans/actions";
-import { intentAffichee } from "@/lib/intent";
-import { CONSIGNE_TEXTE_MODIFIE, EVENEMENT_ITERER_TEXTE } from "@/lib/iteration-texte";
+import { intentAffichee } from "@/lib/plans/intent";
+import { CONSIGNE_TEXTE_MODIFIE, EVENEMENT_ITERER_TEXTE } from "@/lib/plans/iteration-texte";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { DecisionsIteration } from "@/components/plan/DecisionsIteration";
 import type { DecisionsAffichees } from "@/lib/agents/types";
-import type { EtatPlan } from "@/lib/fiche-plan";
+import type { EtatPlan } from "@/lib/plans/fiche-plan";
 
 const EXEMPLES = [
   "Plus de mouvement, la caméra suit le personnage.",

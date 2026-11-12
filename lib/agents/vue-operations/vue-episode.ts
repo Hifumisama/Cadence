@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { briefs, episodes, jobs, planPromptSections, plans, scenes } from "../../../db/schema";
-import { getPlansPerimes } from "../../plans-perimes";
+import { getPlansPerimes } from "../../plans/plans-perimes";
 import type { Db } from "../applicateurs/commun";
 
 /** La vue d'un épisode que lit la relecture : ses plans, chacun avec une POIGNÉE (« P07 ») bâtie sur

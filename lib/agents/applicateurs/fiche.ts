@@ -1,9 +1,9 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { assets, episodes, jobs, planPromptSections, planPromptVersions, planRefs, plans } from "../../../db/schema";
 import { horsAffiches } from "../../assets/assets-visibles";
-import { conserverConsigneAuteur } from "../../intent";
-import { assemblerPrompt } from "../../prompt";
-import type { Tx } from "../../ordre-plans";
+import { conserverConsigneAuteur } from "../../plans/intent";
+import { assemblerPrompt } from "../../plans/prompt";
+import type { Tx } from "../../plans/ordre-plans";
 import { SECTIONS_FICHE, cleNouvelAsset, estSectionFiche, evaluerEcrasementFiche, lireApresFiche, verifierFiche, type EtatPlanFiche } from "../fiches";
 import { REFUS_SUPPRESSION, type Applicateur, type Db } from "./commun";
 
@@ -156,7 +156,7 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
   // description actuelle survit si la nouvelle ne la porte plus (masquée à l'affichage, elle échappe à qui réécrit le texte).
   const [actuel] = await tx.select({ description: plans.description }).from(plans).where(eq(plans.id, p.id));
   if (apres.description) valeurs.description = conserverConsigneAuteur(apres.description, actuel?.description);
-  // La fiche vient d'être écrite à partir de CE texte du plan : s'il change ensuite, la fiche est à régénérer (lib/intent.ts, `intentionChangee`).
+  // La fiche vient d'être écrite à partir de CE texte du plan : s'il change ensuite, la fiche est à régénérer (lib/plans/intent.ts, `intentionChangee`).
   if (sections.length > 0) valeurs.ficheDescription = valeurs.description ?? actuel?.description ?? null;
   // Les réglages Open H3 IR décidés par « Itérer » : la nouvelle valeur du PLAN remplace l'ancienne (pas de directive qui s'accumule).
   if (apres.reglages?.creativite) valeurs.creativite = apres.reglages.creativite;

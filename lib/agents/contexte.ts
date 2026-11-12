@@ -2,8 +2,8 @@ import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from "drizzle-o
 import { agentConversations, agentRuns, assets, briefs, episodes, jobs, planPromptSections, planRefs, plans, projects, propositionChangements, propositions, scenes } from "../../db/schema";
 import { horsAffiches } from "../assets/assets-visibles";
 import { variantePromptAsset } from "../llm/variantes";
-import { WORKFLOW_IMPORT_MANUEL } from "../plan-checks";
-import { ORDRE_SECTIONS } from "../prompt";
+import { WORKFLOW_IMPORT_MANUEL } from "../plans/plan-checks";
+import { ORDRE_SECTIONS } from "../plans/prompt";
 import type { Db } from "./applicateurs/commun";
 import { sansClesAbandonnees } from "./brief";
 import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-plan";
@@ -14,8 +14,8 @@ import { AIDE_CREATIVITE, CREATIVITES, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, 
 import { SKILL_H3IR } from "../h3ir/resultat";
 import { detailsDuBrief, libelleDetailsDuBrief } from "./registre";
 import { poigneePlan, type EntreeInventaire } from "./inventaire";
-import { liaisonOuDefaut, type Liaison } from "../plan-liaison";
-import { sansEtatDeFin } from "../intent";
+import { liaisonOuDefaut, type Liaison } from "../plans/plan-liaison";
+import { sansEtatDeFin } from "../plans/intent";
 import { nombreDeScenesVise, traitementDeScene } from "./traitement";
 import { choisirReferencesPlan, type ChoixReferencesPlan } from "../h3ir/references-plan-db";
 import { construireEntreeReferencesPlan, SKILL_REFERENCES_PLAN } from "./references-plan";
@@ -175,7 +175,7 @@ export async function entreePromptAssetCandidat(
 
 // --- épisode, plan ----------------------------------------------------------
 
-/** `description` : l'intent du plan SANS l'ancien « État en fin de plan » (plans écrits avant le 2026-11-08, lib/intent.ts) : les skills ne le voient
+/** `description` : l'intent du plan SANS l'ancien « État en fin de plan » (plans écrits avant le 2026-11-08, lib/plans/intent.ts) : les skills ne le voient
  * plus, et ne le recopient donc pas. */
 type PlanLu = { uuid: string; titre: string; description: string; dureeGenerationSecondes: number; sceneId: number | null; liaison: Liaison };
 

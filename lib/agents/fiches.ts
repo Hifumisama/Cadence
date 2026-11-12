@@ -1,6 +1,6 @@
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
-import { MAX_REFS, verifierCoherenceRefs, type RefLabel } from "../plan-checks";
-import { ORDRE_SECTIONS, type NomSection } from "../prompt";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plans/plan-checks";
+import { MAX_REFS, verifierCoherenceRefs, type RefLabel } from "../plans/plan-checks";
+import { ORDRE_SECTIONS, type NomSection } from "../plans/prompt";
 import type { Avertissement } from "./types";
 import { estCreativite, estMiseEnScene, STYLE_AUCUN } from "../h3ir/reglages";
 

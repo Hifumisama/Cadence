@@ -1,7 +1,7 @@
 import { libelleAsset, slugifyCode } from "../assets/assetCode";
 import { LANGUE_AUTO } from "../voice/langues-tts";
-import { MAX_REFS_AUDIO, MAX_REFS_VISUELLES } from "../plan-raccord";
-import { SHOT_MIN_FICHE_SECONDES } from "../plan-checks";
+import { MAX_REFS_AUDIO, MAX_REFS_VISUELLES } from "../plans/plan-raccord";
+import { SHOT_MIN_FICHE_SECONDES } from "../plans/plan-checks";
 import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./reglages";
 import { PROFILS_PERSO } from "./profils-perso";
 import { STYLES_CAMERA } from "./styles-camera";
@@ -17,7 +17,7 @@ import { STYLES_CAMERA } from "./styles-camera";
 const MEGAPIXELS_H3IR = 0.4;
 
 
-/** Plafond de `shots` du paquet (`PINNED_SHOTS_MAX`). Son plancher par shot (`MIN_SHOT_MS` = 1200) est `SHOT_MIN_FICHE_SECONDES` (lib/plan-checks.ts). Le paquet
+/** Plafond de `shots` du paquet (`PINNED_SHOTS_MAX`). Son plancher par shot (`MIN_SHOT_MS` = 1200) est `SHOT_MIN_FICHE_SECONDES` (lib/plans/plan-checks.ts). Le paquet
  * refuse un nombre de shots qui ne tient pas dans la durée NOMINALE (`shots-do-not-fit`, h3ir/compile.py:116) : le plafond se calcule donc sur elle, non sur la durée effective. */
 const SHOTS_MAX = 10;
 

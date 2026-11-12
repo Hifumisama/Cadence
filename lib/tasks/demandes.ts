@@ -1,6 +1,6 @@
 import { ERREUR_ANNULEE } from "./annulation";
 import type { DecisionsAffichees, DecisionsIteration, PlaceScene } from "../agents/types";
-import type { DecisionIteration } from "../fiche-plan";
+import type { DecisionIteration } from "../plans/fiche-plan";
 
 /** `en_attente` (2026-11-09, docs/PLAN_FILE_CONSIGNES.md) : une itération posée alors qu'une autre tient la place. Elle ne pose encore aucune tâche, sa consigne
  * reste modifiable ; le pilote la fait passer `en_cours` quand plus aucune itération n'est en cours (la plus ancienne d'abord). */

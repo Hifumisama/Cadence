@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { Vignette } from "@/components/plan/Vignette";
-import { LIBELLE_ETAT_PLAN, type EtatPlan } from "@/lib/fiche-plan";
+import { LIBELLE_ETAT_PLAN, type EtatPlan } from "@/lib/plans/fiche-plan";
 
 export type CadrePlan = {
   uuid: string;

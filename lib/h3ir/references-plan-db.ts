@@ -2,7 +2,7 @@ import { and, asc, desc, eq, lt } from "drizzle-orm";
 import { assets, briefs, planRefs, plans, scenes } from "../../db/schema";
 import type { Db } from "../agents/applicateurs/commun";
 import { horsAffiches } from "../assets/assets-visibles";
-import { liaisonOuDefaut } from "../plan-liaison";
+import { liaisonOuDefaut } from "../plans/plan-liaison";
 import { choisirReferences, type CandidatReference, type EntreeReferencesPlan, type ResultatReferencesPlan } from "./references-plan";
 
 /** Le choix des références d'un plan, lu en base (étape 5 d'Open H3 IR) : charge le plan, sa scène, sa liaison, le décor du plan précédent, le registre

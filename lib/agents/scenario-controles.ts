@@ -1,5 +1,5 @@
 import { ECART_DUREE_TOLERE } from "./conversion";
-import { aUnEtatDeFin, recitDe } from "../intent";
+import { aUnEtatDeFin, recitDe } from "../plans/intent";
 
 /** Contrôle de la durée totale d'un scénario d'épisode (skill `scenario-episode`). Le modèle n'additionne pas fiablement
  * (écarts de ×2 constatés en recette) : c'est le code qui compte, et qui lui renvoie le total exact. Un seul renvoi

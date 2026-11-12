@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type MouseEvent } from "react";
 import { ajouterRef, supprimerRef } from "@/app/plans/actions";
-import { MAX_REFS, type RefLabel } from "@/lib/plan-checks";
+import { MAX_REFS, type RefLabel } from "@/lib/plans/plan-checks";
 import type { MediaKind } from "@/components/assets/AssetCard";
 import { MediaZoom } from "@/components/assets/MediaZoom";
 import { urlMiniature } from "@/lib/miniatures";

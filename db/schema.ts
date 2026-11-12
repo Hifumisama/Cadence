@@ -172,9 +172,9 @@ export const plans = pgTable("plans", {
   sceneId: integer("scene_id").references(() => scenes.id),
   description: text("description"),
   // Le texte du plan (`description`) tel qu'il était quand la fiche a été écrite (agent ou Open H3 IR) : si la description n'est plus la même, la fiche est à
-  // régénérer (lib/intent.ts, `intentionChangee`). Comparé par valeur, jamais réécrit seul ; null = fiche écrite avant ce suivi, on ne sait pas.
+  // régénérer (lib/plans/intent.ts, `intentionChangee`). Comparé par valeur, jamais réécrit seul ; null = fiche écrite avant ce suivi, on ne sait pas.
   ficheDescription: text("fiche_description"),
-  // Liaison avec le plan PRÉCÉDENT de l'épisode (2026-10-14, lib/plan-liaison.ts) : « suite » = le plan reprend là où l'autre finit (même lieu, même
+  // Liaison avec le plan PRÉCÉDENT de l'épisode (2026-10-14, lib/plans/plan-liaison.ts) : « suite » = le plan reprend là où l'autre finit (même lieu, même
   // instant à peu près) ; « coupe » = rupture franche (autre lieu, autre moment, autre angle libre). Posée par le scénario, modifiable à la main.
   liaison: varchar("liaison", { length: 10 }).notNull().default("suite"),
   // Open H3 IR : créativité et style de mise en scène de CE plan (null = hérite de la scène, puis du projet ; style « aucun » = force l'absence de style). lib/h3ir/reglages.ts.
@@ -193,7 +193,7 @@ export const plans = pgTable("plans", {
   // bougé) ; « Nouvelle variante » en tire une autre.
   seed: text("seed").default(sql`floor(random() * 1000000000000000)::bigint::text`),
   notes: text("notes"),
-  // Fiche de plan « table de montage » (2026-10-12) : l'état affiché d'un plan est DÉRIVÉ (lib/fiche-plan.ts, etatPlan) : sans essai =
+  // Fiche de plan « table de montage » (2026-10-12) : l'état affiché d'un plan est DÉRIVÉ (lib/plans/fiche-plan.ts, etatPlan) : sans essai =
   // brouillon, pret_upscale_at posé = prêt à upscaler, sinon en itération. Pas de valeur d'enum de plus. Un nouvel essai efface les deux.
   pretUpscaleAt: timestamp("pret_upscale_at"),
   // L'essai (job) validé quand le plan est prêt ; remis à null si on le supprime.
@@ -278,7 +278,7 @@ export const assets = pgTable("assets", {
   methodeGeneration: varchar("methode_generation", { length: 12 }),
   fichier: varchar("fichier", { length: 255 }),
   // Quand le fichier a été posé ou remplacé (adoption, import, prise de voix) : un plan dont le dernier rendu est
-  // antérieur est « périmé » (lib/plans-perimes.ts). null = jamais posé.
+  // antérieur est « périmé » (lib/plans/plans-perimes.ts). null = jamais posé.
   fichierAt: timestamp("fichier_at"),
   // Validé à la main (ou par défaut à l'import d'un fichier). Le statut affiché et la criticité se CALCULENT (lib/assets/asset-etat.ts) :
   // plus de colonne `statut` ni `critique`. Un fichier remplacé par une génération adoptée repasse à false.
@@ -400,7 +400,7 @@ export const jobs = pgTable("jobs", {
   consigne: text("consigne"),
   depuisNumeroRendu: integer("depuis_numero_rendu"),
   // Ce que l'agent d'« Itérer » a signalé en appliquant sa correction (doute sur son diagnostic, changement refusé par un contrôle…) :
-  // des informations gardées sur l'essai, jamais un blocage (lib/fiche-plan.ts, `decisionIteration`). Null hors itération.
+  // des informations gardées sur l'essai, jamais un blocage (lib/plans/fiche-plan.ts, `decisionIteration`). Null hors itération.
   alertesIteration: jsonb("alertes_iteration").$type<string[]>(),
   // Ce que le worker a réellement soumis : le prompt assemblé et la durée (la seed est dans `seedUtilisee`).
   // Sert à comparer deux rendus, et à expliquer pourquoi deux relances donnent le même plan.
@@ -410,12 +410,12 @@ export const jobs = pgTable("jobs", {
   megapixels: real("megapixels").notNull().default(0.2),
   // La description (intention) du plan au moment de la soumission : versionnée par essai comme le prompt (2026-10-14).
   descriptionUtilisee: text("description_utilisee"),
-  // L'essai (d'un AUTRE plan : le précédent) dont la dernière image a servi de première image à celui-ci (lib/plan-raccord.ts, 2026-10-14) ; null
+  // L'essai (d'un AUTRE plan : le précédent) dont la dernière image a servi de première image à celui-ci (lib/plans/plan-raccord.ts, 2026-10-14) ; null
   // sans raccord. Sert à voir qu'un plan suit un rendu qui a changé depuis. L'image n'est jamais gardée comme asset.
   raccordJobId: integer("raccord_job_id").references((): AnyPgColumn => jobs.id, { onDelete: "set null" }),
   // Vidéo en trois étapes (2026-10-30, docs/PLAN_INTEGRATION_WORKER.md). Une prévisualisation (génération 0,4 MP) garde le dossier de ses latents sur
   // ComfyUI (`output/h3_latents/<dossier>/gen` et `/up`) ; un rendu final (upscale puis finition) pointe la prévisualisation dont il part et n'est
-  // lancé que si la fiche n'a pas changé depuis elle (même comparaison que lib/plans-perimes.ts, contre cette prévisualisation).
+  // lancé que si la fiche n'a pas changé depuis elle (même comparaison que lib/plans/plans-perimes.ts, contre cette prévisualisation).
   latentDossier: varchar("latent_dossier", { length: 255 }),
   jobSourceId: integer("job_source_id").references((): AnyPgColumn => jobs.id, { onDelete: "set null" }),
   // Comment ce rendu prolonge le plan précédent (plan en suite) : « latent » (Motion Context, `raccord_job_id` = l'essai dont le latent sert de contexte) ou

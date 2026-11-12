@@ -1,8 +1,8 @@
 import { and, desc, eq, inArray, isNotNull, lt } from "drizzle-orm";
-import { db } from "../db";
-import { jobs, plans } from "../db/schema";
+import { db } from "../../db";
+import { jobs, plans } from "../../db/schema";
 
-/** Accès base du raccord (lib/plan-raccord.ts), partagé par le worker (qui extrait l'image) et la page du plan (qui dit si elle est périmée). */
+/** Accès base du raccord (lib/plans/plan-raccord.ts), partagé par le worker (qui extrait l'image) et la page du plan (qui dit si elle est périmée). */
 
 export type PlanPrecedent = { id: number; titre: string; renduRetenuId: number | null };
 
@@ -58,7 +58,7 @@ export async function essaiSourceDuLatent(precedent: { id: number; renduRetenuId
 }
 
 /** Le plan précédent (par `ordre`, même épisode) a-t-il un rendu en file ou en cours ? Sert au worker : un plan en « suite » n'est pas pris tant que c'est le cas
- * (voir `doitAttendreLePrecedent`, lib/chaines.ts). */
+ * (voir `doitAttendreLePrecedent`, lib/plans/chaines.ts). */
 export async function precedentEnRendu(plan: { episodeId: number; ordre: number }): Promise<boolean> {
   const precedent = await planPrecedent(plan);
   if (!precedent) return false;

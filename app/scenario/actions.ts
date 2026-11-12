@@ -4,9 +4,9 @@ import { db } from "@/db";
 import { scenes, plans } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { recomposerOrdre } from "@/lib/ordre-plans";
+import { recomposerOrdre } from "@/lib/plans/ordre-plans";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
-import { conserverConsigneAuteur, intentAffichee, memeDescription } from "@/lib/intent";
+import { conserverConsigneAuteur, intentAffichee, memeDescription } from "@/lib/plans/intent";
 
 /** Place un plan dans une scène (ou « sans scène » si `sceneId` est null),
  * juste avant `avantPlanId` — ou, sans repère, à la fin des plans de la scène

@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { jobs, plans, scenes } from "@/db/schema";
-import { etatPlan, type EtatPlan } from "@/lib/fiche-plan";
+import { etatPlan, type EtatPlan } from "@/lib/plans/fiche-plan";
 
 export type PlanPellicule = {
   uuid: string;
@@ -19,7 +19,7 @@ export type PlanPellicule = {
 };
 
 /** Les plans d'un épisode pour la pellicule du bas de la fiche : dans l'ordre `plans.ordre` (jamais un autre tri), avec leur état dérivé
- * (lib/fiche-plan.ts) et la vignette de leur essai retenu ou, à défaut, du dernier essai terminé. Deux requêtes pour tout l'épisode. */
+ * (lib/plans/fiche-plan.ts) et la vignette de leur essai retenu ou, à défaut, du dernier essai terminé. Deux requêtes pour tout l'épisode. */
 export async function getPelliculePlans(episodeId: number): Promise<PlanPellicule[]> {
   const lignes = await db
     .select({

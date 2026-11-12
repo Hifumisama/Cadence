@@ -1,12 +1,12 @@
 import { and, eq } from "drizzle-orm";
-import { assets, planPromptSections, planRefs } from "../db/schema";
-import type { Db } from "./agents/applicateurs/commun";
-import { libelleAsset } from "./assets/assetCode";
-import { LIBELLE_TYPE_ASSET } from "./assets/registre-types";
+import { assets, planPromptSections, planRefs } from "../../db/schema";
+import type { Db } from "../agents/applicateurs/commun";
+import { libelleAsset } from "../assets/assetCode";
+import { LIBELLE_TYPE_ASSET } from "../assets/registre-types";
 import { ajouterReference, compacterImages, nomDepuisCode, retirerReference, roleParDefaut, type SectionsTexte, type TypeRef } from "./references";
 
 /** Retrait / ajout d'une référence sur un plan DÉJÀ ÉCRIT, avec le prompt tenu à jour (règles pures dans
- * lib/references.ts). À appeler dans une transaction : slots, sections et lien tombent ensemble. */
+ * lib/plans/references.ts). À appeler dans une transaction : slots, sections et lien tombent ensemble. */
 
 async function lireSections(db: Db, planId: number): Promise<SectionsTexte> {
   const lignes = await db.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, planId));
@@ -46,7 +46,7 @@ export async function retirerRefDuPlan(db: Db, refId: number): Promise<void> {
 }
 
 /** Une référence vient d'être posée sur `slot` : ses lignes de définition et de rétention rejoignent le prompt, et les mentions de son nom laissées par
- * un retrait redeviennent son label (lib/references.ts, `retablirCitations`). */
+ * un retrait redeviennent son label (lib/plans/references.ts, `retablirCitations`). */
 export async function declarerRefDansLePrompt(db: Db, planId: number, type: TypeRef, slot: number, assetId: number): Promise<void> {
   const [a] = await db.select({ code: assets.code }).from(assets).where(eq(assets.id, assetId));
   const avant = await lireSections(db, planId);

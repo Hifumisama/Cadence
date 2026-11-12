@@ -1,12 +1,12 @@
 import { and, eq, inArray, max } from "drizzle-orm";
-import { db } from "../db";
-import { jobs, plans } from "../db/schema";
-import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "./agents/service";
+import { db } from "../../db";
+import { jobs, plans } from "../../db/schema";
+import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "../agents/service";
 import { decisionIteration } from "./fiche-plan";
-import { SKILL_H3IR } from "./h3ir/resultat";
-import { creerJobRelance } from "./renders/job-relance";
+import { SKILL_H3IR } from "../h3ir/resultat";
+import { creerJobRelance } from "../renders/job-relance";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "./plan-checks";
-import { lireProposition } from "./queries-agents";
+import { lireProposition } from "../queries-agents";
 
 export type Reglages = { dureeGenerationSecondes?: number; fps?: number; seed?: string };
 

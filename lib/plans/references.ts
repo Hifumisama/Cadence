@@ -1,6 +1,6 @@
 /** Références d'un plan sur un prompt DÉJÀ ASSEMBLÉ (2026-10-03) : retirer ou ajouter une référence garde les
  * labels sans trou (`<Picture 1>`, `<Picture 2>`, `<Picture 3>`…) et les sections `subject_definitions` /
- * `retention_analysis` à jour. C'est le CODE qui numérote, jamais un modèle (comme à l'assemblage). Pur : les lectures et écritures en base sont dans lib/plan-references.ts.
+ * `retention_analysis` à jour. C'est le CODE qui numérote, jamais un modèle (comme à l'assemblage). Pur : les lectures et écritures en base sont dans lib/plans/plan-references.ts.
  *
  * - images : `<Subject N>` et `<Picture N>` partagent le même N ; un retrait compacte tous les slots restants
  *   en 1..n (et rattrape d'anciens trous) ;

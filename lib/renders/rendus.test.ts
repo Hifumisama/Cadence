@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assemblerPrompt } from "../prompt";
+import { assemblerPrompt } from "../plans/prompt";
 import { choisirComparaison, choisirRendu, promptDiffere, raisonNonRetenable, sectionsDuPromptEnvoye, type RenduVue } from "./rendus";
 
 const rendu = (id: number, o: Partial<RenduVue> = {}): RenduVue => ({

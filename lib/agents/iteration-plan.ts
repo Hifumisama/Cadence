@@ -1,8 +1,8 @@
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS } from "../plan-checks";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS } from "../plans/plan-checks";
 import { dureeEffectiveSecondes } from "../renders/grille-images";
 import { CREATIVITES, LIBELLE_CREATIVITE, MISES_EN_SCENE, RESUME_STYLE_CAMERA, STYLE_AUCUN, estCreativite, estMiseEnScene, type ChoixMiseEnScene } from "../h3ir/reglages";
 import type { DecisionsAffichees, DecisionsIteration, DiagnosticIteration } from "./types";
-import { raisonDescriptionIncomplete, repliquesPerdues, sansEtatDeFin } from "../intent";
+import { raisonDescriptionIncomplete, repliquesPerdues, sansEtatDeFin } from "../plans/intent";
 import { retenirManquants } from "../h3ir/preparation";
 
 /** Écart toléré entre la durée réelle du fichier (ffprobe) et la durée voulue : au-delà, le rendu a été généré

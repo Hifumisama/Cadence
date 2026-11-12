@@ -2,7 +2,7 @@
 // et la compilation Open H3 IR. Aucun n'a besoin d'IA : c'est la
 // vérification qui remplace la relecture manuelle avant validation.
 
-import { dureeEffectiveSecondes } from "./renders/grille-images";
+import { dureeEffectiveSecondes } from "../renders/grille-images";
 
 export type PromptSection = {
   section: string;

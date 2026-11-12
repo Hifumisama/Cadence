@@ -1,4 +1,4 @@
-/** Les CHAÎNES de plans (docs/PLAN_FILE_CONSIGNES.md, phase 3) : règles pures, rien en base. Un plan en liaison « suite » (lib/plan-liaison.ts)
+/** Les CHAÎNES de plans (docs/PLAN_FILE_CONSIGNES.md, phase 3) : règles pures, rien en base. Un plan en liaison « suite » (lib/plans/plan-liaison.ts)
  * reprend là où le précédent finit : son rendu part de celui du précédent. Une chaîne est donc une suite de plans consécutifs (`plans.ordre`) dont
  * chacun, sauf le premier, est en « suite ». Une « coupe » ouvre une nouvelle chaîne. */
 

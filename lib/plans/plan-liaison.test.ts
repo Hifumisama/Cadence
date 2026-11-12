@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { estLiaison, liaisonOuDefaut } from "./plan-liaison";
-import { depuisCorrectionPlan, depuisPlanAInserer, depuisScenarioEpisode, type SortieScenarioEpisode } from "./agents/conversion";
+import { depuisCorrectionPlan, depuisPlanAInserer, depuisScenarioEpisode, type SortieScenarioEpisode } from "../agents/conversion";
 
 test("liaison : deux valeurs, « suite » par défaut pour tout le reste", () => {
   assert.equal(estLiaison("suite"), true);

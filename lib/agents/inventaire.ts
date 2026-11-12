@@ -1,7 +1,7 @@
 import { construireCode } from "../assets/assetCode";
 import type { ChangementBrut } from "./changements";
 import { correspondances } from "./codes-proches";
-import { MAX_REFS_VISUELLES } from "../plan-raccord";
+import { MAX_REFS_VISUELLES } from "../plans/plan-raccord";
 import { TYPES_MANQUANTS, suffixeDeCode } from "./conversion";
 import { cleNouvelAsset } from "./fiches";
 import type { Avertissement } from "./types";

@@ -1,7 +1,7 @@
 import type { ChangementBrut } from "../agents/changements";
 import type { ApresFiche, RefFiche } from "../agents/fiches";
 import type { Avertissement } from "../agents/types";
-import { ORDRE_SECTIONS } from "../prompt";
+import { ORDRE_SECTIONS } from "../plans/prompt";
 import type { ResultatH3ir } from "./resultat";
 import type { ResultatRetouche } from "./retouche";
 

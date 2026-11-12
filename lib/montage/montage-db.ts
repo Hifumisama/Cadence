@@ -1,7 +1,7 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { montageEntrees, plans } from "../../db/schema";
-import type { Tx } from "../ordre-plans";
+import type { Tx } from "../plans/ordre-plans";
 import { rangNouveauPlan } from "./montage";
 
 /** Écritures du montage partagées par les actions de la page (app/montage/actions.ts) et la naissance d'un plan (lib/agents). Les

@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { getEpisode, getProject, getScenarioData } from "@/lib/queries";
-import { getPelliculePlans } from "@/lib/queries-fiche-plan";
+import { getPelliculePlans } from "@/lib/plans/queries-fiche-plan";
 import { srcRendu } from "@/components/plan/Vignette";
-import { intentAffichee } from "@/lib/intent";
-import { intentionsPerimees } from "@/lib/intention-perimee";
-import { ajoutsEnCours } from "@/lib/ajouts-en-cours";
+import { intentAffichee } from "@/lib/plans/intent";
+import { intentionsPerimees } from "@/lib/plans/intention-perimee";
+import { ajoutsEnCours } from "@/lib/plans/ajouts-en-cours";
 import { VueLecture, type PlanLecture, type SceneLecture } from "@/components/scenario/VueLecture";
-import { romain } from "@/lib/scenario-vue";
+import { romain } from "@/lib/plans/scenario-vue";
 
 export const dynamic = "force-dynamic";
 

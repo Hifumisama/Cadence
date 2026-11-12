@@ -1,7 +1,7 @@
 import { libelleAsset } from "../assets/assetCode";
 import { correspondances } from "../agents/codes-proches";
-import { sansConsigneAuteur, sansEtatDeFin } from "../intent";
-import { MAX_REFS_VISUELLES } from "../plan-raccord";
+import { sansConsigneAuteur, sansEtatDeFin } from "../plans/intent";
+import { MAX_REFS_VISUELLES } from "../plans/plan-raccord";
 import { ROLE_PAR_TYPE, estVoixOff, separerDescription, trouverPersonnage } from "./brief";
 
 /** Le choix des références d'un plan (étape 5 d'Open H3 IR, docs/PLAN_INTEGRATION_OPEN_H3_IR.md) : quels assets du registre un plan neuf envoie au
@@ -30,7 +30,7 @@ export type CandidatReference = {
 };
 
 export type EntreeReferencesPlan = {
-  /** La description du plan telle qu'en base : l'ancien « État en fin de plan » et la « Consigne de l'auteur » sont retirés ici (lib/intent.ts). */
+  /** La description du plan telle qu'en base : l'ancien « État en fin de plan » et la « Consigne de l'auteur » sont retirés ici (lib/plans/intent.ts). */
   description: string;
   /** `suite` + `precedent.memeScene` : le décor du plan précédent sert quand la description n'en nomme pas un seul. */
   liaison: string;

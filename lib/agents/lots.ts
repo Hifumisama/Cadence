@@ -1,7 +1,7 @@
 import { and, asc, count, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, propositionChangements, propositions } from "../../db/schema";
-import type { Tx } from "../ordre-plans";
+import type { Tx } from "../plans/ordre-plans";
 import {
   comptesLot,
   dernieresSousTaches,

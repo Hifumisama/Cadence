@@ -1,5 +1,5 @@
 import type { db } from "../../../db";
-import type { Tx } from "../../ordre-plans";
+import type { Tx } from "../../plans/ordre-plans";
 import type { ChangementBrut, LigneChangement } from "../changements";
 import type { CibleChangement, ScopeDemandee } from "../portee";
 import type { CibleType } from "../types";

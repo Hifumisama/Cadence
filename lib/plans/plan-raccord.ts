@@ -1,7 +1,7 @@
-import { binaires, executerProcessus, mesurerDuree, type OptionsPlanche } from "./renders/planche-vignettes";
+import { binaires, executerProcessus, mesurerDuree, type OptionsPlanche } from "../renders/planche-vignettes";
 import type { PromptSection } from "./plan-checks";
 
-/** Image de raccord (2026-10-14) : quand un plan est en liaison « suite » (lib/plan-liaison.ts), la DERNIÈRE image du rendu du plan précédent est jointe
+/** Image de raccord (2026-10-14) : quand un plan est en liaison « suite » (lib/plans/plan-liaison.ts), la DERNIÈRE image du rendu du plan précédent est jointe
  * à la génération comme `<Picture N>` = première image du premier shot (format H3, `keyframe completion`). Elle est ÉPHÉMÈRE : extraite à chaque
  * génération (jamais au registre d'assets, où elle serait périmée dès qu'un plan change), et le prompt de la fiche n'est pas modifié : le code
  * ajoute les lignes qui la déclarent au prompt SOUMIS seulement (`jobs.prompt_utilise` garde celui de la fiche ; `jobs.raccord_job_id` garde
@@ -75,7 +75,7 @@ export async function extraireDerniereImage(chemin: string, options: OptionsPlan
 }
 
 /** Ce que la page d'un essai dit de son raccord (null = rien à dire). `utilise` : l'essai du plan précédent dont cet essai a pris l'image (`jobs.raccord_job_id`) ;
- * `actuel` : l'essai dont l'image serait prise maintenant (`raccordActuel`, lib/queries-raccord.ts). `perime` : le plan précédent a changé depuis. */
+ * `actuel` : l'essai dont l'image serait prise maintenant (`raccordActuel`, lib/plans/queries-raccord.ts). `perime` : le plan précédent a changé depuis. */
 export function etatRaccord(args: {
   liaison: string;
   utilise: number | null;

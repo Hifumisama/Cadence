@@ -1,8 +1,8 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { assets, planRefs, plans } from "../../db/schema";
 import type { Db } from "../agents/applicateurs/commun";
-import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "../plan-references";
-import { MAX_REFS } from "../plan-checks";
+import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "../plans/plan-references";
+import { MAX_REFS } from "../plans/plan-checks";
 
 /** Écrit les IMAGES de référence d'un plan (`plan_refs`, type `picture`, emplacements 1..n dans l'ordre donné), choisies avant la fiche (inventaire
  * des assets, 2026-11-09) ou plus tard (petit skill `references-plan`). Ce n'est PAS l'écriture d'une fiche (lib/agents/applicateurs/fiche.ts) :

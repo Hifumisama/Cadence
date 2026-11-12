@@ -1,6 +1,6 @@
-import { differenceMots } from "../diff-mots";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
-import { estLiaison } from "../plan-liaison";
+import { differenceMots } from "../plans/diff-mots";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plans/plan-checks";
+import { estLiaison } from "../plans/plan-liaison";
 import type { ChangementBrut } from "./changements";
 import { ECART_DUREE_TOLERE } from "./conversion";
 import { validerOperations } from "./vue-operations/operations";
@@ -8,7 +8,7 @@ import { operationsVersChangements } from "./vue-operations/operations-vers-chan
 import type { Operation, OperationBrute } from "./vue-operations/types";
 import { numeroDePoignee, planParUuid, type VueEpisode } from "./vue-operations/vue-episode";
 import type { Avertissement } from "./types";
-import { aUnEtatDeFin, recitDe } from "../intent";
+import { aUnEtatDeFin, recitDe } from "../plans/intent";
 
 /** RELECTURE DU SCÉNARIO (skill `relecture-scenario`, FRICTIONS 2026-10-19) : une passe du modèle qui réfléchit sur le scénario d'un épisode
  * ÉCRIT (intentions et répliques), avant les fiches de plan. Elle ne réécrit pas l'épisode : elle rend les PLUS PETITES corrections

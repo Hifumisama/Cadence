@@ -1,7 +1,7 @@
 import { and, asc, count, eq, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { agentRuns, assetGenerations } from "../../db/schema";
-import type { Tx } from "../ordre-plans";
+import type { Tx } from "../plans/ordre-plans";
 import type { EtatTache } from "./types";
 
 /** Tâches LLM du système d'agents (agent_runs) : pose dans la file et lecture de l'état. */

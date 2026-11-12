@@ -34,7 +34,7 @@ import { TYPE_AFFICHE } from "../posters/affiches";
 import { entreePromptAffiche } from "./affiche";
 import { entreeCorrectionPlan, entreeRelecture, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, entreeScenarioScene, entreeTraitement, lireBriefDuProjet, type EntreeSkill } from "./contexte";
 import { SEUIL_TRAITEMENT_SECONDES } from "./traitement";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plans/plan-checks";
 import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registre";
 import { annulerRunsDePropositions, runsDuLot } from "./lots";
 import { cleSousTacheEpisode, cleSousTacheScene, dernieresSousTaches, episodeIdDeCle, estRunActif, sceneIdDeCle } from "./lots-pur";

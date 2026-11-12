@@ -1,6 +1,6 @@
 "use client";
 
-import { EVENEMENT_ITERER_TEXTE } from "@/lib/iteration-texte";
+import { EVENEMENT_ITERER_TEXTE } from "@/lib/plans/iteration-texte";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";

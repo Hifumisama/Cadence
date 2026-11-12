@@ -1,10 +1,10 @@
 import type { DecisionsAffichees } from "./types";
 
-/** Ce que l'itération d'un plan montre à l'écran, sans aucune dépendance serveur : `lib/fiche-plan.ts` est lu par des composants client, et
+/** Ce que l'itération d'un plan montre à l'écran, sans aucune dépendance serveur : `lib/plans/fiche-plan.ts` est lu par des composants client, et
  * `lib/agents/iteration-plan.ts` tire du code serveur (compilateur, node:child_process). Les deux éléments ci-dessous vivent donc ici, et
  * `iteration-plan.ts` les réexporte. */
 
-/** Début du résumé d'une proposition qui ne recompile rien (postTraitement) : la décision d'« Itérer » s'arrête là (lib/fiche-plan.ts). */
+/** Début du résumé d'une proposition qui ne recompile rien (postTraitement) : la décision d'« Itérer » s'arrête là (lib/plans/fiche-plan.ts). */
 export const PREFIXE_SANS_ECRITURE = "Diagnostic sans écriture.";
 
 /** Les décisions en phrases courtes, gardées sur l'essai qu'elles produisent (`jobs.alertes_iteration`). */

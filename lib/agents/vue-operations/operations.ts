@@ -1,5 +1,5 @@
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
-import { estLiaison } from "../../plan-liaison";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plans/plan-checks";
+import { estLiaison } from "../../plans/plan-liaison";
 import type { Position } from "../types";
 import { planParPoignee, type VueEpisode } from "./vue-episode";
 import { TYPES_OPERATION, type Operation, type OperationBrute, type OperationRefusee } from "./types";

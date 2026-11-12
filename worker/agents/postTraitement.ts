@@ -38,7 +38,7 @@ import { entreeScenarioEpisode } from "../../lib/agents/contexte";
 import { codeDeCleAsset } from "../../lib/agents/registre";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
 import type { PlaceScene, Position } from "../../lib/agents/types";
-import type { Tx } from "../../lib/ordre-plans";
+import type { Tx } from "../../lib/plans/ordre-plans";
 import { planUuidDeCle } from "../../lib/agents/fiches";
 import { depuisRelecture, type EntreeRelecture, type SortieRelecture } from "../../lib/agents/relecture";
 import { scenes } from "../../db/schema";

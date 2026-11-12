@@ -4,24 +4,24 @@ import { db } from "@/db";
 import { jobs, planPromptSections, planPromptVersions, planRefs, plans } from "@/db/schema";
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { creerJobRelance, DureePlanInvalide } from "@/lib/renders/job-relance";
-import { appliquerIterationEtGenererCore } from "@/lib/iteration-application";
-import { getPlansPerimes } from "@/lib/plans-perimes";
-import { classerPourPrevisualisation, consequencesSuppression } from "@/lib/fiche-plan";
+import { appliquerIterationEtGenererCore } from "@/lib/plans/iteration-application";
+import { getPlansPerimes } from "@/lib/plans/plans-perimes";
+import { classerPourPrevisualisation, consequencesSuppression } from "@/lib/plans/fiche-plan";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { rm } from "node:fs/promises";
 import { resolve } from "node:path";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
-import { estLiaison } from "@/lib/plan-liaison";
-import { descriptionSeraitPerdue, intentionChangee, memeDescription } from "@/lib/intent";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/plans/plan-checks";
+import { estLiaison } from "@/lib/plans/plan-liaison";
+import { descriptionSeraitPerdue, intentionChangee, memeDescription } from "@/lib/plans/intent";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
-import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "@/lib/plan-references";
-import { emplacementLibre } from "@/lib/references";
-import type { RefLabel } from "@/lib/plan-checks";
-import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/prompt";
+import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "@/lib/plans/plan-references";
+import { emplacementLibre } from "@/lib/plans/references";
+import type { RefLabel } from "@/lib/plans/plan-checks";
+import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColle } from "@/lib/plans/prompt";
 import { promptDiffere, raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib/renders/rendus";
 import { MEDIA_ROOT } from "@/lib/media";
-import { assemblerPrompt } from "@/lib/prompt";
+import { assemblerPrompt } from "@/lib/plans/prompt";
 
 async function updatePromptSection(
   planId: number,
@@ -266,7 +266,7 @@ export async function lancerPrevisualisations(
 ): Promise<{ n: number; dejaEnFile: number }> {
   const c = await classerPourPrevisualisations(episodeId);
   // Dans l'ordre de l'épisode : le worker prend les essais dans l'ordre de création, et un plan en liaison « suite » prend la dernière image du rendu
-  // de son précédent (lib/plan-raccord.ts) : le précédent doit passer avant.
+  // de son précédent (lib/plans/plan-raccord.ts) : le précédent doit passer avant.
   const choisis = planUuids.length ? await db.select({ id: plans.id }).from(plans).where(and(eq(plans.episodeId, episodeId), inArray(plans.uuid, planUuids))).orderBy(plans.ordre, plans.id) : [];
   let n = 0;
   let dejaEnFile = 0;
@@ -282,7 +282,7 @@ export async function lancerPrevisualisations(
   return { n, dejaEnFile };
 }
 
-/** « Relancer les plans périmés » (lib/plans-perimes) : un nouveau rendu pour chaque plan de l'épisode dont une référence, le prompt ou la durée
+/** « Relancer les plans périmés » (lib/plans/plans-perimes) : un nouveau rendu pour chaque plan de l'épisode dont une référence, le prompt ou la durée
  * ont changé depuis son dernier rendu. Chaque plan repart dans le mode de son dernier rendu (prévisualisation reste prévisualisation,
  * final reste final) et avec sa seed et le prompt et la durée du plan tels qu'ils sont maintenant. Sont sautés : les plans déjà en file ou en cours. */
 export async function relancerPlansPerimes(episodeId: number): Promise<{ n: number; dejaEnFile: number }> {
@@ -307,7 +307,7 @@ export async function relancerPlansPerimes(episodeId: number): Promise<{ n: numb
 }
 
 /** Ajoute une référence (image/audio/vidéo) au prochain slot disponible, et la déclare dans le prompt
- * (`subject_definitions`, `retention_analysis` : lib/references.ts). Les slots sont toujours sans trou
+ * (`subject_definitions`, `retention_analysis` : lib/plans/references.ts). Les slots sont toujours sans trou
  * (révision 2026-10-03 : un retrait renumérote, voir `supprimerRef`). */
 export async function ajouterRef(
   planId: number,
@@ -357,7 +357,7 @@ type ValeursScenario = {
   /** La durée de RENDU du plan, entier de DUREE_GENERATION_MIN à DUREE_GENERATION_MAX (4 à 10 s) : écrite comme durée de génération ET de montage (le montage suit le rendu,
    * comme partout ailleurs). Absente = on n'y touche pas (une durée d'avant, hors bornes, reste telle quelle). */
   dureeSecondes?: number;
-  /** Liaison avec le plan précédent (lib/plan-liaison.ts) ; une valeur inconnue n'écrit rien. */
+  /** Liaison avec le plan précédent (lib/plans/plan-liaison.ts) ; une valeur inconnue n'écrit rien. */
   liaison?: string;
   /** Open H3 IR (lib/h3ir/reglages.ts) : absents = on n'y touche pas ; `null` ou vide = le plan hérite de sa scène, puis du projet ; style « aucun » = pas de style. */
   creativite?: string | null;
@@ -500,7 +500,7 @@ export async function rouvrirIteration(planId: number): Promise<Resume> {
   return { ok: true };
 }
 
-/** Le texte actuel du plan et celui d'un essai, quand reprendre l'essai écraserait un texte modifié à la main (lib/intent.ts, `descriptionSeraitPerdue`). */
+/** Le texte actuel du plan et celui d'un essai, quand reprendre l'essai écraserait un texte modifié à la main (lib/plans/intent.ts, `descriptionSeraitPerdue`). */
 export type ConflitDescription = { actuelle: string; essai: string; numeroRendu: number };
 
 /** Avant « Itérer » depuis un essai qui n'est pas le plus récent : le plan reprend le prompt, la seed et la durée de CET essai, pour que

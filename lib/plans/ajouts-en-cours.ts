@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { db } from "../db";
-import { demandes } from "../db/schema";
-import type { ContexteAjoutPlan, ContexteAjoutScene } from "./tasks/demandes";
+import { db } from "../../db";
+import { demandes } from "../../db/schema";
+import type { ContexteAjoutPlan, ContexteAjoutScene } from "../tasks/demandes";
 import type { AjoutEnCours, AjoutSceneEnCours } from "./scenario-vue";
 
 /** Le plan ou la scène en cours d'écriture dans l'épisode (« Ajouter un plan », « Nouvelle scène »), s'il y en a un : les pages Scénario et Tournage lui gardent sa

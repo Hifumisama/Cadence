@@ -2,7 +2,7 @@
  * pour chacune ce qu'elle raconte, d'où elle part, où elle arrive et son poids. Les durées sont du ressort du CODE : le modèle ne sait pas
  * additionner (écarts de ×2 constatés), il donne des poids et c'est ici qu'on en fait des secondes. Règles pures, testées. */
 
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plans/plan-checks";
 
 const DUREE_PLAN_MIN = DUREE_GENERATION_MIN;
 const DUREE_PLAN_MAX = DUREE_GENERATION_MAX;

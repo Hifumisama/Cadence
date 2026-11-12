@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { db } from "../db";
-import { plans, scenes } from "../db/schema";
+import { db } from "../../db";
+import { plans, scenes } from "../../db/schema";
 
 /** Ordre des plans d'un épisode — source unique, partagée par le glisser-déposer
  * (app/scenario/actions.ts) et l'application des propositions d'agents

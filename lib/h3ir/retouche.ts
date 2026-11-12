@@ -1,4 +1,4 @@
-import { decouperSections, ORDRE_SECTIONS, validerPromptColle, type NomSection } from "../prompt";
+import { decouperSections, ORDRE_SECTIONS, validerPromptColle, type NomSection } from "../plans/prompt";
 import { normaliserReplique, separerDescription } from "./brief";
 
 /** « Partir de cet essai » : la consigne se joue sur le PROMPT de l'essai (`jobs.prompt_utilise`), pas sur une recompilation. Le skill `retouche-prompt`

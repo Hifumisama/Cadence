@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { updatePlanScenario } from "@/app/plans/actions";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/plan-checks";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/plans/plan-checks";
 import { GenererFiche } from "@/components/plan/GenererFiche";
-import type { Liaison } from "@/lib/plan-liaison";
-import { intentAffichee } from "@/lib/intent";
+import type { Liaison } from "@/lib/plans/plan-liaison";
+import { intentAffichee } from "@/lib/plans/intent";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
 import { CurseurDuree } from "@/components/plan/CurseurDuree";
 import type { DemoDispo } from "@/lib/h3ir/demos";

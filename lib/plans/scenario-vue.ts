@@ -25,7 +25,7 @@ export type PlanVue = {
   href: string;
   /** La demande « Générer la fiche » en cours sur ce plan, s'il y en a une. */
   ficheEnCours: number | null;
-  /** Le texte du plan a changé depuis sa fiche (`fiche`) ou depuis son dernier rendu (`rendu`) ; null = rien à signaler (lib/intention-perimee.ts). */
+  /** Le texte du plan a changé depuis sa fiche (`fiche`) ou depuis son dernier rendu (`rendu`) ; null = rien à signaler (lib/plans/intention-perimee.ts). */
   intentionChangee: "fiche" | "rendu" | null;
 };
 

@@ -1,4 +1,4 @@
-import type { Liaison } from "../../plan-liaison";
+import type { Liaison } from "../../plans/plan-liaison";
 import type { Position } from "../types";
 
 /** Les opérations sur un épisode (relecture du scénario). Types partagés par le
@@ -20,7 +20,7 @@ export type OperationBrute = {
   position?: string | null;
   titre?: string | null;
   description?: string | null;
-  /** modifier_plan : la liaison avec le plan précédent (`suite` ou `coupe`, lib/plan-liaison.ts). */
+  /** modifier_plan : la liaison avec le plan précédent (`suite` ou `coupe`, lib/plans/plan-liaison.ts). */
   liaison?: string | null;
   /** refondre_fiche : ce qu'il faut changer dans la fiche, dit simplement (facultatif). */
   consigne?: string | null;

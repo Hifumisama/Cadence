@@ -5,7 +5,7 @@
  * en cas de doute, assets manquants, prompts, images), puis il est compilé. `refusReferences` dit pourquoi un plan n'est pas encore compilable (c'est ce
  * que la préparation résout). */
 
-import { MAX_REFS_VISUELLES } from "../plan-raccord";
+import { MAX_REFS_VISUELLES } from "../plans/plan-raccord";
 
 /** Plafond d'images de référence d'un brief Open H3 IR (le même que lib/h3ir/brief.ts). */
 const MAX_IMAGES_H3IR = MAX_REFS_VISUELLES;

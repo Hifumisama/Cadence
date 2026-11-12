@@ -1,4 +1,4 @@
-import { getPlansPerimes, nbPlansRendusCitant } from "@/lib/plans-perimes";
+import { getPlansPerimes, nbPlansRendusCitant } from "@/lib/plans/plans-perimes";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsRegistre, getFirstEpisodeId, getProject } from "@/lib/queries";

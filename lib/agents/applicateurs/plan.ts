@@ -1,16 +1,16 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { episodes, jobs, planPromptSections, planRefs, plans, scenes } from "../../../db/schema";
-import { recomposerOrdre } from "../../ordre-plans";
+import { recomposerOrdre } from "../../plans/ordre-plans";
 import { ajouterPlanNeAuMontage } from "../../montage/montage-db";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
-import { estLiaison, liaisonOuDefaut } from "../../plan-liaison";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plans/plan-checks";
+import { estLiaison, liaisonOuDefaut } from "../../plans/plan-liaison";
 import type { ChangementBrut } from "../changements";
 import { planifierDeplacement, planifierInsertion } from "../rangs";
 import type { Avertissement, Position } from "../types";
 import { apres, parentDe, texte, type Applicateur, type Db } from "./commun";
 
 /** Cible `plan` : créer (à une POSITION : après tel plan par uuid, début ou fin — jamais un
- * numéro) ou modifier titre, description, liaison (avec le plan précédent, lib/plan-liaison.ts) et durée de génération. `cibleRef` = uuid du plan
+ * numéro) ou modifier titre, description, liaison (avec le plan précédent, lib/plans/plan-liaison.ts) et durée de génération. `cibleRef` = uuid du plan
  * (modification). `apres` (création) = { titre, description, dureeGenerationSecondes,
  * episodeId | episodeCle, sceneId | sceneCle? }. Les répliques et le prompt H3 (sections) ne
  * s'écrivent pas par ce chemin : ils restent à la fiche de plan.

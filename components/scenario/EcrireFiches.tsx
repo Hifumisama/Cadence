@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { demanderFichesPlans } from "@/app/demandes/actions";
 import { Icone } from "@/components/ui/Icone";
-import { romain, type SceneVue } from "@/lib/scenario-vue";
+import { romain, type SceneVue } from "@/lib/plans/scenario-vue";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 

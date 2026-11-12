@@ -1,7 +1,7 @@
 import { avecTitreDansImage, titreDansPrompt } from "../posters/affiches";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, slugifyCode } from "../assets/assetCode";
 import type { ChangementBrut } from "./changements";
-import { estLiaison } from "../plan-liaison";
+import { estLiaison } from "../plans/plan-liaison";
 import { ajusterDureesScene, repartirDureesScenes } from "./traitement";
 import type { Avertissement, PlaceScene, Position } from "./types";
 
@@ -109,7 +109,7 @@ export type SortieScenarioEpisode = {
     plans: {
       titre: string;
       description: string;
-      /** Liaison avec le plan précédent (lib/plan-liaison.ts) : absente d'un scénario d'avant, alors la liaison du plan ne change pas. */
+      /** Liaison avec le plan précédent (lib/plans/plan-liaison.ts) : absente d'un scénario d'avant, alors la liaison du plan ne change pas. */
       liaison?: string;
       dureeSecondes: number;
     }[];

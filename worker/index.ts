@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { LIBELLE_SOURCE_INVALIDE, MEGAPIXELS_VIDEO, continuiteEffective, etapesDuRendu, raccordImageARejouer, raisonSourceInvalide, type Continuite, type EtapeVideo } from "../lib/renders/etapes-video";
-import { essaiSourceDuLatent, planPrecedent, precedentEnRendu } from "../lib/queries-raccord";
-import { doitAttendreLePrecedent } from "../lib/chaines";
-import { ficheChangeeDepuis } from "../lib/plans-perimes";
+import { essaiSourceDuLatent, planPrecedent, precedentEnRendu } from "../lib/plans/queries-raccord";
+import { doitAttendreLePrecedent } from "../lib/plans/chaines";
+import { ficheChangeeDepuis } from "../lib/plans/plans-perimes";
 import { BudgetContexte, contexteTotalDepuisEnv, estimerContexte } from "../lib/llm/budget-contexte";
 import { chargerSkill } from "../lib/llm/skills";
 import { join, resolve } from "node:path";
@@ -15,8 +15,8 @@ import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/tasks/annu
 import { domaineDe } from "../lib/renders/gpu";
 import { configLlm } from "../lib/llm/config";
 import { cheminAssetMedia, cheminVoixMedia } from "../lib/media";
-import { assemblerPrompt } from "../lib/prompt";
-import { raccordSansPlace, sectionsAvecRaccord } from "../lib/plan-raccord";
+import { assemblerPrompt } from "../lib/plans/prompt";
+import { raccordSansPlace, sectionsAvecRaccord } from "../lib/plans/plan-raccord";
 import { getAllParams } from "../lib/params";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import { attendreResultat, type IssueAttente } from "./attente";
@@ -142,7 +142,7 @@ async function construireSubmissionInput(
     .filter((r) => r.type === "video" && r.fichier)
     .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) }));
 
-  // Liaison « suite » : la dernière image du rendu du plan précédent devient la première image du premier shot (éphémère, lib/plan-raccord.ts).
+  // Liaison « suite » : la dernière image du rendu du plan précédent devient la première image du premier shot (éphémère, lib/plans/plan-raccord.ts).
   const raccord = await preparerRaccord(plan, refsImage.map((r) => r.slot), refsVideo.length, raccordImpose);
 
   return {

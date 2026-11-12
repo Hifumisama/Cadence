@@ -1,12 +1,12 @@
 /** Logique PURE de la fiche de plan (table de montage, 2026-10-12) : états d'un plan, ordre et navigation des essais, suppression
  * d'un essai et ses cascades, compte des prévisualisations à lancer. Aucun accès base ni disque : importable côté client, testée
- * (lib/fiche-plan.test.ts). Voir docs/FRICTIONS.md, « Fiche de plan : la table de montage » (2026-10-12).
+ * (lib/plans/fiche-plan.test.ts). Voir docs/FRICTIONS.md, « Fiche de plan : la table de montage » (2026-10-12).
  *
  * Vocabulaire : un ESSAI est une ligne de `jobs` (un rendu), numéroté par `numeroRendu` ; le plan n'a pas de numéro (F03), sa
  * position (rang dans l'épisode) ne sert qu'à l'affichage. */
 
-import { notesDecisions, PREFIXE_SANS_ECRITURE } from "./agents/iteration-notes";
-import type { DecisionsAffichees, DecisionsIteration } from "./agents/types";
+import { notesDecisions, PREFIXE_SANS_ECRITURE } from "../agents/iteration-notes";
+import type { DecisionsAffichees, DecisionsIteration } from "../agents/types";
 
 /** L'état affiché d'un plan, DÉRIVÉ (jamais stocké) : sans essai = brouillon ; `plans.pret_upscale_at` posé = prêt à upscaler ; sinon en
  * itération. Un nouvel essai lancé sur un plan prêt le remet en itération (le marqueur est effacé à la création du job). */

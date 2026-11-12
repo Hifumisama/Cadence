@@ -1,5 +1,5 @@
 import { getEpisode, getEtatPlans, getProject, getScenarioData } from "@/lib/queries";
-import { getPelliculePlans } from "@/lib/queries-fiche-plan";
+import { getPelliculePlans } from "@/lib/plans/queries-fiche-plan";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -7,9 +7,9 @@ import { demandes, plans } from "@/db/schema";
 import { demosMiseEnScene } from "@/lib/media";
 import { VueScenario } from "@/components/scenario/VueScenario";
 import { srcRendu } from "@/components/plan/Vignette";
-import { intentionsPerimees } from "@/lib/intention-perimee";
-import { ajoutsEnCours } from "@/lib/ajouts-en-cours";
-import type { PlanVue, SceneVue } from "@/lib/scenario-vue";
+import { intentionsPerimees } from "@/lib/plans/intention-perimee";
+import { ajoutsEnCours } from "@/lib/plans/ajouts-en-cours";
+import type { PlanVue, SceneVue } from "@/lib/plans/scenario-vue";
 
 export const dynamic = "force-dynamic";
 

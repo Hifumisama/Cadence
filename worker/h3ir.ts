@@ -4,7 +4,7 @@ import { compilerAvecRelances, ErreurCompilation, reglagesH3ir, type EnveloppeH3
 import { SKILL_H3IR, SKILL_TRADUCTION, type CompilationReduite, type EntreeH3ir, type ResultatH3ir } from "../lib/h3ir/resultat";
 import { executerSkill, type OptionsExecution } from "../lib/llm/executer";
 import { messageRetouche, passagesChanges, SKILL_RETOUCHE, verifierRetouche, type EntreeRetouche, type ResultatRetouche, type SortieRetouche } from "../lib/h3ir/retouche";
-import { ORDRE_SECTIONS } from "../lib/prompt";
+import { ORDRE_SECTIONS } from "../lib/plans/prompt";
 
 /** La tâche « fiche de plan » avec le compilateur Open H3 IR (skill virtuel `plan-h3ir`, pas de dossier sous agents/skills) : lancée par `traiterTacheLlm`
  * à la place d'`executerSkill`. Trois temps, sous le même verrou GPU qu'un appel LLM ordinaire :

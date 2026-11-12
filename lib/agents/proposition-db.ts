@@ -7,7 +7,7 @@ import { clesParent, ordonnerParDependances, type ChangementBrut, type LigneChan
 import { cocheParDefaut, estBloque } from "./cochage";
 import { verifierPortee, type ScopeDemandee } from "./portee";
 import type { Avertissement, CibleType, EcrasementAConfirmer, Operation, Position, ResultatApplication } from "./types";
-import type { Tx } from "../ordre-plans";
+import type { Tx } from "../plans/ordre-plans";
 
 /** Couche base des propositions : enrichir les changements bruts avec l'état courant, les
  * enregistrer (cochage par défaut, verrou de portée, refus explicites), puis appliquer la

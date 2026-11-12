@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { agentConversations, agentRuns, assets, demandes, episodes, jobs, plans, propositions, scenes } from "../../db/schema";
 import { appliquerSelection, cocherChangements, conversationParUuid, creerAssetsManquants, genererFiches, genererIteration, genererPromptsAssets, genererProposition, genererReecriturePlan, genererReferencesPlan, ouvrirConversation } from "../agents/service";
 import { annulerLot } from "../agents/lots";
-import { choisirProchaineIteration, precedentsDansLaChaine } from "../chaines";
+import { choisirProchaineIteration, precedentsDansLaChaine } from "../plans/chaines";
 import { cleNouvelAsset } from "../agents/fiches";
 import { referencesApresDecisions } from "../h3ir/brief-plan";
 import { choisirReferencesPlan } from "../h3ir/references-plan-db";
@@ -37,10 +37,10 @@ import {
   type ObservationIteration,
   type StatutDemande,
 } from "./demandes";
-import { decisionIteration } from "../fiche-plan";
+import { decisionIteration } from "../plans/fiche-plan";
 import { refusReferences } from "../h3ir/moteur";
 import { etatsRefsVisuelles } from "../h3ir/moteur-db";
-import { appliquerIterationEtGenererCore } from "../iteration-application";
+import { appliquerIterationEtGenererCore } from "../plans/iteration-application";
 import { lireProposition } from "../queries-agents";
 import { cleLlm, cleVideo } from "./taches";
 import type { DecisionsAffichees, DecisionsIteration, Resultat } from "../agents/types";
@@ -190,7 +190,7 @@ async function demarrerProchaineIteration(): Promise<boolean> {
   if (enCours) return false;
   const file = await db.select().from(demandes).where(and(eq(demandes.type, "iteration-plan"), eq(demandes.statut, "en_attente"))).orderBy(asc(demandes.createdAt), asc(demandes.id));
   if (file.length === 0) return false;
-  // L'ordre d'arrivée, sauf qu'un plan en « suite » repart du rendu de son précédent : s'il est lui aussi en file, il passe après lui (lib/chaines.ts).
+  // L'ordre d'arrivée, sauf qu'un plan en « suite » repart du rendu de son précédent : s'il est lui aussi en file, il passe après lui (lib/plans/chaines.ts).
   const plansEnFile = await db.select({ id: plans.id, episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(inArray(plans.episodeId, db.select({ e: plans.episodeId }).from(plans).where(inArray(plans.id, file.map((f) => f.cibleId)))));
   const precedentsDe = (planId: number) => {
     const p = plansEnFile.find((x) => x.id === planId);

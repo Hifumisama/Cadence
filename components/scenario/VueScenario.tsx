@@ -14,8 +14,8 @@ import { posterBackgroundImage } from "@/lib/posters/poster";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import { LIBELLE_CREATIVITE, RESUME_STYLE_CAMERA, STYLE_AUCUN, infobulleChoix, creativiteOuNull, styleCameraOuNull, type ReglagesBruts } from "@/lib/h3ir/reglages";
 import { cleDemande } from "@/lib/tasks/taches";
-import { intentAffichee } from "@/lib/intent";
-import { LIBELLE_ETAT, LIBELLE_INTENTION_CHANGEE, cleScene, minutage, romain, type AjoutEnCours, type AjoutSceneEnCours, type PlanVue, type SceneVue } from "@/lib/scenario-vue";
+import { intentAffichee } from "@/lib/plans/intent";
+import { LIBELLE_ETAT, LIBELLE_INTENTION_CHANGEE, cleScene, minutage, romain, type AjoutEnCours, type AjoutSceneEnCours, type PlanVue, type SceneVue } from "@/lib/plans/scenario-vue";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./GlisserDeposer";
 import { AjouterPlan, type CibleAjoutPlan } from "./AjouterPlan";
 import { EtatFiches } from "./EtatFiches";
@@ -31,7 +31,7 @@ const CLE_DESCRIPTIONS = "cadence:scenario-descriptions";
 const pad = (n: number) => String(n).padStart(2, "0");
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 /** Les retours à la ligne d'une description n'ont pas de place dans un extrait de vignette. L'intent affiché masque la « Consigne de l'auteur » et
- * l'ancien « État en fin de plan » (lib/intent.ts). */
+ * l'ancien « État en fin de plan » (lib/plans/intent.ts). */
 const aplatir = (t: string) => intentAffichee(t).replace(/\s*\n+\s*/g, " · ");
 /** Le point de la frise d'une ligne suit l'état dérivé (le même que dans la grille), pas le statut de la fiche. */
 const NOEUD = { brouillon: "st-brouillon", iteration: "st-encours", pret: "st-termine" } as const;
