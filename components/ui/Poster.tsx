@@ -1,11 +1,11 @@
-import { posterBackgroundImage, posterInitiale, posterPorteLeTitre } from "@/lib/poster";
+import { posterBackgroundImage, posterInitiale, posterPorteLeTitre } from "@/lib/posters/poster";
 
 /** Poster "affiche de film" à trois échelles — carte (accueil, texte
  * complet), sm (en-tête de saison), mini (ligne d'épisode). `src` est déjà
  * résolu par l'appelant (voir lib/media.ts:posterSrc, un accès disque —
  * jamais fait ici, pour rester importable depuis un composant "use client"
  * comme SaisonSection). Sans src, dégradé déterministe + initiale/titre en
- * Marcellus (lib/poster.ts) plutôt qu'une vraie image de repli à générer. */
+ * Marcellus (lib/posters/poster.ts) plutôt qu'une vraie image de repli à générer. */
 export function Poster({
   src,
   titre,

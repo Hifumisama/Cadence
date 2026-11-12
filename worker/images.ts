@@ -12,7 +12,7 @@ import {
   videoDeMaster,
   parametresMasterVoix,
 } from "../lib/asset-generation";
-import { TYPE_AFFICHE } from "../lib/affiches";
+import { TYPE_AFFICHE } from "../lib/posters/affiches";
 import { annulationDemandeeImage, finirAnnulationImage } from "../lib/annulation-db";
 import { adopterCandidat } from "../lib/generation-adoption";
 import { extraireAudioDeVideo } from "../lib/voice/extraction-audio";

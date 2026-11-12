@@ -11,7 +11,7 @@ import { etatLotPourHeader } from "./agents/lots-pur";
 import { ERREUR_ANNULEE } from "./annulation";
 import { METHODE_MASTER_VOIX } from "./asset-generation";
 import { generationMediaSrc } from "./media";
-import { cibleDeCodeAffiche } from "./affiches";
+import { cibleDeCodeAffiche } from "./posters/affiches";
 import {
   LIBELLE_SKILL,
   RETENTION_TERMINEES_JOURS,

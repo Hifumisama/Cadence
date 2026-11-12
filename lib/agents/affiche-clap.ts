@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { agentConversations, agentRuns, assetGenerations, assets, briefs, projects } from "../../db/schema";
-import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../affiches";
+import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../posters/affiches";
 import { nouvelleSeed } from "../asset-generation";
 import { VARIANTE_AFFICHE } from "../llm/variantes";
 import { motDuTon, styleDesImages } from "../conception";

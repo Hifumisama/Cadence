@@ -10,7 +10,7 @@ import { RetirerAfficheButton } from "@/components/affiches/RetirerAfficheButton
 import { Poster } from "@/components/ui/Poster";
 import { Topbar } from "@/components/ui/Topbar";
 import { lirePersonnagePrincipal } from "@/lib/agents/affiche";
-import { TYPE_AFFICHE, cibleDeCodeAffiche, titreDansPrompt } from "@/lib/affiches";
+import { TYPE_AFFICHE, cibleDeCodeAffiche, titreDansPrompt } from "@/lib/posters/affiches";
 import { posterSrc } from "@/lib/media";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/queries-generations";
 import "./affiche.css";
@@ -18,7 +18,7 @@ import "./affiche.css";
 export const dynamic = "force-dynamic";
 
 /** Génération de l'image de présentation d'un projet ou d'un épisode. Le même atelier que la fiche d'un asset (consigne en français,
- * journal d'essais, « Utiliser cet essai » : l'affiche s'appuie sur un asset d'un type à part, invisible du registre — lib/affiches.ts). La page
+ * journal d'essais, « Utiliser cet essai » : l'affiche s'appuie sur un asset d'un type à part, invisible du registre — lib/posters/affiches.ts). La page
  * n'existe que si l'asset a été créé par le bouton « Générer une image » : jamais d'écriture en simple lecture. */
 export default async function AffichePage({
   params,

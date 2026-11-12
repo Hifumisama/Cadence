@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { assets } from "../../../db/schema";
 import { TYPES_ASSET, construireCode, estMethodeAsset, slugifyCode } from "../../assetCode";
-import { TYPE_AFFICHE } from "../../affiches";
+import { TYPE_AFFICHE } from "../../posters/affiches";
 import { statutAsset } from "../../asset-etat";
 import { masterDe } from "../../registre-assets";
 import type { ChangementBrut } from "../changements";

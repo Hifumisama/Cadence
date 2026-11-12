@@ -7,8 +7,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { assets } from "@/db/schema";
-import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, promptAffiche, type CibleAffiche } from "@/lib/affiches";
-import { ecrirePoster, lirePoster } from "@/lib/affiche-application";
+import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, promptAffiche, type CibleAffiche } from "@/lib/posters/affiches";
+import { ecrirePoster, lirePoster } from "@/lib/posters/affiche-application";
 import { resoudreAffiche } from "@/lib/agents/affiche";
 import { MEDIA_ROOT, cheminPosterMedia } from "@/lib/media";
 

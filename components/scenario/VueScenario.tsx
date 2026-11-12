@@ -10,7 +10,7 @@ import { Vignette } from "@/components/plan/Vignette";
 import { GenererFiche } from "@/components/plan/GenererFiche";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { Icone } from "@/components/ui/Icone";
-import { posterBackgroundImage } from "@/lib/poster";
+import { posterBackgroundImage } from "@/lib/posters/poster";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import { LIBELLE_CREATIVITE, RESUME_STYLE_CAMERA, STYLE_AUCUN, infobulleChoix, creativiteOuNull, styleCameraOuNull, type ReglagesBruts } from "@/lib/h3ir/reglages";
 import { cleDemande } from "@/lib/taches";

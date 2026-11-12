@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { agentRuns, assetGenerations } from "../../db/schema";
 import { STATUT_TRADUCTION, methodeDEssai } from "../asset-generation";
-import { TYPE_AFFICHE } from "../affiches";
+import { TYPE_AFFICHE } from "../posters/affiches";
 import { assets } from "../../db/schema";
 import { entreePromptAffiche } from "./affiche";
 import { entreePromptAsset, type EntreeSkill } from "./contexte";

@@ -18,7 +18,7 @@ import {
   nouvelleSeed,
   raisonConsigneInvalide,
 } from "@/lib/asset-generation";
-import { TYPE_AFFICHE } from "@/lib/affiches";
+import { TYPE_AFFICHE } from "@/lib/posters/affiches";
 import { styleDesEditions, styleDesImages } from "@/lib/conception";
 import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "@/lib/media";
 import { nbImagesEnAttente } from "@/lib/queries-taches";

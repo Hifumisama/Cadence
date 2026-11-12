@@ -30,7 +30,7 @@ import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversat
 import { PORTEES } from "./types";
 
 import { groupeAffiche, raisonNonCochable } from "./cochage";
-import { TYPE_AFFICHE } from "../affiches";
+import { TYPE_AFFICHE } from "../posters/affiches";
 import { entreePromptAffiche } from "./affiche";
 import { entreeCorrectionPlan, entreeRelecture, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, entreeScenarioScene, entreeTraitement, lireBriefDuProjet, type EntreeSkill } from "./contexte";
 import { SEUIL_TRAITEMENT_SECONDES } from "./traitement";

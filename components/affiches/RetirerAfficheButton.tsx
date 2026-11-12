@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { retirerAffiche } from "@/app/affiches/actions";
-import type { CibleAffiche } from "@/lib/affiches";
+import type { CibleAffiche } from "@/lib/posters/affiches";
 
 /** Retire l'image de présentation (retour au dégradé). Deux temps pour ne pas la perdre d'un faux clic. */
 export function RetirerAfficheButton({ cible, id }: { cible: CibleAffiche; id: number }) {

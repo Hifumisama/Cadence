@@ -1,4 +1,4 @@
-import { avecTitreDansImage, titreDansPrompt } from "../affiches";
+import { avecTitreDansImage, titreDansPrompt } from "../posters/affiches";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, slugifyCode } from "../assetCode";
 import type { ChangementBrut } from "./changements";
 import { estLiaison } from "../plan-liaison";

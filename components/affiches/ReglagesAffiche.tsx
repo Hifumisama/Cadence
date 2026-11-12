@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { reglerTitreAffiche } from "@/app/affiches/actions";
-import type { CibleAffiche } from "@/lib/affiches";
+import type { CibleAffiche } from "@/lib/posters/affiches";
 
 /** Le réglage de l'affiche avant de lancer un essai : écrire le titre dans l'image (ligne de titre du prompt). Le prompt lui-même est écrit par
  * l'agent à partir de la consigne de l'atelier (components/assets/AtelierAsset.tsx). */

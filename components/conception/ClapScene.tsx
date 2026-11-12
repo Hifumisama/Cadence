@@ -7,7 +7,7 @@ import type { NoteAffichee } from "@/lib/agents/fiche-affichage";
 import { motDuTon, plansEstimes, valeursParDefaut, type Conception } from "@/lib/conception";
 import { minutesSecondes } from "@/lib/conception-ui";
 import { urlMiniature } from "@/lib/miniatures";
-import { posterPorteLeTitre } from "@/lib/poster";
+import { posterPorteLeTitre } from "@/lib/posters/poster";
 import { AfficheZoom } from "@/components/affiches/AfficheZoom";
 import { EnteteScene } from "./Scenes";
 

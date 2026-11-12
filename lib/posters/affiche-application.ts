@@ -1,11 +1,11 @@
 import { copyFile, mkdir, unlink } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { eq } from "drizzle-orm";
-import { db } from "../db";
-import { episodes, projects } from "../db/schema";
+import { db } from "../../db";
+import { episodes, projects } from "../../db/schema";
 import { cibleDeCodeAffiche, type CibleAffiche } from "./affiches";
 import { SUFFIXE_TITRE } from "./poster";
-import { cheminAssetMedia, cheminPosterMedia } from "./media";
+import { cheminAssetMedia, cheminPosterMedia } from "../media";
 
 const TABLES = { projects, episodes } as const;
 

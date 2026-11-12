@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { ouvrirAffiche } from "@/app/affiches/actions";
 import { Icone } from "@/components/ui/Icone";
-import type { CibleAffiche } from "@/lib/affiches";
+import type { CibleAffiche } from "@/lib/posters/affiches";
 
 /** « Générer une image » : ouvre la page de génération de l'affiche d'un projet ou d'un épisode (l'asset d'affiche, invisible
  * du registre, est créé au premier clic). */
