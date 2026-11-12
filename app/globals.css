@@ -2337,7 +2337,7 @@ button {
 
 /* ---------------------------------------------------------------
    Posters (projet/saison/épisode) — repli en dégradé façon
-   .preview-frame quand aucun fichier n'est fourni, voir lib/poster.ts.
+   .preview-frame quand aucun fichier n'est fourni, voir lib/posters/poster.ts.
    --------------------------------------------------------------- */
 
 .poster {
