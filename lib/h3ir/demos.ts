@@ -1,4 +1,4 @@
-import { CREATIVITES, STYLE_AUCUN } from "./reglages";
+import { CREATIVITES, STYLE_AUCUN } from "./settings";
 import { STYLES_CAMERA } from "./styles-camera";
 
 // --- Identifiants des démos (noms de fichiers sous data/mises-en-scene/) --------------------------------------------------------------------------

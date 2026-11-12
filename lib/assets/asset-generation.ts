@@ -83,7 +83,7 @@ export const CANDIDATS_GARDES = 8;
  * (16:9, ~1536×864), l'identité et les détails restent carrés (1024×1024),
  * comme dans le registre. */
 export function formatParDefaut(type: string): { aspect: Aspect; megapixels: number } {
-  // Une affiche de présentation est un portrait 2:3 (comme les cartes), lib/posters/affiches.ts.
+  // Une affiche de présentation est un portrait 2:3 (comme les cartes), lib/posters/posters.ts.
   if (type === "affiche") return { aspect: "2:3", megapixels: 1.3 };
   // Personnage et décor en 16:9 par défaut (retour de recette, 2026-10-05) : meilleurs résultats dans ce ratio, et c'est le
   // format des plans vidéo. Réglable à la main en régénérant l'image.
@@ -102,7 +102,7 @@ export function formatParDefaut(type: string): { aspect: Aspect; megapixels: num
 export const METHODE_MASTER_VOIX = "master_voix";
 
 
-/** Durée de la vidéo de test d'un master : une réplique face caméra tient en huit secondes (prompt T1, lib/voice/voix.ts:promptMasterVoix). */
+/** Durée de la vidéo de test d'un master : une réplique face caméra tient en huit secondes (prompt T1, lib/voice/voice.ts:promptMasterVoix). */
 export const DUREE_TEST_VIDEO_SECONDES = 8;
 
 /** Ce que la génération d'un master fige au lancement : l'image du personnage (chemin relatif à MEDIA_ROOT, null pour une voix off sans

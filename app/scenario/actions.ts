@@ -4,9 +4,9 @@ import { db } from "@/db";
 import { scenes, plans } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { recomposerOrdre } from "@/lib/plans/ordre-plans";
-import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
-import { conserverConsigneAuteur, intentAffichee, memeDescription } from "@/lib/plans/intent";
+import { recomposerOrdre } from "@/lib/clips/clip-order";
+import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
+import { conserverConsigneAuteur, intentAffichee, memeDescription } from "@/lib/clips/intent";
 
 /** Place un plan dans une scène (ou « sans scène » si `sceneId` est null),
  * juste avant `avantPlanId` — ou, sans repère, à la fin des plans de la scène
@@ -51,7 +51,7 @@ export async function deplacerPlan(planId: number, sceneId: number | null, avant
 
 /** Édition d'une scène : titre, fonction (description) et ambiance (cadre visuel tenu sur toute la scène). Le genre de
  * scène est retiré (2026-11-09) : la colonne reste en base, ni lue ni écrite. */
-/** `creativite` et `styleCamera` (Open H3 IR, lib/h3ir/reglages.ts) : absents = on n'y touche pas ; `null` ou vide = la scène hérite du projet ; `aucun` (style) = pas de style malgré celui du projet. */
+/** `creativite` et `styleCamera` (Open H3 IR, lib/h3ir/settings.ts) : absents = on n'y touche pas ; `null` ou vide = la scène hérite du projet ; `aucun` (style) = pas de style malgré celui du projet. */
 export async function modifierScene(
   sceneId: number,
   valeurs: { titre: string; fonction: string; ambiance?: string; creativite?: string | null; styleCamera?: string | null },

@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsRegistre, getFirstEpisodeId, getProject } from "@/lib/queries";
-import { assetsEnFile, nbImagesEnAttente } from "@/lib/tasks/queries-taches";
+import { assetsEnFile, nbImagesEnAttente } from "@/lib/tasks/queries-tasks";
 import { lireEtatImages } from "@/lib/assets/queries-images";
-import { PLAFOND_LOT_IMAGES, preparerLot, type AssetPourLot } from "@/lib/assets/generation-lot";
+import { PLAFOND_LOT_IMAGES, preparerLot, type AssetPourLot } from "@/lib/assets/generation-batch";
 import { AjouterAssetForm } from "@/components/assets/AjouterAssetForm";
 import { RegistreAssets } from "@/components/assets/RegistreAssets";
 import { TYPES_ASSET, libelleAsset } from "@/lib/assets/assetCode";
 import { infosMedia } from "@/lib/assets/assetMedia";
-import type { LigneRegistre } from "@/lib/assets/registre-types";
+import type { LigneRegistre } from "@/lib/assets/registry-types";
 import { Topbar } from "@/components/ui/Topbar";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export default async function AssetsPage({
   ]);
   if (!projet) notFound();
 
-  // Génération en lot : ce qui peut partir et pourquoi le reste ne peut pas (règles dans lib/assets/generation-lot.ts).
+  // Génération en lot : ce qui peut partir et pourquoi le reste ne peut pas (règles dans lib/assets/generation-batch.ts).
   const pourLot: AssetPourLot[] = tous.map((a) => ({
     id: a.id,
     code: a.code,

@@ -4,7 +4,7 @@ import "./images.css";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { genererImagesManquantes } from "@/app/assets/generation-actions";
-import { etapesSuivantes, libelleGenererImages, prochaineEtape, type EtatImages } from "@/lib/assets/images-projet";
+import { etapesSuivantes, libelleGenererImages, prochaineEtape, type EtatImages } from "@/lib/assets/project-images";
 
 /** Sondage de l'état des images d'un projet (/api/images/<id>) : toutes les 3 s tant que des images sont en file, sinon toutes les 10 s.
  * `recharger` force une lecture (après un lancement). */

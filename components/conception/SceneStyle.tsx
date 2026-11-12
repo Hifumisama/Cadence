@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { deposerImageStyleLibre } from "@/app/nouveau/actions";
-import { referencesNommees } from "@/lib/projects/conception";
-import { urlMiniature } from "@/lib/miniatures";
-import { AXES_FILTRE, filtrerStyles, valeursFiltre, type AxeFiltre } from "@/lib/styles/filtres";
-import { SUJETS_APERCU, type SujetApercu } from "@/lib/styles/sujets";
+import { referencesNommees } from "@/lib/projects/design";
+import { urlMiniature } from "@/lib/thumbnails";
+import { AXES_FILTRE, filtrerStyles, valeursFiltre, type AxeFiltre } from "@/lib/styles/filters";
+import { SUJETS_APERCU, type SujetApercu } from "@/lib/styles/subjects";
 import { EnteteScene } from "./Scenes";
 import type { PropsScene, StyleVue } from "./types";
 

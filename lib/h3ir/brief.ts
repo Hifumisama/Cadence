@@ -1,13 +1,13 @@
 import { libelleAsset, slugifyCode } from "../assets/assetCode";
-import { LANGUE_AUTO } from "../voice/langues-tts";
-import { MAX_REFS_AUDIO, MAX_REFS_VISUELLES } from "../plans/plan-raccord";
-import { SHOT_MIN_FICHE_SECONDES } from "../plans/plan-checks";
-import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./reglages";
-import { PROFILS_PERSO } from "./profils-perso";
+import { LANGUE_AUTO } from "../voice/languages-tts";
+import { MAX_REFS_AUDIO, MAX_REFS_VISUELLES } from "../clips/clip-continuity";
+import { SHOT_MIN_FICHE_SECONDES } from "../clips/clip-checks";
+import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./settings";
+import { PROFILS_PERSO } from "./character-profiles";
 import { STYLES_CAMERA } from "./styles-camera";
 
 /** Le brief Open H3 IR d'un plan (étape 1 du plan d'intégration, docs/PLAN_INTEGRATION_OPEN_H3_IR.md) : la correspondance Cadence → `BriefIn`, le
- * corps de `POST /v1/briefs` du paquet `open-h3-ir`. Pur : tout ce qu'il faut est déjà chargé (lib/h3ir/brief-plan.ts), aucun accès base ni disque.
+ * corps de `POST /v1/briefs` du paquet `open-h3-ir`. Pur : tout ce qu'il faut est déjà chargé (lib/h3ir/brief-clip.ts), aucun accès base ni disque.
  *
  * Le service refuse toute clé inconnue (`extra="forbid"`, 422 `unknown-field`) : le brief ne porte que des clés du contrat. L'intent est en
  * FRANÇAIS à cette étape (pas de LLM) ; sa traduction en anglais viendra avec la tâche du worker (étape 3), car le paquet ne repère lumière, cadrage,
@@ -17,7 +17,7 @@ import { STYLES_CAMERA } from "./styles-camera";
 const MEGAPIXELS_H3IR = 0.4;
 
 
-/** Plafond de `shots` du paquet (`PINNED_SHOTS_MAX`). Son plancher par shot (`MIN_SHOT_MS` = 1200) est `SHOT_MIN_FICHE_SECONDES` (lib/plans/plan-checks.ts). Le paquet
+/** Plafond de `shots` du paquet (`PINNED_SHOTS_MAX`). Son plancher par shot (`MIN_SHOT_MS` = 1200) est `SHOT_MIN_FICHE_SECONDES` (lib/clips/clip-checks.ts). Le paquet
  * refuse un nombre de shots qui ne tient pas dans la durée NOMINALE (`shots-do-not-fit`, h3ir/compile.py:116) : le plafond se calcule donc sur elle, non sur la durée effective. */
 const SHOTS_MAX = 10;
 
@@ -52,7 +52,7 @@ export type BriefH3ir = {
   /** Absent = « balanced », le défaut du paquet. */
   creativity?: Creativite;
   director?: string;
-  /** Un profil personnalisé (profils-perso.ts) : à la place de `director`, jamais avec. */
+  /** Un profil personnalisé (character-profiles.ts) : à la place de `director`, jamais avec. */
   director_profile?: { name: string; notes: string };
   effort: "standard";
   seed?: number;
@@ -80,7 +80,7 @@ export type ReferenceEntree = {
 export type EntreeBrief = {
   plan: { description: string; dureeSecondes: number; seed: string | null };
   scene: { titre: string; ambiance: string | null } | null;
-  /** Langue des dialogues au sens du moteur (« French »…, « Auto »), voir lib/voice/langue-dialogues.ts. */
+  /** Langue des dialogues au sens du moteur (« French »…, « Auto »), voir lib/voice/language-dialogues.ts. */
   langueDialogues: string;
   /** Codes des personnages dont le brief dit « voix off » (pensées) : `codesEnVoixOff`, lib/agents/conversion.ts. */
   codesVoixOff: string[];
@@ -89,7 +89,7 @@ export type EntreeBrief = {
 };
 
 /** `director` : un des 7 profils, `"aucun"` ou vide = pas de style de mise en scène. `creativity` : un des 4 niveaux (`balanced` = le défaut du paquet, la clé n'est alors pas envoyée).
- * Les valeurs héritées du projet, de la scène ou du plan sont résolues AVANT (lib/h3ir/reglages.ts, `chargerBriefPlan`). */
+ * Les valeurs héritées du projet, de la scène ou du plan sont résolues AVANT (lib/h3ir/settings.ts, `chargerBriefPlan`). */
 export type OptionsBrief = { shots?: number | null; director?: string | null; creativity?: string | null };
 
 /** Quel fichier envoyé est quel asset de Cadence : le manifeste du compilateur ne connaît que des empreintes, `liens` (avec les `fichiers` du pont Python,

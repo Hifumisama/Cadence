@@ -3,7 +3,7 @@ import { ConceptionAssistant } from "@/components/conception/ConceptionAssistant
 import type { StyleVue } from "@/components/conception/types";
 import { Topbar } from "@/components/ui/Topbar";
 import { demosMiseEnScene } from "@/lib/media";
-import { styleUtilisable } from "@/lib/styles/bibliotheque";
+import { styleUtilisable } from "@/lib/styles/library";
 import { listerStyles } from "@/lib/styles/styles-db";
 
 export const dynamic = "force-dynamic";

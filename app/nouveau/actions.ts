@@ -8,11 +8,11 @@ import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { creerProjetSansRedirection } from "@/app/projects/actions";
 import { ouvrirConversation } from "@/lib/agents/service";
-import { resoudreStyle, validerConception } from "@/lib/projects/conception";
-import { ecrireConception, poserStyleDuProjet } from "@/lib/projects/conception-db";
-import { reglagesDepuisCharge } from "@/lib/h3ir/reglages";
+import { resoudreStyle, validerConception } from "@/lib/projects/design";
+import { ecrireConception, poserStyleDuProjet } from "@/lib/projects/design-db";
+import { reglagesDepuisCharge } from "@/lib/h3ir/settings";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET } from "@/lib/media";
-import { SUJET_AFFICHE_CLAP } from "@/lib/styles/sujets";
+import { SUJET_AFFICHE_CLAP } from "@/lib/styles/subjects";
 import { listerStyles } from "@/lib/styles/styles-db";
 
 /** Actions de la page de conception d'un projet (`/nouveau`). Chaque action rend `{ ok: true, … } | { ok: false, erreur }` : jamais
@@ -68,7 +68,7 @@ export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; proje
   // Pour un style de la bibliothèque, l'image est son aperçu (s'il a été généré) : le brief garde le chemin relatif au dossier `styles/`.
   const image = conception.style.source === "libre" ? conception.style.image : `${conception.style.styleId}/${SUJET_AFFICHE_CLAP}.webp`;
 
-  // La mise en scène (créativité, style) n'est pas dans la conception : elle vit dans le projet, où le Brief la modifie ensuite (lib/h3ir/reglages.ts).
+  // La mise en scène (créativité, style) n'est pas dans la conception : elle vit dans le projet, où le Brief la modifie ensuite (lib/h3ir/settings.ts).
   const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre", ...reglagesDepuisCharge(brut) });
   try {
     await ecrireConception(db, projectId, conception);

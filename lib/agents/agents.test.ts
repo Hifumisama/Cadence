@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { construireSections, sortieVersBrief, statutDeSection } from "./brief";
-import { cocheParDefaut, raisonNonCochable } from "./cochage";
+import { cocheParDefaut, raisonNonCochable } from "./checking";
 import { depuisCorrectionPlan, depuisPlanAInserer, depuisPromptAsset, depuisSceneAInserer, depuisScenarioEpisode, type SortieScenarioEpisode } from "./conversion";
-import { placeDeScene } from "./applicateurs/structure";
-import { verifierPortee, type CibleChangement } from "./portee";
-import { planifierInsertion } from "./rangs";
-import { squeletteDepuisBrief } from "./squelette";
+import { placeDeScene } from "./appliers/structure";
+import { verifierPortee, type CibleChangement } from "./scope";
+import { planifierInsertion } from "./ranks";
+import { squeletteDepuisBrief } from "./skeleton";
 import type { BriefContenu } from "./types";
 
 // --- verrou de portée -------------------------------------------------------
@@ -251,7 +251,7 @@ test("prompt-affiche : une modification de l'asset d'affiche, avec la ligne de t
 });
 
 test("parolesDeLAuteur : seulement les messages de l'utilisateur, dans l'ordre, plafonnés (les derniers l'emportent)", async () => {
-  const { parolesDeLAuteur, MAX_PAROLES_AUTEUR } = await import("./contexte");
+  const { parolesDeLAuteur, MAX_PAROLES_AUTEUR } = await import("./context");
   const msgs = [
     { role: "assistant", content: "Salut" },
     { role: "user", content: "  Mon idée : une mage et un feu.  " },
@@ -267,7 +267,7 @@ test("parolesDeLAuteur : seulement les messages de l'utilisateur, dans l'ordre, 
 });
 
 test("dernierShotLisible : dernier shot sans timecode ni coupe, labels remplacés par les codes d'assets, plafonné", async () => {
-  const { dernierShotLisible, MAX_DERNIER_SHOT } = await import("./contexte");
+  const { dernierShotLisible, MAX_DERNIER_SHOT } = await import("./context");
   const d = "Style. [Shot 1] A wide shot of <Subject 2>. [Shot 2] At 00:04.000, Hard cut to a close-up of <Subject 1>, Mai, facing the fire <Subject 2>.";
   assert.equal(dernierShotLisible(d, { 1: "CHAR_mai", 2: "DEC_foret" }), "a close-up of CHAR_mai, Mai, facing the fire DEC_foret.");
   assert.equal(dernierShotLisible("pas de shot", {}), null);
@@ -276,7 +276,7 @@ test("dernierShotLisible : dernier shot sans timecode ni coupe, labels remplacé
 });
 
 test("premierShotLisible : le premier shot seul, sans préambule d'ouverture ni coupe, labels remplacés", async () => {
-  const { premierShotLisible } = await import("./contexte");
+  const { premierShotLisible } = await import("./context");
   const d = "A JRPG look. [Shot 1] A wide shot of <Subject 2>, <Subject 1> waiting. [Shot 2] At 00:04.000, Hard cut to a close-up.";
   assert.equal(premierShotLisible(d, { 1: "CHAR_mai", 2: "DEC_foret" }), "A wide shot of DEC_foret, CHAR_mai waiting.");
   assert.equal(premierShotLisible("[Shot 1] only one shot here.", {}), "only one shot here.");
@@ -284,7 +284,7 @@ test("premierShotLisible : le premier shot seul, sans préambule d'ouverture ni 
 });
 
 test("dernierShotLisible : la coupe d'ouverture d'Open H3 IR (« the shot cuts to », « the camera transitions to ») est retirée comme « Hard cut to »", async () => {
-  const { dernierShotLisible } = await import("./contexte");
+  const { dernierShotLisible } = await import("./context");
   assert.equal(dernierShotLisible("[Shot 1] A wide. [Shot 2] At 00:04.000, the shot cuts to a close-up of <Subject 1> by the fire.", { 1: "CHAR_mai" }), "a close-up of CHAR_mai by the fire.");
   assert.equal(dernierShotLisible("[Shot 1] A. [Shot 2] At 00:03.500, The camera transitions to a low angle of <Subject 1>.", { 1: "CHAR_mai" }), "a low angle of CHAR_mai.");
   assert.equal(dernierShotLisible("[Shot 1] A. [Shot 2] At 00:03.500, <Subject 1> strides forward.", { 1: "CHAR_mai" }), "CHAR_mai strides forward.", "un shot sans phrase de coupe reste intact");

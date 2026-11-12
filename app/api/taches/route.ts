@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { listerTaches } from "@/lib/tasks/queries-taches";
-import { lireServeursInjoignables } from "@/lib/renders/serveurs-injoignables";
+import { listerTaches } from "@/lib/tasks/queries-tasks";
+import { lireServeursInjoignables } from "@/lib/renders/unreachable-servers";
 
 // Sondé par le TachesProvider (components/taches) : jamais mis en cache.
 export const dynamic = "force-dynamic";

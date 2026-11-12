@@ -1,7 +1,7 @@
 import { and, asc, count, eq, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { agentRuns, assetGenerations } from "../../db/schema";
-import type { Tx } from "../plans/ordre-plans";
+import type { Tx } from "../clips/clip-order";
 import type { EtatTache } from "./types";
 
 /** Tâches LLM du système d'agents (agent_runs) : pose dans la file et lecture de l'état. */
@@ -22,7 +22,7 @@ export async function creerRun(
     /** Lot : la sous-tâche (« ep:12 ») et ce que la revue en dit (« Épisode 1 · Le sel »). */
     cleSousTache?: string | null;
     libelleSousTache?: string | null;
-    /** La demande (itération…) dont cette tâche est une étape : lib/tasks/demandes.ts. */
+    /** La demande (itération…) dont cette tâche est une étape : lib/tasks/requests.ts. */
     demandeId?: number | null;
   },
 ): Promise<{ id: number; uuid: string }> {

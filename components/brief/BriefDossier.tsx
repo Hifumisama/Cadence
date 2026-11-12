@@ -9,7 +9,7 @@ import { Icone } from "@/components/ui/Icone";
 import { AfficheFilm } from "./AfficheFilm";
 import { ResumeFilm } from "./ResumeFilm";
 import { construireCode, slugifyCode } from "@/lib/assets/assetCode";
-import { urlMiniature } from "@/lib/miniatures";
+import { urlMiniature } from "@/lib/thumbnails";
 import { SECTIONS_BRIEF, type VueBrief } from "@/lib/agents/types";
 import { EditeurBrief } from "./EditeurBrief";
 import { Sommaire, type EntreeSommaire } from "./Sommaire";

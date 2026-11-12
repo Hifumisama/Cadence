@@ -1,4 +1,4 @@
-import type { EtatDansLaFile } from "../../lib/tasks/annulation";
+import type { EtatDansLaFile } from "../../lib/tasks/cancellation";
 
 /** `nomDistant` : nom sous lequel le fichier est déposé dans le dossier d'entrée de ComfyUI (unique ; à défaut, le nom du fichier local). */
 export type RefMedia = { slot: number; cheminLocal: string; nomDistant?: string };
@@ -70,7 +70,7 @@ export interface ComfyUIClient {
    * impossible donne un suivi qui répond `coupure`. */
   ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi>;
 
-  /** Annulation (lib/tasks/annulation.ts). `etatDansLaFile` lit GET /queue : le worker
+  /** Annulation (lib/tasks/cancellation.ts). `etatDansLaFile` lit GET /queue : le worker
    * ne coupe jamais un prompt dont il n'a pas vérifié qu'il est bien celui qui
    * tourne. `inconnu` si ComfyUI ne répond pas ou si la réponse est illisible. */
   etatDansLaFile(promptId: string): Promise<EtatDansLaFile>;

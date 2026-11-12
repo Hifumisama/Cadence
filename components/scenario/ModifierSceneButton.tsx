@@ -7,7 +7,7 @@ import { modifierScene } from "@/app/scenario/actions";
 import { Icone } from "@/components/ui/Icone";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
 import type { DemoDispo } from "@/lib/h3ir/demos";
-import { resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/reglages";
+import { resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/settings";
 
 /** Bouton « Modifier » d'une scène : titre, description et ambiance, dans une popup (même écrin que « Ajouter un plan »). */
 export function ModifierSceneButton({

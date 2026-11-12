@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useMachineAEcrire } from "@/components/agents/useMachineAEcrire";
 import { useTaches } from "@/components/taches/TachesProvider";
-import { estTacheActive, libelleTache } from "@/lib/agents/agents-affichage";
-import { extraireChainePartielle, fin } from "@/lib/llm/flux-partiel";
+import { estTacheActive, libelleTache } from "@/lib/agents/agents-display";
+import { extraireChainePartielle, fin } from "@/lib/llm/stream-partial";
 import type { EtatTache } from "@/lib/agents/types";
-import { cleLlm } from "@/lib/tasks/taches";
+import { cleLlm } from "@/lib/tasks/tasks";
 
 /** L'état d'une tâche d'agent (un tour, le brief, une proposition) : file, travail en cours
  * avec le compteur de jetons (pas de pourcentage : le maximum est inconnu), échec, annulation.

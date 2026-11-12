@@ -3,15 +3,15 @@
 import { useState } from "react";
 import { lancerCreationProjet } from "@/app/creation/actions";
 import { modifierNomProjet } from "@/app/projects/actions";
-import type { NoteAffichee } from "@/lib/agents/fiche-affichage";
-import { motDuTon, plansEstimes, valeursParDefaut, type Conception } from "@/lib/projects/conception";
-import { minutesSecondes } from "@/lib/projects/conception-ui";
-import { urlMiniature } from "@/lib/miniatures";
+import type { NoteAffichee } from "@/lib/agents/sheet-display";
+import { motDuTon, plansEstimes, valeursParDefaut, type Conception } from "@/lib/projects/design";
+import { minutesSecondes } from "@/lib/projects/design-ui";
+import { urlMiniature } from "@/lib/thumbnails";
 import { posterPorteLeTitre } from "@/lib/posters/poster";
 import { AfficheZoom } from "@/components/affiches/AfficheZoom";
 import { EnteteScene } from "./Scenes";
 
-/** Scène « Clap » : tout ce qui a été récolté sur une planche (la claquette), l'affiche du projet à côté (générée à l'arrivée sur le clap, voir lib/agents/affiche-clap.ts), un
+/** Scène « Clap » : tout ce qui a été récolté sur une planche (la claquette), l'affiche du projet à côté (générée à l'arrivée sur le clap, voir lib/agents/poster-clap.ts), un
  * titre à donner, et « Lancer la préparation » qui enchaîne l'installateur (page d'avancée). */
 
 /** `image` : l'aperçu du style (repli pendant que l'affiche se prépare) ; `poster` : l'affiche réelle du projet, quand il en a une. */
@@ -84,7 +84,7 @@ export function ClapScene({
   nomProjet: string;
   conception: Conception;
   style: StyleAffiche;
-  /** La mise en scène du projet en quelques mots (lib/h3ir/reglages.ts, `resumeMiseEnScene`), affichée sur la planche ; elle reste modifiable dans le Brief. */
+  /** La mise en scène du projet en quelques mots (lib/h3ir/settings.ts, `resumeMiseEnScene`), affichée sur la planche ; elle reste modifiable dans le Brief. */
   miseEnScene?: string;
   notes: NoteAffichee[];
   /** L'entretien a de quoi lancer la préparation (le scénariste a l'essentiel, ou l'utilisateur a parlé). */

@@ -64,7 +64,7 @@ export function posterInitiale(titre: string): string {
 }
 
 /** Une affiche dont le modèle a écrit le titre porte le suffixe `-titre` dans son nom de fichier (voir
- * lib/posters/affiche-application.ts) : le composant Poster ne superpose alors pas le titre une seconde fois. */
+ * lib/posters/poster-application.ts) : le composant Poster ne superpose alors pas le titre une seconde fois. */
 export const SUFFIXE_TITRE = "-titre";
 
 export function posterPorteLeTitre(src: string | null): boolean {

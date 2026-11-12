@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { ecrireFichesProjet, modifierIntentPlan } from "@/app/creation/actions";
-import type { PlanIntent, SuiviFichePlan } from "@/lib/agents/creation-vue";
+import type { PlanIntent, SuiviFichePlan } from "@/lib/agents/creation-view";
 import { plansAEcrire } from "@/lib/agents/creation";
 
 const pad = (n: number) => String(n).padStart(2, "0");

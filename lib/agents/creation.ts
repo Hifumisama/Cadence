@@ -10,7 +10,7 @@
  * UNE SEULE PHASE (2026-11-09, vague 4b) : la création va du brief à la relecture des scénarios, puis S'ARRÊTE (statut `termine`) : on relit
  * les intents des plans (une fiche écrite sur un intent faux coûte un rendu et une itération pour rien) pendant que les images de référence
  * se fabriquent. Les fiches ne sont PLUS des étapes de la création : « Écrire les fiches » pose une demande `fiche-plan` par plan
- * (`lancerDemandesFiches`, lib/tasks/demandes-db.ts), indépendante de la création. Raison : pendant qu'une création est en cours, worker/images.ts
+ * (`lancerDemandesFiches`, lib/tasks/requests-db.ts), indépendante de la création. Raison : pendant qu'une création est en cours, worker/images.ts
  * retient les images du projet ; des fiches gardées comme étapes de la création attendraient leurs propres images indéfiniment. */
 
 export const ETAPES_CREATION = [
@@ -156,7 +156,7 @@ export function plansAEcrire(plans: { uuid: string; aUneFiche: boolean; demandeE
   return plans.filter((p) => !p.demandeEnCours && (tous || !p.aUneFiche)).map((p) => p.uuid);
 }
 
-/** L'état d'une demande de fiche (`etatDemandesFiches`, lib/tasks/demandes-db.ts), tel que l'écran des intents le montre. */
+/** L'état d'une demande de fiche (`etatDemandesFiches`, lib/tasks/requests-db.ts), tel que l'écran des intents le montre. */
 export type EtatDemandeFiche = { id: number; planUuid: string; statut: "en_cours" | "termine" | "echoue" | "annulee"; etape: string | null; erreur: string | null };
 
 /** Une ligne de suivi : l'étape en cours (« Choix des références », « Création d'assets (2) », « Images (1/3) », « Compilation Open H3 IR »),

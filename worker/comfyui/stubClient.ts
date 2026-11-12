@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import type { EtatDansLaFile } from "../../lib/tasks/annulation";
+import type { EtatDansLaFile } from "../../lib/tasks/cancellation";
 import type { ComfyUIClient, EvenementSuivi, PollResult, Suivi } from "./types";
 import { mp3Factice } from "./stubAudio";
 import { pngFactice } from "./stubPng";

@@ -3,8 +3,8 @@ import { dirname, extname, join } from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { assetGenerations, assets } from "../../db/schema";
-import { appliquerAffiche } from "../posters/affiche-application";
-import { TYPE_AFFICHE, titreDansPrompt } from "../posters/affiches";
+import { appliquerAffiche } from "../posters/poster-application";
+import { TYPE_AFFICHE, titreDansPrompt } from "../posters/posters";
 import { METHODE_MASTER_VOIX, videoDeMaster } from "./asset-generation";
 import { cheminAssetMedia, cheminGenerationMedia, cheminVoixMedia } from "../media";
 
@@ -43,7 +43,7 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
     .where(eq(assets.id, asset.id));
   // L'essai retenu : même instant que le fichier de l'asset (voir `assetGenerations.adopteAt`).
   await db.update(assetGenerations).set({ adopteAt: maintenant }).where(eq(assetGenerations.id, gen.id));
-  // Une affiche de présentation : l'image adoptée devient celle du projet ou de l'épisode (lib/posters/affiches.ts).
+  // Une affiche de présentation : l'image adoptée devient celle du projet ou de l'épisode (lib/posters/posters.ts).
   if (asset.type === TYPE_AFFICHE) {
     const appliquee = await appliquerAffiche(asset.code, nom, mediaRoot, titreDansPrompt(gen.prompt));
     if (!appliquee.ok) return appliquee;

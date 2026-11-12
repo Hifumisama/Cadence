@@ -1,18 +1,18 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { agentRuns } from "../db/schema";
-import { annulationDemandeeLlm, finirAnnulationLlm } from "../lib/tasks/annulation-db";
+import { annulationDemandeeLlm, finirAnnulationLlm } from "../lib/tasks/cancellation-db";
 import { CORPS_SANS_REFLEXION } from "../lib/llm/config";
-import { modeleEffectifPourSkill } from "../lib/llm/modele-choisi";
-import { executerSkill } from "../lib/llm/executer";
-import { AccumulateurFlux } from "../lib/llm/flux-partiel";
+import { modeleEffectifPourSkill } from "../lib/llm/model-chosen";
+import { executerSkill } from "../lib/llm/execute";
+import { AccumulateurFlux } from "../lib/llm/stream-partial";
 import { insererTrace } from "../lib/llm/traces";
 import { surveillerAnnulation } from "./annulation";
 import { limiteur } from "./comfyui/limiteur";
 import { postTraiterRun, surEchecRun } from "./agents/postTraitement";
 import { preparerEntree, type DepsPreparation } from "./agents/preparation";
-import { controleurPourSkill } from "../lib/llm/controles";
-import { SKILL_REFERENCES_PLAN, TEMPERATURE_REFERENCES_PLAN } from "../lib/agents/references-plan";
+import { controleurPourSkill } from "../lib/llm/checks";
+import { SKILL_REFERENCES_PLAN, TEMPERATURE_REFERENCES_PLAN } from "../lib/agents/references-clip";
 import { executerH3ir, SKILL_H3IR, SKILL_TRADUCTION, type DepsH3ir } from "./h3ir";
 
 // Tâche LLM : un appel à un skill d'agent posé dans `agent_runs` (genre « llm »
@@ -127,7 +127,7 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
       // suivants, y compris ceux déjà en file. Une surcharge de la tâche prime (relance d'une proposition).
       modele: options.modele ?? (await modeleEffectifPourSkill(run.skill)),
       // Les notes de l'entretien classent et citent : peu d'aléa, pour qu'un même message donne la même fiche.
-      // Le choix des références d'un plan classe et cite aussi (lib/agents/references-plan.ts).
+      // Le choix des références d'un plan classe et cite aussi (lib/agents/references-clip.ts).
       temperature: run.skill === "notes-entretien" ? 0.1 : run.skill === SKILL_REFERENCES_PLAN ? TEMPERATURE_REFERENCES_PLAN : undefined,
       variante: options.variante,
       // Une mise à jour d'un brief repart d'un brouillon : la réflexion n'a servi qu'à la première version.

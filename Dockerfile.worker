@@ -1,7 +1,7 @@
 FROM node:22-alpine
-# ffmpeg et ffprobe : planche de vignettes d'un rendu vidéo (lib/renders/planche-vignettes.ts, skill iteration-plan).
+# ffmpeg et ffprobe : planche de vignettes d'un rendu vidéo (lib/renders/contact-sheet.ts, skill iteration-plan).
 # Le paquet Alpine fournit les deux binaires, dans le PATH.
-# python3 + open-h3-ir : le compilateur du prompt vidéo (« Générer la fiche avec Open H3 IR », lib/h3ir/compilateur.ts lance scripts/h3ir/compiler.py).
+# python3 + open-h3-ir : le compilateur du prompt vidéo (« Générer la fiche avec Open H3 IR », lib/h3ir/compiler.ts lance scripts/h3ir/compiler.py).
 # Version épinglée dans scripts/h3ir/requirements.txt. NON TESTÉ sur cette image : les roues musl de tiktoken, pydantic-core, uvloop… existent, mais si un
 # `pip install` se met à compiler, ajouter `build-base` (le temps du pip) ; vérifier avec `docker compose run --rm worker /usr/bin/python3 -c "import h3ir"`.
 RUN apk add --no-cache ffmpeg python3 py3-pip

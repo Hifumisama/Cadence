@@ -1,15 +1,15 @@
 import { construireCode } from "../assets/assetCode";
-import type { ChangementBrut } from "../agents/changements";
+import type { ChangementBrut } from "../agents/changes";
 import { suffixeDeCode } from "../agents/conversion";
-import { correspondances } from "../agents/codes-proches";
-import { cleNouvelAsset } from "../agents/fiches";
-import { MAX_MANQUANTS_PLAN, TYPES_MANQUANT_PLAN } from "../agents/references-plan";
-import { LIMITE_IMAGES_PLAN } from "./references-plan";
+import { correspondances } from "../agents/similar-codes";
+import { cleNouvelAsset } from "../agents/sheets";
+import { MAX_MANQUANTS_PLAN, TYPES_MANQUANT_PLAN } from "../agents/references-clip";
+import { LIMITE_IMAGES_PLAN } from "./references-clip";
 
 /** PRÉPARER UN PLAN PUIS LE COMPILER (étape 5 d'Open H3 IR câblée, vague 4a, 2026-11-09). Open H3 IR est le seul producteur des prompts vidéo, y compris
  * pour un plan neuf : avant la compilation, chaque plan passe par
  *   1. RÉFÉRENCES : un plan qui a déjà des images de référence (inventaire, à la main) les garde (sauf `rechoisir`) ; sinon le CODE les choisit
- *      (lib/h3ir/references-plan.ts) et les écrit quand il n'a aucun doute ; en cas de doute SEULEMENT, une tâche LLM `references-plan` (une par plan)
+ *      (lib/h3ir/references-clip.ts) et les écrit quand il n'a aucun doute ; en cas de doute SEULEMENT, une tâche LLM `references-plan` (une par plan)
  *      complète la liste et signale au plus deux assets manquants. Dans l'ordre du scénario : un plan attend que le plan d'avant ait fini cette étape
  *      (la reprise du décor lit ses références) ;
  *   2. ASSETS : les manquants (2 au plus) sont créés d'office, avec un code et un parent valides ;
@@ -20,7 +20,7 @@ import { LIMITE_IMAGES_PLAN } from "./references-plan";
  * Chemin rapide : des références qui ont toutes leur image → compilation directe, sans appel de choix.
  * Aucun nouvel état de plan : « en attente d'images » se calcule depuis les références sans fichier ; un brouillon ne passe « en attente » qu'avec la fiche.
  *
- * Ici : les règles PURES (testées, preparation.test.ts). Les lectures et écritures : lib/h3ir/preparation-db.ts ; le pilote : lib/tasks/demandes-db.ts. */
+ * Ici : les règles PURES (testées, preparation.test.ts). Les lectures et écritures : lib/h3ir/preparation-db.ts ; le pilote : lib/tasks/requests-db.ts. */
 
 /** La proposition qui crée les assets manquants décidés par « Itérer » (lib/agents/service.ts, `creerAssetsManquants`). */
 export const SKILL_ASSETS_MANQUANTS = "assets-manquants";
@@ -127,7 +127,7 @@ export function decisionSortieReferencesPlan(
   return { references: references.slice(0, LIMITE_IMAGES_PLAN), manquants: m.retenus, ecartes: m.ecartes, corrections: [...proches].map(([de, v]) => ({ de, vers: v })) };
 }
 
-/** Les types d'asset qui peuvent être une image de référence (les mêmes que lib/h3ir/references-ecriture.ts). */
+/** Les types d'asset qui peuvent être une image de référence (les mêmes que lib/h3ir/references-write.ts). */
 const TYPES_IMAGE_REFERENCE = new Set(["personnage", "decor", "prop", "vfx", "keyframe", "oth"]);
 
 /** Les créations d'assets d'une proposition (sans prompt : il s'écrit à l'étape suivante). Cochées d'office, appliquées sans relecture. */

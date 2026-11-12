@@ -1,8 +1,8 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { styles } from "@/db/schema";
-import type { StyleBibliotheque } from "./bibliotheque";
-import type { FiltresStyle } from "./filtres";
+import type { StyleBibliotheque } from "./library";
+import type { FiltresStyle } from "./filters";
 
 /** Un style de la bibliothèque tel que la base le rend (table `styles`, semée par db/seed-styles.ts) : le style, plus les sujets dont l'aperçu existe. */
 export type StyleEnBase = StyleBibliotheque & { apercus: string[] };

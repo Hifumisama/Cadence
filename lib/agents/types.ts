@@ -1,4 +1,4 @@
-import type { NoteAffichee } from "./fiche-affichage";
+import type { NoteAffichee } from "./sheet-display";
 /** Système d'agents — types partagés par le serveur, le worker et l'interface
  * (conversation → brief → proposition → revue → application). Aucun accès base, disque
  * ni Next ici : ce fichier est importable partout, y compris par des composants client.
@@ -69,7 +69,7 @@ export type CibleDemandee = { id?: number; uuid?: string; code?: string };
 // Messages, tâches
 // ---------------------------------------------------------------------------
 
-/** Une carte de choix proposée par le scénariste (validée par lib/agents/choix.ts). `multiple` n'est vrai que pour une liste. */
+/** Une carte de choix proposée par le scénariste (validée par lib/agents/choice.ts). `multiple` n'est vrai que pour une liste. */
 export type OptionChoix = { libelle: string; description?: string };
 export type Choix = { question?: string; multiple: boolean; options: OptionChoix[] };
 
@@ -119,7 +119,7 @@ export type PersonnageBrief = {
   statut?: string;
 };
 
-/** Statut d'un détail du brief (tenue, aspect d'un lieu, élément), posé par le CODE depuis les citations (lib/agents/fiche.ts) : `incertain` =
+/** Statut d'un détail du brief (tenue, aspect d'un lieu, élément), posé par le CODE depuis les citations (lib/agents/sheet.ts) : `incertain` =
  * dit, mais en termes vagues (« inspirée de… » sans couleur ni matière). */
 type StatutDetailBrief = "fourni" | "deduit" | "delegue" | "incertain";
 
@@ -162,7 +162,7 @@ export type BriefContenu = {
   arc: string;
   genreTon?: string;
   /** `promptImage` (anglais, long : génère les images) et `image` (2:3, présentation) sont posés par le CODE à la création du projet
-   * (conception, lib/projects/conception.ts), jamais par un agent ; `clause` (courte) part vers la vidéo. */
+   * (conception, lib/projects/design.ts), jamais par un agent ; `clause` (courte) part vers la vidéo. */
   style: { nom: string; clause: string; promptImage?: string; image?: string };
   langueDialogues: string;
   /** Absente dans un brief « partiel » (posé à la main : style, notes). */
@@ -377,7 +377,7 @@ export type DiagnosticIteration = {
   assetsSuggeres: { code: string; type: string; parent?: string; raison: string }[];
 };
 
-/** Les décisions EFFECTIVES d'une itération (lib/agents/iteration-plan.ts, `decisionsEffectives`) : absent = ne change pas. La nouvelle valeur
+/** Les décisions EFFECTIVES d'une itération (lib/agents/iteration-clip.ts, `decisionsEffectives`) : absent = ne change pas. La nouvelle valeur
  * REMPLACE celle du plan (pas de directive qui s'accumule). */
 export type DecisionsIteration = {
   /** Le nouvel intent COMPLET (remplace `plans.description`). */

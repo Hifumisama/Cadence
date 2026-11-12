@@ -14,13 +14,13 @@ import {
   motDuTon,
   plansEstimes,
   positionDepuisDuree,
-} from "@/lib/projects/conception";
-import { ajusterTon, basculerGenre, minutesSecondes, reinitialiserTon } from "@/lib/projects/conception-ui";
+} from "@/lib/projects/design";
+import { ajusterTon, basculerGenre, minutesSecondes, reinitialiserTon } from "@/lib/projects/design-ui";
 import { Curseur } from "./Curseur";
 import type { PropsScene } from "./types";
 
 /** Les quatre premières scènes de la conception : format, genre et ton, durée et rythme, langue. La scène du style est à part
- * (SceneStyle.tsx). Chaque scène ne fait qu'afficher l'état et le modifier par `maj` ; les règles vivent dans lib/projects/conception-ui.ts. */
+ * (SceneStyle.tsx). Chaque scène ne fait qu'afficher l'état et le modifier par `maj` ; les règles vivent dans lib/projects/design-ui.ts. */
 
 export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactNode; sous?: string }) {
   return (

@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTaches } from "@/components/taches/TachesProvider";
-import { etatNotifications, notifier, pageEnArriere } from "@/lib/tasks/notifications-navigateur";
-import type { Tache } from "@/lib/tasks/taches";
+import { etatNotifications, notifier, pageEnArriere } from "@/lib/tasks/notifications-browser";
+import type { Tache } from "@/lib/tasks/tasks";
 import { Icone } from "@/components/ui/Icone";
 
 /** Notifications de fin de tâche : un petit toast quand une génération, une

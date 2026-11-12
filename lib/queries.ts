@@ -14,8 +14,8 @@ import {
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { bucketiserStatuts, bucketsVides, type StatutBuckets } from "./projects/phase";
 import { posterSrc } from "./media";
-import { estCritique, statutAsset } from "./assets/asset-etat";
-import { horsAffiches } from "./assets/assets-visibles";
+import { estCritique, statutAsset } from "./assets/asset-state";
+import { horsAffiches } from "./assets/assets-visible";
 
 /** Pas encore de sélecteur de projet dans l'UI (2026-09-28) — toutes les
  * pages opèrent sur le premier projet créé. Le schéma est prêt pour
@@ -115,7 +115,7 @@ function resumeBrief(contenu: unknown) {
 
 /** Fiche de plan complète : plan + prompt sectionné + refs (avec l'asset
  * associé) + historique des jobs. Le dialogue vit dans le prompt (`<d>`) ; les voix sont des refs audio, lues par
- * lib/voice/queries-voix-plan.ts pour les voix. Retrouvée par `uuid` (identifiant
+ * lib/voice/queries-voice-clip.ts pour les voix. Retrouvée par `uuid` (identifiant
  * public, voir docs/FRICTIONS.md F03) ; le filtre episodeId garde l'URL
  * cohérente avec l'épisode affiché. */
 export async function getPlanDetail(uuid: string, episodeId?: number) {
@@ -260,7 +260,7 @@ export type AssetCitation = { planId: number; planUuid: string; position: number
 
 /** Le registre d'assets d'un projet, À PLAT et trié par code (un asset est un asset ; `deriveDeId` n'est qu'une image de départ).
  *
- * `statut` et `critique` sont CALCULÉS ici (lib/assets/asset-etat.ts), jamais stockés : à produire sans fichier, en cours avec un fichier,
+ * `statut` et `critique` sont CALCULÉS ici (lib/assets/asset-state.ts), jamais stockés : à produire sans fichier, en cours avec un fichier,
  * validé quand `valide` ; critique selon la part des plans d'un épisode qui le citent.
  *
  * `citations` détaille CHAQUE ligne de ref qui cite l'asset, pas juste les numéros de plan — nécessaire pour pouvoir délier une

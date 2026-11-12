@@ -195,7 +195,7 @@ test("briefDepuisPlan : le plafond de shots suit la durée nominale (le paquet r
 });
 
 test("briefDepuisPlan : un profil perso part en director_profile (jamais en director), un réalisateur en director, « aucun » rien ; un inconnu est refusé", async () => {
-  const { PROFILS_PERSO } = await import("./profils-perso");
+  const { PROFILS_PERSO } = await import("./character-profiles");
   const perso = briefDepuisPlan(entree(), { director: "claymation" });
   assert.equal(perso.refus, null);
   assert.deepEqual(perso.brief?.director_profile, PROFILS_PERSO.claymation);

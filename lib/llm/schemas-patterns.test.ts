@@ -27,7 +27,7 @@ test("schémas de sortie : tout `pattern` est ancré (^…$), exigence de la gra
 // Un motif « contient X » (`^.*X.*$`) piège la grammaire : `.` y accepte le guillemet, donc le modèle qui ferme
 // sa chaîne sans avoir écrit X voit le `"` avalé comme contenu, et tout le JSON suivant tombe DANS la chaîne,
 // jusqu'à `max_tokens` (observé avec `{picture}` sur Gemma et Qwen : 16 384 jetons, 5 minutes). Une règle de
-// contenu se vérifie APRÈS génération (contrôles sémantiques, lib/llm/controles.ts, avec renvoi), jamais dans la grammaire.
+// contenu se vérifie APRÈS génération (contrôles sémantiques, lib/llm/checks.ts, avec renvoi), jamais dans la grammaire.
 test("schémas de sortie : aucun `pattern` « contient » (.* autour d'un littéral), piège de la grammaire", () => {
   for (const nom of listerSkills()) {
     for (const { chemin, motif } of patterns(chargerSkill(nom).schema)) {

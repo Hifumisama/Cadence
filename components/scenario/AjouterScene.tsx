@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { demanderAjoutScene } from "@/app/demandes/actions";
 import { Icone } from "@/components/ui/Icone";
-import type { PlaceScene } from "@/lib/tasks/demandes";
+import type { PlaceScene } from "@/lib/tasks/requests";
 
 /** Où la scène va naître, tel que la page Scénario le sait : la place dans le film et son libellé pour l'écran. */
 export type CibleAjoutScene = {

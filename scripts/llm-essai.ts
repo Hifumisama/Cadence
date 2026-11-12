@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { ErreurLlm } from "../lib/llm/types";
-import { executerSkill } from "../lib/llm/executer";
+import { executerSkill } from "../lib/llm/execute";
 import { configLlm, modelePourSkill } from "../lib/llm/config";
 import { chargerSkill, listerSkills } from "../lib/llm/skills";
 

@@ -2,10 +2,10 @@
 
 import { useRef, useState } from "react";
 import { cleDemoCreativite, cleDemoStyle, type DemoDispo } from "@/lib/h3ir/demos";
-import { choisirMiseEnScene, miseEnSceneDuStyle } from "@/lib/projects/conception-ui";
-import { EXEMPLE_AUCUN_STYLE, EXEMPLE_CREATIVITE, EXEMPLE_STYLE, FILMS_STYLE, SCENE_EXEMPLE } from "@/lib/h3ir/exemples";
-import { IDS_PROFILS_PERSO } from "@/lib/h3ir/profils-perso";
-import { AIDE_CREATIVITE, CREATIVITES, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, STYLE_AUCUN, estMiseEnScene, estStyleCamera, type ChoixMiseEnScene } from "@/lib/h3ir/reglages";
+import { choisirMiseEnScene, miseEnSceneDuStyle } from "@/lib/projects/design-ui";
+import { EXEMPLE_AUCUN_STYLE, EXEMPLE_CREATIVITE, EXEMPLE_STYLE, FILMS_STYLE, SCENE_EXEMPLE } from "@/lib/h3ir/examples";
+import { IDS_PROFILS_PERSO } from "@/lib/h3ir/character-profiles";
+import { AIDE_CREATIVITE, CREATIVITES, LIBELLE_CREATIVITE, LIBELLE_STYLE_CAMERA, STYLE_AUCUN, estMiseEnScene, estStyleCamera, type ChoixMiseEnScene } from "@/lib/h3ir/settings";
 import { STYLES_CAMERA } from "@/lib/h3ir/styles-camera";
 import { CarteMiseEnScene, ChoixMise, ChoixStyleMise, Pastilles, type CarteChoisie } from "./CarteMiseEnScene";
 import { EnteteScene } from "./Scenes";
@@ -13,9 +13,9 @@ import type { PropsScene } from "./types";
 
 /** Sixième scène : la mise en scène des fiches que compilera Open H3 IR. Deux petits choix sur un même écran : la créativité (jusqu'où l'IA peut ajouter à ce que tu
  * écris) et le style de mise en scène (« aucun style », les façons de filmer d'animation et de genre, puis les sept réalisateurs, chacun résumé en quelques mots). Le style du projet
- * (étape précédente) peut recommander une façon de filmer : sa carte passe en tête, « suggérée par ton style », et reste cochée tant qu'on n'a pas choisi soi-même (conception-ui.ts).
+ * (étape précédente) peut recommander une façon de filmer : sa carte passe en tête, « suggérée par ton style », et reste cochée tant qu'on n'a pas choisi soi-même (design-ui.ts).
  * Pour se projeter : chaque bouton a son « ? » qui ouvre un tiroir, une CARTE DE MISE EN SCÈNE avec un rendu vidéo réel d'une même scène (components/conception/CarteMiseEnScene.tsx,
- * vidéos de démo versionnées dans data/mises-en-scene), et sous chaque bloc un court rappel du choix en cours (lib/h3ir/exemples.ts). Les valeurs de départ sont cochées : on peut continuer sans
+ * vidéos de démo versionnées dans data/mises-en-scene), et sous chaque bloc un court rappel du choix en cours (lib/h3ir/examples.ts). Les valeurs de départ sont cochées : on peut continuer sans
  * toucher à rien. Ce n'est PAS dit au scénariste (ces réglages ne servent qu'aux prompts vidéo) et ils ne sont pas figés : ils se changent ensuite dans le Brief, sur une scène ou sur un plan. */
 export function SceneMiseEnScene({ etat, maj, demos = {} }: PropsScene & { demos?: Record<string, DemoDispo> }) {
   const [carte, setCarte] = useState<CarteChoisie | null>(null);

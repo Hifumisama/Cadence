@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { deposerSourceImport } from "@/app/assets/generation-actions";
 import type { ImageJointe } from "@/app/assets/essai-actions";
 import { Icone } from "@/components/ui/Icone";
-import { urlMiniature } from "@/lib/miniatures";
+import { urlMiniature } from "@/lib/thumbnails";
 
 /** Une image jointe à la consigne, avec de quoi l'afficher. */
 export type Jointe = ImageJointe & { cle: string; src: string; libelle: string };

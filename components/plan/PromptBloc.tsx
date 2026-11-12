@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { enregistrerPrompt } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
-import { intentAffichee } from "@/lib/plans/intent";
+import { intentAffichee } from "@/lib/clips/intent";
 
 export type VersionPrompt = { id: number; texte: string; source: string; quand: string };
 

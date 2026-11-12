@@ -1,9 +1,9 @@
-import type { ChangementBrut } from "../agents/changements";
-import type { ApresFiche, RefFiche } from "../agents/fiches";
+import type { ChangementBrut } from "../agents/changes";
+import type { ApresFiche, RefFiche } from "../agents/sheets";
 import type { Avertissement } from "../agents/types";
-import { ORDRE_SECTIONS } from "../plans/prompt";
-import type { ResultatH3ir } from "./resultat";
-import type { ResultatRetouche } from "./retouche";
+import { ORDRE_SECTIONS } from "../clips/prompt";
+import type { ResultatH3ir } from "./result";
+import type { ResultatRetouche } from "./retouch";
 
 /** Du résultat de la tâche Open H3 IR (`agent_runs.resultat`) au changement `fiche` d'une proposition (même forme que `depuisFichePlan`,
  * lib/agents/conversion.ts). Pur, testé. Étape 4 du chantier (docs/PLAN_INTEGRATION_OPEN_H3_IR.md).
@@ -11,7 +11,7 @@ import type { ResultatRetouche } from "./retouche";
  * - `sections` : celles du compilateur, qui portent déjà les six noms du format H3 ; un prompt sans résumé ni description détaillée est BLOQUÉ.
  * - `refs` : le manifeste (label `<Picture N>` / `<Audio N>` → emplacement ; empreinte → chemin → asset). Une voix devient une référence audio dont l'asset
  *   est le PERSONNAGE (son master). Une vidéo de référence ne s'écrit pas dans une fiche : elle est signalée.
- * - ni durée ni description : le plan garde les siens (la durée effective du compilateur n'est que la grille d'images du rendu : 8 s restent 8,000 s, 6 s donnent 6,583 s ; lib/renders/grille-images.ts).
+ * - ni durée ni description : le plan garde les siens (la durée effective du compilateur n'est que la grille d'images du rendu : 8 s restent 8,000 s, 6 s donnent 6,583 s ; lib/renders/image-grid.ts).
  * - `moteur: "h3ir"` : l'applicateur de fiche garde alors l'ancien prompt dans l'historique et inscrit le nouveau en « compilation ». */
 
 const SECTIONS_OBLIGATOIRES = ["summary", "detailed_description"] as const;

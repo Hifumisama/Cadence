@@ -3,11 +3,11 @@
 import "./assets.css";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { urlMiniature } from "@/lib/miniatures";
+import { urlMiniature } from "@/lib/thumbnails";
 import { Icone } from "@/components/ui/Icone";
-import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/assets/registre-types";
+import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/assets/registry-types";
 
-export type { FichierEtat, MediaKind } from "@/lib/assets/registre-types";
+export type { FichierEtat, MediaKind } from "@/lib/assets/registry-types";
 
 // Un seul média joue à la fois dans la grille : lancer une carte coupe la précédente.
 let mediaActif: { stop: () => void } | null = null;

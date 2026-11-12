@@ -10,9 +10,9 @@ import { ImagesJointes, type Jointe, type JointeDisponible } from "@/components/
 import { UploadFichierForm } from "@/components/assets/UploadFichierForm";
 import { Icone } from "@/components/ui/Icone";
 import { CANDIDATS_GARDES, STATUT_TRADUCTION, maxImagesJointes } from "@/lib/assets/asset-generation";
-import { urlMiniature } from "@/lib/miniatures";
+import { urlMiniature } from "@/lib/thumbnails";
 import type { GenerationVue } from "@/lib/assets/queries-generations";
-import { ilYa } from "@/lib/temps-relatif";
+import { ilYa } from "@/lib/relative-time";
 
 /** L'atelier d'une fiche d'asset (images), « comme la fiche de plan » : à gauche l'image dans son passe-partout et sa légende ; à droite, sous les
  * yeux dès l'arrivée, la consigne en français puis le journal des essais. Sans image de base, la consigne CRÉE l'image ; avec une image de base —

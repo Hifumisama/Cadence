@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { chargerSkill, listerSkills, variantesDuGuide } from "./skills";
-import { VARIANTE_AFFICHE, variantePromptAsset } from "./variantes";
+import { VARIANTE_AFFICHE, variantePromptAsset } from "./variants";
 import { valider } from "./validation";
 
 // Le skill prompt-asset sert les images d'assets et les affiches : un guide par méthode (Krea 2, Qwen Image Edit), chargés selon la variante.

@@ -3,9 +3,9 @@
 import "@/components/conception/conception.css";
 import "./brief.css";
 import { useState } from "react";
-import { urlMiniature } from "@/lib/miniatures";
+import { urlMiniature } from "@/lib/thumbnails";
 
-/** Une image à montrer pour le style : celle de présentation du projet, ou l'aperçu d'une scène commune (`lib/styles/sujets.ts`). */
+/** Une image à montrer pour le style : celle de présentation du projet, ou l'aperçu d'une scène commune (`lib/styles/subjects.ts`). */
 export type VignetteStyle = { id: string; libelle: string; teste: string; /** « 2:3 », « 16:9 »… */ aspect: string; /** Chemin sous `/api/media/styles/`. */ fichier: string };
 
 export type StyleBriefVue = {

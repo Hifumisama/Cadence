@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { configLlm } from "@/lib/llm/config";
-import { lireModeleChoisi } from "@/lib/llm/modele-choisi";
+import { lireModeleChoisi } from "@/lib/llm/model-chosen";
 import { listerModeles, llmJoignable, modelesCharges } from "@/worker/llamaSwap";
 
 // Sondé par la pastille du header (components/llm) : jamais mis en cache.

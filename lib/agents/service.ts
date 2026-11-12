@@ -1,5 +1,5 @@
 import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
-import { horsAffiches } from "../assets/assets-visibles";
+import { horsAffiches } from "../assets/assets-visible";
 import { db } from "../../db";
 import {
   agentConversations,
@@ -15,45 +15,45 @@ import {
 } from "../../db/schema";
 import { valider } from "../llm/validation";
 
-import { contexteTotalDepuisEnv } from "../llm/budget-contexte";
+import { contexteTotalDepuisEnv } from "../llm/budget-context";
 import { chargerSkill } from "../llm/skills";
-import { budgetInventaire, cleSousTacheInventaire, decouperInventaire, groupeInventaireDeCle, type OptionsRunInventaire } from "./inventaire";
-import { assetsACreer, ecrireReferencesApresApplication } from "./inventaire-db";
+import { budgetInventaire, cleSousTacheInventaire, decouperInventaire, groupeInventaireDeCle, type OptionsRunInventaire } from "./inventory";
+import { assetsACreer, ecrireReferencesApresApplication } from "./inventory-db";
 import { SCHEMA_BRIEF, SECTIONS_FIGEES_PAR_LA_CONCEPTION, estCleSection, sousSchemaSection } from "./brief";
 import { creerBriefPartiel, ecrireBrouillon, synchroniserClauseStyle } from "./brief-db";
-import { accrocheEntretien } from "./accroche";
-import { choixActif, formulerReponse, selectionValide } from "./choix";
-import { entreeNotes, ficheVersBrief, type Fiche } from "./fiche";
-import { lireConception, ouvertureConcue } from "../projects/conception-db";
-import { ficheCourante } from "./fiche-db";
+import { accrocheEntretien } from "./hook";
+import { choixActif, formulerReponse, selectionValide } from "./choice";
+import { entreeNotes, ficheVersBrief, type Fiche } from "./sheet";
+import { lireConception, ouvertureConcue } from "../projects/design-db";
+import { ficheCourante } from "./sheet-db";
 import type { BriefContenu, CibleDemandee, EpisodePourScenario, MessageConversation, PlaceScene, Portee, Position, Profondeur, Resultat, StatutChamp } from "./types";
 import { PORTEES } from "./types";
 
-import { groupeAffiche, raisonNonCochable } from "./cochage";
-import { TYPE_AFFICHE } from "../posters/affiches";
-import { entreePromptAffiche } from "./affiche";
-import { entreeCorrectionPlan, entreeRelecture, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, entreeScenarioScene, entreeTraitement, lireBriefDuProjet, type EntreeSkill } from "./contexte";
-import { SEUIL_TRAITEMENT_SECONDES } from "./traitement";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plans/plan-checks";
-import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registre";
-import { annulerRunsDePropositions, runsDuLot } from "./lots";
-import { cleSousTacheEpisode, cleSousTacheScene, dernieresSousTaches, episodeIdDeCle, estRunActif, sceneIdDeCle } from "./lots-pur";
-import { appliquerProposition, enregistrerChangements } from "./proposition-db";
+import { groupeAffiche, raisonNonCochable } from "./checking";
+import { TYPE_AFFICHE } from "../posters/posters";
+import { entreePromptAffiche } from "./poster";
+import { entreeCorrectionPlan, entreeRelecture, entreePromptAsset, entreePromptAssetCandidat, entreeScenarioEpisode, entreeScenarioScene, entreeTraitement, lireBriefDuProjet, type EntreeSkill } from "./context";
+import { SEUIL_TRAITEMENT_SECONDES } from "./treatment";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../clips/clip-checks";
+import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, type CandidatRegistre } from "./registry";
+import { annulerRunsDePropositions, runsDuLot } from "./batches";
+import { cleSousTacheEpisode, cleSousTacheScene, dernieresSousTaches, episodeIdDeCle, estRunActif, sceneIdDeCle } from "./batches-pure";
+import { appliquerProposition, enregistrerChangements } from "./proposal-db";
 import { creerRun, tacheBloquante, type ButRun, type TacheBloquante } from "./runs";
-import { squeletteDepuisBrief } from "./squelette";
+import { squeletteDepuisBrief } from "./skeleton";
 import type { Avertissement, ResultatApplication } from "./types";
-import { entreeIterationPlan, entreeInventaire, entreeReferencesPlan } from "./contexte";
-import { SKILL_REFERENCES_PLAN } from "./references-plan";
+import { entreeIterationPlan, entreeInventaire, entreeReferencesPlan } from "./context";
+import { SKILL_REFERENCES_PLAN } from "./references-clip";
 import { SKILL_ASSETS_MANQUANTS, brutsManquants, type ManquantRetenu } from "../h3ir/preparation";
 import { ecrireReferencesDuSkill } from "../h3ir/preparation-db";
-import { cleSousTachePlan, planUuidDeCle } from "./fiches";
+import { cleSousTachePlan, planUuidDeCle } from "./sheets";
 import type { ContexteUtilise, PlanPourFiche } from "./types";
-import { SKILL_H3IR, type EntreeH3ir } from "../h3ir/resultat";
-import { preparerDepart } from "../h3ir/retouche";
-import { referencesApresDecisions } from "../h3ir/brief-plan";
-import { estCreativite, styleCameraOuNull } from "../h3ir/reglages";
+import { SKILL_H3IR, type EntreeH3ir } from "../h3ir/result";
+import { preparerDepart } from "../h3ir/retouch";
+import { referencesApresDecisions } from "../h3ir/brief-clip";
+import { estCreativite, styleCameraOuNull } from "../h3ir/settings";
 import type { DecisionsIteration } from "./types";
-import { attentesFiches } from "../h3ir/moteur-db";
+import { attentesFiches } from "../h3ir/engine-db";
 import { jobs, planPromptSections, planRefs } from "../../db/schema";
 import { isNotNull, sql } from "drizzle-orm";
 
@@ -121,9 +121,9 @@ export async function libelleCible(projectId: number, portee: Portee, cibleId: n
 // --- conversation -----------------------------------------------------------
 
 const etapeInitiale = (p: Profondeur) => (p === "complete" ? "conversation" : "consigne");
-/** L'agent ouvre l'entretien d'entrée (conversation complète) : trois pistes très différentes pour qui n'a pas d'idée (accroche.ts). */
+/** L'agent ouvre l'entretien d'entrée (conversation complète) : trois pistes très différentes pour qui n'a pas d'idée (hook.ts). */
 const messagesInitiaux = (p: Profondeur): MessageConversation[] => (p === "complete" ? [{ role: "assistant", content: accrocheEntretien(), at: new Date().toISOString() }] : []);
-/** L'ouverture d'une conversation : pour l'entretien d'entrée d'un projet CONÇU (conception.ts), la fiche préremplie et, à la place du premier
+/** L'ouverture d'une conversation : pour l'entretien d'entrée d'un projet CONÇU (design.ts), la fiche préremplie et, à la place du premier
  * message, la demande d'accroche au modèle (`entreeAccroche`, tâche posée par `lancerAccroche` une fois la conversation créée) ; sinon
  * l'accroche à trois pistes, fiche vide. */
 async function ouverture(projectId: number, portee: Portee, p: Profondeur): Promise<{ messages: MessageConversation[]; fiche: Fiche | null; entreeAccroche: object | null }> {
@@ -743,7 +743,7 @@ export async function genererInventaire(
   const e = await entreeInventaire(db, conv.projectId, consigne);
   if (!e) return ERR("Aucun plan écrit pour l'instant : écris d'abord les scénarios des épisodes.");
   // L'inventaire rend aussi les références de chaque plan (2026-11-09). Un seul appel quand tout tient dans le budget (cas courant) ; un long film
-  // est découpé en groupes de scènes consécutives (lib/agents/inventaire.ts, `decouperInventaire`), posés l'un après l'autre (chaque groupe voit
+  // est découpé en groupes de scènes consécutives (lib/agents/inventory.ts, `decouperInventaire`), posés l'un après l'autre (chaque groupe voit
   // les assets que les précédents proposent : worker/agents/postTraitement.ts).
   const groupes = decouperInventaire(e.entree, { budgetJetons: budgetInventaire(contexteTotalDepuisEnv()), jetonsSkill: chargerSkill("inventaire-assets").jetonsEstimes });
   const plansDuGroupe = (ids: string[]) => Object.fromEntries(ids.map((id) => [id, e.planUuids[id]!]));
@@ -842,7 +842,7 @@ async function plansPourFiches(projectId: number, portee: Portee, cibleId: numbe
  *
  * Moteur : Open H3 IR (skill virtuel `plan-h3ir`, worker/h3ir.ts). Il compile depuis les références posées sur le plan : un plan qui n'a pas encore ses
  * références, ou dont une image manque, n'est PAS compilé ici (il doit d'abord être préparé : lib/h3ir/preparation.ts, que les demandes « Générer la
- * fiche » mènent, lib/tasks/demandes-db.ts). En lot, ces plans sont laissés de côté et nommés dans le contexte ; seuls, ils sont refusés avec la raison. */
+ * fiche » mènent, lib/tasks/requests-db.ts). En lot, ces plans sont laissés de côté et nommés dans le contexte ; seuls, ils sont refusés avec la raison. */
 export async function genererFiches(
   conversationUuid: string,
   options: {
@@ -1005,9 +1005,9 @@ export async function genererIteration(
 
 /** « Itérer » : la fiche est TOUJOURS recompilée par Open H3 IR (2026-11-09) avec les DÉCISIONS de l'agent d'itération (intent complet, durée,
  * références ajoutées / retirées, créativité et style de mise en scène du plan). Rien n'est écrit ici : les décisions partent en surcharge du brief
- * (lib/h3ir/brief-plan.ts) et ne s'écrivent sur le plan qu'avec la fiche compilée, à l'application (postTraitement : `apres.description`,
+ * (lib/h3ir/brief-clip.ts) et ne s'écrivent sur le plan qu'avec la fiche compilée, à l'application (postTraitement : `apres.description`,
  * `dureeGenerationSecondes`, `refs` du manifeste, `reglages`) ; si la compilation échoue, rien n'est écrit. Les références finales doivent toutes avoir
- * leur image : la demande « Itérer » (lib/tasks/demandes-db.ts) crée d'abord les assets manquants décidés et attend leurs images (vague 4a) ; appelée trop tôt,
+ * leur image : la demande « Itérer » (lib/tasks/requests-db.ts) crée d'abord les assets manquants décidés et attend leurs images (vague 4a) ; appelée trop tôt,
  * la recompilation est refusée sans tâche lancée. */
 export async function genererReecriturePlan(
   conversationUuid: string,
@@ -1036,7 +1036,7 @@ export async function genererReecriturePlan(
   if (finales.codes.length === 0) return ERR("Le plan n'aurait plus aucune image de référence : Open H3 IR ne peut pas le compiler. Rien n'a été écrit.");
   if (finales.sansImage.length) return ERR(`En attente d'images : ${finales.sansImage.join(", ")} (la recompilation part quand elles existent) ; rien n'a été écrit.`);
 
-  // Partir d'un essai : retouche de son prompt quand les décisions ne touchent que la description (lib/h3ir/retouche.ts, `preparerDepart`).
+  // Partir d'un essai : retouche de son prompt quand les décisions ne touchent que la description (lib/h3ir/retouch.ts, `preparerDepart`).
   const [essai] =
     options.depuisNumero != null && !references && !reglagesPlan && duree == null
       ? await db
@@ -1286,7 +1286,7 @@ export async function appliquerSelection(propositionUuid: string, options: Param
   const prop = await propositionParUuid(propositionUuid);
   if (!prop) return { ok: false, erreur: "Proposition introuvable." };
   // Inventaire des assets : les références de plan qui citent un asset créé par la proposition s'écrivent dans la même transaction, APRÈS les
-  // créations (lib/agents/inventaire-db.ts). Celles qui ne citaient que des assets existants sont déjà posées depuis le post-traitement.
+  // créations (lib/agents/inventory-db.ts). Celles qui ne citaient que des assets existants sont déjà posées depuis le post-traitement.
   // Choix des références d'un plan (préparation, vague 4a) : les assets manquants sont créés, puis les références du skill (eux compris) s'écrivent sur le
   // plan dans la même transaction.
   if (prop.skill === SKILL_REFERENCES_PLAN) {

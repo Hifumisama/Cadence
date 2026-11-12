@@ -1,4 +1,4 @@
-import { apercuDe, type Picto } from "@/lib/h3ir/apercu-style";
+import { apercuDe, type Picto } from "@/lib/h3ir/preview-style";
 
 /** Un pictogramme par geste de caméra ou ambiance (viewBox 160 x 90, traits seuls : la couleur vient du CSS, `.cn-picto`). Dessins volontairement simples, sans IA. */
 const DESSINS: Record<Picto, React.ReactNode> = {

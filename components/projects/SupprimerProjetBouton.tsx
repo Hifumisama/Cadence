@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { lireInventaireSuppression, supprimerProjet } from "@/app/projects/actions";
-import type { InventaireSuppression } from "@/lib/projects/suppression-projet";
+import type { InventaireSuppression } from "@/lib/projects/project-deletion";
 import { Icone } from "@/components/ui/Icone";
 
 function pluriel(n: number, mot: string): string {

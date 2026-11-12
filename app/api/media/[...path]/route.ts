@@ -3,8 +3,8 @@ import { createReadStream, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, normalize, resolve } from "node:path";
 import { MEDIA_ROOT } from "@/lib/media";
-import { lireLargeur } from "@/lib/miniatures";
-import { obtenirMiniature } from "@/lib/miniatures-serveur";
+import { lireLargeur } from "@/lib/thumbnails";
+import { obtenirMiniature } from "@/lib/thumbnails-server";
 
 // Sert les fichiers du stockage média (partage NFS monté en volume Docker,
 // voir MEDIA_ROOT). Les chemins stockés en base sont relatifs à cette
@@ -50,7 +50,7 @@ export async function GET(
   const contentType = CONTENT_TYPES[ext] ?? "application/octet-stream";
 
   // Miniature à la demande (`?w=192`, largeurs en liste blanche — voir
-  // lib/miniatures.ts) : WebP mis en cache sur disque. Une largeur inconnue est
+  // lib/thumbnails.ts) : WebP mis en cache sur disque. Une largeur inconnue est
   // ignorée (on sert l'original) ; si sharp échoue, repli sur l'original aussi.
   const largeur = lireLargeur(req.nextUrl.searchParams.get("w"));
   if (largeur) {

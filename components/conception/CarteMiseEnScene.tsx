@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { rappelleDe } from "@/lib/h3ir/apercu-style";
+import { rappelleDe } from "@/lib/h3ir/preview-style";
 import { NARRATION_DEMOS, REPLIQUES_DEMOS, type DemoDispo } from "@/lib/h3ir/demos";
 import {
   AJOUTS_CREATIVITE,
@@ -13,7 +13,7 @@ import {
   QUAND_AUCUN_STYLE,
   QUAND_CREATIVITE,
   QUAND_STYLE,
-} from "@/lib/h3ir/exemples";
+} from "@/lib/h3ir/examples";
 import {
   AIDE_CREATIVITE,
   DETAIL_STYLE_CAMERA,
@@ -26,7 +26,7 @@ import {
   signatureChoix,
   type ChoixMiseEnScene,
   type Creativite,
-} from "@/lib/h3ir/reglages";
+} from "@/lib/h3ir/settings";
 import { MotsMise, VisuelMise } from "./VisuelMise";
 
 /** Ce que la carte montre : un style de mise en scène (« aucun », l'un des 7 réalisateurs ou un profil perso) ou un niveau de créativité. */

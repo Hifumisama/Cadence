@@ -2,15 +2,15 @@ import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { MEDIA_ROOT } from "../lib/media";
-import { emplacementLibre, extraireDerniereImage } from "../lib/plans/plan-raccord";
+import { emplacementLibre, extraireDerniereImage } from "../lib/clips/clip-continuity";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "../db";
 import { jobs } from "../db/schema";
-import { essaiSourceDuRaccord, planPrecedent } from "../lib/plans/queries-raccord";
+import { essaiSourceDuRaccord, planPrecedent } from "../lib/clips/queries-continuity";
 import { nomDistantDepuisChemin } from "./comfyui/mapping";
 import type { RefMedia } from "./comfyui/types";
 
-/** Image de raccord d'un plan en liaison « suite » (lib/plans/plan-raccord.ts) : la dernière image du rendu du plan PRÉCÉDENT, extraite maintenant. */
+/** Image de raccord d'un plan en liaison « suite » (lib/clips/clip-continuity.ts) : la dernière image du rendu du plan PRÉCÉDENT, extraite maintenant. */
 export type Raccord = { ref: RefMedia; slot: number; sourceJobId: number };
 
 /** Le raccord à joindre à la génération de ce plan, ou null (liaison « coupe », premier plan, précédent sans rendu, plus d'emplacement libre, ffmpeg

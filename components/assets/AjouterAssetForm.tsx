@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { creerAssetRapide } from "@/app/assets/actions";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, type TypeAsset } from "@/lib/assets/assetCode";
-import { LIBELLE_TYPE_ASSET } from "@/lib/assets/registre-types";
+import { LIBELLE_TYPE_ASSET } from "@/lib/assets/registry-types";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 
 /** Ce que chaque type veut dire, en une phrase, et un exemple de nom : le choix se fait sur des cartes, pas dans une liste. */

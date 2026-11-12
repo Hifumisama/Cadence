@@ -1,7 +1,7 @@
 import { db } from "../../db";
 import { assetGenerationSources, assetGenerations, assets } from "../../db/schema";
 import { and, asc, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
-import { horsAffiches } from "./assets-visibles";
+import { horsAffiches } from "./assets-visible";
 import { METHODE_MASTER_VOIX, videoDeMaster } from "./asset-generation";
 import { estImage, fichierMediaExiste, generationMediaSrc, sourceImportMediaSrc, urlAssetMedia } from "../media";
 

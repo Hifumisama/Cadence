@@ -5,16 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { deplacerIteration } from "@/app/demandes/actions";
 import { BasculeNotifications } from "@/components/taches/BasculeNotifications";
 import { useTaches } from "@/components/taches/TachesProvider";
-import { estAnnulable, type GenreTache, type Tache } from "@/lib/tasks/taches";
-import { urlMiniature } from "@/lib/miniatures";
-import { LIBELLE_SERVEUR, type ServeursInjoignables } from "@/lib/renders/serveurs-injoignables-types";
+import { estAnnulable, type GenreTache, type Tache } from "@/lib/tasks/tasks";
+import { urlMiniature } from "@/lib/thumbnails";
+import { LIBELLE_SERVEUR, type ServeursInjoignables } from "@/lib/renders/unreachable-servers-types";
 import { Icone } from "@/components/ui/Icone";
 
 const pluriel = (n: number, un: string, plusieurs: string) => (n > 1 ? plusieurs : un);
 
 /** Pastille du bandeau : elle dit l'état en toutes lettres (« 2 en cours », « 1 prête », « 1 échec »,
  * « ComfyUI injoignable »). Barre = avancement de la tâche en tête ; point or = résultats non vus ; point
- * écarlate = échecs non vus. Le panneau liste les tâches (voir lib/tasks/taches.ts) ; un clic mène à l'asset
+ * écarlate = échecs non vus. Le panneau liste les tâches (voir lib/tasks/tasks.ts) ; un clic mène à l'asset
  * (popup ouverte sur le résultat) ou au plan. Sous 560 px, le panneau devient une feuille qui monte du bas. */
 export function IndicateurTaches() {
   const { taches, resume, serveurs, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe } = useTaches();

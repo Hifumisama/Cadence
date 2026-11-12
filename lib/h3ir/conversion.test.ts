@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { lireApresFiche, verifierFiche, type ApresFiche, type EtatPlanFiche } from "../agents/fiches";
+import { lireApresFiche, verifierFiche, type ApresFiche, type EtatPlanFiche } from "../agents/sheets";
 import { depuisCompilationH3ir } from "./conversion";
-import type { ResultatH3ir } from "./resultat";
+import type { ResultatH3ir } from "./result";
 
 const SHA_MAI = "a".repeat(64);
 const SHA_DEC = "b".repeat(64);

@@ -7,7 +7,7 @@ import {
   desactiverNotifications,
   etatNotifications,
   type EtatNotifications,
-} from "@/lib/tasks/notifications-navigateur";
+} from "@/lib/tasks/notifications-browser";
 
 /** Interrupteur « Notifications du navigateur » du panneau des générations : prévient
  * hors de l'onglet quand une tâche se termine. L'autorisation est demandée au clic. */

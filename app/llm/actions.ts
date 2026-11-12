@@ -1,7 +1,7 @@
 "use server";
 
 import { configLlm } from "@/lib/llm/config";
-import { ecrireModeleChoisi } from "@/lib/llm/modele-choisi";
+import { ecrireModeleChoisi } from "@/lib/llm/model-chosen";
 import { listerModeles } from "@/worker/llamaSwap";
 
 /** Choisit le modèle LLM (pastille du header). `null` revient au modèle de la configuration (`LLM_LOCAL_MODELE`).

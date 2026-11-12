@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { modifierReglagesCameraProjet } from "@/app/projects/actions";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
 import type { DemoDispo } from "@/lib/h3ir/demos";
-import { resoudreReglages } from "@/lib/h3ir/reglages";
+import { resoudreReglages } from "@/lib/h3ir/settings";
 
 /** Mise en scène et créativité du PROJET : le réglage le plus général d'Open H3 IR, pour toutes les fiches qu'il compile. Chaque scène, puis chaque plan, peut le surcharger
  * (« Modifier » sur la scène, « Modifier » sur le plan). Vide = le réglage par défaut (créativité équilibrée, aucun style de mise en scène). */

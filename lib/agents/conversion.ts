@@ -1,8 +1,8 @@
-import { avecTitreDansImage, titreDansPrompt } from "../posters/affiches";
+import { avecTitreDansImage, titreDansPrompt } from "../posters/posters";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, slugifyCode } from "../assets/assetCode";
-import type { ChangementBrut } from "./changements";
-import { estLiaison } from "../plans/plan-liaison";
-import { ajusterDureesScene, repartirDureesScenes } from "./traitement";
+import type { ChangementBrut } from "./changes";
+import { estLiaison } from "../clips/clip-link";
+import { ajusterDureesScene, repartirDureesScenes } from "./treatment";
 import type { Avertissement, PlaceScene, Position } from "./types";
 
 /** Des sorties validées des skills aux changements d'une proposition — EN CODE, sans second
@@ -109,7 +109,7 @@ export type SortieScenarioEpisode = {
     plans: {
       titre: string;
       description: string;
-      /** Liaison avec le plan précédent (lib/plans/plan-liaison.ts) : absente d'un scénario d'avant, alors la liaison du plan ne change pas. */
+      /** Liaison avec le plan précédent (lib/clips/clip-link.ts) : absente d'un scénario d'avant, alors la liaison du plan ne change pas. */
       liaison?: string;
       dureeSecondes: number;
     }[];

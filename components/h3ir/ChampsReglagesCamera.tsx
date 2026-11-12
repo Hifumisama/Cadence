@@ -16,7 +16,7 @@ import {
   estMiseEnScene,
   signatureChoix,
   type ReglagesResolus,
-} from "@/lib/h3ir/reglages";
+} from "@/lib/h3ir/settings";
 import { FenetreStyleMiseEnScene } from "./FenetreStyleMiseEnScene";
 import "@/components/conception/conception.css";
 import "./h3ir.css";

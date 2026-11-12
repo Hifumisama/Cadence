@@ -6,13 +6,13 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { unlink } from "node:fs/promises";
 import { DUREE_TEST_VIDEO_SECONDES, METHODE_MASTER_VOIX, nouvelleSeed } from "@/lib/assets/asset-generation";
-import { langueDesDialogues } from "@/lib/voice/langue-dialogues";
+import { langueDesDialogues } from "@/lib/voice/language-dialogues";
 import { MEDIA_ROOT, cheminAssetMedia, cheminVoixMedia, estImage, fichierMediaExiste } from "@/lib/media";
-import { nbImagesEnAttente, rangDansLaFile } from "@/lib/tasks/queries-taches";
-import { PLAFOND_FILE_IMAGES } from "@/lib/tasks/taches";
-import { promptMasterVoix } from "@/lib/voice/voix";
-import { ecrireRepliqueEcoute } from "@/lib/voice/replique-ecoute";
-import { modeleParDefautEffectif } from "@/lib/llm/modele-choisi";
+import { nbImagesEnAttente, rangDansLaFile } from "@/lib/tasks/queries-tasks";
+import { PLAFOND_FILE_IMAGES } from "@/lib/tasks/tasks";
+import { promptMasterVoix } from "@/lib/voice/voice";
+import { ecrireRepliqueEcoute } from "@/lib/voice/listening-line";
+import { modeleParDefautEffectif } from "@/lib/llm/model-chosen";
 
 // Master de voix d'un PERSONNAGE (chantier voix/master, 2026-10-14). La voix est un champ du personnage : une description libre (le
 // timbre voulu, ou rien : le modèle choisit), la réplique du test, puis le master — l'audio nettoyé issu d'une vidéo de test H3

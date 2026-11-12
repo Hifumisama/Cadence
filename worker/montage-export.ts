@@ -5,7 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { montageExports } from "../db/schema";
 import { argsExport, dureeSegment, formatSortie, type SegmentExport, type SondeVideo } from "../lib/montage/montage";
-import { binaires, executerProcessus } from "../lib/renders/planche-vignettes";
+import { binaires, executerProcessus } from "../lib/renders/contact-sheet";
 
 /** Export d'un épisode (bouton « Exporter l'épisode », app/montage/actions.ts) : le worker met bout à bout, avec ffmpeg, les segments que
  * l'interface a figés au clic (rendus retenus des entrées du montage, rognage appliqué). Aucun GPU : une boucle à part dans

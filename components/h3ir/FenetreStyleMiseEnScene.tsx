@@ -5,8 +5,8 @@ import { createPortal } from "react-dom";
 import { CarteMiseEnScene, ChoixMise, ChoixStyleMise, type CarteChoisie } from "@/components/conception/CarteMiseEnScene";
 import { cleDemoStyle, type DemoDispo } from "@/lib/h3ir/demos";
 import { VisuelMise } from "@/components/conception/VisuelMise";
-import { IDS_PROFILS_PERSO } from "@/lib/h3ir/profils-perso";
-import { LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, STYLE_AUCUN, type ReglagesResolus } from "@/lib/h3ir/reglages";
+import { IDS_PROFILS_PERSO } from "@/lib/h3ir/character-profiles";
+import { LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, STYLE_AUCUN, type ReglagesResolus } from "@/lib/h3ir/settings";
 import { STYLES_CAMERA } from "@/lib/h3ir/styles-camera";
 
 const FOCUSABLES = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])';

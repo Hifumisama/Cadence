@@ -12,8 +12,8 @@ import {
   videoDeMaster,
   parametresMasterVoix,
 } from "../lib/assets/asset-generation";
-import { TYPE_AFFICHE } from "../lib/posters/affiches";
-import { annulationDemandeeImage, finirAnnulationImage } from "../lib/tasks/annulation-db";
+import { TYPE_AFFICHE } from "../lib/posters/posters";
+import { annulationDemandeeImage, finirAnnulationImage } from "../lib/tasks/cancellation-db";
 import { adopterCandidat } from "../lib/assets/generation-adoption";
 import { extraireAudioDeVideo } from "../lib/voice/extraction-audio";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/assets/generation-sources";

@@ -1,22 +1,22 @@
 import "dotenv/config";
-import { LIBELLE_SOURCE_INVALIDE, MEGAPIXELS_VIDEO, continuiteEffective, etapesDuRendu, raccordImageARejouer, raisonSourceInvalide, type Continuite, type EtapeVideo } from "../lib/renders/etapes-video";
-import { essaiSourceDuLatent, planPrecedent, precedentEnRendu } from "../lib/plans/queries-raccord";
-import { doitAttendreLePrecedent } from "../lib/plans/chaines";
-import { ficheChangeeDepuis } from "../lib/plans/plans-perimes";
-import { BudgetContexte, contexteTotalDepuisEnv, estimerContexte } from "../lib/llm/budget-contexte";
+import { LIBELLE_SOURCE_INVALIDE, MEGAPIXELS_VIDEO, continuiteEffective, etapesDuRendu, raccordImageARejouer, raisonSourceInvalide, type Continuite, type EtapeVideo } from "../lib/renders/video-steps";
+import { essaiSourceDuLatent, planPrecedent, precedentEnRendu } from "../lib/clips/queries-continuity";
+import { doitAttendreLePrecedent } from "../lib/clips/chains";
+import { ficheChangeeDepuis } from "../lib/clips/stale-clips";
+import { BudgetContexte, contexteTotalDepuisEnv, estimerContexte } from "../lib/llm/budget-context";
 import { chargerSkill } from "../lib/llm/skills";
 import { join, resolve } from "node:path";
 import { mkdir, readFile } from "node:fs/promises";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
-import { finaliserLotsOrphelins } from "../lib/agents/lots";
-import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/tasks/annulation-db";
+import { finaliserLotsOrphelins } from "../lib/agents/batches";
+import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/tasks/cancellation-db";
 import { domaineDe } from "../lib/renders/gpu";
 import { configLlm } from "../lib/llm/config";
 import { cheminAssetMedia, cheminVoixMedia } from "../lib/media";
-import { assemblerPrompt } from "../lib/plans/prompt";
-import { raccordSansPlace, sectionsAvecRaccord } from "../lib/plans/plan-raccord";
+import { assemblerPrompt } from "../lib/clips/prompt";
+import { raccordSansPlace, sectionsAvecRaccord } from "../lib/clips/clip-continuity";
 import { getAllParams } from "../lib/params";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./annulation";
 import { attendreResultat, type IssueAttente } from "./attente";
@@ -40,11 +40,11 @@ import { preparerRaccord } from "./raccord";
 import { decharger, llmJoignable } from "./llamaSwap";
 import { echouerAppelsEnAttente, prochaineTacheLlmEnAttente, traiterTacheLlm } from "./llm";
 import { SKILL_H3IR, SKILL_TRADUCTION } from "./h3ir";
-import { JETONS_COMPILATEUR_H3IR } from "../lib/llm/budget-contexte";
+import { JETONS_COMPILATEUR_H3IR } from "../lib/llm/budget-context";
 import { attenteDepassee, effacerSonde, noterSonde } from "./disponibilite";
 import { piloterCreations } from "../lib/agents/creation-db";
 import { projetEnCreation } from "./creation";
-import { piloterDemandes } from "../lib/tasks/demandes-db";
+import { piloterDemandes } from "../lib/tasks/requests-db";
 import { choisirProchaineTache, type TacheEnAttente } from "./ordonnanceur";
 import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
 import { reprendreExports, traiterProchainExport } from "./montage-export";
@@ -142,7 +142,7 @@ async function construireSubmissionInput(
     .filter((r) => r.type === "video" && r.fichier)
     .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) }));
 
-  // Liaison « suite » : la dernière image du rendu du plan précédent devient la première image du premier shot (éphémère, lib/plans/plan-raccord.ts).
+  // Liaison « suite » : la dernière image du rendu du plan précédent devient la première image du premier shot (éphémère, lib/clips/clip-continuity.ts).
   const raccord = await preparerRaccord(plan, refsImage.map((r) => r.slot), refsVideo.length, raccordImpose);
 
   return {
@@ -397,7 +397,7 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
     avecComfyui ? prochainJobEnAttente() : null,
     avecLlm ? prochaineTacheLlmEnAttente() : null,
   ]);
-  // Les appels en parallèle se partagent le contexte du serveur : celui-ci n'est pris que s'il tient à côté de ceux en vol (lib/llm/budget-contexte.ts).
+  // Les appels en parallèle se partagent le contexte du serveur : celui-ci n'est pris que s'il tient à côté de ceux en vol (lib/llm/budget-context.ts).
   // La place est réservée tout de suite (aucun `await` entre le test et la réservation) et rendue à la fin du tour, quel qu'il soit.
   // `plan-h3ir` (Open H3 IR) n'a pas de dossier de skill : on compte celui de sa traduction (le compilateur Python ajoute ses propres appels, voir JETONS_COMPILATEUR_H3IR).
   const run = runBrut && budgetContexte.reserver(runBrut.id, estimerContexte(runBrut.skill, chargerSkill(runBrut.skill === SKILL_H3IR ? SKILL_TRADUCTION : runBrut.skill).jetonsEstimes + (runBrut.skill === SKILL_H3IR ? JETONS_COMPILATEUR_H3IR : 0), runBrut.entree)) ? runBrut : null;

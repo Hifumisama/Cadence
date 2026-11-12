@@ -8,12 +8,12 @@ import { Topbar } from "@/components/ui/Topbar";
 import { lireBriefOuVide } from "@/lib/agents/queries-agents";
 import { getAllAssets, getEpisode, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { db } from "@/db";
-import { lireConception } from "@/lib/projects/conception-db";
-import { plansSansFicheApresCreation } from "@/lib/agents/creation-vue";
+import { lireConception } from "@/lib/projects/design-db";
+import { plansSansFicheApresCreation } from "@/lib/agents/creation-view";
 import { MEDIA_ROOT, assetMediaSrc, posterSrc } from "@/lib/media";
-import { slugStyle } from "@/lib/styles/bibliotheque";
+import { slugStyle } from "@/lib/styles/library";
 import { apercusDuStyle } from "@/lib/styles/styles-db";
-import { SUJETS_APERCU } from "@/lib/styles/sujets";
+import { SUJETS_APERCU } from "@/lib/styles/subjects";
 import type { StyleBriefVue, VignetteStyle } from "@/components/brief/StyleBrief";
 import { demosMiseEnScene } from "@/lib/media";
 import { ReglagesCameraProjet } from "@/components/brief/ReglagesCameraProjet";
@@ -79,7 +79,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
 }
 
 /** Le style du projet tel que la page le montre : son nom, ses deux clauses, et ses images — l'image de présentation posée à la création (style libre), puis les
- * aperçus des scènes communes (`lib/styles/sujets.ts`, déjà générés) quand le style est un style de la bibliothèque (choisi à la conception, ou dont
+ * aperçus des scènes communes (`lib/styles/subjects.ts`, déjà générés) quand le style est un style de la bibliothèque (choisi à la conception, ou dont
  * le nom est celui d'une entrée de la bibliothèque). Un style libre sans image n'a pas de vignette. */
 async function vueStyle(style: { nom?: string; clause?: string; promptImage?: string; image?: string } | undefined, styleId: string | null): Promise<StyleBriefVue> {
   const id = styleId ?? (style?.nom?.trim() ? slugStyle(style.nom) : null);

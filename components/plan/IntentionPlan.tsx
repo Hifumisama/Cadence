@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { ouvrirConversation } from "@/app/agents/actions";
 import { annulerLaDemande, corrigerConsigneIteration, demanderIteration, lireDemande } from "@/app/demandes/actions";
 import { preparerBaseIteration, rouvrirIteration, validerPretUpscale, type ConflitDescription } from "@/app/plans/actions";
-import { intentAffichee } from "@/lib/plans/intent";
-import { CONSIGNE_TEXTE_MODIFIE, EVENEMENT_ITERER_TEXTE } from "@/lib/plans/iteration-texte";
+import { intentAffichee } from "@/lib/clips/intent";
+import { CONSIGNE_TEXTE_MODIFIE, EVENEMENT_ITERER_TEXTE } from "@/lib/clips/iteration-text";
 import { useBrouillon } from "@/components/plan/BrouillonPlan";
 import { DecisionsIteration } from "@/components/plan/DecisionsIteration";
 import type { DecisionsAffichees } from "@/lib/agents/types";
-import type { EtatPlan } from "@/lib/plans/fiche-plan";
+import type { EtatPlan } from "@/lib/clips/clip-sheet";
 
 const EXEMPLES = [
   "Plus de mouvement, la caméra suit le personnage.",
@@ -167,7 +167,7 @@ export function IntentionPlan({
     return conv.conversationUuid;
   };
 
-  /** « Itérer » = UNE demande (lib/tasks/demandes.ts) que le worker mène de la consigne au rendu (agent, réécriture de la fiche si la consigne change
+  /** « Itérer » = UNE demande (lib/tasks/requests.ts) que le worker mène de la consigne au rendu (agent, réécriture de la fiche si la consigne change
    * le plan, application, essai). La page ne fait que la suivre : on affiche l'étape en cours, et quand le rendu part, le même accusé qu'un
    * lancement. Quitter la page ne coupe rien (la ligne du panneau des tâches reste). */
   const suivreDemande = async (demandeId: number): Promise<void> => {

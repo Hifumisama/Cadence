@@ -1,19 +1,19 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, propositions } from "../../db/schema";
-import { horsAffiches } from "../../lib/assets/assets-visibles";
+import { horsAffiches } from "../../lib/assets/assets-visible";
 import { sortieVersBrief } from "../../lib/agents/brief";
 import { ecrireBrouillon } from "../../lib/agents/brief-db";
-import { entreeTour, messageBriefPret } from "../../lib/agents/brief-entree";
-import { appliquerNotes, detailsAPreciser, ficheComplete, manquesEssentiels, manquesFiche } from "../../lib/agents/fiche";
-import { ficheCourante, enregistrerFiche } from "../../lib/agents/fiche-db";
-import { informationsFormat } from "../../lib/projects/conception";
-import { lireConception } from "../../lib/projects/conception-db";
+import { entreeTour, messageBriefPret } from "../../lib/agents/brief-input";
+import { appliquerNotes, detailsAPreciser, ficheComplete, manquesEssentiels, manquesFiche } from "../../lib/agents/sheet";
+import { ficheCourante, enregistrerFiche } from "../../lib/agents/sheet-db";
+import { informationsFormat } from "../../lib/projects/design";
+import { lireConception } from "../../lib/projects/design-db";
 import { creerRun } from "../../lib/agents/runs";
-import { ecrireAfficheEtGenerer } from "../../lib/agents/affiche-clap";
-import { BUT_ESSAI, ecrireEssaiTraduit, terminerEssaiSansPrompt } from "../../lib/agents/essai-asset";
-import { VARIANTE_AFFICHE } from "../../lib/llm/variantes";
-import type { ChangementBrut } from "../../lib/agents/changements";
+import { ecrireAfficheEtGenerer } from "../../lib/agents/poster-clap";
+import { BUT_ESSAI, ecrireEssaiTraduit, terminerEssaiSansPrompt } from "../../lib/agents/asset-attempt";
+import { VARIANTE_AFFICHE } from "../../lib/llm/variants";
+import type { ChangementBrut } from "../../lib/agents/changes";
 import {
   depuisCorrectionPlan,
   depuisPlanAInserer,
@@ -31,31 +31,31 @@ import {
   type SortieScenarioScene,
   type SortieTraitement,
 } from "../../lib/agents/conversion";
-import { finaliserLot, runsDuLot } from "../../lib/agents/lots";
-import { PAS_ORDRE_SOUS_TACHE, episodeIdDeCle, groupeEpisode, rangSousTache, sceneIdDeCle } from "../../lib/agents/lots-pur";
-import { traitementDeScene } from "../../lib/agents/traitement";
-import { entreeScenarioEpisode } from "../../lib/agents/contexte";
-import { codeDeCleAsset } from "../../lib/agents/registre";
-import { enregistrerChangements } from "../../lib/agents/proposition-db";
+import { finaliserLot, runsDuLot } from "../../lib/agents/batches";
+import { PAS_ORDRE_SOUS_TACHE, episodeIdDeCle, groupeEpisode, rangSousTache, sceneIdDeCle } from "../../lib/agents/batches-pure";
+import { traitementDeScene } from "../../lib/agents/treatment";
+import { entreeScenarioEpisode } from "../../lib/agents/context";
+import { codeDeCleAsset } from "../../lib/agents/registry";
+import { enregistrerChangements } from "../../lib/agents/proposal-db";
 import type { PlaceScene, Position } from "../../lib/agents/types";
-import type { Tx } from "../../lib/plans/ordre-plans";
-import { planUuidDeCle } from "../../lib/agents/fiches";
-import { depuisRelecture, type EntreeRelecture, type SortieRelecture } from "../../lib/agents/relecture";
+import type { Tx } from "../../lib/clips/clip-order";
+import { planUuidDeCle } from "../../lib/agents/sheets";
+import { depuisRelecture, type EntreeRelecture, type SortieRelecture } from "../../lib/agents/review";
 import { scenes } from "../../db/schema";
-import { depuisInventaire, type OptionsRunInventaire, type SortieInventaire } from "../../lib/agents/inventaire";
-import { assetsACreer, ecrireReferencesDesTaches, phraseBilan } from "../../lib/agents/inventaire-db";
-import { lireVueEpisode } from "../../lib/agents/vue-operations/vue-episode";
-import { PREFIXE_SANS_ECRITURE, contexteDepuisEntree, decisionsEffectives, raisonSansEcriture, type SortieIterationPlan } from "../../lib/agents/iteration-plan";
+import { depuisInventaire, type OptionsRunInventaire, type SortieInventaire } from "../../lib/agents/inventory";
+import { assetsACreer, ecrireReferencesDesTaches, phraseBilan } from "../../lib/agents/inventory-db";
+import { lireVueEpisode } from "../../lib/agents/view-operations/view-episode";
+import { PREFIXE_SANS_ECRITURE, contexteDepuisEntree, decisionsEffectives, raisonSansEcriture, type SortieIterationPlan } from "../../lib/agents/iteration-clip";
 import type { InfosExecution } from "./preparation";
 import { depuisCompilationH3ir, depuisRetouche } from "../../lib/h3ir/conversion";
-import { estResultatRetouche } from "../../lib/h3ir/retouche";
-import { SKILL_H3IR, type ResultatH3ir } from "../../lib/h3ir/resultat";
+import { estResultatRetouche } from "../../lib/h3ir/retouch";
+import { SKILL_H3IR, type ResultatH3ir } from "../../lib/h3ir/result";
 import type { MessageConversation } from "../../lib/agents/types";
-import { normaliserChoix } from "../../lib/agents/choix";
-import { SKILL_REFERENCES_PLAN, type SortieReferencesPlan } from "../../lib/agents/references-plan";
+import { normaliserChoix } from "../../lib/agents/choice";
+import { SKILL_REFERENCES_PLAN, type SortieReferencesPlan } from "../../lib/agents/references-clip";
 import { brutsManquants, decisionSortieReferencesPlan } from "../../lib/h3ir/preparation";
 import { registreCodesTypes } from "../../lib/h3ir/preparation-db";
-import { ecrireReferencesPlan } from "../../lib/h3ir/references-ecriture";
+import { ecrireReferencesPlan } from "../../lib/h3ir/references-write";
 
 /** Ce que devient le résultat validé d'une tâche du système d'agents, DANS la transaction qui
  * l'écrit (worker/llm.ts) : un échec ici annule tout et la tâche est marquée échouée.
@@ -63,7 +63,7 @@ import { ecrireReferencesPlan } from "../../lib/h3ir/references-ecriture";
  *                   l'agent), soit le message de l'agent, qui rejoint la conversation (`briefPret` est décidé en code) ;
  * - `brief`       : un BROUILLON de brief est écrit (jamais par-dessus un brief validé) ;
  * - `proposition` : les changements sont construits EN CODE depuis le JSON du skill ;
- * - `affiche`     : l'affiche du clap (lib/agents/affiche-clap.ts) : le prompt écrit lance la génération de l'image. */
+ * - `affiche`     : l'affiche du clap (lib/agents/poster-clap.ts) : le prompt écrit lance la génération de l'image. */
 
 type RunAgent = typeof agentRuns.$inferSelect;
 type OptionsRunAgent = { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null; place?: PlaceScene };
@@ -221,7 +221,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       throw new Error(`Portée « ${prop.portee} » non prise en charge pour le skill scenario-episode.`);
     }
   } else if (run.skill === SKILL_H3IR) {
-    // La fiche d'UN plan compilée par Open H3 IR (worker/h3ir.ts) : une fiche seule, sans asset à créer ; elle s'écrit sans relecture (lib/tasks/demandes-db.ts).
+    // La fiche d'UN plan compilée par Open H3 IR (worker/h3ir.ts) : une fiche seule, sans asset à créer ; elle s'écrit sans relecture (lib/tasks/requests-db.ts).
     if (prop.cibleId == null) throw new Error("Proposition de fiche sans plan.");
     const [plan] = await tx.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.id, prop.cibleId));
     if (!plan) throw new Error("Le plan visé n'existe plus.");
@@ -262,7 +262,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
 }
 
 /** Inventaire des assets (un seul appel, ou un groupe de scènes d'un long film) : les créations d'assets deviennent des changements ; les références des
- * plans qui ne citent que des assets existants s'écrivent TOUT DE SUITE (lib/agents/inventaire-db.ts), les autres à l'application, après les créations.
+ * plans qui ne citent que des assets existants s'écrivent TOUT DE SUITE (lib/agents/inventory-db.ts), les autres à l'application, après les créations.
  * Groupe d'un lot : ses lignes remplacent celles qu'il avait posées (relance), ce que les autres groupes proposent n'est pas reproposé, puis le groupe
  * suivant est posé (une seule fois), avec les assets déjà proposés ; enfin le lot décide de son statut. */
 async function postInventaire(
@@ -471,7 +471,7 @@ async function postSousTacheRegistre(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
-/** Une sous-tâche Open H3 IR d'un lot de fiches (un plan compilable, lib/h3ir/moteur.ts) : sa fiche compilée, rangée sous son épisode et sa scène,
+/** Une sous-tâche Open H3 IR d'un lot de fiches (un plan compilable, lib/h3ir/engine.ts) : sa fiche compilée, rangée sous son épisode et sa scène,
  * sans asset à créer. Même règle que les autres lots : ses changements REMPLACENT ceux qu'elle avait posés (relance), puis le lot décide de son statut. */
 async function postSousTacheFicheH3ir(
   tx: Tx,
@@ -530,7 +530,7 @@ async function postReferencesPlan(
 }
 
 /** Une correction après visionnage (`iteration-plan`, 2026-11-09) : l'agent ne fait que DÉCIDER (intent, durée, références, réglages) ; la proposition ne porte
- * AUCUN changement, ses décisions se lisent dans le diagnostic (lib/agents/queries-agents.ts) et partent en recompilation Open H3 IR (lib/tasks/demandes-db.ts). Sans
+ * AUCUN changement, ses décisions se lisent dans le diagnostic (lib/agents/queries-agents.ts) et partent en recompilation Open H3 IR (lib/tasks/requests-db.ts). Sans
  * décision applicable (durée incohérente, abandon, cause hors du plan…), le résumé commence par `PREFIXE_SANS_ECRITURE` et dit pourquoi : rien n'est
  * recompilé. Le « contexte utilisé » gagne la mesure du rendu (durée réelle, nombre de vignettes). */
 async function postIteration(

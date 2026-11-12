@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { BriefH3ir, ResultatBrief } from "../lib/h3ir/brief";
-import type { LanceurPython, ReponsePython } from "../lib/h3ir/compilateur";
-import type { executerSkill } from "../lib/llm/executer";
-import type { ResultatH3ir } from "../lib/h3ir/resultat";
-import { SKILL_RETOUCHE, type ResultatRetouche, type SortieRetouche } from "../lib/h3ir/retouche";
+import type { LanceurPython, ReponsePython } from "../lib/h3ir/compiler";
+import type { executerSkill } from "../lib/llm/execute";
+import type { ResultatH3ir } from "../lib/h3ir/result";
+import { SKILL_RETOUCHE, type ResultatRetouche, type SortieRetouche } from "../lib/h3ir/retouch";
 import { executerH3ir, lireEntreeH3ir, nettoyerIntent, reduireEnveloppe, SKILL_TRADUCTION, type DepsH3ir } from "./h3ir";
 
 const BRIEF: BriefH3ir = {

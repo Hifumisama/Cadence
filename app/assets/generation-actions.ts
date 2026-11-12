@@ -10,12 +10,12 @@ import { dirname, extname, join } from "node:path";
 import {
   STATUT_TRADUCTION,
 } from "@/lib/assets/asset-generation";
-import { annulerTraductionEssai } from "@/lib/agents/essai-asset";
-import { horsAffiches } from "@/lib/assets/assets-visibles";
+import { annulerTraductionEssai } from "@/lib/agents/asset-attempt";
+import { horsAffiches } from "@/lib/assets/assets-visible";
 import { adopterCandidat } from "@/lib/assets/generation-adoption";
-import { poserGenerationsLot } from "@/lib/assets/generation-lancement";
-import { idsSansImage } from "@/lib/assets/images-projet";
-import { type EcarteLot } from "@/lib/assets/generation-lot";
+import { poserGenerationsLot } from "@/lib/assets/generation-launch";
+import { idsSansImage } from "@/lib/assets/project-images";
+import { type EcarteLot } from "@/lib/assets/generation-batch";
 import { supprimerGenerationEtFichiers } from "@/lib/assets/generation-sources";
 
 import {
@@ -49,7 +49,7 @@ export async function lancerGenerationsLot(
 }
 
 /** « Générer toutes les images de référence » (clap de la préparation, bandeau « Prochaine étape », registre) : le lot ci-dessus
- * appliqué à tous les assets à illustrer qui n'ont pas d'image (définition dans lib/assets/images-projet.ts). Mêmes règles que le lot : prompt
+ * appliqué à tous les assets à illustrer qui n'ont pas d'image (définition dans lib/assets/project-images.ts). Mêmes règles que le lot : prompt
  * et format par défaut de chaque type, adoption automatique, assets déjà en file sautés. Un dérivé en édition dont le master n'a pas
  * encore d'image est écarté (avec sa raison) : il part au clic suivant, une fois le master adopté. */
 export async function genererImagesManquantes(

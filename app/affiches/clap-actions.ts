@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
-import { donneesAffiche, etatAfficheClap, lancerAfficheClap, signatureAffiche } from "@/lib/agents/affiche-clap";
+import { donneesAffiche, etatAfficheClap, lancerAfficheClap, signatureAffiche } from "@/lib/agents/poster-clap";
 import { posterSrc } from "@/lib/media";
 
 /** L'affiche du projet vue du clap : `en_cours` (le prompt s'écrit ou l'image se génère), `prete`, `echec`, ou `indisponible` (l'histoire n'est

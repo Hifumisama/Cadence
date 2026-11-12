@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { copyFile, mkdir, unlink } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { creerRun } from "@/lib/agents/runs";
-import { BUT_ESSAI, entreeEssaiAsset } from "@/lib/agents/essai-asset";
+import { BUT_ESSAI, entreeEssaiAsset } from "@/lib/agents/asset-attempt";
 import { libelleAsset } from "@/lib/assets/assetCode";
 import {
   STATUT_TRADUCTION,
@@ -18,12 +18,12 @@ import {
   nouvelleSeed,
   raisonConsigneInvalide,
 } from "@/lib/assets/asset-generation";
-import { TYPE_AFFICHE } from "@/lib/posters/affiches";
-import { styleDesEditions, styleDesImages } from "@/lib/projects/conception";
+import { TYPE_AFFICHE } from "@/lib/posters/posters";
+import { styleDesEditions, styleDesImages } from "@/lib/projects/design";
 import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "@/lib/media";
-import { nbImagesEnAttente } from "@/lib/tasks/queries-taches";
+import { nbImagesEnAttente } from "@/lib/tasks/queries-tasks";
 import { cheminCanevasAffiche } from "@/worker/canevas-affiche";
-import { PLAFOND_FILE_IMAGES } from "@/lib/tasks/taches";
+import { PLAFOND_FILE_IMAGES } from "@/lib/tasks/tasks";
 
 // La fiche d'un asset « comme la fiche de plan » : on écrit une consigne en français, un agent la traduit en prompt (Krea 2 sans image de
 // base, Qwen Image Edit avec), l'essai part dans la file d'images, et le journal des essais garde consigne, base et prompt de chacun.
@@ -128,7 +128,7 @@ export async function lancerEssai(
         statut: STATUT_TRADUCTION,
         prompt: "",
         consigne: consigne || null,
-        // Édition : la clause courte, rappelée par le worker en dernière ligne des instructions (voir lib/assets/generation-lancement.ts).
+        // Édition : la clause courte, rappelée par le worker en dernière ligne des instructions (voir lib/assets/generation-launch.ts).
         clauseStyle: texte ? styleDesImages(projet) : styleDesEditions(projet),
         ...(texte ? { aspect: format.aspect, megapixels: format.megapixels } : {}),
         lightning: texte ? null : true,

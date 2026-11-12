@@ -2,9 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { annulerTache, marquerToutVu, marquerVu, retirerTaches, viderFile as viderFileServeur, viderListe as viderListeServeur } from "@/app/taches/actions";
-import { etatNotifications } from "@/lib/tasks/notifications-navigateur";
-import { estAnnulable, type ResumeTaches, type Tache } from "@/lib/tasks/taches";
-import { SERVEURS_OK, type ServeursInjoignables } from "@/lib/renders/serveurs-injoignables-types";
+import { etatNotifications } from "@/lib/tasks/notifications-browser";
+import { estAnnulable, type ResumeTaches, type Tache } from "@/lib/tasks/tasks";
+import { SERVEURS_OK, type ServeursInjoignables } from "@/lib/renders/unreachable-servers-types";
 
 /** Un seul sondage de `/api/taches` pour toute l'application, placé dans le
  * layout racine : il survit aux navigations (le Topbar, lui, se remonte à chaque

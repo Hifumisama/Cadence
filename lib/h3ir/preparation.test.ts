@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { decisionsEffectives, type ContexteIteration } from "../agents/iteration-plan";
-import { choisirReferences, type CandidatReference } from "./references-plan";
+import { decisionsEffectives, type ContexteIteration } from "../agents/iteration-clip";
+import { choisirReferences, type CandidatReference } from "./references-clip";
 import { brutsManquants, decisionSortieReferencesPlan, deciderImages, deciderReferences, precedentEnAttente, retenirManquants, type EtatImageAsset } from "./preparation";
 
 // Un registre générique (aucun nom de projet réel).

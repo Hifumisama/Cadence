@@ -1,5 +1,5 @@
 import { lireEtatImages } from "@/lib/assets/queries-images";
-import { etapesSuivantes, prochaineEtape } from "@/lib/assets/images-projet";
+import { etapesSuivantes, prochaineEtape } from "@/lib/assets/project-images";
 import { BandeauProchaineEtape } from "./ImagesProjet";
 
 /** Bandeau « Prochaine étape » d'un projet (serveur) : lit l'état une fois, puis le client le sonde. Rien tant que tout est fait. */

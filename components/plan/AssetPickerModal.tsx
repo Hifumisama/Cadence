@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MediaKind } from "@/components/assets/AssetCard";
-import { urlMiniature } from "@/lib/miniatures";
+import { urlMiniature } from "@/lib/thumbnails";
 import { Icone } from "@/components/ui/Icone";
 
 /** Asset allégé pour la galerie de références — construit côté serveur (il faut vérifier les fichiers sur le disque) puis passé tel

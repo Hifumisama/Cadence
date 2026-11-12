@@ -3,9 +3,9 @@
 import { Fragment, useId, useRef, useState } from "react";
 import { envoyerMessage, relancerAccroche, repondreAuChoix } from "@/app/agents/actions";
 import { EtatTacheAgent } from "@/components/agents/EtatTacheAgent";
-import { estTacheActive } from "@/lib/agents/agents-affichage";
-import { estDecider } from "@/lib/agents/choix";
-import type { NoteAffichee } from "@/lib/agents/fiche-affichage";
+import { estTacheActive } from "@/lib/agents/agents-display";
+import { estDecider } from "@/lib/agents/choice";
+import type { NoteAffichee } from "@/lib/agents/sheet-display";
 import type { Choix, VueConversation } from "@/lib/agents/types";
 import { useDefilementBas } from "@/components/ui/useDefilementBas";
 import { EnteteScene } from "./Scenes";

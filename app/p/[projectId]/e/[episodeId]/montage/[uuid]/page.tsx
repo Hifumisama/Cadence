@@ -2,14 +2,14 @@ import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { demandes, planPromptVersions } from "@/db/schema";
-import { getPlansPerimes } from "@/lib/plans/plans-perimes";
+import { getPlansPerimes } from "@/lib/clips/stale-clips";
 import { getAssetsRegistre, getPlanDetail, getProject, getScenesEpisode, type AssetRegistre } from "@/lib/queries";
-import { getPelliculePlans } from "@/lib/plans/queries-fiche-plan";
+import { getPelliculePlans } from "@/lib/clips/queries-clip-sheet";
 import { infosMedia } from "@/lib/assets/assetMedia";
-import { controlerStructure, DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plans/plan-checks";
+import { controlerStructure, DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/clips/clip-checks";
 import { demosMiseEnScene } from "@/lib/media";
-import { getVoixDuPlan } from "@/lib/voice/queries-voix-plan";
-import { essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/plans/fiche-plan";
+import { getVoixDuPlan } from "@/lib/voice/queries-voice-clip";
+import { essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/clips/clip-sheet";
 import { ReferencesCases, type RefVue } from "@/components/plan/ReferencesCases";
 import type { NoeudPicker } from "@/components/plan/AssetPickerModal";
 import { SuiviRendus } from "@/components/plan/SuiviRendus";
@@ -21,17 +21,17 @@ import { ControlesEntete, type AlerteControle } from "@/components/plan/Controle
 import { PelliculePlans, type CadrePlan } from "@/components/plan/PelliculePlans";
 import { PlateauEssais, type EssaiCarte } from "@/components/plan/PlateauEssais";
 import { IntentionPlan } from "@/components/plan/IntentionPlan";
-import { iterationDuPlan, iterationEnAttenteDuPlan } from "@/lib/tasks/demandes-db";
+import { iterationDuPlan, iterationEnAttenteDuPlan } from "@/lib/tasks/requests-db";
 import { CartePrompt } from "@/components/plan/CartePrompt";
 import { TiroirPlan } from "@/components/plan/TiroirPlan";
 import { srcRendu } from "@/components/plan/Vignette";
-import { assemblerPrompt } from "@/lib/plans/prompt";
-import { liaisonOuDefaut } from "@/lib/plans/plan-liaison";
+import { assemblerPrompt } from "@/lib/clips/prompt";
+import { liaisonOuDefaut } from "@/lib/clips/clip-link";
 import { libelleAsset } from "@/lib/assets/assetCode";
-import { statutAsset } from "@/lib/assets/asset-etat";
-import { etatRaccord, raccordSansPlace } from "@/lib/plans/plan-raccord";
-import { raccordActuel } from "@/lib/plans/queries-raccord";
-import { choisirComparaison, choisirRendu, detailPerime, estLisible, estPerime, promptDiffere, type RenduVue } from "@/lib/renders/rendus";
+import { statutAsset } from "@/lib/assets/asset-state";
+import { etatRaccord, raccordSansPlace } from "@/lib/clips/clip-continuity";
+import { raccordActuel } from "@/lib/clips/queries-continuity";
+import { choisirComparaison, choisirRendu, detailPerime, estLisible, estPerime, promptDiffere, type RenduVue } from "@/lib/renders/renders";
 
 export const dynamic = "force-dynamic";
 
@@ -126,7 +126,7 @@ export default async function PlanPage({
   };
   const aUneFiche = promptSections.some((s) => s.contenu.trim());
 
-  // Raccord (lib/plans/plan-raccord.ts) : l'essai du plan précédent dont l'image serait prise maintenant, comparé à celui dont l'essai affiché est parti.
+  // Raccord (lib/clips/clip-continuity.ts) : l'essai du plan précédent dont l'image serait prise maintenant, comparé à celui dont l'essai affiché est parti.
   const raccordMaintenant = await raccordActuel(plan);
   // Un plan en « suite » repart du rendu du précédent : si celui-ci est périmé ou a une itération en file, un rendu d'aujourd'hui sera provisoire.
   const precedentChange = raccordMaintenant
@@ -163,7 +163,7 @@ export default async function PlanPage({
   }));
 
   const scene = scenesEpisode.find((sc) => sc.id === plan.sceneId);
-  // Créativité et style de mise en scène d'Open H3 IR : ceux du plan, sinon de sa scène, sinon du projet (lib/h3ir/reglages.ts).
+  // Créativité et style de mise en scène d'Open H3 IR : ceux du plan, sinon de sa scène, sinon du projet (lib/h3ir/settings.ts).
   const reglagesProjet = { creativite: projet?.creativite ?? null, styleCamera: projet?.styleCamera ?? null };
   const reglagesScene = scene ? { creativite: scene.creativite, styleCamera: scene.styleCamera } : null;
   // Un plan est un brouillon tant qu'il n'a ni fiche écrite ni essai : un statut resté « brouillon » sur un plan qui a déjà un prompt ou des rendus ne les cache pas.

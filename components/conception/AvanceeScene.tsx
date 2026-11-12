@@ -6,13 +6,13 @@ import "./avancee.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { arreterCreationProjet, reprendreCreationProjet } from "@/app/creation/actions";
-import { SYMBOLE_SOUS_TACHE } from "@/lib/agents/agents-affichage";
-import type { PlanIntent, SuiviFichePlan, VueCreation } from "@/lib/agents/creation-vue";
+import { SYMBOLE_SOUS_TACHE } from "@/lib/agents/agents-display";
+import type { PlanIntent, SuiviFichePlan, VueCreation } from "@/lib/agents/creation-view";
 import { IntentsAvantFiches } from "./IntentsAvantFiches";
-import { motDuTon, type Conception } from "@/lib/projects/conception";
-import { minutesSecondes, teinteAmbiance } from "@/lib/projects/conception-ui";
+import { motDuTon, type Conception } from "@/lib/projects/design";
+import { minutesSecondes, teinteAmbiance } from "@/lib/projects/design-ui";
 import { BoutonGenererImages, useEtatImages } from "@/components/images/ImagesProjet";
-import { phraseCompteImages, type EtatImages } from "@/lib/assets/images-projet";
+import { phraseCompteImages, type EtatImages } from "@/lib/assets/project-images";
 import { AfficheProjet, type StyleAffiche } from "./ClapScene";
 import { RubanConception } from "./RubanConception";
 import { EnteteScene } from "./Scenes";
@@ -44,14 +44,14 @@ export function AvanceeScene({
 }: {
   projectId: number;
   nomProjet: string;
-  /** Les plans et leurs intents (lib/agents/creation-vue.ts) : l'écran de fin de la phase 1 les fait relire avant d'écrire les fiches. */
+  /** Les plans et leurs intents (lib/agents/creation-view.ts) : l'écran de fin de la phase 1 les fait relire avant d'écrire les fiches. */
   plansInitial: PlanIntent[];
   /** La dernière demande de fiche de chaque plan (`lireSuiviFiches`) : l'écran des intents suit « Écrire les fiches » plan par plan. */
   suiviInitial: SuiviFichePlan[];
   /** La mise en scène du projet en quelques mots (`resumeMiseEnScene`), pour le ruban. */
   miseEnScene: string;
   initial: VueCreation | null;
-  /** Où en sont les images de référence (lib/assets/images-projet.ts) : le clap final dit ce qui est vraiment fait. */
+  /** Où en sont les images de référence (lib/assets/project-images.ts) : le clap final dit ce qui est vraiment fait. */
   imagesInitial: EtatImages;
   conception: Conception | null;
   style: StyleAffiche;

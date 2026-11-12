@@ -1,6 +1,6 @@
 "use client";
 
-import { EVENEMENT_ITERER_TEXTE } from "@/lib/plans/iteration-texte";
+import { EVENEMENT_ITERER_TEXTE } from "@/lib/clips/iteration-text";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
@@ -12,7 +12,7 @@ import { ComparaisonRendus } from "@/components/plan/ComparaisonRendus";
 import { frappeEnCours } from "@/components/plan/PelliculePlans";
 import { Vignette } from "@/components/plan/Vignette";
 import { useTaches } from "@/components/taches/TachesProvider";
-import { cleVideo } from "@/lib/tasks/taches";
+import { cleVideo } from "@/lib/tasks/tasks";
 import "./atelier.css";
 
 export type EssaiCarte = {

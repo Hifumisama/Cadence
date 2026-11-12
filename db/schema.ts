@@ -79,7 +79,7 @@ export const projects = pgTable("projects", {
   // synchroniserClauseStyle) ; vide pour un projet sans conception : les images retombent alors sur la clause.
   stylePromptImage: text("style_prompt_image").notNull().default(""),
   notes: text("notes").notNull().default(""),
-  // Open H3 IR (lib/h3ir/reglages.ts) : créativité et style de mise en scène du projet, hérités par ses scènes puis ses plans. Null = réglage par défaut.
+  // Open H3 IR (lib/h3ir/settings.ts) : créativité et style de mise en scène du projet, hérités par ses scènes puis ses plans. Null = réglage par défaut.
   // Varchar contrôlé par l'application (pas d'enum Postgres) ; le style vaut un des 7 profils ou « aucun ».
   creativite: varchar("creativite", { length: 12 }),
   styleCamera: varchar("style_camera", { length: 20 }),
@@ -118,10 +118,10 @@ export const scenes = pgTable("scenes", {
   genre: varchar("genre", { length: 20 }),
   // Cadre visuel tenu sur toute la scène (moment de la journée, météo, lumière générale) : la continuité entre plans.
   ambiance: text("ambiance"),
-  // Open H3 IR : créativité et style de mise en scène de la scène (null = hérite du projet ; style « aucun » = force l'absence de style). lib/h3ir/reglages.ts.
+  // Open H3 IR : créativité et style de mise en scène de la scène (null = hérite du projet ; style « aucun » = force l'absence de style). lib/h3ir/settings.ts.
   creativite: varchar("creativite", { length: 12 }),
   styleCamera: varchar("style_camera", { length: 20 }),
-  // Le traitement de la scène (lib/agents/traitement.ts) : ce qu'elle raconte, d'où elle part, où elle arrive, sa durée visée.
+  // Le traitement de la scène (lib/agents/treatment.ts) : ce qu'elle raconte, d'où elle part, où elle arrive, sa durée visée.
   traitement: jsonb("traitement").$type<{ intention: string; etatEntree: string; etatSortie: string; dureeCibleSecondes: number; momentsDeLAuteur: string }>(),
 });
 
@@ -172,12 +172,12 @@ export const plans = pgTable("plans", {
   sceneId: integer("scene_id").references(() => scenes.id),
   description: text("description"),
   // Le texte du plan (`description`) tel qu'il était quand la fiche a été écrite (agent ou Open H3 IR) : si la description n'est plus la même, la fiche est à
-  // régénérer (lib/plans/intent.ts, `intentionChangee`). Comparé par valeur, jamais réécrit seul ; null = fiche écrite avant ce suivi, on ne sait pas.
+  // régénérer (lib/clips/intent.ts, `intentionChangee`). Comparé par valeur, jamais réécrit seul ; null = fiche écrite avant ce suivi, on ne sait pas.
   ficheDescription: text("fiche_description"),
-  // Liaison avec le plan PRÉCÉDENT de l'épisode (2026-10-14, lib/plans/plan-liaison.ts) : « suite » = le plan reprend là où l'autre finit (même lieu, même
+  // Liaison avec le plan PRÉCÉDENT de l'épisode (2026-10-14, lib/clips/clip-link.ts) : « suite » = le plan reprend là où l'autre finit (même lieu, même
   // instant à peu près) ; « coupe » = rupture franche (autre lieu, autre moment, autre angle libre). Posée par le scénario, modifiable à la main.
   liaison: varchar("liaison", { length: 10 }).notNull().default("suite"),
-  // Open H3 IR : créativité et style de mise en scène de CE plan (null = hérite de la scène, puis du projet ; style « aucun » = force l'absence de style). lib/h3ir/reglages.ts.
+  // Open H3 IR : créativité et style de mise en scène de CE plan (null = hérite de la scène, puis du projet ; style « aucun » = force l'absence de style). lib/h3ir/settings.ts.
   creativite: varchar("creativite", { length: 12 }),
   styleCamera: varchar("style_camera", { length: 20 }),
   dureeMontageSecondes: integer("duree_montage_secondes").notNull(),
@@ -193,7 +193,7 @@ export const plans = pgTable("plans", {
   // bougé) ; « Nouvelle variante » en tire une autre.
   seed: text("seed").default(sql`floor(random() * 1000000000000000)::bigint::text`),
   notes: text("notes"),
-  // Fiche de plan « table de montage » (2026-10-12) : l'état affiché d'un plan est DÉRIVÉ (lib/plans/fiche-plan.ts, etatPlan) : sans essai =
+  // Fiche de plan « table de montage » (2026-10-12) : l'état affiché d'un plan est DÉRIVÉ (lib/clips/clip-sheet.ts, etatPlan) : sans essai =
   // brouillon, pret_upscale_at posé = prêt à upscaler, sinon en itération. Pas de valeur d'enum de plus. Un nouvel essai efface les deux.
   pretUpscaleAt: timestamp("pret_upscale_at"),
   // L'essai (job) validé quand le plan est prêt ; remis à null si on le supprime.
@@ -278,9 +278,9 @@ export const assets = pgTable("assets", {
   methodeGeneration: varchar("methode_generation", { length: 12 }),
   fichier: varchar("fichier", { length: 255 }),
   // Quand le fichier a été posé ou remplacé (adoption, import, prise de voix) : un plan dont le dernier rendu est
-  // antérieur est « périmé » (lib/plans/plans-perimes.ts). null = jamais posé.
+  // antérieur est « périmé » (lib/clips/stale-clips.ts). null = jamais posé.
   fichierAt: timestamp("fichier_at"),
-  // Validé à la main (ou par défaut à l'import d'un fichier). Le statut affiché et la criticité se CALCULENT (lib/assets/asset-etat.ts) :
+  // Validé à la main (ou par défaut à l'import d'un fichier). Le statut affiché et la criticité se CALCULENT (lib/assets/asset-state.ts) :
   // plus de colonne `statut` ni `critique`. Un fichier remplacé par une génération adoptée repasse à false.
   valide: boolean("valide").notNull().default(false),  // Voix du PERSONNAGE (chantier voix/master, 2026-10-14) : une voix n'existe que portée par un personnage (la voix off en est un). Sans
   // objet pour les autres types. `voixDescription` : la voix voulue, en texte libre (null = laissée au modèle) ; `voixRepliqueBase` : la
@@ -356,7 +356,7 @@ export const assetGenerations = pgTable("asset_generations", {
   // Quand cet essai est devenu l'image de l'asset (même valeur que `assets.fichier_at` à cet instant) : sert à marquer l'essai retenu.
   adopteAt: timestamp("adopte_at"),
   // Annulation d'une tâche EN COURS : l'interface pose le drapeau, le worker agit
-  // (lib/tasks/annulation.ts). Une tâche en attente s'annule directement, sans drapeau.
+  // (lib/tasks/cancellation.ts). Une tâche en attente s'annule directement, sans drapeau.
   annulationDemandeeAt: timestamp("annulation_demandee_at"),
 });
 
@@ -400,7 +400,7 @@ export const jobs = pgTable("jobs", {
   consigne: text("consigne"),
   depuisNumeroRendu: integer("depuis_numero_rendu"),
   // Ce que l'agent d'« Itérer » a signalé en appliquant sa correction (doute sur son diagnostic, changement refusé par un contrôle…) :
-  // des informations gardées sur l'essai, jamais un blocage (lib/plans/fiche-plan.ts, `decisionIteration`). Null hors itération.
+  // des informations gardées sur l'essai, jamais un blocage (lib/clips/clip-sheet.ts, `decisionIteration`). Null hors itération.
   alertesIteration: jsonb("alertes_iteration").$type<string[]>(),
   // Ce que le worker a réellement soumis : le prompt assemblé et la durée (la seed est dans `seedUtilisee`).
   // Sert à comparer deux rendus, et à expliquer pourquoi deux relances donnent le même plan.
@@ -410,16 +410,16 @@ export const jobs = pgTable("jobs", {
   megapixels: real("megapixels").notNull().default(0.2),
   // La description (intention) du plan au moment de la soumission : versionnée par essai comme le prompt (2026-10-14).
   descriptionUtilisee: text("description_utilisee"),
-  // L'essai (d'un AUTRE plan : le précédent) dont la dernière image a servi de première image à celui-ci (lib/plans/plan-raccord.ts, 2026-10-14) ; null
+  // L'essai (d'un AUTRE plan : le précédent) dont la dernière image a servi de première image à celui-ci (lib/clips/clip-continuity.ts, 2026-10-14) ; null
   // sans raccord. Sert à voir qu'un plan suit un rendu qui a changé depuis. L'image n'est jamais gardée comme asset.
   raccordJobId: integer("raccord_job_id").references((): AnyPgColumn => jobs.id, { onDelete: "set null" }),
   // Vidéo en trois étapes (2026-10-30, docs/PLAN_INTEGRATION_WORKER.md). Une prévisualisation (génération 0,4 MP) garde le dossier de ses latents sur
   // ComfyUI (`output/h3_latents/<dossier>/gen` et `/up`) ; un rendu final (upscale puis finition) pointe la prévisualisation dont il part et n'est
-  // lancé que si la fiche n'a pas changé depuis elle (même comparaison que lib/plans/plans-perimes.ts, contre cette prévisualisation).
+  // lancé que si la fiche n'a pas changé depuis elle (même comparaison que lib/clips/stale-clips.ts, contre cette prévisualisation).
   latentDossier: varchar("latent_dossier", { length: 255 }),
   jobSourceId: integer("job_source_id").references((): AnyPgColumn => jobs.id, { onDelete: "set null" }),
   // Comment ce rendu prolonge le plan précédent (plan en suite) : « latent » (Motion Context, `raccord_job_id` = l'essai dont le latent sert de contexte) ou
-  // « image » (repli : la dernière image de `raccord_job_id`). Null hors suite, ou pour un rendu d'avant la colonne (lib/renders/etapes-video.ts, `continuiteEffective`).
+  // « image » (repli : la dernière image de `raccord_job_id`). Null hors suite, ou pour un rendu d'avant la colonne (lib/renders/video-steps.ts, `continuiteEffective`).
   continuite: varchar("continuite", { length: 10 }),
   // Progression du rendu en cours (2026-10-03) : l'étape (génération H3, interpolation, encodage) et, si ComfyUI en
   // donne une, valeur / max. Remises à null en fin de rendu. Pas d'aperçu image (la génération H3 est un nœud d'API).
@@ -494,7 +494,7 @@ export const montageExports = pgTable("montage_exports", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   startedAt: timestamp("started_at"),
   finishedAt: timestamp("finished_at"),
-  // Panneau des tâches du bandeau (clé `montage:<id>`, lib/montage/montage-tache.ts) : « vu » et « retiré de la liste », comme jobs.vuAt/masqueAt.
+  // Panneau des tâches du bandeau (clé `montage:<id>`, lib/montage/montage-task.ts) : « vu » et « retiré de la liste », comme jobs.vuAt/masqueAt.
   vuAt: timestamp("vu_at"),
   masqueAt: timestamp("masque_at"),
 });
@@ -666,12 +666,12 @@ export const agentConversations = pgTable("agent_conversations", {
   // [{ role: "user" | "assistant", content, at }] — les tours de la conversation.
   messages: jsonb("messages").notNull().default(sql`'[]'::jsonb`),
   consigne: text("consigne").notNull().default(""),
-  // La fiche de notes est complète (décidé en code, lib/agents/fiche.ts) : l'utilisateur peut passer au briefing.
+  // La fiche de notes est complète (décidé en code, lib/agents/sheet.ts) : l'utilisateur peut passer au briefing.
   briefPret: boolean("brief_pret").notNull().default(false),
   // Ce qu'il reste à définir avec l'utilisateur (liste de phrases courtes, remise à jour par l'agent à chaque tour) ;
   // `briefPret` n'est vrai que lorsqu'elle est vide.
   resteADefinir: jsonb("reste_a_definir").notNull().default(sql`'[]'::jsonb`),
-  // La fiche de notes de l'entretien (lib/agents/fiche.ts) : le brief en train de se remplir, { contenu, statuts }, tenue par le code.
+  // La fiche de notes de l'entretien (lib/agents/sheet.ts) : le brief en train de se remplir, { contenu, statuts }, tenue par le code.
   fiche: jsonb("fiche"),
   propositionId: integer("proposition_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -681,9 +681,9 @@ export const agentConversations = pgTable("agent_conversations", {
   uniqueIndex("agent_conversations_cible_idx").on(table.projectId, table.portee, table.profondeur, sql`coalesce(${table.cibleId}, 0)`),
 ]);
 
-// La bibliothèque de styles de la conception d'un projet. SEMÉE depuis lib/styles/bibliotheque.json + clauses.json (db/seed-styles.ts,
+// La bibliothèque de styles de la conception d'un projet. SEMÉE depuis lib/styles/library.json + clauses.json (db/seed-styles.ts,
 // relancée à chaque `db:migrate`) : le JSON reste la source à trier à la main, la base est ce que l'application lit. `apercus` : les
-// sujets (lib/styles/sujets.ts) dont l'image existe sous `styles/<id>/<sujet>.webp` ; les images restent des fichiers (MEDIA_ROOT).
+// sujets (lib/styles/subjects.ts) dont l'image existe sous `styles/<id>/<sujet>.webp` ; les images restent des fichiers (MEDIA_ROOT).
 export const styles = pgTable("styles", {
   id: varchar("id", { length: 120 }).primaryKey(),
   nom: varchar("nom", { length: 200 }).notNull(),
@@ -711,7 +711,7 @@ export const creationsProjet = pgTable("creations_projet", {
 // Une DEMANDE (2026-10-17) : un geste de l'utilisateur qui tient en plusieurs étapes (itérer un plan : l'agent lit la consigne, la
 // fiche est réécrite si besoin, le rendu part). UNE ligne dans la file et le panneau, du clic au résultat, au lieu d'une suite de
 // tâches qui se relaient avec des trous entre elles. Ce n'est qu'un pilote : les tâches (runs d'agent, jobs vidéo, générations
-// d'images) gardent leurs voies et leur verrou GPU (voir lib/tasks/demandes.ts). `type` : iteration-plan | (à venir) iteration-asset ;
+// d'images) gardent leurs voies et leur verrou GPU (voir lib/tasks/requests.ts). `type` : iteration-plan | (à venir) iteration-asset ;
 // `statut` : en_cours | termine | echoue | annulee ; une seule demande en cours par cible (index unique partiel).
 export const demandes = pgTable(
   "demandes",
@@ -724,7 +724,7 @@ export const demandes = pgTable(
     cibleId: integer("cible_id").notNull(),
     statut: varchar("statut", { length: 10 }).notNull().default("en_cours"),
     etapes: jsonb("etapes").notNull().default(sql`'[]'::jsonb`),
-    // Ce qu'il faut pour finir : consigne, essai de départ, réglages, tâche courante, rendu créé (lib/tasks/demandes.ts).
+    // Ce qu'il faut pour finir : consigne, essai de départ, réglages, tâche courante, rendu créé (lib/tasks/requests.ts).
     contexte: jsonb("contexte").notNull().default(sql`'{}'::jsonb`),
     erreur: text("erreur"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -755,7 +755,7 @@ export const briefs = pgTable("briefs", {
 });
 
 // La conception du projet (2026-10-07) : les choix faits AVANT l'entretien (format, genres, ton, durée, rythme, langue, style),
-// tels que l'utilisateur les a faits (lib/projects/conception.ts). Le brief reçoit les valeurs dérivées ; cette ligne garde les choix
+// tels que l'utilisateur les a faits (lib/projects/design.ts). Le brief reçoit les valeurs dérivées ; cette ligne garde les choix
 // bruts (ton ajusté ou non, valeurs par défaut non visitées, nombre d'épisodes prévus) pour les réafficher.
 export const conceptions = pgTable("conceptions", {
   id: serial("id").primaryKey(),

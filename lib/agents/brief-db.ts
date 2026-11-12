@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { briefs, projects } from "../../db/schema";
 import { briefVide, clauseDuBrief, fusionnerPartielDansBrouillon, notesDuBrief, promptImageDuBrief } from "./brief";
-import type { Db } from "./applicateurs/commun";
+import type { Db } from "./appliers/common";
 import type { BriefContenu, StatutChamp } from "./types";
 
 /** Le brief est la SOURCE UNIQUE de la clause de style et des notes du projet (2026-10-02,

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { demanderFichePlan } from "@/app/demandes/actions";
 import { useTaches } from "@/components/taches/TachesProvider";
-import { cleDemande } from "@/lib/tasks/taches";
+import { cleDemande } from "@/lib/tasks/tasks";
 
 /** Le délai au bout duquel une demande que la file ne montre pas encore est tenue pour finie (elle a pu naître et finir entre deux sondages). */
 const ATTENTE_MAX_MS = 20000;

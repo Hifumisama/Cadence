@@ -7,8 +7,8 @@ import { enregistrerVoixPersonnage, lancerMasterVoix, proposerRepliqueBase, supp
 import { Icone } from "@/components/ui/Icone";
 import { METHODE_MASTER_VOIX } from "@/lib/assets/asset-generation";
 import type { GenerationVue } from "@/lib/assets/queries-generations";
-import { ilYa } from "@/lib/temps-relatif";
-import { urlMiniature } from "@/lib/miniatures";
+import { ilYa } from "@/lib/relative-time";
+import { urlMiniature } from "@/lib/thumbnails";
 import { useGenerationsVoix } from "./useGenerationsVoix";
 
 const METHODES = [METHODE_MASTER_VOIX];

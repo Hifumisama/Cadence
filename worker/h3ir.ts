@@ -1,16 +1,16 @@
-import { chargerBriefPlan, type SurchargeBrief } from "../lib/h3ir/brief-plan";
+import { chargerBriefPlan, type SurchargeBrief } from "../lib/h3ir/brief-clip";
 import type { ResultatBrief } from "../lib/h3ir/brief";
-import { compilerAvecRelances, ErreurCompilation, reglagesH3ir, type EnveloppeH3ir, type LanceurPython, type ResultatCompilation } from "../lib/h3ir/compilateur";
-import { SKILL_H3IR, SKILL_TRADUCTION, type CompilationReduite, type EntreeH3ir, type ResultatH3ir } from "../lib/h3ir/resultat";
-import { executerSkill, type OptionsExecution } from "../lib/llm/executer";
-import { messageRetouche, passagesChanges, SKILL_RETOUCHE, verifierRetouche, type EntreeRetouche, type ResultatRetouche, type SortieRetouche } from "../lib/h3ir/retouche";
-import { ORDRE_SECTIONS } from "../lib/plans/prompt";
+import { compilerAvecRelances, ErreurCompilation, reglagesH3ir, type EnveloppeH3ir, type LanceurPython, type ResultatCompilation } from "../lib/h3ir/compiler";
+import { SKILL_H3IR, SKILL_TRADUCTION, type CompilationReduite, type EntreeH3ir, type ResultatH3ir } from "../lib/h3ir/result";
+import { executerSkill, type OptionsExecution } from "../lib/llm/execute";
+import { messageRetouche, passagesChanges, SKILL_RETOUCHE, verifierRetouche, type EntreeRetouche, type ResultatRetouche, type SortieRetouche } from "../lib/h3ir/retouch";
+import { ORDRE_SECTIONS } from "../lib/clips/prompt";
 
 /** La tâche « fiche de plan » avec le compilateur Open H3 IR (skill virtuel `plan-h3ir`, pas de dossier sous agents/skills) : lancée par `traiterTacheLlm`
  * à la place d'`executerSkill`. Trois temps, sous le même verrou GPU qu'un appel LLM ordinaire :
- *  1. le brief du plan (lib/h3ir/brief-plan.ts) : refusé → le run échoue avec la raison, rien n'est écrit ;
+ *  1. le brief du plan (lib/h3ir/brief-clip.ts) : refusé → le run échoue avec la raison, rien n'est écrit ;
  *  2. l'intent est traduit en anglais par le skill `traduction-intent` (une seule fois, pas à chaque relance) ;
- *  3. la compilation, avec relances de seed (lib/h3ir/compilateur.ts).
+ *  3. la compilation, avec relances de seed (lib/h3ir/compiler.ts).
  * Le résultat est ce qui est stocké dans `agent_runs.resultat` (BriefIn envoyé, intent d'origine et traduit, enveloppe réduite, tentatives) ; la conversion en
  * fiche est faite à part (worker/agents/postTraitement.ts, lib/h3ir/conversion.ts). */
 

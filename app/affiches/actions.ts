@@ -7,9 +7,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { assets } from "@/db/schema";
-import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, promptAffiche, type CibleAffiche } from "@/lib/posters/affiches";
-import { ecrirePoster, lirePoster } from "@/lib/posters/affiche-application";
-import { resoudreAffiche } from "@/lib/agents/affiche";
+import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, promptAffiche, type CibleAffiche } from "@/lib/posters/posters";
+import { ecrirePoster, lirePoster } from "@/lib/posters/poster-application";
+import { resoudreAffiche } from "@/lib/agents/poster";
 import { MEDIA_ROOT, cheminPosterMedia } from "@/lib/media";
 
 /** Ouvre la page de génération de l'affiche d'un projet ou d'un épisode. L'asset d'affiche (invisible du registre) est

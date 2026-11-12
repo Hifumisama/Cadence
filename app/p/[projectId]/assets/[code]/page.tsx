@@ -1,4 +1,4 @@
-import { getPlansPerimes, nbPlansRendusCitant } from "@/lib/plans/plans-perimes";
+import { getPlansPerimes, nbPlansRendusCitant } from "@/lib/clips/stale-clips";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssetsRegistre, getFirstEpisodeId, getProject } from "@/lib/queries";
@@ -6,7 +6,7 @@ import { AtelierAsset } from "@/components/assets/AtelierAsset";
 import { EnteteAsset, FicheProvider } from "@/components/assets/FicheAsset";
 import { OngletsAsset, type OngletAsset } from "@/components/assets/OngletsAsset";
 import { BlocVoix } from "@/components/voix/BlocVoix";
-import { getVoixPersonnage } from "@/lib/voice/queries-master-voix";
+import { getVoixPersonnage } from "@/lib/voice/queries-master-voice";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/assets/queries-generations";
 import { METHODE_MASTER_VOIX } from "@/lib/assets/asset-generation";
 import { Topbar } from "@/components/ui/Topbar";

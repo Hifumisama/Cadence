@@ -9,9 +9,9 @@ import { retirerPlan } from "@/app/plans/actions";
 import { Vignette } from "@/components/plan/Vignette";
 import { useTaches } from "@/components/taches/TachesProvider";
 import { Icone } from "@/components/ui/Icone";
-import { blocsDeLecture } from "@/lib/plans/intent-lecture";
-import { cleDemande } from "@/lib/tasks/taches";
-import { LIBELLE_INTENTION_CHANGEE, minutage, type AjoutEnCours, type AjoutSceneEnCours } from "@/lib/plans/scenario-vue";
+import { blocsDeLecture } from "@/lib/clips/intent-reading";
+import { cleDemande } from "@/lib/tasks/tasks";
+import { LIBELLE_INTENTION_CHANGEE, minutage, type AjoutEnCours, type AjoutSceneEnCours } from "@/lib/clips/screenplay-view";
 import { AjouterPlan, type CibleAjoutPlan } from "./AjouterPlan";
 
 /** Un plan tel que la vue Lecture le montre : son texte AFFICHÉ (`intentAffichee`), jamais la description brute. */

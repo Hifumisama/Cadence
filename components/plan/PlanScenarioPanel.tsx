@@ -2,15 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { updatePlanScenario } from "@/app/plans/actions";
-import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/plans/plan-checks";
+import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/clips/clip-checks";
 import { GenererFiche } from "@/components/plan/GenererFiche";
-import type { Liaison } from "@/lib/plans/plan-liaison";
-import { intentAffichee } from "@/lib/plans/intent";
+import type { Liaison } from "@/lib/clips/clip-link";
+import { intentAffichee } from "@/lib/clips/intent";
 import { ChampsReglagesCamera } from "@/components/h3ir/ChampsReglagesCamera";
 import { CurseurDuree } from "@/components/plan/CurseurDuree";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import "./atelier.css";
-import { LIBELLE_CREATIVITE, LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, infobulleChoix, resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/reglages";
+import { LIBELLE_CREATIVITE, LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, infobulleChoix, resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/settings";
 import {
   ScenarioNarratifFields,
   type ChampsNarratifs,
@@ -21,7 +21,7 @@ type Valeurs = ChampsNarratifs & {
   /** La durée de RENDU du plan (`plans.duree_generation_secondes`, que la durée de montage suit) ; null : hors des bornes actuelles (plan d'avant), on n'y touche pas tant qu'on ne choisit pas. */
   dureeSecondes: number | null;
   liaison: Liaison;
-  /** Open H3 IR : vide = le plan hérite de sa scène, puis du projet (lib/h3ir/reglages.ts). Doivent faire partie de `initial`, sinon chaque enregistrement les remettrait à zéro. */
+  /** Open H3 IR : vide = le plan hérite de sa scène, puis du projet (lib/h3ir/settings.ts). Doivent faire partie de `initial`, sinon chaque enregistrement les remettrait à zéro. */
   creativite: string;
   styleCamera: string;
 };

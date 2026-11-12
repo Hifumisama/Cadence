@@ -2,7 +2,7 @@
  * `WORKER_VOIES=serie` a été retiré le 2026-10-20 ; ce qui suit décrit son fonctionnement d'origine.)
  *
  * Le GPU comme ressource unique — règles pures (sans base ni réseau), partagées
- * par l'ordonnanceur du worker, la lecture des tâches (lib/tasks/taches.ts) et les tests.
+ * par l'ordonnanceur du worker, la lecture des tâches (lib/tasks/tasks.ts) et les tests.
  *
  * ComfyUI (images, vidéo) et le LLM local (llama.cpp derrière llama-swap) tournent
  * sur la MÊME machine et ne tiennent pas ensemble en VRAM : le worker ne fait donc

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { compilerSchema } from "../llm/validation";
 import { CLES_ABANDONNEES, SCHEMA_BRIEF, construireSections, diffSections, estCleSection, sansClesAbandonnees, sortieVersBrief } from "./brief";
-import { FICHE_VIDE, briefVersFiche, lireFiche } from "./fiche";
+import { FICHE_VIDE, briefVersFiche, lireFiche } from "./sheet";
 import type { BriefContenu } from "./types";
 
 const brief = {

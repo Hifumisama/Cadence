@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 import { FournisseurCompatibleOpenAI } from "./compatibleOpenAI";
 import { configLlm, corpsPourSkill, maxTokensPourSkill, modelePourSkill, nomVariableModele } from "./config";
-import { executerSkill, messageDeRenvoi, versMessages } from "./executer";
+import { executerSkill, messageDeRenvoi, versMessages } from "./execute";
 import { chargerSkill, listerSkills } from "./skills";
 import type { TraceAEnregistrer } from "./traces";
 import { ErreurLlm, partieImageJpeg, type MessageLlm } from "./types";
