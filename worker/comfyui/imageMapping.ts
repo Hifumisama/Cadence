@@ -1,15 +1,15 @@
 import { ASPECTS_COMFYUI, type Aspect } from "../../lib/assets/asset-generation";
 
 /**
- * Nœuds du graphe IMG_01_TextToImage.json (format API, Krea 2 Turbo). Le
- * contrat est documenté dans workflows/README.md ; imageMapping.test.ts vérifie
- * qu'ils existent bien dans le fichier du dépôt (le workflow et ce code vivent
- * dans le même commit).
+ * Nodes of the graph IMG_01_TextToImage.json (API format, Krea 2 Turbo). The
+ * contract is documented in workflows/README.md; imageMapping.test.ts checks
+ * that they exist in the repository file (the workflow and this code live
+ * in the same commit).
  */
 export const NODE_IDS_TEXTE_VERS_IMAGE = {
-  prompt: "59", // PrimitiveStringMultiline : le sujet, sans style
-  style: "60", // PrimitiveStringMultiline : la clause de style du projet
-  format: "49", // ResolutionSelector : aspect_ratio + megapixels
+  prompt: "59", // PrimitiveStringMultiline: the subject, without style
+  style: "60", // PrimitiveStringMultiline: the project's style clause
+  format: "49", // ResolutionSelector: aspect_ratio + megapixels
   seed: "30:3", // KSampler
   sortie: "29", // SaveImage
 } as const;
@@ -23,13 +23,13 @@ export type EntreeTexteVersImage = {
   aspect: Aspect;
   megapixels: number;
   seed: string;
-  /** Préfixe des fichiers de sortie côté ComfyUI. */
+  /** Prefix of the output files on the ComfyUI side. */
   prefixeSortie: string;
 };
 
-/** Injecte les valeurs de la génération dans le graphe. Un nœud absent est une
- * erreur franche : un workflow ré-exporté qui change d'ids doit casser ici, pas
- * générer une image sans prompt. */
+/** Injects the generation's values into the graph. A missing node is an
+ * outright error: a re-exported workflow that changes its ids must break here, not
+ * generate an image without a prompt. */
 export function injecterGenerationImage(workflow: WorkflowJson, entree: EntreeTexteVersImage): WorkflowJson {
   const graphe = structuredClone(workflow);
   const noeud = (id: string): NodeAPI => {
@@ -49,43 +49,43 @@ export function injecterGenerationImage(workflow: WorkflowJson, entree: EntreeTe
 }
 
 /**
- * Nœuds du graphe IMG_Simple_Edit.json (Qwen Image Edit 2511). L'image 1 (la
- * cible modifiée) est le LoadImage fixe ; les images 2 et 3 sont créées à la
- * soumission, seulement pour les sources fournies (même principe que les
- * références du workflow vidéo). La sortie suit l'image 1 : le graphe n'a aucun
- * nœud de taille (le latent vient du VAEEncode de l'image 1 mise à l'échelle).
+ * Nodes of the graph IMG_Simple_Edit.json (Qwen Image Edit 2511). Image 1 (the
+ * modified target) is the fixed LoadImage; images 2 and 3 are created at
+ * submission, only for the sources provided (same principle as the
+ * references of the video workflow). The output follows image 1: the graph has no
+ * size node (the latent comes from the VAEEncode of the scaled image 1).
  */
 export const NODE_IDS_EDITION = {
-  image1: "41", // LoadImage : la cible de la modification
-  encodeurPositif: "170:151", // TextEncodeQwenImageEditPlus : prompt = les instructions
-  encodeurNegatif: "170:149", // idem, prompt laissé vide
+  image1: "41", // LoadImage: the target of the modification
+  encodeurPositif: "170:151", // TextEncodeQwenImageEditPlus: prompt = the instructions
+  encodeurNegatif: "170:149", // same, prompt left empty
   seed: "170:169", // KSampler
-  lightning: "170:168", // PrimitiveBoolean : true = 4 étapes CFG 1, false = 40 étapes CFG 4
+  lightning: "170:168", // PrimitiveBoolean: true = 4 steps CFG 1, false = 40 steps CFG 4
   sortie: "195", // SaveImageAdvanced
 } as const;
 
 export type EntreeEdition = {
   prompt: string;
-  /** La clause de style COURTE du projet (instantané de la demande), "" ou absente = aucun rappel. Voir `instructionsAvecStyle`. */
+  /** The project's SHORT style clause (snapshot of the request), "" or absent = no reminder. See `instructionsAvecStyle`. */
   clauseStyle?: string;
   seed: string;
   lightning: boolean;
-  /** Noms des sources déjà envoyées à ComfyUI, dans l'ordre (1 à 3, la 1re = cible). */
+  /** Names of the sources already sent to ComfyUI, in order (1 to 3, the 1st = target). */
   sourcesDistantes: string[];
   prefixeSortie: string;
 };
 
-/** Le graphe d'édition n'a pas de nœud de style (contrairement au texte vers image) : le style du projet est rappelé par une
- * DERNIÈRE ligne d'instruction, ajoutée aux instructions de l'agent sans les toucher (ses lignes « Preserve… » restent
- * telles quelles, et en tête). Rien n'est ajouté sans clause, ni quand les instructions la contiennent déjà. Pur. */
+/** The editing graph has no style node (unlike text-to-image): the project's style is reminded by a
+ * LAST instruction line, added to the agent's instructions without touching them (its « Preserve… » lines stay
+ * as they are, at the top). Nothing is added without a clause, nor when the instructions already contain it. Pure. */
 export function instructionsAvecStyle(prompt: string, clauseStyle: string | undefined): string {
   const clause = (clauseStyle ?? "").trim();
   if (!clause || prompt.toLowerCase().includes(clause.toLowerCase())) return prompt;
   return `${prompt.trimEnd()}\nKeep the result in this art style: ${clause}`;
 }
 
-/** Même règle que `injecterGenerationImage` : un nœud absent est une erreur
- * franche, pas une image générée à côté de ce qu'on a demandé. */
+/** Same rule as `injecterGenerationImage`: a missing node is an outright error,
+ * not an image generated next to what was requested. */
 export function injecterEditionImages(workflow: WorkflowJson, entree: EntreeEdition): WorkflowJson {
   if (entree.sourcesDistantes.length < 1 || entree.sourcesDistantes.length > 3) {
     throw new Error("L'édition prend de 1 à 3 images sources");
@@ -105,9 +105,9 @@ export function injecterEditionImages(workflow: WorkflowJson, entree: EntreeEdit
   noeud(ids.lightning).inputs.value = entree.lightning;
   noeud(ids.sortie).inputs.filename_prefix = entree.prefixeSortie;
 
-  // Images 2 et 3 : LoadImage → FluxKontextImageScale (comme l'image 1), câblées
-  // sur les DEUX encodeurs, sinon le négatif et le positif ne verraient pas les
-  // mêmes références.
+  // Images 2 and 3: LoadImage → FluxKontextImageScale (like image 1), wired
+  // to BOTH encoders, otherwise the negative and the positive would not see the
+  // same references.
   entree.sourcesDistantes.slice(1).forEach((nom, i) => {
     const rang = i + 2;
     const idCharge = `cadence_source_${rang}`;

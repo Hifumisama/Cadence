@@ -6,10 +6,10 @@ import { assets, planRefs, plans } from "../../db/schema";
 import { cheminAssetMedia, MEDIA_ROOT } from "../media";
 import { refusReferences, type EtatRefsVisuelles } from "./engine";
 
-/** L'état réel des plans pour Open H3 IR (lib/h3ir/engine.ts) : leurs références visuelles et la présence de leurs fichiers (les mêmes que celles
- * que lirait le brief, lib/h3ir/brief-clip.ts, sans charger les voix). */
+/** The real state of the clips for Open H3 IR (lib/h3ir/engine.ts): their visual references and the presence of their files (the same ones
+ * the brief would read, lib/h3ir/brief-clip.ts, without loading the voices). */
 
-/** L'état des références visuelles de chaque plan demandé (uuid → état ; un plan sans référence a `total: 0`). */
+/** The state of the visual references of each requested clip (uuid → state; a clip without a reference has `total: 0`). */
 export async function etatsRefsVisuelles(projectId: number, planUuids: string[]): Promise<Map<string, EtatRefsVisuelles>> {
   const etats = new Map<string, EtatRefsVisuelles>(planUuids.map((u) => [u, { total: 0, sansFichier: [] }]));
   if (planUuids.length === 0) return etats;
@@ -28,7 +28,7 @@ export async function etatsRefsVisuelles(projectId: number, planUuids: string[])
   return etats;
 }
 
-/** Pourquoi chaque plan n'est pas encore compilable par Open H3 IR (uuid → raison, ou null s'il est prêt : références posées et images présentes). */
+/** Why each clip cannot yet be compiled by Open H3 IR (uuid → reason, or null if it is ready: references set and images present). */
 export async function attentesFiches(projectId: number, planUuids: string[]): Promise<Map<string, string | null>> {
   const etats = await etatsRefsVisuelles(projectId, planUuids);
   return new Map(planUuids.map((u) => [u, refusReferences(etats.get(u) ?? { total: 0, sansFichier: [] })]));

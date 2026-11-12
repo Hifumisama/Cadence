@@ -1,16 +1,16 @@
-/** Phase du pipeline (Scénario -> Fiche de plan -> Assets -> Plans),
- * dérivée automatiquement des statuts de plans d'un épisode — jamais
- * saisie à la main (retour utilisateur 2026-09-28, voir docs/FRICTIONS.md).
- * Porté depuis la maquette Opus du même jour. */
+/** Pipeline phase (Screenplay -> Clip sheet -> Assets -> Clips),
+ * derived automatically from the clip statuses of an episode — never
+ * entered by hand (user feedback 2026-09-28, see docs/FRICTIONS.md).
+ * Ported from the Opus mockup of the same day. */
 
 import type { plans } from "@/db/schema";
 
 export type PlanStatut = (typeof plans.$inferSelect)["statut"];
 
-/** Regroupement des 7 statuts de plan en 4 buckets d'affichage — "actif"
- * couvre tout ce qui a dépassé le brouillon sans être fini (en_cours,
- * rejoue, echoue, previsualise) : le détail de ces 4 états compte pour la
- * frise des plans, pas pour cette vue d'ensemble par épisode/projet. */
+/** Grouping of the 7 clip statuses into 4 display buckets — "actif"
+ * covers everything that has gone past draft without being finished (en_cours,
+ * rejoue, echoue, previsualise): the detail of these 4 states matters for the
+ * clip strip, not for this per-episode/project overview. */
 export type StatutBuckets = { termine: number; actif: number; attente: number; brouillon: number };
 
 export function bucketsVides(): StatutBuckets {
@@ -42,10 +42,10 @@ export const PHASES: Record<Phase, { label: string; ordre: number }> = {
   fini: { label: "Terminé", ordre: 4 },
 };
 
-/** Un épisode qui a au moins un plan terminé (même sans plan "actif")
- * compte comme "en production", pas "fiches en cours" — sinon un épisode à
- * moitié tourné puis mis en pause retomberait à tort dans l'étape
- * précédente (retour utilisateur, révision de la maquette v2). */
+/** An episode that has at least one finished clip (even without an "actif" clip)
+ * counts as "en production", not "fiches en cours" — otherwise an episode
+ * half-shot then paused would wrongly fall back into the previous step
+ * (user feedback, review of the v2 mockup). */
 export function phaseDe(b: StatutBuckets): Phase {
   const n = totalBuckets(b);
   if (!n) return "vide";

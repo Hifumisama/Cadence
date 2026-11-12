@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandesFiches, lancerDemandeIteration, deplacerIterationEnAttente, lireDemandeVue, modifierConsigneIteration, type VueDemande } from "@/lib/tasks/requests-db";
 import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@/lib/tasks/requests";
 
-// Les DEMANDES (lib/tasks/requests.ts) côté interface : « Itérer » en pose une, le worker l'enchaîne jusqu'au rendu (lib/tasks/requests-db.ts), la page
-// ne fait que la suivre. Quitter la page ne coupe rien.
+// The REQUESTS (lib/tasks/requests.ts) on the interface side: « Itérer » submits one, the worker chains it through to the render (lib/tasks/requests-db.ts), the page
+// only follows it. Leaving the page cancels nothing.
 
-/** « Itérer » un plan : pose la demande (consigne → agent → réécriture si besoin → rendu). Refusée si le plan en a déjà une en cours. */
+/** « Itérer » a clip: submits the request (instruction → agent → rewrite if needed → render). Refused if the clip already has one in progress. */
 export async function demanderIteration(
   conversationUuid: string,
   options: { retour: string; renduId?: number | null; planche?: boolean; depuisNumero: number | null; reglages?: ContexteIteration["reglages"] },
@@ -17,21 +17,21 @@ export async function demanderIteration(
   return r.ok ? { ok: true, demandeId: r.demandeId, enAttente: r.enAttente } : r;
 }
 
-/** Corrige la consigne d'une itération qui attend son tour (panneau des tâches). Refusée une fois l'itération démarrée. */
+/** Corrects the instruction of an iteration waiting its turn (tasks panel). Refused once the iteration has started. */
 export async function corrigerConsigneIteration(demandeId: number, texte: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const r = await modifierConsigneIteration(demandeId, texte);
   revalidatePath("/", "layout");
   return r.ok ? { ok: true } : r;
 }
 
-/** Monte ou descend une itération en attente dans la file (panneau des tâches). */
+/** Moves a waiting iteration up or down in the queue (tasks panel). */
 export async function deplacerIteration(demandeId: number, sens: -1 | 1): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const r = await deplacerIterationEnAttente(demandeId, sens);
   revalidatePath("/", "layout");
   return r.ok ? { ok: true } : r;
 }
 
-/** « Ajouter un plan » (page Scénario) : pose la demande (l'agent écrit le plan, il est ajouté à la scène sans relecture). Une seule à la fois par film. */
+/** « Ajouter un plan » (Screenplay page): submits the request (the agent writes the clip, it is added to the scene without review). Only one at a time per film. */
 export async function demanderAjoutPlan(
   projectId: number,
   episodeId: number,
@@ -42,8 +42,8 @@ export async function demanderAjoutPlan(
   return r;
 }
 
-/** « Nouvelle scène » (page Scénario) : pose la demande (l'agent écrit la scène et ses plans, ajoutés au film sans relecture). Une seule à la fois par film,
- * plan ou scène. Une consigne vide laisse l'agent proposer la suite. */
+/** « Nouvelle scène » (Screenplay page): submits the request (the agent writes the scene and its clips, added to the film without review). Only one at a time per film,
+ * clip or scene. An empty instruction lets the agent propose what comes next. */
 export async function demanderAjoutScene(
   projectId: number,
   episodeId: number,
@@ -54,28 +54,28 @@ export async function demanderAjoutScene(
   return r;
 }
 
-/** « Générer la fiche » d'un plan : pose la demande (le plan est préparé si besoin : références, assets manquants, prompts, images ; puis Open H3 IR compile
- * la fiche, enregistrée sans relecture). Une seule à la fois par plan. Open H3 IR seul (lib/h3ir/preparation.ts). */
+/** « Générer la fiche » of a clip: submits the request (the clip is prepared if needed: references, missing assets, prompts, images; then Open H3 IR compiles
+ * the clip sheet, saved without review). Only one at a time per clip. Open H3 IR only (lib/h3ir/preparation.ts). */
 export async function demanderFichePlan(projectId: number, planUuid: string): Promise<{ ok: true; demandeId: number } | { ok: false; erreur: string }> {
   const r = await lancerDemandeFichePlan(projectId, planUuid);
   revalidatePath("/", "layout");
   return r;
 }
 
-/** « Écrire les fiches » (page Scénario) : une demande « Générer la fiche » par plan choisi, posées dans l'ordre du scénario (lib/tasks/requests-db.ts,
- * `lancerDemandesFiches`). Un plan refusé (demande en cours) n'arrête pas les autres : ses raisons sont rendues avec le nombre de fiches lancées. */
+/** « Écrire les fiches » (Screenplay page): one « Générer la fiche » request per chosen clip, submitted in screenplay order (lib/tasks/requests-db.ts,
+ * `lancerDemandesFiches`). A clip refused (request in progress) does not stop the others: its reasons are returned along with the number of clip sheets launched. */
 export async function demanderFichesPlans(projectId: number, planUuids: string[]): Promise<{ lancees: number; erreurs: string[] }> {
   const r = await lancerDemandesFiches(projectId, planUuids);
   revalidatePath("/", "layout");
   return { lancees: r.lancees, erreurs: r.erreurs };
 }
 
-/** Où en est une demande (sondage de la page d'un plan). */
+/** Where a request stands (polling of the clip's page). */
 export async function lireDemande(demandeId: number): Promise<VueDemande | null> {
   return lireDemandeVue(demandeId);
 }
 
-/** Annule une demande en cours (le ✕ de la page ; le panneau passe par `annulerTache`). */
+/** Cancels an ongoing request (the ✕ on the page; the panel goes through `annulerTache`). */
 export async function annulerLaDemande(demandeId: number): Promise<{ ok: true }> {
   await annulerDemande(demandeId);
   revalidatePath("/", "layout");

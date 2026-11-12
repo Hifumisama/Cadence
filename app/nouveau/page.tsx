@@ -8,9 +8,9 @@ import { listerStyles } from "@/lib/styles/styles-db";
 
 export const dynamic = "force-dynamic";
 
-/** La conception d'un projet : les choix qu'on fait avant de raconter l'histoire (format, genre, ton, durée, langue, style), puis la
- * rencontre avec le scénariste. Seuls les styles prêts à l'emploi (avec leur clause courte pour la vidéo) sont proposés ; les images de
- * présentation sont facultatives (`data/styles/<id>/<sujet>.webp`, générées une fois pour toutes). Les styles viennent de la table `styles`. */
+/** A project's design: the choices made before telling the story (format, genre, tone, duration, language, style), then the
+ * meeting with the screenwriter. Only ready-to-use styles (with their short clause for video) are offered; the presentation
+ * images are optional (`data/styles/<id>/<sujet>.webp`, generated once and for all). Styles come from the `styles` table. */
 export default async function NouveauProjetPage() {
   const styles: StyleVue[] = (await listerStyles())
     .filter(styleUtilisable)

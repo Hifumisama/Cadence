@@ -1,11 +1,10 @@
-/** Variante de `prompt-asset` pour l'affiche de présentation d'un projet ou d'un épisode (asset caché de type
- * `affiche`) : mêmes guides d'image que `image`, et la section « A poster » du skill. */
+/** Variant of `prompt-asset` for a project's or episode's presentation poster (hidden asset of type
+ * `affiche`): same image guides as `image`, and the « A poster » section of the skill. */
 export const VARIANTE_AFFICHE = "affiche";
 
-/** Variante à passer à `executerSkill("prompt-asset", …, { variante })` selon l'asset :
- * un seul guide d'image quand la
- * méthode est déjà fixée (sinon les deux, car le skill recommande la méthode).
- * Pur, sans accès disque : utilisable partout. */
+/** Variant to pass to `executerSkill("prompt-asset", …, { variante })` depending on the asset:
+ * a single image guide when the method is already set (otherwise both, since the skill recommends the method).
+ * Pure, no disk access: usable everywhere. */
 export function variantePromptAsset(asset: { methodeGeneration: string | null }): "generation" | "edition" | "image" {
   if (asset.methodeGeneration === "generation") return "generation";
   if (asset.methodeGeneration === "edition") return "edition";

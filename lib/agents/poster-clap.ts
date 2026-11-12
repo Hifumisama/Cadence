@@ -11,26 +11,26 @@ import { ficheCourante } from "./sheet-db";
 import { creerRun } from "./runs";
 import type { BriefContenu, PersonnageBrief } from "./types";
 
-/** L'affiche du projet, au moment du clap. Elle est VRAIE : c'est l'affiche habituelle du projet (asset caché `AFFICHE_P<id>`, mêmes
- * générations ComfyUI, `posterFichier` du projet), pas une image de décor. Elle se prépare à l'arrivée sur le clap, pas avant, et ne se
- * refait que si ce qui la nourrit a changé (`signatureAffiche`) : l'histoire, le héros, les lieux, le genre, le ton, le style, et le titre (il
- * est ÉCRIT dans l'image, en lettrage intégré à la composition : un titre corrigé au clap refait donc l'affiche).
+/** The project's poster, at the time of the clap. It is REAL: it is the project's usual poster (hidden asset `AFFICHE_P<id>`, same
+ * ComfyUI generations, the project's `posterFichier`), not a set image. It is prepared when the clap is reached, not before, and is only
+ * redone if what feeds it has changed (`signatureAffiche`): the story, the hero, the places, the genre, the tone, the style, and the title (it
+ * is WRITTEN into the image, as lettering built into the composition: a title corrected at the clap therefore redoes the poster).
  *
- * Deux temps, portés par le worker : (1) une tâche du skill `prompt-asset`, variante `affiche` (but « affiche ») écrit le prompt à partir de la fiche de
- * l'entretien ; (2) à son retour (`ecrireAfficheEtGenerer`, appelée par worker/agents/postProcessing.ts), la génération part dans la file
- * des images avec adoption automatique, et son résultat devient l'affiche du projet (lib/assets/generation-adoption.ts). */
+ * Two steps, carried by the worker: (1) a task of the `prompt-asset` skill, `affiche` variant (purpose "affiche") writes the prompt from the interview
+ * sheet; (2) on its return (`ecrireAfficheEtGenerer`, called by worker/agents/postProcessing.ts), the generation goes into the image queue
+ * with automatic adoption, and its result becomes the project's poster (lib/assets/generation-adoption.ts). */
 
-/** Ce qui nourrit l'affiche, lu dans la fiche de l'entretien, la conception et le style du projet. */
+/** What feeds the poster, read from the interview sheet, the design and the project's style. */
 export type DonneesAffiche = {
   titre: string;
-  /** L'histoire (l'arc contient la fin). */
+  /** The story (the arc contains the ending). */
   arc: string;
-  /** Tous les personnages, tels que la fiche les décrit (le premier est le héros). */
+  /** All the characters, as the sheet describes them (the first is the hero). */
   personnages: Pick<PersonnageBrief, "nom" | "age" | "apparence" | "gestuelle" | "reconnaissable">[];
   lieux: string;
   genres: string[];
   ton: number;
-  /** Le prompt long du style (il change si le style change) et sa clause courte. */
+  /** The style's long prompt (it changes if the style changes) and its short clause. */
   styleImage: string;
   clauseStyle: string;
 };
@@ -39,8 +39,8 @@ const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);
 
 const net = (s: unknown): string => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
 
-/** Empreinte de ce qui nourrit l'affiche : quand elle change, l'affiche se refait ; sinon non. Le ton compte par son MOT (un curseur
- * qui bouge de trois points ne refait rien) ; le titre compte (il est dans l'image). */
+/** Fingerprint of what feeds the poster: when it changes, the poster is redone; otherwise not. The tone counts by its WORD (a slider
+ * that moves three points redoes nothing); the title counts (it is in the image). */
 export function signatureAffiche(d: Omit<DonneesAffiche, "clauseStyle">): string {
   const canon = JSON.stringify({
     titre: net(d.titre),
@@ -56,8 +56,8 @@ export function signatureAffiche(d: Omit<DonneesAffiche, "clauseStyle">): string
 
 const decrire = (p: DonneesAffiche["personnages"][number]): string => [net(p.age), net(p.apparence), net(p.gestuelle) || net(p.reconnaissable)].filter(Boolean).join(", ");
 
-/** L'entrée du skill `prompt-asset` (variante `affiche`) pour l'affiche du clap. Les images de personnages n'existent pas encore : c'est une génération par
- * le texte, le héros est décrit par sa fiche. */
+/** The `prompt-asset` skill input (`affiche` variant) for the clap's poster. Character images do not exist yet: it is a generation from
+ * text, the hero is described by his sheet. */
 export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
   const [heros] = d.personnages;
   const autres = d.personnages.slice(1).map((p) => `${net(p.nom)} : ${decrire(p)}`).filter((x) => x.length > 3);
@@ -67,7 +67,7 @@ export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
     resume: [d.arc, d.lieux ? `Lieux : ${d.lieux}` : "", autres.length ? `Autres personnages : ${autres.join(" ; ")}` : ""].map(net).filter(Boolean).join("\n"),
     genreTon: `${d.genres.join(" + ")}, ton ${motDuTon(d.ton)}`,
     clauseStyleDuProjet: d.clauseStyle,
-    // Le titre est écrit dans l'image (ligne « Title lettering » ajoutée par le skill, et reposée par le code au retour) tant qu'il existe.
+    // The title is written into the image ("Title lettering" line added by the skill, and re-applied by the code on return) as long as it exists.
     titreDansImage: net(d.titre) !== "",
     promptActuel: "",
     personnagePrincipal: heros ? { code: "HERO", nom: net(heros.nom), description: decrire(heros), imageDisponible: false } : null,
@@ -75,8 +75,8 @@ export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
   };
 }
 
-/** Le titre écrit sur l'affiche. Le nom du projet fait foi quand l'utilisateur l'a fixé ; sinon (« Sans titre » tant que l'entretien n'a pas conclu), le titre que l'IA a
- * proposé : celui du brief (même non validé, l'affiche est provisoire), à défaut celui de la fiche de l'entretien. Un titre provisoire (« Sans titre »…) ne compte pas. Pur. */
+/** The title written on the poster. The project's name is authoritative once the user has set it; otherwise ("Sans titre" until the interview concludes), the title the AI
+ * proposed: the brief's (even unvalidated, the poster is provisional), failing that the interview sheet's. A provisional title ("Sans titre"…) does not count. Pure. */
 export function titreDeLAffiche(sources: { nom: unknown; titreBrief: unknown; titreFiche: unknown }): string {
   for (const brut of [sources.nom, sources.titreBrief, sources.titreFiche]) {
     const t = net(brut);
@@ -85,7 +85,7 @@ export function titreDeLAffiche(sources: { nom: unknown; titreBrief: unknown; ti
   return "";
 }
 
-/** Lit ce qui nourrit l'affiche : la conception, le style du brief et la fiche de l'entretien. Null tant que l'histoire n'est pas dite. */
+/** Reads what feeds the poster: the design, the brief's style and the interview sheet. Null as long as the story is not told. */
 export async function donneesAffiche(db: Db, projectId: number): Promise<DonneesAffiche | null> {
   const conception = await lireConception(db, projectId);
   const [projet] = await db.select({ nom: projects.nom, clauseStyle: projects.clauseStyle, stylePromptImage: projects.stylePromptImage }).from(projects).where(eq(projects.id, projectId));
@@ -114,8 +114,8 @@ export async function donneesAffiche(db: Db, projectId: number): Promise<Donnees
 
 export type EtatAfficheClap = "a_lancer" | "en_cours" | "prete" | "echec";
 
-/** Où en est l'affiche pour CETTE empreinte : à lancer (aucune tâche pour elle), en cours (prompt ou image), prête, ou échouée. Une
- * empreinte déjà tentée et échouée ne se relance pas toute seule (pas de boucle) : « Réessayer » passe par `relancerAfficheClap`. */
+/** Where the poster stands for THIS fingerprint: to launch (no task for it), in progress (prompt or image), ready, or failed. A
+ * fingerprint already tried and failed is not relaunched on its own (no loop): "Réessayer" goes through `relancerAfficheClap`. */
 export async function etatAfficheClap(db: Db, projectId: number, signature: string): Promise<EtatAfficheClap> {
   const [run] = await db
     .select()
@@ -134,7 +134,7 @@ export async function etatAfficheClap(db: Db, projectId: number, signature: stri
   return gen.statut === "echoue" ? "echec" : "en_cours";
 }
 
-/** Crée l'asset d'affiche du projet s'il n'existe pas (le même que « Affiche » de la page du projet), et rend son identifiant. */
+/** Creates the project's poster asset if it does not exist (the same as "Affiche" on the project page), and returns its identifier. */
 async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAffiche, "titre" | "arc" | "genres" | "ton">): Promise<number> {
   const code = codeAffiche("projects", projectId);
   const [existant] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, code)));
@@ -153,15 +153,15 @@ async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAff
   return cree!.id;
 }
 
-/** Lance l'écriture du prompt de l'affiche pour cette empreinte (et annule une tâche d'affiche encore en attente, devenue inutile). */
+/** Launches the writing of the poster's prompt for this fingerprint (and cancels a poster task still pending, now useless). */
 export async function lancerAfficheClap(db: Db, projectId: number, d: DonneesAffiche, signature: string): Promise<void> {
   await assurerAssetAffiche(db, projectId, d);
   await db.update(agentRuns).set({ statut: "annulee", finishedAt: new Date() }).where(and(eq(agentRuns.projectId, projectId), eq(agentRuns.but, "affiche"), eq(agentRuns.statut, "en_attente")));
   await creerRun(db, { skill: "prompt-asset", entree: entreeAfficheClap(d), but: "affiche", projectId, conversationId: null, options: { signature, variante: VARIANTE_AFFICHE } });
 }
 
-/** Retour du skill (appelée par le worker, dans sa transaction) : le prompt devient celui de l'affiche, et la génération part dans la file des
- * images, adoptée toute seule (c'est elle l'affiche du projet). Même demande que `lancerGeneration` pour une affiche : 2:3, mode texte. */
+/** Skill return (called by the worker, in its transaction): the prompt becomes the poster's, and the generation goes into the image queue,
+ * adopted automatically (it is the project's poster). Same request as `lancerGeneration` for a poster: 2:3, text mode. */
 export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: { promptGeneration?: unknown }): Promise<void> {
   const promptModele = typeof sortie.promptGeneration === "string" ? sortie.promptGeneration.trim() : "";
   if (!promptModele) throw new Error("Le prompt de l'affiche est vide.");
@@ -169,8 +169,8 @@ export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: 
   if (!asset) throw new Error("L'asset d'affiche du projet n'existe pas.");
   const [projet] = await db.select({ nom: projects.nom, clauseStyle: projects.clauseStyle, stylePromptImage: projects.stylePromptImage }).from(projects).where(eq(projects.id, projectId));
   const format = formatAfficheParDefaut();
-  // Le titre est posé par le code, mot pour mot : le modèle ne le réécrit ni ne le traduit (voir `avecTitreDansImage`). On lit le même que celui
-  // qui a nourri l'affiche (le titre de la fiche quand le nom du projet est encore provisoire).
+  // The title is set by the code, word for word: the model neither rewrites nor translates it (see `avecTitreDansImage`). We read the same one
+  // that fed the poster (the sheet's title when the project's name is still provisional).
   const nom = net(projet?.nom);
   const titre = (await donneesAffiche(db, projectId))?.titre ?? (TITRES_PROVISOIRES.has(nom.toLowerCase()) ? "" : nom);
   const prompt = titre ? avecTitreDansImage(promptModele, titre, true) : avecTitreDansImage(promptModele, "", false);

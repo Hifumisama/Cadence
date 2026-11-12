@@ -11,10 +11,10 @@ import { STYLES_CAMERA } from "@/lib/h3ir/styles-camera";
 
 const FOCUSABLES = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])';
 
-/** La fenêtre de choix du style de mise en scène d'un niveau (projet, scène, plan) : une grille de cartes, « Hériter » (valeur vide), « Aucun style », les six façons de filmer
- * d'animation et de genre, puis les sept réalisateurs. Le rendu des cartes est celui de l'écran « Mise en scène » de la conception (ChoixMise, ChoixStyleMise) et leur « ? »
- * ouvre la même carte (CarteMiseEnScene), avec la vidéo de démo quand elle existe (`demos`, lue côté serveur par `demosMiseEnScene`) ; sans elle, la carte garde son texte d'exemple. Chaque carte a un visuel : l'image fixe de la démo (`affiche`) ou, à défaut (profils perso), un pictogramme, avec trois mots-clés
- * et une ligne « Rappelle ». Un choix ferme la fenêtre. Échap ferme la carte ouverte, sinon la fenêtre, sans fermer une fenêtre parente (popup de la scène). */
+/** The style choice window for a level's staging style (project, scene, clip): a grid of cards, « Hériter » (empty value), « Aucun style », the six ways of shooting
+ * animation and genre, then the seven directors. The cards are rendered as on the « Mise en scène » screen of the project design (ChoixMise, ChoixStyleMise) and their « ? »
+ * opens the same card (CarteMiseEnScene), with the demo video when it exists (`demos`, read server-side by `demosMiseEnScene`); without it, the card keeps its sample text. Each card has a visual: the demo's still image (`affiche`) or, failing that (custom profiles), a pictogram, with three keywords
+ * and a « Rappelle » line. A choice closes the window. Escape closes the open card, otherwise the window, without closing a parent window (the scene's popup). */
 export function FenetreStyleMiseEnScene({
   valeur,
   heritage,
@@ -22,7 +22,7 @@ export function FenetreStyleMiseEnScene({
   onChoisir,
   onFermer,
 }: {
-  /** "" = hérite, "aucun", ou un choix de mise en scène. */
+  /** "" = inherits, "aucun", or a staging choice. */
   valeur: string;
   heritage: ReglagesResolus;
   demos?: Record<string, DemoDispo>;
@@ -45,10 +45,10 @@ export function FenetreStyleMiseEnScene({
   fermerCarteRef.current = fermerCarte;
 
   useEffect(() => {
-    // Le choix en cours (ou le premier) prend le focus à l'ouverture.
+    // The current choice (or the first) takes focus on opening.
     const f = fenetre.current;
     (f?.querySelector<HTMLElement>('.cn-mise[aria-pressed="true"]') ?? f?.querySelector<HTMLElement>(".cn-mise"))?.focus();
-    // Capture sur window : Échap et Tab sont traités ici AVANT les écouteurs de document (carte, popup parente), qui ne les voient pas.
+    // Capture on window: Escape and Tab are handled here BEFORE the document listeners (card, parent popup), which do not see them.
     const touche = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();

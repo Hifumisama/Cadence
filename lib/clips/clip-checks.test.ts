@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { controlerStructure, verifierCoherenceRefs } from "./clip-checks";
 
-// --- Structure des shots -------------------------------------------------
+// --- Structure of the shots -------------------------------------------------
 
 const desc = (contenu: string) => [{ section: "detailed_description", contenu }];
 
@@ -63,42 +63,42 @@ test("cohérence des refs : la voix d'une réplique (ref dérivée) n'a pas à �
     { type: "picture" as const, slot: 1 },
     { type: "audio" as const, slot: 2 },
   ];
-  // La prise de la réplique (slot 1) : déclarée, jamais « non citée ».
+  // The take of the line of dialogue (slot 1): declared, never « non citée ».
   assert.deepEqual(verifierCoherenceRefs(sections, refs, [{ type: "audio", slot: 1 }]), { labelsOrphelins: [], refsNonCitees: [] });
-  // Une ref de plan_refs non cité reste signalé, même avec des voix dérivées.
+  // An uncited plan_refs ref stays flagged, even with derived voices.
   const sansPorte = [sections[0]!, { section: "detailed_description", contenu: "[Shot 1] <Subject 1> says <d>[Français] Pas un bruit.</d>" }];
   assert.deepEqual(verifierCoherenceRefs(sansPorte, refs, [{ type: "audio", slot: 1 }]).refsNonCitees, ["Audio:2"]);
-  // Citer la voix reste possible (déclarée par dérivation : pas d'orphelin)…
+  // Citing the voice remains possible (declared by derivation: no orphan)…
   const citeVoix = [sections[0]!, { section: "detailed_description", contenu: "[Shot 1] <Subject 1> speaks <Audio 1>. A door creaks <Audio 2>." }];
   assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, [{ type: "audio", slot: 1 }]).labelsOrphelins, []);
-  // … mais un label qui ne correspond à rien reste orphelin.
+  // … but a label that matches nothing stays orphan.
   assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, []).labelsOrphelins, ["Audio:1"]);
 });
 
-// --- Fiches d'Open H3 IR : durée effective (grille d'images) et plancher de 1,2 s --------------------------------------
+// --- Open H3 IR sheets: effective duration (image grid) and 1.2 s floor --------------------------------------
 
 const types = (contenu: string, duree: number) => controlerStructure(desc(contenu), duree).map((x) => x.type);
 
 test("structure : un shot de 1,3 s est accepté (plancher des fiches : 1,2 s, celui du paquet)", () => {
   assert.deepEqual(types("[Shot 1] A. [Shot 2] At 00:01.300, the shot cuts to B. [Shot 3] At 00:05.000, the shot cuts to C.", 8), []);
-  // Sous 1,2 s, toujours signalé.
+  // Under 1.2 s, always flagged.
   assert.ok(types("[Shot 1] A. [Shot 2] At 00:01.100, the shot cuts to B.", 8).includes("shot_trop_court"));
 });
 
 test("structure : le dernier shot se juge contre la durée effective (6 s → 6,583 s), pas la nominale", () => {
-  // 6,583 − 5,383 = 1,2 s : légal pour le paquet. Contre la nominale (6 − 5,383 = 0,62 s) il alertait à tort.
+  // 6.583 − 5.383 = 1.2 s: legal for the package. Against the nominal (6 − 5.383 = 0.62 s) it would wrongly alert.
   assert.deepEqual(types("[Shot 1] A. [Shot 2] At 00:05.383, the shot cuts to B.", 6), []);
-  // 6,583 − 5,6 = 0,98 s : vraiment trop court.
+  // 6.583 − 5.6 = 0.98 s: really too short.
   assert.ok(types("[Shot 1] A. [Shot 2] At 00:05.600, the shot cuts to B.", 6).includes("shot_trop_court"));
-  // 5 s → 5,167 s : un dernier shot à 3,9 s dure 1,27 s.
+  // 5 s → 5.167 s: a last shot at 3.9 s lasts 1.27 s.
   assert.deepEqual(types("[Shot 1] A. [Shot 2] At 00:03.900, the shot cuts to B.", 5), []);
-  // 8 s reste 8,000 s : pas de changement.
+  // 8 s stays 8.000 s: no change.
   assert.ok(types("[Shot 1] A. [Shot 2] At 00:07.000, the shot cuts to B.", 8).includes("shot_trop_court"));
   assert.deepEqual(types("[Shot 1] A. [Shot 2] At 00:06.800, the shot cuts to B.", 8), []);
 });
 
 test("structure : « hors durée » se mesure aussi à la durée effective", () => {
-  // 10 s → 10,125 s : un shot à 10,1 s démarre dans le plan (mais trop près de la fin).
+  // 10 s → 10.125 s: a shot at 10.1 s starts within the clip (but too close to the end).
   const dedans = types("[Shot 1] A. [Shot 2] At 00:05.000, the shot cuts to B. [Shot 3] At 00:10.100, the shot cuts to C.", 10);
   assert.ok(!dedans.includes("shot_hors_duree"));
   assert.ok(dedans.includes("shot_trop_court"));

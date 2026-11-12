@@ -3,13 +3,13 @@ import { episodes, scenes } from "../../../db/schema";
 import { traitementDeScene } from "../treatment";
 import { apres, entierRef, parentDe, REFUS_SUPPRESSION, texte, type Applicateur } from "./common";
 
-/** Applicateurs de la structure : projet (clause de style), épisode, scène. */
+/** Structure appliers: project (style clause), episode, scene. */
 
-// --- projet -----------------------------------------------------------------
+// --- project -----------------------------------------------------------------
 
-/** Cible `projet` : RETIRÉE (2026-10-02). La clause de style et les notes du projet sont des
- * sections du BRIEF (cible `brief`) ; `projects.clause_style` n'en est qu'une copie (brief-db.ts).
- * Les anciennes propositions qui portent encore ce type sont refusées avec un message clair. */
+/** `projet` target: REMOVED (2026-10-02). The project's style clause and notes are sections of the BRIEF
+ * (`brief` target); `projects.clause_style` is only a copy of it (brief-db.ts).
+ * Old proposals that still carry this type are refused with a clear message. */
 export const applicateurProjet: Applicateur = {
   cibleType: "projet",
 
@@ -30,7 +30,7 @@ export const applicateurProjet: Applicateur = {
   },
 };
 
-// --- épisode ----------------------------------------------------------------
+// --- episode ----------------------------------------------------------------
 
 export const applicateurEpisode: Applicateur = {
   cibleType: "episode",
@@ -80,10 +80,10 @@ export const applicateurEpisode: Applicateur = {
   },
 };
 
-// --- scène ------------------------------------------------------------------
+// --- scene ------------------------------------------------------------------
 
-/** L'indice (0-based) où intercaler une scène neuve parmi les existantes (dans l'ordre), d'après la place que porte le changement : `debut`, ou `apresSceneId`.
- * Null sans place ou si la scène de repère n'existe plus : la scène va à la fin. Pur. */
+/** The index (0-based) where to insert a new scene among the existing ones (in order), according to the place the change carries: `debut`, or `apresSceneId`.
+ * Null without a place or if the anchor scene no longer exists: the scene goes to the end. Pure. */
 export function placeDeScene(a: Record<string, unknown>, existantes: { id: number }[]): number | null {
   if (a.debut === true) return 0;
   if (typeof a.apresSceneId === "number") {
@@ -139,8 +139,8 @@ export const applicateurScene: Applicateur = {
     const a = apres(ch);
     const titre = texte(a.titre)!.trim();
     const fonction = texte(a.fonction)?.trim() || null;
-    // Ambiance : posée seulement quand la proposition la porte (une modification qui ne la cite pas la laisse). Le genre de
-    // scène est retiré (2026-11-09) : celui d'une ancienne proposition est ignoré.
+    // Mood: set only when the proposal carries it (a modification that does not cite it leaves it). The scene
+    // genre is removed (2026-11-09): that of an old proposal is ignored.
     const ambiance = "ambiance" in a ? texte(a.ambiance)?.trim() || null : undefined;
     if (ch.operation === "modifier") {
       await tx.update(scenes).set({ titre, fonction, ...(ambiance !== undefined ? { ambiance } : {}) }).where(eq(scenes.id, entierRef(ch.cibleRef)!));
@@ -149,7 +149,7 @@ export const applicateurScene: Applicateur = {
     const episodeId = parentDe(a, "episodeCle", "episodeId", _ctx.cles).id!;
     const existantes = await tx.select({ id: scenes.id, ordre: scenes.ordre }).from(scenes).where(eq(scenes.episodeId, episodeId)).orderBy(scenes.ordre, scenes.id);
     const traitement = traitementDeScene(a.traitement);
-    // Une scène sans place va à la fin ; avec une place (`apresSceneId`, ou `debut`), elle s'intercale et l'ordre des scènes est réécrit densément.
+    // A scene without a place goes to the end; with a place (`apresSceneId`, or `debut`), it is inserted and the scene order is rewritten densely.
     const place = placeDeScene(a, existantes);
     const ordre = place === null ? existantes.reduce((m, s) => Math.max(m, s.ordre), -1) + 1 : place;
     const [cree] = await tx.insert(scenes).values({ episodeId, ordre, titre, fonction, ambiance: ambiance ?? null, ...(traitement ? { traitement } : {}) }).returning({ id: scenes.id });

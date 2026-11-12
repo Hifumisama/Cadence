@@ -16,7 +16,7 @@ const rendu = (id: number, o: Partial<RenduVue> = {}): RenduVue => ({
   ...o,
 });
 
-// L'historique est du plus récent au plus ancien.
+// The history is from newest to oldest.
 const historique = [rendu(4, { statut: "en_cours", cheminSortie: null }), rendu(3), rendu(2, { statut: "echoue", cheminSortie: null }), rendu(1)];
 
 test("choisirRendu : le demandé s'il est lisible, sinon le plus récent lisible", () => {

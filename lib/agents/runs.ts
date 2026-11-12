@@ -4,7 +4,7 @@ import { agentRuns, assetGenerations } from "../../db/schema";
 import type { Tx } from "../clips/clip-order";
 import type { EtatTache } from "./types";
 
-/** Tâches LLM du système d'agents (agent_runs) : pose dans la file et lecture de l'état. */
+/** LLM tasks of the agent system (agent_runs): queuing and reading the state. */
 
 type DbOuTx = typeof db | Tx;
 export type ButRun = "tour" | "brief" | "proposition" | "affiche" | "essai";
@@ -19,10 +19,10 @@ export async function creerRun(
     conversationId: number | null;
     propositionId?: number | null;
     options?: { modele?: string; variante?: string; [cle: string]: unknown } | null;
-    /** Lot : la sous-tâche (« ep:12 ») et ce que la revue en dit (« Épisode 1 · Le sel »). */
+    /** Batch: the subtask ("ep:12") and what the review says about it ("Épisode 1 · Le sel"). */
     cleSousTache?: string | null;
     libelleSousTache?: string | null;
-    /** La demande (itération…) dont cette tâche est une étape : lib/tasks/requests.ts. */
+    /** The request (iteration…) this task is a step of: lib/tasks/requests.ts. */
     demandeId?: number | null;
   },
 ): Promise<{ id: number; uuid: string }> {
@@ -44,8 +44,8 @@ export async function creerRun(
   return run!;
 }
 
-/** L'état d'une tâche pour l'interface ; `positionFile` = rang parmi les tâches GPU en attente
- * qui passent avant elle (images d'abord, puis appels LLM plus anciens ; la vidéo passe après). */
+/** A task's state for the interface; `positionFile` = rank among the pending GPU tasks
+ * that go before it (images first, then older LLM calls; the video goes after). */
 export async function etatTache(runId: number | null): Promise<EtatTache | null> {
   if (runId == null) return null;
   const [r] = await db.select().from(agentRuns).where(eq(agentRuns.id, runId));
@@ -71,9 +71,9 @@ export async function etatTache(runId: number | null): Promise<EtatTache | null>
   };
 }
 
-/** Le rang de CHAQUE tâche d'agent en attente dans la file du GPU (1 = la prochaine), dans l'ordre
- * où le worker les prend : les images en attente passent avant, puis les appels LLM du plus ancien au
- * plus récent. Une seule lecture pour tout un lot. */
+/** The rank of EACH pending agent task in the GPU queue (1 = next), in the order
+ * the worker takes them: pending images go first, then the LLM calls from oldest to
+ * newest. A single read for a whole batch. */
 export async function positionsFile(): Promise<Map<number, number>> {
   const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(eq(assetGenerations.statut, "en_attente"));
   const attente = await db
@@ -84,8 +84,8 @@ export async function positionsFile(): Promise<Map<number, number>> {
   return new Map(attente.map((r, i) => [r.id, Number(images) + i + 1]));
 }
 
-/** La tâche qui occupe la conversation (en attente ou en cours), ou null : celle qu'un refus doit NOMMER
- * pour que l'utilisateur puisse l'annuler. Priorité à la plus ancienne en cours, sinon à la plus ancienne en attente. */
+/** The task occupying the conversation (pending or running), or null: the one a refusal must NAME
+ * so the user can cancel it. Priority to the oldest running one, otherwise to the oldest pending one. */
 export type TacheBloquante = { runUuid: string; skill: string; but: ButRun; statut: "en_attente" | "en_cours"; libelle: string | null };
 
 export async function tacheBloquante(conversationId: number, buts?: ButRun[]): Promise<TacheBloquante | null> {
@@ -100,7 +100,7 @@ export async function tacheBloquante(conversationId: number, buts?: ButRun[]): P
   return { runUuid: r.uuid, skill: r.skill, but: (r.but ?? "tour") as ButRun, statut: r.statut as "en_attente" | "en_cours", libelle: r.libelle };
 }
 
-/** `true` si une tâche de cette conversation est en attente ou en cours (un seul tour à la fois). */
+/** `true` if a task of this conversation is pending or running (one turn at a time). */
 export async function tacheActive(conversationId: number, buts?: ButRun[]): Promise<boolean> {
   return (await tacheBloquante(conversationId, buts)) != null;
 }

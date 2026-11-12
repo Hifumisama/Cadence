@@ -8,16 +8,16 @@ import { extraireChainePartielle, fin } from "@/lib/llm/stream-partial";
 import type { EtatTache } from "@/lib/agents/types";
 import { cleLlm } from "@/lib/tasks/tasks";
 
-/** L'état d'une tâche d'agent (un tour, le brief, une proposition) : file, travail en cours
- * avec le compteur de jetons (pas de pourcentage : le maximum est inconnu), échec, annulation.
- * L'annulation passe par la file (la même que le panneau du header) ; une tâche en cours
- * demande confirmation, une tâche en attente s'annule d'un clic. */
+/** The state of an agent task (a turn, the brief, a proposal): queued, work in progress
+ * with the token counter (no percentage: the maximum is unknown), failure, cancellation.
+ * Cancellation goes through the queue (the same as the header panel); a task in progress
+ * asks for confirmation, a waiting task is cancelled with one click. */
 export function EtatTacheAgent({ tache }: { tache: EtatTache | null }) {
   const { annuler } = useTaches();
   const [confirmer, setConfirmer] = useState(false);
   const texte = libelleTache(tache);
-  // Le streaming : la réponse de l'agent qui s'écrit (un tour de conversation), sinon la fin du JSON qu'il écrit ;
-  // et la fin de sa réflexion, repliée par défaut. La réponse apparaît lettre par lettre (machine à écrire).
+  // Streaming: the agent's reply being written (one conversation turn), otherwise the end of the JSON it writes;
+  // and the end of its reasoning, collapsed by default. The reply appears letter by letter (typewriter).
   const enDirect = tache?.statut === "en_cours";
   const reponseRecue = enDirect && tache?.but === "tour" ? extraireChainePartielle(tache.fluxTexte ?? "", "reponse") : null;
   const reponse = useMachineAEcrire(reponseRecue);

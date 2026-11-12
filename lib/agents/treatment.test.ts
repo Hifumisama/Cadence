@@ -23,7 +23,7 @@ test("durées des scènes : aucune scène sous un plan minimal, même avec un po
   assert.equal(somme(d), 40);
   assert.ok(d.every((x) => x >= 4));
   assert.deepEqual(repartirDureesScenes([], 100), []);
-  // Une cible impossible (3 scènes, 9 s) est relevée au minimum.
+  // An impossible target (3 scenes, 9 s) is raised to the minimum.
   assert.equal(somme(repartirDureesScenes([1, 1, 1], 9)), 12);
 });
 
@@ -42,7 +42,7 @@ test("ajustement d'une scène : trop court, on allonge sans dépasser 10 s", () 
   const r = ajusterDureesScene([6, 6, 6], 27);
   assert.equal(somme(r), 27);
   assert.ok(r.every((x) => x <= 10));
-  // Cible hors d'atteinte : on s'en approche autant que possible.
+  // Target out of reach: we get as close as possible.
   assert.equal(somme(ajusterDureesScene([8, 8], 60)), 20);
 });
 

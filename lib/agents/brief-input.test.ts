@@ -26,7 +26,7 @@ test("tour : la fiche rejoint le dernier message utilisateur (sans les sections 
   assert.ok(e[2]!.content.includes(MARQUE_FICHE));
   assert.match(e[2]!.content, /Un héros malgré lui/);
   assert.ok(!e[2]!.content.includes('"lieux"'), "une section vide n'est pas montrée");
-  assert.equal(conv[2]!.content, "Léger, un peu absurde."); // pas de mutation
+  assert.equal(conv[2]!.content, "Léger, un peu absurde."); // no mutation
 });
 
 test("tour : ce qui manque est un rappel et non un questionnaire", () => {
@@ -72,7 +72,7 @@ test("tour : l'essentiel noté, l'agent passe aux détails, un par un et dans l'
   assert.match(e[2]!.content, /Détails à préciser, dans cet ordre : la tenue de Théo/);
   assert.match(e[2]!.content, /UNE question ciblée sur le premier détail/);
   assert.match(e[2]!.content, /Ne dis jamais que le briefing est prêt/);
-  // Tout est noté mais l'entretien est jeune (gros premier bloc) : jamais une liste vide de manques.
+  // Everything is noted but the interview is young (big first block): never an empty list of gaps.
   const jeune = entreeTour(conv, fiche, { manques: [], details: [], complete: false });
   assert.ok(!/pas encore dit : \./.test(jeune[2]!.content));
   assert.match(jeune[2]!.content, /encore jeune/);

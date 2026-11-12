@@ -7,12 +7,12 @@ export type CleOnglet = "prompt";
 
 const ETIQUETTE: Record<CleOnglet, string> = { prompt: "Prompt" };
 
-/** Un lien « Voir » d'un contrôle (ControlesEntete) ou la carte du prompt (CartePrompt) ouvrent le tiroir par cet évènement : l'ancre « fp-prompt » désigne le panneau. */
+/** A « Voir » link of a check (ControlesEntete) or the prompt card (CartePrompt) opens the drawer through this event: the anchor « fp-prompt » designates the panel. */
 export const ONGLET_DE_ANCRE: Record<string, CleOnglet> = { "fp-prompt": "prompt" };
 export const EVENEMENT_ONGLET = "tm-onglet";
 
-/** Le tiroir du prompt, à droite, posé par-dessus la page comme celui du Scénario (sans voile : le lecteur reste utilisable). Il s'ouvre depuis la carte du
- * prompt, sous les références, et se monte à l'ouverture : le texte repart de ce que le serveur a. Échap ou la croix le ferment. */
+/** The prompt drawer, on the right, laid over the page like the Scenario one (no veil: the player stays usable). It opens from the
+ * prompt card, below the references, and mounts when opened: the text starts again from what the server holds. Esc or the cross closes it. */
 export function TiroirPlan({ panneaux }: { panneaux: Record<CleOnglet, ReactNode> }) {
   const [actif, setActif] = useState<CleOnglet | null>(null);
 

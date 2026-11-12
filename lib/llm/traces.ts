@@ -5,8 +5,8 @@ import type { MessageLlm } from "./types";
 const STATUTS_TRACE = ["ok", "invalide", "echoue", "interrompu"] as const;
 export type StatutTrace = (typeof STATUTS_TRACE)[number];
 
-/** Ce que `executerSkill` journalise : tout ce qu'il faut pour rejouer ou juger
- * une exécution (docs/CONCEPTION_AGENTS.md §7 et §10). */
+/** What `executerSkill` logs: everything needed to replay or judge
+ * an execution (docs/CONCEPTION_AGENTS.md §7 and §10). */
 export type TraceAEnregistrer = {
   skill: string;
   fournisseur: string;
@@ -17,7 +17,7 @@ export type TraceAEnregistrer = {
   systemeEmpreinte: string;
   systemeCaracteres: number;
   sortieBrute: string | null;
-  /** Raisonnement du modèle (`reasoning_content`), s'il en émet un. */
+  /** The model's reasoning (`reasoning_content`), if it emits one. */
   reflexion?: string | null;
   json: unknown | null;
   erreursValidation: string[] | null;
@@ -25,7 +25,7 @@ export type TraceAEnregistrer = {
   renvois: number;
   tokensEntree: number;
   tokensSortie: number;
-  /** Jetons du prompt repris du cache du serveur / préremplis pour cet appel (llama.cpp) ; null si le serveur ne le dit pas. */
+  /** Prompt tokens taken from the server's cache / prefilled for this call (llama.cpp); null if the server does not say so. */
   tokensCache?: number | null;
   tokensPrefill?: number | null;
   dureeMs: number;
@@ -33,14 +33,14 @@ export type TraceAEnregistrer = {
 
 export type EnregistreurTrace = (trace: TraceAEnregistrer) => Promise<void>;
 
-/** Le nom du modèle tel que la colonne (80 caractères) le garde : llama-server renvoie parfois le CHEMIN du fichier GGUF (95 caractères
- * pour Swift, 2026-10-19), ce qui faisait échouer l'insertion de toutes les traces sans bruit. On garde le nom du fichier. */
+/** The model name as the column (80 characters) keeps it: llama-server sometimes returns the PATH of the GGUF file (95 characters
+ * for Swift, 2026-10-19), which made the insertion of all traces fail silently. We keep the file name. */
 export function nomModeleCourt(modele: string): string {
   return (modele.split(/[\\/]/).pop() || modele).slice(0, 80);
 }
 
-/** Insère une trace dans `agent_traces` et renvoie son id (la tâche de la file,
- * agent_runs, s'y rattache : worker/llm.ts). */
+/** Inserts a trace into `agent_traces` and returns its id (the queue task,
+ * agent_runs, attaches to it: worker/llm.ts). */
 export async function insererTrace(t: TraceAEnregistrer): Promise<number> {
   const [ligne] = await db.insert(agentTraces).values({
     skill: t.skill,
@@ -66,7 +66,7 @@ export async function insererTrace(t: TraceAEnregistrer): Promise<number> {
   return ligne!.id;
 }
 
-/** Enregistreur par défaut : une ligne dans `agent_traces`. */
+/** Default logger: a row in `agent_traces`. */
 export const enregistrerTrace: EnregistreurTrace = async (t) => {
   await insererTrace(t);
 };

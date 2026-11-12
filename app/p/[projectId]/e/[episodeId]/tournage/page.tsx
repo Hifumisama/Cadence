@@ -13,8 +13,8 @@ import type { PlanVue, SceneVue } from "@/lib/clips/screenplay-view";
 
 export const dynamic = "force-dynamic";
 
-/** Le tournage : la frise de travail (scènes, plans en vignettes, états de fiche et de rendu, ajouts et déplacements). C'était la page « Scénario » avant que
- * celle-ci devienne le texte à lire (`../scenario`, 2026-11-10). */
+/** The shoot: the work strip (scenes, clips as thumbnails, sheet and render states, additions and moves). It was the « Scénario » page before
+ * that one became the text to read (`../scenario`, 2026-11-10). */
 export default async function TournagePage({
   params,
   searchParams,
@@ -34,11 +34,11 @@ export default async function TournagePage({
     getScenarioData(eid),
     getPelliculePlans(eid),
     getEtatPlans(eid),
-    // Les plans dont le texte a changé depuis leur fiche ou leur dernier rendu (repère « texte modifié »).
+    // Clips whose text has changed since their sheet or their last render (« texte modifié » marker).
     intentionsPerimees(eid),
-    // Un plan ou une scène en cours d'écriture (« Ajouter un plan », « Nouvelle scène ») : la page lui garde sa place, sous forme de carte fantôme.
+    // A clip or scene being written (« Ajouter un plan », « Nouvelle scène »): the page keeps its place for it, as a ghost card.
     ajoutsEnCours(eid),
-    // « Générer la fiche » en cours sur les plans du film : leur bouton la suit.
+    // « Générer la fiche » in progress on the film's clips: their button follows it.
     db
       .select({ id: demandes.id, planUuid: plans.uuid })
       .from(demandes)
@@ -48,10 +48,10 @@ export default async function TournagePage({
   const ficheParPlan = new Map(fichesEnCours.map((f) => [f.planUuid, f.id]));
   if (!projet || !episode || episode.projectId !== pid) notFound();
 
-  // État dérivé et vignette de chaque plan (rendu retenu), par uuid.
+  // Derived state and thumbnail of each clip (kept render), by uuid.
   const parUuid = new Map(pellicule.map((p) => [p.uuid, p]));
 
-  // Les scènes dans l'ordre, puis les plans sans scène : le minutage de départ d'un plan est la somme des durées de ceux qui le précèdent.
+  // Scenes in order, then clips without a scene: a clip's start timing is the sum of the durations of those before it.
   let cumul = 0;
   const versVue = (plan: (typeof sansScene)[number]): PlanVue => {
     const debut = cumul;
@@ -78,13 +78,13 @@ export default async function TournagePage({
     const plans = sc.plans.map(versVue);
     return { id: sc.id, titre: sc.titre, fonction: sc.fonction, ambiance: sc.ambiance, creativite: sc.creativite, styleCamera: sc.styleCamera, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans };
   });
-  // Un plan appartient à une scène : « Sans scène » n'apparaît que s'il reste des plans orphelins (anciens films), pour ne pas les rendre invisibles.
+  // A clip belongs to a scene: « Sans scène » only appears if orphan clips remain (old films), so as not to make them invisible.
   if (sansScene.length > 0) {
     const plans = sansScene.map(versVue);
     groupes.push({ id: null, titre: "Sans scène", fonction: null, ambiance: null, creativite: null, styleCamera: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
   }
 
-  // L'état des fiches de plan : une ligne dans la barre du scénario (son geste, « Écrire les N fiches », ouvre une popup).
+  // The state of the clip sheets: one line in the screenplay bar (its gesture, « Écrire les N fiches », opens a popup).
   const fiches = {
     nbPlans: etat.nbPlans,
     nbDeveloppes: etat.nbDeveloppes,

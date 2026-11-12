@@ -1,18 +1,18 @@
 import { domaineAliberer, type DomaineGpu } from "../lib/renders/gpu";
 
-/** Libération de la VRAM au changement de domaine (voir lib/renders/gpu.ts) : avant une
- * tâche LLM on demande à ComfyUI de décharger ses modèles ; avant une tâche
- * ComfyUI, à llama-swap de décharger les siens.
+/** Freeing VRAM on a domain change (see lib/renders/gpu.ts): before an
+ * LLM task we ask ComfyUI to unload its models; before a
+ * ComfyUI task, llama-swap to unload its own.
  *
- * « Au mieux » : un échec est journalisé, n'empêche JAMAIS la tâche et ne bloque
- * jamais le worker (délai borné). L'état « dernier domaine utilisé » vit en mémoire
- * du worker (worker/index.ts) : au démarrage il est inconnu, donc le premier
- * changement de domaine décharge l'autre côté par prudence. */
+ * "Au mieux" (best effort): a failure is logged, NEVER prevents the task and never blocks
+ * the worker (bounded delay). The "dernier domaine utilisé" state lives in memory
+ * of the worker (worker/index.ts): at startup it is unknown, so the first
+ * domain change unloads the other side out of caution. */
 
 export type Liberateurs = {
-  /** POST /free sur ComfyUI. */
+  /** POST /free on ComfyUI. */
   comfyui: () => Promise<boolean>;
-  /** GET /unload sur llama-swap. */
+  /** GET /unload on llama-swap. */
   llm: () => Promise<{ ok: boolean; detail: string }>;
 };
 
@@ -35,8 +35,8 @@ function avecDelai<T>(p: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-/** Libère l'autre domaine si besoin ; renvoie le domaine déchargé (ou null).
- * Ne lève jamais. */
+/** Frees the other domain if needed; returns the unloaded domain (or null).
+ * Never throws. */
 export async function libererAvant(
   dernier: DomaineGpu | null,
   prochain: DomaineGpu,

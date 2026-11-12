@@ -1,8 +1,8 @@
-/** Le type d'un asset détermine son préfixe de code (CHAR_, DEC_...) — voir
- * docs/REGISTRE_ASSETS.md, la convention existe depuis avant l'interface.
- * L'utilisateur ne saisit que le suffixe (ex. "maya"), le préfixe et
- * l'assemblage sont automatiques (retour utilisateur 2026-09-28 : pas de
- * raison de redemander en texte libre ce que le type dit déjà). */
+/** The type of an asset determines its code prefix (CHAR_, DEC_...) — see
+ * docs/REGISTRE_ASSETS.md, the convention exists since before the interface.
+ * The user only enters the suffix (e.g. "maya"), the prefix and
+ * the assembly are automatic (user feedback 2026-09-28: no
+ * reason to ask again in free text what the type already says). */
 export const TYPES_ASSET = ["personnage", "decor", "prop", "vfx", "keyframe", "oth"] as const;
 
 export type TypeAsset = (typeof TYPES_ASSET)[number];
@@ -16,7 +16,7 @@ export const PREFIXE_PAR_TYPE: Record<TypeAsset, string> = {
   oth: "OTH_",
 };
 
-/** snake_case sans accents ni ponctuation — "Halo Doré" -> "halo_dore". */
+/** snake_case without accents nor punctuation — "Halo Doré" -> "halo_dore". */
 export function slugifyCode(texte: string): string {
   return texte
     .normalize("NFD")
@@ -27,7 +27,7 @@ export function slugifyCode(texte: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
-/** Le nom à afficher d'un asset : son `label` s'il en a un, sinon son code rendu lisible (« CHAR_maya_la_danseuse » → « Maya la danseuse »). */
+/** The name to display for an asset: its `label` if it has one, otherwise its code made readable (« CHAR_maya_la_danseuse » → « Maya la danseuse »). */
 export function libelleAsset(a: { code: string; label?: string | null }): string {
   const label = a.label?.trim();
   if (label) return label;
@@ -40,9 +40,9 @@ export function construireCode(type: string, suffixe: string): string {
   return `${prefixe}${slugifyCode(suffixe)}`;
 }
 
-/** Méthode de fabrication d'une image d'asset. `edition` exige un parent (son
- * image est la source) ; `generation` n'en a pas besoin, même pour un dérivé
- * (des flammes rattachées à un personnage se génèrent de zéro). */
+/** Method of making an asset image. `edition` requires a parent (its
+ * image is the source); `generation` does not need one, even for a derivative
+ * (flames attached to a character are generated from scratch). */
 const METHODES_ASSET = ["generation", "edition"] as const;
 export type MethodeAsset = (typeof METHODES_ASSET)[number];
 

@@ -1,13 +1,13 @@
 import type { DecisionsAffichees } from "./types";
 
-/** Ce que l'itération d'un plan montre à l'écran, sans aucune dépendance serveur : `lib/clips/clip-sheet.ts` est lu par des composants client, et
- * `lib/agents/iteration-clip.ts` tire du code serveur (compilateur, node:child_process). Les deux éléments ci-dessous vivent donc ici, et
- * `iteration-clip.ts` les réexporte. */
+/** What a clip's iteration shows on screen, with no server dependency: `lib/clips/clip-sheet.ts` is read by client components, and
+ * `lib/agents/iteration-clip.ts` pulls in server code (compiler, node:child_process). The two elements below therefore live here, and
+ * `iteration-clip.ts` re-exports them. */
 
-/** Début du résumé d'une proposition qui ne recompile rien (postTraitement) : la décision d'« Itérer » s'arrête là (lib/clips/clip-sheet.ts). */
+/** Start of the summary of a proposal that recompiles nothing (postTraitement): the "Itérer" decision stops there (lib/clips/clip-sheet.ts). */
 export const PREFIXE_SANS_ECRITURE = "Diagnostic sans écriture.";
 
-/** Les décisions en phrases courtes, gardées sur l'essai qu'elles produisent (`jobs.alertes_iteration`). */
+/** The decisions in short sentences, kept on the attempt they produce (`jobs.alertes_iteration`). */
 export function notesDecisions(a: DecisionsAffichees | null): string[] {
   if (!a) return [];
   const notes: string[] = [];

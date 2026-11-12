@@ -6,10 +6,10 @@ import { choisirModeleLlm } from "@/app/llm/actions";
 
 const INTERVALLE_MS = 30_000;
 
-/** Pastille du header : le serveur LLM répond-il, et quel modèle sert. Point or = joignable, écarlate = injoignable,
- * gris = pas encore sondé. « Joignable » veut dire que la route de santé répond : le modèle peut ne pas être chargé en
- * VRAM (llama-swap le charge au premier appel). Un clic ouvre la liste des modèles que le serveur déclare ; choisir
- * un modèle vaut pour les prochains appels (le worker le lit au démarrage de chaque appel). */
+/** Header badge: does the LLM server answer, and which model is serving. Gold dot = reachable, scarlet = unreachable,
+ * grey = not yet polled. « Joignable » (reachable) means the health route answers: the model may not be loaded in
+ * VRAM (llama-swap loads it on the first call). A click opens the list of models the server declares; choosing
+ * a model applies to the next calls (the worker reads it at the start of each call). */
 export function PastilleLlm() {
   const [statut, setStatut] = useState<StatutLlm | null>(null);
   const [erreurSonde, setErreurSonde] = useState(false);
@@ -39,7 +39,7 @@ export function PastilleLlm() {
     return () => clearInterval(timer);
   }, [sonder]);
 
-  // Échap ou clic hors du menu le ferme.
+  // Escape or a click outside the menu closes it.
   useEffect(() => {
     if (!ouvert) return;
     const clavier = (e: KeyboardEvent) => {

@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 
-/** Distance (px) sous le bas d'un fil en dessous de laquelle on est « en bas du fil ». */
+/** Distance (px) from the bottom of a thread below which we are « en bas du fil » (at the bottom of the thread). */
 const MARGE_PX = 80;
 
-/** L'ancêtre qui défile (overflow-y auto ou scroll) : le fil lui-même. Null si le fil est dans la page. */
+/** The scrolling ancestor (overflow-y auto or scroll): the thread itself. Null if the thread is in the page. */
 function conteneurDefilant(el: HTMLElement | null): HTMLElement | null {
   for (let p = el?.parentElement ?? null; p; p = p.parentElement) {
     const o = getComputedStyle(p).overflowY;
@@ -14,23 +14,22 @@ function conteneurDefilant(el: HTMLElement | null): HTMLElement | null {
   return null;
 }
 
-/** Fait défiler le fil jusqu'à la sentinelle `fin` (son bas) quand `declencheur` change, SAUF si l'utilisateur est remonté lire plus
- * haut : pendant qu'un texte arrive au fil du flux, le suivre sans lui arracher l'ascenseur.
- * `toujours` (ex. le nombre de messages) force le défilement : un nouveau message, c'est celui qu'on vient d'envoyer ou de recevoir.
+/** Scrolls the thread down to the sentinel `fin` (its bottom) when `declencheur` changes, UNLESS the user has scrolled back up to read earlier: while a text arrives in the thread's flow, follow it without snatching the scrollbar away.
+ * `toujours` (e.g. the number of messages) forces scrolling: a new message is the one we have just sent or received.
  *
- * Seul le conteneur du fil défile (`scrollTop`) : `scrollIntoView` aligne aussi la PAGE sur la sentinelle, et tirait la page vers le haut
- * à chaque mise à jour dès que l'utilisateur était descendu jusqu'à la zone de saisie. */
+ * Only the thread's container scrolls (`scrollTop`): `scrollIntoView` also aligns the PAGE with the sentinel, and pulled the page up
+ * at each update as soon as the user had scrolled down to the input area. */
 export function useDefilementBas(fin: RefObject<HTMLElement | null>, declencheur: unknown, toujours: unknown) {
   const enBas = useRef(true);
   const dernierToujours = useRef(toujours);
 
-  // « En bas » = le fil est collé à son bas. Écouté en phase de capture : un scroll d'un conteneur interne ne remonte pas jusqu'à `document`.
+  // "At the bottom" = the thread is stuck to its bottom. Listened to in the capture phase: a scroll of an inner container does not bubble up to `document`.
   useEffect(() => {
     const mesurer = (e: Event) => {
       const el = fin.current;
       if (!el) return;
       const c = conteneurDefilant(el);
-      // Un scroll de la page (pas du fil) ne dit rien sur la position DANS le fil.
+      // A scroll of the page (not of the thread) says nothing about the position INSIDE the thread.
       if (c) {
         if (e.target === c) enBas.current = c.scrollHeight - c.scrollTop - c.clientHeight <= MARGE_PX;
       } else enBas.current = el.getBoundingClientRect().top <= window.innerHeight + MARGE_PX;

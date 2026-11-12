@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { appliquerIterationEtGenerer, ecrireSections, figerEtLancer } from "@/app/plans/actions";
 
-/** Les panneaux de la Fiche de plan qui reçoivent le balayage « gel » quand un rendu part. */
+/** The clip sheet panels that receive the « gel » sweep when a render starts. */
 const PANNEAUX_GEL = ["fp-refs", "fp-prompt"];
 const DUREE_SCEAU_MS = 5000;
 
@@ -11,7 +11,7 @@ type Serveur = { sections: Record<string, string>; duree: number; fps: number; s
 export type ModeRendu = "previsualiser" | "final" | "variante";
 export type EssaiLance = { consigne?: string | null; depuisNumero?: number | null };
 export type ResultatLancement = { ok: true; numeroRendu: number } | { ok: false; erreur: string };
-/** `notes` : ce que l'agent ou les contrôles ont signalé en appliquant la correction (gardé sur l'essai créé). */
+/** `notes`: what the agent or the checks reported when applying the correction (kept on the created attempt). */
 export type ResultatIteration = { ok: true; numeroRendu: number; notes: string[] } | { ok: false; erreur: string };
 
 type Ctx = {
@@ -23,30 +23,30 @@ type Ctx = {
   nbSectionsModifiees: number;
   duree: number;
   fps: number;
-  /** Résolution du prochain rendu (0,2 / 0,3 / 0,4 MP : lib/renders/resolution-video.ts). */
+  /** Resolution of the next render (0,2 / 0,3 / 0,4 MP: lib/renders/resolution-video.ts). */
   seed: string | null;
   setDuree: (v: number) => void;
   setFps: (v: number) => void;
   setSeed: (v: string) => void;
-  /** Libellés de ce qui diffère du plan figé (« 2 sections », « durée »…) ; vide = tout est figé. */
+  /** Labels of what differs from the frozen clip (« 2 sections », « durée »…); empty = everything is frozen. */
   modifications: string[];
   annuler: () => void;
-  /** Abandonne le brouillon sans rien écrire (après un collage de prompt, qui remplace tout côté serveur). */
+  /** Discards the draft without writing anything (after a prompt paste, which replaces everything server-side). */
   abandonner: () => void;
   figer: (mode: ModeRendu) => void;
-  /** Comme `figer`, mais on attend le résultat et l'essai garde sa consigne et l'essai dont il part (fiche de plan « table de montage »). */
+  /** Like `figer`, but we wait for the result and the attempt keeps its directive and the attempt it starts from (clip sheet « table de montage »). */
   lancer: (mode: ModeRendu, essai?: EssaiLance) => Promise<ResultatLancement>;
-  /** Applique la correction de l'agent et crée l'essai en une transaction (« Itérer », « Appliquer et générer »). */
+  /** Applies the agent's correction and creates the attempt in one transaction (« Itérer », « Appliquer et générer »). */
   lancerIteration: (propositionUuid: string, essai: { consigne: string | null; depuisNumero: number | null }) => Promise<ResultatIteration>;
-  /** Les réglages retouchés à la main (durée, FPS, seed), que « Itérer » confie à sa demande (écrits avec l'essai). */
+  /** The settings tweaked by hand (duration, FPS, seed), that « Itérer » hands to its request (written with the attempt). */
   reglagesRetouches: () => { dureeGenerationSecondes?: number; fps?: number; seed?: string };
-  /** L'essai d'une demande vient de partir (rendu créé) : même accusé qu'un lancement (balayage « gel », sceau, brouillon remis au serveur). */
+  /** The attempt of a request has just started (render created): same acknowledgement as a launch (« gel » sweep, seal, draft handed back to the server). */
   accuserLancement: (numeroRendu: number) => void;
-  /** Écrit les sections modifiées, exécute `fn`, puis reprend le contenu du serveur : pour les gestes qui réécrivent le
-   * prompt côté serveur (ajouter / retirer une référence) et écraseraient un brouillon. */
+  /** Writes the modified sections, runs `fn`, then reloads the server content: for the actions that rewrite the
+   * prompt server-side (add / remove a reference) and would overwrite a draft. */
   avecSectionsEcrites: <T,>(fn: () => Promise<T>) => Promise<T>;
   occupe: boolean;
-  /** Numéro du rendu qui vient d'être figé, tant que le sceau est affiché. */
+  /** Number of the render that has just been frozen, as long as the seal is displayed. */
   sceau: number | null;
   erreur: string | null;
   prochainRendu: number;
@@ -60,9 +60,9 @@ export function useBrouillon(): Ctx {
   return c;
 }
 
-/** Le brouillon de la Fiche de plan (retour utilisateur 2026-10-05 : plus d'autosave). On n'écrit rien tant qu'on ne lance pas de
- * rendu : lancer FIGE le prompt et tous les réglages d'un coup. Chaque valeur est dérivée : brouillon si on l'a touchée et qu'elle
- * diffère du serveur, serveur sinon — un rechargement de la page (suivi des rendus) ne perd donc jamais une saisie. */
+/** The clip sheet's draft (user feedback 2026-10-05: no more autosave). We write nothing until we launch a
+ * render: launching FREEZES the prompt and all the settings at once. Each value is derived: the draft if we touched it and it
+ * differs from the server, the server otherwise — a page reload (render tracking) therefore never loses an entry. */
 export function BrouillonProvider({
   planId,
   serveur,
@@ -120,7 +120,7 @@ export function BrouillonProvider({
 
   const brouillonModifie = (): Record<string, string> => Object.fromEntries(modifiees.map((s) => [s, sections[s]!]));
 
-  /** Fige le brouillon puis crée le job ; le balayage « gel » et le sceau suivent. Renvoie le résultat du serveur. */
+  /** Freezes the draft then creates the job; the « gel » sweep and the seal follow. Returns the server result. */
   const executer = async (mode: ModeRendu, essai: EssaiLance = {}): Promise<ResultatLancement> => {
     setErreur(null);
     const r = await figerEtLancer(
@@ -143,7 +143,7 @@ export function BrouillonProvider({
     return r;
   };
 
-  /** Balayage « gel » sur les panneaux, puis sceau pendant 5 s : le temps que le rendu se place dans la file. */
+  /** « Gel » sweep on the panels, then seal for 5 s: the time for the render to take its place in the queue. */
   const apresLancement = (numeroRendu: number) => {
     for (const id of PANNEAUX_GEL) {
       const el = document.getElementById(id);
@@ -157,8 +157,8 @@ export function BrouillonProvider({
     minuteur.current = setTimeout(() => setSceau(null), DUREE_SCEAU_MS);
   };
 
-  /** Fin d'« Itérer » : la correction de l'agent est appliquée ET l'essai créé en une seule transaction côté serveur (`appliquerIterationEtGenerer`).
-   * Les réglages retouchés à la main (durée, FPS, seed) partent avec ; les sections, elles, ont été écrites avant l'agent. */
+  /** End of « Itérer »: the agent's correction is applied AND the attempt created in a single server-side transaction (`appliquerIterationEtGenerer`).
+   * The settings tweaked by hand (duration, FPS, seed) go along; the sections, for their part, were written before the agent. */
   const lancerIteration = async (propositionUuid: string, essai: { consigne: string | null; depuisNumero: number | null }): Promise<ResultatIteration> => {
     if (pending || sceau != null) return { ok: false, erreur: "Un lancement vient de partir : attends une seconde." };
     setErreur(null);

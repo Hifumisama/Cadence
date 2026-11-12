@@ -45,9 +45,9 @@ import { lireProposition } from "../agents/queries-agents";
 import { cleLlm, cleVideo } from "./tasks";
 import type { DecisionsAffichees, DecisionsIteration, Resultat } from "../agents/types";
 
-/** Le PILOTE des demandes (règles dans lib/tasks/requests.ts). `piloterDemandes` est appelé à chaque tour de la boucle « installateur » du
- * worker : une transition au plus par demande en cours, état dans `demandes` (reprise sur redémarrage, rien en mémoire). Une seule
- * boucle le fait tourner, donc pas de course entre deux pilotes. Ne touche jamais au GPU : il pose des tâches, les voies les prennent. */
+/** The PILOT of requests (rules in lib/tasks/requests.ts). `piloterDemandes` is called at each turn of the worker's « installer » loop:
+ * at most one transition per ongoing request, state in `demandes` (resumes on restart, nothing in memory). A single
+ * loop runs it, so there is no race between two pilots. Never touches the GPU: it posts tasks, the lanes take them. */
 
 type LigneDemande = typeof demandes.$inferSelect;
 const ERR = (erreur: string) => ({ ok: false as const, erreur });
@@ -57,9 +57,9 @@ const lireContexte = (d: LigneDemande): ContexteIteration => d.contexte as Conte
 
 const MAX_CONSIGNE = 4000;
 
-/** « Itérer » un plan : UNE demande (consigne → agent → réécriture si besoin → rendu). Une seule itération tient la place à la fois (le GPU est partagé) :
- * si aucune n'est en cours elle part tout de suite, sinon elle attend (`en_attente`) dans l'ordre d'arrivée, sa consigne modifiable jusqu'à son départ
- * (`modifierConsigneIteration`). Refusée si le plan a déjà une itération en cours ou en attente. */
+/** « Itérer » a plan: ONE request (instruction → agent → rewrite if needed → render). A single iteration holds the place at a time (the GPU is shared):
+ * if none is in progress it leaves at once, otherwise it waits (`en_attente`) in arrival order, its instruction editable until it leaves
+ * (`modifierConsigneIteration`). Refused if the plan already has an iteration in progress or waiting. */
 export async function lancerDemandeIteration(
   conversationUuid: string,
   options: { retour: string; renduId?: number | null; planche?: boolean; depuisNumero: number | null; reglages?: ContexteIteration["reglages"] },
@@ -84,7 +84,7 @@ export async function lancerDemandeIteration(
     );
   }
 
-  // Quelqu'un tient déjà la place : la demande attend, sans aucune tâche posée. Tout ce qu'il faut pour la démarrer est gardé dans son contexte.
+  // Someone already holds the place: the request waits, with no task posted. Everything needed to start it is kept in its context.
   if (iterations.length > 0) {
     const [d] = await db
       .insert(demandes)
@@ -109,19 +109,19 @@ export async function lancerDemandeIteration(
       .returning({ id: demandes.id, uuid: demandes.uuid });
     demande = d!;
   } catch {
-    // L'index unique partiel : une demande (d'un autre type) est déjà en cours sur ce plan.
+    // The partial unique index: a request (of another type) is already in progress on this plan.
     return ERR("Une demande est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).");
   }
   const g = await genererIteration(conversationUuid, { retour: options.retour, renduId: options.renduId, planche: options.planche, demandeId: demande.id });
   if (!g.ok) {
-    await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
+    await db.delete(demandes).where(eq(demandes.id, demande.id)); // nothing was sent: the request never existed
     return g;
   }
   await db.update(demandes).set({ contexte: { ...contexte, runUuid: g.runUuid }, updatedAt: new Date() }).where(eq(demandes.id, demande.id));
   return { ok: true, demandeId: demande.id, demandeUuid: demande.uuid, runUuid: g.runUuid, propositionUuid: g.propositionUuid, enAttente: false };
 }
 
-/** Change la consigne d'une itération qui attend son tour (une fois démarrée, la consigne est partie à l'agent : plus modifiable). */
+/** Changes the instruction of an iteration waiting its turn (once started, the instruction has gone to the agent: no longer editable). */
 export async function modifierConsigneIteration(demandeId: number, texte: string): Promise<Resultat<object>> {
   const t = texte.trim();
   if (!t) return ERR("Écris d'abord ce que tu veux changer.");
@@ -129,7 +129,7 @@ export async function modifierConsigneIteration(demandeId: number, texte: string
   const [d] = await db.select().from(demandes).where(eq(demandes.id, demandeId));
   if (!d || d.type !== "iteration-plan") return ERR("Cette itération n'existe plus.");
   if (d.statut !== "en_attente") return ERR("Cette itération a déjà démarré : sa consigne est partie à l'agent, elle n'est plus modifiable.");
-  // La condition sur le statut referme la fenêtre où le pilote la démarre entre la lecture et l'écriture.
+  // The condition on the status closes the window where the pilot starts it between the read and the write.
   const r = await db
     .update(demandes)
     .set({ contexte: { ...lireContexte(d), consigne: t }, updatedAt: new Date() })
@@ -138,20 +138,20 @@ export async function modifierConsigneIteration(demandeId: number, texte: string
   return r.length ? { ok: true } : ERR("Cette itération vient de démarrer : sa consigne n'est plus modifiable.");
 }
 
-/** L'itération active de ce plan (en cours ou en attente), s'il y en a une : sa consigne et son étape. La page du plan les montre EN TOUTES CIRCONSTANCES, de la
- * validation de « Itérer » à la fin du rendu (l'essai n'existe pas encore pendant l'agent et la recompilation, seule la demande porte la consigne). */
+/** The active iteration of this plan (in progress or waiting), if there is one: its instruction and its step. The plan's page shows them IN ALL CIRCUMSTANCES,
+ * from the validation of « Itérer » to the end of the render (the attempt does not exist yet during the agent and the recompilation; only the request carries the instruction). */
 export async function iterationDuPlan(planId: number): Promise<{ demandeId: number; statut: "en_cours" | "en_attente"; consigne: string; etape: string | null } | null> {
   const [d] = await db
     .select()
     .from(demandes)
     .where(and(eq(demandes.type, "iteration-plan"), eq(demandes.cibleType, "plan"), eq(demandes.cibleId, planId), inArray(demandes.statut, ["en_cours", "en_attente"])))
-    .orderBy(asc(demandes.statut), desc(demandes.id)) // « en_attente » avant « en_cours » alphabétiquement : une seule peut être en cours, on préfère celle-là si les deux existent
+    .orderBy(asc(demandes.statut), desc(demandes.id)) // « en_attente » before « en_cours » alphabetically: only one can be in progress, we prefer that one if both exist
     .limit(2);
   if (!d) return null;
   return { demandeId: d.id, statut: d.statut as "en_cours" | "en_attente", consigne: lireContexte(d).consigne, etape: d.statut === "en_cours" ? (etapeCouranteDemande(lireEtapes(d))?.libelle ?? null) : null };
 }
 
-/** L'itération de ce plan qui attend son tour, s'il y en a une : la page du plan y ramène (la consigne se corrige là, jusqu'au départ). */
+/** The iteration of this plan waiting its turn, if there is one: the plan's page leads back to it (the instruction is corrected there, until it leaves). */
 export async function iterationEnAttenteDuPlan(planId: number): Promise<{ demandeId: number; consigne: string } | null> {
   const [d] = await db
     .select()
@@ -161,8 +161,8 @@ export async function iterationEnAttenteDuPlan(planId: number): Promise<{ demand
   return d ? { demandeId: d.id, consigne: lireContexte(d).consigne } : null;
 }
 
-/** Monte (−1) ou descend (+1) une itération en attente dans la file en échangeant sa date d'arrivée avec sa voisine : l'ordre de la file (le
- * pilote du worker comme le panneau) est celui de `created_at`, donc rien d'autre à stocker. Sans effet en bout de file ou si l'une des deux a démarré. */
+/** Moves up (−1) or down (+1) a waiting iteration in the queue by swapping its arrival date with its neighbour: the queue's order (the worker's pilot as well as the panel) is that of
+ * `created_at`, so there is nothing else to store. No effect at the end of the queue or if one of the two has started. */
 export async function deplacerIterationEnAttente(demandeId: number, sens: -1 | 1): Promise<Resultat<object>> {
   return db.transaction(async (tx) => {
     const file = await tx
@@ -175,7 +175,7 @@ export async function deplacerIterationEnAttente(demandeId: number, sens: -1 | 1
     const voisine = file[i + sens];
     if (!voisine) return { ok: true as const };
     const moi = file[i]!;
-    // Dates identiques (même instant) : on écarte d'une milliseconde pour que l'échange change vraiment l'ordre.
+    // Identical dates (same instant): we shift by one millisecond so that the swap really changes the order.
     const dateMoi = moi.createdAt.getTime() === voisine.createdAt.getTime() ? new Date(voisine.createdAt.getTime() + sens) : voisine.createdAt;
     await tx.update(demandes).set({ createdAt: dateMoi }).where(and(eq(demandes.id, moi.id), eq(demandes.statut, "en_attente")));
     await tx.update(demandes).set({ createdAt: moi.createdAt }).where(and(eq(demandes.id, voisine.id), eq(demandes.statut, "en_attente")));
@@ -183,14 +183,14 @@ export async function deplacerIterationEnAttente(demandeId: number, sens: -1 | 1
   });
 }
 
-/** Fait démarrer la plus ancienne itération en attente quand plus aucune n'est en cours : c'est là que la tâche de l'agent est posée, avec la
- * consigne telle qu'elle est À CE MOMENT (modifiable jusque-là). Un échec (plan sans rendu…) la termine en erreur sans bloquer les suivantes. */
+/** Starts the oldest waiting iteration when none is in progress any more: this is where the agent's task is posted, with the
+ * instruction as it IS AT THIS MOMENT (editable until then). A failure (plan without a render…) ends it in error without blocking the following ones. */
 async function demarrerProchaineIteration(): Promise<boolean> {
   const [enCours] = await db.select({ id: demandes.id }).from(demandes).where(and(eq(demandes.type, "iteration-plan"), eq(demandes.statut, "en_cours"))).limit(1);
   if (enCours) return false;
   const file = await db.select().from(demandes).where(and(eq(demandes.type, "iteration-plan"), eq(demandes.statut, "en_attente"))).orderBy(asc(demandes.createdAt), asc(demandes.id));
   if (file.length === 0) return false;
-  // L'ordre d'arrivée, sauf qu'un plan en « suite » repart du rendu de son précédent : s'il est lui aussi en file, il passe après lui (lib/clips/chains.ts).
+  // Arrival order, except that a clip in « suite » starts again from its predecessor's render: if it is also queued, it goes after it (lib/clips/chains.ts).
   const plansEnFile = await db.select({ id: plans.id, episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(inArray(plans.episodeId, db.select({ e: plans.episodeId }).from(plans).where(inArray(plans.id, file.map((f) => f.cibleId)))));
   const precedentsDe = (planId: number) => {
     const p = plansEnFile.find((x) => x.id === planId);
@@ -199,7 +199,7 @@ async function demarrerProchaineIteration(): Promise<boolean> {
   const d = choisirProchaineIteration(file.map((f) => ({ ...f, planId: f.cibleId })), precedentsDe);
   if (!d) return false;
   const ctx = lireContexte(d);
-  // Prise de la place d'abord (condition sur le statut : une annulation entre-temps l'emporte) ; l'index unique partiel dit si le plan est pris par une autre demande.
+  // Taking the place first (condition on the status: a cancellation in the meantime wins); the partial unique index says whether the plan is taken by another request.
   let pris: { id: number }[];
   try {
     pris = await db
@@ -208,7 +208,7 @@ async function demarrerProchaineIteration(): Promise<boolean> {
       .where(and(eq(demandes.id, d.id), eq(demandes.statut, "en_attente")))
       .returning({ id: demandes.id });
   } catch {
-    return false; // le plan a une autre demande en cours : on réessaie au prochain tour
+    return false; // the plan has another request in progress: we retry at the next turn
   }
   if (pris.length === 0) return false;
   const echec = async (erreur: string) => {
@@ -222,8 +222,8 @@ async function demarrerProchaineIteration(): Promise<boolean> {
   return true;
 }
 
-/** « Ajouter un plan » (page Scénario) : UNE demande (l'agent écrit le plan → il est ajouté à la scène, sans relecture : on le relit dans sa fiche).
- * Une seule à la fois par film (la cible est l'épisode, l'index unique partiel fait le reste). */
+/** « Ajouter un plan » (Screenplay page): ONE request (the agent writes the clip → it is added to the scene, without review: we re-read it in its sheet).
+ * Only one at a time per film (the target is the episode, the partial unique index does the rest). */
 export async function lancerDemandeAjoutPlan(
   projectId: number,
   episodeId: number,
@@ -241,20 +241,20 @@ export async function lancerDemandeAjoutPlan(
     const [d] = await db.insert(demandes).values({ projectId, type: "ajout-plan", cibleType: "episode", cibleId: episodeId, etapes: etapesAjoutPlan(), contexte }).returning({ id: demandes.id });
     demande = d!;
   } catch {
-    // L'index unique partiel : un plan est déjà en cours d'écriture pour ce film.
+    // The partial unique index: a clip is already being written for this film.
     return ERR("Un plan est déjà en cours d'écriture : attends qu'il finisse (ou annule-le depuis le panneau des tâches).");
   }
   const g = await genererProposition(ouverte.conversationUuid, { consigne, position: options.position, ...(options.sceneId != null ? { sceneId: options.sceneId } : {}), demandeId: demande.id });
   if (!g.ok) {
-    await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
+    await db.delete(demandes).where(eq(demandes.id, demande.id)); // nothing was sent: the request never existed
     return g;
   }
   await db.update(demandes).set({ contexte: { ...contexte, ...(g.runUuid ? { runUuid: g.runUuid } : {}) }, updatedAt: new Date() }).where(eq(demandes.id, demande.id));
   return { ok: true, demandeId: demande.id };
 }
 
-/** « Nouvelle scène » (page Scénario) : UNE demande (l'agent écrit la scène et ses plans → ils sont ajoutés au film, sans relecture). Même cible que
- * l'ajout d'un plan : une seule demande de ce genre à la fois par film. Sans consigne, l'agent propose la suite naturelle des scènes voisines. */
+/** « Nouvelle scène » (Screenplay page): ONE request (the agent writes the scene and its clips → they are added to the film, without review). Same target as
+ * adding a clip: only one request of this kind at a time per film. Without an instruction, the agent proposes the natural continuation of the neighbouring scenes. */
 export async function lancerDemandeAjoutScene(
   projectId: number,
   episodeId: number,
@@ -275,24 +275,24 @@ export async function lancerDemandeAjoutScene(
     const [d] = await db.insert(demandes).values({ projectId, type: "ajout-scene", cibleType: "episode", cibleId: episodeId, etapes: etapesAjoutScene(), contexte }).returning({ id: demandes.id });
     demande = d!;
   } catch {
-    // L'index unique partiel : un plan ou une scène est déjà en cours d'écriture pour ce film.
+    // The partial unique index: a clip or a scene is already being written for this film.
     return ERR("Un ajout est déjà en cours d'écriture : attends qu'il finisse (ou annule-le depuis le panneau des tâches).");
   }
   const g = await genererProposition(ouverte.conversationUuid, { consigne: consigne || CONSIGNE_SCENE_LIBRE, place: options.place, demandeId: demande.id });
   if (!g.ok) {
-    await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
+    await db.delete(demandes).where(eq(demandes.id, demande.id)); // nothing was sent: the request never existed
     return g;
   }
   await db.update(demandes).set({ contexte: { ...contexte, ...(g.runUuid ? { runUuid: g.runUuid } : {}) }, updatedAt: new Date() }).where(eq(demandes.id, demande.id));
   return { ok: true, demandeId: demande.id };
 }
 
-/** « Générer la fiche » d'un plan (pages Scénario et Plan, onglet « Brief Open H3 IR ») : UNE demande, enregistrée sans relecture (on la relit dans la
- * page du plan). Open H3 IR SEUL (vague 4a, lib/h3ir/preparation.ts) : un plan dont les références ont toutes leur image part tout de suite en
- * compilation (chemin rapide) ; sinon le pilote le PRÉPARE d'abord (références, assets manquants, prompts, images), tour après tour. La fiche compilée
- * peut remplacer une fiche existante (le clic vaut confirmation ; l'ancien prompt reste dans l'historique).
- * Options : `rechoisir` (rechoisir les références même si le plan en a déjà ; jamais par défaut), réglages Open H3 IR facultatifs (`shots`, `director`,
- * `creativity` : absents, ceux du plan, de sa scène ou du projet). */
+/** « Générer la fiche » of a clip (Screenplay and Clip pages, « Brief Open H3 IR » tab): ONE request, saved without review (we re-read it in the
+ * clip's page). Open H3 IR ALONE (wave 4a, lib/h3ir/preparation.ts): a clip whose references all have their image goes at once to
+ * compilation (fast path); otherwise the pilot PREPARES it first (references, missing assets, prompts, images), turn after turn. The compiled sheet
+ * may replace an existing sheet (the click is confirmation; the old prompt stays in the history).
+ * Options: `rechoisir` (re-choose the references even if the clip already has some; never by default), optional Open H3 IR settings (`shots`, `director`,
+ * `creativity`: absent, those of the clip, its scene or the project). */
 export async function lancerDemandeFichePlan(projectId: number, planUuid: string, options: OptionsDemandeFiche = {}): Promise<Resultat<{ demandeId: number }>> {
   const [plan] = await db.select({ id: plans.id, titre: plans.titre, statut: plans.statut }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!plan) return ERR("Plan introuvable.");
@@ -312,14 +312,14 @@ export async function lancerDemandeFichePlan(projectId: number, planUuid: string
     const [d] = await db.insert(demandes).values({ projectId, type: "fiche-plan", cibleType: "plan", cibleId: plan.id, etapes: etapesFichePlan(parcours), contexte }).returning({ id: demandes.id });
     demande = d!;
   } catch {
-    // L'index unique partiel : une demande est déjà en cours sur ce plan.
+    // The partial unique index: a request is already in progress on this plan.
     return ERR("Une demande est déjà en cours sur ce plan : attends qu'elle finisse (ou annule-la depuis le panneau des tâches).");
   }
-  // Préparation : le pilote la mène (rien à poser maintenant). Chemin rapide : la tâche part tout de suite.
+  // Preparation: the pilot leads it (nothing to post now). Fast path: the task leaves at once.
   if (parcours === "preparation") return { ok: true, demandeId: demande.id };
   const g = await genererFiches(ouverte.conversationUuid, { planUuids: [planUuid], demandeId: demande.id, reglagesH3ir });
   if (!g.ok) {
-    await db.delete(demandes).where(eq(demandes.id, demande.id)); // rien n'est parti : la demande n'a jamais existé
+    await db.delete(demandes).where(eq(demandes.id, demande.id)); // nothing was sent: the request never existed
     return g;
   }
   await db.update(demandes).set({ contexte: { ...contexte, ...(g.runUuid ? { runUuid: g.runUuid } : {}) }, updatedAt: new Date() }).where(eq(demandes.id, demande.id));
@@ -333,10 +333,10 @@ export type OptionsDemandeFiche = {
   creativity?: string | null;
 };
 
-/** Les fiches de PLUSIEURS plans (« Écrire les fiches », et la création d'un projet) : une demande par plan, posées dans l'ORDRE DU SCÉNARIO (épisode,
- * puis `plans.ordre`) quel que soit l'ordre donné. Chaque plan est préparé puis compilé ; le choix des références suit l'ordre du scénario (un plan
- * attend que les plans d'avant aient leurs références : reprise du décor, assets créés par un plan visibles du suivant). Un plan refusé (demande déjà en
- * cours…) n'arrête pas les autres : ses raisons sont rendues. */
+/** The sheets of SEVERAL clips (« Écrire les fiches », and a project's creation): one request per clip, posted in the SCREENPLAY ORDER (episode,
+ * then `plans.ordre`) whatever order is given. Each clip is prepared then compiled; the choice of references follows the screenplay order (a clip
+ * waits for the clips before it to have their references: set continuity, assets created by a clip are visible to the next). A clip refused (request already
+ * in progress…) does not stop the others: its reasons are returned. */
 export async function lancerDemandesFiches(
   projectId: number,
   planUuids: string[],
@@ -361,7 +361,7 @@ export async function lancerDemandesFiches(
   return { lancees: demandeIds.length, demandeIds, erreurs: [...new Set(erreurs)] };
 }
 
-/** Où en sont des demandes de fiche (la création d'un projet suit ainsi son lot) : statut, étape en cours, erreur, par demande. */
+/** Where the sheet requests stand (a project's creation thus follows its batch): status, current step, error, per request. */
 export async function etatDemandesFiches(demandeIds: number[]): Promise<{ id: number; planUuid: string; statut: Exclude<StatutDemande, "en_attente">; etape: string | null; erreur: string | null }[]> {
   if (demandeIds.length === 0) return [];
   const lignes = await db.select().from(demandes).where(inArray(demandes.id, demandeIds));
@@ -374,7 +374,7 @@ export async function etatDemandesFiches(demandeIds: number[]): Promise<{ id: nu
   }));
 }
 
-/** Le briefing quand l'auteur n'en a pas donné : l'agent propose lui-même la scène qui s'enchaîne. */
+/** The briefing when the author gave none: the agent itself proposes the scene that follows on. */
 const CONSIGNE_SCENE_LIBRE = "Propose la scène qui s'enchaîne naturellement entre les deux scènes voisines, à partir du brief.";
 
 async function ecrire(d: LigneDemande, maj: { etapes?: EtapeDemande[]; contexte?: ContexteIteration | ContexteAjoutPlan | ContexteAjoutScene | ContexteFichePlan; statut?: StatutDemande; erreur?: string | null }): Promise<void> {
@@ -389,11 +389,11 @@ async function ecrire(d: LigneDemande, maj: { etapes?: EtapeDemande[]; contexte?
       ...(fin ? { finishedAt: new Date() } : {}),
       updatedAt: new Date(),
     })
-    .where(and(eq(demandes.id, d.id), eq(demandes.statut, "en_cours"))); // une demande annulée entre-temps ne se rouvre pas
+    .where(and(eq(demandes.id, d.id), eq(demandes.statut, "en_cours"))); // a request cancelled in the meantime does not reopen
 }
 
-/** Un tour du pilote : fait avancer chaque demande en cours d'une transition. Ne rejette jamais (une demande qui plante passe en échec
- * avec son message, les autres continuent). Renvoie combien de demandes sont en cours et combien ont bougé. */
+/** One turn of the pilot: moves each ongoing request by one transition. Never rejects (a request that crashes ends in failure
+ * with its message, the others continue). Returns how many requests are in progress and how many have moved. */
 export async function piloterDemandes(): Promise<{ actives: number; touchees: number }> {
   let touchees = 0;
   try {
@@ -429,7 +429,7 @@ async function observer(d: LigneDemande, cle: CleEtapeIteration, ctx: ContexteIt
   return { obs: { tache, decision }, propositionUuid: prop?.uuid ?? null, conversationUuid: conv?.uuid ?? null };
 }
 
-/** Un tour d'un ajout de plan : tant que l'agent écrit, on attend ; sa proposition prête, on n'applique que le changement qui crée le plan. */
+/** One turn of a clip addition: as long as the agent writes, we wait; once its proposal is ready, we apply only the change that creates the clip. */
 async function avancerAjoutPlan(d: LigneDemande): Promise<boolean> {
   const etapes = lireEtapes(d);
   const ctx = d.contexte as ContexteAjoutPlan;
@@ -467,7 +467,7 @@ async function avancerAjoutPlan(d: LigneDemande): Promise<boolean> {
       await ecrire(d, { statut: "termine", etapes: avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ajout", "fait") });
       return true;
     case "appliquer": {
-      // Seul le plan est ajouté : tout autre changement glissé dans la proposition (une scène, un asset) reste décoché.
+      // Only the clip is added: any other change slipped into the proposal (a scene, an asset) stays unticked.
       const decoche = await cocherChangements(prop.uuid, { ids: decision.changementIds }, false);
       const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: [decision.planChangementId] }, true) : decoche;
       if (!coche.ok) {
@@ -491,7 +491,7 @@ async function avancerAjoutPlan(d: LigneDemande): Promise<boolean> {
   }
 }
 
-/** Un tour d'une nouvelle scène : même attente que l'ajout d'un plan ; la proposition prête, on n'applique que la scène et ses plans. */
+/** One turn of a new scene: same wait as a clip addition; once the proposal is ready, we apply only the scene and its clips. */
 async function avancerAjoutScene(d: LigneDemande): Promise<boolean> {
   const etapes = lireEtapes(d);
   const ctx = d.contexte as ContexteAjoutScene;
@@ -529,7 +529,7 @@ async function avancerAjoutScene(d: LigneDemande): Promise<boolean> {
       await ecrire(d, { statut: "termine", etapes: avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ajout", "fait") });
       return true;
     case "appliquer": {
-      // Seules la scène et ses plans sont ajoutés : tout autre changement glissé dans la proposition (un asset) reste décoché.
+      // Only the scene and its clips are added: any other change slipped into the proposal (an asset) stays unticked.
       const decoche = await cocherChangements(prop.uuid, { ids: decision.tous }, false);
       const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: decision.changementIds }, true) : decoche;
       if (!coche.ok) {
@@ -553,12 +553,12 @@ async function avancerAjoutScene(d: LigneDemande): Promise<boolean> {
   }
 }
 
-// --- la fiche d'un plan : préparation puis compilation (vague 4a) -------------------------------------------------------------------------
+// --- the sheet of a clip: preparation then compilation (wave 4a) -------------------------------------------------------------------------
 
 type CtxPrep = NonNullable<ContexteFichePlan["preparation"]>;
 const occupe = (erreur: string) => /déjà en cours/i.test(erreur);
 
-/** Les codes des assets CRÉÉS par une proposition appliquée (ses créations, par leur clé `nouvel-asset-<code>`), qui existent au registre. */
+/** The codes of the assets CREATED by an applied proposal (its creations, by their key `nouvel-asset-<code>`), which exist in the registry. */
 async function codesCreesPar(projectId: number, propositionUuid: string): Promise<string[]> {
   const lue = await lireProposition(propositionUuid);
   const codes = (lue?.groupes ?? []).flatMap((g) => g.changements).filter((c) => c.cibleType === "asset" && c.operation === "creer").map((c) => (c.cle ?? "").replace(PREFIXE_NOUVEL_ASSET, "")).filter(Boolean);
@@ -567,7 +567,7 @@ async function codesCreesPar(projectId: number, propositionUuid: string): Promis
 }
 const PREFIXE_NOUVEL_ASSET = cleNouvelAsset("");
 
-/** Coche tout ce qui passe (ni bloqué ni refusé) d'une proposition et l'applique sans relecture. */
+/** Ticks everything that passes (neither blocked nor refused) in a proposal and applies it without review. */
 async function appliquerToutCeQuiPasse(propositionUuid: string, confirmeEcrasement: boolean): Promise<Resultat> {
   const lue = await lireProposition(propositionUuid);
   const ids = (lue?.groupes ?? []).flatMap((g) => g.changements).filter((c) => !c.bloque && !c.refuseRaison).map((c) => c.id);
@@ -579,7 +579,7 @@ async function appliquerToutCeQuiPasse(propositionUuid: string, confirmeEcraseme
   return a.ok ? { ok: true } : ERR(a.erreur);
 }
 
-/** Étape `references` : garder celles du plan, écrire celles du code, ou attendre / appliquer la tâche `references-plan` (doute). */
+/** Step `references`: keep the clip's own, write those from the code, or wait / apply the `references-plan` task (doubt). */
 async function avancerReferences(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[]): Promise<boolean> {
   const prep: CtxPrep = ctx.preparation ?? {};
   const finir = async (crees: string[], note: string | null) => {
@@ -600,7 +600,7 @@ async function avancerReferences(d: LigneDemande, ctx: ContexteFichePlan, etapes
     if (prop.statut === "en_generation") return false;
     if (prop.statut === "appliquee" || prop.statut === "partielle") return finir(await codesCreesPar(d.projectId, prop.uuid), prop.resume || null);
     if (prop.statut !== "prete") return echouer(d, "Le choix des références a été abandonné (proposition rejetée).");
-    // Toutes les créations refusées ou bloquées par un contrôle : les références du skill (sans ces assets) s'écrivent quand même.
+    // All creations refused or blocked by a check: the skill's references (without these assets) are written anyway.
     const passables = ((await lireProposition(prop.uuid))?.groupes ?? []).flatMap((g) => g.changements).filter((c) => !c.bloque && !c.refuseRaison);
     if (passables.length === 0) {
       await ecrireReferencesDuSkill(db, prop.id, run.id);
@@ -647,9 +647,9 @@ async function avancerReferences(d: LigneDemande, ctx: ContexteFichePlan, etapes
   }
 }
 
-/** Les étapes `prompts` et `images`, communes à la fiche d'un plan et à « Itérer » : `codes` = les références attendues (celles du plan, ou celles
- * qu'auront les décisions) ; `prep` / `ecrirePrep` : l'état gardé dans la demande ; `lancerSuite` : la compilation, quand toutes les images sont là
- * (rend false si sa conversation est occupée : on réessaie au tour suivant). */
+/** The `prompts` and `images` steps, common to a clip's sheet and to « Itérer »: `codes` = the expected references (those of the clip, or those
+ * the decisions will have); `prep` / `ecrirePrep`: the state kept in the request; `lancerSuite`: the compilation, once all the images are there
+ * (returns false if its conversation is busy: we retry at the next turn). */
 async function avancerPromptsImages(
   d: LigneDemande,
   etapes: EtapeDemande[],
@@ -717,7 +717,7 @@ const annuler = async (d: LigneDemande): Promise<boolean> => {
   return true;
 };
 
-/** La compilation Open H3 IR de la fiche d'un plan préparé : la tâche part, l'étape `compilation` devient l'étape en cours. */
+/** The Open H3 IR compilation of a prepared clip's sheet: the task leaves, the `compilation` step becomes the current step. */
 async function poserCompilation(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[]): Promise<boolean> {
   const conv = await ouvrirConversation(d.projectId, "plan", { uuid: ctx.planUuid }, "courte");
   if (!conv.ok) return echouer(d, conv.erreur);
@@ -727,7 +727,7 @@ async function poserCompilation(d: LigneDemande, ctx: ContexteFichePlan, etapes:
   return true;
 }
 
-/** Un tour d'une fiche de plan : références → assets → prompts → images → compilation Open H3 IR. */
+/** One turn of a clip sheet: references → assets → prompts → images → Open H3 IR compilation. */
 async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
   const etapes = lireEtapes(d);
   const ctx = d.contexte as ContexteFichePlan;
@@ -762,7 +762,7 @@ async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
   }
 }
 
-/** La tâche qui compile la fiche (étape `compilation`). Même attente que les ajouts ; la proposition prête, on enregistre la fiche. */
+/** The task that compiles the sheet (`compilation` step). Same wait as the additions; once the proposal is ready, we record the sheet. */
 async function avancerTacheFiche(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[]): Promise<boolean> {
   const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
   if (!run) return echouer(d, "La tâche de l'agent n'existe plus.");
@@ -787,12 +787,12 @@ async function avancerTacheFiche(d: LigneDemande, ctx: ContexteFichePlan, etapes
     case "fait":
       return suite();
     case "appliquer": {
-      // La fiche et les assets qu'elle cite sont retenus ; tout autre changement glissé dans la proposition reste décoché.
+      // The sheet and the assets it cites are kept; any other change slipped into the proposal stays unticked.
       const tous = (lue?.groupes ?? []).flatMap((g) => g.changements.map((c) => c.id));
       const decoche = await cocherChangements(prop.uuid, { ids: tous }, false);
       const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: decision.changementIds }, true) : decoche;
       if (!coche.ok) return echouer(d, `${prefixe}${coche.erreur}`);
-      // Open H3 IR remplace la fiche existante sans redemander : le clic de l'utilisateur vaut confirmation, et l'ancien prompt est gardé dans l'historique.
+      // Open H3 IR replaces the existing sheet without asking again: the user's click is confirmation, and the old prompt is kept in the history.
       const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: true });
       if (!a.ok) return echouer(d, `${prefixe}${a.erreur}`);
       return suite();
@@ -812,7 +812,7 @@ async function avancer(d: LigneDemande): Promise<boolean> {
     await ecrire(d, { statut: "termine" });
     return true;
   }
-  // Assets créés, prompts et images attendus avant la recompilation (vague 4a) : même mécanique que la fiche d'un plan.
+  // Assets created, prompts and images expected before the recompilation (wave 4a): same mechanism as a clip's sheet.
   if (cur.cle === "assets") {
     await ecrire(d, { etapes: avancerEtapes(etapes, "assets", "passe") });
     return true;
@@ -844,7 +844,7 @@ async function avancer(d: LigneDemande): Promise<boolean> {
         await ecrire(d, { statut: "echoue", erreur: r.erreur });
         return true;
       }
-      // Appliquée + rendu créé : la correction n'a pas eu besoin de réécriture si on était encore à l'étape « agent ».
+      // Applied + render created: the correction did not need a rewrite if we were still at the « agent » step.
       await ecrire(d, { etapes: avancerEtapes(etapes, cle, "fait", cle === "agent" ? ["reecriture"] : []), contexte: { ...ctx, jobId: r.jobId, numeroRendu: r.numeroRendu, notes: r.notes } });
       return true;
     }
@@ -853,9 +853,9 @@ async function avancer(d: LigneDemande): Promise<boolean> {
         await ecrire(d, { statut: "echoue", erreur: "Conversation introuvable." });
         return true;
       }
-      // Toujours recompiler (2026-11-09) : les décisions de l'agent (intent, durée, références, réglages) partent en surcharge d'Open H3 IR et ne
-      // s'écrivent qu'avec la fiche compilée. Vague 4a : les assets manquants décidés (deux au plus) sont créés tout de suite et ajoutés aux
-      // références ; si une référence finale n'a pas d'image, ses prompts et ses images passent d'abord (étapes insérées), la recompilation suit seule.
+      // Always recompile (2026-11-09): the agent's decisions (intent, duration, references, settings) go as an override to Open H3 IR and are only
+      // written with the compiled sheet. Wave 4a: the missing assets decided (two at most) are created at once and added to the references;
+      // if a final reference has no image, its prompts and images go first (inserted steps), the recompilation follows by itself.
       const vus = { ...ctx, decisions: decision.affichage, notesAgent: decision.notes };
       const { manquants, ...base } = decision.decisions;
       let crees: string[] = [];
@@ -878,7 +878,7 @@ async function avancer(d: LigneDemande): Promise<boolean> {
       }
       const g = await genererReecriturePlan(conversationUuid, { consigne: ctx.consigne, decisions: aRecompiler, demandeId: d.id, depuisNumero: ctx.depuisNumero });
       if (!g.ok) {
-        if (/déjà en cours/i.test(g.erreur)) return false; // la conversation est prise par autre chose : au prochain tour
+        if (/déjà en cours/i.test(g.erreur)) return false; // the conversation is taken by something else: at the next turn
         await ecrire(d, { statut: "echoue", erreur: g.erreur, contexte: vus });
         return true;
       }
@@ -888,9 +888,9 @@ async function avancer(d: LigneDemande): Promise<boolean> {
   }
 }
 
-/** « Itérer » en attente d'images (vague 4a) : prompts puis images des références que les décisions donneront au plan ; quand elles sont là, la
- * recompilation part avec les décisions gardées (`decisionsARecompiler`). Une image en échec arrête l'itération en nommant l'asset ; le plan reste
- * inchangé, les décisions restent visibles. */
+/** « Itérer » waiting for images (wave 4a): prompts then images of the references the decisions will give the clip; once they are there, the
+ * recompilation leaves with the kept decisions (`decisionsARecompiler`). A failed image stops the iteration, naming the asset; the clip stays
+ * unchanged, the decisions stay visible. */
 async function avancerImagesIteration(d: LigneDemande, ctx: ContexteIteration, etapes: EtapeDemande[], cle: "prompts" | "images"): Promise<boolean> {
   const dec = ctx.decisionsARecompiler;
   if (!dec) return echouer(d, "Les décisions de l'agent sont introuvables : relance « Itérer ».");
@@ -917,12 +917,12 @@ async function avancerImagesIteration(d: LigneDemande, ctx: ContexteIteration, e
   );
 }
 
-/** Annule la demande : elle passe à « annulée » tout de suite (le pilote ne la touche plus) et la tâche en cours est annulée avec elle
- * (en file : retirée ; en cours : le worker l'interrompt). Ce qui est déjà écrit n'est pas défait. */
+/** Cancels the request: it goes to « annulée » at once (the pilot no longer touches it) and the task in progress is cancelled with it
+ * (queued: removed; in progress: the worker interrupts it). What has already been written is not undone. */
 export async function annulerDemande(demandeId: number): Promise<"annulee" | "rien"> {
   const [d] = await db.select().from(demandes).where(eq(demandes.id, demandeId));
   if (d?.statut === "en_attente") {
-    // Elle n'a posé aucune tâche : il n'y a rien à interrompre.
+    // It posted no task: there is nothing to interrupt.
     await db.update(demandes).set({ statut: "annulee", erreur: null, finishedAt: new Date(), updatedAt: new Date() }).where(and(eq(demandes.id, d.id), eq(demandes.statut, "en_attente")));
     return "annulee";
   }
@@ -937,17 +937,17 @@ export async function annulerDemande(demandeId: number): Promise<"annulee" | "ri
   return "annulee";
 }
 
-/** Ce que la page d'un plan lit pour suivre sa demande (sondage). */
+/** What a clip's page reads to follow its request (polling). */
 export type VueDemande = {
   statut: StatutDemande;
   etapes: EtapeDemande[];
-  /** Étape en cours (libellé), null quand c'est fini. */
+  /** Current step (label), null when it is finished. */
   etapeLibelle: string | null;
   erreur: string | null;
-  /** Le rendu créé (étape « rendu » atteinte) : la page peut accuser le lancement. */
+  /** The render created (`rendu` step reached): the page can acknowledge the launch. */
   numeroRendu: number | null;
   notes: string[];
-  /** « Itérer » : ce que l'agent a décidé de changer (avant → après), dès qu'il a répondu. */
+  /** « Itérer »: what the agent decided to change (before → after), as soon as it has answered. */
   decisions: DecisionsAffichees | null;
 };
 

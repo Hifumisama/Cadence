@@ -1,7 +1,7 @@
-/** Le texte d'un plan mis en forme de scénario pour la vue Lecture : des paragraphes d'action et des répliques. Pur, testé.
+/** A clip's text formatted as a screenplay for the Reading view: action paragraphs and lines of dialogue. Pure, tested.
  *
- * Une ligne `NOM : « texte »` est une réplique (le même motif que lib/clips/intent.ts et lib/h3ir/brief.ts) ; le reste, regroupé par paragraphes (une ligne vide
- * sépare deux paragraphes), est de l'action. Rien n'est réécrit : la mise en forme est de l'affichage, l'édition se fait toujours sur le texte brut. */
+ * A line `NOM : « texte »` is a line of dialogue (the same pattern as lib/clips/intent.ts and lib/h3ir/brief.ts); the rest, grouped by paragraphs (a blank line
+ * separates two paragraphs), is action. Nothing is rewritten: the formatting is display, editing always happens on the raw text. */
 
 export type BlocLecture = { type: "action"; texte: string } | { type: "replique"; perso: string; texte: string };
 

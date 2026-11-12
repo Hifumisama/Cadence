@@ -1,33 +1,30 @@
 import { DOMAINE_GENRE, PRIORITE_GENRE, type DomaineGpu, type GenreTache } from "../lib/renders/gpu";
 
-/** Ordre de prise des tâches du worker. Une seule carte graphique partagée entre
- * ComfyUI et le LLM local : le worker ne fait qu'une chose à la fois, il choisit
- * donc la prochaine à chaque tour.
+/** Order in which the worker takes tasks. A single graphics card shared between
+ * ComfyUI and the local LLM: the worker does only one thing at a time, so it chooses
+ * the next one at each turn.
  *
- * - **Une étape de demande d'abord** (2026-10-17) : la tâche qu'une demande en cours a posée (l'agent d'une itération, la
- *   réécriture de la fiche, le rendu) passe avant le travail de fond de même voie (lot de 20 prompts, 20 images d'un projet en
- *   création) : on a cliqué, on attend le résultat. Ce n'est pas de la préemption : rien n'est coupé, on choisit seulement entre
- *   deux tâches qui n'ont pas commencé.
- * - **Image avant LLM avant vidéo** : les tâches courtes d'abord. Pendant la
- *   journée (itérations), une image ne doit pas attendre derrière un plan H3 en
- *   file ; un appel LLM (1 à 3 min) passe avant une vidéo (1 min 30 à 4 min) ; la
- *   nuit, la file vidéo se vide (F04).
- * - **Même domaine à égalité de palier** : si deux genres partageaient un palier,
- *   celui du domaine GPU de la tâche précédente passerait d'abord (pas de
- *   déchargement/rechargement inutile). Avec l'ordre actuel chaque genre a son
- *   palier : ce critère ne tranche que des tâches de même genre, donc de même
- *   domaine — il est là pour le jour où l'on regroupe deux genres dans un palier.
- * - **FIFO à égalité** : à genre égal, la plus ancienne d'abord (puis `id`).
- * - **Sans préemption** : ce choix ne se fait qu'entre deux tâches. Une vidéo en
- *   cours n'est jamais coupée, et une tâche qui arrive pendant ce temps attend sa
- *   fin (jusqu'à 30 min pour une vidéo, voir DUREE_MAX_POLL_MS du worker). Pas de
- *   famine : seules des tâches NOUVELLES peuvent en dépasser une, jamais une plus
- *   ancienne d'un même genre ; une vidéo passe dès qu'il n'y a plus d'image ni
- *   d'appel LLM en attente. */
+ * - **A request step first** (2026-10-17): the task that an ongoing request has posed (an iteration's agent, the rewrite of the sheet, the render) goes before the background work of the same lane (batch of 20 prompts, 20 images of a project in
+ *   creation): we clicked, we are waiting for the result. This is not preemption: nothing is cut, we only choose between
+ *   two tasks that have not started.
+ * - **Image before LLM before video**: the short tasks first. During the
+ *   day (iterations), an image must not wait behind an H3 clip in the
+ *   queue; an LLM call (1 to 3 min) goes before a video (1 min 30 to 4 min); at night, the
+ *   video queue empties (F04).
+ * - **Same domain on a tie of tier**: if two kinds shared a tier,
+ *   the one of the previous task's GPU domain would go first (no useless unload/reload).
+ *   With the current order each kind has its own tier: this criterion only decides between tasks of the same kind, hence the same
+ *   domain — it is there for the day we group two kinds in one tier.
+ * - **FIFO on a tie**: for the same kind, the oldest first (then `id`).
+ * - **No preemption**: this choice is only made between two tasks. A video in
+ *   progress is never cut, and a task that arrives in the meantime waits for its end
+ *   (up to 30 min for a video, see DUREE_MAX_POLL_MS of the worker). No starvation:
+ *   only NEW tasks can overtake one, never an older one of the same kind; a video goes as soon as there is no more image or
+ *   LLM call waiting. */
 
 export type { DomaineGpu,  };
 
-export type TacheEnAttente = { genre: GenreTache; id: number; createdAt: Date; /** Étape d'une demande en cours (itération) : passe avant le travail de fond. */ demande?: boolean };
+export type TacheEnAttente = { genre: GenreTache; id: number; createdAt: Date; /** Step of an ongoing request (iteration): goes before the background work. */ demande?: boolean };
 
 function comparerTaches(a: TacheEnAttente, b: TacheEnAttente, precedent: DomaineGpu | null = null): number {
   const collant = (t: TacheEnAttente) => (precedent != null && DOMAINE_GENRE[t.genre] === precedent ? 0 : 1);
@@ -42,8 +39,8 @@ function comparerTaches(a: TacheEnAttente, b: TacheEnAttente, precedent: Domaine
   );
 }
 
-/** La prochaine tâche à traiter parmi celles en attente, ou null s'il n'y en a pas.
- * `precedent` = domaine GPU de la tâche qui vient de finir (null = inconnu). */
+/** The next task to process among those waiting, or null if there is none.
+ * `precedent` = GPU domain of the task that has just finished (null = unknown). */
 export function choisirProchaineTache(enAttente: TacheEnAttente[], precedent: DomaineGpu | null = null): TacheEnAttente | null {
   if (enAttente.length === 0) return null;
   return [...enAttente].sort((a, b) => comparerTaches(a, b, precedent))[0] ?? null;

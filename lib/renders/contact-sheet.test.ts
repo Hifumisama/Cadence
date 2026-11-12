@@ -52,7 +52,7 @@ test("arguments ffmpeg : -ss avant -i, largeur, JPEG sur stdout", () => {
   assert.equal(a.at(-1), "pipe:1");
 });
 
-/** Faux ffprobe/ffmpeg : durée fixée, un « JPEG » factice par instant. */
+/** Fake ffprobe/ffmpeg: fixed duration, a fake « JPEG » per instant. */
 function faux(duree: string): { executer: Executeur; appels: { binaire: string; args: string[] }[] } {
   const appels: { binaire: string; args: string[] }[] = [];
   return {
@@ -109,7 +109,7 @@ test("contenuPlanche : intitulé, puis « Vignette à N s » + image JPEG en dat
   assert.deepEqual(c[4], { type: "image_url", image_url: { url: "data:image/jpeg;base64,REVG" } });
 });
 
-// Vrai ffmpeg : seulement s'il est installé (sinon le test est sauté, pas raté).
+// Real ffmpeg: only if it is installed (otherwise the test is skipped, not failed).
 const ffmpegPresent = (() => {
   try {
     execFileSync(binaires().ffmpeg, ["-version"], { stdio: "ignore", windowsHide: true });

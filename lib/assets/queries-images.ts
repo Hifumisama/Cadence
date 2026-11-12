@@ -6,8 +6,8 @@ import { etatImages, type EtatImages } from "./project-images";
 import { PLAFOND_LOT_IMAGES, type AssetPourLot } from "./generation-batch";
 import { assetsEnFile, nbImagesEnAttente } from "../tasks/queries-tasks";
 
-/** L'état des images de référence d'un projet, lu en base (règles dans lib/assets/project-images.ts). Sert la page de l'installateur, le
- * bandeau « Prochaine étape », le registre d'assets et le sondage de /api/images/<projectId>. */
+/** The state of a project's reference images, read from the database (rules in lib/assets/project-images.ts). Serves the installer page, the
+ * « Prochaine étape » banner, the asset registry and the poll of /api/images/<projectId>. */
 export async function lireEtatImages(projectId: number): Promise<EtatImages> {
   const [lignes, enFile, nbEnAttente] = await Promise.all([
     db

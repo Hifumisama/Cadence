@@ -9,13 +9,12 @@ import { verifierPortee, type ScopeDemandee } from "./scope";
 import type { Avertissement, CibleType, EcrasementAConfirmer, Operation, Position, ResultatApplication } from "./types";
 import type { Tx } from "../clips/clip-order";
 
-/** Couche base des propositions : enrichir les changements bruts avec l'état courant, les
- * enregistrer (cochage par défaut, verrou de portée, refus explicites), puis appliquer la
- * sélection EN UNE transaction. Voir docs/CONCEPTION_AGENTS.md §14. */
+/** Database layer of the proposals: enrich the raw changes with the current state, record
+ * them (default ticking, scope lock, explicit refusals), then apply the selection IN ONE transaction. See docs/CONCEPTION_AGENTS.md §14. */
 
 type DbOuTx = typeof db | Tx;
 
-/** Phrase d'impact d'une proposition (affichée avant l'application). */
+/** Impact sentence of a proposal (displayed before application). */
 export function resumeAutomatique(lignes: { operation: Operation; cibleType: CibleType; refuseRaison: string | null }[]): string {
   const utiles = lignes.filter((l) => !l.refuseRaison);
   if (lignes.length === 0) return "Aucun changement proposé.";
@@ -29,17 +28,17 @@ export function resumeAutomatique(lignes: { operation: Operation; cibleType: Cib
   return `${lignes.length} changement${lignes.length > 1 ? "s" : ""} proposé${lignes.length > 1 ? "s" : ""} : ${morceaux.join(", ")}.`;
 }
 
-/** `sousTache` : une sous-tâche d'un LOT n'écrit et ne remplace que SES lignes (les autres
- * sous-tâches ne bougent pas), à partir de `baseOrdre` ; le statut de la proposition n'est alors pas
- * touché (c'est `finaliserLot` qui le décide quand toutes les sous-tâches sont closes). */
+/** `sousTache`: a subtask of a BATCH writes and replaces only ITS rows (the other
+ * subtasks do not move), starting from `baseOrdre`; the proposal's status is then not
+ * touched (it is `finaliserLot` that decides it when all subtasks are closed). */
 export type OptionsEnregistrement = { sousTache?: string; baseOrdre?: number };
 
-/** Un changement enrichi par son applicateur (état courant, écrasement, avertissements, refus), prêt à être enregistré. */
+/** A change enriched by its applier (current state, overwrite, warnings, refusal), ready to be recorded. */
 type ChangementEnrichi = Omit<typeof propositionChangements.$inferInsert, "propositionId" | "ordre" | "sousTache">;
 
-/** Enrichit les changements bruts (état courant, écrasements, contrôles), applique le verrou de portée et calcule le cochage par
- * défaut. LECTURE SEULE : n'écrit rien. Sert à `enregistrerChangements` et à la révision d'épisode (les constats d'une décision).
- * `clesExistantes` : les clés de créations déjà proposées ailleurs (les autres sous-tâches d'un lot). */
+/** Enriches the raw changes (current state, overwrites, checks), applies the scope lock and computes the default ticking. READ ONLY: writes nothing. Used by
+ * `enregistrerChangements` and by the episode review (the findings of a decision).
+ * `clesExistantes`: the keys of creations already proposed elsewhere (the other subtasks of a batch). */
 async function enrichirChangements(
   tx: DbOuTx,
   projectId: number,
@@ -72,7 +71,7 @@ async function enrichirChangements(
         }
       }
     }
-    // Un enfant dont le parent proposé est refusé l'est aussi : il n'aurait nulle part où naître.
+    // A child whose proposed parent is refused is refused too: it would have nowhere to be born.
     if (!c.refuseRaison && clesParent(c.apres).some((cle) => refusees.has(cle))) {
       c.refuseRaison = "Le parent proposé par la même proposition est refusé : ce changement n'aurait nulle part où s'appliquer.";
     }
@@ -99,8 +98,8 @@ async function enrichirChangements(
   return lignes;
 }
 
-/** Enrichit les changements bruts (voir `enrichirChangements`) et les ENREGISTRE ; la proposition passe `prete`.
- * Remplace d'éventuelles lignes existantes (affinage / régénération). */
+/** Enriches the raw changes (see `enrichirChangements`) and RECORDS them; the proposal becomes `prete`.
+ * Replaces any existing rows (refinement / regeneration). */
 export async function enregistrerChangements(
   tx: DbOuTx,
   propositionId: number,
@@ -111,8 +110,8 @@ export async function enregistrerChangements(
 ): Promise<void> {
   const clesExistantes: string[] = [];
   if (options.sousTache) {
-    // Lot : les créations déjà proposées par les AUTRES sous-tâches font partie de la proposition (un asset
-    // manquant d'un plan peut dériver d'un asset dont un autre plan du lot propose la création).
+    // Batch: the creations already proposed by the OTHER subtasks are part of the proposal (a missing asset
+    // of a clip may derive from an asset whose creation another clip of the batch proposes).
     const autres = await tx
       .select({ cle: propositionChangements.cle, sousTache: propositionChangements.sousTache, refuse: propositionChangements.refuseRaison })
       .from(propositionChangements)
@@ -170,15 +169,15 @@ function ligne(r: typeof propositionChangements.$inferSelect): LigneChangement {
   };
 }
 
-/** Applique la sélection d'une proposition en UNE transaction (tout ou rien). Exige la
- * confirmation explicite d'un écrasement ; refuse hors portée ; refuse un changement dont le
- * parent proposé n'est pas retenu. `appliquee` si tous les changements l'ont été, `partielle`
- * si certains ont été écartés, bloqués ou refusés. */
+/** Applies a proposal's selection in ONE transaction (all or nothing). Requires the
+ * explicit confirmation of an overwrite; refuses out of scope; refuses a change whose
+ * proposed parent is not kept. `appliquee` if all the changes were, `partielle`
+ * if some were dropped, blocked or refused. */
 export async function appliquerProposition(
   propositionId: number,
   options: {
     confirmeEcrasement?: boolean;
-    /** Exécuté dans la MÊME transaction, après les écritures : s'il échoue, rien n'est appliqué (« Itérer » : application + création de l'essai). */
+    /** Runs in the SAME transaction, after the writes: if it fails, nothing is applied ("Itérer": application + creation of the attempt). */
     dansTransaction?: (tx: Tx) => Promise<void>;
   } = {},
 ): Promise<ResultatApplication> {

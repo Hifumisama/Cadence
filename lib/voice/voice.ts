@@ -1,6 +1,6 @@
-/** Master de voix d'un personnage (chantier voix/master, 2026-10-14) : le prompt de la vidéo de test H3 dont on garde la voix. Le casting
- * vocal (assistant de voix, fiches, prises, doublage) a été retiré (docs/FRICTIONS.md, 2026-10-14). Pur, sans accès disque ni base :
- * importable côté client comme côté serveur. */
+/** Voice master of a character (voice/master workstream, 2026-10-14): the prompt of the H3 test video whose voice we keep. The voice casting
+ * (voice assistant, sheets, takes, dubbing) was removed (docs/FRICTIONS.md, 2026-10-14). Pure, with no disk or database access:
+ * importable client-side as well as server-side. */
 
 const LANGUES_BALISE: Record<string, string> = {
   french: "Français",
@@ -11,20 +11,20 @@ const LANGUES_BALISE: Record<string, string> = {
   portuguese: "Português",
 };
 
-/** Langue de la fiche voix (« French ») -> libellé de la balise (`[Français]`,). Une langue inconnue est reprise telle quelle. */
+/** Voice sheet language (« French ») -> label of the tag (`[Français]`,). An unknown language is kept as it is. */
 export function langueBalise(langue: string | null | undefined): string {
   const l = (langue ?? "").trim();
   return LANGUES_BALISE[l.toLowerCase()] ?? (l || "Français");
 }
 
-/** Texte de référence anglais de repli (rédacteur de la réplique du test, `lib/voice/listening-line.ts`) quand le modèle ne répond pas. */
+/** English fallback reference text (writer of the test line, `lib/voice/listening-line.ts`) when the model does not respond. */
 export const TEXTE_REFERENCE_DEFAUT =
   "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !";
 
-/** Durée de la vidéo de test quand rien ne la fixe : une réplique face caméra tient en huit secondes. */
+/** Duration of the test video when nothing sets it: a line facing the camera lasts eight seconds. */
 const TEST_VIDEO_DUREE_DEFAUT = 8;
 
-/** « 00:08.000 » : une durée en secondes dans la forme des plages du prompt H3. */
+/** « 00:08.000 »: a duration in seconds in the form of the H3 prompt's ranges. */
 export function formaterPlageH3(secondes: number): string {
   const ms = Math.round(secondes * 1000);
   const m = Math.floor(ms / 60000);
@@ -32,16 +32,16 @@ export function formaterPlageH3(secondes: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(ms % 1000).padStart(3, "0")}`;
 }
 
-/** Prompt vidéo du master de voix (gabarit T1 de FICHE_DE_PLAN_UTILITAIRES.md) : plan fixe, une seule réplique face caméra, aucun geste —
- * la voix porte seule. AUCUN audio n'est fourni : le modèle invente la voix d'après le prompt (le timbre voulu, s'il y en a un, et la
- * réplique). Le texte va dans `<d>` tel quel (verbatim), le reste du corps est en anglais. Sans image de personnage (voix off), le sujet
- * est « un personnage face caméra ». La balise de langue suit celle des dialogues du projet (« French » → [Français]). */
+/** Video prompt of the voice master (T1 template of FICHE_DE_PLAN_UTILITAIRES.md): fixed shot, a single line facing the camera, no gesture —
+ * the voice carries alone. NO audio is provided: the model invents the voice from the prompt (the wanted timbre, if there is one, and the
+ * line). The text goes into `<d>` as it is (verbatim), the rest of the body is in English. Without a character image (voice-over), the subject
+ * is « un personnage face caméra ». The language tag follows that of the project's dialogues (« French » → [Français]). */
 export function promptMasterVoix(v: {
   texte: string;
   personnage: { code: string; description: string | null } | null;
   dureeSecondes?: number;
   langue?: string | null;
-  /** Le timbre voulu, en texte libre : sans lui, le modèle choisit la voix. */
+  /** The wanted timbre, as free text: without it, the model chooses the voice. */
   voix?: string | null;
 }): string {
   const plage = formaterPlageH3(v.dureeSecondes ?? TEST_VIDEO_DUREE_DEFAUT);

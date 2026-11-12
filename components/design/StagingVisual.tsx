@@ -1,9 +1,9 @@
 import { apercuDe, type Picto } from "@/lib/h3ir/preview-style";
 
-/** Un pictogramme par geste de caméra ou ambiance (viewBox 160 x 90, traits seuls : la couleur vient du CSS, `.cn-picto`). Dessins volontairement simples, sans IA. */
+/** One pictogram per camera gesture or ambience (viewBox 160 x 90, strokes only: the colour comes from the CSS, `.cn-picto`). Deliberately simple drawings, without AI. */
 const DESSINS: Record<Picto, React.ReactNode> = {
   aucun: <rect x="30" y="18" width="100" height="54" strokeDasharray="5 5" />,
-  // Des marches : la pose saute d'un cran à l'autre (stop-motion).
+  // Steps: the pose jumps from one notch to the next (stop-motion).
   pas: (
     <>
       <path d="M20 66h28v-14h28v-14h28v-14h28" />
@@ -26,7 +26,7 @@ const DESSINS: Record<Picto, React.ReactNode> = {
       <circle cx="132" cy="38" r="4" />
     </>
   ),
-  // Un plan large fixe : un cadre et un trépied, deux silhouettes.
+  // A wide fixed shot: a frame and a tripod, two silhouettes.
   fixe: (
     <>
       <rect x="28" y="12" width="104" height="52" />
@@ -35,7 +35,7 @@ const DESSINS: Record<Picto, React.ReactNode> = {
       <circle cx="98" cy="40" r="5" />
     </>
   ),
-  // Un sujet poussé au bord d'un grand cadre sombre.
+  // A subject pushed to the edge of a large dark frame.
   ombre: (
     <>
       <rect x="22" y="12" width="116" height="66" />
@@ -58,7 +58,7 @@ const DESSINS: Record<Picto, React.ReactNode> = {
       <circle cx="80" cy="45" r="5" />
     </>
   ),
-  // Une minuscule silhouette dans un très grand espace.
+  // A tiny silhouette in a very large space.
   echelle: (
     <>
       <path d="M14 70h132" />
@@ -87,13 +87,13 @@ const DESSINS: Record<Picto, React.ReactNode> = {
   ),
 };
 
-/** Le visuel d'une carte de style : l'image fixe de la démo quand elle existe (`affiche`), sinon le pictogramme du choix. Toujours décoratif (le titre dit déjà le nom). */
+/** The visual of a style card: the demo's fixed image when it exists (`affiche`), otherwise the choice's pictogram. Always decorative (the title already gives the name). */
 export function VisuelMise({ id, affiche }: { id: string; affiche?: string | null }) {
   const a = apercuDe(id);
   return (
     <span className={`cn-mise-visuel${affiche ? " has-image" : ""}`} aria-hidden="true">
       {affiche ? (
-        // eslint-disable-next-line @next/next/no-img-element -- affiche servie par /api/media, déjà réduite (768 px)
+        // eslint-disable-next-line @next/next/no-img-element -- poster served by /api/media, already reduced (768 px)
         <img src={affiche} alt="" loading="lazy" decoding="async" />
       ) : (
         <svg className="cn-picto" viewBox="0 0 160 90" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" focusable="false">
@@ -104,7 +104,7 @@ export function VisuelMise({ id, affiche }: { id: string; affiche?: string | nul
   );
 }
 
-/** Les trois mots-clés d'un choix, en petites pastilles (texte seul : la couleur n'est jamais le seul signal). Des <i> dans un <span> : le contenu d'un <button> doit rester du texte en ligne. */
+/** The three keywords of a choice, as small pills (text only: colour is never the only signal). <i> elements inside a <span>: the content of a <button> must stay inline text. */
 export function MotsMise({ id }: { id: string }) {
   const a = apercuDe(id);
   if (!a) return null;

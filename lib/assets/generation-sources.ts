@@ -6,17 +6,17 @@ import { assetGenerationSources, assetGenerations } from "../../db/schema";
 import { videoDeMaster } from "./asset-generation";
 import { cheminGenerationMedia, cheminSourceImportMedia } from "../media";
 
-// Nettoyage des générations d'images et de leurs fichiers, partagé entre l'app
-// (supprimer un candidat) et le worker (purge des plus anciens). Les sources
-// importées à la volée sont jetables : elles partent avec la dernière génération
-// qui les utilise, jamais avant (« Régénérer » peut réutiliser les mêmes).
+// Cleanup of image generations and their files, shared between the app
+// (deleting a candidate) and the worker (purge of the oldest). Sources
+// imported on the fly are disposable: they leave with the last generation
+// that uses them, never before (« Régénérer » can reuse the same ones).
 
-/** Un import déposé mais jamais utilisé (popup fermée avant de lancer) est
- * balayé après ce délai. */
+/** An import dropped but never used (popup closed before launching) is
+ * swept after this delay. */
 const AGE_MAX_IMPORT_ORPHELIN_MS = 24 * 3_600_000;
 
-/** Supprime une génération : son candidat, puis sa ligne (les lignes de sources
- * partent en cascade), puis les imports qu'aucune autre génération n'utilise. */
+/** Deletes a generation: its candidate, then its row (the source rows
+ * go in cascade), then the imports that no other generation uses. */
 export async function supprimerGenerationEtFichiers(
   gen: { id: number; assetId: number; fichier: string | null },
   mediaRoot: string,
@@ -27,7 +27,7 @@ export async function supprimerGenerationEtFichiers(
     .where(and(eq(assetGenerationSources.generationId, gen.id), eq(assetGenerationSources.origine, "import")));
 
   if (gen.fichier) await unlink(join(mediaRoot, cheminGenerationMedia(gen.assetId, gen.fichier))).catch(() => undefined);
-  // Le master de voix garde sa vidéo de test à côté de l'audio (videoDeMaster) ; pour toute autre méthode, ce fichier n'existe pas.
+  // The voice master keeps its test video alongside the audio (videoDeMaster); for any other method, this file does not exist.
   if (gen.fichier) await unlink(join(mediaRoot, cheminGenerationMedia(gen.assetId, videoDeMaster(gen.fichier)))).catch(() => undefined);
   await db.delete(assetGenerations).where(eq(assetGenerations.id, gen.id));
 
@@ -44,8 +44,8 @@ export async function supprimerGenerationEtFichiers(
   }
 }
 
-/** Balaie les imports d'un asset que plus aucune génération ne référence et qui
- * traînent depuis plus d'un jour (déposés puis jamais utilisés). */
+/** Sweeps the imports of an asset that no generation references any more and that
+ * have been lying around for more than a day (dropped then never used). */
 export async function balayerImportsOrphelins(assetId: number, mediaRoot: string): Promise<void> {
   const dossier = join(mediaRoot, "generations", String(assetId), "sources");
   let noms: string[];

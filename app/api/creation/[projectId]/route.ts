@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { lireVueCreation } from "@/lib/agents/creation-view";
 
-// Sondé par la page de l'installateur : jamais mis en cache.
+// Polled by the installer page: never cached.
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ projectId: string }> }) {

@@ -4,22 +4,22 @@ import type { Db } from "../agents/appliers/common";
 import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "../clips/clip-references";
 import { MAX_REFS } from "../clips/clip-checks";
 
-/** Écrit les IMAGES de référence d'un plan (`plan_refs`, type `picture`, emplacements 1..n dans l'ordre donné), choisies avant la fiche (inventaire
- * des assets, 2026-11-09) ou plus tard (petit skill `references-plan`). Ce n'est PAS l'écriture d'une fiche (lib/agents/appliers/sheet.ts) :
- * - le statut du plan ne bouge pas (un brouillon reste brouillon : la fiche, elle, le passe « en attente ») ; la table `plans` n'est jamais écrite ;
- * - les références déjà posées (à la main, ou par une fiche) ne sont jamais écrasées : rien n'est écrit si le plan a déjà une image de référence,
- *   sauf `remplacer: true` (les anciennes sont alors retirées proprement, prompt compris) ; les sons et vidéos du plan ne sont pas touchés ;
- * - rôle et rétention par défaut, comme une référence posée à la main (`roleDeLaRef` : « Type, Nom ») ; un effet (VFX) est en rétention faible
- *   (`weak_reference` : sa matière et son mouvement, jamais montré tel quel ; rôle `style` côté Open H3 IR) ;
- * - si le plan a déjà une fiche, chaque référence y est déclarée (`subject_definitions`, `retention_analysis`), comme un ajout à la main.
- * Les codes inconnus du projet, les doublons et ce qui dépasse 6 images sont ignorés, et rendus dans `ignores`.
- * À appeler dans une transaction (tout tombe ensemble). La décision est pure (`planifierReferences`, testée). */
+/** Writes a clip's reference IMAGES (`plan_refs`, type `picture`, slots 1..n in the given order), chosen before the sheet (asset inventory,
+ * 2026-11-09) or later (small `references-plan` skill). This is NOT the writing of a sheet (lib/agents/appliers/sheet.ts):
+ * - the clip's status does not move (a draft stays a draft: the sheet, for its part, moves it to « en attente »); the `plans` table is never written;
+ * - the references already set (by hand, or by a sheet) are never overwritten: nothing is written if the clip already has a reference image,
+ *   unless `remplacer: true` (the old ones are then cleanly removed, prompt included); the clip's sounds and videos are not touched;
+ * - role and retention by default, like a reference set by hand (`roleDeLaRef`: « Type, Nom »); an effect (VFX) is at weak retention
+ *   (`weak_reference`: its matter and movement, never shown as is; role `style` on the Open H3 IR side);
+ * - if the clip already has a sheet, each reference is declared there (`subject_definitions`, `retention_analysis`), like a manual addition.
+ * Unknown codes of the project, duplicates and whatever exceeds 6 images are ignored, and returned in `ignores`.
+ * To be called in a transaction (everything falls together). The decision is pure (`planifierReferences`, tested). */
 
 export type ReferenceAEcrire = string | { code: string; role?: string | null };
 type RaisonSansEcriture = "plan-introuvable" | "deja-des-references" | "aucune-reference";
 export type ResultatEcritureReferences = { ok: true; ecrites: number; ignores: string[] } | { ok: false; raison: RaisonSansEcriture; ignores: string[] };
 
-/** Les types d'asset qui peuvent être une image de référence. */
+/** The asset types that can be a reference image. */
 const TYPES_IMAGE = new Set(["personnage", "decor", "prop", "vfx", "keyframe", "oth"]);
 export const RETENTION_VFX = "weak_reference";
 
@@ -28,7 +28,7 @@ export type PlanReferences =
   | { ok: true; lignes: LigneReference[]; ignores: string[]; retirerExistantes: boolean }
   | { ok: false; raison: RaisonSansEcriture; ignores: string[] };
 
-/** Ce qu'il faut écrire : les références voulues (dans l'ordre), les assets du projet par code, le nombre d'images déjà posées sur le plan. Pur. */
+/** What must be written: the wanted references (in order), the project's assets by code, the number of images already set on the clip. Pure. */
 export function planifierReferences(
   voulues: ReferenceAEcrire[],
   assetsParCode: Map<string, { id: number; type: string }>,
@@ -61,7 +61,7 @@ export async function ecrireReferencesPlan(db: Db, planId: number, references: R
   const existantes = await db.select({ id: planRefs.id }).from(planRefs).where(and(eq(planRefs.planId, planId), eq(planRefs.type, "picture"))).orderBy(asc(planRefs.slot));
   const p = planifierReferences(references, new Map(lus.map((a) => [a.code, a])), existantes.length, options);
   if (!p.ok) return p;
-  // Du dernier au premier : chaque retrait renumérote les suivantes et met le prompt à jour.
+  // From last to first: each removal renumbers the following ones and updates the prompt.
   if (p.retirerExistantes) for (const e of [...existantes].reverse()) await retirerRefDuPlan(db, e.id);
   for (const l of p.lignes) {
     const defaut = await roleDeLaRef(db, "picture", l.assetId);

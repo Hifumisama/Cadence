@@ -9,7 +9,7 @@ import { planifierInsertion } from "./ranks";
 import { squeletteDepuisBrief } from "./skeleton";
 import type { BriefContenu } from "./types";
 
-// --- verrou de portée -------------------------------------------------------
+// --- scope lock -------------------------------------------------------------
 
 const c = (o: Partial<CibleChangement> & Pick<CibleChangement, "type" | "operation">): CibleChangement => o;
 
@@ -45,7 +45,7 @@ test("le brief est autorisé à toute portée ; un enfant d'une création de la 
   assert.equal(verifierPortee({ type: "episode", cibleId: 1 }, c({ type: "plan", operation: "creer", parentNouveau: true })), null);
 });
 
-// --- cochage ----------------------------------------------------------------
+// --- ticking ----------------------------------------------------------------
 
 const base = { operation: "creer" as const, avertissements: [], ecrase: null, refuseRaison: null };
 
@@ -65,7 +65,7 @@ test("raisonNonCochable : refus d'office et contrôle bloquant", () => {
   assert.match(raisonNonCochable({ avertissements: [{ type: "bloque_controle", texte: "x" }], refuseRaison: null }) ?? "", /contrôle/);
 });
 
-// --- rangs d'insertion ------------------------------------------------------
+// --- insertion ranks -------------------------------------------------------
 
 const plansEp = [
   { uuid: "a", titre: "A" },
@@ -122,7 +122,7 @@ test("statuts du brief : déclarés, sinon déduits du contenu ; une correction 
   assert.ok(sections.every((s) => ["fourni", "deduit", "a_valider"].includes(s.statut)));
 });
 
-// --- squelette --------------------------------------------------------------
+// --- skeleton ---------------------------------------------------------------
 
 const etatVide = { episodes: [], briefValide: null };
 
@@ -136,7 +136,7 @@ test("squelette d'un projet vide : brief (qui porte la clause de style), un épi
   assert.match(ep[1]!.libelle, /Épisode 2/);
 });
 
-// --- conversion des sorties de skills ---------------------------------------
+// --- conversion of skill outputs --------------------------------------------
 
 test("prompt-asset → un changement d'asset : prompt, méthode si elle diffère, remarques en info", () => {
   const sortie = { methode: "edition" as const, raisonMethode: "Même sujet, autre cadrage.", promptGeneration: "Crop tighter.", remarques: [{ type: "dependance-parent", message: "Le parent n'a pas d'image." }] };
@@ -221,7 +221,7 @@ test("squelette d'un film : l'épisode vide est réutilisé, pas doublé", () =>
   assert.equal(eps.length, 1);
   assert.equal(eps[0]!.operation, "modifier");
   assert.equal(eps[0]!.cibleRef, "5");
-  // Deux épisodes au brief : le premier réutilise l'épisode vide, le second est créé.
+  // Two episodes in the brief: the first reuses the empty episode, the second is created.
   const deux = squeletteDepuisBrief(brief, {}, etat).filter((x) => x.cibleType === "episode");
   assert.deepEqual(deux.map((x) => x.operation), ["modifier", "creer"]);
   assert.match(deux[1]!.libelle, /Épisode 2/);
@@ -230,7 +230,7 @@ test("squelette d'un film : l'épisode vide est réutilisé, pas doublé", () =>
 test("prompt-affiche : une modification de l'asset d'affiche, avec la ligne de titre du réglage actuel", async () => {
   const { depuisPromptAffiche } = await import("./conversion");
   const sortie = { methode: "edition" as const, sources: ["CHAR_maya"], promptGeneration: "Place image 1 on a rooftop at dusk.\nNo text, no lettering, no logo, no watermark.", remarques: ["Résumé court."] };
-  // titre demandé dans l'image : la ligne « sans texte » est remplacée
+  // title requested in the image: the "no text" line is replaced
   const [avecTitre] = depuisPromptAffiche(sortie, { id: 7, promptGeneration: 'A.\nTitle lettering: "Rubis", written once.', methodeGeneration: null }, { titre: "Rubis", imagePersonnageDisponible: true });
   assert.equal(avecTitre!.cibleType, "asset");
   assert.equal(avecTitre!.operation, "modifier");
@@ -240,12 +240,12 @@ test("prompt-affiche : une modification de l'asset d'affiche, avec la ligne de t
   assert.doesNotMatch(apres.promptGeneration, /No text, no lettering/);
   assert.equal(apres.methodeGeneration, "edition");
   assert.ok(avecTitre!.avertissements!.some((a) => /canevas vide 2:3/.test(a.texte)));
-  // sans image de personnage au moment de la demande : jamais d'édition, même recommandée
+  // no character image at request time: never an edit, even when recommended
   const [sansImage] = depuisPromptAffiche(sortie, { id: 7, promptGeneration: "A.", methodeGeneration: "generation" }, { titre: "Rubis", imagePersonnageDisponible: false });
   const a2 = sansImage!.apres as { promptGeneration: string; methodeGeneration?: string };
   assert.equal(a2.methodeGeneration, undefined);
   assert.match(a2.promptGeneration, /No text, no lettering/);
-  // remarques harmonisées avec prompt-asset : {type, message}
+  // remarks aligned with prompt-asset: {type, message}
   const [typees] = depuisPromptAffiche({ ...sortie, remarques: [{ type: "description-vague", message: "Résumé court." }] }, { id: 7, promptGeneration: "A.", methodeGeneration: null }, { titre: "Rubis", imagePersonnageDisponible: false });
   assert.ok(typees!.avertissements!.some((a) => a.texte === "description-vague : Résumé court."));
 });

@@ -35,7 +35,7 @@ test("références : trois, neutres (lumière douce et uniforme), rôles déclar
     assert.ok(a.description.length > 20);
   }
   assert.deepEqual(ASSETS_DEMOS.map((a) => a.role), ["subject", "subject", "environment"]);
-  // Les noms des locuteurs de la description se relient aux libellés du registre (même règle que lib/h3ir/brief.ts).
+  // The speakers' names in the description link to the registry labels (same rule as lib/h3ir/brief.ts).
   const slugs = new Set(ASSETS_DEMOS.flatMap((a) => [slugifyCode(libelleAsset(a)), slugifyCode(a.code.replace(/^[A-Z]+_/, ""))]));
   assert.ok(slugs.has(slugifyCode("L'homme")) && slugs.has(slugifyCode("La femme")));
 });

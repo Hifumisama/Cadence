@@ -1,4 +1,4 @@
-/** Limiteur de débit : renvoie true au plus une fois par `intervalleMs`. */
+/** Rate limiter: returns true at most once per `intervalleMs`. */
 export function limiteur(intervalleMs: number, maintenant: () => number = Date.now) {
   let dernier = -Infinity;
   return (): boolean => {

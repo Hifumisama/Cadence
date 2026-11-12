@@ -6,25 +6,25 @@ import { TYPES_MANQUANTS, suffixeDeCode } from "./conversion";
 import { cleNouvelAsset } from "./sheets";
 import type { Avertissement } from "./types";
 
-/** Sortie du skill `inventaire-assets` : les assets que les plans réclament et que le registre n'a pas, et les références
- * de chaque plan (2026-11-09 : un seul appel donne aussi les images de référence de chaque plan, avant les fiches). */
+/** Output of the `inventaire-assets` skill: the assets the clips call for that the registry does not have, and the references
+ * of each clip (2026-11-09: a single call also gives each clip's reference images, before the sheets). */
 export type SortieInventaire = {
-  /** `element` : le nom de l'élément du brief (`brief.elements[].nom`) dont l'asset est tiré, recopié tel quel ; null sinon. */
+  /** `element`: the name of the brief's element (`brief.elements[].nom`) the asset is derived from, copied as is; null otherwise. */
   assets: { code: string; type: string; parent?: string | null; element?: string | null; description: string; plans: string[]; raison: string }[];
-  /** `plan` : la poignée du plan dans l'entrée (« P07 », `episodes[].scenes[].plans[].id`) ; `codes` : ses références, dans l'ordre voulu. */
+  /** `plan`: the clip's handle in the input ("P07", `episodes[].scenes[].plans[].id`); `codes`: its references, in the wanted order. */
   references?: { plan: string; codes: string[] }[];
   notes: string;
 };
 
-/** Un nom d'élément comparable (casse, accents, espaces). */
+/** A comparable element name (case, accents, spaces). */
 const nomComparable = (s: string): string => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 export type AssetRegistre = { code: string; type: string; description?: string };
 
 const MOTS_VIDES = new Set(["le", "la", "les", "un", "une", "de", "du", "des", "d", "l", "et", "the", "of", "a", "an"]);
 
-/** Les mots significatifs d'un suffixe de code (« lampe_huile » → lampe, huile) : sert à repérer un asset
- * qui ressemble à un asset existant. */
+/** The meaningful words of a code suffix ("lampe_huile" → lampe, huile): used to spot an asset
+ * that resembles an existing asset. */
 function mots(suffixe: string): string[] {
   return suffixe
     .toLowerCase()
@@ -34,8 +34,8 @@ function mots(suffixe: string): string[] {
     .filter((m) => m.length > 1 && !MOTS_VIDES.has(m));
 }
 
-/** L'asset du registre auquel un code proposé ressemble (même type, mots communs), ou null. Ce n'est qu'un
- * signal pour la revue : le rapprochement sémantique (lanterne / lampe) reste celui du modèle, qui voit le registre. */
+/** The registry asset a proposed code resembles (same type, common words), or null. It is only a
+ * signal for the review: the semantic matching (lanterne / lampe) remains the model's, which sees the registry. */
 export function ressemblant(type: string, suffixe: string, registre: AssetRegistre[]): string | null {
   const a = new Set(mots(suffixe));
   if (a.size === 0) return null;
@@ -49,22 +49,22 @@ export function ressemblant(type: string, suffixe: string, registre: AssetRegist
   return null;
 }
 
-/** Les codes de `codes` cités tels quels dans un texte (hors `sauf`, le code de l'asset lui-même). */
+/** The codes of `codes` cited as they are in a text (except `sauf`, the asset's own code). */
 function codesCites(texte: string, codes: Iterable<string>, sauf: string): string[] {
   const t = texte.toLowerCase();
   return [...codes].filter((c) => {
     if (c === sauf) return false;
-    // Le code doit être un mot entier : ni précédé ni suivi d'un caractère de code (CHAR_iris ≠ CHAR_iris_blessee).
+    // The code must be a whole word: neither preceded nor followed by a code character (CHAR_iris ≠ CHAR_iris_blessee).
     const morceaux = t.split(c.toLowerCase());
     return morceaux.slice(0, -1).some((avant, i) => !/[a-z0-9_]$/.test(avant) && !/^[a-z0-9_]/.test(morceaux[i + 1]!));
   });
 }
 
-/** La sortie d'`inventaire-assets` → des changements « créer un asset » (sans prompt : il s'écrit ensuite,
- * un asset à la fois). Écarte ce qui existe déjà et les doublons de la sortie ; signale ce qui ressemble à un asset
- * existant sans le refuser. Le parent est un asset existant (`deriveDeCode`) ou créé ici (`deriveDeCle`) ; le
- * registre n'a qu'un niveau, l'application rattache toujours au master. Pur, testé.
- * `elements` : les effets et objets du brief (`brief.elements`, entretien du 2026-11-08). Un VFX n'est accepté que s'il en est tiré. */
+/** The `inventaire-assets` output → "create an asset" changes (without a prompt: it is written afterwards,
+ * one asset at a time). Drops what already exists and the output's duplicates; flags what resembles an existing
+ * asset without refusing it. The parent is an existing asset (`deriveDeCode`) or one created here (`deriveDeCle`); the
+ * registry has only one level, the application always attaches to the master. Pure, tested.
+ * `elements`: the brief's effects and props (`brief.elements`, interview of 2026-11-08). A VFX is accepted only if it is derived from one. */
 export function depuisInventaire(
   sortie: SortieInventaire,
   registre: AssetRegistre[],
@@ -72,7 +72,7 @@ export function depuisInventaire(
 ): ChangementBrut[] {
   const elementsDuBrief = new Map((options.elements ?? []).filter((e) => nomComparable(e.nom ?? "")).map((e) => [nomComparable(e.nom), e]));
   const existants = new Set(registre.map((a) => a.code));
-  // Inventaire découpé en groupes de scènes : ce que les AUTRES groupes de la même proposition créent déjà n'est pas recréé, et peut servir de parent.
+  // Inventory split into scene groups: what the OTHER groups of the same proposal already create is not recreated, and can serve as a parent.
   const proposes = new Set((options.proposes ?? []).map((a) => a.code).filter((c) => !existants.has(c)));
   const declares = (sortie.assets ?? []).map((m) => ({
     m,
@@ -88,10 +88,10 @@ export function depuisInventaire(
   ]);
   const sorties: ChangementBrut[] = [];
   for (const { m, suffixe, code } of declares) {
-    if (!code || existants.has(code) || proposes.has(code) || vus.has(code)) continue; // inutilisable, déjà au registre, ou déjà proposé
-    // Jamais de VFX DEVINÉ par l'inventaire (décision du 2026-11-02) : une image d'effet est suivie trop à la lettre (Open H3 IR la prend pour un sujet à
-    // préserver), l'effet se décrit dans le texte du plan. Exception (2026-11-08) : un effet que l'utilisateur a décrit à l'entretien (`brief.elements`,
-    // nature vfx) devient son asset ; le plan le reprend en `weak_reference` (lib/agents/conversion.ts). L'utilisateur peut toujours en créer un à la main.
+    if (!code || existants.has(code) || proposes.has(code) || vus.has(code)) continue; // unusable, already in the registry, or already proposed
+    // Never a GUESSED VFX from the inventory (decision of 2026-11-02): an effect image is followed too literally (Open H3 IR takes it for a subject to
+    // preserve), the effect is described in the clip's text. Exception (2026-11-08): an effect the user described in the interview (`brief.elements`,
+    // nature vfx) becomes its asset; the clip takes it up as a `weak_reference` (lib/agents/conversion.ts). The user can always create one by hand.
     const element = m.element?.trim() ? elementsDuBrief.get(nomComparable(m.element)) : undefined;
     if (m.type === "vfx" && element?.nature !== "vfx") continue;
     vus.add(code);
@@ -111,14 +111,14 @@ export function depuisInventaire(
     if (parent) {
       if (existants.has(parent)) apres.deriveDeCode = parent;
       else {
-        // Un parent proposé ici (ou par un autre groupe de la même proposition) : son code exact, ou le même nom avec un autre préfixe de type.
+        // A parent proposed here (or by another group of the same proposal): its exact code, or the same name with another type prefix.
         const crees = [...codesCrees, ...proposes].find((c) => c === parent || c.endsWith(`_${suffixeDeCode(parent)}`));
         if (crees && crees !== code) apres.deriveDeCle = cleNouvelAsset(crees);
         else avert.push({ type: "alerte_controle", texte: `Parent « ${parent} » introuvable (ni au registre, ni proposé ici) : l'asset est créé sans parent.` });
       }
     }
-    // Un état d'un sujet récurrent (personnage, créature, décor, prop) PART du sujet : le modèle l'oublie souvent dans `parent` alors
-    // qu'il cite le code du sujet dans sa description ou sa raison. Même type : le parent est posé ici (info) ; autre type : alerte.
+    // A state of a recurring subject (character, creature, set, prop) STARTS from the subject: the model often forgets it in `parent` while
+    // it cites the subject's code in its description or its reason. Same type: the parent is set here (info); other type: alert.
     if (!apres.deriveDeCode && !apres.deriveDeCle) {
       const cites = codesCites(`${m.description ?? ""} ${m.raison ?? ""}`, typeDeCode.keys(), code);
       const meme = cites.find((c) => typeDeCode.get(c) === m.type);
@@ -142,50 +142,50 @@ export function depuisInventaire(
       avertissements: avert,
     });
   }
-  // Un dérivé dont le parent est créé ici vient après lui.
+  // A derivative whose parent is created here comes after it.
   sorties.sort((a, b) => Number(!!(a.apres as Record<string, unknown>).deriveDeCle) - Number(!!(b.apres as Record<string, unknown>).deriveDeCle));
   return sorties;
 }
 
-/** Le code qu'aura l'asset proposé une fois créé (la convention du registre : préfixe du type + suffixe nettoyé), ou null s'il est inutilisable. */
+/** The code the proposed asset will have once created (the registry convention: type prefix + cleaned suffix), or null if it is unusable. */
 export function codeFinal(m: { code: string; type: string }): string | null {
   const suffixe = suffixeDeCode(m.code ?? "");
   return TYPES_MANQUANTS.has(m.type) && suffixe ? construireCode(m.type, suffixe) : null;
 }
 
-// --- références de chaque plan (2026-11-09) --------------------------------------------------------------------
+// --- references of each clip (2026-11-09) --------------------------------------------------------------------
 //
-// L'inventaire rend aussi, pour chaque plan, les assets à poser en images de référence : elles sont prêtes AVANT les fiches (relues avec les
-// intents) et aucun passage du modèle par plan n'est nécessaire pour les choisir. Le CODE contrôle et corrige ce que le modèle rend : codes connus
-// (registre ou créés par la même réponse), jamais de son, un seul visage par personnage, un seul décor, une keyframe seulement si l'intent la cite,
-// 6 images au plus. Écriture : lib/h3ir/references-write.ts, déclenchée par lib/agents/inventory-db.ts.
+// The inventory also returns, for each clip, the assets to place as reference images: they are ready BEFORE the sheets (reviewed with the
+// intents) and no per-clip pass by the model is needed to choose them. The CODE checks and corrects what the model returns: known codes
+// (registry or created by the same response), never a sound, one face per character, one set, a keyframe only if the intent cites it,
+// 6 images at most. Writing: lib/h3ir/references-write.ts, triggered by lib/agents/inventory-db.ts.
 
-/** Un asset que les références peuvent citer : au registre, ou créé par l'inventaire (`aCreer` : il n'existe pas encore en base). `parent` : le
- * sujet dont il est un état (un même personnage à un autre âge partage son visage avec lui). */
+/** An asset the references may cite: in the registry, or created by the inventory (`aCreer`: it does not exist in the database yet). `parent`: the
+ * subject it is a state of (the same character at another age shares its face with it). */
 export type AssetConnu = { code: string; type: string; parent?: string | null; aCreer?: boolean };
-/** Un plan de l'entrée : sa poignée (« P07 »), son uuid (gardé dans les options de la tâche, jamais montré au modèle) et son intention. */
+/** A clip of the input: its handle ("P07"), its uuid (kept in the task's options, never shown to the model) and its intent. */
 export type PlanInventaire = { id: string; uuid: string; intention?: string };
 export type ReferencesPlan = { id: string; uuid: string; codes: string[] };
-/** `erreur` : un défaut du contrat (code inconnu, plan oublié…), renvoyé une fois au modèle ; `alerte` : corrigé par le code, pour la revue. */
+/** `erreur`: a contract defect (unknown code, forgotten clip…), returned once to the model; `alerte`: corrected by the code, for the review. */
 export type ProblemeReferences = { plan: string | null; niveau: "erreur" | "alerte"; message: string };
 
-/** Les types d'asset qui peuvent être une IMAGE de référence (jamais une voix, qui est un champ du personnage). */
+/** The asset types that can be a reference IMAGE (never a voice, which is a character field). */
 const TYPES_REFERENCE_IMAGE = new Set(["personnage", "decor", "prop", "vfx", "keyframe", "oth"]);
 export const MAX_REFERENCES_PLAN = MAX_REFS_VISUELLES;
-/** Ordre des références d'un plan : les personnages (les locuteurs d'abord, dans l'ordre du modèle), les objets, les effets, le décor en dernier. */
+/** Order of a clip's references: the characters (the speakers first, in the model's order), the props, the effects, the set last. */
 const RANG_AFFICHAGE: Record<string, number> = { personnage: 0, prop: 1, oth: 2, keyframe: 3, vfx: 4, decor: 5 };
-/** Au-delà de 6 images, ce qu'on garde d'abord : les personnages, le décor, puis les objets ; les effets partent les premiers. */
+/** Beyond 6 images, what is kept first: the characters, the set, then the props; the effects go first. */
 const RANG_GARDE: Record<string, number> = { personnage: 0, decor: 1, prop: 2, oth: 3, keyframe: 4, vfx: 5 };
 
-/** L'intention cite-t-elle cet asset (son code, ou son nom lisible : « KEY_salle_pleine » → « salle pleine ») ? */
+/** Does the intent cite this asset (its code, or its readable name: "KEY_salle_pleine" → "salle pleine")? */
 function citeDans(intention: string, code: string): boolean {
   const t = nomComparable(intention);
   const nom = nomComparable(code.includes("_") ? code.slice(code.indexOf("_") + 1) : code);
   return t.includes(nomComparable(code)) || (nom.length >= 3 && ` ${t} `.includes(` ${nom} `));
 }
 
-/** Les références de chaque plan, contrôlées et corrigées. `alias` : code proposé par le modèle → code final de l'asset créé (`codeFinal`).
- * Un code inconnu ne diffère parfois d'un code connu que par un mot de liaison (`similar-codes.ts`) : il est corrigé. Pur, testé. */
+/** Each clip's references, checked and corrected. `alias`: code proposed by the model → final code of the created asset (`codeFinal`).
+ * An unknown code sometimes differs from a known one only by a linking word (`similar-codes.ts`): it is corrected. Pure, tested. */
 export function controlerReferences(
   sortie: Pick<SortieInventaire, "references">,
   ctx: { plans: PlanInventaire[]; connus: AssetConnu[]; alias?: Map<string, string> },
@@ -228,7 +228,7 @@ export function controlerReferences(
         dit(plan.id, "erreur", `${plan.id} : ${a.code} (${a.type}) ne peut pas être une référence d'image d'un plan.`);
         continue;
       }
-      if (gardes.some((g) => g.code === a.code)) continue; // doublon : sans conséquence
+      if (gardes.some((g) => g.code === a.code)) continue; // duplicate: no consequence
       if (a.type === "keyframe" && !citeDans(plan.intention ?? "", a.code)) {
         dit(plan.id, "alerte", `${plan.id} : la keyframe ${a.code} n'est pas citée par l'intention du plan ; retirée (une pose composée fait perdre l'identité des personnages).`);
         continue;
@@ -272,8 +272,8 @@ export function controlerReferences(
   return { plans: resultat, problemes };
 }
 
-/** Le contexte du contrôle tiré de l'ENTRÉE et de la SORTIE du modèle (sans base) : pour le renvoi automatique (lib/llm/checks.ts). Les codes
- * connus sont le registre, les assets déjà proposés par les groupes précédents et ceux de la sortie (sous le code du modèle comme sous le code final). */
+/** The check context drawn from the model's INPUT and OUTPUT (no database): for the automatic re-prompt (lib/llm/checks.ts). The known codes
+ * are the registry, the assets already proposed by the previous groups, and those of the output (under the model's code as under the final code). */
 export function contexteReferencesDepuisEntree(entree: unknown, sortie: Pick<SortieInventaire, "assets">): { plans: PlanInventaire[]; connus: AssetConnu[]; alias: Map<string, string> } {
   const e = (entree ?? {}) as Partial<EntreeInventaire>;
   const plans = plansDeLEntree(e).map((p) => ({ id: p.id, uuid: p.id, intention: p.intention }));
@@ -288,7 +288,7 @@ export function contexteReferencesDepuisEntree(entree: unknown, sortie: Pick<Sor
   return { plans, connus, alias };
 }
 
-// --- entrée et découpage en groupes de scènes (2026-11-09) ------------------------------------------------------------------
+// --- input and split into scene groups (2026-11-09) ------------------------------------------------------------------
 
 export type PlanEntreeInventaire = { id: string; titre: string; intention: string };
 type SceneEntreeInventaire = { titre: string; fonction: string; plans: PlanEntreeInventaire[] };
@@ -300,44 +300,44 @@ export type EntreeInventaire = {
   episodes: EpisodeEntreeInventaire[];
   consigne: string;
   retourUtilisateur?: string;
-  /** Film découpé : « 2/3 » (le modèle ne voit qu'une partie des plans). */
+  /** Split film: "2/3" (the model only sees part of the clips). */
   partie?: string;
-  /** Film découpé : les assets que les groupes précédents proposent déjà (pas encore au registre) ; à ne pas reproposer, utilisables en référence. */
+  /** Split film: the assets the previous groups already propose (not yet in the registry); not to be proposed again, usable as references. */
   assetsDejaProposes?: { code: string; type: string; description: string }[];
 };
 
-/** Les plans de l'entrée, dans l'ordre. */
+/** The input's clips, in order. */
 export function plansDeLEntree(e: Partial<EntreeInventaire>): PlanEntreeInventaire[] {
   return (e.episodes ?? []).flatMap((ep) => (ep.scenes ?? []).flatMap((s) => s.plans ?? []));
 }
 
-/** Poignée d'un plan dans l'entrée de l'inventaire (« P07 ») : un repère pour le modèle, résolu en uuid par les options de la tâche (jamais affiché). */
+/** A clip's handle in the inventory input ("P07"): a marker for the model, resolved to a uuid by the task's options (never shown). */
 export const poigneePlan = (rang: number): string => `P${String(rang).padStart(2, "0")}`;
 
-/** Budget d'UN appel d'inventaire, en jetons (skill + entrée + sortie attendue). Le contexte du serveur (`LLM_CONTEXTE_TOTAL`, son `--ctx-size`) s'il
- * est plus petit, sinon 32 000 : au-delà, un petit modèle local lit mal une entrée aussi longue, et la sortie (assets + références de chaque plan)
- * grossit avec le film. Un film de 5 min (≈ 50 plans) tient en ≈ 17 000 jetons, un de 10 min (≈ 100 plans) en ≈ 25 000 : un seul appel ;
- * un film de 20-30 min est découpé en 2 à 4 groupes de scènes. */
+/** Budget of ONE inventory call, in tokens (skill + input + expected output). The server context (`LLM_CONTEXTE_TOTAL`, its `--ctx-size`) if it
+ * is smaller, otherwise 32 000: beyond that, a small local model reads such a long input badly, and the output (assets + each clip's references)
+ * grows with the film. A 5-min film (≈ 50 clips) fits in ≈ 17 000 tokens, a 10-min one (≈ 100 clips) in ≈ 25 000: a single call;
+ * a 20-30 min film is split into 2 to 4 scene groups. */
 const PLAFOND_BUDGET_INVENTAIRE = 32_000;
 export const budgetInventaire = (contexteTotal: number | null): number => Math.min(contexteTotal ?? PLAFOND_BUDGET_INVENTAIRE, PLAFOND_BUDGET_INVENTAIRE);
-/** Sortie attendue : les assets et les notes, plus une ligne de références par plan (≈ 30 jetons : la poignée et 3 à 6 codes). */
+/** Expected output: the assets and the notes, plus one references line per clip (≈ 30 tokens: the handle and 3 to 6 codes). */
 const SORTIE_INVENTAIRE_BASE = 2500;
 const SORTIE_INVENTAIRE_PAR_PLAN = 30;
-/** Place gardée dans chaque groupe pour les assets que les groupes précédents auront proposés (`assetsDejaProposes`, ≈ 60 jetons l'asset). */
+/** Room kept in each group for the assets the previous groups will have proposed (`assetsDejaProposes`, ≈ 60 tokens per asset). */
 const RESERVE_ASSETS_PROPOSES = 3000;
 
 const jetons = (x: unknown) => Math.ceil(JSON.stringify(x ?? {}).length / 4);
 
-/** Jetons qu'occupe un appel d'inventaire sur cette entrée. */
+/** Tokens an inventory call takes up on this input. */
 export function estimerInventaire(entree: EntreeInventaire, jetonsSkill: number): number {
   return jetonsSkill + jetons(entree) + SORTIE_INVENTAIRE_BASE + SORTIE_INVENTAIRE_PAR_PLAN * plansDeLEntree(entree).length;
 }
 
 export type GroupeInventaire = { numero: number; total: number; libelle: string; entree: EntreeInventaire; planIds: string[] };
 
-/** Découpe l'entrée en groupes de scènes CONSÉCUTIVES quand un seul appel dépasserait le budget (cas d'un long film) ; sinon un seul groupe, l'entrée
- * telle quelle (cas courant). Chaque groupe garde le registre, le brief et la consigne, et réserve la place des assets des groupes précédents. Une scène
- * trop longue pour un groupe à elle seule est coupée entre ses plans. Pur, testé. */
+/** Splits the input into CONSECUTIVE scene groups when a single call would exceed the budget (case of a feature film); otherwise a single group, the input
+ * as is (common case). Each group keeps the registry, the brief and the instruction, and reserves room for the previous groups' assets. A scene
+ * too long for a group on its own is cut between its clips. Pure, tested. */
 export function decouperInventaire(entree: EntreeInventaire, options: { budgetJetons: number; jetonsSkill: number }): GroupeInventaire[] {
   const tous = plansDeLEntree(entree);
   if (estimerInventaire(entree, options.jetonsSkill) <= options.budgetJetons || tous.length <= 1) {
@@ -345,7 +345,7 @@ export function decouperInventaire(entree: EntreeInventaire, options: { budgetJe
   }
   const fixe = options.jetonsSkill + jetons({ ...entree, episodes: [], partie: "10/10" }) + SORTIE_INVENTAIRE_BASE + RESERVE_ASSETS_PROPOSES;
   const place = Math.max(1, options.budgetJetons - fixe);
-  // Une unité = une scène (ou un morceau de scène) d'un épisode ; son coût compte l'en-tête de l'épisode (prudence).
+  // A unit = one scene (or a piece of a scene) of an episode; its cost counts the episode header (cautiously).
   type Unite = { ep: number; scene: SceneEntreeInventaire; cout: number };
   const cout = (ep: EpisodeEntreeInventaire, s: SceneEntreeInventaire) => jetons({ episode: ep.episode, resume: ep.resume }) + jetons(s) + SORTIE_INVENTAIRE_PAR_PLAN * s.plans.length;
   const unites: Unite[] = [];
@@ -356,7 +356,7 @@ export function decouperInventaire(entree: EntreeInventaire, options: { budgetJe
         unites.push({ ep: i, scene: s, cout: cout(ep, s) });
         continue;
       }
-      // Scène trop longue : coupée entre ses plans, chaque morceau garde le titre de la scène.
+      // Scene too long: cut between its clips, each piece keeps the scene's title.
       let morceau: PlanEntreeInventaire[] = [];
       const pousser = () => {
         if (!morceau.length) return;
@@ -407,7 +407,7 @@ export function decouperInventaire(entree: EntreeInventaire, options: { budgetJe
   });
 }
 
-// --- sous-tâches d'un inventaire découpé ----------------------------------------------------------------------------------
+// --- subtasks of a split inventory ----------------------------------------------------------------------------------
 
 const PREFIXE_CLE_INVENTAIRE = "inv:";
 export const cleSousTacheInventaire = (numero: number): string => `${PREFIXE_CLE_INVENTAIRE}${numero}`;
@@ -417,8 +417,8 @@ export function groupeInventaireDeCle(cle: string | null | undefined): number | 
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/** Ce que porte une tâche d'inventaire (`agent_runs.options`) : la poignée → uuid de ses plans et, pour un film découpé, les groupes qui la suivent
- * (le groupe suivant est posé quand celui-ci finit, avec les assets déjà proposés : worker/agents/postProcessing.ts). */
+/** What an inventory task carries (`agent_runs.options`): the handle → uuid of its clips and, for a split film, the groups that follow it
+ * (the next group is set when this one finishes, with the assets already proposed: worker/agents/postProcessing.ts). */
 export type OptionsRunInventaire = {
   plans?: Record<string, string>;
   suite?: { cle: string; libelle: string; entree: EntreeInventaire; plans: Record<string, string> }[];

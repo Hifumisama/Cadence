@@ -1,7 +1,7 @@
-/** MP3 factice pour le mode `stub` : des trames MPEG-1 Layer III silencieuses
- * (44,1 kHz, mono, 128 kbit/s), valides et légères, sans dépendance. Le vrai son
- * vient de ComfyUI (mode `http`). Une trame = 1152 échantillons ≈ 26,1 ms et
- * 417 octets ; en-tête 0xFFFB 0x90 0xC4, le reste à zéro = silence. */
+/** Fake MP3 for the `stub` mode: silent MPEG-1 Layer III frames
+ * (44.1 kHz, mono, 128 kbit/s), valid and lightweight, without dependencies. The real sound
+ * comes from ComfyUI (`http` mode). One frame = 1152 samples ≈ 26.1 ms and
+ * 417 bytes; header 0xFFFB 0x90 0xC4, the rest zeroed = silence. */
 const OCTETS_PAR_TRAME = 417;
 const SECONDES_PAR_TRAME = 1152 / 44100;
 

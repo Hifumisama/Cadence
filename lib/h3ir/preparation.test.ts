@@ -4,7 +4,7 @@ import { decisionsEffectives, type ContexteIteration } from "../agents/iteration
 import { choisirReferences, type CandidatReference } from "./references-clip";
 import { brutsManquants, decisionSortieReferencesPlan, deciderImages, deciderReferences, precedentEnAttente, retenirManquants, type EtatImageAsset } from "./preparation";
 
-// Un registre générique (aucun nom de projet réel).
+// A generic registry (no real project name).
 const registre: CandidatReference[] = [
   { code: "CHAR_ines", type: "personnage", label: "Inès", aUneImage: true },
   { code: "CHAR_marc", type: "personnage", label: "Marc", aUneImage: true },
@@ -14,7 +14,7 @@ const registre: CandidatReference[] = [
 ];
 const codesTypes = registre.map((c) => ({ code: c.code, type: c.type }));
 
-// --- 1. références ------------------------------------------------------------------------------------------------------------------------
+// --- 1. references ------------------------------------------------------------------------------------------------------------------------
 
 test("références déjà posées : gardées (chemin rapide, aucun appel de choix), sauf demande explicite de rechoisir", () => {
   assert.deepEqual(deciderReferences({ existantes: 2, rechoisir: false, precedentEnAttente: true, choix: null }), { action: "garder" });
@@ -44,12 +44,12 @@ test("plan lié (suite, même scène) : le décor du plan précédent est repris
   assert.deepEqual(r.doutes, []);
   assert.ok(r.references.some((x) => x.code === "DEC_quai"));
   assert.deepEqual(deciderReferences({ existantes: 0, rechoisir: false, precedentEnAttente: false, choix: { suffit: r.suffit, references: r.references.map((x) => x.code) } }).action, "ecrire");
-  // Coupe franche : le décor du précédent ne sert pas, le code doute (aucun décor nommé) → skill.
+  // Hard cut: the previous clip's set is not used, the code doubts (no named set) → skill.
   const coupe = choisirReferences({ description: "Inès pose la valise.", liaison: "coupe", precedent: { memeScene: true, decor: "DEC_quai" }, candidats: registre });
   assert.equal(coupe.suffit, false);
 });
 
-// --- 2. assets manquants ------------------------------------------------------------------------------------------------------------------
+// --- 2. missing assets ------------------------------------------------------------------------------------------------------------------
 
 test("manquants : deux au plus, code reconstruit, type permis, parent valide ; un code existant est une référence", () => {
   const r = retenirManquants(
@@ -68,9 +68,9 @@ test("manquants : deux au plus, code reconstruit, type permis, parent valide ; u
   assert.ok(r.ecartes.some((e) => e.code === "CHAR_controleur" && /au plus 2/.test(e.raison)), "le troisième est écarté (à créer à la main)");
   assert.ok(r.ecartes.some((e) => e.code === "VFX_fumee"));
   assert.ok(r.ecartes.some((e) => e.code === "VOICE_sifflet"));
-  // La place sur le plan limite aussi : 6 images au plus, références comprises.
+  // The room on the clip limits too: 6 images at most, references included.
   assert.equal(retenirManquants([{ code: "PROP_a", type: "prop" }, { code: "PROP_b", type: "prop" }], codesTypes, { place: 1 }).retenus.length, 1);
-  // Un parent d'un autre type n'est pas gardé.
+  // A parent of another type is not kept.
   assert.equal(retenirManquants([{ code: "CHAR_x", type: "personnage", parent: "DEC_gare" }], codesTypes).retenus[0]!.parent, null);
 });
 
@@ -96,10 +96,10 @@ test("sortie du skill : codes rapprochés, sons écartés, manquants plafonnés 
   assert.deepEqual(avant.manquants.map((m) => m.code), ["PROP_lanterne", "PROP_billet"]);
   const apres = decisionSortieReferencesPlan(sortie, [...codesTypes, { code: "PROP_lanterne", type: "prop" }, { code: "PROP_billet", type: "prop" }]);
   assert.deepEqual(apres.references, ["CHAR_ines", "DEC_gare", "PROP_lanterne", "PROP_billet"]);
-  // (À l'application, seules les références comptent : le manquant écarté au premier passage n'est jamais créé.)
+  // (At application, only the references count: the missing one set aside on the first pass is never created.)
 });
 
-// --- 3-4. prompts et images ----------------------------------------------------------------------------------------------------------------
+// --- 3-4. prompts and images ----------------------------------------------------------------------------------------------------------------
 
 const asset = (code: string, o: Partial<EtatImageAsset> = {}): EtatImageAsset => ({ code, nom: code, aFichier: false, aPrompt: true, enFile: false, echec: null, ...o });
 
@@ -110,11 +110,11 @@ test("images : prêt quand tout a son fichier ; sinon prompts d'abord, puis lanc
   const e = deciderImages([asset("B", { nom: "Valise", echec: "ComfyUI injoignable" })]);
   assert.equal(e.action, "echec");
   assert.match((e as { erreur: string }).erreur, /« Valise » a échoué : ComfyUI injoignable/);
-  // Une génération en échec mais relancée (en file) n'arrête rien.
+  // A generation that failed but was relaunched (queued) stops nothing.
   assert.equal(deciderImages([asset("B", { echec: "x", enFile: true })]).action, "attendre");
 });
 
-// --- itération : les manquants décidés -------------------------------------------------------------------------------------------------------
+// --- iteration: the missing ones decided -------------------------------------------------------------------------------------------------------
 
 test("itérer : des manquants seuls font une décision (créés puis recompilés), deux au plus et dans les six images", () => {
   const ctx: ContexteIteration = {
@@ -138,7 +138,7 @@ test("itérer : des manquants seuls font une décision (créés puis recompilés
   };
   const d = decisionsEffectives(sortie, ctx);
   assert.deepEqual(d?.manquants?.map((m) => m.code), ["PROP_lanterne", "PROP_billet"]);
-  // Plan déjà à six images : aucune place, aucun manquant retenu, rien à recompiler.
+  // Clip already at six images: no room, no missing one retained, nothing to recompile.
   const plein = { ...ctx, refs: Array.from({ length: 6 }, (_, i) => ({ type: "picture" as const, slot: i + 1, asset: `CHAR_${i}` })) };
   assert.equal(decisionsEffectives(sortie, plein), null);
 });

@@ -1,61 +1,60 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-/** Chargeur de skills d'agents (`agents/skills/<nom>/`), au format standard Agent Skills
- * (agentskills.io). Côté serveur seulement (accès disque).
+/** Loader for agent skills (`agents/skills/<nom>/`), in the standard Agent Skills format
+ * (agentskills.io). Server side only (disk access).
  *
- * Convention d'assemblage du prompt système, déterministe :
- *   1. `SKILL.md`                   — la mission et les règles (obligatoire) ; son en-tête YAML
- *      (`name`, `description`) sert à la portabilité et n'entre PAS dans le prompt ;
- *   2. `references/guide-*.md`      — les guides, par ordre alphabétique, FILTRÉS par
- *      variante (voir plus bas) ; ceux qui déclarent des variantes viennent APRÈS les exemples (3), pour que le
- *      préfixe du prompt (règles, guides communs, exemples) reste identique d'une variante à l'autre et se
- *      reprenne du cache du serveur ;
- *   3. `references/exemples/*.md`   — les exemples, par ordre alphabétique ;
- *   4. les fichiers PARTAGÉS déclarés ci-dessous (hors du dossier du skill) ;
- *   5. le contrat de sortie : `assets/sortie.schema.json` (obligatoire), en JSON compact.
- * Chaque fichier est précédé d'un titre `=== <type>: <nom> ===` (en anglais, comme les
- * instructions). Le schéma est AUSSI passé au fournisseur pour contraindre la sortie, mais
- * il figure dans le prompt : une grammaire (llama.cpp) force les champs sans que le modèle
- * les voie, or leurs `description` portent des consignes. Le dossier EST la déclaration : le
- * en-tête ne pilote aucun chargement (voir docs/CONCEPTION_AGENTS.md §5).
+ * Deterministic convention for assembling the system prompt:
+ *   1. `SKILL.md`                   — the mission and the rules (mandatory); its YAML header
+ *      (`name`, `description`) serves portability and does NOT go into the prompt;
+ *   2. `references/guide-*.md`      — the guides, in alphabetical order, FILTERED by
+ *      variant (see below); those that declare variants come AFTER the examples (3), so that the
+ *      prompt prefix (rules, common guides, examples) stays identical from one variant to another and is
+ *      reused from the server's cache;
+ *   3. `references/exemples/*.md`   — the examples, in alphabetical order;
+ *   4. the SHARED files declared below (outside the skill's folder);
+ *   5. the output contract: `assets/sortie.schema.json` (mandatory), in compact JSON.
+ * Each file is preceded by a title `=== <type>: <nom> ===` (in English, like the
+ * instructions). The schema is ALSO passed to the provider to constrain the output, but
+ * it appears in the prompt: a grammar (llama.cpp) forces the fields without the model
+ * seeing them, yet their `description`s carry instructions. The folder IS the declaration: the
+ * header drives no loading (see docs/CONCEPTION_AGENTS.md §5).
  *
- * Variantes : un guide peut se réserver à certains cas en déclarant, sur sa PREMIÈRE
- * ligne, `<!-- variantes: image, generation -->` (la ligne est retirée du prompt).
- * Quand l'appelant fournit une `variante`, seuls sont chargés les guides SANS
- * déclaration et ceux qui la nomment ; sans `variante`, tous les guides sont chargés.
- * Cela évite d'envoyer au modèle (surtout un petit modèle local) un guide audio pour
- * écrire un prompt d'image. Exemple prompt-asset : `generation` (Krea 2),
- * `edition` (Qwen), `image` (les deux guides d'image : la méthode reste à recommander),
- * `affiche` (l'affiche de présentation : les deux guides d'image aussi). */
+ * Variants: a guide can reserve itself for certain cases by declaring, on its FIRST
+ * line, `<!-- variantes: image, generation -->` (the line is removed from the prompt).
+ * When the caller provides a `variante`, only the guides WITHOUT a declaration and those that name it are loaded; without a `variante`, all guides are loaded.
+ * This avoids sending the model (especially a small local model) an audio guide to
+ * write an image prompt. Example prompt-asset: `generation` (Krea 2),
+ * `edition` (Qwen), `image` (the two image guides: the method is still to be recommended),
+ * `affiche` (the presentation poster: the two image guides too). */
 
-/** Fichiers lus hors du dossier d'un skill. Aucun depuis 2026-11-09 : `iteration-plan` lit sa propre copie du lexique, orientée diagnostic
+/** Files read outside a skill's folder. None since 2026-11-09: `iteration-plan` reads its own copy of the lexicon, oriented to diagnosis
  * (agents/skills/iteration-plan/references/guide-lexique-diagnostic.md).
- * L'affiche n'est plus un skill : c'est la variante `affiche` de `prompt-asset`, qui charge ses guides d'image par la déclaration `variantes`. */
+ * The poster is no longer a skill: it is the `affiche` variant of `prompt-asset`, which loads its image guides through the `variantes` declaration. */
 const FICHIERS_PARTAGES: Record<string, string[]> = {};
 
 export type OptionsChargement = {
-  /** Cas d'usage qui restreint les guides chargés (voir plus haut). */
+  /** Use case that restricts the guides loaded (see above). */
   variante?: string;
 };
 
 export type SkillCharge = {
   nom: string;
   variante: string | null;
-  /** Guides écartés faute de correspondre à la variante (chemins relatifs). */
+  /** Guides set aside for not matching the variant (relative paths). */
   guidesIgnores: string[];
-  /** Prompt système assemblé. */
+  /** Assembled system prompt. */
   systeme: string;
   schema: Record<string, unknown>;
-  /** Fichiers lus, dans l'ordre d'assemblage (chemins relatifs à la racine du dépôt). */
+  /** Files read, in assembly order (paths relative to the repository root). */
   fichiers: string[];
   caracteres: number;
-  /** Estimation grossière (≈ 4 caractères par jeton en anglais) — pas une mesure. */
+  /** Rough estimate (≈ 4 characters per token in English) — not a measurement. */
   jetonsEstimes: number;
 };
 
-/** Variantes déclarées par un guide : `<!-- variantes: a, b -->` sur la première
- * ligne. `null` = guide sans déclaration, toujours chargé. */
+/** Variants declared by a guide: `<!-- variantes: a, b -->` on the first
+ * line. `null` = guide without declaration, always loaded. */
 export function variantesDuGuide(contenu: string): string[] | null {
   const m = /^\s*<!--\s*variantes\s*:\s*([^>]*?)\s*-->/i.exec(contenu);
   if (!m) return null;
@@ -68,8 +67,8 @@ function sansDeclaration(contenu: string): string {
 
 const ENTETE = /^﻿?---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 
-/** En-tête YAML de `SKILL.md` (format Agent Skills) : `name` et `description`, sur une ligne chacun
- * (pas de YAML complet : le standard n'exige ici que des scalaires). `null` si le fichier n'en a pas. */
+/** YAML header of `SKILL.md` (Agent Skills format): `name` and `description`, one line each
+ * (not full YAML: the standard only requires scalars here). `null` if the file has none. */
 function lireFrontmatter(contenu: string): { name: string; description: string } | null {
   const m = ENTETE.exec(contenu);
   if (!m) return null;

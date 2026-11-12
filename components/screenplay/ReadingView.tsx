@@ -1,6 +1,6 @@
 "use client";
 
-import "../scenario/scenario.css"; // la popup d'ajout d'un plan et le message du bas d'écran sont ceux de la page Tournage
+import "../scenario/scenario.css"; // the add-clip popup and the bottom-of-screen message are those of the Tournage page
 import "../scenario/lecture.css";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -14,9 +14,9 @@ import { cleDemande } from "@/lib/tasks/tasks";
 import { LIBELLE_INTENTION_CHANGEE, minutage, type AjoutEnCours, type AjoutSceneEnCours } from "@/lib/clips/screenplay-view";
 import { AjouterPlan, type CibleAjoutPlan } from "./AddClip";
 
-/** Un plan tel que la vue Lecture le montre : son texte AFFICHÉ (`intentAffichee`), jamais la description brute. */
+/** A clip as the Lecture view shows it: its DISPLAYED text (`intentAffichee`), never the raw description. */
 export type PlanLecture = {
-  /** Clé technique, pour supprimer le plan : jamais affichée ni mise dans une adresse (l'identifiant public est `uuid`). */
+  /** Technical key, to delete the clip: never displayed nor put in an address (the public identifier is `uuid`). */
   id: number;
   uuid: string;
   position: number;
@@ -26,7 +26,7 @@ export type PlanLecture = {
   debut: number;
   intentionChangee: "fiche" | "rendu" | null;
   href: string;
-  /** La vidéo dont on tire l'image du plan (rendu retenu, sinon dernier rendu terminé) ; null tant que rien n'est généré. */
+  /** The video the clip's image is taken from (selected render, otherwise last finished render); null as long as nothing is generated. */
   src: string | null;
 };
 
@@ -34,7 +34,7 @@ export type SceneLecture = {
   cle: string;
   titre: string;
   numero: string | null;
-  /** Ce que la scène fait dans le récit (une phrase), s'il est écrit. */
+  /** What the scene does in the narrative (one sentence), if written. */
   fonction: string | null;
   ambiance: string | null;
   duree: number;
@@ -43,13 +43,13 @@ export type SceneLecture = {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** Le scénario à lire, UNE SCÈNE À LA FOIS (un film de dix scènes ne se fait pas défiler d'un trait) : le sommaire de gauche change de scène, qui s'écrit au
- * format de script. Les plans sont des repères dans la marge (position, durée, minutage) ; cliquer sur le texte d'un plan l'ouvre en
- * édition (Ctrl+Entrée enregistre, Échap annule). Les autres scènes restent montées (masquées) : un texte en cours d'édition ne se perd pas en changeant de scène.
- * La scène affichée est dans l'URL (`?scene=`), comme sur la page Tournage.
+/** The screenplay to read, ONE SCENE AT A TIME (a ten-scene film cannot be scrolled through in one go): the summary on the left switches scene, which is written in
+ * script format. The clips are markers in the margin (position, duration, timing); clicking the text of a clip opens it in
+ * edit mode (Ctrl+Entrée saves, Échap cancels). The other scenes stay mounted (hidden): a text being edited is not lost when switching scene.
+ * The displayed scene is in the URL (`?scene=`), as on the Tournage page.
  *
- * Les plans se décident ici comme sur le Tournage : un « + » entre deux plans et en fin de scène ouvre la même popup (l'agent écrit le plan, qui garde sa place en bloc
- * fantôme pendant l'écriture), et « Supprimer » retire le plan (sa fiche et ses essais avec lui). C'est la même donnée : un plan ajouté ici apparaît au Tournage « pas encore tourné ». */
+ * Clips are decided here as on the Tournage: a « + » between two clips and at the end of a scene opens the same popup (the agent writes the clip, which keeps its place as a ghost
+ * block while it is being written), and « Supprimer » removes the clip (its sheet and its attempts with it). It is the same data: a clip added here appears on the Tournage as « pas encore tourné ». */
 export function VueLecture({
   projectId,
   episodeId,
@@ -62,9 +62,9 @@ export function VueLecture({
   episodeId: number;
   scenes: SceneLecture[];
   sceneInitiale: string | null;
-  /** Le plan en cours d'écriture (« Ajouter un plan »), ou null. */
+  /** The clip being written (« Ajouter un plan »), or null. */
   ajout: AjoutEnCours | null;
-  /** La scène en cours d'écriture, ou null : un seul ajout à la fois par film, plan ou scène. */
+  /** The scene being written, or null: only one addition at a time per film, clip or scene. */
   ajoutScene: AjoutSceneEnCours | null;
 }) {
   const router = useRouter();
@@ -83,8 +83,8 @@ export function VueLecture({
     return () => clearTimeout(t);
   }, [signal]);
 
-  // Un plan en cours d'écriture : la page garde son bloc fantôme tant que la tâche est active. Quand la file ne l'a plus (finie, échouée, annulée), on recharge la
-  // page : le plan est là, ou le bloc disparaît. Même principe que la page Tournage.
+  // A clip being written: the page keeps its ghost block as long as the task is active. When the queue no longer has it (finished, failed, cancelled), we reload the
+  // page: the clip is there, or the block disappears. Same principle as the Tournage page.
   const enEcriture = ajout ?? ajoutScene;
   useEffect(() => {
     if (!enEcriture || !tachesPretes) return;
@@ -94,7 +94,7 @@ export function VueLecture({
     router.refresh();
   }, [enEcriture, taches, tachesPretes, router]);
 
-  // Le sommaire reste visible sous l'en-tête collant de l'application, dont la hauteur change selon la largeur de l'écran (onglets sur une ou deux lignes).
+  // The summary stays visible under the application's sticky header, whose height changes with the screen width (tabs on one or two lines).
   useEffect(() => {
     const barre = document.querySelector<HTMLElement>(".topbar");
     const racine = haut.current?.closest<HTMLElement>(".sl");
@@ -111,13 +111,13 @@ export function VueLecture({
 
   const aller = (cle: string) => {
     setCourante(cle);
-    // L'adresse garde la scène (partage, rechargement) sans repasser par le serveur.
+    // The address keeps the scene (sharing, reloading) without going through the server again.
     try {
       const url = new URL(window.location.href);
       url.searchParams.set("scene", cle);
       window.history.replaceState(window.history.state, "", url);
     } catch {
-      /* l'URL n'est qu'un confort */
+      /* the URL is only a convenience */
     }
     haut.current?.scrollIntoView({ block: "start" });
   };
@@ -125,8 +125,8 @@ export function VueLecture({
   const nbPlans = scenes.reduce((n, s) => n + s.plans.length, 0);
   const total = scenes.reduce((n, s) => n + s.duree, 0);
 
-  // La place d'un nouveau plan : juste avant le plan `i` de la scène `si` (i = nombre de plans : à la fin). Au début d'une scène, la place est « après le dernier plan des
-  // scènes qui la précèdent » (ou au début du film) : la même règle que sur la page Tournage.
+  // The place of a new clip: right before clip `i` of scene `si` (i = number of clips: at the end). At the start of a scene, the place is « after the last clip of the
+  // scenes before it » (or at the start of the film): the same rule as on the Tournage page.
   const choisirPlace = (si: number, i: number) => {
     const s = scenes[si]!;
     const avant = i > 0 ? s.plans[i - 1] : scenes.slice(0, si).reverse().flatMap((g) => g.plans.slice(-1))[0];
@@ -138,7 +138,7 @@ export function VueLecture({
     });
   };
 
-  // Le plan en cours d'écriture garde sa place dans la scène : un bloc fantôme à l'endroit où il sera ajouté (-1 : pas dans cette scène).
+  // The clip being written keeps its place in the scene: a ghost block at the spot where it will be added (-1: not in this scene).
   const placeFantome = (s: SceneLecture): number => {
     if (!ajout || ajout.sceneId !== (s.cle === "sans" ? null : Number(s.cle))) return -1;
     const position = ajout.position;
@@ -262,7 +262,7 @@ function PlanALire({ plan }: { plan: PlanLecture }) {
   const [erreurSuppression, setErreurSuppression] = useState<string | null>(null);
   const champ = useRef<HTMLTextAreaElement>(null);
 
-  // Supprimer un plan retire aussi sa fiche et tous ses essais (cascade) ; un plan encore cité comme référence ne part qu'avec « Forcer » (comme sur le Tournage).
+  // Deleting a clip also removes its sheet and all its attempts (cascade); a clip still cited as a reference only goes with « Forcer » (as on the Tournage).
   const supprimer = (force: boolean) => {
     const question = force
       ? `Forcer la suppression du plan ${pad(plan.position)} ? Ses références d'assets seront détachées (les assets eux-mêmes restent dans le registre). Irréversible.`
@@ -276,12 +276,12 @@ function PlanALire({ plan }: { plan: PlanLecture }) {
     });
   };
 
-  // Le texte arrive du serveur (après un enregistrement, un « Itérer » ailleurs) : on repart de lui hors édition.
+  // The text comes from the server (after a save, an « Itérer » elsewhere): we restart from it outside edit mode.
   useEffect(() => {
     if (!edition) setBrouillon(plan.texte);
   }, [plan.texte, edition]);
 
-  // Le champ s'ouvre à la hauteur de son texte et reçoit le curseur à la fin.
+  // The field opens at the height of its text and receives the cursor at the end.
   useEffect(() => {
     const c = champ.current;
     if (!edition || !c) return;
@@ -388,7 +388,7 @@ function PlanALire({ plan }: { plan: PlanLecture }) {
         )}
       </div>
       <aside className="sl-repere" aria-label={`Plan ${pad(plan.position)}`}>
-        {/* L'image du plan, quand un rendu existe : la première image de la vidéo, sans rien stocker. Sans rendu, pas de cadre vide. */}
+        {/* The clip's image, when a render exists: the first frame of the video, without storing anything. Without a render, no empty frame. */}
         {plan.src ? (
           <a className="sl-image" href={plan.href} title="Ouvrir l'atelier du plan" tabIndex={-1}>
             <Vignette src={plan.src} />

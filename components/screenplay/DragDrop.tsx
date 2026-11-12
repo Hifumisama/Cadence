@@ -6,14 +6,14 @@ import { deplacerPlan } from "@/app/scenario/actions";
 export const MIME_PLAN = "application/x-cadence-plan";
 export const MIME_SCENE = "application/x-cadence-scene";
 
-/* ---- Animation des déplacements -------------------------------------------
- * Après un dépôt, la page est re-rendue côté serveur et les éléments sautent à
- * leur nouvelle place. À chaque rendu on compare la position de l'élément à
- * celle du rendu précédent et on le fait glisser de l'ancienne vers la nouvelle
- * (technique « FLIP », sur les deux axes : la grille de vignettes revient à la
- * ligne). Les positions viennent de `offsetTop` / `offsetLeft`, insensibles aux
- * transformations en cours (et donc au défilement). On n'anime qu'après un
- * dépôt : déplier le détail d'une ligne décale les suivantes, sans les animer. */
+/* ---- Movement animation -------------------------------------------
+ * After a drop, the page is re-rendered on the server and the elements jump to
+ * their new place. On each render we compare the element's position with
+ * that of the previous render and slide it from the old one to the new one
+ * (« FLIP » technique, on both axes: the thumbnail grid wraps back to the
+ * line). Positions come from `offsetTop` / `offsetLeft`, insensitive to the
+ * transformations in progress (and therefore to scrolling). We only animate after a
+ * drop: unfolding a row's detail shifts the following ones, without animating them. */
 
 const mouvementReduit = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -27,8 +27,8 @@ const positionAbsolue = (el: HTMLElement) => {
   return { x, y };
 };
 
-/** Dernier élément déposé : il reçoit un bref halo doré une fois arrivé à sa place. Les deux repères retombent seuls, pour qu'un dépôt sans
- * effet côté serveur n'arme pas un halo qui surgirait plus tard. */
+/** Last dropped element: it receives a brief golden halo once it has reached its place. The two markers reset on their own, so that a drop without
+ * server-side effect does not arm a halo that would appear later. */
 let dernierDepose: string | null = null;
 let depotRecent = false;
 export const marquerDepose = (cle: string) => {
@@ -76,11 +76,11 @@ function useGlissement(ref: RefObject<HTMLElement | null>, cle: string) {
   });
 }
 
-/** Aperçu du glissement : le fantôme natif du navigateur est semi-transparent et
- * non stylable, on le masque (image vide) et on promène un clone opaque, mis en
- * forme par `.apercu-drag`, qui suit le curseur. `dragover` donne la position
- * sur tous les navigateurs ; le clone est retiré à la fin du glissement ou au
- * dépôt (en capture : les cibles arrêtent la propagation). */
+/** Drag preview: the browser's native ghost is semi-transparent and
+ * not stylable, so we hide it (empty image) and carry an opaque clone, styled by
+ * `.apercu-drag`, which follows the cursor. `dragover` gives the position
+ * in all browsers; the clone is removed at the end of the drag or at the
+ * drop (in capture: the targets stop propagation). */
 export function demarrerApercu(e: React.DragEvent, source: HTMLElement) {
   e.dataTransfer.setDragImage(document.createElement("canvas"), 0, 0);
   const r = source.getBoundingClientRect();
@@ -109,8 +109,8 @@ export function demarrerApercu(e: React.DragEvent, source: HTMLElement) {
   document.addEventListener("drop", fin, true);
 }
 
-/** Marque l'élément comme « en cours de glissement » après le démarrage du drag :
- * changer l'apparence tout de suite figerait l'image fantôme déjà atténuée. */
+/** Marks the element as "being dragged" after the drag starts:
+ * changing its look right away would freeze the already faded ghost image. */
 export function useEnGlissement() {
   const [enDrag, setEnDrag] = useState(false);
   return {
@@ -130,9 +130,9 @@ export const lire = <T,>(e: React.DragEvent, mime: string): T | null => {
   }
 };
 
-/** Un plan déplaçable et cible de dépôt, dans une liste (`axe` "y") ou une grille de vignettes (`axe` "x"). Déposer sur sa première moitié
- * (haute, ou gauche) place le plan glissé AVANT celui-ci, sur la seconde APRÈS (donc avant `suivantId`, ou en fin de scène s'il n'y en a
- * pas). Un clic le sélectionne (`onClick`), c'est à l'appelant de décider de la suite : ouvrir la fiche, déplier… */
+/** A movable clip and drop target, in a list (`axe` "y") or a thumbnail grid (`axe` "x"). Dropping on its first half
+ * (top, or left) places the dragged clip BEFORE it, on the second half AFTER (so before `suivantId`, or at the end of the scene if there is none
+ * ). A click selects it (`onClick`); it is up to the caller to decide what follows: open the sheet, unfold… */
 export function PlanDeplacable({
   planId,
   sceneId,
@@ -152,10 +152,10 @@ export function PlanDeplacable({
   suivantId: number | null;
   axe: "x" | "y";
   className: string;
-  /** Nom accessible du plan (position, titre, état). */
+  /** Accessible name of the clip (position, title, state). */
   libelle: string;
   selectionne: boolean;
-  /** Tabulation itinérante : un seul plan de la scène est un arrêt de tabulation (le sélectionné, sinon le premier). */
+  /** Roaming tab order: only one clip of the scene is a tab stop (the selected one, otherwise the first). */
   tabIndex: 0 | -1;
   onClick: () => void;
   onDoubleClick?: () => void;
@@ -173,7 +173,7 @@ export function PlanDeplacable({
     const avant = axe === "x" ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2;
     return avant ? "avant" : "apres";
   };
-  // Le repère d'insertion : un trait doré en haut/en bas (liste) ou à gauche/à droite (grille).
+  // The insertion marker: a golden line at the top/bottom (list) or left/right (grid).
   const classeRepere = repere ? (axe === "x" ? (repere === "avant" ? " drop-g" : " drop-d") : ` drop-${repere}`) : "";
 
   return (

@@ -15,9 +15,9 @@ const METHODES = [METHODE_MASTER_VOIX];
 const ACTIFS = ["en_attente", "en_cours"];
 const MASTER = "master";
 
-/** L'onglet « Voix » de la fiche d'un personnage, bâti comme l'atelier d'image : à gauche l'écran de test et sa légende (la voix gardée, ou
- * l'essai qu'on regarde) ; à droite, sous les yeux, ce qu'on veut entendre (la voix voulue, la réplique du test) puis le journal des essais.
- * Rien ne bloque : sans master, le modèle vidéo invente la voix du personnage à chaque plan. Les champs se retiennent en quittant la case. */
+/** The « Voix » tab of a character's sheet, built like the image workshop: on the left the test screen and its caption (the kept voice, or the
+ * attempt being looked at); on the right, in plain view, what one wants to hear (the desired voice, the test line) then the attempt log.
+ * Nothing blocks: without a master, the video model invents the character's voice at each clip. Fields are saved when leaving the box. */
 export function BlocVoix({
   personnageId,
   nom,
@@ -42,14 +42,14 @@ export function BlocVoix({
   const { vivantes, annuler } = useGenerationsVoix({ assetId: personnageId, generations, generationInitiale, methodes: METHODES, surveiller: true });
 
   const aMaster = master.src != null;
-  // Ce qu'on regarde : la voix gardée (le master) ou un essai (par son uuid).
+  // What one looks at: the kept voice (the master) or an attempt (by its uuid).
   const [selection, setSelection] = useState<string>(() => {
     const demande = generationInitiale && generations.find((g) => g.uuid === generationInitiale && g.methode === METHODE_MASTER_VOIX);
     if (demande) return demande.uuid;
     if (aMaster || master.videoSrc) return MASTER;
     return generations.find((g) => g.methode === METHODE_MASTER_VOIX)?.uuid ?? MASTER;
   });
-  // Un essai qui vient d'être lancé se montre aussitôt.
+  // An attempt that has just been launched shows up at once.
   const dernier = useRef(vivantes[0]?.uuid ?? null);
   useEffect(() => {
     const premier = vivantes[0]?.uuid ?? null;
@@ -116,7 +116,7 @@ export function BlocVoix({
           </h2>
         </div>
 
-        {/* ---- L'écran de test ---- */}
+        {/* ---- The test screen ---- */}
         <div className={`scene${regardeMaster && aMaster ? " valide" : ""}`}>
           {regardeMaster ? (
             <>
@@ -174,7 +174,7 @@ export function BlocVoix({
           )}
         </div>
 
-        {/* ---- La légende : l'audio, et ce qu'on peut en faire ---- */}
+        {/* ---- The caption: the audio, and what can be done with it ---- */}
         <div className="legende glisse" key={selection} aria-live="polite">
           {regardeMaster ? (
             <>
@@ -241,7 +241,7 @@ export function BlocVoix({
       </div>
 
       <div className="atelier-d">
-        {/* ---- Ce qu'on veut entendre ---- */}
+        {/* ---- What one wants to hear ---- */}
         <section className="consigne" aria-labelledby="bv-titre">
           <label htmlFor="bv-voix">
             <b id="bv-titre">Quelle voix veut-on ?</b>
@@ -272,7 +272,7 @@ export function BlocVoix({
           </div>
         </section>
 
-        {/* ---- Le journal des essais ---- */}
+        {/* ---- The attempt log ---- */}
         <aside className="journal" aria-label="Voix gardée et essais">
           <div className="j-tete">
             <h3>Journal d&rsquo;essais</h3>

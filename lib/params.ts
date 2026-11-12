@@ -2,10 +2,10 @@ import { db } from "../db";
 import { parametres } from "../db/schema";
 
 
-// Valeurs par défaut si la table n'a pas encore été seedée — voir
-// docs/FRICTIONS.md F03/F04 pour l'origine de chaque plafond. clause_style
-// et les scenario_* ont migré sur `projects` le 2026-09-28, puis sont devenus des
-// copies du BRIEF le 2026-10-02 (source unique) — voir db/schema.ts.
+// Default values if the table has not yet been seeded — see
+// docs/FRICTIONS.md F03/F04 for the origin of each ceiling. clause_style
+// and the scenario_* moved to `projects` on 2026-09-28, then became
+// copies of the BRIEF on 2026-10-02 (single source) — see db/schema.ts.
 const DEFAULTS: {
   fps_defaut: string;
   duree_plafond_secondes: string;

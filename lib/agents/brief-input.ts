@@ -1,30 +1,30 @@
-/** Entrée LLM d'un tour de la conversation d'entrée. La FICHE DE NOTES (lib/agents/sheet.ts) est le support de la conversation :
- * l'agent la lit pour creuser ce qui manque ; le brief de l'utilisateur en sort, sans appel de rédaction. Pur (utilisé par le
- * service et par le worker). */
+/** LLM input for one turn of the intake conversation. The NOTES SHEET (lib/agents/sheet.ts) is the conversation's medium:
+ * the agent reads it to dig into what is missing; the user's brief comes out of it, without a writing call. Pure (used by the
+ * service and by the worker). */
 
 import { REQUIS, fichePourAgent, premierMessageGrosBloc, suppositions, type Fiche } from "./sheet";
 import { SECTIONS_BRIEF } from "./types";
 
 export type MessageLlm = { role: "user" | "assistant"; content: string };
 
-/** Repères que les skills connaissent (voir leurs règles). */
+/** Markers the skills know (see their rules). */
 export const MARQUE_FICHE = "[Fiche de notes";
 
-/** Un modèle de chat veut une conversation qui COMMENCE par l'utilisateur ; or l'agent ouvre l'entretien (voir hook.ts). */
+/** A chat model wants a conversation that STARTS with the user; yet the agent opens the interview (see hook.ts). */
 export function messagesPourLlm(messages: MessageLlm[]): MessageLlm[] {
   return messages[0]?.role === "assistant" ? [{ role: "user", content: "Bonjour." }, ...messages] : messages;
 }
 
-/** Sérialisation compacte de la fiche (JSON sur une ligne : le modèle la relit, il ne la recopie pas mot pour mot). */
+/** Compact serialization of the sheet (one-line JSON: the model re-reads it, it does not copy it word for word). */
 const brouillonEnTexte = (o: unknown): string => JSON.stringify(o);
 
-/** Ce que le code dit à l'agent après avoir appliqué le dernier message à la fiche : l'essentiel qui reste à demander (`manques`), les
- * détails à préciser ensuite (`details`, dans l'ordre : tenues, décors, effets et objets, raccords), ou « c'est complet ». */
+/** What the code tells the agent after applying the last message to the sheet: the essentials still to ask (`manques`), the
+ * details to specify next (`details`, in order: costumes, sets, effects and props, continuity), or "it's complete". */
 export type RappelFiche = { manques: string[]; details?: string[]; complete: boolean };
 
-/** Messages d'un tour de `conversation-agent` : la conversation, avec, jointes au DERNIER message de l'utilisateur, les notes du
- * code (la fiche telle qu'elle est après ce message, ce qui reste à demander). La conversation stockée n'est jamais modifiée :
- * ce ne sont que des contextes de l'appel. Les manques sont un RAPPEL et non un questionnaire : l'agent mène librement. */
+/** Messages of one `conversation-agent` turn: the conversation, with the code's notes attached to the LAST user message (the sheet
+ * as it stands after this message, what is still to ask). The stored conversation is never modified:
+ * these are only call contexts. The gaps are a REMINDER, not a questionnaire: the agent leads freely. */
 export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelFiche, format?: string): MessageLlm[] {
   const tous = messagesPourLlm(messages);
   const dernier = tous[tous.length - 1];
@@ -36,10 +36,10 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
     .filter((k) => ["style", "rythme", "genreTon", "dureeEpisodeSecondes", "langueDialogues"].includes(k))
     .map((k) => `${k === "style" ? "style visuel" : libelleSection(k)} : ${resume(fiche.contenu[k])}`);
   const dejaPropose = propose.length ? ` Déjà proposé dans la conversation et non contesté (ne le redemande pas : s'il y a lieu, fais-le confirmer d'un mot, en passant) : ${propose.join(" ; ")}.` : "";
-  // Projet conçu avant l'entretien : le format (un film) n'est pas une section du brief, on le dit à part.
+  // Project designed before the interview: the format (a film) is not a brief section, so it is said separately.
   const formatDit = format ? ` ${format}` : "";
   const interdit = "Ne dis jamais que le briefing est prêt ni que l'entretien est fini, et ne propose jamais de passer à la suite : l'application l'annonce elle-même.";
-  // Un gros premier message (tout d'un bloc) : on ne le laisse pas clore l'entretien, on le déplie en plusieurs échanges.
+  // A big first message (all in one block): we do not let it close the interview; we unfold it into several exchanges.
   const utilisateur = messages.filter((m) => m.role === "user").map((m) => m.content);
   const premierBloc =
     utilisateur.length === 1 && premierMessageGrosBloc(utilisateur)
@@ -74,9 +74,9 @@ const resume = (v: unknown): string => {
 
 const libelleSection = (cle: string): string => (SECTIONS_BRIEF.find((x) => x.cle === cle)?.libelle ?? cle).replace(/ \(.*\)$/, "").toLowerCase();
 
-/** Le message que le CODE poste quand la fiche devient complète : un résumé du briefing, ce qui a été supposé, et la main à
- * l'utilisateur (affiner, ou passer à l'étape suivante par le bouton). Il n'est jamais écrit par le modèle : seul le code sait que
- * la fiche est complète, et l'agent ne peut donc pas l'annoncer à tort. */
+/** The message the CODE posts when the sheet becomes complete: a briefing summary, what was assumed, and the hand back to the
+ * user (refine, or move to the next step with the button). It is never written by the model: only the code knows that
+ * the sheet is complete, so the agent cannot announce it wrongly. */
 export function messageBriefPret(fiche: Fiche): string {
   const c = fiche.contenu as Record<string, unknown>;
   const texte = (v: unknown) => (typeof v === "string" ? v.trim() : "");

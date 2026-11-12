@@ -36,7 +36,7 @@ test("une tâche exclusive attend les partagées, et rien ne démarre à côté 
     journal.push("X-");
   });
   await pause(5);
-  const p2 = partagee("b", 5); // arrive pendant l'attente de l'exclusive : passe après elle
+  const p2 = partagee("b", 5); // arrives while the exclusive waits: goes after it
   await Promise.all([p1, ex, p2]);
   assert.deepEqual(journal, ["a+", "a-", "X+", "X-", "b+", "b-"]);
 });

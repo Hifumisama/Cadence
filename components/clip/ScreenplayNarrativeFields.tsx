@@ -4,9 +4,9 @@ export type ChampsNarratifs = {
   description: string;
 };
 
-/** Champs narratifs partagés par la création de plan (page Scénario) et
- * l'édition depuis la fiche de plan — un seul composant pour ne pas
- * redécrire les mêmes champs à deux endroits. */
+/** Narrative fields shared by clip creation (Screenplay page) and editing
+ * from the clip sheet — a single component so as not to rewrite the same
+ * fields in two places. */
 export function ScenarioNarratifFields({
   valeurs,
   onChange,

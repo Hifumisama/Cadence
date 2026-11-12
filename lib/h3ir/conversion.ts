@@ -5,14 +5,14 @@ import { ORDRE_SECTIONS } from "../clips/prompt";
 import type { ResultatH3ir } from "./result";
 import type { ResultatRetouche } from "./retouch";
 
-/** Du résultat de la tâche Open H3 IR (`agent_runs.resultat`) au changement `fiche` d'une proposition (même forme que `depuisFichePlan`,
- * lib/agents/conversion.ts). Pur, testé. Étape 4 du chantier (docs/PLAN_INTEGRATION_OPEN_H3_IR.md).
+/** From the result of the Open H3 IR task (`agent_runs.resultat`) to the `fiche` change of a proposal (same shape as `depuisFichePlan`,
+ * lib/agents/conversion.ts). Pure, tested. Step 4 of the project (docs/PLAN_INTEGRATION_OPEN_H3_IR.md).
  *
- * - `sections` : celles du compilateur, qui portent déjà les six noms du format H3 ; un prompt sans résumé ni description détaillée est BLOQUÉ.
- * - `refs` : le manifeste (label `<Picture N>` / `<Audio N>` → emplacement ; empreinte → chemin → asset). Une voix devient une référence audio dont l'asset
- *   est le PERSONNAGE (son master). Une vidéo de référence ne s'écrit pas dans une fiche : elle est signalée.
- * - ni durée ni description : le plan garde les siens (la durée effective du compilateur n'est que la grille d'images du rendu : 8 s restent 8,000 s, 6 s donnent 6,583 s ; lib/renders/image-grid.ts).
- * - `moteur: "h3ir"` : l'applicateur de fiche garde alors l'ancien prompt dans l'historique et inscrit le nouveau en « compilation ». */
+ * - `sections`: the compiler's, which already carry the six names of the H3 format; a prompt without a summary or detailed description is BLOCKED.
+ * - `refs`: the manifest (label `<Picture N>` / `<Audio N>` → slot; fingerprint → path → asset). A voice becomes an audio reference whose asset
+ *   is the CHARACTER (its master). A reference video is not written into a sheet: it is flagged.
+ * - neither duration nor description: the clip keeps its own (the compiler's effective duration is only the render's image grid: 8 s stay 8,000 s, 6 s give 6,583 s; lib/renders/image-grid.ts).
+ * - `moteur: "h3ir"`: the sheet applier then keeps the old prompt in the history and records the new one as « compilation ». */
 
 const SECTIONS_OBLIGATOIRES = ["summary", "detailed_description"] as const;
 const LABEL = /(Picture|Audio|Video)\s*(\d+)/i;
@@ -42,7 +42,7 @@ export function depuisCompilationH3ir(
   const manquantes = ORDRE_SECTIONS.filter((nom) => !(nom in c.sections));
   if (manquantes.length > 0) ajouter("alerte_controle", `Sections absentes de la compilation (laissées vides) : ${manquantes.join(", ")}.`);
 
-  // --- références ---
+  // --- references ---
   const refs: RefFiche[] = [];
   for (const m of [...c.manifest].sort((a, b) => a.slot - b.slot)) {
     const chemin = res.fichiers[m.sha256];
@@ -57,14 +57,14 @@ export function depuisCompilationH3ir(
       ajouter("alerte_controle", `${lien.code} est une vidéo de référence : une fiche n'écrit que des images et des voix, elle n'est pas reportée (les vidéos déjà liées au plan restent).`);
       continue;
     }
-    // Un audio est une voix (`voice_timbre`, l'asset est le personnage).
+    // An audio is a voice (`voice_timbre`, the asset is the character).
     if (m.kind === "audio") refs.push({ type: "audio", slot, asset: lien.code, role: "Voix du personnage", retention: "reference" });
     else refs.push({ type: "picture", slot, asset: lien.code, role: m.role ?? null, retention: null });
   }
   refs.sort((a, b) => (a.type === b.type ? a.slot - b.slot : a.type === "picture" ? -1 : 1));
   if (!refs.some((r) => r.type === "picture")) ajouter("bloque_controle", "La compilation ne cite aucune image de référence : la fiche n'est pas écrite.");
 
-  // --- diagnostics du compilateur ---
+  // --- compiler diagnostics ---
   const diagnostics = c.diagnostics.slice(0, 20);
   for (const d of diagnostics) {
     const grave = /^(error|warn)/i.test(d.severity);
@@ -87,9 +87,9 @@ export function depuisCompilationH3ir(
   ];
 }
 
-/** Du résultat d'une RETOUCHE de prompt (« partir de cet essai », skill `retouche-prompt`) au changement `fiche` : les six sections de l'essai retouché, rien
- * d'autre. Les références du plan ne bougent pas (aucune `refs` : « champ absent = on n'y touche pas »), le contrôle de la fiche vérifie à l'application que
- * le prompt cite bien des images qui existent. `moteur: "h3ir"` : l'ancien prompt reste dans l'historique et le nouveau y entre. */
+/** From the result of a prompt RETOUCH (« partir de cet essai », skill `retouche-prompt`) to the `fiche` change: the six sections of the retouched attempt, nothing
+ * else. The clip's references do not move (no `refs`: « absent field = we do not touch it »), the sheet check verifies at application that the prompt
+ * cites images that exist. `moteur: "h3ir"`: the old prompt stays in the history and the new one goes in. */
 export function depuisRetouche(res: ResultatRetouche, plan: { uuid: string; titre: string }, options: { groupe?: string; sousGroupe?: string | null } = {}): ChangementBrut[] {
   const avertissements: Avertissement[] = [];
   avertissements.push({

@@ -6,9 +6,9 @@ import { bibliothequeStyles, cheminApercuStyle } from "../lib/styles/library";
 import { IDS_SUJETS } from "../lib/styles/subjects";
 import { styles } from "./schema";
 
-/** Sème la table `styles` depuis la bibliothèque versionnée (lib/styles/library.json + clauses.json) : idempotent, relancé à chaque
- * migration. Une entrée retirée du JSON est retirée de la base ; les aperçus disponibles sont
- * relus sur le disque (`mediaRoot`/styles/<id>/<sujet>.webp). */
+/** Seeds the `styles` table from the versioned library (lib/styles/library.json + clauses.json): idempotent, re-run at each
+ * migration. An entry removed from the JSON is removed from the database; the available previews are
+ * re-read from disk (`mediaRoot`/styles/<id>/<sujet>.webp). */
 export async function semerStyles(db: PostgresJsDatabase<Record<string, unknown>>, mediaRoot: string): Promise<number> {
   const lignes = bibliothequeStyles().map((s, ordre) => ({
     id: s.id,

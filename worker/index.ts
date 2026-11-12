@@ -52,17 +52,17 @@ import { reprendreOrphelines } from "./resume";
 
 const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 const INTERVALLE_MS = Number(process.env.WORKER_INTERVAL_MS ?? 10_000);
-/** Appels LLM en même temps (défaut 1) : à régler sur le `--parallel` du serveur llama.cpp. */
+/** LLM calls at the same time (default 1): to be set to the `--parallel` of the llama.cpp server. */
 const LLM_PARALLELE = Math.max(1, Math.floor(Number(process.env.LLM_PARALLELE ?? 1)) || 1);
 const budgetContexte = new BudgetContexte(contexteTotalDepuisEnv(), LLM_PARALLELE);
-const PAUSE_ENTRE_TACHES_MS = 1_000; // une tâche vient de finir : on enchaîne vite sur la suivante
+const PAUSE_ENTRE_TACHES_MS = 1_000; // a task has just finished: we chain quickly onto the next
 const INTERVALLE_POLL_MS = 5_000;
-const INTERVALLE_DEMANDES_MS = 2_000; // une demande est en cours : on regarde souvent si son étape a fini
-const DUREE_MAX_POLL_MS = 30 * 60_000; // un plan H3 ne devrait jamais dépasser 30 min
+const INTERVALLE_DEMANDES_MS = 2_000; // a request is in progress: we check often whether its step has finished
+const DUREE_MAX_POLL_MS = 30 * 60_000; // a H3 clip should never exceed 30 min
 
 const client = creerClientComfyUI();
 
-/** Les trois workflows de la vidéo (contrat : workflows/README.md). Chemins surchargeables ; relus à chaque étape (un fichier ré-exporté est pris tout de suite). */
+/** The three video workflows (contract: workflows/README.md). Paths can be overridden; re-read at each step (a re-exported file is taken right away). */
 const CHEMINS_WORKFLOWS: Record<EtapeVideo, { normal: string; suite?: string }> = {
   generation: {
     normal: process.env.COMFYUI_WORKFLOW_GENERATION_PATH ?? "./workflows/video-generation/VID_Generation.json",
@@ -74,7 +74,7 @@ const CHEMINS_WORKFLOWS: Record<EtapeVideo, { normal: string; suite?: string }> 
     suite: process.env.COMFYUI_WORKFLOW_FINITION_SUITE_PATH ?? "./workflows/video-generation/VID_Finition_suite.json",
   },
 };
-/** `suite` : le plan prolonge le précédent par le latent (Motion Context) : la génération charge son contexte, la finition retire le préfixe de contexte. */
+/** `suite`: the clip extends the previous one through the latent (Motion Context): the generation loads its context, the finishing removes the context prefix. */
 const chargerWorkflow = async (etape: EtapeVideo, suite: boolean): Promise<WorkflowJson> => {
   const chemins = CHEMINS_WORKFLOWS[etape];
   return JSON.parse(await readFile(resolve((suite ? chemins.suite : undefined) ?? chemins.normal), "utf-8"));
@@ -85,11 +85,11 @@ async function prochainJobEnAttente() {
     .select()
     .from(jobs)
     .where(eq(jobs.statut, "en_attente"))
-    // Le rendu d'une demande (itération) passe avant les autres vidéos : voir worker/scheduler.ts.
+    // The render of a request (iteration) goes before the other videos: see worker/scheduler.ts.
     .orderBy(sql`(${jobs.demandeId} is null)`, jobs.createdAt)
     .limit(50);
-  // Un plan en « suite » repart du rendu de son précédent : tant que celui-ci a un rendu en file ou en cours, il patiente (même mis en file avant lui). Le plus
-  // ancien rendu qui n'attend personne passe. Jamais d'interblocage : on remonte `ordre` de plan en plan, la chaîne est finie.
+  // A clip in « suite » restarts from the render of its previous one: as long as that one has a render queued or in progress, it waits (even if queued before it). The oldest
+  // render that is not waiting for anyone goes through. Never a deadlock: we go up `ordre` from clip to clip, the chain is finite.
   for (const job of enAttente) {
     const [plan] = await db.select({ episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(eq(plans.id, job.planId));
     if (plan && doitAttendreLePrecedent(plan.liaison, await precedentEnRendu(plan))) continue;
@@ -98,12 +98,12 @@ async function prochainJobEnAttente() {
   return null;
 }
 
-/** Ce que le worker soumet, et ce qu'il garde de l'essai : `promptFiche` est le prompt de la FICHE (sans la déclaration de l'image de raccord, que le
- * code ajoute au prompt soumis seulement) ; `raccordJobId` est l'essai du plan précédent dont la dernière image sert de première image. */
+/** What the worker submits, and what it keeps of the attempt: `promptFiche` is the prompt of the SHEET (without the declaration of the continuity image, which the
+ * code adds to the submitted prompt only); `raccordJobId` is the attempt of the previous clip whose last image serves as first image. */
 async function construireSubmissionInput(
   planId: number,
   activerUpscale: boolean,
-  /** Un rendu final qui reprend le latent d'une prévisualisation rejoue le raccord de celle-ci (`undefined` : celui d'aujourd'hui ; `null` : aucun). */
+  /** A final render that resumes the latent of a preview replays the continuity of that preview (`undefined`: today's one; `null`: none). */
   raccordImpose?: number | null,
 ): Promise<{ input: SubmissionInput; promptFiche: string; raccordJobId: number | null; plan: typeof plans.$inferSelect }> {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
@@ -120,17 +120,17 @@ async function construireSubmissionInput(
 
   const promptFiche = assemblerPrompt(sections);
 
-  // Un fichier de MEDIA_ROOT -> chemin local + nom unique côté ComfyUI (pas de collision entre deux plans,
-  // deux prises de même nom, ni avec les fichiers de l'utilisateur dans le dossier d'entrée).
+  // A MEDIA_ROOT file -> local path + unique name on the ComfyUI side (no collision between two clips,
+  // two takes with the same name, nor with the user's files in the input folder).
   const ref = (cheminRelatif: string) => ({
     cheminLocal: join(MEDIA_ROOT, cheminRelatif),
     nomDistant: nomDistantDepuisChemin(cheminRelatif),
   });
   const refAsset = (fichier: string | null) => ref(cheminAssetMedia(fichier ?? ""));
 
-  // Audio : les voix des personnages. Le prompt est la source
-  // des répliques (2026-10-14) : la voix d'un personnage qui parle est une référence audio de la fiche dont l'asset est le PERSONNAGE
-  // (son master) ; sans master, le modèle vidéo invente la voix (jamais bloquant).
+  // Audio: the characters' voices. The prompt is the source
+  // of the lines (2026-10-14): the voice of a speaking character is an audio reference of the sheet whose asset is the CHARACTER
+  // (its master); without a master, the video model invents the voice (never blocking).
   const audioVoix = refs
     .filter((r) => r.type === "audio" && r.assetType === "personnage")
     .flatMap((r) => (r.voixMaster && r.assetId != null ? [{ slot: r.slot, ...ref(cheminVoixMedia(r.assetId, r.voixMaster)), dureeSecondes: null as number | null }] : []));
@@ -142,7 +142,7 @@ async function construireSubmissionInput(
     .filter((r) => r.type === "video" && r.fichier)
     .map((r) => ({ slot: r.slot, ...refAsset(r.fichier) }));
 
-  // Liaison « suite » : la dernière image du rendu du plan précédent devient la première image du premier shot (éphémère, lib/clips/clip-continuity.ts).
+  // « suite » link: the last image of the render of the previous clip becomes the first image of the first shot (ephemeral, lib/clips/clip-continuity.ts).
   const raccord = await preparerRaccord(plan, refsImage.map((r) => r.slot), refsVideo.length, raccordImpose);
 
   return {
@@ -163,7 +163,7 @@ async function construireSubmissionInput(
   };
 }
 
-/** Le job et son plan changent d'état ENSEMBLE : jamais un job terminé dont le plan reste « en cours ». */
+/** The job and its clip change state TOGETHER: never a finished job whose clip stays « en cours ». */
 async function cloreJob(job: typeof jobs.$inferSelect, jobSet: Partial<typeof jobs.$inferInsert>, statutPlan: typeof plans.$inferSelect["statut"]) {
   await db.transaction(async (tx) => {
     await tx.update(jobs).set(jobSet).where(eq(jobs.id, job.id));
@@ -171,13 +171,13 @@ async function cloreJob(job: typeof jobs.$inferSelect, jobSet: Partial<typeof jo
   });
 }
 
-/** Distinction stricte (F04) : une API ComfyUI injoignable ne consomme
- * jamais une tentative — seul un vrai échec de rendu compte. Renvoie `true` si
- * le job est allé au bout (rendu, échec de rendu, rejeu), `false` s'il est resté
- * ou reparti en attente faute de ComfyUI : le worker patiente alors. */
+/** Strict distinction (F04): an unreachable ComfyUI API never consumes
+ * an attempt — only a real render failure counts. Returns `true` if
+ * the job went all the way (render, render failure, replay), `false` if it stayed
+ * or went back to waiting for lack of ComfyUI: the worker then waits. */
 async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
-  // Prise gardée par le statut : un job annulé entre-temps (annulation directe d'une
-  // vidéo en attente) ne doit pas être ressuscité.
+  // Taking guarded by the status: a job cancelled in the meantime (direct cancellation of a
+  // pending video) must not be revived.
   const prise = await db
     .update(jobs)
     .set({ statut: "en_cours", startedAt: new Date() })
@@ -191,10 +191,10 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
   let suivi: Suivi | null = null;
   let relais: ReturnType<typeof creerRelaisJob> | null = null;
 
-  /** Annulation demandée : on interrompt ComfyUI après avoir vérifié dans /queue que
-   * c'est bien notre prompt, on ne récupère rien. Le job finit `echoue` / « Annulée »
-   * SANS consommer de tentative ni déclencher le rejeu F04 ; le plan reprend l'état
-   * de sa dernière réussite. */
+  /** Cancellation requested: we interrupt ComfyUI after having checked in /queue that
+   * it is indeed our prompt, we retrieve nothing. The job ends `echoue` / « Annulée »
+   * WITHOUT consuming an attempt nor triggering the F04 replay; the clip takes back the state
+   * of its last success. */
   const annuler = async (): Promise<boolean> => {
     const issue = promptId ? await annulerCoteComfyUI(client, promptId) : "rien";
     console.log(`[worker] Job ${job.id} (plan ${job.planId}) annulé (${issue})`);
@@ -203,12 +203,12 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
   };
 
   try {
-    // Les étapes de CE rendu (docs/PLAN_INTEGRATION_WORKER.md) : une prévisualisation est la génération ; un rendu final est l'upscale puis la finition, et
-    // repart du latent de la prévisualisation retenue tant que la fiche n'a pas changé depuis (sinon le plan est régénéré d'abord : c'est le choix de
-    // celui qui l'a mis dans le lot).
+    // The steps of THIS render (docs/PLAN_INTEGRATION_WORKER.md): a preview is the generation; a final render is the upscale then the finishing, and
+    // restarts from the latent of the selected preview as long as the sheet has not changed since (otherwise the clip is regenerated first: that is the choice of
+    // whoever put it in the batch).
     const [source] = job.activerUpscale && job.jobSourceId != null ? await db.select().from(jobs).where(eq(jobs.id, job.jobSourceId)) : [];
     const ficheModifiee = source ? await ficheChangeeDepuis(job.planId, source) : false;
-    // Seule une prévisualisation a un latent de première passe à reprendre (les latents d'un rendu final sont ceux de l'upscale).
+    // Only a preview has a first-pass latent to resume (the latents of a final render are those of the upscale).
     const raisonSource = raisonSourceInvalide(source ? { statut: source.statut, latentDossier: source.activerUpscale ? null : source.latentDossier } : null, ficheModifiee);
     const etapes = etapesDuRendu(job.activerUpscale, raisonSource === null);
     if (job.activerUpscale && raisonSource) {
@@ -218,8 +218,8 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     const dossierPropre = dossierLatents(job.planId, job.numeroRendu, job.tentative);
     const dossierGen = depuisSource ? source!.latentDossier! : dossierPropre;
 
-    // Plan en suite : si le plan précédent a gardé le latent de sa première passe, il alimente Motion Context (continuité par le latent) ; sinon l'image de
-    // raccord, comme avant. Un rendu qui reprend une prévisualisation garde sa continuité (le conditioning de l'upscale doit être le même).
+    // Clip in suite: if the previous clip kept the latent of its first pass, it feeds Motion Context (continuity through the latent); otherwise the continuity
+    // image, as before. A render that resumes a preview keeps its continuity (the conditioning of the upscale must be the same).
     const [planAvant] = await db.select().from(plans).where(eq(plans.id, job.planId));
     const precedent = !depuisSource && planAvant?.liaison === "suite" ? await planPrecedent(planAvant) : null;
     const contexte = precedent ? await essaiSourceDuLatent(precedent) : null;
@@ -230,12 +230,12 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
       depuisSource ? raccordImageARejouer(source!) : contexte ? null : undefined,
     );
     const continuite: Continuite | null = depuisSource ? continuiteEffective(source!) : contexte ? "latent" : raccordJobId != null ? "image" : null;
-    // Un préfixe de fichier propre à ce rendu : plus de collision de noms, ni de résultat en cache servi à un autre rendu.
+    // A file prefix specific to this render: no more name collisions, nor a cached result served to another render.
     input.prefixeSortie = `cadence_p${job.planId}_r${job.numeroRendu}${job.tentative > 1 ? `_t${job.tentative}` : ""}`;
-    verifierEntree(input); // durée hors 4-10 s, trop de références : échec franc (voir catch)
-    // Ce qui est gardé sur le rendu : le prompt de la FICHE (de quoi comparer deux rendus et voir qu'une modification n'a pas bougé le prompt ;
-    // « Repartir de là » le restaure) et, s'il y en a un, l'essai dont l'image de raccord vient.
-    // Un plan « suite » sans image de raccord faute d'emplacement libre : rien ne bloque (la génération part comme avant), mais l'essai le dit.
+    verifierEntree(input); // duration outside 4-10 s, too many references: clear failure (see catch)
+    // What is kept on the render: the prompt of the SHEET (to compare two renders and see that a modification did not move the prompt;
+    // « Repartir de là » restores it) and, if there is one, the attempt the continuity image comes from.
+    // A « suite » clip without continuity image for lack of a free slot: nothing blocks (the generation goes as before), but the attempt says so.
     const raccordSansPlaceLibre = lePlan.liaison === "suite" && !depuisSource && continuite == null && raccordSansPlace(input.refsImage.length + input.refsVideo.length);
     const alertes = raccordSansPlaceLibre
       ? [...(job.alertesIteration ?? []), "Pas d'image de raccord : les références du plan occupent tous les emplacements. Retire une référence pour que la dernière image du plan précédent soit reprise."]
@@ -244,13 +244,13 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
       .update(jobs)
       .set({
         promptUtilise: promptFiche,
-        // L'essai du plan précédent dont ce rendu prolonge l'image ou le latent (celui de la prévisualisation reprise, pour un rendu final qui en part).
+        // The attempt of the previous clip that this render extends through the image or the latent (that of the resumed preview, for a final render that starts from it).
         raccordJobId: depuisSource ? source!.raccordJobId : contexte ? contexte.id : raccordJobId,
         continuite,
         dureeUtilisee: input.dureeSecondes,
         seedUtilisee: input.seed ?? null,
         descriptionUtilisee: lePlan.description ?? null,
-        // Le dossier où ce rendu range ses latents (la première passe d'une prévisualisation, l'upscale d'un rendu final) ; la prévisualisation reprise, si elle l'est.
+        // The folder where this render stores its latents (the first pass of a preview, the upscale of a final render); the resumed preview, if it is one.
         latentDossier: dossierPropre,
         jobSourceId: depuisSource ? job.jobSourceId : null,
         ...(alertes ? { alertesIteration: alertes } : {}),
@@ -265,16 +265,16 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
 
     relais = creerRelaisJob(job.id);
     const relaisActif = relais;
-    // La sonde du drapeau réveille l'attente entre deux interrogations de /history :
-    // une annulation n'attend pas les 5 s du rythme normal.
+    // The flag probe wakes the wait between two /history polls:
+    // a cancellation does not wait for the 5 s of the normal rhythm.
     surveillance = surveillerAnnulation(() => annulationDemandeeVideo(job.id));
 
-    // Un prompt par étape. Le dernier donne le fichier du rendu (le brouillon d'une prévisualisation, la vidéo finale d'un rendu final) ; les autres
-    // n'ont pas de fichier à récupérer (latent sauvegardé sur ComfyUI) : leur fin se lit dans /history.
+    // One prompt per step. The last one gives the render's file (the draft of a preview, the final video of a final render); the others
+    // have no file to retrieve (latent saved on ComfyUI): their end is read in /history.
     const grapheDe = async (etape: EtapeVideo): Promise<WorkflowJson> => {
       const workflow = await chargerWorkflow(etape, continuite === "latent");
       if (etape === "generation") {
-        // Dans un rendu final qui régénère, le brouillon n'est pas le résultat : son préfixe le distingue de la vidéo finale.
+        // In a final render that regenerates, the draft is not the result: its prefix distinguishes it from the final video.
         const prefixe = job.activerUpscale ? `brouillon_${input.prefixeSortie}` : input.prefixeSortie;
         return injecterGeneration(workflow, { ...input, prefixeSortie: prefixe }, dossierPropre, continuite === "latent" ? contexte?.latentDossier : undefined);
       }
@@ -287,8 +287,8 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     for (const [i, etape] of etapes.entries()) {
       const graphe = await grapheDe(etape);
       relaisActif.definirEtape(i + 1, etapes.length);
-      // Le WebSocket s'ouvre AVANT la soumission ; il ne décide de rien (le résultat vient de /history) : il ne sert qu'à
-      // montrer l'étape en cours. S'il tombe ou n'existe pas (stub), le rendu se déroule sans progression.
+      // The WebSocket opens BEFORE the submission; it decides nothing (the result comes from /history): it only serves to
+      // show the current step. If it drops or does not exist (stub), the render proceeds without progress.
       suivi?.fermer();
       suivi = await client.ouvrirSuivi((e) => relaisActif.surEvenement(e)).catch(() => null);
       promptId = await client.submitGraph(graphe);
@@ -324,24 +324,24 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
     await client.fetchOutput(resultat.cheminSortieDistant, cheminLocalCible);
 
     const cheminRelatif = `plans/${job.planId}/${nomFichier}`;
-    // "previsualise" vs "termine" : le statut du plan reflète si la
-    // dernière réussite était une prévisualisation (sans upscale) ou un
-    // rendu final — voir db/schema.ts, planStatutEnum.
+    // "previsualise" vs "termine": the clip's status reflects whether the
+    // last success was a preview (without upscale) or a
+    // final render — see db/schema.ts, planStatutEnum.
     const statutPlan = job.activerUpscale ? "termine" : "previsualise";
     await cloreJob(job, { statut: "termine", cheminSortie: cheminRelatif, finishedAt: new Date() }, statutPlan);
     console.log(`[worker] Job ${job.id} (plan ${job.planId}) -> ${statutPlan} (${cheminRelatif})`);
     return true;
   } catch (err) {
-    // Entrée que rien ne rendra valable en réessayant : échec définitif, sans rejeu ni attente.
+    // Input that nothing will make valid by retrying: final failure, without replay or wait.
     if (err instanceof ErreurEntreeInvalide) {
       await cloreJob(job, { statut: "echoue", erreur: err.message, finishedAt: new Date() }, "echoue");
       console.error(`[worker] Job ${job.id} (plan ${job.planId}) refusé avant soumission : ${err.message}`);
       return true;
     }
-    // Une exception ici (réseau coupé en cours de route, ComfyUI qui plante
-    // avant d'avoir répondu) est traitée comme une indisponibilité, pas comme
-    // un échec de rendu : le job repart en_attente sans consommer de tentative.
-    // Une annulation demandée prime : ce n'est pas une indisponibilité à rejouer.
+    // An exception here (network cut midway, ComfyUI crashing
+    // before answering) is treated as an unavailability, not as
+    // a render failure: the job goes back to en_attente without consuming an attempt.
+    // A cancellation requested takes precedence: it is not an unavailability to replay.
     if (await annulationDemandeeVideo(job.id).catch(() => false)) return await annuler();
     console.warn(`[worker] Job ${job.id} interrompu (probable indisponibilité) :`, err);
     await db
@@ -369,13 +369,13 @@ async function gererEchecReel(job: typeof jobs.$inferSelect, message: string) {
   }
 }
 
-/** ComfyUI a pu garder des modèles en mémoire depuis la dernière libération (vrai au démarrage : inconnu). Une tâche de
- * création, qui prend la carte seule, ne le libère que dans ce cas. */
+/** ComfyUI may have kept models in memory since the last release (true at startup: unknown). A creation task,
+ * which takes the card alone, only releases it in that case. */
 let comfyuiPeutEtreCharge = true;
 
 const urlLlm = () => configLlm().url;
 
-/** Les tâches qui ne tiennent pas à côté de l'autre voie (l'upscale monte à 13 Go) prennent le verrou exclusif. */
+/** The tasks that do not fit next to the other lane (the upscale goes up to 13 GB) take the exclusive lock. */
 const verrou = new VerrouGpu();
 
 const journalLiberation = (message: string) => {
@@ -385,10 +385,9 @@ const journalLiberation = (message: string) => {
 
 export type Voie = "comfyui" | "llm";
 
-/** Une tâche par appel sur la voie donnée : une boucle par voie, ComfyUI et LLM travaillent en même temps (la VRAM de la carte les
- * accueille ensemble ; seules l'upscale et la création d'un projet prennent la carte seule). Le choix (image, puis LLM, puis vidéo ; FIFO ; sans préemption ; même domaine à
- * égalité) vit dans scheduler.ts. Un domaine injoignable ne bloque pas l'autre : ses tâches restent en attente,
- * on prend ce qui peut tourner. Renvoie `true` si une tâche a été traitée. */
+/** One task per call on the given lane: one loop per lane, ComfyUI and LLM work at the same time (the card's VRAM accommodates them together; only the upscale and the creation of a project take the card alone). The choice (image, then LLM, then video; FIFO; no preemption; same domain on a
+ * tie) lives in scheduler.ts. An unreachable domain does not block the other: its tasks stay pending,
+ * we take what can run. Returns `true` if a task was processed. */
 async function traiterProchaineTache(voie: Voie): Promise<boolean> {
   const avecComfyui = voie === "comfyui";
   const avecLlm = voie === "llm";
@@ -397,11 +396,11 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
     avecComfyui ? prochainJobEnAttente() : null,
     avecLlm ? prochaineTacheLlmEnAttente() : null,
   ]);
-  // Les appels en parallèle se partagent le contexte du serveur : celui-ci n'est pris que s'il tient à côté de ceux en vol (lib/llm/budget-context.ts).
-  // La place est réservée tout de suite (aucun `await` entre le test et la réservation) et rendue à la fin du tour, quel qu'il soit.
-  // `plan-h3ir` (Open H3 IR) n'a pas de dossier de skill : on compte celui de sa traduction (le compilateur Python ajoute ses propres appels, voir JETONS_COMPILATEUR_H3IR).
+  // Parallel calls share the server's context: it is only taken if it fits next to those in flight (lib/llm/budget-context.ts).
+  // The room is reserved right away (no `await` between the test and the reservation) and returned at the end of the turn, whatever it is.
+  // `plan-h3ir` (Open H3 IR) has no skill folder: we count that of its translation (the Python compiler adds its own calls, see JETONS_COMPILATEUR_H3IR).
   const run = runBrut && budgetContexte.reserver(runBrut.id, estimerContexte(runBrut.skill, chargerSkill(runBrut.skill === SKILL_H3IR ? SKILL_TRADUCTION : runBrut.skill).jetonsEstimes + (runBrut.skill === SKILL_H3IR ? JETONS_COMPILATEUR_H3IR : 0), runBrut.entree)) ? runBrut : null;
-  let parti = false; // l'appel a réellement été envoyé : son contexte reste dans le cache du serveur
+  let parti = false; // the call was actually sent: its context stays in the server's cache
   try {
 
   const comfyuiAttend = gen != null || job != null;
@@ -410,13 +409,13 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
     run ? llmJoignable(urlLlm(), fetch, configLlm().routeSante).catch(() => false) : Promise.resolve(false),
   ]);
 
-  // Disponibilité notée pour l'en-tête (pastille « injoignable ») ; sans rien en attente, rien à signaler.
+  // Availability recorded for the header (« injoignable » badge); with nothing pending, nothing to report.
   const [, depuisLlm] = await Promise.all([
     avecComfyui ? (comfyuiAttend ? noterSonde("comfyui", comfyuiOk) : effacerSonde("comfyui")) : null,
     avecLlm ? (run ? noterSonde("llm", llmOk) : effacerSonde("llm")) : null,
   ]);
-  // Un serveur LLM muet depuis trop longtemps : les appels en attente échouent (relançables), ils ne bloquent
-  // plus la conversation. ComfyUI garde son attente (une vidéo ou une image se remet en file à la main).
+  // An LLM server silent for too long: the pending calls fail (restartable), they no longer block
+  // the conversation. ComfyUI keeps its wait (a video or an image is put back in the queue by hand).
   const { injoignableMaxMs } = configLlm();
   if (run && !llmOk && attenteDepassee(depuisLlm, Date.now(), injoignableMaxMs)) {
     const n = await echouerAppelsEnAttente(
@@ -430,7 +429,7 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
   if (run && llmOk) candidates.push({ genre: "llm", id: run.id, createdAt: run.createdAt, demande: run.demandeId != null });
   if (job && comfyuiOk) candidates.push({ genre: "video", id: job.id, createdAt: job.createdAt, demande: job.demandeId != null });
   if (candidates.length === 0) {
-    // Rien de lançable : on garde le message d'indisponibilité de chaque domaine.
+    // Nothing runnable: we keep the unavailability message of each domain.
     if (comfyuiAttend) console.log("[worker] ComfyUI injoignable — les tâches d'images et de vidéo restent en attente");
     if (run) console.log("[worker] Serveur LLM injoignable — les appels d'agent restent en attente");
     return false;
@@ -440,13 +439,13 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
   if (!choix) return false;
   const domaine = domaineDe(choix.genre);
   const upscale = choix.genre === "video" && job!.activerUpscale;
-  // La création d'un projet (2026-10-19) : le gros modèle de l'installateur tient en VRAM, ComfyUI ne doit pas être chargé. Ses appels
-  // prennent la carte seule (les tâches en cours finissent, rien ne démarre à côté) et ComfyUI est libéré avant le premier.
+  // Project creation (2026-10-19): the installer's large model fits in VRAM, ComfyUI must not be loaded. Its calls
+  // take the card alone (running tasks finish, nothing starts next to them) and ComfyUI is released before the first one.
   const creation = choix.genre === "llm" && (await projetEnCreation(run!.projectId));
 
   noterEvenement("choix", { genre: choix.genre, id: choix.id, voie, enAttente: candidates.map((c) => `${c.genre}:${c.id}`) });
   return await verrou.avec(upscale || creation, async () => {
-    // Même GPU : seul l'upscale décharge le LLM (il ne tient pas à côté), et la création décharge ComfyUI. Au mieux, jamais bloquant.
+    // Same GPU: only the upscale unloads the LLM (it does not fit next to it), and the creation unloads ComfyUI. Best effort, never blocking.
     const debutLiberation = Date.now();
     const liberateurs = { comfyui: () => client.libererMemoire(), llm: () => decharger(urlLlm()) };
     const liberee = upscale
@@ -466,7 +465,7 @@ async function traiterProchaineTache(voie: Voie): Promise<boolean> {
     );
     if (domaine === "comfyui") comfyuiPeutEtreCharge = true;
     return fait;
-    // Les appels d'une création se partagent les slots du serveur LLM : exclusifs face au reste, pas entre eux.
+    // The calls of a creation share the LLM server's slots: exclusive against the rest, not among themselves.
   }, creation && !upscale ? "creation" : null);
   } finally {
     if (runBrut) budgetContexte.liberer(runBrut.id, parti);
@@ -477,15 +476,15 @@ async function boucle() {
   console.log(`[worker] Cadence worker démarré (mode ComfyUI : ${process.env.COMFYUI_MODE ?? "stub"})`);
   demarrerSondeVram(process.env.COMFYUI_URL, urlLlm());
   noterEvenement("demarrage");
-  // Une seule fois, avant la première prise : ce qui était « en cours » appartenait
-  // à un worker mort (voir worker/resume.ts).
+  // Only once, before the first take: what was « en cours » belonged
+  // to a dead worker (see worker/resume.ts).
   try {
     const { images, videos, llm, annulees } = await reprendreOrphelines(MEDIA_ROOT);
     if (images || videos || llm || annulees) {
       console.log(`[worker] Reprise : ${images} image(s) et ${llm} appel(s) LLM interrompu(s), ${videos} vidéo(s) remise(s) en file, ${annulees} annulation(s) terminée(s)`);
     }
-    // Un lot dont la tâche en cours vient d'être interrompue n'attend plus rien d'elle : son statut
-    // (prête avec un échec à relancer, ou échouée) est rattrapé ici.
+    // A batch whose running task has just been interrupted no longer waits for it: its status
+    // (ready with a failure to restart, or failed) is caught up here.
     const lots = await finaliserLotsOrphelins();
     if (lots) console.log(`[worker] Reprise : ${lots} lot(s) d'agent rattrapé(s)`);
     const exports = await reprendreExports();
@@ -494,7 +493,7 @@ async function boucle() {
     console.error("[worker] Reprise des tâches interrompues impossible :", err);
   }
 
-  // Purge des échecs de plus de 24 h : une fois au démarrage, puis toutes les heures.
+  // Purge of failures older than 24 h: once at startup, then every hour.
   let dernierePurge = 0;
   const purger = async () => {
     dernierePurge = Date.now();
@@ -507,9 +506,9 @@ async function boucle() {
   };
   await purger();
 
-  // Les boucles : une par voie (ComfyUI, LLM). L'installateur et la purge ne touchent jamais le GPU : ils ont leur propre boucle et ne
-  // retardent aucune tâche.
-  // Plusieurs boucles LLM = plusieurs appels en même temps : autant que de slots (`--parallel`) du serveur llama.cpp.
+  // The loops: one per lane (ComfyUI, LLM). The installer and the purge never touch the GPU: they have their own loop and do not
+  // delay any task.
+  // Several LLM loops = several calls at the same time: as many as there are slots (`--parallel`) on the llama.cpp server.
   const voies: Voie[] = ["comfyui", ...Array.from({ length: LLM_PARALLELE }, (): Voie => "llm")];
   await Promise.all([
     ...voies.map(async (v) => {
@@ -527,14 +526,14 @@ async function boucle() {
       while (true) {
         if (Date.now() - dernierePurge >= INTERVALLE_PURGE_MS) await purger();
         let fait = false;
-        // L'installateur : une transition au plus par création en cours (lancer une étape, appliquer, relancer les échecs).
+        // The installer: at most one transition per creation in progress (launch a step, apply, restart the failures).
         try {
           if (await piloterCreations()) fait = true;
         } catch (err) {
           console.error("[worker] Installateur :", err);
         }
-        // Les demandes (itérer un plan…) : une transition au plus par demande en cours. Tant qu'il y en a, on repasse vite : chaque
-        // étape qui finit doit lancer la suivante sans attendre le grand intervalle (pas de trou visible entre deux étapes).
+        // The requests (iterate a clip…): at most one transition per request in progress. As long as there are some, we come back quickly: each
+        // step that finishes must launch the next one without waiting for the long interval (no visible gap between two steps).
         let demandesActives = 0;
         try {
           const r = await piloterDemandes();
@@ -546,8 +545,8 @@ async function boucle() {
         await new Promise((r) => setTimeout(r, fait ? PAUSE_ENTRE_TACHES_MS : demandesActives > 0 ? INTERVALLE_DEMANDES_MS : INTERVALLE_MS));
       }
     })(),
-    // Les exports d'épisode (page Montage) : ffmpeg sur le processeur, jamais le GPU. Leur propre boucle : un long encodage ne retarde
-    // ni l'installateur ni les demandes (worker/montage-export.ts).
+    // The episode exports (Montage page): ffmpeg on the processor, never the GPU. Their own loop: a long encoding delays
+    // neither the installer nor the requests (worker/montage-export.ts).
     (async () => {
       while (true) {
         let fait = false;

@@ -5,15 +5,15 @@ import { libelleAsset } from "../assets/assetCode";
 import { LIBELLE_TYPE_ASSET } from "../assets/registry-types";
 import { ajouterReference, compacterImages, nomDepuisCode, retirerReference, roleParDefaut, type SectionsTexte, type TypeRef } from "./references";
 
-/** Retrait / ajout d'une référence sur un plan DÉJÀ ÉCRIT, avec le prompt tenu à jour (règles pures dans
- * lib/clips/references.ts). À appeler dans une transaction : slots, sections et lien tombent ensemble. */
+/** Removing / adding a reference on an ALREADY WRITTEN clip, with the prompt kept up to date (pure rules in
+ * lib/clips/references.ts). To be called in a transaction: slots, sections and link fall together. */
 
 async function lireSections(db: Db, planId: number): Promise<SectionsTexte> {
   const lignes = await db.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, planId));
   return Object.fromEntries(lignes.map((l) => [l.section, l.contenu]));
 }
 
-/** N'écrit que les sections dont le texte a changé, et seulement celles qui existent déjà (un brouillon sans fiche n'a pas de sections). */
+/** Only writes the sections whose text has changed, and only those that already exist (a draft without a sheet has no sections). */
 async function ecrireSections(db: Db, planId: number, avant: SectionsTexte, apres: SectionsTexte): Promise<void> {
   for (const [section, contenu] of Object.entries(apres)) {
     if (!(section in avant) || contenu === avant[section]) continue;
@@ -21,8 +21,8 @@ async function ecrireSections(db: Db, planId: number, avant: SectionsTexte, apre
   }
 }
 
-/** Retire une référence : le lien, ses lignes dans `subject_definitions` / `retention_analysis`, ses mentions en
- * prose (elles reprennent le nom de l'asset), et les images restantes sont renumérotées 1..n. */
+/** Removes a reference: the link, its lines in `subject_definitions` / `retention_analysis`, its mentions in
+ * prose (they take back the asset's name), and the remaining images are renumbered 1..n. */
 export async function retirerRefDuPlan(db: Db, refId: number): Promise<void> {
   const [ref] = await db
     .select({ planId: planRefs.planId, type: planRefs.type, slot: planRefs.slot, code: assets.code })
@@ -45,8 +45,8 @@ export async function retirerRefDuPlan(db: Db, refId: number): Promise<void> {
   await ecrireSections(db, ref.planId, avant, apres);
 }
 
-/** Une référence vient d'être posée sur `slot` : ses lignes de définition et de rétention rejoignent le prompt, et les mentions de son nom laissées par
- * un retrait redeviennent son label (lib/clips/references.ts, `retablirCitations`). */
+/** A reference has just been placed on `slot`: its definition and retention lines join the prompt, and the mentions of its name left by
+ * a removal become its label again (lib/clips/references.ts, `retablirCitations`). */
 export async function declarerRefDansLePrompt(db: Db, planId: number, type: TypeRef, slot: number, assetId: number): Promise<void> {
   const [a] = await db.select({ code: assets.code }).from(assets).where(eq(assets.id, assetId));
   const avant = await lireSections(db, planId);
@@ -54,8 +54,8 @@ export async function declarerRefDansLePrompt(db: Db, planId: number, type: Type
   await ecrireSections(db, planId, avant, apres);
 }
 
-/** Le rôle et la rétention d'une référence posée à la main (`plan_refs.role` / `retention`) : ceux que la fiche aurait écrits par défaut. Le rôle précis d'avant un
- * retrait n'est pas gardé (il faudrait une colonne ou une table de plus) : on repart de ce défaut. */
+/** The role and retention of a reference placed by hand (`plan_refs.role` / `retention`): those the sheet would have written by default. The precise role from before a
+ * removal is not kept (it would need one more column or table): we start again from this default. */
 export async function roleDeLaRef(db: Db, type: TypeRef, assetId: number): Promise<{ role: string; retention: string | null }> {
   const [a] = await db.select({ code: assets.code, label: assets.label, type: assets.type }).from(assets).where(eq(assets.id, assetId));
   if (!a) return roleParDefaut(type, { typeAsset: null, libelleType: null, libelle: "référence" });

@@ -1,6 +1,6 @@
-/** Différence mot à mot entre deux textes (plus longue sous-suite commune) : sert à montrer ce qu'une retouche de timbre a changé, en
- * barré (retiré) et en surligné (ajouté). Pur. Les espaces et la ponctuation collée aux mots comptent comme partie du mot : « husky, »
- * et « husky » sont deux mots différents, ce qui est le bon niveau pour lire une instruction. */
+/** Word-by-word difference between two texts (longest common subsequence): used to show what a voice-timbre retouch changed, struck through
+ * (removed) and highlighted (added). Pure. Spaces and punctuation stuck to words count as part of the word: « husky, »
+ * and « husky » are two different words, which is the right level to read an instruction. */
 
 export type SegmentDiff = { type: "meme" | "retire" | "ajoute"; texte: string };
 
@@ -9,7 +9,7 @@ const mots = (t: string): string[] => t.split(/\s+/).filter(Boolean);
 export function differenceMots(avant: string, apres: string): SegmentDiff[] {
   const a = mots(avant);
   const b = mots(apres);
-  // Table des longueurs de sous-suite commune, parcourue de la fin vers le début.
+  // Table of common-subsequence lengths, walked from the end to the start.
   const lcs: number[][] = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
   for (let i = a.length - 1; i >= 0; i--) {
     for (let j = b.length - 1; j >= 0; j--) {
@@ -33,7 +33,7 @@ export function differenceMots(avant: string, apres: string): SegmentDiff[] {
   while (i < a.length) brut.push({ type: "retire", texte: a[i++]! });
   while (j < b.length) brut.push({ type: "ajoute", texte: b[j++]! });
 
-  // Les mots voisins de même nature sont regroupés : « calm and attentive » s'affiche d'un bloc.
+  // Adjacent words of the same kind are grouped: « calm and attentive » is displayed as one block.
   const groupes: SegmentDiff[] = [];
   for (const s of brut) {
     const dernier = groupes.at(-1);
@@ -41,8 +41,8 @@ export function differenceMots(avant: string, apres: string): SegmentDiff[] {
     else groupes.push({ ...s });
   }
 
-  // Un petit mot commun (« and », « the ») pris entre deux changements découpe la lecture en morceaux : on le compte des deux
-  // côtés, et tout le changement s'affiche en un retiré suivi d'un ajouté.
+  // A small common word (« and », « the ») taken between two changes splits the reading into pieces: we count it on both
+  // sides, and the whole change is displayed as one removed followed by one added.
   const segments: SegmentDiff[] = [];
   let retires: string[] = [];
   let ajoutes: string[] = [];

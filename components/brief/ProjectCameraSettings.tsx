@@ -7,9 +7,9 @@ import { ChampsReglagesCamera } from "@/components/h3ir/CameraSettingsFields";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import { resoudreReglages } from "@/lib/h3ir/settings";
 
-/** Mise en scène et créativité du PROJET : le réglage le plus général d'Open H3 IR, pour toutes les fiches qu'il compile. Chaque scène, puis chaque plan, peut le surcharger
- * (« Modifier » sur la scène, « Modifier » sur le plan). Vide = le réglage par défaut (créativité équilibrée, aucun style de mise en scène). */
-export function ReglagesCameraProjet({ projectId, creativite, styleCamera, demos }: { projectId: number; creativite: string | null; styleCamera: string | null; /** Les vidéos de démo de la mise en scène (lib/media.ts, `demosMiseEnScene`). */ demos?: Record<string, DemoDispo> }) {
+/** The project's staging and creativity: the most general setting of Open H3 IR, for all the sheets it compiles. Each scene, then each clip, can override it
+ * (« Modifier » on the scene, « Modifier » on the clip). Empty = the default setting (balanced creativity, no staging style). */
+export function ReglagesCameraProjet({ projectId, creativite, styleCamera, demos }: { projectId: number; creativite: string | null; styleCamera: string | null; /** The staging demo videos (lib/media.ts, `demosMiseEnScene`). */ demos?: Record<string, DemoDispo> }) {
   const router = useRouter();
   const [c, setC] = useState(creativite ?? "");
   const [s, setS] = useState(styleCamera ?? "");

@@ -57,14 +57,14 @@ import { attentesFiches } from "../h3ir/engine-db";
 import { jobs, planPromptSections, planRefs } from "../../db/schema";
 import { isNotNull, sql } from "drizzle-orm";
 
-/** Logique serveur du système d'agents : conversations, brief, propositions. Aucune dépendance à
- * Next (les actions de app/agents/actions.ts n'en sont que des enveloppes) : le script
- * d'essai et les tests l'appellent directement. Voir app/agents/actions.ts pour le contrat. */
+/** Server logic of the agent system: conversations, brief, proposals. No dependency on
+ * Next (the actions of app/agents/actions.ts are only wrappers): the trial script
+ * and the tests call it directly. See app/agents/actions.ts for the contract. */
 
 const ERR = (erreur: string) => ({ ok: false as const, erreur });
 
-/** Refus « une tâche est déjà en cours » : il NOMME la tâche qui bloque (et la renvoie) pour que la fenêtre
- * propose de l'annuler, au lieu d'un message sans prise (une tâche restée en attente bloque toute la conversation). */
+/** The refusal "a task is already running": it NAMES the blocking task (and returns it) so the window
+ * offers to cancel it, instead of a message with no handle (a task left pending blocks the whole conversation). */
 async function refusSiTacheActive(conversationId: number, message: string, buts?: ButRun[]) {
   const t = await tacheBloquante(conversationId, buts);
   if (!t) return null;
@@ -73,7 +73,7 @@ async function refusSiTacheActive(conversationId: number, message: string, buts?
 }
 const MAX_MESSAGE = 20_000;
 
-// --- cibles -----------------------------------------------------------------
+// --- targets -----------------------------------------------------------------
 
 export type CibleResolue = { cibleId: number | null; libelle: string };
 
@@ -108,7 +108,7 @@ export async function resoudreCible(projectId: number, portee: Portee, cible: Ci
   return { erreur: "Cible mal désignée pour cette portée." };
 }
 
-/** Libellé lisible d'une cible déjà résolue (id interne). */
+/** Readable label of an already resolved target (internal id). */
 export async function libelleCible(projectId: number, portee: Portee, cibleId: number | null): Promise<string> {
   const libelle = (r: CibleResolue | { erreur: string }, repli: string) => ("libelle" in r ? r.libelle : repli);
   if (portee === "projet" || cibleId == null) return libelle(await resoudreCible(projectId, "projet", null), "Projet");
@@ -121,11 +121,11 @@ export async function libelleCible(projectId: number, portee: Portee, cibleId: n
 // --- conversation -----------------------------------------------------------
 
 const etapeInitiale = (p: Profondeur) => (p === "complete" ? "conversation" : "consigne");
-/** L'agent ouvre l'entretien d'entrée (conversation complète) : trois pistes très différentes pour qui n'a pas d'idée (hook.ts). */
+/** The agent opens the intake interview (full conversation): three very different leads for whoever has no idea (hook.ts). */
 const messagesInitiaux = (p: Profondeur): MessageConversation[] => (p === "complete" ? [{ role: "assistant", content: accrocheEntretien(), at: new Date().toISOString() }] : []);
-/** L'ouverture d'une conversation : pour l'entretien d'entrée d'un projet CONÇU (design.ts), la fiche préremplie et, à la place du premier
- * message, la demande d'accroche au modèle (`entreeAccroche`, tâche posée par `lancerAccroche` une fois la conversation créée) ; sinon
- * l'accroche à trois pistes, fiche vide. */
+/** A conversation's opening: for the intake interview of a DESIGNED project (design.ts), the pre-filled sheet and, in place of the first
+ * message, the hook request to the model (`entreeAccroche`, task posted by `lancerAccroche` once the conversation is created); otherwise
+ * the three-lead hook, empty sheet. */
 async function ouverture(projectId: number, portee: Portee, p: Profondeur): Promise<{ messages: MessageConversation[]; fiche: Fiche | null; entreeAccroche: object | null }> {
   if (portee === "projet" && p === "complete") {
     const o = await ouvertureConcue(db, projectId);
@@ -134,8 +134,8 @@ async function ouverture(projectId: number, portee: Portee, p: Profondeur): Prom
   return { messages: messagesInitiaux(p), fiche: null, entreeAccroche: null };
 }
 
-/** Pose la tâche qui écrit l'accroche du scénariste (skill `accroche-scenariste`) : une tâche « tour », que l'interface affiche comme
- * une réponse en cours. Une seule fois par conversation ; `relancerAccroche` sert si elle a échoué. */
+/** Posts the task that writes the screenwriter's hook (skill `accroche-scenariste`): a "tour" task, which the interface shows as
+ * a reply in progress. Once per conversation; `relancerAccroche` serves if it failed. */
 async function lancerAccroche(conversationId: number, projectId: number, entree: object) {
   await creerRun(db, { skill: "accroche-scenariste", entree, but: "tour", projectId, conversationId });
 }
@@ -143,7 +143,7 @@ const profondeurParDefaut = (portee: Portee): Profondeur => (portee === "projet"
 
 type ConversationRow = typeof agentConversations.$inferSelect;
 
-/** La conversation du (projet, portée, cible). */
+/** The conversation for (project, scope, target). */
 async function trouver(projectId: number, portee: Portee, cibleId: number | null): Promise<ConversationRow | null> {
   const [c] = await db
     .select()
@@ -164,9 +164,9 @@ export async function conversationParUuid(uuid: string): Promise<ConversationRow
   return c ?? null;
 }
 
-/** Arrête ce qui tourne pour une conversation : les tâches en attente sont annulées, celles en
- * cours reçoivent le drapeau d'annulation (le worker coupe la connexion), les propositions en
- * génération sont rejetées. */
+/** Stops what is running for a conversation: pending tasks are cancelled, running ones
+ * receive the cancellation flag (the worker cuts the connection), proposals in
+ * generation are rejected. */
 export async function arreterTravaux(conversationId: number): Promise<void> {
   const maintenant = new Date();
   await db
@@ -209,8 +209,8 @@ async function lancerAccrocheSiConcu(conversationUuid: string, projectId: number
   if (conv) await lancerAccroche(conv.id, projectId, entree);
 }
 
-/** Relance l'accroche du scénariste quand sa première écriture a échoué (la conversation n'a alors aucun message). Refusé dès qu'un message
- * existe ou qu'une tâche tourne : l'accroche ne se régénère jamais pour le plaisir. */
+/** Re-runs the screenwriter's hook when its first write failed (the conversation then has no message). Refused as soon as a message
+ * exists or a task is running: the hook is never regenerated for fun. */
 export async function relancerAccroche(conversationUuid: string): Promise<Resultat> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
@@ -222,8 +222,8 @@ export async function relancerAccroche(conversationUuid: string): Promise<Result
   return { ok: true };
 }
 
-/** Réponse par cartes : le texte envoyé est formulé ici depuis les libellés retenus (jamais depuis le client), et seules les cartes du
- * DERNIER message de l'agent répondent encore. */
+/** Card reply: the sent text is formulated here from the kept labels (never from the client), and only the cards of the
+ * agent's LAST message still reply. */
 export async function repondreAuChoix(conversationUuid: string, libelles: string[]): Promise<Resultat<{ runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
@@ -239,14 +239,14 @@ export async function envoyerMessage(conversationUuid: string, texte: string, ch
   const message = texte.trim();
   if (!message) return ERR("Le message est vide.");
   if (message.length > MAX_MESSAGE) return ERR(`Message trop long (${MAX_MESSAGE} caractères au plus).`);
-  // Un tour OU l'écriture du briefing (la première version part seule, et vaut qu'on l'attende) bloquent l'envoi.
+  // A turn OR the briefing's writing (the first version goes alone, and is worth waiting for) block the send.
   { const refus = await refusSiTacheActive(conv.id, "L'agent est déjà en train de répondre : attends sa réponse.", ["tour", "brief"]); if (refus) return refus; }
 
   const messages = [...((conv.messages as MessageConversation[]) ?? []), { role: "user" as const, content: message, at: new Date().toISOString(), ...(choisis ? { choisis } : {}) }];
   const run = await db.transaction(async (tx) => {
     await tx.update(agentConversations).set({ messages, briefPret: false, etape: "conversation", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
-    // D'abord les notes (un appel court qui rend un patch de la fiche) : à son retour, le worker applique le patch et pose le tour
-    // de l'agent, avec la fiche à jour et ce qui reste à demander (worker/agents/postProcessing.ts, postNotes).
+    // First the notes (a short call that returns a patch of the sheet): on its return, the worker applies the patch and posts the
+    // agent's turn, with the updated sheet and what is still to ask (worker/agents/postProcessing.ts, postNotes).
     return creerRun(tx, {
       skill: "notes-entretien",
       entree: entreeNotes(messages.map((m) => ({ role: m.role, content: m.content })), await ficheCourante(tx, conv)),
@@ -270,8 +270,8 @@ export async function genererBrief(conversationUuid: string): Promise<Resultat> 
   if (existant?.statut === "valide") return ERR("Ce projet a déjà un brief validé : modifie-le section par section.");
   { const refus = await refusSiTacheActive(conv.id, "Une réponse de l'agent est déjà en cours.", ["tour", "brief"]); if (refus) return refus; }
 
-  // Aucun appel au modèle : le brief se remplit au fil de la conversation (la fiche de notes). « Passer au briefing » ne fait que
-  // figer la fiche telle qu'elle est en brouillon, même incomplète (ce que l'utilisateur n'a pas dit reste « déduit » ou vide).
+  // No call to the model: the brief fills up over the conversation (the notes sheet). "Passer au briefing" only
+  // freezes the sheet as it is into a draft, even if incomplete (what the user did not say stays "déduit" or empty).
   const [projet] = await db.select({ nom: projects.nom }).from(projects).where(eq(projects.id, conv.projectId));
   const genere = ficheVersBrief(await ficheCourante(db, conv), projet?.nom ?? "");
   await db.transaction(async (tx) => {
@@ -291,8 +291,8 @@ export async function modifierChampBrief(projectId: number, section: string, val
     const v = valider({ $schema: "https://json-schema.org/draft/2020-12/schema", ...sous }, valeur);
     if (!v.ok) return ERR(`Valeur invalide pour « ${section} » : ${v.erreurs.join(" ; ")}`);
   }
-  // Un projet sans brief : la première édition à la main crée un brief PARTIEL (style, notes…),
-  // la source de la clause de style même quand l'agent n'a encore rien rédigé.
+  // A project without a brief: the first manual edit creates a PARTIAL brief (style, notes…),
+  // the source of the style clause even when the agent has not written anything yet.
   await creerBriefPartiel(db, projectId);
   await db.transaction(async (tx) => {
     const [b] = await tx.select().from(briefs).where(eq(briefs.projectId, projectId));
@@ -306,18 +306,18 @@ export async function modifierChampBrief(projectId: number, section: string, val
         updatedAt: new Date(),
       })
       .where(eq(briefs.id, b.id));
-    await synchroniserClauseStyle(tx, projectId); // sans effet sur un brouillon : pas encore la référence
-    // Le titre du film est celui du PROJET : le corriger dans le brief renomme le projet (un seul nom, partout).
+    await synchroniserClauseStyle(tx, projectId); // no effect on a draft: not yet the reference
+    // The film's title is the PROJECT's: correcting it in the brief renames the project (a single name, everywhere).
     if (section === "titre" && typeof valeur === "string" && valeur.trim()) await tx.update(projects).set({ nom: valeur.trim() }).where(eq(projects.id, projectId));
   });
   return { ok: true };
 }
 
-// --- proposition ------------------------------------------------------------
+// --- proposal ------------------------------------------------------------
 
 async function nouvelleProposition(conv: ConversationRow, p: { skill: string; consigne: string; contexte: unknown[]; parentId?: number | null; retour?: string | null; lot?: boolean }): Promise<number> {
-  // Une seule proposition courante : la précédente, si elle attend encore, est rejetée — et si
-  // elle est encore en génération, ses tâches (un lot en a plusieurs) sont arrêtées.
+  // A single current proposal: the previous one, if it is still waiting, is rejected — and if
+  // it is still in generation, its tasks (a batch has several) are stopped.
   const enCours = await db
     .select({ id: propositions.id })
     .from(propositions)
@@ -346,11 +346,11 @@ async function nouvelleProposition(conv: ConversationRow, p: { skill: string; co
   return prop!.id;
 }
 
-/** `sceneId` : la scène où atterrit le plan inséré, quand l'appelant la connaît (une scène vide n'a pas de plan voisin pour la déduire). */
+/** `sceneId`: the scene where the inserted clip lands, when the caller knows it (an empty scene has no neighbouring clip to deduce it from). */
 async function entreePourConversation(conv: ConversationRow, consigne: string, position?: Position, retour?: string, sceneId?: number, place?: PlaceScene): Promise<{ entree: EntreeSkill; options: Record<string, unknown> } | { erreur: string }> {
   const cibleId = conv.cibleId;
   if (conv.portee === "asset" && cibleId != null) {
-    // L'affiche d'un projet ou d'un épisode est un asset caché : le skill `prompt-asset`, variante `affiche`, même parcours de revue.
+    // A project's or episode's poster is a hidden asset: the `prompt-asset` skill, `affiche` variant, same review path.
     const [cibleAsset] = await db.select({ type: assets.type }).from(assets).where(and(eq(assets.id, cibleId), eq(assets.projectId, conv.projectId)));
     if (cibleAsset?.type === TYPE_AFFICHE) {
       const a = await entreePromptAffiche(db, conv.projectId, cibleId, consigne, retour);
@@ -376,13 +376,13 @@ export async function genererProposition(conversationUuid: string, options: { co
   if (!conv) return ERR("Conversation introuvable.");
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur cette conversation."); if (refus) return refus; }
 
-  // Écrire les scénarios depuis le projet : un LOT (une sous-tâche par épisode).
+  // Write the screenplays from the project: a BATCH (one subtask per episode).
   if (conv.profondeur === "courte" && (conv.portee === "projet")) {
     const r = await genererScenarios(conversationUuid, { consigne: options.consigne });
     return r.ok ? { ok: true, propositionUuid: r.propositionUuid, runUuid: null } : r;
   }
 
-  // Profondeur complète : le squelette se construit en code depuis le brief.
+  // Full depth: the skeleton is built in code from the brief.
   if (conv.profondeur === "complete") {
     const [brief] = await db.select().from(briefs).where(eq(briefs.projectId, conv.projectId));
     if (!brief || brief.statut === "partiel") return ERR("Génère d'abord le brief.");
@@ -390,8 +390,8 @@ export async function genererProposition(conversationUuid: string, options: { co
       .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre, resume: episodes.resume })
       .from(episodes)
       .where(eq(episodes.projectId, conv.projectId));
-    // Un épisode « vide » (ni plan, ni scène, ni résumé) est réutilisé par le squelette plutôt
-    // que doublé : un film naît déjà avec son épisode.
+    // An "empty" episode (no clip, no scene, no summary) is reused by the skeleton rather
+    // than doubled: a film is born already with its episode.
     const idsEps = lignesEps.map((e) => e.id);
     const avecPlans = new Set(idsEps.length ? (await db.select({ id: plans.episodeId }).from(plans).where(inArray(plans.episodeId, idsEps))).map((r) => r.id) : []);
     const avecScenes = new Set(idsEps.length ? (await db.select({ id: scenes.episodeId }).from(scenes).where(inArray(scenes.episodeId, idsEps))).map((r) => r.id) : []);
@@ -407,7 +407,7 @@ export async function genererProposition(conversationUuid: string, options: { co
     return { ok: true, propositionUuid: prop!.uuid, runUuid: null };
   }
 
-  // Un épisode sans consigne ni position : « écris son scénario » (le cas normal d'un épisode vide).
+  // An episode with no instruction nor position: "write its screenplay" (the normal case of an empty episode).
   const consigne =
     (options.consigne ?? conv.consigne).trim() || (conv.portee === "episode" && !options.position ? "Écris le scénario complet de cet épisode." : "");
   if (!consigne) return ERR("Écris une consigne : l'intention en une ligne.");
@@ -435,8 +435,8 @@ export async function propositionParUuid(uuid: string) {
   return p ?? null;
 }
 
-/** Une proposition « en génération » dont la tâche a échoué ou été annulée n'attend plus rien :
- * son statut est rattrapé ici (reprise du worker, annulation depuis le header…). */
+/** A proposal "en génération" whose task failed or was cancelled no longer waits for anything:
+ * its status is caught up here (worker resume, cancellation from the header…). */
 export async function rafraichirStatut<T extends typeof propositions.$inferSelect>(p: T): Promise<T> {
   if (p.statut !== "en_generation" || p.runId == null) return p;
   const [run] = await db.select({ statut: agentRuns.statut, erreur: agentRuns.erreur }).from(agentRuns).where(eq(agentRuns.id, p.runId));
@@ -462,13 +462,12 @@ export async function cocherChangements(propositionUuid: string, selection: { gr
   return { ok: true, modifies: cibles.length };
 }
 
-// --- scénarios d'épisodes : un LOT (une sous-tâche par épisode) -------------------
+// --- episode screenplays: a BATCH (one subtask per episode) -------------------
 
 const CONSIGNE_SCENARIO = "Écris le scénario complet de cet épisode.";
 
-/** Les épisodes d'un projet proposables à l'écriture de leur scénario, dans
- * l'ordre, avec ce qu'ils contiennent déjà : « vide » = ni plan ni scène (le squelette tout juste
- * appliqué). */
+/** A project's episodes that can be offered for writing their screenplay, in order,
+ * with what they already contain: "vide" = neither clip nor scene (the skeleton just applied). */
 async function episodesPourScenarios(projectId: number): Promise<EpisodePourScenario[]> {
   const lignes = await db
     .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre })
@@ -486,11 +485,11 @@ async function episodesPourScenarios(projectId: number): Promise<EpisodePourScen
   });
 }
 
-/** « Écrire les scénarios » depuis le projet : une proposition EN LOT, une sous-tâche
- * (une tâche `scenario-episode`) par épisode choisi, exécutées l'une après l'autre dans la file. Par
- * défaut, les épisodes VIDES ; `episodeIds` choisit (et permet de réécrire un épisode qui a du
- * contenu : ses modifications vont alors en section d'écrasement, décochées). Un échec isolé ne
- * perd pas le reste (relançable). */
+/** "Écrire les scénarios" from the project: a BATCH proposal, one subtask
+ * (a `scenario-episode` task) per chosen episode, run one after the other in the queue. By
+ * default, the EMPTY episodes; `episodeIds` chooses (and allows rewriting an episode that has
+ * content: its changes then go into an overwrite section, unticked). An isolated failure does not
+ * lose the rest (re-runnable). */
 export async function genererScenarios(
   conversationUuid: string,
   options: { episodeIds?: number[]; consigne?: string } = {},
@@ -504,15 +503,15 @@ export async function genererScenarios(
 
   const dispo = await episodesPourScenarios(conv.projectId);
   if (dispo.length === 0) return ERR("Ce projet n'a pas encore d'épisode : applique d'abord le squelette.");
-  // Par défaut : les épisodes vides, et ceux dont le traitement attend ses scènes (créées par l'étape « traitement », sans plan).
+  // By default: the empty episodes, and those whose treatment is waiting for its scenes (created by the "traitement" step, without clips).
   const voulus = options.episodeIds ?? (await Promise.all(dispo.map(async (e) => (e.vide || (await scenesATraiter(e.id)).length > 0 ? e.id : null)))).filter((id): id is number => id != null);
   if (voulus.length === 0) return ERR("Tous les épisodes ont déjà du contenu : choisis ceux à (ré)écrire.");
   const choisis = dispo.filter((e) => voulus.includes(e.id));
   if (choisis.length !== new Set(voulus).size) return ERR("Un des épisodes choisis n'est pas dans cette portée.");
 
   const consigne = (options.consigne ?? "").trim() || CONSIGNE_SCENARIO;
-  // Un épisode dont le traitement est écrit (des scènes, chacune avec son traitement, sans plan) s'écrit SCÈNE PAR SCÈNE : une sous-tâche par scène,
-  // en parallèle. Les autres s'écrivent d'un seul tenant, comme avant.
+  // An episode whose treatment is written (scenes, each with its treatment, no clip) is written SCENE BY SCENE: one subtask per scene,
+  // in parallel. The others are written in one piece, as before.
   type SousTache = { cle: string; libelle: string; skill: "scenario-episode" | "scenario-scene"; entree: object };
   const sousTaches: SousTache[] = [];
   for (const e of choisis) {
@@ -551,8 +550,8 @@ export async function genererScenarios(
   return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length };
 }
 
-/** Les scènes d'un épisode qui ont leur traitement et pas encore de plan, dans l'ordre (rang 1, 2…) : à écrire scène par scène. Vide dès qu'une scène n'a pas de
- * traitement ou qu'une a déjà des plans : l'épisode s'écrit alors d'un seul tenant (voir `genererScenarios`). */
+/** An episode's scenes that have their treatment and no clip yet, in order (rank 1, 2…): to write scene by scene. Empty as soon as a scene has no
+ * treatment or one already has clips: the episode is then written in one piece (see `genererScenarios`). */
 async function scenesATraiter(episodeId: number): Promise<{ id: number; titre: string; rang: number }[]> {
   const lesScenes = await db
     .select({ id: scenes.id, titre: scenes.titre, traitement: scenes.traitement })
@@ -567,8 +566,8 @@ async function scenesATraiter(episodeId: number): Promise<{ id: number; titre: s
 
 const CONSIGNE_TRAITEMENT = "Découpe cet épisode en scènes : ce que chacune raconte, d'où elle part, où elle arrive.";
 
-/** Étape E : le TRAITEMENT d'un épisode, avant ses plans. Un LOT d'une sous-tâche par épisode (un seul épisode pour un film), qui crée les scènes avec leur
- * traitement. Ne concerne que les épisodes VIDES et assez longs pour valoir un découpage (`SEUIL_TRAITEMENT_SECONDES`) : un film court s'écrit d'un seul tenant. */
+/** Step E: an episode's TREATMENT, before its clips. A BATCH of one subtask per episode (a single episode for a film), which creates the scenes with their
+ * treatment. Only concerns EMPTY episodes long enough to be worth a split (`SEUIL_TRAITEMENT_SECONDES`): a short film is written in one piece. */
 export async function genererTraitements(
   conversationUuid: string,
   options: { consigne?: string } = {},
@@ -612,9 +611,9 @@ export async function genererTraitements(
 
 const CONSIGNE_RELECTURE = "Relis le scénario de cet épisode et rends les plus petites corrections qui le rendent cohérent.";
 
-/** Relecture des scénarios (FRICTIONS 2026-10-19) : une passe du modèle qui réfléchit sur chaque épisode ÉCRIT, après les scénarios et l'inventaire, AVANT les
- * fiches de plan. Un LOT comme les scénarios (une tâche `relecture-scenario` par épisode qui a des plans) : un échec isolé ne perd pas le reste. Les corrections
- * sont des changements de plan (description, liaison, durée, suppression d'un doublon, plan de résolution ajouté) à relire et appliquer comme toute proposition. */
+/** Screenplay review (FRICTIONS 2026-10-19): a model pass that reflects on each WRITTEN episode, after the screenplays and the inventory, BEFORE the
+ * clip sheets. A BATCH like the screenplays (one `relecture-scenario` task per episode that has clips): an isolated failure does not lose the rest. The corrections
+ * are clip changes (description, link, duration, removal of a duplicate, resolution clip added) to review and apply like any proposal. */
 export async function genererRelectures(
   conversationUuid: string,
   options: { episodeIds?: number[]; consigne?: string } = {},
@@ -658,8 +657,8 @@ export async function genererRelectures(
 
 const CONSIGNE_REGISTRE = "Écris le prompt de génération de ce master (image de référence) à partir de sa description canonique.";
 
-/** Les masters que le brief décrit (personnages, lieux), avec ce qui existe déjà dans le registre.
- * Vide tant que le projet n'a pas de brief rédigé. */
+/** The masters the brief describes (characters, places), with what already exists in the registry.
+ * Empty as long as the project has no written brief. */
 async function candidatsDuProjet(projectId: number): Promise<CandidatRegistre[]> {
   const brief = await lireBriefDuProjet(db, projectId);
   if (!brief || brief.statut === "partiel") return [];
@@ -670,11 +669,11 @@ async function candidatsDuProjet(projectId: number): Promise<CandidatRegistre[]>
   return candidatsRegistre(brief.contenu, existants);
 }
 
-/** Étape 2 : « créer le registre d'assets » — UN lot de sous-tâches `prompt-asset`, une par master du
- * brief (personnage, lieu), l'une après l'autre. Chaque sous-tâche crée l'asset s'il n'existe pas
- * (description du brief + prompt) ou écrit le prompt d'un asset existant. Depuis le projet ou une
- * saison (les modifications d'assets existants ne passent que par la portée projet : le verrou
- * refuse le reste, avec sa raison). Les voix, accessoires, effets et sons ne sont PAS créés ici. */
+/** Step 2: "créer le registre d'assets" — ONE batch of `prompt-asset` subtasks, one per master of the
+ * brief (character, place), one after the other. Each subtask creates the asset if it does not exist
+ * (brief description + prompt) or writes the prompt of an existing asset. From the project or a
+ * season (changes to existing assets only go through the project scope: the lock
+ * refuses the rest, with its reason). Voices, props, effects and sounds are NOT created here. */
 export async function genererRegistre(
   conversationUuid: string,
   options: { codes?: string[]; consigne?: string } = {},
@@ -726,11 +725,11 @@ export async function genererRegistre(
 
 const CONSIGNE_INVENTAIRE = "Dresse la liste des assets qui manquent au registre pour écrire les fiches de plan de ce projet.";
 
-/** Inventaire des assets : APRÈS les scénarios et le registre issu du brief, AVANT les fiches de plan. Un seul appel
- * (`inventaire-assets`) lit tous les plans, le registre et le brief, et propose les assets manquants (accessoires,
- * états d'un décor, effets) en une liste consolidée : les fiches s'appuient ensuite sur un registre qui existe, au
- * lieu d'inventer chacune ses assets (doublons). Depuis la conversation du PROJET ; sans prompt d'image (ils s'écrivent
- * ensuite, comme pour les assets créés par les fiches). */
+/** Asset inventory: AFTER the screenplays and the registry from the brief, BEFORE the clip sheets. A single call
+ * (`inventaire-assets`) reads all the clips, the registry and the brief, and proposes the missing assets (props,
+ * states of a set, effects) as one consolidated list: the sheets then rely on a registry that exists, instead of
+ * each inventing its own assets (duplicates). From the PROJECT's conversation; without an image prompt (they are written
+ * afterwards, as for the assets created by the sheets). */
 export async function genererInventaire(
   conversationUuid: string,
   options: { consigne?: string } = {},
@@ -742,9 +741,9 @@ export async function genererInventaire(
   const consigne = (options.consigne ?? "").trim() || CONSIGNE_INVENTAIRE;
   const e = await entreeInventaire(db, conv.projectId, consigne);
   if (!e) return ERR("Aucun plan écrit pour l'instant : écris d'abord les scénarios des épisodes.");
-  // L'inventaire rend aussi les références de chaque plan (2026-11-09). Un seul appel quand tout tient dans le budget (cas courant) ; un long film
-  // est découpé en groupes de scènes consécutives (lib/agents/inventory.ts, `decouperInventaire`), posés l'un après l'autre (chaque groupe voit
-  // les assets que les précédents proposent : worker/agents/postProcessing.ts).
+  // The inventory also returns each clip's references (2026-11-09). A single call when everything fits in the budget (common case); a long film
+  // is split into consecutive scene groups (lib/agents/inventory.ts, `decouperInventaire`), posted one after the other (each group sees
+  // the assets the previous ones propose: worker/agents/postProcessing.ts).
   const groupes = decouperInventaire(e.entree, { budgetJetons: budgetInventaire(contexteTotalDepuisEnv()), jetonsSkill: chargerSkill("inventaire-assets").jetonsEstimes });
   const plansDuGroupe = (ids: string[]) => Object.fromEntries(ids.map((id) => [id, e.planUuids[id]!]));
   const lot = groupes.length > 1;
@@ -770,15 +769,15 @@ export async function genererInventaire(
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
 }
 
-// --- étape 3 : les fiches de plan ------------------------------------------
+// --- step 3: clip sheets ------------------------------------------
 
 const CONSIGNE_FICHE = "Écris la fiche de plan complète.";
 const CONSIGNE_PROMPTS_CREES =
   "Écris le prompt de génération de cet asset (image de référence) à partir de sa description canonique ; s'il dérive d'un parent, pars de lui quand c'est pertinent.";
 
-/** Les plans d'une portée (projet, épisode ou un plan) proposables à l'écriture de leur fiche, dans
- * l'ordre de lecture, avec ce qu'ils ont déjà : sections remplies, références, rendu, répliques. Un plan
- * sans section remplie est « à écrire » (coché d'office) ; les autres, choisis, iront en écrasement. */
+/** The clips of a scope (project, episode or a clip) that can be offered for writing their sheet, in
+ * reading order, with what they already have: filled sections, references, render, lines of dialogue. A clip
+ * with no filled section is "à écrire" (ticked outright); the others, when chosen, will go into overwrite. */
 async function plansPourFiches(projectId: number, portee: Portee, cibleId: number | null): Promise<PlanPourFiche[]> {
   if (portee === "asset") return [];
   const tous = await db
@@ -798,7 +797,7 @@ async function plansPourFiches(projectId: number, portee: Portee, cibleId: numbe
     .innerJoin(episodes, eq(episodes.id, plans.episodeId))
     .where(eq(plans.projectId, projectId))
     .orderBy(asc(episodes.numero), asc(plans.ordre), asc(plans.id));
-  // Le rang affiché est celui du plan dans SON épisode (F03 : une position, jamais un identifiant).
+  // The displayed rank is the clip's rank in ITS episode (F03: a position, never an identifier).
   const rangs = new Map<number, number>();
   const parEpisode = new Map<number, number>();
   for (const p of tous) {
@@ -836,21 +835,21 @@ async function plansPourFiches(projectId: number, portee: Portee, cibleId: numbe
   }));
 }
 
-/** Étape 3 : COMPILER la fiche d'un plan (portée `plan` : une proposition simple) ou les fiches des plans d'un épisode ou du projet (un LOT : une
- * sous-tâche par plan, clé `plan:<uuid>`, l'une après l'autre dans la file). Par défaut, les plans SANS fiche ; `planUuids` choisit (et permet de
- * recompiler une fiche : elle ira dans la section « risque d'écrasement », décochée hors demande).
+/** Step 3: COMPILE a clip's sheet (scope `plan`: a simple proposal) or the sheets of an episode's or the project's clips (a BATCH: one
+ * subtask per clip, key `plan:<uuid>`, one after the other in the queue). By default, the clips WITHOUT a sheet; `planUuids` chooses (and allows
+ * recompiling a sheet: it goes into the "risque d'écrasement" section, unticked unless requested).
  *
- * Moteur : Open H3 IR (skill virtuel `plan-h3ir`, worker/h3ir.ts). Il compile depuis les références posées sur le plan : un plan qui n'a pas encore ses
- * références, ou dont une image manque, n'est PAS compilé ici (il doit d'abord être préparé : lib/h3ir/preparation.ts, que les demandes « Générer la
- * fiche » mènent, lib/tasks/requests-db.ts). En lot, ces plans sont laissés de côté et nommés dans le contexte ; seuls, ils sont refusés avec la raison. */
+ * Engine: Open H3 IR (virtual skill `plan-h3ir`, worker/h3ir.ts). It compiles from the references set on the clip: a clip that does not yet have its
+ * references, or whose image is missing, is NOT compiled here (it must first be prepared: lib/h3ir/preparation.ts, which the "Générer la
+ * fiche" requests lead to, lib/tasks/requests-db.ts). In a batch, these clips are left aside and named in the context; alone, they are refused with the reason. */
 export async function genererFiches(
   conversationUuid: string,
   options: {
     planUuids?: string[];
     consigne?: string;
-    /** La demande « Générer la fiche » qui pose cette tâche (plan seul). */
+    /** The "Générer la fiche" request that posts this task (single clip). */
     demandeId?: number;
-    /** Nombre de shots, style de mise en scène et créativité facultatifs (absents : ceux du plan, de sa scène ou du projet). */
+    /** Number of shots, staging style and creativity, optional (absent: those of the clip, its scene or the project). */
     reglagesH3ir?: { shots?: number | null; director?: string | null; creativity?: string | null };
   } = {},
 ): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number; runUuid?: string; nonPrets: string[] }>> {
@@ -884,7 +883,7 @@ export async function genererFiches(
     return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: 1, runUuid: run.uuid, nonPrets };
   }
 
-  // Un LOT : une sous-tâche par plan prêt.
+  // A BATCH: one subtask per ready clip.
   const plusieursEpisodes = new Set(choisis.map((p) => p.episodeId)).size > 1;
   const sousTaches = choisis.filter((p) => !attenteDe(p.uuid));
   if (sousTaches.length === 0) {
@@ -912,13 +911,13 @@ export async function genererFiches(
   return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length, nonPrets };
 }
 
-// --- préparation d'un plan avant sa compilation (vague 4a, lib/h3ir/preparation.ts) ----------
+// --- preparation of a clip before its compilation (wave 4a, lib/h3ir/preparation.ts) ----------
 
 const CONSIGNE_REFERENCES = "Choisis les images de référence de ce plan (doute du choix automatique).";
 
-/** Pose la tâche `references-plan` d'un plan (UNE par plan, seulement quand le choix du code a un doute : l'appelant l'a vérifié), dans la conversation
- * du PLAN. Sa sortie (worker/agents/postProcessing.ts) écrit les références tout de suite, ou, s'il faut créer des assets manquants, en fait des créations
- * que la demande applique (les références s'écrivent alors dans la même transaction). `rechoisir` : remplacer des références déjà posées. */
+/** Posts a clip's `references-plan` task (ONE per clip, only when the code's choice has a doubt: the caller has checked), in the conversation
+ * of the CLIP. Its output (worker/agents/postProcessing.ts) writes the references right away, or, if missing assets must be created, makes them creations
+ * that the request applies (the references are then written in the same transaction). `rechoisir`: replace references already set. */
 export async function genererReferencesPlan(
   conversationUuid: string,
   options: { demandeId?: number; rechoisir?: boolean; assetsProposesParLeLot?: { code: string; type: string }[] } = {},
@@ -948,9 +947,9 @@ export async function genererReferencesPlan(
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
 }
 
-/** Crée TOUT DE SUITE des assets manquants (deux au plus, déjà retenus : lib/h3ir/preparation.ts, `retenirManquants`) depuis la conversation d'un plan :
- * une proposition `assets-manquants`, appliquée sans relecture (« Itérer » : les assets que l'agent a décidé de créer). Rend les codes créés et la
- * proposition (source des prompts). */
+/** Creates missing assets RIGHT AWAY (two at most, already kept: lib/h3ir/preparation.ts, `retenirManquants`) from a clip's conversation:
+ * an `assets-manquants` proposal, applied without review ("Itérer": the assets the agent decided to create). Returns the created codes and the
+ * proposal (source of the prompts). */
 export async function creerAssetsManquants(
   conversationUuid: string,
   manquants: ManquantRetenu[],
@@ -970,19 +969,18 @@ export async function creerAssetsManquants(
   return { ok: true, propositionUuid: prop?.uuid ?? null, crees };
 }
 
-// --- correction après visionnage (iteration-plan) -------------------------------------
+// --- correction after viewing (iteration-plan) -------------------------------------
 
 const MAX_RETOUR_VISIONNAGE = 4000;
 
 
-/** « Corriger après visionnage » (page d'un plan qui a un RENDU) : une proposition simple, affinable, calquée sur
- * la fiche d'un plan seul. `retour` = ce que l'utilisateur a vu (obligatoire) ; il devient la consigne de la
- * proposition. Routage par état du plan (décision 2026-10-02) : sans rendu terminé, refusé (jamais de correction à
- * l'aveugle) ; sans fiche, refusé (« écris-la d'abord »). La planche de vignettes est extraite par le worker à
- * l'exécution, jamais stockée. */
+/** "Corriger après visionnage" (page of a clip that has a RENDER): a simple, refinable proposal, modelled on
+ * a single clip's sheet. `retour` = what the user saw (mandatory); it becomes the proposal's instruction.
+ * Routing by clip state (decision 2026-10-02): without a finished render, refused (never a blind correction); without a
+ * sheet, refused ("écris-la d'abord"). The contact sheet is extracted by the worker at run time, never stored. */
 export async function genererIteration(
   conversationUuid: string,
-  /** `planche` : joindre la planche de vignettes du rendu (jamais par défaut : case « Montrer au chef opérateur », bouton « Analyser »). */
+  /** `planche`: attach the render's contact sheet (never by default: "Montrer au chef opérateur" checkbox, "Analyser" button). */
   options: { retour: string; renduId?: number | null; planche?: boolean; demandeId?: number },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
@@ -1003,16 +1001,16 @@ export async function genererIteration(
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
 }
 
-/** « Itérer » : la fiche est TOUJOURS recompilée par Open H3 IR (2026-11-09) avec les DÉCISIONS de l'agent d'itération (intent complet, durée,
- * références ajoutées / retirées, créativité et style de mise en scène du plan). Rien n'est écrit ici : les décisions partent en surcharge du brief
- * (lib/h3ir/brief-clip.ts) et ne s'écrivent sur le plan qu'avec la fiche compilée, à l'application (postTraitement : `apres.description`,
- * `dureeGenerationSecondes`, `refs` du manifeste, `reglages`) ; si la compilation échoue, rien n'est écrit. Les références finales doivent toutes avoir
- * leur image : la demande « Itérer » (lib/tasks/requests-db.ts) crée d'abord les assets manquants décidés et attend leurs images (vague 4a) ; appelée trop tôt,
- * la recompilation est refusée sans tâche lancée. */
+/** "Itérer": the sheet is ALWAYS recompiled by Open H3 IR (2026-11-09) with the iteration agent's DECISIONS (complete intent, duration,
+ * references added / removed, creativity and the clip's staging style). Nothing is written here: the decisions go as an override of the brief
+ * (lib/h3ir/brief-clip.ts) and are only written onto the clip with the compiled sheet, on application (postTraitement: `apres.description`,
+ * `dureeGenerationSecondes`, the manifest's `refs`, `reglages`); if the compilation fails, nothing is written. The final references must all have
+ * their image: the "Itérer" request (lib/tasks/requests-db.ts) first creates the missing assets decided and waits for their images (wave 4a); called too early,
+ * the recompilation is refused without a task launched. */
 export async function genererReecriturePlan(
   conversationUuid: string,
-  /** `depuisNumero` : l'essai dont l'utilisateur est parti. Quand les décisions ne touchent que la description, la consigne se joue sur le PROMPT de cet essai
-   * (skill `retouche-prompt`, worker/h3ir.ts) au lieu d'une recompilation ; le skill peut répondre « refonte », la compilation prend alors le relais. */
+  /** `depuisNumero`: the attempt the user started from. When the decisions only touch the description, the instruction is played on THAT attempt's PROMPT
+   * (skill `retouche-prompt`, worker/h3ir.ts) instead of a recompilation; the skill may answer "refonte", and the compilation then takes over. */
   options: { consigne: string; decisions: DecisionsIteration; demandeId?: number; depuisNumero?: number | null },
 ): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
@@ -1036,7 +1034,7 @@ export async function genererReecriturePlan(
   if (finales.codes.length === 0) return ERR("Le plan n'aurait plus aucune image de référence : Open H3 IR ne peut pas le compiler. Rien n'a été écrit.");
   if (finales.sansImage.length) return ERR(`En attente d'images : ${finales.sansImage.join(", ")} (la recompilation part quand elles existent) ; rien n'a été écrit.`);
 
-  // Partir d'un essai : retouche de son prompt quand les décisions ne touchent que la description (lib/h3ir/retouch.ts, `preparerDepart`).
+  // Starting from an attempt: retouch its prompt when the decisions only touch the description (lib/h3ir/retouch.ts, `preparerDepart`).
   const [essai] =
     options.depuisNumero != null && !references && !reglagesPlan && duree == null
       ? await db
@@ -1084,7 +1082,7 @@ export async function genererReecriturePlan(
   return { ok: true, propositionUuid: prop!.uuid, runUuid: run.uuid };
 }
 
-/** Les assets CRÉÉS par une proposition de fiches (assets manquants) qui n'ont pas encore de prompt d'image. */
+/** The assets CREATED by a sheets proposal (missing assets) that do not yet have an image prompt. */
 async function assetsCreesSansPrompt(propositionId: number): Promise<{ id: number; code: string; type: string }[]> {
   const lignes = await db
     .select({ apres: propositionChangements.apres })
@@ -1109,10 +1107,10 @@ async function assetsCreesSansPrompt(propositionId: number): Promise<{ id: numbe
   return lus.filter((a) => !(a.prompt ?? "").trim()).map((a) => ({ id: a.id, code: a.code, type: a.type }));
 }
 
-/** Après l'application d'une fiche, d'un inventaire ou d'un choix de références : « Continuer : écrire les prompts des assets créés ». Un LOT
- * `prompt-asset` (une sous-tâche par asset créé sans prompt, `asset:<code>`), posé dans la conversation du PROJET (seule portée où l'on modifie un asset
- * existant). Lancé sur clic de l'utilisateur, ou par la création d'un projet. Refusé si la conversation du projet a déjà une tâche en cours ou une
- * proposition en attente de revue (on ne la perd pas). La préparation d'un plan passe par `genererPromptsAssets` (lot détaché). */
+/** After applying a sheet, an inventory or a choice of references: "Continuer: écrire les prompts des assets créés". A BATCH
+ * `prompt-asset` (one subtask per asset created without a prompt, `asset:<code>`), posted in the PROJECT's conversation (the only scope where an existing asset
+ * is modified). Launched on the user's click, or by a project's creation. Refused if the project's conversation already has a running task or a
+ * proposal awaiting review (it is not lost). A clip's preparation goes through `genererPromptsAssets` (detached batch). */
 export async function genererPromptsAssetsCrees(
   propositionUuid: string,
   options: { consigne?: string } = {},
@@ -1141,13 +1139,13 @@ export async function genererPromptsAssetsCrees(
   return { ok: true, conversationUuid: conv.uuid, propositionUuid: lot.propositionUuid, nbSousTaches: lot.nbSousTaches };
 }
 
-/** Les propositions dont les créations d'assets attendent ensuite leurs prompts. */
+/** The proposals whose asset creations then wait for their prompts. */
 const SKILLS_CREANT_DES_ASSETS = ["fiches", "inventaire-assets", SKILL_REFERENCES_PLAN, SKILL_ASSETS_MANQUANTS];
 
-/** Les prompts d'image de ces assets (préparation d'un plan, vague 4a) : un lot `prompt-asset` DÉTACHÉ (sans conversation : il ne remplace ni ne
- * rejette la proposition en revue dans la conversation du projet, et n'attend pas qu'elle soit libre). Ses tâches portent la demande (`demandeId`) : la
- * ligne de la demande les suit dans le panneau, elles passent avant le travail de fond. La demande applique le lot elle-même. Seuls les assets sans
- * prompt sont pris. */
+/** The image prompts of these assets (a clip's preparation, wave 4a): a DETACHED `prompt-asset` batch (without conversation: it neither replaces nor
+ * rejects the proposal under review in the project's conversation, and does not wait for it to be free). Its tasks carry the request (`demandeId`): the
+ * request's line follows them in the panel, they go before background work. The request applies the batch itself. Only assets without a
+ * prompt are taken. */
 export async function genererPromptsAssets(
   projectId: number,
   assetIds: number[],
@@ -1164,7 +1162,7 @@ export async function genererPromptsAssets(
   return poserLotPrompts(projectId, aEcrire, { consigne: (options.consigne ?? "").trim() || CONSIGNE_PROMPTS_CREES, demandeId: options.demandeId });
 }
 
-/** Le lot `prompt-asset` lui-même : rattaché à la conversation du projet (`conv`, proposition courante) ou détaché (`conv` absent). */
+/** The `prompt-asset` batch itself: attached to the project's conversation (`conv`, current proposal) or detached (`conv` absent). */
 async function poserLotPrompts(
   projectId: number,
   aEcrire: { id: number; code: string }[],
@@ -1201,9 +1199,9 @@ async function poserLotPrompts(
   return { ok: true, propositionUuid: prop!.uuid, nbSousTaches: sousTaches.length };
 }
 
-/** Relance UNE sous-tâche d'un lot (échouée, annulée, ou à refaire), avec un retour libre
- * facultatif. Ses anciens changements restent jusqu'à ce que la nouvelle réponse les remplace ;
- * les autres sous-tâches ne bougent pas. */
+/** Re-runs ONE subtask of a batch (failed, cancelled, or to redo), with an optional
+ * free-form feedback. Its old changes stay until the new reply replaces them;
+ * the other subtasks do not move. */
 export async function relancerSousTache(propositionUuid: string, cle: string, retour?: string): Promise<Resultat<{ runUuid: string }>> {
   const prop = await propositionParUuid(propositionUuid);
   if (!prop) return ERR("Proposition introuvable.");
@@ -1216,11 +1214,11 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
   const codeAsset = codeDeCleAsset(cle);
   const planUuid = planUuidDeCle(cle);
   if (planUuid) {
-    // Lot de fiches (Open H3 IR) : la sous-tâche se relance avec la même entrée (le brief se relit à l'exécution).
+    // Batch of sheets (Open H3 IR): the subtask is re-run with the same input (the brief is re-read at run time).
     const [ancien] = await db.select({ entree: agentRuns.entree }).from(agentRuns).where(eq(agentRuns.id, sous.run.id));
     cible = { skill: SKILL_H3IR, entree: (ancien?.entree as object | null) ?? { planUuid }, options: null };
   } else if (codeAsset && prop.skill === "prompts-assets") {
-    // Prompts des assets créés par les fiches : l'asset existe, on repart de lui (et de son parent).
+    // Prompts of the assets created by the sheets: the asset exists, we start from it (and from its parent).
     const [a] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, prop.projectId), eq(assets.code, codeAsset)));
     const e = a ? await entreePromptAsset(db, prop.projectId, a.id, prop.consigne || CONSIGNE_PROMPTS_CREES, retour?.trim() || undefined) : null;
     if (!e) return ERR("L'asset n'existe plus.");
@@ -1232,8 +1230,8 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
     if (!e) return ERR("L'asset n'existe plus.");
     cible = { skill: "prompt-asset", entree: e.entree, options: e.variante ? { variante: e.variante } : null };
   } else if (groupeInventaireDeCle(cle) != null && prop.skill === "inventaire-assets") {
-    // Un groupe de scènes d'un inventaire découpé : la même entrée et les mêmes options (poignées des plans, groupes suivants), avec les assets que
-    // les AUTRES groupes proposent maintenant.
+    // A scene group of a split inventory: the same input and the same options (clip handles, following groups), with the assets that
+    // the OTHER groups now propose.
     const [ancien] = await db.select({ entree: agentRuns.entree, options: agentRuns.options }).from(agentRuns).where(eq(agentRuns.id, sous.run.id));
     const autres = (await assetsACreer(db, prop.id, { saufSousTache: cle })).map((a) => ({ code: a.code, type: a.type, description: a.description }));
     const entree = { ...((ancien?.entree as object | null) ?? {}), assetsDejaProposes: autres, ...(retour?.trim() ? { retourUtilisateur: retour.trim() } : {}) };
@@ -1242,7 +1240,7 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
     const sceneId = sceneIdDeCle(cle);
     const episodeId = episodeIdDeCle(cle);
     if (sceneId != null) {
-      // Une scène du scénario : son traitement tel qu'il est maintenant, avec le retour libre.
+      // A screenplay scene: its treatment as it is now, with the free-form feedback.
       const entree = await entreeScenarioScene(db, prop.projectId, sceneId, prop.consigne || CONSIGNE_SCENARIO, { retour: retour?.trim() || undefined });
       if (!entree) return ERR("La scène n'existe plus ou n'a plus de traitement.");
       cible = { skill: "scenario-scene", entree: entree.entree, options: null };
@@ -1253,7 +1251,7 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
       if (!entree) return ERR("L'épisode n'existe plus.");
       cible = { skill: "traitement-episode", entree: entree.entree, options: null };
     } else if (prop.skill === "relectures") {
-      // Relecture : l'épisode tel qu'il est maintenant (ses plans ont pu changer depuis), avec le retour libre.
+      // Review: the episode as it is now (its clips may have changed since), with the free-form feedback.
       const r = await entreeRelecture(db, prop.projectId, episodeId, prop.consigne || CONSIGNE_RELECTURE, { retour: retour?.trim() || undefined });
       if (!r) return ERR("L'épisode n'existe plus ou n'a plus de plan.");
       cible = { skill: "relecture-scenario", entree: r.entree, options: { planUuids: r.planUuids } };
@@ -1285,10 +1283,10 @@ export async function relancerSousTache(propositionUuid: string, cle: string, re
 export async function appliquerSelection(propositionUuid: string, options: Parameters<typeof appliquerProposition>[1] = {}): Promise<ResultatApplication> {
   const prop = await propositionParUuid(propositionUuid);
   if (!prop) return { ok: false, erreur: "Proposition introuvable." };
-  // Inventaire des assets : les références de plan qui citent un asset créé par la proposition s'écrivent dans la même transaction, APRÈS les
-  // créations (lib/agents/inventory-db.ts). Celles qui ne citaient que des assets existants sont déjà posées depuis le post-traitement.
-  // Choix des références d'un plan (préparation, vague 4a) : les assets manquants sont créés, puis les références du skill (eux compris) s'écrivent sur le
-  // plan dans la même transaction.
+  // Asset inventory: the clip references that cite an asset created by the proposal are written in the same transaction, AFTER the
+  // creations (lib/agents/inventory-db.ts). Those that cited only existing assets were already written by the post-processing.
+  // Choice of a clip's references (preparation, wave 4a): the missing assets are created, then the skill's references (them included) are written onto the
+  // clip in the same transaction.
   if (prop.skill === SKILL_REFERENCES_PLAN) {
     const suite = options.dansTransaction;
     return appliquerProposition(prop.id, {

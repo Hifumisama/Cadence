@@ -4,13 +4,13 @@ import { join } from "node:path";
 import { decoderListeModeles, llmJoignable } from "../worker/llamaSwap";
 import { analyserWorkflow, type Graphe, type ObjectInfo } from "../lib/renders/gpu-verification";
 
-/** Contrôle une machine GPU avant une séance (PC distant, Pod RunPod) :
- *   npm run gpu:verifier                  (utilise COMFYUI_URL et LLM_LOCAL_URL du .env)
+/** Checks a GPU machine before a session (remote PC, RunPod Pod):
+ *   npm run gpu:verifier                  (uses COMFYUI_URL and LLM_LOCAL_URL from .env)
  *   npm run gpu:verifier -- --comfyui http://cadence-gpu:8188 --llm http://cadence-gpu:8080
- * 1. ComfyUI : chaque workflow de workflows/ est confronté à /object_info (nodes installés, fichiers de
- *    modèles présents dans les listes des chargeurs) ;
- * 2. llama-swap : joignable, et les modèles que Cadence demande (.env) sont déclarés.
- * Lecture seule : ne lance aucun rendu et ne charge aucun modèle de langage. Code de sortie 1 si quelque chose manque. */
+ * 1. ComfyUI: each workflow in workflows/ is checked against /object_info (nodes installed, model files
+ *    present in the loader lists);
+ * 2. llama-swap: reachable, and the models Cadence requests (.env) are declared.
+ * Read-only: launches no render and loads no language model. Exit code 1 if something is missing. */
 
 const arg = (nom: string) => {
   const i = process.argv.indexOf(nom);
@@ -46,7 +46,7 @@ async function controlerComfyui(url: string): Promise<boolean> {
     try {
       graphe = JSON.parse(readFileSync(chemin, "utf8")) as Graphe;
     } catch {
-      continue; // pas un graphe au format API
+      continue; // not an API-format graph
     }
     const r = analyserWorkflow(nom, graphe, info);
     if (r.ok) {
@@ -72,14 +72,14 @@ async function controlerLlm(url: string): Promise<boolean> {
     const res = await fetch(`${url}/v1/models`, { signal: AbortSignal.timeout(10_000) });
     declares = decoderListeModeles(await res.json());
   } catch {
-    /* traité plus bas */
+    /* handled below */
   }
   if (!declares) {
     console.log("  ✗ /v1/models illisible");
     return false;
   }
   console.log(`  modèles déclarés : ${declares.join(", ") || "(aucun)"}`);
-  // Les modèles que Cadence demandera : le défaut et ceux fixés skill par skill dans le .env.
+  // The models Cadence will request: the default and those set skill by skill in the .env.
   const voulus = new Set<string>();
   if (process.env.LLM_LOCAL_MODELE) voulus.add(process.env.LLM_LOCAL_MODELE);
   for (const [k, v] of Object.entries(process.env)) if (k.startsWith("LLM_MODELE_") && v) voulus.add(v);

@@ -1,23 +1,23 @@
 import type { EtatDansLaFile } from "../../lib/tasks/cancellation";
 
-/** `nomDistant` : nom sous lequel le fichier est déposé dans le dossier d'entrée de ComfyUI (unique ; à défaut, le nom du fichier local). */
+/** `nomDistant`: name under which the file is deposited in ComfyUI's input folder (unique; otherwise, the local file name). */
 export type RefMedia = { slot: number; cheminLocal: string; nomDistant?: string };
 
 export type SubmissionInput = {
   promptAssemble: string;
   seed?: string;
-  /** Préfixe des fichiers de sortie, unique par rendu : sans lui le nom ne dépend que du compteur du dossier
-   * output de ComfyUI (collisions possibles, résultat en cache servi à un autre rendu). Absent : le fichier est laissé tel quel. */
+  /** Prefix of the output files, unique per render: without it the name only depends on the counter of ComfyUI's
+   * output folder (possible collisions, cached result served to another render). Absent: the file is left as is. */
   prefixeSortie?: string;
   dureeSecondes: number;
   fps: number;
-  /** `dureeSecondes` : 4 à 10 (nœud 22:23). `fps` : fps VISÉ du plan, informatif — le graphe génère à 24 i/s et
-   * règle la cadence finale lui-même (nœuds 168/169/170, voir workflows/README.md). */
-  refsImage: RefMedia[]; // max 6 (images + vidéos), emplacement 1 à 6
-  refsAudio: (RefMedia & { dureeSecondes?: number | null })[]; // max 3, emplacement 1 à 3 ; durée mesurée de la prise
-  refsVideo: RefMedia[]; // emplacement 1 à 3
+  /** `dureeSecondes`: 4 to 10 (node 22:23). `fps`: the clip's TARGET fps, informative — the graph generates at 24 fps and
+   * sets the final frame rate itself (nodes 168/169/170, see workflows/README.md). */
+  refsImage: RefMedia[]; // max 6 (images + videos), slot 1 to 6
+  refsAudio: (RefMedia & { dureeSecondes?: number | null })[]; // max 3, slot 1 to 3; measured duration of the take
+  refsVideo: RefMedia[]; // slot 1 to 3
   activerUpscale: boolean;
-  /** Résolution (0,2 / 0,3 / 0,4 MP, nœud `22:9`) ; absente = celle du fichier. Au-delà de 0,2 MP, un rendu final est natif : sans upscale. */
+  /** Resolution (0.2 / 0.3 / 0.4 MP, node `22:9`); absent = that of the file. Above 0.2 MP, a final render is native: without upscale. */
   megapixels?: number;
 };
 
@@ -26,9 +26,9 @@ export type PollResult =
   | { statut: "termine"; cheminSortieDistant: string }
   | { statut: "erreur"; message: string };
 
-/** Ce que ComfyUI raconte pendant qu'un prompt s'exécute (WebSocket). Tout est
- * facultatif côté consommateur : un événement manqué ne change jamais le
- * résultat, qui vient de /history. */
+/** What ComfyUI reports while a prompt runs (WebSocket). Everything is
+ * optional on the consumer side: a missed event never changes the
+ * result, which comes from /history. */
 export type EvenementSuivi =
   | { type: "demarre" }
   | { type: "noeud"; noeud: string }
@@ -37,54 +37,53 @@ export type EvenementSuivi =
   | { type: "termine" }
   | { type: "erreur"; message: string };
 
-/** Comment le suivi s'est arrêté : `coupure` = le WebSocket est tombé (ou n'a pas
- * pu s'ouvrir) avant la fin, l'appelant retombe sur /history. */
+/** How tracking stopped: `coupure` = the WebSocket dropped (or could not
+ * open) before the end, the caller falls back to /history. */
 export type IssueSuivi = "termine" | "erreur" | "coupure" | "delai";
 
 export interface Suivi {
-  /** Attend la fin du prompt `promptId`. Ne rejette jamais. */
+  /** Waits for the end of prompt `promptId`. Never rejects. */
   attendre(promptId: string, delaiMs: number): Promise<IssueSuivi>;
   fermer(): void;
 }
 
-/** Interface stable derrière laquelle vit toute la connaissance des node IDs
- * du graphe ComfyUI — voir workflows/README.md ("le workflow et le code de
- * soumission vivent dans le même commit") et le plan d'implémentation
- * (section "Prérequis bloquant"). Permet de développer web/worker contre un
- * stub tant que VID_REF2VA.json n'est pas ré-exporté en format API. */
+/** Stable interface behind which all the knowledge of the ComfyUI graph's node IDs lives — see
+ * workflows/README.md ("the workflow and the submission code live in the same commit") and the implementation plan
+ * (section "Prérequis bloquant" (blocking prerequisite)). Allows developing web/worker against a
+ * stub as long as VID_REF2VA.json has not been re-exported in API format. */
 export interface ComfyUIClient {
   healthcheck(): Promise<boolean>;
   uploadRef(cheminLocal: string, nomDistant: string): Promise<void>;
   fetchOutput(cheminSortieDistant: string, cheminLocalCible: string): Promise<void>;
 
-  /** Tâches d'images (workflows image-refs/) : le graphe est déjà assemblé par
-   * l'appelant, le client ne fait que le soumettre puis lire une sortie. */
+  /** Image tasks (workflows image-refs/): the graph is already assembled by
+   * the caller, the client only submits it then reads an output. */
   submitGraph(graphe: Record<string, unknown>): Promise<string>;
   pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult>;
-  /** Fin d'un prompt qui ne produit aucun fichier lisible : l'upscale de la vidéo en trois étapes sauvegarde seulement un latent.
-   * « terminé » (avec un chemin vide) dès que /history le dit, « erreur » avec le message de ComfyUI sinon. */
+  /** End of a prompt that produces no readable file: the three-step video upscale only saves a latent.
+   * « terminé » (done, with an empty path) as soon as /history says so, « erreur » (error) with ComfyUI's message otherwise. */
   pollFin(promptId: string): Promise<PollResult>;
-  /** Ouvre le WebSocket de suivi AVANT la soumission (ComfyUI n'envoie les
-   * événements qu'au clientId qui a soumis le prompt, et un prompt court peut
-   * finir avant qu'on se connecte). Ne rejette jamais : une connexion
-   * impossible donne un suivi qui répond `coupure`. */
+  /** Opens the tracking WebSocket BEFORE submission (ComfyUI only sends
+   * events to the clientId that submitted the prompt, and a short prompt may
+   * finish before we connect). Never rejects: an impossible
+   * connection gives a tracker that answers `coupure`. */
   ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi>;
 
-  /** Annulation (lib/tasks/cancellation.ts). `etatDansLaFile` lit GET /queue : le worker
-   * ne coupe jamais un prompt dont il n'a pas vérifié qu'il est bien celui qui
-   * tourne. `inconnu` si ComfyUI ne répond pas ou si la réponse est illisible. */
+  /** Cancellation (lib/tasks/cancellation.ts). `etatDansLaFile` reads GET /queue: the worker
+   * never interrupts a prompt it has not verified is the one
+   * running. `inconnu` (unknown) if ComfyUI does not answer or if the answer is unreadable. */
   etatDansLaFile(promptId: string): Promise<EtatDansLaFile>;
-  /** POST /interrupt : arrête l'exécution en cours (avec le `prompt_id`, les
-   * versions récentes de ComfyUI ne coupent que celui-là). Ne rejette jamais. */
+  /** POST /interrupt: stops the running execution (with the `prompt_id`, recent
+   * ComfyUI versions only stop that one). Never rejects. */
   interrompre(promptId: string): Promise<boolean>;
-  /** POST /queue {"delete": [promptId]} : retire un prompt encore en file. Ne
-   * rejette jamais. */
+  /** POST /queue {"delete": [promptId]}: removes a prompt still in the queue. Never
+   * rejects. */
   retirerDeLaFile(promptId: string): Promise<boolean>;
 
-  /** POST /free {"unload_models": true, "free_memory": true} : ComfyUI décharge ses
-   * modèles de la VRAM. Le worker l'appelle avant un appel LLM (même GPU, voir
-   * lib/renders/gpu.ts). « Au mieux » : ne rejette jamais, `false` si le serveur n'a pas
-   * accepté. Sans effet quand ComfyUI exécute un prompt (la demande est traitée
-   * entre deux prompts) : le worker ne la fait que lorsqu'il est au repos. */
+  /** POST /free {"unload_models": true, "free_memory": true}: ComfyUI unloads its
+   * models from VRAM. The worker calls it before an LLM call (same GPU, see
+   * lib/renders/gpu.ts). « Au mieux » (best effort): never rejects, `false` if the server did not
+   * accept it. No effect while ComfyUI runs a prompt (the request is handled
+   * between two prompts): the worker only does it when it is idle. */
   libererMemoire(): Promise<boolean>;
 }

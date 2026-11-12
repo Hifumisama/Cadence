@@ -6,28 +6,28 @@ import type { Db } from "./appliers/common";
 import { cleNouvelAsset } from "./sheets";
 import { codeFinal, controlerReferences, plansDeLEntree, type AssetConnu, type EntreeInventaire, type OptionsRunInventaire, type SortieInventaire } from "./inventory";
 
-/** Les références de chaque plan rendues par l'inventaire des assets (lib/agents/inventory.ts), écrites en base. Deux moments :
- * - au POST-TRAITEMENT de la tâche (worker/agents/postProcessing.ts) : les plans dont toutes les références existent déjà au registre les
- *   reçoivent tout de suite (rien à créer, elles sont relisibles avec les intents) ; ceux qui citent un asset que l'inventaire propose de créer
- *   attendent ;
- * - à l'APPLICATION de la proposition (lib/agents/service.ts, `appliquerSelection`), dans la même transaction, APRÈS la création des assets :
- *   le reste. Un asset décoché ou refusé n'existe pas : il est simplement omis.
- * Jamais par-dessus des références déjà posées (lib/h3ir/references-write.ts) ; le statut des plans ne bouge pas. */
+/** Each clip's references rendered by the asset inventory (lib/agents/inventory.ts), written to the database. Two moments:
+ * - at the task's POST-PROCESSING (worker/agents/postProcessing.ts): the clips whose references all already exist in the registry get them
+ *   right away (nothing to create, they can be re-read with the intents); those citing an asset the inventory proposes to create
+ *   wait;
+ * - at the APPLICATION of the proposal (lib/agents/service.ts, `appliquerSelection`), in the same transaction, AFTER the assets are created:
+ *   the rest. An asset that is unticked or refused does not exist: it is simply omitted.
+ * Never over references already set (lib/h3ir/references-write.ts); the clips' status does not move. */
 
 export type TacheInventaire = { entree: unknown; options: unknown; resultat: unknown };
 export type BilanReferences = { ecrits: number; differes: number; dejaRenseignes: number; sansReference: number };
 
 const PREFIXE_NOUVEL_ASSET = cleNouvelAsset("");
 
-/** Les assets du projet (hors affiches) avec leur parent : ce que les références peuvent citer. */
+/** The project's assets (excluding posters) with their parent: what the references can cite. */
 async function connusDuProjet(d: Db, projectId: number): Promise<AssetConnu[]> {
   const lignes = await d.select({ id: assets.id, code: assets.code, type: assets.type, deriveDeId: assets.deriveDeId }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches));
   const codeDe = new Map(lignes.map((a) => [a.id, a.code]));
   return lignes.map((a) => ({ code: a.code, type: a.type, parent: a.deriveDeId != null ? (codeDe.get(a.deriveDeId) ?? null) : null }));
 }
 
-/** Les créations d'assets d'une proposition qui ne sont pas encore écrites (ni refusées) : elles existeront si la proposition est appliquée.
- * `saufSousTache` : sans celles de cette sous-tâche (elle va être relancée, ses lignes seront remplacées). */
+/** A proposal's asset creations that are not yet written (nor refused): they will exist if the proposal is applied.
+ * `saufSousTache`: without those of this subtask (it is about to be re-run, its rows will be replaced). */
 export async function assetsACreer(d: Db, propositionId: number, options: { saufSousTache?: string } = {}): Promise<(AssetConnu & { description: string })[]> {
   const lignes = await d
     .select({ apres: propositionChangements.apres, sousTache: propositionChangements.sousTache })
@@ -50,8 +50,8 @@ export async function assetsACreer(d: Db, propositionId: number, options: { sauf
   });
 }
 
-/** Écrit les références que rendent ces tâches d'inventaire. `aCreer` : les assets proposés et pas encore créés ; un plan qui en cite un attend
- * l'application (compté dans `differes`). */
+/** Writes the references these inventory tasks return. `aCreer`: the proposed assets not yet created; a clip that cites one waits for
+ * the application (counted in `differes`). */
 export async function ecrireReferencesDesTaches(d: Db, projectId: number, taches: TacheInventaire[], aCreer: AssetConnu[] = []): Promise<BilanReferences> {
   const bilan: BilanReferences = { ecrits: 0, differes: 0, dejaRenseignes: 0, sansReference: 0 };
   const duProjet = await connusDuProjet(d, projectId);
@@ -81,7 +81,7 @@ export async function ecrireReferencesDesTaches(d: Db, projectId: number, taches
         continue;
       }
       const [p] = await d.select({ id: plans.id }).from(plans).where(and(eq(plans.uuid, r.uuid), eq(plans.projectId, projectId)));
-      if (!p) continue; // plan supprimé depuis
+      if (!p) continue; // clip deleted since
       const e = await ecrireReferencesPlan(d, p.id, r.codes);
       if (e.ok) bilan.ecrits += 1;
       else if (e.raison === "deja-des-references") bilan.dejaRenseignes += 1;
@@ -91,7 +91,7 @@ export async function ecrireReferencesDesTaches(d: Db, projectId: number, taches
   return bilan;
 }
 
-/** Les tâches terminées d'une proposition d'inventaire (la dernière par sous-tâche pour un inventaire découpé). */
+/** The finished tasks of an inventory proposal (the last one per subtask for a split inventory). */
 async function tachesTermineesDe(d: Db, propositionId: number): Promise<TacheInventaire[]> {
   const runs = await d
     .select({ cle: agentRuns.cleSousTache, entree: agentRuns.entree, options: agentRuns.options, resultat: agentRuns.resultat })
@@ -103,14 +103,14 @@ async function tachesTermineesDe(d: Db, propositionId: number): Promise<TacheInv
   return [...parCle.values()];
 }
 
-/** À l'application d'une proposition d'inventaire, dans SA transaction, après la création des assets : les références qui attendaient. */
+/** On applying an inventory proposal, in ITS transaction, after the assets are created: the references that were waiting. */
 export async function ecrireReferencesApresApplication(d: Db, propositionId: number): Promise<BilanReferences> {
   const [prop] = await d.select({ projectId: propositions.projectId, skill: propositions.skill }).from(propositions).where(eq(propositions.id, propositionId));
   if (!prop || prop.skill !== "inventaire-assets") return { ecrits: 0, differes: 0, dejaRenseignes: 0, sansReference: 0 };
   return ecrireReferencesDesTaches(d, prop.projectId, await tachesTermineesDe(d, propositionId));
 }
 
-/** La phrase du bilan, pour le résumé de la proposition. */
+/** The summary sentence of the report, for the proposal's summary. */
 export function phraseBilan(b: BilanReferences): string {
   const morceaux = [
     b.ecrits ? `${b.ecrits} plan${b.ecrits > 1 ? "s ont déjà leurs" : " a déjà ses"} références` : "",

@@ -25,19 +25,19 @@ import { nbImagesEnAttente } from "@/lib/tasks/queries-tasks";
 import { cheminCanevasAffiche } from "@/worker/canvas-poster";
 import { PLAFOND_FILE_IMAGES } from "@/lib/tasks/tasks";
 
-// La fiche d'un asset « comme la fiche de plan » : on écrit une consigne en français, un agent la traduit en prompt (Krea 2 sans image de
-// base, Qwen Image Edit avec), l'essai part dans la file d'images, et le journal des essais garde consigne, base et prompt de chacun.
+// An asset's sheet works « like the clip sheet »: a directive is written in French, an agent translates it into a prompt (Krea 2 without a
+// base image, Qwen Image Edit with one), the attempt goes into the image queue, and the attempt log keeps each one's directive, base and prompt.
 
 type Resultat = { ok: true } | { ok: false; erreur: string };
 
-/** D'où repart un essai : l'image actuelle de l'asset, un essai précédent (par son uuid), ou de rien (Krea 2 crée l'image). */
+/** Where an attempt starts from: the asset's current image, a previous attempt (by its uuid), or nothing (Krea 2 creates the image). */
 export type BaseEssai = "actuelle" | { essai: string } | null;
 
-/** Une image jointe à l'essai : celle d'un autre asset du registre, ou une image déposée (voir `deposerSourceImport`). */
+/** An image attached to the attempt: that of another asset in the registry, or a dropped image (see `deposerSourceImport`). */
 export type ImageJointe = { origine: "asset"; assetId: number } | { origine: "import"; fichier: string };
 
-/** Lance un essai : pose l'essai (statut « traduction ») et la tâche qui traduit la consigne. Le résultat est un essai du journal, jamais l'image
- * de l'asset directement : on l'adopte quand il convient. */
+/** Launches an attempt: records the attempt (status « traduction ») and the task that translates the directive. The result is an attempt in the log, never the asset's
+ * image directly: it is adopted when it fits. */
 export async function lancerEssai(
   assetId: number,
   p: { consigne: string; base: BaseEssai; jointes?: ImageJointe[] },
@@ -45,7 +45,7 @@ export async function lancerEssai(
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
 
-  // L'image de base, et le prompt qui l'a produite.
+  // The base image, and the prompt that produced it.
   let baseFichierRelatif: string | null = null;
   let promptBase = asset.promptGeneration ?? "";
   if (p.base === "actuelle") {
@@ -61,14 +61,14 @@ export async function lancerEssai(
     promptBase = essai.prompt;
   }
   const jointes = p.jointes ?? [];
-  // Une affiche créée à partir d'images (le personnage principal, par exemple) part d'un canevas vide 2:3 en image 1 : la sortie de Qwen suit le
-  // format de l'image 1, et sans lui une fiche personnage 16:9 donnerait une affiche 16:9. Le canevas compte comme l'image de base.
+  // A poster created from images (the main character, for example) starts from an empty 2:3 canvas as image 1: Qwen's output follows the
+  // format of image 1, and without it a 16:9 character sheet would give a 16:9 poster. The canvas counts as the base image.
   const canevas = asset.type === TYPE_AFFICHE && baseFichierRelatif == null && jointes.length > 0;
   const aUneBase = baseFichierRelatif != null || canevas;
   if (jointes.length > maxImagesJointes(aUneBase)) {
     return { ok: false, erreur: aUneBase ? "Pour retoucher, une seule image peut s'ajouter à l'image de base." : "Trois images au plus." };
   }
-  // Les images jointes sont résolues AVANT toute écriture : un fichier manquant ne laisse rien derrière lui.
+  // Attached images are resolved BEFORE any write: a missing file leaves nothing behind.
   const sourcesJointes: { origine: "asset" | "import"; assetId: number | null; fichier: string; libelle: string }[] = [];
   for (const [i, j] of jointes.entries()) {
     if (j.origine === "asset") {
@@ -83,14 +83,14 @@ export async function lancerEssai(
   }
   const aDesImages = aUneBase || sourcesJointes.length > 0;
   const consigne = p.consigne.trim();
-  // Une affiche se dessine d'après le titre et le résumé du projet : sa consigne peut rester vide, même avec des images (le canevas compte comme base).
+  // A poster is drawn from the project's title and summary: its directive may stay empty, even with images (the canvas counts as base).
   const raison = raisonConsigneInvalide(consigne, aDesImages && !canevas, asset.description);
   if (raison) return { ok: false, erreur: raison };
   if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
     return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} images en attente) : laisse le worker en vider quelques-unes.` };
   }
 
-  // La base est PHOTOGRAPHIÉE : l'essai garde l'image dont il est parti, même si l'asset change ensuite (comme les sources importées).
+  // The base is SNAPSHOTTED: the attempt keeps the image it started from, even if the asset changes afterwards (like imported sources).
   let nomBase: string | null = null;
   if (baseFichierRelatif || canevas) {
     const origine = baseFichierRelatif ? join(MEDIA_ROOT, baseFichierRelatif) : await cheminCanevasAffiche(join(MEDIA_ROOT, "_canevas"));
@@ -128,7 +128,7 @@ export async function lancerEssai(
         statut: STATUT_TRADUCTION,
         prompt: "",
         consigne: consigne || null,
-        // Édition : la clause courte, rappelée par le worker en dernière ligne des instructions (voir lib/assets/generation-launch.ts).
+        // Editing: the short clause, recalled by the worker as the last line of the instructions (see lib/assets/generation-launch.ts).
         clauseStyle: texte ? styleDesImages(projet) : styleDesEditions(projet),
         ...(texte ? { aspect: format.aspect, megapixels: format.megapixels } : {}),
         lightning: texte ? null : true,
@@ -156,7 +156,7 @@ export async function lancerEssai(
   return { ok: true, uuid };
 }
 
-/** Retire l'image d'un asset : il redevient « sans image » (« à produire »), et le prochain essai repart de zéro avec Krea 2. Les essais restent. */
+/** Removes an asset's image: it becomes « sans image » (« à produire ») again, and the next attempt starts from scratch with Krea 2. The attempts remain. */
 export async function retirerImageAsset(assetId: number): Promise<Resultat> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
@@ -167,8 +167,8 @@ export async function retirerImageAsset(assetId: number): Promise<Resultat> {
   return { ok: true };
 }
 
-/** Duplique un asset : même type, même description, même prompt et une copie de l'image, sous un nouveau code. Pour une variante (une autre tenue,
- * un autre éclairage) on duplique puis on retouche la copie, sans toucher à l'original. Aucun lien n'est gardé entre les deux. */
+/** Duplicates an asset: same type, same description, same prompt and a copy of the image, under a new code. For a variant (another outfit,
+ * another lighting) you duplicate then retouch the copy, without touching the original. No link is kept between the two. */
 export async function dupliquerAsset(assetId: number): Promise<{ ok: true; code: string } | { ok: false; erreur: string }> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };

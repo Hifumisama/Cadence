@@ -1,12 +1,12 @@
 import type { PollResult, Suivi } from "./comfyui/types";
 
-/** Le résultat d'une attente : fini ou en erreur côté ComfyUI (jamais « en cours »), annulation demandée, ou délai écoulé. */
+/** The result of a wait: finished or in error on the ComfyUI side (never « en cours »), cancellation requested, or delay elapsed. */
 export type IssueAttente = Exclude<PollResult, { statut: "en_cours" }> | "annulee" | "delai";
 
-/** L'attente d'un prompt ComfyUI, la même pour une image, un son et une vidéo : d'abord le WebSocket (il ne décide de rien, il réveille dès
- * que le prompt a fini ou que la connexion tombe), puis /history lu à intervalle régulier. La sonde du drapeau d'annulation (`surveillance`,
- * worker/cancellation.ts) court en parallèle de l'attente comme du sommeil entre deux lectures : une annulation ne coûte aucune lecture de
- * base supplémentaire et n'attend pas le rythme normal. L'appelant arrête la surveillance. */
+/** The wait for a ComfyUI prompt, the same for an image, a sound and a video: first the WebSocket (it decides nothing, it wakes up as soon as
+ * the prompt has finished or the connection drops), then /history read at a regular interval. The cancellation flag probe (`surveillance`,
+ * worker/cancellation.ts) runs in parallel with the wait, as well as with the sleep between two reads: a cancellation costs no extra
+ * database read and does not wait for the normal rhythm. The caller stops the surveillance. */
 export async function attendreResultat(opts: {
   suivi: Suivi | null;
   promptId: string;

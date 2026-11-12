@@ -3,10 +3,10 @@
 import { useState, useTransition } from "react";
 import { lancerPassageNuit } from "@/app/plans/actions";
 
-/** Déclenche le "passage nuit" (CDC page 4) — confirmation à deux temps
- * plutôt qu'un window.confirm : ce bouton met potentiellement des dizaines
- * de rendus upscale en file d'un coup, une vraie dépense de temps ComfyUI,
- * pas une action à un clic accidentel près. */
+/** Triggers the "passage nuit" (CDC page 4) — a two-step confirmation
+ * rather than a window.confirm: this button may queue dozens of upscale
+ * renders at once, a real spend of ComfyUI time, not an action to be
+ * triggered by a single accidental click. */
 export function PassageNuitButton({
   episodeId,
   nPrevisualise,

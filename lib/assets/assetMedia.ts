@@ -1,9 +1,9 @@
 import type { FichierEtat, MediaKind } from "@/components/assets/AssetCard";
 import { estAudio, estVideo, fichierMediaExiste, urlAssetMedia } from "@/lib/media";
 
-/** Ce qu'il faut savoir d'un asset pour l'afficher en carte : nature du média,
- * présence du fichier sur le stockage, URL de service. Côté serveur
- * uniquement (vérifie le disque). */
+/** What one needs to know of an asset to display it as a card: kind of media,
+ * presence of the file on storage, service URL. Server-side
+ * only (checks the disk). */
 export function infosMedia(
   type: string,
   fichier: string | null,

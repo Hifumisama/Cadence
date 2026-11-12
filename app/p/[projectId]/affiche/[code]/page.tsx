@@ -17,9 +17,9 @@ import "./affiche.css";
 
 export const dynamic = "force-dynamic";
 
-/** Génération de l'image de présentation d'un projet ou d'un épisode. Le même atelier que la fiche d'un asset (consigne en français,
- * journal d'essais, « Utiliser cet essai » : l'affiche s'appuie sur un asset d'un type à part, invisible du registre — lib/posters/posters.ts). La page
- * n'existe que si l'asset a été créé par le bouton « Générer une image » : jamais d'écriture en simple lecture. */
+/** Generation of the presentation image of a project or an episode. The same workshop as an asset's sheet (instruction in French,
+ * attempt log, « Utiliser cet essai »: the poster relies on an asset of its own type, invisible in the registry — lib/posters/posters.ts). The page
+ * only exists if the asset was created by the « Générer une image » button: never writes on a plain read. */
 export default async function AffichePage({
   params,
   searchParams,
@@ -65,7 +65,7 @@ export default async function AffichePage({
   ]);
   const essais = generations.filter((g) => g.methode === "generation" || g.methode === "edition");
   const joignables = registre.map((a) => ({ id: a.id, libelle: a.code, src: a.src }));
-  // Le personnage principal (s'il a une image) est joint d'office à la première consigne : c'est ce qui garde l'affiche cohérente avec le registre.
+  // The main character (if it has an image) is attached by default to the first instruction: this keeps the poster consistent with the registry.
   const perso = principal?.aImage ? registre.find((r) => r.code === principal.code) : undefined;
   const jointesInitiales = perso ? [{ origine: "asset" as const, assetId: perso.id, cle: `perso-${perso.id}`, src: perso.src, libelle: perso.code }] : [];
   const src = posterSrc(cible.cible, cible.id, posterFichier);

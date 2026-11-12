@@ -1,11 +1,11 @@
-/** Les CHAÎNES de plans (docs/PLAN_FILE_CONSIGNES.md, phase 3) : règles pures, rien en base. Un plan en liaison « suite » (lib/clips/clip-link.ts)
- * reprend là où le précédent finit : son rendu part de celui du précédent. Une chaîne est donc une suite de plans consécutifs (`plans.ordre`) dont
- * chacun, sauf le premier, est en « suite ». Une « coupe » ouvre une nouvelle chaîne. */
+/** The CHAINS of clips (docs/PLAN_FILE_CONSIGNES.md, phase 3): pure rules, nothing in the database. A clip in « suite » link (lib/clips/clip-link.ts)
+ * picks up where the previous one ends: its render starts from that of the previous one. A chain is thus a sequence of consecutive clips (`plans.ordre`) of which
+ * each, except the first, is in « suite ». A « coupe » opens a new chain. */
 
 export type PlanDeChaine = { id: number; ordre: number; liaison: string };
 
-/** Les plans qui précèdent `planId` dans sa chaîne (du plus proche au plus lointain), `plansDeLEpisode` étant les plans d'UN épisode. Vide pour le
- * premier plan d'une chaîne (le premier de l'épisode, ou un plan en coupe) et pour un plan inconnu. */
+/** The clips that precede `planId` in its chain (from the nearest to the farthest), `plansDeLEpisode` being the clips of ONE episode. Empty for the
+ * first clip of a chain (the episode's first, or a clip in « coupe ») and for an unknown clip. */
 export function precedentsDansLaChaine(plansDeLEpisode: PlanDeChaine[], planId: number): number[] {
   const tries = [...plansDeLEpisode].sort((a, b) => a.ordre - b.ordre || a.id - b.id);
   let i = tries.findIndex((p) => p.id === planId);
@@ -20,19 +20,18 @@ export function precedentsDansLaChaine(plansDeLEpisode: PlanDeChaine[], planId: 
 
 export type IterationEnAttente = { id: number; planId: number };
 
-/** La prochaine itération à démarrer parmi celles qui attendent (dans l'ordre de la file) : la première qui n'a, EN FILE derrière elle, aucun plan qui la
- * précède dans sa chaîne. Un plan en « suite » repart du rendu du précédent : rendu avant lui, il serait à refaire. Si tout attend quelqu'un (cas
- * impossible dans une chaîne finie, mais on ne bloque jamais la file), la première de la file passe. */
+/** The next iteration to start among those waiting (in queue order): the first one that has, IN QUEUE behind it, no clip that precedes it
+ * in its chain. A clip in « suite » restarts from the previous one's render: rendered before it, it would have to be redone. If everything waits for someone (impossible case in a finite chain, but we never block the queue), the first of the queue goes. */
 export function choisirProchaineIteration<T extends IterationEnAttente>(file: T[], precedentsDe: (planId: number) => number[]): T | null {
   if (file.length === 0) return null;
   const enFile = new Set(file.map((f) => f.planId));
   return file.find((f) => !precedentsDe(f.planId).some((p) => p !== f.planId && enFile.has(p))) ?? file[0]!;
 }
 
-/** Un rendu en file doit-il attendre ? Un plan en « suite » repart du rendu de son précédent : tant que celui-ci a un rendu en file ou en cours, il patiente (le mettre en
- * file reste toujours possible). Un plan en coupe, ou sans précédent, ne patiente jamais. */
+/** Must a render in the queue wait? A clip in « suite » restarts from its predecessor's render: as long as that one has a render queued or running, it waits (queueing it
+ * always remains possible). A clip in a « coupe », or without a predecessor, never waits. */
 export const doitAttendreLePrecedent = (liaison: string, precedentEnRendu: boolean): boolean => liaison === "suite" && precedentEnRendu;
 
-/** Le rendu d'un plan en « suite » est-il périmé par rapport à son précédent ? `utilise` : l'essai du précédent dont il est parti (`jobs.raccord_job_id`) ;
- * `actuelId` : l'essai du précédent qui serait pris maintenant. Faux quand l'un des deux manque (rien à comparer, ou rien à reprendre). */
+/** Is the render of a clip in « suite » outdated relative to its predecessor? `utilise`: the attempt of the predecessor it left from (`jobs.raccord_job_id`);
+ * `actuelId`: the attempt of the predecessor that would be taken now. False when one of the two is missing (nothing to compare, or nothing to take up). */
 export const raccordPerime = (utilise: number | null, actuelId: number | null): boolean => utilise != null && actuelId != null && utilise !== actuelId;

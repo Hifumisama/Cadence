@@ -2,11 +2,11 @@ import { construireCode, slugifyCode } from "../assets/assetCode";
 import { ressemblant } from "./inventory";
 import type { BriefContenu } from "./types";
 
-/** Étape 2 du pipeline : le REGISTRE d'assets à partir du brief. Pur (aucune lecture) : des
- * personnages et des lieux du brief aux « candidats » à créer ou à compléter, un par asset. Les voix
- * ne passent pas ici (elles se créent au casting vocal), ni les accessoires/effets/sons (ils se
- * déduisent des plans, étape 3). « L'histoire d'abord » : le scénario ne déclare aucun asset, le
- * brief seul fournit les masters. */
+/** Step 2 of the pipeline: the asset REGISTRY from the brief. Pure (no reads): from the brief's
+ * characters and places to the "candidates" to create or complete, one per asset. Voices
+ * do not go through here (they are created in the voice casting), nor props/effects/sounds (they are
+ * derived from the clips, step 3). "L'histoire d'abord": the screenplay declares no asset, the
+ * brief alone provides the masters. */
 
 const PREFIXE_CLE_ASSET = "asset:";
 export const cleSousTacheAsset = (code: string): string => `${PREFIXE_CLE_ASSET}${code}`;
@@ -25,32 +25,32 @@ export type AssetExistant = {
 };
 
 export type CandidatRegistre = {
-  /** Clé de la sous-tâche du lot : « asset:CHAR_maya ». */
+  /** The batch subtask's key: "asset:CHAR_maya". */
   cle: string;
   code: string;
   type: TypeMaster;
-  /** Suffixe du code (sans préfixe de type), tel que l'applicateur le reconstruit. */
+  /** Code suffix (without type prefix), as the applier rebuilds it. */
   suffixe: string;
   nom: string;
-  /** Description canonique en français, issue du brief. */
+  /** Canonical description in French, from the brief. */
   description: string;
-  /** L'asset existe déjà dans le registre. */
+  /** The asset already exists in the registry. */
   existantId: number | null;
-  /** Il a déjà un prompt de génération. */
+  /** It already has a generation prompt. */
   aPrompt: boolean;
-  /** Il a déjà une description canonique (sinon celle du brief la complète). */
+  /** It already has a canonical description (otherwise the brief's one completes it). */
   aDescription: boolean;
-  /** Libellé de la ligne de sélection et de la sous-tâche. */
+  /** Label of the selection line and of the subtask. */
   libelle: string;
-  /** Coché d'office : créer ce qui manque, écrire les prompts absents ; ne touche pas à ce qui est déjà écrit. */
+  /** Ticked outright: create what is missing, write the absent prompts; does not touch what is already written. */
   aTraiter: boolean;
 };
 
 const LIBELLE_TYPE: Record<TypeMaster, string> = { personnage: "Personnage", decor: "Décor" };
 
-/** La description canonique d'un personnage : ce qu'on VOIT (âge, apparence, trait reconnaissable), jamais son rôle
- * ni sa voix (un asset d'image décrit par une voix donne une image au hasard). Un brief écrit avant ces champs
- * retombe sur « rôle : trait ». */
+/** A character's canonical description: what is SEEN (age, look, recognisable trait), never their role
+ * nor their voice (an image asset described by a voice gives a random image). A brief written before these fields
+ * falls back to "rôle : trait". */
 export function descriptionPersonnage(p: BriefContenu["personnages"][number]): string {
   const age = (p.age ?? "").trim();
   const apparence = (p.apparence ?? "").trim();
@@ -66,8 +66,8 @@ export function descriptionPersonnage(p: BriefContenu["personnages"][number]): s
 
 const net = (s: string | undefined): string => (s ?? "").trim().replace(/[.\s]+$/, "");
 
-/** La tenue du brief (entretien enrichi, 2026-11-08) en une phrase de description canonique ; "" sans tenue. L'évolution (raccords) n'y est
- * pas : la fiche du personnage montre sa tenue de référence. */
+/** The brief's costume (enriched interview, 2026-11-08) as one canonical description sentence; "" without a costume. The evolution (continuity) is not
+ * in it: the character's sheet shows its reference costume. */
 function descriptionTenue(t: BriefContenu["personnages"][number]["tenue"]): string {
   if (!t) return "";
   const corps = [net(t.coupe), net(t.couleurs), net(t.matieres)].filter(Boolean).join(", ");
@@ -75,7 +75,7 @@ function descriptionTenue(t: BriefContenu["personnages"][number]["tenue"]): stri
   return parties.filter(Boolean).join(" ; ");
 }
 
-/** La description canonique d'un lieu : sa description, puis son aspect (lumière, matières, palette, ambiance) quand l'entretien l'a noté. */
+/** A place's canonical description: its description, then its look (light, materials, palette, ambiance) when the interview noted it. */
 function descriptionLieu(l: BriefContenu["lieux"][number]): string {
   const a = l.aspect;
   const aspect = a ? [net(a.lumiere), net(a.matieres), net(a.palette), net(a.ambiance)].filter(Boolean).join(", ") : "";
@@ -83,11 +83,11 @@ function descriptionLieu(l: BriefContenu["lieux"][number]): string {
   return [net(l.description), aspect].filter(Boolean).join(". ");
 }
 
-/** L'entrée du brief dont un asset est tiré, telle quelle (avec ses sous-champs `tenue`, `aspect` et leur `statut`), pour `prompt-asset` :
- * la description canonique recopie la tenue et l'aspect, mais perd leur statut (« incertain », « déduit ») ; le skill le lit ici. Un personnage
- * ou un lieu : même code que celui que le registre construit depuis son nom (un état, `CHAR_x_agee`, n'est pas son sujet : rien). Un prop ou
- * un VFX : l'élément du brief de même nature dont le nom recouvre le code (« La lanterne de cuivre » ↔ `PROP_lanterne`), le code venant de
- * l'inventaire. Null sans correspondance. Pur. */
+/** The brief entry an asset is derived from, as is (with its `tenue`, `aspect` sub-fields and their `statut`), for `prompt-asset`:
+ * the canonical description copies the costume and the look, but loses their status ("incertain", "déduit"); the skill reads it here. A character
+ * or a place: same code as the one the registry builds from its name (a state, `CHAR_x_agee`, is not its subject: nothing). A prop or
+ * a VFX: the brief element of the same nature whose name covers the code ("La lanterne de cuivre" ↔ `PROP_lanterne`), the code coming from
+ * the inventory. Null without a match. Pure. */
 export type DetailsDuBrief =
   | { section: "personnages"; entree: BriefContenu["personnages"][number] }
   | { section: "lieux"; entree: BriefContenu["lieux"][number] }
@@ -117,7 +117,7 @@ export function detailsDuBrief(brief: Pick<BriefContenu, "personnages" | "lieux"
   return null;
 }
 
-/** Le libellé « contexte utilisé » de l'entrée du brief lue par `prompt-asset` (avec le statut du détail quand il est encore à confirmer). */
+/** The "contexte utilisé" label of the brief entry read by `prompt-asset` (with the detail's status when it is still to be confirmed). */
 export function libelleDetailsDuBrief(d: DetailsDuBrief): string {
   const nom = d.entree.nom?.trim() || "?";
   const [quoi, statut] =
@@ -126,8 +126,8 @@ export function libelleDetailsDuBrief(d: DetailsDuBrief): string {
   return `Brief · ${nom} : ${quoi}${douteux}`;
 }
 
-/** Les candidats du registre pour un brief, dans l'ordre du brief (personnages puis lieux). Un nom
- * qui donnerait un code déjà pris par un candidat précédent est ignoré (pas de doublon). */
+/** The registry candidates for a brief, in brief order (characters then places). A name
+ * that would give a code already taken by a previous candidate is ignored (no duplicate). */
 export function candidatsRegistre(brief: Pick<BriefContenu, "personnages" | "lieux">, existants: AssetExistant[]): CandidatRegistre[] {
   const parCode = new Map(existants.map((a) => [a.code, a]));
   const vus = new Set<string>();

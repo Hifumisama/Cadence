@@ -14,9 +14,9 @@ import {
 import { resumeAutomatique } from "./proposal-db";
 import type { CibleType, Operation, VueLot, VueSousTache } from "./types";
 
-/** Lots du système d'agents côté base : lire les sous-tâches d'une proposition, décider de son
- * statut quand l'une d'elles se termine, annuler le lot. Les règles pures sont dans
- * lib/agents/batches-pure.ts. Utilisé par le service, le worker (post-traitement) et le header. */
+/** Batches of the agent system, database side: read a proposal's subtasks, decide its
+ * status when one of them ends, cancel the batch. The pure rules are in
+ * lib/agents/batches-pure.ts. Used by the service, the worker (post-processing) and the header. */
 
 type DbOuTx = typeof db | Tx;
 
@@ -37,7 +37,7 @@ export function versRunLot(r: typeof agentRuns.$inferSelect): RunLot {
   };
 }
 
-/** Toutes les tâches (relances comprises) d'une proposition en lot, de la plus ancienne à la plus récente. */
+/** All tasks (re-runs included) of a batch proposal, from oldest to newest. */
 export async function runsDuLot(d: DbOuTx, propositionId: number): Promise<RunLot[]> {
   const lignes = await d
     .select()
@@ -47,10 +47,10 @@ export async function runsDuLot(d: DbOuTx, propositionId: number): Promise<RunLo
   return lignes.map(versRunLot);
 }
 
-/** Décide du statut de la proposition d'un lot d'après ses sous-tâches, et le pose. À appeler à
- * CHAQUE fin de sous-tâche (réussie, échouée, annulée) et au démarrage du worker. `runTermineId` :
- * la tâche dont le résultat est en train d'être écrit dans la transaction courante (son statut
- * « terminé » n'y est pas encore posé). Ne touche jamais une proposition appliquée ou rejetée. */
+/** Decides and sets the status of a batch's proposal from its subtasks. To call at
+ * EACH subtask end (succeeded, failed, cancelled) and at worker startup. `runTermineId`:
+ * the task whose result is being written in the current transaction (its "terminé" status
+ * is not yet set there). Never touches an applied or rejected proposal. */
 export async function finaliserLot(d: DbOuTx, propositionId: number, options: { runTermineId?: number } = {}): Promise<string | null> {
   const [prop] = await d.select().from(propositions).where(eq(propositions.id, propositionId));
   if (!prop || !prop.lot) return null;
@@ -90,8 +90,8 @@ export async function finaliserLot(d: DbOuTx, propositionId: number, options: { 
   return "echouee";
 }
 
-/** La conversation quitte l'étape « proposition » d'un lot abandonné : retour à la consigne (courte)
- * ou à l'étape « appliqué » (complète : c'est là que se propose « Continuer »). */
+/** The conversation leaves the "proposition" step of an abandoned batch: back to the instruction (short)
+ * or to the "appliqué" step (complete: that is where "Continuer" is offered). */
 async function revenirApresLot(d: DbOuTx, conversationId: number | null, propositionId: number): Promise<void> {
   if (conversationId == null) return;
   const [conv] = await d.select().from(agentConversations).where(eq(agentConversations.id, conversationId));
@@ -102,8 +102,8 @@ async function revenirApresLot(d: DbOuTx, conversationId: number | null, proposi
     .where(eq(agentConversations.id, conversationId));
 }
 
-/** Les propositions en lot encore « en génération » dont plus aucune tâche n'est active (worker
- * arrêté, tâche annulée entre-temps) : leur statut est rattrapé. Au démarrage du worker. */
+/** Batch proposals still "en génération" with no active task left (worker
+ * stopped, task cancelled in the meantime): their status is caught up. At worker startup. */
 export async function finaliserLotsOrphelins(d: DbOuTx = db): Promise<number> {
   const ouvertes = await d.select({ id: propositions.id }).from(propositions).where(and(eq(propositions.lot, true), eq(propositions.statut, "en_generation")));
   let n = 0;
@@ -115,8 +115,8 @@ export async function finaliserLotsOrphelins(d: DbOuTx = db): Promise<number> {
   return n;
 }
 
-/** Arrête des tâches d'agent : celles en attente sont annulées, celles en cours reçoivent le drapeau
- * d'annulation (le worker coupe la connexion au serveur LLM). */
+/** Stops agent tasks: pending ones are cancelled, running ones receive the cancellation
+ * flag (the worker cuts the connection to the LLM server). */
 export async function annulerRunsDePropositions(d: DbOuTx, propositionIds: number[]): Promise<void> {
   if (propositionIds.length === 0) return;
   const maintenant = new Date();
@@ -130,10 +130,10 @@ export async function annulerRunsDePropositions(d: DbOuTx, propositionIds: numbe
     .where(and(inArray(agentRuns.propositionId, propositionIds), eq(agentRuns.statut, "en_cours")));
 }
 
-/** « Vider la file » : les sous-tâches EN ATTENTE de tous les lots sont annulées ; celles qui
- * tournent continuent (contrairement à `annulerLot`). Un lot sans sous-tâche en cours voit son
- * statut décidé tout de suite (`prete` s'il a un résultat, `rejetee` sinon). Renvoie le nombre
- * de sous-tâches annulées. */
+/** "Vider la file": the PENDING subtasks of all batches are cancelled; those that are
+ * running continue (unlike `annulerLot`). A batch with no running subtask has its
+ * status decided right away (`prete` if it has a result, `rejetee` otherwise). Returns the number
+ * of subtasks cancelled. */
 export async function annulerEnAttenteDesLots(): Promise<number> {
   const lots = await db.select({ id: propositions.id }).from(propositions).where(eq(propositions.lot, true));
   if (lots.length === 0) return 0;
@@ -157,9 +157,9 @@ export async function annulerEnAttenteDesLots(): Promise<number> {
 
 export type ResultatAnnulationLot = "annule" | "demande" | "rien";
 
-/** Annule un lot : les sous-tâches en attente sont annulées tout de suite, celle qui tourne est
- * interrompue (drapeau). Ce qui est déjà terminé reste relisible : la proposition devient `prete`
- * s'il y a au moins un résultat, `rejetee` sinon. Idempotent. */
+/** Cancels a batch: pending subtasks are cancelled right away, the running one is
+ * interrupted (flag). What is already finished stays readable: the proposal becomes `prete`
+ * if there is at least one result, `rejetee` otherwise. Idempotent. */
 export async function annulerLot(propositionUuid: string): Promise<ResultatAnnulationLot> {
   if (!/^[0-9a-f-]{36}$/i.test(propositionUuid)) return "rien";
   const [prop] = await db.select().from(propositions).where(eq(propositions.uuid, propositionUuid));
@@ -169,12 +169,12 @@ export async function annulerLot(propositionUuid: string): Promise<ResultatAnnul
   if (actifs.length === 0) return "rien";
   const enCours = actifs.some((x) => x.run.statut === "en_cours");
   await annulerRunsDePropositions(db, [prop.id]);
-  // Sans sous-tâche en cours, plus rien n'attend : le statut se décide tout de suite.
+  // With no subtask running, nothing is waiting anymore: the status is decided right away.
   if (!enCours) await finaliserLot(db, prop.id);
   return enCours ? "demande" : "annule";
 }
 
-/** La vue d'un lot pour la popup : une ligne par sous-tâche (la dernière posée pour chaque clé). */
+/** A batch's view for the popup: one line per subtask (the last one set for each key). */
 export async function vueLot(propositionId: number, positionsFile: Map<number, number>): Promise<VueLot | null> {
   const runs = await runsDuLot(db, propositionId);
   if (runs.length === 0) return null;

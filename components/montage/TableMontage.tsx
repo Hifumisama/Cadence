@@ -5,12 +5,12 @@ import { aimanter, cibleGlisser, debuts, DUREE_MIN_CLIP, familleStatut, formatTe
 
 export type ModeTable = "mt" | "sc";
 
-/** Teinte stable d'un plan (dégradé de son clip), tirée de son uuid : la même d'un rechargement à l'autre, sans rien stocker. */
+/** Stable hue of a clip (gradient of its clip), drawn from its uuid: the same from one reload to the next, without storing anything. */
 export const teinte = (uuid: string): number => Math.round((parseInt(uuid.replace(/-/g, "").slice(0, 4), 16) / 0xffff) * 360);
 
-/** La table de montage : barre d'outils (ordre affiché, zoom, aimantation, écart au scénario), règle, piste « Montage » (clips des entrées,
- * rognables et déplaçables), pistes audio « à venir », et en mode « Ordre des scènes » la bande des scènes et les plans du scénario.
- * Les gestes sont signalés au parent, qui met l'état à jour tout de suite et enregistre (components/montage/Montage.tsx). */
+/** The edit table: toolbar (displayed order, zoom, magnetism, gap from the screenplay), ruler, « Montage » track (the entries' clips,
+ * trimmable and movable), « à venir » audio tracks, and in « Ordre des scènes » mode the scene band and the screenplay's clips.
+ * Gestures are reported to the parent, which updates the state right away and saves (components/montage/Montage.tsx). */
 export function TableMontage(props: {
   mode: ModeTable;
   setMode: (m: ModeTable) => void;
@@ -54,7 +54,7 @@ export function TableMontage(props: {
   const T = Math.ceil(Math.max(total, totalScenario)) + 6;
   const laneScenario = useRef<HTMLDivElement>(null);
 
-  // Pendant la lecture, la table suit la tête de lecture.
+  // During playback, the table follows the playhead.
   useEffect(() => {
     if (!props.lecture || mode !== "mt") return;
     const sc = scrollerRef.current;
@@ -80,7 +80,7 @@ export function TableMontage(props: {
     document.addEventListener("pointercancel", fin);
   };
 
-  // --- Règle : se placer ---
+  // --- Ruler: positioning ---
   const surRegle = (e: PE<HTMLDivElement>) => {
     if (e.button !== 0) return;
     props.pause();
@@ -88,7 +88,7 @@ export function TableMontage(props: {
     suivre((ev) => props.allerA(xDe(ev.clientX) / pps), () => undefined);
   };
 
-  // --- Rognage par les poignées ---
+  // --- Trimming by the handles ---
   const rognerDepuis = (e: PE<HTMLElement>, k: number, cote: "l" | "r") => {
     const c = clips[k]!;
     if (!c.rendu) return;
@@ -97,7 +97,7 @@ export function TableMontage(props: {
     const d0 = c.debut;
     const f0 = c.fin;
     const D = c.rendu.dureeSecondes;
-    // La tête de lecture, exprimée dans le temps du rendu : l'aimant y colle un bord.
+    // The playhead, expressed in the render's time: magnetism snaps an edge to it.
     const tete = t - starts[k]! + c.debut;
     let debut = d0;
     let fin = f0;
@@ -112,7 +112,7 @@ export function TableMontage(props: {
     );
   };
 
-  // --- Déplacer un clip, ou le sortir vers « Hors montage » ---
+  // --- Moving a clip, or taking it out to « Hors montage » ---
   const surClip = (e: PE<HTMLDivElement>, k: number) => {
     if (e.button !== 0) return;
     const poignee = (e.target as HTMLElement).dataset.h as "l" | "r" | undefined;
@@ -168,7 +168,7 @@ export function TableMontage(props: {
     );
   };
 
-  // --- Ordre des scènes : déplacer un plan (il prend la scène de son nouveau voisin) ---
+  // --- Scene order: moving a clip (it takes the scene of its new neighbour) ---
   const surPlanScenario = (e: PE<HTMLDivElement>, k: number) => {
     if (e.button !== 0) return;
     const el = e.currentTarget;
@@ -198,12 +198,12 @@ export function TableMontage(props: {
     );
   };
 
-  // Règle : graduations selon le zoom.
+  // Ruler: graduations according to the zoom.
   const pas = pps < 28 ? 10 : pps < 60 ? 5 : 1;
   const graduations: { s: number; grande: boolean }[] = [];
   for (let s = 0; s <= T; s += pas) graduations.push({ s, grande: s % (pas * 2) === 0 || (pas === 1 && s % 5 === 0) });
 
-  // Bandes des scènes (plans consécutifs d'une même scène).
+  // Scene bands (consecutive clips of the same scene).
   const titreScene = new Map(props.scenes.map((s, i) => [s.id, { titre: s.titre, n: i + 1 }]));
   const bandes: { cle: string; x: number; w: number; libelle: string }[] = [];
   plans.forEach((p, k) => {

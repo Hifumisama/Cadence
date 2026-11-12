@@ -10,8 +10,8 @@ import { ICONE_TYPE_ASSET, Icone } from "@/components/ui/Icon";
 import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/assets/registry-types";
 
 /* ---------------------------------------------------------------------------------------------------------------
-   La fiche d'un asset est une pile de blocs, comme le brief : un bloc de lecture devient un éditeur sur place quand on
-   le clique, une seule modification à la fois (le contexte ci-dessous tient la clé du bloc en cours d'édition).
+   The sheet of an asset is a stack of blocks, like the brief: a read block becomes an inline editor when clicked,
+   one edit at a time (the context below holds the key of the block being edited).
    --------------------------------------------------------------------------------------------------------------- */
 
 type Edition = { enCours: string | null; ouvrir: (cle: string) => void; fermer: () => void };
@@ -23,8 +23,8 @@ export function FicheProvider({ children }: { children: ReactNode }) {
   return <EditionContext.Provider value={{ enCours, ouvrir: setEnCours, fermer }}>{children}</EditionContext.Provider>;
 }
 
-/** L'icône « modifier » d'un bloc : c'est le BLOC ENTIER qui est cliquable (le bouton s'étend à tout le parent
- * `.bf-cliquable`, voir brief.css). Reste un vrai bouton : focus clavier, nom accessible. */
+/** The « modifier » (edit) icon of a block: the WHOLE BLOCK is clickable (the button extends to the whole parent
+ * `.bf-cliquable`, see brief.css). Stays a real button: keyboard focus, accessible name. */
 function ZoneModifier({ cle, libelle }: { cle: string; libelle: string }) {
   const { enCours, ouvrir } = useContext(EditionContext);
   const verrou = enCours != null;
@@ -35,7 +35,7 @@ function ZoneModifier({ cle, libelle }: { cle: string; libelle: string }) {
   );
 }
 
-/** Un texte de la fiche (description, prompt) : lecture, puis édition sur place au clic. Chaque bloc s'enregistre seul. */
+/** A text of the sheet (description, prompt): read, then edited in place on click. Each block saves on its own. */
 function BlocTexte({
   assetId,
   champ,
@@ -51,14 +51,14 @@ function BlocTexte({
   champ: "description" | "promptGeneration";
   libelle: string;
   valeur: string;
-  /** Texte d'invite quand le champ est vide. */
+  /** Placeholder text when the field is empty. */
   vide: string;
   mono?: boolean;
-  /** Sans cadre : le bloc vit dans une autre carte (la description, dans l'en-tête). */
+  /** No frame: the block lives in another card (the description, in the header). */
   nu?: boolean;
-  /** Petite précision à droite du titre. */
+  /** Small note to the right of the title. */
   meta?: string;
-  /** Outils sous le texte (en lecture seulement). */
+  /** Tools under the text (read-only). */
   children?: ReactNode;
 }) {
   const { enCours, fermer } = useContext(EditionContext);
@@ -68,7 +68,7 @@ function BlocTexte({
   const [envoi, startTransition] = useTransition();
   const id = `fiche-${champ}`;
 
-  // À l'ouverture, la saisie repart de la valeur enregistrée.
+  // On opening, the input restarts from the saved value.
   useEffect(() => {
     if (edition) {
       setSaisie(valeur);
@@ -138,7 +138,7 @@ function BlocTexte({
 }
 
 
-/** Le titre de la fiche : le nom de l'asset (modifiable au clic). Renommer ne touche jamais au code (l'identifiant, affiché à côté du type). */
+/** The sheet title: the asset's name (editable on click). Renaming never touches the code (the identifier, shown next to the type). */
 function NomAsset({ assetId, libelle }: { assetId: number; libelle: string }) {
   const router = useRouter();
   const [edition, setEdition] = useState(false);
@@ -203,7 +203,7 @@ function NomAsset({ assetId, libelle }: { assetId: number; libelle: string }) {
 }
 
 /* ---------------------------------------------------------------------------------------------------------------
-   En-tête : type et identifiant, nom, état (calculé), actions — toutes visibles —, description, apparitions.
+   Header: type and identifier, name, status (computed), actions — all visible —, description, appearances.
    --------------------------------------------------------------------------------------------------------------- */
 
 export function EnteteAsset({
@@ -220,20 +220,20 @@ export function EnteteAsset({
   redirectTo,
   children,
 }: {
-  /** Rendu sous la description (les apparitions). */
+  /** Rendered under the description (the appearances). */
   children?: React.ReactNode;
   projectId: number;
   assetId: number;
   code: string;
-  /** Le nom affiché (label, sinon le code lisible). */
+  /** The displayed name (label, otherwise the readable code). */
   libelle: string;
   type: string;
   statut: LigneRegistre["statut"];
   critique: boolean;
   description: string;
-  /** L'asset a un fichier (on peut le retirer). */
+  /** The asset has a file (it can be removed). */
   aImage: boolean;
-  /** Pourquoi la suppression est bloquée, ou null. */
+  /** Why deletion is blocked, or null. */
   blocageSuppression: string | null;
   redirectTo: string;
 }) {
@@ -243,7 +243,7 @@ export function EnteteAsset({
   const [erreur, setErreur] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  // Le statut se calcule ; seule la validation se décide (et l'import d'un fichier vaut validation).
+  // The status is computed; only validation is decided (and importing a file counts as validation).
   const basculerValidation = () =>
     startTransition(async () => {
       const valider = statut !== "valide";

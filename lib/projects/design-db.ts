@@ -8,11 +8,11 @@ import { entreeAccroche } from "../agents/hook";
 import type { Fiche } from "../agents/sheet";
 import { ficheDepuisConception, validerConception, type Conception, type StyleResolu } from "./design";
 
-/** Accès base de la conception d'un projet (voir lib/projects/design.ts pour le contenu et les règles). */
+/** Database access for a project's design (see lib/projects/design.ts for the content and the rules). */
 
-/** La conception d'un projet, ou null s'il n'en a pas (projet créé avant la conception) ou si la ligne est illisible. L'identifiant d'un
- * style de la bibliothèque n'est PAS revérifié contre la bibliothèque : l'utilisateur peut avoir retiré ce style depuis, le projet garde
- * son choix. */
+/** A project's design, or null if it has none (project created before the design) or if the row is unreadable. The identifier of a
+ * library style is NOT re-checked against the library: the user may have removed that style since, the project keeps
+ * its choice. */
 export async function lireConception(db: Db, projectId: number): Promise<Conception | null> {
   const [ligne] = await db.select({ contenu: conceptions.contenu }).from(conceptions).where(eq(conceptions.projectId, projectId));
   if (!ligne) return null;
@@ -22,7 +22,7 @@ export async function lireConception(db: Db, projectId: number): Promise<Concept
   return r.ok ? r.valeur : null;
 }
 
-/** Enregistre la conception (une par projet, remplacée à chaque écriture). */
+/** Saves the design (one per project, replaced on each write). */
 export async function ecrireConception(db: Db, projectId: number, conception: Conception): Promise<void> {
   await db
     .insert(conceptions)
@@ -30,9 +30,9 @@ export async function ecrireConception(db: Db, projectId: number, conception: Co
     .onConflictDoUpdate({ target: conceptions.projectId, set: { contenu: conception, updatedAt: new Date() } });
 }
 
-/** Pose le style de la conception dans le brief PARTIEL du projet (statut « fourni » : ce que l'utilisateur a choisi gagne sur ce que
- * l'agent rédigera), puis recopie la clause et le prompt long dans le projet. Crée le brief partiel s'il n'existe pas ; refuse de
- * toucher un brief déjà validé ou en brouillon (le style se change alors par la page du brief). */
+/** Sets the design's style in the project's PARTIAL brief (status « fourni »: what the user chose wins over what the agent
+ * will write), then copies the clause and the long prompt into the project. Creates the partial brief if it does not exist; refuses to touch a brief
+ * already validated or in draft (the style is then changed from the brief page). */
 export async function poserStyleDuProjet(db: Db, projectId: number, style: StyleResolu): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const [projet] = await db.select({ nom: projects.nom }).from(projects).where(eq(projects.id, projectId));
   if (!projet) return { ok: false, erreur: "Projet introuvable." };
@@ -63,10 +63,10 @@ export async function poserStyleDuProjet(db: Db, projectId: number, style: Style
   return { ok: true };
 }
 
-/** L'ouverture d'un projet CONÇU : la fiche de l'entretien préremplie et l'entrée du skill qui écrit l'accroche du scénariste (le modèle
- * l'écrit : voir `hook.ts`). Le style vient du brief du projet (nom et clause posés à la création) et non de la bibliothèque : un
- * style retiré depuis de la bibliothèque ne casse pas un projet existant. Null pour un projet sans conception (l'entretien ouvre alors
- * comme avant, avec l'accroche à trois pistes). */
+/** Opening a DESIGNED project: the interview sheet pre-filled and the input of the skill that writes the screenwriter's hook (the model
+ * writes it: see `hook.ts`). The style comes from the project's brief (name and clause set at creation) and not from the library: a
+ * style removed from the library since does not break an existing project. Null for a project without design (the interview then opens as
+ * before, with the three-track hook). */
 export async function ouvertureConcue(db: Db, projectId: number): Promise<{ fiche: Fiche; entreeAccroche: ReturnType<typeof entreeAccroche> } | null> {
   const conception = await lireConception(db, projectId);
   if (!conception) return null;

@@ -3,18 +3,18 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { BriefH3ir } from "./brief";
 
-/** Le pont vers le compilateur Open H3 IR (paquet Python `open-h3-ir`), étape 3 du chantier (docs/PLAN_INTEGRATION_OPEN_H3_IR.md).
+/** The bridge to the Open H3 IR compiler (Python package `open-h3-ir`), step 3 of the project (docs/PLAN_INTEGRATION_OPEN_H3_IR.md).
  *
- * Un petit script Python lancé PAR APPEL (scripts/h3ir/compiler.py : pas de service permanent). Annuler = tuer le processus et ses enfants : la génération
- * du LLM s'arrête quand la connexion se ferme. Pas de repli silencieux (décision 6) : un brouillon de repli (`degraded`) ou une compilation invalide relance
- * avec la seed suivante, deux fois au plus ; ensuite l'échec est dit clairement, jamais un texte rejeté proposé à sa place.
+ * A small Python script launched PER CALL (scripts/h3ir/compiler.py: no permanent service). Cancelling = killing the process and its children: the LLM's
+ * generation stops when the connection closes. No silent fallback (decision 6): a fallback draft (`degraded`) or an invalid compilation retries with the
+ * next seed, twice at most; after that the failure is stated clearly, never a rejected text offered in its place.
  *
- * Pur sauf `lancerPythonReel` ; le lanceur est injectable pour les tests. */
+ * Pure except `lancerPythonReel`; the launcher is injectable for tests. */
 
-/** Ce que le script Python écrit sur stdout. */
+/** What the Python script writes to stdout. */
 export type ReponsePython = { http: number; enveloppe?: EnveloppeH3ir; fichiers?: Record<string, string>; erreur?: string };
 
-/** L'enveloppe de `POST /v1/briefs` (h3ir/service.py:385), réduite à ce que Cadence lit. */
+/** The `POST /v1/briefs` envelope (h3ir/service.py:385), reduced to what Cadence reads. */
 export type EnveloppeH3ir = {
   id?: string;
   status?: string;
@@ -38,7 +38,7 @@ export type Tentative = { seed: number; dureeMs: number; issue: "ok" | "relance"
 
 export type ResultatCompilation = { enveloppe: EnveloppeH3ir; fichiers: Record<string, string>; tentatives: Tentative[]; seedUtilisee: number };
 
-/** Un échec expliqué à l'utilisateur ; `tentatives` dit ce qui a été essayé. */
+/** A failure explained to the user; `tentatives` says what was tried. */
 export class ErreurCompilation extends Error {
   constructor(
     message: string,
@@ -50,7 +50,7 @@ export class ErreurCompilation extends Error {
 }
 
 type OptionsLancement = { signal?: AbortSignal; delaiMs: number };
-/** Lance `python script`, lui écrit `entree` sur stdin et rend son stdout. Rejette si le processus échoue, dépasse le délai ou est annulé. */
+/** Launches `python script`, writes it `entree` on stdin and returns its stdout. Rejects if the process fails, exceeds the delay or is cancelled. */
 export type LanceurPython = (python: string, script: string, entree: string, options: OptionsLancement) => Promise<string>;
 
 export type Env = Record<string, string | undefined>;
@@ -59,14 +59,14 @@ export type ReglagesH3ir = {
   python: string;
   script: string;
   delaiMs: number;
-  /** Variables posées dans le processus Python avant l'import du paquet (sa config est lue une seule fois). */
+  /** Variables set in the Python process before the package is imported (its config is read only once). */
   env: Record<string, string>;
 };
 
 const DELAI_PAR_DEFAUT_MS = 20 * 60 * 1000;
 const MAX_TENTATIVES = 3;
 
-/** Le Python où `open-h3-ir` est installé : `H3IR_PYTHON`, sinon l'environnement `.venv-h3ir` de la racine (`requirements-h3ir.txt`) s'il existe. */
+/** The Python where `open-h3-ir` is installed: `H3IR_PYTHON`, otherwise the `.venv-h3ir` environment at the root (`requirements-h3ir.txt`) if it exists. */
 export function pythonH3ir(env: Env = process.env, existe: (chemin: string) => boolean = existsSync): string {
   const voulu = env.H3IR_PYTHON?.trim();
   if (voulu) return voulu;
@@ -77,16 +77,16 @@ export function pythonH3ir(env: Env = process.env, existe: (chemin: string) => b
   throw new ErreurCompilation("Open H3 IR : renseigne H3IR_PYTHON (le Python où le paquet open-h3-ir est installé, ou crée .venv-h3ir à la racine avec requirements-h3ir.txt).");
 }
 
-/** Réglages du processus Python. `modele` : celui de la traduction (le même modèle, pour ne pas faire décharger llama-swap en plein calcul ; il doit voir les images). */
+/** Settings of the Python process. `modele`: that of the translation (the same model, so as not to have llama-swap unload it in the middle of a computation; it must see the images). */
 export function reglagesH3ir(modele: string, env: Env = process.env, existe?: (chemin: string) => boolean): ReglagesH3ir {
   const urlLlm = env.H3IR_LLM_URL?.trim() || `${(env.LLM_LOCAL_URL?.trim() || "http://localhost:8080").replace(/\/+$/, "")}/v1`;
   const delai = Number(env.H3IR_TIMEOUT_MS);
   const variables: Record<string, string> = {
     H3IR_LLM_URL: urlLlm,
     H3IR_LLM_MODEL: modele,
-    // Sans cela le modèle recopie le schéma JSON sur les appels qui portent des images.
+    // Without this the model copies the JSON schema onto the calls that carry images.
     H3IR_GUIDED_DECODING: "1",
-    // Les fichiers sont désignés par chemin : le compilateur tourne sur la même machine que le stockage.
+    // The files are designated by path: the compiler runs on the same machine as the storage.
     H3IR_ALLOW_ASSET_PATHS: "1",
     PYTHONUTF8: "1",
   };
@@ -102,7 +102,7 @@ export function reglagesH3ir(modele: string, env: Env = process.env, existe?: (c
   };
 }
 
-/** Le lanceur réel : `spawn` sans shell. Annulation et délai tuent l'arbre de processus (sous Windows `taskkill /T`, sinon SIGKILL). */
+/** The real launcher: `spawn` without a shell. Cancellation and delay kill the process tree (on Windows `taskkill /T`, otherwise SIGKILL). */
 const lancerPythonReel: LanceurPython = (python, script, entree, { signal, delaiMs }) =>
   new Promise((ok, ko) => {
     if (signal?.aborted) return ko(new ErreurCompilation("Annulée."));
@@ -161,8 +161,8 @@ const dit = (e: EnveloppeH3ir | undefined) => {
   return typeof d === "string" ? d : d?.message ? `${d.code ? `${d.code} : ` : ""}${d.message}` : "";
 };
 
-/** Juge une réponse du compilateur. Réussite = 201, `ready`, mode Ref2VA. Un brouillon de repli (`degraded`) ou une compilation invalide se relancent avec
- * une autre seed ; une question, un mode inattendu, un refus de la demande ou un LLM injoignable s'arrêtent tout de suite (une autre seed n'y change rien). */
+/** Judges a response from the compiler. Success = 201, `ready`, Ref2VA mode. A fallback draft (`degraded`) or an invalid compilation retries with
+ * another seed; a question, an unexpected mode, a refusal of the request or an unreachable LLM stop at once (another seed changes nothing). */
 export function jugerReponse(rep: ReponsePython): Verdict {
   if (rep.http === 0) return { ok: false, relancer: false, raison: `Le pont Python a échoué : ${rep.erreur ?? "sans message"}` };
   const e = rep.enveloppe;
@@ -188,11 +188,11 @@ export type OptionsCompilation = {
   signal?: AbortSignal;
   lancer?: LanceurPython;
   maxTentatives?: number;
-  /** Appelé avant chaque tentative (n commence à 1) : de quoi afficher « tentative 2/3 ». */
+  /** Called before each attempt (n starts at 1): enough to display « tentative 2/3 ». */
   surTentative?: (n: number, sur: number, seed: number) => void;
 };
 
-/** Compile le brief ; jusqu'à `maxTentatives` essais (seed, seed+1, seed+2). Renvoie la première réussite, ou lève `ErreurCompilation` avec le détail. */
+/** Compiles the brief; up to `maxTentatives` attempts (seed, seed+1, seed+2). Returns the first success, or throws `ErreurCompilation` with the detail. */
 export async function compilerAvecRelances(brief: BriefH3ir, options: OptionsCompilation): Promise<ResultatCompilation> {
   const lancer = options.lancer ?? lancerPythonReel;
   const max = options.maxTentatives ?? MAX_TENTATIVES;

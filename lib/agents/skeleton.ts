@@ -2,15 +2,15 @@ import { diffSections } from "./brief";
 import type { ChangementBrut } from "./changes";
 import type { BriefContenu, StatutChamp } from "./types";
 
-/** Le squelette d'un projet, construit EN CODE depuis le brief (aucun appel au modèle) :
- * l'épisode du film, et le brief lui-même (la clause de style du projet suit le brief : voir
- * brief-db.ts, plus de changement « projet » séparé). Pur, testé. Idempotent : un
- * épisode du même titre n'est pas recréé. */
+/** A project's skeleton, built IN CODE from the brief (no call to the model):
+ * the film's episode, and the brief itself (the project's style clause follows the brief: see
+ * brief-db.ts, no more separate "projet" change). Pure, tested. Idempotent: an
+ * episode with the same title is not recreated. */
 
 export type EtatProjetPourSquelette = {
-  /** `vide` : ni plan, ni scène, ni résumé : le squelette le réutilise au lieu d'en créer un de trop. */
+  /** `vide`: no clip, no scene, no summary: the skeleton reuses it instead of creating one too many. */
   episodes: { id: number; numero: number; titre: string; resume: string; vide?: boolean }[];
-  /** Le brief VALIDE du projet, s'il existe (sinon null : le brief est créé). */
+  /** The project's VALIDATED brief, if it exists (otherwise null: the brief is created). */
   briefValide: BriefContenu | null;
 };
 
@@ -21,7 +21,7 @@ export function squeletteDepuisBrief(
 ): ChangementBrut[] {
   const changements: ChangementBrut[] = [];
 
-  // 1. Le brief : créé d'un bloc, ou section par section s'il existe déjà et change.
+  // 1. The brief: created in one block, or section by section if it already exists and changes.
   if (!etat.briefValide) {
     changements.push({
       groupe: "brief",
@@ -45,11 +45,11 @@ export function squeletteDepuisBrief(
     }
   }
 
-  // 2. Les épisodes du brief, sauf ceux qui existent déjà (même titre).
+  // 2. The brief's episodes, except those that already exist (same title).
   const existants = etat.episodes;
   const titresExistants = new Set(existants.map((e) => e.titre.trim().toLowerCase()));
   let numero = existants.reduce((m, e) => Math.max(m, e.numero), 0);
-  // Les épisodes vides déjà là (un film naît avec le sien) reçoivent les premiers épisodes du brief.
+  // Empty episodes already there (a film is born with its own) receive the brief's first episodes.
   const videsAReutiliser = existants.filter((e) => e.vide).sort((a, b) => a.numero - b.numero);
   for (const [i, ep] of brief.episodes.entries()) {
     if (titresExistants.has(ep.titre.trim().toLowerCase())) continue;

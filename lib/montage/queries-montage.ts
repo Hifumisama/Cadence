@@ -10,7 +10,7 @@ import type { EntreeMontage, GenreRendu, PlanMontage, RenduMontage, SceneMontage
 export type ExportMontage = {
   id: number;
   statut: string;
-  /** URL de lecture et de téléchargement du fichier produit (versionnée par la date de fin). */
+  /** Playback and download URL of the produced file (versioned by the end date). */
   src: string | null;
   dureeSecondes: number | null;
   nbSegments: number;
@@ -20,9 +20,9 @@ export type ExportMontage = {
   finiLe: string | null;
 };
 
-/** Tout ce que la page Montage affiche : les plans dans l'ordre du SCÉNARIO (`plans.ordre`), avec leurs rendus lisibles ; les scènes ;
- * les entrées du MONTAGE FINAL dans l'ordre de leur rang ; le dernier export. Un épisode sans montage reçoit le sien d'abord
- * (`assurerMontage`). Les brouillons sont des plans comme les autres : sans rendu, ils occupent leur durée prévue. */
+/** Everything the Montage page displays: the clips in SCÉNARIO order (`plans.ordre`), with their readable renders; the scenes;
+ * the MONTAGE FINAL entries in rank order; the last export. An episode without montage first receives its own
+ * (`assurerMontage`). Drafts are clips like the others: without a render, they take their planned duration. */
 export async function getMontage(episodeId: number): Promise<{ plans: PlanMontage[]; scenes: SceneMontage[]; entrees: EntreeMontage[]; dernierExport: ExportMontage | null }> {
   await assurerMontage(episodeId);
   const [lesPlans, lesScenes, lesEntrees, [exp]] = await Promise.all([

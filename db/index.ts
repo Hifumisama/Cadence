@@ -2,10 +2,10 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-// Ne pas lever d'erreur ici : ce module est importé pendant la collecte des
-// pages au build Next.js, avant que les variables d'environnement runtime
-// (fournies par docker-compose) ne soient disponibles. La connexion
-// postgres-js est paresseuse — elle ne se fait qu'au premier appel réel.
+// Do not throw an error here: this module is imported during page collection
+// at Next.js build time, before the runtime environment variables
+// (provided by docker-compose) are available. The postgres-js
+// connection is lazy — it only happens on the first real call.
 const connectionString = process.env.DATABASE_URL ?? "postgres://invalid/invalid";
 
 const client = postgres(connectionString);

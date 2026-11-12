@@ -71,22 +71,22 @@ test("emplacementLibre : un trou laissé par un son est rebouché, un emplacemen
   assert.equal(emplacementLibre("audio", [1, 3], 3), 2);
   assert.equal(emplacementLibre("audio", [1], 3, 3), 3);
   assert.equal(emplacementLibre("video", [2], 2), 1);
-  // les images restent 1..n : l'emplacement choisi ne compte pas
+  // images stay 1..n: the chosen slot does not count
   assert.equal(emplacementLibre("picture", [1, 2], 6, 5), 3);
   assert.equal(emplacementLibre("audio", [1, 2, 3], 3), null);
 });
 
 test("retirer puis remettre une image : la citation revient dans la prose, la rétention dit où elle apparaît", () => {
-  // Retrait de <Picture 2> (« the lamp ») : sa citation devient son nom, le phare passe en 2.
+  // Removing <Picture 2> (« the lamp »): its citation becomes its name, the lighthouse moves to 2.
   const retire = retirerReference(sections, { type: "picture", slot: 2, nom: "the lamp" }, compacterImages([1, 3]));
   assert.equal(retire.detailed_description, "[Shot 1] <Subject 1> raises the lamp. [Shot 2] At 00:04.000, Hard cut to <Subject 2>.");
-  // Remise à la main : elle prend le slot 3, ses mentions redeviennent son label.
+  // Put back by hand: it takes slot 3, its mentions become its label again.
   const remis = ajouterReference(retire, { type: "picture", slot: 3, nom: "the lamp" }, { retablir: true });
   assert.equal(remis.detailed_description, "[Shot 1] <Subject 1> raises <Subject 3>. [Shot 2] At 00:04.000, Hard cut to <Subject 2>.");
   assert.equal(remis.summary, "[reference generation] <Subject 1> holds <Subject 3> near <Subject 2>.");
   assert.ok(remis.subject_definitions!.endsWith("<Subject 3> is the lamp from <Picture 3>."));
   assert.ok(remis.retention_analysis!.endsWith("<Subject 3> (appears in [Shot 1]): fully_preserved - the appearance of the lamp is retained."));
-  // Sans `retablir` (ajout par l'agent d'itération, qui place ses propres marqueurs) : la prose ne bouge pas.
+  // Without `retablir` (addition by the iteration agent, which places its own markers): the prose does not move.
   const brut = ajouterReference(retire, { type: "picture", slot: 3, nom: "the lamp" });
   assert.equal(brut.detailed_description, retire.detailed_description);
 });

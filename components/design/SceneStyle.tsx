@@ -9,24 +9,24 @@ import { SUJETS_APERCU, type SujetApercu } from "@/lib/styles/subjects";
 import { EnteteScene } from "./Scenes";
 import type { PropsScene, StyleVue } from "./types";
 
-/** Scène du style : la bibliothèque (galerie défilante ou liste, filtres, recherche) et le style libre. Un réglage « Sujet » change
- * d'un coup l'image de TOUS les styles (même scène partout : la seule différence est le style). Un style de la bibliothèque
- * se choisit tel quel (ses deux prompts s'affichent, sans pouvoir les modifier) ; le style libre, c'est deux champs de texte (le prompt
- * image et la clause courte) et, si on veut, une image 2:3. */
+/** Style scene: the library (scrolling gallery or list, filters, search) and the free style. A « Sujet » setting changes
+ * at once the image of ALL styles (same scene everywhere: the only difference is the style). A library style
+ * is chosen as is (its two prompts are shown, without being editable); the free style is two text fields (the image
+ * prompt and the short clause) and, if wanted, a 2:3 image. */
 
 const LIBELLES_AXES: Record<AxeFiltre, string> = { medium: "Famille", rendu: "Rendu", palette: "Palette", epoque: "Époque", ambiance: "Ambiance" };
 const AXES_AFFINER = AXES_FILTRE.filter((a) => a !== "medium");
 
 const urlStyle = (fichier: string) => `/api/media/styles/${fichier}`;
 
-/** Forme de la galerie selon le format du sujet : les cartes s'élargissent pour les scènes en paysage. */
+/** Gallery shape according to the subject's format: the cards widen for landscape scenes. */
 const formeDe = (s: SujetApercu) => (s.aspect === "2:3" ? "portrait" : s.aspect === "1:1" ? "carre" : "paysage");
 const ratioCss = (s: SujetApercu) => s.aspect.replace(":", " / ");
 
 function Apercu({ fichier, classe = "", etiquette, ratio }: { fichier: string | null; classe?: string; etiquette?: string; ratio?: string }) {
   return (
     <span className={`cn-apercu${fichier ? "" : " is-vide"} ${classe}`} style={{ display: "block", ...(ratio ? { aspectRatio: ratio } : {}) }}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- l'image vient du stockage média, déjà redimensionnée par la route */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- the image comes from media storage, already resized by the route */}
       {fichier ? <img src={urlMiniature(urlStyle(fichier), 384)} alt="" loading="lazy" decoding="async" /> : null}
       {etiquette ? <em>{etiquette}</em> : null}
     </span>
@@ -56,7 +56,7 @@ export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVu
   const libreChoisi = etat.style?.source === "libre";
   const choisi = (en: Entree) => etat.style?.source === "bibliotheque" && etat.style.styleId === en.id;
   const nouveauStyle = () => maj((e) => (e.style?.source === "libre" ? e : { ...e, style: { source: "libre", nom: "", promptImage: "", clause: "" } }));
-  /** Un clic choisit le style ; un second clic sur le style déjà choisi l'agrandit. */
+  /** One click chooses the style; a second click on the already chosen style enlarges it. */
   const cliquer = (en: Entree) => {
     if (choisi(en)) {
       if (en.fichier) setAgrandi(en);

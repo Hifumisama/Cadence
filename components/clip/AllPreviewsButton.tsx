@@ -8,17 +8,17 @@ type Resultat = { n: number; dejaEnFile: number };
 const s = (n: number) => (n > 1 ? "s" : "");
 const lancable = (p: PlanPrevisualisation) => p.etat === "neuf" || p.etat === "rendu";
 
-/** « Toutes les prévisualisations » : une fenêtre liste les plans de l'épisode, pour choisir exactement ce qu'on (re)rend. Les plans sans
- * rendu sont cochés d'office ; ceux qui en ont déjà un ne le sont pas (les cocher en fait un NOUVEAU rendu : l'historique garde les anciens) ;
- * ceux déjà en file ou aux dialogues bloquants sont grisés. */
+/** « Toutes les prévisualisations »: a window lists the episode's clips, to choose exactly what to (re)render. Clips without a
+ * render are checked by default; those that already have one are not (checking them makes a NEW render: the history keeps the old ones);
+ * those already queued or with blocking dialogues are greyed out. */
 export function ToutesPrevisualisationsButton({
   episodeId,
   nbManquants,
   className = "btn btn-ghost",
 }: {
   episodeId: number;
-  /** Fiche de plan : le nombre de plans sans aucun rendu. Quand il est donné, le bouton le montre (« Générer les prévisualisations (3) »)
-   * et se désactive à zéro ; absent, c'est le bouton « Toutes les prévisualisations » de la frise des plans. */
+  /** Clip sheet: the number of clips without any render. When given, the button shows it (« Générer les prévisualisations (3) »)
+   * and disables itself at zero; when absent, it is the « Toutes les prévisualisations » button of the clips filmstrip. */
   nbManquants?: number;
   className?: string;
 }) {

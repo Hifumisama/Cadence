@@ -18,7 +18,7 @@ import {
 
 import { analyserCle, cleLot } from "../tasks/tasks";
 
-// --- lots : états agrégés ------------------------------------------------------
+// --- batches: aggregate states ------------------------------------------------
 
 let n = 0;
 const run = (cle: string, statut: RunLot["statut"], o: Partial<RunLot> = {}): RunLot => {
@@ -111,7 +111,7 @@ test("clé de tâche du header : un lot se désigne par l'uuid de sa proposition
   assert.equal(analyserCle("lot:"), null);
 });
 
-// --- scénario d'un épisode en lot ---------------------------------------------------
+// --- an episode's screenplay in a batch ---------------------------------------------
 
 const sortie: SortieScenarioEpisode = {
   episode: { titre: "Le sel", resume: "Le pont se couvre de sel." },
@@ -165,7 +165,7 @@ test("lot : un squelette VIDE n'écrase rien ; un épisode qui a du contenu voit
   const prevenu = l.find((x) => x.cibleType === "plan" && x.operation === "creer");
   assert.ok(prevenu!.avertissements!.some((a) => /déjà 1 plan/.test(a.texte)), "on dit que rien n'est supprimé");
 
-  // Hors lot (un seul épisode) : le comportement d'avant, aucun écrasement signalé d'office.
+  // Outside a batch (a single episode): the previous behaviour, no overwrite flagged outright.
   assert.ok(depuisScenarioEpisode(sortie, rempli).every((x) => !x.ecrase));
 });
 

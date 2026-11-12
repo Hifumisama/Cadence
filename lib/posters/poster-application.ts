@@ -9,7 +9,7 @@ import { cheminAssetMedia, cheminPosterMedia } from "../media";
 
 const TABLES = { projects, episodes } as const;
 
-/** Nom du fichier d'affiche actuel (null s'il n'y en a pas), ou undefined si la cible n'existe pas. */
+/** Name of the current poster file (null if there is none), or undefined if the target does not exist. */
 export async function lirePoster(cible: CibleAffiche, id: number): Promise<string | null | undefined> {
   const table = TABLES[cible];
   const [ligne] = await db.select({ poster: table.posterFichier }).from(table).where(eq(table.id, id));
@@ -26,17 +26,17 @@ const ABSENT: Record<CibleAffiche, string> = {
   episodes: "Cet épisode n'existe plus.",
 };
 
-/** Fait de l'image d'un asset d'affiche l'affiche du projet ou de l'épisode qu'elle habille : le fichier est copié dans le
- * rangement des posters et `posterFichier` pointe dessus. Sans dépendance à Next : appelée à l'adoption d'un candidat
+/** Makes the image of a poster asset the poster of the project or episode it dresses: the file is copied into the
+ * posters storage and `posterFichier` points to it. No dependency on Next: called when a candidate is adopted
  * (lib/assets/generation-adoption.ts).
  *
- * Le nom de fichier est UNIQUE à chaque application (jamais `poster.png` réécrit sur place) : l'adresse change, donc le
- * navigateur ne montre jamais l'ancienne image en cache. L'affiche précédente est supprimée du stockage. */
+ * The file name is UNIQUE for each application (never `poster.png` rewritten in place): the address changes, so the
+ * browser never shows the old image from cache. The previous poster is deleted from storage. */
 export async function appliquerAffiche(
   codeAsset: string,
   fichierAsset: string,
   mediaRoot: string,
-  /** Le modèle a écrit le titre dans l'image : le fichier porte le suffixe `-titre` et le titre n'est pas superposé. */
+  /** The model wrote the title in the image: the file carries the `-titre` suffix and the title is not overlaid. */
   titreIncruste = false,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const cible = cibleDeCodeAffiche(codeAsset);

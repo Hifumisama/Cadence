@@ -33,17 +33,17 @@ function categorieDe(p: ProjectListItem): Categorie {
   return "preparation";
 }
 
-/** Part de plans terminés, de 0 à 1 (0 sans plan). */
+/** Share of finished clips, from 0 to 1 (0 without clips). */
 function avancement(p: ProjectListItem): number {
   const total = totalBuckets(p.buckets);
   return total === 0 ? 0 : p.buckets.termine / total;
 }
 
-/** Minuscules, sans accents : « Écriture » se trouve en tapant « ecri ». */
+/** Lowercase, without accents: « Écriture » is found by typing « ecri ». */
 const normaliser = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
-/** La grille des projets avec sa barre d'outils : recherche, filtre par état, tri. Le filtrage se fait ici, côté client :
- * la liste est courte et déjà chargée. */
+/** The project grid with its toolbar: search, filter by status, sort. Filtering is done here, client-side:
+ * the list is short and already loaded. */
 export function ListeProjets({ projets }: { projets: ProjectListItem[] }) {
   const [recherche, setRecherche] = useState("");
   const [categorie, setCategorie] = useState<Categorie | null>(null);

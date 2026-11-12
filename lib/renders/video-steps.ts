@@ -1,6 +1,6 @@
-/** Les étapes d'un rendu vidéo (docs/PLAN_INTEGRATION_WORKER.md) : une prévisualisation est la génération ; un rendu final est l'upscale puis la finition,
- * précédés de la génération quand on ne peut pas partir d'un latent de prévisualisation encore valable. Pur, testé. */
-/** Résolution de la génération : verrouillée à 0,4 MP (décision du 2026-10-29). */
+/** The steps of a video render (docs/PLAN_INTEGRATION_WORKER.md): a preview is the generation; a final render is the upscale then the finishing,
+ * preceded by the generation when one cannot start from a still-valid preview latent. Pure, tested. */
+/** Resolution of the generation: locked at 0.4 MP (decision of 2026-10-29). */
 export const MEGAPIXELS_VIDEO = 0.4;
 
 export type EtapeVideo = "generation" | "upscale" | "finition";
@@ -10,7 +10,7 @@ export function etapesDuRendu(final: boolean, latentSourceValable: boolean): Eta
   return latentSourceValable ? ["upscale", "finition"] : ["generation", "upscale", "finition"];
 }
 
-/** Ce qui rend le latent d'une prévisualisation inutilisable pour un rendu final : il n'a pas été gardé, ou la fiche a changé depuis. */
+/** What makes a preview's latent unusable for a final render: it was not kept, or the sheet has changed since. */
 export type RaisonSourceInvalide = "pas_de_source" | "pas_termine" | "pas_de_latent" | "fiche_modifiee";
 
 export function raisonSourceInvalide(source: { statut: string; latentDossier: string | null } | null, ficheModifiee: boolean): RaisonSourceInvalide | null {
@@ -27,15 +27,15 @@ export const LIBELLE_SOURCE_INVALIDE: Record<RaisonSourceInvalide, string> = {
   fiche_modifiee: "la fiche a changé depuis la prévisualisation",
 };
 
-/** Comment un plan en suite prolonge le précédent : `latent` (Motion Context : les 22 dernières images et l'audio du plan précédent entrent dans la
- * génération, la finition retire ce préfixe) ou `image` (la dernière image du précédent comme première image : le repli, sans latent à reprendre). */
+/** How a clip in « suite » extends the previous one: `latent` (Motion Context: the last 22 images and the audio of the previous clip enter the
+ * generation, the finishing removes this prefix) or `image` (the previous one's last image as first image: the fallback, without a latent to take up). */
 export type Continuite = "latent" | "image";
 
-/** Un rendu d'avant la colonne `continuite` qui a un raccord enregistré est un raccord par image. */
+/** A render from before the `continuite` column that has a recorded continuity is an image continuity. */
 export const continuiteEffective = (job: { continuite: string | null; raccordJobId: number | null }): Continuite | null =>
   job.continuite === "latent" || job.continuite === "image" ? job.continuite : job.raccordJobId != null ? "image" : null;
 
-/** Le raccord par image à rejouer pour l'upscale d'une prévisualisation : `null` (aucun) quand elle prolongeait son précédent par le latent, car son
- * conditioning ne contenait alors aucune image de raccord. */
+/** The image continuity to replay for the upscale of a preview: `null` (none) when it extended its predecessor through the latent, because its
+ * conditioning then contained no continuity image. */
 export const raccordImageARejouer = (job: { continuite: string | null; raccordJobId: number | null }): number | null =>
   continuiteEffective(job) === "image" ? job.raccordJobId : null;

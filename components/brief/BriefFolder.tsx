@@ -18,17 +18,17 @@ import { memeEdition, type Edition } from "./types";
 
 type Objet = Record<string, unknown>;
 
-/** Un personnage ou un décor du registre, tel que le brief le montre (lecture seule). */
+/** A character or a set from the registry, as the brief shows it (read-only). */
 export type EntreeRegistre = { code: string; type: "personnage" | "decor"; description: string; src: string | null };
 
-/** « DEC_le_monde_de_l_avatar » → « Le monde de l avatar » : le nom lisible d'un asset que le brief ne connaît pas. */
+/** « DEC_le_monde_de_l_avatar » → « Le monde de l avatar »: the readable name of an asset the brief does not know. */
 const nomDepuisCode = (code: string): string => {
   const brut = code.replace(/^[A-Z]+_/, "").replace(/_/g, " ").trim();
   return brut ? brut[0]!.toUpperCase() + brut.slice(1) : code;
 };
 
-/** L'icône « modifier » d'un bloc, sans cadre : c'est le BLOC ENTIER qui est cliquable (le bouton s'étend à tout le
- * parent `.bf-cliquable`, voir brief.css) et il passe en édition sur place. Reste un vrai bouton : focus clavier, nom accessible. */
+/** The « modifier » icon of a block, without a frame: the WHOLE block is clickable (the button extends to the whole
+ * `.bf-cliquable` parent, see brief.css) and it switches to in-place editing. Remains a real button: keyboard focus, accessible name. */
 function Zone({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button type="button" className="bf-zone" aria-label={`Modifier : ${label}`} title={disabled ? "Enregistre ou annule la modification en cours" : "Modifier"} onClick={onClick} disabled={disabled}>
@@ -55,13 +55,13 @@ function TitreSection({ id, titre, children }: { id: string; titre: string; chil
   );
 }
 
-/** Les choix de la conception : les changer, c'est refaire le projet (la langue touche tous les dialogues, la durée tout le découpage…). Figés une fois
- * l'entretien passé : lecture seule ici. */
+/** The design choices: changing them means redoing the project (the language touches all the dialogue, the duration the whole breakdown…). Frozen once
+ * the interview is over: read-only here. */
 const IDENTITE_FIGEE = ["langueDialogues", "dureeEpisodeSecondes", "genreTon"];
 
-/** La page du brief : un dossier de production lisible d'un coup d'œil. Une page de LECTURE, avec une correction MANUELLE sur place (un clic sur
- * un bloc le passe en édition, une seule modification à la fois) du titre, de l'arc, des personnages et des lieux (quand ils ne viennent pas
- * du registre) et des notes. Le style est fixé à la conception ; le résumé des scènes se lit seulement. */
+/** The brief page: a production dossier readable at a glance. A READ page, with a MANUAL correction in place (one click on
+ * a block switches it to editing, one modification at a time) of the title, arc, characters and locations (when they do not come
+ * from the registry) and notes. The style is set at design; the scene summary is read only. */
 export function BriefDossier({
   projectId,
   nomProjet,
@@ -79,9 +79,9 @@ export function BriefDossier({
   style: StyleBriefVue;
   identiteFigee?: boolean;
   registre?: EntreeRegistre[];
-  /** URL de l'affiche du film (résolue côté serveur), ou null : dégradé de repli. */
+  /** URL of the film's poster (resolved server side), or null: fallback gradient. */
   affiche?: string | null;
-  /** L'épisode du film et son résumé (`episodes.resume`) : le résumé se lit et se corrige ici. */
+  /** The film's episode and its summary (`episodes.resume`): the summary is read and corrected here. */
   episodeId?: number | null;
   resume?: string;
 }) {
@@ -99,7 +99,7 @@ export function BriefDossier({
   const lieux = liste("lieux");
   const notes = texte(donnees.notes);
 
-  // Le registre fait foi dès qu'il existe : lieux = décors, personnages = personnages du registre (le brief ne garde que ce qu'il y ajoute : rôle, voix…).
+  // The registry prevails as soon as it exists: locations = sets, characters = registry characters (the brief only keeps what it adds: role, voice…).
   const decors = registre.filter((a) => a.type === "decor");
   const persosRegistre = registre.filter((a) => a.type === "personnage");
   const codePerso = (p: Objet) => construireCode("personnage", slugifyCode(texte(p.nom)));
@@ -108,7 +108,7 @@ export function BriefDossier({
   const lieuxViaRegistre = decors.length > 0;
   const persosViaRegistre = persosRegistre.length > 0;
 
-  // --- Écritures (tout passe par modifierChampBrief : la section écrite passe à « fourni ») ---
+  // --- Writes (everything goes through modifierChampBrief: the written section switches to « fourni ») ---
   const enregistrer = async (cle: string, valeur: unknown): Promise<string | null> => {
     setOccupe(true);
     try {
@@ -130,7 +130,7 @@ export function BriefDossier({
         )
       : Promise.resolve(null);
 
-  // --- Édition sur place ---
+  // --- In-place editing ---
   const S = (cle: string): Edition => ({ type: "section", cle, titre: libelle(cle) });
   const E = (cle: string, index: number): Edition => ({ type: "element", cle, index });
   const enCours = (e: Edition) => memeEdition(edition, e);
@@ -143,7 +143,7 @@ export function BriefDossier({
     <article key={a.code} className="bf-carte bf-reveal bf-registre">
       <Link href={`/p/${projectId}/assets/${a.code}`} className="bf-registre-lien" aria-label={`Ouvrir ${nom} dans le registre`}>
         <span className={`bf-registre-vignette${a.src ? "" : " is-vide"}`} aria-hidden="true">
-          {/* eslint-disable-next-line @next/next/no-img-element -- stockage média, redimensionné par la route */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- media storage, resized by the route */}
           {a.src ? <img src={urlMiniature(a.src, 192)} alt="" loading="lazy" decoding="async" /> : (nom.trim()[0] ?? "?").toUpperCase()}
         </span>
         <span className="bf-registre-corps">

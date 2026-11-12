@@ -14,19 +14,19 @@ import { urlMiniature } from "@/lib/thumbnails";
 import type { GenerationVue } from "@/lib/assets/queries-generations";
 import { ilYa } from "@/lib/relative-time";
 
-/** L'atelier d'une fiche d'asset (images), « comme la fiche de plan » : à gauche l'image dans son passe-partout et sa légende ; à droite, sous les
- * yeux dès l'arrivée, la consigne en français puis le journal des essais. Sans image de base, la consigne CRÉE l'image ; avec une image de base —
- * l'image actuelle ou l'essai qu'on regarde —, elle la RETOUCHE. Un agent traduit la consigne en prompt : l'utilisateur n'écrit jamais de prompt, et
- * ne choisit jamais de modèle. Chaque essai garde sa consigne, son image de base et son prompt. Maquette : docs/maquettes/fiche-asset.html. */
+/** The workshop of an asset sheet (images), « comme la fiche de plan » (like the clip sheet): on the left the image in its mat and its caption; on the right, in sight from arrival,
+ * the instruction in French then the attempt log. Without a base image, the instruction CREATES the image; with a base image —
+ * the current image or the attempt being viewed —, it RETOUCHES it. An agent translates the instruction into a prompt: the user never writes a prompt, and
+ * never chooses a model. Each attempt keeps its instruction, its base image and its prompt. Mockup: docs/maquettes/fiche-asset.html. */
 
-type Selection = "actuelle" | string | null; // « actuelle », l'uuid d'un essai, ou rien
+type Selection = "actuelle" | string | null; // « actuelle », the uuid of an attempt, or nothing
 
 const ACTIFS = ["traduction", "en_attente", "en_cours"];
 const estActif = (e: GenerationVue) => ACTIFS.includes(e.statut);
 const estPret = (e: GenerationVue) => e.statut === "termine" && e.src != null;
 const pourcent = (e: GenerationVue) => (e.progression ? Math.round((e.progression.valeur / e.progression.max) * 100) : 0);
 
-/** Une teinte stable tirée du code de l'asset : la scène prend une lueur à sa couleur. */
+/** A stable hue derived from the asset's code: the scene takes a glow in its color. */
 const teinteDe = (code: string) => {
   let h = 0;
   for (const c of code) h = (h * 31 + c.charCodeAt(0)) % 360;
@@ -51,24 +51,24 @@ export function AtelierAsset({
   assetId: number;
   code: string;
   libelle: string;
-  /** L'image de l'asset (avec sa version en `?v=`), null s'il n'en a pas. */
+  /** The asset's image (with its version in `?v=`), null if it has none. */
   imageSrc: string | null;
-  /** Quand l'image de l'asset a été posée (ms) : l'essai « retenu » est celui qui porte la même date. */
+  /** When the asset's image was set (ms): the « retenu » (kept) attempt is the one carrying the same date. */
   fichierAt: number | null;
-  /** L'asset est validé. */
+  /** The asset is validated. */
   valide: boolean;
-  /** Les essais d'image, du plus récent au plus ancien. */
+  /** The image attempts, from newest to oldest. */
   essais: GenerationVue[];
-  /** uuid d'un essai à ouvrir d'office (lien `?generation=` de l'indicateur des tâches). */
+  /** uuid of an attempt to open by default (`?generation=` link from the task indicator). */
   essaiInitial: string | null;
   description: string;
-  /** Plans déjà rendus avec cette image : remplacer l'image les périme. */
+  /** Clips already rendered with this image: replacing the image makes them stale. */
   plansRendus: number;
-  /** Les images du registre qu'on peut joindre à une consigne. */
+  /** The registry images that can be attached to an instruction. */
   registre: JointeDisponible[];
-  /** L'asset est une affiche de présentation (portrait 2:3) : l'image retenue devient celle du projet, pas d'import direct. */
+  /** The asset is a presentation poster (portrait 2:3): the kept image becomes the project's, no direct import. */
   affiche?: boolean;
-  /** Images jointes d'office à la première consigne (le personnage principal d'une affiche) ; on peut les retirer. */
+  /** Images attached by default to the first instruction (the main character of a poster); they can be removed. */
   jointesInitiales?: Jointe[];
 }) {
   const router = useRouter();
@@ -86,20 +86,20 @@ export function AtelierAsset({
   const champ = useRef<HTMLTextAreaElement>(null);
   const dialogue = useRef<HTMLDialogElement>(null);
 
-  // Numéro d'un essai : son rang dans l'ordre d'arrivée (le plus ancien est le n°1).
+  // Number of an attempt: its rank in arrival order (the oldest is #1).
   const numeros = useMemo(() => new Map([...essais].sort((a, b) => a.id - b.id).map((e, i) => [e.uuid, i + 1])), [essais]);
   const essai = (uuid: string | null) => (uuid ? (essais.find((e) => e.uuid === uuid) ?? null) : null);
 
-  // Ce qu'on regarde : l'image actuelle, un essai, ou rien. Un essai supprimé ramène à l'image actuelle.
+  // What is being viewed: the current image, an attempt, or nothing. A deleted attempt goes back to the current image.
   const choisi = selection && selection !== "actuelle" ? essai(selection) : null;
   const regarde: "actuelle" | GenerationVue | null = choisi ?? (selection && imageSrc ? "actuelle" : null);
 
-  // La base du prochain essai : ce qu'on regarde, si c'est une image prête ; sinon l'image actuelle ; sinon rien (l'image est créée de zéro).
+  // The base of the next attempt: what is being viewed, if it is a ready image; otherwise the current image; otherwise nothing (the image is created from scratch).
   const base: BaseEssai = regarde === "actuelle" ? "actuelle" : regarde && estPret(regarde) ? { essai: regarde.uuid } : imageSrc ? "actuelle" : null;
   const retouche = base != null;
   const baseSrc = base === "actuelle" ? imageSrc : base ? (essai(base.essai)?.src ?? null) : null;
-  // Qwen Image Edit prend 3 images : créer en jointe jusqu'à 3, retoucher n'en laisse qu'une de plus à côté de la base.
-  // Une affiche créée à partir d'images part d'un canevas vide en image 1 (qui compte comme la base) : deux images jointes au plus.
+  // Qwen Image Edit takes 3 images: creating attaches up to 3, retouching leaves only one more next to the base.
+  // A poster created from images starts from an empty canvas as image 1 (which counts as the base): two attached images at most.
   const maxJointes = maxImagesJointes(retouche || affiche);
   const trop = jointes.length > maxJointes;
   const libelleBase = base === "actuelle" ? "l'image actuelle" : base ? `l'essai n°${numeros.get(base.essai)}` : null;
@@ -107,7 +107,7 @@ export function AtelierAsset({
   const retenu = (e: GenerationVue) => e.adopteAt != null && fichierAt != null && e.adopteAt === fichierAt;
   const retenuActuel = essais.find(retenu);
 
-  // Tant qu'un essai travaille, la page se relit (progression, aperçu, fin de la traduction).
+  // While an attempt is working, the page re-reads (progress, preview, end of translation).
   const actifs = essais.some(estActif);
   useEffect(() => {
     if (!actifs) return;
@@ -115,7 +115,7 @@ export function AtelierAsset({
     return () => window.clearInterval(t);
   }, [actifs, router]);
 
-  // Un essai lancé d'ici s'affiche dès qu'il est prêt.
+  // An attempt launched from here is shown as soon as it is ready.
   useEffect(() => {
     for (const uuid of [...lances.current]) {
       const e = essais.find((x) => x.uuid === uuid);
@@ -126,7 +126,7 @@ export function AtelierAsset({
     }
   }, [essais]);
 
-  // L'essai regardé se recentre dans le journal : on défile le journal, jamais la page.
+  // The attempt being viewed re-centers in the log: only the log scrolls, never the page.
   const courant = regarde === "actuelle" ? "actuelle" : (regarde?.uuid ?? null);
   useEffect(() => {
     const l = liste.current;
@@ -137,7 +137,7 @@ export function AtelierAsset({
     else l.scrollTo({ left: el.offsetLeft - l.clientWidth / 2 + el.offsetWidth / 2, behavior: "smooth" });
   }, [courant]);
 
-  // ↑ ↓ passent d'un essai à l'autre (hors saisie).
+  // ↑ ↓ move from one attempt to another (outside the input).
   const ordre = useMemo<Selection[]>(() => [...(imageSrc ? ["actuelle"] : []), ...essais.map((e) => e.uuid)], [imageSrc, essais]);
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
@@ -155,7 +155,7 @@ export function AtelierAsset({
     return () => document.removeEventListener("keydown", touche);
   }, [ordre, courant]);
 
-  // Plein écran.
+  // Fullscreen.
   useEffect(() => {
     const d = dialogue.current;
     if (!d) return;
@@ -246,7 +246,7 @@ export function AtelierAsset({
           {affiche ? null : <UploadFichierForm assetId={assetId} code={code} classe="btn btn-fant btn-sm" libelle="Importer une image" />}
         </div>
 
-        {/* ---- La scène ---- */}
+        {/* ---- The scene ---- */}
         <div className={`scene${regarde === "actuelle" && valide ? " valide" : ""}`}>
           {regarde === "actuelle" && imageSrc ? (
             <>
@@ -341,7 +341,7 @@ export function AtelierAsset({
           )}
         </div>
 
-        {/* ---- La légende ---- */}
+        {/* ---- The caption ---- */}
         <div className="legende glisse" key={cleVue || "vide"} aria-live="polite">
           {!regarde ? (
             <>
@@ -456,7 +456,7 @@ export function AtelierAsset({
       </div>
 
       <div className="atelier-d">
-        {/* ---- La consigne ---- */}
+        {/* ---- The instruction ---- */}
         <section className="consigne" aria-labelledby="fa-consigne-titre" onKeyDown={surClavier}>
           <label htmlFor="fa-consigne">
             <b id="fa-consigne-titre">{retouche ? "Qu'est-ce qu'on change ?" : "Quelle image veut-on ?"}</b>
@@ -538,7 +538,7 @@ export function AtelierAsset({
           </div>
         </section>
 
-        {/* ---- Le journal d'essais ---- */}
+        {/* ---- The attempt log ---- */}
         <aside className="journal" aria-label="Journal d'essais">
           <div className="j-tete">
             <h3>Journal d&rsquo;essais</h3>
@@ -641,7 +641,7 @@ export function AtelierAsset({
   );
 }
 
-/** Le voile d'un essai qui travaille : trois étapes (traduction, file, génération), la dernière avec sa progression. */
+/** The veil of an attempt in progress: three steps (translation, queue, generation), the last one with its progress. */
 function Travail({ essai, numero }: { essai: GenerationVue; numero: number }) {
   const etapes = [
     [STATUT_TRADUCTION, "Traduction"],

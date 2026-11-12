@@ -5,8 +5,8 @@ import { useState } from "react";
 import { modifierEpisode } from "@/app/projects/actions";
 import { Icone } from "@/components/ui/Icon";
 
-/** Le résumé du film : ce que raconte l'histoire. C'est le résumé de l'épisode du film (`episodes.resume`), le même texte que lisent les agents :
- * un seul endroit pour le lire et le corriger. L'arc, lui, reste l'intention du brief. */
+/** The film's summary: what the story tells. It is the summary of the film's episode (`episodes.resume`), the same text the agents read:
+ * one place to read and correct it. The arc, for its part, remains the brief's intent. */
 export function ResumeFilm({ episodeId, resume, disabled }: { episodeId: number; resume: string; disabled?: boolean }) {
   const router = useRouter();
   const [edition, setEdition] = useState(false);

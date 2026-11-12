@@ -32,9 +32,9 @@ test("miniaturisable : images raster seulement, GIF exclu", () => {
 test("urlMiniature : ajoute w, garde v, ne touche pas au reste", () => {
   assert.equal(urlMiniature("/api/media/assets/a.png?v=123", 192), "/api/media/assets/a.png?v=123&w=192");
   assert.equal(urlMiniature("/api/media/assets/a.png", 96), "/api/media/assets/a.png?w=96");
-  // une largeur déjà présente est remplacée, pas dupliquée
+  // an already present width is replaced, not duplicated
   assert.equal(urlMiniature("/api/media/assets/a.png?w=96&v=1", 384), "/api/media/assets/a.png?w=384&v=1");
-  // vidéo, audio, GIF, URL hors route média : rendues telles quelles
+  // video, audio, GIF, URL outside the media route: returned as they are
   assert.equal(urlMiniature("/api/media/plans/1/r.mp4?v=1", 192), "/api/media/plans/1/r.mp4?v=1");
   assert.equal(urlMiniature("/api/media/assets/v.wav", 192), "/api/media/assets/v.wav");
   assert.equal(urlMiniature("/api/media/assets/a.gif", 192), "/api/media/assets/a.gif");
@@ -45,7 +45,7 @@ test("clé de cache : stable, sensible au chemin, au mtime et à la taille", () 
   assert.equal(prefixeCache("assets/a.png"), prefixeCache("assets\\a.png"));
   assert.notEqual(prefixeCache("assets/a.png"), prefixeCache("assets/b.png"));
   const base = nomCache("assets/a.png", 1000.7, 500);
-  assert.equal(base, nomCache("assets/a.png", 1000.2, 500)); // mtime tronqué à la ms
+  assert.equal(base, nomCache("assets/a.png", 1000.2, 500)); // mtime truncated to the ms
   assert.notEqual(base, nomCache("assets/a.png", 2000, 500));
   assert.notEqual(base, nomCache("assets/a.png", 1000, 501));
   assert.match(base, /^[0-9a-f]{20}-1000-500\.webp$/);
@@ -75,13 +75,13 @@ test("sharp : miniature WebP réduite, plus légère, mise en cache", async () =
     assert.equal(meta.width, 192);
     assert.equal(meta.height, 108);
 
-    // deuxième appel : même fichier, pas de nouvelle écriture (cache)
+    // second call: same file, no new write (cache)
     const avant = statSync(m.chemin).mtimeMs;
     const m2 = await obtenirMiniature(racine, "assets/a.png", 192);
     assert.equal(m2?.chemin, m.chemin);
     assert.equal(statSync(m.chemin).mtimeMs, avant);
 
-    // appels simultanés : un seul fichier au final
+    // simultaneous calls: a single file in the end
     const [x, y] = await Promise.all([obtenirMiniature(racine, "assets/a.png", 96), obtenirMiniature(racine, "assets/a.png", 96)]);
     assert.equal(x?.chemin, y?.chemin);
   } finally {
@@ -110,7 +110,7 @@ test("image remplacée sous le même nom : miniature neuve, ancienne purgée", a
     const avant = await obtenirMiniature(racine, "assets/a.png", 192);
     assert.ok(avant);
 
-    // l'adoption d'un candidat réécrit le fichier : autre contenu, autre date
+    // adopting a candidate rewrites the file: other content, other date
     writeFileSync(source, pngFactice(800, 800));
     utimesSync(source, new Date(2026, 5, 1), new Date(2026, 5, 1));
     const apres = await obtenirMiniature(racine, "assets/a.png", 192);

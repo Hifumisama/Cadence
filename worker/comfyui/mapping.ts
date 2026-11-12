@@ -4,38 +4,38 @@ import { RESOLUTIONS_VIDEO, avecUpscale, estFinalNatif, resolutionDepuis } from 
 import type { SubmissionInput } from "./types";
 
 /**
- * Cartographie des node IDs FIXES du graphe VID_REF2VA (format API, ré-
- * exporté le 2026-09-26). Les nœuds de référence (LoadImageCrop /
- * LoadAudioUI / LoadVideoUI) ne sont PAS dans cette liste : ils sont créés
- * dynamiquement à chaque soumission (voir injecterValeurs) — décision prise
- * avec l'utilisateur le 2026-09-26 pour éviter toute dérive de rendu causée
- * par une image de référence non voulue mais quand même fournie au modèle.
+ * Mapping of the FIXED node IDs of the VID_REF2VA graph (API format, re-
+ * exported on 2026-09-26). The reference nodes (LoadImageCrop /
+ * LoadAudioUI / LoadVideoUI) are NOT in this list: they are created
+ * dynamically at each submission (see injecterValeurs) — decision made
+ * with the user on 2026-09-26 to avoid any render drift caused by
+ * a reference image not wanted but still supplied to the model.
  *
- * - prompt assemblé       -> nœud "22:11" (PrimitiveStringMultiline, dans le subgraph 22 flatten)
- * - seed 1er pass         -> nœud "16"    (easy seed)
- * - seed upscale          -> nœud "103"   (easy seed)
- * - seed 2nd pass         -> nœud "135:27" (RandomNoise, champ noise_seed)
- * - nœud de référence     -> "5" (MiniMaxH3ReferenceToVideo) — reçoit les liens dynamiques
- * - durée du plan         -> "22:23" (PrimitiveFloat, secondes) -> "22:24" (ComfyMathExpression :
- *                            nombre d'images 17k+5) -> champ `length` du nœud "5"
- * - sortie finale         -> "34" (VHS_VideoCombine, "Final Video")
- * - branche basse-rés     -> "176" (VAEDecode) / "177" (VAEDecodeAudio) — même source que l'aperçu (nœud 18)
- * - branche upscale       -> "165" (RIFEInterpolation) / "261" (Any Switch, "Final Audio")
+ * - assembled prompt      -> node "22:11" (PrimitiveStringMultiline, in subgraph 22 flattened)
+ * - seed 1st pass         -> node "16"    (easy seed)
+ * - seed upscale          -> node "103"   (easy seed)
+ * - seed 2nd pass         -> node "135:27" (RandomNoise, field noise_seed)
+ * - reference node        -> "5" (MiniMaxH3ReferenceToVideo) — receives the dynamic links
+ * - clip duration         -> "22:23" (PrimitiveFloat, seconds) -> "22:24" (ComfyMathExpression:
+ *                            frame count 17k+5) -> field `length` of node "5"
+ * - final output          -> "34" (VHS_VideoCombine, "Final Video")
+ * - low-res branch        -> "176" (VAEDecode) / "177" (VAEDecodeAudio) — same source as the preview (node 18)
+ * - upscale branch        -> "165" (RIFEInterpolation) / "261" (Any Switch, "Final Audio")
  */
 export const NODE_IDS = {
   prompt: "22:11",
-  /** « Resolution Selector (Size) » : format 16:9 et mégapixels du rendu. */
+  /** « Resolution Selector (Size) »: 16:9 format and megapixels of the render. */
   resolution: "22:9",
   seedPremierPass: "16",
   seedUpscale: "103",
   seedSecondPass: "135:27",
   refNode: "5",
-  /** « Video Length (seconds) » : la durée du plan, en secondes (flottant). */
+  /** « Video Length (seconds) »: the clip's duration, in seconds (float). */
   dureeVideo: "22:23",
-  /** Expression qui en tire le nombre d'images (24 i/s, forme 17k+5). */
+  /** Expression that derives the frame count from it (24 fps, form 17k+5). */
   nombreImages: "22:24",
   sortieFinale: "34",
-  /** Aperçu basse résolution (VHS_VideoCombine, « low_… »). */
+  /** Low-resolution preview (VHS_VideoCombine, « low_… »). */
   sortieApercu: "18",
   basseResImages: "176",
   basseResAudio: "177",
@@ -46,13 +46,13 @@ export const NODE_IDS = {
 type NodeAPI = { class_type: string; inputs: Record<string, unknown>; _meta?: { title: string } };
 export type WorkflowJson = Record<string, NodeAPI>;
 
-/** Le modèle génère toujours à 24 i/s (infobulle de `length` sur le nœud 5 : « Frame count at 24 fps »). */
+/** The model always generates at 24 fps (tooltip of `length` on node 5: « Frame count at 24 fps »). */
 export const FPS_GENERATION = 24;
-/** Limites de MiniMax H3 appliquées par Cadence : 6 images + vidéos, 3 audios (les nœuds en acceptent 9 / 3). */
+/** MiniMax H3 limits applied by Cadence: 6 images + videos, 3 audios (the nodes accept 9 / 3). */
 const MAX_REFS_VISUELLES = 6;
 const MAX_REFS_AUDIO = 3;
 
-/** Entrée refusée AVANT toute soumission : réessayer ne changerait rien (le worker ne la rejoue pas). */
+/** Input refused BEFORE any submission: retrying would change nothing (the worker does not replay it). */
 export class ErreurEntreeInvalide extends Error {
   constructor(message: string) {
     super(message);
@@ -60,23 +60,23 @@ export class ErreurEntreeInvalide extends Error {
   }
 }
 
-/** Nom du fichier de référence côté ComfyUI : par défaut le nom du fichier local. L'appelant peut imposer
- * un nom unique (`nomDistant`) : tous les fichiers d'entrée de ComfyUI partagent un seul dossier. */
+/** Name of the reference file on the ComfyUI side: by default the local file name. The caller can impose
+ * a unique name (`nomDistant`): all of ComfyUI's input files share a single folder. */
 function nomDistant(ref: { cheminLocal: string; nomDistant?: string }): string {
   return ref.nomDistant ?? basename(ref.cheminLocal);
 }
 
-/** Nom unique et sans collision pour un fichier de MEDIA_ROOT (« assets/CHAR_maya.png » ->
- * « cadence_assets_CHAR_maya.png », « repliques/12/prise.wav » -> « cadence_repliques_12_prise.wav ») :
- * ne marche jamais sur un fichier de l'utilisateur dans le dossier d'entrée de ComfyUI (le dépôt est
- * écrasé à chaque envoi) et distingue deux prises de même nom. */
+/** Unique, collision-free name for a MEDIA_ROOT file (« assets/CHAR_maya.png » ->
+ * « cadence_assets_CHAR_maya.png », « repliques/12/prise.wav » -> « cadence_repliques_12_prise.wav »):
+ * never overwrites a user's file in ComfyUI's input folder (the drop is
+ * overwritten at each upload) and tells apart two takes with the same name. */
 export function nomDistantDepuisChemin(cheminRelatif: string): string {
   return `cadence_${cheminRelatif.replace(/[\\/]+/g, "_")}`;
 }
 
 const dansIntervalle = (n: number, min: number, max: number) => Number.isFinite(n) && n >= min && n <= max;
 
-/** Contrôle de bornes de ce que le code injecte. Lève `ErreurEntreeInvalide`. */
+/** Bounds check on what the code injects. Throws `ErreurEntreeInvalide`. */
 export function verifierEntree(input: SubmissionInput): void {
   if (!dansIntervalle(input.dureeSecondes, DUREE_GENERATION_MIN, DUREE_GENERATION_MAX)) {
     throw new ErreurEntreeInvalide(
@@ -104,22 +104,22 @@ export function verifierEntree(input: SubmissionInput): void {
   controlerSlots("audio", input.refsAudio.map((r) => r.slot), MAX_REFS_AUDIO);
 }
 
-/** Câble la sortie finale (nœud 34) selon le mode : upscale (final à la résolution de base), final natif (au-delà) ou aperçu. Modifie `graphe` en place ;
- * exportée pour que un banc de mesure branche ses variantes exactement comme le worker. */
+/** Wires the final output (node 34) according to the mode: upscale (final at base resolution), native final (above it) or preview. Modifies `graphe` in place;
+ * exported so that a measurement bench wires its variants exactly like the worker. */
 function cablerSortie(graphe: WorkflowJson, activerUpscale: boolean, megapixels?: number): void {
-  // Toggle upscale (F04) : on rebranche la sortie finale sur la même
-  // branche basse-résolution que l'aperçu (nœud 18) plutôt que de bypasser
-  // un groupe — les nœuds d'upscale, non référencés, ne sont alors pas
-  // exécutés par ComfyUI (résolution de dépendances par les sorties
-  // demandées, pas de coût caché).
+  // Upscale toggle (F04): we rewire the final output to the same
+  // low-resolution branch as the preview (node 18) rather than bypassing
+  // a group — the upscale nodes, no longer referenced, are then not
+  // executed by ComfyUI (dependency resolution by the requested
+  // outputs, no hidden cost).
   const nodeSortie = graphe[NODE_IDS.sortieFinale];
   if (nodeSortie) {
     if (avecUpscale(activerUpscale, megapixels)) {
       nodeSortie.inputs.images = [NODE_IDS.upscaleImages, 0];
       nodeSortie.inputs.audio = [NODE_IDS.upscaleAudio, 0];
     } else if (estFinalNatif(activerUpscale, megapixels)) {
-      // Rendu final natif (au-delà de 0,2 MP) : pas d'upscale, mais la même interpolation que les rendus finals (RIFE, 24 → 48 i/s) : le
-      // nœud 165 lit la sortie de la première passe au lieu de celle de l'upscale, la cadence du nœud 34 reste celle du commutateur.
+      // Native final render (above 0.2 MP): no upscale, but the same interpolation as the final renders (RIFE, 24 → 48 fps): the
+      // node 165 reads the first-pass output instead of the upscale's, the frame rate of node 34 remains that of the switch.
       const rife = graphe[NODE_IDS.upscaleImages];
       if (!rife) throw new Error(`Nœud ${NODE_IDS.upscaleImages} (RIFE) absent du workflow vidéo`);
       rife.inputs.images = [NODE_IDS.basseResImages, 0];
@@ -128,20 +128,20 @@ function cablerSortie(graphe: WorkflowJson, activerUpscale: boolean, megapixels?
     } else {
       nodeSortie.inputs.images = [NODE_IDS.basseResImages, 0];
       nodeSortie.inputs.audio = [NODE_IDS.basseResAudio, 0];
-      // Sans RIFE, les images sont encore à 24 i/s ; le nœud 34 lit sa cadence sur le commutateur
-      // « Target FPS » (170 -> 48) : la prévisualisation passerait à double vitesse, son décalé.
+      // Without RIFE, the frames are still at 24 fps; node 34 reads its frame rate from the switch
+      // « Target FPS » (170 -> 48): the preview would play at double speed, out of sync.
       nodeSortie.inputs.frame_rate = FPS_GENERATION;
     }
   }
 }
 
-/** Recrée les nœuds de référence du plan (images, sons, vidéos) autour du nœud `MiniMaxH3ReferenceToVideo`, partagée par le mapping d'origine et
- * celui des trois étapes (mappingThreeSteps.ts) : une seule règle pour les emplacements et les noms de fichiers. Modifie `graphe` en place. */
+/** Recreates the clip's reference nodes (images, sounds, videos) around the `MiniMaxH3ReferenceToVideo` node, shared by the original mapping and
+ * that of the three steps (mappingThreeSteps.ts): a single rule for the slots and the file names. Modifies `graphe` in place. */
 export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput, idNoeudRef: string = NODE_IDS.refNode): void {
   const refNode = graphe[idNoeudRef];
   if (refNode) {
-    // Repart d'un nœud de référence vierge : seuls les slots réellement
-    // utilisés par CE plan seront recâblés ci-dessous.
+    // Starts again from a blank reference node: only the slots actually
+    // used by THIS clip will be rewired below.
     for (const cle of Object.keys(refNode.inputs)) {
       if (cle.startsWith("ref_images.") || cle.startsWith("ref_audios.") || cle.startsWith("ref_videos.")) {
         delete refNode.inputs[cle];
@@ -151,8 +151,8 @@ export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput,
     input.refsImage.forEach((ref) => {
       const { slot } = ref;
       const nodeId = `ref_img_${slot}`;
-      // Deux nœuds du NOYAU (plus de pack tiers) : LoadImage charge le fichier, ImageScaleToTotalPixels le ramène à
-      // 1 Mpx (l'ancien LoadImageCrop faisait « crop vide + max_megapixels 1 »). `nodeId` est le nœud de sortie.
+      // Two CORE nodes (no more third-party pack): LoadImage loads the file, ImageScaleToTotalPixels scales it down to
+      // 1 Mpx (the old LoadImageCrop did « empty crop + max_megapixels 1 »). `nodeId` is the output node.
       const idChargement = `${nodeId}_charge`;
       graphe[idChargement] = {
         class_type: "LoadImage",
@@ -170,7 +170,7 @@ export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput,
     input.refsAudio.forEach((ref) => {
       const { slot } = ref;
       const nodeId = `ref_audio_${slot}`;
-      // LoadAudio, nœud du NOYAU de ComfyUI (plus de pack tiers) : charge le fichier entier, sans découpe.
+      // LoadAudio, a CORE ComfyUI node (no more third-party pack): loads the whole file, without cutting.
       graphe[nodeId] = {
         class_type: "LoadAudio",
         inputs: { audio: nomDistant(ref) },
@@ -182,10 +182,10 @@ export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput,
     input.refsVideo.forEach((ref) => {
       const { slot } = ref;
       const nodeId = `ref_video_${slot}`;
-      // Deux nœuds du NOYAU de ComfyUI (plus de pack tiers) : LoadVideo charge le fichier, GetVideoComponents
-      // en sort les images (sortie 0), qui alimentent `ref_videos`. Son audio (sortie 1) n'est PAS câblé sur
-      // `ref_video_audios`. Vidéo entière, à sa cadence et à sa taille d'origine (l'ancien nœud la
-      // rééchantillonnait à 24 i/s : à revoir si une référence vidéo rend mal).
+      // Two CORE ComfyUI nodes (no more third-party pack): LoadVideo loads the file, GetVideoComponents
+      // outputs the frames from it (output 0), which feed `ref_videos`. Its audio (output 1) is NOT wired to
+      // `ref_video_audios`. Whole video, at its own frame rate and original size (the old node
+      // resampled it to 24 fps: to revisit if a video reference renders badly).
       const idComposants = `ref_video_${slot}_images`;
       graphe[nodeId] = {
         class_type: "LoadVideo",
@@ -203,10 +203,10 @@ export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput,
 }
 
 /**
- * Injecte les valeurs dynamiques du plan dans le graphe API avant
- * soumission. Les nœuds de référence sont créés à la volée — un plan qui
- * n'utilise que 3 refs image n'en câble que 3, jamais 6 avec du
- * remplissage : voir la discussion "Slots vides" du 2026-09-26.
+ * Injects the clip's dynamic values into the API graph before
+ * submission. The reference nodes are created on the fly — a clip that
+ * uses only 3 image refs wires only 3, never 6 with
+ * padding: see the "Slots vides" (empty slots) discussion of 2026-09-26.
  */
 export function injecterValeurs(
   workflow: WorkflowJson,
@@ -215,13 +215,13 @@ export function injecterValeurs(
   verifierEntree(input);
   const graphe = structuredClone(workflow);
 
-  // Durée : sans cette injection, tous les plans sortent à la durée écrite dans le fichier. Absence du
-  // nœud = erreur franche (pas de silence), le graphe n'est plus celui que ce code connaît.
+  // Duration: without this injection, all clips come out at the duration written in the file. A missing
+  // node = outright error (no silence): the graph is no longer the one this code knows.
   const nodeDuree = graphe[NODE_IDS.dureeVideo];
   if (!nodeDuree) throw new Error(`Nœud ${NODE_IDS.dureeVideo} (durée) absent du workflow vidéo`);
   nodeDuree.inputs.value = input.dureeSecondes;
 
-  // Résolution : le fichier source fixe 0,2 MP ; absente de l'entrée, on la laisse telle quelle.
+  // Resolution: the source file fixes 0.2 MP; absent from the input, we leave it as is.
   if (input.megapixels != null) {
     const nodeResolution = graphe[NODE_IDS.resolution];
     if (!nodeResolution) throw new Error(`Nœud ${NODE_IDS.resolution} (résolution) absent du workflow vidéo`);

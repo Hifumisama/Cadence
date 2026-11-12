@@ -9,9 +9,9 @@ import { validerOperations } from "./view-operations/operations";
 import { operationsVersChangements } from "./view-operations/operations-to-changes";
 import { construireVue } from "./view-operations/view-episode";
 
-// Un petit épisode fabriqué : des cavaliers arrivent à cheval (P03), parlent « au bord de la rue » (P04), ne descendent qu'en P05 ; P06 et P07 racontent
-// le même départ du train ; le dernier plan ne résout rien.
-// Les descriptions n'ont plus de ligne « État en fin de plan » (2026-11-08) : le second argument ne sert qu'à dire, à la lecture du test, où le plan finit.
+// A small made-up episode: riders arrive on horseback (P03), talk "au bord de la rue" (P04), only dismount in P05; P06 and P07 tell
+// the same train departure; the last clip resolves nothing.
+// The descriptions no longer have an "État en fin de plan" line (2026-11-08): the second argument only serves to say, when reading the test, where the clip ends.
 const D = (corps: string, _fin: string) => corps;
 const plansDonnes = [
   { uuid: "u1", titre: "La shérif devant le train", description: D("Elias se tient sur le quai.", "Elias est debout sur le quai."), duree: 8, sceneId: 1, statut: "brouillon", liaison: "coupe" },
@@ -98,7 +98,7 @@ test("trop de corrections, deux gestes sur un plan, un plan modifié puis coupé
 });
 
 test("la durée totale ne sort pas de la tolérance du brief à cause de la relecture", () => {
-  // 6 plans × 8 s = 48 s pour 48 s visées (±20 % : 39–57). Couper deux plans sans compenser tombe à 32 s.
+  // 6 clips × 8 s = 48 s for 48 s targeted (±20 %: 39–57). Cutting two clips without compensating drops to 32 s.
   const deuxCoupes = sortie([
     { type: "couper_plan", plan: "P04", critere: "doublon", motif: "m" },
     { type: "couper_plan", plan: "P05", critere: "doublon", motif: "m" },
@@ -137,7 +137,7 @@ test("conversion : poignées → uuid, descriptions, suppression d'un plan sans 
   assert.equal((duree.apres as { dureeGenerationSecondes: number }).dureeGenerationSecondes, 10);
   assert.ok(r.bruts.every((b) => !b.avertissements?.some((a) => a.type === "bloque_controle")));
   assert.match(r.constats[0]!, /doublon \(P04, P05\)/);
-  // aucune trace d'un rang dans ce qui sera écrit
+  // no trace of a rank in what will be written
   assert.ok(!JSON.stringify(r.bruts.map((b) => b.apres)).includes("P0"));
 });
 

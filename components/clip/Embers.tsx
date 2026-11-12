@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 
 type Braise = { x: number; y: number; vx: number; vy: number; r: number; vie: number; max: number };
 
-/** Des braises qui montent derrière le lecteur : ambiance du cercle de feu, discrète. Arrêtées si l'utilisateur demande moins de
- * mouvement, ou quand l'onglet est caché. */
+/** Embers rising behind the player: the fire-circle ambience, discreet. Stopped if the user asks for less
+ * motion, or when the tab is hidden. */
 export function Braises() {
   const ref = useRef<HTMLCanvasElement>(null);
 

@@ -4,12 +4,12 @@ import { briefVide, clauseDuBrief, fusionnerPartielDansBrouillon, notesDuBrief, 
 import type { Db } from "./appliers/common";
 import type { BriefContenu, StatutChamp } from "./types";
 
-/** Le brief est la SOURCE UNIQUE de la clause de style et des notes du projet (2026-10-02,
- * remplace les « globaux du scénario »). `projects.clause_style` et `projects.notes` ne sont que
- * des COPIES dénormalisées (la génération d'images lit la clause sans changer) : elles ne
- * s'écrivent QUE par `synchroniserClauseStyle`, appelée après toute écriture d'un brief « valide »
- * ou « partiel » (édition directe, application d'une proposition). Un brouillon ne synchronise rien :
- * il n'est pas encore la référence du projet. */
+/** The brief is the SINGLE SOURCE of the project's style clause and notes (2026-10-02,
+ * replaces the "scenario globals"). `projects.clause_style` and `projects.notes` are only
+ * denormalized COPIES (image generation reads the clause unchanged): they are written ONLY
+ * by `synchroniserClauseStyle`, called after any write of a "valide" or "partiel" brief
+ * (direct edit, application of a proposal). A draft synchronizes nothing:
+ * it is not yet the project's reference. */
 export async function synchroniserClauseStyle(db: Db, projectId: number): Promise<void> {
   const [b] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
   if (!b || (b.statut !== "valide" && b.statut !== "partiel")) return;
@@ -20,7 +20,7 @@ export async function synchroniserClauseStyle(db: Db, projectId: number): Promis
     .where(eq(projects.id, projectId));
 }
 
-/** Crée le brief partiel d'un projet qui n'en a pas (première édition à la main). */
+/** Creates the partial brief of a project that has none (first manual edit). */
 export async function creerBriefPartiel(db: Db, projectId: number): Promise<void> {
   const [projet] = await db.select({ nom: projects.nom }).from(projects).where(eq(projects.id, projectId));
   await db
@@ -29,9 +29,9 @@ export async function creerBriefPartiel(db: Db, projectId: number): Promise<void
     .onConflictDoNothing();
 }
 
-/** Écrit le BROUILLON du brief d'un projet (jamais par-dessus un brief validé). Un brief partiel (style, notes… posés à la main) :
- * ce que l'utilisateur a posé gagne sur ce que l'agent a rédigé. Sert au brouillon issu de la fiche de
- * notes de l'entretien, dès qu'elle est complète. */
+/** Writes the DRAFT brief of a project (never over a validated brief). A partial brief (style, notes… set by hand):
+ * what the user set wins over what the agent wrote. Used for the draft coming from the interview's
+ * notes sheet, as soon as it is complete. */
 export async function ecrireBrouillon(db: Db, projectId: number, genere: { contenu: BriefContenu; statuts: Record<string, StatutChamp> }): Promise<void> {
   const [existant] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
   if (existant?.statut === "valide") throw new Error("Le projet a déjà un brief validé : le brouillon n'a pas été écrit par-dessus.");

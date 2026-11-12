@@ -1,14 +1,14 @@
-/** Miniatures d'images — partie PURE (aucun import node:*), utilisable côté
- * client comme côté serveur. La génération vit dans lib/thumbnails-server.ts ;
- * la route /api/media la déclenche quand l'URL porte `?w=<largeur>`.
+/** Image thumbnails — PURE part (no node:* import), usable client-side
+ * as well as server-side. Generation lives in lib/thumbnails-server.ts;
+ * the /api/media route triggers it when the URL carries `?w=<largeur>`.
  *
- * Pourquoi : les PNG d'assets et de candidats font 1,5 à 7 Mo ; les vignettes
- * (40 à 300 px à l'écran) les chargeaient en pleine taille. */
+ * Why: the PNGs of assets and candidates weigh 1.5 to 7 MB; the thumbnails
+ * (40 to 300 px on screen) were loading them at full size. */
 
-/** Largeurs autorisées (px) — liste blanche : la route refuse toute autre valeur,
- * sinon `?w=` deviendrait un moyen de remplir le disque de miniatures.
- * Dimensionnées pour un écran 2× : 96 (≤ 48 px affichés), 192 (≤ 96 px),
- * 384 (cartes), 768 (aperçu principal, scène de la popup). */
+/** Allowed widths (px) — allowlist: the route refuses any other value,
+ * otherwise `?w=` would become a way to fill the disk with thumbnails.
+ * Sized for a 2× screen: 96 (≤ 48 px displayed), 192 (≤ 96 px),
+ * 384 (cards), 768 (main preview, scene of the popup). */
 const LARGEURS_MINIATURE = [96, 192, 384, 768] as const;
 export type LargeurMiniature = (typeof LARGEURS_MINIATURE)[number];
 
@@ -16,15 +16,15 @@ export function estLargeurMiniature(n: number): n is LargeurMiniature {
   return (LARGEURS_MINIATURE as readonly number[]).includes(n);
 }
 
-/** Largeur lue dans un paramètre d'URL (`?w=192`), ou null si absente ou hors
- * liste blanche. Strict : « 192abc », « 1e2 » ou « 192.0 » sont refusés. */
+/** Width read from a URL parameter (`?w=192`), or null if absent or outside the
+ * allowlist. Strict: « 192abc », « 1e2 » or « 192.0 » are refused. */
 export function lireLargeur(brut: string | null): LargeurMiniature | null {
   if (brut == null || !/^\d{1,4}$/.test(brut)) return null;
   const n = Number(brut);
   return estLargeurMiniature(n) ? n : null;
 }
 
-// GIF exclu : une miniature figerait l'animation.
+// GIF excluded: a thumbnail would freeze the animation.
 const EXT_MINIATURISABLES = [".png", ".jpg", ".jpeg", ".webp"];
 
 export function estMiniaturisable(chemin: string): boolean {
@@ -34,9 +34,9 @@ export function estMiniaturisable(chemin: string): boolean {
 
 const PREFIXE_ROUTE_MEDIA = "/api/media/";
 
-/** URL de la miniature d'une image servie par /api/media, en conservant le
- * `?v=` de version. Toute autre URL (vidéo, audio, GIF, hors route média) est
- * rendue telle quelle : appeler ce helper n'est jamais dangereux. */
+/** Thumbnail URL of an image served by /api/media, keeping the
+ * `?v=` version. Any other URL (video, audio, GIF, outside the media route) is
+ * returned as it is: calling this helper is never dangerous. */
 export function urlMiniature(src: string, largeur: LargeurMiniature): string {
   if (!src.startsWith(PREFIXE_ROUTE_MEDIA)) return src;
   const [chemin = "", requete = ""] = src.split("?", 2);

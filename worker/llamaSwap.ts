@@ -1,21 +1,20 @@
-/** Petit client de llama-swap, le proxy qui charge/décharge les modèles de
- * llama.cpp à la demande (voir docs/CONCEPTION_AGENTS.md). Le worker s'en sert pour
- * deux choses que le fournisseur LLM (lib/llm/) ignore : savoir si le serveur est là
- * avant de prendre une tâche, et décharger les modèles de la VRAM avant que ComfyUI
- * reprenne le GPU (lib/renders/gpu.ts).
+/** Small client for llama-swap, the proxy that loads/unloads the models of
+ * llama.cpp on demand (see docs/CONCEPTION_AGENTS.md). The worker uses it for
+ * two things that the LLM provider (lib/llm/) ignores: knowing whether the server is there
+ * before taking a task, and unloading the models from VRAM before ComfyUI
+ * takes the GPU back (lib/renders/gpu.ts).
  *
- * Tout est « au mieux » et ne rejette jamais : un échec se lit dans le résultat.
- * Les routes `/health`, `/running` et `/unload` sont celles de llama-swap
- * (README du projet) ; leur forme exacte est vérifiée sur le serveur de
- * l'utilisateur, voir docs/FRICTIONS.md (« Ressource GPU unique »). */
+ * Everything is "au mieux" (best effort) and never rejects: a failure is read in the result.
+ * The routes `/health`, `/running` and `/unload` are those of llama-swap
+ * (project README); their exact form is checked on the user's server, see docs/FRICTIONS.md (« Ressource GPU unique »). */
 
 type Fetch = typeof fetch;
 
 const TIMEOUT_SONDE_MS = 5_000;
-const TIMEOUT_DECHARGE_MS = 30_000; // /unload attend que les processus s'arrêtent
+const TIMEOUT_DECHARGE_MS = 30_000; // /unload waits for the processes to stop
 
-/** Le serveur répond-il ? (`GET /health`, « OK » chez llama-swap ; autre route via `LLM_HEALTH_PATH`).
- * Ne charge aucun modèle. */
+/** Does the server respond? (`GET /health`, « OK » with llama-swap; other route via `LLM_HEALTH_PATH`).
+ * Loads no model. */
 export async function llmJoignable(url: string, fetchFn: Fetch = fetch, route = "/health"): Promise<boolean> {
   try {
     const res = await fetchFn(`${url}${route}`,{ signal: AbortSignal.timeout(TIMEOUT_SONDE_MS) });
@@ -25,8 +24,8 @@ export async function llmJoignable(url: string, fetchFn: Fetch = fetch, route = 
   }
 }
 
-/** Modèles actuellement chargés (`GET /running`), ou null si on ne peut pas le
- * savoir. Décodage tolérant : `{ running: [{ model, state }] }` ou une liste simple. */
+/** Models currently loaded (`GET /running`), or null if we cannot
+ * know. Tolerant decoding: `{ running: [{ model, state }] }` or a simple list. */
 export function decoderModelesCharges(corps: unknown): string[] | null {
   const liste = Array.isArray(corps) ? corps : (corps as { running?: unknown } | null)?.running;
   if (!Array.isArray(liste)) return null;
@@ -45,8 +44,8 @@ export async function modelesCharges(url: string, fetchFn: Fetch = fetch): Promi
   }
 }
 
-/** Modèles déclarés par le serveur (`GET /v1/models`, format OpenAI : `{ data: [{ id }] }` ; llama-swap, LM Studio et Ollama
- * l'exposent). Décodage tolérant : une liste d'identifiants ou d'objets `{ id }`. null si la forme est inattendue. */
+/** Models declared by the server (`GET /v1/models`, OpenAI format: `{ data: [{ id }] }`; llama-swap, LM Studio and Ollama
+ * expose it). Tolerant decoding: a list of identifiers or of `{ id }` objects. null if the shape is unexpected. */
 export function decoderListeModeles(corps: unknown): string[] | null {
   const liste = Array.isArray(corps) ? corps : (corps as { data?: unknown } | null)?.data;
   if (!Array.isArray(liste)) return null;
@@ -56,7 +55,7 @@ export function decoderListeModeles(corps: unknown): string[] | null {
   return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
 }
 
-/** Les modèles que le serveur sait charger, ou null si on ne peut pas le savoir. Ne charge aucun modèle. */
+/** The models the server can load, or null if we cannot know. Loads no model. */
 export async function listerModeles(url: string, fetchFn: Fetch = fetch): Promise<string[] | null> {
   try {
     const res = await fetchFn(`${url}/v1/models`, { signal: AbortSignal.timeout(TIMEOUT_SONDE_MS) });
@@ -67,7 +66,7 @@ export async function listerModeles(url: string, fetchFn: Fetch = fetch): Promis
   }
 }
 
-/** Décharge tous les modèles (`GET /unload`). Inoffensif quand rien n'est chargé. */
+/** Unloads all models (`GET /unload`). Harmless when nothing is loaded. */
 export async function decharger(url: string, fetchFn: Fetch = fetch): Promise<{ ok: boolean; detail: string }> {
   try {
     const res = await fetchFn(`${url}/unload`, { signal: AbortSignal.timeout(TIMEOUT_DECHARGE_MS) });

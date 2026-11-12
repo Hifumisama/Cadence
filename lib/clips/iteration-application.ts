@@ -10,17 +10,17 @@ import { lireProposition } from "../agents/queries-agents";
 
 export type Reglages = { dureeGenerationSecondes?: number; fps?: number; seed?: string };
 
-/** Appliquer la correction d'« Itérer » ET créer l'essai (2026-10-17 : sorti de l'action de page pour que le pilote des demandes, côté
- * worker, l'appelle sans Next ; l'action `appliquerIterationEtGenerer` de app/plans/actions.ts l'enveloppe et revalide). */
+/** Apply the « Itérer » correction AND create the attempt (2026-10-17: moved out of the page action so that the request pilot, worker-side,
+ * calls it without Next; the `appliquerIterationEtGenerer` action of app/plans/actions.ts wraps it and revalidates). */
 
-/** Applique la correction de l'agent ET crée l'essai, dans une seule transaction : si l'un échoue, rien n'est écrit.
- * Les règles sont celles de l'action `appliquerIterationEtGenerer` (app/plans/actions.ts), qui l'enveloppe. */
+/** Applies the agent's correction AND creates the attempt, in a single transaction: if one fails, nothing is written.
+ * The rules are those of the action `appliquerIterationEtGenerer` (app/plans/actions.ts), which wraps it. */
 export async function appliquerIterationEtGenererCore(
   planId: number,
   propositionUuid: string,
-  /** `notes` : ce que l'agent d'itération a signalé (ses décisions), gardé sur l'essai avant celles de l'application. */
+  /** `notes`: what the iteration agent flagged (its decisions), kept on the attempt before those of the application. */
   essai: { consigne: string | null; depuisNumero: number | null; demandeId?: number; notes?: string[] },
-  /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits dans la même transaction que l'essai. */
+  /** Settings edited by hand on the page (duration, FPS, seed), written in the same transaction as the attempt. */
   reglages: Reglages = {},
 ): Promise<{ ok: true; numeroRendu: number; jobId: number; notes: string[] } | { ok: false; erreur: string }> {
   const { dureeGenerationSecondes: duree, fps, seed } = reglages;
@@ -30,8 +30,8 @@ export async function appliquerIterationEtGenererCore(
   if (fps != null && (!Number.isInteger(fps) || fps < 1)) return { ok: false, erreur: "FPS invalide." };
   if (seed != null && !/^\d{1,15}$/.test(seed)) return { ok: false, erreur: "Seed invalide : 15 chiffres au plus." };
   const prop = await propositionParUuid(propositionUuid);
-  // Depuis 2026-11-09, « Itérer » applique la fiche RECOMPILÉE par Open H3 IR (`plan-h3ir`, lib/agents/service.ts, genererReecriturePlan) avec les décisions de
-  // l'agent ; une proposition `iteration-plan` ne porte plus de changement (elle donne « reecrire »).
+  // Since 2026-11-09, « Itérer » applies the sheet RECOMPILED by Open H3 IR (`plan-h3ir`, lib/agents/service.ts, genererReecriturePlan) with the
+  // agent's decisions; an `iteration-plan` proposal no longer carries a change (it gives « reecrire »).
   if (!prop || (prop.skill !== "iteration-plan" && prop.skill !== SKILL_H3IR) || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
   const vue = await lireProposition(propositionUuid);
   const decision = decisionIteration(vue);
@@ -65,8 +65,8 @@ export async function appliquerIterationEtGenererCore(
     return { ok: false, erreur: `Rien n'a été appliqué ni généré : ${e instanceof Error ? e.message : "erreur inattendue"}.` };
   }
   const notes = [...notesEssai];
-  // Les assets créés avec la correction n'ont ni prompt ni image : leurs prompts s'écrivent à part (une proposition à relire dans la conversation du
-  // projet), sans retarder l'essai déjà en file. Un échec n'annule rien : le bouton « écrire les prompts » reste sur la proposition.
+  // The assets created with the correction have neither prompt nor image: their prompts are written separately (a proposal to review in the project's
+  // conversation), without delaying the attempt already queued. A failure cancels nothing: the « écrire les prompts » button stays on the proposal.
   const idsCreations = new Set(vue!.groupes.flatMap((g) => g.changements).filter((x) => x.cibleType === "asset").map((x) => x.id));
   if (decision.ids.some((id) => idsCreations.has(id))) {
     const g = await genererPromptsAssetsCrees(propositionUuid).catch((e: unknown) => ({ ok: false as const, erreur: e instanceof Error ? e.message : "erreur inattendue" }));

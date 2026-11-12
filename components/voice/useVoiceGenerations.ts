@@ -7,11 +7,10 @@ import { useTaches } from "@/components/tasks/TasksProvider";
 import type { GenerationVue } from "@/lib/assets/queries-generations";
 import { cleImage, estActive, pageEstPerimee, tachesDeAsset } from "@/lib/tasks/tasks";
 
-/** Le suivi en direct des essais de voix du personnage : la progression, le rang
- * dans la file et l'annulation viennent de l'indicateur du bandeau. `methodes` : celles que l'étape montre. `surveiller` : UNE étape
- * recharge la page quand une génération de la voix change d'état (démarre, finit, échoue, vient d'un autre onglet) — tous les
- * panneaux étant montés, une seule suffit. Arrivée depuis le bandeau (`?generation=`) : l'étape qui possède cette génération la marque
- * vue et réécrit l'adresse sur son étape, une seule fois. */
+/** Live tracking of the character's voice attempts: progress, rank in the queue and cancellation come from the header indicator.
+ * `methodes`: those the step shows. `surveiller`: ONE step reloads the page when a voice generation changes state (starts, finishes,
+ * fails, comes from another tab) — all the panels being mounted, one is enough. Arrival from the header (`?generation=`): the step
+ * that owns this generation marks it seen and rewrites the address on its step, only once. */
 export function useGenerationsVoix({
   assetId,
   generations,

@@ -7,16 +7,16 @@ import type { Tx } from "../../clips/clip-order";
 import { SECTIONS_FICHE, cleNouvelAsset, estSectionFiche, evaluerEcrasementFiche, lireApresFiche, verifierFiche, type EtatPlanFiche } from "../sheets";
 import { REFUS_SUPPRESSION, type Applicateur, type Db } from "./common";
 
-/** Cible `fiche` (étape 3) : la fiche de plan, c'est-à-dire le prompt H3 en six sections
- * (`plan_prompt_sections`), les références picture/audio (`plan_refs`) et la durée de génération.
- * `cibleRef` = uuid du plan ; opération `modifier` seulement (un plan existant).
- * `apres` = { sections?, refs?, dureeGenerationSecondes? } (lib/agents/sheets.ts, `ApresFiche`) :
- * - écriture COMPLÈTE (Open H3 IR) : les six sections ET les références, qui remplacent celles du plan ;
- * - écriture PARTIELLE (iteration-plan, à venir) : seulement certaines sections, sans `refs` : les autres
- *   sections et les références ne bougent pas.
- * Les voix (plan_dialogues) ne sont jamais touchées : leurs slots `<Audio N>` sont pris tels quels.
- * Refuse toute écriture qui laisserait un label sans sa référence, un slot hors limites, un asset absent.
- * Un plan brouillon passe « en attente » (développé), comme « Développer en fiche de plan ». */
+/** `fiche` target (step 3): the clip sheet, that is the H3 prompt in six sections
+ * (`plan_prompt_sections`), the picture/audio references (`plan_refs`) and the generation duration.
+ * `cibleRef` = the clip's uuid; `modifier` operation only (an existing clip).
+ * `apres` = { sections?, refs?, dureeGenerationSecondes? } (lib/agents/sheets.ts, `ApresFiche`):
+ * - COMPLETE write (Open H3 IR): the six sections AND the references, which replace those of the clip;
+ * - PARTIAL write (iteration-plan, upcoming): only some sections, without `refs`: the other
+ *   sections and the references do not move.
+ * The voices (plan_dialogues) are never touched: their `<Audio N>` slots are taken as they are.
+ * Refuses any write that would leave a label without its reference, a slot out of bounds, a missing asset.
+ * A draft clip moves to « en attente » (developed), as with « Développer en fiche de plan ». */
 
 async function planParUuid(db: Db, projectId: number, uuid: string | null) {
   if (!uuid || !/^[0-9a-f-]{36}$/i.test(uuid)) return null;
@@ -34,7 +34,7 @@ async function planParUuid(db: Db, projectId: number, uuid: string | null) {
   return p ?? null;
 }
 
-/** L'état du plan que la fiche remplacerait (sections, références, voix, registre, rendu). */
+/** The state of the clip that the sheet would replace (sections, references, voices, registry, render). */
 async function lireEtatPlanFiche(db: Db, projectId: number, plan: { id: number; titre: string; statut: string; duree: number }): Promise<EtatPlanFiche> {
   const [lignes, refs, registre, rendus] = await Promise.all([
     db.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, plan.id)),
@@ -47,7 +47,7 @@ async function lireEtatPlanFiche(db: Db, projectId: number, plan: { id: number; 
     db.select({ statut: jobs.statut, chemin: jobs.cheminSortie }).from(jobs).where(eq(jobs.planId, plan.id)),
   ]);
   const sections: Record<string, string> = {};
-  // Plusieurs lignes pour une même section (saisies anciennes) : on les lit bout à bout.
+  // Several lines for the same section (old entries): we read them end to end.
   for (const l of lignes) sections[l.section] = sections[l.section] ? `${sections[l.section]}\n${l.contenu}` : l.contenu;
   return {
     titre: plan.titre,
@@ -76,7 +76,7 @@ export const applicateurFiche: Applicateur = {
     if (!p) return { ...ch, refuseRaison: "Plan introuvable dans ce projet." };
     const etat = await lireEtatPlanFiche(db, ctx.projectId, p);
     const apres = lireApresFiche(ch.apres);
-    // Un asset que la même proposition crée n'existe pas encore : la fiche peut le citer (il sera là quand elle s'applique, voir `dependDeCles`).
+    // An asset that the same proposal creates does not exist yet: the sheet may cite it (it will be there when applied, see `dependDeCles`).
     for (const r of apres.refs ?? []) if (!etat.registre.has(r.asset) && ctx.clesNouvelles.has(cleNouvelAsset(r.asset))) etat.registre.set(r.asset, "oth");
     const refus = verifierFiche(apres, etat);
     const { avant, ecrase, avertissements } = evaluerEcrasementFiche(apres, etat);
@@ -102,10 +102,10 @@ export const applicateurFiche: Applicateur = {
   },
 };
 
-/** L'écriture elle-même, dans la transaction de l'application. Seul ce que porte `apres` change. */
+/** The write itself, inside the application transaction. Only what `apres` carries changes. */
 async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: string }, apres: ReturnType<typeof lireApresFiche>): Promise<void> {
   const sections = Object.entries(apres.sections ?? {}).filter(([k]) => estSectionFiche(k)) as [string, string][];
-  // Fiche d'Open H3 IR : le prompt qu'elle remplace reste dans l'historique du prompt (on peut y revenir depuis le tiroir « Prompt »).
+  // Open H3 IR sheet: the prompt it replaces stays in the prompt history (one can return to it from the « Prompt » drawer).
   const [derniere] = apres.moteur === "h3ir" ? await tx.select({ texte: planPromptVersions.texte }).from(planPromptVersions).where(eq(planPromptVersions.planId, p.id)).orderBy(desc(planPromptVersions.id)).limit(1) : [];
   if (apres.moteur === "h3ir") {
     const lignes = await tx.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, p.id));
@@ -116,7 +116,7 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
     await tx.delete(planPromptSections).where(and(eq(planPromptSections.planId, p.id), inArray(planPromptSections.section, sections.map(([k]) => k))));
     await tx.insert(planPromptSections).values(sections.map(([section, contenu]) => ({ planId: p.id, section, ordre: SECTIONS_FICHE.indexOf(section as never), contenu })));
   }
-  // Une fiche a toujours ses six sections, dans l'ordre canonique (format MiniMax H3).
+  // A sheet always has its six sections, in canonical order (MiniMax H3 format).
   const presentes = new Set((await tx.select({ section: planPromptSections.section }).from(planPromptSections).where(eq(planPromptSections.planId, p.id))).map((l) => l.section));
   const manquantes = SECTIONS_FICHE.filter((s) => !presentes.has(s));
   if (manquantes.length) await tx.insert(planPromptSections).values(manquantes.map((section) => ({ planId: p.id, section, ordre: SECTIONS_FICHE.indexOf(section), contenu: "" })));
@@ -148,19 +148,19 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
 
   const valeurs: Partial<typeof plans.$inferInsert> = { updatedAt: new Date() };
   if (typeof apres.dureeGenerationSecondes === "number") {
-    // La durée de montage suit la durée de génération (retour utilisateur 2026-09-29, updatePlanParametres).
+    // The edit duration follows the generation duration (user feedback 2026-09-29, updatePlanParametres).
     valeurs.dureeGenerationSecondes = apres.dureeGenerationSecondes;
     valeurs.dureeMontageSecondes = apres.dureeGenerationSecondes;
   }
-  // La nouvelle intention du plan (correction qui change ce qui s'y passe) : l'ancienne reste dans l'essai précédent. La « Consigne de l'auteur » de la
-  // description actuelle survit si la nouvelle ne la porte plus (masquée à l'affichage, elle échappe à qui réécrit le texte).
+  // The clip's new intent (a correction that changes what happens in it): the old one stays in the previous attempt. The « Consigne de l'auteur » of the
+  // current description survives if the new one no longer carries it (hidden on display, it would escape whoever rewrites the text).
   const [actuel] = await tx.select({ description: plans.description }).from(plans).where(eq(plans.id, p.id));
   if (apres.description) valeurs.description = conserverConsigneAuteur(apres.description, actuel?.description);
-  // La fiche vient d'être écrite à partir de CE texte du plan : s'il change ensuite, la fiche est à régénérer (lib/clips/intent.ts, `intentionChangee`).
+  // The sheet has just been written from THIS text of the clip: if it changes afterwards, the sheet must be regenerated (lib/clips/intent.ts, `intentionChangee`).
   if (sections.length > 0) valeurs.ficheDescription = valeurs.description ?? actuel?.description ?? null;
-  // Les réglages Open H3 IR décidés par « Itérer » : la nouvelle valeur du PLAN remplace l'ancienne (pas de directive qui s'accumule).
+  // The Open H3 IR settings decided by « Itérer »: the new value of the CLIP replaces the old one (no directive piling up).
   if (apres.reglages?.creativite) valeurs.creativite = apres.reglages.creativite;
   if (apres.reglages?.styleCamera) valeurs.styleCamera = apres.reglages.styleCamera;
-  if (p.statut === "brouillon") valeurs.statut = "en_attente"; // développé en fiche de plan (developperEnFichePlan)
+  if (p.statut === "brouillon") valeurs.statut = "en_attente"; // developed into a clip sheet (developperEnFichePlan)
   await tx.update(plans).set(valeurs).where(eq(plans.id, p.id));
 }

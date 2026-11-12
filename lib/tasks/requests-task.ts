@@ -1,8 +1,8 @@
 import { progressionDemande, type EtapeDemande, type StatutDemande } from "./requests";
 import { cleDemande, type Tache } from "./tasks";
 
-/** Une demande (lib/tasks/requests.ts) vue comme UNE tâche du panneau — règles pures, sans base. Les tâches qui en sont des étapes (run d'agent,
- * job vidéo) ne sont plus listées à part : cette ligne les remplace, du clic au résultat, sans trou entre deux étapes. */
+/** A request (lib/tasks/requests.ts) seen as ONE task of the panel — pure rules, without database. The tasks that are steps of it (agent run,
+ * video job) are no longer listed separately: this line replaces them, from the click to the result, with no gap between two steps. */
 
 export type EntreeTacheDemande = {
   id: number;
@@ -16,19 +16,19 @@ export type EntreeTacheDemande = {
   updatedAt: Date;
   finishedAt: Date | null;
   vuAt: Date | null;
-  /** État de la tâche de l'étape courante : en file, ou en cours (jetons reçus de l'agent, progression du rendu). */
+  /** State of the current step's task: queued, or in progress (tokens received from the agent, render progress). */
   tacheEnFile: boolean;
   tacheEnCours: boolean;
-  /** Quand la tâche de l'étape courante est entrée dans la file : c'est avec cette date que la ligne prend son rang (le worker ordonne les tâches). */
+  /** When the current step's task entered the queue: it is with this date that the line takes its rank (the worker orders the tasks). */
   tacheCreeeLe: Date | null;
   jetons: number | null;
   annulationDemandee: boolean;
   progressionRendu: { valeur: number; max: number } | null;
-  /** L'étape courante est le rendu vidéo (le genre de la ligne suit : agent ou vidéo). */
+  /** The current step is the video render (the line's kind follows: agent or video). */
   rendu: boolean;
-  /** Les mots de la ligne une fois la demande finie, quand ce n'est pas une itération (« Plan ajouté »). */
+  /** The words of the line once the request is finished, when it is not an iteration (« Plan ajouté »). */
   detailFin?: { termine: string; echoue: string };
-  /** Les consignes de l'itération, chacune telle que donnée (dépliable dans la ligne). */
+  /** The instructions of the iteration, each as given (expandable in the line). */
   consignes?: string[];
 };
 
@@ -37,9 +37,9 @@ export function tacheDeDemande(e: EntreeTacheDemande): Tache {
   const p = progressionDemande(e.etapes);
   const courante = e.etapes.find((x) => x.statut === "en_cours") ?? null;
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
-  // Une demande en cours est « en cours » dans le panneau, sauf quand la tâche de son étape attend son tour dans la file : elle prend alors
-  // le rang de cette tâche (« n°2 », « derrière une vidéo »), comme n'importe quelle autre. Entre deux étapes (la suivante n'est pas encore
-  // posée) elle reste « en cours » : jamais de trou.
+  // A request in progress is « en cours » in the panel, except when its step's task waits its turn in the queue: it then takes
+  // the rank of that task (« n°2 », « derrière une vidéo »), like any other. Between two steps (the next one is not yet posted)
+  // it stays « en cours »: never a gap.
   const enAttente = e.statut === "en_attente";
   const detail = enAttente
     ? "En file · consigne modifiable jusqu'au départ"

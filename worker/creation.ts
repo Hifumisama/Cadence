@@ -2,8 +2,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { creationsProjet } from "../db/schema";
 
-/** Le projet est-il en cours de création (l'installateur travaille) ? Ses appels LLM prennent alors le GPU seul, et
- * ses images attendent la fin (worker/images.ts) : le gros modèle de la création ne tient pas à côté de ComfyUI. */
+/** Is the project being created (the installer is working)? Its LLM calls then take the GPU alone, and
+ * its images wait for the end (worker/images.ts): the creation's large model does not fit next to ComfyUI. */
 export async function projetEnCreation(projectId: number | null): Promise<boolean> {
   if (projectId == null) return false;
   const [c] = await db

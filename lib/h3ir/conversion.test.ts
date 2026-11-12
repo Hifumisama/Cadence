@@ -148,7 +148,7 @@ test("lireApresFiche garde `moteur: h3ir` ; la fiche produite passe `verifierFic
     dureeGenerationSecondes: 8,
   };
   assert.equal(verifierFiche(lireApresFiche(brut), etat), null);
-  // Sans la référence de la voix, le label <Audio 1> du prompt resterait orphelin : refusé.
+  // Without the voice's reference, the <Audio 1> label of the prompt would remain orphaned: refused.
   const sansVoix = { ...brut, refs: brut.refs.filter((r: { type: string }) => r.type !== "audio") };
   assert.match(verifierFiche(lireApresFiche(sansVoix), etat) ?? "", /sans référence/);
 });

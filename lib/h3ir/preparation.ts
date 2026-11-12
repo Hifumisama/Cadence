@@ -6,35 +6,35 @@ import { cleNouvelAsset } from "../agents/sheets";
 import { MAX_MANQUANTS_PLAN, TYPES_MANQUANT_PLAN } from "../agents/references-clip";
 import { LIMITE_IMAGES_PLAN } from "./references-clip";
 
-/** PRÉPARER UN PLAN PUIS LE COMPILER (étape 5 d'Open H3 IR câblée, vague 4a, 2026-11-09). Open H3 IR est le seul producteur des prompts vidéo, y compris
- * pour un plan neuf : avant la compilation, chaque plan passe par
- *   1. RÉFÉRENCES : un plan qui a déjà des images de référence (inventaire, à la main) les garde (sauf `rechoisir`) ; sinon le CODE les choisit
- *      (lib/h3ir/references-clip.ts) et les écrit quand il n'a aucun doute ; en cas de doute SEULEMENT, une tâche LLM `references-plan` (une par plan)
- *      complète la liste et signale au plus deux assets manquants. Dans l'ordre du scénario : un plan attend que le plan d'avant ait fini cette étape
- *      (la reprise du décor lit ses références) ;
- *   2. ASSETS : les manquants (2 au plus) sont créés d'office, avec un code et un parent valides ;
- *   3. PROMPTS : les références sans image et sans prompt reçoivent leur prompt (`prompt-asset`, tâches LLM) ;
- *   4. IMAGES : leurs images partent dans la file (GPU), adoptées toutes seules ; la demande reste « en attente d'images » tant qu'une référence n'a pas
- *      de fichier. Une image en échec arrête la demande en nommant l'asset ;
- *   5. COMPILATION : traduction de l'intent puis compilateur Open H3 IR (tâche LLM `plan-h3ir`), fiche enregistrée sans relecture.
- * Chemin rapide : des références qui ont toutes leur image → compilation directe, sans appel de choix.
- * Aucun nouvel état de plan : « en attente d'images » se calcule depuis les références sans fichier ; un brouillon ne passe « en attente » qu'avec la fiche.
+/** PREPARE A CLIP THEN COMPILE IT (step 5 of Open H3 IR wired in, wave 4a, 2026-11-09). Open H3 IR is the only producer of the video prompts, including
+ * for a new clip: before compilation, each clip goes through
+ *   1. REFERENCES: a clip that already has reference images (inventory, by hand) keeps them (unless `rechoisir`); otherwise the CODE chooses them
+ *      (lib/h3ir/references-clip.ts) and writes them when it has no doubt; only in case of doubt, an LLM task `references-plan` (one per clip)
+ *      completes the list and flags at most two missing assets. In screenplay order: a clip waits for the previous clip to have finished this step
+ *      (the set continuation reads its references);
+ *   2. ASSETS: the missing ones (2 at most) are created by default, with a valid code and parent;
+ *   3. PROMPTS: the references without an image and without a prompt receive their prompt (`prompt-asset`, LLM tasks);
+ *   4. IMAGES: their images go into the queue (GPU), adopted automatically; the request stays « en attente d'images » as long as a reference has no file.
+ *      An image in failure stops the request, naming the asset;
+ *   5. COMPILATION: translation of the intent, then the Open H3 IR compiler (LLM task `plan-h3ir`), sheet saved without review.
+ * Fast path: references that all have their image → direct compilation, without a choice call.
+ * No new clip state: « en attente d'images » is computed from the references without a file; a draft only goes « en attente » with the sheet.
  *
- * Ici : les règles PURES (testées, preparation.test.ts). Les lectures et écritures : lib/h3ir/preparation-db.ts ; le pilote : lib/tasks/requests-db.ts. */
+ * Here: the PURE rules (tested, preparation.test.ts). The reads and writes: lib/h3ir/preparation-db.ts; the driver: lib/tasks/requests-db.ts. */
 
-/** La proposition qui crée les assets manquants décidés par « Itérer » (lib/agents/service.ts, `creerAssetsManquants`). */
+/** The proposal that creates the missing assets decided by « Itérer » (lib/agents/service.ts, `creerAssetsManquants`). */
 export const SKILL_ASSETS_MANQUANTS = "assets-manquants";
 
-// --- 1. références -----------------------------------------------------------------------------------------------------------------------------
+// --- 1. references -----------------------------------------------------------------------------------------------------------------------------
 
 export type ObservationReferences = {
-  /** Le nombre d'images de référence déjà posées sur le plan. */
+  /** The number of reference images already set on the clip. */
   existantes: number;
-  /** Rechoisir même si le plan a déjà des références (demande explicite). */
+  /** Re-choose even if the clip already has references (explicit request). */
   rechoisir: boolean;
-  /** Un plan PLUS TÔT dans l'ordre du scénario a une demande de fiche en cours qui n'a pas fini ses références. */
+  /** A clip EARLIER in the screenplay order has a sheet request in progress that has not finished its references. */
   precedentEnAttente: boolean;
-  /** Le choix du code (null : pas encore calculé ou plan introuvable). */
+  /** The code's choice (null: not yet computed or clip not found). */
   choix: { suffit: boolean; references: string[] } | null;
 };
 
@@ -53,19 +53,19 @@ export function deciderReferences(o: ObservationReferences): DecisionReferences 
   return { action: "skill" };
 }
 
-/** Un plan attend-il un plan plus tôt dans le scénario ? `ordre` : celui du plan ; `autres` : les demandes de fiche EN COURS du même épisode. */
+/** Does a clip wait for an earlier clip in the screenplay? `ordre`: that of the clip; `autres`: the sheet requests IN PROGRESS of the same episode. */
 export function precedentEnAttente(ordre: number, autres: { ordre: number; referencesFinies: boolean }[]): boolean {
   return autres.some((a) => a.ordre < ordre && !a.referencesFinies);
 }
 
-// --- 2. assets manquants -----------------------------------------------------------------------------------------------------------------------
+// --- 2. missing assets -----------------------------------------------------------------------------------------------------------------------
 
 export type ManquantPropose = { code: string; type: string; parent?: string | null; description?: string; raison?: string };
 export type ManquantRetenu = { code: string; type: string; parent: string | null; description: string; raison: string };
 
-/** Les manquants qu'on crée vraiment : type permis (ni son, ni voix, ni effet), code reconstruit selon la convention du registre, pas déjà au registre (il
- * est alors rendu dans `existants` : c'est une référence, pas une création), sans doublon, `max` au plus ; le parent n'est gardé que s'il existe et a le
- * même type. `place` : les images encore libres sur le plan (6 au plus, références comprises). Pur. */
+/** The missing ones we really create: permitted type (neither sound, nor voice, nor effect), code rebuilt according to the registry's convention, not already
+ * in the registry (it is then returned in `existants`: it is a reference, not a creation), no duplicates, `max` at most; the parent is only kept if it exists
+ * and has the same type. `place`: the images still free on the clip (6 at most, references included). Pure. */
 export function retenirManquants(
   proposes: ManquantPropose[],
   registre: { code: string; type: string }[],
@@ -103,9 +103,9 @@ export function retenirManquants(
   return { retenus, existants, ecartes };
 }
 
-/** Ce qu'on fait de la sortie du skill `references-plan` : ses références (codes mal recopiés rapprochés, seulement des images du registre, sans doublon),
- * puis ses manquants retenus (`retenirManquants`, dans la place qui reste). Rejouée APRÈS la création des manquants, la même sortie rend leurs codes
- * comme des références (`existants`) : c'est ainsi que l'application écrit la liste complète. Pur. */
+/** What is done with the output of the `references-plan` skill: its references (miscopied codes matched, only images from the registry, without duplicates),
+ * then its missing ones retained (`retenirManquants`, in the room that remains). Replayed AFTER the creation of the missing ones, the same output returns
+ * their codes as references (`existants`): this is how the application writes the full list. Pure. */
 export function decisionSortieReferencesPlan(
   sortie: { references?: { code: string }[]; manquants?: ManquantPropose[] },
   registre: { code: string; type: string }[],
@@ -127,10 +127,10 @@ export function decisionSortieReferencesPlan(
   return { references: references.slice(0, LIMITE_IMAGES_PLAN), manquants: m.retenus, ecartes: m.ecartes, corrections: [...proches].map(([de, v]) => ({ de, vers: v })) };
 }
 
-/** Les types d'asset qui peuvent être une image de référence (les mêmes que lib/h3ir/references-write.ts). */
+/** The asset types that can be a reference image (the same as lib/h3ir/references-write.ts). */
 const TYPES_IMAGE_REFERENCE = new Set(["personnage", "decor", "prop", "vfx", "keyframe", "oth"]);
 
-/** Les créations d'assets d'une proposition (sans prompt : il s'écrit à l'étape suivante). Cochées d'office, appliquées sans relecture. */
+/** The asset creations of a proposal (without a prompt: it is written at the next step). Ticked by default, applied without review. */
 export function brutsManquants(retenus: ManquantRetenu[], options: { sousGroupe?: string | null } = {}): ChangementBrut[] {
   return retenus.map((m) => ({
     groupe: "assets",
@@ -145,18 +145,18 @@ export function brutsManquants(retenus: ManquantRetenu[], options: { sousGroupe?
   }));
 }
 
-// --- 3-4. prompts et images ----------------------------------------------------------------------------------------------------------------------
+// --- 3-4. prompts and images ----------------------------------------------------------------------------------------------------------------------
 
-/** L'état d'un asset dont l'image est attendue par le plan. */
+/** The state of an asset whose image is expected by the clip. */
 export type EtatImageAsset = {
   code: string;
-  /** Nom affichable (libellé, sinon code). */
+  /** Displayable name (label, otherwise code). */
   nom: string;
   aFichier: boolean;
   aPrompt: boolean;
-  /** Une génération de cet asset attend ou tourne dans la file. */
+  /** A generation of this asset is waiting or running in the queue. */
   enFile: boolean;
-  /** L'erreur de sa dernière génération en échec DEPUIS le début de la demande (null : aucune). */
+  /** The error of its last failed generation SINCE the start of the request (null: none). */
   echec: string | null;
 };
 
@@ -166,11 +166,11 @@ export type DecisionImages =
   | { action: "prompts"; codes: string[] }
   | { action: "attendre"; faites: number; total: number; aLancer: string[] };
 
-/** La suite des étapes prompts / images. Pur.
- * - tout a son fichier → prêt (compilation) ;
- * - une génération en échec depuis le début de la demande → échec, en nommant l'asset ;
- * - des assets sans fichier ni prompt (et sans génération en file) → leurs prompts d'abord ;
- * - sinon on attend, en lançant ceux qui ont un prompt et pas encore de génération en file. */
+/** The continuation of the prompts / images steps. Pure.
+ * - everything has its file → ready (compilation);
+ * - a generation failed since the start of the request → failure, naming the asset;
+ * - assets without a file or a prompt (and without a generation in the queue) → their prompts first;
+ * - otherwise we wait, launching those that have a prompt and no generation in the queue yet. */
 export function deciderImages(etats: EtatImageAsset[]): DecisionImages {
   const total = etats.length;
   const manquent = etats.filter((e) => !e.aFichier);
@@ -182,7 +182,7 @@ export function deciderImages(etats: EtatImageAsset[]): DecisionImages {
   return { action: "attendre", faites: total - manquent.length, total, aLancer: manquent.filter((e) => !e.enFile).map((e) => e.code) };
 }
 
-// --- libellés des étapes --------------------------------------------------------------------------------------------------------------------------
+// --- step labels --------------------------------------------------------------------------------------------------------------------------
 
 export const libelleAssets = (n: number) => (n > 0 ? `Création d'assets (${n})` : "Création d'assets");
 export const libellePrompts = (n: number) => (n > 0 ? `Prompts d'assets (${n})` : "Prompts d'assets");

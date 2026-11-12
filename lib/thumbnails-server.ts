@@ -3,19 +3,19 @@ import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from "node:
 import { join } from "node:path";
 import { estMiniaturisable, type LargeurMiniature } from "./thumbnails";
 
-/** Miniatures à la demande, mises en cache sur disque — côté serveur uniquement
- * (sharp, node:fs). Voir lib/thumbnails.ts pour le helper d'URL côté client.
+/** Thumbnails on demand, cached on disk — server side only
+ * (sharp, node:fs). See lib/thumbnails.ts for the client-side URL helper.
  *
- * Rangement : `<MEDIA_ROOT>/_miniatures/<largeur>/<hash du chemin>-<mtime>-<taille>.webp`.
- * La clé contient la date de modification et la taille de la source : une image
- * remplacée sous le même nom (F01 : adoption d'un candidat, import) donne une
- * miniature neuve, sans invalidation explicite. Les anciennes miniatures du même
- * chemin sont supprimées à la génération, le cache reste borné. */
+ * Layout: `<MEDIA_ROOT>/_miniatures/<largeur>/<hash du chemin>-<mtime>-<taille>.webp`.
+ * The key contains the modification date and the size of the source: an image
+ * replaced under the same name (F01: adoption of a candidate, import) gives a
+ * new thumbnail, without explicit invalidation. The old thumbnails of the same
+ * path are deleted at generation, so the cache stays bounded. */
 
 export const DOSSIER_MINIATURES = "_miniatures";
 
-/** Empreinte stable du chemin relatif (séparateurs normalisés) : même fichier,
- * même préfixe, quel que soit l'OS qui a construit le chemin. */
+/** Stable fingerprint of the relative path (normalized separators): same file,
+ * same prefix, whatever the OS that built the path. */
 export function prefixeCache(relatif: string): string {
   const normalise = relatif.replace(/\\/g, "/");
   return createHash("sha1").update(normalise).digest("hex").slice(0, 20);
@@ -31,14 +31,14 @@ export function cheminCache(racine: string, largeur: LargeurMiniature, relatif: 
 
 export type Miniature = { chemin: string; taille: number; etag: string };
 
-// Évite de produire deux fois en parallèle la même miniature (une page affiche
-// souvent dix fois la même image).
+// Avoids producing the same thumbnail twice in parallel (a page often displays
+// the same image ten times).
 const enCours = new Map<string, Promise<Miniature | null>>();
 
-/** Miniature WebP de `<racine>/<relatif>` à la largeur demandée (jamais agrandie),
- * depuis le cache si elle existe. Renvoie null si la source n'est pas
- * miniaturisable, introuvable, ou si sharp échoue : l'appelant sert alors
- * l'original. */
+/** WebP thumbnail of `<racine>/<relatif>` at the requested width (never enlarged),
+ * from the cache if it exists. Returns null if the source is not
+ * thumbnailable, not found, or if sharp fails: the caller then serves
+ * the original. */
 export async function obtenirMiniature(racine: string, relatif: string, largeur: LargeurMiniature): Promise<Miniature | null> {
   if (!estMiniaturisable(relatif)) return null;
   const source = join(racine, relatif);
@@ -58,7 +58,7 @@ export async function obtenirMiniature(racine: string, relatif: string, largeur:
     const deja = await stat(chemin);
     return { chemin, taille: deja.size, etag };
   } catch {
-    // pas encore en cache
+    // not cached yet
   }
 
   const existante = enCours.get(chemin);
@@ -79,9 +79,9 @@ async function produire(
 ): Promise<Miniature | null> {
   try {
     const { default: sharp } = await import("sharp");
-    // Sous Windows, sharp garde le fichier ouvert tant que son cache vit : ça
-    // bloquerait l'écrasement de l'image d'un asset à l'adoption (EBUSY). On lit
-    // donc la source en mémoire et on coupe le cache.
+    // On Windows, sharp keeps the file open as long as its cache lives: that
+    // would block overwriting an asset's image on adoption (EBUSY). So we read
+    // the source into memory and turn the cache off.
     sharp.cache(false);
     const entree = await readFile(source);
     const sortie = await sharp(entree, { failOn: "none" })
@@ -101,8 +101,8 @@ async function produire(
   }
 }
 
-/** Supprime les miniatures périmées du même fichier source (même préfixe,
- * mtime ou taille différents) dans le dossier de cette largeur. */
+/** Deletes the stale thumbnails of the same source file (same prefix,
+ * different mtime or size) in the folder of this width. */
 async function purgerAnciennes(cheminNeuf: string, relatif: string): Promise<void> {
   const dossier = join(cheminNeuf, "..");
   const prefixe = `${prefixeCache(relatif)}-`;
@@ -114,6 +114,6 @@ async function purgerAnciennes(cheminNeuf: string, relatif: string): Promise<voi
       }
     }
   } catch {
-    // le nettoyage est un confort : un échec ne doit jamais faire perdre la miniature
+    // cleanup is a convenience: a failure must never lose the thumbnail
   }
 }

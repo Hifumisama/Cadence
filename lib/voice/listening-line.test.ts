@@ -55,7 +55,7 @@ test("écriture : une seule phrase est redemandée une fois", async () => {
   const r = await ecrireRepliqueEcoute({ langue: "French" }, { fournisseur: f });
   assert.equal(r.texte, "Bonjour à vous. Entrez, je vous prie.");
   assert.equal(f.demandes.length, 2);
-  // Toujours une seule phrase : on garde la seule disponible plutôt que d'échouer.
+  // Still a single sentence: we keep the only one available rather than failing.
   const g = faux(["Bonjour.", "Salut."]);
   assert.equal((await ecrireRepliqueEcoute({ langue: "French" }, { fournisseur: g })).source, "modele");
 });

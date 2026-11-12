@@ -39,7 +39,7 @@ test("périmé par le texte du plan : la description d'aujourd'hui n'est plus ce
   assert.deepEqual(raisonsContenuPerime({ prompt: "summary:\nMaya ouvre la lettre.", duree: 12, description: "Maya ouvre la lettre." }, avecTexte), []);
   assert.deepEqual(raisonsContenuPerime({ prompt: "summary:\nMaya ouvre la lettre.", duree: 12, description: "Maya déchire la lettre." }, avecTexte), ["intention"]);
   assert.deepEqual(raisonsContenuPerime({ prompt: "autre", duree: 9, description: "Maya déchire la lettre." }, avecTexte), ["prompt", "duree", "intention"]);
-  // Sans texte enregistré sur le rendu (écrit avant ce suivi) ou sans `description` demandée (upscale) : l'intention n'est pas jugée.
+  // Without a text recorded on the render (written before this tracking) or without a requested `description` (upscale): the intention is not judged.
   assert.deepEqual(raisonsContenuPerime({ prompt: "summary:\nMaya ouvre la lettre.", duree: 12, description: "Autre." }, { ...avecTexte, descriptionUtilisee: null }), []);
   assert.deepEqual(raisonsContenuPerime({ prompt: "summary:\nMaya ouvre la lettre.", duree: 12 }, avecTexte), []);
   assert.equal(resumerPerime({ codes: [], raisons: ["intention"] }), "intention modifiée");

@@ -49,12 +49,12 @@ async function updatePromptSection(
   }
 }
 
-/** Reprend un rendu de l'historique comme référence du plan : sa seed et sa durée deviennent celles du plan, et, si on le
- * demande, son prompt est restauré. Même seed + même prompt + mêmes références + même durée = même résultat (F04) : c'est ce
- * qui permet d'upscaler EXACTEMENT la prévisualisation qu'on a choisie. */
+/** Takes a render from the history as the clip's reference: its seed and duration become the clip's, and, if asked,
+ * its prompt is restored. Same seed + same prompt + same references + same duration = same result (F04): this is what
+ * allows upscaling EXACTLY the preview that was chosen. */
 async function appliquerRendu(planId: number, jobId: number, restaurerPrompt: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  // Restaurer remplace aussi le texte du plan par celui de l'essai : si le texte actuel n'est celui d'aucun essai (modifié à la main depuis), il serait perdu.
-  // L'appelant (`preparerBaseIteration`) le dit avant et ne restaure qu'avec l'accord de l'utilisateur.
+  // Restoring also replaces the clip's text with that of the attempt: if the current text is that of no attempt (edited by hand since), it would be lost.
+  // The caller (`preparerBaseIteration`) says so beforehand and only restores with the user's agreement.
   const [job] = await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.planId, planId)));
   if (!job) return { ok: false, erreur: "Rendu introuvable pour ce plan." };
   const raison = raisonNonRetenable({
@@ -75,8 +75,8 @@ async function appliquerRendu(planId: number, jobId: number, restaurerPrompt: bo
     const r = sectionsDuPromptEnvoye(job.promptUtilise);
     if (!r.ok) return { ok: false, erreur: `Prompt de ce rendu illisible : ${r.erreurs.join(", ")}.` };
     for (const section of ORDRE_SECTIONS) await updatePromptSection(planId, section, r.sections[section] ?? "");
-    // La description du plan suit son prompt (elle est versionnée par essai) ; un essai d'avant ne l'a pas gardée : on n'y touche pas.
-    // Le prompt restauré est celui qui a été compilé depuis ce texte : la fiche et le texte vont de nouveau ensemble (`ficheDescription`).
+    // The clip's description follows its prompt (it is versioned per attempt); an earlier attempt did not keep it: we do not touch it.
+    // The restored prompt is the one compiled from this text: the sheet and the text go together again (`ficheDescription`).
     if (job.descriptionUtilisee != null) await db.update(plans).set({ description: job.descriptionUtilisee, ficheDescription: job.descriptionUtilisee, updatedAt: new Date() }).where(eq(plans.id, planId));
   }
 
@@ -93,7 +93,7 @@ async function appliquerRendu(planId: number, jobId: number, restaurerPrompt: bo
   return { ok: true };
 }
 
-/** Une relance en lot : un plan dont la durée dépasse le plafond est sauté (faux), les autres partent. */
+/** A batch re-launch: a clip whose duration exceeds the ceiling is skipped (false), the others go. */
 async function relancerSiPossible(...args: Parameters<typeof creerJobRelance>): Promise<boolean> {
   try {
     await creerJobRelance(...args);
@@ -105,23 +105,23 @@ async function relancerSiPossible(...args: Parameters<typeof creerJobRelance>): 
 }
 
 export type BrouillonPlan = {
-  /** Sections du prompt modifiées dans la page (nom → contenu). Seules celles-ci sont écrites. */
+  /** Prompt sections edited on the page (name → content). Only these are written. */
   sections: Record<string, string>;
   dureeGenerationSecondes?: number;
   fps?: number;
-  /** Seed choisie à la main (dé de la console) ; absente = celle du plan. */
+  /** Seed picked by hand (the console dice); absent = the clip's own. */
   seed?: string;
 };
 
-/** « Figer et lancer » : la Fiche de plan n'enregistre rien au fil de l'eau. Au lancement d'un rendu, le prompt et tous les
- * réglages du plan sont écrits d'un coup (c'est ce qui rend le rendu reproductible, F04), puis le job part. Les dialogues sont
- * contrôlés APRÈS l'écriture : leur contrôle lit le prompt qu'on vient de figer. Si un dialogue bloque, le brouillon reste
- * figé mais aucun rendu ne part. */
+/** « Figer et lancer »: the Clip sheet saves nothing as it goes. When a render is launched, the prompt and all the
+ * clip's settings are written at once (that is what makes the render reproducible, F04), then the job goes. The dialogue lines are
+ * checked AFTER the write: their check reads the prompt that was just frozen. If a line of dialogue blocks, the draft stays
+ * frozen but no render goes. */
 export async function figerEtLancer(
   planId: number,
   brouillon: BrouillonPlan,
   mode: "previsualiser" | "final" | "variante",
-  /** Fiche de plan : la consigne de l'utilisateur et le numéro de l'essai dont on part, gardés sur l'essai créé. */
+  /** Clip sheet: the user's instruction and the number of the attempt being started from, kept on the attempt created. */
   essai: { consigne?: string | null; depuisNumero?: number | null } = {},
 ): Promise<{ ok: true; numeroRendu: number } | { ok: false; erreur: string }> {
   const { dureeGenerationSecondes: duree, fps, seed } = brouillon;
@@ -156,18 +156,18 @@ export async function figerEtLancer(
   return { ok: true, numeroRendu: dernier?.n ?? 1 };
 }
 
-/** « Itérer » (et « Appliquer et générer » après une analyse) : la FIN de la transaction indissociable consigne → l'agent réécrit →
- * application → génération, sans confirmation (décision 2026-10-12, docs/FRICTIONS.md). La proposition `iteration-plan` est lue ici (jamais
- * crue sur parole du client), sa décision (`decisionIteration`) recalculée, puis la correction est appliquée ET l'essai créé dans UNE
- * transaction : si l'un échoue, rien n'est écrit. On applique les changements qui passent les contrôles, on garde le reste en notes sur
- * l'essai (`jobs.alertes_iteration`). Le prompt remplacé reste dans l'essai précédent (« Repartir de là »). Seuls arrêts, sans rien écrire :
- * l'agent a échoué, aucune écriture appliquable, un essai déjà en file, des dialogues à corriger. Les dialogues sont contrôlés AVANT :
- * une correction ne touche jamais aux balises `<d>` (contrôle verbatim), son application ne change donc pas leur état. */
+/** « Itérer » (and « Appliquer et générer » after an analysis): the END of the indivisible transaction instruction → the agent rewrites →
+ * application → generation, without confirmation (decision 2026-10-12, docs/FRICTIONS.md). The `iteration-plan` proposal is read here (never
+ * trusted on the client's word), its decision (`decisionIteration`) recomputed, then the correction is applied AND the attempt created in ONE
+ * transaction: if either fails, nothing is written. The changes that pass the checks are applied, the rest is kept as notes on
+ * the attempt (`jobs.alertes_iteration`). The replaced prompt stays in the previous attempt (« Repartir de là »). The only stops, without writing anything:
+ * the agent failed, no applicable write, an attempt already queued, dialogue lines to correct. The dialogue lines are checked BEFORE:
+ * a correction never touches the `<d>` tags (verbatim check), so its application does not change their state. */
 export async function appliquerIterationEtGenerer(
   planId: number,
   propositionUuid: string,
   essai: { consigne: string | null; depuisNumero: number | null },
-  /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits dans la même transaction que l'essai. */
+  /** Settings edited by hand on the page (duration, FPS, seed), written in the same transaction as the attempt. */
   reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string } = {},
 ): Promise<{ ok: true; numeroRendu: number; notes: string[] } | { ok: false; erreur: string }> {
   const r = await appliquerIterationEtGenererCore(planId, propositionUuid, essai, reglages);
@@ -175,27 +175,27 @@ export async function appliquerIterationEtGenerer(
   return r;
 }
 
-/** Écrit les sections modifiées sans lancer de rendu : appelé avant d'ajouter ou de retirer une référence, car ces deux
- * gestes réécrivent le prompt côté serveur (déclaration, renumérotation) et écraseraient un brouillon non figé. */
+/** Writes the edited sections without launching a render: called before adding or removing a reference, because these two
+ * gestures rewrite the prompt server-side (declaration, renumbering) and would overwrite an unfrozen draft. */
 export async function ecrireSections(planId: number, sections: Record<string, string>) {
   for (const [section, contenu] of Object.entries(sections)) {
     if ((ORDRE_SECTIONS as readonly string[]).includes(section)) await updatePromptSection(planId, section, contenu);
   }
 }
 
-/** Passage nuit (CDC page 4, "Contrôle de la queue batch : déclenchement du
- * passage nuit (upscale en masse)") : relance en rendu final tous les plans
- * de l'épisode encore en "previsualise" — un plan dont la dernière
- * génération a réussi sans upscale, donc déjà jugé bon à l'œil (F03) mais
- * jamais passé en rendu final. Ne touche à rien d'autre : un plan encore
- * `en_attente`/`echoue` n'a pas eu son aller-retour de validation, ce
- * n'est pas ce bouton qui doit le faire avancer. */
+/** Night pass (CDC page 4, "Contrôle de la queue batch : déclenchement du
+ * passage nuit (upscale en masse)"): re-launches as final render all the clips
+ * of the episode still in "previsualise" — a clip whose last
+ * generation succeeded without upscale, so already judged good by eye (F03) but
+ * never moved to final render. Touches nothing else: a clip still
+ * `en_attente`/`echoue` has not had its validation round trip, and
+ * it is not this button that should move it forward. */
 export async function lancerPassageNuit(episodeId: number): Promise<{ n: number }> {
   const aTraiter = await db
     .select({ id: plans.id })
     .from(plans)
     .where(and(eq(plans.episodeId, episodeId), eq(plans.statut, "previsualise")))
-    .orderBy(plans.ordre, plans.id); // dans l'ordre : voir lancerPrevisualisations
+    .orderBy(plans.ordre, plans.id); // in order: see lancerPrevisualisations
 
   let n = 0;
   for (const p of aTraiter) {
@@ -207,9 +207,9 @@ export async function lancerPassageNuit(episodeId: number): Promise<{ n: number 
   return { n };
 }
 
-/** Classement des plans d'un épisode pour « Toutes les prévisualisations » : `neufs` (développés, sans aucun rendu terminé : ils partent
- * d'office), `avecRendu` (au moins un rendu terminé : il faut l'accord de l'utilisateur pour en refaire un), `dejaEnFile` (un rendu attend
- * ou tourne déjà) et `brouillons` (fiche pas encore développée : ni l'un ni l'autre). */
+/** Sorting of an episode's clips for « Toutes les prévisualisations »: `neufs` (developed, with no finished render: they go
+ * automatically), `avecRendu` (at least one finished render: the user's agreement is needed to make another), `dejaEnFile` (a render is waiting
+ * or already running) and `brouillons` (sheet not yet developed: neither). */
 async function classerPourPrevisualisations(episodeId: number) {
   const lignes = await db.select({ id: plans.id, statut: plans.statut }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre);
   const jobsDuPlan = lignes.length
@@ -227,16 +227,16 @@ async function classerPourPrevisualisations(episodeId: number) {
 
 export type PlanPrevisualisation = {
   uuid: string;
-  /** Rang dans l'épisode (« 04 ») : ce qu'on affiche, jamais un identifiant. */
+  /** Rank in the episode (« 04 »): what is displayed, never an identifier. */
   position: number;
   titre: string;
-  /** `neuf` : aucun rendu, part d'office ; `rendu` : en a déjà un (à cocher pour le refaire) ; `en_file` : un rendu attend ou tourne ; `bloque` : dialogues à corriger. */
+  /** `neuf`: no render, goes automatically; `rendu`: already has one (to tick to redo it); `en_file`: a render is waiting or running; `bloque`: dialogue to correct. */
   etat: "neuf" | "rendu" | "en_file" | "bloque";
   raison: string | null;
 };
 
-/** Les plans de l'épisode tels que la fenêtre « Toutes les prévisualisations » les liste, pour choisir ce qu'on (re)rend. Les brouillons
- * (fiche pas développée) n'y figurent pas. */
+/** The episode's clips as the « Toutes les prévisualisations » window lists them, to choose what to (re)render. Drafts
+ * (sheet not developed) are not included. */
 export async function listerPrevisualisations(episodeId: number): Promise<PlanPrevisualisation[]> {
   const c = await classerPourPrevisualisations(episodeId);
   const toutes = await db
@@ -257,16 +257,16 @@ export async function listerPrevisualisations(episodeId: number): Promise<PlanPr
   return lignes;
 }
 
-/** Lance une prévisualisation (sans upscale, seed du plan) pour les plans choisis dans la fenêtre. Le choix est l'accord : un plan qui a
- * déjà un rendu et qu'on a coché en reçoit un NOUVEAU (l'historique garde les anciens). Revérifié ici, au moment de lancer : un plan
- * devenu « en file » entre-temps est sauté. */
+/** Launches a preview (without upscale, the clip's seed) for the clips chosen in the window. The choice is the agreement: a clip that has
+ * already a render and that was ticked gets a NEW one (the history keeps the old ones). Checked again here, at launch time: a clip
+ * that became « en file » in the meantime is skipped. */
 export async function lancerPrevisualisations(
   episodeId: number,
   planUuids: string[],
 ): Promise<{ n: number; dejaEnFile: number }> {
   const c = await classerPourPrevisualisations(episodeId);
-  // Dans l'ordre de l'épisode : le worker prend les essais dans l'ordre de création, et un plan en liaison « suite » prend la dernière image du rendu
-  // de son précédent (lib/clips/clip-continuity.ts) : le précédent doit passer avant.
+  // In the episode's order: the worker takes attempts in creation order, and a clip linked as « suite » takes the last frame of the render
+  // of its predecessor (lib/clips/clip-continuity.ts): the predecessor must go first.
   const choisis = planUuids.length ? await db.select({ id: plans.id }).from(plans).where(and(eq(plans.episodeId, episodeId), inArray(plans.uuid, planUuids))).orderBy(plans.ordre, plans.id) : [];
   let n = 0;
   let dejaEnFile = 0;
@@ -282,11 +282,11 @@ export async function lancerPrevisualisations(
   return { n, dejaEnFile };
 }
 
-/** « Relancer les plans périmés » (lib/clips/stale-clips) : un nouveau rendu pour chaque plan de l'épisode dont une référence, le prompt ou la durée
- * ont changé depuis son dernier rendu. Chaque plan repart dans le mode de son dernier rendu (prévisualisation reste prévisualisation,
- * final reste final) et avec sa seed et le prompt et la durée du plan tels qu'ils sont maintenant. Sont sautés : les plans déjà en file ou en cours. */
+/** « Relancer les plans périmés » (lib/clips/stale-clips): a new render for each clip of the episode whose reference, prompt or duration
+ * has changed since its last render. Each clip restarts in the mode of its last render (preview stays preview,
+ * final stays final) and with the clip's seed and the prompt and duration as they are now. Skipped: clips already queued or running. */
 export async function relancerPlansPerimes(episodeId: number): Promise<{ n: number; dejaEnFile: number }> {
-  const episode = await db.select({ id: plans.id, statut: plans.statut }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id); // dans l'ordre : voir lancerPrevisualisations
+  const episode = await db.select({ id: plans.id, statut: plans.statut }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id); // in order: see lancerPrevisualisations
   const perimes = episode.length ? await getPlansPerimes({ planIds: episode.map((p) => p.id) }) : new Map();
 
   let n = 0;
@@ -306,14 +306,14 @@ export async function relancerPlansPerimes(episodeId: number): Promise<{ n: numb
   return { n, dejaEnFile };
 }
 
-/** Ajoute une référence (image/audio/vidéo) au prochain slot disponible, et la déclare dans le prompt
- * (`subject_definitions`, `retention_analysis` : lib/clips/references.ts). Les slots sont toujours sans trou
- * (révision 2026-10-03 : un retrait renumérote, voir `supprimerRef`). */
+/** Adds a reference (image/audio/video) to the next free slot, and declares it in the prompt
+ * (`subject_definitions`, `retention_analysis`: lib/clips/references.ts). Slots are always without gaps
+ * (revision 2026-10-03: a removal renumbers, see `supprimerRef`). */
 export async function ajouterRef(
   planId: number,
   type: RefLabel["type"],
   assetId: number,
-  /** L'emplacement choisi (la case cliquée) ; les images restent numérotées 1..n sans trou, donc il ne compte que pour les vidéos et les audios. */
+  /** The chosen slot (the clicked box); images stay numbered 1..n without gaps, so it only counts for videos and audios. */
   slotVoulu?: number,
 ) {
   const existantes = await db
@@ -328,7 +328,7 @@ export async function ajouterRef(
   if (prochainSlot == null) return;
 
   await db.transaction(async (tx) => {
-    // Rôle et rétention par défaut (ceux qu'écrirait la fiche) : une référence posée à la main, ou retirée puis remise, n'arrive plus sans eux.
+    // Default role and retention (those the sheet would write): a reference placed by hand, or removed then put back, no longer arrives without them.
     const { role, retention } = await roleDeLaRef(tx, type, assetId);
     await tx.insert(planRefs).values({
       planId,
@@ -344,8 +344,8 @@ export async function ajouterRef(
   revalidatePath("/", "layout");
 }
 
-/** Retire une référence : les images restantes sont renumérotées 1..n, le prompt suit (lignes de la référence
- * retirées, labels réécrits, mentions en prose remplacées par le nom de l'asset). */
+/** Removes a reference: the remaining images are renumbered 1..n, the prompt follows (lines of the reference
+ * removed, labels rewritten, prose mentions replaced by the asset's name). */
 export async function supprimerRef(refId: number) {
   await db.transaction((tx) => retirerRefDuPlan(tx, refId));
   revalidatePath("/", "layout");
@@ -354,19 +354,19 @@ export async function supprimerRef(refId: number) {
 type ValeursScenario = {
   titre: string;
   description: string;
-  /** La durée de RENDU du plan, entier de DUREE_GENERATION_MIN à DUREE_GENERATION_MAX (4 à 10 s) : écrite comme durée de génération ET de montage (le montage suit le rendu,
-   * comme partout ailleurs). Absente = on n'y touche pas (une durée d'avant, hors bornes, reste telle quelle). */
+  /** The clip's RENDER duration, integer from DUREE_GENERATION_MIN to DUREE_GENERATION_MAX (4 to 10 s): written as both generation AND montage duration (the montage follows the render,
+   * as everywhere else). Absent = not touched (an earlier duration, out of bounds, stays as is). */
   dureeSecondes?: number;
-  /** Liaison avec le plan précédent (lib/clips/clip-link.ts) ; une valeur inconnue n'écrit rien. */
+  /** Link with the previous clip (lib/clips/clip-link.ts); an unknown value writes nothing. */
   liaison?: string;
-  /** Open H3 IR (lib/h3ir/settings.ts) : absents = on n'y touche pas ; `null` ou vide = le plan hérite de sa scène, puis du projet ; style « aucun » = pas de style. */
+  /** Open H3 IR (lib/h3ir/settings.ts): absent = not touched; `null` or empty = the clip inherits from its scene, then from the project; style « aucun » = no style. */
   creativite?: string | null;
   styleCamera?: string | null;
 };
 
-/** Édition des champs scénario — reste ouverte même après développement en
- * fiche de plan (retour utilisateur 2026-09-27) : rien n'empêche de revenir
- * corriger la description après coup. */
+/** Editing of the screenplay fields — stays open even after development into
+ * a clip sheet (user feedback 2026-09-27): nothing prevents coming back
+ * to correct the description afterwards. */
 export async function updatePlanScenario(planId: number, valeurs: ValeursScenario): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const duree = valeurs.dureeSecondes;
   if (duree !== undefined && (typeof duree !== "number" || !Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
@@ -389,14 +389,14 @@ export async function updatePlanScenario(planId: number, valeurs: ValeursScenari
   return { ok: true };
 }
 
-/** Suppression protégée (révisé 2026-09-28 — remplace la "suppression
- * libre" du même jour, voir docs/FRICTIONS.md) : un plan encore cité comme
- * référence (image/audio/vidéo) ne se supprime pas tant que ces liens n'ont
- * pas été explicitement défaits — même philosophie que supprimerAsset
- * (app/assets/actions.ts). `force` saute la vérification : le plan disparaît
- * quand même, ses refs cascadent avec lui (db/schema.ts), mais jamais les
- * assets qu'elles citaient. Ses répliques liées ne sont pas touchées : seule la
- * liaison disparaît, la réplique existe par elle-même (F02, révision
+/** Protected deletion (revised 2026-09-28 — replaces the "free deletion"
+ * of the same day, see docs/FRICTIONS.md): a clip still cited as a
+ * reference (image/audio/video) cannot be deleted until these links have
+ * been explicitly undone — same philosophy as supprimerAsset
+ * (app/assets/actions.ts). `force` skips the check: the clip disappears
+ * anyway, its refs cascade with it (db/schema.ts), but never the
+ * assets they cited. Its linked lines of dialogue are not touched: only the
+ * link disappears, the line of dialogue exists by itself (F02, revision
  * 2026-09-30). */
 export async function supprimerPlan(
   planId: number,
@@ -408,7 +408,7 @@ export async function supprimerPlan(
   redirect(plansHref);
 }
 
-/** La même suppression, sans quitter la page (le tiroir de la page Scénario : le plan disparaît de la scène, on reste où l'on est). */
+/** The same deletion, without leaving the page (the drawer of the Scénario page: the clip disappears from the scene, we stay where we are). */
 export async function retirerPlan(planId: number, force = false): Promise<{ ok: true } | { ok: false; erreur: string }> {
   if (!force) {
     const [ref] = await db
@@ -426,9 +426,9 @@ export async function retirerPlan(planId: number, force = false): Promise<{ ok: 
   return { ok: true };
 }
 
-/** Enregistre le prompt en TEXTE LIBRE (le panneau Prompt de la fiche). Le texte est lu comme un prompt complet — les six sections, chacune sous son nom —
- * et remplace celles du plan ; s'il ne se lit pas, rien n'est écrit et les raisons sont rendues. Chaque enregistrement garde son texte dans
- * l'historique ; la toute première fois, le prompt d'avant y est gardé aussi, pour qu'on puisse y revenir. */
+/** Saves the prompt as FREE TEXT (the Prompt panel of the sheet). The text is read as a complete prompt — the six sections, each under its name —
+ * and replaces the clip's; if it does not read, nothing is written and the reasons are returned. Each save keeps its text in
+ * the history; the very first time, the prior prompt is kept there too, so that one can return to it. */
 export async function enregistrerPrompt(planId: number, brut: string): Promise<{ ok: true } | { ok: false; erreurs: string[] }> {
   const texte = extraireBlocPrompt(brut);
   const { erreurs } = validerPromptColle(texte);
@@ -449,24 +449,24 @@ export async function enregistrerPrompt(planId: number, brut: string): Promise<{
   return { ok: true };
 }
 
-// --- fiche de plan « table de montage » (2026-10-12) --------------------------------------------------------------------
+// --- clip sheet « table de montage » (2026-10-12) --------------------------------------------------------------------
 
 type Resume = { ok: true } | { ok: false; erreur: string };
 
-/** « Prêt à upscaler » : l'essai affiché (A) devient l'essai retenu du plan. Il faut un essai terminé avec son fichier ; une vidéo
- * importée peut être validée (elle n'aura simplement pas d'upscale : pas de seed, voir `lancerUpscaleEpisode`). */
+/** « Prêt à upscaler »: the displayed attempt (A) becomes the clip's kept attempt. It needs a finished attempt with its file; an imported video
+ * can be validated (it simply will not have an upscale: no seed, see `lancerUpscaleEpisode`). */
 export async function validerPretUpscale(
   planId: number,
   jobId: number,
-  /** Le texte actuel du plan n'est celui d'aucun essai (modifié à la main) : `remplacer` le met à celui de l'essai retenu, `garder` valide sans y toucher. Sans réponse, la validation s'arrête avec `conflit`. */
+  /** The clip's current text is that of no attempt (edited by hand): `remplacer` sets it to that of the kept attempt, `garder` validates without touching it. Without an answer, validation stops with `conflit`. */
   texte?: "remplacer" | "garder",
 ): Promise<{ ok: true } | { ok: false; erreur: string; conflit?: ConflitDescription }> {
   const [job] = await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.planId, planId)));
   if (!job) return { ok: false, erreur: "Essai introuvable pour ce plan." };
   if (job.statut !== "termine" || !job.cheminSortie) return { ok: false, erreur: "Cet essai n'est pas terminé : on ne valide qu'un essai qu'on peut regarder." };
 
-  // Le scénario dit ce qu'on retient pour le film : le texte du plan devient celui de l'essai validé (le texte dont il est parti), et l'alerte « texte modifié » tombe.
-  // Un texte retouché à la main depuis, qu'aucun essai ne porte, ne s'écrase pas sans l'accord de l'utilisateur.
+  // The screenplay says what is kept for the film: the clip's text becomes that of the validated attempt (the text it started from), and the « texte modifié » alert drops.
+  // A text edited by hand since, which no attempt carries, is not overwritten without the user's agreement.
   const [lePlan] = await db.select({ description: plans.description }).from(plans).where(eq(plans.id, planId));
   const valeurs: Partial<typeof plans.$inferInsert> = { pretUpscaleAt: new Date(), renduRetenuId: job.id, updatedAt: new Date() };
   if (texte !== "garder" && job.descriptionUtilisee != null && intentionChangee(lePlan?.description, job.descriptionUtilisee)) {
@@ -482,8 +482,8 @@ export async function validerPretUpscale(
     }
     valeurs.description = job.descriptionUtilisee;
   }
-  // La fiche suit le texte quand elle est celle de l'essai retenu ET que le texte du plan est le sien (qu'on vienne de l'y mettre ou qu'il y fût déjà : une fiche écrite par un
-  // chemin qui n'a pas noté son texte, `ficheDescription` en retard, est ainsi remise d'accord). Sinon elle reste signalée « à régénérer ».
+  // The sheet follows the text when it is that of the kept attempt AND the clip's text is its own (whether we have just put it there or it was already there: a sheet written by a
+  // path that did not note its text, `ficheDescription` lagging, is thus brought back in line). Otherwise it stays flagged « à régénérer ».
   if (job.descriptionUtilisee != null && job.promptUtilise && memeDescription(valeurs.description ?? lePlan?.description, job.descriptionUtilisee)) {
     const sections = await db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId));
     if (!promptDiffere(assemblerPrompt(sections), job.promptUtilise)) valeurs.ficheDescription = job.descriptionUtilisee;
@@ -493,21 +493,21 @@ export async function validerPretUpscale(
   return { ok: true };
 }
 
-/** « Rouvrir l'itération » : le plan n'est plus prêt (l'essai retenu est oublié, les essais restent). */
+/** « Rouvrir l'itération »: the clip is no longer ready (the kept attempt is forgotten, the attempts remain). */
 export async function rouvrirIteration(planId: number): Promise<Resume> {
   await db.update(plans).set({ pretUpscaleAt: null, renduRetenuId: null, updatedAt: new Date() }).where(eq(plans.id, planId));
   revalidatePath("/", "layout");
   return { ok: true };
 }
 
-/** Le texte actuel du plan et celui d'un essai, quand reprendre l'essai écraserait un texte modifié à la main (lib/clips/intent.ts, `descriptionSeraitPerdue`). */
+/** The clip's current text and that of an attempt, when taking up the attempt would overwrite a text edited by hand (lib/clips/intent.ts, `descriptionSeraitPerdue`). */
 export type ConflitDescription = { actuelle: string; essai: string; numeroRendu: number };
 
-/** Avant « Itérer » depuis un essai qui n'est pas le plus récent : le plan reprend le prompt, la seed et la durée de CET essai, pour que
- * la consigne s'applique à son prompt (et que l'agent regarde son rendu). Ne fait rien pour le plus récent essai, pour un import (ni
- * seed ni prompt) ni quand le prompt est déjà le bon ; le prompt de l'essai qu'on quitte reste retrouvable dans son propre essai
- * (`promptUtilise`), « Repartir de là » le rend. `restaure` dit si le prompt a été réécrit. `confirmerDescription` : l'utilisateur a vu que le texte actuel du plan
- * (modifié à la main, il n'est celui d'aucun essai) sera remplacé par celui de l'essai ; sans lui, la préparation s'arrête avec `conflit` plutôt que d'écraser en silence. */
+/** Before « Itérer » from an attempt that is not the most recent: the clip takes back the prompt, seed and duration of THIS attempt, so that
+ * the instruction applies to its prompt (and the agent looks at its render). Does nothing for the most recent attempt, for an import (neither
+ * seed nor prompt), nor when the prompt is already the right one; the prompt of the attempt being left stays findable in its own attempt
+ * (`promptUtilise`), « Repartir de là » restores it. `restaure` says whether the prompt was rewritten. `confirmerDescription`: the user has seen that the clip's current text
+ * (edited by hand, it is that of no attempt) will be replaced by that of the attempt; without it, the preparation stops with `conflit` rather than overwriting silently. */
 export async function preparerBaseIteration(
   planId: number,
   jobId: number,
@@ -548,9 +548,9 @@ export async function preparerBaseIteration(
   return { ok: true, restaure: restaurer };
 }
 
-/** Supprime un essai du journal. Interdit tant qu'il est en file ou en cours. Cascades (voir `consequencesSuppression`) : la ligne de
- * rendu part ; son fichier vidéo aussi du stockage, sauf si un autre essai le référence ; si c'était l'essai retenu le plan n'est plus
- * prêt (retour « en itération ») ; si c'était le dernier essai le plan redevient brouillon ; la projection `plans.statut` suit. */
+/** Deletes an attempt from the log. Forbidden while it is queued or running. Cascades (see `consequencesSuppression`): the render line
+ * goes; its video file goes from storage too, unless another attempt references it; if it was the kept attempt the clip is no longer
+ * ready (back to « en itération »); if it was the last attempt the clip becomes a draft again; the `plans.statut` projection follows. */
 export async function supprimerEssai(planId: number, jobId: number): Promise<{ ok: true; fichierSupprime: boolean } | { ok: false; erreur: string }> {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) return { ok: false, erreur: "Plan introuvable." };
@@ -565,7 +565,7 @@ export async function supprimerEssai(planId: number, jobId: number): Promise<{ o
   );
   if (!c.ok) return { ok: false, erreur: c.raison };
 
-  // Un autre plan (ou une autre ligne) qui pointerait le même fichier le garde : on vérifie en base, pas seulement dans ce plan.
+  // Another clip (or another row) pointing to the same file keeps it: we check in the database, not only within this clip.
   let supprimerFichier = c.supprimerFichier;
   if (supprimerFichier && cible.cheminSortie) {
     const [autre] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.cheminSortie, cible.cheminSortie), ne(jobs.id, cible.id))).limit(1);
@@ -581,13 +581,13 @@ export async function supprimerEssai(planId: number, jobId: number): Promise<{ o
   let fichierSupprime = false;
   if (supprimerFichier && cible.cheminSortie) {
     const absolu = resolve(MEDIA_ROOT, cible.cheminSortie);
-    // Jamais hors du dossier de rendus de ce plan.
+    // Never outside this clip's render folder.
     if (absolu.startsWith(resolve(MEDIA_ROOT, "plans", String(planId)))) {
       try {
         await rm(absolu, { force: true });
         fichierSupprime = true;
       } catch {
-        // Le fichier reste sur le disque : la ligne est partie, c'est l'essentiel (rien ne le référence plus).
+        // The file stays on disk: the row is gone, which is the essential part (nothing references it any more).
       }
     }
   }

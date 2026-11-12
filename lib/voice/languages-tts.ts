@@ -1,10 +1,10 @@
-/** Langue au sens du moteur vocal (Qwen3-TTS, nœud `Qwen3TTSEngineNode`, champ `language`). Le moteur n'accepte que des NOMS ANGLAIS :
+/** Language in the sense of the voice engine (Qwen3-TTS, node `Qwen3TTSEngineNode`, field `language`). The engine only accepts ENGLISH NAMES:
  * « Auto », « Chinese », « English », « French », « German », « Italian », « Japanese », « Korean », « Portuguese », « Russian »,
- * « Spanish ». Tout ce qui est envoyé à ComfyUI (voix, test audio, prise de réplique) passe par `langueMoteurVoix` : code ISO (« fr »,
- * « en-US »), nom français (« Français ») ou anglais (« French ») → le nom anglais. Un nom inconnu, ou « Sans dialogue », donne « Auto »
- * (le moteur détecte la langue). Pur : importable côté client comme côté serveur et worker. */
+ * « Spanish ». Everything sent to ComfyUI (voice, audio test, line take) goes through `langueMoteurVoix`: ISO code (« fr »,
+ * « en-US »), French name (« Français ») or English (« French ») → the English name. An unknown name, or « Sans dialogue », gives « Auto »
+ * (the engine detects the language). Pure: importable client-side as well as server-side and worker-side. */
 
-/** Les langues du moteur, dans l'ordre d'affichage : valeur envoyée (anglais) et libellé français pour l'interface. */
+/** The engine's languages, in display order: sent value (English) and French label for the interface. */
 export const LANGUES_MOTEUR = [
   { valeur: "French", libelle: "Français" },
   { valeur: "English", libelle: "Anglais" },
@@ -39,8 +39,8 @@ export function langueMoteurVoix(langue: string | null | undefined): string {
   return LANGUES.find(([motif]) => motif.test(texte))?.[1] ?? LANGUE_AUTO;
 }
 
-/** La langue d'une FICHE de voix, telle qu'on la stocke et l'affiche : le nom anglais du moteur. Vide : « French » (langue par défaut du
- * projet) ; inconnue : « Auto ». Une ancienne valeur saisie à la main (« Français ») est ainsi remise au bon nom à la lecture. */
+/** The language of a VOICE SHEET, as it is stored and displayed: the engine's English name. Empty: « French » (the project's default language);
+ * unknown: « Auto ». An old value entered by hand (« Français ») is thus restored to the right name on reading. */
 export function langueFicheVoix(langue: string | null | undefined): string {
   return (langue ?? "").trim() ? langueMoteurVoix(langue) : "French";
 }

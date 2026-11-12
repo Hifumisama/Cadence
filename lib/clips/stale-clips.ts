@@ -8,25 +8,25 @@ import { continuiteEffective } from "../renders/video-steps";
 import { essaiSourceDuLatent, essaiSourceDuRaccord, planPrecedent } from "./queries-continuity";
 import { raisonsContenuPerime, type RaisonPerime } from "../renders/renders";
 
-/** Un plan est « périmé » quand son DERNIER rendu terminé est dépassé :
- * - une de ses références (image ou son) est postérieure au rendu : il a été rendu avec une version de l'asset qui n'existe
- *   plus (pas de versionnage, F01 : adopter remplace le fichier) ;
- * - son prompt ou sa durée de génération ne sont plus ceux que le worker a soumis (2026-10, révision d'épisode : modifier une
- *   fiche ou une durée périme le rendu). Comparé par valeur (`promptUtilise`, `dureeUtilisee`), pas par date.
- * Un plan jamais rendu n'est pas périmé — il n'a rien de dépassé. Une réplique modifiée passe d'abord par « dialogues à corriger »
- * (contrôle verbatim) ; le rendu devient périmé quand la fiche est resynchronisée, donc que le prompt change. */
+/** A clip is « stale » when its LAST finished render is outdated:
+ * - one of its references (image or sound) is later than the render: it was rendered with a version of the asset that no longer
+ *   exists (no versioning, F01: adopting replaces the file);
+ * - its prompt or its generation duration are no longer those the worker submitted (2026-10, episode revision: editing a
+ *   sheet or a duration makes the render stale). Compared by value (`promptUtilise`, `dureeUtilisee`), not by date.
+ * A clip never rendered is not stale — it has nothing outdated. A dialogue line changed first goes through « dialogues à corriger »
+ * (verbatim check); the render becomes stale when the sheet is resynchronised, hence when the prompt changes. */
 export type PlanPerime = {
   planId: number;
-  /** Assets modifiés depuis le dernier rendu, par code. */
+  /** Assets changed since the last render, by code. */
   codes: string[];
-  /** Ce qui a changé dans le contenu du plan depuis son dernier rendu (vide pour le filtre `assetId`). */
+  /** What has changed in the clip's content since its last render (empty for the `assetId` filter). */
   raisons: RaisonPerime[];
 };
 
 type Filtre = { projectId: number } | { planIds: number[] } | { assetId: number };
 
-/** Plans périmés. `assetId` : ceux qui citent cet asset (la fiche d'asset) — seulement par leurs références, c'est la question
- * « que périme le remplacement de cette image ? » ; `planIds` : ceux de la liste ; `projectId` : tous (références ET contenu). */
+/** Stale clips. `assetId`: those that cite this asset (the asset sheet) — only by their references, it is the question
+ * « what does replacing this image make stale? »; `planIds`: those of the list; `projectId`: all (references AND content). */
 export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanPerime>> {
   let planIds: number[];
   if ("planIds" in filtre) planIds = filtre.planIds;
@@ -38,7 +38,7 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
   const resultat = new Map<number, PlanPerime>();
   if (planIds.length === 0) return resultat;
 
-  // Début du dernier rendu terminé de chaque plan : c'est à ce moment que le worker a lu les références.
+  // The start of each clip's last finished render: that is when the worker read the references.
   const rendus = await db
     .select({ planId: jobs.planId, debut: jobs.startedAt, cree: jobs.createdAt, promptUtilise: jobs.promptUtilise, dureeUtilisee: jobs.dureeUtilisee, descriptionUtilisee: jobs.descriptionUtilisee, raccordJobId: jobs.raccordJobId, continuite: jobs.continuite })
     .from(jobs)
@@ -72,7 +72,7 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
       db.select({ planId: planPromptSections.planId, section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(inArray(planPromptSections.planId, ids)),
       db.select({ id: plans.id, duree: plans.dureeGenerationSecondes, description: plans.description, episodeId: plans.episodeId, ordre: plans.ordre, liaison: plans.liaison }).from(plans).where(inArray(plans.id, ids)),
     ]);
-    // Le texte du plan se compare à celui de l'essai RETENU quand il y en a un (valider « prêt à upscaler » met le texte du plan à celui de l'essai), sinon au dernier rendu.
+    // The clip's text is compared with that of the KEPT attempt when there is one (validating « prêt à upscaler » sets the clip's text to that of the attempt), otherwise with the last render.
     const retenus = await db.select({ planId: plans.id, description: jobs.descriptionUtilisee }).from(plans).innerJoin(jobs, eq(jobs.id, plans.renduRetenuId)).where(inArray(plans.id, ids));
     const descriptionRetenue = new Map(retenus.map((r) => [r.planId, r.description]));
     const sectionsParPlan = new Map<number, PromptSection[]>();
@@ -81,19 +81,19 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
     const lienParPlan = new Map(durees.map((d) => [d.id, d]));
     for (const id of ids) {
       const sections = sectionsParPlan.get(id);
-      // Sans fiche (aucune section remplie), il n'y a pas de prompt à comparer.
+      // Without a sheet (no section filled), there is no prompt to compare.
       const prompt = sections?.some((s) => s.contenu.trim() !== "") ? assemblerPrompt(sections) : null;
       const rendu = dernierJob.get(id)!;
       const raisons = raisonsContenuPerime(
         { prompt, duree: dureeParPlan.get(id) ?? null, description: lienParPlan.get(id)?.description ?? null },
         { ...rendu, descriptionUtilisee: descriptionRetenue.has(id) ? descriptionRetenue.get(id) : rendu.descriptionUtilisee },
       );
-      // Raccord : un plan en « suite » est parti de l'essai X du précédent ; si le précédent a un autre rendu à prendre aujourd'hui, celui-ci est à refaire
-      // (jamais relancé tout seul : il est seulement marqué, docs/PLAN_FILE_CONSIGNES.md).
+      // Continuity: a clip in « suite » left from attempt X of the previous one; if the previous one has another render to take today, this one is to be redone
+      // (never relaunched on its own: it is only flagged, docs/PLAN_FILE_CONSIGNES.md).
       const lien = lienParPlan.get(id);
       if (lien && lien.liaison === "suite" && rendu.raccordJobId != null) {
         const precedent = await planPrecedent({ episodeId: lien.episodeId, ordre: lien.ordre });
-        // Le même essai que celui que le worker prendrait : celui du latent pour un raccord par latent, celui de la dernière image sinon.
+        // The same attempt that the worker would take: that of the latent for a latent continuity, that of the last image otherwise.
         const source = precedent ? await (continuiteEffective(rendu) === "latent" ? essaiSourceDuLatent(precedent) : essaiSourceDuRaccord(precedent)) : null;
         if (raccordPerime(rendu.raccordJobId, source?.id ?? null)) raisons.push("raccord");
       }
@@ -106,7 +106,7 @@ export async function getPlansPerimes(filtre: Filtre): Promise<Map<number, PlanP
   return resultat;
 }
 
-/** Plans rendus au moins une fois qui citent cet asset : ceux que le remplacement de son image périmerait. */
+/** Clips rendered at least once that cite this asset: those that replacing its image would make stale. */
 export async function nbPlansRendusCitant(assetId: number): Promise<number> {
   const ids = (await db.select({ id: planRefs.planId }).from(planRefs).where(eq(planRefs.assetId, assetId))).map((r) => r.id);
   if (ids.length === 0) return 0;
@@ -117,9 +117,9 @@ export async function nbPlansRendusCitant(assetId: number): Promise<number> {
   return rendus.length;
 }
 
-/** La fiche du plan a-t-elle changé depuis CE rendu (la prévisualisation dont un rendu final voudrait reprendre le latent) ? Mêmes règles que `getPlansPerimes`
- * (une référence remplacée depuis le début du rendu, le prompt ou la durée différents de ceux soumis), plus la seed : l'upscale refait le conditioning du modèle
- * avec la fiche d'aujourd'hui, qui doit être celle de la prévisualisation. */
+/** Has the clip's sheet changed since THIS render (the preview that a final render would want to take the latent from)? Same rules as `getPlansPerimes`
+ * (a reference replaced since the start of the render, the prompt or the duration different from those submitted), plus the seed: the upscale redoes the model's conditioning
+ * with today's sheet, which must be that of the preview. */
 export async function ficheChangeeDepuis(
   planId: number,
   rendu: { startedAt: Date | null; createdAt: Date; promptUtilise: string | null; dureeUtilisee: number | null; seedUtilisee: string | null },

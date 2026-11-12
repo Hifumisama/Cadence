@@ -1,11 +1,11 @@
 import { posterBackgroundImage, posterInitiale, posterPorteLeTitre } from "@/lib/posters/poster";
 
-/** Poster "affiche de film" à trois échelles — carte (accueil, texte
- * complet), sm (en-tête de saison), mini (ligne d'épisode). `src` est déjà
- * résolu par l'appelant (voir lib/media.ts:posterSrc, un accès disque —
- * jamais fait ici, pour rester importable depuis un composant "use client"
- * comme SaisonSection). Sans src, dégradé déterministe + initiale/titre en
- * Marcellus (lib/posters/poster.ts) plutôt qu'une vraie image de repli à générer. */
+/** Film poster ("affiche de film") at three scales — card (home, full
+ * text), sm (season header), mini (episode row). `src` is already
+ * resolved by the caller (see lib/media.ts:posterSrc, a disk access —
+ * never done here, so that it stays importable from a "use client" component
+ * such as SaisonSection). Without src, deterministic gradient + initial/title in
+ * Marcellus (lib/posters/poster.ts) rather than a real fallback image to generate. */
 export function Poster({
   src,
   titre,
@@ -14,11 +14,11 @@ export function Poster({
 }: {
   src: string | null;
   titre: string;
-  /** Clé stable pour le dégradé de repli (ex. "projet:12") — indépendante
-   * du titre affiché, pour ne pas changer d'aspect si le titre est édité. */
+  /** Stable key for the fallback gradient (e.g. "projet:12") — independent
+   * of the displayed title, so that it does not change look if the title is edited. */
   cleRepli: string;
-  /** Toutes les affiches sont en 2:3. "apercu" : petite affiche des en-têtes et des formulaires d'édition
-   * (projet/saison/épisode) — distincte de "card" (grande affiche des cartes projet, accueil). */
+  /** All posters are 2:3. "apercu": small poster for headers and edit forms
+   * (project/season/episode) — distinct from "card" (large poster of the project cards, home). */
   taille: "card" | "apercu" | "sm" | "mini";
 }) {
   if (src) {
@@ -26,9 +26,9 @@ export function Poster({
       <span className={`poster poster-${taille}`} aria-hidden="true">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" />
-        {/* Le titre se superpose à l'image, comme sur le dégradé de repli : il n'est jamais incrusté dans le fichier
-            (une affiche générée n'en contient pas), donc il reste net, suit le renommage et se lit sur chaque carte.
-            Aux petites tailles (saison, épisode) l'image seule suffit. */}
+        {/* The title overlays the image, as on the fallback gradient: it is never burned into the file
+            (a generated poster does not contain it), so it stays sharp, follows renaming and reads on every card.
+            At small sizes (season, episode) the image alone is enough. */}
         {(taille === "card" || taille === "apercu") && !posterPorteLeTitre(src) ? <span className="pt">{titre}</span> : null}
       </span>
     );
@@ -41,8 +41,8 @@ export function Poster({
       style={{ backgroundImage: posterBackgroundImage(cleRepli) }}
       aria-hidden="true"
     >
-      {/* Grande initiale en filigrane : sans affiche, les dégradés d'une même palette se ressemblent, l'initiale
-          fait la différence d'un coup d'œil. Réservée aux grandes cartes (le titre complet y est déjà écrit). */}
+      {/* Large watermark initial: without a poster, the gradients of one palette look alike, the initial
+          makes the difference at a glance. Reserved for large cards (the full title is already written there). */}
       {taille === "card" ? (
         <span className="pi" aria-hidden="true">
           {posterInitiale(titre)}

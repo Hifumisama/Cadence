@@ -3,8 +3,8 @@ import { db } from "../../db";
 import { assets, planRefs } from "../../db/schema";
 import type { RefLabel } from "../clips/clip-checks";
 
-/** Les références audio d'un plan qui sont la VOIX d'un personnage (son master, chantier voix/master 2026-10-14) : des refs « dérivées » du
- * dialogue, déclarées sans avoir à être citées une à une (`verifierCoherenceRefs`). */
+/** The audio references of a clip that are a character's VOICE (its master, voice/master workstream 2026-10-14): « derived » refs of the
+ * dialogue, declared without having to be cited one by one (`verifierCoherenceRefs`). */
 export async function getVoixDuPlan(planId: number): Promise<RefLabel[]> {
   const lignes = await db
     .select({ slot: planRefs.slot })

@@ -4,8 +4,8 @@ import { briefVide, clauseDuBrief, notesDuBrief } from "./brief";
 import { type BriefContenu } from "./types";
 import { depuisSaisie, typeEdition, versSaisie } from "./agents-display";
 
-// Le brief est la source unique de la clause de style et des notes (2026-10-02) :
-// un brief « partiel » (posé à la main) porte le style et les notes sans brief rédigé.
+// The brief is the single source of the style clause and notes (2026-10-02):
+// a "partiel" brief (set by hand) carries the style and notes without a written brief.
 
 test("briefVide : forme complète sans rien d'inventé, exploitable par les consommateurs", () => {
   const b = briefVide("  Le Phare  ");
@@ -25,7 +25,7 @@ test("édition : le style a deux champs, les notes un texte libre qui peut être
   assert.equal(depuisSaisie("style", "pas du json").ok, false);
 });
 
-// --- un seul chemin d'écriture ----------------------------------------------
+// --- a single write path ----------------------------------------------------
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -47,7 +47,7 @@ test("clause de style et notes du projet : le SEUL écrivain est brief-db.ts (sy
       const chemin = f.split("\\").join("/");
       if (chemin === "lib/agents/brief-db.ts") continue;
       const code = readFileSync(f, "utf-8");
-      // `.update(projects).set({ … clauseStyle | notes … })` : un écrivain direct.
+      // `.update(projects).set({ … clauseStyle | notes … })`: a direct writer.
       for (const m of code.matchAll(/\.update\(\s*projects\s*\)\s*\.set\(\s*\{([^}]*)\}/g)) {
         if (/\b(clauseStyle|notes)\b/.test(m[1]!)) fautifs.push(chemin);
       }

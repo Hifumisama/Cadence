@@ -6,8 +6,8 @@ import { projects } from "@/db/schema";
 import { donneesAffiche, etatAfficheClap, lancerAfficheClap, signatureAffiche } from "@/lib/agents/poster-clap";
 import { posterSrc } from "@/lib/media";
 
-/** L'affiche du projet vue du clap : `en_cours` (le prompt s'écrit ou l'image se génère), `prete`, `echec`, ou `indisponible` (l'histoire n'est
- * pas encore dite). `src` est l'affiche actuelle du projet (l'ancienne, tant que la nouvelle n'est pas prête). */
+/** The project's poster as seen from the clap: `en_cours` (the prompt is being written or the image is being generated), `prete`,
+ * `echec`, or `indisponible` (the story is not yet told). `src` is the project's current poster (the old one, until the new one is ready). */
 export type VueAfficheClap = { etat: "en_cours" | "prete" | "echec" | "indisponible"; src: string | null };
 
 async function afficheActuelle(projectId: number): Promise<string | null> {
@@ -15,8 +15,8 @@ async function afficheActuelle(projectId: number): Promise<string | null> {
   return posterSrc("projects", projectId, p?.poster ?? null);
 }
 
-/** À l'arrivée sur le clap : prépare l'affiche si, et seulement si, ce qui la nourrit a changé depuis la dernière fois (histoire, héros,
- * lieux, genre, ton, style : voir `signatureAffiche`). Sinon rend l'affiche déjà là, sans rien lancer. `force` : « Réessayer » après un échec. */
+/** On arrival at the clap: prepares the poster if, and only if, what feeds it has changed since the last time (story, hero,
+ * places, genre, tone, style: see `signatureAffiche`). Otherwise renders the poster already there, without launching anything. `force`: « Réessayer » after a failure. */
 export async function preparerAfficheClap(projectId: number, force = false): Promise<VueAfficheClap> {
   const d = await donneesAffiche(db, projectId);
   if (!d) return { etat: "indisponible", src: await afficheActuelle(projectId) };
@@ -29,7 +29,7 @@ export async function preparerAfficheClap(projectId: number, force = false): Pro
   return { etat, src: await afficheActuelle(projectId) };
 }
 
-/** Relecture pendant la génération (le clap interroge toutes les deux secondes et demie tant que c'est « en cours »). */
+/** Re-read during generation (the clap polls every two and a half seconds while it is « en cours »). */
 export async function lireAfficheClap(projectId: number): Promise<VueAfficheClap> {
   const d = await donneesAffiche(db, projectId);
   if (!d) return { etat: "indisponible", src: await afficheActuelle(projectId) };

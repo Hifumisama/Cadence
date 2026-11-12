@@ -49,12 +49,12 @@ test("titre dans l'image : la ligne de titre remplace la ligne « sans texte »,
   assert.equal(titreDansPrompt(avec), true);
   assert.match(avec, /Title lettering: "Le Voile Écarlate"/);
   assert.doesNotMatch(avec, /No text, no lettering/);
-  // idempotent, et réversible sans toucher au reste
+  // idempotent, and reversible without touching the rest
   assert.equal(avecTitreDansImage(avec, "Le Voile Écarlate", true), avec);
   assert.equal(avecTitreDansImage(avec, "Le Voile Écarlate", false), base);
-  // un prompt écrit à la main garde son contenu
+  // a hand-written prompt keeps its content
   assert.match(avecTitreDansImage("A knight at dawn.", "X", true), /^A knight at dawn\.\nTitle lettering: "X"/);
-  // des guillemets dans le titre ne cassent pas la ligne
+  // quotes in the title do not break the line
   assert.match(avecTitreDansImage("A.", 'Le "Rubis"', true), /Title lettering: "Le 'Rubis'"/);
 });
 
@@ -70,9 +70,9 @@ test("personnage principal : le premier du brief retrouvé dans le registre, sin
   ];
   assert.equal(personnagePrincipal([{ nom: "Maya" }, { nom: "Iris" }], registre)?.asset.code, "CHAR_maya");
   assert.equal(personnagePrincipal([{ nom: "Gardienne Iris" }], registre)?.asset.code, "CHAR_iris");
-  // accents et casse ignorés
+  // accents and case ignored
   assert.equal(personnagePrincipal([{ nom: "MÁYA" }], registre)?.asset.code, "CHAR_maya");
-  // aucun nom reconnu : repli sur le premier personnage qui a une image
+  // no name recognized: falls back to the first character that has an image
   const repli = personnagePrincipal([{ nom: "Inconnu" }], registre);
   assert.equal(repli?.asset.code, "CHAR_maya");
   assert.equal(repli?.nom, null);
@@ -97,10 +97,10 @@ test("la phrase du titre collée à la fin d'un paragraphe n'est pas demandée d
   const sortie = avecTitreDansImage(colle, "Le tir", true);
   assert.equal(sortie.split("Title lettering:").length - 1, 1);
   assert.match(sortie, /^A rooftop at dusk, calm sky\.\nTitle lettering: "Le tir"/);
-  // Déjà doublée (prompt déjà enregistré) : une seule reste.
+  // Already doubled (prompt already saved): only one remains.
   const doublee = `${colle}\nTitle lettering: "Le tir", written once. No logo, no watermark.`;
   assert.equal(avecTitreDansImage(doublee, "Le tir", true).split("Title lettering:").length - 1, 1);
-  // Titre retiré : la phrase collée disparaît aussi.
+  // Title removed: the attached sentence disappears too.
   const sans = avecTitreDansImage(colle, "Le tir", false);
   assert.doesNotMatch(sans, /Title lettering/);
   assert.match(sans, /No text, no lettering/);

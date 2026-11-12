@@ -11,15 +11,15 @@ import { CarteMiseEnScene, ChoixMise, ChoixStyleMise, Pastilles, type CarteChois
 import { EnteteScene } from "./Scenes";
 import type { PropsScene } from "./types";
 
-/** Sixième scène : la mise en scène des fiches que compilera Open H3 IR. Deux petits choix sur un même écran : la créativité (jusqu'où l'IA peut ajouter à ce que tu
- * écris) et le style de mise en scène (« aucun style », les façons de filmer d'animation et de genre, puis les sept réalisateurs, chacun résumé en quelques mots). Le style du projet
- * (étape précédente) peut recommander une façon de filmer : sa carte passe en tête, « suggérée par ton style », et reste cochée tant qu'on n'a pas choisi soi-même (design-ui.ts).
- * Pour se projeter : chaque bouton a son « ? » qui ouvre un tiroir, une CARTE DE MISE EN SCÈNE avec un rendu vidéo réel d'une même scène (components/design/StagingCard.tsx,
- * vidéos de démo versionnées dans data/mises-en-scene), et sous chaque bloc un court rappel du choix en cours (lib/h3ir/examples.ts). Les valeurs de départ sont cochées : on peut continuer sans
- * toucher à rien. Ce n'est PAS dit au scénariste (ces réglages ne servent qu'aux prompts vidéo) et ils ne sont pas figés : ils se changent ensuite dans le Brief, sur une scène ou sur un plan. */
+/** Sixth scene: the staging of the clips that Open H3 IR will compile. Two small choices on one screen: creativity (how far the AI can add to what you
+ * write) and the staging style (« aucun style », the animation and genre ways of filming, then the seven directors, each summed up in a few words). The project's
+ * style (previous step) may recommend a way of filming: its card moves to the top, « suggérée par ton style », and stays ticked until one chooses for oneself (design-ui.ts).
+ * To picture it: each button has its « ? » which opens a drawer, a STAGING CARD with a real video render of one same scene (components/design/StagingCard.tsx,
+ * demo videos versioned in data/mises-en-scene), and under each block a short reminder of the current choice (lib/h3ir/examples.ts). The starting values are ticked: one can continue without
+ * touching anything. This is NOT said to the screenwriter (these settings only serve the video prompts) and they are not locked: they are changed afterwards in the Brief, on a scene or on a clip. */
 export function SceneMiseEnScene({ etat, maj, demos = {} }: PropsScene & { demos?: Record<string, DemoDispo> }) {
   const [carte, setCarte] = useState<CarteChoisie | null>(null);
-  // Le bouton « ? » qui a ouvert la carte : le focus y revient à la fermeture.
+  // The « ? » button that opened the card: focus returns to it on closing.
   const declencheur = useRef<HTMLElement | null>(null);
   const ouvrir = (c: CarteChoisie, e: React.MouseEvent<HTMLButtonElement>) => {
     declencheur.current = e.currentTarget;
@@ -30,7 +30,7 @@ export function SceneMiseEnScene({ etat, maj, demos = {} }: PropsScene & { demos
     declencheur.current?.focus();
   };
   const styleCourant: ChoixMiseEnScene | null = estMiseEnScene(etat.styleCamera) ? etat.styleCamera : null;
-  // La recommandation du style du projet (null : style libre ou sans recommandation) ; sa carte passe en tête.
+  // The project's style recommendation (null: free style or no recommendation); its card moves to the top.
   const recommande = miseEnSceneDuStyle(etat.style);
   const autresPerso = IDS_PROFILS_PERSO.filter((p) => p !== recommande);
 
@@ -114,7 +114,7 @@ export function SceneMiseEnScene({ etat, maj, demos = {} }: PropsScene & { demos
   );
 }
 
-/** Une carte de style de mise en scène (rendu commun : ChoixStyleMise) branchée sur l'état de la conception. `suggere` : la recommandation du style du projet, marquée comme telle. */
+/** A staging style card (shared rendering: ChoixStyleMise) wired to the design's state. `suggere`: the project's style recommendation, marked as such. */
 function CarteChoix({
   id,
   etat,

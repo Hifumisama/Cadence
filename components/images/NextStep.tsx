@@ -2,7 +2,7 @@ import { lireEtatImages } from "@/lib/assets/queries-images";
 import { etapesSuivantes, prochaineEtape } from "@/lib/assets/project-images";
 import { BandeauProchaineEtape } from "./ProjectImages";
 
-/** Bandeau « Prochaine étape » d'un projet (serveur) : lit l'état une fois, puis le client le sonde. Rien tant que tout est fait. */
+/** « Prochaine étape » banner of a project (server): reads the state once, then the client polls it. Nothing as long as everything is done. */
 export async function ProchaineEtape({ projectId }: { projectId: number }) {
   const images = await lireEtatImages(projectId);
   if (!prochaineEtape(etapesSuivantes(projectId, images))) return null;

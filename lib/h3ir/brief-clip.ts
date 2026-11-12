@@ -10,18 +10,18 @@ import { cheminAssetMedia, cheminVoixMedia, MEDIA_ROOT } from "../media";
 import { briefDepuisPlan, type OptionsBrief, type PersonnageEntree, type ReferenceEntree, type ResultatBrief } from "./brief";
 import { resoudreReglages, STYLE_AUCUN, type ReglagesResolus } from "./settings";
 
-/** Le chemin absolu d'un fichier sous MEDIA_ROOT s'il existe, sinon null. */
+/** The absolute path of a file under MEDIA_ROOT if it exists, otherwise null. */
 function cheminSiExiste(relatif: string): string | null {
   const absolu = join(MEDIA_ROOT, relatif);
   return existsSync(absolu) ? absolu : null;
 }
 
-/** Le brief d'un plan et les réglages (créativité, style de mise en scène) tels qu'ils ont été résolus, avec le niveau d'où chacun vient. */
+/** A clip's brief and the settings (creativity, staging style) as they have been resolved, with the level each one comes from. */
 export type ResultatChargement = ResultatBrief & { reglages: ReglagesResolus };
 
-/** Ce qu'« Itérer » fait compiler À LA PLACE de ce qui est en base (lib/agents/service.ts, genererReecriturePlan) : rien n'est écrit sur le plan avant
- * l'application de la fiche compilée, qui écrit tout ensemble. `references` : codes d'images à ajouter / retirer ; `reglages` : la valeur du PLAN qui
- * remplace la sienne (`null`/absent = la sienne ; `"aucun"` = pas de style), la scène et le projet restent hérités en dessous. */
+/** What « Itérer » compiles INSTEAD OF what is in the database (lib/agents/service.ts, genererReecriturePlan): nothing is written to the clip before
+ * the application of the compiled sheet, which writes everything together. `references`: image codes to add / remove; `reglages`: the value of the CLIP
+ * that replaces its own (`null`/absent = its own; `"aucun"` = no style), the scene and the project remain inherited below. */
 export type SurchargeBrief = {
   description?: string | null;
   dureeSecondes?: number | null;
@@ -29,8 +29,8 @@ export type SurchargeBrief = {
   reglages?: { creativite?: string | null; styleCamera?: string | null } | null;
 };
 
-/** Les références d'image d'un plan APRÈS des ajouts / retraits (par code) : `inconnus` (pas au registre du projet), `pasDesImages` (voix),
- * `sansImage` (fichier absent : la compilation serait refusée). Lu par le service AVANT de lancer la recompilation, pour une erreur claire. */
+/** The image references of a clip AFTER additions / removals (by code): `inconnus` (not in the project's registry), `pasDesImages` (voice),
+ * `sansImage` (missing file: the compilation would be refused). Read by the service BEFORE launching the recompilation, for a clear error. */
 export async function referencesApresDecisions(
   projectId: number,
   planUuid: string,
@@ -54,10 +54,10 @@ export async function referencesApresDecisions(
   return { codes: finales.map((r) => r.code), inconnus, pasDesImages, sansImage };
 }
 
-/** Charge ce qu'il faut à un plan (références, scène, voix des personnages, langue, voix off) puis en fait le brief Open H3 IR (lib/h3ir/brief.ts).
- * Créativité et style de mise en scène : ceux de `options` s'ils sont donnés (`null`/absent = hérite), sinon ceux du plan, de sa scène ou du projet (lib/h3ir/settings.ts).
- * `null` si le plan n'est pas de ce projet. `surcharge` : ce qu'« Itérer » compile À LA PLACE de ce qui est en base (description, durée, références,
- * réglages du plan : `SurchargeBrief`), qui ne s'écrit sur le plan qu'avec la fiche. Un code ajouté inconnu du registre refuse le brief. */
+/** Loads what a clip needs (references, scene, characters' voices, language, voiceover) then turns it into the Open H3 IR brief (lib/h3ir/brief.ts).
+ * Creativity and staging style: those of `options` if given (`null`/absent = inherits), otherwise those of the clip, its scene or the project (lib/h3ir/settings.ts).
+ * `null` if the clip is not of this project. `surcharge`: what « Itérer » compiles INSTEAD OF what is in the database (description, duration, references,
+ * clip settings: `SurchargeBrief`), which is only written to the clip with the sheet. An added code unknown to the registry refuses the brief. */
 export async function chargerBriefPlan(
   projectId: number,
   planUuid: string,
@@ -112,8 +112,8 @@ export async function chargerBriefPlan(
     description: l.description,
     chemin: l.fichier ? cheminSiExiste(cheminAssetMedia(l.fichier)) : null,
   });
-  // Surcharge des références (« Itérer ») : les images retirées sortent, les ajoutées suivent aux emplacements libres (le compilateur renumérote
-  // les labels ; la fiche compilée écrit la liste complète).
+  // Reference overrides (« Itérer »): removed images leave, added ones take the free slots (the compiler renumbers
+  // the labels; the compiled sheet writes the full list).
   const retires = new Set(surcharge.references?.retirer ?? []);
   const gardees = lignes.filter((l) => l.type === "audio" || !retires.has(l.code));
   const voulus = [...new Set(surcharge.references?.ajouter ?? [])].filter((c) => !gardees.some((g) => g.type !== "audio" && g.code === c));
@@ -128,7 +128,7 @@ export async function chargerBriefPlan(
   let slot = Math.max(0, ...gardees.filter((l) => l.type !== "audio").map((l) => l.slot));
   const references: ReferenceEntree[] = [...gardees.map(versEntree), ...ajoutes.map((a) => versEntree({ ...a, type: "picture", slot: ++slot }))];
 
-  // Les personnages du registre, avec leur voix fixée (le master) : le brief ne garde que celles des personnages qui parlent dans le plan.
+  // The characters in the registry, with their fixed voice (the master): the brief only keeps those of the characters who speak in the clip.
   const persos = await db
     .select({ id: assets.id, code: assets.code, label: assets.label, voixMaster: assets.voixMaster, voixDescription: assets.voixDescription, voixRepliqueBase: assets.voixRepliqueBase })
     .from(assets)
@@ -161,7 +161,7 @@ export async function chargerBriefPlan(
     },
     {
       ...options,
-      // Une valeur donnée l'emporte (le tiroir envoie celles qu'on y a choisies) ; « aucun » ou vide = pas de style ; absente ou null = ce qui est résolu en base.
+      // A given value wins (the drawer sends the ones chosen there); « aucun » or empty = no style; absent or null = what is resolved in the database.
       creativity: options.creativity ?? reglages.creativite,
       director: options.director ?? reglages.styleCamera ?? STYLE_AUCUN,
     },

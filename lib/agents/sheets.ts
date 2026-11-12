@@ -4,16 +4,16 @@ import { ORDRE_SECTIONS, type NomSection } from "../clips/prompt";
 import type { Avertissement } from "./types";
 import { estCreativite, estMiseEnScene, STYLE_AUCUN } from "../h3ir/settings";
 
-/** Étape 3 du pipeline : la FICHE d'un plan (prompt H3 en six sections, références picture/audio, durée
- * de génération). Règles PURES (sans base ni Next), partagées par la conversion, l'applicateur `fiche`,
- * le service et les tests. Voir docs/FRICTIONS.md, « Étape 3 branchée » (2026-10-02).
+/** Step 3 of the pipeline: a clip's SHEET (H3 prompt in six sections, picture/audio references, generation
+ * duration). PURE rules (no database or Next), shared by the conversion, the `fiche` applier,
+ * the service and the tests. See docs/FRICTIONS.md, "Étape 3 branchée" (2026-10-02).
  *
- * Une fiche s'écrit en entier (Open H3 IR : les six sections ET les références, « régénérer = tout
- * régénérer ») ou en partie (iteration-plan, lib/agents/iteration-clip.ts : seulement les sections corrigées,
- * sans toucher aux autres ni aux références). Les voix ne sont JAMAIS des lignes de `plan_refs` : leurs slots `<Audio N>`
- * viennent de `plan_dialogues` et restent ceux de la base. */
+ * A sheet is written in full (Open H3 IR: the six sections AND the references, "régénérer = tout
+ * régénérer") or in part (iteration-plan, lib/agents/iteration-clip.ts: only the corrected sections,
+ * without touching the others or the references). Voices are NEVER `plan_refs` rows: their `<Audio N>` slots
+ * come from `plan_dialogues` and remain the database's. */
 
-// --- sous-tâches d'un lot ---------------------------------------------------------
+// --- batch subtasks ---------------------------------------------------------
 
 const PREFIXE_CLE_PLAN = "plan:";
 export const cleSousTachePlan = (uuid: string): string => `${PREFIXE_CLE_PLAN}${uuid}`;
@@ -23,46 +23,46 @@ export function planUuidDeCle(cle: string | null | undefined): string | null {
   return /^[0-9a-f-]{36}$/i.test(uuid) ? uuid : null;
 }
 
-/** Clé symbolique (dans une proposition) de la création d'un asset manquant : un dérivé dont le parent est
- * lui-même créé par la proposition s'y rattache par elle (`deriveDeCle`). Unique dans la proposition : un
- * même code n'est proposé à la création qu'une fois, même par plusieurs plans d'un lot. */
+/** Symbolic key (within a proposal) of the creation of a missing asset: a derivative whose parent is
+ * itself created by the proposal attaches to it through this key (`deriveDeCle`). Unique within the proposal: a
+ * same code is proposed for creation only once, even by several clips of a batch. */
 export const cleNouvelAsset = (code: string): string => `nouvel-asset-${code}`;
 
-// --- contenu d'un changement `fiche` ----------------------------------------------
+// --- content of a `fiche` change ----------------------------------------------
 
 export const SECTIONS_FICHE = ORDRE_SECTIONS;
 type SectionsFiche = Partial<Record<NomSection, string>>;
 
-/** Une référence d'image ou de son du plan (une ligne de `plan_refs`). `asset` = code du registre. */
+/** A clip's image or sound reference (a `plan_refs` row). `asset` = registry code. */
 export type RefFiche = { type: "picture" | "audio"; slot: number; asset: string; role?: string | null; retention?: string | null };
 
-/** Un passage remplacé par une correction après visionnage (iteration-plan) : AFFICHAGE seulement (la revue
- * montre « avant → après » au lieu de la section entière). L'applicateur ne lit que `sections`. */
+/** A passage replaced by a correction after viewing (iteration-plan): DISPLAY only (the review
+ * shows "before → after" instead of the whole section). The applier only reads `sections`. */
 type PassageFiche = { section: string; avant: string; apres: string };
 
-/** `apres` d'un changement `fiche`. Champ absent = on n'y touche pas (écriture partielle). `refs` présent =
- * les références picture/audio du plan sont REMPLACÉES par cette liste (les vidéos et les voix restent).
- * `passages` (iteration-plan) : les remplacements qui ont produit `sections`, pour la revue ; jamais écrits. */
+/** `apres` of a `fiche` change. Absent field = not touched (partial write). `refs` present =
+ * the clip's picture/audio references are REPLACED by this list (videos and voices stay).
+ * `passages` (iteration-plan): the replacements that produced `sections`, for the review; never written. */
 export type ApresFiche = {
   sections?: SectionsFiche;
   refs?: RefFiche[];
   dureeGenerationSecondes?: number;
   passages?: PassageFiche[];
-  /** La NOUVELLE description (intention) du plan, complète : écrite avec la fiche quand la correction change ce qui se passe dans le plan
-   * (« Itérer » : lib/agents/iteration-clip.ts). L'ancienne reste dans l'essai
-   * précédent (`jobs.description_utilisee`), comme le prompt. */
+  /** The NEW description (intent) of the clip, complete: written with the sheet when the correction changes what happens in the clip
+   * ("Itérer": lib/agents/iteration-clip.ts). The old one stays in the previous attempt
+   * (`jobs.description_utilisee`), like the prompt. */
   description?: string;
-  /** Clés (`cleNouvelAsset`) des assets que la MÊME proposition crée et que `refs` cite : la fiche s'applique après eux (leur image n'existe
-   * pas encore, la fiche les cite quand même : le contrôle de la page dit « pas encore d'image »). */
+  /** Keys (`cleNouvelAsset`) of the assets that the SAME proposal creates and that `refs` cites: the sheet applies after them (their image does not
+   * exist yet, the sheet cites them anyway: the page's check says "pas encore d'image"). */
   dependDeCles?: string[];
-  /** Les répliques ne sont plus liées au plan (décision 2026-10-14) : la fiche porte ses voix elle-même, en références audio dont l'asset est
-   * le PERSONNAGE qui parle dans le prompt. Les anciennes liaisons (`plan_dialogues`) du plan sont détachées à l'écriture et ne comptent plus. */
+  /** Lines of dialogue are no longer linked to the clip (decision 2026-10-14): the sheet carries its voices itself, as audio references whose asset is
+   * the CHARACTER who speaks in the prompt. The clip's old links (`plan_dialogues`) are detached on write and no longer count. */
   voixDuPrompt?: boolean;
-  /** La fiche vient du compilateur Open H3 IR (lib/h3ir/conversion.ts) : l'applicateur garde alors le prompt remplacé dans l'historique du prompt
-   * (source « avant ») et y inscrit le nouveau (source « compilation »). */
+  /** The sheet comes from the Open H3 IR compiler (lib/h3ir/conversion.ts): the applier then keeps the replaced prompt in the prompt's history
+   * (source "avant") and records the new one there (source "compilation"). */
   moteur?: "h3ir";
-  /** Réglages Open H3 IR du PLAN décidés par « Itérer » (2026-11-09) : la valeur REMPLACE `plans.creativite` / `plans.style_camera` (`"aucun"` = pas de
-   * style). Absent = on n'y touche pas. Écrits avec la fiche compilée qui les a utilisés. */
+  /** Open H3 IR settings of the CLIP decided by "Itérer" (2026-11-09): the value REPLACES `plans.creativite` / `plans.style_camera` (`"aucun"` = no
+   * style). Absent = not touched. Written with the compiled sheet that used them. */
   reglages?: { creativite?: string; styleCamera?: string };
 };
 
@@ -98,17 +98,17 @@ export function lireApresFiche(apres: unknown): ApresFiche {
   return sortie;
 }
 
-/** L'état courant d'un plan, tel que l'applicateur le lit (et que les tests le fabriquent). */
+/** A clip's current state, as the applier reads it (and as the tests build it). */
 export type EtatPlanFiche = {
   titre: string;
-  /** Contenu actuel par section (absente = pas de ligne). */
+  /** Current content per section (absent = no line). */
   sections: Partial<Record<string, string>>;
-  /** Références actuelles (picture, audio, video), avec le code et le type de l'asset. */
+  /** Current references (picture, audio, video), with the asset's code and type. */
   refs: { type: "picture" | "audio" | "video"; slot: number; asset: string | null }[];
-  /** Codes du registre du projet → type. */
+  /** The project's registry codes → type. */
   registre: Map<string, string>;
   aUnRendu: boolean;
-  /** Une génération vidéo du plan attend ou tourne. */
+  /** A video generation of the clip is waiting or running. */
   generationEnCours?: boolean;
   dureeGenerationSecondes: number;
 };
@@ -116,10 +116,10 @@ export type EtatPlanFiche = {
 const DUREE_MIN = DUREE_GENERATION_MIN;
 const DUREE_MAX = DUREE_GENERATION_MAX;
 
-/** Raison d'un REFUS d'écrire cette fiche sur ce plan, ou null. Vérifie le contenu (sections connues,
- * durée entière 4–10, slots 1–6 images et 1–3 audio, uniques, assets
- * existants et de la bonne nature) ET l'état final : aucune écriture ne doit laisser un label
- * `<Picture N>` / `<Audio N>` sans la référence qu'il cite. */
+/** Reason for REFUSING to write this sheet on this clip, or null. Checks the content (known sections,
+ * whole duration 4–10, slots 1–6 images and 1–3 audio, unique, assets
+ * existing and of the right kind) AND the final state: no write may leave a `<Picture N>` / `<Audio N>` label
+ * without the reference it cites. */
 export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | null {
   const sections = apres.sections ?? {};
   const cles = Object.keys(sections);
@@ -150,18 +150,18 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
       const type = etat.registre.get(r.asset);
       if (type == null) return `L'asset ${r.asset} n'existe pas dans ce projet.`;
       if (r.type === "picture" && type === "voix") return `${r.asset} (${type}) n'a pas d'image : il ne peut pas être une référence d'image.`;
-      // La voix d'un personnage est une référence audio vers le personnage (son master) : la seule référence audio d'une fiche.
+      // A character's voice is an audio reference to the character (its master): the only audio reference of a sheet.
       if (r.type === "audio" && !(apres.voixDuPrompt && type === "personnage")) return `${r.asset} (${type}) n'est pas un personnage avec une voix : seule la voix d'un personnage est une référence audio de la fiche.`;
     }
   }
 
-  // État final : sections écrites par-dessus celles qui restent ; références nouvelles ou actuelles.
+  // Final state: sections written over those that remain; new or current references.
   const finales = SECTIONS_FICHE.map((section) => ({ section, contenu: sections[section] ?? etat.sections[section] ?? "" }));
   const refsFinales: RefLabel[] = [
     ...(apres.refs ? [...apres.refs.map((r) => ({ type: r.type, slot: r.slot })), ...etat.refs.filter((r) => r.type === "video")] : etat.refs.map((r) => ({ type: r.type, slot: r.slot }))),
   ];
-  // Seuls les labels orphelins que CETTE écriture introduit la refusent : une incohérence déjà là (une réplique déliée du plan dont les lignes de voix
-  // `<Audio 1>` sont restées dans le prompt) ne doit pas bloquer une correction sans rapport ; elle est signalée à part (`labelsOrphelinsActuels`).
+  // Only the orphan labels THIS write introduces are refused: an inconsistency already there (a line of dialogue unlinked from the clip whose voice lines
+  // `<Audio 1>` stayed in the prompt) must not block an unrelated correction; it is flagged separately (`labelsOrphelinsActuels`).
   const { labelsOrphelins } = verifierCoherenceRefs(finales, refsFinales);
   const dejaLa = new Set(labelsOrphelinsActuels(etat));
   const nouveaux = labelsOrphelins.filter((x) => !dejaLa.has(x));
@@ -172,7 +172,7 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
   return null;
 }
 
-/** Les labels que le prompt ACTUEL cite sans référence (avant toute écriture) : un plan incohérent d'avance. */
+/** The labels the CURRENT prompt cites without a reference (before any write): a clip inconsistent in advance. */
 export function labelsOrphelinsActuels(etat: EtatPlanFiche): string[] {
   const sections = SECTIONS_FICHE.map((section) => ({ section, contenu: etat.sections[section] ?? "" }));
   const refs: RefLabel[] = etat.refs.map((r) => ({ type: r.type, slot: r.slot }));
@@ -181,17 +181,17 @@ export function labelsOrphelinsActuels(etat: EtatPlanFiche): string[] {
 
 const nonVide = (s: string | undefined) => (s ?? "").trim().length > 0;
 
-/** Ce que l'écriture remplacerait sur ce plan : `avant` (pour la revue), le texte d'écrasement (null si rien
- * n'est perdu : plan vide = création) et les avertissements. Règles (utilisateur, 2026-10-02) :
- * - une section écrite qui a déjà du texte, ou des références déjà posées qu'on remplace : écrasement
- *   (décoché par défaut, la case cochée EST le « reset » du plan) ;
- * - un plan qui a déjà un rendu vidéo : écrasement aussi, avec un avertissement de plus ;
- * - un plan vide (aucune section remplie, aucune référence) : rien n'est perdu, coché d'office. */
+/** What the write would replace on this clip: `avant` (for the review), the overwrite text (null if nothing
+ * is lost: empty clip = creation) and the warnings. Rules (user, 2026-10-02):
+ * - a written section that already has text, or references already set that get replaced: overwrite
+ *   (unticked by default, the ticked box IS the clip's "reset");
+ * - a clip that already has a video render: overwrite too, with one more warning;
+ * - an empty clip (no filled section, no reference): nothing is lost, ticked outright. */
 export function evaluerEcrasementFiche(apres: ApresFiche, etat: EtatPlanFiche): { avant: ApresFiche; ecrase: string | null; avertissements: Avertissement[] } {
   const ecrites = Object.keys(apres.sections ?? {}).filter(estSectionFiche);
   const remplies = ecrites.filter((s) => nonVide(etat.sections[s]));
-  // Une référence « remplacée » est une référence actuelle qui disparaît ou change : celles que la nouvelle liste
-  // garde à l'identique (même type, slot et asset) ne sont pas perdues (utile à l'itération, qui n'en change qu'une).
+  // A "replaced" reference is a current reference that disappears or changes: those the new list
+  // keeps identically (same type, slot and asset) are not lost (useful for the iteration, which changes only one).
   const refsRemplacees = apres.refs
     ? etat.refs.filter((r) => r.type !== "video" && !apres.refs!.some((n) => n.type === r.type && n.slot === r.slot && n.asset === r.asset))
     : [];

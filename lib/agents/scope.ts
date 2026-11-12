@@ -1,14 +1,14 @@
 import type { CibleType, Operation, Portee } from "./types";
 
-/** Verrou de portée : un agent ne touche que ce qu'on lui a demandé. Pur, testé ; appelé à la
- * construction de la proposition (refus d'office, avec raison) ET à l'application (l'état a pu
- * changer). Voir docs/FRICTIONS.md, décisions du 2026-10-02. */
+/** Scope lock: an agent only touches what it was asked to. Pure, tested; called when
+ * the proposal is built (refused outright, with a reason) AND when it is applied (the state may
+ * have changed). See docs/FRICTIONS.md, decisions of 2026-10-02. */
 
 export type ScopeDemandee = { type: Portee; cibleId: number | null };
 
-/** Où se trouve la cible d'un changement, résolu par son applicateur. Pour une création, les
- * parents sont ceux sous lesquels elle naîtrait ; `parentNouveau` : le parent est lui-même créé
- * par la même proposition (le verdict est alors celui du parent, déjà vérifié). */
+/** Where a change's target is, resolved by its applier. For a creation, the
+ * parents are those it would be born under; `parentNouveau`: the parent is itself created
+ * by the same proposal (the verdict is then the parent's, already checked). */
 export type CibleChangement = {
   type: CibleType;
   operation: Operation;
@@ -25,18 +25,18 @@ const LIBELLE_PORTEE: Record<Portee, string> = {
   asset: "cet asset",
 };
 
-/** `null` = autorisé ; sinon la raison du refus (en français, montrée à l'utilisateur).
+/** `null` = allowed; otherwise the reason for refusal (in French, shown to the user).
  *
- * Règles :
- * - le brief est autorisé à toute portée (un nouvel élément peut faire évoluer sa référence) ;
- *   la clause de style du projet seulement à la portée `projet` ;
- * - `projet` : tout ;
- * - `episode` : l'épisode, ses scènes et ses plans (créer, modifier) ;
- * - `plan` : ce plan seulement (modifier, et écrire sa fiche) ;
- * - `fiche` (prompt H3 d'un plan) : comme la modification d'un plan, depuis son épisode ou lui ;
- * - `asset` : cet asset seulement (modifier) ;
- * - un asset peut toujours être CRÉÉ (un asset manquant se propose depuis n'importe quelle
- *   portée), mais ne se MODIFIE que dans la portée projet ou si c'est la cible. */
+ * Rules:
+ * - the brief is allowed at any scope (a new element may change its reference); the
+ *   project's style clause only at the `projet` scope;
+ * - `projet`: everything;
+ * - `episode`: the episode, its scenes and its clips (create, modify);
+ * - `plan`: this clip only (modify, and write its sheet);
+ * - `fiche` (a clip's H3 prompt): like modifying a clip, from its episode or from itself;
+ * - `asset`: this asset only (modify);
+ * - an asset can always be CREATED (a missing asset is proposed from any
+ *   scope), but is only MODIFIED in the project scope or if it is the target. */
 export function verifierPortee(scope: ScopeDemandee, c: CibleChangement): string | null {
   const refus = (detail: string) => `Hors portée : la demande vise ${LIBELLE_PORTEE[scope.type]}, ${detail}.`;
   if (c.type === "brief") return null;
@@ -57,7 +57,7 @@ export function verifierPortee(scope: ScopeDemandee, c: CibleChangement): string
       return refus(c.type === "plan" ? "ce plan n'est pas dans la portée visée" : "cette scène n'est pas dans la portée visée");
     }
     case "fiche":
-      // La fiche (prompt H3 + références) d'un plan EXISTANT : jamais une création.
+      // The sheet (H3 prompt + references) of an EXISTING clip: never a creation.
       if (creation) return refus("une fiche s'écrit sur un plan existant");
       if (scope.type === "episode" && c.episodeId === scope.cibleId) return null;
       if (scope.type === "plan" && c.planId === scope.cibleId) return null;

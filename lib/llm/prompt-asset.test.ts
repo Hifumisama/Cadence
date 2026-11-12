@@ -4,7 +4,7 @@ import { chargerSkill, listerSkills, variantesDuGuide } from "./skills";
 import { VARIANTE_AFFICHE, variantePromptAsset } from "./variants";
 import { valider } from "./validation";
 
-// Le skill prompt-asset sert les images d'assets et les affiches : un guide par méthode (Krea 2, Qwen Image Edit), chargés selon la variante.
+// The prompt-asset skill serves asset images and posters: one guide per method (Krea 2, Qwen Image Edit), loaded according to the variant.
 
 const image = { reflexion: "Brouillon.", methode: "generation", raisonMethode: "Pas de parent.", promptGeneration: "A weathered stone lighthouse at dusk.", remarques: [] };
 const guidesDe = (s: ReturnType<typeof chargerSkill>) => s.fichiers.filter((f) => f.includes("/guide-")).map((f) => f.split("/").pop());

@@ -5,17 +5,17 @@ import { intentionChangee } from "./intent";
 import { assemblerPrompt } from "./prompt";
 import { promptDiffere } from "../renders/renders";
 
-/** Ce que le texte d'un plan a laissé derrière lui depuis qu'il a changé (lib/clips/intent.ts, `intentionChangee`) :
- * - `fiche` : la fiche a été écrite à partir d'un autre texte (`plans.ficheDescription`) : elle est à régénérer ;
- * - `rendu` : le rendu de référence est parti d'un autre texte (`jobs.descriptionUtilisee`) : il est à refaire. Le rendu de référence est l'essai RETENU quand le plan
- *   est « prêt à upscaler » (valider un essai met le texte du plan à celui de l'essai), sinon le dernier rendu terminé.
- * Comparé par valeur, jamais réécrit seul ; sans valeur enregistrée (plan écrit avant ce suivi), rien n'est signalé.
+/** What a clip's text has left behind since it changed (lib/clips/intent.ts, `intentionChangee`):
+ * - `fiche`: the sheet was written from another text (`plans.ficheDescription`): it is to be regenerated;
+ * - `rendu`: the reference render left from another text (`jobs.descriptionUtilisee`): it is to be redone. The reference render is the KEPT attempt when the clip
+ *   is « prêt à upscaler » (validating an attempt sets the clip's text to that of the attempt), otherwise the last finished render.
+ * Compared by value, never rewritten alone; without a recorded value (clip written before this tracking), nothing is flagged.
  *
- * Une fiche n'est jamais signalée quand le rendu de référence la PROUVE d'accord avec le texte : sa fiche actuelle est celle que ce rendu a envoyée, et ce rendu est parti du
- * texte d'aujourd'hui. `ficheDescription` peut être en retard (un chemin d'écriture qui ne l'a pas noté) sans que la fiche soit pour autant périmée. */
+ * A sheet is never flagged when the reference render PROVES it in agreement with the text: its current sheet is the one that this render sent, and this render left from
+ * today's text. `ficheDescription` may be late (a write path that did not note it) without the sheet being stale for all that. */
 export type IntentionPerimee = "fiche" | "rendu";
 
-/** Les plans de l'épisode dont le texte a changé depuis leur fiche ou leur rendu de référence, par uuid. Les autres n'y sont pas. */
+/** The clips of the episode whose text has changed since their sheet or their reference render, by uuid. The others are not in it. */
 export async function intentionsPerimees(episodeId: number): Promise<Map<string, IntentionPerimee>> {
   const resultat = new Map<string, IntentionPerimee>();
   const lignes = await db

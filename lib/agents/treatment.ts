@@ -1,20 +1,20 @@
-/** Le TRAITEMENT d'un épisode (étape E de la création) : avant d'écrire les plans, un premier appel découpe l'épisode en scènes et dit
- * pour chacune ce qu'elle raconte, d'où elle part, où elle arrive et son poids. Les durées sont du ressort du CODE : le modèle ne sait pas
- * additionner (écarts de ×2 constatés), il donne des poids et c'est ici qu'on en fait des secondes. Règles pures, testées. */
+/** An episode's TREATMENT (step E of the creation): before writing the clips, a first call splits the episode into scenes and says
+ * for each what it tells, where it starts, where it ends and its weight. The durations are the CODE's job: the model cannot
+ * add up (×2 discrepancies found), it gives weights and this is where they become seconds. Pure rules, tested. */
 
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../clips/clip-checks";
 
 const DUREE_PLAN_MIN = DUREE_GENERATION_MIN;
 const DUREE_PLAN_MAX = DUREE_GENERATION_MAX;
 
-/** En dessous de cette durée visée, l'épisode s'écrit d'un seul tenant (skill `scenario-episode`) : une ou deux scènes, un traitement n'apporte rien.
- * Au-dessus, même un film court se découpe : ses scènes (2 à 5 plans) s'écrivent en parallèle. */
+/** Below this target duration, the episode is written in one piece (skill `scenario-episode`): one or two scenes, a treatment adds nothing.
+ * Above it, even a short film is split: its scenes (2 to 5 clips) are written in parallel. */
 export const SEUIL_TRAITEMENT_SECONDES = 90;
 
-/** Durée visée d'une scène, en secondes, pour fixer le nombre de scènes (une scène par minute et demie environ). */
+/** Target duration of a scene, in seconds, to set the number of scenes (about one scene per minute and a half). */
 const DUREE_SCENE_MOYENNE = 90;
 
-/** La fourchette de scènes à demander pour une durée visée (au moins 3 pour un film assez long pour avoir un traitement). */
+/** The range of scenes to request for a target duration (at least 3 for a film long enough to have a treatment). */
 export function nombreDeScenesVise(dureeCibleSecondes: number): { min: number; max: number } {
   const milieu = dureeCibleSecondes / DUREE_SCENE_MOYENNE;
   return { min: Math.max(3, Math.round(milieu * 0.75)), max: Math.max(4, Math.round(milieu * 1.35)) };
@@ -25,13 +25,13 @@ export type TraitementScene = {
   etatEntree: string;
   etatSortie: string;
   dureeCibleSecondes: number;
-  /** Ce que l'auteur a dit de cette scène (ses mots, au plus près) ; vide si rien. */
+  /** What the author said about this scene (their words, as close as possible); empty if nothing. */
   momentsDeLAuteur: string;
 };
 
 const texte = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
-/** Un traitement lu dans la base ou dans un changement de proposition : null s'il n'a pas la forme attendue. */
+/** A treatment read from the database or from a proposal change: null if it does not have the expected shape. */
 export function traitementDeScene(v: unknown): TraitementScene | null {
   if (!v || typeof v !== "object") return null;
   const o = v as Record<string, unknown>;
@@ -40,15 +40,15 @@ export function traitementDeScene(v: unknown): TraitementScene | null {
   return { intention: texte(o.intention), etatEntree: texte(o.etatEntree), etatSortie: texte(o.etatSortie), dureeCibleSecondes: Math.round(duree), momentsDeLAuteur: texte(o.momentsDeLAuteur) };
 }
 
-/** Des poids (1 à 5, pas des secondes) aux durées visées des scènes : la somme tombe EXACTEMENT sur la durée de l'épisode, aucune scène ne
- * descend sous un plan minimal. Plus grand reste pour l'arrondi. */
+/** From weights (1 to 5, not seconds) to the scenes' target durations: the sum falls EXACTLY on the episode's duration, no scene
+ * drops below a minimal clip. Largest remainder for rounding. */
 export function repartirDureesScenes(poids: number[], dureeEpisodeSecondes: number): number[] {
   const n = poids.length;
   if (n === 0) return [];
   const total = Math.max(Math.round(dureeEpisodeSecondes), n * DUREE_PLAN_MIN);
   const p = poids.map((x) => (Number.isFinite(x) && x > 0 ? x : 1));
   const somme = p.reduce((a, b) => a + b, 0);
-  // Chaque scène garde d'abord le minimum, le reste se partage au prorata des poids.
+  // Each scene first keeps the minimum, the rest is shared in proportion to the weights.
   const reste = total - n * DUREE_PLAN_MIN;
   const parts = p.map((x) => (x / somme) * reste);
   const durees = parts.map((x) => DUREE_PLAN_MIN + Math.floor(x));
@@ -58,13 +58,13 @@ export function repartirDureesScenes(poids: number[], dureeEpisodeSecondes: numb
   return durees;
 }
 
-/** Écart toléré entre la somme des plans d'une scène et sa durée visée avant que le code les ajuste. En dessous, les durées du modèle
- * restent : elles portent le jeu (un dialogue garde sa marge). */
+/** Tolerated gap between the sum of a scene's clips and its target duration before the code adjusts them. Below it, the model's durations
+ * stay: they carry the pacing (a dialogue keeps its margin). */
 const ECART_SCENE_TOLERE = 0.15;
 
-/** Ajuste les durées des plans d'une scène à sa durée visée : proportionnellement, en entiers de 4 à 10 s, puis au plus près de la cible seconde par
- * seconde. Sans effet si l'écart est dans la tolérance. Si la cible est hors d'atteinte (trop peu ou trop de plans), on s'en approche autant que possible :
- * l'avertissement de durée de la revue dit le reste. */
+/** Adjusts a scene's clip durations to its target duration: proportionally, in whole seconds from 4 to 10 s, then as close as possible to the target second by
+ * second. No effect if the gap is within tolerance. If the target is out of reach (too few or too many clips), we get as close as possible:
+ * the review's duration warning says the rest. */
 export function ajusterDureesScene(durees: number[], cibleSecondes: number): number[] {
   if (durees.length === 0 || !(cibleSecondes > 0)) return durees;
   const borne = (x: number) => Math.min(DUREE_PLAN_MAX, Math.max(DUREE_PLAN_MIN, Math.round(x)));
@@ -75,7 +75,7 @@ export function ajusterDureesScene(durees: number[], cibleSecondes: number): num
   const res = actuelle.map((d) => borne(d * facteur));
   let ecart = Math.round(cibleSecondes) - res.reduce((a, b) => a + b, 0);
   const pas = ecart > 0 ? 1 : -1;
-  // Un cran à la fois, sur le plan qui a le plus de marge : la forme générale (qui est long, qui est court) se conserve.
+  // One step at a time, on the clip with the most margin: the general shape (which is long, which is short) is kept.
   while (ecart !== 0) {
     let choisi = -1;
     for (let i = 0; i < res.length; i++) {
@@ -89,7 +89,7 @@ export function ajusterDureesScene(durees: number[], cibleSecondes: number): num
   return res;
 }
 
-/** Ce que le traitement rendu doit respecter ; chaque défaut est une erreur renvoyée au modèle (un seul renvoi, voir lib/llm/checks.ts). Pur. */
+/** What the returned treatment must respect; each defect is an error sent back to the model (a single re-prompt, see lib/llm/checks.ts). Pure. */
 export function controlerTraitement(
   sortie: { scenes?: { titre?: string; intention?: string; etatEntree?: string; etatSortie?: string }[] },
   vise: { min: number; max: number },

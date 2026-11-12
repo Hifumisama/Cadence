@@ -2,14 +2,14 @@ import type { ChangementBrut } from "../changes";
 import type { Operation } from "./types";
 import { planParUuid, type VueEpisode } from "./view-episode";
 
-/** Une opération validée devient un changement pour les applicateurs existants (`clip.ts`) : eux calculent l'aperçu
- * (avant/après, écrasement, refus) et appliquent dans la transaction de la proposition. Pur, testé. */
+/** A validated operation becomes a change for the existing appliers (`clip.ts`): they compute the preview
+ * (before/after, overwrite, refusal) and apply within the transaction of the proposal. Pure, tested. */
 
 const coupe = (t: string, n = 48) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
 
-/** Où se pose un plan ajouté : sert à garder l'ORDRE DE LECTURE de plusieurs plans ajoutés au même endroit. Les applicateurs insèrent
- * chacun juste après leur repère : appliqués dans l'ordre, ils se retrouveraient à l'envers. On les applique donc en sens inverse, groupe
- * par groupe (la fin de l'épisode, où chaque ajout s'empile, garde l'ordre direct). */
+/** Where an added clip is placed: used to keep the READING ORDER of several clips added at the same place. The appliers each insert
+ * just after their marker: applied in order, they would end up reversed. So we apply them in reverse order, group by group
+ * (the end of the episode, where each addition stacks, keeps the direct order). */
 const repere = (op: Operation): string | null => {
   if (op.type !== "ajouter_plan" || "fin" in op.position) return null;
   return "debut" in op.position ? "debut" : op.position.apresPlanUuid;
@@ -27,7 +27,7 @@ export function operationsVersChangements(operations: Operation[], vue: VueEpiso
 
 function versChangements(op: Operation, vue: VueEpisode): ChangementBrut[] {
   if (op.type === "ajouter_plan") {
-    // L'applicateur « plan » crée : la scène est celle du plan qu'il suit (déduite à l'application), la fiche vient après (refondre_fiche).
+    // The « plan » applier creates: the scene is that of the clip it follows (deduced on application), the sheet comes after (refondre_fiche).
     const plan: ChangementBrut = {
       groupe: "plans",
       cibleType: "plan",
@@ -42,7 +42,7 @@ function versChangements(op: Operation, vue: VueEpisode): ChangementBrut[] {
   }
   const p = planParUuid(vue, op.planUuid);
   if (!p) return [];
-  // Une refonte de fiche n'écrit rien dans la transaction : le code recompile la fiche avec Open H3 IR après l'application.
+  // A sheet rewrite writes nothing in the transaction: the code recompiles the sheet with Open H3 IR after application.
   if (op.type === "refondre_fiche") return [];
   const nom = `${p.handle} · ${p.titre}`;
   if (op.type === "couper_plan") return [{ groupe: "plans", cibleType: "plan", cibleRef: p.uuid, libelle: `Supprimer ${nom}`, operation: "supprimer" }];

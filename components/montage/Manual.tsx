@@ -1,4 +1,4 @@
-/** Le manuel des raccourcis de la page Montage (touche « ? » pour l'ouvrir ou le fermer). */
+/** The shortcuts manual of the Montage page (the « ? » key opens or closes it). */
 export function Manuel({ ouvert, basculer }: { ouvert: boolean; basculer: (v: boolean) => void }) {
   return (
     <details className="mt-manuel" open={ouvert} onToggle={(e) => basculer((e.currentTarget as HTMLDetailsElement).open)}>

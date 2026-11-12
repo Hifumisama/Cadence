@@ -1,33 +1,33 @@
-/** Affiches de présentation (image d'un projet ou d'un épisode) — règles pures, sans base ni disque.
+/** Presentation posters (image of a project or an episode) — pure rules, no database or disk.
  *
- * Une affiche se génère avec la MÊME mécanique qu'une image d'asset (file ComfyUI, candidats, « Utiliser »), donc elle
- * s'appuie sur un asset d'un type à part, `affiche`. Cet asset est un détail d'implémentation : il n'apparaît jamais dans
- * le registre, ne compte pas dans les totaux et n'est jamais montré à l'agent (voir `horsAffiches`, lib/assets/assets-visible.ts).
- * Quand un candidat est adopté, son image devient l'affiche du projet ou de l'épisode (`posterFichier`). Par défaut le titre
- * n'est pas dans l'image : il se superpose à l'affichage (components/ui/Poster.tsx) ; il peut aussi être écrit par le modèle
- * (ligne `Title lettering:` du prompt) et le fichier d'affiche porte alors le suffixe `-titre` (lib/posters/poster.ts). */
+ * A poster is generated with the SAME mechanism as an asset image (ComfyUI queue, candidates, « Utiliser » (use)), so it
+ * relies on an asset of its own type, `affiche`. This asset is an implementation detail: it never appears in
+ * the registry, does not count in the totals and is never shown to the agent (see `horsAffiches`, lib/assets/assets-visible.ts).
+ * When a candidate is adopted, its image becomes the poster of the project or episode (`posterFichier`). By default the title
+ * is not in the image: it is overlaid on display (components/ui/Poster.tsx); it can also be written by the model
+ * (`Title lettering:` line of the prompt) and the poster file then carries the suffix `-titre` (lib/posters/poster.ts). */
 
 export const TYPE_AFFICHE = "affiche";
 
-/** Ce qu'une affiche habille : le projet (le film) ou son épisode. */
+/** What a poster dresses: the project (the film) or its episode. */
 export type CibleAffiche = "projects" | "episodes";
 
 const LETTRE: Record<CibleAffiche, string> = { projects: "P", episodes: "E" };
 
-/** Code de l'asset d'affiche : un par projet, par épisode. */
+/** Code of the poster asset: one per project, per episode. */
 export function codeAffiche(cible: CibleAffiche, id: number): string {
   return `AFFICHE_${LETTRE[cible]}${id}`;
 }
 
-/** Retrouve ce que désigne un code d'affiche, ou null si ce n'en est pas un. */
+/** Finds what a poster code designates, or null if it is not one. */
 export function cibleDeCodeAffiche(code: string): { cible: CibleAffiche; id: number } | null {
   const m = /^AFFICHE_([PE])(\d+)$/.exec(code);
   if (!m) return null;
   return { cible: m[1] === "P" ? "projects" : "episodes", id: Number(m[2]) };
 }
 
-/** Format et définition proposés d'entrée : toutes les affiches (projet, épisode) sont en 2:3, comme les cartes.
- * Modifiables dans la fenêtre de génération. */
+/** Format and resolution proposed by default: all posters (project, episode) are 2:3, like the cards.
+ * Editable in the generation window. */
 export function formatAfficheParDefaut(): { aspect: "2:3"; megapixels: number } {
   return { aspect: "2:3", megapixels: 1.3 };
 }
@@ -35,10 +35,10 @@ export function formatAfficheParDefaut(): { aspect: "2:3"; megapixels: number } 
 const LIGNE_SANS_TEXTE = "No text, no lettering, no logo, no watermark.";
 const DEBUT_LIGNE_TITRE = "Title lettering:";
 
-/** Le prompt proposé : un gabarit rempli avec ce que le projet sait de lui-même. La clause de style n'y figure pas (le
- * workflow l'ajoute à part). Pas d'étiquette (« Story: ») ni de titre entre guillemets hors du cas « titre dans l'image » :
- * le modèle dessinerait les mots qu'on lui donne. Le résumé est en français, donc seul l'agent (skill `prompt-asset`, variante `affiche`)
- * fait un vrai prompt ; ce gabarit n'est que le point de départ. */
+/** The proposed prompt: a template filled with what the project knows about itself. The style clause is not included (the
+ * workflow adds it separately). No label (« Story: ») nor quoted title outside the « title in the image » case:
+ * the model would draw the words it is given. The summary is in French, so only the agent (skill `prompt-asset`, `affiche` variant)
+ * writes a real prompt; this template is only the starting point. */
 export function promptAffiche(entree: { cible: CibleAffiche; titre: string; resume?: string | null; genreTon?: string | null; titreDansImage?: boolean }): string {
   const resume = (entree.resume ?? "").trim().replace(/\s+/g, " ");
   const ton = (entree.genreTon ?? "").trim().replace(/[.\s]+$/, "");
@@ -50,18 +50,18 @@ export function promptAffiche(entree: { cible: CibleAffiche; titre: string; resu
   return avecTitreDansImage(lignes.join("\n"), entree.titre, entree.titreDansImage === true);
 }
 
-/** Le titre est-il demandé dans l'image ? Vrai quand le prompt porte la ligne `Title lettering: …`. C'est le prompt qui fait
- * foi (celui du candidat à l'adoption) : pas de réglage à stocker à part. */
+/** Is the title requested in the image? True when the prompt carries the `Title lettering: …` line. The prompt is the
+ * authority (that of the candidate being adopted): no setting to store separately. */
 export function titreDansPrompt(prompt: string): boolean {
   return prompt.includes(DEBUT_LIGNE_TITRE);
 }
 
-/** Met ou retire la ligne de titre d'un prompt (modifié à la main ou écrit par l'agent compris) : actif → la ligne « sans
- * texte » est remplacée par la ligne de titre ; inactif → l'inverse. Le reste du prompt n'est pas touché. */
+/** Adds or removes the title line of a prompt (edited by hand or written by the agent, included): active → the « sans
+ * texte » (no text) line is replaced by the title line; inactive → the reverse. The rest of the prompt is not touched. */
 export function avecTitreDansImage(prompt: string, titre: string, actif: boolean): string {
   const nom = titre.trim() || "Untitled";
-  // La phrase du titre est ôtée où qu'elle soit : seule sur sa ligne, ou collée à la fin d'un paragraphe (le modèle l'écrit parfois sans retour à la ligne ; l'ancienne
-  // version la laissait alors en place avant d'ajouter la sienne, et le titre était demandé deux fois : AF-03).
+  // The title sentence is removed wherever it is: alone on its line, or attached to the end of a paragraph (the model sometimes writes it without a line break; the old
+  // version then left it in place before adding its own, and the title was requested twice: AF-03).
   const lignes = prompt
     .split("\n")
     .map((l) => {
@@ -83,9 +83,9 @@ function normaliser(s: string): string {
   return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
-/** Le personnage principal d'un projet, pour l'affiche : le premier personnage du brief (c'est l'ordre du brief qui dit
- * qui compte) dont on retrouve l'asset dans le registre, par son nom dans le code ou la description. Sans correspondance,
- * repli sur le premier asset personnage qui a une image : mieux vaut un visage connu qu'aucun. */
+/** The main character of a project, for the poster: the first character in the brief (the brief's order says
+ * which one counts) whose asset is found in the registry, by its name in the code or the description. Without a match,
+ * falls back to the first character asset that has an image: better a known face than none. */
 export function personnagePrincipal<A extends { code: string; description: string; aImage: boolean }>(
   personnagesBrief: { nom: string }[],
   personnagesRegistre: A[],

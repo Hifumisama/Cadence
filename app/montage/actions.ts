@@ -8,9 +8,9 @@ import { entreesEpisode, reecrireRangs } from "@/lib/montage/montage-db";
 import { construireClips, recaler, segmentsExport, DUREE_MIN_CLIP } from "@/lib/montage/montage";
 import { getMontage } from "@/lib/montage/queries-montage";
 
-/** Actions de la page Montage (docs/PLAN_MONTAGE.md). Elles ne touchent qu'aux ENTRÉES du montage (`montage_entrees`) : jamais à un plan,
- * à son ordre dans le scénario ni à ses rendus. L'ordre du scénario, lui, se change avec `deplacerPlan` (app/scenario/actions.ts). La
- * page applique chaque geste tout de suite (mise à jour optimiste) puis appelle l'action ; la revalidation la recale sur la base. */
+/** Actions of the Montage page (docs/PLAN_MONTAGE.md). They only touch the montage ENTRIES (`montage_entrees`): never a clip,
+ * its order in the screenplay, nor its renders. The screenplay order, for its part, is changed with `deplacerPlan` (app/scenario/actions.ts). The
+ * page applies each gesture right away (optimistic update) then calls the action; the revalidation realigns it on the database. */
 
 type Resultat = { ok: true } | { ok: false; erreur: string };
 
@@ -22,8 +22,8 @@ async function entree(entreeId: number) {
   return e ?? null;
 }
 
-/** Glisser-déposer d'un clip, et tout réordonnancement : la séquence complète des entrées de l'épisode, dans le nouvel ordre. Refusé si
- * elle ne correspond plus aux entrées en base (une autre fenêtre a changé le montage entre-temps). */
+/** Drag-and-drop of a clip, and any reordering: the complete sequence of the episode's entries, in the new order. Refused if
+ * it no longer matches the entries in the database (another window has changed the montage in the meantime). */
 export async function reordonnerMontage(episodeId: number, ids: number[]): Promise<Resultat> {
   const r = await db.transaction(async (tx) => {
     const actuelles = await entreesEpisode(tx, episodeId);
@@ -38,7 +38,7 @@ export async function reordonnerMontage(episodeId: number, ids: number[]): Promi
   return r;
 }
 
-/** Rognage non destructif : début et fin (secondes dans le rendu) ; `fin` null = jusqu'au bout. Le fichier n'est jamais touché. */
+/** Non-destructive trim: start and end (seconds within the render); `fin` null = to the end. The file is never touched. */
 export async function rognerEntree(entreeId: number, debut: number, fin: number | null): Promise<Resultat> {
   if (!fini(debut) || debut < 0 || (fin != null && (!fini(fin) || fin < debut + DUREE_MIN_CLIP - 1e-6))) {
     return { ok: false, erreur: "Rognage invalide : la fin doit suivre le début d'au moins une demi-seconde." };
@@ -50,8 +50,8 @@ export async function rognerEntree(entreeId: number, debut: number, fin: number 
   return { ok: true };
 }
 
-/** Le rendu que lit cette entrée (et que l'export prendra). `null` = revenir au rendu par défaut du plan. Seul un rendu terminé, avec son
- * fichier, du même plan, peut être retenu. */
+/** The render this entry reads (and that the export will take). `null` = revert to the clip's default render. Only a finished render,
+ * with its file, of the same clip, can be kept. */
 export async function choisirRenduEntree(entreeId: number, renduId: number | null): Promise<Resultat> {
   const e = await entree(entreeId);
   if (!e) return { ok: false, erreur: "Ce plan n'est plus dans le montage." };
@@ -65,8 +65,8 @@ export async function choisirRenduEntree(entreeId: number, renduId: number | nul
   return { ok: true };
 }
 
-/** Dupliquer : une entrée de plus sur le même plan, juste après, avec le même rendu et le même rognage (qu'on change ensuite à part).
- * Aucun fichier n'est copié. */
+/** Duplicate: one more entry on the same clip, right after, with the same render and the same trim (which is changed afterwards, separately).
+ * No file is copied. */
 export async function dupliquerEntree(entreeId: number): Promise<{ ok: true; id: number } | { ok: false; erreur: string }> {
   const r = await db.transaction(async (tx) => {
     const [e] = await tx.select().from(montageEntrees).where(eq(montageEntrees.id, entreeId));
@@ -85,8 +85,8 @@ export async function dupliquerEntree(entreeId: number): Promise<{ ok: true; id:
   return r;
 }
 
-/** Retirer du montage : l'entrée disparaît, jamais le plan ni ses rendus (le plan sans entrée passe dans « Hors montage »). Le montage
- * garde au moins une entrée : un montage vide serait repris tout entier à la prochaine ouverture (voir `assurerMontage`). */
+/** Remove from the montage: the entry disappears, never the clip nor its renders (a clip without an entry goes to « Hors montage »). The montage
+ * keeps at least one entry: an empty montage would be taken whole again at the next opening (see `assurerMontage`). */
 export async function retirerEntree(entreeId: number): Promise<Resultat> {
   const r = await db.transaction(async (tx) => {
     const [e] = await tx.select().from(montageEntrees).where(eq(montageEntrees.id, entreeId));
@@ -101,7 +101,7 @@ export async function retirerEntree(entreeId: number): Promise<Resultat> {
   return r;
 }
 
-/** Ajouter un plan au montage (glissé depuis « Hors montage ») à la position `index`, avec son rendu par défaut, plan entier. */
+/** Add a clip to the montage (dragged from « Hors montage ») at position `index`, with its default render, whole clip. */
 export async function ajouterAuMontage(episodeId: number, planId: number, index: number): Promise<{ ok: true; id: number } | { ok: false; erreur: string }> {
   const r = await db.transaction(async (tx) => {
     const [p] = await tx.select({ id: plans.id }).from(plans).where(and(eq(plans.id, planId), eq(plans.episodeId, episodeId)));
@@ -118,7 +118,7 @@ export async function ajouterAuMontage(episodeId: number, planId: number, index:
   return r;
 }
 
-/** « Recaler sur l'ordre des scènes » : les entrées reprennent l'ordre du scénario de leur plan, rognages et rendus retenus gardés. */
+/** « Recaler sur l'ordre des scènes »: the entries take back the screenplay order of their clip, with kept trims and selected renders kept. */
 export async function recalerMontage(episodeId: number): Promise<Resultat> {
   await db.transaction(async (tx) => {
     const toutes = await entreesEpisode(tx, episodeId);
@@ -129,8 +129,8 @@ export async function recalerMontage(episodeId: number): Promise<Resultat> {
   return { ok: true };
 }
 
-/** « Exporter l'épisode » : l'instantané de ce qui part (rendus retenus des entrées, dans l'ordre, rognage appliqué), posé en file pour le
- * worker (worker/montage-export.ts), qui le met bout à bout avec ffmpeg. Les entrées sans rendu ou en échec sont ignorées. */
+/** « Exporter l'épisode »: the snapshot of what goes out (selected renders of the entries, in order, trim applied), queued for the
+ * worker (worker/montage-export.ts), which joins them end to end with ffmpeg. Entries without a render or in failure are ignored. */
 export async function exporterEpisode(episodeId: number): Promise<{ ok: true; nbSegments: number; nbIgnores: number; dureeSecondes: number } | { ok: false; erreur: string }> {
   const [enCours] = await db
     .select({ id: montageExports.id })
@@ -141,7 +141,7 @@ export async function exporterEpisode(episodeId: number): Promise<{ ok: true; nb
   const m = await getMontage(episodeId);
   const { segments, ignores, dureeSecondes } = segmentsExport(construireClips(m.entrees, m.plans));
   if (segments.length === 0) return { ok: false, erreur: "Aucun plan du montage n'a de rendu : rien à exporter." };
-  // Une demande encore en attente est remplacée : seul le dernier état du montage compte.
+  // A pending request is replaced: only the latest state of the montage counts.
   await db.delete(montageExports).where(and(eq(montageExports.episodeId, episodeId), eq(montageExports.statut, "en_attente")));
   await db.insert(montageExports).values({ episodeId, segments, nbIgnores: ignores });
   revalidatePath("/", "layout");

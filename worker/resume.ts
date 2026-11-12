@@ -6,40 +6,40 @@ import { agentRuns, assetGenerations, jobs } from "../db/schema";
 import { finirAnnulationImage, finirAnnulationLlm, finirAnnulationVideo } from "../lib/tasks/cancellation-db";
 import { cheminGenerationMedia } from "../lib/media";
 
-// Reprise au démarrage du worker : ce qui était « en cours » appartenait à un
-// worker mort (arrêt, plantage, ou simple redémarrage de `tsx watch`, qui relance
-// le worker à chaque sauvegarde d'un fichier importé). Sans cette reprise, ces
-// lignes restent « en cours » pour toujours et l'écran tourne indéfiniment.
+// Resumption at worker startup: what was « en cours » belonged to a dead
+// worker (stop, crash, or simply a restart of `tsx watch`, which restarts the
+// worker at each save of an imported file). Without this resumption, these
+// rows remain « en cours » forever and the screen spins indefinitely.
 //
-// - Image `en_cours` → `echoue` (« Interrompue (worker redémarré) »). Pas de rejeu
-//   automatique : même règle que pour tout échec d'image, l'utilisateur relance.
-// - Vidéo `en_cours` → `en_attente`, sans consommer de tentative (F04 : une
-//   interruption n'est pas un échec de rendu). Le statut du plan n'est pas touché :
-//   le job le repasse « en cours » en repartant, comme après une indisponibilité.
+// - Image `en_cours` → `echoue` (« Interrompue (worker redémarré) »). No automatic
+//   replay: same rule as for any image failure, the user restarts it.
+// - Video `en_cours` → `en_attente`, without consuming an attempt (F04: an
+//   interruption is not a render failure). The clip's status is not touched:
+//   the job puts it back « en cours » when restarting, as after an unavailability.
 //
-// - Une tâche `en_cours` dont l'annulation avait été demandée est TERMINÉE comme
-//   annulée (image `annulee`, vidéo `echoue`/« Annulée ») : on ne la rejoue pas, et
-//   ce n'est pas un échec « worker redémarré ».
-// - Appel LLM `en_cours` → `echoue` (« Interrompue (worker redémarré) »), jamais
-//   rejoué : un appel de plusieurs minutes se relance à la main, et la connexion
-//   HTTP coupée a déjà arrêté la génération côté llama.cpp.
+// - A task `en_cours` whose cancellation had been requested is FINISHED as
+//   cancelled (image `annulee`, video `echoue`/« Annulée »): we do not replay it, and
+//   it is not a « worker redémarré » failure.
+// - LLM call `en_cours` → `echoue` (« Interrompue (worker redémarré) »), never
+//   replayed: a call of several minutes is restarted by hand, and the
+//   cut HTTP connection has already stopped the generation on the llama.cpp side.
 //
-// L'opération est idempotente (ne touche que ce qui est « en cours ») et rapide :
-// deux UPDATE et quelques suppressions de fichiers d'aperçu.
+// The operation is idempotent (only touches what is « en cours ») and fast:
+// two UPDATEs and a few deletions of preview files.
 //
-// PIÈGE : on suppose UN SEUL worker sur la base. Si un second worker tourne
-// (ex. un conteneur oublié), ses tâches en cours seraient reprises à tort.
-// DOUBLON POSSIBLE : si ComfyUI exécute encore le prompt de la tâche reprise, une
-// vidéo remise en file sera soumise une seconde fois (GPU occupé pour rien).
-// V2 (non codée) : retrouver la tâche par `comfyui_prompt_id` — /history s'il est
-// fini (on récupère le résultat), /queue s'il tourne encore (on se rattache au
-// suivi) — avant de décider.
+// TRAP: we assume ONE SINGLE worker on the database. If a second worker runs
+// (e.g. a forgotten container), its tasks in progress would be resumed wrongly.
+// POSSIBLE DUPLICATE: if ComfyUI is still running the prompt of the resumed task, a
+// video put back in the queue will be submitted a second time (GPU busy for nothing).
+// V2 (not coded): find the task by `comfyui_prompt_id` — /history if it is
+// finished (we get the result), /queue if it is still running (we reattach to the
+// tracking) — before deciding.
 
 export const ERREUR_INTERROMPUE = "Interrompue (worker redémarré)";
 
-/** Chemins (relatifs à MEDIA_ROOT) des fichiers d'aperçu laissés par une
- * génération interrompue : le fichier en cours d'écriture n'est jamais le résultat
- * (`fichier` n'est renseigné qu'à la fin), seul l'aperçu traîne. */
+/** Paths (relative to MEDIA_ROOT) of the preview files left by an
+ * interrupted generation: the file being written is never the result
+ * (`fichier` is only filled at the end), only the preview lingers. */
 export function fichiersOrphelins(g: { assetId: number; apercuFichier: string | null }): string[] {
   return g.apercuFichier ? [cheminGenerationMedia(g.assetId, g.apercuFichier)] : [];
 }
@@ -71,7 +71,7 @@ export async function reprendreOrphelines(
         apercuFichier: null,
         apercuAt: null,
       })
-      // Garde : si elle a été terminée entre-temps, on n'y touche pas.
+      // Guard: if it was finished in the meantime, we do not touch it.
       .where(and(eq(assetGenerations.id, g.id), eq(assetGenerations.statut, "en_cours")));
     for (const relatif of fichiersOrphelins(g)) {
       await unlink(join(mediaRoot, relatif)).catch(() => undefined);
@@ -89,7 +89,7 @@ export async function reprendreOrphelines(
     .where(eq(jobs.statut, "en_cours"))
     .returning({ id: jobs.id });
 
-  // Appels LLM : un drapeau d'annulation déjà posé prime sur « interrompue ».
+  // LLM calls: a cancellation flag already set takes precedence over « interrompue ».
   let annuleesLlm = 0;
   let llm = 0;
   for (const r of await db.select().from(agentRuns).where(eq(agentRuns.statut, "en_cours"))) {

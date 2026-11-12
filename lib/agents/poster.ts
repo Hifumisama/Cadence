@@ -7,8 +7,8 @@ import { imageActuelle } from "../assets/queries-generations";
 import type { Db } from "./appliers/common";
 import { extraitsBrief, lireBriefDuProjet, type EntreeSkill } from "./context";
 
-/** Ce qu'une affiche habille, résolu une fois : le projet concerné, le titre à citer et ce qui nourrit le prompt (résumé,
- * genre et ton). Le brief fait foi pour un projet ; un épisode a son propre résumé. */
+/** What a poster dresses, resolved once: the project concerned, the title to cite and what feeds the prompt (summary,
+ * genre and tone). The brief is authoritative for a project; an episode has its own summary. */
 export type ContexteAffiche = { projectId: number; titre: string; resume: string | null; genreTon: string | null };
 
 export async function resoudreAffiche(db: Db, cible: CibleAffiche, id: number): Promise<ContexteAffiche | null> {
@@ -17,7 +17,7 @@ export async function resoudreAffiche(db: Db, cible: CibleAffiche, id: number): 
     if (!projet) return null;
     const brief = await briefUtilisable(db, projet.id);
     let resume = brief?.arc || null;
-    // Un film n'a que son épisode unique : son résumé vaut pour le film entier.
+    // A film has only its single episode: its summary stands for the whole film.
     if (!resume) {
       const [ep] = await db.select({ resume: episodes.resume }).from(episodes).where(eq(episodes.projectId, projet.id)).orderBy(episodes.numero).limit(1);
       resume = ep?.resume?.trim() || null;
@@ -35,14 +35,14 @@ export async function resoudreAffiche(db: Db, cible: CibleAffiche, id: number): 
   };
 }
 
-/** Le brief du projet, sauf s'il est vide ou partiel (rien de rédigé dont s'inspirer). */
+/** The project's brief, unless it is empty or partial (nothing written to draw on). */
 async function briefUtilisable(db: Db, projectId: number) {
   const brief = await lireBriefDuProjet(db, projectId);
   return brief && brief.statut !== "partiel" ? brief.contenu : null;
 }
 
-/** Le personnage principal du projet et son image : le premier personnage du brief retrouvé dans le registre (voir
- * `personnagePrincipal`). Lu côté serveur (accès disque pour savoir si l'image existe). */
+/** The project's main character and its image: the first character of the brief found in the registry (see
+ * `personnagePrincipal`). Read server side (disk access to know whether the image exists). */
 export async function lirePersonnagePrincipal(db: Db, projectId: number) {
   const brief = await lireBriefDuProjet(db, projectId);
   const lignes = await db
@@ -59,8 +59,8 @@ export async function lirePersonnagePrincipal(db: Db, projectId: number) {
   return choix ? { ...choix.asset, nom: choix.nom ?? choix.asset.code } : null;
 }
 
-/** L'entrée du skill `prompt-asset`, variante `affiche`, pour l'asset d'affiche d'un projet ou d'un épisode : titre,
- * résumé, ton, personnage principal (et si son image existe : elle sert de première source), clause de style en information. */
+/** The `prompt-asset` skill input, `affiche` variant, for the poster asset of a project or an episode: title,
+ * summary, tone, main character (and whether its image exists: it serves as the first source), style clause as information. */
 export async function entreePromptAffiche(db: Db, projectId: number, assetId: number, consigne: string, retour?: string): Promise<EntreeSkill | null> {
   const [asset] = await db.select().from(assets).where(and(eq(assets.id, assetId), eq(assets.projectId, projectId)));
   const cible = asset ? cibleDeCodeAffiche(asset.code) : null;

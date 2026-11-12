@@ -18,10 +18,10 @@ import {
 
 type Valeurs = ChampsNarratifs & {
   titre: string;
-  /** La durée de RENDU du plan (`plans.duree_generation_secondes`, que la durée de montage suit) ; null : hors des bornes actuelles (plan d'avant), on n'y touche pas tant qu'on ne choisit pas. */
+  /** The clip's RENDER duration (`plans.duree_generation_secondes`, which the montage duration follows); null: outside the current bounds (earlier clip), we don't touch it until a value is chosen. */
   dureeSecondes: number | null;
   liaison: Liaison;
-  /** Open H3 IR : vide = le plan hérite de sa scène, puis du projet (lib/h3ir/settings.ts). Doivent faire partie de `initial`, sinon chaque enregistrement les remettrait à zéro. */
+  /** Open H3 IR: empty = the clip inherits from its scene, then from the project (lib/h3ir/settings.ts). Must be part of `initial`, otherwise each save would reset them to zero. */
   creativite: string;
   styleCamera: string;
 };
@@ -45,18 +45,18 @@ export function PlanScenarioPanel({
   planUuid: string;
   brouillon: boolean;
   initial: Valeurs;
-  /** Créativité et style de mise en scène du projet et de la scène du plan : ce que le plan hérite quand il ne règle rien. */
+  /** Creativity and staging style of the project and of the clip's scene: what the clip inherits when it sets nothing. */
   reglagesProjet: ReglagesBruts;
   reglagesScene?: ReglagesBruts | null;
-  /** La demande « Générer la fiche » déjà en cours sur ce plan, s'il y en a une. */
+  /** The « Générer la fiche » request already running on this clip, if there is one. */
   demandeEnCours?: number | null;
-  /** La durée de rendu actuelle du plan, même hors bornes (plan d'avant) : la puce la signale. */
+  /** The clip's current render duration, even outside the bounds (earlier clip): the badge flags it. */
   dureeGeneration?: number;
-  /** Premier plan de l'épisode : rien avant lui, la liaison ne se règle pas. */
+  /** First clip of the episode: nothing before it, so the link cannot be set. */
   premierPlan?: boolean;
-  /** Vidéos de démo de la mise en scène (lib/media.ts), pour la fenêtre de choix du style. */
+  /** Staging demo videos (lib/media.ts), for the style choice window. */
   demos?: Record<string, DemoDispo>;
-  /** Le timecode de musique du plan, s'il y en a un. */
+  /** The clip's music timecode, if there is one. */
   musique?: string | null;
 }) {
   const [champs, setChamps] = useState(initial);
@@ -70,7 +70,7 @@ export function PlanScenarioPanel({
   const majNarratif = (cle: keyof ChampsNarratifs, valeur: string) =>
     setChamps((c) => ({ ...c, [cle]: valeur }));
 
-  // La durée ne part que si elle a été choisie (une durée hors bornes d'avant reste telle quelle tant qu'on n'y touche pas).
+  // The duration is only sent if it was chosen (an out-of-bounds duration from before stays as it is as long as we don't touch it).
   const aEnvoyer = () => {
     const { dureeSecondes, ...reste } = champs;
     return dureeSecondes != null ? { ...reste, dureeSecondes } : reste;
@@ -89,7 +89,7 @@ export function PlanScenarioPanel({
     });
   };
 
-  // « Développer » écrit réellement la fiche : le scénario du plan est enregistré, puis l'agent l'écrit en arrière-plan (même demande que « Générer la fiche »).
+  // « Développer » really writes the sheet: the clip's screenplay is saved, then the agent writes it in the background (same request as « Générer la fiche »).
   const enregistrerAvant = async () => {
     const r = await updatePlanScenario(planId, aEnvoyer());
     if (!r.ok) setErreur(r.erreur);
@@ -101,7 +101,7 @@ export function PlanScenarioPanel({
 
   if (!brouillon && !editionOuverte) {
     const reglages = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene, plan: { creativite: initial.creativite, styleCamera: initial.styleCamera } });
-    // L'intent affiché : sans la « Consigne de l'auteur » (elle double le récit quand il la respecte ; traduction-intent la lit toujours en base) ni l'ancien « État en fin de plan ».
+    // The displayed intent: without the « Consigne de l'auteur » (it duplicates the narrative when the author respects it; traduction-intent always reads it from the database) nor the old « État en fin de plan ».
     const intent = intentAffichee(initial.description);
     const horsBornes = dureeGeneration != null && (dureeGeneration < DUREE_GENERATION_MIN || dureeGeneration > DUREE_GENERATION_MAX);
     return (

@@ -8,9 +8,9 @@ import { intentAffichee } from "@/lib/clips/intent";
 
 export type VersionPrompt = { id: number; texte: string; source: string; quand: string };
 
-/** Le prompt du plan, en texte brut : on le lit, on le copie, on le retouche comme un texte libre. « Enregistrer » le remplace (il doit rester lisible :
- * les six sections, chacune sous son nom) et garde le texte dans l'historique, où l'on reprend n'importe quelle version. L'agent d'« Itérer » le réécrit
- * de son côté ; chaque essai garde le prompt qu'il a reçu (« Envoyé pour l'essai n°X »). */
+/** The clip's prompt, as plain text: we read it, copy it, retouch it like free text. « Enregistrer » replaces it (it must stay readable:
+ * the six sections, each under its name) and keeps the text in the history, from which any version can be picked up again. The « Itérer » agent rewrites it
+ * on its side; each attempt keeps the prompt it received (« Envoyé pour l'essai n°X »). */
 export function PromptBloc({
   planId,
   promptComplet,
@@ -21,9 +21,9 @@ export function PromptBloc({
   planId: number;
   promptComplet: string;
   historique: VersionPrompt[];
-  /** Un essai peut partir : le plan n'est pas validé et aucun essai n'est en file (comme « Nouvelle variante »). */
+  /** An attempt can start: the clip is not validated and no attempt is queued (as with « Nouvelle variante »). */
   peutLancer: boolean;
-  /** Ce qui avait été envoyé pour l'essai affiché. */
+  /** What had been sent for the displayed attempt. */
   essai: { numero: number; prompt: string | null; promptChange: boolean; description: string | null } | null;
 }) {
   const router = useRouter();
@@ -36,8 +36,8 @@ export function PromptBloc({
   const [note, setNote] = useState("");
   const modifie = texte !== promptComplet;
 
-  // Le prompt change côté serveur pendant que le tiroir est ouvert (une référence retirée ou ajoutée réécrit ses labels, un essai l'a réécrit) :
-  // si on n'y a pas touché, on le suit ; sinon on prévient, pour ne pas enregistrer par-dessus des labels à jour.
+  // The prompt changes server-side while the drawer is open (a reference removed or added rewrites its labels, an attempt rewrote it):
+  // if we have not touched it, we follow it; otherwise we warn, so as not to save over up-to-date labels.
   const vu = useRef(promptComplet);
   const [change, setChange] = useState(false);
   useEffect(() => {
@@ -63,7 +63,7 @@ export function PromptBloc({
       router.refresh();
     });
   };
-  /** Enregistre le prompt (s'il se lit) puis lance un essai AVEC la seed du plan : même seed, prompt différent = comparaison à armes égales. */
+  /** Saves the prompt (if it reads well) then launches an attempt WITH the clip's seed: same seed, different prompt = a fair comparison. */
   const enregistrerEtGenerer = () => {
     setErreurs([]);
     setChange(false);
@@ -88,7 +88,7 @@ export function PromptBloc({
       setCopie(true);
       setTimeout(() => setCopie(false), 1500);
     } catch {
-      // presse-papiers indisponible
+      // clipboard unavailable
     }
   };
 
@@ -195,7 +195,7 @@ export function PromptBloc({
   );
 }
 
-/** Le sceau « Figé n°X » : posé en haut du prompt pendant les 5 s où le rendu se place dans la file. */
+/** The seal « Figé n°X »: placed at the top of the prompt during the 5 s the render takes its place in the queue. */
 function Sceau() {
   const { sceau } = useBrouillon();
   if (sceau == null) return null;

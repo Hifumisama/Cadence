@@ -1,16 +1,16 @@
 import type { ChoixMiseEnScene, Creativite, StyleCamera } from "./settings";
 
-/** Les aides qui permettent de SE PROJETER dans les choix de créativité et de style de mise en scène (écran « Mise en scène » de /nouveau, lib/h3ir/settings.ts) :
- * une même scène rendue à chaque choix, ce que chaque niveau ajoute, les films à connaître, quand le choisir. Pur, sans import à l'exécution : lisible côté client.
+/** The aids that let one PICTURE oneself in the creativity and staging style choices (« Mise en scène » screen of /nouveau, lib/h3ir/settings.ts):
+ * the same scene rendered at each choice, what each level adds, the films to know, when to pick it. Pure, no runtime import: readable client-side.
  *
- * Les ajouts par niveau suivent le paquet Open H3 IR (h3ir/creativity.py) : « sobre » n'ajoute rien ; « équilibrée » ajoute seulement de la musique ; « audacieuse » et
- * « extrême » peuvent ajouter musique, paroles et texte à l'écran ; « extrême » ne licencie rien de plus, il pousse CHAQUE choix à son maximum (caméra ample et rapide,
- * cadres très serrés ou très larges, contrastes durs) sans inventer d'événement. Les phrases d'exemple sont illustratives (nos mots, pas une sortie du modèle). */
+ * The additions per level follow the Open H3 IR package (h3ir/creativity.py): « sobre » adds nothing; « équilibrée » only adds music; « audacieuse » and
+ * « extrême » can add music, lyrics and on-screen text; « extrême » licenses nothing more, it pushes EACH choice to its maximum (wide and fast camera,
+ * very tight or very wide frames, hard contrasts) without inventing any event. The example sentences are illustrative (our words, not an output of the model). */
 
-/** La scène commune des exemples : de quoi comparer les choix sur la même action. */
+/** The common scene of the examples: enough to compare the choices on the same action. */
 export const SCENE_EXEMPLE = "Une femme ouvre une porte et découvre une pièce vide.";
 
-// --- Créativité -------------------------------------------------------------------------------------------------------------------------------
+// --- Creativity -------------------------------------------------------------------------------------------------------------------------------
 
 export const PASTILLES_CREATIVITE = [
   { cle: "musique", libelle: "Musique" },
@@ -21,7 +21,7 @@ export const PASTILLES_CREATIVITE = [
 ] as const;
 export type ClePastille = (typeof PASTILLES_CREATIVITE)[number]["cle"];
 
-/** Ce que chaque niveau peut ajouter ou pousser (vrai = permis). Chaque niveau reprend celui d'avant. */
+/** What each level can add or push (true = allowed). Each level includes the one before it. */
 export const AJOUTS_CREATIVITE: Record<Creativite, Record<ClePastille, boolean>> = {
   restrained: { musique: false, paroles: false, texteEcran: false, cameraAppuyee: false, maximum: false },
   balanced: { musique: true, paroles: false, texteEcran: false, cameraAppuyee: false, maximum: false },
@@ -29,7 +29,7 @@ export const AJOUTS_CREATIVITE: Record<Creativite, Record<ClePastille, boolean>>
   extreme: { musique: true, paroles: true, texteEcran: true, cameraAppuyee: true, maximum: true },
 };
 
-/** La même scène, rendue à chaque niveau. */
+/** The same scene, rendered at each level. */
 export const EXEMPLE_CREATIVITE: Record<Creativite, string> = {
   restrained: "Elle ouvre la porte et découvre la pièce vide. Rien de plus : pas de musique, pas de réplique, pas de texte, une caméra aussi simple que possible.",
   balanced: "Même scène, avec une musique discrète, un cadrage soigné sur sa main puis sur la pièce, le bruit du bois et l'écho d'un lieu vide. Aucun événement ajouté.",
@@ -37,7 +37,7 @@ export const EXEMPLE_CREATIVITE: Record<Creativite, string> = {
   extreme: "Même scène, jouée à fond : travelling rapide jusqu'à son visage, gros plan extrême sur ses yeux, ombres très dures, un geste mené jusqu'au bout, avec musique, réplique et texte en plus.",
 };
 
-/** Quand choisir ce niveau. */
+/** When to choose this level. */
 export const QUAND_CREATIVITE: Record<Creativite, string> = {
   restrained: "Quand tu as tout écrit et que tu ne veux aucune surprise : l'IA n'ajoute que ce que ta description demande.",
   balanced: "Le choix de départ, sûr pour presque tout : l'IA met de la musique et soigne l'image, sans rien inventer d'autre.",
@@ -45,9 +45,9 @@ export const QUAND_CREATIVITE: Record<Creativite, string> = {
   extreme: "Pour une scène spectaculaire ou très stylisée : tout est poussé le plus loin possible. Cela ne rajoute pas plus de choses que « audacieuse », cela les joue plus fort.",
 };
 
-// --- Style de mise en scène ------------------------------------------------------------------------------------------------------------------
+// --- Staging style ------------------------------------------------------------------------------------------------------------------
 
-/** La même scène, filmée dans chaque style (les 7 réalisateurs, puis les 6 profils perso, qui ne citent ni studio ni auteur). */
+/** The same scene, filmed in each style (the 7 directors, then the 6 custom profiles, which cite neither studio nor author). */
 export const EXEMPLE_STYLE: Record<ChoixMiseEnScene, string> = {
   cameron:
     "La caméra suit son geste en mouvement et finit ailleurs que là où elle a commencé ; la pièce paraît immense, une lampe dure découpe sa silhouette dans un bleu froid, avec un bruit de métal et de souffle.",
@@ -77,7 +77,7 @@ export const EXEMPLE_STYLE: Record<ChoixMiseEnScene, string> = {
     "Un long plan fixe, un peu décentré, sur la porte qui s'ouvre sans bruit ; une lumière chiche, un son de pièce trop silencieux, elle avance lentement et rien ne se passe, jusqu'à ce que quelque chose bouge.",
 };
 
-/** Des films que beaucoup ont vus, pour reconnaître le style sans connaître son réalisateur (les films du réalisateur lui-même). */
+/** Films many have seen, to recognise the style without knowing its director (the director's own films). */
 export const FILMS_STYLE: Record<StyleCamera, readonly string[]> = {
   cameron: ["Terminator 2", "Aliens", "Titanic", "Avatar"],
   tarantino: ["Pulp Fiction", "Reservoir Dogs", "Kill Bill", "Inglourious Basterds"],
@@ -88,7 +88,7 @@ export const FILMS_STYLE: Record<StyleCamera, readonly string[]> = {
   spielberg: ["E.T.", "Rencontres du troisième type", "Jurassic Park", "Les Dents de la mer"],
 };
 
-/** Quand choisir ce style. */
+/** When to choose this style. */
 export const QUAND_STYLE: Record<ChoixMiseEnScene, string> = {
   cameron: "Action, science-fiction, grandes machines : quand on doit sentir l'effort et la taille des choses.",
   tarantino: "Dialogues, tension qui monte lentement, scènes de table ou de voiture : quand les mots et les objets comptent.",
@@ -105,6 +105,6 @@ export const QUAND_STYLE: Record<ChoixMiseEnScene, string> = {
   horreur: "Pour la peur qui monte : attente, plans fixes, lumière rare, silence, puis rupture brusque. Mieux vaut peu de musique et une scène courte.",
 };
 
-/** Quand « aucun style » : l'IA décide seule. */
+/** When « aucun style »: the AI decides alone. */
 export const EXEMPLE_AUCUN_STYLE = "Aucun style imposé : l'IA choisit elle-même la mise en scène de chaque plan, d'après ta description et tes images de référence.";
 export const QUAND_AUCUN_STYLE = "Quand tu n'as pas d'idée précise, ou quand tes images de référence disent déjà tout : c'est le choix de départ.";

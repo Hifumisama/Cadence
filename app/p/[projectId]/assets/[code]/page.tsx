@@ -18,9 +18,9 @@ import "@/components/assets/fiche-asset-mise-en-page.css";
 
 export const dynamic = "force-dynamic";
 
-/** La fiche d'un asset : l'en-tête (nom, type, état, description, apparitions) puis des ONGLETS, un par chose que l'asset sait faire — l'image
- * (l'atelier : image en grand, consigne en français, journal d'essais), la voix d'un personnage. Chaque texte se corrige au
- * clic, sur place. Maquette : docs/maquettes/fiche-asset.html. */
+/** The sheet of an asset: the header (name, type, state, description, appearances) then TABS, one per thing the asset can do — the image
+ * (the workshop: large image, instruction in French, attempt log), a character's voice. Each text is corrected on
+ * click, in place. Mockup: docs/maquettes/fiche-asset.html. */
 export default async function AssetDetailPage({
   params,
   searchParams,
@@ -37,21 +37,21 @@ export default async function AssetDetailPage({
   if (!noeud) notFound();
 
   const generations = await getGenerationsAsset(noeud.id);
-  // Les essais de voix (vidéos de test) ont leur onglet : ils ne se mêlent pas aux essais d'image.
+  // Voice attempts (test videos) have their own tab: they are not mixed with image attempts.
   const generationsImages = generations.filter((g) => g.methode !== METHODE_MASTER_VOIX);
   const voixPerso = noeud.type === "personnage" ? await getVoixPersonnage(pid, noeud.id) : null;
   const blocage = noeud.citations.length > 0 ? "Encore cité par une fiche de plan : délie-le d'abord (pastilles « Apparaît dans »)." : null;
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
   const perimes = await getPlansPerimes({ assetId: noeud.id });
   const plansRendus = await nbPlansRendusCitant(noeud.id);
-  // Précédent / suivant : l'ordre du registre, pour parcourir les fiches sans repasser par la liste.
+  // Previous / next: the registry order, to browse the sheets without going back through the list.
   const rang = tous.findIndex((a) => a.id === noeud.id);
   const precedent = rang > 0 ? tous[rang - 1] : null;
   const suivant = rang < tous.length - 1 ? tous[rang + 1] : null;
   const libellesParId = new Map(tous.map((a) => [a.id, libelleAsset(a)]));
   const registreJoignable = (await getAssetsAvecImage(pid, noeud.id)).map((a) => ({ id: a.id, libelle: libellesParId.get(a.id) ?? a.code, src: a.src }));
 
-  // ---- Les onglets : un par chose que cet asset sait faire ----
+  // ---- The tabs: one per thing this asset can do ----
   const onglets: OngletAsset[] = [];
   const essaisImages = generationsImages.filter((g) => g.methode === "generation" || g.methode === "edition");
   onglets.push({
@@ -95,7 +95,7 @@ export default async function AssetDetailPage({
     });
   }
 
-  // L'onglet d'arrivée : celui de l'adresse, ou celui de l'essai qu'on vient ouvrir depuis l'indicateur des tâches.
+  // The arrival tab: the one in the address, or the one of the attempt just opened from the tasks indicator.
   const vientDeLaVoix = generationBrute != null && generations.some((g) => g.uuid === generationBrute && g.methode === METHODE_MASTER_VOIX);
   const initial = ongletBrut ?? (vientDeLaVoix ? "voix" : onglets[0]!.id);
 
@@ -147,7 +147,7 @@ export default async function AssetDetailPage({
               blocageSuppression={blocage}
               redirectTo={`/p/${pid}/assets`}
             >
-              {/* Apparitions : les plans qui citent cet asset (délier : un clic, sans confirmation) */}
+              {/* Appearances: the clips that cite this asset (unlink: one click, no confirmation) */}
               <div className="apparus">
                 <span>Apparaît dans</span>
                 {noeud.citations.length > 0 ? (

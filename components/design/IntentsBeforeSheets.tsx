@@ -8,7 +8,7 @@ import { plansAEcrire } from "@/lib/agents/creation";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** Un champ d'intent qui s'agrandit avec son texte : l'intent se relit en entier, sans défiler dans un petit bloc (CR-01 du cahier de tests). */
+/** An intent field that grows with its text: the intent is read in full, without scrolling in a small block (CR-01 of the test book). */
 function ChampIntent({ valeur, onChange, etiquette }: { valeur: string; onChange: (v: string) => void; etiquette: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
@@ -19,14 +19,14 @@ function ChampIntent({ valeur, onChange, etiquette }: { valeur: string; onChange
   }, [valeur]);
   return <textarea ref={ref} aria-label={etiquette} value={valeur} onChange={(e) => onChange(e.target.value)} />;
 }
-/** Sondage du suivi tant qu'une fiche s'écrit (une route, pas une action serveur : voir app/api/creation/[projectId]/fiches). */
+/** Polling of the tracking while a sheet is being written (a route, not a server action: see app/api/creation/[projectId]/fiches). */
 const SONDAGE_MS = 3000;
 
-/** Après la création (lib/agents/creation.ts) : les intents des plans (leur description), à relire AVANT d'écrire les fiches — une fiche écrite sur un
- * intent faux coûte un rendu et une itération pour rien. Un plan sans fiche se corrige ici ; un plan qui a déjà sa fiche se lit, et se retouche dans
- * son atelier. « Écrire les fiches » pose une demande de fiche PAR PLAN (sans fiche par défaut, ou tous), hors création ; chaque plan montre ensuite
- * l'étape de sa demande (références, assets, images, compilation), « Fiche écrite » ou son échec. « Plus tard » laisse les plans tels quels (chaque
- * fiche reste possible depuis l'atelier du plan, ou en lot depuis la page Scénario). */
+/** After creation (lib/agents/creation.ts): the clips' intents (their description), to be re-read BEFORE writing the sheets — a sheet written on a wrong
+ * intent costs a render and an iteration for nothing. A clip without a sheet is corrected here; a clip that already has its sheet is read, and retouched in
+ * its workshop. « Écrire les fiches » requests a sheet PER CLIP (without a sheet by default, or all), outside creation; each clip then shows the step of its
+ * request (references, assets, images, compilation), « Fiche écrite » or its failure. « Plus tard » leaves the clips as they are (each sheet remains
+ * possible from the clip's workshop, or in batch from the Screenplay page). */
 export function IntentsAvantFiches({
   projectId,
   initial,
@@ -38,7 +38,7 @@ export function IntentsAvantFiches({
   initial: PlanIntent[];
   suiviInitial: SuiviFichePlan[];
   onPlusTard: () => void;
-  /** Des fiches viennent d'être lancées : la page relit l'état de la création (nombre de plans sans fiche). */
+  /** Sheets have just been launched: the page re-reads the creation state (number of clips without a sheet). */
   onLancees?: () => void;
 }) {
   const [plans, setPlans] = useState<PlanIntent[]>(initial);
@@ -61,13 +61,13 @@ export function IntentsAvantFiches({
       setPlans(lu.plans);
       setSuivi(lu.suivi);
     } catch {
-      /* serveur qui redémarre : au prochain tour */
+      /* server restarting: next round */
     } finally {
       enVol.current = false;
     }
   }, [projectId]);
 
-  // La page a pu être chargée pendant la création (plans pas encore écrits) : on relit à l'ouverture.
+  // The page may have been loaded during creation (clips not yet written): we re-read on opening.
   useEffect(() => {
     void relire();
   }, [relire]);

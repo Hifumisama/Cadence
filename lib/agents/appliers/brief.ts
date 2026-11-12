@@ -9,8 +9,8 @@ import type { BriefContenu, StatutChamp } from "../types";
 import { synchroniserClauseStyle } from "../brief-db";
 import { apres, REFUS_SUPPRESSION, type Applicateur } from "./common";
 
-/** Cible `brief` : `cibleRef` = « * » (le brief entier, création) ou une clé de section.
- * `apres` = { contenu, statuts } pour « * » ; { valeur, statut? } pour une section. */
+/** `brief` target: `cibleRef` = « * » (the whole brief, creation) or a section key.
+ * `apres` = { contenu, statuts } for « * »; { valeur, statut? } for a section. */
 export const applicateurBrief: Applicateur = {
   cibleType: "brief",
 
@@ -59,7 +59,7 @@ export const applicateurBrief: Applicateur = {
     if (ch.cibleRef === "*") {
       const [precedent] = await tx.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, ctx.projectId));
       let contenu = sansClesAbandonnees(a.contenu as BriefContenu);
-      // Le prompt long et l'aperçu du style sont au code, pas au modèle : ils reviennent du brief précédent, ou à défaut du style choisi à la conception.
+      // The long prompt and the style preview belong to the code, not to the model: they come back from the previous brief, or failing that from the style chosen at the design.
       contenu = retablirStyleDuCode(contenu, (precedent?.contenu as { style?: { clause?: string; promptImage?: string; image?: string } } | undefined)?.style);
       const conception = await lireConception(tx, ctx.projectId);
       if (conception) {
@@ -90,6 +90,6 @@ export const applicateurBrief: Applicateur = {
         updatedAt: maintenant,
       })
       .where(eq(briefs.id, existant.id));
-    await synchroniserClauseStyle(tx, ctx.projectId); // la clause de style du projet suit le brief
+    await synchroniserClauseStyle(tx, ctx.projectId); // the project's style clause follows the brief
   },
 };

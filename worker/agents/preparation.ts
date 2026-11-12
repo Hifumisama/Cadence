@@ -10,23 +10,22 @@ import { agentRuns } from "../../db/schema";
 
 
 
-/** « Préparer l'entrée » d'une tâche LLM, AU MOMENT de l'exécution (worker/llm.ts), propre à chaque skill. Par
- * défaut l'entrée stockée (agent_runs.entree) part telle quelle. Pour `iteration-plan`, l'entrée stockée ne porte
- * qu'un DESCRIPTEUR du rendu (`planche` : job, chemin relatif à MEDIA_ROOT, plafond de vignettes) : jamais
- * d'images en base. Ici, on reconstruit la planche (ffprobe + ffmpeg), on mesure la durée réelle du fichier, et on
- * produit le `MessageLlm[]` (texte + vignettes). Un rendu disparu ou un ffmpeg absent : la tâche ÉCHOUE avec un
- * message clair, jamais une planche vide ni une planche promise puis absente. La planche n'est demandée que sur action
- * explicite (« Montrer au chef opérateur », « Analyser ») ; sans descripteur, l'entrée part sans rendu ni ffmpeg. */
+/** « Préparer l'entrée » of an LLM task, AT THE MOMENT of execution (worker/llm.ts), specific to each skill. By
+ * default the stored input (agent_runs.entree) goes as is. For `iteration-plan`, the stored input only carries a DESCRIPTOR of the render
+ * (`planche`: job, path relative to MEDIA_ROOT, thumbnail cap): never images in the database. Here, we rebuild the contact sheet (ffprobe + ffmpeg),
+ * we measure the real duration of the file, and we produce the `MessageLlm[]` (text + thumbnails). A missing render or an absent ffmpeg: the task
+ * FAILS with a clear message, never an empty contact sheet nor a contact sheet promised then absent. The contact sheet is only requested on an
+ * explicit action (« Montrer au chef opérateur », « Analyser »); without a descriptor, the input goes without render or ffmpeg. */
 
 type RunAgent = typeof agentRuns.$inferSelect;
 
-/** Ce que la planche d'un rendu coûte à obtenir : injectable (essais sans ffmpeg). */
+/** What getting a render's contact sheet costs: injectable (attempts without ffmpeg). */
 type LecteurPlanche = (cheminAbsolu: string, maxVignettes: number) => Promise<Planche>;
 
 export type DepsPreparation = { planche?: LecteurPlanche };
 
-/** Ce qui sert à l'exécution : l'entrée du modèle, celle du contrôleur sémantique (texte seul) et ce que le
- * post-traitement doit savoir de l'exécution (durée mesurée…). */
+/** What execution needs: the model's input, that of the semantic checker (text only), and what the
+ * post-processing must know about the execution (measured duration…). */
 export type EntreePreparee = {
   entree: string | object | MessageLlm[];
   controle: unknown;
@@ -53,11 +52,11 @@ export async function preparerEntree(run: RunAgent, deps: DepsPreparation = {}):
 
 async function preparerIteration(run: RunAgent, deps: DepsPreparation): Promise<EntreePreparee> {
   const stockee = (run.entree ?? {}) as Record<string, unknown> & { planche?: DescripteurPlanche; plan?: { dureeVoulueSecondes?: number } };
-  // L'agent n'écrit plus de prompt (2026-11-09) : le contrôle n'a plus de traduction à vérifier, il reçoit la même entrée que le modèle (texte seul).
+  // The agent no longer writes a prompt (2026-11-09): the control has no translation to check any more; it receives the same input as the model (text only).
   const pourLeControle = <T extends object>(e: T): T => e;
   const d = stockee.planche;
-  // Sans descripteur : la planche n'a pas été demandée (jamais automatique, 2026-10-12). L'agent travaille depuis la consigne et la fiche
-  // actuelle : l'entrée stockée part telle quelle, sans `rendu` ni durée mesurée (les garde-fous de durée réelle sont alors sans objet).
+  // Without a descriptor: the contact sheet was not requested (never automatic, 2026-10-12). The agent works from the instruction and the current
+  // sheet: the stored input goes as is, without `rendu` nor measured duration (the real-duration guards are then irrelevant).
   if (!d) return { entree: stockee, controle: pourLeControle(stockee) };
   if (!d.cheminSortie) throw new Error("Entrée d'iteration-plan : descripteur de planche sans chemin de rendu. Relance l'analyse depuis la page du plan.");
   const chemin = resolve(MEDIA_ROOT, d.cheminSortie);

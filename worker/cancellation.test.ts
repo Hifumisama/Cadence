@@ -4,8 +4,8 @@ import type { EtatDansLaFile } from "../lib/tasks/cancellation";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./cancellation";
 import type { ComfyUIClient } from "./comfyui/types";
 
-/** Faux ComfyUI : `etats` est la suite d'états que renverra /queue (le dernier se
- * répète). Compte les gestes faits. */
+/** Fake ComfyUI: `etats` is the sequence of states /queue will return (the last one
+ * repeats). Counts the gestures made. */
 function faux(etats: EtatDansLaFile[], reussite = true) {
   const appels = { interrompre: 0, retirer: 0, etat: 0 };
   const client = {
@@ -31,8 +31,8 @@ const vite = { pauseMs: 1 };
 test("en cours : interrompu une fois, puis on constate qu'il a quitté la file", async () => {
   const { client, appels } = faux(["en_cours", "en_cours", "absent"]);
   assert.equal(await annulerCoteComfyUI(client, "p", vite), "interrompue");
-  // Une seule interruption même si ComfyUI met un tour à s'arrêter : un second
-  // /interrupt pourrait couper la tâche suivante.
+  // A single interruption even if ComfyUI takes a turn to stop: a second
+  // /interrupt could cut the next task.
   assert.equal(appels.interrompre, 1);
   assert.equal(appels.retirer, 0);
 });
@@ -77,7 +77,7 @@ test("surveillance : se résout quand le drapeau est posé, et s'arrête sur dem
   assert.equal(await s.promesse, "annulee");
   s.arreter();
 
-  // Arrêtée avant le drapeau : plus aucune lecture.
+  // Stopped before the flag: no more reads.
   let n = 0;
   const t = surveillerAnnulation(async () => {
     n++;

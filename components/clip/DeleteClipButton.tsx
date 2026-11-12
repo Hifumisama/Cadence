@@ -26,7 +26,7 @@ export function SupprimerPlanButton({
     startTransition(async () => {
       const resultat = await supprimerPlan(planId, plansHref, force);
       if (resultat && !resultat.ok) setErreur(resultat.erreur);
-      // Succès : supprimerPlan redirige côté serveur, pas de retour ici.
+      // Success: supprimerPlan redirects server-side, nothing comes back here.
     });
   };
 

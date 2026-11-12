@@ -104,15 +104,15 @@ test("un export n'entre pas dans la file GPU : ni rang parmi elle, ni « derriè
   const llmEnCours = base({ cle: "llm:b", genre: "llm", statut: "en_cours", startedAt: il_y_a(2).toISOString() });
   const r = ordonnerTaches([image, exportAttente, exportEnCours, llmEnCours], MAINTENANT);
   const par = (cle: string) => r.find((x) => x.cle === cle)!;
-  // L'image est la première de la file GPU, derrière l'agent (pas derrière la « vidéo » de l'export en cours).
+  // The image is first in the GPU queue, behind the agent (not behind the « vidéo » of the export in progress).
   assert.equal(par("image:a").positionFile, 1);
   assert.equal(par("image:a").derriere, "llm");
   assert.equal(par("image:a").derriereVideo, false);
-  // L'export en attente a son propre rang, sans « derrière ».
+  // The pending export has its own rank, without « derrière ».
   assert.equal(par("montage:2").positionFile, 1);
   assert.equal(par("montage:2").derriere, null);
   assert.deepEqual(r.map((x) => x.cle), ["montage:1", "llm:b", "image:a", "montage:2"]);
-  // Seul un export en cours : une image en attente n'est derrière personne.
+  // Only an export in progress: a pending image is behind no one.
   const seul = ordonnerTaches([exportEnCours, image], MAINTENANT);
   assert.equal(seul.find((x) => x.cle === "image:a")!.derriere, null);
   assert.equal(seul.find((x) => x.cle === "image:a")!.derriereVideo, false);

@@ -1,34 +1,34 @@
 import { preparerLot, type AssetPourLot } from "./generation-batch";
 
-/** Où en sont les IMAGES de référence d'un projet (2026-10-12). Définition UNIQUE, partagée par le clap final de la préparation,
- * le bandeau « Prochaine étape » et le registre d'assets. Règles pures (sans base ni disque) ; la lecture en base est dans
+/** Where the reference IMAGES of a project stand (2026-10-12). A SINGLE definition, shared by the final clap of the preparation,
+ * the « Prochaine étape » banner and the asset registry. Pure rules (without database nor disk); the database read is in
  * lib/assets/queries-images.ts.
  *
- * Tout asset est « à illustrer » (son image de référence se génère). Il « a une image » quand `fichier` est
- * renseigné ; sans image sinon. Rien n'est versionné (F01) : un asset a une image ou n'en a pas. */
+ * Every asset is « to illustrate » (its reference image is generated). It « has an image » when `fichier` is
+ * filled in; without an image otherwise. Nothing is versioned (F01): an asset has an image or it does not. */
 
 export type EtatImages = {
-  /** Assets à illustrer (personnages, décors, props, vfx, keyframes, autres). */
+  /** Assets to illustrate (characters, sets, props, vfx, keyframes, others). */
   total: number;
   avecImage: number;
   sansImage: number;
-  /** Parmi les sans-image : une génération attend déjà dans la file ou tourne. */
+  /** Among those without image: a generation is already waiting in the queue or running. */
   enFile: number;
-  /** Parmi les sans-image : ce qu'un « tout générer » mettrait en file maintenant. */
+  /** Among those without image: what a « tout générer » would queue now. */
   aLancer: number;
-  /** Parmi les sans-image : des dérivés en édition qui attendent l'image de leur master (2e vague : relancer ensuite). */
+  /** Among those without image: edit derivatives waiting for their master's image (2nd wave: relaunch afterwards). */
   attendentMaitre: number;
-  /** Parmi les sans-image : pas de prompt, rien à générer tant qu'il n'est pas écrit. */
+  /** Among those without image: no prompt, nothing to generate until it is written. */
   sansPrompt: number;
 };
 
-/** Ids des assets à illustrer qui n'ont pas d'image (ce que « tout générer » propose au lot). */
+/** Ids of the assets to illustrate that have no image (what « tout générer » proposes to the batch). */
 export function idsSansImage(assets: Pick<AssetPourLot, "id" | "type" | "fichier">[]): number[] {
   return assets.filter((a) => !a.fichier).map((a) => a.id);
 }
 
-/** `enFile` : assets du projet qui ont une génération en attente ou en cours. `placesLibres` : ce que la file peut encore accepter
- * (PLAFOND_LOT_IMAGES moins les images déjà en attente). */
+/** `enFile`: project assets that have a generation waiting or running. `placesLibres`: what the queue can still accept
+ * (PLAFOND_LOT_IMAGES minus the images already waiting). */
 export function etatImages(assets: AssetPourLot[], enFile: Set<number>, placesLibres: number): EtatImages {
   const aIllustrer = assets;
   const sans = aIllustrer.filter((a) => !a.fichier);
@@ -52,17 +52,17 @@ export function etatImages(assets: AssetPourLot[], enFile: Set<number>, placesLi
   };
 }
 
-/** « 3 sur 12 ont une image » / « 0 image générée sur 12 »… : la phrase de compte, la même partout. */
+/** « 3 sur 12 ont une image » / « 0 image générée sur 12 »…: the count phrase, the same everywhere. */
 export function phraseCompteImages(e: EtatImages): string {
   return `${e.total} asset${e.total > 1 ? "s" : ""} décrit${e.total > 1 ? "s" : ""}, ${e.avecImage} image${e.avecImage > 1 ? "s" : ""} générée${e.avecImage > 1 ? "s" : ""}`;
 }
 
-/** Libellé du bouton « tout générer » pour n images. */
+/** Label of the « tout générer » button for n images. */
 export const libelleGenererImages = (n: number): string => (n === 1 ? "Générer l’image" : `Générer les ${n} images`);
 
 // ---------------------------------------------------------------------------
-// Bandeau « Prochaine étape » (page du projet). Une LISTE d'étapes dans l'ordre de la production : la première non terminée est
-// mise en avant, les suivantes s'y ajouteront (voix, plans) sans réécrire le bandeau. Seule l'étape « images » existe pour l'instant.
+// « Prochaine étape » banner (project page). A LIST of steps in production order: the first unfinished one is
+// highlighted, the following ones will be added there (voice, clips) without rewriting the banner. Only the « images » step exists for now.
 // ---------------------------------------------------------------------------
 
 export type EtapeSuivante = {
@@ -71,7 +71,7 @@ export type EtapeSuivante = {
   faites: number;
   total: number;
   terminee: boolean;
-  /** Où l'étape se travaille. */
+  /** Where the step is worked on. */
   href: string;
   libelleLien: string;
 };
@@ -90,5 +90,5 @@ export function etapesSuivantes(projectId: number, images: EtatImages): EtapeSui
   ];
 }
 
-/** L'étape mise en avant : la première qui n'est pas terminée, ou null quand tout est fait (le bandeau disparaît). */
+/** The highlighted step: the first one that is not finished, or null when everything is done (the banner disappears). */
 export const prochaineEtape = (etapes: EtapeSuivante[]): EtapeSuivante | null => etapes.find((e) => !e.terminee) ?? null;

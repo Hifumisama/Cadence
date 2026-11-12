@@ -34,7 +34,7 @@ export default async function AssetsPage({
   ]);
   if (!projet) notFound();
 
-  // Génération en lot : ce qui peut partir et pourquoi le reste ne peut pas (règles dans lib/assets/generation-batch.ts).
+  // Batch generation: what can go and why the rest cannot (rules in lib/assets/generation-batch.ts).
   const pourLot: AssetPourLot[] = tous.map((a) => ({
     id: a.id,
     code: a.code,

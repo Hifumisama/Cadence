@@ -2,7 +2,7 @@ import { ne } from "drizzle-orm";
 import { assets } from "../../db/schema";
 import { TYPE_AFFICHE } from "../posters/posters";
 
-/** À ajouter à TOUTE lecture « les assets d'un projet » (registre, totaux, contextes de l'agent, sources de génération…) :
- * les affiches de présentation sont des assets d'implémentation, invisibles du registre (voir lib/posters/posters.ts).
- * Les lectures par id, par code ou par type précis n'en ont pas besoin. */
+/** To add to ANY read « the assets of a project » (registry, totals, agent contexts, generation sources…):
+ * the presentation posters are implementation assets, hidden from the registry (see lib/posters/posters.ts).
+ * Reads by id, by code or by precise type do not need it. */
 export const horsAffiches = ne(assets.type, TYPE_AFFICHE);

@@ -2,8 +2,8 @@
 
 import { EVENEMENT_ONGLET } from "@/components/clip/ClipDrawer";
 
-/** Le prompt est la dernière des références du plan : le texte qui décrit la vidéo. Sa carte, sous les cases de références, en montre un extrait et ouvre le
- * tiroir où on le lit, le retouche et retrouve ses versions. */
+/** The prompt is the last of the clip's references: the text that describes the video. Its card, under the reference boxes, shows an excerpt and opens the
+ * drawer where it is read, retouched and its versions found. */
 export function CartePrompt({ extrait, nbMots, nbVersions }: { extrait: string; nbMots: number; nbVersions: number }) {
   const ouvrir = () => window.dispatchEvent(new CustomEvent(EVENEMENT_ONGLET, { detail: "prompt" }));
   return (

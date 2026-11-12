@@ -46,7 +46,7 @@ test("création en cours : une ligne qui avance étape par étape", () => {
   assert.equal(x.statut, "en_cours");
   assert.equal(x.libelle, "Conception · Avatar");
   assert.equal(x.href, "/p/7/creation");
-  // Huit étapes, du brief à la relecture : les fiches ne sont plus des étapes de la création.
+  // Eight steps, from the brief to the review: the sheets are no longer creation steps.
   assert.deepEqual(x.progression, { valeur: 3, max: 8, etape: "Scénarios des épisodes" });
   assert.equal(x.jetons, 120);
   assert.equal(x.conversationUuid, undefined, "un clic mène à la page, pas à la popup d'agent");
@@ -80,10 +80,10 @@ test("création terminée, échouée ou arrêtée", () => {
 
 test("ancien enregistrement : les étapes de fiches sont ignorées (total, étape courante, statut)", () => {
   const vieille = (statut: string) => ({ cle: "fiches", statut, propositionUuid: null, essais: 0, detail: null, erreur: "LLM en panne" }) as unknown as EtapeCreation;
-  // En cours, phase 1 pas finie, phase 2 « à demander » : 8 étapes, la courante est celle de la phase 1.
+  // Ongoing, phase 1 not finished, phase 2 "à demander": 8 steps, the current one is that of phase 1.
   const enCours = tacheDeCreation(entree({ etapes: [...etapesFaites(3), vieille("a_demander")] }))!;
   assert.deepEqual(enCours.progression, { valeur: 3, max: 8, etape: "Scénarios des épisodes" });
-  // En cours (ou en échec) SUR l'étape de fiches, tout le reste fini : la ligne se lit terminée.
+  // Ongoing (or failed) ON the sheets step, everything else finished: the line reads as finished.
   const finie = tacheDeCreation(entree({ etapes: [...etapesFaites(8), vieille("en_cours")] }))!;
   assert.equal(finie.statut, "termine");
   assert.equal(finie.progression, null);

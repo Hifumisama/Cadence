@@ -201,10 +201,10 @@ test("decisionIteration : une proposition iteration-plan (aucun changement) avec
     assert.deepEqual(d.decisions, decisions);
     assert.deepEqual(d.notes, ["L'agent doutait de son diagnostic.", "Intent du plan réécrit par l'agent (l'ancien reste dans l'essai précédent).", "Créativité du plan : Équilibrée → Audacieuse."]);
   }
-  // le post-traitement a dit « sans écriture » (durée réelle incohérente mesurée) : rien, même si le diagnostic porte des décisions
+  // the post-processing said « sans écriture » (measured incoherent real duration): nothing, even if the diagnosis carries decisions
   const sans = decisionIteration(prop({ groupes: [], resume: "Diagnostic sans écriture. La durée réelle du fichier (3 s) ne correspond pas.", diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, decisions } }));
   assert.equal(sans.action, "rien");
-  // une fiche applicable (la recompilation) reste une application
+  // an applicable sheet (the recompilation) remains an application
   assert.equal(decisionIteration(prop({ diagnostic: { confiance: "haute", dureeCoherente: true, abandon: null, decisions: null } })).action, "appliquer");
 });
 

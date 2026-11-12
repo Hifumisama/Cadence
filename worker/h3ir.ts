@@ -6,13 +6,13 @@ import { executerSkill, type OptionsExecution } from "../lib/llm/execute";
 import { messageRetouche, passagesChanges, SKILL_RETOUCHE, verifierRetouche, type EntreeRetouche, type ResultatRetouche, type SortieRetouche } from "../lib/h3ir/retouch";
 import { ORDRE_SECTIONS } from "../lib/clips/prompt";
 
-/** La tâche « fiche de plan » avec le compilateur Open H3 IR (skill virtuel `plan-h3ir`, pas de dossier sous agents/skills) : lancée par `traiterTacheLlm`
- * à la place d'`executerSkill`. Trois temps, sous le même verrou GPU qu'un appel LLM ordinaire :
- *  1. le brief du plan (lib/h3ir/brief-clip.ts) : refusé → le run échoue avec la raison, rien n'est écrit ;
- *  2. l'intent est traduit en anglais par le skill `traduction-intent` (une seule fois, pas à chaque relance) ;
- *  3. la compilation, avec relances de seed (lib/h3ir/compiler.ts).
- * Le résultat est ce qui est stocké dans `agent_runs.resultat` (BriefIn envoyé, intent d'origine et traduit, enveloppe réduite, tentatives) ; la conversion en
- * fiche est faite à part (worker/agents/postProcessing.ts, lib/h3ir/conversion.ts). */
+/** The « clip sheet » task with the Open H3 IR compiler (virtual skill `plan-h3ir`, no folder under agents/skills): launched by `traiterTacheLlm`
+ * in place of `executerSkill`. Three steps, under the same GPU lock as an ordinary LLM call:
+ *  1. the clip's brief (lib/h3ir/brief-clip.ts): refused → the run fails with the reason, nothing is written;
+ *  2. the intent is translated into English by the skill `traduction-intent` (once, not at each retry);
+ *  3. the compilation, with seed retries (lib/h3ir/compiler.ts).
+ * The result is what is stored in `agent_runs.resultat` (BriefIn sent, original and translated intent, reduced envelope, attempts); the conversion into
+ * a sheet is done separately (worker/agents/postProcessing.ts, lib/h3ir/conversion.ts). */
 
 export { SKILL_H3IR, SKILL_TRADUCTION };
 export type { CompilationReduite, EntreeH3ir, ResultatH3ir };
@@ -33,14 +33,14 @@ export type OptionsH3ir = {
   modele: string;
   signal: AbortSignal;
   enregistrer?: OptionsExecution["enregistrer"];
-  /** Ce que la tâche fait en ce moment (« Traduction de l'intent… », « Compilation, essai 2/3… »), montré à la place du flux de texte. */
+  /** What the task is doing right now (« Traduction de l'intent… », « Compilation, essai 2/3… »), shown in place of the text stream. */
   surEtape?: (texte: string) => void;
 };
 
 export function lireEntreeH3ir(entree: unknown): EntreeH3ir {
   const e = entree as Partial<EntreeH3ir> | null;
   if (!e || typeof e.planUuid !== "string") throw new Error("Tâche Open H3 IR sans plan.");
-  // Décisions d'« Itérer » à compiler à la place de ce qui est en base (description, durée, références, réglages du plan) : seulement quand la tâche en porte.
+  // « Itérer » decisions to compile in place of what is in the database (description, duration, references, clip settings): only when the task carries them.
   const description = typeof e.description === "string" && e.description.trim() ? e.description : null;
   const duree = typeof e.dureeSecondes === "number" && Number.isInteger(e.dureeSecondes) ? e.dureeSecondes : null;
   const codes = (v: unknown): string[] => (Array.isArray(v) ? v.filter((c): c is string => typeof c === "string" && !!c.trim()) : []);
@@ -69,9 +69,9 @@ function lireRetouche(v: unknown): EntreeRetouche | null {
   return { numeroRendu: r.numeroRendu, consigne: r.consigne, sections, repliques, descriptionApres: r.descriptionApres, ...(typeof r.descriptionAvant === "string" && r.descriptionAvant.trim() ? { descriptionAvant: r.descriptionAvant } : {}) };
 }
 
-/** « Partir de cet essai » : la consigne se joue sur le prompt de l'essai (skill `retouche-prompt`). Deux tentatives (la seconde reçoit les défauts de la première) ;
- * `null` quand le skill juge qu'il faut tout refaire : la compilation prend alors le relais. Une retouche qui reste invalide échoue avec ses défauts : mieux vaut le dire
- * que de recompiler en silence et perdre le rendu dont on part. */
+/** « Partir de cet essai »: the instruction is played on the attempt's prompt (skill `retouche-prompt`). Two attempts (the second receives the defects of the first);
+ * `null` when the skill judges that everything must be redone: the compilation then takes over. A retouch that stays invalid fails with its defects: better to say so
+ * than to recompile silently and lose the render we start from. */
 async function retoucherPrompt(
   e: EntreeRetouche,
   run: { projectId: number; planUuid: string },
@@ -110,7 +110,7 @@ async function retoucherPrompt(
   throw new Error(`La retouche du prompt de l'essai n°${e.numeroRendu} n'est pas valable : ${defauts.join(" ; ")}. Rien n'a été écrit.`);
 }
 
-/** Réduit l'enveloppe : le prompt entier est redondant (les sections le recomposent), le reste sert à la fiche et à comprendre un échec. */
+/** Reduces the envelope: the whole prompt is redundant (the sections rebuild it), the rest serves the sheet and understanding a failure. */
 export function reduireEnveloppe(e: EnveloppeH3ir): CompilationReduite {
   return {
     status: e.status ?? null,
@@ -134,7 +134,7 @@ export async function executerH3ir(
   const executer = deps.executer ?? executerSkill;
   const charger = deps.charger ?? chargerBriefPlan;
 
-  // Partir d'un essai : on retouche son prompt. Seule une « refonte » (ou l'absence de prompt) laisse la place à la compilation.
+  // Starting from an attempt: we retouch its prompt. Only a « refonte » (or the absence of a prompt) leaves room for the compilation.
   let usageRetouche = { entree: 0, sortie: 0 };
   if (entree.retouche) {
     const r = await retoucherPrompt(entree.retouche, { projectId: run.projectId, planUuid: entree.planUuid }, options, executer);
@@ -158,7 +158,7 @@ export async function executerH3ir(
   if (!r.brief) throw new Error(r.refus ?? "Le brief Open H3 IR est refusé.");
   const brief = r.brief;
 
-  // La config est lue AVANT le LLM : un Python introuvable échoue tout de suite, sans avoir pris de GPU pour rien.
+  // The config is read BEFORE the LLM: a missing Python fails straight away, without having taken the GPU for nothing.
   const reglages = reglagesH3ir(options.modele, deps.env ?? process.env);
 
   options.surEtape?.("Traduction de l'intent en anglais…");
@@ -203,7 +203,7 @@ export async function executerH3ir(
   };
 }
 
-/** Le texte traduit, prêt pour le compilateur : un guillemet droit y serait lu comme du texte à afficher à l'écran. */
+/** The translated text, ready for the compiler: a straight quote would be read there as text to display on screen. */
 export function nettoyerIntent(brut: unknown): string {
   return typeof brut === "string" ? brut.replace(/"/g, "'").trim() : "";
 }

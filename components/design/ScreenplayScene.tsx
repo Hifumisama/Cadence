@@ -10,9 +10,9 @@ import type { Choix, VueConversation } from "@/lib/agents/types";
 import { useDefilementBas } from "@/components/ui/useScrollToBottom";
 import { EnteteScene } from "./Scenes";
 
-/** Scène « Scénario » : l'entretien avec le scénariste. Le moteur est celui de l'entretien d'entrée existant (fiche de notes tenue par le
- * code, un tour de l'agent = une tâche de la file) ; seule la présentation change : un fil de messages, et à côté la fiche de notes, qui se
- * remplit au fil de la conversation et dont chaque note longue se déplie. Ce que la conception a déjà posé n'y figure pas. */
+/** « Scénario » scene: the interview with the screenwriter. The engine is that of the existing intake interview (notes sheet kept by the
+ * code, one turn of the agent = one task in the queue); only the presentation changes: a thread of messages, and beside it the notes sheet, which
+ * fills in as the conversation goes on and whose long notes each expand. What the design has already set does not appear there. */
 export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; rafraichir: () => Promise<void> }) {
   const [texte, setTexte] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
@@ -24,10 +24,10 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
   const tourEnCours = actif && tache?.but === "tour";
   const dejaCommence = conv.messages.some((m) => m.role === "user");
 
-  // Suit le flux sans arracher l'ascenseur à qui est remonté lire.
+  // Follows the stream without pulling the scroll away from whoever has scrolled up to read.
   useDefilementBas(fin, `${tourEnCours}${tache?.fluxTexte ?? ""}`, conv.messages.length);
 
-  /** Une réponse par carte : même chemin que le texte libre (un tour de l'agent), le serveur formule le message. */
+  /** One reply per card: same path as free text (one turn of the agent), the server formulates the message. */
   const repondre = async (libelles: string[]) => {
     if (occupe || actif) return;
     setOccupe(true);
@@ -66,7 +66,7 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
     }
   };
 
-  /** L'accroche n'a pas pu s'écrire (modèle injoignable, sortie refusée) : la conversation est vide, on la relance. */
+  /** The hook could not be written (model unreachable, output refused): the conversation is empty, so we relaunch it. */
   const relancer = async () => {
     setOccupe(true);
     setErreur(null);
@@ -167,15 +167,15 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
   );
 }
 
-/** Cartes de choix proposées par le scénariste, sous son message. Actives seulement sur le dernier message (`disponibles`) ; une fois
- * répondu (clic ou texte libre), elles restent dans le fil, figées : la carte retenue est mise en évidence (`choisis`, porté par le message
- * de l'utilisateur). Choix simple : un clic envoie. Choix multiple : on coche, puis « Valider » envoie une seule réponse. */
+/** Choice cards offered by the screenwriter, under his message. Active only on the last message (`disponibles`); once answered (click or free text),
+ * they stay in the thread, frozen: the retained card is highlighted (`choisis`, carried by the user's message). Single choice: a click sends.
+ * Multiple choice: you tick, then « Valider » sends a single reply. */
 function CartesChoix({ choix, choisis, disponibles, repondre }: { choix: Choix; choisis: string[]; disponibles: boolean; repondre: (libelles: string[]) => void }) {
   const [coches, setCoches] = useState<string[]>([]);
   const titre = useId();
   const figee = !disponibles;
 
-  // « Je te laisse décider » ne se mêle pas aux autres options d'une liste.
+  // « Je te laisse décider » does not mix with the other options of a list.
   const basculer = (libelle: string) =>
     setCoches((c) => {
       if (c.includes(libelle)) return c.filter((x) => x !== libelle);

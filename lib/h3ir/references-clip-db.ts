@@ -5,27 +5,27 @@ import { horsAffiches } from "../assets/assets-visible";
 import { liaisonOuDefaut } from "../clips/clip-link";
 import { choisirReferences, type CandidatReference, type EntreeReferencesPlan, type ResultatReferencesPlan } from "./references-clip";
 
-/** Le choix des références d'un plan, lu en base (étape 5 d'Open H3 IR) : charge le plan, sa scène, sa liaison, le décor du plan précédent, le registre
- * et les `plan_refs` actuelles, puis appelle la règle pure (lib/h3ir/references-clip.ts). Lecture seule : rien n'est écrit (la préparation d'un plan,
- * lib/tasks/requests-db.ts, écrit le choix ou pose le skill en cas de doute). */
+/** The choice of a clip's references, read from the database (step 5 of Open H3 IR): loads the clip, its scene, its link, the previous clip's set, the registry
+ * and the current `plan_refs`, then calls the pure rule (lib/h3ir/references-clip.ts). Read-only: nothing is written (the preparation of a clip,
+ * lib/tasks/requests-db.ts, writes the choice or poses the skill in case of doubt). */
 
 type DonneesReferencesPlan = {
   plan: { id: number; uuid: string; projectId: number; titre: string; dureeSecondes: number; liaison: string };
   scene: { titre: string; ambiance: string | null } | null;
   entree: EntreeReferencesPlan;
-  /** Les références visuelles actuelles du plan (`plan_refs`, hors audio), dans l'ordre des emplacements. */
+  /** The clip's current visual references (`plan_refs`, not audio), in slot order. */
   existantes: string[];
 };
 
 export type ChoixReferencesPlan = ResultatReferencesPlan &
   Omit<DonneesReferencesPlan, "entree"> & {
-    /** Le décor du plan précédent quand il sert (suite dans la même scène), pour l'entrée du skill. */
+    /** The previous clip's set when it serves (sequel in the same scene), for the skill's entry. */
     decorPrecedent: string | null;
-    /** Vrai quand le choix du code est exactement la liste actuelle (mêmes codes, même ordre). */
+    /** True when the code's choice is exactly the current list (same codes, same order). */
     identiqueAuxExistantes: boolean;
-    /** Les références choisies dont l'asset n'a pas encore d'image : le plan ne se compile pas avant (images d'abord, décision du 2026-11-01). */
+    /** The chosen references whose asset does not yet have an image: the clip does not compile before that (images first, decision of 2026-11-01). */
     sansImage: string[];
-    /** Le registre lu (sans affiches), pour l'entrée du skill. */
+    /** The registry read (without posters), for the skill's entry. */
     candidats: CandidatReference[];
   };
 
@@ -65,7 +65,7 @@ async function chargerDonneesReferencesPlan(db: Db, planId: number): Promise<Don
       aUneImage: !!a.fichier,
     }));
 
-  // Le plan précédent dans l'ORDRE du scénario (jamais une position) : sa scène et son décor actuel (sa première référence de type décor).
+  // The previous clip in the screenplay ORDER (never a position): its scene and its current set (its first reference of type decor).
   const [prec] = await db
     .select({ id: plans.id, sceneId: plans.sceneId })
     .from(plans)
@@ -108,7 +108,7 @@ async function chargerDonneesReferencesPlan(db: Db, planId: number): Promise<Don
   };
 }
 
-/** Les références que le code choisit pour un plan, ses doutes (`suffit = false` : à confier au skill `references-plan`) et la comparaison avec les
+/** The references the code chooses for a clip, its doubts (`suffit = false`: to be handed to the `references-plan` skill) and the comparison with the
  * `plan_refs` actuelles. `null` si le plan n'existe pas. */
 export async function choisirReferencesPlan(db: Db, planId: number): Promise<ChoixReferencesPlan | null> {
   const d = await chargerDonneesReferencesPlan(db, planId);

@@ -19,8 +19,8 @@ import { ajusterTon, basculerGenre, minutesSecondes, reinitialiserTon } from "@/
 import { Curseur } from "./Cursor";
 import type { PropsScene } from "./types";
 
-/** Les quatre premières scènes de la conception : format, genre et ton, durée et rythme, langue. La scène du style est à part
- * (SceneStyle.tsx). Chaque scène ne fait qu'afficher l'état et le modifier par `maj` ; les règles vivent dans lib/projects/design-ui.ts. */
+/** The first four scenes of the design: format, genre and tone, duration and rhythm, language. The style scene is separate
+ * (SceneStyle.tsx). Each scene only displays the state and changes it through `maj`; the rules live in lib/projects/design-ui.ts. */
 
 export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactNode; sous?: string }) {
   return (
@@ -34,7 +34,7 @@ export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactN
 
 /* ---------------------------------------------------------------- 1. Accueil */
 
-/** Écran d'accueil : dit ce qu'on va faire. Un projet est un film : il n'y a pas de choix de format. */
+/** Welcome screen: says what we are going to do. A project is a film: there is no format choice. */
 export function SceneAccueil() {
   return (
     <>
@@ -48,7 +48,7 @@ export function SceneAccueil() {
   );
 }
 
-/* ----------------------------------------------------------- 2. Genre et ton */
+/* ----------------------------------------------------------- 2. Genre and tone */
 
 function phraseTon(ton: number): string {
   if (ton <= 18) return "Couleurs chaudes, humour, gestes francs.";
@@ -118,7 +118,7 @@ export function SceneGenreTon({ etat, maj }: PropsScene) {
   );
 }
 
-/* ------------------------------------------------------ 3. Durée et rythme */
+/* ------------------------------------------------------ 3. Duration and rhythm */
 
 const PRESETS = [60, 120, 180, 300, 600, 1800, 3600, 5400] as const;
 const MAX_CASES = 120;
@@ -132,10 +132,10 @@ const RYTHMES = [
 export function SceneDuree({ etat, maj }: PropsScene) {
   const plans = plansEstimes(etat.duree, etat.rythme);
   const plage = PLAGES_RYTHME[etat.rythme];
-  // Au-delà de MAX_CASES plans, une case en représente plusieurs (une bande de plusieurs centaines de cases ne dirait plus rien).
+  // Beyond MAX_CASES clips, one box stands for several (a strip of several hundred boxes would no longer say anything).
   const parCase = Math.max(1, Math.ceil(plans.moyen / MAX_CASES));
   const blocs = useMemo(() => {
-    // Largeur de chaque case : la même partout, sauf au rythme « variable » où elle varie de façon stable (suite déterministe).
+    // Width of each box: the same everywhere, except at the « variable » rhythm where it varies in a stable way (deterministic sequence).
     return Array.from({ length: Math.ceil(plans.moyen / parCase) }, (_, k) => (etat.rythme === "variable" ? 5 + ((k * 7919) % 11) : (plage.min + plage.max) / 2) * parCase);
   }, [plans.moyen, parCase, etat.rythme, plage.min, plage.max]);
   const poser = (duree: number) => maj((e) => ({ ...e, duree, dureeChoisie: true }));
@@ -189,7 +189,7 @@ export function SceneDuree({ etat, maj }: PropsScene) {
   );
 }
 
-/* ---------------------------------------------------------------- 4. Langue */
+/* ---------------------------------------------------------------- 4. Language */
 
 const NOMS_LANGUES: Record<string, string> = {
   Français: "Par défaut",

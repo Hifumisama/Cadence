@@ -1,17 +1,17 @@
 import type { EvenementSuivi } from "./types";
 
-// Décodage des messages WebSocket de ComfyUI. Tolérant par construction : un
-// message inconnu, tronqué ou d'une version future renvoie `null`, jamais une
-// exception — le suivi est un confort, pas une dépendance.
+// Decoding of ComfyUI WebSocket messages. Tolerant by design: an
+// unknown, truncated or future-version message returns `null`, never an
+// exception — tracking is a convenience, not a dependency.
 
-/** Types d'événements binaires (server.py, BinaryEventTypes). */
+/** Binary event types (server.py, BinaryEventTypes). */
 const BIN_PREVIEW_IMAGE = 1;
 const BIN_PREVIEW_IMAGE_AVEC_METADONNEES = 4;
 
 type Format = "jpeg" | "png" | "webp" | "inconnu";
 
-/** Reconnaît une image à ses octets magiques plutôt qu'à l'en-tête annoncé :
- * les versions de ComfyUI diffèrent sur la présence du « format » de 4 octets. */
+/** Recognizes an image by its magic bytes rather than by the announced header:
+ * ComfyUI versions differ on whether the 4-byte « format » is present. */
 function formatImage(b: Uint8Array, debut: number): Format | null {
   if (b[debut] === 0xff && b[debut + 1] === 0xd8 && b[debut + 2] === 0xff) return "jpeg";
   if (b[debut] === 0x89 && b[debut + 1] === 0x50 && b[debut + 2] === 0x4e && b[debut + 3] === 0x47) return "png";
@@ -24,7 +24,7 @@ function formatImage(b: Uint8Array, debut: number): Format | null {
   return null;
 }
 
-/** Cherche le début d'une image dans les 8 octets qui suivent `depuis`. */
+/** Looks for the start of an image in the 8 bytes following `depuis`. */
 function trouverImage(b: Uint8Array, depuis: number): { debut: number; format: Format } | null {
   for (let i = depuis; i <= Math.min(depuis + 8, b.length - 4); i++) {
     const f = formatImage(b, i);
@@ -35,8 +35,8 @@ function trouverImage(b: Uint8Array, depuis: number): { debut: number; format: F
 
 export type MessageBinaire = { evenement: number; promptId?: string; noeud?: string; apercu?: Extract<EvenementSuivi, { type: "apercu" }> };
 
-/** Décode un message binaire. `evenement` est le type brut (utile au journal de
- * debug), `apercu` n'est renseigné que pour une image reconnue. */
+/** Decodes a binary message. `evenement` is the raw type (useful to the debug
+ * log), `apercu` is only filled for a recognized image. */
 export function decoderBinaire(donnees: Uint8Array): MessageBinaire | null {
   if (donnees.length < 4) return null;
   const vue = new DataView(donnees.buffer, donnees.byteOffset, donnees.byteLength);
@@ -59,7 +59,7 @@ export function decoderBinaire(donnees: Uint8Array): MessageBinaire | null {
       const parsed: unknown = JSON.parse(buf.subarray(8, finMeta).toString("utf-8"));
       if (parsed && typeof parsed === "object") meta = parsed as Record<string, unknown>;
     } catch {
-      // métadonnées illisibles : l'image seule reste exploitable
+      // unreadable metadata: the image alone remains usable
     }
     const promptId = typeof meta.prompt_id === "string" ? meta.prompt_id : undefined;
     const noeud = [meta.display_node_id, meta.real_node_id, meta.node_id].find((v) => typeof v === "string") as string | undefined;
@@ -73,8 +73,8 @@ export function decoderBinaire(donnees: Uint8Array): MessageBinaire | null {
 
 export type MessageJson = { evenement: EvenementSuivi | null; promptId?: string };
 
-/** Décode un message texte. `evenement` est null pour tout ce qu'on n'exploite
- * pas (status, progress_state, execution_cached…). */
+/** Decodes a text message. `evenement` is null for everything we do not use
+ * (status, progress_state, execution_cached…). */
 export function decoderTexte(texte: string): MessageJson | null {
   let msg: { type?: unknown; data?: Record<string, unknown> };
   try {
@@ -92,7 +92,7 @@ export function decoderTexte(texte: string): MessageJson | null {
       return { promptId, evenement: { type: "demarre" } };
     case "executing": {
       const noeud = texteDe(d.node);
-      // `node: null` = fin d'exécution dans les anciennes versions.
+      // `node: null` = end of execution in older versions.
       return { promptId, evenement: noeud ? { type: "noeud", noeud } : null };
     }
     case "progress": {

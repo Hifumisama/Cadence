@@ -25,20 +25,20 @@ import {
   sourceImportMediaSrc,
 } from "@/lib/media";
 
-// Génération d'images d'un asset (tâche ComfyUI dédiée). Ces actions ne
-// parlent jamais à ComfyUI : elles posent une demande en base, le worker la
-// prend (worker/images.ts). Le résultat est un candidat que l'utilisateur adopte.
-// Deux modes (voir DemandeGeneration) : « texte » (Krea 2 Turbo) et « images »
-// (Qwen Image Edit 2511, 1 à 3 sources, la première est la cible).
+// Image generation for an asset (dedicated ComfyUI task). These actions never
+// talk to ComfyUI: they record a request in the database, and the worker picks
+// it up (worker/images.ts). The result is a candidate the user adopts.
+// Two modes (see DemandeGeneration): « texte » (Krea 2 Turbo) and « images »
+// (Qwen Image Edit 2511, 1 to 3 sources, the first one is the target).
 
 type Resultat = { ok: true } | { ok: false; erreur: string };
 
-/** `position` : 1 = la génération part tout de suite ; n = n-1 tâches passent devant. */
+/** `position`: 1 = the generation starts right away; n = n-1 tasks go ahead of it. */
 
 
 const EXTENSIONS_IMPORT = [".png", ".jpg", ".jpeg", ".webp"];
 
-/** Génération EN LOT (registre d'assets) : voir poserGenerationsLot. */
+/** BATCH generation (asset registry): see poserGenerationsLot. */
 export async function lancerGenerationsLot(
   projectId: number,
   assetIds: number[],
@@ -48,10 +48,10 @@ export async function lancerGenerationsLot(
   return r;
 }
 
-/** « Générer toutes les images de référence » (clap de la préparation, bandeau « Prochaine étape », registre) : le lot ci-dessus
- * appliqué à tous les assets à illustrer qui n'ont pas d'image (définition dans lib/assets/project-images.ts). Mêmes règles que le lot : prompt
- * et format par défaut de chaque type, adoption automatique, assets déjà en file sautés. Un dérivé en édition dont le master n'a pas
- * encore d'image est écarté (avec sa raison) : il part au clic suivant, une fois le master adopté. */
+/** « Générer toutes les images de référence » (preparation clap, « Prochaine étape » banner, registry): the batch above
+ * applied to all assets to illustrate that have no image (definition in lib/assets/project-images.ts). Same rules as the batch: default prompt
+ * and format for each type, automatic adoption, assets already queued are skipped. An editing derivative whose master has no
+ * image yet is set aside (with its reason): it goes on the next click, once the master is adopted. */
 export async function genererImagesManquantes(
   projectId: number,
 ): Promise<{ ok: true; lancees: number; ecartes: EcarteLot[] } | { ok: false; erreur: string }> {
@@ -61,9 +61,9 @@ export async function genererImagesManquantes(
   return lancerGenerationsLot(projectId, ids);
 }
 
-/** Dépose une image source jetable pour le mode « images » : rangée sous le
- * dossier de l'asset (generations/<assetId>/sources/), nom généré, jamais
- * rattachée au registre. Le champ du formulaire s'appelle `fichier`. */
+/** Drops a disposable source image for the « images » mode: stored under the
+ * asset's folder (generations/<assetId>/sources/), generated name, never
+ * attached to the registry. The form field is called `fichier`. */
 export async function deposerSourceImport(
   assetId: number,
   formData: FormData,
@@ -90,10 +90,10 @@ export async function deposerSourceImport(
   return { ok: true, fichier, src };
 }
 
-/** Adopte un candidat : son image devient celle de l'asset (elle remplace la
- * précédente, F01) et son prompt devient celui de l'asset : la fiche garde ce
- * qui a produit le résultat retenu. L'asset repasse « en cours » : un résultat
- * nouveau est à revalider. */
+/** Adopts a candidate: its image becomes the asset's (it replaces the
+ * previous one, F01) and its prompt becomes the asset's: the sheet keeps what
+ * produced the retained result. The asset goes back to « en cours »: a new
+ * result has to be validated again. */
 export async function adopterGeneration(generationId: number): Promise<Resultat> {
   const r = await adopterCandidat(generationId, MEDIA_ROOT);
   if (r.ok) revalidatePath("/", "layout");

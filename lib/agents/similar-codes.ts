@@ -1,12 +1,12 @@
 
-/** Un code d'asset mal recopié par le modèle (`DEC_le_monde_l_avatar` pour `DEC_le_monde_de_l_avatar`) bloquait une fiche entière
- * (marqueur `[[CODE]]` impossible à résoudre). Quand un code inconnu ne diffère d'UN SEUL code du registre que par des mots
- * de liaison (de, du, la, le, l', un…), le code corrige : le même asset, sans ambiguïté. Tout autre écart (un nom différent,
- * deux candidats) reste une erreur franche, jamais devinée. Pur, testé. */
+/** A mis-copied asset code from the model (`DEC_le_monde_l_avatar` for `DEC_le_monde_de_l_avatar`) used to block an entire sheet
+ * (an unresolvable `[[CODE]]` marker). When an unknown code differs from ONE SINGLE registry code only by linking
+ * words (de, du, la, le, l', un…), the code is corrected: the same asset, without ambiguity. Any other gap (a different name,
+ * two candidates) remains a clear error, never guessed. Pure, tested. */
 
 const LIAISON = new Set(["de", "du", "des", "la", "le", "les", "l", "d", "un", "une", "et", "au", "aux"]);
 
-/** La « clé » d'un code : minuscules, sans accents, mots de liaison retirés (le préfixe de type est gardé). */
+/** A code's "key": lowercase, without accents, linking words removed (the type prefix is kept). */
 export function cleDeCode(code: string): string {
   const [prefixe, ...reste] = code
     .toLowerCase()
@@ -17,7 +17,7 @@ export function cleDeCode(code: string): string {
   return [prefixe ?? "", ...reste.filter((m) => !LIAISON.has(m))].join("_");
 }
 
-/** Pour chaque code inconnu du registre, le code du registre qui lui correspond sans ambiguïté (clé identique), sinon rien. */
+/** For each code unknown to the registry, the registry code that matches it without ambiguity (identical key), otherwise nothing. */
 export function correspondances(codesCites: string[], registre: string[]): Map<string, string> {
   const connus = new Set(registre);
   const parCle = new Map<string, string[]>();

@@ -1,60 +1,60 @@
 "use server";
 
 /**
- * API SERVEUR DU SYSTÈME D'AGENTS — ce que l'interface (popup à étapes) appelle.
- * Types : lib/agents/types.ts. Lectures : lib/agents/queries-agents.ts. Conception :
+ * SERVER API OF THE AGENT SYSTEM — what the interface (step-by-step popup) calls.
+ * Types: lib/agents/types.ts. Reads: lib/agents/queries-agents.ts. Design:
  * docs/CONCEPTION_AGENTS.md §14.
  *
- * Principes (décisions du 2026-10-02) :
- * - Rien n'est écrit sur les tables métier sans `appliquerSelection`. Tout le reste
- *   écrit des conversations, briefs (brouillon) et propositions.
- * - Deux profondeurs : `courte` (Consigne → Proposition → Appliqué) et `complete`
+ * Principles (decisions of 2026-10-02):
+ * - Nothing is written to the business tables without `appliquerSelection`. Everything else
+ *   writes conversations, briefs (draft) and proposals.
+ * - Two depths: `courte` (Consigne → Proposition → Appliqué) and `complete`
  *   (Conversation → Brief → Proposition → Appliqué).
- * - Une conversation par (projet, portée, cible). `ouvrirConversation` reprend,
- *   `nouvelleConversation` écrase la précédente.
- * - Les appels au modèle sont des TÂCHES de la file (agent_runs, ressource GPU unique) :
- *   les actions qui en lancent renvoient immédiatement (`runUuid`) ; l'UI sonde
- *   `lireConversation` / `lireProposition` (champ `tache`) ou le panneau du header
- *   (/api/taches) jusqu'à la fin. Fermer la popup n'interrompt rien.
- * - Chaque action renvoie `{ ok: true, ... } | { ok: false, erreur }` : jamais d'exception
- *   pour un cas métier.
+ * - One conversation per (project, scope, target). `ouvrirConversation` resumes,
+ *   `nouvelleConversation` overwrites the previous one.
+ * - Model calls are TASKS in the queue (agent_runs, single GPU resource): the actions that
+ *   launch them return immediately (`runUuid`); the UI polls
+ *   `lireConversation` / `lireProposition` (field `tache`) or the header panel
+ *   (/api/taches) until completion. Closing the popup interrupts nothing.
+ * - Each action returns `{ ok: true, ... } | { ok: false, erreur }`: never an exception
+ *   for a business case.
  *
- * Parcours type — création d'un projet (profondeur complète) :
+ * Typical flow — creating a project (complete depth):
  *   const { conversationUuid } = await ouvrirConversation(projectId, "projet", null, "complete");
- *   await envoyerMessage(conversationUuid, "Un phare où le sel recouvre tout…"); // tâche « tour »
- *   // … lireConversation(conversationUuid).tache passe à "termine", messages gagne la réponse ;
- *   // briefPret = true → la fiche de notes est complète : un BROUILLON de brief existe déjà, l'UI propose « Voir le briefing »
- *   await genererBrief(conversationUuid);                    // fige la fiche en brouillon (immédiat), même incomplète
- *   // lireBrief(projectId) ; modifierChampBrief(projectId, "arc", "…") marque la section « fourni »
- *   const { propositionUuid } = await genererProposition(conversationUuid); // squelette : immédiat, sans LLM
- *   // lireProposition(propositionUuid) : groupes, compteurs, écrasements…
+ *   await envoyerMessage(conversationUuid, "Un phare où le sel recouvre tout…"); // task « tour »
+ *   // … lireConversation(conversationUuid).tache switches to "termine", messages gets the reply;
+ *   // briefPret = true → the notes sheet is complete: a brief DRAFT already exists, the UI offers « Voir le briefing »
+ *   await genererBrief(conversationUuid);                    // freezes the sheet as a draft (immediate), even if incomplete
+ *   // lireBrief(projectId); modifierChampBrief(projectId, "arc", "…") marks the section « fourni »
+ *   const { propositionUuid } = await genererProposition(conversationUuid); // skeleton: immediate, no LLM
+ *   // lireProposition(propositionUuid): groups, counters, overwrites…
  *   await cocherChangements(propositionUuid, { groupe: "episodes" }, false);
- *   await appliquerSelection(propositionUuid);               // transaction : tout ou rien
+ *   await appliquerSelection(propositionUuid);               // transaction: all or nothing
  *
- * Parcours type — itération courte (prompt d'un asset) :
+ * Typical flow — short iteration (asset prompt):
  *   const { conversationUuid } = await ouvrirConversation(pid, "asset", { code: "CHAR_maya" }, "courte");
- *   await genererProposition(conversationUuid, { consigne: "Regard plus dur, cheveux courts" }); // tâche
+ *   await genererProposition(conversationUuid, { consigne: "Regard plus dur, cheveux courts" }); // task
  *   await affiner(propositionUuid, "Garde le regard, rends les cheveux plus courts");
  *   await appliquerSelection(propositionUuid, { confirmeEcrasement: true });
  *
- * Garde-fous côté serveur (l'UI n'a pas à les refaire, seulement à les montrer) :
- * - verrou de portée : un changement hors de la portée demandée est refusé
- *   (`refuseRaison`, avertissement `hors_portee`) ;
- * - écraser un élément validé exige `confirmeEcrasement: true` ;
- * - un changement `bloque` (contrôle mécanique) ne s'applique pas tant qu'il n'est pas
- *   corrigé (`corrigerChangement`) ;
- * - la sélection s'applique en UNE transaction (tout ou rien), puis la proposition passe
- *   `appliquee` (tous ses changements appliqués) ou `partielle` (certains écartés, bloqués ou
- *   refusés d'office) ;
- * - une portée courte sans consigne, un brief déjà validé, un tour déjà en cours : erreur claire.
+ * Server-side safeguards (the UI does not need to redo them, only display them):
+ * - scope lock: a change outside the requested scope is refused
+ *   (`refuseRaison`, warning `hors_portee`);
+ * - overwriting a validated item requires `confirmeEcrasement: true`;
+ * - a `bloque` change (mechanical check) is not applied until it is
+ *   fixed (`corrigerChangement`);
+ * - the selection is applied in ONE transaction (all or nothing), then the proposal becomes
+ *   `appliquee` (all its changes applied) or `partielle` (some discarded, blocked or
+ *   refused outright);
+ * - a short scope without instruction, a brief already validated, a turn already running: clear error.
  */
 
 import { revalidatePath } from "next/cache";
 import * as service from "@/lib/agents/service";
 import type { CibleDemandee, Profondeur, Portee, Resultat } from "@/lib/agents/types";
 
-/** Les écritures invalident le cache des pages : la popup relit ensuite ses données par
- * les lectures de lib/agents/queries-agents.ts. */
+/** Writes invalidate the page cache: the popup then re-reads its data through
+ * the reads of lib/agents/queries-agents.ts. */
 async function rafraichir<T extends { ok: boolean }>(r: T): Promise<T> {
   if (r.ok) revalidatePath("/", "layout");
   return r;
@@ -62,11 +62,11 @@ async function rafraichir<T extends { ok: boolean }>(r: T): Promise<T> {
 
 // --- Conversation -----------------------------------------------------------
 
-/** Ouvre la conversation du (projet, portée, cible) : la reprend si elle existe, la crée
- * sinon. `cible` désigne l'existant visé (épisode : `{ id }`, plan : `{ uuid }`, asset :
- * `{ code }` ou `{ id }`) ; null pour la portée `projet`. `profondeur` n'est prise en compte
- * qu'à la création (défaut : `complete` pour un projet, `courte` sinon). `reprise` dit si une
- * conversation existait déjà (l'UI affiche « conversation en cours reprise »). */
+/** Opens the conversation for (project, scope, target): resumes it if it exists, creates it
+ * otherwise. `cible` designates the existing target (episode: `{ id }`, clip: `{ uuid }`, asset:
+ * `{ code }` or `{ id }`); null for the `projet` scope. `profondeur` is only taken into account
+ * at creation (default: `complete` for a project, `courte` otherwise). `reprise` says whether a
+ * conversation already existed (the UI shows « conversation en cours reprise »). */
 export async function ouvrirConversation(
   projectId: number,
   portee: Portee,
@@ -76,27 +76,27 @@ export async function ouvrirConversation(
   return rafraichir(await service.ouvrirConversation(projectId, portee, cible, profondeur));
 }
 
-/** Projet CONÇU dont l'accroche du scénariste a échoué : la relance (jamais une régénération d'une accroche réussie). */
+/** DESIGNED project whose screenwriter hook failed: retries it (never a regeneration of a successful hook). */
 export async function relancerAccroche(conversationUuid: string): Promise<Resultat> {
   return rafraichir(await service.relancerAccroche(conversationUuid));
 }
 
-/** Profondeur complète : ajoute le message de l'utilisateur et lance un tour de
- * conversation (tâche). Refusé si un tour est déjà en cours sur cette conversation. */
+/** Complete depth: adds the user's message and starts a conversation turn
+ * (task). Refused if a turn is already running on this conversation. */
 export async function envoyerMessage(conversationUuid: string, texte: string): Promise<Resultat<{ runUuid: string }>> {
   return rafraichir(await service.envoyerMessage(conversationUuid, texte));
 }
 
-/** Réponse par une carte de choix du scénariste (libellés retenus) : le texte envoyé est formulé côté serveur. */
+/** Reply through a screenwriter choice card (selected labels): the text sent is formulated server-side. */
 export async function repondreAuChoix(conversationUuid: string, libelles: string[]): Promise<Resultat<{ runUuid: string }>> {
   return rafraichir(await service.repondreAuChoix(conversationUuid, libelles));
 }
 
 // --- Brief ------------------------------------------------------------------
 
-/** Corrige à la main une section du brief (clé de premier niveau : `arc`, `style`, `lieux`…).
- * La valeur est validée contre le schéma du brief ; la section passe au statut `fourni`.
- * Valable sur un brouillon comme sur le brief valide du projet. */
+/** Manually corrects a brief section (top-level key: `arc`, `style`, `lieux`…).
+ * The value is validated against the brief schema; the section switches to the `fourni` status.
+ * Valid on a draft as well as on the project's validated brief. */
 export async function modifierChampBrief(projectId: number, section: string, valeur: unknown): Promise<Resultat> {
   return rafraichir(await service.modifierChampBrief(projectId, section, valeur));
 }

@@ -3,16 +3,16 @@ import { injecterReferences, verifierEntree, type WorkflowJson } from "./mapping
 import type { SubmissionInput } from "./types";
 
 /**
- * Mapping de la vidéo en trois étapes (workflows/video-generation/VID_Generation.json, VID_UPSCALE.json, VID_Finition.json ; contrat dans
- * workflows/README.md ; plan dans docs/PLAN_INTEGRATION_WORKER.md). Remplacera mapping.ts (VID_REF2VA.json) à la bascule.
+ * Mapping of the three-step video (workflows/video-generation/VID_Generation.json, VID_UPSCALE.json, VID_Finition.json; contract in
+ * workflows/README.md; plan in docs/PLAN_INTEGRATION_WORKER.md). Will replace mapping.ts (VID_REF2VA.json) at the switch-over.
  *
- * Les trois étapes se partagent un dossier de latents propre au rendu : `h3_latents/<dossier>/gen/clip_00001` (première passe) et `…/up/clip_00001`
- * (upscalé). La génération et l'upscale reçoivent la MÊME entrée (prompt, durée, références) : l'upscale refait le conditioning du modèle.
+ * The three steps share a latent folder specific to the render: `h3_latents/<dossier>/gen/clip_00001` (first pass) and `…/up/clip_00001`
+ * (upscaled). Generation and upscale receive the SAME input (prompt, duration, references): the upscale redoes the model's conditioning.
  */
 
 export { MEGAPIXELS_VIDEO };
 
-/** Les nœuds de saisie que la génération et l'upscale ont en commun (mêmes ids dans les deux fichiers). */
+/** The input nodes that generation and upscale have in common (same ids in both files). */
 const NOEUDS_ENTREE = {
   prompt: "22:11",
   resolution: "22:9",
@@ -24,16 +24,16 @@ const NOEUDS_ENTREE = {
 export const NODE_IDS_GENERATION = {
   ...NOEUDS_ENTREE,
   seed: "16",
-  /** Brouillon 0,4 MP (VHS_VideoCombine) : le fichier que le worker récupère. */
+  /** Draft 0.4 MP (VHS_VideoCombine): the file the worker retrieves. */
   apercu: "18",
-  /** Sauvegarde du latent de la première passe (sans fichier lisible dans /history). */
+  /** Saves the first-pass latent (no readable file in /history). */
   latentSauve: "302",
 } as const;
 
-/** La génération « suite » (VID_Generation_suite.json) ajoute le chargement du latent de la première passe du plan précédent (Motion Context). */
+/** The « suite » (sequel) generation (VID_Generation_suite.json) adds the loading of the first-pass latent of the previous clip (Motion Context). */
 export const NODE_IDS_GENERATION_SUITE = {
   ...NODE_IDS_GENERATION,
-  /** Chargeur du latent de contexte (`stock_format: false` : c'est le format de Motion Context, pas le format standard). */
+  /** Context latent loader (`stock_format: false`: this is the Motion Context format, not the standard format). */
   latentContexte: "301",
 } as const;
 
@@ -45,18 +45,18 @@ export const NODE_IDS_UPSCALE = {
 } as const;
 
 export const NODE_IDS_FINITION = {
-  /** Latent de la première passe : l'audio vient de lui (la passe d'upscale régénère et accélère l'audio). */
+  /** First-pass latent: the audio comes from it (the upscale pass regenerates and speeds up the audio). */
   latentAudio: "310",
-  /** Latent upscalé : l'image vient de lui. */
+  /** Upscaled latent: the image comes from it. */
   latentImage: "320",
   sortie: "34",
 } as const;
 
-/** Le dossier de latents d'un rendu (unique par plan et par rendu, jamais réutilisé : `h3_latents/<dossier>/…` côté ComfyUI). */
+/** The latent folder of a render (unique per clip and per render, never reused: `h3_latents/<dossier>/…` on the ComfyUI side). */
 export const dossierLatents = (planId: number, numeroRendu: number, tentative = 1): string =>
   `cadence_p${planId}_r${numeroRendu}${tentative > 1 ? `_t${tentative}` : ""}`;
 
-/** Les chemins de latents d'un dossier : le préfixe de sauvegarde (le nœud ajoute `_00001`) et le dossier que le chargeur relit avec `clip_index` 1. */
+/** The latent paths of a folder: the save prefix (the node adds `_00001`) and the folder the loader reads back with `clip_index` 1. */
 export const cheminsLatents = (dossier: string) => ({
   genDossier: `h3_latents/${dossier}/gen`,
   genPrefixe: `h3_latents/${dossier}/gen/clip`,
@@ -70,7 +70,7 @@ function noeud(graphe: WorkflowJson, id: string, role: string) {
   return n;
 }
 
-/** Le prompt, la durée, la résolution (0,4 MP) et les références : identiques pour la génération et l'upscale. */
+/** The prompt, duration, resolution (0.4 MP) and references: identical for generation and upscale. */
 function injecterEntree(graphe: WorkflowJson, input: SubmissionInput, ids: typeof NOEUDS_ENTREE): void {
   verifierEntree({ ...input, megapixels: undefined });
   noeud(graphe, ids.dureeVideo, "durée").inputs.value = input.dureeSecondes;
@@ -81,8 +81,8 @@ function injecterEntree(graphe: WorkflowJson, input: SubmissionInput, ids: typeo
 
 const numeroSeed = (seed: string | undefined): number | null => (seed ? Number(seed) : null);
 
-/** Étape 1 : prévisualisation (brouillon + latent de la première passe). `dossierContexte` : le dossier de latents du plan précédent, pour la variante
- * « suite » (VID_Generation_suite.json), dont le brouillon est déjà rogné du préfixe de contexte. */
+/** Step 1: preview (draft + first-pass latent). `dossierContexte`: the latent folder of the previous clip, for the
+ * « suite » variant (VID_Generation_suite.json), whose draft is already trimmed of the context prefix. */
 export function injecterGeneration(workflow: WorkflowJson, input: SubmissionInput, dossier: string, dossierContexte?: string): WorkflowJson {
   const graphe = structuredClone(workflow);
   if (dossierContexte) {
@@ -100,8 +100,8 @@ export function injecterGeneration(workflow: WorkflowJson, input: SubmissionInpu
   return graphe;
 }
 
-/** Étape 2 : upscale ×1,5 du latent de la première passe rangé sous `dossierSource` ; le latent upscalé est sauvegardé sous `dossierSortie` (celui du rendu
- * final : un rendu final qui part d'une prévisualisation ne réécrit jamais ses dossiers). */
+/** Step 2: ×1.5 upscale of the first-pass latent stored under `dossierSource`; the upscaled latent is saved under `dossierSortie` (that of the
+ * final render: a final render that starts from a preview never rewrites its folders). */
 export function injecterUpscale(workflow: WorkflowJson, input: SubmissionInput, dossierSource: string, dossierSortie: string = dossierSource): WorkflowJson {
   const graphe = structuredClone(workflow);
   injecterEntree(graphe, input, NODE_IDS_UPSCALE);
@@ -116,7 +116,7 @@ export function injecterUpscale(workflow: WorkflowJson, input: SubmissionInput, 
   return graphe;
 }
 
-/** Étape 3 : finition (RIFE, RTX 1080p) : l'image du latent upscalé (rangé sous `dossierUp`), l'audio du latent de la première passe (sous `dossierGen`). */
+/** Step 3: finishing (RIFE, RTX 1080p): the image of the upscaled latent (stored under `dossierUp`), the audio of the first-pass latent (under `dossierGen`). */
 export function injecterFinition(workflow: WorkflowJson, dossierGen: string, dossierUp: string, prefixeSortie?: string): WorkflowJson {
   const graphe = structuredClone(workflow);
   noeud(graphe, NODE_IDS_FINITION.latentAudio, "latent de l'audio").inputs.latent_path = cheminsLatents(dossierGen).genDossier;

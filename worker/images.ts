@@ -35,13 +35,13 @@ import type { RefMedia, Suivi, SubmissionInput } from "./comfyui/types";
 import { attendreResultat } from "./waiting";
 import { creerRelais } from "./progress";
 
-// Tâche de génération d'asset : text-to-image (Krea 2 Turbo, IMG_01_TextToImage,
-// méthode « generation »), à partir de 1 à 3 images (Qwen Image Edit 2511,
-// IMG_Simple_Edit, méthode « edition »), et le test vidéo d'un master de voix. Une génération n'est
-// pas rejouée automatiquement : un échec s'affiche avec son message et
-// l'utilisateur relance (contrairement aux plans H3, une image se refait en
-// quelques secondes). Une API ComfyUI injoignable ne consomme rien : la demande
-// reste en attente (même règle que F04).
+// Asset generation task: text-to-image (Krea 2 Turbo, IMG_01_TextToImage,
+// method « generation »), from 1 to 3 images (Qwen Image Edit 2511,
+// IMG_Simple_Edit, method « edition »), and the test video of a voice master. A generation is
+// not replayed automatically: a failure is shown with its message and
+// the user restarts it (unlike H3 clips, an image is redone in a
+// few seconds). An unreachable ComfyUI API consumes nothing: the request
+// stays pending (same rule as F04).
 
 const INTERVALLE_POLL_MS = 2_000;
 const DUREE_MAX_POLL_MS = 10 * 60_000;
@@ -49,20 +49,20 @@ const CHEMIN_WORKFLOW = () =>
   resolve(process.env.COMFYUI_WORKFLOW_IMAGE_PATH ?? "./workflows/image-refs/IMG_01_TextToImage.json");
 const CHEMIN_WORKFLOW_EDITION = () =>
   resolve(process.env.COMFYUI_WORKFLOW_EDITION_PATH ?? "./workflows/image-refs/IMG_Simple_Edit.json");
-// Le test vidéo d'une voix passe par le même graphe que les plans (VID_REF2VA) : même variable que la tâche vidéo.
+// The voice test video goes through the same graph as the clips (VID_REF2VA): same variable as the video task.
 const CHEMIN_WORKFLOW_VIDEO = () =>
   resolve(process.env.COMFYUI_WORKFLOW_PATH ?? "./workflows/video-generation/VID_REF2VA.json");
-// Le master de voix : variante du graphe vidéo qui sort aussi la voix nettoyée (workflows/audio/VID_Create_Voice_Master.json).
+// The voice master: variant of the video graph that also outputs the cleaned voice (workflows/audio/VID_Create_Voice_Master.json).
 const CHEMIN_WORKFLOW_MASTER = () =>
   resolve(process.env.COMFYUI_WORKFLOW_MASTER_PATH ?? "./workflows/audio/VID_Create_Voice_Master.json");
-// Une vidéo (H3) dure bien plus qu'une image : même plafond que les plans.
+// A video (H3) lasts much longer than an image: same ceiling as the clips.
 const DUREE_MAX_POLL_VIDEO_MS = 30 * 60_000;
 
 type Generation = typeof assetGenerations.$inferSelect;
 
-/** Envoie les sources de la génération au dossier d'entrée de ComfyUI et renvoie
- * leurs noms distants, dans l'ordre. Une source disparue du stockage est une
- * erreur franche (l'asset a pu être remplacé ou supprimé depuis le lancement). */
+/** Sends the generation's sources to ComfyUI's input folder and returns
+ * their remote names, in order. A source gone from the storage is a
+ * clear error (the asset may have been replaced or deleted since launch). */
 async function envoyerSources(client: ComfyUIClient, gen: Generation, mediaRoot: string): Promise<string[]> {
   const sources = await db
     .select()
@@ -87,9 +87,9 @@ async function envoyerSources(client: ComfyUIClient, gen: Generation, mediaRoot:
   return noms;
 }
 
-/** Sources d'une édition. Pour une affiche de l'ancien parcours (sans consigne ; un essai de la fiche pose lui-même son canevas), un canevas vide 2:3 passe en image 1 : la sortie de Qwen suit le format de
- * l'image 1, et sans lui une fiche personnage 16:9 donnerait une affiche 16:9. Le personnage (la source enregistrée)
- * devient l'image 2. */
+/** Sources of an edit. For a poster from the old path (without instruction; an attempt on the sheet sets its own canvas), a blank 2:3 canvas becomes image 1: Qwen's output follows the format of
+ * image 1, and without it a 16:9 character sheet would give a 16:9 poster. The character (the recorded source)
+ * becomes image 2. */
 async function sourcesEdition(client: ComfyUIClient, gen: Generation, mediaRoot: string, affiche: boolean): Promise<string[]> {
   const sources = await envoyerSources(client, gen, mediaRoot);
   if (!affiche) return sources;
@@ -100,13 +100,13 @@ async function sourcesEdition(client: ComfyUIClient, gen: Generation, mediaRoot:
   return [distant, ...sources];
 }
 
-/** Les images d'un projet attendent la fin de sa création (2026-10-19) : pendant que le LLM écrit, les générer en même temps
- * ralentit les deux (mesuré sur « Le dernier train » : un plan H3 à 2,4 jetons/s au lieu de ~60 pendant les premières images,
- * environ 3 min perdues sur 25). `WORKER_IMAGES_PENDANT_CREATION=1` rétablit le recouvrement. */
+/** A project's images wait for the end of its creation (2026-10-19): while the LLM writes, generating them at the same time
+ * slows both down (measured on « Le dernier train »: an H3 clip at 2.4 tokens/s instead of ~60 during the first images,
+ * about 3 min lost out of 25). `WORKER_IMAGES_PENDANT_CREATION=1` restores the overlap. */
 const IMAGES_PENDANT_CREATION = process.env.WORKER_IMAGES_PENDANT_CREATION === "1";
 
-/** La plus ancienne demande en attente (FIFO), ou null. Le worker la compare à la
- * prochaine vidéo (worker/scheduler.ts) avant de choisir. */
+/** The oldest pending request (FIFO), or null. The worker compares it to the
+ * next video (worker/scheduler.ts) before choosing. */
 export async function prochaineGenerationEnAttente(): Promise<Generation | null> {
   const [gen] = await db
     .select({ g: assetGenerations })
@@ -125,14 +125,14 @@ export async function prochaineGenerationEnAttente(): Promise<Generation | null>
   return gen?.g ?? null;
 }
 
-/** Traite une demande. Renvoie `true` si elle a été prise (réussie ou échouée),
- * `false` si ComfyUI est injoignable : elle reste alors en attente et le worker
- * patiente avant de réessayer. */
+/** Processes a request. Returns `true` if it was taken (succeeded or failed),
+ * `false` if ComfyUI is unreachable: it then stays pending and the worker
+ * waits before retrying. */
 export async function traiterGenerationImage(client: ComfyUIClient, gen: Generation, mediaRoot: string): Promise<boolean> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, gen.assetId));
   if (!asset) {
-    // Ne devrait pas arriver (suppression en cascade) ; surtout ne pas la laisser
-    // en tête de file : elle bloquerait toutes les tâches derrière elle.
+    // Should not happen (cascade deletion); above all do not leave it
+    // at the head of the queue: it would block all the tasks behind it.
     await db
       .update(assetGenerations)
       .set({ statut: "echoue", erreur: "Asset introuvable", finishedAt: new Date() })
@@ -140,8 +140,8 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
     return true;
   }
 
-  // Prise gardée par le statut : une demande annulée entre-temps (annulation d'une
-  // tâche en attente, directe) ne doit pas être ressuscitée.
+  // Taking guarded by the status: a request cancelled in the meantime (direct cancellation of a
+  // pending task) must not be revived.
   const prise = await db
     .update(assetGenerations)
     .set({ statut: "en_cours", startedAt: new Date(), erreur: null })
@@ -154,9 +154,9 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
   let promptId: string | null = null;
   let surveillance: ReturnType<typeof surveillerAnnulation> | null = null;
 
-  /** Annulation demandée pendant l'exécution : on interrompt ComfyUI (après avoir
-   * vérifié dans /queue que c'est bien notre prompt), on ne récupère rien, la
-   * génération devient « annulée ». Jamais comptée comme un échec. */
+  /** Cancellation requested during execution: we interrupt ComfyUI (after having
+   * checked in /queue that it is indeed our prompt), we retrieve nothing, the
+   * generation becomes « annulée ». Never counted as a failure. */
   const annuler = async (): Promise<boolean> => {
     const issue = promptId ? await annulerCoteComfyUI(client, promptId) : "rien";
     console.log(`[worker] Génération ${gen.id} (${asset.code}) annulée (${issue})`);
@@ -167,13 +167,13 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
   try {
     const edition = gen.methode === "edition";
     const masterVoix = gen.methode === METHODE_MASTER_VOIX;
-    // Master de voix SANS workflow dédié (VID_Create_Voice_Master.json absent) : on soumet le graphe vidéo des plans et l'audio est extrait du mp4.
+    // Voice master WITHOUT dedicated workflow (VID_Create_Voice_Master.json absent): we submit the clips' video graph and the audio is extracted from the mp4.
     let masterDedie = false;
     let graphe: WorkflowJson;
     if (masterVoix) {
       const p = parametresMasterVoix(gen.parametres);
       if (!p) throw new ErreurEntreeInvalide("Paramètres absents de la demande de master de voix");
-      // Aucun audio fourni : le modèle invente la voix d'après le prompt (timbre décrit + réplique). Sans image, la voix off n'a pas de visage.
+      // No audio provided: the model invents the voice from the prompt (described timbre + line). Without an image, the voice-over has no face.
       const refsImage: RefMedia[] = [];
       if (p.personnage) refsImage.push({ slot: 1, cheminLocal: join(mediaRoot, p.personnage), nomDistant: nomDistantDepuisChemin(p.personnage) });
       const entree: SubmissionInput = {
@@ -203,7 +203,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         for (const id of [NODE_IDS_MASTER.sortieAudio, NODE_IDS_MASTER.sortieVideo]) {
           if (!brut[id]) throw new ErreurEntreeInvalide(`Le nœud ${id} (sortie du master) est absent du workflow : ajuste NODE_IDS_MASTER (worker/comfyui/masterMapping.ts).`);
         }
-        // La vidéo (nœud 18) n'enregistre rien par défaut (sortie « temp ») : on le force, le worker relit le dossier `output`.
+        // The video (node 18) saves nothing by default (« temp » output): we force it, the worker reads the `output` folder again.
         brut[NODE_IDS_MASTER.sortieVideo]!.inputs.save_output = true;
         brut[NODE_IDS_MASTER.sortieAudio]!.inputs.filename_prefix = `audio/${entree.prefixeSortie}`;
       }
@@ -212,7 +212,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       const brut = JSON.parse(await readFile(CHEMIN_WORKFLOW_EDITION(), "utf-8")) as WorkflowJson;
       graphe = injecterEditionImages(brut, {
         prompt: gen.prompt,
-        clauseStyle: gen.clauseStyle, // la clause courte, posée à la demande (styleDesEditions) ; "" pour les anciennes demandes
+        clauseStyle: gen.clauseStyle, // the short clause, set on demand (styleDesEditions); "" for old requests
         seed: gen.seed,
         lightning: gen.lightning ?? true,
         sourcesDistantes: await sourcesEdition(client, gen, mediaRoot, asset.type === TYPE_AFFICHE && gen.consigne == null),
@@ -232,12 +232,11 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
     }
     const noeudSortie = masterVoix ? (masterDedie ? NODE_IDS_MASTER.sortieAudio : NODE_IDS_MASTER.sortieRepli) : edition ? NODE_IDS_EDITION.sortie : NODE_IDS_TEXTE_VERS_IMAGE.sortie;
 
-    // Le WebSocket s'ouvre AVANT la soumission (sinon un prompt court finit avant
-    // qu'on l'écoute). Il ne décide de rien : le résultat vient de /history, la
-    // boucle ci-dessous, et si le WebSocket tombe on y retombe sans progression.
+    // The WebSocket opens BEFORE the submission (otherwise a short prompt finishes before
+    // we listen). It decides nothing: the result comes from /history, the
+    // loop below, and if the WebSocket drops we fall back to it without progress.
     relais = creerRelais({ genId: gen.id, genUuid: gen.uuid, assetId: gen.assetId, mediaRoot, graphe });
-    // Un master de voix n'a pas d'aperçu : les images de latent que le sampler pourrait
-    // envoyer ne montreraient rien d'utile, on ne garde que la progression.
+    // A voice master has no preview: the latent images the sampler could send would show nothing useful, we only keep the progress.
     const relaisActif = relais;
     suivi = await client.ouvrirSuivi((e) => {
       if (masterVoix && e.type === "apercu") return;
@@ -247,8 +246,8 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
     promptId = await client.submitGraph(graphe);
     await db.update(assetGenerations).set({ comfyuiPromptId: promptId }).where(eq(assetGenerations.id, gen.id));
 
-    // L'attente du résultat et la sonde du drapeau d'annulation courent ensemble :
-    // la plus rapide gagne.
+    // The wait for the result and the cancellation flag probe run together:
+    // the fastest wins.
     surveillance = surveillerAnnulation(() => annulationDemandeeImage(gen.id));
     const idPrompt = promptId;
     const r = await attendreResultat({
@@ -273,13 +272,13 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       if (masterVoix) {
         const cibleVideo = join(mediaRoot, cheminGenerationMedia(gen.assetId, videoDeMaster(nom)));
         if (masterDedie) {
-          // La voix nettoyée est enregistrée par son nœud ; la vidéo de test (petit rendu) est lue à part, son absence n'invalide pas la voix.
+          // The cleaned voice is saved by its node; the test video (small render) is read separately, its absence does not invalidate the voice.
           if (stub) await writeFile(cible, mp3Factice());
           else await client.fetchOutput(r.cheminSortieDistant, cible);
           const v = await client.pollImage(promptId, NODE_IDS_MASTER.sortieVideo).catch(() => null);
           if (v?.statut === "termine") await client.fetchOutput(v.cheminSortieDistant, cibleVideo).catch(() => console.warn(`[worker] Master ${gen.id} (${asset.code}) : la vidéo de test n'a pas pu être récupérée`));
         } else {
-          // Repli : la sortie est la vidéo, rangée à sa place, et la voix en est extraite (non nettoyée). Le client simulé n'a pas de piste audio.
+          // Fallback: the output is the video, stored in its place, and the voice is extracted from it (uncleaned). The simulated client has no audio track.
           await client.fetchOutput(r.cheminSortieDistant, cibleVideo);
           await writeFile(cible, stub ? mp3Factice() : await extraireAudioDeVideo(cibleVideo));
         }
@@ -289,7 +288,7 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         .set({ statut: "termine", fichier: nom, finishedAt: new Date() })
         .where(eq(assetGenerations.id, gen.id));
       console.log(`[worker] Génération ${gen.id} (${asset.code}${masterVoix ? ", master de voix" : ""}) terminée : ${nom}`);
-      // Générée par un lot : le résultat est adopté tout seul (il devient l'image de l'asset).
+      // Generated by a batch: the result is adopted on its own (it becomes the asset's image).
       if (gen.adoptionAuto) {
         const r = await adopterCandidat(gen.id, mediaRoot);
         console.log(r.ok ? `[worker] Génération ${gen.id} adoptée automatiquement (${asset.code})` : `[worker] Adoption automatique impossible (${asset.code}) : ${r.erreur}`);
@@ -298,8 +297,8 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
       return true;
     }
   } catch (err) {
-    // Annulation demandée puis erreur (ComfyUI interrompu, réseau) : c'est une
-    // annulation, pas un échec.
+    // Cancellation requested then error (ComfyUI interrupted, network): it is a
+    // cancellation, not a failure.
     if (await annulationDemandeeImage(gen.id).catch(() => false)) return await annuler();
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[worker] Génération ${gen.id} échouée : ${message}`);
@@ -315,8 +314,8 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
   return true;
 }
 
-/** Ne garde que les derniers candidats terminés DE LA MÊME MÉTHODE (les essais d'un test audio ne chassent pas ceux de la voix de
- * référence) : ce sont des essais, pas un historique (F01). Les échecs et les demandes en cours ne comptent pas. */
+/** Keeps only the latest finished candidates OF THE SAME METHOD (the attempts of an audio test do not chase out those of the reference
+ * voice): they are attempts, not a history (F01). Failures and requests in progress do not count. */
 async function purgerAnciens(assetId: number, methode: string, mediaRoot: string): Promise<void> {
   const termines = await db
     .select()

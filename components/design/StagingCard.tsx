@@ -29,10 +29,10 @@ import {
 } from "@/lib/h3ir/settings";
 import { MotsMise, VisuelMise } from "./StagingVisual";
 
-/** Ce que la carte montre : un style de mise en scène (« aucun », l'un des 7 réalisateurs ou un profil perso) ou un niveau de créativité. */
+/** What the card shows: a staging style (« aucun », one of the 7 directors or a custom profile) or a creativity level. */
 export type CarteChoisie = { genre: "style"; id: string } | { genre: "creativite"; id: Creativite };
 
-/** Ce que ce niveau de créativité peut ajouter, d'un coup d'œil : une pastille par ajout, allumée ou non (✓ / ✕ : jamais la couleur seule). */
+/** What this creativity level can add, at a glance: one pill per addition, lit or not (✓ / ✕: never colour alone). */
 export function Pastilles({ creativite }: { creativite: Creativite }) {
   return (
     <ul className="cn-pastilles" aria-label="Ce que ce niveau peut ajouter">
@@ -48,8 +48,8 @@ export function Pastilles({ creativite }: { creativite: Creativite }) {
   );
 }
 
-/** Un bouton de choix de mise en scène (titre, sous-titre, étiquette éventuelle) et son « ? » qui ouvre la carte : le rendu commun de l'écran « Mise en scène » de la
- * conception (SceneMiseEnScene) et de la fenêtre de choix du style d'un projet, d'une scène ou d'un plan (components/h3ir/StagingStyleWindow.tsx). Sans `aide`, pas de « ? ». */
+/** A staging choice button (title, subtitle, optional tag) and its « ? » which opens the card: the shared rendering of the « Mise en scène » screen of the
+ * design (SceneMiseEnScene) and of the style choice window for a project, a scene or a clip (components/h3ir/StagingStyleWindow.tsx). Without `aide`, no « ? ». */
 export function ChoixMise({
   titre,
   sous,
@@ -64,17 +64,17 @@ export function ChoixMise({
 }: {
   titre: string;
   sous: string;
-  /** Un visuel en tête de carte (VisuelMise) : image fixe de la démo ou pictogramme. */
+  /** A visual at the top of the card (VisuelMise): the demo's fixed image or a pictogram. */
   visuel?: React.ReactNode;
-  /** Sous le sous-titre : mots-clés, « Rappelle… ». */
+  /** Under the subtitle: keywords, « Rappelle… ». */
   detail?: React.ReactNode;
-  /** Petite étiquette au-dessus du titre (« Suggéré par ton style », « Hérité »…). */
+  /** Small label above the title (« Suggéré par ton style », « Hérité »…). */
   tag?: string;
   presse: boolean;
   onChoisir: () => void;
   aide?: { label: string; onOuvrir: (e: React.MouseEvent<HTMLButtonElement>) => void };
   suggere?: boolean;
-  /** Classe de plus sur l'enveloppe (la fenêtre de choix y met la sienne, indépendante des feuilles de la conception). */
+  /** Extra class on the wrapper (the choice window puts its own there, independent of the design's stylesheets). */
   className?: string;
 }) {
   return (
@@ -95,7 +95,7 @@ export function ChoixMise({
   );
 }
 
-/** Le choix d'un style de mise en scène (un réalisateur ou un profil perso) : titre = son résumé, sous-titre = « style de … » ou, pour un profil perso, ce qu'il fait. */
+/** The choice of a staging style (a director or a custom profile): title = its summary, subtitle = « style de … » or, for a custom profile, what it does. */
 export function ChoixStyleMise({
   id,
   presse,
@@ -107,9 +107,9 @@ export function ChoixStyleMise({
   avecVisuel = false,
 }: {
   id: ChoixMiseEnScene;
-  /** Avec `avecVisuel` : l'image fixe de la démo (`DemoDispo.affiche`), ou null pour le pictogramme. */
+  /** With `avecVisuel`: the demo's fixed image (`DemoDispo.affiche`), or null for the pictogram. */
   affiche?: string | null;
-  /** Montre le visuel, les trois mots-clés et la ligne « Rappelle » (la fenêtre de choix) ; sans, la carte reste en texte (écran de conception). */
+  /** Shows the visual, the three keywords and the « Rappelle » line (the choice window); without it, the card stays as text (design screen). */
   avecVisuel?: boolean;
   presse: boolean;
   onChoisir: () => void;
@@ -142,9 +142,9 @@ export function ChoixStyleMise({
   );
 }
 
-/** Le tiroir « carte de mise en scène » : un rendu VIDÉO réel de la scène de démo (lib/h3ir/demos.ts) dans ce style ou à ce niveau, ce que le choix change, les films à connaître et
- * quand le choisir. Sans vidéo produite, il garde le texte d'exemple et le dit. Échap, un clic à côté ou la croix le ferment ; « Choisir » sélectionne et ferme. Les vidéos se lisent à
- * la demande, SON ACTIVÉ (la musique et les voix font partie de la différence). */
+/** The « staging card » drawer: a REAL VIDEO render of the demo scene (lib/h3ir/demos.ts) in this style or at this level, what the choice changes, the films to know and
+ * when to pick it. Without a produced video, it keeps the sample text and says so. Esc, a click outside or the cross closes it; « Choisir » selects and closes. Videos play
+ * on demand, WITH SOUND ON (music and voices are part of the difference). */
 export function CarteMiseEnScene({
   carte,
   demo,
@@ -154,7 +154,7 @@ export function CarteMiseEnScene({
 }: {
   carte: CarteChoisie;
   demo: DemoDispo | null;
-  /** C'est le choix déjà retenu à l'écran. */
+  /** This is the choice already retained on screen. */
   courant: boolean;
   onChoisir: () => void;
   onFermer: () => void;

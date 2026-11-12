@@ -1,25 +1,25 @@
 import { CLES_ABANDONNEES, briefVide, sansClesAbandonnees } from "./brief";
 import type { BriefContenu } from "./types";
 
-/** La fiche de notes de l'entretien d'entrée : le brief en train de se remplir, tenu PAR LE CODE. À chaque message de
- * l'utilisateur, le skill `notes-entretien` rend un PATCH (les sections que ce message change, avec la citation qui le
- * prouve) ; le code vérifie les citations, applique le patch, et décide seul de ce qui manque et de quand la fiche est
- * complète. Le modèle ne tient donc ni comptabilité ni critère d'arrêt (il les tenait mal : trop indulgent, et il se
- * contredisait). Une fois complète, la fiche devient le brouillon du brief, sans appel de rédaction. Pur. */
+/** The interview's notes sheet: the brief being filled in, held BY THE CODE. At each user message,
+ * the `notes-entretien` skill returns a PATCH (the sections this message changes, with the quote that proves it);
+ * the code checks the quotes, applies the patch, and decides on its own what is missing and when the sheet is
+ * complete. The model therefore keeps neither bookkeeping nor a stopping criterion (it kept them badly: too lenient, and it
+ * contradicted itself). Once complete, the sheet becomes the brief's draft, without a writing call. Pure. */
 
-/** `fourni` : l'utilisateur l'a dit. `delegue` : il a explicitement laissé l'agent décider (« je te laisse choisir ») : la question est
- * tranchée, le contenu reste une proposition de l'agent. `deduit` : l'agent l'a supposé, personne ne l'a tranché. */
+/** `fourni`: the user said it. `delegue`: they explicitly left the agent to decide ("je te laisse choisir"): the question is
+ * settled, the content remains a proposal from the agent. `deduit`: the agent assumed it, nobody settled it. */
 export type StatutFiche = "fourni" | "delegue" | "deduit";
-/** Statut d'un DÉTAIL (tenue, aspect d'un lieu, élément, raccords) : `incertain` = dit, mais en termes vagues (« inspirée de… » sans couleur
- * ni matière) : il reste à préciser. */
+/** Status of a DETAIL (costume, look of a place, element, continuity): `incertain` = said, but in vague terms ("inspirée de…" without colour
+ * nor material): it still has to be specified. */
 type StatutDetail = StatutFiche | "incertain";
-/** `details` : le statut de chaque détail à préciser (clé `tenue:<nom normalisé>`, `lieu:…`, `element:…`, `raccords`), absent tant qu'aucun
- * n'est suivi. Il vit dans la fiche seulement : le brief en garde la trace dans le `statut` des sous-objets (voir `estampillerDetails`). */
+/** `details`: the status of each detail to specify (key `tenue:<normalised name>`, `lieu:…`, `element:…`, `raccords`), absent until one
+ * is followed. It lives in the sheet only: the brief keeps a trace of it in the `statut` of the sub-objects (see `estampillerDetails`). */
 export type Fiche = { contenu: Record<string, unknown>; statuts: Record<string, StatutFiche>; details?: Record<string, StatutDetail> };
 
 export const FICHE_VIDE: Fiche = { contenu: {}, statuts: {} };
 
-/** Les sections du brief que le patch peut écrire (`notes` n'est jamais écrite par l'agent : c'est l'utilisateur qui les pose). */
+/** The brief sections the patch can write (`notes` is never written by the agent: the user sets them). */
 export const SECTIONS_PATCHABLES = [
   "titre",
   "arc",
@@ -37,11 +37,11 @@ export const SECTIONS_PATCHABLES = [
   "questionsOuvertes",
 ] as const;
 
-/** Sections purement informatives : une « délégation » sur elles ne tranche rien (et ne ferme donc jamais l'entretien). */
+/** Purely informative sections: a "delegation" on them settles nothing (and so never closes the interview). */
 const SECTIONS_INFORMATIVES: readonly string[] = ["inventions", "questionsOuvertes"];
 
-/** Ce que l'UTILISATEUR doit avoir tranché (dit, ou délégué à l'agent, prouvé par une citation) pour que la fiche soit complète. `fin` n'est
- * pas une section du brief : la fin vit dans `arc`, mais on suit à part si l'utilisateur l'a dite. */
+/** What the USER must have settled (said, or delegated to the agent, proven by a quote) for the sheet to be complete. `fin` is not
+ * a brief section: the ending lives in `arc`, but we follow separately whether the user said it. */
 export const REQUIS = [
   { cle: "arc", libelle: "le cœur de l'histoire (le héros, ce qu'il veut, ce qui la fait basculer)" },
   { cle: "fin", libelle: "la fin (comment ça se termine, ce qu'on doit ressentir en sortant)" },
@@ -52,26 +52,26 @@ export const REQUIS = [
   { cle: "personnages", libelle: "le héros : son âge et son apparence" },
 ] as const;
 
-/** Sections que le patch peut citer sans les modifier (« j'ai confirmé ce qui est déjà noté ») : toutes, plus `fin`. */
+/** Sections the patch can cite without modifying them ("I confirmed what is already noted"): all of them, plus `fin`. */
 const SECTIONS_CITABLES: readonly string[] = [...SECTIONS_PATCHABLES, "fin"];
 
-/** Messages de l'utilisateur au moins avant qu'une fiche puisse être déclarée complète : l'idée, puis une réponse. */
+/** User messages needed at minimum before a sheet can be declared complete: the idea, then a reply. */
 export const MIN_MESSAGES_FICHE = 2;
-/** Quand le premier message est un gros bloc (projet 236 : un seul message remplissait tout), on veut au moins deux réponses après lui :
- * même densité d'information, obtenue en plusieurs échanges. */
+/** When the first message is a big block (project 236: a single message filled everything), we want at least two replies after it:
+ * the same information density, obtained over several exchanges. */
 export const MIN_MESSAGES_GROS_BLOC = 3;
-/** Longueur (caractères) à partir de laquelle le premier message est un « gros bloc » : une idée tient d'ordinaire en deux ou trois phrases. */
+/** Length (characters) from which the first message counts as a "gros bloc": an idea usually fits in two or three sentences. */
 export const SEUIL_GROS_BLOC = 500;
-/** Plafond des relances sur les détails : à partir de ce nombre de messages de l'utilisateur, les détails encore à préciser ne retiennent
- * plus l'entretien (ils restent listés, l'agent peut continuer à les creuser). L'entretien ne s'éternise jamais. */
+/** Cap on follow-ups about details: from this number of user messages on, the details still to specify no longer hold
+ * the interview (they stay listed, the agent may keep digging into them). The interview never drags on. */
 export const PLAFOND_MESSAGES_DETAILS = 10;
-/** Nombre de détails suivis au plus, par famille (dans l'ordre de la fiche : le héros d'abord). */
+/** Maximum number of details followed, per family (in sheet order: the hero first). */
 const MAX_DETAILS = { tenue: 3, lieu: 2, element: 2 } as const;
 
-/** Le premier message de l'utilisateur est-il un gros bloc ? */
+/** Is the user's first message a big block? */
 export const premierMessageGrosBloc = (messagesUtilisateur: readonly string[]): boolean => (messagesUtilisateur[0]?.trim().length ?? 0) >= SEUIL_GROS_BLOC;
 
-/** Le minimum de messages de l'utilisateur pour cette conversation. */
+/** The minimum number of user messages for this conversation. */
 export const minMessagesFiche = (messagesUtilisateur: readonly string[]): number => (premierMessageGrosBloc(messagesUtilisateur) ? MIN_MESSAGES_GROS_BLOC : MIN_MESSAGES_FICHE);
 
 const normaliser = (t: string): string =>
@@ -82,7 +82,7 @@ const normaliser = (t: string): string =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-/** Longueur minimale (normalisée) d'une citation : un « oui » ne prouve pas un sujet. */
+/** Minimum length (normalised) of a quote: a "oui" does not prove a subject. */
 const CITATION_MIN = 4;
 
 function citationVerifiee(citation: unknown, corpus: string[]): boolean {
@@ -93,7 +93,7 @@ function citationVerifiee(citation: unknown, corpus: string[]): boolean {
 
 const objet = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
-/** Une valeur qui ne dit rien (chaîne vide, liste vide, style sans nom ni clause) : jamais appliquée, elle n'efface rien. */
+/** A value that says nothing (empty string, empty list, style with neither name nor clause): never applied, it erases nothing. */
 export function valeurVide(v: unknown): boolean {
   if (v == null) return true;
   if (typeof v === "string") return v.trim() === "";
@@ -102,7 +102,7 @@ export function valeurVide(v: unknown): boolean {
   return false;
 }
 
-/** Lit une fiche venue de la base : une forme inattendue donne une fiche vide. */
+/** Reads a sheet coming from the database: an unexpected shape gives an empty sheet. */
 export function lireFiche(brut: unknown): Fiche {
   const o = objet(brut);
   const contenu = sansClesAbandonnees(objet(o.contenu));
@@ -113,16 +113,16 @@ export function lireFiche(brut: unknown): Fiche {
   return { contenu: { ...contenu }, statuts, ...(Object.keys(details).length ? { details } : {}) };
 }
 
-// --- Les détails à préciser (deuxième niveau de complétude) ---------------------------------------------------------------------
-// Une fois l'essentiel tranché, la fiche doit encore dire ce qui se DESSINE : la tenue de chaque personnage, l'aspect de chaque lieu, la
-// couleur et l'ampleur de chaque effet ou objet, et si les tenues changent (raccords). Ces détails se génèrent depuis la fiche (un par
-// personnage, lieu, élément, plafonnés) ; chacun est tranché s'il est dit précisément (citation vérifiée, sans formule vague) ou délégué.
+// --- Details to specify (second level of completeness) ---------------------------------------------------------------------
+// Once the essentials are settled, the sheet still has to say what gets DRAWN: each character's costume, each place's look, the
+// colour and scale of each effect or prop, and whether the costumes change (continuity). These details are generated from the sheet (one per
+// character, place, element, capped); each is settled if it is said precisely (verified quote, without a vague formula) or delegated.
 
 export type DetailAPreciser = {
-  /** `tenue:<nom normalisé>`, `lieu:…`, `element:…` ou `raccords`. */
+  /** `tenue:<normalised name>`, `lieu:…`, `element:…` or `raccords`. */
   cle: string;
   libelle: string;
-  /** Mots (normalisés) qui désignent ce détail dans une question ou une réponse : son nom et son thème. */
+  /** (Normalised) words that designate this detail in a question or an answer: its name and its theme. */
   themes: string[];
 };
 
@@ -134,7 +134,7 @@ const listeObjets = (v: unknown): Record<string, unknown>[] => (Array.isArray(v)
 
 const cleDetail = (famille: Famille, nom: string): string => `${famille}:${normaliser(nom)}`;
 
-/** Une clé de détail rendue par le modèle, normalisée (« tenue:Aang » → « tenue:aang ») ; null si elle n'a pas la forme attendue. */
+/** A detail key returned by the model, normalised ("tenue:Aang" → "tenue:aang"); null if it does not have the expected shape. */
 function lireCleDetail(brut: unknown): string | null {
   if (typeof brut !== "string") return null;
   if (normaliser(brut) === "raccords") return "raccords";
@@ -145,8 +145,8 @@ function lireCleDetail(brut: unknown): string | null {
   return (famille === "tenue" || famille === "lieu" || famille === "element") && nom ? `${famille}:${nom}` : null;
 }
 
-/** Une formule de référence (« inspirée de… », « style de… », « comme dans… », « les couleurs de… ») SANS couleur ni matière nommée : ça
- * ne se dessine pas. Le texte est normalisé (accents, casse) avant d'être lu. */
+/** A reference formula ("inspirée de…", "style de…", "comme dans…", "les couleurs de…") WITHOUT a named colour or material: it
+ * does not get drawn. The text is normalised (accents, case) before being read. */
 const VAGUE = / (inspir[a-z]*|style|facon|maniere|comme|rappel[a-z]*|reference|clin d oeil|couleurs? (de|du|des|d)) /;
 const COULEUR =
   / (rouge|bleu|vert|jaune|orange|violet|violette|rose|noir|blanc|blanche|gris|grise|brun|marron|beige|ocre|dore|argente|safran|pourpre|ecarlate|turquoise|cyan|indigo|kaki|creme|ivoire|bordeaux|cuivre|bronze|sable|emeraude|rubis|saphir|ambre|lavande|mauve|olive|corail|anthracite|prune|fauve|roux|rousse|terracotta|sepia|pastel|carmin|vermillon|azur|magenta|taupe|chocolat|caramel|miel|terre)(s|e|es|x|ee|ees)? /;
@@ -158,7 +158,7 @@ export function formuleVague(texte: string): boolean {
   return VAGUE.test(t) && !COULEUR.test(t) && !MATIERE.test(t);
 }
 
-/** Tous les détails que la fiche appelle (tranchés ou non), dans l'ordre de l'entretien : tenues, décors, effets et objets, raccords. */
+/** All the details the sheet calls for (settled or not), in interview order: costumes, sets, effects and props, continuity. */
 function detailsCandidats(contenu: Record<string, unknown>): DetailCandidat[] {
   const d: DetailCandidat[] = [];
   const persos = listeObjets(contenu.personnages).filter((p) => chaine(p.nom));
@@ -206,21 +206,21 @@ function detailsCandidats(contenu: Record<string, unknown>): DetailCandidat[] {
   return d;
 }
 
-/** Un détail est tranché : présent dans la fiche ET dit précisément par l'utilisateur, ou délégué par lui (citation vérifiée). Un détail dit
- * en termes vagues reste à préciser, quel que soit son statut. */
+/** A detail is settled: present in the sheet AND said precisely by the user, or delegated by them (verified quote). A detail said
+ * in vague terms remains to be specified, whatever its status. */
 function detailTranche(fiche: Fiche, d: DetailCandidat): boolean {
   const s = fiche.details?.[d.cle];
   return d.present && (s === "delegue" || (s === "fourni" && !formuleVague(d.texte)));
 }
 
-/** Les détails encore à préciser, dans l'ordre (tenues, décors, effets et objets, raccords). */
+/** The details still to specify, in order (costumes, sets, effects and props, continuity). */
 export function detailsAPreciser(fiche: Fiche): DetailAPreciser[] {
   return detailsCandidats(fiche.contenu)
     .filter((d) => !detailTranche(fiche, d))
     .map(({ cle, libelle, themes }) => ({ cle, libelle, themes }));
 }
 
-/** Les thèmes d'une section, pour reconnaître une délégation qui la vise (voir `delegationsBornees`). */
+/** The themes of a section, to recognise a delegation aimed at it (see `delegationsBornees`). */
 const THEMES_SECTION: Record<string, string[]> = {
   titre: ["titre", "appel", "nom"],
   arc: ["histoire", "heros", "heroine", "coeur", "bascul", "veut", "intrigue", "recit"],
@@ -237,8 +237,8 @@ const THEMES_SECTION: Record<string, string[]> = {
   elements: ["effet", "vfx", "pouvoir", "magie", "objet", "accessoire"],
 };
 
-/** Une délégation GLOBALE : seule une formulation qui vise « le reste » ou « tout » (« carte blanche pour le reste », « imagine le reste »,
- * « décide de tout ») vaut pour plusieurs sujets à la fois. « Carte blanche » seule est comprise comme globale (c'est l'expression consacrée). */
+/** A GLOBAL delegation: only a wording that aims at "le reste" or "tout" ("carte blanche pour le reste", "imagine le reste",
+ * "décide de tout") holds for several subjects at once. "Carte blanche" alone is understood as global (it is the set phrase). */
 const GLOBALE = / (carte blanche|le reste|ce qui reste|ce qu il reste|pour tout|de tout|decide tout|tout decider|tout choisir|te laisse tout|imagine tout|invente tout) /;
 export const delegationGlobale = (citation: string): boolean => GLOBALE.test(` ${normaliser(citation)} `);
 
@@ -246,10 +246,10 @@ const mentionne = (texte: string, themes: string[]): boolean => themes.some((m) 
 
 type Preuve = { cible: string; statut: StatutFiche; citation: string };
 
-/** Délégations bornées (retour du projet 236 : « Je te laisse décider », réponse à UNE question sur la musique, avait été appliqué à toutes les
- * sections) : une délégation qui n'est pas globale ne vaut que pour le sujet de la question. Concrètement, quand la même citation non globale
- * délègue PLUSIEURS sujets, seuls ceux que la réponse de l'utilisateur, ou la question de l'agent juste avant, nomme (nom ou thème) sont
- * retenus ; une délégation d'un seul sujet est gardée (le modèle l'a rattachée à la question). */
+/** Bounded delegations (feedback from project 236: "Je te laisse décider", a reply to ONE question about the music, had been applied to all
+ * sections): a delegation that is not global holds only for the subject of the question. Concretely, when the same non-global quote
+ * delegates SEVERAL subjects, only those that the user's reply, or the agent's question just before, names (name or theme) are
+ * kept; a delegation of a single subject is kept (the model tied it to the question). */
 function delegationsBornees(preuves: Preuve[], themesDe: (cible: string) => string[], contexte: (citation: string) => string): Preuve[] {
   const cibles = new Map<string, Set<string>>();
   for (const p of preuves) if (p.statut === "delegue") cibles.set(p.citation, (cibles.get(p.citation) ?? new Set()).add(p.cible));
@@ -260,13 +260,13 @@ function delegationsBornees(preuves: Preuve[], themesDe: (cible: string) => stri
   });
 }
 
-/** Applique le patch d'UN appel de `notes-entretien`. Une section n'est « fournie » que si sa source est « dit » ET que sa
- * citation figure à l'identique (accents, casse, ponctuation mis à part) dans un message de l'utilisateur : une citation
- * inventée, reformulée ou prise à l'agent ne prouve rien, la section reste « déduite ». Ce que l'utilisateur a dit se
- * confirme (une source vérifiée sur une section non modifiée la passe à « fourni ») mais ne se perd jamais par un patch vide.
- * Les délégations sont bornées (`delegationsBornees`), et une délégation sur une section informative (questions ouvertes, inventions) ne
- * tranche rien. Les détails (`details` de la sortie) suivent les mêmes règles ; un détail dit en termes vagues est « incertain ».
- * `conversation` (facultative : tous les tours, agent compris) sert à retrouver la question à laquelle une délégation répond. */
+/** Applies the patch of ONE `notes-entretien` call. A section is "fournie" only if its source is "dit" AND its
+ * quote appears verbatim (accents, case, punctuation aside) in a user message: an invented, reworded or agent-taken
+ * quote proves nothing, the section stays "déduite". What the user said is confirmed
+ * (a verified source on an unchanged section turns it to "fourni") but is never lost through an empty patch.
+ * Delegations are bounded (`delegationsBornees`), and a delegation on an informative section (open questions, inventions) settles
+ * nothing. The details (`details` of the output) follow the same rules; a detail said in vague terms is "incertain".
+ * `conversation` (optional: all turns, agent included) is used to find the question a delegation answers. */
 export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateur: string[], conversation?: { role: string; content: string }[]): Fiche {
   const corpus = messagesUtilisateur.map(normaliser);
   const o = objet(sortie);
@@ -281,8 +281,8 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
   }
   const candidats = detailsCandidats(contenu);
 
-  // Les preuves : sources de sections, la fin (son propre champ, obligatoire : un modèle remplit bien un champ requis, et oublie une source
-  // facultative), et les détails. Seules les citations vérifiées comptent.
+  // The proofs: section sources, the ending (its own field, mandatory: a model does fill a required field, and forgets an
+  // optional source), and the details. Only verified quotes count.
   const preuves: Preuve[] = [];
   const fin = objet(o.fin);
   const sources = [...(Array.isArray(o.sources) ? o.sources : []), { section: "fin", origine: fin.origine, citation: fin.citation }];
@@ -314,14 +314,14 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
     return corpus.find((m) => m.includes(citation)) ?? "";
   };
 
-  const verifiees = new Map<string, StatutFiche>(); // section (ou « detail:<clé> ») → « fourni » (« dit » vérifié) ou « delegue »
+  const verifiees = new Map<string, StatutFiche>(); // section (or "detail:<key>") → "fourni" (verified "dit") or "delegue"
   for (const p of delegationsBornees(preuves, themesDe, contexte)) if (verifiees.get(p.cible) !== "fourni") verifiees.set(p.cible, p.statut);
 
   const statuts = { ...fiche.statuts };
   for (const cle of touchees) {
     const prouve = verifiees.get(cle);
     if (prouve) statuts[cle] = prouve;
-    else statuts[cle] = statuts[cle] === "fourni" || statuts[cle] === "delegue" ? statuts[cle]! : "deduit"; // enrichir une section dite ne la rend pas supposée
+    else statuts[cle] = statuts[cle] === "fourni" || statuts[cle] === "delegue" ? statuts[cle]! : "deduit"; // enriching a said section does not make it assumed
   }
   for (const [cle, prouve] of verifiees) {
     if (cle.startsWith("detail:")) continue;
@@ -341,14 +341,14 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
   }
   for (const [cible, prouve] of verifiees) {
     const cle = cible.startsWith("detail:") ? cible.slice("detail:".length) : null;
-    if (cle && !candidats.some((d) => d.cle === cle)) details[cle] = prouve; // un détail hors plafond : noté quand même
+    if (cle && !candidats.some((d) => d.cle === cle)) details[cle] = prouve; // a detail beyond the cap: still noted
   }
   const avecDetails = Object.keys(details).length > 0;
   return { contenu: avecDetails ? estampillerDetails(contenu, details) : contenu, statuts, ...(avecDetails ? { details } : {}) };
 }
 
-/** Recopie le statut de chaque détail dans le sous-objet du brief qu'il qualifie (`personnages[].tenue.statut`, `lieux[].aspect.statut`,
- * `elements[].statut`) : le brief en garde la trace pour ses lecteurs (prompt-asset, inventaire-assets). Copie ; rien n'est créé. */
+/** Copies each detail's status into the brief sub-object it qualifies (`personnages[].tenue.statut`, `lieux[].aspect.statut`,
+ * `elements[].statut`): the brief keeps a trace of it for its readers (prompt-asset, inventaire-assets). Copy; nothing is created. */
 function estampillerDetails(contenu: Record<string, unknown>, details: Record<string, StatutDetail>): Record<string, unknown> {
   const c = { ...contenu };
   const estampiller = (section: string, sous: string | null, famille: Famille) => {
@@ -380,21 +380,21 @@ function estampillerDetails(contenu: Record<string, unknown>, details: Record<st
 
 const present = (fiche: Fiche, cle: string): boolean => (cle === "fin" ? true : !valeurVide(fiche.contenu[cle]));
 
-/** L'ESSENTIEL que l'utilisateur n'a pas encore tranché (libellés de `REQUIS`), dans l'ordre. */
+/** The ESSENTIALS the user has not yet settled (labels of `REQUIS`), in order. */
 export function manquesEssentiels(fiche: Fiche): string[] {
   const tranche = (cle: string) => fiche.statuts[cle] === "fourni" || fiche.statuts[cle] === "delegue";
   return REQUIS.filter((r) => !(present(fiche, r.cle) && tranche(r.cle))).map((r) => r.libelle);
 }
 
-/** Ce que l'utilisateur n'a pas encore tranché (libellés), dans l'ordre : l'essentiel, puis les détails à préciser. C'est ce que l'agent
- * doit encore creuser, et ce que l'écran liste. */
+/** What the user has not yet settled (labels), in order: the essentials, then the details to specify. This is what the agent
+ * still has to dig into, and what the screen lists. */
 export function manquesFiche(fiche: Fiche): string[] {
   return [...manquesEssentiels(fiche), ...detailsAPreciser(fiche).map((d) => d.libelle)];
 }
 
-/** La fiche est complète (décidé en code) : assez de messages (deux, trois après un gros premier bloc), tout l'essentiel tranché, et les
- * détails tranchés (dits précisément ou délégués) ; au-delà de `PLAFOND_MESSAGES_DETAILS` messages, les détails ne retiennent plus.
- * `messagesUtilisateur` : les messages (le premier dit si c'est un gros bloc), ou leur seul nombre (minimum ordinaire). */
+/** The sheet is complete (decided in code): enough messages (two, three after a big first block), all the essentials settled, and the
+ * details settled (said precisely or delegated); beyond `PLAFOND_MESSAGES_DETAILS` messages, the details no longer hold.
+ * `messagesUtilisateur`: the messages (the first tells whether it is a big block), or just their count (ordinary minimum). */
 export function ficheComplete(fiche: Fiche, messagesUtilisateur: number | readonly string[]): boolean {
   const nb = typeof messagesUtilisateur === "number" ? messagesUtilisateur : messagesUtilisateur.length;
   const min = typeof messagesUtilisateur === "number" ? MIN_MESSAGES_FICHE : minMessagesFiche(messagesUtilisateur);
@@ -402,32 +402,32 @@ export function ficheComplete(fiche: Fiche, messagesUtilisateur: number | readon
   return nb >= PLAFOND_MESSAGES_DETAILS || detailsAPreciser(fiche).length === 0;
 }
 
-/** Les sections que l'agent a supposées ou que l'utilisateur lui a déléguées : il les cite à l'utilisateur pour qu'il les garde ou les jette. */
+/** The sections the agent assumed or the user delegated to it: it cites them to the user so they keep or throw them away. */
 export function suppositions(fiche: Fiche): string[] {
   return Object.keys(fiche.contenu).filter((k) => !valeurVide(fiche.contenu[k]) && fiche.statuts[k] !== "fourni" && !["inventions", "questionsOuvertes"].includes(k));
 }
 
 const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);
 
-/** La fiche n'a pas (encore) de vrai titre. */
+/** The sheet does not (yet) have a real title. */
 export const titreManquant = (fiche: Fiche): boolean => TITRES_PROVISOIRES.has(String(fiche.contenu.titre ?? "").trim().toLowerCase());
 
-/** Entrée du skill `notes-entretien` : la fiche telle qu'elle est, et la conversation (qui parle, quoi). */
+/** Input of the `notes-entretien` skill: the sheet as it is, and the conversation (who speaks, what). */
 export function entreeNotes(messages: { role: string; content: string }[], fiche: Fiche) {
   return {
     fiche: { contenu: fiche.contenu, statuts: fiche.statuts },
-    /** Ce que l'utilisateur n'a pas encore tranché : si son message laisse TOUT le reste à l'agent, chaque point est une délégation. */
+    /** What the user has not yet settled: if their message leaves ALL the rest to the agent, each point is a delegation. */
     aTrancher: REQUIS.filter((r) => manquesEssentiels(fiche).includes(r.libelle)).map((r) => r.cle),
-    /** Les détails à préciser (tenues, décors, effets, raccords) : leurs clés sont celles des `details` de la sortie. */
+    /** The details to specify (costumes, sets, effects, continuity): their keys are those of the output's `details`. */
     detailsATrancher: detailsAPreciser(fiche).map((d) => ({ cle: d.cle, libelle: d.libelle })),
-    /** Le titre manque et l'histoire a un cœur : le modèle DOIT en proposer un (il l'oubliait quand rien ne l'y obligeait). */
+    /** The title is missing and the story has a core: the model MUST propose one (it used to forget when nothing obliged it to). */
     titreAProposer: titreManquant(fiche) && !valeurVide(fiche.contenu.arc),
     conversation: messages.map((m) => ({ qui: m.role === "user" ? ("utilisateur" as const) : ("agent" as const), texte: m.content })),
   };
 }
 
-/** De la fiche au brouillon de brief : la forme complète (les consommateurs lisent `.length` sans garde), avec ce que le code
- * peut poser sans rien inventer d'important (titre du projet, français, un épisode qui reprend l'arc), marqué « déduit ». */
+/** From the sheet to the brief draft: the full shape (consumers read `.length` without a guard), with what the code
+ * can set without inventing anything important (project title, French, one episode taking up the arc), marked "déduit". */
 export function ficheVersBrief(fiche: Fiche, titreProjet: string): { contenu: BriefContenu; statuts: Record<string, "fourni" | "deduit"> } {
   const base = { ...(briefVide(titreProjet) as unknown as Record<string, unknown>), source: "pitch" };
   const contenu: Record<string, unknown> = { ...base };
@@ -435,7 +435,7 @@ export function ficheVersBrief(fiche: Fiche, titreProjet: string): { contenu: Br
   for (const [k, v] of Object.entries(fiche.contenu)) {
     if (valeurVide(v)) continue;
     contenu[k] = v;
-    statuts[k] = fiche.statuts[k] === "fourni" ? "fourni" : "deduit"; // le brief ne connaît que fourni / déduit
+    statuts[k] = fiche.statuts[k] === "fourni" ? "fourni" : "deduit"; // the brief only knows fourni / déduit
   }
   if (valeurVide(contenu.langueDialogues)) {
     contenu.langueDialogues = "Français";
@@ -449,32 +449,32 @@ export function ficheVersBrief(fiche: Fiche, titreProjet: string): { contenu: Br
   return { contenu: contenu as unknown as BriefContenu, statuts };
 }
 
-/** Du brouillon courant à la fiche : quand un brouillon existe il fait foi (l'utilisateur a pu corriger une section à la main,
- * qui passe alors « fourni »). Les suivis qui ne sont pas des sections du brief (la fin) viennent de la fiche mémorisée. */
+/** From the current draft to the sheet: when a draft exists it is authoritative (the user may have corrected a section by hand,
+ * which then becomes "fourni"). The follow-ups that are not brief sections (the ending) come from the memorised sheet. */
 export function briefVersFiche(brouillon: { contenu: unknown; statuts: Record<string, string> }, memorisee: Fiche): Fiche {
   const statuts: Record<string, StatutFiche> = { ...memorisee.statuts };
   for (const [k, v] of Object.entries(brouillon.statuts)) if (!CLES_ABANDONNEES.includes(k)) statuts[k] = v === "fourni" ? "fourni" : statuts[k] === "delegue" ? "delegue" : "deduit";
   const contenu = sansClesAbandonnees({ ...objet(brouillon.contenu) });
-  // Le prompt long et l'image du style appartiennent au code : le modèle de l'entretien ne les voit pas (et ne peut pas les réécrire).
+  // The long prompt and the style image belong to the code: the interview model does not see them (and cannot rewrite them).
   const style = objet(contenu.style);
   if ("promptImage" in style || "image" in style) {
     const { promptImage: _p, image: _i, ...visible } = style;
     contenu.style = visible;
   }
-  // Les statuts des détails ne vivent que dans la fiche mémorisée (le brief n'en garde que la trace dans ses sous-objets).
+  // The details' statuses live only in the memorised sheet (the brief only keeps a trace of them in its sub-objects).
   return { contenu, statuts, ...(memorisee.details ? { details: { ...memorisee.details } } : {}) };
 }
 
-/** Ce qui s'affiche à l'agent de conversation : les sections remplies, sans les statuts. */
+/** What is shown to the conversation agent: the filled sections, without the statuses. */
 export function fichePourAgent(fiche: Fiche): Record<string, unknown> {
   const o: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(fiche.contenu)) if (!valeurVide(v)) o[k] = v;
   return o;
 }
 
-/** Le titre que l'entretien donne au projet : celui de la fiche (dit par l'utilisateur ou proposé par le modèle), adopté tant que le
- * nom du projet est encore provisoire (« Sans titre ») ou n'est que l'ancien titre de la fiche. Un titre corrigé à la main (au clap)
- * n'est jamais écrasé. `null` : rien à changer. Pur. */
+/** The title the interview gives the project: the sheet's (said by the user or proposed by the model), adopted as long as the
+ * project's name is still provisional ("Sans titre") or is only the sheet's former title. A title corrected by hand (at the clap)
+ * is never overwritten. `null`: nothing to change. Pure. */
 export function titreAAdopter(fiche: Fiche, ancienne: Fiche, nomProjet: string): string | null {
   const titre = typeof fiche.contenu.titre === "string" ? fiche.contenu.titre.trim() : "";
   if (TITRES_PROVISOIRES.has(titre.toLowerCase()) || titre === nomProjet.trim()) return null;

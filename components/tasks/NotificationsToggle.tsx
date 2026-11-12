@@ -9,8 +9,8 @@ import {
   type EtatNotifications,
 } from "@/lib/tasks/notifications-browser";
 
-/** Interrupteur « Notifications du navigateur » du panneau des générations : prévient
- * hors de l'onglet quand une tâche se termine. L'autorisation est demandée au clic. */
+/** « Notifications du navigateur » toggle of the generations panel: warns
+ * outside the tab when a task ends. The permission is requested on click. */
 export function BasculeNotifications() {
   const [etat, setEtat] = useState<EtatNotifications>("indisponible");
   const [occupe, setOccupe] = useState(false);

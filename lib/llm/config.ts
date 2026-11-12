@@ -1,16 +1,16 @@
 import type { FournisseurLlm } from "./types";
 import { FournisseurCompatibleOpenAI } from "./compatibleOpenAI";
 
-/** Configuration par variables d'environnement (voir .env.example). Lue à
- * l'appel, jamais à l'import : le build Next.js collecte les modules avant que
- * l'environnement runtime existe. */
+/** Configuration through environment variables (see .env.example). Read at
+ * call time, never at import: the Next.js build collects modules before the
+ * runtime environment exists. */
 
 const MODELE_LOCAL_PAR_DEFAUT = "gemma4-26b-A4B";
 const URL_LOCALE_PAR_DEFAUT = "http://localhost:8080";
 const DELAI_PAR_DEFAUT_MS = 10 * 60 * 1000;
-/** Silence maximal d'un flux (le chargement d'un modèle ou un long préremplissage ne renvoient rien). */
+/** Maximum silence of a stream (loading a model or a long prefill returns nothing). */
 const INACTIVITE_PAR_DEFAUT_MS = 5 * 60 * 1000;
-/** Au bout de ce temps d'injoignabilité, les appels en attente échouent (au lieu d'attendre indéfiniment). */
+/** After this much unreachability, pending calls fail (instead of waiting indefinitely). */
 const INJOIGNABLE_MAX_PAR_DEFAUT_MS = 5 * 60 * 1000;
 
 export type Env = Record<string, string | undefined>;
@@ -21,7 +21,7 @@ export type ConfigLlm = {
   modeleParDefaut: string;
   delaiMs: number;
   inactiviteMs: number;
-  /** Route testée avant de prendre un appel (`/health` chez llama-swap ; `/v1/models` pour LM Studio, Ollama…). */
+  /** Route tested before taking a call (`/health` on llama-swap; `/v1/models` for LM Studio, Ollama…). */
   routeSante: string;
   injoignableMaxMs: number;
   flux: boolean;
@@ -35,8 +35,8 @@ function dureeMs(brut: string | undefined, defaut: number): number {
 export function configLlm(env: Env = process.env): ConfigLlm {
   const fournisseur = (env.LLM_FOURNISSEUR ?? "local").trim();
   if (fournisseur !== "local") {
-    // « claude » viendra derrière la même interface (voir docs/CONCEPTION_AGENTS.md) ;
-    // d'ici là une valeur inconnue échoue franchement plutôt que de retomber sur le local.
+    // « claude » will come behind the same interface (see docs/CONCEPTION_AGENTS.md);
+    // until then an unknown value fails clearly rather than falling back to local.
     throw new Error(`LLM_FOURNISSEUR inconnu : « ${fournisseur} » (seul « local » est branché).`);
   }
   const delai = Number(env.LLM_TIMEOUT_MS);
@@ -48,8 +48,8 @@ export function configLlm(env: Env = process.env): ConfigLlm {
     inactiviteMs: dureeMs(env.LLM_INACTIVITE_MS, INACTIVITE_PAR_DEFAUT_MS),
     routeSante: `/${(env.LLM_HEALTH_PATH?.trim() || "/health").replace(/^\/+/, "")}`,
     injoignableMaxMs: dureeMs(env.LLM_INJOIGNABLE_MAX_MS, INJOIGNABLE_MAX_PAR_DEFAUT_MS),
-    // Le flux évite qu'un reverse proxy coupe une connexion silencieuse pendant
-    // une longue génération ; « 0 » le désactive.
+    // The stream prevents a reverse proxy from cutting a silent connection during
+    // a long generation; « 0 » disables it.
     flux: env.LLM_FLUX !== "0",
   };
 }
@@ -59,11 +59,11 @@ export function nomVariableModele(skill: string): string {
   return `LLM_MODELE_${skill.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`;
 }
 
-/** Clé de `parametres` où l'interface (pastille du header) range le modèle choisi. */
+/** Key of `parametres` where the interface (header badge) stores the chosen model. */
 export const CLE_MODELE_CHOISI = "llm_modele";
 
-/** Modèle d'un skill, par ordre de priorité : surcharge `LLM_MODELE_<SKILL>` (un choix de configuration délibéré, par
- * skill), puis le modèle choisi dans l'interface (`choisi`, lu en base par l'appelant), puis `LLM_LOCAL_MODELE`. */
+/** Model of a skill, by priority: override `LLM_MODELE_<SKILL>` (a deliberate configuration choice, per
+ * skill), then the model chosen in the interface (`choisi`, read from the database by the caller), then `LLM_LOCAL_MODELE`. */
 export function modelePourSkill(skill: string, env: Env = process.env, choisi?: string | null): string {
   return env[nomVariableModele(skill)]?.trim() || choisi?.trim() || configLlm(env).modeleParDefaut;
 }
@@ -72,19 +72,18 @@ function suffixeSkill(skill: string): string {
   return skill.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
 }
 
-/** Tous les skills partent SANS réflexion tant qu'aucune variable ne dit le contraire. Mesuré sur gemma-4 (2026-10-07) : pour
- * traduire une description en prompt, la réflexion pesait ~90 % des jetons de sortie (1 500 jetons pour une réponse de 130,
- * 30 s au lieu de 1). Mesuré sur Swift (traces 2026-10-26) : un skill produisait ~26 000 caractères de réflexion pour 4 500 de
- * sortie (110 s par plan), scenario-episode 151 s, relecture-scenario 131 s, et un iteration-plan est allé au délai de 600 s
- * sans rien rendre. Le drapeau est honoré par le serveur (`reasoning_budget`, lui, ne l'est pas). Rétablir la réflexion d'un
- * skill : `LLM_CORPS_<SKILL>={}`. */
+/** All skills go WITHOUT reasoning until a variable says otherwise. Measured on gemma-4 (2026-10-07): to translate a description into a prompt, reasoning
+ * weighed ~90 % of the output tokens (1,500 tokens for a 130-token answer, 30 s instead of 1). Measured on Swift (traces 2026-10-26): one skill
+ * produced ~26,000 characters of reasoning for 4,500 of output (110 s per clip), scenario-episode 151 s, relecture-scenario 131 s, and an
+ * iteration-plan hit the 600 s timeout without returning anything. The flag is honoured by the server (`reasoning_budget`, on the other hand, is not).
+ * To restore a skill's reasoning: `LLM_CORPS_<SKILL>={}`. */
 export const CORPS_SANS_REFLEXION = { chat_template_kwargs: { enable_thinking: false } };
 
-/** Champs ajoutés au corps de la requête pour un skill : `LLM_CORPS_<SKILL>` sinon `LLM_CORPS`, en JSON (`{}` pour rétablir
- * la réflexion d'un skill), sinon le défaut : réflexion coupée.
- * Sert surtout à régler la RÉFLEXION du modèle (ex. `{"chat_template_kwargs":{"enable_thinking":false}}`) :
- * ses jetons de réflexion comptent dans `max_tokens` et allongent beaucoup l'appel. Un JSON invalide
- * est une erreur franche (jamais ignoré en silence). */
+/** Fields added to the request body for a skill: `LLM_CORPS_<SKILL>` otherwise `LLM_CORPS`, as JSON (`{}` to restore a skill's
+ * reasoning), otherwise the default: reasoning cut.
+ * Mainly used to set the model's REASONING (e.g. `{"chat_template_kwargs":{"enable_thinking":false}}`):
+ * its reasoning tokens count towards `max_tokens` and lengthen the call a lot. An invalid JSON
+ * is a clear error (never silently ignored). */
 export function corpsPourSkill(skill: string, env: Env = process.env): Record<string, unknown> | undefined {
   const nom = `LLM_CORPS_${suffixeSkill(skill)}`;
   const brut = env[nom]?.trim() || env.LLM_CORPS?.trim();
@@ -98,16 +97,16 @@ export function corpsPourSkill(skill: string, env: Env = process.env): Record<st
   }
 }
 
-/** Plafond de sortie propre à un skill quand aucune variable ne le fixe. Un tour de conversation tient en ~600 jetons : au-delà,
- * c'est une boucle de répétition (observé 2026-10-10, trace 755 : 2 × 16 384 jetons, 10 minutes). Un plafond bas la coupe vite. */
+/** Output token cap specific to a skill when no variable sets it. A conversation turn fits in ~600 tokens: beyond that, it is a
+ * repetition loop (observed 2026-10-10, trace 755: 2 × 16,384 tokens, 10 minutes). A low cap cuts it off quickly. */
 const MAX_TOKENS_PAR_DEFAUT_SKILL: Readonly<Record<string, number>> = {
   "conversation-agent": 3000,
-  // ≤ 300 jetons attendus (6 références, 2 manquants) : au-delà de 800, le petit skill boucle.
+  // ≤ 300 expected tokens (6 references, 2 missing): beyond 800, the small skill loops.
   "references-plan": 800,
 };
 
-/** Limite de jetons de sortie d'un skill : `LLM_MAX_TOKENS_<SKILL>` sinon `LLM_MAX_TOKENS`, sinon le défaut du skill
- * (`MAX_TOKENS_PAR_DEFAUT_SKILL`), sinon null (le défaut de l'exécuteur s'applique). */
+/** Output token limit of a skill: `LLM_MAX_TOKENS_<SKILL>` otherwise `LLM_MAX_TOKENS`, otherwise the skill's default
+ * (`MAX_TOKENS_PAR_DEFAUT_SKILL`), otherwise null (the executor's default applies). */
 export function maxTokensPourSkill(skill: string, env: Env = process.env): number | null {
   const brut = env[`LLM_MAX_TOKENS_${suffixeSkill(skill)}`]?.trim() || env.LLM_MAX_TOKENS?.trim();
   if (!brut) return MAX_TOKENS_PAR_DEFAUT_SKILL[skill] ?? null;

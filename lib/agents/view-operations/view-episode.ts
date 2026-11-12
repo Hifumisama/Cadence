@@ -3,25 +3,25 @@ import { briefs, episodes, jobs, planPromptSections, plans, scenes } from "../..
 import { getPlansPerimes } from "../../clips/stale-clips";
 import type { Db } from "../appliers/common";
 
-/** La vue d'un épisode que lit la relecture : ses plans, chacun avec une POIGNÉE (« P07 ») bâtie sur
- * l'ordre réel à cet instant. Le modèle cite les poignées ; le code les traduit en uuid (une poignée est un rang : elle n'est jamais
- * stockée, F03). `construireVue` est pur, `lireVueEpisode` lit la base. */
+/** The view of an episode that the review reads: its clips, each with a HANDLE (« P07 ») built on
+ * the real order at this moment. The model cites the handles; the code translates them into uuids (a handle is a rank: it is never
+ * stored, F03). `construireVue` is pure, `lireVueEpisode` reads the database. */
 
 type EtatPlan = "brouillon" | "fiche" | "en_file" | "rendu";
 
 export type PlanVue = {
   uuid: string;
   handle: string;
-  /** Rang dans l'épisode (base 1). */
+  /** Rank in the episode (base 1). */
   position: number;
   sceneId: number | null;
   sceneTitre: string | null;
   titre: string;
   description: string;
-  /** Durée de génération, en secondes entières. */
+  /** Generation duration, in whole seconds. */
   duree: number;
   etat: EtatPlan;
-  /** Le rendu est dépassé (référence changée, prompt ou durée modifiés depuis). */
+  /** The render is outdated (reference changed, prompt or duration modified since). */
   perime: boolean;
 };
 
@@ -29,14 +29,14 @@ export type VueEpisode = {
   episodeId: number;
   numero: number;
   titre: string;
-  /** La durée visée par le brief, en secondes ; null sans brief ni durée. */
+  /** The target duration set by the brief, in seconds; null without brief nor duration. */
   objectifSecondes: number | null;
   plans: PlanVue[];
 };
 
 const handle = (n: number): string => `P${String(n).padStart(2, "0")}`;
 
-/** « P7 », « p07 », « P 07 » → 7 ; null si ce n'est pas une poignée de plan. */
+/** « P7 », « p07 », « P 07 » → 7; null if it is not a clip handle. */
 export function numeroDePoignee(brut: string | null | undefined): number | null {
   const m = /^\s*P\s*0*(\d+)\s*$/i.exec(brut ?? "");
   const n = m ? Number(m[1]) : NaN;
@@ -52,7 +52,7 @@ function etatDuPlan(statut: string, aFiche: boolean): EtatPlan {
 export type LignesEpisode = {
   episode: { id: number; numero: number; titre: string };
   objectifSecondes: number | null;
-  /** Dans l'ordre de lecture (`plans.ordre`). */
+  /** In reading order (`plans.ordre`). */
   plans: { uuid: string; titre: string; description: string; duree: number; sceneId: number | null; statut: string; aFiche: boolean; perime: boolean }[];
   scenes: { id: number; titre: string }[];
 };
@@ -82,7 +82,7 @@ export const planParPoignee = (vue: VueEpisode, brut: string | null | undefined)
 };
 export const planParUuid = (vue: VueEpisode, uuid: string): PlanVue | undefined => vue.plans.find((p) => p.uuid === uuid);
 
-/** Lit l'épisode en base. Null si l'épisode n'est pas du projet. */
+/** Reads the episode from the database. Null if the episode is not in the project. */
 export async function lireVueEpisode(db: Db, projectId: number, episodeId: number): Promise<VueEpisode | null> {
   const [ep] = await db
     .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre })
@@ -101,7 +101,7 @@ export async function lireVueEpisode(db: Db, projectId: number, episodeId: numbe
   const sections = idsPlans.length
     ? await db.select({ planId: planPromptSections.planId, contenu: planPromptSections.contenu }).from(planPromptSections).where(inArray(planPromptSections.planId, idsPlans))
     : [];
-  // `plans.statut` vaut « en_attente » pour un plan simplement prêt à rendre : seul un job actif est un rendu en file ou en cours.
+  // `plans.statut` is « en_attente » for a clip simply ready to render: only an active job is a render queued or running.
   const rendusActifs = new Set(
     idsPlans.length ? (await db.select({ planId: jobs.planId }).from(jobs).where(and(inArray(jobs.planId, idsPlans), inArray(jobs.statut, ["en_attente", "en_cours"])))).map((j) => j.planId) : [],
   );

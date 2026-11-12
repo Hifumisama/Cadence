@@ -1,18 +1,18 @@
 /**
- * LECTURES DU SYSTÈME D'AGENTS — ce que l'interface (popup) sonde. Côté serveur seulement
- * (accès base). Écritures : app/agents/actions.ts. Types : lib/agents/types.ts.
+ * READS OF THE AGENT SYSTEM — what the interface (popup) polls. Server side only
+ * (database access). Writes: app/agents/actions.ts. Types: lib/agents/types.ts.
  *
- * Sondage : l'UI relit `lireConversation` / `lireProposition` tant que `tache` est en
- * `en_attente` / `en_cours` (même rythme que le panneau du header : 3 s). Un résultat
- * `null` = introuvable (écrasée, supprimée).
+ * Polling: the UI re-reads `lireConversation` / `lireProposition` as long as `tache` is
+ * `en_attente` / `en_cours` (same rhythm as the header panel: 3 s). A `null` result
+ * = not found (overwritten, deleted).
  *
- * Exemples :
+ * Examples:
  *   const conv = await trouverConversation(projectId, "episode", { id: episodeId });
- *   //   → conversation en cours à reprendre (indicateur « conversation reprise »), ou null
+ *   //   → ongoing conversation to resume ("conversation reprise" indicator), or null
  *   const prop = conv?.propositionUuid ? await lireProposition(conv.propositionUuid) : null;
- *   //   → prop.groupes[i].changements[j] : libellé, avant/après, avertissements, coche, bloque…
- *   const ctx = await apercuContexte(projectId, "plan", { uuid });   // la ligne « contexte utilisé »
- *   const est = await estimerGeneration(conv.uuid);                  // « ~80 s, local : gratuit »
+ *   //   → prop.groupes[i].changements[j]: label, before/after, warnings, ticked, blocked…
+ *   const ctx = await apercuContexte(projectId, "plan", { uuid });   // the "contexte utilisé" line
+ *   const est = await estimerGeneration(conv.uuid);                  // "~80 s, local: free"
  */
 
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
@@ -50,7 +50,7 @@ import type {
 
 // --- conversation -----------------------------------------------------------
 
-/** La cible dans la forme que `ouvrirConversation` attend (uuid d'un plan, code d'un asset). */
+/** The target in the shape `ouvrirConversation` expects (a clip's uuid, an asset's code). */
 async function cibleDemandee(portee: Portee, cibleId: number | null): Promise<CibleDemandee | null> {
   if (portee === "projet" || cibleId == null) return null;
   if (portee === "plan") {
@@ -103,7 +103,7 @@ async function versVueConversation(c: typeof agentConversations.$inferSelect): P
   };
 }
 
-/** La conversation du (projet, portée, cible), sans la créer ; null si aucune. */
+/** The conversation for (project, scope, target), without creating it; null if none. */
 export async function trouverConversation(projectId: number, portee: Portee, cible: CibleDemandee | null): Promise<VueConversation | null> {
   const r = await resoudreCible(projectId, portee, cible);
   if ("erreur" in r) return null;
@@ -127,7 +127,7 @@ export async function lireConversation(conversationUuid: string): Promise<VueCon
 
 // --- brief ------------------------------------------------------------------
 
-/** Le brief du projet (brouillon ou valide), ou null s'il n'y en a pas. */
+/** The project's brief (draft or validated), or null if there is none. */
 export async function lireBrief(projectId: number): Promise<VueBrief | null> {
   const [b] = await db.select().from(briefs).where(eq(briefs.projectId, projectId));
   if (!b) return null;
@@ -144,8 +144,8 @@ export async function lireBrief(projectId: number): Promise<VueBrief | null> {
   };
 }
 
-/** Comme `lireBrief`, mais un projet SANS brief renvoie un brief partiel VIDE exploitable (style et
- * notes éditables) — rien n'est écrit en base avant la première édition. */
+/** Like `lireBrief`, but a project WITHOUT a brief returns an empty, usable partial brief (style and
+ * notes editable) — nothing is written to the database before the first edit. */
 export async function lireBriefOuVide(projectId: number, titreProjet: string): Promise<VueBrief> {
   const existant = await lireBrief(projectId);
   if (existant) return existant;
@@ -177,14 +177,14 @@ async function rangsDeplacesDe(
   if (cibleType !== "plan") return [];
   if (operation === "creer") {
     if (!position) return [];
-    // Ajouter à la fin ne déplace aucun rang : pas de lecture (un lot en crée des dizaines, et la
-    // popup relit tout toutes les 3 s).
+    // Appending at the end moves no rank: no read (a batch creates dozens, and the
+    // popup re-reads everything every 3 s).
     if ("fin" in position) return [];
     const episodeId = (apres as { episodeId?: unknown } | null)?.episodeId;
     if (typeof episodeId !== "number") return [];
     return planifierInsertion(await plansDe(episodeId), position)?.deplaces ?? [];
   }
-  // Supprimer un plan, ou le déplacer (modifier avec une position) : les rangs des autres changent aussi.
+  // Deleting a clip, or moving it (modify with a position): the ranks of the others change too.
   if (!cibleRef || (operation === "modifier" && !position) || (operation !== "modifier" && operation !== "supprimer")) return [];
   const episodeId = await episodeDePlan(cibleRef);
   if (episodeId == null) return [];
@@ -193,8 +193,8 @@ async function rangsDeplacesDe(
   return planifierDeplacement(existants, cibleRef, position!)?.deplaces ?? [];
 }
 
-/** Un lot range ses changements par épisode (groupe `ep-<id>`) : le titre du groupe est celui de
- * l'épisode tel qu'il est AUJOURD'HUI. */
+/** A batch files its changes by episode (group `ep-<id>`): the group's title is that of
+ * the episode as it is TODAY. */
 async function titrerGroupesEpisodes(groupes: VueGroupe[]): Promise<VueGroupe[]> {
   const ids = groupes.map((g) => episodeIdDeGroupe(g.id)).filter((x): x is number => x != null);
   if (ids.length === 0) return groupes;
@@ -268,7 +268,7 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
     const [c] = await db.select({ uuid: agentConversations.uuid }).from(agentConversations).where(eq(agentConversations.id, p.conversationId));
     conversationUuid = c?.uuid ?? null;
   }
-  // Correction après visionnage : le diagnostic vit dans le résultat de la tâche (il existe même sans écriture).
+  // Correction after viewing: the diagnosis lives in the task's result (it exists even without a write).
   let diagnostic: VueProposition["diagnostic"] = null;
   if (p.skill === "iteration-plan" && p.runId != null) {
     const [run] = await db.select({ resultat: agentRuns.resultat, entree: agentRuns.entree }).from(agentRuns).where(eq(agentRuns.id, p.runId));
@@ -304,9 +304,9 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
   };
 }
 
-/** Une proposition avec ses changements groupés, ses compteurs (sélectionnés / écartés /
- * bloqués / refusés), ses écrasements à confirmer, son « contexte utilisé » et l'état de sa
- * tâche de génération. */
+/** A proposal with its grouped changes, its counters (selected / dropped /
+ * blocked / refused), its overwrites to confirm, its "contexte utilisé" and the state of its
+ * generation task. */
 export async function lireProposition(propositionUuid: string): Promise<VueProposition | null> {
   const p = await propositionParUuid(propositionUuid);
   return p ? versVueProposition(p) : null;

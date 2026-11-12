@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { debuts, dureeTotale, indexA, type Clip } from "@/lib/montage/montage";
 
-/** Clé de ce qu'un lecteur vidéo a chargé : l'entrée et son fichier (deux copies d'un plan sont deux clés). */
+/** Key of what a video player has loaded: the entry and its file (two copies of a clip are two keys). */
 const cleDe = (c: Clip) => (c.rendu ? `${c.entree.id}|${c.rendu.src}` : null);
 
-/** Lecture continue du montage. Une HORLOGE GLOBALE (`t`, secondes depuis le début de l'épisode) fait foi : sur un clip avec rendu elle suit
- * la vidéo (début rogné + temps écoulé), sur un clip sans rendu (ou illisible) elle avance seule, pendant sa durée prévue, sans couper la
- * lecture. Deux balises <video> alternent : l'une joue, l'autre a déjà chargé le clip suivant au bon instant (pas de trou au raccord).
- * Les `src` sont posés à la main (jamais par React) pour qu'un nouveau rendu ne recharge rien d'autre. */
+/** Continuous playback of the edit. A GLOBAL CLOCK (`t`, seconds since the start of the episode) is authoritative: on a clip with a render it follows
+ * the video (trimmed start + elapsed time), on a clip without a render (or unreadable) it advances on its own, for its planned duration, without
+ * interrupting playback. Two <video> tags alternate: one plays, the other has already loaded the next clip at the right moment (no gap at the join).
+ * The `src` are set by hand (never by React) so that a new render reloads nothing else. */
 export function useLecture(clips: Clip[]) {
   const durees = useMemo(() => clips.map((c) => c.duree), [clips]);
   const starts = useMemo(() => debuts(durees), [durees]);
@@ -27,7 +27,7 @@ export function useLecture(clips: Clip[]) {
   const actifRef = useRef(0);
   const [illisibles, setIllisibles] = useState<ReadonlySet<string>>(() => new Set());
   const illisiblesRef = useRef<ReadonlySet<string>>(illisibles);
-  // Les valeurs du rendu courant, lues par la boucle d'animation sans la relancer (mises à jour avant les effets).
+  // The current render's values, read by the animation loop without restarting it (updated before the effects).
   const etat = useRef({ clips, starts, total });
   useLayoutEffect(() => {
     illisiblesRef.current = illisibles;
@@ -36,8 +36,8 @@ export function useLecture(clips: Clip[]) {
 
   const jouable = useCallback((c: Clip | undefined) => !!c?.rendu && !illisiblesRef.current.has(cleDe(c)!), []);
 
-  /** Met les deux lecteurs d'accord avec l'horloge : le clip courant dans le lecteur visible (au bon instant), le suivant préchargé dans
-   * l'autre. `forcer` : repositionner la vidéo même si elle est proche (saut de la tête de lecture). */
+  /** Brings both players into agreement with the clock: the current clip in the visible player (at the right moment), the next one preloaded in
+   * the other. `forcer`: reposition the video even if it is close (playhead jump). */
   const synchroniser = useCallback(
     (forcer: boolean) => {
       const { clips: cs, starts: st } = etat.current;
@@ -69,7 +69,7 @@ export function useLecture(clips: Clip[]) {
         }
         lecteur(1 - a)?.pause();
       }
-      // Préchargement : le prochain clip jouable, dans le lecteur caché, posé sur son début rogné.
+      // Preloading: the next playable clip, in the hidden player, set to its trimmed start.
       const suivant = cs.slice(k + 1).find((x) => jouable(x));
       const autre = lecteur(1 - actifRef.current);
       if (suivant && autre && (!jouable(c) || cleDe(c) !== cleDe(suivant))) {
@@ -92,7 +92,7 @@ export function useLecture(clips: Clip[]) {
     setTEtat(v);
   }, []);
 
-  /** Saute à l'instant `v` de l'épisode (règle, J/L, plan précédent/suivant). */
+  /** Jumps to instant `v` of the episode (ruler, J/L, previous/next clip). */
   const allerA = useCallback(
     (v: number) => {
       poserT(Math.min(Math.max(0, v), etat.current.total));
@@ -111,13 +111,13 @@ export function useLecture(clips: Clip[]) {
     [poserT, synchroniser],
   );
 
-  // Le montage a changé (rognage, rendu retenu, ordre) : l'horloge reste dans la table, les lecteurs suivent.
+  // The edit has changed (trimming, retained render, order): the clock stays in the table, the players follow.
   useEffect(() => {
     if (tRef.current > total) poserT(total);
     synchroniser(false);
   }, [clips, total, poserT, synchroniser, illisibles]);
 
-  // La boucle de lecture.
+  // The playback loop.
   useEffect(() => {
     if (!lecture) return;
     let raf = 0;
@@ -159,7 +159,7 @@ export function useLecture(clips: Clip[]) {
     return () => cancelAnimationFrame(raf);
   }, [lecture, jouable, lecteur, poserT, synchroniser]);
 
-  /** Un fichier qui ne se lit pas (supprimé du disque, format refusé) : le clip est traité comme sans rendu, la lecture continue. */
+  /** A file that does not play (deleted from disk, format refused): the clip is treated as without a render, playback continues. */
   const signalerIllisible = useCallback((v: HTMLVideoElement) => {
     const cle = v.dataset.cle;
     if (!cle) return;

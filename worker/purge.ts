@@ -4,20 +4,20 @@ import { agentRuns, assetGenerations, jobs, propositions } from "../db/schema";
 import { ERREUR_ANNULEE, SEUIL_PURGE_ECHECS_MS, estPurgeable } from "../lib/tasks/cancellation";
 import { supprimerGenerationEtFichiers } from "../lib/assets/generation-sources";
 
-// Purge des échecs « à l'échelle de la journée » : une demande d'image échouée ou
-// annulée depuis plus de 24 h disparaît (ligne, fichiers d'import devenus
-// orphelins), et un job vidéo annulé de même. Ne touche JAMAIS :
-// - un candidat terminé : il suit la règle des 8 par asset (worker/images.ts) ;
-// - une tâche active ;
-// - un appel LLM terminé : son résultat est exploité par l'écran de revue (chantier 3) ;
-//   seuls les appels LLM échoués ou annulés de plus de 24 h disparaissent — SAUF une sous-tâche d'un
-//   lot dont la proposition est encore ouverte (en génération ou prête) : la revue en a besoin pour
-//   dire « sous-tâche en échec — relancer » ;
-// - un job vidéo ÉCHOUÉ pour de vrai : c'est la mémoire de la boucle d'itération
-//   (F03, historique des tentatives d'un plan), il se garde. Il disparaît juste du
-//   panneau du header au bout d'une journée (lib/tasks/tasks.ts, estAffichable).
+// Purge of failures « at the scale of the day »: an image request that failed or
+// was cancelled more than 24 h ago disappears (row, import files become
+// orphaned), and a cancelled video job likewise. NEVER touches:
+// - a finished candidate: it follows the rule of 8 per asset (worker/images.ts);
+// - an active task;
+// - a finished LLM call: its result is used by the review screen (workstream 3);
+//   only LLM calls that failed or were cancelled more than 24 h ago disappear — EXCEPT a sub-task of a
+//   batch whose proposal is still open (in generation or ready): the review needs it to
+//   say « sous-tâche en échec — relancer »;
+// - a video job that really FAILED: it is the memory of the iteration loop
+//   (F03, history of a clip's attempts), it is kept. It only disappears from
+//   the header panel after a day (lib/tasks/tasks.ts, estAffichable).
 //
-// Appelée une fois au démarrage du worker puis toutes les heures (worker/index.ts).
+// Called once at worker startup, then every hour (worker/index.ts).
 
 export const INTERVALLE_PURGE_MS = 3_600_000;
 
@@ -28,8 +28,8 @@ export async function purgerEchecs(
 ): Promise<{ images: number; videos: number; llm: number }> {
   const limite = new Date(maintenant.getTime() - seuilMs);
 
-  // Pré-filtre SQL large (créées avant la limite), puis la règle pure tranche sur
-  // la date de fin réelle.
+  // Wide SQL pre-filter (created before the limit), then the pure rule decides on
+  // the real end date.
   const candidats = await db
     .select()
     .from(assetGenerations)
@@ -41,7 +41,7 @@ export async function purgerEchecs(
     images++;
   }
 
-  // Une vidéo annulée a toujours une date de fin (finirAnnulationVideo / annulation directe).
+  // A cancelled video always has an end date (finirAnnulationVideo / direct cancellation).
   const videosAnnulees = await db
     .delete(jobs)
     .where(and(eq(jobs.statut, "echoue"), eq(jobs.erreur, ERREUR_ANNULEE), lt(jobs.finishedAt, limite)))
@@ -52,8 +52,8 @@ export async function purgerEchecs(
   return { images, videos: videosAnnulees.length, llm };
 }
 
-/** Les appels LLM échoués ou annulés avant `limite`, sauf les sous-tâches d'un lot dont la proposition
- * est encore ouverte (la revue en a besoin). Exportée pour être testée seule. */
+/** The LLM calls that failed or were cancelled before `limite`, except the sub-tasks of a batch whose proposal
+ * is still open (the review needs them). Exported to be tested on its own. */
 async function purgerAppelsLlm(limite: Date): Promise<number> {
   const supprimes = await db
     .delete(agentRuns)

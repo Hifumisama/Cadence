@@ -30,22 +30,22 @@ const CLE_DESCRIPTIONS = "cadence:scenario-descriptions";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
-/** Les retours à la ligne d'une description n'ont pas de place dans un extrait de vignette. L'intent affiché masque la « Consigne de l'auteur » et
- * l'ancien « État en fin de plan » (lib/clips/intent.ts). */
+/** Line breaks in a description have no place in a thumbnail excerpt. The displayed intent hides the « Consigne de l'auteur » and
+ * the former « État en fin de plan » (lib/clips/intent.ts). */
 const aplatir = (t: string) => intentAffichee(t).replace(/\s*\n+\s*/g, " · ");
-/** Le point de la frise d'une ligne suit l'état dérivé (le même que dans la grille), pas le statut de la fiche. */
+/** The dot on a row's filmstrip follows the derived state (the same as in the grid), not the sheet's status. */
 const NOEUD = { brouillon: "st-brouillon", iteration: "st-encours", pret: "st-termine" } as const;
 const libellePlan = (p: PlanVue) => `Plan ${p.position}, ${p.titre}, ${LIBELLE_ETAT[p.etat].toLowerCase()}${p.intentionChangee ? `, ${LIBELLE_INTENTION_CHANGEE[p.intentionChangee].toLowerCase()}` : ""}`;
 
-/** Le repère « texte modifié » : le texte du plan a changé depuis sa fiche ou son dernier rendu (jamais régénéré tout seul). */
+/** The « texte modifié » marker: the clip's text has changed since its sheet or its last render (never regenerated on its own). */
 const RepereIntention = ({ p }: { p: PlanVue }) => (p.intentionChangee ? <span className="sc-intention" title={LIBELLE_INTENTION_CHANGEE[p.intentionChangee]}>Texte modifié</span> : null);
 
-/** Le message au bas de l'écran. Avec `cle` et `planId`, un lien « Voir » mène à ce plan (déplacement vers une autre scène). */
+/** The message at the bottom of the screen. With `cle` and `planId`, a « Voir » link leads to this clip (move to another scene). */
 type Signal = { texte: string; cle?: string; planId?: number };
 
-/** La page Scénario : un bandeau de scènes (une seule ouverte à la fois), l'en-tête de la scène ouverte, puis ses plans en vignettes ou en liste.
- * Un clic sélectionne un plan et en montre la description ; un double-clic ou Entrée ouvre sa fiche. Tout est côté client : changer de scène est
- * instantané, et le choix reste dans l'URL (`?scene=`). */
+/** The Scénario page: a band of scenes (only one open at a time), the header of the open scene, then its clips as thumbnails or as a list.
+ * A click selects a clip and shows its description; a double-click or Enter opens its sheet. Everything is client-side: switching scene is
+ * instant, and the choice stays in the URL (`?scene=`). */
 export function VueScenario({
   projectId,
   episodeId,
@@ -59,17 +59,17 @@ export function VueScenario({
 }: {
   projectId: number;
   episodeId: number;
-  /** Créativité et style de mise en scène du projet (Open H3 IR) : ce qu'une scène hérite quand elle ne règle rien. */
+  /** Creativity and staging style of the project (Open H3 IR): what a scene inherits when it sets nothing. */
   reglagesProjet: ReglagesBruts;
-  /** Les vidéos de démo de la mise en scène (lib/media.ts, `demosMiseEnScene`), pour la fenêtre de style des scènes. */
+  /** The staging demo videos (lib/media.ts, `demosMiseEnScene`), for the scenes' style window. */
   demos?: Record<string, DemoDispo>;
   groupes: SceneVue[];
   sceneInitiale: string | null;
-  /** Un plan en cours d'écriture (« Ajouter un plan »), ou null. */
+  /** A clip being written (« Ajouter un plan »), or null. */
   ajout: AjoutEnCours | null;
-  /** Une scène en cours d'écriture (« Nouvelle scène »), ou null. Un seul ajout à la fois par film : plan ou scène. */
+  /** A scene being written (« Nouvelle scène »), or null. Only one addition at a time per film: clip or scene. */
   ajoutScene: AjoutSceneEnCours | null;
-  /** L'état des fiches de plan du film (« Écrire les fiches » ouvre une popup). */
+  /** The state of the film's clip sheets (« Écrire les fiches » opens a popup). */
   fiches: { nbPlans: number; nbDeveloppes: number };
 }) {
   const router = useRouter();
@@ -82,23 +82,23 @@ export function VueScenario({
   const [signal, setSignal] = useState<Signal | null>(null);
   const [cibleScene, setCibleScene] = useState<CibleAjoutScene | null>(null);
   const [cibleAjout, setCibleAjout] = useState<CibleAjoutPlan | null>(null);
-  /** L'outil « Ajouter un plan » est actif : des « + » s'affichent entre les plans, on clique celui où le plan doit naître. */
+  /** The « Ajouter un plan » tool is active: « + » buttons appear between the clips, and we click the one where the clip should be born. */
   const [modeAjout, setModeAjout] = useState(false);
-  /** La popup « Écrire les fiches » est ouverte. */
+  /** The « Écrire les fiches » popup is open. */
   const [fichesOuvert, setFichesOuvert] = useState(false);
   const [, startTransition] = useTransition();
   const dernierRefresh = useRef(0);
   const rail = useRef<HTMLDivElement>(null);
   const focusRail = useRef(false);
 
-  // Réglages mémorisés (lus après le montage : pas d'écart d'hydratation).
+  // Remembered settings (read after mounting: no hydration mismatch).
   useEffect(() => {
     try {
       const v = window.localStorage.getItem(CLE_VUE);
       if (v === "vignettes" || v === "liste") setVue(v);
       setDescriptions(window.localStorage.getItem(CLE_DESCRIPTIONS) === "1");
     } catch {
-      // stockage indisponible : réglages par défaut
+      // storage unavailable: default settings
     }
   }, []);
   const changerVue = (v: Vue) => {
@@ -106,7 +106,7 @@ export function VueScenario({
     try {
       window.localStorage.setItem(CLE_VUE, v);
     } catch {
-      // ignoré
+      // ignored
     }
   };
   const basculerDescriptions = () => {
@@ -114,7 +114,7 @@ export function VueScenario({
       try {
         window.localStorage.setItem(CLE_DESCRIPTIONS, d ? "0" : "1");
       } catch {
-        // ignoré
+        // ignored
       }
       return !d;
     });
@@ -132,13 +132,13 @@ export function VueScenario({
     try {
       window.history.replaceState(null, "", `${window.location.pathname}?scene=${k}`);
     } catch {
-      // l'URL n'est qu'un confort
+      // the URL is only a convenience
     }
   };
 
   /** « III · La Fuite », ou « Sans scène ». */
   const libelleScene = (g: SceneVue) => (g.id != null ? `${romain(groupes.indexOf(g) + 1)} · ${g.titre}` : g.titre);
-  /** Un plan vient de changer de scène : il disparaît de celle-ci, on dit où il est parti (et on y mène d'un clic). */
+  /** A clip has just changed scene: it disappears from this one, and we say where it went (and lead there with one click). */
   const signaler = (planId: number, cible: SceneVue) => setSignal({ texte: `Plan déplacé vers ${libelleScene(cible)}`, cle: cleScene(cible.id), planId });
   useEffect(() => {
     if (!signal) return;
@@ -146,8 +146,8 @@ export function VueScenario({
     return () => clearTimeout(t);
   }, [signal]);
 
-  // Un plan en cours d'écriture : la page garde sa carte fantôme tant que la tâche est active. Quand la file ne l'a plus (finie, échouée,
-  // annulée), on recharge la page : le plan est là, ou la carte disparaît. Même principe que le suivi des rendus de la fiche de plan.
+  // A clip being written: the page keeps its ghost card as long as the task is active. When the queue no longer has it (finished, failed,
+  // cancelled), we reload the page: the clip is there, or the card disappears. Same principle as the tracking of renders on the clip sheet.
   const enEcriture = ajout ?? ajoutScene;
   useEffect(() => {
     if (!enEcriture || !tachesPretes) return;
@@ -157,7 +157,7 @@ export function VueScenario({
     router.refresh();
   }, [enEcriture, taches, tachesPretes, router]);
 
-  // La scène ouverte se recentre dans le bandeau ; le focus la suit quand on navigue au clavier dans le bandeau.
+  // The open scene re-centers in the band; focus follows it when navigating the band by keyboard.
   useEffect(() => {
     const onglet = rail.current?.querySelector<HTMLElement>('[aria-selected="true"]');
     onglet?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
@@ -167,7 +167,7 @@ export function VueScenario({
     }
   }, [cleCourante]);
 
-  // Le plan sélectionné reste visible quand on le change aux flèches, et le focus le suit (Entrée ouvre toujours le plan sélectionné).
+  // The selected clip stays visible when changed with the arrows, and focus follows it (Enter always opens the selected clip).
   useEffect(() => {
     if (planSel == null) return;
     const el = document.querySelector<HTMLElement>(`[data-plan="${planSel}"]`);
@@ -177,7 +177,7 @@ export function VueScenario({
     if (actif instanceof HTMLElement && actif !== el && actif.matches("[data-plan]")) el.focus({ preventScroll: true });
   }, [planSel]);
 
-  // ← → (et ↑ ↓ en liste) passent d'un plan à l'autre ; Échap désélectionne.
+  // ← → (and ↑ ↓ in list) move from one clip to another; Escape deselects.
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
       if (!courant || frappeEnCours(e)) return;
@@ -222,12 +222,12 @@ export function VueScenario({
   const creativiteScene = creativiteOuNull(courant.creativite);
   const styleScene = styleCameraOuNull(courant.styleCamera);
   const estSans = courant.id == null;
-  // Minutage de départ de chaque scène dans le film (somme des durées des scènes qui précèdent).
+  // Starting timing of each scene in the film (sum of the durations of the scenes before it).
   const debuts = groupes.map((_, i) => groupes.slice(0, i).reduce((acc, g) => acc + g.duree, 0));
   const precedente = groupes[indexCourant - 1];
   const suivante = groupes[indexCourant + 1];
 
-  // « Nouvelle scène » : un « + » dans chaque intervalle du bandeau, la grande carte en fin de pellicule. Un seul ajout à la fois par film (plan ou scène).
+  // « Nouvelle scène »: a « + » in each gap of the band, the large card at the end of the film strip. Only one addition at a time per film (clip or scene).
   const dernierReel = scenesReelles[scenesReelles.length - 1] ?? null;
   const occupe = ajout != null || ajoutScene != null;
   const fenteScene = (place: CibleAjoutScene["place"], apres: string) => (
@@ -255,9 +255,9 @@ export function VueScenario({
 
   const ouvrir = (p: PlanVue) => router.push(p.href);
 
-  // « Ajouter un plan » est un OUTIL : le bouton fait apparaître des « + » entre les plans, on clique celui où le plan doit naître, et la popup s'ouvre
-  // sur cette place. Une scène vide n'a qu'une place possible : le bouton ouvre la popup directement. `i` = le plan AVANT lequel on insère (i = nombre de
-  // plans : à la fin). Au début d'une scène, la place est « après le dernier plan des scènes qui la précèdent » (ou au début du film).
+  // « Ajouter un plan » is a TOOL: the button makes « + » buttons appear between the clips, we click the one where the clip should be born, and the popup opens
+  // on that place. An empty scene has only one possible place: the button opens the popup directly. `i` = the clip BEFORE which we insert (i = number of
+  // clips: at the end). At the start of a scene, the place is « after the last clip of the scenes before it » (or at the start of the film).
   const choisirPlace = (i: number) => {
     const avant = i > 0 ? courant.plans[i - 1] : groupes.slice(0, indexCourant).reverse().flatMap((g) => g.plans.slice(-1))[0];
     setCibleAjout({
@@ -273,7 +273,7 @@ export function VueScenario({
     else setModeAjout((m) => !m);
   };
 
-  // Le plan en cours d'écriture garde sa place dans la scène : une carte fantôme, à l'endroit où il sera ajouté (-1 : pas dans cette scène).
+  // The clip being written keeps its place in the scene: a ghost card, at the spot where it will be added (-1: not in this scene).
   const ancre = ajout && "apresPlanUuid" in ajout.position ? ajout.position.apresPlanUuid : null;
   const fantome = ajout && ajout.sceneId === courant.id ? (ancre ? courant.plans.findIndex((p) => p.uuid === ancre) + 1 : 0) : -1;
   const carteFantome = (
@@ -293,13 +293,13 @@ export function VueScenario({
       <span className="sc-ligne-fantome-note">{ajout?.consigne}</span>
     </div>
   );
-  /** Un « + » entre deux vignettes (sur le bord gauche de la vignette i, ou à droite de la dernière). */
+  /** A « + » between two thumbnails (on the left edge of thumbnail i, or to the right of the last one). */
   const fenteCadre = (i: number, cote: "gauche" | "droite") => (
     <button key={`${cote}-${i}`} type="button" className={`sc-fente is-${cote}`} aria-label={i < courant.plans.length ? `Insérer un plan avant le plan ${pad(courant.plans[i]!.position)}` : "Insérer un plan à la fin de la scène"} onClick={() => choisirPlace(i)}>
       <Icone nom="ajouter" taille={16} />
     </button>
   );
-  /** Un « + » entre deux lignes de la liste. */
+  /** A « + » between two rows of the list. */
   const fenteLigne = (i: number) => (
     <button key={`fente-${i}`} type="button" className="sc-fente-ligne" aria-label={i < courant.plans.length ? `Insérer un plan avant le plan ${pad(courant.plans[i]!.position)}` : "Insérer un plan à la fin de la scène"} onClick={() => choisirPlace(i)}>
       <Icone nom="ajouter" taille={15} /> Insérer ici
@@ -324,8 +324,8 @@ export function VueScenario({
     choisirScene(cleScene(cible.id));
   };
 
-  // Aller à la scène d'à côté depuis le bas de la page : on remonte au bandeau.
-  // Déposer un plan dans un espace vide de la scène ouverte : il passe en dernier.
+  // Go to the adjacent scene from the bottom of the page: we scroll back up to the band.
+  // Dropping a clip in an empty area of the open scene: it goes last.
   const deposerEnFin = (e: React.DragEvent) => {
     const c = lire<ChargePlan>(e, MIME_PLAN);
     if (!c) return;
@@ -364,7 +364,7 @@ export function VueScenario({
                   onRecu={(planId) => signaler(planId, g)}
                 />
                 {ajoutScene && g.id != null && "apresSceneId" in ajoutScene.place && ajoutScene.place.apresSceneId === g.id ? carteSceneFantome : null}
-                {/* Entre deux scènes : un « + ». Après la dernière, la grande carte « Nouvelle scène » (plus bas) prend le relais. */}
+                {/* Between two scenes: a « + ». After the last one, the large « Nouvelle scène » card (below) takes over. */}
                 {g.id != null && i < scenesReelles.length - 1 ? fenteScene({ apresSceneId: g.id }, `Après ${libelleScene(g)}`) : null}
               </Fragment>
             ))}
@@ -613,8 +613,8 @@ export function VueScenario({
   );
 }
 
-/** Le tiroir du plan sélectionné, à droite : sa description en entier, l'écriture ou l'ouverture de sa fiche, sa suppression. Il ne bloque rien : la grille reste cliquable, un autre plan prend sa place, Échap le referme. Le déplacement vers une autre scène se
- * fait en glissant le plan sur la carte de la scène. */
+/** The drawer of the selected clip, on the right: its full description, writing or opening its sheet, its deletion. It blocks nothing: the grid stays clickable, another clip takes its place, Escape closes it. Moving to another scene
+ * is done by dragging the clip onto the scene's card. */
 function TiroirPlan({
   projectId,
   plan,
@@ -628,7 +628,7 @@ function TiroirPlan({
 }) {
   const [pending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
-  /** Un plan naît en brouillon ; il n'a de fiche (prompt vidéo) qu'une fois écrite par l'agent. */
+  /** A clip is born as a draft; it has no sheet (video prompt) until the agent writes it. */
   const sansFiche = plan.statut === "brouillon";
   const supprimer = (force: boolean) => {
     const question = force
@@ -681,7 +681,7 @@ function TiroirPlan({
   );
 }
 
-/** Une scène dans le bandeau : s'ouvre au clic, se déplace par glisser-déposer (les cartes se réordonnent entre elles), et reçoit les plans glissés dessus. */
+/** A scene in the band: opens on click, moves by drag and drop (the cards reorder among themselves), and receives the clips dropped on it. */
 function CarteScene({
   g,
   numero,
@@ -694,13 +694,13 @@ function CarteScene({
 }: {
   g: SceneVue;
   numero: string | null;
-  /** Minutage de départ de la scène dans le film. */
+  /** Starting timing of the scene in the film. */
   debut: number;
   actif: boolean;
   suivantId: number | null;
   onChoisir: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
-  /** Un plan vient d'être déposé sur cette carte. */
+  /** A clip has just been dropped on this card. */
   onRecu: (planId: number) => void;
 }) {
   const [repere, setRepere] = useState<"g" | "d" | null>(null);
@@ -773,7 +773,7 @@ function CarteScene({
         }
       }}
     >
-      {/* Jamais d'image de plan sur une carte de scène : on la confondrait avec les vignettes des plans juste en dessous. Un dégradé propre à la scène, rien de plus. */}
+      {/* Never a clip image on a scene card: it would be confused with the thumbnails of the clips just below. A gradient specific to the scene, nothing more. */}
       <span className="sc-carte-fond" style={{ backgroundImage: posterBackgroundImage(`scene:${cleScene(g.id)}`) }} aria-hidden="true" />
       <span className="sc-carte-voile" aria-hidden="true" />
       {numero ? <span className="sc-carte-n">{numero}</span> : null}

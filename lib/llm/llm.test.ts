@@ -13,7 +13,7 @@ import type { TraceAEnregistrer } from "./traces";
 import { ErreurLlm, partieImageJpeg, type MessageLlm } from "./types";
 import { compilerSchema, valider } from "./validation";
 
-// ── faux serveur compatible OpenAI ────────────────────────────────────────────
+// ── fake OpenAI-compatible server ─────────────────────────────────────────────
 
 type Corps = { model: string; messages: { role: string; content: string }[]; stream?: boolean; response_format?: unknown; max_tokens?: number };
 type Gestionnaire = (corps: Corps, res: ServerResponse, req: IncomingMessage, numero: number) => void;
@@ -63,7 +63,7 @@ function fournisseur(url: string, extra: Partial<ConstructorParameters<typeof Fo
   return new FournisseurCompatibleOpenAI({ url, modele: "faux-modele", delaiMs: 5000, flux: false, ...extra });
 }
 
-// ── un skill temporaire, indépendant des vrais ────────────────────────────────
+// ── a temporary skill, independent of the real ones ───────────────────────────
 
 const racine = mkdtempSync(join(tmpdir(), "cadence-llm-"));
 after(() => rmSync(racine, { recursive: true, force: true }));
@@ -80,7 +80,7 @@ after(() => rmSync(racine, { recursive: true, force: true }));
   writeFileSync(join(d, "assets", "sortie.schema.json"), JSON.stringify(SCHEMA));
 }
 
-// ── fournisseur ───────────────────────────────────────────────────────────────
+// ── provider ──────────────────────────────────────────────────────────────────
 
 test("fournisseur (sans flux) : texte, usage, json, corps envoyé", async () => {
   const s = await demarrer((_c, res) => reponseJson(res, '{"titre":"ok","n":2}', { prompt_tokens: 42, completion_tokens: 7 }));
@@ -191,7 +191,7 @@ test("fournisseur : modèle inconnu → « modele_absent » ; autre statut → �
 });
 
 test("fournisseur : délai dépassé → « delai »", async () => {
-  const s = await demarrer(() => undefined); // ne répond jamais
+  const s = await demarrer(() => undefined); // never answers
   await assert.rejects(
     fournisseur(s.url, { delaiMs: 150 }).generer({ systeme: "S", messages: [{ role: "user", content: "x" }] }),
     (e: unknown) => e instanceof ErreurLlm && e.code === "delai",
@@ -231,7 +231,7 @@ test("validation : erreurs lisibles, schéma mis en cache", () => {
   assert.equal(compilerSchema(schema), compilerSchema(schema));
 });
 
-// ── chargeur de skills ────────────────────────────────────────────────────────
+// ── skill loader ──────────────────────────────────────────────────────────────
 
 test("chargeur : ordre règles → guides → exemples → contrat, fichiers étrangers ignorés", () => {
   const s = chargerSkill("demo", racine);
@@ -286,7 +286,7 @@ test("configuration : défauts, surcharge par skill, fournisseur inconnu refusé
   assert.equal(nomVariableModele("prompt-asset"), "LLM_MODELE_PROMPT_ASSET");
   assert.equal(modelePourSkill("prompt-asset", { LLM_MODELE_PROMPT_ASSET: "qwen", LLM_LOCAL_MODELE: "m1" }), "qwen");
   assert.equal(modelePourSkill("brief-projet", { LLM_MODELE_PROMPT_ASSET: "qwen", LLM_LOCAL_MODELE: "m1" }), "m1");
-  // Le modèle choisi dans l'interface prime sur LLM_LOCAL_MODELE, mais pas sur la surcharge d'un skill.
+  // The model chosen in the interface takes precedence over LLM_LOCAL_MODELE, but not over a skill's override.
   assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, "choisi"), "choisi");
   assert.equal(modelePourSkill("prompt-asset", { LLM_MODELE_PROMPT_ASSET: "qwen", LLM_LOCAL_MODELE: "m1" }, "choisi"), "qwen");
   assert.equal(modelePourSkill("brief-projet", { LLM_LOCAL_MODELE: "m1" }, null), "m1");
@@ -403,7 +403,7 @@ test("versMessages / messageDeRenvoi", () => {
   assert.match(messageDeRenvoi(["/n : requis"]), /- \/n : requis/);
 });
 
-// ── contrôle sémantique, corps et limite de jetons par skill ──────────────────
+// ── semantic check, body and token limit per skill ────────────────────────────
 
 test("executerSkill : un contrôle sémantique renvoie UNE fois le modèle avec ses erreurs, puis garde la sortie corrigée", async () => {
   let n = 0;
@@ -434,7 +434,7 @@ test("config : LLM_CORPS_<SKILL> prime sur LLM_CORPS, JSON invalide = erreur fra
   const thinking = '{"chat_template_kwargs":{"enable_thinking":false}}';
   assert.deepEqual(corpsPourSkill("prompt-asset", { LLM_CORPS_PROMPT_ASSET: thinking, LLM_CORPS: '{"a":1}' }), { chat_template_kwargs: { enable_thinking: false } });
   assert.deepEqual(corpsPourSkill("brief-projet", { LLM_CORPS_PROMPT_ASSET: thinking, LLM_CORPS: '{"a":1}' }), { a: 1 });
-  // Tous les skills partent sans réflexion ; une variable (même `{}`) reprend la main.
+  // All skills go without reasoning; a variable (even `{}`) takes over again.
   assert.deepEqual(corpsPourSkill("brief-projet", {}), { chat_template_kwargs: { enable_thinking: false } });
   assert.deepEqual(corpsPourSkill("prompt-asset", {}), { chat_template_kwargs: { enable_thinking: false } });
   assert.deepEqual(corpsPourSkill("prompt-asset", { LLM_CORPS_PROMPT_ASSET: "{}" }), {});
@@ -446,7 +446,7 @@ test("config : LLM_MAX_TOKENS_<SKILL> prime sur LLM_MAX_TOKENS, valeurs absurdes
   assert.equal(maxTokensPourSkill("prompt-asset", { LLM_MAX_TOKENS_PROMPT_ASSET: "32768", LLM_MAX_TOKENS: "8000" }), 32768);
   assert.equal(maxTokensPourSkill("brief-projet", { LLM_MAX_TOKENS_PROMPT_ASSET: "32768", LLM_MAX_TOKENS: "8000" }), 8000);
   assert.equal(maxTokensPourSkill("brief-projet", {}), null);
-  // Un tour de conversation a un plafond bas par défaut (une boucle de répétition échoue vite), une variable le dépasse.
+  // A conversation turn has a low cap by default (a repetition loop fails fast), a variable exceeds it.
   assert.equal(maxTokensPourSkill("conversation-agent", {}), 3000);
   assert.equal(maxTokensPourSkill("conversation-agent", { LLM_MAX_TOKENS: "8000" }), 8000);
   assert.throws(() => maxTokensPourSkill("prompt-asset", { LLM_MAX_TOKENS: "12" }), /au moins 256/);
@@ -459,9 +459,9 @@ test("fournisseur : le corps d'un appel s'ajoute à la requête", async () => {
 });
 
 
-// ── contenu mixte (texte + images) ────────────────────────────────────────────
+// ── mixed content (text + images) ─────────────────────────────────────────────
 
-// 41 Ko décodés exactement (41 × 1024 octets) : le marqueur de trace doit le dire.
+// 41 KB decoded exactly (41 × 1024 bytes): the trace marker must say so.
 const IMAGE_41K = Buffer.alloc(41 * 1024, 7).toString("base64");
 
 const messageMixte = (): MessageLlm => ({
@@ -499,9 +499,9 @@ test("contenu mixte : les images ne vont jamais dans la trace (marqueur « [imag
   const s = await demarrer((_c, res) => reponseJson(res, '{"titre":"T","n":1}'));
   const { traces, enregistrer } = enregistreur();
   await executerSkill("demo", [messageMixte()], { racine, fournisseur: fournisseur(s.url), enregistrer, env: {} });
-  // Le serveur a bien reçu les images…
+  // The server did receive the images…
   assert.match(JSON.stringify(s.requetes[0]!.messages), /base64,QUJD/);
-  // … la trace, non.
+  // … the trace, not.
   const trace = traces[0]!.messages;
   assert.doesNotMatch(JSON.stringify(trace), /base64/);
   assert.deepEqual(trace[0]!.content, [

@@ -9,20 +9,20 @@ import { planifierDeplacement, planifierInsertion } from "../ranks";
 import type { Avertissement, Position } from "../types";
 import { apres, parentDe, texte, type Applicateur, type Db } from "./common";
 
-/** Cible `plan` : créer (à une POSITION : après tel plan par uuid, début ou fin — jamais un
- * numéro) ou modifier titre, description, liaison (avec le plan précédent, lib/clips/clip-link.ts) et durée de génération. `cibleRef` = uuid du plan
- * (modification). `apres` (création) = { titre, description, dureeGenerationSecondes,
- * episodeId | episodeCle, sceneId | sceneCle? }. Les répliques et le prompt H3 (sections) ne
- * s'écrivent pas par ce chemin : ils restent à la fiche de plan.
+/** `plan` target: create (at a POSITION: after such clip by uuid, start or end — never a
+ * number) or modify title, description, link (with the previous clip, lib/clips/clip-link.ts) and generation duration. `cibleRef` = the clip's uuid
+ * (modification). `apres` (creation) = { titre, description, dureeGenerationSecondes,
+ * episodeId | episodeCle, sceneId | sceneCle? }. The lines of dialogue and the H3 prompt (sections) are not
+ * written through this path: they remain on the clip sheet.
  *
- * Modifier AVEC une `position` (après tel plan par uuid, début, fin) DÉPLACE le plan : il entre dans la scène
- * du plan qui le précède, l'ordre de l'épisode est recomposé comme au glisser-déposer (`recomposerOrdre`).
- * Un déplacement seul n'écrase rien : l'ordre n'entre pas dans un rendu.
+ * Modifying WITH a `position` (after such clip by uuid, start, end) MOVES the clip: it enters the scene
+ * of the clip before it, and the episode's order is recomposed as with drag-and-drop (`recomposerOrdre`).
+ * A move alone overwrites nothing: the order does not go into a render.
  *
- * Supprimer (2026-10) : comme la suppression manuelle (`supprimerPlan`, app/plans/actions.ts), la fiche, les
- * références, les liaisons de répliques et les rendus partent par cascade (db/schema.ts) ; les RÉPLIQUES et les
- * ASSETS restent (une réplique existe par elle-même, F02). Un rendu réussi demande confirmation (`ecrase`) ; un
- * rendu en file ou en cours bloque. Les fichiers de rendu ne sont pas touchés ici. */
+ * Delete (2026-10): as with manual deletion (`supprimerPlan`, app/plans/actions.ts), the sheet, the
+ * references, the dialogue-line links and the renders go by cascade (db/schema.ts); the LINES OF DIALOGUE and the
+ * ASSETS remain (a line of dialogue exists by itself, F02). A successful render requires confirmation (`ecrase`); a
+ * render queued or in progress blocks. The render files are not touched here. */
 
 function controleDuree(duree: unknown): Avertissement | null {
   if (typeof duree !== "number" || !Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX) {
@@ -61,7 +61,7 @@ async function planParUuid(db: Db, projectId: number, uuid: string | null) {
 
 const aUnRenduReussi = (statut: string) => statut === "previsualise" || statut === "termine";
 
-/** Ce qu'un plan emporte (ou laisse) quand il est supprimé : de quoi avertir, sans rien deviner. */
+/** What a clip takes with it (or leaves) when it is deleted: enough to warn, without guessing. */
 async function contenuDuPlan(db: Db, planId: number) {
   const [refs] = await db.select({ n: count() }).from(planRefs).where(eq(planRefs.planId, planId));
   const [actifs] = await db.select({ n: count() }).from(jobs).where(and(eq(jobs.planId, planId), inArray(jobs.statut, ["en_attente", "en_cours"])));
@@ -103,7 +103,7 @@ export const applicateurPlan: Applicateur = {
     }
 
     if (ch.operation === "creer") {
-      // Repère de position : doit exister dans l'épisode (s'il existe déjà).
+      // Position anchor: must exist in the episode (if it already exists).
       const p = parentDe(a, "episodeCle", "episodeId", ctx.clesNouvelles);
       if (!p.nouveau && p.id != null && ch.position && "apresPlanUuid" in ch.position) {
         const existants = await plansDeEpisode(db, p.id);
@@ -130,7 +130,7 @@ export const applicateurPlan: Applicateur = {
     }
     sortie.avant = avant;
     sortie.apres = garde;
-    // Seule une modification de CONTENU écrase un rendu : déplacer un plan n'y touche pas.
+    // Only a CONTENT change overwrites a render: moving a clip does not touch it.
     if (modifieDesChamps && aUnRenduReussi(plan.statut)) {
       sortie.ecrase = `« ${plan.titre} » a un rendu réussi : sa fiche ne correspondra plus au rendu.`;
       avertissements.push({ type: "ecrase_valide", texte: "Modifie un plan déjà rendu." });
@@ -172,7 +172,7 @@ export const applicateurPlan: Applicateur = {
       const plan = (await planParUuid(tx, ctx.projectId, ch.cibleRef))!;
       const restants = (await plansDeEpisode(tx, plan.episodeId)).filter((p) => p.id !== plan.id);
       await tx.delete(plans).where(eq(plans.id, plan.id));
-      // `ordre` est une position : réécrite densément, un plan supprimé ne laisse aucun trou (F03).
+      // `ordre` is a position: rewritten densely, a deleted clip leaves no gap (F03).
       await recomposerOrdre(tx, plan.episodeId, restants.map((p) => ({ id: p.id, sceneId: p.sceneId })));
       return;
     }
@@ -182,7 +182,7 @@ export const applicateurPlan: Applicateur = {
       if (texte(a.titre) !== undefined) valeurs.titre = texte(a.titre)!.trim();
       if (texte(a.description) !== undefined) valeurs.description = texte(a.description)!.trim() || null;
       if (estLiaison(a.liaison)) valeurs.liaison = a.liaison;
-      // La durée au montage suit la durée de génération (même règle que les actions de l'interface, app/plans/actions.ts).
+      // The duration in the edit follows the generation duration (same rule as the interface actions, app/plans/actions.ts).
       if (typeof a.dureeGenerationSecondes === "number") {
         valeurs.dureeGenerationSecondes = a.dureeGenerationSecondes;
         valeurs.dureeMontageSecondes = a.dureeGenerationSecondes;
@@ -193,7 +193,7 @@ export const applicateurPlan: Applicateur = {
         const dep = planifierDeplacement(existants, ch.cibleRef!, ch.position)!;
         const moi = existants.find((p) => p.uuid === ch.cibleRef)!;
         const sequence = existants.filter((p) => p.id !== moi.id).map((p) => ({ id: p.id, sceneId: p.sceneId }));
-        // Même logique que le glisser-déposer : le plan entre dans la scène de son voisin, puis tout est recomposé.
+        // Same logic as drag-and-drop: the clip enters the scene of its neighbour, then everything is recomposed.
         sequence.splice(dep.index, 0, { id: moi.id, sceneId: dep.sceneId === undefined ? moi.sceneId : dep.sceneId });
         await recomposerOrdre(tx, plan.episodeId, sequence);
       }
@@ -202,7 +202,7 @@ export const applicateurPlan: Applicateur = {
     const episodeId = parentDe(a, "episodeCle", "episodeId", ctx.cles).id!;
     const existants = await plansDeEpisode(tx, episodeId);
     const insertion = planifierInsertion(existants, (ch.position as Position | null) ?? { fin: true })!;
-    // Sans scène donnée (le réalisateur ajoute un plan), il entre dans la scène de son voisin : celui qui le précède, sinon celui qui le suit.
+    // Without a given scene (the director adds a clip), it enters the scene of its neighbour: the one before it, otherwise the one after it.
     const sceneDonnee = parentDe(a, "sceneCle", "sceneId", ctx.cles).id;
     const sceneId = sceneDonnee ?? (existants[insertion.index - 1]?.sceneId ?? existants[insertion.index]?.sceneId ?? null);
     const duree = a.dureeGenerationSecondes as number;
@@ -220,19 +220,19 @@ export const applicateurPlan: Applicateur = {
         dureeGenerationSecondes: duree,
       })
       .returning({ id: plans.id });
-    // Réutilise la logique d'ordre du glisser-déposer : le plan prend sa place, les
-    // suivants descendent d'un rang, rien n'est renuméroté (F03).
+    // Reuses the order logic of drag-and-drop: the clip takes its place, the following ones move down one rank,
+    // nothing is renumbered (F03).
     const sequence = existants.map((p) => ({ id: p.id, sceneId: p.sceneId }));
     sequence.splice(insertion.index, 0, { id: cree!.id, sceneId });
     await recomposerOrdre(tx, episodeId, sequence);
-    // Le montage final (docs/PLAN_MONTAGE.md) le reçoit aussi, à la place que lui donne le scénario.
+    // The final edit (docs/PLAN_MONTAGE.md) receives it too, at the place the screenplay gives it.
     await ajouterPlanNeAuMontage(tx, episodeId, cree!.id);
-    // Les répliques de la même proposition se rattachent à ce plan par sa clé.
+    // The lines of dialogue of the same proposal attach to this clip by its key.
     if (ch.cle) ctx.cles.set(ch.cle, cree!.id);
   },
 };
 
-/** Aperçu d'une suppression : ce qui part avec le plan (cascade), ce qui reste, ce qui bloque. Lecture seule. */
+/** Preview of a deletion: what goes with the clip (cascade), what remains, what blocks. Read-only. */
 async function previsualiserSuppression(db: Db, projectId: number, ch: ChangementBrut): Promise<ChangementBrut> {
   const plan = await planParUuid(db, projectId, ch.cibleRef);
   if (!plan) return { ...ch, refuseRaison: "Plan introuvable dans ce projet." };

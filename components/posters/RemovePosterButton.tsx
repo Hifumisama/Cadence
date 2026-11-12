@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { retirerAffiche } from "@/app/affiches/actions";
 import type { CibleAffiche } from "@/lib/posters/posters";
 
-/** Retire l'image de présentation (retour au dégradé). Deux temps pour ne pas la perdre d'un faux clic. */
+/** Removes the presentation image (back to the gradient). Two steps so as not to lose it through a misclick. */
 export function RetirerAfficheButton({ cible, id }: { cible: CibleAffiche; id: number }) {
   const router = useRouter();
   const [demande, setDemande] = useState(false);

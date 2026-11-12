@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { choisirReferences, motsDe, type CandidatReference, type EntreeReferencesPlan } from "./references-clip";
 
-// Un registre bâti comme celui d'un vrai projet de test (personnages sans libellé, un état dérivé, décors et objets nommés par leur code).
+// A registry built like that of a real test project (characters without a label, a derived state, sets and objects named by their code).
 const c = (code: string, type: string, parent: string | null = null, label: string | null = null): CandidatReference => ({ code, type, parent, label, description: `desc ${code}`, aUneImage: true });
 const REGISTRE: CandidatReference[] = [
   c("CHAR_maitresse_de_l_eau", "personnage"),
@@ -68,7 +68,7 @@ test("locuteur en tête, décor du plan précédent pour une suite dans la même
   assert.match(r.references[1]!.pourquoi, /plan précédent/);
   assert.deepEqual(r.locuteurs, ["Nadia"]);
   assert.equal(r.suffit, true);
-  // Une coupe, ou une autre scène : pas de reprise, doute.
+  // A cut, or another scene: no continuation, doubt.
   assert.deepEqual(types(choisirReferences(entree(description, { liaison: "coupe", precedent: { memeScene: true, decor: "DEC_falaise_de_nuit" } }))), ["decor_introuvable"]);
   assert.deepEqual(types(choisirReferences(entree(description, { liaison: "suite", precedent: { memeScene: false, decor: "DEC_falaise_de_nuit" } }))), ["decor_introuvable"]);
 });

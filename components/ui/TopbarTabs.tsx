@@ -3,16 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/** Onglets Brief/Scénario/Tournage/Assets/Montage. Scénario, Tournage et Montage vivent sous l'épisode
- * courant (`episodeBase`, ex. `/p/3/e/9`) ; Assets vit au niveau du PROJET
- * (`/p/3/assets`), jamais sous un épisode précis — le registre est partagé
- * par toute la série (retour utilisateur 2026-09-28 : "super important que
- * l'on puisse accéder à assets depuis la vue projet"). Remplace l'ancien
- * TopbarNav.tsx, qui codait `/scenario` etc. en dur. */
+/** Tabs Brief/Scénario/Tournage/Assets/Montage. Scénario, Tournage and Montage live under the current episode
+ * (`episodeBase`, e.g. `/p/3/e/9`); Assets lives at the PROJECT level
+ * (`/p/3/assets`), never under a specific episode — the registry is shared
+ * by the whole series (user feedback 2026-09-28: "super important that
+ * we can access assets from the project view"). Replaces the former
+ * TopbarNav.tsx, which hard-coded `/scenario` etc. */
 export function TopbarTabs({ projectId, episodeBase }: { projectId: number; episodeBase: string }) {
   const pathname = usePathname();
   const assetsHref = `/p/${projectId}/assets`;
-  // Brief du projet (2026-10-02) : la référence du projet, au même niveau que Assets.
+  // Project brief (2026-10-02): the project's reference, at the same level as Assets.
   const briefHref = `/p/${projectId}/brief`;
   const suffixeEpisode = pathname.startsWith(episodeBase) ? pathname.slice(episodeBase.length) : "";
   const segmentsEpisode = suffixeEpisode.split("/").filter(Boolean);
@@ -23,7 +23,7 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
   const onglets = [
     { seg: "brief", label: "Brief", href: briefHref },
     { seg: "scenario", label: "Scénario", href: `${episodeBase}/scenario` },
-    // Depuis le 2026-11-10 : Scénario = le texte à lire (format de script), Tournage = la frise de travail (fiches, rendus) qui était l'ancienne page Scénario.
+    // Since 2026-11-10: Scénario = the text to read (script format), Tournage = the working filmstrip (sheets, renders) which was the former Scénario page.
     { seg: "tournage", label: "Tournage", href: `${episodeBase}/tournage` },
     { seg: "assets", label: "Assets", href: assetsHref },
     { seg: "montage", label: "Montage", href: `${episodeBase}/montage` },

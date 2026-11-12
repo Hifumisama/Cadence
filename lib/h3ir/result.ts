@@ -2,15 +2,15 @@ import type { BriefH3ir, LienFichier } from "./brief";
 import type { EnveloppeH3ir, Tentative } from "./compiler";
 import type { EntreeRetouche } from "./retouch";
 
-/** Ce que la tâche « fiche de plan » avec Open H3 IR range dans `agent_runs.resultat` (worker/h3ir.ts l'écrit, lib/h3ir/conversion.ts le lit). */
+/** What the clip sheet task with Open H3 IR stores in `agent_runs.resultat` (worker/h3ir.ts writes it, lib/h3ir/conversion.ts reads it). */
 
-/** Le skill « virtuel » de la fiche d'un plan avec Open H3 IR (`agent_runs.skill`, `propositions.skill`) : pas de dossier sous agents/skills, le worker lance le
- * compilateur au lieu d'un appel de skill. `SKILL_TRADUCTION` : le vrai skill qui traduit l'intent avant. */
+/** The « virtual » skill of a clip's sheet with Open H3 IR (`agent_runs.skill`, `propositions.skill`): no folder under agents/skills, the worker launches the
+ * compiler instead of a skill call. `SKILL_TRADUCTION`: the real skill that translates the intent before. */
 export const SKILL_H3IR = "plan-h3ir";
 export const SKILL_TRADUCTION = "traduction-intent";
 
-/** L'entrée de la tâche (`agent_runs.entree`). `description` / `dureeSecondes` / `references` / `reglagesPlan` : à compiler à la place de ce qui est en base
- * (décisions d'« Itérer », lib/h3ir/brief-clip.ts `SurchargeBrief`) ; elles ne s'écrivent sur le plan qu'avec la fiche compilée. */
+/** The task's input (`agent_runs.entree`). `description` / `dureeSecondes` / `references` / `reglagesPlan`: to compile instead of what is in the database
+ * (decisions of « Itérer », lib/h3ir/brief-clip.ts `SurchargeBrief`); they are only written to the clip with the compiled sheet. */
 export type EntreeH3ir = {
   planUuid: string;
   shots?: number | null;
@@ -20,12 +20,12 @@ export type EntreeH3ir = {
   dureeSecondes?: number | null;
   references?: { ajouter: string[]; retirer: string[] } | null;
   reglagesPlan?: { creativite?: string | null; styleCamera?: string | null } | null;
-  /** « Partir de cet essai » : retoucher le prompt de cet essai (skill `retouche-prompt`) au lieu de recompiler ; si le skill répond « refonte », la compilation
-   * ci-dessus (description, durée, références, réglages) prend le relais. */
+  /** « Partir de cet essai »: retouch the prompt of this attempt (skill `retouche-prompt`) instead of recompiling; if the skill answers « refonte », the compilation
+   * above (description, duration, references, settings) takes over. */
   retouche?: EntreeRetouche | null;
 };
 
-/** L'enveloppe du compilateur réduite à ce que la fiche et le suivi utilisent. */
+/** The compiler's envelope, reduced to what the sheet and the tracking use. */
 export type CompilationReduite = {
   status: string | null;
   source: string | null;
@@ -40,14 +40,14 @@ export type CompilationReduite = {
 export type ResultatH3ir = {
   moteur: "h3ir";
   planUuid: string;
-  /** Le brief tel qu'envoyé à la compilation (intent déjà en anglais, seed de la tentative gagnante). */
+  /** The brief as sent to the compilation (intent already in English, seed of the winning attempt). */
   brief: BriefH3ir;
   intentFrancais: string;
   intentAnglais: string;
   liens: LienFichier[];
   avertissements: string[];
   compilation: CompilationReduite;
-  /** Empreinte → chemin des fichiers envoyés (relie le manifeste aux assets). */
+  /** Fingerprint → path of the files sent (links the manifest to the assets). */
   fichiers: Record<string, string>;
   tentatives: Tentative[];
   seedUtilisee: number;

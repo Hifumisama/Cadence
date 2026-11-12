@@ -1,26 +1,26 @@
 import { decouperSections, ORDRE_SECTIONS, validerPromptColle, type NomSection } from "../clips/prompt";
 import { normaliserReplique, separerDescription } from "./brief";
 
-/** « Partir de cet essai » : la consigne se joue sur le PROMPT de l'essai (`jobs.prompt_utilise`), pas sur une recompilation. Le skill `retouche-prompt`
- * (agents/skills/retouche-prompt) en fait la plus petite retouche ; ce fichier, PUR, prépare son entrée et vérifie sa sortie (labels, répliques mot pour mot,
- * étendue de la retouche). Le worker l'appelle depuis worker/h3ir.ts ; si le skill juge qu'il faut tout refaire (`refonte`), la compilation d'Open H3 IR prend le relais. */
+/** « Partir de cet essai »: the directive plays on the PROMPT of the attempt (`jobs.prompt_utilise`), not on a recompilation. The skill `retouche-prompt`
+ * (agents/skills/retouche-prompt) makes the smallest retouch of it; this file, PURE, prepares its input and checks its output (labels, lines word for word,
+ * extent of the retouch). The worker calls it from worker/h3ir.ts; if the skill judges that everything must be redone (`refonte`), the Open H3 IR compilation takes over. */
 
 export const SKILL_RETOUCHE = "retouche-prompt";
 
 export type SectionsPrompt = Record<NomSection, string>;
 
-/** Ce que la tâche porte pour retoucher (`EntreeH3ir.retouche`). */
+/** What the task carries to retouch (`EntreeH3ir.retouche`). */
 export type EntreeRetouche = {
-  /** Le numéro de l'essai dont on part. */
+  /** The number of the attempt we start from. */
   numeroRendu: number;
   consigne: string;
-  /** Les six sections du prompt de cet essai. */
+  /** The six sections of this attempt's prompt. */
   sections: SectionsPrompt;
-  /** Les répliques que le prompt doit porter une fois retouché (celles de la description voulue du plan), `Nom | texte`. */
+  /** The lines the prompt must carry once retouched (those of the wanted clip description), `Nom | texte`. */
   repliques: { nom: string; texte: string }[];
-  /** La description du plan telle qu'elle sera après la retouche (français), donnée au skill comme référence. */
+  /** The clip's description as it will be after the retouch (French), given to the skill as a reference. */
   descriptionApres: string;
-  /** La description du plan telle qu'elle était à l'essai dont on part, quand elle diffère de celle d'après : c'est la différence entre les deux qui dit quoi reporter. */
+  /** The clip's description as it was at the attempt we start from, when it differs from the one after: the difference between the two says what to carry over. */
   descriptionAvant?: string;
 };
 
@@ -31,13 +31,13 @@ export type SortieRetouche = {
   modifications: string[];
 };
 
-/** Ce que la tâche range dans `agent_runs.resultat` quand la retouche a abouti (distinct de `ResultatH3ir` par `moteur`). */
+/** What the task stores in `agent_runs.resultat` when the retouch succeeded (distinct from `ResultatH3ir` by `moteur`). */
 export type ResultatRetouche = {
   moteur: "retouche";
   planUuid: string;
   depuisNumero: number;
   sections: SectionsPrompt;
-  /** Les sections qui ont changé, avec le texte avant / après (pour la revue). */
+  /** The sections that changed, with the text before / after (for the review). */
   passages: { section: string; avant: string; apres: string }[];
   modifications: string[];
   modeleRetouche: string;
@@ -45,7 +45,7 @@ export type ResultatRetouche = {
 
 export const estResultatRetouche = (r: unknown): r is ResultatRetouche => !!r && typeof r === "object" && (r as { moteur?: unknown }).moteur === "retouche";
 
-/** Les six sections d'un prompt assemblé (`jobs.prompt_utilise`) ; null s'il n'est pas complet. */
+/** The six sections of an assembled prompt (`jobs.prompt_utilise`); null if it is not complete. */
 export function sectionsDuPrompt(prompt: string | null | undefined): SectionsPrompt | null {
   const texte = (prompt ?? "").replace(/\r\n/g, "\n").trim();
   if (!texte || validerPromptColle(texte).erreurs.length > 0) return null;
@@ -53,14 +53,14 @@ export function sectionsDuPrompt(prompt: string | null | undefined): SectionsPro
   return s.summary.trim() && s.detailed_description.trim() ? s : null;
 }
 
-/** Les répliques d'une description de plan, prêtes à comparer au prompt (même normalisation que le brief d'Open H3 IR). */
+/** The lines of a clip description, ready to compare with the prompt (same normalisation as the Open H3 IR brief). */
 export function repliquesDeDescription(description: string): { nom: string; texte: string }[] {
   return separerDescription(description)
     .repliques.map((r) => ({ nom: r.nom.trim(), texte: normaliserReplique(r.texte) }))
     .filter((r) => r.texte);
 }
 
-/** Le message unique que reçoit le skill. */
+/** The single message the skill receives. */
 export function messageRetouche(e: EntreeRetouche): string {
   const prompt = ORDRE_SECTIONS.map((nom) => `${nom}:\n${e.sections[nom] ?? ""}`).join("\n\n");
   return [
@@ -74,11 +74,11 @@ export function messageRetouche(e: EntreeRetouche): string {
   ].join("\n\n");
 }
 
-/** Forme comparable d'une parole : espaces réduits, point final ignoré (le compilateur lui-même en met un à « l'Air » ; `!`, `?` et `…` comptent). */
+/** Comparable form of a line of speech: spaces reduced, final full stop ignored (the compiler itself puts one after « l'Air »; `!`, `?` and `…` count). */
 const canon = (s: string) => normaliserReplique(s).replace(/\s+/g, " ").replace(/\.+$/, "").trim();
 const LABELS = /<(?:Subject|Picture|Audio|Video)\s*\d+>/gi;
 
-/** Les paroles d'un prompt : le contenu de chaque `<d>…</d>`, sans l'étiquette de langue `[French]`. */
+/** The speech of a prompt: the content of each `<d>…</d>`, without the language tag `[French]`. */
 function parolesDesSections(sections: SectionsPrompt): string[] {
   const out: string[] = [];
   for (const nom of ORDRE_SECTIONS) {
@@ -93,7 +93,7 @@ function labelsDe(sections: SectionsPrompt): string[] {
   return l.sort();
 }
 
-/** Part du texte qui change entre deux versions : tout ce qui reste entre le préfixe et le suffixe communs, rapporté à la taille du texte d'avant. */
+/** Share of the text that changes between two versions: everything that remains between the common prefix and suffix, relative to the size of the text before. */
 export function etenduePassage(avant: string, apres: string): number {
   if (avant === apres) return 0;
   let p = 0;
@@ -103,10 +103,10 @@ export function etenduePassage(avant: string, apres: string): number {
   return Math.max(avant.length - p - s, apres.length - p - s) / Math.max(avant.length, 1);
 }
 
-/** Au-delà, une section a été réécrite et non retouchée. */
+/** Beyond this, a section has been rewritten and not retouched. */
 const ETENDUE_MAX_SECTION = 0.5;
 
-/** Contrôle ce que le skill a rendu ; une liste vide = la retouche est acceptable. */
+/** Checks what the skill returned; an empty list = the retouch is acceptable. */
 export function verifierRetouche(base: SectionsPrompt, sortie: SortieRetouche, repliques: { texte: string }[]): string[] {
   const p: string[] = [];
   const s = sortie.sections;
@@ -135,16 +135,16 @@ export function verifierRetouche(base: SectionsPrompt, sortie: SortieRetouche, r
   return p;
 }
 
-/** Les sections qui ont changé, avec avant / après. */
+/** The sections that changed, with before / after. */
 export function passagesChanges(base: SectionsPrompt, apres: SectionsPrompt): { section: string; avant: string; apres: string }[] {
   return ORDRE_SECTIONS.filter((nom) => base[nom] !== apres[nom]).map((nom) => ({ section: nom, avant: base[nom], apres: apres[nom] }));
 }
 
 export type EssaiDeDepart = { prompt: string | null; description: string | null; duree: number | null };
 
-/** « Partir de cet essai » : que fait-on des décisions d'« Itérer » ? Une retouche du prompt de l'essai quand les décisions ne touchent QUE la description (ni durée,
- * ni références, ni réglages) et que l'essai a gardé un prompt complet, sa durée et une description. Sinon `retouche` est null et les décisions se recompilent
- * comme avant. Quand elle est possible, le plan repart de l'état de l'essai : sa description (si les décisions n'en donnent pas) et sa durée vont avec son prompt. */
+/** « Partir de cet essai »: what do we do with the decisions of « Itérer »? A retouch of the attempt's prompt when the decisions touch ONLY the description (neither duration,
+ * nor references, nor settings) and the attempt kept a complete prompt, its duration and a description. Otherwise `retouche` is null and the decisions are
+ * recompiled as before. When it is possible, the clip starts again from the attempt's state: its description (if the decisions give none) and its duration go with its prompt. */
 export function preparerDepart(
   decisions: { description: string | null; duree: number | null; references: boolean; reglages: boolean },
   depuisNumero: number | null | undefined,

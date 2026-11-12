@@ -1,25 +1,24 @@
-/** Brique LLM : une interface unique, derrière laquelle on branche un modèle
- * local (serveur compatible OpenAI) aujourd'hui, l'API Claude plus tard. Voir
- * docs/CONCEPTION_AGENTS.md §9. Aucune dépendance à Next, à la base ni au disque
- * ici : ces types servent aussi au worker. */
+/** LLM building block: a single interface, behind which a local model is plugged in (OpenAI-compatible server) today, the Claude API later. See
+ * docs/CONCEPTION_AGENTS.md §9. No dependency on Next, on the database or on disk
+ * here: these types are also used by the worker. */
 
 type RoleLlm = "system" | "user" | "assistant";
-/** Contenu mixte au format OpenAI (texte + images). Une image passe en URL `data:` (base64) :
- * le serveur local n'a pas accès au disque de Cadence. llama.cpp exige un projecteur `mmproj`
- * chargé avec le modèle, sinon il refuse la requête (« vision_absente »). */
+/** Mixed content in OpenAI format (text + images). An image goes as a `data:` URL (base64):
+ * the local server has no access to Cadence's disk. llama.cpp requires an `mmproj` projector
+ * loaded with the model, otherwise it refuses the request (« vision_absente »). */
 type PartieTexte = { type: "text"; text: string };
 export type PartieImage = { type: "image_url"; image_url: { url: string } };
 export type PartieContenu = PartieTexte | PartieImage;
-/** Une chaîne (cas courant, inchangé) ou une liste de parties texte/image. */
+/** A string (the common case, unchanged) or a list of text/image parts. */
 type ContenuLlm = string | PartieContenu[];
 export type MessageLlm = { role: Exclude<RoleLlm, "system">; content: ContenuLlm };
 
-/** Partie image JPEG à partir de son base64 brut (sans préfixe `data:`). */
+/** JPEG image part from its raw base64 (without the `data:` prefix). */
 export function partieImageJpeg(base64: string): PartieImage {
   return { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } };
 }
 
-/** Taille décodée (octets) d'une URL `data:…;base64,` ; 0 si ce n'en est pas une. */
+/** Decoded size (bytes) of a `data:…;base64,` URL; 0 if it is not one. */
 function octetsDataUrl(url: string): number {
   const i = url.indexOf(";base64,");
   if (!url.startsWith("data:") || i < 0) return 0;
@@ -28,10 +27,10 @@ function octetsDataUrl(url: string): number {
   return Math.max(0, Math.floor((b64.length * 3) / 4) - rembourrage);
 }
 
-/** Copie des messages SANS les images, pour la trace (`agent_traces.messages`) : chaque image
- * devient un marqueur texte `[image 3 : 41 Ko]` (numérotée sur toute la conversation). Une
- * planche de 15 vignettes pèse ~0,5 Mo de base64 : elle n'a rien à faire en base. Une URL
- * http(s) est gardée telle quelle (elle ne pèse rien et reste rejouable). */
+/** Copy of the messages WITHOUT the images, for the trace (`agent_traces.messages`): each image
+ * becomes a text marker `[image 3 : 41 Ko]` (numbered across the whole conversation). A
+ * contact sheet of 15 thumbnails weighs ~0.5 MB of base64: it has no business in the database. An
+ * http(s) URL is kept as is (it weighs nothing and remains replayable). */
 export function messagesSansImages(messages: MessageLlm[]): MessageLlm[] {
   let n = 0;
   return messages.map((m) => {
@@ -48,53 +47,53 @@ export function messagesSansImages(messages: MessageLlm[]): MessageLlm[] {
 }
 
 export type DemandeLlm = {
-  /** Prompt système (le skill assemblé). */
+  /** System prompt (the assembled skill). */
   systeme: string;
   messages: MessageLlm[];
-  /** Schéma JSON (draft 2020-12) : le fournisseur contraint la sortie quand il le sait. */
+  /** JSON schema (draft 2020-12): the provider constrains the output when it can. */
   schemaSortie?: Record<string, unknown>;
   maxTokens?: number;
   temperature?: number;
-  /** Coupe la connexion : le serveur arrête de générer. */
+  /** Cuts the connection: the server stops generating. */
   signal?: AbortSignal;
-  /** Modèle visé ; sinon celui de la configuration. */
+  /** Target model; otherwise the configuration's. */
   modele?: string;
-  /** Reçoit le nombre de jetons de sortie reçus au fil de l'eau (progression). */
+  /** Receives the number of output tokens received as the stream flows (progress). */
   surProgres?: (jetonsSortie: number) => void;
-  /** Reçoit le TEXTE au fil du flux : `debut` à l'ouverture de chaque appel (un renvoi en ouvre un nouveau),
-   * puis `reflexion` (reasoning_content) et `texte` (la réponse). Sert aux essais en direct. */
+  /** Receives the TEXT as the stream flows: `debut` when each call opens (a resend opens a new one),
+   * then `reflexion` (reasoning_content) and `texte` (the response). Used for live attempts. */
   surFlux?: (evenement: { type: "debut" | "reflexion" | "texte"; texte: string }) => void;
-  /** Champs ajoutés tels quels au corps de la requête, pour CET appel (ex. couper la réflexion :
-   * `{ chat_template_kwargs: { enable_thinking: false } }`). Voir `LLM_CORPS` dans lib/llm/config.ts. */
+  /** Fields added as-is to the request body, for THIS call (e.g. cutting the reasoning:
+   * `{ chat_template_kwargs: { enable_thinking: false } }`). See `LLM_CORPS` in lib/llm/config.ts. */
   corps?: Record<string, unknown>;
 };
 
 export type ReponseLlm = {
   texte: string;
-  /** Le texte parsé, si une sortie JSON était attendue et qu'elle est du JSON valide. */
+  /** The parsed text, if a JSON output was expected and it is valid JSON. */
   json?: unknown;
   usage: { entree: number; sortie: number };
   dureeMs: number;
   modele: string;
-  /** Raison d'arrêt du serveur (`stop`, `length` = sortie tronquée par max_tokens…). */
+  /** Server's stop reason (`stop`, `length` = output truncated by max_tokens…). */
   arret?: string;
-  /** Raisonnement du modèle (`reasoning_content`), borné, pour la trace. Absent si le modèle n'en émet pas. */
+  /** The model's reasoning (`reasoning_content`), bounded, for the trace. Absent if the model emits none. */
   reflexion?: string;
-  /** Réponse brute du serveur (dernier message ou assemblage du flux), pour la trace. */
+  /** Raw server response (last message or assembled stream), for the trace. */
   brut: unknown;
-  /** Mesures du serveur llama.cpp quand il les renvoie (bloc `timings`) : ce qui était en cache, ce qui a été préchargé,
-   * le débit de chaque phase et l'acceptation des brouillons (MTP). Sert au banc de rejeu. */
+  /** llama.cpp server measurements when it returns them (`timings` block): what was cached, what was preloaded,
+   * the throughput of each phase and the acceptance of drafts (MTP). Used for the replay bench. */
   timings?: TimingsServeur;
 };
 
 export type TimingsServeur = {
-  /** Jetons d'entrée repris du cache / réellement préchargés. */
+  /** Input tokens taken from the cache / actually preloaded. */
   cacheN: number;
   promptN: number;
   promptMs: number;
   predictedN: number;
   predictedMs: number;
-  /** Brouillons proposés / acceptés (décodage spéculatif, MTP). */
+  /** Drafts proposed / accepted (speculative decoding, MTP). */
   draftN: number;
   draftAcceptedN: number;
 };
@@ -114,8 +113,8 @@ export type CodeErreurLlm =
   | "flux_coupe"
   | "http";
 
-/** Erreur typée : l'appelant (et la trace) distingue « le serveur est éteint »
- * de « le modèle n'existe pas » de « il a répondu n'importe quoi ». */
+/** Typed error: the caller (and the trace) distinguishes « the server is off »
+ * from « the model does not exist » from « it answered anything ». */
 export class ErreurLlm extends Error {
   constructor(
     readonly code: CodeErreurLlm,

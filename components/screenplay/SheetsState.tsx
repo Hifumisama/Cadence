@@ -1,8 +1,8 @@
 "use client";
 
 
-/** Où en sont les fiches de plan, en une ligne de la barre du scénario : « 12/14 fiches écrites », et le geste qui suit (« Écrire les 2 fiches »)
- * tant qu'il reste des brouillons. Un plan naît en brouillon ; il entre en production quand sa fiche (le prompt vidéo) est écrite. */
+/** Where the clip sheets stand, in one line of the screenplay bar: « 12/14 fiches écrites », and the action that follows (« Écrire les 2 fiches »)
+ * as long as drafts remain. A clip is born as a draft; it goes into production when its sheet (the video prompt) is written. */
 export function EtatFiches({ nbPlans, nbDeveloppes, onEcrire }: { nbPlans: number; nbDeveloppes: number; onEcrire: () => void }) {
   if (nbPlans === 0) return null;
   const nbBrouillons = nbPlans - nbDeveloppes;

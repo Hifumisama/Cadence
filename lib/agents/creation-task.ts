@@ -1,13 +1,13 @@
 import { cleCreation, type Tache } from "../tasks/tasks";
 import { ETAPES_CREATION, etapeCourante, normaliserEtapes, progression, statutEffectif, type EtapeCreation, type StatutCreation } from "./creation";
 
-/** La création d'un projet (l'installateur) vue comme UNE tâche du header — règles pures, sans base. L'installateur
- * lance ses étapes dans la conversation du projet (lots, appels seuls) : on les regroupe en une ligne, qui mène à la page
- * d'avancée. Le reste (affiches, images, vidéos, travail d'agent hors installateur) garde ses lignes. */
+/** A project's creation (the installer) seen as ONE header task — pure rules, no database. The installer
+ * runs its steps in the project's conversation (batches, single calls): they are grouped into one line, which leads to the
+ * progress page. The rest (posters, images, videos, agent work outside the installer) keeps its lines. */
 
-/** Ce que la création dit de sa fenêtre de travail : les tâches d'agent de CETTE conversation, créées entre son début
- * et sa fin (ou sans fin tant qu'elle travaille), sont les siennes. Après la fin, le travail manuel avec l'agent du
- * projet redevient des tâches à part. */
+/** What the creation says about its work window: the agent tasks of THIS conversation, created between its start
+ * and its end (or with no end while it works), are its own. After the end, manual work with the project's
+ * agent becomes separate tasks again. */
 export type FenetreCreation = { conversationId: number; debut: Date; fin: Date | null };
 
 export type RunDeCreation = {
@@ -42,10 +42,10 @@ export type EntreeTacheCreation = {
 
 const actif = (statut: string) => statut === "en_attente" || statut === "en_cours";
 
-/** La ligne du header, ou null quand il n'y a plus rien à montrer (création terminée, échouée ou arrêtée dont les
- * tâches ont toutes été retirées de la liste : le ✕ du panneau masque les tâches, ici celles de la création). */
+/** The header line, or null when there is nothing left to show (creation finished, failed or stopped with all its
+ * tasks removed from the list: the panel's ✕ hides the tasks, here those of the creation). */
 export function tacheDeCreation(entree: EntreeTacheCreation): Tache | null {
-  // Les étapes lues en base peuvent porter des étapes retirées depuis (les fiches de l'ancienne phase 2) : ignorées (voir `normaliserEtapes`).
+  // Steps read from the database may carry steps removed since (the sheets of the old phase 2): ignored (see `normaliserEtapes`).
   const etapes = normaliserEtapes(entree.etapes);
   const e = { ...entree, etapes, statut: statutEffectif(etapes, entree.statut) };
   const enCours = e.statut === "en_cours";

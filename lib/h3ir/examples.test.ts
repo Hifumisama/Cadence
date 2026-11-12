@@ -20,7 +20,7 @@ test("chaque niveau de créativité a son exemple, son « quand », ses ajouts ;
     assert.ok(AIDE_CREATIVITE[c].length > 20, c);
     assert.deepEqual(Object.keys(AJOUTS_CREATIVITE[c]).sort(), PASTILLES_CREATIVITE.map((p) => p.cle).sort(), c);
   }
-  // Tous les choix (réalisateurs et profils perso) ont leur exemple et leur « quand » ; seuls les réalisateurs ont des films (aucun titre n'est cité pour un profil perso).
+  // All the choices (directors and custom profiles) have their example and their « quand »; only the directors have films (no title is cited for a custom profile).
   for (const s of MISES_EN_SCENE) {
     assert.ok(EXEMPLE_STYLE[s].length > 60, s);
     assert.ok(QUAND_STYLE[s].length > 40, s);
@@ -35,7 +35,7 @@ test("les ajouts de créativité suivent le paquet : sobre n'ajoute rien, équil
   assert.deepEqual(permis("balanced"), ["musique"]);
   assert.deepEqual(permis("bold"), ["musique", "paroles", "texteEcran", "cameraAppuyee"]);
   assert.deepEqual(permis("extreme"), ["musique", "paroles", "texteEcran", "cameraAppuyee", "maximum"]);
-  // Chaque niveau permet au moins tout ce que le précédent permet.
+  // Each level allows at least everything the previous one allows.
   for (let i = 1; i < CREATIVITES.length; i++) {
     for (const p of permis(CREATIVITES[i - 1]!)) assert.ok(permis(CREATIVITES[i]!).includes(p), `${CREATIVITES[i]} ⊇ ${CREATIVITES[i - 1]} (${p})`);
   }

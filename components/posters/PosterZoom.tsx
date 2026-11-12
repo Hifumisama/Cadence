@@ -3,8 +3,8 @@
 import { useRef } from "react";
 import { Icone } from "@/components/ui/Icon";
 
-/** L'affiche, cliquable : ouvre l'image seule en grand (<dialog> natif : Échap ou clic sur le fond ferment). Sans image,
- * le dégradé de repli n'a rien à agrandir et reste tel quel. */
+/** The poster, clickable: opens the image alone enlarged (native <dialog>: Esc or a click on the background closes it). Without an image,
+ * the fallback gradient has nothing to enlarge and stays as it is. */
 export function AfficheZoom({ src, titre, children }: { src: string | null; titre: string; children: React.ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   if (!src) return <>{children}</>;

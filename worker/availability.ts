@@ -2,29 +2,29 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { parametres } from "../db/schema";
 
-// Disponibilité des serveurs que le worker pilote (LLM, ComfyUI). Le worker ne tourne pas dans le même
-// processus que l'interface : l'état « injoignable depuis » passe par `parametres` (clé/valeur), que l'en-tête
-// lit pour afficher une pastille. Seules les TRANSITIONS sont écrites (le worker sonde toutes les secondes).
+// Availability of the servers the worker drives (LLM, ComfyUI). The worker does not run in the same
+// process as the interface: the « injoignable depuis » state goes through `parametres` (key/value), which the header
+// reads to display a badge. Only the TRANSITIONS are written (the worker probes every second).
 
 export type DomaineServeur = "llm" | "comfyui";
 
 export const cleInjoignable = (domaine: DomaineServeur) => `injoignable_${domaine}`;
 
-/** Depuis quand (ms epoch) le serveur est-il injoignable ? `null` = joignable ou pas sondé. Pur. */
+/** Since when (ms epoch) is the server unreachable? `null` = reachable or not probed. Pure. */
 export function suivreInjoignable(depuis: number | null, joignable: boolean, maintenant: number): number | null {
   if (joignable) return null;
   return depuis ?? maintenant;
 }
 
-/** Faut-il renoncer à attendre ? Pur. `maxMs` à 0 : jamais (on attend indéfiniment, comportement d'avant). */
+/** Should we give up waiting? Pure. `maxMs` at 0: never (we wait indefinitely, the previous behaviour). */
 export function attenteDepassee(depuis: number | null, maintenant: number, maxMs: number): boolean {
   return depuis != null && maxMs > 0 && maintenant - depuis >= maxMs;
 }
 
 const memoire: Record<DomaineServeur, number | null> = { llm: null, comfyui: null };
 
-/** Note le résultat d'une sonde et renvoie « injoignable depuis » (ms epoch ou null). N'écrit en base que
- * quand l'état change ; une base indisponible ne casse jamais la boucle du worker. */
+/** Records the result of a probe and returns « injoignable depuis » (ms epoch or null). Writes to the database only
+ * when the state changes; an unavailable database never breaks the worker loop. */
 export async function noterSonde(domaine: DomaineServeur, joignable: boolean, maintenant = Date.now()): Promise<number | null> {
   const avant = memoire[domaine];
   const apres = suivreInjoignable(avant, joignable, maintenant);
@@ -43,5 +43,5 @@ export async function noterSonde(domaine: DomaineServeur, joignable: boolean, ma
   return apres;
 }
 
-/** Oublie un domaine qui n'a plus rien en attente (rien à signaler : la pastille s'efface). */
+/** Forgets a domain that has nothing pending anymore (nothing to report: the badge disappears). */
 export const effacerSonde = (domaine: DomaineServeur) => noterSonde(domaine, true);

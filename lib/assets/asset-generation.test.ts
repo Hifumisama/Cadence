@@ -43,7 +43,7 @@ test("demande : mode images, de 1 à 3 sources sans doublon", () => {
   const b = { origine: "asset" as const, assetId: 2 };
   const c = { origine: "import" as const, fichier: "x.png" };
   const d = { origine: "import" as const, fichier: "y.png" };
-  // format et mégapixels ne comptent pas en mode images
+  // format and megapixels do not count in images mode
   assert.equal(raisonDemandeInvalide({ ...images, sources: [a] }), null);
   assert.equal(raisonDemandeInvalide({ ...images, sources: [a, b, c] }), null);
   assert.match(raisonDemandeInvalide({ ...images, sources: [] }) ?? "", /au moins une image/);

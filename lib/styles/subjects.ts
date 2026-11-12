@@ -1,18 +1,18 @@
 import type { Aspect } from "../assets/asset-generation";
 
-/** Les scènes de présentation d'un style : les mêmes pour tous les styles, pour que la seule différence entre deux images
- * soit le style. Chaque scène teste autre chose (personnage, matières, effet lumineux, anatomie non humaine, décor et
- * atmosphère, mouvement). Fichier sans dépendance lourde : le client l'importe. La scène est un prompt de SUJET seul (aucun mot
- * de rendu, aucun nom de médium) : le style arrive à part, par le nœud « style » du workflow d'image. */
+/** The presentation scenes of a style: the same for all styles, so that the only difference between two images
+ * is the style. Each scene tests something else (character, materials, light effect, non-human anatomy, set and
+ * atmosphere, movement). File without heavy dependencies: the client imports it. The scene is a SUBJECT-only prompt (no rendering
+ * words, no medium name): the style arrives separately, through the « style » node of the image workflow. */
 
 export type SujetApercu = {
-  /** Identifiant stable : nom de fichier de l'image (`styles/<style>/<id>.webp`). */
+  /** Stable identifier: image file name (`styles/<style>/<id>.webp`). */
   id: string;
   libelle: string;
-  /** Ce que la scène permet de juger. */
+  /** What the scene makes it possible to judge. */
   teste: string;
   aspect: Aspect;
-  /** Largeur finale de l'image enregistrée (px). */
+  /** Final width of the saved image (px). */
   largeur: number;
   scene: string;
 };
@@ -76,5 +76,5 @@ export const SUJETS_APERCU: readonly SujetApercu[] = [
 
 export const IDS_SUJETS = SUJETS_APERCU.map((s) => s.id);
 
-/** L'aperçu qui sert de toile de fond à l'affiche du clap (recadrée en 3:2) : un décor neutre, sans personnage. */
+/** The preview that serves as the backdrop of the clap poster (cropped to 3:2): a neutral set, without a character. */
 export const SUJET_AFFICHE_CLAP = "rue-de-nuit";

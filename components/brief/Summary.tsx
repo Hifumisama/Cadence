@@ -5,10 +5,10 @@ import { Icone } from "@/components/ui/Icon";
 
 export type EntreeSommaire = { id: string; label: string; compte?: number };
 
-/** Sommaire de la page du brief : un rail collant à gauche sur grand écran ; sur tablette et téléphone, une barre compacte
- * collée sous le bandeau qui affiche la section en cours et ouvre la liste en menu déroulant (rien ne déborde, quel que
- * soit le nombre de sections). Le clic fait DÉFILER en douceur jusqu'à la section, puis la fait briller un instant ;
- * l'entrée active suit la lecture. Animations coupées si l'utilisateur réduit les animations. */
+/** Summary of the brief page: a sticky rail on the left on large screens; on tablet and phone, a compact bar
+ * stuck under the banner that shows the current section and opens the list as a dropdown menu (nothing overflows, whatever the
+ * number of sections). Clicking SCROLLS smoothly to the section, then makes it flash briefly;
+ * the active entry follows the reading. Animations are turned off if the user reduces motion. */
 export function Sommaire({ entrees, libelle = "Sommaire du brief" }: { entrees: EntreeSommaire[]; libelle?: string }) {
   const [actif, setActif] = useState(entrees[0]?.id ?? "");
   const [ouvert, setOuvert] = useState(false);
@@ -22,7 +22,7 @@ export function Sommaire({ entrees, libelle = "Sommaire du brief" }: { entrees: 
       .map((id) => document.getElementById(id))
       .filter((e): e is HTMLElement => e !== null);
     if (elements.length === 0) return;
-    // La section active : la première dont le haut est passé sous le bandeau, la plus basse parmi celles déjà entrées.
+    // The active section: the first whose top has gone under the banner, the lowest among those already entered.
     const obs = new IntersectionObserver(
       (lignes) => {
         const visibles = lignes.filter((l) => l.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
@@ -34,7 +34,7 @@ export function Sommaire({ entrees, libelle = "Sommaire du brief" }: { entrees: 
     return () => obs.disconnect();
   }, [cle]);
 
-  // Menu déroulant : se ferme au clic ailleurs et sur Échap.
+  // Dropdown menu: closes on a click elsewhere and on Escape.
   useEffect(() => {
     if (!ouvert) return;
     const dehors = (e: Event) => {
@@ -56,7 +56,7 @@ export function Sommaire({ entrees, libelle = "Sommaire du brief" }: { entrees: 
     const reduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     cible.scrollIntoView({ behavior: reduit ? "auto" : "smooth", block: "start" });
     setActif(id);
-    // La section arrivée « s'allume » un instant (CSS .is-cible) : on repart de zéro pour pouvoir la rejouer.
+    // The section reached « lights up » briefly (CSS .is-cible): we start from zero so it can be replayed.
     cible.classList.remove("is-cible");
     void cible.offsetWidth;
     cible.classList.add("is-cible");

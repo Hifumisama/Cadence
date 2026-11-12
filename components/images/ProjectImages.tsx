@@ -6,8 +6,8 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { genererImagesManquantes } from "@/app/assets/generation-actions";
 import { etapesSuivantes, libelleGenererImages, prochaineEtape, type EtatImages } from "@/lib/assets/project-images";
 
-/** Sondage de l'état des images d'un projet (/api/images/<id>) : toutes les 3 s tant que des images sont en file, sinon toutes les 10 s.
- * `recharger` force une lecture (après un lancement). */
+/** Polling of a project's image state (/api/images/<id>): every 3 s while images are queued, otherwise every 10 s.
+ * `recharger` forces a read (after a launch). */
 export function useEtatImages(projectId: number, initial: EtatImages | null): { etat: EtatImages | null; recharger: () => Promise<void> } {
   const [etat, setEtat] = useState<EtatImages | null>(initial);
   const enVol = useRef(false);
@@ -19,7 +19,7 @@ export function useEtatImages(projectId: number, initial: EtatImages | null): { 
       const res = await fetch(`/api/images/${projectId}`, { cache: "no-store" });
       if (res.ok) setEtat(((await res.json()) as { images: EtatImages }).images);
     } catch {
-      /* serveur qui redémarre : au prochain tour */
+      /* server restarting: next round */
     } finally {
       enVol.current = false;
     }
@@ -34,8 +34,8 @@ export function useEtatImages(projectId: number, initial: EtatImages | null): { 
   return { etat, recharger };
 }
 
-/** « Générer les N images » : demande confirmation (ces générations occupent la machine locale), puis met tout en file. Rien ne s'affiche
- * quand il n'y a rien à lancer. */
+/** « Générer les N images » : asks for confirmation (these generations occupy the local machine), then queues everything. Nothing is shown
+ * when there is nothing to launch. */
 export function BoutonGenererImages({ projectId, etat, recharger, petit = false }: { projectId: number; etat: EtatImages; recharger: () => Promise<void>; petit?: boolean }) {
   const [confirmer, setConfirmer] = useState(false);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
@@ -88,7 +88,7 @@ export function BoutonGenererImages({ projectId, etat, recharger, petit = false 
   );
 }
 
-/** Ligne de progression : « 3 sur 12 ont une image · 2 en file · 1 attend l’image de son master ». */
+/** Progress line: « 3 sur 12 ont une image · 2 en file · 1 attend l’image de son master ». */
 function ProgressionImages({ etat }: { etat: EtatImages }) {
   const pct = etat.total ? Math.round((etat.avecImage / etat.total) * 100) : 0;
   const notes = [
@@ -109,8 +109,8 @@ function ProgressionImages({ etat }: { etat: EtatImages }) {
   );
 }
 
-/** Bandeau « Prochaine étape » de la page d'un projet : la première étape non terminée de `etapesSuivantes` (aujourd'hui, les images de
- * référence). Il disparaît quand tout est fait. D'autres étapes (voix, plans) s'ajouteront à cette liste sans toucher au bandeau. */
+/** « Prochaine étape » banner of a project page: the first unfinished step of `etapesSuivantes` (today, the reference
+ * images). It disappears when everything is done. Other steps (voice, clips) will be added to this list without touching the banner. */
 export function BandeauProchaineEtape({ projectId, initial }: { projectId: number; initial: EtatImages }) {
   const { etat, recharger } = useEtatImages(projectId, initial);
   if (!etat) return null;

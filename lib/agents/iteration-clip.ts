@@ -5,22 +5,22 @@ import type { DecisionsAffichees, DecisionsIteration, DiagnosticIteration } from
 import { raisonDescriptionIncomplete, repliquesPerdues, sansEtatDeFin } from "../clips/intent";
 import { retenirManquants } from "../h3ir/preparation";
 
-/** Écart toléré entre la durée réelle du fichier (ffprobe) et la durée voulue : au-delà, le rendu a été généré
- * à une autre durée, tous ses temps sont comprimés ou étirés : aucun diagnostic d'écriture n'est valable. */
+/** Tolerated gap between the file's real duration (ffprobe) and the wanted duration: beyond it, the render was generated
+ * at another duration, all its timings are compressed or stretched: no write diagnosis is valid. */
 const TOLERANCE_DUREE_SECONDES = 0.5;
 
-/** Plafond de vignettes demandé pour une planche (une par seconde, plafond de durée d'un plan). */
+/** Contact-sheet thumbnail cap requested for a sheet (one per second, the clip's maximum duration cap). */
 export const MAX_VIGNETTES_ITERATION = 15;
 
-/** Au plus deux assets manquants suggérés par itération (décision 2026-11-09). */
+/** At most two missing assets suggested per iteration (decision 2026-11-09). */
 const MAX_MANQUANTS_ITERATION = 2;
 
-// `PREFIXE_SANS_ECRITURE` et `notesDecisions` vivent dans iteration-notes.ts (sans dépendance serveur, lu par les composants client).
+// `PREFIXE_SANS_ECRITURE` et `notesDecisions` live in iteration-notes.ts (no server dependency, read by the client components).
 export { PREFIXE_SANS_ECRITURE, notesDecisions } from "./iteration-notes";
 
 type AssetManquant = { code: string; type: string; parent?: string; description: string; raison: string };
 
-/** Le bloc `decisions` de la sortie du skill. `null` / `""` / liste vide = ne change pas. */
+/** The `decisions` block of the skill output. `null` / `""` / empty list = unchanged. */
 export type DecisionsSortie = {
   nouvelleDescription: string;
   dureeSecondes: number | null;
@@ -41,18 +41,18 @@ export type SortieIterationPlan = {
   decisions: DecisionsSortie;
 };
 
-/** Ce que les contrôles savent du plan au moment de la consigne (l'entrée du skill). */
+/** What the checks know about the clip at the time of the instruction (the skill input). */
 export type ContexteIteration = {
-  /** La description (intent) actuelle du plan. */
+  /** The clip's current description (intent). */
   description?: string;
-  /** Références du plan (plan_refs : images, sons, vidéos), avec le code de l'asset. */
+  /** The clip's references (plan_refs: images, sounds, videos), with the asset's code. */
   refs: { type: "picture" | "audio" | "video"; slot: number; asset?: string | null }[];
-  /** Les assets du projet : ce que `references.ajouter` a le droit de citer ; `image` : son fichier existe (absent = inconnu). */
+  /** The project's assets: what `references.ajouter` may cite; `image`: its file exists (absent = unknown). */
   registre?: { code: string; type: string; image?: boolean }[];
   dureeGenerationSecondes: number;
-  /** Durée réelle du fichier rendu (ffprobe), si elle est connue au moment du contrôle. */
+  /** Real duration of the rendered file (ffprobe), if known at the time of the check. */
   dureeReelleSecondes?: number | null;
-  /** Réglages Open H3 IR EFFECTIFS du plan (résolus plan > scène > projet) : `"aucun"` = pas de style. */
+  /** The clip's EFFECTIVE Open H3 IR settings (resolved clip > scene > project): `"aucun"` = no style. */
   reglages?: { creativite: string; styleMiseEnScene: string };
 };
 
@@ -67,7 +67,7 @@ const secondes = (n: number) => `${String(arrondi(n)).replace(".", ",")} s`;
 const norm = (t: string) => t.replace(/\s+/g, " ").trim();
 const chaines = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim()) : []);
 
-/** Le bloc `decisions`, lu sans confiance (un résultat ancien ou abîmé n'a pas la forme) : toujours un objet complet. */
+/** The `decisions` block, read without trust (an old or damaged result does not have the shape): always a complete object. */
 function lireDecisions(brut: unknown): DecisionsSortie {
   const d = (brut && typeof brut === "object" ? brut : {}) as Record<string, unknown>;
   const refs = (d.references && typeof d.references === "object" ? d.references : {}) as Record<string, unknown>;
@@ -84,11 +84,11 @@ function lireDecisions(brut: unknown): DecisionsSortie {
   };
 }
 
-/** La nouvelle description, telle qu'elle serait ÉCRITE : sans l'ancien « État en fin de plan » (il n'est plus produit). */
+/** The new description, as it would be WRITTEN: without the old "État en fin de plan" (it is no longer produced). */
 const descriptionPropre = (d: DecisionsSortie): string => sansEtatDeFin(d.nouvelleDescription).trim();
 
-/** La durée réelle du fichier correspond à la durée voulue : à la nominale, OU à la durée EFFECTIVE de la grille d'images (lib/renders/image-grid.ts : 6 s → 6,583 s, 10 s →
- * 10,125 s). Sans cela, un plan de 6 s correctement rendu (écart de 0,58 s à la nominale) ferait refuser toute correction. */
+/** The file's real duration matches the wanted duration: at the nominal one, OR at the EFFECTIVE duration of the image grid (lib/renders/image-grid.ts: 6 s → 6,583 s, 10 s →
+ * 10,125 s). Without this, a correctly rendered 6 s clip (a 0.58 s gap from nominal) would refuse every correction. */
 export function dureesCoherentes(voulueSecondes: number, reelleSecondes: number): boolean {
   return (
     Math.abs(reelleSecondes - voulueSecondes) <= TOLERANCE_DUREE_SECONDES ||
@@ -96,8 +96,8 @@ export function dureesCoherentes(voulueSecondes: number, reelleSecondes: number)
   );
 }
 
-/** Les décisions EFFECTIVES (ce qui change vraiment, validé) : une valeur invalide, identique à l'actuelle ou un fragment d'intent est écarté.
- * `null` quand rien ne change (rien à recompiler). Pur, testé. */
+/** The EFFECTIVE decisions (what really changes, validated): an invalid value, one identical to the current one, or an intent fragment is dropped.
+ * `null` when nothing changes (nothing to recompile). Pure, tested. */
 export function decisionsEffectives(sortie: Pick<SortieIterationPlan, "decisions">, ctx: ContexteIteration): DecisionsIteration | null {
   const d = lireDecisions(sortie.decisions);
   const out: DecisionsIteration = {};
@@ -109,14 +109,14 @@ export function decisionsEffectives(sortie: Pick<SortieIterationPlan, "decisions
     const images = new Set(ctx.refs.filter((r) => r.type === "picture" && r.asset).map((r) => r.asset!));
     const retirer = [...new Set(d.references.retirer)].filter((c) => images.has(c));
     const ajouter = [...new Set(d.references.ajouter)].filter((c) => !images.has(c) || retirer.includes(c));
-    // retirer puis rajouter le même code ne change rien
+    // removing then re-adding the same code changes nothing
     const neutres = new Set(ajouter.filter((c) => retirer.includes(c)));
     const a = ajouter.filter((c) => !neutres.has(c));
     const r = retirer.filter((c) => !neutres.has(c));
     if (a.length + r.length > 0) out.references = { ajouter: a, retirer: r };
   }
-  // Les assets manquants (deux au plus) : créés d'office avant la recompilation, puis ajoutés aux références (vague 4a). Un code déjà au registre est
-  // une simple référence de plus ; un code invalide ou en trop est écarté.
+  // The missing assets (two at most): created outright before the recompilation, then added to the references (wave 4a). A code already in the registry is
+  // just one more reference; an invalid or excess code is dropped.
   if (d.manquants.length) {
     const images = ctx.refs.filter((r) => r.type === "picture").length - (out.references?.retirer.length ?? 0) + (out.references?.ajouter.length ?? 0);
     const m = retenirManquants(d.manquants, ctx.registre ?? [], { max: MAX_MANQUANTS_ITERATION, place: Math.max(0, MAX_REFS.picture - images) });
@@ -131,7 +131,7 @@ export function decisionsEffectives(sortie: Pick<SortieIterationPlan, "decisions
   return Object.keys(out).length ? out : null;
 }
 
-/** Les contrôles propres aux références : codes du registre (une image, ni voix ni son), pas déjà au plan, six images au plus, une au moins. */
+/** The checks specific to references: registry codes (an image, neither voice nor sound), not already on the clip, six images at most, at least one. */
 function controlerReferences(ops: DecisionsSortie["references"], ctx: ContexteIteration): ProblemeIteration[] {
   const problemes: ProblemeIteration[] = [];
   const images = ctx.refs.filter((r) => r.type === "picture");
@@ -156,8 +156,8 @@ function controlerReferences(ops: DecisionsSortie["references"], ctx: ContexteIt
   return problemes;
 }
 
-/** Pourquoi RIEN n'est recompilé, ou null : la durée du rendu ne correspond pas (mesurée par le code ou jugée par l'agent), l'agent propose
- * d'abandonner, la cause n'est pas dans le plan, ou aucune décision effective (avec, s'il y en a, les assets à créer). */
+/** Why NOTHING is recompiled, or null: the render's duration does not match (measured by the code or judged by the agent), the agent proposes
+ * giving up, the cause is not in the clip, or no effective decision (with, if any, the assets to create). */
 export function raisonSansEcriture(sortie: SortieIterationPlan, ctx: ContexteIteration): string | null {
   const reelle = ctx.dureeReelleSecondes;
   if (reelle != null && !dureesCoherentes(ctx.dureeGenerationSecondes, reelle)) {
@@ -167,7 +167,7 @@ export function raisonSansEcriture(sortie: SortieIterationPlan, ctx: ContexteIte
   if (sortie.abandon?.propose) return `L'agent propose d'abandonner ce mouvement plutôt qu'une correction de plus${sortie.abandon.raison?.trim() ? ` : ${sortie.abandon.raison.trim()}` : "."}`;
   if (decisionsEffectives(sortie, ctx)) return null;
   const d = lireDecisions(sortie.decisions);
-  // Un texte réduit à l'ancien « État en fin de plan » n'a plus rien une fois nettoyé : c'est un fragment, dit comme tel.
+  // A text reduced to the old "État en fin de plan" has nothing left once cleaned: it is a fragment, said as such.
   const incomplete = d.nouvelleDescription.trim() ? raisonDescriptionIncomplete(descriptionPropre(d), ctx.description) : null;
   if (incomplete) return `La nouvelle description de l'agent est incomplète (${incomplete}) : rien n'est écrit, la description du plan reste telle quelle. Relance la correction.`;
   const manquants = d.manquants.map((a) => a.code).filter(Boolean);
@@ -176,9 +176,9 @@ export function raisonSansEcriture(sortie: SortieIterationPlan, ctx: ContexteIte
   return "L'agent ne propose aucune décision (ni intent, ni durée, ni références, ni réglages).";
 }
 
-/** Contrôles SÉMANTIQUES d'une sortie déjà conforme au schéma. Les ERREURS déclenchent un renvoi au modèle (lib/llm/checks.ts) : intent
- * réduit à un fragment, référence inventée ou en double, plus de six images, plus de deux assets manquants, réglage inconnu. Les alertes se
- * lisent sur l'essai. Une sortie qui ne recompilera rien (durée incohérente, abandon) n'est pas contrôlée décision par décision. */
+/** SEMANTIC checks of an output already conforming to the schema. ERRORS trigger a re-prompt to the model (lib/llm/checks.ts): intent
+ * reduced to a fragment, invented or duplicated reference, more than six images, more than two missing assets, unknown setting. The alerts are
+ * read on the attempt. An output that will recompile nothing (incoherent duration, giving up) is not checked decision by decision. */
 export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: ContexteIteration): ProblemeIteration[] {
   const problemes: ProblemeIteration[] = [];
   const d = lireDecisions(sortie.decisions);
@@ -198,7 +198,7 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
     return problemes;
   }
 
-  // L'intent REMPLACE l'actuel : il doit être complet (un fragment effacerait le récit). Une réplique perdue : alerte (la consigne peut la retirer).
+  // The intent REPLACES the current one: it must be complete (a fragment would erase the story). A lost line of dialogue: alert (the instruction may remove it).
   const nouvelle = descriptionPropre(d);
   if (d.nouvelleDescription.trim()) {
     const incomplete = raisonDescriptionIncomplete(nouvelle, ctx.description);
@@ -212,8 +212,8 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
     problemes.push({ niveau: "erreur", regle: "duree-invalide", message: `decisions.dureeSecondes : ${d.dureeSecondes} n'est pas une durée valide (entier de ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX}, ou null).` });
   }
   problemes.push(...controlerReferences(d.references, ctx));
-  // Une image ajoutée sans fichier : la recompilation sera refusée (« images manquantes ») tant qu'elle n'est pas générée. Signalé, pas renvoyé (le
-  // bon asset peut simplement attendre son image).
+  // An image added without a file: the recompilation will be refused ("images manquantes") until it is generated. Flagged, not re-prompted (the
+  // right asset may simply be waiting for its image).
   const sansImage = d.references.ajouter.filter((c) => (ctx.registre ?? []).find((a) => a.code === c)?.image === false);
   if (sansImage.length) problemes.push({ niveau: "alerte", regle: "ajout-sans-image", message: `${sansImage.join(", ")} n'${sansImage.length > 1 ? "ont" : "a"} pas encore d'image : la fiche ne sera recompilée qu'une fois ${sansImage.length > 1 ? "leurs images générées" : "son image générée"}.` });
 
@@ -234,9 +234,9 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
 const libelleCreativite = (v: string | null | undefined): string => (v && estCreativite(v) ? LIBELLE_CREATIVITE[v] : "Équilibrée");
 const libelleStyle = (v: string | null | undefined): string => (v && estMiseEnScene(v) ? RESUME_STYLE_CAMERA[v as ChoixMiseEnScene] : "aucun style");
 
-/** Les décisions telles que la page du plan les affiche (avant → après). */
+/** The decisions as the clip's page displays them (before → after). */
 function decisionsAffichees(dec: DecisionsIteration | null, ctx: ContexteIteration, suggeres: AssetManquant[] = []): DecisionsAffichees | null {
-  // Les manquants retenus (créés d'office) quand il y a des décisions ; sinon ce que l'agent suggérait (rien ne sera créé).
+  // The retained missing assets (created outright) when there are decisions; otherwise what the agent suggested (nothing will be created).
   const manquants = dec?.manquants ?? (dec ? [] : suggeres);
   if (!dec && manquants.length === 0) return null;
   return {
@@ -252,9 +252,9 @@ function decisionsAffichees(dec: DecisionsIteration | null, ctx: ContexteIterati
   };
 }
 
-/** Le diagnostic à afficher, depuis le JSON validé du skill (agent_runs.resultat) ; null s'il n'en a pas la forme. `entree` (agent_runs.entree) : le plan
- * tel que l'agent l'a vu, pour ne garder que les décisions effectives (un intent réduit à un fragment est écarté). Un résultat de l'ancien contrat
- * (`changements[]`, avant 2026-11-09) a un diagnostic sans décisions. */
+/** The diagnosis to display, from the skill's validated JSON (agent_runs.resultat); null if it does not have that shape. `entree` (agent_runs.entree): the clip
+ * as the agent saw it, to keep only the effective decisions (an intent reduced to a fragment is dropped). A result of the old contract
+ * (`changements[]`, before 2026-11-09) has a diagnosis without decisions. */
 export function diagnosticIteration(json: unknown, entree?: unknown): DiagnosticIteration | null {
   if (!json || typeof json !== "object") return null;
   const s = json as Partial<SortieIterationPlan>;
@@ -282,22 +282,22 @@ export function diagnosticIteration(json: unknown, entree?: unknown): Diagnostic
   };
 }
 
-/** Une correction déjà tentée sur ce plan, telle que l'agent la lit (`historique`) : minimal et honnête. */
+/** A correction already attempted on this clip, as the agent reads it (`historique`): minimal and honest. */
 export type CorrectionPassee = {
   le: string;
   ceQuiAvaitEteVu: string;
   symptome: string;
   cause: string;
   categorie: string | null;
-  /** appliquée (en tout ou partie) / proposée mais non appliquée / sans écriture (diagnostic seul). */
+  /** applied (in whole or in part) / proposed but not applied / no write (diagnosis only). */
   issue: "appliquee" | "non_appliquee" | "sans_ecriture";
-  /** Un rendu terminé est arrivé après l'application : la correction a été mise à l'épreuve. */
+  /** A finished render arrived after the application: the correction has been put to the test. */
   renduDepuis: boolean;
 };
 
-/** L'historique depuis les propositions `iteration-plan` du plan (les plus anciennes d'abord, les `max` dernières) et les dates de fin de ses rendus. Une
- * proposition sans diagnostic (échouée, en cours) n'en fait pas partie. `appliedAt` : quand ses décisions ont été écrites (avec la fiche recompilée,
- * dont la proposition est distincte depuis 2026-11-09 : l'appelant la retrouve par la demande). */
+/** The history from the clip's `iteration-plan` proposals (oldest first, the last `max`) and the end dates of its renders. A
+ * proposal with no diagnosis (failed, running) is not part of it. `appliedAt`: when its decisions were written (with the recompiled sheet,
+ * whose proposal has been separate since 2026-11-09: the caller finds it by the request). */
 export function historiqueIteration(
   propositions: { createdAt: Date; appliedAt: Date | null; statut: string; consigne: string; resultat: unknown; nbChangements: number; entree?: unknown }[],
   rendusTermines: Date[],
@@ -321,7 +321,7 @@ export function historiqueIteration(
   return lignes.slice(-max);
 }
 
-/** Le contexte de contrôle depuis l'ENTRÉE du skill (celle que le worker envoie, voir entreeIterationPlan) : le contrôleur sémantique n'a que ça. */
+/** The check context from the skill's INPUT (the one the worker sends, see entreeIterationPlan): the semantic checker has only that. */
 export function contexteDepuisEntree(entree: unknown): ContexteIteration {
   const e = (entree ?? {}) as {
     references?: { type?: string; slot?: number; asset?: string | null }[];

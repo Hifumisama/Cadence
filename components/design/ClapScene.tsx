@@ -11,23 +11,22 @@ import { posterPorteLeTitre } from "@/lib/posters/poster";
 import { AfficheZoom } from "@/components/posters/PosterZoom";
 import { EnteteScene } from "./Scenes";
 
-/** Scène « Clap » : tout ce qui a été récolté sur une planche (la claquette), l'affiche du projet à côté (générée à l'arrivée sur le clap, voir lib/agents/poster-clap.ts), un
- * titre à donner, et « Lancer la préparation » qui enchaîne l'installateur (page d'avancée). */
+/** « Clap » scene: everything gathered on one board (the clapperboard), the project's poster beside it (generated on arrival at the clap, see lib/agents/poster-clap.ts), a title to give, and « Lancer la préparation » which chains the installer (progress page). */
 
-/** `image` : l'aperçu du style (repli pendant que l'affiche se prépare) ; `poster` : l'affiche réelle du projet, quand il en a une. */
+/** `image`: the style's preview (fallback while the poster is being prepared); `poster`: the project's real poster, when it has one. */
 export type StyleAffiche = { nom: string; image: string | null; poster?: string | null };
-/** L'état de l'affiche vu du clap (voir app/affiches/clap-actions.ts). */
+/** The poster's state as seen from the clap (see app/affiches/clap-actions.ts). */
 export type AfficheEtat = { etat: "en_cours" | "prete" | "echec" | "indisponible"; src: string | null };
 
 export function AfficheProjet({ conception, style, titre, affiche, reessayer }: { conception: Conception; style: StyleAffiche; titre: string; affiche?: AfficheEtat | null; reessayer?: () => void }) {
   const genres = conception.genres.join(" et ").toLowerCase();
   const reelle = affiche?.src ?? style.poster ?? null;
   const enCours = affiche?.etat === "en_cours";
-  // Une affiche dont le titre est écrit dans l'image (suffixe -titre) ne reçoit pas le titre une seconde fois par-dessus.
+  // A poster whose title is written into the image (suffix -titre) does not get the title a second time on top.
   const titreDansImage = posterPorteLeTitre(reelle);
   const poster = (
     <aside className={`cn-poster${reelle || style.image ? "" : " is-vide"}${enCours ? " is-attente" : ""}`} aria-label="Affiche du projet" aria-busy={enCours}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- stockage média, redimensionné par la route */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- media storage, resized by the route */}
       {reelle ? <img src={reelle} alt="" /> : style.image ? <img src={urlMiniature(`/api/media/styles/${style.image}`, 768)} alt="" /> : null}
       <div className="cn-poster-voile" />
       {enCours ? <p className="cn-poster-attente" role="status">{reelle ? "L’affiche se refait…" : "L’affiche se tourne…"}</p> : null}
@@ -36,7 +35,7 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
           L’affiche n’a pas pu se faire.{reessayer ? <> <button type="button" className="cn-lien" onClick={reessayer}>Réessayer</button></> : null}
         </p>
       ) : null}
-      {/* En haut et en bas, sur des voiles sombres : ce qui était posé au milieu se perdait dans l'image. */}
+      {/* Top and bottom, over dark veils: what used to sit in the middle got lost in the image. */}
       <div className="cn-poster-texte">
         <div className="cn-poster-tete">
           <p className="cn-poster-haut">CADENCE PRÉSENTE</p>
@@ -52,7 +51,7 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
       </div>
     </aside>
   );
-  // L'affiche réelle s'agrandit d'un clic (sauf pendant qu'elle se refait).
+  // The real poster enlarges on a click (except while it is being redone).
   return reelle && !enCours ? <AfficheZoom src={reelle} titre={titre.trim() || "ce projet"}>{poster}</AfficheZoom> : poster;
 }
 
@@ -84,14 +83,14 @@ export function ClapScene({
   nomProjet: string;
   conception: Conception;
   style: StyleAffiche;
-  /** La mise en scène du projet en quelques mots (lib/h3ir/settings.ts, `resumeMiseEnScene`), affichée sur la planche ; elle reste modifiable dans le Brief. */
+  /** The project's staging in a few words (lib/h3ir/settings.ts, `resumeMiseEnScene`), shown on the board; it stays editable in the Brief. */
   miseEnScene?: string;
   notes: NoteAffichee[];
-  /** L'entretien a de quoi lancer la préparation (le scénariste a l'essentiel, ou l'utilisateur a parlé). */
+  /** The interview has what it takes to launch the preparation (the screenwriter has the essentials, or the user has spoken). */
   pret: boolean;
   affiche?: AfficheEtat | null;
   reessayer?: () => void;
-  /** Le titre vient d'être enregistré (il est écrit dans l'affiche) : l'affiche doit se refaire. */
+  /** The title has just been saved (it is written into the poster): the poster must be redone. */
   apresTitre?: () => void;
 }) {
   const provisoire = nomProjet === "Sans titre";
@@ -100,14 +99,14 @@ export function ClapScene({
   const [frappe, setFrappe] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
-  // On ne lance pas avant que l'affiche soit prête (sinon elle est zappée) ; en cas d'échec ou sans générateur, on ne bloque pas.
+  // We do not launch before the poster is ready (otherwise it is skipped); on failure or without a generator, we do not block.
   const afficheAttendue = affiche === null || affiche === undefined || affiche.etat === "en_cours";
   const defauts = valeursParDefaut(conception);
   const plans = plansEstimes(conception.dureeSecondes, conception.rythme);
   const note = (cle: string) => notes.find((n) => n.cle === cle)?.texte || "—";
   const extras = notes.filter((n) => !n.requis && n.texte);
 
-  // Le titre est dans l'affiche : on l'enregistre dès qu'on quitte le champ, et l'affiche se refait pour qu'elle porte le bon.
+  // The title is in the poster: we save it as soon as we leave the field, and the poster is redone so that it carries the right one.
   const validerTitre = async () => {
     const nom = titre.trim();
     if (!nom || nom === enregistre) return;
@@ -135,7 +134,7 @@ export function ClapScene({
         setEnvoi(false);
         return;
       }
-      // La claquette a le temps de claquer avant de changer de page.
+      // The clapperboard has time to clap before the page changes.
       window.setTimeout(() => window.location.assign(`/p/${projectId}/creation`), 650);
     } catch {
       setErreur("Le lancement a échoué. Réessaie.");

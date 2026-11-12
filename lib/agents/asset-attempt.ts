@@ -7,16 +7,16 @@ import { entreePromptAffiche } from "./poster";
 import { entreePromptAsset, type EntreeSkill } from "./context";
 import type { Db } from "./appliers/common";
 
-/** Un essai lancé depuis la fiche d'un asset (2026-10-15) : l'utilisateur écrit une CONSIGNE en français ; le skill `prompt-asset` la traduit
- * en prompt pour le modèle (Krea 2 sans image de base, Qwen Image Edit avec) ; l'essai entre alors dans la file d'images. Comme l'affiche du clap
- * (lib/agents/poster-clap.ts), c'est une tâche LLM dont le résultat lance la génération, sans passer par une proposition à relire. */
+/** An attempt launched from an asset's sheet (2026-10-15): the user writes an INSTRUCTION in French; the `prompt-asset` skill translates it
+ * into a prompt for the model (Krea 2 without a base image, Qwen Image Edit with one); the attempt then enters the image queue. Like the clap
+ * poster (lib/agents/poster-clap.ts), this is an LLM task whose result starts the generation, without going through a proposal to review. */
 
 export const BUT_ESSAI = "essai";
 
 type OptionsEssai = { generationId: number };
 
-/** L'entrée du skill pour un essai : celle d'un asset ordinaire, avec la méthode IMPOSÉE (le code l'a décidée d'après la présence d'une image de
- * base) et, comme prompt « actuel », celui de l'image de base (le prompt de l'essai d'où l'on repart, sinon celui de l'asset). */
+/** The skill input for an attempt: that of an ordinary asset, with the method FORCED (the code decided it from whether a base
+ * image is present) and, as the "current" prompt, that of the base image (the prompt of the attempt we start from, otherwise that of the asset). */
 export async function entreeEssaiAsset(
   db: Db,
   projectId: number,
@@ -25,14 +25,14 @@ export async function entreeEssaiAsset(
     consigne: string;
     aUneBase: boolean;
     promptBase: string;
-    /** Les images de l'essai, dans l'ordre (l'image 1 est celle qui porte les modifications) : la base d'abord s'il y en a une, puis les jointes. */
+    /** The attempt's images, in order (image 1 carries the changes): the base first if there is one, then the attached ones. */
     images: { rang: number; role: "base" | "jointe"; libelle: string }[];
-    /** Un son : la durée que l'utilisateur a fixée (le prompt doit lui convenir). */
+    /** A sound: the duration the user set (the prompt must fit it). */
     dureeSecondes?: number;
   },
 ): Promise<EntreeSkill | null> {
   const methode = methodeDEssai(p.images.length > 0);
-  // Une affiche de présentation : le skill `prompt-asset` en variante `affiche` (titre, résumé, ton, personnage principal), avec la méthode imposée.
+  // A presentation poster: the `prompt-asset` skill in its `affiche` variant (title, summary, tone, main character), with the forced method.
   const [asset] = await db.select({ type: assets.type }).from(assets).where(and(eq(assets.id, assetId), eq(assets.projectId, projectId)));
   if (asset?.type === TYPE_AFFICHE) {
     const affiche = await entreePromptAffiche(db, projectId, assetId, p.consigne);
@@ -63,8 +63,8 @@ export async function entreeEssaiAsset(
   };
 }
 
-/** Retour du skill (appelé par le worker, dans sa transaction) : le prompt est écrit sur l'essai, qui entre dans la file d'images. Un essai supprimé
- * ou annulé entre-temps n'est pas ressuscité. */
+/** Skill return (called by the worker, inside its transaction): the prompt is written to the attempt, which enters the image queue. An attempt
+ * deleted or cancelled in the meantime is not revived. */
 export async function ecrireEssaiTraduit(db: Db, options: unknown, sortie: { promptGeneration?: unknown }): Promise<void> {
   const generationId = (options as Partial<OptionsEssai> | null)?.generationId;
   if (typeof generationId !== "number") throw new Error("Essai sans identifiant de génération.");
@@ -76,7 +76,7 @@ export async function ecrireEssaiTraduit(db: Db, options: unknown, sortie: { pro
     .where(and(eq(assetGenerations.id, generationId), eq(assetGenerations.statut, STATUT_TRADUCTION)));
 }
 
-/** La traduction a échoué ou a été annulée : l'essai le dit (rien ne part dans la file d'images). */
+/** The translation failed or was cancelled: the attempt says so (nothing goes into the image queue). */
 export async function terminerEssaiSansPrompt(db: Db, options: unknown, statut: "echoue" | "annulee", message: string | null): Promise<void> {
   const generationId = (options as Partial<OptionsEssai> | null)?.generationId;
   if (typeof generationId !== "number") return;
@@ -86,7 +86,7 @@ export async function terminerEssaiSansPrompt(db: Db, options: unknown, statut: 
     .where(and(eq(assetGenerations.id, generationId), eq(assetGenerations.statut, STATUT_TRADUCTION)));
 }
 
-/** Annule la traduction d'un essai (suppression ou annulation depuis la fiche) : la tâche LLM en attente est annulée, celle qui tourne finira dans le vide. */
+/** Cancels an attempt's translation (deletion or cancellation from the sheet): the pending LLM task is cancelled; a running one will finish into the void. */
 export async function annulerTraductionEssai(db: Db, generationId: number): Promise<void> {
   await db
     .update(agentRuns)
@@ -100,8 +100,8 @@ export async function annulerTraductionEssai(db: Db, generationId: number): Prom
     );
 }
 
-/** Filet de sécurité : un essai « en traduction » dont plus aucune tâche LLM n'est en attente ni en cours (annulée, supprimée, perdue) est marqué
- * annulé. Appelé après chaque annulation d'appel LLM, pour que la fiche ne montre jamais un essai qui attend pour rien. */
+/** Safety net: an attempt "in translation" with no LLM task left pending or running (cancelled, deleted, lost) is marked
+ * cancelled. Called after each LLM call cancellation, so the sheet never shows an attempt waiting for nothing. */
 export async function balayerEssaisSansTache(db: Db): Promise<void> {
   await db.execute(sql`
     UPDATE asset_generations

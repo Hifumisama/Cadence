@@ -27,10 +27,10 @@ const LIBELLES: Record<VueCreation["etapes"][number]["statut"], string> = {
 
 const NOMS_ETAPES = ["Format", "Genre & ton", "Durée", "Langue", "Style", "Mise en scène", "Scénario", "Clap", "Avancée"];
 
-/** Scène 8 de la conception : l'avancée de la préparation, étape par étape (l'installateur, lib/agents/creation.ts). Même données et même
- * sondage que l'ancienne page ; seule la présentation change : le ruban de la conception, l'affiche du projet, le pourcentage sur une
- * ligne et des étapes rondes reliées. Jamais la couleur seule : chaque état a son libellé. `conception` est null pour un projet créé
- * avant la conception (la page n'a alors ni ruban ni affiche). */
+/** Scene 8 of the design: the preparation's progress, step by step (the installer, lib/agents/creation.ts). Same data and same
+ * polling as the old page; only the presentation changes: the design ribbon, the project's poster, the percentage on one
+ * line and round linked steps. Never colour alone: each state has its label. `conception` is null for a project created
+ * before the design (the page then has neither ribbon nor poster). */
 export function AvanceeScene({
   projectId,
   nomProjet,
@@ -44,14 +44,14 @@ export function AvanceeScene({
 }: {
   projectId: number;
   nomProjet: string;
-  /** Les plans et leurs intents (lib/agents/creation-view.ts) : l'écran de fin de la phase 1 les fait relire avant d'écrire les fiches. */
+  /** The clips and their intents (lib/agents/creation-view.ts): the end screen of phase 1 has them re-read before writing the sheets. */
   plansInitial: PlanIntent[];
-  /** La dernière demande de fiche de chaque plan (`lireSuiviFiches`) : l'écran des intents suit « Écrire les fiches » plan par plan. */
+  /** The latest sheet request of each clip (`lireSuiviFiches`): the intents screen follows « Écrire les fiches » clip by clip. */
   suiviInitial: SuiviFichePlan[];
-  /** La mise en scène du projet en quelques mots (`resumeMiseEnScene`), pour le ruban. */
+  /** The project's staging in a few words (`resumeMiseEnScene`), for the ribbon. */
   miseEnScene: string;
   initial: VueCreation | null;
-  /** Où en sont les images de référence (lib/assets/project-images.ts) : le clap final dit ce qui est vraiment fait. */
+  /** Where the reference images stand (lib/assets/project-images.ts): the final clap says what is really done. */
   imagesInitial: EtatImages;
   conception: Conception | null;
   style: StyleAffiche;
@@ -59,14 +59,14 @@ export function AvanceeScene({
   const [vue, setVue] = useState<VueCreation | null>(initial);
   const [pending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
-  // Détail d'une étape : replié quand tout va bien, ouvert d'office tant qu'elle travaille ou qu'elle a échoué (sauf choix contraire).
+  // Step detail: collapsed when all is well, opened by default while it works or when it has failed (unless chosen otherwise).
   const [depliees, setDepliees] = useState<Record<string, boolean>>({});
-  // Une fois la préparation terminée : le grand clap (« Voir le projet ») remplace la liste, qu'un petit bouton ramène. Tant que des plans n'ont pas
-  // de fiche, l'écran des intents passe d'abord (« Plus tard » mène au clap) ; un bouton y ramène toujours.
+  // Once the preparation is finished: the big clap (« Voir le projet ») replaces the list, which a small button brings back. As long as some clips
+  // have no sheet, the intents screen comes first (« Plus tard » leads to the clap); a button always brings it back.
   const [affichage, setAffichage] = useState<"clap" | "etapes" | "intents" | null>(null);
   const enVol = useRef(false);
   const { etat: images, recharger: rechargerImages } = useEtatImages(projectId, imagesInitial);
-  // Le clap ne dit « tout est prêt » que s'il n'y a rien à illustrer ou si toutes les images existent.
+  // The clap only says « tout est prêt » if there is nothing to illustrate or if all the images exist.
   const imagesAFaire = images != null && images.sansImage > 0;
 
   const charger = useCallback(async () => {
@@ -76,7 +76,7 @@ export function AvanceeScene({
       const res = await fetch(`/api/creation/${projectId}`, { cache: "no-store" });
       if (res.ok) setVue(((await res.json()) as { creation: VueCreation | null }).creation);
     } catch {
-      /* serveur qui redémarre : au prochain tour */
+      /* server restarting: next round */
     } finally {
       enVol.current = false;
     }
@@ -107,7 +107,7 @@ export function AvanceeScene({
   const pct = vue && vue.total ? Math.round((vue.faites / vue.total) * 100) : 0;
   const etapeCourante = vue?.etapes.find((e) => e.statut === "en_cours" || e.statut === "echoue");
   const termine = vue?.statut === "termine";
-  // Des fiches à écrire : décidé par les plans (des plans sans fiche), pas par la création (les fiches sont des demandes par plan, hors création).
+  // Sheets to write: decided by the clips (clips without a sheet), not by creation (sheets are per-clip requests, outside creation).
   const fichesAEcrire = termine && vue != null && vue.plansSansFiche > 0;
   const titre = !vue
     ? <>Pas encore de <em>préparation</em>.</>
@@ -148,13 +148,13 @@ export function AvanceeScene({
                 initial={plansInitial}
                 suiviInitial={suiviInitial}
                 onLancees={() => {
-                  setAffichage("intents"); // reste sur le suivi, même quand toutes les fiches sont lancées
+                  setAffichage("intents"); // stays on the tracking, even when all the sheets have been launched
                   void charger();
                 }}
                 onPlusTard={() => setAffichage("clap")}
               />
             ) : vueClap && imagesAFaire && images ? (
-              // Préparation finie mais images de référence pas faites : le clap le dit et pointe la suite (pas un lien d'un bloc : il porte des boutons).
+              // Preparation finished but reference images not done: the clap says so and points to what comes next (not a block link: it carries buttons).
               <div className="cn-grand-clap cn-grand-clap-suite">
                 <span className="cn-grand-clap-haut" aria-hidden="true" />
                 <span className="cn-grand-clap-corps">

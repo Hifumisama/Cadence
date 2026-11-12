@@ -7,17 +7,17 @@ import { etatNotifications, notifier, pageEnArriere } from "@/lib/tasks/notifica
 import type { Tache } from "@/lib/tasks/tasks";
 import { Icone } from "@/components/ui/Icon";
 
-/** Notifications de fin de tâche : un petit toast quand une génération, une
- * proposition ou une vidéo se termine (ou échoue), même si on est ailleurs dans
- * l'application. Le panneau du header garde la liste ; ici, on prévient.
+/** End-of-task notifications: a small toast when a generation, a
+ * proposal or a video ends (or fails), even if we are elsewhere in
+ * the application. The header panel keeps the list; here, we warn.
  *
- * Règles :
- * - ce qui était déjà fini à l'ouverture de la page n'est pas annoncé (il est dans le
- *   panneau, avec son point) ;
- * - une annulation voulue par l'utilisateur ne notifie pas ;
- * - tant qu'une popup modale est ouverte, on attend : elle masquerait le toast (couche
- *   supérieure du navigateur) et la popup montre déjà son résultat ;
- * - au-delà de 3 fins d'un coup, un seul toast les regroupe. */
+ * Rules:
+ * - what was already finished when the page opened is not announced (it is in the
+ *   panel, with its dot);
+ * - a cancellation wanted by the user does not notify;
+ * - while a modal popup is open, we wait: it would mask the toast (the browser's
+ *   top layer) and the popup already shows its result;
+ * - beyond 3 ends at once, a single toast groups them. */
 
 const DUREE_MS = 10000;
 const DUREE_ECHEC_MS = 16000;
@@ -48,7 +48,7 @@ export function NotificationsTaches() {
   const router = useRouter();
   const { taches, pret, marquerVuLocal, setPanneauOuvert } = useTaches();
   const [toasts, setToasts] = useState<Toast[]>([]);
-  // Tâches déjà annoncées (ou terminées avant l'ouverture de la page).
+  // Tasks already announced (or finished before the page opened).
   const annoncees = useRef<Set<string> | null>(null);
   const compteur = useRef(0);
   const minuteurs = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
@@ -80,7 +80,7 @@ export function NotificationsTaches() {
 
   useEffect(() => {
     if (!pret) return;
-    // Première réponse : tout ce qui est déjà fini est « connu », pas annoncé.
+    // First response: everything already finished is « known », not announced.
     if (annoncees.current === null) {
       annoncees.current = new Set(taches.filter(estFinie).map((x) => x.cle));
       return;
@@ -89,8 +89,8 @@ export function NotificationsTaches() {
     const nouvelles = taches.filter((x) => estFinie(x) && x.vuAt == null && !vues.has(x.cle));
     if (nouvelles.length === 0) return;
 
-    // Page en arrière-plan (autre onglet, autre fenêtre) et notifications natives actives :
-    // une notification du système, pas de toast (il aurait disparu avant le retour).
+    // Background page (other tab, other window) and native notifications active:
+    // a system notification, not a toast (it would have disappeared before the return).
     if (etatNotifications() === "active" && pageEnArriere()) {
       nouvelles.forEach((x) => vues.add(x.cle));
       if (nouvelles.length > MAX_VISIBLES) {
@@ -106,7 +106,7 @@ export function NotificationsTaches() {
       }
       return;
     }
-    // Une popup modale ouverte : on garde les fins en réserve et on réessaie un peu plus tard.
+    // A modal popup open: we keep the ends in reserve and retry a little later.
     if (document.querySelector("dialog[open]")) {
       const t = setTimeout(() => setAttente((n) => n + 1), 1500);
       return () => clearTimeout(t);

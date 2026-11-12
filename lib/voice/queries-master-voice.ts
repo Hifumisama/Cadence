@@ -3,8 +3,8 @@ import { db } from "../../db";
 import { assets } from "../../db/schema";
 import { assetMediaSrc, voixMediaSrc } from "../media";
 
-/** La voix d'un personnage (chantier voix/master) : ce qu'on a voulu (description, réplique du test) et le master retenu, avec les URL de
- * son audio et de sa vidéo de test. Côté serveur uniquement (accès disque). null si l'asset n'est pas un personnage du projet. */
+/** The voice of a character (voice/master workstream): what was wanted (description, test line) and the selected master, with the URLs of
+ * its audio and of its test video. Server side only (disk access). null if the asset is not a character of the project. */
 export async function getVoixPersonnage(projectId: number, assetId: number) {
   const [a] = await db
     .select({
@@ -27,7 +27,7 @@ export async function getVoixPersonnage(projectId: number, assetId: number) {
     masterNom: a.voixMaster,
     masterSrc: audio ? `${audio}${version}` : null,
     videoSrc: video ? `${video}${version}` : null,
-    /** Le portrait du personnage (son image de registre) : l'affiche de l'écran de test. */
+    /** The character's portrait (its registry image): the poster of the test screen. */
     portraitSrc: assetMediaSrc(a.fichier),
   };
 }

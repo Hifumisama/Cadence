@@ -11,9 +11,9 @@ import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminPosterMedia, type PosterCibl
 import { inventaireProjet, supprimerProjetComplet } from "@/lib/projects/project-deletion";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
 
-/** Crée le projet (un film) et son épisode unique SANS rediriger : « Créer avec l'agent » ouvre ensuite la popup d'agent sur le projet vide. */
+/** Creates the project (a film) and its single episode WITHOUT redirecting: « Créer avec l'agent » then opens the agent popup on the empty project. */
 export async function creerProjetSansRedirection(valeurs: { nom: string; creativite?: string | null; styleCamera?: string | null }): Promise<{ projectId: number }> {
-  // Créativité et style de mise en scène (Open H3 IR) : choisis à l'étape « Mise en scène » de la conception ; absents, le projet hérite des défauts.
+  // Creativity and staging style (Open H3 IR): chosen at the « Mise en scène » step of the design; when absent, the project inherits the defaults.
   const [projet] = await db
     .insert(projects)
     .values({ nom: valeurs.nom, creativite: creativiteOuNull(valeurs.creativite), styleCamera: styleCameraOuNull(valeurs.styleCamera) })
@@ -48,19 +48,18 @@ export async function uploaderPosterProjet(projectId: number, formData: FormData
   revalidatePath("/", "layout");
 }
 
-/** Ce que la suppression emportera — pour la confirmation (lib/projects/project-deletion.ts). */
+/** What the deletion will take away — for the confirmation (lib/projects/project-deletion.ts). */
 export async function lireInventaireSuppression(projectId: number) {
   return inventaireProjet(projectId);
 }
 
-/** Jamais bloquée (retour utilisateur 2026-09-28) : le projet est la racine
- * de la hiérarchie, sa suppression entraîne tout avec elle — épisodes, scènes, plans (et leurs sections/refs/dialogues/jobs), ET
- * ses assets (db/schema.ts, cascade) — le seul cas où un asset disparaît.
- * Depuis la recette du 2026-10-04 elle emporte aussi les traces et appels LLM du
- * projet et ses fichiers sur disque (rendus, voix, posters, images d'assets).
- * Attention opérationnelle : tant qu'il n'existe qu'un projet, le supprimer
- * casse `getDefaultProjectId()` (lib/queries.ts) jusqu'à la création d'un
- * nouveau projet — pas de garde-fou ajouté ici, ce n'était pas demandé. */
+/** Never blocked (user feedback 2026-09-28): the project is the root
+ * of the hierarchy, deleting it takes everything with it — episodes, scenes, clips (and their sections/refs/dialogues/jobs), AND
+ * its assets (db/schema.ts, cascade) — the only case where an asset disappears.
+ * Since the recipe of 2026-10-04 it also takes the traces and LLM calls of the
+ * project and its files on disk (renders, voices, posters, asset images).
+ * Operational warning: as long as only one project exists, deleting it
+ * breaks `getDefaultProjectId()` (lib/queries.ts) until a new project is created — no safeguard added here, as it was not requested. */
 export async function supprimerProjet(projectId: number) {
   await supprimerProjetComplet(projectId);
   revalidatePath("/", "layout");
@@ -72,8 +71,8 @@ export async function modifierNomProjet(projectId: number, nom: string) {
   revalidatePath("/", "layout");
 }
 
-/** Créativité et style de mise en scène du projet (Open H3 IR) : le niveau le plus général, que les scènes puis les plans peuvent surcharger (lib/h3ir/settings.ts).
- * Vide ou valeur inconnue = réglage par défaut ; le style « aucun » est une valeur (aucun style de mise en scène). */
+/** Creativity and staging style of the project (Open H3 IR): the most general level, which the scenes and then the clips can override (lib/h3ir/settings.ts).
+ * Empty or unknown value = default setting; the style « aucun » is a value (no staging style). */
 export async function modifierReglagesCameraProjet(projectId: number, valeurs: { creativite: string | null; styleCamera: string | null }) {
   await db
     .update(projects)
@@ -82,7 +81,7 @@ export async function modifierReglagesCameraProjet(projectId: number, valeurs: {
   revalidatePath("/", "layout");
 }
 
-/** Le « titre » affiché du film est celui du projet (modifierNomProjet), pas de son épisode : seul le résumé se modifie ici. */
+/** The displayed « titre » of the film is the project's (modifierNomProjet), not its episode's: only the summary is edited here. */
 export async function modifierEpisode(episodeId: number, valeurs: { resume: string }) {
   await db.update(episodes).set({ resume: valeurs.resume }).where(eq(episodes.id, episodeId));
   revalidatePath("/", "layout");

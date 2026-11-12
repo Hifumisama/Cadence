@@ -16,7 +16,7 @@ test("l'agent a fini : la décision de la proposition commande la suite", () => 
   const decisions = { description: "d", dureeSecondes: 8, reglages: { creativite: "bold" } };
   assert.deepEqual(deciderIteration("agent", { tache: run("termine"), decision: { action: "reecrire", decisions, affichage: null, notes: ["n"] } }), { type: "reecrire", decisions, affichage: null, notes: ["n"] });
   assert.deepEqual(deciderIteration("agent", { tache: run("termine"), decision: { action: "rien", message: "Rien n'a été appliqué." } }), { type: "echouer", erreur: "Rien n'a été appliqué." });
-  // la proposition n'est pas encore lisible : on attend
+  // the proposal is not yet readable: we wait
   assert.deepEqual(deciderIteration("agent", { tache: run("termine"), decision: { action: "attendre" } }), { type: "attendre" });
 });
 
@@ -56,7 +56,7 @@ test("avec réécriture : l'étape suivante est la réécriture", () => {
   assert.deepEqual(e.map((x) => x.statut), ["fait", "en_cours", "a_venir"]);
 });
 
-// --- Ajouter un plan ---------------------------------------------------------------------------------------------------------------------
+// --- Add a clip ---------------------------------------------------------------------------------------------------------------------------
 
 const changement = (o: Partial<{ id: number; cibleType: string; operation: string; bloque: boolean; refuseRaison: string | null; avertissements: { type: string; texte: string }[]; libelle: string; apres: unknown }> = {}) => ({
   id: 1,
@@ -95,7 +95,7 @@ test("ajout de plan : une proposition déjà appliquée (reprise après un plant
   assert.deepEqual(decisionAjoutPlan(proposition("appliquee")), { action: "fait" });
 });
 
-// --- Nouvelle scène ----------------------------------------------------------------------------------------------------------------------
+// --- New scene ----------------------------------------------------------------------------------------------------------------------------
 
 test("nouvelle scène : la scène et ses plans sont retenus, le reste (un asset) reste décoché", () => {
   assert.deepEqual(decisionAjoutScene(null), { action: "attendre" });
@@ -122,17 +122,17 @@ test("nouvelle scène : sans scène, sans plan, bloquée ou refusée, la demande
   assert.deepEqual(etapesAjoutScene().map((x) => x.cle), ["agent", "ajout"]);
 });
 
-// --- Générer la fiche d'un plan ------------------------------------------------------------------------------------------------------------
+// --- Generate a clip's sheet ---------------------------------------------------------------------------------------------------------------
 
 test("fiche de plan : préparation (références → assets → prompts → images → compilation), chemin rapide", () => {
   const prep = etapesFichePlan("preparation");
   assert.deepEqual(prep.map((x) => [x.cle, x.statut]), [["references", "en_cours"], ["assets", "a_venir"], ["prompts", "a_venir"], ["images", "a_venir"], ["compilation", "a_venir"]]);
   assert.deepEqual(etapesFichePlan().map((x) => x.cle), prep.map((x) => x.cle), "le parcours par défaut est la préparation Open H3 IR");
-  // Chemin rapide : les références ont toutes leur image, la compilation part tout de suite (la préparation est « passée »).
+  // Fast path: the references all have their image, the compilation leaves at once (the preparation is « passée »).
   const rapide = etapesFichePlan("rapide");
   assert.equal(etapeCouranteDemande(rapide)?.cle, "compilation");
   assert.deepEqual(progressionDemande(rapide), { faites: 4, total: 5 });
-  // Références faites sans asset créé : assets passée, les prompts deviennent l'étape en cours ; les compteurs se lisent dans les libellés.
+  // References done without an asset created: assets passed, the prompts become the current step; the counters are read in the labels.
   let e = avancerEtapes(avancerEtapes(prep, "references", "fait"), "assets", "passe");
   assert.equal(etapeCouranteDemande(e)?.cle, "prompts");
   e = renommerEtape(avancerEtapes(e, "prompts", "passe"), "images", "Images (1/3)");

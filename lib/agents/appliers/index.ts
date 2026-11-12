@@ -6,8 +6,8 @@ import { applicateurPlan } from "./clip";
 import type { Applicateur } from "./common";
 import { applicateurEpisode, applicateurProjet, applicateurScene } from "./structure";
 
-/** Registre des applicateurs par type de cible. Une cible sans applicateur n'est PAS
- * écrite en silence : `refusSansApplicateur` produit un refus explicite. */
+/** Registry of appliers by target type. A target without an applier is NOT
+ * written silently: `refusSansApplicateur` produces an explicit refusal. */
 const REGISTRE: Partial<Record<CibleType, Applicateur>> = {
   brief: applicateurBrief,
   projet: applicateurProjet,

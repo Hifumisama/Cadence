@@ -1,12 +1,12 @@
-/** L'INTENT d'un plan (`plans.description`) : le récit, les répliques (`NOM : « … »`), éventuellement une phrase « Consigne de l'auteur : … ». Pur, testé.
+/** The INTENT of a clip (`plans.description`): the narrative, the lines of dialogue (`NOM : « … »`), possibly a sentence « Consigne de l'auteur : … ». Pure, tested.
  *
- * - « État en fin de plan : … » n'est plus écrit (2026-11-08) : c'était le raccord entre plans de l'ancienne liaison ; une `suite` prolonge désormais le
- *   rendu précédent par son latent (Motion Context, lib/renders/video-steps.ts). Les plans écrits avant gardent cette ligne en base : `sansEtatDeFin` la retire
- *   à la lecture (affichage, entrées des skills). Aucune migration n'est nécessaire.
- * - « Consigne de l'auteur : … » reste STOCKÉE (traduction-intent la lit) mais ne s'affiche pas : quand le récit la respecte, elle le double.
- *   `intentAffichee` la masque. */
+ * - « État en fin de plan : … » is no longer written (2026-11-08): it was the link between clips of the old link; a `suite` now extends the
+ *   previous render through its latent (Motion Context, lib/renders/video-steps.ts). Clips written before keep this line in the database: `sansEtatDeFin` removes it
+ *   on reading (display, skill inputs). No migration is needed.
+ * - « Consigne de l'auteur : … » remains STORED (traduction-intent reads it) but is not displayed: when the narrative respects it, it duplicates it.
+ *   `intentAffichee` hides it. */
 
-/** Le début de la ligne d'état de fin (ancien format), où qu'elle commence : en tête de ligne ou en fin de paragraphe (« Il frappe. État en fin de plan : … »). */
+/** The start of the end-state line (old format), wherever it begins: at the start of a line or at the end of a paragraph (« Il frappe. État en fin de plan : … »). */
 const ETAT_DE_FIN = /[ée]tat en fin de plan\s*:/i;
 const CONSIGNE = /consigne de l['’]auteur\s*:/i;
 
@@ -17,8 +17,8 @@ const ranger = (lignes: string[]): string =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-/** Retire l'« État en fin de plan » d'une description écrite avant le 2026-11-08 : de la phrase jusqu'à la fin de son paragraphe (la ligne vide suivante).
- * Une description sans cette phrase est rendue telle quelle (aux blancs de fin près). */
+/** Removes the « État en fin de plan » from a description written before 2026-11-08: from the sentence to the end of its paragraph (the next blank line).
+ * A description without this sentence is returned as is (except trailing blanks). */
 export function sansEtatDeFin(description: string | null | undefined): string {
   const lignes = (description ?? "").replace(/\r\n?/g, "\n").split("\n");
   const gardees: string[] = [];
@@ -40,10 +40,10 @@ export function sansEtatDeFin(description: string | null | undefined): string {
   return ranger(gardees);
 }
 
-/** La description contient-elle encore une ligne d'état de fin (plan écrit avant le 2026-11-08) ? */
+/** Does the description still contain an end-state line (clip written before 2026-11-08)? */
 export const aUnEtatDeFin = (description: string | null | undefined): boolean => ETAT_DE_FIN.test(description ?? "");
 
-/** Retire la phrase « Consigne de l'auteur : … » (jusqu'à la fin de sa ligne). Pour l'AFFICHAGE seulement : le stockage la garde. */
+/** Removes the sentence « Consigne de l'auteur : … » (up to the end of its line). For DISPLAY only: storage keeps it. */
 export function sansConsigneAuteur(description: string | null | undefined): string {
   const gardees: string[] = [];
   for (const ligne of (description ?? "").replace(/\r\n?/g, "\n").split("\n")) {
@@ -58,10 +58,10 @@ export function sansConsigneAuteur(description: string | null | undefined): stri
   return ranger(gardees);
 }
 
-/** L'intent tel qu'on l'AFFICHE : sans l'ancien « État en fin de plan », sans la « Consigne de l'auteur ». */
+/** The intent as it is DISPLAYED: without the old « État en fin de plan », without the « Consigne de l'auteur ». */
 export const intentAffichee = (description: string | null | undefined): string => sansConsigneAuteur(sansEtatDeFin(description));
 
-/** La phrase « Consigne de l'auteur : … » stockée dans la description (du marqueur à la fin de sa ligne), ou null. */
+/** The sentence « Consigne de l'auteur : … » stored in the description (from the marker to the end of its line), or null. */
 export function consigneAuteur(description: string | null | undefined): string | null {
   for (const ligne of (description ?? "").replace(/\r\n?/g, "\n").split("\n")) {
     const m = CONSIGNE.exec(ligne);
@@ -70,50 +70,50 @@ export function consigneAuteur(description: string | null | undefined): string |
   return null;
 }
 
-/** Un texte réécrit (relu à la main dans la vue Lecture, ou rendu par un agent) garde la « Consigne de l'auteur » de la description actuelle quand il n'en porte
- * pas lui-même : elle est masquée à l'affichage (`intentAffichee`), donc absente de ce que l'on édite, et ne doit pas disparaître en silence. Un texte qui a
- * sa propre consigne la garde (c'est la nouvelle). */
+/** A rewritten text (re-read by hand in the Reading view, or rendered by an agent) keeps the « Consigne de l'auteur » of the current description when it does not
+ * carry one itself: it is hidden on display (`intentAffichee`), hence absent from what is edited, and must not disappear silently. A text that has
+ * its own instruction keeps it (it is the new one). */
 export function conserverConsigneAuteur(nouvelle: string, actuelle: string | null | undefined): string {
   if (CONSIGNE.test(nouvelle)) return nouvelle;
   const consigne = consigneAuteur(actuelle);
   return consigne ? `${nouvelle.trimEnd()}\n\n${consigne}` : nouvelle;
 }
 
-/** Les deux descriptions disent-elles la même chose ? Les blancs ne comptent pas (retours chariot, espaces de fin de ligne, retours à la ligne). */
+/** Do the two descriptions say the same thing? Blanks do not count (carriage returns, trailing spaces, line breaks). */
 export const memeDescription = (a: string | null | undefined, b: string | null | undefined): boolean =>
   (a ?? "").replace(/\s+/g, " ").trim() === (b ?? "").replace(/\s+/g, " ").trim();
 
-/** Remplacer la description actuelle par celle d'un ancien essai la PERDRAIT-elle ? Oui quand elle diffère de celle de l'essai ET qu'aucun essai ne la porte
- * (une modification à la main depuis) : sinon elle reste retrouvable dans son propre essai. */
+/** Would replacing the current description with that of an old attempt LOSE it? Yes when it differs from that of the attempt AND no attempt carries it
+ * (a hand edit since): otherwise it remains findable in its own attempt. */
 export function descriptionSeraitPerdue(actuelle: string | null | undefined, descriptionEssai: string | null | undefined, descriptionsDesEssais: (string | null | undefined)[]): boolean {
   if (descriptionEssai == null || memeDescription(actuelle, descriptionEssai)) return false;
   if (!(actuelle ?? "").trim()) return false;
   return !descriptionsDesEssais.some((d) => d != null && memeDescription(actuelle, d));
 }
 
-/** Ce qu'un texte (une fiche, un rendu) ne dit plus de l'intention du plan : la description d'aujourd'hui n'est plus celle dont il est parti. Sans valeur
- * enregistrée (plan écrit avant ce suivi), on ne sait pas : faux. */
+/** What a text (a sheet, a render) no longer says of the clip's intention: today's description is no longer the one it started from. Without a recorded value
+ * (clip written before this tracking), we do not know: false. */
 export const intentionChangee = (description: string | null | undefined, descriptionDepart: string | null | undefined): boolean =>
   descriptionDepart != null && !memeDescription(description, descriptionDepart);
 
-/** Les répliques `« … »` d'une description. */
+/** The `« … »` lines of dialogue of a description. */
 const repliquesIntent = (description: string): string[] => [...description.matchAll(/«\s*([\s\S]*?)\s*»/g)].map((m) => m[1]!.trim()).filter(Boolean);
 
 const mots = (t: string): string[] => t.toLowerCase().match(/\p{L}{3,}/gu) ?? [];
 
-/** Le récit seul : sans état de fin, sans consigne, sans lignes de réplique. */
+/** The narrative alone: without end state, without instruction, without dialogue lines. */
 export const recitDe = (description: string): string => sansConsigneAuteur(sansEtatDeFin(description).replace(LIGNE_REPLIQUE, "")).trim();
 
-/** Une ligne de réplique : « NOM : « texte » » (le même motif que lib/h3ir/brief.ts). */
+/** A line of dialogue: « NOM : « texte » » (the same pattern as lib/h3ir/brief.ts). */
 const LIGNE_REPLIQUE = /^[ \t  ]*[^:«»\n]{1,60}?[ \t  ]*:[ \t  ]*«[^\n]*»[ \t  ]*$/gm;
 
-/** Pourquoi une NOUVELLE description (écrite par un agent qui corrige un plan) ne peut pas remplacer l'actuelle, ou null si elle le peut.
- * Un agent ne rend parfois qu'un morceau (la seule phrase qu'il a changée : un `iteration-plan` a rendu, pour une description complète, ses
- * 222 caractères d'ancien état de fin seulement) ; la remplacer effacerait le récit, et la correction suivante ne verrait plus rien. Refusée quand :
- * - elle n'a plus de récit (seulement des répliques, une consigne ou l'ancien état de fin) ;
- * - elle est beaucoup plus courte que le récit actuel (moins de 40 % ; 25 % pour une réécriture, qui peut légitimement simplifier) ET n'en garde
- *   presque aucun mot (moins de 30 %) : c'est un fragment, pas une description.
- * Les deux textes sont comparés SANS leur état de fin (ancien format). La perte d'une réplique se signale à part (`repliquesPerdues`). */
+/** Why a NEW description (written by an agent that corrects a clip) cannot replace the current one, or null if it can.
+ * An agent sometimes renders only a piece (the single sentence it changed: an `iteration-plan` rendered, for a full description, its
+ * 222 characters of old end state only); replacing it would erase the narrative, and the next correction would no longer see anything. Refused when:
+ * - it no longer has a narrative (only dialogue lines, an instruction or the old end state);
+ * - it is much shorter than the current narrative (less than 40%; 25% for a rewrite, which may legitimately simplify) AND keeps almost no words of it
+ *   (less than 30%): it is a fragment, not a description.
+ * Both texts are compared WITHOUT their end state (old format). The loss of a dialogue line is reported separately (`repliquesPerdues`). */
 export function raisonDescriptionIncomplete(
   nouvelle: string | null | undefined,
   actuelle: string | null | undefined,
@@ -133,7 +133,7 @@ export function raisonDescriptionIncomplete(
   return null;
 }
 
-/** Les répliques de l'actuelle qui ne sont plus dans la nouvelle (aux blancs et à la casse près). */
+/** The dialogue lines of the current one that are no longer in the new one (up to blanks and case). */
 export function repliquesPerdues(nouvelle: string | null | undefined, actuelle: string | null | undefined): string[] {
   const norme = (s: string) => s.toLowerCase().replace(/[\s  ]+/g, " ").trim();
   const n = norme(nouvelle ?? "");

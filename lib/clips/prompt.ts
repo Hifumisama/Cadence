@@ -1,6 +1,6 @@
 import type { PromptSection } from "./clip-checks";
 
-// Ordre canonique du format MiniMax H3 — voir
+// Canonical order of the MiniMax H3 format — see
 // docs/references/h3-guide-fullref.md.
 export const ORDRE_SECTIONS = [
   "subject_definitions",
@@ -13,27 +13,27 @@ export const ORDRE_SECTIONS = [
 
 export type NomSection = (typeof ORDRE_SECTIONS)[number];
 
-/** Assemble le prompt final soumis à ComfyUI : concatène les 6 sections dans
- * l'ordre du format H3. Pas de clause de style injectée ici — testé en
- * production (2026-09-29) sans effet mesurable sur la vidéo, contrairement
- * aux images de référence ; la fiche de plan porte déjà le style au début de
- * detailed_description quand il en faut un. */
+/** Assembles the final prompt submitted to ComfyUI: concatenates the 6 sections in
+ * the order of the H3 format. No style clause injected here — tested in
+ * production (2026-09-29) with no measurable effect on the video, unlike
+ * the reference images; the clip sheet already carries the style at the start of
+ * detailed_description when one is needed. */
 export function assemblerPrompt(sections: PromptSection[]): string {
   const parSection = new Map(sections.map((s) => [s.section, s.contenu]));
   return ORDRE_SECTIONS.map((nom) => `${nom}:\n${parSection.get(nom) ?? ""}`).join("\n\n");
 }
 
-/** Retire un habillage ```text ... ``` (ou ``` ... ``` nu) autour d'un
- * prompt collé, et normalise les fins de ligne. */
+/** Removes a ```text ... ``` wrapper (or a bare ``` ... ```) around a
+ * pasted prompt, and normalises the line endings. */
 export function extraireBlocPrompt(brut: string): string {
   const texte = brut.replace(/\r\n/g, "\n").trim();
   const fence = texte.match(/^```(?:text)?\n([\s\S]*?)\n```$/);
   return (fence ? fence[1] : texte) ?? "";
 }
 
-/** Vérifie que les 6 en-têtes canoniques sont tous présents, une seule fois
- * chacun. Ne vérifie pas leur ordre : decouperSections() les retrouve par
- * leur nom, pas par leur position. */
+/** Checks that the 6 canonical headers are all present, once
+ * each. Does not check their order: decouperSections() finds them by
+ * their name, not by their position. */
 export function validerPromptColle(texte: string): { erreurs: string[] } {
   const erreurs: string[] = [];
   for (const section of ORDRE_SECTIONS) {
@@ -44,8 +44,8 @@ export function validerPromptColle(texte: string): { erreurs: string[] } {
   return { erreurs };
 }
 
-/** Découpe un prompt H3 collé en ses 6 sections. Best-effort : appeler
- * validerPromptColle() avant pour un texte garanti complet. */
+/** Splits a pasted H3 prompt into its 6 sections. Best-effort: call
+ * validerPromptColle() before for a text guaranteed complete. */
 export function decouperSections(texte: string): Record<NomSection, string> {
   const resultat = {} as Record<NomSection, string>;
   for (const [idx, section] of ORDRE_SECTIONS.entries()) {

@@ -1,10 +1,10 @@
-/** Lecture d'un JSON QUI S'ÉCRIT (streaming, 2026-10-03). La sortie d'un skill est du JSON contraint : tant que le
- * modèle écrit, le texte n'est pas parsable. Pour montrer la réponse de l'agent au fil de l'eau, on en extrait une
- * chaîne de premier niveau (`reponse` pour la conversation) en la décodant jusqu'où elle est arrivée. Pur, tolérant :
- * un texte qui n'a pas (encore) cette forme donne null, jamais une erreur. */
+/** Reading a JSON BEING WRITTEN (streaming, 2026-10-03). The output of a skill is constrained JSON: while the
+ * model writes, the text is not parsable. To show the agent's answer as it flows, we extract a
+ * top-level string (`reponse` for the conversation) by decoding it as far as it has arrived. Pure, tolerant:
+ * a text that does not (yet) have this shape gives null, never an error. */
 
-/** La valeur, décodée à ce stade, de la chaîne de premier niveau `cle` d'un texte JSON partiel ; null si elle n'a pas
- * commencé. Gère les échappements (`\n`, `\"`, `\\`, `\uXXXX`) et s'arrête à un échappement incomplet. */
+/** The value, decoded at this stage, of the top-level string `cle` of a partial JSON text; null if it has not
+ * started. Handles escapes (`\n`, `\"`, `\\`, `\uXXXX`) and stops at an incomplete escape. */
 export function extraireChainePartielle(texte: string, cle: string): string | null {
   const re = new RegExp(`"${cle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"\\s*:\\s*"`);
   const m = re.exec(texte);
@@ -12,13 +12,13 @@ export function extraireChainePartielle(texte: string, cle: string): string | nu
   let sortie = "";
   for (let i = m.index + m[0].length; i < texte.length; i++) {
     const c = texte[i]!;
-    if (c === '"') return sortie; // fin de la chaîne
+    if (c === '"') return sortie; // end of the string
     if (c !== "\\") {
       sortie += c;
       continue;
     }
     const suivant = texte[i + 1];
-    if (suivant === undefined) return sortie; // échappement coupé : la suite n'est pas arrivée
+    if (suivant === undefined) return sortie; // escape cut: the rest has not arrived
     if (suivant === "u") {
       const hex = texte.slice(i + 2, i + 6);
       if (hex.length < 4 || !/^[0-9a-fA-F]{4}$/.test(hex)) return sortie;
@@ -29,14 +29,14 @@ export function extraireChainePartielle(texte: string, cle: string): string | nu
     sortie += ({ n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", '"': '"', "\\": "\\", "/": "/" } as Record<string, string>)[suivant] ?? suivant;
     i += 1;
   }
-  return sortie; // la chaîne n'est pas encore fermée : ce qu'on en a
+  return sortie; // the string is not closed yet: what we have of it
 }
 
-/** Les `n` derniers caractères d'un texte (la fin d'une réflexion qui s'écrit). */
+/** The last `n` characters of a text (the end of a reasoning being written). */
 export const fin = (texte: string, n: number): string => (texte.length > n ? texte.slice(texte.length - n) : texte);
 
-/** Accumulateur du flux d'un appel : le texte de la réponse et la fin de la réflexion, remis à zéro à chaque nouvel appel
- * (un renvoi au modèle en ouvre un). Borné : la mémoire et la base ne portent jamais un flux entier. */
+/** Accumulator of a call's stream: the response text and the end of the reasoning, reset at each new call
+ * (a resend to the model opens one). Bounded: memory and the database never hold a whole stream. */
 export class AccumulateurFlux {
   texte = "";
   reflexion = "";

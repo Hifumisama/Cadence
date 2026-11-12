@@ -14,7 +14,7 @@ import {
 } from "@/db/schema";
 import { MEDIA_ROOT, cheminAssetMedia, cheminPosterMedia } from "@/lib/media";
 
-/** Ce qu'emporte la suppression d'un projet — montré dans la confirmation. */
+/** What the deletion of a project carries away — shown in the confirmation. */
 export type InventaireSuppression = {
   nom: string;
   episodes: number;
@@ -23,7 +23,7 @@ export type InventaireSuppression = {
   rendus: number;
   generations: number;
   appelsLlm: number;
-  /** Tâches encore en cours (rendus, générations d'assets, appels LLM) : elles échoueront. */
+  /** Tasks still in progress (renders, asset generations, LLM calls): they will fail. */
   tachesEnCours: number;
 };
 
@@ -33,9 +33,9 @@ type Identifiants = {
   assets: number[];
 };
 
-/** Dossiers (relatifs à MEDIA_ROOT) qui n'appartiennent qu'au projet : un par entité, rangés sous
- * l'id interne (voir lib/media.ts). Pur — testé sans base. `assets/<fichier>` est à part : le dossier
- * est commun à tous les projets. */
+/** Folders (relative to MEDIA_ROOT) that belong only to the project: one per entity, stored under
+ * the internal id (see lib/media.ts). Pure — tested without database. `assets/<fichier>` is separate: the folder
+ * is shared by all projects. */
 export function dossiersDuProjet(projectId: number, ids: Identifiants): string[] {
   return [
     cheminPosterMedia("projects", projectId, "").replace(/\/$/, ""),
@@ -91,9 +91,9 @@ export async function inventaireProjet(projectId: number): Promise<InventaireSup
   };
 }
 
-/** Supprime le projet et TOUT ce qui s'y rattache : la base (cascade du schéma, plus les traces et
- * appels LLM, qui ne cascadent pas : `set null`) puis les fichiers. Les fichiers partent après la
- * transaction : une base qui échoue ne doit pas laisser un projet sans ses médias. */
+/** Deletes the project and EVERYTHING attached to it: the database (schema cascade, plus the traces and
+ * LLM calls, which do not cascade: `set null`) then the files. The files go after the
+ * transaction: a database that fails must not leave a project without its media. */
 export async function supprimerProjetComplet(projectId: number): Promise<void> {
   const ids = await identifiants(projectId);
   const fichiersAssets = ids.assets.length
@@ -101,7 +101,7 @@ export async function supprimerProjetComplet(projectId: number): Promise<void> {
         .map((a) => a.fichier)
         .filter((f): f is string => !!f)
     : [];
-  // assets/ est un dossier commun : un nom de fichier utilisé aussi par un autre projet reste.
+  // assets/ is a shared folder: a file name also used by another project is kept.
   const partages = fichiersAssets.length
     ? new Set(
         (await db

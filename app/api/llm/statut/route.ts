@@ -3,24 +3,24 @@ import { configLlm } from "@/lib/llm/config";
 import { lireModeleChoisi } from "@/lib/llm/model-chosen";
 import { listerModeles, llmJoignable, modelesCharges } from "@/worker/llamaSwap";
 
-// Sondé par la pastille du header (components/llm) : jamais mis en cache.
+// Probed by the header badge (components/llm): never cached.
 export const dynamic = "force-dynamic";
 
 export type StatutLlm = {
-  /** Le serveur répond (route de santé) — on peut lui poser une requête. */
+  /** The server responds (health route): a request can be sent to it. */
   joignable: boolean;
-  /** Modèle qui sert aujourd'hui : le choix fait dans le header, sinon celui de la configuration (`LLM_LOCAL_MODELE`).
-   * Une surcharge `LLM_MODELE_<SKILL>` prime encore sur lui pour son skill. */
+  /** Model serving today: the choice made in the header, otherwise the one from the configuration (`LLM_LOCAL_MODELE`).
+   * A `LLM_MODELE_<SKILL>` override still takes precedence over it for its skill. */
   modele: string;
-  /** Modèle de la configuration (`LLM_LOCAL_MODELE`) : celui qu'on retrouve en retirant le choix. */
+  /** Model from the configuration (`LLM_LOCAL_MODELE`): the one found when the choice is removed. */
   defaut: string;
-  /** Vrai quand `modele` vient d'un choix fait dans l'interface. */
+  /** True when `modele` comes from a choice made in the interface. */
   choisi: boolean;
-  /** Modèles que le serveur sait charger (`/v1/models`), null si on ne peut pas le savoir. */
+  /** Models the server can load (`/v1/models`), null if this cannot be known. */
   modeles: string[] | null;
-  /** Modèles réellement chargés en VRAM (llama-swap `/running`), null si on ne peut pas le savoir. */
+  /** Models actually loaded in VRAM (llama-swap `/running`), null if this cannot be known. */
   charges: string[] | null;
-  /** Hôte seulement (pas de chemin ni d'identifiants), pour l'infobulle. */
+  /** Host only (no path or credentials), for the tooltip. */
   hote: string;
 };
 
@@ -33,7 +33,7 @@ export async function GET() {
   try {
     hote = new URL(c.url).host;
   } catch {
-    // URL non analysable : on garde la valeur brute
+    // URL cannot be parsed: keep the raw value
   }
   const corps: StatutLlm = { joignable, modele: choix ?? c.modeleParDefaut, defaut: c.modeleParDefaut, choisi: choix != null, modeles, charges, hote };
   return NextResponse.json(corps, { headers: { "Cache-Control": "no-store" } });

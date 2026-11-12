@@ -6,11 +6,11 @@ import { etatNotifications } from "@/lib/tasks/notifications-browser";
 import { estAnnulable, type ResumeTaches, type Tache } from "@/lib/tasks/tasks";
 import { SERVEURS_OK, type ServeursInjoignables } from "@/lib/renders/unreachable-servers-types";
 
-/** Un seul sondage de `/api/taches` pour toute l'application, placé dans le
- * layout racine : il survit aux navigations (le Topbar, lui, se remonte à chaque
- * page). Cadence : 3 s tant qu'une tâche est active ou que le panneau est
- * ouvert, 20 s sinon ; tout de suite au retour de l'onglet. Pas de SSE : pour un
- * seul utilisateur, une latence de 3 s ne se voit pas. */
+/** A single poll of `/api/taches` for the whole application, placed in the root
+ * layout: it survives navigations (the Topbar, for its part, is remounted at each
+ * page). Rhythm: 3 s while a task is active or the panel is
+ * open, 20 s otherwise; immediately on return to the tab. No SSE: for a
+ * single user, a 3 s latency is not seen. */
 
 const INTERVALLE_ACTIF_MS = 3000;
 const INTERVALLE_REPOS_MS = 20000;
@@ -20,24 +20,24 @@ const RESUME_VIDE: ResumeTaches = { actives: 0, enCours: 0, enFile: 0, echecsNon
 type Contexte = {
   taches: Tache[];
   resume: ResumeTaches;
-  /** Serveurs trouvés injoignables par le worker alors que des tâches les attendent. */
+  /** Servers found unreachable by the worker while tasks are waiting for them. */
   serveurs: ServeursInjoignables;
-  /** Vrai une fois la première réponse reçue (évite d'agir sur un état vide). */
+  /** True once the first response is received (avoids acting on an empty state). */
   pret: boolean;
   panneauOuvert: boolean;
   setPanneauOuvert: (v: boolean) => void;
   rafraichir: () => Promise<void>;
-  /** Marque des tâches vues, tout de suite à l'écran puis en base. */
+  /** Marks tasks as seen, right away on screen then in the database. */
   marquerVuLocal: (cles: string[]) => void;
   marquerToutVuLocal: () => void;
-  /** Annule une tâche : en attente, elle devient annulée tout de suite ; en cours,
-   * « annulation demandée » s'affiche le temps que le worker interrompe ComfyUI. */
+  /** Cancels a task: if pending, it becomes cancelled right away; if running,
+   * « annulation demandée » shows while the worker interrupts ComfyUI. */
   annuler: (cle: string) => void;
-  /** Retire de la file tout ce qui attend (ce qui tourne continue). */
+  /** Removes everything waiting from the queue (what is running carries on). */
   viderFile: () => void;
-  /** Retire des tâches finies de la liste (✕) : masquées, rien n'est supprimé. */
+  /** Removes finished tasks from the list (✕): hidden, nothing is deleted. */
   retirer: (cles: string[]) => void;
-  /** Vide une catégorie de la liste : les terminées, ou les échecs et annulations. */
+  /** Empties a category of the list: the finished ones, or the failures and cancellations. */
   viderListe: (categorie: "terminees" | "echecs") => void;
 };
 
@@ -99,20 +99,19 @@ export function TachesProvider({ children }: { children: ReactNode }) {
         setPret(true);
       }
     } catch {
-      // serveur de dev qui redémarre, réseau coupé : on réessaie au prochain tour
+      // dev server restarting, network down: we retry on the next round
     } finally {
       enVol.current = false;
     }
   }, []);
 
-  // Une seule boucle : un minuteur qu'on replanifie après chaque tour, selon le
-  // rythme du moment (rapide / repos). Onglet caché : on saute le tour.
+  // A single loop: a timer that is rescheduled after each round, according to the
+  // current rhythm (fast / rest). Hidden tab: the round is skipped.
   const planifier = useCallback(() => {
     if (minuteur.current) clearTimeout(minuteur.current);
     minuteur.current = setTimeout(async () => {
-      // Onglet caché : on saute le tour, SAUF si les notifications natives sont actives (il
-      // faut bien voir la fin d'une tâche pour la signaler ; le navigateur ralentit seul les
-      // minuteurs d'un onglet en arrière-plan).
+      // Hidden tab: the round is skipped, UNLESS native notifications are active (we
+      // must still see a task's end to signal it; the browser slows the timers of a background tab on its own).
       if (document.visibilityState === "visible" || (rapideRef.current && etatNotifications() === "active")) await charger();
       planifier();
     }, rapideRef.current ? INTERVALLE_ACTIF_MS : INTERVALLE_REPOS_MS);
@@ -135,8 +134,8 @@ export function TachesProvider({ children }: { children: ReactNode }) {
     };
   }, [charger, planifier]);
 
-  // Une tâche arrive ou le panneau s'ouvre : on passe au rythme rapide tout de
-  // suite, sans attendre la fin d'un long repos.
+  // A task arrives or the panel opens: we switch to the fast rhythm right away,
+  // without waiting for the end of a long rest.
   const dernierRapide = useRef(rapide);
   useEffect(() => {
     if (dernierRapide.current === rapide) return;
@@ -147,7 +146,7 @@ export function TachesProvider({ children }: { children: ReactNode }) {
     }
   }, [rapide, charger, planifier]);
 
-  // Titre de l'onglet : « (n) » devant tant que des tâches sont actives.
+  // Tab title: « (n) » in front while tasks are active.
   useEffect(() => {
     const prefixe = resume.actives > 0 ? `(${resume.actives}) ` : "";
     const appliquer = () => {
@@ -156,7 +155,7 @@ export function TachesProvider({ children }: { children: ReactNode }) {
       if (document.title !== voulu) document.title = voulu;
     };
     appliquer();
-    // Next réécrit le titre à chaque navigation : on le réapplique.
+    // Next rewrites the title at each navigation: we reapply it.
     const titre = document.querySelector("title");
     if (!titre) return;
     const obs = new MutationObserver(appliquer);
@@ -198,7 +197,7 @@ export function TachesProvider({ children }: { children: ReactNode }) {
       appliquerVu(
         tachesRef.current.map((x) => {
           if (x.cle !== cle) return x;
-          // Un lot (ou la création d'un projet) garde ce qui est déjà terminé : on ne le range pas « annulé » avant la réponse du serveur.
+          // A batch (or the creation of a project) keeps what is already finished: we do not file it as « annulé » before the server's response.
           if (cle.startsWith("lot:") || cle.startsWith("creation:") || cle.startsWith("demande:")) return { ...x, annulationDemandee: true };
           if (x.statut === "en_attente") return { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null };
           if (x.statut === "en_cours") return { ...x, annulationDemandee: true };
@@ -212,8 +211,8 @@ export function TachesProvider({ children }: { children: ReactNode }) {
 
   const viderFile = useCallback(() => {
     const maintenant = new Date().toISOString();
-    // Les lots gardent leur état jusqu'à la réponse du serveur (une sous-tâche peut tourner) ;
-    // le reste est retiré tout de suite à l'écran.
+    // Batches keep their state until the server responds (a sub-task may be running);
+    // the rest is removed right away on screen.
     appliquerVu(
       tachesRef.current.map((x) =>
         x.statut === "en_attente" && estAnnulable(x) && !x.cle.startsWith("lot:") && !x.cle.startsWith("creation:") && !x.cle.startsWith("demande:") ? { ...x, statut: "annulee", finishedAt: maintenant, positionFile: null } : x,

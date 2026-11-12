@@ -1,9 +1,9 @@
 import { ECART_DUREE_TOLERE } from "./conversion";
 import { aUnEtatDeFin, recitDe } from "../clips/intent";
 
-/** Contrôle de la durée totale d'un scénario d'épisode (skill `scenario-episode`). Le modèle n'additionne pas fiablement
- * (écarts de ×2 constatés en recette) : c'est le code qui compte, et qui lui renvoie le total exact. Un seul renvoi
- * (voir lib/llm/checks.ts) ; si l'écart persiste, l'avertissement de durée de la revue prend le relais. */
+/** Checks the total duration of an episode screenplay (skill `scenario-episode`). The model does not add up reliably
+ * (×2 discrepancies found in testing): it is the code that counts, and that sends back the exact total. A single re-prompt
+ * (see lib/llm/checks.ts); if the gap persists, the review's duration warning takes over. */
 
 type SortieScenario = { scenes?: { plans?: { dureeSecondes?: number }[] }[] };
 
@@ -19,7 +19,7 @@ export function dureeTotaleScenario(sortie: SortieScenario): { secondes: number;
   return { secondes, nbPlans };
 }
 
-/** Erreurs de durée : vide si le total est dans la tolérance (ou s'il n'y a pas de cible). Pur. */
+/** Duration errors: empty if the total is within tolerance (or if there is no target). Pure. */
 export function controlerDureeScenario(sortie: SortieScenario, cibleSecondes: number | null | undefined): string[] {
   if (!cibleSecondes || cibleSecondes <= 0) return [];
   const { secondes, nbPlans } = dureeTotaleScenario(sortie);
@@ -37,9 +37,9 @@ export function controlerDureeScenario(sortie: SortieScenario, cibleSecondes: nu
   ];
 }
 
-/** Structure exigée par le skill : chaque description a un RÉCIT (pas seulement des répliques) et n'a plus de ligne « État en fin de plan »
- * (retirée le 2026-11-08 : une `suite` prolonge le rendu précédent par son latent ; la fin du plan se lit dans son dernier temps). Un manque est
- * une ERREUR, donc un renvoi au modèle. Aucune règle de disposition : elle varie avec chaque scène. Pur. */
+/** Structure required by the skill: each description has a STORY (not only lines of dialogue) and no longer has an "État en fin de plan" line
+ * (removed on 2026-11-08: a `suite` extends the previous render through its latent; the clip's end is read in its last moment). A gap is
+ * an ERROR, hence a re-prompt to the model. No layout rule: it varies with each scene. Pure. */
 export function controlerStructureScenario(sortie: { scenes?: { titre?: string; plans?: { titre?: string; description?: string }[] }[] }): string[] {
   const erreurs: string[] = [];
   for (const scene of sortie.scenes ?? []) {

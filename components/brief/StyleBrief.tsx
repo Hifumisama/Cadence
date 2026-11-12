@@ -5,23 +5,23 @@ import "./brief.css";
 import { useState } from "react";
 import { urlMiniature } from "@/lib/thumbnails";
 
-/** Une image à montrer pour le style : celle de présentation du projet, ou l'aperçu d'une scène commune (`lib/styles/subjects.ts`). */
+/** An image to show for the style: the project's presentation image, or the preview of a common scene (`lib/styles/subjects.ts`). */
 export type VignetteStyle = { id: string; libelle: string; teste: string; /** « 2:3 », « 16:9 »… */ aspect: string; /** Chemin sous `/api/media/styles/`. */ fichier: string };
 
 export type StyleBriefVue = {
   nom: string;
-  /** Clause d'image (anglais, longue) : génère les images de référence. Vide pour un projet sans conception. */
+  /** Image clause (English, long): generates the reference images. Empty for a project without design. */
   promptImage: string;
-  /** Clause vidéo (anglais, courte) : ouvre chaque description de plan. */
+  /** Video clause (English, short): opens each clip description. */
   clause: string;
-  /** L'image de présentation du projet (en premier si elle existe) puis les aperçus de la bibliothèque, dans l'ordre des scènes communes. */
+  /** The project's presentation image (first if it exists), then the library previews, in the order of the common scenes. */
   vignettes: VignetteStyle[];
 };
 
-/** Le style du projet, FIXE (lecture seule), présenté comme dans l'assistant de création (/nouveau, scène « style ») : l'image et le nom,
- * puis la clause d'image et la clause vidéo en entier. Si le style a plusieurs images (aperçus déjà générés), de
- * petites vignettes permettent de voir les autres scènes ; sans image, ou avec une seule, il n'y a pas de sélecteur. Les classes `cn-*`
- * sont celles de la conception (conception.css). */
+/** The project's style, FIXED (read-only), presented as in the creation assistant (/nouveau, « style » scene): the image and the name,
+ * then the image clause and the video clause in full. If the style has several images (previews already generated), small
+ * thumbnails let you see the other scenes; without an image, or with only one, there is no selector. The `cn-*` classes are
+ * those of the design (conception.css). */
 export function StyleBrief({ style }: { style: StyleBriefVue }) {
   const [choisie, setChoisie] = useState(0);
   const vignette = style.vignettes[choisie] ?? style.vignettes[0] ?? null;
@@ -33,7 +33,7 @@ export function StyleBrief({ style }: { style: StyleBriefVue }) {
         {vignette ? (
           <>
             <span className="cn-apercu" style={{ display: "block", ["--ar" as string]: vignette.aspect.replace(":", " / ") }}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- stockage média, redimensionné par la route */}
+              {/* eslint-disable-next-line @next/next/no-img-element -- media storage, resized by the route */}
               <img src={url(vignette, 768)} alt={`Aperçu du style ${style.nom || "du projet"} : ${vignette.libelle}`} decoding="async" />
             </span>
             {style.vignettes.length > 1 ? (

@@ -8,25 +8,25 @@ import { LIBELLE_ETAT_PLAN, type EtatPlan } from "@/lib/clips/clip-sheet";
 
 export type CadrePlan = {
   uuid: string;
-  /** Rang dans l'épisode (« 04 ») : ce qu'on affiche, jamais un identifiant. */
+  /** Rank in the episode (« 04 »): what is displayed, never an identifier. */
   position: number;
   titre: string;
   etat: EtatPlan;
-  /** Source de la vignette (essai retenu, sinon dernier essai terminé), null sans rendu. */
+  /** Thumbnail source (retained attempt, otherwise the last finished attempt), null without a render. */
   src: string | null;
   href: string;
 };
 
-/** Les touches qui ne doivent pas naviguer : on écrit, ou une fenêtre modale est ouverte. */
+/** Keys that must not navigate: we are typing, or a modal window is open. */
 export function frappeEnCours(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null;
   const tag = t?.tagName?.toLowerCase();
   return e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || tag === "textarea" || tag === "input" || tag === "select" || !!t?.isContentEditable || !!document.querySelector("dialog[open], .modal-overlay");
 }
 
-/** La pellicule des PLANS de l'épisode, collée en bas de la fiche : un cadre par plan, dans l'ordre `plans.ordre` (la position affichée est
- * le rang, pas un identifiant), avec son état (brouillon pointillé, en itération écarlate, prêt à upscaler or). ‹ › et les flèches ← → passent
- * d'un plan à l'autre. Ne pas confondre avec la colonne des essais d'UN plan (PlateauEssais). */
+/** The filmstrip of the episode's CLIPS, pinned at the bottom of the sheet: one frame per clip, in `plans.ordre` order (the displayed position is
+ * the rank, not an identifier), with its state (dotted for draft, scarlet when iterating, gold when ready to upscale). ‹ › and the ← → arrows move
+ * from one clip to another. Not to be confused with the column of attempts of ONE clip (PlateauEssais). */
 export function PelliculePlans({ plans, courant }: { plans: CadrePlan[]; courant: string }) {
   const router = useRouter();
   const reel = useRef<HTMLDivElement>(null);
@@ -50,7 +50,7 @@ export function PelliculePlans({ plans, courant }: { plans: CadrePlan[]; courant
     return () => document.removeEventListener("keydown", touche);
   }, [aller, i]);
 
-  // Le cadre courant au centre de la pellicule (sans faire défiler la page).
+  // The current frame at the centre of the filmstrip (without scrolling the page).
   useEffect(() => {
     const r = reel.current;
     const el = r?.querySelector<HTMLElement>("[aria-current='page']");

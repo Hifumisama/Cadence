@@ -1,11 +1,11 @@
-/** Verrou partagé / exclusif de la carte graphique, pour les deux voies du worker (ComfyUI, LLM).
+/** Shared / exclusive lock of the graphics card, for the two lanes of the worker (ComfyUI, LLM).
  *
- * - **Partagé** : une tâche ordinaire. Les deux voies tournent en même temps quand la VRAM le permet.
- * - **Exclusif** : une tâche qui ne tient pas à côté de l'autre voie (l'upscale monte à 13 Go) ou le mode
- *   `serie` (tout est exclusif : une seule tâche à la fois, comme avant les deux voies). Il attend que les
- *   tâches en cours finissent, et pendant qu'il attend, plus aucune tâche partagée ne démarre (pas de famine).
- * - **Exclusif de groupe** : des exclusives qui portent le même groupe tournent ensemble (les appels d'une création de
- *   projet se partagent les slots du serveur LLM), mais restent seules face à tout ce qui n'est pas de leur groupe. */
+ * - **Shared**: an ordinary task. Both lanes run at the same time when the VRAM allows it.
+ * - **Exclusive**: a task that does not fit next to the other lane (the upscale goes up to 13 GB) or the
+ *   `serie` mode (everything is exclusive: only one task at a time, as before the two lanes). It waits for the
+ *   running tasks to finish, and while it waits, no shared task starts anymore (no starvation).
+ * - **Exclusive per group**: exclusives carrying the same group run together (the calls of a project creation share
+ *   the server's LLM slots), but remain alone against everything that is not in their group. */
 
 export class VerrouGpu {
   private partages = 0;
@@ -24,7 +24,7 @@ export class VerrouGpu {
     for (const r of files) r();
   }
 
-  /** Une exclusive peut entrer quand plus aucune partagée ne tourne, et que les exclusives en cours sont de son groupe. */
+  /** An exclusive can enter when no shared task is running anymore, and the exclusives running are from its group. */
   private exclusifPeutEntrer(groupe: string | null): boolean {
     if (this.partages > 0) return false;
     if (this.exclusifsEnCours === 0) return true;

@@ -1,8 +1,8 @@
 "use client";
 
-/** Un sélecteur de durée en curseur : des secondes entières de `min` à `max`, la valeur affichée à côté. Remplace la roulette (AT-01 du cahier de tests : peu pratique).
- * Clavier natif d'un `input range` (flèches, Début, Fin, PageUp/PageDown). `valeur` null : la durée actuelle est hors des bornes (plan d'avant), rien n'est choisi
- * tant qu'on ne touche pas le curseur (un clic ou un relâchement sur la piste suffit, même sans changer de cran). */
+/** A duration selector as a slider: whole seconds from `min` to `max`, the value shown beside it. Replaces the wheel (AT-01 of the test book: impractical).
+ * Native keyboard of an `input range` (arrows, Home, End, PageUp/PageDown). `valeur` null: the current duration is outside the bounds (earlier clip), nothing is chosen
+ * until the slider is touched (a click or a release on the track is enough, even without changing a notch). */
 export function CurseurDuree({
   valeur,
   min,
@@ -15,7 +15,7 @@ export function CurseurDuree({
   min: number;
   max: number;
   onChange: (v: number) => void;
-  /** L'id de l'élément qui nomme le champ (aria-labelledby). */
+  /** The id of the element that names the field (aria-labelledby). */
   idEtiquette: string;
   disabled?: boolean;
 }) {
@@ -37,7 +37,7 @@ export function CurseurDuree({
         onPointerUp={(e) => {
           if (valeur == null) onChange(lire(e));
         }}
-        onKeyDown={(e) => e.stopPropagation()} // les flèches changent la durée, pas l'essai affiché
+        onKeyDown={(e) => e.stopPropagation()} // the arrows change the duration, not the displayed attempt
       />
       <div className="pl-curseur-crans" aria-hidden="true">
         {crans.map((c) => (

@@ -92,7 +92,7 @@ test("les terminées sont plafonnées, les actives jamais", () => {
   const r = ordonnerTaches([...finies, ...actives], MAINTENANT);
   assert.equal(r.filter((x) => x.statut === "termine").length, PLAFOND_TERMINEES);
   assert.equal(r.filter((x) => x.statut === "en_attente").length, 3);
-  // les plus récentes sont gardées
+  // the most recent ones are kept
   assert.equal(r.find((x) => x.statut === "termine")!.finishedAt, il_y_a(1));
 });
 
@@ -115,7 +115,7 @@ test("page périmée : statut différent ou génération inconnue de la page, pr
   assert.equal(pageEstPerimee([run], [{ uuid: "x", statut: "en_cours" }]), false);
   assert.equal(pageEstPerimee([{ ...run, statut: "termine" }], [{ uuid: "x", statut: "en_cours" }]), true);
   assert.equal(pageEstPerimee([run], []), true);
-  // une génération que l'indicateur ne montre plus n'a aucun effet
+  // a generation the indicator no longer shows has no effect
   assert.equal(pageEstPerimee([], [{ uuid: "vieille", statut: "termine" }]), false);
 });
 
@@ -130,7 +130,7 @@ test("clés : analyse", () => {
   const uuid = "3f2a9c1e-5b7d-4e8a-9c3f-1a2b3c4d5e6f";
   assert.deepEqual(analyserCle(`image:${uuid}`), { genre: "image", ref: uuid });
   assert.deepEqual(analyserCle("video:12"), { genre: "video", ref: "12" });
-  // un uuid ou un id mal formé ne doit jamais atteindre la base
+  // a malformed uuid or id must never reach the database
   assert.equal(analyserCle("image:abc"), null);
   assert.equal(analyserCle("image:pas-un-uuid"), null);
   assert.equal(analyserCle("video:12; drop"), null);
@@ -162,7 +162,7 @@ test("une annulation n'est pas un échec : pas de point écarlate", () => {
   assert.equal(r.actives, 0);
 });
 
-// --- genre « llm » : le GPU est partagé avec ComfyUI (lib/renders/gpu.ts)
+// --- « llm » kind: the GPU is shared with ComfyUI (lib/renders/gpu.ts)
 
 test("ordre de la file : image, puis llm, puis vidéo ; chacun en FIFO", () => {
   const video = tache({ statut: "en_attente", genre: "video", cle: "video:1", createdAt: il_y_a(90) });

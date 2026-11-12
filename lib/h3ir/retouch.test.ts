@@ -51,7 +51,7 @@ test("verifierRetouche : réplique absente, doublée ou non voulue", () => {
 });
 
 test("verifierRetouche : un mot changé dans la réplique est refusé (ponctuation comprise)", () => {
-  // « l'Air. » (point) ≠ « l'Air » : la réplique voulue est « l'Air. » ici, le prompt la porte sans point.
+  // « l'Air. » (full stop) ≠ « l'Air »: the line wanted is « l'Air. » here, the prompt carries it without a full stop.
   assert.match(verifierRetouche(SECTIONS, retouchee(), [{ texte: "L'air" }]).join(" | "), /n'est pas reprise mot pour mot/);
 });
 

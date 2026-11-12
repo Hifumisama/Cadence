@@ -68,10 +68,10 @@ test("lireEntreeH3ir : le plan est obligatoire, shots et style facultatifs", () 
   assert.deepEqual(lireEntreeH3ir({ planUuid: "u", shots: 3, director: "wong", creativity: "bold" }), { planUuid: "u", shots: 3, director: "wong", creativity: "bold" });
   assert.deepEqual(lireEntreeH3ir({ planUuid: "u" }), { planUuid: "u", shots: null, director: null, creativity: null });
   assert.throws(() => lireEntreeH3ir({}), /sans plan/);
-  // Réécriture d'« Itérer » : la nouvelle description (et sa durée) remplacent celles du plan.
+  // Rewrite of « Itérer »: the new description (and its duration) replace those of the clip.
   assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "Mai court.", dureeSecondes: 6 }), { planUuid: "u", shots: null, director: null, creativity: null, description: "Mai court.", dureeSecondes: 6 });
   assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "  ", dureeSecondes: 6.5 }), { planUuid: "u", shots: null, director: null, creativity: null });
-  // Décisions d'« Itérer » (2026-11-09) : références ajoutées / retirées et réglages du plan, gardés seulement quand ils portent quelque chose.
+  // « Itérer » decisions (2026-11-09): references added / removed and clip settings, kept only when they carry something.
   assert.deepEqual(
     lireEntreeH3ir({ planUuid: "u", references: { ajouter: ["PROP_lampe", 3], retirer: [] }, reglagesPlan: { creativite: "bold", styleCamera: null } }),
     { planUuid: "u", shots: null, director: null, creativity: null, references: { ajouter: ["PROP_lampe"], retirer: [] }, reglagesPlan: { creativite: "bold", styleCamera: null } },
@@ -147,7 +147,7 @@ test("executerH3ir : un brief refusé échoue avec la raison, sans traduire ni c
 
 test("executerH3ir : Python non configuré → échec AVANT de prendre le LLM", async () => {
   const { d, appels } = deps({ env: {} });
-  // Sans H3IR_PYTHON ni venv de labo à cet endroit de test, `pythonH3ir` cherche sur le disque : on force l'absence en pointant un autre dossier de travail.
+  // Without H3IR_PYTHON nor a lab venv at this point of the test, `pythonH3ir` looks on disk: we force the absence by pointing to another working folder.
   const avant = process.cwd();
   process.chdir(process.env.TEMP ?? "/tmp");
   try {
@@ -172,7 +172,7 @@ test("nettoyerIntent / reduireEnveloppe", () => {
   assert.deepEqual(r, { status: null, source: null, mode: null, promptTokens: null, sections: {}, manifest: [], diagnostics: [], dureeEffectiveSecondes: null });
 });
 
-// --- « Partir de cet essai » : retouche du prompt ---
+// --- « Partir de cet essai »: prompt retouch ---
 
 const SECTIONS_ESSAI = {
   subject_definitions: "<Subject 1> is the young woman in <Picture 1>.",

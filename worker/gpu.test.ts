@@ -68,7 +68,7 @@ test("libererAvant : au démarrage (précédent inconnu) on libère l'autre côt
   assert.deepEqual(appels, ["free", "unload"]);
 });
 
-// --- llama-swap : décodage tolérant et appels « au mieux » (fetch injecté)
+// --- llama-swap: tolerant decoding and « au mieux » calls (injected fetch)
 
 test("llama-swap : /running décodé avec ou sans enveloppe, null si illisible", () => {
   assert.deepEqual(decoderModelesCharges({ running: [{ model: "gemma4-26b-A4B", state: "ready" }] }), ["gemma4-26b-A4B"]);

@@ -3,10 +3,10 @@
 import { useRef } from "react";
 import { Icone } from "@/components/ui/Icon";
 
-/** Aperçu cliquable : ouvre l'asset en taille réelle dans une fenêtre modale
- * (<dialog> natif : Échap et clic sur le fond ferment). Image : clic sur
- * l'image. Vidéo : bouton d'agrandissement, car un clic sur la vidéo pilote
- * ses contrôles. */
+/** Clickable preview: opens the asset at full size in a modal window
+ * (native <dialog>: Escape and clicking the background close it). Image: click on
+ * the image. Video: enlarge button, since a click on the video drives
+ * its controls. */
 export function MediaZoom({
   kind,
   src,
@@ -16,8 +16,8 @@ export function MediaZoom({
 }: {
   kind: "image" | "video";
   src: string;
-  /** Miniature affichée à la place de l'original (image seulement) : l'original
-   * ne se charge qu'à l'ouverture de la fenêtre agrandie. */
+  /** Thumbnail shown in place of the original (image only): the original
+   * only loads when the enlarged window opens. */
   apercu?: string;
   alt: string;
   classe: string;
@@ -57,8 +57,8 @@ export function MediaZoom({
           <Icone nom="fermer" />
         </button>
         {kind === "image" ? (
-          // loading="lazy" : une image dans un <dialog> fermé (display: none) est
-          // sinon chargée d'office. Paresseuse, elle ne part qu'à l'ouverture.
+          // loading="lazy": an image inside a closed <dialog> (display: none) is
+          // otherwise loaded anyway. Lazy, it only starts loading on opening.
           // eslint-disable-next-line @next/next/no-img-element
           <img src={src} alt={alt} loading="lazy" />
         ) : (

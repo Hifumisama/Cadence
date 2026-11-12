@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { lireEtatImages } from "@/lib/assets/queries-images";
 
-// Sondé par le clap de la préparation, le bandeau « Prochaine étape » et le registre : jamais mis en cache.
+// Polled by the preparation clap, the « Prochaine étape » banner and the registry: never cached.
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ projectId: string }> }) {

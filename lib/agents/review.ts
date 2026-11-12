@@ -10,23 +10,23 @@ import { numeroDePoignee, planParUuid, type VueEpisode } from "./view-operations
 import type { Avertissement } from "./types";
 import { aUnEtatDeFin, recitDe } from "../clips/intent";
 
-/** RELECTURE DU SCÉNARIO (skill `relecture-scenario`, FRICTIONS 2026-10-19) : une passe du modèle qui réfléchit sur le scénario d'un épisode
- * ÉCRIT (intentions et répliques), avant les fiches de plan. Elle ne réécrit pas l'épisode : elle rend les PLUS PETITES corrections
- * (modifier la description ou la liaison d'un plan, changer une durée, supprimer un doublon, ajouter une résolution), citées par poignée (« P07 »,
- * un rang à l'instant de la lecture, jamais stocké : F03), que le code traduit en uuid puis en changements pour les applicateurs existants du
- * plan. Tout ce qui se vérifie par code se vérifie ici ; le jugement (est-ce physiquement possible ?) est
- * au modèle. Pur, testé. */
+/** SCREENPLAY REVIEW (skill `relecture-scenario`, FRICTIONS 2026-10-19): a model pass that reflects on an episode's WRITTEN screenplay
+ * (intents and lines of dialogue), before the clip sheets. It does not rewrite the episode: it returns the SMALLEST corrections
+ * (edit a clip's description or link, change a duration, remove a duplicate, add a resolution), cited by handle ("P07",
+ * a rank at the moment of reading, never stored: F03), which the code translates into uuids then into changes for the clip's existing
+ * appliers. Everything that can be checked by code is checked here; the judgement (is it physically possible?) is
+ * the model's. Pure, tested. */
 
 const CRITERES_RELECTURE = [
-  "physique", // incohérence physique : monté/descendu, qui tient quoi, ce qui est visible depuis où
-  "temps", // incohérence temporelle : jour/nuit, ambiance de scène non tenue, ordre des événements
-  "direction", // direction d'un déplacement (train, cavaliers…) contraire aux repères du lieu
-  "entrees-sorties", // ordre des entrées et des sorties, qui est où
-  "motif", // geste sans cause
-  "doublon", // deux plans pour le même beat
-  "menace", // menace qui arrive ou se présente mal
-  "resolution", // épisode sans fin
-  "dialogue", // réplique creuse, redondante ou incohérente
+  "physique", // physical inconsistency: got up/down, who holds what, what is visible from where
+  "temps", // temporal inconsistency: day/night, scene ambiance not held, order of events
+  "direction", // direction of a movement (train, riders…) contrary to the place's landmarks
+  "entrees-sorties", // order of entrances and exits, who is where
+  "motif", // gesture without cause
+  "doublon", // two clips for the same beat
+  "menace", // threat that arrives or is presented badly
+  "resolution", // episode without an ending
+  "dialogue", // hollow, redundant or inconsistent line of dialogue
 ] as const;
 type CritereRelecture = (typeof CRITERES_RELECTURE)[number];
 
@@ -42,39 +42,39 @@ const LIBELLE_CRITERE: Record<CritereRelecture, string> = {
   dialogue: "dialogue",
 };
 
-/** Au plus autant de corrections : « les plus petites corrections » ; un épisode qui en réclame davantage est à réécrire, pas à relire. */
+/** At most this many corrections: "the smallest corrections"; an episode that calls for more must be rewritten, not reviewed. */
 export const MAX_CORRECTIONS = 8;
-/** Part minimale des mots d'une description conservée par une correction : en dessous, c'est une réécriture, pas la plus petite correction. */
+/** Minimum share of a description's words kept by a correction: below it, it is a rewrite, not the smallest correction. */
 const PART_CONSERVEE_MIN = 0.5;
 
 type ConstatRelecture = { critere: CritereRelecture; plans: string[]; probleme: string };
 
-/** Une correction telle que le modèle la rend : une `OperationBrute` (couper_plan, duree_plan, modifier_plan, ajouter_plan) plus ce qui la justifie. */
+/** A correction as the model returns it: an `OperationBrute` (couper_plan, duree_plan, modifier_plan, ajouter_plan) plus what justifies it. */
 type CorrectionRelecture = OperationBrute & { critere: CritereRelecture; motif: string };
 
 export type SortieRelecture = { constats: ConstatRelecture[]; corrections: CorrectionRelecture[]; notes: string };
 
-/** Ce que la relecture lit d'un plan et de l'épisode : l'entrée du skill (context.ts, `entreeRelecture`). */
+/** What the review reads of a clip and of the episode: the skill input (context.ts, `entreeRelecture`). */
 export type EntreeRelecture = {
   plans: { plan: string; scene: string; titre: string; liaison: string; dureeSecondes: number; description: string }[];
   parolesDeLAuteur?: string[];
   dureeCibleSecondes?: number | null;
 };
 
-// --- contrôles de code ----------------------------------------------------------------------------------------------------------------
+// --- code checks ----------------------------------------------------------------------------------------------------------------
 
-/** Une description ne renvoie jamais à un autre plan (FRICTIONS 2026-09-28/29 et 2026-10-14) : ni poignée, ni « plan précédent », ni numéro. */
+/** A description never refers to another clip (FRICTIONS 2026-09-28/29 and 2026-10-14): neither handle, nor "plan précédent", nor number. */
 const RENVOI_A_UN_PLAN = /\bP\s?\d{1,3}\b|\bplans?\s+(?:pr[ée]c[ée]dents?|suivants?|d'avant|d'apr[èe]s|n°?\s*\d+|\d+)\b|\b(?:comme|ainsi qu')\s+(?:au|dans le|dans les)\s+plans?\b/i;
 const norme = (s: string) => s.toLowerCase().replace(/\s+/g, " ").replace(/[«»"“”]/g, "").trim();
 
-/** Les répliques `« … »` d'une description. */
+/** The lines of dialogue `« … »` of a description. */
 export const repliquesDe = (description: string): string[] => [...description.matchAll(/«\s*([\s\S]*?)\s*»/g)].map((m) => m[1]!.trim()).filter(Boolean);
 
-/** Part (0 à 1) des mots de `avant` qu'on retrouve, dans l'ordre, dans `apres`. */
+/** Share (0 to 1) of the words of `avant` found again, in order, in `apres`. */
 export function partConservee(avant: string, apres: string): number {
   const total = avant.split(/\s+/).filter(Boolean).length;
   if (total === 0) return 1;
-  // Les segments identiques consécutifs sont fusionnés par `differenceMots` : on compte les mots, pas les segments.
+  // Consecutive identical segments are merged by `differenceMots`: we count words, not segments.
   const gardes = differenceMots(avant, apres)
     .filter((s) => s.type === "meme")
     .reduce((n, s) => n + s.texte.split(/\s+/).filter(Boolean).length, 0);
@@ -83,8 +83,8 @@ export function partConservee(avant: string, apres: string): number {
 
 export type ProblemeCorrection = { index: number; message: string };
 
-/** Les défauts d'une sortie, correction par correction. Les mêmes règles servent au contrôle qui RENVOIE le modèle (lib/llm/checks.ts) et à la
- * conversion, qui bloque (non cochable) ce qui persiste. `vue` n'est pas requis : la poignée se lit dans l'entrée. */
+/** The defects of an output, correction by correction. The same rules serve the check that RE-PROMPTS the model (lib/llm/checks.ts) and the
+ * conversion, which blocks (non tickable) what would persist. `vue` is not required: the handle is read from the input. */
 export function problemesDeRelecture(sortie: SortieRelecture, entree: EntreeRelecture): ProblemeCorrection[] {
   const p: ProblemeCorrection[] = [];
   const corrections = sortie.corrections ?? [];
@@ -124,7 +124,7 @@ export function problemesDeRelecture(sortie: SortieRelecture, entree: EntreeRele
       else if (partConservee(avant.description, texte) < PART_CONSERVEE_MIN) {
         dit(i, `${nom} : tu réécris ${c.plan} presque en entier. La plus petite correction change la phrase fautive (ou en ajoute une) et garde le reste mot pour mot, y compris les répliques quand elles restent vraies.`);
       }
-      // Les mots de l'auteur ne se touchent pas : une réplique qu'il a écrite reste mot pour mot.
+      // The author's words are not touched: a line of dialogue they wrote stays word for word.
       for (const r of repliquesDe(avant.description)) {
         if (paroles && paroles.includes(norme(r)) && !norme(texte).includes(norme(r))) {
           dit(i, `${nom} : la réplique « ${r} » est de l'auteur (mot pour mot dans ses paroles) : garde-la telle quelle.`);
@@ -143,7 +143,7 @@ export function problemesDeRelecture(sortie: SortieRelecture, entree: EntreeRele
     if (c.liaison === "suite" && c.plan === entree.plans[0]?.plan) dit(i, `${nom} : le premier plan de l'épisode est une coupe.`);
   });
 
-  // un même plan n'est pas corrigé deux fois de la même façon
+  // the same clip is not corrected twice in the same way
   const vus = new Set<string>();
   corrections.forEach((c, i) => {
     if (!c.plan) return;
@@ -155,7 +155,7 @@ export function problemesDeRelecture(sortie: SortieRelecture, entree: EntreeRele
   });
   if (corrections.filter((c) => c.type === "ajouter_plan").length > 1) dit(-1, "Un seul plan ajouté (la résolution manquante) : si l'épisode réclame davantage, il est à réécrire, pas à relire.");
 
-  // la durée totale ne sort pas de la tolérance du brief à cause de la relecture
+  // the total duration does not leave the brief's tolerance because of the review
   const cible = entree.dureeCibleSecondes;
   if (cible && cible > 0) {
     const avantTotal = entree.plans.reduce((n, x) => n + x.dureeSecondes, 0);
@@ -175,22 +175,22 @@ export function problemesDeRelecture(sortie: SortieRelecture, entree: EntreeRele
   return p;
 }
 
-// --- sortie du modèle → changements -------------------------------------------------------------------------------------------------
+// --- model output → changes -------------------------------------------------------------------------------------------------
 
 export type ResultatRelecture = {
   bruts: ChangementBrut[];
-  /** Corrections que le code ne sait pas traduire (poignée inconnue…) : écartées, avec la raison. */
+  /** Corrections the code cannot translate (unknown handle…): dropped, with the reason. */
   refusees: { index: number; raison: string }[];
-  /** Constats rendus par le modèle, lisibles (le résumé de la proposition). */
+  /** Findings returned by the model, readable (the proposal's summary). */
   constats: string[];
 };
 
 const coupe = (t: string, n = 140) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
 
-/** La sortie de `relecture-scenario` → les changements d'une sous-tâche (un épisode). Les poignées sont résolues sur `vue` (l'épisode tel qu'il est
- * MAINTENANT : le worker vérifie avant que l'ordre n'a pas changé depuis la lecture). Une correction qui échoue encore aux contrôles de code est
- * posée BLOQUÉE (non cochable, `bloque_controle`) : l'installateur relance alors la sous-tâche une fois. Une suppression d'un plan sans fiche ni rendu
- * est cochée d'office (rien n'est perdu que le scénario ne dise déjà ailleurs) ; toute autre suppression garde la règle (décochée). */
+/** The `relecture-scenario` output → the changes of a subtask (an episode). The handles are resolved against `vue` (the episode as it is
+ * NOW: the worker checks beforehand that the order has not changed since the reading). A correction that still fails the code checks is
+ * set BLOCKED (not tickable, `bloque_controle`): the installer then re-runs the subtask once. A deletion of a clip with no sheet nor render
+ * is ticked outright (nothing is lost that the screenplay does not already say elsewhere); any other deletion keeps the rule (unticked). */
 export function depuisRelecture(sortie: SortieRelecture, vue: VueEpisode, entree: EntreeRelecture, options: { groupe: string }): ResultatRelecture {
   const problemes = problemesDeRelecture(sortie, entree);
   const parIndex = new Map<number, string[]>();

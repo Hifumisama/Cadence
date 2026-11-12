@@ -4,17 +4,17 @@ import type { ComfyUIClient, EvenementSuivi, PollResult, Suivi } from "./types";
 import { mp3Factice } from "./stubAudio";
 import { pngFactice } from "./stubPng";
 
-/** Une boîte `ftyp` : de quoi avoir un fichier .mp4 reconnaissable, pas une vidéo qui se lit. */
+/** An `ftyp` box: enough to have a recognizable .mp4 file, not a video that plays. */
 const mp4Factice = () => Buffer.from("00000018667479706d70343200000000" + "6d70343269736f6d", "hex");
 
 /**
- * Client factice — permet de développer et tester toute la chaîne (queue,
- * pages, contrôles) tant que VID_REF2VA.json n'est pas ré-exporté en format
- * API (voir plan d'implémentation, "Prérequis bloquant"). Simule un aller-
- * retour de quelques secondes puis "termine" systématiquement.
+ * Fake client — lets you develop and test the whole chain (queue,
+ * pages, controls) as long as VID_REF2VA.json has not been re-exported in API
+ * format (see implementation plan, "Prérequis bloquant" (blocking prerequisite)). Simulates a round
+ * trip of a few seconds, then systematically "termine" (done).
  */
 export class StubComfyUIClient implements ComfyUIClient {
-  private enCours = new Map<string, number>(); // promptId -> timestamp de démarrage
+  private enCours = new Map<string, number>(); // promptId -> start timestamp
 
   async healthcheck(): Promise<boolean> {
     return true;
@@ -25,10 +25,10 @@ export class StubComfyUIClient implements ComfyUIClient {
   }
 
   async submitGraph(graphe?: Record<string, unknown>): Promise<string> {
-    // Un graphe qui sauvegarde de l'audio (SaveAudioMP3) donne un son factice.
+    // A graph that saves audio (SaveAudioMP3) yields a fake sound.
     const classes = Object.values(graphe ?? {}).map((n) => (n as { class_type?: string }).class_type ?? "");
     const audio = classes.some((c) => c === "SaveAudioMP3" || c === "SaveAudio" || c === "SaveAudioAdvanced");
-    // Un graphe vidéo (test vidéo d'une voix : VHS_VideoCombine) donne un fichier vidéo factice.
+    // A video graph (voice video test: VHS_VideoCombine) yields a fake video file.
     const video = classes.includes("VHS_VideoCombine");
     const promptId = `stub-${audio ? "aud" : video ? "vid" : "img"}-${Date.now()}`;
     this.enCours.set(promptId, Date.now());
@@ -46,8 +46,8 @@ export class StubComfyUIClient implements ComfyUIClient {
     return Date.now() - debut < 2000 ? { statut: "en_cours" } : { statut: "termine", cheminSortieDistant: "" };
   }
 
-  /** Rejoue ~2 s de progression (8 étapes, un aperçu à mi-parcours) : de quoi
-   * tester la barre et l'aperçu de l'interface sans ComfyUI. */
+  /** Replays ~2 s of progress (8 steps, a preview halfway): enough to
+   * test the interface's bar and preview without ComfyUI. */
   async ouvrirSuivi(surEvenement: (e: EvenementSuivi) => void): Promise<Suivi> {
     let arrete = false;
     return {
@@ -70,7 +70,7 @@ export class StubComfyUIClient implements ComfyUIClient {
     };
   }
 
-  /** Les prompts simulés « tournent » tant qu'on ne les a pas interrompus. */
+  /** Simulated prompts « tournent » (keep running) as long as they have not been interrupted. */
   private interrompus = new Set<string>();
 
   async etatDansLaFile(promptId: string): Promise<EtatDansLaFile> {
@@ -93,14 +93,14 @@ export class StubComfyUIClient implements ComfyUIClient {
   }
 
   async fetchOutput(_distant?: string, cheminLocalCible?: string): Promise<void> {
-    // Vidéo : rien à copier. Image : un PNG factice, pour que toute la chaîne
-    // (candidats, adoption, aperçu) se teste sans ComfyUI.
+    // Video: nothing to copy. Image: a fake PNG, so that the whole chain
+    // (candidates, adoption, preview) can be tested without ComfyUI.
     if (cheminLocalCible?.toLowerCase().endsWith(".png")) {
       await writeFile(cheminLocalCible, pngFactice());
     } else if (cheminLocalCible?.toLowerCase().endsWith(".mp3")) {
       await writeFile(cheminLocalCible, mp3Factice());
     } else if (cheminLocalCible?.toLowerCase().endsWith(".mp4") && /[\\/]generations[\\/]/.test(cheminLocalCible)) {
-      // Un candidat de test vidéo doit exister sur le disque pour être adopté (les rendus des plans, eux, restent sans fichier).
+      // A video test candidate must exist on disk to be adopted (clip renders, on the other hand, stay without a file).
       await writeFile(cheminLocalCible, mp4Factice());
     }
   }

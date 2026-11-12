@@ -52,9 +52,9 @@ function versNoeudPicker(n: AssetRegistre): NoeudPicker {
   };
 }
 
-/** La fiche d'un plan, en « table de montage » (2026-10-12, maquette docs/maquettes/fiche-de-plan.html) : en haut l'avancée vers l'upscale,
- * au centre le lecteur et la colonne des essais, dessous l'intention (« Qu'est-ce qu'on change ? »), à droite les onglets (références,
- * prompt, dialogues, réglages, journal) et, collée en bas, la pellicule des plans de l'épisode. Voir docs/FRICTIONS.md, même date. */
+/** The clip sheet, as a « table de montage » (2026-10-12, mockup docs/maquettes/fiche-de-plan.html): at the top the progress towards the upscale,
+ * in the centre the player and the attempts column, below the intent (« Qu'est-ce qu'on change ? »), on the right the tabs (references,
+ * prompt, dialogue, settings, log) and, pinned at the bottom, the film strip of the episode's clips. See docs/FRICTIONS.md, same date. */
 export default async function PlanPage({
   params,
   searchParams,
@@ -80,7 +80,7 @@ export default async function PlanPage({
     getProject(pid),
   ]);
 
-  // « Générer la fiche » déjà lancée sur ce plan : le bouton la suit au lieu de proposer d'en lancer une autre.
+  // « Générer la fiche » already launched on this clip: the button follows it instead of offering to launch another.
   const [ficheEnCours] = await db
     .select({ id: demandes.id })
     .from(demandes)
@@ -91,9 +91,9 @@ export default async function PlanPage({
     contenu: s.contenu,
   }));
 
-  // L'audio de chaque réplique liée EST la ref <Audio N> du plan : elle compte
-  // comme déclarée sans être dans plan_refs, et n'a pas à être citée (les
-  // fiches validées et le contrat des fiches ne citent jamais les voix).
+  // Each linked line's audio IS the clip's <Audio N> ref: it counts as declared
+  // without being in plan_refs, and need not be cited (validated sheets and the
+  // sheet contract never cite voices).
   const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(
     sectionsPourControle,
     refs.map((r) => ({ type: r.type, slot: r.slot })),
@@ -101,7 +101,7 @@ export default async function PlanPage({
   );
   const structure = controlerStructure(sectionsPourControle, plan.dureeGenerationSecondes);
 
-  // L'historique se parcourt par l'URL (?rendu=… ?compare=…) : cliquer un essai le charge dans le lecteur, on peut en comparer deux.
+  // History is browsed through the URL (?rendu=… ?compare=…): clicking an attempt loads it in the player; two of them can be compared.
   const rendusVus: RenduVue[] = jobHistory.map((j) => ({
     id: j.id,
     numeroRendu: j.numeroRendu,
@@ -126,13 +126,13 @@ export default async function PlanPage({
   };
   const aUneFiche = promptSections.some((s) => s.contenu.trim());
 
-  // Raccord (lib/clips/clip-continuity.ts) : l'essai du plan précédent dont l'image serait prise maintenant, comparé à celui dont l'essai affiché est parti.
+  // Continuity (match cut) (lib/clips/clip-continuity.ts): the previous clip's attempt whose image would be taken now, compared with the one the displayed attempt was started from.
   const raccordMaintenant = await raccordActuel(plan);
-  // Un plan en « suite » repart du rendu du précédent : si celui-ci est périmé ou a une itération en file, un rendu d'aujourd'hui sera provisoire.
+  // A clip in « suite » starts again from the previous clip's render: if that one is stale or has an iteration queued, a render made today will be provisional.
   const precedentChange = raccordMaintenant
     ? (await getPlansPerimes({ planIds: [raccordMaintenant.precedent.id] })).has(raccordMaintenant.precedent.id) || (await iterationEnAttenteDuPlan(raccordMaintenant.precedent.id)) != null
     : false;
-  // Références visuelles que le worker compterait (images et vidéos qui ont leur fichier) : au plafond, un plan « suite » part SANS raccord.
+  // Visual references the worker would count (images and videos that have their file): at the cap, a « suite » clip goes WITHOUT continuity (match cut).
   const refsVisuelles = refs.filter((r) => (r.type === "picture" || r.type === "video") && r.asset != null && r.asset.fichier).length;
 
   const scenarioInitial = {
@@ -144,7 +144,7 @@ export default async function PlanPage({
     styleCamera: plan.styleCamera ?? "",
   };
 
-  // Les vidéos de démo de la mise en scène (fenêtre de choix du style) : lues sur le disque, côté serveur.
+  // The staging demo videos (style choice window): read from disk, server side.
   const demos = demosMiseEnScene();
   const assetsPicker = assetsRegistre.map(versNoeudPicker);
   const refsVue: RefVue[] = refs.map((r) => ({
@@ -163,26 +163,26 @@ export default async function PlanPage({
   }));
 
   const scene = scenesEpisode.find((sc) => sc.id === plan.sceneId);
-  // Créativité et style de mise en scène d'Open H3 IR : ceux du plan, sinon de sa scène, sinon du projet (lib/h3ir/settings.ts).
+  // Creativity and staging style for Open H3 IR: the clip's, otherwise its scene's, otherwise the project's (lib/h3ir/settings.ts).
   const reglagesProjet = { creativite: projet?.creativite ?? null, styleCamera: projet?.styleCamera ?? null };
   const reglagesScene = scene ? { creativite: scene.creativite, styleCamera: scene.styleCamera } : null;
-  // Un plan est un brouillon tant qu'il n'a ni fiche écrite ni essai : un statut resté « brouillon » sur un plan qui a déjà un prompt ou des rendus ne les cache pas.
+  // A clip is a draft as long as it has neither a written sheet nor an attempt: a status still "brouillon" on a clip that already has a prompt or renders does not hide them.
   const estBrouillon = plan.statut === "brouillon" && !aUneFiche && jobHistory.length === 0;
   const plansHref = `/p/${pid}/e/${eid}/montage`;
-  // --- l'état du plan et l'avancée de l'épisode -----------------------------------------------------------------------
+  // --- the clip's state and the episode's progress -----------------------------------------------------------------------
   const etat = etatPlan({ nbEssais: jobHistory.length, pretUpscaleAt: plan.pretUpscaleAt });
   const lienPlan = (u: string) => `/p/${pid}/e/${eid}/montage/${u}`;
   const cadres: CadrePlan[] = pellicule.map((p) => ({ uuid: p.uuid, position: p.position, titre: p.titre, etat: p.etat, src: srcRendu(p.vignette), href: lienPlan(p.uuid) }));
   const suivant = planSuivant(pellicule, uuid);
 
-  // --- les essais : du plus récent (haut de la colonne) au plus ancien ------------------------------------------------
+  // --- attempts: from the most recent (top of the column) to the oldest ------------------------------------------------
   const essaisTries = trierEssais(jobHistory);
   const lisibles = rendusVus.filter(estLisible);
   const numeroDernierLisible = lisibles.reduce((m, r) => Math.max(m, r.numeroRendu), 0);
   const genreDe = (r: RenduVue) => (r.importe ? "import" : r.activerUpscale ? "final" : "aperçu");
   const enFile = jobHistory.filter((j) => essaiEnFile(j.statut)).sort((a, b) => b.numeroRendu - a.numeroRendu)[0];
-  // L'essai EN COURS a sa propre vue dans le lecteur (le voile « en cours » et sa progression) : quand on le choisit dans la colonne (?rendu=<son id>), ou par défaut
-  // (aucun essai demandé) tant qu'un essai tourne. Un autre essai demandé se regarde normalement, sans voile (retour utilisateur, lot E du 2026-11-08).
+  // The attempt IN PROGRESS has its own view in the player (the « en cours » veil and its progress): when it is picked in the column (?rendu=<its id>), or by default
+  // (no attempt requested) while an attempt is running. Another requested attempt is watched normally, without the veil (user feedback, batch E of 2026-11-08).
   const idDemande = Number(renduParam) || null;
   const jobDemande = idDemande != null ? jobHistory.find((j) => j.id === idDemande) : undefined;
   const vueEnCours = jobDemande && essaiEnFile(jobDemande.statut) ? jobDemande : idDemande == null ? enFile : undefined;
@@ -215,9 +215,9 @@ export default async function PlanPage({
   const hrefComparer = !comparaison && principal && autreLisible ? hrefRendus(principal.id, autreLisible.id) : null;
   const hrefQuitter = comparaison && principal ? hrefRendus(principal.id, null) : null;
   const principalJob = principal ? jobHistory.find((j) => j.id === principal.id) : undefined;
-  // Ce que le serveur sait de l'essai en cours ; le plateau lit ensuite sa progression EN DIRECT dans les tâches (useTaches), sans recharger la page.
+  // What the server knows about the attempt in progress; the board then reads its progress LIVE from the tasks (useTaches), without reloading the page.
   const suiviEnCours = vueEnCours ?? enFile;
-  // L'itération du plan (en cours ou en file) : sa consigne se voit dès le départ, avant même que l'essai existe.
+  // The clip's iteration (in progress or queued): its instruction is visible from the start, before the attempt even exists.
   const iteration = await iterationDuPlan(plan.id);
   const enCours = suiviEnCours
     ? {
@@ -231,7 +231,7 @@ export default async function PlanPage({
         consigne: suiviEnCours.consigne?.trim() || (iteration?.statut === "en_cours" ? iteration.consigne : null),
       }
     : null;
-  // Flèches ▲ ▼ : l'essai en cours se place au-dessus du plus récent des essais lisibles.
+  // Arrows ▲ ▼: the attempt in progress is placed above the most recent of the readable attempts.
   const plusRecentLisible = trierEssais(lisibles)[0];
   const hrefPlusRecent = vueEnCours
     ? null
@@ -245,15 +245,15 @@ export default async function PlanPage({
   const versionsPrompt = await db.select().from(planPromptVersions).where(eq(planPromptVersions.planId, plan.id)).orderBy(desc(planPromptVersions.id)).limit(30);
   const historiquePrompt: VersionPrompt[] = versionsPrompt.map((v) => ({ id: v.id, texte: v.texte, source: v.source, quand: v.createdAt.toLocaleString("fr-FR") }));
 
-  // L'extrait de la carte du prompt : le résumé de la fiche, à défaut la description détaillée.
+  // The excerpt of the prompt card: the sheet's summary, failing that the detailed description.
   const sectionTexte = (nom: string) => promptSections.find((x) => x.section === nom)?.contenu.trim() ?? "";
   const extraitPrompt = (sectionTexte("summary") || sectionTexte("detailed_description")).slice(0, 320);
 
   const perime = (await getPlansPerimes({ planIds: [plan.id] })).get(plan.id);
-  // Plan périmé : « Relancer » refait l'essai avec la fiche, les références et le raccord d'aujourd'hui, même seed (donc rien d'autre ne change que ce qui a bougé), dans le
-  // mode de son dernier rendu terminé (un final reste final).
+  // Stale clip: « Relancer » redoes the attempt with the sheet, the references and today's continuity (match cut), same seed (so nothing else changes apart from what has moved), in the
+  // mode of its last completed render (a final stays final).
   const dernierTermine = jobHistory.filter((j) => j.statut === "termine").sort((a, b) => b.numeroRendu - a.numeroRendu)[0];
-  // Seul le texte du plan a changé : relancer redonnerait le même rendu (le prompt n'est pas réécrit). On propose d'itérer à partir de l'essai, ce qui retouche son prompt.
+  // Only the clip's text has changed: relaunching would give the same render (the prompt is not rewritten). We offer to iterate from the attempt, which retouches its prompt.
   const seulementTexte = !!perime && perime.codes.length === 0 && perime.raisons.length === 1 && perime.raisons[0] === "intention";
   const relancePerime =
     perime && estPerime(perime)
@@ -270,7 +270,7 @@ export default async function PlanPage({
           }
       : null;
 
-  // Contrôles repliés dans la pastille du titre : références, structure, dialogues.
+  // Checks folded into the title badge: references, structure, dialogue.
   const alertes: AlerteControle[] = [
     ...(perime
       ? [
@@ -292,7 +292,7 @@ export default async function PlanPage({
         ancre: "fp-refs",
       }),
     ),
-    // Une référence dont l'asset n'a pas (encore) d'image : le rendu partirait sans elle (un asset créé par une correction n'a pas d'image tout de suite).
+    // A reference whose asset has no image (yet): the render would go without it (an asset created by a correction has no image straight away).
     ...refsVue
       .filter((r) => r.type === "picture" && r.asset != null && r.asset.etat !== "ok")
       .map(
@@ -304,7 +304,7 @@ export default async function PlanPage({
           ancre: "fp-refs",
         }),
       ),
-    // Un plan qui enchaîne sur le précédent reçoit sa dernière image comme référence : avec le plafond atteint, la génération part sans raccord.
+    // A clip that follows the previous one receives its last image as a reference: with the cap reached, the generation goes without continuity (match cut).
     ...(raccordMaintenant?.source && raccordSansPlace(refsVisuelles)
       ? [
           {

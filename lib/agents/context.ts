@@ -21,15 +21,15 @@ import { choisirReferencesPlan, type ChoixReferencesPlan } from "../h3ir/referen
 import { construireEntreeReferencesPlan, SKILL_REFERENCES_PLAN } from "./references-clip";
 import type { BriefContenu, ContexteUtilise, PlaceScene, Position } from "./types";
 
-/** Ce que l'agent lit AUTOMATIQUEMENT pour une portée courte : des extraits du brief et de
- * l'état courant, jamais le brief entier d'office. Chaque fonction renvoie l'entrée du skill
- * ET la liste « contexte utilisé » que l'interface affiche (dépliable). Côté serveur. */
+/** What the agent reads AUTOMATICALLY for a short scope: extracts of the brief and of
+ * the current state, never the whole brief by default. Each function returns the skill input
+ * AND the "contexte utilisé" list the interface displays (expandable). Server side. */
 
 export type EntreeSkill = {
   skill: string;
   entree: object;
   contexte: ContexteUtilise[];
-  /** Variante de skill (guides chargés), voir lib/llm/skills.ts. */
+  /** Skill variant (guides loaded), see lib/llm/skills.ts. */
   variante?: string;
 };
 
@@ -38,7 +38,7 @@ export async function lireBriefDuProjet(db: Db, projectId: number): Promise<{ co
   return b ? { contenu: sansClesAbandonnees(b.contenu as BriefContenu), statut: b.statut } : null;
 }
 
-/** Les extraits du brief utiles à une génération courte, et ce qu'on a lu. */
+/** The brief extracts useful for a short generation, and what was read. */
 export function extraitsBrief(brief: BriefContenu | null): { extrait: object | null; contexte: ContexteUtilise[] } {
   if (!brief) return { extrait: null, contexte: [] };
   const extrait = {
@@ -49,12 +49,12 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
     dureeEpisodeSecondes: brief.dureeEpisodeSecondes,
     ...(brief.rythme ? { rythme: brief.rythme } : {}),
     ...(brief.univers?.trim() ? { univers: brief.univers.trim() } : {}),
-    // Personnages et lieux avec leurs détails (tenue, aspect du lieu : facultatifs, avec leur `statut` ; « incertain » = encore vague).
+    // Characters and places with their details (costume, look of the place: optional, with their `statut`; "incertain" = still vague).
     personnages: brief.personnages,
     lieux: brief.lieux,
-    // Effets visuels et objets qui comptent (couleur, ampleur, comportement), quand l'entretien en a noté.
+    // Visual effects and props that matter (colour, scale, behaviour), when the interview noted some.
     ...(brief.elements?.length ? { elements: brief.elements } : {}),
-    // Les notes libres du projet (ex-« globaux du scénario ») : ce que l'utilisateur veut qu'on garde en tête.
+    // The project's free notes (formerly "scenario globals"): what the user wants kept in mind.
     ...(brief.notes?.trim() ? { notes: brief.notes.trim() } : {}),
   };
   const contexte: ContexteUtilise[] = [
@@ -98,7 +98,7 @@ export async function entreePromptAsset(db: Db, projectId: number, assetId: numb
     .innerJoin(plans, eq(plans.id, planRefs.planId))
     .where(eq(planRefs.assetId, asset.id))
     .limit(8);
-  // L'entrée du brief dont l'asset est tiré (tenue, aspect, élément, avec leur statut : « incertain » et « déduit » ne sont pas des certitudes).
+  // The brief entry the asset is derived from (costume, look, element, with their status: "incertain" and "déduit" are not certainties).
   const details = detailsDuBrief(brief?.contenu ?? null, asset);
 
   const ctx: ContexteUtilise[] = [
@@ -128,10 +128,10 @@ export async function entreePromptAsset(db: Db, projectId: number, assetId: numb
   };
 }
 
-/** L'entrée de `prompt-asset` pour un asset du REGISTRE (étape 2) : un asset existant passe par
- * `entreePromptAsset` (sa description, son parent, ses plans) ; un asset à créer reçoit la même forme,
- * construite depuis la description du brief. Un master est toujours une génération (Krea 2) : on ne
- * charge que son guide. */
+/** The `prompt-asset` input for a REGISTRY asset (step 2): an existing asset goes through
+ * `entreePromptAsset` (its description, its parent, its clips); an asset to create gets the same shape,
+ * built from the brief's description. A master is always a generation (Krea 2): we only
+ * load its guide. */
 export async function entreePromptAssetCandidat(
   db: Db,
   projectId: number,
@@ -173,10 +173,10 @@ export async function entreePromptAssetCandidat(
   };
 }
 
-// --- épisode, plan ----------------------------------------------------------
+// --- episode, clip ---------------------------------------------------------
 
-/** `description` : l'intent du plan SANS l'ancien « État en fin de plan » (plans écrits avant le 2026-11-08, lib/clips/intent.ts) : les skills ne le voient
- * plus, et ne le recopient donc pas. */
+/** `description`: the clip's intent WITHOUT the old "État en fin de plan" (clips written before 2026-11-08, lib/clips/intent.ts): the skills no longer
+ * see it, and so do not copy it back. */
 type PlanLu = { uuid: string; titre: string; description: string; dureeGenerationSecondes: number; sceneId: number | null; liaison: Liaison };
 
 async function plansDe(db: Db, episodeId: number): Promise<PlanLu[]> {
@@ -212,9 +212,9 @@ async function contexteEpisode(db: Db, projectId: number, episodeId: number) {
   return { ep, precedents, suivants, brief: brief?.contenu ?? null, lesScenes, lesPlans, extrait, contexteBrief: contexte, registre };
 }
 
-/** Ce que l'AUTEUR a lui-même écrit pendant la conception du projet (ses messages, dans l'ordre), pour que le scénario parte de ses mots et
- * non du seul arc résumé du brief : un pitch précis (plan large d'ouverture, geste, réplique, voix off) se perdait dans le résumé.
- * Plafonné (contexte léger) : les derniers messages l'emportent, chacun est coupé net au-delà de `MAX_MESSAGE`. */
+/** What the AUTHOR wrote themselves during the project design (their messages, in order), so that the screenplay starts from their words and
+ * not from the brief's summarized arc alone: a precise pitch (wide opening shot, gesture, line of dialogue, voice-over) was lost in the summary.
+ * Capped (light context): the latest messages win; each is cut off sharply beyond `MAX_MESSAGE`. */
 export const MAX_PAROLES_AUTEUR = 6000;
 const MAX_MESSAGE = 3000;
 
@@ -238,9 +238,9 @@ async function parolesDuProjet(db: Db, projectId: number): Promise<string[]> {
   return parolesDeLAuteur(l.flatMap((c) => (Array.isArray(c.messages) ? c.messages : [])));
 }
 
-/** Le DERNIER shot d'un prompt vidéo assemblé (`detailed_description`), lisible hors de son plan : le timecode et la coupe sont retirés, et
- * les labels `<Subject N>` (propres à CE plan) sont remplacés par le code de l'asset (`codes[N]`). Sert au plan suivant : son premier shot
- * reprend là où celui-ci finit (qui est où, tourné vers quoi, état du feu). Plafonné : contexte léger. Pur, testé. */
+/** The LAST shot of an assembled video prompt (`detailed_description`), readable outside its clip: the timecode and the cut are removed, and
+ * the `<Subject N>` labels (specific to THIS clip) are replaced by the asset's code (`codes[N]`). Used for the next clip: its first shot
+ * picks up where this one ends (who is where, facing what, state of the fire). Capped: light context. Pure, tested. */
 export const MAX_DERNIER_SHOT = 450;
 
 export function dernierShotLisible(detailed: string, codes: Record<number, string>): string | null {
@@ -249,7 +249,7 @@ export function dernierShotLisible(detailed: string, codes: Record<number, strin
   const dernier = reperes[reperes.length - 1]!;
   const corps = detailed
     .slice((dernier.index ?? 0) + dernier[0].length)
-    // La coupe d'ouverture du shot : « Hard cut to » ou « the shot cuts to », « the camera transitions to »… (Open H3 IR, h3ir/prompts/base-en.txt §4.2).
+    // The shot's opening cut: "Hard cut to" or "the shot cuts to", "the camera transitions to"… (Open H3 IR, h3ir/prompts/base-en.txt §4.2).
     .replace(/^\s*At\s+\d{1,2}:\d{2}(?:\.\d{1,3})?\s*,?\s*(?:Hard cut to\s*|the\s+(?:shot|camera)\s+(?:cuts|transitions|changes|switches)\s+to\s*)?/i, "")
     .replace(/<\s*(?:Subject|Picture)\s*(\d+)\s*>/g, (_m, n: string) => codes[Number(n)] ?? "the subject")
     .replace(/\s+/g, " ")
@@ -258,8 +258,8 @@ export function dernierShotLisible(detailed: string, codes: Record<number, strin
   return corps.length > MAX_DERNIER_SHOT ? `…${corps.slice(corps.length - MAX_DERNIER_SHOT + 1)}` : corps;
 }
 
-/** Le PREMIER shot d'un prompt assemblé, lisible hors de son plan (même traitement que `dernierShotLisible`) : le plan d'avant doit
- * finir là où celui-ci commence (itération : raccord vers l'aval). Le préambule d'ouverture (style, lumière) est écarté. */
+/** The FIRST shot of an assembled prompt, readable outside its clip (same treatment as `dernierShotLisible`): the previous clip must
+ * end where this one begins (iteration: continuity match cut downstream). The opening preamble (style, light) is discarded. */
 export function premierShotLisible(detailed: string, codes: Record<number, string>): string | null {
   const reperes = [...(detailed ?? "").matchAll(/\[Shot\s+\d+\]/g)];
   if (reperes.length === 0) return null;
@@ -273,7 +273,7 @@ export function premierShotLisible(detailed: string, codes: Record<number, strin
   return corps.length > MAX_DERNIER_SHOT ? `${corps.slice(0, MAX_DERNIER_SHOT - 1)}…` : corps;
 }
 
-/** Les shots extrêmes (premier, dernier) d'un plan qui a une fiche en base, lisibles hors de lui. */
+/** The extreme shots (first, last) of a clip that has a sheet in the database, readable outside it. */
 async function shotsExtremesDuPlan(db: Db, planUuid: string): Promise<{ premier: string | null; dernier: string | null }> {
   const [pl] = await db.select({ id: plans.id }).from(plans).where(eq(plans.uuid, planUuid));
   if (!pl) return { premier: null, dernier: null };
@@ -286,7 +286,7 @@ async function shotsExtremesDuPlan(db: Db, planUuid: string): Promise<{ premier:
   return { premier: premierShotLisible(sec.contenu, codes), dernier: dernierShotLisible(sec.contenu, codes) };
 }
 
-/** L'entrée du brief qui correspond à cet épisode : même titre (insensible à la casse), sinon même rang. */
+/** The brief entry matching this episode: same title (case-insensitive), otherwise same rank. */
 function briefDeEpisode(brief: BriefContenu | null, titre: string, numero: number): { titre: string; resume: string; portee?: string } | null {
   if (!brief?.episodes?.length) return null;
   const n = (s: string) => s.trim().toLowerCase();
@@ -306,8 +306,8 @@ export async function entreeScenarioEpisode(
   const insertion = options.position != null;
   let voisinAvant: PlanLu | null = null;
   let voisinApres: PlanLu | null = null;
-  // Une SCÈNE à insérer : ses voisines sont la scène qui la précède et celle qui la suit ; le dernier plan de l'une et le premier de l'autre
-  // sont les plans à raccorder (la fin de l'un, le début de l'autre).
+  // A SCENE to insert: its neighbours are the scene before it and the one after it; the last clip of the first and the first clip of the other
+  // are the clips to match (the end of one, the start of the other).
   let sceneAvant: (typeof c.lesScenes)[number] | null = null;
   let sceneApres: (typeof c.lesScenes)[number] | null = null;
   if (options.place) {
@@ -346,7 +346,7 @@ export async function entreeScenarioEpisode(
           ? { type: "plan-a-inserer", instruction: "Ne propose QU'UN SEUL plan (une seule scène, un seul plan) : le plan à insérer." }
           : { type: "episode" },
       episode: { titre: c.ep.titre, resume: c.ep.resume },
-      // L'arc de CET épisode tel que le brief le pose (même titre, ou même rang à défaut).
+      // The arc of THIS episode as the brief sets it (same title, or same rank otherwise).
       briefEpisode: briefDeEpisode(c.brief, c.ep.titre, c.ep.numero),
       resumesEpisodesPrecedents: c.precedents,
       resumesEpisodesSuivants: c.suivants,
@@ -363,9 +363,9 @@ export async function entreeScenarioEpisode(
   };
 }
 
-/** L'entrée de `traitement-episode` (étape E) : l'épisode à découper en scènes. Les clés stables (épisode, brief, registre, mots de l'auteur) d'abord,
- * ce qui varie (durée, consigne) à la fin : le préfixe du prompt reste le même d'un appel à l'autre, le serveur le garde en cache.
- * Null si l'épisode n'est pas du projet ou si le brief ne donne pas de durée (rien à répartir). */
+/** The `traitement-episode` input (step E): the episode to split into scenes. The stable keys (episode, brief, registry, the author's words) first,
+ * what varies (duration, instruction) at the end: the prompt prefix stays the same from one call to the next, and the server caches it.
+ * Null if the episode is not in the project or if the brief gives no duration (nothing to divide). */
 export async function entreeTraitement(
   db: Db,
   projectId: number,
@@ -404,9 +404,9 @@ export async function entreeTraitement(
   };
 }
 
-/** L'entrée de `scenario-scene` (étape E) : UNE scène d'un épisode, écrite depuis son traitement. Le début de l'entrée (épisode, brief, registre, mots de l'auteur,
- * traitement de l'épisode) est le même pour toutes les scènes : il part en cache. La scène et ses voisines (états d'entrée et de sortie PRÉVUS : les scènes
- * s'écrivent en parallèle, aucune ne lit le texte de l'autre) viennent après. Null si la scène n'est pas du projet ou n'a pas de traitement. */
+/** The `scenario-scene` input (step E): ONE scene of an episode, written from its treatment. The start of the input (episode, brief, registry, the author's words,
+ * the episode's treatment) is the same for all scenes: it goes into the cache. The scene and its neighbours (PLANNED entry and exit states: the scenes
+ * are written in parallel, none reads the other's text) come after. Null if the scene is not in the project or has no treatment. */
 export async function entreeScenarioScene(
   db: Db,
   projectId: number,
@@ -470,11 +470,11 @@ export async function entreeScenarioScene(
   };
 }
 
-/** L'entrée de `relecture-scenario` pour UN épisode (FRICTIONS 2026-10-19) : tout ce que le scénario a écrit — scènes (ambiance), plans dans l'ordre
- * avec leur liaison, leur durée et leur description COMPLÈTE (intention, répliques ; l'ancien « État en fin de plan » retiré), le registre, les mots de l'auteur — pour que
- * le modèle tienne le registre de l'état du monde d'un bout à l'autre. Les plans se citent par POIGNÉE (« P07 », le rang à cet instant, jamais stocké : F03) ;
- * `planUuids` (dans l'ordre) est gardé dans les options de la tâche : le worker vérifie à la fin que l'épisode n'a pas bougé entre la lecture et la réponse.
- * Null s'il n'y a rien à relire (aucun plan) ou si l'épisode n'est pas du projet. */
+/** The `relecture-scenario` input for ONE episode (FRICTIONS 2026-10-19): everything the screenplay has written — scenes (ambiance), clips in order
+ * with their link, their duration and their COMPLETE description (intent, lines of dialogue; the old "État en fin de plan" removed), the registry, the author's words — so that
+ * the model keeps the state of the world consistent from start to finish. Clips are cited by HANDLE ("P07", the rank at that moment, never stored: F03);
+ * `planUuids` (in order) is kept in the task's options: the worker checks at the end that the episode has not moved between the read and the reply.
+ * Null if there is nothing to review (no clip) or if the episode is not in the project. */
 export async function entreeRelecture(
   db: Db,
   projectId: number,
@@ -554,9 +554,9 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
   };
 }
 
-/** L'entrée du petit skill `references-plan` pour un plan, avec le choix du code (`choix`) : l'appelant ne pose la tâche QUE si `choix.suffit` est faux
- * (sinon les références du code suffisent). Posée par la préparation d'un plan (lib/agents/service.ts, `genererReferencesPlan`). `assetsProposesParLeLot` :
- * les assets qu'un inventaire en cours va créer (le skill peut les citer, jamais les reproposer). `null` si le plan n'est pas de ce projet. */
+/** The input of the small `references-plan` skill for a clip, with the code's choice (`choix`): the caller posts the task ONLY if `choix.suffit` is false
+ * (otherwise the code's references are enough). Posted by a clip's preparation (lib/agents/service.ts, `genererReferencesPlan`). `assetsProposesParLeLot`:
+ * the assets an ongoing inventory is about to create (the skill may cite them, never propose them again). `null` if the clip is not in this project. */
 export async function entreeReferencesPlan(
   db: Db,
   projectId: number,
@@ -589,7 +589,7 @@ export async function entreeReferencesPlan(
   };
 }
 
-/** Le dernier rendu TERMINÉ d'un plan (généré ou importé) dont le fichier est connu, ou null. */
+/** The last FINISHED render of a clip (generated or imported) whose file is known, or null. */
 async function dernierRendu(db: Db, planId: number) {
   const [j] = await db
     .select({ id: jobs.id, cheminSortie: jobs.cheminSortie, finishedAt: jobs.finishedAt, createdAt: jobs.createdAt, workflowFichier: jobs.workflowFichier })
@@ -600,7 +600,7 @@ async function dernierRendu(db: Db, planId: number) {
   return j ?? null;
 }
 
-/** Un rendu TERMINÉ précis d'un plan (même forme que `dernierRendu`), ou null s'il n'existe pas, n'est pas fini ou n'a pas de fichier. */
+/** A specific FINISHED render of a clip (same shape as `dernierRendu`), or null if it does not exist, is not finished or has no file. */
 async function renduDuPlan(db: Db, planId: number, jobId: number) {
   const [j] = await db
     .select({ id: jobs.id, cheminSortie: jobs.cheminSortie, finishedAt: jobs.finishedAt, createdAt: jobs.createdAt, workflowFichier: jobs.workflowFichier })
@@ -610,8 +610,8 @@ async function renduDuPlan(db: Db, planId: number, jobId: number) {
   return j ?? null;
 }
 
-/** L'historique des corrections après visionnage déjà tentées sur ce plan (voir `historiqueIteration`). Depuis 2026-11-09, les décisions d'une itération
- * s'écrivent avec la fiche RECOMPILÉE (une proposition `plan-h3ir` de la même demande) : c'est son application qui fait « appliquée ». */
+/** The history of post-viewing corrections already attempted on this clip (see `historiqueIteration`). Since 2026-11-09, an iteration's decisions
+ * are written with the RECOMPILED sheet (a `plan-h3ir` proposal of the same request): its application is what makes it "appliquée". */
 async function historiqueDuPlan(db: Db, projectId: number, planId: number) {
   const lues = await db
     .select({ id: propositions.id, createdAt: propositions.createdAt, appliedAt: propositions.appliedAt, statut: propositions.statut, consigne: propositions.consigne, resultat: agentRuns.resultat, entree: agentRuns.entree, demandeId: agentRuns.demandeId })
@@ -646,24 +646,24 @@ async function historiqueDuPlan(db: Db, projectId: number, planId: number) {
   );
 }
 
-/** L'entrée d'`iteration-plan` pour UN plan qui a un rendu (routage par état du plan, 2026-10-02 : sans rendu, pas
- * de correction à l'aveugle). Voir agents/skills/iteration-plan/SKILL.md, « Ce que tu reçois » :
- * - `plan` (titre, intention, durée voulue, fps), `promptActuel` (les six sections STOCKÉES, labels compris) ;
- * - `references` : chaque label du plan → asset, rôle, rétention ; les voix (`voix: true`) avec leur réplique ;
- * - `retourVisionnage` (obligatoire), `historique` ;
- * - `planche` : un DESCRIPTEUR du rendu (job, chemin relatif à MEDIA_ROOT, plafond de vignettes). Les images ne
- *   sont JAMAIS stockées dans agent_runs.entree : le worker reconstruit la planche à l'exécution
- *   (worker/agents/preparation.ts), mesure la durée réelle (ffprobe) et remplace `planche` par `rendu`.
- *   La planche n'est JAMAIS automatique (décision 2026-10-12) : sans `avecPlanche`, le descripteur est absent, l'entrée porte
- *   `sansPlanche: true` et l'agent travaille depuis la consigne et la fiche actuelle (ni `rendu` ni durée mesurée). */
+/** The `iteration-plan` input for ONE clip that has a render (routing by clip state, 2026-10-02: without a render, no
+ * blind correction). See agents/skills/iteration-plan/SKILL.md, "Ce que tu reçois":
+ * - `plan` (title, intent, wanted duration, fps), `promptActuel` (the six STORED sections, labels included);
+ * - `references`: each label of the clip → asset, role, retention; voices (`voix: true`) with their line of dialogue;
+ * - `retourVisionnage` (required), `historique`;
+ * - `planche`: a DESCRIPTOR of the render (job, path relative to MEDIA_ROOT, contact-sheet cap). The images are
+ *   NEVER stored in agent_runs.entree: the worker rebuilds the contact sheet at run time
+ *   (worker/agents/preparation.ts), measures the real duration (ffprobe) and replaces `planche` with `rendu`.
+ *   The contact sheet is NEVER automatic (decision 2026-10-12): without `avecPlanche`, the descriptor is absent, the input carries
+ *   `sansPlanche: true` and the agent works from the instruction and the current sheet (neither `rendu` nor measured duration). */
 export async function entreeIterationPlan(
   db: Db,
   projectId: number,
   planUuid: string,
   retourVisionnage: string,
-  /** Fiche de plan « table de montage » : l'essai (job) que l'agent doit regarder, quand ce n'est pas le dernier. */
+  /** Clip sheet of the "montage" table: the attempt (job) the agent must watch, when it is not the latest. */
   renduId?: number | null,
-  /** Joindre la planche de vignettes du rendu (ffprobe + ffmpeg à l'exécution) : « Montrer au chef opérateur » ou « Analyser ». */
+  /** Attach the render's contact sheet (ffprobe + ffmpeg at run time): "Montrer au chef opérateur" or "Analyser". */
   avecPlanche = false,
 ): Promise<(EntreeSkill & { plan: { id: number; uuid: string; titre: string } }) | { erreur: string }> {
   const [p] = await db.select().from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
@@ -675,8 +675,8 @@ export async function entreeIterationPlan(
   for (const l of lignes) sections[l.section] = sections[l.section] ? `${sections[l.section]}\n${l.contenu}` : l.contenu;
   if (!Object.values(sections).some((s) => s.trim())) return { erreur: "Ce plan n'a pas de fiche (prompt vide) : écris-la d'abord (« Écrire la fiche »)." };
 
-  // Les voisins, pour le RACCORD (lecture seule) : intention et fin du précédent, intention et début du suivant. Contexte léger : 400 caractères
-  // d'intention (la FIN de celle du précédent, le DÉBUT de celle du suivant : c'est là que les plans se touchent) et 450 de shot au plus par voisin.
+  // The neighbours, for the MATCH CUT (read-only): intent and end of the previous one, intent and start of the next one. Light context: 400 characters
+  // of intent (the END of the previous one's, the START of the next one's: that is where the clips touch) and 450 of shot at most per neighbour.
   const lesPlans = await plansDe(db, p.episodeId);
   const rangPlan = lesPlans.findIndex((x) => x.uuid === p.uuid);
   const avant = rangPlan > 0 ? lesPlans[rangPlan - 1]! : null;
@@ -704,13 +704,13 @@ export async function entreeIterationPlan(
     })),
   ];
   const importe = rendu.workflowFichier === WORKFLOW_IMPORT_MANUEL;
-  // Le registre : de quoi AJOUTER une référence (codes existants, jamais inventés) ; sans les voix (les poses composites « keyframe » se citent comme les autres images).
-  // `image` : le fichier de l'asset existe (une référence ajoutée sans image ne se compile pas encore).
+  // The registry: what is needed to ADD a reference (existing codes, never invented); without the voices (composite "keyframe" poses are cited like the other images).
+  // `image`: the asset's file exists (a reference added without an image does not compile yet).
   const fichiers = new Map(
     (await db.select({ code: assets.code, fichier: assets.fichier }).from(assets).where(eq(assets.projectId, projectId))).map((a) => [a.code, !!a.fichier && existsSync(join(MEDIA_ROOT, cheminAssetMedia(a.fichier)))]),
   );
   const registre = (await registreResume(db, projectId)).map((a) => ({ ...a, image: fichiers.get(a.code) ?? false }));
-  // Les réglages Open H3 IR effectifs du plan (plan > scène > projet) et les valeurs permises : l'agent règle la caméra et le rythme par eux, pas par du texte.
+  // The effective Open H3 IR settings of the clip (clip > scene > project) and the allowed values: the agent sets the camera and the rhythm through them, not through text.
   const [sceneR] = p.sceneId != null ? await db.select({ creativite: scenes.creativite, styleCamera: scenes.styleCamera }).from(scenes).where(eq(scenes.id, p.sceneId)) : [];
   const [projetR] = await db.select({ creativite: projects.creativite, styleCamera: projects.styleCamera }).from(projects).where(eq(projects.id, projectId));
   const resolus = resoudreReglages({ projet: projetR, scene: sceneR, plan: { creativite: p.creativite, styleCamera: p.styleCamera } });
@@ -759,11 +759,11 @@ export async function entreeIterationPlan(
   };
 }
 
-// --- inventaire des assets -----------------------------------------------------
+// --- asset inventory -----------------------------------------------------------
 
-/** Entrée d'`inventaire-assets` : TOUS les plans du projet (titre et intention, par scène et par épisode), le registre
- * actuel et le brief. Un seul appel pour le projet : c'est la vue d'ensemble qui évite les doublons entre plans.
- * `null` si le projet n'a aucun plan écrit. */
+/** `inventaire-assets` input: ALL the project's clips (title and intent, by scene and by episode), the current
+ * registry and the brief. A single call for the project: the overview is what avoids duplicates between clips.
+ * `null` if the project has no written clip. */
 export async function entreeInventaire(db: Db, projectId: number, consigne: string, retour?: string): Promise<(EntreeSkill & { nbPlans: number; planUuids: Record<string, string>; entree: EntreeInventaire }) | null> {
   const eps = await db
     .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre, resume: episodes.resume })
@@ -779,8 +779,8 @@ export async function entreeInventaire(db: Db, projectId: number, consigne: stri
     .where(inArray(plans.episodeId, ids))
     .orderBy(asc(plans.ordre), asc(plans.id));
   if (lesPlans.length === 0) return null;
-  // Chaque plan reçoit une poignée (« P07 », dans l'ordre de lecture de l'entrée) que le modèle cite dans `references` ; la poignée → uuid reste
-  // dans les options de la tâche (`planUuids`), jamais montrée (lib/agents/inventory.ts).
+  // Each clip receives a handle ("P07", in the input's reading order) that the model cites in `references`; the handle → uuid mapping stays
+  // in the task's options (`planUuids`), never shown (lib/agents/inventory.ts).
   const planUuids: Record<string, string> = {};
 
   const registre = (await registreResume(db, projectId));

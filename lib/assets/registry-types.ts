@@ -1,29 +1,29 @@
-/** Types partagés par le registre d'assets (page serveur, cartes et liste côté client) — sans dépendance au disque. */
+/** Types shared by the asset registry (server page, cards and client-side list) — with no disk dependency. */
 
 export type MediaKind = "image" | "video" | "audio";
 export type FichierEtat = "aucun" | "manquant" | "ok";
 
-/** Une ligne du registre : tout ce qu'il faut pour l'afficher, la filtrer et la sélectionner, déjà calculé côté serveur. */
+/** A registry row: everything needed to display, filter and select it, already computed server-side. */
 export type LigneRegistre = {
   id: number;
   code: string;
-  /** Le nom affiché (label, sinon le code lisible) ; le code reste l'identifiant. */
+  /** The displayed name (label, otherwise the readable code); the code remains the identifier. */
   libelle: string;
   type: string;
   statut: "a_produire" | "en_cours" | "valide";
   critique: boolean;
   description: string | null;
-  /** Nombre de plans qui citent cet asset (0 = « sans plan »). */
+  /** Number of clips that cite this asset (0 = « sans plan »). */
   nbPlans: number;
-  /** Personnage uniquement : sa voix fixée (master), `null` = sans voix fixée ; `undefined` pour tout autre type. */
+  /** Character only: its fixed voice (master), `null` = no fixed voice; `undefined` for any other type. */
   voix?: { code: string } | null;
   kind: MediaKind;
   etat: FichierEtat;
   src: string | null;
   fichier: string | null;
-  /** Pourquoi la suppression est bloquée, ou null si l'asset peut être supprimé. */
+  /** Why deletion is blocked, or null if the asset can be deleted. */
   blocageSuppression: string | null;
-  /** Pourquoi l'asset ne peut pas partir en génération par lot, ou null s'il peut partir. */
+  /** Why the asset cannot go into batch generation, or null if it can go. */
   raisonLot: string | null;
 };
 

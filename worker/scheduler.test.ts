@@ -49,9 +49,9 @@ test("le choix ne modifie pas la liste reçue (pas de préemption : on choisit e
   assert.deepEqual(liste.map((x) => x.id), [1, 2, 3]);
 });
 
-// --- Propriétés : on rejoue des files au hasard (graine fixe) comme le worker :
-// à chaque tour une tâche est prise ET retirée ; des tâches nouvelles arrivent entre
-// deux tours. Rien ne se coupe en cours de route : une tâche prise va au bout.
+// --- Properties: we replay random queues (fixed seed) like the worker:
+// at each turn a task is taken AND removed; new tasks arrive between
+// two turns. Nothing is cut along the way: a task taken goes to the end.
 
 function aleatoire(graine: number) {
   let s = graine;
@@ -75,12 +75,12 @@ test("propriété : jamais de famine — avec un flux fini d'arrivées, toute t�
     let tour = 0;
     while (file.length > 0) {
       assert.ok(tour++ < 500, `boucle infinie (graine ${graine})`);
-      // Des arrivées pendant les 60 premiers tours, puis le flux se tarit.
+      // Arrivals during the first 60 turns, then the flow dries up.
       if (tour < 60 && alea() < 0.6) nouvelle();
       const choix: TacheEnAttente = choisirProchaineTache(file, precedent)!;
       assert.ok(choix, "une file non vide donne toujours une tâche");
       const i = file.findIndex((x) => x.id === choix.id);
-      file.splice(i, 1); // prise ET retirée : jamais deux fois la même
+      file.splice(i, 1); // taken AND removed: never twice the same
       assert.ok(!traitees.has(choix.id), "une tâche n'est prise qu'une fois");
       traitees.add(choix.id);
       precedent = choix.genre === "llm" ? "llm" : "comfyui";
@@ -105,12 +105,12 @@ test("propriété : seule une tâche plus prioritaire ou plus ancienne du même 
       ordre.push(c);
       reste.splice(reste.findIndex((x) => x.id === c.id), 1);
     }
-    // Pour chaque genre, l'ordre de passage est l'ordre d'arrivée (FIFO).
+    // For each kind, the passing order is the arrival order (FIFO).
     for (const g of genres) {
       const ids = ordre.filter((x) => x.genre === g).map((x) => x.id);
       assert.deepEqual(ids, [...ids].sort((a, b) => a - b), `FIFO du genre ${g} (graine ${graine})`);
     }
-    // Et les genres passent par paliers : toutes les images, puis tous les llm, puis toutes les vidéos.
+    // And the kinds pass by tiers: all the images, then all the llm, then all the videos.
     const rang = { image: 0, llm: 1, video: 2 } as const;
     const rangs = ordre.map((x) => rang[x.genre]);
     assert.deepEqual(rangs, [...rangs].sort((a, b) => a - b), `paliers respectés (graine ${graine})`);
@@ -118,7 +118,7 @@ test("propriété : seule une tâche plus prioritaire ou plus ancienne du même 
 });
 
 test("à égalité de palier, le domaine de la tâche précédente passe d'abord (aujourd'hui sans effet : un genre par palier)", () => {
-  // Deux genres du même domaine (image, vidéo) n'ont pas le même palier : l'image reste prioritaire.
+  // Two kinds of the same domain (image, video) do not have the same tier: the image stays first.
   assert.equal(choisirProchaineTache([t("video", 1, 0), t("image", 2, 5)], "llm")?.genre, "image");
   assert.equal(choisirProchaineTache([t("llm", 1, 0), t("video", 2, 5)], "comfyui")?.genre, "llm");
 });
@@ -133,6 +133,6 @@ test("une étape de demande passe avant le travail de fond, même d'un genre moi
   const t = (genre: TacheEnAttente["genre"], id: number, h: number, demande = false): TacheEnAttente => ({ genre, id, createdAt: new Date(2026, 9, 17, 10, h), demande });
   const choix = choisirProchaineTache([t("image", 1, 0), t("video", 2, 5, true)]);
   assert.equal(choix?.genre, "video");
-  // à demande égale, l'ordre habituel
+  // with equal request, the usual order
   assert.equal(choisirProchaineTache([t("video", 3, 0, true), t("video", 4, 1, true)])?.id, 3);
 });

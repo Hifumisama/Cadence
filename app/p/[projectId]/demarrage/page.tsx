@@ -15,8 +15,8 @@ import { lireBrief, lireConversation, trouverConversation } from "@/lib/agents/q
 
 export const dynamic = "force-dynamic";
 
-/** La suite de la conception d'un projet : le scénario (entretien avec le scénariste) puis le clap. Un projet sans conception (créé avant
- * cette page) n'a rien à faire ici ; un projet dont la préparation est lancée va sur la page de l'installateur. */
+/** The continuation of a project's design: the screenplay (interview with the screenwriter) then the clap. A project without a design (created before
+ * this page) has nothing to do here; a project whose preparation has been launched goes to the installer page. */
 export default async function DemarragePage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
   const pid = Number(projectId);

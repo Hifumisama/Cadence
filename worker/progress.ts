@@ -7,17 +7,17 @@ import { cheminGenerationMedia } from "../lib/media";
 import { limiteur } from "./comfyui/limiter";
 import type { EvenementSuivi } from "./comfyui/types";
 
-// Relais de la progression d'une génération d'images vers la base : le
-// navigateur ne parle pas à ComfyUI, la page lit ces colonnes (rafraîchie toutes
-// les 3 s). Débit limité : ComfyUI peut émettre plusieurs événements par
-// seconde, l'écran n'en a pas besoin.
+// Relay of the progress of an image generation to the database: the
+// browser does not talk to ComfyUI, the page reads these columns (refreshed every
+// 3 s). Rate limited: ComfyUI can emit several events per
+// second, the screen does not need them.
 
 const INTERVALLE_PROGRESSION_MS = 1_000;
 const INTERVALLE_APERCU_MS = 1_000;
 
 const EXTENSION = { jpeg: "jpg", png: "png", webp: "webp", inconnu: "bin" } as const;
 
-/** Libellé lisible d'un nœud : son titre dans le graphe, à défaut son type. */
+/** Readable label of a node: its title in the graph, otherwise its type. */
 function libelleNoeud(graphe: Record<string, unknown>, noeud: string): string {
   const n = graphe[noeud] as { class_type?: string; _meta?: { title?: string } } | undefined;
   return (n?._meta?.title ?? n?.class_type ?? noeud).slice(0, 80);
@@ -35,7 +35,7 @@ export function creerRelais(opts: {
   const peutEcrireApercu = limiteur(INTERVALLE_APERCU_MS);
   let etape: string | null = null;
   let fichierApercu: string | null = null;
-  // Les écritures s'enchaînent : jamais deux UPDATE concurrents sur la ligne.
+  // Writes are chained: never two concurrent UPDATEs on the row.
   let file: Promise<unknown> = Promise.resolve();
   const enfiler = (tache: () => Promise<unknown>) => {
     file = file.then(tache).catch(() => undefined);
@@ -62,7 +62,7 @@ export function creerRelais(opts: {
       }
     },
 
-    /** Fin de tâche (réussie ou non) : l'aperçu et la barre n'ont plus lieu d'être. */
+    /** End of task (successful or not): the preview and the bar are no longer needed. */
     async nettoyer() {
       await file;
       if (fichierApercu) await unlink(join(mediaRoot, cheminGenerationMedia(assetId, fichierApercu))).catch(() => undefined);
@@ -75,8 +75,8 @@ export function creerRelais(opts: {
   };
 }
 
-/** Les étapes d'un rendu vidéo que l'écran sait nommer (les identifiants de nœuds des trois graphes, voir worker/comfyui/mappingThreeSteps.ts) ;
- * les autres nœuds ne changent pas l'étape affichée. */
+/** The steps of a video render that the screen can name (the node identifiers of the three graphs, see worker/comfyui/mappingThreeSteps.ts);
+ * the other nodes do not change the displayed step. */
 const ETAPES_VIDEO: Record<string, string> = {
   "5": "Lecture des références",
   "125:12": "Génération de la vidéo (MiniMax H3)",
@@ -90,8 +90,8 @@ const ETAPES_VIDEO: Record<string, string> = {
 };
 const libelleEtapeVideo = (noeud: string): string | null => ETAPES_VIDEO[noeud] ?? null;
 
-/** Relais de la progression d'un RENDU VIDÉO vers la base (la page et le header lisent ces colonnes). Pas d'aperçu image. Au plus une écriture par
- * seconde. Un rendu enchaîne plusieurs prompts (génération, upscale, finition) : `definirEtape` met « 2/3 · » devant le libellé de chacun. */
+/** Relay of the progress of a VIDEO RENDER to the database (the page and the header read these columns). No image preview. At most one write per
+ * second. A render chains several prompts (generation, upscale, finishing): `definirEtape` puts « 2/3 · » in front of the label of each. */
 export function creerRelaisJob(jobId: number) {
   const peutEcrire = limiteur(INTERVALLE_PROGRESSION_MS);
   let prefixe = "";
@@ -102,7 +102,7 @@ export function creerRelaisJob(jobId: number) {
   };
   const libelle = (l: string) => `${prefixe}${l}`.slice(0, 80);
   return {
-    /** Le prompt `rang` sur `total` commence : le libellé est vide jusqu'au premier nœud qui sait se nommer. */
+    /** The prompt `rang` out of `total` starts: the label is empty until the first node that can name itself. */
     definirEtape(rang: number, total: number) {
       prefixe = total > 1 ? `${rang}/${total} · ` : "";
       etape = null;

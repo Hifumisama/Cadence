@@ -2,11 +2,11 @@ import { and, desc, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { jobs, plans } from "../../db/schema";
 
-/** Accès base du raccord (lib/clips/clip-continuity.ts), partagé par le worker (qui extrait l'image) et la page du plan (qui dit si elle est périmée). */
+/** Database access for the continuity (lib/clips/clip-continuity.ts), shared by the worker (which extracts the image) and the clip page (which says whether it is stale). */
 
 export type PlanPrecedent = { id: number; titre: string; renduRetenuId: number | null };
 
-/** Le plan qui précède celui-ci dans l'épisode (par `ordre`), ou null pour le premier. */
+/** The clip that precedes this one in the episode (by `ordre`), or null for the first. */
 export async function planPrecedent(plan: { episodeId: number; ordre: number }): Promise<PlanPrecedent | null> {
   const [p] = await db
     .select({ id: plans.id, titre: plans.titre, renduRetenuId: plans.renduRetenuId })
@@ -17,8 +17,8 @@ export async function planPrecedent(plan: { episodeId: number; ordre: number }):
   return p ?? null;
 }
 
-/** L'essai du plan précédent dont on prend la dernière image : son rendu retenu s'il en a un (terminé, avec un fichier), sinon son dernier essai
- * terminé qui a un fichier. Null s'il n'y en a pas. */
+/** The attempt of the previous clip whose last image we take: its kept render if it has one (finished, with a file), otherwise its last
+ * finished attempt that has a file. Null if there is none. */
 export async function essaiSourceDuRaccord(precedent: { id: number; renduRetenuId: number | null }): Promise<{ id: number; numeroRendu: number; cheminSortie: string } | null> {
   const lignes = await db
     .select({ id: jobs.id, numeroRendu: jobs.numeroRendu, cheminSortie: jobs.cheminSortie })
@@ -29,7 +29,7 @@ export async function essaiSourceDuRaccord(precedent: { id: number; renduRetenuI
   return choisi?.cheminSortie ? { id: choisi.id, numeroRendu: choisi.numeroRendu, cheminSortie: choisi.cheminSortie } : null;
 }
 
-/** Ce que la page d'un plan dit de son raccord : le plan précédent et l'essai dont l'image serait prise MAINTENANT. */
+/** What a clip's page says of its continuity: the previous clip and the attempt whose image would be taken NOW. */
 export async function raccordActuel(plan: { episodeId: number; ordre: number; liaison: string }): Promise<{ precedent: PlanPrecedent; source: { id: number; numeroRendu: number } | null } | null> {
   if (plan.liaison !== "suite") return null;
   const precedent = await planPrecedent(plan);
@@ -38,10 +38,10 @@ export async function raccordActuel(plan: { episodeId: number; ordre: number; li
   return { precedent, source: source ? { id: source.id, numeroRendu: source.numeroRendu } : null };
 }
 
-/** Le latent de première passe du plan précédent, de quoi alimenter Motion Context (2026-10-30, docs/PLAN_INTEGRATION_WORKER.md) : celui de son rendu retenu s'il
- * en a un, sinon de son dernier rendu terminé qui en a un. Un rendu final n'a pas de première passe à lui s'il est parti d'une prévisualisation : on prend celle de
- * cette prévisualisation. `id` est l'essai du plan précédent qui sert de référence (comme pour le raccord par image) ; null si aucun latent n'est disponible,
- * et le plan retombe alors sur l'image de raccord. */
+/** The first-pass latent of the previous clip, to feed Motion Context (2026-10-30, docs/PLAN_INTEGRATION_WORKER.md): that of its kept render if it
+ * has one, otherwise of its last finished render that has one. A final render has no first pass of its own if it left from a preview: we take that of
+ * this preview. `id` is the attempt of the previous clip that serves as reference (as for the image continuity); null if no latent is available,
+ * and the clip then falls back to the continuity image. */
 export async function essaiSourceDuLatent(precedent: { id: number; renduRetenuId: number | null }): Promise<{ id: number; numeroRendu: number; latentDossier: string } | null> {
   const lignes = await db
     .select({ id: jobs.id, numeroRendu: jobs.numeroRendu, final: jobs.activerUpscale, latentDossier: jobs.latentDossier, jobSourceId: jobs.jobSourceId })
@@ -57,8 +57,8 @@ export async function essaiSourceDuLatent(precedent: { id: number; renduRetenuId
   return null;
 }
 
-/** Le plan précédent (par `ordre`, même épisode) a-t-il un rendu en file ou en cours ? Sert au worker : un plan en « suite » n'est pas pris tant que c'est le cas
- * (voir `doitAttendreLePrecedent`, lib/clips/chains.ts). */
+/** Does the previous clip (by `ordre`, same episode) have a render queued or running? Used by the worker: a clip in « suite » is not taken as long as it is the case
+ * (see `doitAttendreLePrecedent`, lib/clips/chains.ts). */
 export async function precedentEnRendu(plan: { episodeId: number; ordre: number }): Promise<boolean> {
   const precedent = await planPrecedent(plan);
   if (!precedent) return false;

@@ -4,9 +4,9 @@ import type { Position } from "../types";
 import { planParPoignee, type VueEpisode } from "./view-episode";
 import { TYPES_OPERATION, type Operation, type OperationBrute, type OperationRefusee } from "./types";
 
-/** Valide les opérations que le modèle propose et les traduit en opérations STOCKABLES (uuid). Pur, testé.
- * Le modèle cite des poignées (« P07 ») : tout ce qu'il invente est refusé ici, avec une raison lisible que le tour de réponse
- * peut lui renvoyer. Jamais d'écriture sur une cible inconnue. */
+/** Validates the operations the model proposes and translates them into STORABLE operations (uuids). Pure, tested.
+ * The model cites handles (« P07 »): anything it invents is refused here, with a readable reason that the reply turn
+ * can send back to it. Never a write on an unknown target. */
 
 const texteNet = (v: string | null | undefined): string => (v ?? "").replace(/\r\n/g, "\n").trim();
 
@@ -36,7 +36,7 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
       }
       let position: Position | null = null;
       if (b.avant && b.apres) {
-        // « Entre P03 et P04 » : les deux repères doivent être voisins, sinon on ne sait pas où poser le plan.
+        // « Entre P03 et P04 »: the two markers must be neighbours, otherwise we do not know where to place the clip.
         const apresPlan = planParPoignee(vue, b.apres);
         const avantPlan = planParPoignee(vue, b.avant);
         if (!apresPlan || !avantPlan) {
@@ -54,8 +54,8 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
           refuse(b, `Repère « ${b.avant} » introuvable pour placer le plan ajouté.`);
           continue;
         }
-        // « Avant P05 » = après le plan qui précède P05 (ou au début s'il est le premier) : le brouillon et l'application gardent l'ordre de lecture
-        // de plusieurs plans ajoutés au même endroit.
+        // « Avant P05 » = after the clip that precedes P05 (or at the start if it is the first): the draft and the application keep the reading order
+        // of several clips added at the same place.
         const precedent = vue.plans[cible.position - 2];
         position = precedent ? { apresPlanUuid: precedent.uuid } : { debut: true };
       } else if (b.apres) {
@@ -94,7 +94,7 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
       valides.push({ type: "duree_plan", planUuid: p.uuid, secondes: s });
     } else if (b.type === "deplacer_plan") {
       let position: Position | null = null;
-      // « avant », « apres » et « position » sont des alternatives : un seul repère par déplacement.
+      // « avant », « apres » and « position » are alternatives: only one marker per move.
       if ([b.avant, b.apres, b.position].filter(Boolean).length > 1) {
         refuse(b, `Un seul repère pour déplacer ${p.handle} : « avant » un plan, « apres » un plan, ou « position » debut / fin.`);
         continue;
@@ -109,7 +109,7 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
           refuse(b, `${p.handle} ne peut pas être placé avant lui-même.`);
           continue;
         }
-        // « Avant P02 » = après le plan qui précède P02 (ou au début s'il est le premier).
+        // « Avant P02 » = after the clip that precedes P02 (or at the start if it is the first).
         const precedent = vue.plans[cible.position - 2];
         if (precedent?.uuid === p.uuid) {
           refuse(b, `${p.handle} est déjà juste avant ${cible.handle}.`);
@@ -137,7 +137,7 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
     } else {
       const titre = texteNet(b.titre);
       const description = texteNet(b.description);
-      // La liaison avec le plan précédent : « suite » ou « coupe » (le premier plan n'en a pas à changer : c'est toujours une coupe).
+      // The link with the previous clip: « suite » or « coupe » (the first clip has nothing to change: it is always a cut).
       const liaison = estLiaison(b.liaison) ? b.liaison : undefined;
       if (b.liaison && !liaison) {
         refuse(b, `${p.handle} : liaison « ${b.liaison} » inconnue (suite ou coupe).`);

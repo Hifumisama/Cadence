@@ -1,23 +1,23 @@
 import { ErreurLlm, type DemandeLlm, type FournisseurLlm, type ReponseLlm, type TimingsServeur } from "./types";
 
-/** Fournisseur « compatible OpenAI » : un serveur qui parle `/v1/chat/completions`
- * (llama.cpp derrière llama-swap, Ollama, LM Studio, vLLM…). La sortie est
- * contrainte par `response_format` json_schema quand un schéma est fourni.
+/** « OpenAI-compatible » provider: a server that speaks `/v1/chat/completions`
+ * (llama.cpp behind llama-swap, Ollama, LM Studio, vLLM…). The output is
+ * constrained by `response_format` json_schema when a schema is provided.
  *
- * Le flux (SSE) est le mode par défaut : une génération de plusieurs minutes ne
- * laisse pas la connexion muette (un reverse proxy la couperait) et donne la
- * progression en jetons. Annuler = couper la connexion : le serveur arrête. */
+ * The stream (SSE) is the default mode: a generation lasting several minutes does not
+ * leave the connection silent (a reverse proxy would cut it) and gives progress
+ * in tokens. Cancelling = cutting the connection: the server stops. */
 
 export type OptionsCompatibleOpenAI = {
   url: string;
   modele: string;
   delaiMs: number;
-  /** Silence maximal toléré (aucun octet reçu, connexion ouverte) avant de couper ; 0 = pas de garde. `delaiMs`
-   * reste le garde-fou sur la durée totale. Un serveur qui se tait sans fermer la connexion n'occupe plus le GPU
-   * pendant tout `delaiMs`. */
+  /** Maximum silence tolerated (no byte received, connection open) before cutting; 0 = no guard. `delaiMs`
+   * remains the guard on the total duration. A server that goes silent without closing the connection no longer occupies the GPU
+   * for the whole `delaiMs`. */
   inactiviteMs?: number;
   flux: boolean;
-  /** Champs ajoutés tels quels au corps de la requête (ex. chat_template_kwargs). */
+  /** Fields added as-is to the request body (e.g. chat_template_kwargs). */
   corpsSupplementaire?: Record<string, unknown>;
 };
 
@@ -100,12 +100,12 @@ function essayerJson(texte: string): unknown {
   }
 }
 
-/** Borne du raisonnement gardé pour la trace (caractères) : un modèle bavard peut en produire des centaines de milliers. */
+/** Bound of the reasoning kept for the trace (characters): a verbose model can produce hundreds of thousands. */
 const REFLEXION_MAX_CARACTERES = 100_000;
 
 type Lu = { texte: string; reflexion?: string; usage: Usage; modele?: string; arret?: string; brut: unknown; timings?: TimingsServeur };
 
-/** Le bloc `timings` de llama-server (absent chez les autres serveurs) ; null s'il manque ou n'a pas la forme attendue. */
+/** The `timings` block of llama-server (absent from other servers); null if it is missing or does not have the expected shape. */
 function lireTimings(t: any): TimingsServeur | undefined {
   if (!t || typeof t !== "object") return undefined;
   const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -125,7 +125,7 @@ function lireJson(j: any): Lu {
   };
 }
 
-/** Assemble un flux SSE OpenAI. Tolérant : une ligne illisible est ignorée. */
+/** Assembles an OpenAI SSE stream. Tolerant: an unreadable line is ignored. */
 async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: number) => void, surFlux?: DemandeLlm["surFlux"], surOctets?: () => void): Promise<Lu> {
   surFlux?.({ type: "debut", texte: "" });
   const lecteur = corps.getReader();
@@ -165,9 +165,9 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
       morceaux += 1;
       surProgres?.(morceaux);
     } else if (typeof choix?.delta?.reasoning_content === "string" && choix.delta.reasoning_content) {
-      // Les modèles « qui réfléchissent » (Gemma 4, Qwen 3.6) émettent d'abord leur
-      // raisonnement dans `reasoning_content` : il n'entre pas dans `texte`, mais il
-      // consomme des jetons (et `max_tokens`) et compte pour la progression.
+      // Models that « think » (Gemma 4, Qwen 3.6) first emit their reasoning in
+      // `reasoning_content`: it does not go into `texte`, but it consumes tokens
+      // (and `max_tokens`) and counts towards progress.
       reflexion += choix.delta.reasoning_content.length;
       if (reflexionTexte.length < REFLEXION_MAX_CARACTERES) reflexionTexte += choix.delta.reasoning_content;
       surFlux?.({ type: "reflexion", texte: choix.delta.reasoning_content });
@@ -193,8 +193,8 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
     }
   }
   traiter(tampon);
-  // Un flux qui se ferme sans `finish_reason` ni `[DONE]` a été COUPÉ (serveur planté, reverse proxy,
-  // swap de modèle) : son texte est un fragment, pas une sortie mal formée — on le dit franchement.
+  // A stream that closes without `finish_reason` or `[DONE]` was CUT (server crashed, reverse proxy,
+  // model swap): its text is a fragment, not a malformed output — we say so frankly.
   if (!fini) {
     throw new ErreurLlm(
       "flux_coupe",
@@ -202,8 +202,8 @@ async function lireFlux(corps: ReadableStream<Uint8Array>, surProgres?: (n: numb
       { texte, reflexion },
     );
   }
-  // Sans bloc d'usage (serveur qui n'envoie pas `include_usage`) : on retombe sur le
-  // nombre de morceaux reçus, une approximation des jetons de sortie.
+  // Without a usage block (server that does not send `include_usage`): we fall back on the
+  // number of chunks received, an approximation of the output tokens.
   if (usage.sortie === 0) usage = { ...usage, sortie: morceaux };
   return { texte, reflexion: reflexionTexte ? reflexionTexte.slice(0, REFLEXION_MAX_CARACTERES) : undefined, usage, modele, arret, timings, brut: { assemble: true, caracteresReflexion: reflexion, dernierMorceau: dernier } };
 }
@@ -214,8 +214,8 @@ function contientImage(d: DemandeLlm): boolean {
 
 function erreurHttp(statut: number, corps: string, modele: string, avecImages = false): ErreurLlm {
   const extrait = corps.slice(0, 500);
-  // llama.cpp sans projecteur : « image input is not supported - hint: … provide the mmproj » ;
-  // Ollama : « … does not support images ». On le nomme : ce n'est pas une panne du serveur.
+  // llama.cpp without a projector: « image input is not supported - hint: … provide the mmproj » ;
+  // Ollama: « … does not support images ». We name it: this is not a server failure.
   if (avecImages && /(image input is not supported|mmproj|does not support (images|vision)|multimodal)/i.test(extrait)) {
     return new ErreurLlm("vision_absente", `Le modèle « ${modele} » n'accepte pas les images sur ce serveur (projecteur mmproj absent ?) : ${extrait}`, { statut });
   }

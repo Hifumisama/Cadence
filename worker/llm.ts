@@ -15,37 +15,37 @@ import { controleurPourSkill } from "../lib/llm/checks";
 import { SKILL_REFERENCES_PLAN, TEMPERATURE_REFERENCES_PLAN } from "../lib/agents/references-clip";
 import { executerH3ir, SKILL_H3IR, SKILL_TRADUCTION, type DepsH3ir } from "./h3ir";
 
-// Tâche LLM : un appel à un skill d'agent posé dans `agent_runs` (genre « llm »
-// du worker). Même contrat que les images : une demande n'est jamais rejouée toute
-// seule (un appel de plusieurs minutes se relance à la main), et un serveur LLM
-// injoignable ne consomme rien : elle reste en attente.
+// LLM task: a call to an agent skill placed in `agent_runs` (« llm » kind
+// of the worker). Same contract as the images: a request is never replayed on its own
+// (a call of several minutes is restarted by hand), and an unreachable LLM server
+// consumes nothing: it stays pending.
 //
-// L'annulation coupe la connexion HTTP (AbortSignal) : llama.cpp arrête de générer.
-// Elle n'est ni une erreur ni une raison de relancer.
+// Cancellation cuts the HTTP connection (AbortSignal): llama.cpp stops generating.
+// It is neither an error nor a reason to retry.
 
 const INTERVALLE_PROGRESSION_MS = 1_000;
 
 export type AgentRun = typeof agentRuns.$inferSelect;
 
-/** Le plus ancien appel en attente (FIFO), ou null. Le worker le compare aux
- * images et aux vidéos (worker/scheduler.ts) avant de choisir. Un appel dont les options portent
- * `suspendu: true` n'est jamais pris tout seul : les essais bout en bout
- * le traitent eux-mêmes avec un faux modèle, sans courir contre le worker de dev. */
+/** The oldest pending call (FIFO), or null. The worker compares it with the
+ * images and videos (worker/scheduler.ts) before choosing. A call whose options carry
+ * `suspendu: true` is never taken on its own: the end-to-end tests
+ * handle it themselves with a fake model, without racing against the dev worker. */
 export async function prochaineTacheLlmEnAttente(): Promise<AgentRun | null> {
   const [run] = await db
     .select()
     .from(agentRuns)
     .where(and(eq(agentRuns.statut, "en_attente"), sql`coalesce(${agentRuns.options}->>'suspendu', 'false') <> 'true'`))
-    // Les étapes d'une demande (itération) d'abord : voir worker/scheduler.ts.
+    // The steps of a request (iteration) first: see worker/scheduler.ts.
     .orderBy(sql`(${agentRuns.demandeId} is null)`, agentRuns.createdAt, agentRuns.id)
     .limit(1);
   return run ?? null;
 }
 
-/** Le serveur LLM est injoignable depuis trop longtemps : les appels en attente échouent (au lieu d'attendre
- * indéfiniment et de bloquer la conversation, `tacheActive`). Chacun suit le chemin d'un échec ordinaire
- * (`surEchecRun` : lot finalisé, conversation revenue), et se relance à la main. Les appels `suspendu` (essais
- * bout en bout) ne sont pas touchés. Renvoie leur nombre. */
+/** The LLM server has been unreachable for too long: the pending calls fail (instead of waiting
+ * indefinitely and blocking the conversation, `tacheActive`). Each one follows the path of an ordinary failure
+ * (`surEchecRun`: batch finalised, conversation returned), and is restarted by hand. The `suspendu` calls (end-to-end
+ * tests) are not touched. Returns their number. */
 export async function echouerAppelsEnAttente(message: string): Promise<number> {
   const enAttente = await db
     .select()
@@ -65,19 +65,19 @@ export async function echouerAppelsEnAttente(message: string): Promise<number> {
   return n;
 }
 
-/** Ce qu'on peut injecter pour tester sans serveur LLM (ni ffmpeg : `planche`, voir worker/agents/preparation.ts). */
+/** What can be injected to test without an LLM server (nor ffmpeg: `planche`, see worker/agents/preparation.ts). */
 export type DepsLlm = {
   executer?: typeof executerSkill;
-  /** Open H3 IR (worker/h3ir.ts) : l'exécuteur lui-même, et ses dépendances (brief, lanceur Python…). */
+  /** Open H3 IR (worker/h3ir.ts): the executor itself, and its dependencies (brief, Python launcher…). */
   executerH3ir?: typeof executerH3ir;
   depsH3ir?: DepsH3ir;
 } & DepsPreparation;
 
-/** Traite un appel (le serveur a été sondé juste avant par la boucle du worker). Renvoie `true` s'il a été pris (réussi, échoué ou annulé). */
+/** Processes a call (the server was probed just before by the worker loop). Returns `true` if it was taken (succeeded, failed or cancelled). */
 export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promise<boolean> {
   const executer = deps.executer ?? executerSkill;
-  // Prise gardée par le statut : un appel annulé entre-temps (annulation directe
-  // d'une tâche en attente) ne doit pas être ressuscité.
+  // Taking guarded by the status: a call cancelled in the meantime (direct cancellation
+  // of a pending task) must not be revived.
   const prise = await db
     .update(agentRuns)
     .set({ statut: "en_cours", startedAt: new Date(), erreur: null })
@@ -89,7 +89,7 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
   const surveillance = surveillerAnnulation(() => annulationDemandeeLlm(run.id));
   void surveillance.promesse.then(() => abandon.abort());
 
-  // Les écritures s'enchaînent : jamais deux UPDATE concurrents sur la ligne.
+  // Writes are chained: never two concurrent UPDATEs on the row.
   const peutEcrire = limiteur(INTERVALLE_PROGRESSION_MS);
   const peutEcrireFlux = limiteur(INTERVALLE_PROGRESSION_MS);
   const flux = new AccumulateurFlux();
@@ -103,11 +103,11 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
   const debut = Date.now();
 
   try {
-    // Entrée propre au skill, construite À L'EXÉCUTION (iteration-plan : planche de vignettes du rendu, durée
-    // réelle mesurée) ; un échec ici (rendu disparu, ffmpeg absent) fait échouer la tâche avec son message.
+    // Input specific to the skill, built AT EXECUTION (iteration-plan: contact sheet of the render, real
+    // duration measured); a failure here (render gone, ffmpeg missing) makes the task fail with its message.
     const prep = await preparerEntree(run, { planche: deps.planche });
-    // Open H3 IR (skill virtuel `plan-h3ir`) : brief → traduction de l'intent → compilation Python, au lieu d'un appel de skill (worker/h3ir.ts).
-    // L'étape en cours s'écrit à la place du flux de texte, que le panneau des tâches affiche.
+    // Open H3 IR (virtual skill `plan-h3ir`): brief → intent translation → Python compilation, instead of a skill call (worker/h3ir.ts).
+    // The current step is written in place of the text stream, which the tasks panel displays.
     const res = run.skill === SKILL_H3IR
       ? await (deps.executerH3ir ?? executerH3ir)(
           run,
@@ -123,21 +123,21 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
         )
       : await executer(run.skill, prep.entree, {
       projectId: run.projectId,
-      // Le modèle choisi dans le header est lu ICI, au démarrage de l'appel : un changement vaut pour les appels
-      // suivants, y compris ceux déjà en file. Une surcharge de la tâche prime (relance d'une proposition).
+      // The model chosen in the header is read HERE, at the start of the call: a change applies to the following
+      // calls, including those already queued. A task override takes precedence (re-run of a proposal).
       modele: options.modele ?? (await modeleEffectifPourSkill(run.skill)),
-      // Les notes de l'entretien classent et citent : peu d'aléa, pour qu'un même message donne la même fiche.
-      // Le choix des références d'un plan classe et cite aussi (lib/agents/references-clip.ts).
+      // The interview notes classify and cite: little randomness, so that the same message gives the same sheet.
+      // Choosing a clip's references also classifies and cites (lib/agents/references-clip.ts).
       temperature: run.skill === "notes-entretien" ? 0.1 : run.skill === SKILL_REFERENCES_PLAN ? TEMPERATURE_REFERENCES_PLAN : undefined,
       variante: options.variante,
-      // Une mise à jour d'un brief repart d'un brouillon : la réflexion n'a servi qu'à la première version.
+      // A brief update starts again from a draft: the reasoning only served the first version.
       corps: options.sansReflexion ? CORPS_SANS_REFLEXION : undefined,
       controler: controleurPourSkill(run.skill, prep.controle),
       signal: abandon.signal,
       surProgres: (jetons) => {
         if (peutEcrire()) enfiler(() => db.update(agentRuns).set({ progressionJetons: jetons }).where(eq(agentRuns.id, run.id)));
       },
-      // Le texte et la réflexion au fil du flux, pour les voir s'écrire (au plus une écriture par seconde).
+      // The text and the reasoning along the stream, to see them being written (at most one write per second).
       surFlux: (e) => {
         flux.recevoir(e);
         if (peutEcrireFlux()) {
@@ -150,9 +150,9 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
       },
     });
     await file;
-    // Le résultat devient ce qu'il doit être (message de conversation, brouillon de brief,
-    // changements de proposition) DANS la même transaction que son écriture : si cette
-    // conversion échoue, rien n'est écrit et la tâche est marquée échouée.
+    // The result becomes what it must be (conversation message, brief draft,
+    // proposal changes) IN the same transaction as its write: if this
+    // conversion fails, nothing is written and the task is marked failed.
     await db.transaction(async (tx) => {
       await postTraiterRun(tx, run, res.json, prep.execution);
       await tx
@@ -165,7 +165,7 @@ export async function traiterTacheLlm(run: AgentRun, deps: DepsLlm = {}): Promis
     );
   } catch (err) {
     await file;
-    // Annulation demandée (puis connexion coupée) : une annulation, pas un échec.
+    // Cancellation requested (then connection cut): a cancellation, not a failure.
     if (abandon.signal.aborted || (await annulationDemandeeLlm(run.id).catch(() => false))) {
       await db.update(agentRuns).set({ traceId, fluxTexte: null, fluxReflexion: null }).where(eq(agentRuns.id, run.id));
       await finirAnnulationLlm(run.id);

@@ -139,9 +139,9 @@ test("complète : l'essentiel dit ET au moins deux messages de l'utilisateur ; s
   assert.equal(ficheComplete({ ...f, contenu: { ...f.contenu, personnages: [] } }, 5), false, "présent ET dit");
 });
 
-// --- Entretien enrichi (2026-11-08) : détails à préciser, délégations bornées, gros premier bloc --------------------------------------
+// --- Enriched interview (2026-11-08): details to specify, bounded delegations, big first block --------------------------------------
 
-/** L'essentiel tranché, un héros sans tenue, un lieu sans aspect, un effet sans couleur : il reste des détails. */
+/** The essentials settled, a hero without costume, a place without look, an effect without colour: details remain. */
 function ficheEssentielle(): Fiche {
   const f = ficheDite();
   return {
@@ -206,12 +206,12 @@ test("délégations bornées : « je te laisse décider » répondant à UNE que
   const f = appliquerNotes(FICHE_VIDE, sortie, utilisateur, conversation);
   assert.deepEqual([f.statuts.genreTon, f.statuts.rythme, f.statuts.dureeEpisodeSecondes, f.statuts.fin], ["deduit", "deduit", "deduit", undefined], "une réponse à la question sur la musique ne délègue ni le ton, ni le rythme, ni la durée, ni la fin");
 
-  // La question nommait le rythme : seul le rythme est délégué.
+  // The question named the rhythm: only the rhythm is delegated.
   const surLeRythme = [...conversation.slice(0, 1), { role: "assistant", content: "Côté rythme, plutôt lent ou nerveux ?" }, conversation[2]!];
   const g = appliquerNotes(FICHE_VIDE, sortie, utilisateur, surLeRythme);
   assert.deepEqual([g.statuts.rythme, g.statuts.genreTon], ["delegue", "deduit"]);
 
-  // Une délégation globale (« carte blanche pour le reste ») vaut pour tout ce qu'elle couvre, détails compris.
+  // A global delegation ("carte blanche pour le reste") holds for everything it covers, details included.
   const globale = [...conversation.slice(0, 2), { role: "user", content: "Carte blanche pour le reste !" }];
   const h = appliquerNotes(
     FICHE_VIDE,
@@ -336,11 +336,11 @@ test("accroche : trois pistes de genres différents, tirage au sort, le message 
 test("titreAAdopter : le titre de l'entretien devient le nom du projet tant que celui-ci est provisoire", () => {
   const avec = (titre: string): Fiche => ({ contenu: { titre }, statuts: {} });
   assert.equal(titreAAdopter(avec("Le Chat Témoin"), FICHE_VIDE, "Sans titre"), "Le Chat Témoin");
-  // Le titre proposé une première fois, puis affiné : on suit tant que le nom n'a pas été touché à la main.
+  // The title proposed the first time, then refined: we follow as long as the name has not been touched by hand.
   assert.equal(titreAAdopter(avec("Le Chat et la Rupture"), avec("Le Chat Témoin"), "Le Chat Témoin"), "Le Chat et la Rupture");
-  // Un nom corrigé au clap n'est jamais écrasé.
+  // A name corrected at the clap is never overwritten.
   assert.equal(titreAAdopter(avec("Le Chat et la Rupture"), avec("Le Chat Témoin"), "Mon titre à moi"), null);
-  // Jamais de titre vide ni provisoire, ni de réécriture identique.
+  // Never an empty or provisional title, nor an identical rewrite.
   assert.equal(titreAAdopter(avec("Sans titre"), FICHE_VIDE, "Sans titre"), null);
   assert.equal(titreAAdopter(avec("  "), FICHE_VIDE, "Sans titre"), null);
   assert.equal(titreAAdopter(avec("Le Chat"), FICHE_VIDE, "Le Chat"), null);

@@ -1,7 +1,7 @@
 import { deflateSync } from "node:zlib";
 
-/** PNG factice pour le mode `stub` : un dégradé sombre à liseré or, valide et
- * léger, sans dépendance. Le vrai rendu vient de ComfyUI (mode `http`). */
+/** Fake PNG for the `stub` mode: a dark gradient with a gold edge, valid and
+ * lightweight, without dependencies. The real render comes from ComfyUI (`http` mode). */
 
 const TABLE_CRC = (() => {
   const t = new Uint32Array(256);
@@ -33,12 +33,12 @@ export function pngFactice(largeur = 512, hauteur = 288): Buffer {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(largeur, 0);
   ihdr.writeUInt32BE(hauteur, 4);
-  ihdr[8] = 8; // profondeur
+  ihdr[8] = 8; // bit depth
   ihdr[9] = 2; // RGB
   const brut = Buffer.alloc((largeur * 3 + 1) * hauteur);
   for (let y = 0; y < hauteur; y++) {
     const ligne = y * (largeur * 3 + 1);
-    brut[ligne] = 0; // filtre aucun
+    brut[ligne] = 0; // filter: none
     for (let x = 0; x < largeur; x++) {
       const liseré = x < 3 || y < 3 || x >= largeur - 3 || y >= hauteur - 3;
       const g = 24 + Math.floor((y / hauteur) * 24);

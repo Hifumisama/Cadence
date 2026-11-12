@@ -4,9 +4,9 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 
 const SEUIL = 0.88;
 
-/** Le « slider géant » qui fait passer d'une étape à l'autre : une pellicule qu'on tire du bout de la poignée (ou qu'on clique, ou qu'on
- * valide au clavier : Entrée, Espace, →). En dessous du seuil la poignée revient ; au-delà, la pellicule se tend et l'étape change.
- * Au dernier pas (`action`), la poignée est une claquette. Toujours un `role="slider"` focalisable : jamais un geste réservé à la souris. */
+/** The « giant slider » that moves from one step to the next: a filmstrip pulled by the tip of the handle (or clicked, or
+ * validated by keyboard: Enter, Space, →). Below the threshold the handle returns; beyond it, the filmstrip tightens and the step changes.
+ * At the last step (`action`), the handle is a clapperboard. Always a focusable `role="slider"`: never a mouse-only gesture. */
 export function Glissiere({
   libelle,
   action = false,
@@ -18,9 +18,9 @@ export function Glissiere({
 }: {
   libelle: string;
   action?: boolean;
-  /** Le geste écrase quelque chose de validé : la poignée est rouge (la révision d'épisode, docs/FRICTIONS.md 2026-10-09). */
+  /** The gesture overwrites something validated: the handle is red (the episode revision, docs/FRICTIONS.md 2026-10-09). */
   danger?: boolean;
-  /** Version démonstration, en grand dans la scène d'accueil : apprend le geste avant qu'il serve dans la barre du bas. */
+  /** Demo version, large on the welcome scene: teaches the gesture before it is used in the bottom bar. */
   geant?: boolean;
   desactive?: boolean;
   occupe?: boolean;
@@ -62,7 +62,7 @@ export function Glissiere({
     if (!depart.current) return;
     depart.current = null;
     setTire(false);
-    // Un simple clic (sans tirer) vaut validation : la glissière ne doit jamais être un obstacle.
+    // A simple click (without pulling) counts as validation: the slider must never be an obstacle.
     if (p >= SEUIL || !bouge.current) valider();
     else setP(0);
   };

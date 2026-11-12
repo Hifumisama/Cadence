@@ -1,7 +1,7 @@
 "use client";
 
-/** Le ruban de pellicule des neuf étapes de la conception. Les étapes passées s'affichent en résumé ; `onClick` n'est donné que pour
- * celles qu'on peut rejoindre. Partagé par la page de départ, l'entretien et l'avancée de la préparation. */
+/** The filmstrip ribbon of the design's nine steps. Past steps are shown as a summary; `onClick` is only given for
+ * those that can be reached. Shared by the start page, the interview and the preparation progress. */
 export type CadreRuban = {
   nom: string;
   resume: string;

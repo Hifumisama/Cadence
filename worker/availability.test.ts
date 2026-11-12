@@ -13,7 +13,7 @@ test("attenteDepassee : seulement quand injoignable depuis assez longtemps", () 
   assert.equal(attenteDepassee(null, 10_000, 5_000), false);
   assert.equal(attenteDepassee(1_000, 5_999, 5_000), false);
   assert.equal(attenteDepassee(1_000, 6_000, 5_000), true);
-  assert.equal(attenteDepassee(1_000, 999_999, 0), false); // 0 = on attend indéfiniment
+  assert.equal(attenteDepassee(1_000, 999_999, 0), false); // 0 = wait indefinitely
 });
 
 test("cleInjoignable", () => {

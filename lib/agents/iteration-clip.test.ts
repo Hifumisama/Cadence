@@ -80,12 +80,12 @@ test("le schéma de sortie accepte des décisions types (réglage, intent, réf�
   });
   const v2 = valider(schema, tout);
   assert.ok(v2.ok, v2.ok ? "" : v2.erreurs.join(" ; "));
-  // plus de passages : l'ancien contrat est refusé par le schéma
+  // no more passes: the old contract is refused by the schema
   assert.equal(valider(schema, { ...sortie(), changements: [] }).ok, false);
-  // trois manquants : refusé (deux au plus)
+  // three missing assets: refused (two at most)
   const m = { code: "PROP_x", type: "prop", description: "x", raison: "y" };
   assert.equal(valider(schema, sortie({}, { manquants: [m, m, m] })).ok, false);
-  // durée hors bornes : refusée
+  // duration out of bounds: refused
   assert.equal(valider(schema, sortie({}, { dureeSecondes: 12 })).ok, false);
 });
 
@@ -107,11 +107,11 @@ test("un réglage seul : décision effective, rien d'autre ne bouge ; la même v
   assert.deepEqual(decisionsEffectives(sortie(), ctx()), { reglages: { creativite: "bold" } });
   assert.equal(raisonSansEcriture(sortie(), ctx()), null);
   assert.deepEqual(erreurs(sortie()), []);
-  // la créativité actuelle redonnée : rien à recompiler
+  // the current creativity given again: nothing to recompile
   const meme = sortie({}, { reglages: { creativite: "balanced", styleMiseEnScene: STYLE_AUCUN } });
   assert.equal(decisionsEffectives(meme, ctx()), null);
   assert.match(raisonSansEcriture(meme, ctx()) ?? "", /aucune décision/);
-  // un style : il REMPLACE celui du plan (« aucun » → sitcom ; sitcom → aucun)
+  // a style: it REPLACES the clip's one ("aucun" → sitcom; sitcom → aucun)
   assert.deepEqual(decisionsEffectives(sortie({}, { reglages: { creativite: null, styleMiseEnScene: "sitcom" } }), ctx()), { reglages: { styleCamera: "sitcom" } });
   assert.deepEqual(
     decisionsEffectives(sortie({}, { reglages: { creativite: null, styleMiseEnScene: STYLE_AUCUN } }), ctx({ reglages: { creativite: "balanced", styleMiseEnScene: "sitcom" } })),
@@ -133,7 +133,7 @@ test("intent : la nouvelle description COMPLÈTE est retenue, sans ancien état 
   assert.equal(decisionsEffectives(avecEtat, ctx())!.description, DESC_APRES);
   const identique = sortie({}, { nouvelleDescription: DESC_AVANT, reglages: { creativite: null, styleMiseEnScene: null } });
   assert.equal(decisionsEffectives(identique, ctx()), null);
-  // l'actuelle porte encore l'ancien état de fin : la même sans lui n'est pas un changement
+  // the current one still carries the old end state: the same without it is not a change
   assert.equal(decisionsEffectives(identique, ctx({ description: `${DESC_AVANT}\n\nÉtat en fin de plan : Mai assise.` })), null);
 });
 
@@ -143,13 +143,13 @@ test("intent : une réplique perdue est une alerte (la consigne peut la retirer)
   assert.ok(alertes(sans).includes("description-repliques"));
 });
 
-// Le plan « Le feu » (projet 236, run 3906) : une description complète, écrite avec l'ancien « État en fin de plan ».
+// The clip "Le feu" (project 236, run 3906): a complete description, written with the old "État en fin de plan".
 const DESC_FEU =
   "Un feu au centre de la clairière, la forêt autour. Mai, assise à gauche du feu, frotte deux pierres au-dessus d'un tas de brindilles ; une étincelle jaillit, " +
   "les brindilles fument puis s'embrasent. Elle se penche, souffle doucement, et les flammes montent en éclairant son visage. Elle sourit, soulagée, les mains tendues vers la chaleur.\n" +
   "Mai : « Enfin. »\n\n" +
   "État en fin de plan : Mai assise à gauche du feu, tournée vers lui, les mains tendues ; le feu bien pris, haut et clair, éclaire la clairière.";
-// Ce que l'agent a rendu : SEULEMENT une phrase d'état, 222 caractères.
+// What the agent returned: ONLY a state sentence, 222 characters.
 const FRAGMENT_FEU =
   "État en fin de plan : Mai est assise à gauche du feu, de profil, tournée vers les flammes, les deux mains tendues au-dessus des braises ; le feu brûle haut et clair au centre de la clairière, la forêt sombre autour.";
 
@@ -159,17 +159,17 @@ test("bug du plan « Le feu » : un intent réduit à un fragment est refusé (r
   assert.ok(erreurs(fragment, c).includes("description-incomplete"));
   assert.equal(decisionsEffectives(fragment, c), null);
   assert.match(raisonSansEcriture(fragment, c) ?? "", /incomplète/);
-  // la seule phrase changée : refusée de même
+  // the only sentence changed: refused likewise
   assert.ok(erreurs(sortie({}, { nouvelleDescription: "Mai se retourne vers la forêt.", reglages: { creativite: null, styleMiseEnScene: null } }), c).includes("description-incomplete"));
-  // un fragment avec un autre levier : l'autre levier passe, l'intent ne change pas
+  // a fragment with another lever: the other lever passes, the intent does not change
   const mixte = sortie({}, { nouvelleDescription: FRAGMENT_FEU, dureeSecondes: 8 });
   assert.deepEqual(decisionsEffectives(mixte, c), { dureeSecondes: 8, reglages: { creativite: "bold" } });
-  // la description complète, retouchée, passe
+  // the complete description, retouched, passes
   const complete = DESC_FEU.replace("Elle sourit, soulagée", "Elle sourit, puis se retourne vers la forêt").replace(/\n\nÉtat en fin de plan[\s\S]*$/, "");
   const bonne = sortie({}, { nouvelleDescription: complete, reglages: { creativite: null, styleMiseEnScene: null } });
   assert.deepEqual(erreurs(bonne, c), []);
   assert.equal(decisionsEffectives(bonne, c)!.description, complete);
-  // le diagnostic n'en garde rien non plus
+  // the diagnosis keeps nothing of it either
   assert.equal(diagnosticIteration(fragment, { plan: { intention: DESC_FEU, dureeVoulueSecondes: 6 } })!.decisions, null);
 });
 
@@ -197,9 +197,9 @@ test("références : ajouter / retirer par code du registre ; les erreurs de con
   assert.deepEqual(r([], ["CHAR_mai", "DEC_clairiere"]), ["plus-d-image"]);
   const pleine = ctx({ refs: Array.from({ length: 6 }, (_, i) => ({ type: "picture" as const, slot: i + 1, asset: i === 0 ? "CHAR_mai" : `DEC_${i}` })) });
   assert.ok(erreurs(sortie({}, { references: { ajouter: ["PROP_lampe"], retirer: [] } }), pleine).includes("trop-d-images"));
-  // un bloc de références en erreur n'est jamais retenu (les autres leviers, si)
+  // a references block in error is never kept (the other levers, if any)
   assert.deepEqual(decisionsEffectives(sortie({}, { references: { ajouter: ["PROP_inventee"], retirer: [] } }), ctx()), { reglages: { creativite: "bold" } });
-  // retirer puis rajouter la même image : rien ne change
+  // removing then re-adding the same image: nothing changes
   assert.equal(decisionsEffectives(sortie({}, { references: { ajouter: ["CHAR_mai"], retirer: ["CHAR_mai"] }, reglages: { creativite: null, styleMiseEnScene: null } }), ctx()), null);
 });
 
@@ -222,7 +222,7 @@ test("manquants : deux au plus, jamais un code du registre ; seuls, ils suffisen
   assert.deepEqual(d.assetsSuggeres, [{ code: "CHAR_mai_blessee", type: "personnage", parent: "CHAR_mai", raison: "Aucune image de cet état." }]);
   assert.equal(d.decisions?.manquants?.[0]?.code, "CHAR_mai_blessee");
   assert.deepEqual(d.affichage!.manquants, [{ code: "CHAR_mai_blessee", raison: "Aucune image de cet état." }]);
-  // Un manquant d'un type non créé d'office (un effet) ne fait pas de décision : la raison le dit.
+  // A missing asset of a type not created outright (an effect) makes no decision: the reason says so.
   const effet = sortie({}, { manquants: [{ code: "VFX_brume", type: "vfx", description: "Brume.", raison: "x" }], reglages: { creativite: null, styleMiseEnScene: null } });
   assert.equal(decisionsEffectives(effet, ctx()), null);
   assert.match(raisonSansEcriture(effet, ctx()) ?? "", /VFX_brume.*pas valides/);
@@ -270,7 +270,7 @@ test("le contrôleur du worker lit l'entrée du skill (références, registre av
   const msgs = controler(sortie({}, { references: { ajouter: ["PROP_inventee"], retirer: [] } }));
   assert.equal(msgs.length, 1);
   assert.match(msgs[0]!, /PROP_inventee/);
-  // la créativité déjà « bold » au plan : la redonner n'est pas une décision
+  // creativity already "bold" on the clip: giving it again is not a decision
   assert.equal(decisionsEffectives(sortie(), c), null);
 });
 
@@ -295,7 +295,7 @@ test("diagnostic : décisions effectives et affichage avant → après ; notes d
   assert.ok(notes.includes("Durée : 6 s → 8 s."));
   assert.ok(notes.includes("Références : + PROP_lampe."));
   assert.ok(notes.includes("Créativité du plan : Équilibrée → Audacieuse."));
-  // un résultat de l'ANCIEN contrat (changements de passages) : un diagnostic, sans décisions
+  // a result of the OLD contract (passes changes): a diagnosis, without decisions
   const ancien = diagnosticIteration({ dureeCoherente: true, symptome: "x", cause: "y", confiance: "haute", changements: [{ section: "summary", avant: "a", apres: "b" }], abandon: { propose: false, raison: "" } });
   assert.equal(ancien!.decisions, null);
 });

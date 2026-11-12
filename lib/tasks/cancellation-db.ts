@@ -6,17 +6,17 @@ import { annulerEnAttenteDesLots, annulerLot } from "../agents/batches";
 import { balayerEssaisSansTache } from "../agents/asset-attempt";
 import { analyserCle } from "./tasks";
 
-// Accès base de l'annulation, partagé par l'action serveur (app/taches/actions.ts)
-// et le worker. Les règles pures vivent dans lib/tasks/cancellation.ts. Chaque UPDATE est
-// gardé par le statut attendu : une tâche que le worker vient de prendre (ou de
-// finir) ne se laisse pas écraser par une annulation arrivée trop tard.
+// Database access for cancellation, shared by the server action (app/taches/actions.ts)
+// and the worker. The pure rules live in lib/tasks/cancellation.ts. Each UPDATE is
+// guarded by the expected status: a task the worker has just taken (or just
+// finished) is not overwritten by a cancellation arriving too late.
 
 export type ResultatAnnulation = "annulee" | "demandee" | "deja" | "rien";
 
-/** « Vider la file » : annule TOUT ce qui attend (images, sons, vidéos, appels d'agent, sous-tâches
- * de lots). Ce qui tourne continue : on n'interrompt rien, on retire seulement ce qui n'a pas
- * commencé (rien n'est perdu, tout se relance). Une vidéo retirée remet son plan dans son état
- * précédent. Renvoie le nombre de tâches annulées. */
+/** « Vider la file »: cancels EVERYTHING that waits (images, sounds, videos, agent calls, batch
+ * subtasks). What is running continues: we interrupt nothing, we only remove what has not
+ * started (nothing is lost, everything relaunches). A removed video puts its clip back into its
+ * previous state. Returns the number of cancelled tasks. */
 export async function viderFile(): Promise<number> {
   const maintenant = new Date();
   const images = await db
@@ -30,8 +30,8 @@ export async function viderFile(): Promise<number> {
     .where(eq(jobs.statut, "en_attente"))
     .returning({ planId: jobs.planId });
   for (const v of videos) await restaurerStatutPlan(v.planId);
-  // Les sous-tâches de lots passent par leur propre logique (statut du lot recalculé) ; les autres
-  // appels d'agent, directement.
+  // Batch subtasks go through their own logic (batch status recalculated); the other
+  // agent calls, directly.
   const lots = await annulerEnAttenteDesLots();
   const lotsIds = (await db.select({ id: propositions.id }).from(propositions).where(eq(propositions.lot, true))).map((p) => p.id);
   const seuls = await db
@@ -48,21 +48,21 @@ export async function viderFile(): Promise<number> {
   return images.length + videos.length + lots + seuls.length;
 }
 
-/** Demande l'annulation d'une tâche (`image:<uuid>` / `video:<id>`). Idempotente :
- * redemander ne change rien. En attente → annulée tout de suite ; en cours → le
- * drapeau est posé et le worker interrompt ComfyUI ; finie, échouée ou déjà
- * annulée → rien. */
+/** Requests the cancellation of a task (`image:<uuid>` / `video:<id>`). Idempotent:
+ * asking again changes nothing. Pending → cancelled immediately; in progress → the
+ * flag is set and the worker interrupts ComfyUI; finished, failed or already
+ * cancelled → nothing. */
 export async function demanderAnnulation(cle: string): Promise<ResultatAnnulation> {
   const a = analyserCle(cle);
   if (!a) return "rien";
   const maintenant = new Date();
 
-  // La création d'un projet s'arrête par l'installateur (app/taches/actions.ts : annulerTache), jamais ici.
-  if (a.genre === "creation" || a.genre === "demande") return "rien"; // la demande s'annule par `annulerDemande` (app/taches/actions.ts)
-  // Un export du montage ne s'annule pas (quelques secondes de ffmpeg) ; surtout, son id n'est PAS un id de job vidéo.
+  // A project's creation is stopped by the installer (app/taches/actions.ts: annulerTache), never here.
+  if (a.genre === "creation" || a.genre === "demande") return "rien"; // the request is cancelled via `annulerDemande` (app/taches/actions.ts)
+  // A montage export is not cancelled (a few seconds of ffmpeg); above all, its id is NOT a video job id.
   if (a.genre === "montage") return "rien";
 
-  // Un lot d'agent : toutes ses sous-tâches en attente sont annulées, celle qui tourne est interrompue.
+  // An agent batch: all its pending subtasks are cancelled, the one running is interrupted.
   if (a.genre === "lot") {
     const r = await annulerLot(a.ref);
     return r === "annule" ? "annulee" : r === "demande" ? "demandee" : "rien";
@@ -136,7 +136,7 @@ export async function annulationDemandeeLlm(runId: number): Promise<boolean> {
   return r?.d != null;
 }
 
-/** Marque un appel LLM annulé (le worker a coupé la connexion) : ni erreur ni relance. */
+/** Marks an LLM call cancelled (the worker has cut the connection): neither error nor retry. */
 export async function finirAnnulationLlm(runId: number): Promise<void> {
   await db
     .update(agentRuns)
@@ -150,8 +150,8 @@ export async function annulationDemandeeVideo(jobId: number): Promise<boolean> {
   return j?.d != null;
 }
 
-/** Marque une génération d'image annulée (le worker a fini d'interrompre) et
- * remet à zéro progression et aperçu. Ni rejeu, ni message d'erreur. */
+/** Marks an image generation cancelled (the worker has finished interrupting) and
+ * resets progress and preview. Neither replay nor error message. */
 export async function finirAnnulationImage(generationId: number): Promise<void> {
   await db
     .update(assetGenerations)
@@ -168,9 +168,8 @@ export async function finirAnnulationImage(generationId: number): Promise<void> 
     .where(and(eq(assetGenerations.id, generationId), inArray(assetGenerations.statut, ["en_attente", "en_cours"])));
 }
 
-/** Marque un job vidéo annulé : `echoue` + « Annulée », SANS toucher à la tentative
- * (F04 : seul un échec de rendu en consomme une, et une annulation ne se rejoue
- * pas) ; le plan revient à l'état de sa dernière réussite. */
+/** Marks a video job cancelled: `echoue` + « Annulée », WITHOUT touching the attempt
+ * (F04: only a render failure consumes one, and a cancellation is not replayed); the clip goes back to the state of its last success. */
 export async function finirAnnulationVideo(jobId: number): Promise<void> {
   const fini = await db
     .update(jobs)
@@ -180,8 +179,8 @@ export async function finirAnnulationVideo(jobId: number): Promise<void> {
   if (fini.length > 0) await restaurerStatutPlan(fini[0]!.planId);
 }
 
-/** Le plan reprend l'état de sa dernière réussite, sauf si un autre job du plan
- * est encore actif (il garde alors la main sur le statut). */
+/** The clip goes back to the state of its last success, unless another job of the clip
+ * is still active (it then keeps control of the status). */
 async function restaurerStatutPlan(planId: number): Promise<void> {
   const actifs = await db
     .select({ id: jobs.id })

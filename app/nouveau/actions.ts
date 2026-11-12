@@ -15,19 +15,19 @@ import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET } from "@/lib/media";
 import { SUJET_AFFICHE_CLAP } from "@/lib/styles/subjects";
 import { listerStyles } from "@/lib/styles/styles-db";
 
-/** Actions de la page de conception d'un projet (`/nouveau`). Chaque action rend `{ ok: true, … } | { ok: false, erreur }` : jamais
- * d'exception pour un cas métier. Plan : docs/PLAN_CONCEPTION_PROJET.md. */
+/** Actions of the project design page (`/nouveau`). Each action returns `{ ok: true, … } | { ok: false, erreur }`: never
+ * an exception for a business case. Plan: docs/PLAN_CONCEPTION_PROJET.md. */
 
 type Echec = { ok: false; erreur: string };
 
-/** Les images des styles libres vivent sous `styles/libres/` (même dossier que les aperçus de la bibliothèque, `styles/<id>.webp`). Le nom
- * est un uuid : on ne l'accepte qu'à cette forme exacte (jamais un chemin venu du client). */
+/** Images of free styles live under `styles/libres/` (same folder as the library previews, `styles/<id>.webp`). The name
+ * is a uuid: we only accept it in this exact form (never a path coming from the client). */
 const MOTIF_IMAGE_LIBRE = /^libres\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.webp$/;
 const LARGEUR_IMAGE_STYLE = 720;
 const HAUTEUR_IMAGE_STYLE = 1080; // 2:3
 
-/** Dépose l'image de présentation (2:3, facultative) d'un style libre, avant que le projet existe : recadrée au centre en 2:3, WebP.
- * Renvoie le nom à mettre dans `style.image`. Une image abandonnée (projet jamais créé) reste sur le disque : quelques dizaines de Ko. */
+/** Uploads the presentation image (2:3, optional) of a free style, before the project exists: center-cropped to 2:3, WebP.
+ * Returns the name to put in `style.image`. An abandoned image (project never created) stays on disk: a few dozen KB. */
 export async function deposerImageStyleLibre(formData: FormData): Promise<{ ok: true; image: string } | Echec> {
   const fichier = formData.get("fichier");
   if (!(fichier instanceof File) || fichier.size === 0) return { ok: false, erreur: "Aucun fichier reçu." };
@@ -51,10 +51,10 @@ export async function deposerImageStyleLibre(formData: FormData): Promise<{ ok: 
   return { ok: true, image: nom };
 }
 
-/** Crée le projet à partir de la conception, au passage à l'entretien : projet (nom provisoire, le titre se règle au clap), conception,
- * style posé dans le brief partiel, puis conversation d'entrée avec la fiche préremplie et l'accroche du scénariste. Tout ou rien :
- * en cas d'échec le projet est supprimé (les autres tables suivent en cascade). Le premier épisode n'est pas créé ici : comme pour
- * « Créer avec l'agent », le squelette de la proposition le fait (l'épisode du film existe dès la création du projet). */
+/** Creates the project from the design, when moving to the interview: project (provisional name, the title is set at the clap), design,
+ * style set in the partial brief, then the entry conversation with the pre-filled sheet and the screenwriter's hook. All or nothing:
+ * on failure the project is deleted (the other tables follow by cascade). The first episode is not created here: as for
+ * « Créer avec l'agent », the proposal's skeleton does it (the film's episode exists as soon as the project is created). */
 export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; projectId: number; conversationUuid: string } | Echec> {
   const bibliotheque = await listerStyles();
   const valide = validerConception(brut, bibliotheque);
@@ -65,10 +65,10 @@ export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; proje
   }
   const style = resoudreStyle(conception, bibliotheque);
   if (!style.ok) return { ok: false, erreur: style.erreur };
-  // Pour un style de la bibliothèque, l'image est son aperçu (s'il a été généré) : le brief garde le chemin relatif au dossier `styles/`.
+  // For a library style, the image is its preview (if it has been generated): the brief keeps the path relative to the `styles/` folder.
   const image = conception.style.source === "libre" ? conception.style.image : `${conception.style.styleId}/${SUJET_AFFICHE_CLAP}.webp`;
 
-  // La mise en scène (créativité, style) n'est pas dans la conception : elle vit dans le projet, où le Brief la modifie ensuite (lib/h3ir/settings.ts).
+  // Staging (creativity, style) is not part of the design: it lives in the project, where the Brief modifies it afterwards (lib/h3ir/settings.ts).
   const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre", ...reglagesDepuisCharge(brut) });
   try {
     await ecrireConception(db, projectId, conception);

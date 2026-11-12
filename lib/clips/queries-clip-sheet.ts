@@ -5,21 +5,21 @@ import { etatPlan, type EtatPlan } from "@/lib/clips/clip-sheet";
 
 export type PlanPellicule = {
   uuid: string;
-  /** Rang dans l'épisode (« 04 ») : ce qu'on affiche, JAMAIS un identifiant (F03). */
+  /** Rank in the episode (« 04 »): what is displayed, NEVER an identifier (F03). */
   position: number;
   titre: string;
   sceneTitre: string | null;
   etat: EtatPlan;
-  /** Fichier vidéo dont on tire la vignette (l'essai retenu s'il est lisible, sinon le dernier essai terminé), chemin relatif au stockage. */
+  /** Video file from which the thumbnail is taken (the kept attempt if it is readable, otherwise the last finished attempt), path relative to storage. */
   vignette: string | null;
-  /** `plans.statut` : « brouillon » = fiche pas encore développée. */
+  /** `plans.statut`: « brouillon » = sheet not yet developed. */
   statutFiche: string;
   nbTermines: number;
   nbEnFile: number;
 };
 
-/** Les plans d'un épisode pour la pellicule du bas de la fiche : dans l'ordre `plans.ordre` (jamais un autre tri), avec leur état dérivé
- * (lib/clips/clip-sheet.ts) et la vignette de leur essai retenu ou, à défaut, du dernier essai terminé. Deux requêtes pour tout l'épisode. */
+/** The clips of an episode for the film strip at the bottom of the sheet: in `plans.ordre` order (never another sort), with their derived state
+ * (lib/clips/clip-sheet.ts) and the thumbnail of their kept attempt or, failing that, of the last finished attempt. Two queries for the whole episode. */
 export async function getPelliculePlans(episodeId: number): Promise<PlanPellicule[]> {
   const lignes = await db
     .select({

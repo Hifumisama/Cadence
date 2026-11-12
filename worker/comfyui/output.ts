@@ -1,9 +1,8 @@
-/** Lecture tolérante de la sortie d'un nœud dans /history. Chaque type de nœud de
- * sauvegarde range ses fichiers sous une clé qui lui est propre : `images`
- * (SaveImage), `audio` (SaveAudio*, à confirmer sur un vrai run), `gifs` /
- * `videos` (VHS_VideoCombine). Plutôt que de coder la clé en dur, on cherche la
- * première liste de fichiers (objets avec un `filename`), les clés connues
- * d'abord. */
+/** Tolerant reading of a node's output in /history. Each type of save node stores its files under a key of its own: `images`
+ * (SaveImage), `audio` (SaveAudio*, to be confirmed on a real run), `gifs` /
+ * `videos` (VHS_VideoCombine). Rather than hard-coding the key, we look for the
+ * first list of files (objects with a `filename`), known keys
+ * first. */
 
 export type FichierSortie = { filename: string; subfolder?: string; type?: string };
 
@@ -17,8 +16,8 @@ function listeDeFichiers(v: unknown): FichierSortie[] | null {
   return fichiers.length > 0 ? fichiers : null;
 }
 
-/** Le premier fichier de sortie d'un nœud (celui qui n'est pas un temporaire
- * s'il y a le choix), ou null s'il n'y en a pas encore. */
+/** The first output file of a node (the one that is not a temporary one
+ * if there is a choice), or null if there is none yet. */
 export function premierFichierSortie(sortie: unknown): FichierSortie | null {
   if (typeof sortie !== "object" || sortie === null) return null;
   const o = sortie as Record<string, unknown>;
@@ -30,7 +29,7 @@ export function premierFichierSortie(sortie: unknown): FichierSortie | null {
   return null;
 }
 
-/** « sous-dossier/fichier.ext » : la forme que `fetchOutput` sait relire. */
+/** « sous-dossier/fichier.ext » (subfolder/file.ext): the form that `fetchOutput` can read back. */
 export function cheminSortieDistant(f: FichierSortie): string {
   return `${f.subfolder ?? ""}/${f.filename}`.replace(/^\//, "");
 }

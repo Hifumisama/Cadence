@@ -9,7 +9,7 @@ import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/as
 
 export type { FichierEtat, MediaKind } from "@/lib/assets/registry-types";
 
-// Un seul média joue à la fois dans la grille : lancer une carte coupe la précédente.
+// Only one media plays at a time in the grid: starting one card stops the previous one.
 let mediaActif: { stop: () => void } | null = null;
 
 function formatDuree(secondes: number): string {
@@ -23,15 +23,15 @@ const libellePlans = (n: number) => `${n} plan${n > 1 ? "s" : ""}`;
 type PropsCommunes = {
   ligne: LigneRegistre;
   href: string;
-  /** Un asset est coché. */
+  /** An asset is checked. */
   choisi: boolean;
-  /** Arrivée dans la sélection à l'instant : l'onde se dissipe et la coche claque. */
+  /** Just entered the selection: the ripple fades and the check snaps in. */
   vient: boolean;
   onActiver: (e: React.MouseEvent<HTMLAnchorElement>, code: string) => void;
 };
 
-/** Carte du registre : une vignette 16:9 (l'image entière, jamais recadrée), le statut en pastille sur l'image, le
- * code en dessous. Reste un lien (un clic ouvre la fiche) ; le clic long, géré par le registre, la sélectionne. */
+/** Registry card: a 16:9 thumbnail (the full image, never cropped), the status as a badge on the image, the
+ * code below. Stays a link (a click opens the sheet); the long press, handled by the registry, selects it. */
 export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommunes) {
   const { code, libelle, type, statut, critique, description, nbPlans, voix, kind, etat, src, fichier } = ligne;
   const zoneRef = useRef<HTMLDivElement>(null);
@@ -50,7 +50,7 @@ export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommun
     },
   });
 
-  // Chargement paresseux : on ne demande le fichier (métadonnées vidéo ou audio) que quand la carte entre dans l'écran.
+  // Lazy loading: the file (video or audio metadata) is only requested when the card enters the screen.
   useEffect(() => {
     const el = zoneRef.current;
     if (!el || kind === "image") return;
@@ -184,7 +184,7 @@ export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommun
   );
 }
 
-/** Une ligne de la vue liste : mêmes informations, plus denses, et la même sélection. */
+/** A row of the list view: same information, denser, and the same selection. */
 export function LigneAsset({ ligne, href, choisi, vient, onActiver }: PropsCommunes) {
   const { code, libelle, type, statut, critique, description, nbPlans, voix, etat, src, kind } = ligne;
   return (

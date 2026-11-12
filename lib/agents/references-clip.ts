@@ -4,25 +4,25 @@ import { correspondances } from "./similar-codes";
 import { suffixeDeCode } from "./conversion";
 import { ressemblant } from "./inventory";
 
-/** Le petit skill `references-plan` (agents/skills/references-plan/) : appelé SEULEMENT quand la règle du code (lib/h3ir/references-clip.ts) a un doute,
- * il complète ou corrige la liste des références d'un plan et signale au plus deux assets manquants. Il ne réécrit jamais l'intent. Câblé par la
- * préparation d'un plan (lib/h3ir/preparation.ts) : sa sortie écrit les `plan_refs` et crée les manquants (worker/agents/postProcessing.ts). Ici : la forme
- * de l'entrée, la correction des codes mal recopiés et les contrôles qui renvoient le modèle (lib/llm/checks.ts). Pur, testé. */
+/** The small `references-plan` skill (agents/skills/references-plan/): called ONLY when the code's rule (lib/h3ir/references-clip.ts) has a doubt,
+ * it completes or corrects a clip's reference list and flags at most two missing assets. It never rewrites the intent. Wired by the
+ * clip's preparation (lib/h3ir/preparation.ts): its output writes the `plan_refs` and creates the missing assets (worker/agents/postProcessing.ts). Here: the shape
+ * of the input, the correction of mis-copied codes and the checks that send the model back (lib/llm/checks.ts). Pure, tested. */
 
 export const SKILL_REFERENCES_PLAN = "references-plan";
-/** Classer et citer : peu d'aléa (même réglage que notes-entretien et traduction-intent), passé à l'appel par worker/llm.ts. */
+/** Classify and cite: little randomness (same setting as notes-entretien and traduction-intent), passed at call time by worker/llm.ts. */
 export const TEMPERATURE_REFERENCES_PLAN = 0.1;
 export const MAX_MANQUANTS_PLAN = 2;
-/** La description d'un candidat dans l'entrée, coupée : le skill doit reconnaître l'asset, pas le redessiner. */
+/** A candidate's description in the input, cut: the skill must recognise the asset, not redraw it. */
 export const MAX_DESCRIPTION_CANDIDAT = 160;
-/** Types qu'un manquant peut avoir : pas de voix (champ du personnage), ni effet (un effet deviné reste de la prose, décision du 2026-11-02). */
+/** Types a missing asset may have: no voice (a character field), nor effect (a guessed effect stays prose, decision of 2026-11-02). */
 export const TYPES_MANQUANT_PLAN = ["personnage", "decor", "prop", "keyframe", "oth"] as const;
 
 export type EntreeSkillReferencesPlan = {
   plan: { intention: string; repliques: { nom: string }[]; dureeSecondes: number };
   scene: { titre: string; ambiance: string | null } | null;
   dejaChoisis: { code: string; pourquoi: string }[];
-  /** Ce qui empêche le code de trancher seul : la raison de l'appel. */
+  /** What prevents the code from deciding alone: the reason for the call. */
   doutes: Doute[];
   decorPrecedent: string | null;
   candidats: { code: string; type: string; nom: string; description: string; parent: string | null; aUneImage: boolean }[];
@@ -41,7 +41,7 @@ const couper = (t: string, max: number): string => {
   return s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`;
 };
 
-/** L'entrée du skill à partir de ce que le code a lu et choisi. */
+/** The skill input built from what the code read and chose. */
 export function construireEntreeReferencesPlan(d: {
   narration: string;
   locuteurs: string[];
@@ -66,7 +66,7 @@ export function construireEntreeReferencesPlan(d: {
   };
 }
 
-/** Les codes mal recopiés (un mot de liaison en trop ou en moins) rapprochés du seul code connu qui leur correspond : références et parents des manquants. */
+/** Mis-copied codes (one linking word too many or too few) matched to the only known code that corresponds to them: references and parents of the missing assets. */
 export function corrigerCodesReferencesPlan(sortie: SortieReferencesPlan, connus: string[]): { sortie: SortieReferencesPlan; corrections: { de: string; vers: string }[] } {
   const cites = [...(sortie.references ?? []).map((r) => r.code), ...(sortie.manquants ?? []).flatMap((m) => (m.parent ? [m.parent] : []))];
   const map = correspondances(cites, connus);
@@ -81,7 +81,7 @@ export function corrigerCodesReferencesPlan(sortie: SortieReferencesPlan, connus
   };
 }
 
-/** Les défauts de la sortie (en anglais : ils sont renvoyés au modèle). Une sortie juste rend []. */
+/** The output's defects (in English: they are sent back to the model). A correct output returns []. */
 export function problemesReferencesPlan(sortie: SortieReferencesPlan, entree: EntreeSkillReferencesPlan): string[] {
   const p: string[] = [];
   const connus = new Map<string, { type: string; parent: string | null }>([

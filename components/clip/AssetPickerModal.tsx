@@ -5,8 +5,8 @@ import type { MediaKind } from "@/components/assets/AssetCard";
 import { urlMiniature } from "@/lib/thumbnails";
 import { Icone } from "@/components/ui/Icon";
 
-/** Asset allégé pour la galerie de références — construit côté serveur (il faut vérifier les fichiers sur le disque) puis passé tel
- * quel au client. `kind` = nature du média, qui décide de quel type de référence (Picture/Video/Audio) l'asset peut remplir. */
+/** Lightweight asset for the reference gallery — built server-side (the files must be checked on disk) then passed as-is
+ * to the client. `kind` = nature of the media, which decides which type of reference (Picture/Video/Audio) the asset can fill. */
 export type NoeudPicker = {
   id: number;
   code: string;
@@ -53,8 +53,8 @@ function PastilleStatut({ statut }: { statut: string }) {
   );
 }
 
-/** Galerie de sélection d'une référence : une carte par asset du registre qui a la bonne nature de média (le registre est plat).
- * On choisit une carte, puis « Ajouter au plan ». */
+/** Reference selection gallery: one card per registry asset that has the right media kind (the registry is flat).
+ * One picks a card, then « Ajouter au plan ». */
 export function AssetPickerModal({
   ouvert,
   titre,

@@ -14,10 +14,10 @@ import { promptMasterVoix } from "@/lib/voice/voice";
 import { ecrireRepliqueEcoute } from "@/lib/voice/listening-line";
 import { modeleParDefautEffectif } from "@/lib/llm/model-chosen";
 
-// Master de voix d'un PERSONNAGE (chantier voix/master, 2026-10-14). La voix est un champ du personnage : une description libre (le
-// timbre voulu, ou rien : le modèle choisit), la réplique du test, puis le master — l'audio nettoyé issu d'une vidéo de test H3
-// (workflow dédié, worker/comfyui/masterMapping.ts). Le résultat est un candidat, adopté par `adopterGeneration`
-// (app/assets/generation-actions.ts) ; jamais bloquant pour la suite : un personnage sans master a la voix que le modèle vidéo invente.
+// Voice master of a CHARACTER (voice/master workstream, 2026-10-14). The voice is a field of the character: a free description (the
+// wanted timbre, or nothing: the model chooses), the test line, then the master — the cleaned audio taken from an H3 test
+// video (dedicated workflow, worker/comfyui/masterMapping.ts). The result is a candidate, adopted by `adopterGeneration`
+// (app/assets/generation-actions.ts); never blocking for what follows: a character without a master has the voice the video model invents.
 
 type Resultat<T = object> = ({ ok: true } & T) | { ok: false; erreur: string };
 
@@ -29,7 +29,7 @@ async function exigerPersonnage(id: number) {
   return a;
 }
 
-/** Retient la voix voulue et la réplique du test sur le personnage (sans rien lancer) : elles restent là pour la prochaine fois. */
+/** Stores the wanted voice and the test line on the character (without launching anything): they stay there for next time. */
 export async function enregistrerVoixPersonnage(personnageId: number, v: { description: string; repliqueBase: string }): Promise<Resultat> {
   await exigerPersonnage(personnageId);
   await db
@@ -40,8 +40,8 @@ export async function enregistrerVoixPersonnage(personnageId: number, v: { descr
   return { ok: true };
 }
 
-/** Lance la vidéo de test qui produira le master. Sans image de personnage (voix off), le modèle invente un visage d'après la voix : sans
- * importance pour la voix finale. La demande est un candidat de `asset_generations` (méthode « master_voix », assetId = le personnage). */
+/** Launches the test video that will produce the master. Without a character image (voice-over), the model invents a face from the voice: of no
+ * importance for the final voice. The request is a candidate of `asset_generations` (method « master_voix », assetId = the character). */
 export async function lancerMasterVoix(
   personnageId: number,
   v: { description: string; repliqueBase: string },
@@ -86,7 +86,7 @@ export async function lancerMasterVoix(
   return { ok: true, position: await rangDansLaFile(gen!.id) };
 }
 
-/** Retire le master du personnage (il redevient sans voix fixée : le modèle vidéo invente). Les fichiers partent avec. */
+/** Removes the character's master (it goes back to having no fixed voice: the video model invents). The files go with it. */
 export async function supprimerMasterVoix(personnageId: number): Promise<Resultat> {
   const perso = await exigerPersonnage(personnageId);
   for (const f of [perso.voixMaster, perso.voixVideo]) {
@@ -97,8 +97,8 @@ export async function supprimerMasterVoix(personnageId: number): Promise<Resulta
   return { ok: true };
 }
 
-/** Propose la réplique du test (deux ou trois phrases dans la langue du projet, au caractère du personnage, avec la voix voulue en
- * contexte). N'écrit rien en base : le texte se relit et se corrige avant de partir. Même rédacteur que la réplique d'écoute. */
+/** Proposes the test line (two or three sentences in the project's language, in the character's personality, with the wanted voice as
+ * context). Writes nothing to the database: the text is reread and corrected before it is sent. Same writer as the listening line. */
 export async function proposerRepliqueBase(
   personnageId: number,
   description: string,

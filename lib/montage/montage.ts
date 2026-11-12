@@ -1,67 +1,67 @@
-/** Montage d'un épisode (2026-11-07, docs/PLAN_MONTAGE.md) : règles PURES (aucun accès base ni disque), importables côté client
- * comme côté worker. Deux ordres coexistent :
- * - l'ordre du SCÉNARIO : `plans.ordre` (+ la scène de chaque plan), tous les plans de l'épisode ;
- * - l'ordre du MONTAGE FINAL : les entrées de `montage_entrees`, dans l'ordre de leur `rang`. Une entrée pointe un plan, le rendu retenu
- *   pour elle et un rognage non destructif (début, fin ; le rendu reste entier). Un plan peut avoir 0, 1 ou plusieurs entrées.
- * Les positions s'affichent (« 04 »), jamais comme identifiant (F03). */
+/** Montage of an episode (2026-11-07, docs/PLAN_MONTAGE.md): PURE rules (no database or disk access), importable client-side
+ * as well as worker-side. Two orders coexist:
+ * - the SCÉNARIO order: `plans.ordre` (+ each clip's scene), all the clips of the episode;
+ * - the FINAL MONTAGE order: the entries of `montage_entrees`, in the order of their `rang`. An entry points to a clip, the selected render
+ *   for it and a non-destructive trim (start, end; the render stays whole). A clip can have 0, 1 or several entries.
+ * Positions are displayed (« 04 »), never as an identifier (F03). */
 
-/** Durée minimale d'un clip rogné : on ne descend jamais sous une demi-seconde. */
+/** Minimum duration of a trimmed clip: we never go below half a second. */
 export const DUREE_MIN_CLIP = 0.5;
-/** Aimantation : le pas (demi-seconde) et la distance sous laquelle un bord colle à la tête de lecture. */
+/** Snapping: the step (half a second) and the distance under which an edge sticks to the playhead. */
 const PAS_AIMANT = 0.5;
 const SEUIL_AIMANT_TETE = 0.2;
 
 export type GenreRendu = "aperçu" | "final" | "import";
 
-/** Un rendu lisible d'un plan (terminé, avec son fichier). */
+/** A readable render of a clip (finished, with its file). */
 export type RenduMontage = {
   id: number;
   numeroRendu: number;
   genre: GenreRendu;
-  /** Chemin relatif au stockage média (`plans/<id>/…`) : ce que l'export lit. */
+  /** Path relative to the media storage (`plans/<id>/…`): what the export reads. */
   chemin: string;
-  /** URL de lecture (`/api/media/…`). */
+  /** Playback URL (`/api/media/…`). */
   src: string;
-  /** Durée nominale du rendu (celle que le worker a soumise, sinon celle du plan). */
+  /** Nominal duration of the render (the one the worker submitted, otherwise the clip's). */
   dureeSecondes: number;
   creeLe: string;
 };
 
-/** Un plan de l'épisode, tel que le montage le voit. */
+/** A clip of the episode, as the montage sees it. */
 export type PlanMontage = {
-  /** Clé technique, pour les actions seulement : jamais affichée ni dans une URL. */
+  /** Technical key, for the actions only: never displayed nor in a URL. */
   id: number;
   uuid: string;
   titre: string;
   statut: string;
   sceneId: number | null;
-  /** Rang dans l'ORDRE DU SCÉNARIO (1-based), ce qu'on affiche « sc. 04 ». */
+  /** Rank in the SCÉNARIO ORDER (1-based), what is displayed as « sc. 04 ». */
   position: number;
-  /** Durée prévue, celle qu'occupe le plan tant qu'il n'a pas de rendu. */
+  /** Planned duration, the one the clip occupies as long as it has no render. */
   dureePrevue: number;
-  /** « CHAR_maya, prompt modifié » si le dernier rendu est périmé, sinon null. */
+  /** « CHAR_maya, prompt modifié » if the last render is stale, otherwise null. */
   perime: string | null;
-  /** Erreur du dernier essai, s'il a échoué. */
+  /** Error of the last attempt, if it failed. */
   erreur: string | null;
-  /** Rendus lisibles, du plus récent au plus ancien. */
+  /** Readable renders, from most recent to oldest. */
   rendus: RenduMontage[];
-  /** Le rendu d'une entrée qui n'en a pas choisi : l'essai retenu du plan s'il est lisible, sinon le plus récent. */
+  /** The render of an entry that has not chosen one: the clip's selected attempt if it is readable, otherwise the most recent. */
   renduParDefautId: number | null;
 };
 
 export type EntreeMontage = {
   id: number;
   planId: number;
-  /** null = rendu par défaut du plan. */
+  /** null = the clip's default render. */
   renduRetenuId: number | null;
   debut: number;
-  /** null = jusqu'au bout du rendu. */
+  /** null = up to the end of the render. */
   fin: number | null;
 };
 
 export type SceneMontage = { id: number; titre: string };
 
-/** Une entrée prête à afficher et à lire : ses bornes effectives, bornées par la durée du rendu retenu. */
+/** An entry ready to display and play: its effective bounds, limited by the duration of the selected render. */
 export type Clip = {
   entree: EntreeMontage;
   plan: PlanMontage;
@@ -69,20 +69,20 @@ export type Clip = {
   debut: number;
   fin: number;
   duree: number;
-  /** Pas de rendu : le clip occupe la durée prévue du plan (hachuré), il est ignoré à l'export. */
+  /** No render: the clip takes the planned duration of the clip (hatched), it is skipped at export. */
   prevu: boolean;
 };
 
 const borner = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-/** Le rendu que lit une entrée : celui qu'elle a retenu s'il est encore lisible, sinon celui du plan par défaut. */
+/** The render an entry reads: the one it selected if it is still readable, otherwise the clip's default one. */
 export function renduEffectif(entree: Pick<EntreeMontage, "renduRetenuId">, plan: Pick<PlanMontage, "rendus" | "renduParDefautId">): RenduMontage | null {
   const choisi = entree.renduRetenuId != null ? plan.rendus.find((r) => r.id === entree.renduRetenuId) : undefined;
   return choisi ?? plan.rendus.find((r) => r.id === plan.renduParDefautId) ?? plan.rendus[0] ?? null;
 }
 
-/** Bornes effectives d'une entrée. Avec un rendu : début et fin bornés par sa durée (fin null = rendu entier), au moins `DUREE_MIN_CLIP`.
- * Sans rendu : la durée prévue du plan, sans rognage. */
+/** Effective bounds of an entry. With a render: start and end limited by its duration (end null = whole render), at least `DUREE_MIN_CLIP`.
+ * Without a render: the clip's planned duration, without trimming. */
 export function bornes(
   entree: Pick<EntreeMontage, "debut" | "fin">,
   dureeRendu: number | null,
@@ -98,7 +98,7 @@ export function bornes(
   return { debut, fin, duree: fin - debut, prevu: false };
 }
 
-/** Les clips du montage, dans l'ordre des entrées (une entrée dont le plan a disparu est ignorée). */
+/** The clips of the montage, in entry order (an entry whose clip has disappeared is skipped). */
 export function construireClips(entrees: EntreeMontage[], plans: PlanMontage[]): Clip[] {
   const parId = new Map(plans.map((p) => [p.id, p]));
   const clips: Clip[] = [];
@@ -111,7 +111,7 @@ export function construireClips(entrees: EntreeMontage[], plans: PlanMontage[]):
   return clips;
 }
 
-/** Début de chaque clip sur la table (secondes depuis le début de l'épisode). */
+/** Start of each clip on the timeline (seconds since the start of the episode). */
 export function debuts(durees: readonly number[]): number[] {
   const res: number[] = [];
   let t = 0;
@@ -124,13 +124,13 @@ export function debuts(durees: readonly number[]): number[] {
 
 export const dureeTotale = (durees: readonly number[]): number => durees.reduce((s, d) => s + d, 0);
 
-/** Le clip sous l'instant `t` (le dernier dont le début est atteint ; 0 si la table est vide). */
+/** The clip under the instant `t` (the last one whose start is reached; 0 if the timeline is empty). */
 export function indexA(t: number, starts: readonly number[]): number {
   for (let k = starts.length - 1; k >= 0; k--) if (t >= starts[k]! - 1e-6) return k;
   return 0;
 }
 
-/** Copie de la liste où l'élément `de` est passé en position `vers`. */
+/** Copy of the list where the element `de` has been moved to position `vers`. */
 export function deplacer<T>(liste: readonly T[], de: number, vers: number): T[] {
   const res = [...liste];
   const [x] = res.splice(de, 1);
@@ -145,7 +145,7 @@ export function inserer<T>(liste: readonly T[], item: T, a: number): T[] {
   return res;
 }
 
-/** Où insérer un élément lâché à l'instant `seconde` : avant le premier clip dont il n'a pas dépassé le milieu. */
+/** Where to insert an element dropped at the instant `seconde`: before the first clip whose midpoint it has not passed. */
 export function indexInsertion(durees: readonly number[], seconde: number): number {
   let acc = 0;
   for (let j = 0; j < durees.length; j++) {
@@ -155,7 +155,7 @@ export function indexInsertion(durees: readonly number[], seconde: number): numb
   return durees.length;
 }
 
-/** Glisser le clip `k` : sa nouvelle position quand son CENTRE est à `centre` (secondes), parmi les autres clips. */
+/** Dragging clip `k`: its new position when its CENTER is at `centre` (seconds), among the other clips. */
 export function cibleGlisser(durees: readonly number[], k: number, centre: number): { index: number; debut: number } {
   const autres = durees.filter((_, j) => j !== k);
   let at = 0;
@@ -169,16 +169,16 @@ export function cibleGlisser(durees: readonly number[], k: number, centre: numbe
   return { index, debut: at };
 }
 
-/** Aimantation d'un bord de rognage : à la demi-seconde, ou exactement sur la tête de lecture si elle est tout près. */
+/** Snapping of a trim edge: to the half second, or exactly onto the playhead if it is very close. */
 export function aimanter(v: number, actif: boolean, tete?: number | null): number {
   if (!actif) return v;
   if (tete != null && Math.abs(v - tete) < SEUIL_AIMANT_TETE) return tete;
   return Math.round(v / PAS_AIMANT) * PAS_AIMANT;
 }
 
-// --- Deux ordres --------------------------------------------------------------------------------------------------------------------
+// --- Two orders --------------------------------------------------------------------------------------------------------------------
 
-/** Les plans du montage dans l'ordre de leur PREMIÈRE entrée (les copies ne comptent pas). */
+/** The clips of the montage in the order of their FIRST entry (copies do not count). */
 function ordreDesPlansAuMontage(entrees: readonly Pick<EntreeMontage, "planId">[]): number[] {
   const vus = new Set<number>();
   const res: number[] = [];
@@ -190,20 +190,20 @@ function ordreDesPlansAuMontage(entrees: readonly Pick<EntreeMontage, "planId">[
   return res;
 }
 
-/** L'ordre du scénario restreint aux plans présents au montage. */
+/** The scenario order restricted to the clips present in the montage. */
 function ordreScenarioAuMontage(entrees: readonly Pick<EntreeMontage, "planId">[], ordreScenario: readonly number[]): number[] {
   const presents = new Set(entrees.map((e) => e.planId));
   return ordreScenario.filter((id) => presents.has(id));
 }
 
-/** Le montage s'écarte-t-il de l'ordre du scénario (pastille « Montage différent du scénario ») ? */
+/** Does the montage deviate from the scenario order (badge « Montage différent du scénario »)? */
 export function differeDuScenario(entrees: readonly Pick<EntreeMontage, "planId">[], ordreScenario: readonly number[]): boolean {
   const mo = ordreDesPlansAuMontage(entrees);
   const so = ordreScenarioAuMontage(entrees, ordreScenario);
   return mo.some((id, i) => so[i] !== id);
 }
 
-/** Les entrées (premières occurrences de leur plan) qui ne sont pas au rang que le scénario leur donnerait : elles affichent « sc. NN ». */
+/** The entries (first occurrences of their clip) that are not at the rank the scenario would give them: they display « sc. NN ». */
 export function entreesDecalees(entrees: readonly Pick<EntreeMontage, "id" | "planId">[], ordreScenario: readonly number[]): Set<number> {
   const so = ordreScenarioAuMontage(entrees, ordreScenario);
   const vus = new Set<number>();
@@ -218,8 +218,8 @@ export function entreesDecalees(entrees: readonly Pick<EntreeMontage, "id" | "pl
   return res;
 }
 
-/** « Recaler sur l'ordre des scènes » : les entrées triées selon l'ordre du scénario de leur plan. Tri stable : les copies d'un même plan
- * gardent leur ordre relatif, rognages et rendus retenus sont intacts (ce sont les mêmes entrées). Un plan inconnu du scénario va à la fin. */
+/** « Recaler sur l'ordre des scènes »: the entries sorted according to the scenario order of their clip. Stable sort: the copies of one clip
+ * keep their relative order, trims and selected renders are intact (they are the same entries). A clip unknown to the scenario goes to the end. */
 export function recaler<E extends Pick<EntreeMontage, "planId">>(entrees: readonly E[], ordreScenario: readonly number[]): E[] {
   const rang = new Map(ordreScenario.map((id, i) => [id, i]));
   const r = (e: E) => rang.get(e.planId) ?? Number.MAX_SAFE_INTEGER;
@@ -229,15 +229,15 @@ export function recaler<E extends Pick<EntreeMontage, "planId">>(entrees: readon
     .map((x) => x.e);
 }
 
-/** Les plans sans aucune entrée (bandeau « Hors montage »), dans l'ordre du scénario. */
+/** The clips with no entry at all (« Hors montage » band), in scenario order. */
 export function plansHorsMontage<P extends Pick<PlanMontage, "id">>(plansScenario: readonly P[], entrees: readonly Pick<EntreeMontage, "planId">[]): P[] {
   const presents = new Set(entrees.map((e) => e.planId));
   return plansScenario.filter((p) => !presents.has(p.id));
 }
 
-/** Où entre un plan qui vient de naître (proposition d'agent, import) dans un montage déjà commencé : juste après la dernière entrée du
- * plan qui le précède dans le scénario (le plus proche qui soit au montage), sinon avant la première entrée d'un plan qui le suit, sinon
- * à la fin. */
+/** Where a clip that has just been born (agent proposal, import) enters an already started montage: right after the last entry of the
+ * clip that precedes it in the scenario (the nearest one present in the montage), otherwise before the first entry of a clip that follows it, otherwise
+ * at the end. */
 export function rangNouveauPlan(entrees: readonly Pick<EntreeMontage, "planId">[], ordreScenario: readonly number[], planId: number): number {
   const ici = ordreScenario.indexOf(planId);
   if (ici === -1) return entrees.length;
@@ -255,11 +255,11 @@ export function rangNouveauPlan(entrees: readonly Pick<EntreeMontage, "planId">[
 
 // --- Export ---------------------------------------------------------------------------------------------------------------------------
 
-/** Un morceau de l'export : le fichier du rendu retenu et son rognage (fin null = jusqu'au bout du fichier ; l'interface la donne toujours). */
+/** A piece of the export: the file of the selected render and its trim (end null = up to the end of the file; the interface always provides it). */
 export type SegmentExport = { chemin: string; debut: number; fin: number | null; titre: string };
 
-/** Ce que l'export met bout à bout : les entrées qui ont un rendu lisible, dans l'ordre, rognage appliqué. Les autres (sans rendu, rendu en
- * échec) sont comptées comme ignorées. */
+/** What the export joins end to end: the entries that have a readable render, in order, trim applied. The others (no render, render in
+ * failure) are counted as skipped. */
 export function segmentsExport(clips: readonly Clip[]): { segments: SegmentExport[]; ignores: number; dureeSecondes: number } {
   const segments: SegmentExport[] = [];
   let ignores = 0;
@@ -269,18 +269,18 @@ export function segmentsExport(clips: readonly Clip[]): { segments: SegmentExpor
       ignores++;
       continue;
     }
-    // La fin est toujours explicite (fin nominale du rendu pour un plan entier) : l'export sort exactement ce que la table et le lecteur
-    // montrent, même si le fichier dure quelques images de plus que sa durée nominale (10,13 s pour un rendu de 10 s).
+    // The end is always explicit (nominal end of the render for a whole clip): the export outputs exactly what the timeline and the player
+    // show, even if the file lasts a few frames longer than its nominal duration (10.13 s for a 10 s render).
     segments.push({ chemin: c.rendu.chemin, debut: c.debut, fin: c.fin, titre: c.plan.titre });
     dureeSecondes += c.duree;
   }
   return { segments, ignores, dureeSecondes };
 }
 
-/** Ce que ffprobe dit d'un fichier à exporter. */
+/** What ffprobe reports about a file to export. */
 export type SondeVideo = { largeur: number; hauteur: number; fps: number; duree: number; audio: boolean };
 
-/** Format de sortie : la plus grande image des segments (dimensions paires), la cadence la plus haute (24 par défaut, 60 au plus). */
+/** Output format: the largest frame of the segments (even dimensions), the highest frame rate (24 by default, 60 at most). */
 export function formatSortie(sondes: readonly SondeVideo[]): { largeur: number; hauteur: number; fps: number } {
   let largeur = 0;
   let hauteur = 0;
@@ -298,15 +298,15 @@ export function formatSortie(sondes: readonly SondeVideo[]): { largeur: number; 
 
 const s3 = (n: number) => String(Math.round(n * 1000) / 1000);
 
-/** Durée effective d'un segment : de son début à sa fin, bornée par la durée réelle du fichier. */
+/** Effective duration of a segment: from its start to its end, limited by the real duration of the file. */
 export function dureeSegment(seg: Pick<SegmentExport, "debut" | "fin">, dureeFichier: number): number {
   const fin = seg.fin == null ? dureeFichier : Math.min(seg.fin, dureeFichier);
   return Math.max(0, fin - seg.debut);
 }
 
-/** Arguments ffmpeg de l'export : chaque segment lu de `-ss` sur sa durée (`-t`), mis au même format (mise à l'échelle sans déformer,
- * bandes noires au besoin, même cadence), un silence pour un rendu sans piste son, puis tout est concaténé (filtre `concat`, ré-encodage
- * H.264/AAC : des rendus de résolutions différentes ne se collent pas tels quels). */
+/** ffmpeg arguments of the export: each segment read with `-ss` for its duration (`-t`), put in the same format (scaling without distortion,
+ * black bars if needed, same frame rate), a silence for a render without an audio track, then everything is concatenated (`concat` filter,
+ * H.264/AAC re-encoding: renders of different resolutions do not join as they are). */
 export function argsExport(
   segments: readonly { chemin: string; debut: number; duree: number; audio: boolean }[],
   format: { largeur: number; hauteur: number; fps: number },
@@ -315,7 +315,7 @@ export function argsExport(
   const { largeur: W, hauteur: H, fps } = format;
   const args: string[] = ["-v", "error", "-y"];
   segments.forEach((s) => args.push("-ss", s3(s.debut), "-t", s3(s.duree), "-i", s.chemin));
-  // Une source de silence par segment muet, après les vidéos.
+  // One silence source per mute segment, after the videos.
   const silences = new Map<number, number>();
   segments.forEach((s, i) => {
     if (s.audio) return;
@@ -354,7 +354,7 @@ export function formatTemps(t: number): string {
 
 export const pad2 = (n: number): string => String(n).padStart(2, "0");
 
-/** Les quatre familles de couleur des clips (or = fait, écarlate = échec, hachuré = rien encore). */
+/** The four colour families of the clips (gold = done, scarlet = failure, hatched = nothing yet). */
 export type FamilleStatut = "termine" | "encours" | "echoue" | "attente";
 
 export function familleStatut(statut: string): FamilleStatut {

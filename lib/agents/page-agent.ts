@@ -1,24 +1,24 @@
 import type { CibleDemandee, Portee } from "./types";
 
-/** Un SEUL point d'accès à l'agent (2026-10-03, retours du test général) : le bouton « Agent » du bandeau déduit la
- * portée de la PAGE où l'on se trouve, toujours la plus petite qui s'y applique (un plan, un asset, un épisode, sinon le
- * projet). L'utilisateur peut l'élargir d'un clic (le plan → son épisode → le projet) ; il ne choisit jamais « une portée »
- * à froid. Pur, testé : la lecture de l'URL ne touche ni la base ni le DOM. */
+/** A SINGLE entry point to the agent (2026-10-03, feedback from the general test): the "Agent" button in the banner infers the
+ * scope from the PAGE you are on, always the smallest that applies there (a clip, an asset, an episode, otherwise the
+ * project). The user can widen it with one click (clip → its episode → the project); they never choose "a scope"
+ * cold. Pure, tested: reading the URL touches neither the database nor the DOM. */
 
 export type DemandePage = {
   projectId: number;
   portee: Portee;
   cible: CibleDemandee | null;
-  /** Vue directe (la page des assets ouvre le registre). */
+  /** Direct view (the assets page opens the registry). */
   vue?: "registre";
-  /** Épisode de la page (sert à placer un nouveau plan, et à élargir un plan vers son épisode). */
+  /** The page's episode (used to place a new clip, and to widen a clip to its episode). */
   episodeId?: number;
   planUuid?: string;
 };
 
 const entier = (s: string | undefined): number | null => (s && /^\d+$/.test(s) ? Number(s) : null);
 
-/** La demande la plus précise pour cette page, ou null hors d'un projet (accueil, listes). */
+/** The most precise request for this page, or null outside a project (home, lists). */
 export function demandeDepuisChemin(chemin: string): DemandePage | null {
   const seg = chemin.split("?")[0]!.split("/").filter(Boolean);
   if (seg[0] !== "p") return null;

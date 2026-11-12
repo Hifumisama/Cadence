@@ -39,9 +39,9 @@ import {
   type LucideProps,
 } from "lucide-react";
 
-/** Les icônes de l'app, nommées par ce qu'elles SIGNIFIENT (pas par leur dessin) : changer de jeu d'icônes
- * ne demande de toucher qu'à ce fichier. Remplace les caractères Unicode (✎ ✕ ✦ ⋯ ⠿ ▸ ▾ ♪…), dont le rendu
- * change d'une police et d'un système à l'autre. Un bouton qui n'a qu'une icône garde son `aria-label`. */
+/** The app's icons, named by what they MEAN (not by their drawing): changing the icon set
+ * only requires touching this file. Replaces the Unicode characters (✎ ✕ ✦ ⋯ ⠿ ▸ ▾ ♪…), whose rendering
+ * varies from one font and system to another. A button that has only an icon keeps its `aria-label`. */
 const ICONES = {
   agent: Sparkles,
   modifier: Pencil,
@@ -84,7 +84,7 @@ const ICONES = {
 
 export type NomIcone = keyof typeof ICONES;
 
-/** L'icône de chaque type d'asset (le type en dit la nature : un visage, un lieu, un objet, un effet, un son…). */
+/** The icon of each asset type (the type states its nature: a face, a place, an object, an effect, a sound…). */
 export const ICONE_TYPE_ASSET: Record<string, NomIcone> = {
   personnage: "personnage",
   decor: "decor",

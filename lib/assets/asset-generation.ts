@@ -1,11 +1,11 @@
 
 
-/** Un essai lancé depuis la fiche attend d'abord que sa consigne française soit traduite en prompt (tâche LLM, skill `prompt-asset`) :
- * il n'entre dans la file d'images qu'ensuite. */
+/** An attempt launched from the sheet first waits for its French instruction to be translated into a prompt (LLM task, skill `prompt-asset`):
+ * it only enters the image queue afterwards. */
 export const STATUT_TRADUCTION = "traduction";
 
-/** Formats proposés, associés aux chaînes exactes du nœud `ResolutionSelector`
- * de ComfyUI (liste relevée dans comfy_extras/nodes_resolution.py). */
+/** Offered formats, associated with the exact strings of the `ResolutionSelector` node
+ * of ComfyUI (list taken from comfy_extras/nodes_resolution.py). */
 export const ASPECTS_COMFYUI = {
   "1:1": "1:1 (Square)",
   "2:3": "2:3 (Portrait Photo)",
@@ -24,29 +24,29 @@ export function estAspect(v: string): v is Aspect {
   return v in ASPECTS_COMFYUI;
 }
 
-/** Deux modes (variante B de la maquette) : « texte » = text-to-image
- * (IMG_01_TextToImage, Krea 2 Turbo) ; « images » = IMG_Simple_Edit
- * (Qwen Image Edit 2511) avec 1 à 3 images sources, la première étant la cible
- * modifiée. Un seul image = modification, plusieurs = fusion de références. */
+/** Two modes (variant B of the mockup): « texte » = text-to-image
+ * (IMG_01_TextToImage, Krea 2 Turbo); « images » = IMG_Simple_Edit
+ * (Qwen Image Edit 2511) with 1 to 3 source images, the first being the modified target.
+ * A single image = modification, several = merging of references. */
 const MODES_GENERATION = ["texte", "images"] as const;
 type ModeGeneration = (typeof MODES_GENERATION)[number];
 const MAX_SOURCES = 3;
 
-/** Une image source d'une génération en mode « images », dans l'ordre :
- * - `asset` : l'image courante d'un asset du registre ;
- * - `import` : un fichier déposé à la volée dans la popup (jetable, rangé sous
- *   generations/<assetId>/sources/, jamais rattaché au registre). */
+/** A source image of a generation in « images » mode, in order:
+ * - `asset`: the current image of a registry asset;
+ * - `import`: a file dropped on the fly into the popup (disposable, stored under
+ *   generations/<assetId>/sources/, never attached to the registry). */
 type SourceGeneration =
   | { origine: "asset"; assetId: number }
   | { origine: "import"; fichier: string };
 
-/** Ce que la popup envoie à `lancerGeneration` (app/assets/generation-actions.ts).
- * Le prompt est un instantané propre à cette demande : il ne devient celui de
- * l'asset que si le candidat est adopté (adopterGeneration). Le format et les
- * mégapixels ne concernent que le mode « texte » (en mode « images » la sortie
- * suit l'image 1, le graphe d'édition n'a pas de nœud de taille). L'édition
- * tourne toujours avec le LoRA Lightning (4 étapes) : le mode « Qualité » sans
- * LoRA, testé, ne change rien au rendu. */
+/** What the popup sends to `lancerGeneration` (app/assets/generation-actions.ts).
+ * The prompt is a snapshot specific to this request: it only becomes the asset's
+ * own if the candidate is adopted (adopterGeneration). The format and the
+ * megapixels only concern the « texte » mode (in « images » mode the output
+ * follows image 1, the edit graph has no size node). The edit always
+ * runs with the Lightning LoRA (4 steps): the « Qualité » mode without
+ * LoRA, tested, changes nothing in the render. */
 export type DemandeGeneration = {
   mode: ModeGeneration;
   prompt: string;
@@ -55,19 +55,19 @@ export type DemandeGeneration = {
   sources: SourceGeneration[];
 };
 
-/** La méthode d'un essai lancé depuis la fiche : **sans image de base, Krea 2** (on crée l'image) ; **avec une image de base, Qwen Image
- * Edit** (on la retouche). Pour un résultat tout autre, on duplique l'asset ou on retire son image : on ne défigure pas l'image actuelle. */
+/** The method of an attempt launched from the sheet: **without a base image, Krea 2** (we create the image); **with a base image, Qwen Image
+ * Edit** (we retouch it). For a result quite different, we duplicate the asset or remove its image: we do not deface the current image. */
 export const methodeDEssai = (aDesImages: boolean): "generation" | "edition" => (aDesImages ? "edition" : "generation");
 
-/** Les images qu'un essai peut porter (Qwen Image Edit en prend 3). Créer à partir d'images jointes : jusqu'à 3, la 1re « porte » les
- * modifications des autres. Retoucher : l'image de base compte pour une, il reste de la place pour deux images jointes. */
+/** The images an attempt can carry (Qwen Image Edit takes 3). Create from attached images: up to 3, the 1st « carries » the
+ * modifications of the others. Retouch: the base image counts as one, there is room for two attached images. */
 const MAX_IMAGES_CREATION = 3;
 const MAX_IMAGES_RETOUCHE = 3;
-/** Combien d'images jointes (en plus de la base, s'il y en a une) on peut ajouter. */
+/** How many attached images (in addition to the base, if there is one) can be added. */
 export const maxImagesJointes = (aUneBase: boolean): number => (aUneBase ? MAX_IMAGES_RETOUCHE - 1 : MAX_IMAGES_CREATION);
 
-/** Pourquoi une consigne ne peut pas partir, ou null. Sans image de base elle peut être vide (l'agent écrit alors le prompt d'après la
- * description de l'asset) ; sans description non plus, il n'y a rien à dessiner. Une retouche exige une consigne. */
+/** Why an instruction cannot go, or null. Without a base image it may be empty (the agent then writes the prompt from the
+ * asset's description); without a description either, there is nothing to draw. A retouch requires an instruction. */
 export function raisonConsigneInvalide(consigne: string, aUneBase: boolean, description: string | null): string | null {
   if (consigne.trim().length > 2000) return "Consigne trop longue (2 000 caractères au plus).";
   if (consigne.trim()) return null;
@@ -76,37 +76,37 @@ export function raisonConsigneInvalide(consigne: string, aUneBase: boolean, desc
   return null;
 }
 
-/** Nombre de candidats gardés par asset : les plus anciens sont purgés. */
+/** Number of candidates kept per asset: the oldest are purged. */
 export const CANDIDATS_GARDES = 8;
 
-/** Format proposé selon le type : les décors et plates suivent le ratio du film
- * (16:9, ~1536×864), l'identité et les détails restent carrés (1024×1024),
- * comme dans le registre. */
+/** Format offered by type: sets and plates follow the film's ratio
+ * (16:9, ~1536×864), identity and details stay square (1024×1024),
+ * as in the registry. */
 export function formatParDefaut(type: string): { aspect: Aspect; megapixels: number } {
-  // Une affiche de présentation est un portrait 2:3 (comme les cartes), lib/posters/posters.ts.
+  // A presentation poster is a 2:3 portrait (like the cards), lib/posters/posters.ts.
   if (type === "affiche") return { aspect: "2:3", megapixels: 1.3 };
-  // Personnage et décor en 16:9 par défaut (retour de recette, 2026-10-05) : meilleurs résultats dans ce ratio, et c'est le
-  // format des plans vidéo. Réglable à la main en régénérant l'image.
+  // Character and set in 16:9 by default (recipe feedback, 2026-10-05): best results in this ratio, and it is
+  // the format of video clips. Adjustable by hand by regenerating the image.
   if (type === "decor" || type === "personnage") return { aspect: "16:9", megapixels: 1.3 };
   return { aspect: "1:1", megapixels: 1 };
 }
 
 // ---------------------------------------------------------------------------
-// Master de voix d'un personnage (chantier voix/master, 2026-10-14) : une vidéo de test H3, dont on garde la voix. Méthode de plus
-// pour `asset_generations`, sur l'asset personnage ; le résultat est un candidat, « Utiliser comme master » l'adopte.
+// Voice master of a character (voice/master work, 2026-10-14): an H3 test video, from which the voice is kept. An extra method for
+// `asset_generations`, on the character asset; the result is a candidate, « Utiliser comme master » adopts it.
 // ---------------------------------------------------------------------------
 
-/** Master de voix d'un PERSONNAGE (2026-10-14) : la vidéo de test H3 (sans audio fourni, le modèle invente la voix d'après le prompt),
- * avec en plus la voix nettoyée (workflow dédié). Le fichier de la génération est l'AUDIO ; la vidéo est à côté (`videoDeMaster`).
- * `assetId` est le personnage. */
+/** Voice master of a CHARACTER (2026-10-14): the H3 test video (no audio supplied, the model invents the voice from the prompt),
+ * with in addition the cleaned voice (dedicated workflow). The generation's file is the AUDIO; the video is alongside (`videoDeMaster`).
+ * `assetId` is the character. */
 export const METHODE_MASTER_VOIX = "master_voix";
 
 
-/** Durée de la vidéo de test d'un master : une réplique face caméra tient en huit secondes (prompt T1, lib/voice/voice.ts:promptMasterVoix). */
+/** Duration of a master's test video: a line of dialogue facing the camera fits in eight seconds (prompt T1, lib/voice/voice.ts:promptMasterVoix). */
 export const DUREE_TEST_VIDEO_SECONDES = 8;
 
-/** Ce que la génération d'un master fige au lancement : l'image du personnage (chemin relatif à MEDIA_ROOT, null pour une voix off sans
- * visage). */
+/** What a master's generation freezes at launch: the character's image (path relative to MEDIA_ROOT, null for a voice-over without a
+ * face). */
 export type ParametresMasterVoix = { personnage: string | null };
 
 export function parametresMasterVoix(v: unknown): ParametresMasterVoix | null {
@@ -115,10 +115,10 @@ export function parametresMasterVoix(v: unknown): ParametresMasterVoix | null {
   return { personnage: typeof p === "string" && p.trim() !== "" ? p : null };
 }
 
-/** La vidéo de test d'un master vit à côté de son audio, sous le même nom (`<uuid>.mp4`) : rien à mémoriser, rien d'orphelin à la purge. */
+/** The test video of a master lives alongside its audio, under the same name (`<uuid>.mp4`): nothing to memorise, nothing orphaned at purge. */
 export const videoDeMaster = (fichierAudio: string): string => fichierAudio.replace(/\.[^./\\]+$/, "") + ".mp4";
 
-/** « 4 s », « 2,5 s » : durée d'un son pour l'affichage. */
+/** « 4 s », « 2,5 s »: duration of a sound for display. */
 export function formaterDuree(secondes: number): string {
   return `${String(Math.round(secondes * 10) / 10).replace(".", ",")} s`;
 }
@@ -126,8 +126,8 @@ export function formaterDuree(secondes: number): string {
 const MEGAPIXELS_MIN = 0.3;
 const MEGAPIXELS_MAX = 4;
 
-/** Validation de la structure d'une demande (sans base ni disque : l'existence
- * des sources se vérifie côté action). Renvoie le message à afficher, ou null. */
+/** Validation of the structure of a request (without database nor disk: the existence
+ * of the sources is checked on the action side). Returns the message to display, or null. */
 export function raisonDemandeInvalide(d: DemandeGeneration): string | null {
   if (!d.prompt?.trim()) return "Écris le prompt de la génération.";
   if (!(MODES_GENERATION as readonly string[]).includes(d.mode)) return "Mode de génération inconnu.";
@@ -154,13 +154,13 @@ export function raisonDemandeInvalide(d: DemandeGeneration): string | null {
   return null;
 }
 
-/** Nom d'une source une fois envoyée à ComfyUI (dossier d'entrée partagé) : unique
- * par génération et par rang, pour ne jamais écraser l'image d'une autre tâche. */
+/** Name of a source once sent to ComfyUI (shared input folder): unique
+ * per generation and per rank, so as never to overwrite another task's image. */
 export function nomSourceDistante(genUuid: string, rang: number, ext: string): string {
   return `cadence_${genUuid}_${rang}${ext}`;
 }
 
-/** Seed aléatoire (entier < 2^48, sûr en nombre JS), stockée en texte comme
+/** Random seed (integer < 2^48, safe as a JS number), stored as text like
  * `plans.seed`. */
 export function nouvelleSeed(): string {
   return String(Math.floor(Math.random() * 2 ** 48));

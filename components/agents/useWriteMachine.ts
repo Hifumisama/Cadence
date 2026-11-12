@@ -2,17 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/** Effet « machine à écrire » : le texte visible rattrape le texte reçu lettre par lettre (le flux arrive par à-coups,
- * toutes les ~1,2 s ; sans lissage il apparaît par paquets). La vitesse s'adapte au retard : un petit écart se lit
- * tranquillement, un gros paquet se rattrape vite (jamais plus de ~1 s de retard). Un texte qui raccourcit (nouvel appel)
- * repart de zéro. `null` : rien à écrire. */
+/** « Typewriter » effect: the visible text catches up with the text received letter by letter (the stream arrives in bursts,
+ * every ~1.2 s; without smoothing it would appear in chunks). The speed adapts to the lag: a small gap is read
+ * calmly, a large chunk is caught up quickly (never more than ~1 s of lag). A text that gets shorter (new call)
+ * starts over from zero. `null`: nothing to write. */
 export function useMachineAEcrire(cible: string | null): string {
   const texte = cible ?? "";
   const [n, setN] = useState(0);
   const dernier = useRef("");
 
   useEffect(() => {
-    // Un texte qui ne prolonge pas le précédent (nouvel appel, renvoi au modèle) : on repart de zéro.
+    // A text that does not extend the previous one (new call, resend to the model): we start over from zero.
     if (!texte.startsWith(dernier.current)) setN(0);
     dernier.current = texte;
   }, [texte]);

@@ -16,8 +16,8 @@ const CONTENU = [
   { nom: "Notes du projet", detail: "Tes notes libres" },
 ];
 
-/** Le brief n'est pas encore rédigé (statut « partiel » : seuls le style et les notes ont pu être posés à la main).
- * On y pose l'essentiel à la main (le brief rédigé par l'agent naît de la création du projet, pas d'ici). */
+/** The brief is not written yet (status « partiel »: only the style and notes could be set by hand).
+ * The essentials are set here by hand (the brief written by the agent is born from the project's creation, not from here). */
 export function BriefVide({ projectId, brief }: { projectId: number; nomProjet?: string; brief: VueBrief }) {
   const router = useRouter();
   const id = useId();

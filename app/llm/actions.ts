@@ -4,9 +4,9 @@ import { configLlm } from "@/lib/llm/config";
 import { ecrireModeleChoisi } from "@/lib/llm/model-chosen";
 import { listerModeles } from "@/worker/llamaSwap";
 
-/** Choisit le modèle LLM (pastille du header). `null` revient au modèle de la configuration (`LLM_LOCAL_MODELE`).
- * Le choix vaut pour les prochains appels, y compris ceux déjà en file : le worker le lit au démarrage de chaque appel.
- * Renvoie `{ ok: true } | { ok: false, erreur }`, jamais d'exception pour un cas métier. */
+/** Chooses the LLM model (header badge). `null` reverts to the configured model (`LLM_LOCAL_MODELE`).
+ * The choice applies to the next calls, including those already queued: the worker reads it at the start of each call.
+ * Returns `{ ok: true } | { ok: false, erreur }`, never an exception for a business case. */
 export async function choisirModeleLlm(modele: string | null): Promise<{ ok: true } | { ok: false; erreur: string }> {
   if (modele == null) {
     await ecrireModeleChoisi(null);
@@ -14,8 +14,8 @@ export async function choisirModeleLlm(modele: string | null): Promise<{ ok: tru
   }
   const nom = modele.trim();
   if (!nom || nom.length > 200) return { ok: false, erreur: "Nom de modèle invalide." };
-  // On n'accepte qu'un modèle que le serveur déclare : un nom faux ferait échouer chaque appel. Si le serveur ne
-  // répond pas (ou ne sait pas lister), on ne peut pas vérifier : on refuse plutôt que d'enregistrer à l'aveugle.
+  // Only a model the server declares is accepted: a wrong name would make every call fail. If the server does not
+  // respond (or cannot list), we cannot check: we refuse rather than save blindly.
   const connus = await listerModeles(configLlm().url);
   if (connus == null) return { ok: false, erreur: "Le serveur LLM ne répond pas : impossible de vérifier ce modèle." };
   if (!connus.includes(nom)) return { ok: false, erreur: `« ${nom} » n'est pas un modèle de ce serveur.` };

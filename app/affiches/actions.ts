@@ -12,9 +12,9 @@ import { ecrirePoster, lirePoster } from "@/lib/posters/poster-application";
 import { resoudreAffiche } from "@/lib/agents/poster";
 import { MEDIA_ROOT, cheminPosterMedia } from "@/lib/media";
 
-/** Ouvre la page de génération de l'affiche d'un projet ou d'un épisode. L'asset d'affiche (invisible du registre) est
- * créé AU PREMIER CLIC, avec un prompt proposé à partir du titre et du résumé ; ensuite on le retrouve tel quel, prompt
- * modifié compris. Pour un meilleur prompt : « Demander à l'agent » sur la page (même parcours que pour un asset). */
+/** Opens the poster generation page of a project or an episode. The poster asset (hidden from the registry) is
+ * created ON THE FIRST CLICK, with a prompt proposed from the title and summary; afterwards it is found as-is, edited prompt
+ * included. For a better prompt: « Demander à l'agent » on the page (same path as for an asset). */
 export async function ouvrirAffiche(cible: CibleAffiche, id: number): Promise<void> {
   const contexte = await resoudreAffiche(db, cible, id);
   if (!contexte) throw new Error(cible === "projects" ? "Ce projet n'existe pas." : "Cet épisode n'existe pas.");
@@ -36,7 +36,7 @@ export async function ouvrirAffiche(cible: CibleAffiche, id: number): Promise<vo
   redirect(`/p/${contexte.projectId}/affiche/${code}`);
 }
 
-/** Retire l'affiche (retour au dégradé de repli). L'asset d'affiche et ses candidats restent : on peut en réadopter un. */
+/** Removes the poster (back to the fallback gradient). The poster asset and its candidates remain: one can re-adopt one. */
 export async function retirerAffiche(cible: CibleAffiche, id: number): Promise<void> {
   const courant = await lirePoster(cible, id);
   if (courant === undefined) return;
@@ -45,8 +45,8 @@ export async function retirerAffiche(cible: CibleAffiche, id: number): Promise<v
   revalidatePath("/", "layout");
 }
 
-/** « Écrire le titre dans l'image » : ajoute ou retire la ligne de titre du prompt (le reste n'est pas touché). C'est le prompt qui fait
- * foi : à l'adoption, un prompt qui porte la ligne donne une affiche sans titre superposé. */
+/** « Écrire le titre dans l'image »: adds or removes the title line of the prompt (the rest is not touched). The prompt is
+ * the reference: on adoption, a prompt that carries the line gives a poster without an overlaid title. */
 export async function reglerTitreAffiche(cible: CibleAffiche, id: number, actif: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const contexte = await resoudreAffiche(db, cible, id);
   if (!contexte) return { ok: false, erreur: "Introuvable." };

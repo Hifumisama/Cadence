@@ -8,16 +8,16 @@ import type {
   VueGroupe,
 } from "./types";
 
-/** Cochage et résumé d'une sélection — pur, testé. Règles validées (2026-10-02) :
- * créations cochées ; modifications d'éléments déjà validés (`ecrase`), suppressions,
- * changements bloqués par un contrôle et changements refusés d'office : DÉCOCHÉS. */
+/** Ticking and summary of a selection — pure, tested. Rules validated (2026-10-02):
+ * creations ticked; edits of already-validated items (`ecrase`), deletions,
+ * changes blocked by a check and changes refused outright: UNTICKED. */
 
 type PourCochage = {
   operation: Operation;
   avertissements: Avertissement[];
   ecrase: string | null;
   refuseRaison: string | null;
-  /** Le convertisseur a jugé le geste sans risque (voir `ChangementBrut.cocheOffice`). */
+  /** The converter judged the action risk-free (see `ChangementBrut.cocheOffice`). */
   office?: boolean;
 };
 
@@ -33,14 +33,14 @@ export function cocheParDefaut(c: PourCochage): boolean {
   return true;
 }
 
-/** Pourquoi on ne peut pas cocher ce changement, ou null. */
+/** Why this change cannot be ticked, or null. */
 export function raisonNonCochable(c: Pick<PourCochage, "avertissements" | "refuseRaison">): string | null {
   if (c.refuseRaison) return c.refuseRaison;
   if (estBloque(c.avertissements)) return "Un contrôle échoue : corrige-le d'abord.";
   return null;
 }
 
-/** Le groupe affiché : les écrasements sont regroupés en tête, quel que soit leur type. */
+/** The displayed group: overwrites are grouped at the top, whatever their type. */
 export function groupeAffiche(c: Pick<VueChangement, "groupe" | "ecrase" | "refuseRaison">): string {
   return c.ecrase && !c.refuseRaison ? "ecrasement" : c.groupe;
 }
@@ -70,7 +70,7 @@ export function ecrasementsAConfirmer(changements: VueChangement[]): EcrasementA
     .map((c) => ({ changementId: c.id, libelle: c.libelle, ecrase: c.ecrase as string }));
 }
 
-/** Range les changements en groupes d'affichage, dans l'ordre : écrasements en tête. */
+/** Sorts the changes into display groups, in order: overwrites first. */
 export function grouper(changements: VueChangement[]): VueGroupe[] {
   const parGroupe = new Map<string, VueChangement[]>();
   for (const c of [...changements].sort((a, b) => a.ordre - b.ordre)) {

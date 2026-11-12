@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { supprimerScene } from "@/app/scenario/actions";
 import { Icone } from "@/components/ui/Icon";
 
-/** La poubelle d'une scène, à côté de « Modifier ». Ses plans ne sont pas supprimés : ils passent en « Sans scène ». */
+/** The trash button of a scene, next to « Modifier ». Its clips are not deleted: they move to « Sans scène ». */
 export function SupprimerSceneButton({ sceneId, titre }: { sceneId: number; titre: string }) {
   const [pending, startTransition] = useTransition();
 

@@ -1,25 +1,25 @@
 import schemaBrief from "./brief-schema.json";
 import { SECTIONS_BRIEF, type BriefContenu, type CleSectionBrief, type SectionBrief, type StatutChamp } from "./types";
 
-/** Le brief — fonctions pures (aucun accès base ni disque) : de la fiche de l'entretien (`notes-entretien`) au contenu +
- * statuts stockés, aux sections affichées, aux différences. */
+/** The brief — pure functions (no database or disk access): from the interview's sheet (`notes-entretien`) to the content +
+ * stored statuses, to the displayed sections, to the differences. */
 
-/** Schéma du brief stocké (`brief-schema.json`). Plus de skill `brief-projet` (2026-10-12) : le brief se remplit au fil de la
- * conversation. Les sous-schémas des sections patchables sont répétés dans celui de `notes-entretien` (un test les impose identiques). */
+/** Schema of the stored brief (`brief-schema.json`). No more `brief-projet` skill (2026-10-12): the brief fills up over the
+ * conversation. The sub-schemas of the patchable sections are repeated in that of `notes-entretien` (a test requires them to be identical). */
 export const SCHEMA_BRIEF = schemaBrief as unknown as Record<string, unknown>;
 
-/** Les sections qui reprennent un choix de la conception (langue, durée, genre et ton) : les changer reviendrait à refaire le projet, elles ne
- * se modifient donc plus à la main une fois la conception faite (voir `modifierChampBrief`). */
+/** The sections that carry a choice made in the design (language, duration, genre and tone): changing them would mean redoing the project, so they
+ * are no longer edited by hand once the design is done (see `modifierChampBrief`). */
 export const SECTIONS_FIGEES_PAR_LA_CONCEPTION: readonly string[] = ["langueDialogues", "dureeEpisodeSecondes", "genreTon"];
 
 const CLES_SECTION: string[] = SECTIONS_BRIEF.map((s) => s.cle);
 
-/** Les anciennes sections « Contraintes » du brief, supprimées le 2026-10-12 (jamais remplies ni utilisées sérieusement). Pas de migration :
- * un brief déjà stocké peut encore les porter, elles sont simplement ignorées à la lecture (voir `sansClesAbandonnees`). */
+/** The old "Contraintes" sections of the brief, removed on 2026-10-12 (never filled in or seriously used). No migration:
+ * a brief already stored may still carry them; they are simply ignored on read (see `sansClesAbandonnees`). */
 export const CLES_ABANDONNEES: readonly string[] = ["continuite", "rimes", "progressions", "pieges"];
 
-/** Une copie de l'objet SANS les clés abandonnées (le schéma du brief est strict : un vieux brief ne le satisfait plus tel quel). Pur ; ce
- * qui n'est pas un objet est rendu tel quel. */
+/** A copy of the object WITHOUT the abandoned keys (the brief schema is strict: an old brief no longer satisfies it as is). Pure; what
+ * is not an object is returned unchanged. */
 export function sansClesAbandonnees<T>(objet: T): T {
   if (!objet || typeof objet !== "object" || Array.isArray(objet)) return objet;
   const copie = { ...(objet as Record<string, unknown>) };
@@ -31,7 +31,7 @@ export function estCleSection(cle: string): cle is CleSectionBrief {
   return CLES_SECTION.includes(cle);
 }
 
-/** Égalité structurelle indifférente à l'ordre des clés. */
+/** Structural equality, regardless of key order. */
 function egal(a: unknown, b: unknown): boolean {
   return stable(a) === stable(b);
 }
@@ -48,18 +48,18 @@ function stable(v: unknown): string {
 function normaliserStatut(v: unknown): StatutChamp | null {
   if (v === "fourni") return "fourni";
   if (v === "deduit") return "deduit";
-  // Plus de « à valider » dans un brief (retours du test, 2026-10-03) : ce que l'agent hésite à poser se règle en
-  // conversation (`resteADefinir`) ; un statut « à valider » ou « incertain » déclaré par le modèle vaut « déduit ».
+  // No more "à valider" in a brief (test feedback, 2026-10-03): what the agent hesitates to set is settled in
+  // conversation (`resteADefinir`); a "à valider" or "incertain" status declared by the model counts as "déduit".
   if (v === "a_valider" || v === "incertain") return "deduit";
   return null;
 }
 
-/** Statut d'une section : celui que l'agent a déclaré (`statuts` de sa sortie), sinon déduit
- * du contenu — les inventions et les questions ouvertes sont INFORMATIVES (« déduit ») : la conversation a
- * levé les zones d'ombre, plus aucun point à valider un par un (retour du test général, 2026-10-03) ; une liste
- * de personnages/lieux est « à valider » si l'un d'eux est incertain, « fournie » si tous le
- * sont ; le reste est « déduit » (ce que l'agent a conclu, tant que l'utilisateur ne l'a pas
- * corrigé : une correction à la main passe la section à « fourni »). */
+/** A section's status: the one the agent declared (`statuts` of its output), otherwise inferred
+ * from the content — inventions and open questions are INFORMATIVE ("déduit"): the conversation has
+ * cleared up the grey areas, no point left to validate one by one (general test feedback, 2026-10-03); a
+ * list of characters/places is "à valider" if one of them is uncertain, "fourni" if all
+ * are; the rest is "déduit" (what the agent concluded, until the user
+ * corrects it: a manual correction moves the section to "fourni"). */
 export function statutDeSection(cle: string, valeur: unknown, declares: Record<string, unknown> = {}): StatutChamp {
   const declare = normaliserStatut(declares[cle]);
   if (declare) return declare;
@@ -71,7 +71,7 @@ export function statutDeSection(cle: string, valeur: unknown, declares: Record<s
   return "deduit";
 }
 
-/** De la sortie du skill (avec son éventuel champ `statuts`) au contenu et aux statuts stockés. */
+/** From the skill's output (with its optional `statuts` field) to the stored content and statuses. */
 export function sortieVersBrief(sortie: Record<string, unknown>): { contenu: BriefContenu; statuts: Record<string, StatutChamp> } {
   const { statuts: declares, ...reste } = sortie;
   const contenu = sansClesAbandonnees(reste) as unknown as BriefContenu;
@@ -85,9 +85,9 @@ export function sortieVersBrief(sortie: Record<string, unknown>): { contenu: Bri
   return { contenu, statuts };
 }
 
-/** Un brief « partiel » vide : la forme complète (les consommateurs lisent `.length`/`.map`
- * sans garde), rien d'inventé. Sert quand l'utilisateur pose le style ou les notes d'un projet
- * qui n'a pas (encore) de brief rédigé par l'agent. */
+/** An empty "partiel" brief: the full shape (consumers read `.length`/`.map`
+ * without a guard), nothing invented. Used when the user sets the style or notes of a project
+ * that does not (yet) have a brief written by the agent. */
 export function briefVide(titre: string): BriefContenu {
   return {
     titre: titre.trim() || "Projet",
@@ -104,27 +104,27 @@ export function briefVide(titre: string): BriefContenu {
   };
 }
 
-/** Sections montrées pour un brief partiel : le style et les notes (toujours éditables), plus
- * toute section que l'utilisateur a posée (« fourni »). Un brief rédigé montre tout ce qui est défini. */
+/** Sections shown for a partial brief: the style and notes (always editable), plus
+ * any section the user set ("fourni"). A written brief shows everything that is defined. */
 function sectionVisible(partiel: boolean, cle: string, statuts: Record<string, StatutChamp>): boolean {
   return !partiel || cle === "style" || cle === "notes" || statuts[cle] === "fourni";
 }
 
-/** La clause de style portée par un brief (trim), ou "" . */
+/** The style clause carried by a brief (trimmed), or "". */
 export function clauseDuBrief(contenu: BriefContenu | null | undefined): string {
   const c = (contenu as unknown as { style?: { clause?: unknown } } | null | undefined)?.style?.clause;
   return typeof c === "string" ? c.trim() : "";
 }
 
-/** Le prompt long du style (images), ou "" : un projet sans conception (ou un style retouché) n'en a pas, les images retombent alors sur la clause. */
+/** The long style prompt (images), or "": a project without a design (or a retouched style) has none, and images then fall back to the clause. */
 export function promptImageDuBrief(contenu: BriefContenu | null | undefined): string {
   const p = (contenu as unknown as { style?: { promptImage?: unknown } } | null | undefined)?.style?.promptImage;
   return typeof p === "string" ? p.trim() : "";
 }
 
-/** Le prompt long (images) et l'aperçu du style appartiennent au CODE (posés à la création du projet) : le modèle de l'entretien ne les voit pas, donc le brief qu'il
- * renvoie ne les porte pas. À l'écriture du brief entier, on les remet depuis `precedent` (le brief déjà en base, ou ce que la conception donne) quand la clause est
- * la même : même clause, même style. Sans effet si le nouveau style a déjà les siens, ou si le style a vraiment changé. */
+/** The long prompt (images) and the style preview belong to the CODE (set when the project is created): the interview model does not see them, so the brief it
+ * returns does not carry them. When the whole brief is written, they are restored from `precedent` (the brief already in the database, or what the design gives) when the clause is
+ * the same: same clause, same style. No effect if the new style already has its own, or if the style really changed. */
 export function retablirStyleDuCode(contenu: BriefContenu, precedent: { clause?: string; promptImage?: string; image?: string } | null | undefined): BriefContenu {
   const c = contenu as unknown as { style?: { clause?: unknown; promptImage?: unknown; image?: unknown } };
   const style = c.style;
@@ -139,7 +139,7 @@ export function retablirStyleDuCode(contenu: BriefContenu, precedent: { clause?:
   return { ...contenu, style: { ...style, ...(!aPrompt && prompt ? { promptImage: prompt } : {}), ...(!aImage && image ? { image } : {}) } } as unknown as BriefContenu;
 }
 
-/** Les notes libres d'un brief (trim), ou "". */
+/** The free notes of a brief (trimmed), or "". */
 export function notesDuBrief(contenu: BriefContenu | null | undefined): string {
   const n = (contenu as unknown as { notes?: unknown } | null | undefined)?.notes;
   return typeof n === "string" ? n.trim() : "";
@@ -156,14 +156,14 @@ export function construireSections(
     cle: s.cle,
     libelle: s.libelle,
     groupe: s.groupe,
-    // Brief partiel : une section jamais posée (notes vides…) reste « à valider » (à remplir), pas « déduite ».
+    // Partial brief: a section never set (empty notes…) stays "à valider" (to fill in), not "déduite".
     statut: statuts[s.cle] ?? (partiel ? "a_valider" : statutDeSection(s.cle, c[s.cle])),
     valeur: c[s.cle] ?? (s.cle === "style" ? { nom: "", clause: "" } : s.cle === "notes" ? "" : undefined),
   }));
 }
 
-/** Le brouillon qu'écrit l'agent, SANS écraser ce que l'utilisateur a posé à la main dans un brief
- * partiel : les sections « fourni » du partiel gagnent (style, notes…). */
+/** The draft the agent writes, WITHOUT overwriting what the user set by hand in a
+ * partial brief: the partial's "fourni" sections win (style, notes…). */
 export function fusionnerPartielDansBrouillon(
   brouillon: { contenu: BriefContenu; statuts: Record<string, StatutChamp> },
   partiel: { contenu: BriefContenu; statuts: Record<string, StatutChamp> },
@@ -181,7 +181,7 @@ export function fusionnerPartielDansBrouillon(
 
 export type DifferenceSection = { cle: CleSectionBrief; avant: unknown; apres: unknown };
 
-/** Les sections qui diffèrent entre deux briefs (`avant` null = pas de brief). */
+/** The sections that differ between two briefs (`avant` null = no brief). */
 export function diffSections(avant: BriefContenu | null, apres: BriefContenu): DifferenceSection[] {
   const a = (avant ?? {}) as unknown as Record<string, unknown>;
   const b = apres as unknown as Record<string, unknown>;
@@ -192,7 +192,7 @@ export function diffSections(avant: BriefContenu | null, apres: BriefContenu): D
   }));
 }
 
-/** Sous-schéma d'une section, extrait du schéma complet du brief (pour valider une correction à la main). */
+/** Sub-schema of a section, extracted from the full brief schema (to validate a manual correction). */
 export function sousSchemaSection(schema: Record<string, unknown>, cle: string): Record<string, unknown> | null {
   const props = (schema.properties ?? {}) as Record<string, Record<string, unknown>>;
   return props[cle] ?? null;

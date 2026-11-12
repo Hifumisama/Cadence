@@ -1,20 +1,20 @@
 import type { Position, RangDeplace } from "./types";
 
-/** Insertion d'un plan : où il tombe et quels plans voient leur rang changer. Pur, testé.
- * Les plans s'identifient par uuid, jamais par numéro (F03) : la position est un repère
- * (après tel plan, début, fin), le rang n'est qu'un affichage (base 1). */
+/** Insertion of a clip: where it lands and which clips see their rank change. Pure, tested.
+ * Clips are identified by uuid, never by number (F03): the position is a marker
+ * (after such clip, start, end), the rank is only a display (base 1). */
 
 export type PlanOrdonne = { uuid: string; titre: string; sceneId?: number | null };
 
 export type Insertion = {
-  /** Index 0-based de la séquence résultante où le nouveau plan prend place. */
+  /** 0-based index in the resulting sequence where the new clip takes its place. */
   index: number;
-  /** Les plans existants dont le rang change (ceux qui suivent le point d'insertion). */
+  /** The existing clips whose rank changes (those following the insertion point). */
   deplaces: RangDeplace[];
 };
 
-/** `existants` : les plans de l'épisode dans l'ordre de lecture. Renvoie null si le plan de
- * repère n'existe pas dans l'épisode. */
+/** `existants`: the episode's clips in reading order. Returns null if the reference clip
+ * does not exist in the episode. */
 export function planifierInsertion(existants: PlanOrdonne[], position: Position | null): Insertion | null {
   let index: number;
   if (!position || "fin" in position) index = existants.length;
@@ -34,22 +34,22 @@ export function planifierInsertion(existants: PlanOrdonne[], position: Position 
 }
 
 export type Deplacement = {
-  /** Index 0-based du plan dans la séquence SANS lui, à l'endroit où il est reposé. */
+  /** 0-based index of the clip in the sequence WITHOUT it, where it is set back down. */
   index: number;
-  /** Rang (base 1) avant et après le déplacement. */
+  /** Rank (base 1) before and after the move. */
   rangAvant: number;
   rangApres: number;
-  /** La scène que le plan adopte : celle du plan qui le précède (ou du premier plan, s'il passe en tête).
-   * L'ordre est regroupé par scène (`recomposerOrdre`), donc se placer « après le plan X » veut dire
-   * entrer dans la scène de X. `undefined` si l'épisode n'a aucun autre plan. */
+  /** The scene the clip adopts: that of the clip before it (or of the first clip, if it goes to the head).
+   * The order is grouped by scene (`recomposerOrdre`), so placing oneself "after clip X" means
+   * entering X's scene. `undefined` if the episode has no other clip. */
   sceneId: number | null | undefined;
-  /** Les AUTRES plans dont le rang change. */
+  /** The OTHER clips whose rank changes. */
   deplaces: RangDeplace[];
 };
 
-/** Déplacement d'un plan existant : même repère que l'insertion (après tel plan par uuid, début, fin). Pur,
- * testé. Renvoie null si le plan est introuvable, si le repère n'est pas dans l'épisode, ou si le repère est le
- * plan lui-même. */
+/** Moving an existing clip: same marker as the insertion (after such clip by uuid, start, end). Pure,
+ * tested. Returns null if the clip is not found, if the marker is not in the episode, or if the marker is the
+ * clip itself. */
 export function planifierDeplacement(existants: PlanOrdonne[], planUuid: string, position: Position | null): Deplacement | null {
   const depart = existants.findIndex((p) => p.uuid === planUuid);
   if (depart === -1) return null;
@@ -70,8 +70,8 @@ export function planifierDeplacement(existants: PlanOrdonne[], planUuid: string,
   return { index, rangAvant: depart + 1, rangApres: index + 1, sceneId: repere ? (repere.sceneId ?? null) : undefined, deplaces };
 }
 
-/** Suppression d'un plan : les plans qui le suivent montent d'un rang (aucun trou, F03). Pur, testé. Null si le plan
- * n'est pas dans la liste. */
+/** Deleting a clip: the clips that follow it move up one rank (no gap, F03). Pure, tested. Null if the clip
+ * is not in the list. */
 export function planifierSuppression(existants: PlanOrdonne[], planUuid: string): RangDeplace[] | null {
   const i = existants.findIndex((p) => p.uuid === planUuid);
   if (i === -1) return null;

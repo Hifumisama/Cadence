@@ -4,8 +4,8 @@ import { demandes } from "../../db/schema";
 import type { ContexteAjoutPlan, ContexteAjoutScene } from "../tasks/requests";
 import type { AjoutEnCours, AjoutSceneEnCours } from "./screenplay-view";
 
-/** Le plan ou la scène en cours d'écriture dans l'épisode (« Ajouter un plan », « Nouvelle scène »), s'il y en a un : les pages Scénario et Tournage lui gardent sa
- * place, sous forme de bloc fantôme, jusqu'à la fin de la tâche. Un seul ajout à la fois par film : plan ou scène. */
+/** The clip or scene being written in the episode (« Ajouter un plan », « Nouvelle scène »), if there is one: the Scénario and Tournage pages keep its
+ * place for it, as a ghost block, until the end of the task. Only one addition at a time per film: clip or scene. */
 export async function ajoutsEnCours(episodeId: number): Promise<{ ajout: AjoutEnCours | null; ajoutScene: AjoutSceneEnCours | null }> {
   const lignes = await db
     .select()

@@ -10,11 +10,11 @@ import { MEDIA_ROOT, cheminAssetMedia, cheminSourceImportMedia, estImage, estNom
 import { nbImagesEnAttente, rangDansLaFile } from "../tasks/queries-tasks";
 import { PLAFOND_FILE_IMAGES } from "../tasks/tasks";
 
-// Mise en file des générations d'images, SANS Next (ni revalidatePath) : le worker l'appelle aussi (images lancées
-// toutes seules pendant la création d'un projet, voir lib/assets/images-auto.ts). Les actions serveur de
-// app/assets/generation-actions.ts l'enveloppent et rafraîchissent l'écran.
+// Queueing of image generations, WITHOUT Next (nor revalidatePath): the worker also calls it (images launched
+// all by themselves during the creation of a project, see lib/assets/images-auto.ts). The server actions of
+// app/assets/generation-actions.ts wrap it and refresh the screen.
 
-/** `position` : 1 = la génération part tout de suite ; n = n-1 tâches passent devant. */
+/** `position`: 1 = the generation goes right away; n = n-1 tasks go ahead. */
 type ResultatLancement = { ok: true; position: number } | { ok: false; erreur: string };
 
 async function existe(chemin: string): Promise<boolean> {
@@ -26,12 +26,12 @@ async function existe(chemin: string): Promise<boolean> {
   }
 }
 
-/** Source résolue au lancement : le nom de fichier est un instantané (voir
+/** Source resolved at launch: the file name is a snapshot (see
  * assetGenerationSources). */
 type SourceResolue = { origine: "asset" | "import"; assetId: number | null; fichier: string };
 
-/** Pose une demande dans la file : plusieurs générations peuvent attendre (même
- * pour un seul asset), jusqu'à PLAFOND_FILE_IMAGES en attente au total. */
+/** Puts a request in the queue: several generations can wait (even
+ * for a single asset), up to PLAFOND_FILE_IMAGES waiting in total. */
 async function poserGeneration(assetId: number, demande: DemandeGeneration, plafond: number = PLAFOND_FILE_IMAGES, adoptionAuto = false): Promise<ResultatLancement> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
@@ -77,9 +77,9 @@ async function poserGeneration(assetId: number, demande: DemandeGeneration, plaf
         assetId,
         methode: texte ? "generation" : "edition",
         prompt,
-        // Instantané de ce qui est soumis. Texte : le prompt LONG du style quand le projet en a un (conception), sinon la clause
-        // courte. Édition : la clause courte, que le worker rappelle en dernière ligne des instructions (styleDesEditions).
-        // Le format ne concerne que le mode texte (l'édition suit l'image 1).
+        // Snapshot of what is submitted. Text: the LONG prompt of the style when the project has one (design), otherwise the
+        // short clause. Edit: the short clause, which the worker recalls on the last line of the instructions (styleDesEditions).
+        // The format only concerns text mode (the edit follows image 1).
         clauseStyle: texte ? styleDesImages(projet) : styleDesEditions(projet),
         ...(texte ? { aspect: demande.aspect, megapixels: demande.megapixels } : {}),
         lightning: texte ? null : true,
@@ -97,10 +97,10 @@ async function poserGeneration(assetId: number, demande: DemandeGeneration, plaf
   return { ok: true, position: await rangDansLaFile(genId) };
 }
 
-/** Génération EN LOT (registre d'assets) : chaque asset coché part dans la file avec SON prompt, au format par défaut
- * de son type (texte), ou en édition à partir de l'image de son master (dérivé). Les assets qui ne peuvent pas partir
- * (voix, son, sans prompt, déjà en file, dérivé dont le master n'a pas d'image) sont rendus avec leur raison : rien
- * n'est silencieusement ignoré. Règles dans lib/assets/generation-batch.ts. */
+/** BATCH generation (asset registry): each ticked asset goes into the queue with ITS prompt, at the default format
+ * of its type (text), or in edit from the image of its master (derivative). The assets that cannot go (voice, sound,
+ * without prompt, already queued, derivative whose master has no image) are returned with their reason: nothing
+ * is silently ignored. Rules in lib/assets/generation-batch.ts. */
 export async function poserGenerationsLot(
   projectId: number,
   assetIds: number[],
@@ -131,7 +131,7 @@ export async function poserGenerationsLot(
         sources: l.sourceAssetId != null ? [{ origine: "asset", assetId: l.sourceAssetId }] : [],
       },
       PLAFOND_LOT_IMAGES,
-      true, // un lot : le résultat est adopté tout seul à la fin de la génération
+      true, // a batch: the result is adopted on its own at the end of the generation
     );
     if (r.ok) lancees += 1;
     else ecartes.push({ assetId: a.id, code: a.code, raison: r.erreur });

@@ -2,18 +2,18 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { plans, scenes } from "../../db/schema";
 
-/** Ordre des plans d'un épisode — source unique, partagée par le glisser-déposer
- * (app/scenario/actions.ts) et l'application des propositions d'agents
- * (lib/agents). Un plan s'identifie par son uuid, jamais par son rang : `ordre` est
- * une position, réécrite densément (0..n), jamais une clé (F03). */
+/** Order of the clips of an episode — single source, shared by the drag-and-drop
+ * (app/scenario/actions.ts) and the application of agent proposals
+ * (lib/agents). A clip is identified by its uuid, never by its rank: `ordre` is
+ * a position, rewritten densely (0..n), never a key (F03). */
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-/** Recompose l'ordre de tout l'épisode à partir d'une séquence de plans : les
- * plans sont regroupés par scène (scènes dans l'ordre de `scenes.ordre`, plans
- * de chaque scène dans l'ordre de la séquence, « sans scène » à la fin), puis
- * `ordre` est réécrit densément (0..n) là où il diffère. C'est ce qui garantit
- * que la position affichée suit toujours ce qu'on voit à l'écran. */
+/** Recomposes the order of the whole episode from a sequence of clips: the
+ * clips are grouped by scene (scenes in `scenes.ordre` order, clips
+ * of each scene in the sequence's order, « sans scène » at the end), then
+ * `ordre` is rewritten densely (0..n) where it differs. This is what guarantees
+ * that the displayed position always follows what is seen on screen. */
 export async function recomposerOrdre(tx: Tx, episodeId: number, sequence: { id: number; sceneId: number | null }[]) {
   const lesScenes = await tx
     .select({ id: scenes.id })
@@ -22,7 +22,7 @@ export async function recomposerOrdre(tx: Tx, episodeId: number, sequence: { id:
     .orderBy(scenes.ordre, scenes.id);
   const rang = new Map(lesScenes.map((sc, i) => [sc.id, i]));
   const rangDe = (sceneId: number | null) => (sceneId == null ? Infinity : (rang.get(sceneId) ?? Infinity));
-  // Array.prototype.sort est stable : l'ordre relatif dans chaque scène est conservé.
+  // Array.prototype.sort is stable: the relative order within each scene is kept.
   const finale = [...sequence].sort((x, y) => rangDe(x.sceneId) - rangDe(y.sceneId));
 
   const actuel = new Map(

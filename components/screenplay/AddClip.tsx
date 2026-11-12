@@ -5,8 +5,8 @@ import { createPortal } from "react-dom";
 import { demanderAjoutPlan } from "@/app/demandes/actions";
 import { Icone } from "@/components/ui/Icon";
 
-/** Où le plan va naître, tel que la page Scénario le sait : la place dans l'épisode (après un plan, ou au début), la scène (null = « Sans scène »)
- * et leurs noms pour l'écran. */
+/** Where the clip will be born, as the Scénario page knows it: its place in the episode (after a clip, or at the start), the scene (null = « Sans scène »)
+ * and their names for the screen. */
 export type CibleAjoutPlan = {
   insertion: { apresPlanUuid: string } | { debut: true };
   sceneId: number | null;
@@ -16,8 +16,8 @@ export type CibleAjoutPlan = {
   apres: string;
 };
 
-/** Ajouter un plan à la scène ouverte, avec l'agent : on décrit ce qui se passe, on lance, et c'est tout. La popup se referme tout de suite : l'écriture
- * devient une ligne de la file des tâches (suivi, annulation), le plan est ajouté à la scène sans relecture, et on le relit dans sa fiche. */
+/** Adds a clip to the open scene, with the agent: we describe what happens, we launch, and that's all. The popup closes right away: the writing
+ * becomes a line in the task queue (tracking, cancellation), the clip is added to the scene without review, and we reread it in its sheet. */
 export function AjouterPlan({
   projectId,
   episodeId,
@@ -27,10 +27,10 @@ export function AjouterPlan({
 }: {
   projectId: number;
   episodeId: number;
-  /** La popup est ouverte quand une cible est donnée. */
+  /** The popup is open when a target is given. */
   cible: CibleAjoutPlan | null;
   onFermer: () => void;
-  /** La demande est posée (l'écriture continue en arrière-plan). */
+  /** The request is posted (the writing continues in the background). */
   onLance: () => void;
 }) {
   const [consigne, setConsigne] = useState("");
@@ -44,7 +44,7 @@ export function AjouterPlan({
   const fermerRef = useRef(fermer);
   fermerRef.current = fermer;
 
-  // Ouverte : Échap ferme, le focus passe au champ. Le fond de page reste navigable (aucun verrou de défilement).
+  // Open: Escape closes it, focus moves to the field. The page background stays navigable (no scroll lock).
   useEffect(() => {
     if (!ouvert) return;
     setErreur(null);

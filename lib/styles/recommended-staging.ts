@@ -1,10 +1,10 @@
 import type { ProfilPersoId } from "../h3ir/character-profiles";
 
-/** La façon de filmer RECOMMANDÉE pour un style de la bibliothèque (identifiant du style → profil de mise en scène perso, lib/h3ir/character-profiles.ts). À l'étape « Mise en scène » de la
- * conception, ce profil est proposé en tête (« suggéré par ton style ») et présélectionné tant que l'utilisateur n'a rien choisi à la main ; il garde toujours la liberté de prendre autre chose.
+/** The RECOMMENDED way of filming for a library style (style identifier → personal staging profile, lib/h3ir/character-profiles.ts). At the « Mise en scène » (staging) step of the
+ * design, this profile is proposed at the top (« suggéré par ton style » (suggested by your style)) and preselected as long as the user has not chosen anything by hand; it always keeps the freedom to pick something else.
  *
- * Pur, sans accès base : lisible côté client. Volontairement CONSERVATEUR : un style n'a une recommandation que si sa façon de bouger va de soi (matière animée image par image, anime d'action,
- * animation 3D de long métrage…). Un style douteux n'en a pas, et l'écran reste alors celui de toujours. Le style règle l'APPARENCE (par les images de référence) ; le profil, le mouvement. */
+ * Pure, no database access: readable on the client side. Deliberately CONSERVATIVE: a style only has a recommendation if its way of moving is self-evident (frame-by-frame animated material, action anime,
+ * feature-length 3D animation…). A dubious style has none, and the screen then stays as it always was. The style sets the LOOK (through the reference images); the profile, the movement. */
 export const MISE_EN_SCENE_RECOMMANDEE: Readonly<Record<string, ProfilPersoId>> = {
   claymation: "claymation",
   "ghibli-style": "anime-contemplatif",
@@ -15,7 +15,7 @@ export const MISE_EN_SCENE_RECOMMANDEE: Readonly<Record<string, ProfilPersoId>> 
   "cinematic-final-fantasy-3d-render": "3d-cinema",
 };
 
-/** Le profil recommandé pour un style de la bibliothèque, ou `null` (style libre, inconnu ou sans recommandation). */
+/** The recommended profile for a library style, or `null` (free style, unknown or without recommendation). */
 export function miseEnSceneRecommandee(styleId: string | null | undefined): ProfilPersoId | null {
   return (styleId && Object.hasOwn(MISE_EN_SCENE_RECOMMANDEE, styleId) ? MISE_EN_SCENE_RECOMMANDEE[styleId] : null) ?? null;
 }

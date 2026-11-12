@@ -182,14 +182,14 @@ test("briefDepuisPlan : créativité (clé omise si « balanced », le défaut d
   assert.equal("creativity" in briefDepuisPlan(entree(), { creativity: "balanced" }).brief!, false);
   assert.equal(briefDepuisPlan(entree(), { creativity: "extreme" }).brief!.creativity, "extreme");
   assert.match(briefDepuisPlan(entree(), { creativity: "folle" }).refus ?? "", /Créativité inconnue/);
-  // « aucun » et vide ne posent pas de director ; un profil le pose.
+  // « aucun » and empty do not set a director; a profile sets it.
   assert.equal("director" in briefDepuisPlan(entree(), { director: "aucun" }).brief!, false);
   assert.equal("director" in briefDepuisPlan(entree(), { director: "" }).brief!, false);
   assert.equal(briefDepuisPlan(entree(), { director: "wong" }).brief!.director, "wong");
 });
 
 test("briefDepuisPlan : le plafond de shots suit la durée nominale (le paquet refuse sur elle) et le plancher de 1,2 s", () => {
-  // 6 s / 1,2 = 5 shots au plus ; 5 passe, 6 est refusé (même si la durée effective de 6,583 s en permettrait 5).
+  // 6 s / 1,2 = 5 shots at most; 5 passes, 6 is refused (even if the effective duration of 6,583 s would allow 5).
   assert.equal(briefDepuisPlan(entree({ plan: { description: DESCRIPTION, dureeSecondes: 6, seed: "1" } }), { shots: 5 }).brief!.shots, 5);
   assert.match(briefDepuisPlan(entree({ plan: { description: DESCRIPTION, dureeSecondes: 6, seed: "1" } }), { shots: 6 }).refus ?? "", /1 à 5/);
 });

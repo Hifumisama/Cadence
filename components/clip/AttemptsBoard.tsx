@@ -17,7 +17,7 @@ import "../plan/atelier.css";
 
 export type EssaiCarte = {
   id: number;
-  /** `jobs.numero_rendu` : le numéro d'un essai ne change jamais, seul l'ordre d'affichage est inversé. */
+  /** `jobs.numero_rendu`: an attempt's number never changes, only the display order is reversed. */
   numero: number;
   statut: string;
   src: string | null;
@@ -30,29 +30,29 @@ export type EssaiCarte = {
   estA: boolean;
   estB: boolean;
   hrefA: string;
-  /** Charge cet essai en B (comparaison) ; null quand il est A ou n'est pas lisible. */
+  /** Loads this attempt into B (comparison); null when it is A or is not readable. */
   hrefB: string | null;
-  /** La consigne qui a produit l'essai (info-bulle de la vignette), null si aucune. */
+  /** The directive that produced the attempt (thumbnail tooltip), null if none. */
   consigne: string | null;
 };
 
-/** L'essai en file ou en cours, tel que le serveur le connaît au chargement de la page. Sa progression se relit EN DIRECT dans les tâches (useTaches). */
+/** The attempt queued or in progress, as the server knows it when the page loads. Its progress is re-read LIVE in the tasks (useTaches). */
 export type EssaiEnCours = {
   jobId: number;
   numero: number;
   statut: string;
   etape: string | null;
   pourcent: number | null;
-  /** Le lecteur montre cet essai (voile « en cours ») ; sinon on regarde un autre essai, sans voile. */
+  /** The player shows this attempt (« en cours » veil); otherwise we are looking at another attempt, without a veil. */
   affiche: boolean;
-  /** Le lien qui l'affiche dans le lecteur. */
+  /** The link that shows it in the player. */
   href: string;
-  /** La consigne qui l'a demandé (itération), null pour une première génération. */
+  /** The directive that requested it (iteration), null for a first generation. */
   consigne: string | null;
 };
 
-/** La progression d'un essai en cours, relue à chaque sondage des tâches (3 s tant qu'une tâche est active) : sans cela la fenêtre restait figée sur l'étape du
- * chargement de la page (SuiviRendus ne recharge qu'aux changements de statut). Repli sur les valeurs du serveur avant la première réponse. */
+/** The progress of an attempt in progress, re-read at each task poll (3 s while a task is active): without this the window stayed frozen on the step of
+ * the page load (SuiviRendus only reloads on status changes). Falls back to the server values before the first response. */
 function useProgressionEnDirect(enCours: EssaiEnCours | null): { statut: string; etape: string | null; pourcent: number | null } | null {
   const { taches, pret } = useTaches();
   if (!enCours) return null;
@@ -69,21 +69,21 @@ function useProgressionEnDirect(enCours: EssaiEnCours | null): { statut: string;
 
 export type LegendeEssai = {
   id: number;
-  /** L'essai est en file ou en cours : on ne le supprime pas. */
+  /** The attempt is queued or in progress: we do not delete it. */
   enFile: boolean;
   libelle: string;
-  /** La consigne qui a produit l'essai ; null pour une première génération ou un rendu d'avant. */
+  /** The directive that produced the attempt; null for a first generation or an earlier render. */
   consigne: string | null;
-  /** Ce que l'agent ou les contrôles ont signalé en appliquant la correction qui a produit l'essai (« l'agent doutait de son diagnostic »…). */
+  /** What the agent or the checks reported when applying the correction that produced the attempt (« l'agent doutait de son diagnostic »…). */
   notes: string[];
   src: string | null;
   numero: number;
 };
 
-/** Le plateau d'un plan : le lecteur 16:9 (un essai, ou deux en comparaison) et, à droite, la colonne des essais DÉFILANTE, du plus récent
- * (haut) au plus ancien (bas). Les flèches ▲ ▼ et les touches ↑ ↓ passent d'un essai à l'autre, l'essai courant se recentre. L'essai
- * regardé (A) et celui qu'on lui compare (B) vivent dans l'URL (?rendu=…&compare=…), comme avant : les liens sont calculés côté serveur.
- * Sous le lecteur : la légende (essai, base, consigne) ; `children` vient juste après (actions sur l'essai). */
+/** A clip's board: the 16:9 player (one attempt, or two when comparing) and, on the right, the SCROLLING column of attempts, from the most recent
+ * (top) to the oldest (bottom). The ▲ ▼ arrows and the ↑ ↓ keys move from one attempt to another, the current attempt re-centres. The attempt
+ * being watched (A) and the one it is compared with (B) live in the URL (?rendu=…&compare=…), as before: the links are computed server-side.
+ * Under the player: the legend (attempt, base, directive); `children` comes right after (actions on the attempt). */
 export function PlateauEssais({
   planId,
   essais,
@@ -107,9 +107,9 @@ export function PlateauEssais({
   hrefComparer: string | null;
   hrefQuitter: string | null;
   enCours: EssaiEnCours | null;
-  /** « Nouvelle variante » est possible : le plan n'est pas validé et aucun essai n'est en file. */
+  /** « Nouvelle variante » is possible: the clip is not validated and no attempt is queued. */
   peutVarier: boolean;
-  /** Le plan est périmé (référence, contenu ou rendu du plan précédent changé) : « Relancer » refait l'essai, même seed, avec l'état d'aujourd'hui. */
+  /** The clip is stale (reference, content or render of the previous clip changed): « Relancer » redoes the attempt, same seed, with today's state. */
   relancePerime: { libelle: string; detail: string; mode: "previsualiser" | "final" | "iterer" } | null;
   children?: ReactNode;
 }) {
@@ -124,7 +124,7 @@ export function PlateauEssais({
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
   const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => void (minuteur.current && clearTimeout(minuteur.current)), []);
-  // Un autre essai affiché : la confirmation en attente ne vaut plus.
+  // Another attempt is displayed: the pending confirmation no longer applies.
   useEffect(() => setAConfirmer(false), [courant]);
 
   const repartir = () => {
@@ -163,7 +163,7 @@ export function PlateauEssais({
     return () => document.removeEventListener("keydown", touche);
   }, [hrefPlusRecent, hrefPlusAncien, router]);
 
-  // L'essai courant au centre de la bande : on défile la bande, jamais la page.
+  // The current attempt at the centre of the strip: we scroll the strip, never the page.
   useEffect(() => {
     const l = liste.current;
     const el = l?.querySelector<HTMLElement>("[data-courant='true']");

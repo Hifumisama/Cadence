@@ -12,20 +12,20 @@ import { filtresUtiles, plageDeCodes } from "@/lib/assets/registry-filters";
 import { LIBELLE_STATUT, LIBELLE_TYPE_ASSET, type LigneRegistre } from "@/lib/assets/registry-types";
 import { AssetCard, LigneAsset } from "./AssetCard";
 
-/** Durée d'appui qui déclenche la sélection (clic long). */
+/** Press duration that triggers the selection (long press). */
 const DUREE_APPUI = 450;
 const CLE_VUE = "cadence:registre-vue";
 const ORDRE_TYPES = ["personnage", "decor", "prop", "vfx", "keyframe", "oth"];
 
-/** Pourquoi un asset ne partira pas dans un lot, ou null. Un asset qui a déjà une image n'est jamais renvoyé dans un lot :
- * le résultat d'un lot s'adopte tout seul et remplacerait l'image — on la régénère depuis sa fiche. */
+/** Why an asset will not go into a batch, or null. An asset that already has an image is never sent to a batch:
+ * the result of a batch is adopted automatically and would replace the image — it is regenerated from its sheet instead. */
 const raisonEcarte = (l: LigneRegistre): string | null =>
   l.raisonLot ?? (l.etat === "ok" ? "a déjà une image : régénère-la depuis sa fiche" : null);
 
 type Retour = { ok: boolean; texte: string };
 
-/** Le registre : recherche, filtres, grille ou liste. Un clic ouvre la fiche ; un clic long (ou Maj+clic, ou Espace)
- * sélectionne, et une barre propose alors de générer ou de supprimer les assets cochés. */
+/** The registry: search, filters, grid or list. A click opens the sheet; a long press (or Shift+click, or Space)
+ * selects, and a bar then offers to generate or delete the checked assets. */
 export function RegistreAssets({
   projectId,
   lignes,
@@ -34,14 +34,14 @@ export function RegistreAssets({
 }: {
   projectId: number;
   lignes: LigneRegistre[];
-  /** Voix du casting : hors de la grille, un lien les ramène à leur module. */
+  /** Cast voices: outside the grid, a link brings them back to their module. */
   typeInitial: string | null;
-  /** Où en sont les images du projet (lib/assets/project-images.ts) : alimente la ligne « Il reste N images à générer ». */
+  /** Where the project's images stand (lib/assets/project-images.ts): feeds the line « Il reste N images à générer ». */
   imagesInitial: EtatImages;
 }) {
   const router = useRouter();
   const { etat: images, recharger: rechargerImages } = useEtatImages(projectId, imagesInitial);
-  // Une image adoptée par le worker change la grille : on relit la page quand le compte bouge.
+  // An image adopted by the worker changes the grid: the page is re-read when the count moves.
   const avecImage = images?.avecImage;
   const dernierCompte = useRef(avecImage);
   useEffect(() => {
@@ -62,18 +62,18 @@ export function RegistreAssets({
   const [retour, setRetour] = useState<Retour | null>(null);
   const [pending, startTransition] = useTransition();
   const rechercheRef = useRef<HTMLInputElement>(null);
-  /** Le dernier asset coché : borne de départ d'une sélection par plage (Maj+clic). */
+  /** The last checked asset: starting bound of a range selection (Shift+click). */
   const dernier = useRef<string | null>(null);
 
   const modeSelection = choisis.size > 0;
 
-  // La vue (grille ou liste) est une préférence de l'utilisateur : lue après le montage pour ne pas créer d'écart d'hydratation.
+  // The view (grid or list) is a user preference: read after mounting so as not to create a hydration mismatch.
   useEffect(() => {
     try {
       const v = window.localStorage.getItem(CLE_VUE);
       if (v === "liste" || v === "grille") setVue(v);
     } catch {
-      // stockage indisponible : la grille reste la vue par défaut
+      // storage unavailable: the grid stays the default view
     }
   }, []);
   const changerVue = (v: "grille" | "liste") => {
@@ -81,19 +81,19 @@ export function RegistreAssets({
     try {
       window.localStorage.setItem(CLE_VUE, v);
     } catch {
-      // ignoré
+      // ignored
     }
   };
 
-  // ---- Filtres ----
+  // ---- Filters ----
   const typesPresents = useMemo(() => ORDRE_TYPES.filter((t) => lignes.some((l) => l.type === t)), [lignes]);
   const compteurType = (t: string) => lignes.filter((l) => l.type === t).length;
   const nbSansPlan = useMemo(() => lignes.filter((l) => l.nbPlans === 0).length, [lignes]);
   const nbAProduire = useMemo(() => lignes.filter((l) => l.statut === "a_produire").length, [lignes]);
   const compteStatut = (s: string) => lignes.filter((l) => l.statut === s).length;
 
-  // Quels filtres ont un sens selon le nombre d'assets (lib/assets/registry-filters.ts) ; un filtre que le registre ne propose plus ne s'applique plus :
-  // on ne filtre jamais en cachette.
+  // Which filters make sense depending on the number of assets (lib/assets/registry-filters.ts); a filter the registry no longer offers no longer applies:
+  // we never filter in secret.
   const utiles = useMemo(() => filtresUtiles(lignes), [lignes]);
   const typeActif = utiles.types ? type : null;
   const statutActif = utiles.avances ? statut : "";
@@ -125,9 +125,9 @@ export function RegistreAssets({
     setSansPlan(false);
   };
 
-  // ---- Sélection ----
+  // ---- Selection ----
   const parCode = useMemo(() => new Map(lignes.map((l) => [l.code, l])), [lignes]);
-  // Un asset supprimé (ou filtré hors de la liste des lignes) ne reste pas coché.
+  // A deleted asset (or one filtered out of the list of rows) does not stay checked.
   useEffect(() => {
     setChoisis((cur) => {
       const reste = new Set([...cur].filter((c) => parCode.has(c)));
@@ -151,7 +151,7 @@ export function RegistreAssets({
     setConfirmer(false);
     const suite = new Set(choisis);
     if (plage && dernier.current && dernier.current !== code) {
-      // Maj+clic : tout ce qui sépare le dernier asset coché de celui-ci, dans l'ordre d'affichage.
+      // Shift+click: everything between the last checked asset and this one, in display order.
       for (const c of plageDeCodes(visibles.map((l) => l.code), dernier.current, code)) suite.add(c);
       setVient(code);
     } else if (suite.has(code)) {
@@ -165,7 +165,7 @@ export function RegistreAssets({
     setChoisis(suite);
   };
 
-  // ---- Clic long : une onde dorée gagne la carte pendant l'appui, puis l'asset se sélectionne ----
+  // ---- Long press: a golden ripple spreads over the card during the press, then the asset is selected ----
   const appui = useRef<{ el: HTMLElement; x: number; y: number; timer: number; code: string } | null>(null);
   const longFait = useRef(false);
 
@@ -184,7 +184,7 @@ export function RegistreAssets({
     const el = cible.closest<HTMLElement>("[data-code]");
     if (!el || cible.closest("button")) return;
     longFait.current = false;
-    if (modeSelection) return; // déjà en sélection : un simple clic bascule, pas besoin de durée
+    if (modeSelection) return; // already selecting: a simple click toggles, no duration needed
     const r = el.getBoundingClientRect();
     const x = e.clientX - r.left;
     const y = e.clientY - r.top;
@@ -208,7 +208,7 @@ export function RegistreAssets({
           try {
             navigator.vibrate(12);
           } catch {
-            // ignoré
+            // ignored
           }
         }
       }, DUREE_APPUI),
@@ -216,18 +216,18 @@ export function RegistreAssets({
   };
   const surDeplacement = (e: React.PointerEvent<HTMLDivElement>) => {
     const a = appui.current;
-    if (a && Math.hypot(e.clientX - a.x, e.clientY - a.y) > 8) finAppui(); // défilement : on annule
+    if (a && Math.hypot(e.clientX - a.x, e.clientY - a.y) > 8) finAppui(); // scrolling: cancel
   };
 
   const surActivation = (e: React.MouseEvent<HTMLAnchorElement>, code: string) => {
     if (longFait.current) {
-      // Le relâchement qui suit un clic long ne doit rien ouvrir.
+      // The release that follows a long press must not open anything.
       e.preventDefault();
       longFait.current = false;
       return;
     }
-    if (e.ctrlKey || e.metaKey) return; // nouvel onglet : comportement du navigateur
-    // La coche de la carte, Maj+clic, ou n'importe quel clic une fois en sélection : on coche au lieu d'ouvrir la fiche.
+    if (e.ctrlKey || e.metaKey) return; // new tab: browser behavior
+    // The card's check, Shift+click, or any click once in selection mode: we check instead of opening the sheet.
     const surCoche = (e.target as HTMLElement).closest(".as-coche") != null;
     if (surCoche || modeSelection || e.shiftKey) {
       e.preventDefault();
@@ -260,20 +260,20 @@ export function RegistreAssets({
     return () => document.removeEventListener("keydown", touche);
   }, [sortirSelection, modeSelection, visibles]);
 
-  // Retour d'une action en lot : visible quelques secondes dans la barre, puis disparaît.
+  // Feedback from a batch action: visible for a few seconds in the bar, then disappears.
   useEffect(() => {
     if (!retour) return;
     const t = window.setTimeout(() => setRetour(null), 6000);
     return () => window.clearTimeout(t);
   }, [retour]);
 
-  // ---- Actions sur la sélection ----
+  // ---- Actions on the selection ----
   const selection = useMemo(() => lignes.filter((l) => choisis.has(l.code)), [lignes, choisis]);
   const partants = selection.filter((l) => raisonEcarte(l) == null);
   const ecartes = selection.filter((l) => raisonEcarte(l) != null);
   const supprimables = selection.filter((l) => l.blocageSuppression == null);
   const bloques = selection.filter((l) => l.blocageSuppression != null);
-  /** Ce qui peut être validé : un fichier présent, pas encore validé. */
+  /** What can be validated: a file present, not yet validated. */
   const validables = selection.filter((l) => l.statut === "en_cours");
 
   const generer = () =>

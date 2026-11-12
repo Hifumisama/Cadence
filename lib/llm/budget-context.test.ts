@@ -45,11 +45,11 @@ test("LLM_CONTEXTE_TOTAL : un nombre positif, sinon pas de limite", () => {
 test("budget : un slot au repos garde le contexte de son dernier appel, donc on ne remplit pas tout à côté", () => {
   const b = new BudgetContexte(44_000, 3);
   assert.ok(b.reserver(1, 14_000));
-  b.liberer(1); // slot au repos : 14 000 retenus
+  b.liberer(1); // idle slot: 14 000 retained
   assert.ok(b.reserver(2, 14_000));
   b.liberer(2);
   assert.ok(b.reserver(3, 14_000));
-  b.liberer(3); // trois slots retiennent 14 000 chacun
+  b.liberer(3); // three slots retain 14 000 each
   assert.ok(b.reserver(4, 14_000), "seul, il passe toujours");
   assert.equal(b.utilise(), 14_000 + 14_000 + 14_000, "lui plus deux retenus");
   assert.equal(b.reserver(5, 14_000), false, "un deuxième ne tient plus : 42 000 + 14 000 > 44 000");

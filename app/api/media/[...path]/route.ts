@@ -6,9 +6,9 @@ import { MEDIA_ROOT } from "@/lib/media";
 import { lireLargeur } from "@/lib/thumbnails";
 import { obtenirMiniature } from "@/lib/thumbnails-server";
 
-// Sert les fichiers du stockage média (partage NFS monté en volume Docker,
-// voir MEDIA_ROOT). Les chemins stockés en base sont relatifs à cette
-// racine — jamais de binaire dans Postgres, jamais de chemin absolu affiché.
+// Serves files from media storage (NFS share mounted as a Docker volume,
+// see MEDIA_ROOT). Paths stored in the database are relative to this
+// root — never binaries in Postgres, never an absolute path displayed.
 
 const CONTENT_TYPES: Record<string, string> = {
   ".mp4": "video/mp4",
@@ -33,7 +33,7 @@ export async function GET(
   const { path } = await params;
   const relatif = normalize(join(...path));
 
-  // Empêche toute traversée hors de MEDIA_ROOT.
+  // Prevents any traversal outside MEDIA_ROOT.
   const cible = resolve(MEDIA_ROOT, relatif);
   if (!cible.startsWith(MEDIA_ROOT)) {
     return NextResponse.json({ error: "Chemin invalide" }, { status: 400 });
@@ -49,15 +49,15 @@ export async function GET(
   const ext = cible.slice(cible.lastIndexOf(".")).toLowerCase();
   const contentType = CONTENT_TYPES[ext] ?? "application/octet-stream";
 
-  // Miniature à la demande (`?w=192`, largeurs en liste blanche — voir
-  // lib/thumbnails.ts) : WebP mis en cache sur disque. Une largeur inconnue est
-  // ignorée (on sert l'original) ; si sharp échoue, repli sur l'original aussi.
+  // Thumbnail on demand (`?w=192`, widths in an allowlist — see
+  // lib/thumbnails.ts): WebP cached on disk. An unknown width is ignored
+  // (the original is served); if sharp fails, falls back to the original too.
   const largeur = lireLargeur(req.nextUrl.searchParams.get("w"));
   if (largeur) {
     const mini = await obtenirMiniature(MEDIA_ROOT, relatif, largeur);
     if (mini) {
-      // L'URL des assets porte `?v=<mtime>` : tant que `v` est là, le contenu ne
-      // change pas pour cette URL. Sans `v`, on revalide (304 grâce à l'ETag).
+      // Asset URLs carry `?v=<mtime>`: as long as `v` is there, the content
+      // does not change for that URL. Without `v`, it is revalidated (304 thanks to the ETag).
       const entetes: Record<string, string> = {
         "Content-Type": "image/webp",
         ETag: mini.etag,
@@ -68,14 +68,14 @@ export async function GET(
         const octets = await readFile(mini.chemin);
         return new NextResponse(new Uint8Array(octets), { headers: { ...entetes, "Content-Length": String(octets.length) } });
       } catch {
-        // miniature disparue entre-temps : on sert l'original
+        // thumbnail disappeared in the meantime: serve the original
       }
     }
   }
 
-  // Requêtes partielles (Range) : sans elles, le navigateur ne peut pas
-  // positionner `currentTime` hors de ce qu'il a déjà chargé — le banc A/B
-  // du casting vocal bascule d'une prise à l'autre au même instant.
+  // Partial requests (Range): without them, the browser cannot seek
+  // `currentTime` beyond what it has already loaded — the voice casting A/B
+  // bench switches from one take to another at the same instant.
   const plage = req.headers.get("range")?.match(/^bytes=(\d*)-(\d*)$/);
   if (plage && taille > 0) {
     const debut = plage[1] ? Number(plage[1]) : Math.max(0, taille - Number(plage[2]));

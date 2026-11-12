@@ -16,7 +16,7 @@ import {
 } from "./mappingThreeSteps";
 import type { SubmissionInput } from "./types";
 
-// Lit les VRAIS workflows : si un ré-export change un identifiant, ce test casse au lieu de laisser le worker soumettre un graphe faux.
+// Reads the REAL workflows: if a re-export changes an identifier, this test breaks instead of letting the worker submit a wrong graph.
 const lire = (fichier: string) => JSON.parse(readFileSync(`workflows/video-generation/${fichier}`, "utf-8"));
 const generation = lire("VID_Generation.json");
 const upscale = lire("VID_UPSCALE.json");
@@ -136,12 +136,12 @@ test("un nœud absent du fichier : erreur franche", () => {
   assert.throws(() => injecterGeneration(casse, entree, dossier), /302/);
 });
 
-// --- Plan en suite : Motion Context (latent du plan précédent) ---
+// --- Clip in sequence: Motion Context (latent of the previous clip) ---
 
 test("génération « suite » : mêmes nœuds de saisie que la génération, plus le chargeur du contexte", () => {
   for (const [nom, id] of Object.entries(NODE_IDS_GENERATION_SUITE)) assert.ok(generationSuite[id], `nœud ${id} (${nom}) absent de VID_Generation_suite.json`);
   assert.equal(generationSuite[NODE_IDS_GENERATION_SUITE.latentContexte].class_type, "MiniMaxH3MotionContextLoadLatent");
-  // Le contexte est lu dans le format de Motion Context ; le latent sauvegardé par la génération est celui du sampler, comme avant.
+  // The context is read in the Motion Context format; the latent saved by the generation is that of the sampler, as before.
   assert.equal(generationSuite[NODE_IDS_GENERATION_SUITE.latentContexte].inputs.stock_format, false);
   assert.equal(generationSuite[NODE_IDS_GENERATION.latentSauve].inputs.latent[0], "125:12");
 });

@@ -4,12 +4,12 @@ import { PastilleLlm } from "@/components/llm/LlmBadge";
 import { IndicateurTaches } from "@/components/tasks/TasksIndicator";
 import { TopbarTabs } from "./TopbarTabs";
 
-/** Bandeau à deux niveaux (2026-10-18) : marque, fil d'Ariane (`trail`) et statuts (LLM, file
- * de générations) au-dessus ; les onglets en dessous, posés sur le filet or. Chaque écran
- * construit son fil d'Ariane selon sa profondeur dans Projet → Épisode. `tabs`, quand
- * fourni, affiche les onglets Brief/Scénario/Assets/Plans sous ce préfixe d'URL — absent sur
- * l'Accueil et la Vue série, qui ne sont "dans" aucun épisode.
- * d'onglet : on l'ouvre depuis le scénario (FRICTIONS, 2026-10-18). */
+/** Two-level bar (2026-10-18): brand, breadcrumb trail (`trail`) and statuses (LLM, generation
+ * queue) above; the tabs below, set on the gold rule. Each screen
+ * builds its breadcrumb trail according to its depth in Projet → Épisode. `tabs`, when
+ * provided, displays the Brief/Scénario/Assets/Plans tabs under this URL prefix — absent on
+ * the Home and the Série view, which are "in" no episode.
+ * tab: it is opened from the screenplay (FRICTIONS, 2026-10-18). */
 export function Topbar({
   trail,
   tabs,

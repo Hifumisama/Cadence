@@ -1,6 +1,6 @@
-/** Le premier message de l'entretien d'entrée : l'agent ouvre la conversation, de façon engageante, avec TROIS pistes très
- * différentes (à prendre, à mélanger ou à jeter) pour qui n'a pas d'idée, sans rien imposer à qui en a une. Écrit en code, sans
- * appel LLM : il est là dès l'ouverture, et le tirage au sort garantit trois genres distincts. Pur (le tirage est injectable). */
+/** The first message of the intake interview: the agent opens the conversation, engagingly, with THREE very
+ * different leads (to take, to mix, or to throw away) for whoever has no idea, without imposing anything on whoever has one. Written in code, without an
+ * LLM call: it is there from the opening, and the random draw guarantees three distinct genres. Pure (the draw is injectable). */
 
 import { motDuTon, type Conception } from "../projects/design";
 
@@ -19,7 +19,7 @@ export const PISTES: Piste[] = [
   { genre: "Comédie romantique", idee: "Deux voisins qui se détestent se retrouvent coincés dans le même escape game, une nuit de panne d'électricité." },
 ];
 
-/** Trois pistes de genres différents (les genres du pool sont tous distincts), tirées avec `hasard` (0 ≤ x < 1). */
+/** Three leads of different genres (the genres in the pool are all distinct), drawn with `hasard` (0 ≤ x < 1). */
 export function tirerPistes(hasard: () => number = Math.random, n = 3): Piste[] {
   const pool = [...PISTES];
   const tirees: Piste[] = [];
@@ -39,17 +39,17 @@ export function accrocheEntretien(hasard: () => number = Math.random): string {
 }
 
 // ---------------------------------------------------------------------------
-// Accroche d'un projet CONÇU (design.ts) : écrite par le modèle (skill `accroche-scenariste`), une seule fois, à la création de
-// l'entretien. Elle ne se régénère pas : ni « une autre accroche », ni quand l'utilisateur revient changer un choix. Le code ne fait que
-// lui dire ce qui est choisi.
+// Hook of a DESIGNED project (design.ts): written by the model (skill `accroche-scenariste`), only once, when the
+// interview is created. It is never regenerated: neither "another hook", nor when the user comes back to change a choice. The code only
+// tells it what is chosen.
 // ---------------------------------------------------------------------------
 
-/** Marque que le skill `accroche-scenariste` connaît (voir son SKILL.md). */
+/** Marker the `accroche-scenariste` skill knows (see its SKILL.md). */
 export const MARQUE_PROJET_CONCU = "[Projet conçu par l'utilisateur]";
 
 const dureeEnTexte = (s: number): string => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${String(s % 60).padStart(2, "0")}` : ""}`);
 
-/** L'entrée du skill : un seul message, qui liste les choix déjà faits (genres, ton, durée, langue, style). Pur. */
+/** The skill input: a single message listing the choices already made (genres, tone, duration, language, style). Pure. */
 export function entreeAccroche(c: Conception, style: { nom: string; clause: string }): { role: "user"; content: string }[] {
   const lignes = [
     MARQUE_PROJET_CONCU,

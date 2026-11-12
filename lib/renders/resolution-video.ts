@@ -1,35 +1,35 @@
-/** Résolution d'un rendu vidéo (décision du 2026-10-27) : l'utilisateur choisit 0,2, 0,3 ou 0,4 mégapixel pour le plan (nœud `22:9` du workflow).
+/** Resolution of a video render (decision of 2026-10-27): the user chooses 0.2, 0.3 or 0.4 megapixel for the clip (node `22:9` of the workflow).
  *
- * Deux régimes, selon la résolution :
- * - **0,2 MP** (défaut) : le parcours d'avant. Prévisualisation basse résolution, puis rendu final avec upscale (le « latent upscaler » de H3 redessine
- *   dans l'espace latent : ×2 par côté, soit 0,8 MP).
- * - **Au-delà (0,3 et 0,4)** : le rendu est directement le rendu FINAL, natif, sans upscale (un upscale depuis 0,4 MP, soit 1,6 MP, ne tient pas sur la
- *   carte). Il n'y a donc pas de prévisualisation à ces résolutions : le job est créé « final » (`jobs.activer_upscale` veut dire « rendu final », et
- *   le worker décide s'il y a réellement un upscale).
+ * Two regimes, depending on the resolution:
+ * - **0.2 MP** (default): the earlier path. Low-resolution preview, then final render with upscale (H3's « latent upscaler » redraws
+ *   in latent space: ×2 per side, i.e. 0.8 MP).
+ * - **Beyond (0.3 and 0.4)**: the render is directly the FINAL render, native, without upscale (an upscale from 0.4 MP, i.e. 1.6 MP, does not fit on the
+ *   card). So there is no preview at these resolutions: the job is created « final » (`jobs.activer_upscale` means « final render », and
+ *   the worker decides whether there is actually an upscale).
  *
- * Même seed + même prompt + mêmes références + même durée donnent le même résultat à résolution égale. À résolution différente le geste survit
- * (constaté sur H3, 2026-10-27) mais le rendu n'est pas identique. Pur, testé. */
+ * Same seed + same prompt + same references + same duration give the same result at equal resolution. At a different resolution the gesture survives
+ * (observed on H3, 2026-10-27) but the render is not identical. Pure, tested. */
 
 export const RESOLUTIONS_VIDEO = [0.2, 0.3, 0.4] as const;
 export type ResolutionVideo = (typeof RESOLUTIONS_VIDEO)[number];
 
 const RESOLUTION_PAR_DEFAUT: ResolutionVideo = 0.2;
 
-/** Résolution la plus haute qui accepte l'upscale. */
+/** Highest resolution that accepts the upscale. */
 const RESOLUTION_UPSCALE_MAX: ResolutionVideo = 0.2;
 
-/** Une valeur lue en base (`real` : 0.20000000298…) ou saisie, ramenée à une résolution connue ; `null` si elle n'en est pas une. */
+/** A value read from the database (`real`: 0.20000000298…) or typed, brought back to a known resolution; `null` if it is not one. */
 export function resolutionDepuis(valeur: unknown): ResolutionVideo | null {
   const n = Number(valeur);
   if (!Number.isFinite(n)) return null;
   return RESOLUTIONS_VIDEO.find((r) => Math.abs(r - n) < 0.005) ?? null;
 }
 
-/** La résolution d'une ligne de base ; le défaut si elle est illisible (plan ou rendu d'avant la colonne). */
+/** The resolution of a base row; the default if it is unreadable (clip or render from before the column). */
 export const resolutionOuDefaut = (valeur: unknown): ResolutionVideo => resolutionDepuis(valeur) ?? RESOLUTION_PAR_DEFAUT;
 
-/** Ce rendu passe-t-il par l'upscale ? Il faut qu'il soit final ET à la résolution de base. */
+/** Does this render go through the upscale? It must be final AND at the base resolution. */
 export const avecUpscale = (final: boolean, resolution: unknown): boolean => final && resolutionOuDefaut(resolution) <= RESOLUTION_UPSCALE_MAX;
 
-/** Un rendu final natif : final, sans upscale (résolution au-dessus de la base). */
+/** A native final render: final, without upscale (resolution above the base). */
 export const estFinalNatif = (final: boolean, resolution: unknown): boolean => final && resolutionOuDefaut(resolution) > RESOLUTION_UPSCALE_MAX;

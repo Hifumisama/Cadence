@@ -17,9 +17,9 @@ import type { ProfilPersoId } from "../h3ir/character-profiles";
 import { miseEnSceneRecommandee } from "../styles/recommended-staging";
 import { CREATIVITE_PAR_DEFAUT, STYLE_AUCUN, creativiteOuNull, resumeMiseEnScene, styleCameraOuNull, type Creativite } from "../h3ir/settings";
 
-/** L'état de l'assistant de conception (page `/nouveau`) côté navigateur : valeurs de départ, passage d'une étape à l'autre, résumé de
- * chaque étape, sauvegarde en session, et charge utile envoyée au serveur (qui la revalide : lib/projects/design.ts). Pur et sans React,
- * pour que les règles se testent. */
+/** The state of the design assistant (`/nouveau` page) on the browser side: starting values, moving from one step to the next, summary of
+ * each step, session save, and payload sent to the server (which re-validates it: lib/projects/design.ts). Pure and without React,
+ * so that the rules can be tested. */
 
 export type StyleChoisi =
   | { source: "bibliotheque"; styleId: string }
@@ -27,7 +27,7 @@ export type StyleChoisi =
 
 export type EtatAssistant = {
   genres: string[];
-  /** Ton affiché : suit les genres tant que `tonAjuste` est faux. */
+  /** Displayed tone: follows the genres as long as `tonAjuste` is false. */
   ton: number;
   tonAjuste: boolean;
   duree: number;
@@ -36,17 +36,17 @@ export type EtatAssistant = {
   langue: string;
   langueChoisie: boolean;
   style: StyleChoisi | null;
-  /** Mise en scène (Open H3 IR, lib/h3ir/settings.ts) : la créativité, et le style de mise en scène (un des 7 profils, ou « aucun »). Valeurs de départ cochées à l'écran. */
+  /** Staging (Open H3 IR, lib/h3ir/settings.ts): the creativity, and the staging style (one of the 7 profiles, or « aucun »). Starting values ticked on screen. */
   creativite: Creativite;
   styleCamera: string;
-  /** Vrai dès que l'utilisateur a choisi lui-même le style de mise en scène. Tant qu'il est faux, `styleCamera` SUIT la recommandation du style du projet (`suivreRecommandation`) ;
-   * vrai, un changement de style ne l'écrase jamais. Sauvegardé en session, pas envoyé au serveur. */
+  /** True as soon as the user has chosen the staging style himself. As long as it is false, `styleCamera` FOLLOWS the recommendation of the project's style (`suivreRecommandation`);
+   * when true, a style change never overwrites it. Saved in session, not sent to the server. */
   miseEnSceneChoisie: boolean;
 };
 
 export const ETAPES_ASSISTANT = ["Accueil", "Genre & ton", "Durée", "Langue", "Style", "Mise en scène"] as const;
 export const DERNIERE_ETAPE = ETAPES_ASSISTANT.length - 1;
-/** La pellicule entière, visible dès la page de départ : les six choix, puis ce qui suit la création du projet. */
+/** The whole film strip, visible from the start page: the six choices, then what follows the project's creation. */
 export const ETAPES_CONCEPTION = [...ETAPES_ASSISTANT, "Scénario", "Clap", "Avancée"] as const;
 export const CLE_SESSION = "cadence.conception.v1";
 
@@ -67,23 +67,23 @@ export function etatInitial(): EtatAssistant {
   };
 }
 
-/** Le profil de mise en scène recommandé par le style choisi (bibliothèque), ou null (style libre, ou sans recommandation). */
+/** The staging profile recommended by the chosen style (library), or null (free style, or no recommendation). */
 export function miseEnSceneDuStyle(style: StyleChoisi | null): ProfilPersoId | null {
   return style?.source === "bibliotheque" ? miseEnSceneRecommandee(style.styleId) : null;
 }
 
-/** Tant que l'utilisateur n'a pas choisi la mise en scène à la main, elle suit la recommandation du style (sinon « aucun style ») ; une fois choisie, elle n'est jamais touchée.
- * À appliquer après chaque changement d'état (`ConceptionAssistant`) et à la relecture de la session. */
+/** As long as the user has not chosen the staging by hand, it follows the style's recommendation (otherwise « aucun style »); once chosen, it is never touched.
+ * To apply after each state change (`ConceptionAssistant`) and when the session is read back. */
 export function suivreRecommandation(etat: EtatAssistant): EtatAssistant {
   if (etat.miseEnSceneChoisie) return etat;
   const voulu = miseEnSceneDuStyle(etat.style) ?? STYLE_AUCUN;
   return voulu === etat.styleCamera ? etat : { ...etat, styleCamera: voulu };
 }
 
-/** Un choix MANUEL de mise en scène (carte cliquée, « aucun » compris) : il est retenu et ne suit plus la recommandation. */
+/** A MANUAL staging choice (card clicked, « aucun » included): it is kept and no longer follows the recommendation. */
 export const choisirMiseEnScene = (etat: EtatAssistant, styleCamera: string): EtatAssistant => ({ ...etat, styleCamera, miseEnSceneChoisie: true });
 
-/** Coche ou décoche un genre ; au-delà de `GENRES_MAX`, le plus ancien est remplacé. Le ton suit les genres tant qu'il n'a pas été ajusté. */
+/** Ticks or unticks a genre; beyond `GENRES_MAX`, the oldest is replaced. The tone follows the genres as long as it has not been adjusted. */
 export function basculerGenre(etat: EtatAssistant, nom: string): EtatAssistant {
   const present = etat.genres.includes(nom);
   const genres = present ? etat.genres.filter((g) => g !== nom) : [...etat.genres, nom].slice(-GENRES_MAX);
@@ -98,21 +98,21 @@ export function reinitialiserTon(etat: EtatAssistant): EtatAssistant {
   return { ...etat, tonAjuste: false, ton: tonDepuisGenres(etat.genres) };
 }
 
-/** Un style libre est complet avec ses deux prompts (le nom et l'image sont facultatifs). */
+/** A free style is complete with its two prompts (the name and the image are optional). */
 export function styleComplet(style: StyleChoisi | null, styleUtilisable: (id: string) => boolean): boolean {
   if (!style) return false;
   if (style.source === "bibliotheque") return styleUtilisable(style.styleId);
   return style.promptImage.trim() !== "" && style.clause.trim() !== "";
 }
 
-/** On peut quitter l'étape `i` vers la suivante. */
+/** We can leave step `i` for the next one. */
 export function etapeValide(i: number, etat: EtatAssistant, styleUtilisable: (id: string) => boolean): boolean {
   if (i === 1) return etat.genres.length >= 1;
   if (i === 4) return styleComplet(etat.style, styleUtilisable);
   return true;
 }
 
-/** La plus lointaine étape atteignable : la première dont les conditions ne sont pas remplies (sinon la dernière). */
+/** The furthest reachable step: the first whose conditions are not met (otherwise the last). */
 export function etapeMax(etat: EtatAssistant, styleUtilisable: (id: string) => boolean): number {
   for (let i = 0; i <= DERNIERE_ETAPE; i++) if (!etapeValide(i, etat, styleUtilisable)) return i;
   return DERNIERE_ETAPE;
@@ -124,7 +124,7 @@ export function minutesSecondes(s: number): string {
   return m ? `${m} min${r ? ` ${r < 10 ? "0" : ""}${r}` : ""}` : `${r} s`;
 }
 
-/** Le résumé sous le nom de l'étape, dans le ruban (vide tant que rien n'est choisi). `nomStyle` : nom du style de la bibliothèque. */
+/** The summary under the step's name, in the ribbon (empty as long as nothing is chosen). `nomStyle`: name of the library style. */
 export function resumeEtape(i: number, etat: EtatAssistant, nomStyle: (id: string) => string | null): string {
   switch (i) {
     case 0:
@@ -134,26 +134,26 @@ export function resumeEtape(i: number, etat: EtatAssistant, nomStyle: (id: strin
     case 2:
       return minutesSecondes(etat.duree);
     case 3:
-      // La langue est présélectionnée à l'écran : le ruban la montre aussi (sinon « — » à côté d'un choix visiblement coché).
+      // The language is preselected on screen: the ribbon shows it too (otherwise « — » next to a visibly ticked choice).
       return etat.langue;
     case 4:
       if (!etat.style) return "";
       return etat.style.source === "libre" ? etat.style.nom.trim() || "Style libre" : (nomStyle(etat.style.styleId) ?? "");
     case 5:
-      // Les valeurs de départ sont cochées à l'écran : le ruban les montre aussi.
+      // The starting values are ticked on screen: the ribbon shows them too.
       return resumeMiseEnScene(etat.creativite, etat.styleCamera);
     default:
       return "";
   }
 }
 
-/** La teinte de la lumière d'ambiance : moyenne des teintes des genres (or par défaut). */
+/** The tint of the ambient light: average of the genres' tints (gold by default). */
 export function teinteAmbiance(genres: readonly string[]): number {
   const t = genres.map((g) => GENRES.find((x) => x.nom === g)?.teinte).filter((x): x is number => typeof x === "number");
   return t.length ? Math.round(t.reduce((a, b) => a + b, 0) / t.length) : 42;
 }
 
-/** La charge utile envoyée à `creerProjetConcu` (le serveur la revalide entièrement). */
+/** The payload sent to `creerProjetConcu` (the server re-validates it entirely). */
 export function versCharge(etat: EtatAssistant): Record<string, unknown> {
   return {
     genres: etat.genres,
@@ -172,8 +172,8 @@ export function versCharge(etat: EtatAssistant): Record<string, unknown> {
 
 const entier = (v: unknown, min: number, max: number, defaut: number): number => (typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : defaut);
 
-/** Relit l'état sauvegardé en session. Une valeur inattendue retombe sur sa valeur de départ (jamais d'erreur : la session peut venir
- * d'une version plus ancienne de la page). */
+/** Reads the state saved in session. An unexpected value falls back to its starting value (never an error: the session may come from
+ * an older version of the page). */
 export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
   if (!brut) return null;
   let o: Record<string, unknown>;
@@ -212,10 +212,10 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
     langue,
     langueChoisie: o.langueChoisie === true,
     style,
-    // Une session plus ancienne n'a pas ces champs : valeurs de départ.
+    // An older session does not have these fields: starting values.
     creativite: creativiteOuNull(o.creativite) ?? depart.creativite,
     styleCamera,
-    // Une session d'avant ce champ : un style autre que « aucun » ne peut venir que d'un choix manuel, on le garde.
+    // A session from before this field: a style other than « aucun » can only come from a manual choice, we keep it.
     miseEnSceneChoisie: typeof o.miseEnSceneChoisie === "boolean" ? o.miseEnSceneChoisie : styleCamera !== STYLE_AUCUN,
   });
 }

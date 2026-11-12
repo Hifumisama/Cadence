@@ -8,16 +8,16 @@ import { TYPE_AFFICHE, titreDansPrompt } from "../posters/posters";
 import { METHODE_MASTER_VOIX, videoDeMaster } from "./asset-generation";
 import { cheminAssetMedia, cheminGenerationMedia, cheminVoixMedia } from "../media";
 
-/** Adopter un candidat : son fichier devient l'image (ou le son) de l'asset, et son prompt celui de l'asset. Partagé par
- * l'action « Adopter » de l'interface (app/assets/generation-actions.ts) et par le worker, qui adopte tout seul les générations d'un
- * LOT (`asset_generations.adoption_auto` : générer par lot, c'est vouloir utiliser le résultat). Aucune dépendance à Next. */
+/** Adopt a candidate: its file becomes the asset's image (or sound), and its prompt the asset's. Shared by
+ * the « Adopter » action of the interface (app/assets/generation-actions.ts) and by the worker, which adopts on its own the generations of a
+ * BATCH (`asset_generations.adoption_auto`: generating in batch means wanting to use the result). No dependency on Next. */
 export async function adopterCandidat(generationId: number, mediaRoot: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const [gen] = await db.select().from(assetGenerations).where(eq(assetGenerations.id, generationId));
   if (!gen || gen.statut !== "termine" || !gen.fichier) return { ok: false, erreur: "Ce candidat n'est pas disponible." };
   const [asset] = await db.select().from(assets).where(eq(assets.id, gen.assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
 
-  // Le master de voix d'un personnage : l'audio nettoyé (et sa vidéo) deviennent SA voix, l'image du personnage n'est pas touchée.
+  // A character's voice master: the cleaned audio (and its video) become ITS voice; the character's image is not touched.
   if (gen.methode === METHODE_MASTER_VOIX) return adopterMasterVoix(gen, asset, mediaRoot);
 
   const nom = `${asset.code}${extname(gen.fichier).toLowerCase() || ".png"}`;
@@ -37,24 +37,24 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
     .set({
       fichier: nom,
       fichierAt: maintenant,
-      valide: false, // un nouveau fichier remplace celui qui était validé : à revalider
+      valide: false, // a new file replaces the one that was validated: to validate again
       promptGeneration: gen.prompt,
     })
     .where(eq(assets.id, asset.id));
-  // L'essai retenu : même instant que le fichier de l'asset (voir `assetGenerations.adopteAt`).
+  // The kept attempt: same instant as the asset's file (see `assetGenerations.adopteAt`).
   await db.update(assetGenerations).set({ adopteAt: maintenant }).where(eq(assetGenerations.id, gen.id));
-  // Une affiche de présentation : l'image adoptée devient celle du projet ou de l'épisode (lib/posters/posters.ts).
+  // A presentation poster: the adopted image becomes the project's or episode's (lib/posters/posters.ts).
   if (asset.type === TYPE_AFFICHE) {
     const appliquee = await appliquerAffiche(asset.code, nom, mediaRoot, titreDansPrompt(gen.prompt));
     if (!appliquee.ok) return appliquee;
   }
-  // Adopter, c'est avoir vu le résultat : l'indicateur du header ne le signale plus.
+  // Adopting means having seen the result: the header indicator no longer flags it.
   if (!gen.vuAt) await db.update(assetGenerations).set({ vuAt: new Date() }).where(eq(assetGenerations.id, gen.id));
   return { ok: true };
 }
 
-/** Adopte un master de voix : l'audio nettoyé devient `voix_master` du personnage (et la vidéo de test, si elle est là, `voix_video`),
- * rangés sous voix/<personnageId>/. Un nouveau master REMPLACE l'ancien (F01 : pas de versions). */
+/** Adopts a voice master: the cleaned audio becomes the character's `voix_master` (and the test video, if there, `voix_video`),
+ * stored under voix/<personnageId>/. A new master REPLACES the old one (F01: no versions). */
 async function adopterMasterVoix(
   gen: typeof assetGenerations.$inferSelect,
   asset: typeof assets.$inferSelect,
@@ -73,7 +73,7 @@ async function adopterMasterVoix(
     () => true,
     () => false,
   );
-  // Un ancien master d'une autre extension, ou une ancienne vidéo que le nouveau n'a pas : retirés (le nouveau remplace tout).
+  // An old master with another extension, or an old video that the new one does not have: removed (the new one replaces everything).
   if (asset.voixMaster && asset.voixMaster !== nomAudio) await unlink(join(mediaRoot, cheminVoixMedia(asset.id, asset.voixMaster))).catch(() => undefined);
   if (asset.voixVideo && (!video || asset.voixVideo !== nomVideo)) await unlink(join(mediaRoot, cheminVoixMedia(asset.id, asset.voixVideo))).catch(() => undefined);
   await db

@@ -41,7 +41,7 @@ test("resoudreReglages : « aucun » force l'absence de style par-dessus un styl
   const plan = resoudreReglages({ projet: { styleCamera: "villeneuve" }, scene: { styleCamera: "bigelow" }, plan: { styleCamera: "aucun" } });
   assert.equal(plan.styleCamera, null);
   assert.equal(plan.origine.styleCamera, "plan");
-  // Un plan peut aussi redonner un style sous une scène « aucun ».
+  // A clip can also give a style back under a « aucun » scene.
   assert.equal(resoudreReglages({ scene: { styleCamera: "aucun" }, plan: { styleCamera: "wong" } }).styleCamera, "wong");
 });
 
@@ -58,7 +58,7 @@ test("chaque style de caméra a un résumé court, une phrase de détail et un l
   }
   assert.equal(libelleStyleComplet("villeneuve"), "Immense et silencieux — style de Denis Villeneuve");
   assert.equal(libelleStyleComplet("wong"), "Intime, nocturne, néons — style de Wong Kar-wai");
-  // Les résumés se distinguent : deux styles ne partagent pas le même.
+  // The summaries are distinct: two styles do not share the same one.
   assert.equal(new Set(STYLES_CAMERA.map((s) => RESUME_STYLE_CAMERA[s])).size, STYLES_CAMERA.length);
 });
 

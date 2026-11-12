@@ -1,31 +1,31 @@
-/** Références d'un plan sur un prompt DÉJÀ ASSEMBLÉ (2026-10-03) : retirer ou ajouter une référence garde les
- * labels sans trou (`<Picture 1>`, `<Picture 2>`, `<Picture 3>`…) et les sections `subject_definitions` /
- * `retention_analysis` à jour. C'est le CODE qui numérote, jamais un modèle (comme à l'assemblage). Pur : les lectures et écritures en base sont dans lib/clips/clip-references.ts.
+/** References of a clip on an ALREADY ASSEMBLED prompt (2026-10-03): removing or adding a reference keeps the
+ * labels without gaps (`<Picture 1>`, `<Picture 2>`, `<Picture 3>`…) and the sections `subject_definitions` /
+ * `retention_analysis` up to date. It is the CODE that numbers, never a model (as at assembly). Pure: the database reads and writes are in lib/clips/clip-references.ts.
  *
- * - images : `<Subject N>` et `<Picture N>` partagent le même N ; un retrait compacte tous les slots restants
- *   en 1..n (et rattrape d'anciens trous) ;
- * - sons et vidéos : leur slot ne bouge pas (les emplacements `<Audio N>` sont liés aux voix du plan). */
+ * - images: `<Subject N>` and `<Picture N>` share the same N; a removal compacts all remaining slots
+ *   into 1..n (and catches up old gaps);
+ * - sounds and videos: their slot does not move (the `<Audio N>` slots are tied to the clip's voices). */
 
 export type TypeRef = "picture" | "audio" | "video";
 export type SectionsTexte = Record<string, string>;
-/** `vfx` : l'asset est un effet visuel, repris en `weak_reference` (jamais montré tel quel). */
+/** `vfx`: the asset is a visual effect, taken up as a `weak_reference` (never shown as is). */
 export type RefTexte = { type: TypeRef; slot: number; nom: string; vfx?: boolean };
 
-/** « CHAR_iris_phare » → « iris phare » : le nom lisible d'un asset dont on n'a que le code. */
+/** « CHAR_iris_phare » → « iris phare »: the readable name of an asset of which one only has the code. */
 export function nomDepuisCode(code: string): string {
   const [, ...reste] = code.split("_");
   return (reste.length ? reste : [code]).join(" ").trim();
 }
 
-/** L'emplacement d'une nouvelle référence : celui qu'on a choisi s'il est libre (vidéos et audios seulement : les images restent numérotées 1..n sans trou),
- * sinon le premier libre. Retirer une vidéo ou un audio laisse un trou (leur numéro ne bouge pas, le prompt les cite) : on le rebouche d'abord. null = plein. */
+/** The slot of a new reference: the chosen one if it is free (videos and audios only: images stay numbered 1..n without gaps),
+ * otherwise the first free one. Removing a video or an audio leaves a gap (their number does not move, the prompt cites them): we fill it first. null = full. */
 export function emplacementLibre(type: TypeRef, pris: number[], max: number, voulu?: number): number | null {
   const libres = Array.from({ length: max }, (_, i) => i + 1).filter((n) => !pris.includes(n));
   if (type !== "picture" && voulu != null && libres.includes(voulu)) return voulu;
   return libres[0] ?? null;
 }
 
-/** Ancien slot → nouveau slot des images qui restent, compactés en 1..n dans l'ordre. */
+/** Old slot → new slot of the remaining images, compacted into 1..n in order. */
 export function compacterImages(slotsRestants: number[]): Map<number, number> {
   const tries = [...slotsRestants].sort((a, b) => a - b);
   return new Map(tries.map((s, i) => [s, i + 1]));
@@ -34,8 +34,8 @@ export function compacterImages(slotsRestants: number[]): Map<number, number> {
 const NOM_LABEL: Record<TypeRef, string> = { picture: "Picture", audio: "Audio", video: "Video" };
 const SECTIONS_DE_LISTE = ["subject_definitions", "retention_analysis"];
 
-/** Retire une référence des sections : ses lignes de définition et de rétention disparaissent, ses mentions en
- * prose redeviennent son nom, et les images restantes sont renumérotées d'après `renum` (ancien → nouveau). */
+/** Removes a reference from the sections: its definition and retention lines disappear, its mentions in
+ * prose become its name again, and the remaining images are renumbered from `renum` (old → new). */
 export function retirerReference(sections: SectionsTexte, ref: RefTexte, renum: Map<number, number> = new Map()): SectionsTexte {
   const labelLigne = ref.type === "picture" ? "Subject" : NOM_LABEL[ref.type];
   const ligneDeLaRef = new RegExp(`^\\s*<\\s*${labelLigne}\\s*${ref.slot}\\s*>`, "i");
@@ -60,9 +60,9 @@ const ajouterLigne = (contenu: string, ligne: string) => (contenu.trim() ? `${co
 
 const echapperRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Les citations que `retirerReference` a remplacées par le nom de l'asset reviennent : dans la PROSE (pas dans les listes de définition et de rétention), chaque
- * occurrence exacte du nom (mot entier, même casse : celui de `nomDepuisCode`, en minuscules, qu'un texte écrit à la main contient rarement) redevient le label
- * `<Subject N>` (image), `<Audio N>` ou `<Video N>`. Un nom de moins de 3 lettres n'est jamais remplacé (trop de faux positifs). Pur. */
+/** The citations that `retirerReference` replaced with the asset's name come back: in the PROSE (not in the definition and retention lists), each exact
+ * occurrence of the name (whole word, same case: that of `nomDepuisCode`, in lowercase, which a hand-written text rarely contains) becomes the label
+ * `<Subject N>` (image), `<Audio N>` or `<Video N>`. A name of fewer than 3 letters is never replaced (too many false positives). Pure. */
 export function retablirCitations(sections: SectionsTexte, ref: RefTexte): { sections: SectionsTexte; shots: string[] } {
   const nom = ref.nom.trim();
   if (nom.length < 3) return { sections, shots: [] };
@@ -70,7 +70,7 @@ export function retablirCitations(sections: SectionsTexte, ref: RefTexte): { sec
   const motif = new RegExp(`(?<![\\p{L}\\p{N}_])${echapperRegex(nom)}(?![\\p{L}\\p{N}_])`, "gu");
   const sortie: SectionsTexte = {};
   for (const [section, contenu] of Object.entries(sections)) sortie[section] = SECTIONS_DE_LISTE.includes(section) ? contenu : contenu.replace(motif, label);
-  // Les shots qui le citent maintenant (pour la ligne de rétention, comme à l'assemblage : « appears in [Shot 1], [Shot 3] »).
+  // The shots that cite it now (for the retention line, as at assembly: « appears in [Shot 1], [Shot 3] »).
   const description = sortie.detailed_description ?? "";
   const shots: string[] = [];
   const decoupe = description.split(/(\[Shot \d+\])/);
@@ -82,17 +82,17 @@ export function retablirCitations(sections: SectionsTexte, ref: RefTexte): { sec
   return { sections: sortie, shots };
 }
 
-/** Le rôle d'une référence posée à la main (colonne `plan_refs.role`, lue par les agents) : la voix d'un personnage, sinon « Décor, couloir bleu » (type puis nom),
- * comme ceux qu'écrit la compilation. `retention` (audio seulement) : « reference », celui de la ligne de rétention ajoutée au prompt. Pur. */
+/** The role of a reference placed by hand (column `plan_refs.role`, read by the agents): a character's voice, otherwise « Décor, couloir bleu » (type then name),
+ * like those the compilation writes. `retention` (audio only): « reference », that of the retention line added to the prompt. Pure. */
 export function roleParDefaut(type: TypeRef, asset: { typeAsset: string | null; libelleType: string | null; libelle: string }): { role: string; retention: string | null } {
   if (type === "audio") return { role: asset.typeAsset === "personnage" ? "Voix du personnage" : `${asset.libelleType ?? "Son"}, ${asset.libelle}`, retention: "reference" };
   return { role: `${asset.libelleType ?? "Référence"}, ${asset.libelle}`, retention: null };
 }
 
-/** Ajoute une référence aux sections : une ligne de définition et une ligne de rétention (par défaut, comme
- * l'assemblage : image « fully_preserved », son « reference »). Avec `retablir` (ajout à la main, nom tiré du code),
- * les citations du nom laissées par un retrait reviennent dans la prose (`retablirCitations`) ; sinon rien n'est
- * ajouté à la prose : tant qu'aucun shot ne la cite, le contrôle de cohérence la signale « non citée ». */
+/** Adds a reference to the sections: a definition line and a retention line (by default, as
+ * assembly does: image « fully_preserved », sound « reference »). With `retablir` (manual addition, name taken from the code),
+ * the citations of the name left by a removal come back into the prose (`retablirCitations`); otherwise nothing is
+ * added to the prose: as long as no shot cites it, the consistency check flags it « non citée ». */
 export function ajouterReference(sections: SectionsTexte, ref: RefTexte, options: { retablir?: boolean } = {}): SectionsTexte {
   const { sections: retablies, shots } = options.retablir ? retablirCitations(sections, ref) : { sections, shots: [] as string[] };
   const sortie = { ...retablies };

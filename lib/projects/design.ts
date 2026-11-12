@@ -2,23 +2,23 @@ import type { Fiche } from "../agents/sheet";
 import { RYTHMES_BRIEF, type RythmeBrief } from "../agents/types";
 import type { StyleBibliotheque } from "../styles/library";
 
-/** La conception d'un projet : ce que l'utilisateur choisit AVANT l'entretien avec le scénariste (genre, ton,
- * durée, rythme, langue, style). Tout est quasi déterministe : l'agent n'a plus à le demander. Pur : validation,
- * valeurs dérivées (texte du ton, nombre de plans, style résolu) et préremplissage de la fiche de l'entretien.
- * Stockée telle quelle dans `conceptions.contenu` ; le brief reçoit les valeurs dérivées (voir `ficheDepuisConception`). */
+/** A project's design: what the user chooses BEFORE the interview with the screenwriter (genre, tone,
+ * duration, rhythm, language, style). Everything is almost deterministic: the agent no longer has to ask for it. Pure: validation,
+ * derived values (tone text, number of clips, resolved style) and pre-filling of the interview sheet.
+ * Stored as is in `conceptions.contenu`; the brief receives the derived values (see `ficheDepuisConception`). */
 
-/** Les dix langues que le modèle vidéo (H3) sait parler, et « sans dialogue ». */
+/** The ten languages the video model (H3) can speak, and « sans dialogue ». */
 export const LANGUES_DIALOGUES = ["Français", "English", "日本語", "한국어", "中文", "Deutsch", "Русский", "Português", "Español", "Italiano"] as const;
 export const SANS_DIALOGUE = "Sans dialogue";
 export const LANGUE_PAR_DEFAUT = "Français";
 
 export const DUREE_MIN_SECONDES = 30;
-export const DUREE_MAX_SECONDES = 5400; // 90 min : un long métrage. Au-delà de 10 min c'est expérimental (le scénario d'un épisode se débat avec des centaines de plans).
-/** Au-delà de cette durée, l'écran prévient que c'est expérimental. */
+export const DUREE_MAX_SECONDES = 5400; // 90 min: a feature film. Beyond 10 min it is experimental (the screenplay of an episode struggles with hundreds of clips).
+/** Beyond this duration, the screen warns that it is experimental. */
 export const DUREE_EXPERIMENTALE_SECONDES = 600;
 
-/** Le curseur de durée est gradué à l'échelle du temps vécu, pas du temps réel : chaque tronçon de la piste (0 à 1000) couvre une plage de
- * durées, de plus en plus large (30 s → 3 min → 10 min → 30 min → 90 min). Sans cela, la précision utile aux courts-métrages disparaîtrait. */
+/** The duration slider is scaled to the time lived, not to real time: each segment of the track (0 to 1000) covers a range of
+ * durations, increasingly wide (30 s → 3 min → 10 min → 30 min → 90 min). Without this, the precision useful for short films would be lost. */
 export const REPERES_DUREE = [
   { position: 0, secondes: DUREE_MIN_SECONDES },
   { position: 250, secondes: 180 },
@@ -28,7 +28,7 @@ export const REPERES_DUREE = [
 ] as const;
 export const POSITION_DUREE_MAX = 1000;
 
-/** Le pas de la durée selon sa taille : 15 s jusqu'à 10 min, 1 min jusqu'à 30 min, 5 min au-delà. */
+/** The duration step according to its size: 15 s up to 10 min, 1 min up to 30 min, 5 min beyond. */
 export function pasDuree(secondes: number): number {
   return secondes <= 600 ? 15 : secondes <= 1800 ? 60 : 300;
 }
@@ -38,7 +38,7 @@ function arrondirDuree(secondes: number): number {
   return Math.min(DUREE_MAX_SECONDES, Math.max(DUREE_MIN_SECONDES, Math.round(secondes / pas) * pas));
 }
 
-/** Position du curseur (0 à 1000) → durée en secondes, arrondie au pas de sa plage. */
+/** Slider position (0 to 1000) → duration in seconds, rounded to the step of its range. */
 export function dureeDepuisPosition(position: number): number {
   const p = Math.min(POSITION_DUREE_MAX, Math.max(0, position));
   for (let i = 1; i < REPERES_DUREE.length; i++) {
@@ -49,7 +49,7 @@ export function dureeDepuisPosition(position: number): number {
   return DUREE_MAX_SECONDES;
 }
 
-/** Durée en secondes → position du curseur (réciproque de `dureeDepuisPosition`). */
+/** Duration in seconds → slider position (reciprocal of `dureeDepuisPosition`). */
 export function positionDepuisDuree(secondes: number): number {
   const d = Math.min(DUREE_MAX_SECONDES, Math.max(DUREE_MIN_SECONDES, secondes));
   for (let i = 1; i < REPERES_DUREE.length; i++) {
@@ -64,9 +64,9 @@ export const RYTHME_PAR_DEFAUT: RythmeBrief = "mesure";
 export const TON_PAR_DEFAUT = 50;
 export const GENRES_MAX = 2;
 
-/** Genres proposés, avec le ton de départ (0 = lumineux, 100 = sombre) que le curseur prend quand l'utilisateur ne l'a
- * pas ajusté. `teinte` et `poids` ne servent qu'à l'affichage. */
-export const GENRES: readonly { nom: string; ton: number; /** Teinte HSL de la lumière d'ambiance (jamais de rouge plein). */ teinte: number; /** Taille relative de la bulle à l'écran. */ poids: number }[] = [
+/** Proposed genres, with the starting tone (0 = light, 100 = dark) that the slider takes when the user has not
+ * adjusted it. `teinte` and `poids` are only used for display. */
+export const GENRES: readonly { nom: string; ton: number; /** HSL tint of the ambient light (never full red). */ teinte: number; /** Relative size of the bubble on screen. */ poids: number }[] = [
   { nom: "Action", ton: 55, teinte: 38, poids: 3.4 },
   { nom: "Aventure", ton: 40, teinte: 150, poids: 2.6 },
   { nom: "Épique", ton: 60, teinte: 40, poids: 3.8 },
@@ -85,7 +85,7 @@ export const GENRES: readonly { nom: string; ton: number; /** Teinte HSL de la l
   { nom: "Slice of life", ton: 28, teinte: 80, poids: 2.2 },
 ];
 
-/** Durée d'un plan selon le rythme (secondes) : les mêmes plages que les skills `scenario-episode` et `scenario-scene` (plafond dur de 10 s). */
+/** Duration of a clip according to the rhythm (seconds): the same ranges as the `scenario-episode` and `scenario-scene` skills (hard cap of 10 s). */
 export const PLAGES_RYTHME: Record<RythmeBrief, { min: number; max: number }> = {
   lent: { min: 8, max: 10 },
   mesure: { min: 6, max: 9 },
@@ -94,29 +94,29 @@ export const PLAGES_RYTHME: Record<RythmeBrief, { min: number; max: number }> = 
   variable: { min: 5, max: 10 },
 };
 
-/** Le style choisi : une entrée de la bibliothèque (par identifiant), ou un style libre avec ses deux prompts et, si
- * l'utilisateur l'a déposée, une image de présentation (nom de fichier, 2:3). */
+/** The chosen style: a library entry (by identifier), or a free style with its two prompts and, if
+ * the user uploaded one, a presentation image (file name, 2:3). */
 type StyleConception =
   | { source: "bibliotheque"; styleId: string }
   | { source: "libre"; nom: string; promptImage: string; clause: string; image?: string };
 
 export type Conception = {
   genres: string[];
-  /** 0 = lumineux, 100 = sombre. */
+  /** 0 = light, 100 = dark. */
   ton: number;
-  /** Vrai quand l'utilisateur a bougé le curseur (sinon le ton vient des genres). */
+  /** True when the user has moved the slider (otherwise the tone comes from the genres). */
   tonAjuste: boolean;
   dureeSecondes: number;
   rythme: RythmeBrief;
-  /** Vrai quand l'utilisateur a regardé la durée et le rythme (sinon ce sont les valeurs par défaut, signalées comme telles). */
+  /** True when the user has looked at the duration and rhythm (otherwise these are the default values, flagged as such). */
   dureeChoisie: boolean;
-  /** Une des `LANGUES_DIALOGUES`, ou `SANS_DIALOGUE`. */
+  /** One of the `LANGUES_DIALOGUES`, or `SANS_DIALOGUE`. */
   langue: string;
   langueChoisie: boolean;
   style: StyleConception;
 };
 
-/** Le style tel que le projet l'emploie : le nom et la clause courte (vidéo, brief), le prompt long (images). */
+/** The style as the project uses it: the name and the short clause (video, brief), the long prompt (images). */
 export type StyleResolu = { nom: string; clause: string; promptImage: string; image?: string };
 
 const objet = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -131,12 +131,12 @@ export function motDuTon(ton: number): string {
   return ton <= 18 ? "lumineux" : ton <= 38 ? "léger" : ton <= 62 ? "nuancé" : ton <= 82 ? "grave" : "sombre";
 }
 
-/** « Drame + Thriller, ton grave (82/100) » : la valeur de `genreTon` dans le brief. */
+/** « Drame + Thriller, ton grave (82/100) »: the value of `genreTon` in the brief. */
 export function genreTonTexte(c: Pick<Conception, "genres" | "ton">): string {
   return `${c.genres.join(" + ")}, ton ${motDuTon(c.ton)} (${c.ton}/100)`;
 }
 
-/** Nombre de plans pour une durée et un rythme : bornes (plans les plus longs → les plus courts) et valeur moyenne. */
+/** Number of clips for a duration and a rhythm: bounds (longest clips → shortest) and average value. */
 export function plansEstimes(dureeSecondes: number, rythme: RythmeBrief): { min: number; max: number; moyen: number } {
   const { min, max } = PLAGES_RYTHME[rythme];
   return {
@@ -148,8 +148,8 @@ export function plansEstimes(dureeSecondes: number, rythme: RythmeBrief): { min:
 
 export type ResultatConception = { ok: true; valeur: Conception } | { ok: false; erreurs: string[] };
 
-/** Valide une conception venue du client (ou de la base). Les valeurs hors liste sont refusées, jamais corrigées en silence ;
- * seuls les champs facultatifs absents reçoivent leur valeur par défaut. `bibliotheque` sert à vérifier l'identifiant d'un style. */
+/** Validates a design coming from the client (or from the database). Values outside the list are refused, never silently corrected;
+ * only absent optional fields receive their default value. `bibliotheque` serves to check a style's identifier. */
 export function validerConception(brut: unknown, bibliotheque: readonly Pick<StyleBibliotheque, "id">[]): ResultatConception {
   const o = objet(brut);
   const erreurs: string[] = [];
@@ -209,8 +209,8 @@ export function validerConception(brut: unknown, bibliotheque: readonly Pick<Sty
   };
 }
 
-/** Le style que le projet emploiera. Un style de la bibliothèque sans clause courte n'est pas utilisable (la vidéo n'aurait
- * rien à recevoir) : erreur franche plutôt qu'une clause inventée. Le prompt long d'une entrée de la bibliothèque est son descripteur. */
+/** The style the project will use. A library style without a short clause is not usable (the video would have nothing to receive):
+ * a clear error rather than an invented clause. The long prompt of a library entry is its descriptor. */
 export function resoudreStyle(c: Pick<Conception, "style">, bibliotheque: readonly StyleBibliotheque[]): { ok: true; style: StyleResolu } | { ok: false; erreur: string } {
   if (c.style.source === "libre") {
     const { nom, clause, promptImage, image } = c.style;
@@ -223,9 +223,9 @@ export function resoudreStyle(c: Pick<Conception, "style">, bibliotheque: readon
   return { ok: true, style: { nom: s.nom, clause: s.clause.trim(), promptImage: s.descriptor } };
 }
 
-/** La fiche de l'entretien préremplie par la conception : tout est « fourni » (l'utilisateur l'a choisi, ou a validé la valeur par
- * défaut en passant l'écran). Résultat : `aTrancher` se réduit à l'arc, la fin et le héros, sans toucher à la logique de l'entretien.
- * La fiche ne contient QUE le nom et la clause du style : le prompt long et l'image restent hors de la vue du modèle. */
+/** The interview sheet pre-filled by the design: everything is « fourni » (the user chose it, or validated the default value by
+ * going through the screen). Result: `aTrancher` is reduced to the arc, the ending and the hero, without touching the interview logic.
+ * The sheet contains ONLY the style's name and clause: the long prompt and the image stay out of the model's view. */
 export function ficheDepuisConception(c: Conception, style: StyleResolu): Fiche {
   const contenu: Record<string, unknown> = {
     genreTon: genreTonTexte(c),
@@ -238,32 +238,32 @@ export function ficheDepuisConception(c: Conception, style: StyleResolu): Fiche 
   return { contenu, statuts };
 }
 
-/** Ce que l'écran de clap montre en « par défaut » (le ton, la durée et le rythme, la langue non touchés). */
+/** What the clap screen shows as « par défaut » (the tone, the duration and the rhythm, the language left untouched). */
 export function valeursParDefaut(c: Conception): { ton: boolean; duree: boolean; langue: boolean } {
   return { ton: !c.tonAjuste, duree: !c.dureeChoisie, langue: !c.langueChoisie };
 }
 
-/** Ce que l'agent de conversation sait en plus du brief : un projet est un film (pas une section du brief). */
+/** What the conversation agent knows in addition to the brief: a project is a film (not a section of the brief). */
 export function informationsFormat(): string {
   return "Format : un film (un seul bloc, une seule histoire).";
 }
 
-/** Le style que reçoivent les générations d'IMAGES d'un projet : le prompt long du style quand le projet en a un (il vient de la
- * conception), sinon la clause courte (projets créés avant la conception, ou dont le style a été retouché à la main). La vidéo,
- * elle, reçoit toujours la clause courte. */
+/** The style that IMAGE generations of a project receive: the long prompt of the style when the project has one (it comes from the
+ * design), otherwise the short clause (projects created before the design, or whose style was retouched by hand). The video,
+ * for its part, always receives the short clause. */
 export function styleDesImages(projet: { clauseStyle: string; stylePromptImage: string } | null | undefined): string {
   return projet?.stylePromptImage?.trim() || projet?.clauseStyle || "";
 }
 
-/** Le style rappelé aux ÉDITIONS d'image (Qwen) : la clause COURTE, jamais le prompt long. Le worker l'ajoute en dernière ligne des
- * instructions (worker/comfyui/imageMapping.ts) : une ligne d'instruction de plus, pas une description qui noierait les
- * changements demandés. Sans elle, une retouche (ou une image jointe d'un autre style) sortait du style du projet. */
+/** The style reminded to IMAGE EDITS (Qwen): the SHORT clause, never the long prompt. The worker adds it as the last line of the
+ * instructions (worker/comfyui/imageMapping.ts): one more instruction line, not a description that would drown out the
+ * requested changes. Without it, a retouch (or an image attached from another style) came out of the project's style. */
 export function styleDesEditions(projet: { clauseStyle: string } | null | undefined): string {
   return projet?.clauseStyle?.trim() || "";
 }
 
-/** Noms d'auteurs, de studios ou d'œuvres qu'un style libre ne devrait pas contenir (liste volontairement courte, à étoffer) : un
- * avertissement, jamais un refus. */
+/** Names of authors, studios or works that a free style should not contain (deliberately short list, to be extended): a
+ * warning, never a refusal. */
 export const REFERENCES_NOMMEES = ["pixar", "disney", "ghibli", "miyazaki", "marvel", "dreamworks", "wes anderson", "tim burton", "laika", "akira", "van gogh", "picasso", "tarantino", "kubrick"];
 
 export function referencesNommees(texte: string): string[] {

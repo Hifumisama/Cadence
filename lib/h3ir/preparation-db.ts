@@ -11,11 +11,11 @@ import { estEtapeFinale, type ContexteFichePlan, type EtapeDemande } from "../ta
 import { ecrireReferencesPlan } from "./references-write";
 import { decisionSortieReferencesPlan, precedentEnAttente, type EtatImageAsset } from "./preparation";
 
-/** Les lectures et écritures de la PRÉPARATION d'un plan (règles pures : lib/h3ir/preparation.ts ; pilote : lib/tasks/requests-db.ts). */
+/** The reads and writes of a clip's PREPARATION (pure rules: lib/h3ir/preparation.ts; driver: lib/tasks/requests-db.ts). */
 
 const fichierPresent = (f: string | null): boolean => !!f && existsSync(join(MEDIA_ROOT, cheminAssetMedia(f)));
 
-/** Les codes des références VISUELLES actuelles d'un plan (images, vidéos), dans l'ordre des emplacements. */
+/** The codes of a clip's CURRENT visual references (images, videos), in slot order. */
 export async function codesRefsVisuelles(planId: number): Promise<string[]> {
   const l = await db
     .select({ code: assets.code })
@@ -26,8 +26,8 @@ export async function codesRefsVisuelles(planId: number): Promise<string[]> {
   return l.map((x) => x.code);
 }
 
-/** L'état des images attendues (ces codes), plus le MASTER d'un dérivé en édition qui n'a pas encore d'image (sans lui le dérivé ne part pas).
- * `depuis` : seules les générations en échec depuis cette date comptent (une vieille génération échouée ne bloque pas : on en relance une). */
+/** The state of the expected images (these codes), plus the MASTER of an editing derivative that does not yet have an image (without it the derivative does not go).
+ * `depuis`: only generations that failed since this date count (an old failed generation does not block: one is relaunched). */
 export async function etatImagesAssets(projectId: number, codes: string[], depuis: Date): Promise<EtatImageAsset[]> {
   if (codes.length === 0) return [];
   const tous = await db
@@ -70,8 +70,8 @@ export async function etatImagesAssets(projectId: number, codes: string[], depui
   });
 }
 
-/** Met en file les images de ces assets (prompt et format par défaut de leur type, ADOPTION AUTOMATIQUE : lib/assets/generation-launch.ts). Les écartés
- * (déjà en file, master sans image…) se relancent au tour suivant. */
+/** Queues the images of these assets (default prompt and format of their type, AUTOMATIC ADOPTION: lib/assets/generation-launch.ts). Those set aside
+ * (already queued, master without an image…) are relaunched on the next round. */
 export async function lancerImagesAssets(projectId: number, codes: string[]): Promise<{ lancees: number; ecartes: { code: string; raison: string }[] }> {
   if (codes.length === 0) return { lancees: 0, ecartes: [] };
   const lus = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), inArray(assets.code, codes)));
@@ -80,14 +80,14 @@ export async function lancerImagesAssets(projectId: number, codes: string[]): Pr
   return r.ok ? { lancees: r.lancees, ecartes: r.ecartes.map((e) => ({ code: e.code, raison: e.raison })) } : { lancees: 0, ecartes: [] };
 }
 
-/** Les références de ce plan sont-elles finies dans sa demande (étape `references` faite ou passée) ? Une demande sans cette étape compte comme finie. */
+/** Are this clip's references finished in its request (step `references` done or passed)? A request without this step counts as finished. */
 const referencesFinies = (etapes: EtapeDemande[]): boolean => {
   const e = etapes.find((x) => x.cle === "references");
   return !e || estEtapeFinale(e);
 };
 
-/** Un plan PLUS TÔT dans l'ordre du scénario (même épisode) a-t-il une demande de fiche en cours qui n'a pas fini ses références ? La reprise du décor
- * (plan « suite ») lit les références du plan précédent, et les manquants d'un plan deviennent les candidats du suivant : on les choisit dans l'ordre. */
+/** Does a clip EARLIER in the screenplay order (same episode) have a sheet request in progress that has not finished its references? The set continuation
+ * (« suite » clip) reads the references of the previous clip, and the missing ones of a clip become the candidates of the next one: they are chosen in order. */
 export async function attendUnPlanPrecedent(planId: number): Promise<boolean> {
   const [p] = await db.select({ episodeId: plans.episodeId, ordre: plans.ordre }).from(plans).where(eq(plans.id, planId));
   if (!p) return false;
@@ -102,8 +102,8 @@ export async function attendUnPlanPrecedent(planId: number): Promise<boolean> {
   );
 }
 
-/** Les assets que les AUTRES demandes de fiche en cours du projet ont créés pour leur plan (ils sont au registre, sans image encore) : l'entrée
- * `assetsProposesParLeLot` du skill (il peut les citer, jamais les reproposer). */
+/** The assets that the OTHER sheet requests in progress in the project have created for their clip (they are in the registry, still without an image): the skill's
+ * `assetsProposesParLeLot` entry (it may cite them, never propose them again). */
 export async function assetsCreesParLeLot(projectId: number, saufDemandeId: number): Promise<{ code: string; type: string }[]> {
   const lignes = await db.select({ id: demandes.id, contexte: demandes.contexte }).from(demandes).where(and(eq(demandes.projectId, projectId), eq(demandes.type, "fiche-plan"), eq(demandes.statut, "en_cours")));
   const codes = [...new Set(lignes.filter((l) => l.id !== saufDemandeId).flatMap((l) => (l.contexte as ContexteFichePlan).preparation?.assetsCrees ?? []))];
@@ -111,13 +111,13 @@ export async function assetsCreesParLeLot(projectId: number, saufDemandeId: numb
   return db.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, projectId), inArray(assets.code, codes)));
 }
 
-/** Le registre d'un projet (hors affiches) : code et type. */
+/** A project's registry (posters excluded): code and type. */
 export async function registreCodesTypes(d: Db, projectId: number): Promise<{ code: string; type: string }[]> {
   return d.select({ code: assets.code, type: assets.type }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches));
 }
 
-/** À l'APPLICATION d'une proposition `references-plan` (dans sa transaction, après la création des manquants) : les références du skill, assets créés
- * compris, sont écrites sur le plan (`remplacer` si la demande l'a voulu). Jamais la table `plans`. */
+/** At APPLICATION of a `references-plan` proposal (in its transaction, after the missing ones are created): the skill's references, created assets
+ * included, are written onto the clip (`remplacer` if the request asked for it). Never the `plans` table. */
 export async function ecrireReferencesDuSkill(d: Db, propositionId: number, runId: number | null): Promise<void> {
   if (runId == null) return;
   const [run] = await d.select({ projectId: agentRuns.projectId, resultat: agentRuns.resultat, options: agentRuns.options, entree: agentRuns.entree }).from(agentRuns).where(eq(agentRuns.id, runId));

@@ -4,8 +4,8 @@ import { messagesSansImages, type MessageLlm, type PartieContenu } from "../lib/
 import { ErreurPlanche, type Planche } from "../lib/renders/contact-sheet";
 import { preparerEntree } from "./agents/preparation";
 
-// La préparation de l'entrée d'iteration-plan À L'EXÉCUTION : la planche est reconstruite depuis le descripteur
-// (jamais d'images dans agent_runs.entree), la durée réelle est mesurée, un échec est une erreur claire.
+// The preparation of the iteration-plan input AT EXECUTION: the contact sheet is rebuilt from the descriptor
+// (never images in agent_runs.entree), the real duration is measured, a failure is a clear error.
 
 const entreeStockee = {
   plan: { titre: "Le couloir", dureeVoulueSecondes: 6 },
@@ -80,7 +80,7 @@ test("les autres skills : l'entrée stockée part telle quelle", async () => {
   assert.equal(p.controle, e);
 });
 
-// ── conversation d'entrée : la liste « reste à définir » ───────────────────────────────
+// ── entry conversation: the « reste à définir » list ───────────────────────────────
 
 import { resteADefinirDe } from "./agents/postProcessing";
 

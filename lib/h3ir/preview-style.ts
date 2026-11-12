@@ -2,11 +2,11 @@ import { FILMS_STYLE } from "./examples";
 import { STYLE_AUCUN, MISES_EN_SCENE, type ChoixMiseEnScene } from "./settings";
 import { STYLES_CAMERA } from "./styles-camera";
 
-/** Reconnaître une mise en scène d'un coup d'œil, SANS vidéo : pour chaque choix, un pictogramme (le geste de caméra ou l'ambiance), trois mots-clés et une ligne « Rappelle ».
- * Module PUR (aucun accès disque) : l'interface l'utilise quand la démo n'a pas d'image fixe, et dans tous les cas pour les mots-clés. Les réalisateurs citent leurs films
- * (FILMS_STYLE, lib/h3ir/examples.ts) ; les profils perso ne citent aucun titre (décision de la carte) mais un genre de film. */
+/** Recognise a staging at a glance, WITHOUT video: for each choice, a pictogram (the camera gesture or the ambience), three keywords and a « Rappelle » line.
+ * PURE module (no disk access): the interface uses it when the demo has no fixed image, and in every case for the keywords. The directors cite their films
+ * (FILMS_STYLE, lib/h3ir/examples.ts); the custom profiles cite no title (decision of the card) but a film genre. */
 
-/** Les pictogrammes dessinés par components/design/StagingVisual.tsx (un SVG simple par clé). */
+/** The pictograms drawn by components/design/StagingVisual.tsx (one simple SVG per key). */
 export const PICTOS = ["aucun", "pas", "eclair", "vent", "orbite", "fixe", "ombre", "travelling", "symetrie", "echelle", "manuel", "flou", "rayons"] as const;
 export type Picto = (typeof PICTOS)[number];
 
@@ -28,10 +28,10 @@ export const APERCU_STYLE: Record<ChoixMiseEnScene, ApercuStyle> = {
   horreur: { picto: "ombre", mots: ["Plans fixes", "Cadre décentré", "Lumière rare"], rappelle: "les films d'horreur lents, où l'attente fait peur" },
 };
 
-/** « Aucun style » : l'IA décide. */
+/** « Aucun style »: the AI decides. */
 const APERCU_AUCUN: ApercuStyle = { picto: "aucun", mots: ["L'IA décide", "Selon ta description", "Selon tes images"], rappelle: "" };
 
-/** La ligne « Rappelle … » d'un choix : les films du réalisateur, ou le genre de film d'un profil perso. Vide pour « aucun ». */
+/** The « Rappelle … » line of a choice: the director's films, or the film genre of a custom profile. Empty for « aucun ». */
 export function rappelleDe(id: string): string {
   if (id === STYLE_AUCUN) return "";
   if (!(MISES_EN_SCENE as readonly string[]).includes(id)) return "";
@@ -40,7 +40,7 @@ export function rappelleDe(id: string): string {
   return APERCU_STYLE[choix].rappelle;
 }
 
-/** Ce que la carte montre pour un identifiant : « aucun », un choix connu, ou rien (identifiant inconnu). */
+/** What the card shows for an identifier: « aucun », a known choice, or nothing (unknown identifier). */
 export function apercuDe(id: string): ApercuStyle | null {
   if (id === STYLE_AUCUN) return APERCU_AUCUN;
   return (MISES_EN_SCENE as readonly string[]).includes(id) ? APERCU_STYLE[id as ChoixMiseEnScene] : null;

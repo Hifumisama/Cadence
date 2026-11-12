@@ -2,8 +2,8 @@ import { ERREUR_ANNULEE } from "./cancellation";
 import type { DecisionsAffichees, DecisionsIteration, PlaceScene } from "../agents/types";
 import type { DecisionIteration } from "../clips/clip-sheet";
 
-/** `en_attente` (2026-11-09, docs/PLAN_FILE_CONSIGNES.md) : une itération posée alors qu'une autre tient la place. Elle ne pose encore aucune tâche, sa consigne
- * reste modifiable ; le pilote la fait passer `en_cours` quand plus aucune itération n'est en cours (la plus ancienne d'abord). */
+/** `en_attente` (2026-11-09, docs/PLAN_FILE_CONSIGNES.md): an iteration posted while another holds the place. It does not yet post any task; its instruction
+ * remains editable; the pilot makes it `en_cours` when no iteration is in progress any more (the oldest first). */
 export type StatutDemande = "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
 export type StatutEtapeDemande = "a_venir" | "en_cours" | "fait" | "passe";
 
@@ -17,12 +17,12 @@ export type CleEtapeIteration = (typeof ETAPES_ITERATION_PLAN)[number]["cle"];
 export type EtapeDemande = { cle: string; libelle: string; statut: StatutEtapeDemande };
 
 export const etapesIterationPlan = (): EtapeDemande[] => ETAPES_ITERATION_PLAN.map((e, i) => ({ cle: e.cle, libelle: e.libelle, statut: i === 0 ? ("en_cours" as const) : ("a_venir" as const) }));
-/** Les étapes d'une itération en attente : aucune n'a commencé. */
+/** The steps of a waiting iteration: none has started. */
 export const etapesIterationEnAttente = (): EtapeDemande[] => ETAPES_ITERATION_PLAN.map((e) => ({ cle: e.cle, libelle: e.libelle, statut: "a_venir" as const }));
 
-/** « Itérer » qui ajoute des références sans image ou crée des assets manquants (vague 4a) : les étapes `assets`, `prompts` et `images` s'insèrent entre
- * l'agent et la recompilation, qui ne part qu'une fois toutes les images là. `assetsCrees` : le nombre d'assets créés (0 : l'étape est passée). Pur ;
- * sans effet si les étapes y sont déjà. */
+/** « Itérer » that adds references without an image or creates missing assets (wave 4a): the steps `assets`, `prompts` and `images` are inserted between
+ * the agent and the recompilation, which only leaves once all the images are there. `assetsCrees`: the number of assets created (0: the step is passed). Pure;
+ * no effect if the steps are already there. */
 export function insererEtapesImagesIteration(etapes: EtapeDemande[], assetsCrees: number): EtapeDemande[] {
   if (etapes.some((e) => e.cle === "images")) return etapes;
   const i = etapes.findIndex((e) => e.cle === "reecriture");
@@ -34,27 +34,27 @@ export function insererEtapesImagesIteration(etapes: EtapeDemande[], assetsCrees
   return i < 0 ? [...etapes, ...nouvelles] : [...etapes.slice(0, i), ...nouvelles, ...etapes.slice(i)];
 }
 
-/** Ce qu'il faut pour finir une itération de plan, écrit à la demande puis complété à chaque étape. */
+/** What is needed to finish a clip iteration, written on request then completed at each step. */
 export type ContexteIteration = {
   consigne: string;
-  /** Ce qu'il faut pour démarrer une itération restée en attente (le pilote crée alors la tâche de l'agent) : la conversation du plan, l'essai de base, la planche. */
+  /** What is needed to start an iteration left waiting (the pilot then creates the agent's task): the clip's conversation, the base attempt, the contact sheet. */
   conversationUuid?: string;
   renduId?: number | null;
   planche?: boolean;
   depuisNumero: number | null;
-  /** Réglages retouchés à la main dans la page (durée, FPS, seed), écrits avec l'essai. */
+  /** Settings retouched by hand on the page (duration, FPS, seed), written with the attempt. */
   reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string };
-  /** La tâche d'agent de l'étape courante (agent, puis la recompilation Open H3 IR). */
+  /** The agent task of the current step (agent, then the Open H3 IR recompilation). */
   runUuid?: string;
-  /** Les décisions de l'agent (avant → après), montrées par la page pendant la recompilation et après. */
+  /** The agent's decisions (before → after), shown by the page during the recompilation and after. */
   decisions?: DecisionsAffichees | null;
-  /** Les décisions À RECOMPILER (références ajoutées comprises, assets créés inclus), gardées pendant l'attente des images. */
+  /** The decisions TO RECOMPILE (references added included, assets created included), kept while the images are awaited. */
   decisionsARecompiler?: DecisionsIteration;
-  /** Assets créés, prompts et images attendus avant la recompilation (même mécanique que la fiche d'un plan). */
+  /** Assets created, prompts and images expected before the recompilation (same mechanism as a clip's sheet). */
   preparation?: { assetsCrees?: string[]; promptsPropositionUuid?: string; imagesLancees?: string[] };
-  /** Ce que l'agent a signalé (décisions, confiance faible) : gardé sur l'essai avec les notes de l'application. */
+  /** What the agent reported (decisions, low confidence): kept on the attempt with the application's notes. */
   notesAgent?: string[];
-  /** Le rendu créé, une fois la correction appliquée. */
+  /** The render created, once the correction is applied. */
   jobId?: number;
   numeroRendu?: number;
   notes?: string[];
@@ -67,13 +67,13 @@ export function progressionDemande(etapes: EtapeDemande[]): { faites: number; to
   return { faites: etapes.filter(estEtapeFinale).length, total: etapes.length };
 }
 
-/** Ce que le pilote observe pour la tâche de l'étape courante. */
+/** What the pilot observes for the current step's task. */
 export type ObservationIteration = {
   tache:
     | { genre: "run"; statut: string; erreur: string | null }
     | { genre: "job"; statut: string; erreur: string | null }
     | null;
-  /** La décision d'itération lue sur la proposition de la tâche (étapes agent et réécriture, run terminé). */
+  /** The iteration decision read from the task's proposal (agent and rewrite steps, finished run). */
   decision: DecisionIteration | null;
 };
 
@@ -87,7 +87,7 @@ export type DecisionDemande =
 
 const ACTIF = ["en_attente", "en_cours"];
 
-/** La suite à donner à l'étape courante d'une itération de plan. Pure : toute la logique de l'enchaînement est ici (testée). */
+/** The next step to take for a clip iteration's current step. Pure: all the chaining logic is here (tested). */
 export function deciderIteration(etape: CleEtapeIteration, obs: ObservationIteration): DecisionDemande {
   const t = obs.tache;
   if (!t) return { type: "echouer", erreur: "La tâche de cette étape n'existe plus." };
@@ -99,7 +99,7 @@ export function deciderIteration(etape: CleEtapeIteration, obs: ObservationItera
     return { type: "echouer", erreur: "Le rendu n'a pas abouti." };
   }
 
-  // agent, réécriture : la tâche d'agent est finie, sa proposition dit la suite.
+  // agent, rewrite: the agent task is finished, its proposal says what comes next.
   if (t.statut === "annulee") return { type: "annuler" };
   if (t.statut === "echoue") return { type: "echouer", erreur: t.erreur ?? "L'agent a échoué." };
   const d = obs.decision;
@@ -112,9 +112,9 @@ export function deciderIteration(etape: CleEtapeIteration, obs: ObservationItera
   return { type: "echouer", erreur: "La recompilation de la fiche demande encore d'être recompilée : relance « Itérer »." };
 }
 
-// --- « Ajouter un plan » (page Scénario) -------------------------------------------------------------------------------------------------
-// Une demande à deux étapes : l'agent écrit le plan, puis il est ajouté à la scène SANS relecture (on le relit dans sa fiche). Une seule à la fois
-// par film (la cible est l'épisode) : deux ajouts qui se lisent l'un l'autre sans se connaître donneraient des plans qui se répètent.
+// --- « Ajouter un plan » (Screenplay page) -----------------------------------------------------------------------------------------------
+// A two-step request: the agent writes the clip, then it is added to the scene WITHOUT review (we re-read it in its sheet). Only one at a time
+// per film (the target is the episode): two additions that read each other without knowing each other would give clips that repeat.
 
 const ETAPES_AJOUT_PLAN = [
   { cle: "agent", libelle: "L'agent écrit le plan" },
@@ -123,21 +123,21 @@ const ETAPES_AJOUT_PLAN = [
 
 export const etapesAjoutPlan = (): EtapeDemande[] => ETAPES_AJOUT_PLAN.map((e, i) => ({ cle: e.cle, libelle: e.libelle, statut: i === 0 ? ("en_cours" as const) : ("a_venir" as const) }));
 
-/** Ce qu'il faut pour finir un ajout de plan : la consigne, où il va (scène + place), la tâche d'agent, puis le plan créé. */
+/** What is needed to finish a clip addition: the instruction, where it goes (scene + place), the agent task, then the clip created. */
 export type ContexteAjoutPlan = {
   consigne: string;
   sceneId: number | null;
-  /** « III · La Fuite » : pour la file et la page. */
+  /** « III · La Fuite »: for the queue and the page. */
   scene: string;
-  /** La place dans l'épisode : après un plan, ou au début. */
+  /** The place in the episode: after a clip, or at the start. */
   position: { apresPlanUuid: string } | { debut: true };
   runUuid?: string;
-  /** Le plan créé, une fois ajouté (la file y mène). */
+  /** The clip created, once added (the queue leads to it). */
   planUuid?: string;
   titre?: string;
 };
 
-/** Ce que la proposition de l'agent permet de faire d'un ajout de plan. Pure : ne regarde que le changement qui CRÉE le plan. */
+/** What the agent's proposal allows for a clip addition. Pure: only looks at the change that CREATES the clip. */
 export type DecisionAjout = { action: "attendre" } | { action: "fait" } | { action: "echec"; erreur: string } | { action: "appliquer"; planChangementId: number; changementIds: number[]; titre: string };
 
 type PropositionAjout = {
@@ -160,10 +160,10 @@ export function decisionAjoutPlan(prop: PropositionAjout | null): DecisionAjout 
   return { action: "appliquer", planChangementId: plan.id, changementIds: tous.map((c) => c.id), titre };
 }
 
-// --- « Nouvelle scène » (page Scénario) --------------------------------------------------------------------------------------------------
-// Même mécanique que l'ajout d'un plan : l'agent écrit UNE scène (son titre, sa fonction, son genre, son ambiance et ses plans, en lisant les scènes
-// voisines), elle est ajoutée au film SANS relecture, et on la relit dans la page. Même cible (l'épisode) : une seule demande de ce genre à la fois
-// par film, plan ou scène (l'index unique partiel de `demandes`).
+// --- « Nouvelle scène » (Screenplay page) -----------------------------------------------------------------------------------------------
+// Same mechanism as the clip addition: the agent writes ONE scene (its title, its function, its genre, its mood and its clips, reading the
+// neighbouring scenes), it is added to the film WITHOUT review, and we re-read it on the page. Same target (the episode): only one request of
+// this kind at a time per film, clip or scene (the partial unique index of `demandes`).
 
 const ETAPES_AJOUT_SCENE = [
   { cle: "agent", libelle: "L'agent écrit la scène" },
@@ -175,18 +175,18 @@ export const etapesAjoutScene = (): EtapeDemande[] => ETAPES_AJOUT_SCENE.map((e,
 export type { PlaceScene };
 
 export type ContexteAjoutScene = {
-  /** Le briefing de l'auteur ; vide = l'agent propose la suite. */
+  /** The author's briefing; empty = the agent proposes what follows. */
   consigne: string;
   place: PlaceScene;
-  /** « Après III · La Fuite » ou « Au début du film » : pour la file. */
+  /** « Après III · La Fuite » or « Au début du film »: for the queue. */
   apres: string;
   runUuid?: string;
-  /** La scène créée, une fois ajoutée (la file y mène). */
+  /** The scene created, once added (the queue leads to it). */
   sceneId?: number;
   titre?: string;
 };
 
-/** Ce que la proposition de l'agent permet de faire d'une scène neuve : elle doit créer UNE scène (et ses plans) ; tout le reste reste décoché. Pure. */
+/** What the agent's proposal allows for a new scene: it must create ONE scene (and its clips); everything else stays unticked. Pure. */
 export type DecisionAjoutScene = { action: "attendre" } | { action: "fait" } | { action: "echec"; erreur: string } | { action: "appliquer"; changementIds: number[]; tous: number[]; titre: string };
 
 export function decisionAjoutScene(prop: PropositionAjout | null): DecisionAjoutScene {
@@ -207,14 +207,14 @@ export function decisionAjoutScene(prop: PropositionAjout | null): DecisionAjout
   return { action: "appliquer", changementIds: retenus.map((c) => c.id), tous: tous.map((c) => c.id), titre };
 }
 
-// --- « Générer la fiche » d'un plan (pages Scénario et Plan) -----------------------------------------------------------------------------
-// Cible = le plan : une seule demande à la fois par plan, et jamais en même temps qu'une itération de ce plan (même index unique partiel).
-// Depuis la vague 4a (2026-11-09, lib/h3ir/preparation.ts), Open H3 IR est le SEUL moteur : la demande PRÉPARE le plan (références, assets manquants,
-// prompts, images) puis le COMPILE ; la fiche est enregistrée SANS relecture (on la relit dans la page du plan) et peut remplacer une fiche existante
-// (le clic vaut confirmation ; l'ancien prompt reste dans l'historique). Chemin rapide : un plan dont les références ont toutes leur image va droit à
-// la compilation (les étapes de préparation sont « passées »).
+// --- « Générer la fiche » of a clip (Screenplay and Clip pages) --------------------------------------------------------------------------
+// Target = the clip: only one request at a time per clip, and never at the same time as an iteration of this clip (same partial unique index).
+// Since wave 4a (2026-11-09, lib/h3ir/preparation.ts), Open H3 IR is the ONLY engine: the request PREPARES the clip (references, missing assets,
+// prompts, images) then COMPILES it; the sheet is saved WITHOUT review (we re-read it on the clip's page) and may replace an existing sheet
+// (the click is confirmation; the old prompt stays in the history). Fast path: a clip whose references all have their image goes straight to
+// compilation (the preparation steps are « passées »).
 
-/** Les étapes d'une fiche Open H3 IR (préparation puis compilation). Les libellés des étapes assets / prompts / images se complètent en cours de route
+/** The steps of an Open H3 IR sheet (preparation then compilation). The labels of the assets / prompts / images steps are completed along the way
  * (« Création d'assets (2) », « Images (1/3) »). */
 const ETAPES_PREPARATION_FICHE = [
   { cle: "references", libelle: "Choix des références" },
@@ -224,7 +224,7 @@ const ETAPES_PREPARATION_FICHE = [
   { cle: "compilation", libelle: "Compilation Open H3 IR" },
 ] as const;
 
-/** `preparation` : plan à préparer ; `rapide` : références prêtes (compilation directe). */
+/** `preparation`: clip to prepare; `rapide`: references ready (direct compilation). */
 export type ParcoursFichePlan = "preparation" | "rapide";
 
 export const etapesFichePlan = (parcours: ParcoursFichePlan = "preparation"): EtapeDemande[] => {
@@ -235,38 +235,38 @@ export const etapesFichePlan = (parcours: ParcoursFichePlan = "preparation"): Et
   }));
 };
 
-/** Change le libellé d'une étape (compteurs « Images (1/3) »). Pur. */
+/** Changes the label of a step (counters « Images (1/3) »). Pure. */
 export const renommerEtape = (etapes: EtapeDemande[], cle: string, libelle: string): EtapeDemande[] => etapes.map((e) => (e.cle === cle ? { ...e, libelle } : e));
 
-/** Ce que la préparation d'un plan garde entre deux tours du pilote (rien en mémoire). */
+/** What a clip's preparation keeps between two turns of the pilot (nothing in memory). */
 type ContextePreparation = {
-  /** Rechoisir les références même si le plan en a déjà (demande explicite ; jamais par défaut). */
+  /** Re-choose the references even if the clip already has some (explicit request; never by default). */
   rechoisir?: boolean;
-  /** La tâche `references-plan` (posée seulement en cas de doute du code). */
+  /** The `references-plan` task (only posted in case of doubt from the code). */
   referencesRunUuid?: string;
-  /** Les assets créés pour ce plan (manquants), par code. */
+  /** The assets created for this clip (missing ones), by code. */
   assetsCrees?: string[];
-  /** Le lot `prompt-asset` posé pour les références sans prompt. */
+  /** The `prompt-asset` batch posted for the references without a prompt. */
   promptsPropositionUuid?: string;
-  /** Les codes dont la génération d'image a été lancée par cette demande. */
+  /** The codes whose image generation was launched by this request. */
   imagesLancees?: string[];
 };
 
 export type ContexteFichePlan = {
-  /** Le titre du plan : pour la file. */
+  /** The clip's title: for the queue. */
   titre: string;
   planUuid: string;
-  /** La dernière tâche d'agent posée (choix des références, prompts, compilation) : la ligne du panneau suit son état. */
+  /** The last agent task posted (choice of references, prompts, compilation): the panel's line follows its state. */
   runUuid?: string;
-  /** Réglages Open H3 IR choisis au lancement (absents : ceux du plan, de sa scène ou du projet). */
+  /** Open H3 IR settings chosen at launch (absent: those of the clip, its scene or the project). */
   reglagesH3ir?: { shots?: number | null; director?: string | null; creativity?: string | null };
   preparation?: ContextePreparation;
-  /** Ce que la demande a à dire à la fin (références choisies, assets créés). */
+  /** What the request has to say at the end (references chosen, assets created). */
   notes?: string[];
 };
 
-/** Ce que la proposition de l'agent permet de faire d'une fiche : elle doit écrire la fiche ; les assets manquants qu'elle cite sont créés avec (elle
- * s'applique après eux). Pure. */
+/** What the agent's proposal allows for a sheet: it must write the sheet; the missing assets it cites are created with it (it
+ * is applied after them). Pure. */
 export type DecisionFichePlan = { action: "attendre" } | { action: "fait" } | { action: "echec"; erreur: string } | { action: "appliquer"; changementIds: number[] };
 
 export function decisionFichePlan(prop: PropositionAjout | null): DecisionFichePlan {
@@ -279,12 +279,12 @@ export function decisionFichePlan(prop: PropositionAjout | null): DecisionFicheP
   if (!fiche) return { action: "echec", erreur: "L'agent n'a pas proposé de fiche." };
   if (fiche.refuseRaison) return { action: "echec", erreur: fiche.refuseRaison };
   if (fiche.bloque) return { action: "echec", erreur: fiche.avertissements.find((w) => w.type === "bloque_controle")?.texte ?? "Un contrôle empêche d'enregistrer cette fiche." };
-  // Les créations d'assets refusées ou bloquées restent décochées ; la fiche, elle, ne dépend que de celles qu'elle cite.
+  // The asset creations refused or blocked stay unticked; the sheet itself depends only on those it cites.
   const retenus = tous.filter((c) => c.id === fiche.id || (c.cibleType === "asset" && c.operation === "creer" && !c.refuseRaison && !c.bloque));
   return { action: "appliquer", changementIds: retenus.map((c) => c.id) };
 }
 
-/** Passe l'étape `cle` à `statut` et lance la suivante si on vient de la finir ; `sauter` les marque « passées » (ex. pas de réécriture). */
+/** Moves step `cle` to `statut` and launches the next one if we have just finished it; `sauter` marks them « passées » (e.g. no rewrite). */
 export function avancerEtapes(etapes: EtapeDemande[], cle: string, statut: StatutEtapeDemande, sauter: string[] = []): EtapeDemande[] {
   const res = etapes.map((e) => (e.cle === cle ? { ...e, statut } : sauter.includes(e.cle) ? { ...e, statut: "passe" as const } : e));
   if (statut === "fait" || statut === "passe") {

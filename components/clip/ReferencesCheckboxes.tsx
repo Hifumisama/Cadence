@@ -12,7 +12,7 @@ import { AssetPickerModal, type NoeudPicker } from "@/components/clip/AssetPicke
 import { Icone } from "@/components/ui/Icon";
 import "../plan/atelier.css";
 
-/** Délai d'un double-clic : le clic simple sur une image (zoom) attend ce délai pour laisser passer un éventuel second clic. */
+/** Double-click delay: a single click on an image (zoom) waits this delay to let a possible second click through. */
 const DELAI_DOUBLE_CLIC_MS = 260;
 
 export type RefVue = {
@@ -36,7 +36,7 @@ const LABEL_TYPE: Record<Type, string> = { picture: "Picture", video: "Video", a
 const NOM_TYPE: Record<Type, string> = { picture: "Image", video: "Vidéo", audio: "Audio" };
 const NOM_TYPE_PLURIEL: Record<Type, string> = { picture: "Images", video: "Vidéos", audio: "Audios" };
 
-// Nature de média attendue pour chaque type de référence.
+// Expected media kind for each reference type.
 const KIND_PAR_TYPE: Record<Type, MediaKind> = { picture: "image", video: "video", audio: "audio" };
 
 const TITRE_GALERIE: Record<Type, string> = {
@@ -53,7 +53,7 @@ function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
       </div>
     );
   }
-  // Image et vidéo : agrandissables en plein écran (MediaZoom). Audio : note, le lecteur est dans la galerie.
+  // Image and video: can be enlarged full screen (MediaZoom). Audio: a note, the player is in the gallery.
   if (asset.kind === "audio") {
     return (
       <div className="ref-thumb is-audio">
@@ -74,16 +74,16 @@ function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
   );
 }
 
-/** Les références du plan, à côté du lecteur : des CASES, une par emplacement que H3 accepte (6 images, 2 vidéos, 3 audios). Une case pleine montre
- * l'image, la vidéo (agrandissable) ou la note de l'audio, avec son label `<Picture 1>` tel qu'il est cité dans le prompt ; une case vide propose
- * d'y mettre un asset du registre. Ajouter ou retirer une référence réécrit le prompt côté serveur (déclaration, renumérotation). */
+/** The clip's references, beside the player: BOXES, one per slot that H3 accepts (6 images, 2 videos, 3 audios). A filled box shows the
+ * image, the video (enlargeable) or the audio note, with its `<Picture 1>` label as cited in the prompt; an empty box offers to put a
+ * registry asset in it. Adding or removing a reference rewrites the prompt server-side (declaration, renumbering). */
 export function ReferencesCases({ planId, projectId, refs, assets }: { planId: number; projectId: number; refs: RefVue[]; assets: NoeudPicker[] }) {
   const router = useRouter();
   const [choix, setChoix] = useState<Type | null>(null);
   const hrefAsset = (code: string) => `/p/${projectId}/assets/${code}`;
 
-  // Double-clic sur une case pleine : la fiche de l'asset. Le clic simple sur une image ouvre le zoom (MediaZoom) : il est retenu un instant (capture) pour
-  // qu'un second clic l'annule, puis rejoué tel quel. Les clics dans la fenêtre de zoom, sur une vidéo (ses contrôles) ou un bouton ne sont pas concernés.
+  // Double-click on a filled box: the asset's sheet. A single click on an image opens the zoom (MediaZoom): it is held for a moment (capture) so that
+  // a second click cancels it, then replayed as is. Clicks inside the zoom window, on a video (its controls) or on a button are not concerned.
   const minuteurZoom = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rejoue = useRef(false);
   useEffect(() => () => void (minuteurZoom.current && clearTimeout(minuteurZoom.current)), []);
@@ -97,7 +97,7 @@ export function ReferencesCases({ planId, projectId, refs, assets }: { planId: n
     e.stopPropagation();
     e.preventDefault();
     if (minuteurZoom.current) {
-      // Second clic : c'est un double-clic, le zoom n'aura pas lieu.
+      // Second click: it is a double-click, the zoom will not happen.
       clearTimeout(minuteurZoom.current);
       minuteurZoom.current = null;
       return;

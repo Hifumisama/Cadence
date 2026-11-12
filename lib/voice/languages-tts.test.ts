@@ -29,6 +29,6 @@ test("langueMoteurVoix : la sortie est TOUJOURS un nom accepté par le moteur (a
   for (const entree of ["Français", "French", "fr", "anglais", "Deutsch", "日本語?", "", null, undefined, "n'importe quoi", "Sans dialogue", "中文", "Mandarin"]) {
     assert.ok(acceptes.has(langueMoteurVoix(entree)), String(entree));
   }
-  // Idempotent : un nom du moteur ressort tel quel.
+  // Idempotent: an engine name comes back unchanged.
   for (const l of LANGUES_MOTEUR) assert.equal(langueMoteurVoix(l.valeur), l.valeur);
 });

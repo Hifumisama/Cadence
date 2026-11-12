@@ -112,7 +112,7 @@ test("sauvegarde en session : aller-retour, et toute valeur inattendue retombe s
   assert.equal(abime.ton, 68, "ton non ajusté : recalculé depuis les genres");
 });
 
-// --- Étape « Mise en scène » (créativité et style de mise en scène d'Open H3 IR, étape 6 de /nouveau) ---------------------------
+// --- « Mise en scène » step (creativity and staging style of Open H3 IR, step 6 of /nouveau) ---------------------------
 
 test("mise en scène : sixième étape, départ coché (équilibrée, aucun style), toujours franchissable", () => {
   assert.equal(DERNIERE_ETAPE, 5);
@@ -121,7 +121,7 @@ test("mise en scène : sixième étape, départ coché (équilibrée, aucun styl
   const e = etatInitial();
   assert.deepEqual([e.creativite, e.styleCamera], ["balanced", "aucun"]);
   assert.equal(etapeValide(5, e, tout), true, "rien à remplir : on peut continuer sans toucher à rien");
-  // etapeMax atteint l'étape de mise en scène dès que genre et style sont posés.
+  // etapeMax reaches the staging step as soon as genre and style are set.
   const pret: EtatAssistant = { ...basculerGenre(etatInitial(), "Drame"), style: { source: "bibliotheque", styleId: "x" } };
   assert.equal(etapeMax(pret, tout), 5);
 });
@@ -133,7 +133,7 @@ test("mise en scène : résumé du ruban (créativité · style) et charge utile
   const charge = versCharge({ ...etatInitial(), creativite: "extreme", styleCamera: "wong" });
   assert.equal(charge.creativite, "extreme");
   assert.equal(charge.styleCamera, "wong");
-  // La validation du serveur ignore ces clés : elle reste stricte sur la conception, qui ne les porte pas.
+  // The server's validation ignores these keys: it stays strict on the design, which does not carry them.
   const base: EtatAssistant = { ...basculerGenre(etatInitial(), "Drame"), style: { source: "bibliotheque", styleId: "gouache" }, creativite: "bold", styleCamera: "wong" };
   assert.ok(validerConception(versCharge(base), [{ id: "gouache" }]).ok);
 });
@@ -145,7 +145,7 @@ test("mise en scène : une session plus ancienne (sans ces champs) ou abîmée r
   assert.deepEqual([abime.creativite, abime.styleCamera], ["balanced", "aucun"]);
   const choisi: EtatAssistant = choisirMiseEnScene({ ...etatInitial(), creativite: "restrained" }, "anderson");
   assert.deepEqual(lireEtatSauvegarde(JSON.stringify(choisi)), choisi);
-  // Une session d'avant le champ `miseEnSceneChoisie` : un style autre que « aucun » ne peut venir que d'un choix manuel, il est gardé.
+  // A session from before the `miseEnSceneChoisie` field: a style other than « aucun » can only come from a manual choice, it is kept.
   const vieux = lireEtatSauvegarde(JSON.stringify({ genres: ["Drame"], style: { source: "bibliotheque", styleId: "claymation" }, styleCamera: "wong" }))!;
   assert.deepEqual([vieux.styleCamera, vieux.miseEnSceneChoisie], ["wong", true]);
 });
@@ -160,28 +160,28 @@ test("reglagesDepuisCharge : valeurs validées, repli sur le départ (jamais nul
   assert.deepEqual(reglagesDepuisCharge("texte"), { creativite: "balanced", styleCamera: "aucun" });
 });
 
-// --- Recommandation : le style du projet suggère une façon de filmer ----------------------------------------------------------
+// --- Recommendation: the project's style suggests a way of filming ----------------------------------------------------------
 
 test("recommandation : la mise en scène suit le style tant qu'elle n'a pas été choisie à la main, puis n'est plus jamais écrasée", () => {
   const avecStyle = (styleId: string, e: EtatAssistant = etatInitial()): EtatAssistant => ({ ...e, style: { source: "bibliotheque", styleId } });
-  // Un style recommandé : la suggestion est cochée toute seule.
+  // A recommended style: the suggestion is ticked automatically.
   const clay = suivreRecommandation(avecStyle("claymation"));
   assert.deepEqual([clay.styleCamera, clay.miseEnSceneChoisie], ["claymation", false]);
   assert.equal(miseEnSceneDuStyle(clay.style), "claymation");
-  // Le style change : la suggestion suit (autre recommandation, puis aucune).
+  // The style changes: the suggestion follows (another recommendation, then none).
   assert.equal(suivreRecommandation(avecStyle("ghibli-style", clay)).styleCamera, "anime-contemplatif");
   assert.equal(suivreRecommandation(avecStyle("van-gogh-style", clay)).styleCamera, "aucun");
-  // Un style libre n'a aucune recommandation.
+  // A free style has no recommendation.
   assert.equal(suivreRecommandation({ ...clay, style: { source: "libre", nom: "x", promptImage: "p", clause: "c" } }).styleCamera, "aucun");
-  // Un choix manuel (même « aucun ») n'est jamais écrasé par un changement de style.
+  // A manual choice (even « aucun ») is never overwritten by a style change.
   const manuel = choisirMiseEnScene(clay, "wong");
   assert.equal(suivreRecommandation(avecStyle("ghibli-style", manuel)).styleCamera, "wong");
   const sans = choisirMiseEnScene(clay, "aucun");
   assert.equal(suivreRecommandation(avecStyle("ghibli-style", sans)).styleCamera, "aucun");
-  // Un profil perso est envoyé au serveur comme n'importe quel choix, et le ruban le résume.
+  // A custom profile is sent to the server like any choice, and the ribbon summarises it.
   assert.equal(versCharge(clay).styleCamera, "claymation");
   assert.equal(resumeEtape(5, clay, () => null), "Équilibrée · Stop-motion en pâte à modeler");
-  // Le drapeau reste côté navigateur.
+  // The flag stays on the browser side.
   assert.equal("miseEnSceneChoisie" in versCharge(clay), false);
   assert.ok(validerConception(versCharge({ ...clay, genres: ["Drame"] }), [{ id: "claymation" }]).ok);
 });

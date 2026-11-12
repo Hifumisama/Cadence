@@ -7,14 +7,14 @@ import { AfficheZoom } from "@/components/posters/PosterZoom";
 import { BoutonAffiche } from "@/components/posters/PosterButton";
 import { Poster } from "@/components/ui/Poster";
 
-/** L'affiche du film, dans la carte d'identité du brief : on l'agrandit d'un clic, on en génère une avec l'IA, ou on charge sa propre image. Le titre
- * de l'affiche est celui du projet. */
+/** The film's poster, in the brief's identity card: enlarge it with one click, generate one with AI, or upload your own image. The poster's
+ * title is the project's. */
 export function AfficheFilm({ projectId, titre, src }: { projectId: number; titre: string; src: string | null }) {
   const router = useRouter();
   const [locale, setLocale] = useState<string | null>(src);
   const [envoi, startEnvoi] = useTransition();
 
-  // L'image qui vient d'être chargée s'affiche tout de suite ; la page serveur reprend la main dès qu'elle se recharge.
+  // The image just loaded shows up at once; the server page takes over again as soon as it reloads.
   useEffect(() => setLocale(src), [src]);
 
   const onChoisir = (e: React.ChangeEvent<HTMLInputElement>) => {

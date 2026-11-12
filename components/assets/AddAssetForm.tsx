@@ -8,7 +8,7 @@ import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, type TypeAsset } from "@
 import { LIBELLE_TYPE_ASSET } from "@/lib/assets/registry-types";
 import { Icone, type NomIcone } from "@/components/ui/Icon";
 
-/** Ce que chaque type veut dire, en une phrase, et un exemple de nom : le choix se fait sur des cartes, pas dans une liste. */
+/** What each type means, in one sentence, and an example name: the choice is made on cards, not in a list. */
 const TYPES: Record<TypeAsset, { icone: NomIcone; indice: string; exemple: string }> = {
   personnage: { icone: "personnage", indice: "Un visage, une silhouette, une tenue", exemple: "Maya la danseuse" },
   decor: { icone: "decor", indice: "Un lieu, une ambiance", exemple: "Le phare de sel" },
@@ -18,8 +18,8 @@ const TYPES: Record<TypeAsset, { icone: NomIcone; indice: string; exemple: strin
   oth: { icone: "autre", indice: "Tout ce qui ne rentre pas ailleurs", exemple: "Affiche du festival" },
 };
 
-/** « Nouveau sujet » : on choisit ce qu'on crée, on lui donne un nom, et on arrive sur la fiche (image, description et génération s'y
- * règlent). Le nom devient le `label` ; l'identifiant (le code) en est tiré une fois pour toutes, sans que l'utilisateur ait à le voir. */
+/** « Nouveau sujet » : you choose what to create, give it a name, and land on its sheet (image, description and generation are set there).
+ * The name becomes the `label`; the identifier (the code) is derived from it once and for all, without the user having to see it. */
 export function AjouterAssetForm({ projectId }: { projectId: number }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -37,7 +37,7 @@ export function AjouterAssetForm({ projectId }: { projectId: number }) {
     setErreur(null);
   };
 
-  // Échap ferme la fenêtre.
+  // Escape closes the window.
   useEffect(() => {
     if (!ouvert) return;
     const touche = (e: KeyboardEvent) => e.key === "Escape" && !pending && fermer();
@@ -59,7 +59,7 @@ export function AjouterAssetForm({ projectId }: { projectId: number }) {
     });
   };
 
-  // Flèches : on passe d'une carte à l'autre sans quitter le clavier.
+  // Arrows: move from one card to another without leaving the keyboard.
   const surFleche = (e: React.KeyboardEvent) => {
     const pas = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
     if (!pas) return;

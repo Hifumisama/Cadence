@@ -8,9 +8,9 @@ import type { EvenementSuivi } from "./types";
 import { decoderBinaire, decoderTexte } from "./wsDecoding";
 import { ouvrirSuiviWs, type EtatHistorique } from "./wsTracking";
 
-// Faux serveur WebSocket minimal (poignée de main + trames serveur → client) :
-// pas de dépendance, et on contrôle exactement ce qui part, y compris les
-// messages inconnus et les coupures.
+// Minimal fake WebSocket server (handshake + server → client frames):
+// no dependency, and we control exactly what goes out, including the
+// unknown messages and the cuts.
 
 const GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
@@ -60,18 +60,18 @@ function entete(type: number): Buffer {
 const u32 = (n: number) => entete(n);
 
 test("décodage binaire : aperçu simple, avec métadonnées, type inconnu, tronqué", () => {
-  // type 1 : [format 4 o] + image
+  // type 1: [format 4 bytes] + image
   const simple = decoderBinaire(Buffer.concat([entete(1), u32(2), PNG]));
   assert.equal(simple?.apercu?.format, "png");
   assert.deepEqual(simple?.apercu?.octets, PNG);
 
-  // type 4 : [longueur] + JSON + [format 4 o] + image
+  // type 4: [length] + JSON + [format 4 bytes] + image
   const meta = Buffer.from(JSON.stringify({ prompt_id: "p1", display_node_id: "30:3" }));
   const avec = decoderBinaire(Buffer.concat([entete(4), u32(meta.length), meta, u32(1), JPEG]));
   assert.equal(avec?.promptId, "p1");
   assert.equal(avec?.noeud, "30:3");
   assert.equal(avec?.apercu?.format, "jpeg");
-  // même chose sans l'octet de format après les métadonnées
+  // same thing without the format byte after the metadata
   const sans = decoderBinaire(Buffer.concat([entete(4), u32(meta.length), meta, JPEG]));
   assert.equal(sans?.apercu?.format, "jpeg");
 
@@ -127,7 +127,7 @@ test("suivi : séquence réaliste avec message binaire et JSON inconnus, jusqu'�
     srv.binaire(Buffer.concat([entete(99), Buffer.from("inconnu")]));
     srv.json("un_type_futur", { x: 1 });
     srv.binaire(Buffer.concat([entete(1), u32(2), PNG]));
-    srv.json("progress", { value: 2, max: 8, node: "30:3", prompt_id: "autre" }); // autre prompt : ignoré
+    srv.json("progress", { value: 2, max: 8, node: "30:3", prompt_id: "autre" }); // other prompt: ignored
     srv.json("progress", { value: 8, max: 8, node: "30:3", prompt_id: "p1" });
     srv.json("execution_success", { prompt_id: "p1" });
 

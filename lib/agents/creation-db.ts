@@ -24,9 +24,9 @@ import { tacheActive } from "./runs";
 import * as service from "./service";
 import type { Resultat } from "./types";
 
-/** Le PILOTE de l'installateur (règles dans lib/agents/creation.ts). `piloterCreations` est appelé à chaque tour de la
- * boucle du worker : une transition au plus par création en cours, état dans `creations_projet` (reprise sur
- * redémarrage, rien en mémoire). Les actions de l'interface (lancer, reprendre, arrêter) écrivent le même état. */
+/** The installer's PILOT (rules in lib/agents/creation.ts). `piloterCreations` is called on each turn of the
+ * worker loop: at most one transition per ongoing creation, state in `creations_projet` (resumed on
+ * restart, nothing in memory). The interface actions (launch, resume, stop) write the same state. */
 
 export type LigneCreation = typeof creationsProjet.$inferSelect;
 const ERR = (erreur: string) => ({ ok: false as const, erreur });
@@ -36,7 +36,7 @@ export async function lireCreation(projectId: number): Promise<LigneCreation | n
   return c ?? null;
 }
 
-// Les étapes retirées depuis (`voix`, les fiches de l'ancienne phase 2) sont ignorées : voir `normaliserEtapes`.
+// Steps removed since (`voix`, the sheets of the old phase 2) are ignored: see `normaliserEtapes`.
 const lireEtapes = (c: LigneCreation): EtapeCreation[] => (Array.isArray(c.etapes) ? normaliserEtapes(c.etapes) : etapesNeuves());
 
 async function ecrire(c: LigneCreation, etapes: EtapeCreation[], extra: { statut?: StatutCreation; erreur?: string | null } = {}): Promise<void> {
@@ -47,7 +47,7 @@ async function ecrire(c: LigneCreation, etapes: EtapeCreation[], extra: { statut
     .where(eq(creationsProjet.id, c.id));
 }
 
-/** Les tâches d'agent de la création d'un projet (voir creation-task.ts) : ce que la ligne « Conception » du header regroupe. */
+/** The project creation's agent tasks (see creation-task.ts): what the header's "Conception" line groups together. */
 export async function idsRunsDeCreation(projectId: number): Promise<number[]> {
   const c = await lireCreation(projectId);
   if (!c) return [];
@@ -61,8 +61,8 @@ export async function idsRunsDeCreation(projectId: number): Promise<number[]> {
   return runs.filter((r) => estDeLaCreation(r, f)).map((r) => r.id);
 }
 
-/** Lance l'installateur : une création par projet (une précédente, finie ou arrêtée, est remplacée). Refusé si une
- * création est déjà en cours, ou si le projet n'a ni brief ni conversation de départ. */
+/** Launches the installer: one creation per project (a previous one, finished or stopped, is replaced). Refused if a
+ * creation is already running, or if the project has neither a brief nor a starting conversation. */
 export async function lancerCreation(projectId: number): Promise<Resultat<{ creationId: number }>> {
   const existante = await lireCreation(projectId);
   if (existante?.statut === "en_cours") return ERR("Une création est déjà en cours pour ce projet.");
@@ -83,22 +83,22 @@ export async function lancerCreation(projectId: number): Promise<Resultat<{ crea
   return { ok: true, creationId: c!.id };
 }
 
-/** Reprend une création en échec ou arrêtée : l'étape bloquée repart de zéro (nouvelle proposition). */
+/** Resumes a creation that failed or was stopped: the blocked step starts over from zero (new proposal). */
 export async function reprendreCreation(projectId: number): Promise<Resultat> {
   const c = await lireCreation(projectId);
   if (!c) return ERR("Aucune création pour ce projet.");
   if (c.statut === "en_cours") return ERR("La création est déjà en cours.");
   if (c.statut === "termine") return ERR("La création est terminée.");
   const etapes = lireEtapes(c).map((e) => (estFinale(e) ? e : { ...e, statut: "a_venir" as const, essais: 0, erreur: null, propositionUuid: e.statut === "echoue" || e.statut === "en_cours" ? null : e.propositionUuid }));
-  // Une création ancienne arrêtée (ou en échec) sur une étape de fiches, retirée depuis, n'a plus rien à faire : elle se termine.
+  // An old creation stopped (or failed) on a sheets step, removed since, has nothing left to do: it ends.
   await ecrire(c, etapes, { statut: statutDepuisEtapes(etapes, "en_cours"), erreur: null });
   return { ok: true };
 }
 
-/** « Écrire les fiches » (écran des intents, après la création) : UNE DEMANDE `fiche-plan` PAR PLAN (lib/tasks/requests-db.ts : références, assets manquants,
- * prompts, images, compilation Open H3 IR), posées dans l'ordre du scénario, INDÉPENDANTES de la création (2026-11-09, vague 4b). Par défaut les plans
- * sans fiche ; `tous` : aussi ceux qui en ont une (recompilés, l'ancien prompt reste dans l'historique). Un plan dont une demande tourne déjà est sauté.
- * Refusé pendant qu'une création tourne : worker/images.ts retient alors les images du projet, les fiches attendraient. */
+/** "Écrire les fiches" (intents screen, after the creation): ONE `fiche-plan` REQUEST PER CLIP (lib/tasks/requests-db.ts: references, missing assets,
+ * prompts, images, Open H3 IR compilation), posed in screenplay order, INDEPENDENT of the creation (2026-11-09, wave 4b). By default the clips
+ * without a sheet; `tous`: also those that have one (recompiled, the old prompt stays in the history). A clip whose request is already running is skipped.
+ * Refused while a creation runs: worker/images.ts then holds back the project's images, the sheets would wait. */
 export async function lancerFichesApresCreation(projectId: number, options: { tous?: boolean } = {}): Promise<Resultat<{ lancees: number; demandeIds: number[]; erreurs: string[] }>> {
   const c = await lireCreation(projectId);
   if (c?.statut === "en_cours") return ERR("La préparation est encore en cours : les fiches s'écrivent une fois le scénario relu.");
@@ -113,7 +113,7 @@ export async function lancerFichesApresCreation(projectId: number, options: { to
   return { ok: true, ...r };
 }
 
-/** Arrête la création : ce qui tourne est annulé (rien n'est défait de ce qui est déjà écrit). */
+/** Stops the creation: what is running is cancelled (nothing already written is undone). */
 export async function arreterCreation(projectId: number): Promise<Resultat> {
   const c = await lireCreation(projectId);
   if (!c) return ERR("Aucune création pour ce projet.");
@@ -124,25 +124,25 @@ export async function arreterCreation(projectId: number): Promise<Resultat> {
   return { ok: true };
 }
 
-/** Un tour du pilote : fait avancer chaque création en cours d'une transition. Ne rejette jamais (une création qui
- * plante passe en échec avec son message, les autres continuent). Renvoie le nombre de créations touchées. */
+/** One turn of the pilot: advances each ongoing creation by one transition. Never rejects (a creation that
+ * crashes goes to failure with its message, the others carry on). Returns the number of creations touched. */
 export async function piloterCreations(options: { essais?: boolean } = {}): Promise<number> {
   const lignes = await db
     .select({ c: creationsProjet, nom: projects.nom })
     .from(creationsProjet)
     .innerJoin(projects, eq(projects.id, creationsProjet.projectId))
     .where(eq(creationsProjet.statut, "en_cours"));
-  // Les projets des essais bout en bout (essais bout en bout) sont pilotés par leur script, avec son faux modèle :
-  // le worker de dev ne les prend pas (il appellerait le vrai serveur LLM).
-  // Idem pour les rejeux : le script les pilote lui-même.
+  // The end-to-end test projects (end-to-end tests) are driven by their script, with its fake model:
+  // the dev worker does not take them (it would call the real LLM server).
+  // Same for replays: the script drives them itself.
   const enCours = lignes.filter((l) => options.essais || !(l.nom.startsWith("TEST_AGENTS_E2E") || l.nom.startsWith("REJEU "))).map((l) => l.c);
   let touchees = 0;
   for (const c of enCours) {
     try {
       if (await avancer(c)) touchees += 1;
-      // Les images dont le prompt est écrit partent tout de suite (voie ComfyUI), pendant que le LLM continue les étapes.
-      // Ce passage suit `avancer` : les prompts que l'étape qui vient de finir a écrits partent dans le même tour, y compris
-      // ceux de la dernière étape (worker/images.ts ne les prend qu'une fois la création terminée).
+      // Images whose prompt is written leave right away (ComfyUI route), while the LLM carries on with the steps.
+      // This pass follows `avancer`: the prompts the step that just finished wrote leave in the same turn, including
+      // those of the last step (worker/images.ts only takes them once the creation is finished).
       if ((await lancerImagesPretes(c.projectId)) > 0) touchees += 1;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -155,7 +155,7 @@ export async function piloterCreations(options: { essais?: boolean } = {}): Prom
   return touchees;
 }
 
-/** Observe la conversation et la proposition de l'étape courante. */
+/** Observes the conversation and the proposal of the current step. */
 async function observer(c: LigneCreation, cur: EtapeCreation, convId: number): Promise<ObservationEtape> {
   const [b] = await db.select({ statut: briefs.statut }).from(briefs).where(eq(briefs.projectId, c.projectId));
   const proposition = cur.propositionUuid ? await lireProposition(cur.propositionUuid) : null;
@@ -175,7 +175,7 @@ async function observer(c: LigneCreation, cur: EtapeCreation, convId: number): P
   };
 }
 
-/** Les clés des sous-tâches d'une proposition dont un changement est bloqué par un contrôle (non cochable). */
+/** The keys of the subtasks of a proposal in which a change is blocked by a check (not tickable). */
 async function sousTachesBloquees(propositionUuid: string): Promise<Set<string>> {
   const prop = await service.propositionParUuid(propositionUuid);
   if (!prop) return new Set();
@@ -227,8 +227,8 @@ async function avancer(c: LigneCreation): Promise<boolean> {
     }
     case "relancer-echecs": {
       const vue = await lireProposition(cur.propositionUuid!);
-      // Les sous-tâches en échec ET celles dont un changement est bloqué par un contrôle (relancées une fois : le modèle
-      // peut mieux faire, ex. recopier le bon code d'asset).
+      // The subtasks that failed AND those whose change is blocked by a check (re-run once: the model
+      // may do better, e.g. copy the right asset code).
       const bloquees = await sousTachesBloquees(cur.propositionUuid!);
       const aRelancer = (vue?.lot?.sousTaches ?? []).filter((s) => s.statut === "echoue" || s.statut === "annulee" || bloquees.has(s.cle));
       let derniereErreur: string | null = null;
@@ -250,8 +250,8 @@ async function avancer(c: LigneCreation): Promise<boolean> {
   return true;
 }
 
-/** Lance l'étape : appelle la fonction du service qui la porte. Un refus « rien à faire » passe l'étape, un refus
- * « occupé » la fait attendre, tout autre refus la fait échouer (avec la raison). */
+/** Launches the step: calls the service function that carries it. A "rien à faire" refusal passes the step, a
+ * "occupé" refusal makes it wait, any other refusal makes it fail (with the reason). */
 async function lancerEtape(projectId: number, cle: CleEtapeCreation, convUuid: string, etapes: EtapeCreation[]): Promise<{ type: "attendre" } | { type: "etat"; maj: Partial<EtapeCreation> }> {
   const passe = (detail: string) => ({ type: "etat" as const, maj: { statut: "passe" as const, detail } });
   const lance = (propositionUuid: string | null) => ({ type: "etat" as const, maj: { statut: "en_cours" as const, propositionUuid, erreur: null } });
@@ -268,7 +268,7 @@ async function lancerEtape(projectId: number, cle: CleEtapeCreation, convUuid: s
     case "brief":
       if (brief && brief.statut !== "partiel") return passe("Brief déjà écrit.");
       {
-        const r = await service.genererBrief(convUuid); // fige la fiche de notes en brouillon : immédiat, sans modèle
+        const r = await service.genererBrief(convUuid); // freezes the notes sheet into a draft: immediate, no model
         return r.ok ? passe("Brief écrit depuis la fiche de notes.") : issue(r);
       }
     case "squelette":

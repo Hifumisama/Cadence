@@ -31,7 +31,7 @@ test("avertissementDuree : silencieux dans ±20 %, sinon une info chiffrée", ()
 });
 
 const ep: EpisodeCourant = { id: 1, titre: "E", resume: "R", scenes: [], plans: [] };
-// Une ancienne sortie peut encore porter un `genre` (propositions d'avant le 2026-11-09) : il est lu sans erreur, puis ignoré.
+// An old output may still carry a `genre` (proposals from before 2026-11-09): it is read without error, then ignored.
 const sortie = {
   episode: { titre: "E", resume: "R" },
   scenes: [
@@ -52,7 +52,7 @@ test("depuisScenarioEpisode : l'ambiance passe à la création de scène ; un an
 
 test("depuisScenarioEpisode : l'écart de durée avec le brief est signalé sur le premier changement", () => {
   const avert = (cible: number | null) => depuisScenarioEpisode(sortie, ep, { dureeCibleSecondes: cible })[0]!.avertissements?.some((a) => /Durée totale/.test(a.texte)) ?? false;
-  assert.equal(avert(120), true); // 20 s pour 120 s
+  assert.equal(avert(120), true); // 20 s for 120 s
   assert.equal(avert(20), false);
   assert.equal(avert(null), false);
 });

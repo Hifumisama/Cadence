@@ -15,9 +15,9 @@ import { lireEtatImages } from "@/lib/assets/queries-images";
 
 export const dynamic = "force-dynamic";
 
-/** La neuvième étape de la conception : l'avancée de la préparation (l'installateur : brief, structure, traitement, scénarios, registre,
- * inventaire, relecture), sans validation intermédiaire, puis l'écran des intents d'où partent les fiches (une demande par plan, hors
- * création). Ici on suit l'avancement ; le worker fait le travail. Un projet créé avant la conception s'affiche sans le ruban ni l'affiche. */
+/** The ninth step of the project design: the progress of the preparation (the installer: brief, structure, treatment, screenplays, registry,
+ * inventory, review), without intermediate validation, then the intents screen from which the sheets start (one request per clip, outside
+ * creation). Here we follow the progress; the worker does the work. A project created before the design is shown without the ribbon or the poster. */
 export default async function CreationPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
   const pid = Number(projectId);

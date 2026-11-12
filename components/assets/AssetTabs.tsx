@@ -9,15 +9,15 @@ export type OngletAsset = {
   id: string;
   libelle: string;
   icone: NomIcone;
-  /** Un petit nombre à côté du libellé (les essais d'une image). */
+  /** A small number next to the label (the attempts of an image). */
   compte?: number;
-  /** Un point doré : quelque chose est en place (la voix du personnage est fixée). */
+  /** A gold dot: something is in place (the character's voice is set). */
   point?: boolean;
   contenu: ReactNode;
 };
 
-/** Les onglets d'une fiche d'asset : un par chose que l'asset sait faire (image, voix, son). Tous les panneaux restent montés, seul l'actif est
- * visible : un essai en cours ou un texte à moitié écrit n'est pas perdu en changeant d'onglet. L'onglet vit dans l'adresse (`?onglet=`). */
+/** The tabs of an asset sheet: one per thing the asset can do (image, voice, sound). All panels stay mounted, only the active one is
+ * visible: an attempt in progress or a half-written text is not lost when switching tabs. The tab lives in the address (`?onglet=`). */
 export function OngletsAsset({ onglets, initial }: { onglets: OngletAsset[]; initial: string }) {
   const [actif, setActif] = useState(onglets.some((o) => o.id === initial) ? initial : onglets[0]!.id);
 
@@ -29,7 +29,7 @@ export function OngletsAsset({ onglets, initial }: { onglets: OngletAsset[]; ini
       url.searchParams.delete("generation");
       window.history.replaceState(null, "", url);
     } catch {
-      // adresse indisponible : l'onglet reste choisi dans la page
+      // address unavailable: the tab stays selected in the page
     }
   };
 

@@ -9,12 +9,12 @@ import type { Edition } from "./types";
 type Liste = Record<string, unknown>[];
 const AVEC_STATUT = ["personnages", "lieux"];
 
-/** Sections dont la saisie tient sur une seule ligne (les autres : zone de texte). */
+/** Sections whose input fits on a single line (the others: textarea). */
 const UNE_LIGNE = ["titre", "langueDialogues", "genreTon", "dureeEpisodeSecondes"];
 
-/** L'éditeur EN LIGNE : il prend la place du contenu du bloc cliqué (plus de panneau latéral). Il modifie une valeur
- * simple ou UN élément d'une liste d'objets (personnage, lieu). Enregistrer marque la section comme « fournie » (côté serveur).
- * Échap annule, Ctrl/Cmd + Entrée enregistre. */
+/** The IN-LINE editor: it takes the place of the clicked block's content (no more side panel). It edits a simple value or ONE element
+ * of an object list (character, location). Saving marks the section as « fournie » (server side).
+ * Escape cancels, Ctrl/Cmd + Enter saves. */
 export function EditeurBrief({
   edition,
   contenu,
@@ -60,7 +60,7 @@ export function EditeurBrief({
       if (premier && premier.type !== "bool" && !String(champs[premier.cle] ?? "").trim()) return `« ${premier.libelle} » est obligatoire.`;
       const nettoye: Record<string, unknown> = { ...champs };
       for (const c of formulaire?.champs ?? []) if (typeof nettoye[c.cle] === "string") nettoye[c.cle] = (nettoye[c.cle] as string).trim();
-      // Une correction à la main : le personnage ou le lieu passe à « fourni ».
+      // A manual correction: the character or location switches to « fourni ».
       if (AVEC_STATUT.includes(edition.cle)) nettoye.statut = "fourni";
       const suite = edition.index < objets.length ? objets.map((x, i) => (i === edition.index ? nettoye : x)) : [...objets, nettoye];
       return onEnregistrer(edition.cle, suite);

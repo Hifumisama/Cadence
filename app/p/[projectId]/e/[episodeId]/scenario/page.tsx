@@ -10,8 +10,8 @@ import { romain } from "@/lib/clips/screenplay-view";
 
 export const dynamic = "force-dynamic";
 
-/** Le scénario : le texte du film, en continu et au format de script (scènes dans l'ordre, puis les plans sans scène), à relire et à retoucher. La frise de
- * travail (vignettes, fiches, rendus) est la page Tournage (`../tournage`). */
+/** The screenplay: the film's text, continuous and in script format (scenes in order, then clips without a scene), to re-read and retouch. The work
+ * strip (thumbnails, sheets, renders) is the Tournage page (`../tournage`). */
 export default async function ScenarioPage({ params, searchParams }: { params: Promise<{ projectId: string; episodeId: string }>; searchParams: Promise<{ scene?: string }> }) {
   const { projectId, episodeId } = await params;
   const { scene } = await searchParams;
@@ -21,10 +21,10 @@ export default async function ScenarioPage({ params, searchParams }: { params: P
 
   const [projet, episode, { scenes, sansScene }, intentions, pellicule, { ajout, ajoutScene }] = await Promise.all([getProject(pid), getEpisode(eid), getScenarioData(eid), intentionsPerimees(eid), getPelliculePlans(eid), ajoutsEnCours(eid)]);
   if (!projet || !episode || episode.projectId !== pid) notFound();
-  // L'image d'un plan : la vidéo de son rendu retenu, sinon de son dernier rendu terminé (la même que la pellicule du Tournage).
+  // A clip's image: the video of its kept render, otherwise of its last finished render (the same as the Tournage film strip).
   const imageParPlan = new Map(pellicule.map((p) => [p.uuid, srcRendu(p.vignette)]));
 
-  // Le minutage de départ d'un plan est la somme des durées de ceux qui le précèdent (scènes dans l'ordre), comme sur la page Scénario.
+  // A clip's start timing is the sum of the durations of those before it (scenes in order), as on the Scénario page.
   let cumul = 0;
   const lire = (plan: (typeof sansScene)[number]): PlanLecture => {
     const debut = cumul;
@@ -47,7 +47,7 @@ export default async function ScenarioPage({ params, searchParams }: { params: P
     const plans = sc.plans.map(lire);
     return { cle: String(sc.id), titre: sc.titre, numero: romain(i + 1), fonction: sc.fonction, ambiance: sc.ambiance, duree: plans.reduce((n, p) => n + p.duree, 0), plans };
   });
-  // « Sans scène » n'apparaît que s'il reste des plans orphelins (anciens films), pour ne pas les rendre invisibles.
+  // « Sans scène » only appears if orphan clips remain (old films), so as not to make them invisible.
   if (sansScene.length > 0) {
     const plans = sansScene.map(lire);
     lues.push({ cle: "sans", titre: "Sans scène", numero: null, fonction: null, ambiance: null, duree: plans.reduce((n, p) => n + p.duree, 0), plans });

@@ -3,20 +3,20 @@ import { join } from "node:path";
 import type { EvenementSuivi, IssueSuivi, Suivi } from "./types";
 import { decoderBinaire, decoderTexte } from "./wsDecoding";
 
-// Suivi d'un prompt par le WebSocket de ComfyUI (`/ws?clientId=…`). Il s'ajoute
-// au client HTTP, il ne le remplace pas : /history reste la source de vérité
-// du résultat et le repli si le WebSocket tombe.
+// Tracking of a prompt through ComfyUI's WebSocket (`/ws?clientId=…`). It is added
+// to the HTTP client, it does not replace it: /history remains the source of truth
+// for the result and the fallback if the WebSocket drops.
 
 export type EtatHistorique = "termine" | "erreur" | "en_cours";
 
 export type OptionsSuivi = {
-  /** URL de base HTTP(S) de ComfyUI, ex. https://comfyui.radiant-garden.fr */
+  /** Base HTTP(S) URL of ComfyUI, e.g. https://comfyui.radiant-garden.fr */
   baseUrl: string;
   clientId: string;
   surEvenement: (e: EvenementSuivi) => void;
-  /** Lecture de /history, pour confirmer une fin manquée par le WebSocket. */
+  /** Reads /history, to confirm an end the WebSocket missed. */
   etatHistorique: (promptId: string) => Promise<EtatHistorique>;
-  /** Dossier du journal brut (COMFYUI_WS_DEBUG=1), ou undefined. */
+  /** Folder of the raw log (COMFYUI_WS_DEBUG=1), or undefined. */
   dossierDebug?: string;
   delaiOuvertureMs?: number;
   intervalleHistoriqueMs?: number;
@@ -63,7 +63,7 @@ export async function ouvrirSuiviWs(opts: OptionsSuivi): Promise<Suivi> {
     try {
       opts.surEvenement(e);
     } catch {
-      // un consommateur défaillant ne doit pas couper le suivi
+      // a failing consumer must not cut the tracking
     }
   };
 
@@ -113,7 +113,7 @@ export async function ouvrirSuiviWs(opts: OptionsSuivi): Promise<Suivi> {
     try {
       ws.close();
     } catch {
-      // déjà fermé
+      // already closed
     }
     return SUIVI_MORT;
   }
@@ -133,7 +133,7 @@ export async function ouvrirSuiviWs(opts: OptionsSuivi): Promise<Suivi> {
     try {
       ws.close();
     } catch {
-      // déjà fermé
+      // already closed
     }
   };
 
@@ -144,14 +144,14 @@ export async function ouvrirSuiviWs(opts: OptionsSuivi): Promise<Suivi> {
       const echeance = Date.now() + delaiMs;
       const intervalle = opts.intervalleHistoriqueMs ?? 5_000;
 
-      // Un prompt court peut avoir fini avant qu'on le suive : /history tranche.
+      // A short prompt may have finished before we track it: /history decides.
       const verifier = async (): Promise<IssueSuivi | null> => {
         try {
           const etat = await opts.etatHistorique(promptId);
           if (etat === "termine") return "termine";
           if (etat === "erreur") return "erreur";
         } catch {
-          // injoignable : on s'en remet au WebSocket
+          // unreachable: we rely on the WebSocket
         }
         return null;
       };

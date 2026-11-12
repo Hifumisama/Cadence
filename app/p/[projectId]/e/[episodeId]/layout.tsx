@@ -20,7 +20,7 @@ export default async function EpisodeLayout({
 
   const base = `/p/${pid}/e/${eid}`;
 
-  // Le fil d'Ariane s'arrête au nom du projet : l'épisode unique du film n'apparaît jamais dans la nav.
+  // The breadcrumb stops at the project name: the film's single episode never appears in the nav.
   const trail = (
     <>
       <Link href="/">Projets</Link>
@@ -33,7 +33,7 @@ export default async function EpisodeLayout({
     <>
       <Topbar trail={trail} tabs={{ projectId: pid, episodeBase: base }} />
       <main className="page">
-        {/* L'identité du film (titre, affiche, résumé, style) vit dans le brief ; les pages de travail ne gardent que la prochaine étape. */}
+        {/* The film's identity (title, poster, summary, style) lives in the brief; the work pages only keep the next step. */}
         <ProchaineEtape projectId={pid} />
         {children}
       </main>

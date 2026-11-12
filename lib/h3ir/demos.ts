@@ -1,40 +1,40 @@
 import { CREATIVITES, STYLE_AUCUN } from "./settings";
 import { STYLES_CAMERA } from "./styles-camera";
 
-// --- Identifiants des démos (noms de fichiers sous data/mises-en-scene/) --------------------------------------------------------------------------
+// --- Demo identifiers (file names under data/mises-en-scene/) --------------------------------------------------------------------------
 
 export const cleDemoStyle = (style: string): string => `style-${style}`;
 export const cleDemoCreativite = (niveau: string): string => `creativite-${niveau}`;
 
-/** Les 8 démos de style (« aucun » + les 7 profils) puis les 4 de créativité. */
+/** The 8 style demos (« aucun » + the 7 profiles), then the 4 creativity ones. */
 const CLES_DEMOS_STYLES: readonly string[] = [STYLE_AUCUN, ...STYLES_CAMERA].map(cleDemoStyle);
 const CLES_DEMOS_CREATIVITE: readonly string[] = CREATIVITES.map(cleDemoCreativite);
 export const CLES_DEMOS: readonly string[] = [...CLES_DEMOS_STYLES, ...CLES_DEMOS_CREATIVITE];
 
-/** Le chemin RELATIF à MEDIA_ROOT d'une démo (`/api/media/<chemin>` pour la servir). */
+/** The path RELATIVE to MEDIA_ROOT of a demo (`/api/media/<chemin>` to serve it). */
 export const cheminDemo = (cle: string, ext: "mp4" | "webp"): string => `mises-en-scene/${cle}.${ext}`;
 
-/** Ce que l'écran sait d'une démo produite. */
+/** What the screen knows about a produced demo. */
 export type DemoDispo = { video: string; affiche: string | null };
 
-// --- La scène : « La poursuite sur le toit » ----------------------------------------------------------------------------------------------------
+// --- The scene: « La poursuite sur le toit » ----------------------------------------------------------------------------------------------------
 
-/** La narration, volontairement ouverte : AUCUN mot de lumière, de couleur, de cadrage ni de mouvement de caméra (Open H3 IR les verrait comme des consignes et laisserait moins
- * de place au style : h3ir/licence.py), AUCUN nom de réalisateur. */
+/** The narration, deliberately open: NO word of light, colour, framing or camera movement (Open H3 IR would read them as directions and leave less room
+ * for the style: h3ir/licence.py), NO director's name. */
 export const NARRATION_DEMOS =
   "Une femme fuit en courant sur le toit plat d'un immeuble. Au bord du vide, elle ne ralentit pas : elle prend son élan et saute par-dessus l'écart de trois mètres, quatre étages au-dessus de la rue. Elle retombe de justesse sur le toit voisin, roule sur le béton et se relève, à bout de souffle. Resté de l'autre côté, un homme la regarde, sidéré, incapable de la suivre.";
 export const REPLIQUES_DEMOS = ["L'homme : « Tu es complètement folle ! »", "La femme : « Viens, on n'a pas le temps. »"];
 
-/** Série « Styles » : la scène avec ses deux répliques (le format `NOM : « texte »` des skills de scénario). */
+/** « Styles » series: the scene with its two lines (the `NOM : « texte »` format of the screenplay skills). */
 export const DESCRIPTION_DEMOS_AVEC_REPLIQUES = [NARRATION_DEMOS, "", ...REPLIQUES_DEMOS].join("\n");
-/** Série « Créativité » : la même action SANS réplique, pour qu'on voie le niveau « audacieuse » en ajouter. */
-/** Une scène de pouvoir (kung-fu, feu) : sur une scène muette et sobre, les niveaux de créativité se ressemblaient ; ici « sobre » reste sage et « extrême » a de quoi pousser. Le feu est écrit
- * en texte, pas en image de référence (une référence d'effet est suivie trop à la lettre). */
+/** « Créativité » series: the same action WITHOUT a line, so that one sees the « audacieuse » level add some. */
+/** A scene of power (kung-fu, fire): on a silent, sober scene the creativity levels looked alike; here « sobre » stays wise and « extrême » has something to push with. The fire is written
+ * in text, not as a reference image (an effect reference is followed too literally). */
 export const NARRATION_CREATIVITE_DEMOS =
   "Une femme enchaîne des mouvements de kung-fu sur le toit plat d'un immeuble, et chaque geste lance une boule de feu. Elle bondit en créant un tourbillon de flammes autour d'elle, puis retombe au sol d'un mouvement stylé, de super-héroïne : un genou à terre, un poing contre le béton, tandis que trois piliers de feu surgissent du sol autour d'elle. Resté de l'autre côté du vide, un homme la regarde, sidéré.";
 
-/** Les trois références, NEUTRES : lumière douce et uniforme, palette sobre, composition sans effet (le plan de référence l'emporte sur le style pour la lumière et les couleurs,
- * et une symétrie parfaite avantagerait un style). `role` : celui que le brief Open H3 IR déclare (lib/h3ir/brief.ts, `ROLE_PAR_TYPE`). */
+/** The three references, NEUTRAL: soft even lighting, sober palette, composition without effect (the reference shot prevails over the style for light and
+ * colours, and a perfect symmetry would favour a style). `role`: the one the Open H3 IR brief declares (lib/h3ir/brief.ts, `ROLE_PAR_TYPE`). */
 export type AssetDemo = { code: string; label: string; type: "personnage" | "decor"; role: "subject" | "environment"; description: string; promptGeneration: string };
 export const ASSETS_DEMOS: readonly AssetDemo[] = [
   {

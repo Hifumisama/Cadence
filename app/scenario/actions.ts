@@ -8,11 +8,11 @@ import { recomposerOrdre } from "@/lib/clips/clip-order";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
 import { conserverConsigneAuteur, intentAffichee, memeDescription } from "@/lib/clips/intent";
 
-/** Place un plan dans une scène (ou « sans scène » si `sceneId` est null),
- * juste avant `avantPlanId` — ou, sans repère, à la fin des plans de la scène
- * cible. L'ordre de tout l'épisode est recomposé dans une transaction :
- * `ordre` est une position, jamais une clé. Plan et scène doivent être du même
- * épisode. */
+/** Places a clip in a scene (or « sans scène » if `sceneId` is null),
+ * right before `avantPlanId` — or, without a reference, at the end of the clips of the target
+ * scene. The order of the whole episode is recomposed in a transaction:
+ * `ordre` is a position, never a key. Clip and scene must belong to the same
+ * episode. */
 async function placerPlan(planId: number, sceneId: number | null, avantPlanId: number | null) {
   const [plan] = await db.select({ episodeId: plans.episodeId }).from(plans).where(eq(plans.id, planId));
   if (!plan) return;
@@ -34,8 +34,8 @@ async function placerPlan(planId: number, sceneId: number | null, avantPlanId: n
     const sans = tous.filter((p) => p.id !== planId);
     let index = avantPlanId != null ? sans.findIndex((p) => p.id === avantPlanId) : -1;
     if (index === -1) {
-      // Pas de repère : à la fin de la scène cible (le regroupement final
-      // ramène de toute façon le plan dans son bloc).
+      // No reference: at the end of the target scene (the final grouping
+      // brings the clip back into its block anyway).
       index = sans.length;
     }
     sans.splice(index, 0, { id: planId, sceneId });
@@ -43,15 +43,15 @@ async function placerPlan(planId: number, sceneId: number | null, avantPlanId: n
   });
 }
 
-/** Glisser-déposer d'un plan (Scénario) : change de scène et/ou de position. */
+/** Drag and drop of a clip (Scénario): changes scene and/or position. */
 export async function deplacerPlan(planId: number, sceneId: number | null, avantPlanId: number | null) {
   await placerPlan(planId, sceneId, avantPlanId);
   revalidatePath("/", "layout");
 }
 
-/** Édition d'une scène : titre, fonction (description) et ambiance (cadre visuel tenu sur toute la scène). Le genre de
- * scène est retiré (2026-11-09) : la colonne reste en base, ni lue ni écrite. */
-/** `creativite` et `styleCamera` (Open H3 IR, lib/h3ir/settings.ts) : absents = on n'y touche pas ; `null` ou vide = la scène hérite du projet ; `aucun` (style) = pas de style malgré celui du projet. */
+/** Editing a scene: title, function (description) and mood (visual frame held across the whole scene). The genre of
+ * scene is removed (2026-11-09): the column stays in the database, neither read nor written. */
+/** `creativite` and `styleCamera` (Open H3 IR, lib/h3ir/settings.ts): absent = left untouched; `null` or empty = the scene inherits from the project; `aucun` (style) = no style despite the project's. */
 export async function modifierScene(
   sceneId: number,
   valeurs: { titre: string; fonction: string; ambiance?: string; creativite?: string | null; styleCamera?: string | null },
@@ -71,9 +71,9 @@ export async function modifierScene(
   revalidatePath("/", "layout");
 }
 
-/** Réordonne les scènes (glisser-déposer d'une scène) : la place juste avant
- * `avantSceneId`, ou à la fin. Les plans suivent leur scène : l'ordre des plans
- * de l'épisode est recomposé en blocs, dans le nouvel ordre des scènes. */
+/** Reorders the scenes (drag and drop of a scene): places it right before
+ * `avantSceneId`, or at the end. The clips follow their scene: the order of the clips
+ * of the episode is recomposed in blocks, in the new order of the scenes. */
 export async function deplacerScene(sceneId: number, avantSceneId: number | null) {
   const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
   if (!scene) return;
@@ -100,10 +100,10 @@ export async function deplacerScene(sceneId: number, avantSceneId: number | null
   revalidatePath("/", "layout");
 }
 
-/** Suppression sans blocage (retour utilisateur 2026-09-28) : une scène
- * n'est qu'un regroupement narratif, pas une dépendance structurelle — la
- * supprimer détache simplement ses plans ("sans scène") plutôt que de
- * bloquer l'action ou de supprimer les plans eux-mêmes. */
+/** Deletion without blocking (user feedback 2026-09-28): a scene
+ * is only a narrative grouping, not a structural dependency — deleting it
+ * simply detaches its clips ("sans scène") rather than
+ * blocking the action or deleting the clips themselves. */
 export async function supprimerScene(sceneId: number) {
   const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
   if (!scene) return;
@@ -122,9 +122,9 @@ export async function supprimerScene(sceneId: number) {
 
 const MAX_TEXTE_PLAN = 4000;
 
-/** Réécrit le texte d'un plan depuis la vue Lecture. Le texte reçu est celui qu'on AFFICHE (`intentAffichee` : sans « Consigne de l'auteur » ni ancien « État en
- * fin de plan ») : la consigne de l'auteur, masquée donc absente de ce qu'on édite, est conservée ; l'ancien état de fin, abandonné depuis le 2026-11-08, part. Un
- * texte inchangé n'écrit rien (la fiche et les rendus ne sont donc pas signalés « à refaire » pour rien). */
+/** Rewrites the text of a clip from the Lecture view. The text received is the one we DISPLAY (`intentAffichee`: without « Consigne de l'auteur » nor the former « État en
+ * fin de plan »): the author's instruction, hidden and therefore absent from what is edited, is kept; the former end state, dropped since 2026-11-08, is removed. An
+ * unchanged text writes nothing (the sheet and the renders are therefore not flagged « à refaire » for nothing). */
 export async function modifierTextePlan(planUuid: string, texte: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const propre = texte.trim();
   if (!propre) return { ok: false, erreur: "Le texte d'un plan ne peut pas être vide : c'est ce que la fiche met en images." };

@@ -58,8 +58,8 @@ test("brief : l'univers est facultatif", () => {
   assert.deepEqual(erreurs({ ...brief, univers: "Une œuvre existante : on garde les noms et les apparences." }), []);
 });
 
-// --- Les « Contraintes » (continuite, rimes, progressions, pieges) ont été supprimées du brief le 2026-10-12, sans migration : un brief
-// déjà stocké qui les porte encore doit être lu sans erreur, ces clés étant simplement ignorées.
+// --- The "Contraintes" (continuite, rimes, progressions, pieges) were removed from the brief on 2026-10-12, without migration: a brief
+// already stored that still carries them must be read without error, these keys simply being ignored.
 const ancien = {
   ...brief,
   continuite: ["Le manteau vert ne change jamais."],

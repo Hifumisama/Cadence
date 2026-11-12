@@ -5,12 +5,12 @@ import { executerSkill } from "../lib/llm/execute";
 import { configLlm, modelePourSkill } from "../lib/llm/config";
 import { chargerSkill, listerSkills } from "../lib/llm/skills";
 
-/** Essai d'un skill d'agent sur le fournisseur configuré (.env) :
+/** Trial of an agent skill on the configured provider (.env):
  *   npm run llm:try -- <skill> [--modele gemma4-26b-A4B] [--sans-contrainte]
  *                                     [--entree fichier.json|.txt] [--sans-trace]
- *   npm run llm:try -- --skills         (liste les skills et la taille de leur prompt)
- * Pas d'entrée fictive intégrée : chaque skill demande --entree.
- * Un vrai appel : il occupe le GPU du serveur LLM le temps de la génération. */
+ *   npm run llm:try -- --skills         (lists the skills and the size of their prompt)
+ * No built-in dummy input: each skill requires --entree.
+ * A real call: it occupies the LLM server's GPU for the duration of the generation. */
 
 
 function arg(nom: string): string | undefined {

@@ -1,10 +1,10 @@
 import Ajv2020 from "ajv/dist/2020";
 import type { ValidateFunction } from "ajv/dist/2020";
 
-/** Les `sortie.schema.json` des skills sont en JSON Schema draft 2020-12
- * (`$schema` relevé sur les six). Ajv 8 le gère via `ajv/dist/2020`. `strict`
- * est relâché : les schémas portent des mots-clés d'annotation (`description`,
- * `title`) et on ne veut pas qu'un mot inconnu empêche la validation. */
+/** The skills' `sortie.schema.json` are in JSON Schema draft 2020-12
+ * (`$schema` noted on all six). Ajv 8 handles it via `ajv/dist/2020`. `strict`
+ * is relaxed: the schemas carry annotation keywords (`description`,
+ * `title`) and we do not want an unknown word to prevent validation. */
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 const cache = new WeakMap<object, ValidateFunction>();
 
@@ -21,8 +21,8 @@ export type ResultatValidation = { ok: true } | { ok: false; erreurs: string[] }
 
 const MAX_ERREURS = 20;
 
-/** Valide une valeur contre un schéma ; les erreurs sont lisibles par un humain
- * ET par le modèle (elles lui sont renvoyées au renvoi automatique). */
+/** Validates a value against a schema; the errors are readable by a human
+ * AND by the model (they are sent back to it in the automatic resend). */
 export function valider(schema: Record<string, unknown>, valeur: unknown): ResultatValidation {
   const v = compilerSchema(schema);
   if (v(valeur)) return { ok: true };

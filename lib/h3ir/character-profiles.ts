@@ -1,15 +1,15 @@
-/** Profils de mise en scène PERSONNALISÉS (`director_profile` d'Open H3 IR : un nom et un paragraphe d'habitudes, 5000 caractères au plus), par opposition aux 7 profils livrés
- * (`styles-camera.ts`, `director`). Ce sont de vrais choix de mise en scène, au même titre que les réalisateurs : l'écran « Mise en scène » de `/nouveau`, le Brief du projet, la scène et
- * le plan les proposent (lib/h3ir/settings.ts, `ChoixMiseEnScene`), et lib/h3ir/brief.ts les envoie en `director_profile`. Le paquet attend des HABITUDES de réalisation (caméra,
- * cadrage, lumière, jeu des corps, rythme, sons, musique), pas des plans ; le `name` ne va qu'au rapport, jamais au rédacteur ; aucun nom de studio, d'auteur ni d'œuvre.
+/** CUSTOM staging PROFILES (`director_profile` of Open H3 IR: a name and a paragraph of habits, 5000 characters at most), as opposed to the 7 bundled profiles
+ * (`styles-camera.ts`, `director`). These are real staging choices, on a par with the directors: the « Mise en scène » screen of `/nouveau`, the project's Brief,
+ * the scene and the clip offer them (lib/h3ir/settings.ts, `ChoixMiseEnScene`), and lib/h3ir/brief.ts sends them as `director_profile`. The package expects HABITS
+ * of direction (camera, framing, light, body acting, rhythm, sounds, music), not clips; the `name` only goes to the report, never to the writer; no studio name, author or work.
  *
- * Fichier sans aucun import, exprès : l'interface (composant client) le lit, comme `styles-camera.ts`.
- * Ils règlent surtout COMMENT ÇA BOUGE et se filme ; l'APPARENCE (matière, dessin) vient des images de référence, donc du style du projet (essai « claymation », 2026-11-07). */
+ * File with no import at all, on purpose: the interface (client component) reads it, like `styles-camera.ts`.
+ * They mainly govern HOW IT MOVES and HOW IT IS SHOT; the APPEARANCE (material, drawing) comes from the reference images, hence from the project's style (« claymation » attempt, 2026-11-07). */
 export type ProfilPerso = { name: string; notes: string };
-/** Ce que montre un menu : libellé court et résumé d'une ligne (en français). */
+/** What a menu shows: short label and one-line summary (in French). */
 export type FichePerso = { libelle: string; resume: string };
 
-/** Les identifiants (stockés dans `style_camera`, varchar(20)) : l'ordre est celui des menus. Les deux tables ci-dessous sont typées dessus, donc ne peuvent pas diverger. */
+/** The identifiers (stored in `style_camera`, varchar(20)): the order is that of the menus. The two tables below are typed on them, so they cannot diverge. */
 export const IDS_PROFILS_PERSO = ["claymation", "anime-nerveux", "anime-contemplatif", "3d-cinema", "sitcom", "horreur"] as const;
 export type ProfilPersoId = (typeof IDS_PROFILS_PERSO)[number];
 
@@ -66,7 +66,7 @@ export const PROFILS_PERSO: Record<ProfilPersoId, ProfilPerso> = {
   },
 };
 
-/** Les libellés et résumés des profils perso, pour les menus. */
+/** The labels and summaries of the custom profiles, for the menus. */
 export const FICHES_PERSO: Record<ProfilPersoId, FichePerso> = {
   claymation: { libelle: "Stop-motion en pâte à modeler", resume: "Poses saccadées, caméra de table, lumière chaude de studio miniature." },
   "anime-nerveux": { libelle: "Anime d'action", resume: "Poses extrêmes tenues, accélérations brusques, caméra ample et rapide." },

@@ -17,18 +17,18 @@ import { posterSrc } from "./media";
 import { estCritique, statutAsset } from "./assets/asset-state";
 import { horsAffiches } from "./assets/assets-visible";
 
-/** Pas encore de sélecteur de projet dans l'UI (2026-09-28) — toutes les
- * pages opèrent sur le premier projet créé. Le schéma est prêt pour
- * plusieurs projets, l'interface pour en choisir un ne l'est pas encore :
- * point à construire quand un deuxième projet existera réellement. */
+/** No project selector in the UI yet (2026-09-28) — all the
+ * pages operate on the first project created. The schema is ready for
+ * several projects; the interface to choose one is not yet:
+ * a point to build when a second project really exists. */
 async function getDefaultProjectId(): Promise<number> {
   const [projet] = await db.select({ id: projects.id }).from(projects).orderBy(projects.id).limit(1);
   if (!projet) throw new Error("Aucun projet en base — voir db/migrations pour le projet créé par la migration 0007.");
   return projet.id;
 }
 
-/** Même logique que getDefaultProjectId : le premier épisode du premier
- * projet, tant qu'il n'y a rien pour en choisir un autre. */
+/** Same logic as getDefaultProjectId: the first episode of the first
+ * project, as long as there is nothing to choose another one. */
 async function getDefaultEpisodeId(): Promise<number> {
   const [episode] = await db.select({ id: episodes.id }).from(episodes).orderBy(episodes.id).limit(1);
   if (!episode) throw new Error("Aucun épisode en base — voir db/migrations pour l'épisode créé par la migration 0007.");
@@ -40,8 +40,8 @@ export async function getProject(projectId: number) {
   return projet ?? null;
 }
 
-/** Premier épisode du projet (par numéro) — sert d'ancrage aux onglets Scénario/Plans depuis Assets (Assets vit au niveau du projet,
- * pas d'un épisode précis) quand il faut bien pointer les autres onglets quelque part. Un projet est un film : il n'en a qu'un. */
+/** First episode of the project (by number) — serves as an anchor for the Scénario/Plans tabs from Assets (Assets lives at the project level,
+ * not at a specific episode) when the other tabs must point somewhere. A project is a film: it has only one. */
 export async function getFirstEpisodeId(projectId: number): Promise<number | null> {
   const [row] = await db.select({ id: episodes.id }).from(episodes).where(eq(episodes.projectId, projectId)).orderBy(episodes.numero).limit(1);
   return row?.id ?? null;
@@ -49,10 +49,10 @@ export async function getFirstEpisodeId(projectId: number): Promise<number | nul
 
 export type ProjectListItem = Awaited<ReturnType<typeof getAllProjects>>[number];
 
-/** Écran Accueil : tous les projets, avec assez d'agrégats pour la carte
- * (compteurs, répartition des statuts de plans) sans avoir à recharger
- * chaque projet séparément — trois requêtes groupées plutôt qu'une par
- * projet, le volume reste petit (quelques dizaines de projets au pire). */
+/** Home screen: all the projects, with enough aggregates for the card
+ * (counters, distribution of clip statuses) without having to reload
+ * each project separately — three grouped queries rather than one per
+ * project; the volume stays small (a few dozen projects at most). */
 export async function getAllProjects() {
   const tousLesProjets = await db.select().from(projects).orderBy(projects.id);
   if (tousLesProjets.length === 0) return [];
@@ -62,12 +62,12 @@ export async function getAllProjects() {
     db.select().from(episodes).where(inArray(episodes.projectId, idsProjets)),
     db.select({ projectId: plans.projectId, statut: plans.statut }).from(plans).where(inArray(plans.projectId, idsProjets)),
     db.select({ projectId: assets.projectId }).from(assets).where(and(inArray(assets.projectId, idsProjets), horsAffiches)),
-    // Conception commencée mais préparation pas lancée : l'utilisateur est encore dans l'entretien (ou au clap) ; la carte le ramène à /demarrage.
+    // Design started but preparation not launched: the user is still in the interview (or at the clap); the card brings them back to /demarrage.
     db
       .select({ projectId: conceptions.projectId })
       .from(conceptions)
       .where(and(inArray(conceptions.projectId, idsProjets), sql`not exists (select 1 from creations_projet c where c.project_id = ${conceptions.projectId})`)),
-    // Le volet déplié de la carte : style, arc, durée, langue… lus dans le brief (un brief « partiel » porte déjà le style).
+    // The unfolded panel of the card: style, arc, duration, language… read from the brief (a « partiel » brief already carries the style).
     db.select({ projectId: briefs.projectId, contenu: briefs.contenu }).from(briefs).where(inArray(briefs.projectId, idsProjets)),
   ]);
   const resumeParProjet = new Map(tousLesBriefs.map((b) => [b.projectId, resumeBrief(b.contenu)] as const));
@@ -97,7 +97,7 @@ export async function getAllProjects() {
   }));
 }
 
-/** Ce que la carte d'un projet montre en se dépliant, tiré du brief (chaque champ peut manquer : brief partiel ou pas encore écrit). */
+/** What a project's card shows when unfolded, taken from the brief (each field may be missing: partial brief or not yet written). */
 function resumeBrief(contenu: unknown) {
   const c = (contenu ?? {}) as Record<string, unknown>;
   const texte = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -113,11 +113,11 @@ function resumeBrief(contenu: unknown) {
   };
 }
 
-/** Fiche de plan complète : plan + prompt sectionné + refs (avec l'asset
- * associé) + historique des jobs. Le dialogue vit dans le prompt (`<d>`) ; les voix sont des refs audio, lues par
- * lib/voice/queries-voice-clip.ts pour les voix. Retrouvée par `uuid` (identifiant
- * public, voir docs/FRICTIONS.md F03) ; le filtre episodeId garde l'URL
- * cohérente avec l'épisode affiché. */
+/** Complete clip sheet: clip + sectioned prompt + refs (with the associated
+ * asset) + jobs history. The dialogue lives in the prompt (`<d>`); voices are audio refs, read by
+ * lib/voice/queries-voice-clip.ts for voices. Found by `uuid` (public identifier,
+ * see docs/FRICTIONS.md F03); the episodeId filter keeps the URL
+ * consistent with the displayed episode. */
 export async function getPlanDetail(uuid: string, episodeId?: number) {
   const eid = episodeId ?? (await getDefaultEpisodeId());
   const plan = await db.query.plans.findFirst({
@@ -159,32 +159,32 @@ export async function getPlanDetail(uuid: string, episodeId?: number) {
   return { plan, position, promptSections, refs, jobHistory };
 }
 
-/** Tous les assets (27 sur l'épisode 1) — pour peupler le sélecteur d'ajout
- * de référence sur la Fiche de plan. */
+/** All assets (27 on episode 1) — to populate the reference-adding selector
+ * on the clip sheet. */
 export async function getAllAssets(projectId?: number) {
   const pid = projectId ?? (await getDefaultProjectId());
   return db.select().from(assets).where(and(eq(assets.projectId, pid), horsAffiches)).orderBy(assets.type, assets.code);
 }
 
-/** Page Scénario : les scènes de l'épisode, et tous les plans (brouillon
- * compris) groupés par scène — un plan sans sceneId atterrit dans le groupe
- * "sans scène" plutôt que d'être perdu.
+/** Scénario page: the scenes of the episode, and all the clips (draft
+ * included) grouped by scene — a clip without sceneId lands in the "sans scène"
+ * group rather than being lost.
  *
- * Nombre de plans et durée d'une scène sont DÉDUITS des plans rattachés
- * (jamais stockés, voir db/schema.ts) ; les scènes suivent `scenes.ordre`.
+ * The number of clips and the duration of a scene are DERIVED from the attached clips
+ * (never stored, see db/schema.ts); the scenes follow `scenes.ordre`.
  *
- * Le scénario est fondamentalement une unité par ÉPISODE (révisé
- * 2026-09-28, voir docs/FRICTIONS.md F03) : scènes et plans sont tous les
- * deux filtrés par episodeId directement, plus besoin de remonter par
- * saison/projet. */
+ * The screenplay is fundamentally one unit per EPISODE (revised
+ * 2026-09-28, see docs/FRICTIONS.md F03): scenes and clips are both
+ * filtered by episodeId directly, with no need to go back up through
+ * season/project. */
 export async function getScenarioData(episodeId?: number) {
   const eid = episodeId ?? (await getDefaultEpisodeId());
   const [toutesLesScenes, lignesPlans] = await Promise.all([
     db.select().from(scenes).where(eq(scenes.episodeId, eid)).orderBy(scenes.ordre),
     db.select().from(plans).where(eq(plans.episodeId, eid)).orderBy(plans.ordre, plans.id),
   ]);
-  // Position réelle dans l'épisode (1-based) — c'est elle qu'on affiche ;
-  // Les URL, elles, utilisent `uuid`.
+  // Real position in the episode (1-based) — this is what is displayed;
+  // the URLs, for their part, use `uuid`.
   const tousLesPlans = lignesPlans.map((p, i) => ({ ...p, position: i + 1 }));
 
   const parScene = new Map<number, typeof tousLesPlans>();
@@ -199,8 +199,8 @@ export async function getScenarioData(episodeId?: number) {
     parScene.set(plan.sceneId, liste);
   }
 
-  // Ordre des scènes = `scenes.ordre` (réordonnable par glisser-déposer) ; les
-  // plans de chaque scène sont déjà dans l'ordre de l'épisode.
+  // Scene order = `scenes.ordre` (reorderable by drag and drop); the
+  // clips of each scene are already in episode order.
   const scenesAvecPlans = toutesLesScenes.map((sc) => {
     const liste = parScene.get(sc.id) ?? [];
     return {
@@ -216,7 +216,7 @@ export async function getScenarioData(episodeId?: number) {
   };
 }
 
-/** Les chiffres de l'état des plans (en-tête de l'épisode) : de simples agrégats, sans charger les plans eux-mêmes. */
+/** The figures of the clips' state (episode header): simple aggregates, without loading the clips themselves. */
 export async function getEtatPlans(episodeId: number) {
   const [[p], [sc]] = await Promise.all([
     db
@@ -237,8 +237,8 @@ export async function getEtatPlans(episodeId: number) {
   };
 }
 
-/** Scènes d'un épisode (id + titre), dans l'ordre de création — alimente le
- * sélecteur de scène de la page d'un plan. */
+/** Scenes of an episode (id + title), in creation order — feeds the
+ * scene selector of a clip's page. */
 export async function getScenesEpisode(episodeId: number) {
   return db
     .select({ id: scenes.id, titre: scenes.titre, creativite: scenes.creativite, styleCamera: scenes.styleCamera })
@@ -247,35 +247,35 @@ export async function getScenesEpisode(episodeId: number) {
     .orderBy(scenes.ordre);
 }
 
-/** L'épisode, pour le bandeau (fil d'Ariane) et pour vérifier qu'il appartient bien au projet de l'URL avant d'afficher quoi que ce soit
- * (voir app/p/[projectId]/e/[episodeId]/layout.tsx). */
+/** The episode, for the band (breadcrumb trail) and to check that it indeed belongs to the project of the URL before displaying anything
+ * (see app/p/[projectId]/e/[episodeId]/layout.tsx). */
 export async function getEpisode(episodeId: number) {
   const [episode] = await db.select().from(episodes).where(eq(episodes.id, episodeId));
   return episode ?? null;
 }
 
 export type AssetRegistre = Awaited<ReturnType<typeof getAssetsRegistre>>[number];
-/** `refId` : la ligne de plan_refs qui cite l'asset (déliable). */
+/** `refId`: the plan_refs row that cites the asset (can be unlinked). */
 export type AssetCitation = { planId: number; planUuid: string; position: number; episodeNumero: number; episodeId: number; refId: number };
 
-/** Le registre d'assets d'un projet, À PLAT et trié par code (un asset est un asset ; `deriveDeId` n'est qu'une image de départ).
+/** The asset registry of a project, FLAT and sorted by code (an asset is an asset; `deriveDeId` is only a starting image).
  *
- * `statut` et `critique` sont CALCULÉS ici (lib/assets/asset-state.ts), jamais stockés : à produire sans fichier, en cours avec un fichier,
- * validé quand `valide` ; critique selon la part des plans d'un épisode qui le citent.
+ * `statut` and `critique` are COMPUTED here (lib/assets/asset-state.ts), never stored: to produce without a file, in progress with a file,
+ * validated when `valide`; critical according to the share of the clips of an episode that cite it.
  *
- * `citations` détaille CHAQUE ligne de ref qui cite l'asset, pas juste les numéros de plan — nécessaire pour pouvoir délier une
- * citation précise sans supprimer les autres (la suppression d'un asset cité est bloquée tant qu'il n'a pas été délié de chaque plan).
- * La voix d'un personnage est un champ de l'asset (`voixMaster`, ...) ; elle entre dans un plan comme référence audio dont l'asset est
- * le personnage : c'est une citation comme une autre. */
+ * `citations` details EACH ref line that cites the asset, not just the clip numbers — necessary to be able to unlink a
+ * specific citation without deleting the others (deleting a cited asset is blocked until it has been unlinked from each clip).
+ * A character's voice is a field of the asset (`voixMaster`, ...); it enters a clip as an audio reference whose asset is
+ * the character: it is a citation like any other. */
 export async function getAssetsRegistre(projectId?: number) {
   const pid = projectId ?? (await getDefaultProjectId());
   const tousLesAssets = await db.select().from(assets).where(and(eq(assets.projectId, pid), horsAffiches)).orderBy(assets.code);
   const toutesLesRefs = await db
     .select({ id: planRefs.id, assetId: planRefs.assetId, planId: planRefs.planId })
     .from(planRefs);
-  // Filtré au même projet : un ref vers un plan d'un autre projet (ne devrait
-  // jamais arriver, mais rien ne l'empêche au niveau FK) sort naturellement du
-  // calcul de citations puisque son planId n'aura pas d'entrée dans planParId.
+  // Filtered to the same project: a ref to a clip of another project (should
+  // never happen, but nothing prevents it at FK level) naturally drops out of the
+  // citations computation since its planId will have no entry in planParId.
   const tousLesPlans = await db
     .select({ id: plans.id, uuid: plans.uuid, ordre: plans.ordre, episodeId: plans.episodeId, episodeNumero: episodes.numero })
     .from(plans)
@@ -283,7 +283,7 @@ export async function getAssetsRegistre(projectId?: number) {
     .where(eq(plans.projectId, pid))
     .orderBy(plans.ordre, plans.id);
 
-  // Position réelle de chaque plan dans son épisode (1-based), et nombre de plans par épisode.
+  // Real position of each clip in its episode (1-based), and number of clips per episode.
   const compteurParEpisode = new Map<number, number>();
   const positionParPlanId = new Map<number, number>();
   for (const p of tousLesPlans) {
@@ -311,7 +311,7 @@ export async function getAssetsRegistre(projectId?: number) {
     return {
       ...asset,
       citations,
-      /** Nombre de plans distincts qui citent l'asset. */
+      /** Number of distinct clips that cite the asset. */
       nbPlans: new Set(citations.map((c) => c.planId)).size,
       statut: statutAsset(asset),
       critique: estCritique([...platesParEpisode].map(([episodeId, cites]) => ({ cites: cites.size, total: compteurParEpisode.get(episodeId) ?? 0 }))),

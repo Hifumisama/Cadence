@@ -1,17 +1,17 @@
-/** L'INSTALLATEUR : la création d'un projet de bout en bout, sans validation intermédiaire (2026-10-03, retours du
- * test général). Une fois le briefing prêt, une seule demande enchaîne toutes les étapes ; chacune est générée PUIS
- * appliquée toute seule, et la progression se suit sur une page dédiée. Règles PURES (étapes, état, décision) : les
- * lectures, les écritures et les appels au service sont dans lib/agents/creation-db.ts, piloté par le worker
- * (un tour de boucle = au plus une transition par création : reprise sur redémarrage, rien en mémoire).
+/** THE INSTALLER: the creation of a project end to end, without intermediate validation (2026-10-03, feedback from the
+ * general test). Once the briefing is ready, a single request chains all the steps; each one is generated THEN
+ * applied on its own, and progress is followed on a dedicated page. PURE rules (steps, state, decision): the
+ * reads, writes and service calls are in lib/agents/creation-db.ts, driven by the worker
+ * (one loop turn = at most one transition per creation: resumed on restart, nothing in memory).
  *
- * Le seul retour en arrière d'une création est de supprimer le projet : on n'applique donc que ce qui est coché
- * d'office (les créations ; un écrasement est décoché par défaut, il n'est jamais confirmé ici).
+ * The only undo of a creation is deleting the project: so we only apply what is ticked
+ * outright (creations; an overwrite is unticked by default and is never confirmed here).
  *
- * UNE SEULE PHASE (2026-11-09, vague 4b) : la création va du brief à la relecture des scénarios, puis S'ARRÊTE (statut `termine`) : on relit
- * les intents des plans (une fiche écrite sur un intent faux coûte un rendu et une itération pour rien) pendant que les images de référence
- * se fabriquent. Les fiches ne sont PLUS des étapes de la création : « Écrire les fiches » pose une demande `fiche-plan` par plan
- * (`lancerDemandesFiches`, lib/tasks/requests-db.ts), indépendante de la création. Raison : pendant qu'une création est en cours, worker/images.ts
- * retient les images du projet ; des fiches gardées comme étapes de la création attendraient leurs propres images indéfiniment. */
+ * A SINGLE PHASE (2026-11-09, wave 4b): the creation goes from the brief to the screenplay review, then STOPS (status `termine`): we review
+ * the clips' intents (a sheet written on a wrong intent costs a render and an iteration for nothing) while the reference images
+ * are being made. Sheets are NO LONGER creation steps: "Écrire les fiches" posts one `fiche-plan` request per clip
+ * (`lancerDemandesFiches`, lib/tasks/requests-db.ts), independent of the creation. Reason: while a creation is running, worker/images.ts
+ * holds back the project's images; sheets kept as creation steps would wait for their own images indefinitely. */
 
 export const ETAPES_CREATION = [
   { cle: "brief", libelle: "Brief du projet", detail: "Le briefing de la conversation, mis au propre." },
@@ -31,16 +31,16 @@ export type StatutCreation = "en_cours" | "termine" | "echoue" | "arretee";
 export type EtapeCreation = {
   cle: CleEtapeCreation;
   statut: StatutEtapeCreation;
-  /** La proposition de l'étape (une fois lancée) : celle qu'on applique, et d'où part l'étape « prompts » qui suit. */
+  /** The step's proposal (once launched): the one that gets applied, and from which the following "prompts" step starts. */
   propositionUuid: string | null;
-  /** Relances automatiques des sous-tâches en échec : une seule, puis l'étape échoue. */
+  /** Automatic re-runs of failed subtasks: only one, then the step fails. */
   essais: number;
-  /** Une phrase sur ce qui s'est passé (« 3 épisodes », « rien à ajouter »). */
+  /** One sentence on what happened ("3 épisodes", "rien à ajouter"). */
   detail: string | null;
   erreur: string | null;
 };
 
-/** Une création neuve : toutes ses étapes à venir. */
+/** A new creation: all its steps to come. */
 export const etapesNeuves = (): EtapeCreation[] => ETAPES_CREATION.map((e) => ({ cle: e.cle, statut: "a_venir", propositionUuid: null, essais: 0, detail: null, erreur: null }));
 
 const FINALES: StatutEtapeCreation[] = ["fait", "passe"];
@@ -48,11 +48,11 @@ export const estFinale = (e: Pick<EtapeCreation, "statut">) => FINALES.includes(
 
 const CLES_CONNUES = new Set<string>(ETAPES_CREATION.map((e) => e.cle));
 
-/** Les étapes telles que le pilote et les écrans les lisent. Les enregistrements anciens gardent des étapes qui n'existent plus (`voix`, puis les
- * fiches de la création en deux phases : `fiches`, `prompts-fiches`, `compilation`, au statut `a_demander` ou autre) : elles sont IGNORÉES. Une
- * création terminée le reste (son statut stocké ne bouge pas) ; une création en cours dont l'étape courante était une de celles-là n'a plus rien
- * à faire et se termine au tour suivant du pilote (la proposition des fiches qui tournait reste dans l'historique, non appliquée). Ordre gardé ;
- * les étapes ajoutées depuis (ex. `traitement`) ne sont pas ajoutées à une création ancienne. Pure. */
+/** The steps as the pilot and the screens read them. Old records keep steps that no longer exist (`voix`, then the
+ * sheets of the two-phase creation: `fiches`, `prompts-fiches`, `compilation`, at status `a_demander` or other): they are IGNORED. A
+ * finished creation stays so (its stored status does not move); an ongoing creation whose current step was one of those has nothing
+ * left to do and ends on the pilot's next turn (the sheets proposal that was running stays in the history, unapplied). Order kept;
+ * steps added since (e.g. `traitement`) are not added to an old creation. Pure. */
 export function normaliserEtapes(etapes: unknown): EtapeCreation[] {
   if (!Array.isArray(etapes)) return [];
   return (etapes as { cle?: unknown; statut?: unknown }[])
@@ -60,19 +60,19 @@ export function normaliserEtapes(etapes: unknown): EtapeCreation[] {
     .map((e) => ((e.statut as string) === "a_demander" ? { ...e, statut: "a_venir" as const } : e));
 }
 
-/** La prochaine étape à traiter : la première qui n'est ni faite ni passée ; null quand tout est fini. */
+/** The next step to process: the first one that is neither done nor skipped; null when everything is finished. */
 export function etapeCourante(etapes: EtapeCreation[]): EtapeCreation | null {
   return etapes.find((x) => !estFinale(x)) ?? null;
 }
 
-/** Ce que le pilote observe pour l'étape courante. */
+/** What the pilot observes for the current step. */
 export type ObservationEtape = {
-  /** Une tâche de l'agent occupe la conversation du projet (en attente ou en cours). */
+  /** An agent task occupies the project's conversation (pending or running). */
   occupe: boolean;
-  /** État du brief du projet. */
+  /** State of the project's brief. */
   brief: "aucun" | "partiel" | "brouillon" | "valide";
-  /** La proposition de l'étape, quand elle existe. */
-  /** `bloques` : changements qu'un contrôle bloque (ex. un code d'asset irrésolvable) : non cochables, donc jamais appliqués. */
+  /** The step's proposal, when it exists. */
+  /** `bloques`: changes blocked by a check (e.g. an unresolvable asset code): not tickable, hence never applied. */
   proposition: { statut: string; lot: boolean; echecs: number; bloques: number; nbChangements: number; erreur: string | null } | null;
 };
 
@@ -84,13 +84,13 @@ export type Decision =
   | { type: "fait"; detail: string | null }
   | { type: "echouer"; erreur: string };
 
-/** La suite à donner à l'étape courante. Pure : toute la logique de l'enchaînement est ici (testée), le pilote ne fait
- * qu'exécuter la décision. */
+/** What to do with the current step. Pure: all the chaining logic is here (tested), the pilot only
+ * executes the decision. */
 export function decider(etape: EtapeCreation, obs: ObservationEtape): Decision {
-  if (etape.statut === "echoue") return { type: "attendre" }; // en attente d'une reprise manuelle
+  if (etape.statut === "echoue") return { type: "attendre" }; // waiting for a manual resume
   if (etape.statut === "a_venir") return obs.occupe ? { type: "attendre" } : { type: "lancer" };
 
-  // en_cours
+  // in progress
   if (etape.cle === "brief") {
     if (obs.occupe) return { type: "attendre" };
     return obs.brief === "brouillon" || obs.brief === "valide"
@@ -103,11 +103,11 @@ export function decider(etape: EtapeCreation, obs: ObservationEtape): Decision {
     case "en_generation":
       return { type: "attendre" };
     case "prete":
-      if (p.lot && p.echecs + p.bloques > 0 && etape.essais < 1) return { type: "relancer-echecs" }; // échecs ET fiches bloquées : une relance
+      if (p.lot && p.echecs + p.bloques > 0 && etape.essais < 1) return { type: "relancer-echecs" }; // failures AND blocked sheets: one re-run
       if (p.lot && p.echecs > 0) {
         return { type: "echouer", erreur: `${p.echecs} sous-tâche${p.echecs > 1 ? "s" : ""} en échec, même après une relance : relance l'étape quand le serveur répond.` };
       }
-      // Des changements encore bloqués après la relance ne bloquent pas la création : le reste s'applique, et l'étape le dit.
+      // Changes still blocked after the re-run do not block the creation: the rest is applied, and the step says so.
       return p.nbChangements === 0 ? { type: "fait", detail: "Rien à ajouter." } : { type: "appliquer" };
     case "echouee":
       if (p.lot && etape.essais < 1) return { type: "relancer-echecs" };
@@ -120,47 +120,47 @@ export function decider(etape: EtapeCreation, obs: ObservationEtape): Decision {
   }
 }
 
-/** Un refus du service qui veut dire « il n'y a rien à faire ici » (et non une panne) : l'étape est passée. */
+/** A service refusal meaning "there is nothing to do here" (not a breakdown): the step is skipped. */
 const RIEN_A_FAIRE = /^(Aucun|Aucune|Tous|Toutes|Rien|Le brief ne décrit aucun|Plus rien)/i;
 export const estRienAFaire = (erreur: string): boolean => RIEN_A_FAIRE.test(erreur.trim()) || /tous les assets du brief ont déjà un prompt|plus rien à écrire|toutes ont une fiche|chaque personnage qui parle a déjà/i.test(erreur);
 
-/** Le refus « une tâche est déjà en cours » : l'étape attend son tour, ce n'est pas un échec. */
+/** The refusal "a task is already running": the step waits its turn, it is not a failure. */
 export const estOccupe = (erreur: string): boolean => /déjà en cours|déjà en train de répondre/i.test(erreur);
 
-/** Progression globale : nombre d'étapes terminées sur le total (étapes passées comprises). */
+/** Overall progress: number of finished steps out of the total (skipped steps included). */
 export function progression(etapes: EtapeCreation[]): { faites: number; total: number } {
   return { faites: etapes.filter(estFinale).length, total: etapes.length };
 }
 
-/** Statut de la création d'après ses étapes. `termine` : toutes ses étapes sont finies (la relecture est la dernière ; les fiches se demandent
- * ensuite, hors création). */
+/** The creation's status from its steps. `termine`: all its steps are finished (the review is the last one; the sheets are requested
+ * afterwards, outside the creation). */
 export function statutDepuisEtapes(etapes: EtapeCreation[], actuel: StatutCreation): StatutCreation {
   if (actuel === "arretee") return "arretee";
   if (etapes.some((e) => e.statut === "echoue")) return "echoue";
   return etapes.every(estFinale) ? "termine" : "en_cours";
 }
 
-/** Le statut à AFFICHER d'une création lue en base (étapes normalisées) : une création ancienne en échec ou en cours SEULEMENT à cause d'une étape
- * de fiches (retirée de la création) n'a plus rien à faire : elle se lit « terminée » (le pilote la terminera au prochain tour si elle est en cours).
- * Une création arrêtée, ou sans étape lisible, garde son statut. Pure. */
+/** The status to DISPLAY for a creation read from the database (normalized steps): an old creation failed or ongoing ONLY because of a sheets step
+ * (removed from the creation) has nothing left to do: it reads as "terminée" (the pilot will end it on the next turn if it is ongoing).
+ * A stopped creation, or one without a readable step, keeps its status. Pure. */
 export function statutEffectif(etapes: EtapeCreation[], stocke: StatutCreation): StatutCreation {
   if (stocke === "arretee" || stocke === "termine" || etapes.length === 0) return stocke;
   return etapes.every(estFinale) ? "termine" : stocke;
 }
 
-// --- après la création : « Écrire les fiches » (une demande `fiche-plan` par plan, hors création) -------------------------------------------
+// --- after the creation: "Écrire les fiches" (one `fiche-plan` request per clip, outside the creation) -------------------------------------------
 
-/** Les plans que « Écrire les fiches » lance : ceux sans fiche (ou tous si l'auteur le demande), jamais un plan dont une demande tourne déjà
- * (elle serait refusée). L'ordre du scénario est rétabli par `lancerDemandesFiches`. Pure. */
+/** The clips that "Écrire les fiches" launches: those without a sheet (or all if the author asks), never a clip whose request is already running
+ * (it would be refused). The screenplay order is restored by `lancerDemandesFiches`. Pure. */
 export function plansAEcrire(plans: { uuid: string; aUneFiche: boolean; demandeEnCours: boolean }[], tous = false): string[] {
   return plans.filter((p) => !p.demandeEnCours && (tous || !p.aUneFiche)).map((p) => p.uuid);
 }
 
-/** L'état d'une demande de fiche (`etatDemandesFiches`, lib/tasks/requests-db.ts), tel que l'écran des intents le montre. */
+/** The state of a sheet request (`etatDemandesFiches`, lib/tasks/requests-db.ts), as the intents screen shows it. */
 export type EtatDemandeFiche = { id: number; planUuid: string; statut: "en_cours" | "termine" | "echoue" | "annulee"; etape: string | null; erreur: string | null };
 
-/** Une ligne de suivi : l'étape en cours (« Choix des références », « Création d'assets (2) », « Images (1/3) », « Compilation Open H3 IR »),
- * « Fiche écrite », ou l'échec avec sa raison (l'asset en cause y est nommé par la demande). Pure. */
+/** A tracking line: the current step ("Choix des références", "Création d'assets (2)", "Images (1/3)", "Compilation Open H3 IR"),
+ * "Fiche écrite", or the failure with its reason (the asset at fault is named there by the request). Pure. */
 export function libelleSuiviFiche(e: Pick<EtatDemandeFiche, "statut" | "etape" | "erreur">): string {
   switch (e.statut) {
     case "en_cours":
@@ -174,7 +174,7 @@ export function libelleSuiviFiche(e: Pick<EtatDemandeFiche, "statut" | "etape" |
   }
 }
 
-/** La DERNIÈRE demande de fiche de chaque plan (plus grand id). Pure. */
+/** The LAST sheet request of each clip (highest id). Pure. */
 export function dernieresDemandesParPlan<T extends { id: number; planId: number }>(demandes: T[]): T[] {
   const parPlan = new Map<number, T>();
   for (const d of demandes) {

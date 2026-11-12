@@ -10,18 +10,18 @@ import { essaiSourceDuRaccord, planPrecedent } from "../lib/clips/queries-contin
 import { nomDistantDepuisChemin } from "./comfyui/mapping";
 import type { RefMedia } from "./comfyui/types";
 
-/** Image de raccord d'un plan en liaison « suite » (lib/clips/clip-continuity.ts) : la dernière image du rendu du plan PRÉCÉDENT, extraite maintenant. */
+/** Continuity image of a clip in « suite » link (lib/clips/clip-continuity.ts): the last image of the render of the PREVIOUS clip, extracted now. */
 export type Raccord = { ref: RefMedia; slot: number; sourceJobId: number };
 
-/** Le raccord à joindre à la génération de ce plan, ou null (liaison « coupe », premier plan, précédent sans rendu, plus d'emplacement libre, ffmpeg
- * absent : rien n'est joint et la génération continue comme avant, sans raccord). L'image est écrite sous un nom propre à l'essai source : un autre
- * rendu du précédent donne une autre image, jamais une image périmée. */
+/** The continuity to attach to this clip's generation, or null (« coupe » link, first clip, previous without render, no free slot anymore, ffmpeg
+ * missing: nothing is attached and the generation continues as before, without continuity). The image is written under a name specific to the source attempt: another
+ * render of the previous clip gives another image, never a stale one. */
 export async function preparerRaccord(
   plan: { id: number; episodeId: number; ordre: number; liaison: string },
   slotsImage: number[],
   nbVideos: number,
-  /** Un rendu final qui reprend le latent d'une prévisualisation doit refaire EXACTEMENT son conditioning : il rejoue l'image de raccord de cette
-   * prévisualisation (`jobs.raccord_job_id`, `null` si elle n'en avait pas) au lieu de calculer celle d'aujourd'hui. */
+  /** A final render that resumes the latent of a preview must redo EXACTLY its conditioning: it replays the continuity image of this
+   * preview (`jobs.raccord_job_id`, `null` if it had none) instead of computing today's one. */
   imposeSourceJobId?: number | null,
 ): Promise<Raccord | null> {
   if (imposeSourceJobId === null) return null;

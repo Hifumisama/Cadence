@@ -1,18 +1,18 @@
 import { REQUIS, valeurVide, type Fiche, type StatutFiche } from "./sheet";
 
-/** La fiche de notes de l'entretien, mise en forme pour l'écran (scène « Scénario ») : une ligne par sujet, avec ce que l'agent a retenu
- * en texte lisible. Les sujets de l'entretien (arc, fin, héros) viennent d'abord, puis les notes complémentaires déjà prises ; ce que la
- * conception a posé (genre et ton, style, rythme, durée, langue) n'en fait pas partie : l'utilisateur l'a choisi, il ne se discute pas ici.
- * Pur. */
+/** The interview's notes sheet, formatted for the screen (scene "Scénario"): one line per subject, with what the agent kept
+ * as readable text. The interview subjects (arc, end, hero) come first, then the additional notes already taken; what the
+ * design set (genre and tone, style, rhythm, duration, language) is not part of it: the user chose it, it is not discussed here.
+ * Pure. */
 
 export type NoteAffichee = {
   cle: string;
   libelle: string;
-  /** Le texte retenu, ou "" si rien n'est encore noté. */
+  /** The kept text, or "" if nothing is noted yet. */
   texte: string;
-  /** Qui l'a tranché ; `absent` : pas encore abordé. */
+  /** Who settled it; `absent`: not yet covered. */
   statut: StatutFiche | "absent";
-  /** Sujet que l'utilisateur doit avoir tranché pour que la fiche soit complète. */
+  /** A subject the user must have settled for the sheet to be complete. */
   requis: boolean;
 };
 
@@ -27,14 +27,14 @@ const LIBELLES: Record<string, string> = {
   titre: "Titre",
 };
 
-/** Ce que la conception a déjà tranché : jamais affiché comme une note de l'entretien. */
+/** What the design has already settled: never displayed as an interview note. */
 const CHOISI_A_LA_CONCEPTION = new Set(["genreTon", "style", "rythme", "dureeEpisodeSecondes", "langueDialogues"]);
 const SANS_AFFICHAGE = new Set(["inventions", "questionsOuvertes", "notes", "source"]);
 
 const chaine = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 const objet = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
-/** Le texte lisible d'une section du brief. */
+/** The readable text of a brief section. */
 export function resumerSection(cle: string, valeur: unknown): string {
   if (valeurVide(valeur)) return "";
   if (typeof valeur === "string") return valeur.trim();
@@ -72,7 +72,7 @@ export function notesPourAffichage(fiche: Fiche): NoteAffichee[] {
   const sujets = REQUIS.filter((r) => requis.has(r.cle)).map((r) => r.cle as string);
   const notes: NoteAffichee[] = sujets.map((cle) => {
     const statut = fiche.statuts[cle] ?? "absent";
-    // La fin n'est pas une section du brief : elle vit dans l'arc ; on ne montre que le fait qu'elle est dite.
+    // The ending is not a brief section: it lives in the arc; we only show the fact that it is said.
     const texte = cle === "fin" ? (statut === "fourni" ? "Dite par toi, notée dans l’arc." : statut === "delegue" ? "Laissée au scénariste." : "") : resumerSection(cle, fiche.contenu[cle]);
     return { cle, libelle: LIBELLES[cle] ?? cle, texte, statut, requis: true };
   });

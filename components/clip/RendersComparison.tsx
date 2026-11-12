@@ -10,10 +10,10 @@ const fmt = (t: number) => {
   return `0${m}:${r < 10 ? "0" : ""}${r}`;
 };
 
-/** La comparaison A / B du lecteur : deux vidéos superposées, une poignée à glisser (bibliothèque `img-comparison-slider`, un web
- * component : chaque emplacement `slot="first"` / `slot="second"` accepte n'importe quel élément, vidéo comprise). Les deux vidéos
- * se lisent ensemble (une seule barre de lecture : même durée, même seed, c'est l'écart de prompt ou de seed qui se voit) ; le son
- * de B est coupé. La bibliothèque est chargée côté navigateur seulement (elle touche à `customElements`) : en attendant, on montre A. */
+/** The player's A / B comparison: two superimposed videos, a handle to drag (`img-comparison-slider` library, a web
+ * component: each `slot="first"` / `slot="second"` location accepts any element, video included). Both videos
+ * play together (a single playback bar: same duration, same seed, it is the prompt or seed gap that shows); B's
+ * sound is cut. The library is loaded browser-side only (it touches `customElements`): in the meantime, we show A. */
 export function ComparaisonRendus({ a, b }: { a: Lecteur; b: Lecteur }) {
   const va = useRef<HTMLVideoElement>(null);
   const vb = useRef<HTMLVideoElement>(null);
@@ -29,7 +29,7 @@ export function ComparaisonRendus({ a, b }: { a: Lecteur; b: Lecteur }) {
         if (!annule) setPret(true);
       })
       .catch(() => {
-        // Repli : sans la bibliothèque on garde A seul (le lien « Quitter la comparaison » reste là).
+        // Fallback: without the library we keep A alone (the « Quitter la comparaison » link stays there).
       });
     return () => {
       annule = true;
@@ -71,7 +71,7 @@ export function ComparaisonRendus({ a, b }: { a: Lecteur; b: Lecteur }) {
       onTimeUpdate={(e) => {
         const cur = e.currentTarget.currentTime;
         setT(cur);
-        // Garde B calée sur A (la dérive d'un décodage à l'autre reste de quelques images).
+        // Keep B locked to A (drift between one decode and another stays within a few frames).
         if (vb.current && Math.abs(vb.current.currentTime - cur) > 0.15) vb.current.currentTime = cur;
       }}
       onEnded={() => setEnLecture(false)}

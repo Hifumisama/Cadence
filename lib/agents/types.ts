@@ -1,25 +1,25 @@
 import type { NoteAffichee } from "./sheet-display";
-/** Système d'agents — types partagés par le serveur, le worker et l'interface
- * (conversation → brief → proposition → revue → application). Aucun accès base, disque
- * ni Next ici : ce fichier est importable partout, y compris par des composants client.
- * Voir docs/CONCEPTION_AGENTS.md §14 et les décisions du 2026-10-02 (docs/FRICTIONS.md). */
+/** Agent system — types shared by the server, the worker and the interface
+ * (conversation → brief → proposal → review → application). No database, disk
+ * or Next access here: this file is importable everywhere, including by client components.
+ * See docs/CONCEPTION_AGENTS.md §14 and the decisions of 2026-10-02 (docs/FRICTIONS.md). */
 
 // ---------------------------------------------------------------------------
-// Vocabulaire
+// Vocabulary
 // ---------------------------------------------------------------------------
 
-/** Ce que la demande vise. `projet` = tout ; `asset` = un seul asset (id interne). */
+/** What the request targets. `projet` = everything; `asset` = a single asset (internal id). */
 export const PORTEES = ["projet", "episode", "plan", "asset"] as const;
 export type Portee = (typeof PORTEES)[number];
 
-/** `courte` : Consigne → Proposition → Appliqué (itérations ciblées).
- * `complete` : Conversation → Brief → Proposition → Appliqué (création de projet,
- * gros éléments interconnectés). L'étape Brief n'existe qu'en profondeur complète.
+/** `courte`: Instruction → Proposal → Applied (targeted iterations).
+ * `complete`: Conversation → Brief → Proposal → Applied (project creation,
+ * large interconnected elements). The Brief step only exists at full depth.
  */
 const PROFONDEURS = ["courte", "complete"] as const;
 export type Profondeur = (typeof PROFONDEURS)[number];
 
-/** Étape courante d'une conversation (le fil d'étapes de la popup). */
+/** Current step of a conversation (the popup's step strip). */
 const ETAPES = ["consigne", "conversation", "brief", "proposition", "applique"] as const;
 export type Etape = (typeof ETAPES)[number];
 
@@ -29,68 +29,68 @@ export type StatutProposition = (typeof STATUTS_PROPOSITION)[number];
 const OPERATIONS = ["creer", "modifier", "supprimer"] as const;
 export type Operation = (typeof OPERATIONS)[number];
 
-/** Ce qu'un changement touche. Les applicateurs existent pour tous ces types. `fiche` (2026-10-02, étape 3 « fiches de plan ») :
- * le prompt H3 d'un plan (ses six sections), ses références picture/audio et sa durée de génération ;
- * écriture complète (Open H3 IR) ou partielle (seulement certaines sections, iteration-plan). */
+/** What a change touches. Appliers exist for all these types. `fiche` (2026-10-02, step 3 "fiches de plan"):
+ * a clip's H3 prompt (its six sections), its picture/audio references and its generation duration;
+ * whole write (Open H3 IR) or partial (only some sections, iteration-plan). */
 const CIBLES = ["brief", "projet", "episode", "scene", "asset", "plan", "fiche"] as const;
 export type CibleType = (typeof CIBLES)[number];
 
-/** Qui a posé un champ du brief : `fourni` (l'utilisateur l'a dit ou corrigé),
- * `deduit` (l'agent l'a conclu), `a_valider` (inventé ou incertain). */
+/** Who set a brief field: `fourni` (the user said or corrected it),
+ * `deduit` (the agent concluded it), `a_valider` (invented or uncertain). */
 const STATUTS_CHAMP = ["fourni", "deduit", "a_valider"] as const;
 export type StatutChamp = (typeof STATUTS_CHAMP)[number];
 
 const TYPES_AVERTISSEMENT = [
-  "ecrase_valide", // écrase un élément déjà validé / protégé
-  "invention", // l'agent a ajouté ce que le brief ne disait pas
-  "hors_portee", // hors de la portée demandée : refusé à l'application
-  "bloque_controle", // un contrôle mécanique échoue (ex. durée > 15 s) : à corriger
-  "contredit_brief", // contredit le brief
-  "non_pris_en_charge", // cible ou champ que l'application ne sait pas encore écrire
-  "alerte_controle", // un contrôle de la sortie signale un défaut qui ne bloque pas (ex. shot sous 1,5 s)
+  "ecrase_valide", // overwrites an already validated / protected element
+  "invention", // the agent added what the brief did not say
+  "hors_portee", // out of the requested scope: refused at application
+  "bloque_controle", // a mechanical check fails (e.g. duration > 15 s): to fix
+  "contredit_brief", // contradicts the brief
+  "non_pris_en_charge", // target or field the application cannot write yet
+  "alerte_controle", // an output check flags a defect that does not block (e.g. shot under 1.5 s)
   "info",
 ] as const;
 type TypeAvertissement = (typeof TYPES_AVERTISSEMENT)[number];
 export type Avertissement = { type: TypeAvertissement; texte: string };
 
-/** Où insérer un plan. Pas de numéro de plan (F03) : un uuid de plan existant, ou le
- * début/la fin de l'épisode. La revue affiche les rangs qui bougent (`rangsDeplaces`). */
+/** Where to insert a clip. No clip number (F03): an existing clip's uuid, or the
+ * start/end of the episode. The review shows the ranks that move (`rangsDeplaces`). */
 export type Position = { apresPlanUuid: string } | { debut: true } | { fin: true };
 
-/** Où insérer une SCÈNE : après une scène existante (id), ou au début du film. */
+/** Where to insert a SCENE: after an existing scene (id), or at the start of the film. */
 export type PlaceScene = { apresSceneId: number } | { debut: true };
 
-/** Comment l'UI désigne une cible existante ; le serveur la résout en id interne.
- * Épisode : `id` (les pages utilisent déjà ces ids) ; plan : `uuid` ; asset : `code`
- * (ou `id`). Null/absent pour la portée `projet`. */
+/** How the UI designates an existing target; the server resolves it to an internal id.
+ * Episode: `id` (the pages already use these ids); clip: `uuid`; asset: `code`
+ * (or `id`). Null/absent for the `projet` scope. */
 export type CibleDemandee = { id?: number; uuid?: string; code?: string };
 
 // ---------------------------------------------------------------------------
-// Messages, tâches
+// Messages, tasks
 // ---------------------------------------------------------------------------
 
-/** Une carte de choix proposée par le scénariste (validée par lib/agents/choice.ts). `multiple` n'est vrai que pour une liste. */
+/** A choice card proposed by the screenwriter (validated by lib/agents/choice.ts). `multiple` is true only for a list. */
 export type OptionChoix = { libelle: string; description?: string };
 export type Choix = { question?: string; multiple: boolean; options: OptionChoix[] };
 
-/** `choix` : cartes proposées avec un message de l'agent. `choisis` : libellés retenus, portés par le message de l'utilisateur
- * qui répond par une carte (absent quand il a écrit sa réponse). */
+/** `choix`: cards proposed with an agent message. `choisis`: labels kept, carried by the user message
+ * that answers with a card (absent when they wrote their answer). */
 export type MessageConversation = { role: "user" | "assistant"; content: string; at: string; choix?: Choix; choisis?: string[] };
 
-/** La tâche de la file (agent_runs) liée à une étape : un tour de conversation, la
- * génération du brief ou d'une proposition. Null quand rien n'est en cours. */
+/** The queue task (agent_runs) linked to a step: a conversation turn, the
+ * brief generation or a proposal. Null when nothing is running. */
 export type EtatTache = {
   runUuid: string;
-  /** `but` de la tâche : ce qu'elle produit. */
+  /** The task's `but`: what it produces. */
   but: "tour" | "brief" | "proposition" | "affiche" | "essai";
   statut: "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
-  /** Jetons de sortie reçus (le maximum est inconnu : un compteur, pas une barre). */
+  /** Output tokens received (the maximum is unknown: a counter, not a bar). */
   progressionJetons: number | null;
-  /** Streaming : le texte de la réponse (JSON en train de s'écrire, borné) et la fin de la réflexion, pendant l'appel. */
+  /** Streaming: the reply text (JSON being written, capped) and the end of the reasoning, during the call. */
   fluxTexte?: string | null;
   fluxReflexion?: string | null;
   erreur: string | null;
-  /** Rang dans la file des tâches GPU en attente (1 = la prochaine) ; null si en cours/finie. */
+  /** Rank in the queue of pending GPU tasks (1 = next); null if running/finished. */
   positionFile: number | null;
 };
 
@@ -101,26 +101,26 @@ export type EtatTache = {
 export const RYTHMES_BRIEF = ["lent", "mesure", "soutenu", "rapide", "variable"] as const;
 export type RythmeBrief = (typeof RYTHMES_BRIEF)[number];
 
-/** Un personnage du brief. `age` et `apparence` sont obligatoires pour tout nouveau brief (ils alimentent l'image
- * ET la voix) ; ils restent optionnels ici pour les briefs écrits avant. */
+/** A brief character. `age` and `apparence` are mandatory for any new brief (they feed the image
+ * AND the voice); they stay optional here for briefs written before. */
 export type PersonnageBrief = {
   nom: string;
   role: string;
   reconnaissable: string;
-  /** Âge apparent, concret (« adolescente, 15 ans », « homme d'une quarantaine d'années »). */
+  /** Apparent, concrete age ("adolescente, 15 ans", "homme d'une quarantaine d'années"). */
   age?: string;
-  /** Ce qu'on VOIT : corps, visage, cheveux, tenue. Jamais un rôle, une voix ni une action. */
+  /** What is SEEN: body, face, hair, costume. Never a role, a voice nor an action. */
   apparence?: string;
-  /** Comment il bouge ou agit quand c'est ce qui le définit (combat, métier, démarche). */
+  /** How they move or act when that is what defines them (combat, trade, bearing). */
   gestuelle?: string;
   voix?: string;
-  /** La tenue, assez précise pour dessiner la fiche du personnage (facultative ; `statut` posé par le code depuis les citations). */
+  /** The costume, precise enough to draw the character's sheet (optional; `statut` set by the code from the quotes). */
   tenue?: TenueBrief;
   statut?: string;
 };
 
-/** Statut d'un détail du brief (tenue, aspect d'un lieu, élément), posé par le CODE depuis les citations (lib/agents/sheet.ts) : `incertain` =
- * dit, mais en termes vagues (« inspirée de… » sans couleur ni matière). */
+/** Status of a brief detail (costume, look of a place, element), set by the CODE from the quotes (lib/agents/sheet.ts): `incertain` =
+ * said, but in vague terms ("inspirée de…" without colour nor material). */
 type StatutDetailBrief = "fourni" | "deduit" | "delegue" | "incertain";
 
 type TenueBrief = {
@@ -129,7 +129,7 @@ type TenueBrief = {
   matieres?: string;
   accessoires?: string;
   signeDistinctif?: string;
-  /** Raccord de tenue : change-t-elle au fil du film, et quand. */
+  /** Costume continuity: does it change over the film, and when. */
   evolution?: string;
   statut?: StatutDetailBrief;
 };
@@ -137,12 +137,12 @@ type TenueBrief = {
 type LieuBrief = {
   nom: string;
   description: string;
-  /** L'aspect du lieu (facultatif) : lumière et heure, matières, palette, ambiance. */
+  /** The place's look (optional): light and time of day, materials, palette, ambiance. */
   aspect?: { lumiere?: string; matieres?: string; palette?: string; ambiance?: string; statut?: StatutDetailBrief };
   statut?: string;
 };
 
-/** Un effet visuel (`vfx`) ou un objet qui compte à l'écran (`prop`), comme les types d'asset du même nom. */
+/** A visual effect (`vfx`) or an object that matters on screen (`prop`), like the asset types of the same name. */
 type ElementBrief = {
   nom: string;
   nature: "vfx" | "prop";
@@ -153,37 +153,37 @@ type ElementBrief = {
   statut?: StatutDetailBrief;
 };
 
-/** Le brief stocké (`lib/agents/brief-schema.json` ; ses sections se remplissent via `notes-entretien`). Les clés de premier niveau sont les « sections » du brief.
- * Les anciennes sections « Contraintes » (continuite, rimes, progressions, pieges) n'existent plus : un brief ancien qui les porte
- * encore est lu sans elles (`sansClesAbandonnees`, brief.ts). */
+/** The stored brief (`lib/agents/brief-schema.json`; its sections are filled via `notes-entretien`). The top-level keys are the brief's "sections".
+ * The old "Contraintes" sections (continuite, rimes, progressions, pieges) no longer exist: an old brief that still carries them
+ * is read without them (`sansClesAbandonnees`, brief.ts). */
 export type BriefContenu = {
   titre: string;
   source: "pitch" | "texte" | "reconstitue";
   arc: string;
   genreTon?: string;
-  /** `promptImage` (anglais, long : génère les images) et `image` (2:3, présentation) sont posés par le CODE à la création du projet
-   * (conception, lib/projects/design.ts), jamais par un agent ; `clause` (courte) part vers la vidéo. */
+  /** `promptImage` (English, long: generates the images) and `image` (2:3, presentation) are set by the CODE when the project is created
+   * (design, lib/projects/design.ts), never by an agent; `clause` (short) goes to the video. */
   style: { nom: string; clause: string; promptImage?: string; image?: string };
   langueDialogues: string;
-  /** Absente dans un brief « partiel » (posé à la main : style, notes). */
+  /** Absent in a "partiel" brief (set by hand: style, notes). */
   dureeEpisodeSecondes?: number;
-  /** Cadence générale (lent → rapide) : elle règle la durée et la densité de coupes des plans. */
+  /** General pace (slow → fast): it sets the clips' duration and cut density. */
   rythme?: RythmeBrief;
-  /** Œuvre ou univers préexistant dont on respecte les noms, apparences et règles ; vide pour un projet original. */
+  /** A pre-existing work or universe whose names, looks and rules are respected; empty for an original project. */
   univers?: string;
   episodes: { titre: string; resume: string; portee?: string }[];
   personnages: PersonnageBrief[];
   lieux: LieuBrief[];
-  /** Effets visuels et objets qui comptent (facultatif : absent des briefs écrits avant le 2026-11-08). */
+  /** Visual effects and props that matter (optional: absent from briefs written before 2026-11-08). */
   elements?: ElementBrief[];
   inventions: string[];
   questionsOuvertes: string[];
-  /** Notes libres du projet (ex-« globaux du scénario ») ; texte de l'utilisateur, jamais inventé. */
+  /** The project's free notes (formerly "scenario globals"); the user's text, never invented. */
   notes?: string;
 };
 
-/** Sections affichables d'un brief, dans l'ordre, avec leur libellé et leur groupe
- * (la popup range les sections par groupe : Univers, Style, Épisodes…). */
+/** Displayable brief sections, in order, with their label and group
+ * (the popup sorts the sections by group: Univers, Style, Épisodes…). */
 export const SECTIONS_BRIEF = [
   { cle: "titre", libelle: "Titre", groupe: "Univers" },
   { cle: "arc", libelle: "Arc", groupe: "Univers" },
@@ -213,14 +213,14 @@ export type SectionBrief = {
 
 export type VueBrief = {
   projectId: number;
-  /** `brouillon` : sorti d'une conversation, pas encore appliqué ; `valide` : référence du projet ;
-   * `partiel` : posé à la main (style, notes…) sans brief complet — c'est la SOURCE de la clause de
-   * style du projet même quand l'agent n'a encore rien rédigé. */
+  /** `brouillon`: out of a conversation, not yet applied; `valide`: the project's reference;
+   * `partiel`: set by hand (style, notes…) without a complete brief — it is the SOURCE of the project's
+   * style clause even when the agent has not written anything yet. */
   statut: "partiel" | "brouillon" | "valide";
   source: "conversation" | "reconstitue";
   version: number;
   contenu: BriefContenu;
-  /** Les sections dans l'ordre d'affichage, avec le statut de chacune. */
+  /** The sections in display order, with the status of each. */
   sections: SectionBrief[];
   updatedAt: string;
 };
@@ -234,51 +234,51 @@ export type VueConversation = {
   projectId: number;
   portee: Portee;
   cibleId: number | null;
-  /** La cible sous la forme que `ouvrirConversation` attend (épisode : `{ id }`, plan :
-   * `{ uuid }`, asset : `{ code }`) : à réutiliser telle quelle pour rouvrir la conversation ;
-   * null pour la portée `projet`. */
+  /** The target in the shape `ouvrirConversation` expects (episode: `{ id }`, clip:
+   * `{ uuid }`, asset: `{ code }`): to be reused as is to reopen the conversation;
+   * null for the `projet` scope. */
   cible: CibleDemandee | null;
-  /** Libellé lisible de la cible (« Épisode 1 · Le sel », « CHAR_maya », « Projet »). */
+  /** Readable label of the target ("Épisode 1 · Le sel", "CHAR_maya", "Projet"). */
   cibleLibelle: string;
   profondeur: Profondeur;
   etape: Etape;
   messages: MessageConversation[];
   consigne: string;
-  /** L'agent estime avoir de quoi écrire le brief : l'UI propose « Vers le briefing ». */
+  /** The agent considers it has enough to write the brief: the UI offers "Vers le briefing". */
   briefPret: boolean;
-  /** Ce qu'il reste à définir avec l'utilisateur (phrases courtes), remis à jour par l'agent à chaque tour. */
+  /** What is still to be defined with the user (short sentences), updated by the agent on each turn. */
   resteADefinir: string[];
-  /** La fiche de notes de l'entretien, mise en forme pour l'écran (sujets de l'entretien d'abord) ; vide hors entretien d'entrée. */
+  /** The interview's notes sheet, formatted for the screen (interview subjects first); empty outside the intake interview. */
   notes: NoteAffichee[];
   propositionUuid: string | null;
-  /** Tâche en cours ou la dernière non vue (tour, brief) ; null sinon. */
+  /** Task running or the last unseen one (turn, brief); null otherwise. */
   tache: EtatTache | null;
   createdAt: string;
   updatedAt: string;
 };
 
 // ---------------------------------------------------------------------------
-// Proposition et revue
+// Proposal and review
 // ---------------------------------------------------------------------------
 
-/** Ce que l'agent a lu automatiquement (la ligne « contexte utilisé » dépliable). */
+/** What the agent read automatically (the expandable "contexte utilisé" line). */
 export type ContexteUtilise = {
   type: "brief" | "projet" | "episode" | "plan" | "asset" | "registre";
   libelle: string;
   ref?: string;
 };
 
-/** Un plan voisin dont le rang change à cause d'une insertion (revue : « les plans
- * suivants bougent »). Rangs affichés, base 1. */
+/** A neighbouring clip whose rank changes because of an insertion (review: "the following
+ * clips move"). Displayed ranks, base 1. */
 export type RangDeplace = { planUuid: string; titre: string; rangAvant: number; rangApres: number };
 
 export type VueChangement = {
   id: number;
   ordre: number;
-  /** Lot : le titre de la scène sous laquelle ranger un plan ou une réplique (null sinon). */
+  /** Batch: the title of the scene under which to file a clip or a line of dialogue (null otherwise). */
   sousGroupe: string | null;
-  /** Groupe d'affichage : `ecrasement` (risque d'écrasement, section spéciale), `brief`, puis
-   * un groupe par type/portée (« Épisodes », « Plans de la scène X »…). */
+  /** Display group: `ecrasement` (overwrite risk, special section), `brief`, then
+   * one group per type/scope ("Épisodes", "Plans de la scène X"…). */
   groupe: string;
   cle: string | null;
   cibleType: CibleType;
@@ -288,48 +288,48 @@ export type VueChangement = {
   avant: unknown;
   apres: unknown;
   position: Position | null;
-  /** Création de plan : les plans existants dont le rang change. */
+  /** Clip creation: the existing clips whose rank changes. */
   rangsDeplaces: RangDeplace[];
   avertissements: Avertissement[];
-  /** En clair : ce qui sera perdu (null si rien). */
+  /** In plain terms: what will be lost (null if nothing). */
   ecrase: string | null;
-  /** Retenu pour l'application. */
+  /** Kept for application. */
   coche: boolean;
-  /** Un contrôle mécanique échoue (avertissement `bloque_controle`) : non cochable tant
-   * que ce n'est pas corrigé (`corrigerChangement`). */
+  /** A mechanical check fails (`bloque_controle` warning): not tickable until
+   * it is fixed (`corrigerChangement`). */
   bloque: boolean;
-  /** Refusé d'office (hors portée, non pris en charge) : jamais appliqué ; la raison. */
+  /** Refused outright (out of scope, not supported): never applied; the reason. */
   refuseRaison: string | null;
   appliqueAt: string | null;
 };
 
-/** Une sous-tâche d'un lot (ex. « écrire l'épisode 2 ») : son état courant (la dernière tâche
- * posée pour cette clé), pour la liste de la popup. */
+/** A batch subtask (e.g. "write episode 2"): its current state (the last task
+ * set for this key), for the popup's list. */
 export type VueSousTache = {
   cle: string;
   libelle: string;
-  /** Épisode concerné (lot de scénarios) ; null pour un autre type de lot. */
+  /** Episode concerned (screenplay batch); null for another kind of batch. */
   episodeId: number | null;
   runUuid: string;
   statut: "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
   progressionJetons: number | null;
   erreur: string | null;
-  /** Rang dans la file des tâches GPU (1 = la prochaine) ; null si elle n'attend pas. */
+  /** Rank in the GPU task queue (1 = next); null if it is not waiting. */
   positionFile: number | null;
-  /** Changements que cette sous-tâche a produits (0 tant qu'elle n'est pas finie). */
+  /** Changes this subtask produced (0 until it is finished). */
   nbChangements: number;
-  /** Une relance a déjà eu lieu (tâche plus ancienne pour la même clé). */
+  /** A re-run has already happened (older task for the same key). */
   relancee: boolean;
 };
 
-/** L'état agrégé d'un lot : « 3/12 » dans le header comme dans la popup. */
+/** The aggregate state of a batch: "3/12" in the header as in the popup. */
 export type VueLot = {
   sousTaches: VueSousTache[];
   total: number;
   terminees: number;
   echecs: number;
   annulees: number;
-  /** En attente ou en cours. */
+  /** Pending or running. */
   actives: number;
 };
 
@@ -337,7 +337,7 @@ export type VueGroupe = {
   id: string;
   titre: string;
   changements: VueChangement[];
-  /** Nombre de changements cochés / cochables du groupe. */
+  /** Number of ticked / tickable changes in the group. */
   coches: number;
   total: number;
 };
@@ -348,17 +348,17 @@ export type CompteursProposition = {
   ecartes: number;
   bloques: number;
   refuses: number;
-  /** Écrasements d'éléments validés parmi les changements sélectionnés. */
+  /** Overwrites of validated elements among the selected changes. */
   ecrasementsSelectionnes: number;
   inventions: number;
 };
 
-/** Ce que `appliquerSelection` demande de confirmer quand la sélection écrase du validé. */
+/** What `appliquerSelection` asks to confirm when the selection overwrites validated content. */
 export type EcrasementAConfirmer = { changementId: number; libelle: string; ecrase: string };
 
-/** Le diagnostic d'une correction après visionnage (skill `iteration-plan`), tel que la revue l'affiche : il
- * existe même quand rien n'est écrit (durée incohérente, cause hors du prompt, abandon). Lu depuis le résultat
- * de la tâche (agent_runs.resultat), jamais stocké ailleurs. */
+/** The diagnosis of a correction after viewing (skill `iteration-plan`), as the review displays it: it
+ * exists even when nothing is written (incoherent duration, cause outside the prompt, giving up). Read from the task's result
+ * (agent_runs.resultat), never stored elsewhere. */
 export type DiagnosticIteration = {
   symptome: string;
   cause: string;
@@ -368,32 +368,32 @@ export type DiagnosticIteration = {
   dureeCoherente: boolean;
   entreeLexique: { symptome: string; cause: string; formulationQuiTient: string } | null;
   abandon: { propose: boolean; raison: string } | null;
-  /** Ce que l'agent décide de changer (validé, seulement ce qui change) : la fiche est alors recompilée par Open H3 IR avec ces valeurs, écrites
-   * avec elle. Null : rien à recompiler (diagnostic seul, durée incohérente, abandon, ancien contrat). */
+  /** What the agent decides to change (validated, only what changes): the sheet is then recompiled by Open H3 IR with these values, written
+   * with it. Null: nothing to recompile (diagnosis only, incoherent duration, giving up, old contract). */
   decisions: DecisionsIteration | null;
-  /** Les décisions avant → après, pour la page du plan. */
+  /** The decisions before → after, for the clip's page. */
   affichage: DecisionsAffichees | null;
-  /** Assets que l'agent suggère de créer (jamais créés par l'itération, deux au plus). */
+  /** Assets the agent suggests creating (never created by the iteration, two at most). */
   assetsSuggeres: { code: string; type: string; parent?: string; raison: string }[];
 };
 
-/** Les décisions EFFECTIVES d'une itération (lib/agents/iteration-clip.ts, `decisionsEffectives`) : absent = ne change pas. La nouvelle valeur
- * REMPLACE celle du plan (pas de directive qui s'accumule). */
+/** An iteration's EFFECTIVE decisions (lib/agents/iteration-clip.ts, `decisionsEffectives`): absent = unchanged. The new value
+ * REPLACES the clip's (no directive that accumulates). */
 export type DecisionsIteration = {
-  /** Le nouvel intent COMPLET (remplace `plans.description`). */
+  /** The new COMPLETE intent (replaces `plans.description`). */
   description?: string;
-  /** La nouvelle durée de génération (4 à 10 s). */
+  /** The new generation duration (4 to 10 s). */
   dureeSecondes?: number;
-  /** Codes du registre à ajouter / retirer des références d'image du plan. */
+  /** Registry codes to add / remove from the clip's image references. */
   references?: { ajouter: string[]; retirer: string[] };
-  /** Réglages Open H3 IR du PLAN (`plans.creativite`, `plans.style_camera` ; `"aucun"` = pas de style). */
+  /** Open H3 IR settings of the CLIP (`plans.creativite`, `plans.style_camera`; `"aucun"` = no style). */
   reglages?: { creativite?: string; styleCamera?: string };
-  /** Assets à CRÉER (deux au plus, code et parent valides) : créés d'office, leur image générée, puis ajoutés aux références avant la recompilation
-   * (vague 4a, 2026-11-09). */
+  /** Assets to CREATE (two at most, valid code and parent): created outright, their image generated, then added to the references before the recompilation
+   * (wave 4a, 2026-11-09). */
   manquants?: { code: string; type: string; parent: string | null; description: string; raison: string }[];
 };
 
-/** Les décisions telles que la page d'un plan les montre (« Itérer »). */
+/** The decisions as a clip's page shows them ("Itérer"). */
 export type DecisionsAffichees = {
   intent: { avant: string; apres: string } | null;
   duree: { avant: number; apres: number } | null;
@@ -411,7 +411,7 @@ export type VueProposition = {
   portee: Portee;
   cibleId: number | null;
   consigne: string;
-  /** Retour libre de l'utilisateur ayant produit cette proposition (affinage). */
+  /** The user's free feedback that produced this proposal (refinement). */
   retour: string | null;
   parentUuid: string | null;
   resume: string;
@@ -419,31 +419,31 @@ export type VueProposition = {
   erreur: string | null;
   groupes: VueGroupe[];
   compteurs: CompteursProposition;
-  /** Les écrasements cochés qu'`appliquerSelection` exigera de confirmer. */
+  /** The ticked overwrites that `appliquerSelection` will require confirming. */
   ecrasements: EcrasementAConfirmer[];
-  /** Tâche de génération (en_generation) ; null une fois prête. Pour un lot : null (voir `lot`). */
+  /** Generation task (en_generation); null once ready. For a batch: null (see `lot`). */
   tache: EtatTache | null;
-  /** Proposition en lot (plusieurs sous-tâches, ex. un épisode chacune) ; null sinon. */
+  /** Batch proposal (several subtasks, e.g. one episode each); null otherwise. */
   lot: VueLot | null;
-  /** Correction après visionnage (`iteration-plan`) : le diagnostic de l'agent ; null sinon ou tant qu'il n'a pas répondu. */
+  /** Correction after viewing (`iteration-plan`): the agent's diagnosis; null otherwise or until it has answered. */
   diagnostic: DiagnosticIteration | null;
   createdAt: string;
   appliedAt: string | null;
 };
 
-/** Un épisode proposable à l'écriture de son scénario (sélecteur du lot). */
+/** An episode that can be offered for writing its screenplay (batch selector). */
 export type EpisodePourScenario = {
   id: number;
   numero: number;
   titre: string;
-  /** Aucun plan ni scène : le cas normal d'un squelette tout juste appliqué. */
+  /** No clip nor scene: the normal case of a skeleton just applied. */
   vide: boolean;
   nbPlans: number;
   nbScenes: number;
 };
 
-/** Un plan proposable à l'écriture de sa fiche (sélecteur du lot « fiches de plan »). L'identifiant
- * est l'uuid ; `rang` n'est qu'une position affichée dans l'épisode (F03). */
+/** A clip that can be offered for writing its sheet (selector of the "fiches de plan" batch). The identifier
+ * is the uuid; `rang` is only a position displayed in the episode (F03). */
 export type PlanPourFiche = {
   uuid: string;
   titre: string;
@@ -452,18 +452,18 @@ export type PlanPourFiche = {
   episodeLibelle: string;
   sceneTitre: string | null;
   dureeSecondes: number;
-  /** Au moins une section du prompt non vide : réécrire = risque d'écrasement (décoché d'office). */
+  /** At least one non-empty prompt section: rewriting = overwrite risk (unticked outright). */
   aDesSections: boolean;
-  /** Références picture/audio déjà posées. */
+  /** Picture/audio references already set. */
   nbRefs: number;
-  /** Un rendu vidéo existe : la fiche ne lui correspondra plus. */
+  /** A video render exists: the sheet will no longer match it. */
   aUnRendu: boolean;
-  /** Plan sans intention (description) : l'agent n'aura que son titre. */
+  /** Clip without intent (description): the agent will only have its title. */
   sansIntention: boolean;
 };
 
 // ---------------------------------------------------------------------------
-// Résultats d'actions
+// Action results
 // ---------------------------------------------------------------------------
 
 export type Resultat<T extends object = object> = ({ ok: true } & T) | { ok: false; erreur: string };

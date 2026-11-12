@@ -5,13 +5,13 @@ import { db } from "../db";
 import { agentRuns } from "../db/schema";
 import { listerSkills } from "../lib/llm/skills";
 
-/** Pose un appel LLM dans la file du worker (table `agent_runs`), sans interface :
+/** Queues an LLM call in the worker's queue (table `agent_runs`), without interface:
  *   npm run llm:task -- <skill> [--entree fichier.json|.txt] [--projet <id>]
  *                                      [--modele X] [--variante V] [--suivre]
- * Le worker (`npm run dev:all`) doit tourner : il prend la tâche quand le GPU est
- * libre (image, puis LLM, puis vidéo), décharge ComfyUI si besoin, appelle le
- * modèle et écrit le résultat. `--suivre` affiche l'avancement jusqu'à la fin.
- * La tâche apparaît aussi dans le panneau du header. */
+ * The worker (`npm run dev:all`) must be running: it picks up the task when the GPU is
+ * free (image, then LLM, then video), unloads ComfyUI if needed, calls the
+ * model and writes the result. `--suivre` (follow) shows the progress until the end.
+ * The task also appears in the header panel. */
 
 function arg(nom: string): string | undefined {
   const i = process.argv.indexOf(nom);

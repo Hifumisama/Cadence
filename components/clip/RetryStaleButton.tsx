@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { relancerPlansPerimes } from "@/app/plans/actions";
 
-/** « Relancer les périmés » : même confirmation à deux temps que le passage nuit (chaque plan relancé est un rendu ComfyUI). */
+/** « Relancer les périmés »: same two-step confirmation as the night pass (each clip relaunched is a ComfyUI render). */
 export function RelancePerimesButton({ episodeId, nPerimes }: { episodeId: number; nPerimes: number }) {
   const [pending, startTransition] = useTransition();
   const [confirmation, setConfirmation] = useState(false);

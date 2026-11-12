@@ -5,10 +5,10 @@
 
 
 
-/** Les sections qui sont des LISTES d'objets (épisodes, personnages…) : un formulaire par élément au lieu d'un JSON
- * brut. La saisie reste la chaîne JSON que `depuisSaisie` relit et que le serveur valide contre le sous-schéma de la
- * section : le formulaire ne fait que la produire. Les champs que le formulaire ne montre pas (le `statut` d'un
- * personnage) sont conservés tels quels. */
+/** Sections that are LISTS of objects (episodes, characters…): one form per item instead of a raw
+ * JSON. The input stays the JSON string that `depuisSaisie` reads back and that the server validates against the
+ * section's sub-schema: the form only produces it. Fields the form does not show (the `statut` of a
+ * character) are kept as they are. */
 type ChampListe = { cle: string; libelle: string; type: "texte" | "long" | "bool" };
 export const FORMULAIRES_LISTE: Record<string, { element: string; champs: ChampListe[]; nouveau: Record<string, unknown> }> = {
   episodes: {

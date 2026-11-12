@@ -1,15 +1,15 @@
 
-/** Génération d'images EN LOT (registre d'assets, 2026-10-03) : on coche plusieurs assets et chacun part dans la file
- * avec son propre prompt. Règles pures ; l'action serveur (app/assets/generation-actions.ts) les applique.
+/** Image generation IN BATCH (asset registry, 2026-10-03): we tick several assets and each goes into the queue
+ * with its own prompt. Pure rules; the server action (app/assets/generation-actions.ts) applies them.
  *
- * Deux vagues, parce qu'un dérivé en ÉDITION part de l'image de son master :
- * - 1re vague : tout asset qui a un prompt et se génère à partir du texte, et tout dérivé en édition dont le master
- *   a DÉJÀ une image ;
- * - 2e vague : les dérivés en édition dont le master n'a pas encore d'image. Ils sont écartés avec cette raison : une
- *   fois le master adopté, on relance le lot. */
+ * Two waves, because a derivative in EDIT starts from its master's image:
+ * - 1st wave: every asset that has a prompt and is generated from text, and every derivative in edit whose master
+ *   ALREADY has an image;
+ * - 2nd wave: the derivatives in edit whose master has no image yet. They are set aside with this reason: once
+ *   the master is adopted, we relaunch the batch. */
 
-/** Au-delà de ce nombre d'images en attente, un lot est tronqué (les suivantes se relancent). Plus large que le
- * plafond d'une demande isolée : remplir un registre au début d'un projet est exactement ce pour quoi un lot existe. */
+/** Beyond this number of images waiting, a batch is truncated (the next ones are relaunched). Wider than the
+ * ceiling of an isolated request: filling a registry at the start of a project is exactly what a batch exists for. */
 export const PLAFOND_LOT_IMAGES = 30;
 
 export type AssetPourLot = {
@@ -26,16 +26,16 @@ type LancementLot = { assetId: number; code: string; mode: "texte" | "images"; s
 export type EcarteLot = { assetId: number; code: string; raison: string };
 export type PlanLot = { aLancer: LancementLot[]; ecartes: EcarteLot[] };
 
-/** Décide, pour chaque asset coché, s'il part (et comment) ou pourquoi il est écarté. `tous` = les assets du projet
- * (pour retrouver le master d'un dérivé) ; `dejaEnFile` = ceux qui ont déjà une génération en attente ou en cours ;
- * `placesLibres` = ce que la file peut encore accepter. L'ordre de `selection` est conservé (masters avant dérivés). */
+/** Decides, for each ticked asset, whether it goes (and how) or why it is set aside. `tous` = the project's assets
+ * (to find a derivative's master); `dejaEnFile` = those that already have a generation waiting or running;
+ * `placesLibres` = what the queue can still accept. The order of `selection` is kept (masters before derivatives). */
 export function preparerLot(selection: AssetPourLot[], tous: AssetPourLot[], dejaEnFile: Set<number>, placesLibres: number): PlanLot {
   const parId = new Map(tous.map((a) => [a.id, a]));
   const aLancer: LancementLot[] = [];
   const ecartes: EcarteLot[] = [];
   const ecarte = (a: AssetPourLot, raison: string) => ecartes.push({ assetId: a.id, code: a.code, raison });
 
-  // Masters d'abord : un dérivé peut ainsi se juger sur l'état du master tel qu'il est maintenant.
+  // Masters first: a derivative can thus be judged on the master's state as it is now.
   const ordonnee = [...selection].sort((a, b) => Number(a.deriveDeId != null) - Number(b.deriveDeId != null));
   for (const a of ordonnee) {
     if (!(a.promptGeneration ?? "").trim()) {

@@ -8,8 +8,8 @@ import { arreterCreation, lancerCreation, lancerFichesApresCreation, reprendreCr
 
 import type { Resultat } from "@/lib/agents/types";
 
-/** L'installateur (lib/agents/creation.ts) : une seule demande enchaîne toute la création du projet. Ces actions ne
- * font qu'écrire l'état ; le worker fait avancer les étapes (lib/agents/creation-db.ts, `piloterCreations`). */
+/** The installer (lib/agents/creation.ts): a single request chains the whole project creation. These actions
+ * only write the state; the worker advances the steps (lib/agents/creation-db.ts, `piloterCreations`). */
 
 export async function lancerCreationProjet(projectId: number): Promise<Resultat<{ creationId: number }>> {
   const r = await lancerCreation(projectId);
@@ -29,8 +29,8 @@ export async function arreterCreationProjet(projectId: number): Promise<Resultat
   return r;
 }
 
-/** « Écrire les fiches » de l'écran des intents : une demande de fiche par plan (sans fiche par défaut, tous si `tous`), dans l'ordre du scénario,
- * hors création (lib/agents/creation-db.ts, `lancerFichesApresCreation`). Le suivi se lit ensuite par app/api/creation/[projectId]/fiches. */
+/** « Écrire les fiches » on the intent screen: one clip sheet request per clip (no sheet by default, all if `tous`), in screenplay order,
+ * outside creation (lib/agents/creation-db.ts, `lancerFichesApresCreation`). Progress is then read via app/api/creation/[projectId]/fiches. */
 export async function ecrireFichesProjet(projectId: number, options: { tous?: boolean } = {}): Promise<Resultat<{ lancees: number; erreurs: string[] }>> {
   const r = await lancerFichesApresCreation(projectId, { tous: options.tous === true });
   revalidatePath("/", "layout");
@@ -39,7 +39,7 @@ export async function ecrireFichesProjet(projectId: number, options: { tous?: bo
 
 const MAX_INTENT = 4000;
 
-/** Corrige l'intent d'un plan (sa description) depuis l'écran de fin, avant d'écrire sa fiche. Le plan est désigné par son uuid, dans CE projet. */
+/** Fixes a clip's intent (its description) from the end screen, before writing its clip sheet. The clip is identified by its uuid, within THIS project. */
 export async function modifierIntentPlan(projectId: number, planUuid: string, description: string): Promise<Resultat> {
   const texte = description.trim();
   if (!texte) return { ok: false, erreur: "L'intent ne peut pas être vide : c'est ce que la fiche met en images." };

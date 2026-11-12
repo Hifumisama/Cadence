@@ -7,12 +7,12 @@ import { montageExports } from "../db/schema";
 import { argsExport, dureeSegment, formatSortie, type SegmentExport, type SondeVideo } from "../lib/montage/montage";
 import { binaires, executerProcessus } from "../lib/renders/contact-sheet";
 
-/** Export d'un épisode (bouton « Exporter l'épisode », app/montage/actions.ts) : le worker met bout à bout, avec ffmpeg, les segments que
- * l'interface a figés au clic (rendus retenus des entrées du montage, rognage appliqué). Aucun GPU : une boucle à part dans
- * worker/index.ts, qui ne retarde ni ComfyUI ni le LLM. Le fichier est UNIQUE par épisode (`montage/<episodeId>/episode.mp4`), remplacé
- * à chaque export ; il est écrit sous un nom provisoire puis renommé, pour qu'un export en cours ne casse jamais le précédent. */
+/** Export of an episode (button « Exporter l'épisode », app/montage/actions.ts): the worker joins end to end, with ffmpeg, the segments that
+ * the interface froze on click (selected renders of the montage entries, trim applied). No GPU: a separate loop in
+ * worker/index.ts, which delays neither ComfyUI nor the LLM. The file is UNIQUE per episode (`montage/<episodeId>/episode.mp4`), replaced
+ * at each export; it is written under a provisional name then renamed, so that an export in progress never breaks the previous one. */
 
-/** Ce que ffprobe dit d'un fichier : dimensions, cadence, durée, présence d'une piste son. */
+/** What ffprobe reports about a file: dimensions, frame rate, duration, presence of an audio track. */
 async function sonder(chemin: string): Promise<SondeVideo> {
   const { ffprobe } = binaires();
   const brut = await executerProcessus(ffprobe, ["-v", "error", "-show_entries", "stream=codec_type,width,height,r_frame_rate:format=duration", "-of", "json", chemin]);
@@ -28,13 +28,13 @@ async function sonder(chemin: string): Promise<SondeVideo> {
   };
 }
 
-/** Un export laissé « en cours » par un worker arrêté repart en file (appelé au démarrage). */
+/** An export left « en cours » by a stopped worker goes back into the queue (called at startup). */
 export async function reprendreExports(): Promise<number> {
   const r = await db.update(montageExports).set({ statut: "en_attente", startedAt: null }).where(eq(montageExports.statut, "en_cours")).returning({ id: montageExports.id });
   return r.length;
 }
 
-/** Prend le plus ancien export en attente et l'encode. `true` s'il y en avait un. */
+/** Takes the oldest pending export and encodes it. `true` if there was one. */
 export async function traiterProchainExport(mediaRoot: string): Promise<boolean> {
   const pris = await db.execute<{ id: number }>(sql`
     update montage_exports set statut = 'en_cours', started_at = now()

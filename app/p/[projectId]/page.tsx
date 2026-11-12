@@ -3,7 +3,7 @@ import { getFirstEpisodeId } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
-/** Un projet est un film : sa carte d'identité (le brief : titre, affiche, résumé, style) est sa page d'accueil. */
+/** A project is a film: its identity card (the brief: title, poster, summary, style) is its home page. */
 export default async function ProjetPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
   const id = Number(projectId);

@@ -5,16 +5,16 @@ import { problemesDeRelecture, type EntreeRelecture, type SortieRelecture } from
 import { contexteReferencesDepuisEntree, controlerReferences, type SortieInventaire } from "../agents/inventory";
 import { corrigerCodesReferencesPlan, problemesReferencesPlan, SKILL_REFERENCES_PLAN, type EntreeSkillReferencesPlan, type SortieReferencesPlan } from "../agents/references-clip";
 
-/** Contrôles SÉMANTIQUES d'un skill, appliqués à une sortie qui respecte déjà le schéma : ce que le
- * schéma ne sait pas dire (un code d'asset recopié de travers, un timecode qui recule…). S'il en trouve,
- * l'exécuteur renvoie UNE fois le modèle avec la liste ; si le défaut persiste, la sortie est gardée et
- * ses problèmes apparaîtront dans la revue (jamais de JSON réparé en silence). Seules les ERREURS de
- * contrat déclenchent un renvoi ; les alertes se lisent à la revue. */
+/** SEMANTIC checks of a skill, applied to an output that already respects the schema: what the
+ * schema cannot express (an asset code copied wrongly, a timecode going backwards…). If it finds some,
+ * the executor sends the model back ONCE with the list; if the defect persists, the output is kept and
+ * its problems will appear in the review (never silently repaired JSON). Only CONTRACT ERRORS trigger
+ * a resend; warnings are read in the review. */
 export type Controleur = (json: unknown) => string[];
 
 export function controleurPourSkill(skill: string, entree: unknown): Controleur | undefined {
   if (skill === SKILL_REFERENCES_PLAN) {
-    // Des codes connus (un mot de liaison mal recopié est rapproché d'abord), ni son ni voix, 6 images et 2 manquants au plus, un manquant qui ne double pas l'existant.
+    // Known codes (a misquoted linking word is matched first), no sound or voice, 6 images and 2 missing at most, a missing one that does not duplicate the existing one.
     const e = (entree ?? {}) as EntreeSkillReferencesPlan;
     if (!Array.isArray(e.candidats)) return undefined;
     const ctx: EntreeSkillReferencesPlan = { ...e, assetsProposesParLeLot: e.assetsProposesParLeLot ?? [] };
@@ -22,7 +22,7 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
     return (json) => problemesReferencesPlan(corrigerCodesReferencesPlan(json as SortieReferencesPlan, codes).sortie, ctx);
   }
   if (skill === "iteration-plan") {
-    // L'entrée est celle que le worker envoie (texte, durée réelle comprise), jamais la planche d'images.
+    // The input is the one the worker sends (text, actual duration included), never the contact sheet of images.
     const ctx = contexteDepuisEntree(entree);
     return (json) =>
       controlerSortieIterationPlan(json as SortieIterationPlan, ctx)
@@ -30,14 +30,14 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
         .map((p) => p.message);
   }
   if (skill === "relecture-scenario") {
-    // Des corrections minimales, sans renvoi à un autre plan, qui gardent le récit, les mots de l'auteur et la durée : un défaut = un renvoi.
+    // Minimal corrections, without a pointer to another clip, that keep the story, the author's words and the duration: one defect = one resend.
     const e = (entree ?? {}) as EntreeRelecture;
     if (!Array.isArray(e.plans)) return undefined;
     return (json) => problemesDeRelecture(json as SortieRelecture, e).map((x) => x.message);
   }
   if (skill === "inventaire-assets") {
-    // Les références de chaque plan (2026-11-09) : codes connus (registre, assets déjà proposés, assets de la réponse), aucun son, 6 images au plus,
-    // une entrée par plan. Ce que le code corrige seul (doublon, second décor, second visage, keyframe non citée) n'est qu'une alerte.
+    // Each clip's references (2026-11-09): known codes (registry, assets already proposed, assets of the answer), no sound, 6 images at most,
+    // one entry per clip. What the code fixes alone (duplicate, second set, second face, uncited keyframe) is only a warning.
     return (json) => {
       const sortie = json as SortieInventaire;
       return controlerReferences(sortie, contexteReferencesDepuisEntree(entree, sortie))
@@ -51,11 +51,11 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
     return (json) => controlerTraitement(json as Parameters<typeof controlerTraitement>[0], vise);
   }
   if (skill === "scenario-scene") {
-    // Les durées sont ramenées à la cible par le code (ajusterDureesScene) : seule la structure des descriptions est contrôlée, comme pour un épisode.
+    // Durations are brought back to the target by the code (ajusterDureesScene): only the structure of the descriptions is checked, as for an episode.
     return (json) => controlerStructureScenario({ scenes: [{ plans: (json as { plans?: { titre?: string; description?: string }[] }).plans }] });
   }
   if (skill === "scenario-episode") {
-    // Seul un scénario d'épisode ENTIER se compare à la durée visée (un plan à insérer ou à corriger n'en est qu'un morceau).
+    // Only a WHOLE episode screenplay is compared to the target duration (a clip to insert or correct is only a piece of it).
     const e = (entree ?? {}) as { portee?: { type?: string }; briefExtrait?: { dureeEpisodeSecondes?: number } | null; plansExistants?: unknown[] };
     if (e.portee?.type !== "episode" || (e.plansExistants?.length ?? 0) > 0) return undefined;
     const cible = e.briefExtrait?.dureeEpisodeSecondes;

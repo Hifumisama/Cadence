@@ -25,14 +25,14 @@ import { SceneMiseEnScene } from "./StagingScene";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import type { MajEtat, StyleVue } from "./types";
 
-/** Ce qu'il manque pour avancer, par étape (affiché dans la barre d'action tant que « Continuer » est grisé). */
+/** What is missing to move forward, per step (shown in the action bar while « Continuer » is greyed out). */
 const INVITES = ["", "Choisis au moins un genre (deux au plus).", "Règle la durée pour continuer.", "Choisis la langue des dialogues.", "Choisis un style, ou écris le tien.", ""];
 
-/** La page de conception d'un projet : six scènes (format, genre et ton, durée, langue, style, mise en scène), un ruban de pellicule des neuf étapes pour naviguer,
- * une lumière d'ambiance qui suit les choix. L'état vit ici et dans la session du navigateur (rien n'est créé tant qu'on n'a pas
- * rencontré le scénariste : abandonner ne laisse aucun projet). Au dernier pas, le projet est créé côté serveur (app/nouveau/actions.ts)
- * avec sa fiche d'entretien préremplie, puis l'entretien s'ouvre. Plan : docs/PLAN_CONCEPTION_PROJET.md. */
-export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]; /** Les vidéos de démo de la mise en scène présentes sur le stockage (lib/media.ts, `demosMiseEnScene`). */ demos?: Record<string, DemoDispo> }) {
+/** A project's design page: six scenes (format, genre and tone, duration, language, style, staging), a filmstrip ribbon of the nine steps for navigation,
+ * an ambient light that follows the choices. The state lives here and in the browser session (nothing is created until the screenwriter has been met:
+ * abandoning leaves no project). At the last step, the project is created server-side (app/nouveau/actions.ts) with its pre-filled interview
+ * sheet, then the interview opens. Plan: docs/PLAN_CONCEPTION_PROJET.md. */
+export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]; /** The staging demo videos present on storage (lib/media.ts, `demosMiseEnScene`). */ demos?: Record<string, DemoDispo> }) {
   const router = useRouter();
   const [etat, setEtat] = useState<EtatAssistant>(etatInitial);
   const [etape, setEtape] = useState(0);
@@ -48,13 +48,13 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
   const maxAtteignable = etapeMax(etat, utilisable);
   const peutContinuer = etapeValide(etape, etat, utilisable);
 
-  // Reprise de la session : revenir sur la page (ou la recharger) retrouve les choix.
+  // Session resume: going back to the page (or reloading it) finds the choices again.
   useEffect(() => {
     try {
       const sauve = lireEtatSauvegarde(window.sessionStorage.getItem(CLE_SESSION));
       if (sauve) setEtat(sauve);
     } catch {
-      /* stockage indisponible (navigation privée…) : on part de zéro */
+      /* storage unavailable (private browsing…): we start from zero */
     }
     setRestaure(true);
   }, []);
@@ -63,11 +63,11 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
     try {
       window.sessionStorage.setItem(CLE_SESSION, JSON.stringify(etat));
     } catch {
-      /* idem */
+      /* same */
     }
   }, [etat, restaure]);
 
-  // Après chaque changement : tant que la mise en scène n'a pas été choisie à la main, elle suit la recommandation du style (lib/projects/design-ui.ts, `suivreRecommandation`).
+  // After each change: as long as the staging has not been chosen by hand, it follows the style's recommendation (lib/projects/design-ui.ts, `suivreRecommandation`).
   const maj: MajEtat = useCallback((f) => setEtat((e) => suivreRecommandation(f(e))), []);
 
   const aller = useCallback(
@@ -80,7 +80,7 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
     [etape, maxAtteignable],
   );
 
-  // Flèches : changent d'étape, sauf dans un champ de saisie ou sur un curseur (qui s'en sert pour changer sa valeur).
+  // Arrows: change the step, except in an input field or on a slider (which uses them to change its value).
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
       const cible = e.target as HTMLElement | null;
@@ -109,7 +109,7 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
       try {
         window.sessionStorage.removeItem(CLE_SESSION);
       } catch {
-        /* sans importance */
+        /* not important */
       }
       router.push(`/p/${r.projectId}/demarrage`);
     } catch {
@@ -133,7 +133,7 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
       <div className="cn-ambiance" aria-hidden="true"><i /><i /></div>
       <nav className="cn-ruban" aria-label="Étapes de la conception">
         {ETAPES_CONCEPTION.map((nom, i) => {
-          // Les trois dernières étapes (scénario, clap, avancée) viennent après la création du projet : visibles, pas encore rejoignables.
+          // The last three steps (screenplay, clap, progress) come after the project is created: visible, not yet reachable.
           const resume = i <= DERNIERE_ETAPE ? resumeEtape(i, etat, nomStyle) : "";
           return (
             <button

@@ -1,7 +1,7 @@
-/** Ce qu'on est en train de modifier dans le brief, directement dans le bloc concerné (une seule édition à la fois).
- * - `section` : une valeur simple (titre, arc, langue, durée, genre et ton, notes) ;
- * - `element` : UN élément d'une liste d'objets (personnage, lieu).
- * Pour `element`, `index === longueur de la liste` = en ajouter un. */
+/** What is being edited in the brief, directly in the relevant block (one edit at a time).
+ * - `section`: a simple value (title, arc, language, duration, genre and tone, notes);
+ * - `element`: ONE element of an object list (character, location).
+ * For `element`, `index === length of the list` = adding one. */
 export type Edition = { type: "section"; cle: string; titre: string } | { type: "element"; cle: string; index: number };
 
 export function memeEdition(a: Edition | null, b: Edition): boolean {

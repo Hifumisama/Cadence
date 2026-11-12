@@ -49,7 +49,7 @@ test("injection : prompt, style, format, seed et préfixe", () => {
   assert.equal(g[ids.format]!.inputs.megapixels, 1.3);
   assert.equal(g[ids.seed]!.inputs.seed, 12345);
   assert.equal(g[ids.sortie]!.inputs.filename_prefix, "cadence_DEC_x");
-  // le graphe d'origine n'est pas modifié
+  // the original graph is not modified
   assert.notEqual(workflow[ids.prompt]!.inputs.value, entree.prompt);
 });
 
@@ -59,7 +59,7 @@ test("un graphe dont un nœud a disparu est refusé", () => {
   assert.throws(() => injecterGenerationImage(casse, entree), /introuvable/);
 });
 
-// --- Édition : IMG_Simple_Edit.json -----------------------------------------
+// --- Edit: IMG_Simple_Edit.json -----------------------------------------
 
 const workflowEdition = JSON.parse(
   readFileSync(resolve(process.cwd(), "workflows/image-refs/IMG_Simple_Edit.json"), "utf8"),
@@ -84,7 +84,7 @@ test("les nœuds du contrat existent dans IMG_Simple_Edit.json", () => {
   assert.equal(workflowEdition[ids.seed]!.class_type, "KSampler");
   assert.equal(workflowEdition[ids.lightning]!.class_type, "PrimitiveBoolean");
   assert.equal(workflowEdition[ids.sortie]!.class_type, "SaveImageAdvanced");
-  // les champs écrits existent bien dans l'export
+  // the written fields do exist in the export
   assert.ok("image" in workflowEdition[ids.image1]!.inputs);
   assert.ok("prompt" in workflowEdition[ids.encodeurPositif]!.inputs);
   assert.ok("seed" in workflowEdition[ids.seed]!.inputs);
@@ -103,7 +103,7 @@ test("édition, 1 image : prompt, seed, Lightning, préfixe ; pas de nœud en pl
   assert.equal(g[ids.sortie]!.inputs.filename_prefix, "cadence_CHAR_maya");
   assert.equal(Object.keys(g).length, Object.keys(workflowEdition).length);
   assert.ok(!("image2" in g[ids.encodeurPositif]!.inputs));
-  // le graphe d'origine n'est pas modifié
+  // the original graph is not modified
   assert.notEqual(workflowEdition[ids.encodeurPositif]!.inputs.prompt, edition.prompt);
 });
 
@@ -114,7 +114,7 @@ test("édition : le style du projet est rappelé en dernière ligne, les instruc
   const g = injecterEditionImages(workflowEdition, { ...edition, prompt: consigne, clauseStyle: clause });
   assert.equal(g[ids.encodeurPositif]!.inputs.prompt, `${consigne}\nKeep the result in this art style: ${clause}`);
   assert.equal(g[ids.encodeurNegatif]!.inputs.prompt, "", "le négatif reste vide");
-  // sans clause (anciennes demandes) ou déjà présente : rien n'est ajouté
+  // without a clause (old requests) or already present: nothing is added
   assert.equal(instructionsAvecStyle(consigne, ""), consigne);
   assert.equal(instructionsAvecStyle(consigne, undefined), consigne);
   assert.equal(instructionsAvecStyle(`${consigne}\n${clause}`, ` ${clause} `), `${consigne}\n${clause}`);
@@ -144,7 +144,7 @@ test("édition, 2 et 3 images : nœuds créés et câblés sur les deux encodeur
   for (const enc of [ids.encodeurPositif, ids.encodeurNegatif]) {
     assert.deepEqual(g3[enc]!.inputs.image3, ["cadence_source_3_echelle", 0]);
   }
-  // chaque lien du graphe créé pointe vers un nœud qui existe
+  // every link of the created graph points to a node that exists
   for (const n of Object.values(g3)) {
     for (const v of Object.values(n.inputs)) {
       if (Array.isArray(v) && typeof v[0] === "string") assert.ok(g3[v[0]], `lien vers ${v[0]} sans nœud`);

@@ -1,9 +1,9 @@
 import { formatTemps, type SegmentExport } from "./montage";
 import { cleMontage, type Tache } from "../tasks/tasks";
 
-/** Un export de l'épisode (table `montage_exports`, worker/montage-export.ts) vu comme UNE tâche du panneau du bandeau — règle pure,
- * sans base. Ce n'est pas une tâche GPU : elle s'affiche avec le genre « video » (icône, « Prête »), mais sa clé `montage:<id>` la tient
- * hors de la file GPU (`estHorsFileGpu`, lib/tasks/tasks.ts) et sans bouton d'annulation (`estAnnulable`). */
+/** An export of the episode (table `montage_exports`, worker/montage-export.ts) seen as ONE task of the band's panel — pure rule,
+ * no database. It is not a GPU task: it is displayed with the « video » kind (icon, « Prête »), but its key `montage:<id>` keeps it
+ * out of the GPU queue (`estHorsFileGpu`, lib/tasks/tasks.ts) and without a cancel button (`estAnnulable`). */
 
 export type EntreeTacheExport = {
   id: number;
@@ -11,10 +11,10 @@ export type EntreeTacheExport = {
   episodeId: number;
   projetNom: string | null;
   statut: string;
-  /** L'instantané figé au clic (jsonb) : la fin de chaque segment y est explicite. */
+  /** The snapshot frozen on click (jsonb): the end of each segment is explicit in it. */
   segments: unknown;
   nbIgnores: number;
-  /** Durée réellement encodée (connue une fois l'export terminé). */
+  /** Duration actually encoded (known once the export is finished). */
   dureeSecondes: number | null;
   erreur: string | null;
   createdAt: Date;
@@ -23,7 +23,7 @@ export type EntreeTacheExport = {
   vuAt: Date | null;
 };
 
-/** Durée attendue d'un instantané : somme des segments (fin - début ; une fin absente ne compte pas). */
+/** Expected duration of a snapshot: sum of the segments (end - start; a missing end does not count). */
 export function dureeAttendue(segments: readonly Pick<SegmentExport, "debut" | "fin">[]): number {
   return segments.reduce((t, s) => t + (s.fin == null ? 0 : Math.max(0, s.fin - s.debut)), 0);
 }
@@ -47,7 +47,7 @@ export function tacheDExport(e: EntreeTacheExport): Tache {
     href: `/p/${e.projectId}/e/${e.episodeId}/montage`,
     projectId: e.projectId,
     assetId: null,
-    // Pas de progression mesurée (ffmpeg n'en rend pas) : une barre indéterminée et l'étape en clair.
+    // No measured progress (ffmpeg does not report any): an indeterminate bar and the step in plain text.
     progression: e.statut === "en_cours" ? { valeur: 0, max: 0, etape: "Encodage (ffmpeg)" } : null,
     apercuSrc: null,
     vignetteSrc: null,

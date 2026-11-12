@@ -1,24 +1,24 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-/** Canevas vide d'une affiche éditée : l'image 1 de Qwen Image Edit fixe le format de la sortie (le graphe n'a aucun nœud
- * de taille, voir worker/comfyui/imageMapping.ts), et le personnage est une fiche 16:9. On met donc en image 1 un
- * canevas 2:3 et le personnage derrière (image 2). Un fichier `canevas_affiche_2x3.png` posé dans workflows/image-refs/
- * (avec un cadre d'affiche, par exemple) remplace le gris neutre généré par défaut. */
+/** Blank canvas of an edited poster: image 1 of Qwen Image Edit fixes the output format (the graph has no size node,
+ * see worker/comfyui/imageMapping.ts), and the character is a 16:9 sheet. So we put a
+ * 2:3 canvas as image 1 and the character behind it (image 2). A file `canevas_affiche_2x3.png` placed in workflows/image-refs/
+ * (with a poster frame, for example) replaces the default generated neutral grey. */
 export const LARGEUR_CANEVAS = 832;
 export const HAUTEUR_CANEVAS = 1248; // 2:3
 
 const CHEMIN_CANEVAS_FOURNI = () =>
   resolve(process.env.COMFYUI_CANEVAS_AFFICHE_PATH ?? "./workflows/image-refs/canevas_affiche_2x3.png");
 
-/** Chemin local d'un canevas prêt à envoyer : le fichier fourni s'il existe, sinon un gris moyen écrit dans `dossier`. */
+/** Local path of a canvas ready to send: the supplied file if it exists, otherwise a mid grey written in `dossier`. */
 export async function cheminCanevasAffiche(dossier: string): Promise<string> {
   const fourni = CHEMIN_CANEVAS_FOURNI();
   try {
     await access(fourni);
     return fourni;
   } catch {
-    // pas de fichier fourni : gris neutre généré ci-dessous
+    // no supplied file: neutral grey generated below
   }
   const { default: sharp } = await import("sharp");
   sharp.cache(false);

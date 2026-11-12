@@ -5,44 +5,43 @@ import { enregistrerTrace, type EnregistreurTrace, type StatutTrace, type TraceA
 import { valider } from "./validation";
 import { ErreurLlm, messagesSansImages, type DemandeLlm, type FournisseurLlm, type MessageLlm, type ReponseLlm } from "./types";
 
-/** Limite de sortie par défaut : un brief ou un plan tient largement, un plafond
- * évite une génération qui ne s'arrête pas. */
+/** Default output limit: a brief or a plan fits comfortably; a cap avoids a generation that never stops. */
 const MAX_TOKENS_PAR_DEFAUT = 16384;
 
 export type OptionsExecution = {
   fournisseur?: FournisseurLlm;
-  /** Modèle forcé ; sinon `LLM_MODELE_<SKILL>` puis `LLM_LOCAL_MODELE`. */
+  /** Forced model; otherwise `LLM_MODELE_<SKILL>` then `LLM_LOCAL_MODELE`. */
   modele?: string;
   projectId?: number | null;
   signal?: AbortSignal;
   maxTokens?: number;
   temperature?: number;
-  /** Renvois automatiques après une sortie hors schéma (1 par défaut, 0 = aucun). */
+  /** Automatic resends after an output off the schema (1 by default, 0 = none). */
   maxRenvois?: number;
   surProgres?: (jetonsSortie: number) => void;
-  /** Texte au fil du flux (voir `DemandeLlm.surFlux`). */
+  /** Text as the stream flows (see `DemandeLlm.surFlux`). */
   surFlux?: DemandeLlm["surFlux"];
-  /** `false` : ne pas contraindre la sortie côté serveur (comparaison, diagnostic) ;
-   * la validation contre le schéma reste faite. `true` par défaut. */
+  /** `false`: do not constrain the output server side (comparison, diagnosis);
+   * validation against the schema is still done. `true` by default. */
   contrainte?: boolean;
-  /** Journalisation : `enregistrerTrace` (base) par défaut ; `null` pour désactiver. */
+  /** Logging: `enregistrerTrace` (database) by default; `null` to disable. */
   enregistrer?: EnregistreurTrace | null;
   env?: Env;
   racine?: string;
-  /** Variante de skill : restreint les guides chargés (voir lib/llm/skills.ts). */
+  /** Skill variant: restricts the guides loaded (see lib/llm/skills.ts). */
   variante?: string;
-  /** Contrôle sémantique d'une sortie VALIDE contre le schéma (voir lib/llm/checks.ts) : la liste de ses
-   * erreurs déclenche un renvoi (dans la limite de `maxRenvois`) ; si elles persistent, la sortie est gardée. */
+  /** Semantic check of an output VALID against the schema (see lib/llm/checks.ts): its list of
+   * errors triggers a resend (within the limit of `maxRenvois`); if they persist, the output is kept. */
   controler?: (json: unknown) => string[];
-  /** Champs ajoutés au corps de la requête ; sinon `LLM_CORPS_<SKILL>` / `LLM_CORPS` (voir config.ts). */
+  /** Fields added to the request body; otherwise `LLM_CORPS_<SKILL>` / `LLM_CORPS` (see config.ts). */
   corps?: Record<string, unknown>;
 };
 
 export type ResultatSkill = {
-  /** Le JSON de sortie, validé contre le schéma du skill. */
+  /** The JSON output, validated against the skill's schema. */
   json: unknown;
   reponse: ReponseLlm;
-  /** Cumul des appels (le renvoi éventuel compte). */
+  /** Cumulative calls (any resend counts). */
   usage: { entree: number; sortie: number };
   dureeMs: number;
   renvois: number;
@@ -50,9 +49,8 @@ export type ResultatSkill = {
   skill: { nom: string; caracteres: number; jetonsEstimes: number };
 };
 
-/** Une entrée peut être un texte, un objet (sérialisé en JSON lisible) ou une
- * conversation déjà en messages — dont le contenu peut être mixte (texte + images,
- * voir `PartieContenu`) : c'est la voie pour une planche de vignettes. */
+/** An input can be a text, an object (serialized as readable JSON) or a conversation already in messages — whose content can be mixed (text + images,
+ * see `PartieContenu`): this is the route for a contact sheet of thumbnails. */
 export function versMessages(entree: string | object | MessageLlm[]): MessageLlm[] {
   if (typeof entree === "string") return [{ role: "user", content: entree }];
   if (Array.isArray(entree)) return entree as MessageLlm[];
@@ -87,9 +85,9 @@ function analyser(rep: ReponseLlm, schema: Record<string, unknown>): Analyse {
   return v.ok ? { ok: true, json } : { ok: false, erreurs: v.erreurs };
 }
 
-/** Exécute un skill d'agent : chargement → appel → validation (un renvoi corrigé
- * si besoin) → trace. Le JSON n'est JAMAIS réparé en silence : hors schéma après
- * le renvoi, c'est une `ErreurLlm('sortie_invalide')` qui porte les erreurs. */
+/** Runs an agent skill: loading → call → validation (one corrected resend
+ * if needed) → trace. The JSON is NEVER silently repaired: off the schema after
+ * the resend, it is an `ErreurLlm('sortie_invalide')` carrying the errors. */
 export async function executerSkill(
   nomSkill: string,
   entree: string | object | MessageLlm[],
@@ -106,7 +104,7 @@ export async function executerSkill(
   let courants = messages;
   let renvois = 0;
   const usage = { entree: 0, sortie: 0 };
-  // Mesures du serveur (llama.cpp) cumulées sur les renvois : jetons repris du cache / préremplis ; null tant que le serveur n'en donne pas.
+  // Server measurements (llama.cpp) accumulated over the resends: tokens reused from the cache / prefilled; null as long as the server does not provide them.
   let cache = null as { repris: number; prefill: number } | null;
   let dureeMs = 0;
   let derniere: ReponseLlm | null = null;
@@ -138,7 +136,7 @@ export async function executerSkill(
       if (rep.timings) cache = { repris: (cache?.repris ?? 0) + rep.timings.cacheN, prefill: (cache?.prefill ?? 0) + rep.timings.promptN };
 
       const a = analyser(rep, skill.schema);
-      // Sortie valide contre le schéma : un contrôle sémantique peut encore demander UN renvoi.
+      // Output valid against the schema: a semantic check can still request ONE resend.
       if (a.ok && options.controler && renvois < maxRenvois) {
         const soucis = options.controler(a.json);
         if (soucis.length > 0) {
@@ -185,12 +183,12 @@ export async function executerSkill(
         modele: derniere?.modele ?? modele,
         statut,
         projectId: options.projectId ?? null,
-        // Les images (planche de vignettes) sont remplacées par un marqueur : jamais de base64 en base.
+        // Images (contact sheet of thumbnails) are replaced by a marker: never base64 in the database.
         messages: messagesSansImages(messages),
         systemeEmpreinte: createHash("sha256").update(skill.systeme).digest("hex"),
         systemeCaracteres: skill.caracteres,
         sortieBrute: derniere?.texte ?? null,
-        // Un renvoi = une nouvelle réflexion : on les garde toutes, séparées.
+        // A resend = a new reasoning: we keep them all, separated.
         reflexion: reflexions.length ? reflexions.join("\n\n--- renvoi ---\n\n") : null,
         json: statut === "ok" ? json : null,
         erreursValidation,
@@ -202,7 +200,7 @@ export async function executerSkill(
         tokensPrefill: cache?.prefill ?? null,
         dureeMs,
       };
-      // Une trace qui ne s'écrit pas ne doit jamais masquer le résultat (ni l'erreur) du LLM.
+      // A trace that cannot be written must never hide the LLM's result (nor its error).
       await enregistrer(trace).catch((err) => console.warn("[llm] trace non enregistrée :", (err as Error).message));
     }
   }

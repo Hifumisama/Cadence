@@ -1,17 +1,17 @@
 import type { FiltresStyle } from "@/lib/styles/filters";
 import type { EtatAssistant } from "@/lib/projects/design-ui";
 
-/** Un style de la bibliothèque tel que la page le montre : seulement les styles prêts à l'emploi (avec leur clause courte). */
+/** A library style as the page shows it: only the ready-to-use styles (with their short clause). */
 export type StyleVue = {
   id: string;
   nom: string;
   categories: string[];
   filtres: FiltresStyle;
-  /** Prompt long (images). */
+  /** Long prompt (images). */
   descriptor: string;
-  /** Clause courte (vidéo). */
+  /** Short clause (video). */
   clause: string;
-  /** Sujets d'aperçu (`lib/styles/subjects.ts`) dont l'image a été générée (`data/styles/<id>/<sujet>.webp`). */
+  /** Preview subjects (`lib/styles/subjects.ts`) whose image has been generated (`data/styles/<id>/<sujet>.webp`). */
   images: string[];
 };
 

@@ -59,7 +59,7 @@ test("depuisInventaire : parent du registre ou créé ici ; parent introuvable s
   assert.equal((par("DEC_phare_nuit").apres as Record<string, unknown>).deriveDeCode, "DEC_phare");
   assert.equal((par("DEC_cave_inondee").apres as Record<string, unknown>).deriveDeCle, "nouvel-asset-DEC_cave");
   assert.ok(par("PROP_x").avertissements!.some((v) => /introuvable/.test(v.texte)));
-  // le dérivé d'un asset créé ici vient après lui
+  // a derivative of an asset created here comes after it
   assert.ok(r.findIndex((c) => c.cle === "nouvel-asset-DEC_cave") < r.findIndex((c) => c.cle === "nouvel-asset-DEC_cave_inondee"));
 });
 
@@ -69,7 +69,7 @@ test("ressemblant : même type et mots communs seulement", () => {
   assert.equal(ressemblant("prop", "clef", registre), null);
 });
 
-// --- état d'un sujet récurrent : le parent est posé quand le modèle l'oublie (2026-10-13) ---
+// --- state of a recurring subject: the parent is set when the model forgets it (2026-10-13) ---
 
 test("depuisInventaire : un asset du même type qui cite son sujet reçoit ce parent (décor, personnage, prop)", () => {
   const r = depuisInventaire(
@@ -100,7 +100,7 @@ test("depuisInventaire : un VFX n'est jamais proposé (l'effet va en texte dans 
   assert.deepEqual(r.map((c) => c.cle), ["nouvel-asset-PROP_clef"]);
 });
 
-// --- éléments du brief (entretien du 2026-11-08) ---
+// --- brief elements (interview of 2026-11-08) ---
 
 const elements = [
   { nom: "Le souffle de vent", nature: "vfx" },
@@ -141,7 +141,7 @@ test("depuisInventaire : un groupe de scènes ne repropose pas ce qu'un autre gr
   assert.equal((r[1]!.apres as Record<string, unknown>).deriveDeCle, "nouvel-asset-PROP_coffre");
 });
 
-// --- références de chaque plan (2026-11-09) ---
+// --- references of each clip (2026-11-09) ---
 
 const connus: AssetConnu[] = [
   { code: "CHAR_heroine", type: "personnage" },
@@ -223,7 +223,7 @@ test("controlerReferences : poignée inconnue et plan oublié = erreurs ; une se
   assert.ok(r.problemes.some((p) => p.niveau === "alerte" && /deux entrées/.test(p.message)));
 });
 
-// --- entrée, contrôleur de renvoi, découpage ---
+// --- input, re-prompt checker, split ---
 
 const planE = (n: number, intention = "Une action sur le quai.") => ({ id: poigneePlan(n), titre: `Plan ${n}`, intention });
 const entreeDe = (episodes: EntreeInventaire["episodes"]): EntreeInventaire => ({
@@ -246,7 +246,7 @@ test("contrôleur du skill : une référence à un asset de la réponse passe (c
   const ko = { ...ok, references: [{ plan: "P01", codes: ["CHAR_inconnu"] }] };
   const erreurs = controleur(ko);
   assert.ok(erreurs.some((m) => /CHAR_inconnu/.test(m)) && erreurs.some((m) => /P02/.test(m)));
-  // Les assets déjà proposés par un groupe précédent sont citables.
+  // Assets already proposed by a previous group can be cited.
   const ctx = contexteReferencesDepuisEntree({ ...entree, assetsDejaProposes: [{ code: "PROP_boussole", type: "prop", description: "x" }] }, { assets: [] });
   assert.ok(ctx.connus.some((c) => c.code === "PROP_boussole"));
 });

@@ -20,9 +20,9 @@ import { ReglagesCameraProjet } from "@/components/brief/ProjectCameraSettings";
 
 export const dynamic = "force-dynamic";
 
-/** Le brief du projet : la référence que l'agent lit pour toutes ses demandes (ton, style,
- * personnages, durée…). Page de lecture ; le titre, l'arc, les personnages, les lieux et les notes se corrigent à la main sur place.
- * Le style est fixé à la conception. */
+/** The project brief: the reference the agent reads for all its requests (tone, style,
+ * characters, duration…). Read-only page; the title, arc, characters, places and notes are corrected by hand on site.
+ * The style is fixed at design time. */
 export default async function BriefPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
   const pid = Number(projectId);
@@ -30,20 +30,20 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
   if (!projet) notFound();
   const episode = premierEpisodeId ? await getEpisode(premierEpisodeId) : null;
   const lu = await lireBriefOuVide(pid, projet.nom);
-  // Le titre du film est celui du projet : le brief l'affiche et le corrige tel quel (corriger le titre ici renomme le projet).
+  // The film title is the project's title: the brief displays it and corrects it as is (correcting the title here renames the project).
   const brief = { ...lu, contenu: { ...lu.contenu, titre: projet.nom } };
-  // Un projet conçu (page /nouveau) a fixé sa langue, sa durée, son genre et son ton : ils s'affichent, sans plus s'éditer ici.
+  // A designed project (/nouveau page) has fixed its language, duration, genre and tone: they are displayed, no longer editable here.
   const conception = await lireConception(db, pid);
   const identiteFigee = conception !== null;
-  // Une fois le registre créé, les personnages et les lieux y vivent : le brief en montre la vue, il n'en garde plus une copie à éditer.
+  // Once the registry is created, the characters and places live there: the brief shows its view, it no longer keeps an editable copy.
   const registre = (await getAllAssets(pid))
     .filter((a) => a.type === "personnage" || a.type === "decor")
     .map((a) => ({ code: a.code, type: a.type as "personnage" | "decor", description: a.description ?? "", src: assetMediaSrc(a.fichier) }));
-  // « partiel » : pas de brief rédigé, seuls le style et les notes ont pu être posés à la main.
+  // « partiel » : no brief written, only the style and notes could have been set by hand.
   const redige = brief.statut !== "partiel";
   const styleVue = await vueStyle(brief.contenu.style, conception?.style.source === "bibliotheque" ? conception.style.styleId : null);
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
-  // Après la création : tant que des plans n'ont pas de fiche, un lien ramène à l'écran des intents (« Écrire les fiches », suivi par plan).
+  // After creation: as long as clips have no sheet, a link leads back to the intents screen (« Écrire les fiches », tracked per clip).
   const sansFiche = await plansSansFicheApresCreation(pid);
 
   return (
@@ -78,9 +78,9 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
   );
 }
 
-/** Le style du projet tel que la page le montre : son nom, ses deux clauses, et ses images — l'image de présentation posée à la création (style libre), puis les
- * aperçus des scènes communes (`lib/styles/subjects.ts`, déjà générés) quand le style est un style de la bibliothèque (choisi à la conception, ou dont
- * le nom est celui d'une entrée de la bibliothèque). Un style libre sans image n'a pas de vignette. */
+/** The project style as the page shows it: its name, its two clauses, and its images — the presentation image set at creation (free style), then the
+ * previews of the common scenes (`lib/styles/subjects.ts`, already generated) when the style is a library style (chosen at design time, or whose
+ * name matches a library entry). A free style without an image has no thumbnail. */
 async function vueStyle(style: { nom?: string; clause?: string; promptImage?: string; image?: string } | undefined, styleId: string | null): Promise<StyleBriefVue> {
   const id = styleId ?? (style?.nom?.trim() ? slugStyle(style.nom) : null);
   const vignettes: VignetteStyle[] = [];

@@ -4,7 +4,7 @@ import { styles } from "@/db/schema";
 import type { StyleBibliotheque } from "./library";
 import type { FiltresStyle } from "./filters";
 
-/** Un style de la bibliothèque tel que la base le rend (table `styles`, semée par db/seed-styles.ts) : le style, plus les sujets dont l'aperçu existe. */
+/** A library style as the database returns it (table `styles`, seeded by db/seed-styles.ts): the style, plus the subjects whose preview exists. */
 export type StyleEnBase = StyleBibliotheque & { apercus: string[] };
 
 const versStyle = (l: typeof styles.$inferSelect): StyleEnBase => ({

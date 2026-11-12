@@ -5,9 +5,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTaches } from "@/components/tasks/TasksProvider";
 import { cleVideo } from "@/lib/tasks/tasks";
 
-/** Recharge la page du plan quand un de ses rendus change d'état (démarre, finit, échoue, annulé), vu par
- * l'indicateur du header : sans cela la vidéo et l'historique restaient ceux du chargement. Même principe que
- * GenerationPanel (assets) : on compare l'état de la page à celui des tâches, on ne recharge que sur écart. */
+/** Reloads the clip's page when one of its renders changes state (starts, finishes, fails, cancelled), as seen by
+ * the header indicator: without this the video and the history stayed as they were at load. Same principle as
+ * GenerationPanel (assets): we compare the page's state with the tasks' state, and only reload on a gap. */
 export function SuiviRendus({ planUuid, jobs }: { planUuid: string; jobs: { id: number; statut: string }[] }) {
   const router = useRouter();
   const { taches, pret } = useTaches();
@@ -17,14 +17,14 @@ export function SuiviRendus({ planUuid, jobs }: { planUuid: string; jobs: { id: 
     const duPlan = taches.filter((x) => x.genre === "video" && x.href.endsWith(`/montage/${planUuid}`));
     return duPlan.some((x) => {
       const job = jobs.find((j) => cleVideo(j.id) === x.cle);
-      // Une vidéo annulée est `echoue` en base, `annulee` dans la liste des tâches.
+      // A cancelled video is `echoue` in the database, `annulee` in the task list.
       const statutPage = job?.statut === "echoue" && x.statut === "annulee" ? "annulee" : job?.statut;
       return !job || statutPage !== x.statut;
     });
   }, [taches, planUuid, jobs]);
 
-  // Une tâche de ce plan (rendu OU itération) qui cesse d'être active : la page se recharge une dernière fois. Une itération est suivie par la ligne de sa
-  // demande, qui change de genre en finissant (vidéo → agent) et échappe alors à la comparaison ci-dessus : sans ceci la vidéo n'apparaissait qu'après un clic.
+  // A task of this clip (render OR iteration) that stops being active: the page reloads one last time. An iteration is followed by its
+  // request's line, which changes kind when it finishes (video → agent) and then escapes the comparison above: without this the video only appeared after a click.
   const actives = useMemo(
     () => taches.filter((x) => x.href.endsWith(`/montage/${planUuid}`) && (x.statut === "en_attente" || x.statut === "en_cours")).map((x) => x.cle),
     [taches, planUuid],

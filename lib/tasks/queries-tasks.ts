@@ -26,10 +26,9 @@ import {
   type Tache,
 } from "./tasks";
 
-/** Toutes les tâches à montrer dans l'indicateur du header : générations
- * d'images, jobs vidéo (lecture seule) et appels LLM, ordonnés comme le worker les
- * prendra (image, puis llm, puis vidéo).
- * Côté serveur uniquement (accès disque pour les aperçus et vignettes). */
+/** All the tasks to show in the header indicator: image generations,
+ * video jobs (read-only) and LLM calls, ordered as the worker will take them (image, then llm, then video).
+ * Server side only (disk access for previews and thumbnails). */
 export async function listerTaches(maintenant: Date = new Date()): Promise<{ taches: Tache[]; resume: ResumeTaches }> {
   const depuis = new Date(maintenant.getTime() - RETENTION_TERMINEES_JOURS * 24 * 3600 * 1000);
 
@@ -72,18 +71,18 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     .where(
       and(
         isNull(agentRuns.masqueAt),
-        // Une étape de demande (itérer un plan…) n'a pas sa ligne : celle de la demande la remplace.
+        // A request step (iterate a clip…) does not have its own row: the request's row replaces it.
         isNull(agentRuns.demandeId),
-        // Un TOUR de conversation (notes, puis réponse de l'agent) passe par la file du worker, mais il dure quelques secondes
-        // et la popup de conversation l'affiche déjà : il n'a pas sa place dans le panneau, le badge ni les notifications.
+        // A conversation TURN (notes, then the agent's reply) goes through the worker's queue, but it lasts a few seconds
+        // and the conversation popup already shows it: it has no place in the panel, the badge or the notifications.
         or(isNull(agentRuns.but), ne(agentRuns.but, "tour")),
         or(inArray(agentRuns.statut, ["en_attente", "en_cours"]), isNull(agentRuns.vuAt), gte(agentRuns.createdAt, depuis)),
       ),
     );
 
-  // La CRÉATION d'un projet (l'installateur) = UNE entrée : ses tâches d'agent (celles de la conversation du projet,
-  // pendant sa fenêtre de travail) quittent la liste et se retrouvent dans la page d'avancée. Les autres tâches du
-  // projet (affiche, images, travail d'agent hors installateur) restent des lignes à part.
+  // The CREATION of a project (the installer) = ONE entry: its agent tasks (those of the project's conversation,
+  // during its work window) leave the list and appear on the progress page. The other tasks of the
+  // project (poster, images, agent work outside the installer) remain separate lines.
   const creations = await db
     .select({ c: creationsProjet, nom: projects.nom, conversationId: agentConversations.id })
     .from(creationsProjet)
@@ -108,9 +107,9 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     return t ? [t] : [];
   });
 
-  // Un LOT (plusieurs tâches d'une même proposition) = UNE entrée dans le panneau : on relit TOUTES
-  // les tâches des lots touchés (celles déjà vues ou anciennes ne passent pas le filtre ci-dessus,
-  // mais les compter fait « 3/12 »).
+  // A BATCH (several tasks of the same proposal) = ONE entry in the panel: we re-read ALL
+  // the tasks of the batches touched (those already seen or old ones do not pass the filter above,
+  // but counting them gives « 3/12 »).
   const idsLots = [...new Set(lignesLlm.filter((l) => l.r.cleSousTache != null && l.r.propositionId != null).map((l) => l.r.propositionId!))];
   const runsDesLots = idsLots.length
     ? await db
@@ -126,9 +125,9 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
 
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
-  // Où mène une tâche d'agent : la page où le travail se lit, plus l'ancienne popup d'agent (décision 2026-10-12). Un plan → sa fiche,
-  // un épisode → son scénario, un asset → sa page. Sinon (projet, saison) la page
-  // du projet, et seulement alors la popup reste le repli (`conversationUuid`).
+  // Where an agent task leads: the page where the work is read, plus the old agent popup (decision 2026-10-12). A clip → its sheet,
+  // an episode → its screenplay, an asset → its page. Otherwise (project, season) the project's
+  // page, and only then does the popup remain the fallback (`conversationUuid`).
   const cibles = [...lignesLlm, ...runsDesLots].filter((l) => l.cibleId != null);
   const idsPlans = [...new Set(cibles.filter((l) => l.portee === "plan").map((l) => l.cibleId!))];
   const idsAssets = [...new Set(cibles.filter((l) => l.portee === "asset").map((l) => l.cibleId!))];
@@ -153,7 +152,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   };
 
   const images: Tache[] = lignesImages.map(({ g, code, projectId }) => {
-    // Une affiche de présentation n'est pas dans le registre : sa page à elle (app/p/[id]/affiche/[code]).
+    // A presentation poster is not in the registry: its own page (app/p/[id]/affiche/[code]).
     const affiche = cibleDeCodeAffiche(code);
     return {
     cle: cleImage(g.uuid),
@@ -166,7 +165,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
         : g.methode === "edition"
           ? "À partir d'images"
           : "À partir du texte",
-    // Le master d'une voix se retrouve dans le bloc « Voix » de la fiche du personnage.
+    // A voice's master is found in the « Voix » block of the character's sheet.
     href: g.methode === METHODE_MASTER_VOIX ? `/p/${projectId}/assets/${code}?generation=${g.uuid}#as-voix` : affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
     projectId,
     assetId: g.assetId,
@@ -174,7 +173,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
       g.statut === "en_cours" && g.progressionValeur != null && g.progressionMax
         ? { valeur: g.progressionValeur, max: g.progressionMax, etape: g.etapeLibelle }
         : null,
-    apercuSrc: null, // rempli après tri, pour ne toucher au disque que pour les tâches gardées
+    apercuSrc: null, // filled after sorting, so the disk is only touched for the tasks kept
     vignetteSrc: null,
     createdAt: g.createdAt.toISOString(),
     startedAt: iso(g.startedAt),
@@ -192,13 +191,13 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const videos: Tache[] = lignesVideos.map(({ j, planUuid, titre, projectId, episodeId }) => ({
     cle: cleVideo(j.id),
     genre: "video",
-    // Une vidéo annulée est `echoue` + « Annulée » en base (pas de valeur d'enum de
-    // plus) ; le panneau la montre comme une annulation, pas comme un échec.
+    // A cancelled video is `echoue` + « Annulée » in the database (no extra enum value);
+    // the panel shows it as a cancellation, not as a failure.
     statut: j.statut === "echoue" && j.erreur === ERREUR_ANNULEE ? "annulee" : j.statut,
     libelle: titre,
-    // L'étape en cours (génération H3, interpolation, encodage) quand le worker la connaît ; sinon le rejeu éventuel.
+    // The current step (H3 generation, interpolation, encoding) when the worker knows it; otherwise the possible replay.
     detail: j.statut === "en_cours" && j.etapeLibelle ? `Vidéo · ${j.etapeLibelle}` : j.tentative > 1 ? `Vidéo · rejeu ${j.tentative}` : "Vidéo",
-    // F03 : le plan se désigne par son uuid public, jamais par sa position.
+    // F03: the clip is designated by its public uuid, never by its position.
     href: `/p/${projectId}/e/${episodeId}/montage/${planUuid}`,
     projectId,
     assetId: null,
@@ -262,9 +261,9 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     statut: r.statut,
     libelle: `${LIBELLE_SKILL[r.skill] ?? r.skill}${projetNom ? ` · ${projetNom}` : ""}`,
     detail: "Agent",
-    // Une tâche liée à une conversation rouvre la popup d'agent (le panneau du header
-    // intercepte le clic, voir IndicateurTaches) ; sans conversation (script llm:task),
-    // elle mène à la page du projet (ou à l'accueil sans projet).
+    // A task linked to a conversation reopens the agent popup (the header panel
+    // intercepts the click, see IndicateurTaches); without a conversation (script llm:task),
+    // it leads to the project page (or to the home page without a project).
     href: page ?? (r.projectId != null ? `/p/${r.projectId}` : "/"),
     conversationUuid: page ? null : (conversationUuid ?? null),
     projectId: r.projectId ?? 0,
@@ -285,8 +284,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     };
   });
 
-  // Les DEMANDES (lib/tasks/requests.ts) : UNE entrée chacune ; l'état de la tâche de l'étape courante (en file, en cours, jetons, progression du rendu)
-  // se lit sur le run ou le job qu'elle a posé.
+  // The REQUESTS (lib/tasks/requests.ts): ONE entry each; the state of the current step's task (queued, in progress, tokens, render progress)
+  // is read on the run or job it posted.
   const lignesDemandes = await db
     .select({ d: demandes, planUuid: plans.uuid, titre: plans.titre, episodeId: plans.episodeId })
     .from(demandes)
@@ -325,7 +324,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     }),
   );
 
-  // « Ajouter un plan » : la cible est l'épisode (le plan n'existe pas encore) ; la ligne mène à la scène, puis au plan une fois ajouté.
+  // « Ajouter un plan »: the target is the episode (the clip does not exist yet); the row leads to the scene, then to the clip once added.
   const lignesAjouts = await db
     .select({ d: demandes })
     .from(demandes)
@@ -337,7 +336,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
       const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
       const estScene = d.type === "ajout-scene";
       const estFiche = d.type === "fiche-plan";
-      // La cible d'une fiche est le plan (celle des autres ajouts, l'épisode) : on retrouve son épisode pour mener à sa page.
+      // The target of a sheet is the clip (that of the other additions is the episode): we find its episode to lead to its page.
       const [planFiche] = estFiche ? await db.select({ episodeId: plans.episodeId }).from(plans).where(eq(plans.id, d.cibleId)) : [];
       const base = `/p/${d.projectId}/e/${estFiche ? (planFiche?.episodeId ?? 0) : d.cibleId}`;
       return tacheDeDemande({
@@ -372,7 +371,7 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     }),
   );
 
-  // Les EXPORTS de l'épisode (page Montage) : hors GPU, mais suivis ici comme les autres (clé `montage:<id>`, lib/montage/montage-task.ts).
+  // The episode's EXPORTS (Montage page): outside the GPU, but tracked here like the others (key `montage:<id>`, lib/montage/montage-task.ts).
   const lignesExports = await db
     .select({ x: montageExports, projectId: episodes.projectId, projetNom: projects.nom })
     .from(montageExports)
@@ -383,12 +382,12 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
 
   const gardees = ordonnerTaches([...images, ...videos, ...llm, ...lots, ...tachesCreations, ...tachesDemandes, ...tachesAjouts, ...exportsMontage], maintenant);
 
-  // Disque : seulement pour les tâches d'images gardées.
+  // Disk: only for the kept image tasks.
   const parCle = new Map(lignesImages.map((l) => [cleImage(l.g.uuid), l.g]));
   const taches = gardees.map((x) => {
     const g = parCle.get(x.cle);
     if (!g) return x;
-    if (g.methode === METHODE_MASTER_VOIX) return x; // une voix (et sa vidéo de test) n'a ni vignette ni aperçu
+    if (g.methode === METHODE_MASTER_VOIX) return x; // a voice (and its test video) has neither thumbnail nor preview
     if (g.statut === "termine") return { ...x, vignetteSrc: generationMediaSrc(g.assetId, g.fichier) };
     if (g.statut === "en_cours" && g.apercuAt) {
       const url = generationMediaSrc(g.assetId, g.apercuFichier);
@@ -400,9 +399,8 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   return { taches, resume: resumerTaches(taches) };
 }
 
-/** Rang d'une génération d'image qu'on vient de lancer : 1 = elle part tout de
- * suite ; n = n-1 tâches passent devant (la tâche en cours, quelle qu'elle soit,
- * et les images arrivées avant elle). */
+/** Rank of an image generation just launched: 1 = it leaves at once; n = n-1 tasks go ahead (the task in progress, whatever it is,
+ * and the images that arrived before it). */
 export async function rangDansLaFile(generationId: number): Promise<number> {
   const { taches } = await listerTaches();
   const devant = taches.filter((x) => x.statut === "en_cours" && !estHorsFileGpu(x)).length;
@@ -413,13 +411,13 @@ export async function rangDansLaFile(generationId: number): Promise<number> {
   return devant + (moi.positionFile ?? 1);
 }
 
-/** Nombre d'images en attente (pas en cours) : sert au plafond de la file. */
+/** Number of images waiting (not in progress): used for the queue cap. */
 export async function nbImagesEnAttente(): Promise<number> {
   const lignes = await db.select({ id: assetGenerations.id }).from(assetGenerations).where(eq(assetGenerations.statut, "en_attente"));
   return lignes.length;
 }
 
-/** Les assets d'un projet qui ont déjà une génération en attente ou en cours (un lot ne les double pas). */
+/** The assets of a project that already have a generation pending or in progress (a batch does not double them). */
 export async function assetsEnFile(projectId: number): Promise<Set<number>> {
   const lignes = await db
     .select({ assetId: assetGenerations.assetId })

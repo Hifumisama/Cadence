@@ -9,8 +9,8 @@ function pluriel(n: number, mot: string): string {
   return `${n} ${mot}${n > 1 ? "s" : ""}`;
 }
 
-/** Bouton « Supprimer » d'un projet + confirmation qui détaille ce qui disparaît. `compact` : petit
- * bouton posé sur la carte de l'accueil. */
+/** « Supprimer » (Delete) button for a project + confirmation that details what disappears. `compact`: small
+ * button placed on the home card. */
 export function SupprimerProjetBouton({ projectId, nom, compact = false }: { projectId: number; nom: string; compact?: boolean }) {
   const [ouvert, setOuvert] = useState(false);
   const [inventaire, setInventaire] = useState<InventaireSuppression | null>(null);
@@ -33,7 +33,7 @@ export function SupprimerProjetBouton({ projectId, nom, compact = false }: { pro
       try {
         await supprimerProjet(projectId);
       } catch (err) {
-        // redirect() de Next lève une exception de contrôle : on la laisse passer.
+        // Next's redirect() throws a control exception: we let it through.
         if (err && typeof err === "object" && "digest" in err) throw err;
         setErreur(err instanceof Error ? err.message : "Échec de la suppression.");
       }

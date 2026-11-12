@@ -188,8 +188,8 @@ test("durée : l'échelle du curseur est monotone, réversible et s'arrête à 9
     assert.equal(d % pasDuree(d), 0, `${d} s est un multiple de son pas`);
     precedente = d;
   }
-  // Aller-retour : une durée de l'échelle retombe sur elle-même.
+  // Round trip: a duration on the scale falls back on itself.
   for (const s of [30, 60, 120, 180, 300, 600, 1800, 3600, 5400]) assert.equal(dureeDepuisPosition(positionDepuisDuree(s)), s);
-  // Les flèches du clavier (25 positions) font toujours bouger la durée.
+  // The keyboard arrows (25 positions) always move the duration.
   for (let p = 0; p < 975; p += 25) assert.notEqual(dureeDepuisPosition(p + 25), dureeDepuisPosition(p), `bloqué à ${p}`);
 });

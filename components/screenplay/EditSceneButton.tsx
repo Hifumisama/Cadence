@@ -9,7 +9,7 @@ import { ChampsReglagesCamera } from "@/components/h3ir/CameraSettingsFields";
 import type { DemoDispo } from "@/lib/h3ir/demos";
 import { resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/settings";
 
-/** Bouton « Modifier » d'une scène : titre, description et ambiance, dans une popup (même écrin que « Ajouter un plan »). */
+/** « Modifier » button of a scene: title, description and mood, in a popup (same frame as « Ajouter un plan »). */
 export function ModifierSceneButton({
   sceneId,
   titre,
@@ -24,12 +24,12 @@ export function ModifierSceneButton({
   titre: string;
   fonction: string;
   ambiance?: string;
-  /** Open H3 IR : vide = la scène hérite du projet. */
+  /** Open H3 IR: empty = the scene inherits from the project. */
   creativite?: string;
   styleCamera?: string;
-  /** Les réglages du projet : ce que la scène hérite si elle ne règle rien. */
+  /** The project's settings: what the scene inherits if it sets nothing. */
   reglagesProjet: ReglagesBruts;
-  /** Les vidéos de démo de la mise en scène (lib/media.ts, `demosMiseEnScene`). */
+  /** The staging demo videos (lib/media.ts, `demosMiseEnScene`). */
   demos?: Record<string, DemoDispo>;
 }) {
   const router = useRouter();
@@ -56,7 +56,7 @@ export function ModifierSceneButton({
   const fermerRef = useRef(fermer);
   fermerRef.current = fermer;
 
-  // Ouverte : Échap ferme, le focus passe au titre.
+  // Open: Escape closes it, focus moves to the title.
   useEffect(() => {
     if (!ouvert) return;
     champTitre.current?.focus();

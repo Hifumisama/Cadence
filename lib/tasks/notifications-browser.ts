@@ -1,15 +1,15 @@
-/** Notifications NATIVES du navigateur (hors de l'onglet) pour la fin des tâches. Côté
- * client seulement. Deux conditions : l'utilisateur a activé l'option (localStorage) ET le
- * navigateur a accordé l'autorisation. L'autorisation ne se demande qu'au clic sur
- * l'interrupteur (un navigateur la refuse sinon). */
+/** NATIVE browser notifications (outside the tab) for the end of tasks. Client side
+ * only. Two conditions: the user has enabled the option (localStorage) AND the
+ * browser has granted permission. Permission is only requested on the click of the
+ * toggle (a browser refuses it otherwise). */
 
 const CLE = "cadence.notifications-navigateur";
 export const EVENEMENT = "cadence:notifications";
 
 export type EtatNotifications =
-  | "indisponible" // le navigateur n'a pas l'API
-  | "bloquee" // refusée dans les réglages du site
-  | "inactive" // possible, pas activée
+  | "indisponible" // the browser does not have the API
+  | "bloquee" // refused in the site settings
+  | "inactive" // possible, not enabled
   | "active";
 
 function pris(): boolean {
@@ -28,7 +28,7 @@ function ecrire(v: boolean): void {
   try {
     window.localStorage.setItem(CLE, v ? "1" : "0");
   } catch {
-    // stockage indisponible (navigation privée) : l'option vaut pour cette session seulement
+    // storage unavailable (private browsing): the option applies to this session only
   }
   window.dispatchEvent(new Event(EVENEMENT));
 }
@@ -39,7 +39,7 @@ export function etatNotifications(): EtatNotifications {
   return Notification.permission === "granted" && preference() ? "active" : "inactive";
 }
 
-/** Active l'option : demande l'autorisation si besoin (appel depuis un clic). */
+/** Enables the option: asks for permission if needed (call from a click). */
 export async function activerNotifications(): Promise<EtatNotifications> {
   if (!pris()) return "indisponible";
   let permission = Notification.permission;
@@ -53,12 +53,12 @@ export function desactiverNotifications(): void {
   if (pris()) ecrire(false);
 }
 
-/** La page n'est pas sous les yeux de l'utilisateur : onglet caché ou fenêtre sans focus. */
+/** The page is not in front of the user: hidden tab or window without focus. */
 export function pageEnArriere(): boolean {
   return document.visibilityState !== "visible" || !document.hasFocus();
 }
 
-/** Envoie une notification native ; `surClic` s'exécute au clic (la fenêtre reprend le focus). */
+/** Sends a native notification; `surClic` runs on click (the window regains focus). */
 export function notifier(titre: string, corps: string, tag: string, surClic: () => void): boolean {
   if (etatNotifications() !== "active") return false;
   try {

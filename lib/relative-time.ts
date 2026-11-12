@@ -1,4 +1,4 @@
-/** « à l'instant », « il y a 4 min », « hier » : l'âge d'un essai pour le journal. Pur : testé dans `temps-relatif.test.ts`. */
+/** « à l'instant », « il y a 4 min », « hier »: the age of an attempt for the log. Pure: tested in `temps-relatif.test.ts`. */
 export function ilYa(depuis: Date | string | number, maintenant: Date | number = Date.now()): string {
   const t = new Date(depuis).getTime();
   const n = typeof maintenant === "number" ? maintenant : maintenant.getTime();

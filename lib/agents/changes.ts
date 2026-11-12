@@ -1,16 +1,15 @@
 import type { Avertissement, CibleType, Operation, Position } from "./types";
 
-/** Un changement tel que le construisent les convertisseurs (squelette, sorties de
- * skills) AVANT enrichissement par l'applicateur de sa cible (état courant, écrasement,
- * contrôles). Pur : aucune lecture. */
+/** A change as built by the converters (skeleton, skill outputs) BEFORE enrichment by the applier of its target (current state, overwrite,
+ * checks). Pure: no reads. */
 export type ChangementBrut = {
-  /** Groupe d'affichage stable : brief | projet | episodes | scenes | plans | fiches | assets
-   * (un lot : `ep-<id>`, un groupe par épisode). */
+  /** Stable display group: brief | projet | episodes | scenes | plans | fiches | assets
+   * (a batch: `ep-<id>`, one group per episode). */
   groupe: string;
-  /** Clé symbolique d'une création (« episode-2 ») citée par ses enfants. */
+  /** Symbolic key of a creation ("episode-2") cited by its children. */
   cle?: string | null;
   cibleType: CibleType;
-  /** Référence stable de l'existant (id interne, uuid du plan, clé de section) ; null = création. */
+  /** Stable reference of the existing item (internal id, clip uuid, section key); null = creation. */
   cibleRef: string | null;
   libelle: string;
   operation: Operation;
@@ -19,12 +18,12 @@ export type ChangementBrut = {
   position?: Position | null;
   avertissements?: Avertissement[];
   ecrase?: string | null;
-  /** Refusé d'office (non pris en charge, hors portée, parent refusé). */
+  /** Refused outright (not supported, out of scope, refused parent). */
   refuseRaison?: string | null;
-  /** Lot : titre de la scène sous laquelle la revue range ce plan ou cette réplique. */
+  /** Batch: title of the scene under which the review files this clip or this line of dialogue. */
   sousGroupe?: string | null;
-  /** Coché d'office MALGRÉ la règle (suppression décochée par défaut) : le convertisseur sait que le geste est sans risque (un plan sans fiche ni
-   * rendu que la relecture du scénario fusionne dans son voisin). N'enlève jamais un refus, un blocage ni un écrasement (checking.ts). */
+  /** Ticked outright DESPITE the rule (deletion unticked by default): the converter knows the action is risk-free (a clip with no sheet nor
+   * render that the screenplay review merges into its neighbour). Never removes a refusal, a block or an overwrite (checking.ts). */
   cocheOffice?: boolean;
 };
 
@@ -60,23 +59,23 @@ export const TITRES_GROUPES: Record<string, string> = {
   assets: "Assets",
 };
 
-/** Ordre d'affichage des groupes ; l'écrasement vient toujours en tête. */
+/** Display order of the groups; the overwrite group always comes first. */
 export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "episodes", "scenes", "plans", "fiches", "assets"];
 
-/** Les clés symboliques des parents qu'un changement cite (créés par la même proposition). */
+/** The symbolic keys of the parents a change cites (created by the same proposal). */
 const CLES_PARENT = ["episodeCle", "sceneCle", "deriveDeCle"] as const;
 
 export function clesParent(apres: unknown): string[] {
   if (!apres || typeof apres !== "object") return [];
   const a = apres as Record<string, unknown>;
-  const liste = Array.isArray(a.dependDeCles) ? a.dependDeCles.filter((v): v is string => typeof v === "string") : []; // une fiche qui cite des assets créés ici
+  const liste = Array.isArray(a.dependDeCles) ? a.dependDeCles.filter((v): v is string => typeof v === "string") : []; // a sheet citing assets created here
   return [...CLES_PARENT.map((c) => a[c]).filter((v): v is string => typeof v === "string"), ...liste];
 }
 
-/** Ordre d'application : celui de la proposition, sauf qu'un changement qui dépend d'une clé créée par un
- * changement PLUS LOIN passe après lui (un lot range ses sous-tâches dans l'ordre de leur première pose : un
- * asset manquant dérivé d'un autre, proposé par un autre plan du lot, peut précéder son parent). Stable ; un
- * cycle garde l'ordre d'origine (l'applicateur refusera, avec sa raison). */
+/** Application order: that of the proposal, except that a change depending on a key created by a
+ * change FURTHER ON comes after it (a batch files its subtasks in the order of their first set: a missing
+ * asset derived from another, proposed by another clip of the batch, may precede its parent). Stable; a
+ * cycle keeps the original order (the applier will refuse, with its reason). */
 export function ordonnerParDependances<T extends { cle: string | null; apres: unknown }>(changements: T[]): T[] {
   const produites = new Set(changements.map((c) => c.cle).filter((c): c is string => !!c));
   const restants = [...changements];

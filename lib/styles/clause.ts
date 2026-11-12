@@ -1,13 +1,13 @@
 import brutes from "./clauses.json";
 
-/** Les clauses courtes (vidéo) des styles de la bibliothèque : `clauses.json` (identifiant → clause), écrit une fois pour toutes (relu
- * à la main) : c'est ce fichier qu'on corrige pour changer une clause. Il est séparé de `bibliotheque.json` pour que le tri des styles et la génération des clauses ne s'écrasent pas. */
+/** The short clauses (video) of the library styles: `clauses.json` (identifier → clause), written once and for all (re-read
+ * by hand): this is the file you correct to change a clause. It is separate from `bibliotheque.json` so that sorting the styles and generating the clauses do not overwrite each other. */
 
 export const clausesProduites = brutes as Record<string, string>;
 
 const mots = (t: string): string[] => t.trim().split(/\s+/).filter(Boolean);
 
-/** Mots à majuscule qui ne commencent pas une phrase : candidats « nom propre ». */
+/** Capitalized words that do not start a sentence: « nom propre » (proper noun) candidates. */
 export function motsCapitalisesInternes(texte: string): string[] {
   const trouves: string[] = [];
   for (const segment of texte.split(/[.!?]\s+|\n+/)) {

@@ -1,21 +1,21 @@
-/** Annulation des tâches ComfyUI — règles pures, sans base ni réseau, partagées par
- * l'action serveur (app/taches/actions.ts), le worker (worker/cancellation.ts) et le
- * panneau. Une tâche EN ATTENTE s'annule directement ; une tâche EN COURS reçoit un
- * drapeau (`annulation_demandee_at`) et c'est le worker qui interrompt ComfyUI. */
+/** Cancellation of ComfyUI tasks — pure rules, without database or network, shared by
+ * the server action (app/taches/actions.ts), the worker (worker/cancellation.ts) and the
+ * panel. A PENDING task is cancelled directly; an IN-PROGRESS task receives a
+ * flag (`annulation_demandee_at`) and it is the worker that interrupts ComfyUI. */
 
-/** Erreur d'une vidéo annulée : pas de statut d'enum de plus (job_statut est un
- * enum Postgres), une vidéo annulée finit `echoue` avec ce message. */
+/** Error of a cancelled video: no extra enum status (job_statut is a
+ * Postgres enum), a cancelled video ends `echoue` with this message. */
 export const ERREUR_ANNULEE = "Annulée";
 
-/** Où en est un prompt côté ComfyUI. `inconnu` = on n'a pas pu le savoir (serveur
- * injoignable, réponse illisible) : jamais une raison d'interrompre. */
+/** Where a prompt stands on the ComfyUI side. `inconnu` = we could not know (server
+ * unreachable, unreadable response): never a reason to interrupt. */
 export type EtatDansLaFile = "en_cours" | "en_file" | "absent" | "inconnu";
 
-/** Décodage tolérant de `GET /queue`. ComfyUI renvoie
- * `{ queue_running: [...], queue_pending: [...] }` ; chaque élément est un tuple
- * `[numero, prompt_id, graphe, extra_data, sorties]` (même forme que l'historique,
- * relevée sur le serveur de l'utilisateur), mais on accepte aussi un objet portant
- * `prompt_id` / `id`, au cas où le format évoluerait. */
+/** Tolerant decoding of `GET /queue`. ComfyUI returns
+ * `{ queue_running: [...], queue_pending: [...] }`; each item is a tuple
+ * `[numero, prompt_id, graphe, extra_data, sorties]` (same shape as the history,
+ * observed on the user's server), but we also accept an object carrying
+ * `prompt_id` / `id`, in case the format evolves. */
 export function etatDansLaFile(queue: unknown, promptId: string): EtatDansLaFile {
   if (!queue || typeof queue !== "object") return "inconnu";
   const q = queue as Record<string, unknown>;
@@ -36,13 +36,11 @@ export function etatDansLaFile(queue: unknown, promptId: string): EtatDansLaFile
 
 export type GestePourAnnuler = "interrompre" | "retirer" | "rien" | "reessayer";
 
-/** Que faire côté ComfyUI pour annuler ce prompt ?
- * - en cours chez nous ET chez lui → `interrompre` (POST /interrupt : il coupe ce
- *   qui tourne sur TOUT le serveur, d'où la vérification préalable) ;
- * - encore en file → `retirer` (POST /queue {delete}) ;
- * - ni l'un ni l'autre → `rien` (déjà fini, ou jamais arrivé) ;
- * - on ne sait pas → `reessayer`, jamais d'interruption à l'aveugle (un job lancé à
- *   la main par l'utilisateur pourrait être celui qui tourne). */
+/** What to do on the ComfyUI side to cancel this prompt?
+ * - running on our side AND on its side → `interrompre` (POST /interrupt: it cuts what runs on the WHOLE server, hence the prior check);
+ * - still in the queue → `retirer` (POST /queue {delete});
+ * - neither → `rien` (already finished, or never arrived);
+ * - we do not know → `reessayer`, never an interruption blindly (a job launched by hand by the user could be the one running). */
 export function gestePourAnnuler(etat: EtatDansLaFile): GestePourAnnuler {
   switch (etat) {
     case "en_cours":
@@ -56,10 +54,9 @@ export function gestePourAnnuler(etat: EtatDansLaFile): GestePourAnnuler {
   }
 }
 
-/** Statut du plan quand son job vidéo est annulé : on le remet dans l'état de sa
- * dernière réussite (un rendu final « termine », une prévisualisation
- * « previsualise », comme le worker les pose), sinon « brouillon ». `precedents` =
- * les autres jobs du plan, du plus récent au plus ancien. */
+/** Status of the clip when its video job is cancelled: it goes back to the state of its
+ * last success (a final render « termine », a preview « previsualise », as the worker sets them), otherwise « brouillon ». `precedents` =
+ * the other jobs of the clip, from most recent to oldest. */
 export function statutPlanApresAnnulation(
   precedents: { statut: string; activerUpscale: boolean }[],
 ): "termine" | "previsualise" | "brouillon" {
@@ -68,8 +65,8 @@ export function statutPlanApresAnnulation(
   return dernier.activerUpscale ? "termine" : "previsualise";
 }
 
-/** Une tâche à purger : échouée ou annulée depuis plus de `seuilMs`. Jamais une
- * tâche terminée (les candidats suivent la règle des 8 par asset) ni une active. */
+/** A task to purge: failed or cancelled for more than `seuilMs`. Never a
+ * finished task (candidates follow the rule of 8 per asset) nor an active one. */
 export const SEUIL_PURGE_ECHECS_MS = 24 * 3600 * 1000;
 
 export function estPurgeable(

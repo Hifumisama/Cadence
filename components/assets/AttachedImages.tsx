@@ -6,14 +6,14 @@ import type { ImageJointe } from "@/app/assets/essai-actions";
 import { Icone } from "@/components/ui/Icon";
 import { urlMiniature } from "@/lib/thumbnails";
 
-/** Une image jointe à la consigne, avec de quoi l'afficher. */
+/** An image attached to the instruction, with what is needed to display it. */
 export type Jointe = ImageJointe & { cle: string; src: string; libelle: string };
 
-/** Une image du registre qu'on peut joindre. */
+/** A registry image that can be attached. */
 export type JointeDisponible = { id: number; libelle: string; src: string };
 
-/** Les images qu'on joint à une consigne (Qwen Image Edit en prend jusqu'à 3). Créer : trois places, la 1re « porte » les modifications des deux
- * autres. Retoucher : l'image de base occupe la place 1, il en reste deux. On joint une image du registre ou une image déposée. */
+/** The images attached to an instruction (Qwen Image Edit takes up to 3). Creating: three slots, the 1st « porte » (carries) the changes of the two
+ * others. Retouching: the base image occupies slot 1, two remain. You attach a registry image or a dropped image. */
 export function ImagesJointes({
   assetId,
   base,
@@ -24,10 +24,10 @@ export function ImagesJointes({
   onChange,
 }: {
   assetId: number;
-  /** L'image de base d'une retouche (la place 1), null pour une création. */
+  /** The base image of a retouch (slot 1), null for a creation. */
   base: { src: string; libelle: string } | null;
   jointes: Jointe[];
-  /** Combien d'images jointes (hors base) tiennent. */
+  /** How many attached images (excluding the base) fit. */
   max: number;
   registre: JointeDisponible[];
   desactive: boolean;
@@ -55,7 +55,7 @@ export function ImagesJointes({
     };
   }, [menu]);
 
-  const decalage = base ? 2 : 1; // le rang de la première image jointe
+  const decalage = base ? 2 : 1; // the rank of the first attached image
   const places = Math.max(max, jointes.length);
   const plein = jointes.length >= max;
 
@@ -94,7 +94,7 @@ export function ImagesJointes({
           const j = jointes[i];
           const rang = decalage + i;
           if (!j) {
-            // La première place libre est le bouton d'ajout ; les suivantes sont de simples emplacements.
+            // The first free slot is the add button; the following ones are simple placeholders.
             const premiereLibre = i === jointes.length;
             return premiereLibre ? (
               <button key={`libre-${i}`} type="button" className="jt-case libre" onClick={() => setMenu((o) => !o)} disabled={desactive || envoi} aria-expanded={menu} aria-haspopup="menu">

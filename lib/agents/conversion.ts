@@ -5,9 +5,9 @@ import { estLiaison } from "../clips/clip-link";
 import { ajusterDureesScene, repartirDureesScenes } from "./treatment";
 import type { Avertissement, PlaceScene, Position } from "./types";
 
-/** Des sorties validées des skills aux changements d'une proposition — EN CODE, sans second
- * appel au modèle. Pur, testé. L'enrichissement (état courant, écrasement, portée) vient
- * ensuite, des applicateurs. */
+/** From validated skill outputs to the changes of a proposal — IN CODE, without a second
+ * call to the model. Pure, tested. The enrichment (current state, overwrite, scope) comes
+ * afterwards, from the appliers. */
 
 // --- prompt-asset -----------------------------------------------------------
 
@@ -32,8 +32,8 @@ function avertissementsRemarques(remarques: { type: string; message: string }[])
   return remarques.map((r) => ({ type: "info" as const, texte: TYPES_REMARQUE_SOUCIS.has(r.type) ? `${r.type} : ${r.message}` : r.message }));
 }
 
-/** Un asset à modifier : son prompt (et, si l'agent la recommande autrement, sa méthode).
- * La description canonique n'est jamais réécrite par ce skill. */
+/** An asset to modify: its prompt (and, if the agent recommends it differently, its method).
+ * The canonical description is never rewritten by this skill. */
 export function depuisPromptAsset(sortie: SortiePromptAsset, asset: AssetCourant): ChangementBrut[] {
   const apres: Record<string, unknown> = { promptGeneration: sortie.promptGeneration };
   if (sortie.methode !== (asset.methodeGeneration ?? "generation")) apres.methodeGeneration = sortie.methode;
@@ -54,9 +54,9 @@ export function depuisPromptAsset(sortie: SortiePromptAsset, asset: AssetCourant
   ];
 }
 
-/** Un asset du registre (étape 2) : à CRÉER (n'existe pas) ou à compléter (son prompt manque ou est
- * réécrit). `description` est la description canonique issue du brief : elle crée l'asset, ou complète
- * un asset existant dont la description est vide ; elle ne remplace jamais une description écrite. */
+/** A registry asset (step 2): to CREATE (does not exist) or to complete (its prompt is missing or is
+ * rewritten). `description` is the canonical description from the brief: it creates the asset, or completes
+ * an existing asset whose description is empty; it never replaces a written description. */
 export type AssetDuRegistre = {
   code: string;
   type: string;
@@ -93,7 +93,7 @@ export function depuisRegistreAsset(sortie: SortiePromptAsset, a: AssetDuRegistr
   ];
 }
 
-/** `{ liaison }` à écrire avec un plan du scénario, ou rien si la sortie n'en donne pas (ou une valeur inconnue). */
+/** `{ liaison }` to write with a screenplay clip, or nothing if the output gives none (or an unknown value). */
 const liaisonDe = (p: { liaison?: string }): { liaison?: string } => (estLiaison(p.liaison) ? { liaison: p.liaison } : {});
 
 // --- scenario-episode -------------------------------------------------------
@@ -103,13 +103,13 @@ export type SortieScenarioEpisode = {
   scenes: {
     titre: string;
     fonction: string;
-    /** Cadre visuel tenu sur toute la scène. (Le genre de scène est retiré le 2026-11-09 : une ancienne sortie qui en
-     * porte encore un est lue, son genre ignoré.) */
+    /** Visual frame held across the whole scene. (The scene genre was removed on 2026-11-09: an old output that still
+     * carries one is read, its genre ignored.) */
     ambiance?: string;
     plans: {
       titre: string;
       description: string;
-      /** Liaison avec le plan précédent (lib/clips/clip-link.ts) : absente d'un scénario d'avant, alors la liaison du plan ne change pas. */
+      /** Link with the previous clip (lib/clips/clip-link.ts): absent from an older screenplay, in which case the clip's link does not change. */
       liaison?: string;
       dureeSecondes: number;
     }[];
@@ -128,10 +128,10 @@ export type EpisodeCourant = {
 
 const norme = (s: string) => s.trim().toLowerCase();
 
-/** Écart toléré entre la durée totale du scénario et la durée visée du brief avant d'en avertir. */
+/** Tolerated gap between the screenplay's total duration and the brief's target duration before warning. */
 export const ECART_DUREE_TOLERE = 0.2;
 
-/** Avertissement « durée totale » : le scénario d'un épisode entier s'écarte de la durée visée du brief. Pur. */
+/** "Total duration" warning: a whole episode's screenplay deviates from the brief's target duration. Pure. */
 export function avertissementDuree(totalSecondes: number, cibleSecondes: number | null | undefined): Avertissement | null {
   if (!cibleSecondes || cibleSecondes <= 0 || totalSecondes <= 0) return null;
   const ecart = (totalSecondes - cibleSecondes) / cibleSecondes;
@@ -144,22 +144,22 @@ export function avertissementDuree(totalSecondes: number, cibleSecondes: number 
 }
 
 export type OptionsScenario = {
-  /** Durée visée d'un épisode (brief) : le scénario d'un épisode ENTIER est comparé à elle (avertissement d'écart). */
+  /** Target duration of an episode (brief): a WHOLE episode's screenplay is compared against it (deviation warning). */
   dureeCibleSecondes?: number | null;
-  /** Préfixe des clés symboliques : un lot met plusieurs épisodes dans UNE proposition, leurs clés
-   * (« scene-1 »…) ne doivent pas se rencontrer. */
+  /** Prefix for the symbolic keys: a batch puts several episodes into ONE proposal, and their keys
+   * ("scene-1"…) must not collide. */
   prefixeCle?: string;
-  /** Groupe d'affichage imposé à tous les changements (lot : `ep-<id>`, un groupe par épisode). */
+  /** Display group imposed on all changes (batch: `ep-<id>`, one group per episode). */
   groupe?: string;
-  /** Lot : un épisode qui a DÉJÀ du contenu voit ses modifications signalées comme écrasement
-   * (section spéciale de la revue, décochées). Un squelette vide n'écrase rien. */
+  /** Batch: an episode that ALREADY has content sees its changes flagged as an overwrite
+   * (special review section, unticked). An empty skeleton overwrites nothing. */
   signalerEcrasement?: boolean;
 };
 
-/** Épisode entier (« compléter / préparer l'épisode ») : l'épisode, ses scènes, ses plans et leurs
- * descriptions (le dialogue s'y écrit). Ce qui existe déjà (même titre) est MODIFIÉ, le reste est créé : jamais deux fois. Les
- * plans neufs sont ajoutés en fin d'épisode, dans l'ordre de la sortie. Rien n'est supprimé (un nouveau scénario qui change les titres AJOUTE ses plans à ceux
- * qui existent : la revue le dit). */
+/** Whole episode ("compléter / préparer l'épisode"): the episode, its scenes, its clips and their
+ * descriptions (the dialogue is written there). What already exists (same title) is MODIFIED, the rest is created: never twice. The
+ * new clips are added at the end of the episode, in the output's order. Nothing is deleted (a new screenplay that changes the titles ADDS its clips to those
+ * that exist: the review says so). */
 export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: EpisodeCourant, options: OptionsScenario = {}): ChangementBrut[] {
   const pref = options.prefixeCle ?? "";
   const g = (defaut: string) => options.groupe ?? defaut;
@@ -245,7 +245,7 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
     }
   }
 
-  // Les inventions et les notes se posent sur le premier changement (la revue les remonte).
+  // The inventions and notes are attached to the first change (the review surfaces them).
   if (changements.length > 0) {
     const total = sortie.scenes.reduce((s, sc) => s + sc.plans.reduce((t, p) => t + (Number.isFinite(p.dureeSecondes) ? p.dureeSecondes : 0), 0), 0);
     const ecartDuree = avertissementDuree(total, options.dureeCibleSecondes);
@@ -259,7 +259,7 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
   return changements;
 }
 
-// --- traitement-episode et scenario-scene (étape E : le scénario d'un long film, scène par scène) ---------------------
+// --- traitement-episode and scenario-scene (step E: a feature film's screenplay, scene by scene) ---------------------
 
 export type SortieTraitement = {
   scenes: {
@@ -276,9 +276,9 @@ export type SortieTraitement = {
   notes: string;
 };
 
-/** Le traitement d'un épisode devient des SCÈNES (créations, avec leur traitement) : les durées en secondes sont calculées ICI depuis les poids, pour que
- * leur somme tombe exactement sur la durée visée. Une scène dont le titre existe déjà est laissée ; deux scènes de même titre sont distinguées (le scénario
- * de chaque scène retrouve la sienne par son titre). Pur, testé. */
+/** An episode's treatment becomes SCENES (creations, with their treatment): the durations in seconds are computed HERE from the weights, so that
+ * their sum falls exactly on the target duration. A scene whose title already exists is left alone; two scenes with the same title are told apart (each scene's
+ * screenplay finds its own by title). Pure, tested. */
 export function depuisTraitement(
   sortie: SortieTraitement,
   ep: Pick<EpisodeCourant, "id" | "scenes">,
@@ -325,9 +325,9 @@ export type SortieScenarioScene = {
   notes: string;
 };
 
-/** Les plans d'UNE scène (créée par le traitement) : mêmes changements qu'un scénario d'épisode restreint à cette scène, dont les durées sont ramenées à la
- * durée visée de la scène (`ajusterDureesScene`). Les plans se comparent aux seuls plans de la scène : un titre repris ailleurs dans le film ne fait pas
- * « modifier » un plan d'une autre scène. Pur, testé. */
+/** The clips of ONE scene (created by the treatment): same changes as an episode screenplay restricted to this scene, whose durations are brought back to the
+ * scene's target duration (`ajusterDureesScene`). Clips are compared only with the scene's own clips: a title reused elsewhere in the film does not
+ * "modify" a clip of another scene. Pure, tested. */
 export function depuisScenarioScene(
   sortie: SortieScenarioScene,
   ep: EpisodeCourant,
@@ -350,8 +350,8 @@ export function depuisScenarioScene(
   );
 }
 
-/** Un seul plan à insérer à une position (« un plan de coupe après le plan X ») : le premier
- * plan de la première scène de la sortie, avec ses répliques. La scène est celle du plan de repère. */
+/** A single clip to insert at a position ("a cutaway clip after clip X"): the first
+ * clip of the output's first scene, with its lines of dialogue. The scene is that of the reference clip. */
 export function depuisPlanAInserer(
   sortie: SortieScenarioEpisode,
   cible: { episodeId: number; position: Position; sceneId: number | null },
@@ -384,9 +384,9 @@ export function depuisPlanAInserer(
   ];
 }
 
-/** Une seule SCÈNE à insérer (« Nouvelle scène » entre deux scènes) : la première scène de la sortie, avec ses plans. La scène porte sa place
- * (`apresSceneId` ou `debut`) ; ses plans la rejoignent par leur clé et se rangent dans son bloc (l'ordre de l'épisode est regroupé par scène). Une
- * scène neuve n'a pas de traitement : elle s'écrit ici d'un seul tenant, avec ses plans. Pur, testé. */
+/** A single SCENE to insert ("Nouvelle scène" between two scenes): the output's first scene, with its clips. The scene carries its place
+ * (`apresSceneId` or `debut`); its clips join it by their key and sit in its block (the episode's order is grouped by scene). A
+ * new scene has no treatment: it is written here in one piece, with its clips. Pure, tested. */
 export function depuisSceneAInserer(
   sortie: SortieScenarioEpisode,
   cible: { episodeId: number; place: PlaceScene; titresPris?: string[] },
@@ -432,7 +432,7 @@ export function depuisSceneAInserer(
           titre: p.titre,
           description: p.description,
           dureeGenerationSecondes: p.dureeSecondes,
-          // Le premier plan d'une scène neuve est une coupe : aucun état de fin à reprendre.
+          // The first clip of a new scene is a cut: no end state to carry over.
           ...liaisonDe(j === 0 ? { ...p, liaison: "coupe" } : p),
           episodeId: cible.episodeId,
           sceneCle: "scene-inseree",
@@ -442,8 +442,8 @@ export function depuisSceneAInserer(
   ];
 }
 
-/** Un seul plan à corriger (portée `plan`) : sa description et sa durée, depuis la sortie du
- * skill `scenario-episode` restreinte à ce plan. */
+/** A single clip to correct (scope `plan`): its description and duration, from the output of the
+ * `scenario-episode` skill restricted to this clip. */
 export function depuisCorrectionPlan(sortie: SortieScenarioEpisode, plan: { uuid: string; titre: string }): ChangementBrut[] {
   const p = sortie.scenes[0]?.plans[0];
   if (!p) return [];
@@ -462,29 +462,29 @@ export function depuisCorrectionPlan(sortie: SortieScenarioEpisode, plan: { uuid
   ];
 }
 
-/** Les codes des personnages dont le brief dit que la voix est une voix off (pensées, monologue intérieur) : leur `voix` le dit en clair. */
+/** The codes of the characters whose brief says the voice is a voice-over (thoughts, inner monologue): their `voix` says so plainly. */
 export function codesEnVoixOff(personnages: { nom?: string; voix?: string }[], codes: string[]): Set<string> {
   const voixOff = /voix\s*off|pens[ée]e|monologue|int[ée]rieur|inner|voice-?over/i;
   const noms = personnages.filter((p) => typeof p.nom === "string" && voixOff.test(p.voix ?? "")).map((p) => slugifyCode(p.nom!));
   return new Set(codes.filter((c) => noms.includes(slugifyCode(c.includes("_") ? c.slice(c.indexOf("_") + 1) : c))));
 }
 
-/** Types d'assets qu'une proposition peut créer. Un « keyframe » (pose composite : plusieurs éléments mêlés dans une même
- * image) en fait partie depuis le 2026-10-06 ; la voix n'est plus un asset (champ du personnage). */
+/** Asset types a proposal can create. A "keyframe" (composite pose: several elements mixed in one
+ * image) has been part of it since 2026-10-06; the voice is no longer an asset (a character field). */
 export const TYPES_MANQUANTS = new Set<string>(TYPES_ASSET);
 
-/** « PROP_lettre » (type prop) → suffixe « lettre » : le préfixe que le modèle a écrit est retiré, le code
- * final est reconstruit depuis le type (convention du registre). */
+/** "PROP_lettre" (prop type) → suffix "lettre": the prefix the model wrote is removed, the final code
+ * is rebuilt from the type (registry convention). */
 export function suffixeDeCode(code: string): string {
   const prefixes = Object.values(PREFIXE_PAR_TYPE).sort((a, b) => b.length - a.length);
-  const p = prefixes.find((x) => code.toUpperCase().startsWith(x)) ?? /^[A-Z]{2,6}_/.exec(code)?.[0]; // préfixe connu, ou en capitales (ACC_…)
+  const p = prefixes.find((x) => code.toUpperCase().startsWith(x)) ?? /^[A-Z]{2,6}_/.exec(code)?.[0]; // known prefix, or in capitals (ACC_…)
   return slugifyCode(p ? code.slice(p.length) : code);
 }
 
 
-// --- prompt-asset, variante affiche (affiche de présentation d'un projet ou d'un épisode) ---------------
+// --- prompt-asset, affiche variant (presentation poster of a project or an episode) ---------------
 
-/** Même sortie que `SortiePromptAsset` (`remarques` en `{type, message}`) ; une remarque en simple chaîne (ancien format) reste lue. */
+/** Same output as `SortiePromptAsset` (`remarques` as `{type, message}`); a remark as a plain string (old format) is still read. */
 export type SortiePromptAffiche = {
   methode: "generation" | "edition";
   sources?: string[];
@@ -492,9 +492,9 @@ export type SortiePromptAffiche = {
   remarques: (string | { type: string; message: string })[];
 };
 
-/** Le prompt d'une affiche : une modification de l'asset d'affiche. La ligne de titre suit le réglage ACTUEL de l'affiche (la
- * case « écrire le titre dans l'image » a pu changer depuis la demande). La méthode « édition » (image du personnage principal
- * en source 1) n'est retenue que si cette image existait au moment de la demande. */
+/** A poster's prompt: a change to the poster asset. The title line follows the CURRENT poster setting (the
+ * "écrire le titre dans l'image" checkbox may have changed since the request). The "édition" method (main character's image
+ * as source 1) is kept only if that image existed at request time. */
 export function depuisPromptAffiche(
   sortie: SortiePromptAffiche,
   asset: { id: number; promptGeneration: string | null; methodeGeneration: string | null },

@@ -2,8 +2,8 @@
 
 import { useRef, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 
-/** Un curseur à la souris, au doigt et au clavier, sans `<input type="range">` (invisible et recouvert de décor, il ne répondait pas
- * de façon fiable). Toute la zone est la glissière : le pointeur est capturé le temps du geste. Rôle `slider` pour les lecteurs d'écran. */
+/** A cursor for mouse, finger and keyboard, without `<input type="range">` (invisible and covered by the decor, it did not respond
+ * reliably). The whole area is the slider: the pointer is captured for the duration of the gesture. `slider` role for screen readers. */
 export function Curseur({
   valeur,
   min,
@@ -46,7 +46,7 @@ export function Curseur({
     else if (e.key === "End") v = max;
     if (v == null) return;
     e.preventDefault();
-    e.stopPropagation(); // les flèches changent la valeur, pas l'étape
+    e.stopPropagation(); // the arrows change the value, not the step
     onChange(Math.max(min, Math.min(max, v)));
   };
 

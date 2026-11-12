@@ -1,8 +1,8 @@
-/** Filtres de la bibliothèque de styles : types et fonctions pures, SANS le fichier de la bibliothèque (le client les importe sans
- * embarquer 250 Ko de JSON). Les fonctions sont génériques : elles marchent sur une entrée complète ou sur sa vue allégée. */
+/** Filters of the style library: types and pure functions, WITHOUT the library file (the client imports them without
+ * bundling 250 KB of JSON). The functions are generic: they work on a full entry or on its lightweight view. */
 
 export type FiltresStyle = {
-  /** Famille du style (Animation 2D, Peinture, BD, Dessin & gravure, Photo & ciné, 3D & matière) : les puces de la galerie. */
+  /** Style family (Animation 2D, Peinture, BD, Dessin & gravure, Photo & ciné, 3D & matière): the gallery chips. */
   medium: string;
   rendu: string[];
   palette: string[];
@@ -17,7 +17,7 @@ type Filtrable = { nom: string; categories: string[]; filtres: FiltresStyle };
 
 const valeursDe = (v: string | string[]): string[] => (Array.isArray(v) ? v : [v]);
 
-/** Valeurs distinctes d'un axe, avec leur effectif, triées par effectif décroissant (puis alphabétique). */
+/** Distinct values of an axis, with their count, sorted by descending count (then alphabetically). */
 export function valeursFiltre<T extends Filtrable>(styles: readonly T[], axe: AxeFiltre): { valeur: string; effectif: number }[] {
   const compte = new Map<string, number>();
   for (const s of styles) for (const x of valeursDe(s.filtres[axe])) compte.set(x, (compte.get(x) ?? 0) + 1);
@@ -29,7 +29,7 @@ export function valeursFiltre<T extends Filtrable>(styles: readonly T[], axe: Ax
 export type CritereStyles = {
   recherche?: string;
   categorie?: string;
-  /** Un style doit avoir au moins une des valeurs cochées sur chaque axe renseigné (ET entre axes, OU dans un axe). */
+  /** A style must have at least one of the checked values on each filled axis (AND between axes, OR within an axis). */
   filtres?: Partial<Record<AxeFiltre, string[]>>;
 };
 

@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { chargerSkill, listerSkills } from "./skills";
 
-// llama.cpp convertit le schéma de sortie en grammaire ; il REFUSE un `pattern` qui ne commence pas par
-// « ^ » et ne finit pas par « $ » (« Pattern must start with '^' and end with '$' », HTTP 400). Une
-// erreur de ce genre ne se voit qu'au premier appel réel : ce test la rattrape avant.
+// llama.cpp converts the output schema into a grammar; it REFUSES a `pattern` that does not start with
+// « ^ » and end with « $ » (« Pattern must start with '^' and end with '$' », HTTP 400). An
+// error of this kind only shows up on the first real call: this test catches it beforehand.
 
 function patterns(noeud: unknown, chemin = "$"): { chemin: string; motif: string }[] {
   if (Array.isArray(noeud)) return noeud.flatMap((x, i) => patterns(x, `${chemin}[${i}]`));
@@ -24,10 +24,10 @@ test("schémas de sortie : tout `pattern` est ancré (^…$), exigence de la gra
   }
 });
 
-// Un motif « contient X » (`^.*X.*$`) piège la grammaire : `.` y accepte le guillemet, donc le modèle qui ferme
-// sa chaîne sans avoir écrit X voit le `"` avalé comme contenu, et tout le JSON suivant tombe DANS la chaîne,
-// jusqu'à `max_tokens` (observé avec `{picture}` sur Gemma et Qwen : 16 384 jetons, 5 minutes). Une règle de
-// contenu se vérifie APRÈS génération (contrôles sémantiques, lib/llm/checks.ts, avec renvoi), jamais dans la grammaire.
+// A « contains X » pattern (`^.*X.*$`) traps the grammar: `.` accepts the quote there, so the model that closes
+// its string without having written X sees the `"` swallowed as content, and all the following JSON falls INTO the string,
+// until `max_tokens` (observed with `{picture}` on Gemma and Qwen: 16,384 tokens, 5 minutes). A content rule
+// is checked AFTER generation (semantic checks, lib/llm/checks.ts, with resend), never in the grammar.
 test("schémas de sortie : aucun `pattern` « contient » (.* autour d'un littéral), piège de la grammaire", () => {
   for (const nom of listerSkills()) {
     for (const { chemin, motif } of patterns(chargerSkill(nom).schema)) {

@@ -4,26 +4,26 @@ import type { ChangementBrut, LigneChangement } from "../changes";
 import type { CibleChangement, ScopeDemandee } from "../scope";
 import type { CibleType } from "../types";
 
-/** Applicateurs : ce que sait faire une cible de changement. Chacun a trois temps :
- * - `cible` : où se trouve la cible (pour le verrou de portée) — lecture seule ;
- * - `previsualiser` : complète le changement avec l'état courant (avant, écrasement,
- *   avertissements, refus) — lecture seule, appelé à la construction de la proposition ;
- * - `verifier` + `appliquer` : à l'application, DANS la transaction. */
+/** Appliers: what a change target can do. Each has three stages:
+ * - `cible`: where the target is (for the scope lock) — read-only;
+ * - `previsualiser`: completes the change with the current state (before, overwrite,
+ *   warnings, refusals) — read-only, called when the proposal is built;
+ * - `verifier` + `appliquer`: on application, INSIDE the transaction. */
 
 export type Db = typeof db | Tx;
 
-/** Contexte de construction : les clés symboliques que la proposition crée elle-même. */
+/** Build context: the symbolic keys that the proposal creates itself. */
 export type CtxPrevisu = { projectId: number; scope: ScopeDemandee; clesNouvelles: Set<string> };
 
-/** Contexte d'application : les ids réels des créations déjà appliquées (clé → id). */
+/** Application context: the real ids of the creations already applied (key → id). */
 export type CtxAppli = { projectId: number; scope: ScopeDemandee; cles: Map<string, number> };
 
 export interface Applicateur {
   cibleType: CibleType;
-  /** Raison d'un refus (« introuvable… ») ou la position de la cible dans la hiérarchie. */
+  /** Refusal reason (« introuvable… ») or the target's position in the hierarchy. */
   cible(db: Db, ctx: CtxPrevisu | CtxAppli, ch: Pick<LigneChangement, "operation" | "cibleRef" | "apres">): Promise<CibleChangement | string>;
   previsualiser(db: Db, ctx: CtxPrevisu, ch: ChangementBrut): Promise<ChangementBrut>;
-  /** Re-vérifie l'état au moment d'appliquer : raison d'un refus, ou null. */
+  /** Re-checks the state at the moment of applying: refusal reason, or null. */
   verifier(tx: Tx, ctx: CtxAppli, ch: LigneChangement): Promise<string | null>;
   appliquer(tx: Tx, ctx: CtxAppli, ch: LigneChangement): Promise<void>;
 }
@@ -44,8 +44,8 @@ export function texte(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
 }
 
-/** L'id réel d'un parent : cité par id, ou par clé symbolique d'une création de la même
- * proposition (déjà appliquée, ou en cours de construction). */
+/** The real id of a parent: cited by id, or by symbolic key of a creation from the same
+ * proposal (already applied, or being built). */
 export function parentDe(a: Apres, cleChamp: string, idChamp: string, cles: Map<string, number> | Set<string>): { id: number | null; nouveau: boolean } {
   const cle = texte(a[cleChamp]);
   if (cle) return { id: cles instanceof Map ? (cles.get(cle) ?? null) : null, nouveau: true };

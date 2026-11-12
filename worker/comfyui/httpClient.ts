@@ -8,19 +8,19 @@ import { etatDansLaFile, type EtatDansLaFile } from "../../lib/tasks/cancellatio
 import { cheminSortieDistant, premierFichierSortie, type FichierSortie } from "./output";
 import { ouvrirSuiviWs, type EtatHistorique } from "./wsTracking";
 
-/** Ce que /history rend d'un prompt, réduit à ce que le client lit. */
+/** What /history returns for a prompt, reduced to what the client reads. */
 type HistoriqueEntree = {
   status?: { status_str?: string; completed?: boolean; messages?: unknown[] };
   outputs?: Record<string, { gifs?: FichierSortie[]; videos?: FichierSortie[] } | undefined>;
 };
 
 /**
- * Client HTTP réel vers l'API ComfyUI qui tourne sur le PC de bureau (déjà
- * exposée via NPM). Le graphe est assemblé par l'appelant (`submitGraph`).
+ * Real HTTP client to the ComfyUI API running on the desktop PC (already
+ * exposed via NPM). The graph is assembled by the caller (`submitGraph`).
  */
 export class HttpComfyUIClient implements ComfyUIClient {
-  /** Identité de ce worker auprès de ComfyUI : passée à /prompt ET au WebSocket,
-   * car ComfyUI ne renvoie la progression qu'au client qui a soumis. */
+  /** This worker's identity with ComfyUI: passed to /prompt AND to the WebSocket,
+   * since ComfyUI only returns progress to the client that submitted. */
   private readonly clientId = randomUUID();
 
   constructor(private readonly baseUrl: string) {}
@@ -74,8 +74,8 @@ export class HttpComfyUIClient implements ComfyUIClient {
     });
   }
 
-  /** L'entrée de /history pour ce prompt : undefined tant que ComfyUI n'en a pas (ou répond autrement que 200). Les trois lectures de
-   * l'état d'un rendu (suivi WebSocket, image, vidéo) passent par ici, avec le même délai maximal. */
+  /** The /history entry for this prompt: undefined as long as ComfyUI has none (or answers with something other than 200). The three reads of
+   * a render's state (WebSocket tracking, image, video) go through here, with the same maximum delay. */
   private async lireHistorique(promptId: string): Promise<HistoriqueEntree | undefined> {
     const res = await fetch(`${this.baseUrl}/history/${promptId}`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return undefined;
@@ -90,7 +90,7 @@ export class HttpComfyUIClient implements ComfyUIClient {
     return "en_cours";
   }
 
-  /** Le résultat d'un prompt : en erreur, fini (le fichier que `fichierDe` trouve dans les sorties) ou encore en cours. */
+  /** The result of a prompt: in error, finished (the file that `fichierDe` finds in the outputs) or still running. */
   private async lireResultat(promptId: string, fichierDe: (entree: HistoriqueEntree) => FichierSortie | null | undefined): Promise<PollResult> {
     const entree = await this.lireHistorique(promptId);
     if (!entree) return { statut: "en_cours" };
@@ -101,7 +101,7 @@ export class HttpComfyUIClient implements ComfyUIClient {
     return fichier ? { statut: "termine", cheminSortieDistant: cheminSortieDistant(fichier) } : { statut: "en_cours" };
   }
 
-  /** Image (`images`), son (`audio`, à confirmer) ou autre : voir output.ts. */
+  /** Image (`images`), sound (`audio`, to be confirmed) or other: see output.ts. */
   pollImage(promptId: string, nodeIdSortie: string): Promise<PollResult> {
     return this.lireResultat(promptId, (e) => premierFichierSortie(e.outputs?.[nodeIdSortie]));
   }

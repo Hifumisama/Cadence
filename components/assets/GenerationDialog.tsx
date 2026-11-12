@@ -9,6 +9,6 @@ import type { GenerationVue } from "@/lib/assets/queries-generations";
 import type { GenreTache } from "@/lib/tasks/tasks";
 
 
-/** Une génération avec son rang dans la file et, si elle attend, le genre de la
- * tâche qui tient le GPU (une vidéo, un appel d'agent…). */
+/** A generation with its rank in the queue and, if it is waiting, the kind of
+ * task holding the GPU (a video, an agent call…). */
 export type GenerationVivante = GenerationVue & { position: number | null; derriere: GenreTache | null };

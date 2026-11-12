@@ -7,8 +7,8 @@ import { pad2, type Clip, type GenreRendu } from "@/lib/montage/montage";
 
 const GENRE: Record<GenreRendu, string> = { "aperçu": "Prévisualisation", final: "Rendu final", import: "Vidéo importée" };
 
-/** L'inspecteur du clip sélectionné : statut, alertes (périmé, échec), rendu retenu POUR CETTE ENTRÉE, rognage, duplication/retrait, et le
- * lien vers l'atelier du plan (`/montage/<uuid>`). */
+/** The inspector of the selected clip: status, alerts (stale, failed), retained render FOR THIS ENTRY, trimming, duplication/removal, and the
+ * link to the clip's workshop (`/montage/<uuid>`). */
 export function Inspecteur({
   clip,
   index,

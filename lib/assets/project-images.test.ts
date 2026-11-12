@@ -37,7 +37,7 @@ test("etatImages : en file, sans prompt, dérivé en attente de son master", () 
   const e = etatImages(tous, new Set([4]), 10);
   assert.equal(e.sansImage, 4);
   assert.equal(e.enFile, 1);
-  assert.equal(e.aLancer, 1); // MAYA seule : le dérivé attend, CAFE n'a pas de prompt, LAMPE est déjà en file
+  assert.equal(e.aLancer, 1); // MAYA alone: the derivative waits, CAFE has no prompt, LAMPE is already queued
   assert.equal(e.attendentMaitre, 1);
   assert.equal(e.sansPrompt, 1);
 });

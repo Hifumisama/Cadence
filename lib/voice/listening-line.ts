@@ -1,40 +1,40 @@
-/** La RÉPLIQUE D'ÉCOUTE d'une voix : le texte que la voix de référence lit à la génération (Qwen3-TTS Voice Design), celui qu'on réécoute
- * pour juger le timbre. Écrite à la demande, SANS skill d'agent : un prompt simple, intégré ici, envoyé au fournisseur LLM déjà
- * configuré (lib/llm/). Elle tient au caractère du personnage, fait au moins deux phrases et est écrite dans la langue de la voix
- * (la langue de la fiche de voix, nom anglais du moteur : lib/voice/languages-tts.ts).
+/** The LISTENING LINE of a voice: the text that the reference voice reads at generation (Qwen3-TTS Voice Design), the one we listen back to
+ * to judge the timbre. Written on demand, WITHOUT agent skill: a simple prompt, built in here, sent to the already configured LLM provider
+ * (lib/llm/). It fits the character's personality, is at least two sentences and is written in the voice's language
+ * (the voice sheet's language, the engine's English name: lib/voice/languages-tts.ts).
  *
- * Pas d'accès à la base ni au disque : les parties pures (prompt, nettoyage, repli) sont testables ; l'appel au modèle prend son
- * fournisseur en paramètre. */
+ * No access to the database or disk: the pure parts (prompt, cleanup, fallback) are testable; the model call takes its
+ * provider as a parameter. */
 
 import { CORPS_SANS_REFLEXION, creerFournisseur } from "../llm/config";
 import type { FournisseurLlm } from "../llm/types";
 import { langueFicheVoix } from "./languages-tts";
 import { TEXTE_REFERENCE_DEFAUT } from "./voice";
 
-/** Ce qu'on sait de la voix et de son personnage. Tout est facultatif sauf la langue. */
+/** What we know about the voice and its character. Everything is optional except the language. */
 export type ContexteRepliqueEcoute = {
-  /** Langue de la voix (fiche) : « French », « English »… Normalisée ici. */
+  /** Language of the voice (sheet): « French », « English »… Normalised here. */
   langue: string;
-  /** Description du personnage (âge, allure, caractère) ou, à défaut, la description canonique du timbre. */
+  /** Character description (age, bearing, temperament) or, failing that, the canonical description of the timbre. */
   caractere?: string | null;
-  /** L'instruction de timbre (Voice Design), en anglais : le ton attendu s'y lit. */
+  /** The timbre instruction (Voice Design), in English: the expected tone can be read from it. */
   instruction?: string | null;
-  /** Rôle quand il n'y a pas de personnage (voix off, narrateur). */
+  /** Role when there is no character (voice-over, narrator). */
   role?: string | null;
 };
 
 export type RepliqueEcoute = {
   texte: string;
-  /** Langue dans laquelle le texte est écrit (nom anglais du moteur). Peut différer de celle de la voix pour un texte de repli. */
+  /** Language in which the text is written (engine's English name). May differ from that of the voice for a fallback text. */
   langue: string;
-  /** « modele » : écrite par le LLM ; « repli » : texte fixe (modèle injoignable ou sortie inutilisable). */
+  /** « modele »: written by the LLM; « repli »: fixed text (model unreachable or unusable output). */
   source: "modele" | "repli";
 };
 
-/** Textes de repli, par langue du moteur : neutres, en deux phrases. Utilisés si le modèle ne répond pas. */
+/** Fallback texts, per engine language: neutral, in two sentences. Used if the model does not respond. */
 const REPLIS: Record<string, string> = {
   French: "Bonjour, ravi de vous voir ici. Installez-vous, prenez le temps, et dites-moi ce qui vous amène.",
-  English: TEXTE_REFERENCE_DEFAUT, // le même texte : langueDuTexteDeReference le reconnaît et envoie « English »
+  English: TEXTE_REFERENCE_DEFAUT, // the same text: langueDuTexteDeReference recognises it and sends « English »
 };
 
 export function repliqueDeRepli(langue: string): RepliqueEcoute {
@@ -54,7 +54,7 @@ export const SYSTEME_REPLIQUE_ECOUTE = [
   "- Answer with the line alone: no title, no explanation.",
 ].join("\n");
 
-/** Le message envoyé au modèle. Pur. */
+/** The message sent to the model. Pure. */
 export function messageRepliqueEcoute(c: ContexteRepliqueEcoute): string {
   const langue = langueFicheVoix(c.langue);
   const lignes = [`Language of the line: ${langue === "Auto" ? "the language of the character description" : langue}`];
@@ -65,18 +65,18 @@ export function messageRepliqueEcoute(c: ContexteRepliqueEcoute): string {
   return lignes.join("\n");
 }
 
-/** Nombre de phrases (séparées par . ! ? … suivis d'un espace ou de la fin). */
+/** Number of sentences (separated by . ! ? … followed by a space or the end). */
 export function nombrePhrases(texte: string): number {
   return texte.split(/(?<=[.!?…。！？])["»”)]*\s+/u).filter((p) => /[\p{L}\p{N}]/u.test(p)).length;
 }
 
-/** Nettoie la sortie du modèle : retire une éventuelle réflexion, les guillemets, le markdown, un préfixe « Line : »; replie les
- * espaces. Renvoie une chaîne vide si rien d'utilisable. */
+/** Cleans the model's output: removes any reasoning, the quotes, the markdown, a « Line : » prefix; collapses the
+ * spaces. Returns an empty string if nothing is usable. */
 export function nettoyerRepliqueEcoute(brut: string): string {
   let t = brut.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/```[a-z]*\n?|```/gi, "");
   t = t.replace(/^\s*(?:line|réplique|replique|texte|text)\s*:\s*/i, "");
   t = t.replace(/[*_#>`]+/g, "").replace(/\s+/g, " ").trim();
-  // Guillemets autour de toute la ligne (droits, courbes, français).
+  // Quotes around the whole line (straight, curly, French).
   t = t.replace(/^["“”«»'‘’]+\s*/, "").replace(/\s*["“”«»'‘’]+$/, "");
   return t.trim();
 }
@@ -85,8 +85,8 @@ const MAX_CARACTERES = 500;
 
 export type OptionsRepliqueEcoute = { fournisseur?: FournisseurLlm; modele?: string; signal?: AbortSignal };
 
-/** Écrit la réplique d'écoute avec le LLM configuré. Une phrase seule est renvoyée au modèle une fois ; si le modèle est injoignable
- * ou ne donne rien d'utilisable, le texte de repli de la langue (jamais d'erreur pour ça : le texte reste modifiable). */
+/** Writes the listening line with the configured LLM. A single sentence is sent back to the model once; if the model is unreachable
+ * or gives nothing usable, the language's fallback text (never an error for that: the text remains editable). */
 export async function ecrireRepliqueEcoute(c: ContexteRepliqueEcoute, options: OptionsRepliqueEcoute = {}): Promise<RepliqueEcoute> {
   const langue = langueFicheVoix(c.langue);
   try {

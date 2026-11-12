@@ -7,15 +7,15 @@ import { masterDe } from "../../assets/registry-assets";
 import type { ChangementBrut } from "../changes";
 import { apres, entierRef, REFUS_SUPPRESSION, texte, type Applicateur, type Db } from "./common";
 
-/** Cible `asset` : créer (code construit depuis le type et un suffixe, jamais saisi en entier,
- * unique dans le projet, jamais une voix : elle se crée au casting) ou modifier la description,
- * le prompt de génération, la méthode, la durée d'un son.
- * `apres` (création) = { type, suffixe, description?, promptGeneration?, methodeGeneration?,
- * deriveDeCode? | deriveDeCle?, dureeSecondes? } ; (modification) = les seuls champs changés. */
+/** `asset` target: create (code built from the type and a suffix, never typed in full,
+ * unique in the project, never a voice: it is created at the voice casting) or modify the description,
+ * the generation prompt, the method, the duration of a sound.
+ * `apres` (creation) = { type, suffixe, description?, promptGeneration?, methodeGeneration?,
+ * deriveDeCode? | deriveDeCle?, dureeSecondes? }; (modification) = only the fields changed. */
 
 const CHAMPS_MODIFIABLES = ["description", "promptGeneration", "methodeGeneration"] as const;
 
-/** Registre à un niveau : le parent retenu est toujours un master (un dérivé de dérivé se rattache au master). */
+/** Single-level registry: the chosen parent is always a master (a derivative of a derivative attaches to the master). */
 const masterDuParent = (db: Db, id: number) =>
   masterDe(id, async (x) => (await db.select({ p: assets.deriveDeId }).from(assets).where(eq(assets.id, x)))[0]?.p ?? null);
 
@@ -24,10 +24,9 @@ async function parCode(db: Db, projectId: number, code: string) {
   return a ?? null;
 }
 
-/** Contrôles d'une création ; renvoie la raison d'un refus, ou le code retenu. Le parent est un asset
- * existant (`deriveDeCode`) ou une création de la même proposition (`deriveDeCle`, étape 3 : un asset
- * manquant dérivé d'un autre asset manquant) : `cles` = les clés de la proposition (construction : leur
- * ensemble, le parent n'a pas encore d'id ; application : clé → id réel, déjà créé). */
+/** Checks for a creation; returns the reason for a refusal, or the retained code. The parent is an existing
+ * asset (`deriveDeCode`) or a creation from the same proposal (`deriveDeCle`, step 3: a missing asset derived from another
+ * missing asset): `cles` = the keys of the proposal (construction: their set, the parent has no id yet; application: key → real id, already created). */
 async function verifierCreation(
   db: Db,
   projectId: number,
@@ -129,7 +128,7 @@ export const applicateurAsset: Applicateur = {
         methodeGeneration: methode ?? (v.deriveDeId ? null : "generation"),
         deriveDeId: v.deriveDeId,
       }).returning({ id: assets.id });
-      // Un dérivé créé par la même proposition s'y rattache par cette clé (`deriveDeCle`).
+      // A derivative created by the same proposal attaches to it by this key (`deriveDeCle`).
       if (ch.cle && cree) ctx.cles.set(ch.cle, cree.id);
       return;
     }

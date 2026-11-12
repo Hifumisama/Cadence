@@ -8,17 +8,17 @@ import { ETAPES_CREATION, dernieresDemandesParPlan, libelleSuiviFiche, normalise
 import { lireCreation } from "./creation-db";
 import type { VueSousTache } from "./types";
 
-/** L'état de la création d'un projet, tel que la page de l'installateur le lit (et le sondage de l'API). Pour chaque étape
- * qui a travaillé : le détail de ce qui se fait au fil de l'eau (un lot = ses sous-tâches une à une, avec leur état ; un appel
- * seul = son état et son compteur de jetons) : ce sont les mêmes tâches que celles de la file du header. */
+/** The state of a project's creation, as the installer's page reads it (and the API poll). For each step
+ * that has worked: the detail of what is happening as it goes (a batch = its subtasks one by one, with their state; a single call
+ * = its state and its token counter): these are the same tasks as the header's queue. */
 type SousTacheVue = { libelle: string; statut: VueSousTache["statut"]; detail: string };
 export type VueCreation = {
   statut: StatutCreation;
   erreur: string | null;
   faites: number;
   total: number;
-  /** Les plans du projet qui n'ont pas encore de fiche (statut brouillon) : ce que « Écrire les fiches » écrirait (des demandes par plan, hors
-   * création). Décidé par les plans eux-mêmes, pas par la création (une création ancienne a pu tout écrire, ou rien). */
+  /** The project's plans that do not have a sheet yet (draft status): what "Écrire les fiches" would write (requests per clip, outside the
+   * creation). Decided by the clips themselves, not by the creation (an old creation may have written everything, or nothing). */
   plansSansFiche: number;
   etapes: {
     cle: string;
@@ -27,7 +27,7 @@ export type VueCreation = {
     statut: EtapeCreation["statut"];
     resultat: string | null;
     erreur: string | null;
-    /** Ce que fait l'appel en cours (étape sans sous-tâches) : « En cours · 312 jetons », « En file · n°2 »… */
+    /** What the current call is doing (step without subtasks): "En cours · 312 jetons", "En file · n°2"… */
     activite: string | null;
     sousTaches: SousTacheVue[];
   }[];
@@ -42,8 +42,8 @@ export async function lireVueCreation(projectId: number): Promise<VueCreation | 
   const [conv] = await db.select({ uuid: agentConversations.uuid }).from(agentConversations).where(eq(agentConversations.projectId, projectId));
 
   const detailees = await Promise.all(
-    // Une création ancienne n'a pas les étapes ajoutées depuis (ex. « traitement ») : on ne les lui montre pas ; celles retirées depuis (les fiches
-    // de l'ancienne phase 2) sont ignorées par `normaliserEtapes`.
+    // An old creation does not have the steps added since (e.g. "traitement"): they are not shown to it; those removed since (the sheets
+    // of the old phase 2) are ignored by `normaliserEtapes`.
     ETAPES_CREATION.filter((def) => etapes.length === 0 || etapes.some((x) => x.cle === def.cle)).map(async (def) => {
       const e = etapes.find((x) => x.cle === def.cle);
       let activite: string | null = null;
@@ -83,8 +83,8 @@ export async function lireVueCreation(projectId: number): Promise<VueCreation | 
   };
 }
 
-/** Combien de plans attendent leur fiche APRÈS une création finie (0 sans création, ou tant qu'elle tourne) : la page Brief en fait un lien vers
- * l'écran des intents. Léger : deux requêtes. */
+/** How many clips wait for their sheet AFTER a finished creation (0 without a creation, or while it runs): the Brief page makes it a link to
+ * the intents screen. Light: two queries. */
 export async function plansSansFicheApresCreation(projectId: number): Promise<number> {
   const c = await lireCreation(projectId);
   if (!c || statutEffectif(normaliserEtapes(c.etapes), c.statut as StatutCreation) !== "termine") return 0;
@@ -92,10 +92,10 @@ export async function plansSansFicheApresCreation(projectId: number): Promise<nu
   return Number(n?.n ?? 0);
 }
 
-/** Un plan tel que l'écran de fin de la préparation le montre : son intent (la description), à relire avant d'écrire sa fiche. */
+/** A clip as the preparation's end screen shows it: its intent (the description), to review before writing its sheet. */
 export type PlanIntent = { uuid: string; position: number; titre: string; scene: string | null; description: string; aUneFiche: boolean; atelierHref: string };
 
-/** Les plans du film dans l'ordre du scénario (scène, puis `ordre` : la position affichée en découle, jamais un identifiant). */
+/** The film's clips in screenplay order (scene, then `ordre`: the displayed position follows from it, never an identifier). */
 export async function lirePlansIntents(projectId: number): Promise<PlanIntent[]> {
   const lignes = await db
     .select({ uuid: plans.uuid, titre: plans.titre, description: plans.description, statut: plans.statut, episodeId: plans.episodeId, scene: scenes.titre })
@@ -120,11 +120,11 @@ export async function lirePlansIntents(projectId: number): Promise<PlanIntent[]>
   });
 }
 
-/** Le suivi d'un plan après « Écrire les fiches » : sa dernière demande de fiche, et la phrase qui la dit (`libelleSuiviFiche`). */
+/** A clip's tracking after "Écrire les fiches": its last sheet request, and the sentence that states it (`libelleSuiviFiche`). */
 export type SuiviFichePlan = EtatDemandeFiche & { libelle: string };
 
-/** Les dernières demandes de fiche des plans du projet, lues par `etatDemandesFiches` (une par plan : la plus récente). Relu par l'écran des intents
- * (app/api/creation/[projectId]/fiches) : il survit à un rechargement de la page, sans garder les ids côté client. */
+/** The latest sheet requests of the project's clips, read by `etatDemandesFiches` (one per clip: the most recent). Re-read by the intents screen
+ * (app/api/creation/[projectId]/fiches): it survives a page reload, without keeping the ids on the client side. */
 export async function lireSuiviFiches(projectId: number): Promise<SuiviFichePlan[]> {
   const lignes = await db.select({ id: demandes.id, planId: demandes.cibleId }).from(demandes).where(and(eq(demandes.projectId, projectId), eq(demandes.type, "fiche-plan")));
   const ids = dernieresDemandesParPlan(lignes).map((d) => d.id);

@@ -13,7 +13,7 @@ const bonne = (): ReponsePython => ({
 });
 const reponse = (rep: ReponsePython) => JSON.stringify(rep);
 
-/** Un lanceur qui rend les réponses données, dans l'ordre, et note les seeds reçues. */
+/** A launcher that returns the given replies, in order, and notes the seeds received. */
 function lanceur(reponses: (ReponsePython | Error)[]) {
   const seeds: number[] = [];
   const lancer: LanceurPython = async (_py, _script, entree) => {

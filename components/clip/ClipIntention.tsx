@@ -22,8 +22,8 @@ const INTERVALLE_MS = 2000;
 
 type Phase = "repos" | "preparation" | "agent" | "lancement";
 
-/** Ce que l'agent regarde : la planche de vignettes du rendu (case « Montrer le rendu à l'agent »), ou seulement la consigne
- * et la fiche actuelle (par défaut : la planche n'est jamais automatique). */
+/** What the agent looks at: the render's contact sheet (« Montrer le rendu à l'agent » checkbox), or only the directive
+ * and the current sheet (default: the contact sheet is never automatic). */
 type Vision = "planche" | "fiche";
 
 const message = (phase: Exclude<Phase, "repos">, vision: Vision, etape: string | null): string =>
@@ -35,20 +35,20 @@ const message = (phase: Exclude<Phase, "repos">, vision: Vision, etape: string |
         : `${vision === "planche" ? "L'agent regarde le rendu et décide quoi changer" : "L'agent lit ta consigne et décide quoi changer"}, puis la fiche est recompilée. Compte une à quelques minutes ; tu peux quitter la page, la demande continue dans le panneau des tâches.`
       : "Mise en file de la prévisualisation…";
 
-/** Le bloc « Qu'est-ce qu'on change ? » : la consigne en langage naturel est la boucle d'itération.
+/** The « Qu'est-ce qu'on change ? » block: the directive in natural language is the iteration loop.
  *
- * « Itérer » est UNE transaction indissociable, sans aucune confirmation (docs/FRICTIONS.md, 2026-10-12) : (1) l'agent `iteration-plan` analyse la
- * consigne et DÉCIDE (intent, durée, références, réglages : `DecisionsIteration`, affichées ici), puis la fiche est recompilée par Open H3 IR avec ces
- * décisions (2026-11-09), (2) l'application de la fiche compilée, qui écrit les décisions avec elle, (3) une prévisualisation avec le
- * prompt obtenu, qui garde la consigne, l'essai de base et ce que l'agent ou les contrôles ont signalé (`decisionIteration` : des notes, jamais
- * un arrêt). Les étapes 2 et 3 s'écrivent en une seule transaction côté serveur (`appliquerIterationEtGenerer`). Le prompt remplacé reste dans
- * l'essai précédent (« Repartir de là »). Les seuls arrêts : l'agent échoue, ou rien n'est appliquable (message, aucun essai créé). La
- * consigne est requise. La planche de vignettes n'est JAMAIS automatique : seulement si la case « Montrer au chef opérateur » est cochée
- * (décochée par défaut, non mémorisée).
+ * « Itérer » is ONE indivisible transaction, with no confirmation at all (docs/FRICTIONS.md, 2026-10-12): (1) the `iteration-plan` agent analyses the
+ * directive and DECIDES (intent, duration, references, settings: `DecisionsIteration`, shown here), then the sheet is recompiled by Open H3 IR with these
+ * decisions (2026-11-09), (2) the application of the compiled sheet, which writes the decisions with it, (3) a preview with the
+ * resulting prompt, which keeps the directive, the base attempt and what the agent or the checks reported (`decisionIteration`: notes, never
+ * a stop). Steps 2 and 3 are written in a single server-side transaction (`appliquerIterationEtGenerer`). The replaced prompt stays in the
+ * previous attempt (« Repartir de là »). The only stops: the agent fails, or nothing can be applied (message, no attempt created). The
+ * directive is required. The contact sheet is NEVER automatic: only if the « Montrer au chef opérateur » box is ticked
+ * (unticked by default, not remembered).
  *
- * Sans rendu, il n'y a rien à corriger (jamais à l'aveugle) : « Itérer » devient « Générer la prévisualisation » et lance la fiche telle quelle.
+ * Without a render, there is nothing to correct (never blind): « Itérer » becomes « Générer la prévisualisation » and launches the sheet as it is.
  *
- * « Prêt à upscaler · plan suivant » valide l'essai affiché, puis passe au plan suivant dans l'ordre ; sur un plan déjà prêt : « Rouvrir
+ * « Prêt à upscaler · plan suivant » validates the displayed attempt, then moves to the next clip in order; on a clip already ready: « Rouvrir
  * l'itération ». */
 export function IntentionPlan({
   projectId,
@@ -63,22 +63,22 @@ export function IntentionPlan({
   enAttente,
   iterationEnCours,
 }: {
-  /** L'itération de ce plan qui attend son tour dans la file : sa consigne se corrige ici jusqu'à son départ. */
+  /** The iteration of this clip waiting its turn in the queue: its directive can be corrected here until it starts. */
   enAttente: { demandeId: number; consigne: string } | null;
-  /** L'itération de ce plan en cours de route (agent, recompilation, rendu) : sa consigne reste affichée jusqu'à la fin, même après avoir quitté la page. */
+  /** The iteration of this clip in progress (agent, recompilation, render): its directive stays displayed until the end, even after leaving the page. */
   iterationEnCours: { consigne: string; etape: string | null } | null;
   projectId: number;
   planId: number;
   planUuid: string;
-  /** L'essai affiché (A) quand on peut le regarder : c'est la base de la consigne. */
+  /** The displayed attempt (A) when it can be watched: it is the base of the directive. */
   base: { id: number; numero: number; estDernier: boolean } | null;
   etat: EtatPlan;
-  /** Un essai de ce plan est en file ou en cours. */
+  /** An attempt of this clip is queued or in progress. */
   enCours: boolean;
   nbEssais: number;
-  /** Le plan qui suit dans l'ordre (null pour le dernier). */
+  /** The clip that follows in order (null for the last one). */
   hrefSuivant: string | null;
-  /** Le plan sans ?rendu : après un lancement on revient au plus récent essai. */
+  /** The clip without ?rendu: after a launch we return to the most recent attempt. */
   hrefApresLancement: string;
 }) {
   const router = useRouter();
@@ -87,13 +87,13 @@ export function IntentionPlan({
   const [montrer, setMontrer] = useState(false);
   const [phase, setPhase] = useState<Phase>("repos");
   const [vision, setVision] = useState<Vision>("fiche");
-  /** L'étape en cours de la demande (« Images (1/2) ») : dite quand l'itération attend des images. */
+  /** The request's current step (« Images (1/2) »): shown when the iteration is waiting for images. */
   const [etape, setEtape] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  /** Les décisions de l'agent (avant → après), dès qu'il a répondu : gardées jusqu'à la prochaine consigne. */
+  /** The agent's decisions (before → after), as soon as it has answered: kept until the next directive. */
   const [decisions, setDecisions] = useState<DecisionsAffichees | null>(null);
-  /** Repartir de l'essai remplacerait un texte de plan modifié depuis : les deux versions, en attendant l'accord de l'utilisateur. */
+  /** Starting again from the attempt would replace a clip text modified since: the two versions, pending the user's agreement. */
   const [conflit, setConflit] = useState<(ConflitDescription & { pour: "iterer" | "valider" }) | null>(null);
   const [pending, startTransition] = useTransition();
   const champ = useRef<HTMLTextAreaElement>(null);
@@ -107,7 +107,7 @@ export function IntentionPlan({
     };
   }, []);
 
-  /** « Itérer à partir de cet essai » (plan périmé pour son seul texte, PlateauEssais) : la consigne est toujours la même, l'agent et la retouche voient la différence. */
+  /** « Itérer à partir de cet essai » (clip stale for its text only, PlateauEssais): the directive is always the same; the agent and the retouch see the difference. */
   const itererRef = useRef<(c?: string) => Promise<void>>(async () => undefined);
   useEffect(() => {
     const surDemande = () => void itererRef.current(CONSIGNE_TEXTE_MODIFIE);
@@ -120,7 +120,7 @@ export function IntentionPlan({
   const retouches = b.modifications.length > 0;
   const texte = consigne.trim();
 
-  /** Première génération d'un plan sans rendu : la fiche telle qu'elle est (pas d'agent). */
+  /** First generation of a clip without a render: the sheet as it is (no agent). */
   const lancerEssai = async (): Promise<boolean> => {
     setPhase("lancement");
     const r = await b.lancer("previsualiser", { consigne: null, depuisNumero: null });
@@ -135,7 +135,7 @@ export function IntentionPlan({
     return true;
   };
 
-  /** Prépare l'essai de base, écrit les retouches du prompt et ouvre la conversation du plan. Renvoie null (erreur déjà affichée) si on s'arrête. */
+  /** Prepares the base attempt, writes the prompt retouches and opens the clip's conversation. Returns null (error already displayed) if we stop. */
   const preparerConversation = async (avecPlanche: boolean): Promise<string | null> => {
     if (!base) return null;
     if (!base.estDernier && retouches) {
@@ -144,18 +144,18 @@ export function IntentionPlan({
     }
     setVision(avecPlanche ? "planche" : "fiche");
     setPhase("preparation");
-    // L'essai de base n'est pas le dernier : le plan reprend SON prompt, sa seed et sa durée.
+    // The base attempt is not the latest one: the clip takes back ITS prompt, seed and duration.
     if (!base.estDernier) {
       const p = await preparerBaseIteration(planId, base.id);
       if (!p.ok) {
-        // Le texte du plan a été modifié à la main depuis cet essai : on ne l'écrase pas sans le dire (les deux versions s'affichent plus bas).
+        // The clip's text was edited by hand since this attempt: we do not overwrite it without saying so (both versions are shown below).
         if (p.conflit) setConflit({ ...p.conflit, pour: "iterer" });
         else setErreur(p.erreur);
         setPhase("repos");
         return null;
       }
     }
-    // Des retouches du prompt à la main : on les écrit, l'agent doit les voir.
+    // Hand-made prompt retouches: we write them, the agent must see them.
     if (retouches) await b.avecSectionsEcrites(async () => undefined);
 
     const conv = await ouvrirConversation(projectId, "plan", { uuid: planUuid }, "courte");
@@ -167,9 +167,9 @@ export function IntentionPlan({
     return conv.conversationUuid;
   };
 
-  /** « Itérer » = UNE demande (lib/tasks/requests.ts) que le worker mène de la consigne au rendu (agent, réécriture de la fiche si la consigne change
-   * le plan, application, essai). La page ne fait que la suivre : on affiche l'étape en cours, et quand le rendu part, le même accusé qu'un
-   * lancement. Quitter la page ne coupe rien (la ligne du panneau des tâches reste). */
+  /** « Itérer » = ONE request (lib/tasks/requests.ts) that the worker carries from the directive to the render (agent, rewriting of the sheet if the directive
+   * changes the clip, application, attempt). The page only follows it: we display the current step, and when the render starts, the same acknowledgement as
+   * a launch. Leaving the page cuts nothing (the line in the tasks panel stays). */
   const suivreDemande = async (demandeId: number): Promise<void> => {
     let dernier = "";
     while (!demonte.current && !annule.current) {
@@ -212,18 +212,18 @@ export function IntentionPlan({
     setDecisions(null);
     annule.current = false;
 
-    // Sans rendu : la première prévisualisation de la fiche telle qu'elle est.
+    // Without a render: the first preview of the sheet as it is.
     if (!aUnRendu) {
       await lancerEssai();
       return;
     }
-    // La consigne est requise : l'analyse libre passe par « Analyser ».
+    // The directive is required: free analysis goes through « Analyser ».
     if (!texte) {
       champ.current?.focus();
       return;
     }
     try {
-      // Les mêmes préparatifs qu'une analyse (essai de base, retouches écrites, conversation du plan), puis UNE demande.
+      // The same preparations as an analysis (base attempt, retouches written, clip conversation), then ONE request.
       const c = await preparerConversation(montrer);
       if (!c) return;
       setPhase("agent");
@@ -233,8 +233,8 @@ export function IntentionPlan({
         setPhase("repos");
         return;
       }
-      // Une autre itération tient la place : celle-ci attend son tour dans la file (panneau des tâches), sa consigne reste modifiable là-bas jusqu'à son
-      // départ. Rien à suivre ici : on peut passer au plan suivant.
+      // Another iteration holds the place: this one waits its turn in the queue (tasks panel), its directive stays editable there until
+      // it starts. Nothing to follow here: we can move on to the next clip.
       if (g.enAttente) {
         setConsigne("");
         setMontrer(false);
@@ -252,7 +252,7 @@ export function IntentionPlan({
 
   itererRef.current = iterer;
 
-  /** Corrige la consigne de l'itération en file. Si elle vient de démarrer entre-temps, la page se recharge : elle est partie à l'agent. */
+  /** Corrects the directive of the queued iteration. If it has just started in the meantime, the page reloads: it has gone to the agent. */
   const corrigerEnAttente = () => {
     if (!enAttente || !texte) return;
     setErreur(null);
@@ -277,7 +277,7 @@ export function IntentionPlan({
     });
   };
 
-  /** L'utilisateur a vu les deux versions : le plan reprend le texte de l'essai (le sien est remplacé), puis il relance « Itérer ». */
+  /** The user has seen both versions: the clip takes the attempt's text (its own is replaced), then they relaunch « Itérer ». */
   const remplacerLeTexte = () => {
     if (!base) return;
     setErreur(null);
@@ -302,7 +302,7 @@ export function IntentionPlan({
         if (!r.ok) setErreur(r.erreur);
         return;
       }
-      // Valider un essai met le texte du plan à celui de l'essai : le scénario dit ce qu'on retient pour le film. Un texte retouché à la main depuis demande d'abord l'accord.
+      // Validating an attempt sets the clip's text to the attempt's: the screenplay says what we keep for the film. A text hand-edited since asks for agreement first.
       const r = await validerPretUpscale(planId, base!.id);
       if (!r.ok) {
         if (r.conflit) setConflit({ ...r.conflit, pour: "valider" });
@@ -313,7 +313,7 @@ export function IntentionPlan({
     });
   };
 
-  /** Le texte du plan est modifié à la main : l'utilisateur choisit s'il prend celui de l'essai retenu ou garde le sien, et la validation se termine. */
+  /** The clip's text is edited by hand: the user chooses whether to take the retained attempt's text or keep their own, and the validation completes. */
   const validerAvecTexte = (reponse: "remplacer" | "garder") => {
     if (!base) return;
     setErreur(null);
@@ -339,7 +339,7 @@ export function IntentionPlan({
       ? "Écris d'abord ce que tu veux changer."
       : undefined;
 
-  // Un plan validé n'itère plus : la consigne et « Itérer » n'ont pas de sens. « Rouvrir l'itération » les ramène.
+  // A validated clip no longer iterates: the directive and « Itérer » make no sense. « Rouvrir l'itération » brings them back.
   if (etat === "pret") {
     return (
       <section className="tm-intention tm-pret" aria-label="Plan prêt à upscaler">

@@ -8,12 +8,12 @@ export type AlerteControle = {
   niveau: "warn" | "info";
   titre: string;
   detail: string;
-  /** Ancre du panneau concerné (« fp-refs »…) : un lien « Voir » ouvre l'onglet correspondant. */
+  /** Anchor of the panel concerned (« fp-refs »…): a « Voir » link opens the matching tab. */
   ancre?: string;
 };
 
-/** Les contrôles automatiques, repliés dans le titre du plan : une pastille « 2 points à revoir » qui ouvre la liste (rendu périmé, référence
- * citée mais non déclarée, structure des shots…). Quand tout est en règle, rien à lire : pas de pastille. */
+/** The automatic checks, folded into the clip's title: a « 2 points à revoir » badge that opens the list (stale render, reference cited
+ * but not declared, shot structure…). When everything is in order, nothing to read: no badge. */
 export function ControlesEntete({ alertes }: { alertes: AlerteControle[] }) {
   const [ouvert, setOuvert] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
@@ -38,7 +38,7 @@ export function ControlesEntete({ alertes }: { alertes: AlerteControle[] }) {
 
   const voir = (ancre: string) => {
     if (ancre === "fp-refs") {
-      // Les références sont à côté du lecteur : on y mène et on les fait briller un instant.
+      // The references sit next to the player: we lead there and make them shine for a moment.
       const el = document.getElementById("fp-refs");
       el?.scrollIntoView({ block: "center", behavior: "smooth" });
       el?.classList.remove("fp-gel");

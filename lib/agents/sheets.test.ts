@@ -32,7 +32,7 @@ const etatVide = (o: Partial<EtatPlanFiche> = {}): EtatPlanFiche => ({
 });
 
 
-/** Une fiche écrite complète pour un plan vide (comme la compile Open H3 IR) : six sections, deux références image, une durée. */
+/** A complete written sheet for an empty clip (like the Open H3 IR compile): six sections, two image references, one duration. */
 const complete = (): ApresFiche => ({
   sections: {
     summary: "Maya crosses the corridor.",
@@ -47,7 +47,7 @@ const complete = (): ApresFiche => ({
   moteur: "h3ir",
 });
 
-// --- vérification de l'écriture (applicateur) ----------------------------------------
+// --- write check (applier) ----------------------------------------
 
 test("verifierFiche : écriture complète sur un plan vide acceptée", () => {
   assert.equal(verifierFiche(complete(), etatVide()), null);
@@ -77,24 +77,24 @@ test("verifierFiche : aucune écriture ne laisse un label orphelin (partielle co
     sections: { subject_definitions: "<Subject 1> is Maya from <Picture 1>.", detailed_description: "[Shot 1] <Subject 1> waits." },
     refs: [{ type: "picture", slot: 1, asset: "CHAR_maya" }],
   });
-  // partielle (iteration-plan) : une section réécrite qui cite une référence existante → acceptée
+  // partial (iteration-plan): a rewritten section that cites an existing reference → accepted
   assert.equal(verifierFiche({ sections: { detailed_description: "[Shot 1] <Subject 1> runs, from <Picture 1>." } }, etat), null);
-  // …qui cite <Picture 3>, absente → refusée
+  // …that cites <Picture 3>, absent → refused
   assert.match(verifierFiche({ sections: { detailed_description: "[Shot 1] <Picture 3> appears." } }, etat) ?? "", /sans référence.*Picture 3/);
-  // remplacer les références sans réécrire les sections qui citent les anciennes → refusée
+  // replacing the references without rewriting the sections that cite the old ones → refused
   assert.match(verifierFiche({ refs: [] }, etat) ?? "", /Picture 1/);
-  // une référence audio (la voix d'un personnage) rend <Audio 1> légitime
+  // an audio reference (a character's voice) makes <Audio 1> legitimate
   assert.equal(verifierFiche({ sections: { summary: "with <Audio 1>" } }, etatVide({ refs: [{ type: "audio", slot: 1, asset: "CHAR_maya" }] })), null);
 });
 
-// --- écrasement (cochage) -------------------------------------------------------------
+// --- overwrite (ticking) -------------------------------------------------------------
 
 test("écrasement : plan vide = création cochée ; plan rempli ou rendu = écrasement décoché", () => {
   const a = complete();
   const vide = evaluerEcrasementFiche(a, etatVide());
   assert.equal(vide.ecrase, null);
   assert.equal(cocheParDefaut({ operation: "modifier", avertissements: vide.avertissements, ecrase: vide.ecrase, refuseRaison: null }), true);
-  // sections créées vides (« Développer en fiche de plan ») : rien n'est perdu
+  // sections created empty ("Développer en fiche de plan"): nothing is lost
   assert.equal(evaluerEcrasementFiche(a, etatVide({ sections: { summary: "  ", detailed_description: "" } })).ecrase, null);
 
   const rempli = evaluerEcrasementFiche(a, etatVide({ sections: { summary: "ancien", detailed_description: "ancien" }, refs: [{ type: "picture", slot: 1, asset: "DEC_couloir" }] }));
@@ -106,13 +106,13 @@ test("écrasement : plan vide = création cochée ; plan rempli ou rendu = écra
   assert.match(rendu.ecrase ?? "", /rendu vidéo/);
   assert.ok(rendu.avertissements.some((x) => x.type === "ecrase_valide"));
 
-  // écriture partielle : seules les sections écrites comptent
+  // partial write: only the written sections count
   const partielle = evaluerEcrasementFiche({ sections: { detailed_description: "neuf" } }, etatVide({ sections: { summary: "garde", detailed_description: "" } }));
   assert.equal(partielle.ecrase, null);
   assert.equal(partielle.avant.refs, undefined);
 });
 
-// --- divers ---------------------------------------------------------------------------
+// --- misc ---------------------------------------------------------------------------
 
 test("clé de sous-tâche d'un plan", () => {
   assert.equal(planUuidDeCle(cleSousTachePlan(UUID)), UUID);
@@ -166,7 +166,7 @@ test("ApresFiche.reglages (« Itérer ») : lus, suffisants pour une écriture, 
   assert.match(verifierFiche({ reglages: { styleCamera: "kubrick" } }, etat) ?? "", /Style de mise en scène inconnu/);
 });
 
-// --- une incohérence DÉJÀ là (réplique déliée, lignes <Audio 1> restées) ne bloque plus une correction sans rapport (2026-10-14) ---
+// --- an inconsistency ALREADY there (line unlinked, <Audio 1> lines left) no longer blocks an unrelated correction (2026-10-14) ---
 
 test("verifierFiche : un label orphelin déjà présent n'empêche pas une écriture qui ne l'aggrave pas ; un nouveau orphelin refuse toujours", async () => {
   const { verifierFiche, labelsOrphelinsActuels, evaluerEcrasementFiche } = await import("./sheets");
@@ -174,7 +174,7 @@ test("verifierFiche : un label orphelin déjà présent n'empêche pas une écri
     titre: "Geste préparatoire",
     sections: { subject_definitions: "<Subject 1> is Mai from <Picture 1>.\n<Audio 1> is the voice-timbre reference for <Subject 1>.", detailed_description: "[Shot 1] <Subject 1> raises the wand." },
     refs: [{ type: "picture" as const, slot: 1, asset: "CHAR_mai" }],
-    // la voix a été déliée du plan : <Audio 1> n'a plus de référence
+    // the voice was unlinked from the clip: <Audio 1> no longer has a reference
     registre: new Map([["CHAR_mai", "personnage"]]),
     aUnRendu: true,
     generationEnCours: false,
@@ -195,4 +195,4 @@ test("fiche qui cite un asset créé par la même proposition : acceptée en ape
   assert.equal(verifierFiche(avec, etat), null);
 });
 
-// --- raccord : l'emplacement de l'image du plan précédent reste libre (2026-10-19) ---------------------------------
+// --- match cut: the slot of the previous clip's image stays free (2026-10-19) ---------------------------------

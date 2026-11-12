@@ -7,7 +7,7 @@ import {
   statutPlanApresAnnulation,
 } from "./cancellation";
 
-// Forme d'un élément de /queue : le tuple de l'historique ComfyUI
+// Shape of an item of /queue: the ComfyUI history tuple
 // [numero, prompt_id, graphe, extra_data, sorties].
 const item = (id: string) => [3, id, { "1": {} }, { client_id: "c" }, ["9"]];
 
@@ -33,7 +33,7 @@ test("/queue illisible : « inconnu », jamais « absent » (on n'agit pas à l'
   assert.equal(etatDansLaFile("<html>", "a"), "inconnu");
   assert.equal(etatDansLaFile({}, "a"), "inconnu");
   assert.equal(etatDansLaFile({ queue_running: [] }, "a"), "inconnu");
-  // des éléments bizarres ne plantent pas et ne correspondent à rien
+  // odd elements do not crash and match nothing
   assert.equal(etatDansLaFile({ queue_running: [42, null, [1]], queue_pending: [] }, "a"), "absent");
 });
 
@@ -48,7 +48,7 @@ test("statut du plan après annulation : dernière réussite, sinon brouillon", 
   assert.equal(statutPlanApresAnnulation([]), "brouillon");
   assert.equal(statutPlanApresAnnulation([{ statut: "echoue", activerUpscale: true }]), "brouillon");
   assert.equal(statutPlanApresAnnulation([{ statut: "echoue", activerUpscale: true }, { statut: "termine", activerUpscale: true }]), "termine");
-  // du plus récent au plus ancien : la prévisualisation la plus récente l'emporte
+  // from most recent to oldest: the most recent preview wins
   assert.equal(statutPlanApresAnnulation([{ statut: "termine", activerUpscale: false }, { statut: "termine", activerUpscale: true }]), "previsualise");
 });
 
@@ -60,7 +60,7 @@ test("purge : échecs et annulations de plus de 24 h seulement", () => {
   assert.equal(estPurgeable({ statut: "echoue", finishedAt: il_y_a(25), createdAt: il_y_a(26) }, maintenant), true);
   assert.equal(estPurgeable({ statut: "annulee", finishedAt: il_y_a(30), createdAt: il_y_a(31) }, maintenant), true);
   assert.equal(estPurgeable({ statut: "echoue", finishedAt: il_y_a(23), createdAt: il_y_a(24) }, maintenant), false);
-  // pile 24 h : pas encore (strictement plus de 24 h)
+  // exactly 24 h: not yet (strictly more than 24 h)
   assert.equal(estPurgeable({ statut: "echoue", finishedAt: il_y_a(24), createdAt: il_y_a(24) }, maintenant), false);
 });
 

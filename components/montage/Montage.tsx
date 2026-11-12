@@ -47,9 +47,9 @@ const FAMILLES: { cle: FamilleStatut; libelle: string; couleur: string }[] = [
 
 type Resultat = { ok: true } | { ok: false; erreur: string };
 
-/** La page Montage (docs/PLAN_MONTAGE.md, maquette docs/maquettes/montage.html) : lecteur continu des rendus retenus, inspecteur du clip
- * sélectionné, table de montage (deux ordres), bandeau « Hors montage », manuel des raccourcis. Chaque geste met l'état local à jour tout
- * de suite (optimiste) puis appelle son action ; la revalidation renvoie l'état de la base, qui remplace l'état local. */
+/** The Montage page (docs/PLAN_MONTAGE.md, mockup docs/maquettes/montage.html): continuous player of the retained renders, inspector of the
+ * selected clip, edit table (two orders), « Hors montage » strip, shortcuts manual. Each gesture updates the local state right away
+ * (optimistic) then calls its action; revalidation returns the database state, which replaces the local state. */
 export function Montage(props: {
   episodeId: number;
   base: string;
@@ -63,7 +63,7 @@ export function Montage(props: {
   const router = useRouter();
   const { episodeId } = props;
 
-  // État local, recalé sur la base à chaque revalidation (nouvelles props).
+  // Local state, re-synced to the database on each revalidation (new props).
   const [source, setSource] = useState({ plans: props.plans, entrees: props.entrees });
   const [plans, setPlans] = useState(props.plans);
   const [entrees, setEntrees] = useState(props.entrees);
@@ -119,7 +119,7 @@ export function Montage(props: {
     return () => clearTimeout(h);
   }, [toast]);
 
-  /** Enregistre un geste ; en cas de refus, le message s'affiche et la page reprend l'état de la base. */
+  /** Records a gesture; on refusal, the message is shown and the page takes back the database state. */
   const enregistrer = useCallback(
     async (p: Promise<Resultat>, succes?: string) => {
       try {
@@ -143,14 +143,14 @@ export function Montage(props: {
     return false;
   };
 
-  // --- Sélection et lecture ---
+  // --- Selection and playback ---
   const selectionner = useCallback((k: number, chercher = false) => {
     const c = clips[Math.min(Math.max(0, k), clips.length - 1)];
     if (!c) return;
     setSelId(c.entree.id);
     if (chercher) L.allerA(L.starts[clips.indexOf(c)]!);
   }, [clips, L]);
-  /** Se placer (règle, J/L) : la sélection suit la tête de lecture. */
+  /** Positioning (ruler, J/L): the selection follows the playhead. */
   const allerA = useCallback(
     (t: number) => {
       L.allerA(t);
@@ -160,7 +160,7 @@ export function Montage(props: {
     [L, clips],
   );
 
-  // --- Gestes sur le montage ---
+  // --- Gestures on the edit ---
   const deplacerClip = (k: number, vers: number) => {
     const nouv = deplacer(entrees, k, vers);
     if (enAttente(nouv.map((e) => e.id))) return;
@@ -258,7 +258,7 @@ export function Montage(props: {
     );
   };
 
-  // --- Rognage au clavier (I / O) ---
+  // --- Trimming by keyboard (I / O) ---
   const poserBord = (bord: "i" | "o") => {
     const k = L.indexCourant;
     const c = clips[k];
@@ -270,14 +270,14 @@ export function Montage(props: {
     else rogner(k, c.debut, Math.max(local, c.debut + DUREE_MIN_CLIP), true);
   };
 
-  // --- Mode d'affichage, zoom ---
+  // --- Display mode, zoom ---
   const setMode = (m: ModeTable) => {
     L.jouer(false);
     setModeEtat(m);
   };
   const setPps = (n: number) => setPpsEtat(Math.min(120, Math.max(16, n)));
 
-  // --- Mode cinéma : plein écran (Fullscreen API), repli en plein cadre si le navigateur refuse ---
+  // --- Cinema mode: full screen (Fullscreen API), fallback to full frame if the browser refuses ---
   const basculerCinema = useCallback((on: boolean) => {
     setCinema(on);
     const el = lecteurRef.current;
@@ -319,7 +319,7 @@ export function Montage(props: {
     };
   }, [cinema]);
 
-  // --- Clavier ---
+  // --- Keyboard ---
   const clavier = useRef<(e: KeyboardEvent) => void>(() => undefined);
   clavier.current = (e: KeyboardEvent) => {
     const cible = e.target instanceof Element ? e.target : null;
@@ -357,7 +357,7 @@ export function Montage(props: {
     return () => document.removeEventListener("keydown", h);
   }, []);
 
-  // --- « Hors montage » → table : glisser un plan pour l'ajouter ---
+  // --- « Hors montage » → table: drag a clip to add it ---
   const surBin = (e: PE<HTMLDivElement>, p: PlanMontage) => {
     if (e.button !== 0 || mode !== "mt") return;
     e.preventDefault();
@@ -422,7 +422,7 @@ export function Montage(props: {
     }
   };
 
-  // --- En-tête : durée totale et statuts ---
+  // --- Header: total duration and statuses ---
   const sansRendu = clips.filter((c) => c.prevu).length;
   const comptes = new Map<FamilleStatut, number>();
   for (const c of clips) comptes.set(familleStatut(c.plan.statut), (comptes.get(familleStatut(c.plan.statut)) ?? 0) + 1);

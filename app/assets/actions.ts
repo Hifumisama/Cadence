@@ -24,8 +24,8 @@ async function enregistrerFichierAsset(code: string, fichier: File): Promise<str
   return nomFichier;
 }
 
-/** « Nouveau sujet » : un type et un nom, rien d'autre — le reste se fait sur la fiche. Le nom saisi devient le `label` ; le `code`
- * (préfixe du type + nom sans accents ni espaces) est l'identifiant et ne changera plus, même si le label change. */
+/** « Nouveau sujet »: a type and a name, nothing else — the rest is done on the sheet. The name entered becomes the `label`; the `code`
+ * (type prefix + name without accents or spaces) is the identifier and will never change, even if the label does. */
 export async function creerAssetRapide(
   projectId: number,
   type: string,
@@ -42,8 +42,8 @@ export async function creerAssetRapide(
   return { ok: true, code };
 }
 
-/** Change le nom affiché d'un asset. Le code (l'identifiant) ne bouge pas : il nomme le fichier et reste cité tel quel par les plans
- * et les agents. Un nom vide rend l'asset à son code lisible. */
+/** Changes an asset's displayed name. The code (the identifier) does not move: it names the file and is cited as-is by clips
+ * and agents. An empty name reverts the asset to its readable code. */
 export async function renommerAsset(assetId: number, label: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const propre = label.trim().slice(0, 120);
   const [asset] = await db.select({ id: assets.id }).from(assets).where(eq(assets.id, assetId));
@@ -53,8 +53,8 @@ export async function renommerAsset(assetId: number, label: string): Promise<{ o
   return { ok: true };
 }
 
-/** Valide (ou dévalide) un asset : la seule décision de statut qui se saisit (le reste se calcule, lib/assets/asset-state.ts). Sans fichier,
- * il n'y a rien à valider. */
+/** Validates (or un-validates) an asset: the only status decision that is entered (the rest is computed, lib/assets/asset-state.ts). Without a file,
+ * there is nothing to validate. */
 export async function definirValidation(assetId: number, valide: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const [asset] = await db.select({ fichier: assets.fichier }).from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
@@ -64,7 +64,7 @@ export async function definirValidation(assetId: number, valide: boolean): Promi
   return { ok: true };
 }
 
-/** Valide plusieurs assets d'un coup (sélection du registre) : ceux qui n'ont pas de fichier sont comptés à part. */
+/** Validates several assets at once (registry selection): those without a file are counted separately. */
 export async function validerAssets(ids: number[]): Promise<{ valides: number; sansFichier: number }> {
   const lignes = await db.select({ id: assets.id, fichier: assets.fichier }).from(assets).where(inArray(assets.id, [...new Set(ids)]));
   const avecFichier = lignes.filter((l) => l.fichier).map((l) => l.id);
@@ -73,11 +73,10 @@ export async function validerAssets(ids: number[]): Promise<{ valides: number; s
   return { valides: avecFichier.length, sansFichier: lignes.length - avecFichier.length };
 }
 
-/** Upload direct du fichier média (image/audio/vidéo) d'un asset déjà créé.
- * Le fichier est nommé d'après le code de l'asset (convention symétrique à
- * plans/<id>/... pour les vidéos de plan, voir lib/media.ts) : une
- * nouvelle version écrase simplement l'ancienne, cohérent avec "pas de
- * versionnage d'assets" (F01). */
+/** Direct upload of the media file (image/audio/video) of an already created asset.
+ * The file is named after the asset's code (symmetric convention to
+ * clips/<id>/... for clip videos, see lib/media.ts): a new version
+ * simply overwrites the old one, consistent with "no asset versioning" (F01). */
 export async function uploaderFichierAsset(
   assetId: number,
   code: string,
@@ -88,13 +87,13 @@ export async function uploaderFichierAsset(
 
   const nomFichier = await enregistrerFichierAsset(code, fichier);
 
-  // Un fichier importé est un travail déjà fait ailleurs : validé d'office (seule une génération adoptée repasse « en cours »).
+  // An imported file is work already done elsewhere: validated by default (only an adopted generation goes back to « en cours »).
   await db.update(assets).set({ fichier: nomFichier, fichierAt: new Date(), valide: true }).where(eq(assets.id, assetId));
   revalidatePath("/", "layout");
 }
 
-/** Pourquoi un asset ne peut pas être supprimé maintenant, ou null. Un asset cité dans une fiche de plan est trop lié pour disparaître sans geste explicite. Avoir servi d'image de départ à d'autres assets
- * ne bloque PAS : leur image existe déjà, elle ne dépend pas de la source (le lien est simplement détaché). */
+/** Why an asset cannot be deleted right now, or null. An asset cited in a clip sheet is too tightly bound to disappear without an explicit action. Having served as a starting image for other assets
+ * does NOT block: their image already exists and does not depend on the source (the link is simply detached). */
 async function raisonDeBlocage(assetId: number): Promise<string | null> {
   const [ref] = await db.select().from(planRefs).where(eq(planRefs.assetId, assetId)).limit(1);
   if (ref) return "Encore cité comme référence dans une fiche de plan — délie-le d'abord.";
@@ -104,13 +103,13 @@ async function raisonDeBlocage(assetId: number): Promise<string | null> {
 async function supprimerSansRevalider(assetId: number): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const erreur = await raisonDeBlocage(assetId);
   if (erreur) return { ok: false, erreur };
-  // Les assets qui partaient de celui-ci gardent leur image : on détache simplement le lien.
+  // Assets that started from this one keep their image: we simply detach the link.
   await db.update(assets).set({ deriveDeId: null }).where(eq(assets.deriveDeId, assetId));
   await db.delete(assets).where(eq(assets.id, assetId));
   return { ok: true };
 }
 
-/** Suppression protégée (retour utilisateur 2026-09-28) : voir `raisonDeBlocage`. */
+/** Protected deletion (user feedback 2026-09-28): see `raisonDeBlocage`. */
 export async function supprimerAsset(
   assetId: number,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
@@ -119,8 +118,8 @@ export async function supprimerAsset(
   return r;
 }
 
-/** Suppression de plusieurs assets (sélection du registre) : chacun suit les mêmes règles ; ceux qui sont bloqués sont
- * rendus avec leur raison, les autres partent. */
+/** Deletes several assets (registry selection): each follows the same rules; those that are blocked are
+ * returned with their reason, the others go. */
 export async function supprimerAssets(
   ids: number[],
 ): Promise<{ supprimes: number; bloques: { code: string; erreur: string }[] }> {
@@ -137,8 +136,8 @@ export async function supprimerAssets(
   return { supprimes, bloques };
 }
 
-/** Modifie UN champ (ou quelques-uns) de la fiche : les blocs de la fiche s'enregistrent chacun à leur tour. Les valeurs absentes
- * restent ce qu'elles sont. */
+/** Changes ONE field (or a few) of the sheet: the sheet's blocks are saved one after the other. Missing values
+ * stay as they are. */
 export async function modifierChampAsset(
   assetId: number,
   champs: {
@@ -164,8 +163,8 @@ export async function modifierChampAsset(
   return { ok: true };
 }
 
-/** Délie une référence (image/audio/vidéo) précise sans toucher au reste du
- * plan — débloque la suppression de l'asset si c'était sa dernière citation. */
+/** Unlinks one specific reference (image/audio/video) without touching the rest of the
+ * clip — unblocks the asset's deletion if that was its last citation. */
 export async function delierRef(refId: number) {
   await db.delete(planRefs).where(eq(planRefs.id, refId));
   revalidatePath("/", "layout");

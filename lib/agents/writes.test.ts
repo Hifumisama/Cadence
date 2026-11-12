@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { planifierDeplacement, planifierSuppression } from "./ranks";
 
-// Les plans d'un épisode dans l'ordre de lecture : deux scènes (1 et 2), un plan par lettre.
+// An episode's clips in reading order: two scenes (1 and 2), one clip per letter.
 const plans = [
   { uuid: "a", titre: "A", sceneId: 1 },
   { uuid: "b", titre: "B", sceneId: 1 },

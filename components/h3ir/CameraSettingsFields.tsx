@@ -21,13 +21,13 @@ import { FenetreStyleMiseEnScene } from "./StagingStyleWindow";
 import "@/components/conception/conception.css";
 import "./h3ir.css";
 
-/** Les deux réglages d'Open H3 IR d'un niveau (projet, scène ou plan) : la créativité et le style de mise en scène. Vide = hérite du niveau au-dessus (`heritage` : ce que ce
- * niveau recevrait s'il ne réglait rien, avec le niveau d'où cela vient). Pour le style, « Aucun style » est un choix à part entière : il force l'absence de style par-dessus un
- * style défini plus haut. Ces réglages ne servent qu'aux fiches compilées par Open H3 IR.
+/** The two Open H3 IR settings of one level (project, scene or clip): the creativity and the staging style. Empty = inherits from the level above (`heritage`: what this
+ * level would receive if it set nothing, with the level it comes from). For the style, « Aucun style » is a choice in its own right: it forces the absence of style over a
+ * style defined higher up. These settings only serve the sheets compiled by Open H3 IR.
  *
- * Créativité : un curseur à quatre crans (souris, doigt, clavier), avec ce que le niveau ajoute en pastilles (Pastilles, comme à la conception). Tant que le niveau hérite, le curseur
- * montre la valeur héritée en retrait, « héritée de la scène » ; le toucher règle une valeur propre, « Revenir à l'héritage » la retire.
- * Style : un bouton qui ouvre une fenêtre de cartes (FenetreStyleMiseEnScene) ; `demos` y met les vidéos de démo (sans elles, le texte d'exemple). */
+ * Creativity: a four-notch slider (mouse, finger, keyboard), with what the level adds as pills (Pastilles, as at the project design). As long as the level inherits, the slider
+ * shows the inherited value set back, « héritée de la scène »; touching it sets an own value, « Revenir à l'héritage » removes it.
+ * Style: a button that opens a window of cards (FenetreStyleMiseEnScene); `demos` puts the demo videos there (without them, the sample text). */
 export function ChampsReglagesCamera({
   creativite,
   styleCamera,
@@ -43,13 +43,13 @@ export function ChampsReglagesCamera({
   onStyleCamera: (v: string) => void;
   heritage: ReglagesResolus;
   idPrefixe: string;
-  /** Les vidéos de démo de la mise en scène (lib/media.ts, `demosMiseEnScene`), lues côté serveur ; absentes = cartes en texte. */
+  /** The demo videos of the staging (lib/media.ts, `demosMiseEnScene`), read server-side; absent = text cards. */
   demos?: Record<string, DemoDispo>;
 }) {
   const creativitePropre = estCreativite(creativite) ? creativite : null;
   const creativiteVue = creativitePropre ?? heritage.creativite;
   const styleChoisi = estMiseEnScene(styleCamera) || styleCamera === STYLE_AUCUN ? styleCamera : "";
-  // Ce que le style affiché fait : celui qu'on choisit, ou celui dont on hérite quand rien n'est choisi.
+  // What the displayed style does: the one picked, or the one inherited when nothing is picked.
   const styleVu = estMiseEnScene(styleChoisi) ? styleChoisi : styleChoisi === "" ? heritage.styleCamera : null;
   const [fenetre, setFenetre] = useState(false);
   const bouton = useRef<HTMLButtonElement>(null);

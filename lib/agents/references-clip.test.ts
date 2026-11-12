@@ -59,7 +59,7 @@ test("le cas qui appelle le skill : le code a des doutes (décor, nom), l'entré
   assert.deepEqual(ENTREE.plan.repliques, [{ nom: "Lina" }]);
   assert.equal(ENTREE.plan.intention, "Sur la jetée au crépuscule, Lina tend la lanterne au vieux pêcheur.");
   assert.equal(ENTREE.limiteImages, 6);
-  // Des descriptions coupées, le nom lisible.
+  // Cut descriptions, the readable name.
   assert.ok(ENTREE.candidats.every((c) => c.description.length <= MAX_DESCRIPTION_CANDIDAT));
   assert.equal(ENTREE.candidats.find((c) => c.code === "CHAR_vieil_homme")!.nom, "Vieil homme");
   assert.equal(ENTREE.candidats.find((c) => c.code === "DEC_port_nuit")!.parent, "DEC_port_de_jour");
@@ -134,5 +134,5 @@ test("skill : se charge, schéma conforme (6 références, 2 manquants), budget 
   assert.equal(valider(s.schema, { ...BONNE, manquants: [m, m, m] }).ok, false);
   assert.equal(valider(s.schema, { ...BONNE, manquants: [{ ...m, type: "voix" }] }).ok, false);
   assert.equal(maxTokensPourSkill(SKILL_REFERENCES_PLAN, {}), 800);
-  assert.equal(estimerContexte(SKILL_REFERENCES_PLAN, 0, {}), 401); // 400 de sortie attendue + « {} »
+  assert.equal(estimerContexte(SKILL_REFERENCES_PLAN, 0, {}), 401); // 400 of expected output + "{}"
 });

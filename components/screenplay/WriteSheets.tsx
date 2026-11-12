@@ -8,9 +8,9 @@ import { romain, type SceneVue } from "@/lib/clips/screenplay-view";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** Écrire les fiches des plans qui n'en ont pas : la liste des plans sans fiche, par scène, tous cochés ; on décoche ceux qu'on veut laisser, on lance.
- * Chaque plan devient sa propre demande « Générer la fiche » (une ligne par plan dans la file : préparation des références et images, puis compilation
- * Open H3 IR), écrite sans relecture et relue dans la page du plan. La popup se referme tout de suite : l'application reste navigable pendant l'écriture. */
+/** Write the sheets of the clips that have none: the list of clips without a sheet, by scene, all checked; we uncheck those we want to leave, then launch.
+ * Each clip becomes its own « Générer la fiche » request (one row per clip in the queue: preparation of references and images, then compilation
+ * by Open H3 IR), written without review and reviewed on the clip's page. The popup closes right away: the application stays navigable during the writing. */
 export function EcrireFiches({
   projectId,
   groupes,
@@ -22,10 +22,10 @@ export function EcrireFiches({
   groupes: SceneVue[];
   ouvert: boolean;
   onFermer: () => void;
-  /** Les demandes sont posées (nombre de fiches lancées). */
+  /** The requests are posted (number of sheets launched). */
   onLance: (n: number) => void;
 }) {
-  // Les plans à écrire, dans l'ordre du film ; ceux dont la fiche s'écrit déjà n'y sont pas.
+  // The clips to write, in the film's order; those whose sheet is already being written are not included.
   const lignes = groupes.flatMap((g, i) => g.plans.filter((p) => p.statut === "brouillon" && p.ficheEnCours == null).map((p) => ({ plan: p, scene: g.id != null ? `${romain(i + 1)} · ${g.titre}` : g.titre })));
   const [exclus, setExclus] = useState<Set<string>>(new Set());
   const [erreur, setErreur] = useState<string | null>(null);

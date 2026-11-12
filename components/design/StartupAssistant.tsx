@@ -15,10 +15,9 @@ import { ClapScene, type AfficheEtat, type StyleAffiche } from "./ClapScene";
 import { RubanConception } from "./DesignRibbon";
 import { ScenarioScene } from "./ScreenplayScene";
 
-/** La suite de la conception, une fois le projet créé : le scénario (entretien avec le scénariste) puis le clap, dans le même ruban de
- * pellicule que les six choix (qui sont faits : ils s'affichent en résumé, sans pouvoir être rejoués ici ; le brief reste modifiable
- * depuis la page du projet). La neuvième étape, l'avancée de la préparation, est la page de l'installateur. Plan :
- * docs/PLAN_CONCEPTION_PROJET.md. */
+/** The rest of the design, once the project is created: the screenplay (interview with the screenwriter) then the clap, in the same filmstrip
+ * ribbon as the six choices (which are made: they show as summaries, and cannot be replayed here; the brief remains editable from the
+ * project's page). The ninth step, the preparation's progress, is the installer's page. Plan: docs/PLAN_CONCEPTION_PROJET.md. */
 
 const ETAPES = ETAPES_CONCEPTION;
 const SCENARIO = 6;
@@ -41,7 +40,7 @@ export function DemarrageAssistant({
   convInitiale: VueConversation;
   conception: Conception;
   style: StyleAffiche;
-  /** La mise en scène du projet en quelques mots (`resumeMiseEnScene`) : lue dans le projet, pas dans la conception (elle se règle ensuite dans le Brief). */
+  /** The project's staging in a few words (`resumeMiseEnScene`): read from the project, not from the design (it is set afterwards in the Brief). */
   miseEnScene: string;
 }) {
   const [conv, setConv] = useState(convInitiale);
@@ -54,11 +53,11 @@ export function DemarrageAssistant({
       const c = await lireConversationVue(convInitiale.uuid);
       if (c) setConv(c);
     } catch {
-      /* le serveur redémarre : au prochain tour */
+      /* the server is restarting: next round */
     }
   }, [convInitiale.uuid]);
 
-  // Tant qu'un tour du scénariste tourne, on relit l'état ; sinon on se repose.
+  // As long as a turn of the screenwriter is running, we re-read the state; otherwise we rest.
   const actif = estTacheActive(conv.tache);
   useEffect(() => {
     if (!actif) return;
@@ -66,7 +65,7 @@ export function DemarrageAssistant({
     return () => clearInterval(t);
   }, [actif, rafraichir]);
 
-  // Le clap lit la fiche à jour : au retour sur l'onglet, une relecture.
+  // The clap reads the up-to-date sheet: on returning to the tab, a re-read.
   useEffect(() => {
     const focus = () => void rafraichir();
     window.addEventListener("focus", focus);
@@ -75,15 +74,15 @@ export function DemarrageAssistant({
 
   const parle = conv.messages.some((m) => m.role === "user");
   const pret = parle && conv.briefPret;
-  const peutClap = parle && !actif && conv.briefPret; // le clap ne s'ouvre que quand le scénariste a l'essentiel
+  const peutClap = parle && !actif && conv.briefPret; // the clap only opens when the screenwriter has the essentials
   const aller = (i: number) => {
     if (i < SCENARIO || i > CLAP || i === etape || (i === CLAP && !peutClap)) return;
     setRecule(i < etape);
     setEtape(i);
   };
 
-  // L'affiche : préparée à l'ARRIVÉE sur le clap (pas avant), et refaite seulement si ce qui la nourrit a changé depuis la dernière fois
-  // (le serveur compare l'empreinte). Un aller-retour sans rien changer ne relance rien.
+  // The poster: prepared on ARRIVAL at the clap (not before), and redone only if what feeds it has changed since the last time
+  // (the server compares the fingerprint). A round trip without changing anything relaunches nothing.
   const preparer = useCallback(
     (force: boolean) => {
       preparerAfficheClap(projectId, force).then(setAffiche).catch(() => setAffiche({ etat: "echec", src: null }));

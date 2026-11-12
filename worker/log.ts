@@ -1,12 +1,12 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-/** Journal d'observation du worker (JSON lignes), pour mesurer l'enchaînement des tâches,
- * les déchargements GPU et la VRAM pendant une vraie session de travail.
+/** Observation log of the worker (JSON lines), to measure the chaining of tasks,
+ * the GPU unloads and the VRAM during a real working session.
  *
- * Désactivé par défaut : `JOURNAL_WORKER=1` l'active (fichier `data/journal-worker.jsonl`,
- * ou `JOURNAL_WORKER_FICHIER`). Au mieux, comme le reste de la gestion GPU : une écriture
- * ou une sonde qui échoue ne gêne jamais une tâche. */
+ * Disabled by default: `JOURNAL_WORKER=1` enables it (file `data/journal-worker.jsonl`,
+ * or `JOURNAL_WORKER_FICHIER`). Best effort, like the rest of the GPU management: a write
+ * or a probe that fails never disturbs a task. */
 
 const actif = process.env.JOURNAL_WORKER === "1";
 const FICHIER = resolve(process.env.JOURNAL_WORKER_FICHIER ?? "data/journal-worker.jsonl");
@@ -18,11 +18,11 @@ export function noterEvenement(type: string, champs: Record<string, unknown> = {
     mkdirSync(dirname(FICHIER), { recursive: true });
     appendFileSync(FICHIER, JSON.stringify({ t: new Date().toISOString(), type, ...champs }) + "\n");
   } catch {
-    /* le journal ne doit jamais gêner le worker */
+    /* the log must never disturb the worker */
   }
 }
 
-/** Encadre une tâche : `tache_debut` puis `tache_fin` (durée, succès, erreur). */
+/** Brackets a task: `tache_debut` then `tache_fin` (duration, success, error). */
 export async function journaliserTache<T>(genre: string, id: number, domaine: string, travail: () => Promise<T>): Promise<T> {
   if (!actif) return travail();
   const debut = Date.now();
@@ -37,9 +37,9 @@ export async function journaliserTache<T>(genre: string, id: number, domaine: st
   }
 }
 
-/** Échantillonne toutes les 2 s la VRAM de la carte (GET /system_stats de ComfyUI : le
- * seul point de vue sur le GPU quand le worker tourne sur une autre machine) et les
- * modèles chargés dans llama-swap (GET /running). */
+/** Samples the card's VRAM every 2 s (GET /system_stats of ComfyUI: the
+ * only point of view on the GPU when the worker runs on another machine) and the
+ * models loaded in llama-swap (GET /running). */
 export function demarrerSondeVram(comfyuiUrl: string | undefined, llmUrl: string): void {
   if (!actif || !comfyuiUrl) return;
   let dernierSwap = 0;
@@ -66,7 +66,7 @@ export function demarrerSondeVram(comfyuiUrl: string | undefined, llmUrl: string
         });
       }
     } catch {
-      /* ComfyUI injoignable : pas d'échantillon */
+      /* ComfyUI unreachable: no sample */
     }
   };
   const timer = setInterval(() => void tick(), INTERVALLE_SONDE_MS);

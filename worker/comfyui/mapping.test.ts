@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { ErreurEntreeInvalide, FPS_GENERATION, NODE_IDS, injecterValeurs, nomDistantDepuisChemin, verifierEntree } from "./mapping";
 import type { SubmissionInput } from "./types";
 
-// Lit le VRAI workflow : si un ré-export change un identifiant ou un nom de
-// champ, ce test casse au lieu de laisser le worker soumettre un graphe faux.
+// Reads the REAL workflow: if a re-export changes an identifier or a field
+// name, this test breaks instead of letting the worker submit a wrong graph.
 const workflow = JSON.parse(readFileSync("workflows/video-generation/VID_REF2VA.json", "utf-8"));
 
 const entree: SubmissionInput = {
@@ -42,10 +42,10 @@ test("upscale activé : la sortie passe par la branche RIFE", () => {
   assert.deepEqual(g[NODE_IDS.sortieFinale]!.inputs.images, [NODE_IDS.upscaleImages, 0]);
 });
 
-// --- Durée : nœud 22:23 -> expression 22:24 -> `length` du nœud 5 ---
+// --- Duration: node 22:23 -> expression 22:24 -> `length` of node 5 ---
 
-/** L'expression du nœud 22:24, recopiée en TypeScript pour la documenter. `%` y est celui de Python
- * (résultat toujours positif) : celui de JavaScript donnerait un reste négatif. */
+/** The node 22:24 expression, copied into TypeScript to document it. `%` there is Python's
+ * (always positive result): JavaScript's would give a negative remainder. */
 function nombreImages(secondes: number): number {
   const mod = (a: number, b: number) => ((a % b) + b) % b;
   const n = Math.max(5, Math.round(secondes * 24));
@@ -69,7 +69,7 @@ test("nombre d'images : forme 17k+5, arrondi par excès de moins de 17 images", 
     assert.equal((n - 5) % 17, 0, `${s} s : forme 17k+5`);
     assert.ok(n >= Number(s) * 24 && n - Number(s) * 24 < 17, `${s} s : arrondi par excès`);
   }
-  // plage entraînée du modèle : ~124 à ~362 images (infobulle de `length` sur le nœud 5)
+  // trained range of the model: ~124 to ~362 frames (tooltip of `length` on node 5)
   assert.equal(nombreImages(5), 124);
   assert.equal(nombreImages(15), 362);
 });
@@ -88,7 +88,7 @@ test("durée hors 4-10 s : erreur franche, jamais de repli sur la durée du fich
   }
 });
 
-// --- Références ---
+// --- References ---
 
 const img = (slot: number) => ({ slot, cheminLocal: `C:/x/IMG_${slot}.png`, nomDistant: `cadence_assets_IMG_${slot}.png` });
 const aud = (slot: number, dureeSecondes?: number | null) => ({ slot, cheminLocal: `C:/x/prise_${slot}.wav`, dureeSecondes });
@@ -201,7 +201,7 @@ test("préfixe de sortie : posé sur la sortie finale et sur l'aperçu, sinon le
   assert.equal(sans[NODE_IDS.sortieFinale]!.inputs.filename_prefix, workflow[NODE_IDS.sortieFinale]!.inputs.filename_prefix);
 });
 
-// --- Résolution (0,2 / 0,3 / 0,4 MP) ---
+// --- Resolution (0.2 / 0.3 / 0.4 MP) ---
 
 test("la résolution est injectée dans le nœud 22:9, le fichier source n'est pas modifié", () => {
   for (const mp of [0.2, 0.3, 0.4]) {
@@ -238,11 +238,11 @@ test("final à 0,2 MP : upscale ; final à 0,3 ou 0,4 MP : natif, sans upscale m
   assert.deepEqual(workflow["165"].inputs.images, ["189", 0], "le fichier source n'est pas modifié");
 });
 
-// --- Ce que ComfyUI exécuterait vraiment (sans GPU) ---
+// --- What ComfyUI would actually run (without GPU) ---
 
 type GrapheTest = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 
-/** Les nœuds que ComfyUI exécute : ceux dont dépend un nœud de sortie (ici les deux « Video Combine »), en suivant les liens `[idDuNœud, sortie]`. */
+/** The nodes ComfyUI executes: those a output node depends on (here the two « Video Combine »), following the links `[idDuNœud, sortie]`. */
 function noeudsExecutes(g: GrapheTest): Set<string> {
   const vus = new Set<string>();
   const pile = Object.keys(g).filter((id) => g[id]!.class_type === "VHS_VideoCombine");

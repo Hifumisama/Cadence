@@ -5,8 +5,8 @@ import { useState, useTransition } from "react";
 import { reglerTitreAffiche } from "@/app/affiches/actions";
 import type { CibleAffiche } from "@/lib/posters/posters";
 
-/** Le réglage de l'affiche avant de lancer un essai : écrire le titre dans l'image (ligne de titre du prompt). Le prompt lui-même est écrit par
- * l'agent à partir de la consigne de l'atelier (components/assets/AssetWorkshop.tsx). */
+/** The poster setting before launching an attempt: write the title into the image (title line of the prompt). The prompt itself is written by
+ * the agent from the workshop's directive (components/assets/AssetWorkshop.tsx). */
 export function ReglagesAffiche({
   cible,
   id,
@@ -16,7 +16,7 @@ export function ReglagesAffiche({
   cible: CibleAffiche;
   id: number;
   titreDansImage: boolean;
-  /** Le personnage principal retenu, et si son image sert de première source. */
+  /** The main character retained, and whether their image serves as the first source. */
   personnage: { nom: string; aImage: boolean } | null;
 }) {
   const router = useRouter();

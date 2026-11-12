@@ -1,8 +1,8 @@
 import type { DecisionsAffichees } from "@/lib/agents/types";
 
-/** Ce que l'agent d'« Itérer » a décidé de changer sur le plan (2026-11-09) : intent avant → après, durée, références ajoutées / retirées, réglages
- * Open H3 IR, assets créés (vague 4a : créés d'office, leur image générée avant la recompilation). Montré pendant l'attente des images, la recompilation
- * et après (aussi quand elle échoue : on sait ce qui était décidé). Lecture seule : les décisions ne s'écrivent sur le plan qu'avec la fiche compilée. */
+/** What the « Itérer » agent decided to change on the clip (2026-11-09): intent before → after, duration, references added / removed, Open H3 IR
+ * settings, assets created (wave 4a: created by default, their image generated before the recompilation). Shown while waiting for images, during the
+ * recompilation and afterwards (also when it fails: we know what was decided). Read-only: the decisions are only written to the clip with the compiled sheet. */
 export function DecisionsIteration({ d }: { d: DecisionsAffichees }) {
   const refs = [...d.referencesAjoutees.map((c) => `+ ${c}`), ...d.referencesRetirees.map((c) => `− ${c}`)];
   return (

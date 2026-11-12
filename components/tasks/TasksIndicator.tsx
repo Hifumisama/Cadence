@@ -12,16 +12,16 @@ import { Icone } from "@/components/ui/Icon";
 
 const pluriel = (n: number, un: string, plusieurs: string) => (n > 1 ? plusieurs : un);
 
-/** Pastille du bandeau : elle dit l'état en toutes lettres (« 2 en cours », « 1 prête », « 1 échec »,
- * « ComfyUI injoignable »). Barre = avancement de la tâche en tête ; point or = résultats non vus ; point
- * écarlate = échecs non vus. Le panneau liste les tâches (voir lib/tasks/tasks.ts) ; un clic mène à l'asset
- * (popup ouverte sur le résultat) ou au plan. Sous 560 px, le panneau devient une feuille qui monte du bas. */
+/** Badge of the banner: it states the status in full (« 2 en cours », « 1 prête », « 1 échec »,
+ * « ComfyUI injoignable »). Bar = progress of the task at the head; gold dot = unseen results; scarlet
+ * dot = unseen failures. The panel lists the tasks (see lib/tasks/tasks.ts); a click leads to the asset
+ * (popup open on the result) or to the clip. Below 560 px, the panel becomes a sheet rising from the bottom. */
 export function IndicateurTaches() {
   const { taches, resume, serveurs, panneauOuvert, setPanneauOuvert, marquerVuLocal, marquerToutVuLocal, annuler, viderFile, retirer, viderListe } = useTaches();
   const [confirmerVidage, setConfirmerVidage] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
 
-  // Échap ou clic hors du panneau le ferme.
+  // Escape or a click outside the panel closes it.
   useEffect(() => {
     if (!panneauOuvert) return;
     const clavier = (e: KeyboardEvent) => {
@@ -40,10 +40,10 @@ export function IndicateurTaches() {
 
   const enCours = taches.filter((x) => x.statut === "en_cours");
   const enFile = taches.filter((x) => x.statut === "en_attente");
-  // « Vider la file » ne retire que ce qui s'annule (pas un export du montage en attente).
+  // « Vider la file » only removes what can be cancelled (not a montage export waiting).
   const aVider = enFile.filter(estAnnulable).length;
-  // Les annulations se rangent avec les échecs (même durée de vie : une journée),
-  // mais sobrement : ce n'est pas une erreur.
+  // Cancellations are grouped with failures (same lifetime: one day),
+  // but soberly: this is not an error.
   const echecs = taches.filter((x) => x.statut === "echoue" || x.statut === "annulee");
   const finies = taches.filter((x) => x.statut === "termine");
   const nonVus = resume.echecsNonVus + resume.terminesNonVus;
@@ -56,7 +56,7 @@ export function IndicateurTaches() {
     resume.terminesNonVus > 0 ? `${resume.terminesNonVus} résultat${resume.terminesNonVus > 1 ? "s" : ""} prêt${resume.terminesNonVus > 1 ? "s" : ""}` : null,
   ].filter(Boolean);
 
-  // Ce que dit la pastille, par ordre d'urgence : serveur coupé, travail en cours, échec, résultat prêt.
+  // What the badge says, by order of urgency: server down, work in progress, failure, result ready.
   const progressionTete = enCours.find((x) => x.progression && x.progression.max > 0)?.progression ?? null;
   let variante = "";
   let libelle = "File vide";
@@ -81,7 +81,7 @@ export function IndicateurTaches() {
     libelle = `${resume.terminesNonVus} ${pluriel(resume.terminesNonVus, "prête", "prêtes")}`;
     nombre = resume.terminesNonVus;
   }
-  // Pendant le travail, un échec ou un résultat non vu reste signalé par un point.
+  // While work is running, an unseen failure or result remains flagged by a dot.
   const point = resume.actives > 0 && injoignables.length === 0 ? (resume.echecsNonVus > 0 ? "ko" : resume.terminesNonVus > 0 ? "ok" : null) : null;
 
   const ouvrir = (x: Tache) => {
@@ -204,7 +204,7 @@ export function IndicateurTaches() {
                   </div>
                   <ul className="tq-liste">
                     {enFile.map((x, i) => {
-                      // Les itérations en attente se réordonnent entre elles (↑ ↓ dans leur ligne).
+                      // Pending iterations are reordered among themselves (↑ ↓ in their row).
                       const iterations = enFile.filter((y) => y.consigneModifiable);
                       const k = iterations.indexOf(x);
                       return (
@@ -278,9 +278,9 @@ function heure(iso: string | null): string {
   return d.toDateString() === auj.toDateString() ? hm : `${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} ${hm}`;
 }
 
-/** Avancement d'une tâche en cours : barre qui se déroule à l'apparition, étape qui change avec un fondu
- * (la clé de l'étape remonte le libellé), compteur à droite. Un appel LLM seul n'a pas de maximum connu :
- * barre indéterminée et compteur de jetons ; un LOT (plusieurs appels) a une vraie barre, « 3/12 ». */
+/** Progress of a running task: bar that unrolls on appearance, step that changes with a fade
+ * (the step's key remounts the label), counter on the right. A single LLM call has no known maximum:
+ * indeterminate bar and token counter; a BATCH (several calls) has a real bar, « 3/12 ». */
 function Avancement({ x }: { x: Tache }) {
   const p = x.progression;
   const jetons = x.jetons != null && x.jetons > 0 ? `${x.jetons} jeton${x.jetons > 1 ? "s" : ""}` : null;
@@ -314,7 +314,7 @@ function Avancement({ x }: { x: Tache }) {
   );
 }
 
-/** Monter / descendre une itération en attente dans la file (la consigne, elle, se corrige sur la page du plan : un clic sur la ligne y mène). */
+/** Move a pending iteration up or down in the queue (the instruction itself is corrected on the clip's page: a click on the row leads there). */
 function OrdreIteration({ cle, premiere, derniere }: { cle: string; premiere: boolean; derniere: boolean }) {
   const { rafraichir } = useTaches();
   const demandeId = Number(cle.slice("demande:".length));
@@ -332,11 +332,11 @@ function OrdreIteration({ cle, premiere, derniere }: { cle: string; premiere: bo
 }
 
 function Entree({ x, rang, onOuvrir, onRetirer, onAnnuler, ordre }: { x: Tache; rang: number; onOuvrir: () => void; onRetirer?: () => void; onAnnuler?: () => void; ordre?: { premiere: boolean; derniere: boolean } }) {
-  // Une tâche en cours coûte du temps de GPU : on demande confirmation avant de la
-  // couper. Une tâche en attente s'annule d'un clic (rien n'est perdu).
+  // A running task uses GPU time: we ask for confirmation before
+  // stopping it. A pending task is cancelled with one click (nothing is lost).
   const [confirmer, setConfirmer] = useState(false);
-  // L'aperçu en direct est déjà léger (écrasé à chaque étape) ; la vignette d'un
-  // résultat passe par la miniature.
+  // The live preview is already light (overwritten at each step); the thumbnail of a
+  // result goes through the thumbnail resizer.
   const image = x.apercuSrc ?? (x.vignetteSrc ? urlMiniature(x.vignetteSrc, 192) : null);
   const nonVu = x.vuAt == null && (x.statut === "termine" || x.statut === "echoue");
   const attente = x.statut === "en_attente";

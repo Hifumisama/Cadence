@@ -6,29 +6,28 @@ import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./s
 import { PROFILS_PERSO } from "./character-profiles";
 import { STYLES_CAMERA } from "./styles-camera";
 
-/** Le brief Open H3 IR d'un plan (étape 1 du plan d'intégration, docs/PLAN_INTEGRATION_OPEN_H3_IR.md) : la correspondance Cadence → `BriefIn`, le
- * corps de `POST /v1/briefs` du paquet `open-h3-ir`. Pur : tout ce qu'il faut est déjà chargé (lib/h3ir/brief-clip.ts), aucun accès base ni disque.
+/** A clip's Open H3 IR brief (step 1 of the integration plan, docs/PLAN_INTEGRATION_OPEN_H3_IR.md): the Cadence → `BriefIn` mapping, the
+ * body of `POST /v1/briefs` of the `open-h3-ir` package. Pure: everything needed is already loaded (lib/h3ir/brief-clip.ts), no database or disk access.
  *
- * Le service refuse toute clé inconnue (`extra="forbid"`, 422 `unknown-field`) : le brief ne porte que des clés du contrat. L'intent est en
- * FRANÇAIS à cette étape (pas de LLM) ; sa traduction en anglais viendra avec la tâche du worker (étape 3), car le paquet ne repère lumière, cadrage,
- * palette, vêtements, action et interdits que sur des mots anglais. */
+ * The service refuses any unknown key (`extra="forbid"`, 422 `unknown-field`): the brief only carries keys of the contract. The intent is in
+ * FRENCH at this step (no LLM); its translation into English will come with the worker's task (step 3), because the package only spots light, framing,
+ * palette, clothing, action and prohibitions in English words. */
 
-/** Résolution fixée (décision du 2026-11-02) : 0,4 mégapixel, quel que soit le réglage du plan. */
+/** Fixed resolution (decision of 2026-11-02): 0,4 megapixel, whatever the clip's setting. */
 const MEGAPIXELS_H3IR = 0.4;
 
 
-/** Plafond de `shots` du paquet (`PINNED_SHOTS_MAX`). Son plancher par shot (`MIN_SHOT_MS` = 1200) est `SHOT_MIN_FICHE_SECONDES` (lib/clips/clip-checks.ts). Le paquet
- * refuse un nombre de shots qui ne tient pas dans la durée NOMINALE (`shots-do-not-fit`, h3ir/compile.py:116) : le plafond se calcule donc sur elle, non sur la durée effective. */
+/** The package's ceiling on `shots` (`PINNED_SHOTS_MAX`). Its per-shot floor (`MIN_SHOT_MS` = 1200) is `SHOT_MIN_FICHE_SECONDES` (lib/clips/clip-checks.ts). The package
+ * refuses a number of shots that does not fit in the NOMINAL duration (`shots-do-not-fit`, h3ir/compile.py:116): the ceiling is therefore computed on it, not on the effective duration. */
 const SHOTS_MAX = 10;
 
-/** Le rôle déclaré d'une image selon le type de l'asset. Toujours déclaré : un rôle omis laisse le paquet deviner le mode (il peut basculer en
- * première image du clip, I2VA/FL2VA) et fait d'un audio une musique de fond. Une seule constante, à ajuster après le banc.
+/** The declared role of an image according to the asset's type. Always declared: an omitted role lets the package guess the mode (it may switch to
+ * the clip's first frame, I2VA/FL2VA) and turns an audio into background music. A single constant, to adjust after the bench.
  *
- * Un effet visuel (`vfx`) part en `style` (2026-11-09) : référence FAIBLE (`weak_reference`, sans `<Subject N>`), car un effet n'est jamais
- * repris tel quel, seuls sa couleur, sa matière et son mouvement passent sur les sujets du plan. À VALIDER AU BANC DE RENDU. Un effet à
- * reprendre tel quel (une attaque célèbre) n'a pas encore de réglage propre : `plan_refs.retention` n'est tenue que pour l'audio (toujours
- * null pour une image, ni écrite par la fiche ni éditable) et `plan_refs.role` est un libellé libre. En attendant, typer l'asset en `prop`
- * (un objet visible, donc `subject`) le fait passer tel quel. */
+ * A visual effect (`vfx`) goes as `style` (2026-11-09): a WEAK reference (`weak_reference`, without `<Subject N>`), because an effect is never
+ * reused as is; only its colour, matter and movement pass onto the clip's subjects. TO BE VALIDATED ON THE RENDER BENCH. An effect to reuse as is
+ * (a famous attack) does not yet have its own setting: `plan_refs.retention` is only kept for audio (always null for an image, neither written by
+ * the sheet nor editable) and `plan_refs.role` is a free label. Meanwhile, typing the asset as `prop` (a visible object, hence `subject`) makes it pass as is. */
 export const ROLE_PAR_TYPE: Record<string, "subject" | "environment" | "storyboard" | "style"> = {
   personnage: "subject",
   prop: "subject",
@@ -41,7 +40,7 @@ export const ROLE_PAR_TYPE: Record<string, "subject" | "environment" | "storyboa
 type AssetBrief = { path: string; kind: "image" | "video" | "audio"; role: string; note?: string };
 type DialogueBrief = { text: string; language: string; speaker?: string; voiceover: boolean };
 
-/** Le corps de la requête, dans l'ordre où on veut le lire. */
+/** The request body, in the order one wants to read it. */
 export type BriefH3ir = {
   intent: string;
   assets: AssetBrief[];
@@ -49,24 +48,24 @@ export type BriefH3ir = {
   megapixels: number;
   dialogue: DialogueBrief[];
   shots?: number;
-  /** Absent = « balanced », le défaut du paquet. */
+  /** Absent = « balanced », the package's default. */
   creativity?: Creativite;
   director?: string;
-  /** Un profil personnalisé (character-profiles.ts) : à la place de `director`, jamais avec. */
+  /** A custom profile (character-profiles.ts): in place of `director`, never with it. */
   director_profile?: { name: string; notes: string };
   effort: "standard";
   seed?: number;
   transcripts?: Record<string, string>;
 };
 
-/** Un personnage du registre : sa voix fixée s'il en a une (le master nettoyé, son sha256 et la réplique que dit le test). */
+/** A character in the registry: their fixed voice if they have one (the cleaned master, its sha256 and the line the test says). */
 export type PersonnageEntree = {
   code: string;
   label: string | null;
   voix: { chemin: string; sha256: string; description: string | null; repliqueBase: string | null } | null;
 };
 
-/** Une référence du plan (`plan_refs`) avec son asset. `chemin` : le fichier en chemin absolu, null s'il n'existe pas encore. */
+/** A reference of the clip (`plan_refs`) with its asset. `chemin`: the file as an absolute path, null if it does not exist yet. */
 export type ReferenceEntree = {
   type: "picture" | "video" | "audio";
   slot: number;
@@ -80,37 +79,37 @@ export type ReferenceEntree = {
 export type EntreeBrief = {
   plan: { description: string; dureeSecondes: number; seed: string | null };
   scene: { titre: string; ambiance: string | null } | null;
-  /** Langue des dialogues au sens du moteur (« French »…, « Auto »), voir lib/voice/language-dialogues.ts. */
+  /** Language of the dialogues in the engine's sense (« French »…, « Auto »), see lib/voice/language-dialogues.ts. */
   langueDialogues: string;
-  /** Codes des personnages dont le brief dit « voix off » (pensées) : `codesEnVoixOff`, lib/agents/conversion.ts. */
+  /** Codes of the characters whose brief says « voix off » (thoughts): `codesEnVoixOff`, lib/agents/conversion.ts. */
   codesVoixOff: string[];
   personnages: PersonnageEntree[];
   references: ReferenceEntree[];
 };
 
-/** `director` : un des 7 profils, `"aucun"` ou vide = pas de style de mise en scène. `creativity` : un des 4 niveaux (`balanced` = le défaut du paquet, la clé n'est alors pas envoyée).
- * Les valeurs héritées du projet, de la scène ou du plan sont résolues AVANT (lib/h3ir/settings.ts, `chargerBriefPlan`). */
+/** `director`: one of the 7 profiles, `"aucun"` or empty = no staging style. `creativity`: one of the 4 levels (`balanced` = the package's default, the key is then not sent).
+ * The values inherited from the project, the scene or the clip are resolved BEFORE (lib/h3ir/settings.ts, `chargerBriefPlan`). */
 export type OptionsBrief = { shots?: number | null; director?: string | null; creativity?: string | null };
 
-/** Quel fichier envoyé est quel asset de Cadence : le manifeste du compilateur ne connaît que des empreintes, `liens` (avec les `fichiers` du pont Python,
- * empreinte → chemin) permet de rendre à chaque référence son asset (lib/h3ir/conversion.ts). `type` : celui de la référence du plan (`plan_refs.type`). */
+/** Which file sent is which Cadence asset: the compiler's manifest only knows fingerprints, `liens` (with the `fichiers` of the Python bridge,
+ * fingerprint → path) gives each reference back its asset (lib/h3ir/conversion.ts). `type`: that of the clip's reference (`plan_refs.type`). */
 export type LienFichier = { path: string; code: string; type: "picture" | "video" | "audio" };
 
 export type ResultatBrief = { brief: BriefH3ir | null; refus: string | null; avertissements: string[]; liens: LienFichier[] };
 
-/** Une ligne de réplique de la description : « NOM : « texte » ». Un point après le guillemet fermant est toléré (« Katara : « l'Air ». » : sans cela la réplique restait
- * dans la narration et n'était jamais jouée, plan 03 du projet 236). */
+/** A dialogue line of the description: « NOM : « texte » ». A full stop after the closing quote is tolerated (« Katara : « l'Air ». » : without this the line stayed
+ * in the narration and was never spoken, clip 03 of project 236). */
 const LIGNE_REPLIQUE = /^[\s  ]*([^:«»\n]{1,60}?)[\s  ]*:[\s  ]*«[\s  ]*([\s\S]*?)[\s  ]*»[\s  .]*$/;
 const ETAT_DE_FIN = /^[\s  ]*État en fin de plan/i;
 
-/** La typographie française met une espace (souvent insécable) devant `! ? ; :` : le paquet en fait une rupture de son brouillon (h3ir/render.py:407). */
+/** French typography puts a space (often non-breaking) before `! ? ; :`: the package turns it into a break in its draft (h3ir/render.py:407). */
 export const normaliserReplique = (texte: string): string =>
   texte
     .replace(/[\s  ]+([!?;:])/g, "$1")
     .replace(/\.{3,}/g, "…")
     .trim();
 
-/** Sépare la description d'un plan en narration (sans « État en fin de plan ») et répliques `{ nom, texte }` dans l'ordre. */
+/** Splits a clip's description into narration (without « État en fin de plan ») and lines `{ nom, texte }`, in order. */
 export function separerDescription(description: string): { narration: string; repliques: { nom: string; texte: string }[] } {
   const repliques: { nom: string; texte: string }[] = [];
   const gardees: string[] = [];
@@ -126,12 +125,12 @@ export function separerDescription(description: string): { narration: string; re
   return { narration: gardees.join("\n").replace(/\n{3,}/g, "\n\n").trim(), repliques };
 }
 
-/** Un texte entre guillemets droits « "…" » serait pris pour du texte à afficher à l'écran (creativity.build) : on met des chevrons. */
+/** A text between straight quotes « "…" » would be taken for text to display on screen (creativity.build): we use chevrons. */
 const sansGuillemetsDroits = (texte: string): string => texte.replace(/"([^"]*)"/g, "«$1»").replace(/"/g, "'");
 
 export const estVoixOff = (nom: string) => slugifyCode(nom) === "voix_off";
 
-/** Le personnage du registre qui porte ce nom de locuteur (libellé, sinon code sans préfixe), ou rien. Partagé avec le choix des références (references-plan.ts). */
+/** The registry character who bears this speaker name (label, otherwise code without prefix), or nothing. Shared with the choice of references (references-plan.ts). */
 export function trouverPersonnage<T extends { code: string; label?: string | null }>(nom: string, personnages: T[]): T | undefined {
   const cle = slugifyCode(nom);
   if (!cle) return undefined;
@@ -145,7 +144,7 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
   const avertissements: string[] = [];
   const refuser = (refus: string): ResultatBrief => ({ brief: null, refus, avertissements, liens: [] });
 
-  // --- Références visuelles : au moins une, toutes avec leur fichier, 6 au plus ---
+  // --- Visual references: at least one, all with their file, 6 at most ---
   const visuelles = entree.references.filter((r) => r.type !== "audio").sort((a, b) => a.slot - b.slot);
   if (visuelles.length === 0) return refuser("Le plan n'a aucune image de référence : Open H3 IR passerait en mode texte seul. Ajoute au moins une référence.");
   const sansFichier = visuelles.filter((r) => !r.chemin);
@@ -156,7 +155,7 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
     return refuser(`Le plan a ${visuelles.length} références visuelles, ${MAX_REFS_VISUELLES} au plus : retires-en ${visuelles.length - MAX_REFS_VISUELLES}.`);
   }
 
-  // --- Description : narration et répliques ---
+  // --- Description: narration and lines ---
   const { narration, repliques } = separerDescription(entree.plan.description ?? "");
   if (!narration) return refuser("Le plan n'a pas de description (hors répliques) : il n'y a rien à raconter à Open H3 IR.");
 
@@ -179,7 +178,7 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
     dialogue.push({ text: texte, language: langue, speaker: perso ? libelleAsset(perso) : r.nom, voiceover: !!perso && voixOff.has(perso.code) });
   }
 
-  // --- Assets : les images de ceux qui parlent d'abord (le paquet lie la voix à la première), puis le reste dans l'ordre des emplacements ---
+  // --- Assets: the images of those who speak first (the package links the voice to the first one), then the rest in slot order ---
   const rang = (r: ReferenceEntree) => {
     const i = parlants.findIndex((p) => p.code === r.code);
     return i < 0 ? parlants.length : i;
@@ -196,7 +195,7 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
     };
   });
 
-  // --- Voix : un audio `voice_timbre` par personnage qui parle et dont la voix est fixée ; sa transcription est la réplique du test ---
+  // --- Voice: one `voice_timbre` audio per character who speaks and whose voice is fixed; its transcription is the test line ---
   const liens: LienFichier[] = ordonnees.map((r) => ({ path: r.chemin!, code: r.code, type: r.type as LienFichier["type"] }));
   const transcripts: Record<string, string> = {};
   let nbVoix = 0;
@@ -216,13 +215,13 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
     if (p.voix.repliqueBase?.trim()) transcripts[p.voix.sha256] = p.voix.repliqueBase.trim();
   }
 
-  // --- Intent : narration, ambiance de la scène (en français à cette étape) ---
+  // --- Intent: narration, scene ambiance (in French at this step) ---
   const morceaux = [narration];
   if (entree.scene?.ambiance?.trim()) morceaux.push(`Ambiance : ${entree.scene.ambiance.trim()}`);
-  // Pas de titre de scène dans l'intent (décision du 2026-11-02, après les démos) : un titre est un mot de rangement (« Styles ») qui se retrouvait tel quel dans le prompt.
+  // No scene title in the intent (decision of 2026-11-02, after the demos): a title is a filing word (« Styles ») that would turn up as is in the prompt.
   const intent = sansGuillemetsDroits(morceaux.join("\n\n"));
 
-  // --- Durée, shots, style de mise en scène, seed ---
+  // --- Duration, shots, staging style, seed ---
   const seconds = entree.plan.dureeSecondes;
   const brief: BriefH3ir = { intent, assets, seconds, megapixels: MEGAPIXELS_H3IR, dialogue, effort: "standard" };
 

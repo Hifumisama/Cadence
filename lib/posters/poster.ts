@@ -1,8 +1,8 @@
-/** Repli visuel des posters (projet/épisode) en l'absence de fichier
- * fourni — un dégradé de la famille de `.preview-frame`, choisi
- * déterministement à partir d'un hash du nom (même paramètre → même rendu
- * à chaque affichage, pas de flash au rechargement). Porté depuis la
- * maquette Opus du 2026-09-28 (voir docs/FRICTIONS.md). */
+/** Visual fallback of posters (project/episode) when no file is
+ * provided — a gradient from the `.preview-frame` family, chosen
+ * deterministically from a hash of the name (same parameter → same render
+ * at each display, no flash on reload). Ported from the
+ * Opus mockup of 2026-09-28 (see docs/FRICTIONS.md). */
 
 function hashFnv1a(s: string): number {
   let h = 2166136261;
@@ -33,9 +33,9 @@ const DUOS: [string, string][] = [
   ["211,121,63", "200,16,46"],
 ];
 
-/** CSS `background-image` (3 dégradés radiaux) pour la clé donnée — passer
- * un identifiant stable (ex. `"projet:12"`, `"episode:12"`), pas le nom
- * affiché (qui peut changer sans que le poster doive changer d'aspect). */
+/** CSS `background-image` (3 radial gradients) for the given key — pass
+ * a stable identifier (e.g. `"projet:12"`, `"episode:12"`), not the name
+ * displayed (which may change without the poster having to change its look). */
 export function posterBackgroundImage(key: string): string {
   const r = mulberry32(hashFnv1a(key));
   const duo = DUOS[Math.floor(r() * DUOS.length)]!;
@@ -54,17 +54,17 @@ export function posterBackgroundImage(key: string): string {
   ].join(", ");
 }
 
-/** Première lettre du titre, article initial ignoré ("La porte d'Anfa" ->
- * "P") — utilisée sur les posters trop petits pour un texte complet
- * (épisode). "·" si le titre est vide ("Sans titre" par défaut). */
+/** First letter of the title, leading article ignored ("La porte d'Anfa" ->
+ * "P") — used on posters too small for full text
+ * (episode). "·" if the title is empty ("Sans titre" (Untitled) by default). */
 export function posterInitiale(titre: string): string {
   const sansArticle = titre.replace(/^(les|le|la|l'|une|un)\s+|^l'/i, "");
   const match = sansArticle.match(/[A-Za-zÀ-ÿ]/);
   return match ? match[0]!.toUpperCase() : "·";
 }
 
-/** Une affiche dont le modèle a écrit le titre porte le suffixe `-titre` dans son nom de fichier (voir
- * lib/posters/poster-application.ts) : le composant Poster ne superpose alors pas le titre une seconde fois. */
+/** A poster whose title the model wrote carries the `-titre` suffix in its file name (see
+ * lib/posters/poster-application.ts): the Poster component then does not overlay the title a second time. */
 export const SUFFIXE_TITRE = "-titre";
 
 export function posterPorteLeTitre(src: string | null): boolean {

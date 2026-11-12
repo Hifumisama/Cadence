@@ -112,7 +112,7 @@ test("candidatsRegistre : la tenue et l'aspect des lieux notés à l'entretien r
   assert.equal(c[1]!.description, "Un temple perché. aube rose, pierre claire");
 });
 
-// --- détails du brief transmis à prompt-asset (2026-11-08) ---
+// --- brief details passed to prompt-asset (2026-11-08) ---
 
 const briefDetaille = {
   personnages: [{ nom: "Iris", role: "narratrice", reconnaissable: "un collier", tenue: { coupe: "tunique longue", statut: "incertain" as const } }],

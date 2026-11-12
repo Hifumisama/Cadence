@@ -8,8 +8,8 @@ import { Icone } from "@/components/ui/Icon";
 import { Poster } from "@/components/ui/Poster";
 import { PHASES, phaseDe, totalBuckets, type Phase } from "@/lib/projects/phase";
 
-/** État affiché sur la carte, dérivé des statuts de plans (jamais saisi). « Vide » parle au
- * système, pas à l'utilisateur : sur la carte, un projet sans plan est « À démarrer ». */
+/** State shown on the card, derived from the clip statuses (never entered). « Vide » (empty) speaks to the
+ * system, not to the user: on the card, a project without clips is « À démarrer » (to start). */
 const ETAT_CARTE: Record<Phase, { label: string; classe: string }> = {
   vide: { label: "À démarrer", classe: "is-vide" },
   ecriture: { label: PHASES.ecriture.label, classe: "is-ecriture" },
@@ -26,8 +26,8 @@ function formaterDuree(secondes: number): string {
   return s === 0 ? `${min} min` : `${min} min ${s} s`;
 }
 
-/** Carte projet : un clic ouvre un tiroir sur le côté (style, arc, durée, langue…), d'où l'on ouvre le projet.
- * Le bouton de suppression est posé par la page, en frère de la carte. */
+/** Project card: a click opens a side drawer (style, arc, duration, language…), from which the project is opened.
+ * The delete button is placed by the page, as a sibling of the card. */
 export function ProjectCard({ projet }: { projet: ProjectListItem }) {
   const [ouvert, setOuvert] = useState(false);
   const boutonFermer = useRef<HTMLButtonElement>(null);
@@ -35,12 +35,12 @@ export function ProjectCard({ projet }: { projet: ProjectListItem }) {
   const etat = ETAT_CARTE[phaseDe(projet.buckets)];
   const libelleEtat = projet.conceptionEnCours ? "Conception en cours" : etat.label;
   const classeEtat = projet.conceptionEnCours ? "is-ecriture" : etat.classe;
-  // Des plans mais aucun asset : le projet ne peut pas avancer, on le fait remarquer.
+  // Clips but no asset: the project cannot move forward, we point it out.
   const sansAsset = total > 0 && projet.nbAssets === 0;
   const r = projet.resume;
   const href = projet.conceptionEnCours ? `/p/${projet.id}/demarrage` : `/p/${projet.id}`;
 
-  // Tiroir ouvert : Échap le ferme, le fond de page ne défile plus, le focus passe au bouton de fermeture.
+  // Drawer open: Escape closes it, the page background no longer scrolls, focus moves to the close button.
   useEffect(() => {
     if (!ouvert) return;
     const echap = (e: KeyboardEvent) => e.key === "Escape" && setOuvert(false);

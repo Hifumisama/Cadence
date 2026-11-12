@@ -57,58 +57,54 @@ import { brutsManquants, decisionSortieReferencesPlan } from "../../lib/h3ir/pre
 import { registreCodesTypes } from "../../lib/h3ir/preparation-db";
 import { ecrireReferencesPlan } from "../../lib/h3ir/references-write";
 
-/** Ce que devient le résultat validé d'une tâche du système d'agents, DANS la transaction qui
- * l'écrit (worker/llm.ts) : un échec ici annule tout et la tâche est marquée échouée.
- * - `tour`        : soit la grille de couverture d'un message (skill `couverture-entretien`, qui pose ensuite le tour de
- *                   l'agent), soit le message de l'agent, qui rejoint la conversation (`briefPret` est décidé en code) ;
- * - `brief`       : un BROUILLON de brief est écrit (jamais par-dessus un brief validé) ;
- * - `proposition` : les changements sont construits EN CODE depuis le JSON du skill ;
- * - `affiche`     : l'affiche du clap (lib/agents/poster-clap.ts) : le prompt écrit lance la génération de l'image. */
+/** What the validated result of an agent-system task becomes, INSIDE the transaction that writes it (worker/llm.ts): a failure here cancels everything and the task is marked failed.
+ * - `tour`        : either the coverage grid of a message (skill `couverture-entretien`, which then posts the agent's turn), or the agent's message, which joins the conversation (`briefPret` is decided in code);
+ * - `brief`       : a DRAFT brief is written (never over a validated brief);
+ * - `proposition` : the changes are built IN CODE from the skill's JSON;
+ * - `affiche`     : the clap poster (lib/agents/poster-clap.ts): the written prompt launches the image generation. */
 
 type RunAgent = typeof agentRuns.$inferSelect;
 type OptionsRunAgent = { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null; place?: PlaceScene };
 
 export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execution: InfosExecution = {}): Promise<void> {
-  if (!run.but) return; // appel hors système d'agents (npm run llm:task) : rien à faire
+  if (!run.but) return; // call outside the agents system (npm run llm:task): nothing to do
   if (run.but === "tour") {
     if (run.skill === "notes-entretien") return postNotes(tx, run, json);
-    // L'accroche du scénariste (premier message d'un projet conçu) se range comme un tour de l'agent : elle ouvre la conversation.
+    // The screenwriter's hook (first message of a designed project) is filed like an agent turn: it opens the conversation.
     return postTour(tx, run, json as { reponse: string; resteADefinir?: string[] });
   }
   if (run.but === "brief") return postBrief(tx, run, json as Record<string, unknown>);
-  // L'affiche du clap : le prompt écrit par `prompt-asset` (variante `affiche`) lance tout de suite la génération de l'affiche du projet (adoption automatique).
+  // The clap poster: the prompt written by `prompt-asset` (variant `affiche`) immediately launches the generation of the project's poster (automatic adoption).
   if (run.but === "affiche") {
     if (run.projectId == null) throw new Error("Affiche sans projet.");
     return ecrireAfficheEtGenerer(tx, run.projectId, json as { promptGeneration?: unknown });
   }
-  // Un essai de la fiche d'un asset : le prompt traduit lance l'essai dans la file d'images.
+  // An attempt at an asset's sheet: the translated prompt launches the attempt in the image queue.
   if (run.but === BUT_ESSAI) return ecrireEssaiTraduit(tx, run.options, json as { promptGeneration?: unknown });
   if (run.but === "proposition") return postProposition(tx, run, json, execution);
 }
 
-/** La liste « reste à définir » d'un tour : des phrases courtes, sans doublon ni vide. */
+/** The « reste à définir » list of a turn: short sentences, without duplicates or blanks. */
 export function resteADefinirDe(sortie: { resteADefinir?: unknown }): string[] {
   const l = Array.isArray(sortie.resteADefinir) ? sortie.resteADefinir : [];
   return [...new Set(l.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean))].slice(0, 12);
 }
 
-/** Notes de l'entretien (skill `notes-entretien`) : un appel court posé AVANT chaque tour de l'agent. Il rend un PATCH de la fiche
- * de notes avec les citations qui le prouvent ; le code vérifie les citations, applique le patch, décide seul de ce qui manque
- * et de quand la fiche est complète (alors elle devient le brouillon du brief, sans appel de rédaction). C'est ici que le tour de
- * l'agent est posé, avec la fiche à jour et ce qui reste à demander (ou « c'est complet »). */
+/** Interview notes (skill `notes-entretien`): a short call posted BEFORE each agent turn. It returns a PATCH of the notes sheet with the quotes that prove it; the code checks the quotes, applies the patch, decides by itself what is missing
+ * and when the sheet is complete (then it becomes the draft brief, without any writing call). This is where the agent's turn is posted, with the updated sheet and what remains to ask (or « c'est complet »). */
 async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
-  if (!conv) return; // conversation écrasée entre-temps
+  if (!conv) return; // conversation overwritten in the meantime
   const messages = ((conv.messages as { role: "user" | "assistant"; content: string }[]) ?? []).map((m) => ({ role: m.role, content: m.content }));
   const utilisateur = messages.filter((m) => m.role === "user").map((m) => m.content);
   const avant = await ficheCourante(tx, conv);
-  // La conversation entière (questions de l'agent comprises) borne les délégations : « je te laisse décider » ne vaut que pour la question posée.
+  // The whole conversation (the agent's questions included) bounds the delegations: « je te laisse décider » only counts for the question asked.
   const fiche = appliquerNotes(avant, sortie, utilisateur, messages);
   const complete = await enregistrerFiche(tx, conv, fiche, utilisateur);
   if (complete && !ficheComplete(avant, utilisateur.slice(0, -1))) {
-    // La fiche vient de devenir complète : c'est le CODE qui l'annonce (résumé, suppositions, bouton « étape suivante »), sans tour
-    // de l'agent. Si l'utilisateur continue, l'agent reprend pour affiner (note « complète » de entreeTour).
+    // The sheet has just become complete: it is the CODE that announces it (summary, assumptions, « étape suivante » button), without an agent
+    // turn. If the user carries on, the agent resumes to refine (« complète » note of entreeTour).
     const messagesStockes = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: messageBriefPret(fiche), at: new Date().toISOString() }];
     await tx.update(agentConversations).set({ messages: messagesStockes, briefPret: true, resteADefinir: [], etape: "conversation", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
     return;
@@ -122,7 +118,7 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   });
 }
 
-/** Le format du projet conçu (un film), pour l'agent de conversation ; undefined pour un projet sans conception. */
+/** The format of the designed project (a film), for the conversation agent; undefined for a project without design. */
 async function formatDuProjet(tx: Tx, projectId: number): Promise<string | undefined> {
   const c = await lireConception(tx, projectId);
   return c ? informationsFormat() : undefined;
@@ -133,8 +129,8 @@ const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[]; choix?: unknown }) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
-  if (!conv) return; // conversation écrasée entre-temps : le tour est perdu, sans erreur
-  // Cartes de choix : facultatives, validées ici ; une forme invalide est ignorée et le message reste du texte seul.
+  if (!conv) return; // conversation overwritten in the meantime: the turn is lost, without error
+  // Choice cards: optional, validated here; an invalid shape is ignored and the message stays text only.
   const choix = normaliserChoix(sortie.choix);
   const message: MessageConversation = { role: "assistant", content: sortie.reponse, at: new Date().toISOString(), ...(choix ? { choix } : {}) };
   const messages = [...((conv.messages as unknown[]) ?? []), message];
@@ -142,10 +138,10 @@ async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteA
     .filter((m) => (m as { role?: string }).role === "user")
     .map((m) => (m as { content?: unknown }).content)
     .map((c) => (typeof c === "string" ? c : ""));
-  // « Prêt » est décidé EN CODE, depuis la fiche de notes (postNotes) : l'essentiel et les détails tranchés, après assez d'échanges.
+  // « Prêt » is decided IN CODE, from the notes sheet (postNotes): the essentials and the details settled, after enough exchanges.
   const fiche = await ficheCourante(tx, conv);
   const pret = ficheComplete(fiche, utilisateur);
-  // La liste affichée : ce que le code constate non dit, puis les nuances que l'agent a notées.
+  // The displayed list: what the code notes as not said, then the nuances the agent has noted.
   const reste = [...manquesFiche(fiche).map(majuscule), ...resteADefinirDe(sortie)].filter((x, i, l) => l.indexOf(x) === i);
   await tx
     .update(agentConversations)
@@ -164,23 +160,23 @@ async function postBrief(tx: Tx, run: RunAgent, sortie: Record<string, unknown>)
 async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: InfosExecution) {
   if (run.propositionId == null) throw new Error("Tâche de proposition sans proposition.");
   const [prop] = await tx.select().from(propositions).where(eq(propositions.id, run.propositionId));
-  if (!prop) return; // proposition supprimée entre-temps
-  if (prop.statut !== "en_generation") return; // rejetée pendant la génération : on n'écrit rien
+  if (!prop) return; // proposal deleted in the meantime
+  if (prop.statut !== "en_generation") return; // rejected during generation: we write nothing
   const options = (run.options ?? {}) as OptionsRunAgent;
   const scope = { type: prop.portee as "projet" | "episode" | "plan" | "asset", cibleId: prop.cibleId };
-  // Lot : cette tâche n'est qu'une SOUS-TÂCHE (un épisode) d'une proposition plus grande.
+  // Batch: this task is only a SUB-TASK (one episode) of a larger proposal.
   if (prop.lot) {
     if (run.skill === "prompt-asset") return postSousTacheRegistre(tx, run, prop, scope, json as SortiePromptAsset);
     if (run.skill === SKILL_H3IR) return postSousTacheFicheH3ir(tx, run, prop, scope, json as ResultatH3ir);
     if (run.skill === "relecture-scenario") return postSousTacheRelecture(tx, run, prop, scope, json as SortieRelecture);
     if (run.skill === "traitement-episode") return postSousTacheTraitement(tx, run, prop, scope, json as SortieTraitement);
     if (run.skill === "scenario-scene") return postSousTacheScene(tx, run, prop, scope, json as SortieScenarioScene);
-    if (run.skill === "inventaire-assets") return postInventaire(tx, run, prop, scope, json as SortieInventaire); // un groupe de scènes d'un long film
+    if (run.skill === "inventaire-assets") return postInventaire(tx, run, prop, scope, json as SortieInventaire); // a group of scenes of a long film
     return postSousTacheLot(tx, run, prop, scope, json as SortieScenarioEpisode);
   }
 
   let bruts: ChangementBrut[] = [];
-  // L'affiche de présentation est la variante `affiche` du skill `prompt-asset` : même sortie, autre conversion.
+  // The presentation poster is the `affiche` variant of the `prompt-asset` skill: same output, different conversion.
   const estAffiche = run.skill === "prompt-asset" && options.variante === VARIANTE_AFFICHE;
   if (run.skill === "prompt-asset" && !estAffiche) {
     if (prop.cibleId == null) throw new Error("Proposition d'asset sans cible.");
@@ -221,14 +217,14 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       throw new Error(`Portée « ${prop.portee} » non prise en charge pour le skill scenario-episode.`);
     }
   } else if (run.skill === SKILL_H3IR) {
-    // La fiche d'UN plan compilée par Open H3 IR (worker/h3ir.ts) : une fiche seule, sans asset à créer ; elle s'écrit sans relecture (lib/tasks/requests-db.ts).
+    // The sheet of ONE clip compiled by Open H3 IR (worker/h3ir.ts): a sheet alone, with no asset to create; it is written without review (lib/tasks/requests-db.ts).
     if (prop.cibleId == null) throw new Error("Proposition de fiche sans plan.");
     const [plan] = await tx.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.id, prop.cibleId));
     if (!plan) throw new Error("Le plan visé n'existe plus.");
-    // « Partir de cet essai » : le prompt de l'essai a été retouché (worker/h3ir.ts) au lieu d'être recompilé ; la suite est la même (description, durée écrites avec la fiche).
+    // « Partir de cet essai »: the attempt's prompt was retouched (worker/h3ir.ts) instead of being recompiled; the rest is the same (description, duration written with the sheet).
     bruts = estResultatRetouche(json) ? depuisRetouche(json, plan) : depuisCompilationH3ir(json as ResultatH3ir, plan);
-    // Recompilation depuis « Itérer » (lib/agents/service.ts, genererReecriturePlan) : les décisions compilées (description, durée, réglages du plan) s'écrivent
-    // avec la fiche, dans la même application ; les références suivent le manifeste de la compilation.
+    // Recompilation from « Itérer » (lib/agents/service.ts, genererReecriturePlan): the compiled decisions (description, duration, clip settings) are written
+    // with the sheet, in the same application; the references follow the compilation's manifest.
     const o = (run.options ?? {}) as { descriptionNouvelle?: unknown; dureeNouvelle?: unknown; reglagesNouveaux?: { creativite?: unknown; styleCamera?: unknown } | null };
     const nouvelle = typeof o.descriptionNouvelle === "string" ? o.descriptionNouvelle.trim() : "";
     const duree = typeof o.dureeNouvelle === "number" && Number.isInteger(o.dureeNouvelle) ? o.dureeNouvelle : null;
@@ -242,13 +238,13 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       }
     }
   } else if (run.skill === "inventaire-assets") {
-    // Les assets que les plans réclament et que le registre n'a pas (des créations sans prompt, il s'écrit ensuite), et les références de chaque plan.
+    // The assets the clips call for and that the registry does not have (creations without prompt, written afterwards), and each clip's references.
     return postInventaire(tx, run, prop, scope, json as SortieInventaire);
   } else if (run.skill === SKILL_REFERENCES_PLAN) {
-    // Le choix des références d'un plan (préparation, vague 4a) : références écrites tout de suite, ou créations d'assets manquants à appliquer d'abord.
+    // The choice of a clip's references (preparation, wave 4a): references written right away, or missing asset creations to apply first.
     return postReferencesPlan(tx, run, prop, scope, json as SortieReferencesPlan);
   } else if (run.skill === "iteration-plan") {
-    // Correction après visionnage : des DÉCISIONS (aucun changement ici), recompilées ensuite par Open H3 IR ; ou rien (le diagnostic seul) avec la raison.
+    // Correction after viewing: DECISIONS (no change here), recompiled afterwards by Open H3 IR; or nothing (the diagnosis alone) with the reason.
     if (prop.cibleId == null) throw new Error("Correction de plan sans plan.");
     return postIteration(tx, run, prop, scope, json as SortieIterationPlan, execution);
   } else {
@@ -261,10 +257,10 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
   }
 }
 
-/** Inventaire des assets (un seul appel, ou un groupe de scènes d'un long film) : les créations d'assets deviennent des changements ; les références des
- * plans qui ne citent que des assets existants s'écrivent TOUT DE SUITE (lib/agents/inventory-db.ts), les autres à l'application, après les créations.
- * Groupe d'un lot : ses lignes remplacent celles qu'il avait posées (relance), ce que les autres groupes proposent n'est pas reproposé, puis le groupe
- * suivant est posé (une seule fois), avec les assets déjà proposés ; enfin le lot décide de son statut. */
+/** Asset inventory (a single call, or a group of scenes of a long film): the asset creations become changes; the references of the
+ * clips that cite only existing assets are written RIGHT AWAY (lib/agents/inventory-db.ts), the others at application, after the creations.
+ * Group of a batch: its lines replace those it had posted (re-run), what the other groups propose is not re-proposed, then the next
+ * group is posted (only once), with the assets already proposed; finally the batch decides its status. */
 async function postInventaire(
   tx: Tx,
   run: RunAgent,
@@ -275,7 +271,7 @@ async function postInventaire(
   const cle = prop.lot ? run.cleSousTache : null;
   if (prop.lot && !cle) throw new Error("Groupe d'inventaire sans clé de sous-tâche.");
   const registre = await tx.select({ code: assets.code, type: assets.type, description: assets.description }).from(assets).where(and(eq(assets.projectId, prop.projectId), horsAffiches));
-  // Les effets et objets du brief que l'agent a lus (entrée du run) : un VFX n'est accepté que s'il en est tiré.
+  // The effects and objects of the brief that the agent read (run input): a VFX is only accepted if it is drawn from it.
   const elements = (run.entree as { brief?: { elements?: { nom: string; nature: string }[] } | null } | null)?.brief?.elements;
   const autres = cle ? await assetsACreer(tx, prop.id, { saufSousTache: cle }) : [];
   const bruts = depuisInventaire(sortie, registre.map((a) => ({ code: a.code, type: a.type, description: a.description ?? "" })), {
@@ -288,7 +284,7 @@ async function postInventaire(
   } else {
     await enregistrerChangements(tx, prop.id, prop.projectId, scope, bruts);
   }
-  // Les références : écrites maintenant si elles ne citent que des assets existants ; un asset proposé (non refusé) les fait attendre l'application.
+  // The references: written now if they cite only existing assets; a proposed asset (not refused) makes them wait for the application.
   const bilan = await ecrireReferencesDesTaches(tx, prop.projectId, [{ entree: run.entree, options: run.options, resultat: sortie }], await assetsACreer(tx, prop.id));
 
   if (cle) {
@@ -312,7 +308,7 @@ async function postInventaire(
     await finaliserLot(tx, prop.id, { runTermineId: run.id });
     return;
   }
-  // Rien à ajouter : la proposition le dit (avec les notes du modèle) plutôt que d'afficher une liste vide.
+  // Nothing to add: the proposal says so (with the model's notes) rather than showing an empty list.
   const phrase = phraseBilan(bilan);
   if (bruts.length === 0 || phrase) {
     const notes = (sortie.notes ?? "").trim();
@@ -325,7 +321,7 @@ async function postInventaire(
   }
 }
 
-/** L'épisode tel qu'il est maintenant (titre, résumé, scènes, plans) : ce que la conversion compare à la sortie du skill. */
+/** The episode as it is now (title, summary, scenes, clips): what the conversion compares to the skill's output. */
 async function episodeCourant(tx: Tx, projectId: number, episodeId: number): Promise<EpisodeCourant> {
   const ep = await entreeScenarioEpisode(tx, projectId, episodeId, "");
   if (!ep) throw new Error("L'épisode visé n'existe plus.");
@@ -334,16 +330,15 @@ async function episodeCourant(tx: Tx, projectId: number, episodeId: number): Pro
   return { id: episodeId, titre: entree.episode.titre, resume: entree.episode.resume, scenes: entree.scenesExistantes, plans: lesPlans };
 }
 
-/** La durée visée d'un épisode, telle que le brief du projet la porte (null sans brief ni durée). */
+/** The target duration of an episode, as the project's brief carries it (null without a brief or duration). */
 async function dureeCibleDuProjet(tx: Tx, projectId: number): Promise<number | null> {
   const [b] = await tx.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
   const d = (b?.contenu as { dureeEpisodeSecondes?: unknown } | undefined)?.dureeEpisodeSecondes;
   return typeof d === "number" && d > 0 ? d : null;
 }
 
-/** Une sous-tâche d'un lot de scénarios (un épisode) : ses changements REMPLACENT ceux qu'elle avait
- * déjà posés (relance) sans toucher aux autres sous-tâches, dans la même transaction que son résultat
- * (idempotent : rejouer le même résultat ne double rien) ; puis le lot décide de son statut. */
+/** A sub-task of a screenplay batch (one episode): its changes REPLACE those it had already posted (re-run) without touching the other
+ * sub-tasks, in the same transaction as its result (idempotent: replaying the same result doubles nothing); then the batch decides its status. */
 async function postSousTacheLot(
   tx: Tx,
   run: RunAgent,
@@ -365,8 +360,8 @@ async function postSousTacheLot(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
-/** Une sous-tâche du lot « traitements » (un épisode) : le découpage en scènes devient des créations de scène, avec leur traitement. Les changements de la
- * sous-tâche REMPLACENT ceux qu'elle avait posés (relance), puis le lot décide de son statut. */
+/** A sub-task of the « traitements » batch (one episode): the breakdown into scenes becomes scene creations, with their treatment. The changes of the
+ * sub-task REPLACE those it had posted (re-run), then the batch decides its status. */
 async function postSousTacheTraitement(
   tx: Tx,
   run: RunAgent,
@@ -389,8 +384,8 @@ async function postSousTacheTraitement(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
-/** Une sous-tâche du lot « scénarios » écrite par scène (`scene:<id>`) : les plans de la scène, durées ramenées à sa cible, sur la scène telle qu'elle est maintenant.
- * Remplace ce que la sous-tâche avait posé (relance), puis le lot décide de son statut. */
+/** A sub-task of the « scénarios » batch written per scene (`scene:<id>`): the clips of the scene, durations brought back to its target, on the scene as it is now.
+ * Replaces what the sub-task had posted (re-run), then the batch decides its status. */
 async function postSousTacheScene(
   tx: Tx,
   run: RunAgent,
@@ -413,9 +408,9 @@ async function postSousTacheScene(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
-/** Une sous-tâche du lot « relectures » (un épisode) : les corrections du scénario sont traduites en changements de plan (poignées → uuid, sur l'épisode
- * tel qu'il est MAINTENANT) qui REMPLACENT ceux que la sous-tâche avait posés (relance). L'ordre des plans doit être celui que le modèle a lu : sinon une
- * poignée viserait un autre plan, la sous-tâche échoue et se relance. Puis le lot décide de son statut. */
+/** A sub-task of the « relectures » batch (one episode): the screenplay corrections are translated into clip changes (handles → uuid, on the episode as it is NOW)
+ * that REPLACE those the sub-task had posted (re-run). The order of the clips must be the one the model read: otherwise a handle would target another clip,
+ * the sub-task fails and is re-run. Then the batch decides its status. */
 async function postSousTacheRelecture(
   tx: Tx,
   run: RunAgent,
@@ -438,9 +433,9 @@ async function postSousTacheRelecture(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
-/** Une sous-tâche du lot « registre » (un master) : l'asset est créé s'il n'existe pas (description du
- * brief + prompt), sinon son prompt est proposé. Même règle que pour un épisode : ses changements
- * REMPLACENT ceux qu'elle avait posés (relance), idempotent, puis le lot décide de son statut. */
+/** A sub-task of the « registre » batch (a master): the asset is created if it does not exist (description from the
+ * brief + prompt), otherwise its prompt is proposed. Same rule as for an episode: its changes
+ * REPLACE those it had posted (re-run), idempotent, then the batch decides its status. */
 async function postSousTacheRegistre(
   tx: Tx,
   run: RunAgent,
@@ -471,8 +466,8 @@ async function postSousTacheRegistre(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
-/** Une sous-tâche Open H3 IR d'un lot de fiches (un plan compilable, lib/h3ir/engine.ts) : sa fiche compilée, rangée sous son épisode et sa scène,
- * sans asset à créer. Même règle que les autres lots : ses changements REMPLACENT ceux qu'elle avait posés (relance), puis le lot décide de son statut. */
+/** An Open H3 IR sub-task of a sheets batch (a compilable clip, lib/h3ir/engine.ts): its compiled sheet, filed under its episode and its scene,
+ * with no asset to create. Same rule as the other batches: its changes REPLACE those it had posted (re-run), then the batch decides its status. */
 async function postSousTacheFicheH3ir(
   tx: Tx,
   run: RunAgent,
@@ -492,10 +487,10 @@ async function postSousTacheFicheH3ir(
   await finaliserLot(tx, prop.id, { runTermineId: run.id });
 }
 
-/** Le choix des références d'un plan par le petit skill `references-plan` (appelé seulement quand le code doutait, lib/h3ir/preparation.ts). Sans asset à
- * créer, les références s'écrivent TOUT DE SUITE sur le plan (jamais par-dessus des références posées entre-temps, sauf `rechoisir`) et la proposition est
- * close (« appliquée ») ; avec des manquants (deux au plus, code et parent valides), ce sont des créations d'assets que la demande applique, et les
- * références (manquants compris) s'écrivent dans la même transaction (lib/agents/service.ts, `appliquerSelection`). */
+/** The choice of a clip's references by the small `references-plan` skill (called only when the code had doubts, lib/h3ir/preparation.ts). With no asset to
+ * create, the references are written RIGHT AWAY on the clip (never over references posted in the meantime, except `rechoisir`) and the proposal is
+ * closed (« appliquée »); with missing ones (two at most, valid code and parent), these are asset creations that the request applies, and the
+ * references (missing ones included) are written in the same transaction (lib/agents/service.ts, `appliquerSelection`). */
 async function postReferencesPlan(
   tx: Tx,
   run: RunAgent,
@@ -529,10 +524,10 @@ async function postReferencesPlan(
   }
 }
 
-/** Une correction après visionnage (`iteration-plan`, 2026-11-09) : l'agent ne fait que DÉCIDER (intent, durée, références, réglages) ; la proposition ne porte
- * AUCUN changement, ses décisions se lisent dans le diagnostic (lib/agents/queries-agents.ts) et partent en recompilation Open H3 IR (lib/tasks/requests-db.ts). Sans
- * décision applicable (durée incohérente, abandon, cause hors du plan…), le résumé commence par `PREFIXE_SANS_ECRITURE` et dit pourquoi : rien n'est
- * recompilé. Le « contexte utilisé » gagne la mesure du rendu (durée réelle, nombre de vignettes). */
+/** A correction after viewing (`iteration-plan`, 2026-11-09): the agent only DECIDES (intent, duration, references, settings); the proposal carries
+ * NO change, its decisions are read in the diagnosis (lib/agents/queries-agents.ts) and go to Open H3 IR recompilation (lib/tasks/requests-db.ts). Without an
+ * applicable decision (incoherent duration, abandonment, cause outside the clip…), the summary starts with `PREFIXE_SANS_ECRITURE` and says why: nothing is
+ * recompiled. The « contexte utilisé » gains the render measurement (real duration, number of thumbnails). */
 async function postIteration(
   tx: Tx,
   run: RunAgent,
@@ -541,7 +536,7 @@ async function postIteration(
   sortie: SortieIterationPlan,
   execution: InfosExecution,
 ) {
-  // Le contexte est celui qu'a vu le modèle (son entrée), la durée réelle celle que le worker a mesurée.
+  // The context is what the model saw (its input), the real duration the one the worker measured.
   const ctx = { ...contexteDepuisEntree(run.entree), dureeReelleSecondes: execution.dureeReelleSecondes ?? null };
   await enregistrerChangements(tx, prop.id, prop.projectId, scope, []);
   const raison = raisonSansEcriture(sortie, ctx);
@@ -561,11 +556,11 @@ async function postIteration(
   }
 }
 
-/** Échec ou annulation d'une tâche d'agent : la proposition liée n'attendra pas indéfiniment. */
+/** Failure or cancellation of an agent task: the linked proposal will not wait indefinitely. */
 export async function surEchecRun(run: RunAgent, message: string): Promise<void> {
   if (run.but === BUT_ESSAI) await terminerEssaiSansPrompt(db, run.options, "echoue", message);
   if (run.but === "proposition" && run.propositionId != null) {
-    // Une sous-tâche de lot qui échoue ne fait pas échouer le lot : il décide d'après toutes ses tâches.
+    // A batch sub-task that fails does not fail the batch: it decides from all its tasks.
     const [prop] = await db.select({ lot: propositions.lot }).from(propositions).where(eq(propositions.id, run.propositionId));
     if (prop?.lot) {
       await finaliserLot(db, run.propositionId);

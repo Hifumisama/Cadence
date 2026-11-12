@@ -5,8 +5,8 @@ import { ouvrirAffiche } from "@/app/affiches/actions";
 import { Icone } from "@/components/ui/Icon";
 import type { CibleAffiche } from "@/lib/posters/posters";
 
-/** « Générer une image » : ouvre la page de génération de l'affiche d'un projet ou d'un épisode (l'asset d'affiche, invisible
- * du registre, est créé au premier clic). */
+/** « Générer une image »: opens the poster generation page of a project or an episode (the poster asset, invisible
+ * from the registry, is created on the first click). */
 export function BoutonAffiche({
   cible,
   id,

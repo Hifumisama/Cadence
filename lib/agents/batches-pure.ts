@@ -1,16 +1,16 @@
-/** Lots du système d'agents — règles PURES (sans base ni Next), partagées par le serveur, le
- * worker, le header et les tests. Un LOT est une proposition dont la génération est composée de
- * plusieurs tâches `agent_runs`, une par SOUS-TÂCHE (ex. un épisode). Voir docs/CONCEPTION_AGENTS.md
- * (étape 1 : scénarios d'épisodes, 2026-10-02).
+/** Batches of the agent system — PURE rules (no database or Next), shared by the server, the
+ * worker, the header and the tests. A BATCH is a proposal whose generation is made up of
+ * several `agent_runs` tasks, one per SUBTASK (e.g. an episode). See docs/CONCEPTION_AGENTS.md
+ * (step 1: episode screenplays, 2026-10-02).
  *
- * Décisions : la proposition reste `en_generation` tant qu'il reste une sous-tâche active ; elle
- * devient `prete` dès que toutes sont closes et qu'au moins une a réussi (les échecs isolés sont
- * montrés dans la revue, relançables) ; `echouee` seulement si TOUT a échoué ; `rejetee` si tout
- * a été annulé. Les résultats déjà écrits ne se perdent jamais. */
+ * Decisions: the proposal stays `en_generation` as long as a subtask is still active; it
+ * becomes `prete` as soon as all are closed and at least one succeeded (isolated failures are
+ * shown in the review, re-runnable); `echouee` only if EVERYTHING failed; `rejetee` if everything
+ * was cancelled. Results already written are never lost. */
 
 const PREFIXE_CLE_EPISODE = "ep:";
 
-/** Clé de sous-tâche d'un épisode (`agent_runs.cle_sous_tache`). */
+/** Subtask key of an episode (`agent_runs.cle_sous_tache`). */
 export const cleSousTacheEpisode = (episodeId: number): string => `${PREFIXE_CLE_EPISODE}${episodeId}`;
 
 export function episodeIdDeCle(cle: string | null | undefined): number | null {
@@ -21,7 +21,7 @@ export function episodeIdDeCle(cle: string | null | undefined): number | null {
 
 const PREFIXE_CLE_SCENE = "scene:";
 
-/** Clé de sous-tâche d'une scène (étape E : le scénario d'un long film s'écrit scène par scène). */
+/** Subtask key of a scene (step E: a feature film's screenplay is written scene by scene). */
 export const cleSousTacheScene = (sceneId: number): string => `${PREFIXE_CLE_SCENE}${sceneId}`;
 
 export function sceneIdDeCle(cle: string | null | undefined): number | null {
@@ -30,7 +30,7 @@ export function sceneIdDeCle(cle: string | null | undefined): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/** Groupe d'affichage d'un épisode dans la revue d'un lot (`proposition_changements.groupe`). */
+/** Display group of an episode in a batch's review (`proposition_changements.groupe`). */
 export const groupeEpisode = (episodeId: number): string => `ep-${episodeId}`;
 
 export function episodeIdDeGroupe(groupe: string): number | null {
@@ -38,13 +38,13 @@ export function episodeIdDeGroupe(groupe: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-/** Espace d'`ordre` réservé à chaque sous-tâche : les changements d'un lot restent dans l'ordre
- * des sous-tâches, et relancer l'une ne bouscule pas les autres. */
+/** `ordre` space reserved for each subtask: a batch's changes stay in subtask order,
+ * and re-running one does not disturb the others. */
 export const PAS_ORDRE_SOUS_TACHE = 100_000;
 
 export type StatutRun = "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
 
-/** Ce qu'il faut savoir d'une tâche d'un lot. */
+/** What needs to be known about a batch task. */
 export type RunLot = {
   id: number;
   uuid: string;
@@ -62,8 +62,8 @@ export type RunLot = {
 
 export const estRunActif = (r: Pick<RunLot, "statut">): boolean => r.statut === "en_attente" || r.statut === "en_cours";
 
-/** La dernière tâche posée pour chaque clé (une relance remplace la précédente), dans l'ordre où
- * les sous-tâches ont été créées pour la première fois. `relancee` : une tâche plus ancienne existe. */
+/** The last task set for each key (a re-run replaces the previous one), in the order in which
+ * the subtasks were first created. `relancee`: an older task exists. */
 export function dernieresSousTaches(runs: RunLot[]): { run: RunLot; relancee: boolean; rang: number }[] {
   const parCle = new Map<string, RunLot[]>();
   for (const r of [...runs].sort((a, b) => a.id - b.id)) parCle.set(r.cle, [...(parCle.get(r.cle) ?? []), r]);
@@ -72,7 +72,7 @@ export function dernieresSousTaches(runs: RunLot[]): { run: RunLot; relancee: bo
     .sort((a, b) => a.rang - b.rang);
 }
 
-/** Rang (0, 1, 2…) d'une clé dans le lot, selon l'ordre de première création. */
+/** Rank (0, 1, 2…) of a key in the batch, by order of first creation. */
 export function rangSousTache(runs: RunLot[], cle: string): number {
   const ordre = dernieresSousTaches(runs);
   const i = ordre.findIndex((x) => x.run.cle === cle);
@@ -92,7 +92,7 @@ export function comptesLot(runs: RunLot[]): ComptesLot {
   };
 }
 
-/** Le statut que doit avoir la proposition d'un lot, d'après ses sous-tâches. */
+/** The status a batch's proposal must have, based on its subtasks. */
 export function statutPropositionDuLot(c: ComptesLot): "en_generation" | "prete" | "echouee" | "rejetee" {
   if (c.actives > 0) return "en_generation";
   if (c.terminees > 0) return "prete";
@@ -100,13 +100,13 @@ export function statutPropositionDuLot(c: ComptesLot): "en_generation" | "prete"
   return "echouee";
 }
 
-/** Message d'une proposition de lot qui n'a rien produit. */
+/** Message for a batch proposal that produced nothing. */
 export function erreurDuLot(runs: RunLot[]): string {
   const echec = dernieresSousTaches(runs).find((x) => x.run.statut === "echoue")?.run;
   return echec?.erreur ? `Toutes les sous-tâches ont échoué. Première erreur : ${echec.erreur}` : "Toutes les sous-tâches ont échoué.";
 }
 
-/** « 3/12 · 1 échec · 2 annulées » — la ligne de progression du lot. */
+/** "3/12 · 1 échec · 2 annulées" — the batch's progress line. */
 export function resumeAvancement(c: ComptesLot): string {
   const closes = c.terminees + c.echecs + c.annulees;
   return [
@@ -119,14 +119,14 @@ export function resumeAvancement(c: ComptesLot): string {
 }
 
 // ---------------------------------------------------------------------------
-// Vue du lot pour le header (une entrée par lot, pas une ligne par sous-tâche)
+// Batch view for the header (one entry per batch, not one line per subtask)
 // ---------------------------------------------------------------------------
 
 export type EtatLotHeader = {
   statut: "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
-  /** Sous-tâches closes / total : la barre « 3/12 ». */
+  /** Closed subtasks / total: the "3/12" bar. */
   progression: { valeur: number; max: number; etape: string | null };
-  /** Jetons de la sous-tâche en cours (le maximum est inconnu). */
+  /** Tokens of the running subtask (the maximum is unknown). */
   jetons: number | null;
   createdAt: Date;
   startedAt: Date | null;
@@ -140,9 +140,9 @@ export type EtatLotHeader = {
 const min = (a: Date | null, b: Date | null) => (a == null ? b : b == null ? a : a < b ? a : b);
 const max = (a: Date | null, b: Date | null) => (a == null ? b : b == null ? a : a > b ? a : b);
 
-/** L'état agrégé d'un lot tel que le header le montre. Le lot est « en cours » dès qu'une
- * sous-tâche tourne ; entre deux sous-tâches (le GPU fait autre chose) il est « en attente »
- * mais sa barre garde son avancement. */
+/** A batch's aggregate state as the header shows it. The batch is "en cours" as soon as a
+ * subtask runs; between two subtasks (the GPU is busy with something else) it is "en attente"
+ * but its bar keeps its progress. */
 export function etatLotPourHeader(runs: RunLot[]): EtatLotHeader | null {
   const dernieres = dernieresSousTaches(runs).map((x) => x.run);
   if (dernieres.length === 0) return null;
@@ -173,7 +173,7 @@ export function etatLotPourHeader(runs: RunLot[]): EtatLotHeader | null {
     createdAt: creation,
     startedAt: debut,
     finishedAt: c.actives === 0 ? fin : null,
-    // Un lot est « vu » quand TOUTES ses tâches le sont (marquer vu les pose toutes).
+    // A batch is "seen" when ALL its tasks are (marking seen sets them all).
     vuAt: dernieres.every((r) => r.vuAt != null) ? (dernieres.map((r) => r.vuAt!).sort((a, b) => b.getTime() - a.getTime())[0] ?? null) : null,
     erreur: statut === "echoue" ? premiereErreur ?? "Toutes les sous-tâches ont échoué" : c.echecs > 0 && c.actives === 0 ? `${c.echecs} sous-tâche${c.echecs > 1 ? "s" : ""} en échec` : null,
     annulationDemandee: dernieres.some((r) => r.annulationDemandeeAt != null && estRunActif(r)),

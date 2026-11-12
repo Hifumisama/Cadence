@@ -6,13 +6,13 @@ import type {
   VueSousTache,
 } from "./types";
 
-/** Aides d'AFFICHAGE du système d'agents (popup à étapes, revue, brief) : libellés,
- * regroupements, diff lisible. Pures, sans base ni Next : testées dans
- * lib/agents/agents-display.test.ts, importables par les composants client. Le serveur fait
- * foi pour les données (compteurs, cochage, avertissements) ; on ne les recalcule pas. */
+/** Display helpers for the agent system (step-by-step popup, review, brief): labels,
+ * groupings, readable diff. Pure, with no database or Next: tested in
+ * lib/agents/agents-display.test.ts, importable by client components. The server is the
+ * source of truth for data (counters, ticking, warnings); we do not recompute them. */
 
 // ---------------------------------------------------------------------------
-// Fil d'étapes
+// Step strip
 // ---------------------------------------------------------------------------
 
 const ETAPES_PAR_PROFONDEUR: Record<Profondeur, readonly Etape[]> = {
@@ -20,8 +20,8 @@ const ETAPES_PAR_PROFONDEUR: Record<Profondeur, readonly Etape[]> = {
   complete: ["conversation", "brief", "proposition", "applique"],
 };
 
-/** Ramène une étape du serveur à celle que la profondeur connaît (une conversation
- * courte n'a ni conversation ni brief ; une complète n'a pas de consigne). */
+/** Maps a server step to one the depth knows (a short conversation has neither
+ * conversation nor brief; a complete one has no instruction step). */
 export function etapeValide(profondeur: Profondeur, etape: Etape): Etape {
   const etapes = ETAPES_PAR_PROFONDEUR[profondeur];
   if (etapes.includes(etape)) return etape;
@@ -31,7 +31,7 @@ export function etapeValide(profondeur: Profondeur, etape: Etape): Etape {
 }
 
 // ---------------------------------------------------------------------------
-// Tâches (tour de conversation, brief, proposition)
+// Tasks (conversation turn, brief, proposal)
 // ---------------------------------------------------------------------------
 
 export const estTacheActive = (t: Pick<EtatTache, "statut"> | null | undefined): boolean =>
@@ -45,8 +45,8 @@ const LIBELLE_BUT: Record<EtatTache["but"], string> = {
   essai: "L'agent traduit ta consigne en prompt…",
 };
 
-/** Ce qu'on dit d'une tâche d'agent : file, travail en cours (avec le compteur de
- * jetons, le maximum est inconnu), échec ou annulation. Null quand il n'y a rien à dire. */
+/** What we say about an agent task: queue, work in progress (with the token counter,
+ * the maximum is unknown), failure or cancellation. Null when there is nothing to say. */
 export function libelleTache(t: EtatTache | null | undefined): string | null {
   if (!t) return null;
   if (t.statut === "en_attente") return `En file · n°${t.positionFile ?? "?"}`;
@@ -61,9 +61,9 @@ export function libelleTache(t: EtatTache | null | undefined): string | null {
 
 const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
-/** Une valeur JSON en texte lisible (affichage du brief et du diff). Les tableaux de
- * chaînes → une ligne par élément ; les objets → « clé : valeur » ; jamais de JSON brut
- * sauf pour un objet imbriqué sur trois niveaux. */
+/** A JSON value as readable text (brief and diff display). Arrays of
+ * strings → one line per item; objects → "key: value"; never raw JSON
+ * except for an object nested three levels deep. */
 export function valeurEnTexte(valeur: unknown, profondeur = 0): string {
   if (valeur === null || valeur === undefined || valeur === "") return "—";
   if (typeof valeur === "string") return valeur;
@@ -92,15 +92,15 @@ const CLES_TEXTE: CleSectionBrief[] = ["titre", "arc", "genreTon", "langueDialog
 const CLES_LIGNES: CleSectionBrief[] = ["inventions", "questionsOuvertes"];
 
 export function typeEdition(cle: string): TypeEdition {
-  if (cle === "style") return "style"; // nom + clause : deux champs, pas du JSON brut
-  if (cle === "notes" || cle === "univers") return "libre"; // texte libre, peut être vide
+  if (cle === "style") return "style"; // name + clause: two fields, not raw JSON
+  if (cle === "notes" || cle === "univers") return "libre"; // free text, may be empty
   if ((CLES_NOMBRE as string[]).includes(cle)) return "nombre";
   if ((CLES_TEXTE as string[]).includes(cle)) return "texte";
   if ((CLES_LIGNES as string[]).includes(cle)) return "lignes";
   return "json";
 }
 
-/** La valeur d'une section dans le champ d'édition. */
+/** A section's value in the edit field. */
 export function versSaisie(cle: string, valeur: unknown): string {
   switch (typeEdition(cle)) {
     case "nombre":
@@ -120,7 +120,7 @@ export function versSaisie(cle: string, valeur: unknown): string {
 
 export type ResultatSaisie = { ok: true; valeur: unknown } | { ok: false; erreur: string };
 
-/** Relit la saisie : le serveur valide ensuite contre le schéma du brief. */
+/** Reads the input back: the server then validates it against the brief schema. */
 export function depuisSaisie(cle: string, saisie: string): ResultatSaisie {
   switch (typeEdition(cle)) {
     case "nombre": {
@@ -160,7 +160,7 @@ export const SYMBOLE_SOUS_TACHE: Record<VueSousTache["statut"], string> = {
   annulee: "–",
 };
 
-/** Ce qu'on dit d'une sous-tâche : file, travail en cours (jetons), résultat, échec, annulation. */
+/** What we say about a subtask: queue, work in progress (tokens), result, failure, cancellation. */
 export function libelleEtatSousTache(s: VueSousTache): string {
   switch (s.statut) {
     case "en_attente":

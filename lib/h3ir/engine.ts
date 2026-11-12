@@ -1,19 +1,19 @@
-/** Pourquoi un plan n'est pas encore compilable par Open H3 IR (le seul moteur de fiche). Règles pures, testées (moteur.test.ts).
+/** Why a clip is not yet compilable by Open H3 IR (the only sheet engine). Pure rules, tested (moteur.test.ts).
  *
- * Open H3 IR compile depuis les références posées sur le plan (`plan_refs`) et leurs fichiers. Un plan qui n'a pas encore ses références, ou dont une
- * référence n'a pas d'image, passe d'abord par la PRÉPARATION (lib/h3ir/preparation.ts : choix des références par le code, petit skill `references-plan`
- * en cas de doute, assets manquants, prompts, images), puis il est compilé. `refusReferences` dit pourquoi un plan n'est pas encore compilable (c'est ce
- * que la préparation résout). */
+ * Open H3 IR compiles from the references set on the clip (`plan_refs`) and their files. A clip that does not yet have its references, or whose
+ * reference has no image, first goes through the PREPARATION (lib/h3ir/preparation.ts: choice of references by the code, small `references-plan` skill
+ * in case of doubt, missing assets, prompts, images), then it is compiled. `refusReferences` says why a clip is not yet compilable (this is what
+ * the preparation resolves). */
 
 import { MAX_REFS_VISUELLES } from "../clips/clip-continuity";
 
-/** Plafond d'images de référence d'un brief Open H3 IR (le même que lib/h3ir/brief.ts). */
+/** Ceiling of reference images of an Open H3 IR brief (the same as lib/h3ir/brief.ts). */
 const MAX_IMAGES_H3IR = MAX_REFS_VISUELLES;
 
-/** L'état des références visuelles (images, vidéos) d'un plan : combien, et lesquelles n'ont pas encore de fichier (nom affichable). */
+/** The state of a clip's visual references (images, videos): how many, and which ones do not yet have a file (displayable name). */
 export type EtatRefsVisuelles = { total: number; sansFichier: string[] };
 
-/** Pourquoi Open H3 IR ne peut pas ENCORE compiler ce plan à cause de ses références (null : il est prêt). La préparation y répond. */
+/** Why Open H3 IR cannot YET compile this clip because of its references (null: it is ready). The preparation answers it. */
 export function refusReferences(e: EtatRefsVisuelles): string | null {
   if (e.total === 0) return "le plan n'a encore aucune image de référence";
   if (e.sansFichier.length > 0) return `${e.sansFichier.length > 1 ? "ces références n'ont" : "cette référence n'a"} pas encore d'image : ${e.sansFichier.join(", ")}`;

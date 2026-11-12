@@ -1,15 +1,15 @@
-/** Logique PURE de la fiche de plan (table de montage, 2026-10-12) : états d'un plan, ordre et navigation des essais, suppression
- * d'un essai et ses cascades, compte des prévisualisations à lancer. Aucun accès base ni disque : importable côté client, testée
- * (lib/clips/clip-sheet.test.ts). Voir docs/FRICTIONS.md, « Fiche de plan : la table de montage » (2026-10-12).
+/** PURE logic of the clip sheet (montage table, 2026-10-12): states of a clip, order and navigation of the attempts, deletion
+ * of an attempt and its cascades, count of the previews to launch. No database nor disk access: importable client-side, tested
+ * (lib/clips/clip-sheet.test.ts). See docs/FRICTIONS.md, « Fiche de plan : la table de montage » (2026-10-12).
  *
- * Vocabulaire : un ESSAI est une ligne de `jobs` (un rendu), numéroté par `numeroRendu` ; le plan n'a pas de numéro (F03), sa
- * position (rang dans l'épisode) ne sert qu'à l'affichage. */
+ * Vocabulary: an ATTEMPT is a `jobs` row (a render), numbered by `numeroRendu`; the clip has no number (F03), its
+ * position (rank in the episode) is only for display. */
 
 import { notesDecisions, PREFIXE_SANS_ECRITURE } from "../agents/iteration-notes";
 import type { DecisionsAffichees, DecisionsIteration } from "../agents/types";
 
-/** L'état affiché d'un plan, DÉRIVÉ (jamais stocké) : sans essai = brouillon ; `plans.pret_upscale_at` posé = prêt à upscaler ; sinon en
- * itération. Un nouvel essai lancé sur un plan prêt le remet en itération (le marqueur est effacé à la création du job). */
+/** The displayed state of a clip, DERIVED (never stored): without attempt = draft; `plans.pret_upscale_at` set = ready to upscale; otherwise
+ * in iteration. A new attempt launched on a ready clip puts it back in iteration (the marker is cleared at job creation). */
 export type EtatPlan = "brouillon" | "iteration" | "pret";
 
 export const LIBELLE_ETAT_PLAN: Record<EtatPlan, string> = {
@@ -23,16 +23,16 @@ export function etatPlan(p: { nbEssais: number; pretUpscaleAt: Date | string | n
   return p.pretUpscaleAt ? "pret" : "iteration";
 }
 
-/** Un essai que la file n'a pas fini : on ne le supprime pas, on ne s'en sert pas comme base. */
+/** An attempt the queue has not finished: we do not delete it, we do not use it as a base. */
 export const essaiEnFile = (statut: string): boolean => statut === "en_attente" || statut === "en_cours";
 
-/** Les essais du plus récent (haut de la colonne) au plus ancien (bas). Le NUMÉRO de rendu fait l'ordre (jamais une date) ; le
- * numéro lui-même ne change pas, seul l'affichage est inversé. */
+/** Attempts from the newest (top of the column) to the oldest (bottom). The render NUMBER sets the order (never a date); the
+ * number itself does not change, only the display is reversed. */
 export function trierEssais<T extends { numeroRendu: number }>(essais: readonly T[]): T[] {
   return [...essais].sort((a, b) => b.numeroRendu - a.numeroRendu);
 }
 
-/** L'essai voisin de `idCourant` dans la colonne (▲ = plus récent, ▼ = plus ancien), parmi ceux qu'on peut regarder. `null` au bout. */
+/** The attempt neighbouring `idCourant` in the column (▲ = newer, ▼ = older), among those that can be looked at. `null` at the end. */
 export function essaiVoisin<T extends { id: number; numeroRendu: number }>(
   lisibles: readonly T[],
   idCourant: number | null,
@@ -44,29 +44,29 @@ export function essaiVoisin<T extends { id: number; numeroRendu: number }>(
   return tries[sens === "plus-recent" ? i - 1 : i + 1] ?? null;
 }
 
-/** « Essai n°3 · depuis n°2 » (pas de « depuis » pour une première génération ou un import). */
+/** « Essai n°3 · depuis n°2 » (no « depuis » for a first generation or an import). */
 export function libelleEssai(numeroRendu: number, depuisNumero: number | null): string {
   return depuisNumero != null ? `Essai n°${numeroRendu} · depuis n°${depuisNumero}` : `Essai n°${numeroRendu}`;
 }
 
-/** Ce que la légende et le journal disent d'un essai qui n'a pas de consigne (rendus d'avant la table de montage, imports). */
+/** What the legend and the log say of an attempt that has no instruction (renders from before the montage table, imports). */
 export function texteConsigne(e: { consigne: string | null; importe: boolean }): string | null {
   if (e.consigne?.trim()) return e.consigne.trim();
   return e.importe ? "Vidéo importée." : null;
 }
 
-// --- le compte des prévisualisations à lancer -------------------------------------------------------------------------------
+// --- the count of previews to launch -------------------------------------------------------------------------------
 
 export type PlanPourPrevisualisation = {
-  /** `plans.statut` : « brouillon » = fiche pas encore développée. */
+  /** `plans.statut`: « brouillon » = sheet not yet developed. */
   statut: string;
   nbTermines: number;
-  /** Jobs en file ou en cours. */
+  /** Jobs queued or running. */
   nbEnFile: number;
 };
 
-/** Même classement que « Toutes les prévisualisations » (app/plans/actions.ts) : `neufs` partent d'office (fiche développée, aucun rendu
- * terminé, rien en file), `avecRendu` en ont déjà un, `dejaEnFile` attendent ou tournent, `brouillons` n'ont pas de fiche. */
+/** Same sorting as « Toutes les prévisualisations » (app/plans/actions.ts): `neufs` go automatically (sheet developed, no finished render,
+ * nothing queued), `avecRendu` already have one, `dejaEnFile` are waiting or running, `brouillons` have no sheet. */
 export function classerPourPrevisualisation<T extends PlanPourPrevisualisation & { id: number }>(plans: readonly T[]) {
   const neufs: number[] = [];
   const avecRendu: number[] = [];
@@ -81,14 +81,14 @@ export function classerPourPrevisualisation<T extends PlanPourPrevisualisation &
   return { neufs, avecRendu, dejaEnFile, brouillons };
 }
 
-/** Le plan qui suit celui-ci dans l'épisode, par l'ORDRE (`plans.ordre`, jamais autre chose) ; `null` pour le dernier. Les plans arrivent
- * déjà triés par `ordre`. */
+/** The clip that follows this one in the episode, by ORDER (`plans.ordre`, never anything else); `null` for the last. The clips arrive
+ * already sorted by `ordre`. */
 export function planSuivant<T extends { uuid: string }>(plansOrdonnes: readonly T[], uuid: string): T | null {
   const i = plansOrdonnes.findIndex((p) => p.uuid === uuid);
   return i >= 0 ? (plansOrdonnes[i + 1] ?? null) : null;
 }
 
-// --- supprimer un essai -------------------------------------------------------------------------------------------------------
+// --- delete an attempt -------------------------------------------------------------------------------------------------------
 
 export type EssaiPourSuppression = {
   id: number;
@@ -101,7 +101,7 @@ export type EssaiPourSuppression = {
 export type PlanPourSuppression = {
   renduRetenuId: number | null;
   pretUpscaleAt: Date | null;
-  /** `plans.statut` actuel (la projection du dernier job). */
+  /** `plans.statut` current (the projection of the last job). */
   statut: string;
 };
 
@@ -109,21 +109,21 @@ export type ConsequencesSuppression =
   | { ok: false; raison: string }
   | {
       ok: true;
-      /** Le fichier vidéo n'est référencé par aucun autre essai du plan : on l'enlève aussi du stockage. */
+      /** The video file is not referenced by any other attempt of the clip: we also remove it from storage. */
       supprimerFichier: boolean;
       renduRetenuId: number | null;
       pretUpscaleAt: Date | null;
-      /** Le nouvel état affiché : brouillon si c'était le dernier essai, en itération si c'était l'essai retenu. */
+      /** The new displayed state: draft if it was the last attempt, in iteration if it was the kept attempt. */
       etat: EtatPlan;
-      /** La projection `plans.statut` à écrire. */
+      /** The `plans.statut` projection to write. */
       statutPlan: string;
     };
 
-/** Ce que supprimer l'essai `supprime` change pour le plan (les `restants` sont les AUTRES essais du plan) :
- * - refusé tant que l'essai est en file ou en cours ;
- * - le fichier part du stockage seulement si aucun autre essai ne le référence ;
- * - si c'était l'essai retenu, le plan n'est plus prêt (retour « en itération ») ; si c'était le dernier essai, il redevient brouillon ;
- * - la projection `plans.statut` suit le dernier essai restant (rien de neuf tant qu'un autre essai est en file : il la pilote). */
+/** What deleting the attempt `supprime` changes for the clip (the `restants` are the OTHER attempts of the clip):
+ * - refused as long as the attempt is queued or running;
+ * - the file leaves storage only if no other attempt references it;
+ * - if it was the kept attempt, the clip is no longer ready (back to « en itération »); if it was the last attempt, it becomes a draft again;
+ * - the `plans.statut` projection follows the last remaining attempt (nothing new as long as another attempt is queued: it drives it). */
 export function consequencesSuppression(plan: PlanPourSuppression, supprime: EssaiPourSuppression, restants: readonly EssaiPourSuppression[]): ConsequencesSuppression {
   if (essaiEnFile(supprime.statut)) return { ok: false, raison: "Cet essai est en file ou en cours : annule-le d'abord, on ne supprime pas un rendu qui tourne." };
 
@@ -143,13 +143,13 @@ export function consequencesSuppression(plan: PlanPourSuppression, supprime: Ess
   return { ok: true, supprimerFichier, renduRetenuId, pretUpscaleAt, etat: etatPlan({ nbEssais: restants.length, pretUpscaleAt }), statutPlan };
 }
 
-// --- « Itérer » : que faire de la proposition de l'agent ------------------------------------------------------------------------
+// --- « Itérer »: what to do with the agent's proposal ------------------------------------------------------------------------
 
-/** Ce que la décision lit d'une proposition `iteration-plan` (sous-ensemble structurel de `VueProposition`). */
+/** What the decision reads from an `iteration-plan` proposal (structural subset of `VueProposition`). */
 export type PropositionIteration = {
   statut: string;
   erreur: string | null;
-  /** Le résumé de la proposition : dit pourquoi rien n'est écrit quand l'agent ne propose aucun changement. */
+  /** The proposal's summary: says why nothing is written when the agent proposes no change. */
   resume?: string | null;
   diagnostic: {
     confiance: string;
@@ -159,42 +159,42 @@ export type PropositionIteration = {
     decisions?: DecisionsIteration | null;
     affichage?: DecisionsAffichees | null;
   } | null;
-  /** `cibleType` : une proposition peut porter aussi des créations d'assets, que « Itérer » n'applique jamais. */
+  /** `cibleType`: a proposal may also carry asset creations, which « Itérer » never applies. */
   groupes: { changements: { id: number; bloque: boolean; refuseRaison: string | null; cibleType?: string; avertissements: { type: string; texte?: string }[] }[] }[];
 };
 
 export type DecisionIteration =
   | { action: "attendre" }
-  /** Seul arrêt de l'agent : sa tâche a échoué (ou la proposition a été rejetée). */
+  /** Sole stop of the agent: its task failed (or the proposal was rejected). */
   | { action: "echec"; erreur: string }
-  /** Aucune écriture appliquable (diagnostic seul, tout bloqué ou refusé) : message clair, aucun essai n'est créé. */
+  /** No applicable write (diagnosis only, everything blocked or refused): clear message, no attempt is created. */
   | { action: "rien"; message: string }
-  /** L'agent d'itération a DÉCIDÉ (intent, durée, références, réglages) : la fiche est recompilée par Open H3 IR avec ces décisions, écrites avec
-   * elle (2026-11-09 : toujours recompiler, plus de retouche de passages). `notes` : ce que l'agent a signalé, gardé sur l'essai. */
+  /** The iteration agent has DECIDED (intent, duration, references, settings): the sheet is recompiled by Open H3 IR with these decisions, written with
+   * it (2026-11-09: always recompile, no more retouching of passages). `notes`: what the agent flagged, kept on the attempt. */
   | { action: "reecrire"; decisions: DecisionsIteration; affichage: DecisionsAffichees | null; notes: string[] }
-  /** On applique ce qui passe, puis on génère, sans confirmation. `notes` = ce que l'agent ou les contrôles ont signalé : gardé sur l'essai
-   * créé (le prompt d'avant reste dans l'essai précédent, « Repartir de là »), jamais un blocage. */
+  /** We apply what passes, then generate, without confirmation. `notes` = what the agent or the checks flagged: kept on the attempt
+   * created (the prompt from before stays in the previous attempt, « Repartir de là »), never a block. */
   | { action: "appliquer"; ids: number[]; notes: string[] };
 
-/** « Itérer » est une transaction indissociable (consigne → l'agent réécrit → application → génération, décision 2026-10-12, voir
- * docs/FRICTIONS.md) : les anciens arrêts de la revue (confiance faible, abandon proposé, durée incohérente, changement bloqué ou refusé,
- * alerte de structure) deviennent des NOTES gardées sur l'essai. Les changements bloqués ou refusés par un contrôle ne sont pas appliqués
- * (on applique ceux qui passent, on signale les autres). Les seuls arrêts : l'agent a échoué, ou rien n'est appliquable. */
+/** « Itérer » is an indivisible transaction (instruction → the agent rewrites → application → generation, decision 2026-10-12, see
+ * docs/FRICTIONS.md): the old stops of the review (weak confidence, proposed abandonment, incoherent duration, change blocked or refused,
+ * structure alert) become NOTES kept on the attempt. The changes blocked or refused by a check are not applied
+ * (we apply those that pass, we flag the others). The only stops: the agent failed, or nothing is applicable. */
 export function decisionIteration(p: PropositionIteration | null): DecisionIteration {
   if (!p || p.statut === "en_generation") return { action: "attendre" };
   if (p.statut === "echouee" || p.statut === "rejetee") return { action: "echec", erreur: p.erreur ?? "L'agent n'a pas pu proposer de correction." };
   if (p.statut !== "prete") return { action: "attendre" };
   const tous = p.groupes.flatMap((g) => g.changements);
-  // « Itérer » écrit la fiche ET crée les assets que sa réécriture déclare manquants (décision 2026-10-14, qui révise « jamais créés d'office ») :
-  // la fiche les cite déjà, leur image viendra après (le rendu qui part sans elle est le prix accepté). Sans fiche appliquable, rien n'est créé.
+  // « Itérer » writes the sheet AND creates the assets that its rewrite declares missing (decision 2026-10-14, which revises « never created by default »):
+  // the sheet already cites them, their image will come after (the render that goes without it is the accepted price). Without an applicable sheet, nothing is created.
   const cestLaFiche = (c: { cibleType?: string }) => c.cibleType === undefined || c.cibleType === "fiche";
   const passe = (c: { bloque: boolean; refuseRaison: string | null }) => !c.bloque && !c.refuseRaison;
   const fiches = tous.filter((c) => passe(c) && cestLaFiche(c));
   const creations = fiches.length > 0 ? tous.filter((c) => passe(c) && c.cibleType === "asset") : [];
   const appliquables = [...fiches, ...creations];
   const creationsLaissees = tous.filter((c) => passe(c) && !cestLaFiche(c) && c.cibleType !== "asset").length;
-  // Une proposition `iteration-plan` ne porte aucun changement (2026-11-09) : ses DÉCISIONS (diagnostic) se recompilent par Open H3 IR, sauf quand
-  // le post-traitement a dit pourquoi rien n'est écrit (durée réelle incohérente mesurée, abandon…).
+  // An `iteration-plan` proposal carries no change (2026-11-09): its DECISIONS (diagnosis) are recompiled by Open H3 IR, except when
+  // the post-processing said why nothing is written (measured incoherent real duration, abandonment…).
   const sansEcriture = (p.resume ?? "").startsWith(PREFIXE_SANS_ECRITURE);
   if (tous.length === 0 && p.diagnostic?.decisions && !sansEcriture) {
     const notes: string[] = [];

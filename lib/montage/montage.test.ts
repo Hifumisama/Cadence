@@ -74,7 +74,7 @@ test("déplacer, insérer, point d'insertion et cible d'un glisser", () => {
   assert.equal(indexInsertion([4, 6], 1), 0);
   assert.equal(indexInsertion([4, 6], 3), 1);
   assert.equal(indexInsertion([4, 6], 8), 2);
-  // Clip 0 (4 s) glissé : centre à 9 s parmi [6, 2] → après les deux.
+  // Clip 0 (4 s) dragged: center at 9 s among [6, 2] → after both.
   assert.deepEqual(cibleGlisser([4, 6, 2], 0, 9), { index: 2, debut: 8 });
   assert.deepEqual(cibleGlisser([4, 6, 2], 2, 1), { index: 0, debut: 0 });
 });
