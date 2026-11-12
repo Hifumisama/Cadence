@@ -44,9 +44,7 @@ export function validerPromptColle(texte: string): { erreurs: string[] } {
   return { erreurs };
 }
 
-/** Découpe un prompt H3 collé en ses 6 sections — même logique que l'import
- * historique depuis FICHE_DE_PLAN_S01_maya.md (scripts/import-markdown.ts),
- * partagée ici pour ne pas diverger. Best-effort : appeler
+/** Découpe un prompt H3 collé en ses 6 sections. Best-effort : appeler
  * validerPromptColle() avant pour un texte garanti complet. */
 export function decouperSections(texte: string): Record<NomSection, string> {
   const resultat = {} as Record<NomSection, string>;

@@ -53,7 +53,6 @@ dockerisé isolé de la prod (`docker-compose.dev.yml`, volume
 | `npm test` | Tests unitaires (`node:test` via tsx) : contrôle verbatim des dialogues, mesure de durée audio, export |
 | `npm run db:migrate` | Applique les migrations en attente, puis sème la table `styles` (bibliothèque de `lib/styles/`) |
 | `npm run db:generate` | Génère une migration à partir de `db/schema.ts` |
-| `npm run db:import` | Import ponctuel des docs markdown (outil jetable, voir `scripts/import-markdown.ts`) |
 
 ### Réinitialiser la base de dev
 
