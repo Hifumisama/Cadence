@@ -17,7 +17,7 @@ import { aUnEtatDeFin, recitDe } from "../intent";
  * plan. Tout ce qui se vérifie par code se vérifie ici ; le jugement (est-ce physiquement possible ?) est
  * au modèle. Pur, testé. */
 
-export const CRITERES_RELECTURE = [
+const CRITERES_RELECTURE = [
   "physique", // incohérence physique : monté/descendu, qui tient quoi, ce qui est visible depuis où
   "temps", // incohérence temporelle : jour/nuit, ambiance de scène non tenue, ordre des événements
   "direction", // direction d'un déplacement (train, cavaliers…) contraire aux repères du lieu
@@ -28,9 +28,9 @@ export const CRITERES_RELECTURE = [
   "resolution", // épisode sans fin
   "dialogue", // réplique creuse, redondante ou incohérente
 ] as const;
-export type CritereRelecture = (typeof CRITERES_RELECTURE)[number];
+type CritereRelecture = (typeof CRITERES_RELECTURE)[number];
 
-export const LIBELLE_CRITERE: Record<CritereRelecture, string> = {
+const LIBELLE_CRITERE: Record<CritereRelecture, string> = {
   physique: "cohérence physique",
   temps: "cohérence temporelle",
   direction: "direction des déplacements",
@@ -45,12 +45,12 @@ export const LIBELLE_CRITERE: Record<CritereRelecture, string> = {
 /** Au plus autant de corrections : « les plus petites corrections » ; un épisode qui en réclame davantage est à réécrire, pas à relire. */
 export const MAX_CORRECTIONS = 8;
 /** Part minimale des mots d'une description conservée par une correction : en dessous, c'est une réécriture, pas la plus petite correction. */
-export const PART_CONSERVEE_MIN = 0.5;
+const PART_CONSERVEE_MIN = 0.5;
 
-export type ConstatRelecture = { critere: CritereRelecture; plans: string[]; probleme: string };
+type ConstatRelecture = { critere: CritereRelecture; plans: string[]; probleme: string };
 
 /** Une correction telle que le modèle la rend : une `OperationBrute` (couper_plan, duree_plan, modifier_plan, ajouter_plan) plus ce qui la justifie. */
-export type CorrectionRelecture = OperationBrute & { critere: CritereRelecture; motif: string };
+type CorrectionRelecture = OperationBrute & { critere: CritereRelecture; motif: string };
 
 export type SortieRelecture = { constats: ConstatRelecture[]; corrections: CorrectionRelecture[]; notes: string };
 

@@ -4,8 +4,8 @@
 
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../plan-checks";
 
-export const DUREE_PLAN_MIN = DUREE_GENERATION_MIN;
-export const DUREE_PLAN_MAX = DUREE_GENERATION_MAX;
+const DUREE_PLAN_MIN = DUREE_GENERATION_MIN;
+const DUREE_PLAN_MAX = DUREE_GENERATION_MAX;
 
 /** En dessous de cette durée visée, l'épisode s'écrit d'un seul tenant (skill `scenario-episode`) : une ou deux scènes, un traitement n'apporte rien.
  * Au-dessus, même un film court se découpe : ses scènes (2 à 5 plans) s'écrivent en parallèle. */
@@ -60,7 +60,7 @@ export function repartirDureesScenes(poids: number[], dureeEpisodeSecondes: numb
 
 /** Écart toléré entre la somme des plans d'une scène et sa durée visée avant que le code les ajuste. En dessous, les durées du modèle
  * restent : elles portent le jeu (un dialogue garde sa marge). */
-export const ECART_SCENE_TOLERE = 0.15;
+const ECART_SCENE_TOLERE = 0.15;
 
 /** Ajuste les durées des plans d'une scène à sa durée visée : proportionnellement, en entiers de 4 à 10 s, puis au plus près de la cible seconde par
  * seconde. Sans effet si l'écart est dans la tolérance. Si la cible est hors d'atteinte (trop peu ou trop de plans), on s'en approche autant que possible :

@@ -34,7 +34,3 @@ export async function resoudreMoteursFiches(projectId: number, planUuids: string
   const etats = voulu === "plan-h3" ? new Map<string, EtatRefsVisuelles>() : await etatsRefsVisuelles(projectId, planUuids);
   return new Map(planUuids.map((u) => [u, choisirMoteurFiche(voulu, etats.get(u) ?? { total: 0, sansFichier: [] })]));
 }
-
-export async function resoudreMoteurFiche(projectId: number, planUuid: string, demande?: DemandeMoteur): Promise<ChoixMoteur> {
-  return (await resoudreMoteursFiches(projectId, [planUuid], demande)).get(planUuid)!;
-}

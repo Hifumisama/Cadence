@@ -250,8 +250,6 @@ async function avancer(c: LigneCreation): Promise<boolean> {
   return true;
 }
 
-type ResultatLancement = { type: "attendre" } | { type: "etat"; maj: Partial<EtapeCreation> };
-
 /** Lance l'étape : appelle la fonction du service qui la porte. Un refus « rien à faire » passe l'étape, un refus
  * « occupé » la fait attendre, tout autre refus la fait échouer (avec la raison). */
 async function lancerEtape(projectId: number, cle: CleEtapeCreation, convUuid: string, etapes: EtapeCreation[]): Promise<{ type: "attendre" } | { type: "etat"; maj: Partial<EtapeCreation> }> {

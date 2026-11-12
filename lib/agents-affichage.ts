@@ -1,5 +1,4 @@
 import type {
-  Avertissement,
   CleSectionBrief,
   CompteursProposition,
   EstimationGeneration,
@@ -10,7 +9,6 @@ import type {
   RangDeplace,
   SectionBrief,
   StatutChamp,
-  TypeAvertissement,
   VueChangement,
   VueGroupe,
   VueLot,
@@ -26,12 +24,12 @@ import type {
 // Fil d'étapes
 // ---------------------------------------------------------------------------
 
-export const ETAPES_PAR_PROFONDEUR: Record<Profondeur, readonly Etape[]> = {
+const ETAPES_PAR_PROFONDEUR: Record<Profondeur, readonly Etape[]> = {
   courte: ["consigne", "proposition", "applique"],
   complete: ["conversation", "brief", "proposition", "applique"],
 };
 
-export const LIBELLE_ETAPE: Record<Etape, string> = {
+const LIBELLE_ETAPE: Record<Etape, string> = {
   consigne: "Consigne",
   conversation: "Conversation",
   brief: "Brief",
@@ -39,7 +37,7 @@ export const LIBELLE_ETAPE: Record<Etape, string> = {
   applique: "Appliqué",
 };
 
-export type EtatEtape = "faite" | "courante" | "a_venir";
+type EtatEtape = "faite" | "courante" | "a_venir";
 export type EtapeFil = { etape: Etape; libelle: string; etat: EtatEtape; cliquable: boolean };
 
 /** Ramène une étape du serveur à celle que la profondeur connaît (une conversation
@@ -115,16 +113,6 @@ export function libelleEstimation(e: EstimationGeneration): string {
   ].filter(Boolean);
   return parts.join(" · ");
 }
-
-// ---------------------------------------------------------------------------
-// Brief : trois états explicites
-// ---------------------------------------------------------------------------
-
-export const ETAT_CHAMP: Record<StatutChamp, { symbole: string; libelle: string; description: string }> = {
-  fourni: { symbole: "●", libelle: "Fourni", description: "Dit ou corrigé par toi" },
-  deduit: { symbole: "○", libelle: "Déduit", description: "Conclu par l'agent à partir de tes réponses" },
-  a_valider: { symbole: "◇", libelle: "À valider", description: "Inventé ou incertain : à relire" },
-};
 
 /** Les sections rangées par groupe, dans l'ordre d'apparition (Univers, Style, …). */
 export function groupesBrief(sections: SectionBrief[]): { groupe: string; sections: SectionBrief[] }[] {
@@ -236,37 +224,10 @@ export function depuisSaisie(cle: string, saisie: string): ResultatSaisie {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Revue
-// ---------------------------------------------------------------------------
 
-export const LIBELLE_OPERATION = { creer: "Créer", modifier: "Modifier", supprimer: "Supprimer" } as const;
 
-export const LIBELLE_CIBLE = {
-  brief: "Brief",
-  projet: "Projet",
-  episode: "Épisode",
-  scene: "Scène",
-  asset: "Asset",
-  plan: "Plan",
-  fiche: "Fiche de plan",
-} as const;
-
-export type GraviteAvertissement = "info" | "attention" | "bloquant";
-
-export const AVERTISSEMENT: Record<TypeAvertissement, { libelle: string; gravite: GraviteAvertissement }> = {
-  ecrase_valide: { libelle: "Écrase un élément validé", gravite: "attention" },
-  invention: { libelle: "Invention de l'agent", gravite: "attention" },
-  hors_portee: { libelle: "Hors de la portée demandée", gravite: "bloquant" },
-  bloque_controle: { libelle: "Bloqué par un contrôle", gravite: "bloquant" },
-  contredit_brief: { libelle: "Contredit le brief", gravite: "attention" },
-  non_pris_en_charge: { libelle: "Pas encore pris en charge", gravite: "bloquant" },
-  alerte_controle: { libelle: "Contrôle", gravite: "attention" },
-  info: { libelle: "À noter", gravite: "info" },
-};
-
-export const GROUPE_ECRASEMENT = "ecrasement";
-export const GROUPE_BRIEF = "brief";
+const GROUPE_ECRASEMENT = "ecrasement";
+const GROUPE_BRIEF = "brief";
 
 /** Les groupes dans l'ordre de lecture : le risque d'écrasement EN TÊTE, puis les
  * mises à jour du brief, puis le reste dans l'ordre du serveur. */
@@ -290,7 +251,6 @@ export function etatCochage(g: Pick<VueGroupe, "changements">): EtatCochage {
   return n === 0 ? "aucun" : n === cochables.length ? "tous" : "partiel";
 }
 
-export const peutCocher = cochable;
 
 /** « 12 sélectionnés · 3 écartés · 1 bloqué · 1 refusé » (les zéros, sauf le premier, sont omis). */
 export function resumeCompteurs(c: CompteursProposition): string {
@@ -305,7 +265,7 @@ export function resumeCompteurs(c: CompteursProposition): string {
     .join(" · ");
 }
 
-export const two = (n: number): string => String(n).padStart(2, "0");
+const two = (n: number): string => String(n).padStart(2, "0");
 
 /** Où un plan est inséré. Le rang affiché (jamais un identifiant, F03) vient de `rangDe`
  * quand l'appelant connaît les plans de l'épisode. */
@@ -443,27 +403,4 @@ export function libelleChoixEpisodes(total: number, selectionnes: number, vides:
   return `${pl(selectionnes, "épisode")} sur ${total} sélectionné${selectionnes > 1 ? "s" : ""} · ${pl(vides, "vide")} (cochés d'office)`;
 }
 
-// ---------------------------------------------------------------------------
-// Lots : les mots qui disent ce que fait un lot (selon le skill de la proposition)
-// ---------------------------------------------------------------------------
 
-export type MotsLot = { titre: string; travail: string; ceci: string; dejaFaits: string };
-
-/** « Épisodes » / « l'agent écrit les épisodes un par un » / « cet épisode »… selon le lot. */
-export function motsDuLot(skill: string): MotsLot {
-  switch (skill) {
-    case "scenarios":
-      return { titre: "Épisodes", travail: "écrit les épisodes un par un", ceci: "cet épisode", dejaFaits: "Les épisodes déjà écrits" };
-    case "traitements":
-      return { titre: "Épisodes", travail: "découpe les épisodes en scènes", ceci: "cet épisode", dejaFaits: "Les épisodes déjà découpés" };
-    case "relectures":
-      return { titre: "Épisodes", travail: "relit les scénarios un par un", ceci: "cet épisode", dejaFaits: "Les épisodes déjà relus" };
-    case "fiches":
-      return { titre: "Plans", travail: "écrit les fiches de plan une par une", ceci: "cette fiche", dejaFaits: "Les fiches déjà écrites" };
-    case "registre":
-    case "prompts-assets":
-      return { titre: "Assets", travail: "écrit les prompts des assets un par un", ceci: "cet asset", dejaFaits: "Les prompts déjà écrits" };
-    default:
-      return { titre: "Sous-tâches", travail: "traite les sous-tâches une par une", ceci: "cette sous-tâche", dejaFaits: "Les résultats déjà obtenus" };
-  }
-}

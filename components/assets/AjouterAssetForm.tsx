@@ -4,7 +4,7 @@ import "./assets.css";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { creerAssetRapide } from "@/app/assets/actions";
-import { PREFIXE_PAR_TYPE, TYPES_CREABLES, construireCode, type TypeAsset } from "@/lib/assetCode";
+import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, type TypeAsset } from "@/lib/assetCode";
 import { LIBELLE_TYPE_ASSET } from "@/lib/registre-types";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 
@@ -64,7 +64,7 @@ export function AjouterAssetForm({ projectId }: { projectId: number }) {
     const pas = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
     if (!pas) return;
     e.preventDefault();
-    const suivant = TYPES_CREABLES[(TYPES_CREABLES.indexOf(type) + pas + TYPES_CREABLES.length) % TYPES_CREABLES.length]!;
+    const suivant = TYPES_ASSET[(TYPES_ASSET.indexOf(type) + pas + TYPES_ASSET.length) % TYPES_ASSET.length]!;
     setType(suivant);
     (e.currentTarget.querySelector(`[data-type="${suivant}"]`) as HTMLElement | null)?.focus();
   };
@@ -89,7 +89,7 @@ export function AjouterAssetForm({ projectId }: { projectId: number }) {
               </div>
 
               <div className="as-nouveau-types" role="radiogroup" aria-label="Type du sujet" onKeyDown={surFleche}>
-                {TYPES_CREABLES.map((t, i) => (
+                {TYPES_ASSET.map((t, i) => (
                   <button
                     key={t}
                     type="button"

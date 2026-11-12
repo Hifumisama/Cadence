@@ -15,15 +15,14 @@
  *   const est = await estimerGeneration(conv.uuid);                  // « ~80 s, local : gratuit »
  */
 
-import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { agentConversations, agentRuns, assetGenerations, assets, briefs, episodes, plans, propositionChangements, propositions } from "../db/schema";
+import { agentConversations, agentRuns, assets, briefs, episodes, plans, propositionChangements, propositions } from "../db/schema";
 import { briefVide, construireSections, sansClesAbandonnees } from "./agents/brief";
 import { notesPourAffichage } from "./agents/fiche-affichage";
 import { ficheCourante } from "./agents/fiche-db";
-import { MAX_VIGNETTES_ITERATION, diagnosticIteration } from "./agents/iteration-plan";
+import { diagnosticIteration } from "./agents/iteration-plan";
 import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./agents/cochage";
-import { apercuContexteDe } from "./agents/contexte";
 import { planifierDeplacement, planifierInsertion, planifierSuppression } from "./agents/rangs";
 import { vueLot } from "./agents/lots";
 import { episodeIdDeGroupe } from "./agents/lots-pur";
@@ -35,7 +34,6 @@ import type {
   CibleDemandee,
   CibleType,
   ContexteUtilise,
-  EstimationGeneration,
   MessageConversation,
   Operation,
   Portee,
@@ -50,10 +48,6 @@ import type {
   VueGroupe,
   VueProposition,
 } from "./agents/types";
-import { configLlm } from "./llm/config";
-import { modeleEffectifPourSkill, modeleParDefautEffectif } from "./llm/modele-choisi";
-import { chargerSkill } from "./llm/skills";
-import { variantePromptAsset } from "./llm/variantes";
 
 // --- conversation -----------------------------------------------------------
 
@@ -319,140 +313,15 @@ export async function lireProposition(propositionUuid: string): Promise<VuePropo
   return p ? versVueProposition(p) : null;
 }
 
-/** La proposition courante d'une conversation (la dernière non rejetée), ou null. */
-export async function lirePropositionCourante(conversationUuid: string): Promise<VueProposition | null> {
-  const c = await conversationParUuid(conversationUuid);
-  if (!c?.propositionId) return null;
-  const [p] = await db.select().from(propositions).where(eq(propositions.id, c.propositionId));
-  return p ? versVueProposition(p) : null;
-}
 
 // --- contexte, estimation, historique ----------------------------------------
 
-/** Ce que l'agent lira automatiquement pour cette portée (avant même de lancer) : brief,
- * épisode, plans voisins, registre… */
-export async function apercuContexte(projectId: number, portee: Portee, cible: CibleDemandee | null): Promise<ContexteUtilise[]> {
-  const r = await resoudreCible(projectId, portee, cible);
-  if ("erreur" in r) return [];
-  return apercuContexteDe(db, projectId, portee, r.cibleId);
-}
 
-const SORTIE_ESTIMEE: Record<string, number> = { "scenario-episode": 1800, "scenario-scene": 1500, "traitement-episode": 2500, "prompt-asset": 500, "conversation-agent": 600, "plan-h3": 2500, "iteration-plan": 900 };
 
-/** Estimation avant lancement : fournisseur, modèle, coût (null en local), durée, tâches
- * devant dans la file. Ordres de grandeur (≈ 30 jetons/s en sortie sur le serveur local,
- * ≈ 800 jetons/s en lecture du prompt) : à affiner avec les traces. */
-export async function estimerGeneration(conversationUuid: string): Promise<EstimationGeneration | null> {
-  const c = await conversationParUuid(conversationUuid);
-  if (!c) return null;
-  let skill: string | null = null;
-  let variante: string | undefined;
-  if (c.profondeur === "complete") skill = c.etape === "conversation" ? "conversation-agent" : null;
-  else if (c.portee === "asset") skill = "prompt-asset";
-  else if (c.portee === "episode" || c.portee === "plan") skill = "scenario-episode";
-  if (skill === "prompt-asset" && c.cibleId != null) {
-    const [a] = await db.select({ type: assets.type, methodeGeneration: assets.methodeGeneration }).from(assets).where(eq(assets.id, c.cibleId));
-    if (a) variante = variantePromptAsset(a);
-  }
-  const conf = configLlm();
-  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
-  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
-  const tachesDevant = images + appels;
-  if (!skill) {
-    return { fournisseur: conf.fournisseur, modele: await modeleParDefautEffectif(), coutEstimeUsd: null, jetonsEntreeEstimes: 0, dureeEstimeeSecondes: 1, tachesDevant: 0, skill: null };
-  }
-  const entree = chargerSkill(skill, undefined, { variante }).jetonsEstimes + 600 + Math.ceil(JSON.stringify(c.messages ?? []).length / 3.5);
-  const sortie = SORTIE_ESTIMEE[skill] ?? 1000;
-  return {
-    fournisseur: conf.fournisseur,
-    modele: await modeleEffectifPourSkill(skill),
-    coutEstimeUsd: null,
-    jetonsEntreeEstimes: entree,
-    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30),
-    tachesDevant,
-    skill,
-  };
-}
 
-/** Estimation avant de lancer « écrire les scénarios » pour ces épisodes : un appel par épisode,
- * l'un après l'autre. Ordres de grandeur (comme `estimerGeneration`), à affiner avec les traces. */
-export async function estimerScenarios(episodeIds: number[]): Promise<EstimationGeneration> {
-  const conf = configLlm();
-  const n = Math.max(1, episodeIds.length);
-  const entree = chargerSkill("scenario-episode").jetonsEstimes + 900;
-  const sortie = SORTIE_ESTIMEE["scenario-episode"] ?? 1800;
-  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
-  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
-  return {
-    fournisseur: conf.fournisseur,
-    modele: await modeleEffectifPourSkill("scenario-episode"),
-    coutEstimeUsd: null,
-    jetonsEntreeEstimes: entree * n,
-    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
-    tachesDevant: images + appels,
-    skill: "scenario-episode",
-  };
-}
 
-/** Estimation avant de lancer « créer le registre » : un appel `prompt-asset` par asset, l'un après l'autre. */
-export async function estimerRegistre(nbAssets: number): Promise<EstimationGeneration> {
-  const conf = configLlm();
-  const n = Math.max(1, nbAssets);
-  const entree = chargerSkill("prompt-asset", undefined, { variante: "generation" }).jetonsEstimes + 700;
-  const sortie = SORTIE_ESTIMEE["prompt-asset"] ?? 500;
-  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
-  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
-  return {
-    fournisseur: conf.fournisseur,
-    modele: await modeleEffectifPourSkill("prompt-asset"),
-    coutEstimeUsd: null,
-    jetonsEntreeEstimes: entree * n,
-    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
-    tachesDevant: images + appels,
-    skill: "prompt-asset",
-  };
-}
 
-/** Estimation des fiches de plan (Open H3 IR, vague 4a) : par plan, la traduction de l'intent (`traduction-intent`, ≈ 1 000 jetons d'entrée propres au
- * plan) avant le compilateur, plus, en cas de doute du choix automatique seulement, un petit appel `references-plan` (non compté : il est rare). Les
- * prompts et les images des assets manquants s'ajoutent à la file. Ordre de grandeur. */
-export async function estimerFiches(nbPlans: number): Promise<EstimationGeneration> {
-  const conf = configLlm();
-  const n = Math.max(1, nbPlans);
-  const entree = chargerSkill("traduction-intent").jetonsEstimes + 1000;
-  const sortie = SORTIE_ESTIMEE["traduction-intent"] ?? 500;
-  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
-  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
-  return {
-    fournisseur: conf.fournisseur,
-    modele: await modeleEffectifPourSkill("traduction-intent"),
-    coutEstimeUsd: null,
-    jetonsEntreeEstimes: entree * n,
-    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30) * n,
-    tachesDevant: images + appels,
-    skill: "traduction-intent",
-  };
-}
 
-/** Estimation d'une correction après visionnage : un appel `iteration-plan` (prompt du plan et contexte ≈ 2 500
- * jetons, plus la planche : ≈ 70 à 280 jetons par vignette de 384 px selon FRICTIONS, on prend le haut, 15 au plus).
- * Ordre de grandeur, à affiner avec `usage.entree` du premier appel réel. */
-export async function estimerIteration(): Promise<EstimationGeneration> {
-  const conf = configLlm();
-  const entree = chargerSkill("iteration-plan").jetonsEstimes + 2500 + 280 * MAX_VIGNETTES_ITERATION;
-  const sortie = SORTIE_ESTIMEE["iteration-plan"] ?? 900;
-  const [{ n: images } = { n: 0 }] = await db.select({ n: count() }).from(assetGenerations).where(inArray(assetGenerations.statut, ["en_attente", "en_cours"]));
-  const [{ n: appels } = { n: 0 }] = await db.select({ n: count() }).from(agentRuns).where(inArray(agentRuns.statut, ["en_attente", "en_cours"]));
-  return {
-    fournisseur: conf.fournisseur,
-    modele: await modeleEffectifPourSkill("iteration-plan"),
-    coutEstimeUsd: null,
-    jetonsEntreeEstimes: entree,
-    dureeEstimeeSecondes: Math.round(entree / 800 + sortie / 30),
-    tachesDevant: images + appels,
-    skill: "iteration-plan",
-  };
-}
 
 /** Historique des propositions d'un projet (pour la page Monitoring ; la popup ne l'affiche pas). */
 export async function listerPropositions(projectId: number, limite = 50): Promise<ResumeProposition[]> {
@@ -482,32 +351,4 @@ export async function listerPropositions(projectId: number, limite = 50): Promis
   }));
 }
 
-/** Une conversation du projet, pour la liste « autres conversations » de la fenêtre de l'agent : la trace de ce qui a déjà
- * été demandé (une conversation par portée et par cible). */
-export type ResumeConversation = {
-  uuid: string;
-  portee: Portee;
-  cibleLibelle: string;
-  etape: string;
-  nbMessages: number;
-  /** Une proposition courante (en génération, à relire ou appliquée). */
-  aProposition: boolean;
-  misAJour: string;
-};
 
-export async function listerConversationsProjet(projectId: number, limite = 30): Promise<ResumeConversation[]> {
-  const lignes = await db.select().from(agentConversations).where(eq(agentConversations.projectId, projectId)).orderBy(desc(agentConversations.updatedAt)).limit(limite);
-  const sortie: ResumeConversation[] = [];
-  for (const c of lignes) {
-    sortie.push({
-      uuid: c.uuid,
-      portee: c.portee as Portee,
-      cibleLibelle: await libelleCible(c.projectId, c.portee as Portee, c.cibleId),
-      etape: c.etape,
-      nbMessages: ((c.messages as unknown[]) ?? []).length,
-      aProposition: c.propositionId != null,
-      misAJour: c.updatedAt.toISOString(),
-    });
-  }
-  return sortie;
-}

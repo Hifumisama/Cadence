@@ -3,7 +3,7 @@
  * (h3ir/grid.py:58-83). La durée EFFECTIVE d'un plan est donc celle de ses images, pas la durée demandée : 5 s → 5,167 s, 6 s → 6,583 s, 7 s → 7,292 s, 8 s → 8,000 s
  * (192 images, déjà sur la grille), 9 s → 9,417 s, 10 s → 10,125 s. Les contrôles de la fiche raisonnent sur celle-ci. Pur. */
 
-export const IMAGES_PAR_SECONDE = 24;
+const IMAGES_PAR_SECONDE = 24;
 
 /** Le nombre d'images que le rendu produira pour `secondes` demandées. */
 export function imagesPourSecondes(secondes: number): number {

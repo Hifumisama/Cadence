@@ -49,7 +49,7 @@ export class ErreurCompilation extends Error {
   }
 }
 
-export type OptionsLancement = { signal?: AbortSignal; delaiMs: number };
+type OptionsLancement = { signal?: AbortSignal; delaiMs: number };
 /** Lance `python script`, lui écrit `entree` sur stdin et rend son stdout. Rejette si le processus échoue, dépasse le délai ou est annulé. */
 export type LanceurPython = (python: string, script: string, entree: string, options: OptionsLancement) => Promise<string>;
 
@@ -64,7 +64,7 @@ export type ReglagesH3ir = {
 };
 
 const DELAI_PAR_DEFAUT_MS = 20 * 60 * 1000;
-export const MAX_TENTATIVES = 3;
+const MAX_TENTATIVES = 3;
 
 /** Le Python où `open-h3-ir` est installé : `H3IR_PYTHON`, sinon l'environnement `.venv-h3ir` de la racine (`requirements-h3ir.txt`) s'il existe. */
 export function pythonH3ir(env: Env = process.env, existe: (chemin: string) => boolean = existsSync): string {
@@ -103,7 +103,7 @@ export function reglagesH3ir(modele: string, env: Env = process.env, existe?: (c
 }
 
 /** Le lanceur réel : `spawn` sans shell. Annulation et délai tuent l'arbre de processus (sous Windows `taskkill /T`, sinon SIGKILL). */
-export const lancerPythonReel: LanceurPython = (python, script, entree, { signal, delaiMs }) =>
+const lancerPythonReel: LanceurPython = (python, script, entree, { signal, delaiMs }) =>
   new Promise((ok, ko) => {
     if (signal?.aborted) return ko(new ErreurCompilation("Annulée."));
     const enfant = spawn(python, [script], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" } });

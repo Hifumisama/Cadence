@@ -5,12 +5,12 @@ import { jobs, planPromptSections, planPromptVersions, planRefs, plans } from "@
 import { eq, and, desc, inArray, isNotNull, max, ne } from "drizzle-orm";
 import { creerJobRelance, DureePlanInvalide } from "@/lib/job-relance";
 import { appliquerIterationEtGenererCore } from "@/lib/iteration-application";
-import { ficheChangeeDepuis, getPlansPerimes } from "@/lib/plans-perimes";
-import { classerPourPrevisualisation, consequencesSuppression, decisionIteration, essaiEnFile } from "@/lib/fiche-plan";
+import { getPlansPerimes } from "@/lib/plans-perimes";
+import { classerPourPrevisualisation, consequencesSuppression } from "@/lib/fiche-plan";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { rm } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { estLiaison } from "@/lib/plan-liaison";
 import { descriptionSeraitPerdue, intentionChangee, memeDescription } from "@/lib/intent";
@@ -23,7 +23,7 @@ import { promptDiffere, raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib
 import { MEDIA_ROOT } from "@/lib/media";
 import { assemblerPrompt } from "@/lib/prompt";
 
-export async function updatePromptSection(
+async function updatePromptSection(
   planId: number,
   section: string,
   contenu: string,
@@ -595,92 +595,4 @@ export async function supprimerEssai(planId: number, jobId: number): Promise<{ o
   return { ok: true, fichierSupprime };
 }
 
-export type PlanUpscalable = {
-  uuid: string;
-  /** Rang dans l'épisode (« 04 ») : ce qu'on affiche, jamais un identifiant. */
-  position: number;
-  titre: string;
-  /** `pret` : part du latent de sa prévisualisation retenue ; `modifie` : la fiche a changé depuis (ou le latent n'a pas été gardé), l'inclure le fait
-   * régénérer avant l'upscale ; `final` : son essai retenu est déjà un rendu final ; `en_file` : un rendu attend ou tourne ; `non_pret` : aucune prévisualisation retenue. */
-  etat: "pret" | "modifie" | "final" | "en_file" | "non_pret";
-  raison: string | null;
-};
 
-/** Les plans de l'épisode tels que la fenêtre « Lancer l'upscale » les liste. Les brouillons (fiche pas développée) n'y figurent pas. */
-export async function listerUpscales(episodeId: number): Promise<PlanUpscalable[]> {
-  const toutes = await db.select().from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id);
-  const lignes: PlanUpscalable[] = [];
-  for (const [i, p] of toutes.entries()) {
-    if (p.statut === "brouillon") continue;
-    const base = { uuid: p.uuid, position: i + 1, titre: p.titre };
-    const duPlan = await db.select().from(jobs).where(eq(jobs.planId, p.id));
-    if (duPlan.some((j) => essaiEnFile(j.statut))) {
-      lignes.push({ ...base, etat: "en_file", raison: "Un rendu attend ou tourne déjà" });
-      continue;
-    }
-    const retenu = p.pretUpscaleAt && p.renduRetenuId ? duPlan.find((j) => j.id === p.renduRetenuId) : undefined;
-    if (!retenu) {
-      lignes.push({ ...base, etat: "non_pret", raison: "Aucune prévisualisation retenue" });
-      continue;
-    }
-    if (retenu.activerUpscale) {
-      lignes.push({ ...base, etat: "final", raison: "Son essai retenu est déjà un rendu final" });
-      continue;
-    }
-    if (!retenu.latentDossier) {
-      lignes.push({ ...base, etat: "modifie", raison: "La prévisualisation n'a pas gardé son latent" });
-      continue;
-    }
-    lignes.push(
-      (await ficheChangeeDepuis(p.id, retenu))
-        ? { ...base, etat: "modifie", raison: "La fiche a changé depuis la prévisualisation" }
-        : { ...base, etat: "pret", raison: null },
-    );
-  }
-  return lignes;
-}
-
-/** « Lancer l'upscale » (le lot choisi dans la fenêtre) : pour chaque plan prêt, lance le rendu final à partir de son essai RETENU (le latent de cette
- * prévisualisation : `sourceJobId`). Si la fiche a changé depuis, le worker régénère le plan avec sa fiche d'aujourd'hui avant l'upscale (choisir un
- * plan dans le lot, c'est l'accepter). Le plan reste prêt. Sont sautés : un plan déjà en file, dont l'essai retenu est déjà un rendu final ou une
- * vidéo importée (sans seed), ou aux dialogues désalignés. */
-export async function lancerUpscaleEpisode(episodeId: number, planUuids?: string[]): Promise<{ n: number; dejaFinal: number; dejaEnFile: number; bloques: number; nonPrets: number }> {
-  // `planUuids` : le lot choisi dans la fenêtre « Lancer l'upscale » ; absent, tous les plans de l'épisode.
-  const tous = await db.select().from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id);
-  const lignes = planUuids ? tous.filter((p) => planUuids.includes(p.uuid)) : tous;
-  const res = { n: 0, dejaFinal: 0, dejaEnFile: 0, bloques: 0, nonPrets: 0 };
-  for (const p of lignes) {
-    if (!p.pretUpscaleAt || !p.renduRetenuId) {
-      res.nonPrets++;
-      continue;
-    }
-    const duPlan = await db.select().from(jobs).where(eq(jobs.planId, p.id));
-    const retenu = duPlan.find((j) => j.id === p.renduRetenuId);
-    if (!retenu) {
-      res.nonPrets++;
-      continue;
-    }
-    if (duPlan.some((j) => essaiEnFile(j.statut))) {
-      res.dejaEnFile++;
-      continue;
-    }
-    // Un rendu final (activerUpscale) ou une vidéo importée (déjà tournée, sans seed) n'a rien à upscaler.
-    if (retenu.activerUpscale) {
-      res.dejaFinal++;
-      continue;
-    }
-    // Pas de restauration du prompt du rendu retenu (2026-10-30) : un plan modifié depuis sa prévisualisation que l'on met dans le lot est régénéré avec sa
-    // fiche d'aujourd'hui (le worker le décide à l'exécution), il n'est plus remis dans l'état de la prévisualisation.
-    if (raisonNonRetenable({ id: retenu.id, numeroRendu: retenu.numeroRendu, statut: retenu.statut, cheminSortie: retenu.cheminSortie, seedUtilisee: retenu.seedUtilisee, dureeUtilisee: retenu.dureeUtilisee, promptUtilise: retenu.promptUtilise, activerUpscale: retenu.activerUpscale, importe: retenu.workflowFichier === WORKFLOW_IMPORT_MANUEL })) {
-      res.bloques++;
-      continue;
-    }
-    if (!(await relancerSiPossible(p.id, true, false, { depuisNumero: retenu.numeroRendu, garderPret: true, sourceJobId: retenu.id }))) {
-      res.bloques++;
-      continue;
-    }
-    res.n++;
-  }
-  revalidatePath("/", "layout");
-  return res;
-}

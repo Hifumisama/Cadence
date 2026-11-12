@@ -5,7 +5,6 @@ import type { Position } from "../types";
  * serveur et le worker : aucun accès base ni Next ici. */
 
 export const TYPES_OPERATION = ["couper_plan", "duree_plan", "deplacer_plan", "modifier_plan", "refondre_fiche", "ajouter_plan"] as const;
-export type TypeOperation = (typeof TYPES_OPERATION)[number];
 
 /** L'opération telle que le modèle la rend : une structure PLATE (sortie contrainte), les plans cités par une
  * POIGNÉE (« P07 »), les champs inutilisés à null. Jamais stockée telle quelle. */
@@ -42,13 +41,3 @@ export type Operation =
 
 export type OperationRefusee = { brute: OperationBrute; raison: string };
 
-/** Un constat : `ok` (rassure), `alerte` (à savoir, n'empêche rien), `bloquant` (empêche d'appliquer). `source` dit qui a jugé :
- * le code (mécanique, fiable) ou le modèle (narratif). */
-export type Constat = { niveau: "ok" | "alerte" | "bloquant"; texte: string; source: "code" | "modele" };
-
-export const STATUTS_DECISION = ["discussion", "retenue", "attention", "conflit", "appliquee"] as const;
-export type StatutDecision = (typeof STATUTS_DECISION)[number];
-
-/** Une piste : une idée proposée à partir d'un ressenti, avec ses opérations déjà préparées et validées. Choisie, elle devient
- * une décision sans nouvel appel d'écriture. */
-export type Piste = { titre: string; resume: string; operations: Operation[] };

@@ -16,12 +16,12 @@ import { partieImageJpeg, type PartieContenu } from "./llm/types";
 
 /** Plafond de vignettes : le plafond de durée d'un plan est 15 s (`duree_plafond_secondes`),
  * soit 15 vignettes à une par seconde. Au-delà, les instants sont répartis sur la durée. */
-export const MAX_VIGNETTES = 15;
-export const LARGEUR_VIGNETTE = 384;
+const MAX_VIGNETTES = 15;
+const LARGEUR_VIGNETTE = 384;
 /** Qualité JPEG ffmpeg (`-q:v`, 2 = meilleure, 31 = pire) : 5 ≈ 15–30 Ko par vignette en 384 px. */
-export const QUALITE_JPEG = 5;
+const QUALITE_JPEG = 5;
 
-export type Vignette = { instantSecondes: number; imageBase64: string };
+type Vignette = { instantSecondes: number; imageBase64: string };
 export type Planche = { dureeSecondes: number; largeur: number; vignettes: Vignette[] };
 
 /** Lance un binaire et renvoie sa sortie standard (binaire). */

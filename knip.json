@@ -1,0 +1,5 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["scripts/*.ts", "db/seed-styles.ts", "**/*.test.ts"],
+  "project": ["app/**", "components/**", "lib/**", "worker/**", "db/**", "scripts/**"]
+}

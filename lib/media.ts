@@ -1,6 +1,5 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { mesurerDureeAudio } from "./audio-duree";
 import { CLES_DEMOS, cheminDemo, type DemoDispo } from "./h3ir/demos";
 
 export const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
@@ -13,7 +12,6 @@ export const TAILLE_MAX_UPLOAD_ASSET = 10 * 1024 * 1024;
 // Import manuel d'un plan déjà tourné (traçabilité, pas de génération —
 // voir app/plans/actions.ts, importerVideoExistante) : une vidéo complète,
 // pas un extrait, la limite est donc bien plus large que pour un asset.
-export const TAILLE_MAX_UPLOAD_VIDEO = 300 * 1024 * 1024;
 
 const EXT_IMAGE = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 // .flac : format recommandé pour les références de clonage (usage du projet —
@@ -72,11 +70,6 @@ export function fichierMediaExiste(fichier: string): boolean {
   }
 }
 
-/** Convention de rangement des rendus vidéo, générés ou importés
- * manuellement — voir worker/index.ts et app/plans/actions.ts. */
-export function cheminPlanMedia(planId: number, fichier: string): string {
-  return `plans/${planId}/${fichier}`;
-}
 
 export type PosterCible = "projects" | "episodes";
 
@@ -88,7 +81,7 @@ export function cheminPosterMedia(cible: PosterCible, id: number, fichier: strin
   return `${cible}/${id}/${fichier}`;
 }
 
-export function posterMediaExiste(cible: PosterCible, id: number, fichier: string): boolean {
+function posterMediaExiste(cible: PosterCible, id: number, fichier: string): boolean {
   try {
     return existsSync(resolve(MEDIA_ROOT, cheminPosterMedia(cible, id, fichier)));
   } catch {

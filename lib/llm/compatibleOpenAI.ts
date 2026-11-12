@@ -101,7 +101,7 @@ function essayerJson(texte: string): unknown {
 }
 
 /** Borne du raisonnement gardé pour la trace (caractères) : un modèle bavard peut en produire des centaines de milliers. */
-export const REFLEXION_MAX_CARACTERES = 100_000;
+const REFLEXION_MAX_CARACTERES = 100_000;
 
 type Lu = { texte: string; reflexion?: string; usage: Usage; modele?: string; arret?: string; brut: unknown; timings?: TimingsServeur };
 

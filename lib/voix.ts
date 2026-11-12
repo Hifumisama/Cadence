@@ -23,7 +23,7 @@ export const TEXTE_REFERENCE_DEFAUT =
   "Welcome adventurer, and be my guest, into our humble tavern. Come have a seat, and a drink, before some chit chat !";
 
 /** Durée de la vidéo de test quand rien ne la fixe : une réplique face caméra tient en huit secondes. */
-export const TEST_VIDEO_DUREE_DEFAUT = 8;
+const TEST_VIDEO_DUREE_DEFAUT = 8;
 
 /** « 00:08.000 » : une durée en secondes dans la forme des plages du prompt H3. */
 export function formaterPlageH3(secondes: number): string {

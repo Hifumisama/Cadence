@@ -7,7 +7,7 @@ import { BudgetContexte, contexteTotalDepuisEnv, estimerContexte } from "../lib/
 import { chargerSkill } from "../lib/llm/skills";
 import { join, resolve } from "node:path";
 import { mkdir, readFile } from "node:fs/promises";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { assets, jobs, planPromptSections, planRefs, plans } from "../db/schema";
 import { finaliserLotsOrphelins } from "../lib/agents/lots";

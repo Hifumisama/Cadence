@@ -18,7 +18,7 @@ const INTERVALLE_APERCU_MS = 1_000;
 const EXTENSION = { jpeg: "jpg", png: "png", webp: "webp", inconnu: "bin" } as const;
 
 /** Libellé lisible d'un nœud : son titre dans le graphe, à défaut son type. */
-export function libelleNoeud(graphe: Record<string, unknown>, noeud: string): string {
+function libelleNoeud(graphe: Record<string, unknown>, noeud: string): string {
   const n = graphe[noeud] as { class_type?: string; _meta?: { title?: string } } | undefined;
   return (n?._meta?.title ?? n?.class_type ?? noeud).slice(0, 80);
 }
@@ -88,7 +88,7 @@ const ETAPES_VIDEO: Record<string, string> = {
   "311": "Super-résolution",
   "34": "Encodage de la vidéo finale",
 };
-export const libelleEtapeVideo = (noeud: string): string | null => ETAPES_VIDEO[noeud] ?? null;
+const libelleEtapeVideo = (noeud: string): string | null => ETAPES_VIDEO[noeud] ?? null;
 
 /** Relais de la progression d'un RENDU VIDÉO vers la base (la page et le header lisent ces colonnes). Pas d'aperçu image. Au plus une écriture par
  * seconde. Un rendu enchaîne plusieurs prompts (génération, upscale, finition) : `definirEtape` met « 2/3 · » devant le libellé de chacun. */

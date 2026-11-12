@@ -29,7 +29,7 @@ export const APERCU_STYLE: Record<ChoixMiseEnScene, ApercuStyle> = {
 };
 
 /** « Aucun style » : l'IA décide. */
-export const APERCU_AUCUN: ApercuStyle = { picto: "aucun", mots: ["L'IA décide", "Selon ta description", "Selon tes images"], rappelle: "" };
+const APERCU_AUCUN: ApercuStyle = { picto: "aucun", mots: ["L'IA décide", "Selon ta description", "Selon tes images"], rappelle: "" };
 
 /** La ligne « Rappelle … » d'un choix : les films du réalisateur, ou le genre de film d'un profil perso. Vide pour « aucun ». */
 export function rappelleDe(id: string): string {

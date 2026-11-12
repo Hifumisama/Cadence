@@ -5,13 +5,13 @@ import { FournisseurCompatibleOpenAI } from "./compatibleOpenAI";
  * l'appel, jamais à l'import : le build Next.js collecte les modules avant que
  * l'environnement runtime existe. */
 
-export const MODELE_LOCAL_PAR_DEFAUT = "gemma4-26b-A4B";
-export const URL_LOCALE_PAR_DEFAUT = "http://localhost:8080";
-export const DELAI_PAR_DEFAUT_MS = 10 * 60 * 1000;
+const MODELE_LOCAL_PAR_DEFAUT = "gemma4-26b-A4B";
+const URL_LOCALE_PAR_DEFAUT = "http://localhost:8080";
+const DELAI_PAR_DEFAUT_MS = 10 * 60 * 1000;
 /** Silence maximal d'un flux (le chargement d'un modèle ou un long préremplissage ne renvoient rien). */
-export const INACTIVITE_PAR_DEFAUT_MS = 5 * 60 * 1000;
+const INACTIVITE_PAR_DEFAUT_MS = 5 * 60 * 1000;
 /** Au bout de ce temps d'injoignabilité, les appels en attente échouent (au lieu d'attendre indéfiniment). */
-export const INJOIGNABLE_MAX_PAR_DEFAUT_MS = 5 * 60 * 1000;
+const INJOIGNABLE_MAX_PAR_DEFAUT_MS = 5 * 60 * 1000;
 
 export type Env = Record<string, string | undefined>;
 
@@ -100,7 +100,7 @@ export function corpsPourSkill(skill: string, env: Env = process.env): Record<st
 
 /** Plafond de sortie propre à un skill quand aucune variable ne le fixe. Un tour de conversation tient en ~600 jetons : au-delà,
  * c'est une boucle de répétition (observé 2026-10-10, trace 755 : 2 × 16 384 jetons, 10 minutes). Un plafond bas la coupe vite. */
-export const MAX_TOKENS_PAR_DEFAUT_SKILL: Readonly<Record<string, number>> = {
+const MAX_TOKENS_PAR_DEFAUT_SKILL: Readonly<Record<string, number>> = {
   "conversation-agent": 3000,
   // ≤ 300 jetons attendus (6 références, 2 manquants) : au-delà de 800, le petit skill boucle.
   "references-plan": 800,

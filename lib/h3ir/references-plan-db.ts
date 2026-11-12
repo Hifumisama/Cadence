@@ -9,7 +9,7 @@ import { choisirReferences, type CandidatReference, type EntreeReferencesPlan, t
  * et les `plan_refs` actuelles, puis appelle la règle pure (lib/h3ir/references-plan.ts). Lecture seule : rien n'est écrit (la préparation d'un plan,
  * lib/demandes-db.ts, écrit le choix ou pose le skill en cas de doute). */
 
-export type DonneesReferencesPlan = {
+type DonneesReferencesPlan = {
   plan: { id: number; uuid: string; projectId: number; titre: string; dureeSecondes: number; liaison: string };
   scene: { titre: string; ambiance: string | null } | null;
   entree: EntreeReferencesPlan;
@@ -29,7 +29,7 @@ export type ChoixReferencesPlan = ResultatReferencesPlan &
     candidats: CandidatReference[];
   };
 
-export async function chargerDonneesReferencesPlan(db: Db, planId: number): Promise<DonneesReferencesPlan | null> {
+async function chargerDonneesReferencesPlan(db: Db, planId: number): Promise<DonneesReferencesPlan | null> {
   const [p] = await db
     .select({
       id: plans.id,

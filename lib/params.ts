@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { parametres } from "../db/schema";
-import { eq } from "drizzle-orm";
+
 
 // Valeurs par défaut si la table n'a pas encore été seedée — voir
 // docs/FRICTIONS.md F03/F04 pour l'origine de chaque plafond. clause_style

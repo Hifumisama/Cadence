@@ -16,31 +16,31 @@ export type Portee = (typeof PORTEES)[number];
  * `complete` : Conversation → Brief → Proposition → Appliqué (création de projet,
  * gros éléments interconnectés). L'étape Brief n'existe qu'en profondeur complète.
  */
-export const PROFONDEURS = ["courte", "complete"] as const;
+const PROFONDEURS = ["courte", "complete"] as const;
 export type Profondeur = (typeof PROFONDEURS)[number];
 
 /** Étape courante d'une conversation (le fil d'étapes de la popup). */
-export const ETAPES = ["consigne", "conversation", "brief", "proposition", "applique"] as const;
+const ETAPES = ["consigne", "conversation", "brief", "proposition", "applique"] as const;
 export type Etape = (typeof ETAPES)[number];
 
-export const STATUTS_PROPOSITION = ["en_generation", "prete", "appliquee", "partielle", "rejetee", "echouee"] as const;
+const STATUTS_PROPOSITION = ["en_generation", "prete", "appliquee", "partielle", "rejetee", "echouee"] as const;
 export type StatutProposition = (typeof STATUTS_PROPOSITION)[number];
 
-export const OPERATIONS = ["creer", "modifier", "supprimer"] as const;
+const OPERATIONS = ["creer", "modifier", "supprimer"] as const;
 export type Operation = (typeof OPERATIONS)[number];
 
 /** Ce qu'un changement touche. Les applicateurs existent pour tous ces types. `fiche` (2026-10-02, étape 3 « fiches de plan ») :
  * le prompt H3 d'un plan (ses six sections), ses références picture/audio et sa durée de génération ;
  * écriture complète (plan-h3) ou partielle (seulement certaines sections, iteration-plan). */
-export const CIBLES = ["brief", "projet", "episode", "scene", "asset", "plan", "fiche"] as const;
+const CIBLES = ["brief", "projet", "episode", "scene", "asset", "plan", "fiche"] as const;
 export type CibleType = (typeof CIBLES)[number];
 
 /** Qui a posé un champ du brief : `fourni` (l'utilisateur l'a dit ou corrigé),
  * `deduit` (l'agent l'a conclu), `a_valider` (inventé ou incertain). */
-export const STATUTS_CHAMP = ["fourni", "deduit", "a_valider"] as const;
+const STATUTS_CHAMP = ["fourni", "deduit", "a_valider"] as const;
 export type StatutChamp = (typeof STATUTS_CHAMP)[number];
 
-export const TYPES_AVERTISSEMENT = [
+const TYPES_AVERTISSEMENT = [
   "ecrase_valide", // écrase un élément déjà validé / protégé
   "invention", // l'agent a ajouté ce que le brief ne disait pas
   "hors_portee", // hors de la portée demandée : refusé à l'application
@@ -50,7 +50,7 @@ export const TYPES_AVERTISSEMENT = [
   "alerte_controle", // un contrôle de la sortie signale un défaut qui ne bloque pas (ex. shot sous 1,5 s)
   "info",
 ] as const;
-export type TypeAvertissement = (typeof TYPES_AVERTISSEMENT)[number];
+type TypeAvertissement = (typeof TYPES_AVERTISSEMENT)[number];
 export type Avertissement = { type: TypeAvertissement; texte: string };
 
 /** Où insérer un plan. Pas de numéro de plan (F03) : un uuid de plan existant, ou le
@@ -121,9 +121,9 @@ export type PersonnageBrief = {
 
 /** Statut d'un détail du brief (tenue, aspect d'un lieu, élément), posé par le CODE depuis les citations (lib/agents/fiche.ts) : `incertain` =
  * dit, mais en termes vagues (« inspirée de… » sans couleur ni matière). */
-export type StatutDetailBrief = "fourni" | "deduit" | "delegue" | "incertain";
+type StatutDetailBrief = "fourni" | "deduit" | "delegue" | "incertain";
 
-export type TenueBrief = {
+type TenueBrief = {
   coupe?: string;
   couleurs?: string;
   matieres?: string;
@@ -134,7 +134,7 @@ export type TenueBrief = {
   statut?: StatutDetailBrief;
 };
 
-export type LieuBrief = {
+type LieuBrief = {
   nom: string;
   description: string;
   /** L'aspect du lieu (facultatif) : lumière et heure, matières, palette, ambiance. */
@@ -143,7 +143,7 @@ export type LieuBrief = {
 };
 
 /** Un effet visuel (`vfx`) ou un objet qui compte à l'écran (`prop`), comme les types d'asset du même nom. */
-export type ElementBrief = {
+type ElementBrief = {
   nom: string;
   nature: "vfx" | "prop";
   description: string;

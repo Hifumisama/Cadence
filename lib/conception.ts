@@ -96,7 +96,7 @@ export const PLAGES_RYTHME: Record<RythmeBrief, { min: number; max: number }> = 
 
 /** Le style choisi : une entrée de la bibliothèque (par identifiant), ou un style libre avec ses deux prompts et, si
  * l'utilisateur l'a déposée, une image de présentation (nom de fichier, 2:3). */
-export type StyleConception =
+type StyleConception =
   | { source: "bibliotheque"; styleId: string }
   | { source: "libre"; nom: string; promptImage: string; clause: string; image?: string };
 

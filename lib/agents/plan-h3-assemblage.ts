@@ -18,7 +18,7 @@ export type ContexteAssemblage = {
   clauseStyle?: string;
 };
 
-export type RefAssemblee = {
+type RefAssemblee = {
   nature: "image";
   asset: string;
   /** N de `<Picture N>`, null si la référence n'a pas pu être posée (dégradée en prose). */
@@ -114,7 +114,7 @@ const motsDe = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, " ")
 /** L'ouverture finale : la clause de style du projet vient du CODE (en tête), le modèle n'écrit que la lumière et les côtés.
  * Le style des exemples du skill est retiré ; une clause que le modèle a déjà écrite (six mots de suite) n'est pas doublée.
  * Sans clause connue, l'ouverture du modèle reste telle quelle. */
-export function poserClauseStyle(ouverture: string, clause?: string): { texte: string; changee: boolean } {
+function poserClauseStyle(ouverture: string, clause?: string): { texte: string; changee: boolean } {
   const brute = espaces(ouverture);
   const c = espaces(clause ?? "");
   if (!c) return { texte: brute, changee: false };
@@ -135,7 +135,7 @@ const CONSIGNES_DE_FEUILLE = [
   /(?:^|(?<=[.,]\s))\s*detailed (?:close-up|single headshot|macro)[^.]*\.?/gi,
 ];
 
-export function nettoyerDefinition(definition: string): string {
+function nettoyerDefinition(definition: string): string {
   let t = definition;
   for (const re of CONSIGNES_DE_FEUILLE) t = t.replace(re, "");
   return espaces(t).replace(/\s+([,.])/g, "$1").replace(/^[\s,;]+/, "").replace(/[,;]\s*$/, "");
@@ -150,7 +150,7 @@ export type RetraitPourRaccord = {
 
 /** Une image qui ne porte pas d'identité : un effet (`VFX_…`) ou une référence `weak_reference` (seul le look général est emprunté). Décrite en
  * prose, elle se rend à peu près pareil ; c'est ce que le skill demande de sacrifier en premier (règle « Six images au plus »). */
-export const imageSacrifiable = (r: { retention?: string }, type?: string): boolean => type === "vfx" || r.retention === "weak_reference";
+const imageSacrifiable = (r: { retention?: string }, type?: string): boolean => type === "vfx" || r.retention === "weak_reference";
 
 /** Réserve l'emplacement du RACCORD (2026-10-19). Un plan en liaison « suite » reçoit la dernière image du précédent comme `<Picture N>` : il ne peut donc
  * déclarer que `MAX_IMAGES_AVEC_RACCORD` (5) images, sinon `emplacementLibre` n'en trouve pas et le raccord est sauté. Ce qui se retire, dans cet ordre

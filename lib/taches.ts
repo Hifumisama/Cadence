@@ -1,4 +1,4 @@
-import { PRIORITE_GENRE, domaineDe, type GenreTache } from "./gpu";
+import { PRIORITE_GENRE, type GenreTache } from "./gpu";
 
 /** Tâches du GPU vues par l'utilisateur (indicateur du header) — règles pures,
  * sans base ni disque, partagées par la requête serveur (lib/queries-taches.ts),
@@ -91,15 +91,15 @@ export const RETENTION_TERMINEES_JOURS = 7;
 export const PLAFOND_TERMINEES = 20;
 /** Échecs et annulations : visibles une journée seulement (décision de
  * l'utilisateur), vus ou non. Le worker les purge de la base (worker/purge.ts). */
-export const RETENTION_ECHECS_HEURES = 24;
+const RETENTION_ECHECS_HEURES = 24;
 
 /** Plafond d'images en attente dans la file (une demande de plus est refusée). */
 export const PLAFOND_FILE_IMAGES = 10;
 
 export const estActive = (t: Pick<Tache, "statut">) => t.statut === "en_attente" || t.statut === "en_cours";
-export const estEchec = (t: Pick<Tache, "statut">) => t.statut === "echoue";
-export const estAnnulee = (t: Pick<Tache, "statut">) => t.statut === "annulee";
-export const estTerminee = (t: Pick<Tache, "statut">) => t.statut === "termine";
+const estEchec = (t: Pick<Tache, "statut">) => t.statut === "echoue";
+const estAnnulee = (t: Pick<Tache, "statut">) => t.statut === "annulee";
+const estTerminee = (t: Pick<Tache, "statut">) => t.statut === "termine";
 
 const t = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
 

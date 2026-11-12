@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { plans } from "@/db/schema";
 import { arreterCreation, lancerCreation, lancerFichesApresCreation, reprendreCreation } from "@/lib/agents/creation-db";
-import { lirePlansIntents, type PlanIntent } from "@/lib/agents/creation-vue";
+
 import type { Resultat } from "@/lib/agents/types";
 
 /** L'installateur (lib/agents/creation.ts) : une seule demande enchaîne toute la création du projet. Ces actions ne
@@ -35,11 +35,6 @@ export async function ecrireFichesProjet(projectId: number, options: { tous?: bo
   const r = await lancerFichesApresCreation(projectId, { tous: options.tous === true });
   revalidatePath("/", "layout");
   return r.ok ? { ok: true, lancees: r.lancees, erreurs: r.erreurs } : r;
-}
-
-/** Les plans et leurs intents, pour l'écran de fin (relus après une modification). */
-export async function lireIntentsProjet(projectId: number): Promise<PlanIntent[]> {
-  return lirePlansIntents(projectId);
 }
 
 const MAX_INTENT = 4000;

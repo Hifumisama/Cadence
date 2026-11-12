@@ -170,7 +170,7 @@ export type ReferencesPlan = { id: string; uuid: string; codes: string[] };
 export type ProblemeReferences = { plan: string | null; niveau: "erreur" | "alerte"; message: string };
 
 /** Les types d'asset qui peuvent être une IMAGE de référence (jamais une voix, qui est un champ du personnage). */
-export const TYPES_REFERENCE_IMAGE = new Set(["personnage", "decor", "prop", "vfx", "keyframe", "oth"]);
+const TYPES_REFERENCE_IMAGE = new Set(["personnage", "decor", "prop", "vfx", "keyframe", "oth"]);
 export const MAX_REFERENCES_PLAN = MAX_IMAGES;
 /** Ordre des références d'un plan : les personnages (les locuteurs d'abord, dans l'ordre du modèle), les objets, les effets, le décor en dernier. */
 const RANG_AFFICHAGE: Record<string, number> = { personnage: 0, prop: 1, oth: 2, keyframe: 3, vfx: 4, decor: 5 };
@@ -291,8 +291,8 @@ export function contexteReferencesDepuisEntree(entree: unknown, sortie: Pick<Sor
 // --- entrée et découpage en groupes de scènes (2026-11-09) ------------------------------------------------------------------
 
 export type PlanEntreeInventaire = { id: string; titre: string; intention: string };
-export type SceneEntreeInventaire = { titre: string; fonction: string; plans: PlanEntreeInventaire[] };
-export type EpisodeEntreeInventaire = { episode: string; resume: string | null; scenes: SceneEntreeInventaire[] };
+type SceneEntreeInventaire = { titre: string; fonction: string; plans: PlanEntreeInventaire[] };
+type EpisodeEntreeInventaire = { episode: string; resume: string | null; scenes: SceneEntreeInventaire[] };
 export type EntreeInventaire = {
   registre: { code: string; type: string; description: string }[];
   brief: unknown;
@@ -318,13 +318,13 @@ export const poigneePlan = (rang: number): string => `P${String(rang).padStart(2
  * est plus petit, sinon 32 000 : au-delà, un petit modèle local lit mal une entrée aussi longue, et la sortie (assets + références de chaque plan)
  * grossit avec le film. Un film de 5 min (≈ 50 plans) tient en ≈ 17 000 jetons, un de 10 min (≈ 100 plans) en ≈ 25 000 : un seul appel ;
  * un film de 20-30 min est découpé en 2 à 4 groupes de scènes. */
-export const PLAFOND_BUDGET_INVENTAIRE = 32_000;
+const PLAFOND_BUDGET_INVENTAIRE = 32_000;
 export const budgetInventaire = (contexteTotal: number | null): number => Math.min(contexteTotal ?? PLAFOND_BUDGET_INVENTAIRE, PLAFOND_BUDGET_INVENTAIRE);
 /** Sortie attendue : les assets et les notes, plus une ligne de références par plan (≈ 30 jetons : la poignée et 3 à 6 codes). */
-export const SORTIE_INVENTAIRE_BASE = 2500;
-export const SORTIE_INVENTAIRE_PAR_PLAN = 30;
+const SORTIE_INVENTAIRE_BASE = 2500;
+const SORTIE_INVENTAIRE_PAR_PLAN = 30;
 /** Place gardée dans chaque groupe pour les assets que les groupes précédents auront proposés (`assetsDejaProposes`, ≈ 60 jetons l'asset). */
-export const RESERVE_ASSETS_PROPOSES = 3000;
+const RESERVE_ASSETS_PROPOSES = 3000;
 
 const jetons = (x: unknown) => Math.ceil(JSON.stringify(x ?? {}).length / 4);
 
@@ -409,7 +409,7 @@ export function decouperInventaire(entree: EntreeInventaire, options: { budgetJe
 
 // --- sous-tâches d'un inventaire découpé ----------------------------------------------------------------------------------
 
-export const PREFIXE_CLE_INVENTAIRE = "inv:";
+const PREFIXE_CLE_INVENTAIRE = "inv:";
 export const cleSousTacheInventaire = (numero: number): string => `${PREFIXE_CLE_INVENTAIRE}${numero}`;
 export function groupeInventaireDeCle(cle: string | null | undefined): number | null {
   if (!cle || !cle.startsWith(PREFIXE_CLE_INVENTAIRE)) return null;

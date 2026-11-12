@@ -3,11 +3,11 @@
  * docs/CONCEPTION_AGENTS.md §9. Aucune dépendance à Next, à la base ni au disque
  * ici : ces types servent aussi au worker. */
 
-export type RoleLlm = "system" | "user" | "assistant";
+type RoleLlm = "system" | "user" | "assistant";
 /** Contenu mixte au format OpenAI (texte + images). Une image passe en URL `data:` (base64) :
  * le serveur local n'a pas accès au disque de Cadence. llama.cpp exige un projecteur `mmproj`
  * chargé avec le modèle, sinon il refuse la requête (« vision_absente »). */
-export type PartieTexte = { type: "text"; text: string };
+type PartieTexte = { type: "text"; text: string };
 export type PartieImage = { type: "image_url"; image_url: { url: string } };
 export type PartieContenu = PartieTexte | PartieImage;
 /** Une chaîne (cas courant, inchangé) ou une liste de parties texte/image. */

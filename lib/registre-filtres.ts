@@ -2,9 +2,9 @@
  * filtre de trop est du bruit. Pur : testé dans `registre-filtres.test.ts`. */
 
 /** En dessous : on voit tout d'un coup d'œil, ni recherche ni filtre. */
-export const SEUIL_RECHERCHE = 8;
+const SEUIL_RECHERCHE = 8;
 /** À partir de là : le statut et « sans plan » rejoignent les filtres (derrière le bouton « Filtres »). */
-export const SEUIL_FILTRES_AVANCES = 16;
+const SEUIL_FILTRES_AVANCES = 16;
 
 export type FiltresUtiles = {
   /** Le champ de recherche. */

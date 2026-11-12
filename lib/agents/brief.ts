@@ -12,7 +12,7 @@ export const SCHEMA_BRIEF = schemaBrief as unknown as Record<string, unknown>;
  * se modifient donc plus à la main une fois la conception faite (voir `modifierChampBrief`). */
 export const SECTIONS_FIGEES_PAR_LA_CONCEPTION: readonly string[] = ["langueDialogues", "dureeEpisodeSecondes", "genreTon"];
 
-export const CLES_SECTION: string[] = SECTIONS_BRIEF.map((s) => s.cle);
+const CLES_SECTION: string[] = SECTIONS_BRIEF.map((s) => s.cle);
 
 /** Les anciennes sections « Contraintes » du brief, supprimées le 2026-10-12 (jamais remplies ni utilisées sérieusement). Pas de migration :
  * un brief déjà stocké peut encore les porter, elles sont simplement ignorées à la lecture (voir `sansClesAbandonnees`). */

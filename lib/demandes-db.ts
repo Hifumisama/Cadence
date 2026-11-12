@@ -49,7 +49,7 @@ import type { DecisionsAffichees, DecisionsIteration, Resultat } from "./agents/
  * worker : une transition au plus par demande en cours, état dans `demandes` (reprise sur redémarrage, rien en mémoire). Une seule
  * boucle le fait tourner, donc pas de course entre deux pilotes. Ne touche jamais au GPU : il pose des tâches, les voies les prennent. */
 
-export type LigneDemande = typeof demandes.$inferSelect;
+type LigneDemande = typeof demandes.$inferSelect;
 const ERR = (erreur: string) => ({ ok: false as const, erreur });
 
 const lireEtapes = (d: LigneDemande): EtapeDemande[] => (Array.isArray(d.etapes) ? (d.etapes as EtapeDemande[]) : []);

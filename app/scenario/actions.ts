@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { scenes, plans } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { recomposerOrdre, type Tx } from "@/lib/ordre-plans";
+import { recomposerOrdre } from "@/lib/ordre-plans";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/reglages";
 import { conserverConsigneAuteur, intentAffichee, memeDescription } from "@/lib/intent";
 

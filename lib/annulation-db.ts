@@ -182,7 +182,7 @@ export async function finirAnnulationVideo(jobId: number): Promise<void> {
 
 /** Le plan reprend l'état de sa dernière réussite, sauf si un autre job du plan
  * est encore actif (il garde alors la main sur le statut). */
-export async function restaurerStatutPlan(planId: number): Promise<void> {
+async function restaurerStatutPlan(planId: number): Promise<void> {
   const actifs = await db
     .select({ id: jobs.id })
     .from(jobs)

@@ -15,7 +15,7 @@ import { PLAFOND_FILE_IMAGES } from "./taches";
 // app/assets/generation-actions.ts l'enveloppent et rafraîchissent l'écran.
 
 /** `position` : 1 = la génération part tout de suite ; n = n-1 tâches passent devant. */
-export type ResultatLancement = { ok: true; position: number } | { ok: false; erreur: string };
+type ResultatLancement = { ok: true; position: number } | { ok: false; erreur: string };
 
 async function existe(chemin: string): Promise<boolean> {
   try {
@@ -32,7 +32,7 @@ type SourceResolue = { origine: "asset" | "import"; assetId: number | null; fich
 
 /** Pose une demande dans la file : plusieurs générations peuvent attendre (même
  * pour un seul asset), jusqu'à PLAFOND_FILE_IMAGES en attente au total. */
-export async function poserGeneration(assetId: number, demande: DemandeGeneration, plafond: number = PLAFOND_FILE_IMAGES, adoptionAuto = false): Promise<ResultatLancement> {
+async function poserGeneration(assetId: number, demande: DemandeGeneration, plafond: number = PLAFOND_FILE_IMAGES, adoptionAuto = false): Promise<ResultatLancement> {
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
   const raison = raisonDemandeInvalide(demande);

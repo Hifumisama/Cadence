@@ -22,7 +22,7 @@ export type AssetPourLot = {
   deriveDeId: number | null;
 };
 
-export type LancementLot = { assetId: number; code: string; mode: "texte" | "images"; sourceAssetId: number | null };
+type LancementLot = { assetId: number; code: string; mode: "texte" | "images"; sourceAssetId: number | null };
 export type EcarteLot = { assetId: number; code: string; raison: string };
 export type PlanLot = { aLancer: LancementLot[]; ecartes: EcarteLot[] };
 

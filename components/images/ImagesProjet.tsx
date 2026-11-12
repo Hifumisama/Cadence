@@ -89,7 +89,7 @@ export function BoutonGenererImages({ projectId, etat, recharger, petit = false 
 }
 
 /** Ligne de progression : « 3 sur 12 ont une image · 2 en file · 1 attend l’image de son master ». */
-export function ProgressionImages({ etat }: { etat: EtatImages }) {
+function ProgressionImages({ etat }: { etat: EtatImages }) {
   const pct = etat.total ? Math.round((etat.avecImage / etat.total) * 100) : 0;
   const notes = [
     etat.enFile > 0 ? `${etat.enFile} en file ou en cours` : null,

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { agentRuns, assetGenerations, creationsProjet, demandes, jobs, montageExports, propositions } from "@/db/schema";
 import { annulerDemande } from "@/lib/demandes-db";
-import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { and, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { arreterCreation, idsRunsDeCreation } from "@/lib/agents/creation-db";
 import { demanderAnnulation, viderFile as viderFileDb, type ResultatAnnulation } from "@/lib/annulation-db";
 import { analyserCle } from "@/lib/taches";

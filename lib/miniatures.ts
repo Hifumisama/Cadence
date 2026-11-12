@@ -9,7 +9,7 @@
  * sinon `?w=` deviendrait un moyen de remplir le disque de miniatures.
  * Dimensionnées pour un écran 2× : 96 (≤ 48 px affichés), 192 (≤ 96 px),
  * 384 (cartes), 768 (aperçu principal, scène de la popup). */
-export const LARGEURS_MINIATURE = [96, 192, 384, 768] as const;
+const LARGEURS_MINIATURE = [96, 192, 384, 768] as const;
 export type LargeurMiniature = (typeof LARGEURS_MINIATURE)[number];
 
 export function estLargeurMiniature(n: number): n is LargeurMiniature {

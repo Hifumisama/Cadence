@@ -41,7 +41,7 @@ export type EntreeReferencesPlan = {
   elements?: { nom: string; nature: string }[];
 };
 
-export type TypeDoute =
+type TypeDoute =
   | "sans_narration"
   | "code_inconnu"
   | "locuteur_introuvable"

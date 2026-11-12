@@ -13,10 +13,10 @@
 export const RESOLUTIONS_VIDEO = [0.2, 0.3, 0.4] as const;
 export type ResolutionVideo = (typeof RESOLUTIONS_VIDEO)[number];
 
-export const RESOLUTION_PAR_DEFAUT: ResolutionVideo = 0.2;
+const RESOLUTION_PAR_DEFAUT: ResolutionVideo = 0.2;
 
 /** Résolution la plus haute qui accepte l'upscale. */
-export const RESOLUTION_UPSCALE_MAX: ResolutionVideo = 0.2;
+const RESOLUTION_UPSCALE_MAX: ResolutionVideo = 0.2;
 
 /** Une valeur lue en base (`real` : 0.20000000298…) ou saisie, ramenée à une résolution connue ; `null` si elle n'en est pas une. */
 export function resolutionDepuis(valeur: unknown): ResolutionVideo | null {

@@ -33,7 +33,7 @@ export type AssetCourant = {
 
 const TYPES_REMARQUE_SOUCIS = new Set(["voix-ou-musique", "description-vague", "incoherence-famille", "dependance-parent", "absence-ou-point-de-vue"]);
 
-export function avertissementsRemarques(remarques: { type: string; message: string }[]): Avertissement[] {
+function avertissementsRemarques(remarques: { type: string; message: string }[]): Avertissement[] {
   return remarques.map((r) => ({ type: "info" as const, texte: TYPES_REMARQUE_SOUCIS.has(r.type) ? `${r.type} : ${r.message}` : r.message }));
 }
 

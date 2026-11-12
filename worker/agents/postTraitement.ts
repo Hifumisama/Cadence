@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, plans, projects, propositions } from "../../db/schema";
 import { horsAffiches } from "../../lib/assets-visibles";
@@ -37,7 +37,7 @@ import { traitementDeScene } from "../../lib/agents/traitement";
 import { entreeScenarioEpisode } from "../../lib/agents/contexte";
 import { codeDeCleAsset } from "../../lib/agents/registre";
 import { enregistrerChangements } from "../../lib/agents/proposition-db";
-import type { BriefContenu, PlaceScene, Position, StatutChamp } from "../../lib/agents/types";
+import type { PlaceScene, Position } from "../../lib/agents/types";
 import type { Tx } from "../../lib/ordre-plans";
 import { codesEnVoixOff, depuisFichePlan, type OptionsFichePlan } from "../../lib/agents/conversion";
 import { planUuidDeCle } from "../../lib/agents/fiches";
@@ -69,7 +69,7 @@ import { ecrireReferencesPlan } from "../../lib/h3ir/references-ecriture";
  * - `affiche`     : l'affiche du clap (lib/agents/affiche-clap.ts) : le prompt écrit lance la génération de l'image. */
 
 type RunAgent = typeof agentRuns.$inferSelect;
-export type OptionsRunAgent = { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null; place?: PlaceScene };
+type OptionsRunAgent = { modele?: string; variante?: string; position?: Position; sceneVoisineId?: number | null; place?: PlaceScene };
 
 export async function postTraiterRun(tx: Tx, run: RunAgent, json: unknown, execution: InfosExecution = {}): Promise<void> {
   if (!run.but) return; // appel hors système d'agents (npm run llm:tache) : rien à faire

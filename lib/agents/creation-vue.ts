@@ -11,7 +11,7 @@ import type { VueSousTache } from "./types";
 /** L'état de la création d'un projet, tel que la page de l'installateur le lit (et le sondage de l'API). Pour chaque étape
  * qui a travaillé : le détail de ce qui se fait au fil de l'eau (un lot = ses sous-tâches une à une, avec leur état ; un appel
  * seul = son état et son compteur de jetons) : ce sont les mêmes tâches que celles de la file du header. */
-export type SousTacheVue = { libelle: string; statut: VueSousTache["statut"]; detail: string };
+type SousTacheVue = { libelle: string; statut: VueSousTache["statut"]; detail: string };
 export type VueCreation = {
   statut: StatutCreation;
   erreur: string | null;

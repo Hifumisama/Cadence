@@ -168,8 +168,6 @@ export function AtelierAsset({
     setDims((d) => (d[cle]?.l === img.naturalWidth ? d : { ...d, [cle]: { l: img.naturalWidth, h: img.naturalHeight } }));
   };
   const cleVue = regarde === "actuelle" ? "actuelle" : (regarde?.uuid ?? "");
-  const dimsVue = dims[cleVue];
-  const ratio = (dims.actuelle ?? dimsVue) ? `${(dims.actuelle ?? dimsVue)!.l} / ${(dims.actuelle ?? dimsVue)!.h}` : affiche ? "2 / 3" : "16 / 9";
 
   const lancer = (texte = consigne, depuis: BaseEssai = base) => {
     if (trop) {

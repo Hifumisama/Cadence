@@ -56,8 +56,6 @@ test("exemple intense : cadence courte, un angle distinct par shot", () => {
   assert.ok(b.shots.length >= 5, "au moins 5 shots pour une course");
   for (let i = 1; i < b.shots.length; i++) assert.ok(b.shots[i]!.debutSecondes - b.shots[i - 1]!.debutSecondes <= 2.5, `shot ${i} trop long pour la cadence d'une course`);
 });
-const repliquesDe = (b: SortiePlanH3) =>
-  b.shots.flatMap((s) => [...s.texte.matchAll(/<d>\[[^\]]+\]\s*([\s\S]*?)<\/d>/g)].map((m) => ({ texte: m[1]!.trim() })));
 
 for (const nom of readdirSync(DOSSIER).filter((n) => n.endsWith(".md"))) {
   test(`exemple ${nom} : conforme au schéma, sans erreur de contrat, assemblé comme la fixture`, () => {
@@ -65,7 +63,6 @@ for (const nom of readdirSync(DOSSIER).filter((n) => n.endsWith(".md"))) {
     const v = valider(chargerSkill("plan-h3").schema, b);
     assert.ok(v.ok, v.ok ? "" : v.erreurs.join(" ; "));
 
-    const repliques = repliquesDe(b);
     const problemes = controlerSortiePlanH3(b, { registre: b.references.map((r) => ({ code: r.asset, type: typeParPrefixe(r.asset) })) });
     assert.deepEqual(problemes.filter((p) => p.niveau === "erreur" || p.niveau === "alerte"), []);
 

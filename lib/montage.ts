@@ -8,8 +8,8 @@
 /** Durée minimale d'un clip rogné : on ne descend jamais sous une demi-seconde. */
 export const DUREE_MIN_CLIP = 0.5;
 /** Aimantation : le pas (demi-seconde) et la distance sous laquelle un bord colle à la tête de lecture. */
-export const PAS_AIMANT = 0.5;
-export const SEUIL_AIMANT_TETE = 0.2;
+const PAS_AIMANT = 0.5;
+const SEUIL_AIMANT_TETE = 0.2;
 
 export type GenreRendu = "aperçu" | "final" | "import";
 
@@ -179,7 +179,7 @@ export function aimanter(v: number, actif: boolean, tete?: number | null): numbe
 // --- Deux ordres --------------------------------------------------------------------------------------------------------------------
 
 /** Les plans du montage dans l'ordre de leur PREMIÈRE entrée (les copies ne comptent pas). */
-export function ordreDesPlansAuMontage(entrees: readonly Pick<EntreeMontage, "planId">[]): number[] {
+function ordreDesPlansAuMontage(entrees: readonly Pick<EntreeMontage, "planId">[]): number[] {
   const vus = new Set<number>();
   const res: number[] = [];
   for (const e of entrees) {
@@ -191,7 +191,7 @@ export function ordreDesPlansAuMontage(entrees: readonly Pick<EntreeMontage, "pl
 }
 
 /** L'ordre du scénario restreint aux plans présents au montage. */
-export function ordreScenarioAuMontage(entrees: readonly Pick<EntreeMontage, "planId">[], ordreScenario: readonly number[]): number[] {
+function ordreScenarioAuMontage(entrees: readonly Pick<EntreeMontage, "planId">[], ordreScenario: readonly number[]): number[] {
   const presents = new Set(entrees.map((e) => e.planId));
   return ordreScenario.filter((id) => presents.has(id));
 }

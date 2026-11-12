@@ -35,7 +35,7 @@ async function planParUuid(db: Db, projectId: number, uuid: string | null) {
 }
 
 /** L'état du plan que la fiche remplacerait (sections, références, voix, registre, rendu). */
-export async function lireEtatPlanFiche(db: Db, projectId: number, plan: { id: number; titre: string; statut: string; duree: number }): Promise<EtatPlanFiche> {
+async function lireEtatPlanFiche(db: Db, projectId: number, plan: { id: number; titre: string; statut: string; duree: number }): Promise<EtatPlanFiche> {
   const [lignes, refs, registre, rendus] = await Promise.all([
     db.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, plan.id)),
     db

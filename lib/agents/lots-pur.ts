@@ -8,7 +8,7 @@
  * montrés dans la revue, relançables) ; `echouee` seulement si TOUT a échoué ; `rejetee` si tout
  * a été annulé. Les résultats déjà écrits ne se perdent jamais. */
 
-export const PREFIXE_CLE_EPISODE = "ep:";
+const PREFIXE_CLE_EPISODE = "ep:";
 
 /** Clé de sous-tâche d'un épisode (`agent_runs.cle_sous_tache`). */
 export const cleSousTacheEpisode = (episodeId: number): string => `${PREFIXE_CLE_EPISODE}${episodeId}`;
@@ -19,7 +19,7 @@ export function episodeIdDeCle(cle: string | null | undefined): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-export const PREFIXE_CLE_SCENE = "scene:";
+const PREFIXE_CLE_SCENE = "scene:";
 
 /** Clé de sous-tâche d'une scène (étape E : le scénario d'un long film s'écrit scène par scène). */
 export const cleSousTacheScene = (sceneId: number): string => `${PREFIXE_CLE_SCENE}${sceneId}`;

@@ -8,8 +8,6 @@ import type { PromptSection } from "./plan-checks";
  * l'essai d'où l'image vient). Pur sauf `extraireDerniereImage`. */
 
 export const MAX_REFS_VISUELLES = 6;
-/** Références visuelles qu'un plan « suite » peut déclarer : un emplacement reste pour l'image de raccord (plan-h3 le réserve, 2026-10-19). */
-export const MAX_REFS_AVEC_RACCORD = MAX_REFS_VISUELLES - 1;
 
 /** Le plan ne peut pas recevoir son raccord faute de place : ses références visuelles (images + vidéos) sont déjà au plafond. */
 export const raccordSansPlace = (nbRefsVisuelles: number): boolean => nbRefsVisuelles >= MAX_REFS_VISUELLES;

@@ -79,7 +79,7 @@ const canon = (s: string) => normaliserReplique(s).replace(/\s+/g, " ").replace(
 const LABELS = /<(?:Subject|Picture|Audio|Video)\s*\d+>/gi;
 
 /** Les paroles d'un prompt : le contenu de chaque `<d>…</d>`, sans l'étiquette de langue `[French]`. */
-export function parolesDesSections(sections: SectionsPrompt): string[] {
+function parolesDesSections(sections: SectionsPrompt): string[] {
   const out: string[] = [];
   for (const nom of ORDRE_SECTIONS) {
     for (const m of (sections[nom] ?? "").matchAll(/<d>\s*(?:\[[^\]]*\]\s*)?([\s\S]*?)<\/d>/gi)) out.push(canon(m[1] ?? ""));
@@ -104,7 +104,7 @@ export function etenduePassage(avant: string, apres: string): number {
 }
 
 /** Au-delà, une section a été réécrite et non retouchée. */
-export const ETENDUE_MAX_SECTION = 0.5;
+const ETENDUE_MAX_SECTION = 0.5;
 
 /** Contrôle ce que le skill a rendu ; une liste vide = la retouche est acceptable. */
 export function verifierRetouche(base: SectionsPrompt, sortie: SortieRetouche, repliques: { texte: string }[]): string[] {

@@ -25,11 +25,11 @@ import { DOMAINE_GENRE, PRIORITE_GENRE, type DomaineGpu, type GenreTache } from 
  *   ancienne d'un même genre ; une vidéo passe dès qu'il n'y a plus d'image ni
  *   d'appel LLM en attente. */
 
-export type { DomaineGpu, GenreTache };
+export type { DomaineGpu,  };
 
 export type TacheEnAttente = { genre: GenreTache; id: number; createdAt: Date; /** Étape d'une demande en cours (itération) : passe avant le travail de fond. */ demande?: boolean };
 
-export function comparerTaches(a: TacheEnAttente, b: TacheEnAttente, precedent: DomaineGpu | null = null): number {
+function comparerTaches(a: TacheEnAttente, b: TacheEnAttente, precedent: DomaineGpu | null = null): number {
   const collant = (t: TacheEnAttente) => (precedent != null && DOMAINE_GENRE[t.genre] === precedent ? 0 : 1);
   const demande = (t: TacheEnAttente) => (t.demande ? 0 : 1);
   return (

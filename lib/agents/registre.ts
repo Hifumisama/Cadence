@@ -8,16 +8,13 @@ import type { BriefContenu } from "./types";
  * déduisent des plans, étape 3). « L'histoire d'abord » : le scénario ne déclare aucun asset, le
  * brief seul fournit les masters. */
 
-export const PREFIXE_CLE_ASSET = "asset:";
+const PREFIXE_CLE_ASSET = "asset:";
 export const cleSousTacheAsset = (code: string): string => `${PREFIXE_CLE_ASSET}${code}`;
 export function codeDeCleAsset(cle: string | null | undefined): string | null {
   return cle && cle.startsWith(PREFIXE_CLE_ASSET) && cle.length > PREFIXE_CLE_ASSET.length ? cle.slice(PREFIXE_CLE_ASSET.length) : null;
 }
-/** Groupe de revue d'un asset (le lot de scénarios en a un par épisode ; ici tous les assets
- * restent dans le groupe commun « Assets », une ligne cochable chacun). */
-export const GROUPE_ASSETS = "assets";
 
-export type TypeMaster = "personnage" | "decor";
+type TypeMaster = "personnage" | "decor";
 
 export type AssetExistant = {
   id: number;
@@ -71,7 +68,7 @@ const net = (s: string | undefined): string => (s ?? "").trim().replace(/[.\s]+$
 
 /** La tenue du brief (entretien enrichi, 2026-11-08) en une phrase de description canonique ; "" sans tenue. L'évolution (raccords) n'y est
  * pas : la fiche du personnage montre sa tenue de référence. */
-export function descriptionTenue(t: BriefContenu["personnages"][number]["tenue"]): string {
+function descriptionTenue(t: BriefContenu["personnages"][number]["tenue"]): string {
   if (!t) return "";
   const corps = [net(t.coupe), net(t.couleurs), net(t.matieres)].filter(Boolean).join(", ");
   const parties = [corps ? `Tenue : ${corps}` : "", net(t.accessoires) ? `accessoires : ${net(t.accessoires)}` : "", net(t.signeDistinctif) ? `signe distinctif : ${net(t.signeDistinctif)}` : ""];
@@ -79,7 +76,7 @@ export function descriptionTenue(t: BriefContenu["personnages"][number]["tenue"]
 }
 
 /** La description canonique d'un lieu : sa description, puis son aspect (lumière, matières, palette, ambiance) quand l'entretien l'a noté. */
-export function descriptionLieu(l: BriefContenu["lieux"][number]): string {
+function descriptionLieu(l: BriefContenu["lieux"][number]): string {
   const a = l.aspect;
   const aspect = a ? [net(a.lumiere), net(a.matieres), net(a.palette), net(a.ambiance)].filter(Boolean).join(", ") : "";
   if (!aspect) return l.description ?? "";

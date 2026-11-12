@@ -59,7 +59,7 @@ export function raisonsContenuPerime(
   return raisons;
 }
 
-export const LIBELLE_RAISON_PERIME: Record<RaisonPerime, string> = { prompt: "prompt modifié", duree: "durée modifiée", intention: "intention modifiée", raccord: "raccord à refaire" };
+const LIBELLE_RAISON_PERIME: Record<RaisonPerime, string> = { prompt: "prompt modifié", duree: "durée modifiée", intention: "intention modifiée", raccord: "raccord à refaire" };
 
 /** Un plan est périmé s'il a une référence changée OU un contenu changé. */
 export const estPerime = (p: { codes: string[]; raisons: RaisonPerime[] }): boolean => p.codes.length > 0 || p.raisons.length > 0;

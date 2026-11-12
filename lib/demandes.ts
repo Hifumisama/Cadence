@@ -2,21 +2,12 @@ import { ERREUR_ANNULEE } from "./annulation";
 import type { DecisionsAffichees, DecisionsIteration, PlaceScene } from "./agents/types";
 import type { DecisionIteration } from "./fiche-plan";
 
-/** Les DEMANDES (2026-10-17) : un geste de l'utilisateur qui tient en plusieurs étapes est UNE ligne dans la file et le panneau, du clic
- * au résultat — pas une suite de tâches qui se relaient avec des trous entre elles (ce qui donne l'impression d'un plantage alors qu'on
- * attend la suite). Règles PURES (étapes, décision) ; les lectures, écritures et appels au service sont dans lib/demandes-db.ts, piloté
- * par le worker (un tour = au plus une transition par demande : reprise sur redémarrage, rien en mémoire).
- *
- * Une demande n'est QU'UN PILOTE : les tâches qu'elle pose (run d'agent, job vidéo, génération d'image) gardent leurs voies et le verrou
- * GPU (worker/index.ts). Elle ne tient ni voie ni verrou entre deux étapes. Une seule demande en cours par cible (plan, asset). */
-
-export type TypeDemande = "iteration-plan" | "ajout-plan" | "ajout-scene" | "fiche-plan";
 /** `en_attente` (2026-11-09, docs/PLAN_FILE_CONSIGNES.md) : une itération posée alors qu'une autre tient la place. Elle ne pose encore aucune tâche, sa consigne
  * reste modifiable ; le pilote la fait passer `en_cours` quand plus aucune itération n'est en cours (la plus ancienne d'abord). */
 export type StatutDemande = "en_attente" | "en_cours" | "termine" | "echoue" | "annulee";
 export type StatutEtapeDemande = "a_venir" | "en_cours" | "fait" | "passe";
 
-export const ETAPES_ITERATION_PLAN = [
+const ETAPES_ITERATION_PLAN = [
   { cle: "agent", libelle: "L'agent lit la consigne" },
   { cle: "reecriture", libelle: "Recompilation de la fiche (Open H3 IR)" },
   { cle: "rendu", libelle: "Rendu de l'essai" },
@@ -125,7 +116,7 @@ export function deciderIteration(etape: CleEtapeIteration, obs: ObservationItera
 // Une demande à deux étapes : l'agent écrit le plan, puis il est ajouté à la scène SANS relecture (on le relit dans sa fiche). Une seule à la fois
 // par film (la cible est l'épisode) : deux ajouts qui se lisent l'un l'autre sans se connaître donneraient des plans qui se répètent.
 
-export const ETAPES_AJOUT_PLAN = [
+const ETAPES_AJOUT_PLAN = [
   { cle: "agent", libelle: "L'agent écrit le plan" },
   { cle: "ajout", libelle: "Ajout à la scène" },
 ] as const;
@@ -174,7 +165,7 @@ export function decisionAjoutPlan(prop: PropositionAjout | null): DecisionAjout 
 // voisines), elle est ajoutée au film SANS relecture, et on la relit dans la page. Même cible (l'épisode) : une seule demande de ce genre à la fois
 // par film, plan ou scène (l'index unique partiel de `demandes`).
 
-export const ETAPES_AJOUT_SCENE = [
+const ETAPES_AJOUT_SCENE = [
   { cle: "agent", libelle: "L'agent écrit la scène" },
   { cle: "ajout", libelle: "Ajout au film" },
 ] as const;
@@ -224,21 +215,20 @@ export function decisionAjoutScene(prop: PropositionAjout | null): DecisionAjout
 // la compilation (les étapes de préparation sont « passées »). `plan-h3` ne reste qu'en retour arrière d'urgence (lib/h3ir/moteur.ts) : deux étapes,
 // l'agent écrit la fiche, elle est enregistrée.
 
-export const ETAPES_FICHE_PLAN = [
+const ETAPES_FICHE_PLAN = [
   { cle: "agent", libelle: "L'agent écrit la fiche" },
   { cle: "ecriture", libelle: "Enregistrement de la fiche" },
 ] as const;
 
 /** Les étapes d'une fiche Open H3 IR (préparation puis compilation). Les libellés des étapes assets / prompts / images se complètent en cours de route
  * (« Création d'assets (2) », « Images (1/3) »). */
-export const ETAPES_PREPARATION_FICHE = [
+const ETAPES_PREPARATION_FICHE = [
   { cle: "references", libelle: "Choix des références" },
   { cle: "assets", libelle: "Création d'assets" },
   { cle: "prompts", libelle: "Prompts d'assets" },
   { cle: "images", libelle: "Images" },
   { cle: "compilation", libelle: "Compilation Open H3 IR" },
 ] as const;
-export type CleEtapePreparation = (typeof ETAPES_PREPARATION_FICHE)[number]["cle"];
 
 /** `preparation` : Open H3 IR, plan à préparer ; `rapide` : Open H3 IR, références prêtes (compilation directe) ; `plan-h3` : retour arrière d'urgence. */
 export type ParcoursFichePlan = "preparation" | "rapide" | "plan-h3";
@@ -256,7 +246,7 @@ export const etapesFichePlan = (parcours: ParcoursFichePlan = "preparation"): Et
 export const renommerEtape = (etapes: EtapeDemande[], cle: string, libelle: string): EtapeDemande[] => etapes.map((e) => (e.cle === cle ? { ...e, libelle } : e));
 
 /** Ce que la préparation d'un plan garde entre deux tours du pilote (rien en mémoire). */
-export type ContextePreparation = {
+type ContextePreparation = {
   /** Rechoisir les références même si le plan en a déjà (demande explicite ; jamais par défaut). */
   rechoisir?: boolean;
   /** La tâche `references-plan` (posée seulement en cas de doute du code). */

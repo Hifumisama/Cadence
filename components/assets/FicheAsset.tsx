@@ -36,7 +36,7 @@ function ZoneModifier({ cle, libelle }: { cle: string; libelle: string }) {
 }
 
 /** Un texte de la fiche (description, prompt) : lecture, puis édition sur place au clic. Chaque bloc s'enregistre seul. */
-export function BlocTexte({
+function BlocTexte({
   assetId,
   champ,
   libelle,
@@ -363,24 +363,5 @@ export function EnteteAsset({
 
       {children}
     </section>
-  );
-}
-
-/** Copie un texte dans le presse-papiers (le retour se lit sur le bouton lui-même). */
-export function BoutonCopier({ texte, libelle = "Copier" }: { texte: string; libelle?: string }) {
-  const [etat, setEtat] = useState<"repos" | "ok" | "echec">("repos");
-  const copier = async () => {
-    try {
-      await navigator.clipboard.writeText(texte);
-      setEtat("ok");
-    } catch {
-      setEtat("echec");
-    }
-    window.setTimeout(() => setEtat("repos"), 1600);
-  };
-  return (
-    <button type="button" className="btn btn-ghost btn-sm" onClick={copier} disabled={!texte.trim()}>
-      <Icone nom={etat === "ok" ? "valide" : "copier"} taille={14} /> {etat === "ok" ? "Copié" : etat === "echec" ? "Copie impossible" : libelle}
-    </button>
   );
 }

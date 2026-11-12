@@ -302,7 +302,7 @@ async function dernierShotDuPlan(db: Db, planUuid: string): Promise<string | nul
 }
 
 /** L'entrée du brief qui correspond à cet épisode : même titre (insensible à la casse), sinon même rang. */
-export function briefDeEpisode(brief: BriefContenu | null, titre: string, numero: number): { titre: string; resume: string; portee?: string } | null {
+function briefDeEpisode(brief: BriefContenu | null, titre: string, numero: number): { titre: string; resume: string; portee?: string } | null {
   if (!brief?.episodes?.length) return null;
   const n = (s: string) => s.trim().toLowerCase();
   return brief.episodes.find((e) => n(e.titre) === n(titre)) ?? brief.episodes[numero - 1] ?? null;
@@ -727,7 +727,7 @@ export async function entreeReferencesPlan(
 }
 
 /** Le dernier rendu TERMINÉ d'un plan (généré ou importé) dont le fichier est connu, ou null. */
-export async function dernierRendu(db: Db, planId: number) {
+async function dernierRendu(db: Db, planId: number) {
   const [j] = await db
     .select({ id: jobs.id, cheminSortie: jobs.cheminSortie, finishedAt: jobs.finishedAt, createdAt: jobs.createdAt, workflowFichier: jobs.workflowFichier })
     .from(jobs)
@@ -917,18 +917,6 @@ export async function entreeIterationPlan(
         : { sansPlanche: true }),
     },
   };
-}
-
-/** « Contexte utilisé » d'une portée, sans lancer de génération (aperçu avant lancement). */
-export async function apercuContexteDe(db: Db, projectId: number, portee: string, cibleId: number | null): Promise<ContexteUtilise[]> {
-  if (portee === "asset" && cibleId != null) return (await entreePromptAsset(db, projectId, cibleId, ""))?.contexte ?? [];
-  if (portee === "episode" && cibleId != null) return (await entreeScenarioEpisode(db, projectId, cibleId, ""))?.contexte ?? [];
-  if (portee === "plan" && cibleId != null) {
-    const [p] = await db.select({ uuid: plans.uuid }).from(plans).where(inArray(plans.id, [cibleId]));
-    return p ? ((await entreeCorrectionPlan(db, projectId, p.uuid, ""))?.contexte ?? []) : [];
-  }
-  const brief = await lireBriefDuProjet(db, projectId);
-  return extraitsBrief(brief?.contenu ?? null).contexte;
 }
 
 // --- inventaire des assets -----------------------------------------------------

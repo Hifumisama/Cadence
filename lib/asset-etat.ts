@@ -12,8 +12,8 @@ export function statutAsset(a: { fichier: string | null; valide: boolean }): Sta
 
 /** Un asset est critique quand il est cité par au moins 3 plans d'un épisode, ou par 20 % de ses plans si c'est moins (un court
  * épisode de 10 plans : 2 suffisent). Le critère le plus souple l'emporte ; il en faut toujours au moins un. */
-export const SEUIL_PLANS_CRITIQUE = 3;
-export const PART_PLANS_CRITIQUE = 0.2;
+const SEUIL_PLANS_CRITIQUE = 3;
+const PART_PLANS_CRITIQUE = 0.2;
 
 export const seuilCritique = (nbPlansEpisode: number): number =>
   Math.min(SEUIL_PLANS_CRITIQUE, Math.max(1, Math.ceil(nbPlansEpisode * PART_PLANS_CRITIQUE)));

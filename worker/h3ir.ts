@@ -72,7 +72,7 @@ function lireRetouche(v: unknown): EntreeRetouche | null {
 /** « Partir de cet essai » : la consigne se joue sur le prompt de l'essai (skill `retouche-prompt`). Deux tentatives (la seconde reçoit les défauts de la première) ;
  * `null` quand le skill juge qu'il faut tout refaire : la compilation prend alors le relais. Une retouche qui reste invalide échoue avec ses défauts : mieux vaut le dire
  * que de recompiler en silence et perdre le rendu dont on part. */
-export async function retoucherPrompt(
+async function retoucherPrompt(
   e: EntreeRetouche,
   run: { projectId: number; planUuid: string },
   options: OptionsH3ir,

@@ -32,7 +32,7 @@ import { join, resolve } from "node:path";
 /** Fichiers lus hors du dossier d'un skill. Aucun depuis 2026-11-09 : `iteration-plan` lit sa propre copie du lexique, orientée diagnostic
  * (agents/skills/iteration-plan/references/guide-lexique-diagnostic.md) ; l'original reste dans `plan-h3` (references/h3-lexique-corrections.md).
  * L'affiche n'est plus un skill : c'est la variante `affiche` de `prompt-asset`, qui charge ses guides d'image par la déclaration `variantes`. */
-export const FICHIERS_PARTAGES: Record<string, string[]> = {};
+const FICHIERS_PARTAGES: Record<string, string[]> = {};
 
 export type OptionsChargement = {
   /** Cas d'usage qui restreint les guides chargés (voir plus haut). */
@@ -70,7 +70,7 @@ const ENTETE = /^﻿?---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 
 /** En-tête YAML de `SKILL.md` (format Agent Skills) : `name` et `description`, sur une ligne chacun
  * (pas de YAML complet : le standard n'exige ici que des scalaires). `null` si le fichier n'en a pas. */
-export function lireFrontmatter(contenu: string): { name: string; description: string } | null {
+function lireFrontmatter(contenu: string): { name: string; description: string } | null {
   const m = ENTETE.exec(contenu);
   if (!m) return null;
   const champ = (cle: string) => {
@@ -84,9 +84,9 @@ function sansFrontmatter(contenu: string): string {
   return contenu.replace(ENTETE, "");
 }
 
-export const CARACTERES_PAR_JETON = 4;
+const CARACTERES_PAR_JETON = 4;
 
-export function estimerJetons(caracteres: number): number {
+function estimerJetons(caracteres: number): number {
   return Math.ceil(caracteres / CARACTERES_PAR_JETON);
 }
 
@@ -97,7 +97,7 @@ function md(dossier: string, filtre: (nom: string) => boolean): string[] {
     .sort((a, b) => a.localeCompare(b, "fr"));
 }
 
-export function racineDepot(): string {
+function racineDepot(): string {
   return resolve(process.cwd());
 }
 

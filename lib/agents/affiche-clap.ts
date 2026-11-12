@@ -135,7 +135,7 @@ export async function etatAfficheClap(db: Db, projectId: number, signature: stri
 }
 
 /** Crée l'asset d'affiche du projet s'il n'existe pas (le même que « Affiche » de la page du projet), et rend son identifiant. */
-export async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAffiche, "titre" | "arc" | "genres" | "ton">): Promise<number> {
+async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAffiche, "titre" | "arc" | "genres" | "ton">): Promise<number> {
   const code = codeAffiche("projects", projectId);
   const [existant] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, code)));
   if (existant) return existant.id;

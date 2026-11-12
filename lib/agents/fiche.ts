@@ -12,7 +12,7 @@ import type { BriefContenu } from "./types";
 export type StatutFiche = "fourni" | "delegue" | "deduit";
 /** Statut d'un DÉTAIL (tenue, aspect d'un lieu, élément, raccords) : `incertain` = dit, mais en termes vagues (« inspirée de… » sans couleur
  * ni matière) : il reste à préciser. */
-export type StatutDetail = StatutFiche | "incertain";
+type StatutDetail = StatutFiche | "incertain";
 /** `details` : le statut de chaque détail à préciser (clé `tenue:<nom normalisé>`, `lieu:…`, `element:…`, `raccords`), absent tant qu'aucun
  * n'est suivi. Il vit dans la fiche seulement : le brief en garde la trace dans le `statut` des sous-objets (voir `estampillerDetails`). */
 export type Fiche = { contenu: Record<string, unknown>; statuts: Record<string, StatutFiche>; details?: Record<string, StatutDetail> };
@@ -53,7 +53,7 @@ export const REQUIS = [
 ] as const;
 
 /** Sections que le patch peut citer sans les modifier (« j'ai confirmé ce qui est déjà noté ») : toutes, plus `fin`. */
-export const SECTIONS_CITABLES: readonly string[] = [...SECTIONS_PATCHABLES, "fin"];
+const SECTIONS_CITABLES: readonly string[] = [...SECTIONS_PATCHABLES, "fin"];
 
 /** Messages de l'utilisateur au moins avant qu'une fiche puisse être déclarée complète : l'idée, puis une réponse. */
 export const MIN_MESSAGES_FICHE = 2;
@@ -74,7 +74,7 @@ export const premierMessageGrosBloc = (messagesUtilisateur: readonly string[]): 
 /** Le minimum de messages de l'utilisateur pour cette conversation. */
 export const minMessagesFiche = (messagesUtilisateur: readonly string[]): number => (premierMessageGrosBloc(messagesUtilisateur) ? MIN_MESSAGES_GROS_BLOC : MIN_MESSAGES_FICHE);
 
-export const normaliser = (t: string): string =>
+const normaliser = (t: string): string =>
   t
     .toLowerCase()
     .normalize("NFD")
@@ -132,10 +132,10 @@ type DetailCandidat = DetailAPreciser & { present: boolean; texte: string };
 const chaine = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 const listeObjets = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.map(objet) : []);
 
-export const cleDetail = (famille: Famille, nom: string): string => `${famille}:${normaliser(nom)}`;
+const cleDetail = (famille: Famille, nom: string): string => `${famille}:${normaliser(nom)}`;
 
 /** Une clé de détail rendue par le modèle, normalisée (« tenue:Aang » → « tenue:aang ») ; null si elle n'a pas la forme attendue. */
-export function lireCleDetail(brut: unknown): string | null {
+function lireCleDetail(brut: unknown): string | null {
   if (typeof brut !== "string") return null;
   if (normaliser(brut) === "raccords") return "raccords";
   const i = brut.indexOf(":");
@@ -349,7 +349,7 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
 
 /** Recopie le statut de chaque détail dans le sous-objet du brief qu'il qualifie (`personnages[].tenue.statut`, `lieux[].aspect.statut`,
  * `elements[].statut`) : le brief en garde la trace pour ses lecteurs (prompt-asset, inventaire-assets). Copie ; rien n'est créé. */
-export function estampillerDetails(contenu: Record<string, unknown>, details: Record<string, StatutDetail>): Record<string, unknown> {
+function estampillerDetails(contenu: Record<string, unknown>, details: Record<string, StatutDetail>): Record<string, unknown> {
   const c = { ...contenu };
   const estampiller = (section: string, sous: string | null, famille: Famille) => {
     const liste = c[section];

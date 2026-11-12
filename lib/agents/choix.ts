@@ -4,9 +4,8 @@
 
 import type { Choix, MessageConversation, OptionChoix } from "./types";
 
-export const CHOIX_MIN = 2;
-export const CHOIX_MAX = 4;
-export const LIBELLE_DECIDER = "Je te laisse décider";
+const CHOIX_MIN = 2;
+const CHOIX_MAX = 4;
 const MAX_QUESTION = 200;
 const MAX_LIBELLE = 60;
 const MAX_DESCRIPTION = 160;

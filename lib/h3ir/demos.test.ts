@@ -4,9 +4,7 @@ import {
   ASSETS_DEMOS,
   CLES_DEMOS,
   DESCRIPTION_DEMOS_AVEC_REPLIQUES,
-  DESCRIPTION_DEMOS_SANS_REPLIQUE,
   NARRATION_CREATIVITE_DEMOS,
-  NARRATION_DEMOS,
   SCENE_CREATIVITE,
   SCENE_STYLES,
   cheminDemo,
@@ -33,7 +31,7 @@ test("les 12 plans : la clé de chaque plan est retrouvée depuis sa scène et s
   assert.equal(plans.filter((p) => p.scene === SCENE_CREATIVITE).length, 4);
   // Les séries ont la bonne description : répliques pour les styles, aucune pour la créativité.
   assert.ok(plans.filter((p) => p.scene === SCENE_STYLES).every((p) => p.description === DESCRIPTION_DEMOS_AVEC_REPLIQUES));
-  assert.ok(plans.filter((p) => p.scene === SCENE_CREATIVITE).every((p) => p.description === DESCRIPTION_DEMOS_SANS_REPLIQUE));
+  assert.ok(plans.filter((p) => p.scene === SCENE_CREATIVITE).every((p) => p.description === NARRATION_CREATIVITE_DEMOS));
 });
 
 test("cleDemoDuPlan : réglages vides = défauts ; réglages qui ne vont pas avec la série, ou plan hors série = null", () => {
@@ -87,7 +85,7 @@ test("le brief des deux séries : répliques extraites et normalisées pour les 
   assert.equal(avec.brief.director, "villeneuve");
   assert.equal(avec.brief.assets.length, 3);
   assert.ok(!avec.brief.intent.includes("folle"), "les répliques ne sont pas dans l'intent");
-  const sans = briefDepuisPlan({ ...base, plan: { description: DESCRIPTION_DEMOS_SANS_REPLIQUE, dureeSecondes: 10, seed: "424242424242" } }, { creativity: "bold", director: "aucun" });
+  const sans = briefDepuisPlan({ ...base, plan: { description: NARRATION_CREATIVITE_DEMOS, dureeSecondes: 10, seed: "424242424242" } }, { creativity: "bold", director: "aucun" });
   assert.ok(sans.brief, sans.refus ?? "");
   assert.deepEqual(sans.brief.dialogue, []);
   assert.equal(sans.brief.creativity, "bold");

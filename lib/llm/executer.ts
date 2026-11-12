@@ -7,7 +7,7 @@ import { ErreurLlm, messagesSansImages, type DemandeLlm, type FournisseurLlm, ty
 
 /** Limite de sortie par défaut : un brief ou un plan tient largement, un plafond
  * évite une génération qui ne s'arrête pas. */
-export const MAX_TOKENS_PAR_DEFAUT = 16384;
+const MAX_TOKENS_PAR_DEFAUT = 16384;
 
 export type OptionsExecution = {
   fournisseur?: FournisseurLlm;

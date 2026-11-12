@@ -78,7 +78,7 @@ export async function creerJobRelance(
 }
 
 /** Une seed de plan : un entier de 15 chiffres au plus (sûr en nombre JavaScript, accepté par les nœuds de seed). */
-export function tirerSeed(): string {
+function tirerSeed(): string {
   return String(Math.floor(Math.random() * 1_000_000_000_000_000));
 }
 

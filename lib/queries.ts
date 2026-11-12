@@ -11,8 +11,8 @@ import {
   plans,
   projects,
 } from "../db/schema";
-import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
-import { additionnerBuckets, bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { bucketiserStatuts, bucketsVides, type StatutBuckets } from "./phase";
 import { posterSrc } from "./media";
 import { estCritique, statutAsset } from "./asset-etat";
 import { horsAffiches } from "./assets-visibles";
@@ -21,7 +21,7 @@ import { horsAffiches } from "./assets-visibles";
  * pages opèrent sur le premier projet créé. Le schéma est prêt pour
  * plusieurs projets, l'interface pour en choisir un ne l'est pas encore :
  * point à construire quand un deuxième projet existera réellement. */
-export async function getDefaultProjectId(): Promise<number> {
+async function getDefaultProjectId(): Promise<number> {
   const [projet] = await db.select({ id: projects.id }).from(projects).orderBy(projects.id).limit(1);
   if (!projet) throw new Error("Aucun projet en base — voir db/migrations pour le projet créé par la migration 0007.");
   return projet.id;
@@ -29,7 +29,7 @@ export async function getDefaultProjectId(): Promise<number> {
 
 /** Même logique que getDefaultProjectId : le premier épisode du premier
  * projet, tant qu'il n'y a rien pour en choisir un autre. */
-export async function getDefaultEpisodeId(): Promise<number> {
+async function getDefaultEpisodeId(): Promise<number> {
   const [episode] = await db.select({ id: episodes.id }).from(episodes).orderBy(episodes.id).limit(1);
   if (!episode) throw new Error("Aucun épisode en base — voir db/migrations pour l'épisode créé par la migration 0007.");
   return episode.id;

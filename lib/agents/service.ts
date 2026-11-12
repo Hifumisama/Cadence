@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
 import { horsAffiches } from "../assets-visibles";
 import { db } from "../../db";
 import {
@@ -558,28 +558,6 @@ export async function corrigerChangement(changementId: number, valeurs: { dureeG
   return { ok: true };
 }
 
-export async function rejeter(propositionUuid: string): Promise<Resultat> {
-  const prop = await propositionParUuid(propositionUuid);
-  if (!prop) return ERR("Proposition introuvable.");
-  if (prop.statut !== "prete" && prop.statut !== "en_generation" && prop.statut !== "echouee") return ERR("Cette proposition est déjà close.");
-  if (prop.statut === "en_generation" && prop.runId != null) {
-    await db.update(agentRuns).set({ statut: "annulee", finishedAt: new Date() }).where(and(eq(agentRuns.id, prop.runId), eq(agentRuns.statut, "en_attente")));
-    await db.update(agentRuns).set({ annulationDemandeeAt: new Date() }).where(and(eq(agentRuns.id, prop.runId), eq(agentRuns.statut, "en_cours")));
-  }
-  if (prop.lot) await annulerRunsDePropositions(db, [prop.id]);
-  await db.update(propositions).set({ statut: "rejetee" }).where(eq(propositions.id, prop.id));
-  if (prop.conversationId != null) {
-    const [conv] = await db.select().from(agentConversations).where(eq(agentConversations.id, prop.conversationId));
-    if (conv && conv.propositionId === prop.id) {
-      await db
-        .update(agentConversations)
-        .set({ propositionId: null, etape: conv.profondeur === "complete" ? (prop.lot ? "applique" : "brief") : "consigne", updatedAt: new Date() })
-        .where(eq(agentConversations.id, conv.id));
-    }
-  }
-  return { ok: true };
-}
-
 export async function affiner(propositionUuid: string, retour: string): Promise<Resultat<{ propositionUuid: string; runUuid: string }>> {
   const parent = await propositionParUuid(propositionUuid);
   if (!parent) return ERR("Proposition introuvable.");
@@ -618,7 +596,7 @@ const CONSIGNE_SCENARIO = "Écris le scénario complet de cet épisode.";
 /** Les épisodes d'un projet proposables à l'écriture de leur scénario, dans
  * l'ordre, avec ce qu'ils contiennent déjà : « vide » = ni plan ni scène (le squelette tout juste
  * appliqué). */
-export async function episodesPourScenarios(projectId: number): Promise<EpisodePourScenario[]> {
+async function episodesPourScenarios(projectId: number): Promise<EpisodePourScenario[]> {
   const lignes = await db
     .select({ id: episodes.id, numero: episodes.numero, titre: episodes.titre })
     .from(episodes)

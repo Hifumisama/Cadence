@@ -6,7 +6,6 @@ import { getPlansPerimes } from "@/lib/plans-perimes";
 import { getAssetsRegistre, getPlanDetail, getProject, getScenesEpisode, type AssetRegistre } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { infosMedia } from "@/lib/assetMedia";
-import { getAllParams } from "@/lib/params";
 import { controlerStructure, DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/plan-checks";
 import { demosMiseEnScene } from "@/lib/media";
 import { getVoixDuPlan } from "@/lib/queries-voix-plan";
@@ -32,7 +31,7 @@ import { libelleAsset } from "@/lib/assetCode";
 import { statutAsset } from "@/lib/asset-etat";
 import { etatRaccord, raccordSansPlace } from "@/lib/plan-raccord";
 import { raccordActuel } from "@/lib/queries-raccord";
-import { choisirComparaison, choisirRendu, detailPerime, estLisible, estPerime, promptDiffere, raisonNonRetenable, type RenduVue } from "@/lib/rendus";
+import { choisirComparaison, choisirRendu, detailPerime, estLisible, estPerime, promptDiffere, type RenduVue } from "@/lib/rendus";
 
 export const dynamic = "force-dynamic";
 
@@ -73,8 +72,7 @@ export default async function PlanPage({
 
   const { plan, position, promptSections, refs, jobHistory } = detail;
 
-  const [parametresGlobaux, assetsRegistre, scenesEpisode, audioRefs, pellicule, projet] = await Promise.all([
-    getAllParams(),
+  const [assetsRegistre, scenesEpisode, audioRefs, pellicule, projet] = await Promise.all([
     getAssetsRegistre(pid),
     getScenesEpisode(eid),
     getVoixDuPlan(plan.id),
@@ -217,7 +215,6 @@ export default async function PlanPage({
   const hrefComparer = !comparaison && principal && autreLisible ? hrefRendus(principal.id, autreLisible.id) : null;
   const hrefQuitter = comparaison && principal ? hrefRendus(principal.id, null) : null;
   const principalJob = principal ? jobHistory.find((j) => j.id === principal.id) : undefined;
-  const retenable = principal ? raisonNonRetenable(principal) == null : false;
   // Ce que le serveur sait de l'essai en cours ; le plateau lit ensuite sa progression EN DIRECT dans les tâches (useTaches), sans recharger la page.
   const suiviEnCours = vueEnCours ?? enFile;
   // L'itération du plan (en cours ou en file) : sa consigne se voit dès le départ, avant même que l'essai existe.

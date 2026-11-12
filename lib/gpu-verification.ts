@@ -12,7 +12,7 @@ export type ObjectInfo = Record<
   { input?: { required?: Record<string, unknown>; optional?: Record<string, unknown> } }
 >;
 
-export type FichierAbsent = { classe: string; champ: string; valeur: string };
+type FichierAbsent = { classe: string; champ: string; valeur: string };
 export type RapportWorkflow = { nom: string; noeudsAbsents: string[]; fichiersAbsents: FichierAbsent[]; ok: boolean };
 
 /** Une valeur qui désigne un fichier de modèle. Le reste (prompts, noms d'images d'entrée, sélecteurs) change à chaque soumission. */

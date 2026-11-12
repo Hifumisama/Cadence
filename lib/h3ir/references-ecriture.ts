@@ -16,14 +16,14 @@ import { MAX_REFS } from "../plan-checks";
  * À appeler dans une transaction (tout tombe ensemble). La décision est pure (`planifierReferences`, testée). */
 
 export type ReferenceAEcrire = string | { code: string; role?: string | null };
-export type RaisonSansEcriture = "plan-introuvable" | "deja-des-references" | "aucune-reference";
+type RaisonSansEcriture = "plan-introuvable" | "deja-des-references" | "aucune-reference";
 export type ResultatEcritureReferences = { ok: true; ecrites: number; ignores: string[] } | { ok: false; raison: RaisonSansEcriture; ignores: string[] };
 
 /** Les types d'asset qui peuvent être une image de référence. */
 const TYPES_IMAGE = new Set(["personnage", "decor", "prop", "vfx", "keyframe", "oth"]);
 export const RETENTION_VFX = "weak_reference";
 
-export type LigneReference = { assetId: number; slot: number; role: string | null; retention: string | null };
+type LigneReference = { assetId: number; slot: number; role: string | null; retention: string | null };
 export type PlanReferences =
   | { ok: true; lignes: LigneReference[]; ignores: string[]; retirerExistantes: boolean }
   | { ok: false; raison: RaisonSansEcriture; ignores: string[] };

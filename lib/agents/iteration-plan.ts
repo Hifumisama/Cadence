@@ -5,32 +5,20 @@ import type { DecisionsAffichees, DecisionsIteration, DiagnosticIteration } from
 import { raisonDescriptionIncomplete, repliquesPerdues, sansEtatDeFin } from "../intent";
 import { retenirManquants } from "../h3ir/preparation";
 
-/** `iteration-plan` : ANALYSER la consigne d'un plan après visionnage (agents/skills/iteration-plan/SKILL.md). Règles PURES (sans base, disque ni
- * Next), partagées par le contrôleur sémantique (lib/llm/controles.ts), le post-traitement (worker/agents/postTraitement.ts), la vue de la
- * proposition (lib/queries-agents.ts) et les tests.
- *
- * Contrat (2026-11-09) : l'agent n'écrit plus de prompt. Il diagnostique, puis DÉCIDE sur les seules sources de vérité du plan : son intent
- * (`plans.description`, texte COMPLET qui remplace l'actuel), sa durée, ses références (`plan_refs`, par code du registre) et ses réglages
- * Open H3 IR (`plans.creativite`, `plans.style_camera` : la nouvelle valeur REMPLACE celle du plan). Pas de directive libre persistante. Le
- * prompt vidéo est ensuite TOUJOURS recompilé par Open H3 IR (lib/agents/service.ts, `genererReecriturePlan`) et les décisions s'écrivent avec la
- * fiche compilée, dans la même application : si la compilation échoue, rien n'est écrit. */
-
-export const CATEGORIES_ITERATION = ["decoupage-scenario", "cadence", "vocabulaire", "negation", "etat-arrivee", "camera", "lumiere", "duree", "reference", "mise-en-scene", "modele", "autre"] as const;
-
 /** Écart toléré entre la durée réelle du fichier (ffprobe) et la durée voulue : au-delà, le rendu a été généré
  * à une autre durée, tous ses temps sont comprimés ou étirés : aucun diagnostic d'écriture n'est valable. */
-export const TOLERANCE_DUREE_SECONDES = 0.5;
+const TOLERANCE_DUREE_SECONDES = 0.5;
 
 /** Plafond de vignettes demandé pour une planche (une par seconde, plafond de durée d'un plan). */
 export const MAX_VIGNETTES_ITERATION = 15;
 
 /** Au plus deux assets manquants suggérés par itération (décision 2026-11-09). */
-export const MAX_MANQUANTS_ITERATION = 2;
+const MAX_MANQUANTS_ITERATION = 2;
 
 // `PREFIXE_SANS_ECRITURE` et `notesDecisions` vivent dans iteration-notes.ts (sans dépendance serveur, lu par les composants client).
 export { PREFIXE_SANS_ECRITURE, notesDecisions } from "./iteration-notes";
 
-export type AssetManquant = { code: string; type: string; parent?: string; description: string; raison: string };
+type AssetManquant = { code: string; type: string; parent?: string; description: string; raison: string };
 
 /** Le bloc `decisions` de la sortie du skill. `null` / `""` / liste vide = ne change pas. */
 export type DecisionsSortie = {
@@ -80,7 +68,7 @@ const norm = (t: string) => t.replace(/\s+/g, " ").trim();
 const chaines = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim()) : []);
 
 /** Le bloc `decisions`, lu sans confiance (un résultat ancien ou abîmé n'a pas la forme) : toujours un objet complet. */
-export function lireDecisions(brut: unknown): DecisionsSortie {
+function lireDecisions(brut: unknown): DecisionsSortie {
   const d = (brut && typeof brut === "object" ? brut : {}) as Record<string, unknown>;
   const refs = (d.references && typeof d.references === "object" ? d.references : {}) as Record<string, unknown>;
   const reg = (d.reglages && typeof d.reglages === "object" ? d.reglages : {}) as Record<string, unknown>;
@@ -247,7 +235,7 @@ const libelleCreativite = (v: string | null | undefined): string => (v && estCre
 const libelleStyle = (v: string | null | undefined): string => (v && estMiseEnScene(v) ? RESUME_STYLE_CAMERA[v as ChoixMiseEnScene] : "aucun style");
 
 /** Les décisions telles que la page du plan les affiche (avant → après). */
-export function decisionsAffichees(dec: DecisionsIteration | null, ctx: ContexteIteration, suggeres: AssetManquant[] = []): DecisionsAffichees | null {
+function decisionsAffichees(dec: DecisionsIteration | null, ctx: ContexteIteration, suggeres: AssetManquant[] = []): DecisionsAffichees | null {
   // Les manquants retenus (créés d'office) quand il y a des décisions ; sinon ce que l'agent suggérait (rien ne sera créé).
   const manquants = dec?.manquants ?? (dec ? [] : suggeres);
   if (!dec && manquants.length === 0) return null;

@@ -8,8 +8,8 @@ export const clausesProduites = brutes as Record<string, string>;
 /** Longueur d'une clause, en mots. 40 au plus jusqu'au 2026-11-08 : trop court pour un rendu riche (un rendu 3D de jeu vidéo a
  * besoin de dire ses matières : costumes ornés en couches, cheveux brillants mèche à mèche, peau translucide), la clause tombait
  * sur un « look » générique. 60 au plus depuis (une ou deux phrases, toujours) ; 15 au moins, pour qu'elle dise vraiment un rendu. */
-export const MOTS_MIN = 15;
-export const MOTS_MAX = 60;
+const MOTS_MIN = 15;
+const MOTS_MAX = 60;
 
 /** Mots qui trahissent un sujet, un cadrage ou un mouvement : la clause ne décrit que le rendu. « hair » n'en fait plus partie
  * (2026-11-08) : « glossy strand-by-strand hair » est un marqueur de rendu matière ; une couleur ou une coiffe de cheveux, elle,

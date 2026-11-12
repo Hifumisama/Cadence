@@ -1,7 +1,7 @@
 import { getEpisode, getEtatPlans, getProject, getScenarioData } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/queries-fiche-plan";
 import { notFound } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { demandes, plans } from "@/db/schema";
 import { demosMiseEnScene } from "@/lib/media";

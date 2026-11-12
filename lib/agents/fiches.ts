@@ -15,7 +15,7 @@ import { estCreativite, estMiseEnScene, STYLE_AUCUN } from "../h3ir/reglages";
 
 // --- sous-tâches d'un lot ---------------------------------------------------------
 
-export const PREFIXE_CLE_PLAN = "plan:";
+const PREFIXE_CLE_PLAN = "plan:";
 export const cleSousTachePlan = (uuid: string): string => `${PREFIXE_CLE_PLAN}${uuid}`;
 export function planUuidDeCle(cle: string | null | undefined): string | null {
   if (!cle || !cle.startsWith(PREFIXE_CLE_PLAN)) return null;
@@ -31,14 +31,14 @@ export const cleNouvelAsset = (code: string): string => `nouvel-asset-${code}`;
 // --- contenu d'un changement `fiche` ----------------------------------------------
 
 export const SECTIONS_FICHE = ORDRE_SECTIONS;
-export type SectionsFiche = Partial<Record<NomSection, string>>;
+type SectionsFiche = Partial<Record<NomSection, string>>;
 
 /** Une référence d'image ou de son du plan (une ligne de `plan_refs`). `asset` = code du registre. */
 export type RefFiche = { type: "picture" | "audio"; slot: number; asset: string; role?: string | null; retention?: string | null };
 
 /** Un passage remplacé par une correction après visionnage (iteration-plan) : AFFICHAGE seulement (la revue
  * montre « avant → après » au lieu de la section entière). L'applicateur ne lit que `sections`. */
-export type PassageFiche = { section: string; avant: string; apres: string };
+type PassageFiche = { section: string; avant: string; apres: string };
 
 /** `apres` d'un changement `fiche`. Champ absent = on n'y touche pas (écriture partielle). `refs` présent =
  * les références picture/audio du plan sont REMPLACÉES par cette liste (les vidéos et les voix restent).

@@ -35,12 +35,12 @@ export function resumeAutomatique(lignes: { operation: Operation; cibleType: Cib
 export type OptionsEnregistrement = { sousTache?: string; baseOrdre?: number };
 
 /** Un changement enrichi par son applicateur (état courant, écrasement, avertissements, refus), prêt à être enregistré. */
-export type ChangementEnrichi = Omit<typeof propositionChangements.$inferInsert, "propositionId" | "ordre" | "sousTache">;
+type ChangementEnrichi = Omit<typeof propositionChangements.$inferInsert, "propositionId" | "ordre" | "sousTache">;
 
 /** Enrichit les changements bruts (état courant, écrasements, contrôles), applique le verrou de portée et calcule le cochage par
  * défaut. LECTURE SEULE : n'écrit rien. Sert à `enregistrerChangements` et à la révision d'épisode (les constats d'une décision).
  * `clesExistantes` : les clés de créations déjà proposées ailleurs (les autres sous-tâches d'un lot). */
-export async function enrichirChangements(
+async function enrichirChangements(
   tx: DbOuTx,
   projectId: number,
   scope: ScopeDemandee,

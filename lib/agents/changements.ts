@@ -64,7 +64,7 @@ export const TITRES_GROUPES: Record<string, string> = {
 export const ORDRE_GROUPES = ["ecrasement", "brief", "projet", "episodes", "scenes", "plans", "fiches", "assets"];
 
 /** Les clés symboliques des parents qu'un changement cite (créés par la même proposition). */
-export const CLES_PARENT = ["episodeCle", "sceneCle", "deriveDeCle"] as const;
+const CLES_PARENT = ["episodeCle", "sceneCle", "deriveDeCle"] as const;
 
 export function clesParent(apres: unknown): string[] {
   if (!apres || typeof apres !== "object") return [];

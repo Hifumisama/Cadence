@@ -6,7 +6,7 @@ import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, SHOT_MIN_SECONDES } from ".
  * peut passer tous les contrôles et rester médiocre, mais un plan qui en échoue un est à refaire.
  * Le prompt final (labels, timecodes, sections) est produit par lib/agents/plan-h3-assemblage.ts. */
 
-export type ReferenceH3 = {
+type ReferenceH3 = {
   asset: string;
   nature: "image";
   role: string;
@@ -16,7 +16,7 @@ export type ReferenceH3 = {
   retentionNote?: string;
 };
 
-export type AssetManquantH3 = { code: string; type: string; parent?: string | null; description: string; raison: string };
+type AssetManquantH3 = { code: string; type: string; parent?: string | null; description: string; raison: string };
 
 export type SortiePlanH3 = {
   titre: string;
@@ -49,7 +49,7 @@ export type ContexteControleH3 = {
 
 /** Seuil de l'alerte de longueur (norme du guide officiel : 350 à 500 mots ; on laisse de la marge avant d'alerter). */
 /** Budget du prompt assemblé (le plafond de l'API v2, retenu aussi en local : au-delà de ~12 000 caractères les rendus du banc étaient moins lisibles). */
-export const CARACTERES_MAX_PROMPT = 7000;
+const CARACTERES_MAX_PROMPT = 7000;
 export const MAX_IMAGES = 6;
 /** Un plan en liaison « suite » garde un emplacement pour l'image de raccord (lib/plan-raccord.ts) : 5 images de référence au plus. */
 export const MAX_IMAGES_AVEC_RACCORD = MAX_IMAGES - 1;
@@ -76,7 +76,7 @@ const LABEL = /<\s*(Subject|Picture|Audio|Video)\s*\d*\s*>/i;
 const TIMECODE_EN_TETE = String.raw`(?:at\s+\d{1,2}:\d{2}(?:\.\d{1,3})?\s*[,:]?\s*)?`;
 const COUPE = String.raw`(?:(?:a|an|the)\s+)?(?:shot\s+)?(?:(?:sudden|final|sharp|hard|abrupt|immediate|clean|quick)\s+)*cuts?`;
 /** Une coupe annoncée en tête de shot (retirable ou non). */
-export const COUPE_EN_TETE = new RegExp(`^\\s*${TIMECODE_EN_TETE}${COUPE}\\b`, "i");
+const COUPE_EN_TETE = new RegExp(`^\\s*${TIMECODE_EN_TETE}${COUPE}\\b`, "i");
 /** Le cas retirable sans casser la phrase : la coupe est suivie de « to » ou « on » (« a hard cut to an extreme close-up »). */
 export const COUPE_RETIRABLE = new RegExp(`^\\s*${TIMECODE_EN_TETE}${COUPE}\\s+(?:directly\\s+|straight\\s+)?(?:to|on)\\b\\s*[,:.—-]?\\s*`, "i");
 const TIMECODE_SEUL = /^\s*at\s+\d{1,2}:\d{2}/i;
@@ -93,7 +93,7 @@ const GERONDIFS_NEUTRES = new Set([
 const RAPPEL_VOULU = /\b(again|replay(?:s|ed)?|rewind(?:s)?|slow[- ]motion|slowed|second angle|other side|another angle|echo(?:es)?)\b/i;
 
 /** Les verbes d'action (participes présents d'au moins 7 lettres) d'un shot : « tipping », « rolling », « collapsing »… */
-export function gerondifsDAction(texte: string): Set<string> {
+function gerondifsDAction(texte: string): Set<string> {
   const sans = texte.replace(/\[\[[^\]]*\]\]/g, " ").replace(/<d>[\s\S]*?<\/d>/gi, " ");
   return new Set((sans.toLowerCase().match(/\b[a-z]{2,}ing\b/g) ?? []).filter((w) => w.length >= 6 && !GERONDIFS_NEUTRES.has(w)));
 }
@@ -101,7 +101,7 @@ export function gerondifsDAction(texte: string): Set<string> {
 /** Les paires de shots d'un même plan qui partagent au moins deux verbes d'action (proxy lexical d'« un même geste décrit deux fois »).
  * Choisi au banc : sur 132 plans écrits, 3 alertes dont le cas réel (poussière qui « rolling » puis « tipping » dans deux shots), alors que le
  * recouvrement de mots pleins ou de bigrammes en donne 17 à 19 presque toutes fausses (décor, lumière et noms propres se répètent légitimement). */
-export function shotsQuiRepetentUneAction(textes: string[]): { a: number; b: number; communs: string[] }[] {
+function shotsQuiRepetentUneAction(textes: string[]): { a: number; b: number; communs: string[] }[] {
   const g = textes.map(gerondifsDAction);
   const paires: { a: number; b: number; communs: string[] }[] = [];
   for (let i = 0; i < g.length; i++) {
@@ -118,7 +118,7 @@ const mots = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}'’\s-]/gu, " 
 const TAILLE_RECOPIE = 10;
 
 /** Séquences de `TAILLE_RECOPIE` mots d'un texte, pour repérer une phrase recopiée d'un exemple. */
-export function sequencesDeMots(texte: string): Set<string> {
+function sequencesDeMots(texte: string): Set<string> {
   const m = mots(texte);
   const s = new Set<string>();
   for (let i = 0; i + TAILLE_RECOPIE <= m.length; i++) s.add(m.slice(i, i + TAILLE_RECOPIE).join(" "));
@@ -151,7 +151,6 @@ export function controlerSortiePlanH3(sortie: SortiePlanH3, ctx: ContexteControl
   const references = sortie.references ?? [];
   const typeDe = new Map(ctx.registre.map((a) => [a.code, a.type]));
   // Un asset manquant se CITE comme une référence d'image : il est créé avec la correction, sa fiche le référence (son image viendra après).
-  const manquants = new Set((sortie.assetsManquants ?? []).map((a) => a.code));
   for (const a of sortie.assetsManquants ?? []) if (!typeDe.has(a.code)) typeDe.set(a.code, a.type);
   const images = references;
   if (references.length === 0) ajouter("alerte", "references", "Aucune référence : un plan en full-reference porte au moins une image de référence.");

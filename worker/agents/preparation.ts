@@ -6,7 +6,7 @@ import { contenuPlanche, ErreurPlanche, extrairePlanche, type Planche } from "..
 import type { MessageLlm } from "../../lib/llm/types";
 import { and, desc, eq, lt } from "drizzle-orm";
 import { db } from "../../db";
-import { agentConversations, agentRuns, plans, propositionChangements } from "../../db/schema";
+import { agentRuns, plans, propositionChangements } from "../../db/schema";
 import { dernierShotDuBrouillon } from "../../lib/agents/contexte";
 import { cleSousTachePlan, planUuidDeCle } from "../../lib/agents/fiches";
 
@@ -21,7 +21,7 @@ import { cleSousTachePlan, planUuidDeCle } from "../../lib/agents/fiches";
 type RunAgent = typeof agentRuns.$inferSelect;
 
 /** Ce que la planche d'un rendu coûte à obtenir : injectable (essais sans ffmpeg, scripts/agents-e2e.ts). */
-export type LecteurPlanche = (cheminAbsolu: string, maxVignettes: number) => Promise<Planche>;
+type LecteurPlanche = (cheminAbsolu: string, maxVignettes: number) => Promise<Planche>;
 
 export type DepsPreparation = { planche?: LecteurPlanche };
 
@@ -35,7 +35,7 @@ export type EntreePreparee = {
 
 export type InfosExecution = { dureeReelleSecondes?: number; nbVignettes?: number };
 
-export const lirePlancheParDefaut: LecteurPlanche = async (chemin, max) => {
+const lirePlancheParDefaut: LecteurPlanche = async (chemin, max) => {
   if (!existsSync(chemin)) {
     throw new Error(`Le rendu de ce plan est introuvable sur le stockage (${chemin}) : régénère ou réimporte la vidéo, regarde-la, puis relance la correction.`);
   }

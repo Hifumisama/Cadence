@@ -25,7 +25,7 @@ export const ETAPES_CREATION = [
 ] as const;
 
 export type CleEtapeCreation = (typeof ETAPES_CREATION)[number]["cle"];
-export type StatutEtapeCreation = "a_venir" | "en_cours" | "fait" | "passe" | "echoue";
+type StatutEtapeCreation = "a_venir" | "en_cours" | "fait" | "passe" | "echoue";
 export type StatutCreation = "en_cours" | "termine" | "echoue" | "arretee";
 
 export type EtapeCreation = {

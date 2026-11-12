@@ -15,7 +15,7 @@ import {
   cleSousTacheEpisode,
   type RunLot,
 } from "./lots-pur";
-import { verifierPortee } from "./portee";
+
 import { analyserCle, cleLot } from "../taches";
 
 // --- lots : états agrégés ------------------------------------------------------

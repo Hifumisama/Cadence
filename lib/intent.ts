@@ -97,7 +97,7 @@ export const intentionChangee = (description: string | null | undefined, descrip
   descriptionDepart != null && !memeDescription(description, descriptionDepart);
 
 /** Les répliques `« … »` d'une description. */
-export const repliquesIntent = (description: string): string[] => [...description.matchAll(/«\s*([\s\S]*?)\s*»/g)].map((m) => m[1]!.trim()).filter(Boolean);
+const repliquesIntent = (description: string): string[] => [...description.matchAll(/«\s*([\s\S]*?)\s*»/g)].map((m) => m[1]!.trim()).filter(Boolean);
 
 const mots = (t: string): string[] => t.toLowerCase().match(/\p{L}{3,}/gu) ?? [];
 

@@ -1,22 +1,8 @@
-/** Génération d'images d'un asset — règles pures (sans base ni disque), partagées
- * par l'application et le worker. Voir docs/FRICTIONS.md (tâches ComfyUI) et
- * workflows/README.md (contrat des workflows d'images). */
 
-export const STATUTS_GENERATION = ["traduction", "en_attente", "en_cours", "termine", "echoue", "annulee"] as const;
-export type StatutGeneration = (typeof STATUTS_GENERATION)[number];
 
 /** Un essai lancé depuis la fiche attend d'abord que sa consigne française soit traduite en prompt (tâche LLM, skill `prompt-asset`) :
  * il n'entre dans la file d'images qu'ensuite. */
 export const STATUT_TRADUCTION = "traduction";
-
-export const LIBELLE_STATUT_GENERATION: Record<StatutGeneration, string> = {
-  traduction: "Traduction de la consigne",
-  en_attente: "En attente",
-  en_cours: "En cours",
-  termine: "Terminée",
-  echoue: "Échouée",
-  annulee: "Annulée",
-};
 
 /** Formats proposés, associés aux chaînes exactes du nœud `ResolutionSelector`
  * de ComfyUI (liste relevée dans comfy_extras/nodes_resolution.py). */
@@ -38,21 +24,19 @@ export function estAspect(v: string): v is Aspect {
   return v in ASPECTS_COMFYUI;
 }
 
-export const MEGAPIXELS_PROPOSES = [1, 1.3, 2] as const;
-
 /** Deux modes (variante B de la maquette) : « texte » = text-to-image
  * (IMG_01_TextToImage, Krea 2 Turbo) ; « images » = IMG_Simple_Edit
  * (Qwen Image Edit 2511) avec 1 à 3 images sources, la première étant la cible
  * modifiée. Un seul image = modification, plusieurs = fusion de références. */
-export const MODES_GENERATION = ["texte", "images"] as const;
-export type ModeGeneration = (typeof MODES_GENERATION)[number];
-export const MAX_SOURCES = 3;
+const MODES_GENERATION = ["texte", "images"] as const;
+type ModeGeneration = (typeof MODES_GENERATION)[number];
+const MAX_SOURCES = 3;
 
 /** Une image source d'une génération en mode « images », dans l'ordre :
  * - `asset` : l'image courante d'un asset du registre ;
  * - `import` : un fichier déposé à la volée dans la popup (jetable, rangé sous
  *   generations/<assetId>/sources/, jamais rattaché au registre). */
-export type SourceGeneration =
+type SourceGeneration =
   | { origine: "asset"; assetId: number }
   | { origine: "import"; fichier: string };
 
@@ -77,8 +61,8 @@ export const methodeDEssai = (aDesImages: boolean): "generation" | "edition" => 
 
 /** Les images qu'un essai peut porter (Qwen Image Edit en prend 3). Créer à partir d'images jointes : jusqu'à 3, la 1re « porte » les
  * modifications des autres. Retoucher : l'image de base compte pour une, il reste de la place pour deux images jointes. */
-export const MAX_IMAGES_CREATION = 3;
-export const MAX_IMAGES_RETOUCHE = 3;
+const MAX_IMAGES_CREATION = 3;
+const MAX_IMAGES_RETOUCHE = 3;
 /** Combien d'images jointes (en plus de la base, s'il y en a une) on peut ajouter. */
 export const maxImagesJointes = (aUneBase: boolean): number => (aUneBase ? MAX_IMAGES_RETOUCHE - 1 : MAX_IMAGES_CREATION);
 
@@ -139,8 +123,8 @@ export function formaterDuree(secondes: number): string {
   return `${String(Math.round(secondes * 10) / 10).replace(".", ",")} s`;
 }
 
-export const MEGAPIXELS_MIN = 0.3;
-export const MEGAPIXELS_MAX = 4;
+const MEGAPIXELS_MIN = 0.3;
+const MEGAPIXELS_MAX = 4;
 
 /** Validation de la structure d'une demande (sans base ni disque : l'existence
  * des sources se vérifie côté action). Renvoie le message à afficher, ou null. */

@@ -13,7 +13,7 @@ import type { Db } from "./applicateurs/commun";
 
 export const BUT_ESSAI = "essai";
 
-export type OptionsEssai = { generationId: number };
+type OptionsEssai = { generationId: number };
 
 /** L'entrée du skill pour un essai : celle d'un asset ordinaire, avec la méthode IMPOSÉE (le code l'a décidée d'après la présence d'une image de
  * base) et, comme prompt « actuel », celui de l'image de base (le prompt de l'essai d'où l'on repart, sinon celui de l'asset). */

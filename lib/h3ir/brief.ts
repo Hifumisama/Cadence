@@ -15,7 +15,7 @@ import { STYLES_CAMERA } from "./styles-camera";
  * palette, vêtements, action et interdits que sur des mots anglais. */
 
 /** Résolution fixée (décision du 2026-11-02) : 0,4 mégapixel, quel que soit le réglage du plan. */
-export const MEGAPIXELS_H3IR = 0.4;
+const MEGAPIXELS_H3IR = 0.4;
 
 
 /** Plafond de `shots` du paquet (`PINNED_SHOTS_MAX`). Son plancher par shot (`MIN_SHOT_MS` = 1200) est `SHOT_MIN_FICHE_SECONDES` (lib/plan-checks.ts). Le paquet
@@ -39,8 +39,8 @@ export const ROLE_PAR_TYPE: Record<string, "subject" | "environment" | "storyboa
   keyframe: "storyboard",
 };
 
-export type AssetBrief = { path: string; kind: "image" | "video" | "audio"; role: string; note?: string };
-export type DialogueBrief = { text: string; language: string; speaker?: string; voiceover: boolean };
+type AssetBrief = { path: string; kind: "image" | "video" | "audio"; role: string; note?: string };
+type DialogueBrief = { text: string; language: string; speaker?: string; voiceover: boolean };
 
 /** Le corps de la requête, dans l'ordre où on veut le lire. */
 export type BriefH3ir = {

@@ -1,34 +1,27 @@
 "use server";
 
 import { db } from "@/db";
-import { assetGenerationSources, assetGenerations, assets, projects } from "@/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { assetGenerations, assets } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import {
   STATUT_TRADUCTION,
-  raisonDemandeInvalide,
-  type DemandeGeneration,
-  formatParDefaut,
 } from "@/lib/asset-generation";
 import { annulerTraductionEssai } from "@/lib/agents/essai-asset";
-import { styleDesImages } from "@/lib/conception";
 import { horsAffiches } from "@/lib/assets-visibles";
 import { adopterCandidat } from "@/lib/generation-adoption";
-import { poserGeneration, poserGenerationsLot, type ResultatLancement } from "@/lib/generation-lancement";
+import { poserGenerationsLot } from "@/lib/generation-lancement";
 import { idsSansImage } from "@/lib/images-projet";
-import { PLAFOND_LOT_IMAGES, preparerLot, type EcarteLot } from "@/lib/generation-lot";
+import { type EcarteLot } from "@/lib/generation-lot";
 import { supprimerGenerationEtFichiers } from "@/lib/generation-sources";
-import { PLAFOND_FILE_IMAGES } from "@/lib/taches";
+
 import {
   MEDIA_ROOT,
   TAILLE_MAX_UPLOAD_ASSET,
-  cheminAssetMedia,
   cheminSourceImportMedia,
-  estImage,
-  estNomSourceImport,
   sourceImportMediaSrc,
 } from "@/lib/media";
 
@@ -44,22 +37,6 @@ type Resultat = { ok: true } | { ok: false; erreur: string };
 
 
 const EXTENSIONS_IMPORT = [".png", ".jpg", ".jpeg", ".webp"];
-
-async function existe(chemin: string): Promise<boolean> {
-  try {
-    await access(chemin);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Pose une demande dans la file (règles et écriture dans lib/generation-lancement.ts). */
-export async function lancerGeneration(assetId: number, demande: DemandeGeneration, plafond: number = PLAFOND_FILE_IMAGES, adoptionAuto = false): Promise<ResultatLancement> {
-  const r = await poserGeneration(assetId, demande, plafond, adoptionAuto);
-  revalidatePath("/", "layout");
-  return r;
-}
 
 /** Génération EN LOT (registre d'assets) : voir poserGenerationsLot. */
 export async function lancerGenerationsLot(

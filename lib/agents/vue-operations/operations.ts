@@ -1,7 +1,7 @@
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../plan-checks";
 import { estLiaison } from "../../plan-liaison";
 import type { Position } from "../types";
-import { planParPoignee, planParUuid, type VueEpisode } from "./vue-episode";
+import { planParPoignee, type VueEpisode } from "./vue-episode";
 import { TYPES_OPERATION, type Operation, type OperationBrute, type OperationRefusee } from "./types";
 
 /** Valide les opérations que le modèle propose et les traduit en opérations STOCKABLES (uuid). Pur, testé.
@@ -151,34 +151,4 @@ export function validerOperations(brutes: OperationBrute[], vue: VueEpisode): { 
     }
   }
   return { valides, refusees };
-}
-
-/** L'opération stockée (uuid) redite avec les poignées D'AUJOURD'HUI : c'est ce que le modèle relit dans les décisions et les pistes en
- * cours. Une cible disparue devient « ? ». */
-export function operationEnPoignees(op: Operation, vue: VueEpisode): OperationBrute {
-  const plan = (uuid: string) => planParUuid(vue, uuid)?.handle ?? "?";
-  switch (op.type) {
-    case "couper_plan":
-      return { type: op.type, plan: plan(op.planUuid) };
-    case "duree_plan":
-      return { type: op.type, plan: plan(op.planUuid), secondes: op.secondes };
-    case "deplacer_plan":
-      return {
-        type: op.type,
-        plan: plan(op.planUuid),
-        ...("apresPlanUuid" in op.position ? { apres: plan(op.position.apresPlanUuid) } : { position: "debut" in op.position ? "debut" : "fin" }),
-      };
-    case "modifier_plan":
-      return { type: op.type, plan: plan(op.planUuid), ...(op.titre !== undefined ? { titre: op.titre } : {}), ...(op.description !== undefined ? { description: op.description } : {}), ...(op.liaison !== undefined ? { liaison: op.liaison } : {}) };
-    case "refondre_fiche":
-      return { type: op.type, plan: plan(op.planUuid), ...(op.consigne ? { consigne: op.consigne } : {}) };
-    case "ajouter_plan":
-      return {
-        type: op.type,
-        ...("apresPlanUuid" in op.position ? { apres: plan(op.position.apresPlanUuid) } : { position: "debut" in op.position ? "debut" : "fin" }),
-        titre: op.titre,
-        description: op.description,
-        secondes: op.secondes,
-      };
-  }
 }

@@ -7,7 +7,7 @@ import type { Db } from "../applicateurs/commun";
  * l'ordre réel à cet instant. Le modèle cite les poignées ; le code les traduit en uuid (une poignée est un rang : elle n'est jamais
  * stockée, F03). `construireVue` est pur, `lireVueEpisode` lit la base. */
 
-export type EtatPlan = "brouillon" | "fiche" | "en_file" | "rendu";
+type EtatPlan = "brouillon" | "fiche" | "en_file" | "rendu";
 
 export type PlanVue = {
   uuid: string;
@@ -34,7 +34,7 @@ export type VueEpisode = {
   plans: PlanVue[];
 };
 
-export const handle = (n: number): string => `P${String(n).padStart(2, "0")}`;
+const handle = (n: number): string => `P${String(n).padStart(2, "0")}`;
 
 /** « P7 », « p07 », « P 07 » → 7 ; null si ce n'est pas une poignée de plan. */
 export function numeroDePoignee(brut: string | null | undefined): number | null {
@@ -43,7 +43,7 @@ export function numeroDePoignee(brut: string | null | undefined): number | null 
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-export function etatDuPlan(statut: string, aFiche: boolean): EtatPlan {
+function etatDuPlan(statut: string, aFiche: boolean): EtatPlan {
   if (statut === "en_attente" || statut === "en_cours") return "en_file";
   if (statut === "previsualise" || statut === "termine") return "rendu";
   return aFiche ? "fiche" : "brouillon";
@@ -81,10 +81,6 @@ export const planParPoignee = (vue: VueEpisode, brut: string | null | undefined)
   return n != null ? (vue.plans[n - 1] ?? null) : null;
 };
 export const planParUuid = (vue: VueEpisode, uuid: string): PlanVue | undefined => vue.plans.find((p) => p.uuid === uuid);
-
-export function dureeTotale(vue: VueEpisode): number {
-  return vue.plans.reduce((a, p) => a + p.duree, 0);
-}
 
 /** Lit l'épisode en base. Null si l'épisode n'est pas du projet. */
 export async function lireVueEpisode(db: Db, projectId: number, episodeId: number): Promise<VueEpisode | null> {

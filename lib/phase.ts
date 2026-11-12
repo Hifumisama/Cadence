@@ -28,10 +28,6 @@ export function bucketiserStatuts(statuts: PlanStatut[]): StatutBuckets {
   return b;
 }
 
-export function additionnerBuckets(a: StatutBuckets, b: StatutBuckets): StatutBuckets {
-  return { termine: a.termine + b.termine, actif: a.actif + b.actif, attente: a.attente + b.attente, brouillon: a.brouillon + b.brouillon };
-}
-
 export function totalBuckets(b: StatutBuckets): number {
   return b.termine + b.actif + b.attente + b.brouillon;
 }
@@ -59,37 +55,3 @@ export function phaseDe(b: StatutBuckets): Phase {
   return "fiches";
 }
 
-/** Statut agrégé d'un épisode, pour réutiliser tel quel StatusBadge
- * (composants/ui/StatusBadge.tsx) plutôt que d'inventer
- * un système de badge parallèle — "en_attente" sert aussi de repli visuel
- * pour "vide" (anneau creux, sans couleur : sémantiquement proche). */
-export function statutAgrege(b: StatutBuckets): PlanStatut {
-  const n = totalBuckets(b);
-  if (!n) return "en_attente";
-  if (b.termine === n) return "termine";
-  if (b.actif) return "en_cours";
-  if (b.brouillon === n) return "brouillon";
-  return "en_attente";
-}
-
-export type PhaseAgregee = { phase: Phase | "mixte"; detail: string | null; bornes: [number, number] };
-
-/** Agrège les phases de plusieurs épisodes : une seule phase si
- * elles sont toutes identiques, "mixte" sinon — jamais une phase choisie
- * arbitrairement qui mentirait sur l'état réel du film. */
-export function agregerPhases(phases: Phase[]): PhaseAgregee {
-  if (phases.length === 0) return { phase: "vide", detail: null, bornes: [0, 0] };
-  const uniques = [...new Set(phases)];
-  if (uniques.length === 1) {
-    const p = uniques[0]!;
-    return { phase: p, detail: null, bornes: [PHASES[p].ordre, PHASES[p].ordre] };
-  }
-  const ordres = uniques.map((p) => PHASES[p].ordre);
-  const bornes: [number, number] = [Math.min(...ordres), Math.max(...ordres)];
-  const ordreAffichage: Phase[] = ["prod", "fiches", "ecriture", "fini", "vide"];
-  const detail = ordreAffichage
-    .filter((p) => uniques.includes(p))
-    .map((p) => `${phases.filter((x) => x === p).length} ${PHASES[p].label.toLowerCase()}`)
-    .join(" · ");
-  return { phase: "mixte", detail, bornes };
-}

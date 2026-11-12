@@ -49,8 +49,8 @@ export type WorkflowJson = Record<string, NodeAPI>;
 /** Le modèle génère toujours à 24 i/s (infobulle de `length` sur le nœud 5 : « Frame count at 24 fps »). */
 export const FPS_GENERATION = 24;
 /** Limites de MiniMax H3 appliquées par Cadence : 6 images + vidéos, 3 audios (les nœuds en acceptent 9 / 3). */
-export const MAX_REFS_VISUELLES = 6;
-export const MAX_REFS_AUDIO = 3;
+const MAX_REFS_VISUELLES = 6;
+const MAX_REFS_AUDIO = 3;
 
 /** Entrée refusée AVANT toute soumission : réessayer ne changerait rien (le worker ne la rejoue pas). */
 export class ErreurEntreeInvalide extends Error {
@@ -106,7 +106,7 @@ export function verifierEntree(input: SubmissionInput): void {
 
 /** Câble la sortie finale (nœud 34) selon le mode : upscale (final à la résolution de base), final natif (au-delà) ou aperçu. Modifie `graphe` en place ;
  * exportée pour que le banc de mesure (scripts/banc-video.ts) branche ses variantes exactement comme le worker. */
-export function cablerSortie(graphe: WorkflowJson, activerUpscale: boolean, megapixels?: number): void {
+function cablerSortie(graphe: WorkflowJson, activerUpscale: boolean, megapixels?: number): void {
   // Toggle upscale (F04) : on rebranche la sortie finale sur la même
   // branche basse-résolution que l'aperçu (nœud 18) plutôt que de bypasser
   // un groupe — les nœuds d'upscale, non référencés, ne sont alors pas

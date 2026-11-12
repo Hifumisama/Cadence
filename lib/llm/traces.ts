@@ -2,7 +2,7 @@ import { db } from "../../db";
 import { agentTraces } from "../../db/schema";
 import type { MessageLlm } from "./types";
 
-export const STATUTS_TRACE = ["ok", "invalide", "echoue", "interrompu"] as const;
+const STATUTS_TRACE = ["ok", "invalide", "echoue", "interrompu"] as const;
 export type StatutTrace = (typeof STATUTS_TRACE)[number];
 
 /** Ce que `executerSkill` journalise : tout ce qu'il faut pour rejouer ou juger
