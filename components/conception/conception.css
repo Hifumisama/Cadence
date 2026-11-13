@@ -266,10 +266,6 @@
 .cn-aide-scene { font-family: var(--font-mono); font-size: 11.5px !important; color: var(--ink-3) !important; }
 .cn-aide-films { font-family: var(--font-mono); font-size: 12px !important; color: var(--ink-3) !important; }
 .cn-aide-films b { font-weight: 500; color: var(--or-glow); }
-.cn-aide-pied { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-.cn-aide-ouvrir { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 2px 0; color: var(--ink-2); font-size: 13px; text-decoration: underline; text-decoration-color: var(--or-soft); text-underline-offset: 3px; cursor: pointer; }
-.cn-aide-ouvrir i { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--or-soft); border-radius: 50%; font-style: normal; font-family: var(--font-mono); font-size: 12px; color: var(--or-glow); text-decoration: none; }
-.cn-aide-ouvrir:hover, .cn-aide-ouvrir:focus-visible { color: var(--or-glow); }
 .cn-pastilles { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .cn-pastille { font-family: var(--font-mono); font-size: 11.5px; padding: 3px 10px; border: 1px solid var(--line); color: var(--ink-3); }
 .cn-pastille::before { content: "✕ "; }

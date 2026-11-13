@@ -253,12 +253,6 @@
 }
 
 /* ---------- Voix et son : contenu des autres onglets ---------- */
-.fa .carte-onglet {
-  padding: 20px 22px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--surface);
-}
 
 /* ---------- Écrans étroits ---------- */
 @media (max-width: 980px) {
