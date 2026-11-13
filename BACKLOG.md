@@ -7,8 +7,8 @@ Ce qu'on décide ensemble. Mis à jour à chaque point d'étape. Risque : **faib
 - Ensuite, **supprimer la colonne `coche`** (devenue « appliqué par défaut », recalculable). Faible.
 
 ## Production : mise à niveau faite le 2026-11-13
-Migrations 0085 à 0087 et rangement des images d'assets par projet appliqués (procédure : un push sur `main` redémarre la prod via Watchtower, d'où l'arrêt préalable de Watchtower, puis `docker compose -f docker-compose.prod.yml` : stop, pg_dump, pull, `run --rm worker` pour migrer puis lancer `scripts/migrer-assets-par-projet.ts` à blanc puis `--appliquer`, enfin `up -d`).
-Reste à nettoyer quand tout est vérifié : le dossier `_sauvegarde_assets_<date>` et le fichier `cadence-avant-migration.sql` sur le mini PC, le script `scripts/migrer-assets-par-projet.ts`, facultatif `voix/` sur le NAS. Regénérer les assets repassés « sans image » (projets 208 et 210 en local).
+Migrations 0085 à 0087 et rangement des images d'assets par projet appliqués (un push sur `main` redémarre la prod via Watchtower : l'arrêter avant de pousser quand une migration de données est à faire à la main ; le script de rangement est dans l'historique git, `git log -- scripts/migrer-assets-par-projet.ts`).
+Nettoyage fait (sauvegardes du NAS supprimées, script retiré du dépôt). Reste : regénérer les assets repassés « sans image » (projets 208 et 210 en local).
 
 ## À faire, décidé
 - **Validation côté serveur (zod)** des server actions : en cours (branche menage/zod).
